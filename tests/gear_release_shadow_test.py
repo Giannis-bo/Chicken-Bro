@@ -4859,6 +4859,361 @@ class GearReleaseShadowTest(unittest.TestCase):
             )
         )
 
+    def test_projected_candidate_shadow_bootstraps_exactly_two_hero_winners_from_gear_only_manifest(self):
+        intents = {
+            hero_key: {
+                "schemaRevision": "selection-intent-v1",
+                "authoredAgainst": {
+                    "seasonRevision": "season-17",
+                    "gearCatalogRevision": "gear-release:candidate",
+                },
+                "eligibilityContext": {
+                    "classKey": "mage",
+                    "specKey": "frost",
+                    "level": 90,
+                },
+                "slots": {
+                    "head": {
+                        "itemId": f"item-{hero_key}",
+                        "variantKey": f"variant-{hero_key}",
+                        "gemOptionIds": [],
+                        "enchantOptionId": "",
+                        "embellishmentOptionId": "",
+                        "craftedOptionId": "",
+                        "catalystOptionId": "",
+                    },
+                },
+            }
+            for hero_key in ("frostfire", "spellslinger")
+        }
+        snapshots = {
+            hero_key: {
+                "status": "verified",
+                "resolvedGearSignature": f"resolved-{hero_key}",
+                "resolvedSlots": {
+                    "head": {
+                        "itemId": f"item-{hero_key}",
+                        "variantKey": f"variant-{hero_key}",
+                    },
+                },
+                "staticAttributes": {"intellect": 100},
+                "setState": {"itemSetCounts": {}, "activeDynamicEffects": []},
+                "constraints": {"slots": {"head": {"socketCount": 0}}},
+                "serializerInput": {"gearItems": []},
+                "aggregateLegality": {"status": "verified", "problemCodes": []},
+                "profileReadiness": {
+                    "status": "verified",
+                    "simcReady": True,
+                    "problems": [],
+                },
+                "problems": [],
+            }
+            for hero_key in intents
+        }
+        winners = []
+        public_templates = []
+        for rank, hero_key in enumerate(sorted(intents), start=1):
+            template_id = f"community-gear:mage:frost:{hero_key}:source"
+            winners.append({
+                "templateId": template_id,
+                "classKey": "mage",
+                "specKey": "frost",
+                "role": "winner",
+                "electionRank": rank,
+                "sourceKey": "raiderio_observed_profile",
+                "sourceUrl": f"https://raider.io/characters/example/{hero_key}",
+                "sampleCount": 1,
+                "profileHash": f"profile-{hero_key}",
+                "gearHash": f"gear-{hero_key}",
+                "selectionIntent": intents[hero_key],
+                "resolvedGearSignature": snapshots[hero_key][
+                    "resolvedGearSignature"
+                ],
+                "semanticGearSignature": gear_release.semantic_gear_signature(
+                    intents[hero_key],
+                    snapshots[hero_key],
+                ),
+                "problems": [],
+                "payload": {
+                    "id": template_id,
+                    "heroKey": hero_key,
+                    "gearSourceTemplateId": f"source-{hero_key}",
+                },
+            })
+            public_templates.append({
+                "id": template_id,
+                "classKey": "mage",
+                "specKey": "frost",
+                "heroKey": hero_key,
+                "sourceKey": "raiderio_observed_profile",
+            })
+
+        active = {
+            "formalActiveManifest": True,
+            "formalGearOnlyManifest": True,
+            "pointerGeneration": 24,
+            "manifestRevision": "season-manifest:active",
+            "gearRelease": {
+                "releaseId": "gear-release:active",
+                "dependencyRevisions": {
+                    "capabilityRevision": "gear-capability-matrix-v2",
+                },
+            },
+            "communityRelease": None,
+            "winners": [],
+        }
+
+        class ProjectedStore:
+            def __init__(self):
+                self.active_reads = 0
+
+            def get_candidate_community_release(self, gear_id, community_id):
+                return {
+                    "gearRelease": {
+                        "releaseId": gear_id,
+                        "releaseStatus": "validated",
+                        "dependencyRevisions": {
+                            "capabilityRevision": "gear-capability-matrix-v2",
+                        },
+                    },
+                    "communityRelease": {
+                        "releaseId": community_id,
+                        "releaseStatus": "validated",
+                        "schemaRevision": "community-release-v2",
+                        "validatedAgainstReleaseId": gear_id,
+                    },
+                    "winners": copy.deepcopy(winners),
+                }
+
+            def get_active_community_release(self):
+                self.active_reads += 1
+                return copy.deepcopy(active)
+
+            def get_websim_gear(self, class_key, spec_key, compact=False, mode="", slot=""):
+                return {
+                    "candidatePreview": True,
+                    "formalActiveManifest": False,
+                    "manifestRevision": "candidate-preview:exact",
+                    "gearCatalogReleaseId": "gear-release:candidate",
+                    "communityTemplateReleaseId": "community-release:candidate",
+                    "communityTemplates": copy.deepcopy(public_templates),
+                    "baselineTemplates": [],
+                }
+
+            def get_gear_resolver_context(self, _runtime_authority):
+                return {
+                    "candidatePreview": True,
+                    "formalActiveManifest": False,
+                    "manifestRevision": "candidate-preview:exact",
+                    "authoredAgainst": {
+                        "seasonRevision": "season-17",
+                        "gearCatalogRevision": "gear-release:candidate",
+                    },
+                }
+
+        store = ProjectedStore()
+
+        def resolve_candidate(intent, **_kwargs):
+            hero_key = intent["slots"]["head"]["itemId"].removeprefix("item-")
+            return 200, {
+                "status": "resolved",
+                "data": copy.deepcopy(snapshots[hero_key]),
+                "problems": [],
+            }
+
+        def import_template(request, **_kwargs):
+            hero_key = request["templateId"].split(":")[3]
+            return (
+                200,
+                {
+                    "status": "verified",
+                    "data": {
+                        "status": "verified",
+                        "resolvedSnapshot": copy.deepcopy(snapshots[hero_key]),
+                    },
+                    "problems": [],
+                },
+                {},
+            )
+
+        with patch.object(
+            gear_release_shadow.gear_runtime,
+            "resolve_candidate_selection_intent",
+            side_effect=resolve_candidate,
+        ) as candidate_resolve, patch.object(
+            gear_release_shadow.gear_runtime,
+            "import_community_template",
+            side_effect=import_template,
+        ) as community_import:
+            result = gear_release_shadow.run_release_shadow(
+                store,
+                expected_specs=[("mage", "frost")],
+                gear_release_id="gear-release:candidate",
+                community_release_id="community-release:candidate",
+                simc_runtime_revision="simc-r1",
+                compare_profiles=False,
+            )
+
+        self.assertEqual(result["status"], "pass", result)
+        self.assertEqual(result["baselineMode"], "formal_gear_only_candidate_preview")
+        self.assertTrue(result["candidatePreview"])
+        self.assertEqual(result["publicReadCount"], 1)
+        self.assertEqual(result["importReadCount"], 2)
+        self.assertEqual(result["report"]["candidateWinnerCount"], 2)
+        self.assertEqual(result["report"]["expectedHeroSlotCount"], 2)
+        self.assertEqual(len(result["specResults"]), 1)
+        self.assertEqual(len(result["specResults"][0]["heroSlotResults"]), 2)
+        self.assertEqual(store.active_reads, 2)
+        self.assertEqual(candidate_resolve.call_count, 2)
+        self.assertEqual(community_import.call_count, 2)
+
+    def test_projected_candidate_shadow_requires_exact_candidate_preview_binding(self):
+        pair = {
+            "gearRelease": {
+                "releaseId": "gear-release:candidate",
+                "releaseStatus": "validated",
+                "dependencyRevisions": {
+                    "capabilityRevision": "gear-capability-matrix-v2",
+                },
+            },
+            "communityRelease": {
+                "releaseId": "community-release:candidate",
+                "releaseStatus": "validated",
+                "schemaRevision": "community-release-v2",
+                "validatedAgainstReleaseId": "gear-release:candidate",
+            },
+            "winners": [],
+        }
+        active = {
+            "formalActiveManifest": True,
+            "formalGearOnlyManifest": True,
+            "pointerGeneration": 24,
+            "manifestRevision": "season-manifest:active",
+            "gearRelease": {"releaseId": "gear-release:active"},
+            "communityRelease": None,
+            "winners": [],
+        }
+
+        class Store:
+            def get_candidate_community_release(self, *_args):
+                return copy.deepcopy(pair)
+
+            def get_active_community_release(self):
+                return copy.deepcopy(active)
+
+            def get_websim_gear(self, *_args, **_kwargs):
+                return {
+                    "candidatePreview": False,
+                    "formalActiveManifest": True,
+                    "communityTemplates": [],
+                    "baselineTemplates": [],
+                }
+
+            def get_gear_resolver_context(self, *_args, **_kwargs):
+                return {"candidatePreview": False, "formalActiveManifest": True}
+
+        result = gear_release_shadow.run_release_shadow(
+            Store(),
+            expected_specs=[("mage", "frost")],
+            gear_release_id="gear-release:candidate",
+            community_release_id="community-release:candidate",
+            simc_runtime_revision="simc-r1",
+            compare_profiles=False,
+        )
+
+        self.assertEqual(result["status"], "blocked")
+        self.assertIn(
+            "CANDIDATE_PREVIEW_BINDING_REQUIRED",
+            {problem["code"] for problem in result["blockers"]},
+        )
+
+    def test_projected_semantic_change_requires_verified_exact_progression_correction(self):
+        active = {
+            "templateId": "active-template",
+            "classKey": "druid",
+            "specKey": "restoration",
+            "sourceKey": "raiderio_observed_profile",
+            "payload": {"heroKey": "wildstalker"},
+        }
+        candidate = {
+            **active,
+            "templateId": "candidate-template",
+        }
+
+        class Store:
+            def validate_projected_winner_exact_progression_correction(
+                self,
+                active_winner,
+                candidate_winner,
+                gear_release_id,
+            ):
+                self.call = (
+                    active_winner,
+                    candidate_winner,
+                    gear_release_id,
+                )
+                return {
+                    "schemaRevision": "community-exact-progression-correction-v1",
+                    "status": "verified",
+                    "gearReleaseId": gear_release_id,
+                    "activeProblemCodes": [
+                        "TRACK_AUTHORITY_EXACT_TRACK_EVIDENCE_MISSING",
+                    ],
+                    "candidateProblemCodes": [],
+                    "problemCodes": [],
+                }
+
+        store = Store()
+        correction = gear_release_shadow._verified_exact_progression_correction(
+            store,
+            active,
+            candidate,
+            "gear-release:exact",
+        )
+
+        self.assertEqual(
+            correction,
+            {
+                "classKey": "druid",
+                "specKey": "restoration",
+                "heroKey": "wildstalker",
+                "activeTemplateId": "active-template",
+                "candidateTemplateId": "candidate-template",
+                "activeProblemCodes": [
+                    "TRACK_AUTHORITY_EXACT_TRACK_EVIDENCE_MISSING",
+                ],
+                "candidateProblemCodes": [],
+                "status": "verified",
+            },
+        )
+        self.assertEqual(
+            store.call,
+            (active, candidate, "gear-release:exact"),
+        )
+
+        class ForgedStore(Store):
+            def validate_projected_winner_exact_progression_correction(
+                self,
+                *_args,
+            ):
+                return {
+                    "schemaRevision": "community-exact-progression-correction-v1",
+                    "status": "verified",
+                    "gearReleaseId": "gear-release:exact",
+                    "activeProblemCodes": ["UNRELATED_PROBLEM"],
+                    "candidateProblemCodes": [],
+                    "problemCodes": [],
+                }
+
+        self.assertIsNone(
+            gear_release_shadow._verified_exact_progression_correction(
+                ForgedStore(),
+                active,
+                candidate,
+                "gear-release:exact",
+            )
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -20548,7 +20548,18 @@ class WebSimPayloadTest(unittest.TestCase):
         finally:
             conn.close()
 
-        payload = self.get_backend_json("/api/websim/talents/import?class=mage&spec=frost&hero=spellslinger")
+        with patch.object(
+            self.websim_payload,
+            "decode_external_talent_import_code",
+            return_value={
+                "status": "decoded",
+                "classKey": "mage",
+                "specKey": "frost",
+                "heroKey": "spellslinger",
+                "errors": [],
+            },
+        ):
+            payload = self.get_backend_json("/api/websim/talents/import?class=mage&spec=frost&hero=spellslinger")
 
         self.assertEqual(payload["classKey"], "mage")
         self.assertEqual(payload["specKey"], "frost")
@@ -20559,6 +20570,46 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(payload["status"], "verified")
         self.assertNotIn("nodes", payload)
         self.assertNotIn("communityTemplates", payload)
+
+    def test_websim_talent_import_blocks_mismatched_raw_specialization(self):
+        template = {
+            "id": "mismatched-import",
+            "classKey": "evoker",
+            "specKey": "devastation",
+            "heroKey": "flameshaper",
+            "rawImportCode": "MISMATCHED_RAW_IMPORT",
+            "sourceKey": "raiderio",
+            "sourceName": "Raider.IO",
+            "status": "verified",
+            "canUseInSimc": True,
+        }
+
+        with patch.object(
+            self.websim_payload,
+            "decode_external_talent_import_code",
+            return_value={
+                "status": "failed",
+                "classKey": "evoker",
+                "specKey": "augmentation",
+                "heroKey": "scalecommander",
+                "errors": [
+                    "talent import spec mismatch: expected devastation, got augmentation"
+                ],
+            },
+        ):
+            payload = self.websim_payload.websim_talent_import_response(
+                "evoker",
+                "devastation",
+                "flameshaper",
+                template=template,
+            )
+
+        self.assertEqual(payload["status"], "blocked")
+        self.assertEqual(payload["importCode"], "")
+        self.assertEqual(
+            payload["blockers"],
+            ["community talent import does not match the requested specialization and hero tree"],
+        )
 
     def test_http_websim_talent_import_blocks_missing_requested_hero_template(self):
         conn = sqlite3.connect(self.db_path)
@@ -24877,6 +24928,37 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertIn("gem_id=gem-haste", result["profile"])
         self.assertNotIn("forged", result["profile"])
         self.assertEqual(result["profileReadiness"], snapshot["profileReadiness"])
+
+    def test_resolved_snapshot_facade_uses_server_talent_authority_for_websim_codes(self):
+        parity, snapshot = self.resolved_snapshot_for_facade()
+        talent_store = object()
+        encoding = {
+            "status": "encoded",
+            "source": "postgres",
+            "lines": ["class_talents=100:1", "spec_talents=200:1"],
+            "errors": [],
+            "warnings": [],
+        }
+
+        with patch.object(
+            self.websim_payload,
+            "encode_websim_talents",
+            return_value=encoding,
+        ) as encoder:
+            result = self.websim_payload.build_websim_profile_response_from_resolved_snapshot(
+                snapshot,
+                {
+                    **parity["sourceContext"],
+                    "talents": "websim:warrior:fury::node-a:1,node-b:1",
+                },
+                talent_store=talent_store,
+            )
+
+        self.assertEqual(result["status"], "resolved")
+        self.assertTrue(result["profileReadiness"]["simcReady"])
+        self.assertIn("class_talents=100:1", result["profile"])
+        self.assertIn("spec_talents=200:1", result["profile"])
+        self.assertIs(encoder.call_args.args[0], talent_store)
 
     def test_midnight_mage_resolved_profile_keeps_complete_canonical_8_6_2_enhancements(self):
         from server import gear_resolver

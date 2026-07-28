@@ -55,6 +55,7 @@ try:
         warcraftlogs_credentials_state,
     )
     from .simc_preparation import simc_preparation_options_payload, simc_preparation_payload, simc_preparation_report
+    from .simc_support_policy import simc_execution_policy_summary, simc_execution_support
     try:
         from .codex_worker import run_codex_job
     except ImportError:
@@ -168,6 +169,7 @@ except ImportError:
         warcraftlogs_credentials_state,
     )
     from simc_preparation import simc_preparation_options_payload, simc_preparation_payload, simc_preparation_report
+    from simc_support_policy import simc_execution_policy_summary, simc_execution_support
     try:
         from codex_worker import run_codex_job
     except ImportError:
@@ -4328,6 +4330,7 @@ def build_simc_options_payload():
     return {
         "contractRevision": SIMCRAFT_OPTIONS_CONTRACT_REVISION,
         "status": "ready",
+        "specializationPolicy": simc_execution_policy_summary(),
         "races": {
             "status": "supported",
             "defaultKey": "troll",
@@ -4361,6 +4364,24 @@ def simcraft_template_problem(code, title, *, kind="INVALID_INTENT", path="", re
     }
 
 
+def simcraft_execution_support_problem(class_key, spec_key, *, path="specKey"):
+    policy = simc_execution_support(class_key, spec_key)
+    if policy.get("supported"):
+        return None
+    return simcraft_template_problem(
+        policy.get("code") or "SIMC_SPECIALIZATION_UNSUPPORTED",
+        policy.get("message") or "This specialization is not supported for formal SimC execution.",
+        kind="UNSUPPORTED_SPECIALIZATION",
+        path=path,
+    ) | {
+        "meta": {
+            "contractRevision": policy.get("contractRevision"),
+            "specializationId": policy.get("specializationId"),
+            "role": policy.get("role"),
+        }
+    }
+
+
 def simcraft_template_canonical_context_present(source):
     request = source if isinstance(source, dict) else {}
     return "selectionIntent" in request or "profileContext" in request
@@ -4379,6 +4400,19 @@ def simcraft_template_canonical_context_problems(source):
                 path="selectionIntent",
             )
         )
+    else:
+        eligibility = intent.get("eligibilityContext")
+        eligibility = eligibility if isinstance(eligibility, dict) else {}
+        class_key = clean_text(eligibility.get("classKey"), 64)
+        spec_key = clean_text(eligibility.get("specKey"), 64)
+        if class_key and spec_key:
+            support_problem = simcraft_execution_support_problem(
+                class_key,
+                spec_key,
+                path="selectionIntent.eligibilityContext.specKey",
+            )
+            if support_problem:
+                problems.append(support_problem)
     if not isinstance(context, dict):
         problems.append(
             simcraft_template_problem(
@@ -4806,15 +4840,22 @@ def prepare_canonical_simcraft_template_request(request_payload):
     canonical_stat_context = {}
     canonical_stat_snapshot = {}
 
-    def canonical_profile_builder(resolved_snapshot, *, source_context=None):
+    def canonical_profile_builder(
+        resolved_snapshot,
+        *,
+        source_context=None,
+        talent_store=None,
+    ):
         standard_profile = build_websim_profile_response_from_resolved_snapshot(
             resolved_snapshot,
             source_context=source_context,
+            talent_store=talent_store,
         )
         stat_profile = build_websim_profile_response_from_resolved_snapshot(
             resolved_snapshot,
             source_context=source_context,
             execution_flavor=WEBSIM_EXECUTION_FLAVOR_STAT_SNAPSHOT_V1,
+            talent_store=talent_store,
         )
         canonical_stat_context["resolvedSnapshot"] = resolved_snapshot
         canonical_stat_context["statProfile"] = stat_profile
@@ -5023,6 +5064,11 @@ def prepare_simcraft_template_request(request_payload):
     race_name = clean_text(source.get("raceName"), 80)
     source_validation = source.get("templateValidation") if isinstance(source.get("templateValidation"), dict) else {}
     errors = []
+    problems = [
+        problem
+        for problem in (source_validation.get("problems") or [])
+        if isinstance(problem, dict)
+    ]
     errors.extend([str(item) for item in source_validation.get("errors") or [] if str(item or "").strip()])
     if scenario_key not in SIMCRAFT_TEMPLATE_SCENARIOS:
         errors.append(f"unsupported scenario: {scenario_key}")
@@ -5046,6 +5092,16 @@ def prepare_simcraft_template_request(request_payload):
         errors.append("template class/spec mismatch")
     if gear_template["status"] not in SIMCRAFT_TEMPLATE_READY_GEAR_STATUSES:
         errors.append("gear template must be complete")
+    support_problem = None
+    if talent_template["classKey"] and talent_template["specKey"]:
+        support_problem = simcraft_execution_support_problem(
+            talent_template["classKey"],
+            talent_template["specKey"],
+            path="templateContext.talent.specKey",
+        )
+        if support_problem:
+            problems.append(support_problem)
+            errors.append(support_problem["title"])
 
     if postgres_only_runtime_enabled():
         talent_context, talent_errors = simcraft_template_talent_context(None, talent_template)
@@ -5075,7 +5131,7 @@ def prepare_simcraft_template_request(request_payload):
         scenario_key,
     )
     errors.extend(compatibility_errors)
-    if not compatibility_errors and not simcraft_template_has_verified_stat_snapshot(source, gear_template):
+    if not support_problem and not compatibility_errors and not simcraft_template_has_verified_stat_snapshot(source, gear_template):
         errors.append(SIMCRAFT_TEMPLATE_STAT_SNAPSHOT_REQUIRED_ERROR)
 
     scenario = SIMCRAFT_TEMPLATE_SCENARIOS.get(scenario_key) or SIMCRAFT_TEMPLATE_SCENARIOS["single"]
@@ -5150,6 +5206,7 @@ def prepare_simcraft_template_request(request_payload):
             "passed": not errors,
             "errors": errors,
             "warnings": [],
+            "problems": problems,
             "requiredGearSlots": SIMCRAFT_TEMPLATE_REQUIRED_GEAR_SLOTS,
             "parsedGearSlots": [item.get("slot", "") for item in simc_items],
         },
@@ -13018,15 +13075,43 @@ def websim_submission_blockers(request_payload):
     full_ready = bool(readiness.get("fullReady"))
     simc_items = gear.get("simcItems") if isinstance(gear.get("simcItems"), list) else []
     blockers = []
+    class_key = str(
+        request_payload.get("classKey")
+        or build_context.get("classKey")
+        or build_context.get("className")
+        or ""
+    ).strip()
+    spec_key = str(
+        request_payload.get("specKey")
+        or build_context.get("specKey")
+        or build_context.get("specName")
+        or ""
+    ).strip()
+    if class_key and spec_key:
+        execution_support = simc_execution_support(class_key, spec_key)
+        if not execution_support.get("supported"):
+            blockers.append(
+                {
+                    "key": "specialization",
+                    "code": execution_support.get("code") or "SIMC_SPECIALIZATION_UNSUPPORTED",
+                    "summary": execution_support.get("message")
+                    or "This specialization is not supported for formal SimC execution.",
+                    "contractRevision": execution_support.get("contractRevision"),
+                    "specializationId": execution_support.get("specializationId"),
+                    "role": execution_support.get("role"),
+                }
+            )
     if not has_talents:
         blockers.append({
             "key": "talents",
+            "code": "SIMC_TALENTS_REQUIRED",
             "summary": "WebSim needs a talent import code or server-encoded SimC talent lines before submission.",
         })
     if not full_ready or ready_count < 1 or not simc_items:
         missing_text = f" Missing core slots: {', '.join(str(slot) for slot in missing_core_slots)}." if missing_core_slots else ""
         blockers.append({
             "key": "gear",
+            "code": "SIMC_GEAR_NOT_READY",
             "summary": "WebSim needs a complete core SimC-ready gear set before submission." + missing_text,
         })
     return blockers
@@ -13036,12 +13121,32 @@ def websim_submission_blocked_response(request_payload, blockers):
     blocker_list = blockers or [{"key": "request", "summary": "WebSim submission is not ready."}]
     missing_slots = [str(item.get("key") or "request") for item in blocker_list]
     summary = "; ".join(str(item.get("summary") or item.get("key") or "WebSim submission is not ready.") for item in blocker_list)
+    problems = [
+        {
+            "kind": "UNSUPPORTED_SPECIALIZATION"
+            if item.get("code") == "SIMC_SPECIALIZATION_UNSUPPORTED"
+            else "INVALID_INTENT",
+            "code": str(item.get("code") or "SIMC_SUBMISSION_BLOCKED"),
+            "title": str(item.get("summary") or "WebSim submission is blocked."),
+            "detail": "",
+            "path": str(item.get("key") or "request"),
+            "retryable": False,
+            "meta": {
+                key: item.get(key)
+                for key in ("contractRevision", "specializationId", "role")
+                if item.get(key) not in (None, "")
+            },
+        }
+        for item in blocker_list
+        if isinstance(item, dict)
+    ]
     return {
         "mode": "simcraft_agent",
         "status": "blocked",
         "createdAt": utc_now(),
         "request": request_payload,
         "talentEncoding": request_payload.get("talentEncoding") if isinstance(request_payload, dict) else {},
+        "problems": problems,
         "agent": {
             "status": "needs_clarification",
             "missingSlots": missing_slots,
@@ -13049,7 +13154,12 @@ def websim_submission_blocked_response(request_payload, blockers):
             "question": summary,
             "quickReplies": [],
             "draftProfile": "",
-            "validation": {"passed": False, "errors": missing_slots, "warnings": []},
+            "validation": {
+                "passed": False,
+                "errors": missing_slots,
+                "warnings": [],
+                "problems": problems,
+            },
             "canSubmitTask": False,
         },
         "stages": [
@@ -13065,7 +13175,7 @@ def websim_submission_blocked_response(request_payload, blockers):
                 "title": "SimC execution",
                 "status": "skipped",
                 "executor": "simcraft",
-                "summary": "SimC was not started because WebSim gear or talents are not ready.",
+                "summary": "SimC was not started because backend request validation is blocked.",
                 "metric": "",
             },
         ],

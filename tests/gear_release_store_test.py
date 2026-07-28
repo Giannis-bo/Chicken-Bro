@@ -1,5 +1,8 @@
 import copy
+import hashlib
+import json
 import unittest
+from unittest.mock import patch
 
 from server import gear_release, gear_socket_authority
 
@@ -12,6 +15,8 @@ class FakeCursor:
         self.statements = []
         self.params = []
         self.executemany_calls = []
+        self.fetchall_calls = 0
+        self.fetchmany_calls = 0
         self.rowcount = 1
 
     def __enter__(self):
@@ -52,8 +57,15 @@ class FakeCursor:
         return self.current_rows.pop(0) if self.current_rows else None
 
     def fetchall(self):
+        self.fetchall_calls += 1
         rows = list(self.current_rows)
         self.current_rows = []
+        return rows
+
+    def fetchmany(self, size=1):
+        self.fetchmany_calls += 1
+        rows = self.current_rows[:size]
+        self.current_rows = self.current_rows[size:]
         return rows
 
 
@@ -329,6 +341,107 @@ class GearReleaseStoreTest(unittest.TestCase):
         self.assertEqual(snapshot["options"][0]["optionKey"], "gem-a")
         self.assertTrue(conn.committed)
 
+    def test_snapshot_gear_release_reads_one_exact_immutable_release(self):
+        from server.gear_release_store import GearReleaseStore
+
+        conn = FakeConnection(rowsets={
+            "FROM cache.websim_gear_release_items": [
+                ("item-a", "Item A", "head", 289, {"x": 1}, "verified", "2026-07-11T05:00:00+00:00")
+            ],
+            "FROM cache.websim_gear_release_sources": [
+                ("source-a", "item-a", "observed_profile", "profile:a", "Observed", "", "", "mythic", "season-17", {"status": "verified"}, "2026-07-11T05:00:00+00:00")
+            ],
+            "FROM cache.websim_gear_release_variants": [
+                ("variant-a-id", "item-a", "variant-a", "head", "289", "observed_profile", "mythic", 289, {"ilevel": "289"}, "verified", [], {"resolvedStats": {"intellect": 100}}, "2026-07-11T05:00:00+00:00")
+            ],
+            "FROM cache.websim_gear_release_mod_options": [
+                ("option-a-id", "variant-a-id", "gem-a", "gem", "Gem A", ["head"], {"gem_id": "1"}, "verified", True, {"itemStats": []}, "2026-07-11T05:00:00+00:00")
+            ],
+        })
+
+        snapshot = GearReleaseStore(lambda: conn).snapshot_gear_release(
+            "gear-release:exact"
+        )
+
+        sql = "\n".join(conn.cursor_instance.statements)
+        self.assertIn("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY", sql)
+        self.assertNotIn("FROM cache.websim_items ", sql)
+        self.assertEqual(snapshot["items"][0]["itemId"], "item-a")
+        self.assertEqual(snapshot["variants"][0]["variantKey"], "variant-a")
+        self.assertEqual(
+            conn.cursor_instance.params[1:],
+            [
+                ("gear-release:exact",),
+                ("gear-release:exact",),
+                ("gear-release:exact",),
+                ("gear-release:exact",),
+            ],
+        )
+
+    def test_community_builder_projection_keeps_exact_rows_and_bounds_sources_payloads(self):
+        from server.gear_release_store import (
+            CandidateGearAuthorityIndex,
+            GearReleaseIntegrityError,
+            GearReleaseStore,
+        )
+
+        snapshot = self.snapshot()
+        release = self.gear_release(snapshot)
+        existing_row = (
+            release["releaseId"],
+            release["releaseKind"],
+            release["seasonRevision"],
+            release["schemaRevision"],
+            release["contentHash"],
+            release["parentReleaseId"] or None,
+            release["validatedAgainstReleaseId"] or None,
+            release["releaseStatus"],
+            release["dependencyRevisions"],
+            {},
+            release["source"],
+            release["content"],
+        )
+        conn = FakeConnection(rowsets={
+            "FROM cache.websim_release_registry": [existing_row],
+            "FROM cache.websim_gear_release_items": [
+                ("item-a", "Item A", "head", 289, snapshot["items"][0]["payload"], "verified", "2026-07-11T05:00:00+00:00")
+            ],
+            "FROM cache.websim_gear_release_sources": [
+                ("source-a", "item-a", "observed_profile", "profile:a", "Observed", "", "", "mythic", "season-17", {"status": "verified"}, "2026-07-11T05:00:00+00:00")
+            ],
+            "FROM cache.websim_gear_release_variants": [
+                ("variant-a-id", "item-a", "variant-a", "head", "289", "observed_profile", "mythic", 289, {"ilevel": "289"}, "verified", [], snapshot["variants"][0]["payload"], "2026-07-11T05:00:00+00:00")
+            ],
+            "FROM cache.websim_gear_release_mod_options": [
+                ("option-a-id", "variant-a-id", "gem-a", "gem", "Gem A", ["head"], {"gem_id": "1"}, "verified", True, snapshot["options"][0]["payload"], "2026-07-11T05:00:00+00:00")
+            ],
+        })
+
+        projected = GearReleaseStore(
+            lambda: conn
+        ).snapshot_gear_release_for_community_builder(release["releaseId"])
+        sql = "\n".join(conn.cursor_instance.statements)
+        prepared = CandidateGearAuthorityIndex(projected, release)
+
+        self.assertIn("SELECT DISTINCT ON (", sql)
+        self.assertIn("candidate.item_id, candidate.source_type", sql)
+        self.assertIn("jsonb_strip_nulls", sql)
+        self.assertGreaterEqual(conn.cursor_instance.fetchmany_calls, 4)
+        self.assertEqual(conn.cursor_instance.fetchall_calls, 0)
+        self.assertEqual(
+            projected["_releaseProjection"]["releaseId"],
+            release["releaseId"],
+        )
+        self.assertIs(
+            prepared.variants_by_item["item-a"][0],
+            projected["variants"][0],
+        )
+
+        mismatched = copy.deepcopy(projected)
+        mismatched["_releaseProjection"]["releaseId"] = "gear-release:other"
+        with self.assertRaises(GearReleaseIntegrityError):
+            CandidateGearAuthorityIndex(mismatched, release)
+
     def test_candidate_authority_context_uses_exact_sealed_snapshot_and_release_id(self):
         from server.gear_release_store import build_candidate_authority_context
         from server.websim_payload import gear_resolver_runtime_authority
@@ -365,6 +478,81 @@ class GearReleaseStoreTest(unittest.TestCase):
         self.assertEqual(context["manifest"]["gearCatalogRevision"], release["releaseId"])
         self.assertEqual(context["manifest"]["manifestType"], "candidate")
         self.assertFalse(context["manifest"]["formalActiveManifest"])
+
+    def test_gear_snapshot_summary_streams_the_legacy_exact_hash_without_canonical_copies(self):
+        from server import gear_release_store
+
+        snapshot = self.snapshot()
+        snapshot["variants"].append({
+            **copy.deepcopy(snapshot["variants"][0]),
+            "variantId": "variant-b-id",
+            "variantKey": "variant-b",
+            "payload": {
+                "nested": {"z": 1, "a": [3, 2, 1]},
+                "resolvedStats": {"haste": 90},
+            },
+        })
+        snapshot["variants"].reverse()
+
+        def canonical(value):
+            return json.loads(json.dumps(
+                value,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+                default=str,
+            ))
+
+        def canonical_bytes(value):
+            return json.dumps(
+                value,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+                default=str,
+            ).encode("utf-8")
+
+        legacy = {
+            key: sorted(
+                [
+                    canonical(row)
+                    for row in snapshot[key]
+                    if isinstance(row, dict)
+                ],
+                key=canonical_bytes,
+            )
+            for key in ("items", "sources", "variants", "options")
+        }
+        expected_hash = "sha256:" + hashlib.sha256(
+            canonical_bytes(legacy)
+        ).hexdigest()
+
+        with patch.object(
+            gear_release_store,
+            "_canonical_rows",
+            side_effect=AssertionError("summary must not deep-copy the snapshot"),
+        ):
+            summary = gear_release_store.gear_snapshot_summary(snapshot)
+
+        self.assertEqual(summary["snapshotHash"], expected_hash)
+        self.assertEqual(summary["counts"]["variants"], 2)
+
+    def test_candidate_authority_index_reuses_validated_snapshot_rows(self):
+        from server.gear_release_store import CandidateGearAuthorityIndex
+
+        snapshot = self.snapshot()
+        release = self.gear_release(snapshot)
+        prepared = CandidateGearAuthorityIndex(snapshot, release)
+
+        self.assertIs(prepared.items["item-a"], snapshot["items"][0])
+        self.assertIs(
+            prepared.variants_by_item["item-a"][0],
+            snapshot["variants"][0],
+        )
+        self.assertIs(
+            prepared.options_by_key["gem-a"],
+            snapshot["options"][0],
+        )
 
     def test_prepared_candidate_authority_indexes_full_snapshot_only_once(self):
         from unittest.mock import patch
@@ -462,6 +650,8 @@ class GearReleaseStoreTest(unittest.TestCase):
         self.assertNotIn("LIMIT 400", sql)
         self.assertEqual(conn.cursor_instance.params[-1][0], ["mage"])
         self.assertEqual(conn.cursor_instance.params[-1][1], ["arcane"])
+        self.assertGreaterEqual(conn.cursor_instance.fetchmany_calls, 1)
+        self.assertEqual(conn.cursor_instance.fetchall_calls, 0)
         self.assertEqual(rows[0]["templateId"], "template-a")
         self.assertEqual(rows[0]["gearItems"][0]["variantKey"], "variant-a")
         self.assertEqual(rows[0]["payload"]["profileHash"], "profile:a")
@@ -594,6 +784,38 @@ class GearReleaseStoreTest(unittest.TestCase):
         self.assertNotIn(" DELETE FROM cache.websim_release", sql)
         self.assertTrue(conn.committed)
         self.assertFalse(conn.rolled_back)
+
+    def test_insert_gear_rows_bounds_each_executemany_batch(self):
+        from server.gear_release_store import GearReleaseStore
+
+        snapshot = {
+            "items": [
+                {
+                    "itemId": f"item-{index:04d}",
+                    "name": f"Item {index}",
+                    "slot": "head",
+                    "itemLevel": 289,
+                    "sourceStatus": "verified",
+                    "payload": {"itemStats": [{"key": "stamina", "value": index + 1}]},
+                    "updatedAt": "2026-07-28T12:00:00+00:00",
+                }
+                for index in range(501)
+            ],
+            "sources": [],
+            "variants": [],
+            "options": [],
+        }
+        cursor = FakeCursor()
+
+        GearReleaseStore._insert_gear_rows(cursor, "gear-release:test", snapshot)
+
+        item_batches = [
+            values
+            for statement, values in cursor.executemany_calls
+            if "INSERT INTO cache.websim_gear_release_items" in statement
+        ]
+        self.assertEqual([len(values) for values in item_batches], [250, 250, 1])
+        self.assertTrue(all(len(values) <= 250 for values in item_batches))
 
     def test_seal_release_is_idempotent_only_for_exact_existing_descriptor(self):
         from server.gear_release_store import GearReleaseIntegrityError, GearReleaseStore

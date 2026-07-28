@@ -43,6 +43,11 @@ except ImportError:
     from simc_preparation import apply_simc_preparation_lines, simc_preparation_payload, simc_preparation_report
 
 try:
+    from .simc_support_policy import simc_execution_support
+except ImportError:
+    from simc_support_policy import simc_execution_support
+
+try:
     from . import community_winner_projection, gear_public_contract, gear_socket_authority
 except ImportError:
     import community_winner_projection
@@ -14178,19 +14183,38 @@ def websim_talent_import_response(class_key, spec_key, hero_key="", template=Non
     if isinstance(template, dict):
         import_code = str(template.get("rawImportCode") or template.get("importCode") or template.get("talentImport") or "").strip()
         if import_code and template.get("canUseInSimc") is not False and template.get("status") != "blocked":
-            return {
-                "schemaRevision": "websim-talent-import-v1",
-                "classKey": class_key,
-                "specKey": spec_key,
-                "heroKey": hero_key,
-                "importCode": import_code,
-                "source": "community_template",
-                "sourceKey": template.get("sourceKey") or "",
-                "sourceName": template.get("sourceName") or "",
-                "templateId": str(template.get("id") or ""),
-                "status": "verified",
-                "blockers": [],
-            }
+            try:
+                decoded = decode_external_talent_import_code(
+                    import_code,
+                    class_key,
+                    spec_key,
+                )
+            except Exception:
+                decoded = {}
+            decoded_hero = slugify(decoded.get("heroKey"), "") if isinstance(decoded, dict) else ""
+            if (
+                isinstance(decoded, dict)
+                and decoded.get("status") == "decoded"
+                and slugify(decoded.get("classKey"), "") == class_key
+                and slugify(decoded.get("specKey"), "") == spec_key
+                and decoded_hero == hero_key
+            ):
+                return {
+                    "schemaRevision": "websim-talent-import-v1",
+                    "classKey": class_key,
+                    "specKey": spec_key,
+                    "heroKey": hero_key,
+                    "importCode": import_code,
+                    "source": "community_template",
+                    "sourceKey": template.get("sourceKey") or "",
+                    "sourceName": template.get("sourceName") or "",
+                    "templateId": str(template.get("id") or ""),
+                    "status": "verified",
+                    "blockers": [],
+                }
+            blockers = [
+                "community talent import does not match the requested specialization and hero tree"
+            ]
     return {
         "schemaRevision": "websim-talent-import-v1",
         "classKey": class_key,
@@ -26658,6 +26682,7 @@ def build_websim_profile_response_from_resolved_snapshot(
     resolved_snapshot,
     source_context=None,
     execution_flavor=WEBSIM_EXECUTION_FLAVOR_STANDARD_PROFILE,
+    talent_store=None,
 ):
     """Serialize one verified canonical snapshot through the dormant legacy adapter."""
 
@@ -26763,6 +26788,7 @@ def build_websim_profile_response_from_resolved_snapshot(
         source,
         conn=None,
         execution_flavor=execution_flavor,
+        talent_store=talent_store,
     )
     response.update(
         {
@@ -27068,6 +27094,9 @@ def build_websim_simulator_request(payload, guest_id="", conn=None):
     message = f"WebSim {class_key} {spec_key} {scenario.get('fightStyle') or ''} gear simulation"
     request = {
         "mode": "simcraft_agent",
+        "classKey": class_key,
+        "specKey": spec_key,
+        "simcExecutionSupport": simc_execution_support(class_key, spec_key),
         "message": message,
         "prompt": message,
         "question": "WebSim gear and talent simulation",

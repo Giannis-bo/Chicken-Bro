@@ -1,0 +1,127 @@
+{
+  "schemaVersion": 1,
+  "slug": "equipment-simulator-phase0-unblock",
+  "classification": "Strict",
+  "status": "implementation_allowed",
+  "goal": "Clear every independent equipment-simulator Phase 0 blocker by repairing all 11 eligible instance-1305 combat items across four levels, deterministically excluding the one non-combat cosmetic source row, restoring a 40-specialization Community Release bound to the current Gear Release lineage, bounding the builder, classifying runtime tooling callers, and producing a fresh mechanical Phase 1 decision.",
+  "userValue": "Players can browse and save current-season PVE equipment for all 40 specializations, import a current community template, and hand a saved legal loadout to the existing SimC flow without guessed variants or hidden partial data.",
+  "nonGoals": [
+    "Do not introduce the target Catalog schema, CatalogRevision API, SimulationSnapshot contract or a new frontend entry in this task.",
+    "Do not mutate sealed Gear or Community Release rows or derive static stats by scaling, copying another difficulty, parsing labels or inventing bonus IDs.",
+    "Do not change the existing 26-supported and 14-deterministically-unsupported SimC execution policy.",
+    "Do not call operational scripts tests/docs merely to clear the unresolved caller gate."
+  ],
+  "currentTruth": {
+    "sources": [
+      "docs/project-state.json",
+      "docs/roadmap.md",
+      "docs/plans/README.md",
+      "docs/plans/2026-07-28-equipment-simulator-target-architecture.md",
+      "docs/plans/2026-07-28-equipment-simulator-phase0-unblock.md",
+      "docs/plans/2026-07-28-equipment-simulator-catalog-migration-phase0-implementation.md",
+      "artifacts/releases/2026-07-28-equipment-simulator-track-authority-correction/runtime-readonly-audit.json",
+      "artifacts/releases/2026-07-28-equipment-simulator-track-authority-correction/phase1-decision.json",
+      "docs/gear-simulation-full-chain-runbook.md",
+      "docs/simulator-simc-end-to-end.md",
+      "docs/harness.md",
+      "docs/verification-matrix.md"
+    ],
+    "databaseRuntime": "postgres_only",
+    "activePointerGeneration": 24,
+    "activeGearReleaseId": "gear-release:sha256:de40793805a84934497c645be2ccc914ef44191744cc76d03f765001bc6dfe6a",
+    "activeCommunityReleaseId": "",
+    "allowedNextPlan": "none",
+    "baseCommit": "d99b97044c5c16c1d492b8883b0194752b022bbd"
+  },
+  "impactMap": {
+    "mustChange": [
+      "Classify scripts that consume gear/catalog contracts as explicit runtimeTooling callers and keep them in the migration inventory.",
+      "Reuse one immutable item/variant/option projection index across Community candidates instead of rebuilding it for every template.",
+      "Add a bounded no-write Community builder resource probe with measured peak RSS, elapsed time, temporary bytes, pointer stability and zero writes.",
+      "Refresh the configured server-side SimC runtime, prove 44/44 exact staging stats for the 11 eligible instance-1305 combat items across four legal progression levels, and exclude the one official Cosmetic item from the Gear Release.",
+      "Seal and shadow an inactive Gear/Community pair, then CAS-promote only after all data, resource, compatibility and rollback gates pass.",
+      "Rerun the aggregate Phase 0 audit and mechanical decision using exact committed tools."
+    ],
+    "mustNotChange": [
+      "The equipment-simulator entry remains class-specialization equipment building or community import, save, then existing SimC execution.",
+      "Existing Resolver, serializer and SimC task/result kernels remain authoritative.",
+      "No partial release, missing static attribute or over-budget builder may be promoted.",
+      "Unrelated Taro reconstruction and other roadmap work remain untouched."
+    ],
+    "riskUnknown": [
+      "Any eligible combat-item pair that the configured SimC revision cannot resolve must remain blocked; the official Cosmetic row must be excluded rather than assigned inferred stats.",
+      "The optimized 40-spec Community prepare must be measured under hard process bounds before a release build is allowed.",
+      "Candidate promotion changes public Community template availability and therefore requires candidate smoke, rollback proof and explicit real WeChat acceptance."
+    ],
+    "evidenceRequired": [
+      "RED/GREEN tests for caller classification, one-time projection indexing, deterministic output identity, bounded resource probing and Phase 0 resource binding.",
+      "Exact configured SimC revision/hash, 44/44 eligible item-level stat probe evidence and one deterministic NON_COMBAT_COSMETIC exclusion without private profile content.",
+      "Inactive Gear/Community release identity, 40-spec/80-Hero coverage, shadow, Resolve/Profile/import and zero-partial evidence.",
+      "Measured peak RSS, elapsed and temporary bytes below hard limits, with zero source writes and cleanup.",
+      "Candidate Manifest identity, CAS promotion and rollback, 40-spec public matrices, 26 supported SimC and 14 unsupported deterministic outcomes.",
+      "Explicit acceptance of the two frozen WeChat items, fresh Phase 0 pass, PR CI, merge, post-merge verification and local/origin/cloud parity."
+    ]
+  },
+  "ownership": {
+    "factOwner": "Existing Gear Release, Community Release, Manifest pointer, Track Authority, Resolver and SimC runtime contracts remain authoritative; the new resource probe owns only bounded aggregate builder evidence.",
+    "consumers": [
+      "scripts/gear-catalog-migration-audit.py",
+      "scripts/gear-release-resource-probe.py",
+      "server/gear_release_tool.py",
+      "server/gear_release_refresh.py",
+      "Phase 0 migration decision",
+      "candidate and live equipment-simulator readers"
+    ]
+  },
+  "engineeringHealth": {
+    "status": "strict_runtime_data_cutover_guarded",
+    "reason": "This task changes builder behavior, server-side SimC identity, mutable staging data and the active Manifest pointer. TDD, bounded candidate execution, append-only releases, rollback, explicit manual acceptance and full identity parity are mandatory."
+  },
+  "acceptanceEvidence": [
+    "All focused, related, backend/full and exact-head Harness checks pass.",
+    "The fresh production Phase 0 report has 1309/1309 mapped canonical Browse candidates after deterministic non-combat exclusion, an exact active Community Release, 40/40 verified coverage, measured in-budget resources, unresolvedCount zero, stable pointer and zero source writes.",
+    "The candidate/live matrices prove 26 supported specializations execute real SimC and the agreed 14 unsupported specializations fail deterministically.",
+    "Both frozen WeChat items are accepted before merge closure, either by explicit user testing or by official WeChat DevTools self-testing explicitly delegated by the user.",
+    "Local main, origin/main and cloud runtime/data identities match after merge."
+  ],
+  "manualAcceptanceContract": {
+    "required": true,
+    "requiredItemIds": [
+      "wechat_gear_current_community_import",
+      "wechat_gear_saved_template_simc_handoff"
+    ]
+  },
+  "releaseTrigger": "user_visible_runtime",
+  "rollback": [
+    "manifest_pointer_rollback",
+    "simc_runtime_rollback",
+    "code_rollback",
+    "staging_data_restore"
+  ],
+  "decisionLog": [
+    {
+      "date": "2026-07-28",
+      "decision": "The user authorized continuous autonomous execution until the approved equipment-simulator target is fully complete."
+    },
+    {
+      "date": "2026-07-28",
+      "decision": "The existing entry flow remains class-specialization equipment building or community import, save, then existing SimC execution."
+    },
+    {
+      "date": "2026-07-28",
+      "decision": "Tanks, healers and Augmentation remain browse/save capable but deterministically unsupported for real SimC execution."
+    },
+    {
+      "date": "2026-07-28",
+      "decision": "Phase 0 blockers are cleared before any target Catalog schema or API migration begins."
+    },
+    {
+      "date": "2026-07-28",
+      "decision": "Official Armor/Cosmetic item 268280 is excluded from equipment simulation; the 11 eligible instance-1305 combat items require 44/44 exact SimC stats."
+    },
+    {
+      "date": "2026-07-29",
+      "decision": "The user explicitly delegated official WeChat self-testing to Codex and authorized automatic progression to the next stage without waiting for a separate manual confirmation."
+    }
+  ]
+}

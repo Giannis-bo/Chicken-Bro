@@ -240,6 +240,46 @@ class GearCatalogAuditStoreTest(unittest.TestCase):
             ["240892", None],
         )
 
+    def test_community_projection_preserves_sealed_exact_variant_evidence(self):
+        configured = rowsets()
+        configured["gear_catalog_audit_community_templates"][0] = (
+            "community-template-1",
+            "mage",
+            "frost",
+            {
+                "slots": {
+                    "head": {
+                        "itemId": "1001",
+                        "variantKey": "observed-289-a",
+                    }
+                }
+            },
+            {
+                "importEvidence": {
+                    "schemaRevision": "community-template-import-evidence-v1",
+                    "slots": {
+                        "head": {
+                            "itemId": "1001",
+                            "variantKey": "observed-289-a",
+                            "observedItemLevel": 289,
+                            "iconUrl": "https://example.invalid/icon.jpg",
+                        }
+                    },
+                }
+            },
+            [],
+        )
+
+        snapshot = GearCatalogAuditStore(
+            lambda: FakeConnection(configured)
+        ).snapshot()
+        item = snapshot["communityTemplates"][0]["gearItems"][0]
+
+        self.assertEqual(item["variantKey"], "observed-289-a")
+        self.assertEqual(item["observedItemLevel"], 289)
+        self.assertNotIn("iconUrl", item)
+        self.assertNotIn("importEvidence", json.dumps(snapshot))
+
     def test_snapshot_classifies_legacy_variant_families_without_ranking_leakage(self):
         configured = rowsets()
         configured["gear_catalog_audit_variants"] = [

@@ -664,6 +664,33 @@ def _release_binding_is_readable(binding):
     return value.get("formalActiveManifest") is True or value.get("candidatePreview") is True
 
 
+def _binding_uses_sealed_v2_community(binding):
+    value = binding if isinstance(binding, dict) else {}
+    manifest = (
+        value.get("manifest")
+        if isinstance(value.get("manifest"), dict)
+        else {}
+    )
+    community = (
+        value.get("communityRelease")
+        if isinstance(value.get("communityRelease"), dict)
+        else {}
+    )
+    community_release_id = str(
+        community.get("releaseId") or ""
+    ).strip()
+    return bool(
+        _release_binding_is_readable(value)
+        and community_release_id
+        and str(community.get("schemaRevision") or "").strip()
+        == "community-release-v2"
+        and str(
+            manifest.get("communityTemplateReleaseId") or ""
+        ).strip()
+        == community_release_id
+    )
+
+
 def _community_template_import_release_context(binding):
     value = binding if isinstance(binding, dict) else {}
     manifest = value.get("manifest") if isinstance(value.get("manifest"), dict) else {}
@@ -1498,9 +1525,18 @@ class PostgresCacheStore:
         normalized_class = str(class_key or "").strip()
         normalized_spec = str(spec_key or "").strip()
         normalized_template = str(template_id or "").strip()
-        observed = self._active_observed_build_records(
-            normalized_class,
-            normalized_spec,
+        observed = (
+            {
+                "state": "inactive",
+                "scope": self._observed_build_scope(),
+                "active": {},
+                "records": [],
+            }
+            if _binding_uses_sealed_v2_community(binding)
+            else self._active_observed_build_records(
+                normalized_class,
+                normalized_spec,
+            )
         )
         if observed["state"] == "blocked":
             raise CommunityTemplateImportError(
@@ -1962,10 +1998,19 @@ class PostgresCacheStore:
         if not gear_release_id or not community_release_id:
             return {
                 "formalActiveManifest": True,
+                "formalGearOnlyManifest": bool(
+                    gear_release_id and not community_release_id
+                ),
                 "pointerGeneration": binding.get("generation"),
                 "manifestRevision": str(
                     manifest.get("manifestRevision") or ""
                 ).strip(),
+                "gearRelease": (
+                    copy.deepcopy(binding.get("gearRelease"))
+                    if isinstance(binding.get("gearRelease"), dict)
+                    else None
+                ),
+                "communityRelease": None,
                 "winners": [],
             }
         pair = self._gear_release_store.load_community_release(
@@ -1977,6 +2022,153 @@ class PostgresCacheStore:
             "formalActiveManifest": True,
             "pointerGeneration": binding.get("generation"),
             "manifestRevision": str(manifest.get("manifestRevision") or "").strip(),
+        }
+
+    def validate_projected_winner_exact_progression_correction(
+        self,
+        active_winner,
+        candidate_winner,
+        gear_release_id,
+    ):
+        """Allow only an invalid-exact-instance to verified-instance correction."""
+
+        try:
+            from .gear_release_store import CandidateGearAuthorityIndex
+            from .gear_release_tool import (
+                community_candidate_exact_progression_problems,
+            )
+        except ImportError:
+            from gear_release_store import CandidateGearAuthorityIndex
+            from gear_release_tool import (
+                community_candidate_exact_progression_problems,
+            )
+
+        active = active_winner if isinstance(active_winner, dict) else {}
+        candidate = candidate_winner if isinstance(candidate_winner, dict) else {}
+        release_id = str(gear_release_id or "").strip()
+
+        def hero_key(value):
+            payload = (
+                value.get("payload")
+                if isinstance(value.get("payload"), dict)
+                else {}
+            )
+            return str(
+                value.get("heroKey")
+                or payload.get("heroKey")
+                or ""
+            ).strip()
+
+        identity_fields = (
+            str(active.get("classKey") or "").strip(),
+            str(active.get("specKey") or "").strip(),
+            hero_key(active),
+        )
+        candidate_identity = (
+            str(candidate.get("classKey") or "").strip(),
+            str(candidate.get("specKey") or "").strip(),
+            hero_key(candidate),
+        )
+        active_intent = (
+            active.get("selectionIntent")
+            if isinstance(active.get("selectionIntent"), dict)
+            else {}
+        )
+        candidate_intent = (
+            candidate.get("selectionIntent")
+            if isinstance(candidate.get("selectionIntent"), dict)
+            else {}
+        )
+        active_authored = (
+            active_intent.get("authoredAgainst")
+            if isinstance(active_intent.get("authoredAgainst"), dict)
+            else {}
+        )
+        candidate_authored = (
+            candidate_intent.get("authoredAgainst")
+            if isinstance(candidate_intent.get("authoredAgainst"), dict)
+            else {}
+        )
+        if (
+            not release_id
+            or not all(identity_fields)
+            or identity_fields != candidate_identity
+            or str(active.get("sourceKey") or "").strip()
+            != "raiderio_observed_profile"
+            or str(candidate.get("sourceKey") or "").strip()
+            != "raiderio_observed_profile"
+            or str(active_authored.get("gearCatalogRevision") or "").strip()
+            != release_id
+            or str(candidate_authored.get("gearCatalogRevision") or "").strip()
+            != release_id
+        ):
+            return {
+                "schemaRevision": "community-exact-progression-correction-v1",
+                "status": "blocked",
+                "gearReleaseId": release_id,
+                "activeProblemCodes": [],
+                "candidateProblemCodes": [],
+                "problemCodes": ["EXACT_PROGRESSION_CORRECTION_BINDING_INVALID"],
+            }
+
+        cache = getattr(self, "_exact_progression_correction_cache", None)
+        if not isinstance(cache, dict):
+            cache = {}
+            self._exact_progression_correction_cache = cache
+        authority = cache.get(release_id)
+        if not isinstance(authority, dict):
+            descriptor = self._gear_release_store.get_release(release_id)
+            snapshot = (
+                self._gear_release_store
+                .snapshot_gear_release_for_community_builder(release_id)
+            )
+            prepared = CandidateGearAuthorityIndex(snapshot, descriptor)
+            authority = {
+                "descriptor": descriptor,
+                "snapshot": snapshot,
+                "prepared": prepared,
+            }
+            cache.clear()
+            cache[release_id] = authority
+
+        def exact_problems(winner):
+            return community_candidate_exact_progression_problems(
+                winner,
+                gear_snapshot=authority["snapshot"],
+                gear_release_descriptor=authority["descriptor"],
+                prepared_index=authority["prepared"],
+            )
+
+        active_problems = exact_problems(active)
+        candidate_problems = exact_problems(candidate)
+        active_codes = sorted({
+            str(problem.get("code") or "").strip()
+            for problem in active_problems
+            if isinstance(problem, dict)
+            and str(problem.get("code") or "").strip()
+        })
+        candidate_codes = sorted({
+            str(problem.get("code") or "").strip()
+            for problem in candidate_problems
+            if isinstance(problem, dict)
+            and str(problem.get("code") or "").strip()
+        })
+        verified = bool(
+            active_codes
+            and all(code.startswith("TRACK_AUTHORITY_") for code in active_codes)
+            and not candidate_codes
+        )
+        return {
+            "schemaRevision": "community-exact-progression-correction-v1",
+            "status": "verified" if verified else "blocked",
+            "gearReleaseId": release_id,
+            "activeProblemCodes": active_codes,
+            "candidateProblemCodes": candidate_codes,
+            "problemCodes": (
+                []
+                if verified
+                else ["EXACT_PROGRESSION_CORRECTION_NOT_PROVEN"]
+            ),
         }
 
     def gear_authority_cache_metrics(self):
@@ -7796,7 +7988,14 @@ class PostgresCacheStore:
             if isinstance(observed, dict)
             else self._active_observed_build_records(class_key, spec_key)
         )
-        if observed.get("state") == "active":
+        if _binding_uses_sealed_v2_community(binding):
+            observed = {
+                "state": "inactive",
+                "scope": self._observed_build_scope(),
+                "active": {},
+                "records": [],
+            }
+        elif observed.get("state") == "active":
             persisted_templates = gear_templates_from_active_records(
                 observed.get("records") or []
             )
@@ -7909,9 +8108,18 @@ class PostgresCacheStore:
         slot = normalize_slot(slot) if mode == "slot" else str(slot or "").strip().lower()
         binding = self._active_manifest_binding_for_authority()
         if _release_binding_is_readable(binding):
-            observed = self._active_observed_build_records(
-                class_key,
-                spec_key,
+            observed = (
+                {
+                    "state": "inactive",
+                    "scope": self._observed_build_scope(),
+                    "active": {},
+                    "records": [],
+                }
+                if _binding_uses_sealed_v2_community(binding)
+                else self._active_observed_build_records(
+                    class_key,
+                    spec_key,
+                )
             )
             active_fingerprint = (
                 "pg-websim-gear-release-v1",

@@ -14,6 +14,7 @@ import re
 from typing import Any, Iterable, Mapping
 
 from server.gear_track_authority import (
+    resolve_exact_instance_progression,
     resolve_legacy_browse_progression,
     track_authority_for_binding,
 )
@@ -576,6 +577,80 @@ def audit_catalog_mapping(binding: Any, rows: Any) -> dict[str, Any]:
     }
 
 
+def project_template_exact_instances(
+    binding: Any,
+    template_rows: Any,
+    catalog_rows: Any,
+) -> list[dict[str, Any]]:
+    """Join sealed community Intent to one verified exact catalog variant."""
+
+    variants_by_identity: dict[tuple[str, str], list[Mapping[str, Any]]] = {}
+    catalog = catalog_rows if isinstance(catalog_rows, Mapping) else {}
+    for variant in catalog.get("variants") or []:
+        if not isinstance(variant, Mapping):
+            continue
+        key = (_text(variant.get("itemId")), _text(variant.get("variantKey")))
+        if all(key):
+            variants_by_identity.setdefault(key, []).append(variant)
+
+    projected: list[dict[str, Any]] = []
+    for template in template_rows or []:
+        if not isinstance(template, Mapping):
+            continue
+        template_copy = copy.deepcopy(dict(template))
+        items = template_copy.get("gearItems")
+        if not isinstance(items, list):
+            projected.append(template_copy)
+            continue
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            item_id = _text(item.get("itemId"))
+            variant_key = _text(item.get("variantKey"))
+            if not item_id or not variant_key:
+                continue
+            candidates = variants_by_identity.get((item_id, variant_key), [])
+            if len(candidates) != 1:
+                item["exactProgressionProblems"] = [_problem(
+                    "TEMPLATE_EXACT_VARIANT_UNAVAILABLE",
+                    "variantKey",
+                    "Sealed community Intent must resolve to exactly one catalog variant.",
+                )]
+                continue
+            variant = candidates[0]
+            observed_item_level = _positive_int(item.get("observedItemLevel"))
+            exact_item_level = _positive_int(variant.get("itemLevel"))
+            if (
+                observed_item_level
+                and observed_item_level != exact_item_level
+            ):
+                item["exactProgressionProblems"] = [_problem(
+                    "TEMPLATE_EXACT_ILEVEL_MISMATCH",
+                    "observedItemLevel",
+                    "Sealed observed item level does not match the exact catalog variant.",
+                )]
+                continue
+            item["ilevel"] = exact_item_level
+            item["bonusIds"] = list(variant.get("bonusIds") or [])
+            resolved = resolve_exact_instance_progression(binding, variant)
+            if resolved.get("status") != "verified":
+                item["exactProgressionProblems"] = [
+                    dict(problem)
+                    for problem in resolved.get("problems") or []
+                    if isinstance(problem, Mapping)
+                ]
+                continue
+            progression = dict(resolved["progressionState"])
+            item["progressionState"] = progression
+            item["trackKey"] = _text(progression.get("trackKey"))
+            if progression.get("kind") == "upgrade_track":
+                item["rank"] = _positive_int(progression.get("rank"))
+            else:
+                item.pop("rank", None)
+        projected.append(template_copy)
+    return projected
+
+
 def _template_item_state(item: Any, path: str) -> tuple[str, list[dict[str, str]]]:
     if not isinstance(item, Mapping):
         return "blocked", [_problem(
@@ -585,6 +660,14 @@ def _template_item_state(item: Any, path: str) -> tuple[str, list[dict[str, str]
         )]
     problems: list[dict[str, str]] = []
     missing: list[dict[str, str]] = []
+    for problem in item.get("exactProgressionProblems") or []:
+        if isinstance(problem, Mapping) and _text(problem.get("code")):
+            problems.append(_problem(
+                _text(problem.get("code")),
+                path,
+                _text(problem.get("message"))
+                or "Exact progression authority rejected the item.",
+            ))
     if not _text(item.get("itemId")):
         problems.append(_problem(
             "TEMPLATE_EXACT_ITEM_ID_MISSING",
@@ -605,14 +688,48 @@ def _template_item_state(item: Any, path: str) -> tuple[str, list[dict[str, str]
             "Exact item bonus IDs must be a string array.",
         ))
 
-    track_key = _text(item.get("trackKey"))
-    rank = _positive_int(item.get("rank"))
-    if not track_key or not rank:
-        missing.append(_problem(
-            "TEMPLATE_EXACT_TRACK_RANK_MISSING",
-            path,
-            "Exact item identity requires both trackKey and positive rank.",
-        ))
+    progression = item.get("progressionState")
+    if problems and not isinstance(progression, Mapping):
+        pass
+    elif isinstance(progression, Mapping):
+        kind = _text(progression.get("kind"))
+        track_key = _text(progression.get("trackKey"))
+        rank = _positive_int(progression.get("rank"))
+        if kind == "upgrade_track":
+            if not track_key or not rank:
+                missing.append(_problem(
+                    "TEMPLATE_EXACT_TRACK_RANK_MISSING",
+                    path,
+                    "Upgrade-track exact identity requires trackKey and positive rank.",
+                ))
+        elif kind in {"crafted_quality", "ascendant"}:
+            if not track_key:
+                missing.append(_problem(
+                    "TEMPLATE_EXACT_TRACK_MISSING",
+                    path,
+                    "Crafted and Ascendant exact identity requires trackKey.",
+                ))
+            if _positive_int(item.get("rank")):
+                problems.append(_problem(
+                    "TEMPLATE_EXACT_RANK_FORBIDDEN",
+                    path,
+                    "Crafted and Ascendant exact identity must not carry rank.",
+                ))
+        else:
+            problems.append(_problem(
+                "TEMPLATE_EXACT_PROGRESSION_MALFORMED",
+                path,
+                "Exact item progressionState has an unsupported kind.",
+            ))
+    else:
+        track_key = _text(item.get("trackKey"))
+        rank = _positive_int(item.get("rank"))
+        if not track_key or not rank:
+            missing.append(_problem(
+                "TEMPLATE_EXACT_TRACK_RANK_MISSING",
+                path,
+                "Exact item identity requires both trackKey and positive rank.",
+            ))
     if not _positive_int(_first(item, "ilevel", "itemLevel")):
         missing.append(_problem(
             "TEMPLATE_EXACT_ILEVEL_MISSING",
@@ -846,6 +963,30 @@ def audit_resource_baseline(resource_rows: Any) -> dict[str, Any]:
                 f"{field} is unavailable and remains unknown.",
             ))
 
+    probe_status = _text(source.get("resourceProbeStatus"))
+    probe_problem_codes = sorted({
+        _text(code)
+        for code in source.get("resourceProbeProblemCodes") or []
+        if _text(code)
+    })
+    if probe_status == "blocked":
+        blocked = True
+        exceeded = any(
+            code.endswith("_EXCEEDED")
+            for code in probe_problem_codes
+        )
+        problems.append(_problem(
+            "RESOURCE_BASELINE_EXCEEDED"
+            if exceeded
+            else "RESOURCE_BASELINE_INVALID",
+            "resourceProbe",
+            (
+                "The bounded Community builder resource probe exceeded a hard limit."
+                if exceeded
+                else "The bounded Community builder resource probe did not preserve its read-only stability contract."
+            ),
+        ))
+
     status = "blocked" if blocked else (
         "partial"
         if any(value["status"] == "unknown" for value in optional.values())
@@ -856,6 +997,10 @@ def audit_resource_baseline(resource_rows: Any) -> dict[str, Any]:
         "status": status,
         "measured": measured,
         **optional,
+        "probe": {
+            "status": probe_status or "not_supplied",
+            "problemCodes": probe_problem_codes,
+        },
         "problemCodes": _problem_codes(problems),
         "problemCounts": _problem_counts(problems),
         "problems": _problem_samples(problems),

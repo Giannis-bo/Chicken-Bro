@@ -647,7 +647,11 @@ def _build_profile_from_selection_intent(
 
     snapshot = resolved_envelope["data"]
     try:
-        profile = profile_builder(snapshot, source_context=_profile_context(request))
+        profile = profile_builder(
+            snapshot,
+            source_context=_profile_context(request),
+            talent_store=store,
+        )
     except Exception:
         return _error_envelope(
             "INTERNAL_ERROR",

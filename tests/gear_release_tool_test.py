@@ -2,7 +2,9 @@ import copy
 import io
 import json
 import subprocess
+import tempfile
 import unittest
+from pathlib import Path
 from contextlib import redirect_stdout
 from unittest.mock import patch
 
@@ -261,6 +263,8 @@ def build_midnight_mage_release_fixture():
     }
 
 class GearReleaseToolTest(unittest.TestCase):
+    CURRENT_SEASON_REVISION = "season-17-f131dd36ddf1"
+
     def dependencies(self):
         return {
             "gearRuleRevision": "gear-rule-matrix-v1",
@@ -279,6 +283,14 @@ class GearReleaseToolTest(unittest.TestCase):
             "variants": [{"variantId": "variant-a-id", "itemId": "item-a", "variantKey": "variant-a", "slot": "head", "sourceType": "observed_profile", "itemLevel": 289, "simcOptions": {"ilevel": "289"}, "status": "verified", "blockers": [], "payload": {"resolvedStats": {"intellect": 100}}, "updatedAt": "2026-07-11T05:00:00+00:00"}],
             "options": [],
         }
+
+    def exact_progression_snapshot(self):
+        snapshot = self.snapshot()
+        snapshot["variants"][0]["simcOptions"] = {
+            "ilevel": "289",
+            "bonus_id": "13335",
+        }
+        return snapshot
 
     def template(self, template_id="template-a", source_key="raiderio_observed_profile"):
         return {
@@ -2168,6 +2180,122 @@ class GearReleaseToolTest(unittest.TestCase):
         self.assertTrue(source_evidence["socketProbeDigest"].startswith("sha256:"))
         self.assertTrue(source_evidence["materializedSocketFactDigest"].startswith("sha256:"))
 
+    def test_prepare_staging_gear_release_excludes_noncombat_cosmetic_rows(self):
+        from server.gear_release_tool import prepare_staging_gear_release
+
+        snapshot = self.snapshot()
+        snapshot["items"].append(
+            {
+                "itemId": "268280",
+                "name": "Cosmetic Helm",
+                "slot": "head",
+                "sourceStatus": "verified",
+                "payload": {
+                    "item_class": {"id": 4, "name": "Armor"},
+                    "item_subclass": {"id": 5, "name": "Cosmetic"},
+                },
+                "updatedAt": "2026-07-28T12:00:00+00:00",
+            }
+        )
+        snapshot["sources"].append(
+            {
+                "sourceId": "source-cosmetic",
+                "itemId": "268280",
+                "sourceType": "raid",
+                "sourceKey": "raid:1305:268280",
+                "instanceId": "1305",
+                "payload": {"status": "verified"},
+                "updatedAt": "2026-07-28T12:00:00+00:00",
+            }
+        )
+        snapshot["variants"].append(
+            {
+                "variantId": "variant-cosmetic",
+                "itemId": "268280",
+                "variantKey": "champion-263",
+                "slot": "head",
+                "sourceType": "raid",
+                "difficultyKey": "champion",
+                "itemLevel": 263,
+                "simcOptions": {"ilevel": "263"},
+                "status": "partial",
+                "blockers": ["SimC JSON did not include target item stats"],
+                "payload": {},
+                "updatedAt": "2026-07-28T12:00:00+00:00",
+            }
+        )
+        snapshot["options"].append(
+            {
+                "optionId": "option-cosmetic",
+                "variantId": "variant-cosmetic",
+                "optionKey": "cosmetic-option",
+                "optionType": "socket",
+                "name": "Must be excluded",
+                "applicableSlots": ["head"],
+                "simcOptions": {},
+                "status": "verified",
+                "isVisible": True,
+                "payload": {},
+                "updatedAt": "2026-07-28T12:00:00+00:00",
+            }
+        )
+
+        prepared = prepare_staging_gear_release(
+            FakeReleaseStore(snapshot),
+            season_revision="season-17",
+            dependency_revisions=self.dependencies(),
+            socket_bonus_minimums={"9300": 1},
+        )
+
+        sealed = prepared["snapshot"]
+        self.assertNotIn("268280", {row["itemId"] for row in sealed["items"]})
+        self.assertNotIn("268280", {row["itemId"] for row in sealed["sources"]})
+        self.assertNotIn("268280", {row["itemId"] for row in sealed["variants"]})
+        self.assertNotIn(
+            "option-cosmetic",
+            {row["optionId"] for row in sealed["options"]},
+        )
+        source_evidence = prepared["release"]["source"]["sourceEvidence"]
+        self.assertEqual(source_evidence["excludedNonCombatItemCount"], 1)
+        self.assertTrue(
+            source_evidence["excludedNonCombatItemDigest"].startswith("sha256:")
+        )
+
+    def test_prepare_staging_gear_release_reuses_one_mutable_snapshot_projection(self):
+        from server import gear_release_tool
+
+        snapshot = self.snapshot()
+        with (
+            patch.object(
+                gear_release_tool.gear_socket_authority,
+                "materialize_gear_socket_facts",
+                wraps=gear_release_tool.gear_socket_authority.materialize_gear_socket_facts,
+            ) as socket_materializer,
+            patch.object(
+                gear_release_tool,
+                "_project_socket_facts_into_release_payloads",
+                wraps=gear_release_tool._project_socket_facts_into_release_payloads,
+            ) as socket_projector,
+            patch.object(
+                gear_release_tool,
+                "_materialize_enhancement_management",
+                wraps=gear_release_tool._materialize_enhancement_management,
+            ) as enhancement_materializer,
+        ):
+            prepared = gear_release_tool.prepare_staging_gear_release(
+                FakeReleaseStore(snapshot),
+                season_revision="season-17",
+                dependency_revisions=self.dependencies(),
+                socket_bonus_minimums={"9300": 1},
+            )
+
+        self.assertEqual(prepared["gate"]["status"], "validated")
+        self.assertFalse(socket_materializer.call_args.kwargs["copy_snapshot"])
+        self.assertFalse(socket_projector.call_args.kwargs["copy_snapshot"])
+        self.assertFalse(
+            enhancement_materializer.call_args.kwargs["copy_snapshot"]
+        )
+
     def test_current_pve_socket_eligibility_is_sealed_in_release_item_payload(self):
         from server.gear_release_tool import prepare_staging_gear_release
 
@@ -2925,14 +3053,506 @@ class GearReleaseToolTest(unittest.TestCase):
         self.assertEqual(len(store.community_seals), 1)
         self.assertNotIn("pointer", result)
 
-    def test_community_release_projects_two_hero_slots_from_talent_candidates(self):
-        from server.gear_release_store import gear_snapshot_summary
-        from server.gear_release_tool import build_legacy_community_release
+    def test_community_release_reuses_one_candidate_authority_index_for_all_templates(self):
+        from server import gear_release_tool
+        from server.gear_release_store import CandidateGearAuthorityIndex, gear_snapshot_summary
 
         snapshot = self.snapshot()
         gear = gear_release.build_release(
             release_kind="gear",
             season_revision="season-17",
+            schema_revision="gear-release-v1",
+            content=gear_snapshot_summary(snapshot),
+            dependency_revisions=self.dependencies(),
+            release_status="validated",
+            source={"sourceRevision": "prepared-index-test"},
+        )
+        second = self.template("template-b")
+        second["sourceUrl"] = "https://raider.io/characters/cn/b"
+        store = FakeReleaseStore(snapshot, [self.template(), second])
+
+        with patch.object(
+            gear_release_tool,
+            "CandidateGearAuthorityIndex",
+            wraps=CandidateGearAuthorityIndex,
+        ) as index_factory, patch.object(
+            gear_release_tool,
+            "selection_intent_from_template",
+            wraps=gear_release_tool.selection_intent_from_template,
+        ) as selection_intent, patch.object(
+            gear_release_tool,
+            "community_template_import_evidence_from_template",
+            wraps=gear_release_tool.community_template_import_evidence_from_template,
+        ) as import_evidence:
+            result = gear_release_tool.prepare_staging_community_release(
+                store,
+                gear_release_descriptor=gear,
+                gear_snapshot=snapshot,
+                dependency_revisions=self.dependencies(),
+                expected_specs=[("mage", "arcane")],
+                now="2026-07-11T06:00:00+00:00",
+                resolver_for_spec=lambda *_args: self.verified_result(gear["releaseId"]),
+            )
+
+        self.assertEqual(result["election"]["status"], "validated")
+        self.assertEqual(index_factory.call_count, 1)
+        prepared = selection_intent.call_args_list[0].kwargs["prepared_index"]
+        self.assertTrue(all(
+            call.kwargs["prepared_index"] is prepared
+            for call in selection_intent.call_args_list
+        ))
+        self.assertTrue(all(
+            call.kwargs["prepared_index"] is prepared
+            for call in import_evidence.call_args_list
+        ))
+
+    def test_reused_candidate_authority_index_preserves_outputs_and_release_identity(self):
+        from server import gear_release_tool
+        from server.gear_release_store import (
+            CandidateGearAuthorityIndex,
+            GearReleaseIntegrityError,
+            gear_snapshot_summary,
+        )
+
+        snapshot = self.snapshot()
+        gear = gear_release.build_release(
+            release_kind="gear",
+            season_revision="season-17",
+            schema_revision="gear-release-v1",
+            content=gear_snapshot_summary(snapshot),
+            dependency_revisions=self.dependencies(),
+            release_status="validated",
+            source={"sourceRevision": "prepared-index-identity-test"},
+        )
+        prepared = CandidateGearAuthorityIndex(snapshot, gear)
+        plain_intent = gear_release_tool.selection_intent_from_template(
+            self.template(),
+            gear_release_id=gear["releaseId"],
+            season_revision=gear["seasonRevision"],
+            level=90,
+            gear_snapshot=snapshot,
+            capability_revision=self.dependencies()["capabilityRevision"],
+        )
+        indexed_intent = gear_release_tool.selection_intent_from_template(
+            self.template(),
+            gear_release_id=gear["releaseId"],
+            season_revision=gear["seasonRevision"],
+            level=90,
+            gear_snapshot=snapshot,
+            capability_revision=self.dependencies()["capabilityRevision"],
+            prepared_index=prepared,
+        )
+        plain_evidence = gear_release_tool.community_template_import_evidence_from_template(
+            self.template(),
+            gear_release_id=gear["releaseId"],
+            gear_snapshot=snapshot,
+        )
+        indexed_evidence = gear_release_tool.community_template_import_evidence_from_template(
+            self.template(),
+            gear_release_id=gear["releaseId"],
+            gear_snapshot=snapshot,
+            prepared_index=prepared,
+        )
+
+        self.assertEqual(indexed_intent, plain_intent)
+        self.assertEqual(indexed_evidence, plain_evidence)
+
+        other = gear_release.build_release(
+            release_kind="gear",
+            season_revision="season-other",
+            schema_revision="gear-release-v1",
+            content=gear_snapshot_summary(snapshot),
+            dependency_revisions=self.dependencies(),
+            release_status="validated",
+            source={"sourceRevision": "prepared-index-other-release"},
+        )
+        other_prepared = CandidateGearAuthorityIndex(snapshot, other)
+        with self.assertRaises(GearReleaseIntegrityError):
+            gear_release_tool.selection_intent_from_template(
+                self.template(),
+                gear_release_id=gear["releaseId"],
+                season_revision=gear["seasonRevision"],
+                level=90,
+                gear_snapshot=snapshot,
+                prepared_index=other_prepared,
+            )
+        with self.assertRaises(GearReleaseIntegrityError):
+            gear_release_tool.community_template_import_evidence_from_template(
+                self.template(),
+                gear_release_id=gear["releaseId"],
+                gear_snapshot=snapshot,
+                prepared_index=other_prepared,
+            )
+
+    def test_prepared_index_resolves_missing_variant_key_without_rescanning_item_variants(self):
+        from server import gear_release_tool
+        from server.gear_release_store import CandidateGearAuthorityIndex, gear_snapshot_summary
+
+        snapshot = self.snapshot()
+        profile_url = "https://raider.io/characters/cn/example"
+        snapshot["variants"][0].update({
+            "sourceType": "observed_profile",
+            "simcOptions": {"ilevel": "289"},
+            "payload": {
+                "profileUrl": profile_url,
+                "resolvedStats": {"intellect": 100},
+            },
+        })
+        template = self.template()
+        template["gearItems"][0].pop("variantKey")
+        template["gearItems"][0].pop("gem_id", None)
+        template["gearItems"][0].pop("enchant_id", None)
+        template["gearItems"][0]["observedProfileRefs"] = [{
+            "profileUrl": profile_url,
+        }]
+        gear = gear_release.build_release(
+            release_kind="gear",
+            season_revision="season-17",
+            schema_revision="gear-release-v1",
+            content=gear_snapshot_summary(snapshot),
+            dependency_revisions=self.dependencies(),
+            release_status="validated",
+            source={"sourceRevision": "prepared-observed-index-test"},
+        )
+        prepared = CandidateGearAuthorityIndex(snapshot, gear)
+
+        class NoRescan(list):
+            def __iter__(self):
+                raise AssertionError("prepared observed lookup must not rescan variants")
+
+        prepared.variants_by_item["item-a"] = NoRescan(
+            prepared.variants_by_item["item-a"]
+        )
+        intent = gear_release_tool.selection_intent_from_template(
+            template,
+            gear_release_id=gear["releaseId"],
+            season_revision=gear["seasonRevision"],
+            level=90,
+            gear_snapshot=snapshot,
+            prepared_index=prepared,
+        )
+
+        self.assertEqual(intent["slots"]["head"]["variantKey"], "variant-a")
+
+    def test_community_candidate_exact_progression_requires_governed_bonus_evidence(self):
+        from server import gear_release_tool
+        from server.gear_release_store import CandidateGearAuthorityIndex, gear_snapshot_summary
+
+        snapshot = self.snapshot()
+        gear = gear_release.build_release(
+            release_kind="gear",
+            season_revision=self.CURRENT_SEASON_REVISION,
+            schema_revision="gear-release-v1",
+            content=gear_snapshot_summary(snapshot),
+            dependency_revisions=self.dependencies(),
+            release_status="validated",
+            source={"sourceRevision": "exact-progression-test"},
+        )
+        prepared = CandidateGearAuthorityIndex(snapshot, gear)
+        candidate = gear_release_tool._template_candidate(
+            self.template(),
+            gear_release_id=gear["releaseId"],
+            season_revision=gear["seasonRevision"],
+            level=90,
+            gear_snapshot=snapshot,
+            capability_revision=self.dependencies()["capabilityRevision"],
+            prepared_index=prepared,
+        )
+
+        blocked = gear_release_tool.community_candidate_exact_progression_problems(
+            candidate,
+            gear_snapshot=snapshot,
+            gear_release_descriptor=gear,
+            prepared_index=prepared,
+        )
+
+        self.assertEqual(
+            [problem["code"] for problem in blocked],
+            ["TRACK_AUTHORITY_EXACT_TRACK_EVIDENCE_MISSING"],
+        )
+        self.assertEqual(
+            blocked[0]["path"],
+            "candidate.selectionIntent.slots.head",
+        )
+
+        exact_snapshot = self.exact_progression_snapshot()
+        exact_gear = gear_release.build_release(
+            release_kind="gear",
+            season_revision=self.CURRENT_SEASON_REVISION,
+            schema_revision="gear-release-v1",
+            content=gear_snapshot_summary(exact_snapshot),
+            dependency_revisions=self.dependencies(),
+            release_status="validated",
+            source={"sourceRevision": "exact-progression-test"},
+        )
+        exact_prepared = CandidateGearAuthorityIndex(exact_snapshot, exact_gear)
+        exact_candidate = gear_release_tool._template_candidate(
+            self.template(),
+            gear_release_id=exact_gear["releaseId"],
+            season_revision=exact_gear["seasonRevision"],
+            level=90,
+            gear_snapshot=exact_snapshot,
+            capability_revision=self.dependencies()["capabilityRevision"],
+            prepared_index=exact_prepared,
+        )
+        self.assertEqual(
+            gear_release_tool.community_candidate_exact_progression_problems(
+                exact_candidate,
+                gear_snapshot=exact_snapshot,
+                gear_release_descriptor=exact_gear,
+                prepared_index=exact_prepared,
+            ),
+            [],
+        )
+
+    def test_community_hero_projection_skips_exact_progression_rejection(self):
+        from server import gear_release_tool
+        from server.gear_release_store import gear_snapshot_summary
+        from server.gear_release_tool import build_legacy_community_release
+
+        snapshot = self.exact_progression_snapshot()
+        gear = gear_release.build_release(
+            release_kind="gear",
+            season_revision=self.CURRENT_SEASON_REVISION,
+            schema_revision="gear-release-v1",
+            content=gear_snapshot_summary(snapshot),
+            dependency_revisions=self.dependencies(),
+            release_status="validated",
+            source={"sourceRevision": "exact-progression-election-test"},
+        )
+        top = self.template("arcane-top")
+        top["sourceIdentity"] = "raiderio:cn|realm|arcane-top"
+        top["payload"]["sourceIdentity"] = top["sourceIdentity"]
+        fallback = self.template("arcane-fallback")
+        fallback["sourceIdentity"] = "raiderio:cn|realm|arcane-fallback"
+        fallback["payload"]["sourceIdentity"] = fallback["sourceIdentity"]
+        other_hero = self.template("arcane-other-hero")
+        other_hero["sourceIdentity"] = "raiderio:cn|realm|arcane-other"
+        other_hero["payload"]["sourceIdentity"] = other_hero["sourceIdentity"]
+        talents = [
+            {"id": "talent-top", "classKey": "mage", "specKey": "arcane", "heroKey": "sunfury", "scenarioKey": "mythic_plus", "sourceKey": "raiderio", "sourceIdentity": top["sourceIdentity"], "talentCandidateRank": 1},
+            {"id": "talent-fallback", "classKey": "mage", "specKey": "arcane", "heroKey": "sunfury", "scenarioKey": "mythic_plus", "sourceKey": "raiderio", "sourceIdentity": fallback["sourceIdentity"], "talentCandidateRank": 2},
+            {"id": "talent-other", "classKey": "mage", "specKey": "arcane", "heroKey": "spellslinger", "scenarioKey": "mythic_plus", "sourceKey": "raiderio", "sourceIdentity": other_hero["sourceIdentity"], "talentCandidateRank": 1},
+        ]
+        store = FakeReleaseStore(
+            snapshot,
+            [top, fallback, other_hero],
+            talents,
+        )
+        exact_validator = gear_release_tool.community_candidate_exact_progression_problems
+
+        def reject_top(candidate, **kwargs):
+            if candidate.get("candidateId") == "arcane-top":
+                return [{
+                    "code": "TRACK_AUTHORITY_EXACT_TRACK_EVIDENCE_MISSING",
+                    "path": "candidate.selectionIntent.slots.head",
+                    "message": "Exact track evidence is missing.",
+                }]
+            return exact_validator(candidate, **kwargs)
+
+        with patch.object(
+            gear_release_tool,
+            "community_candidate_exact_progression_problems",
+            side_effect=reject_top,
+        ):
+            result = build_legacy_community_release(
+                store,
+                gear_release_descriptor=gear,
+                gear_snapshot=snapshot,
+                dependency_revisions=self.dependencies(),
+                expected_specs=[("mage", "arcane")],
+                now="2026-07-11T06:00:00+00:00",
+                resolver_for_spec=lambda *_args: self.verified_result(gear["releaseId"]),
+            )
+
+        winners = {
+            row["payload"]["heroKey"]: row["payload"]
+            for row in result["rows"]
+            if row["role"] == "winner"
+        }
+        self.assertEqual(
+            winners["sunfury"]["gearSourceTemplateId"],
+            "arcane-fallback",
+        )
+        rejection = next(
+            row
+            for row in result["election"]["rejected"]
+            if row.get("candidateId") == "talent-top"
+        )
+        self.assertEqual(
+            rejection["problems"][0]["code"],
+            "TRACK_AUTHORITY_EXACT_TRACK_EVIDENCE_MISSING",
+        )
+
+    def test_community_projection_reserves_exact_valid_active_winner_for_its_hero(self):
+        from server import gear_release_tool
+        from server.gear_release_store import (
+            CandidateGearAuthorityIndex,
+            gear_snapshot_summary,
+        )
+        from server.gear_release_tool import build_legacy_community_release
+
+        snapshot = self.exact_progression_snapshot()
+        invalid_item = copy.deepcopy(snapshot["items"][0])
+        invalid_item.update({
+            "itemId": "item-b",
+            "name": "B",
+        })
+        snapshot["items"].append(invalid_item)
+        invalid_source = copy.deepcopy(snapshot["sources"][0])
+        invalid_source.update({
+            "sourceId": "source-b",
+            "itemId": "item-b",
+        })
+        snapshot["sources"].append(invalid_source)
+        invalid_variant = copy.deepcopy(snapshot["variants"][0])
+        invalid_variant.update({
+            "variantId": "variant-b-id",
+            "itemId": "item-b",
+            "variantKey": "variant-b",
+            "simcOptions": {"ilevel": "289"},
+        })
+        snapshot["variants"].append(invalid_variant)
+        gear = gear_release.build_release(
+            release_kind="gear",
+            season_revision=self.CURRENT_SEASON_REVISION,
+            schema_revision="gear-release-v1",
+            content=gear_snapshot_summary(snapshot),
+            dependency_revisions=self.dependencies(),
+            release_status="validated",
+            source={"sourceRevision": "active-reservation-test"},
+        )
+        reserved = self.template("reserved-sunfury")
+        reserved["sourceIdentity"] = "raiderio:cn|realm|reserved"
+        reserved["payload"]["sourceIdentity"] = reserved["sourceIdentity"]
+        invalid_active = self.template("invalid-spellslinger")
+        invalid_active["sourceIdentity"] = "raiderio:cn|realm|invalid"
+        invalid_active["payload"]["sourceIdentity"] = invalid_active[
+            "sourceIdentity"
+        ]
+        invalid_active["gearItems"][0].update({
+            "itemId": "item-b",
+            "variantKey": "variant-b",
+        })
+        fallback = self.template("fallback-spellslinger")
+        fallback["sourceIdentity"] = "raiderio:cn|realm|fallback"
+        fallback["payload"]["sourceIdentity"] = fallback["sourceIdentity"]
+        prepared = CandidateGearAuthorityIndex(snapshot, gear)
+
+        def active_winner(template, hero_key):
+            candidate = gear_release_tool._template_candidate(
+                template,
+                gear_release_id=gear["releaseId"],
+                season_revision=gear["seasonRevision"],
+                level=90,
+                gear_snapshot=snapshot,
+                capability_revision=self.dependencies()[
+                    "capabilityRevision"
+                ],
+                prepared_index=prepared,
+            )
+            return {
+                "templateId": (
+                    "community-gear:mage:arcane:"
+                    f"{hero_key}:{template['templateId']}"
+                ),
+                "classKey": "mage",
+                "specKey": "arcane",
+                "role": "winner",
+                "sourceKey": candidate["sourceKey"],
+                "selectionIntent": candidate["selectionIntent"],
+                "importEvidence": candidate["importEvidence"],
+                "payload": {
+                    "heroKey": hero_key,
+                    "gearSourceTemplateId": template["templateId"],
+                },
+            }
+
+        active_community_id = "community-release:active-reservation"
+        active_pair = {
+            "communityRelease": {
+                "releaseId": active_community_id,
+                "schemaRevision": "community-release-v2",
+                "validatedAgainstReleaseId": gear["releaseId"],
+            },
+            "winners": [
+                active_winner(invalid_active, "spellslinger"),
+                active_winner(reserved, "sunfury"),
+            ],
+        }
+
+        class ActiveReleaseStore(FakeReleaseStore):
+            def load_active_manifest_binding(self):
+                return {
+                    "formalActiveManifest": True,
+                    "manifest": {
+                        "gearCatalogReleaseId": gear["releaseId"],
+                        "communityTemplateReleaseId": active_community_id,
+                    },
+                }
+
+            def load_community_release(
+                self,
+                gear_release_id,
+                community_release_id,
+            ):
+                self.active_pair_request = (
+                    gear_release_id,
+                    community_release_id,
+                )
+                return copy.deepcopy(active_pair)
+
+        talents = [
+            {"id": "talent-spell-reserved", "classKey": "mage", "specKey": "arcane", "heroKey": "spellslinger", "scenarioKey": "mythic_plus", "sourceKey": "raiderio", "sourceIdentity": reserved["sourceIdentity"], "talentCandidateRank": 1},
+            {"id": "talent-spell-fallback", "classKey": "mage", "specKey": "arcane", "heroKey": "spellslinger", "scenarioKey": "mythic_plus", "sourceKey": "raiderio", "sourceIdentity": fallback["sourceIdentity"], "talentCandidateRank": 2},
+            {"id": "talent-sun-reserved", "classKey": "mage", "specKey": "arcane", "heroKey": "sunfury", "scenarioKey": "mythic_plus", "sourceKey": "raiderio", "sourceIdentity": reserved["sourceIdentity"], "talentCandidateRank": 1},
+        ]
+        store = ActiveReleaseStore(
+            snapshot,
+            [reserved, invalid_active, fallback],
+            talents,
+        )
+
+        result = build_legacy_community_release(
+            store,
+            gear_release_descriptor=gear,
+            gear_snapshot=snapshot,
+            dependency_revisions=self.dependencies(),
+            expected_specs=[("mage", "arcane")],
+            now="2026-07-11T06:00:00+00:00",
+            resolver_for_spec=lambda *_args: self.verified_result(
+                gear["releaseId"]
+            ),
+        )
+
+        winners = {
+            row["payload"]["heroKey"]: row["payload"]
+            for row in result["rows"]
+        }
+        self.assertEqual(
+            winners["spellslinger"]["gearSourceTemplateId"],
+            "fallback-spellslinger",
+        )
+        self.assertEqual(
+            winners["sunfury"]["gearSourceTemplateId"],
+            "reserved-sunfury",
+        )
+        self.assertEqual(
+            winners["sunfury"]["gearProjectionMode"],
+            "gear_fallback",
+        )
+        self.assertEqual(result["gate"]["activeWinnerReservationCount"], 1)
+        self.assertEqual(result["gate"]["activeWinnerCarryForwardCount"], 1)
+
+    def test_community_release_projects_two_hero_slots_from_talent_candidates(self):
+        from server import gear_release_tool
+        from server.gear_release_store import gear_snapshot_summary
+        from server.gear_release_tool import build_legacy_community_release
+
+        snapshot = self.exact_progression_snapshot()
+        gear = gear_release.build_release(
+            release_kind="gear",
+            season_revision=self.CURRENT_SEASON_REVISION,
             schema_revision="gear-release-v1",
             content=gear_snapshot_summary(snapshot),
             dependency_revisions=self.dependencies(),
@@ -2955,17 +3575,23 @@ class GearReleaseToolTest(unittest.TestCase):
         ]
         store = FakeReleaseStore(snapshot, [frost_top, frost_fallback, spell], talent_candidates)
 
-        result = build_legacy_community_release(
-            store,
-            gear_release_descriptor=gear,
-            gear_snapshot=snapshot,
-            dependency_revisions=self.dependencies(),
-            expected_specs=[("mage", "arcane")],
-            now="2026-07-11T06:00:00+00:00",
-            resolver_for_spec=lambda *_args: self.verified_result(gear["releaseId"]),
-        )
+        with patch.object(
+            gear_release_tool,
+            "_template_candidate",
+            wraps=gear_release_tool._template_candidate,
+        ) as candidate_builder:
+            result = build_legacy_community_release(
+                store,
+                gear_release_descriptor=gear,
+                gear_snapshot=snapshot,
+                dependency_revisions=self.dependencies(),
+                expected_specs=[("mage", "arcane")],
+                now="2026-07-11T06:00:00+00:00",
+                resolver_for_spec=lambda *_args: self.verified_result(gear["releaseId"]),
+            )
 
         winners = {row["payload"]["heroKey"]: row for row in result["rows"] if row["role"] == "winner"}
+        self.assertEqual(candidate_builder.call_count, 2)
         self.assertEqual(result["release"]["schemaRevision"], "community-release-v2")
         self.assertEqual(set(winners), {"sunfury", "spellslinger"})
         self.assertEqual(winners["sunfury"]["payload"]["talentWinnerId"], "talent-frost-top")
@@ -3005,10 +3631,10 @@ class GearReleaseToolTest(unittest.TestCase):
         from server.gear_release_store import gear_snapshot_summary
         from server.gear_release_tool import build_legacy_community_release
 
-        snapshot = self.snapshot()
+        snapshot = self.exact_progression_snapshot()
         gear = gear_release.build_release(
             release_kind="gear",
-            season_revision="season-17",
+            season_revision=self.CURRENT_SEASON_REVISION,
             schema_revision="gear-release-v1",
             content=gear_snapshot_summary(snapshot),
             dependency_revisions=self.dependencies(),
@@ -3051,10 +3677,10 @@ class GearReleaseToolTest(unittest.TestCase):
         from server.gear_release_store import gear_snapshot_summary
         from server.gear_release_tool import build_legacy_community_release
 
-        snapshot = self.snapshot()
+        snapshot = self.exact_progression_snapshot()
         gear = gear_release.build_release(
             release_kind="gear",
-            season_revision="season-17",
+            season_revision=self.CURRENT_SEASON_REVISION,
             schema_revision="gear-release-v1",
             content=gear_snapshot_summary(snapshot),
             dependency_revisions=self.dependencies(),
@@ -3132,20 +3758,97 @@ class GearReleaseToolTest(unittest.TestCase):
             gear_release_tool,
             "build_legacy_gear_release",
             return_value=gear_result,
-        ), patch.object(
+        ) as build_gear, patch.object(
             gear_release_tool,
             "build_legacy_community_release",
             return_value=community_result,
-        ), redirect_stdout(output):
+        ) as build_community, redirect_stdout(output):
             status = gear_release_tool.main([
                 "build-legacy-all",
                 "--season-revision", "season-17",
                 "--simc-runtime-revision", "simc-r1",
+                "--source-revision", "phase0-unblock-r1",
             ])
 
         self.assertEqual(status, 0)
         rendered = json.loads(output.getvalue())
         self.assertEqual(rendered["community"]["gate"]["rankOneRejections"], [evidence])
+        self.assertEqual(
+            build_gear.call_args.kwargs["source_revision"],
+            "phase0-unblock-r1",
+        )
+        self.assertEqual(
+            build_community.call_args.kwargs["source_revision"],
+            "phase0-unblock-r1",
+        )
+
+    def test_build_legacy_community_cli_uses_one_exact_inactive_gear_release(self):
+        from server import gear_release_tool
+
+        gear = {
+            "releaseId": "gear-release:exact",
+            "releaseKind": "gear",
+            "releaseStatus": "validated",
+            "seasonRevision": "season-17",
+            "dependencyRevisions": self.dependencies(),
+        }
+        snapshot = self.snapshot()
+
+        class Store:
+            def get_release(self, release_id):
+                return gear if release_id == gear["releaseId"] else {}
+
+            def snapshot_gear_release_for_community_builder(self, release_id):
+                return snapshot if release_id == gear["releaseId"] else {}
+
+        community_result = {
+            "release": {"releaseId": "community-release:exact"},
+            "gate": {
+                "status": "validated",
+                "winnerSpecCount": 40,
+                "winnerHeroSlotCount": 80,
+            },
+            "seal": {"status": "inserted"},
+        }
+        output = io.StringIO()
+        with patch.object(
+            gear_release_tool,
+            "_store_from_environment",
+            return_value=Store(),
+        ), patch.object(
+            gear_release_tool,
+            "build_legacy_community_release",
+            return_value=community_result,
+        ) as build_community, redirect_stdout(output):
+            status = gear_release_tool.main(
+                [
+                    "build-legacy-community",
+                    "--gear-release-id",
+                    "gear-release:exact",
+                    "--simc-runtime-revision",
+                    "simc-r1",
+                    "--source-revision",
+                    "phase0-unblock-r1",
+                ]
+            )
+
+        self.assertEqual(status, 0)
+        self.assertEqual(
+            json.loads(output.getvalue())["community"]["release"]["releaseId"],
+            "community-release:exact",
+        )
+        self.assertEqual(
+            build_community.call_args.kwargs["gear_release_descriptor"],
+            gear,
+        )
+        self.assertIs(
+            build_community.call_args.kwargs["gear_snapshot"],
+            snapshot,
+        )
+        self.assertEqual(
+            build_community.call_args.kwargs["source_revision"],
+            "phase0-unblock-r1",
+        )
 
     def test_build_legacy_community_release_keeps_rejected_internal_and_degraded(self):
         from server.gear_release_store import gear_snapshot_summary
@@ -3270,6 +3973,109 @@ class GearReleaseToolTest(unittest.TestCase):
 
         self.assertEqual(status, 0)
         self.assertIs(shadow.call_args.kwargs.get("expect_formal_active"), True)
+
+    def test_shadow_command_writes_only_bounded_aggregate_evidence(self):
+        from server import gear_release_tool
+
+        class ShadowStore:
+            def gear_authority_cache_metrics(self):
+                return {
+                    "entryCount": 2,
+                    "byteSize": 512,
+                    "maxEntries": 32,
+                    "maxBytes": 4096,
+                }
+
+            def shadow_read_statement_metrics(self):
+                return {
+                    "total": 7,
+                    "transactionControl": 2,
+                    "readQueries": 5,
+                    "writeStatements": 0,
+                }
+
+        shadow_result = {
+            "schemaRevision": "gear-release-shadow-execution-v2",
+            "status": "blocked",
+            "gearReleaseId": "gear-release:a",
+            "communityReleaseId": "community-release:a",
+            "baselineMode": "formal_gear_only_candidate_preview",
+            "candidatePreview": True,
+            "publicReadCount": 40,
+            "importReadCount": 80,
+            "blockers": [
+                {
+                    "code": "PROFILE_PARITY_MISMATCH",
+                    "path": "specs.mage.frost",
+                    "detail": "Candidate Profile differs from preview.",
+                },
+                {
+                    "code": "PROFILE_PARITY_MISMATCH",
+                    "path": "specs.mage.arcane",
+                    "detail": "Candidate Profile differs from preview.",
+                },
+            ],
+            "specResults": [
+                {
+                    "classKey": "mage",
+                    "specKey": "frost",
+                    "status": "blocked",
+                    "heroSlotResults": [
+                        {
+                            "templateId": "private-template-identity",
+                            "status": "blocked",
+                        }
+                    ],
+                }
+            ],
+            "report": {
+                "status": "blocked",
+                "expectedSpecCount": 40,
+                "expectedHeroSlotCount": 80,
+                "candidateWinnerCount": 80,
+            },
+            "performance": {"totalDurationMs": 1234},
+        }
+
+        with tempfile.TemporaryDirectory() as directory:
+            output_path = Path(directory) / "shadow-evidence.json"
+            output = io.StringIO()
+            with patch.object(
+                gear_release_tool,
+                "_shadow_store_from_environment",
+                return_value=ShadowStore(),
+            ), patch.object(
+                gear_release_tool.gear_release_shadow,
+                "run_release_shadow",
+                return_value=shadow_result,
+            ), redirect_stdout(output):
+                status = gear_release_tool.main([
+                    "shadow",
+                    "--gear-release-id",
+                    "gear-release:a",
+                    "--community-release-id",
+                    "community-release:a",
+                    "--simc-runtime-revision",
+                    "simc-r1",
+                    "--output-file",
+                    str(output_path),
+                ])
+
+            rendered = json.loads(output.getvalue())
+            saved = json.loads(output_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(status, 2)
+        self.assertEqual(rendered, saved)
+        self.assertEqual(rendered["specResultCount"], 1)
+        self.assertEqual(rendered["passingSpecCount"], 0)
+        self.assertEqual(
+            rendered["blockerCodes"],
+            {"PROFILE_PARITY_MISMATCH": 2},
+        )
+        self.assertEqual(len(rendered["blockerSamples"]), 2)
+        self.assertEqual(rendered["databaseStatements"]["writeStatements"], 0)
+        self.assertNotIn("specResults", rendered)
+        self.assertNotIn("private-template-identity", json.dumps(rendered))
 
     def test_promote_command_atomically_seals_manifest_and_cas_pointer(self):
         from server import gear_release_tool

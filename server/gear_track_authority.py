@@ -21,6 +21,7 @@ __all__ = (
     "TRACK_AUTHORITY_SCHEMA_REVISION",
     "TRACK_AUTHORITY_RULE_REVISION",
     "track_authority_for_binding",
+    "resolve_exact_instance_progression",
     "resolve_legacy_browse_progression",
 )
 
@@ -130,6 +131,49 @@ _RECORDS = (
     ),
 )
 _RECORDS_BY_KEY = {record.recordKey: record for record in _RECORDS}
+_EXACT_TRACK_MARKERS = {
+    "champion": frozenset({"13448"}),
+    "hero": frozenset({"13334"}),
+    "myth": frozenset({"13335", "13440"}),
+}
+_EXACT_TRACK_LADDERS = {
+    "champion": {
+        246: 1,
+        250: 2,
+        253: 3,
+        256: 4,
+        259: 5,
+        263: 6,
+    },
+    "hero": {
+        259: 1,
+        263: 2,
+        266: 3,
+        269: 4,
+        272: 5,
+        276: 6,
+    },
+    "myth": {
+        272: 1,
+        276: 2,
+        279: 3,
+        282: 4,
+        285: 5,
+        289: 6,
+    },
+}
+_ASCENDANT_BONUS_ORIGINS = {
+    "13653": ("upgrade_track", 285),
+    "13654": ("upgrade_track", 298),
+    "13655": ("crafted_quality", 295),
+}
+_ASCENDANT_SLOTS = frozenset({
+    "main_hand",
+    "off_hand",
+    "trinket",
+    "trinket1",
+    "trinket2",
+})
 
 
 def _text(value: Any) -> str:
@@ -266,6 +310,38 @@ def _has_crafted_stats(row: Mapping[str, Any]) -> bool:
     return False
 
 
+def _bonus_ids(row: Mapping[str, Any]) -> set[str]:
+    value = row.get("bonusIds")
+    if isinstance(value, str):
+        return {
+            part.strip()
+            for part in value.replace(",", "/").split("/")
+            if part.strip()
+        }
+    if isinstance(value, (list, tuple, set, frozenset)):
+        return {_text(part) for part in value if _text(part)}
+    simc_options = row.get("simcOptions")
+    if not isinstance(simc_options, Mapping):
+        simc_options = row.get("simc_options")
+    if isinstance(simc_options, Mapping):
+        return _bonus_ids({"bonusIds": simc_options.get("bonus_id")})
+    return set()
+
+
+def _verified_exact_result(
+    record_key: str,
+    progression_state: Mapping[str, Any],
+) -> dict[str, Any]:
+    return {
+        "status": "verified",
+        "schemaRevision": TRACK_AUTHORITY_SCHEMA_REVISION,
+        "ruleRevision": TRACK_AUTHORITY_RULE_REVISION,
+        "recordKey": record_key,
+        "progressionState": dict(progression_state),
+        "problems": [],
+    }
+
+
 def resolve_legacy_browse_progression(
     binding: Any,
     row: Any,
@@ -379,3 +455,144 @@ def resolve_legacy_browse_progression(
         "progressionState": progression_state,
         "problems": [],
     }
+
+
+def resolve_exact_instance_progression(
+    binding: Any,
+    row: Any,
+) -> dict[str, Any]:
+    """Resolve a sealed exact instance without deriving from generic rank fields."""
+
+    authority = track_authority_for_binding(binding)
+    if authority["status"] != "verified":
+        return _blocked(
+            "TRACK_AUTHORITY_BINDING_UNSUPPORTED",
+            "No verified Track Authority matches the exact season and gear-rule revision.",
+        )
+    if not isinstance(row, Mapping):
+        return _blocked(
+            "TRACK_AUTHORITY_ROW_MALFORMED",
+            "Exact-instance progression input must be an object.",
+        )
+    if (
+        _text(row.get("rowFamily")) != "exact_instance"
+        or _text(row.get("status")).lower() != "verified"
+    ):
+        return _blocked(
+            "TRACK_AUTHORITY_EXACT_VARIANT_UNVERIFIED",
+            "Exact-instance progression requires a verified exact variant.",
+        )
+    if not _text(row.get("itemId")) or not _text(row.get("variantKey")):
+        return _blocked(
+            "TRACK_AUTHORITY_EXACT_IDENTITY_MISSING",
+            "Exact-instance progression requires itemId and variantKey.",
+        )
+
+    item_level = _positive_int(row.get("itemLevel"))
+    bonus_ids = _bonus_ids(row)
+    ascendant_markers = sorted(
+        bonus_ids.intersection(_ASCENDANT_BONUS_ORIGINS)
+    )
+    if len(ascendant_markers) > 1:
+        return _blocked(
+            "TRACK_AUTHORITY_EXACT_TRACK_EVIDENCE_AMBIGUOUS",
+            "Exact-instance bonus evidence identifies multiple Ascendant origins.",
+        )
+    if ascendant_markers:
+        marker = ascendant_markers[0]
+        origin_kind, expected_level = _ASCENDANT_BONUS_ORIGINS[marker]
+        if item_level != expected_level:
+            return _blocked(
+                "TRACK_AUTHORITY_ILEVEL_MISMATCH",
+                "Exact Ascendant item level does not match its governed bonus evidence.",
+            )
+        slot = _normalized_slot(row.get("slot"))
+        if slot not in _ASCENDANT_SLOTS:
+            return _blocked(
+                "TRACK_AUTHORITY_ASCENDANT_ELIGIBILITY_UNPROVEN",
+                "Ascendant exact instances require a governed weapon or trinket slot.",
+            )
+        if (
+            origin_kind == "crafted_quality"
+            and row.get("hasCraftedSource") is not True
+        ):
+            return _blocked(
+                "TRACK_AUTHORITY_EXACT_CRAFTED_SOURCE_MISSING",
+                "Crafted Ascendant exact instances require a verified crafted source for the same item.",
+            )
+        return _verified_exact_result(
+            f"exact_ascendant_{marker}",
+            {
+                "kind": "ascendant",
+                "trackKey": "void_upgrade",
+                "originKind": origin_kind,
+            },
+        )
+
+    if (
+        item_level == 298
+        and "13335" in bonus_ids
+    ):
+        return _verified_exact_result(
+            "exact_myth_6_special_raid",
+            {
+                "kind": "upgrade_track",
+                "trackKey": "myth",
+                "rank": 6,
+                "maxRank": 6,
+            },
+        )
+
+    if item_level == 285 and "13622" in bonus_ids:
+        if row.get("hasCraftedSource") is not True:
+            return _blocked(
+                "TRACK_AUTHORITY_EXACT_CRAFTED_SOURCE_MISSING",
+                "Crafted exact-instance progression requires a verified crafted source for the same item.",
+            )
+        return _verified_exact_result(
+            "exact_crafted_myth",
+            {
+                "kind": "crafted_quality",
+                "trackKey": "myth",
+                "qualityKey": "radiance_max",
+            },
+        )
+
+    candidate_tracks = [
+        track_key
+        for track_key, markers in _EXACT_TRACK_MARKERS.items()
+        if bonus_ids.intersection(markers)
+        and item_level in _EXACT_TRACK_LADDERS[track_key]
+    ]
+    if len(candidate_tracks) > 1:
+        return _blocked(
+            "TRACK_AUTHORITY_EXACT_TRACK_EVIDENCE_AMBIGUOUS",
+            "Exact-instance bonus evidence matches multiple upgrade tracks.",
+        )
+    if len(candidate_tracks) == 1:
+        track_key = candidate_tracks[0]
+        rank = _EXACT_TRACK_LADDERS[track_key][item_level]
+        return _verified_exact_result(
+            f"exact_{track_key}_{rank}",
+            {
+                "kind": "upgrade_track",
+                "trackKey": track_key,
+                "rank": rank,
+                "maxRank": 6,
+            },
+        )
+
+    supported_levels = {
+        level
+        for ladder in _EXACT_TRACK_LADDERS.values()
+        for level in ladder
+    }
+    if item_level not in supported_levels:
+        return _blocked(
+            "TRACK_AUTHORITY_EXACT_ILEVEL_UNSUPPORTED",
+            "The verified exact item level is outside all governed current-season upgrade ladders.",
+        )
+    return _blocked(
+        "TRACK_AUTHORITY_EXACT_TRACK_EVIDENCE_MISSING",
+        "Exact-instance item level is shared by upgrade tracks and lacks a governed track bonus marker.",
+    )

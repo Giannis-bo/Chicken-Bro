@@ -1,6 +1,6 @@
 # 装备模拟目标架构
 
-状态：`已批准；Track Authority 只读审计已完成；Phase 1 仍阻塞`
+状态：`已批准；Phase 0 运行态与数据门禁已验证；微信验收与合入待完成`
 
 批准日期：`2026-07-28`
 
@@ -409,35 +409,34 @@ active hot payload
 
 ## 14. 设计批准后的下一步
 
-本文件只定义目标架构，不授权立即运行 Release Builder、写数据库或部署。
-[Phase 0 实施计划](2026-07-28-equipment-simulator-catalog-migration-phase0-implementation.md)
-先完成了历史只读盘点；该 packet 保留为不可改写的历史证据。随后按
-[Track Authority 修正](2026-07-28-equipment-simulator-track-authority-correction.md)
-和
-[实施计划](2026-07-28-equipment-simulator-track-authority-implementation.md)
-实现纯 progression authority，并使用精确提交在生产临时目录中重新执行只读审计。
+本文件定义长期目标；当前执行仍受 Harness 任务 packet 控制。
+[Phase 0 解除阻塞计划](2026-07-28-equipment-simulator-phase0-unblock.md)
+已完成运行态与数据门禁，并由
+[当前证据](../../artifacts/releases/2026-07-28-equipment-simulator-phase0-unblock/evidence.json)
+记录：
 
-当前
-[Track Authority 生产审计](../../artifacts/releases/2026-07-28-equipment-simulator-track-authority-correction/runtime-readonly-audit.json)
-确认：
+- 活动 Manifest 为 generation 32，绑定一个 immutable Gear Release 和一个
+  80 槽 Community Release；
+- 排除非战斗 Cosmetic 后，1,674 条 legacy Browse 归并为 1,309 个 canonical
+  BrowseVariant，1,309/1,309 均有精确映射和静态属性；
+- 438 条制造属性组合仍作为 EnhancementSelection 关联，折叠 365 个重复 Browse
+  身份；
+- 40/40 专精浏览与 80/80 社区 ExactItemInstance 导入通过；
+- 26/26 支持专精真实执行 SimC 并产生 DPS，14/14 不支持专精在 Runner 前确定性阻断；
+- Community Builder 在 1,467,432,960 bytes 峰值 RSS、24,622 ms、0 临时字节、
+  0 写入下通过硬门禁；
+- Manifest 回滚到上一稳定版本及恢复 generation 32 均通过真实 API/SimC smoke。
 
-- 46,631 条旧 variant 仍被互斥分为 1,678 条 legacy Browse、44,651 条
-  `observed_profile` Exact、291 条占位和 11 条 Battle.net 预览引用；
-- 1,116 条普通轨道行映射为 1,116 个 `upgrade_track` 候选，其中 1,080 个具备完整
-  静态属性；
-- 324 条制造神话行折叠为 54 个 `crafted_quality` 候选；
-- 124 条普通虚空晋升和 114 条制造虚空晋升行合计形成 143 个 `ascendant`
-  候选，其中 19 个为制造来源；
-- 总计 1,313 个 canonical Browse 候选，1,265 个可映射；唯一剩余的 mapping
-  问题是 48 个候选缺静态属性；
-- 438 条制造属性组合保留为 EnhancementSelection 关联，并折叠掉 365 个重复
-  Browse 身份；
-- 活动 Manifest 指针前后均为 generation 24，审计写入为 0。
+全局 `/api/data/health` 仍为 `partial`：活动 Manifest 和 stat worker 已 verified，
+但旧 staging catalog、旧 template chain、上一轮 release refresh 失败和
+manual-override legality health 仍由旧 owner 报告。这些状态不推翻独立活动 Release
+验收，也不能被包装成全局健康成功；它们必须进入后续 Catalog/authority 迁移。
 
-新的
-[Phase 1 决策](../../artifacts/releases/2026-07-28-equipment-simulator-track-authority-correction/phase1-decision.json)
-仍记录为 `blocked`、`allowedNextPlan=none`。除 48 个静态属性缺口外，活动 Manifest
-仍没有 Community Release，40/40 专精初始候选仍为 blocked，峰值 RSS 和临时磁盘
-仍为 unknown，五个运行时引用仍未归类。纯 Track Authority 没有运行时消费者；
-在这些 blocker 解除并重新审计前，不编写 Catalog 合同、dormant schema/shadow、
-新 API 或迁移计划。
+Phase 0 的两项真实微信验收、PR CI、合入和三方身份收口完成后，下一份 Strict
+实施计划才可启动 Phase 1，并按以下顺序切片：
+
+1. `CatalogRevision + ItemDefinition + BrowseVariant membership` dormant schema/contract。
+2. 活动 Gear Release 到首个 CatalogRevision 的确定性迁移与 40 专精 shadow。
+3. `ExactItemInstance + EnhancementSelection` 缓存和社区/个人模板迁移。
+4. `ResolvedLoadout + SimulationSnapshot` 身份、canonical compiler 和任务兼容。
+5. 单一 Manifest 切换、旧 reader/caller 淘汰、健康 owner 迁移、回滚和真实微信验收。

@@ -103,6 +103,7 @@ def prepare_stat_snapshot_request(
             resolved.get("data") or {},
             source_context=canonical_request["profileContext"],
             execution_flavor=WEBSIM_EXECUTION_FLAVOR_STAT_SNAPSHOT_V1,
+            talent_store=authority_store,
         )
         profile_text = _text(profile.get("profile") if isinstance(profile, dict) else "")
         readiness = profile.get("profileReadiness") if isinstance(profile, dict) else {}

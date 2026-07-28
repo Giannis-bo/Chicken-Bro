@@ -58,42 +58,42 @@
     {
       "id": "equipment_simulator_target_architecture_v1",
       "path": "docs/plans/2026-07-28-equipment-simulator-target-architecture.md",
-      "status": "approved_phase0_audit_blocked",
+      "status": "approved_phase0_runtime_verified_manual_acceptance_pending",
       "lifecycle": "active",
-      "notes": "The approved target architecture remains active, but the fresh Track Authority read-only audit still blocks migration planning. It classified 1678 legacy Browse rows as 1116 regular upgrade-track rows, 324 crafted-quality rows, 124 ordinary Ascendant rows and 114 crafted Ascendant rows, yielding 1313 canonical candidates and 1265 mapped candidates. The remaining 48 candidates lack static stats; the active Manifest has no Community Release, 40/40 specialization initial candidate baselines are blocked, resource peaks remain partial and five runtime caller references remain unresolved."
+      "notes": "The approved target architecture remains active. Phase 0 is live-verified on retail generation 32: 1309/1309 canonical Browse mappings, 40/40 specialization browse, 80/80 exact Community imports, 26 supported real SimC executions, 14 deterministic unsupported outcomes, bounded resources and rollback/restoration pass. The two frozen real-WeChat acceptance items, PR CI, merge and three-party closure remain pending before Phase 1 schema/runtime migration starts."
     },
     {
       "id": "equipment_simulator_track_authority_correction",
       "path": "docs/plans/2026-07-28-equipment-simulator-track-authority-correction.md",
-      "status": "audit_rerun_complete_blocked",
+      "status": "superseded_by_verified_phase0_runtime",
       "lifecycle": "active",
       "implementationPlan": "docs/plans/2026-07-28-equipment-simulator-track-authority-implementation.md",
       "auditReportId": "catalog-migration-audit:sha256:10c28022cbe3cb4cfb9f79a7ca59d4fa0aa47e416ab868d0b133084b2c6ed8c7",
       "evidence": "artifacts/releases/2026-07-28-equipment-simulator-track-authority-correction/evidence.json",
       "phase1Decision": "artifacts/releases/2026-07-28-equipment-simulator-track-authority-correction/phase1-decision.json",
-      "notes": "The pure season-bound Track Authority and progression-aware Phase 0 audit are implemented and rerun against production in a disposable read-only unit. Regular tracks resolve to governed 6/6, 438 crafted-stat rows collapse into 73 canonical variants plus EnhancementSelection associations, and crafted/Ascendant states carry no fabricated rank. This does not authorize Phase 1, schema/API changes, release writes or pointer changes."
+      "notes": "Historical Track Authority correction that unlocked the current task. Its blocked audit is superseded by the generation-32 exact progression audit in the Phase 0 unblock packet; the pure six-rank, crafted-quality and Ascendant rules remain active implementation inputs."
     },
     {
       "id": "equipment_simulator_catalog_migration_phase0",
       "path": "docs/plans/2026-07-28-equipment-simulator-catalog-migration-phase0-implementation.md",
-      "status": "audit_blocked",
+      "status": "audit_verified_generation_32",
       "lifecycle": "active",
-      "auditReportId": "catalog-migration-audit:sha256:10c28022cbe3cb4cfb9f79a7ca59d4fa0aa47e416ab868d0b133084b2c6ed8c7",
+      "auditReportId": "catalog-migration-audit:sha256:1f211147e19479a67c84641904222b9a4612ede8caafa6c0d2e328898c9341d2",
       "catalogMapping": {
-        "itemTotal": 1488,
-        "mappedItemCount": 1312,
+        "itemTotal": 1486,
+        "mappedItemCount": 1310,
         "excludedNonCatalogItemCount": 176,
-        "variantTotal": 46631,
-        "legacyBrowseVariantTotal": 1678,
-        "canonicalBrowseVariantTotal": 1313,
-        "mappedBrowseVariantCount": 1265,
+        "variantTotal": 50528,
+        "legacyBrowseVariantTotal": 1674,
+        "canonicalBrowseVariantTotal": 1309,
+        "mappedBrowseVariantCount": 1309,
         "craftedEnhancementSelectionRowCount": 438,
         "collapsedCraftedVariantRowCount": 365,
         "progressionCounts": {
           "upgrade_track": {
-            "legacyRowCount": 1116,
-            "canonicalCandidateCount": 1116,
-            "mappedCandidateCount": 1080
+            "legacyRowCount": 1113,
+            "canonicalCandidateCount": 1113,
+            "mappedCandidateCount": 1113
           },
           "crafted_quality": {
             "legacyRowCount": 324,
@@ -101,24 +101,33 @@
             "mappedCandidateCount": 54
           },
           "ascendant": {
-            "legacyRowCount": 238,
-            "canonicalCandidateCount": 143,
-            "mappedCandidateCount": 131,
+            "legacyRowCount": 237,
+            "canonicalCandidateCount": 142,
+            "mappedCandidateCount": 142,
             "craftedLegacyRowCount": 114,
             "craftedCanonicalCandidateCount": 19,
             "craftedMappedCandidateCount": 19
           }
         },
-        "problemCounts": {
-          "CATALOG_VARIANT_STATIC_STATS_MISSING": 48
-        },
-        "excludedExactInstanceCount": 44651,
-        "excludedPlaceholderVariantCount": 291,
+        "problemCounts": {},
+        "excludedExactInstanceCount": 48555,
+        "excludedPlaceholderVariantCount": 288,
         "excludedReferenceVariantCount": 11,
         "optionTotal": 63,
         "mappedOptionCount": 63
       },
-      "notes": "The fresh bounded production audit uses the exact season/rule Track Authority and never interprets generic community leaderboard rank as equipment track rank. It maps 1265/1313 canonical Browse candidates; all 48 remaining mapping problems are missing static stats. Pointer generation 24 remained identical before/after and database writes stayed zero. Independent template, 40-spec baseline, resource and caller gates keep the Phase 1 decision blocked with allowedNextPlan=none."
+      "notes": "The fresh bounded generation-32 audit uses exact season/rule Track Authority, maps 1309/1309 canonical Browse candidates, verifies all 80 Community ExactItemInstance templates and 40 specializations, records zero unresolved callers and zero source writes, and keeps the active pointer stable. Global data health remains partial under legacy staging/refresh owners and is not represented as a green global-health result."
+    },
+    {
+      "id": "equipment_simulator_phase0_unblock",
+      "path": "docs/plans/2026-07-28-equipment-simulator-phase0-unblock.md",
+      "status": "live_verified_manual_acceptance_pending",
+      "lifecycle": "active",
+      "requirement": "artifacts/releases/2026-07-28-equipment-simulator-phase0-unblock/requirement.json",
+      "evidence": "artifacts/releases/2026-07-28-equipment-simulator-phase0-unblock/evidence.json",
+      "auditReportId": "catalog-migration-audit:sha256:1f211147e19479a67c84641904222b9a4612ede8caafa6c0d2e328898c9341d2",
+      "runtimeCommit": "348e9c7058877789d7a45f1d5286a476462248cc",
+      "notes": "Strict Phase 0 runtime and data gates pass on generation 32. Exact-head full verification, PR CI, the two frozen real-WeChat acceptance items, merge, post-merge refresh and local/origin/cloud closure remain pending; Phase 1 schema/runtime work does not start in parallel."
     }
   ],
   "completedBaselines": [
@@ -518,20 +527,21 @@
       "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase3c-workbench-cutover/evidence.json"
     },
     "gearReleaseTrain": {
-      "status": "active_manifest_verified_catalog_migration_blocked",
+      "status": "active_manifest_phase0_verified",
       "formalActiveManifest": true,
       "pointerMode": "active",
-      "pointerGeneration": 24,
-      "activeManifestRevision": "season-manifest:sha256:6517fc257c39d80339a90fa0675ec53792958ac51fcdc7c3a2629784112c2f1d",
-      "rollbackManifestRevision": "season-manifest:sha256:18c42522cc71351cd24f2185e3b037f7d9d5f13e355d9ff2bc85b6d94ef3aa6e",
+      "pointerGeneration": 32,
+      "activeManifestRevision": "season-manifest:sha256:b79e6226c7dc406c2e729cf01cf6d86f4944b760b8e8cc185dcd4347032fedb6",
+      "rollbackManifestRevision": "season-manifest:sha256:ab1cdff36be524d9f6f499732e0ffca88e4eea39bb6013d735a33a5a01a3b88a",
       "runbook": "docs/gear-simulation-full-chain-runbook.md",
       "purePolicyModule": "server/gear_release.py",
       "releaseRepository": "server/gear_release_store.py",
-      "activeGearReleaseId": "gear-release:sha256:de40793805a84934497c645be2ccc914ef44191744cc76d03f765001bc6dfe6a",
-      "activeCommunityReleaseId": "",
+      "activeGearReleaseId": "gear-release:sha256:9299fe1f942dc272f402e4d735d6a1bf8111a8f156464e0777cd6df78769edc7",
+      "activeCommunityReleaseId": "community-release:sha256:686708be049323a979b66bfba42cae3f2b80f7337e740d26b299fd73e0665804",
       "activeManifestPointerRows": 1,
-      "scheduledRefresh": "timer_disabled_health_blocked",
-      "evidence": "artifacts/releases/2026-07-28-equipment-simulator-catalog-migration-phase0/runtime-readonly-audit.json"
+      "scheduledRefresh": "timer_enabled_previous_run_failed_health_blocked",
+      "globalDataHealth": "partial",
+      "evidence": "artifacts/releases/2026-07-28-equipment-simulator-phase0-unblock/evidence.json"
     },
     "gearStatSnapshot": {
       "status": "phase5_complete_live_verified",
@@ -600,9 +610,15 @@
     },
     {
       "id": "equipment_simulator_catalog_migration_phase0_blockers",
-      "status": "blocked_measured",
-      "trigger": "The fresh 2026-07-28 Track Authority audit mapped 1312/1488 item definitions and 1265/1313 canonical Browse candidates. It collapses 438 crafted-stat rows into 73 canonical variants plus enhancement associations without inventing rank; the remaining 48 canonical candidates lack static stats. The active Manifest has no Community Release or community templates, all 40 specialization initial candidate rows are blocked, peak RSS/temp bytes remain unknown, and five runtime references remain unresolved. Do not design Catalog schema or API work around these gaps.",
-      "evidence": "artifacts/releases/2026-07-28-equipment-simulator-track-authority-correction/phase1-decision.json"
+      "status": "resolved_generation_32",
+      "trigger": "The generation-32 Phase 0 audit maps 1309/1309 canonical Browse candidates, verifies 80/80 Community ExactItemInstance templates and 40/40 specializations, measures builder resources below hard limits, classifies every caller and observes zero source writes with a stable pointer. Two real-WeChat acceptance items and merge closure remain before Phase 1 implementation.",
+      "evidence": "artifacts/releases/2026-07-28-equipment-simulator-phase0-unblock/evidence.json"
+    },
+    {
+      "id": "equipment_simulator_legacy_health_owners",
+      "status": "open_partial",
+      "trigger": "Global /api/data/health remains partial even though the active generation-32 Manifest, release matrices and stat worker pass. gear_release_refresh retains the previous failed event; gear_catalog and community template summaries still read staging/legacy chains; gear_legality_authority still reports manual_override source authority. Migrate these owners during the target Catalog/authority work and do not present global health as green.",
+      "evidence": "artifacts/releases/2026-07-28-equipment-simulator-phase0-unblock/evidence.json"
     }
   ]
 }

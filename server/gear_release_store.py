@@ -185,6 +185,14 @@ def _canonical(value: Any) -> Any:
     )
 
 
+def _stream_cursor_rows(cur: Any, batch_size: int = 500) -> Iterable[Any]:
+    while True:
+        rows = cur.fetchmany(batch_size)
+        if not rows:
+            return
+        yield from rows
+
+
 def _canonical_bytes(value: Any) -> bytes:
     return json.dumps(
         value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), default=str
@@ -215,6 +223,51 @@ def _int(value: Any) -> int:
 def _canonical_rows(rows: Any) -> list[dict[str, Any]]:
     values = [_canonical(row) for row in rows or [] if isinstance(row, dict)]
     return sorted(values, key=lambda row: _canonical_bytes(row))
+
+
+def _row_batches(rows: Any, batch_size: int = 250) -> Iterable[list[dict[str, Any]]]:
+    batch: list[dict[str, Any]] = []
+    for row in rows or []:
+        if not isinstance(row, dict):
+            continue
+        batch.append(row)
+        if len(batch) >= batch_size:
+            yield batch
+            batch = []
+    if batch:
+        yield batch
+
+
+def _gear_snapshot_hash_and_counts(
+    snapshot: dict[str, Any],
+) -> tuple[str, dict[str, int]]:
+    """Stream the legacy canonical snapshot JSON without duplicating the graph."""
+
+    categories = ("items", "sources", "variants", "options")
+    counts: dict[str, int] = {}
+    digest = hashlib.sha256()
+    digest.update(b"{")
+    for category_index, category in enumerate(sorted(categories)):
+        if category_index:
+            digest.update(b",")
+        digest.update(_canonical_bytes(category))
+        digest.update(b":[")
+        encoded_rows = sorted(
+            _canonical_bytes(row)
+            for row in snapshot.get(category) or []
+            if isinstance(row, dict)
+        )
+        counts[category] = len(encoded_rows)
+        for row_index, encoded in enumerate(encoded_rows):
+            if row_index:
+                digest.update(b",")
+            digest.update(encoded)
+        digest.update(b"]")
+    digest.update(b"}")
+    return (
+        "sha256:" + digest.hexdigest(),
+        {category: counts[category] for category in categories},
+    )
 
 
 def _selected_option_ids(selection_intent: Any) -> list[str]:
@@ -395,14 +448,11 @@ def _observed_compile_scope(
 
 def gear_snapshot_summary(snapshot: Any) -> dict[str, Any]:
     value = snapshot if isinstance(snapshot, dict) else {}
-    canonical = {
-        key: _canonical_rows(value.get(key))
-        for key in ("items", "sources", "variants", "options")
-    }
+    snapshot_hash, counts = _gear_snapshot_hash_and_counts(value)
     return {
         "schemaRevision": "gear-release-content-v1",
-        "snapshotHash": _hash(canonical),
-        "counts": {key: len(canonical[key]) for key in canonical},
+        "snapshotHash": snapshot_hash,
+        "counts": counts,
     }
 
 
@@ -467,6 +517,59 @@ def _expected_manifest_revision(manifest: dict[str, Any]) -> str:
     return "season-manifest:" + _hash(identity)
 
 
+def candidate_observed_variant_instance_key(
+    item_id: Any,
+    slot: Any,
+    item_level: Any,
+    simc_options: Any,
+) -> tuple[str, str, int, tuple[tuple[str, str], ...]]:
+    try:
+        from .websim_payload import (
+            SIMC_GEAR_OPTION_KEYS,
+            normalize_option_value,
+            normalize_slot,
+        )
+    except ImportError:
+        from websim_payload import (
+            SIMC_GEAR_OPTION_KEYS,
+            normalize_option_value,
+            normalize_slot,
+        )
+
+    options = simc_options if isinstance(simc_options, dict) else {}
+    normalized_options = tuple(sorted(
+        (key, normalized)
+        for key, value in options.items()
+        if key in SIMC_GEAR_OPTION_KEYS
+        and (normalized := normalize_option_value(value))
+    ))
+    return (
+        _text(item_id),
+        normalize_slot(slot),
+        _int(item_level),
+        normalized_options,
+    )
+
+
+def _candidate_observed_profile_urls(value: Any) -> set[str]:
+    row = value if isinstance(value, dict) else {}
+    payload = row.get("payload") if isinstance(row.get("payload"), dict) else {}
+    urls = set()
+    for source in (row, payload):
+        for field in ("profileUrl", "sourceProfileUrl", "sourceUrl", "url"):
+            url = _text(source.get(field))
+            if url:
+                urls.add(url)
+        for ref in source.get("observedProfileRefs") or []:
+            if not isinstance(ref, dict):
+                continue
+            for field in ("profileUrl", "sourceProfileUrl", "sourceUrl", "url"):
+                url = _text(ref.get(field))
+                if url:
+                    urls.add(url)
+    return urls
+
+
 class CandidateGearAuthorityIndex:
     """One validated, reusable index over an exact candidate Gear snapshot."""
 
@@ -474,24 +577,115 @@ class CandidateGearAuthorityIndex:
         self.release = _exact_release_descriptor(gear_release)
         if self.release["releaseKind"] != "gear":
             raise GearReleaseIntegrityError("candidate authority requires a Gear Release")
-        self.snapshot_summary = gear_snapshot_summary(snapshot)
-        if self.snapshot_summary != self.release["content"]:
-            raise GearReleaseIntegrityError("candidate authority snapshot does not match Gear Release")
+        projection = (
+            snapshot.get("_releaseProjection")
+            if isinstance(snapshot.get("_releaseProjection"), dict)
+            else {}
+        )
+        if projection:
+            content_counts = (
+                self.release["content"].get("counts")
+                if isinstance(self.release["content"].get("counts"), dict)
+                else {}
+            )
+            projection_counts = (
+                projection.get("projectionCounts")
+                if isinstance(projection.get("projectionCounts"), dict)
+                else {}
+            )
+            valid_projection = (
+                projection.get("schemaRevision")
+                == "community-builder-release-projection-v1"
+                and projection.get("releaseId") == self.release["releaseId"]
+                and projection.get("contentHash") == self.release["contentHash"]
+                and projection.get("fullCounts") == content_counts
+                and all(
+                    _int(projection_counts.get(category))
+                    == len(snapshot.get(category) or [])
+                    for category in ("items", "sources", "variants", "options")
+                )
+                and all(
+                    _int(projection_counts.get(category))
+                    == _int(content_counts.get(category))
+                    for category in ("items", "variants", "options")
+                )
+                and _int(projection_counts.get("sources"))
+                <= _int(content_counts.get("sources"))
+            )
+            if not valid_projection:
+                raise GearReleaseIntegrityError(
+                    "candidate authority release projection is invalid"
+                )
+            self.snapshot_summary = self.release["content"]
+        else:
+            self.snapshot_summary = gear_snapshot_summary(snapshot)
+            if self.snapshot_summary != self.release["content"]:
+                raise GearReleaseIntegrityError(
+                    "candidate authority snapshot does not match Gear Release"
+                )
+        self.item_rows_by_id: dict[str, list[dict[str, Any]]] = {}
+        for row in snapshot.get("items") or []:
+            if not isinstance(row, dict):
+                continue
+            self.item_rows_by_id.setdefault(_text(row.get("itemId")), []).append(row)
         self.items = {
-            _text(row.get("itemId")): row
-            for row in _canonical_rows(snapshot.get("items"))
+            item_id: rows[0]
+            for item_id, rows in self.item_rows_by_id.items()
+            if len(rows) == 1
         }
         self.sources_by_item: dict[str, list[dict[str, Any]]] = {}
-        for row in _canonical_rows(snapshot.get("sources")):
+        for row in snapshot.get("sources") or []:
+            if not isinstance(row, dict):
+                continue
             self.sources_by_item.setdefault(_text(row.get("itemId")), []).append(row)
         self.variants_by_item: dict[str, list[dict[str, Any]]] = {}
-        for row in _canonical_rows(snapshot.get("variants")):
-            self.variants_by_item.setdefault(_text(row.get("itemId")), []).append(row)
+        self.observed_variants_by_instance: dict[
+            tuple[str, str, int, tuple[tuple[str, str], ...]],
+            list[dict[str, Any]],
+        ] = {}
+        self.observed_variants_by_profile_instance: dict[
+            tuple[
+                tuple[str, str, int, tuple[tuple[str, str], ...]],
+                str,
+            ],
+            list[dict[str, Any]],
+        ] = {}
+        for row in snapshot.get("variants") or []:
+            if not isinstance(row, dict):
+                continue
+            item_id = _text(row.get("itemId"))
+            self.variants_by_item.setdefault(item_id, []).append(row)
+            if (
+                _text(row.get("status")).lower() != "verified"
+                or _text(row.get("sourceType")).lower() != "observed_profile"
+            ):
+                continue
+            instance_key = candidate_observed_variant_instance_key(
+                item_id,
+                row.get("slot"),
+                row.get("itemLevel"),
+                row.get("simcOptions"),
+            )
+            self.observed_variants_by_instance.setdefault(
+                instance_key,
+                [],
+            ).append(row)
+            for profile_url in _candidate_observed_profile_urls(row):
+                self.observed_variants_by_profile_instance.setdefault(
+                    (instance_key, profile_url),
+                    [],
+                ).append(row)
         self.options_by_key = {
             _text(row.get("optionKey")): row
-            for row in _canonical_rows(snapshot.get("options"))
-            if _text(row.get("optionKey"))
+            for row in snapshot.get("options") or []
+            if isinstance(row, dict) and _text(row.get("optionKey"))
         }
+        self.verified_options = [
+            row
+            for row in self.options_by_key.values()
+            if _text(row.get("status")).lower() == "verified"
+            and row.get("isVisible") is True
+        ]
 
 
 def build_candidate_authority_context(
@@ -846,6 +1040,332 @@ class GearReleaseStore:
             ],
         }
 
+    def snapshot_gear_release(
+        self,
+        release_id: str,
+    ) -> dict[str, list[dict[str, Any]]]:
+        """Read one immutable Gear Release snapshot in a single read-only transaction."""
+
+        normalized = _text(release_id)
+        if not normalized:
+            raise GearReleaseIntegrityError("Gear Release ID is required")
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
+                cur.execute(
+                    """
+                    SELECT item_id, name, slot, item_level, payload_json,
+                           source_status, source_updated_at
+                    FROM cache.websim_gear_release_items
+                    WHERE release_id = %s
+                    ORDER BY item_id
+                    """,
+                    (normalized,),
+                )
+                item_rows = cur.fetchall()
+                cur.execute(
+                    """
+                    SELECT source_id, item_id, source_type, source_key, source_label,
+                           instance_id, encounter_id, difficulty_key, season_revision,
+                           payload_json, source_updated_at
+                    FROM cache.websim_gear_release_sources
+                    WHERE release_id = %s
+                    ORDER BY source_id
+                    """,
+                    (normalized,),
+                )
+                source_rows = cur.fetchall()
+                cur.execute(
+                    """
+                    SELECT variant_id, item_id, variant_key, slot, label, source_type,
+                           difficulty_key, item_level, simc_options_json, status,
+                           blockers_json, payload_json, source_updated_at
+                    FROM cache.websim_gear_release_variants
+                    WHERE release_id = %s
+                    ORDER BY variant_id
+                    """,
+                    (normalized,),
+                )
+                variant_rows = cur.fetchall()
+                cur.execute(
+                    """
+                    SELECT option_id, variant_id, option_key, option_type, name,
+                           applicable_slots_json, simc_options_json, status, is_visible,
+                           payload_json, source_updated_at
+                    FROM cache.websim_gear_release_mod_options
+                    WHERE release_id = %s
+                    ORDER BY option_id
+                    """,
+                    (normalized,),
+                )
+                option_rows = cur.fetchall()
+        return {
+            "items": [
+                {
+                    "itemId": _text(row[0]),
+                    "name": _text(row[1]),
+                    "slot": _text(row[2]),
+                    "itemLevel": row[3],
+                    "payload": _canonical(row[4] if isinstance(row[4], dict) else {}),
+                    "sourceStatus": _text(row[5]),
+                    "updatedAt": _text(row[6]),
+                }
+                for row in item_rows
+            ],
+            "sources": [
+                {
+                    "sourceId": _text(row[0]),
+                    "itemId": _text(row[1]),
+                    "sourceType": _text(row[2]),
+                    "sourceKey": _text(row[3]),
+                    "sourceLabel": _text(row[4]),
+                    "instanceId": _text(row[5]),
+                    "encounterId": _text(row[6]),
+                    "difficultyKey": _text(row[7]),
+                    "seasonRevision": _text(row[8]),
+                    "payload": _canonical(row[9] if isinstance(row[9], dict) else {}),
+                    "updatedAt": _text(row[10]),
+                }
+                for row in source_rows
+            ],
+            "variants": [
+                {
+                    "variantId": _text(row[0]),
+                    "itemId": _text(row[1]),
+                    "variantKey": _text(row[2]),
+                    "slot": _text(row[3]),
+                    "label": _text(row[4]),
+                    "sourceType": _text(row[5]),
+                    "difficultyKey": _text(row[6]),
+                    "itemLevel": _int(row[7]),
+                    "simcOptions": _canonical(row[8] if isinstance(row[8], dict) else {}),
+                    "status": _text(row[9]),
+                    "blockers": _canonical(row[10] if isinstance(row[10], list) else []),
+                    "payload": _canonical(row[11] if isinstance(row[11], dict) else {}),
+                    "updatedAt": _text(row[12]),
+                }
+                for row in variant_rows
+            ],
+            "options": [
+                {
+                    "optionId": _text(row[0]),
+                    "variantId": _text(row[1]),
+                    "optionKey": _text(row[2]),
+                    "optionType": _text(row[3]),
+                    "name": _text(row[4]),
+                    "applicableSlots": _canonical(row[5] if isinstance(row[5], list) else []),
+                    "simcOptions": _canonical(row[6] if isinstance(row[6], dict) else {}),
+                    "status": _text(row[7]),
+                    "isVisible": row[8] is True,
+                    "payload": _canonical(row[9] if isinstance(row[9], dict) else {}),
+                    "updatedAt": _text(row[10]),
+                }
+                for row in option_rows
+            ],
+        }
+
+    def snapshot_gear_release_for_community_builder(
+        self,
+        release_id: str,
+    ) -> dict[str, Any]:
+        """Read a lossless builder projection without private/raw payload expansion."""
+
+        normalized = _text(release_id)
+        if not normalized:
+            raise GearReleaseIntegrityError("Gear Release ID is required")
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
+                release = self._select_release(cur, normalized)
+                if release is None:
+                    raise GearReleaseIntegrityError("Gear Release is missing")
+                release = _exact_release_descriptor(release)
+                if release["releaseKind"] != "gear":
+                    raise GearReleaseIntegrityError(
+                        "community builder projection requires a Gear Release"
+                    )
+                cur.execute(
+                    """
+                    SELECT item_id, name, slot, item_level, payload_json,
+                           source_status, source_updated_at
+                    FROM cache.websim_gear_release_items
+                    WHERE release_id = %s
+                    ORDER BY item_id
+                    """,
+                    (normalized,),
+                )
+                items = [
+                    {
+                        "itemId": _text(row[0]),
+                        "name": _text(row[1]),
+                        "slot": _text(row[2]),
+                        "itemLevel": row[3],
+                        "payload": row[4] if isinstance(row[4], dict) else {},
+                        "sourceStatus": _text(row[5]),
+                        "updatedAt": _text(row[6]),
+                    }
+                    for row in _stream_cursor_rows(cur)
+                ]
+                cur.execute(
+                    """
+                    SELECT source_id, item_id, source_type, source_key, source_label,
+                           instance_id, encounter_id, difficulty_key, season_revision,
+                           payload_json, source_updated_at
+                    FROM (
+                        SELECT DISTINCT ON (
+                                   candidate.item_id,
+                                   candidate.source_type
+                               )
+                               candidate.*
+                        FROM cache.websim_gear_release_sources candidate
+                        WHERE candidate.release_id = %s
+                        ORDER BY
+                            candidate.item_id,
+                            candidate.source_type,
+                            CASE WHEN
+                                LOWER(COALESCE(candidate.payload_json->>'status', '')) = 'verified'
+                                OR LOWER(COALESCE(candidate.payload_json->>'sourceStatus', '')) = 'verified'
+                                OR (
+                                    candidate.source_type = 'tier_set'
+                                    AND candidate.payload_json->>'authority' = 'Battle.net Game Data API'
+                                )
+                                THEN 0 ELSE 1
+                            END,
+                            candidate.source_updated_at DESC,
+                            candidate.source_id
+                    ) selected
+                    ORDER BY item_id, source_type, source_id
+                    """,
+                    (normalized,),
+                )
+                sources = [
+                    {
+                        "sourceId": _text(row[0]),
+                        "itemId": _text(row[1]),
+                        "sourceType": _text(row[2]),
+                        "sourceKey": _text(row[3]),
+                        "sourceLabel": _text(row[4]),
+                        "instanceId": _text(row[5]),
+                        "encounterId": _text(row[6]),
+                        "difficultyKey": _text(row[7]),
+                        "seasonRevision": _text(row[8]),
+                        "payload": row[9] if isinstance(row[9], dict) else {},
+                        "updatedAt": _text(row[10]),
+                    }
+                    for row in _stream_cursor_rows(cur)
+                ]
+                cur.execute(
+                    """
+                    SELECT variant_id, item_id, variant_key, slot, label, source_type,
+                           difficulty_key, item_level, simc_options_json, status,
+                           blockers_json,
+                           jsonb_strip_nulls(jsonb_build_object(
+                               'resolvedStats', payload_json->'resolvedStats',
+                               'itemStats', payload_json->'itemStats',
+                               'statDeltas', payload_json->'statDeltas',
+                               'capabilityOverrides', payload_json->'capabilityOverrides',
+                               'socketEvidence', payload_json->'socketEvidence',
+                               'enhancementManagement', payload_json->'enhancementManagement',
+                               'dynamicEffects', payload_json->'dynamicEffects',
+                               'itemSetId', payload_json->'itemSetId',
+                               'overlay', payload_json->'overlay',
+                               'profileUrl', payload_json->'profileUrl',
+                               'sourceProfileUrl', payload_json->'sourceProfileUrl',
+                               'sourceUrl', payload_json->'sourceUrl',
+                               'url', payload_json->'url',
+                               'observedProfileRefs', payload_json->'observedProfileRefs',
+                               'statSource', payload_json->'statSource',
+                               'statDisplayStatus', payload_json->'statDisplayStatus',
+                               'simcEncodedItem', payload_json->'simcEncodedItem',
+                               'simcItemId', payload_json->'simcItemId',
+                               'simcItemLevel', payload_json->'simcItemLevel'
+                           )),
+                           source_updated_at
+                    FROM cache.websim_gear_release_variants
+                    WHERE release_id = %s
+                    ORDER BY variant_id
+                    """,
+                    (normalized,),
+                )
+                variants = [
+                    {
+                        "variantId": _text(row[0]),
+                        "itemId": _text(row[1]),
+                        "variantKey": _text(row[2]),
+                        "slot": _text(row[3]),
+                        "label": _text(row[4]),
+                        "sourceType": _text(row[5]),
+                        "difficultyKey": _text(row[6]),
+                        "itemLevel": _int(row[7]),
+                        "simcOptions": row[8] if isinstance(row[8], dict) else {},
+                        "status": _text(row[9]),
+                        "blockers": row[10] if isinstance(row[10], list) else [],
+                        "payload": row[11] if isinstance(row[11], dict) else {},
+                        "updatedAt": _text(row[12]),
+                    }
+                    for row in _stream_cursor_rows(cur)
+                ]
+                cur.execute(
+                    """
+                    SELECT option_id, variant_id, option_key, option_type, name,
+                           applicable_slots_json, simc_options_json, status, is_visible,
+                           payload_json, source_updated_at
+                    FROM cache.websim_gear_release_mod_options
+                    WHERE release_id = %s
+                    ORDER BY option_id
+                    """,
+                    (normalized,),
+                )
+                options = [
+                    {
+                        "optionId": _text(row[0]),
+                        "variantId": _text(row[1]),
+                        "optionKey": _text(row[2]),
+                        "optionType": _text(row[3]),
+                        "name": _text(row[4]),
+                        "applicableSlots": row[5] if isinstance(row[5], list) else [],
+                        "simcOptions": row[6] if isinstance(row[6], dict) else {},
+                        "status": _text(row[7]),
+                        "isVisible": row[8] is True,
+                        "payload": row[9] if isinstance(row[9], dict) else {},
+                        "updatedAt": _text(row[10]),
+                    }
+                    for row in _stream_cursor_rows(cur)
+                ]
+        snapshot = {
+            "items": items,
+            "sources": sources,
+            "variants": variants,
+            "options": options,
+        }
+        full_counts = (
+            release["content"].get("counts")
+            if isinstance(release["content"].get("counts"), dict)
+            else {}
+        )
+        projection_counts = {
+            category: len(snapshot[category])
+            for category in ("items", "sources", "variants", "options")
+        }
+        if (
+            any(
+                projection_counts[category] != _int(full_counts.get(category))
+                for category in ("items", "variants", "options")
+            )
+            or projection_counts["sources"] > _int(full_counts.get("sources"))
+        ):
+            raise GearReleaseIntegrityError(
+                "community builder release projection row counts are invalid"
+            )
+        snapshot["_releaseProjection"] = {
+            "schemaRevision": "community-builder-release-projection-v1",
+            "releaseId": release["releaseId"],
+            "contentHash": release["contentHash"],
+            "fullCounts": _canonical(full_counts),
+            "projectionCounts": projection_counts,
+        }
+        return snapshot
+
     def snapshot_staging_community_templates(
         self,
         expected_specs: Iterable[tuple[str, str]],
@@ -894,32 +1414,31 @@ class GearReleaseStore:
                     """,
                     (class_keys, spec_keys),
                 )
-                rows = cur.fetchall()
-        return [
-            {
-                "templateId": _text(row[0]),
-                "classKey": _text(row[1]),
-                "specKey": _text(row[2]),
-                "name": _text(row[3]),
-                "sourceKey": _text(row[4]),
-                "sourceName": _text(row[5]),
-                "sourceUrl": _text(row[6]),
-                "sourceStatus": _text(row[7]),
-                "status": _text(row[8]),
-                "signature": _text(row[9]),
-                "sourceRefs": _canonical(row[10] if isinstance(row[10], list) else []),
-                "gearItems": _canonical(row[11] if isinstance(row[11], list) else []),
-                "rawString": _text(row[12]),
-                "readySlotCount": _int(row[13]),
-                "missingSlots": _canonical(row[14] if isinstance(row[14], list) else []),
-                "analysisWindow": _text(row[15]),
-                "payload": _canonical(row[16] if isinstance(row[16], dict) else {}),
-                "updatedAt": _text(row[17]),
-                "expiresAt": _text(row[18]),
-                "scanRunId": _text(row[19]),
-            }
-            for row in rows
-        ]
+                return [
+                    {
+                        "templateId": _text(row[0]),
+                        "classKey": _text(row[1]),
+                        "specKey": _text(row[2]),
+                        "name": _text(row[3]),
+                        "sourceKey": _text(row[4]),
+                        "sourceName": _text(row[5]),
+                        "sourceUrl": _text(row[6]),
+                        "sourceStatus": _text(row[7]),
+                        "status": _text(row[8]),
+                        "signature": _text(row[9]),
+                        "sourceRefs": row[10] if isinstance(row[10], list) else [],
+                        "gearItems": row[11] if isinstance(row[11], list) else [],
+                        "rawString": _text(row[12]),
+                        "readySlotCount": _int(row[13]),
+                        "missingSlots": row[14] if isinstance(row[14], list) else [],
+                        "analysisWindow": _text(row[15]),
+                        "payload": row[16] if isinstance(row[16], dict) else {},
+                        "updatedAt": _text(row[17]),
+                        "expiresAt": _text(row[18]),
+                        "scanRunId": _text(row[19]),
+                    }
+                    for row in _stream_cursor_rows(cur)
+                ]
 
     def snapshot_staging_community_talent_candidates(
         self,
@@ -2277,11 +2796,7 @@ class GearReleaseStore:
 
     @staticmethod
     def _insert_gear_rows(cur, release_id: str, snapshot: dict[str, Any]) -> None:
-        items = _canonical_rows(snapshot.get("items"))
-        sources = _canonical_rows(snapshot.get("sources"))
-        variants = _canonical_rows(snapshot.get("variants"))
-        options = _canonical_rows(snapshot.get("options"))
-        if items:
+        for items in _row_batches(snapshot.get("items")):
             cur.executemany(
                 """
                 INSERT INTO cache.websim_gear_release_items (
@@ -2299,7 +2814,7 @@ class GearReleaseStore:
                     for row in items
                 ],
             )
-        if sources:
+        for sources in _row_batches(snapshot.get("sources")):
             cur.executemany(
                 """
                 INSERT INTO cache.websim_gear_release_sources (
@@ -2320,7 +2835,7 @@ class GearReleaseStore:
                     for row in sources
                 ],
             )
-        if variants:
+        for variants in _row_batches(snapshot.get("variants")):
             cur.executemany(
                 """
                 INSERT INTO cache.websim_gear_release_variants (
@@ -2341,7 +2856,7 @@ class GearReleaseStore:
                     for row in variants
                 ],
             )
-        if options:
+        for options in _row_batches(snapshot.get("options")):
             cur.executemany(
                 """
                 INSERT INTO cache.websim_gear_release_mod_options (

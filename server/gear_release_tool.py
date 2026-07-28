@@ -8,8 +8,11 @@ import copy
 from datetime import datetime, timezone
 import hashlib
 import json
+import os
+from pathlib import Path
 import re
 import subprocess
+import tempfile
 from typing import Any, Callable, Iterable, Mapping
 from urllib.parse import urlparse
 
@@ -21,6 +24,7 @@ try:
         gear_release_shadow,
         gear_resolver,
         gear_socket_authority,
+        gear_track_authority,
         raiderio_payload,
     )
     from .db import connect_postgres, database_config_from_env, postgres_only_runtime_enabled
@@ -29,6 +33,7 @@ try:
         GearReleaseIntegrityError,
         GearReleaseStore,
         build_candidate_authority_context,
+        candidate_observed_variant_instance_key,
         community_rows_summary,
         gear_snapshot_summary,
     )
@@ -39,6 +44,7 @@ try:
         gear_resolver_runtime_authority,
         hero_trees_for_spec,
         item_can_enchant_slot,
+        item_payload_is_cosmetic_statless,
         normalize_option_value,
         normalize_slot,
         observed_gear_simc_options,
@@ -52,6 +58,7 @@ except ImportError:
     import gear_release_shadow
     import gear_resolver
     import gear_socket_authority
+    import gear_track_authority
     import raiderio_payload
     from db import connect_postgres, database_config_from_env, postgres_only_runtime_enabled
     from gear_release_store import (
@@ -59,6 +66,7 @@ except ImportError:
         GearReleaseIntegrityError,
         GearReleaseStore,
         build_candidate_authority_context,
+        candidate_observed_variant_instance_key,
         community_rows_summary,
         gear_snapshot_summary,
     )
@@ -69,6 +77,7 @@ except ImportError:
         gear_resolver_runtime_authority,
         hero_trees_for_spec,
         item_can_enchant_slot,
+        item_payload_is_cosmetic_statless,
         normalize_option_value,
         normalize_slot,
         observed_gear_simc_options,
@@ -202,6 +211,78 @@ def _socket_probe_digest(socket_bonus_minimums: Mapping[str, Any]) -> str:
     })
 
 
+def _exclude_noncombat_cosmetic_rows(
+    snapshot: Mapping[str, Any],
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    items = [
+        row
+        for row in snapshot.get("items") or []
+        if isinstance(row, dict)
+    ]
+    excluded_item_ids = {
+        _text(row.get("itemId"))
+        for row in items
+        if _text(row.get("itemId"))
+        and (
+            item_payload_is_cosmetic_statless(
+                row.get("payload") if isinstance(row.get("payload"), dict) else {}
+            )
+            or _text(
+                (
+                    row.get("payload")
+                    if isinstance(row.get("payload"), dict)
+                    else {}
+                ).get("armorType")
+            ).lower()
+            == "cosmetic"
+        )
+    }
+    variants = [
+        row
+        for row in snapshot.get("variants") or []
+        if isinstance(row, dict)
+    ]
+    excluded_variant_ids = {
+        _text(row.get("variantId"))
+        for row in variants
+        if _text(row.get("itemId")) in excluded_item_ids
+        and _text(row.get("variantId"))
+    }
+    projected = dict(snapshot)
+    projected["items"] = [
+        row
+        for row in items
+        if _text(row.get("itemId")) not in excluded_item_ids
+    ]
+    projected["sources"] = [
+        row
+        for row in snapshot.get("sources") or []
+        if isinstance(row, dict)
+        and _text(row.get("itemId")) not in excluded_item_ids
+    ]
+    projected["variants"] = [
+        row
+        for row in variants
+        if _text(row.get("itemId")) not in excluded_item_ids
+    ]
+    projected["options"] = [
+        row
+        for row in snapshot.get("options") or []
+        if isinstance(row, dict)
+        and _text(row.get("variantId")) not in excluded_variant_ids
+    ]
+    excluded = sorted(excluded_item_ids)
+    return projected, {
+        "excludedNonCombatItemCount": len(excluded),
+        "excludedNonCombatItemDigest": _canonical_digest(
+            {
+                "schemaRevision": "gear-noncombat-exclusion-v1",
+                "itemIds": excluded,
+            }
+        ),
+    }
+
+
 def _socket_fact_value(row: dict[str, Any], field: str) -> dict[str, Any]:
     payload = row.get("payload") if isinstance(row.get("payload"), dict) else {}
     value = payload.get(field) if isinstance(payload.get(field), dict) else row.get(field)
@@ -237,8 +318,12 @@ def _materialized_socket_fact_digest(snapshot: dict[str, Any]) -> str:
     return _canonical_digest({"items": items, "variants": variants})
 
 
-def _project_socket_facts_into_release_payloads(snapshot: dict[str, Any]) -> dict[str, Any]:
-    projected = _canonical(snapshot)
+def _project_socket_facts_into_release_payloads(
+    snapshot: dict[str, Any],
+    *,
+    copy_snapshot: bool = True,
+) -> dict[str, Any]:
+    projected = _canonical(snapshot) if copy_snapshot else snapshot
     for category, fields in (
         ("items", ("baseCapabilities", "socketEvidence")),
         ("variants", ("capabilityOverrides", "socketEvidence")),
@@ -267,10 +352,12 @@ def _project_socket_facts_into_release_payloads(snapshot: dict[str, Any]) -> dic
 def _materialize_enhancement_management(
     snapshot: dict[str, Any],
     capability_revision: str,
+    *,
+    copy_snapshot: bool = True,
 ) -> dict[str, Any]:
     """Seal v2 field governance without treating absence as trusted source data."""
 
-    materialized = _canonical(snapshot)
+    materialized = _canonical(snapshot) if copy_snapshot else snapshot
     items_by_id = {
         _text(row.get("itemId")): row
         for row in materialized.get("items") or []
@@ -1167,6 +1254,91 @@ def _canonical_observed_template_variant(
     )[0]
 
 
+def _indexed_observed_template_variant(
+    raw: dict[str, Any],
+    *,
+    item_id: str,
+    slot: str,
+    prepared_index: CandidateGearAuthorityIndex,
+) -> dict[str, Any]:
+    observed_item_level, conflicting_levels = _observed_template_item_level(raw)
+    profile_urls = _observed_profile_urls(raw)
+    expected_options = _observed_template_instance_options(
+        raw,
+        observed_item_level,
+    )
+    if (
+        conflicting_levels
+        or observed_item_level <= 0
+        or not profile_urls
+        or not expected_options
+    ):
+        return {}
+    instance_key = candidate_observed_variant_instance_key(
+        item_id,
+        slot,
+        observed_item_level,
+        expected_options,
+    )
+    equivalent_by_identity: dict[int, dict[str, Any]] = {}
+    for profile_url in profile_urls:
+        for candidate in (
+            prepared_index.observed_variants_by_profile_instance.get(
+                (instance_key, profile_url),
+                [],
+            )
+        ):
+            equivalent_by_identity[id(candidate)] = candidate
+    scoped_candidates = list(equivalent_by_identity.values()) or list(
+        prepared_index.observed_variants_by_instance.get(instance_key, [])
+    )
+    if not scoped_candidates:
+        return {}
+    signatures = {
+        json.dumps(
+            _canonical({
+                "itemId": _text(candidate.get("itemId")),
+                "slot": normalize_slot(candidate.get("slot")),
+                "itemLevel": _int(candidate.get("itemLevel")),
+                "simcOptions": {
+                    key: normalized
+                    for key, value in (candidate.get("simcOptions") or {}).items()
+                    if key in SIMC_GEAR_OPTION_KEYS
+                    and (normalized := normalize_option_value(value))
+                },
+                "resolvedStats": (
+                    candidate.get("payload")
+                    if isinstance(candidate.get("payload"), dict)
+                    else {}
+                ).get("resolvedStats") or {},
+                "capabilityOverrides": (
+                    candidate.get("payload")
+                    if isinstance(candidate.get("payload"), dict)
+                    else {}
+                ).get("capabilityOverrides") or {},
+                "enhancementManagement": (
+                    candidate.get("payload")
+                    if isinstance(candidate.get("payload"), dict)
+                    else {}
+                ).get("enhancementManagement") or {},
+            }),
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        for candidate in scoped_candidates
+    }
+    if len(signatures) != 1:
+        return {}
+    return sorted(
+        scoped_candidates,
+        key=lambda row: (
+            _text(row.get("variantKey")),
+            _text(row.get("variantId")),
+        ),
+    )[0]
+
+
 def _verified_item_icon_url(
     raw: dict[str, Any],
     item: dict[str, Any],
@@ -1205,29 +1377,42 @@ def selection_intent_from_template(
     level: int,
     gear_snapshot: dict[str, Any] | None = None,
     capability_revision: str = "",
+    prepared_index: CandidateGearAuthorityIndex | None = None,
 ) -> dict[str, Any]:
     snapshot = gear_snapshot if isinstance(gear_snapshot, dict) else {}
+    if prepared_index is not None and (
+        prepared_index.release["releaseId"] != _text(gear_release_id)
+        or prepared_index.release["seasonRevision"] != _text(season_revision)
+    ):
+        raise GearReleaseIntegrityError(
+            "prepared candidate authority does not match template Intent authority"
+        )
     enhancements_are_public_evidence = gear_release.is_public_observed_source(
         template.get("sourceKey")
     )
-    items_by_id = {
-        _text(row.get("itemId")): row
-        for row in snapshot.get("items") or []
-        if isinstance(row, dict) and _text(row.get("itemId"))
-    }
-    variants_by_item: dict[str, list[dict[str, Any]]] = {}
-    for row in snapshot.get("variants") or []:
-        if not isinstance(row, dict) or not _text(row.get("itemId")):
-            continue
-        variants_by_item.setdefault(_text(row.get("itemId")), []).append(row)
-    verified_options = [
-        row
-        for row in snapshot.get("options") or []
-        if isinstance(row, dict)
-        and _text(row.get("optionKey"))
-        and _text(row.get("status")).lower() == "verified"
-        and row.get("isVisible") is True
-    ]
+    if prepared_index is not None:
+        items_by_id = prepared_index.items
+        variants_by_item = prepared_index.variants_by_item
+        verified_options = prepared_index.verified_options
+    else:
+        items_by_id = {
+            _text(row.get("itemId")): row
+            for row in snapshot.get("items") or []
+            if isinstance(row, dict) and _text(row.get("itemId"))
+        }
+        variants_by_item: dict[str, list[dict[str, Any]]] = {}
+        for row in snapshot.get("variants") or []:
+            if not isinstance(row, dict) or not _text(row.get("itemId")):
+                continue
+            variants_by_item.setdefault(_text(row.get("itemId")), []).append(row)
+        verified_options = [
+            row
+            for row in snapshot.get("options") or []
+            if isinstance(row, dict)
+            and _text(row.get("optionKey"))
+            and _text(row.get("status")).lower() == "verified"
+            and row.get("isVisible") is True
+        ]
 
     def matching_variant(
         raw: dict[str, Any],
@@ -1235,6 +1420,13 @@ def selection_intent_from_template(
         slot: str,
         variant_key: str,
     ) -> dict[str, Any]:
+        if prepared_index is not None and not _text(variant_key):
+            return _indexed_observed_template_variant(
+                raw,
+                item_id=item_id,
+                slot=slot,
+                prepared_index=prepared_index,
+            )
         return _canonical_observed_template_variant(
             raw,
             item_id=item_id,
@@ -1452,22 +1644,31 @@ def community_template_import_evidence_from_template(
     *,
     gear_release_id: str,
     gear_snapshot: dict[str, Any],
+    prepared_index: CandidateGearAuthorityIndex | None = None,
 ) -> dict[str, Any]:
     """Seal observed per-slot display facts without changing Resolver Intent."""
 
     snapshot = gear_snapshot if isinstance(gear_snapshot, dict) else {}
-    item_rows_by_id: dict[str, list[dict[str, Any]]] = {}
-    for row in snapshot.get("items") or []:
-        if not isinstance(row, dict) or not _text(row.get("itemId")):
-            continue
-        item_rows_by_id.setdefault(_text(row.get("itemId")), []).append(row)
-    variant_rows_by_item: dict[str, list[dict[str, Any]]] = {}
-    for row in snapshot.get("variants") or []:
-        if not isinstance(row, dict):
-            continue
-        item_id = _text(row.get("itemId"))
-        if item_id:
-            variant_rows_by_item.setdefault(item_id, []).append(row)
+    if prepared_index is not None:
+        if prepared_index.release["releaseId"] != _text(gear_release_id):
+            raise GearReleaseIntegrityError(
+                "prepared candidate authority does not match community import evidence"
+            )
+        item_rows_by_id = prepared_index.item_rows_by_id
+        variant_rows_by_item = prepared_index.variants_by_item
+    else:
+        item_rows_by_id: dict[str, list[dict[str, Any]]] = {}
+        for row in snapshot.get("items") or []:
+            if not isinstance(row, dict) or not _text(row.get("itemId")):
+                continue
+            item_rows_by_id.setdefault(_text(row.get("itemId")), []).append(row)
+        variant_rows_by_item: dict[str, list[dict[str, Any]]] = {}
+        for row in snapshot.get("variants") or []:
+            if not isinstance(row, dict):
+                continue
+            item_id = _text(row.get("itemId"))
+            if item_id:
+                variant_rows_by_item.setdefault(item_id, []).append(row)
 
     slots: dict[str, dict[str, Any]] = {}
     for raw in template.get("gearItems") or []:
@@ -1562,15 +1763,21 @@ def prepare_staging_gear_release(
     if not isinstance(socket_bonus_minimums, Mapping) or not socket_bonus_minimums:
         raise GearReleaseIntegrityError("socket bonus evidence must be a non-empty mapping")
     normalized_bonus_minimums = socket_bonus_minimums
+    staging_snapshot, exclusion_evidence = _exclude_noncombat_cosmetic_rows(
+        store.snapshot_staging_gear()
+    )
     snapshot = _materialize_enhancement_management(
         _project_socket_facts_into_release_payloads(
             gear_socket_authority.materialize_gear_socket_facts(
-                store.snapshot_staging_gear(),
+                staging_snapshot,
                 season_revision=season_revision,
                 socket_bonus_minimums=normalized_bonus_minimums,
-            )
+                copy_snapshot=False,
+            ),
+            copy_snapshot=False,
         ),
         _text(dependency_revisions.get("capabilityRevision")),
+        copy_snapshot=False,
     )
     problems = validate_gear_snapshot(snapshot)
     if problems:
@@ -1590,6 +1797,7 @@ def prepare_staging_gear_release(
                 "simcRuntimeRevision": _text(dependency_revisions.get("simcRuntimeRevision")),
                 "socketProbeDigest": _socket_probe_digest(normalized_bonus_minimums),
                 "materializedSocketFactDigest": _materialized_socket_fact_digest(snapshot),
+                **exclusion_evidence,
             },
         },
         parent_release_id=parent_release_id,
@@ -1633,6 +1841,7 @@ def _template_candidate(
     level: int,
     gear_snapshot: dict[str, Any],
     capability_revision: str,
+    prepared_index: CandidateGearAuthorityIndex | None = None,
 ) -> dict[str, Any]:
     payload = template.get("payload") if isinstance(template.get("payload"), dict) else {}
     evidence = payload.get("templateEvidence") if isinstance(payload.get("templateEvidence"), dict) else {}
@@ -1645,6 +1854,7 @@ def _template_candidate(
         level=level,
         gear_snapshot=gear_snapshot,
         capability_revision=capability_revision,
+        prepared_index=prepared_index,
     )
     candidate = {
         "id": _text(template.get("templateId")),
@@ -1665,12 +1875,265 @@ def _template_candidate(
             template,
             gear_release_id=gear_release_id,
             gear_snapshot=gear_snapshot,
+            prepared_index=prepared_index,
         )
     except GearReleaseIntegrityError:
         # A historical/incomplete observed template remains browseable but cannot win an
         # importable release; the election records the missing sealed evidence.
         pass
     return candidate
+
+
+def community_candidate_exact_progression_problems(
+    candidate: Any,
+    *,
+    gear_snapshot: dict[str, Any],
+    gear_release_descriptor: dict[str, Any],
+    prepared_index: CandidateGearAuthorityIndex | None = None,
+) -> list[dict[str, str]]:
+    """Fail closed unless every sealed observed slot has governed progression."""
+
+    row = candidate if isinstance(candidate, dict) else {}
+    intent = row.get("selectionIntent") if isinstance(row.get("selectionIntent"), dict) else {}
+    payload = row.get("payload") if isinstance(row.get("payload"), dict) else {}
+    evidence = (
+        row.get("importEvidence")
+        if isinstance(row.get("importEvidence"), dict)
+        else payload.get("importEvidence")
+        if isinstance(payload.get("importEvidence"), dict)
+        else {}
+    )
+    selected_slots = intent.get("slots") if isinstance(intent.get("slots"), dict) else {}
+    observed_slots = evidence.get("slots") if isinstance(evidence.get("slots"), dict) else {}
+    prepared = prepared_index or CandidateGearAuthorityIndex(
+        gear_snapshot,
+        gear_release_descriptor,
+    )
+    binding = {
+        "seasonRevision": _text(gear_release_descriptor.get("seasonRevision")),
+        "gearRuleRevision": _text(
+            (
+                gear_release_descriptor.get("dependencyRevisions")
+                if isinstance(gear_release_descriptor.get("dependencyRevisions"), dict)
+                else {}
+            ).get("gearRuleRevision")
+        ),
+    }
+
+    def problem(code: str, path: str, message: str) -> dict[str, str]:
+        return {"code": code, "path": path, "message": message}
+
+    if not selected_slots or set(selected_slots) != set(observed_slots):
+        return [problem(
+            "COMMUNITY_EXACT_PROGRESSION_EVIDENCE_MISMATCH",
+            "candidate.importEvidence.slots",
+            "Exact progression requires sealed evidence for every selected slot.",
+        )]
+
+    problems: list[dict[str, str]] = []
+    for slot in sorted(selected_slots):
+        selected = selected_slots.get(slot) if isinstance(selected_slots.get(slot), dict) else {}
+        observed = observed_slots.get(slot) if isinstance(observed_slots.get(slot), dict) else {}
+        item_id = _text(selected.get("itemId"))
+        variant_key = _text(selected.get("variantKey"))
+        path = f"candidate.selectionIntent.slots.{slot}"
+        if (
+            not item_id
+            or not variant_key
+            or _text(observed.get("itemId")) != item_id
+            or _text(observed.get("variantKey")) != variant_key
+        ):
+            problems.append(problem(
+                "COMMUNITY_EXACT_PROGRESSION_IDENTITY_MISMATCH",
+                path,
+                "Sealed observed identity must match the selected item and variant.",
+            ))
+            continue
+        variants = [
+            variant
+            for variant in prepared.variants_by_item.get(item_id, [])
+            if isinstance(variant, dict)
+            and _text(variant.get("variantKey")) == variant_key
+        ]
+        if len(variants) != 1:
+            problems.append(problem(
+                "COMMUNITY_EXACT_PROGRESSION_VARIANT_UNAVAILABLE",
+                path,
+                "Exact progression requires exactly one matching Gear Release variant.",
+            ))
+            continue
+        variant = variants[0]
+        exact_item_level = _int(variant.get("itemLevel"))
+        if (
+            _int(observed.get("observedItemLevel")) <= 0
+            or _int(observed.get("observedItemLevel")) != exact_item_level
+        ):
+            problems.append(problem(
+                "COMMUNITY_EXACT_PROGRESSION_ILEVEL_MISMATCH",
+                path,
+                "Sealed observed item level must match the exact Gear Release variant.",
+            ))
+            continue
+        crafted_source_verified = any(
+            _text(source.get("sourceType")).lower() == "crafted"
+            and (
+                _text(
+                    (
+                        source.get("payload")
+                        if isinstance(source.get("payload"), dict)
+                        else {}
+                    ).get("status")
+                ).lower() == "verified"
+                or _text(
+                    (
+                        source.get("payload")
+                        if isinstance(source.get("payload"), dict)
+                        else {}
+                    ).get("sourceStatus")
+                ).lower() == "verified"
+            )
+            for source in prepared.sources_by_item.get(item_id, [])
+            if isinstance(source, dict)
+        )
+        exact_row = {
+            **_canonical(variant),
+            "rowFamily": "exact_instance",
+            "hasCraftedSource": crafted_source_verified,
+        }
+        resolved = gear_track_authority.resolve_exact_instance_progression(
+            binding,
+            exact_row,
+        )
+        if _text(resolved.get("status")) == "verified":
+            continue
+        authority_problems = [
+            raw_problem
+            for raw_problem in resolved.get("problems") or []
+            if isinstance(raw_problem, dict) and _text(raw_problem.get("code"))
+        ]
+        if not authority_problems:
+            authority_problems = [{
+                "code": "TRACK_AUTHORITY_EXACT_PROGRESSION_BLOCKED",
+                "message": "Exact progression authority rejected the item instance.",
+            }]
+        problems.extend(
+            problem(
+                _text(raw_problem.get("code")),
+                path,
+                _text(raw_problem.get("message"))
+                or "Exact progression authority rejected the item instance.",
+            )
+            for raw_problem in authority_problems
+        )
+    return problems
+
+
+def _active_exact_progression_reservations(
+    store: Any,
+    *,
+    templates: Iterable[dict[str, Any]],
+    expected_specs: Iterable[tuple[str, str]],
+    gear_snapshot: dict[str, Any],
+    gear_release_descriptor: dict[str, Any],
+    prepared_index: CandidateGearAuthorityIndex,
+) -> dict[tuple[str, str, str], dict[str, str]]:
+    """Reserve only still-present active Hero winners that remain exact-valid."""
+
+    binding_reader = getattr(store, "load_active_manifest_binding", None)
+    pair_reader = getattr(store, "load_community_release", None)
+    if not callable(binding_reader) or not callable(pair_reader):
+        return {}
+    try:
+        binding = binding_reader()
+    except Exception:
+        return {}
+    binding = binding if isinstance(binding, dict) else {}
+    manifest = (
+        binding.get("manifest")
+        if isinstance(binding.get("manifest"), dict)
+        else {}
+    )
+    target_gear_id = _text(gear_release_descriptor.get("releaseId"))
+    community_release_id = _text(
+        manifest.get("communityTemplateReleaseId")
+    )
+    if (
+        binding.get("formalActiveManifest") is not True
+        or _text(manifest.get("gearCatalogReleaseId")) != target_gear_id
+        or not community_release_id
+    ):
+        return {}
+    try:
+        pair = pair_reader(target_gear_id, community_release_id)
+    except Exception:
+        return {}
+    pair = pair if isinstance(pair, dict) else {}
+    community = (
+        pair.get("communityRelease")
+        if isinstance(pair.get("communityRelease"), dict)
+        else {}
+    )
+    if (
+        _text(community.get("releaseId")) != community_release_id
+        or _text(community.get("schemaRevision")) != "community-release-v2"
+        or _text(community.get("validatedAgainstReleaseId"))
+        != target_gear_id
+    ):
+        return {}
+
+    expected = set(expected_specs)
+    template_by_id = {
+        _text(template.get("templateId")): template
+        for template in templates
+        if isinstance(template, dict) and _text(template.get("templateId"))
+    }
+    provisional: dict[tuple[str, str, str], dict[str, str]] = {}
+    template_owners: dict[str, list[tuple[str, str, str]]] = {}
+    identity_owners: dict[str, list[tuple[str, str, str]]] = {}
+    for winner in pair.get("winners") or []:
+        if not isinstance(winner, dict):
+            continue
+        class_key = _text(winner.get("classKey"))
+        spec_key = _text(winner.get("specKey"))
+        payload = (
+            winner.get("payload")
+            if isinstance(winner.get("payload"), dict)
+            else {}
+        )
+        hero_key = _text(winner.get("heroKey") or payload.get("heroKey"))
+        slot = (class_key, spec_key, hero_key)
+        source_template_id = _text(payload.get("gearSourceTemplateId"))
+        template = template_by_id.get(source_template_id)
+        if (
+            (class_key, spec_key) not in expected
+            or not hero_key
+            or not isinstance(template, dict)
+            or community_candidate_exact_progression_problems(
+                winner,
+                gear_snapshot=gear_snapshot,
+                gear_release_descriptor=gear_release_descriptor,
+                prepared_index=prepared_index,
+            )
+        ):
+            continue
+        source_identity = _observed_source_identity(template)
+        provisional[slot] = {
+            "templateId": source_template_id,
+            "sourceIdentity": source_identity,
+        }
+        template_owners.setdefault(source_template_id, []).append(slot)
+        if source_identity:
+            identity_owners.setdefault(source_identity, []).append(slot)
+
+    return {
+        slot: reservation
+        for slot, reservation in provisional.items()
+        if len(template_owners.get(reservation["templateId"], [])) == 1
+        and (
+            not reservation["sourceIdentity"]
+            or len(identity_owners.get(reservation["sourceIdentity"], [])) == 1
+        )
+    }
 
 
 def _release_rows_from_election(
@@ -1821,6 +2284,11 @@ def _projected_community_release_rows(
     expected_specs: Iterable[tuple[str, str]],
     candidate_for_template: Callable[[dict[str, Any]], dict[str, Any]],
     resolve_candidate: Callable[[dict[str, Any]], dict[str, Any]],
+    validate_exact_candidate: Callable[[dict[str, Any]], list[dict[str, str]]] | None,
+    active_reservations: Mapping[
+        tuple[str, str, str],
+        Mapping[str, str],
+    ] | None,
     gear_release_id: str,
     now: str,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
@@ -1881,14 +2349,57 @@ def _projected_community_release_rows(
     winner_count_by_spec: dict[tuple[str, str], int] = {}
     used_template_ids_by_spec: dict[tuple[str, str], set[str]] = {}
     used_source_identities_by_spec: dict[tuple[str, str], set[str]] = {}
+    reservations = (
+        active_reservations
+        if isinstance(active_reservations, Mapping)
+        else {}
+    )
+    reserved_template_owner = {
+        _text(reservation.get("templateId")): slot
+        for slot, reservation in reservations.items()
+        if isinstance(slot, tuple)
+        and len(slot) == 3
+        and isinstance(reservation, Mapping)
+        and _text(reservation.get("templateId"))
+    }
+    reserved_identity_owner = {
+        _text(reservation.get("sourceIdentity")): slot
+        for slot, reservation in reservations.items()
+        if isinstance(slot, tuple)
+        and len(slot) == 3
+        and isinstance(reservation, Mapping)
+        and _text(reservation.get("sourceIdentity"))
+    }
+    template_by_id = {
+        _text(template.get("templateId")): template
+        for template in templates
+        if isinstance(template, dict) and _text(template.get("templateId"))
+    }
+    active_winner_carry_forward_count = 0
 
     for class_key, spec_key, hero_key in expected_slots:
+        hero_slot = (class_key, spec_key, hero_key)
         spec_key_pair = (class_key, spec_key)
         used_template_ids = used_template_ids_by_spec.setdefault(spec_key_pair, set())
         used_source_identities = used_source_identities_by_spec.setdefault(spec_key_pair, set())
         ordered_talents = _talent_projection_candidates(
             staged_talents, class_key, spec_key, hero_key,
         )
+
+        def reserved_for_other_hero(template: dict[str, Any]) -> bool:
+            template_id = _text(template.get("templateId"))
+            source_identity = _observed_source_identity(template)
+            return bool(
+                (
+                    template_id in reserved_template_owner
+                    and reserved_template_owner[template_id] != hero_slot
+                )
+                or (
+                    source_identity
+                    and source_identity in reserved_identity_owner
+                    and reserved_identity_owner[source_identity] != hero_slot
+                )
+            )
 
         def validate(_talent_candidate: dict[str, Any], template: Any) -> dict[str, Any]:
             if not isinstance(template, dict):
@@ -1905,19 +2416,97 @@ def _projected_community_release_rows(
             if not winners:
                 problems = (election.get("rejected") or [{}])[0].get("problems") or []
                 return {"status": "blocked", "problems": problems}
+            if validate_exact_candidate is not None:
+                exact_problems = validate_exact_candidate(winners[0])
+                if exact_problems:
+                    return {"status": "blocked", "problems": exact_problems}
             return {"status": "verified", "template": {**_canonical(template), "_elected": _canonical(winners[0])}}
 
-        projection = community_winner_projection.project_hero_slot(
-            ordered_talents,
-            {
-                identity: template
-                for (identity, template_class_key, template_spec_key), template in gear_by_identity.items()
-                if template_class_key == class_key and template_spec_key == spec_key
-                and _text(template.get("templateId")) not in used_template_ids
-                and identity not in used_source_identities
-            },
-            validate,
+        projection: dict[str, Any] = {"winner": None, "rejected": []}
+        reservation = reservations.get(hero_slot)
+        preferred_template = (
+            template_by_id.get(_text(reservation.get("templateId")))
+            if isinstance(reservation, Mapping)
+            else None
         )
+        if (
+            isinstance(preferred_template, dict)
+            and _text(preferred_template.get("templateId"))
+            not in used_template_ids
+            and _observed_source_identity(preferred_template)
+            not in used_source_identities
+            and not reserved_for_other_hero(preferred_template)
+        ):
+            preferred_talent = (
+                ordered_talents[0]
+                if ordered_talents
+                else {
+                    "candidateId": (
+                        "active-carry-forward:"
+                        + _text(preferred_template.get("templateId"))
+                    ),
+                    "classKey": class_key,
+                    "specKey": spec_key,
+                    "heroKey": hero_key,
+                    "scenarioKey": "mythic_plus",
+                    "sourceKey": (
+                        community_winner_projection
+                        .PUBLIC_TALENT_SOURCE_KEY
+                    ),
+                    "talentCandidateRank": 1,
+                }
+            )
+            preferred_verdict = validate(
+                preferred_talent,
+                preferred_template,
+            )
+            if (
+                _text(preferred_verdict.get("status")) == "verified"
+                and isinstance(preferred_verdict.get("template"), dict)
+            ):
+                projection["winner"] = {
+                    **_canonical(preferred_verdict["template"]),
+                    "talentWinnerId": _text(
+                        preferred_talent.get("candidateId")
+                    ),
+                    "gearProjectionMode": "gear_fallback",
+                    "gearProjectionFallbackScope": "hero_slot",
+                    "gearProjectionFallbackReason": (
+                        "preserve_exact_valid_active_winner"
+                    ),
+                }
+                active_winner_carry_forward_count += 1
+            else:
+                projection["rejected"].append({
+                    "candidateId": _text(
+                        preferred_talent.get("candidateId")
+                    ),
+                    "sourceIdentity": _observed_source_identity(
+                        preferred_template
+                    ),
+                    "sourceUrl": _text(
+                        preferred_template.get("sourceUrl")
+                    ),
+                    "talentCandidateRank": _int(
+                        preferred_talent.get("talentCandidateRank")
+                    ),
+                    "problems": _canonical(
+                        preferred_verdict.get("problems") or []
+                    ),
+                })
+        if not isinstance(projection.get("winner"), dict):
+            projection = community_winner_projection.project_hero_slot(
+                ordered_talents,
+                {
+                    identity: template
+                    for (identity, template_class_key, template_spec_key), template in gear_by_identity.items()
+                    if template_class_key == class_key and template_spec_key == spec_key
+                    and _text(template.get("templateId")) not in used_template_ids
+                    and identity not in used_source_identities
+                    and not reserved_for_other_hero(template)
+                },
+                validate,
+            )
         winner = projection.get("winner")
         if not isinstance(winner, dict):
             rejected.extend(projection.get("rejected") or [])
@@ -1926,6 +2515,8 @@ def _projected_community_release_rows(
                 template_id = _text(template.get("templateId"))
                 source_identity = _observed_source_identity(template)
                 if not template_id or template_id in used_template_ids or source_identity in used_source_identities:
+                    continue
+                if reserved_for_other_hero(template):
                     continue
                 fallback_candidate = {
                     "candidateId": talent_winner_id or f"spec-re-election:{template_id}",
@@ -2011,6 +2602,8 @@ def _projected_community_release_rows(
         "winnerSpecCount": len({(row["classKey"], row["specKey"]) for row in rows}),
         "rejected": rejected,
         "missingHeroSlots": missing_slots,
+        "activeWinnerReservationCount": len(reservations),
+        "activeWinnerCarryForwardCount": active_winner_carry_forward_count,
     }
     return rows, election
 
@@ -2057,6 +2650,11 @@ def prepare_staging_community_release(
         release_dependencies.get("capabilityRevision")
         or dependency_revisions.get("capabilityRevision")
     )
+    prepared_authority = CandidateGearAuthorityIndex(
+        gear_snapshot,
+        gear_release_descriptor,
+    )
+
     def candidate_for_template(template: dict[str, Any]) -> dict[str, Any]:
         return _template_candidate(
             template,
@@ -2065,13 +2663,13 @@ def prepare_staging_community_release(
             level=level,
             gear_snapshot=gear_snapshot,
             capability_revision=capability_revision,
+            prepared_index=prepared_authority,
         )
 
-    candidates = [candidate_for_template(template) for template in templates]
-    prepared_authority = (
-        CandidateGearAuthorityIndex(gear_snapshot, gear_release_descriptor)
-        if resolver_for_spec is None
-        else None
+    candidates = (
+        []
+        if projection_enabled
+        else [candidate_for_template(template) for template in templates]
     )
 
     def resolve_candidate(intent: dict[str, Any]) -> dict[str, Any]:
@@ -2096,12 +2694,30 @@ def prepare_staging_community_release(
         return gear_resolver.resolve(intent, authority)
 
     if projection_enabled:
+        def validate_exact_candidate(candidate: dict[str, Any]) -> list[dict[str, str]]:
+            return community_candidate_exact_progression_problems(
+                candidate,
+                gear_snapshot=gear_snapshot,
+                gear_release_descriptor=gear_release_descriptor,
+                prepared_index=prepared_authority,
+            )
+
+        active_reservations = _active_exact_progression_reservations(
+            store,
+            templates=templates,
+            expected_specs=expected,
+            gear_snapshot=gear_snapshot,
+            gear_release_descriptor=gear_release_descriptor,
+            prepared_index=prepared_authority,
+        )
         rows, election = _projected_community_release_rows(
             staged_talents=talent_snapshot,
             templates=templates,
             expected_specs=expected,
             candidate_for_template=candidate_for_template,
             resolve_candidate=resolve_candidate,
+            validate_exact_candidate=validate_exact_candidate,
+            active_reservations=active_reservations,
             gear_release_id=gear_release_descriptor["releaseId"],
             now=now,
         )
@@ -2128,6 +2744,12 @@ def prepare_staging_community_release(
             "expectedHeroSlotCount": election["expectedHeroSlotCount"],
             "winnerHeroSlotCount": election["winnerHeroSlotCount"],
             "winnerSpecCount": election["winnerSpecCount"],
+            "activeWinnerReservationCount": election[
+                "activeWinnerReservationCount"
+            ],
+            "activeWinnerCarryForwardCount": election[
+                "activeWinnerCarryForwardCount"
+            ],
             "rejectedCount": len(election.get("rejected") or []),
             "missingHeroSlots": election.get("missingHeroSlots") or [],
             **_rank_one_rejection_gate_evidence(election.get("rejected") or []),
@@ -2290,11 +2912,179 @@ def _shadow_store_from_environment() -> PostgresCacheStore:
     return store
 
 
+def _shadow_execution_summary(result: Any) -> dict[str, Any]:
+    value = result if isinstance(result, dict) else {}
+    blockers = [
+        row
+        for row in value.get("blockers") or []
+        if isinstance(row, dict)
+    ]
+    blocker_codes: dict[str, int] = {}
+    for blocker in blockers:
+        code = _text(blocker.get("code"))
+        if code:
+            blocker_codes[code] = blocker_codes.get(code, 0) + 1
+    spec_results = [
+        row
+        for row in value.get("specResults") or []
+        if isinstance(row, dict)
+    ]
+    hero_results = [
+        hero
+        for row in spec_results
+        for hero in row.get("heroSlotResults") or []
+        if isinstance(hero, dict)
+    ]
+    report = (
+        value.get("report")
+        if isinstance(value.get("report"), dict)
+        else {}
+    )
+    reference = (
+        value.get("referenceProof")
+        if isinstance(value.get("referenceProof"), dict)
+        else {}
+    )
+    performance = (
+        value.get("performance")
+        if isinstance(value.get("performance"), dict)
+        else {}
+    )
+    exact_corrections = [
+        row
+        for row in value.get("exactProgressionCorrections") or []
+        if isinstance(row, dict)
+    ]
+    return {
+        "schemaRevision": "gear-release-shadow-evidence-v1",
+        "executionSchemaRevision": _text(value.get("schemaRevision")),
+        "status": _text(value.get("status") or "blocked"),
+        "gearReleaseId": _text(value.get("gearReleaseId")),
+        "communityReleaseId": _text(value.get("communityReleaseId")),
+        "baselineMode": _text(value.get("baselineMode")),
+        "candidatePreview": value.get("candidatePreview") is True,
+        "formalActiveManifest": value.get("formalActiveManifest") is True,
+        "activeBaselineFormal": value.get("activeBaselineFormal") is True,
+        "publicReadCount": _int(value.get("publicReadCount")),
+        "importReadCount": _int(value.get("importReadCount")),
+        "specResultCount": len(spec_results),
+        "passingSpecCount": sum(
+            1 for row in spec_results if _text(row.get("status")) == "pass"
+        ),
+        "heroSlotResultCount": len(hero_results),
+        "passingHeroSlotCount": sum(
+            1 for row in hero_results if _text(row.get("status")) == "pass"
+        ),
+        "blockerCount": len(blockers),
+        "blockerCodes": {
+            code: blocker_codes[code]
+            for code in sorted(blocker_codes)
+        },
+        "blockerSamples": [
+            {
+                "code": _text(blocker.get("code")),
+                "path": _text(blocker.get("path"))[:240],
+                "detail": _text(blocker.get("detail"))[:240],
+            }
+            for blocker in blockers[:8]
+        ],
+        "exactProgressionCorrectionCount": len(exact_corrections),
+        "exactProgressionCorrections": _canonical(exact_corrections),
+        "report": {
+            key: report.get(key)
+            for key in (
+                "status",
+                "expectedSpecCount",
+                "expectedHeroSlotCount",
+                "candidateWinnerCount",
+                "publicWinnerCount",
+                "activeWinnerCount",
+                "exactProgressionCorrectionCount",
+            )
+            if key in report
+        },
+        "referenceProof": {
+            key: reference.get(key)
+            for key in (
+                "status",
+                "mode",
+                "verifiedHeroSlotCount",
+            )
+            if key in reference
+        },
+        "performance": {
+            key: performance.get(key)
+            for key in (
+                "totalDurationMs",
+                "specP95Ms",
+                "specMaxMs",
+            )
+            if isinstance(performance.get(key), (int, float))
+        },
+        "authorityCache": (
+            value.get("authorityCache")
+            if isinstance(value.get("authorityCache"), dict)
+            else {}
+        ),
+        "databaseStatements": (
+            value.get("databaseStatements")
+            if isinstance(value.get("databaseStatements"), dict)
+            else {}
+        ),
+    }
+
+
+def _atomic_json_write(path_value: str, payload: Mapping[str, Any]) -> None:
+    path = Path(path_value).expanduser().resolve()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary_path = ""
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=path.parent,
+            prefix=f".{path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as handle:
+            temporary_path = handle.name
+            json.dump(
+                payload,
+                handle,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary_path, path)
+        temporary_path = ""
+    finally:
+        if temporary_path:
+            try:
+                os.unlink(temporary_path)
+            except FileNotFoundError:
+                pass
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=("build-legacy-gear", "build-legacy-all", "show", "shadow", "promote", "rollback"))
+    parser.add_argument(
+        "command",
+        choices=(
+            "build-legacy-gear",
+            "build-legacy-community",
+            "build-legacy-all",
+            "show",
+            "shadow",
+            "promote",
+            "rollback",
+        ),
+    )
     parser.add_argument("--season-revision", default="")
     parser.add_argument("--simc-runtime-revision", default="")
+    parser.add_argument("--source-revision", default="legacy-import-r0")
     parser.add_argument("--release-id", default="")
     parser.add_argument("--gear-release-id", default="")
     parser.add_argument("--community-release-id", default="")
@@ -2304,6 +3094,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--expected-generation", type=int, default=-1)
     parser.add_argument("--target-mode", choices=("active", "transitional"), default="active")
     parser.add_argument("--updated-by", default="")
+    parser.add_argument("--output-file", default="")
     parser.add_argument("--level", type=int, default=90)
     parser.add_argument("--expect-formal-active", action="store_true")
     return parser
@@ -2404,12 +3195,62 @@ def main(argv=None) -> int:
                     "retryable": False,
                     "meta": {},
                 })
-        print(json.dumps(result, ensure_ascii=False, sort_keys=True))
+        summary = _shadow_execution_summary(result)
+        if args.output_file:
+            _atomic_json_write(args.output_file, summary)
+        print(json.dumps(summary, ensure_ascii=False, sort_keys=True))
         return 0 if result.get("status") == "pass" else 2
     store = _store_from_environment()
     if args.command == "show":
         print(json.dumps(store.get_release(args.release_id), ensure_ascii=False, sort_keys=True))
         return 0
+    if args.command == "build-legacy-community":
+        if not args.gear_release_id or not args.simc_runtime_revision:
+            raise SystemExit(
+                "--gear-release-id and --simc-runtime-revision are required"
+            )
+        gear_descriptor = store.get_release(args.gear_release_id)
+        if (
+            not gear_descriptor
+            or _text(gear_descriptor.get("releaseKind")) != "gear"
+            or _text(gear_descriptor.get("releaseStatus")) != "validated"
+        ):
+            raise GearReleaseIntegrityError(
+                "validated Gear Release is unavailable"
+            )
+        dependencies = (
+            gear_descriptor.get("dependencyRevisions")
+            if isinstance(gear_descriptor.get("dependencyRevisions"), dict)
+            else {}
+        )
+        if _text(dependencies.get("simcRuntimeRevision")) != _text(
+            args.simc_runtime_revision
+        ):
+            raise GearReleaseIntegrityError(
+                "SimC revision does not match Gear Release dependencies"
+            )
+        gear_snapshot = store.snapshot_gear_release_for_community_builder(
+            args.gear_release_id
+        )
+        community = build_legacy_community_release(
+            store,
+            gear_release_descriptor=gear_descriptor,
+            gear_snapshot=gear_snapshot,
+            dependency_revisions=dependencies,
+            expected_specs=expected_spec_pairs(),
+            now=datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            level=args.level,
+            source_revision=args.source_revision,
+        )
+        output = {
+            "community": {
+                "release": community["release"],
+                "gate": community["gate"],
+                "seal": community["seal"],
+            }
+        }
+        print(json.dumps(output, ensure_ascii=False, sort_keys=True))
+        return 0 if community["gate"].get("status") == "validated" else 2
     if not args.season_revision or not args.simc_runtime_revision:
         raise SystemExit("--season-revision and --simc-runtime-revision are required")
     dependencies = runtime_dependency_revisions(args.simc_runtime_revision)
@@ -2423,6 +3264,7 @@ def main(argv=None) -> int:
         season_revision=args.season_revision,
         dependency_revisions=dependencies,
         socket_bonus_minimums=socket_bonus_minimums,
+        source_revision=args.source_revision,
     )
     output = {"gear": {"release": gear["release"], "gate": gear["gate"], "seal": gear["seal"]}}
     if args.command == "build-legacy-all":
@@ -2434,6 +3276,7 @@ def main(argv=None) -> int:
             expected_specs=expected_spec_pairs(),
             now=datetime.now(timezone.utc).isoformat(timespec="seconds"),
             level=args.level,
+            source_revision=args.source_revision,
         )
         output["community"] = {"release": community["release"], "gate": community["gate"], "seal": community["seal"]}
     print(json.dumps(output, ensure_ascii=False, sort_keys=True))

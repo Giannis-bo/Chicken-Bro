@@ -5,7 +5,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 const { spawnSync } = require('node:child_process')
 
-const schemaRevision = 'gear-catalog-callers-v1'
+const schemaRevision = 'gear-catalog-callers-v2'
 const reportPrefix = 'gear-catalog-callers:sha256:'
 const maximumSourceBytes = 2 * 1024 * 1024
 const maximumReportBytes = 2 * 1024 * 1024
@@ -36,6 +36,7 @@ const categoryNames = [
   'activeBackend',
   'taro',
   'compatibility',
+  'runtimeTooling',
   'testsDocs',
   'unresolved',
 ]
@@ -82,6 +83,7 @@ function categoryFor(relativePath) {
     || relativePath.startsWith('websim/')
   ) return 'compatibility'
   if (relativePath.startsWith('server/')) return 'activeBackend'
+  if (relativePath.startsWith('scripts/')) return 'runtimeTooling'
   return 'unresolved'
 }
 
@@ -216,6 +218,7 @@ function collectGearCatalogCallers({ root, allowlist } = {}) {
     categories.activeBackend.length
     + categories.taro.length
     + categories.compatibility.length
+    + categories.runtimeTooling.length
   )
   const unresolvedCount = categories.unresolved.length
   const identity = {

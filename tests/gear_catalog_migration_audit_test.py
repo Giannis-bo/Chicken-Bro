@@ -8,6 +8,7 @@ from server.gear_catalog_migration_audit import (
     audit_spec_coverage,
     audit_template_exactness,
     build_phase0_report,
+    project_template_exact_instances,
     validate_phase0_report,
 )
 
@@ -219,6 +220,30 @@ class GearCatalogMigrationAuditTest(unittest.TestCase):
         self.assertIsNone(result["peakRss"]["bytes"])
         self.assertEqual(result["status"], "partial")
         self.assertIn("RESOURCE_BASELINE_UNKNOWN", result["problemCodes"])
+
+    def test_exceeded_builder_resource_report_blocks_phase0_resources(self):
+        rows = {
+            **complete_resource_rows(),
+            "resourceProbeStatus": "blocked",
+            "resourceProbeProblemCodes": ["RESOURCE_PEAK_RSS_EXCEEDED"],
+        }
+
+        result = audit_resource_baseline(rows)
+
+        self.assertEqual(result["status"], "blocked")
+        self.assertIn("RESOURCE_BASELINE_EXCEEDED", result["problemCodes"])
+
+    def test_unstable_builder_resource_report_blocks_phase0_resources(self):
+        rows = {
+            **complete_resource_rows(),
+            "resourceProbeStatus": "blocked",
+            "resourceProbeProblemCodes": ["RESOURCE_POINTER_CHANGED"],
+        }
+
+        result = audit_resource_baseline(rows)
+
+        self.assertEqual(result["status"], "blocked")
+        self.assertIn("RESOURCE_BASELINE_INVALID", result["problemCodes"])
 
     def test_regular_browse_uses_authority_rank_but_still_requires_static_stats(self):
         rows = complete_catalog_rows()
@@ -604,6 +629,92 @@ class GearCatalogMigrationAuditTest(unittest.TestCase):
         self.assertEqual(result["community"]["exactCount"], 1)
         self.assertEqual(result["personal"]["exactCount"], 1)
         self.assertEqual(result["community"]["blockedCount"], 0)
+
+    def test_thin_community_intent_is_joined_to_verified_exact_variant_and_authority(self):
+        templates = [
+            {
+                "templateIdentity": "sha256:" + ("5" * 64),
+                "gearItems": [
+                    {
+                        "slot": "head",
+                        "itemId": "1001",
+                        "variantKey": "observed-289-a",
+                        "observedItemLevel": 289,
+                        "gemIds": [],
+                        "enchantId": "",
+                        "craftedStats": [],
+                        "embellishmentIds": [],
+                    }
+                ],
+            }
+        ]
+        catalog_rows = {
+            "variants": [
+                {
+                    "rowFamily": "exact_instance",
+                    "status": "verified",
+                    "itemId": "1001",
+                    "variantKey": "observed-289-a",
+                    "itemLevel": 289,
+                    "slot": "head",
+                    "bonusIds": ["9001", "9002", "13440"],
+                }
+            ]
+        }
+
+        projected = project_template_exact_instances(
+            CURRENT_BINDING,
+            templates,
+            catalog_rows,
+        )
+        item = projected[0]["gearItems"][0]
+        result = audit_template_exactness(projected, [])
+
+        self.assertEqual(item["ilevel"], 289)
+        self.assertEqual(item["trackKey"], "myth")
+        self.assertEqual(item["rank"], 6)
+        self.assertEqual(item["bonusIds"], ["9001", "9002", "13440"])
+        self.assertEqual(item["progressionState"]["kind"], "upgrade_track")
+        self.assertEqual(result["status"], "verified")
+
+    def test_exact_projection_preserves_unproven_progression_as_blocker(self):
+        projected = project_template_exact_instances(
+            CURRENT_BINDING,
+            [
+                {
+                    "templateIdentity": "sha256:" + ("6" * 64),
+                    "gearItems": [
+                        {
+                            "slot": "head",
+                            "itemId": "1001",
+                            "variantKey": "observed-246-a",
+                            "observedItemLevel": 246,
+                        }
+                    ],
+                }
+            ],
+            {
+                "variants": [
+                    {
+                        "rowFamily": "exact_instance",
+                        "status": "verified",
+                        "itemId": "1001",
+                        "variantKey": "observed-246-a",
+                        "itemLevel": 246,
+                        "slot": "head",
+                        "bonusIds": [],
+                    }
+                ]
+            },
+        )
+
+        result = audit_template_exactness(projected, [])
+
+        self.assertEqual(result["status"], "blocked")
+        self.assertIn(
+            "TRACK_AUTHORITY_EXACT_TRACK_EVIDENCE_MISSING",
+            result["problemCodes"],
+        )
 
     def test_missing_track_rank_is_partial_and_malformed_explicit_gem_is_blocked(self):
         missing_rank = exact_template("missing-rank")

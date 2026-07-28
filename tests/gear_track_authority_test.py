@@ -3,6 +3,7 @@ import unittest
 from server.gear_track_authority import (
     TRACK_AUTHORITY_RULE_REVISION,
     TRACK_AUTHORITY_SCHEMA_REVISION,
+    resolve_exact_instance_progression,
     resolve_legacy_browse_progression,
     track_authority_for_binding,
 )
@@ -19,6 +20,261 @@ def _problem_codes(result):
 
 
 class GearTrackAuthorityTest(unittest.TestCase):
+    def test_verified_exact_instance_uses_bound_level_and_source_evidence(self):
+        regular = resolve_exact_instance_progression(
+            CURRENT_BINDING,
+            {
+                "rowFamily": "exact_instance",
+                "status": "verified",
+                "itemId": "1001",
+                "variantKey": "observed-289-a",
+                "itemLevel": 289,
+                "slot": "head",
+                "bonusIds": ["13440"],
+            },
+        )
+        crafted = resolve_exact_instance_progression(
+            CURRENT_BINDING,
+            {
+                "rowFamily": "exact_instance",
+                "status": "verified",
+                "itemId": "1002",
+                "variantKey": "observed-285-b",
+                "itemLevel": 285,
+                "slot": "chest",
+                "hasCraftedSource": True,
+                "bonusIds": ["13622"],
+            },
+        )
+        ascendant = resolve_exact_instance_progression(
+            CURRENT_BINDING,
+            {
+                "rowFamily": "exact_instance",
+                "status": "verified",
+                "itemId": "1003",
+                "variantKey": "observed-298-c",
+                "itemLevel": 298,
+                "slot": "trinket1",
+                "bonusIds": ["13654"],
+            },
+        )
+
+        self.assertEqual(
+            regular["progressionState"],
+            {
+                "kind": "upgrade_track",
+                "trackKey": "myth",
+                "rank": 6,
+                "maxRank": 6,
+            },
+        )
+        self.assertEqual(
+            crafted["progressionState"],
+            {
+                "kind": "crafted_quality",
+                "trackKey": "myth",
+                "qualityKey": "radiance_max",
+            },
+        )
+        self.assertEqual(
+            ascendant["progressionState"],
+            {
+                "kind": "ascendant",
+                "trackKey": "void_upgrade",
+                "originKind": "upgrade_track",
+            },
+        )
+
+    def test_exact_instance_fails_closed_without_identity_or_crafted_source(self):
+        missing_identity = resolve_exact_instance_progression(
+            CURRENT_BINDING,
+            {
+                "rowFamily": "exact_instance",
+                "status": "verified",
+                "itemId": "1001",
+                "itemLevel": 289,
+                "bonusIds": ["13440"],
+            },
+        )
+        unproven_crafted = resolve_exact_instance_progression(
+            CURRENT_BINDING,
+            {
+                "rowFamily": "exact_instance",
+                "status": "verified",
+                "itemId": "1002",
+                "variantKey": "observed-285-b",
+                "itemLevel": 285,
+                "slot": "chest",
+                "hasCraftedSource": False,
+                "bonusIds": ["13622"],
+            },
+        )
+        unsupported_level = resolve_exact_instance_progression(
+            CURRENT_BINDING,
+            {
+                "rowFamily": "exact_instance",
+                "status": "verified",
+                "itemId": "1003",
+                "variantKey": "observed-246-c",
+                "itemLevel": 246,
+                "slot": "head",
+            },
+        )
+
+        self.assertEqual(
+            _problem_codes(missing_identity),
+            ["TRACK_AUTHORITY_EXACT_IDENTITY_MISSING"],
+        )
+        self.assertEqual(
+            _problem_codes(unproven_crafted),
+            ["TRACK_AUTHORITY_EXACT_CRAFTED_SOURCE_MISSING"],
+        )
+        self.assertEqual(
+            _problem_codes(unsupported_level),
+            ["TRACK_AUTHORITY_EXACT_TRACK_EVIDENCE_MISSING"],
+        )
+
+    def test_exact_upgrade_rank_requires_track_marker_and_bound_ladder(self):
+        myth_five = resolve_exact_instance_progression(
+            CURRENT_BINDING,
+            {
+                "rowFamily": "exact_instance",
+                "status": "verified",
+                "itemId": "1001",
+                "variantKey": "observed-285-a",
+                "itemLevel": 285,
+                "slot": "finger1",
+                "bonusIds": ["13335"],
+            },
+        )
+        hero_six = resolve_exact_instance_progression(
+            CURRENT_BINDING,
+            {
+                "rowFamily": "exact_instance",
+                "status": "verified",
+                "itemId": "1002",
+                "variantKey": "observed-276-b",
+                "itemLevel": 276,
+                "slot": "hands",
+                "bonusIds": ["13334"],
+            },
+        )
+        myth_two = resolve_exact_instance_progression(
+            CURRENT_BINDING,
+            {
+                "rowFamily": "exact_instance",
+                "status": "verified",
+                "itemId": "1003",
+                "variantKey": "observed-276-c",
+                "itemLevel": 276,
+                "slot": "head",
+                "bonusIds": ["13440"],
+            },
+        )
+        ambiguous = resolve_exact_instance_progression(
+            CURRENT_BINDING,
+            {
+                "rowFamily": "exact_instance",
+                "status": "verified",
+                "itemId": "1004",
+                "variantKey": "observed-276-d",
+                "itemLevel": 276,
+                "slot": "waist",
+                "bonusIds": [],
+            },
+        )
+
+        self.assertEqual(myth_five["progressionState"]["trackKey"], "myth")
+        self.assertEqual(myth_five["progressionState"]["rank"], 5)
+        self.assertEqual(hero_six["progressionState"]["trackKey"], "hero")
+        self.assertEqual(hero_six["progressionState"]["rank"], 6)
+        self.assertEqual(myth_two["progressionState"]["trackKey"], "myth")
+        self.assertEqual(myth_two["progressionState"]["rank"], 2)
+        self.assertEqual(
+            _problem_codes(ambiguous),
+            ["TRACK_AUTHORITY_EXACT_TRACK_EVIDENCE_MISSING"],
+        )
+
+    def test_exact_ascendant_bonus_controls_origin_and_eligibility(self):
+        hero = resolve_exact_instance_progression(
+            CURRENT_BINDING,
+            {
+                "rowFamily": "exact_instance",
+                "status": "verified",
+                "itemId": "1001",
+                "variantKey": "observed-285-a",
+                "itemLevel": 285,
+                "slot": "trinket1",
+                "bonusIds": ["13653"],
+            },
+        )
+        crafted = resolve_exact_instance_progression(
+            CURRENT_BINDING,
+            {
+                "rowFamily": "exact_instance",
+                "status": "verified",
+                "itemId": "1002",
+                "variantKey": "observed-295-b",
+                "itemLevel": 295,
+                "slot": "trinket2",
+                "bonusIds": ["13622", "13655"],
+                "hasCraftedSource": True,
+            },
+        )
+        invalid_slot = resolve_exact_instance_progression(
+            CURRENT_BINDING,
+            {
+                "rowFamily": "exact_instance",
+                "status": "verified",
+                "itemId": "1003",
+                "variantKey": "observed-285-c",
+                "itemLevel": 285,
+                "slot": "chest",
+                "bonusIds": ["13653"],
+            },
+        )
+
+        self.assertEqual(
+            hero["progressionState"],
+            {
+                "kind": "ascendant",
+                "trackKey": "void_upgrade",
+                "originKind": "upgrade_track",
+            },
+        )
+        self.assertEqual(
+            crafted["progressionState"]["originKind"],
+            "crafted_quality",
+        )
+        self.assertEqual(
+            _problem_codes(invalid_slot),
+            ["TRACK_AUTHORITY_ASCENDANT_ELIGIBILITY_UNPROVEN"],
+        )
+
+    def test_exact_special_raid_level_keeps_myth_rank_when_no_ascendant_bonus(self):
+        resolved = resolve_exact_instance_progression(
+            CURRENT_BINDING,
+            {
+                "rowFamily": "exact_instance",
+                "status": "verified",
+                "itemId": "1001",
+                "variantKey": "observed-298-special",
+                "itemLevel": 298,
+                "slot": "chest",
+                "bonusIds": ["13335"],
+            },
+        )
+
+        self.assertEqual(
+            resolved["progressionState"],
+            {
+                "kind": "upgrade_track",
+                "trackKey": "myth",
+                "rank": 6,
+                "maxRank": 6,
+            },
+        )
+
     def test_current_binding_exposes_verified_versioned_records(self):
         authority = track_authority_for_binding(CURRENT_BINDING)
 

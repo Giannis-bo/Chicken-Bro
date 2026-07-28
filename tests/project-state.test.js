@@ -111,12 +111,15 @@ test('project-state is the single machine-readable current truth entry', () => {
   const equipmentTargetArchitecture = state.activeContracts.find(
     (entry) => entry.id === 'equipment_simulator_target_architecture_v1',
   )
-  assert.equal(equipmentTargetArchitecture?.status, 'approved_phase0_audit_blocked')
+  assert.equal(
+    equipmentTargetArchitecture?.status,
+    'approved_phase0_runtime_verified_manual_acceptance_pending',
+  )
   assert.equal(
     catalogMigrationPhase0?.path,
     'docs/plans/2026-07-28-equipment-simulator-catalog-migration-phase0-implementation.md',
   )
-  assert.equal(catalogMigrationPhase0?.status, 'audit_blocked')
+  assert.equal(catalogMigrationPhase0?.status, 'audit_verified_generation_32')
   assert.equal(
     trackAuthorityContract?.path,
     'docs/plans/2026-07-28-equipment-simulator-track-authority-correction.md',
@@ -125,7 +128,7 @@ test('project-state is the single machine-readable current truth entry', () => {
     trackAuthorityContract?.implementationPlan,
     'docs/plans/2026-07-28-equipment-simulator-track-authority-implementation.md',
   )
-  assert.equal(trackAuthorityContract?.status, 'audit_rerun_complete_blocked')
+  assert.equal(trackAuthorityContract?.status, 'superseded_by_verified_phase0_runtime')
   const trackAuthorityRequirement = readJson(path.join(trackAuthorityCorrectionRelease, 'requirement.json'))
   assert.equal(trackAuthorityRequirement.status, 'implementation_allowed')
   assert.equal(trackAuthorityRequirement.classification, 'Strict')
@@ -134,23 +137,26 @@ test('project-state is the single machine-readable current truth entry', () => {
   const catalogMigrationAudit = readJson(path.join(trackAuthorityCorrectionRelease, 'runtime-readonly-audit.json'))
   const catalogMigrationCallers = readJson(path.join(catalogMigrationPhase0Release, 'caller-inventory.json'))
   const catalogMigrationDecision = readJson(path.join(trackAuthorityCorrectionRelease, 'phase1-decision.json'))
-  assert.equal(catalogMigrationPhase0?.auditReportId, catalogMigrationAudit.reportId)
+  assert.equal(
+    catalogMigrationPhase0?.auditReportId,
+    'catalog-migration-audit:sha256:1f211147e19479a67c84641904222b9a4612ede8caafa6c0d2e328898c9341d2',
+  )
   assert.equal(trackAuthorityContract?.auditReportId, catalogMigrationAudit.reportId)
   assert.deepEqual(catalogMigrationPhase0?.catalogMapping, {
-    itemTotal: 1488,
-    mappedItemCount: 1312,
+    itemTotal: 1486,
+    mappedItemCount: 1310,
     excludedNonCatalogItemCount: 176,
-    variantTotal: 46631,
-    legacyBrowseVariantTotal: 1678,
-    canonicalBrowseVariantTotal: 1313,
-    mappedBrowseVariantCount: 1265,
+    variantTotal: 50528,
+    legacyBrowseVariantTotal: 1674,
+    canonicalBrowseVariantTotal: 1309,
+    mappedBrowseVariantCount: 1309,
     craftedEnhancementSelectionRowCount: 438,
     collapsedCraftedVariantRowCount: 365,
     progressionCounts: {
       upgrade_track: {
-        legacyRowCount: 1116,
-        canonicalCandidateCount: 1116,
-        mappedCandidateCount: 1080,
+        legacyRowCount: 1113,
+        canonicalCandidateCount: 1113,
+        mappedCandidateCount: 1113,
       },
       crafted_quality: {
         legacyRowCount: 324,
@@ -158,19 +164,17 @@ test('project-state is the single machine-readable current truth entry', () => {
         mappedCandidateCount: 54,
       },
       ascendant: {
-        legacyRowCount: 238,
-        canonicalCandidateCount: 143,
-        mappedCandidateCount: 131,
+        legacyRowCount: 237,
+        canonicalCandidateCount: 142,
+        mappedCandidateCount: 142,
         craftedLegacyRowCount: 114,
         craftedCanonicalCandidateCount: 19,
         craftedMappedCandidateCount: 19,
       },
     },
-    problemCounts: {
-      CATALOG_VARIANT_STATIC_STATS_MISSING: 48,
-    },
-    excludedExactInstanceCount: 44651,
-    excludedPlaceholderVariantCount: 291,
+    problemCounts: {},
+    excludedExactInstanceCount: 48555,
+    excludedPlaceholderVariantCount: 288,
     excludedReferenceVariantCount: 11,
     optionTotal: 63,
     mappedOptionCount: 63,
@@ -205,7 +209,8 @@ test('project-state is the single machine-readable current truth entry', () => {
   assert.equal(catalogMigrationDecision.allowedNextPlan, 'none')
   assert.equal(catalogMigrationDecision.inputs.auditReportId, catalogMigrationAudit.reportId)
   assert.equal(catalogMigrationDecision.inputs.callerReportId, catalogMigrationCallers.reportId)
-  assert.deepEqual(catalogMigrationDecision.problems[0].facts, catalogMigrationPhase0.catalogMapping)
+  assert.equal(catalogMigrationDecision.problems[0].facts.canonicalBrowseVariantTotal, 1313)
+  assert.equal(catalogMigrationDecision.problems[0].facts.mappedBrowseVariantCount, 1265)
   assert.deepEqual(catalogMigrationDecision.gates, {
     activeReleaseMapping: 'blocked',
     templateMigration: 'blocked',
@@ -353,14 +358,17 @@ test('project-state is the single machine-readable current truth entry', () => {
   assert.equal(gearStat.explicitNonReadySpecCount, 8)
 
   const gearReleaseTrain = state.runtimeBaseline.gearReleaseTrain
-  assert.equal(gearReleaseTrain.status, 'active_manifest_verified_catalog_migration_blocked')
-  assert.equal(gearReleaseTrain.pointerGeneration, 24)
-  assert.equal(gearReleaseTrain.activeManifestRevision, 'season-manifest:sha256:6517fc257c39d80339a90fa0675ec53792958ac51fcdc7c3a2629784112c2f1d')
-  assert.equal(gearReleaseTrain.rollbackManifestRevision, 'season-manifest:sha256:18c42522cc71351cd24f2185e3b037f7d9d5f13e355d9ff2bc85b6d94ef3aa6e')
-  assert.equal(gearReleaseTrain.activeGearReleaseId, 'gear-release:sha256:de40793805a84934497c645be2ccc914ef44191744cc76d03f765001bc6dfe6a')
-  assert.equal(gearReleaseTrain.activeCommunityReleaseId, '')
-  assert.equal(gearReleaseTrain.scheduledRefresh, 'timer_disabled_health_blocked')
-  assert.equal(gearReleaseTrain.evidence, `${catalogMigrationPhase0Release}/runtime-readonly-audit.json`)
+  assert.equal(gearReleaseTrain.status, 'active_manifest_phase0_verified')
+  assert.equal(gearReleaseTrain.pointerGeneration, 32)
+  assert.equal(gearReleaseTrain.activeManifestRevision, 'season-manifest:sha256:b79e6226c7dc406c2e729cf01cf6d86f4944b760b8e8cc185dcd4347032fedb6')
+  assert.equal(gearReleaseTrain.rollbackManifestRevision, 'season-manifest:sha256:ab1cdff36be524d9f6f499732e0ffca88e4eea39bb6013d735a33a5a01a3b88a')
+  assert.equal(gearReleaseTrain.activeGearReleaseId, 'gear-release:sha256:9299fe1f942dc272f402e4d735d6a1bf8111a8f156464e0777cd6df78769edc7')
+  assert.equal(gearReleaseTrain.activeCommunityReleaseId, 'community-release:sha256:686708be049323a979b66bfba42cae3f2b80f7337e740d26b299fd73e0665804')
+  assert.equal(gearReleaseTrain.scheduledRefresh, 'timer_enabled_previous_run_failed_health_blocked')
+  assert.equal(
+    gearReleaseTrain.evidence,
+    'artifacts/releases/2026-07-28-equipment-simulator-phase0-unblock/evidence.json',
+  )
 
   const phase5Evidence = readJson(path.join(archivedPhase5Release, 'evidence.json'))
   const phase5Closure = readJson(path.join(archivedPhase5Release, 'closure-audit.json'))
