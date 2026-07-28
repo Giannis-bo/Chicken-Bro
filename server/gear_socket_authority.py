@@ -560,10 +560,18 @@ def materialize_gear_socket_facts(
     snapshot: Any,
     season_revision: str = "",
     socket_bonus_minimums: Mapping[str, Any] | None = None,
+    *,
+    copy_snapshot: bool = True,
 ) -> dict[str, Any]:
     """Return a copied Gear snapshot with item and exact-variant socket facts."""
 
-    materialized = copy.deepcopy(snapshot) if isinstance(snapshot, dict) else {}
+    materialized = (
+        copy.deepcopy(snapshot)
+        if isinstance(snapshot, dict) and copy_snapshot
+        else snapshot
+        if isinstance(snapshot, dict)
+        else {}
+    )
     items = [row for row in materialized.get("items") or [] if isinstance(row, dict)]
     sources = [row for row in materialized.get("sources") or [] if isinstance(row, dict)]
     variants = [row for row in materialized.get("variants") or [] if isinstance(row, dict)]

@@ -2249,6 +2249,41 @@ class GearReleaseToolTest(unittest.TestCase):
             source_evidence["excludedNonCombatItemDigest"].startswith("sha256:")
         )
 
+    def test_prepare_staging_gear_release_reuses_one_mutable_snapshot_projection(self):
+        from server import gear_release_tool
+
+        snapshot = self.snapshot()
+        with (
+            patch.object(
+                gear_release_tool.gear_socket_authority,
+                "materialize_gear_socket_facts",
+                wraps=gear_release_tool.gear_socket_authority.materialize_gear_socket_facts,
+            ) as socket_materializer,
+            patch.object(
+                gear_release_tool,
+                "_project_socket_facts_into_release_payloads",
+                wraps=gear_release_tool._project_socket_facts_into_release_payloads,
+            ) as socket_projector,
+            patch.object(
+                gear_release_tool,
+                "_materialize_enhancement_management",
+                wraps=gear_release_tool._materialize_enhancement_management,
+            ) as enhancement_materializer,
+        ):
+            prepared = gear_release_tool.prepare_staging_gear_release(
+                FakeReleaseStore(snapshot),
+                season_revision="season-17",
+                dependency_revisions=self.dependencies(),
+                socket_bonus_minimums={"9300": 1},
+            )
+
+        self.assertEqual(prepared["gate"]["status"], "validated")
+        self.assertFalse(socket_materializer.call_args.kwargs["copy_snapshot"])
+        self.assertFalse(socket_projector.call_args.kwargs["copy_snapshot"])
+        self.assertFalse(
+            enhancement_materializer.call_args.kwargs["copy_snapshot"]
+        )
+
     def test_current_pve_socket_eligibility_is_sealed_in_release_item_payload(self):
         from server.gear_release_tool import prepare_staging_gear_release
 

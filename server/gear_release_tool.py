@@ -313,8 +313,12 @@ def _materialized_socket_fact_digest(snapshot: dict[str, Any]) -> str:
     return _canonical_digest({"items": items, "variants": variants})
 
 
-def _project_socket_facts_into_release_payloads(snapshot: dict[str, Any]) -> dict[str, Any]:
-    projected = _canonical(snapshot)
+def _project_socket_facts_into_release_payloads(
+    snapshot: dict[str, Any],
+    *,
+    copy_snapshot: bool = True,
+) -> dict[str, Any]:
+    projected = _canonical(snapshot) if copy_snapshot else snapshot
     for category, fields in (
         ("items", ("baseCapabilities", "socketEvidence")),
         ("variants", ("capabilityOverrides", "socketEvidence")),
@@ -343,10 +347,12 @@ def _project_socket_facts_into_release_payloads(snapshot: dict[str, Any]) -> dic
 def _materialize_enhancement_management(
     snapshot: dict[str, Any],
     capability_revision: str,
+    *,
+    copy_snapshot: bool = True,
 ) -> dict[str, Any]:
     """Seal v2 field governance without treating absence as trusted source data."""
 
-    materialized = _canonical(snapshot)
+    materialized = _canonical(snapshot) if copy_snapshot else snapshot
     items_by_id = {
         _text(row.get("itemId")): row
         for row in materialized.get("items") or []
@@ -1761,9 +1767,12 @@ def prepare_staging_gear_release(
                 staging_snapshot,
                 season_revision=season_revision,
                 socket_bonus_minimums=normalized_bonus_minimums,
-            )
+                copy_snapshot=False,
+            ),
+            copy_snapshot=False,
         ),
         _text(dependency_revisions.get("capabilityRevision")),
+        copy_snapshot=False,
     )
     problems = validate_gear_snapshot(snapshot)
     if problems:
