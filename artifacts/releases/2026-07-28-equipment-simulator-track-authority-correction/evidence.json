@@ -28,8 +28,9 @@
       "reason": "Focused verification passed; the clean task checkpoint will be checked against the exact Git HEAD."
     },
     "closure": {
-      "status": "pending",
-      "reason": "Implementation, focused verification, production read-only audit, final Harness binding and local CR are complete. Base PR #101 merged as 72604b3874668ed4aa761fbcfdb41cbb655300f8; this task is ready for its standalone PR and remains pending until that PR lands."
+      "status": "bound",
+      "kind": "merge_commit",
+      "value": "ca21ac4df41d2d276a38f2f425db2401cf0587b0"
     }
   },
   "manualAcceptance": {
@@ -154,6 +155,6 @@
     "artifacts/releases/2026-07-28-equipment-simulator-catalog-migration-phase0/runtime-readonly-audit.json",
     "artifacts/releases/2026-07-28-equipment-simulator-catalog-migration-phase0/phase1-decision.json"
   ],
-  "summary": "The pure Track Authority and progression-aware Phase 0 audit are locally verified. The exact committed tools reran against production read-only data with zero writes, stable generation-24 pointers and complete transient cleanup. They mapped 1265/1313 canonical Browse candidates and isolated the remaining 48 static-stat gaps; independent Phase 0 gates keep allowedNextPlan at none. Focused verification, final Harness binding and local CR passed. Runtime activation and manual acceptance remain not applicable. Base PR #101 is merged and the standalone Track Authority PR is the remaining closure step.",
-  "updatedAt": "2026-07-28T17:39:50+08:00"
+  "summary": "The pure Track Authority and progression-aware Phase 0 audit are locally verified and merged through PR #102 at ca21ac4df41d2d276a38f2f425db2401cf0587b0. The exact committed tools reran against production read-only data with zero writes, stable generation-24 pointers and complete transient cleanup. They mapped 1265/1313 canonical Browse candidates and isolated the remaining 48 static-stat gaps; independent Phase 0 gates keep allowedNextPlan at none. Focused verification, final Harness binding, local CR and merge closure passed. Runtime activation and manual acceptance remain not applicable.",
+  "updatedAt": "2026-07-28T17:50:09+08:00"
 }
