@@ -127,16 +127,16 @@ test('project-state is the single machine-readable current truth entry', () => {
   )
   assert.equal(
     catalogMigrationPhase0?.path,
-    'docs/plans/2026-07-28-equipment-simulator-catalog-migration-phase0-implementation.md',
+    'artifacts/releases/2026-07-28-equipment-simulator-phase0-unblock/evidence.json',
   )
-  assert.equal(catalogMigrationPhase0?.status, 'audit_verified_generation_32')
+  assert.equal(catalogMigrationPhase0?.status, 'archived_generation_32_baseline')
   assert.equal(
     trackAuthorityContract?.path,
     'docs/plans/2026-07-28-equipment-simulator-track-authority-correction.md',
   )
   assert.equal(
-    trackAuthorityContract?.implementationPlan,
-    'docs/plans/2026-07-28-equipment-simulator-track-authority-implementation.md',
+    trackAuthorityContract?.implementationEvidence,
+    'artifacts/releases/2026-07-28-equipment-simulator-track-authority-correction/evidence.json',
   )
   assert.equal(trackAuthorityContract?.status, 'superseded_by_verified_phase0_runtime')
   const trackAuthorityRequirement = readJson(path.join(trackAuthorityCorrectionRelease, 'requirement.json'))

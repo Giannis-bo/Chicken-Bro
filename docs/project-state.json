@@ -77,7 +77,7 @@
       "path": "docs/plans/2026-07-28-equipment-simulator-track-authority-correction.md",
       "status": "superseded_by_verified_phase0_runtime",
       "lifecycle": "active",
-      "implementationPlan": "docs/plans/2026-07-28-equipment-simulator-track-authority-implementation.md",
+      "implementationEvidence": "artifacts/releases/2026-07-28-equipment-simulator-track-authority-correction/evidence.json",
       "auditReportId": "catalog-migration-audit:sha256:10c28022cbe3cb4cfb9f79a7ca59d4fa0aa47e416ab868d0b133084b2c6ed8c7",
       "evidence": "artifacts/releases/2026-07-28-equipment-simulator-track-authority-correction/evidence.json",
       "phase1Decision": "artifacts/releases/2026-07-28-equipment-simulator-track-authority-correction/phase1-decision.json",
@@ -85,8 +85,8 @@
     },
     {
       "id": "equipment_simulator_catalog_migration_phase0",
-      "path": "docs/plans/2026-07-28-equipment-simulator-catalog-migration-phase0-implementation.md",
-      "status": "audit_verified_generation_32",
+      "path": "artifacts/releases/2026-07-28-equipment-simulator-phase0-unblock/evidence.json",
+      "status": "archived_generation_32_baseline",
       "lifecycle": "active",
       "auditReportId": "catalog-migration-audit:sha256:1f211147e19479a67c84641904222b9a4612ede8caafa6c0d2e328898c9341d2",
       "catalogMapping": {
@@ -126,7 +126,7 @@
         "optionTotal": 63,
         "mappedOptionCount": 63
       },
-      "notes": "The fresh bounded generation-32 audit uses exact season/rule Track Authority, maps 1309/1309 canonical Browse candidates, verifies all 80 Community ExactItemInstance templates and 40 specializations, records zero unresolved callers and zero source writes, and keeps the active pointer stable. Global data health remains partial under legacy staging/refresh owners and is not represented as a green global-health result."
+      "notes": "Archived Phase 0 evidence remains an active factual baseline for later phases: the bounded generation-32 audit uses exact season/rule Track Authority, maps 1309/1309 canonical Browse candidates, verifies all 80 Community ExactItemInstance templates and 40 specializations, records zero unresolved callers and zero source writes, and keeps the active pointer stable. Global data health remains partial under legacy staging/refresh owners and is not represented as a green global-health result."
     }
   ],
   "completedBaselines": [
