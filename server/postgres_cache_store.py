@@ -1643,14 +1643,16 @@ class PostgresCacheStore:
             raise RuntimeError(
                 "Manifest generation changed during exact registry binding"
             )
-        registry = (
+        registry_header = (
             binding.get("gearExactRegistry")
             if isinstance(binding.get("gearExactRegistry"), dict)
             else {}
         )
         if (
-            not registry
-            or str(registry.get("registryRevision") or "").strip()
+            not registry_header
+            or str(
+                registry_header.get("registryRevision") or ""
+            ).strip()
             != str(
                 manifest.get("gearExactRegistryRevision") or ""
             ).strip()
@@ -1658,7 +1660,70 @@ class PostgresCacheStore:
             raise RuntimeError(
                 "Manifest v2 Exact Registry binding is invalid"
             )
-        return copy.deepcopy(registry)
+        if all(
+            isinstance(registry_header.get(field), list)
+            for field in (
+                "enhancementSelections",
+                "exactItemInstances",
+                "validations",
+                "templateReferences",
+            )
+        ):
+            return copy.deepcopy(registry_header)
+
+        registry = self._gear_exact_item_registry_store.load_registry(
+            str(manifest.get("gearExactRegistryRevision") or "").strip()
+        )
+        if (
+            not isinstance(registry, dict)
+            or str(registry.get("registryRevision") or "").strip()
+            != str(
+                registry_header.get("registryRevision") or ""
+            ).strip()
+            or str(registry.get("catalogRevision") or "").strip()
+            != str(
+                registry_header.get("catalogRevision") or ""
+            ).strip()
+            or str(registry.get("seasonRevision") or "").strip()
+            != str(
+                registry_header.get("seasonRevision") or ""
+            ).strip()
+            or str(registry.get("gearRuleRevision") or "").strip()
+            != str(
+                registry_header.get("gearRuleRevision") or ""
+            ).strip()
+            or str(registry.get("status") or "").strip()
+            != str(registry_header.get("status") or "").strip()
+        ):
+            raise RuntimeError(
+                "Manifest v2 Exact Registry material is invalid"
+            )
+
+        binding_after = self._active_manifest_binding_for_authority()
+        manifest_after = (
+            binding_after.get("manifest")
+            if isinstance(binding_after, dict)
+            and isinstance(binding_after.get("manifest"), dict)
+            else {}
+        )
+        if (
+            str(
+                binding_after.get("manifestRevision")
+                or manifest_after.get("manifestRevision")
+                or ""
+            ).strip()
+            != active_revision
+            or _int_value(binding_after.get("generation"))
+            != active_generation
+            or str(
+                manifest_after.get("gearExactRegistryRevision") or ""
+            ).strip()
+            != str(registry.get("registryRevision") or "").strip()
+        ):
+            raise RuntimeError(
+                "Manifest changed during exact registry materialization"
+            )
+        return registry
 
     def seal_resolved_loadout(self, value):
         return self._simulation_snapshot_store.seal_loadout(value)
@@ -1991,6 +2056,41 @@ class PostgresCacheStore:
                 "candidate preview requires a formal active Gear Release"
             )
         if manifest_preview_revision:
+            active_generation = _int_value(active.get("generation"))
+            active_revision = str(
+                active.get("manifestRevision")
+                or (
+                    active.get("manifest")
+                    if isinstance(active.get("manifest"), dict)
+                    else {}
+                ).get("manifestRevision")
+                or ""
+            ).strip()
+            cache_key = (
+                "candidate-manifest-binding:"
+                f"{active_generation}:{active_revision}:"
+                f"{manifest_preview_revision}"
+            )
+            cached = self._gear_authority_context_cache.get(cache_key)
+            cached_manifest = (
+                cached.get("manifest")
+                if isinstance(cached, dict)
+                and isinstance(cached.get("manifest"), dict)
+                else {}
+            )
+            if (
+                isinstance(cached, dict)
+                and cached.get("candidatePreview") is True
+                and _int_value(cached.get("generation"))
+                == active_generation
+                and str(
+                    cached.get("manifestRevision")
+                    or cached_manifest.get("manifestRevision")
+                    or ""
+                ).strip()
+                == manifest_preview_revision
+            ):
+                return cached
             preview_reader = getattr(
                 self._gear_release_store,
                 "load_candidate_manifest_binding",
@@ -2020,16 +2120,21 @@ class PostgresCacheStore:
                 raise RuntimeError(
                     "candidate Manifest v2 preview binding is invalid"
                 )
-            return {
+            result = {
                 **preview,
                 "pointerMode": "candidate_preview",
-                "generation": _int_value(active.get("generation")),
+                "generation": active_generation,
                 "rollbackManifestRevision": str(
                     active.get("rollbackManifestRevision") or ""
                 ).strip(),
                 "formalActiveManifest": False,
                 "candidatePreview": True,
             }
+            self._gear_authority_context_cache.put(
+                cache_key,
+                result,
+            )
+            return result
         manifest = active.get("manifest") if isinstance(active.get("manifest"), dict) else {}
         active_gear = active.get("gearRelease") if isinstance(active.get("gearRelease"), dict) else {}
         active_gear_release_id = str(manifest.get("gearCatalogReleaseId") or "").strip()

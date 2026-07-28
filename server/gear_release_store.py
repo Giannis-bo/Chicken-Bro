@@ -3469,9 +3469,11 @@ class GearReleaseStore:
             cur,
             catalog_revision,
         )
-        exact_registry = GearExactItemRegistryStore._load_with_cursor(
-            cur,
-            exact_registry_revision,
+        exact_registry = (
+            GearExactItemRegistryStore._load_header_with_cursor(
+                cur,
+                exact_registry_revision,
+            )
         )
         dependencies = (
             manifest.get("dependencyRevisions")

@@ -1615,7 +1615,7 @@ class GearReleaseStoreTest(unittest.TestCase):
             "server.gear_release_store.GearCatalogRevisionStore._load_with_cursor",
             return_value=catalog,
         ) as catalog_loader, patch(
-            "server.gear_release_store.GearExactItemRegistryStore._load_with_cursor",
+            "server.gear_release_store.GearExactItemRegistryStore._load_header_with_cursor",
             return_value=exact_registry,
         ) as exact_loader:
             binding = GearReleaseStore(
@@ -1702,7 +1702,7 @@ class GearReleaseStoreTest(unittest.TestCase):
             "server.gear_release_store.GearCatalogRevisionStore._load_with_cursor",
             return_value=catalog,
         ), patch(
-            "server.gear_release_store.GearExactItemRegistryStore._load_with_cursor",
+            "server.gear_release_store.GearExactItemRegistryStore._load_header_with_cursor",
             return_value=exact_registry,
         ):
             binding = GearReleaseStore(

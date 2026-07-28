@@ -193,6 +193,34 @@ class GearExactItemRegistryStoreTest(unittest.TestCase):
         self.assertEqual(latest, self.registry)
         self.assertEqual(missing, {})
 
+    def test_header_reader_binds_identity_without_loading_registry_material(self):
+        self.store.seal_registry(self.registry)
+        self.database.statements.clear()
+
+        header = GearExactItemRegistryStore._load_header_with_cursor(
+            FakeCursor(self.database),
+            self.registry["registryRevision"],
+        )
+
+        self.assertEqual(
+            header,
+            {
+                "schemaRevision": "gear-exact-item-registry-header-v1",
+                "status": self.registry["status"],
+                "registryRevision": self.registry["registryRevision"],
+                "catalogRevision": self.registry["catalogRevision"],
+                "seasonRevision": self.registry["seasonRevision"],
+                "gearRuleRevision": self.registry["gearRuleRevision"],
+                "summary": self.registry["summary"],
+                "problemCodes": self.registry["problemCodes"],
+                "problems": [],
+            },
+        )
+        joined = "\n".join(self.database.statements)
+        self.assertIn("gear_exact_registry_load_header", joined)
+        self.assertNotIn("gear_exact_registry_load_refs", joined)
+        self.assertNotIn("gear_exact_registry_load_instances", joined)
+
     def test_tampered_exact_row_is_rejected_not_overwritten(self):
         self.store.seal_registry(self.registry)
         key = self.registry["exactItemInstances"][0]["exactItemInstanceKey"]

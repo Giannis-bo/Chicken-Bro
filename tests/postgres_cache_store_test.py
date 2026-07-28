@@ -9595,6 +9595,10 @@ class PostgresCacheStoreTest(unittest.TestCase):
                 "gear-catalog:sha256:" + ("a" * 64)
             ),
             "status": "partial",
+            "enhancementSelections": [],
+            "exactItemInstances": [],
+            "validations": [],
+            "templateReferences": [],
         }
 
         class ManifestV2ReleaseStore:
@@ -10065,8 +10069,11 @@ class PostgresCacheStoreTest(unittest.TestCase):
         }
 
         class PreviewReleaseStore:
+            def __init__(self):
+                self.requested_revisions = []
+
             def load_candidate_manifest_binding(self, manifest_revision):
-                self.requested_revision = manifest_revision
+                self.requested_revisions.append(manifest_revision)
                 return copy.deepcopy(candidate)
 
         release_store = PreviewReleaseStore()
@@ -10085,11 +10092,13 @@ class PostgresCacheStoreTest(unittest.TestCase):
             clear=False,
         ):
             binding = store._candidate_preview_binding(active)
+            repeated = store._candidate_preview_binding(active)
 
         self.assertEqual(
-            release_store.requested_revision,
-            candidate_revision,
+            release_store.requested_revisions,
+            [candidate_revision],
         )
+        self.assertEqual(repeated, binding)
         self.assertTrue(binding["candidatePreview"])
         self.assertFalse(binding["formalActiveManifest"])
         self.assertEqual(binding["generation"], 32)
@@ -10202,6 +10211,74 @@ class PostgresCacheStoreTest(unittest.TestCase):
         )
         self.assertLessEqual(len(release_store.binding["manifest"]["manifestRevision"]), 240)
         self.assertEqual(payload["gearCatalogReleaseId"], candidate_gear["releaseId"])
+
+    def test_manifest_v2_exact_material_load_rechecks_the_same_pointer(self):
+        from server import postgres_cache_store
+
+        manifest_revision = "season-manifest:active-v2"
+        exact_revision = "gear-exact-registry:exact-v2"
+        manifest = {
+            "schemaRevision": "active-season-manifest-v2",
+            "manifestRevision": manifest_revision,
+            "gearExactRegistryRevision": exact_revision,
+        }
+        binding = {
+            "pointerMode": "active",
+            "generation": 33,
+            "manifestRevision": manifest_revision,
+            "formalActiveManifest": True,
+            "manifest": manifest,
+            "gearExactRegistry": {
+                "schemaRevision": "gear-exact-item-registry-header-v1",
+                "status": "partial",
+                "registryRevision": exact_revision,
+                "catalogRevision": "gear-catalog:catalog-v2",
+                "seasonRevision": "season-r1",
+                "gearRuleRevision": "gear-rule-r1",
+            },
+        }
+        registry = {
+            **binding["gearExactRegistry"],
+            "schemaRevision": "gear-exact-item-registry-v1",
+            "enhancementSelections": [],
+            "exactItemInstances": [],
+            "validations": [],
+            "templateReferences": [],
+        }
+
+        class ReleaseStore:
+            def get_active_pointer(self):
+                return {
+                    "pointerMode": "active",
+                    "generation": 33,
+                    "manifestRevision": manifest_revision,
+                }
+
+            def load_active_manifest_binding(self):
+                return copy.deepcopy(binding)
+
+        class ExactStore:
+            def __init__(self):
+                self.revisions = []
+
+            def load_registry(self, revision):
+                self.revisions.append(revision)
+                return copy.deepcopy(registry)
+
+        store = postgres_cache_store.PostgresCacheStore(
+            lambda: self.fail("exact material test must use repositories"),
+            gear_release_store=ReleaseStore(),
+        )
+        exact_store = ExactStore()
+        store._gear_exact_item_registry_store = exact_store
+
+        loaded = store.get_active_gear_exact_registry(
+            expected_manifest_revision=manifest_revision,
+            expected_pointer_generation=33,
+        )
+
+        self.assertEqual(loaded, registry)
+        self.assertEqual(exact_store.revisions, [exact_revision])
 
     def test_candidate_observed_build_can_bind_a_sealed_gear_only_preview(self):
         from server import postgres_cache_store

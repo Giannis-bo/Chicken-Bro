@@ -233,7 +233,10 @@ class GearExactItemRegistryStore:
         return normalized
 
     @staticmethod
-    def _load_with_cursor(cur: Any, registry_revision: str) -> dict[str, Any]:
+    def _load_header_with_cursor(
+        cur: Any,
+        registry_revision: str,
+    ) -> dict[str, Any]:
         cur.execute(
             """
             /* gear_exact_registry_load_header */
@@ -251,6 +254,26 @@ class GearExactItemRegistryStore:
             (registry_revision,),
         )
         header = cur.fetchone()
+        if not header:
+            return {}
+        return {
+            "schemaRevision": "gear-exact-item-registry-header-v1",
+            "status": _text(header[4]),
+            "registryRevision": _text(header[0]),
+            "catalogRevision": _text(header[1]),
+            "seasonRevision": _text(header[2]),
+            "gearRuleRevision": _text(header[3]),
+            "summary": _json_value(header[5]),
+            "problemCodes": _json_value(header[6]),
+            "problems": [],
+        }
+
+    @staticmethod
+    def _load_with_cursor(cur: Any, registry_revision: str) -> dict[str, Any]:
+        header = GearExactItemRegistryStore._load_header_with_cursor(
+            cur,
+            registry_revision,
+        )
         if not header:
             return {}
         cur.execute(
@@ -300,13 +323,14 @@ class GearExactItemRegistryStore:
         summary = _json_value(first[5])
         problem_codes = _json_value(first[6])
         if (
-            _text(header[0]) != registry_revision
-            or _text(header[1]) != catalog_revision
-            or _text(header[2]) != season_revision
-            or _text(header[3]) != gear_rule_revision
-            or _text(header[4]) != status
-            or _json_value(header[5]) != summary
-            or _json_value(header[6]) != problem_codes
+            _text(header.get("registryRevision")) != registry_revision
+            or _text(header.get("catalogRevision")) != catalog_revision
+            or _text(header.get("seasonRevision")) != season_revision
+            or _text(header.get("gearRuleRevision")) != gear_rule_revision
+            or _text(header.get("status")) != status
+            or _canonical(header.get("summary") or {}) != summary
+            or _canonical(header.get("problemCodes") or [])
+            != problem_codes
         ):
             raise GearExactItemRegistryIntegrityError(
                 "sealed exact registry header mismatch"
