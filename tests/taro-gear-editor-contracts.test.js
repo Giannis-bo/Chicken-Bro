@@ -112,7 +112,7 @@ test('the active page keeps draft item ids out of committed slot markers', () =>
   assert.match(page, /hydrateCompactSlotGroup\(group\)/u)
   assert.match(page, /snapshot: resolved\.snapshot/u)
   assert.doesNotMatch(page, /resolved\.snapshot\.selectionIntent \?\? resolved\.intent/u)
-  assert.match(commitModel, /if \(event\.status !== 'resolved'\)[\s\S]*return \{ state, committed: false, reload: false \}/u)
+  assert.match(commitModel, /if \(event\.status !== 'resolved' && event\.status !== 'slot_resolved'\) \{\s*return \{ state, committed: false, reload: false \}/u)
   assert.match(commitModel, /gearEnhancementsFromResolvedSnapshot/u)
   assert.match(workbench, /data-committed-item-id=\{item\.itemId\}/u)
   assert.match(workbench, /data-committed-slot-variant-key=\{committedSlotVariantKey\}/u)
