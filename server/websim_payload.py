@@ -26682,6 +26682,7 @@ def build_websim_profile_response_from_resolved_snapshot(
     resolved_snapshot,
     source_context=None,
     execution_flavor=WEBSIM_EXECUTION_FLAVOR_STANDARD_PROFILE,
+    talent_store=None,
 ):
     """Serialize one verified canonical snapshot through the dormant legacy adapter."""
 
@@ -26787,6 +26788,7 @@ def build_websim_profile_response_from_resolved_snapshot(
         source,
         conn=None,
         execution_flavor=execution_flavor,
+        talent_store=talent_store,
     )
     response.update(
         {

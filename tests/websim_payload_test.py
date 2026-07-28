@@ -24929,6 +24929,37 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertNotIn("forged", result["profile"])
         self.assertEqual(result["profileReadiness"], snapshot["profileReadiness"])
 
+    def test_resolved_snapshot_facade_uses_server_talent_authority_for_websim_codes(self):
+        parity, snapshot = self.resolved_snapshot_for_facade()
+        talent_store = object()
+        encoding = {
+            "status": "encoded",
+            "source": "postgres",
+            "lines": ["class_talents=100:1", "spec_talents=200:1"],
+            "errors": [],
+            "warnings": [],
+        }
+
+        with patch.object(
+            self.websim_payload,
+            "encode_websim_talents",
+            return_value=encoding,
+        ) as encoder:
+            result = self.websim_payload.build_websim_profile_response_from_resolved_snapshot(
+                snapshot,
+                {
+                    **parity["sourceContext"],
+                    "talents": "websim:warrior:fury::node-a:1,node-b:1",
+                },
+                talent_store=talent_store,
+            )
+
+        self.assertEqual(result["status"], "resolved")
+        self.assertTrue(result["profileReadiness"]["simcReady"])
+        self.assertIn("class_talents=100:1", result["profile"])
+        self.assertIn("spec_talents=200:1", result["profile"])
+        self.assertIs(encoder.call_args.args[0], talent_store)
+
     def test_midnight_mage_resolved_profile_keeps_complete_canonical_8_6_2_enhancements(self):
         from server import gear_resolver
         from tests.gear_resolver_test import build_midnight_mage_resolver_fixture

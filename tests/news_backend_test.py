@@ -2041,7 +2041,12 @@ class NewsBackendTest(unittest.TestCase):
 
         snapshot_store = FakeSnapshotStore()
 
-        def fake_serializer(_snapshot, source_context=None, execution_flavor="standard_profile"):
+        def fake_serializer(
+            _snapshot,
+            source_context=None,
+            execution_flavor="standard_profile",
+            talent_store=None,
+        ):
             return {
                 "status": "resolved",
                 "profile": canonical_profile,
@@ -2052,12 +2057,17 @@ class NewsBackendTest(unittest.TestCase):
                 "preparation": {"schemaRevision": "simc-preparation-v1"},
                 "sourceContext": source_context or {},
                 "executionFlavor": execution_flavor,
+                "talentStore": talent_store,
                 "problems": [],
             }
 
         def fake_profile(source, *, store, simc_runtime_revision, request_id, profile_builder):
             calls.append({"source": source, "store": store, "runtime": simc_runtime_revision})
-            profile = profile_builder(authority_snapshot, source_context=source["profileContext"])
+            profile = profile_builder(
+                authority_snapshot,
+                source_context=source["profileContext"],
+                talent_store=store,
+            )
             return 200, {
                 "contractRevision": "gear-result-envelope-v1",
                 "requestId": request_id,
@@ -2172,7 +2182,12 @@ class NewsBackendTest(unittest.TestCase):
         stat_profile = canonical_profile + "\niterations=1\ncalculate_scale_factors=0"
         simc_items = [{"slot": "head", "itemId": "1", "simcOptions": {}}]
 
-        def fake_serializer(_snapshot, source_context=None, execution_flavor="standard_profile"):
+        def fake_serializer(
+            _snapshot,
+            source_context=None,
+            execution_flavor="standard_profile",
+            talent_store=None,
+        ):
             return {
                 "status": "resolved",
                 "profile": stat_profile if execution_flavor == "stat_snapshot_v1" else canonical_profile,
@@ -2182,12 +2197,17 @@ class NewsBackendTest(unittest.TestCase):
                 "resolvedGearSignature": authority_snapshot["resolvedGearSignature"],
                 "preparation": {"schemaRevision": "simc-preparation-v1"},
                 "sourceContext": source_context or {},
+                "talentStore": talent_store,
                 "problems": [],
             }
 
         def fake_profile(source, *, store, simc_runtime_revision, request_id, profile_builder):
-            del store, simc_runtime_revision
-            profile = profile_builder(authority_snapshot, source_context=source["profileContext"])
+            del simc_runtime_revision
+            profile = profile_builder(
+                authority_snapshot,
+                source_context=source["profileContext"],
+                talent_store=store,
+            )
             return 200, {
                 "contractRevision": "gear-result-envelope-v1",
                 "requestId": request_id,

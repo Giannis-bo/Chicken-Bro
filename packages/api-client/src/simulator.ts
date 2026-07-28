@@ -218,8 +218,14 @@ function isSimcOptionsPayload(value: unknown): value is SimcOptionsPayload {
   const defaults = races['defaultByClass']
   const scenarioKeys = value['scenarios'].map((scenario) => isRecord(scenario) ? scenario['key'] : undefined)
   const preparationRows = preparation['rows']
-  const preparationKeys = Array.isArray(preparationRows)
-    ? preparationRows.map((row) => isRecord(row) ? row['key'] : undefined)
+  const preparationScopeKeys = Array.isArray(preparationRows)
+    ? preparationRows.map((row) => isRecord(row)
+      ? [
+          row['key'],
+          row['classKey'] ?? '*',
+          row['specKey'] ?? '*',
+        ].join(':')
+      : undefined)
     : []
   return races['status'] === 'supported'
     && uniqueNonEmptyStrings(supportedKeys)
@@ -237,7 +243,7 @@ function isSimcOptionsPayload(value: unknown): value is SimcOptionsPayload {
     && Array.isArray(preparation['rows'])
     && preparation['rows'].length > 0
     && preparation['rows'].every(isSimcPreparationRow)
-    && uniqueNonEmptyStrings(preparationKeys)
+    && uniqueNonEmptyStrings(preparationScopeKeys)
 }
 
 function fallbackSimcOptions(): SimcOptionsPayload {

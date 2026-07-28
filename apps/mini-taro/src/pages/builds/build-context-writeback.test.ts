@@ -57,6 +57,18 @@ describe('build context specialization writeback', () => {
     expect(read('apps/mini-taro/src/pages/simulator/simc.tsx')).toContain('rememberBuildsHomeSpec(data.selection)')
   })
 
+  it('persists a gear specialization choice before starting its async route reload', () => {
+    const source = read('apps/mini-taro/src/pages/builds/detail.tsx')
+    const handler = source.match(
+      /const selectSpecialization = \(item: GearSpecializationItem\) => \{([\s\S]*?)\n[ ]{2}\}/u,
+    )?.[1] ?? ''
+
+    expect(handler).toMatch(
+      /rememberBuildsHomeSpec\(\{ classKey: data\.selection\.classKey, specId: item\.id \}\)[\s\S]*setSelectedSpecId\(item\.id\)/u,
+    )
+    expect(source).toContain('onSelect={selectSpecialization}')
+  })
+
   it.each([
     'apps/mini-taro/src/pages/builds/talent-simulator.tsx',
     'apps/mini-taro/src/pages/builds/detail.tsx',

@@ -79,7 +79,7 @@ def resolved(_intent, *, store, simc_runtime_revision, request_id):
     }
 
 
-def profile_builder(_snapshot, *, source_context, execution_flavor):
+def profile_builder(_snapshot, *, source_context, execution_flavor, talent_store=None):
     return {
         "status": "resolved",
         "profile": "mage=fixture\niterations=1\ncalculate_scale_factors=0",
@@ -87,6 +87,7 @@ def profile_builder(_snapshot, *, source_context, execution_flavor):
         "talentEncoding": {"status": "external"},
         "sourceContext": source_context,
         "executionFlavor": execution_flavor,
+        "talentStore": talent_store,
         "problems": [],
     }
 
@@ -211,8 +212,13 @@ class GearStatSnapshotApiTest(unittest.TestCase):
         }
         captured = {}
 
-        def fake_response(payload, conn=None, execution_flavor=""):
-            captured.update({"payload": payload, "conn": conn, "executionFlavor": execution_flavor})
+        def fake_response(payload, conn=None, execution_flavor="", talent_store=None):
+            captured.update({
+                "payload": payload,
+                "conn": conn,
+                "executionFlavor": execution_flavor,
+                "talentStore": talent_store,
+            })
             return {
                 "profile": "mage=fixture\niterations=1",
                 "profileReadiness": {"simcReady": True},

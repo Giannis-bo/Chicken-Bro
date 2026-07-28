@@ -4840,15 +4840,22 @@ def prepare_canonical_simcraft_template_request(request_payload):
     canonical_stat_context = {}
     canonical_stat_snapshot = {}
 
-    def canonical_profile_builder(resolved_snapshot, *, source_context=None):
+    def canonical_profile_builder(
+        resolved_snapshot,
+        *,
+        source_context=None,
+        talent_store=None,
+    ):
         standard_profile = build_websim_profile_response_from_resolved_snapshot(
             resolved_snapshot,
             source_context=source_context,
+            talent_store=talent_store,
         )
         stat_profile = build_websim_profile_response_from_resolved_snapshot(
             resolved_snapshot,
             source_context=source_context,
             execution_flavor=WEBSIM_EXECUTION_FLAVOR_STAT_SNAPSHOT_V1,
+            talent_store=talent_store,
         )
         canonical_stat_context["resolvedSnapshot"] = resolved_snapshot
         canonical_stat_context["statProfile"] = stat_profile

@@ -298,6 +298,11 @@ export default function GearDetailPage() {
   })).filter((item) => item.id)
   const selectedSpecIndex = Math.max(0, specItems.findIndex((item) => item.id === data?.selection.specId))
   const selectedSpecLabel = data?.selection.spec.specName || data?.selection.spec.title || data?.selection.spec.name || ''
+  const selectSpecialization = (item: GearSpecializationItem) => {
+    if (!data?.selection.classKey) return
+    rememberBuildsHomeSpec({ classKey: data.selection.classKey, specId: item.id })
+    setSelectedSpecId(item.id)
+  }
 
   const itemStaticStats = gearItemStaticStatsFromResolvedSnapshot(canonical.snapshot, equipped) ?? undefined
   const slotViews = gearSlots(data?.gear, equipped, selectedSlot, enhancements, itemStaticStats)
@@ -1030,7 +1035,7 @@ export default function GearDetailPage() {
                 loading={initialLoading}
                 selectedIndex={selectedSpecIndex}
                 value={selectedSpecLabel}
-                onSelect={(item) => setSelectedSpecId(item.id)}
+                onSelect={selectSpecialization}
               />
             </RouteRegion>
             <RouteRegion className={styles['loadoutSummaryRegion'] ?? ''} data-region="loadout_summary">

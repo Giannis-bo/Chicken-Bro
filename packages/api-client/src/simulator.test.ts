@@ -129,10 +129,22 @@ describe('SimulatorClient task contract', () => {
       preparation: {
         schemaRevision: 'simc-preparation-v1',
         status: 'ready',
-        rows: [{
-          key: 'backend_rule', category: 'backend', label: 'Backend rule',
-          defaultState: 'enabled', evidenceState: 'verified', overrideSupported: true,
-        }],
+        rows: [
+          {
+            key: 'backend_rule', category: 'backend', label: 'Backend rule',
+            defaultState: 'enabled', evidenceState: 'verified', overrideSupported: true,
+          },
+          {
+            key: 'rogue_poisons', category: 'spec_combat_preparation',
+            classKey: 'rogue', specKey: 'assassination', label: 'Rogue poisons',
+            defaultState: 'pending_evidence', evidenceState: 'partial', overrideSupported: false,
+          },
+          {
+            key: 'rogue_poisons', category: 'spec_combat_preparation',
+            classKey: 'rogue', specKey: 'outlaw', label: 'Rogue poisons',
+            defaultState: 'pending_evidence', evidenceState: 'partial', overrideSupported: false,
+          },
+        ],
       },
     }
     const calls: Array<{ endpoint: string; path: string }> = []
@@ -162,6 +174,10 @@ describe('SimulatorClient task contract', () => {
     expect(result.fromFallback).toBe(false)
     expect(result.payload.scenarios[0]).toMatchObject({ targets: 7, durationSeconds: 417 })
     expect(result.payload.preparation.rows[0]?.overrideSupported).toBe(true)
+    expect(result.payload.preparation.rows.slice(1).map((row) => row.specKey)).toEqual([
+      'assassination',
+      'outlaw',
+    ])
   })
 
   it('fails closed on incompatible, duplicate, or unbounded simc-options-v1 facts', async () => {

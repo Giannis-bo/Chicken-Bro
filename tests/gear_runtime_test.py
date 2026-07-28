@@ -322,11 +322,12 @@ class GearRuntimeTest(unittest.TestCase):
         store = FakeStore(fixture["authorityContext"])
         builder_calls = []
 
-        def profile_builder(snapshot, source_context=None):
+        def profile_builder(snapshot, source_context=None, talent_store=None):
             builder_calls.append(
                 {
                     "snapshot": copy.deepcopy(snapshot),
                     "sourceContext": copy.deepcopy(source_context),
+                    "talentStore": talent_store,
                 }
             )
             return {
@@ -376,6 +377,7 @@ class GearRuntimeTest(unittest.TestCase):
         self.assertEqual(envelope["data"]["profile"], 'warrior="Canonical"')
         self.assertEqual(len(store.calls), 1)
         self.assertEqual(len(builder_calls), 1)
+        self.assertIs(builder_calls[0]["talentStore"], store)
         self.assertEqual(builder_calls[0]["snapshot"]["status"], "verified")
         self.assertEqual(
             set(builder_calls[0]["sourceContext"]),
@@ -421,7 +423,8 @@ class GearRuntimeTest(unittest.TestCase):
         gear_release_id = fixture["intent"]["authoredAgainst"]["gearCatalogRevision"]
         store = FakeCandidateStore(fixture["authorityContext"])
 
-        def profile_builder(snapshot, source_context=None):
+        def profile_builder(snapshot, source_context=None, talent_store=None):
+            self.assertIs(talent_store, store)
             return {
                 "status": "resolved",
                 "profile": 'warrior="Candidate"',
