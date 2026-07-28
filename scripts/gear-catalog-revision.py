@@ -193,7 +193,10 @@ def _snapshot_spec_payload_reader(
             row.get("updatedAt"),
         )
         for row in rows.get("variants") or []
-        if isinstance(row, Mapping)
+        if (
+            isinstance(row, Mapping)
+            and _text(row.get("rowFamily")) == "browse"
+        )
     ]
     option_rows = [
         (

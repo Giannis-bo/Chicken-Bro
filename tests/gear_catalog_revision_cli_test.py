@@ -137,8 +137,23 @@ class GearCatalogRevisionCliTest(unittest.TestCase):
                     ]
                 }
 
+        rows = regular_rows()
+        rows["variants"].append(
+            {
+                "variantId": "observed-exact",
+                "variantKey": "observed-exact",
+                "itemId": "1001",
+                "rowFamily": "exact_instance",
+                "itemLevel": 276,
+                "slot": "head",
+                "sourceType": "observed_profile",
+                "bonusIds": [],
+                "staticStats": {"haste_rating": 120},
+                "status": "verified",
+            }
+        )
         reader = revision_cli._snapshot_spec_payload_reader(
-            regular_rows(),
+            rows,
             {
                 "generation": 32,
                 "manifestRevision": CURRENT_BINDING["manifestRevision"],
@@ -162,6 +177,7 @@ class GearCatalogRevisionCliTest(unittest.TestCase):
             [call[0] for call in calls].count("variants"),
             1,
         )
+        self.assertIn(("variants", 1), calls)
         self.assertIn(("catalog", "mage", "arcane", 1), calls)
 
     def test_snapshot_shadow_reader_projects_actual_pg_selector_contract(self):

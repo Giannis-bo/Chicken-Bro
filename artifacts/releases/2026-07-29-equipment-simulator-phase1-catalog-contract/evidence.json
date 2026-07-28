@@ -52,7 +52,7 @@
     {
       "command": "candidate dormant Catalog migration and production shadow",
       "status": "blocked",
-      "summary": "The fourth immutable candidate sealed the exact 613/1309 Catalog. The fifth and sixth full-payload shadows were proactively terminated above the strict memory ceiling; the sixth also produced 307 MiB swap. The final implementation now reads one active snapshot and reuses production PG selector indexes to generate only minimal per-spec identity sets."
+      "summary": "The seventh candidate passed deterministic seal, pointer fence and resource bounds at 881,748 KiB, 235.18 seconds and zero swap. Its business shadow blocked because ExactItemInstance rows were incorrectly included in Browse parity. The corrected projection now passes only Phase 0-classified rowFamily=browse rows into the shared PG selectors."
     },
     {
       "command": "exact-head Project Harness full profile and PR CI",
@@ -62,7 +62,7 @@
   ],
   "candidateDeployment": {
     "status": "catalog_sealed_shadow_retry_pending",
-    "reason": "Migration 0019 is applied and Catalog gear-catalog:sha256:2addca2ff52fdcc2d23c369572c88fba9919332927f07f10350d700654e5aa34 is sealed with 613 ItemDefinitions and 1309 BrowseVariants. A one-snapshot bounded 40-spec shadow retry is pending after the fifth and sixth full-payload candidates exceeded the memory ceiling."
+    "reason": "Migration 0019 is applied and Catalog gear-catalog:sha256:2addca2ff52fdcc2d23c369572c88fba9919332927f07f10350d700654e5aa34 is sealed with 613 ItemDefinitions and 1309 BrowseVariants. A Browse-only bounded 40-spec shadow retry is pending after the seventh candidate proved the one-snapshot resource profile but included ExactItemInstance rows."
   },
   "runtimeEvidence": [
     {
@@ -186,6 +186,31 @@
       },
       "reportWritten": false,
       "interpretation": "Per-spec LRU eviction reduced accumulation but full public payload deep-copy still touched the hard ceiling and used swap. The candidate was terminated; the final design reuses a single snapshot and PG selector indexes instead."
+    },
+    {
+      "candidateCommit": "3eae6d215c91a81031a3531e0ecb104c5fb137e7",
+      "status": "blocked",
+      "problemCodes": [
+        "CATALOG_SHADOW_VISIBLE_CANDIDATE_UNMAPPED"
+      ],
+      "reportId": "gear-catalog-shadow:sha256:7c834d17cc6aca05c43e0310234eb68457e57e9d5be6d057e350425b639d6ba6",
+      "catalogRevision": "gear-catalog:sha256:2addca2ff52fdcc2d23c369572c88fba9919332927f07f10350d700654e5aa34",
+      "elapsedSeconds": 235.18,
+      "maxRssKiB": 881748,
+      "swapPeakBytes": 0,
+      "pointerGenerationBefore": 32,
+      "pointerGenerationAfter": 32,
+      "sealedCatalogRows": {
+        "revisions": 1,
+        "itemDefinitions": 613,
+        "browseVariants": 1309
+      },
+      "specShadow": {
+        "verifiedSpecCount": 0,
+        "blockedSpecCount": 40,
+        "unmappedCandidateCount": 40306
+      },
+      "interpretation": "One-snapshot projection passed resource, deterministic seal and pointer gates. It incorrectly projected ExactItemInstance rows alongside canonical Browse rows; strict rowFamily=browse filtering is now covered by RED/GREEN tests."
     }
   ],
   "risks": [
@@ -238,5 +263,5 @@
   "archivedReferences": [
     "artifacts/releases/2026-07-28-equipment-simulator-phase0-unblock/evidence.json"
   ],
-  "summary": "The dormant Catalog builder, append-only schema/store and bounded 40-specialization shadow are locally implemented and verified. Migration 0019 and the immutable 613/1309 Catalog are sealed; the fifth and sixth candidates correctly failed the 2,000,000,000-byte ceiling during public-payload shadow. One-snapshot PG-selector projection is fixed under RED/GREEN tests and awaits a fresh bounded candidate. No active pointer or public reader change has occurred."
+  "summary": "The dormant Catalog builder, append-only schema/store and bounded 40-specialization shadow are locally implemented and verified. Migration 0019 and the immutable 613/1309 Catalog are sealed; the seventh candidate proved the one-snapshot resource profile but correctly blocked ExactItemInstance contamination of Browse parity. Strict Browse-only projection is fixed under RED/GREEN tests and awaits a fresh bounded candidate. No active pointer or public reader change has occurred."
 }

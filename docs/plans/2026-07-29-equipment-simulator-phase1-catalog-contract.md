@@ -51,6 +51,10 @@
   2,000,039,936 bytes 并产生 307 MiB swap，再次主动终止。最终方案不再调用 public
   payload builder；它只读取一次同一活动 Gear Release snapshot，复用当前 PG selector
   的来源/变体/选项索引，对 40 专精逐一生成最小候选身份集合。
+- 第七次候选以 881,748 KiB、235.18 秒和零 swap 通过资源/pointer/seal 门禁，但
+  selector 输入错误地包含了 48,555 条 ExactItemInstance，造成 40,306 个非 Browse
+  身份被报告未映射。投影入口现只接收已由 Phase 0 审核为 `rowFamily=browse` 的 1,674
+  条 legacy 行；ExactItemInstance 保留给后续阶段，不混入 Phase 1 Browse parity。
 - 全局 `/api/data/health` 仍为 `partial`。本阶段不把旧 staging/refresh owner
   冒充成新的 Catalog 健康成功，也不在完成 shadow 前迁移 health owner。
 

@@ -116,6 +116,10 @@
     {
       "date": "2026-07-29",
       "decision": "After full public payload materialization still touched the memory ceiling, the final 40-spec shadow design reads one active Gear Release snapshot and reuses the production PG selector indexes to project minimal per-spec identity sets without public payload copying or caching."
+    },
+    {
+      "date": "2026-07-29",
+      "decision": "Phase 1 shadow parity projects only rows classified as rowFamily=browse by the accepted Phase 0 audit; ExactItemInstance, placeholder and reference rows remain outside BrowseVariant membership."
     }
   ]
 }
