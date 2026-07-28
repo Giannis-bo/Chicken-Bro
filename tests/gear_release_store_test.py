@@ -650,6 +650,8 @@ class GearReleaseStoreTest(unittest.TestCase):
         self.assertNotIn("LIMIT 400", sql)
         self.assertEqual(conn.cursor_instance.params[-1][0], ["mage"])
         self.assertEqual(conn.cursor_instance.params[-1][1], ["arcane"])
+        self.assertGreaterEqual(conn.cursor_instance.fetchmany_calls, 1)
+        self.assertEqual(conn.cursor_instance.fetchall_calls, 0)
         self.assertEqual(rows[0]["templateId"], "template-a")
         self.assertEqual(rows[0]["gearItems"][0]["variantKey"], "variant-a")
         self.assertEqual(rows[0]["payload"]["profileHash"], "profile:a")

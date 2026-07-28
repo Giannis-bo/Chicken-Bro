@@ -1401,32 +1401,31 @@ class GearReleaseStore:
                     """,
                     (class_keys, spec_keys),
                 )
-                rows = cur.fetchall()
-        return [
-            {
-                "templateId": _text(row[0]),
-                "classKey": _text(row[1]),
-                "specKey": _text(row[2]),
-                "name": _text(row[3]),
-                "sourceKey": _text(row[4]),
-                "sourceName": _text(row[5]),
-                "sourceUrl": _text(row[6]),
-                "sourceStatus": _text(row[7]),
-                "status": _text(row[8]),
-                "signature": _text(row[9]),
-                "sourceRefs": _canonical(row[10] if isinstance(row[10], list) else []),
-                "gearItems": _canonical(row[11] if isinstance(row[11], list) else []),
-                "rawString": _text(row[12]),
-                "readySlotCount": _int(row[13]),
-                "missingSlots": _canonical(row[14] if isinstance(row[14], list) else []),
-                "analysisWindow": _text(row[15]),
-                "payload": _canonical(row[16] if isinstance(row[16], dict) else {}),
-                "updatedAt": _text(row[17]),
-                "expiresAt": _text(row[18]),
-                "scanRunId": _text(row[19]),
-            }
-            for row in rows
-        ]
+                return [
+                    {
+                        "templateId": _text(row[0]),
+                        "classKey": _text(row[1]),
+                        "specKey": _text(row[2]),
+                        "name": _text(row[3]),
+                        "sourceKey": _text(row[4]),
+                        "sourceName": _text(row[5]),
+                        "sourceUrl": _text(row[6]),
+                        "sourceStatus": _text(row[7]),
+                        "status": _text(row[8]),
+                        "signature": _text(row[9]),
+                        "sourceRefs": row[10] if isinstance(row[10], list) else [],
+                        "gearItems": row[11] if isinstance(row[11], list) else [],
+                        "rawString": _text(row[12]),
+                        "readySlotCount": _int(row[13]),
+                        "missingSlots": row[14] if isinstance(row[14], list) else [],
+                        "analysisWindow": _text(row[15]),
+                        "payload": row[16] if isinstance(row[16], dict) else {},
+                        "updatedAt": _text(row[17]),
+                        "expiresAt": _text(row[18]),
+                        "scanRunId": _text(row[19]),
+                    }
+                    for row in _stream_cursor_rows(cur)
+                ]
 
     def snapshot_staging_community_talent_candidates(
         self,
