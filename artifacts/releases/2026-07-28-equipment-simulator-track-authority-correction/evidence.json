@@ -29,7 +29,7 @@
     },
     "closure": {
       "status": "pending",
-      "reason": "Implementation, focused verification, production read-only audit, final Harness binding and local CR are complete. PR #101 remains the unmerged base dependency, so this stacked task is not ready for a standalone PR or merge."
+      "reason": "Implementation, focused verification, production read-only audit, final Harness binding and local CR are complete. Base PR #101 merged as 72604b3874668ed4aa761fbcfdb41cbb655300f8; this task is ready for its standalone PR and remains pending until that PR lands."
     }
   },
   "manualAcceptance": {
@@ -138,8 +138,8 @@
     },
     {
       "id": "stacked-base-pr",
-      "status": "open",
-      "detail": "PR #101 remains the unmerged base; no new PR may be opened until the task diff contains exactly one complete release packet."
+      "status": "resolved",
+      "detail": "PR #101 merged as 72604b3874668ed4aa761fbcfdb41cbb655300f8. The origin/main...HEAD diff now contains exactly one complete Track Authority release packet."
     }
   ],
   "rollback": [
@@ -154,6 +154,6 @@
     "artifacts/releases/2026-07-28-equipment-simulator-catalog-migration-phase0/runtime-readonly-audit.json",
     "artifacts/releases/2026-07-28-equipment-simulator-catalog-migration-phase0/phase1-decision.json"
   ],
-  "summary": "The pure Track Authority and progression-aware Phase 0 audit are locally verified. The exact committed tools reran against production read-only data with zero writes, stable generation-24 pointers and complete transient cleanup. They mapped 1265/1313 canonical Browse candidates and isolated the remaining 48 static-stat gaps; independent Phase 0 gates keep allowedNextPlan at none. Focused verification, final Harness binding and local CR passed. Runtime activation and manual acceptance remain not applicable; only the stacked PR #101 dependency remains open.",
-  "updatedAt": "2026-07-28T17:13:52+08:00"
+  "summary": "The pure Track Authority and progression-aware Phase 0 audit are locally verified. The exact committed tools reran against production read-only data with zero writes, stable generation-24 pointers and complete transient cleanup. They mapped 1265/1313 canonical Browse candidates and isolated the remaining 48 static-stat gaps; independent Phase 0 gates keep allowedNextPlan at none. Focused verification, final Harness binding and local CR passed. Runtime activation and manual acceptance remain not applicable. Base PR #101 is merged and the standalone Track Authority PR is the remaining closure step.",
+  "updatedAt": "2026-07-28T17:39:50+08:00"
 }
