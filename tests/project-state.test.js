@@ -125,21 +125,50 @@ test('project-state is the single machine-readable current truth entry', () => {
     trackAuthorityContract?.implementationPlan,
     'docs/plans/2026-07-28-equipment-simulator-track-authority-implementation.md',
   )
+  assert.equal(trackAuthorityContract?.status, 'audit_rerun_complete_blocked')
   const trackAuthorityRequirement = readJson(path.join(trackAuthorityCorrectionRelease, 'requirement.json'))
   assert.equal(trackAuthorityRequirement.status, 'implementation_allowed')
   assert.equal(trackAuthorityRequirement.classification, 'Strict')
   const catalogMigrationRequirement = readJson(path.join(catalogMigrationPhase0Release, 'requirement.json'))
-  const catalogMigrationAudit = readJson(path.join(catalogMigrationPhase0Release, 'runtime-readonly-audit.json'))
+  const historicalCatalogMigrationAudit = readJson(path.join(catalogMigrationPhase0Release, 'runtime-readonly-audit.json'))
+  const catalogMigrationAudit = readJson(path.join(trackAuthorityCorrectionRelease, 'runtime-readonly-audit.json'))
   const catalogMigrationCallers = readJson(path.join(catalogMigrationPhase0Release, 'caller-inventory.json'))
-  const catalogMigrationDecision = readJson(path.join(catalogMigrationPhase0Release, 'phase1-decision.json'))
+  const catalogMigrationDecision = readJson(path.join(trackAuthorityCorrectionRelease, 'phase1-decision.json'))
   assert.equal(catalogMigrationPhase0?.auditReportId, catalogMigrationAudit.reportId)
+  assert.equal(trackAuthorityContract?.auditReportId, catalogMigrationAudit.reportId)
   assert.deepEqual(catalogMigrationPhase0?.catalogMapping, {
     itemTotal: 1488,
     mappedItemCount: 1312,
     excludedNonCatalogItemCount: 176,
     variantTotal: 46631,
-    browseVariantTotal: 1678,
-    mappedBrowseVariantCount: 0,
+    legacyBrowseVariantTotal: 1678,
+    canonicalBrowseVariantTotal: 1313,
+    mappedBrowseVariantCount: 1265,
+    craftedEnhancementSelectionRowCount: 438,
+    collapsedCraftedVariantRowCount: 365,
+    progressionCounts: {
+      upgrade_track: {
+        legacyRowCount: 1116,
+        canonicalCandidateCount: 1116,
+        mappedCandidateCount: 1080,
+      },
+      crafted_quality: {
+        legacyRowCount: 324,
+        canonicalCandidateCount: 54,
+        mappedCandidateCount: 54,
+      },
+      ascendant: {
+        legacyRowCount: 238,
+        canonicalCandidateCount: 143,
+        mappedCandidateCount: 131,
+        craftedLegacyRowCount: 114,
+        craftedCanonicalCandidateCount: 19,
+        craftedMappedCandidateCount: 19,
+      },
+    },
+    problemCounts: {
+      CATALOG_VARIANT_STATIC_STATS_MISSING: 48,
+    },
     excludedExactInstanceCount: 44651,
     excludedPlaceholderVariantCount: 291,
     excludedReferenceVariantCount: 11,
@@ -165,10 +194,10 @@ test('project-state is the single machine-readable current truth entry', () => {
     catalogMigrationAudit.catalogMapping.runtimeSnapshotIdentity.pointerAfter,
   )
   assert.equal(catalogMigrationAudit.catalogMapping.sourceQueryMetrics.writes, 0)
-  assert.equal(catalogMigrationAudit.reportId, 'catalog-migration-audit:sha256:f13af6b718f4b435cc4c10943680bb720acbc4056e60f2ef071798f70a210f17')
-  assert.equal(catalogMigrationAudit.catalogMapping.mappedVariantCount, 0)
+  assert.equal(catalogMigrationAudit.reportId, 'catalog-migration-audit:sha256:10c28022cbe3cb4cfb9f79a7ca59d4fa0aa47e416ab868d0b133084b2c6ed8c7')
+  assert.equal(historicalCatalogMigrationAudit.reportId, 'catalog-migration-audit:sha256:f13af6b718f4b435cc4c10943680bb720acbc4056e60f2ef071798f70a210f17')
+  assert.equal(catalogMigrationAudit.catalogMapping.mappedVariantCount, 1265)
   assert.deepEqual(catalogMigrationAudit.catalogMapping.problemCounts, {
-    CATALOG_VARIANT_RANK_MISSING: 1678,
     CATALOG_VARIANT_STATIC_STATS_MISSING: 48,
   })
   assert.equal(catalogMigrationAudit.specCoverage.queryMetrics.writes, 0)
@@ -190,6 +219,10 @@ test('project-state is the single machine-readable current truth entry', () => {
   )
   assert.ok(catalogAuditOwner, 'Phase 0 audit owner should be registered')
   assert.deepEqual(catalogAuditOwner.owners[0].runtimeConsumers, [])
+  assert.equal(
+    catalogAuditOwner.owners[0].aggregateEvidence,
+    `${trackAuthorityCorrectionRelease}/runtime-readonly-audit.json`,
+  )
   assert.ok(!activeContractIds.has('talent_link_lkg_sync_guard'))
   assert.ok(!activeContractIds.has('community_enhancement_editability'))
   assert.ok(!activeContractIds.has('equipment_simulator_capability_architecture'))

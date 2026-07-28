@@ -1,6 +1,6 @@
 # 装备模拟目标架构
 
-状态：`已批准；Phase 0 审计完成并阻塞后续迁移；Track Authority 修正书面设计待复核`
+状态：`已批准；Track Authority 只读审计已完成；Phase 1 仍阻塞`
 
 批准日期：`2026-07-28`
 
@@ -411,24 +411,33 @@ active hot payload
 
 本文件只定义目标架构，不授权立即运行 Release Builder、写数据库或部署。
 [Phase 0 实施计划](2026-07-28-equipment-simulator-catalog-migration-phase0-implementation.md)
-已完成只读盘点；[生产审计](../../artifacts/releases/2026-07-28-equipment-simulator-catalog-migration-phase0/runtime-readonly-audit.json)
-和 [Phase 1 决策](../../artifacts/releases/2026-07-28-equipment-simulator-catalog-migration-phase0/phase1-decision.json)
-记录为 `blocked`，`allowedNextPlan=none`。
+先完成了历史只读盘点；该 packet 保留为不可改写的历史证据。随后按
+[Track Authority 修正](2026-07-28-equipment-simulator-track-authority-correction.md)
+和
+[实施计划](2026-07-28-equipment-simulator-track-authority-implementation.md)
+实现纯 progression authority，并使用精确提交在生产临时目录中重新执行只读审计。
 
-当前必须先解决已量化的活动 Release 映射缺口、缺失 Community Release、40/40
-专精初始候选为空，以及未归类运行时调用；峰值 RSS 和临时磁盘继续保持 `unknown`。
+当前
+[Track Authority 生产审计](../../artifacts/releases/2026-07-28-equipment-simulator-track-authority-correction/runtime-readonly-audit.json)
+确认：
+
+- 46,631 条旧 variant 仍被互斥分为 1,678 条 legacy Browse、44,651 条
+  `observed_profile` Exact、291 条占位和 11 条 Battle.net 预览引用；
+- 1,116 条普通轨道行映射为 1,116 个 `upgrade_track` 候选，其中 1,080 个具备完整
+  静态属性；
+- 324 条制造神话行折叠为 54 个 `crafted_quality` 候选；
+- 124 条普通虚空晋升和 114 条制造虚空晋升行合计形成 143 个 `ascendant`
+  候选，其中 19 个为制造来源；
+- 总计 1,313 个 canonical Browse 候选，1,265 个可映射；唯一剩余的 mapping
+  问题是 48 个候选缺静态属性；
+- 438 条制造属性组合保留为 EnhancementSelection 关联，并折叠掉 365 个重复
+  Browse 身份；
+- 活动 Manifest 指针前后均为 generation 24，审计写入为 0。
+
+新的
+[Phase 1 决策](../../artifacts/releases/2026-07-28-equipment-simulator-track-authority-correction/phase1-decision.json)
+仍记录为 `blocked`、`allowedNextPlan=none`。除 48 个静态属性缺口外，活动 Manifest
+仍没有 Community Release，40/40 专精初始候选仍为 blocked，峰值 RSS 和临时磁盘
+仍为 unknown，五个运行时引用仍未归类。纯 Track Authority 没有运行时消费者；
 在这些 blocker 解除并重新审计前，不编写 Catalog 合同、dormant schema/shadow、
 新 API 或迁移计划。
-
-Phase 0 口径校正进一步确认：46,631 条旧 variant 不是同一种目录事实，其中 1,678
-条才是 Browse 候选，44,651 条 `observed_profile` 是玩家 Exact 实例证据，291 条是
-占位，11 条是 Battle.net 预览引用。通用 `payload.rank` 是社区榜单排名，不能作为
-装备轨道 rank。当前 1,678 条 Browse 行全部缺少专用 `trackRank` / `upgradeRank`，
-其中 48 条同时缺少静态属性，因此仍不具备 Catalog 无损迁移条件。
-
-后续只读根因追踪确认 1,678 条旧 Browse 行还混合了三种 progression：1,116 条普通
-勇士/英雄/神话升级轨道、124 条虚空晋升状态，以及 438 条由 73 个制造装备/装等
-状态乘以六组制造副属性形成的行。用户已批准按
-[Track Authority 阻塞修正](2026-07-28-equipment-simulator-track-authority-correction.md)
-把普通轨道、制造品质和虚空晋升建模为判别联合；书面设计复核与独立实施计划完成前，
-Phase 0 报告、其他 blocker 和 `allowedNextPlan=none` 保持不变。

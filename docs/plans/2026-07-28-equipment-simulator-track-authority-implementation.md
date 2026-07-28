@@ -8,6 +8,8 @@
 
 **Tech Stack:** Python 3 standard library, `unittest`, PostgreSQL/psycopg through the existing read-only store, Node Project Harness, JSON release evidence.
 
+**Execution status (2026-07-28):** Tasks 1-5 and the production read-only audit are complete. The current report maps 1265/1313 canonical Browse candidates, preserves 438 crafted EnhancementSelection associations, records zero writes and a stable generation-24 pointer, and keeps Phase 1 blocked with `allowedNextPlan=none`. Final closure truth is owned by the task evidence packet.
+
 ## Global Constraints
 
 - Work only on `codex/equipment-simulator-track-authority`; never implement on `main`.
@@ -36,7 +38,7 @@
 - Consumes: approved design `docs/plans/2026-07-28-equipment-simulator-track-authority-correction.md`.
 - Produces: one Strict, `implementation_allowed`, `pg_read_model` requirement and a truthful in-progress packet with manual acceptance disabled.
 
-- [ ] **Step 1: Write the failing requirement/current-truth tests**
+- [x] **Step 1: Write the failing requirement/current-truth tests**
 
 Add assertions that load the new requirement and current contract:
 
@@ -52,7 +54,7 @@ assert.equal(
 
 The test must fail because the new requirement packet and task contract do not exist.
 
-- [ ] **Step 2: Run the tests and verify RED**
+- [x] **Step 2: Run the tests and verify RED**
 
 Run:
 
@@ -62,7 +64,7 @@ node --test tests/project-state.test.js
 
 Expected: FAIL on the missing Track Authority requirement, not on JSON syntax.
 
-- [ ] **Step 3: Add the requirement and packet bindings**
+- [x] **Step 3: Add the requirement and packet bindings**
 
 Create a requirement with:
 
@@ -92,7 +94,7 @@ Complete all existing Strict fields using the approved design:
 
 Create an evidence v2 packet at `implementation_allowed` with pending verification/closure identities, `runtime.status=not_applicable`, no false passing verification, manual acceptance not applicable, and cleanup pending only for the future isolated production audit. Create the standard v0.6.4 manifest bound to this requirement/evidence path.
 
-- [ ] **Step 4: Run the tests and verify GREEN**
+- [x] **Step 4: Run the tests and verify GREEN**
 
 Run:
 
@@ -102,7 +104,7 @@ node --test tests/project-state.test.js
 
 Expected: PASS with the new requirement reachable from current truth.
 
-- [ ] **Step 5: Commit the requirement gate**
+- [x] **Step 5: Commit the requirement gate**
 
 ```bash
 git add \
@@ -129,7 +131,7 @@ git commit -m "chore(gear): gate track authority correction"
   - `resolve_legacy_browse_progression(binding: Any, row: Any) -> dict[str, Any]`
   - constants `TRACK_AUTHORITY_SCHEMA_REVISION` and `TRACK_AUTHORITY_RULE_REVISION`.
 
-- [ ] **Step 1: Write failing binding and regular-track tests**
+- [x] **Step 1: Write failing binding and regular-track tests**
 
 Use literal current binding:
 
@@ -181,7 +183,7 @@ assert.ok(
 )
 ```
 
-- [ ] **Step 2: Run the authority tests and verify RED**
+- [x] **Step 2: Run the authority tests and verify RED**
 
 Run:
 
@@ -192,7 +194,7 @@ node --test tests/backend-owner-map.test.js
 
 Expected: both commands FAIL because the module and owner bindings do not exist.
 
-- [ ] **Step 3: Implement the minimum authority records**
+- [x] **Step 3: Implement the minimum authority records**
 
 Define six immutable records:
 
@@ -221,7 +223,7 @@ Resolution rules:
 - crafted/Ascendant rows with dedicated rank are blocked as rank-forbidden;
 - unknown track, malformed row, item-level mismatch and insufficient eligibility return deterministic problems.
 
-- [ ] **Step 4: Add crafted and Ascendant tests**
+- [x] **Step 4: Add crafted and Ascendant tests**
 
 Assert these literal outcomes:
 
@@ -242,7 +244,7 @@ self.assertNotIn("rank", crafted_void["progressionState"])
 
 Add negative tests for forbidden rank and unsupported Ascendant eligibility.
 
-- [ ] **Step 5: Run authority tests and verify GREEN**
+- [x] **Step 5: Run authority tests and verify GREEN**
 
 Run:
 
@@ -253,7 +255,7 @@ node --test tests/backend-owner-map.test.js
 
 Expected: all Track Authority and owner-map tests PASS.
 
-- [ ] **Step 6: Commit the pure authority**
+- [x] **Step 6: Commit the pure authority**
 
 ```bash
 git add \
@@ -277,7 +279,7 @@ git commit -m "feat(gear): add versioned track authority"
 - Consumes: immutable Gear Release variants and sources.
 - Produces each aggregate variant row with `sourceType`, `hasVoidInstanceSource`, `hasTrackEvidence` and the existing structural fields; no raw source row or personal data.
 
-- [ ] **Step 1: Write the failing projection test**
+- [x] **Step 1: Write the failing projection test**
 
 Extend the fixed variant fixture with `source_type`, track evidence and one source row from governed instance `1305`. Assert:
 
@@ -290,7 +292,7 @@ self.assertNotIn("sourceRows", variant)
 
 Retain the existing assertions for `BEGIN READ ONLY`, bounded timeouts, rollback, zero commits and zero write statements.
 
-- [ ] **Step 2: Run the store test and verify RED**
+- [x] **Step 2: Run the store test and verify RED**
 
 Run:
 
@@ -302,7 +304,7 @@ python3 -m unittest \
 
 Expected: FAIL because the three authority evidence fields are absent.
 
-- [ ] **Step 3: Extend the fixed read-only query**
+- [x] **Step 3: Extend the fixed read-only query**
 
 Add `source_type` and one bounded boolean evidence projection:
 
@@ -331,7 +333,7 @@ Project:
 
 Do not project source labels, raw source payloads, ranking evidence or item names beyond the existing aggregate contract.
 
-- [ ] **Step 4: Run the full store tests and verify GREEN**
+- [x] **Step 4: Run the full store tests and verify GREEN**
 
 Run:
 
@@ -341,7 +343,7 @@ python3 -m unittest tests.gear_catalog_audit_store_test -v
 
 Expected: all store tests PASS; query count stays at or below 12 and writes stay zero.
 
-- [ ] **Step 5: Commit the projection**
+- [x] **Step 5: Commit the projection**
 
 ```bash
 git add server/gear_catalog_audit_store.py tests/gear_catalog_audit_store_test.py
@@ -360,7 +362,7 @@ git commit -m "fix(gear): project track authority evidence"
 - Consumes: current binding with season/rule revision, projected aggregate variant rows, and `resolve_legacy_browse_progression`.
 - Produces `equipment-simulator-catalog-migration-audit-v2` with legacy and canonical counts, progression-family counts, crafted enhancement counts and bounded problem evidence.
 
-- [ ] **Step 1: Write failing regular/Ascendant behavior tests**
+- [x] **Step 1: Write failing regular/Ascendant behavior tests**
 
 Update the complete fixture to current Hero `276` and exact binding. Add tests proving:
 
@@ -380,7 +382,7 @@ TRACK_AUTHORITY_RANK_FORBIDDEN
 TRACK_AUTHORITY_ASCENDANT_ELIGIBILITY_UNPROVEN
 ```
 
-- [ ] **Step 2: Write the failing crafted-collapse test**
+- [x] **Step 2: Write the failing crafted-collapse test**
 
 Generate 54 crafted-myth item groups and 19 crafted-Ascendant item groups, each with six literal `crafted_stats` values. Assert:
 
@@ -395,7 +397,7 @@ self.assertEqual(result["progressionCounts"]["ascendant"]["craftedCanonicalCandi
 
 Add one duplicate `crafted_stats` row and prove it blocks that candidate instead of silently deduplicating.
 
-- [ ] **Step 3: Write the failing static-stat regression**
+- [x] **Step 3: Write the failing static-stat regression**
 
 Create exactly 48 otherwise valid Browse rows without static stats. Assert:
 
@@ -408,7 +410,7 @@ self.assertEqual(
 
 The test must keep all 48 problems even though problem samples remain capped at 20.
 
-- [ ] **Step 4: Run audit tests and verify RED**
+- [x] **Step 4: Run audit tests and verify RED**
 
 Run:
 
@@ -418,7 +420,7 @@ python3 -m unittest tests.gear_catalog_migration_audit_test -v
 
 Expected: FAIL on missing progression/canonical/crafted counts.
 
-- [ ] **Step 5: Implement progression grouping**
+- [x] **Step 5: Implement progression grouping**
 
 Import the pure resolver. Before Browse mapping, collect verified observed Ascendant evidence item IDs from `exact_instance` rows at item level `298` with nonempty static stats.
 
@@ -450,7 +452,7 @@ Return both compatibility and new fields:
 
 Bump the aggregate audit schema to `equipment-simulator-catalog-migration-audit-v2`; identity hashing must include the new deterministic fields.
 
-- [ ] **Step 6: Run audit tests and verify GREEN**
+- [x] **Step 6: Run audit tests and verify GREEN**
 
 Run:
 
@@ -460,7 +462,7 @@ python3 -m unittest tests.gear_track_authority_test tests.gear_catalog_migration
 
 Expected: all authority and mapping tests PASS.
 
-- [ ] **Step 7: Commit progression-aware mapping**
+- [x] **Step 7: Commit progression-aware mapping**
 
 ```bash
 git add server/gear_catalog_migration_audit.py tests/gear_catalog_migration_audit_test.py
@@ -479,7 +481,7 @@ git commit -m "fix(gear): audit canonical progression variants"
 - Consumes: `activeBinding.manifest.seasonRevision` and `manifest.dependencyVector.gearRuleRevision`.
 - Produces: a content-addressed v2 report with the exact Track Authority revision in `catalogMapping.runtimeSnapshotIdentity`.
 
-- [ ] **Step 1: Write the failing CLI binding test**
+- [x] **Step 1: Write the failing CLI binding test**
 
 Use fixture binding:
 
@@ -505,7 +507,7 @@ self.assertEqual(
 
 Add a wrong `gearRuleRevision` fixture and assert literal blocked authority status.
 
-- [ ] **Step 2: Run CLI tests and verify RED**
+- [x] **Step 2: Run CLI tests and verify RED**
 
 Run:
 
@@ -515,7 +517,7 @@ python3 -m unittest tests.gear_catalog_migration_audit_cli_test -v
 
 Expected: FAIL because the CLI does not pass season/rule binding.
 
-- [ ] **Step 3: Pass the exact binding and record identity**
+- [x] **Step 3: Pass the exact binding and record identity**
 
 Call `audit_catalog_mapping` with:
 
@@ -532,7 +534,7 @@ Call `audit_catalog_mapping` with:
 
 Copy only the public rule revision and authority status into runtime snapshot identity. Keep raw dependency vectors hashed and keep database connection data out of the report.
 
-- [ ] **Step 4: Run the full focused Python suite**
+- [x] **Step 4: Run the full focused Python suite**
 
 Run:
 
@@ -549,7 +551,7 @@ python3 -m unittest \
 
 Expected: all tests PASS with zero failures.
 
-- [ ] **Step 5: Commit CLI integration**
+- [x] **Step 5: Commit CLI integration**
 
 ```bash
 git add scripts/gear-catalog-migration-audit.py tests/gear_catalog_migration_audit_cli_test.py
@@ -580,7 +582,7 @@ git commit -m "fix(gear): bind catalog audit track authority"
 - Consumes: exact committed audit tool source, active production Manifest generation, existing caller inventory and read-only PostgreSQL.
 - Produces: one new aggregate report/decision and a task-scoped local-verified Harness packet; it does not modify production.
 
-- [ ] **Step 1: Commit a clean audit-tool checkpoint**
+- [x] **Step 1: Commit a clean audit-tool checkpoint**
 
 Verify:
 
@@ -598,7 +600,7 @@ server/gear_catalog_audit_store.py
 scripts/gear-catalog-migration-audit.py
 ```
 
-- [ ] **Step 2: Run the exact committed tools in an isolated remote directory**
+- [x] **Step 2: Run the exact committed tools in an isolated remote directory**
 
 Use one `mktemp -d` directory on `wow-lighthouse`, transfer the exact committed repository snapshot without modifying `/opt/wow-mini-program`, and run one transient collected systemd unit with:
 
@@ -613,7 +615,7 @@ batch_size=500
 
 The audit command must use the current tracked caller inventory, write only inside the isolated directory, and print only aggregate identity/status. Copy the finished aggregate report into the new task release directory, then remove the exact isolated directory and collect the transient unit.
 
-- [ ] **Step 3: Verify zero-write and pointer stability**
+- [x] **Step 3: Verify zero-write and pointer stability**
 
 Check the report literally:
 
@@ -646,7 +648,7 @@ Required invariant outcomes:
 
 Do not predeclare the mapped count or Ascendant eligibility count; record the measured values literally.
 
-- [ ] **Step 4: Write the mechanical Phase 1 decision**
+- [x] **Step 4: Write the mechanical Phase 1 decision**
 
 The new decision must bind the new report ID. Keep:
 
@@ -659,7 +661,7 @@ The new decision must bind the new report ID. Keep:
 
 unless every Phase 0 gate independently passes. Community Release absence, 40/40 blocked initial candidates, partial resource peaks and unresolved callers remain separate blockers and therefore cannot be cleared by Track Authority progress.
 
-- [ ] **Step 5: Update current truth and stable governance**
+- [x] **Step 5: Update current truth and stable governance**
 
 Record measured counts and the new report ID in project-state and roadmap. Mark the Track Authority correction `audit_rerun_complete_blocked` if the report remains blocked. Update:
 
@@ -671,7 +673,7 @@ Record measured counts and the new report ID in project-state and roadmap. Mark 
 
 Do not delete or rewrite the original Phase 0 packet; it remains historical evidence for PR #101.
 
-- [ ] **Step 6: Update evidence truthfully**
+- [x] **Step 6: Update evidence truthfully**
 
 Set the new packet to `local_verified` only after fresh tests. Runtime identity remains not applicable because no code was activated. Candidate deployment and manual acceptance remain not applicable. Record:
 
@@ -683,7 +685,7 @@ Set the new packet to `local_verified` only after fresh tests. Runtime identity 
 - cleanup status complete;
 - branch dependency on PR #101.
 
-- [ ] **Step 7: Run final focused verification**
+- [x] **Step 7: Run final focused verification**
 
 Run:
 

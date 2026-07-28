@@ -1,6 +1,6 @@
 # Equipment Simulator Track Authority Blocker Resolution
 
-状态：`概念已批准；书面设计待用户复核`
+状态：`设计已批准；实现与生产只读重跑完成；Phase 1 仍阻塞`
 
 ## 1. 用户场景与问题
 
@@ -210,8 +210,9 @@ BrowseVariant 的最高 rank 覆盖；制造与虚空晋升实例也不得被强
 
 ## 5. Phase 0 审计修正
 
-Phase 0 纯审计按旧 `difficultyKey` 做结构分类，但只能在 Track Authority
-`verified` 时补充规则事实：
+Phase 0 纯审计按旧 `difficultyKey` 做结构分类；只有精确 season/rule authority
+记录命中时才建立 progression 候选，只有该行的 authority、eligibility 和静态事实
+全部有效时才计为 mapped：
 
 | 旧 key | progression kind | rank 规则 |
 | --- | --- | --- |
@@ -268,7 +269,8 @@ Phase 0 纯审计按旧 `difficultyKey` 做结构分类，但只能在 Track Aut
 
 - 未知 season/rule revision：Track Authority fail closed，相关 Browse 行为 blocked；
 - 官方规则只证明 max rank、未证明精确装等：只认可 max rank，不升级装等证据状态；
-- 虚空晋升 eligibility 不足：不生成 canonical Ascendant BrowseVariant；
+- 虚空晋升 eligibility 不足：审计可以记录已识别的 canonical Ascendant 候选，
+  但不得把它计为 mapped、verified 或发布态 BrowseVariant；
 - 制造行无法无损拆分基础属性与动态副属性：保持 blocked，不选择任一属性组作为默认；
 - 48 条缺静态属性：继续单独报告，不因本修正降级为成功。
 
@@ -304,3 +306,29 @@ migration readiness。
 
 如果需要新增 schema、公开 API、修改 staging producer、重封 Gear Release、切换
 Manifest、写生产数据或进入 Phase 1，立即停线并另行决策。
+
+## 11. 实施结果
+
+2026-07-28 已按
+[独立实施计划](2026-07-28-equipment-simulator-track-authority-implementation.md)
+完成纯模块、read-only projection、progression-aware audit 和 CLI binding。精确提交
+`2c7ff3a268a80a782431f288c3e23fbf2189f928` 在生产临时目录中通过 transient unit
+执行，未修改 `/opt/wow-mini-program`，unit 已收集且临时目录已删除。
+
+[生产只读报告](../../artifacts/releases/2026-07-28-equipment-simulator-track-authority-correction/runtime-readonly-audit.json)
+记录：
+
+- `legacyBrowseVariantTotal=1678`；
+- `canonicalBrowseVariantTotal=1313`；
+- `mappedBrowseVariantCount=1265`；
+- `craftedEnhancementSelectionRowCount=438`；
+- `collapsedCraftedVariantRowCount=365`；
+- 唯一 catalog mapping 问题为
+  `CATALOG_VARIANT_STATIC_STATS_MISSING=48`；
+- Track Authority 精确绑定当前 season/rule 并为 `verified`；
+- PostgreSQL source writes 为 `0`，活动 Manifest pointer 前后完全一致。
+
+[机械 Phase 1 决策](../../artifacts/releases/2026-07-28-equipment-simulator-track-authority-correction/phase1-decision.json)
+仍为 `blocked`、`allowedNextPlan=none`。Community Release 缺失、40/40 专精初始候选
+blocked、资源峰值 unknown 和五个 unresolved runtime references 均未被本修正清除。
+纯 Track Authority 仍没有运行时消费者。

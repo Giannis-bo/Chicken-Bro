@@ -44,6 +44,35 @@
 
 `298` 不是普通神话满级。只有存在赛季规则或明确证据的武器、饰品、孢陨幽境特殊掉落、套装特殊部位，才能写 `void_upgrade`。12.1 开季时必须先更新轨道配置和证据规则，再跑入库。
 
+### Catalog 迁移 Track Authority
+
+Catalog 迁移和只读审计的 progression 事实由
+`server/gear_track_authority.py` 单独拥有。当前只接受
+`season-17-f131dd36ddf1 + gear-rule-matrix-v1` 的精确绑定；未知 revision
+必须 fail closed，不能沿用旧赛季或根据文案猜测。
+
+- `champion 263`、`hero 276`、`myth 289` 只有同时命中赛季、规则、轨道和治理装等时，
+  才能输出 `progressionKind=upgrade_track`、`rank=6`、`maxRank=6`。
+  generic `rank`、榜单排名、tooltip、名称和 bonus IDs 都不是轨道 rank。
+- `crafted_myth 285` 输出 `progressionKind=crafted_quality` 和最大品质，
+  不带 rank；六种 `crafted_stats` 是 `EnhancementSelection`，不是六个
+  `BrowseVariant` 身份。
+- 普通 `void_upgrade 298` 与制造 `crafted_void_upgrade 295` 输出
+  `progressionKind=ascendant`，不带 rank；前者必须有受控槽位、副本来源或
+  verified exact-instance 证据，后者必须有制造武器槽位、`trackEvidence` 和
+  `crafted_stats`。
+- 旧 Gear Release 的制造组合只允许在迁移审计中折叠为一个 canonical
+  Browse 候选和多条强化关联；在 Phase 1 获准前，不修改现有表、Release、
+  Manifest、API、Resolver 或前端运行时。
+
+当前只读证据把 1,678 条 legacy Browse 行归并为 1,313 个 canonical 候选，
+其中 1,265 个可映射，48 个仍缺静态属性；活动指针稳定且数据库写入为 0。
+完整结果见
+[Track Authority 审计](../artifacts/releases/2026-07-28-equipment-simulator-track-authority-correction/runtime-readonly-audit.json)
+和
+[Phase 1 决策](../artifacts/releases/2026-07-28-equipment-simulator-track-authority-correction/phase1-decision.json)。
+决策仍为 `blocked`、`allowedNextPlan=none`。
+
 ## 后台门禁装备库口径
 
 后台门禁治理台的 `装备库` 主视图是 `/api/websim/gear` 小程序可展示读模型的治理镜像，不是 `websim_gear_variants` 原始行浏览器。owner 在主表看到的可见性必须与玩家实际能在小程序候选中看到的装备一致。

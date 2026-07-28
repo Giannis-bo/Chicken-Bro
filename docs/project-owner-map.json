@@ -391,6 +391,8 @@
           "tests/gear_track_authority_test.py"
         ],
         "runtimeConsumers": [],
+        "aggregateEvidence": "artifacts/releases/2026-07-28-equipment-simulator-track-authority-correction/runtime-readonly-audit.json",
+        "phase1Decision": "artifacts/releases/2026-07-28-equipment-simulator-track-authority-correction/phase1-decision.json",
         "activationBoundary": "This correction binds progression facts only for the read-only Phase 0 migration audit. It does not change Gear Release materialization, public payloads, Resolver behavior, CatalogRevision activation or player-visible runtime."
       },
       "releaseTrainFoundations": {

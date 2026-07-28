@@ -2,22 +2,34 @@
   "schemaVersion": 2,
   "slug": "equipment-simulator-track-authority-correction",
   "requirementSlug": "equipment-simulator-track-authority-correction",
-  "status": "implementation_allowed",
-  "highestEvidenceLevel": "implementation_allowed",
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
   "branch": "codex/equipment-simulator-track-authority",
-  "commit": "pending-task-commit",
+  "commit": "2c7ff3a268a80a782431f288c3e23fbf2189f928",
+  "auditTooling": {
+    "commit": "2c7ff3a268a80a782431f288c3e23fbf2189f928",
+    "fileSha256": {
+      "server/gear_track_authority.py": "ae1b6ac79019a693c4d1e411158ab3088229b0df077686813b571a751cfffda7",
+      "server/gear_catalog_migration_audit.py": "3ce0540d2d1c35af383e5bf44f8080288d2690ca7c696c1c63153c325476293d",
+      "server/gear_catalog_audit_store.py": "1627e34441027f176ddc7bcfcfbdc3d9116b0389c3c1bd40d8ec8b4d6c1f5c29",
+      "scripts/gear-catalog-migration-audit.py": "9d486f4b1a34c4ff577b60917804048d45f79a5694125351bc55fd0a216bf332"
+    },
+    "reportSha256": "7574efb9104e653f03193f6aa4b07f9f90d0d4a9bcbb3b9ba162ffd21fd726f5"
+  },
   "identities": {
     "runtime": {
       "status": "not_applicable",
       "reason": "This correction is unconsumed audit tooling and read-only evidence; no runtime code, release row, service or pointer is activated."
     },
     "verification": {
-      "status": "pending",
-      "reason": "The final task head and focused verification do not exist yet."
+      "status": "bound_at_check",
+      "kind": "git_ref",
+      "value": "HEAD",
+      "reason": "Focused verification passed; the clean task checkpoint will be checked against the exact Git HEAD."
     },
     "closure": {
       "status": "pending",
-      "reason": "Implementation, production read-only evidence, local CR and the PR #101 base dependency remain open."
+      "reason": "Local CR, final Harness evidence binding and the PR #101 base dependency remain open."
     }
   },
   "manualAcceptance": {
@@ -40,15 +52,26 @@
   ],
   "verification": [
     {
-      "command": "focused Track Authority and catalog-audit Python tests",
-      "status": "not_run"
+      "command": "python3 -m unittest tests.gear_track_authority_test tests.gear_catalog_migration_audit_test tests.gear_catalog_audit_store_test tests.gear_catalog_migration_audit_cli_test tests.gear_release_store_test tests.postgres_personal_store_test -v",
+      "status": "pass",
+      "summary": "107 focused Track Authority, audit, release-store and personal-store tests passed."
     },
     {
-      "command": "focused current-truth, owner-map and Harness Node tests",
-      "status": "not_run"
+      "command": "node --test tests/gear-catalog-callers-audit.test.js tests/project-state.test.js tests/project-harness.test.js tests/backend-owner-map.test.js",
+      "status": "pass",
+      "summary": "73 caller-inventory, current-truth, Harness and owner-map tests passed."
+    },
+    {
+      "command": "isolated production read-only Track Authority audit",
+      "status": "pass",
+      "summary": "The exact committed tools produced report 10c28022 under BEGIN READ ONLY with 0 source writes and an unchanged generation-24 active pointer; the product decision truthfully remained blocked."
     },
     {
       "command": "node scripts/verify-project.js --profile harness --release artifacts/releases/2026-07-28-equipment-simulator-track-authority-correction",
+      "status": "not_run"
+    },
+    {
+      "command": "local CR against base 1c6ad24b",
       "status": "not_run"
     }
   ],
@@ -57,17 +80,59 @@
     "requiredBeforeMerge": false,
     "reason": "No active backend, API, UI, schema, release pointer, timer or service changes are permitted in this correction."
   },
-  "runtimeEvidence": [],
+  "runtimeEvidence": [
+    {
+      "id": "production-readonly-track-authority-audit",
+      "type": "postgres_readonly_audit",
+      "status": "pass",
+      "summary": "Commit 2c7ff3a2 ran in /tmp under collected unit wow-track-authority-audit-20260728-1648 with statement_timeout=15000ms, lock_timeout=1000ms and batch_size=500. The 14640-byte report has SHA-256 7574efb9104e653f03193f6aa4b07f9f90d0d4a9bcbb3b9ba162ffd21fd726f5 and contains no sensitive-key match."
+    },
+    {
+      "id": "track-authority-binding-and-mapping",
+      "type": "phase1_gate",
+      "status": "blocked",
+      "summary": "The authority verified season-17-f131dd36ddf1 plus gear-rule-matrix-v1. It classified 1678 legacy Browse rows into 1313 canonical candidates and mapped 1265; the only catalog mapping problems are 48 missing static-stat rows."
+    },
+    {
+      "id": "crafted-enhancement-collapse",
+      "type": "phase1_gate",
+      "status": "pass",
+      "summary": "438 crafted-stat rows became 73 canonical crafted/Ascendant variants plus 438 EnhancementSelection associations, collapsing 365 duplicate Browse identities without adding rank."
+    },
+    {
+      "id": "active-pointer-and-zero-write-witness",
+      "type": "postgres_pointer",
+      "status": "pass",
+      "summary": "The active pointer stayed at generation 24 with the same active and rollback Manifest identities. The catalog store executed 12 statements with 9 reads, 3 transaction controls and 0 writes; the 40-spec reader executed 282 reads, 81 transaction controls and 0 writes."
+    },
+    {
+      "id": "independent-phase0-gates",
+      "type": "phase1_gate",
+      "status": "blocked",
+      "summary": "The active Manifest still has no Community Release or community templates, all 40 specialization initial candidates remain blocked, resource peak RSS and temporary bytes remain unknown, and five runtime caller references remain unresolved."
+    },
+    {
+      "id": "production-isolation-and-cleanup",
+      "type": "operational_state",
+      "status": "pass",
+      "summary": "wow-backend remained active with MainPID 548170, NRestarts=0 and unchanged ActiveEnterTimestamp before and after. The transient unit was collected and /tmp/wow-track-authority-audit.XHsuLa was removed; /opt/wow-mini-program was never modified."
+    }
+  ],
   "risks": [
     {
       "id": "ascendant-evidence-incomplete",
-      "status": "open",
-      "detail": "Rows without governed source, slot or observed exact-instance evidence must remain explicitly blocked."
+      "status": "resolved_for_current_snapshot",
+      "detail": "All 143 current canonical Ascendant candidates had governed slot/source or verified exact-instance evidence; 131 mapped and the other 12 are blocked only by missing static stats."
     },
     {
       "id": "static-stats-incomplete",
-      "status": "open",
-      "detail": "The 48 known rows without static stats remain a separate Phase 0 blocker."
+      "status": "blocked",
+      "detail": "Exactly 48 of 1313 canonical Browse candidates still lack static stats and cannot map."
+    },
+    {
+      "id": "independent-phase0-gates",
+      "status": "blocked",
+      "detail": "Community Release, 40-spec initial candidates, resource peaks and runtime caller retirement keep allowedNextPlan at none."
     },
     {
       "id": "stacked-base-pr",
@@ -80,13 +145,13 @@
   ],
   "cleanup": {
     "required": true,
-    "status": "pending",
-    "reason": "The future production read-only rerun must remove its exact disposable directory and collect its transient systemd unit."
+    "status": "complete",
+    "reason": "The exact /tmp/wow-track-authority-audit.XHsuLa directory was removed and transient unit wow-track-authority-audit-20260728-1648.service was collected. No active runtime path was modified."
   },
   "archivedReferences": [
     "artifacts/releases/2026-07-28-equipment-simulator-catalog-migration-phase0/runtime-readonly-audit.json",
     "artifacts/releases/2026-07-28-equipment-simulator-catalog-migration-phase0/phase1-decision.json"
   ],
-  "summary": "The user-approved Track Authority correction is implementation-allowed. Runtime and manual acceptance are not applicable; TDD, the zero-write production audit, exact-head Harness evidence and local CR remain pending.",
-  "updatedAt": "2026-07-28T16:42:18+08:00"
+  "summary": "The pure Track Authority and progression-aware Phase 0 audit are locally verified. The exact committed tools reran against production read-only data with zero writes, stable generation-24 pointers and complete transient cleanup. They mapped 1265/1313 canonical Browse candidates and isolated the remaining 48 static-stat gaps; independent Phase 0 gates keep allowedNextPlan at none. Runtime activation and manual acceptance remain not applicable; final Harness binding, local CR and the stacked PR dependency remain open.",
+  "updatedAt": "2026-07-28T17:08:29+08:00"
 }
