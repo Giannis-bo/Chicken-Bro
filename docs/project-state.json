@@ -126,7 +126,7 @@
       "requirement": "artifacts/releases/2026-07-29-equipment-simulator-phase1-catalog-contract/requirement.json",
       "evidence": "artifacts/releases/2026-07-29-equipment-simulator-phase1-catalog-contract/evidence.json",
       "baseCommit": "731bf899618976368a649f1e087b827e642076ef",
-      "notes": "Strict Phase 1 immutable candidate 0fdcf123 is runtime verified. Catalog gear-catalog:sha256:2addca2f... seals and exactly loads 613 ItemDefinitions plus 1309 BrowseVariants; strict 40/40 shadow has zero unmapped/cardinality mismatch and equal 13297 visible totals; resource, immutability, runtime SHA, service/API/timer/rollback gates pass with generation 32 unchanged. Full exact-head verification, PR CI, merge and archive closure remain; global data health stays honestly partial."
+      "notes": "Strict Phase 1 immutable candidate 0fdcf123 is runtime verified. Catalog gear-catalog:sha256:2addca2f... seals and exactly loads 613 ItemDefinitions plus 1309 BrowseVariants; strict 40/40 shadow has zero unmapped/cardinality mismatch and equal 13297 visible totals; resource, immutability, runtime SHA, service/API/timer/rollback and full clean-HEAD local verification gates pass with generation 32 unchanged. PR CI, merge and archive closure remain; global data health stays honestly partial."
     }
   ],
   "completedBaselines": [

@@ -13,8 +13,9 @@
       "value": "0fdcf123895f02940401e53b39419f29d44204b3"
     },
     "verification": {
-      "status": "pending",
-      "reason": "Focused and pre-candidate full local suites pass; exact immutable candidate HEAD verification will run after the runtime identity is bound."
+      "status": "bound_at_check",
+      "kind": "git_ref",
+      "value": "HEAD"
     },
     "closure": {
       "status": "pending",
@@ -56,9 +57,14 @@
       "summary": "Immutable candidate 0fdcf123 passed deterministic build/seal/load, exact 613/1309 membership, 40/40 specialization parity, zero unmapped, zero cardinality mismatch, equal legacy/dormant visible totals of 13297, stable generation-32 pointer, 871588 KiB peak RSS, 168.44 seconds and zero swap."
     },
     {
-      "command": "exact-head Project Harness full profile and PR CI",
+      "command": "exact-head Project Harness full profile",
+      "status": "pass",
+      "summary": "Final clean HEAD rerun covers 692 Node tests, 2048 Python tests with one skip, 404 Taro/Vitest tests, compileall, typecheck, lint, UI architecture, asset/package mechanics, syntax checks and the task-scoped Harness gate."
+    },
+    {
+      "command": "pull request CI",
       "status": "not_run",
-      "summary": "Runs after candidate identity and evidence are bound."
+      "summary": "Runs after the exact-head local Harness check passes and the task branch is published."
     }
   ],
   "candidateDeployment": {
@@ -396,5 +402,5 @@
   "archivedReferences": [
     "artifacts/releases/2026-07-28-equipment-simulator-phase0-unblock/evidence.json"
   ],
-  "summary": "Immutable candidate 0fdcf123 is runtime verified: Catalog gear-catalog:sha256:2addca2f... seals and exactly loads 613 ItemDefinitions plus 1309 BrowseVariants, strict 40/40 shadow has zero unmapped and zero cardinality mismatch with equal 13297 visible totals, resources stay in budget, immutability and runtime parity pass, and generation 32 is unchanged. Full exact-head repository verification, PR CI, merge and archive closure remain."
+  "summary": "Immutable candidate 0fdcf123 and final clean repository HEAD are verified: Catalog gear-catalog:sha256:2addca2f... seals and exactly loads 613 ItemDefinitions plus 1309 BrowseVariants, strict 40/40 shadow has zero unmapped and zero cardinality mismatch with equal 13297 visible totals, resources stay in budget, immutability and runtime parity pass, generation 32 is unchanged, and the full local verification matrix passes. PR CI, merge and archive closure remain."
 }
