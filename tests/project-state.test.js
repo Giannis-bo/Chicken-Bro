@@ -42,7 +42,7 @@ test('project-state is the single machine-readable current truth entry', () => {
   const state = readJson(projectStatePath)
 
   assert.equal(state.schemaVersion, 1)
-  assert.equal(state.updatedAt, '2026-07-24')
+  assert.equal(state.updatedAt, '2026-07-28')
   assert.equal(state.activeMilestone, 'taro_target_first_14_route_rebuild')
   assert.equal(state.featureIteration, 'allowed_under_harness')
   assert.equal(state.activeReleaseArtifact, undefined)
@@ -97,6 +97,7 @@ test('project-state is the single machine-readable current truth entry', () => {
   assert.ok(!activeContractIds.has('harness_v0_6_2_control_plane_cleanup'))
   assert.ok(activeContractIds.has('taro_target_first_14_route_rebuild'))
   assert.ok(activeContractIds.has('observed_build_registry_cutover'))
+  assert.ok(activeContractIds.has('equipment_simulator_target_architecture_v1'))
   assert.ok(!activeContractIds.has('talent_link_lkg_sync_guard'))
   assert.ok(!activeContractIds.has('community_enhancement_editability'))
   assert.ok(!activeContractIds.has('equipment_simulator_capability_architecture'))

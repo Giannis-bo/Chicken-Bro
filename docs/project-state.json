@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-07-24",
+  "updatedAt": "2026-07-28",
   "activeMilestone": "taro_target_first_14_route_rebuild",
   "featureIteration": "allowed_under_harness",
   "defaultLocalReleaseArtifact": "artifacts/releases/2026-07-23-observed-build-registry-cutover",
@@ -54,6 +54,13 @@
       "status": "retail_cutover_verified",
       "lifecycle": "active",
       "notes": "Shared 80-slot real-player TemplateSet for talent and equipment simulation. The current retail cutover is verified at TemplateSet generation 3 with 80 verified slots and a matching formal Gear Release; the next scheduled observed-gear backfill persisted its fair profile cursor. See artifacts/releases/2026-07-25-community-gear-backfill-fairness/retail-live-smoke.json."
+    },
+    {
+      "id": "equipment_simulator_target_architecture_v1",
+      "path": "docs/plans/2026-07-28-equipment-simulator-target-architecture.md",
+      "status": "approved_pending_implementation_plan",
+      "lifecycle": "active",
+      "notes": "Approved target architecture keeps the existing UI, canonical Resolver, template, SimC task and atomic Manifest kernel while redesigning the current-season CatalogRevision, highest-rank BrowseVariant, ExactItemInstance, enhancement identity, deterministic SimulationSnapshot and bounded builder resource contracts."
     }
   ],
   "completedBaselines": [
