@@ -3460,6 +3460,74 @@ class GearReleaseToolTest(unittest.TestCase):
             "phase0-unblock-r1",
         )
 
+    def test_build_legacy_community_cli_uses_one_exact_inactive_gear_release(self):
+        from server import gear_release_tool
+
+        gear = {
+            "releaseId": "gear-release:exact",
+            "releaseKind": "gear",
+            "releaseStatus": "validated",
+            "seasonRevision": "season-17",
+            "dependencyRevisions": self.dependencies(),
+        }
+        snapshot = self.snapshot()
+
+        class Store:
+            def get_release(self, release_id):
+                return gear if release_id == gear["releaseId"] else {}
+
+            def snapshot_gear_release_for_community_builder(self, release_id):
+                return snapshot if release_id == gear["releaseId"] else {}
+
+        community_result = {
+            "release": {"releaseId": "community-release:exact"},
+            "gate": {
+                "status": "validated",
+                "winnerSpecCount": 40,
+                "winnerHeroSlotCount": 80,
+            },
+            "seal": {"status": "inserted"},
+        }
+        output = io.StringIO()
+        with patch.object(
+            gear_release_tool,
+            "_store_from_environment",
+            return_value=Store(),
+        ), patch.object(
+            gear_release_tool,
+            "build_legacy_community_release",
+            return_value=community_result,
+        ) as build_community, redirect_stdout(output):
+            status = gear_release_tool.main(
+                [
+                    "build-legacy-community",
+                    "--gear-release-id",
+                    "gear-release:exact",
+                    "--simc-runtime-revision",
+                    "simc-r1",
+                    "--source-revision",
+                    "phase0-unblock-r1",
+                ]
+            )
+
+        self.assertEqual(status, 0)
+        self.assertEqual(
+            json.loads(output.getvalue())["community"]["release"]["releaseId"],
+            "community-release:exact",
+        )
+        self.assertEqual(
+            build_community.call_args.kwargs["gear_release_descriptor"],
+            gear,
+        )
+        self.assertIs(
+            build_community.call_args.kwargs["gear_snapshot"],
+            snapshot,
+        )
+        self.assertEqual(
+            build_community.call_args.kwargs["source_revision"],
+            "phase0-unblock-r1",
+        )
+
     def test_build_legacy_community_release_keeps_rejected_internal_and_degraded(self):
         from server.gear_release_store import gear_snapshot_summary
         from server.gear_release_tool import build_legacy_community_release

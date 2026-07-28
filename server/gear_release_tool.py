@@ -2503,7 +2503,18 @@ def _shadow_store_from_environment() -> PostgresCacheStore:
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=("build-legacy-gear", "build-legacy-all", "show", "shadow", "promote", "rollback"))
+    parser.add_argument(
+        "command",
+        choices=(
+            "build-legacy-gear",
+            "build-legacy-community",
+            "build-legacy-all",
+            "show",
+            "shadow",
+            "promote",
+            "rollback",
+        ),
+    )
     parser.add_argument("--season-revision", default="")
     parser.add_argument("--simc-runtime-revision", default="")
     parser.add_argument("--source-revision", default="legacy-import-r0")
@@ -2622,6 +2633,53 @@ def main(argv=None) -> int:
     if args.command == "show":
         print(json.dumps(store.get_release(args.release_id), ensure_ascii=False, sort_keys=True))
         return 0
+    if args.command == "build-legacy-community":
+        if not args.gear_release_id or not args.simc_runtime_revision:
+            raise SystemExit(
+                "--gear-release-id and --simc-runtime-revision are required"
+            )
+        gear_descriptor = store.get_release(args.gear_release_id)
+        if (
+            not gear_descriptor
+            or _text(gear_descriptor.get("releaseKind")) != "gear"
+            or _text(gear_descriptor.get("releaseStatus")) != "validated"
+        ):
+            raise GearReleaseIntegrityError(
+                "validated Gear Release is unavailable"
+            )
+        dependencies = (
+            gear_descriptor.get("dependencyRevisions")
+            if isinstance(gear_descriptor.get("dependencyRevisions"), dict)
+            else {}
+        )
+        if _text(dependencies.get("simcRuntimeRevision")) != _text(
+            args.simc_runtime_revision
+        ):
+            raise GearReleaseIntegrityError(
+                "SimC revision does not match Gear Release dependencies"
+            )
+        gear_snapshot = store.snapshot_gear_release_for_community_builder(
+            args.gear_release_id
+        )
+        community = build_legacy_community_release(
+            store,
+            gear_release_descriptor=gear_descriptor,
+            gear_snapshot=gear_snapshot,
+            dependency_revisions=dependencies,
+            expected_specs=expected_spec_pairs(),
+            now=datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            level=args.level,
+            source_revision=args.source_revision,
+        )
+        output = {
+            "community": {
+                "release": community["release"],
+                "gate": community["gate"],
+                "seal": community["seal"],
+            }
+        }
+        print(json.dumps(output, ensure_ascii=False, sort_keys=True))
+        return 0 if community["gate"].get("status") == "validated" else 2
     if not args.season_revision or not args.simc_runtime_revision:
         raise SystemExit("--season-revision and --simc-runtime-revision are required")
     dependencies = runtime_dependency_revisions(args.simc_runtime_revision)
