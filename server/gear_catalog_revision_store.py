@@ -64,10 +64,25 @@ def _header(catalog: Mapping[str, Any]) -> dict[str, Any]:
 
 
 def _catalog_semantics(catalog: Mapping[str, Any]) -> dict[str, Any]:
+    definitions = _canonical(catalog.get("itemDefinitions") or [])
+    definitions.sort(
+        key=lambda row: (
+            _text(_mapping(row).get("itemId")),
+            _json(row),
+        )
+    )
+    variants = _canonical(catalog.get("browseVariants") or [])
+    variants.sort(
+        key=lambda row: (
+            _text(_mapping(row).get("itemId")),
+            _text(_mapping(row).get("browseVariantKey")),
+            _json(row),
+        )
+    )
     return {
         **_header(catalog),
-        "itemDefinitions": _canonical(catalog.get("itemDefinitions") or []),
-        "browseVariants": _canonical(catalog.get("browseVariants") or []),
+        "itemDefinitions": definitions,
+        "browseVariants": variants,
     }
 
 

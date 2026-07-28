@@ -42,7 +42,7 @@
     {
       "command": "CatalogRevision RED/GREEN focused suites",
       "status": "pass",
-      "summary": "66 focused Catalog builder, formal membership, append-only store, migration schema, fixed-query projection and 40-specialization shadow tests pass. RED failures were observed before the builder, store, migration and CLI existed, before dormant metadata exclusion, and before persisted-order canonicalization plus observed Ascendant eligibility were implemented."
+      "summary": "67 focused Catalog builder, formal membership, append-only store, migration schema, fixed-query projection and 40-specialization shadow tests pass. RED failures were observed before the builder, store, migration and CLI existed, before dormant metadata exclusion, before persisted-order identity plus observed Ascendant eligibility, and before order-independent seal semantics were implemented."
     },
     {
       "command": "pre-candidate repository verification",
@@ -52,7 +52,7 @@
     {
       "command": "candidate dormant Catalog migration and production shadow",
       "status": "blocked",
-      "summary": "The first immutable candidate 4f1c970c714c1509f48ee7501ab51f04b24fb221 applied migration 0019 atomically but correctly refused to seal because raw slot metadata included source-less historical rows. Pointer generation 32 remained unchanged and all dormant Catalog tables remained empty. Formal membership was then narrowed under RED/GREEN tests to canonical BrowseVariant or verified ExactItemInstance usage; a new immutable candidate run is pending."
+      "summary": "Three immutable candidates failed closed and left all dormant Catalog tables empty: raw slot metadata membership, persisted identity/observed Ascendant parity, and order-sensitive post-seal semantic comparison were each reproduced and corrected under RED/GREEN tests. Pointer generation 32 remained unchanged. A fresh immutable candidate run is pending."
     },
     {
       "command": "exact-head Project Harness full profile and PR CI",
@@ -62,7 +62,7 @@
   ],
   "candidateDeployment": {
     "status": "correction_pending_retry",
-    "reason": "Migration 0019 is applied to the production database, but the first two candidates failed closed and rolled back before seal. The corrected immutable candidate has not yet been deployed or executed."
+    "reason": "Migration 0019 is applied to the production database, but the first three candidates failed closed and rolled back before seal. The corrected immutable candidate has not yet been deployed or executed."
   },
   "runtimeEvidence": [
     {
@@ -96,6 +96,24 @@
         "excludedDormantItemCount": 697
       },
       "interpretation": "The candidate transaction rolled back completely. Diagnosis proved that database row ordering was incorrectly identity-sensitive and that 11 ordinary Ascendant rows had not inherited the accepted observed ExactItemInstance eligibility evidence."
+    },
+    {
+      "candidateCommit": "eab24686ba346fb1ba430a22a97198c8de98602b",
+      "status": "blocked",
+      "problemCodes": [
+        "CATALOG_SEALED_SEMANTICS_ORDER_MISMATCH"
+      ],
+      "elapsedSeconds": 27.81,
+      "maxRssKiB": 876380,
+      "pointerGenerationBefore": 32,
+      "pointerGenerationAfter": 32,
+      "sealedCatalogRows": 0,
+      "observedBuildCounts": {
+        "itemDefinitionCount": 613,
+        "browseVariantCount": 1309,
+        "excludedDormantItemCount": 697
+      },
+      "interpretation": "The candidate built and individually verified the full expected membership, then rolled back because store semantics still compared SQL-returned arrays by position. Stable-key comparison now preserves strict row hashes and full Catalog identity while treating member order as non-semantic."
     }
   ],
   "risks": [
@@ -138,5 +156,5 @@
   "archivedReferences": [
     "artifacts/releases/2026-07-28-equipment-simulator-phase0-unblock/evidence.json"
   ],
-  "summary": "The dormant Catalog builder, append-only schema/store and bounded 40-specialization shadow are locally implemented and verified. Migration 0019 is applied; two candidates correctly failed closed and rolled back all Catalog rows, exposing raw membership, persisted-order and observed Ascendant parity defects that are now fixed under RED/GREEN tests. A fresh immutable candidate is pending. No active pointer or public reader change has occurred."
+  "summary": "The dormant Catalog builder, append-only schema/store and bounded 40-specialization shadow are locally implemented and verified. Migration 0019 is applied; three candidates correctly failed closed and rolled back all Catalog rows, exposing raw membership, persisted-order, observed Ascendant parity and seal-comparison defects that are now fixed under RED/GREEN tests. A fresh immutable candidate is pending. No active pointer or public reader change has occurred."
 }

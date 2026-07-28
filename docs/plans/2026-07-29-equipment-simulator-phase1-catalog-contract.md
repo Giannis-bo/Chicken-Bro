@@ -36,6 +36,9 @@
   不敏感；Phase 0 Track Authority 已验证的 298 ExactItemInstance 必须继续作为普通
   Ascendant BrowseVariant 的资格证据。两项均由 RED/GREEN 测试固定，避免回读误判和
   11 个合法 Ascendant 成员丢失。
+- 第三次候选生成了完整 613/1,309 成员，但暴露 store 的 seal 后语义比较仍按 SQL
+  返回顺序比较数组；事务再次完整回滚。store 现按成员稳定键比较集合，同时继续对每行
+  内容哈希和完整 CatalogRevision 做严格验证。
 - 全局 `/api/data/health` 仍为 `partial`。本阶段不把旧 staging/refresh owner
   冒充成新的 Catalog 健康成功，也不在完成 shadow 前迁移 health owner。
 

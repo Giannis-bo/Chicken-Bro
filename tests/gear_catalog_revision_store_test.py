@@ -7,7 +7,11 @@ from server.gear_catalog_revision_store import (
     GearCatalogRevisionIntegrityError,
     GearCatalogRevisionStore,
 )
-from tests.gear_catalog_revision_test import CURRENT_BINDING, regular_rows
+from tests.gear_catalog_revision_test import (
+    CURRENT_BINDING,
+    crafted_rows,
+    regular_rows,
+)
 
 
 class FakeDatabase:
@@ -17,6 +21,7 @@ class FakeDatabase:
         self.variants = {}
         self.statements = []
         self.executemany_calls = []
+        self.reverse_member_load_order = False
 
 
 class FakeCursor:
@@ -44,7 +49,8 @@ class FakeCursor:
             self.rows = [
                 row
                 for (catalog_revision, _), row in sorted(
-                    self.database.items.items()
+                    self.database.items.items(),
+                    reverse=self.database.reverse_member_load_order,
                 )
                 if catalog_revision == params[0]
             ]
@@ -52,7 +58,8 @@ class FakeCursor:
             self.rows = [
                 row
                 for (catalog_revision, _), row in sorted(
-                    self.database.variants.items()
+                    self.database.variants.items(),
+                    reverse=self.database.reverse_member_load_order,
                 )
                 if catalog_revision == params[0]
             ]
@@ -148,6 +155,24 @@ class GearCatalogRevisionStoreTest(unittest.TestCase):
             json.loads(self.database.items[key][6])["name"],
             "Tampered",
         )
+
+    def test_seal_compares_membership_independent_of_database_row_order(self):
+        rows = regular_rows()
+        crafted = crafted_rows()
+        rows["items"].extend(crafted["items"])
+        rows["sources"].extend(crafted["sources"])
+        rows["variants"].extend(crafted["variants"])
+        catalog = build_catalog_revision(CURRENT_BINDING, rows)
+        self.database.reverse_member_load_order = True
+
+        sealed = self.store.seal_catalog(catalog)
+
+        self.assertEqual(
+            sealed["catalogRevision"],
+            catalog["catalogRevision"],
+        )
+        self.assertEqual(len(sealed["itemDefinitions"]), 2)
+        self.assertEqual(len(sealed["browseVariants"]), 2)
 
     def test_unverified_or_identity_invalid_catalog_is_rejected_before_sql(self):
         invalid = copy.deepcopy(self.catalog)
