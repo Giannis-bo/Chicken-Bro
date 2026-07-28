@@ -22,6 +22,7 @@ WEBSIM_ATTRIBUTE_RULE_AUDITS = ROOT / "server" / "migrations" / "postgres" / "00
 WEBSIM_HERO_COMMUNITY_RELEASE = ROOT / "server" / "migrations" / "postgres" / "0017_websim_hero_community_release.sql"
 OBSERVED_BUILD_REGISTRY = ROOT / "server" / "migrations" / "postgres" / "0018_observed_build_registry.sql"
 WEBSIM_GEAR_CATALOG_REVISION = ROOT / "server" / "migrations" / "postgres" / "0019_websim_gear_catalog_revision.sql"
+WEBSIM_GEAR_EXACT_ITEM_INSTANCE = ROOT / "server" / "migrations" / "postgres" / "0020_websim_gear_exact_item_instance.sql"
 
 
 class PostgresSchemaTest(unittest.TestCase):
@@ -37,6 +38,7 @@ class PostgresSchemaTest(unittest.TestCase):
         cls.websim_talent_cache_sql = WEBSIM_TALENT_CACHE.read_text(encoding="utf-8")
         cls.runtime_reconcile_privileges_sql = RUNTIME_RECONCILE_PRIVILEGES.read_text(encoding="utf-8")
         cls.admin_gate_diagnostics_sql = ADMIN_GATE_DIAGNOSTICS.read_text(encoding="utf-8")
+        cls.websim_gear_exact_item_instance_sql = WEBSIM_GEAR_EXACT_ITEM_INSTANCE.read_text(encoding="utf-8")
 
     def table_section(self, table_name):
         start = self.sql.index(f"CREATE TABLE IF NOT EXISTS {table_name}")
@@ -248,6 +250,29 @@ class PostgresSchemaTest(unittest.TestCase):
         self.assertIn("CREATE INDEX IF NOT EXISTS idx_ops_admin_gate_diagnoses_target", normalized)
         self.assertIn("GRANT SELECT, INSERT, UPDATE, DELETE ON ops.admin_gate_diagnoses TO wow_app", normalized)
         self.assertIn("0010_admin_gate_diagnostics", normalized)
+
+    def test_websim_exact_item_migration_is_dormant_append_only_and_owner_safe(self):
+        normalized = " ".join(self.websim_gear_exact_item_instance_sql.split())
+        for table in (
+            "cache.websim_gear_enhancement_selections",
+            "cache.websim_gear_exact_item_instances",
+            "cache.websim_gear_exact_item_validations",
+            "cache.websim_gear_exact_instance_template_refs",
+        ):
+            self.assertIn(f"CREATE TABLE IF NOT EXISTS {table}", normalized)
+        self.assertIn(
+            "REFERENCES cache.websim_gear_catalog_revisions(catalog_revision)",
+            normalized,
+        )
+        self.assertIn("template_scope IN ('community', 'personal')", normalized)
+        self.assertIn("reject_websim_gear_exact_mutation", normalized)
+        self.assertIn("REVOKE UPDATE, DELETE ON", normalized)
+        self.assertIn("GRANT SELECT, INSERT ON", normalized)
+        self.assertNotIn("user_id", normalized.lower())
+        self.assertNotIn("owner_name", normalized.lower())
+        self.assertNotIn("access_token", normalized.lower())
+        self.assertNotIn("active_manifest_pointer", normalized)
+        self.assertIn("0020_websim_gear_exact_item_instance", normalized)
 
     def test_websim_gear_template_cache_migration_adds_pg_read_model_table(self):
         self.assertTrue(WEBSIM_GEAR_TEMPLATE_CACHE.exists(), "missing gear template PG cache migration")

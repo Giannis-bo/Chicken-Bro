@@ -140,6 +140,20 @@ def _normalized_gear_item(slot: Any, value: Any, enhancement: Any = None) -> dic
         gem_ids = enhancements.get("gemOptionIds")
     if gem_ids is None:
         gem_ids = _split_ids(simc.get("gem_id"))
+    gem_bonus_ids = item.get("gemBonusIds") if "gemBonusIds" in item else None
+    if gem_bonus_ids is None:
+        gem_bonus_ids = enhancements.get("gemBonusIds")
+    if gem_bonus_ids is None:
+        gem_bonus_ids = _split_ids(simc.get("gem_bonus_id"))
+    gem_item_levels = (
+        item.get("gemItemLevels")
+        if "gemItemLevels" in item
+        else None
+    )
+    if gem_item_levels is None:
+        gem_item_levels = enhancements.get("gemItemLevels")
+    if gem_item_levels is None:
+        gem_item_levels = _split_ids(simc.get("gem_ilevel"))
     crafted_stats = item.get("craftedStats") if "craftedStats" in item else None
     if crafted_stats is None:
         crafted_stats = enhancements.get("craftedStats")
@@ -172,6 +186,16 @@ def _normalized_gear_item(slot: Any, value: Any, enhancement: Any = None) -> dic
         "rank": _int(item.get("rank") or item.get("trackRank") or item.get("upgradeRank")),
         "ilevel": _int(item.get("ilevel") or item.get("itemLevel") or simc.get("ilevel")),
         "gemIds": list(gem_ids) if isinstance(gem_ids, list) else gem_ids,
+        "gemBonusIds": (
+            list(gem_bonus_ids)
+            if isinstance(gem_bonus_ids, list)
+            else gem_bonus_ids
+        ),
+        "gemItemLevels": (
+            list(gem_item_levels)
+            if isinstance(gem_item_levels, list)
+            else gem_item_levels
+        ),
         "enchantId": enchant_id,
         "craftedStats": (
             list(crafted_stats)
@@ -505,6 +529,7 @@ class GearCatalogAuditStore:
                 "bonusIds": [_text(value) for value in bonus_ids if _text(value)],
                 "simcOptions": simc_options,
                 "staticStats": _stat_map(static_stats),
+                "context": payload.get("context"),
                 "sourceType": _text(row[10]),
                 "hasVoidInstanceSource": row[11] is True,
                 "hasCraftedSource": len(row) > 12 and row[12] is True,
