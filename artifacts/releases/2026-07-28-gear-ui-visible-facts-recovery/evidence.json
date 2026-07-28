@@ -2,8 +2,8 @@
   "schemaVersion": 2,
   "slug": "gear-ui-visible-facts-recovery",
   "requirementSlug": "gear-ui-visible-facts-recovery",
-  "status": "local_verified",
-  "highestEvidenceLevel": "local_verified",
+  "status": "runtime_verified",
+  "highestEvidenceLevel": "runtime_verified",
   "branch": "codex/gear-ui-recovery",
   "commit": "c91f2d3d8e4100b7d313abebc06ffb75d6b445c3",
   "identities": {
@@ -20,31 +20,34 @@
     },
     "closure": {
       "status": "pending",
-      "reason": "The exact source-bound WeChat preview still requires explicit user acceptance before merge and archive closure."
+      "reason": "The exact source-bound WeChat preview is accepted; merge and archive closure are still pending."
     }
   },
   "manualAcceptance": {
     "required": true,
-    "status": "pending",
+    "status": "complete",
     "items": [
       {
         "id": "gear_slot_visible_facts",
-        "status": "pending"
+        "status": "accepted",
+        "evidence": "On 2026-07-28 the user reviewed the refreshed real-WeChat screenshot with visible per-slot green secondary stats and replied 非常好，可以收尾."
       },
       {
         "id": "gear_enhancement_availability",
-        "status": "pending"
+        "status": "accepted",
+        "evidence": "On 2026-07-28 the user reviewed the refreshed real-WeChat enhancement summary and slot markers and replied 非常好，可以收尾."
       },
       {
         "id": "gear_ui_recovery_preview",
-        "status": "pending"
+        "status": "accepted",
+        "evidence": "On 2026-07-28 the user accepted the current source-bound gear-detail preview by replying 非常好，可以收尾."
       }
     ],
     "rollup": {
       "total": 3,
-      "accepted": 0,
+      "accepted": 3,
       "notRunUserWaived": 0,
-      "pending": 3
+      "pending": 0
     }
   },
   "scope": [
@@ -87,7 +90,7 @@
     {
       "command": "INTERACTION_ROUTES=gear_detail npm run verify:ui-interactions",
       "status": "blocked",
-      "summary": "The verifier found no reusable WeChat Automator endpoint on ports 9420-9460 and refused to launch or impersonate interaction evidence. Manual visual and interaction acceptance remains pending."
+      "summary": "The verifier found no reusable WeChat Automator endpoint on ports 9420-9460 and refused to launch or impersonate automated interaction evidence. The user's later explicit real-WeChat manual acceptance is recorded separately."
     },
     {
       "command": "node --test tests/project-state.test.js tests/project-harness.test.js tests/verify-project.test.js",
@@ -101,7 +104,7 @@
     }
   ],
   "candidateDeployment": {
-    "status": "preview_refreshed_pending_acceptance",
+    "status": "preview_verified",
     "requiredBeforeMerge": true,
     "branch": "codex/gear-ui-recovery",
     "commit": "c91f2d3d8e4100b7d313abebc06ffb75d6b445c3",
@@ -110,8 +113,8 @@
     "buildOutput": "apps/mini-taro/dist/weapp",
     "fileCount": 214,
     "smoke": {
-      "status": "blocked",
-      "summary": "The source-bound package is open in official DevTools, but no reusable Automator endpoint is enabled; user visual and interaction acceptance is still required."
+      "status": "pass",
+      "summary": "The source-bound package was opened in official DevTools, and the user explicitly accepted the visible slot facts, enhancement presentation and recovered gear-detail UI on 2026-07-28."
     },
     "timerBackflow": {
       "status": "not_applicable",
@@ -131,13 +134,19 @@
       "type": "real_wechat_core_interaction",
       "status": "blocked",
       "summary": "No Automator endpoint was available. The verifier failed closed, and no runtime interaction pass is claimed."
+    },
+    {
+      "type": "real_wechat_manual_acceptance",
+      "status": "pass",
+      "commit": "c91f2d3d8e4100b7d313abebc06ffb75d6b445c3",
+      "summary": "The user reviewed the refreshed source-bound gear-detail preview and explicitly replied 非常好，可以收尾 on 2026-07-28."
     }
   ],
   "risks": [
     {
       "id": "real-wechat-visible-facts-pending",
-      "status": "open",
-      "detail": "The player-visible green stats, enhancement labels and broader recovered gear UI still need explicit confirmation in the currently refreshed DevTools preview."
+      "status": "resolved",
+      "detail": "The user explicitly accepted the visible green stats, enhancement presentation and broader recovered gear UI in the refreshed DevTools preview."
     },
     {
       "id": "partial-item-stat-evidence",
@@ -161,6 +170,6 @@
     "artifacts/releases/2026-07-24-taro-gear-editor-recovery/evidence.json",
     "artifacts/releases/2026-07-25-gear-slot-information-hierarchy/evidence.json"
   ],
-  "summary": "The active gear UI correction is locally verified and the exact source-bound 214-file WeChat package has been rebuilt and refreshed in DevTools. The candidate remains open because its three real-WeChat acceptance items are pending and the Automator endpoint was unavailable.",
-  "updatedAt": "2026-07-28T12:05:00+08:00"
+  "summary": "The active gear UI correction is locally and runtime verified. The exact source-bound 214-file WeChat package was rebuilt and refreshed in DevTools, and the user accepted all three frozen real-WeChat items on 2026-07-28. Merge and archive closure remain pending.",
+  "updatedAt": "2026-07-28T12:37:00+08:00"
 }

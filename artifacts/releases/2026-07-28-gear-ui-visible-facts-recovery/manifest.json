@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-28T04:05:41.233Z",
+  "generatedAt": "2026-07-28T04:39:51.454Z",
   "release": {
     "date": "2026-07-28",
     "slug": "gear-ui-visible-facts-recovery"
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-28-gear-ui-visible-facts-recovery/evidence.json",
-    "sizeBytes": 7293,
+    "sizeBytes": 8054,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -390,9 +390,9 @@
       "summary"
     ],
     "missingFields": [],
-    "declaredStatus": "local_verified",
-    "highestEvidenceLevel": "local_verified",
-    "summary": "The active gear UI correction is locally verified and the exact source-bound 214-file WeChat package has been rebuilt and refreshed in DevTools. The candidate remains open because its three real-WeChat acceptance items are pending and the Automator endpoint was unavailable."
+    "declaredStatus": "runtime_verified",
+    "highestEvidenceLevel": "runtime_verified",
+    "summary": "The active gear UI correction is locally and runtime verified. The exact source-bound 214-file WeChat package was rebuilt and refreshed in DevTools, and the user accepted all three frozen real-WeChat items on 2026-07-28. Merge and archive closure remain pending."
   },
   "evidence": {
     "localTests": {
@@ -455,7 +455,7 @@
       "status": "dirty",
       "changedFileCount": 1,
       "changedFiles": [
-        "?? artifacts/releases/2026-07-28-gear-ui-visible-facts-recovery/evidence.json"
+        " M artifacts/releases/2026-07-28-gear-ui-visible-facts-recovery/evidence.json"
       ]
     }
   },
