@@ -10886,6 +10886,138 @@ class PostgresCacheStoreTest(unittest.TestCase):
             "legacy-variant-a",
         )
 
+    def test_manifest_v2_import_rebinds_unique_verified_item_level_fallback(self):
+        from server.postgres_cache_store import (
+            _rebind_import_source_to_manifest_catalog,
+        )
+
+        catalog_revision = "gear-catalog:sha256:" + ("a" * 64)
+        browse_key = "browse-variant:sha256:" + ("c" * 64)
+        binding = {
+            "manifest": {
+                "schemaRevision": "active-season-manifest-v2",
+                "seasonRevision": "season-17",
+                "gearCatalogRevision": catalog_revision,
+            },
+            "gearCatalog": {
+                "catalogRevision": catalog_revision,
+                "browseVariants": [{
+                    "browseVariantKey": browse_key,
+                    "itemId": "item-a",
+                    "itemLevel": 298,
+                    "evidenceStatus": "verified",
+                    "sourceVariantKeys": ["void_upgrade-298"],
+                }],
+            },
+        }
+        source = {
+            "selectionIntent": {
+                "authoredAgainst": {},
+                "slots": {
+                    "head": {
+                        "itemId": "item-a",
+                        "variantKey": "observed-profile-variant",
+                    }
+                },
+            },
+            "importedGearBySlot": {
+                "head": {
+                    "itemId": "item-a",
+                    "variantKey": "observed-profile-variant",
+                    "itemLevel": 298,
+                }
+            },
+        }
+
+        rebound = _rebind_import_source_to_manifest_catalog(
+            source,
+            binding,
+        )
+
+        self.assertEqual(
+            rebound["selectionIntent"]["slots"]["head"]["variantKey"],
+            browse_key,
+        )
+        self.assertEqual(
+            rebound["importedGearBySlot"]["head"]["variantKey"],
+            browse_key,
+        )
+        self.assertEqual(
+            source["importedGearBySlot"]["head"]["variantKey"],
+            "observed-profile-variant",
+        )
+
+    def test_manifest_v2_item_level_fallback_fails_closed_when_ambiguous_or_missing(self):
+        from server.postgres_cache_store import (
+            _rebind_import_source_to_manifest_catalog,
+        )
+
+        catalog_revision = "gear-catalog:sha256:" + ("a" * 64)
+        base_binding = {
+            "manifest": {
+                "schemaRevision": "active-season-manifest-v2",
+                "seasonRevision": "season-17",
+                "gearCatalogRevision": catalog_revision,
+            },
+            "gearCatalog": {
+                "catalogRevision": catalog_revision,
+                "browseVariants": [
+                    {
+                        "browseVariantKey": "browse-a",
+                        "itemId": "item-a",
+                        "itemLevel": 298,
+                        "evidenceStatus": "verified",
+                        "sourceVariantKeys": ["source-a"],
+                    },
+                    {
+                        "browseVariantKey": "browse-b",
+                        "itemId": "item-a",
+                        "itemLevel": 298,
+                        "evidenceStatus": "verified",
+                        "sourceVariantKeys": ["source-b"],
+                    },
+                ],
+            },
+        }
+        source = {
+            "selectionIntent": {
+                "authoredAgainst": {},
+                "slots": {
+                    "head": {
+                        "itemId": "item-a",
+                        "variantKey": "observed-profile-variant",
+                    }
+                },
+            },
+            "importedGearBySlot": {
+                "head": {
+                    "itemId": "item-a",
+                    "variantKey": "observed-profile-variant",
+                    "itemLevel": 298,
+                }
+            },
+        }
+
+        with self.assertRaisesRegex(
+            RuntimeError,
+            "unique verified item-level",
+        ):
+            _rebind_import_source_to_manifest_catalog(
+                source,
+                base_binding,
+            )
+
+        missing_binding = copy.deepcopy(base_binding)
+        missing_binding["gearCatalog"]["browseVariants"] = []
+        with self.assertRaisesRegex(
+            RuntimeError,
+            "unique verified item-level",
+        ):
+            _rebind_import_source_to_manifest_catalog(
+                source,
+                missing_binding,
+            )
+
     def test_community_import_manifest_mismatch_prevents_scoped_read(self):
         from server import postgres_cache_store
         from server.postgres_cache_store import CommunityTemplateImportError

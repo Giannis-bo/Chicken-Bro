@@ -2,7 +2,6 @@ import copy
 import importlib.util
 from pathlib import Path
 import unittest
-from unittest.mock import patch
 
 from tests.gear_resolved_loadout_test import (
     TEMPLATE_HASH,
@@ -28,9 +27,10 @@ SPEC.loader.exec_module(MODULE)
 
 def template(content_hash, marker):
     return {
-        "contentHash": content_hash,
+        "templateContentHash": content_hash,
         "classKey": "mage",
         "specKey": "arcane",
+        "importStatus": "verified",
         "selectionIntent": {
             "schemaRevision": "selection-intent-v1",
             "eligibilityContext": {
@@ -60,33 +60,37 @@ class GearResolvedSnapshotShadowTest(unittest.TestCase):
         sealed_loadouts = []
         sealed_snapshots = []
 
-        with patch.object(
-            MODULE,
-            "template_content_hash",
-            side_effect=lambda row: row["contentHash"],
-        ):
-            report = MODULE.run_shadow(
-                templates=[
-                    template(TEMPLATE_HASH, "ready"),
-                    template(partial_hash, "partial"),
-                ],
-                exact_registry=registry,
-                resolver_reader=lambda _intent: resolver_snapshot(),
-                snapshot_reader=lambda _loadout, _template: snapshot(),
-                seal_loadout=lambda value: (
-                    sealed_loadouts.append(value) or value
-                ),
-                seal_snapshot=lambda value: (
-                    sealed_snapshots.append(value) or value
-                ),
-                pointer_before={"generation": 32},
-                pointer_after_reader=lambda: {"generation": 32},
-                observed_at="2026-07-29T00:00:00Z",
-                expected_template_count=2,
-                expected_spec_count=1,
-                expected_supported_spec_count=1,
-                expected_unsupported_spec_count=0,
-            )
+        report = MODULE.run_shadow(
+            templates=[
+                template(TEMPLATE_HASH, "ready"),
+                {
+                    **template(partial_hash, "partial"),
+                    "importStatus": "blocked",
+                    "importProblemCodes": [
+                        "LOADOUT_EXACT_REFERENCE_NOT_VERIFIED"
+                    ],
+                },
+            ],
+            exact_registry=registry,
+            resolver_reader=lambda _template: resolver_snapshot(),
+            snapshot_reader=lambda _loadout, _template: snapshot(),
+            seal_loadout=lambda value: (
+                sealed_loadouts.append(value) or value
+            ),
+            seal_snapshot=lambda value: (
+                sealed_snapshots.append(value) or value
+            ),
+            pointer_before={"generation": 32},
+            pointer_after_reader=lambda: {"generation": 32},
+            observed_at="2026-07-29T00:00:00Z",
+            expected_template_count=2,
+            expected_spec_count=1,
+            expected_supported_spec_count=1,
+            expected_unsupported_spec_count=0,
+            expected_ready_loadout_count=1,
+            expected_ready_snapshot_count=1,
+            expected_unsupported_snapshot_count=0,
+        )
 
         self.assertEqual(report["status"], "verified")
         self.assertEqual(report["summary"]["classifiedTemplateCount"], 2)
@@ -104,26 +108,24 @@ class GearResolvedSnapshotShadowTest(unittest.TestCase):
         )
 
     def test_pointer_change_blocks_otherwise_complete_shadow(self):
-        with patch.object(
-            MODULE,
-            "template_content_hash",
-            return_value=TEMPLATE_HASH,
-        ):
-            report = MODULE.run_shadow(
-                templates=[template(TEMPLATE_HASH, "ready")],
-                exact_registry=exact_registry(),
-                resolver_reader=lambda _intent: resolver_snapshot(),
-                snapshot_reader=lambda _loadout, _template: snapshot(),
-                seal_loadout=lambda value: value,
-                seal_snapshot=lambda value: value,
-                pointer_before={"generation": 32},
-                pointer_after_reader=lambda: {"generation": 33},
-                observed_at="2026-07-29T00:00:00Z",
-                expected_template_count=1,
-                expected_spec_count=1,
-                expected_supported_spec_count=1,
-                expected_unsupported_spec_count=0,
-            )
+        report = MODULE.run_shadow(
+            templates=[template(TEMPLATE_HASH, "ready")],
+            exact_registry=exact_registry(),
+            resolver_reader=lambda _template: resolver_snapshot(),
+            snapshot_reader=lambda _loadout, _template: snapshot(),
+            seal_loadout=lambda value: value,
+            seal_snapshot=lambda value: value,
+            pointer_before={"generation": 32},
+            pointer_after_reader=lambda: {"generation": 33},
+            observed_at="2026-07-29T00:00:00Z",
+            expected_template_count=1,
+            expected_spec_count=1,
+            expected_supported_spec_count=1,
+            expected_unsupported_spec_count=0,
+            expected_ready_loadout_count=1,
+            expected_ready_snapshot_count=1,
+            expected_unsupported_snapshot_count=0,
+        )
 
         self.assertEqual(report["status"], "blocked")
         self.assertIn(
@@ -132,30 +134,59 @@ class GearResolvedSnapshotShadowTest(unittest.TestCase):
         )
 
     def test_missing_supported_spec_snapshot_coverage_blocks_shadow(self):
-        with patch.object(
-            MODULE,
-            "template_content_hash",
-            return_value=TEMPLATE_HASH,
-        ):
-            report = MODULE.run_shadow(
-                templates=[template(TEMPLATE_HASH, "ready")],
-                exact_registry=exact_registry(),
-                resolver_reader=lambda _intent: resolver_snapshot(),
-                snapshot_reader=lambda _loadout, _template: snapshot(),
-                seal_loadout=lambda value: value,
-                seal_snapshot=lambda value: value,
-                pointer_before={"generation": 32},
-                pointer_after_reader=lambda: {"generation": 32},
-                observed_at="2026-07-29T00:00:00Z",
-                expected_template_count=1,
-                expected_spec_count=1,
-                expected_supported_spec_count=2,
-                expected_unsupported_spec_count=0,
-            )
+        report = MODULE.run_shadow(
+            templates=[template(TEMPLATE_HASH, "ready")],
+            exact_registry=exact_registry(),
+            resolver_reader=lambda _template: resolver_snapshot(),
+            snapshot_reader=lambda _loadout, _template: snapshot(),
+            seal_loadout=lambda value: value,
+            seal_snapshot=lambda value: value,
+            pointer_before={"generation": 32},
+            pointer_after_reader=lambda: {"generation": 32},
+            observed_at="2026-07-29T00:00:00Z",
+            expected_template_count=1,
+            expected_spec_count=1,
+            expected_supported_spec_count=2,
+            expected_unsupported_spec_count=0,
+            expected_ready_loadout_count=1,
+            expected_ready_snapshot_count=1,
+            expected_unsupported_snapshot_count=0,
+        )
 
         self.assertEqual(report["status"], "blocked")
         self.assertIn(
             "RESOLVED_SHADOW_SUPPORTED_SPEC_COVERAGE_INCOMPLETE",
+            report["problemCodes"],
+        )
+
+    def test_zero_ready_loadouts_cannot_be_reported_verified(self):
+        blocked_template = {
+            **template(TEMPLATE_HASH, "blocked"),
+            "importStatus": "blocked",
+            "importProblemCodes": ["template_import_blocked"],
+        }
+        report = MODULE.run_shadow(
+            templates=[blocked_template],
+            exact_registry=exact_registry(),
+            resolver_reader=lambda _template: resolver_snapshot(),
+            snapshot_reader=lambda _loadout, _template: snapshot(),
+            seal_loadout=lambda value: value,
+            seal_snapshot=lambda value: value,
+            pointer_before={"generation": 32},
+            pointer_after_reader=lambda: {"generation": 32},
+            observed_at="2026-07-29T00:00:00Z",
+            expected_template_count=1,
+            expected_spec_count=1,
+            expected_supported_spec_count=1,
+            expected_unsupported_spec_count=0,
+            expected_ready_loadout_count=1,
+            expected_ready_snapshot_count=1,
+            expected_unsupported_snapshot_count=0,
+        )
+
+        self.assertEqual(report["status"], "blocked")
+        self.assertIn(
+            "RESOLVED_SHADOW_READY_LOADOUT_COUNT_MISMATCH",
             report["problemCodes"],
         )
 

@@ -23,15 +23,17 @@ if str(REPOSITORY_ROOT) not in sys.path:
     sys.path.insert(0, str(REPOSITORY_ROOT))
 
 from server.gear_catalog_audit_store import GearCatalogAuditStore  # noqa: E402
-from server.gear_exact_item_registry import template_content_hash  # noqa: E402
-from server.gear_resolved_loadout import build_resolved_loadout  # noqa: E402
-from server.gear_resolver import resolve  # noqa: E402
+from server.gear_resolved_loadout import (  # noqa: E402
+    build_resolved_loadout_from_registry,
+)
 from server.postgres_cache_store import PostgresCacheStore  # noqa: E402
 from server.simc_support_policy import simc_execution_support  # noqa: E402
 from server.simulation_snapshot_compat import (  # noqa: E402
     snapshot_from_compatibility_profile,
 )
-from server.websim_payload import gear_resolver_runtime_authority  # noqa: E402
+from server.websim_payload import (  # noqa: E402
+    build_websim_profile_response_from_resolved_snapshot,
+)
 
 
 MAX_SECONDS = 300.0
@@ -90,34 +92,61 @@ def run_shadow(
     expected_spec_count: int = 40,
     expected_supported_spec_count: int = 26,
     expected_unsupported_spec_count: int = 14,
+    expected_ready_loadout_count: int = 8,
+    expected_ready_snapshot_count: int = 4,
+    expected_unsupported_snapshot_count: int = 4,
 ) -> dict[str, Any]:
     started = time.monotonic()
     rows: list[dict[str, Any]] = []
     for raw_template in templates:
         template = _mapping(raw_template)
-        intent = _mapping(template.get("selectionIntent"))
-        content_hash = template_content_hash(template)
-        try:
-            first_resolver = _mapping(resolver_reader(intent))
-            second_resolver = _mapping(resolver_reader(intent))
-            first_loadout = build_resolved_loadout(
-                resolver_snapshot=first_resolver,
-                exact_registry=exact_registry,
-                template_scope="community",
-                template_content_hash=content_hash,
+        content_hash = _text(template.get("templateContentHash")) or _hash(
+            "sha256:",
+            {
+                "classKey": _text(template.get("classKey")),
+                "specKey": _text(template.get("specKey")),
+                "templateId": _text(
+                    template.get("templateId") or template.get("id")
+                ),
+            },
+        )
+        import_status = _text(template.get("importStatus")) or "verified"
+        if import_status != "verified":
+            import_problem_codes = sorted(
+                {
+                    _text(code)
+                    for code in template.get("importProblemCodes") or []
+                    if _text(code)
+                }
             )
-            second_loadout = build_resolved_loadout(
-                resolver_snapshot=second_resolver,
-                exact_registry=exact_registry,
-                template_scope="community",
-                template_content_hash=content_hash,
-            )
-        except Exception:
             first_loadout = {
                 "status": "blocked",
-                "problemCodes": ["RESOLVED_SHADOW_RESOLVER_FAILED"],
+                "problemCodes": (
+                    import_problem_codes
+                    or ["RESOLVED_SHADOW_IMPORT_BLOCKED"]
+                ),
             }
             second_loadout = first_loadout
+        else:
+            try:
+                first_resolver = _mapping(resolver_reader(template))
+                second_resolver = _mapping(resolver_reader(template))
+                first_loadout = build_resolved_loadout_from_registry(
+                    resolver_snapshot=first_resolver,
+                    exact_registry=exact_registry,
+                    template_scope="community",
+                )
+                second_loadout = build_resolved_loadout_from_registry(
+                    resolver_snapshot=second_resolver,
+                    exact_registry=exact_registry,
+                    template_scope="community",
+                )
+            except Exception:
+                first_loadout = {
+                    "status": "blocked",
+                    "problemCodes": ["RESOLVED_SHADOW_RESOLVER_FAILED"],
+                }
+                second_loadout = first_loadout
 
         deterministic_loadout = first_loadout == second_loadout
         snapshot_status = "not_applicable"
@@ -241,6 +270,11 @@ def run_shadow(
             ),
             "expectedSupportedSpecCount": expected_supported_spec_count,
             "expectedUnsupportedSpecCount": expected_unsupported_spec_count,
+            "expectedReadyLoadoutCount": expected_ready_loadout_count,
+            "expectedReadySnapshotCount": expected_ready_snapshot_count,
+            "expectedUnsupportedSnapshotCount": (
+                expected_unsupported_snapshot_count
+            ),
         },
         "deterministic": {
             "loadouts": all(row["deterministicLoadout"] for row in rows),
@@ -261,6 +295,18 @@ def run_shadow(
     if len(classified_unsupported_specs) != expected_unsupported_spec_count:
         problem_codes.add(
             "RESOLVED_SHADOW_UNSUPPORTED_SPEC_COVERAGE_INCOMPLETE"
+        )
+    if len(ready_rows) != expected_ready_loadout_count:
+        problem_codes.add(
+            "RESOLVED_SHADOW_READY_LOADOUT_COUNT_MISMATCH"
+        )
+    if len(ready_snapshots) != expected_ready_snapshot_count:
+        problem_codes.add(
+            "RESOLVED_SHADOW_READY_SNAPSHOT_COUNT_MISMATCH"
+        )
+    if len(unsupported_snapshots) != expected_unsupported_snapshot_count:
+        problem_codes.add(
+            "RESOLVED_SHADOW_UNSUPPORTED_SNAPSHOT_COUNT_MISMATCH"
         )
     if not stable["pointerStable"]:
         problem_codes.add("RESOLVED_SHADOW_POINTER_CHANGED")
@@ -307,6 +353,7 @@ class ProfileReader:
         self.options = self._request("GET", "/api/simulator/simc/options")
         races = _mapping(self.options.get("races"))
         self.default_races = _mapping(races.get("defaultByClass"))
+        self.browse: dict[tuple[str, str], dict[str, Any]] = {}
         self.heroes: dict[tuple[str, str], list[str]] = {}
         self.talents: dict[tuple[str, str, str], str] = {}
 
@@ -344,10 +391,14 @@ class ProfileReader:
             raise RuntimeError("profile response is not an object")
         return decoded
 
-    def _talent_import(self, class_key: str, spec_key: str) -> str:
+    def _browse_spec(
+        self,
+        class_key: str,
+        spec_key: str,
+    ) -> dict[str, Any]:
         pair = (class_key, spec_key)
-        if pair not in self.heroes:
-            browse = self._request(
+        if pair not in self.browse:
+            self.browse[pair] = self._request(
                 "GET",
                 "/api/websim/gear?"
                 + urlencode(
@@ -359,6 +410,102 @@ class ProfileReader:
                     }
                 ),
             )
+        return self.browse[pair]
+
+    def import_template(
+        self,
+        template: Mapping[str, Any],
+    ) -> dict[str, Any]:
+        class_key = _text(template.get("classKey"))
+        spec_key = _text(template.get("specKey"))
+        template_id = _text(
+            template.get("templateId") or template.get("id")
+        )
+        stable = {
+            "templateContentHash": _text(
+                template.get("templateContentHash")
+                or template.get("contentHash")
+            ),
+            "templateId": template_id,
+            "classKey": class_key,
+            "specKey": spec_key,
+        }
+        try:
+            browse = self._browse_spec(class_key, spec_key)
+            manifest_revision = _text(
+                browse.get("manifestRevision")
+            )
+            matches = [
+                row
+                for row in browse.get("communityTemplates") or []
+                if (
+                    isinstance(row, Mapping)
+                    and _text(row.get("id")) == template_id
+                    and _text(row.get("classKey")) == class_key
+                    and _text(row.get("specKey")) == spec_key
+                )
+            ]
+            if len(matches) != 1 or not manifest_revision:
+                return {
+                    **stable,
+                    "importStatus": "blocked",
+                    "importProblemCodes": [
+                        "RESOLVED_SHADOW_TEMPLATE_NOT_BROWSABLE"
+                    ],
+                }
+            envelope = self._request(
+                "POST",
+                "/api/websim/gear/community-import",
+                {
+                    "classKey": class_key,
+                    "specKey": spec_key,
+                    "templateId": template_id,
+                    "expectedManifestRevision": manifest_revision,
+                },
+            )
+        except Exception:
+            return {
+                **stable,
+                "importStatus": "unavailable",
+                "importProblemCodes": [
+                    "RESOLVED_SHADOW_IMPORT_REQUEST_FAILED"
+                ],
+            }
+        data = _mapping(envelope.get("data"))
+        snapshot = _mapping(data.get("resolvedSnapshot"))
+        status = _text(envelope.get("status"))
+        problem_codes = sorted(
+            {
+                _text(problem.get("code"))
+                for problem in envelope.get("problems") or []
+                if isinstance(problem, Mapping)
+                and _text(problem.get("code"))
+            }
+        )
+        if (
+            status == "verified"
+            and data.get("status") == "verified"
+            and snapshot.get("status") == "verified"
+        ):
+            return {
+                **stable,
+                "importStatus": "verified",
+                "importProblemCodes": [],
+                "resolvedSnapshot": snapshot,
+            }
+        return {
+            **stable,
+            "importStatus": status or "blocked",
+            "importProblemCodes": (
+                problem_codes
+                or ["RESOLVED_SHADOW_IMPORT_BLOCKED"]
+            ),
+        }
+
+    def _talent_import(self, class_key: str, spec_key: str) -> str:
+        pair = (class_key, spec_key)
+        if pair not in self.heroes:
+            browse = self._browse_spec(class_key, spec_key)
             self.heroes[pair] = sorted(
                 {
                     _text(row.get("heroKey"))
@@ -392,27 +539,19 @@ class ProfileReader:
         if not support.get("supported"):
             return ""
         talent = self._talent_import(class_key, spec_key)
-        response = self._request(
-            "POST",
-            "/api/websim/profile",
-            {
-                "selectionIntent": _mapping(
-                    template.get("selectionIntent")
-                ),
-                "profileContext": {
-                    "classKey": class_key,
-                    "specKey": spec_key,
-                    "race": _text(self.default_races.get(class_key)),
-                    "scenarioKey": "single",
-                    "talents": talent,
-                },
+        response = build_websim_profile_response_from_resolved_snapshot(
+            _mapping(template.get("resolvedSnapshot")),
+            source_context={
+                "classKey": class_key,
+                "specKey": spec_key,
+                "race": _text(self.default_races.get(class_key)),
+                "scenarioKey": "single",
+                "talents": talent,
             },
         )
-        data = _mapping(response.get("data"))
-        profile = data.get("profile")
+        profile = response.get("profile")
         if (
             response.get("status") != "resolved"
-            or data.get("status") != "resolved"
             or not isinstance(profile, str)
             or not profile.strip()
         ):
@@ -453,15 +592,33 @@ def main(argv: list[str] | None = None) -> int:
         pointer_before = _mapping(audit.get("pointerBefore"))
         registry = cache_store.get_active_gear_exact_registry()
 
-        def resolver_reader(intent):
-            eligibility = _mapping(intent.get("eligibilityContext"))
-            runtime = gear_resolver_runtime_authority(
-                eligibility.get("classKey"),
-                eligibility.get("specKey"),
-                simc_runtime_revision=args.simc_runtime_revision,
-            )
-            context = cache_store.get_gear_authority_context(intent, runtime)
-            return resolve(intent, context)
+        imported_templates = []
+        for row in audit.get("communityTemplates") or []:
+            if not isinstance(row, Mapping):
+                continue
+            first_import = profile_reader.import_template(row)
+            second_import = profile_reader.import_template(row)
+            if first_import == second_import:
+                imported_templates.append(first_import)
+                continue
+            imported_templates.append({
+                "templateContentHash": _text(
+                    row.get("templateContentHash")
+                    or row.get("contentHash")
+                ),
+                "templateId": _text(
+                    row.get("templateId") or row.get("id")
+                ),
+                "classKey": _text(row.get("classKey")),
+                "specKey": _text(row.get("specKey")),
+                "importStatus": "blocked",
+                "importProblemCodes": [
+                    "RESOLVED_SHADOW_IMPORT_NONDETERMINISTIC"
+                ],
+            })
+
+        def resolver_reader(template):
+            return _mapping(template.get("resolvedSnapshot"))
 
         def snapshot_reader(loadout, template):
             class_key = _text(template.get("classKey"))
@@ -489,11 +646,7 @@ def main(argv: list[str] | None = None) -> int:
             )
 
         report = run_shadow(
-            templates=[
-                row
-                for row in audit.get("communityTemplates") or []
-                if isinstance(row, Mapping)
-            ],
+            templates=imported_templates,
             exact_registry=registry,
             resolver_reader=resolver_reader,
             snapshot_reader=snapshot_reader,

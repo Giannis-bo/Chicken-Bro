@@ -760,6 +760,7 @@ def _rebind_import_source_to_manifest_catalog(source, binding):
             "Manifest v2 Community import Catalog binding is invalid"
         )
     aliases = {}
+    item_level_candidates = {}
     for row in catalog.get("browseVariants") or []:
         variant = row if isinstance(row, dict) else {}
         browse_key = str(
@@ -768,6 +769,15 @@ def _rebind_import_source_to_manifest_catalog(source, binding):
         item_id = str(variant.get("itemId") or "").strip()
         if not browse_key or not item_id:
             continue
+        item_level = _int_value(variant.get("itemLevel"))
+        if (
+            variant.get("evidenceStatus") == "verified"
+            and item_level > 0
+        ):
+            item_level_candidates.setdefault(
+                (item_id, item_level),
+                set(),
+            ).add(browse_key)
         for source_key in {
             browse_key,
             *[
@@ -784,7 +794,12 @@ def _rebind_import_source_to_manifest_catalog(source, binding):
                 )
             aliases[alias_key] = browse_key
     slots = intent.get("slots") if isinstance(intent.get("slots"), dict) else {}
-    for selection in slots.values():
+    imported_by_slot = (
+        result.get("importedGearBySlot")
+        if isinstance(result.get("importedGearBySlot"), dict)
+        else {}
+    )
+    for slot, selection in slots.items():
         if not isinstance(selection, dict):
             continue
         item_id = str(selection.get("itemId") or "").strip()
@@ -793,10 +808,36 @@ def _rebind_import_source_to_manifest_catalog(source, binding):
         ).strip()
         browse_key = aliases.get((item_id, variant_key))
         if not browse_key:
-            raise RuntimeError(
-                "Manifest Catalog does not contain the Community selection"
+            imported = (
+                imported_by_slot.get(slot)
+                if isinstance(imported_by_slot.get(slot), dict)
+                else {}
             )
+            imported_item_id = str(
+                imported.get("itemId") or ""
+            ).strip()
+            item_level = _int_value(
+                imported.get("itemLevel")
+                or imported.get("ilevel")
+            )
+            candidates = item_level_candidates.get(
+                (item_id, item_level),
+                set(),
+            )
+            if (
+                imported_item_id != item_id
+                or item_level <= 0
+                or len(candidates) != 1
+            ):
+                raise RuntimeError(
+                    "Manifest Catalog has no unique verified item-level "
+                    "mapping for the Community selection"
+                )
+            browse_key = next(iter(candidates))
         selection["variantKey"] = browse_key
+        imported = imported_by_slot.get(slot)
+        if isinstance(imported, dict):
+            imported["variantKey"] = browse_key
     intent["authoredAgainst"] = {
         "seasonRevision": str(
             manifest.get("seasonRevision") or ""
@@ -804,6 +845,8 @@ def _rebind_import_source_to_manifest_catalog(source, binding):
         "gearCatalogRevision": catalog_revision,
     }
     result["selectionIntent"] = intent
+    if imported_by_slot:
+        result["importedGearBySlot"] = imported_by_slot
     return result
 
 
