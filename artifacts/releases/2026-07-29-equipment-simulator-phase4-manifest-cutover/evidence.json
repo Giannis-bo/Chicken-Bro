@@ -2,18 +2,19 @@
   "schemaVersion": 2,
   "slug": "equipment-simulator-phase4-manifest-cutover",
   "requirementSlug": "equipment-simulator-phase4-manifest-cutover",
-  "status": "implementation_allowed",
-  "highestEvidenceLevel": "implementation_allowed",
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
   "branch": "codex/equipment-simulator-phase4-manifest-cutover",
-  "commit": "ae537ff5bdfcca1984459747b909dcbcb59b5046",
+  "commit": "23a7452074e746170db4543a77717e6ce74d58d6",
   "identities": {
     "runtime": {
       "status": "pending",
       "reason": "Implementation has not yet produced an immutable runtime commit."
     },
     "verification": {
-      "status": "pending",
-      "reason": "Verification will bind exact HEAD after implementation."
+      "status": "bound_at_check",
+      "kind": "git_ref",
+      "value": "HEAD"
     },
     "closure": {
       "status": "pending",
@@ -41,13 +42,13 @@
   "verification": [
     {
       "command": "Manifest v2 and store TDD suites",
-      "status": "not_run",
-      "summary": "Pending implementation."
+      "status": "pass",
+      "summary": "598 affected backend tests pass. Manifest v2 identity, PostgreSQL migration, append-only Exact header, repeatable-read active/candidate binding, v1 rollback compatibility, Catalog public projection, Community import rebinding, Profile/Snapshot/task Exact binding and owned health all pass."
     },
     {
       "command": "Consumer, caller and bounded shadow suites",
-      "status": "not_run",
-      "summary": "Pending implementation."
+      "status": "pass",
+      "summary": "The dedicated gear-manifest-v2-reader audit is verified with prohibitedCallerCount=0 and reportId gear-manifest-v2-readers:sha256:f5b5e59bf9ac1867af5d3de76883e4b62dac217e36ab69028ce6e04e280ee3de. The single remaining load_active_public_gear reference is explicitly scoped to Manifest v1 rollback."
     },
     {
       "command": "backend and full Harness profiles",
@@ -95,5 +96,5 @@
   "archivedReferences": [
     "artifacts/releases/2026-07-29-equipment-simulator-phase3-resolved-snapshot/evidence.json"
   ],
-  "summary": "Strict Phase 4 is authorized and implementation has not started. Generation 32 remains active; the task must bind Catalog and Exact Registry in Manifest v2, cut all active consumers, prove zero legacy runtime callers, then complete candidate, CAS, rollback/restore, WeChat and three-party closure."
+  "summary": "Manifest v2 implementation is sealed at immutable commit 23a74520 and affected local verification passes. Generation 32 remains active and unchanged. Full exact-HEAD verification, candidate database/runtime validation, CAS promotion, rollback/restore, official WeChat self-test, PR/merge/deploy parity and archive remain pending."
 }

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-28T22:21:45.455Z",
+  "generatedAt": "2026-07-28T22:44:07.673Z",
   "release": {
     "date": "2026-07-29",
     "slug": "equipment-simulator-phase4-manifest-cutover"
@@ -105,13 +105,13 @@
         {
           "path": "server/news_backend.py",
           "exists": true,
-          "lineCount": 14166,
+          "lineCount": 14185,
           "hotspot": true
         },
         {
           "path": "server/postgres_cache_store.py",
           "exists": true,
-          "lineCount": 8604,
+          "lineCount": 8918,
           "hotspot": true
         }
       ],
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-29-equipment-simulator-phase4-manifest-cutover/evidence.json",
-    "sizeBytes": 3651,
+    "sizeBytes": 4180,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -390,9 +390,9 @@
       "summary"
     ],
     "missingFields": [],
-    "declaredStatus": "implementation_allowed",
-    "highestEvidenceLevel": "implementation_allowed",
-    "summary": "Strict Phase 4 is authorized and implementation has not started. Generation 32 remains active; the task must bind Catalog and Exact Registry in Manifest v2, cut all active consumers, prove zero legacy runtime callers, then complete candidate, CAS, rollback/restore, WeChat and three-party closure."
+    "declaredStatus": "local_verified",
+    "highestEvidenceLevel": "local_verified",
+    "summary": "Manifest v2 implementation is sealed at immutable commit 23a74520 and affected local verification passes. Generation 32 remains active and unchanged. Full exact-HEAD verification, candidate database/runtime validation, CAS promotion, rollback/restore, official WeChat self-test, PR/merge/deploy parity and archive remain pending."
   },
   "evidence": {
     "localTests": {
@@ -417,13 +417,13 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "6 changed files currently visible to git status."
+      "detail": "1 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
       "severity": "medium",
       "status": "watch",
-      "detail": "server/websim_payload.py:27186, server/news_backend.py:14166, server/postgres_cache_store.py:8604"
+      "detail": "server/websim_payload.py:27186, server/news_backend.py:14185, server/postgres_cache_store.py:8918"
     },
     {
       "id": "localTests_missing",
@@ -453,14 +453,9 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 6,
+      "changedFileCount": 1,
       "changedFiles": [
-        " M docs/plans/README.md",
-        " M docs/project-state.json",
-        " M docs/roadmap.md",
-        " M tests/project-state.test.js",
-        "?? artifacts/releases/2026-07-29-equipment-simulator-phase4-manifest-cutover/",
-        "?? docs/plans/2026-07-29-equipment-simulator-phase4-manifest-cutover.md"
+        " M artifacts/releases/2026-07-29-equipment-simulator-phase4-manifest-cutover/evidence.json"
       ]
     }
   },
