@@ -1,6 +1,6 @@
 # 装备模拟目标架构
 
-状态：`已批准，待实施规划`
+状态：`已批准，Phase 0 实施计划待审阅`
 
 批准日期：`2026-07-28`
 
@@ -399,6 +399,7 @@ active hot payload
 
 ## 14. 设计批准后的下一步
 
-本文件只定义目标架构，不授权立即运行 Release Builder、写数据库或部署。下一步应基于
-当前代码和生产只读证据编写分阶段实施计划；实施计划必须先完成 `risk_unknown` 盘点、
-资源基线和迁移 impact map，再决定具体 schema/API 切片。
+本文件只定义目标架构，不授权立即运行 Release Builder、写数据库或部署。第一份
+[Phase 0 实施计划](2026-07-28-equipment-simulator-catalog-migration-phase0-implementation.md)
+只完成 `risk_unknown` 盘点、资源基线和迁移 impact map；其审计结果决定后续只能进入
+纯合同、可以进入 dormant schema/shadow，还是必须先停下解决 blocker。

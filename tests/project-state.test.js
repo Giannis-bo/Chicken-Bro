@@ -98,6 +98,15 @@ test('project-state is the single machine-readable current truth entry', () => {
   assert.ok(activeContractIds.has('taro_target_first_14_route_rebuild'))
   assert.ok(activeContractIds.has('observed_build_registry_cutover'))
   assert.ok(activeContractIds.has('equipment_simulator_target_architecture_v1'))
+  assert.ok(activeContractIds.has('equipment_simulator_catalog_migration_phase0'))
+  const catalogMigrationPhase0 = state.activeContracts.find(
+    (entry) => entry.id === 'equipment_simulator_catalog_migration_phase0',
+  )
+  assert.equal(
+    catalogMigrationPhase0?.path,
+    'docs/plans/2026-07-28-equipment-simulator-catalog-migration-phase0-implementation.md',
+  )
+  assert.equal(catalogMigrationPhase0?.status, 'pending_user_review')
   assert.ok(!activeContractIds.has('talent_link_lkg_sync_guard'))
   assert.ok(!activeContractIds.has('community_enhancement_editability'))
   assert.ok(!activeContractIds.has('equipment_simulator_capability_architecture'))

@@ -58,9 +58,16 @@
     {
       "id": "equipment_simulator_target_architecture_v1",
       "path": "docs/plans/2026-07-28-equipment-simulator-target-architecture.md",
-      "status": "approved_pending_implementation_plan",
+      "status": "approved_phase0_plan_pending_review",
       "lifecycle": "active",
       "notes": "Approved target architecture keeps the existing UI, canonical Resolver, template, SimC task and atomic Manifest kernel while redesigning the current-season CatalogRevision, highest-rank BrowseVariant, ExactItemInstance, enhancement identity, deterministic SimulationSnapshot and bounded builder resource contracts."
+    },
+    {
+      "id": "equipment_simulator_catalog_migration_phase0",
+      "path": "docs/plans/2026-07-28-equipment-simulator-catalog-migration-phase0-implementation.md",
+      "status": "pending_user_review",
+      "lifecycle": "active",
+      "notes": "Strict read-only inventory plan that must quantify active Gear Release mapping, community and personal template exactness, 40-spec browse truth, resource baselines and legacy callers before any Catalog schema or API slice is selected."
     }
   ],
   "completedBaselines": [
