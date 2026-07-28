@@ -18,9 +18,10 @@
       "owners": [
         {
           "id": "equipment_simulator_catalog_migration_phase0",
-          "status": "read_only_audit_blocked",
-          "pureClassificationOwner": "server/gear_catalog_migration_audit.py",
-          "readOnlyProjectionOwner": "server/gear_catalog_audit_store.py",
+      "status": "read_only_audit_blocked",
+      "pureClassificationOwner": "server/gear_catalog_migration_audit.py",
+      "trackAuthorityOwner": "server/gear_track_authority.py",
+      "readOnlyProjectionOwner": "server/gear_catalog_audit_store.py",
           "cliOrchestrator": "scripts/gear-catalog-migration-audit.py",
           "callerInventory": "scripts/audit-gear-catalog-callers.js",
           "aggregateEvidence": "artifacts/releases/2026-07-28-equipment-simulator-catalog-migration-phase0/runtime-readonly-audit.json",
@@ -37,8 +38,9 @@
             "Do not persist raw catalog rows, personal identities, raw templates, profiles, database URLs or more than 20 problem samples."
           ],
           "characterization": [
-            "tests/gear_catalog_migration_audit_test.py",
-            "tests/gear_catalog_audit_store_test.py",
+        "tests/gear_catalog_migration_audit_test.py",
+        "tests/gear_track_authority_test.py",
+        "tests/gear_catalog_audit_store_test.py",
             "tests/gear_catalog_migration_audit_cli_test.py",
             "tests/gear-catalog-callers-audit.test.js"
           ],
