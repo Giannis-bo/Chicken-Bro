@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-28T18:35:52.875Z",
+  "generatedAt": "2026-07-28T18:46:12.291Z",
   "release": {
     "date": "2026-07-29",
     "slug": "equipment-simulator-phase1-catalog-contract"
@@ -38,7 +38,7 @@
         {
           "path": "docs/project-state.json",
           "exists": true,
-          "sizeBytes": 39558
+          "sizeBytes": 39268
         },
         {
           "path": "docs/project-owner-map.json",
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-29-equipment-simulator-phase1-catalog-contract/evidence.json",
-    "sizeBytes": 18718,
+    "sizeBytes": 19459,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -390,9 +390,9 @@
       "summary"
     ],
     "missingFields": [],
-    "declaredStatus": "runtime_verified",
-    "highestEvidenceLevel": "runtime_verified",
-    "summary": "Immutable candidate 0fdcf123 and final clean repository HEAD are verified: Catalog gear-catalog:sha256:2addca2f... seals and exactly loads 613 ItemDefinitions plus 1309 BrowseVariants, strict 40/40 shadow has zero unmapped and zero cardinality mismatch with equal 13297 visible totals, resources stay in budget, immutability and runtime parity pass, generation 32 is unchanged, and the full local verification matrix passes. PR CI, merge and archive closure remain."
+    "declaredStatus": "archived",
+    "highestEvidenceLevel": "archived",
+    "summary": "Strict Phase 1 is archived after immutable candidate, exact clean-HEAD, PR CI, merge and three-party closure. Catalog gear-catalog:sha256:2addca2f... seals and exactly loads 613 ItemDefinitions plus 1309 BrowseVariants; strict 40/40 shadow has zero unmapped and zero cardinality mismatch with equal 13297 visible totals; resources, immutability, generation-32 pointer safety, post-merge tests, local/origin parity and cloud SHA/API parity pass. Global data health remains honestly partial under independent owners."
   },
   "evidence": {
     "localTests": {
@@ -417,7 +417,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "2 changed files currently visible to git status."
+      "detail": "3 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
@@ -453,10 +453,11 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 2,
+      "changedFileCount": 3,
       "changedFiles": [
         " M artifacts/releases/2026-07-29-equipment-simulator-phase1-catalog-contract/evidence.json",
-        " M docs/project-state.json"
+        " M docs/project-state.json",
+        " M tests/project-state.test.js"
       ]
     }
   },

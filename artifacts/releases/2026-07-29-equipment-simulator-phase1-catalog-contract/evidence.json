@@ -2,8 +2,8 @@
   "schemaVersion": 2,
   "slug": "equipment-simulator-phase1-catalog-contract",
   "requirementSlug": "equipment-simulator-phase1-catalog-contract",
-  "status": "runtime_verified",
-  "highestEvidenceLevel": "runtime_verified",
+  "status": "archived",
+  "highestEvidenceLevel": "archived",
   "branch": "codex/equipment-simulator-phase1-catalog-contract",
   "commit": "0fdcf123895f02940401e53b39419f29d44204b3",
   "identities": {
@@ -18,8 +18,9 @@
       "value": "HEAD"
     },
     "closure": {
-      "status": "pending",
-      "reason": "PR merge and archive closure have not occurred."
+      "status": "bound",
+      "kind": "merge_commit",
+      "value": "c3b99d554fd594d8ff0ff367045274cc66f08544"
     }
   },
   "manualAcceptance": {
@@ -63,8 +64,13 @@
     },
     {
       "command": "pull request CI",
-      "status": "not_run",
-      "summary": "Runs after the exact-head local Harness check passes and the task branch is published."
+      "status": "pass",
+      "summary": "GitHub Project Harness run 30388293572 completed successfully against PR #104 head 568c16773d72095074e1d8c7deb170ba0299d959."
+    },
+    {
+      "command": "merge and three-party closure",
+      "status": "pass",
+      "summary": "PR #104 merged as c3b99d554fd594d8ff0ff367045274cc66f08544. The merge tree exactly matches the verified PR tree; 56 focused Python tests, 57 control-plane Node tests and the task-scoped Harness pass after merge; local main and origin/main match; five dormant runtime files match cloud SHA-256; /health is verified while /api/data/health remains honestly partial; the task branch and ten transient candidate directories are removed."
     }
   ],
   "candidateDeployment": {
@@ -396,11 +402,11 @@
     "active_manifest_pointer_unchanged"
   ],
   "cleanup": {
-    "required": true,
-    "reason": "Candidate backups, transient reports and the task branch require cleanup after closure."
+    "required": false,
+    "reason": "The local and remote task branches and ten transient cloud candidate directories were removed. The schema/control and pre-copy file backups are intentionally retained as the documented rollback copies."
   },
   "archivedReferences": [
     "artifacts/releases/2026-07-28-equipment-simulator-phase0-unblock/evidence.json"
   ],
-  "summary": "Immutable candidate 0fdcf123 and final clean repository HEAD are verified: Catalog gear-catalog:sha256:2addca2f... seals and exactly loads 613 ItemDefinitions plus 1309 BrowseVariants, strict 40/40 shadow has zero unmapped and zero cardinality mismatch with equal 13297 visible totals, resources stay in budget, immutability and runtime parity pass, generation 32 is unchanged, and the full local verification matrix passes. PR CI, merge and archive closure remain."
+  "summary": "Strict Phase 1 is archived after immutable candidate, exact clean-HEAD, PR CI, merge and three-party closure. Catalog gear-catalog:sha256:2addca2f... seals and exactly loads 613 ItemDefinitions plus 1309 BrowseVariants; strict 40/40 shadow has zero unmapped and zero cardinality mismatch with equal 13297 visible totals; resources, immutability, generation-32 pointer safety, post-merge tests, local/origin parity and cloud SHA/API parity pass. Global data health remains honestly partial under independent owners."
 }

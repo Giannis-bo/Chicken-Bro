@@ -58,9 +58,9 @@
     {
       "id": "equipment_simulator_target_architecture_v1",
       "path": "docs/plans/2026-07-28-equipment-simulator-target-architecture.md",
-      "status": "approved_phase0_closed_phase1_ready",
+      "status": "approved_phase1_closed_phase2_ready",
       "lifecycle": "active",
-      "notes": "The approved target architecture remains active. Phase 0 is archived on retail generation 32 after 1309/1309 canonical Browse mappings, 40/40 specialization browse, 80/80 exact Community imports, 26 supported real SimC executions, 14 deterministic unsupported outcomes, bounded resources, rollback/restoration, delegated official WeChat acceptance, PR CI, merge, latest-main preview refresh and local/origin/cloud parity passed. Phase 1 schema/runtime migration may start."
+      "notes": "The approved target architecture remains active. Phase 0 is archived on retail generation 32 after complete browse, Community, SimC and delegated WeChat matrices. Phase 1 is archived after the dormant CatalogRevision contract sealed 613 ItemDefinitions and 1309 BrowseVariants, strict 40/40 shadow parity, bounded resources, immutability, PR CI, merge and local/origin/cloud parity passed without switching the active pointer. Phase 2 catalog/spec/track/stat/enhancement delivery may start."
     },
     {
       "id": "equipment_simulator_track_authority_correction",
@@ -117,19 +117,17 @@
         "mappedOptionCount": 63
       },
       "notes": "The fresh bounded generation-32 audit uses exact season/rule Track Authority, maps 1309/1309 canonical Browse candidates, verifies all 80 Community ExactItemInstance templates and 40 specializations, records zero unresolved callers and zero source writes, and keeps the active pointer stable. Global data health remains partial under legacy staging/refresh owners and is not represented as a green global-health result."
-    },
-    {
-      "id": "equipment_simulator_phase1_catalog_contract",
-      "path": "docs/plans/2026-07-29-equipment-simulator-phase1-catalog-contract.md",
-      "status": "runtime_verified",
-      "lifecycle": "active",
-      "requirement": "artifacts/releases/2026-07-29-equipment-simulator-phase1-catalog-contract/requirement.json",
-      "evidence": "artifacts/releases/2026-07-29-equipment-simulator-phase1-catalog-contract/evidence.json",
-      "baseCommit": "731bf899618976368a649f1e087b827e642076ef",
-      "notes": "Strict Phase 1 immutable candidate 0fdcf123 is runtime verified. Catalog gear-catalog:sha256:2addca2f... seals and exactly loads 613 ItemDefinitions plus 1309 BrowseVariants; strict 40/40 shadow has zero unmapped/cardinality mismatch and equal 13297 visible totals; resource, immutability, runtime SHA, service/API/timer/rollback and full clean-HEAD local verification gates pass with generation 32 unchanged. PR CI, merge and archive closure remain; global data health stays honestly partial."
     }
   ],
   "completedBaselines": [
+    {
+      "id": "equipment_simulator_phase1_catalog_contract_20260729",
+      "domain": "equipment_simulator_target_architecture_v1_phase1",
+      "status": "completed",
+      "evidence": "artifacts/releases/2026-07-29-equipment-simulator-phase1-catalog-contract/evidence.json",
+      "mergeCommit": "c3b99d554fd594d8ff0ff367045274cc66f08544",
+      "notes": "Strict Phase 1 archived after immutable candidate and exact clean-HEAD verification, 613/1309 sealed Catalog membership, strict 40/40 shadow parity, resource and immutability gates, PR #104 CI/merge, cleanup, and local/origin/cloud SHA/API parity. The generation-32 active pointer never changed and global data health remains honestly partial."
+    },
     {
       "id": "equipment_simulator_phase0_unblock_20260729",
       "domain": "equipment_simulator_target_architecture_v1_phase0",

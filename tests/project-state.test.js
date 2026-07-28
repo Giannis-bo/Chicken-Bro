@@ -102,7 +102,7 @@ test('project-state is the single machine-readable current truth entry', () => {
   assert.ok(activeContractIds.has('equipment_simulator_target_architecture_v1'))
   assert.ok(activeContractIds.has('equipment_simulator_catalog_migration_phase0'))
   assert.ok(activeContractIds.has('equipment_simulator_track_authority_correction'))
-  assert.ok(activeContractIds.has('equipment_simulator_phase1_catalog_contract'))
+  assert.ok(!activeContractIds.has('equipment_simulator_phase1_catalog_contract'))
   const catalogMigrationPhase0 = state.activeContracts.find(
     (entry) => entry.id === 'equipment_simulator_catalog_migration_phase0',
   )
@@ -112,17 +112,9 @@ test('project-state is the single machine-readable current truth entry', () => {
   const equipmentTargetArchitecture = state.activeContracts.find(
     (entry) => entry.id === 'equipment_simulator_target_architecture_v1',
   )
-  const equipmentPhase1Catalog = state.activeContracts.find(
-    (entry) => entry.id === 'equipment_simulator_phase1_catalog_contract',
-  )
   assert.equal(
     equipmentTargetArchitecture?.status,
-    'approved_phase0_closed_phase1_ready',
-  )
-  assert.equal(equipmentPhase1Catalog?.status, 'runtime_verified')
-  assert.equal(
-    equipmentPhase1Catalog?.path,
-    'docs/plans/2026-07-29-equipment-simulator-phase1-catalog-contract.md',
+    'approved_phase1_closed_phase2_ready',
   )
   assert.equal(
     catalogMigrationPhase0?.path,
@@ -250,6 +242,18 @@ test('project-state is the single machine-readable current truth entry', () => {
   )
   assert.equal(harnessV064Closure?.status, 'completed_local_verified')
   assert.equal(harnessV064Closure?.evidence, `${activeHarnessV064Release}/evidence.json`)
+  const equipmentPhase1CatalogClosure = state.completedBaselines.find(
+    (entry) => entry.id === 'equipment_simulator_phase1_catalog_contract_20260729',
+  )
+  assert.equal(equipmentPhase1CatalogClosure?.status, 'completed')
+  assert.equal(
+    equipmentPhase1CatalogClosure?.evidence,
+    'artifacts/releases/2026-07-29-equipment-simulator-phase1-catalog-contract/evidence.json',
+  )
+  assert.equal(
+    equipmentPhase1CatalogClosure?.mergeCommit,
+    'c3b99d554fd594d8ff0ff367045274cc66f08544',
+  )
   assert.ok(!activeContractIds.has('equipment_simulator_phase5_async_stat_snapshot_plan'))
   assert.ok(!activeContractIds.has('equipment_simulator_phase3_resolve_profile_workbench_plan'))
   assert.ok(!activeContractIds.has('equipment_simulator_phase1_contracts_plan'))
