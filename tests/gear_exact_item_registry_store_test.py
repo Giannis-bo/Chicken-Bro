@@ -187,6 +187,8 @@ class GearExactItemRegistryStoreTest(unittest.TestCase):
         self.assertEqual(len(self.database.instances), 0)
         self.assertEqual(len(self.database.validations), 0)
         self.assertEqual(len(self.database.references), 1)
+        stored_reference = next(iter(self.database.references.values()))
+        self.assertIsNone(stored_reference[12])
         self.assertEqual(
             sealed["templateReferences"][0]["validationStatus"],
             "partial",

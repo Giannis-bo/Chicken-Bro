@@ -597,7 +597,7 @@ class GearExactItemRegistryStore:
                             row["slot"],
                             row["itemId"],
                             row["sourceVariantKey"],
-                            row["exactItemInstanceKey"],
+                            _text(row.get("exactItemInstanceKey")) or None,
                             row["validationStatus"],
                             _json(row.get("problemCodes") or []),
                             _json(row),
