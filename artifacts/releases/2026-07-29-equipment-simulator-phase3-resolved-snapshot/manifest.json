@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-28T20:57:04.258Z",
+  "generatedAt": "2026-07-28T21:09:23.174Z",
   "release": {
     "date": "2026-07-29",
     "slug": "equipment-simulator-phase3-resolved-snapshot"
@@ -99,7 +99,7 @@
         {
           "path": "server/websim_payload.py",
           "exists": true,
-          "lineCount": 27159,
+          "lineCount": 27180,
           "hotspot": true
         },
         {
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-29-equipment-simulator-phase3-resolved-snapshot/evidence.json",
-    "sizeBytes": 4277,
+    "sizeBytes": 5546,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -417,13 +417,13 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "34 changed files currently visible to git status."
+      "detail": "6 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
       "severity": "medium",
       "status": "watch",
-      "detail": "server/websim_payload.py:27159, server/news_backend.py:14088, server/postgres_cache_store.py:8604"
+      "detail": "server/websim_payload.py:27180, server/news_backend.py:14088, server/postgres_cache_store.py:8604"
     },
     {
       "id": "localTests_missing",
@@ -453,42 +453,14 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 34,
+      "changedFileCount": 6,
       "changedFiles": [
-        " M docs/backend-owner-map.json",
-        " M docs/plans/2026-07-28-equipment-simulator-target-architecture.md",
-        " D docs/plans/2026-07-29-equipment-simulator-phase2-exact-enhancement.md",
-        " M docs/plans/README.md",
-        " M docs/project-state.json",
-        " M docs/roadmap.md",
-        " M docs/simulator-simc-end-to-end.md",
-        " M server/gear_catalog_audit_store.py",
-        " M server/gear_exact_item_instance.py",
-        " M server/gear_exact_item_registry.py",
-        " M server/gear_exact_item_registry_store.py",
-        " M server/news_backend.py",
-        " M server/postgres_cache_store.py",
-        " M server/simulator_payload.py",
+        " M artifacts/releases/2026-07-29-equipment-simulator-phase3-resolved-snapshot/evidence.json",
+        " M scripts/gear-resolved-snapshot.py",
+        " M server/gear_resolved_loadout.py",
         " M server/websim_payload.py",
-        " M server/wow-backend-candidate.service",
-        " M server/wow-backend.service",
-        " M tests/gear_exact_item_registry_store_test.py",
-        " M tests/news_backend_test.py",
-        " M tests/postgres_schema_test.py",
-        " M tests/project-state.test.js",
-        "?? artifacts/releases/2026-07-29-equipment-simulator-phase3-resolved-snapshot/",
-        "?? docs/plans/2026-07-29-equipment-simulator-phase3-resolved-snapshot.md",
-        "?? scripts/gear-resolved-snapshot.py",
-        "?? server/gear_resolved_loadout.py",
-        "?? server/migrations/postgres/0021_websim_simulation_snapshot.sql",
-        "?? server/simulation_snapshot.py",
-        "?? server/simulation_snapshot_compat.py",
-        "?? server/simulation_snapshot_store.py",
-        "?? tests/gear_resolved_loadout_test.py",
-        "?? tests/gear_resolved_snapshot_shadow_test.py",
-        "?? tests/simulation_snapshot_compat_test.py",
-        "?? tests/simulation_snapshot_store_test.py",
-        "?? tests/simulation_snapshot_test.py"
+        " M tests/gear_resolved_loadout_test.py",
+        " M tests/websim_payload_test.py"
       ]
     }
   },

@@ -254,6 +254,33 @@ class GearResolvedLoadoutTest(unittest.TestCase):
             {"bonus_id": "9001/9002", "id": "1001", "ilevel": "266"},
         )
 
+    def test_legacy_option_canonicalization_can_preserve_multi_value_single_field(self):
+        from server.gear_resolved_loadout import canonical_simc_options
+
+        self.assertEqual(
+            canonical_simc_options(
+                {
+                    "id": "1001",
+                    "bonus_id": "9002/9001",
+                    "enchant_id": "8039/8052",
+                },
+                strict_single_values=False,
+            ),
+            {
+                "id": "1001",
+                "bonus_id": "9001/9002",
+                "enchant_id": "8039/8052",
+            },
+        )
+        self.assertIsNone(
+            canonical_simc_options(
+                {
+                    "id": "1001",
+                    "enchant_id": "8039/8052",
+                }
+            )
+        )
+
     def test_partial_reference_and_missing_slot_fail_closed(self):
         partial = exact_registry()
         partial["status"] = "partial"

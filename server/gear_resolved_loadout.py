@@ -116,7 +116,11 @@ def _tokens(value: Any) -> list[str] | None:
     return tokens
 
 
-def canonical_simc_options(value: Any) -> dict[str, str] | None:
+def canonical_simc_options(
+    value: Any,
+    *,
+    strict_single_values: bool = True,
+) -> dict[str, str] | None:
     """Canonicalize the bounded item option surface in fixed SimC order."""
 
     source = dict(value) if isinstance(value, Mapping) else {}
@@ -131,7 +135,11 @@ def canonical_simc_options(value: Any) -> dict[str, str] | None:
             return None
         if field in _SET_OPTION_FIELDS:
             tokens = sorted(set(tokens))
-        elif field not in _ORDERED_OPTION_FIELDS and len(tokens) != 1:
+        elif (
+            strict_single_values
+            and field not in _ORDERED_OPTION_FIELDS
+            and len(tokens) != 1
+        ):
             return None
         if tokens:
             result[field] = "/".join(tokens)

@@ -64,6 +64,11 @@ try:
 except ImportError:
     from gear_attribute_rulebook import ACTIVE_ATTRIBUTE_RULEBOOK
 
+try:
+    from .gear_resolved_loadout import canonical_simc_options
+except ImportError:
+    from gear_resolved_loadout import canonical_simc_options
+
 
 BASE_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = BASE_DIR.parent
@@ -26753,11 +26758,27 @@ def build_websim_profile_response_from_resolved_snapshot(
                 f"Resolved serializer item {index} is incomplete.",
                 kind="AUTHORITY_UNAVAILABLE",
             )
-        authoritative_options = {
-            key: normalize_option_value(value)
-            for key, value in simc_options.items()
-            if key in SIMC_GEAR_OPTION_KEYS and normalize_option_value(value)
-        }
+        authoritative_options = canonical_simc_options(
+            {
+                "id": item_id,
+                **{
+                    key: normalize_option_value(value)
+                    for key, value in simc_options.items()
+                    if key in SIMC_GEAR_OPTION_KEYS
+                    and normalize_option_value(value)
+                },
+            },
+            strict_single_values=False,
+        )
+        if (
+            authoritative_options is None
+            or authoritative_options.get("id") != item_id
+        ):
+            return _blocked_resolved_snapshot_profile(
+                "GEAR_SERIALIZER_ITEM_INVALID",
+                f"Resolved serializer item {index} has non-canonical SimC options.",
+                kind="AUTHORITY_UNAVAILABLE",
+            )
         normalized_items.append(
             {
                 "slot": slot,

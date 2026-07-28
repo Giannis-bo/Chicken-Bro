@@ -24929,6 +24929,20 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertNotIn("forged", result["profile"])
         self.assertEqual(result["profileReadiness"], snapshot["profileReadiness"])
 
+    def test_resolved_snapshot_facade_canonicalizes_set_like_simc_options(self):
+        parity, snapshot = self.resolved_snapshot_for_facade()
+        item = snapshot["serializerInput"]["gearItems"][0]
+        item["simcOptions"]["bonus_id"] = "9002/9001"
+
+        result = self.websim_payload.build_websim_profile_response_from_resolved_snapshot(
+            snapshot,
+            parity["sourceContext"],
+        )
+
+        self.assertEqual(result["status"], "resolved")
+        self.assertIn("bonus_id=9001/9002", result["profile"])
+        self.assertNotIn("bonus_id=9002/9001", result["profile"])
+
     def test_resolved_snapshot_facade_uses_server_talent_authority_for_websim_codes(self):
         parity, snapshot = self.resolved_snapshot_for_facade()
         talent_store = object()
@@ -25045,12 +25059,21 @@ class WebSimPayloadTest(unittest.TestCase):
             for variant in fixture["sourceSnapshot"]["variants"]
             if variant["itemId"] != "different-ring-one"
         }
+        from server.gear_resolved_loadout import canonical_simc_options
+
         for slot in reference["requiredSlots"]:
             variant = variants_by_slot[slot]
             simc_options = variant["simcOptions"]
+            canonical_options = canonical_simc_options(
+                {"id": variant["itemId"], **simc_options},
+                strict_single_values=False,
+            )
             self.assertIn(f"id={variant['itemId']}", gear_lines[slot])
             self.assertIn(f"ilevel={simc_options['ilevel']}", gear_lines[slot])
-            self.assertIn(f"bonus_id={simc_options['bonus_id']}", gear_lines[slot])
+            self.assertIn(
+                f"bonus_id={canonical_options['bonus_id']}",
+                gear_lines[slot],
+            )
         self.assertIn("gem_id=240892/240900", gear_lines["neck"])
         self.assertIn("gem_id=240892/240983", gear_lines["finger1"])
         gem_occurrences = [

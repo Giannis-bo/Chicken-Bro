@@ -53,7 +53,7 @@
     {
       "command": "node scripts/verify-project.js --profile backend --release artifacts/releases/2026-07-29-equipment-simulator-phase3-resolved-snapshot",
       "status": "pass",
-      "summary": "All 2093 Python tests pass with one existing skip, direct production script imports pass, and compileall succeeds. The shadow contract now fails closed unless all 26 supported and all 14 unsupported specializations have deterministic snapshot coverage; task/result binding failures also produce one consistent failed state. The subsequent task-scoped Harness packet check passes after manifest regeneration."
+      "summary": "All 2095 Python tests pass with one existing skip, direct production script imports pass, and compileall succeeds. The shadow contract requires all 40 specializations to be explicitly classified as 26 supported and 14 unsupported while retaining Phase 2 partial references as literal blocked loadouts; task/result binding failures also produce one consistent failed state. The subsequent task-scoped Harness packet check passes after manifest regeneration."
     },
     {
       "command": "candidate, full Harness, PR and closure",
@@ -66,7 +66,30 @@
     "requiredBeforeMerge": true,
     "reason": "Pending final immutable task head and candidate window."
   },
-  "runtimeEvidence": [],
+  "runtimeEvidence": [
+    {
+      "candidateCommit": "d8aba1b38766a7e902087f1df8c586c49d971325",
+      "status": "blocked",
+      "problemCodes": [
+        "RESOLVED_SHADOW_READY_SNAPSHOT_BLOCKED",
+        "RESOLVED_SHADOW_SUPPORTED_SPEC_COVERAGE_INCOMPLETE",
+        "RESOLVED_SHADOW_UNSUPPORTED_SPEC_COVERAGE_INCOMPLETE"
+      ],
+      "reportId": "gear-resolved-snapshot-shadow:sha256:5f9fbe209c69391577254ccbe9725669ca7477ec263901036190c961290d7be9",
+      "pointerGenerationBefore": 32,
+      "pointerGenerationAfter": 32,
+      "summary": {
+        "templateCount": 80,
+        "classifiedTemplateCount": 80,
+        "readyLoadoutCount": 8,
+        "blockedLoadoutCount": 72,
+        "readySnapshotCount": 0,
+        "unsupportedSnapshotCount": 4,
+        "blockedSnapshotCount": 4
+      },
+      "interpretation": "Fail-closed behavior was correct. Candidate data proved that the archived 55 partial exact references are distributed across 72 templates and therefore cannot be required to produce ready snapshots in Phase 3. The four clean supported templates exposed legacy set-like SimC option ordering drift; the compatibility facade and compiler now share canonical ordering without weakening partial-reference blocking."
+    }
+  ],
   "risks": [
     {
       "id": "phase2-partial-template-references",

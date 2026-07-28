@@ -201,6 +201,17 @@ def run_shadow(
         (row["classKey"], row["specKey"])
         for row in unsupported_snapshots
     }
+    classified_supported_specs = {
+        (row["classKey"], row["specKey"])
+        for row in rows
+        if simc_execution_support(
+            row["classKey"],
+            row["specKey"],
+        ).get("supported")
+    }
+    classified_unsupported_specs = spec_pairs.difference(
+        classified_supported_specs
+    )
     stable = {
         "schemaRevision": "gear-resolved-snapshot-shadow-v1",
         "catalogRevision": _text(exact_registry.get("catalogRevision")),
@@ -222,6 +233,12 @@ def run_shadow(
             "blockedSnapshotCount": len(blocked_snapshots),
             "readySupportedSpecCount": len(supported_ready_specs),
             "readyUnsupportedSpecCount": len(unsupported_ready_specs),
+            "classifiedSupportedSpecCount": len(
+                classified_supported_specs
+            ),
+            "classifiedUnsupportedSpecCount": len(
+                classified_unsupported_specs
+            ),
             "expectedSupportedSpecCount": expected_supported_spec_count,
             "expectedUnsupportedSpecCount": expected_unsupported_spec_count,
         },
@@ -237,11 +254,11 @@ def run_shadow(
         problem_codes.add("RESOLVED_SHADOW_TEMPLATE_COUNT_INVALID")
     if len(spec_pairs) != expected_spec_count:
         problem_codes.add("RESOLVED_SHADOW_SPEC_COUNT_INVALID")
-    if len(supported_ready_specs) != expected_supported_spec_count:
+    if len(classified_supported_specs) != expected_supported_spec_count:
         problem_codes.add(
             "RESOLVED_SHADOW_SUPPORTED_SPEC_COVERAGE_INCOMPLETE"
         )
-    if len(unsupported_ready_specs) != expected_unsupported_spec_count:
+    if len(classified_unsupported_specs) != expected_unsupported_spec_count:
         problem_codes.add(
             "RESOLVED_SHADOW_UNSUPPORTED_SPEC_COVERAGE_INCOMPLETE"
         )
