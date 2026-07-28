@@ -83,7 +83,7 @@ import {
 } from './gear-detail-editor-commit-model'
 import {
   gearCandidates,
-  gearEnhancementGroups,
+  gearEnhancementBarItems,
   gearEnhancementOptions,
   gearEnhancementSocketCount,
   gearItemIconUrl,
@@ -314,23 +314,7 @@ export default function GearDetailPage() {
     canonical.loading ? 'loading' : route.state.state,
     readinessAuthority,
   )
-  const enhancementGroups = gearEnhancementGroups(selectedCandidate, enhancements, selectedSlot).map((group) => {
-    const compatibleSlotCount = slotViews.filter((slot) => gearEnhancementOptions(equipped[slot.slot], enhancements, slot.slot)
-      .some((option) => option.kind === group.id)).length
-    const configuredCount = Object.values(enhancements).filter((selection) => (
-      isEnhancementKindConfigured(selection, group.id)
-    )).length
-    return {
-      ...group,
-      optionCount: compatibleSlotCount,
-      value: configuredCount
-        ? `已配置 ${configuredCount} 件`
-        : compatibleSlotCount
-          ? `${compatibleSlotCount} 个槽位可用`
-          : '暂无可用',
-      state: configuredCount ? 'ready' as const : compatibleSlotCount ? 'empty' as const : 'blocked' as const,
-    }
-  })
+  const enhancementGroups = gearEnhancementBarItems(equipped, enhancements)
   const enhancementOptions = gearEnhancementOptions(selectedCandidate, enhancements, selectedSlot)
   const enhancementSelections = enhancementDraft
     ? enhancementDraftSelections(enhancementDraft)

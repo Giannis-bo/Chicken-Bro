@@ -1,6 +1,6 @@
 # Taro 装备编辑器恢复设计
 
-状态：`本地验证完成，等待精确候选 HEAD 的微信人工验收`
+状态：`已完成；2026-07-28 可见事实纠偏正在推进`
 
 ## 用户目标
 
@@ -89,5 +89,9 @@ ID。本任务只在玩家选中对应 variant 后安全投影这些展示值，
 
 本地验证证据已记录在
 `artifacts/releases/2026-07-24-taro-gear-editor-recovery/evidence.json`；其中
-`gear_candidate_variant_apply` 与 `gear_enhancement_confirm` 均保持
-`pending`，不得据此宣称真实微信验收、合入或发布完成。
+`gear_candidate_variant_apply` 与 `gear_enhancement_confirm` 已在
+2026-07-24 的精确候选上完成微信人工验收并归档。2026-07-28 发现的绿字与强化
+摘要缺失不重新打开已归档任务；它由当前
+[UI 重建计划](ui-reconstruction.md) 和独立的
+`gear-ui-visible-facts-recovery` release packet 约束，且必须使用源码哈希绑定的
+新微信产物重新验收。

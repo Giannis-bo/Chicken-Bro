@@ -6,7 +6,13 @@ const os = require('node:os')
 const path = require('node:path')
 const test = require('node:test')
 
-const { promoteWeappBuild, resolveIsolatedOutputRoot, taroBuildCommand, validateBuild } = require('../scripts/build-weapp-safely')
+const {
+  promoteWeappBuild,
+  resolveIsolatedOutputRoot,
+  stampWeappBuild,
+  taroBuildCommand,
+  validateBuild,
+} = require('../scripts/build-weapp-safely')
 
 function temporaryRoot(t) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'wow-weapp-promotion-'))
@@ -172,4 +178,27 @@ test('safe build launches the Taro JavaScript entry with the current Node runtim
   assert.equal(command.executable, process.execPath)
   assert.match(command.args[0], /node_modules[\\/]@tarojs[\\/]cli[\\/]bin[\\/]taro$/u)
   assert.deepEqual(command.args.slice(1), ['build', '--type', 'weapp'])
+})
+
+test('safe build stamps the generated package with the exact source identity before publication', (t) => {
+  const root = temporaryRoot(t)
+  const output = path.join(root, 'dist', 'weapp')
+  write(root, 'apps/mini-taro/src/app.tsx', 'export default function App() { return null }\n')
+  write(output, 'app.js', 'App({})\n')
+
+  const result = stampWeappBuild(output, {
+    root,
+    gitHead: '0123456789abcdef0123456789abcdef01234567',
+    builtAt: '2026-07-28T03:00:00.000Z',
+  })
+  const identity = JSON.parse(fs.readFileSync(path.join(output, 'wow-build.json'), 'utf8'))
+
+  assert.deepEqual(identity, {
+    schemaRevision: 'wow-weapp-build-v1',
+    gitHead: '0123456789abcdef0123456789abcdef01234567',
+    sourceHash: result.identity.sourceHash,
+    builtAt: '2026-07-28T03:00:00.000Z',
+  })
+  assert.match(identity.sourceHash, /^sha256:[0-9a-f]{64}$/u)
+  assert.ok(fs.statSync(path.join(output, 'app.js')).mtimeMs > 0)
 })

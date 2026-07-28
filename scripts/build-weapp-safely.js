@@ -7,6 +7,7 @@ const os = require('node:os')
 const path = require('node:path')
 
 const { finalizeWeappBuild } = require('./finalize-weapp-build')
+const { writeWeappBuildIdentity } = require('./weapp-build-identity')
 
 const repositoryRoot = path.resolve(__dirname, '..')
 const appRoot = path.join(repositoryRoot, 'apps/mini-taro')
@@ -231,6 +232,13 @@ function promoteWeappBuild(stagingRoot, destinationRoot = liveOutputRoot, option
   }
 }
 
+function stampWeappBuild(root, options = {}) {
+  const sourceRoot = options.root || repositoryRoot
+  const identity = writeWeappBuildIdentity(sourceRoot, root, options)
+  const completion = finalizeWeappBuild(root)
+  return { identity, completion }
+}
+
 function run() {
   const explicitOutputRoot = process.env.WOW_TARO_OUTPUT_ROOT?.trim()
   if (explicitOutputRoot) {
@@ -243,7 +251,7 @@ function run() {
     })
     if (result.error) throw result.error
     if (result.status !== 0) throw new Error(`Taro WeChat build failed with status ${result.status ?? 1}`)
-    finalizeWeappBuild(isolatedOutputRoot)
+    stampWeappBuild(isolatedOutputRoot)
     return
   }
 
@@ -264,7 +272,7 @@ function run() {
     })
     if (result.error) throw result.error
     if (result.status !== 0) throw new Error(`Taro WeChat build failed with status ${result.status ?? 1}`)
-    finalizeWeappBuild(stagingRoot)
+    stampWeappBuild(stagingRoot)
     const resultSummary = promoteWeappBuild(stagingRoot)
     process.stdout.write(`${JSON.stringify({ status: 'pass', strategy: 'staged-atomic-promotion', ...resultSummary })}\n`)
   } finally {
@@ -285,6 +293,7 @@ module.exports = {
   liveOutputRoot,
   promoteWeappBuild,
   resolveIsolatedOutputRoot,
+  stampWeappBuild,
   taroBuildCommand,
   validateBuild,
   walkFiles,

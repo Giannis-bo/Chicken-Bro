@@ -22,6 +22,8 @@
 
 当前 `gear_detail` 的候选装备与强化编辑恢复遵循 [Taro 装备编辑器恢复设计](2026-07-24-taro-gear-editor-recovery-design.md)：候选选择、合法等级/变体配置和显式应用分离；宝石、附魔、美化使用可取消的本地草稿，只有确认后才提交 canonical Resolve。
 
+2026-07-28 的可见事实纠偏恢复两条已确认体验：初始 `equippedSet` 只有在后端明确返回 `statDisplayStatus=verified_variant` 时才能直接显示该物品的真实绿字，编辑或社区导入后继续优先使用 exact Resolver `itemStaticStats`；强化摘要必须区分“可用 / 不可用 / 待核验”，仅把所有已选装备都明确判定为不支持的类别禁用。当前源码构建出的 `dist/weapp` 必须包含 `wow-build.json`，以源码内容哈希绑定微信产物；Git 分支已同步但产物哈希不一致时，一律视为旧包，不得进入运行态验收。
+
 ## 权威输入
 
 1. `docs/design/current-ui/target-registry.json` 和对应 route contract。
@@ -67,6 +69,7 @@
 4. 空 renderer、超时、旧 contract hash、缺证据或工具失败都保持 `UNVERIFIED`，不得用重启或 fallback 伪造 PASS。
 5. 截图、几何、核心交互、选中态、素材槽和人工确认各自证明不同维度，不能互相替代。
 6. 新 runtime evidence 只对精确 commit/viewport/contract 有效；被替代的 artifact 从工作树删除，Git 历史承担追溯。
+7. 微信预览先校验 `dist/weapp/wow-build.json` 的源码内容哈希，再打开 DevTools；“仓库是最新的”不等于“DevTools 正在消费最新产物”。
 
 ## 当前缺口
 

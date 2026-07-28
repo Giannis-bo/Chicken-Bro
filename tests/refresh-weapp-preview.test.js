@@ -9,20 +9,42 @@ const {
   verifyWeappOutput,
   refreshWeappPreview,
 } = require('../scripts/refresh-weapp-preview')
+const { writeWeappBuildIdentity } = require('../scripts/weapp-build-identity')
 
 function createFixture() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'wow-refresh-weapp-preview-'))
   const projectRoot = path.join(root, 'apps', 'mini-taro')
   const outputRoot = path.join(projectRoot, 'dist', 'weapp')
   fs.mkdirSync(outputRoot, { recursive: true })
+  fs.mkdirSync(path.join(projectRoot, 'src'), { recursive: true })
   fs.writeFileSync(path.join(projectRoot, 'project.config.json'), JSON.stringify({
     miniprogramRoot: 'dist/weapp/',
   }))
   fs.writeFileSync(path.join(outputRoot, 'app.json'), JSON.stringify({ pages: ['pages/news/news'] }))
   fs.writeFileSync(path.join(outputRoot, 'app.js'), 'App({})\n')
   fs.writeFileSync(path.join(outputRoot, 'common.wxss'), '.root{display:block}\n')
+  fs.writeFileSync(path.join(projectRoot, 'src', 'app.tsx'), 'export default function App() { return null }\n')
+  writeWeappBuildIdentity(root, outputRoot, {
+    gitHead: '0123456789abcdef0123456789abcdef01234567',
+    builtAt: '2026-07-28T00:00:00.000Z',
+  })
   return { root, projectRoot, outputRoot }
 }
+
+test('WeChat output verification rejects a package whose source identity is stale', () => {
+  const fixture = createFixture()
+  fs.writeFileSync(path.join(fixture.outputRoot, 'wow-build.json'), JSON.stringify({
+    schemaRevision: 'wow-weapp-build-v1',
+    gitHead: '0000000000000000000000000000000000000000',
+    sourceHash: `sha256:${'0'.repeat(64)}`,
+    builtAt: '2026-07-28T00:00:00.000Z',
+  }))
+
+  assert.throws(
+    () => verifyWeappOutput(fixture.root),
+    /WeChat build source identity mismatch/u,
+  )
+})
 
 test('DevTools CLI environment override wins when it points to a file', () => {
   const fixture = createFixture()
