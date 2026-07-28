@@ -13,8 +13,12 @@ import json
 import re
 from typing import Any, Iterable, Mapping
 
-from .gear_catalog_migration_audit import audit_catalog_mapping
-from .gear_track_authority import resolve_legacy_browse_progression
+try:
+    from .gear_catalog_migration_audit import audit_catalog_mapping
+    from .gear_track_authority import resolve_legacy_browse_progression
+except ImportError:
+    from gear_catalog_migration_audit import audit_catalog_mapping
+    from gear_track_authority import resolve_legacy_browse_progression
 
 
 CATALOG_SCHEMA_REVISION = "gear-catalog-revision-v1"

@@ -7,7 +7,10 @@ import hashlib
 import json
 from typing import Any, Mapping
 
-from .gear_catalog_revision import verify_catalog_revision
+try:
+    from .gear_catalog_revision import verify_catalog_revision
+except ImportError:
+    from gear_catalog_revision import verify_catalog_revision
 
 
 class GearCatalogRevisionIntegrityError(RuntimeError):
