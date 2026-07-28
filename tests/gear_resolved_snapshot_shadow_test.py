@@ -45,6 +45,37 @@ def template(content_hash, marker):
 
 
 class GearResolvedSnapshotShadowTest(unittest.TestCase):
+    def test_public_import_repeats_only_verified_results(self):
+        class FakeReader:
+            def __init__(self, rows):
+                self.rows = list(rows)
+                self.calls = 0
+
+            def import_template(self, _template):
+                result = self.rows[self.calls]
+                self.calls += 1
+                return result
+
+        blocked_reader = FakeReader([
+            {
+                "importStatus": "blocked",
+                "importProblemCodes": ["template_import_blocked"],
+            }
+        ])
+        verified = {
+            "importStatus": "verified",
+            "resolvedSnapshot": {"status": "verified"},
+        }
+        verified_reader = FakeReader([verified, copy.deepcopy(verified)])
+
+        blocked = MODULE.verify_public_import(blocked_reader, {})
+        repeated = MODULE.verify_public_import(verified_reader, {})
+
+        self.assertEqual(blocked["importStatus"], "blocked")
+        self.assertEqual(blocked_reader.calls, 1)
+        self.assertEqual(repeated, verified)
+        self.assertEqual(verified_reader.calls, 2)
+
     def test_public_template_discovery_uses_browse_ids_not_audit_hashes(self):
         reader = object.__new__(MODULE.ProfileReader)
         reader.browse = {}
@@ -218,6 +249,38 @@ class GearResolvedSnapshotShadowTest(unittest.TestCase):
         self.assertIn(
             "RESOLVED_SHADOW_READY_LOADOUT_COUNT_MISMATCH",
             report["problemCodes"],
+        )
+
+    def test_total_setup_and_import_budget_is_enforced(self):
+        report = MODULE.run_shadow(
+            templates=[template(TEMPLATE_HASH, "ready")],
+            exact_registry=exact_registry(),
+            resolver_reader=lambda _template: resolver_snapshot(),
+            snapshot_reader=lambda _loadout, _template: snapshot(),
+            seal_loadout=lambda value: value,
+            seal_snapshot=lambda value: value,
+            pointer_before={"generation": 32},
+            pointer_after_reader=lambda: {"generation": 32},
+            observed_at="2026-07-29T00:00:00Z",
+            expected_template_count=1,
+            expected_spec_count=1,
+            expected_supported_spec_count=1,
+            expected_unsupported_spec_count=0,
+            expected_ready_loadout_count=1,
+            expected_ready_snapshot_count=1,
+            expected_unsupported_snapshot_count=0,
+            elapsed_before_shadow=601.0,
+            max_total_seconds=600.0,
+        )
+
+        self.assertEqual(report["status"], "blocked")
+        self.assertIn(
+            "RESOLVED_SHADOW_TOTAL_SECONDS_EXCEEDED",
+            report["problemCodes"],
+        )
+        self.assertGreater(
+            report["resource"]["totalElapsedSeconds"],
+            report["resource"]["maxTotalSeconds"],
         )
 
 

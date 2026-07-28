@@ -37,6 +37,7 @@ from server.websim_payload import (  # noqa: E402
 
 
 MAX_SECONDS = 300.0
+MAX_TOTAL_SECONDS = 600.0
 MAX_BYTES = 2_000_000_000
 
 
@@ -95,6 +96,8 @@ def run_shadow(
     expected_ready_loadout_count: int = 8,
     expected_ready_snapshot_count: int = 4,
     expected_unsupported_snapshot_count: int = 4,
+    elapsed_before_shadow: float = 0.0,
+    max_total_seconds: float = MAX_TOTAL_SECONDS,
 ) -> dict[str, Any]:
     started = time.monotonic()
     rows: list[dict[str, Any]] = []
@@ -199,6 +202,7 @@ def run_shadow(
 
     pointer_after = _mapping(pointer_after_reader())
     elapsed = time.monotonic() - started
+    total_elapsed = max(0.0, float(elapsed_before_shadow)) + elapsed
     peak_bytes = _peak_bytes()
     spec_pairs = {
         (_text(row.get("classKey")), _text(row.get("specKey")))
@@ -320,6 +324,10 @@ def run_shadow(
         problem_codes.add("RESOLVED_SHADOW_READY_SNAPSHOT_BLOCKED")
     if elapsed > MAX_SECONDS:
         problem_codes.add("RESOLVED_SHADOW_RESOURCE_SECONDS_EXCEEDED")
+    if total_elapsed > max_total_seconds:
+        problem_codes.add(
+            "RESOLVED_SHADOW_TOTAL_SECONDS_EXCEEDED"
+        )
     if peak_bytes > MAX_BYTES:
         problem_codes.add("RESOLVED_SHADOW_RESOURCE_BYTES_EXCEEDED")
     status = "verified" if not problem_codes else "blocked"
@@ -329,9 +337,15 @@ def run_shadow(
         "problemCodes": sorted(problem_codes),
         "observedAt": _text(observed_at),
         "resource": {
-            "elapsedSeconds": round(elapsed, 6),
+            "shadowElapsedSeconds": round(elapsed, 6),
+            "setupAndImportElapsedSeconds": round(
+                max(0.0, float(elapsed_before_shadow)),
+                6,
+            ),
+            "totalElapsedSeconds": round(total_elapsed, 6),
             "peakBytes": peak_bytes,
             "maxSeconds": MAX_SECONDS,
+            "maxTotalSeconds": max_total_seconds,
             "maxBytes": MAX_BYTES,
         },
     }
@@ -362,6 +376,8 @@ class ProfileReader:
         method: str,
         path: str,
         payload: Mapping[str, Any] | None = None,
+        *,
+        accept_http_errors: bool = False,
     ) -> dict[str, Any]:
         data = (
             json.dumps(
@@ -384,7 +400,7 @@ class ProfileReader:
                 raw = response.read()
         except HTTPError as error:
             raw = error.read()
-            if error.code >= 400:
+            if error.code >= 400 and not accept_http_errors:
                 raise RuntimeError(f"profile HTTP {error.code}") from error
         decoded = json.loads(raw.decode("utf-8"))
         if not isinstance(decoded, dict):
@@ -462,6 +478,7 @@ class ProfileReader:
                     "templateId": template_id,
                     "expectedManifestRevision": manifest_revision,
                 },
+                accept_http_errors=True,
             )
         except Exception:
             return {
@@ -576,6 +593,35 @@ class ProfileReader:
         return profile
 
 
+def verify_public_import(
+    profile_reader: ProfileReader,
+    template: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Repeat only successful imports; literal blocked outcomes need no retry."""
+
+    first_import = profile_reader.import_template(template)
+    if first_import.get("importStatus") != "verified":
+        return first_import
+    second_import = profile_reader.import_template(template)
+    if first_import == second_import:
+        return first_import
+    return {
+        "templateContentHash": _text(
+            template.get("templateContentHash")
+            or template.get("contentHash")
+        ),
+        "templateId": _text(
+            template.get("templateId") or template.get("id")
+        ),
+        "classKey": _text(template.get("classKey")),
+        "specKey": _text(template.get("specKey")),
+        "importStatus": "blocked",
+        "importProblemCodes": [
+            "RESOLVED_SHADOW_IMPORT_NONDETERMINISTIC"
+        ],
+    }
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--base-url", default="http://127.0.0.1")
@@ -587,6 +633,7 @@ def _parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
+    total_started = time.monotonic()
     if _text(os.environ.get("WOW_DATABASE_RUNTIME")) != "postgres_only":
         print("RESOLVED_SHADOW_REQUIRES_POSTGRES_ONLY", file=sys.stderr)
         return 2
@@ -633,26 +680,9 @@ def main(argv: list[str] | None = None) -> int:
         ]
         imported_templates = []
         for row in public_templates:
-            first_import = profile_reader.import_template(row)
-            second_import = profile_reader.import_template(row)
-            if first_import == second_import:
-                imported_templates.append(first_import)
-                continue
-            imported_templates.append({
-                "templateContentHash": _text(
-                    row.get("templateContentHash")
-                    or row.get("contentHash")
-                ),
-                "templateId": _text(
-                    row.get("templateId") or row.get("id")
-                ),
-                "classKey": _text(row.get("classKey")),
-                "specKey": _text(row.get("specKey")),
-                "importStatus": "blocked",
-                "importProblemCodes": [
-                    "RESOLVED_SHADOW_IMPORT_NONDETERMINISTIC"
-                ],
-            })
+            imported_templates.append(
+                verify_public_import(profile_reader, row)
+            )
 
         def resolver_reader(template):
             return _mapping(template.get("resolvedSnapshot"))
@@ -692,6 +722,9 @@ def main(argv: list[str] | None = None) -> int:
             pointer_before=pointer_before,
             pointer_after_reader=audit_store.pointer_identity,
             observed_at=datetime.now(timezone.utc).isoformat(),
+            elapsed_before_shadow=(
+                time.monotonic() - total_started
+            ),
         )
     except Exception as error:
         print(
