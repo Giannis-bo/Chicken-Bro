@@ -111,6 +111,34 @@ class GearExactItemInstanceCliTest(unittest.TestCase):
         self.assertEqual(report["summary"]["exactItemInstanceCount"], 1)
         self.assertEqual(report["summary"]["unreferencedExactRowCount"], 1)
 
+    def test_allowed_evidence_gap_seals_partial_registry_and_passes_shadow(self):
+        current = snapshot()
+        exact = current["catalogRows"]["variants"][-1]
+        exact["simcOptions"]["enchant_id"] = "7443/7444"
+        current["communityTemplates"][0]["gearItems"][0].pop("enchantId")
+        sealed = []
+
+        report = exact_cli.run_migration(
+            snapshot_reader=lambda **_: current,
+            pointer_reader=lambda **_: current["pointerAfter"],
+            catalog_reader=lambda revision: {"catalogRevision": revision},
+            seal_writer=lambda registry: sealed.append(copy.deepcopy(registry))
+            or registry,
+            elapsed_seconds_reader=lambda: 1.0,
+            peak_bytes_reader=lambda: 1_000_000,
+        )
+
+        self.assertEqual(report["status"], "verified")
+        self.assertEqual(report["registryStatus"], "partial")
+        self.assertEqual(
+            report["evidenceGapCodes"],
+            ["ENHANCEMENT_SINGLE_VALUE_MALFORMED"],
+        )
+        self.assertEqual(report["problemCodes"], [])
+        self.assertEqual(len(sealed), 1)
+        self.assertEqual(sealed[0]["status"], "partial")
+        self.assertEqual(sealed[0]["summary"]["partialTemplateItemCount"], 1)
+
     def test_pointer_change_resource_overrun_and_enhancement_mismatch_block(self):
         changed = snapshot()["pointerAfter"]
         changed["generation"] = 33

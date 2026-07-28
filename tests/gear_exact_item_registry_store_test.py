@@ -164,6 +164,34 @@ class GearExactItemRegistryStoreTest(unittest.TestCase):
 
         self.assertEqual(json.loads(self.database.instances[key][9])["ilevel"], 999)
 
+    def test_partial_evidence_registry_is_append_only_and_reloadable(self):
+        unresolved = exact_row()
+        unresolved["simcOptions"]["enchant_id"] = "7443/7444"
+        partial_template = template()
+        partial_template["gearItems"][0].pop("enchantId")
+        registry = build_exact_item_registry(
+            CURRENT_BINDING,
+            catalog_revision=CATALOG_REVISION,
+            exact_rows=[unresolved],
+            community_templates=[partial_template],
+            personal_templates=[],
+        )
+
+        sealed = self.store.seal_registry(registry)
+
+        self.assertEqual(sealed["status"], "partial")
+        self.assertEqual(
+            sealed["problemCodes"],
+            ["ENHANCEMENT_SINGLE_VALUE_MALFORMED"],
+        )
+        self.assertEqual(len(self.database.instances), 0)
+        self.assertEqual(len(self.database.validations), 0)
+        self.assertEqual(len(self.database.references), 1)
+        self.assertEqual(
+            sealed["templateReferences"][0]["validationStatus"],
+            "partial",
+        )
+
     def test_blocked_or_owner_bearing_registry_is_rejected_before_sql(self):
         blocked = copy.deepcopy(self.registry)
         blocked["status"] = "blocked"

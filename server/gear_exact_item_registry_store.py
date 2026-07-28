@@ -7,7 +7,10 @@ import hashlib
 import json
 from typing import Any, Mapping
 
-from .gear_exact_item_registry import verify_exact_item_registry
+from .gear_exact_item_registry import (
+    EXACT_REGISTRY_EVIDENCE_GAP_CODES,
+    verify_exact_item_registry,
+)
 
 
 class GearExactItemRegistryIntegrityError(RuntimeError):
@@ -123,26 +126,57 @@ class GearExactItemRegistryStore:
             raise GearExactItemRegistryIntegrityError(
                 "exact registry integrity check failed: " + ",".join(issues)
             )
+        status = _text(normalized.get("status"))
+        problem_codes = {
+            _text(code)
+            for code in normalized.get("problemCodes") or []
+            if _text(code)
+        }
+        if status not in {"verified", "partial"}:
+            raise GearExactItemRegistryIntegrityError(
+                "blocked exact registries may not be sealed"
+            )
         if (
-            _text(normalized.get("status")) != "verified"
-            or normalized.get("problemCodes")
-            or normalized.get("problems")
+            (status == "verified" and problem_codes)
+            or (
+                status == "partial"
+                and (
+                    not problem_codes
+                    or not problem_codes <= EXACT_REGISTRY_EVIDENCE_GAP_CODES
+                )
+            )
         ):
             raise GearExactItemRegistryIntegrityError(
-                "only verified blocker-free exact registries may be sealed"
+                "exact registry status and evidence gaps are inconsistent"
             )
         references = normalized.get("templateReferences") or []
         if not references:
             raise GearExactItemRegistryIntegrityError(
-                "verified exact registry requires template references"
+                "exact registry requires template references"
             )
-        if any(
-            _text(row.get("validationStatus")) != "verified"
-            or not _text(row.get("exactItemInstanceKey"))
-            for row in references
-        ):
+        for row in references:
+            reference_status = _text(row.get("validationStatus"))
+            exact_key = _text(row.get("exactItemInstanceKey"))
+            reference_codes = {
+                _text(code)
+                for code in row.get("problemCodes") or []
+                if _text(code)
+            }
+            if (
+                reference_status == "verified"
+                and exact_key
+                and not reference_codes
+            ):
+                continue
+            if (
+                reference_status == "partial"
+                and not exact_key
+                and reference_codes
+                and reference_codes <= EXACT_REGISTRY_EVIDENCE_GAP_CODES
+            ):
+                continue
             raise GearExactItemRegistryIntegrityError(
-                "verified exact registry contains non-verified references"
+                "exact registry contains unsafe template references"
             )
         return normalized
 
@@ -361,7 +395,7 @@ class GearExactItemRegistryStore:
                 or _text(validation.get("schemaRevision")) != _text(stored[3])
                 or _text(validation.get("status")) != _text(stored[4])
                 or _text(validation.get("slot")) != _text(stored[5])
-                or _text(validation.get("sourceVariantKey")) != _text(stored[6])
+                or _text(stored[6])
                 or _canonical(validation.get("staticFacts") or {})
                 != _json_value(stored[7])
                 or _canonical(validation.get("serializerInput") or {})
@@ -512,7 +546,7 @@ class GearExactItemRegistryStore:
                             row["schemaRevision"],
                             row["status"],
                             row["slot"],
-                            row["sourceVariantKey"],
+                            "",
                             _json(row.get("staticFacts") or {}),
                             _json(row.get("serializerInput") or {}),
                             _json(row),

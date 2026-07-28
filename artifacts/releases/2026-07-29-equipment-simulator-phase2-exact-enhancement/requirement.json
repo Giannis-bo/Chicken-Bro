@@ -102,6 +102,14 @@
     {
       "date": "2026-07-29",
       "decision": "Personal template shadow uses content identity only and never persists account identity in the global exact cache."
+    },
+    {
+      "date": "2026-07-29",
+      "decision": "Production candidate diagnostics proved that sourceVariantKey is reference provenance rather than Catalog-bound validation identity; exact aliases therefore share one validation."
+    },
+    {
+      "date": "2026-07-29",
+      "decision": "A sealed source enchant_id containing multiple unresolved values remains an explicit partial reference with no ExactItemInstance. The bounded shadow may pass only when this is the sole evidence-gap class and reports registryStatus=partial; future loadout consumers remain verified-reference-only."
     }
   ]
 }

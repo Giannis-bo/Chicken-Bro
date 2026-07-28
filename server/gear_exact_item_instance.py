@@ -501,7 +501,6 @@ def build_exact_item_instance(
         "gearRuleRevision": gear_rule_revision,
         "status": "verified",
         "slot": _text(row.get("slot")),
-        "sourceVariantKey": variant_key,
         "staticFacts": static_facts,
         "serializerInput": serializer_input,
     }

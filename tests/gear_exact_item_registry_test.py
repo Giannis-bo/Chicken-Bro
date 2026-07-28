@@ -143,6 +143,65 @@ class GearExactItemRegistryTest(unittest.TestCase):
         self.assertEqual(first["registryRevision"], second["registryRevision"])
         self.assertEqual(first["templateReferences"], second["templateReferences"])
 
+    def test_source_variant_provenance_does_not_conflict_with_validation_identity(self):
+        alias = exact_row(variantKey="observed-hero-3-alias")
+        result = build_exact_item_registry(
+            CURRENT_BINDING,
+            catalog_revision=CATALOG_REVISION,
+            exact_rows=[exact_row(), alias],
+            community_templates=[
+                template(),
+                template(
+                    variant_key="observed-hero-3-alias",
+                    classKey="mage",
+                    specKey="fire",
+                ),
+            ],
+            personal_templates=[],
+        )
+
+        self.assertEqual(result["status"], "verified")
+        self.assertEqual(result["summary"]["verifiedTemplateItemCount"], 2)
+        self.assertEqual(result["summary"]["validationCount"], 1)
+        self.assertNotIn(
+            "EXACT_REGISTRY_VALIDATION_CONFLICT",
+            result["problemCodes"],
+        )
+        self.assertNotIn("sourceVariantKey", result["validations"][0])
+
+    def test_unresolved_multi_enchant_is_classified_partial_without_materialization(self):
+        unresolved = exact_row()
+        unresolved["simcOptions"]["enchant_id"] = "7443/7444"
+        partial_template = template()
+        partial_template["gearItems"][0].pop("enchantId")
+
+        result = build_exact_item_registry(
+            CURRENT_BINDING,
+            catalog_revision=CATALOG_REVISION,
+            exact_rows=[unresolved],
+            community_templates=[partial_template],
+            personal_templates=[],
+        )
+
+        self.assertEqual(result["status"], "partial")
+        self.assertEqual(result["summary"]["partialTemplateItemCount"], 1)
+        self.assertEqual(result["summary"]["blockedTemplateItemCount"], 0)
+        self.assertEqual(result["summary"]["partialReferenceCount"], 1)
+        self.assertEqual(result["summary"]["exactItemInstanceCount"], 0)
+        self.assertEqual(
+            result["templateReferences"][0]["validationStatus"],
+            "partial",
+        )
+        self.assertEqual(
+            result["templateReferences"][0]["exactItemInstanceKey"],
+            "",
+        )
+        self.assertEqual(
+            result["problemCodes"],
+            ["ENHANCEMENT_SINGLE_VALUE_MALFORMED"],
+        )
+        self.assertEqual(verify_exact_item_registry(result), [])
+
     def test_missing_community_and_ambiguous_source_fail_closed_without_drop(self):
         duplicate = copy.deepcopy(exact_row())
         duplicate["staticStats"]["stamina"] = 999

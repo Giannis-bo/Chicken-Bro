@@ -22,7 +22,10 @@ if str(REPOSITORY_ROOT) not in sys.path:
 from server.gear_catalog_audit_store import GearCatalogAuditStore  # noqa: E402
 from server.gear_catalog_revision import build_catalog_revision  # noqa: E402
 from server.gear_catalog_revision_store import GearCatalogRevisionStore  # noqa: E402
-from server.gear_exact_item_registry import build_exact_item_registry  # noqa: E402
+from server.gear_exact_item_registry import (  # noqa: E402
+    EXACT_REGISTRY_EVIDENCE_GAP_CODES,
+    build_exact_item_registry,
+)
 from server.gear_exact_item_registry_store import (  # noqa: E402
     GearExactItemRegistryStore,
 )
@@ -105,6 +108,7 @@ def _blocked_report(
         "status": "blocked",
         "catalogRevision": catalog_revision,
         "registryRevision": _text(registry_row.get("registryRevision")),
+        "registryStatus": _text(registry_row.get("status")),
         "deterministicBuild": deterministic,
         "pointerStable": dict(pointer_before) == dict(pointer_after),
         "pointerBefore": dict(pointer_before),
@@ -117,6 +121,10 @@ def _blocked_report(
             "maxSeconds": MAX_CANDIDATE_SECONDS,
         },
         "problemCodes": sorted(set(problem_codes)),
+        "evidenceGapCodes": sorted(
+            set(registry_row.get("problemCodes") or [])
+            & EXACT_REGISTRY_EVIDENCE_GAP_CODES
+        ),
         "observedAt": observed_at,
     }
     report["reportId"] = _hash(
@@ -201,7 +209,13 @@ def run_migration(
         if peak_bytes_reader
         else _peak_rss_bytes()
     )
-    preseal_codes = set(first.get("problemCodes") or [])
+    registry_problem_codes = set(first.get("problemCodes") or [])
+    evidence_gap_codes = (
+        registry_problem_codes & EXACT_REGISTRY_EVIDENCE_GAP_CODES
+    )
+    preseal_codes = (
+        registry_problem_codes - EXACT_REGISTRY_EVIDENCE_GAP_CODES
+    )
     if not deterministic:
         preseal_codes.add("EXACT_SHADOW_BUILD_NONDETERMINISTIC")
     if elapsed > MAX_CANDIDATE_SECONDS:
@@ -217,11 +231,25 @@ def run_migration(
         or summary.get("templateItemCount")
         != (
             int(summary.get("verifiedTemplateItemCount") or 0)
+            + int(summary.get("partialTemplateItemCount") or 0)
             + int(summary.get("blockedTemplateItemCount") or 0)
         )
     ):
         preseal_codes.add("EXACT_SHADOW_TEMPLATE_SILENT_DROP")
-    if first.get("status") != "verified" or preseal_codes:
+    registry_status = _text(first.get("status"))
+    if (
+        registry_status not in {"verified", "partial"}
+        or (registry_status == "verified" and registry_problem_codes)
+        or (
+            registry_status == "partial"
+            and (
+                not evidence_gap_codes
+                or registry_problem_codes != evidence_gap_codes
+            )
+        )
+    ):
+        preseal_codes.add("EXACT_SHADOW_REGISTRY_STATUS_INVALID")
+    if preseal_codes:
         return _blocked_report(
             problem_codes=sorted(preseal_codes),
             pointer_before=pointer_before,
@@ -254,6 +282,11 @@ def run_migration(
         first.get("registryRevision")
     ):
         problem_codes.add("EXACT_SHADOW_SEAL_IDENTITY_MISMATCH")
+    if (
+        _text(sealed.get("status")) != registry_status
+        or set(sealed.get("problemCodes") or []) != registry_problem_codes
+    ):
+        problem_codes.add("EXACT_SHADOW_SEAL_STATUS_MISMATCH")
     if pointer_before != pointer_after:
         problem_codes.add("EXACT_SHADOW_POINTER_CHANGED")
     if elapsed > MAX_CANDIDATE_SECONDS:
@@ -265,6 +298,7 @@ def run_migration(
         "status": "blocked" if problem_codes else "verified",
         "catalogRevision": catalog_revision,
         "registryRevision": _text(first.get("registryRevision")),
+        "registryStatus": registry_status,
         "sourceGearReleaseId": _text(binding.get("gearReleaseId")),
         "sourceGearReleaseContentHash": _text(
             binding.get("gearReleaseContentHash")
@@ -281,6 +315,7 @@ def run_migration(
             "maxSeconds": MAX_CANDIDATE_SECONDS,
         },
         "problemCodes": sorted(problem_codes),
+        "evidenceGapCodes": sorted(evidence_gap_codes),
         "observedAt": observed_at,
     }
     report["reportId"] = _hash(

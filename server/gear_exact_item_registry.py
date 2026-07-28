@@ -25,6 +25,9 @@ _ENHANCEMENT_FIELDS = (
     "craftedStats",
     "embellishmentIds",
 )
+EXACT_REGISTRY_EVIDENCE_GAP_CODES = frozenset({
+    "ENHANCEMENT_SINGLE_VALUE_MALFORMED",
+})
 
 
 def _canonical(value: Any) -> Any:
@@ -242,6 +245,7 @@ def build_exact_item_registry(
     template_item_count = 0
     classified_template_count = 0
     verified_template_item_count = 0
+    partial_template_item_count = 0
     blocked_template_item_count = 0
 
     for scope, templates in (("community", community), ("personal", personal)):
@@ -296,6 +300,8 @@ def build_exact_item_registry(
                         path,
                         "Template exact identity resolves to multiple sealed source rows.",
                     ))
+                elif not item_problems:
+                    referenced_source_keys.add((item_id, variant_key))
 
                 built: dict[str, Any] = {}
                 if not item_problems:
@@ -314,7 +320,20 @@ def build_exact_item_registry(
                         )
 
                 if item_problems:
-                    blocked_template_item_count += 1
+                    item_problem_codes = {
+                        _text(problem.get("code"))
+                        for problem in item_problems
+                        if _text(problem.get("code"))
+                    }
+                    evidence_partial = (
+                        bool(item_problem_codes)
+                        and item_problem_codes
+                        <= EXACT_REGISTRY_EVIDENCE_GAP_CODES
+                    )
+                    if evidence_partial:
+                        partial_template_item_count += 1
+                    else:
+                        blocked_template_item_count += 1
                     problems.extend(item_problems)
                     references.append(_reference_row(
                         catalog_revision=catalog_revision,
@@ -323,15 +342,11 @@ def build_exact_item_registry(
                         slot=slot,
                         item_id=item_id,
                         variant_key=variant_key,
-                        status="blocked",
-                        problem_codes=[
-                            _text(problem.get("code"))
-                            for problem in item_problems
-                        ],
+                        status="partial" if evidence_partial else "blocked",
+                        problem_codes=sorted(item_problem_codes),
                     ))
                     continue
 
-                referenced_source_keys.add((item_id, variant_key))
                 selection = dict(built["enhancementSelectionRow"])
                 instance = dict(built["instanceRow"])
                 validation = dict(built["validation"])
@@ -409,6 +424,20 @@ def build_exact_item_registry(
     blocked_reference_count = sum(
         row["validationStatus"] == "blocked" for row in references
     )
+    partial_reference_count = sum(
+        row["validationStatus"] == "partial" for row in references
+    )
+    verified_reference_count = sum(
+        row["validationStatus"] == "verified" for row in references
+    )
+    problem_codes = sorted({
+        _text(problem.get("code"))
+        for problem in problems
+        if _text(problem.get("code"))
+    })
+    blocking_problem_codes = (
+        set(problem_codes) - EXACT_REGISTRY_EVIDENCE_GAP_CODES
+    )
     summary = {
         "sourceExactRowCount": len(sources),
         "referencedExactRowCount": len(referenced_source_keys),
@@ -421,9 +450,11 @@ def build_exact_item_registry(
         "templateItemCount": template_item_count,
         "classifiedTemplateItemCount": template_item_count,
         "verifiedTemplateItemCount": verified_template_item_count,
+        "partialTemplateItemCount": partial_template_item_count,
         "blockedTemplateItemCount": blocked_template_item_count,
         "templateReferenceCount": len(references),
-        "verifiedReferenceCount": len(references) - blocked_reference_count,
+        "verifiedReferenceCount": verified_reference_count,
+        "partialReferenceCount": partial_reference_count,
         "blockedReferenceCount": blocked_reference_count,
         "enhancementSelectionCount": len(selections),
         "exactItemInstanceCount": len(instances),
@@ -431,7 +462,13 @@ def build_exact_item_registry(
     }
     result = {
         "schemaRevision": EXACT_ITEM_REGISTRY_SCHEMA_REVISION,
-        "status": "blocked" if problems else "verified",
+        "status": (
+            "blocked"
+            if blocking_problem_codes
+            else "partial"
+            if problem_codes
+            else "verified"
+        ),
         "catalogRevision": _text(catalog_revision),
         "seasonRevision": _text(active.get("seasonRevision")),
         "gearRuleRevision": _text(active.get("gearRuleRevision")),
@@ -440,11 +477,7 @@ def build_exact_item_registry(
         "validations": validations,
         "templateReferences": references,
         "summary": summary,
-        "problemCodes": sorted({
-            _text(problem.get("code"))
-            for problem in problems
-            if _text(problem.get("code"))
-        }),
+        "problemCodes": problem_codes,
         "problems": _canonical(problems),
     }
     result["registryRevision"] = _hash(
@@ -507,6 +540,7 @@ def verify_exact_item_registry(registry: Any) -> list[str]:
 
 
 __all__ = (
+    "EXACT_REGISTRY_EVIDENCE_GAP_CODES",
     "EXACT_ITEM_REGISTRY_SCHEMA_REVISION",
     "EXACT_TEMPLATE_REFERENCE_SCHEMA_REVISION",
     "REGISTRY_REVISION_PATTERN",

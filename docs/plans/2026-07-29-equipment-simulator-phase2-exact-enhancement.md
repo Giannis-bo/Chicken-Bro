@@ -91,8 +91,11 @@ enhancementSelectionKey =
          sortedUniqueCraftedStats, sortedUniqueEmbellishmentIds)
 ```
 
-空选择也是一个合法的 canonical selection。数组长度不一致、非法 token、同一单值
-出现多个值、option key 与实际 SimC 值不一致时阻断。
+空选择也是一个合法的 canonical selection。数组长度不一致、非法 token、option key
+与实际 SimC 值不一致时阻断。sealed source 中同一 `enchant_id` 出现多个值时，现有
+source 已明确标记为 `source_only` / `unresolved_drop`，因此保留为
+`ENHANCEMENT_SINGLE_VALUE_MALFORMED` 的 `partial` reference，不选择其中任一值，
+也不物化 ExactItemInstance。
 
 ### 4.2 ExactItemInstance
 
@@ -113,6 +116,10 @@ exactItemInstanceKey =
 gearRuleRevision)` validation 封存，因此规则或证据修正不会伪造另一件玩家装备，
 也不会 update 已封存的旧 validation。
 
+`sourceVariantKey` 是模板引用 provenance，只存在于 Template reference，不进入上述
+validation。多个 source alias 指向同一 exact identity 时，共享同一 validation，
+不得因 provenance 不同产生 validation conflict。
+
 ### 4.3 Template reference
 
 模板只用以下无 owner 信息的 canonical reference 参与 shadow：
@@ -124,6 +131,12 @@ gearRuleRevision)` validation 封存，因此规则或证据修正不会伪造�
 
 `templateScope` 仅为 `community` 或 `personal`。个人账号 ID、昵称、原始 template ID
 和访问令牌不得写入全局 cache 或证据。
+
+`verified` reference 必须带有 ExactItemInstance key；允许的 source evidence gap 使用
+无 key 的 `partial` reference。candidate shadow 只有在所有模板/装备均分类、无
+silent drop、只剩上述允许的 evidence gap 且 seal/load 精确回读时才可通过；报告必须
+同时公开 `registryStatus=partial` 与 `evidenceGapCodes`，后续 loadout 只能消费
+`verified` reference。
 
 ## 5. 实施顺序
 
