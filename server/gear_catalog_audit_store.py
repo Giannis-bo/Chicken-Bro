@@ -348,7 +348,12 @@ class GearCatalogAuditStore:
                 manifest.dependency_vector_json,
                 manifest.rollback_manifest_revision,
                 gear.dependency_vector_json,
-                community.dependency_vector_json
+                community.dependency_vector_json,
+                gear.schema_revision,
+                gear.content_hash,
+                gear.source_json,
+                gear.content_summary_json,
+                gear.release_status
             FROM cache.websim_active_manifest_pointer pointer
             LEFT JOIN cache.websim_season_manifests manifest
               ON manifest.manifest_revision = pointer.manifest_revision
@@ -375,6 +380,11 @@ class GearCatalogAuditStore:
             "manifestRollbackRevision": _text(row[9]),
             "gearDependencyVector": _mapping(row[10]),
             "communityDependencyVector": _mapping(row[11]),
+            "gearSchemaRevision": _text(row[12]),
+            "gearContentHash": _text(row[13]),
+            "gearSource": _mapping(row[14]),
+            "gearContentSummary": _mapping(row[15]),
+            "gearReleaseStatus": _text(row[16]),
         }
 
     def _items(self, cursor, release_id: str, batch_size: int) -> list[dict[str, Any]]:
@@ -504,6 +514,48 @@ class GearCatalogAuditStore:
                 ),
                 "status": _text(row[7]),
                 "blockers": _json_value(row[8], []),
+            })
+        return result
+
+    def _sources(self, cursor, release_id: str, batch_size: int) -> list[dict[str, Any]]:
+        self._execute(
+            cursor,
+            """
+            /* gear_catalog_audit_sources */
+            SELECT
+                source_id,
+                item_id,
+                source_type,
+                source_key,
+                source_label,
+                instance_id,
+                encounter_id,
+                difficulty_key,
+                season_revision,
+                payload_json
+            FROM cache.websim_gear_release_sources
+            WHERE release_id = %s
+            ORDER BY item_id, source_type, source_key, source_id
+            """,
+            (release_id,),
+        )
+        result = []
+        for row in self._bounded_rows(cursor, batch_size):
+            payload = _mapping(row[9])
+            result.append({
+                "sourceId": _text(row[0]),
+                "itemId": _text(row[1]),
+                "sourceType": _text(row[2]),
+                "sourceKey": _text(row[3]),
+                "sourceLabel": _text(row[4]),
+                "instanceId": _text(row[5]),
+                "encounterId": _text(row[6]),
+                "difficultyKey": _text(row[7]),
+                "seasonRevision": _text(row[8]),
+                "status": _text(payload.get("status") or "unknown"),
+                "sourceStatus": _text(
+                    payload.get("sourceStatus") or "unknown"
+                ),
             })
         return result
 
@@ -837,6 +889,38 @@ class GearCatalogAuditStore:
             "rollbackManifestRevision": _text(binding.get("rollbackManifestRevision")),
         }
 
+    def pointer_identity(
+        self,
+        *,
+        statement_timeout_ms: int = 5_000,
+        lock_timeout_ms: int = 1_000,
+    ) -> dict[str, Any]:
+        """Read only the active pointer fence after a dormant seal."""
+
+        if not 1 <= _int(statement_timeout_ms) <= 30_000:
+            raise ValueError("statement_timeout_ms must be between 1 and 30000")
+        if not 1 <= _int(lock_timeout_ms) <= 5_000:
+            raise ValueError("lock_timeout_ms must be between 1 and 5000")
+        connection = self._connection_factory()
+        try:
+            with connection.cursor() as cursor:
+                self._execute(cursor, "BEGIN READ ONLY")
+                self._execute(
+                    cursor,
+                    f"SET LOCAL statement_timeout = '{_int(statement_timeout_ms)}ms'",
+                )
+                self._execute(
+                    cursor,
+                    f"SET LOCAL lock_timeout = '{_int(lock_timeout_ms)}ms'",
+                )
+                binding = self._pointer_binding(cursor)
+                return self._pointer_identity(binding)
+        finally:
+            try:
+                connection.rollback()
+            finally:
+                connection.close()
+
     def snapshot(
         self,
         *,
@@ -871,6 +955,7 @@ class GearCatalogAuditStore:
                 gear_release_id = _text(before.get("gearReleaseId"))
                 community_release_id = _text(before.get("communityReleaseId"))
                 items = self._items(cursor, gear_release_id, batch_size)
+                sources = self._sources(cursor, gear_release_id, batch_size)
                 variants = self._variants(cursor, gear_release_id, batch_size)
                 options = self._options(cursor, gear_release_id, batch_size)
                 community = self._community_templates(
@@ -890,7 +975,7 @@ class GearCatalogAuditStore:
                     "AUDIT_POINTER_CHANGED: active Manifest pointer changed during read-only audit"
                 )
             return {
-                "schemaRevision": "gear-catalog-audit-store-snapshot-v1",
+                "schemaRevision": "gear-catalog-audit-store-snapshot-v2",
                 "pointerBefore": pointer_before,
                 "activeBinding": {
                     "manifest": {
@@ -906,8 +991,19 @@ class GearCatalogAuditStore:
                     },
                     "gearRelease": {
                         "releaseId": gear_release_id,
+                        "schemaRevision": _text(
+                            before.get("gearSchemaRevision")
+                        ),
+                        "contentHash": _text(before.get("gearContentHash")),
+                        "releaseStatus": _text(
+                            before.get("gearReleaseStatus")
+                        ),
                         "dependencyVector": _mapping(
                             before.get("gearDependencyVector")
+                        ),
+                        "source": _mapping(before.get("gearSource")),
+                        "contentSummary": _mapping(
+                            before.get("gearContentSummary")
                         ),
                     },
                     "communityRelease": {
@@ -919,6 +1015,7 @@ class GearCatalogAuditStore:
                 },
                 "catalogRows": {
                     "items": items,
+                    "sources": sources,
                     "variants": variants,
                     "options": options,
                 },

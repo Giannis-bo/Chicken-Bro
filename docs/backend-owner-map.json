@@ -13,12 +13,12 @@
   "hotspotFiles": [
     {
       "path": "server/gear_catalog_migration_audit.py",
-      "healthStatus": "track_authority_audit_rerun_blocked",
-      "summary": "Owns pure deterministic Phase 0 classification and aggregate report identity for the equipment-simulator Catalog migration audit; the versioned Track Authority now resolves progression facts, but 48 static-stat gaps and independent Phase 0 gates still block migration.",
+      "healthStatus": "phase1_dormant_catalog_in_progress",
+      "summary": "Owns the verified Phase 0 migration classification plus the Phase 1 deterministic dormant Catalog builder, fixed-query projection, append-only store and bounded 40-specialization shadow.",
       "owners": [
         {
           "id": "equipment_simulator_catalog_migration_phase0",
-          "status": "track_authority_read_only_audit_blocked",
+          "status": "phase0_verified_generation_32",
       "pureClassificationOwner": "server/gear_catalog_migration_audit.py",
       "trackAuthorityOwner": "server/gear_track_authority.py",
       "readOnlyProjectionOwner": "server/gear_catalog_audit_store.py",
@@ -45,7 +45,39 @@
             "tests/gear-catalog-callers-audit.test.js"
           ],
           "runtimeConsumers": [],
-          "futureExtractionDirection": "No Phase 1 plan is authorized while artifacts/releases/2026-07-28-equipment-simulator-track-authority-correction/phase1-decision.json keeps allowedNextPlan=none."
+          "futureExtractionDirection": "Phase 0 remains the read-only characterization baseline; it does not own Phase 1 Catalog persistence or public cutover."
+        },
+        {
+          "id": "equipment_simulator_catalog_revision_phase1",
+          "status": "dormant_catalog_implementation",
+          "factOwner": "server/gear_catalog_revision.py",
+          "trackAuthorityOwner": "server/gear_track_authority.py",
+          "readOnlyProjectionOwner": "server/gear_catalog_audit_store.py",
+          "writeOwner": "server/gear_catalog_revision_store.py",
+          "migration": "server/migrations/postgres/0019_websim_gear_catalog_revision.sql",
+          "cliOrchestrator": "scripts/gear-catalog-revision.py",
+          "owns": [
+            "content-addressed CatalogRevision construction",
+            "Catalog-bound ItemDefinition and BrowseVariant membership",
+            "crafted stat-selection collapse into invariant BrowseVariant facts",
+            "append-only dormant Catalog seal/load/verify",
+            "generation-fenced 40-specialization migration shadow"
+          ],
+          "mustNotChange": [
+            "Do not create or change an active Catalog or Season Manifest pointer.",
+            "Do not route public API, Resolver, community import, stat snapshots or SimC through dormant Catalog rows.",
+            "Do not put crafted stat selections, timestamps, task IDs or display-only labels into Catalog identity.",
+            "Do not update or delete sealed dormant Catalog rows."
+          ],
+          "characterization": [
+            "tests/gear_catalog_revision_test.py",
+            "tests/gear_catalog_revision_store_test.py",
+            "tests/gear_catalog_revision_cli_test.py",
+            "tests/gear_catalog_audit_store_test.py",
+            "tests/postgres_schema_test.py"
+          ],
+          "runtimeConsumers": [],
+          "futureExtractionDirection": "A later explicit phase may add a candidate public reader only after exact production membership and 40-specialization parity are sealed."
         }
       ]
     },

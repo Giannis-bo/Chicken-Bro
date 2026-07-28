@@ -1,0 +1,406 @@
+{
+  "schemaVersion": 2,
+  "slug": "equipment-simulator-phase1-catalog-contract",
+  "requirementSlug": "equipment-simulator-phase1-catalog-contract",
+  "status": "runtime_verified",
+  "highestEvidenceLevel": "runtime_verified",
+  "branch": "codex/equipment-simulator-phase1-catalog-contract",
+  "commit": "0fdcf123895f02940401e53b39419f29d44204b3",
+  "identities": {
+    "runtime": {
+      "status": "bound",
+      "kind": "git_commit",
+      "value": "0fdcf123895f02940401e53b39419f29d44204b3"
+    },
+    "verification": {
+      "status": "bound_at_check",
+      "kind": "git_ref",
+      "value": "HEAD"
+    },
+    "closure": {
+      "status": "pending",
+      "reason": "PR merge and archive closure have not occurred."
+    }
+  },
+  "manualAcceptance": {
+    "required": false,
+    "status": "not_applicable",
+    "reason": "This phase adds dormant backend schema and shadow verification without changing a user-visible runtime path.",
+    "items": [],
+    "rollup": {
+      "total": 0,
+      "accepted": 0,
+      "notRunUserWaived": 0,
+      "pending": 0
+    }
+  },
+  "scope": [
+    "Dormant CatalogRevision, ItemDefinition and BrowseVariant membership contract",
+    "Append-only PostgreSQL Catalog schema and store",
+    "Deterministic active Gear Release migration",
+    "40-specialization shadow parity with an unchanged active Manifest pointer"
+  ],
+  "verification": [
+    {
+      "command": "CatalogRevision RED/GREEN focused suites",
+      "status": "pass",
+      "summary": "71 focused Catalog builder, formal membership, append-only store, migration schema, fixed-query projection and 40-specialization shadow tests pass, including actual PG selector, strict Browse-family, compact-crafted alias, direct-key fallback and cardinality contracts. RED failures were observed before each correction."
+    },
+    {
+      "command": "pre-candidate repository verification",
+      "status": "pass",
+      "summary": "692 Node tests, 2040 Python tests with one skip, 404 Taro/Vitest tests, Python compileall, typecheck, lint, UI architecture, raster integrity, package mechanics and diff checks pass. UI package release configuration remains intentionally partial in the local environment and is not a Phase 1 runtime claim."
+    },
+    {
+      "command": "candidate dormant Catalog migration and production shadow",
+      "status": "pass",
+      "summary": "Immutable candidate 0fdcf123 passed deterministic build/seal/load, exact 613/1309 membership, 40/40 specialization parity, zero unmapped, zero cardinality mismatch, equal legacy/dormant visible totals of 13297, stable generation-32 pointer, 871588 KiB peak RSS, 168.44 seconds and zero swap."
+    },
+    {
+      "command": "exact-head Project Harness full profile",
+      "status": "pass",
+      "summary": "Final clean HEAD rerun covers 692 Node tests, 2048 Python tests with one skip, 404 Taro/Vitest tests, compileall, typecheck, lint, UI architecture, asset/package mechanics, syntax checks and the task-scoped Harness gate."
+    },
+    {
+      "command": "pull request CI",
+      "status": "not_run",
+      "summary": "Runs after the exact-head local Harness check passes and the task branch is published."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "candidate_verified",
+    "requiredBeforeMerge": true,
+    "branch": "codex/equipment-simulator-phase1-catalog-contract",
+    "commit": "0fdcf123895f02940401e53b39419f29d44204b3",
+    "gitTree": "b3946ec4190fb0aa67830421212e60127ab21614",
+    "host": "wow-lighthouse",
+    "candidatePath": "/opt/wow-mini-program-candidates/gear-catalog-0fdcf123.OvnuIg",
+    "runtimePath": "/opt/wow-mini-program",
+    "baseUrl": "http://127.0.0.1:8787",
+    "catalogRevision": "gear-catalog:sha256:2addca2ff52fdcc2d23c369572c88fba9919332927f07f10350d700654e5aa34",
+    "manifestRevision": "season-manifest:sha256:b79e6226c7dc406c2e729cf01cf6d86f4944b760b8e8cc185dcd4347032fedb6",
+    "pointerGeneration": 32,
+    "runtimeFileParity": {
+      "status": "pass",
+      "summary": "The five Phase 1 runtime/migration files in /opt/wow-mini-program match immutable candidate 0fdcf123 by SHA-256. These dormant owners are not imported by the active backend, so no service restart was required."
+    },
+    "smoke": {
+      "status": "pass",
+      "summary": "Strict candidate shadow, exact Catalog load, update/delete trigger checks, app SELECT/INSERT permissions, /health, season, initial and slot gear API smoke passed. Global /api/data/health remains literally partial under pre-existing owners."
+    },
+    "timerBackflow": {
+      "status": "pass",
+      "summary": "Existing follow-up, observed-backfill, Community, SimC version, WebSim and stat-weight timers retained their schedules; WOW_DEPLOY_START_ASYNC_SYNCS=0 and no sync was auto-triggered."
+    },
+    "rollback": {
+      "status": "pass",
+      "summary": "The active Manifest pointer never changed. Schema/control dumps and the replaced audit-store file backup remain present with verified SHA-256; dormant sealed rows are unreferenced by public readers."
+    }
+  },
+  "runtimeEvidence": [
+    {
+      "candidateCommit": "4f1c970c714c1509f48ee7501ab51f04b24fb221",
+      "status": "blocked",
+      "problemCodes": [
+        "CATALOG_ITEM_SOURCE_MISSING",
+        "CATALOG_ITEM_SOURCE_STATUS_UNVERIFIED"
+      ],
+      "elapsedSeconds": 29.21,
+      "maxRssKiB": 876268,
+      "pointerGenerationBefore": 32,
+      "pointerGenerationAfter": 32,
+      "sealedCatalogRows": 0,
+      "interpretation": "Fail-closed behavior was correct. The candidate exposed that Phase 0 mappedItemCount classified dormant slot metadata rather than defining formal Catalog membership."
+    },
+    {
+      "candidateCommit": "d92ed1105daed4705d8b39f131d6602b7313ce7a",
+      "status": "blocked",
+      "problemCodes": [
+        "CATALOG_REVISION_MISMATCH"
+      ],
+      "elapsedSeconds": 26.65,
+      "maxRssKiB": 876136,
+      "pointerGenerationBefore": 32,
+      "pointerGenerationAfter": 32,
+      "sealedCatalogRows": 0,
+      "observedBuildCounts": {
+        "itemDefinitionCount": 613,
+        "browseVariantCount": 1298,
+        "excludedDormantItemCount": 697
+      },
+      "interpretation": "The candidate transaction rolled back completely. Diagnosis proved that database row ordering was incorrectly identity-sensitive and that 11 ordinary Ascendant rows had not inherited the accepted observed ExactItemInstance eligibility evidence."
+    },
+    {
+      "candidateCommit": "eab24686ba346fb1ba430a22a97198c8de98602b",
+      "status": "blocked",
+      "problemCodes": [
+        "CATALOG_SEALED_SEMANTICS_ORDER_MISMATCH"
+      ],
+      "elapsedSeconds": 27.81,
+      "maxRssKiB": 876380,
+      "pointerGenerationBefore": 32,
+      "pointerGenerationAfter": 32,
+      "sealedCatalogRows": 0,
+      "observedBuildCounts": {
+        "itemDefinitionCount": 613,
+        "browseVariantCount": 1309,
+        "excludedDormantItemCount": 697
+      },
+      "interpretation": "The candidate built and individually verified the full expected membership, then rolled back because store semantics still compared SQL-returned arrays by position. Stable-key comparison now preserves strict row hashes and full Catalog identity while treating member order as non-semantic."
+    },
+    {
+      "candidateCommit": "1c512a99f39c32ee5a56980866ae251abd442725",
+      "status": "blocked",
+      "problemCodes": [
+        "CATALOG_SHADOW_SPEC_CANDIDATES_MISSING"
+      ],
+      "reportId": "gear-catalog-shadow:sha256:daa68399c0bbe0eb76b5da37743749d870088d02519e36f54d02499a45bbd396",
+      "catalogRevision": "gear-catalog:sha256:2addca2ff52fdcc2d23c369572c88fba9919332927f07f10350d700654e5aa34",
+      "elapsedSeconds": 33.64,
+      "maxRssKiB": 876160,
+      "pointerGenerationBefore": 32,
+      "pointerGenerationAfter": 32,
+      "sealedCatalogRows": {
+        "revisions": 1,
+        "itemDefinitions": 613,
+        "browseVariants": 1309
+      },
+      "observedBuildCounts": {
+        "itemDefinitionCount": 613,
+        "browseVariantCount": 1309,
+        "excludedDormantItemCount": 697
+      },
+      "specShadow": {
+        "verifiedSpecCount": 0,
+        "blockedSpecCount": 40,
+        "unmappedCandidateCount": 0
+      },
+      "interpretation": "Build, append-only seal, exact read-back and pointer fence passed. Shadow used mode=initial, which is an intentionally empty template preview; a production probe confirmed the full mage/arcane catalog returned 199 items and 730 variants."
+    },
+    {
+      "candidateCommit": "3fafb88c94c3db35830d4ea2eee09202610e6875",
+      "status": "blocked",
+      "problemCodes": [
+        "RESOURCE_PEAK_RSS_EXCEEDED"
+      ],
+      "catalogRevision": "gear-catalog:sha256:2addca2ff52fdcc2d23c369572c88fba9919332927f07f10350d700654e5aa34",
+      "elapsedSecondsBeforeTermination": 208.09,
+      "memoryPeakBytes": 2220298240,
+      "memoryLimitBytes": 2000000000,
+      "pointerGenerationBefore": 32,
+      "pointerGenerationAfter": 32,
+      "sealedCatalogRows": {
+        "revisions": 1,
+        "itemDefinitions": 613,
+        "browseVariants": 1309
+      },
+      "reportWritten": false,
+      "interpretation": "The candidate was actively terminated when repeated full-spec payloads accumulated in the process LRU above the accepted ceiling. The sealed Catalog remained unchanged and public services stayed active with zero restarts."
+    },
+    {
+      "candidateCommit": "3ce639a9d583d73e581e425f47de581b87122873",
+      "status": "blocked",
+      "problemCodes": [
+        "RESOURCE_PEAK_RSS_EXCEEDED",
+        "RESOURCE_SWAP_OBSERVED"
+      ],
+      "catalogRevision": "gear-catalog:sha256:2addca2ff52fdcc2d23c369572c88fba9919332927f07f10350d700654e5aa34",
+      "elapsedSecondsBeforeTermination": 170.52,
+      "memoryPeakBytes": 2000039936,
+      "memoryLimitBytes": 2000000000,
+      "swapPeakBytes": 321912832,
+      "runtimeLimitSeconds": 300,
+      "pointerGenerationBefore": 32,
+      "pointerGenerationAfter": 32,
+      "sealedCatalogRows": {
+        "revisions": 1,
+        "itemDefinitions": 613,
+        "browseVariants": 1309
+      },
+      "reportWritten": false,
+      "interpretation": "Per-spec LRU eviction reduced accumulation but full public payload deep-copy still touched the hard ceiling and used swap. The candidate was terminated; the final design reuses a single snapshot and PG selector indexes instead."
+    },
+    {
+      "candidateCommit": "3eae6d215c91a81031a3531e0ecb104c5fb137e7",
+      "status": "blocked",
+      "problemCodes": [
+        "CATALOG_SHADOW_VISIBLE_CANDIDATE_UNMAPPED"
+      ],
+      "reportId": "gear-catalog-shadow:sha256:7c834d17cc6aca05c43e0310234eb68457e57e9d5be6d057e350425b639d6ba6",
+      "catalogRevision": "gear-catalog:sha256:2addca2ff52fdcc2d23c369572c88fba9919332927f07f10350d700654e5aa34",
+      "elapsedSeconds": 235.18,
+      "maxRssKiB": 881748,
+      "swapPeakBytes": 0,
+      "pointerGenerationBefore": 32,
+      "pointerGenerationAfter": 32,
+      "sealedCatalogRows": {
+        "revisions": 1,
+        "itemDefinitions": 613,
+        "browseVariants": 1309
+      },
+      "specShadow": {
+        "verifiedSpecCount": 0,
+        "blockedSpecCount": 40,
+        "unmappedCandidateCount": 40306
+      },
+      "interpretation": "One-snapshot projection passed resource, deterministic seal and pointer gates. It incorrectly projected ExactItemInstance rows alongside canonical Browse rows; strict rowFamily=browse filtering is now covered by RED/GREEN tests."
+    },
+    {
+      "candidateCommit": "0f09507741af8420c1bbbf70fdcb656873ee8c76",
+      "status": "blocked",
+      "problemCodes": [
+        "CATALOG_SHADOW_VISIBLE_CANDIDATE_UNMAPPED"
+      ],
+      "reportId": "gear-catalog-shadow:sha256:df06642c9c7466a4d16b7d84a80430693179c7b6cba79f0d22c28f5065ac6f33",
+      "catalogRevision": "gear-catalog:sha256:2addca2ff52fdcc2d23c369572c88fba9919332927f07f10350d700654e5aa34",
+      "elapsedSeconds": 169.4,
+      "maxRssKiB": 871936,
+      "swapPeakBytes": 0,
+      "pointerGenerationBefore": 32,
+      "pointerGenerationAfter": 32,
+      "sealedCatalogRows": {
+        "revisions": 1,
+        "itemDefinitions": 613,
+        "browseVariants": 1309
+      },
+      "specShadow": {
+        "verifiedSpecCount": 0,
+        "blockedSpecCount": 40,
+        "unmappedCandidateCount": 926
+      },
+      "interpretation": "Browse-only projection removed ExactItemInstance contamination. Diagnosis proved every remaining difference was a compact crafted synthetic key for an already-collapsed Catalog progression; deterministic aliases are now tested without restoring crafted stat choices to identity."
+    },
+    {
+      "candidateCommit": "80d0713d9efd64ac61e515bd657f7668c146aa4b",
+      "status": "blocked",
+      "reportedStatus": "verified",
+      "promotionProblemCodes": [
+        "CATALOG_SHADOW_VISIBLE_CARDINALITY_MISMATCH"
+      ],
+      "reportId": "gear-catalog-shadow:sha256:f6e44de66d46530d0dc5950f70513cc8d8e2a3376dc1b81e9ca9d1a63c01182b",
+      "catalogRevision": "gear-catalog:sha256:2addca2ff52fdcc2d23c369572c88fba9919332927f07f10350d700654e5aa34",
+      "elapsedSeconds": 166.57,
+      "maxRssKiB": 871700,
+      "swapPeakBytes": 0,
+      "pointerGenerationBefore": 32,
+      "pointerGenerationAfter": 32,
+      "specShadow": {
+        "reportedVerifiedSpecCount": 40,
+        "blockedSpecCount": 0,
+        "unmappedCandidateCount": 0,
+        "legacyVisibleCandidateTotal": 13980,
+        "dormantVisibleCandidateTotal": 13297,
+        "cardinalityDifference": 683
+      },
+      "interpretation": "The raw report mapped every legacy alias, but promotion audit found item-level direct crafted-selection keys duplicated identities already present in variants lists. The candidate was not promoted; fallback-only direct keys and an explicit cardinality gate are now tested."
+    },
+    {
+      "candidateCommit": "0fdcf123895f02940401e53b39419f29d44204b3",
+      "status": "verified",
+      "reportId": "gear-catalog-shadow:sha256:f263ef9b48bd08271fc266461582c3f6cea36ca1e62db5decb20d5cbfbaf57be",
+      "catalogRevision": "gear-catalog:sha256:2addca2ff52fdcc2d23c369572c88fba9919332927f07f10350d700654e5aa34",
+      "sourceGearReleaseId": "gear-release:sha256:9299fe1f942dc272f402e4d735d6a1bf8111a8f156464e0777cd6df78769edc7",
+      "contentSummary": {
+        "itemDefinitionCount": 613,
+        "browseVariantCount": 1309,
+        "legacyBrowseVariantRowCount": 1674,
+        "craftedEnhancementSelectionRowCount": 438,
+        "collapsedCraftedVariantRowCount": 365,
+        "excludedDormantItemCount": 697
+      },
+      "specShadow": {
+        "verifiedSpecCount": 40,
+        "blockedSpecCount": 0,
+        "unmappedCandidateCount": 0,
+        "cardinalityMismatchCount": 0,
+        "collapsedAliasCount": 0,
+        "legacyVisibleCandidateTotal": 13297,
+        "dormantVisibleCandidateTotal": 13297
+      },
+      "deterministicBuild": true,
+      "exactLoadVerifyProblems": [],
+      "elapsedSeconds": 168.44,
+      "maxRssKiB": 871588,
+      "swapPeakBytes": 0,
+      "memoryLimitBytes": 2000000000,
+      "runtimeLimitSeconds": 300,
+      "pointerGenerationBefore": 32,
+      "pointerGenerationAfter": 32,
+      "pointerStable": true,
+      "sealedCatalogRows": {
+        "revisions": 1,
+        "itemDefinitions": 613,
+        "browseVariants": 1309
+      },
+      "immutability": {
+        "catalogRevisionUpdateBlocked": true,
+        "catalogRevisionDeleteBlocked": true,
+        "itemDefinitionUpdateBlocked": true,
+        "itemDefinitionDeleteBlocked": true,
+        "browseVariantUpdateBlocked": true,
+        "browseVariantDeleteBlocked": true
+      },
+      "serviceSmoke": {
+        "backendActive": true,
+        "workerActive": true,
+        "backendRestarts": 0,
+        "workerRestarts": 0,
+        "healthHttpStatus": 200,
+        "dataHealthOverallStatus": "partial",
+        "initialGearStatus": "verified",
+        "slotGearStatus": "verified"
+      }
+    }
+  ],
+  "risks": [
+    {
+      "id": "crafted-selection-facts",
+      "status": "controlled_by_tests",
+      "detail": "Builder removes governed crafted secondary selections, requires all remaining invariant facts to agree, and blocks conflicts."
+    },
+    {
+      "id": "catalog-key-cycle",
+      "status": "controlled_by_contract",
+      "detail": "Catalog membership seeds are hashed before Catalog-bound BrowseVariant keys are derived; verification independently rejects a mismatched derived key without changing Catalog identity."
+    },
+    {
+      "id": "active-pointer-safety",
+      "status": "controlled_by_candidate",
+      "detail": "Production candidate, exact load, immutability and API smoke all retained the active generation-32 pointer and manifest revision."
+    },
+    {
+      "id": "dormant-item-membership",
+      "status": "controlled_by_tests",
+      "detail": "Formal ItemDefinition membership requires canonical BrowseVariant or verified ExactItemInstance usage plus governed source evidence; raw historical and source-only rows are excluded and counted."
+    },
+    {
+      "id": "persisted-order-and-ascendant-parity",
+      "status": "controlled_by_tests",
+      "detail": "Catalog identity canonicalizes member order, while verified item-level-298 exact evidence is applied to ordinary Ascendant Track Authority before BrowseVariant construction."
+    },
+    {
+      "id": "shadow-payload-mode",
+      "status": "controlled_by_tests",
+      "detail": "The 40-specialization verifier explicitly requests the complete compact catalog payload; initial template preview mode is excluded from parity evidence."
+    },
+    {
+      "id": "shadow-resource-bounds",
+      "status": "controlled_by_tests_and_candidate_limits",
+      "detail": "The final shadow reads one active snapshot, builds PG selector indexes once, emits only per-spec visible identity pairs, and runs under the accepted memory and elapsed hard ceilings."
+    }
+  ],
+  "rollback": [
+    "code_rollback",
+    "service_rollback",
+    "dormant_catalog_unreferenced",
+    "active_manifest_pointer_unchanged"
+  ],
+  "cleanup": {
+    "required": true,
+    "reason": "Candidate backups, transient reports and the task branch require cleanup after closure."
+  },
+  "archivedReferences": [
+    "artifacts/releases/2026-07-28-equipment-simulator-phase0-unblock/evidence.json"
+  ],
+  "summary": "Immutable candidate 0fdcf123 and final clean repository HEAD are verified: Catalog gear-catalog:sha256:2addca2f... seals and exactly loads 613 ItemDefinitions plus 1309 BrowseVariants, strict 40/40 shadow has zero unmapped and zero cardinality mismatch with equal 13297 visible totals, resources stay in budget, immutability and runtime parity pass, generation 32 is unchanged, and the full local verification matrix passes. PR CI, merge and archive closure remain."
+}

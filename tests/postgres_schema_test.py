@@ -21,6 +21,7 @@ WEBSIM_GEAR_STAT_SNAPSHOTS = ROOT / "server" / "migrations" / "postgres" / "0015
 WEBSIM_ATTRIBUTE_RULE_AUDITS = ROOT / "server" / "migrations" / "postgres" / "0016_websim_attribute_rule_audits.sql"
 WEBSIM_HERO_COMMUNITY_RELEASE = ROOT / "server" / "migrations" / "postgres" / "0017_websim_hero_community_release.sql"
 OBSERVED_BUILD_REGISTRY = ROOT / "server" / "migrations" / "postgres" / "0018_observed_build_registry.sql"
+WEBSIM_GEAR_CATALOG_REVISION = ROOT / "server" / "migrations" / "postgres" / "0019_websim_gear_catalog_revision.sql"
 
 
 class PostgresSchemaTest(unittest.TestCase):
@@ -342,6 +343,50 @@ class PostgresSchemaTest(unittest.TestCase):
         self.assertIn("cache.websim_release_events TO wow_app", normalized)
         self.assertIn("GRANT SELECT, INSERT, UPDATE ON cache.websim_active_manifest_pointer TO wow_app", normalized)
         self.assertIn("0013_websim_release_train", normalized)
+
+    def test_gear_catalog_revision_migration_is_dormant_append_only_membership(self):
+        self.assertTrue(
+            WEBSIM_GEAR_CATALOG_REVISION.exists(),
+            "missing dormant Gear Catalog revision migration",
+        )
+        normalized = " ".join(
+            WEBSIM_GEAR_CATALOG_REVISION.read_text(encoding="utf-8").split()
+        )
+        for table in (
+            "cache.websim_gear_catalog_revisions",
+            "cache.websim_gear_item_definitions",
+            "cache.websim_gear_browse_variants",
+        ):
+            self.assertIn(f"CREATE TABLE IF NOT EXISTS {table}", normalized)
+        self.assertIn("PRIMARY KEY (catalog_revision, item_id)", normalized)
+        self.assertIn(
+            "UNIQUE (catalog_revision, item_id, progression_key)",
+            normalized,
+        )
+        self.assertIn(
+            "CREATE OR REPLACE FUNCTION cache.reject_websim_gear_catalog_mutation",
+            normalized,
+        )
+        for table in (
+            "websim_gear_catalog_revisions",
+            "websim_gear_item_definitions",
+            "websim_gear_browse_variants",
+        ):
+            self.assertIn(
+                f"BEFORE UPDATE OR DELETE ON cache.{table}",
+                normalized,
+            )
+        self.assertIn(
+            "REVOKE UPDATE, DELETE ON cache.websim_gear_catalog_revisions,",
+            normalized,
+        )
+        self.assertIn(
+            "GRANT SELECT, INSERT ON cache.websim_gear_catalog_revisions,",
+            normalized,
+        )
+        self.assertNotIn("active_catalog_pointer", normalized)
+        self.assertNotIn("websim_active_manifest_pointer", normalized)
+        self.assertIn("0019_websim_gear_catalog_revision", normalized)
 
     def test_hero_community_release_migration_allows_two_ranked_winners_per_spec(self):
         self.assertTrue(WEBSIM_HERO_COMMUNITY_RELEASE.exists(), "missing hero community release migration")
