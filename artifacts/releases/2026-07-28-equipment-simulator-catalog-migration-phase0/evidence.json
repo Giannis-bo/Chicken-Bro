@@ -5,7 +5,7 @@
   "status": "runtime_verified",
   "highestEvidenceLevel": "runtime_verified",
   "branch": "codex/equipment-simulator-target-architecture",
-  "commit": "9d15abeb94fb907c84129b400d9ecc386e693ff6",
+  "commit": "287f735e489444017665f95c1e1552f2bba15b0d",
   "identities": {
     "runtime": {
       "status": "not_applicable",
@@ -24,11 +24,11 @@
   },
   "runtimeIdentity": {
     "status": "not_applicable_no_runtime_activation",
-    "auditToolCommit": "0216881188ec65b5d30b247e4b12e0c68a56e4c2",
+    "auditToolCommit": "84bdb3d0fa33793f3169d191b60f64641e6be7c0",
     "auditToolFiles": {
       "scripts/gear-catalog-migration-audit.py": "sha256:9036e2d3acb8d88c6a228fda48528287b62a132add4bbfaa00eb270e8ad44cf7",
-      "server/gear_catalog_audit_store.py": "sha256:40598873ec153bd1aa60672eec22a41dfedeb8b0897d8cb7f86bef0759ad200b",
-      "server/gear_catalog_migration_audit.py": "sha256:502ea1ab0e98a20ace6fa07fdcb3225250604ea57a1fd3e59988507d962c6915"
+      "server/gear_catalog_audit_store.py": "sha256:1fded588cf4c6f39868f791f1bb25fa15ead38e8b3df0bdfc47939fcf1d09aa6",
+      "server/gear_catalog_migration_audit.py": "sha256:6751c63fb78f4d0b1a059cf6af8f43e59835e7aa7eda532988852e03baa711a6"
     },
     "productionServiceBefore": {
       "unit": "wow-backend",
@@ -68,17 +68,17 @@
     {
       "command": "python3 -m unittest tests.gear_catalog_migration_audit_test tests.gear_catalog_audit_store_test tests.gear_catalog_migration_audit_cli_test tests.gear_release_store_test tests.postgres_personal_store_test -v",
       "status": "pass",
-      "summary": "83 focused audit, release-store and personal-store tests passed on verification HEAD 9d15abeb."
+      "summary": "90 focused audit, release-store and personal-store tests passed with the corrected row-family and track-rank contract."
     },
     {
-      "command": "node --test tests/gear-catalog-callers-audit.test.js tests/project-state.test.js tests/project-harness.test.js",
+      "command": "node --test tests/gear-catalog-callers-audit.test.js tests/project-state.test.js tests/project-harness.test.js tests/backend-owner-map.test.js",
       "status": "pass",
-      "summary": "69 caller-inventory, current-truth and Harness tests passed on verification HEAD 9d15abeb."
+      "summary": "72 caller-inventory, current-truth, Harness and owner-map tests passed with the corrected report identity and family counts."
     },
     {
-      "command": "node --test tests/project-state.test.js tests/project-harness.test.js tests/backend-owner-map.test.js",
+      "command": "node --test tests/project-state.test.js",
       "status": "pass",
-      "summary": "68 control-plane and owner-map tests passed after the blocked audit result was written to current truth."
+      "summary": "The current-truth assertion first failed against the stale report binding, then all 41 project-state tests passed after the corrected identity and counts were recorded."
     },
     {
       "command": "node scripts/verify-project.js --profile harness --release artifacts/releases/2026-07-28-equipment-simulator-catalog-migration-phase0",
@@ -119,7 +119,7 @@
       "id": "catalog-mapping-gate",
       "type": "phase1_gate",
       "status": "blocked",
-      "summary": "The active release mapped 1312/1488 items and 356/46631 raw variants; 63/63 options mapped. Missing slot, rank, item-level and static-stat facts plus ambiguous highest ranks block lossless CatalogRevision mapping."
+      "summary": "The corrected audit mapped 1312/1488 item definitions and explicitly excluded 176 unreferenced metadata rows. It classified 46631 legacy variants into 1678 Browse candidates, 44651 observed Exact instances, 291 placeholders and 11 preview references. Generic community rank did not satisfy track rank; 0/1678 Browse rows mapped because all lack dedicated track-rank authority and 48 also lack static stats. All 63 options mapped."
     },
     {
       "id": "template-and-spec-gates",
@@ -148,7 +148,7 @@
   ],
   "auditResults": {
     "callerReportId": "gear-catalog-callers:sha256:5740024ed81d36067e52c790bf4716638f0409cbc41135a65f98195941ac4ba2",
-    "auditReportId": "catalog-migration-audit:sha256:bd93f8109742128baa58c1ca607df08e9b5778ba2a1b93560ad30706659dc5c6",
+    "auditReportId": "catalog-migration-audit:sha256:f13af6b718f4b435cc4c10943680bb720acbc4056e60f2ef071798f70a210f17",
     "decisionStatus": "blocked",
     "allowedNextPlan": "none",
     "gates": {
@@ -228,7 +228,7 @@
     {
       "id": "lossless_catalog_mapping",
       "status": "blocked",
-      "detail": "Active item and variant rows do not yet satisfy the approved CatalogRevision and BrowseVariant identity contract."
+      "detail": "The corrected audit isolates 1678 Browse candidates from Exact, placeholder and preview rows. None of those Browse candidates has dedicated track-rank authority, and 48 also lack static stats, so the approved CatalogRevision and BrowseVariant identity contract is not yet satisfied."
     },
     {
       "id": "active_community_templates",
@@ -260,6 +260,6 @@
     "artifacts/releases/2026-07-28-equipment-simulator-catalog-migration-phase0/runtime-readonly-audit.json",
     "artifacts/releases/2026-07-28-equipment-simulator-catalog-migration-phase0/phase1-decision.json"
   ],
-  "summary": "Phase 0 audit tooling and production read-only evidence are runtime-verified with zero database writes and unchanged service, pointer, health and timer state. The audit outcome itself is blocked, allowedNextPlan is none, and no Catalog contract, schema shadow, API migration, builder, deployment or runtime activation is authorized.",
-  "updatedAt": "2026-07-28T15:17:51+08:00"
+  "summary": "The corrected Phase 0 audit tooling and production read-only evidence classify legacy Browse, Exact, placeholder and preview rows without treating community ranking as equipment track rank. The rerun retained zero database writes and unchanged service, pointer, health and timer state. The audit outcome remains blocked, allowedNextPlan is none, and no Catalog contract, schema shadow, API migration, builder, deployment or runtime activation is authorized.",
+  "updatedAt": "2026-07-28T16:02:17+08:00"
 }

@@ -60,14 +60,28 @@
       "path": "docs/plans/2026-07-28-equipment-simulator-target-architecture.md",
       "status": "approved_phase0_audit_blocked",
       "lifecycle": "active",
-      "notes": "The approved target architecture remains active, but the read-only Phase 0 audit blocked migration planning: the active release is not losslessly mappable, the active Manifest has no Community Release, 40/40 specialization initial candidate baselines are blocked, resource peaks remain partial and five runtime caller references remain unresolved."
+      "notes": "The approved target architecture remains active, but the corrected read-only Phase 0 audit blocks migration planning: all 1678 Browse rows lack dedicated track-rank authority, 48 also lack static stats, the active Manifest has no Community Release, 40/40 specialization initial candidate baselines are blocked, resource peaks remain partial and five runtime caller references remain unresolved."
     },
     {
       "id": "equipment_simulator_catalog_migration_phase0",
       "path": "docs/plans/2026-07-28-equipment-simulator-catalog-migration-phase0-implementation.md",
       "status": "audit_blocked",
       "lifecycle": "active",
-      "notes": "The bounded production audit completed with identical pointer generation 24 before/after and zero database writes. The Phase 1 decision is bound to audit report bd93f810, is blocked and has allowedNextPlan=none; see artifacts/releases/2026-07-28-equipment-simulator-catalog-migration-phase0/phase1-decision.json."
+      "auditReportId": "catalog-migration-audit:sha256:f13af6b718f4b435cc4c10943680bb720acbc4056e60f2ef071798f70a210f17",
+      "catalogMapping": {
+        "itemTotal": 1488,
+        "mappedItemCount": 1312,
+        "excludedNonCatalogItemCount": 176,
+        "variantTotal": 46631,
+        "browseVariantTotal": 1678,
+        "mappedBrowseVariantCount": 0,
+        "excludedExactInstanceCount": 44651,
+        "excludedPlaceholderVariantCount": 291,
+        "excludedReferenceVariantCount": 11,
+        "optionTotal": 63,
+        "mappedOptionCount": 63
+      },
+      "notes": "The corrected bounded production audit classified observed profiles as Exact evidence rather than Browse variants and never interpreted generic community leaderboard rank as equipment track rank. Pointer generation 24 remained identical before/after and database writes stayed zero. The Phase 1 decision is blocked with allowedNextPlan=none."
     }
   ],
   "completedBaselines": [
@@ -550,7 +564,7 @@
     {
       "id": "equipment_simulator_catalog_migration_phase0_blockers",
       "status": "blocked_measured",
-      "trigger": "The 2026-07-28 read-only audit mapped 1312/1488 active items and 356/46631 variants, found no active Community Release or community templates, observed 40/40 specialization rows with zero initial candidates, retained unknown peak RSS/temp bytes, and left five runtime references unresolved. Do not design Catalog schema or API work around these gaps.",
+      "trigger": "The corrected 2026-07-28 read-only audit mapped 1312/1488 item definitions and explicitly excluded 176 unreferenced metadata rows. It classified 46631 legacy variant rows as 1678 Browse candidates, 44651 observed Exact instances, 291 placeholders and 11 preview references. No Browse row has dedicated track-rank authority and 48 also lack static stats. The active Manifest has no Community Release or community templates, all 40 specialization initial candidate rows are blocked, peak RSS/temp bytes remain unknown, and five runtime references remain unresolved. Do not design Catalog schema or API work around these gaps.",
       "evidence": "artifacts/releases/2026-07-28-equipment-simulator-catalog-migration-phase0/phase1-decision.json"
     }
   ]

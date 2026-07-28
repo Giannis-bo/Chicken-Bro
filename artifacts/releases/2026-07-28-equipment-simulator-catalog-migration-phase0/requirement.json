@@ -38,6 +38,7 @@
     "mustChange": [
       "Add pure deterministic audit classifications and an aggregate report identity.",
       "Add a fixed-query PostgreSQL projection that uses explicit read-only transactions, bounded batches, timeouts, rollback, and zero writes.",
+      "Classify legacy Browse candidates, observed Exact evidence, incomplete placeholders, and reference-only previews before Catalog mapping; generic community leaderboard rank can never satisfy equipment track-rank authority.",
       "Inventory tracked catalog, release, profile, and SimC callers without persisting matched source text.",
       "Record aggregate-only active-release mapping, template exactness, 40-specialization browse status, relation and filesystem resource facts, and explicit unknown measurements.",
       "Produce a mechanical Phase 1 decision that allows contracts-only, dormant schema shadow, or no next plan."
@@ -48,13 +49,14 @@
       "Public API payloads, active Taro routes, visual targets, WeChat package, and historical task interpretation"
     ],
     "riskUnknown": [
-      "The lossless mapping rate from the active Gear Release to the first CatalogRevision is not yet measured.",
+      "The corrected audit measured 1678 Browse candidates with no dedicated track-rank authority; 48 also lack static stats, so lossless mapping remains blocked.",
       "The Exact Item identity completeness of active community and personal gear templates is not yet measured.",
       "Current relation and materialization sizes are measurable, but historical peak RSS and temporary bytes may remain unknown without an unsafe builder rerun.",
       "Static callers can be enumerated from tracked source, while unresolved dynamic or runtime callers must remain partial or blocked."
     ],
     "evidenceRequired": [
       "TDD proof for deterministic report identity, fail-closed mapping, template exactness, 40-specialization coverage, explicit unknown resources, bounded samples, and redaction",
+      "Regression proof that observed Exact rows and generic ranking fields cannot contribute to Browse mapping, with all approved exclusions counted separately",
       "Fixed-query store proof for read-only transactions, statement and lock timeouts, stable pointer checks, rollback, bounded rows, zero commits, and zero write statements",
       "Deterministic tracked-file caller inventory with active backend, Taro, compatibility, test/docs, and unresolved categories",
       "Aggregate read-only runtime audit with pointer before and after equality, zero writes, literal health state, and no created release event, template row, stat job, or SimC task",
@@ -99,6 +101,10 @@
     {
       "date": "2026-07-28",
       "decision": "Phase 0 is restricted to measured read-only inventory. Schema, builder, migration, deployment, public-reader, and pointer work require a later plan selected by the Phase 1 decision gate."
+    },
+    {
+      "date": "2026-07-28",
+      "decision": "The Phase 0 audit was corrected before merge: observed_profile rows are Exact evidence rather than Browse variants, generic payload.rank is community leaderboard rank rather than equipment track rank, and the corrected blocked result is bound to the existing packet."
     }
   ]
 }

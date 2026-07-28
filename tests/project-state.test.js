@@ -116,6 +116,20 @@ test('project-state is the single machine-readable current truth entry', () => {
   const catalogMigrationAudit = readJson(path.join(catalogMigrationPhase0Release, 'runtime-readonly-audit.json'))
   const catalogMigrationCallers = readJson(path.join(catalogMigrationPhase0Release, 'caller-inventory.json'))
   const catalogMigrationDecision = readJson(path.join(catalogMigrationPhase0Release, 'phase1-decision.json'))
+  assert.equal(catalogMigrationPhase0?.auditReportId, catalogMigrationAudit.reportId)
+  assert.deepEqual(catalogMigrationPhase0?.catalogMapping, {
+    itemTotal: 1488,
+    mappedItemCount: 1312,
+    excludedNonCatalogItemCount: 176,
+    variantTotal: 46631,
+    browseVariantTotal: 1678,
+    mappedBrowseVariantCount: 0,
+    excludedExactInstanceCount: 44651,
+    excludedPlaceholderVariantCount: 291,
+    excludedReferenceVariantCount: 11,
+    optionTotal: 63,
+    mappedOptionCount: 63,
+  })
   assert.equal(catalogMigrationRequirement.slug, 'equipment-simulator-catalog-migration-phase0')
   assert.equal(catalogMigrationRequirement.classification, 'Strict')
   assert.deepEqual(catalogMigrationRequirement.manualAcceptanceContract, {
@@ -135,11 +149,18 @@ test('project-state is the single machine-readable current truth entry', () => {
     catalogMigrationAudit.catalogMapping.runtimeSnapshotIdentity.pointerAfter,
   )
   assert.equal(catalogMigrationAudit.catalogMapping.sourceQueryMetrics.writes, 0)
+  assert.equal(catalogMigrationAudit.reportId, 'catalog-migration-audit:sha256:f13af6b718f4b435cc4c10943680bb720acbc4056e60f2ef071798f70a210f17')
+  assert.equal(catalogMigrationAudit.catalogMapping.mappedVariantCount, 0)
+  assert.deepEqual(catalogMigrationAudit.catalogMapping.problemCounts, {
+    CATALOG_VARIANT_RANK_MISSING: 1678,
+    CATALOG_VARIANT_STATIC_STATS_MISSING: 48,
+  })
   assert.equal(catalogMigrationAudit.specCoverage.queryMetrics.writes, 0)
   assert.equal(catalogMigrationDecision.status, 'blocked')
   assert.equal(catalogMigrationDecision.allowedNextPlan, 'none')
   assert.equal(catalogMigrationDecision.inputs.auditReportId, catalogMigrationAudit.reportId)
   assert.equal(catalogMigrationDecision.inputs.callerReportId, catalogMigrationCallers.reportId)
+  assert.deepEqual(catalogMigrationDecision.problems[0].facts, catalogMigrationPhase0.catalogMapping)
   assert.deepEqual(catalogMigrationDecision.gates, {
     activeReleaseMapping: 'blocked',
     templateMigration: 'blocked',

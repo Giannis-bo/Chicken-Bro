@@ -409,3 +409,9 @@ active hot payload
 专精初始候选为空，以及未归类运行时调用；峰值 RSS 和临时磁盘继续保持 `unknown`。
 在这些 blocker 解除并重新审计前，不编写 Catalog 合同、dormant schema/shadow、
 新 API 或迁移计划。
+
+Phase 0 口径校正进一步确认：46,631 条旧 variant 不是同一种目录事实，其中 1,678
+条才是 Browse 候选，44,651 条 `observed_profile` 是玩家 Exact 实例证据，291 条是
+占位，11 条是 Battle.net 预览引用。通用 `payload.rank` 是社区榜单排名，不能作为
+装备轨道 rank。当前 1,678 条 Browse 行全部缺少专用 `trackRank` / `upgradeRank`，
+其中 48 条同时缺少静态属性，因此仍不具备 Catalog 无损迁移条件。

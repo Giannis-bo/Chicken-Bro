@@ -6,6 +6,13 @@
 
 **Architecture:** 新增一个纯 `gear_catalog_migration_audit` 领域模块负责分类和聚合，一个只读 `gear_catalog_audit_store` 负责有界 PostgreSQL 投影，一个 CLI 负责环境预检和 JSON 输出。所有业务判断都在纯模块完成；store 不写库，CLI 不修改 runtime。Phase 0 只产生去标识化审计证据，不创建 Catalog 表、不构建 Release、不切指针。
 
+**校正结论（2026-07-28）：** 初始审计把 `observed_profile` 行和通用社区榜单
+`payload.rank` 错当成 Browse variant 与装备轨道 rank。校正后的生产只读审计将
+46,631 条旧 variant 互斥分类为 1,678 条 Browse、44,651 条 observed Exact、
+291 条占位和 11 条预览引用；`mappedBrowseVariantCount=0`，因为全部 Browse 行
+缺少专用轨道 rank，且其中 48 条缺少静态属性。报告保持 `blocked`、
+`allowedNextPlan=none`，未授权 Phase 1。
+
 **Tech Stack:** Python 3 标准库、现有 `psycopg` runtime、Node.js 静态调用方审计、`unittest`、`node:test`、Project Harness v0.6.4。
 
 ## Global Constraints

@@ -11,7 +11,7 @@
 | 装备模板保存、导入、清空与天赋 winner 投影 | 正在推进 | [2026-07-22-gear-template-projection.md](2026-07-22-gear-template-projection.md) |
 | 社区装备 SimC 回填公平性与导入门禁 | 正在推进 | [2026-07-25-community-gear-backfill-fairness.md](2026-07-25-community-gear-backfill-fairness.md) |
 | Taro 装备候选与强化编辑恢复 | 正在推进 | [设计](2026-07-24-taro-gear-editor-recovery-design.md) · [实施计划](2026-07-24-taro-gear-editor-recovery-implementation.md) |
-| 装备模拟 Catalog / Exact Instance 目标架构 | Phase 0 审计口径校正中，迁移仍阻塞（下一计划 `none`） | [目标架构](2026-07-28-equipment-simulator-target-architecture.md) · [Phase 0 实施计划](2026-07-28-equipment-simulator-catalog-migration-phase0-implementation.md) · [审计校正计划](2026-07-28-equipment-simulator-catalog-phase0-audit-correction.md) · [当前审计结果](../../artifacts/releases/2026-07-28-equipment-simulator-catalog-migration-phase0/phase1-decision.json) |
+| 装备模拟 Catalog / Exact Instance 目标架构 | Phase 0 审计口径校正完成，迁移仍阻塞（下一计划 `none`） | [目标架构](2026-07-28-equipment-simulator-target-architecture.md) · [Phase 0 实施计划](2026-07-28-equipment-simulator-catalog-migration-phase0-implementation.md) · [当前审计结果](../../artifacts/releases/2026-07-28-equipment-simulator-catalog-migration-phase0/phase1-decision.json) |
 | Observed Build Registry 与 80 槽 TemplateSet 重构 | 正在推进 | [设计](2026-07-23-observed-build-registry-design.md) · [核心切片实施计划](2026-07-23-observed-build-registry-core-implementation.md) · [共享玩家切换计划](2026-07-23-observed-build-registry-cutover-implementation.md) |
 | builds_home 职业命令卡组 | 正在推进 | [builds-home-command-deck.md](builds-home-command-deck.md) |
 | 炸鸡队长统一 ChatBot 与受控分析工具 | 下一步 | [2026-07-24-chickenbro-chatbot-design.md](2026-07-24-chickenbro-chatbot-design.md) |
