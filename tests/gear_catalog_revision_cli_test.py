@@ -111,6 +111,42 @@ class GearCatalogRevisionCliTest(unittest.TestCase):
             ],
         )
 
+    def test_bounded_shadow_reader_compacts_and_clears_full_payload(self):
+        clear_calls = []
+
+        class FakeCacheStore:
+            def get_websim_gear(self, **kwargs):
+                return {
+                    "manifestRevision": CURRENT_BINDING["manifestRevision"],
+                    "pointerGeneration": 32,
+                    "catalogStatus": "verified",
+                    "replacementCandidates": [
+                        {
+                            "items": [
+                                {
+                                    "itemId": "1001",
+                                    "variants": [{"id": "hero-6"}],
+                                    "largeDisplayPayload": "x" * 1000,
+                                }
+                            ]
+                        }
+                    ],
+                }
+
+        payload = revision_cli._bounded_spec_shadow_payload(
+            FakeCacheStore(),
+            "mage",
+            "arcane",
+            cache_clear=lambda: clear_calls.append(True),
+        )
+
+        self.assertEqual(clear_calls, [True])
+        self.assertNotIn("replacementCandidates", payload)
+        self.assertEqual(
+            payload["catalogShadowVisibleCandidates"],
+            [["1001", "hero-6"]],
+        )
+
     def test_run_builds_twice_seals_and_proves_40_spec_shadow_without_pointer_change(self):
         sealed = []
 

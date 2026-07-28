@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 from datetime import datetime, timezone
+import gc
 import hashlib
 import json
 import os
@@ -147,6 +148,40 @@ def _visible_candidate_pairs(payload: Mapping[str, Any]) -> list[tuple[str, str]
     return sorted(result)
 
 
+def _bounded_spec_shadow_payload(
+    cache_store: Any,
+    class_key: str,
+    spec_key: str,
+    *,
+    cache_clear: Callable[[], Any],
+) -> dict[str, Any]:
+    payload: Mapping[str, Any] = {}
+    try:
+        payload = _full_spec_catalog_payload(
+            cache_store,
+            class_key,
+            spec_key,
+        )
+        return {
+            "manifestRevision": _text(payload.get("manifestRevision")),
+            "pointerGeneration": _integer(payload.get("pointerGeneration")),
+            "catalogStatus": _text(
+                payload.get("catalogStatus") or payload.get("dataStatus")
+            ),
+            "catalogShadowVisibleCandidates": [
+                [item_id, variant_key]
+                for item_id, variant_key in _visible_candidate_pairs(payload)
+            ],
+            "_activeManifestBinding": _mapping(
+                payload.get("_activeManifestBinding")
+            ),
+        }
+    finally:
+        payload = {}
+        cache_clear()
+        gc.collect()
+
+
 def _catalog_binding(snapshot: Mapping[str, Any]) -> dict[str, Any]:
     active = _mapping(snapshot.get("activeBinding"))
     manifest = _mapping(active.get("manifest"))
@@ -231,7 +266,25 @@ def _shadow_specs(
     for class_key, spec_key in _spec_pairs(class_spec_matrix):
         payload = _mapping(spec_payload_reader(class_key, spec_key))
         observed_pointer = _payload_pointer(payload)
-        visible = _visible_candidate_pairs(payload)
+        projected_visible = payload.get(
+            "catalogShadowVisibleCandidates"
+        )
+        visible = (
+            sorted(
+                {
+                    (_text(row[0]), _text(row[1]))
+                    for row in projected_visible
+                    if (
+                        isinstance(row, (list, tuple))
+                        and len(row) == 2
+                        and _text(row[0])
+                        and _text(row[1])
+                    )
+                }
+            )
+            if isinstance(projected_visible, list)
+            else _visible_candidate_pairs(payload)
+        )
         unmapped = []
         mapped = []
         for item_id, visible_identity in visible:
@@ -429,22 +482,28 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     from server.db import connect_postgres
-    from server.postgres_cache_store import PostgresCacheStore
+    from server import postgres_cache_store as postgres_cache_store_module
     from server.websim_payload import WOW_CLASSES
 
     connection_factory = lambda: connect_postgres(database_url)
     audit_store = GearCatalogAuditStore(connection_factory)
     catalog_store = GearCatalogRevisionStore(connection_factory)
-    cache_store = PostgresCacheStore(connection_factory)
+    cache_store = postgres_cache_store_module.PostgresCacheStore(
+        connection_factory
+    )
     try:
         report = run_migration(
             snapshot_reader=audit_store.snapshot,
             pointer_reader=audit_store.pointer_identity,
             seal_writer=catalog_store.seal_catalog,
-            spec_payload_reader=lambda class_key, spec_key: _full_spec_catalog_payload(
+            spec_payload_reader=lambda class_key, spec_key: _bounded_spec_shadow_payload(
                 cache_store,
                 class_key,
                 spec_key,
+                cache_clear=(
+                    postgres_cache_store_module
+                    .PG_GEAR_PAYLOAD_CACHE.clear
+                ),
             ),
             class_spec_matrix=WOW_CLASSES,
             statement_timeout_ms=args.statement_timeout_ms,

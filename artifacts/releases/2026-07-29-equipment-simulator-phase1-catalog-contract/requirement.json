@@ -108,6 +108,10 @@
     {
       "date": "2026-07-29",
       "decision": "The 40-specialization shadow reads the complete compact catalog payload; mode=initial is only a template preview and cannot prove BrowseVariant parity."
+    },
+    {
+      "date": "2026-07-29",
+      "decision": "Full-spec shadow payloads are reduced immediately to visible identity pairs and evicted from the isolated candidate-process cache; candidate execution remains bounded by the accepted 2,000,000,000-byte and 300-second ceilings."
     }
   ]
 }

@@ -43,6 +43,10 @@
   40 专精 shadow 随后因误读 `mode=initial` 的模板预览而全部报告空候选。生产探针证明
   full catalog payload 正常返回候选，shadow reader 现固定读取 full catalog，不再把
   首屏模板预览当作完整装备目录。
+- 第五次候选改读 full catalog 后，40 个完整 payload 被进程级 LRU 同时保留，实时
+  cgroup 峰值达到 2,220,298,240 bytes，超过既定 2,000,000,000 bytes 硬上限，因此
+  主动终止且不产出通过报告。shadow reader 现会立即压缩为候选身份对、清空仅属于候选
+  进程的 payload cache 并回收对象；下一候选同时由 MemoryMax/RuntimeMaxSec 硬限制。
 - 全局 `/api/data/health` 仍为 `partial`。本阶段不把旧 staging/refresh owner
   冒充成新的 Catalog 健康成功，也不在完成 shadow 前迁移 health owner。
 

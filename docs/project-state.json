@@ -126,7 +126,7 @@
       "requirement": "artifacts/releases/2026-07-29-equipment-simulator-phase1-catalog-contract/requirement.json",
       "evidence": "artifacts/releases/2026-07-29-equipment-simulator-phase1-catalog-contract/evidence.json",
       "baseCommit": "731bf899618976368a649f1e087b827e642076ef",
-      "notes": "Strict Phase 1 dormant Catalog builder, append-only store/migration and deterministic 40-specialization shadow tool are locally verified. The fourth candidate sealed and exactly read back Catalog gear-catalog:sha256:2addca2f... with 613 ItemDefinitions and 1309 BrowseVariants; generation 32 stayed stable. Its 40-spec shadow correctly blocked because the CLI read the empty initial template preview, and the reader is now fixed under RED/GREEN to request the full compact catalog. Full 40/40 candidate shadow remains pending; public readers and the active Manifest pointer remain unchanged."
+      "notes": "Strict Phase 1 dormant Catalog builder, append-only store/migration and deterministic 40-specialization shadow tool are locally verified. Catalog gear-catalog:sha256:2addca2f... is sealed and exactly reads back 613 ItemDefinitions plus 1309 BrowseVariants with generation 32 stable. The fifth full-catalog candidate was actively terminated at 2,220,298,240 bytes above the 2,000,000,000-byte ceiling; the shadow now compacts each spec to identity pairs and clears its isolated payload cache. A fresh bounded 40/40 candidate remains pending; public readers and the active Manifest pointer remain unchanged."
     }
   ],
   "completedBaselines": [
