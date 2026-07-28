@@ -2,8 +2,8 @@
   "schemaVersion": 2,
   "slug": "equipment-simulator-track-authority-correction",
   "requirementSlug": "equipment-simulator-track-authority-correction",
-  "status": "local_verified",
-  "highestEvidenceLevel": "local_verified",
+  "status": "archived",
+  "highestEvidenceLevel": "archived",
   "branch": "codex/equipment-simulator-track-authority",
   "commit": "2c7ff3a268a80a782431f288c3e23fbf2189f928",
   "auditTooling": {
