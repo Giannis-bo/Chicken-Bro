@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-28T21:47:20.543Z",
+  "generatedAt": "2026-07-28T21:51:01.045Z",
   "release": {
     "date": "2026-07-29",
     "slug": "equipment-simulator-phase3-resolved-snapshot"
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-29-equipment-simulator-phase3-resolved-snapshot/evidence.json",
-    "sizeBytes": 13582,
+    "sizeBytes": 14078,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -390,9 +390,9 @@
       "summary"
     ],
     "missingFields": [],
-    "declaredStatus": "runtime_verified",
-    "highestEvidenceLevel": "runtime_verified",
-    "summary": "Strict Phase 3 has reached runtime_verified on immutable candidate 84f16ef6. The final candidate preserves explicit 80-template and 40-spec classification, executes the exact 26/14 SimC policy, seals deterministic loadout/snapshot identities, binds one append-only terminal result, and reuses that result for repeated tasks without rerun or private payload leakage. Exact clean-head full Harness, PR CI, merge, production parity and archive closure remain pending. Global /api/data/health remains literally partial under independent owners."
+    "declaredStatus": "deployable",
+    "highestEvidenceLevel": "deployable",
+    "summary": "Strict Phase 3 is deployable after immutable candidate 84f16ef6 and exact clean full verification head c28a21de. The final candidate preserves explicit 80-template and 40-spec classification, executes the exact 26/14 SimC policy, seals deterministic loadout/snapshot identities, binds one append-only terminal result, and reuses that result for repeated tasks without rerun or private payload leakage. PR CI, merge, production parity and archive closure remain pending. Global /api/data/health remains literally partial under independent owners."
   },
   "evidence": {
     "localTests": {
@@ -417,7 +417,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "2 changed files currently visible to git status."
+      "detail": "1 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
@@ -453,10 +453,9 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 2,
+      "changedFileCount": 1,
       "changedFiles": [
-        " M artifacts/releases/2026-07-29-equipment-simulator-phase3-resolved-snapshot/evidence.json",
-        " M artifacts/releases/2026-07-29-equipment-simulator-phase3-resolved-snapshot/manifest.json"
+        " M artifacts/releases/2026-07-29-equipment-simulator-phase3-resolved-snapshot/evidence.json"
       ]
     }
   },

@@ -2,8 +2,8 @@
   "schemaVersion": 2,
   "slug": "equipment-simulator-phase3-resolved-snapshot",
   "requirementSlug": "equipment-simulator-phase3-resolved-snapshot",
-  "status": "runtime_verified",
-  "highestEvidenceLevel": "runtime_verified",
+  "status": "deployable",
+  "highestEvidenceLevel": "deployable",
   "branch": "codex/equipment-simulator-phase3-resolved-snapshot",
   "commit": "84f16ef62f6c8664755e622b3a9bf4acd1cac4f7",
   "identities": {
@@ -58,9 +58,14 @@
       "summary": "All 2096 Python tests pass with one existing skip, direct production script imports pass, and compileall succeeds. The shadow contract requires all 40 specializations to be explicitly classified as 26 supported and 14 unsupported while retaining Phase 2 partial references as literal blocked loadouts. First execution binds one immutable result, repeated tasks reuse it without rerunning SimC, and true result-store failures still produce one consistent failed state. The subsequent task-scoped Harness packet check passes after manifest regeneration."
     },
     {
-      "command": "candidate, full Harness, PR and closure",
+      "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-29-equipment-simulator-phase3-resolved-snapshot",
+      "status": "pass",
+      "summary": "Exact clean verification head c28a21de passes all 167 commands: 692 Node contract tests, 2096 Python tests with one existing skip, 404 Taro tests, typecheck, lint, 14-route UI architecture with 283 checks and zero findings, asset integrity, production-package mechanics, direct syntax/import checks, Harness packet binding and git diff hygiene. The local UI package remains honestly partial only because release-domain environment variables are not configured in this checkout; package mechanics have zero failures."
+    },
+    {
+      "command": "PR CI, merge, production deployment, parity and archive",
       "status": "not_run",
-      "summary": "Immutable candidate 84f16ef6 passes runtime, shadow, SimC matrix, first-bind, replay-reuse, PostgreSQL immutability, migration idempotency, file-parity, service and timer/backflow gates. Exact clean-head full Harness, PR CI, merge, production parity and archive remain pending."
+      "summary": "Pending remote PR and production closure."
     }
   ],
   "candidateDeployment": {
@@ -235,5 +240,5 @@
   "archivedReferences": [
     "artifacts/releases/2026-07-29-equipment-simulator-phase2-exact-enhancement/evidence.json"
   ],
-  "summary": "Strict Phase 3 has reached runtime_verified on immutable candidate 84f16ef6. The final candidate preserves explicit 80-template and 40-spec classification, executes the exact 26/14 SimC policy, seals deterministic loadout/snapshot identities, binds one append-only terminal result, and reuses that result for repeated tasks without rerun or private payload leakage. Exact clean-head full Harness, PR CI, merge, production parity and archive closure remain pending. Global /api/data/health remains literally partial under independent owners."
+  "summary": "Strict Phase 3 is deployable after immutable candidate 84f16ef6 and exact clean full verification head c28a21de. The final candidate preserves explicit 80-template and 40-spec classification, executes the exact 26/14 SimC policy, seals deterministic loadout/snapshot identities, binds one append-only terminal result, and reuses that result for repeated tasks without rerun or private payload leakage. PR CI, merge, production parity and archive closure remain pending. Global /api/data/health remains literally partial under independent owners."
 }
