@@ -1,6 +1,6 @@
 # 装备模拟目标架构
 
-状态：`已批准；Phase 0-2 已完整归档；Phase 3 ResolvedLoadout + SimulationSnapshot 正在推进`
+状态：`已批准；Phase 0-3 已完整归档；Phase 4 单一 Manifest 切换与旧 reader 淘汰正在推进`
 
 批准日期：`2026-07-28`
 
@@ -431,11 +431,12 @@ manual-override legality health 仍由旧 owner 报告。这些状态不推翻�
 验收，也不能被包装成全局健康成功；它们必须进入后续 Catalog/authority 迁移。
 
 Phase 0 的两项真实微信验收、PR CI、合入、最新 `main` 微信刷新和
-本地/`origin/main`/云端身份收口已完成。Phase 1 随后完成前两项切片：
-`CatalogRevision + ItemDefinition + BrowseVariant` dormant schema，以及活动
-Gear Release 到首个 CatalogRevision 的确定性迁移与 40 专精 shadow。当前从
-第 3 项继续：
+本地/`origin/main`/云端身份收口已完成。Phase 1-3 又依次归档
+`CatalogRevision + ItemDefinition + BrowseVariant`、`ExactItemInstance +
+EnhancementSelection`、`ResolvedLoadout + SimulationSnapshot`，并在生产验证
+80 模板、40 专精、26/14 SimC 与结果复用。当前只剩最终切换：
 
-1. `ExactItemInstance + EnhancementSelection` 缓存和社区/个人模板迁移。
-2. `ResolvedLoadout + SimulationSnapshot` 身份、canonical compiler 和任务兼容。
-3. 单一 Manifest 切换、旧 reader/caller 淘汰、健康 owner 迁移、回滚和真实微信验收。
+1. 把 Catalog、Community、Resolver、template、profile、task 和 health consumers
+   收敛到同一个活动 Manifest dependency vector。
+2. 在完整 shadow、真实微信、回滚和 caller inventory 为零后删除旧 reader/兼容补全。
+3. 完成资源回收、三方 identity parity 和目标架构最终归档。

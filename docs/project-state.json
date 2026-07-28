@@ -58,18 +58,9 @@
     {
       "id": "equipment_simulator_target_architecture_v1",
       "path": "docs/plans/2026-07-28-equipment-simulator-target-architecture.md",
-      "status": "approved_phase3_active",
+      "status": "approved_phase4_active",
       "lifecycle": "active",
-      "notes": "The approved target architecture remains active. Phase 0-2 are archived with complete browse/Community/SimC/WeChat, CatalogRevision, ExactItemInstance and EnhancementSelection evidence. Phase 3 is the active bounded slice: exact-only ResolvedLoadout, immutable SimulationSnapshot, deterministic canonical SimC compiler and task compatibility. The 55 Phase 2 partial references remain non-consumable and generation 32 stays unchanged."
-    },
-    {
-      "id": "equipment_simulator_phase3_resolved_snapshot",
-      "path": "docs/plans/2026-07-29-equipment-simulator-phase3-resolved-snapshot.md",
-      "status": "implementation_allowed",
-      "lifecycle": "active",
-      "requirement": "artifacts/releases/2026-07-29-equipment-simulator-phase3-resolved-snapshot/requirement.json",
-      "baseCommit": "e23b82b9",
-      "notes": "Strict runtime slice joining current verified Resolver legality with Phase 2 verified exact identities, then sealing deterministic canonical SimC input before task insertion. Active Manifest pointer, entry routes and historical tasks remain unchanged."
+      "notes": "The approved target architecture remains active. Phase 0-3 are archived with complete browse/Community/SimC/WeChat, CatalogRevision, ExactItemInstance, EnhancementSelection, exact ResolvedLoadout and immutable SimulationSnapshot evidence. Phase 4 is the final cutover slice: one active Manifest dependency vector, caller-proof old-reader retirement, health-owner migration, rollback and final real-WeChat closure. The 55 Phase 2 partial references remain non-consumable and generation 32 stays unchanged until a verified cutover."
     },
     {
       "id": "equipment_simulator_track_authority_correction",
@@ -129,6 +120,14 @@
     }
   ],
   "completedBaselines": [
+    {
+      "id": "equipment_simulator_phase3_resolved_snapshot_20260729",
+      "domain": "equipment_simulator_target_architecture_v1_phase3",
+      "status": "completed",
+      "evidence": "artifacts/releases/2026-07-29-equipment-simulator-phase3-resolved-snapshot/evidence.json",
+      "mergeCommit": "f9544a401c17738581d2dfdeb7aebf2066570cfc",
+      "notes": "Strict Phase 3 archived through PR #106, immutable candidate, clean full verification, production deployment, post-merge backend regression, local/origin/cloud parity and cleanup. It seals exact-only ResolvedLoadout and immutable SimulationSnapshot identities, executes 26 supported specs, blocks 14 unsupported specs, and reuses one append-only terminal result per snapshot."
+    },
     {
       "id": "equipment_simulator_phase2_exact_enhancement_20260729",
       "domain": "equipment_simulator_target_architecture_v1_phase2",

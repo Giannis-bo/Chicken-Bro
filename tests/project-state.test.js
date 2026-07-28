@@ -103,7 +103,7 @@ test('project-state is the single machine-readable current truth entry', () => {
   assert.ok(activeContractIds.has('equipment_simulator_catalog_migration_phase0'))
   assert.ok(activeContractIds.has('equipment_simulator_track_authority_correction'))
   assert.ok(!activeContractIds.has('equipment_simulator_phase1_catalog_contract'))
-  assert.ok(activeContractIds.has('equipment_simulator_phase3_resolved_snapshot'))
+  assert.ok(!activeContractIds.has('equipment_simulator_phase3_resolved_snapshot'))
   assert.ok(!activeContractIds.has('equipment_simulator_phase2_exact_enhancement'))
   const catalogMigrationPhase0 = state.activeContracts.find(
     (entry) => entry.id === 'equipment_simulator_catalog_migration_phase0',
@@ -114,17 +114,9 @@ test('project-state is the single machine-readable current truth entry', () => {
   const equipmentTargetArchitecture = state.activeContracts.find(
     (entry) => entry.id === 'equipment_simulator_target_architecture_v1',
   )
-  const equipmentPhase3Snapshot = state.activeContracts.find(
-    (entry) => entry.id === 'equipment_simulator_phase3_resolved_snapshot',
-  )
   assert.equal(
     equipmentTargetArchitecture?.status,
-    'approved_phase3_active',
-  )
-  assert.equal(equipmentPhase3Snapshot?.status, 'implementation_allowed')
-  assert.equal(
-    equipmentPhase3Snapshot?.path,
-    'docs/plans/2026-07-29-equipment-simulator-phase3-resolved-snapshot.md',
+    'approved_phase4_active',
   )
   assert.equal(
     catalogMigrationPhase0?.path,
@@ -255,6 +247,9 @@ test('project-state is the single machine-readable current truth entry', () => {
   const equipmentPhase1CatalogClosure = state.completedBaselines.find(
     (entry) => entry.id === 'equipment_simulator_phase1_catalog_contract_20260729',
   )
+  const equipmentPhase3SnapshotClosure = state.completedBaselines.find(
+    (entry) => entry.id === 'equipment_simulator_phase3_resolved_snapshot_20260729',
+  )
   assert.equal(equipmentPhase1CatalogClosure?.status, 'completed')
   assert.equal(
     equipmentPhase1CatalogClosure?.evidence,
@@ -263,6 +258,15 @@ test('project-state is the single machine-readable current truth entry', () => {
   assert.equal(
     equipmentPhase1CatalogClosure?.mergeCommit,
     'c3b99d554fd594d8ff0ff367045274cc66f08544',
+  )
+  assert.equal(equipmentPhase3SnapshotClosure?.status, 'completed')
+  assert.equal(
+    equipmentPhase3SnapshotClosure?.evidence,
+    'artifacts/releases/2026-07-29-equipment-simulator-phase3-resolved-snapshot/evidence.json',
+  )
+  assert.equal(
+    equipmentPhase3SnapshotClosure?.mergeCommit,
+    'f9544a401c17738581d2dfdeb7aebf2066570cfc',
   )
   assert.ok(!activeContractIds.has('equipment_simulator_phase5_async_stat_snapshot_plan'))
   assert.ok(!activeContractIds.has('equipment_simulator_phase3_resolve_profile_workbench_plan'))

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-28T21:51:01.045Z",
+  "generatedAt": "2026-07-28T22:14:37.410Z",
   "release": {
     "date": "2026-07-29",
     "slug": "equipment-simulator-phase3-resolved-snapshot"
@@ -38,7 +38,7 @@
         {
           "path": "docs/project-state.json",
           "exists": true,
-          "sizeBytes": 40633
+          "sizeBytes": 40829
         },
         {
           "path": "docs/project-owner-map.json",
@@ -53,7 +53,7 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 10779
+          "sizeBytes": 10595
         },
         {
           "path": "docs/README.md",
@@ -68,7 +68,7 @@
         {
           "path": "docs/backend-owner-map.json",
           "exists": true,
-          "sizeBytes": 53528
+          "sizeBytes": 53703
         }
       ],
       "historicalDocsDefaultToEvidenceOnly": true
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-29-equipment-simulator-phase3-resolved-snapshot/evidence.json",
-    "sizeBytes": 14078,
+    "sizeBytes": 16003,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -390,9 +390,9 @@
       "summary"
     ],
     "missingFields": [],
-    "declaredStatus": "deployable",
-    "highestEvidenceLevel": "deployable",
-    "summary": "Strict Phase 3 is deployable after immutable candidate 84f16ef6 and exact clean full verification head c28a21de. The final candidate preserves explicit 80-template and 40-spec classification, executes the exact 26/14 SimC policy, seals deterministic loadout/snapshot identities, binds one append-only terminal result, and reuses that result for repeated tasks without rerun or private payload leakage. PR CI, merge, production parity and archive closure remain pending. Global /api/data/health remains literally partial under independent owners."
+    "declaredStatus": "archived",
+    "highestEvidenceLevel": "archived",
+    "summary": "Strict Phase 3 is archived after immutable candidate 84f16ef6, full verification, PR #106, merge f9544a40, production deployment and three-party closure. Exact ResolvedLoadout and immutable SimulationSnapshot identities now own canonical task execution; one append-only terminal result is bound per snapshot and repeated tasks reuse it without rerunning SimC or leaking private execution payloads. Live 80-template and 40-spec classification, 26/14 SimC policy, migration idempotency, rollback, resource, service and parity gates pass. Global /api/data/health remains literally partial under independent owners and is carried into Phase 4."
   },
   "evidence": {
     "localTests": {
@@ -417,7 +417,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "1 changed files currently visible to git status."
+      "detail": "10 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
@@ -453,9 +453,18 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 1,
+      "changedFileCount": 10,
       "changedFiles": [
-        " M artifacts/releases/2026-07-29-equipment-simulator-phase3-resolved-snapshot/evidence.json"
+        " M artifacts/releases/2026-07-29-equipment-simulator-phase3-resolved-snapshot/evidence.json",
+        " M artifacts/releases/2026-07-29-equipment-simulator-phase3-resolved-snapshot/requirement.json",
+        " M docs/backend-owner-map.json",
+        " M docs/plans/2026-07-28-equipment-simulator-target-architecture.md",
+        " D docs/plans/2026-07-29-equipment-simulator-phase3-resolved-snapshot.md",
+        " M docs/plans/README.md",
+        " M docs/project-state.json",
+        " M docs/roadmap.md",
+        " M tests/backend-owner-map.test.js",
+        " M tests/project-state.test.js"
       ]
     }
   },

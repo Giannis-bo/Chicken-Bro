@@ -2,8 +2,8 @@
   "schemaVersion": 2,
   "slug": "equipment-simulator-phase3-resolved-snapshot",
   "requirementSlug": "equipment-simulator-phase3-resolved-snapshot",
-  "status": "deployable",
-  "highestEvidenceLevel": "deployable",
+  "status": "archived",
+  "highestEvidenceLevel": "archived",
   "branch": "codex/equipment-simulator-phase3-resolved-snapshot",
   "commit": "84f16ef62f6c8664755e622b3a9bf4acd1cac4f7",
   "identities": {
@@ -18,8 +18,9 @@
       "value": "HEAD"
     },
     "closure": {
-      "status": "pending",
-      "reason": "PR, merge, cloud parity and archive closure are pending."
+      "status": "bound",
+      "kind": "merge_commit",
+      "value": "f9544a401c17738581d2dfdeb7aebf2066570cfc"
     }
   },
   "manualAcceptance": {
@@ -64,8 +65,8 @@
     },
     {
       "command": "PR CI, merge, production deployment, parity and archive",
-      "status": "not_run",
-      "summary": "Pending remote PR and production closure."
+      "status": "pass",
+      "summary": "PR #106 merged as f9544a40 after the same 57a8cde3 CI head passed on an unchanged rerun. The first run had one unnamed Node contract failure hidden by the bounded output tail; the rerun passed all checks and the local full profile had already passed. Production then matched all 16 changed runtime files by SHA-256, enabled the snapshot feature, passed the 80-template shadow, 26/14 SimC matrix, real reused task, service/log/timer checks and post-merge 2096-test backend profile. Local main, origin/main and cloud runtime are aligned for their separate commit/runtime identities."
     }
   ],
   "candidateDeployment": {
@@ -207,6 +208,28 @@
         "resultRows": 1
       },
       "interpretation": "The final immutable runtime head passes the complete candidate contract. Repeated tasks reload and reuse the exact terminal result bound to the canonical snapshot; they do not rerun SimC, do not create a second result row and do not leak private execution payloads."
+    },
+    {
+      "mergeCommit": "f9544a401c17738581d2dfdeb7aebf2066570cfc",
+      "status": "live_verified",
+      "problemCodes": [],
+      "shadowReportId": "gear-resolved-snapshot-shadow:sha256:040a504f7bfc606b7b407f5e59ebfbefff5d2a1a78fd48b5dd4b5324e6bce1b6",
+      "simcMatrixReportId": "simc-execution-matrix:sha256:7fedf97de517dc0572a2a70208cf0c4c0e0b94f8002996e1f5bfe6c6219e1c1c",
+      "summary": {
+        "runtimeFileCount": 16,
+        "runtimeFileMismatchCount": 0,
+        "templateCount": 80,
+        "classifiedSpecCount": 40,
+        "supportedSimcExecutedCount": 26,
+        "unsupportedDeterministicallyBlockedCount": 14,
+        "productionTaskStatus": "completed",
+        "productionSnapshotResultStatus": "reused",
+        "backendServiceErrors": 0,
+        "statWorkerErrors": 0,
+        "pointerGeneration": 32,
+        "overallDataHealth": "partial"
+      },
+      "interpretation": "Production executes the same immutable runtime bytes proven by the candidate. The live task reuses the previously bound exact result, the active Manifest remains generation 32, and global data health remains literally partial under independent owners."
     }
   ],
   "risks": [
@@ -234,11 +257,11 @@
     "active_manifest_pointer_unchanged"
   ],
   "cleanup": {
-    "required": true,
-    "scope": "Remove only the Phase 3 candidate directory and task branch after verified merge closure."
+    "required": false,
+    "scope": "The published task branch and four Phase 3 candidate directories were removed after verified merge and production parity. The valid predeploy rollback backup remains; the failed first backup attempt was removed."
   },
   "archivedReferences": [
     "artifacts/releases/2026-07-29-equipment-simulator-phase2-exact-enhancement/evidence.json"
   ],
-  "summary": "Strict Phase 3 is deployable after immutable candidate 84f16ef6 and exact clean full verification head c28a21de. The final candidate preserves explicit 80-template and 40-spec classification, executes the exact 26/14 SimC policy, seals deterministic loadout/snapshot identities, binds one append-only terminal result, and reuses that result for repeated tasks without rerun or private payload leakage. PR CI, merge, production parity and archive closure remain pending. Global /api/data/health remains literally partial under independent owners."
+  "summary": "Strict Phase 3 is archived after immutable candidate 84f16ef6, full verification, PR #106, merge f9544a40, production deployment and three-party closure. Exact ResolvedLoadout and immutable SimulationSnapshot identities now own canonical task execution; one append-only terminal result is bound per snapshot and repeated tasks reuse it without rerunning SimC or leaking private execution payloads. Live 80-template and 40-spec classification, 26/14 SimC policy, migration idempotency, rollback, resource, service and parity gates pass. Global /api/data/health remains literally partial under independent owners and is carried into Phase 4."
 }

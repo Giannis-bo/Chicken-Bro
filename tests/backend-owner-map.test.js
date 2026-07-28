@@ -12,7 +12,7 @@ test('backend owner map defines the backend hotspot ownership contract', () => {
   assert.ok(fs.existsSync(ownerMapPath), 'docs/backend-owner-map.json should exist before backend hotspot splitting')
   const ownerMap = readOwnerMap()
 
-  assert.equal(ownerMap.status, 'equipment_simulator_phase3_resolved_snapshot_active')
+  assert.equal(ownerMap.status, 'equipment_simulator_phase3_archived_phase4_cutover_active')
   assert.equal(ownerMap.harnessVersion, 'v0.6.4')
   assert.equal(ownerMap.defaultEvidenceLevel, 'local_verified')
   assert.ok(ownerMap.rules.mustHaveCharacterizationBeforeExtraction)
