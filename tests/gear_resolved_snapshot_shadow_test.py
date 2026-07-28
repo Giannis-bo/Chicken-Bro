@@ -45,6 +45,36 @@ def template(content_hash, marker):
 
 
 class GearResolvedSnapshotShadowTest(unittest.TestCase):
+    def test_public_template_discovery_uses_browse_ids_not_audit_hashes(self):
+        reader = object.__new__(MODULE.ProfileReader)
+        reader.browse = {}
+        reader._request = lambda _method, _path, _payload=None: {
+            "communityTemplates": [
+                {
+                    "id": "public-a",
+                    "classKey": "mage",
+                    "specKey": "frost",
+                },
+                {
+                    "id": "",
+                    "classKey": "mage",
+                    "specKey": "frost",
+                },
+                {
+                    "id": "wrong-spec",
+                    "classKey": "mage",
+                    "specKey": "arcane",
+                },
+            ]
+        }
+
+        templates = reader.templates_for_spec("mage", "frost")
+
+        self.assertEqual(
+            [row["id"] for row in templates],
+            ["public-a"],
+        )
+
     def test_ready_and_partial_templates_are_closed_without_silent_drop(self):
         registry = exact_registry()
         partial_hash = "sha256:" + ("f" * 64)

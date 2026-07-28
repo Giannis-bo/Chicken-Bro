@@ -502,6 +502,23 @@ class ProfileReader:
             ),
         }
 
+    def templates_for_spec(
+        self,
+        class_key: str,
+        spec_key: str,
+    ) -> list[dict[str, Any]]:
+        browse = self._browse_spec(class_key, spec_key)
+        return [
+            _mapping(row)
+            for row in browse.get("communityTemplates") or []
+            if (
+                isinstance(row, Mapping)
+                and _text(row.get("id"))
+                and _text(row.get("classKey")) == class_key
+                and _text(row.get("specKey")) == spec_key
+            )
+        ]
+
     def _talent_import(self, class_key: str, spec_key: str) -> str:
         pair = (class_key, spec_key)
         if pair not in self.heroes:
@@ -592,10 +609,30 @@ def main(argv: list[str] | None = None) -> int:
         pointer_before = _mapping(audit.get("pointerBefore"))
         registry = cache_store.get_active_gear_exact_registry()
 
+        spec_pairs = sorted(
+            {
+                (
+                    _text(row.get("classKey")),
+                    _text(row.get("specKey")),
+                )
+                for row in audit.get("communityTemplates") or []
+                if (
+                    isinstance(row, Mapping)
+                    and _text(row.get("classKey"))
+                    and _text(row.get("specKey"))
+                )
+            }
+        )
+        public_templates = [
+            row
+            for class_key, spec_key in spec_pairs
+            for row in profile_reader.templates_for_spec(
+                class_key,
+                spec_key,
+            )
+        ]
         imported_templates = []
-        for row in audit.get("communityTemplates") or []:
-            if not isinstance(row, Mapping):
-                continue
+        for row in public_templates:
             first_import = profile_reader.import_template(row)
             second_import = profile_reader.import_template(row)
             if first_import == second_import:
