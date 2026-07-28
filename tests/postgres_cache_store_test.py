@@ -10435,17 +10435,43 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertIsNone(active["communityRelease"])
         self.assertEqual(active["winners"], [])
 
-    def test_candidate_preview_browse_does_not_overlay_observed_build_templates(self):
+    def test_sealed_v2_browse_does_not_overlay_observed_build_templates(self):
         from server import postgres_cache_store
 
-        binding = {
-            "candidatePreview": True,
-            "formalActiveManifest": False,
-            "generation": 24,
-            "manifest": {
-                "manifestRevision": "candidate-preview:exact",
-                "seasonRevision": "season-17",
-                "talentCatalogRevision": "talent-r1",
+        bindings = {
+            "candidate_preview": {
+                "candidatePreview": True,
+                "formalActiveManifest": False,
+                "generation": 24,
+                "manifest": {
+                    "manifestRevision": "candidate-preview:exact",
+                    "seasonRevision": "season-17",
+                    "talentCatalogRevision": "talent-r1",
+                    "communityTemplateReleaseId": (
+                        "community-release:candidate"
+                    ),
+                },
+                "communityRelease": {
+                    "releaseId": "community-release:candidate",
+                    "schemaRevision": "community-release-v2",
+                },
+            },
+            "formal_v2": {
+                "candidatePreview": False,
+                "formalActiveManifest": True,
+                "generation": 25,
+                "manifest": {
+                    "manifestRevision": "season-manifest:formal-v2",
+                    "seasonRevision": "season-17",
+                    "talentCatalogRevision": "talent-r1",
+                    "communityTemplateReleaseId": (
+                        "community-release:formal-v2"
+                    ),
+                },
+                "communityRelease": {
+                    "releaseId": "community-release:formal-v2",
+                    "schemaRevision": "community-release-v2",
+                },
             },
         }
 
@@ -10463,66 +10489,107 @@ class PostgresCacheStoreTest(unittest.TestCase):
                     "gearSnapshot": None,
                 }
 
-        store = postgres_cache_store.PostgresCacheStore(
-            lambda: self.fail("candidate preview browse must not query staging"),
-            gear_release_store=PreviewReleaseStore(),
-            observed_build_store=FakeObservedBuildStore(active=True),
-        )
-        captured = {}
+        for case, binding in bindings.items():
+            with self.subTest(case=case):
+                store = postgres_cache_store.PostgresCacheStore(
+                    lambda: self.fail(
+                        "sealed v2 browse must not query staging"
+                    ),
+                    gear_release_store=PreviewReleaseStore(),
+                    observed_build_store=FakeObservedBuildStore(active=True),
+                )
+                captured = {}
 
-        def initial_payload(
-            _class_key,
-            _spec_key,
-            _compact,
-            _season,
-            _season_fields,
-            _catalog_state,
-            _catalog_blockers,
-            persisted_templates,
-        ):
-            captured["templates"] = copy.deepcopy(persisted_templates)
-            return {"communityTemplates": copy.deepcopy(persisted_templates)}
+                def initial_payload(
+                    _class_key,
+                    _spec_key,
+                    _compact,
+                    _season,
+                    _season_fields,
+                    _catalog_state,
+                    _catalog_blockers,
+                    persisted_templates,
+                ):
+                    captured["templates"] = copy.deepcopy(
+                        persisted_templates
+                    )
+                    return {
+                        "communityTemplates": copy.deepcopy(
+                            persisted_templates
+                        )
+                    }
 
-        with patch.object(
-            store,
-            "_websim_gear_initial_payload",
-            side_effect=initial_payload,
-        ):
-            payload = store._active_websim_gear_payload(
-                binding,
-                "mage",
-                "frost",
-                True,
-                "initial",
-                "",
-                observed={
-                    "state": "active",
-                    "records": [{"templateId": "observed-overlay-template"}],
-                },
-            )
+                with patch.object(
+                    store,
+                    "_websim_gear_initial_payload",
+                    side_effect=initial_payload,
+                ):
+                    payload = store._active_websim_gear_payload(
+                        binding,
+                        "mage",
+                        "frost",
+                        True,
+                        "initial",
+                        "",
+                        observed={
+                            "state": "active",
+                            "records": [
+                                {
+                                    "templateId": (
+                                        "observed-overlay-template"
+                                    )
+                                }
+                            ],
+                        },
+                    )
 
-        self.assertEqual(
-            captured["templates"],
-            [{"id": "sealed-preview-template"}],
-        )
-        self.assertEqual(
-            payload["communityTemplates"],
-            [{"id": "sealed-preview-template"}],
-        )
+                self.assertEqual(
+                    captured["templates"],
+                    [{"id": "sealed-preview-template"}],
+                )
+                self.assertEqual(
+                    payload["communityTemplates"],
+                    [{"id": "sealed-preview-template"}],
+                )
 
-    def test_candidate_preview_import_bypasses_observed_build_registry(self):
+    def test_sealed_v2_import_bypasses_observed_build_registry(self):
         from server import postgres_cache_store
         from server.postgres_cache_store import CommunityTemplateImportError
 
-        binding = {
-            "candidatePreview": True,
-            "formalActiveManifest": False,
-            "generation": 24,
-            "manifest": {
-                "manifestRevision": "candidate-preview:exact",
-                "seasonRevision": "season-17",
-                "gearCatalogReleaseId": "gear-release:candidate",
-                "communityTemplateReleaseId": "community-release:candidate",
+        bindings = {
+            "candidate_preview": {
+                "candidatePreview": True,
+                "formalActiveManifest": False,
+                "generation": 24,
+                "manifest": {
+                    "manifestRevision": "candidate-preview:exact",
+                    "seasonRevision": "season-17",
+                    "gearCatalogReleaseId": "gear-release:candidate",
+                    "communityTemplateReleaseId": (
+                        "community-release:candidate"
+                    ),
+                },
+                "communityRelease": {
+                    "releaseId": "community-release:candidate",
+                    "schemaRevision": "community-release-v2",
+                },
+            },
+            "formal_v2": {
+                "candidatePreview": False,
+                "formalActiveManifest": True,
+                "generation": 25,
+                "manifest": {
+                    "manifestRevision": "season-manifest:formal-v2",
+                    "seasonRevision": "season-17",
+                    "gearCatalogReleaseId": "gear-release:formal-v2",
+                    "communityTemplateReleaseId": (
+                        "community-release:formal-v2"
+                    ),
+                },
+                "communityRelease": {
+                    "releaseId": "community-release:formal-v2",
+                    "schemaRevision": "community-release-v2",
+                },
             },
         }
 
@@ -10532,39 +10599,48 @@ class PostgresCacheStoreTest(unittest.TestCase):
 
             def load_active_community_template_import(self, *_args):
                 self.release_import_calls += 1
-                raise RuntimeError("sealed preview import reached")
+                raise RuntimeError("sealed v2 import reached")
 
-        release_store = PreviewReleaseStore()
-        store = postgres_cache_store.PostgresCacheStore(
-            lambda: self.fail("candidate preview import must not query staging"),
-            gear_release_store=release_store,
-            observed_build_store=FakeObservedBuildStore(active=True),
-        )
+        for case, binding in bindings.items():
+            with self.subTest(case=case):
+                release_store = PreviewReleaseStore()
+                store = postgres_cache_store.PostgresCacheStore(
+                    lambda: self.fail(
+                        "sealed v2 import must not query staging"
+                    ),
+                    gear_release_store=release_store,
+                    observed_build_store=FakeObservedBuildStore(active=True),
+                )
 
-        with patch.object(
-            store,
-            "_active_manifest_binding_for_authority",
-            return_value=copy.deepcopy(binding),
-        ), patch.object(
-            store,
-            "_active_observed_build_records",
-            side_effect=AssertionError(
-                "candidate preview must not read Observed Build Registry"
-            ),
-        ), self.assertRaises(CommunityTemplateImportError):
-            store.get_community_template_import_context(
-                class_key="mage",
-                spec_key="frost",
-                template_id="sealed-preview-template",
-                runtime_authority={
-                    "dependencyRevisions": {
-                        "simcRuntimeRevision": "simc-r1",
-                    },
-                },
-                expected_manifest_revision="candidate-preview:exact",
-            )
+                with patch.object(
+                    store,
+                    "_active_manifest_binding_for_authority",
+                    return_value=copy.deepcopy(binding),
+                ), patch.object(
+                    store,
+                    "_active_observed_build_records",
+                    side_effect=AssertionError(
+                        "sealed v2 must not read Observed Build Registry"
+                    ),
+                ), self.assertRaises(CommunityTemplateImportError):
+                    store.get_community_template_import_context(
+                        class_key="mage",
+                        spec_key="frost",
+                        template_id="sealed-preview-template",
+                        runtime_authority={
+                            "dependencyRevisions": {
+                                "simcRuntimeRevision": "simc-r1",
+                            },
+                        },
+                        expected_manifest_revision=(
+                            binding["manifest"]["manifestRevision"]
+                        ),
+                    )
 
-        self.assertEqual(release_store.release_import_calls, 1)
+                self.assertEqual(
+                    release_store.release_import_calls,
+                    1,
+                )
 
 
 class ActiveObservedImportMediaTest(unittest.TestCase):

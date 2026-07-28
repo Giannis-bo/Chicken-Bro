@@ -664,6 +664,33 @@ def _release_binding_is_readable(binding):
     return value.get("formalActiveManifest") is True or value.get("candidatePreview") is True
 
 
+def _binding_uses_sealed_v2_community(binding):
+    value = binding if isinstance(binding, dict) else {}
+    manifest = (
+        value.get("manifest")
+        if isinstance(value.get("manifest"), dict)
+        else {}
+    )
+    community = (
+        value.get("communityRelease")
+        if isinstance(value.get("communityRelease"), dict)
+        else {}
+    )
+    community_release_id = str(
+        community.get("releaseId") or ""
+    ).strip()
+    return bool(
+        _release_binding_is_readable(value)
+        and community_release_id
+        and str(community.get("schemaRevision") or "").strip()
+        == "community-release-v2"
+        and str(
+            manifest.get("communityTemplateReleaseId") or ""
+        ).strip()
+        == community_release_id
+    )
+
+
 def _community_template_import_release_context(binding):
     value = binding if isinstance(binding, dict) else {}
     manifest = value.get("manifest") if isinstance(value.get("manifest"), dict) else {}
@@ -1505,7 +1532,7 @@ class PostgresCacheStore:
                 "active": {},
                 "records": [],
             }
-            if binding.get("candidatePreview") is True
+            if _binding_uses_sealed_v2_community(binding)
             else self._active_observed_build_records(
                 normalized_class,
                 normalized_spec,
@@ -7814,7 +7841,7 @@ class PostgresCacheStore:
             if isinstance(observed, dict)
             else self._active_observed_build_records(class_key, spec_key)
         )
-        if binding.get("candidatePreview") is True:
+        if _binding_uses_sealed_v2_community(binding):
             observed = {
                 "state": "inactive",
                 "scope": self._observed_build_scope(),
@@ -7941,7 +7968,7 @@ class PostgresCacheStore:
                     "active": {},
                     "records": [],
                 }
-                if binding.get("candidatePreview") is True
+                if _binding_uses_sealed_v2_community(binding)
                 else self._active_observed_build_records(
                     class_key,
                     spec_key,
