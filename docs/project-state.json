@@ -60,7 +60,14 @@
       "path": "docs/plans/2026-07-28-equipment-simulator-target-architecture.md",
       "status": "approved_phase0_audit_blocked",
       "lifecycle": "active",
-      "notes": "The approved target architecture remains active, but the corrected read-only Phase 0 audit blocks migration planning: all 1678 Browse rows lack dedicated track-rank authority, 48 also lack static stats, the active Manifest has no Community Release, 40/40 specialization initial candidate baselines are blocked, resource peaks remain partial and five runtime caller references remain unresolved."
+      "notes": "The approved target architecture remains active, but the corrected read-only Phase 0 audit blocks migration planning. Follow-up read-only tracing classified the 1678 legacy Browse rows as 1116 regular upgrade-track rows, 124 Ascendant rows and 438 crafted-stat combinations; the approved Track Authority correction uses a progression-kind union instead of fabricating rank for crafted or Ascendant states. The written correction design still requires user review, 48 rows still lack static stats, the active Manifest has no Community Release, 40/40 specialization initial candidate baselines are blocked, resource peaks remain partial and five runtime caller references remain unresolved."
+    },
+    {
+      "id": "equipment_simulator_track_authority_correction",
+      "path": "docs/plans/2026-07-28-equipment-simulator-track-authority-correction.md",
+      "status": "concept_approved_written_review_pending",
+      "lifecycle": "active",
+      "notes": "Blocker-resolution-only design. It defines conditional rank semantics for regular upgrade tracks, canonical crafted-quality and Ascendant progression states, and separation of six crafted-stat choices into EnhancementSelection. It does not authorize implementation, Phase 1, schema/API changes, release writes or pointer changes."
     },
     {
       "id": "equipment_simulator_catalog_migration_phase0",
@@ -81,7 +88,7 @@
         "optionTotal": 63,
         "mappedOptionCount": 63
       },
-      "notes": "The corrected bounded production audit classified observed profiles as Exact evidence rather than Browse variants and never interpreted generic community leaderboard rank as equipment track rank. Pointer generation 24 remained identical before/after and database writes stayed zero. The Phase 1 decision is blocked with allowedNextPlan=none."
+      "notes": "The corrected bounded production audit classified observed profiles as Exact evidence rather than Browse variants and never interpreted generic community leaderboard rank as equipment track rank. A later read-only root-cause investigation classified the 1678 Browse rows into regular upgrade, Ascendant and crafted-stat families, but the committed audit report remains unchanged until an approved Track Authority correction is implemented and rerun. Pointer generation 24 remained identical before/after and database writes stayed zero. The Phase 1 decision is blocked with allowedNextPlan=none."
     }
   ],
   "completedBaselines": [

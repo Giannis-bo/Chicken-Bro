@@ -1,6 +1,6 @@
 # 装备模拟目标架构
 
-状态：`已批准；Phase 0 审计完成并阻塞后续迁移`
+状态：`已批准；Phase 0 审计完成并阻塞后续迁移；Track Authority 修正书面设计待复核`
 
 批准日期：`2026-07-28`
 
@@ -103,15 +103,21 @@ BrowseVariant membership、构建器版本和来源摘要。构建时间、任�
 
 职责：服务手动候选浏览。
 
-主键：
+身份：
 
 ```text
-(catalogRevision, itemId, trackKey)
+browseVariantKey =
+  sha256(canonical(catalogRevision, itemId, progressionState))
 ```
 
-每件装备每条合法轨道只发布最高等级代表项。勇士、英雄、神话和虚空晋升是独立
-`trackKey`；虚空晋升不增加前端开关。每个 BrowseVariant 必须包含 canonical
-`variantKey`、最高合法 rank、ilevel、bonus IDs、静态属性和证据状态。
+每件装备每个合法 progression state 只发布一个代表项。勇士、英雄和神话使用
+`upgrade_track` progression，BrowseVariant 必须发布最高合法 rank；虚空晋升使用
+独立 `ascendant` progression，不增加前端开关，也不得伪造为普通 `6/6` 轨道；
+最高品质制造装备使用 `crafted_quality` progression，制造副属性属于
+EnhancementSelection，不参与 BrowseVariant 身份。每个 BrowseVariant 必须包含
+canonical `variantKey`、`progressionState`、ilevel、bonus IDs、可验证静态事实和
+证据状态。精确定义见
+[Track Authority 阻塞修正](2026-07-28-equipment-simulator-track-authority-correction.md)。
 
 BrowseVariant 不是精确玩家实例，不能用其最高级属性替代社区玩家实际穿戴的
 英雄 3/6 等中间等级。
@@ -124,7 +130,7 @@ BrowseVariant 不是精确玩家实例，不能用其最高级属性替代社区
 
 ```text
 exactItemInstanceKey =
-  sha256(canonical(itemId, bonusIds, context, trackKey, rank, ilevel,
+  sha256(canonical(itemId, bonusIds, context, progressionState, ilevel,
                    gemIds, enchantId, craftedStats, embellishmentIds))
 ```
 
@@ -203,7 +209,7 @@ reference-only 来源；除非进入受治理的 verified 规则，否则不得�
 受治理数据源
 -> Catalog Builder
 -> immutable CatalogRevision
--> ItemDefinition + highest-rank BrowseVariant
+-> ItemDefinition + canonical BrowseVariant per progression state
 -> candidate validation
 -> Active Season Manifest
 -> 微信装备浏览
@@ -220,7 +226,8 @@ reference-only 来源；除非进入受治理的 verified 规则，否则不得�
 
 手动选择流程：
 
-1. 候选列表按 ItemDefinition 分组，每条合法轨道只展示最高级 BrowseVariant。
+1. 候选列表按 ItemDefinition 分组；普通升级轨道只展示最高 rank，制造品质和虚空
+   晋升各按自身 progression state 展示一个 BrowseVariant。
 2. 玩家选择装备和轨道后，后端返回该候选真实存在的合法配置。
 3. 前端显式应用 Selection Intent。
 4. 后端重新 Resolve，成功后才更新 confirmed loadout。
@@ -264,8 +271,9 @@ SimC 流程：
 Catalog Builder 只写 staging/candidate，不直接改活动消费者：
 
 1. 收集并归一当前赛季 PVE ItemDefinition。
-2. 按每件装备的合法轨道批量生成最高 rank BrowseVariant。
-3. 验证 bonus ID、track、rank、ilevel、属性和来源闭包。
+2. 按每件装备的合法 progression state 批量生成 BrowseVariant；只有普通升级轨道
+   批量生成最高 rank。
+3. 验证 bonus ID、progression kind、条件式 rank、ilevel、属性和来源闭包。
 4. 验证 40 专精浏览覆盖、强化规则和社区模板重放。
 5. 对 canonical 内容计算 CatalogRevision hash。
 6. 内容未变化时复用现有 revision，记录 `no_change`。
@@ -348,7 +356,8 @@ active hot payload
    candidate 数据库副本。
 4. 将现有社区模板和个人模板映射为 ExactItemInstance；无法证明精确身份的模板保持
    partial/blocked。
-5. 新 Catalog reader 对 40 专精运行 shadow read，对比候选集合、轨道、属性、
+5. 新 Catalog reader 对 40 专精运行 shadow read，对比候选集合、progression、
+   条件式 rank、属性、
    社区导入和 canonical SimC 行。
 6. 只在完整 shadow matrix 通过后切换单一活动 Manifest。
 7. 切换后旧 reader 只保留短期兼容调用；caller inventory 为零后删除，禁止长期双写。
@@ -372,9 +381,10 @@ active hot payload
 | --- | --- |
 | 40 专精浏览 | 40/40 返回当前赛季合法候选；source blocker 必须阻止验收而不是算作通过 |
 | 当前 PVE 完整性 | 已纳入范围的来源、难度、槽位和物品都有 verified membership 或显式排除理由，不能静默缺失 |
-| 手动列表 | 每件装备每条合法轨道只出现最高 rank BrowseVariant |
+| 手动列表 | 普通轨道只出现最高 rank；制造品质和虚空晋升各出现一个 canonical BrowseVariant |
 | 中间等级导入 | 英雄 3/6 等实例保留真实 rank、ilevel、属性和强化 |
-| 虚空晋升 | 作为独立轨道出现，无额外开关 |
+| 虚空晋升 | 作为独立 ascendant 状态出现，无额外开关且不伪造普通轨道 rank |
+| 制造装备 | 同一装等状态只出现一次，制造副属性进入 EnhancementSelection |
 | 具体属性 | 所有公开可模拟实例具有 verified variant 和静态属性 |
 | 强化 | 宝石、附魔、美化、制造属性兼容性和整套限制正确 |
 | Fail closed | 缺证据只允许草稿，不生成 ready 模板或 SimC task |
@@ -415,3 +425,10 @@ Phase 0 口径校正进一步确认：46,631 条旧 variant 不是同一种目�
 占位，11 条是 Battle.net 预览引用。通用 `payload.rank` 是社区榜单排名，不能作为
 装备轨道 rank。当前 1,678 条 Browse 行全部缺少专用 `trackRank` / `upgradeRank`，
 其中 48 条同时缺少静态属性，因此仍不具备 Catalog 无损迁移条件。
+
+后续只读根因追踪确认 1,678 条旧 Browse 行还混合了三种 progression：1,116 条普通
+勇士/英雄/神话升级轨道、124 条虚空晋升状态，以及 438 条由 73 个制造装备/装等
+状态乘以六组制造副属性形成的行。用户已批准按
+[Track Authority 阻塞修正](2026-07-28-equipment-simulator-track-authority-correction.md)
+把普通轨道、制造品质和虚空晋升建模为判别联合；书面设计复核与独立实施计划完成前，
+Phase 0 报告、其他 blocker 和 `allowedNextPlan=none` 保持不变。
