@@ -27,11 +27,11 @@ class FakeConnection:
     def __init__(self):
         self.cursor_instance = FakeCursor()
         self.session_calls = []
-        self.readonly = False
+        self.read_only = False
 
     def set_session(self, **kwargs):
         self.session_calls.append(kwargs)
-        self.readonly = kwargs.get("readonly") is True
+        self.read_only = kwargs.get("readonly") is True
 
     def cursor(self):
         return self.cursor_instance
@@ -113,6 +113,12 @@ class GearReleaseResourceProbeTest(unittest.TestCase):
                     "WITH changed AS (UPDATE cache.example SET value = 2) SELECT 1"
                 )
         self.assertEqual(factory.metrics["writeStatements"], 2)
+
+        psycopg3 = FakeConnection()
+        psycopg3.set_session = None
+        psycopg3_factory = ReadOnlyConnectionFactory(lambda: psycopg3)
+        psycopg3_factory()
+        self.assertTrue(psycopg3.read_only)
 
     def test_probe_measures_resources_without_exposing_template_identity(self):
         from server.gear_release_resource_probe import run_resource_probe

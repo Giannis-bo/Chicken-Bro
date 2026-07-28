@@ -170,8 +170,11 @@ class ReadOnlyConnectionFactory:
 
     def __call__(self) -> _ReadOnlyConnection:
         connection = self._connection_factory()
-        if hasattr(connection, "set_session"):
-            connection.set_session(readonly=True, autocommit=False)
+        set_session = getattr(connection, "set_session", None)
+        if callable(set_session):
+            set_session(readonly=True, autocommit=False)
+        elif hasattr(connection, "read_only"):
+            connection.read_only = True
         elif hasattr(connection, "readonly"):
             connection.readonly = True
         else:
