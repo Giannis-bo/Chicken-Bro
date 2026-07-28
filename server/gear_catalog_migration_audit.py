@@ -222,11 +222,22 @@ def audit_catalog_mapping(binding: Any, rows: Any) -> dict[str, Any]:
             "The active Gear Release identity is required.",
         ))
 
+    variant_ref_item_ids = {
+        _text(_row_value(row, "itemId"))
+        for row in variants
+        if _text(_row_value(row, "itemId"))
+    }
     mapped_item_ids: set[str] = set()
     seen_item_ids: set[str] = set()
+    excluded_non_catalog_item_count = 0
     for index, row in enumerate(items):
         item_id = _text(_row_value(row, "itemId", "id"))
         slot = _text(_row_value(row, "slot"))
+        has_source_refs = row.get("hasSourceRefs") is True
+        has_variant_refs = (
+            row.get("hasVariantRefs") is True
+            or item_id in variant_ref_item_ids
+        )
         if not item_id:
             problems.append(_problem(
                 "CATALOG_ITEM_ID_MISSING",
@@ -240,21 +251,46 @@ def audit_catalog_mapping(binding: Any, rows: Any) -> dict[str, Any]:
                 "ItemDefinition mapping requires one active row per itemId.",
             ))
         if not slot:
-            problems.append(_problem(
-                "CATALOG_ITEM_SLOT_MISSING",
-                f"rows.items[{index}].slot",
-                "ItemDefinition mapping requires a canonical slot.",
-            ))
+            if item_id and not has_source_refs and not has_variant_refs:
+                excluded_non_catalog_item_count += 1
+            else:
+                problems.append(_problem(
+                    "CATALOG_ITEM_SLOT_MISSING",
+                    f"rows.items[{index}].slot",
+                    "ItemDefinition mapping requires a canonical slot.",
+                ))
         if item_id and slot and item_id not in seen_item_ids:
             mapped_item_ids.add(item_id)
         if item_id:
             seen_item_ids.add(item_id)
 
     variant_candidates: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    browse_variant_total = 0
+    excluded_exact_instance_count = 0
+    excluded_placeholder_variant_count = 0
+    excluded_reference_variant_count = 0
     for index, row in enumerate(variants):
+        row_family = _text(row.get("rowFamily"))
+        if row_family == "exact_instance":
+            excluded_exact_instance_count += 1
+            continue
+        if row_family == "placeholder":
+            excluded_placeholder_variant_count += 1
+            continue
+        if row_family == "reference":
+            excluded_reference_variant_count += 1
+            continue
+        if row_family != "browse":
+            problems.append(_problem(
+                "CATALOG_VARIANT_FAMILY_UNCLASSIFIED",
+                f"rows.variants[{index}].rowFamily",
+                "Legacy variant must be classified before Catalog mapping.",
+            ))
+            continue
+        browse_variant_total += 1
         item_id = _text(_row_value(row, "itemId"))
         track_key = _text(_row_value(row, "trackKey"))
-        rank = _positive_int(_row_value(row, "rank", "trackRank", "upgradeRank"))
+        rank = _positive_int(_row_value(row, "trackRank", "upgradeRank"))
         item_level = _positive_int(_row_value(row, "itemLevel", "ilevel"))
         bonus_ids = _string_list(_row_value(row, "bonusIds"))
         static_stats = _static_stats(_row_value(row, "staticStats", "itemStats"))
@@ -370,9 +406,15 @@ def audit_catalog_mapping(binding: Any, rows: Any) -> dict[str, Any]:
         "gearReleaseId": _text(active_binding.get("gearReleaseId")),
         "itemTotal": len(items),
         "mappedItemCount": len(mapped_item_ids),
+        "excludedNonCatalogItemCount": excluded_non_catalog_item_count,
         "variantTotal": len(variants),
+        "browseVariantTotal": browse_variant_total,
+        "mappedBrowseVariantCount": mapped_variant_count,
         "mappedVariantCount": mapped_variant_count,
         "excludedLowerRankCount": excluded_lower_rank_count,
+        "excludedExactInstanceCount": excluded_exact_instance_count,
+        "excludedPlaceholderVariantCount": excluded_placeholder_variant_count,
+        "excludedReferenceVariantCount": excluded_reference_variant_count,
         "optionTotal": len(options),
         "mappedOptionCount": mapped_option_count,
         "problemCodes": _problem_codes(problems),
