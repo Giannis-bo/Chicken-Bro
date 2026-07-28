@@ -3,6 +3,7 @@
 const fs = require('node:fs')
 const path = require('node:path')
 const { spawnSync } = require('node:child_process')
+const { verifyWeappBuildIdentity } = require('./weapp-build-identity')
 
 function isFile(filePath) {
   try {
@@ -66,11 +67,15 @@ function verifyWeappOutput(root) {
   }
 
   JSON.parse(fs.readFileSync(path.join(outputRoot, 'app.json'), 'utf8'))
+  const identity = verifyWeappBuildIdentity(root, outputRoot)
   return {
     status: 'pass',
     projectRoot,
     outputRoot,
     fileCount: countFiles(outputRoot),
+    gitHead: identity.gitHead,
+    sourceHash: identity.sourceHash,
+    builtAt: identity.builtAt,
   }
 }
 

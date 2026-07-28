@@ -9,6 +9,7 @@ import * as gearDetailModel from './gear-detail-model'
 
 import {
   gearCandidates,
+  gearEnhancementBarItems,
   hydrateCompactSlotGroup,
   prepareHydratedEnhancementDraft,
   gearEnhancementGroups,
@@ -406,6 +407,119 @@ describe('gear detail truth model', () => {
     expect(gearSlots(payload(), { head: item }, '', enhancements)[0]).toMatchObject({
       secondaryStatLabels: ['属性待核验'],
       secondaryStatState: 'unavailable',
+    })
+    expect(gearSlots(payload(), {
+      head: { ...item, statDisplayStatus: 'verified_variant' },
+    }, '', enhancements)[0]).toMatchObject({
+      secondaryStatLabels: ['急速', '精通'],
+      secondaryStatState: 'verified',
+    })
+    expect(gearSlots(payload(), {
+      head: { ...item, statDisplayStatus: 'pending_current_variant' },
+    }, '', enhancements)[0]).toMatchObject({
+      secondaryStatLabels: ['属性待核验'],
+      secondaryStatState: 'unavailable',
+    })
+  })
+
+  it('summarizes enhancement availability without inventing options or opening impossible groups', () => {
+    const equipped: Readonly<Record<string, GearItemReference>> = {
+      head: {
+        itemId: 'head-known-none',
+        modCapabilities: { hasSocket: false, canEnchant: false, canEmbellish: false },
+      },
+      finger1: {
+        itemId: 'ring-known',
+        modCapabilities: { hasSocket: true, socketCount: 1, canEnchant: true, canEmbellish: false },
+      },
+      chest: {
+        itemId: 'chest-pending',
+      },
+    }
+
+    expect(gearEnhancementBarItems(equipped, {
+      finger1: {
+        gemOptionIds: ['gem-haste'],
+        enchantOptionId: '',
+        embellishmentOptionId: '',
+        craftedOptionId: '',
+        catalystOptionId: '',
+      },
+    })).toEqual([
+      {
+        id: 'socket',
+        label: '宝石',
+        optionCount: 1,
+        selectedCount: 1,
+        value: '已配置 1 件 · 可用',
+        state: 'ready',
+        availabilityLabel: '可用',
+        disabled: false,
+      },
+      {
+        id: 'enchant',
+        label: '附魔',
+        optionCount: 1,
+        selectedCount: 0,
+        value: '可用',
+        state: 'empty',
+        availabilityLabel: '可用',
+        disabled: false,
+      },
+      {
+        id: 'embellishment',
+        label: '美化',
+        optionCount: 0,
+        selectedCount: 0,
+        value: '待核验',
+        state: 'empty',
+        availabilityLabel: '待核验',
+        disabled: false,
+      },
+    ])
+
+    expect(gearEnhancementBarItems({
+      head: {
+        itemId: 'head-known-none',
+        modCapabilities: { hasSocket: false, canEnchant: false, canEmbellish: false },
+      },
+    }, {}).map((group) => ({
+      id: group.id,
+      value: group.value,
+      disabled: group.disabled,
+    }))).toEqual([
+      { id: 'socket', value: '不可用', disabled: true },
+      { id: 'enchant', value: '不可用', disabled: true },
+      { id: 'embellishment', value: '不可用', disabled: true },
+    ])
+
+    expect(gearEnhancementBarItems({}, {}).map((group) => ({
+      id: group.id,
+      value: group.value,
+      disabled: group.disabled,
+    }))).toEqual([
+      { id: 'socket', value: '待核验', disabled: false },
+      { id: 'enchant', value: '待核验', disabled: false },
+      { id: 'embellishment', value: '待核验', disabled: false },
+    ])
+
+    expect(gearEnhancementBarItems({
+      head: {
+        itemId: 'head-known-none',
+        modCapabilities: { hasSocket: false, canEnchant: false, canEmbellish: false },
+      },
+    }, {
+      head: {
+        gemOptionIds: ['confirmed-gem'],
+        enchantOptionId: '',
+        embellishmentOptionId: '',
+        craftedOptionId: '',
+        catalystOptionId: '',
+      },
+    })[0]).toMatchObject({
+      value: '已配置 1 件 · 可用',
+      availabilityLabel: '可用',
+      disabled: false,
     })
   })
 

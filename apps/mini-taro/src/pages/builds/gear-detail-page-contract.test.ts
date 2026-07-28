@@ -121,6 +121,7 @@ describe('gear detail fixed workbench contract', () => {
     expect(modelSource).toContain('gearItemSecondaryStatLabels')
     expect(modelSource).toContain('itemStaticStats')
     expect(pageSource).toContain('gearItemStaticStatsFromResolvedSnapshot')
+    expect(modelSource).toContain("statDisplayStatus) === 'verified_variant'")
     expect(modelSource).toContain('enhancementStates')
     expect(componentSource).toContain('data-role="gear-slot-label"')
     expect(componentSource).toContain('data-role="gear-slot-item-name"')
@@ -135,6 +136,12 @@ describe('gear detail fixed workbench contract', () => {
     expect(componentStyleSource).toContain(".slotEnhancementState[data-enhancement-kind='enchant']")
     expect(componentStyleSource).toContain(".slotEnhancementState[data-enhancement-kind='embellishment']")
     expect(componentStyleSource).toMatch(/\.slotRow\[data-side='right'\] \.slotLevel \{[\s\S]*?right:\s*42px;[\s\S]*?left:\s*auto;/u)
+  })
+
+  it('renders backend-owned enhancement availability and disables only known-impossible groups', () => {
+    expect(pageSource).toContain('gearEnhancementBarItems(equipped, enhancements)')
+    expect(componentSource).toContain("data-disabled={item.disabled ? 'true' : 'false'}")
+    expect(componentSource).toContain('disabled={Boolean(item.disabled)}')
   })
 
   it('keeps candidate and enhancement choices source-owned until explicit apply or confirm', () => {

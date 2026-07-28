@@ -81,6 +81,8 @@ export interface GearEnhancementGroupView {
   selectedCount: number
   value: string
   state: 'ready' | 'empty' | 'blocked'
+  availabilityLabel: '可用' | '不可用' | '待核验'
+  disabled: boolean
 }
 
 export interface GearEnhancementOptionView {
@@ -560,6 +562,20 @@ function gearSlotSecondaryStatPresentation(
 ): Pick<GearSlotView, 'secondaryStatLabels' | 'secondaryStatState'> {
   if (!item) return { secondaryStatLabels: [], secondaryStatState: 'unavailable' }
   const stats = itemStaticStats?.[slot]
+  if (!stats && text(item.statDisplayStatus) === 'verified_variant') {
+    const itemEntries = statEntries(item, itemPrimaryStatKey(item))
+    if (itemEntries.length) {
+      const labels = [...new Set(
+        itemEntries
+          .map((entry) => entry.key)
+          .filter((key) => secondaryStatKeys.has(key))
+          .map((key) => statLabels[key] ?? key),
+      )]
+      return labels.length
+        ? { secondaryStatLabels: labels, secondaryStatState: 'verified' }
+        : { secondaryStatLabels: ['无固定副属性'], secondaryStatState: 'none' }
+    }
+  }
   if (!stats) return { secondaryStatLabels: ['属性待核验'], secondaryStatState: 'unavailable' }
   const labels = staticSecondaryStatLabels(stats)
   return labels.length
@@ -802,6 +818,86 @@ export function gearEnhancementGroups(
       selectedCount: selectedOptions.length,
       value: selectedOptions.length ? selectedOptions.map(optionLabel).join('；') : options.length ? `${options.length} 项可选` : '待配置',
       state: selectedOptions.length ? 'ready' : options.length ? 'empty' : 'blocked',
+      availabilityLabel: options.length ? '可用' : '待核验',
+      disabled: false,
+    }
+  })
+}
+
+type GearEnhancementAvailability = GearEnhancementGroupView['availabilityLabel']
+
+function itemEnhancementAvailability(
+  item: GearItemReference,
+  kind: GearEnhancementGroupView['id'],
+  slot: string,
+): GearEnhancementAvailability {
+  const optionKey: GearEnhancementOptionKey = kind === 'socket'
+    ? 'socketOptions'
+    : kind === 'enchant'
+      ? 'enchantOptions'
+      : 'embellishmentOptions'
+  const options = (item[optionKey] ?? []).filter((option) => (
+    enhancementOptionAppliesToItem(option, item, slot, optionKey)
+  ))
+  if (options.length) return '可用'
+
+  const capabilities = item.modCapabilities
+  if (!capabilities || typeof capabilities !== 'object' || Array.isArray(capabilities)) {
+    return '待核验'
+  }
+  if (kind === 'socket') {
+    if (capabilities['hasSocket'] === false || capabilities['socketCount'] === 0) return '不可用'
+    if (capabilities['hasSocket'] === true
+      || (Number.isInteger(capabilities['socketCount']) && Number(capabilities['socketCount']) > 0)) {
+      return '可用'
+    }
+    return '待核验'
+  }
+  const field = kind === 'enchant' ? 'canEnchant' : 'canEmbellish'
+  if (capabilities[field] === true) return '可用'
+  if (capabilities[field] === false) return '不可用'
+  return '待核验'
+}
+
+function enhancementSelectionCount(
+  enhancements: Readonly<Record<string, GearEnhancementSelection>>,
+  kind: GearEnhancementGroupView['id'],
+): number {
+  return Object.values(enhancements).filter((selection) => (
+    kind === 'socket'
+      ? selection.gemOptionIds.some(Boolean)
+      : kind === 'enchant'
+        ? Boolean(selection.enchantOptionId)
+        : Boolean(selection.embellishmentOptionId)
+  )).length
+}
+
+export function gearEnhancementBarItems(
+  equipped: Readonly<Record<string, GearItemReference>>,
+  enhancements: Readonly<Record<string, GearEnhancementSelection>>,
+): readonly GearEnhancementGroupView[] {
+  const items = Object.entries(equipped)
+  return enhancementDefinitions.map((definition) => {
+    const selectedCount = enhancementSelectionCount(enhancements, definition.id)
+    const availability = items.map(([slot, item]) => (
+      itemEnhancementAvailability(item, definition.id, slot)
+    ))
+    const availabilityLabel: GearEnhancementAvailability = selectedCount > 0 || availability.includes('可用')
+      ? '可用'
+      : items.length === 0 || availability.includes('待核验')
+        ? '待核验'
+        : '不可用'
+    const optionCount = availability.filter((state) => state === '可用').length
+    const disabled = availabilityLabel === '不可用'
+    return {
+      id: definition.id,
+      label: definition.label,
+      optionCount,
+      selectedCount,
+      value: selectedCount ? `已配置 ${selectedCount} 件 · ${availabilityLabel}` : availabilityLabel,
+      state: selectedCount ? 'ready' : disabled ? 'blocked' : 'empty',
+      availabilityLabel,
+      disabled,
     }
   })
 }

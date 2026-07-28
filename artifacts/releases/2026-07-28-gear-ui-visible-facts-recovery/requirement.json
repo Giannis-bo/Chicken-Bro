@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 1,
+  "slug": "gear-ui-visible-facts-recovery",
+  "classification": "Standard",
+  "status": "implementation_allowed",
+  "goal": "Restore truthful equipped-item secondary stats and enhancement availability in the active Taro gear route, then bind every WeChat preview artifact to the source tree that produced it.",
+  "userValue": "Players see the verified green stats of their actual equipped variant, can distinguish usable, unavailable and not-yet-verified enhancement categories, and no longer lose current UI work because WeChat DevTools is still consuming a stale dist package.",
+  "nonGoals": [
+    "Do not change the backend, PostgreSQL, Gear Release, resolver contract, SimC worker or production deployment.",
+    "Do not synthesize aggregate character stats from incomplete per-item values.",
+    "Do not restore the abandoned capabilityFacts or Gear Evidence Registry design.",
+    "Do not treat candidate, current-variant, preview or malformed stat data as an equipped-item fact.",
+    "Do not merge before the exact source-bound WeChat candidate receives explicit user acceptance."
+  ],
+  "currentTruth": {
+    "sources": [
+      "docs/project-state.json",
+      "docs/roadmap.md",
+      "docs/plans/ui-reconstruction.md",
+      "docs/plans/2026-07-24-taro-gear-editor-recovery-design.md",
+      "docs/design/current-ui/routes/gear-detail/truth-adaptation.json",
+      "docs/design/current-ui/routes/gear-detail/component-contract.json",
+      "apps/mini-taro/src/pages/builds/detail.tsx",
+      "apps/mini-taro/src/pages/builds/gear-detail-model.ts",
+      "packages/design-system/src/components/GearDetailComponents.tsx",
+      "scripts/build-weapp-safely.js",
+      "scripts/refresh-weapp-preview.js"
+    ],
+    "activeMilestone": "taro_target_first_14_route_rebuild",
+    "activeRoute": "apps/mini-taro/src/pages/builds/detail.tsx",
+    "knownRegression": "The checked-in source contained the slot information hierarchy, but apps/mini-taro/dist/weapp was older than current source and the initial equippedSet path did not consume its own explicitly verified variant stats."
+  },
+  "impactMap": {
+    "mustChange": [
+      "An initial equipped item displays its own backend itemStats only when statDisplayStatus is exactly verified_variant; edited and community-imported state continues to prefer exact Resolver itemStaticStats.",
+      "The enhancement summary distinguishes 可用, 不可用 and 待核验, and disables only categories that all selected items explicitly mark unsupported.",
+      "The WeChat build writes a validated wow-build.json and preview refresh rejects output whose source content hash differs from the current build inputs.",
+      "The active gear-detail truth and component contracts describe the same visible-fact boundary as the implementation."
+    ],
+    "mustNotChange": [
+      "The backend and public payload remain unchanged.",
+      "Resolver identity and selectedOptions remain the only commit proof after editing or community import.",
+      "Aggregate character attributes remain pending without their complete canonical snapshot.",
+      "Candidate and metadata preview stats never become equipped-item facts.",
+      "The archived 2026-07-24 editor task and abandoned evidence-registry branch are not cherry-picked or reopened."
+    ],
+    "riskUnknown": [
+      "The exact live equippedSet payload may omit verified_variant on some items; those rows must remain 属性待核验 until the backend supplies exact evidence.",
+      "WeChat DevTools may be installed but its CLI service may not be available; a verified build alone must not be reported as a completed DevTools refresh or visual acceptance."
+    ],
+    "evidenceRequired": [
+      "Red-to-green model and page-contract tests for verified initial stats and enhancement availability.",
+      "Node regression tests that stamp valid WeChat identity and reject stale source identity.",
+      "Typecheck, Taro tests, UI architecture audit, safe WeChat build and source-identity verification.",
+      "Exact source-bound WeChat preview plus explicit user acceptance of the slot facts and enhancement summary."
+    ]
+  },
+  "ownership": {
+    "factOwner": "The backend Resolver and exact equipped-item statDisplayStatus own equipment facts; Taro only renders verified facts and local drafts. The WeChat build scripts own artifact-to-source identity.",
+    "consumers": [
+      "apps/mini-taro/src/pages/builds/gear-detail-model.ts",
+      "apps/mini-taro/src/pages/builds/detail.tsx",
+      "packages/design-system/src/components/GearDetailComponents.tsx",
+      "scripts/build-weapp-safely.js",
+      "scripts/refresh-weapp-preview.js",
+      "apps/mini-taro/dist/weapp/wow-build.json"
+    ]
+  },
+  "engineeringHealth": {
+    "status": "health_watch_guarded",
+    "reason": "The correction changes one active WeChat route and the shared build/refresh boundary. Pure presentation helpers, explicit backend status gates, stale-artifact regression tests and source-bound preview verification keep the scope bounded."
+  },
+  "manualAcceptanceContract": {
+    "required": true,
+    "requiredItemIds": [
+      "gear_slot_visible_facts",
+      "gear_enhancement_availability",
+      "gear_ui_recovery_preview"
+    ]
+  },
+  "acceptanceEvidence": [
+    "Targeted Taro tests prove verified initial stats render while pending or preview stats do not.",
+    "Targeted component and Node tests prove enhancement availability states and stale WeChat artifact rejection.",
+    "The candidate dist wow-build.json source hash matches the exact current source inputs before DevTools opens it.",
+    "The user explicitly accepts the three frozen real-WeChat items before merge."
+  ],
+  "releaseTrigger": "frontend_user_visible",
+  "rollback": [
+    "code_rollback"
+  ],
+  "decisionLog": [
+    {
+      "date": "2026-07-28",
+      "decision": "The user reported that previously accepted gear UI improvements, including visible green stats, were missing from the latest compile and authorized complete correction."
+    },
+    {
+      "date": "2026-07-28",
+      "decision": "The correction keeps backend-owned truth: verified_variant is the only initial equipped-item fallback, while edited and imported state continues to prefer exact Resolver itemStaticStats."
+    },
+    {
+      "date": "2026-07-28",
+      "decision": "WeChat output is no longer trusted from timestamps or Git branch parity alone; preview refresh must validate an embedded source content hash."
+    }
+  ]
+}

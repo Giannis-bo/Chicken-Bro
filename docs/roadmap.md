@@ -3,7 +3,7 @@
 Active frontend ownership is explicit: `apps/mini-taro` owns the active 14-route runtime and `packages/api-client/src` owns typed transport. The root `app.json` and `pages/` tree remain compatibility consumers only, preserving the 14-route surface without receiving new first-level ownership. The machine-readable route matrix is `docs/project-owner-map.json`.
 
 状态：`active`
-更新时间：`2026-07-25`
+更新时间：`2026-07-28`
 
 ## 本文职责
 
@@ -56,6 +56,7 @@ Active frontend ownership is explicit: `apps/mini-taro` owns the active 14-route
 3. 在真实微信运行态验证 `news_home`、`simulator_home`、`news_detail`；结构预检后再做 target/runtime 像素复核。
 4. 三基线成立后，按 news、builds、simulation/profile 固定批次传播。
 5. 每个路由只做一次最终视觉复核和一个核心交互验证；单元测试不授予视觉通过。
+6. 微信预览产物必须以源码内容哈希和构建时 Git identity 绑定当前 `apps/mini-taro/dist/weapp`；本地/远端 `main` 一致只能证明源码同步，不能证明 DevTools 正在消费最新包。
 
 ## 维护规则
 
