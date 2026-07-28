@@ -21,6 +21,11 @@ POINTER_ROW = (
     "season-manifest:sha256:" + ("0" * 64),
     {"gearRuleRevision": "gear-r1"},
     {"gearRuleRevision": "gear-r1"},
+    "websim-gear-release-v4",
+    "sha256:" + ("4" * 64),
+    {"sourceMode": "sealed_fixture"},
+    {"itemCount": 1, "variantCount": 1},
+    "validated",
 )
 
 
@@ -128,6 +133,24 @@ def rowsets(pointer_rows=None):
                 True,
             )
         ],
+        "gear_catalog_audit_sources": [
+            (
+                "source-1",
+                "1001",
+                "raid",
+                "raid-1302-3010",
+                "Raid Boss",
+                "1302",
+                "3010",
+                "mythic",
+                "season-17",
+                {
+                    "status": "verified",
+                    "sourceStatus": "verified",
+                    "updatedAt": "ignored",
+                },
+            )
+        ],
         "gear_catalog_audit_options": [
             (
                 "option-1",
@@ -212,7 +235,7 @@ class GearCatalogAuditStoreTest(unittest.TestCase):
         self.assertTrue(any("SET LOCAL statement_timeout" in statement for statement in statements))
         self.assertTrue(any("SET LOCAL lock_timeout" in statement for statement in statements))
         self.assertEqual(write_statements(statements), [])
-        self.assertLessEqual(store.query_count, 12)
+        self.assertLessEqual(store.query_count, 13)
         self.assertEqual(snapshot["queryMetrics"]["writes"], 0)
         self.assertEqual(snapshot["pointerBefore"], snapshot["pointerAfter"])
         self.assertTrue(connection.rolled_back)
@@ -392,6 +415,40 @@ class GearCatalogAuditStoreTest(unittest.TestCase):
 
         self.assertIs(item.get("hasSourceRefs"), True)
         self.assertIs(item.get("hasVariantRefs"), True)
+
+    def test_snapshot_projects_sealed_release_metadata_and_canonical_sources(self):
+        snapshot = GearCatalogAuditStore(
+            lambda: FakeConnection(rowsets())
+        ).snapshot()
+
+        gear_release = snapshot["activeBinding"]["gearRelease"]
+        self.assertEqual(
+            gear_release["contentHash"],
+            "sha256:" + ("4" * 64),
+        )
+        self.assertEqual(
+            gear_release["schemaRevision"],
+            "websim-gear-release-v4",
+        )
+        self.assertEqual(gear_release["releaseStatus"], "validated")
+        self.assertEqual(
+            snapshot["catalogRows"]["sources"],
+            [
+                {
+                    "sourceId": "source-1",
+                    "itemId": "1001",
+                    "sourceType": "raid",
+                    "sourceKey": "raid-1302-3010",
+                    "sourceLabel": "Raid Boss",
+                    "instanceId": "1302",
+                    "encounterId": "3010",
+                    "difficultyKey": "mythic",
+                    "seasonRevision": "season-17",
+                    "status": "verified",
+                    "sourceStatus": "verified",
+                }
+            ],
+        )
 
     def test_changed_pointer_discards_mixed_snapshot_and_rolls_back(self):
         changed = list(POINTER_ROW)

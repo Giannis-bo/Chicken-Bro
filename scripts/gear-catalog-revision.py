@@ -1,0 +1,464 @@
+#!/usr/bin/env python3
+"""Build, seal and shadow-check one dormant Gear Catalog revision."""
+
+from __future__ import annotations
+
+import argparse
+from datetime import datetime, timezone
+import hashlib
+import json
+import os
+from pathlib import Path
+import sys
+from typing import Any, Callable, Iterable, Mapping
+
+
+REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+if str(REPOSITORY_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPOSITORY_ROOT))
+
+from server.gear_catalog_audit_store import GearCatalogAuditStore  # noqa: E402
+from server.gear_catalog_revision import build_catalog_revision  # noqa: E402
+from server.gear_catalog_revision_store import GearCatalogRevisionStore  # noqa: E402
+
+
+MAX_STATEMENT_TIMEOUT_MS = 30_000
+MAX_LOCK_TIMEOUT_MS = 5_000
+MAX_BATCH_SIZE = 1_000
+
+
+def _text(value: Any) -> str:
+    return str(value or "").strip()
+
+
+def _integer(value: Any) -> int:
+    if isinstance(value, bool):
+        return 0
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError, OverflowError):
+        return 0
+
+
+def _mapping(value: Any) -> dict[str, Any]:
+    return dict(value) if isinstance(value, Mapping) else {}
+
+
+def _canonical(value: Any) -> Any:
+    return json.loads(
+        json.dumps(
+            value,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            default=str,
+        )
+    )
+
+
+def _hash(prefix: str, value: Any) -> str:
+    encoded = json.dumps(
+        value,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        default=str,
+    ).encode("utf-8")
+    return prefix + hashlib.sha256(encoded).hexdigest()
+
+
+def _spec_pairs(class_spec_matrix: Any) -> list[tuple[str, str]]:
+    pairs: list[tuple[str, str]] = []
+    for klass in class_spec_matrix or []:
+        row = _mapping(klass)
+        class_key = _text(row.get("key"))
+        for raw_spec in row.get("specs") or []:
+            spec_key = (
+                _text(_mapping(raw_spec).get("key"))
+                if isinstance(raw_spec, Mapping)
+                else _text(raw_spec)
+            )
+            pairs.append((class_key, spec_key))
+    if (
+        len(pairs) != 40
+        or len(set(pairs)) != 40
+        or any(not all(pair) for pair in pairs)
+    ):
+        raise ValueError(
+            "backend specialization matrix must contain 40 unique pairs"
+        )
+    return pairs
+
+
+def _payload_pointer(payload: Mapping[str, Any]) -> dict[str, Any]:
+    binding = _mapping(payload.get("_activeManifestBinding"))
+    manifest = _mapping(binding.get("manifest"))
+    return {
+        "generation": _integer(
+            payload.get("pointerGeneration") or binding.get("generation")
+        ),
+        "manifestRevision": _text(
+            payload.get("manifestRevision")
+            or manifest.get("manifestRevision")
+        ),
+    }
+
+
+def _visible_candidate_pairs(payload: Mapping[str, Any]) -> list[tuple[str, str]]:
+    result: set[tuple[str, str]] = set()
+    groups = payload.get("replacementCandidates")
+    if not isinstance(groups, list):
+        groups = []
+    for group in groups:
+        items = _mapping(group).get("items")
+        if not isinstance(items, list):
+            continue
+        for candidate in items:
+            row = _mapping(candidate)
+            item_id = _text(row.get("itemId") or row.get("id"))
+            if not item_id:
+                continue
+            identities: set[str] = set()
+            for variant in row.get("variants") or []:
+                variant_row = _mapping(variant)
+                identity = _text(
+                    variant_row.get("variantKey")
+                    or variant_row.get("id")
+                )
+                if identity:
+                    identities.add(identity)
+            direct = _text(row.get("variantKey"))
+            if direct:
+                identities.add(direct)
+            for identity in identities:
+                result.add((item_id, identity))
+    if result:
+        return sorted(result)
+    for candidate in payload.get("catalogItems") or []:
+        row = _mapping(candidate)
+        item_id = _text(row.get("itemId") or row.get("id"))
+        for variant in row.get("variants") or []:
+            variant_row = _mapping(variant)
+            identity = _text(
+                variant_row.get("variantKey") or variant_row.get("id")
+            )
+            if item_id and identity:
+                result.add((item_id, identity))
+    return sorted(result)
+
+
+def _catalog_binding(snapshot: Mapping[str, Any]) -> dict[str, Any]:
+    active = _mapping(snapshot.get("activeBinding"))
+    manifest = _mapping(active.get("manifest"))
+    gear = _mapping(active.get("gearRelease"))
+    dependency_vector = _mapping(gear.get("dependencyVector"))
+    if not dependency_vector:
+        dependency_vector = _mapping(manifest.get("dependencyVector"))
+    return {
+        "manifestRevision": _text(manifest.get("manifestRevision")),
+        "gearReleaseId": _text(gear.get("releaseId")),
+        "gearReleaseContentHash": _text(gear.get("contentHash")),
+        "gearReleaseSchemaRevision": _text(gear.get("schemaRevision")),
+        "seasonRevision": _text(manifest.get("seasonRevision")),
+        "gearRuleRevision": _text(
+            dependency_vector.get("gearRuleRevision")
+            or _mapping(manifest.get("dependencyVector")).get(
+                "gearRuleRevision"
+            )
+        ),
+        "dependencyVector": dependency_vector,
+        "sourceSummary": {
+            "releaseStatus": _text(gear.get("releaseStatus")),
+            "source": _mapping(gear.get("source")),
+            "contentSummary": _mapping(gear.get("contentSummary")),
+        },
+    }
+
+
+def _source_variant_aliases(
+    rows: Mapping[str, Any],
+) -> dict[tuple[str, str], str]:
+    aliases: dict[tuple[str, str], str] = {}
+    for variant in rows.get("variants") or []:
+        row = _mapping(variant)
+        if _text(row.get("rowFamily")) != "browse":
+            continue
+        item_id = _text(row.get("itemId"))
+        variant_key = _text(row.get("variantKey") or row.get("variantId"))
+        variant_id = _text(row.get("variantId"))
+        if item_id and variant_key:
+            aliases[(item_id, variant_key)] = variant_key
+            if variant_id:
+                aliases[(item_id, variant_id)] = variant_key
+    return aliases
+
+
+def _shadow_specs(
+    *,
+    catalog: Mapping[str, Any],
+    catalog_rows: Mapping[str, Any],
+    pointer: Mapping[str, Any],
+    spec_payload_reader: Callable[[str, str], Mapping[str, Any]],
+    class_spec_matrix: Any,
+) -> tuple[dict[str, Any], list[str]]:
+    catalog_index: dict[tuple[str, str], str] = {}
+    for variant in catalog.get("browseVariants") or []:
+        row = _mapping(variant)
+        item_id = _text(row.get("itemId"))
+        browse_key = _text(row.get("browseVariantKey"))
+        for source_key in row.get("sourceVariantKeys") or []:
+            if item_id and _text(source_key) and browse_key:
+                catalog_index[(item_id, _text(source_key))] = browse_key
+    aliases = _source_variant_aliases(catalog_rows)
+    expected_manifest = _text(pointer.get("manifestRevision"))
+    expected_generation = _integer(pointer.get("generation"))
+    rows = []
+    problem_codes: set[str] = set()
+    unmapped_total = 0
+    for class_key, spec_key in _spec_pairs(class_spec_matrix):
+        payload = _mapping(spec_payload_reader(class_key, spec_key))
+        observed_pointer = _payload_pointer(payload)
+        visible = _visible_candidate_pairs(payload)
+        unmapped = []
+        mapped = []
+        for item_id, visible_identity in visible:
+            source_key = aliases.get(
+                (item_id, visible_identity),
+                visible_identity,
+            )
+            browse_key = catalog_index.get((item_id, source_key))
+            if not browse_key:
+                unmapped.append((item_id, visible_identity))
+            else:
+                mapped.append((item_id, browse_key))
+        codes = []
+        if (
+            observed_pointer["manifestRevision"] != expected_manifest
+            or observed_pointer["generation"] != expected_generation
+        ):
+            codes.append("CATALOG_SHADOW_SPEC_POINTER_MISMATCH")
+        if not visible:
+            codes.append("CATALOG_SHADOW_SPEC_CANDIDATES_MISSING")
+        if unmapped:
+            codes.append("CATALOG_SHADOW_VISIBLE_CANDIDATE_UNMAPPED")
+        backend_status = _text(
+            payload.get("catalogStatus") or payload.get("dataStatus")
+        )
+        if backend_status != "verified":
+            codes.append("CATALOG_SHADOW_BACKEND_STATUS_UNVERIFIED")
+        problem_codes.update(codes)
+        unmapped_total += len(unmapped)
+        rows.append({
+            "classKey": class_key,
+            "specKey": spec_key,
+            "status": "verified" if not codes else "blocked",
+            "legacyVisibleCandidateCount": len(visible),
+            "dormantBrowseVariantCount": len(set(mapped)),
+            "unmappedCandidateCount": len(unmapped),
+            "legacyVisibleSetHash": _hash(
+                "sha256:",
+                visible,
+            ),
+            "dormantVisibleSetHash": _hash(
+                "sha256:",
+                sorted(set(mapped)),
+            ),
+            "problemCodes": sorted(set(codes)),
+        })
+    verified_count = sum(1 for row in rows if row["status"] == "verified")
+    return (
+        {
+            "schemaRevision": "gear-catalog-spec-shadow-v1",
+            "status": "verified" if verified_count == 40 else "blocked",
+            "specCount": len(rows),
+            "verifiedSpecCount": verified_count,
+            "blockedSpecCount": len(rows) - verified_count,
+            "unmappedCandidateCount": unmapped_total,
+            "rows": rows,
+        },
+        sorted(problem_codes),
+    )
+
+
+def run_migration(
+    *,
+    snapshot_reader: Callable[..., Mapping[str, Any]],
+    pointer_reader: Callable[..., Mapping[str, Any]],
+    seal_writer: Callable[[dict[str, Any]], Mapping[str, Any]],
+    spec_payload_reader: Callable[[str, str], Mapping[str, Any]],
+    class_spec_matrix: Any,
+    statement_timeout_ms: int = 15_000,
+    lock_timeout_ms: int = 1_000,
+    batch_size: int = 500,
+    observed_at: str = "",
+) -> dict[str, Any]:
+    """Run a bounded active-release to dormant-Catalog migration shadow."""
+
+    snapshot = _mapping(snapshot_reader(
+        statement_timeout_ms=statement_timeout_ms,
+        lock_timeout_ms=lock_timeout_ms,
+        batch_size=batch_size,
+    ))
+    pointer_before = _mapping(snapshot.get("pointerBefore"))
+    if pointer_before != _mapping(snapshot.get("pointerAfter")):
+        raise RuntimeError("CATALOG_SHADOW_SNAPSHOT_POINTER_CHANGED")
+    binding = _catalog_binding(snapshot)
+    catalog_rows = _mapping(snapshot.get("catalogRows"))
+    first = build_catalog_revision(binding, catalog_rows)
+    second = build_catalog_revision(binding, catalog_rows)
+    if first.get("status") != "verified":
+        return {
+            "schemaRevision": "gear-catalog-shadow-report-v1",
+            "status": "blocked",
+            "problemCodes": list(first.get("problemCodes") or []),
+            "problems": list(first.get("problems") or []),
+            "pointerBefore": pointer_before,
+            "pointerAfter": pointer_before,
+            "pointerStable": True,
+            "deterministicBuild": first == second,
+            "observedAt": observed_at,
+        }
+    deterministic = first == second
+    sealed = _mapping(seal_writer(first))
+    spec_shadow, shadow_codes = _shadow_specs(
+        catalog=sealed,
+        catalog_rows=catalog_rows,
+        pointer=pointer_before,
+        spec_payload_reader=spec_payload_reader,
+        class_spec_matrix=class_spec_matrix,
+    )
+    pointer_after = _mapping(pointer_reader(
+        statement_timeout_ms=min(statement_timeout_ms, 5_000),
+        lock_timeout_ms=lock_timeout_ms,
+    ))
+    pointer_stable = pointer_before == pointer_after
+    problem_codes = set(shadow_codes)
+    if not deterministic:
+        problem_codes.add("CATALOG_SHADOW_BUILD_NONDETERMINISTIC")
+    if (
+        _text(sealed.get("catalogRevision"))
+        != _text(first.get("catalogRevision"))
+    ):
+        problem_codes.add("CATALOG_SHADOW_SEAL_IDENTITY_MISMATCH")
+    if not pointer_stable:
+        problem_codes.add("CATALOG_SHADOW_POINTER_CHANGED")
+    report = {
+        "schemaRevision": "gear-catalog-shadow-report-v1",
+        "status": "blocked" if problem_codes else "verified",
+        "catalogRevision": _text(first.get("catalogRevision")),
+        "sourceGearReleaseId": _text(binding.get("gearReleaseId")),
+        "sourceGearReleaseContentHash": _text(
+            binding.get("gearReleaseContentHash")
+        ),
+        "deterministicBuild": deterministic,
+        "pointerStable": pointer_stable,
+        "pointerBefore": pointer_before,
+        "pointerAfter": pointer_after,
+        "contentSummary": _mapping(first.get("contentSummary")),
+        "specShadow": spec_shadow,
+        "problemCodes": sorted(problem_codes),
+        "observedAt": observed_at,
+    }
+    report["reportId"] = _hash(
+        "gear-catalog-shadow:sha256:",
+        {
+            key: value
+            for key, value in report.items()
+            if key not in {"observedAt", "reportId"}
+        },
+    )
+    return report
+
+
+def _bounded_integer(label: str, maximum: int):
+    def parse(value: str) -> int:
+        parsed = int(value)
+        if not 1 <= parsed <= maximum:
+            raise argparse.ArgumentTypeError(
+                f"{label} must be between 1 and {maximum}"
+            )
+        return parsed
+
+    return parse
+
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Build and seal one dormant Gear Catalog revision.",
+    )
+    parser.add_argument("--output", default="-")
+    parser.add_argument(
+        "--statement-timeout-ms",
+        type=_bounded_integer("statement_timeout_ms", MAX_STATEMENT_TIMEOUT_MS),
+        default=15_000,
+    )
+    parser.add_argument(
+        "--lock-timeout-ms",
+        type=_bounded_integer("lock_timeout_ms", MAX_LOCK_TIMEOUT_MS),
+        default=1_000,
+    )
+    parser.add_argument(
+        "--batch-size",
+        type=_bounded_integer("batch_size", MAX_BATCH_SIZE),
+        default=500,
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = parse_args(argv)
+    if _text(os.environ.get("WOW_DATABASE_RUNTIME")) != "postgres_only":
+        print("CATALOG_REQUIRES_POSTGRES_ONLY", file=sys.stderr)
+        return 2
+    database_url = _text(os.environ.get("WOW_DATABASE_URL"))
+    if not database_url:
+        print("CATALOG_DATABASE_URL_MISSING", file=sys.stderr)
+        return 2
+
+    from server.db import connect_postgres
+    from server.postgres_cache_store import PostgresCacheStore
+    from server.websim_payload import WOW_CLASSES
+
+    connection_factory = lambda: connect_postgres(database_url)
+    audit_store = GearCatalogAuditStore(connection_factory)
+    catalog_store = GearCatalogRevisionStore(connection_factory)
+    cache_store = PostgresCacheStore(connection_factory)
+    try:
+        report = run_migration(
+            snapshot_reader=audit_store.snapshot,
+            pointer_reader=audit_store.pointer_identity,
+            seal_writer=catalog_store.seal_catalog,
+            spec_payload_reader=lambda class_key, spec_key: cache_store.get_websim_gear(
+                class_key=class_key,
+                spec_key=spec_key,
+                compact=True,
+                mode="initial",
+            ),
+            class_spec_matrix=WOW_CLASSES,
+            statement_timeout_ms=args.statement_timeout_ms,
+            lock_timeout_ms=args.lock_timeout_ms,
+            batch_size=args.batch_size,
+            observed_at=datetime.now(timezone.utc).isoformat(),
+        )
+    except Exception as exc:
+        print(
+            f"CATALOG_SHADOW_EXECUTION_FAILED:{type(exc).__name__}",
+            file=sys.stderr,
+        )
+        return 1
+    content = json.dumps(
+        report,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ) + "\n"
+    if args.output == "-":
+        sys.stdout.write(content)
+    else:
+        output = Path(args.output)
+        output.write_text(content, encoding="utf-8")
+    return 0 if report.get("status") == "verified" else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

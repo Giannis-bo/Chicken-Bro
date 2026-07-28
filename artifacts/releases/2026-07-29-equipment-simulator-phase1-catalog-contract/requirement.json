@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 1,
+  "slug": "equipment-simulator-phase1-catalog-contract",
+  "classification": "Strict",
+  "status": "implementation_allowed",
+  "goal": "Implement and live-verify the dormant CatalogRevision, ItemDefinition and BrowseVariant membership layer, deterministically migrate the active generation-32 Gear Release into the first immutable Catalog, and prove 40-specialization shadow parity without changing the active Manifest or public readers.",
+  "userValue": "The equipment simulator gains a complete content-addressed current-season PVE catalog foundation without changing the accepted WeChat journey or exposing guessed equipment facts.",
+  "nonGoals": [
+    "Do not switch the active Season Manifest or any public reader to CatalogRevision in this phase.",
+    "Do not change the WeChat equipment entry, community templates, saved-template behavior or SimC execution policy.",
+    "Do not implement ExactItemInstance caching, EnhancementSelection persistence, ResolvedLoadout or SimulationSnapshot yet.",
+    "Do not put crafted stat choices into BrowseVariant identity or infer missing static facts."
+  ],
+  "currentTruth": {
+    "sources": [
+      "docs/project-state.json",
+      "docs/roadmap.md",
+      "docs/plans/README.md",
+      "docs/plans/2026-07-28-equipment-simulator-target-architecture.md",
+      "docs/plans/2026-07-29-equipment-simulator-phase1-catalog-contract.md",
+      "artifacts/releases/2026-07-28-equipment-simulator-phase0-unblock/evidence.json",
+      "docs/gear-simulation-full-chain-runbook.md",
+      "docs/harness.md",
+      "docs/verification-matrix.md"
+    ],
+    "activeManifestRevision": "season-manifest:sha256:b79e6226c7dc406c2e729cf01cf6d86f4944b760b8e8cc185dcd4347032fedb6",
+    "activePointerGeneration": 32,
+    "activeGearReleaseId": "gear-release:sha256:9299fe1f942dc272f402e4d735d6a1bf8111a8f156464e0777cd6df78769edc7",
+    "phase0AuditReportId": "catalog-migration-audit:sha256:1f211147e19479a67c84641904222b9a4612ede8caafa6c0d2e328898c9341d2",
+    "baseCommit": "731bf899618976368a649f1e087b827e642076ef"
+  },
+  "impactMap": {
+    "mustChange": [
+      "Add a pure deterministic CatalogRevision builder with fail-closed ItemDefinition and BrowseVariant membership validation.",
+      "Add append-only dormant PostgreSQL Catalog tables, migration tests and one SQL owner/store.",
+      "Add a bounded active Gear Release to dormant Catalog migration and 40-specialization shadow verifier.",
+      "Register the new owner, caller and active implementation plan in the repository control plane."
+    ],
+    "mustNotChange": [
+      "Do not mutate cache.websim_active_manifest_pointer or seal a new active Season Manifest.",
+      "Do not route current API, Resolver, Community import, stat snapshot or SimC readers through the dormant Catalog.",
+      "Do not rewrite or delete sealed Gear/Community Release rows.",
+      "Do not change the 26 supported and 14 deterministically unsupported SimC policy."
+    ],
+    "riskUnknown": [
+      "Crafted legacy rows may contain selection-dependent secondary stats that must be removed without losing invariant static facts.",
+      "A content-addressed Catalog and Catalog-derived BrowseVariant key require a two-stage membership seed to avoid circular identity.",
+      "Dormant migration must remain bounded and pointer-fenced on the production dataset."
+    ],
+    "evidenceRequired": [
+      "RED/GREEN tests for deterministic identity, non-identity field exclusion, progression membership, crafted collapse and fail-closed malformed rows.",
+      "Migration and store tests proving append-only tables, exact seal/load verification and no active pointer.",
+      "A production candidate report with one immutable CatalogRevision, exact member counts, repeated-build identity, 40/40 shadow parity, bounded resources and unchanged generation-32 pointer.",
+      "Focused compatibility, full Harness, PR CI, candidate deployment, rollback and local/origin/cloud identity evidence."
+    ]
+  },
+  "ownership": {
+    "factOwner": "The new CatalogRevision builder owns canonical catalog membership; Track Authority owns progression facts; the Catalog store owns only immutable dormant persistence; the existing active Manifest and Gear Release remain public runtime authority.",
+    "consumers": [
+      "Phase 1 Catalog migration CLI",
+      "Phase 1 shadow verifier",
+      "future Catalog public readers after a later explicit cutover"
+    ]
+  },
+  "engineeringHealth": {
+    "status": "strict_dormant_pg_migration_guarded",
+    "reason": "This phase adds PostgreSQL schema and production dormant writes but keeps public readers and the active pointer unchanged. TDD, bounded execution, exact identity, candidate migration, shadow parity and rollback evidence are mandatory."
+  },
+  "acceptanceEvidence": [
+    "The same canonical input produces the same gear-catalog:sha256 revision and row hashes across repeated builds.",
+    "The production dormant Catalog contains the exact Phase 0 mapped ItemDefinition and 1309 BrowseVariant membership with 438 crafted selections collapsed to 73 variants.",
+    "All 40 specializations have identical visible candidate membership between the active Gear Release and dormant Catalog.",
+    "The active Manifest revision and pointer generation remain unchanged before and after migration.",
+    "Local full verification, PR CI, candidate/cloud parity and post-merge closure pass."
+  ],
+  "manualAcceptanceContract": {
+    "required": false,
+    "requiredItemIds": []
+  },
+  "releaseTrigger": "pg_read_model",
+  "rollback": [
+    "code_rollback",
+    "service_rollback",
+    "dormant_catalog_unreferenced",
+    "active_manifest_pointer_unchanged"
+  ],
+  "decisionLog": [
+    {
+      "date": "2026-07-29",
+      "decision": "The user authorized Codex to self-test and continue automatically through subsequent goal phases without waiting for manual confirmation."
+    },
+    {
+      "date": "2026-07-29",
+      "decision": "Phase 1 starts with dormant CatalogRevision, ItemDefinition and BrowseVariant membership, followed by deterministic active Gear Release migration and 40-specialization shadow parity."
+    },
+    {
+      "date": "2026-07-29",
+      "decision": "CatalogRevision is computed from membership seeds before deriving Catalog-bound BrowseVariant keys, preventing circular identity while preserving the approved key contract."
+    }
+  ]
+}

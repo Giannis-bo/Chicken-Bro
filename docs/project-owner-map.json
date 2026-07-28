@@ -426,6 +426,31 @@
         ],
         "activationBoundary": "Phase 4D is merged and live-verified with one formal active Manifest at generation 9. Phase 4E may consume staging into inactive candidates and auto-promote only same-Gear Community or fully compatible additive Gear changes; deploy-triggered refresh, Phase 5 and Catalyst remain forbidden."
       },
+      "catalogRevisionFoundations": {
+        "status": "phase1_dormant_catalog_implementation",
+        "factOwner": "server/gear_catalog_revision.py",
+        "trackAuthorityOwner": "server/gear_track_authority.py",
+        "readOnlyProjectionOwner": "server/gear_catalog_audit_store.py",
+        "writeOwner": "server/gear_catalog_revision_store.py",
+        "migration": "server/migrations/postgres/0019_websim_gear_catalog_revision.sql",
+        "cliOrchestrator": "scripts/gear-catalog-revision.py",
+        "modules": [
+          "server/gear_catalog_revision.py",
+          "server/gear_catalog_audit_store.py",
+          "server/gear_catalog_revision_store.py",
+          "scripts/gear-catalog-revision.py",
+          "server/migrations/postgres/0019_websim_gear_catalog_revision.sql"
+        ],
+        "tests": [
+          "tests/gear_catalog_revision_test.py",
+          "tests/gear_catalog_revision_store_test.py",
+          "tests/gear_catalog_revision_cli_test.py",
+          "tests/gear_catalog_audit_store_test.py",
+          "tests/postgres_schema_test.py"
+        ],
+        "runtimeConsumers": [],
+        "activationBoundary": "Phase 1 seals only dormant CatalogRevision, ItemDefinition and BrowseVariant membership and runs a pointer-fenced shadow. The active generation-32 Manifest, public readers, community import, stat snapshots and SimC remain on the accepted Gear Release path."
+      },
       "observedBuildRegistryFoundations": {
         "status": "dormant_shadow_core",
         "factOwner": "server/observed_build_registry.py",
@@ -494,7 +519,8 @@
         "communityTemplates public entry allows active raiderio_observed_profile only.",
         "baselineTemplates public default remains empty.",
         "Phase 2 bounded Authority Context loader and dormant adapters do not replace the current public read model; Phase 3A may add backend resolverContext and Resolve/Profile routes while public observed-only selection remains unchanged.",
-        "The dormant observed-build registry has no public runtime consumer and cannot change the active observed-only gear or talent payload in this slice."
+        "The dormant observed-build registry has no public runtime consumer and cannot change the active observed-only gear or talent payload in this slice.",
+        "The Phase 1 dormant Catalog has no public runtime consumer and cannot change generation 32 or current candidate payloads."
       ],
       "mustNotChange": [
         "Do not reintroduce recommended_bis, season_recommendation, default_template, simc_preset or baseline_blocked into public gear entry.",
@@ -526,13 +552,21 @@
         "tests/observed_build_projection_test.py",
         "tests/observed_build_template_set_test.py",
         "tests/observed_build_store_test.py",
-        "tests/observed_build_core_path_test.py"
+        "tests/observed_build_core_path_test.py",
+        "tests/gear_catalog_revision_test.py",
+        "tests/gear_catalog_revision_store_test.py",
+        "tests/gear_catalog_revision_cli_test.py",
+        "tests/gear_catalog_audit_store_test.py"
       ],
       "runtimeSurfaces": [
         "server/gear_public_contract.py",
         "server/websim_payload.py",
         "server/pg_gear_template_selectors.py",
         "server/community_template_import.py",
+        "server/gear_catalog_revision.py",
+        "server/gear_catalog_audit_store.py",
+        "server/gear_catalog_revision_store.py",
+        "scripts/gear-catalog-revision.py",
         "pages/builds/websim-api.js",
         "packages/api-client/src/websim.ts",
         "packages/domain/src/gear-intent.ts",
@@ -579,6 +613,11 @@
         "server/observed_build_template_set.py",
         "server/observed_build_store.py",
         "server/migrations/postgres/0018_observed_build_registry.sql",
+        "server/gear_catalog_revision.py",
+        "server/gear_catalog_audit_store.py",
+        "server/gear_catalog_revision_store.py",
+        "scripts/gear-catalog-revision.py",
+        "server/migrations/postgres/0019_websim_gear_catalog_revision.sql",
         "server/wow-gear-release-refresh.service",
         "server/wow-gear-release-refresh.timer",
         "server/pg_gear_authority_loader.py",
@@ -610,7 +649,11 @@
         "tests/observed_build_projection_test.py",
         "tests/observed_build_template_set_test.py",
         "tests/observed_build_store_test.py",
-        "tests/observed_build_core_path_test.py"
+        "tests/observed_build_core_path_test.py",
+        "tests/gear_catalog_revision_test.py",
+        "tests/gear_catalog_revision_store_test.py",
+        "tests/gear_catalog_revision_cli_test.py",
+        "tests/gear_catalog_audit_store_test.py"
       ],
       "backendOwnerMapRef": {
         "hotspotFile": "server/websim_payload.py",
@@ -1124,7 +1167,9 @@
         "server/gear_release_store.py",
         "server/gear_release_tool.py",
         "server/gear_release_shadow.py",
-        "server/observed_build_store.py"
+        "server/observed_build_store.py",
+        "server/gear_catalog_revision_store.py",
+        "scripts/gear-catalog-revision.py"
       ],
       "publicContracts": [
         "PG-only runtime boundaries must fail closed without silent SQLite fallback.",
@@ -1143,7 +1188,9 @@
         "tests/gear_release_tool_test.py",
         "tests/gear_release_shadow_test.py",
         "tests/observed_build_store_test.py",
-        "tests/observed_build_core_path_test.py"
+        "tests/observed_build_core_path_test.py",
+        "tests/gear_catalog_revision_store_test.py",
+        "tests/gear_catalog_revision_cli_test.py"
       ],
       "runtimeSurfaces": [
         "server/postgres_cache_store.py",
@@ -1152,7 +1199,9 @@
         "server/gear_release_store.py",
         "server/gear_release_tool.py",
         "server/gear_release_shadow.py",
-        "server/observed_build_store.py"
+        "server/observed_build_store.py",
+        "server/gear_catalog_revision_store.py",
+        "scripts/gear-catalog-revision.py"
       ],
       "runbooks": [
         "docs/database-architecture.md",
@@ -1176,6 +1225,8 @@
         "server/observed_build_registry.py",
         "server/observed_build_projection.py",
         "server/observed_build_template_set.py",
+        "server/gear_catalog_revision_store.py",
+        "scripts/gear-catalog-revision.py",
         "server/migrations/postgres/**",
         "server/db.py"
       ],
@@ -1196,7 +1247,9 @@
           "tests/gear_release_tool_test.py",
           "tests/gear_release_shadow_test.py",
           "tests/observed_build_store_test.py",
-          "tests/observed_build_core_path_test.py"
+          "tests/observed_build_core_path_test.py",
+          "tests/gear_catalog_revision_store_test.py",
+          "tests/gear_catalog_revision_cli_test.py"
         ],
         "runtimeEvidence": [],
         "ownerMapRef": {

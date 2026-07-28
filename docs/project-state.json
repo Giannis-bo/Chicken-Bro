@@ -117,6 +117,16 @@
         "mappedOptionCount": 63
       },
       "notes": "The fresh bounded generation-32 audit uses exact season/rule Track Authority, maps 1309/1309 canonical Browse candidates, verifies all 80 Community ExactItemInstance templates and 40 specializations, records zero unresolved callers and zero source writes, and keeps the active pointer stable. Global data health remains partial under legacy staging/refresh owners and is not represented as a green global-health result."
+    },
+    {
+      "id": "equipment_simulator_phase1_catalog_contract",
+      "path": "docs/plans/2026-07-29-equipment-simulator-phase1-catalog-contract.md",
+      "status": "local_verified",
+      "lifecycle": "active",
+      "requirement": "artifacts/releases/2026-07-29-equipment-simulator-phase1-catalog-contract/requirement.json",
+      "evidence": "artifacts/releases/2026-07-29-equipment-simulator-phase1-catalog-contract/evidence.json",
+      "baseCommit": "731bf899618976368a649f1e087b827e642076ef",
+      "notes": "Strict Phase 1 dormant Catalog builder, append-only store/migration and deterministic 40-specialization shadow tool are locally verified. Candidate Catalog seal and production pointer-fence evidence remain pending; public readers and the active Manifest pointer remain unchanged."
     }
   ],
   "completedBaselines": [

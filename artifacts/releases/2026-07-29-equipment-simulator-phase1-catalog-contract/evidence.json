@@ -1,0 +1,99 @@
+{
+  "schemaVersion": 2,
+  "slug": "equipment-simulator-phase1-catalog-contract",
+  "requirementSlug": "equipment-simulator-phase1-catalog-contract",
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
+  "branch": "codex/equipment-simulator-phase1-catalog-contract",
+  "commit": "pending_runtime_head",
+  "identities": {
+    "runtime": {
+      "status": "pending",
+      "reason": "The implementation is locally verified but has not yet been bound to an immutable candidate commit and cloud Catalog."
+    },
+    "verification": {
+      "status": "pending",
+      "reason": "Focused and pre-candidate full local suites pass; exact immutable candidate HEAD verification will run after the runtime identity is bound."
+    },
+    "closure": {
+      "status": "pending",
+      "reason": "PR merge and archive closure have not occurred."
+    }
+  },
+  "manualAcceptance": {
+    "required": false,
+    "status": "not_applicable",
+    "reason": "This phase adds dormant backend schema and shadow verification without changing a user-visible runtime path.",
+    "items": [],
+    "rollup": {
+      "total": 0,
+      "accepted": 0,
+      "notRunUserWaived": 0,
+      "pending": 0
+    }
+  },
+  "scope": [
+    "Dormant CatalogRevision, ItemDefinition and BrowseVariant membership contract",
+    "Append-only PostgreSQL Catalog schema and store",
+    "Deterministic active Gear Release migration",
+    "40-specialization shadow parity with an unchanged active Manifest pointer"
+  ],
+  "verification": [
+    {
+      "command": "CatalogRevision RED/GREEN focused suites",
+      "status": "pass",
+      "summary": "48 focused Catalog builder, append-only store, migration schema, fixed-query projection and 40-specialization shadow tests pass. RED failures were observed before the builder, store, migration and CLI existed."
+    },
+    {
+      "command": "pre-candidate repository verification",
+      "status": "pass",
+      "summary": "692 Node tests, 2040 Python tests with one skip, 404 Taro/Vitest tests, Python compileall, typecheck, lint, UI architecture, raster integrity, package mechanics and diff checks pass. UI package release configuration remains intentionally partial in the local environment and is not a Phase 1 runtime claim."
+    },
+    {
+      "command": "candidate dormant Catalog migration and production shadow",
+      "status": "not_run",
+      "summary": "Awaiting immutable candidate commit and cloud deployment."
+    },
+    {
+      "command": "exact-head Project Harness full profile and PR CI",
+      "status": "not_run",
+      "summary": "Runs after candidate identity and evidence are bound."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "pending",
+    "reason": "No candidate runtime or migration has been deployed."
+  },
+  "runtimeEvidence": [],
+  "risks": [
+    {
+      "id": "crafted-selection-facts",
+      "status": "controlled_by_tests",
+      "detail": "Builder removes governed crafted secondary selections, requires all remaining invariant facts to agree, and blocks conflicts."
+    },
+    {
+      "id": "catalog-key-cycle",
+      "status": "controlled_by_contract",
+      "detail": "Catalog membership seeds are hashed before Catalog-bound BrowseVariant keys are derived; verification independently rejects a mismatched derived key without changing Catalog identity."
+    },
+    {
+      "id": "active-pointer-safety",
+      "status": "open",
+      "detail": "Production candidate execution must prove the active generation-32 pointer is unchanged."
+    }
+  ],
+  "rollback": [
+    "code_rollback",
+    "service_rollback",
+    "dormant_catalog_unreferenced",
+    "active_manifest_pointer_unchanged"
+  ],
+  "cleanup": {
+    "required": true,
+    "reason": "Candidate backups, transient reports and the task branch require cleanup after closure."
+  },
+  "archivedReferences": [
+    "artifacts/releases/2026-07-28-equipment-simulator-phase0-unblock/evidence.json"
+  ],
+  "summary": "The dormant Catalog builder, append-only schema/store and bounded 40-specialization shadow are locally implemented and verified. No production migration, dormant Catalog seal, active pointer change or public reader change has occurred yet."
+}

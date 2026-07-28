@@ -1,0 +1,482 @@
+{
+  "schemaVersion": 1,
+  "status": "project_harness_manifest_ready",
+  "generatedAt": "2026-07-28T17:22:46.994Z",
+  "release": {
+    "date": "2026-07-29",
+    "slug": "equipment-simulator-phase1-catalog-contract"
+  },
+  "harness": {
+    "version": "v0.6.4",
+    "lastUpdated": "2026-07-20",
+    "source": "docs/harness.md",
+    "policyChangeCount": 10
+  },
+  "safety": {
+    "noNetwork": true,
+    "repositoryRemoteSyncPreapproved": true,
+    "repositoryRemoteSyncScope": "configured_project_remote_only",
+    "autonomousProgressionEnabled": true,
+    "noDeploy": true,
+    "noSsh": true,
+    "productionWrites": false
+  },
+  "gates": {
+    "requirementChallenge": {
+      "status": "template_required",
+      "requiredOutputs": [
+        "requirement_contract",
+        "opposition_challenge",
+        "approach_comparison",
+        "acceptance_evidence",
+        "risks_degradation_rollback"
+      ]
+    },
+    "currentTruth": {
+      "status": "ready",
+      "sources": [
+        {
+          "path": "docs/project-state.json",
+          "exists": true,
+          "sizeBytes": 39342
+        },
+        {
+          "path": "docs/project-owner-map.json",
+          "exists": true,
+          "sizeBytes": 71723
+        },
+        {
+          "path": "docs/verification-matrix.md",
+          "exists": true,
+          "sizeBytes": 6246
+        },
+        {
+          "path": "docs/roadmap.md",
+          "exists": true,
+          "sizeBytes": 10462
+        },
+        {
+          "path": "docs/README.md",
+          "exists": true,
+          "sizeBytes": 4341
+        },
+        {
+          "path": "docs/harness.md",
+          "exists": true,
+          "sizeBytes": 43283
+        },
+        {
+          "path": "docs/backend-owner-map.json",
+          "exists": true,
+          "sizeBytes": 48891
+        }
+      ],
+      "historicalDocsDefaultToEvidenceOnly": true
+    },
+    "impactMap": {
+      "status": "template_required",
+      "categories": [
+        "must_change",
+        "must_not_change",
+        "risk_unknown",
+        "evidence_required"
+      ]
+    },
+    "ownershipContract": {
+      "status": "template_required",
+      "ownerPrinciples": [
+        "backend_read_model_owns_structured_facts",
+        "frontend_consumes_read_model",
+        "health_admin_displays_authoritative_state",
+        "scheduled_jobs_write_owned_state_only",
+        "deploy_scripts_do_not_create_product_judgment"
+      ]
+    },
+    "engineeringHealth": {
+      "status": "health_watch",
+      "requiredForHotspots": true,
+      "hotspotFiles": [
+        {
+          "path": "server/websim_payload.py",
+          "exists": true,
+          "lineCount": 27149,
+          "hotspot": true
+        },
+        {
+          "path": "server/news_backend.py",
+          "exists": true,
+          "lineCount": 13783,
+          "hotspot": true
+        },
+        {
+          "path": "server/postgres_cache_store.py",
+          "exists": true,
+          "lineCount": 8565,
+          "hotspot": true
+        }
+      ],
+      "requiredQuestions": [
+        "structure_boundary",
+        "behavior_boundary",
+        "test_safety_net",
+        "performance",
+        "availability",
+        "data_safety",
+        "observability",
+        "rollback"
+      ]
+    },
+    "releaseRollback": {
+      "status": "template_required",
+      "rollbackStrategies": [
+        "code_rollback",
+        "data_restore",
+        "feature_hide",
+        "config_disable",
+        "resync_repair"
+      ],
+      "liveVerifiedRequiresCurrentOnlineEvidence": true,
+      "timerBackflowCheckRequired": true
+    },
+    "candidateDeployment": {
+      "status": "required_for_runtime_changes",
+      "requiredBeforeMergeForRuntimeChanges": true,
+      "finalRuntimeHeadOnly": true,
+      "maximumDeploymentsPerFinalRuntimeHead": 1,
+      "candidateWindow": {
+        "policy": "one_runtime_candidate_window_per_repository",
+        "beforeWindow": "sync_with_main_before_final_ci_and_candidate_smoke",
+        "duringWindow": "do_not_merge_overlapping_runtime_prs",
+        "whenHumanAcceptanceWaits": "release_window_and_defer_expensive_final_candidate_work"
+      },
+      "runtimeChangeSurfaces": [
+        "backend_api",
+        "pg_read_model",
+        "public_payload",
+        "health_admin",
+        "scheduled_jobs",
+        "deploy_scripts",
+        "user_visible_runtime"
+      ],
+      "requiredEvidence": [
+        "candidate_deploy_or_preview_smoke",
+        "runtime_file_parity_or_build_identity",
+        "post_deploy_health_or_endpoint_smoke",
+        "timer_backflow_check",
+        "rollback_plan"
+      ],
+      "fallbackWhenPreMergeCandidateIsImpossible": "record_exception_and_post_merge_live_smoke",
+      "mergeRule": "merge_after_candidate_smoke_for_runtime_changes"
+    },
+    "verificationEfficiency": {
+      "status": "ready",
+      "developmentDefault": "targeted_tests_for_changed_surface",
+      "docsOnlyProfile": "harness",
+      "normalRuntimeFullProfile": "ci_exact_final_head",
+      "highRiskRuntimeFullProfile": "local_once_and_ci_exact_final_head",
+      "duplicateProfileRule": "do_not_run_frontend_backend_and_full_serially",
+      "archiveWhenRuntimeTreeUnchanged": "harness_only",
+      "reviewDefault": "one_independent_whole_branch_review_at_final_head"
+    },
+    "lightFixFastLane": {
+      "status": "ready",
+      "eligibleWhen": [
+        "explicit_and_bounded_user_request",
+        "light_risk_classification",
+        "no_api_data_ownership_runtime_deployment_or_user_promise_semantic_change"
+      ],
+      "executionTopology": "agent_selected",
+      "doNotPromptUserToChoose": [
+        "subagents",
+        "worktree",
+        "routine_merge_mechanics"
+      ],
+      "formalDesignOrPlanRequired": false,
+      "singleClarificationOnlyWhenUserVisibleBehaviorIsAmbiguous": true,
+      "requiredPreImplementationSummary": [
+        "change",
+        "risk_boundary",
+        "targeted_verification"
+      ]
+    },
+    "superpowersIntegration": {
+      "status": "ready",
+      "policyLayer": "harness_controls_classification_evidence_release_and_closure",
+      "sessionStart": "inspect_exposed_skills_and_select_only_applicable_methods",
+      "lightFastLane": {
+        "defaultMethodSet": "minimal",
+        "doNotRequire": [
+          "design_or_plan",
+          "worktree",
+          "parallel_agents",
+          "branch_finish_menu"
+        ],
+        "verification": "harness_selected_targeted_evidence"
+      },
+      "standardStrict": {
+        "methods": [
+          "brainstorming",
+          "writing_plans",
+          "systematic_debugging",
+          "test_driven_development",
+          "review",
+          "verification"
+        ],
+        "rule": "select_only_when_the_method_reduces_a_concrete_delivery_risk"
+      },
+      "topology": {
+        "selectedBy": "agent_under_harness",
+        "worktree": "isolate_when_beneficial_without_automatic_dependency_install",
+        "parallelAgents": "only_for_genuinely_independent_tasks"
+      },
+      "closure": "harness_user_acceptance_closure_without_finish_menu",
+      "completionEvidence": "fresh_harness_selected_evidence_before_completion_claim"
+    },
+    "repositoryRemoteSync": {
+      "status": "ready",
+      "preapprovedForConfiguredProjectRemote": true,
+      "allowedOperations": [
+        "git_fetch",
+        "git_pull_ff_only",
+        "git_push",
+        "publish_project_branch",
+        "create_update_read_merge_project_pr",
+        "read_project_commit_status"
+      ],
+      "stillRequiresConfirmation": [
+        "force_push",
+        "public_history_rewrite",
+        "remote_change",
+        "git_clone_other_repo",
+        "submodule_update",
+        "dependency_install",
+        "third_party_download",
+        "production_operation_without_current_scope"
+      ],
+      "preSyncCheck": "git status --short --branch"
+    },
+    "autonomousProgression": {
+      "status": "ready",
+      "continueWithoutStepByStepApproval": true,
+      "defaultContinueWhen": [
+        "plan_or_scope_approved",
+        "user_says_continue",
+        "direct_execution_authorized",
+        "next_step_is_in_scope",
+        "verification_passes"
+      ],
+      "stopForConfirmationWhen": [
+        "clear_blocker",
+        "failed_verification_with_tradeoff",
+        "product_or_technical_decision_required",
+        "scope_expansion",
+        "destructive_or_irreversible_operation",
+        "local_or_remote_conflict",
+        "outside_existing_approval_boundary"
+      ],
+      "interimUpdatePolicy": "key_state_changes_risks_and_verification_only"
+    },
+    "userAcceptanceClosure": {
+      "status": "ready",
+      "trigger": "explicit_user_acceptance_after_requested_manual_verification",
+      "sequence": [
+        "final_local_cr",
+        "commit_task_branch",
+        "sync_main_without_history_rewrite",
+        "merge_task_branch",
+        "rerun_scoped_verification_on_merge_result",
+        "push_main",
+        "verify_local_and_origin_main_sha_match",
+        "refresh_wechat_preview_on_latest_main_when_frontend_changed",
+        "remove_task_worktree_and_local_branch",
+        "delete_published_task_branch_if_present"
+      ],
+      "stopFor": [
+        "local_or_remote_conflict",
+        "failed_verification",
+        "scope_expansion",
+        "operation_outside_existing_approval"
+      ]
+    },
+    "taskScopedEvidenceBinding": {
+      "status": "ready",
+      "ciReleaseSelection": "unique_complete_packet_from_pr_diff",
+      "localReleaseSelection": "explicit_release_or_default_local_release_artifact",
+      "manifestBinding": "task_slug_current_harness_evidence_path_and_self_path",
+      "identityKinds": [
+        "runtime",
+        "verification",
+        "closure"
+      ],
+      "runtimeIdentity": "matching_immutable_candidate_commit_tree_or_build",
+      "verificationIdentity": "clean_exact_git_head",
+      "manualAcceptanceSet": "exact_requirement_contract_item_ids",
+      "manualAcceptanceRollup": [
+        "accepted",
+        "not_run_user_waived",
+        "pending"
+      ],
+      "staleGlobalPointerCanSatisfyCi": false
+    },
+    "evidencePromotion": {
+      "status": "template_required",
+      "levels": [
+        "requirement_challenged",
+        "requirement_contract_approved",
+        "implementation_allowed",
+        "local_verified",
+        "runtime_verified",
+        "deployable",
+        "live_verified",
+        "archived"
+      ],
+      "oldEvidenceCannotPromoteCurrentState": true,
+      "mergeReadyDoesNotRequireArchived": true,
+      "archivedIsDocumentationClosureNotRuntimeMergeGate": true
+    },
+    "feedbackLoop": {
+      "status": "ready",
+      "findingRequiredForUnexpectedRework": true,
+      "promotionStatuses": [
+        "finding_only",
+        "rule_candidate",
+        "rule_promoted",
+        "script_candidate"
+      ]
+    }
+  },
+  "evidencePacket": {
+    "status": "ready",
+    "path": "artifacts/releases/2026-07-29-equipment-simulator-phase1-catalog-contract/evidence.json",
+    "sizeBytes": 4174,
+    "requiredFields": [
+      "schemaVersion",
+      "slug",
+      "requirementSlug",
+      "status",
+      "highestEvidenceLevel",
+      "branch",
+      "commit",
+      "identities",
+      "manualAcceptance",
+      "scope",
+      "verification",
+      "candidateDeployment",
+      "runtimeEvidence",
+      "risks",
+      "rollback",
+      "cleanup",
+      "archivedReferences",
+      "summary"
+    ],
+    "fieldsPresent": [
+      "schemaVersion",
+      "slug",
+      "requirementSlug",
+      "status",
+      "highestEvidenceLevel",
+      "branch",
+      "commit",
+      "identities",
+      "manualAcceptance",
+      "scope",
+      "verification",
+      "candidateDeployment",
+      "runtimeEvidence",
+      "risks",
+      "rollback",
+      "cleanup",
+      "archivedReferences",
+      "summary"
+    ],
+    "missingFields": [],
+    "declaredStatus": "local_verified",
+    "highestEvidenceLevel": "local_verified",
+    "summary": "The dormant Catalog builder, append-only schema/store and bounded 40-specialization shadow are locally implemented and verified. No production migration, dormant Catalog seal, active pointer change or public reader change has occurred yet."
+  },
+  "evidence": {
+    "localTests": {
+      "status": "not_run",
+      "note": "project-harness.js does not execute tests; attach command output in the release artifact."
+    },
+    "uiRuntimeEvidence": {
+      "status": "not_collected",
+      "note": "Attach real mini-program screenshots or DevTools ledger when applicable."
+    },
+    "dataHealth": {
+      "status": "not_collected",
+      "note": "Attach current /api/data/health or PG read-model evidence when applicable."
+    },
+    "deploySmoke": {
+      "status": "not_run",
+      "note": "Attach live HTTP/API/PG/timer smoke output when deployment is in scope."
+    }
+  },
+  "riskMatrix": [
+    {
+      "id": "dirty_worktree",
+      "severity": "medium",
+      "status": "watch",
+      "detail": "17 changed files currently visible to git status."
+    },
+    {
+      "id": "hotspot_files_present",
+      "severity": "medium",
+      "status": "watch",
+      "detail": "server/websim_payload.py:27149, server/news_backend.py:13783, server/postgres_cache_store.py:8565"
+    },
+    {
+      "id": "localTests_missing",
+      "severity": "low",
+      "status": "info",
+      "detail": "project-harness.js does not execute tests; attach command output in the release artifact."
+    },
+    {
+      "id": "uiRuntimeEvidence_missing",
+      "severity": "low",
+      "status": "info",
+      "detail": "Attach real mini-program screenshots or DevTools ledger when applicable."
+    },
+    {
+      "id": "dataHealth_missing",
+      "severity": "low",
+      "status": "info",
+      "detail": "Attach current /api/data/health or PG read-model evidence when applicable."
+    },
+    {
+      "id": "deploySmoke_missing",
+      "severity": "low",
+      "status": "info",
+      "detail": "Attach live HTTP/API/PG/timer smoke output when deployment is in scope."
+    }
+  ],
+  "repo": {
+    "git": {
+      "status": "dirty",
+      "changedFileCount": 17,
+      "changedFiles": [
+        " M docs/backend-owner-map.json",
+        " M docs/plans/README.md",
+        " M docs/project-owner-map.json",
+        " M docs/project-state.json",
+        " M server/gear_catalog_audit_store.py",
+        " M tests/gear_catalog_audit_store_test.py",
+        " M tests/postgres_schema_test.py",
+        " M tests/project-state.test.js",
+        "?? artifacts/releases/2026-07-29-equipment-simulator-phase1-catalog-contract/",
+        "?? docs/plans/2026-07-29-equipment-simulator-phase1-catalog-contract.md",
+        "?? scripts/gear-catalog-revision.py",
+        "?? server/gear_catalog_revision.py",
+        "?? server/gear_catalog_revision_store.py",
+        "?? server/migrations/postgres/0019_websim_gear_catalog_revision.sql",
+        "?? tests/gear_catalog_revision_cli_test.py",
+        "?? tests/gear_catalog_revision_store_test.py",
+        "?? tests/gear_catalog_revision_test.py"
+      ]
+    }
+  },
+  "write": {
+    "enabled": true,
+    "path": "artifacts/releases/2026-07-29-equipment-simulator-phase1-catalog-contract/manifest.json"
+  }
+}
