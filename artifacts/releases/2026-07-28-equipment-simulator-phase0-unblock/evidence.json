@@ -5,12 +5,12 @@
   "status": "live_verified",
   "highestEvidenceLevel": "live_verified",
   "branch": "codex/equipment-simulator-phase0-unblock",
-  "commit": "348e9c7058877789d7a45f1d5286a476462248cc",
+  "commit": "b2a22c6945305dd4eeeb599f74012e9676a405a6",
   "identities": {
     "runtime": {
       "status": "bound",
       "kind": "git_commit",
-      "value": "348e9c7058877789d7a45f1d5286a476462248cc"
+      "value": "b2a22c6945305dd4eeeb599f74012e9676a405a6"
     },
     "verification": {
       "status": "bound_at_check",
@@ -19,27 +19,29 @@
     },
     "closure": {
       "status": "pending",
-      "reason": "Manual acceptance, merge and archive closure remain pending."
+      "reason": "Merge, post-merge refresh and archive closure remain pending."
     }
   },
   "manualAcceptance": {
     "required": true,
-    "status": "pending",
+    "status": "complete",
     "items": [
       {
         "id": "wechat_gear_current_community_import",
-        "status": "pending"
+        "status": "accepted",
+        "evidence": "Codex exercised the current-community import in the official WeChat DevTools runtime under the user's explicit 2026-07-29 self-test delegation. The 16-slot workbench rendered 15 canonical items with item ids, names and static secondary-stat labels plus one legal empty off-hand for the two-hand weapon. See wechat-acceptance-2026-07-29.json."
       },
       {
         "id": "wechat_gear_saved_template_simc_handoff",
-        "status": "pending"
+        "status": "accepted",
+        "evidence": "Codex imported the saved Retribution gear template, selected the saved talent and gear templates on the official WeChat SimC page, observed exact canonical state 组合校验通过, submitted task 462350074188481195f245e39941f013 and observed completed result 58220.338 DPS under the user's explicit 2026-07-29 self-test delegation. See wechat-acceptance-2026-07-29.json."
       }
     ],
     "rollup": {
       "total": 2,
-      "accepted": 0,
+      "accepted": 2,
       "notRunUserWaived": 0,
-      "pending": 2
+      "pending": 0
     }
   },
   "scope": [
@@ -84,30 +86,35 @@
     {
       "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-28-equipment-simulator-phase0-unblock",
       "status": "pass",
-      "summary": "The clean exact head passed 692 Node tests, 2025 Python tests with one skip, 403 Taro/Vitest tests, typecheck, lint, UI architecture, package mechanics, asset integrity, JSON/syntax, Harness and diff checks."
+      "summary": "The prior exact head passed 692 Node tests, 2025 Python tests with one skip, 403 Taro/Vitest tests, typecheck, lint, UI architecture, package mechanics, asset integrity, JSON/syntax, Harness and diff checks. The final b2a22c69 head is covered by focused RED/GREEN tests and PR CI; a fresh full exact-head run is recorded separately before merge."
     },
     {
       "command": "GitHub PR #103 Project Harness CI",
       "status": "pass",
-      "summary": "GitHub Actions run 30375311055 completed the full Project Harness profile successfully against branch head f968b218e5498417f54faa11bf1604c6cd75dd67."
+      "summary": "GitHub Actions run 30379101724 completed the Project Harness verification successfully against branch head b2a22c6945305dd4eeeb599f74012e9676a405a6."
     },
     {
       "command": "production WeChat candidate package",
       "status": "pass",
-      "summary": "The production package for branch head f968b218e5498417f54faa11bf1604c6cd75dd67 passed request-domain and release-package gates with releaseReady=true, 145 promoted files, source hash sha256:550939fc1781ec80847377fef11f74d3fced5b93029bf78c382022b873304ccd, and the approved immutable API, UI-asset and runtime-media roots; the official DevTools CLI opened the project successfully."
+      "summary": "The production package for branch head b2a22c6945305dd4eeeb599f74012e9676a405a6 passed request-domain and release-package gates with releaseReady=true, 145 promoted files, source hash sha256:b00cc9b385a5652b71ab4327758b9c253bdb7c2501e7e8be61a206d5f48c731f, and the approved immutable API, UI-asset and runtime-media roots; the official DevTools runtime was used for acceptance."
     },
     {
-      "command": "manual acceptance and merge closure",
+      "command": "official WeChat delegated acceptance",
+      "status": "pass",
+      "summary": "Under the user's explicit self-test delegation, Codex verified current-community import, 15 canonical equipped-slot facts plus a legal empty two-hand off-hand, saved-template re-import, exact canonical confirmation, and completed real SimC task 462350074188481195f245e39941f013 with 58220.338 DPS."
+    },
+    {
+      "command": "merge closure",
       "status": "not_run",
-      "summary": "The two frozen real-WeChat acceptance items, merge, post-merge refresh and three-party closure remain pending."
+      "summary": "Merge, post-merge WeChat refresh, local/origin/cloud parity and branch cleanup remain pending."
     }
   ],
   "candidateDeployment": {
     "status": "candidate_verified",
     "requiredBeforeMerge": true,
     "branch": "codex/equipment-simulator-phase0-unblock",
-    "commit": "348e9c7058877789d7a45f1d5286a476462248cc",
-    "gitTree": "35b551d9d321ac6fc721f410326b45ad6745728f",
+    "commit": "b2a22c6945305dd4eeeb599f74012e9676a405a6",
+    "gitTree": "ed1917ab4a3806f4766020ef839cd7fa69742c6d",
     "host": "wow-lighthouse",
     "path": "/opt/wow-mini-program",
     "baseUrl": "http://127.0.0.1:8787",
@@ -118,7 +125,7 @@
     "simcRuntimeRevision": "b92847e847c9a6c354d4ba2130abd37f1ccf72d8",
     "runtimeFileParity": {
       "status": "pass",
-      "summary": "All nine changed runtime/tooling files on /opt/wow-mini-program match commit 348e9c70 by SHA-256; backend and stat worker are active with NRestarts=0."
+      "summary": "The four newly changed runtime files on /opt/wow-mini-program match commit b2a22c69 by SHA-256; the previously verified Phase 0 runtime/tooling files remain deployed. Backend and stat worker are active with NRestarts=0."
     },
     "smoke": {
       "status": "pass",
@@ -194,6 +201,13 @@
       "type": "health",
       "status": "partial",
       "summary": "The active Manifest and stat worker are verified, but global /api/data/health remains partial because legacy/staging health owners still report a failed prior refresh, partial staging catalog/template state and manual legality authority. This is not represented as a green global-health result."
+    },
+    {
+      "id": "official-wechat-delegated-acceptance",
+      "type": "wechat_acceptance",
+      "status": "pass",
+      "path": "artifacts/releases/2026-07-28-equipment-simulator-phase0-unblock/wechat-acceptance-2026-07-29.json",
+      "summary": "Official WeChat DevTools automation under explicit user delegation passed both frozen acceptance items and returned completed real SimC task 462350074188481195f245e39941f013 with 58220.338 DPS."
     }
   ],
   "risks": [
@@ -214,8 +228,8 @@
     },
     {
       "id": "manual-acceptance",
-      "status": "open",
-      "detail": "Both frozen WeChat items require explicit user acceptance before merge closure."
+      "status": "resolved",
+      "detail": "On 2026-07-29 the user explicitly delegated official WeChat self-testing to Codex. Both frozen items passed in the official runtime and are recorded in wechat-acceptance-2026-07-29.json."
     }
   ],
   "rollback": [
@@ -232,6 +246,6 @@
     "artifacts/releases/2026-07-28-equipment-simulator-track-authority-correction/runtime-readonly-audit.json",
     "artifacts/releases/2026-07-28-equipment-simulator-track-authority-correction/phase1-decision.json"
   ],
-  "summary": "Strict Phase 0 runtime and data gates are live-verified on generation 32: exact progression authority, 1309/1309 canonical Browse mapping, 80/80 exact Community imports, 26/14 SimC policy, bounded resources, rollback/restoration and commit-to-cloud file parity pass. Full exact-head verification, PR #103 CI and the production WeChat candidate package pass. Global data health is still partial and is recorded honestly. Two real-WeChat acceptance items, merge and post-merge three-party closure remain.",
-  "updatedAt": "2026-07-28T23:59:23+08:00"
+  "summary": "Strict Phase 0 runtime and data gates are live-verified on generation 32: exact progression authority, 1309/1309 canonical Browse mapping, 80/80 exact Community imports, 26/14 SimC policy, bounded resources, rollback/restoration and commit-to-cloud file parity pass. PR #103 CI, the exact production WeChat candidate package and both user-delegated official WeChat acceptance items pass, including a completed real SimC task with numeric DPS. Global data health is still partial and is recorded honestly. Merge and post-merge three-party closure remain.",
+  "updatedAt": "2026-07-29T00:47:00+08:00"
 }

@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "status": "pass",
+  "checkedAt": "2026-07-29T00:47:00+08:00",
+  "authorization": "On 2026-07-29 the user explicitly delegated official WeChat self-testing to Codex and authorized automatic progression without waiting for a separate manual confirmation.",
+  "runner": {
+    "kind": "codex_official_wechat_devtools_automator",
+    "appId": "wx17543b6fc4305479",
+    "gitCommit": "b2a22c6945305dd4eeeb599f74012e9676a405a6",
+    "gitTree": "ed1917ab4a3806f4766020ef839cd7fa69742c6d",
+    "weappSourceHash": "sha256:b00cc9b385a5652b71ab4327758b9c253bdb7c2501e7e8be61a206d5f48c731f",
+    "backendOrigin": "https://api.chickenbro.cloud"
+  },
+  "items": [
+    {
+      "id": "wechat_gear_current_community_import",
+      "status": "accepted",
+      "summary": "The Retribution Paladin current community template imported through the official WeChat runtime. All 16 slots rendered; the legal two-hand off-hand remained empty and the other 15 slots exposed canonical item ids, names and static secondary-stat labels.",
+      "slotFacts": [
+        {"slot": "head", "itemId": "249961", "name": "光耀裁决的坚定凝视", "staticStats": "急速 · 吸血 · 精通"},
+        {"slot": "neck", "itemId": "268291", "name": "腐沼的孢子之心", "staticStats": "暴击 · 精通"},
+        {"slot": "shoulder", "itemId": "249959", "name": "光耀裁决的天命护肩", "staticStats": "暴击 · 精通"},
+        {"slot": "back", "itemId": "239656", "name": "信徒的流丝罩袍", "staticStats": "暴击 · 精通"},
+        {"slot": "chest", "itemId": "249964", "name": "光耀裁决的神圣战甲", "staticStats": "闪避 · 急速 · 精通"},
+        {"slot": "wrist", "itemId": "237834", "name": "破法者的护腕", "staticStats": "暴击 · 精通"},
+        {"slot": "main_hand", "itemId": "249277", "name": "贝莱梅的最终审判", "staticStats": "暴击 · 精通"},
+        {"slot": "off_hand", "itemId": "", "name": "", "staticStats": "", "state": "legal_empty_for_two_hand"},
+        {"slot": "hands", "itemId": "258583", "name": "猩红手甲", "staticStats": "暴击 · 精通"},
+        {"slot": "waist", "itemId": "268289", "name": "吞噬腐烂腰铠", "staticStats": "暴击 · 精通"},
+        {"slot": "legs", "itemId": "249960", "name": "光耀裁决的护胫", "staticStats": "暴击 · 急速"},
+        {"slot": "feet", "itemId": "249381", "name": "未成形者护胫", "staticStats": "暴击 · 精通 · 加速"},
+        {"slot": "finger1", "itemId": "249919", "name": "辛多雷希望指环", "staticStats": "闪避 · 暴击 · 精通"},
+        {"slot": "finger2", "itemId": "268290", "name": "唤孢者的绽放指环", "staticStats": "急速 · 精通"},
+        {"slot": "trinket1", "itemId": "193701", "name": "艾杰斯亚谜题盒", "staticStats": "无固定副属性"},
+        {"slot": "trinket2", "itemId": "260235", "name": "幽影羽毛", "staticStats": "无固定副属性"}
+      ]
+    },
+    {
+      "id": "wechat_gear_saved_template_simc_handoff",
+      "status": "accepted",
+      "summary": "The saved Retribution Paladin gear and talent templates were selected in the official WeChat SimC page. Canonical confirmation returned the exact pass state and a real async task completed with a numeric SimC result.",
+      "confirmation": {
+        "title": "组合校验通过",
+        "detail": "可提交真实任务",
+        "localPreviewGenerated": false
+      },
+      "task": {
+        "taskId": "462350074188481195f245e39941f013",
+        "state": "completed",
+        "result": "58220.338 DPS",
+        "resultKind": "real_simc"
+      }
+    }
+  ],
+  "truthBoundary": {
+    "globalDataHealth": "partial",
+    "note": "This acceptance proves the scoped equipment and SimC journey only. It does not reclassify the independent global data-health state as green."
+  }
+}

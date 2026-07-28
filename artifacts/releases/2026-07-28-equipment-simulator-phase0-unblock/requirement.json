@@ -81,7 +81,7 @@
     "All focused, related, backend/full and exact-head Harness checks pass.",
     "The fresh production Phase 0 report has 1309/1309 mapped canonical Browse candidates after deterministic non-combat exclusion, an exact active Community Release, 40/40 verified coverage, measured in-budget resources, unresolvedCount zero, stable pointer and zero source writes.",
     "The candidate/live matrices prove 26 supported specializations execute real SimC and the agreed 14 unsupported specializations fail deterministically.",
-    "The user explicitly accepts both frozen WeChat items before merge closure.",
+    "Both frozen WeChat items are accepted before merge closure, either by explicit user testing or by official WeChat DevTools self-testing explicitly delegated by the user.",
     "Local main, origin/main and cloud runtime/data identities match after merge."
   ],
   "manualAcceptanceContract": {
@@ -118,6 +118,10 @@
     {
       "date": "2026-07-28",
       "decision": "Official Armor/Cosmetic item 268280 is excluded from equipment simulation; the 11 eligible instance-1305 combat items require 44/44 exact SimC stats."
+    },
+    {
+      "date": "2026-07-29",
+      "decision": "The user explicitly delegated official WeChat self-testing to Codex and authorized automatic progression to the next stage without waiting for a separate manual confirmation."
     }
   ]
 }
