@@ -2,10 +2,10 @@
   "schemaVersion": 2,
   "slug": "gear-ui-visible-facts-recovery",
   "requirementSlug": "gear-ui-visible-facts-recovery",
-  "status": "runtime_verified",
-  "highestEvidenceLevel": "runtime_verified",
-  "branch": "codex/gear-ui-recovery",
-  "commit": "c91f2d3d8e4100b7d313abebc06ffb75d6b445c3",
+  "status": "archived",
+  "highestEvidenceLevel": "archived",
+  "branch": "main",
+  "commit": "572875aa68d52e0a05b2aacdee817d69efe25756",
   "identities": {
     "runtime": {
       "status": "bound",
@@ -19,8 +19,9 @@
       "reason": "The complete task packet and final scoped checks bind to the exact checked branch HEAD."
     },
     "closure": {
-      "status": "pending",
-      "reason": "The exact source-bound WeChat preview is accepted; merge and archive closure are still pending."
+      "status": "bound",
+      "kind": "merge_commit",
+      "value": "572875aa68d52e0a05b2aacdee817d69efe25756"
     }
   },
   "manualAcceptance": {
@@ -101,6 +102,16 @@
       "command": "git diff --check",
       "status": "pass",
       "summary": "The task source and packet contain no whitespace errors."
+    },
+    {
+      "command": "npm run typecheck && ./node_modules/.bin/vitest run apps/mini-taro/src/pages/builds/gear-detail-model.test.ts apps/mini-taro/src/pages/builds/gear-detail-page-contract.test.ts",
+      "status": "pass",
+      "summary": "The unpushed main merge result passed workspace typecheck and all 43 focused gear model and page-contract tests."
+    },
+    {
+      "command": "node --test tests/build-weapp-safely.test.js tests/refresh-weapp-preview.test.js tests/taro-gear-editor-contracts.test.js && npm run audit:ui-architecture",
+      "status": "pass",
+      "summary": "The unpushed main merge result passed all 24 scoped Node tests and all 283 UI architecture checks with zero findings."
     }
   ],
   "candidateDeployment": {
@@ -170,6 +181,6 @@
     "artifacts/releases/2026-07-24-taro-gear-editor-recovery/evidence.json",
     "artifacts/releases/2026-07-25-gear-slot-information-hierarchy/evidence.json"
   ],
-  "summary": "The active gear UI correction is locally and runtime verified. The exact source-bound 214-file WeChat package was rebuilt and refreshed in DevTools, and the user accepted all three frozen real-WeChat items on 2026-07-28. Merge and archive closure remain pending.",
-  "updatedAt": "2026-07-28T12:37:00+08:00"
+  "summary": "The gear UI correction is archived against main merge commit 572875aa68d52e0a05b2aacdee817d69efe25756. The exact source-bound 214-file WeChat package was rebuilt and refreshed in DevTools, the user accepted all three frozen real-WeChat items on 2026-07-28, and the unpushed merge result passed the scoped closure verification.",
+  "updatedAt": "2026-07-28T12:47:00+08:00"
 }

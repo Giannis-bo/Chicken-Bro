@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-28T04:39:51.454Z",
+  "generatedAt": "2026-07-28T04:47:29.733Z",
   "release": {
     "date": "2026-07-28",
     "slug": "gear-ui-visible-facts-recovery"
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-28-gear-ui-visible-facts-recovery/evidence.json",
-    "sizeBytes": 8054,
+    "sizeBytes": 8770,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -390,9 +390,9 @@
       "summary"
     ],
     "missingFields": [],
-    "declaredStatus": "runtime_verified",
-    "highestEvidenceLevel": "runtime_verified",
-    "summary": "The active gear UI correction is locally and runtime verified. The exact source-bound 214-file WeChat package was rebuilt and refreshed in DevTools, and the user accepted all three frozen real-WeChat items on 2026-07-28. Merge and archive closure remain pending."
+    "declaredStatus": "archived",
+    "highestEvidenceLevel": "archived",
+    "summary": "The gear UI correction is archived against main merge commit 572875aa68d52e0a05b2aacdee817d69efe25756. The exact source-bound 214-file WeChat package was rebuilt and refreshed in DevTools, the user accepted all three frozen real-WeChat items on 2026-07-28, and the unpushed merge result passed the scoped closure verification."
   },
   "evidence": {
     "localTests": {
