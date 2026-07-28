@@ -82,9 +82,14 @@
       "summary": "catalog-migration-audit:sha256:1f211147e19479a67c84641904222b9a4612ede8caafa6c0d2e328898c9341d2 verified 1309/1309 canonical Browse variants, 40/40 spec coverage, 80/80 exact Community templates, zero unresolved callers, zero source writes and a stable generation-32 pointer."
     },
     {
-      "command": "exact-head full Harness and manual acceptance closure",
+      "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-28-equipment-simulator-phase0-unblock",
+      "status": "pass",
+      "summary": "The clean exact head passed 692 Node tests, 2025 Python tests with one skip, 403 Taro/Vitest tests, typecheck, lint, UI architecture, package mechanics, asset integrity, JSON/syntax, Harness and diff checks."
+    },
+    {
+      "command": "PR CI and manual acceptance closure",
       "status": "not_run",
-      "summary": "The final full profile, PR CI, two frozen real-WeChat acceptance items, merge, post-merge refresh and three-party closure remain pending."
+      "summary": "PR CI, two frozen real-WeChat acceptance items, merge, post-merge refresh and three-party closure remain pending."
     }
   ],
   "candidateDeployment": {
