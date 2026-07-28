@@ -53,7 +53,7 @@
     {
       "command": "node scripts/verify-project.js --profile backend --release artifacts/releases/2026-07-29-equipment-simulator-phase3-resolved-snapshot",
       "status": "pass",
-      "summary": "All 2095 Python tests pass with one existing skip, direct production script imports pass, and compileall succeeds. The shadow contract requires all 40 specializations to be explicitly classified as 26 supported and 14 unsupported while retaining Phase 2 partial references as literal blocked loadouts; task/result binding failures also produce one consistent failed state. The subsequent task-scoped Harness packet check passes after manifest regeneration."
+      "summary": "All 2096 Python tests pass with one existing skip, direct production script imports pass, and compileall succeeds. The shadow contract requires all 40 specializations to be explicitly classified as 26 supported and 14 unsupported while retaining Phase 2 partial references as literal blocked loadouts. First execution binds one immutable result, repeated tasks reuse it without rerunning SimC, and true result-store failures still produce one consistent failed state. The subsequent task-scoped Harness packet check passes after manifest regeneration."
     },
     {
       "command": "candidate, full Harness, PR and closure",
@@ -110,6 +110,31 @@
         "blockedSnapshotCount": 4
       },
       "interpretation": "The corrected 26/14 classification gate passed while all four supported clean loadouts still failed byte parity. Focused comparison traced the remaining drift to the legacy Resolver serializer's alphabetical slot iteration versus the target CANONICAL_GEAR_SLOTS order. The compatibility facade now normalizes both set-like option values and slot order before snapshot compilation."
+    },
+    {
+      "candidateCommit": "25842d6b2ca48c21dbc0a1157fc632ce1a5ce002",
+      "status": "blocked",
+      "problemCodes": [
+        "SIMULATION_SNAPSHOT_RESULT_BIND_FAILED"
+      ],
+      "shadowReportId": "gear-resolved-snapshot-shadow:sha256:040a504f7bfc606b7b407f5e59ebfbefff5d2a1a78fd48b5dd4b5324e6bce1b6",
+      "simcMatrixReportId": "simc-execution-matrix:sha256:7fedf97de517dc0572a2a70208cf0c4c0e0b94f8002996e1f5bfe6c6219e1c1c",
+      "taskSmokeReportId": "simulation-snapshot-task-smoke:sha256:07b2f572b82a5478cebaecc6186c230bfe893a21276d4f13611028451ade6f8f",
+      "pointerGenerationBefore": 32,
+      "pointerGenerationAfter": 32,
+      "summary": {
+        "templateCount": 80,
+        "classifiedTemplateCount": 80,
+        "readyLoadoutCount": 8,
+        "blockedLoadoutCount": 72,
+        "readySnapshotCount": 4,
+        "unsupportedSnapshotCount": 4,
+        "supportedSimcExecutedCount": 26,
+        "unsupportedDeterministicallyBlockedCount": 14,
+        "firstSnapshotTaskStatus": "completed",
+        "repeatedSnapshotTaskStatus": "failed"
+      },
+      "interpretation": "The 80-template shadow, exact 26/14 SimC matrix and first sealed snapshot task all passed. Replaying the same canonical snapshot under a different guest exposed that stochastic SimC metrics can produce a second result identity while the snapshot has a one-to-one append-only result binding. The Runner now reuses a validated existing terminal result before execution instead of rerunning SimC or reporting a false storage failure."
     }
   ],
   "risks": [

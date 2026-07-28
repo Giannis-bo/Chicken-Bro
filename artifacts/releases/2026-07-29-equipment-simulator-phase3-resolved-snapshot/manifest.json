@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-28T21:12:40.278Z",
+  "generatedAt": "2026-07-28T21:34:49.413Z",
   "release": {
     "date": "2026-07-29",
     "slug": "equipment-simulator-phase3-resolved-snapshot"
@@ -105,7 +105,7 @@
         {
           "path": "server/news_backend.py",
           "exists": true,
-          "lineCount": 14088,
+          "lineCount": 14166,
           "hotspot": true
         },
         {
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-29-equipment-simulator-phase3-resolved-snapshot/evidence.json",
-    "sizeBytes": 6609,
+    "sizeBytes": 8240,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -417,13 +417,13 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "3 changed files currently visible to git status."
+      "detail": "5 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
       "severity": "medium",
       "status": "watch",
-      "detail": "server/websim_payload.py:27186, server/news_backend.py:14088, server/postgres_cache_store.py:8604"
+      "detail": "server/websim_payload.py:27186, server/news_backend.py:14166, server/postgres_cache_store.py:8604"
     },
     {
       "id": "localTests_missing",
@@ -453,11 +453,13 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 3,
+      "changedFileCount": 5,
       "changedFiles": [
         " M artifacts/releases/2026-07-29-equipment-simulator-phase3-resolved-snapshot/evidence.json",
-        " M server/websim_payload.py",
-        " M tests/websim_payload_test.py"
+        " M artifacts/releases/2026-07-29-equipment-simulator-phase3-resolved-snapshot/manifest.json",
+        " M server/news_backend.py",
+        " M tests/news_backend_test.py",
+        "?? scripts/.phase3-snapshot-task-smoke.py"
       ]
     }
   },

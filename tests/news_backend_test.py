@@ -2521,8 +2521,8 @@ class NewsBackendTest(unittest.TestCase):
                 include_result=True,
             ):
                 self_snapshot_key = sealed_snapshot["simulationSnapshotKey"]
-                if snapshot_key != self_snapshot_key or include_result:
-                    raise AssertionError("runner must reload the raw sealed snapshot")
+                if snapshot_key != self_snapshot_key:
+                    raise AssertionError("runner must reload the sealed snapshot")
                 return sealed_snapshot
 
             def bind_simulation_snapshot_result(self, snapshot_key, result):
@@ -2585,6 +2585,88 @@ class NewsBackendTest(unittest.TestCase):
             )
         )
 
+    def test_simcraft_template_task_reuses_existing_snapshot_result_without_rerunning_simc(self):
+        from tests.simulation_snapshot_store_test import snapshot
+
+        sealed_snapshot = snapshot()
+        existing_result = {
+            "simulationSnapshotKey": sealed_snapshot[
+                "simulationSnapshotKey"
+            ],
+            "status": "completed",
+            "simcRuntimeRevision": sealed_snapshot[
+                "simcRuntimeRevision"
+            ],
+            "simulation": {
+                "ran": True,
+                "summary": "DPS=654321",
+                "error": "",
+                "metrics": {"dps": "654321"},
+            },
+            "resultIdentity": "simc-result:sha256:" + "9" * 64,
+        }
+
+        class ExistingResultStore:
+            def get_simulation_snapshot(
+                self,
+                snapshot_key,
+                include_result=True,
+            ):
+                self.assert_snapshot_key = snapshot_key
+                if not include_result:
+                    return sealed_snapshot
+                return {
+                    **sealed_snapshot,
+                    "status": "executed",
+                    "snapshotRowHash": sealed_snapshot["rowHash"],
+                    "resultIdentity": existing_result["resultIdentity"],
+                    "result": existing_result,
+                }
+
+        with patch.object(
+            self.backend,
+            "cache_data_store",
+            return_value=ExistingResultStore(),
+        ), patch.object(
+            self.backend,
+            "analyze_simulator_request",
+            side_effect=AssertionError(
+                "existing immutable result must skip SimC execution"
+            ),
+        ):
+            analysis, status, _summary, error, _finished = (
+                self.backend.complete_simcraft_template_task_analysis(
+                    "task-snapshot-result-reuse",
+                    {
+                        "mode": "simcraft_template",
+                        "simulationSnapshot": sealed_snapshot,
+                    },
+                    {
+                        "owner": {},
+                        "taskTiming": {},
+                        "agent": {"status": "simc_running"},
+                    },
+                )
+            )
+
+        self.assertEqual(status, "completed")
+        self.assertEqual(error, "")
+        self.assertEqual(analysis["agent"]["status"], "simc_completed")
+        self.assertEqual(
+            analysis["simulationSnapshotResult"],
+            {
+                "status": "reused",
+                "simulationSnapshotKey": sealed_snapshot[
+                    "simulationSnapshotKey"
+                ],
+                "resultIdentity": existing_result["resultIdentity"],
+            },
+        )
+        self.assertEqual(
+            analysis["simulation"],
+            existing_result["simulation"],
+        )
+
     def test_simcraft_template_task_result_binding_failure_fails_agent_and_task(self):
         from tests.simulation_snapshot_store_test import snapshot
 
@@ -2597,8 +2679,6 @@ class NewsBackendTest(unittest.TestCase):
                 include_result=True,
             ):
                 self.assert_snapshot_key = snapshot_key
-                if include_result:
-                    raise AssertionError("runner must reload the raw snapshot")
                 return sealed_snapshot
 
             def bind_simulation_snapshot_result(self, snapshot_key, result):

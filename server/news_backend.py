@@ -6319,6 +6319,7 @@ def complete_simcraft_template_task_analysis(task_id, request_payload, running_a
         else {}
     )
     snapshot_reload_problem = {}
+    reused_snapshot_result = {}
     if simulation_snapshot:
         try:
             snapshot_store = cache_data_store()
@@ -6332,6 +6333,44 @@ def complete_simcraft_template_task_analysis(task_id, request_payload, running_a
             )
             if sealed_snapshot != simulation_snapshot:
                 raise RuntimeError("sealed simulation snapshot mismatch")
+            executed_snapshot = snapshot_store.get_simulation_snapshot(
+                simulation_snapshot.get("simulationSnapshotKey"),
+                include_result=True,
+            )
+            candidate_result = (
+                executed_snapshot.get("result")
+                if isinstance(executed_snapshot, dict)
+                and isinstance(executed_snapshot.get("result"), dict)
+                else {}
+            )
+            result_identity = str(
+                candidate_result.get("resultIdentity") or ""
+            ).strip()
+            if (
+                executed_snapshot.get("status") == "executed"
+                and re.fullmatch(
+                    r"simc-result:sha256:[0-9a-f]{64}",
+                    result_identity,
+                )
+                and str(executed_snapshot.get("resultIdentity") or "").strip()
+                == result_identity
+                and str(
+                    candidate_result.get("simulationSnapshotKey") or ""
+                ).strip()
+                == str(
+                    simulation_snapshot.get("simulationSnapshotKey") or ""
+                ).strip()
+                and str(
+                    candidate_result.get("simcRuntimeRevision") or ""
+                ).strip()
+                == str(
+                    simulation_snapshot.get("simcRuntimeRevision") or ""
+                ).strip()
+                and candidate_result.get("status")
+                in {"completed", "failed"}
+                and isinstance(candidate_result.get("simulation"), dict)
+            ):
+                reused_snapshot_result = dict(candidate_result)
         except Exception:
             snapshot_reload_problem = {
                 "kind": "AUTHORITY_UNAVAILABLE",
@@ -6368,12 +6407,51 @@ def complete_simcraft_template_task_analysis(task_id, request_payload, running_a
     run_request["confirmOnly"] = False
     run_request["saveTask"] = True
     run_request["_executeSimcTask"] = True
-    analysis = analyze_simulator_request(run_request)
-    final_status = "completed" if bool((analysis.get("simulation") or {}).get("ran")) else "failed"
+    if reused_snapshot_result:
+        analysis = dict(running_analysis)
+        final_status = reused_snapshot_result["status"]
+        analysis["simulation"] = copy.deepcopy(
+            reused_snapshot_result["simulation"]
+        )
+        agent = (
+            dict(analysis.get("agent"))
+            if isinstance(analysis.get("agent"), dict)
+            else {}
+        )
+        agent["status"] = (
+            "simc_completed"
+            if final_status == "completed"
+            else "simc_failed"
+        )
+        analysis["agent"] = agent
+        analysis["runPolicy"] = {
+            "policy": "snapshot_result_reused",
+            "profileSource": "sealed_snapshot",
+            "canRunSimc": False,
+            "didRunSimc": False,
+            "requiresFullProfile": False,
+            "validationPassed": True,
+            "reason": "immutable snapshot result already bound",
+        }
+    else:
+        analysis = analyze_simulator_request(run_request)
+        final_status = (
+            "completed"
+            if bool((analysis.get("simulation") or {}).get("ran"))
+            else "failed"
+        )
     analysis = dict(analysis)
     analysis["taskId"] = public_task_id
     analysis["status"] = final_status
-    if simulation_snapshot and not snapshot_reload_problem:
+    if reused_snapshot_result:
+        analysis["simulationSnapshotResult"] = {
+            "status": "reused",
+            "simulationSnapshotKey": str(
+                simulation_snapshot.get("simulationSnapshotKey") or ""
+            ),
+            "resultIdentity": reused_snapshot_result["resultIdentity"],
+        }
+    elif simulation_snapshot and not snapshot_reload_problem:
         result_payload = simcraft_snapshot_result_payload(
             simulation_snapshot,
             analysis,
