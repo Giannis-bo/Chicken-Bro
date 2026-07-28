@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-28T19:55:18.344Z",
+  "generatedAt": "2026-07-28T20:06:07.715Z",
   "release": {
     "date": "2026-07-29",
     "slug": "equipment-simulator-phase2-exact-enhancement"
@@ -38,7 +38,7 @@
         {
           "path": "docs/project-state.json",
           "exists": true,
-          "sizeBytes": 40476
+          "sizeBytes": 40382
         },
         {
           "path": "docs/project-owner-map.json",
@@ -53,7 +53,7 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 10737
+          "sizeBytes": 10722
         },
         {
           "path": "docs/README.md",
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-29-equipment-simulator-phase2-exact-enhancement/evidence.json",
-    "sizeBytes": 11847,
+    "sizeBytes": 12738,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -390,9 +390,9 @@
       "summary"
     ],
     "missingFields": [],
-    "declaredStatus": "runtime_verified",
-    "highestEvidenceLevel": "runtime_verified",
-    "summary": "Phase 2 immutable candidate, deployed dormant runtime and exact-head repository verification are complete. All 80 templates and 1242 items are classified with 1187 verified and 55 explicit partial references, zero blocked/silent drops, stable generation 32, exact database/runtime parity and honest global partial health. PR CI, merge closure and cleanup remain."
+    "declaredStatus": "archived",
+    "highestEvidenceLevel": "archived",
+    "summary": "Strict Phase 2 is archived after immutable candidate, deployed dormant runtime, exact clean-HEAD, PR CI, merge and three-party closure. All 80 templates and 1242 items are classified: 1187 references are verified, 55 unresolved multi-enchant references remain literal partial without keys, and zero are blocked or silently dropped. The registry seals 141 EnhancementSelections, 749 ExactItemInstances and 749 validations with deterministic idempotent read-back, stable generation 32, resource/immutability/privacy gates, post-merge tests, local/origin parity and cloud SHA/API parity. Global data health remains honestly partial under independent owners."
   },
   "evidence": {
     "localTests": {
