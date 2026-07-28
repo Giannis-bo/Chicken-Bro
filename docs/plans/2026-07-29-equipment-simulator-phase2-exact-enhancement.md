@@ -1,6 +1,6 @@
 # 装备模拟 Phase 2：ExactItemInstance 与 EnhancementSelection
 
-状态：`正在推进`
+状态：`已完成`
 
 日期：`2026-07-29`
 

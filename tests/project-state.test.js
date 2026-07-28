@@ -118,9 +118,9 @@ test('project-state is the single machine-readable current truth entry', () => {
   )
   assert.equal(
     equipmentTargetArchitecture?.status,
-    'approved_phase1_closed_phase2_candidate_verified',
+    'approved_phase2_closed_phase3_next',
   )
-  assert.equal(equipmentPhase2Exact?.status, 'candidate_verified')
+  assert.equal(equipmentPhase2Exact?.status, 'archived')
   assert.equal(
     equipmentPhase2Exact?.path,
     'docs/plans/2026-07-29-equipment-simulator-phase2-exact-enhancement.md',

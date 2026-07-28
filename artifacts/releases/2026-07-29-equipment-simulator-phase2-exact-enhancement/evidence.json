@@ -2,8 +2,8 @@
   "schemaVersion": 2,
   "slug": "equipment-simulator-phase2-exact-enhancement",
   "requirementSlug": "equipment-simulator-phase2-exact-enhancement",
-  "status": "runtime_verified",
-  "highestEvidenceLevel": "runtime_verified",
+  "status": "archived",
+  "highestEvidenceLevel": "archived",
   "branch": "codex/equipment-simulator-phase2-exact-enhancement",
   "commit": "7dc5467492f6966065c868604cb3cd56f42b1055",
   "identities": {
@@ -18,8 +18,9 @@
       "value": "HEAD"
     },
     "closure": {
-      "status": "pending",
-      "reason": "PR merge and archive closure have not occurred."
+      "status": "bound",
+      "kind": "merge_commit",
+      "value": "e5e24aa08dd25f4887a8ff00f22dca89e6a3f3cf"
     }
   },
   "manualAcceptance": {
@@ -63,8 +64,8 @@
     },
     {
       "command": "pull request CI and merge closure",
-      "status": "not_run",
-      "summary": "Runs after exact-head verification."
+      "status": "pass",
+      "summary": "GitHub Project Harness run 30394178276 passed PR #105 head c33120a151b687a138d4fdb95fdfdc8c422829be in 4m57s. PR #105 merged as e5e24aa08dd25f4887a8ff00f22dca89e6a3f3cf with the exact verified PR tree. Post-merge 58 focused Python tests, 81 control-plane Node tests and the task-scoped Harness pass; local/origin main, cloud runtime SHA-256, services and APIs match; five transient candidate directories and both task branches are removed."
     }
   ],
   "candidateDeployment": {
@@ -216,11 +217,11 @@
     "active_manifest_pointer_unchanged"
   ],
   "cleanup": {
-    "required": true,
-    "reason": "Candidate backups, transient reports and the task branch require cleanup after closure."
+    "required": false,
+    "reason": "The local and remote task branches and all five transient cloud candidate directories were removed. The schema-before dump, diagnostic reports and runtime-before file copy are intentionally retained under the five bounded Phase 2 backup roots as rollback and fail-closed evidence."
   },
   "archivedReferences": [
     "artifacts/releases/2026-07-29-equipment-simulator-phase1-catalog-contract/evidence.json"
   ],
-  "summary": "Phase 2 immutable candidate, deployed dormant runtime and exact-head repository verification are complete. All 80 templates and 1242 items are classified with 1187 verified and 55 explicit partial references, zero blocked/silent drops, stable generation 32, exact database/runtime parity and honest global partial health. PR CI, merge closure and cleanup remain."
+  "summary": "Strict Phase 2 is archived after immutable candidate, deployed dormant runtime, exact clean-HEAD, PR CI, merge and three-party closure. All 80 templates and 1242 items are classified: 1187 references are verified, 55 unresolved multi-enchant references remain literal partial without keys, and zero are blocked or silently dropped. The registry seals 141 EnhancementSelections, 749 ExactItemInstances and 749 validations with deterministic idempotent read-back, stable generation 32, resource/immutability/privacy gates, post-merge tests, local/origin parity and cloud SHA/API parity. Global data health remains honestly partial under independent owners."
 }
