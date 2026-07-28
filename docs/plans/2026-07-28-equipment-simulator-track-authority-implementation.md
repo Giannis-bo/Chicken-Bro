@@ -708,7 +708,7 @@ node --test \
 
 Expected: all focused tests PASS.
 
-- [ ] **Step 8: Create the clean verification checkpoint**
+- [x] **Step 8: Create the clean verification checkpoint**
 
 Record the focused test results, keep the Harness verification entry at `not_run`, commit all evidence/control-plane changes and confirm the worktree is clean. Then run:
 
@@ -720,13 +720,13 @@ node scripts/verify-project.js \
 
 Expected: Harness PASS for the clean checkpoint HEAD. Do not run frontend/runtime candidate verification because this slice changes no active runtime or UI consumer.
 
-- [ ] **Step 9: Bind final Harness evidence**
+- [x] **Step 9: Bind final Harness evidence**
 
 Change only the Harness verification entry from `not_run` to `pass`, include the command and observed summary, commit that evidence-only change, then rerun the same Harness command on the new clean HEAD.
 
 Expected: Harness PASS again, now on the exact final evidence HEAD.
 
-- [ ] **Step 10: Perform local CR**
+- [x] **Step 10: Perform local CR**
 
 Review the task-only diff from base commit `1c6ad24b` to HEAD. Check:
 
@@ -740,7 +740,7 @@ Review the task-only diff from base commit `1c6ad24b` to HEAD. Check:
 
 Fix valid findings and rerun the affected verification.
 
-- [ ] **Step 11: Commit any CR correction and reverify**
+- [x] **Step 11: Commit any CR correction and reverify**
 
 If CR produces a correction, commit only the corrected task files, update the evidence verification identity/result, and rerun the affected focused tests plus Harness on the new clean HEAD. If CR finds nothing, do not create an empty commit.
 
