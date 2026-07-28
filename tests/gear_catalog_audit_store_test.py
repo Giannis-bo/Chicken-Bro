@@ -3,6 +3,7 @@ import unittest
 
 from server.gear_catalog_audit_store import (
     GearCatalogAuditPointerChanged,
+    GearCatalogAuditQueryFailed,
     GearCatalogAuditStore,
 )
 
@@ -258,9 +259,13 @@ class GearCatalogAuditStoreTest(unittest.TestCase):
             fail_marker="gear_catalog_audit_options",
         )
 
-        with self.assertRaisesRegex(RuntimeError, "forced audit query failure"):
+        with self.assertRaisesRegex(
+            GearCatalogAuditQueryFailed,
+            "AUDIT_QUERY_FAILED:gear_catalog_audit_options",
+        ) as failure:
             GearCatalogAuditStore(lambda: connection).snapshot()
 
+        self.assertEqual(failure.exception.query_marker, "gear_catalog_audit_options")
         self.assertTrue(connection.rolled_back)
         self.assertFalse(connection.committed)
         self.assertTrue(connection.closed)

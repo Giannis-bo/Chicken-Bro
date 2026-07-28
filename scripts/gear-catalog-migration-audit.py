@@ -23,6 +23,7 @@ if str(REPOSITORY_ROOT) not in sys.path:
 
 from server.gear_catalog_audit_store import (  # noqa: E402
     GearCatalogAuditPointerChanged,
+    GearCatalogAuditQueryFailed,
     GearCatalogAuditStore,
 )
 from server.gear_catalog_migration_audit import (  # noqa: E402
@@ -862,6 +863,8 @@ def _safe_error(exc: BaseException) -> str:
         return f"{exc.code}: {exc}"
     if isinstance(exc, GearCatalogAuditPointerChanged):
         return "AUDIT_POINTER_CHANGED"
+    if isinstance(exc, GearCatalogAuditQueryFailed):
+        return str(exc)
     return f"AUDIT_EXECUTION_FAILED: {type(exc).__name__}"
 
 

@@ -46,6 +46,14 @@ class GearCatalogAuditPointerChanged(RuntimeError):
     pass
 
 
+class GearCatalogAuditQueryFailed(RuntimeError):
+    def __init__(self, query_marker: str, sqlstate: str = ""):
+        self.query_marker = query_marker
+        self.sqlstate = sqlstate
+        suffix = f":{sqlstate}" if sqlstate else ""
+        super().__init__(f"AUDIT_QUERY_FAILED:{query_marker}{suffix}")
+
+
 def _text(value: Any) -> str:
     return str(value or "").strip()
 
@@ -247,6 +255,15 @@ def _statement_kind(sql: Any) -> str:
     return "read"
 
 
+def _query_marker(sql: Any) -> str:
+    match = re.search(
+        r"/\*\s*(gear_catalog_audit_[a-z0-9_]+)\s*\*/",
+        str(sql or ""),
+        re.IGNORECASE,
+    )
+    return match.group(1).lower() if match else "transaction_control"
+
+
 class GearCatalogAuditStore:
     """Read current catalog migration inputs in one stable read-only snapshot."""
 
@@ -267,7 +284,19 @@ class GearCatalogAuditStore:
             self._transaction_count += 1
         else:
             self._read_count += 1
-        cursor.execute(sql, tuple(params))
+        try:
+            cursor.execute(sql, tuple(params))
+        except Exception as exc:
+            sqlstate = _text(
+                getattr(exc, "sqlstate", "")
+                or getattr(exc, "pgcode", "")
+            ).upper()
+            if not re.fullmatch(r"[0-9A-Z]{5}", sqlstate):
+                sqlstate = ""
+            raise GearCatalogAuditQueryFailed(
+                _query_marker(sql),
+                sqlstate,
+            ) from None
 
     @staticmethod
     def _bounded_rows(cursor, batch_size: int) -> list[Any]:
@@ -806,5 +835,6 @@ class GearCatalogAuditStore:
 
 __all__ = (
     "GearCatalogAuditPointerChanged",
+    "GearCatalogAuditQueryFailed",
     "GearCatalogAuditStore",
 )
