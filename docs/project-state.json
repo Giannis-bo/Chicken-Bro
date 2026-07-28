@@ -65,9 +65,10 @@
     {
       "id": "equipment_simulator_track_authority_correction",
       "path": "docs/plans/2026-07-28-equipment-simulator-track-authority-correction.md",
-      "status": "concept_approved_written_review_pending",
+      "status": "design_approved_implementation_planned",
       "lifecycle": "active",
-      "notes": "Blocker-resolution-only design. It defines conditional rank semantics for regular upgrade tracks, canonical crafted-quality and Ascendant progression states, and separation of six crafted-stat choices into EnhancementSelection. It does not authorize implementation, Phase 1, schema/API changes, release writes or pointer changes."
+      "implementationPlan": "docs/plans/2026-07-28-equipment-simulator-track-authority-implementation.md",
+      "notes": "User-approved blocker-resolution-only design with an implementation plan. It defines conditional rank semantics for regular upgrade tracks, canonical crafted-quality and Ascendant progression states, and separation of six crafted-stat choices into EnhancementSelection. Implementation is restricted to a pure Track Authority, bounded Phase 0 audit correction and read-only evidence; it does not authorize Phase 1, schema/API changes, release writes or pointer changes."
     },
     {
       "id": "equipment_simulator_catalog_migration_phase0",
