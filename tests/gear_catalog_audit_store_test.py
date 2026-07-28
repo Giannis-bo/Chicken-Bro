@@ -276,6 +276,7 @@ class GearCatalogAuditStoreTest(unittest.TestCase):
             if "gear_catalog_audit_relation_sizes" in statement
         )
         relation_params = cursor.params[index][0]
+        self.assertIsInstance(relation_params, list)
         self.assertIn("cache.websim_release_registry", relation_params)
         self.assertIn("app.build_templates", relation_params)
         self.assertNotIn("caller_supplied_table", relation_params)

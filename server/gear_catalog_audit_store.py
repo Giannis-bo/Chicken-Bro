@@ -634,7 +634,7 @@ class GearCatalogAuditStore:
             LEFT JOIN logical_sizes USING (relation_name)
             ORDER BY relation_names.relation_name
             """,
-            (_RELATION_ALLOWLIST,),
+            (list(_RELATION_ALLOWLIST),),
         )
         return [
             {
