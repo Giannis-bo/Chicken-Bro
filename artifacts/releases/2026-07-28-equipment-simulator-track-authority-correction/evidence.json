@@ -29,7 +29,7 @@
     },
     "closure": {
       "status": "pending",
-      "reason": "Local CR, final Harness evidence binding and the PR #101 base dependency remain open."
+      "reason": "Implementation, focused verification, production read-only audit, final Harness binding and local CR are complete. PR #101 remains the unmerged base dependency, so this stacked task is not ready for a standalone PR or merge."
     }
   },
   "manualAcceptance": {
@@ -68,11 +68,13 @@
     },
     {
       "command": "node scripts/verify-project.js --profile harness --release artifacts/releases/2026-07-28-equipment-simulator-track-authority-correction",
-      "status": "not_run"
+      "status": "pass",
+      "summary": "The clean task checkpoint passed the Harness profile: 93 control-plane tests, JSON and JavaScript syntax checks, the exact requirement/evidence/manifest packet check, and git diff hygiene."
     },
     {
       "command": "local CR against base 1c6ad24b",
-      "status": "not_run"
+      "status": "pass",
+      "summary": "No actionable finding. The task adds no runtime consumer, SQL write or schema change; generic rank remains ignored, crafted rows preserve 438 enhancement associations, report identities agree, sensitive-key scan is absent, and the original Phase 0 report/decision hashes are unchanged."
     }
   ],
   "candidateDeployment": {
@@ -152,6 +154,6 @@
     "artifacts/releases/2026-07-28-equipment-simulator-catalog-migration-phase0/runtime-readonly-audit.json",
     "artifacts/releases/2026-07-28-equipment-simulator-catalog-migration-phase0/phase1-decision.json"
   ],
-  "summary": "The pure Track Authority and progression-aware Phase 0 audit are locally verified. The exact committed tools reran against production read-only data with zero writes, stable generation-24 pointers and complete transient cleanup. They mapped 1265/1313 canonical Browse candidates and isolated the remaining 48 static-stat gaps; independent Phase 0 gates keep allowedNextPlan at none. Runtime activation and manual acceptance remain not applicable; final Harness binding, local CR and the stacked PR dependency remain open.",
-  "updatedAt": "2026-07-28T17:08:29+08:00"
+  "summary": "The pure Track Authority and progression-aware Phase 0 audit are locally verified. The exact committed tools reran against production read-only data with zero writes, stable generation-24 pointers and complete transient cleanup. They mapped 1265/1313 canonical Browse candidates and isolated the remaining 48 static-stat gaps; independent Phase 0 gates keep allowedNextPlan at none. Focused verification, final Harness binding and local CR passed. Runtime activation and manual acceptance remain not applicable; only the stacked PR #101 dependency remains open.",
+  "updatedAt": "2026-07-28T17:13:52+08:00"
 }
