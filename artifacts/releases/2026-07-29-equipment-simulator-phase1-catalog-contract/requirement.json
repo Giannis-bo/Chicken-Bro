@@ -100,6 +100,10 @@
     {
       "date": "2026-07-29",
       "decision": "Phase 0 mappedItemCount=1310 is retained as raw slot-metadata classification, while formal Catalog membership is narrowed to the 613 items participating in canonical BrowseVariant or verified ExactItemInstance usage; 697 dormant historical/source-only rows are excluded."
+    },
+    {
+      "date": "2026-07-29",
+      "decision": "Catalog identity canonicalizes persisted member order, and verified item-level-298 ExactItemInstance evidence remains a governed eligibility proof for ordinary Ascendant BrowseVariant membership, matching the accepted Phase 0 Track Authority."
     }
   ]
 }

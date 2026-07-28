@@ -126,7 +126,7 @@
       "requirement": "artifacts/releases/2026-07-29-equipment-simulator-phase1-catalog-contract/requirement.json",
       "evidence": "artifacts/releases/2026-07-29-equipment-simulator-phase1-catalog-contract/evidence.json",
       "baseCommit": "731bf899618976368a649f1e087b827e642076ef",
-      "notes": "Strict Phase 1 dormant Catalog builder, append-only store/migration and deterministic 40-specialization shadow tool are locally verified. The first candidate correctly failed closed before seal and exposed that Phase 0 mappedItemCount=1310 was raw slot-metadata classification; formal membership is now constrained to 613 canonical Browse/verified Exact items, excluding 697 dormant historical/source-only rows. Migration 0019 is applied, corrected candidate seal and pointer-fence evidence remain pending, and public readers plus the active Manifest pointer remain unchanged."
+      "notes": "Strict Phase 1 dormant Catalog builder, append-only store/migration and deterministic 40-specialization shadow tool are locally verified. Two candidate attempts correctly failed closed with zero sealed rows: they exposed that Phase 0 mappedItemCount=1310 was raw slot-metadata classification, that persisted member order must not change identity, and that 298 Exact evidence must authorize 11 ordinary Ascendant rows. Formal membership is now constrained to 613 canonical Browse/verified Exact items, excluding 697 dormant historical/source-only rows, with 1309 expected BrowseVariants. Migration 0019 is applied, corrected candidate seal and pointer-fence evidence remain pending, and public readers plus the active Manifest pointer remain unchanged."
     }
   ],
   "completedBaselines": [

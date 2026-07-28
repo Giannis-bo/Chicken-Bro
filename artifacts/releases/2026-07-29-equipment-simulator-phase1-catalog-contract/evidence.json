@@ -42,7 +42,7 @@
     {
       "command": "CatalogRevision RED/GREEN focused suites",
       "status": "pass",
-      "summary": "64 focused Catalog builder, formal membership, append-only store, migration schema, fixed-query projection and 40-specialization shadow tests pass. RED failures were observed before the builder, store, migration and CLI existed, and again before dormant metadata exclusion was implemented."
+      "summary": "66 focused Catalog builder, formal membership, append-only store, migration schema, fixed-query projection and 40-specialization shadow tests pass. RED failures were observed before the builder, store, migration and CLI existed, before dormant metadata exclusion, and before persisted-order canonicalization plus observed Ascendant eligibility were implemented."
     },
     {
       "command": "pre-candidate repository verification",
@@ -62,7 +62,7 @@
   ],
   "candidateDeployment": {
     "status": "correction_pending_retry",
-    "reason": "Migration 0019 is applied to the production database, but the first candidate failed closed before seal. The corrected immutable candidate has not yet been deployed or executed."
+    "reason": "Migration 0019 is applied to the production database, but the first two candidates failed closed and rolled back before seal. The corrected immutable candidate has not yet been deployed or executed."
   },
   "runtimeEvidence": [
     {
@@ -78,6 +78,24 @@
       "pointerGenerationAfter": 32,
       "sealedCatalogRows": 0,
       "interpretation": "Fail-closed behavior was correct. The candidate exposed that Phase 0 mappedItemCount classified dormant slot metadata rather than defining formal Catalog membership."
+    },
+    {
+      "candidateCommit": "d92ed1105daed4705d8b39f131d6602b7313ce7a",
+      "status": "blocked",
+      "problemCodes": [
+        "CATALOG_REVISION_MISMATCH"
+      ],
+      "elapsedSeconds": 26.65,
+      "maxRssKiB": 876136,
+      "pointerGenerationBefore": 32,
+      "pointerGenerationAfter": 32,
+      "sealedCatalogRows": 0,
+      "observedBuildCounts": {
+        "itemDefinitionCount": 613,
+        "browseVariantCount": 1298,
+        "excludedDormantItemCount": 697
+      },
+      "interpretation": "The candidate transaction rolled back completely. Diagnosis proved that database row ordering was incorrectly identity-sensitive and that 11 ordinary Ascendant rows had not inherited the accepted observed ExactItemInstance eligibility evidence."
     }
   ],
   "risks": [
@@ -100,6 +118,11 @@
       "id": "dormant-item-membership",
       "status": "controlled_by_tests",
       "detail": "Formal ItemDefinition membership requires canonical BrowseVariant or verified ExactItemInstance usage plus governed source evidence; raw historical and source-only rows are excluded and counted."
+    },
+    {
+      "id": "persisted-order-and-ascendant-parity",
+      "status": "controlled_by_tests",
+      "detail": "Catalog identity canonicalizes member order, while verified item-level-298 exact evidence is applied to ordinary Ascendant Track Authority before BrowseVariant construction."
     }
   ],
   "rollback": [
@@ -115,5 +138,5 @@
   "archivedReferences": [
     "artifacts/releases/2026-07-28-equipment-simulator-phase0-unblock/evidence.json"
   ],
-  "summary": "The dormant Catalog builder, append-only schema/store and bounded 40-specialization shadow are locally implemented and verified. Migration 0019 is applied, but the first candidate correctly failed closed before sealing any Catalog rows; formal membership has been corrected locally and awaits a fresh immutable candidate. No active pointer or public reader change has occurred."
+  "summary": "The dormant Catalog builder, append-only schema/store and bounded 40-specialization shadow are locally implemented and verified. Migration 0019 is applied; two candidates correctly failed closed and rolled back all Catalog rows, exposing raw membership, persisted-order and observed Ascendant parity defects that are now fixed under RED/GREEN tests. A fresh immutable candidate is pending. No active pointer or public reader change has occurred."
 }

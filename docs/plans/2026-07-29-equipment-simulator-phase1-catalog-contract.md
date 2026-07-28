@@ -32,6 +32,10 @@
   canonical BrowseVariant 或 verified ExactItemInstance 建立成员关系。当前快照对应
   613 个正式 ItemDefinition；其余 697 条孤立或仅来源历史元数据继续留在旧快照中，
   不得伪装成玩家可浏览或可导入的装备。
+- 第二次候选验证进一步确认两个确定性边界：Catalog 内容身份必须对数据库成员回读顺序
+  不敏感；Phase 0 Track Authority 已验证的 298 ExactItemInstance 必须继续作为普通
+  Ascendant BrowseVariant 的资格证据。两项均由 RED/GREEN 测试固定，避免回读误判和
+  11 个合法 Ascendant 成员丢失。
 - 全局 `/api/data/health` 仍为 `partial`。本阶段不把旧 staging/refresh owner
   冒充成新的 Catalog 健康成功，也不在完成 shadow 前迁移 health owner。
 

@@ -254,33 +254,48 @@ def _catalog_identity_seed(
     item_definitions: Iterable[Mapping[str, Any]],
     browse_variant_seeds: Iterable[Mapping[str, Any]],
 ) -> dict[str, Any]:
+    canonical_definitions = [
+        {
+            key: _canonical(value)
+            for key, value in definition.items()
+            if key != "definitionHash"
+        }
+        for definition in item_definitions
+    ]
+    canonical_definitions.sort(
+        key=lambda definition: (
+            _text(definition.get("itemId")),
+            _canonical_bytes(definition),
+        )
+    )
+    canonical_variant_seeds = [
+        {
+            key: _canonical(value)
+            for key, value in variant.items()
+            if key
+            not in {
+                "browseVariantKey",
+                "progressionKey",
+                "variantHash",
+            }
+        }
+        for variant in browse_variant_seeds
+    ]
+    canonical_variant_seeds.sort(
+        key=lambda variant: (
+            _text(variant.get("itemId")),
+            _canonical_bytes(variant.get("progressionState")),
+            _canonical_bytes(variant),
+        )
+    )
     return {
         "schemaRevision": CATALOG_SCHEMA_REVISION,
         "builderRevision": _text(builder_revision),
         "seasonRevision": _text(season_revision),
         "dependencyVector": _canonical(dependency_vector),
         "sourceSummary": _canonical(source_summary),
-        "itemDefinitions": [
-            {
-                key: _canonical(value)
-                for key, value in definition.items()
-                if key != "definitionHash"
-            }
-            for definition in item_definitions
-        ],
-        "browseVariantMembershipSeeds": [
-            {
-                key: _canonical(value)
-                for key, value in variant.items()
-                if key
-                not in {
-                    "browseVariantKey",
-                    "progressionKey",
-                    "variantHash",
-                }
-            }
-            for variant in browse_variant_seeds
-        ],
+        "itemDefinitions": canonical_definitions,
+        "browseVariantMembershipSeeds": canonical_variant_seeds,
     }
 
 
@@ -396,6 +411,17 @@ def build_catalog_revision(
             and _text(row.get("itemId"))
         )
     }
+    observed_ascendant_item_ids = {
+        _text(row.get("itemId"))
+        for row in raw_variants
+        if (
+            _text(row.get("rowFamily")) == "exact_instance"
+            and _positive_int(row.get("itemLevel")) == 298
+            and _text(row.get("status")).lower() == "verified"
+            and _static_facts(row.get("staticStats")) is not None
+            and _text(row.get("itemId"))
+        )
+    }
     sources_by_item: dict[str, list[dict[str, Any]]] = {}
     for row in raw_sources:
         item_id = _text(row.get("itemId"))
@@ -411,7 +437,13 @@ def build_catalog_revision(
         if _text(row.get("rowFamily")) != "browse":
             continue
         legacy_browse_count += 1
-        resolution = resolve_legacy_browse_progression(active, row)
+        authority_row = dict(row)
+        if _text(row.get("itemId")) in observed_ascendant_item_ids:
+            authority_row["hasObservedAscendantEvidence"] = True
+        resolution = resolve_legacy_browse_progression(
+            active,
+            authority_row,
+        )
         progression_state = _mapping(resolution.get("progressionState"))
         if resolution.get("status") != "verified" or not progression_state:
             continue

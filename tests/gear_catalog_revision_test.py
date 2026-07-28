@@ -182,6 +182,78 @@ class GearCatalogRevisionTest(unittest.TestCase):
         )
         self.assertEqual(verify_catalog_revision(first), [])
 
+    def test_verification_canonicalizes_persisted_member_order(self):
+        rows = regular_rows()
+        rows["items"].append(
+            {
+                "itemId": "1002",
+                "name": "Verified Shoulders",
+                "slot": "shoulder",
+                "itemLevel": 276,
+                "sourceStatus": "verified",
+                "hasSourceRefs": True,
+                "hasVariantRefs": True,
+            }
+        )
+        rows["sources"].append(source("1002"))
+        rows["variants"].append(
+            {
+                **rows["variants"][0],
+                "variantId": "variant-hero-6-shoulder",
+                "variantKey": "hero-6-shoulder",
+                "itemId": "1002",
+                "slot": "shoulder",
+            }
+        )
+        result = build_catalog_revision(CURRENT_BINDING, rows)
+        persisted = copy.deepcopy(result)
+        persisted["itemDefinitions"].reverse()
+        persisted["browseVariants"].reverse()
+
+        self.assertEqual(result["status"], "verified")
+        self.assertEqual(verify_catalog_revision(persisted), [])
+
+    def test_observed_exact_instance_authorizes_ordinary_ascendant(self):
+        rows = regular_rows()
+        rows["variants"] = [
+            {
+                "variantId": "ascendant-browse",
+                "variantKey": "ascendant-browse",
+                "itemId": "1001",
+                "rowFamily": "browse",
+                "trackKey": "void_upgrade",
+                "itemLevel": 298,
+                "slot": "chest",
+                "sourceType": "raid",
+                "bonusIds": [],
+                "staticStats": {"stamina": 120},
+                "status": "verified",
+            },
+            {
+                "variantId": "ascendant-observed",
+                "variantKey": "ascendant-observed",
+                "itemId": "1001",
+                "rowFamily": "exact_instance",
+                "itemLevel": 298,
+                "slot": "chest",
+                "sourceType": "observed_profile",
+                "bonusIds": [],
+                "staticStats": {"stamina": 120},
+                "status": "verified",
+            },
+        ]
+        rows["items"][0]["slot"] = "chest"
+        rows["items"][0]["itemLevel"] = 298
+
+        result = build_catalog_revision(CURRENT_BINDING, rows)
+
+        self.assertEqual(result["status"], "verified")
+        self.assertEqual(len(result["browseVariants"]), 1)
+        self.assertEqual(
+            result["browseVariants"][0]["progressionKind"],
+            "ascendant",
+        )
+
     def test_crafted_stat_choices_collapse_without_entering_static_facts(self):
         result = build_catalog_revision(CURRENT_BINDING, crafted_rows())
 

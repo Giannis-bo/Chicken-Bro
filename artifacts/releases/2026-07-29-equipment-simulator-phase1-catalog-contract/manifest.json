@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-28T17:35:29.956Z",
+  "generatedAt": "2026-07-28T17:42:04.532Z",
   "release": {
     "date": "2026-07-29",
     "slug": "equipment-simulator-phase1-catalog-contract"
@@ -38,7 +38,7 @@
         {
           "path": "docs/project-state.json",
           "exists": true,
-          "sizeBytes": 39639
+          "sizeBytes": 39814
         },
         {
           "path": "docs/project-owner-map.json",
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-29-equipment-simulator-phase1-catalog-contract/evidence.json",
-    "sizeBytes": 5815,
+    "sizeBytes": 7034,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -392,7 +392,7 @@
     "missingFields": [],
     "declaredStatus": "local_verified",
     "highestEvidenceLevel": "local_verified",
-    "summary": "The dormant Catalog builder, append-only schema/store and bounded 40-specialization shadow are locally implemented and verified. Migration 0019 is applied, but the first candidate correctly failed closed before sealing any Catalog rows; formal membership has been corrected locally and awaits a fresh immutable candidate. No active pointer or public reader change has occurred."
+    "summary": "The dormant Catalog builder, append-only schema/store and bounded 40-specialization shadow are locally implemented and verified. Migration 0019 is applied; two candidates correctly failed closed and rolled back all Catalog rows, exposing raw membership, persisted-order and observed Ascendant parity defects that are now fixed under RED/GREEN tests. A fresh immutable candidate is pending. No active pointer or public reader change has occurred."
   },
   "evidence": {
     "localTests": {
@@ -417,7 +417,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "7 changed files currently visible to git status."
+      "detail": "6 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
@@ -453,10 +453,9 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 7,
+      "changedFileCount": 6,
       "changedFiles": [
         " M artifacts/releases/2026-07-29-equipment-simulator-phase1-catalog-contract/evidence.json",
-        " M artifacts/releases/2026-07-29-equipment-simulator-phase1-catalog-contract/manifest.json",
         " M artifacts/releases/2026-07-29-equipment-simulator-phase1-catalog-contract/requirement.json",
         " M docs/plans/2026-07-29-equipment-simulator-phase1-catalog-contract.md",
         " M docs/project-state.json",
