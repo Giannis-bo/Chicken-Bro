@@ -3,7 +3,7 @@
   "slug": "equipment-simulator-phase0-unblock",
   "classification": "Strict",
   "status": "implementation_allowed",
-  "goal": "Clear every independent equipment-simulator Phase 0 blocker by repairing the 12-item static-stat family, restoring a 40-specialization Community Release bound to the current Gear Release lineage, bounding the builder, classifying runtime tooling callers, and producing a fresh mechanical Phase 1 decision.",
+  "goal": "Clear every independent equipment-simulator Phase 0 blocker by repairing all 11 eligible instance-1305 combat items across four levels, deterministically excluding the one non-combat cosmetic source row, restoring a 40-specialization Community Release bound to the current Gear Release lineage, bounding the builder, classifying runtime tooling callers, and producing a fresh mechanical Phase 1 decision.",
   "userValue": "Players can browse and save current-season PVE equipment for all 40 specializations, import a current community template, and hand a saved legal loadout to the existing SimC flow without guessed variants or hidden partial data.",
   "nonGoals": [
     "Do not introduce the target Catalog schema, CatalogRevision API, SimulationSnapshot contract or a new frontend entry in this task.",
@@ -38,7 +38,7 @@
       "Classify scripts that consume gear/catalog contracts as explicit runtimeTooling callers and keep them in the migration inventory.",
       "Reuse one immutable item/variant/option projection index across Community candidates instead of rebuilding it for every template.",
       "Add a bounded no-write Community builder resource probe with measured peak RSS, elapsed time, temporary bytes, pointer stability and zero writes.",
-      "Refresh the configured server-side SimC runtime and regenerate exact staging stats for the 12 instance-1305 items across four legal progression levels.",
+      "Refresh the configured server-side SimC runtime, prove 44/44 exact staging stats for the 11 eligible instance-1305 combat items across four legal progression levels, and exclude the one official Cosmetic item from the Gear Release.",
       "Seal and shadow an inactive Gear/Community pair, then CAS-promote only after all data, resource, compatibility and rollback gates pass.",
       "Rerun the aggregate Phase 0 audit and mechanical decision using exact committed tools."
     ],
@@ -49,13 +49,13 @@
       "Unrelated Taro reconstruction and other roadmap work remain untouched."
     ],
     "riskUnknown": [
-      "The configured newer SimC revision may still fail to resolve one or more of the 48 item-level probes; those rows must remain blocked until exact source evidence exists.",
+      "Any eligible combat-item pair that the configured SimC revision cannot resolve must remain blocked; the official Cosmetic row must be excluded rather than assigned inferred stats.",
       "The optimized 40-spec Community prepare must be measured under hard process bounds before a release build is allowed.",
       "Candidate promotion changes public Community template availability and therefore requires candidate smoke, rollback proof and explicit real WeChat acceptance."
     ],
     "evidenceRequired": [
       "RED/GREEN tests for caller classification, one-time projection indexing, deterministic output identity, bounded resource probing and Phase 0 resource binding.",
-      "Exact configured SimC revision/hash and 48/48 item-level stat probe evidence without private profile content.",
+      "Exact configured SimC revision/hash, 44/44 eligible item-level stat probe evidence and one deterministic NON_COMBAT_COSMETIC exclusion without private profile content.",
       "Inactive Gear/Community release identity, 40-spec/80-Hero coverage, shadow, Resolve/Profile/import and zero-partial evidence.",
       "Measured peak RSS, elapsed and temporary bytes below hard limits, with zero source writes and cleanup.",
       "Candidate Manifest identity, CAS promotion and rollback, 40-spec public matrices, 26 supported SimC and 14 unsupported deterministic outcomes.",

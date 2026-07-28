@@ -28,10 +28,12 @@ resource/data gates.
   `gear-release:sha256:de40793805a84934497c645be2ccc914ef44191744cc76d03f765001bc6dfe6a`
   and it has no Community Release.
 - The current Phase 0 audit maps `1,265 / 1,313` canonical Browse candidates.
-  All 48 failures are the same data family: 12 raid items from instance `1305`,
-  encounter `2711`, across Champion 263, Hero 276, Myth 289 and Ascendant 298.
-  Their current item-level probe reports `SimC JSON did not include target item
-  stats`.
+  Its 48 failures came from 12 instance-`1305` source rows across Champion 263,
+  Hero 276, Myth 289 and Ascendant 298. The immutable
+  `b92847e847c9a6c354d4ba2130abd37f1ccf72d8` probe corrected that assumption:
+  11 combat items are exact at all four levels (`44 / 44`), while item
+  `268280` is official `Armor / Cosmetic` metadata and must be excluded from
+  the equipment Catalog rather than assigned invented combat stats.
 - Production staging contains `3,253` complete Raider.IO observed gear rows
   covering 40 specializations. Historical Community Releases cannot be rebound
   because they were validated against older Gear Releases.
@@ -56,8 +58,9 @@ resource/data gates.
 - Do not mutate an existing sealed Gear/Community Release.
 - Do not derive static stats by scaling an observed item, copying another
   difficulty, parsing display text, or inventing bonus IDs.
-- Do not promote a partial Community Release or a Gear Release with any of the
-  48 static-stat gaps.
+- Do not promote a partial Community Release or a Gear Release with any
+  eligible combat-item static-stat gap. Non-combat cosmetic rows must be
+  deterministically excluded and recorded, never treated as stat-complete.
 - Do not call an operational script `testsDocs` merely to make
   `unresolvedCount=0`; it remains an explicit runtime-tooling caller.
 - Do not run the full builder without process memory, elapsed-time, temporary
@@ -96,8 +99,10 @@ service ceiling. Any exceeded bound is a blocker, never a warning.
 - Modify: `docs/plans/README.md`
 
 1. Register this plan and the Strict task packet.
-2. Freeze the 12-item/48-variant, missing Community Release, 40-spec staging,
-   resource amplification and five-caller facts above.
+2. Freeze the original 12-source-row/48-gap observation, the corrected
+   11-combat-item/44-exact-pair plus one cosmetic exclusion contract, missing
+   Community Release, 40-spec staging, resource amplification and five-caller
+   facts above.
 3. Validate the requirement alone:
 
 ```bash
@@ -213,20 +218,24 @@ python3 -m unittest \
   tests.gear_catalog_migration_audit_test -v
 ```
 
-## Task 5: Refresh SimC and repair the 12-item staging facts
+## Task 5: Refresh SimC and repair the instance-1305 staging facts
 
 **Runtime sequence**
 
 1. Record current SimC binary/revision and rollback target.
 2. Use the configured server-side SimC updater to atomically install the exact
    configured target revision. Do not change `SIMC_GITHUB_REPO` or `SIMC_BRANCH`.
-3. Re-run a no-write probe for all 48 item/ilevel pairs.
-4. If any pair still lacks exact SimC item stats, stop promotion and continue
-   source-authority diagnosis in this same task. Do not scale or substitute
-   stats.
-5. When 48/48 probe rows are exact, run the existing controlled instance-1305
-   item-level backfill against mutable staging only.
-6. Verify staging now has 48 verified variants with exact item stats and no
+3. Re-run a no-write probe over all 12 source rows. Require one deterministic
+   `NON_COMBAT_COSMETIC` exclusion and exact stats for all 11 eligible items at
+   all four levels (`44 / 44`).
+4. If any eligible pair still lacks exact SimC item stats, stop promotion and
+   continue source-authority diagnosis in this same task. Do not scale or
+   substitute stats.
+5. When `44 / 44` eligible probe rows are exact, run a controlled PG-native
+   instance-1305 backfill against those mutable staging rows only; exclude the
+   cosmetic item's four generated variants from the Gear Release projection.
+6. Verify staging has 44 verified eligible variants with exact item stats, the
+   cosmetic exclusion is explicit, and no eligible row retains the
    `SimC JSON did not include target item stats` blocker.
 
 Evidence must include only item IDs, levels, aggregate statuses, immutable SimC

@@ -9,7 +9,7 @@ import unittest
 
 class GearItemLevelStatProbeTest(unittest.TestCase):
     def item(self, index):
-        return {
+        item = {
             "itemId": f"25{index:04d}",
             "name": f"Item {index}",
             "slot": "head",
@@ -17,13 +17,22 @@ class GearItemLevelStatProbeTest(unittest.TestCase):
             "sourceType": "raid",
             "metadataPayload": {},
         }
+        if index == 0:
+            item["metadataPayload"] = {
+                "item_class": {"id": 4, "name": "Armor"},
+                "item_subclass": {"id": 5, "name": "Cosmetic"},
+            }
+            item["armorType"] = "cosmetic"
+        return item
 
-    def test_exact_12_by_4_report_passes_without_stat_payload_disclosure(self):
+    def test_exact_11_by_4_report_passes_with_one_cosmetic_exclusion(self):
         from server.gear_item_level_stat_probe import build_probe_report
 
         items = [self.item(index) for index in range(12)]
+        resolved_item_ids = []
 
         def resolver(item, item_level, _track):
+            resolved_item_ids.append(item["itemId"])
             return {
                 "itemStats": [
                     {"key": "stamina", "label": "Stamina", "value": item_level}
@@ -44,12 +53,25 @@ class GearItemLevelStatProbeTest(unittest.TestCase):
         )
 
         self.assertEqual(report["status"], "pass")
-        self.assertEqual(report["targetItemCount"], 12)
-        self.assertEqual(report["targetPairCount"], 48)
-        self.assertEqual(report["exactPairCount"], 48)
+        self.assertEqual(report["sourceItemCount"], 12)
+        self.assertEqual(report["targetItemCount"], 11)
+        self.assertEqual(report["excludedItemCount"], 1)
+        self.assertEqual(
+            report["excludedItems"],
+            [
+                {
+                    "itemId": "250000",
+                    "reasonCode": "NON_COMBAT_COSMETIC",
+                    "status": "excluded",
+                }
+            ],
+        )
+        self.assertEqual(report["targetPairCount"], 44)
+        self.assertEqual(report["exactPairCount"], 44)
         self.assertEqual(report["failedPairCount"], 0)
         self.assertEqual(report["problemCodes"], [])
-        self.assertEqual(len(report["items"]), 12)
+        self.assertEqual(len(report["items"]), 11)
+        self.assertNotIn("250000", resolved_item_ids)
         self.assertEqual(
             [row["itemLevel"] for row in report["items"][0]["levels"]],
             [263, 276, 289, 298],
@@ -67,7 +89,7 @@ class GearItemLevelStatProbeTest(unittest.TestCase):
         items = [self.item(index) for index in range(12)]
 
         def resolver(item, item_level, _track):
-            if item["itemId"] == "250000" and item_level == 263:
+            if item["itemId"] == "250002" and item_level == 263:
                 return {"error": "secret-bearing SimC output"}
             if item["itemId"] == "250001" and item_level == 276:
                 return {
@@ -91,7 +113,7 @@ class GearItemLevelStatProbeTest(unittest.TestCase):
         )
 
         self.assertEqual(report["status"], "blocked")
-        self.assertEqual(report["exactPairCount"], 46)
+        self.assertEqual(report["exactPairCount"], 42)
         self.assertEqual(report["failedPairCount"], 2)
         self.assertEqual(
             report["problemCodes"],

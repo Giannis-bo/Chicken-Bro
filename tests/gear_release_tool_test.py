@@ -2168,6 +2168,87 @@ class GearReleaseToolTest(unittest.TestCase):
         self.assertTrue(source_evidence["socketProbeDigest"].startswith("sha256:"))
         self.assertTrue(source_evidence["materializedSocketFactDigest"].startswith("sha256:"))
 
+    def test_prepare_staging_gear_release_excludes_noncombat_cosmetic_rows(self):
+        from server.gear_release_tool import prepare_staging_gear_release
+
+        snapshot = self.snapshot()
+        snapshot["items"].append(
+            {
+                "itemId": "268280",
+                "name": "Cosmetic Helm",
+                "slot": "head",
+                "sourceStatus": "verified",
+                "payload": {
+                    "item_class": {"id": 4, "name": "Armor"},
+                    "item_subclass": {"id": 5, "name": "Cosmetic"},
+                },
+                "updatedAt": "2026-07-28T12:00:00+00:00",
+            }
+        )
+        snapshot["sources"].append(
+            {
+                "sourceId": "source-cosmetic",
+                "itemId": "268280",
+                "sourceType": "raid",
+                "sourceKey": "raid:1305:268280",
+                "instanceId": "1305",
+                "payload": {"status": "verified"},
+                "updatedAt": "2026-07-28T12:00:00+00:00",
+            }
+        )
+        snapshot["variants"].append(
+            {
+                "variantId": "variant-cosmetic",
+                "itemId": "268280",
+                "variantKey": "champion-263",
+                "slot": "head",
+                "sourceType": "raid",
+                "difficultyKey": "champion",
+                "itemLevel": 263,
+                "simcOptions": {"ilevel": "263"},
+                "status": "partial",
+                "blockers": ["SimC JSON did not include target item stats"],
+                "payload": {},
+                "updatedAt": "2026-07-28T12:00:00+00:00",
+            }
+        )
+        snapshot["options"].append(
+            {
+                "optionId": "option-cosmetic",
+                "variantId": "variant-cosmetic",
+                "optionKey": "cosmetic-option",
+                "optionType": "socket",
+                "name": "Must be excluded",
+                "applicableSlots": ["head"],
+                "simcOptions": {},
+                "status": "verified",
+                "isVisible": True,
+                "payload": {},
+                "updatedAt": "2026-07-28T12:00:00+00:00",
+            }
+        )
+
+        prepared = prepare_staging_gear_release(
+            FakeReleaseStore(snapshot),
+            season_revision="season-17",
+            dependency_revisions=self.dependencies(),
+            socket_bonus_minimums={"9300": 1},
+        )
+
+        sealed = prepared["snapshot"]
+        self.assertNotIn("268280", {row["itemId"] for row in sealed["items"]})
+        self.assertNotIn("268280", {row["itemId"] for row in sealed["sources"]})
+        self.assertNotIn("268280", {row["itemId"] for row in sealed["variants"]})
+        self.assertNotIn(
+            "option-cosmetic",
+            {row["optionId"] for row in sealed["options"]},
+        )
+        source_evidence = prepared["release"]["source"]["sourceEvidence"]
+        self.assertEqual(source_evidence["excludedNonCombatItemCount"], 1)
+        self.assertTrue(
+            source_evidence["excludedNonCombatItemDigest"].startswith("sha256:")
+        )
+
     def test_current_pve_socket_eligibility_is_sealed_in_release_item_payload(self):
         from server.gear_release_tool import prepare_staging_gear_release
 

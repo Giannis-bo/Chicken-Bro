@@ -44,7 +44,7 @@
     "Phase 0 blocker root-cause correction",
     "runtime-tooling caller classification",
     "bounded Community builder and resource evidence",
-    "configured SimC refresh and 12-item static-stat repair",
+    "configured SimC refresh, 11-combat-item static-stat repair and one cosmetic exclusion",
     "candidate Gear/Community/Manifest cutover and rollback",
     "fresh Phase 0 decision and equipment-simulator public verification"
   ],
@@ -69,7 +69,7 @@
     {
       "id": "simc-item-data",
       "status": "open",
-      "detail": "A newer configured SimC revision must prove exact stats for all 48 item-level pairs; no inferred fallback is allowed."
+      "detail": "Configured SimC b92847e proved 44/44 exact pairs for 11 combat items; item 268280 is official Armor/Cosmetic metadata and must be deterministically excluded with no inferred fallback."
     },
     {
       "id": "community-builder-resource",

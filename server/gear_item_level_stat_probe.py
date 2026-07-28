@@ -9,9 +9,11 @@ import re
 from typing import Any, Callable, Iterable, Mapping
 
 
-SCHEMA_REVISION = "gear-item-level-stat-probe-v1"
+SCHEMA_REVISION = "gear-item-level-stat-probe-v2"
 REPORT_PREFIX = "gear-item-level-stat-probe:sha256:"
-EXPECTED_ITEM_COUNT = 12
+EXPECTED_SOURCE_ITEM_COUNT = 12
+EXPECTED_ITEM_COUNT = 11
+EXPECTED_EXCLUDED_ITEM_COUNT = 1
 EXPECTED_TRACKS = (
     {"difficultyKey": "champion", "itemLevel": 263},
     {"difficultyKey": "hero", "itemLevel": 276},
@@ -86,13 +88,26 @@ def _source_items(
     rows.sort(key=lambda row: _text(row.get("itemId")))
     item_ids = [_text(row.get("itemId")) for row in rows]
     valid = (
-        len(rows) == EXPECTED_ITEM_COUNT
-        and len(set(item_ids)) == EXPECTED_ITEM_COUNT
+        len(rows) == EXPECTED_SOURCE_ITEM_COUNT
+        and len(set(item_ids)) == EXPECTED_SOURCE_ITEM_COUNT
         and all(item_ids)
         and all(_text(row.get("instanceId")) == instance_id for row in rows)
         and all(_text(row.get("sourceType")).lower() == source_type for row in rows)
     )
     return rows if valid else []
+
+
+def _exclusion_reason(item: Mapping[str, Any]) -> str:
+    from . import websim_payload
+
+    payload = item.get("metadataPayload")
+    metadata = payload if isinstance(payload, dict) else {}
+    if (
+        websim_payload.item_payload_is_cosmetic_statless(metadata)
+        or _text(item.get("armorType")).lower() == "cosmetic"
+    ):
+        return "NON_COMBAT_COSMETIC"
+    return ""
 
 
 def _probe_error_code(
@@ -335,18 +350,39 @@ def build_probe_report(
         simc_revision,
         simc_binary_sha256,
     )
+    input_rows = [dict(row) for row in items if isinstance(row, Mapping)]
     source_rows = _source_items(
-        items,
+        input_rows,
         instance_id=normalized_instance,
         source_type=normalized_source,
     )
     result_rows: list[dict[str, Any]] = []
+    excluded_rows: list[dict[str, str]] = []
     problem_codes: set[str] = set()
     exact_pairs = 0
     if not source_rows:
         problem_codes.add("SOURCE_ITEM_COUNT_MISMATCH")
     else:
+        target_rows = []
         for item in source_rows:
+            reason_code = _exclusion_reason(item)
+            if reason_code:
+                excluded_rows.append(
+                    {
+                        "itemId": _text(item.get("itemId")),
+                        "reasonCode": reason_code,
+                        "status": "excluded",
+                    }
+                )
+            else:
+                target_rows.append(item)
+        if (
+            len(target_rows) != EXPECTED_ITEM_COUNT
+            or len(excluded_rows) != EXPECTED_EXCLUDED_ITEM_COUNT
+        ):
+            problem_codes.add("SOURCE_ELIGIBILITY_MISMATCH")
+            target_rows = []
+        for item in target_rows:
             item_id = _text(item.get("itemId"))
             levels = []
             for track in EXPECTED_TRACKS:
@@ -388,7 +424,10 @@ def build_probe_report(
             "revision": revision,
             "binarySha256": binary_sha,
         },
+        "sourceItemCount": len(input_rows),
         "targetItemCount": EXPECTED_ITEM_COUNT,
+        "excludedItemCount": len(excluded_rows),
+        "excludedItems": excluded_rows,
         "targetPairCount": EXPECTED_PAIR_COUNT,
         "exactPairCount": exact_pairs,
         "failedPairCount": EXPECTED_PAIR_COUNT - exact_pairs,
@@ -442,8 +481,10 @@ def validate_probe_report(
 
 
 __all__ = (
+    "EXPECTED_EXCLUDED_ITEM_COUNT",
     "EXPECTED_ITEM_COUNT",
     "EXPECTED_PAIR_COUNT",
+    "EXPECTED_SOURCE_ITEM_COUNT",
     "EXPECTED_TRACKS",
     "GearItemLevelStatProbeError",
     "SCHEMA_REVISION",

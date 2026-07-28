@@ -40,6 +40,7 @@ try:
         gear_resolver_runtime_authority,
         hero_trees_for_spec,
         item_can_enchant_slot,
+        item_payload_is_cosmetic_statless,
         normalize_option_value,
         normalize_slot,
         observed_gear_simc_options,
@@ -71,6 +72,7 @@ except ImportError:
         gear_resolver_runtime_authority,
         hero_trees_for_spec,
         item_can_enchant_slot,
+        item_payload_is_cosmetic_statless,
         normalize_option_value,
         normalize_slot,
         observed_gear_simc_options,
@@ -202,6 +204,78 @@ def _socket_probe_digest(socket_bonus_minimums: Mapping[str, Any]) -> str:
             if _text(bonus_id)
         },
     })
+
+
+def _exclude_noncombat_cosmetic_rows(
+    snapshot: Mapping[str, Any],
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    items = [
+        row
+        for row in snapshot.get("items") or []
+        if isinstance(row, dict)
+    ]
+    excluded_item_ids = {
+        _text(row.get("itemId"))
+        for row in items
+        if _text(row.get("itemId"))
+        and (
+            item_payload_is_cosmetic_statless(
+                row.get("payload") if isinstance(row.get("payload"), dict) else {}
+            )
+            or _text(
+                (
+                    row.get("payload")
+                    if isinstance(row.get("payload"), dict)
+                    else {}
+                ).get("armorType")
+            ).lower()
+            == "cosmetic"
+        )
+    }
+    variants = [
+        row
+        for row in snapshot.get("variants") or []
+        if isinstance(row, dict)
+    ]
+    excluded_variant_ids = {
+        _text(row.get("variantId"))
+        for row in variants
+        if _text(row.get("itemId")) in excluded_item_ids
+        and _text(row.get("variantId"))
+    }
+    projected = dict(snapshot)
+    projected["items"] = [
+        row
+        for row in items
+        if _text(row.get("itemId")) not in excluded_item_ids
+    ]
+    projected["sources"] = [
+        row
+        for row in snapshot.get("sources") or []
+        if isinstance(row, dict)
+        and _text(row.get("itemId")) not in excluded_item_ids
+    ]
+    projected["variants"] = [
+        row
+        for row in variants
+        if _text(row.get("itemId")) not in excluded_item_ids
+    ]
+    projected["options"] = [
+        row
+        for row in snapshot.get("options") or []
+        if isinstance(row, dict)
+        and _text(row.get("variantId")) not in excluded_variant_ids
+    ]
+    excluded = sorted(excluded_item_ids)
+    return projected, {
+        "excludedNonCombatItemCount": len(excluded),
+        "excludedNonCombatItemDigest": _canonical_digest(
+            {
+                "schemaRevision": "gear-noncombat-exclusion-v1",
+                "itemIds": excluded,
+            }
+        ),
+    }
 
 
 def _socket_fact_value(row: dict[str, Any], field: str) -> dict[str, Any]:
@@ -1678,10 +1752,13 @@ def prepare_staging_gear_release(
     if not isinstance(socket_bonus_minimums, Mapping) or not socket_bonus_minimums:
         raise GearReleaseIntegrityError("socket bonus evidence must be a non-empty mapping")
     normalized_bonus_minimums = socket_bonus_minimums
+    staging_snapshot, exclusion_evidence = _exclude_noncombat_cosmetic_rows(
+        store.snapshot_staging_gear()
+    )
     snapshot = _materialize_enhancement_management(
         _project_socket_facts_into_release_payloads(
             gear_socket_authority.materialize_gear_socket_facts(
-                store.snapshot_staging_gear(),
+                staging_snapshot,
                 season_revision=season_revision,
                 socket_bonus_minimums=normalized_bonus_minimums,
             )
@@ -1706,6 +1783,7 @@ def prepare_staging_gear_release(
                 "simcRuntimeRevision": _text(dependency_revisions.get("simcRuntimeRevision")),
                 "socketProbeDigest": _socket_probe_digest(normalized_bonus_minimums),
                 "materializedSocketFactDigest": _materialized_socket_fact_digest(snapshot),
+                **exclusion_evidence,
             },
         },
         parent_release_id=parent_release_id,
