@@ -202,6 +202,31 @@ class GearCatalogMigrationAuditTest(unittest.TestCase):
         self.assertEqual(result["mappedVariantCount"], 0)
         self.assertIn("CATALOG_VARIANT_HIGHEST_RANK_AMBIGUOUS", result["problemCodes"])
 
+    def test_catalog_problem_evidence_is_counted_and_sample_bounded(self):
+        rows = complete_catalog_rows()
+        rows["variants"] = [
+            {
+                "variantId": f"invalid-{index}",
+                "itemId": "1001",
+                "trackKey": "hero",
+                "rank": index + 1,
+                "itemLevel": 285,
+                "bonusIds": ["9001"],
+            }
+            for index in range(50)
+        ]
+
+        result = audit_catalog_mapping(
+            {"manifestRevision": "manifest-1", "gearReleaseId": "release-1"},
+            rows,
+        )
+
+        self.assertEqual(
+            result["problemCounts"]["CATALOG_VARIANT_STATIC_STATS_MISSING"],
+            50,
+        )
+        self.assertLessEqual(len(result["problems"]), 20)
+
     def test_exact_template_preserves_intermediate_rank_and_allows_empty_enhancements(self):
         result = audit_template_exactness(
             [exact_template("community-hero-3")],

@@ -47,6 +47,7 @@ _RESOURCE_FIELDS = (
     "filesystemFreeBytes",
     "filesystemUsedPercent",
 )
+_PROBLEM_SAMPLE_LIMIT = 20
 
 
 def _canonical(value: Any) -> Any:
@@ -136,6 +137,31 @@ def _problem_codes(problems: Iterable[Mapping[str, Any]]) -> list[str]:
             if _text(problem.get("code"))
         }
     )
+
+
+def _problem_counts(problems: Iterable[Mapping[str, Any]]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for problem in problems:
+        code = _text(problem.get("code"))
+        if code:
+            counts[code] = counts.get(code, 0) + 1
+    return dict(sorted(counts.items()))
+
+
+def _problem_samples(problems: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
+    canonical = [
+        _canonical(problem)
+        for problem in problems
+        if isinstance(problem, Mapping)
+    ]
+    canonical.sort(
+        key=lambda problem: (
+            _text(problem.get("code")),
+            _text(problem.get("path")),
+            _text(problem.get("message")),
+        )
+    )
+    return canonical[:_PROBLEM_SAMPLE_LIMIT]
 
 
 def _without_non_identity_fields(value: Any) -> Any:
@@ -350,7 +376,8 @@ def audit_catalog_mapping(binding: Any, rows: Any) -> dict[str, Any]:
         "optionTotal": len(options),
         "mappedOptionCount": mapped_option_count,
         "problemCodes": _problem_codes(problems),
-        "problems": _canonical(problems),
+        "problemCounts": _problem_counts(problems),
+        "problems": _problem_samples(problems),
     }
 
 
@@ -477,7 +504,8 @@ def _template_category(rows: Any, category: str) -> dict[str, Any]:
         "blockedCount": blocked_count,
         "sampleHashes": sorted(sample_hashes)[:20],
         "problemCodes": _problem_codes(problems),
-        "problems": _canonical(problems),
+        "problemCounts": _problem_counts(problems),
+        "problems": _problem_samples(problems),
     }
 
 
@@ -490,13 +518,24 @@ def audit_template_exactness(community_rows: Any, personal_rows: Any) -> dict[st
         *(community.get("problems") or []),
         *(personal.get("problems") or []),
     ]
+    problem_codes = sorted({
+        *list(community.get("problemCodes") or []),
+        *list(personal.get("problemCodes") or []),
+    })
     return {
         "schemaRevision": "gear-template-exactness-audit-v1",
         "status": _status((community["status"], personal["status"])),
         "community": community,
         "personal": personal,
-        "problemCodes": _problem_codes(problems),
-        "problems": _canonical(problems),
+        "problemCodes": problem_codes,
+        "problemCounts": {
+            code: (
+                _positive_int(community.get("problemCounts", {}).get(code))
+                + _positive_int(personal.get("problemCounts", {}).get(code))
+            )
+            for code in problem_codes
+        },
+        "problems": _problem_samples(problems),
     }
 
 
@@ -572,7 +611,8 @@ def audit_spec_coverage(spec_rows: Any) -> dict[str, Any]:
         "blockedSpecCount": blocked_count,
         "complete": complete,
         "problemCodes": _problem_codes(problems),
-        "problems": _canonical(problems),
+        "problemCounts": _problem_counts(problems),
+        "problems": _problem_samples(problems),
     }
 
 
@@ -622,7 +662,8 @@ def audit_resource_baseline(resource_rows: Any) -> dict[str, Any]:
         "measured": measured,
         **optional,
         "problemCodes": _problem_codes(problems),
-        "problems": _canonical(problems),
+        "problemCounts": _problem_counts(problems),
+        "problems": _problem_samples(problems),
     }
 
 
