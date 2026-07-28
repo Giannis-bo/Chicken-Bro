@@ -87,9 +87,19 @@
       "summary": "The clean exact head passed 692 Node tests, 2025 Python tests with one skip, 403 Taro/Vitest tests, typecheck, lint, UI architecture, package mechanics, asset integrity, JSON/syntax, Harness and diff checks."
     },
     {
-      "command": "PR CI and manual acceptance closure",
+      "command": "GitHub PR #103 Project Harness CI",
+      "status": "pass",
+      "summary": "GitHub Actions run 30375311055 completed the full Project Harness profile successfully against branch head f968b218e5498417f54faa11bf1604c6cd75dd67."
+    },
+    {
+      "command": "production WeChat candidate package",
+      "status": "pass",
+      "summary": "The production package for branch head f968b218e5498417f54faa11bf1604c6cd75dd67 passed request-domain and release-package gates with releaseReady=true, 145 promoted files, source hash sha256:550939fc1781ec80847377fef11f74d3fced5b93029bf78c382022b873304ccd, and the approved immutable API, UI-asset and runtime-media roots; the official DevTools CLI opened the project successfully."
+    },
+    {
+      "command": "manual acceptance and merge closure",
       "status": "not_run",
-      "summary": "PR CI, two frozen real-WeChat acceptance items, merge, post-merge refresh and three-party closure remain pending."
+      "summary": "The two frozen real-WeChat acceptance items, merge, post-merge refresh and three-party closure remain pending."
     }
   ],
   "candidateDeployment": {
@@ -222,6 +232,6 @@
     "artifacts/releases/2026-07-28-equipment-simulator-track-authority-correction/runtime-readonly-audit.json",
     "artifacts/releases/2026-07-28-equipment-simulator-track-authority-correction/phase1-decision.json"
   ],
-  "summary": "Strict Phase 0 runtime and data gates are live-verified on generation 32: exact progression authority, 1309/1309 canonical Browse mapping, 80/80 exact Community imports, 26/14 SimC policy, bounded resources, rollback/restoration and commit-to-cloud file parity pass. Global data health is still partial and is recorded honestly. Full exact-head verification, PR CI, two real-WeChat acceptance items, merge and post-merge three-party closure remain.",
-  "updatedAt": "2026-07-28T23:45:00+08:00"
+  "summary": "Strict Phase 0 runtime and data gates are live-verified on generation 32: exact progression authority, 1309/1309 canonical Browse mapping, 80/80 exact Community imports, 26/14 SimC policy, bounded resources, rollback/restoration and commit-to-cloud file parity pass. Full exact-head verification, PR #103 CI and the production WeChat candidate package pass. Global data health is still partial and is recorded honestly. Two real-WeChat acceptance items, merge and post-merge three-party closure remain.",
+  "updatedAt": "2026-07-28T23:59:23+08:00"
 }
