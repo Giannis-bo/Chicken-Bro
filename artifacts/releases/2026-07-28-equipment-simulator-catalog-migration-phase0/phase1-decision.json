@@ -2,7 +2,7 @@
   "schemaRevision": "equipment-simulator-phase1-decision-v1",
   "status": "blocked",
   "inputs": {
-    "auditReportId": "catalog-migration-audit:sha256:bd93f8109742128baa58c1ca607df08e9b5778ba2a1b93560ad30706659dc5c6",
+    "auditReportId": "catalog-migration-audit:sha256:f13af6b718f4b435cc4c10943680bb720acbc4056e60f2ef071798f70a210f17",
     "callerReportId": "gear-catalog-callers:sha256:5740024ed81d36067e52c790bf4716638f0409cbc41135a65f98195941ac4ba2"
   },
   "gates": {
@@ -19,8 +19,13 @@
       "facts": {
         "itemTotal": 1488,
         "mappedItemCount": 1312,
+        "excludedNonCatalogItemCount": 176,
         "variantTotal": 46631,
-        "mappedVariantCount": 356,
+        "browseVariantTotal": 1678,
+        "mappedBrowseVariantCount": 0,
+        "excludedExactInstanceCount": 44651,
+        "excludedPlaceholderVariantCount": 291,
+        "excludedReferenceVariantCount": 11,
         "optionTotal": 63,
         "mappedOptionCount": 63
       }
