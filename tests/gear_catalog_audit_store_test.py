@@ -5,6 +5,7 @@ from server.gear_catalog_audit_store import (
     GearCatalogAuditPointerChanged,
     GearCatalogAuditQueryFailed,
     GearCatalogAuditStore,
+    _normalized_gear_item,
 )
 
 
@@ -220,6 +221,43 @@ def write_statements(statements):
 
 
 class GearCatalogAuditStoreTest(unittest.TestCase):
+    def test_template_projection_preserves_enhancement_field_presence(self):
+        missing = _normalized_gear_item(
+            "head",
+            {
+                "itemId": "1001",
+                "variantKey": "observed-hero-3",
+                "simcOptions": {},
+            },
+            {},
+        )
+        explicit_empty = _normalized_gear_item(
+            "head",
+            {
+                "itemId": "1001",
+                "variantKey": "observed-hero-3",
+                "gemIds": [],
+                "enchantId": "",
+                "simcOptions": {
+                    "gem_id": "240892",
+                    "enchant_id": "7443",
+                },
+            },
+            {},
+        )
+
+        for field in (
+            "gemIds",
+            "gemBonusIds",
+            "gemItemLevels",
+            "enchantId",
+            "craftedStats",
+            "embellishmentIds",
+        ):
+            self.assertNotIn(field, missing)
+        self.assertEqual(explicit_empty["gemIds"], [])
+        self.assertEqual(explicit_empty["enchantId"], "")
+
     def test_snapshot_is_fixed_query_read_only_bounded_and_rolled_back(self):
         connection = FakeConnection(rowsets())
         store = GearCatalogAuditStore(lambda: connection)

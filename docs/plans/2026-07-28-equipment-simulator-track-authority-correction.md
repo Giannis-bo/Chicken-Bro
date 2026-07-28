@@ -309,9 +309,8 @@ Manifest、写生产数据或进入 Phase 1，立即停线并另行决策。
 
 ## 11. 实施结果
 
-2026-07-28 已按
-[独立实施计划](2026-07-28-equipment-simulator-track-authority-implementation.md)
-完成纯模块、read-only projection、progression-aware audit 和 CLI binding。精确提交
+2026-07-28 已完成并归档纯模块、read-only projection、progression-aware audit 和
+CLI binding。精确提交
 `2c7ff3a268a80a782431f288c3e23fbf2189f928` 在生产临时目录中通过 transient unit
 执行，未修改 `/opt/wow-mini-program`，unit 已收集且临时目录已删除。
 

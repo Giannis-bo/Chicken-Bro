@@ -130,39 +130,53 @@ def _normalized_gear_item(slot: Any, value: Any, enhancement: Any = None) -> dic
     item = _mapping(value)
     simc = _mapping(item.get("simcOptions"))
     enhancements = _mapping(enhancement)
+
+    def first_present(
+        *candidates: tuple[Mapping[str, Any], str],
+    ) -> tuple[bool, Any]:
+        for source, key in candidates:
+            if key in source:
+                return True, source.get(key)
+        return False, None
+
     bonus_ids = item.get("bonusIds") if "bonusIds" in item else None
     if bonus_ids is None:
         bonus_ids = _split_ids(simc.get("bonus_id"))
-    gem_ids = item.get("gemIds") if "gemIds" in item else None
-    if gem_ids is None:
-        gem_ids = enhancements.get("gemIds")
-    if gem_ids is None:
-        gem_ids = enhancements.get("gemOptionIds")
-    if gem_ids is None:
-        gem_ids = _split_ids(simc.get("gem_id"))
-    crafted_stats = item.get("craftedStats") if "craftedStats" in item else None
-    if crafted_stats is None:
-        crafted_stats = enhancements.get("craftedStats")
-    if crafted_stats is None:
-        crafted_stats = _split_ids(simc.get("crafted_stats"))
-    embellishments = (
-        item.get("embellishmentIds")
-        if "embellishmentIds" in item
-        else None
-    )
-    if embellishments is None:
-        embellishments = enhancements.get("embellishmentIds")
-    if embellishments is None:
-        embellishments = _split_ids(simc.get("embellishment"))
-    if "enchantId" in item:
-        enchant_id = item.get("enchantId")
-    elif "enchantId" in enhancements:
-        enchant_id = enhancements.get("enchantId")
-    elif "enchantOptionId" in enhancements:
-        enchant_id = enhancements.get("enchantOptionId")
-    else:
-        enchant_id = _text(simc.get("enchant_id"))
-    return {
+    enhancement_values = {
+        "gemIds": first_present(
+            (item, "gemIds"),
+            (enhancements, "gemIds"),
+            (enhancements, "gemOptionIds"),
+            (simc, "gem_id"),
+        ),
+        "gemBonusIds": first_present(
+            (item, "gemBonusIds"),
+            (enhancements, "gemBonusIds"),
+            (simc, "gem_bonus_id"),
+        ),
+        "gemItemLevels": first_present(
+            (item, "gemItemLevels"),
+            (enhancements, "gemItemLevels"),
+            (simc, "gem_ilevel"),
+        ),
+        "enchantId": first_present(
+            (item, "enchantId"),
+            (enhancements, "enchantId"),
+            (enhancements, "enchantOptionId"),
+            (simc, "enchant_id"),
+        ),
+        "craftedStats": first_present(
+            (item, "craftedStats"),
+            (enhancements, "craftedStats"),
+            (simc, "crafted_stats"),
+        ),
+        "embellishmentIds": first_present(
+            (item, "embellishmentIds"),
+            (enhancements, "embellishmentIds"),
+            (simc, "embellishment"),
+        ),
+    }
+    result = {
         "slot": _text(slot or item.get("slot")),
         "itemId": _text(item.get("itemId") or item.get("id")),
         "variantKey": _text(item.get("variantKey")),
@@ -171,19 +185,19 @@ def _normalized_gear_item(slot: Any, value: Any, enhancement: Any = None) -> dic
         "trackKey": _text(item.get("trackKey") or item.get("upgradeTrack")),
         "rank": _int(item.get("rank") or item.get("trackRank") or item.get("upgradeRank")),
         "ilevel": _int(item.get("ilevel") or item.get("itemLevel") or simc.get("ilevel")),
-        "gemIds": list(gem_ids) if isinstance(gem_ids, list) else gem_ids,
-        "enchantId": enchant_id,
-        "craftedStats": (
-            list(crafted_stats)
-            if isinstance(crafted_stats, list)
-            else crafted_stats
-        ),
-        "embellishmentIds": (
-            list(embellishments)
-            if isinstance(embellishments, list)
-            else embellishments
-        ),
     }
+    for field, (present, selected) in enhancement_values.items():
+        if not present:
+            continue
+        if field == "enchantId":
+            result[field] = selected
+        elif isinstance(selected, list):
+            result[field] = list(selected)
+        elif isinstance(selected, str):
+            result[field] = _split_ids(selected)
+        else:
+            result[field] = selected
+    return result
 
 
 def _gear_items_from_slots(slots: Any, enhancements: Any = None) -> list[dict[str, Any]]:
@@ -505,6 +519,7 @@ class GearCatalogAuditStore:
                 "bonusIds": [_text(value) for value in bonus_ids if _text(value)],
                 "simcOptions": simc_options,
                 "staticStats": _stat_map(static_stats),
+                "context": payload.get("context"),
                 "sourceType": _text(row[10]),
                 "hasVoidInstanceSource": row[11] is True,
                 "hasCraftedSource": len(row) > 12 and row[12] is True,

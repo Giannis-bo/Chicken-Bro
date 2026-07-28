@@ -1,5 +1,5 @@
 {
-  "version": "2026-07-23-observed-build-registry-core-v1",
+  "version": "2026-07-29-equipment-simulator-phase2-exact-enhancement-v1",
   "status": "phase4_admin_gate_queue_summary_read_model_selector_extracted",
   "harnessVersion": "v0.6.4",
   "defaultEvidenceLevel": "local_verified",
@@ -13,8 +13,8 @@
   "hotspotFiles": [
     {
       "path": "server/gear_catalog_migration_audit.py",
-      "healthStatus": "phase1_dormant_catalog_in_progress",
-      "summary": "Owns the verified Phase 0 migration classification plus the Phase 1 deterministic dormant Catalog builder, fixed-query projection, append-only store and bounded 40-specialization shadow.",
+      "healthStatus": "phase2_dormant_exact_cache_in_progress",
+      "summary": "Owns the archived Phase 0/1 catalog migration contracts plus the Phase 2 privacy-safe ExactItemInstance and EnhancementSelection builders, append-only store and bounded template shadow.",
       "owners": [
         {
           "id": "equipment_simulator_catalog_migration_phase0",
@@ -49,7 +49,7 @@
         },
         {
           "id": "equipment_simulator_catalog_revision_phase1",
-          "status": "dormant_catalog_implementation",
+          "status": "phase1_archived",
           "factOwner": "server/gear_catalog_revision.py",
           "trackAuthorityOwner": "server/gear_track_authority.py",
           "readOnlyProjectionOwner": "server/gear_catalog_audit_store.py",
@@ -77,7 +77,42 @@
             "tests/postgres_schema_test.py"
           ],
           "runtimeConsumers": [],
-          "futureExtractionDirection": "A later explicit phase may add a candidate public reader only after exact production membership and 40-specialization parity are sealed."
+          "futureExtractionDirection": "Phase 2 consumes this archived dormant Catalog identity only as a validation boundary; public cutover remains forbidden."
+        },
+        {
+          "id": "equipment_simulator_exact_item_instance_phase2",
+          "status": "dormant_exact_cache_implementation",
+          "factOwner": "server/gear_exact_item_instance.py",
+          "registryOwner": "server/gear_exact_item_registry.py",
+          "trackAuthorityOwner": "server/gear_track_authority.py",
+          "readOnlyProjectionOwner": "server/gear_catalog_audit_store.py",
+          "writeOwner": "server/gear_exact_item_registry_store.py",
+          "migration": "server/migrations/postgres/0020_websim_gear_exact_item_instance.sql",
+          "cliOrchestrator": "scripts/gear-exact-item-instance.py",
+          "owns": [
+            "canonical EnhancementSelection identity with ordered gem semantics",
+            "canonical ExactItemInstance and exact variant identity",
+            "Catalog and Gear Rule bound static-fact validation",
+            "privacy-safe Community and personal template content references",
+            "append-only dormant exact registry seal, reload and bounded pointer-fenced shadow"
+          ],
+          "mustNotChange": [
+            "Do not create or change an active Catalog, Community, personal-template or Season Manifest pointer.",
+            "Do not route public API, Resolver, template import or SimC readers through dormant exact rows.",
+            "Do not materialize unreferenced historical exact rows or substitute another item variant for missing evidence.",
+            "Do not persist user IDs, owner names, access tokens, source template IDs, profile URLs or display provenance.",
+            "Do not update or delete sealed dormant exact rows."
+          ],
+          "characterization": [
+            "tests/gear_exact_item_instance_test.py",
+            "tests/gear_exact_item_registry_test.py",
+            "tests/gear_exact_item_registry_store_test.py",
+            "tests/gear_exact_item_instance_cli_test.py",
+            "tests/gear_catalog_audit_store_test.py",
+            "tests/postgres_schema_test.py"
+          ],
+          "runtimeConsumers": [],
+          "futureExtractionDirection": "A later explicit ResolvedLoadout phase may consume verified exact keys only after production shadow, identity parity and rollback evidence are archived."
         }
       ]
     },

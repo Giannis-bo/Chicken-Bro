@@ -1,0 +1,226 @@
+{
+  "schemaVersion": 2,
+  "slug": "equipment-simulator-phase2-exact-enhancement",
+  "requirementSlug": "equipment-simulator-phase2-exact-enhancement",
+  "status": "runtime_verified",
+  "highestEvidenceLevel": "runtime_verified",
+  "branch": "codex/equipment-simulator-phase2-exact-enhancement",
+  "commit": "7dc5467492f6966065c868604cb3cd56f42b1055",
+  "identities": {
+    "runtime": {
+      "status": "bound",
+      "kind": "git_commit",
+      "value": "7dc5467492f6966065c868604cb3cd56f42b1055"
+    },
+    "verification": {
+      "status": "bound_at_check",
+      "kind": "git_ref",
+      "value": "HEAD"
+    },
+    "closure": {
+      "status": "pending",
+      "reason": "PR merge and archive closure have not occurred."
+    }
+  },
+  "manualAcceptance": {
+    "required": false,
+    "status": "not_applicable",
+    "reason": "This phase adds a dormant backend cache and shadow migration without changing the current user-visible runtime path.",
+    "items": [],
+    "rollup": {
+      "total": 0,
+      "accepted": 0,
+      "notRunUserWaived": 0,
+      "pending": 0
+    }
+  },
+  "scope": [
+    "Canonical EnhancementSelection and ExactItemInstance identity",
+    "Append-only PostgreSQL exact cache and validations",
+    "Community and structured personal-template migration shadow",
+    "Bounded candidate verification with unchanged active Manifest"
+  ],
+  "verification": [
+    {
+      "command": "Exact/Enhancement RED/GREEN focused suites",
+      "status": "pass",
+      "summary": "The final 58 focused builder, registry, append-only store, migration schema, fixed-query projection and CLI tests pass. RED/candidate failures covered field-presence semantics, source/slot provenance separation, allowed partial evidence, nullable reference persistence and PostgreSQL JSON scalar read-back."
+    },
+    {
+      "command": "pre-candidate repository verification",
+      "status": "pass",
+      "summary": "692 Node tests, 2070 Python tests with one skip, 404 Taro/Vitest tests, compileall, typecheck, lint, UI architecture, raster integrity, package mechanics, syntax and Harness checks pass. UI package mechanics remain intentionally partial because local production domains are not configured; this is not represented as Phase 2 release readiness."
+    },
+    {
+      "command": "candidate dormant exact migration and production shadow",
+      "status": "pass",
+      "summary": "Immutable candidate 7dc54674 deterministically classified all 80 Community templates and 1242/1242 items, sealed and exactly reloaded 749 deduplicated ExactItemInstances, 141 EnhancementSelections and 749 validations, retained 1187 verified references plus 55 explicit multi-enchant partial references, produced zero blocked or silently dropped references, preserved generation 32, and passed twice with the same registry/report identities in 25.28 seconds at 888389632 peak bytes."
+    },
+    {
+      "command": "exact-head Project Harness full profile",
+      "status": "pass",
+      "summary": "Exact clean HEAD covers 692 Node tests, 2070 Python tests with one skip, 404 Taro/Vitest tests, compileall, typecheck, lint, UI architecture, raster and package mechanics, syntax checks, JSON validation, task-scoped Harness and diff checks."
+    },
+    {
+      "command": "pull request CI and merge closure",
+      "status": "not_run",
+      "summary": "Runs after exact-head verification."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "candidate_verified",
+    "requiredBeforeMerge": true,
+    "branch": "codex/equipment-simulator-phase2-exact-enhancement",
+    "commit": "7dc5467492f6966065c868604cb3cd56f42b1055",
+    "gitTree": "d890179d2d8ab788da59689f19b7586797b9ae36",
+    "host": "wow-lighthouse",
+    "candidatePath": "/opt/wow-mini-program-candidates/gear-exact-7dc54674.OGDIgq",
+    "runtimePath": "/opt/wow-mini-program",
+    "baseUrl": "http://127.0.0.1:8787",
+    "catalogRevision": "gear-catalog:sha256:2addca2ff52fdcc2d23c369572c88fba9919332927f07f10350d700654e5aa34",
+    "registryRevision": "gear-exact-registry:sha256:ef910dd82d402f035959e628295e7d2b05dd74aca02463163c452da2d5eeb88a",
+    "reportId": "gear-exact-shadow:sha256:2db613dee2a92047b34c3a2f0589b44b28d4c4cb9ceed18c7edc13358f793fd3",
+    "manifestRevision": "season-manifest:sha256:b79e6226c7dc406c2e729cf01cf6d86f4944b760b8e8cc185dcd4347032fedb6",
+    "pointerGeneration": 32,
+    "runtimeFileParity": {
+      "status": "pass",
+      "summary": "All six Phase 2 runtime/migration files in /opt/wow-mini-program match immutable candidate 7dc54674 by SHA-256. The owners are dormant and not imported by the active backend, so no service restart was required."
+    },
+    "smoke": {
+      "status": "pass",
+      "summary": "Candidate and deployed-runtime shadows both pass; repeat execution is idempotent. PostgreSQL contains exactly 141 selections, 749 instances, 749 validations and 1242 references; 1187 verified references have keys, 55 partial references have NULL keys, zero references are blocked, owner-key leakage is zero, all eight UPDATE/DELETE trigger events exist, and wow_app has only the expected eight SELECT/INSERT grants. /health and both runtime services pass with zero restarts. Global /api/data/health remains literally partial with 11 partial/blocked/stale components."
+    },
+    "timerBackflow": {
+      "status": "pass",
+      "summary": "Existing data-health, observed-backfill, Community and SimC timers retained their schedules; WOW_DEPLOY_START_ASYNC_SYNCS=0 and no sync or backflow was triggered."
+    },
+    "rollback": {
+      "status": "pass",
+      "summary": "The generation-32 active pointer and public readers never changed. A schema-before dump and runtime-before backup of the replaced audit projector remain under the Phase 2 backup roots; new Exact modules and sealed dormant rows are unreferenced by active readers."
+    }
+  },
+  "runtimeEvidence": [
+    {
+      "candidateCommit": "5ee638d24e9698a12a4f1828d2a62b81a1e46d09",
+      "status": "blocked",
+      "problemCodes": [
+        "ENHANCEMENT_SINGLE_VALUE_MALFORMED",
+        "EXACT_ENHANCEMENT_SOURCE_MISMATCH",
+        "EXACT_REGISTRY_VALIDATION_CONFLICT"
+      ],
+      "pointerGenerationBefore": 32,
+      "pointerGenerationAfter": 32,
+      "sealedRows": 0,
+      "interpretation": "Fail-closed behavior was correct. The candidate exposed that the template projector invented absent enhancement fields, reference provenance polluted validation identity, and unresolved multi-enchant source values required explicit partial classification."
+    },
+    {
+      "candidateCommit": "f3cc961059d994595ab94f80b5b45efc5f5b8dc0",
+      "status": "blocked",
+      "problemCodes": [
+        "EXACT_REGISTRY_VALIDATION_CONFLICT",
+        "EXACT_SHADOW_REGISTRY_STATUS_INVALID"
+      ],
+      "reportId": "gear-exact-shadow:sha256:0cc0a0c4aeb1b1873823a161ea23c1974874f8afa94f8bdd01ae6a08d5766ce8",
+      "verifiedReferenceCount": 1087,
+      "partialReferenceCount": 55,
+      "blockedReferenceCount": 100,
+      "pointerGenerationBefore": 32,
+      "pointerGenerationAfter": 32,
+      "sealedRows": 0,
+      "interpretation": "Aggregate diagnostics proved all 100 remaining conflicts differed only by finger1/finger2 or trinket1/trinket2 placement; static facts and serializer inputs matched exactly."
+    },
+    {
+      "candidateCommit": "88181d461e449c1f10435ed14a04c668f5391d52",
+      "status": "blocked",
+      "problemCodes": [
+        "EXACT_SHADOW_SEAL_FOREIGN_KEY_VIOLATION"
+      ],
+      "reportWritten": false,
+      "sealedRows": 0,
+      "interpretation": "The transaction rolled back because a partial reference used an empty string instead of SQL NULL for its optional exact-instance foreign key."
+    },
+    {
+      "candidateCommit": "e88ea85d21cfb041044b5ed6d273900ef5b80f39",
+      "status": "blocked",
+      "problemCodes": [
+        "EXACT_SHADOW_JSON_SCALAR_READBACK_FAILED"
+      ],
+      "reportWritten": false,
+      "sealedRows": 0,
+      "interpretation": "The transaction rolled back during exact read-back because psycopg had already decoded a scalar JSON context. Store SELECTs now cast every JSONB value to canonical text before parsing."
+    },
+    {
+      "candidateCommit": "7dc5467492f6966065c868604cb3cd56f42b1055",
+      "status": "verified",
+      "registryStatus": "partial",
+      "problemCodes": [],
+      "evidenceGapCodes": [
+        "ENHANCEMENT_SINGLE_VALUE_MALFORMED"
+      ],
+      "reportId": "gear-exact-shadow:sha256:2db613dee2a92047b34c3a2f0589b44b28d4c4cb9ceed18c7edc13358f793fd3",
+      "registryRevision": "gear-exact-registry:sha256:ef910dd82d402f035959e628295e7d2b05dd74aca02463163c452da2d5eeb88a",
+      "elapsedSeconds": 25.27800906597986,
+      "memoryPeakBytes": 888389632,
+      "memoryLimitBytes": 2000000000,
+      "runtimeLimitSeconds": 300,
+      "pointerGenerationBefore": 32,
+      "pointerGenerationAfter": 32,
+      "summary": {
+        "templateCount": 80,
+        "classifiedTemplateCount": 80,
+        "templateItemCount": 1242,
+        "classifiedTemplateItemCount": 1242,
+        "verifiedReferenceCount": 1187,
+        "partialReferenceCount": 55,
+        "blockedReferenceCount": 0,
+        "enhancementSelectionCount": 141,
+        "exactItemInstanceCount": 749,
+        "validationCount": 749,
+        "sourceExactRowCount": 48555,
+        "unreferencedExactRowCount": 47313
+      },
+      "interpretation": "The candidate and deployed-runtime rerun both pass with the same registry/report identities. Partial multi-enchant source rows remain explicit and have no exact key; future loadout consumers are verified-reference-only."
+    }
+  ],
+  "risks": [
+    {
+      "id": "enhancement-source-conflict",
+      "status": "mitigated_partial",
+      "detail": "No verified reference has an enhancement mismatch. Fifty-five source rows contain multiple unresolved enchant values and remain explicit partial references without ExactItemInstance keys."
+    },
+    {
+      "id": "personal-owner-privacy",
+      "status": "verified",
+      "detail": "The production snapshot currently contains zero structured personal gear templates; projector/store tests pass and recursive inspection finds zero owner-bearing keys in all 1242 sealed references."
+    },
+    {
+      "id": "historical-exact-volume",
+      "status": "verified",
+      "detail": "Only 1242 referenced source rows were considered and 749 exact identities were materialized; 47313 unreferenced historical rows were not copied. Runtime stayed below both hard limits."
+    },
+    {
+      "id": "active-pointer-safety",
+      "status": "verified",
+      "detail": "Every blocked and passing candidate retained generation 32; services stayed active with zero restarts."
+    },
+    {
+      "id": "migration-object-ownership",
+      "status": "managed_exception",
+      "detail": "The production Phase 1 Catalog table is owned by the database administrator, so the repository migration was applied idempotently through the existing PostgreSQL administrator path after the narrower runtime roles correctly failed to create cross-table foreign keys."
+    }
+  ],
+  "rollback": [
+    "code_rollback",
+    "service_rollback",
+    "dormant_exact_cache_unreferenced",
+    "active_manifest_pointer_unchanged"
+  ],
+  "cleanup": {
+    "required": true,
+    "reason": "Candidate backups, transient reports and the task branch require cleanup after closure."
+  },
+  "archivedReferences": [
+    "artifacts/releases/2026-07-29-equipment-simulator-phase1-catalog-contract/evidence.json"
+  ],
+  "summary": "Phase 2 immutable candidate, deployed dormant runtime and exact-head repository verification are complete. All 80 templates and 1242 items are classified with 1187 verified and 55 explicit partial references, zero blocked/silent drops, stable generation 32, exact database/runtime parity and honest global partial health. PR CI, merge closure and cleanup remain."
+}

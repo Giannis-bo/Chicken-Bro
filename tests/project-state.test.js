@@ -103,6 +103,7 @@ test('project-state is the single machine-readable current truth entry', () => {
   assert.ok(activeContractIds.has('equipment_simulator_catalog_migration_phase0'))
   assert.ok(activeContractIds.has('equipment_simulator_track_authority_correction'))
   assert.ok(!activeContractIds.has('equipment_simulator_phase1_catalog_contract'))
+  assert.ok(activeContractIds.has('equipment_simulator_phase2_exact_enhancement'))
   const catalogMigrationPhase0 = state.activeContracts.find(
     (entry) => entry.id === 'equipment_simulator_catalog_migration_phase0',
   )
@@ -112,22 +113,30 @@ test('project-state is the single machine-readable current truth entry', () => {
   const equipmentTargetArchitecture = state.activeContracts.find(
     (entry) => entry.id === 'equipment_simulator_target_architecture_v1',
   )
+  const equipmentPhase2Exact = state.activeContracts.find(
+    (entry) => entry.id === 'equipment_simulator_phase2_exact_enhancement',
+  )
   assert.equal(
     equipmentTargetArchitecture?.status,
-    'approved_phase1_closed_phase2_ready',
+    'approved_phase1_closed_phase2_candidate_verified',
+  )
+  assert.equal(equipmentPhase2Exact?.status, 'candidate_verified')
+  assert.equal(
+    equipmentPhase2Exact?.path,
+    'docs/plans/2026-07-29-equipment-simulator-phase2-exact-enhancement.md',
   )
   assert.equal(
     catalogMigrationPhase0?.path,
-    'docs/plans/2026-07-28-equipment-simulator-catalog-migration-phase0-implementation.md',
+    'artifacts/releases/2026-07-28-equipment-simulator-phase0-unblock/evidence.json',
   )
-  assert.equal(catalogMigrationPhase0?.status, 'audit_verified_generation_32')
+  assert.equal(catalogMigrationPhase0?.status, 'archived_generation_32_baseline')
   assert.equal(
     trackAuthorityContract?.path,
     'docs/plans/2026-07-28-equipment-simulator-track-authority-correction.md',
   )
   assert.equal(
-    trackAuthorityContract?.implementationPlan,
-    'docs/plans/2026-07-28-equipment-simulator-track-authority-implementation.md',
+    trackAuthorityContract?.implementationEvidence,
+    'artifacts/releases/2026-07-28-equipment-simulator-track-authority-correction/evidence.json',
   )
   assert.equal(trackAuthorityContract?.status, 'superseded_by_verified_phase0_runtime')
   const trackAuthorityRequirement = readJson(path.join(trackAuthorityCorrectionRelease, 'requirement.json'))
