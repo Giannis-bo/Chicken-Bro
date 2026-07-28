@@ -16,6 +16,7 @@ const completedHarnessV063Release = 'artifacts/releases/2026-07-20-harness-v0-6-
 const activeHarnessV064Release = 'artifacts/releases/2026-07-20-harness-v0-6-4-wechat-preview-refresh'
 const observedBuildRegistryRelease = 'artifacts/releases/2026-07-23-observed-build-registry-cutover'
 const catalogMigrationPhase0Release = 'artifacts/releases/2026-07-28-equipment-simulator-catalog-migration-phase0'
+const trackAuthorityCorrectionRelease = 'artifacts/releases/2026-07-28-equipment-simulator-track-authority-correction'
 const archivedTalentLkgRelease = 'artifacts/releases/2026-07-13-talent-link-lkg-sync-guard'
 const archivedCommunityEnhancementRelease = 'artifacts/releases/2026-07-14-community-enhancement-editability'
 
@@ -100,8 +101,12 @@ test('project-state is the single machine-readable current truth entry', () => {
   assert.ok(activeContractIds.has('observed_build_registry_cutover'))
   assert.ok(activeContractIds.has('equipment_simulator_target_architecture_v1'))
   assert.ok(activeContractIds.has('equipment_simulator_catalog_migration_phase0'))
+  assert.ok(activeContractIds.has('equipment_simulator_track_authority_correction'))
   const catalogMigrationPhase0 = state.activeContracts.find(
     (entry) => entry.id === 'equipment_simulator_catalog_migration_phase0',
+  )
+  const trackAuthorityContract = state.activeContracts.find(
+    (entry) => entry.id === 'equipment_simulator_track_authority_correction',
   )
   const equipmentTargetArchitecture = state.activeContracts.find(
     (entry) => entry.id === 'equipment_simulator_target_architecture_v1',
@@ -112,6 +117,17 @@ test('project-state is the single machine-readable current truth entry', () => {
     'docs/plans/2026-07-28-equipment-simulator-catalog-migration-phase0-implementation.md',
   )
   assert.equal(catalogMigrationPhase0?.status, 'audit_blocked')
+  assert.equal(
+    trackAuthorityContract?.path,
+    'docs/plans/2026-07-28-equipment-simulator-track-authority-correction.md',
+  )
+  assert.equal(
+    trackAuthorityContract?.implementationPlan,
+    'docs/plans/2026-07-28-equipment-simulator-track-authority-implementation.md',
+  )
+  const trackAuthorityRequirement = readJson(path.join(trackAuthorityCorrectionRelease, 'requirement.json'))
+  assert.equal(trackAuthorityRequirement.status, 'implementation_allowed')
+  assert.equal(trackAuthorityRequirement.classification, 'Strict')
   const catalogMigrationRequirement = readJson(path.join(catalogMigrationPhase0Release, 'requirement.json'))
   const catalogMigrationAudit = readJson(path.join(catalogMigrationPhase0Release, 'runtime-readonly-audit.json'))
   const catalogMigrationCallers = readJson(path.join(catalogMigrationPhase0Release, 'caller-inventory.json'))
@@ -223,7 +239,7 @@ test('project-state is the single machine-readable current truth entry', () => {
     assert.ok(!activePaths.has(entry.path), `${entry.path} should not be both active and historical`)
   }
 
-  for (const releasePath of [observedBuildRegistryRelease, activeHarnessV064Release, completedHarnessV063Release, archivedHarnessV062Release, activeHarnessSuperpowersRelease, archivedTalentLkgRelease, archivedCommunityEnhancementRelease, archivedPhase5Release, characterizationRelease, executableHarnessRelease, controlPlaneRelease]) {
+  for (const releasePath of [trackAuthorityCorrectionRelease, observedBuildRegistryRelease, activeHarnessV064Release, completedHarnessV063Release, archivedHarnessV062Release, activeHarnessSuperpowersRelease, archivedTalentLkgRelease, archivedCommunityEnhancementRelease, archivedPhase5Release, characterizationRelease, executableHarnessRelease, controlPlaneRelease]) {
     assertPathExists(path.join(releasePath, 'requirement.json'))
     assertPathExists(path.join(releasePath, 'evidence.json'))
     assertPathExists(path.join(releasePath, 'manifest.json'))

@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 1,
+  "slug": "equipment-simulator-track-authority-correction",
+  "classification": "Strict",
+  "status": "implementation_allowed",
+  "goal": "Classify legacy Browse rows through a versioned progression authority, separate crafted-stat selections, and rerun the bounded Phase 0 audit without changing runtime data, schemas, APIs, releases or pointers.",
+  "userValue": "A player can eventually choose a current-season equipment variant whose regular upgrade rank, crafted quality, Ascendant state and static attributes come from one explicit authority instead of guessed or overloaded legacy fields.",
+  "nonGoals": [
+    "Do not start Catalog migration Phase 1 or activate a new CatalogRevision.",
+    "Do not change PostgreSQL schema, Gear Release rows, Community Release rows, active Manifest pointers, public APIs, Taro pages, Resolver behavior, serializers, timers, services or SimulationCraft runtime.",
+    "Do not manufacture rank from generic payload fields, display text, tooltip text or bonus IDs.",
+    "Do not clear independent Phase 0 blockers such as missing Community Release evidence, 40-specialization candidate blockage, partial resource peaks or unresolved callers."
+  ],
+  "currentTruth": {
+    "sources": [
+      "docs/project-state.json",
+      "docs/roadmap.md",
+      "docs/plans/README.md",
+      "docs/plans/2026-07-28-equipment-simulator-target-architecture.md",
+      "docs/plans/2026-07-28-equipment-simulator-track-authority-correction.md",
+      "docs/plans/2026-07-28-equipment-simulator-track-authority-implementation.md",
+      "docs/plans/2026-07-28-equipment-simulator-catalog-migration-phase0-implementation.md",
+      "docs/gear-database-governance.md",
+      "docs/backend-owner-map.json",
+      "docs/project-owner-map.json",
+      "docs/harness.md",
+      "docs/verification-matrix.md"
+    ],
+    "databaseRuntime": "postgres_only",
+    "productionAccess": "bounded_read_only",
+    "allowedNextPlan": "none",
+    "baseDependency": "PR #101 at 18008e22320ef91ad0d891ab1ee378d4c506af49"
+  },
+  "impactMap": {
+    "mustChange": [
+      "Add one pure, versioned Track Authority bound to the active season and gear-rule revision.",
+      "Resolve regular upgrade tracks, crafted quality and Ascendant states into a discriminated progression contract without reading generic rank.",
+      "Project only the bounded source evidence needed by the authority through the existing read-only PostgreSQL audit store.",
+      "Collapse repeated crafted-stat legacy rows into one canonical BrowseVariant plus explicit EnhancementSelection associations.",
+      "Rerun the aggregate production audit with zero writes, stable active pointers and content-addressed evidence."
+    ],
+    "mustNotChange": [
+      "PostgreSQL schema and all persisted Gear, Community, Manifest and Catalog release rows remain unchanged.",
+      "Public API, Taro, Resolver, serializer, timer, service, deployment and SimulationCraft runtime behavior remain unchanged.",
+      "The original Phase 0 release packet remains immutable historical evidence for PR #101.",
+      "Phase 1 remains blocked unless every independent gate passes in one fresh mechanical decision."
+    ],
+    "riskUnknown": [
+      "Some ordinary Ascendant rows may lack sufficient governed source or observed exact-instance evidence and must remain blocked.",
+      "The known 48 missing-static-stat rows must remain explicit even after progression classification succeeds.",
+      "PR #101 must land before this stacked branch can expose exactly one task-scoped release packet against main."
+    ],
+    "evidenceRequired": [
+      "Failing and passing focused tests for authority binding, progression resolution, crafted collapse, read-only projection and CLI binding.",
+      "A fresh aggregate-only production audit using the exact committed tools in a disposable directory and transient collected unit.",
+      "Literal proof of zero PostgreSQL writes, stable active Manifest pointer, bounded query settings and complete cleanup.",
+      "A mechanical Phase 1 decision retaining every independent blocker and allowedNextPlan none.",
+      "A clean exact-head Harness check and task-only local code review."
+    ]
+  },
+  "ownership": {
+    "factOwner": "server/gear_track_authority.py owns pure season-bound progression classification; server/gear_catalog_audit_store.py owns bounded read-only SQL projection; server/gear_catalog_migration_audit.py owns aggregate mapping, problems and report identity.",
+    "consumers": [
+      "scripts/gear-catalog-migration-audit.py",
+      "Phase 0 migration decision",
+      "task-scoped Harness evidence"
+    ]
+  },
+  "engineeringHealth": {
+    "status": "strict_read_model_audit_guarded",
+    "reason": "This changes a PostgreSQL-backed migration audit and product truth contract. TDD, read-only production evidence, deterministic identities, pointer stability and local CR are required; runtime activation is outside scope."
+  },
+  "manualAcceptanceContract": {
+    "required": false,
+    "requiredItemIds": []
+  },
+  "acceptanceEvidence": [
+    "Focused Python and Node tests pass at a clean exact task head.",
+    "The read-only production rerun records legacy/canonical/crafted counts, all remaining problems, zero writes and stable pointers.",
+    "The task-scoped Harness profile passes with runtime and manual acceptance explicitly not applicable.",
+    "Local CR confirms no runtime consumer, schema write, release mutation, public API or Phase 1 activation entered the diff."
+  ],
+  "releaseTrigger": "pg_read_model",
+  "rollback": [
+    "code_rollback"
+  ],
+  "decisionLog": [
+    {
+      "date": "2026-07-28",
+      "decision": "The user approved keeping the existing equipment-simulator entry: build or import a class-specialization template, save it, then run the saved template through SimC."
+    },
+    {
+      "date": "2026-07-28",
+      "decision": "The user accepted unsupported SimC coverage for tank, healer and Augmentation specializations and asked the work to stay on the main equipment-simulation path."
+    },
+    {
+      "date": "2026-07-28",
+      "decision": "The user approved the Track Authority design and authorized continued implementation without starting Phase 1 or changing runtime data."
+    }
+  ]
+}

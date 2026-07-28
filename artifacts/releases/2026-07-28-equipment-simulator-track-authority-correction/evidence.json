@@ -1,0 +1,92 @@
+{
+  "schemaVersion": 2,
+  "slug": "equipment-simulator-track-authority-correction",
+  "requirementSlug": "equipment-simulator-track-authority-correction",
+  "status": "implementation_allowed",
+  "highestEvidenceLevel": "implementation_allowed",
+  "branch": "codex/equipment-simulator-track-authority",
+  "commit": "pending-task-commit",
+  "identities": {
+    "runtime": {
+      "status": "not_applicable",
+      "reason": "This correction is unconsumed audit tooling and read-only evidence; no runtime code, release row, service or pointer is activated."
+    },
+    "verification": {
+      "status": "pending",
+      "reason": "The final task head and focused verification do not exist yet."
+    },
+    "closure": {
+      "status": "pending",
+      "reason": "Implementation, production read-only evidence, local CR and the PR #101 base dependency remain open."
+    }
+  },
+  "manualAcceptance": {
+    "required": false,
+    "status": "not_applicable",
+    "reason": "This slice changes no player-visible page or active runtime consumer.",
+    "items": [],
+    "rollup": {
+      "total": 0,
+      "accepted": 0,
+      "notRunUserWaived": 0,
+      "pending": 0
+    }
+  },
+  "scope": [
+    "Pure season-bound Track Authority",
+    "Bounded read-only authority evidence projection",
+    "Progression-aware Phase 0 catalog mapping and crafted-stat collapse",
+    "Aggregate production audit, mechanical decision and current-truth evidence"
+  ],
+  "verification": [
+    {
+      "command": "focused Track Authority and catalog-audit Python tests",
+      "status": "not_run"
+    },
+    {
+      "command": "focused current-truth, owner-map and Harness Node tests",
+      "status": "not_run"
+    },
+    {
+      "command": "node scripts/verify-project.js --profile harness --release artifacts/releases/2026-07-28-equipment-simulator-track-authority-correction",
+      "status": "not_run"
+    }
+  ],
+  "candidateDeployment": {
+    "status": "not_applicable",
+    "requiredBeforeMerge": false,
+    "reason": "No active backend, API, UI, schema, release pointer, timer or service changes are permitted in this correction."
+  },
+  "runtimeEvidence": [],
+  "risks": [
+    {
+      "id": "ascendant-evidence-incomplete",
+      "status": "open",
+      "detail": "Rows without governed source, slot or observed exact-instance evidence must remain explicitly blocked."
+    },
+    {
+      "id": "static-stats-incomplete",
+      "status": "open",
+      "detail": "The 48 known rows without static stats remain a separate Phase 0 blocker."
+    },
+    {
+      "id": "stacked-base-pr",
+      "status": "open",
+      "detail": "PR #101 remains the unmerged base; no new PR may be opened until the task diff contains exactly one complete release packet."
+    }
+  ],
+  "rollback": [
+    "code_rollback"
+  ],
+  "cleanup": {
+    "required": true,
+    "status": "pending",
+    "reason": "The future production read-only rerun must remove its exact disposable directory and collect its transient systemd unit."
+  },
+  "archivedReferences": [
+    "artifacts/releases/2026-07-28-equipment-simulator-catalog-migration-phase0/runtime-readonly-audit.json",
+    "artifacts/releases/2026-07-28-equipment-simulator-catalog-migration-phase0/phase1-decision.json"
+  ],
+  "summary": "The user-approved Track Authority correction is implementation-allowed. Runtime and manual acceptance are not applicable; TDD, the zero-write production audit, exact-head Harness evidence and local CR remain pending.",
+  "updatedAt": "2026-07-28T16:42:18+08:00"
+}
