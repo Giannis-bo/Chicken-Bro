@@ -434,10 +434,18 @@ class GearCatalogAuditStore:
                 simc_options_json,
                 status,
                 blockers_json,
-                payload_json
-            FROM cache.websim_gear_release_variants
-            WHERE release_id = %s
-            ORDER BY item_id, variant_key, variant_id
+                payload_json,
+                variant.source_type,
+                EXISTS (
+                    SELECT 1
+                    FROM cache.websim_gear_release_sources source
+                    WHERE source.release_id = variant.release_id
+                      AND source.item_id = variant.item_id
+                      AND source.instance_id = '1305'
+                ) AS has_void_instance_source
+            FROM cache.websim_gear_release_variants variant
+            WHERE variant.release_id = %s
+            ORDER BY variant.item_id, variant.variant_key, variant.variant_id
             """,
             (release_id,),
         )
@@ -474,6 +482,12 @@ class GearCatalogAuditStore:
                 "bonusIds": [_text(value) for value in bonus_ids if _text(value)],
                 "simcOptions": simc_options,
                 "staticStats": _stat_map(static_stats),
+                "sourceType": _text(row[10]),
+                "hasVoidInstanceSource": row[11] is True,
+                "hasTrackEvidence": (
+                    isinstance(payload.get("trackEvidence"), list)
+                    and bool(payload.get("trackEvidence"))
+                ),
                 "status": _text(row[7]),
                 "blockers": _json_value(row[8], []),
             })

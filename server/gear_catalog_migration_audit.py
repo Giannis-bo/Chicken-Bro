@@ -13,8 +13,12 @@ import json
 import re
 from typing import Any, Iterable, Mapping
 
+from server.gear_track_authority import (
+    resolve_legacy_browse_progression,
+    track_authority_for_binding,
+)
 
-AUDIT_SCHEMA_REVISION = "equipment-simulator-catalog-migration-audit-v1"
+AUDIT_SCHEMA_REVISION = "equipment-simulator-catalog-migration-audit-v2"
 AUDIT_REPORT_PREFIX = "catalog-migration-audit:sha256:"
 _STATUS_RANK = {"verified": 0, "partial": 1, "blocked": 2}
 _NON_IDENTITY_KEYS = {
@@ -199,6 +203,46 @@ def _static_stats(value: Any) -> dict[str, int | float] | None:
     return result
 
 
+def _crafted_stats_choice(row: Mapping[str, Any]) -> tuple[str, ...] | None:
+    simc_options = _mapping(row.get("simcOptions"))
+    value = simc_options.get("crafted_stats")
+    if isinstance(value, str):
+        normalized = value.strip()
+        return (normalized,) if normalized else None
+    if isinstance(value, (list, tuple)):
+        normalized = _string_list(value)
+        return tuple(normalized) if normalized else None
+    return None
+
+
+def _canonical_progression_key(
+    item_id: str,
+    progression_state: Mapping[str, Any],
+) -> tuple[str, str]:
+    return (
+        item_id,
+        json.dumps(
+            _canonical(progression_state),
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ),
+    )
+
+
+def _is_crafted_progression(
+    row: Mapping[str, Any],
+    progression_state: Mapping[str, Any],
+) -> bool:
+    return (
+        _text(row.get("sourceType")).lower() == "crafted"
+        and (
+            progression_state.get("kind") == "crafted_quality"
+            or progression_state.get("originKind") == "crafted_quality"
+        )
+    )
+
+
 def audit_catalog_mapping(binding: Any, rows: Any) -> dict[str, Any]:
     """Classify whether one active release can become a catalog deterministically."""
 
@@ -264,11 +308,54 @@ def audit_catalog_mapping(binding: Any, rows: Any) -> dict[str, Any]:
         if item_id:
             seen_item_ids.add(item_id)
 
-    variant_candidates: dict[tuple[str, str], list[dict[str, Any]]] = {}
-    browse_variant_total = 0
+    track_authority = track_authority_for_binding(active_binding)
+    if track_authority.get("status") != "verified":
+        for authority_problem in track_authority.get("problems") or []:
+            if not isinstance(authority_problem, Mapping):
+                continue
+            problems.append(_problem(
+                _text(authority_problem.get("code"))
+                or "TRACK_AUTHORITY_BINDING_UNSUPPORTED",
+                "binding.trackAuthority",
+                _text(authority_problem.get("message"))
+                or "Track Authority binding is unsupported.",
+            ))
+
+    observed_ascendant_item_ids = {
+        _text(_row_value(row, "itemId"))
+        for row in variants
+        if _text(row.get("rowFamily")) == "exact_instance"
+        and _positive_int(_row_value(row, "itemLevel", "ilevel")) == 298
+        and _text(row.get("status")) == "verified"
+        and _static_stats(_row_value(row, "staticStats", "itemStats")) is not None
+        and _text(_row_value(row, "itemId"))
+    }
+    variant_candidates: dict[tuple[str, str], dict[str, Any]] = {}
+    legacy_browse_variant_total = 0
+    crafted_enhancement_selection_row_count = 0
     excluded_exact_instance_count = 0
     excluded_placeholder_variant_count = 0
     excluded_reference_variant_count = 0
+    progression_counts = {
+        "upgrade_track": {
+            "legacyRowCount": 0,
+            "canonicalCandidateCount": 0,
+            "mappedCandidateCount": 0,
+        },
+        "crafted_quality": {
+            "legacyRowCount": 0,
+            "canonicalCandidateCount": 0,
+            "mappedCandidateCount": 0,
+        },
+        "ascendant": {
+            "legacyRowCount": 0,
+            "canonicalCandidateCount": 0,
+            "mappedCandidateCount": 0,
+            "craftedLegacyRowCount": 0,
+            "craftedCanonicalCandidateCount": 0,
+            "craftedMappedCandidateCount": 0,
+        },
+    }
     for index, row in enumerate(variants):
         row_family = _text(row.get("rowFamily"))
         if row_family == "exact_instance":
@@ -287,10 +374,8 @@ def audit_catalog_mapping(binding: Any, rows: Any) -> dict[str, Any]:
                 "Legacy variant must be classified before Catalog mapping.",
             ))
             continue
-        browse_variant_total += 1
+        legacy_browse_variant_total += 1
         item_id = _text(_row_value(row, "itemId"))
-        track_key = _text(_row_value(row, "trackKey"))
-        rank = _positive_int(_row_value(row, "trackRank", "upgradeRank"))
         item_level = _positive_int(_row_value(row, "itemLevel", "ilevel"))
         bonus_ids = _string_list(_row_value(row, "bonusIds"))
         static_stats = _static_stats(_row_value(row, "staticStats", "itemStats"))
@@ -306,18 +391,6 @@ def audit_catalog_mapping(binding: Any, rows: Any) -> dict[str, Any]:
                 "CATALOG_VARIANT_ITEM_ORPHAN",
                 f"rows.variants[{index}].itemId",
                 "BrowseVariant must reference a mapped ItemDefinition.",
-            ))
-        if not track_key:
-            row_problems.append(_problem(
-                "CATALOG_VARIANT_TRACK_MISSING",
-                f"rows.variants[{index}].trackKey",
-                "BrowseVariant mapping requires a canonical track.",
-            ))
-        if not rank:
-            row_problems.append(_problem(
-                "CATALOG_VARIANT_RANK_MISSING",
-                f"rows.variants[{index}].rank",
-                "BrowseVariant mapping requires a positive rank.",
             ))
         if not item_level:
             row_problems.append(_problem(
@@ -337,31 +410,103 @@ def audit_catalog_mapping(binding: Any, rows: Any) -> dict[str, Any]:
                 f"rows.variants[{index}].staticStats",
                 "BrowseVariant mapping requires verified static stats.",
             ))
+
+        progression_result: Mapping[str, Any] = {}
+        progression_state: Mapping[str, Any] = {}
+        if track_authority.get("status") == "verified":
+            authority_row = dict(row)
+            if item_id in observed_ascendant_item_ids:
+                authority_row["hasObservedAscendantEvidence"] = True
+            progression_result = resolve_legacy_browse_progression(
+                active_binding,
+                authority_row,
+            )
+            progression_state = _mapping(
+                progression_result.get("progressionState")
+            )
+            if progression_result.get("status") != "verified":
+                for authority_problem in progression_result.get("problems") or []:
+                    if not isinstance(authority_problem, Mapping):
+                        continue
+                    row_problems.append(_problem(
+                        _text(authority_problem.get("code"))
+                        or "TRACK_AUTHORITY_ROW_MALFORMED",
+                        f"rows.variants[{index}].progressionState",
+                        _text(authority_problem.get("message"))
+                        or "Track Authority could not resolve this Browse row.",
+                    ))
+
         problems.extend(row_problems)
-        if item_id and track_key and rank:
-            variant_candidates.setdefault((item_id, track_key), []).append({
-                "index": index,
-                "rank": rank,
-                "valid": not row_problems,
-            })
+        if not item_id or not progression_state:
+            continue
+
+        progression_kind = _text(progression_state.get("kind"))
+        is_crafted = _is_crafted_progression(row, progression_state)
+        if progression_kind in progression_counts:
+            progression_counts[progression_kind]["legacyRowCount"] += 1
+            if progression_kind == "ascendant" and is_crafted:
+                progression_counts["ascendant"]["craftedLegacyRowCount"] += 1
+
+        candidate_key = _canonical_progression_key(item_id, progression_state)
+        candidate = variant_candidates.setdefault(candidate_key, {
+            "itemId": item_id,
+            "progressionState": _canonical(progression_state),
+            "progressionKind": progression_kind,
+            "isCrafted": is_crafted,
+            "rowIndexes": [],
+            "valid": True,
+            "craftedStatsChoices": set(),
+        })
+        candidate["rowIndexes"].append(index)
+        if row_problems:
+            candidate["valid"] = False
+
+        if is_crafted:
+            crafted_enhancement_selection_row_count += 1
+            crafted_stats_choice = _crafted_stats_choice(row)
+            if crafted_stats_choice is None:
+                candidate["valid"] = False
+            elif crafted_stats_choice in candidate["craftedStatsChoices"]:
+                problems.append(_problem(
+                    "CATALOG_CRAFTED_STATS_DUPLICATE",
+                    f"rows.variants[{index}].simcOptions.crafted_stats",
+                    "One canonical crafted BrowseVariant cannot repeat the same crafted-stat selection.",
+                ))
+                candidate["valid"] = False
+            else:
+                candidate["craftedStatsChoices"].add(crafted_stats_choice)
 
     mapped_variant_count = 0
-    excluded_lower_rank_count = 0
-    for (item_id, track_key), candidates in sorted(variant_candidates.items()):
-        highest_rank = max(candidate["rank"] for candidate in candidates)
-        highest = [candidate for candidate in candidates if candidate["rank"] == highest_rank]
-        excluded_lower_rank_count += sum(
-            1 for candidate in candidates if candidate["rank"] < highest_rank
-        )
-        if len(highest) != 1:
+    for candidate_key, candidate in sorted(variant_candidates.items()):
+        if not candidate["isCrafted"] and len(candidate["rowIndexes"]) != 1:
             problems.append(_problem(
-                "CATALOG_VARIANT_HIGHEST_RANK_AMBIGUOUS",
-                f"rows.variants[{item_id}:{track_key}]",
-                "One item and track has more than one highest-rank candidate.",
+                "CATALOG_VARIANT_CANONICAL_DUPLICATE",
+                f"rows.variants[{candidate['itemId']}:{candidate_key[1]}]",
+                "One non-crafted canonical BrowseVariant must map from exactly one legacy row.",
             ))
-            continue
-        if highest[0]["valid"]:
+            candidate["valid"] = False
+
+        progression_kind = candidate["progressionKind"]
+        if progression_kind in progression_counts:
+            progression_counts[progression_kind]["canonicalCandidateCount"] += 1
+            if progression_kind == "ascendant" and candidate["isCrafted"]:
+                progression_counts["ascendant"]["craftedCanonicalCandidateCount"] += 1
+        if candidate["valid"]:
             mapped_variant_count += 1
+            if progression_kind in progression_counts:
+                progression_counts[progression_kind]["mappedCandidateCount"] += 1
+                if progression_kind == "ascendant" and candidate["isCrafted"]:
+                    progression_counts["ascendant"]["craftedMappedCandidateCount"] += 1
+
+    canonical_browse_variant_total = len(variant_candidates)
+    crafted_canonical_candidate_count = sum(
+        1 for candidate in variant_candidates.values()
+        if candidate["isCrafted"]
+    )
+    collapsed_crafted_variant_row_count = max(
+        0,
+        crafted_enhancement_selection_row_count - crafted_canonical_candidate_count,
+    )
 
     mapped_option_count = 0
     seen_option_keys: set[str] = set()
@@ -400,18 +545,26 @@ def audit_catalog_mapping(binding: Any, rows: Any) -> dict[str, Any]:
 
     status = "blocked" if problems else "verified"
     return {
-        "schemaRevision": "gear-catalog-mapping-audit-v1",
+        "schemaRevision": "gear-catalog-mapping-audit-v2",
         "status": status,
         "manifestRevision": _text(active_binding.get("manifestRevision")),
         "gearReleaseId": _text(active_binding.get("gearReleaseId")),
+        "trackAuthority": track_authority,
         "itemTotal": len(items),
         "mappedItemCount": len(mapped_item_ids),
         "excludedNonCatalogItemCount": excluded_non_catalog_item_count,
         "variantTotal": len(variants),
-        "browseVariantTotal": browse_variant_total,
+        "browseVariantTotal": legacy_browse_variant_total,
+        "legacyBrowseVariantTotal": legacy_browse_variant_total,
+        "canonicalBrowseVariantTotal": canonical_browse_variant_total,
         "mappedBrowseVariantCount": mapped_variant_count,
         "mappedVariantCount": mapped_variant_count,
-        "excludedLowerRankCount": excluded_lower_rank_count,
+        "craftedEnhancementSelectionRowCount": (
+            crafted_enhancement_selection_row_count
+        ),
+        "collapsedCraftedVariantRowCount": collapsed_crafted_variant_row_count,
+        "progressionCounts": progression_counts,
+        "excludedLowerRankCount": 0,
         "excludedExactInstanceCount": excluded_exact_instance_count,
         "excludedPlaceholderVariantCount": excluded_placeholder_variant_count,
         "excludedReferenceVariantCount": excluded_reference_variant_count,

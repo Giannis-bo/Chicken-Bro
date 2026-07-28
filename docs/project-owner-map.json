@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-07-23",
+  "updatedAt": "2026-07-28",
   "status": "project_owner_map_active",
   "harnessVersion": "v0.6.4",
   "activeMilestone": "taro_target_first_14_route_rebuild",
@@ -381,6 +381,20 @@
         "runtimeConsumers": [],
         "activationBoundary": "Task 1 defines deterministic max-not-sum socket facts only; release materialization and runtime consumption remain outside this slice."
       },
+      "trackAuthorityFoundations": {
+        "status": "pure_contract_only_unconsumed",
+        "factOwner": "server/gear_track_authority.py",
+        "modules": [
+          "server/gear_track_authority.py"
+        ],
+        "tests": [
+          "tests/gear_track_authority_test.py"
+        ],
+        "runtimeConsumers": [],
+        "aggregateEvidence": "artifacts/releases/2026-07-28-equipment-simulator-track-authority-correction/runtime-readonly-audit.json",
+        "phase1Decision": "artifacts/releases/2026-07-28-equipment-simulator-track-authority-correction/phase1-decision.json",
+        "activationBoundary": "This correction binds progression facts only for the read-only Phase 0 migration audit. It does not change Gear Release materialization, public payloads, Resolver behavior, CatalogRevision activation or player-visible runtime."
+      },
       "releaseTrainFoundations": {
         "status": "phase4e_active_manifest_and_scheduled_candidates",
         "modules": [
@@ -505,6 +519,7 @@
         "tests/gear_release_shadow_test.py",
         "tests/gear_release_refresh_test.py",
         "tests/gear_socket_authority_test.py",
+        "tests/gear_track_authority_test.py",
         "tests/community_template_import_test.py",
         "tests/observed_build_characterization_test.py",
         "tests/observed_build_registry_test.py",
@@ -541,6 +556,7 @@
       "changedPathPatterns": [
         "server/gear_public_contract.py",
         "server/gear_socket_authority.py",
+        "server/gear_track_authority.py",
         "server/websim_payload.py",
         "server/pg_gear_template_selectors.py",
         "server/gear_contracts.py",
@@ -584,6 +600,7 @@
         "tests/gear_release_shadow_test.py",
         "tests/gear_release_refresh_test.py",
         "tests/gear_socket_authority_test.py",
+        "tests/gear_track_authority_test.py",
         "tests/gear_stat_snapshot_test.py",
         "tests/gear_stat_snapshot_store_test.py",
         "tests/pg_gear_authority_loader_test.py",

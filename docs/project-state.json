@@ -60,28 +60,65 @@
       "path": "docs/plans/2026-07-28-equipment-simulator-target-architecture.md",
       "status": "approved_phase0_audit_blocked",
       "lifecycle": "active",
-      "notes": "The approved target architecture remains active, but the corrected read-only Phase 0 audit blocks migration planning: all 1678 Browse rows lack dedicated track-rank authority, 48 also lack static stats, the active Manifest has no Community Release, 40/40 specialization initial candidate baselines are blocked, resource peaks remain partial and five runtime caller references remain unresolved."
+      "notes": "The approved target architecture remains active, but the fresh Track Authority read-only audit still blocks migration planning. It classified 1678 legacy Browse rows as 1116 regular upgrade-track rows, 324 crafted-quality rows, 124 ordinary Ascendant rows and 114 crafted Ascendant rows, yielding 1313 canonical candidates and 1265 mapped candidates. The remaining 48 candidates lack static stats; the active Manifest has no Community Release, 40/40 specialization initial candidate baselines are blocked, resource peaks remain partial and five runtime caller references remain unresolved."
+    },
+    {
+      "id": "equipment_simulator_track_authority_correction",
+      "path": "docs/plans/2026-07-28-equipment-simulator-track-authority-correction.md",
+      "status": "audit_rerun_complete_blocked",
+      "lifecycle": "active",
+      "implementationPlan": "docs/plans/2026-07-28-equipment-simulator-track-authority-implementation.md",
+      "auditReportId": "catalog-migration-audit:sha256:10c28022cbe3cb4cfb9f79a7ca59d4fa0aa47e416ab868d0b133084b2c6ed8c7",
+      "evidence": "artifacts/releases/2026-07-28-equipment-simulator-track-authority-correction/evidence.json",
+      "phase1Decision": "artifacts/releases/2026-07-28-equipment-simulator-track-authority-correction/phase1-decision.json",
+      "notes": "The pure season-bound Track Authority and progression-aware Phase 0 audit are implemented and rerun against production in a disposable read-only unit. Regular tracks resolve to governed 6/6, 438 crafted-stat rows collapse into 73 canonical variants plus EnhancementSelection associations, and crafted/Ascendant states carry no fabricated rank. This does not authorize Phase 1, schema/API changes, release writes or pointer changes."
     },
     {
       "id": "equipment_simulator_catalog_migration_phase0",
       "path": "docs/plans/2026-07-28-equipment-simulator-catalog-migration-phase0-implementation.md",
       "status": "audit_blocked",
       "lifecycle": "active",
-      "auditReportId": "catalog-migration-audit:sha256:f13af6b718f4b435cc4c10943680bb720acbc4056e60f2ef071798f70a210f17",
+      "auditReportId": "catalog-migration-audit:sha256:10c28022cbe3cb4cfb9f79a7ca59d4fa0aa47e416ab868d0b133084b2c6ed8c7",
       "catalogMapping": {
         "itemTotal": 1488,
         "mappedItemCount": 1312,
         "excludedNonCatalogItemCount": 176,
         "variantTotal": 46631,
-        "browseVariantTotal": 1678,
-        "mappedBrowseVariantCount": 0,
+        "legacyBrowseVariantTotal": 1678,
+        "canonicalBrowseVariantTotal": 1313,
+        "mappedBrowseVariantCount": 1265,
+        "craftedEnhancementSelectionRowCount": 438,
+        "collapsedCraftedVariantRowCount": 365,
+        "progressionCounts": {
+          "upgrade_track": {
+            "legacyRowCount": 1116,
+            "canonicalCandidateCount": 1116,
+            "mappedCandidateCount": 1080
+          },
+          "crafted_quality": {
+            "legacyRowCount": 324,
+            "canonicalCandidateCount": 54,
+            "mappedCandidateCount": 54
+          },
+          "ascendant": {
+            "legacyRowCount": 238,
+            "canonicalCandidateCount": 143,
+            "mappedCandidateCount": 131,
+            "craftedLegacyRowCount": 114,
+            "craftedCanonicalCandidateCount": 19,
+            "craftedMappedCandidateCount": 19
+          }
+        },
+        "problemCounts": {
+          "CATALOG_VARIANT_STATIC_STATS_MISSING": 48
+        },
         "excludedExactInstanceCount": 44651,
         "excludedPlaceholderVariantCount": 291,
         "excludedReferenceVariantCount": 11,
         "optionTotal": 63,
         "mappedOptionCount": 63
       },
-      "notes": "The corrected bounded production audit classified observed profiles as Exact evidence rather than Browse variants and never interpreted generic community leaderboard rank as equipment track rank. Pointer generation 24 remained identical before/after and database writes stayed zero. The Phase 1 decision is blocked with allowedNextPlan=none."
+      "notes": "The fresh bounded production audit uses the exact season/rule Track Authority and never interprets generic community leaderboard rank as equipment track rank. It maps 1265/1313 canonical Browse candidates; all 48 remaining mapping problems are missing static stats. Pointer generation 24 remained identical before/after and database writes stayed zero. Independent template, 40-spec baseline, resource and caller gates keep the Phase 1 decision blocked with allowedNextPlan=none."
     }
   ],
   "completedBaselines": [
@@ -564,8 +601,8 @@
     {
       "id": "equipment_simulator_catalog_migration_phase0_blockers",
       "status": "blocked_measured",
-      "trigger": "The corrected 2026-07-28 read-only audit mapped 1312/1488 item definitions and explicitly excluded 176 unreferenced metadata rows. It classified 46631 legacy variant rows as 1678 Browse candidates, 44651 observed Exact instances, 291 placeholders and 11 preview references. No Browse row has dedicated track-rank authority and 48 also lack static stats. The active Manifest has no Community Release or community templates, all 40 specialization initial candidate rows are blocked, peak RSS/temp bytes remain unknown, and five runtime references remain unresolved. Do not design Catalog schema or API work around these gaps.",
-      "evidence": "artifacts/releases/2026-07-28-equipment-simulator-catalog-migration-phase0/phase1-decision.json"
+      "trigger": "The fresh 2026-07-28 Track Authority audit mapped 1312/1488 item definitions and 1265/1313 canonical Browse candidates. It collapses 438 crafted-stat rows into 73 canonical variants plus enhancement associations without inventing rank; the remaining 48 canonical candidates lack static stats. The active Manifest has no Community Release or community templates, all 40 specialization initial candidate rows are blocked, peak RSS/temp bytes remain unknown, and five runtime references remain unresolved. Do not design Catalog schema or API work around these gaps.",
+      "evidence": "artifacts/releases/2026-07-28-equipment-simulator-track-authority-correction/phase1-decision.json"
     }
   ]
 }

@@ -13,17 +13,18 @@
   "hotspotFiles": [
     {
       "path": "server/gear_catalog_migration_audit.py",
-      "healthStatus": "phase0_audit_blocked",
-      "summary": "Owns pure deterministic Phase 0 classification and aggregate report identity for the approved equipment-simulator Catalog migration audit; it has no runtime consumers or migration authority.",
+      "healthStatus": "track_authority_audit_rerun_blocked",
+      "summary": "Owns pure deterministic Phase 0 classification and aggregate report identity for the equipment-simulator Catalog migration audit; the versioned Track Authority now resolves progression facts, but 48 static-stat gaps and independent Phase 0 gates still block migration.",
       "owners": [
         {
           "id": "equipment_simulator_catalog_migration_phase0",
-          "status": "read_only_audit_blocked",
-          "pureClassificationOwner": "server/gear_catalog_migration_audit.py",
-          "readOnlyProjectionOwner": "server/gear_catalog_audit_store.py",
+          "status": "track_authority_read_only_audit_blocked",
+      "pureClassificationOwner": "server/gear_catalog_migration_audit.py",
+      "trackAuthorityOwner": "server/gear_track_authority.py",
+      "readOnlyProjectionOwner": "server/gear_catalog_audit_store.py",
           "cliOrchestrator": "scripts/gear-catalog-migration-audit.py",
           "callerInventory": "scripts/audit-gear-catalog-callers.js",
-          "aggregateEvidence": "artifacts/releases/2026-07-28-equipment-simulator-catalog-migration-phase0/runtime-readonly-audit.json",
+          "aggregateEvidence": "artifacts/releases/2026-07-28-equipment-simulator-track-authority-correction/runtime-readonly-audit.json",
           "owns": [
             "active Gear Release mapping classification",
             "community and personal Exact Item template classification",
@@ -37,13 +38,14 @@
             "Do not persist raw catalog rows, personal identities, raw templates, profiles, database URLs or more than 20 problem samples."
           ],
           "characterization": [
-            "tests/gear_catalog_migration_audit_test.py",
-            "tests/gear_catalog_audit_store_test.py",
+        "tests/gear_catalog_migration_audit_test.py",
+        "tests/gear_track_authority_test.py",
+        "tests/gear_catalog_audit_store_test.py",
             "tests/gear_catalog_migration_audit_cli_test.py",
             "tests/gear-catalog-callers-audit.test.js"
           ],
           "runtimeConsumers": [],
-          "futureExtractionDirection": "No Phase 1 plan is authorized while artifacts/releases/2026-07-28-equipment-simulator-catalog-migration-phase0/phase1-decision.json keeps allowedNextPlan=none."
+          "futureExtractionDirection": "No Phase 1 plan is authorized while artifacts/releases/2026-07-28-equipment-simulator-track-authority-correction/phase1-decision.json keeps allowedNextPlan=none."
         }
       ]
     },

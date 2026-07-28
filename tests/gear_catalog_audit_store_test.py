@@ -121,8 +121,11 @@ def rowsets(pointer_rows=None):
                 {
                     "trackKey": "hero",
                     "trackRank": 6,
+                    "trackEvidence": [{"source": "verified-fixture"}],
                     "resolvedStats": {"haste_rating": 120},
                 },
+                "raid",
+                True,
             )
         ],
         "gear_catalog_audit_options": [
@@ -254,8 +257,11 @@ class GearCatalogAuditStoreTest(unittest.TestCase):
                     "itemLevelTrack": "hero",
                     "trackRank": 6,
                     "rank": 999,
+                    "trackEvidence": [{"source": "verified-fixture"}],
                     "resolvedStats": {"haste_rating": 120},
                 },
+                "raid",
+                True,
             ),
             (
                 "exact-observed",
@@ -272,6 +278,8 @@ class GearCatalogAuditStoreTest(unittest.TestCase):
                     "rankingEvidence": {"rank": 527, "score": 3400},
                     "resolvedStats": {"haste_rating": 100},
                 },
+                "observed_profile",
+                False,
             ),
             (
                 "placeholder",
@@ -284,6 +292,8 @@ class GearCatalogAuditStoreTest(unittest.TestCase):
                 "partial",
                 ["missing variant"],
                 {},
+                "",
+                False,
             ),
             (
                 "preview",
@@ -296,9 +306,12 @@ class GearCatalogAuditStoreTest(unittest.TestCase):
                 "verified",
                 [],
                 {},
+                "battle_net_preview",
+                False,
             ),
         ]
-        snapshot = GearCatalogAuditStore(lambda: FakeConnection(configured)).snapshot()
+        connection = FakeConnection(configured)
+        snapshot = GearCatalogAuditStore(lambda: connection).snapshot()
         variants = {
             row["variantId"]: row
             for row in snapshot["catalogRows"]["variants"]
@@ -307,6 +320,10 @@ class GearCatalogAuditStoreTest(unittest.TestCase):
         self.assertEqual(variants["browse-hero"].get("rowFamily"), "browse")
         self.assertEqual(variants["browse-hero"]["trackKey"], "hero")
         self.assertEqual(variants["browse-hero"]["trackRank"], 6)
+        self.assertEqual(variants["browse-hero"]["sourceType"], "raid")
+        self.assertTrue(variants["browse-hero"]["hasVoidInstanceSource"])
+        self.assertTrue(variants["browse-hero"]["hasTrackEvidence"])
+        self.assertNotIn("sourceRows", variants["browse-hero"])
         self.assertEqual(
             variants["browse-hero"]["simcOptions"],
             {"bonus_id": "9001/9002", "ilevel": "285"},
@@ -320,6 +337,12 @@ class GearCatalogAuditStoreTest(unittest.TestCase):
         self.assertNotIn("rankingEvidence", variants["exact-observed"])
         self.assertEqual(variants["placeholder"]["rowFamily"], "placeholder")
         self.assertEqual(variants["preview"]["rowFamily"], "reference")
+        variant_query = next(
+            statement
+            for statement in connection.cursor_instance.statements
+            if "gear_catalog_audit_variants" in statement
+        )
+        self.assertIn("source.instance_id = '1305'", variant_query)
 
     def test_snapshot_projects_item_reference_booleans(self):
         snapshot = GearCatalogAuditStore(

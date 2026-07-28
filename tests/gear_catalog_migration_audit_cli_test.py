@@ -55,10 +55,10 @@ def audit_snapshot():
         "activeBinding": {
             "manifest": {
                 "manifestRevision": MANIFEST_REVISION,
-                "seasonRevision": "season-17",
+                "seasonRevision": "season-17-f131dd36ddf1",
                 "dependencyVector": {
-                    "gearRuleRevision": "gear-r1",
-                    "seasonRevision": "season-17",
+                    "gearRuleRevision": "gear-rule-matrix-v1",
+                    "seasonRevision": "season-17-f131dd36ddf1",
                 },
             },
             "gearRelease": {"releaseId": GEAR_RELEASE_ID},
@@ -76,9 +76,13 @@ def audit_snapshot():
                 {
                     "variantId": "hero-6",
                     "itemId": "1001",
+                    "rowFamily": "browse",
                     "trackKey": "hero",
-                    "rank": 6,
-                    "itemLevel": 285,
+                    "trackRank": 0,
+                    "rank": 527,
+                    "itemLevel": 276,
+                    "slot": "head",
+                    "sourceType": "raid",
                     "bonusIds": ["9001", "9002"],
                     "staticStats": {"haste_rating": 120},
                 }
@@ -375,8 +379,49 @@ class GearCatalogMigrationAuditCliTest(unittest.TestCase):
             r"^sha256:[0-9a-f]{64}$",
         )
         self.assertEqual(
+            runtime_identity["trackAuthorityRuleRevision"],
+            "midnight-season-1-track-authority-v1",
+        )
+        self.assertEqual(runtime_identity["trackAuthorityStatus"], "verified")
+        self.assertEqual(
+            first["catalogMapping"]["trackAuthority"]["seasonRevision"],
+            "season-17-f131dd36ddf1",
+        )
+        self.assertEqual(first["catalogMapping"]["status"], "verified")
+        self.assertEqual(
             first["resources"]["temporaryBytes"]["status"],
             "unknown",
+        )
+
+    def test_wrong_gear_rule_revision_remains_explicitly_blocked(self):
+        snapshot = audit_snapshot()
+        snapshot["activeBinding"]["manifest"]["dependencyVector"][
+            "gearRuleRevision"
+        ] = "gear-rule-matrix-unknown"
+
+        report = audit_cli.run_audit(
+            caller_report=caller_report(),
+            caller_bytes=1024,
+            snapshot_reader=lambda **kwargs: snapshot,
+            spec_payload_reader=(
+                lambda class_key, spec_key: spec_payload(class_key, spec_key)
+            ),
+            class_spec_matrix=class_matrix(),
+            filesystem_roots=[ROOT],
+            statvfs_fn=lambda path: FakeStatvfs(),
+            observed_at="2026-07-28T10:00:00+08:00",
+        )
+
+        self.assertEqual(report["catalogMapping"]["status"], "blocked")
+        self.assertEqual(
+            report["catalogMapping"]["trackAuthority"]["status"],
+            "blocked",
+        )
+        self.assertEqual(
+            report["catalogMapping"]["runtimeSnapshotIdentity"][
+                "trackAuthorityStatus"
+            ],
+            "blocked",
         )
 
     def test_success_prints_the_written_report_identity_and_relative_path(self):

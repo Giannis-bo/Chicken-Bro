@@ -412,6 +412,27 @@ test('canonical backend gear release owners delegate socket facts to the pure ow
   assert.ok(fs.existsSync(socketTest), `${socketTest} should exist`)
 })
 
+test('Phase 0 catalog audit delegates progression facts to Track Authority', () => {
+  const ownerMap = readOwnerMap()
+  const catalogAuditFile = ownerMap.hotspotFiles.find(
+    (entry) => entry.path === 'server/gear_catalog_migration_audit.py'
+  )
+  assert.ok(catalogAuditFile, 'Phase 0 catalog audit should remain an owned hotspot')
+  const catalogAuditOwner = catalogAuditFile.owners.find(
+    (owner) => owner.id === 'equipment_simulator_catalog_migration_phase0'
+  )
+  assert.ok(catalogAuditOwner, 'Phase 0 catalog audit owner should exist')
+  assert.equal(
+    catalogAuditOwner.trackAuthorityOwner,
+    'server/gear_track_authority.py'
+  )
+  assert.ok(
+    catalogAuditOwner.characterization.includes('tests/gear_track_authority_test.py')
+  )
+  assert.ok(fs.existsSync(catalogAuditOwner.trackAuthorityOwner))
+  assert.ok(fs.existsSync('tests/gear_track_authority_test.py'))
+})
+
 test('backend owner map rejects an unowned community template import projector', () => {
   const ownerMap = readOwnerMap()
   const projectorFile = ownerMap.hotspotFiles.find(
