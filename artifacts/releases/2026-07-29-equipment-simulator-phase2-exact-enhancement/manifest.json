@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-28T19:33:56.747Z",
+  "generatedAt": "2026-07-28T19:53:31.756Z",
   "release": {
     "date": "2026-07-29",
     "slug": "equipment-simulator-phase2-exact-enhancement"
@@ -38,7 +38,7 @@
         {
           "path": "docs/project-state.json",
           "exists": true,
-          "sizeBytes": 40062
+          "sizeBytes": 40476
         },
         {
           "path": "docs/project-owner-map.json",
@@ -53,7 +53,7 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 10487
+          "sizeBytes": 10737
         },
         {
           "path": "docs/README.md",
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-29-equipment-simulator-phase2-exact-enhancement/evidence.json",
-    "sizeBytes": 3504,
+    "sizeBytes": 11831,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -390,9 +390,9 @@
       "summary"
     ],
     "missingFields": [],
-    "declaredStatus": "implementation_allowed",
-    "highestEvidenceLevel": "implementation_allowed",
-    "summary": "Phase 2 ExactItemInstance and EnhancementSelection implementation is authorized and has not yet produced local or runtime verification evidence."
+    "declaredStatus": "verified",
+    "highestEvidenceLevel": "verified",
+    "summary": "Phase 2 immutable candidate, deployed dormant runtime and exact-head repository verification are complete. All 80 templates and 1242 items are classified with 1187 verified and 55 explicit partial references, zero blocked/silent drops, stable generation 32, exact database/runtime parity and honest global partial health. PR CI, merge closure and cleanup remain."
   },
   "evidence": {
     "localTests": {
