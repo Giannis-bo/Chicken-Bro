@@ -7,6 +7,8 @@ import json
 from typing import Any, Callable, Iterable, Mapping
 from urllib.parse import urlencode
 
+from .websim_payload import compact_manifest_progression_state
+
 
 RequestJson = Callable[
     [str, str, dict[str, Any] | None, dict[str, str]],
@@ -379,9 +381,17 @@ def run_catalog_http_completeness_matrix(
                         != _integer(expected_variant.get("itemLevel"))
                         or _text(variant.get("sourceType"))
                         != _text(expected_variant.get("sourceType"))
-                        or _canonical(variant.get("progressionState"))
+                        or _canonical(
+                            compact_manifest_progression_state(
+                                variant.get("progressionState")
+                            )
+                        )
                         != _canonical(
-                            expected_variant.get("progressionState")
+                            compact_manifest_progression_state(
+                                expected_variant.get(
+                                    "progressionState"
+                                )
+                            )
                         )
                     ):
                         spec_failures.append(_failure(

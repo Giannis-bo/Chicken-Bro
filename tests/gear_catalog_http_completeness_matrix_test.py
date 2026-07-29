@@ -41,7 +41,7 @@ class GearCatalogHttpCompletenessMatrixTest(unittest.TestCase):
                     "kind": "upgrade_track",
                     "trackKey": "myth",
                     "rank": 6,
-                    "rankMax": 6,
+                    "maxRank": 6,
                 },
             }],
         }
