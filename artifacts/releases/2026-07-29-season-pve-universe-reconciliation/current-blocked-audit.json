@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "asOf": "2026-07-29T14:30:00Z",
+  "status": "blocked",
+  "exitCode": 2,
+  "universeRevision": "season-pve-universe:sha256:83431dff079d68dcb96b47a4a19820e832a49128f526aeefdb1f8d159ad0d722",
+  "seasonRevision": "midnight-season-1-revelations-2026-06-16",
+  "sourcePolicyRevision": "midnight-season-1-pve-source-policy-v1",
+  "catalogRevision": "blocked:not-independently-captured",
+  "counts": {
+    "total": 18,
+    "included": 0,
+    "excluded": 0,
+    "blocked": 18,
+    "sourceMembers": 18,
+    "itemMembers": 0,
+    "gapMembers": 0
+  },
+  "blockerCodes": [
+    "SOURCE_DISCOVERY_MISSING"
+  ],
+  "diagnostics": {
+    "ledgerRowsTotal": 18,
+    "ledgerRowsEmitted": 0,
+    "truncated": true
+  },
+  "interpretation": "No independently captured official source-membership snapshot is present. Existing staging/Catalog counts cannot promote this audit above blocked."
+}
