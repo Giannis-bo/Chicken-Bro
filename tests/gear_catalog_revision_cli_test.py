@@ -185,8 +185,31 @@ class GearCatalogRevisionCliTest(unittest.TestCase):
         self.assertIn(("catalog", "mage", "arcane", 1), calls)
 
     def test_snapshot_shadow_reader_projects_actual_pg_selector_contract(self):
+        rows = regular_rows()
+        rows["items"][0]["payload"]["armorType"] = "Plate"
+        rows["variants"][0]["payload"] = {
+            "itemStats": [
+                {
+                    "key": "intellect",
+                    "label": "Intellect",
+                    "value": 120,
+                },
+                {
+                    "key": "stamina",
+                    "label": "Stamina",
+                    "value": 180,
+                },
+                {
+                    "key": "haste_rating",
+                    "label": "Haste",
+                    "value": 80,
+                },
+            ],
+            "statDisplayStatus": "verified_variant",
+            "statSource": "simulationcraft",
+        }
         reader = revision_cli._snapshot_spec_payload_reader(
-            regular_rows(),
+            rows,
             {
                 "generation": 32,
                 "manifestRevision": CURRENT_BINDING["manifestRevision"],
