@@ -1931,92 +1931,359 @@ class GearReleaseStore:
                 variants = read_projected(
                     "wow_community_builder_variants",
                     """
-                    WITH referenced(
-                        item_id, variant_key, slot, item_level
-                    ) AS (
-                        SELECT * FROM unnest(
-                            %s::text[],
-                            %s::text[],
-                            %s::text[],
-                            %s::integer[]
-                        )
+                    WITH raw_referenced AS MATERIALIZED (
+                        SELECT
+                            COALESCE(
+                                NULLIF(gear_item->>'itemId', ''),
+                                NULLIF(gear_item->>'id', '')
+                            ) AS item_id,
+                            COALESCE(
+                                NULLIF(gear_item->>'variantKey', ''),
+                                ''
+                            ) AS variant_key,
+                            LOWER(regexp_replace(
+                                COALESCE(
+                                    NULLIF(gear_item->>'slot', ''),
+                                    NULLIF(gear_item->>'simcSlot', ''),
+                                    ''
+                                ),
+                                '[[:space:]-]+',
+                                '_',
+                                'g'
+                            )) AS slot,
+                            CASE
+                                WHEN COALESCE(
+                                    NULLIF(gear_item->>'itemLevel', ''),
+                                    NULLIF(gear_item->>'ilevel', ''),
+                                    ''
+                                ) ~ '^[0-9]+$'
+                                THEN COALESCE(
+                                    NULLIF(gear_item->>'itemLevel', ''),
+                                    NULLIF(gear_item->>'ilevel', '')
+                                )::integer
+                                ELSE 0
+                            END AS item_level,
+                            jsonb_strip_nulls(jsonb_build_object(
+                                'ilevel',
+                                CASE WHEN COALESCE(
+                                    NULLIF(gear_item->>'itemLevel', ''),
+                                    NULLIF(gear_item->>'ilevel', ''),
+                                    ''
+                                ) ~ '^[0-9]+$'
+                                THEN to_jsonb(LEFT(regexp_replace(
+                                    BTRIM(COALESCE(
+                                        NULLIF(gear_item->>'itemLevel', ''),
+                                        NULLIF(gear_item->>'ilevel', '')
+                                    )),
+                                    '[^A-Za-z0-9_:/.-]+',
+                                    '',
+                                    'g'
+                                ), 240)) END,
+                                'bonus_id',
+                                CASE WHEN NULLIF(LEFT(regexp_replace(
+                                    BTRIM(COALESCE(gear_item->>'bonus_id', '')),
+                                    '[^A-Za-z0-9_:/.-]+',
+                                    '',
+                                    'g'
+                                ), 240), '') IS NOT NULL
+                                THEN to_jsonb(LEFT(regexp_replace(
+                                    BTRIM(gear_item->>'bonus_id'),
+                                    '[^A-Za-z0-9_:/.-]+',
+                                    '',
+                                    'g'
+                                ), 240)) END,
+                                'gem_id',
+                                CASE WHEN NULLIF(LEFT(regexp_replace(
+                                    BTRIM(COALESCE(gear_item->>'gem_id', '')),
+                                    '[^A-Za-z0-9_:/.-]+',
+                                    '',
+                                    'g'
+                                ), 240), '') IS NOT NULL
+                                THEN to_jsonb(LEFT(regexp_replace(
+                                    BTRIM(gear_item->>'gem_id'),
+                                    '[^A-Za-z0-9_:/.-]+',
+                                    '',
+                                    'g'
+                                ), 240)) END,
+                                'gem_bonus_id',
+                                CASE WHEN NULLIF(LEFT(regexp_replace(
+                                    BTRIM(COALESCE(gear_item->>'gem_bonus_id', '')),
+                                    '[^A-Za-z0-9_:/.-]+',
+                                    '',
+                                    'g'
+                                ), 240), '') IS NOT NULL
+                                THEN to_jsonb(LEFT(regexp_replace(
+                                    BTRIM(gear_item->>'gem_bonus_id'),
+                                    '[^A-Za-z0-9_:/.-]+',
+                                    '',
+                                    'g'
+                                ), 240)) END,
+                                'gem_ilevel',
+                                CASE WHEN NULLIF(LEFT(regexp_replace(
+                                    BTRIM(COALESCE(gear_item->>'gem_ilevel', '')),
+                                    '[^A-Za-z0-9_:/.-]+',
+                                    '',
+                                    'g'
+                                ), 240), '') IS NOT NULL
+                                THEN to_jsonb(LEFT(regexp_replace(
+                                    BTRIM(gear_item->>'gem_ilevel'),
+                                    '[^A-Za-z0-9_:/.-]+',
+                                    '',
+                                    'g'
+                                ), 240)) END,
+                                'enchant_id',
+                                CASE WHEN NULLIF(LEFT(regexp_replace(
+                                    BTRIM(COALESCE(gear_item->>'enchant_id', '')),
+                                    '[^A-Za-z0-9_:/.-]+',
+                                    '',
+                                    'g'
+                                ), 240), '') IS NOT NULL
+                                THEN to_jsonb(LEFT(regexp_replace(
+                                    BTRIM(gear_item->>'enchant_id'),
+                                    '[^A-Za-z0-9_:/.-]+',
+                                    '',
+                                    'g'
+                                ), 240)) END,
+                                'crafted_stats',
+                                CASE WHEN NULLIF(LEFT(regexp_replace(
+                                    BTRIM(COALESCE(gear_item->>'crafted_stats', '')),
+                                    '[^A-Za-z0-9_:/.-]+',
+                                    '',
+                                    'g'
+                                ), 240), '') IS NOT NULL
+                                THEN to_jsonb(LEFT(regexp_replace(
+                                    BTRIM(gear_item->>'crafted_stats'),
+                                    '[^A-Za-z0-9_:/.-]+',
+                                    '',
+                                    'g'
+                                ), 240)) END,
+                                'embellishment',
+                                CASE WHEN NULLIF(LEFT(regexp_replace(
+                                    BTRIM(COALESCE(gear_item->>'embellishment', '')),
+                                    '[^A-Za-z0-9_:/.-]+',
+                                    '',
+                                    'g'
+                                ), 240), '') IS NOT NULL
+                                THEN to_jsonb(LEFT(regexp_replace(
+                                    BTRIM(gear_item->>'embellishment'),
+                                    '[^A-Za-z0-9_:/.-]+',
+                                    '',
+                                    'g'
+                                ), 240)) END,
+                                'redirected_base_stats',
+                                CASE WHEN NULLIF(LEFT(regexp_replace(
+                                    BTRIM(COALESCE(
+                                        gear_item->>'redirected_base_stats',
+                                        ''
+                                    )),
+                                    '[^A-Za-z0-9_:/.-]+',
+                                    '',
+                                    'g'
+                                ), 240), '') IS NOT NULL
+                                THEN to_jsonb(LEFT(regexp_replace(
+                                    BTRIM(gear_item->>'redirected_base_stats'),
+                                    '[^A-Za-z0-9_:/.-]+',
+                                    '',
+                                    'g'
+                                ), 240)) END
+                            )) AS expected_simc_options,
+                            ARRAY(
+                                SELECT DISTINCT profile_url
+                                FROM (
+                                    SELECT unnest(ARRAY[
+                                        NULLIF(gear_item->>'profileUrl', ''),
+                                        NULLIF(gear_item->>'sourceProfileUrl', ''),
+                                        NULLIF(gear_item->>'sourceUrl', ''),
+                                        NULLIF(gear_item->>'url', '')
+                                    ]) AS profile_url
+                                    UNION ALL
+                                    SELECT unnest(ARRAY[
+                                        NULLIF(profile_ref.value->>'profileUrl', ''),
+                                        NULLIF(profile_ref.value->>'sourceProfileUrl', ''),
+                                        NULLIF(profile_ref.value->>'sourceUrl', ''),
+                                        NULLIF(profile_ref.value->>'url', '')
+                                    ]) AS profile_url
+                                    FROM jsonb_array_elements(
+                                        CASE
+                                            WHEN jsonb_typeof(
+                                                gear_item->'observedProfileRefs'
+                                            ) = 'array'
+                                            THEN gear_item->'observedProfileRefs'
+                                            ELSE '[]'::jsonb
+                                        END
+                                    ) profile_ref(value)
+                                ) profile_urls
+                                WHERE profile_url IS NOT NULL
+                                ORDER BY profile_url
+                            ) AS profile_urls
+                        FROM cache.websim_community_gear_templates template
+                        CROSS JOIN LATERAL jsonb_array_elements(
+                            CASE
+                                WHEN jsonb_typeof(template.gear_items_json) = 'array'
+                                THEN template.gear_items_json
+                                ELSE '[]'::jsonb
+                            END
+                        ) gear_item
+                    ), referenced AS MATERIALIZED (
+                        SELECT DISTINCT
+                               item_id, variant_key, slot, item_level,
+                               expected_simc_options, profile_urls
+                        FROM raw_referenced
+                        WHERE item_id IS NOT NULL
+                    ), candidate_variants AS MATERIALIZED (
+                        SELECT variant_id, item_id, variant_key, slot, label,
+                               source_type, difficulty_key, item_level,
+                               simc_options_json, status, blockers_json,
+                               payload_json, source_updated_at,
+                               LOWER(regexp_replace(
+                                   slot,
+                                   '[[:space:]-]+',
+                                   '_',
+                                   'g'
+                               )) AS normalized_slot
+                        FROM cache.websim_gear_release_variants
+                        WHERE release_id = %s
+                    ), exact_variant_ids AS MATERIALIZED (
+                        SELECT DISTINCT variant.variant_id
+                        FROM candidate_variants variant
+                        INNER JOIN referenced
+                          ON referenced.item_id = variant.item_id
+                        WHERE LOWER(variant.status) = 'verified'
+                          AND referenced.variant_key <> ''
+                          AND (
+                              referenced.variant_key = variant.variant_key
+                              OR regexp_replace(
+                                  referenced.variant_key,
+                                  '[^A-Za-z0-9_:/.-]+',
+                                  '',
+                                  'g'
+                              ) = regexp_replace(
+                                  variant.variant_key,
+                                  '[^A-Za-z0-9_:/.-]+',
+                                  '',
+                                  'g'
+                              )
+                          )
+                    ), observed_instance_candidates AS MATERIALIZED (
+                        SELECT variant.*
+                        FROM candidate_variants variant
+                        WHERE LOWER(variant.status) = 'verified'
+                          AND LOWER(variant.source_type) = 'observed_profile'
+                          AND EXISTS (
+                              SELECT 1
+                              FROM referenced
+                              WHERE referenced.item_id = variant.item_id
+                                AND referenced.item_level = variant.item_level
+                                AND referenced.slot = variant.normalized_slot
+                                AND referenced.expected_simc_options
+                                    = variant.simc_options_json
+                          )
+                    ), candidate_profile_urls AS MATERIALIZED (
+                        SELECT DISTINCT variant.variant_id, profile_url
+                        FROM observed_instance_candidates variant
+                        CROSS JOIN LATERAL (
+                            SELECT unnest(ARRAY[
+                                NULLIF(variant.payload_json->>'profileUrl', ''),
+                                NULLIF(variant.payload_json->>'sourceProfileUrl', ''),
+                                NULLIF(variant.payload_json->>'sourceUrl', ''),
+                                NULLIF(variant.payload_json->>'url', '')
+                            ]) AS profile_url
+                            UNION ALL
+                            SELECT unnest(ARRAY[
+                                NULLIF(profile_ref.value->>'profileUrl', ''),
+                                NULLIF(profile_ref.value->>'sourceProfileUrl', ''),
+                                NULLIF(profile_ref.value->>'sourceUrl', ''),
+                                NULLIF(profile_ref.value->>'url', '')
+                            ]) AS profile_url
+                            FROM jsonb_array_elements(
+                                CASE
+                                    WHEN jsonb_typeof(
+                                        variant.payload_json->'observedProfileRefs'
+                                    ) = 'array'
+                                    THEN variant.payload_json->'observedProfileRefs'
+                                    ELSE '[]'::jsonb
+                                END
+                            ) profile_ref(value)
+                        ) candidate_profiles
+                        WHERE profile_url IS NOT NULL
+                    ), profile_variant_ids AS MATERIALIZED (
+                        SELECT DISTINCT variant.variant_id
+                        FROM referenced
+                        INNER JOIN observed_instance_candidates variant
+                          ON referenced.item_id = variant.item_id
+                         AND referenced.item_level = variant.item_level
+                         AND referenced.slot = variant.normalized_slot
+                         AND referenced.expected_simc_options
+                             = variant.simc_options_json
+                        INNER JOIN candidate_profile_urls profile
+                          ON profile.variant_id = variant.variant_id
+                         AND profile.profile_url = ANY(referenced.profile_urls)
+                    ), unmatched_references AS MATERIALIZED (
+                        SELECT referenced.*
+                        FROM referenced
+                        WHERE cardinality(referenced.profile_urls) > 0
+                          AND NOT EXISTS (
+                              SELECT 1
+                              FROM observed_instance_candidates variant
+                              INNER JOIN candidate_profile_urls profile
+                                ON profile.variant_id = variant.variant_id
+                              WHERE referenced.item_id = variant.item_id
+                                AND referenced.item_level = variant.item_level
+                                AND referenced.slot = variant.normalized_slot
+                                AND referenced.expected_simc_options
+                                    = variant.simc_options_json
+                                AND profile.profile_url
+                                    = ANY(referenced.profile_urls)
+                          )
+                    ), semantic_fallback_variant_ids AS MATERIALIZED (
+                        SELECT DISTINCT variant.variant_id
+                        FROM unmatched_references referenced
+                        INNER JOIN observed_instance_candidates variant
+                          ON referenced.item_id = variant.item_id
+                         AND referenced.item_level = variant.item_level
+                         AND referenced.slot = variant.normalized_slot
+                         AND referenced.expected_simc_options
+                             = variant.simc_options_json
+                    ), selected_variant_ids AS (
+                        SELECT variant_id FROM exact_variant_ids
+                        UNION
+                        SELECT variant_id FROM profile_variant_ids
+                        UNION
+                        SELECT variant_id FROM semantic_fallback_variant_ids
                     )
-                    SELECT variant_id, item_id, variant_key, slot, label, source_type,
-                           difficulty_key, item_level, simc_options_json, status,
-                           blockers_json,
+                    SELECT variant.variant_id, variant.item_id, variant.variant_key,
+                           variant.slot, variant.label, variant.source_type,
+                           variant.difficulty_key, variant.item_level,
+                           variant.simc_options_json, variant.status,
+                           variant.blockers_json,
                            jsonb_strip_nulls(jsonb_build_object(
-                               'resolvedStats', payload_json->'resolvedStats',
-                               'itemStats', payload_json->'itemStats',
-                               'statDeltas', payload_json->'statDeltas',
-                               'capabilityOverrides', payload_json->'capabilityOverrides',
-                               'socketEvidence', payload_json->'socketEvidence',
-                               'enhancementManagement', payload_json->'enhancementManagement',
-                               'dynamicEffects', payload_json->'dynamicEffects',
-                               'itemSetId', payload_json->'itemSetId',
-                               'overlay', payload_json->'overlay',
-                               'profileUrl', payload_json->'profileUrl',
-                               'sourceProfileUrl', payload_json->'sourceProfileUrl',
-                               'sourceUrl', payload_json->'sourceUrl',
-                               'url', payload_json->'url',
-                               'observedProfileRefs', payload_json->'observedProfileRefs',
-                               'statSource', payload_json->'statSource',
-                               'statDisplayStatus', payload_json->'statDisplayStatus',
-                               'simcEncodedItem', payload_json->'simcEncodedItem',
-                               'simcItemId', payload_json->'simcItemId',
-                               'simcItemLevel', payload_json->'simcItemLevel'
+                               'resolvedStats', variant.payload_json->'resolvedStats',
+                               'itemStats', variant.payload_json->'itemStats',
+                               'statDeltas', variant.payload_json->'statDeltas',
+                               'capabilityOverrides', variant.payload_json->'capabilityOverrides',
+                               'socketEvidence', variant.payload_json->'socketEvidence',
+                               'enhancementManagement', variant.payload_json->'enhancementManagement',
+                               'dynamicEffects', variant.payload_json->'dynamicEffects',
+                               'itemSetId', variant.payload_json->'itemSetId',
+                               'overlay', variant.payload_json->'overlay',
+                               'profileUrl', variant.payload_json->'profileUrl',
+                               'sourceProfileUrl', variant.payload_json->'sourceProfileUrl',
+                               'sourceUrl', variant.payload_json->'sourceUrl',
+                               'url', variant.payload_json->'url',
+                               'observedProfileRefs', variant.payload_json->'observedProfileRefs',
+                               'statSource', variant.payload_json->'statSource',
+                               'statDisplayStatus', variant.payload_json->'statDisplayStatus',
+                               'simcEncodedItem', variant.payload_json->'simcEncodedItem',
+                               'simcItemId', variant.payload_json->'simcItemId',
+                               'simcItemLevel', variant.payload_json->'simcItemLevel'
                            )),
-                           source_updated_at
-                    FROM cache.websim_gear_release_variants variant
-                    WHERE variant.release_id = %s
-                      AND EXISTS (
-                          SELECT 1
-                          FROM referenced
-                          WHERE referenced.item_id = variant.item_id
-                            AND (
-                                (
-                                    referenced.variant_key <> ''
-                                    AND (
-                                        referenced.variant_key
-                                        = variant.variant_key
-                                        OR regexp_replace(
-                                            referenced.variant_key,
-                                            '[^A-Za-z0-9_:/.-]+',
-                                            '',
-                                            'g'
-                                        ) = regexp_replace(
-                                            variant.variant_key,
-                                            '[^A-Za-z0-9_:/.-]+',
-                                            '',
-                                            'g'
-                                        )
-                                    )
-                                )
-                                OR (
-                                    LOWER(variant.source_type)
-                                    = 'observed_profile'
-                                    AND referenced.item_level > 0
-                                    AND referenced.item_level
-                                    = variant.item_level
-                                    AND referenced.slot = LOWER(
-                                        regexp_replace(
-                                            variant.slot,
-                                            '[[:space:]-]+',
-                                            '_',
-                                            'g'
-                                        )
-                                    )
-                                )
-                            )
-                      )
+                           variant.source_updated_at
+                    FROM candidate_variants variant
+                    INNER JOIN selected_variant_ids selected
+                      ON selected.variant_id = variant.variant_id
                     ORDER BY variant.variant_id
                     """,
-                    (
-                        [row[0] for row in reference_rows],
-                        [row[1] for row in reference_rows],
-                        [row[2] for row in reference_rows],
-                        [row[3] for row in reference_rows],
-                        normalized,
-                    ),
+                    (normalized,),
                     lambda row: {
                         "variantId": _text(row[0]),
                         "itemId": _text(row[1]),

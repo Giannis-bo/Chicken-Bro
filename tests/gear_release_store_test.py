@@ -527,6 +527,9 @@ class GearReleaseStoreTest(unittest.TestCase):
         )
         conn = FakeConnection(rowsets={
             "FROM cache.websim_release_registry": [existing_row],
+            "candidate_variants AS MATERIALIZED": [
+                ("variant-a-id", "item-a", "variant-a", "head", "289", "observed_profile", "mythic", 289, {"ilevel": "289"}, "verified", [], snapshot["variants"][0]["payload"], "2026-07-11T05:00:00+00:00")
+            ],
             "jsonb_array_elements": [
                 ("item-a", "variant-a", "head", 289),
                 ("item-missing", "variant-missing", "head", 289),
@@ -536,9 +539,6 @@ class GearReleaseStoreTest(unittest.TestCase):
             ],
             "FROM cache.websim_gear_release_sources": [
                 ("source-a", "item-a", "observed_profile", "profile:a", "Observed", "", "", "mythic", "season-17", {"status": "verified"}, "2026-07-11T05:00:00+00:00")
-            ],
-            "FROM cache.websim_gear_release_variants": [
-                ("variant-a-id", "item-a", "variant-a", "head", "289", "observed_profile", "mythic", 289, {"ilevel": "289"}, "verified", [], snapshot["variants"][0]["payload"], "2026-07-11T05:00:00+00:00")
             ],
             "FROM cache.websim_gear_release_mod_options": [
                 ("option-a-id", "variant-a-id", "gem-a", "gem", "Gem A", ["head"], {"gem_id": "1"}, "verified", True, snapshot["options"][0]["payload"], "2026-07-11T05:00:00+00:00")
@@ -554,6 +554,18 @@ class GearReleaseStoreTest(unittest.TestCase):
         self.assertIn("SELECT DISTINCT ON (", sql)
         self.assertIn("candidate.item_id, candidate.source_type", sql)
         self.assertIn("jsonb_strip_nulls", sql)
+        self.assertIn("expected_simc_options", sql)
+        self.assertIn("profile_variant_ids", sql)
+        self.assertIn("semantic_fallback_variant_ids", sql)
+        self.assertIn("payload_json->>'profileUrl'", sql)
+        self.assertIn("'gem_bonus_id'", sql)
+        self.assertIn("'gem_ilevel'", sql)
+        self.assertIn("'redirected_base_stats'", sql)
+        self.assertNotIn(
+            "AND referenced.item_level\n"
+            "                                    = variant.item_level",
+            sql,
+        )
         self.assertGreaterEqual(conn.cursor_instance.fetchmany_calls, 4)
         self.assertEqual(conn.cursor_instance.fetchall_calls, 0)
         self.assertEqual(
