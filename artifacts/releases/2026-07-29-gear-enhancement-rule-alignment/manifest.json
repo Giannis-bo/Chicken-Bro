@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-29T05:14:23.984Z",
+  "generatedAt": "2026-07-29T05:23:10.425Z",
   "release": {
     "date": "2026-07-29",
     "slug": "gear-enhancement-rule-alignment"
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-29-gear-enhancement-rule-alignment/evidence.json",
-    "sizeBytes": 7294,
+    "sizeBytes": 7587,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -392,7 +392,7 @@
     "missingFields": [],
     "declaredStatus": "deployable",
     "highestEvidenceLevel": "deployable",
-    "summary": "Candidate commit 06ec7b58 preserves sealed source-only embellishments as counted facts without reopening editability, while retaining the backend-owned socket, enchant and verified-crafted rules. It is deployable from an isolated read-only candidate; the repaired candidate needs fresh manual acceptance before merge and is not a production-live claim."
+    "summary": "Candidate commit 06ec7b58 preserves sealed source-only embellishments as counted facts without reopening editability, while retaining the backend-owned socket, enchant and verified-crafted rules. The repaired candidate received explicit manual acceptance and is ready for the Harness merge-and-push closure; it is not a production-live claim."
   },
   "evidence": {
     "localTests": {
@@ -413,6 +413,12 @@
     }
   },
   "riskMatrix": [
+    {
+      "id": "dirty_worktree",
+      "severity": "medium",
+      "status": "watch",
+      "detail": "2 changed files currently visible to git status."
+    },
     {
       "id": "hotspot_files_present",
       "severity": "medium",
@@ -446,9 +452,12 @@
   ],
   "repo": {
     "git": {
-      "status": "clean",
-      "changedFileCount": 0,
-      "changedFiles": []
+      "status": "dirty",
+      "changedFileCount": 2,
+      "changedFiles": [
+        " M artifacts/releases/2026-07-29-gear-enhancement-rule-alignment/evidence.json",
+        " M docs/plans/2026-07-29-gear-enhancement-rule-alignment.md"
+      ]
     }
   },
   "write": {
