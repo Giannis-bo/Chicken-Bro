@@ -632,15 +632,33 @@ class GearReleaseStoreTest(unittest.TestCase):
             canonical_bytes(legacy)
         ).hexdigest()
 
-        with patch.object(
-            gear_release_store,
-            "_canonical_rows",
-            side_effect=AssertionError("summary must not deep-copy the snapshot"),
+        original_temporary_directory = (
+            gear_release_store.tempfile.TemporaryDirectory
+        )
+        with (
+            patch.object(
+                gear_release_store,
+                "_SNAPSHOT_HASH_SORT_CHUNK_ROWS",
+                1,
+            ),
+            patch.object(
+                gear_release_store.tempfile,
+                "TemporaryDirectory",
+                wraps=original_temporary_directory,
+            ) as temporary_directory,
+            patch.object(
+                gear_release_store,
+                "_canonical_rows",
+                side_effect=AssertionError(
+                    "summary must not deep-copy the snapshot"
+                ),
+            ),
         ):
             summary = gear_release_store.gear_snapshot_summary(snapshot)
 
         self.assertEqual(summary["snapshotHash"], expected_hash)
         self.assertEqual(summary["counts"]["variants"], 2)
+        self.assertEqual(temporary_directory.call_count, 1)
 
     def test_candidate_authority_index_reuses_validated_snapshot_rows(self):
         from server.gear_release_store import CandidateGearAuthorityIndex

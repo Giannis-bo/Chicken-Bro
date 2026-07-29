@@ -8,8 +8,11 @@ retail manifest pointer. Existing WebSim tables remain mutable staging inputs.
 from __future__ import annotations
 
 from contextlib import contextmanager
+import heapq
 import hashlib
 import json
+import os
+import tempfile
 from typing import Any, Iterable
 
 try:
@@ -405,31 +408,92 @@ def _row_batches(rows: Any, batch_size: int = 250) -> Iterable[list[dict[str, An
         yield batch
 
 
+_SNAPSHOT_HASH_SORT_CHUNK_ROWS = 500
+
+
+def _canonical_row_sort_runs(
+    rows: Any,
+    *,
+    directory: str,
+    category: str,
+) -> tuple[list[str], int]:
+    run_paths: list[str] = []
+    chunk: list[bytes] = []
+    count = 0
+
+    def flush() -> None:
+        if not chunk:
+            return
+        chunk.sort()
+        with tempfile.NamedTemporaryFile(
+            mode="wb",
+            dir=directory,
+            prefix=f"{category}-",
+            suffix=".jsonl",
+            delete=False,
+        ) as handle:
+            for encoded in chunk:
+                handle.write(encoded)
+                handle.write(b"\n")
+            run_paths.append(handle.name)
+        chunk.clear()
+
+    for row in rows or []:
+        if not isinstance(row, dict):
+            continue
+        chunk.append(_canonical_bytes(row))
+        count += 1
+        if len(chunk) >= _SNAPSHOT_HASH_SORT_CHUNK_ROWS:
+            flush()
+    flush()
+    return run_paths, count
+
+
+def _merged_canonical_row_bytes(run_paths: Iterable[str]) -> Iterable[bytes]:
+    handles = []
+    try:
+        handles = [open(path, "rb") for path in run_paths]
+        for line in heapq.merge(*handles):
+            yield line[:-1] if line.endswith(b"\n") else line
+    finally:
+        for handle in handles:
+            handle.close()
+        for path in run_paths:
+            try:
+                os.unlink(path)
+            except FileNotFoundError:
+                pass
+
+
 def _gear_snapshot_hash_and_counts(
     snapshot: dict[str, Any],
 ) -> tuple[str, dict[str, int]]:
-    """Stream the legacy canonical snapshot JSON without duplicating the graph."""
+    """Externally sort and stream the legacy canonical snapshot JSON."""
 
     categories = ("items", "sources", "variants", "options")
     counts: dict[str, int] = {}
     digest = hashlib.sha256()
     digest.update(b"{")
-    for category_index, category in enumerate(sorted(categories)):
-        if category_index:
-            digest.update(b",")
-        digest.update(_canonical_bytes(category))
-        digest.update(b":[")
-        encoded_rows = sorted(
-            _canonical_bytes(row)
-            for row in snapshot.get(category) or []
-            if isinstance(row, dict)
-        )
-        counts[category] = len(encoded_rows)
-        for row_index, encoded in enumerate(encoded_rows):
-            if row_index:
+    with tempfile.TemporaryDirectory(
+        prefix="wow-gear-snapshot-hash-"
+    ) as temporary_directory:
+        for category_index, category in enumerate(sorted(categories)):
+            if category_index:
                 digest.update(b",")
-            digest.update(encoded)
-        digest.update(b"]")
+            digest.update(_canonical_bytes(category))
+            digest.update(b":[")
+            run_paths, counts[category] = _canonical_row_sort_runs(
+                snapshot.get(category),
+                directory=temporary_directory,
+                category=category,
+            )
+            for row_index, encoded in enumerate(
+                _merged_canonical_row_bytes(run_paths)
+            ):
+                if row_index:
+                    digest.update(b",")
+                digest.update(encoded)
+            digest.update(b"]")
     digest.update(b"}")
     return (
         "sha256:" + digest.hexdigest(),
