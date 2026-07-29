@@ -157,8 +157,7 @@
   "archivedReferences": [
     "docs/plans/2026-07-29-season-pve-journal-omission-guard.md",
     "artifacts/releases/2026-07-29-season-pve-journal-omission-guard/requirement.json",
-    "docs/plans/2026-07-29-season-pve-universe-reconciliation.md",
-    "docs/plans/2026-07-29-equipment-simulator-e2e-completeness-goal.md"
+    "docs/plans/2026-07-29-season-pve-universe-reconciliation.md"
   ],
   "summary": "Runtime-verified upstream omission guard at commit 615c9238: PostgreSQL Journal discovery now records caps, fetch failures, fallback use, partial raid membership, and structural proof gaps; incomplete inputs preserve LKG in the orchestrator and are rejected again before writer SQL. Exact-file candidate parity, synthetic no-network/no-DB smoke, health, resource, timer/backflow, and rollback checks passed. Full official 18-source completeness remains literally blocked pending network-data landing approval."
 }
