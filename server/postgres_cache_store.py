@@ -893,6 +893,21 @@ def _rebind_import_source_to_manifest_catalog(source, binding):
     return result
 
 
+def _resolver_selection_intent(selection_intent):
+    """Remove server-only Catalog reconciliation markers before Resolver use."""
+
+    result = copy.deepcopy(
+        selection_intent if isinstance(selection_intent, dict) else {}
+    )
+    slots = result.get("slots")
+    if not isinstance(slots, dict):
+        return result
+    for selection in slots.values():
+        if isinstance(selection, dict):
+            selection.pop("_catalogSourceVariantKey", None)
+    return result
+
+
 def _community_template_import_cache_fingerprint(
     release_context,
     class_key,
@@ -2211,6 +2226,9 @@ class PostgresCacheStore:
                     "reconcileMs": reconcile_ms,
                     "cacheIdentity": cache_identity,
                 }
+            resolver_selection_intent = _resolver_selection_intent(
+                selection_intent
+            )
             try:
                 source_overrides = source.get(
                     "_authorityVariantKeysBySlot"
@@ -2218,7 +2236,7 @@ class PostgresCacheStore:
                 if isinstance(source_overrides, dict) and source_overrides:
                     authority_context = (
                         self._gear_release_store.load_active_authority_context(
-                            selection_intent,
+                            resolver_selection_intent,
                             runtime_authority,
                             binding,
                             source_variant_overrides=source_overrides,
@@ -2227,7 +2245,7 @@ class PostgresCacheStore:
                 else:
                     authority_context = (
                         self._gear_release_store.load_active_authority_context(
-                            selection_intent,
+                            resolver_selection_intent,
                             runtime_authority,
                             binding,
                         )
@@ -2289,6 +2307,7 @@ class PostgresCacheStore:
                         release_context=release_context,
                         unavailable=True,
                     ) from error
+            source["selectionIntent"] = resolver_selection_intent
             return {
                 "cache": {"hit": False, "write": False},
                 "source": source,
@@ -2360,6 +2379,9 @@ class PostgresCacheStore:
                 "reconcileMs": reconcile_ms,
                 "cacheIdentity": cache_identity,
             }
+        resolver_selection_intent = _resolver_selection_intent(
+            selection_intent
+        )
         try:
             source_overrides = source.get(
                 "_authorityVariantKeysBySlot"
@@ -2367,7 +2389,7 @@ class PostgresCacheStore:
             if isinstance(source_overrides, dict) and source_overrides:
                 authority_context = (
                     self._gear_release_store.load_active_authority_context(
-                        selection_intent,
+                        resolver_selection_intent,
                         runtime_authority,
                         binding,
                         source_variant_overrides=source_overrides,
@@ -2376,7 +2398,7 @@ class PostgresCacheStore:
             else:
                 authority_context = (
                     self._gear_release_store.load_active_authority_context(
-                        selection_intent,
+                        resolver_selection_intent,
                         runtime_authority,
                         binding,
                     )
@@ -2403,6 +2425,7 @@ class PostgresCacheStore:
                 release_context=release_context,
                 unavailable=True,
             ) from error
+        source["selectionIntent"] = resolver_selection_intent
         return {
             "cache": {"hit": False},
             "source": source,

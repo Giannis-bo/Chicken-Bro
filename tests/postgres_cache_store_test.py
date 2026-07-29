@@ -11100,6 +11100,29 @@ class PostgresCacheStoreTest(unittest.TestCase):
         )
         self.assertNotIn("_authorityVariantKeysBySlot", rebound)
 
+    def test_manifest_v2_import_strips_catalog_rebind_marker_before_resolver(self):
+        from server.postgres_cache_store import _resolver_selection_intent
+
+        intent = {
+            "schemaRevision": "selection-intent-v1",
+            "slots": {
+                "head": {
+                    "itemId": "item-a",
+                    "variantKey": "browse-variant-a",
+                    "_catalogSourceVariantKey": "observed-profile-a",
+                }
+            },
+        }
+
+        result = _resolver_selection_intent(intent)
+
+        self.assertEqual(result["slots"]["head"]["variantKey"], "browse-variant-a")
+        self.assertNotIn("_catalogSourceVariantKey", result["slots"]["head"])
+        self.assertEqual(
+            intent["slots"]["head"]["_catalogSourceVariantKey"],
+            "observed-profile-a",
+        )
+
     def test_manifest_v2_import_defers_unmapped_exact_slot_without_creating_browse_membership(self):
         """A verified exact template may retain its source variant when Browse excludes it."""
         from server.postgres_cache_store import (
