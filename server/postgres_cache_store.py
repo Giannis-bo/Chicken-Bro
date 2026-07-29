@@ -9020,6 +9020,7 @@ class PostgresCacheStore:
             class_key,
             spec_key,
             compact=compact,
+            candidate_limit=0 if mode == "slot" else None,
         )
         readiness = catalog_read_model["readiness"]
         payload = {

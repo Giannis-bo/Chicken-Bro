@@ -656,6 +656,111 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertEqual(result["gearCatalogRevision"], catalog_revision)
         self.assertEqual(result["gearExactRegistryRevision"], exact_revision)
 
+    def test_manifest_v2_slot_payload_keeps_every_legal_catalog_candidate_when_compact(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        catalog_revision = "gear-catalog:sha256:" + ("a" * 64)
+        exact_revision = "gear-exact-registry:sha256:" + ("b" * 64)
+
+        class ReleaseStore:
+            def load_active_manifest_public_gear(
+                self,
+                _binding,
+                _class_key,
+                _spec_key,
+                *,
+                include_catalog,
+                catalog_slot="",
+            ):
+                self.include_catalog = include_catalog
+                self.catalog_slot = catalog_slot
+                return {
+                    "gearRelease": {
+                        "releaseId": "gear-release-a",
+                        "releaseStatus": "validated",
+                    },
+                    "communityRelease": {
+                        "releaseId": "community-release-a",
+                    },
+                    "communityTemplates": [],
+                    "gearCatalog": {
+                        "catalogRevision": catalog_revision,
+                        "status": "verified",
+                    },
+                    "gearExactRegistry": {
+                        "registryRevision": exact_revision,
+                        "status": "verified",
+                    },
+                    "gearSnapshot": {
+                        "items": [],
+                        "sources": [],
+                        "variants": [],
+                        "options": [],
+                    },
+                }
+
+        release_store = ReleaseStore()
+        store = PostgresCacheStore(
+            lambda: self.fail("Manifest v2 public read must stay in repositories"),
+            gear_release_store=release_store,
+            observed_build_store=FakeObservedBuildStore(active=False),
+        )
+        binding = {
+            "generation": 33,
+            "formalActiveManifest": True,
+            "manifest": {
+                "schemaRevision": "active-season-manifest-v2",
+                "manifestRevision": "manifest-v2",
+                "seasonRevision": "season-17",
+                "gearCatalogReleaseId": "gear-release-a",
+                "gearCatalogRevision": catalog_revision,
+                "gearExactRegistryRevision": exact_revision,
+                "communityTemplateReleaseId": "community-release-a",
+            },
+        }
+        catalog_items = [
+            {
+                "id": f"head-{index}",
+                "itemId": f"head-{index}",
+                "slot": "head",
+                "simcSlot": "head",
+                "name": f"Head {index}",
+                "displayName": f"Head {index}",
+                "sourceType": "raid",
+                "sources": [{"sourceType": "raid"}],
+                "itemLevel": 300 - index,
+                "ilevel": 300 - index,
+                "armorType": "Cloth",
+                "compatibility": {
+                    "status": "compatible",
+                    "armorStatus": "compatible",
+                },
+                "variantStatus": "verified",
+                "statDisplayStatus": "verified_variant",
+                "simcReady": True,
+            }
+            for index in range(13)
+        ]
+
+        with patch(
+            "server.postgres_cache_store.pg_gear_read_model_selectors.build_gear_catalog_items_read_model",
+            return_value=catalog_items,
+        ):
+            result = store._active_websim_gear_payload(
+                binding,
+                "mage",
+                "frost",
+                True,
+                "slot",
+                "head",
+            )
+
+        head_group = result["replacementCandidates"][0]
+        self.assertTrue(release_store.include_catalog)
+        self.assertEqual(release_store.catalog_slot, "head")
+        self.assertEqual(head_group["slot"], "head")
+        self.assertEqual(len(head_group["items"]), len(catalog_items))
+
     def test_manifest_v2_payload_withholds_partial_exact_template_from_import(self):
         from server.gear_contracts import community_template_authority_identity
         from server.postgres_cache_store import PostgresCacheStore
