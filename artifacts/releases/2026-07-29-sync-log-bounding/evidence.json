@@ -2,8 +2,8 @@
   "schemaVersion": 2,
   "slug": "sync-log-bounding",
   "requirementSlug": "sync-log-bounding",
-  "status": "live_verified",
-  "highestEvidenceLevel": "live_verified",
+  "status": "archived",
+  "highestEvidenceLevel": "archived",
   "branch": "codex/sync-log-bounding",
   "commit": "69a8d8a7b7a15bbc6af0c10fb825f31bb34d6b11",
   "identities": {
@@ -156,5 +156,5 @@
     "artifacts/releases/2026-07-29-sync-log-bounding/requirement.json",
     "docs/database-architecture.md"
   ],
-  "summary": "Commit 69a8d8a7 replaces full scheduled WebSim/stat-weight terminal payloads with an 8 KiB fail-closed summary/progress contract and was merged through b6b2bc78. Exact production file parity, a bounded literal-partial journald smoke, HTTP health, unchanged timer/backflow state, safe log retention, and root-disk recovery from 92% to 79% all pass without launching either expensive sync. Historical database backups remain intact; only pre-existing test warnings remain open."
+  "summary": "Archived closure: commit 69a8d8a7 replaces full scheduled WebSim/stat-weight terminal payloads with an 8 KiB fail-closed summary/progress contract and was merged through b6b2bc78. Exact production file parity, a bounded literal-partial journald smoke, HTTP health, unchanged timer/backflow state, safe log retention, and root-disk recovery from 92% to 79% all pass without launching either expensive sync. Historical database backups remain intact; only pre-existing test warnings remain open."
 }

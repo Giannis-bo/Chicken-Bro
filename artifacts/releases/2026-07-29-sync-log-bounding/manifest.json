@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-29T14:29:22.942Z",
+  "generatedAt": "2026-07-29T14:29:57.313Z",
   "release": {
     "date": "2026-07-29",
     "slug": "sync-log-bounding"
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-29-sync-log-bounding/evidence.json",
-    "sizeBytes": 7646,
+    "sizeBytes": 7654,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -390,9 +390,9 @@
       "summary"
     ],
     "missingFields": [],
-    "declaredStatus": "live_verified",
-    "highestEvidenceLevel": "live_verified",
-    "summary": "Commit 69a8d8a7 replaces full scheduled WebSim/stat-weight terminal payloads with an 8 KiB fail-closed summary/progress contract and was merged through b6b2bc78. Exact production file parity, a bounded literal-partial journald smoke, HTTP health, unchanged timer/backflow state, safe log retention, and root-disk recovery from 92% to 79% all pass without launching either expensive sync. Historical database backups remain intact; only pre-existing test warnings remain open."
+    "declaredStatus": "archived",
+    "highestEvidenceLevel": "archived",
+    "summary": "Archived closure: commit 69a8d8a7 replaces full scheduled WebSim/stat-weight terminal payloads with an 8 KiB fail-closed summary/progress contract and was merged through b6b2bc78. Exact production file parity, a bounded literal-partial journald smoke, HTTP health, unchanged timer/backflow state, safe log retention, and root-disk recovery from 92% to 79% all pass without launching either expensive sync. Historical database backups remain intact; only pre-existing test warnings remain open."
   },
   "evidence": {
     "localTests": {
@@ -417,7 +417,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "3 changed files currently visible to git status."
+      "detail": "1 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
@@ -453,11 +453,9 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 3,
+      "changedFileCount": 1,
       "changedFiles": [
-        " M artifacts/releases/2026-07-29-sync-log-bounding/evidence.json",
-        " M docs/plans/2026-07-29-sync-log-bounding.md",
-        " M docs/plans/README.md"
+        " M artifacts/releases/2026-07-29-sync-log-bounding/evidence.json"
       ]
     }
   },
