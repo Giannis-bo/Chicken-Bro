@@ -19,18 +19,20 @@ try:
         resolve_exact_instance_progression,
         resolve_legacy_browse_progression,
     )
+    from .websim_payload import item_type_metadata_from_payload
 except ImportError:
     from gear_catalog_migration_audit import audit_catalog_mapping
     from gear_track_authority import (
         resolve_exact_instance_progression,
         resolve_legacy_browse_progression,
     )
+    from websim_payload import item_type_metadata_from_payload
 
 
 LEGACY_CATALOG_SCHEMA_REVISION = "gear-catalog-revision-v1"
 VARIANT_SHAPE_CATALOG_SCHEMA_REVISION = "gear-catalog-revision-v2"
 CATALOG_SCHEMA_REVISION = "gear-catalog-revision-v3"
-CATALOG_BUILDER_REVISION = "gear-catalog-builder-v3"
+CATALOG_BUILDER_REVISION = "gear-catalog-builder-v4"
 CATALOG_REVISION_PATTERN = re.compile(
     r"^gear-catalog:sha256:[0-9a-f]{64}$"
 )
@@ -267,19 +269,53 @@ def _catalog_item_has_governed_equipment_type(
     """Return whether a non-portable item has its governing type fact."""
 
     slot = _text(row.get("slot")).lower().replace("-", "_")
-    payload = _mapping(row.get("payload"))
-    equipment = _mapping(payload.get("equipment"))
+    equipment = _catalog_item_equipment(row)
     if slot in _CATALOG_ARMOR_SLOTS:
-        return bool(
-            _text(payload.get("armorType"))
-            or _text(equipment.get("armorType"))
-        )
+        return bool(_text(equipment.get("armorType")))
     if slot in _CATALOG_WEAPON_SLOTS:
-        return bool(
-            _text(payload.get("weaponType"))
-            or _text(equipment.get("weaponType"))
-        )
+        return bool(_text(equipment.get("weaponType")))
     return True
+
+
+def _catalog_item_equipment(row: Mapping[str, Any]) -> dict[str, Any]:
+    """Project governed equipment facts from internal or official BNet payloads."""
+
+    payload = _mapping(row.get("payload"))
+    existing = _mapping(payload.get("equipment"))
+    bnet = _mapping(item_type_metadata_from_payload(payload))
+    raw_inventory = _mapping(payload.get("inventory_type"))
+    result = {
+        "armorType": (
+            _text(payload.get("armorType"))
+            or _text(existing.get("armorType"))
+            or _text(bnet.get("armorType"))
+        ),
+        "inventoryType": (
+            _text(payload.get("inventoryType"))
+            or _text(existing.get("inventoryType"))
+            or _text(raw_inventory.get("type"))
+        ),
+        "itemClass": (
+            payload.get("itemClass")
+            or existing.get("itemClass")
+            or _mapping(payload.get("item_class"))
+        ),
+        "itemSubclass": (
+            payload.get("itemSubclass")
+            or existing.get("itemSubclass")
+            or _mapping(payload.get("item_subclass"))
+        ),
+        "weaponType": (
+            _text(payload.get("weaponType"))
+            or _text(existing.get("weaponType"))
+            or _text(bnet.get("weaponType"))
+        ),
+    }
+    return {
+        key: value
+        for key, value in result.items()
+        if value not in (None, "", [], {})
+    }
 
 
 def _source_definition(row: Mapping[str, Any]) -> dict[str, Any]:
@@ -839,10 +875,7 @@ def build_catalog_revision(
             "sourceStatus": source_status,
             "legacySourceStatus": legacy_source_status or "unknown",
             "media": _item_payload_section(payload, _ITEM_MEDIA_KEYS),
-            "equipment": _item_payload_section(
-                payload,
-                _ITEM_EQUIPMENT_KEYS,
-            ),
+            "equipment": _catalog_item_equipment(row),
             "restrictions": _item_payload_section(
                 payload,
                 _ITEM_RESTRICTION_KEYS,

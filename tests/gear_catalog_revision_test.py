@@ -532,6 +532,64 @@ class GearCatalogRevisionTest(unittest.TestCase):
             1,
         )
 
+    def test_bnet_item_subclass_projects_governed_armor_type(self):
+        rows = regular_rows()
+        rows["items"][0]["payload"] = {
+            "item_class": {"id": 4, "name": "护甲"},
+            "item_subclass": {"id": 2, "name": "皮甲"},
+            "inventory_type": {"type": "HEAD", "name": "头部"},
+        }
+
+        result = build_catalog_revision(CURRENT_BINDING, rows)
+
+        self.assertEqual(result["status"], "verified")
+        self.assertEqual(len(result["itemDefinitions"]), 1)
+        self.assertEqual(
+            result["itemDefinitions"][0]["equipment"]["armorType"],
+            "Leather",
+        )
+
+    def test_bnet_weapon_subclass_projects_governed_weapon_type(self):
+        rows = regular_rows()
+        rows["items"].append(
+            {
+                "itemId": "1002",
+                "name": "BNet Staff",
+                "slot": "main_hand",
+                "itemLevel": 276,
+                "sourceStatus": "verified",
+                "payload": {
+                    "item_class": {"id": 2, "name": "武器"},
+                    "item_subclass": {"id": 10, "name": "法杖"},
+                    "inventory_type": {
+                        "type": "2HWEAPON",
+                        "name": "双手",
+                    },
+                },
+                "hasSourceRefs": True,
+                "hasVariantRefs": True,
+            }
+        )
+        rows["sources"].append(source("1002"))
+        rows["variants"].append(
+            {
+                **rows["variants"][0],
+                "variantId": "variant-staff-hero-6",
+                "variantKey": "staff-hero-6",
+                "itemId": "1002",
+                "slot": "main_hand",
+            }
+        )
+
+        result = build_catalog_revision(CURRENT_BINDING, rows)
+
+        equipment_by_item = {
+            item["itemId"]: item["equipment"]
+            for item in result["itemDefinitions"]
+        }
+        self.assertEqual(result["status"], "verified")
+        self.assertEqual(equipment_by_item["1002"]["weaponType"], "Staff")
+
     def test_catalog_identity_does_not_include_derived_browse_key(self):
         result = build_catalog_revision(CURRENT_BINDING, regular_rows())
         tampered = copy.deepcopy(result)
