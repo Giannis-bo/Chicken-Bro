@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-29T08:09:39.319Z",
+  "generatedAt": "2026-07-29T08:16:18.976Z",
   "release": {
     "date": "2026-07-29",
     "slug": "manifest-catalog-detail-contract"
@@ -99,7 +99,7 @@
         {
           "path": "server/websim_payload.py",
           "exists": true,
-          "lineCount": 27443,
+          "lineCount": 27451,
           "hotspot": true
         },
         {
@@ -392,7 +392,7 @@
       "id": "hotspot_files_present",
       "severity": "medium",
       "status": "watch",
-      "detail": "server/websim_payload.py:27443, server/news_backend.py:14220, server/postgres_cache_store.py:9335"
+      "detail": "server/websim_payload.py:27451, server/news_backend.py:14220, server/postgres_cache_store.py:9335"
     },
     {
       "id": "localTests_missing",
