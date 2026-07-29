@@ -1,0 +1,111 @@
+{
+  "schemaVersion": 2,
+  "slug": "season-pve-universe-reconciliation",
+  "requirementSlug": "season-pve-universe-reconciliation",
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
+  "branch": "codex/season-pve-universe-reconciliation",
+  "commit": "60f23245c8b8689efe10888b19eb6792717576f6",
+  "identities": {
+    "runtime": {
+      "status": "not_applicable",
+      "reason": "This slice adds a pure offline reconciler, versioned source policy, CLI, tests, and evidence only; no backend route, scheduled job, Catalog pointer, or WeChat consumer imports it."
+    },
+    "verification": {
+      "status": "bound_at_check",
+      "kind": "git_ref",
+      "value": "HEAD"
+    },
+    "closure": {
+      "status": "pending",
+      "reason": "The independent official source-membership snapshot, item-level staging/Catalog differential, full equipment Goal, and branch integration remain open."
+    }
+  },
+  "manualAcceptance": {
+    "required": false,
+    "status": "not_applicable",
+    "reason": "This foundation has no user-visible runtime behavior. Actual WeChat DevTools acceptance remains mandatory for the parent equipment-simulator Goal.",
+    "items": [],
+    "rollup": {
+      "total": 0,
+      "accepted": 0,
+      "notRunUserWaived": 0,
+      "pending": 0
+    }
+  },
+  "scope": [
+    "Versioned inclusive Midnight Season 1 PVE acquisition-source policy",
+    "Pure deterministic source/item/progression reconciliation",
+    "Explicit include, governed-exclude, and blocked ledger",
+    "Bounded read-only CLI and current no-discovery blocked audit",
+    "No runtime, database, Catalog, Manifest, timer, or frontend mutation"
+  ],
+  "verification": [
+    {
+      "command": "python3 -m unittest tests.season_pve_universe_test tests.season_pve_universe_cli_test tests.sync_log_summary_test tests.websim_sync_test tests.postgres_only_scripts_test tests.postgres_cache_sync_test tests.deploy_lighthouse_test",
+      "status": "pass",
+      "summary": "164 exact-HEAD tests passed after merging origin/main. Existing unclosed-SQLite ResourceWarning and one module-run RuntimeWarning remain visible and are not represented as clean resource evidence."
+    },
+    {
+      "command": "python3 -m py_compile server/season_pve_universe.py scripts/season-pve-universe.py server/sync_log_summary.py server/websim_sync.py server/stat_weights_sync.py",
+      "status": "pass",
+      "summary": "All changed Universe and merged scheduled-log Python files compile."
+    },
+    {
+      "command": "node scripts/project-harness.js --json --check-requirement --requirement-file artifacts/releases/2026-07-29-season-pve-universe-reconciliation/requirement.json",
+      "status": "pass",
+      "summary": "Harness requirement validator returned project_harness_requirement_check_passed with no reason codes or failures."
+    },
+    {
+      "command": "python3 scripts/season-pve-universe.py --policy ... --discovery no-independent-discovery.json --staging empty-staging.json --catalog no-independent-catalog.json --max-ledger-rows 0",
+      "status": "pass",
+      "summary": "The intentionally absent independent discovery exits 2 with literal blocked, 18/18 SOURCE_DISCOVERY_MISSING source members, bounded stdout, and universe revision season-pve-universe:sha256:83431dff079d68dcb96b47a4a19820e832a49128f526aeefdb1f8d159ad0d722. Stored audit parity passed."
+    },
+    {
+      "command": "git diff --check",
+      "status": "pass",
+      "summary": "No whitespace errors on the exact merged verification head."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "not_applicable",
+    "reason": "The pure offline module is not connected to any runtime surface; deploying it would add cloud risk without exercising a consumer."
+  },
+  "runtimeEvidence": [],
+  "risks": [
+    {
+      "id": "official-membership-snapshot-missing",
+      "status": "blocked",
+      "detail": "No independently captured official source-to-item/progression membership snapshot exists. The current audit is correctly blocked 18/18 and cannot prove the complete PVE equipment universe."
+    },
+    {
+      "id": "production-season-evidence-expired",
+      "status": "blocked",
+      "detail": "The read-only production inventory showed the active season evidence expired on 2026-06-25 and staging contains only crafted, dungeon, observed_profile, raid, and tier_set source families."
+    },
+    {
+      "id": "downstream-item-differential-not-run",
+      "status": "blocked",
+      "detail": "Without the official membership snapshot, an item/progression-level staging and Catalog differential would compare downstream state only and could not detect an upstream omission."
+    },
+    {
+      "id": "cloud-resource-watch",
+      "status": "guarded",
+      "detail": "Cloud root usage was reduced from 92% to 79% with production and candidate health retained. No source sync, Catalog build, or equipment candidate load was launched in this slice."
+    }
+  ],
+  "rollback": [
+    "code_rollback"
+  ],
+  "cleanup": {
+    "required": false,
+    "reason": "No candidate, temporary remote snapshot, database row, timer, or runtime process was created by this slice."
+  },
+  "archivedReferences": [
+    "docs/plans/2026-07-29-season-pve-universe-reconciliation.md",
+    "server/data/midnight-season-1-pve-source-policy.json",
+    "artifacts/releases/2026-07-29-season-pve-universe-reconciliation/current-blocked-audit.json",
+    "docs/plans/2026-07-28-equipment-simulator-target-architecture.md"
+  ],
+  "summary": "The exact merged head locally verifies a fail-closed independent Season PVE Universe contract: source authority coverage, evidence freshness, positive membership, progression-state identity, staging/Catalog closure, BrowseVariant cardinality, exclusions, reverse downstream orphans, and bounded diagnostics are enforced. The real completeness result remains blocked 18/18 until an approved official membership snapshot exists; this is foundation evidence, not completion of the equipment simulator Goal."
+}
