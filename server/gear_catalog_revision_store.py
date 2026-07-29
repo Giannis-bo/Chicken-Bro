@@ -66,29 +66,6 @@ def _header(catalog: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
-def _catalog_semantics(catalog: Mapping[str, Any]) -> dict[str, Any]:
-    definitions = _canonical(catalog.get("itemDefinitions") or [])
-    definitions.sort(
-        key=lambda row: (
-            _text(_mapping(row).get("itemId")),
-            _json(row),
-        )
-    )
-    variants = _canonical(catalog.get("browseVariants") or [])
-    variants.sort(
-        key=lambda row: (
-            _text(_mapping(row).get("itemId")),
-            _text(_mapping(row).get("browseVariantKey")),
-            _json(row),
-        )
-    )
-    return {
-        **_header(catalog),
-        "itemDefinitions": definitions,
-        "browseVariants": variants,
-    }
-
-
 class GearCatalogRevisionStore:
     """Seal, load and byte-verify one dormant Catalog identity."""
 
@@ -104,7 +81,7 @@ class GearCatalogRevisionStore:
             raise GearCatalogRevisionIntegrityError(
                 "verified catalog object is required"
             )
-        normalized = _canonical(catalog)
+        normalized = dict(catalog)
         issues = verify_catalog_revision(normalized)
         if issues:
             raise GearCatalogRevisionIntegrityError(
@@ -409,8 +386,11 @@ class GearCatalogRevisionStore:
                         for variant in variants
                     ],
                 )
+                # The revision verifier binds the complete row set. Release
+                # the owned input before the byte-verified PostgreSQL reload.
+                del definitions, variants, expected, catalog
                 sealed = self._load_with_cursor(cur, revision)
-                if _catalog_semantics(sealed) != _catalog_semantics(expected):
+                if _text(sealed.get("catalogRevision")) != revision:
                     raise GearCatalogRevisionIntegrityError(
                         "sealed catalog content mismatch"
                     )

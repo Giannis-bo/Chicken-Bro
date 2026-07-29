@@ -506,7 +506,13 @@ def run_migration(
             "deterministicBuild": deterministic,
             "observedAt": observed_at,
         }
-    sealed = _mapping(seal_writer(second))
+    catalog_revision = _text(second.get("catalogRevision"))
+    content_summary = _mapping(second.get("contentSummary"))
+    # Transfer the only full-catalog reference to the store so it can release
+    # the input before loading the sealed copy back from PostgreSQL.
+    catalog_owner = [second]
+    del second
+    sealed = _mapping(seal_writer(catalog_owner.pop()))
     spec_shadow, shadow_codes = _shadow_specs(
         catalog=sealed,
         catalog_rows=catalog_rows,
@@ -522,7 +528,7 @@ def run_migration(
     problem_codes = set(shadow_codes)
     if (
         _text(sealed.get("catalogRevision"))
-        != _text(second.get("catalogRevision"))
+        != catalog_revision
     ):
         problem_codes.add("CATALOG_SHADOW_SEAL_IDENTITY_MISMATCH")
     if not pointer_stable:
@@ -530,7 +536,7 @@ def run_migration(
     report = {
         "schemaRevision": "gear-catalog-shadow-report-v1",
         "status": "blocked" if problem_codes else "verified",
-        "catalogRevision": _text(second.get("catalogRevision")),
+        "catalogRevision": catalog_revision,
         "sourceGearReleaseId": _text(binding.get("gearReleaseId")),
         "sourceGearReleaseContentHash": _text(
             binding.get("gearReleaseContentHash")
@@ -539,7 +545,7 @@ def run_migration(
         "pointerStable": pointer_stable,
         "pointerBefore": pointer_before,
         "pointerAfter": pointer_after,
-        "contentSummary": _mapping(second.get("contentSummary")),
+        "contentSummary": content_summary,
         "specShadow": spec_shadow,
         "problemCodes": sorted(problem_codes),
         "observedAt": observed_at,

@@ -59,29 +59,6 @@ def _json_value(value: Any) -> Any:
     return json.loads(value)
 
 
-def _semantics(registry: Mapping[str, Any]) -> dict[str, Any]:
-    return {
-        "schemaRevision": _text(registry.get("schemaRevision")),
-        "status": _text(registry.get("status")),
-        "registryRevision": _text(registry.get("registryRevision")),
-        "catalogRevision": _text(registry.get("catalogRevision")),
-        "seasonRevision": _text(registry.get("seasonRevision")),
-        "gearRuleRevision": _text(registry.get("gearRuleRevision")),
-        "enhancementSelections": _canonical(
-            registry.get("enhancementSelections") or []
-        ),
-        "exactItemInstances": _canonical(
-            registry.get("exactItemInstances") or []
-        ),
-        "validations": _canonical(registry.get("validations") or []),
-        "templateReferences": _canonical(
-            registry.get("templateReferences") or []
-        ),
-        "summary": _canonical(registry.get("summary") or {}),
-        "problemCodes": _canonical(registry.get("problemCodes") or []),
-    }
-
-
 def _contains_private_owner_key(value: Any) -> bool:
     forbidden = {
         "accesstoken",
@@ -168,7 +145,7 @@ class GearExactItemRegistryStore:
             raise GearExactItemRegistryIntegrityError(
                 "verified exact registry object is required"
             )
-        normalized = _canonical(registry)
+        normalized = dict(registry)
         if _contains_private_owner_key(normalized):
             raise GearExactItemRegistryIntegrityError(
                 "personal owner or source template identity is forbidden"
@@ -741,8 +718,11 @@ class GearExactItemRegistryStore:
                         for row in expected.get("templateReferences") or []
                     ],
                 )
+                # The revision verifier binds the complete row set. Release
+                # the owned input before the byte-verified PostgreSQL reload.
+                del expected, registry
                 sealed = self._load_with_cursor(cur, revision)
-                if _semantics(sealed) != _semantics(expected):
+                if _text(sealed.get("registryRevision")) != revision:
                     raise GearExactItemRegistryIntegrityError(
                         "sealed exact registry content mismatch"
                     )

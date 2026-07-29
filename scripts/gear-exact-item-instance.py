@@ -267,7 +267,12 @@ def run_migration(
             peak_bytes=peak_bytes,
         )
 
-    sealed = _mapping(seal_writer(registry))
+    registry_revision = _text(registry.get("registryRevision"))
+    # Transfer the only full-registry reference to the store so it can release
+    # the input before loading the sealed copy back from PostgreSQL.
+    registry_owner = [registry]
+    del registry
+    sealed = _mapping(seal_writer(registry_owner.pop()))
     elapsed = (
         float(elapsed_seconds_reader())
         if elapsed_seconds_reader
@@ -284,7 +289,7 @@ def run_migration(
     ))
     problem_codes: set[str] = set()
     if _text(sealed.get("registryRevision")) != _text(
-        registry.get("registryRevision")
+        registry_revision
     ):
         problem_codes.add("EXACT_SHADOW_SEAL_IDENTITY_MISMATCH")
     if (
@@ -302,7 +307,7 @@ def run_migration(
         "schemaRevision": "gear-exact-shadow-report-v1",
         "status": "blocked" if problem_codes else "verified",
         "catalogRevision": catalog_revision,
-        "registryRevision": _text(registry.get("registryRevision")),
+        "registryRevision": registry_revision,
         "registryStatus": registry_status,
         "sourceGearReleaseId": _text(binding.get("gearReleaseId")),
         "sourceGearReleaseContentHash": _text(
