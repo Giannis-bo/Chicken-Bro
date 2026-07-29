@@ -61,6 +61,19 @@ def _hash(prefix: str, value: Any) -> str:
     return prefix + hashlib.sha256(_bytes(value)).hexdigest()
 
 
+def _streaming_hash(prefix: str, value: Any) -> str:
+    digest = hashlib.sha256()
+    encoder = json.JSONEncoder(
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        default=str,
+    )
+    for chunk in encoder.iterencode(value):
+        digest.update(chunk.encode("utf-8"))
+    return prefix + digest.hexdigest()
+
+
 def _text(value: Any) -> str:
     return str(value or "").strip()
 
@@ -508,7 +521,7 @@ def build_exact_item_registry(
         "problemCodes": problem_codes,
         "problems": _canonical(problems),
     }
-    result["registryRevision"] = _hash(
+    result["registryRevision"] = _streaming_hash(
         "gear-exact-registry:sha256:",
         _registry_semantics(result),
     )
@@ -522,7 +535,7 @@ def verify_exact_item_registry(registry: Any) -> list[str]:
         return ["EXACT_REGISTRY_OBJECT_INVALID"]
     problems: list[str] = []
     revision = _text(registry.get("registryRevision"))
-    expected_revision = _hash(
+    expected_revision = _streaming_hash(
         "gear-exact-registry:sha256:",
         _registry_semantics(registry),
     )

@@ -117,6 +117,19 @@ def _hash(prefix: str, value: Any) -> str:
     return prefix + hashlib.sha256(_canonical_bytes(value)).hexdigest()
 
 
+def _streaming_hash(prefix: str, value: Any) -> str:
+    digest = hashlib.sha256()
+    encoder = json.JSONEncoder(
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        default=str,
+    )
+    for chunk in encoder.iterencode(value):
+        digest.update(chunk.encode("utf-8"))
+    return prefix + digest.hexdigest()
+
+
 def _text(value: Any) -> str:
     return str(value or "").strip()
 
@@ -482,6 +495,7 @@ def build_catalog_revision(
                 "mappingAudit",
                 "Phase 0 Catalog mapping contract is not verified.",
             ))
+    del mapping_audit
 
     raw_items = [
         row
@@ -498,6 +512,7 @@ def build_catalog_revision(
         for row in source_rows.get("variants") or []
         if isinstance(row, Mapping)
     ]
+    del source_rows
     type_excluded_item_ids = {
         _text(row.get("itemId") or row.get("id"))
         for row in raw_items
@@ -533,6 +548,7 @@ def build_catalog_revision(
             sources_by_item.setdefault(item_id, []).append(
                 _source_definition(row)
             )
+    del raw_sources
 
     candidate_rows: dict[
         tuple[str, str, str],
@@ -665,6 +681,7 @@ def build_catalog_revision(
         # can establish governed Track Authority evidence, but never create or
         # extend a public BrowseVariant or its ItemDefinition membership.
         exact_eligible_count += 1
+    del raw_variants, verified_exact_item_ids, observed_ascendant_item_ids
 
     normal_browse_groups: dict[
         tuple[str, str],
@@ -726,6 +743,7 @@ def build_catalog_revision(
                 f"rows.variants[{item_id}]",
                 "Crafted stat selections disagree on selection-independent facts.",
             ))
+    del normal_browse_groups, crafted_browse_groups
 
     variant_seeds: list[dict[str, Any]] = []
     progressions_by_item: dict[
@@ -815,6 +833,7 @@ def build_catalog_revision(
         progressions_by_item.setdefault(item_id, {})[
             progression_key
         ] = exemplar["progressionState"]
+    del candidate_rows
 
     item_definitions: list[dict[str, Any]] = []
     membership_item_ids = set(progressions_by_item)
@@ -897,6 +916,7 @@ def build_catalog_revision(
             definition,
         )
         item_definitions.append(definition)
+    del raw_items, sources_by_item, progressions_by_item, membership_item_ids
 
     item_definitions.sort(key=lambda row: _text(row.get("itemId")))
     variant_seeds.sort(
@@ -927,7 +947,11 @@ def build_catalog_revision(
         item_definitions=item_definitions,
         browse_variant_seeds=variant_seeds,
     )
-    catalog_revision = _hash("gear-catalog:sha256:", identity_seed)
+    catalog_revision = _streaming_hash(
+        "gear-catalog:sha256:",
+        identity_seed,
+    )
+    del identity_seed
 
     browse_variants: list[dict[str, Any]] = []
     for seed in variant_seeds:
@@ -947,6 +971,7 @@ def build_catalog_revision(
             variant,
         )
         browse_variants.append(variant)
+    del variant_seeds
 
     content_summary = {
         "itemDefinitionCount": len(item_definitions),
@@ -1022,7 +1047,7 @@ def verify_catalog_revision(catalog: Any) -> list[str]:
     if len(variants) != len(catalog.get("browseVariants") or []):
         problems.append("CATALOG_BROWSE_VARIANT_MALFORMED")
 
-    expected_revision = _hash(
+    expected_revision = _streaming_hash(
         "gear-catalog:sha256:",
         _catalog_identity_seed(
             schema_revision=_text(catalog.get("schemaRevision")),
