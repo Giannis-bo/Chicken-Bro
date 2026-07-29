@@ -35,6 +35,31 @@ def template(*, slot="head", item_id="1001", variant_key="observed-hero-3", **ex
 
 
 class GearExactItemRegistryTest(unittest.TestCase):
+    def test_full_source_count_is_preserved_with_referenced_rows_only(self):
+        result = build_exact_item_registry(
+            CURRENT_BINDING,
+            catalog_revision=CATALOG_REVISION,
+            exact_rows=[exact_row()],
+            source_exact_row_count=48_555,
+            community_templates=[template()],
+            personal_templates=[],
+        )
+
+        self.assertEqual(result["status"], "verified")
+        self.assertEqual(
+            result["summary"]["sourceExactRowCount"],
+            48_555,
+        )
+        self.assertEqual(
+            result["summary"]["referencedExactRowCount"],
+            1,
+        )
+        self.assertEqual(
+            result["summary"]["unreferencedExactRowCount"],
+            48_554,
+        )
+        self.assertEqual(verify_exact_item_registry(result), [])
+
     def test_only_referenced_instances_are_materialized_and_deduplicated(self):
         second = exact_row(
             itemId="2002",

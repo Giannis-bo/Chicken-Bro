@@ -260,6 +260,50 @@ class GearCatalogRevisionTest(unittest.TestCase):
             "ascendant",
         )
 
+    def test_exact_summary_authorizes_ascendant_without_materializing_history(self):
+        rows = regular_rows()
+        rows["variants"] = [{
+            "variantId": "ascendant-browse",
+            "variantKey": "ascendant-browse",
+            "itemId": "1001",
+            "rowFamily": "browse",
+            "trackKey": "void_upgrade",
+            "itemLevel": 298,
+            "slot": "chest",
+            "sourceType": "raid",
+            "bonusIds": [],
+            "staticStats": {"stamina": 120},
+            "status": "verified",
+        }]
+        rows["variantSummary"] = {
+            "exactInstanceRowCount": 48_555,
+            "exactVerifiedRowCount": 44_097,
+            "exactExcludedRowCount": 4_458,
+            "observedAscendantItemIds": ["1001"],
+        }
+        rows["items"][0]["slot"] = "chest"
+        rows["items"][0]["itemLevel"] = 298
+
+        result = build_catalog_revision(CURRENT_BINDING, rows)
+
+        self.assertEqual(result["status"], "verified")
+        self.assertEqual(
+            result["browseVariants"][0]["progressionKind"],
+            "ascendant",
+        )
+        self.assertEqual(
+            result["contentSummary"]["exactInstanceRowCount"],
+            48_555,
+        )
+        self.assertEqual(
+            result["contentSummary"]["exactEligibleRowCount"],
+            44_097,
+        )
+        self.assertEqual(
+            result["contentSummary"]["exactExcludedRowCount"],
+            4_458,
+        )
+
     def test_crafted_stat_choices_collapse_without_entering_static_facts(self):
         result = build_catalog_revision(CURRENT_BINDING, crafted_rows())
 

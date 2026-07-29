@@ -463,6 +463,7 @@ def build_catalog_revision(
 
     active = _mapping(binding)
     source_rows = _mapping(rows)
+    variant_summary = _mapping(source_rows.get("variantSummary"))
     problems: list[dict[str, str]] = []
     season_revision = _text(active.get("seasonRevision"))
     builder = _text(builder_revision)
@@ -531,6 +532,13 @@ def build_catalog_revision(
         )
     }
     observed_ascendant_item_ids = {
+        _text(value)
+        for value in variant_summary.get(
+            "observedAscendantItemIds"
+        ) or []
+        if _text(value)
+    }
+    observed_ascendant_item_ids.update({
         _text(row.get("itemId"))
         for row in raw_variants
         if (
@@ -540,7 +548,7 @@ def build_catalog_revision(
             and _static_facts(row.get("staticStats")) is not None
             and _text(row.get("itemId"))
         )
-    }
+    })
     sources_by_item: dict[str, list[dict[str, Any]]] = {}
     for row in raw_sources:
         item_id = _text(row.get("itemId"))
@@ -557,9 +565,16 @@ def build_catalog_revision(
     legacy_browse_count = 0
     type_excluded_browse_count = 0
     crafted_selection_count = 0
-    exact_instance_count = 0
-    exact_eligible_count = 0
-    exact_excluded_count = 0
+    summarized_exact_count = _positive_int(
+        variant_summary.get("exactInstanceRowCount")
+    )
+    exact_instance_count = summarized_exact_count
+    exact_eligible_count = _positive_int(
+        variant_summary.get("exactVerifiedRowCount")
+    )
+    exact_excluded_count = _positive_int(
+        variant_summary.get("exactExcludedRowCount")
+    )
     for index, row in enumerate(raw_variants):
         if _text(row.get("rowFamily")) != "browse":
             continue
@@ -649,12 +664,14 @@ def build_catalog_revision(
     for index, row in enumerate(raw_variants):
         if _text(row.get("rowFamily")) != "exact_instance":
             continue
-        exact_instance_count += 1
+        if not summarized_exact_count:
+            exact_instance_count += 1
         if (
             _text(row.get("status")).lower() != "verified"
             or row.get("blockers")
         ):
-            exact_excluded_count += 1
+            if not summarized_exact_count:
+                exact_excluded_count += 1
             continue
         resolution = resolve_exact_instance_progression(active, row)
         progression_state = _mapping(resolution.get("progressionState"))
@@ -675,12 +692,14 @@ def build_catalog_revision(
             or facts is None
             or not source_variant_key
         ):
-            exact_excluded_count += 1
+            if not summarized_exact_count:
+                exact_excluded_count += 1
             continue
         # ExactItemInstance rows belong to the separate exact registry. They
         # can establish governed Track Authority evidence, but never create or
         # extend a public BrowseVariant or its ItemDefinition membership.
-        exact_eligible_count += 1
+        if not summarized_exact_count:
+            exact_eligible_count += 1
     del raw_variants, verified_exact_item_ids, observed_ascendant_item_ids
 
     normal_browse_groups: dict[

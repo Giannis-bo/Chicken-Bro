@@ -293,6 +293,30 @@ class GearCatalogMigrationAuditTest(unittest.TestCase):
         self.assertNotIn("CATALOG_VARIANT_TRACK_MISSING", result["problemCodes"])
         self.assertNotIn("CATALOG_VARIANT_RANK_MISSING", result["problemCodes"])
 
+    def test_exact_summary_preserves_exclusion_ledger_without_history_rows(self):
+        rows = complete_catalog_rows()
+        rows["variantSummary"] = {
+            "exactInstanceRowCount": 48_555,
+            "exactVerifiedRowCount": 44_097,
+            "exactExcludedRowCount": 4_458,
+            "observedAscendantItemIds": [],
+        }
+
+        result = audit_catalog_mapping(
+            catalog_binding(
+                manifestRevision="manifest-1",
+                gearReleaseId="release-1",
+            ),
+            rows,
+        )
+
+        self.assertEqual(result["status"], "verified")
+        self.assertEqual(
+            result["excludedExactInstanceCount"],
+            48_555,
+        )
+        self.assertEqual(result["variantTotal"], 48_556)
+
     def test_generic_rank_is_ignored_while_authority_supplies_regular_rank(self):
         rows = complete_catalog_rows()
         browse = rows["variants"][0]

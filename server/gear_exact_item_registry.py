@@ -238,6 +238,7 @@ def build_exact_item_registry(
     *,
     catalog_revision: str,
     exact_rows: Any,
+    source_exact_row_count: Any = None,
     community_templates: Any,
     personal_templates: Any,
 ) -> dict[str, Any]:
@@ -479,12 +480,21 @@ def build_exact_item_registry(
     blocking_problem_codes = (
         set(problem_codes) - EXACT_REGISTRY_EVIDENCE_GAP_CODES
     )
+    total_source_count = (
+        int(source_exact_row_count)
+        if (
+            not isinstance(source_exact_row_count, bool)
+            and isinstance(source_exact_row_count, (int, float))
+            and int(source_exact_row_count) >= len(sources)
+        )
+        else len(sources)
+    )
     summary = {
-        "sourceExactRowCount": len(sources),
+        "sourceExactRowCount": total_source_count,
         "referencedExactRowCount": len(referenced_source_keys),
         "unreferencedExactRowCount": max(
             0,
-            len(sources) - len(referenced_source_keys),
+            total_source_count - len(referenced_source_keys),
         ),
         "templateCount": template_count,
         "classifiedTemplateCount": classified_template_count,

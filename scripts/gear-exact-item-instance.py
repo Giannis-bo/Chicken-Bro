@@ -211,6 +211,9 @@ def run_migration(
     build_args = {
         "catalog_revision": catalog_revision,
         "exact_rows": exact_rows,
+        "source_exact_row_count": _mapping(
+            catalog_rows.get("variantSummary")
+        ).get("exactInstanceRowCount"),
         "community_templates": snapshot.get("communityTemplates") or [],
         "personal_templates": snapshot.get("personalGearTemplates") or [],
     }

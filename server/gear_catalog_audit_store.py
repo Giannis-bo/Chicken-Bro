@@ -262,6 +262,21 @@ def _gear_items_from_template_payload(payload: Any, metadata: Any = None) -> lis
     return []
 
 
+def _exact_reference_keys(*template_groups: Any) -> list[str]:
+    keys = set()
+    for templates in template_groups:
+        for template in templates or []:
+            if not isinstance(template, Mapping):
+                continue
+            for item in template.get("gearItems") or []:
+                row = _mapping(item)
+                item_id = _text(row.get("itemId") or row.get("id"))
+                variant_key = _text(row.get("variantKey"))
+                if item_id and variant_key:
+                    keys.add(f"{item_id}\x1f{variant_key}")
+    return sorted(keys)
+
+
 def _normalized_sql(sql: Any) -> str:
     return " ".join(str(sql or "").split())
 
@@ -460,7 +475,13 @@ class GearCatalogAuditStore:
             for row in self._iter_bounded_rows(cursor, batch_size)
         ]
 
-    def _variants(self, cursor, release_id: str, batch_size: int) -> list[dict[str, Any]]:
+    def _variants(
+        self,
+        cursor,
+        release_id: str,
+        exact_reference_keys: list[str],
+        batch_size: int,
+    ) -> list[dict[str, Any]]:
         self._execute(
             cursor,
             """
@@ -497,9 +518,16 @@ class GearCatalogAuditStore:
                 ) AS has_crafted_source
             FROM cache.websim_gear_release_variants variant
             WHERE variant.release_id = %s
+              AND (
+                  LOWER(COALESCE(variant.difficulty_key, ''))
+                    <> 'observed_profile'
+                  OR (
+                      variant.item_id || CHR(31) || variant.variant_key
+                  ) = ANY(%s::text[])
+              )
             ORDER BY variant.item_id, variant.variant_key, variant.variant_id
             """,
-            (release_id,),
+            (release_id, exact_reference_keys),
         )
         result = []
         for row in self._iter_bounded_rows(cursor, batch_size):
@@ -547,6 +575,56 @@ class GearCatalogAuditStore:
             })
         return result
 
+    def _variant_summary(
+        self,
+        cursor,
+        release_id: str,
+    ) -> dict[str, Any]:
+        self._execute(
+            cursor,
+            """
+            /* gear_catalog_audit_variant_summary */
+            SELECT
+                COUNT(*) FILTER (
+                    WHERE LOWER(COALESCE(difficulty_key, ''))
+                        = 'observed_profile'
+                ),
+                COUNT(*) FILTER (
+                    WHERE LOWER(COALESCE(difficulty_key, ''))
+                        = 'observed_profile'
+                      AND LOWER(COALESCE(status, '')) = 'verified'
+                ),
+                COUNT(*) FILTER (
+                    WHERE LOWER(COALESCE(difficulty_key, ''))
+                        = 'observed_profile'
+                      AND LOWER(COALESCE(status, '')) <> 'verified'
+                ),
+                ARRAY_REMOVE(ARRAY_AGG(DISTINCT item_id) FILTER (
+                    WHERE LOWER(COALESCE(difficulty_key, ''))
+                        = 'observed_profile'
+                      AND LOWER(COALESCE(status, '')) = 'verified'
+                      AND item_level = 298
+                      AND (
+                          payload_json ? 'staticStats'
+                          OR payload_json ? 'resolvedStats'
+                          OR JSONB_TYPEOF(payload_json->'itemStats') = 'array'
+                      )
+                ), NULL)
+            FROM cache.websim_gear_release_variants
+            WHERE release_id = %s
+            """,
+            (release_id,),
+        )
+        row = cursor.fetchone() or (0, 0, 0, [])
+        return {
+            "exactInstanceRowCount": _int(row[0]),
+            "exactVerifiedRowCount": _int(row[1]),
+            "exactExcludedRowCount": _int(row[2]),
+            "observedAscendantItemIds": sorted(
+                {_text(value) for value in (row[3] or []) if _text(value)}
+            ),
+        }
+
     def _sources(self, cursor, release_id: str, batch_size: int) -> list[dict[str, Any]]:
         self._execute(
             cursor,
@@ -565,6 +643,7 @@ class GearCatalogAuditStore:
                 payload_json
             FROM cache.websim_gear_release_sources
             WHERE release_id = %s
+              AND LOWER(COALESCE(source_type, '')) <> 'observed_profile'
             ORDER BY item_id, source_type, source_key, source_id
             """,
             (release_id,),
@@ -986,14 +1065,27 @@ class GearCatalogAuditStore:
                 community_release_id = _text(before.get("communityReleaseId"))
                 items = self._items(cursor, gear_release_id, batch_size)
                 sources = self._sources(cursor, gear_release_id, batch_size)
-                variants = self._variants(cursor, gear_release_id, batch_size)
-                options = self._options(cursor, gear_release_id, batch_size)
                 community = self._community_templates(
                     cursor,
                     community_release_id,
                     batch_size,
                 )
                 personal = self._personal_templates(cursor, batch_size)
+                exact_reference_keys = _exact_reference_keys(
+                    community,
+                    personal,
+                )
+                variant_summary = self._variant_summary(
+                    cursor,
+                    gear_release_id,
+                )
+                variants = self._variants(
+                    cursor,
+                    gear_release_id,
+                    exact_reference_keys,
+                    batch_size,
+                )
+                options = self._options(cursor, gear_release_id, batch_size)
                 relation_sizes = self._relation_sizes(cursor, before, batch_size)
                 release_events = self._release_events(cursor, before, batch_size)
                 after = self._pointer_binding(cursor)
@@ -1048,6 +1140,7 @@ class GearCatalogAuditStore:
                     "sources": sources,
                     "variants": variants,
                     "options": options,
+                    "variantSummary": variant_summary,
                 },
                 "communityTemplates": community,
                 "personalGearTemplates": personal,

@@ -143,6 +143,9 @@ def rowsets(pointer_rows=None):
                 True,
             )
         ],
+        "gear_catalog_audit_variant_summary": [
+            (48_555, 44_097, 4_458, ["1001"])
+        ],
         "gear_catalog_audit_sources": [
             (
                 "source-1",
@@ -180,6 +183,7 @@ def rowsets(pointer_rows=None):
                     "slots": {
                         "head": {
                             "itemId": "1001",
+                            "variantKey": "observed-hero-3",
                             "bonusIds": ["9001", "9002"],
                             "trackKey": "hero",
                             "rank": 3,
@@ -282,7 +286,7 @@ class GearCatalogAuditStoreTest(unittest.TestCase):
         self.assertTrue(any("SET LOCAL statement_timeout" in statement for statement in statements))
         self.assertTrue(any("SET LOCAL lock_timeout" in statement for statement in statements))
         self.assertEqual(write_statements(statements), [])
-        self.assertLessEqual(store.query_count, 13)
+        self.assertLessEqual(store.query_count, 14)
         self.assertEqual(snapshot["queryMetrics"]["writes"], 0)
         self.assertEqual(snapshot["pointerBefore"], snapshot["pointerAfter"])
         self.assertEqual(connection.cursor_instance.fetchall_calls, 0)
@@ -294,6 +298,24 @@ class GearCatalogAuditStoreTest(unittest.TestCase):
         self.assertTrue(connection.rolled_back)
         self.assertFalse(connection.committed)
         self.assertTrue(connection.closed)
+        self.assertEqual(
+            snapshot["catalogRows"]["variantSummary"],
+            {
+                "exactInstanceRowCount": 48_555,
+                "exactVerifiedRowCount": 44_097,
+                "exactExcludedRowCount": 4_458,
+                "observedAscendantItemIds": ["1001"],
+            },
+        )
+        variant_query_index = next(
+            index
+            for index, statement in enumerate(statements)
+            if "gear_catalog_audit_variants" in statement
+        )
+        self.assertEqual(
+            connection.cursor_instance.params[variant_query_index][1],
+            ["1001\x1fobserved-hero-3"],
+        )
 
     def test_snapshot_projects_structural_templates_without_raw_or_personal_identity(self):
         connection = FakeConnection(rowsets())

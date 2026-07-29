@@ -256,6 +256,7 @@ def audit_catalog_mapping(binding: Any, rows: Any) -> dict[str, Any]:
 
     active_binding = _mapping(binding)
     source = _mapping(rows)
+    variant_summary = _mapping(source.get("variantSummary"))
     items = [row for row in source.get("items") or [] if isinstance(row, Mapping)]
     variants = [row for row in source.get("variants") or [] if isinstance(row, Mapping)]
     options = [row for row in source.get("options") or [] if isinstance(row, Mapping)]
@@ -330,6 +331,13 @@ def audit_catalog_mapping(binding: Any, rows: Any) -> dict[str, Any]:
             ))
 
     observed_ascendant_item_ids = {
+        _text(value)
+        for value in variant_summary.get(
+            "observedAscendantItemIds"
+        ) or []
+        if _text(value)
+    }
+    observed_ascendant_item_ids.update({
         _text(_row_value(row, "itemId"))
         for row in variants
         if _text(row.get("rowFamily")) == "exact_instance"
@@ -337,11 +345,14 @@ def audit_catalog_mapping(binding: Any, rows: Any) -> dict[str, Any]:
         and _text(row.get("status")) == "verified"
         and _static_stats(_row_value(row, "staticStats", "itemStats")) is not None
         and _text(_row_value(row, "itemId"))
-    }
+    })
     variant_candidates: dict[tuple[str, str], dict[str, Any]] = {}
     legacy_browse_variant_total = 0
     crafted_enhancement_selection_row_count = 0
-    excluded_exact_instance_count = 0
+    summarized_exact_count = _positive_int(
+        variant_summary.get("exactInstanceRowCount")
+    )
+    excluded_exact_instance_count = summarized_exact_count
     excluded_placeholder_variant_count = 0
     excluded_reference_variant_count = 0
     progression_counts = {
@@ -367,7 +378,8 @@ def audit_catalog_mapping(binding: Any, rows: Any) -> dict[str, Any]:
     for index, row in enumerate(variants):
         row_family = _text(row.get("rowFamily"))
         if row_family == "exact_instance":
-            excluded_exact_instance_count += 1
+            if not summarized_exact_count:
+                excluded_exact_instance_count += 1
             continue
         if row_family == "placeholder":
             excluded_placeholder_variant_count += 1
@@ -552,6 +564,17 @@ def audit_catalog_mapping(binding: Any, rows: Any) -> dict[str, Any]:
             seen_option_keys.add(option_key)
 
     status = "blocked" if problems else "verified"
+    materialized_exact_count = sum(
+        _text(row.get("rowFamily")) == "exact_instance"
+        for row in variants
+    )
+    total_variant_count = (
+        len(variants)
+        - materialized_exact_count
+        + summarized_exact_count
+        if summarized_exact_count
+        else len(variants)
+    )
     return {
         "schemaRevision": "gear-catalog-mapping-audit-v2",
         "status": status,
@@ -561,7 +584,7 @@ def audit_catalog_mapping(binding: Any, rows: Any) -> dict[str, Any]:
         "itemTotal": len(items),
         "mappedItemCount": len(mapped_item_ids),
         "excludedNonCatalogItemCount": excluded_non_catalog_item_count,
-        "variantTotal": len(variants),
+        "variantTotal": total_variant_count,
         "browseVariantTotal": legacy_browse_variant_total,
         "legacyBrowseVariantTotal": legacy_browse_variant_total,
         "canonicalBrowseVariantTotal": canonical_browse_variant_total,
