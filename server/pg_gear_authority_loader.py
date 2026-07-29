@@ -666,11 +666,23 @@ def _source_is_verified(source: Any) -> bool:
     return "verified" in statuses or bool(_tier_set_id_from_source(source))
 
 
+def _has_verified_crafted_source(sources: Any) -> bool:
+    """Return whether verified item-source records prove crafting provenance."""
+
+    return any(
+        isinstance(source, dict)
+        and _source_is_verified(source)
+        and _text(source.get("sourceType")).lower() == "crafted"
+        for source in (sources if isinstance(sources, Iterable) else [])
+    )
+
+
 def _project_base_capabilities(
     payload: dict[str, Any],
     canonical_slot: str,
     type_metadata: dict[str, Any],
     capability_revision: str,
+    verified_sources: Iterable[Any] = (),
 ) -> dict[str, Any]:
     explicit = _json_value(payload.get("baseCapabilities"), {})
     explicit = explicit if isinstance(explicit, dict) else {}
@@ -706,11 +718,16 @@ def _project_base_capabilities(
             payload.get("socketEvidence"),
             capability_revision,
         )
+    can_embellish = explicit.get("canEmbellish") is True or derived.get("canEmbellish") is True
+    if capability_revision == gear_socket_authority.CAPABILITY_REVISION:
+        # Descriptive payload fields are not crafting provenance. Only a
+        # verified crafted item source can open editable embellishment state.
+        can_embellish = _has_verified_crafted_source(verified_sources)
     return {
         **explicit,
         "socketCount": socket_count if socket_count is not None else 0,
         "canEnchant": explicit.get("canEnchant") is True or derived.get("canEnchant") is True,
-        "canEmbellish": explicit.get("canEmbellish") is True or derived.get("canEmbellish") is True,
+        "canEmbellish": can_embellish,
     }
 
 
@@ -876,6 +893,7 @@ def _project_item(
         canonical_slot,
         type_metadata,
         capability_revision,
+        verified_sources,
     )
     socket_count = base_capabilities["socketCount"]
     item_id = _text(record.get("id")) or requested_item_id
@@ -921,6 +939,8 @@ def _variant_capability_overrides(
     simc_options: dict[str, Any],
     capability_revision: str,
     enhancement_management_fields: dict[str, Any] | None = None,
+    item_has_verified_crafted_source: bool = False,
+    variant_source_type: str = "",
 ) -> dict[str, Any]:
     explicit = _json_value(payload.get("capabilityOverrides"), {})
     explicit = explicit if isinstance(explicit, dict) else {}
@@ -960,6 +980,22 @@ def _variant_capability_overrides(
     ):
         overrides["canEmbellish"] = False
         return overrides
+    if capability_revision == gear_socket_authority.CAPABILITY_REVISION:
+        crafted_provenance = (
+            item_has_verified_crafted_source
+            or variant_source_type.strip().lower() == "crafted"
+        )
+        # Raw SimC fields and editor-management annotations may describe an
+        # imported effect, but cannot independently grant an editable slot.
+        describes_embellishment = (
+            "canEmbellish" in explicit
+            or raw_embellishment
+            or crafted_stats
+            or management_fields.get("embellishment") == "editor_managed"
+        )
+        if crafted_provenance or describes_embellishment:
+            overrides["canEmbellish"] = crafted_provenance
+        return overrides
     proves_embellishment = crafted_stats or (
         raw_embellishment
         and (
@@ -981,6 +1017,7 @@ def _project_variant(
     item_source_refs: Iterable[str],
     evidence: dict[str, dict[str, Any]],
     capability_revision: str,
+    item_has_verified_crafted_source: bool = False,
 ) -> dict[str, Any] | None:
     if (
         not requested_variant_key
@@ -1036,6 +1073,8 @@ def _project_variant(
             simc_options,
             capability_revision,
             validated_classifications,
+            item_has_verified_crafted_source,
+            _text(record.get("sourceType")),
         ),
         "dynamicEffects": _json_value(payload.get("dynamicEffects"), []),
         "sourceRefIds": _texts([*item_source_refs, evidence_id]),
@@ -1240,6 +1279,8 @@ def build_gear_authority_context_from_rows(
             item.get("sourceRefIds", []) if item else [],
             evidence,
             capability_revision,
+            item is not None
+            and _has_verified_crafted_source(row[4] if len(row) > 4 else []),
         )
         if variant is not None:
             variant_candidates_by_key.setdefault(requested_variant_key, []).append(variant)

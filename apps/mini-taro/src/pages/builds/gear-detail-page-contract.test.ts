@@ -127,6 +127,8 @@ describe('gear detail fixed workbench contract', () => {
     expect(componentSource).toContain('data-role="gear-slot-item-name"')
     expect(componentSource).toContain('data-role="gear-slot-secondary-stats"')
     expect(componentSource).toContain('data-role="gear-slot-enhancement-states"')
+    expect(componentSource).toContain('{item.enhancementStates.length ? (')
+    expect(componentSource).not.toContain("data-state={state.selected ? 'confirmed' : 'unconfirmed'}")
     expect(componentSource).toContain('data-static-facts={item.secondaryStatState}')
     expect(componentStyleSource).toMatch(/\.slotCopy > text:first-child \{[\s\S]*?font-size:\s*7px;/u)
     expect(componentStyleSource).toMatch(/\.slotCopy > text:nth-child\(2\) \{[\s\S]*?font-size:\s*10px;/u)
@@ -139,7 +141,9 @@ describe('gear detail fixed workbench contract', () => {
   })
 
   it('renders backend-owned enhancement availability and disables only known-impossible groups', () => {
-    expect(pageSource).toContain('gearEnhancementBarItems(equipped, enhancements)')
+    expect(pageSource).toContain('gearEnhancementBarItems(')
+    expect(pageSource).toContain("canonical.snapshot?.constraints?.['embellishmentMax']")
+    expect(pageSource).toContain("item.modCapabilities?.['canEmbellish'] === true")
     expect(componentSource).toContain("data-disabled={item.disabled ? 'true' : 'false'}")
     expect(componentSource).toContain('disabled={Boolean(item.disabled)}')
   })

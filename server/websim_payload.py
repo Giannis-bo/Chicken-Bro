@@ -801,7 +801,7 @@ ENCHANTABLE_GEAR_SLOTS = {
     "main_hand",
     "off_hand",
 }
-SOCKET_OPTION_GEAR_SLOT_LIST = ["neck", "finger1", "finger2"]
+SOCKET_OPTION_GEAR_SLOT_LIST = list(gear_socket_authority.MIDNIGHT_SOCKET_OPTION_CANDIDATE_SLOTS)
 SOCKET_OPTION_GEAR_SLOTS = set(SOCKET_OPTION_GEAR_SLOT_LIST)
 GEAR_EMBELLISHMENT_ARMOR_SLOTS = ["head", "shoulder", "back", "chest", "wrist", "hands", "waist", "legs", "feet"]
 GEAR_EMBELLISHMENT_JEWELRY_SLOTS = ["neck", "finger1", "finger2"]
@@ -4646,6 +4646,38 @@ def item_can_enchant_slot(payload=None, slot="", item=None):
     return True
 
 
+def _is_verified_crafted_provenance_record(record):
+    if not isinstance(record, dict):
+        return False
+    if raw_source_type(record.get("sourceType")).lower() != "crafted":
+        return False
+    payload = record.get("payload") if isinstance(record.get("payload"), dict) else {}
+    statuses = {
+        str(record.get("status") or "").strip().lower(),
+        str(record.get("sourceStatus") or "").strip().lower(),
+        str(payload.get("status") or "").strip().lower(),
+        str(payload.get("sourceStatus") or "").strip().lower(),
+    }
+    return "verified" in statuses
+
+
+def item_has_verified_crafted_provenance(item=None, variants=None):
+    """Return whether optional-reagent editability has canonical craft proof.
+
+    Existing ``crafted_stats`` or ``embellishment`` values describe an item;
+    they are not a source claim and must not unlock a new embellishment.
+    """
+    item = item if isinstance(item, dict) else {}
+    variants = [variant for variant in variants or [] if isinstance(variant, dict)]
+    for source in [*(item.get("sources") or []), *(item.get("sourceRefs") or [])]:
+        if _is_verified_crafted_provenance_record(source):
+            return True
+    for variant in [*variants, *(item.get("variants") or [])]:
+        if _is_verified_crafted_provenance_record(variant):
+            return True
+    return False
+
+
 def item_mod_capabilities(payload=None, slot="", variants=None, item=None):
     slot = normalize_slot(slot or (item or {}).get("slot") or "")
     payload = payload if isinstance(payload, dict) else {}
@@ -4657,17 +4689,7 @@ def item_mod_capabilities(payload=None, slot="", variants=None, item=None):
         existing_socket_count = 0
     socket_count = max(item_socket_capacity(payload, slot), existing_socket_count)
     can_enchant = item_can_enchant_slot(payload, slot, item)
-    can_embellish = bool(
-        item.get("embellishment")
-        or item.get("crafted_stats")
-        or raw_source_type(item.get("sourceType")).lower() == "crafted"
-        or any(
-            raw_source_type(variant.get("sourceType")).lower() == "crafted"
-            or (variant.get("simcOptions") or {}).get("crafted_stats")
-            or (variant.get("simcOptions") or {}).get("embellishment")
-            for variant in variants
-        )
-    )
+    can_embellish = item_has_verified_crafted_provenance(item, variants)
     capabilities = dict(existing_capabilities)
     capabilities.update(
         {
@@ -16795,6 +16817,11 @@ def gear_catalog_sources_by_item(conn):
             "payload": payload if isinstance(payload, dict) else {},
             "updatedAt": row[9],
         }
+        source_status = str(
+            (payload or {}).get("sourceStatus") or (payload or {}).get("status") or ""
+        ).strip().lower()
+        if source_status:
+            source["sourceStatus"] = source_status
         if isinstance(payload, dict) and payload.get("recommendationScore") is not None:
             source["recommendationScore"] = payload.get("recommendationScore")
         result.setdefault(str(row[1]), []).append(source)
@@ -17724,7 +17751,11 @@ def enrich_catalog_item(item, sources, variants, socket_options, enchant_options
     ]
     display_variants = collapse_catalog_variants_for_display(compatible_variants)
     base_capabilities = item.get("modCapabilities") if isinstance(item.get("modCapabilities"), dict) else {}
-    variant_capabilities = item_mod_capabilities({}, item_slot, compatible_variants, item)
+    capability_item = {
+        **item,
+        "sources": [*(item.get("sources") or []), *compatible_sources],
+    }
+    variant_capabilities = item_mod_capabilities({}, item_slot, compatible_variants, capability_item)
     socket_count = max(
         positive_int_value(base_capabilities.get("socketCount")),
         positive_int_value(variant_capabilities.get("socketCount")),
@@ -17732,13 +17763,9 @@ def enrich_catalog_item(item, sources, variants, socket_options, enchant_options
     mod_capabilities = dict(base_capabilities)
     mod_capabilities.update(
         {
-            "hasSocket": bool(
-                socket_count
-                or base_capabilities.get("hasSocket")
-                or variant_capabilities.get("hasSocket")
-            ),
+            "hasSocket": bool(socket_count),
             "canEnchant": bool(base_capabilities.get("canEnchant") or variant_capabilities.get("canEnchant")),
-            "canEmbellish": bool(base_capabilities.get("canEmbellish") or variant_capabilities.get("canEmbellish")),
+            "canEmbellish": bool(variant_capabilities.get("canEmbellish")),
         }
     )
     if socket_count:
@@ -21937,9 +21964,9 @@ def normalize_gear_item(value, class_key="", spec_key="", default_source_type=""
                 return False
             return bool(source_capabilities.get(key) or computed_capabilities.get(key))
         item["modCapabilities"] = {
-            "hasSocket": merged_capability("hasSocket"),
+            "hasSocket": bool(computed_capabilities.get("hasSocket")),
             "canEnchant": merged_capability("canEnchant"),
-            "canEmbellish": merged_capability("canEmbellish"),
+            "canEmbellish": bool(computed_capabilities.get("canEmbellish")),
         }
         if item["modCapabilities"]["hasSocket"] and computed_capabilities.get("socketCount"):
             item["modCapabilities"]["socketCount"] = computed_capabilities.get("socketCount")
@@ -22874,18 +22901,21 @@ def attach_crafted_source_reference(item):
     variant_source = raw_source_type(item.get("variantSource")).lower()
     if source_type != "crafted" and variant_source != "crafted":
         return item
+    if not item_has_verified_crafted_provenance(item):
+        return item
     existing_sources = [
         source
         for source in [*(item.get("sources") or []), *(item.get("sourceRefs") or [])]
         if isinstance(source, dict)
     ]
-    if any(raw_source_type(source.get("sourceType")).lower() == "crafted" for source in existing_sources):
+    if any(_is_verified_crafted_provenance_record(source) for source in existing_sources):
         return item
     item_id = str(item.get("itemId") or item.get("id") or "").strip()
     source_ref = {
         "id": f"crafted-{stable_digest([item_id, item.get('slot'), item.get('crafted_stats') or item.get('craftedStats')])}",
         "itemId": item_id,
         "sourceType": "crafted",
+        "status": "verified",
         "label": "制造装备",
         "sourceLabel": "制造装备",
     }
@@ -22915,9 +22945,9 @@ def sanitize_gear_candidate_mod_options(item):
             return False
         return bool(existing_capabilities.get(key) or computed_capabilities.get(key))
     capabilities = {
-        "hasSocket": merged_capability("hasSocket"),
+        "hasSocket": bool(computed_capabilities.get("hasSocket")),
         "canEnchant": merged_capability("canEnchant"),
-        "canEmbellish": merged_capability("canEmbellish"),
+        "canEmbellish": bool(computed_capabilities.get("canEmbellish")),
     }
     if capabilities["hasSocket"] and computed_capabilities.get("socketCount"):
         capabilities["socketCount"] = computed_capabilities.get("socketCount")
@@ -23655,6 +23685,8 @@ COMPACT_GEAR_SOURCE_KEYS = {
     "difficultyKey",
     "difficultyLabel",
     "seasonRevision",
+    "sourceStatus",
+    "status",
     "recommendationScore",
     "updatedAt",
 }
@@ -26274,42 +26306,17 @@ def matching_enhancement_option(item, enhancement, option_type):
 
 
 def item_has_independent_embellishment_capability(item):
-    if not isinstance(item, dict):
-        return False
-    if normalize_option_value(item.get("crafted_stats") or item.get("craftedStats")):
-        return True
-    if raw_source_type(item.get("sourceType")).lower() == "crafted":
-        return True
-    if raw_source_type(item.get("variantSource")).lower() == "crafted":
-        return True
-    for source in [*(item.get("sources") or []), *(item.get("sourceRefs") or [])]:
-        if isinstance(source, dict) and raw_source_type(source.get("sourceType")).lower() == "crafted":
-            return True
-    for variant in item.get("variants") or []:
-        if not isinstance(variant, dict):
-            continue
-        simc_options = variant.get("simcOptions") if isinstance(variant.get("simcOptions"), dict) else {}
-        payload = variant.get("payload") if isinstance(variant.get("payload"), dict) else {}
-        if raw_source_type(variant.get("sourceType")).lower() == "crafted":
-            return True
-        if normalize_option_value(simc_options.get("crafted_stats") or payload.get("crafted_stats") or payload.get("craftedStats")):
-            return True
-    return False
+    return item_has_verified_crafted_provenance(item)
 
 
 def item_supports_enhancement_type(item, option_type):
     caps = item.get("modCapabilities") if isinstance(item.get("modCapabilities"), dict) else {}
-    catalog_options_attached = bool(item.get("_catalogEnhancementOptionsAttached"))
     if option_type == "socket":
-        if caps.get("hasSocket") is False:
-            return False
         slot = normalize_slot(item.get("slot") or item.get("simcSlot"))
-        return bool(
-            caps.get("hasSocket")
-            or item.get("supportsSocket")
-            or item_socket_capacity({}, slot)
-            or (not catalog_options_attached and item.get("socketOptions"))
-        )
+        socket_count = caps.get("socketCount")
+        if isinstance(socket_count, bool) or not isinstance(socket_count, int):
+            socket_count = 0
+        return socket_count > 0 or item_socket_capacity({}, slot) > 0
     if option_type == "enchant":
         slot = normalize_slot(item.get("slot") or item.get("simcSlot"))
         if not item_can_enchant_slot({}, slot, item):
@@ -26318,11 +26325,7 @@ def item_supports_enhancement_type(item, option_type):
             return False
         return bool(caps.get("canEnchant") or slot in ENCHANTABLE_GEAR_SLOTS or item.get("enchantOptions"))
     if option_type == "embellishment":
-        return bool(
-            item_has_independent_embellishment_capability(item)
-            or (not catalog_options_attached and caps.get("canEmbellish"))
-            or (not catalog_options_attached and item.get("embellishmentOptions"))
-        )
+        return item_has_independent_embellishment_capability(item)
     return False
 
 

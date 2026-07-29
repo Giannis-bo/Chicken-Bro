@@ -2356,7 +2356,7 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertIn("override.skyfury=1", shaman_profile)
         self.assertNotIn("override.arcane_intellect=1", shaman_profile)
 
-    def test_build_websim_profile_merges_structured_enhancement_snapshot(self):
+    def test_build_websim_profile_rejects_client_supplied_socket_and_embellishment_capability(self):
         conn = sqlite3.connect(self.db_path)
         try:
             self.websim_payload.ensure_websim_tables(conn)
@@ -2449,7 +2449,8 @@ class WebSimPayloadTest(unittest.TestCase):
                                 "bonus_id": "13534",
                                 "simcReady": True,
                                 "sourceType": "crafted",
-                                "modCapabilities": {"hasSocket": True, "canEnchant": True, "canEmbellish": True},
+                                "sources": [{"sourceType": "crafted", "status": "verified"}],
+                                "modCapabilities": {"socketCount": 1, "canEnchant": True, "canEmbellish": True},
                             }
                         ]
                     },
@@ -2472,11 +2473,15 @@ class WebSimPayloadTest(unittest.TestCase):
 
         profile = response["profile"]
         self.assertIn(
-            "finger1=catalog_band,id=250777,ilevel=289,bonus_id=13534,gem_id=240983,gem_ilevel=707,enchant_id=7334,embellishment=blue_silken_lining",
+            "finger1=catalog_band,id=250777,ilevel=289,bonus_id=13534,enchant_id=7334",
             profile,
         )
+        self.assertNotIn("gem_id=240983", profile)
+        self.assertNotIn("embellishment=blue_silken_lining", profile)
         self.assertEqual(response["readiness"]["enhancement"]["embellishmentUsed"], 1)
-        self.assertEqual(response["readiness"]["enhancement"]["blockers"], [])
+        blockers = response["readiness"]["enhancement"]["blockers"]
+        self.assertTrue(any("finger1 socket incompatible with selected gear" in blocker for blocker in blockers))
+        self.assertTrue(any("finger1 embellishment incompatible with selected gear" in blocker for blocker in blockers))
 
     def test_structured_enhancement_snapshot_blocks_duplicate_primary_stat_gems(self):
         response = self.websim_payload.build_websim_profile_response(
@@ -3009,7 +3014,7 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertNotIn("gem_id=999999", response["profile"])
         self.assertNotIn("enchant_id=9999", response["profile"])
 
-    def test_structured_enhancement_snapshot_requires_display_ready_socket_catalog(self):
+    def test_structured_enhancement_snapshot_rejects_client_socket_capacity_before_catalog_lookup(self):
         conn = sqlite3.connect(self.db_path)
         try:
             self.websim_payload.ensure_websim_tables(conn)
@@ -3039,7 +3044,7 @@ class WebSimPayloadTest(unittest.TestCase):
                                 "ilevel": 289,
                                 "bonus_id": "13534",
                                 "simcReady": True,
-                                "modCapabilities": {"hasSocket": True, "canEnchant": True},
+                                "modCapabilities": {"socketCount": 1, "canEnchant": True},
                             }
                         ]
                     },
@@ -3051,7 +3056,7 @@ class WebSimPayloadTest(unittest.TestCase):
             conn.close()
 
         blockers = response["readiness"]["enhancement"]["blockers"]
-        self.assertTrue(any("finger1 socket option is not in verified rank-two catalog" in blocker for blocker in blockers))
+        self.assertTrue(any("finger1 socket incompatible with selected gear" in blocker for blocker in blockers))
         self.assertNotIn("gem_id=240983", response["profile"])
 
     def test_authority_attached_missing_ordered_gem_identity_never_applies_raw_sequence(self):
@@ -3091,7 +3096,7 @@ class WebSimPayloadTest(unittest.TestCase):
                                 "ilevel": 289,
                                 "bonus_id": "13534",
                                 "simcReady": True,
-                                "modCapabilities": {"hasSocket": True},
+                                "modCapabilities": {"socketCount": 1},
                             }
                         ]
                     },
@@ -3113,7 +3118,7 @@ class WebSimPayloadTest(unittest.TestCase):
             for blocker in blockers
         ))
         self.assertTrue(any(
-            "finger1 socket option is not in verified rank-two catalog" in blocker
+            "finger1 socket incompatible with selected gear" in blocker
             for blocker in blockers
         ))
         self.assertNotIn("gem_id=240983", response["profile"])
@@ -3230,7 +3235,7 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(valid, False)
         self.assertIn("server authority unavailable", reason)
 
-    def test_structured_enhancement_snapshot_uses_server_catalog_over_client_options(self):
+    def test_structured_enhancement_snapshot_rejects_client_embellishment_before_catalog_lookup(self):
         conn = sqlite3.connect(self.db_path)
         try:
             self.websim_payload.ensure_websim_tables(conn)
@@ -3248,6 +3253,7 @@ class WebSimPayloadTest(unittest.TestCase):
                                 "bonus_id": "13534",
                                 "simcReady": True,
                                 "sourceType": "crafted",
+                                "sources": [{"sourceType": "crafted", "status": "verified"}],
                                 "crafted_stats": "32/49",
                                 "modCapabilities": {"canEmbellish": True},
                                 "embellishmentOptions": [
@@ -3274,7 +3280,7 @@ class WebSimPayloadTest(unittest.TestCase):
             conn.close()
 
         blockers = response["readiness"]["enhancement"]["blockers"]
-        self.assertTrue(any("wrist embellishment option is not in verified rank-two catalog" in blocker for blocker in blockers))
+        self.assertTrue(any("wrist embellishment incompatible with selected gear" in blocker for blocker in blockers))
         self.assertNotIn("embellishment=client_only_lining", response["profile"])
 
     def test_structured_enhancement_snapshot_rejects_catalog_options_without_item_capability(self):
@@ -7579,6 +7585,7 @@ class WebSimPayloadTest(unittest.TestCase):
         item = {
             "itemId": "ring-two-sockets",
             "slot": "finger1",
+            "sourceType": "crafted",
             "modCapabilities": {
                 "hasSocket": True,
                 "socketCount": 2,
@@ -7589,7 +7596,7 @@ class WebSimPayloadTest(unittest.TestCase):
 
         enriched = self.websim_payload.enrich_catalog_item(
             item,
-            [],
+            [{"sourceType": "crafted", "status": "verified"}],
             [],
             [],
             [],
@@ -7652,6 +7659,104 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertFalse(finger_caps["hasSocket"])
         self.assertNotIn("socketCount", finger_caps)
         self.assertFalse(held_offhand_caps["canEnchant"])
+
+    def test_wildcard_socket_options_cover_current_season_jewelbinder_slots_only(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.upsert_gear_mod_option(
+                conn,
+                {
+                    "id": "wildcard-rank-two-gem",
+                    "type": "socket",
+                    "name": "Rank Two Gem",
+                    "slots": ["*"],
+                    "simcOptions": {"gem_id": "240983"},
+                    "payload": {"qualityRank": 2, "source": "server_owned_seed"},
+                },
+            )
+            options_by_slot = self.websim_payload.gear_catalog_mod_options_by_slot(conn, "socket")
+        finally:
+            conn.close()
+
+        self.assertTrue(all(options_by_slot[slot] for slot in ("neck", "finger1", "finger2", "head", "wrist", "waist")))
+        self.assertFalse(any(options_by_slot[slot] for slot in ("shoulder", "chest", "hands", "legs", "feet")))
+
+    def test_editable_embellishment_requires_verified_crafted_provenance(self):
+        forged = {
+            "slot": "wrist",
+            "sourceType": "raid",
+            "crafted_stats": "32/49",
+            "embellishment": "descriptive_only_lining",
+            "modCapabilities": {"canEmbellish": True},
+        }
+        crafted = {
+            "slot": "wrist",
+            "sources": [{"sourceType": "crafted", "status": "verified"}],
+            "crafted_stats": "32/49",
+        }
+        partial_crafted = {
+            "slot": "wrist",
+            "sources": [{"sourceType": "crafted", "status": "partial"}],
+            "variants": [{"sourceType": "crafted", "status": "partial"}],
+        }
+        source_only_crafted = {
+            "slot": "wrist",
+            "sourceRefs": [{"sourceType": "crafted", "sourceStatus": "source_only"}],
+        }
+        crafted_variant = {
+            "slot": "wrist",
+            "variants": [{"sourceType": "crafted", "status": "verified"}],
+        }
+
+        self.assertFalse(self.websim_payload.item_mod_capabilities({}, "wrist", item=forged)["canEmbellish"])
+        self.assertFalse(self.websim_payload.item_supports_enhancement_type(
+            {**forged, "_catalogEnhancementOptionsAttached": True},
+            "embellishment",
+        ))
+        normalized_forged = self.websim_payload.normalize_gear_item({
+            "itemId": "forged-raid-cuffs",
+            "slot": "wrist",
+            **forged,
+        })
+        sanitized_forged = self.websim_payload.sanitize_gear_candidate_mod_options(forged)
+        self.assertFalse(normalized_forged["modCapabilities"]["canEmbellish"])
+        self.assertFalse(sanitized_forged["modCapabilities"]["canEmbellish"])
+        self.assertTrue(self.websim_payload.item_mod_capabilities({}, "wrist", item=crafted)["canEmbellish"])
+        self.assertTrue(self.websim_payload.item_supports_enhancement_type(
+            {**crafted, "_catalogEnhancementOptionsAttached": True},
+            "embellishment",
+        ))
+        self.assertFalse(self.websim_payload.item_mod_capabilities(
+            {}, "wrist", item=partial_crafted
+        )["canEmbellish"])
+        self.assertFalse(self.websim_payload.item_mod_capabilities(
+            {}, "wrist", item=source_only_crafted
+        )["canEmbellish"])
+        self.assertTrue(self.websim_payload.item_mod_capabilities(
+            {}, "wrist", item=crafted_variant
+        )["canEmbellish"])
+
+    def test_legacy_has_socket_without_capacity_cannot_publish_socket_options(self):
+        legacy = {
+            "itemId": "legacy-head",
+            "slot": "head",
+            "simcReady": True,
+            "modCapabilities": {"hasSocket": True},
+            "socketOptions": [
+                {
+                    "id": "gem-haste",
+                    "status": "verified",
+                    "simcOptions": {"gem_id": "240983"},
+                }
+            ],
+        }
+
+        sanitized = self.websim_payload.sanitize_gear_candidate_mod_options(legacy)
+
+        self.assertFalse(sanitized["modCapabilities"]["hasSocket"])
+        self.assertNotIn("socketCount", sanitized["modCapabilities"])
+        self.assertEqual(sanitized["socketOptions"], [])
 
     def test_compact_gear_candidate_omits_redundant_mobile_metadata(self):
         compact = self.websim_payload.compact_gear_candidate(
@@ -25004,17 +25109,17 @@ class WebSimPayloadTest(unittest.TestCase):
             seed["key"]: seed
             for seed in self.websim_payload.MIDNIGHT_OPTIONAL_EMBELLISHMENT_SEEDS
         }
-        selected_embellishments = [
+        source_only_embellishments = [
             enhancement["embellishment"]
             for enhancement in reference["canonicalEnhancementBySlot"].values()
             if enhancement.get("embellishment")
         ]
         self.assertEqual(
-            selected_embellishments,
+            source_only_embellishments,
             ["arcanoweave_lining", "arcanoweave_lining"],
         )
         self.assertTrue(
-            all(key in embellishment_seeds for key in selected_embellishments)
+            all(key in embellishment_seeds for key in source_only_embellishments)
         )
         self.assertEqual(
             embellishment_seeds["arcanoweave_lining"]["slotGroup"], "armor"
@@ -25057,6 +25162,14 @@ class WebSimPayloadTest(unittest.TestCase):
         )
 
         self.assertEqual(snapshot["status"], "verified")
+        self.assertEqual(
+            sum(
+                bool(slot["selectedOptions"]["embellishmentOptionId"])
+                for slot in snapshot["resolvedSlots"].values()
+            ),
+            0,
+        )
+        self.assertEqual(snapshot["constraints"]["embellishmentBuiltInUsed"], 2)
         self.assertEqual(result["status"], "resolved")
         self.assertNotIn("forged-client", result["profile"])
         gear_lines = {
@@ -25171,7 +25284,7 @@ class WebSimPayloadTest(unittest.TestCase):
         }
         self.assertNotIn("gem_id=", gear_lines["head"])
         self.assertNotIn("enchant_id=4897", gear_lines["back"])
-        self.assertNotIn("embellishment=arcanoweave_lining", gear_lines["back"])
+        self.assertIn("embellishment=arcanoweave_lining", gear_lines["back"])
         self.assertIn("enchant_id=8017", gear_lines["head"])
         self.assertIn("enchant_id=8001", gear_lines["shoulder"])
         self.assertIn("enchant_id=4223", gear_lines["waist"])

@@ -130,7 +130,14 @@ def build_midnight_mage_resolver_fixture(
                 enchant_id,
                 slot,
             )
-        if include_reference_enhancements and canonical_reference.get("embellishment"):
+        # This observed-profile fixture has no verified crafted source. Its raw
+        # embellishments remain source-only evidence, rather than editable
+        # canonical selections.
+        if (
+            include_reference_enhancements
+            and canonical_reference.get("embellishment")
+            and item.get("sourceType") == "crafted"
+        ):
             embellishment = canonical_reference["embellishment"]
             embellishment_option_id = f"embellishment-{embellishment}"
             ensure_option(
@@ -188,7 +195,7 @@ def build_midnight_mage_resolver_fixture(
             ) or (
                 simc_field == "enchant_id" and canonical_reference.get("enchantId")
             ) or (
-                simc_field == "embellishment" and canonical_reference.get("embellishment")
+                simc_field == "embellishment" and embellishment_option_id
             )
             enhancement_management_fields[simc_field] = (
                 "editor_managed" if editor_managed else "source_only"
@@ -1186,6 +1193,10 @@ class GearResolverTest(unittest.TestCase):
                 bool(slot["selectedOptions"]["embellishmentOptionId"])
                 for slot in result["resolvedSlots"].values()
             ),
+            0,
+        )
+        self.assertEqual(
+            result["constraints"]["embellishmentBuiltInUsed"],
             reference["expectedTotals"]["embellishmentsUsed"],
         )
         self.assertEqual(
@@ -1231,7 +1242,10 @@ class GearResolverTest(unittest.TestCase):
         )
         self.assertNotIn("gem_id", result["resolvedSlots"]["head"]["simcOptions"])
         self.assertNotIn("enchant_id", result["resolvedSlots"]["back"]["simcOptions"])
-        self.assertNotIn("embellishment", result["resolvedSlots"]["back"]["simcOptions"])
+        self.assertEqual(
+            result["resolvedSlots"]["back"]["simcOptions"]["embellishment"],
+            "arcanoweave_lining",
+        )
         self.assertEqual(result["resolvedSlots"]["head"]["simcOptions"]["enchant_id"], "8017")
         self.assertEqual(result["resolvedSlots"]["shoulder"]["simcOptions"]["enchant_id"], "8001")
         self.assertEqual(result["resolvedSlots"]["waist"]["simcOptions"]["enchant_id"], "4223")
@@ -1250,13 +1264,16 @@ class GearResolverTest(unittest.TestCase):
         self.assertEqual(classifications_by_slot["waist"]["enchant_id"], "source_only")
         self.assertEqual(classifications_by_slot["main_hand"]["enchant_id"], "source_only")
         self.assertEqual(classifications_by_slot["back"]["enchant_id"], "editor_managed")
-        self.assertEqual(classifications_by_slot["back"]["embellishment"], "editor_managed")
+        self.assertEqual(classifications_by_slot["back"]["embellishment"], "source_only")
         serializer_by_slot = {
             item["slot"]: item for item in result["serializerInput"]["gearItems"]
         }
         self.assertNotIn("gem_id", serializer_by_slot["head"]["simcOptions"])
         self.assertNotIn("enchant_id", serializer_by_slot["back"]["simcOptions"])
-        self.assertNotIn("embellishment", serializer_by_slot["back"]["simcOptions"])
+        self.assertEqual(
+            serializer_by_slot["back"]["simcOptions"]["embellishment"],
+            "arcanoweave_lining",
+        )
         self.assertEqual(serializer_by_slot["head"]["simcOptions"]["enchant_id"], "8017")
         self.assertEqual(serializer_by_slot["main_hand"]["simcOptions"]["enchant_id"], "8039/8052")
 

@@ -1981,7 +1981,7 @@ class GearReleaseToolTest(unittest.TestCase):
         self.assertEqual(fields_by_key["alternate-key-format"]["enchant_id"], "source_only")
         self.assertEqual(fields_by_key["divergent-key"]["enchant_id"], "unresolved_drop")
 
-    def test_exact_midnight_mage_candidate_seals_complete_editable_enhancement_intent(self):
+    def test_exact_midnight_mage_candidate_keeps_source_only_embellishments_out_of_editable_intent(self):
         from server import gear_resolver
         from server.gear_release_store import build_candidate_authority_context
         from server.gear_release_tool import (
@@ -2058,7 +2058,7 @@ class GearReleaseToolTest(unittest.TestCase):
         )
         self.assertEqual(
             sum(bool(selection["embellishmentOptionId"]) for selection in intent["slots"].values()),
-            2,
+            0,
         )
         self.assertEqual(intent["slots"]["finger1"]["gemOptionIds"], [
             "gem-240892",

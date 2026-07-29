@@ -1530,6 +1530,7 @@ def _enhancement_migration_projection(snapshot: Any) -> dict[str, Any]:
         for key, field_value in raw_constraints.items()
         if key not in {
             "slots",
+            "embellishmentBuiltInUsed",
             "embellishmentSelectedUsed",
             "embellishmentUsed",
         }
@@ -2854,6 +2855,11 @@ def _legacy_to_v2_enhancement_migration_equivalent(
             or total_used != built_in_used + selected_embellishments
         ):
             return None
+        # Legacy snapshots predate source-only classification, so their
+        # derived occupancy is zero even when the same sealed raw value is
+        # retained.  The slot-level source-only value remains in this
+        # projection; only v2-derived occupancy is migration-local.
+        constraints.pop("embellishmentBuiltInUsed", None)
         constraints.pop("embellishmentSelectedUsed", None)
         constraints.pop("embellishmentUsed", None)
         value["staticAttributes"] = copy.deepcopy(normalized_static_attributes)
@@ -3157,15 +3163,17 @@ def _reference_contract_proof(
         for constraint in constraint_slots.values()
         if isinstance(constraint, dict)
     )
-    intent_embellishments = sum(
+    intent_embellishment_selections = sum(
         bool(_text(selection.get("embellishmentOptionId")))
         for selection in slots.values()
         if isinstance(selection, dict)
     )
-    resolved_embellishments = sum(
+    resolved_embellishment_selections = sum(
         bool(_text(selected(slot).get("embellishmentOptionId")))
         for slot in resolved_slots
     )
+    source_only_embellishments = _int(constraints.get("embellishmentBuiltInUsed"))
+    embellishment_used = _int(constraints.get("embellishmentUsed"))
     failures = []
     if (
         _text(candidate.get("sourceKey")) != "raiderio_observed_profile"
@@ -3186,8 +3194,10 @@ def _reference_contract_proof(
     if intent_enchants != 6 or resolved_enchants != 6 or enchant_max != 8:
         failures.append("enchants")
     if (
-        intent_embellishments != 2
-        or resolved_embellishments != 2
+        intent_embellishment_selections != 0
+        or resolved_embellishment_selections != 0
+        or source_only_embellishments != 2
+        or embellishment_used != 2
         or _int(constraints.get("embellishmentMax")) != 2
     ):
         failures.append("embellishments")
@@ -3202,9 +3212,10 @@ def _reference_contract_proof(
         "gems": {"used": resolved_gems, "max": sum(socket_vector)},
         "enchants": {"used": resolved_enchants, "max": enchant_max},
         "embellishments": {
-            "used": resolved_embellishments,
+            "used": embellishment_used,
             "max": _int(constraints.get("embellishmentMax")),
         },
+        "embellishmentSelection": {"used": resolved_embellishment_selections},
         "failures": failures,
         "ninthGem": {"status": "not_run", "problemCodes": []},
     }

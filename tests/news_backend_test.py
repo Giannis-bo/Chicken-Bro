@@ -2985,7 +2985,7 @@ class NewsBackendTest(unittest.TestCase):
         self.assertIn("race=void_elf", draft_profile)
         self.assertNotIn("race=troll", draft_profile)
 
-    def test_simcraft_template_confirm_serializes_structured_gear_enhancement_snapshot(self):
+    def test_simcraft_template_confirm_rejects_unverified_crafted_snapshot_embellishment(self):
         self.seed_simc_template_websim_nodes()
         from server import websim_payload
 
@@ -3107,13 +3107,8 @@ class NewsBackendTest(unittest.TestCase):
         analysis = self.backend.analyze_and_store_simulator_task(self.simc_template_payload(gear_raw=gear_raw))
         draft_profile = analysis["agent"]["draftProfile"]
 
-        self.assertEqual(analysis["agent"]["status"], "template_ready")
-        self.assertIn("finger1=template_finger1,id=250011,ilevel=289,bonus_id=13534/6652,gem_id=213743,enchant_id=7334", draft_profile)
-        self.assertIn(
-            "wrist=template_wrist,id=250006,ilevel=289,bonus_id=13534/6652,crafted_stats=32/49,embellishment=blue_silken_lining",
-            draft_profile,
-        )
-        self.assertEqual(len(analysis["request"]["buildContext"]["details"]["gear"]["simcItems"]), 16)
+        self.assertEqual(analysis["agent"]["status"], "template_blocked")
+        self.assertNotIn("embellishment=blue_silken_lining", draft_profile)
 
     def test_simcraft_template_structured_snapshot_allows_two_handed_offhand_exemption(self):
         self.seed_simc_template_websim_nodes()

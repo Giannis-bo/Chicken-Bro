@@ -124,6 +124,37 @@ describe('gear detail truth model', () => {
     })
   })
 
+  it('keeps seasonal puncher gem options behind each exact item socket capacity', () => {
+    const group = {
+      slot: 'head',
+      label: '头部',
+      items: [
+        { itemId: 'jewelbinder-eligible-head', modCapabilities: { hasSocket: true, socketCount: 1 } },
+        { itemId: 'ordinary-head', modCapabilities: { hasSocket: false } },
+      ],
+      socketOptions: [{ id: 'gem-haste', status: 'verified', label: '+147 急速' }],
+    } as WebsimGearPayload['replacementCandidates'][number] & {
+      socketOptions: NonNullable<GearItemReference['socketOptions']>
+    }
+
+    const [eligible, ordinary] = hydrateCompactSlotGroup(group)
+
+    expect(eligible?.socketOptions?.map((option) => option.id)).toEqual(['gem-haste'])
+    expect(ordinary?.socketOptions).toEqual([])
+  })
+
+  it('does not call legacy socket options available without an exact positive capacity', () => {
+    const socket = gearEnhancementBarItems({
+      head: {
+        itemId: 'legacy-head',
+        modCapabilities: { hasSocket: true },
+        socketOptions: [{ id: 'gem-haste', label: '+147 急速' }],
+      },
+    }, {}).find((group) => group.id === 'socket')
+
+    expect(socket).toMatchObject({ availabilityLabel: '待核验', disabled: false })
+  })
+
   it('filters enhancement options without a resolver-owned identity', () => {
     const item: GearItemReference = {
       itemId: 'unsafe-ring',
@@ -396,10 +427,10 @@ describe('gear detail truth model', () => {
       secondaryStatState: 'verified',
       enhancementStates: [
         { id: 'socket', selected: true, count: 1 },
-        { id: 'enchant', selected: false, count: 0 },
         { id: 'embellishment', selected: true, count: 1 },
       ],
     })
+    expect(gearSlots(payload(), { head: item }, '', {}).at(0)?.enhancementStates).toEqual([])
     expect(gearSlots(payload(), { head: item }, '', enhancements, { head: {} })[0]).toMatchObject({
       secondaryStatLabels: ['无固定副属性'],
       secondaryStatState: 'none',
@@ -520,6 +551,24 @@ describe('gear detail truth model', () => {
       value: '已配置 1 件 · 可用',
       availabilityLabel: '可用',
       disabled: false,
+    })
+
+    expect(gearEnhancementBarItems({
+      wrist: {
+        itemId: 'crafted-cuffs',
+        modCapabilities: { canEmbellish: true },
+      },
+    }, {
+      wrist: {
+        gemOptionIds: [],
+        enchantOptionId: '',
+        embellishmentOptionId: 'blue-silken-lining',
+        craftedOptionId: '',
+        catalystOptionId: '',
+      },
+    }, 2).find((group) => group.id === 'embellishment')).toMatchObject({
+      value: '已配置 1 / 2 件 · 可用',
+      selectedCount: 1,
     })
   })
 

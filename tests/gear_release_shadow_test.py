@@ -4149,6 +4149,7 @@ class GearReleaseShadowTest(unittest.TestCase):
         self.assertEqual(result["referenceProof"]["gems"], {"used": 8, "max": 8})
         self.assertEqual(result["referenceProof"]["enchants"], {"used": 6, "max": 8})
         self.assertEqual(result["referenceProof"]["embellishments"], {"used": 2, "max": 2})
+        self.assertEqual(result["referenceProof"]["embellishmentSelection"], {"used": 0})
         self.assertEqual(len(candidate_calls), 2)
         self.assertEqual(
             sum(
