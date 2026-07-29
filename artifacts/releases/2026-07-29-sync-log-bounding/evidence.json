@@ -1,0 +1,134 @@
+{
+  "schemaVersion": 2,
+  "slug": "sync-log-bounding",
+  "requirementSlug": "sync-log-bounding",
+  "status": "runtime_verified",
+  "highestEvidenceLevel": "runtime_verified",
+  "branch": "codex/sync-log-bounding",
+  "commit": "69a8d8a7b7a15bbc6af0c10fb825f31bb34d6b11",
+  "identities": {
+    "runtime": {
+      "status": "bound",
+      "kind": "git_commit",
+      "value": "69a8d8a7b7a15bbc6af0c10fb825f31bb34d6b11"
+    },
+    "verification": {
+      "status": "bound_at_check",
+      "kind": "git_ref",
+      "value": "HEAD"
+    },
+    "closure": {
+      "status": "pending",
+      "reason": "Production scripts, bounded post-deploy journal growth, safe log rotation/vacuum, main merge, remote parity, and cleanup are still pending."
+    }
+  },
+  "manualAcceptance": {
+    "required": false,
+    "status": "not_applicable",
+    "reason": "This operational scheduled-job output correction has no user-visible interaction or manual UI acceptance surface.",
+    "items": [],
+    "rollup": {
+      "total": 0,
+      "accepted": 0,
+      "notRunUserWaived": 0,
+      "pending": 0
+    }
+  },
+  "scope": [
+    "Bounded WebSim scheduled-runner stdout and stderr progress",
+    "Bounded stat-weight scheduled-runner stdout",
+    "Truthful verified, partial, and blocked status projection",
+    "Synthetic immutable remote smoke without launching either expensive job"
+  ],
+  "verification": [
+    {
+      "command": "python3 -m unittest tests.sync_log_summary_test tests.websim_sync_test tests.postgres_only_scripts_test tests.deploy_lighthouse_test",
+      "status": "pass",
+      "result": "35 targeted bounded-log, WebSim runner, PostgreSQL-only, and deploy tests passed. Existing unclosed-SQLite ResourceWarning and module-run RuntimeWarning diagnostics remain and are not represented as clean resource evidence."
+    },
+    {
+      "command": "python3 -m compileall -q server/sync_log_summary.py server/websim_sync.py server/stat_weights_sync.py",
+      "status": "pass",
+      "result": "All three changed runtime files compile."
+    },
+    {
+      "command": "Ephemeral remote source-parity and synthetic output smoke at commit 69a8d8a7",
+      "status": "pass",
+      "result": "Remote SHA-256 values matched the immutable commit for all three files. A large synthetic partial WebSim result serialized to 311 bytes, its blocked progress event to 74 bytes, and the sentinel/raw payload was absent. Neither scheduled job was launched."
+    },
+    {
+      "command": "git diff --check",
+      "status": "pass",
+      "result": "No whitespace errors before the implementation commit."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "candidate_verified",
+    "requiredBeforeMerge": true,
+    "commit": "69a8d8a7b7a15bbc6af0c10fb825f31bb34d6b11",
+    "gitTree": "a40014d707bbf31ec34e91b9000260e97a6e2bda",
+    "buildIdentity": "sync-log-bounding:sha256:c9d34246df9d8a86ba0bfd7c0db4ac6f677152aae8a04f519878314095e118bf",
+    "candidateService": "not_applicable_expensive_jobs_not_launched",
+    "candidateRoot": "/tmp/wow-sync-log-69a8d8a7.u9sjoh (removed after smoke)",
+    "smoke": {
+      "status": "pass",
+      "result": "Exact committed files compiled remotely and bounded a synthetic large result/progress event without raw payload leakage."
+    },
+    "timerBackflow": {
+      "status": "not_applicable",
+      "result": "The smoke did not install, start, stop, or trigger either scheduled service or timer."
+    },
+    "rollback": {
+      "status": "pass",
+      "result": "The ephemeral candidate directory was removed; production files and timer/service state were untouched."
+    }
+  },
+  "runtimeEvidence": [
+    {
+      "type": "source_parity",
+      "status": "pass",
+      "result": "Remote and immutable-commit SHA-256 matched for sync_log_summary.py, websim_sync.py, and stat_weights_sync.py."
+    },
+    {
+      "type": "smoke",
+      "status": "pass",
+      "result": "Synthetic candidate output stayed far below 8 KiB, retained literal partial/blocked status, and contained no nested sentinel."
+    },
+    {
+      "type": "timer_backflow",
+      "status": "not_applicable",
+      "result": "No scheduled job or timer was launched or changed."
+    }
+  ],
+  "risks": [
+    {
+      "id": "production-not-yet-deployed",
+      "status": "open",
+      "detail": "Production still runs the old unbounded scripts until merge/deploy parity is complete."
+    },
+    {
+      "id": "cloud-root-filesystem",
+      "status": "blocked",
+      "detail": "After safe cleanup of 14 superseded candidates, the root filesystem is still 89% used. Old logs must not be vacuumed until the bounded scripts are deployed and verified."
+    },
+    {
+      "id": "existing-resource-warnings",
+      "status": "open",
+      "detail": "Targeted tests still emit pre-existing unclosed-SQLite ResourceWarning diagnostics and one module-run RuntimeWarning."
+    }
+  ],
+  "rollback": [
+    "code_rollback",
+    "candidate_runtime_rollback"
+  ],
+  "cleanup": {
+    "required": true,
+    "reason": "After production parity and bounded journal growth are verified, rotate/vacuum old logs with an explicit retained window and record the new disk usage. The ephemeral candidate is already removed."
+  },
+  "archivedReferences": [
+    "docs/plans/2026-07-29-sync-log-bounding.md",
+    "artifacts/releases/2026-07-29-sync-log-bounding/requirement.json",
+    "docs/database-architecture.md"
+  ],
+  "summary": "Commit 69a8d8a7 replaces full scheduled WebSim/stat-weight terminal payloads with an 8 KiB fail-closed summary/progress contract. Thirty-five targeted tests and an exact-file remote synthetic smoke pass without launching the expensive jobs. Production deployment, journal-growth proof, safe old-log reclamation, main/origin/cloud parity, and closure remain pending."
+}
