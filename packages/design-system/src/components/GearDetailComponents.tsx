@@ -455,19 +455,21 @@ function GearSlotRow({
           </View>
         ) : null}
       </View>
-      <View className={style('slotEnhancementStates')} data-role="gear-slot-enhancement-states">
-        {item.enhancementStates.map((state) => (
-          <View
-            key={state.id}
-            aria-label={`${state.label}${state.selected ? `：已确认${state.count || ''}` : '：未确认'}`}
-            className={classes(style('slotEnhancementState'), state.selected && style('slotEnhancementStateSelected'))}
-            data-enhancement-kind={state.id}
-            data-state={state.selected ? 'confirmed' : 'unconfirmed'}
-          >
-            <SystemGlyph assetId={enhancementGlyph[state.id]} className={style('slotEnhancementGlyph')} slotId="asset_slot.gear-enhancement-medallions" />
-          </View>
-        ))}
-      </View>
+      {item.enhancementStates.length ? (
+        <View className={style('slotEnhancementStates')} data-role="gear-slot-enhancement-states">
+          {item.enhancementStates.map((state) => (
+            <View
+              key={state.id}
+              aria-label={`${state.label}：已确认${state.count || ''}`}
+              className={classes(style('slotEnhancementState'), style('slotEnhancementStateSelected'))}
+              data-enhancement-kind={state.id}
+              data-state="confirmed"
+            >
+              <SystemGlyph assetId={enhancementGlyph[state.id]} className={style('slotEnhancementGlyph')} slotId="asset_slot.gear-enhancement-medallions" />
+            </View>
+          ))}
+        </View>
+      ) : null}
       <Text className={style('slotLevel')}>{item.levelLabel || item.candidateCount}</Text>
     </ControlButton>
   )

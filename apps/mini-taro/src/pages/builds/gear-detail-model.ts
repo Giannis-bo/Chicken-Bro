@@ -589,11 +589,12 @@ function gearSlotEnhancementStates(
 ): readonly GearSlotEnhancementState[] {
   const confirmed = enhancements[slot]
   const selection = confirmed ? packedEnhancementSelection(confirmed) : null
-  return [
+  const states: readonly GearSlotEnhancementState[] = [
     { id: 'socket', label: '宝石', selected: Boolean(selection?.gemOptionIds.length), count: selection?.gemOptionIds.length ?? 0 },
     { id: 'enchant', label: '附魔', selected: Boolean(selection?.enchantOptionId), count: selection?.enchantOptionId ? 1 : 0 },
     { id: 'embellishment', label: '美化', selected: Boolean(selection?.embellishmentOptionId), count: selection?.embellishmentOptionId ? 1 : 0 },
   ]
+  return states.filter((state) => state.selected)
 }
 
 function candidateBadgeLabels(item: GearItemReference): readonly string[] {
@@ -839,7 +840,6 @@ function itemEnhancementAvailability(
   const options = (item[optionKey] ?? []).filter((option) => (
     enhancementOptionAppliesToItem(option, item, slot, optionKey)
   ))
-  if (options.length) return '可用'
 
   const capabilities = item.modCapabilities
   if (!capabilities || typeof capabilities !== 'object' || Array.isArray(capabilities)) {
@@ -847,12 +847,12 @@ function itemEnhancementAvailability(
   }
   if (kind === 'socket') {
     if (capabilities['hasSocket'] === false || capabilities['socketCount'] === 0) return '不可用'
-    if (capabilities['hasSocket'] === true
-      || (Number.isInteger(capabilities['socketCount']) && Number(capabilities['socketCount']) > 0)) {
+    if (Number.isInteger(capabilities['socketCount']) && Number(capabilities['socketCount']) > 0) {
       return '可用'
     }
     return '待核验'
   }
+  if (options.length) return '可用'
   const field = kind === 'enchant' ? 'canEnchant' : 'canEmbellish'
   if (capabilities[field] === true) return '可用'
   if (capabilities[field] === false) return '不可用'
@@ -875,8 +875,12 @@ function enhancementSelectionCount(
 export function gearEnhancementBarItems(
   equipped: Readonly<Record<string, GearItemReference>>,
   enhancements: Readonly<Record<string, GearEnhancementSelection>>,
+  embellishmentMax: unknown = undefined,
 ): readonly GearEnhancementGroupView[] {
   const items = Object.entries(equipped)
+  const resolverEmbellishmentMax = Number.isInteger(embellishmentMax) && Number(embellishmentMax) >= 0
+    ? Number(embellishmentMax)
+    : null
   return enhancementDefinitions.map((definition) => {
     const selectedCount = enhancementSelectionCount(enhancements, definition.id)
     const availability = items.map(([slot, item]) => (
@@ -894,7 +898,11 @@ export function gearEnhancementBarItems(
       label: definition.label,
       optionCount,
       selectedCount,
-      value: selectedCount ? `已配置 ${selectedCount} 件 · ${availabilityLabel}` : availabilityLabel,
+      value: selectedCount
+        ? definition.id === 'embellishment' && resolverEmbellishmentMax !== null
+          ? `已配置 ${selectedCount} / ${resolverEmbellishmentMax} 件 · ${availabilityLabel}`
+          : `已配置 ${selectedCount} 件 · ${availabilityLabel}`
+        : availabilityLabel,
       state: selectedCount ? 'ready' : disabled ? 'blocked' : 'empty',
       availabilityLabel,
       disabled,

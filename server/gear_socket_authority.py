@@ -23,6 +23,7 @@ __all__ = (
     "SUPPORTED_CAPABILITY_REVISIONS",
     "SOCKET_FACT_SCHEMA_REVISION",
     "SOCKET_ELIGIBILITY_SCHEMA_REVISION",
+    "MIDNIGHT_SOCKET_OPTION_CANDIDATE_SLOTS",
     "is_verified_radiant_jewelbinder_socket",
     "count_payload_socket_entries",
     "parse_simc_socket_bonus_minimums",
@@ -47,6 +48,16 @@ _MIDNIGHT_SEASON_ONE_REVISION_PATTERNS = (
 )
 _MIDNIGHT_JEWELRY_SLOTS = frozenset({"neck", "finger", "finger1", "finger2"})
 _RADIANT_JEWELBINDER_SLOTS = frozenset({"head", "wrist", "waist"})
+# Candidate-option scope only. Exact item eligibility continues to come from
+# the per-item socket capacity facts below.
+MIDNIGHT_SOCKET_OPTION_CANDIDATE_SLOTS = (
+    "neck",
+    "finger1",
+    "finger2",
+    "head",
+    "wrist",
+    "waist",
+)
 _ACTIVE_PVE_CATALOG_SOURCE_TYPES = frozenset(
     {"dungeon", "mythic_plus", "mythicplus", "raid", "tier_set"}
 )

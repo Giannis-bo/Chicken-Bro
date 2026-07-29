@@ -319,7 +319,11 @@ export default function GearDetailPage() {
     canonical.loading ? 'loading' : route.state.state,
     readinessAuthority,
   )
-  const enhancementGroups = gearEnhancementBarItems(equipped, enhancements)
+  const enhancementGroups = gearEnhancementBarItems(
+    equipped,
+    enhancements,
+    canonical.snapshot?.constraints?.['embellishmentMax'],
+  )
   const enhancementOptions = gearEnhancementOptions(selectedCandidate, enhancements, selectedSlot)
   const enhancementSelections = enhancementDraft
     ? enhancementDraftSelections(enhancementDraft)
@@ -350,10 +354,10 @@ export default function GearDetailPage() {
         const kind = enhancementDraft.requestedKind
         if (!item) return []
         const potentiallyCompatible = kind === 'socket'
-          ? gearEnhancementSocketCount(item) !== 0
+          ? (gearEnhancementSocketCount(item) ?? 0) > 0
           : kind === 'enchant'
-            ? item.modCapabilities?.['canEnchant'] !== false
-            : item.modCapabilities?.['canEmbellish'] !== false
+            ? item.modCapabilities?.['canEnchant'] === true
+            : item.modCapabilities?.['canEmbellish'] === true
         if (!potentiallyCompatible) return []
         const selection = enhancementSelections[slot.slot] ?? emptyEnhancementSelection()
         const knownOptions = gearEnhancementOptions(item, { [slot.slot]: selection }, slot.slot)

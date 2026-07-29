@@ -386,6 +386,52 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
         self.assertEqual(result["constraints"]["embellishmentSelectedUsed"], 0)
         self.assertEqual(result["constraints"]["embellishmentUsed"], 1)
 
+    def test_v2_noncrafted_metadata_cannot_grant_editable_embellishment(self):
+        management = {
+            "schemaRevision": "gear-enhancement-management-v1",
+            "authorityRevision": gear_socket_authority.CAPABILITY_REVISION,
+            "fields": {"embellishment": "editor_managed"},
+        }
+        row = self.item_row(
+            item={
+                "payload": {
+                    "inventoryType": "head",
+                    "armorType": "plate",
+                    "baseStats": {"strength": 80, "stamina": 120},
+                    "itemSetId": "set:authority",
+                    "baseCapabilities": {"canEmbellish": True},
+                    "canEmbellish": True,
+                    "socketCount": 1,
+                    "canEnchant": False,
+                },
+            },
+            variant={
+                "sourceType": "dungeon",
+                "simcOptions": {
+                    "ilevel": "289",
+                    "crafted_stats": "32/36",
+                    "embellishment": "forged-embellishment",
+                },
+                "payload": {
+                    "resolvedStats": {"strength": 90, "stamina": 130},
+                    "capabilityOverrides": {"canEmbellish": True},
+                    "enhancementManagement": management,
+                },
+            },
+        )
+
+        context = self.released_context(
+            capability_revision=gear_socket_authority.CAPABILITY_REVISION,
+            item_rows=[row],
+        )
+
+        self.assertFalse(
+            context["itemsById"]["item-head"]["baseCapabilities"]["canEmbellish"]
+        )
+        self.assertFalse(
+            context["variantsByKey"]["variant-head"]["capabilityOverrides"]["canEmbellish"]
+        )
+
     def test_v2_unresolved_embellishment_conflict_drops_raw_and_cannot_create_capability_or_usage(self):
         management = {
             "schemaRevision": "gear-enhancement-management-v1",
@@ -464,6 +510,7 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
                 },
             },
             variant={
+                "sourceType": "crafted",
                 "simcOptions": {
                     "ilevel": "289",
                     "bonus_id": "head-bonus",
@@ -967,7 +1014,14 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
                     "socketEvidence": valid_evidence,
                     "socketCount": 1,
                 }
-            }
+            },
+            sources=[
+                {
+                    "id": "source-row-crafted-head",
+                    "sourceType": "crafted",
+                    "status": "verified",
+                }
+            ],
         )
 
         context = self.released_context(
@@ -1027,7 +1081,16 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
                 }
                 if evidence is not None:
                     payload["socketEvidence"] = evidence
-                invalid = self.item_row(item={"payload": payload})
+                invalid = self.item_row(
+                    item={"payload": payload},
+                    sources=[
+                        {
+                            "id": "source-row-crafted-head",
+                            "sourceType": "crafted",
+                            "status": "verified",
+                        }
+                    ],
+                )
                 invalid_context = self.released_context(
                     capability_revision=gear_socket_authority.CAPABILITY_REVISION,
                     item_rows=[invalid],
@@ -1694,14 +1757,17 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
             {},
         )
 
-    def test_exact_verified_variant_crafting_facts_raise_embellishment_capability(self):
+    def test_exact_verified_crafted_variant_enables_embellishment_capability(self):
         for option_name, option_value in (
             ("embellishment", "shadowflame_armor_patch"),
             ("crafted_stats", "32/36"),
         ):
             with self.subTest(option_name=option_name):
                 row = self.item_row(
-                    variant={"simcOptions": {"ilevel": "289", option_name: option_value}},
+                    variant={
+                        "sourceType": "crafted",
+                        "simcOptions": {"ilevel": "289", option_name: option_value},
+                    },
                 )
 
                 _cursor, context = self.load(

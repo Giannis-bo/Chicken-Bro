@@ -1,0 +1,97 @@
+{
+  "schemaVersion": 1,
+  "slug": "gear-enhancement-rule-alignment",
+  "classification": "Strict",
+  "status": "implementation_allowed",
+  "goal": "Align active gear simulator enhancement eligibility and detail markers with canonical backend facts: socket capacity, item-type enchant options, crafted-only editable embellishments, and the resolver-owned two-embellishment cap.",
+  "userValue": "Players see only enhancements actually confirmed on each equipped item and can edit only legal sockets, enchants, and crafted-equipment embellishments without a third embellishment appearing usable.",
+  "nonGoals": [
+    "Do not change active Catalog, Gear Release, Manifest, ExactItemInstance, TemplateSet, SimC, PostgreSQL schema, or persisted player/template data.",
+    "Do not rewrite or hide sealed source-only enhancements imported from historical/community templates; they remain displayable and resolver-counted.",
+    "Do not change target geometry, the sixteen-slot layout, outer scroll behavior, or the legacy pages/builds/detail.js owner.",
+    "Do not deploy, run sync/backfill, or claim WeChat manual acceptance in this task's local implementation phase."
+  ],
+  "currentTruth": {
+    "sources": [
+      "docs/project-state.json",
+      "docs/roadmap.md",
+      "docs/plans/README.md",
+      "docs/plans/2026-07-29-gear-enhancement-rule-alignment.md",
+      "docs/harness.md",
+      "docs/verification-matrix.md",
+      "docs/gear-simulation-full-chain-runbook.md",
+      "docs/design/current-ui/routes/gear-detail/truth-adaptation.json",
+      "docs/design/current-ui/routes/gear-detail/component-contract.json"
+    ],
+    "factOwner": "Backend socket authority and gear resolver own enhancement legality and cap; payload/read-model projection publishes item capability and canonical option keys; Taro renders resolved selections and local drafts only.",
+    "baseBranch": "main"
+  },
+  "impactMap": {
+    "mustChange": [
+      "The active payload capability projection must seed socket option groups for all current-season supported candidate slots while retaining per-item socket capacity as the eligibility gate.",
+      "The active payload and formal PG authority capability projections must publish editable embellishment capability only for verified crafted item/variant provenance; partial and source-only crafted records cannot open editability.",
+      "The active Taro detail model and design-system marker surface must render only selected resolved enhancement kinds, not neutral eligibility-shaped markers.",
+      "Targeted backend/frontend tests and current UI contracts must freeze the confirmed-marker and backend-authority boundaries."
+    ],
+    "mustNotChange": [
+      "Do not alter Resolver ownership, its canonical option keys, or the global embellishment cap authority.",
+      "Do not mutate PostgreSQL, active Manifest/Catalog pointers, sealed templates, user configuration, timers, or remote runtime state.",
+      "Do not add frontend source inference, slot-count inference, a hard-coded embellishment limit, or a legacy-page fallback."
+    ],
+    "riskUnknown": [
+      "A raw catalog field may describe an imported/source-only embellishment without proving the current item is crafted; tightened capability must not break sealed exact recovery.",
+      "Group-level socket option availability can accidentally look like item-level eligibility unless every consumer retains the canonical socket-capacity gate.",
+      "Existing tests may codify neutral marker rendering and require intentional replacement rather than preservation."
+    ],
+    "evidenceRequired": [
+      "RED/GREEN targeted Python tests for seasonal socket candidates, per-item socket capacity, crafted-only editable embellishment capability, and resolver two-item cap.",
+      "RED/GREEN targeted Vitest coverage proving markers contain only selected enhancement kinds and omit the empty marker container.",
+      "Typecheck, UI architecture audit, Harness requirement/verification checks, diff review, and a local CR tied to this packet.",
+      "Before merge: candidate-head runtime smoke and the explicit manual acceptance items listed below; after acceptance, merge/push parity follows Harness closure."
+    ]
+  },
+  "ownership": {
+    "factOwner": "server/gear_socket_authority.py owns socket capacity; server/websim_payload.py and server/pg_gear_authority_loader.py project canonical candidates/capabilities; the gear resolver owns final legality and embellishmentMax; Taro and design-system consume those facts.",
+    "consumers": [
+      "server/websim_payload.py",
+      "server/pg_gear_authority_loader.py",
+      "server/gear_resolver.py",
+      "apps/mini-taro/src/pages/builds/gear-detail-model.ts",
+      "packages/design-system/src/components/GearDetailComponents.tsx",
+      "apps/mini-taro/src/pages/builds/detail.tsx"
+    ]
+  },
+  "engineeringHealth": {
+    "status": "health_watch_guarded",
+    "reason": "A user-visible simulator capability/read-model mismatch crosses backend and active Taro consumers. TDD, backend-owned facts, targeted cross-layer tests, candidate smoke, and manual acceptance prevent the UI from inventing legality."
+  },
+  "acceptanceEvidence": [
+    "Every equipment row displays only enhancement kinds confirmed for that exact slot; a row with no confirmed enhancements has no neutral medallion container.",
+    "Neck and rings retain innate socket candidates, and head/wrist/waist candidates are available only through positive backend socket capacity; unsupported/PvP/zero-capacity items remain blocked.",
+    "Enchant eligibility continues to require backend item-type and canonical allowed-option filtering, including non-weapon off-hand exclusion.",
+    "Only verified crafted equipment exposes editable embellishment capability; the Resolver blocks selections beyond its published embellishmentMax of two while retaining source-only historical selections as counted facts.",
+    "No active pointer, schema, persisted data, legacy owner, target geometry, deployment identity, or remote state changes."
+  ],
+  "manualAcceptanceContract": {
+    "required": true,
+    "requiredItemIds": [
+      "gear_enhancement_eligibility_alignment",
+      "gear_slot_confirmed_markers"
+    ]
+  },
+  "releaseTrigger": "frontend_user_visible",
+  "rollback": [
+    "code_rollback",
+    "candidate_runtime_rollback"
+  ],
+  "decisionLog": [
+    {
+      "date": "2026-07-29",
+      "decision": "The user approved the Strict recommended direction: backend remains the sole owner of enhancement legality, Taro renders confirmed selections only, and existing Resolver cap validation remains authoritative."
+    },
+    {
+      "date": "2026-07-29",
+      "decision": "The task intentionally distinguishes editable crafted-only capability from sealed source-only imported enhancements, which must remain truthful display and cap facts without opening new editability."
+    }
+  ]
+}
