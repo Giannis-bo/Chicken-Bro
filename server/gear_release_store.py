@@ -2503,6 +2503,7 @@ class GearReleaseStore:
             spec_key,
             include_catalog=include_catalog,
             catalog_slot=catalog_slot,
+            catalog_options_only=True,
         )
         if include_catalog:
             data["gearSnapshot"] = _manifest_catalog_snapshot(
@@ -2522,6 +2523,7 @@ class GearReleaseStore:
         *,
         include_catalog: bool,
         catalog_slot: str = "",
+        catalog_options_only: bool = False,
     ) -> dict[str, Any]:
         """Read immutable Community rows and release-owned enhancement options."""
 
@@ -2631,7 +2633,7 @@ class GearReleaseStore:
                             for template in community_templates
                         ):
                             raise GearReleaseIntegrityError("active Community hero winner projection integrity failed")
-                if include_catalog:
+                if include_catalog and not catalog_options_only:
                     normalized_slot = _text(catalog_slot)
                     variant_slot_clause = " AND slot = %s" if normalized_slot else ""
                     variant_params = (gear_id, normalized_slot) if normalized_slot else (gear_id,)
@@ -2734,6 +2736,7 @@ class GearReleaseStore:
                         for record, row in zip(snapshot["sources"], source_db_rows)
                     ):
                         raise GearReleaseIntegrityError("active Gear Release source row integrity failed")
+                if include_catalog:
                     cur.execute(
                         """
                         SELECT option_id, variant_id, option_key, option_type, name,

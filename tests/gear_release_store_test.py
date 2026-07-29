@@ -2639,8 +2639,25 @@ class GearReleaseStoreTest(unittest.TestCase):
         store = GearReleaseStore(lambda: self.fail("unit test must not open PostgreSQL"))
         calls = []
 
-        def load_material(exact_binding, class_key, spec_key, *, include_catalog, catalog_slot=""):
-            calls.append((exact_binding, class_key, spec_key, include_catalog, catalog_slot))
+        def load_material(
+            exact_binding,
+            class_key,
+            spec_key,
+            *,
+            include_catalog,
+            catalog_slot="",
+            catalog_options_only=False,
+        ):
+            calls.append(
+                (
+                    exact_binding,
+                    class_key,
+                    spec_key,
+                    include_catalog,
+                    catalog_slot,
+                    catalog_options_only,
+                )
+            )
             return {
                 "gearRelease": {
                     "releaseId": "gear-release-a",
@@ -2665,7 +2682,10 @@ class GearReleaseStoreTest(unittest.TestCase):
             catalog_slot="head",
         )
 
-        self.assertEqual(calls, [(binding, "mage", "arcane", True, "head")])
+        self.assertEqual(
+            calls,
+            [(binding, "mage", "arcane", True, "head", True)],
+        )
         self.assertEqual(
             [row["variantKey"] for row in result["gearSnapshot"]["variants"]],
             [browse_key],
@@ -2676,6 +2696,129 @@ class GearReleaseStoreTest(unittest.TestCase):
             result["gearExactRegistry"],
             binding["gearExactRegistry"],
         )
+
+    def test_manifest_v2_public_gear_does_not_materialize_legacy_catalog_rows(self):
+        from server.gear_release_store import (
+            GearReleaseStore,
+            canonical_row_hash,
+        )
+
+        snapshot = self.snapshot()
+        gear = self.gear_release(snapshot)
+        catalog_revision = "gear-catalog:sha256:" + ("a" * 64)
+        exact_revision = "gear-exact-registry:sha256:" + ("b" * 64)
+        browse_key = "browse-variant:sha256:" + ("c" * 64)
+        binding = {
+            "formalActiveManifest": True,
+            "manifest": {
+                "schemaRevision": "active-season-manifest-v2",
+                "gearCatalogReleaseId": gear["releaseId"],
+                "gearCatalogRevision": catalog_revision,
+                "gearExactRegistryRevision": exact_revision,
+                "communityTemplateReleaseId": "",
+            },
+            "gearRelease": gear,
+            "communityRelease": None,
+            "gearCatalog": {
+                "status": "verified",
+                "catalogRevision": catalog_revision,
+                "itemDefinitions": [
+                    {
+                        "itemId": "item-a",
+                        "name": "Item A",
+                        "slot": "head",
+                        "itemLevel": 289,
+                        "sourceStatus": "verified",
+                        "sources": [
+                            {
+                                "sourceIdentity": "catalog-source:sha256:test",
+                                "sourceType": "raid",
+                                "sourceKey": "raid-a",
+                                "difficultyKey": "mythic",
+                                "seasonRevision": "season-17",
+                                "status": "verified",
+                            }
+                        ],
+                    }
+                ],
+                "browseVariants": [
+                    {
+                        "browseVariantKey": browse_key,
+                        "itemId": "item-a",
+                        "progressionState": {
+                            "trackKey": "hero",
+                            "rank": 6,
+                            "rankMax": 6,
+                        },
+                        "itemLevel": 289,
+                        "bonusIds": ["1"],
+                        "staticFacts": {"intellect": 100},
+                        "sourceVariantKeys": ["variant-a"],
+                        "evidenceStatus": "verified",
+                    }
+                ],
+            },
+            "gearExactRegistry": {
+                "registryRevision": exact_revision,
+                "status": "verified",
+            },
+        }
+        conn = FakeConnection(
+            rowsets={
+                "gear_release_public_counts": [(1, 1, 1, 1)],
+                "FROM cache.websim_gear_release_mod_options": [
+                    (
+                        "option-a-id",
+                        "variant-a-id",
+                        "gem-a",
+                        "gem",
+                        "Gem A",
+                        ["head"],
+                        {"gem_id": "1"},
+                        "verified",
+                        True,
+                        {"itemStats": [{"key": "haste", "value": 10}]},
+                        "2026-07-11T05:00:00+00:00",
+                        canonical_row_hash(snapshot["options"][0]),
+                    )
+                ],
+            }
+        )
+
+        result = GearReleaseStore(
+            lambda: conn
+        ).load_active_manifest_public_gear(
+            binding,
+            "mage",
+            "arcane",
+            include_catalog=True,
+        )
+
+        sql = "\n".join(conn.cursor_instance.statements)
+        catalog_row_sql = "\n".join(
+            statement
+            for statement in conn.cursor_instance.statements
+            if "gear_release_public_counts" not in statement
+        )
+        self.assertIn("gear_release_public_counts", sql)
+        self.assertIn("FROM cache.websim_gear_release_mod_options", sql)
+        self.assertNotIn(
+            "FROM cache.websim_gear_release_items",
+            catalog_row_sql,
+        )
+        self.assertNotIn(
+            "FROM cache.websim_gear_release_sources",
+            catalog_row_sql,
+        )
+        self.assertNotIn(
+            "FROM cache.websim_gear_release_variants",
+            catalog_row_sql,
+        )
+        self.assertEqual(
+            [row["variantKey"] for row in result["gearSnapshot"]["variants"]],
+            [browse_key],
+        )
+        self.assertEqual(result["gearSnapshot"]["options"], snapshot["options"])
 
     def test_candidate_authority_reads_one_exact_release_without_staging_fallback(self):
         from server.gear_release_store import GearReleaseStore
