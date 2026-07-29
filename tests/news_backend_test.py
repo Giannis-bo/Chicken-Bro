@@ -2035,6 +2035,9 @@ class NewsBackendTest(unittest.TestCase):
             "contractRevision": "gear-resolved-snapshot-v1",
             "status": "verified",
             "resolvedGearSignature": "sha256:" + "b" * 64,
+            "dependencyVector": {
+                "templateOriginSignature": "sha256:" + "f" * 64,
+            },
         }
         release_context = {
             "manifestRevision": "season-manifest:r17",
@@ -2176,7 +2179,7 @@ class NewsBackendTest(unittest.TestCase):
             self.backend,
             "build_resolved_loadout_from_registry",
             return_value=phase3_loadout,
-        ), patch.object(
+        ) as loadout_builder, patch.object(
             self.backend,
             "snapshot_from_compatibility_profile",
             return_value=phase3_snapshot,
@@ -2234,6 +2237,15 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(
             phase3_cache_store.exact_binding_calls,
             [("season-manifest:r17", 9)] * 4,
+        )
+        self.assertEqual(loadout_builder.call_count, 4)
+        self.assertTrue(
+            all(
+                call.kwargs["template_authority_identity"]
+                == "sha256:" + "f" * 64
+                and call.kwargs["template_scope"] == "community"
+                for call in loadout_builder.call_args_list
+            )
         )
         self.assertEqual(queued["simcReport"]["build"]["statSnapshot"]["primary"]["value"], "2,624")
         self.assertIn("# canonical-resolver-profile", analysis["agent"]["draftProfile"])

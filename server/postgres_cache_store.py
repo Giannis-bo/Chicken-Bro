@@ -72,9 +72,17 @@ except ImportError:
 
 try:
     from .gear_exact_item_registry_store import GearExactItemRegistryStore
+    from .gear_exact_template_options import (
+        bind_exact_template_authority,
+        project_exact_template_intent,
+    )
     from .simulation_snapshot_store import SimulationSnapshotStore
 except ImportError:
     from gear_exact_item_registry_store import GearExactItemRegistryStore
+    from gear_exact_template_options import (
+        bind_exact_template_authority,
+        project_exact_template_intent,
+    )
     from simulation_snapshot_store import SimulationSnapshotStore
 
 try:
@@ -1734,6 +1742,34 @@ class PostgresCacheStore:
         ):
             return copy.deepcopy(registry_header)
 
+        material_cache_key = (
+            "exact-registry-material:"
+            + active_revision
+            + ":"
+            + str(
+                manifest.get("gearExactRegistryRevision") or ""
+            ).strip()
+        )
+        cached_registry = self._manifest_binding_cache.get(
+            material_cache_key
+        )
+        if (
+            isinstance(cached_registry, dict)
+            and str(
+                cached_registry.get("registryRevision") or ""
+            ).strip()
+            == str(
+                registry_header.get("registryRevision") or ""
+            ).strip()
+            and str(
+                cached_registry.get("catalogRevision") or ""
+            ).strip()
+            == str(
+                registry_header.get("catalogRevision") or ""
+            ).strip()
+        ):
+            return cached_registry
+
         registry = self._gear_exact_item_registry_store.load_registry(
             str(manifest.get("gearExactRegistryRevision") or "").strip()
         )
@@ -1786,7 +1822,112 @@ class PostgresCacheStore:
             raise RuntimeError(
                 "Manifest changed during exact registry materialization"
             )
+        self._manifest_binding_cache.put(
+            material_cache_key,
+            registry,
+        )
         return registry
+
+    def _manifest_exact_registry(self, binding):
+        value = binding if isinstance(binding, dict) else {}
+        manifest = (
+            value.get("manifest")
+            if isinstance(value.get("manifest"), dict)
+            else {}
+        )
+        if manifest.get("schemaRevision") != "active-season-manifest-v2":
+            return {}
+        return self.get_active_gear_exact_registry(
+            expected_manifest_revision=str(
+                manifest.get("manifestRevision")
+                or value.get("manifestRevision")
+                or ""
+            ).strip(),
+            expected_pointer_generation=_int_value(
+                value.get("generation")
+            ),
+        )
+
+    def _project_manifest_exact_import(self, source, binding):
+        value = binding if isinstance(binding, dict) else {}
+        manifest = (
+            value.get("manifest")
+            if isinstance(value.get("manifest"), dict)
+            else {}
+        )
+        if manifest.get("schemaRevision") != "active-season-manifest-v2":
+            return source
+        result = copy.deepcopy(source) if isinstance(source, dict) else {}
+        template = (
+            result.get("template")
+            if isinstance(result.get("template"), dict)
+            else {}
+        )
+        projection = project_exact_template_intent(
+            result.get("selectionIntent"),
+            self._manifest_exact_registry(value),
+            value.get("gearCatalog"),
+            template.get("templateAuthorityIdentity"),
+        )
+        if projection.get("status") != "verified":
+            if set(projection.get("problemCodes") or []) == {
+                "EXACT_TEMPLATE_REFERENCE_NOT_VERIFIED"
+            }:
+                result["_exactTemplateReadiness"] = {
+                    "status": "partial",
+                    "problemCodes": projection.get(
+                        "problemCodes"
+                    )
+                    or [],
+                }
+                return result
+            raise RuntimeError(
+                "Manifest Exact Registry template projection is unavailable: "
+                + ",".join(projection.get("problemCodes") or [])
+            )
+        result["selectionIntent"] = projection["selectionIntent"]
+        visible = (
+            result.get("visibleOptionsBySlot")
+            if isinstance(result.get("visibleOptionsBySlot"), dict)
+            else {}
+        )
+        for slot, options in (
+            projection.get("visibleOptionsBySlot") or {}
+        ).items():
+            visible.setdefault(slot, {}).update(options)
+        result["visibleOptionsBySlot"] = visible
+        return result
+
+    def _bind_manifest_exact_authority(
+        self,
+        selection_intent,
+        authority_context,
+        binding,
+        *,
+        required=False,
+    ):
+        value = binding if isinstance(binding, dict) else {}
+        manifest = (
+            value.get("manifest")
+            if isinstance(value.get("manifest"), dict)
+            else {}
+        )
+        if manifest.get("schemaRevision") != "active-season-manifest-v2":
+            return authority_context
+        bound = bind_exact_template_authority(
+            selection_intent,
+            authority_context,
+            self._manifest_exact_registry(value),
+            value.get("gearCatalog"),
+        )
+        if bound.get("status") == "verified":
+            return bound["authorityContext"]
+        if required or bound.get("status") == "blocked":
+            raise RuntimeError(
+                "Manifest Exact Registry authority binding is unavailable: "
+                + ",".join(bound.get("problemCodes") or [])
+            )
+        return authority_context
 
     def seal_resolved_loadout(self, value):
         return self._simulation_snapshot_store.seal_loadout(value)
@@ -1920,6 +2061,10 @@ class PostgresCacheStore:
                     source,
                     binding,
                 )
+                source = self._project_manifest_exact_import(
+                    source,
+                    binding,
+                )
             except (ValueError, RuntimeError) as error:
                 raise CommunityTemplateImportError(
                     "template_import_blocked",
@@ -1967,6 +2112,11 @@ class PostgresCacheStore:
                             binding,
                         )
                     )
+                authority_context = self._bind_manifest_exact_authority(
+                    selection_intent,
+                    authority_context,
+                    binding,
+                )
             except Exception as error:
                 raise CommunityTemplateImportError(
                     "template_import_unavailable",
@@ -2059,6 +2209,10 @@ class PostgresCacheStore:
                 source,
                 binding,
             )
+            source = self._project_manifest_exact_import(
+                source,
+                binding,
+            )
         except RuntimeError as error:
             raise CommunityTemplateImportError(
                 "template_import_blocked",
@@ -2097,6 +2251,11 @@ class PostgresCacheStore:
                         binding,
                     )
                 )
+            authority_context = self._bind_manifest_exact_authority(
+                selection_intent,
+                authority_context,
+                binding,
+            )
         except Exception as error:
             raise CommunityTemplateImportError(
                 "template_import_unavailable",
@@ -2390,6 +2549,11 @@ class PostgresCacheStore:
         context = self._gear_release_store.load_active_authority_context(
             selection_intent,
             runtime_authority,
+            binding,
+        )
+        context = self._bind_manifest_exact_authority(
+            selection_intent,
+            context,
             binding,
         )
         if isinstance(context, dict) and context.get("missingFields") == []:

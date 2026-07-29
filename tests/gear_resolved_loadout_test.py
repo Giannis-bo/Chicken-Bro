@@ -349,6 +349,7 @@ class GearResolvedLoadoutTest(unittest.TestCase):
             resolver_snapshot=resolver_snapshot(),
             exact_registry=exact_registry(),
             template_scope="community",
+            template_authority_identity=TEMPLATE_AUTHORITY_IDENTITY,
         )
         absent = exact_registry()
         absent["templateReferences"] = []
@@ -356,6 +357,7 @@ class GearResolvedLoadoutTest(unittest.TestCase):
             resolver_snapshot=resolver_snapshot(),
             exact_registry=absent,
             template_scope="community",
+            template_authority_identity=TEMPLATE_AUTHORITY_IDENTITY,
         )
 
         self.assertEqual(matched["status"], "ready")
@@ -365,6 +367,24 @@ class GearResolvedLoadoutTest(unittest.TestCase):
             "LOADOUT_EXACT_TEMPLATE_MATCH_UNAVAILABLE",
             missing["problemCodes"],
         )
+
+    def test_compatibility_matcher_never_scans_without_server_identity(self):
+        with patch(
+            "server.gear_resolved_loadout.build_resolved_loadout",
+            wraps=build_resolved_loadout,
+        ) as builder:
+            result = build_resolved_loadout_from_registry(
+                resolver_snapshot=resolver_snapshot(),
+                exact_registry=exact_registry(),
+                template_scope="community",
+            )
+
+        self.assertEqual(result["status"], "blocked")
+        self.assertIn(
+            "LOADOUT_EXACT_TEMPLATE_IDENTITY_REQUIRED",
+            result["problemCodes"],
+        )
+        builder.assert_not_called()
 
     def test_compatibility_matcher_uses_known_template_hash_without_scanning_groups(self):
         registry = exact_registry()

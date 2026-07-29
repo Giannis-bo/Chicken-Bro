@@ -572,17 +572,54 @@ def build_resolved_loadout_from_registry(
 ) -> dict[str, Any]:
     """Match a Resolver result to one unique exact template content group.
 
-    This compatibility adapter is intentionally exact-only. It is useful when
-    a canonical Selection Intent no longer carries the original template
-    content hash: all sealed groups are tried, serializer parity selects the
-    valid group, and multiple distinct ready loadouts remain blocked. Callers
-    that still own the server-observed template hash must pass it so only that
-    immutable group is evaluated.
+    This adapter is intentionally exact-only.  Callers must provide either the
+    immutable content hash or the server-bound authority identity.  Serializer
+    similarity is validation after identity binding, never a registry-wide
+    discovery mechanism.
     """
 
     registry = dict(exact_registry) if isinstance(exact_registry, Mapping) else {}
     requested_hash = _text(template_content_hash)
     requested_authority = _text(template_authority_identity)
+    if not requested_hash and not requested_authority:
+        snapshot = (
+            dict(resolver_snapshot)
+            if isinstance(resolver_snapshot, Mapping)
+            else {}
+        )
+        dependency = (
+            snapshot.get("dependencyVector")
+            if isinstance(snapshot.get("dependencyVector"), Mapping)
+            else {}
+        )
+        return _blocked(
+            catalog_revision=_text(registry.get("catalogRevision")),
+            gear_rule_revision=_text(registry.get("gearRuleRevision"))
+            or _text(dependency.get("gearRuleRevision")),
+            exact_registry_revision=_text(
+                registry.get("registryRevision")
+            ),
+            eligibility_context=(
+                snapshot.get("eligibilityContext")
+                if isinstance(snapshot.get("eligibilityContext"), Mapping)
+                else {}
+            ),
+            required_slots=(
+                snapshot.get("profileReadiness", {}).get(
+                    "requiredSlots",
+                    [],
+                )
+                if isinstance(snapshot.get("profileReadiness"), Mapping)
+                else []
+            ),
+            problems=[
+                _problem(
+                    "LOADOUT_EXACT_TEMPLATE_IDENTITY_REQUIRED",
+                    "exactRegistry.templateReferences",
+                    "ResolvedLoadout requires one server-bound exact template identity.",
+                )
+            ],
+        )
     groups = sorted(
         {
             (

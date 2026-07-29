@@ -5016,11 +5016,32 @@ def prepare_canonical_simcraft_template_request(request_payload):
                         ),
                     )
                 )
+                resolved_snapshot = canonical_stat_context.get(
+                    "resolvedSnapshot"
+                )
+                resolved_snapshot = (
+                    resolved_snapshot
+                    if isinstance(resolved_snapshot, dict)
+                    else {}
+                )
+                dependency_vector = (
+                    resolved_snapshot.get("dependencyVector")
+                    if isinstance(
+                        resolved_snapshot.get("dependencyVector"),
+                        dict,
+                    )
+                    else {}
+                )
                 phase3_loadout = build_resolved_loadout_from_registry(
-                    resolver_snapshot=canonical_stat_context.get(
-                        "resolvedSnapshot"
-                    ),
+                    resolver_snapshot=resolved_snapshot,
                     exact_registry=exact_registry,
+                    template_scope="community",
+                    template_authority_identity=str(
+                        dependency_vector.get(
+                            "templateOriginSignature"
+                        )
+                        or ""
+                    ).strip(),
                 )
                 if phase3_loadout.get("status") == "ready":
                     phase3_snapshot = snapshot_from_compatibility_profile(
