@@ -1,0 +1,163 @@
+{
+  "schemaVersion": 2,
+  "slug": "season-pve-journal-omission-guard",
+  "requirementSlug": "season-pve-journal-omission-guard",
+  "status": "runtime_verified",
+  "highestEvidenceLevel": "runtime_verified",
+  "branch": "codex/season-pve-journal-omission-guard",
+  "commit": "615c9238e09539e5b22e81d13ae64bb438301aec",
+  "identities": {
+    "runtime": {
+      "status": "bound",
+      "kind": "git_commit",
+      "value": "615c9238e09539e5b22e81d13ae64bb438301aec"
+    },
+    "verification": {
+      "status": "bound_at_check",
+      "kind": "git_ref",
+      "value": "HEAD"
+    },
+    "closure": {
+      "status": "pending",
+      "reason": "PR CI, merge, production deployment, and archive closure have not occurred."
+    }
+  },
+  "manualAcceptance": {
+    "required": false,
+    "status": "not_applicable",
+    "reason": "This upstream scheduled Journal discovery/write guard changes no user-visible interaction or WeChat surface.",
+    "items": [],
+    "rollup": {
+      "total": 0,
+      "accepted": 0,
+      "notRunUserWaived": 0,
+      "pending": 0
+    }
+  },
+  "scope": [
+    "PostgreSQL Journal discovery completeness contract",
+    "Cap, fetch-failure, fallback, and partial-raid membership diagnostics",
+    "Sync-orchestrator last-known-good preservation",
+    "Pre-SQL PostgreSQL replacement rejection"
+  ],
+  "verification": [
+    {
+      "command": "python3 -m unittest tests.websim_journal_contract_test tests.postgres_cache_sync_test tests.postgres_cache_store_test tests.websim_sync_test tests.postgres_only_scripts_test tests.data_health_followup_test tests.deploy_lighthouse_test tests.season_pve_universe_test tests.season_pve_universe_cli_test",
+      "status": "pass",
+      "summary": "336 Journal contract, PostgreSQL sync/store, WebSim runner, deploy, health-followup, and Season PVE Universe tests passed on exact runtime commit 615c9238. Pre-existing unclosed-SQLite ResourceWarning, module-run RuntimeWarning, and a deliberately rejected CLI choice remained visible."
+    },
+    {
+      "command": "python3 -m py_compile server/postgres_cache_sync.py server/postgres_cache_store.py server/websim_journal_contract.py server/websim_sync.py server/data_health_followup.py",
+      "status": "pass",
+      "summary": "All affected and adjacent Python runtime modules compiled."
+    },
+    {
+      "command": "node --test tests/backend-owner-map.test.js tests/project-owner-map.test.js tests/project-state.test.js",
+      "status": "pass",
+      "summary": "57 ownership, current-truth, Harness, and UI-control-plane tests passed."
+    },
+    {
+      "command": "node scripts/project-harness.js --json --check-requirement --requirement-file artifacts/releases/2026-07-29-season-pve-journal-omission-guard/requirement.json",
+      "status": "pass",
+      "summary": "The Strict scheduled-job requirement contract passed Harness validation."
+    },
+    {
+      "command": "git diff --check",
+      "status": "pass",
+      "summary": "No whitespace errors were present before the immutable runtime commit."
+    },
+    {
+      "command": "Immutable remote candidate file-parity and synthetic fail-closed smoke",
+      "status": "pass",
+      "summary": "Exact committed server files were extracted into one 5.5 MiB temporary candidate. Complete evidence verified; cap, partial-raid, and missing-count evidence blocked; two writer calls rejected before PostgreSQL connection creation. No Blizzard request, source sync, service start, database write, or production file installation occurred."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "candidate_verified",
+    "requiredBeforeMerge": true,
+    "commit": "615c9238e09539e5b22e81d13ae64bb438301aec",
+    "gitTree": "f2c9bdc855474015a35c8d39fce5c5527f61e1bd",
+    "candidateService": "not_applicable_ephemeral_no_service_candidate",
+    "candidateRoot": "/tmp/wow-journal-615c9238.znmfmd (removed after smoke)",
+    "runtimeFileParity": {
+      "server/websim_journal_contract.py": "a133dcf677d19f4525d833ffff707b5862a4529b43b76a0c31d5cb57c96bc83c",
+      "server/postgres_cache_sync.py": "a2cc3f354e8bd870f73c0ade25eb8d35e3601d1127844054813f8ecba7e4efa3",
+      "server/postgres_cache_store.py": "2639e0ac24ede0563d9d16c0ab9c9a9fea756d8fd7548a42fcf2ab6972dbe207"
+    },
+    "smoke": {
+      "status": "pass",
+      "result": "Synthetic contract smoke returned verified only for the explicit complete fixture; cap, partial-raid membership, and missing-count fixtures returned blocked. The PostgreSQL writer rejected two incomplete inputs with zero connection-factory calls."
+    },
+    "databaseBackup": {
+      "status": "not_applicable",
+      "reason": "The candidate never configured or opened a PostgreSQL connection and executed no SQL; production rows and state were outside the candidate."
+    },
+    "timerBackflow": {
+      "status": "pass",
+      "result": "WOW_DEPLOY_START_ASYNC_SYNCS=0 was explicit. WebSim and stat-weight services remained inactive; both existing timers remained active and were not changed or triggered."
+    },
+    "rollback": {
+      "status": "pass",
+      "result": "The exact temporary candidate directory was removed. Production files, service state, timers, and PostgreSQL remained untouched."
+    }
+  },
+  "runtimeEvidence": [
+    {
+      "type": "source_parity",
+      "status": "pass",
+      "result": "Remote SHA-256 matched immutable commit 615c9238 for the shared contract, PostgreSQL sync orchestrator, and PostgreSQL writer."
+    },
+    {
+      "type": "synthetic_contract_smoke",
+      "status": "pass",
+      "result": "Complete, cap, partial-raid, and missing-count paths were exercised without external network or database access; writer rejection occurred before connection creation."
+    },
+    {
+      "type": "production_health",
+      "status": "pass",
+      "result": "Before and after candidate smoke, /health and /api/data/health returned HTTP 200 and wow-backend.service remained active."
+    },
+    {
+      "type": "resource_gate",
+      "status": "pass",
+      "result": "Root remained 79% used with about 15.1 GiB free. MemAvailable was 2,241,688 KiB before and 2,230,188 KiB after, above the 2 GiB hard floor."
+    },
+    {
+      "type": "production_untouched",
+      "status": "pass",
+      "result": "The new contract file was absent from /opt/wow-mini-program; existing production sync/store files were not replaced; no scheduled sync service started."
+    }
+  ],
+  "risks": [
+    {
+      "id": "official-source-snapshot-not-authorized",
+      "status": "open",
+      "detail": "The complete 18-source current-season PVE Universe remains blocked until the user explicitly authorizes downloading and saving official source snapshots. This slice proves the Journal replacement guard only."
+    },
+    {
+      "id": "production-runtime-not-yet-updated",
+      "status": "open",
+      "detail": "The candidate was isolated and removed. Production intentionally remains on the prior Journal implementation until PR CI, merge, and controlled deployment."
+    },
+    {
+      "id": "existing-test-warnings",
+      "status": "open",
+      "detail": "The adjacent Python suite still emits pre-existing unclosed-SQLite and module-run warnings; they are not represented as clean resource evidence."
+    }
+  ],
+  "rollback": [
+    "code_rollback",
+    "retain_last_known_good_journal_and_catalog",
+    "candidate_runtime_rollback"
+  ],
+  "cleanup": {
+    "required": false,
+    "reason": "The temporary candidate directory was removed and no production artifact, service, timer, pointer, database row, Catalog, or Manifest was changed."
+  },
+  "archivedReferences": [
+    "docs/plans/2026-07-29-season-pve-journal-omission-guard.md",
+    "artifacts/releases/2026-07-29-season-pve-journal-omission-guard/requirement.json",
+    "docs/plans/2026-07-29-season-pve-universe-reconciliation.md"
+  ],
+  "summary": "Runtime-verified upstream omission guard at commit 615c9238: PostgreSQL Journal discovery now records caps, fetch failures, fallback use, partial raid membership, and structural proof gaps; incomplete inputs preserve LKG in the orchestrator and are rejected again before writer SQL. Exact-file candidate parity, synthetic no-network/no-DB smoke, health, resource, timer/backflow, and rollback checks passed. Full official 18-source completeness remains literally blocked pending network-data landing approval."
+}

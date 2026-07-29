@@ -39,6 +39,11 @@ except ImportError:
     import pg_cache_read_model_selectors
 
 try:
+    from .websim_journal_contract import require_complete_journal_discovery
+except ImportError:
+    from websim_journal_contract import require_complete_journal_discovery
+
+try:
     from .observed_gear_backfill_window import (
         build_observed_profile_window,
         profile_identity as observed_profile_window_identity,
@@ -3177,6 +3182,7 @@ class PostgresCacheStore:
 
     def replace_websim_journal_data(self, data):
         data = data if isinstance(data, dict) else {}
+        require_complete_journal_discovery(data)
         season = data.get("season") if isinstance(data.get("season"), dict) else {}
         instances = [item for item in (data.get("instances") or []) if isinstance(item, dict)]
         now = utc_now()

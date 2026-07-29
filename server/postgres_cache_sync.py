@@ -14,6 +14,7 @@ try:
         utc_now,
     )
     from .raiderio_payload import capture_gear_projection_profiles, sync_raiderio_cache
+    from .websim_journal_contract import journal_discovery_state
     from .stat_weights_payload import (
         MPLUS_SCENARIOS,
         aggregate_by_spec,
@@ -76,6 +77,7 @@ except ImportError:
         utc_now,
     )
     from raiderio_payload import capture_gear_projection_profiles, sync_raiderio_cache
+    from websim_journal_contract import journal_discovery_state
     from stat_weights_payload import (
         MPLUS_SCENARIOS,
         aggregate_by_spec,
@@ -260,7 +262,33 @@ def fetch_websim_journal_data_postgres(region=DEFAULT_REGION, locale=DEFAULT_LOC
     except Exception as error:
         errors.append(str(error))
     raid_pool_status = current_season_raid_pool_status({"raids": raid_refs})
-    raid_refs = raid_pool_status.get("refs") or official_current_season_raid_refs()
+    discovered_raid_refs = raid_pool_status.get("refs") or []
+    fallback_raid_refs = (
+        official_current_season_raid_refs()
+        if not discovered_raid_refs
+        else []
+    )
+    raid_fallback_gap = None
+    if fallback_raid_refs:
+        raid_fallback_gap = {
+            "kind": "fallback",
+            "boundary": "raidInstances",
+            "identity": "journal:raid-instances",
+            "omittedCount": 0,
+            "evidenceRef": "blizzard:game-data:journal",
+            "message": "; ".join(raid_pool_status.get("blockers") or []),
+        }
+    raid_membership_gap = None
+    if raid_pool_status.get("blockers"):
+        raid_membership_gap = {
+            "kind": "membership",
+            "boundary": "raidInstances",
+            "identity": "journal:raid-instances",
+            "omittedCount": len(raid_pool_status.get("missingNames") or []),
+            "evidenceRef": "blizzard:game-data:journal",
+            "message": "; ".join(raid_pool_status.get("blockers") or []),
+        }
+    raid_refs = discovered_raid_refs or fallback_raid_refs
     season = {
         **season,
         "raids": raid_refs,
@@ -280,6 +308,18 @@ def fetch_websim_journal_data_postgres(region=DEFAULT_REGION, locale=DEFAULT_LOC
     counts = {
         "truncatedDungeons": truncated_dungeons,
         "truncatedRaids": truncated_raids,
+        "limits": {
+            "dungeonInstances": instance_limit,
+            "raidInstances": raid_instance_limit,
+            "encounters": encounter_limit,
+            "items": item_limit,
+        },
+        "truncation": {
+            "dungeonInstances": truncated_dungeons,
+            "raidInstances": truncated_raids,
+            "encounters": 0,
+            "items": 0,
+        },
         "errors": errors,
         "fetchFailures": [],
         "skippedNonGearLoot": 0,
@@ -322,11 +362,13 @@ def fetch_websim_journal_data_postgres(region=DEFAULT_REGION, locale=DEFAULT_LOC
         encounter_refs = list_keyed_values(instance_payload, "encounters")
         remaining_encounter_capacity = encounter_limit - sum(len(item.get("encounters") or []) for item in instances)
         if encounter_limit >= 0 and remaining_encounter_capacity <= 0:
+            counts["truncation"]["encounters"] += len(encounter_refs)
             continue
-        encounter_refs, _skipped = limited_sync_items(
+        encounter_refs, skipped_encounters = limited_sync_items(
             encounter_refs,
             remaining_encounter_capacity if encounter_limit >= 0 else len(encounter_refs),
         )
+        counts["truncation"]["encounters"] += skipped_encounters
         for encounter_ref in encounter_refs:
             encounter_id = extract_id_from_ref(encounter_ref)
             if not encounter_id:
@@ -353,7 +395,10 @@ def fetch_websim_journal_data_postgres(region=DEFAULT_REGION, locale=DEFAULT_LOC
             for loot_ref in list_keyed_values(encounter_payload, "items", "loot"):
                 item_ref = loot_ref.get("item") if isinstance(loot_ref, dict) else loot_ref
                 item_id = extract_id_from_ref(item_ref)
-                if not item_id or (item_limit >= 0 and len(fetched_items) >= item_limit and item_id not in fetched_items):
+                if not item_id:
+                    continue
+                if item_limit >= 0 and len(fetched_items) >= item_limit and item_id not in fetched_items:
+                    counts["truncation"]["items"] += 1
                     continue
                 fallback_name = (item_ref or {}).get("name") if isinstance(item_ref, dict) else ""
                 try:
@@ -393,6 +438,73 @@ def fetch_websim_journal_data_postgres(region=DEFAULT_REGION, locale=DEFAULT_LOC
                 fetched_items.add(item_id)
             instance["encounters"].append(encounter)
         instances.append(instance)
+    gaps = []
+    if raid_membership_gap:
+        gaps.append(raid_membership_gap)
+    if raid_fallback_gap:
+        gaps.append(raid_fallback_gap)
+    for boundary, omitted_count in counts["truncation"].items():
+        if omitted_count:
+            gaps.append(
+                {
+                    "kind": "cap",
+                    "boundary": boundary,
+                    "identity": f"journal:{boundary}",
+                    "omittedCount": omitted_count,
+                    "evidenceRef": "blizzard:game-data:journal",
+                }
+            )
+    for error in counts["errors"]:
+        gaps.append(
+            {
+                "kind": "fetch_failure",
+                "boundary": "raidSelection",
+                "identity": "journal:raid-selection",
+                "omittedCount": 0,
+                "evidenceRef": "blizzard:game-data:journal",
+                "message": str(error),
+            }
+        )
+    for failure in counts["fetchFailures"]:
+        gaps.append(
+            {
+                "kind": "fetch_failure",
+                "boundary": str(failure.get("type") or "resource"),
+                "identity": str(failure.get("id") or "unknown"),
+                "omittedCount": 0,
+                "evidenceRef": "blizzard:game-data:journal",
+                "message": str(failure.get("message") or ""),
+            }
+        )
+    counts["fetchFailureCount"] = len(counts["fetchFailures"]) + len(counts["errors"])
+    counts["gaps"] = gaps
+    blocker_code_by_gap_kind = {
+        "cap": "SOURCE_CAP_TRUNCATED",
+        "fallback": "SOURCE_FALLBACK_USED",
+        "fetch_failure": "SOURCE_FETCH_FAILED",
+        "membership": "SOURCE_MEMBERSHIP_INCOMPLETE",
+    }
+    gap_count_by_blocker_code = {}
+    for gap in gaps:
+        blocker_code = blocker_code_by_gap_kind.get(
+            gap["kind"],
+            "SOURCE_DISCOVERY_GAP",
+        )
+        gap_count_by_blocker_code[blocker_code] = (
+            gap_count_by_blocker_code.get(blocker_code, 0) + 1
+        )
+    counts["blockerCodes"] = sorted(gap_count_by_blocker_code)
+    counts["blockers"] = [
+        (
+            f"{blocker_code}: "
+            f"{gap_count_by_blocker_code[blocker_code]} "
+            "Journal discovery gap(s)"
+        )
+        for blocker_code in counts["blockerCodes"]
+    ]
+    counts["membershipComplete"] = not gaps
+    counts["truncated"] = any(counts["truncation"].values())
+    counts["sourceStatus"] = "blocked" if gaps else "verified"
     return {"season": season, "instances": instances, "counts": counts}
 
 
@@ -1812,19 +1924,43 @@ def sync_websim_cache_postgres(include_blizzard=True, stage_callback=None, store
         try:
             _emit(stage_callback, "blizzard", "start", runner="postgres")
             journal_data = fetch_websim_journal_data_postgres()
-            blizzard_counts = store.replace_websim_journal_data(journal_data)
-            blizzard_counts["runner"] = "postgres"
-            gear_catalog = store.rebuild_websim_gear_catalog_from_loot(journal_data.get("season") or {})
-            _emit(
-                stage_callback,
-                "blizzard",
-                "complete",
-                runner="postgres",
-                instances=blizzard_counts.get("instances") or 0,
-                encounters=blizzard_counts.get("encounters") or 0,
-                loot=blizzard_counts.get("loot") or 0,
-                items=blizzard_counts.get("items") or 0,
-            )
+            discovery_state = journal_discovery_state(journal_data)
+            if discovery_state["sourceStatus"] != "verified":
+                blizzard_counts = {
+                    **discovery_state,
+                    "runner": "postgres",
+                }
+                _emit(
+                    stage_callback,
+                    "blizzard",
+                    "blocked",
+                    runner="postgres",
+                    errors=len(blizzard_counts.get("errors") or []),
+                )
+            else:
+                blizzard_counts = store.replace_websim_journal_data(journal_data)
+                blizzard_counts.update(
+                    {
+                        "runner": "postgres",
+                        "sourceStatus": "verified",
+                        "membershipComplete": True,
+                        "gaps": [],
+                        "blockerCodes": [],
+                        "blockers": [],
+                        "errors": [],
+                    }
+                )
+                gear_catalog = store.rebuild_websim_gear_catalog_from_loot(journal_data.get("season") or {})
+                _emit(
+                    stage_callback,
+                    "blizzard",
+                    "complete",
+                    runner="postgres",
+                    instances=blizzard_counts.get("instances") or 0,
+                    encounters=blizzard_counts.get("encounters") or 0,
+                    loot=blizzard_counts.get("loot") or 0,
+                    items=blizzard_counts.get("items") or 0,
+                )
         except Exception as error:
             blizzard_counts = {"runner": "postgres", "sourceStatus": "blocked", "errors": [str(error)]}
             _emit(stage_callback, "blizzard", "blocked", runner="postgres", errors=1)
