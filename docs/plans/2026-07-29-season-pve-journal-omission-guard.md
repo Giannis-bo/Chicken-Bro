@@ -75,10 +75,10 @@ Journal and derived Catalog rows and records blocked sync state.
 
 - [x] Run deterministic fixture-based sync/store tests.
 - [x] Run full adjacent backend and Harness verification on exact head.
-- [ ] Deploy one immutable candidate with async syncs disabled.
-- [ ] Run synthetic blocked/verified contract smokes in the candidate without
+- [x] Deploy one immutable candidate with async syncs disabled.
+- [x] Run synthetic blocked/verified contract smokes in the candidate without
   invoking Blizzard or writing PostgreSQL.
-- [ ] Verify production and candidate health plus rollback identity.
+- [x] Verify production and candidate health plus rollback identity.
 
 ## Stop lines
 
