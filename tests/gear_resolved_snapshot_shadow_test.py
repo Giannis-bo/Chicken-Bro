@@ -48,6 +48,41 @@ def template(content_hash, marker):
 
 
 class GearResolvedSnapshotShadowTest(unittest.TestCase):
+    def test_ready_expectations_are_derived_from_sealed_exact_references(self):
+        report = MODULE.run_shadow(
+            templates=[template(TEMPLATE_HASH, "ready")],
+            exact_registry=exact_registry(),
+            resolver_reader=lambda _template: resolver_snapshot(),
+            snapshot_reader=lambda _loadout, _template: snapshot(),
+            seal_loadout=lambda value: value,
+            seal_snapshot=lambda value: value,
+            pointer_before={"generation": 32},
+            pointer_after_reader=lambda: {"generation": 32},
+            observed_at="2026-07-29T00:00:00Z",
+            expected_template_count=1,
+            expected_spec_count=1,
+            expected_supported_spec_count=1,
+            expected_unsupported_spec_count=0,
+        )
+
+        self.assertEqual(report["status"], "verified")
+        self.assertEqual(
+            report["summary"]["expectationSource"],
+            "sealed_exact_registry",
+        )
+        self.assertEqual(
+            report["summary"]["expectedReadyLoadoutCount"],
+            1,
+        )
+        self.assertEqual(
+            report["summary"]["expectedReadySnapshotCount"],
+            1,
+        )
+        self.assertEqual(
+            report["summary"]["expectedUnsupportedSnapshotCount"],
+            0,
+        )
+
     def test_public_import_repeats_only_verified_results(self):
         class FakeReader:
             def __init__(self, rows):

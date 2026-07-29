@@ -84,6 +84,67 @@ def _problem_counts(rows: list[dict[str, Any]]) -> dict[str, int]:
     return {key: result[key] for key in sorted(result)}
 
 
+def _expected_exact_outcomes(
+    templates: list[Mapping[str, Any]],
+    exact_registry: Mapping[str, Any],
+) -> dict[str, int]:
+    """Derive readiness counts from sealed references, not old sample counts."""
+
+    groups: dict[
+        str,
+        dict[str, list[Mapping[str, Any]]],
+    ] = {}
+    for raw in exact_registry.get("templateReferences") or []:
+        if not isinstance(raw, Mapping):
+            continue
+        identity = _text(raw.get("templateAuthorityIdentity"))
+        content_hash = _text(raw.get("templateContentHash"))
+        if (
+            _text(raw.get("templateScope")) != "community"
+            or not identity
+            or not content_hash
+        ):
+            continue
+        groups.setdefault(identity, {}).setdefault(
+            content_hash,
+            [],
+        ).append(raw)
+
+    ready_loadouts = 0
+    ready_snapshots = 0
+    unsupported_snapshots = 0
+    for raw in templates:
+        template = _mapping(raw)
+        identity = _text(
+            template.get("templateAuthorityIdentity")
+        )
+        content_groups = groups.get(identity) or {}
+        if len(content_groups) != 1:
+            continue
+        references = next(iter(content_groups.values()))
+        if not references or any(
+            reference.get("validationStatus") != "verified"
+            or reference.get("problemCodes")
+            or not _text(reference.get("exactItemInstanceKey"))
+            for reference in references
+        ):
+            continue
+        ready_loadouts += 1
+        support = simc_execution_support(
+            template.get("classKey"),
+            template.get("specKey"),
+        )
+        if support.get("supported"):
+            ready_snapshots += 1
+        else:
+            unsupported_snapshots += 1
+    return {
+        "readyLoadoutCount": ready_loadouts,
+        "readySnapshotCount": ready_snapshots,
+        "unsupportedSnapshotCount": unsupported_snapshots,
+    }
+
+
 def run_shadow(
     *,
     templates: list[Mapping[str, Any]],
@@ -102,13 +163,32 @@ def run_shadow(
     expected_spec_count: int = 40,
     expected_supported_spec_count: int = 26,
     expected_unsupported_spec_count: int = 14,
-    expected_ready_loadout_count: int = 8,
-    expected_ready_snapshot_count: int = 4,
-    expected_unsupported_snapshot_count: int = 4,
+    expected_ready_loadout_count: int | None = None,
+    expected_ready_snapshot_count: int | None = None,
+    expected_unsupported_snapshot_count: int | None = None,
     elapsed_before_shadow: float = 0.0,
     max_total_seconds: float = MAX_TOTAL_SECONDS,
 ) -> dict[str, Any]:
     started = time.monotonic()
+    derived_expectations = _expected_exact_outcomes(
+        templates,
+        exact_registry,
+    )
+    expected_ready_loadout_count = (
+        derived_expectations["readyLoadoutCount"]
+        if expected_ready_loadout_count is None
+        else expected_ready_loadout_count
+    )
+    expected_ready_snapshot_count = (
+        derived_expectations["readySnapshotCount"]
+        if expected_ready_snapshot_count is None
+        else expected_ready_snapshot_count
+    )
+    expected_unsupported_snapshot_count = (
+        derived_expectations["unsupportedSnapshotCount"]
+        if expected_unsupported_snapshot_count is None
+        else expected_unsupported_snapshot_count
+    )
     rows: list[dict[str, Any]] = []
     for raw_template in templates:
         template = _mapping(raw_template)
@@ -293,6 +373,7 @@ def run_shadow(
             "expectedUnsupportedSnapshotCount": (
                 expected_unsupported_snapshot_count
             ),
+            "expectationSource": "sealed_exact_registry",
         },
         "deterministic": {
             "loadouts": all(row["deterministicLoadout"] for row in rows),
