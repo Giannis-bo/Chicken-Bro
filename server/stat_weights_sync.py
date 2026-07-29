@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import json
 import os
 import sqlite3
 from pathlib import Path
@@ -9,11 +8,13 @@ try:
     from .postgres_cache_sync import sync_raiderio_cache_postgres, sync_stat_weight_cache_postgres
     from .raiderio_payload import get_raiderio_payload, sync_raiderio_cache
     from .stat_weights_payload import sync_stat_weight_cache
+    from .sync_log_summary import bounded_json_line, sync_result_summary
 except ImportError:
     from db import postgres_only_runtime_enabled, require_sqlite_runtime_enabled
     from postgres_cache_sync import sync_raiderio_cache_postgres, sync_stat_weight_cache_postgres
     from raiderio_payload import get_raiderio_payload, sync_raiderio_cache
     from stat_weights_payload import sync_stat_weight_cache
+    from sync_log_summary import bounded_json_line, sync_result_summary
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -29,6 +30,17 @@ def connect_db():
     return conn
 
 
+def emit_result(payload):
+    print(
+        bounded_json_line(
+            sync_result_summary(
+                payload,
+                event="stat_weights_sync_complete",
+            )
+        )
+    )
+
+
 def main():
     payload = {"raiderio": {}, "statWeights": {}}
     if postgres_only_runtime_enabled():
@@ -40,7 +52,7 @@ def main():
             raiderio_payload=payload["raiderio"],
             refresh_mode=os.environ.get("WOW_STAT_WEIGHTS_REFRESH_MODE", "scheduled"),
         )
-        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        emit_result(payload)
         return 0
     with connect_db() as conn:
         try:
@@ -54,7 +66,7 @@ def main():
             refresh_mode=os.environ.get("WOW_STAT_WEIGHTS_REFRESH_MODE", "scheduled"),
         )
         conn.commit()
-    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    emit_result(payload)
     return 0
 
 

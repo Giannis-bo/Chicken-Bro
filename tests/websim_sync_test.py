@@ -45,8 +45,16 @@ class WebSimSyncScriptTest(unittest.TestCase):
         self.assertTrue(any(event.get("stage") == "simc" and event.get("status") == "start" for event in progress))
         self.assertTrue(any(event.get("stage") == "raiderio" and event.get("status") == "complete" for event in progress))
         payload = json.loads(stdout.getvalue())
-        self.assertTrue(payload["websim"]["ok"])
-        self.assertEqual(payload["raiderio"]["sourceStatus"], "verified")
+        self.assertEqual(payload["event"], "websim_sync_complete")
+        self.assertEqual(payload["status"], "verified")
+        self.assertEqual(
+            payload["components"]["websim"]["status"],
+            "verified",
+        )
+        self.assertEqual(
+            payload["components"]["raiderio"]["status"],
+            "verified",
+        )
 
     def test_main_can_skip_raiderio_for_stage_smoke(self):
         with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
@@ -75,5 +83,8 @@ class WebSimSyncScriptTest(unittest.TestCase):
         progress = [json.loads(line) for line in stderr.getvalue().splitlines() if line.strip()]
         payload = json.loads(stdout.getvalue())
         self.assertEqual(exit_code, 0)
-        self.assertEqual(payload["raiderio"]["sourceStatus"], "skipped")
+        self.assertEqual(
+            payload["components"]["raiderio"]["status"],
+            "partial",
+        )
         self.assertTrue(any(event.get("stage") == "raiderio" and event.get("status") == "skipped" for event in progress))
