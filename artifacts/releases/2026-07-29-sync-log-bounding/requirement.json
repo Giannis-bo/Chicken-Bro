@@ -1,0 +1,99 @@
+{
+  "schemaVersion": 1,
+  "slug": "sync-log-bounding",
+  "classification": "Strict",
+  "status": "implementation_allowed",
+  "goal": "Bound scheduled WebSim and stat-weight stdout/stderr so complete nested sync payloads no longer fill journald/syslog, without changing sync behavior, persisted state, timers, source limits, or literal health status.",
+  "userValue": "Cloud storage remains available for the equipment simulator and its rollback/candidate evidence instead of being consumed by repetitive job payload logs, while operators still see truthful compact status and counts.",
+  "nonGoals": [
+    "Do not run either expensive scheduled sync as verification.",
+    "Do not change source ingestion, timers, job cadence, PostgreSQL state, source limits, public payloads, or equipment behavior.",
+    "Do not delete historical databases or backups; old log cleanup occurs only after the bounded runtime identity is deployed and verified."
+  ],
+  "currentTruth": {
+    "sources": [
+      "docs/project-state.json",
+      "docs/roadmap.md",
+      "docs/plans/README.md",
+      "docs/plans/2026-07-29-sync-log-bounding.md",
+      "docs/harness.md",
+      "docs/verification-matrix.md",
+      "docs/database-architecture.md",
+      "server/wow-websim-sync.service",
+      "server/wow-stat-weights-sync.service"
+    ],
+    "factOwner": "The sync functions persist complete state in PostgreSQL; the two runner scripts own only process progress and terminal summary output.",
+    "baseBranch": "main"
+  },
+  "impactMap": {
+    "mustChange": [
+      "Add one shared pure bounded sync-summary/progress sanitizer with an 8 KiB per-line limit.",
+      "WebSim and stat-weight runner stdout must emit compact status, runner, revision, scalar counts, and bounded diagnostic counts instead of nested payloads.",
+      "WebSim stderr progress must retain stage/status/duration and bounded scalar counts while dropping nested source payloads and raw error strings.",
+      "Tests must prove large nested rows, raw errors, and sentinel values do not reach stdout/stderr."
+    ],
+    "mustNotChange": [
+      "No sync function call order, source request, PostgreSQL write, timer cadence, environment limit, exit status, or health-state promotion.",
+      "No log suppression that turns partial or blocked into success.",
+      "No expensive live sync during candidate smoke."
+    ],
+    "riskUnknown": [
+      "Some existing operators or tests may parse the full terminal payload even though PostgreSQL is the durable state owner.",
+      "Stage callbacks may emit provider-specific nested details that also need the shared sanitizer."
+    ],
+    "evidenceRequired": [
+      "RED/GREEN unit tests for 8 KiB bounds, sentinel/raw-error removal, and truthful partial/blocked status.",
+      "Existing WebSim/stat-weight PostgreSQL-only runner and deploy-script suites.",
+      "Immutable source/file parity smoke that does not launch the scheduled jobs, followed by bounded synthetic runner output.",
+      "Post-deploy journal growth and filesystem verification before log rotation/vacuum."
+    ]
+  },
+  "ownership": {
+    "factOwner": "server/sync_log_summary.py owns bounded terminal serialization; server/websim_sync.py and server/stat_weights_sync.py remain the scheduled runners.",
+    "consumers": [
+      "wow-websim-sync.service",
+      "wow-stat-weights-sync.service",
+      "journald",
+      "syslog",
+      "operations diagnostics"
+    ]
+  },
+  "engineeringHealth": {
+    "status": "health_watch_guarded",
+    "reason": "The root filesystem reached 92% and the latest journal sample was dominated by these two jobs. The jobs are inactive now, so a pure output correction can be tested without load."
+  },
+  "acceptanceEvidence": [
+    "A large nested WebSim/stat-weight fixture serializes to one JSON line no larger than 8 KiB.",
+    "Nested profiles, raw provider payloads, full error text, and sentinel values do not reach stdout/stderr.",
+    "Literal verified/partial/blocked status, runner, revision, and scalar counts remain visible.",
+    "Existing PostgreSQL-only runner and deployment contracts pass.",
+    "No live scheduled sync is launched for verification.",
+    "After deployment, source/file identity matches and synthetic output stays bounded before old logs are rotated or vacuumed."
+  ],
+  "manualAcceptanceContract": {
+    "required": false,
+    "requiredItemIds": []
+  },
+  "releaseTrigger": "scheduled_jobs",
+  "rollback": [
+    "code_rollback",
+    "candidate_runtime_rollback"
+  ],
+  "decisionLog": [
+    {
+      "date": "2026-07-29",
+      "decision": "Fix the stdout/stderr owner before reclaiming logs; clearing logs alone would allow the next scheduled jobs to refill the filesystem."
+    }
+  ],
+  "harnessFindings": [
+    {
+      "id": "scheduled-sync-unbounded-log-growth-20260729",
+      "status": "finding_only",
+      "whatHappened": "The two scheduled runners pretty-printed complete nested result payloads into journald/syslog.",
+      "missedGate": "Scheduled-job diagnostic byte bound",
+      "impact": "Logs consumed multiple GiB and contributed to a 92% root filesystem hard stop for equipment candidates.",
+      "recommendedAction": "Persist full state only in PostgreSQL and emit an 8 KiB bounded terminal summary/progress contract.",
+      "promotion": "finding_only"
+    }
+  ]
+}

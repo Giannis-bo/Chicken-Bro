@@ -47,8 +47,15 @@ class PostgresOnlyScriptGuardTest(unittest.TestCase):
         payload = json.loads(stdout.getvalue())
         progress = [json.loads(line) for line in stderr.getvalue().splitlines() if line.strip()]
         self.assertEqual(exit_code, 0)
-        self.assertEqual(payload["websim"]["runner"], "postgres")
-        self.assertEqual(payload["raiderio"]["runner"], "postgres")
+        self.assertEqual(payload["event"], "websim_sync_complete")
+        self.assertEqual(
+            payload["components"]["websim"]["runner"],
+            "postgres",
+        )
+        self.assertEqual(
+            payload["components"]["raiderio"]["runner"],
+            "postgres",
+        )
         self.assertTrue(any(item.get("stage") == "websim" for item in progress))
         websim_runner.assert_called_once()
         raiderio_runner.assert_called_once()
@@ -67,7 +74,16 @@ class PostgresOnlyScriptGuardTest(unittest.TestCase):
         ), patch.object(
             stat_weights_sync,
             "sync_raiderio_cache_postgres",
-            return_value={"sourceStatus": "synced", "runner": "postgres"},
+            return_value={
+                "sourceStatus": "synced",
+                "runner": "postgres",
+                "profiles": [
+                    {
+                        "raw": "must-not-reach-stat-weight-stdout",
+                    }
+                ]
+                * 500,
+            },
         ) as raiderio_runner, patch.object(
             stat_weights_sync,
             "sync_stat_weight_cache_postgres",
@@ -77,8 +93,23 @@ class PostgresOnlyScriptGuardTest(unittest.TestCase):
 
         payload = json.loads(stdout.getvalue())
         self.assertEqual(exit_code, 0)
-        self.assertEqual(payload["raiderio"]["runner"], "postgres")
-        self.assertEqual(payload["statWeights"]["runner"], "postgres")
+        self.assertEqual(payload["event"], "stat_weights_sync_complete")
+        self.assertEqual(
+            payload["components"]["raiderio"]["runner"],
+            "postgres",
+        )
+        self.assertEqual(
+            payload["components"]["statWeights"]["runner"],
+            "postgres",
+        )
+        self.assertNotIn(
+            "must-not-reach-stat-weight-stdout",
+            stdout.getvalue(),
+        )
+        self.assertLessEqual(
+            len(stdout.getvalue().encode("utf-8")),
+            8193,
+        )
         raiderio_runner.assert_called_once()
         stat_runner.assert_called_once()
 
