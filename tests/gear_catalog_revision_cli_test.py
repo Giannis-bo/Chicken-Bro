@@ -90,6 +90,17 @@ def spec_payload(class_key, spec_key):
 
 
 class GearCatalogRevisionCliTest(unittest.TestCase):
+    def test_streaming_hash_matches_canonical_hash(self):
+        catalog = revision_cli.build_catalog_revision(
+            revision_cli._catalog_binding(snapshot()),
+            snapshot()["catalogRows"],
+        )
+
+        self.assertEqual(
+            revision_cli._streaming_hash("sha256:", catalog),
+            revision_cli._hash("sha256:", catalog),
+        )
+
     def test_run_releases_first_full_catalog_before_building_second_copy(self):
         original_build = revision_cli.build_catalog_revision
         first_ref = []

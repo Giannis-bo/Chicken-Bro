@@ -55,6 +55,25 @@ def snapshot():
 
 
 class GearExactItemInstanceCliTest(unittest.TestCase):
+    def test_streaming_hash_matches_canonical_hash(self):
+        current = snapshot()
+        binding = exact_cli._binding(current)
+        registry = exact_cli.build_exact_item_registry(
+            binding,
+            catalog_revision=exact_cli.build_catalog_revision(
+                binding,
+                current["catalogRows"],
+            )["catalogRevision"],
+            exact_rows=[current["catalogRows"]["variants"][-1]],
+            community_templates=current["communityTemplates"],
+            personal_templates=current["personalGearTemplates"],
+        )
+
+        self.assertEqual(
+            exact_cli._streaming_hash("sha256:", registry),
+            exact_cli._hash("sha256:", registry),
+        )
+
     def test_run_releases_first_full_registry_before_building_second_copy(self):
         original_build = exact_cli.build_exact_item_registry
         first_ref = []

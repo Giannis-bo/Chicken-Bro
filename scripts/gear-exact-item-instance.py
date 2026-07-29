@@ -57,6 +57,19 @@ def _hash(prefix: str, value: Any) -> str:
     return prefix + hashlib.sha256(encoded).hexdigest()
 
 
+def _streaming_hash(prefix: str, value: Any) -> str:
+    digest = hashlib.sha256()
+    encoder = json.JSONEncoder(
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        default=str,
+    )
+    for chunk in encoder.iterencode(value):
+        digest.update(chunk.encode("utf-8"))
+    return prefix + digest.hexdigest()
+
+
 def _binding(snapshot: Mapping[str, Any]) -> dict[str, Any]:
     active = _mapping(snapshot.get("activeBinding"))
     manifest = _mapping(active.get("manifest"))
@@ -203,10 +216,13 @@ def run_migration(
     }
     first = build_exact_item_registry(binding, **build_args)
     first_problem_codes = set(first.get("problemCodes") or [])
-    first_content_hash = _hash("sha256:", first)
+    first_content_hash = _streaming_hash("sha256:", first)
     del first
     registry = build_exact_item_registry(binding, **build_args)
-    deterministic = first_content_hash == _hash("sha256:", registry)
+    deterministic = first_content_hash == _streaming_hash(
+        "sha256:",
+        registry,
+    )
     elapsed = (
         float(elapsed_seconds_reader())
         if elapsed_seconds_reader

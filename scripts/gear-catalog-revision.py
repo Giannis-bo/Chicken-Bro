@@ -67,6 +67,19 @@ def _hash(prefix: str, value: Any) -> str:
     return prefix + hashlib.sha256(encoded).hexdigest()
 
 
+def _streaming_hash(prefix: str, value: Any) -> str:
+    digest = hashlib.sha256()
+    encoder = json.JSONEncoder(
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        default=str,
+    )
+    for chunk in encoder.iterencode(value):
+        digest.update(chunk.encode("utf-8"))
+    return prefix + digest.hexdigest()
+
+
 def _spec_pairs(class_spec_matrix: Any) -> list[tuple[str, str]]:
     pairs: list[tuple[str, str]] = []
     for klass in class_spec_matrix or []:
@@ -487,10 +500,13 @@ def run_migration(
     first_status = _text(first.get("status"))
     first_problem_codes = list(first.get("problemCodes") or [])
     first_problems = list(first.get("problems") or [])
-    first_content_hash = _hash("sha256:", first)
+    first_content_hash = _streaming_hash("sha256:", first)
     del first
     second = build_catalog_revision(binding, catalog_rows)
-    deterministic = first_content_hash == _hash("sha256:", second)
+    deterministic = first_content_hash == _streaming_hash(
+        "sha256:",
+        second,
+    )
     if first_status != "verified" or not deterministic:
         problem_codes = set(first_problem_codes)
         problem_codes.update(second.get("problemCodes") or [])
