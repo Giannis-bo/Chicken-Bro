@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-29T05:13:46.214Z",
+  "generatedAt": "2026-07-29T05:14:23.984Z",
   "release": {
     "date": "2026-07-29",
     "slug": "gear-enhancement-rule-alignment"
@@ -346,7 +346,9 @@
     }
   },
   "evidencePacket": {
-    "status": "not_attached",
+    "status": "ready",
+    "path": "artifacts/releases/2026-07-29-gear-enhancement-rule-alignment/evidence.json",
+    "sizeBytes": 7294,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -367,7 +369,30 @@
       "archivedReferences",
       "summary"
     ],
-    "note": "Attach a local evidence packet with --evidence-file when promoting a Standard or Strict requirement."
+    "fieldsPresent": [
+      "schemaVersion",
+      "slug",
+      "requirementSlug",
+      "status",
+      "highestEvidenceLevel",
+      "branch",
+      "commit",
+      "identities",
+      "manualAcceptance",
+      "scope",
+      "verification",
+      "candidateDeployment",
+      "runtimeEvidence",
+      "risks",
+      "rollback",
+      "cleanup",
+      "archivedReferences",
+      "summary"
+    ],
+    "missingFields": [],
+    "declaredStatus": "deployable",
+    "highestEvidenceLevel": "deployable",
+    "summary": "Candidate commit 06ec7b58 preserves sealed source-only embellishments as counted facts without reopening editability, while retaining the backend-owned socket, enchant and verified-crafted rules. It is deployable from an isolated read-only candidate; the repaired candidate needs fresh manual acceptance before merge and is not a production-live claim."
   },
   "evidence": {
     "localTests": {
@@ -388,12 +413,6 @@
     }
   },
   "riskMatrix": [
-    {
-      "id": "dirty_worktree",
-      "severity": "medium",
-      "status": "watch",
-      "detail": "2 changed files currently visible to git status."
-    },
     {
       "id": "hotspot_files_present",
       "severity": "medium",
@@ -427,12 +446,9 @@
   ],
   "repo": {
     "git": {
-      "status": "dirty",
-      "changedFileCount": 2,
-      "changedFiles": [
-        " M artifacts/releases/2026-07-29-gear-enhancement-rule-alignment/evidence.json",
-        " M docs/plans/2026-07-29-gear-enhancement-rule-alignment.md"
-      ]
+      "status": "clean",
+      "changedFileCount": 0,
+      "changedFiles": []
     }
   },
   "write": {
