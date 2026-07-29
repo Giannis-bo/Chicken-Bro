@@ -22,6 +22,7 @@ def validate_http_matrix_report(
     gear_release_id: str,
     community_release_id: str,
     expected_spec_count: int,
+    candidate_preview: bool = False,
 ) -> list[str]:
     """Validate one aggregate matrix against an exact runtime binding."""
 
@@ -44,6 +45,8 @@ def validate_http_matrix_report(
         "failureCodes": dict(report.get("failureCodes") or {}),
         "failureSamples": list(report.get("failureSamples") or []),
     }
+    if stable["schemaRevision"] == "gear-release-http-matrix-v2":
+        stable["bindingMode"] = _text(report.get("bindingMode"))
     digest = hashlib.sha256(
         json.dumps(
             stable,
@@ -53,8 +56,13 @@ def validate_http_matrix_report(
         ).encode("utf-8")
     ).hexdigest()
     issues = []
+    expected_schema = (
+        "gear-release-http-matrix-v2"
+        if candidate_preview
+        else "gear-release-http-matrix-v1"
+    )
     if (
-        stable["schemaRevision"] != "gear-release-http-matrix-v1"
+        stable["schemaRevision"] != expected_schema
         or _text(report.get("reportId"))
         != f"gear-release-http-matrix:sha256:{digest}"
     ):
@@ -65,6 +73,10 @@ def validate_http_matrix_report(
         or stable["pointerGeneration"] != int(pointer_generation)
         or stable["gearReleaseId"] != _text(gear_release_id)
         or stable["communityReleaseId"] != _text(community_release_id)
+        or (
+            candidate_preview
+            and stable.get("bindingMode") != "candidate_preview"
+        )
     ):
         issues.append("HTTP_MATRIX_BINDING_MISMATCH")
     if (
@@ -133,6 +145,7 @@ def _browse_failures(
     pointer_generation: int,
     gear_release_id: str,
     community_release_id: str,
+    candidate_preview: bool,
 ) -> tuple[list[dict[str, str]], dict[str, dict[str, Any]]]:
     failures: list[dict[str, str]] = []
 
@@ -140,14 +153,24 @@ def _browse_failures(
         if not condition:
             failures.append(_failure(code, class_key, spec_key))
 
-    require(
-        payload.get("formalActiveManifest") is True,
-        "FORMAL_ACTIVE_MANIFEST_REQUIRED",
-    )
-    require(
-        payload.get("candidatePreview") is not True,
-        "CANDIDATE_PREVIEW_LEAK",
-    )
+    if candidate_preview:
+        require(
+            payload.get("formalActiveManifest") is False,
+            "FORMAL_ACTIVE_MANIFEST_LEAK",
+        )
+        require(
+            payload.get("candidatePreview") is True,
+            "CANDIDATE_PREVIEW_REQUIRED",
+        )
+    else:
+        require(
+            payload.get("formalActiveManifest") is True,
+            "FORMAL_ACTIVE_MANIFEST_REQUIRED",
+        )
+        require(
+            payload.get("candidatePreview") is not True,
+            "CANDIDATE_PREVIEW_LEAK",
+        )
     require(
         _text(payload.get("manifestRevision")) == manifest_revision,
         "MANIFEST_REVISION_MISMATCH",
@@ -340,6 +363,7 @@ def run_http_matrix(
     gear_release_id: str,
     community_release_id: str,
     observed_at: str,
+    candidate_preview: bool = False,
 ) -> dict[str, Any]:
     expected = sorted({
         (_text(class_key), _text(spec_key))
@@ -385,6 +409,7 @@ def run_http_matrix(
             pointer_generation=pointer_generation,
             gear_release_id=gear_release_id,
             community_release_id=community_release_id,
+            candidate_preview=candidate_preview,
         )
         spec_failures.extend(topology_failures)
         failures.extend(spec_failures)
@@ -443,7 +468,11 @@ def run_http_matrix(
         "communityReleaseId": _text(community_release_id),
     }
     stable = {
-        "schemaRevision": "gear-release-http-matrix-v1",
+        "schemaRevision": (
+            "gear-release-http-matrix-v2"
+            if candidate_preview
+            else "gear-release-http-matrix-v1"
+        ),
         "status": status,
         **identity,
         "browse": {
@@ -462,6 +491,8 @@ def run_http_matrix(
         },
         "failureSamples": failures[:20],
     }
+    if candidate_preview:
+        stable["bindingMode"] = "candidate_preview"
     report_hash = hashlib.sha256(
         json.dumps(
             stable,

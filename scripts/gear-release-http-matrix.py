@@ -33,6 +33,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--community-release-id", required=True)
     parser.add_argument("--output", required=True)
     parser.add_argument("--timeout-seconds", type=float, default=30.0)
+    parser.add_argument("--candidate-preview", action="store_true")
     return parser
 
 
@@ -120,6 +121,7 @@ def main(argv=None) -> int:
         pointer_generation=args.pointer_generation,
         gear_release_id=args.gear_release_id,
         community_release_id=args.community_release_id,
+        candidate_preview=args.candidate_preview,
         observed_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
     )
     _atomic_json_write(args.output, report)

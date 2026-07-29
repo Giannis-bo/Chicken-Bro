@@ -115,6 +115,58 @@ class GearReleaseHttpMatrixTest(unittest.TestCase):
         self.assertNotIn("private-template-frostfire", rendered)
         self.assertNotIn("private-template-spellslinger", rendered)
 
+    def test_candidate_preview_mode_requires_candidate_binding(self):
+        from server.gear_release_http_matrix import (
+            run_http_matrix,
+            validate_http_matrix_report,
+        )
+
+        identities = self.identities()
+        browse = self.browse_payload(identities)
+        browse["formalActiveManifest"] = False
+        browse["candidatePreview"] = True
+
+        def request(method, _path, _payload, _headers):
+            if method == "GET":
+                return 200, browse, 1.0
+            return 200, self.import_payload(identities), 1.0
+
+        report = run_http_matrix(
+            request,
+            expected_specs=[("mage", "frost")],
+            candidate_preview=True,
+            **identities,
+            observed_at="2026-07-28T20:00:00+08:00",
+        )
+
+        self.assertEqual(report["status"], "pass", report)
+        self.assertEqual(
+            report["bindingMode"],
+            "candidate_preview",
+        )
+        self.assertEqual(
+            validate_http_matrix_report(
+                report,
+                expected_spec_count=1,
+                candidate_preview=True,
+                **identities,
+            ),
+            [],
+        )
+
+        browse["candidatePreview"] = False
+        wrong_mode = run_http_matrix(
+            request,
+            expected_specs=[("mage", "frost")],
+            candidate_preview=True,
+            **identities,
+            observed_at="2026-07-28T20:00:00+08:00",
+        )
+        self.assertIn(
+            "CANDIDATE_PREVIEW_REQUIRED",
+            wrong_mode["failureCodes"],
+        )
+
     def test_stale_manifest_and_blocked_import_fail_closed(self):
         from server.gear_release_http_matrix import run_http_matrix
 
