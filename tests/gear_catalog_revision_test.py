@@ -168,13 +168,13 @@ class GearCatalogRevisionTest(unittest.TestCase):
             r"^gear-catalog:sha256:[0-9a-f]{64}$",
         )
         variant = first["browseVariants"][0]
+        self.assertNotIn("variantShapeKey", variant)
         self.assertEqual(
             variant["browseVariantKey"],
             catalog_browse_variant_key(
                 first["catalogRevision"],
                 variant["itemId"],
                 variant["progressionState"],
-                variant["variantShapeKey"],
             ),
         )
         self.assertRegex(
@@ -336,7 +336,7 @@ class GearCatalogRevisionTest(unittest.TestCase):
                 self.assertIn(code, result["problemCodes"])
                 self.assertNotIn("catalogRevision", result)
 
-    def test_item_membership_requires_browse_or_verified_exact_usage(self):
+    def test_item_membership_requires_browse_usage(self):
         rows = regular_rows()
         rows["items"].extend(
             [
@@ -398,35 +398,19 @@ class GearCatalogRevisionTest(unittest.TestCase):
             row["itemId"]: row
             for row in result["itemDefinitions"]
         }
-        self.assertEqual(set(definitions), {"1001", "exact-only"})
-        self.assertEqual(
-            definitions["exact-only"]["sourceStatus"],
-            "verified",
-        )
-        self.assertEqual(
-            definitions["exact-only"]["legacySourceStatus"],
-            "unknown",
-        )
+        self.assertEqual(set(definitions), {"1001"})
         exact_variants = [
             row
             for row in result["browseVariants"]
             if row["itemId"] == "exact-only"
         ]
-        self.assertEqual(len(exact_variants), 1)
-        self.assertEqual(
-            exact_variants[0]["sourceVariantKeys"],
-            ["observed-exact-only"],
-        )
-        self.assertEqual(
-            exact_variants[0]["staticFacts"],
-            {"haste_rating": 90},
-        )
+        self.assertEqual(exact_variants, [])
         self.assertEqual(
             result["contentSummary"]["excludedDormantItemCount"],
-            2,
+            3,
         )
 
-    def test_exact_instances_with_one_shape_share_one_browse_variant(self):
+    def test_exact_instances_do_not_create_or_extend_browse_variants(self):
         rows = regular_rows()
         first = {
             "variantId": "observed-hero-6-a",
@@ -457,26 +441,21 @@ class GearCatalogRevisionTest(unittest.TestCase):
         result = build_catalog_revision(CURRENT_BINDING, rows)
 
         self.assertEqual(result["status"], "verified")
-        exact_variants = [
-            row
-            for row in result["browseVariants"]
-            if "observed-hero-6-a" in row["sourceVariantKeys"]
-        ]
-        self.assertEqual(len(exact_variants), 1)
+        self.assertEqual(len(result["browseVariants"]), 1)
         self.assertEqual(
-            exact_variants[0]["sourceVariantKeys"],
-            ["observed-hero-6-a", "observed-hero-6-b"],
+            result["browseVariants"][0]["sourceFamilies"],
+            ["browse"],
         )
-        self.assertRegex(
-            exact_variants[0]["variantShapeKey"],
-            r"^variant-shape:sha256:[0-9a-f]{64}$",
+        self.assertEqual(
+            result["browseVariants"][0]["sourceVariantKeys"],
+            ["hero-6"],
         )
         self.assertEqual(
             result["contentSummary"]["exactDerivedVariantCount"],
-            1,
+            0,
         )
 
-    def test_exact_instances_with_different_static_shapes_remain_distinct(self):
+    def test_exact_instances_do_not_create_browse_variants(self):
         rows = regular_rows()
         rows["variants"] = []
         for suffix, stats in (
@@ -505,26 +484,31 @@ class GearCatalogRevisionTest(unittest.TestCase):
         result = build_catalog_revision(CURRENT_BINDING, rows)
 
         self.assertEqual(result["status"], "verified")
-        self.assertEqual(len(result["browseVariants"]), 2)
-        self.assertEqual(
-            len(
-                {
-                    row["browseVariantKey"]
-                    for row in result["browseVariants"]
-                }
-            ),
-            2,
-        )
-        self.assertEqual(
-            len(
-                {
-                    row["progressionKey"]
-                    for row in result["browseVariants"]
-                }
-            ),
-            1,
-        )
+        self.assertEqual(result["browseVariants"], [])
+        self.assertEqual(result["itemDefinitions"], [])
+        self.assertEqual(result["contentSummary"]["exactDerivedVariantCount"], 0)
         self.assertEqual(verify_catalog_revision(result), [])
+
+    def test_duplicate_normal_progression_with_a_second_shape_blocks_catalog(
+        self,
+    ):
+        rows = regular_rows()
+        duplicate = copy.deepcopy(rows["variants"][0])
+        duplicate["variantId"] = "variant-hero-6-other-shape"
+        duplicate["variantKey"] = "hero-6-other-shape"
+        duplicate["staticStats"] = {
+            "haste_rating": 121,
+            "mastery_rating": 80,
+        }
+        rows["variants"].append(duplicate)
+
+        result = build_catalog_revision(CURRENT_BINDING, rows)
+
+        self.assertEqual(result["status"], "blocked")
+        self.assertIn(
+            "CATALOG_VARIANT_CANONICAL_DUPLICATE",
+            result["problemCodes"],
+        )
 
     def test_catalog_identity_does_not_include_derived_browse_key(self):
         result = build_catalog_revision(CURRENT_BINDING, regular_rows())
