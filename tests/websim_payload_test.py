@@ -12622,6 +12622,82 @@ class WebSimPayloadTest(unittest.TestCase):
 
         self.assertIsNone(enriched)
 
+    def test_catalog_context_uses_item_definition_class_restrictions_for_tier_set(self):
+        source = {
+            "sourceType": "tier_set",
+            "status": "verified",
+            "payload": {},
+        }
+
+        priest_item = {
+            "itemId": "priest-tier-head",
+            "slot": "head",
+            "armorType": "Cloth",
+            "compatibility": "compatible",
+            "requiredClassIds": ["5"],
+            "modCapabilities": {},
+        }
+        mage_item = dict(priest_item)
+        mage_item["modCapabilities"] = {}
+
+        self.assertEqual(
+            self.websim_payload.gear_compatibility_from_payload(
+                {"requiredClassIds": ["5"]},
+                "mage",
+                "head",
+            ),
+            "incompatible",
+        )
+        self.assertIsNotNone(
+            self.websim_payload.enrich_catalog_item(
+                priest_item,
+                [source],
+                [],
+                [],
+                [],
+                [],
+                "priest",
+                "holy",
+            )
+        )
+        self.assertIsNone(
+            self.websim_payload.enrich_catalog_item(
+                mage_item,
+                [source],
+                [],
+                [],
+                [],
+                [],
+                "mage",
+                "frost",
+            )
+        )
+
+    def test_evoker_weapon_rules_allow_intellect_two_handed_maces(self):
+        for spec_key in ("augmentation", "devastation", "preservation"):
+            with self.subTest(spec_key=spec_key):
+                rule = self.websim_payload.weapon_equipment_rule_payload(
+                    "evoker",
+                    spec_key,
+                )
+                self.assertIn("Two-Handed Mace", rule["mainHandTypes"])
+                self.assertTrue(
+                    self.websim_payload.weapon_type_allowed_for_slot(
+                        "evoker",
+                        spec_key,
+                        "main_hand",
+                        "Two-Handed Mace",
+                    )
+                )
+        self.assertFalse(
+            self.websim_payload.weapon_type_allowed_for_slot(
+                "mage",
+                "frost",
+                "main_hand",
+                "Two-Handed Mace",
+            )
+        )
+
     def test_websim_gear_filters_shields_from_classes_that_cannot_equip_them(self):
         conn = sqlite3.connect(self.db_path)
         try:

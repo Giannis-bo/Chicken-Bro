@@ -977,6 +977,66 @@ class PgGearReadModelSelectorsTest(unittest.TestCase):
         self.assertNotIn("blockers", item)
         self.assertNotIn("Battle.net", json.dumps(item, ensure_ascii=False))
 
+    def test_manifest_tier_item_uses_projected_class_restriction_in_public_read_model(self):
+        from server.pg_gear_read_model_selectors import build_gear_catalog_items_read_model
+
+        item_rows = [
+            (
+                "250051",
+                "Priest Tier Helm",
+                "head",
+                289,
+                json.dumps(
+                    {
+                        "armorType": "Cloth",
+                        "requiredClassIds": ["5"],
+                    }
+                ),
+                "verified",
+            )
+        ]
+        sources_by_item = {
+            "250051": [
+                {
+                    "id": "tier-source-250051",
+                    "itemId": "250051",
+                    "sourceType": "tier_set",
+                    "label": "Priest Tier Set",
+                    "sourceLabel": "Priest Tier Set",
+                    "payload": {"status": "verified"},
+                }
+            ]
+        }
+        variants_by_item = {}
+        options = {
+            "socket": {"head": []},
+            "enchant": {"head": []},
+            "embellishment": {"head": []},
+        }
+
+        priest_items = build_gear_catalog_items_read_model(
+            item_rows,
+            sources_by_item,
+            variants_by_item,
+            options,
+            "priest",
+            "holy",
+            {"seasonRevision": "s1"},
+        )
+        mage_items = build_gear_catalog_items_read_model(
+            item_rows,
+            sources_by_item,
+            variants_by_item,
+            options,
+            "mage",
+            "frost",
+            {"seasonRevision": "s1"},
+        )
+
+        self.assertEqual([item["itemId"] for item in priest_items], ["250051"])
+        self.assertEqual(priest_items[0]["requiredClassIds"], ["5"])
+        self.assertEqual(mage_items, [])
+
     def test_build_gear_mod_options_by_slot_read_model_groups_option_rows(self):
         from server.pg_gear_read_model_selectors import build_gear_mod_options_by_slot_read_model
         from server.websim_payload import CANONICAL_GEAR_SLOTS

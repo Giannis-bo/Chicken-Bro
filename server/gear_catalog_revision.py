@@ -32,7 +32,7 @@ except ImportError:
 LEGACY_CATALOG_SCHEMA_REVISION = "gear-catalog-revision-v1"
 VARIANT_SHAPE_CATALOG_SCHEMA_REVISION = "gear-catalog-revision-v2"
 CATALOG_SCHEMA_REVISION = "gear-catalog-revision-v3"
-CATALOG_BUILDER_REVISION = "gear-catalog-builder-v4"
+CATALOG_BUILDER_REVISION = "gear-catalog-builder-v5"
 CATALOG_REVISION_PATTERN = re.compile(
     r"^gear-catalog:sha256:[0-9a-f]{64}$"
 )
@@ -274,6 +274,50 @@ def _item_payload_section(
             )
         result[key] = value
     return result
+
+
+def _catalog_item_restrictions(
+    payload: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Project stable item restrictions, including official nested class IDs."""
+
+    restrictions = _item_payload_section(payload, _ITEM_RESTRICTION_KEYS)
+    required_class_ids = {
+        _text(value)
+        for value in restrictions.get("requiredClassIds") or []
+        if _text(value)
+    }
+    preview_item = _mapping(
+        payload.get("preview_item") or payload.get("previewItem")
+    )
+    for parent in (payload, preview_item):
+        requirements = _mapping(parent.get("requirements"))
+        playable_classes = _mapping(
+            requirements.get("playable_classes")
+            or requirements.get("playableClasses")
+        )
+        candidates = []
+        for key in ("links", "classes"):
+            values = playable_classes.get(key)
+            if isinstance(values, list):
+                candidates.extend(values)
+        if playable_classes.get("id") not in (None, ""):
+            candidates.append(playable_classes)
+        for candidate in candidates:
+            row = _mapping(candidate)
+            class_id = _text(row.get("id"))
+            if class_id:
+                required_class_ids.add(class_id)
+    if required_class_ids:
+        restrictions["requiredClassIds"] = sorted(
+            required_class_ids,
+            key=lambda item: (
+                (0, int(item))
+                if item.isdigit()
+                else (1, item)
+            ),
+        )
+    return restrictions
 
 
 def _catalog_item_has_governed_equipment_type(
@@ -914,10 +958,7 @@ def build_catalog_revision(
             "legacySourceStatus": legacy_source_status or "unknown",
             "media": _item_payload_section(payload, _ITEM_MEDIA_KEYS),
             "equipment": _catalog_item_equipment(row),
-            "restrictions": _item_payload_section(
-                payload,
-                _ITEM_RESTRICTION_KEYS,
-            ),
+            "restrictions": _catalog_item_restrictions(payload),
             "sources": item_sources,
             "availableProgressions": sorted(
                 (

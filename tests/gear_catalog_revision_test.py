@@ -143,6 +143,28 @@ def crafted_rows():
 
 
 class GearCatalogRevisionTest(unittest.TestCase):
+    def test_projects_nested_official_playable_class_requirements(self):
+        rows = regular_rows()
+        rows["items"][0]["payload"].pop("requiredClassIds")
+        rows["items"][0]["payload"]["preview_item"] = {
+            "requirements": {
+                "playable_classes": {
+                    "links": [
+                        {"id": 5, "name": "Priest"},
+                        {"id": "5", "name": "Priest"},
+                    ],
+                },
+            },
+        }
+
+        result = build_catalog_revision(CURRENT_BINDING, rows)
+
+        self.assertEqual(result["status"], "verified")
+        self.assertEqual(
+            result["itemDefinitions"][0]["restrictions"],
+            {"requiredClassIds": ["5"]},
+        )
+
     def test_same_content_has_same_catalog_identity_and_derived_browse_key(self):
         first = build_catalog_revision(CURRENT_BINDING, regular_rows())
         second_binding = {

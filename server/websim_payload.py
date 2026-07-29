@@ -1809,17 +1809,35 @@ SPEC_WEAPON_EQUIPMENT_RULES = {
     },
     ("evoker", "augmentation"): {
         "mode": "caster_1h_or_staff",
-        "mainHandTypes": {"Staff", "Dagger", "One-Handed Mace", "One-Handed Sword"},
+        "mainHandTypes": {
+            "Staff",
+            "Dagger",
+            "One-Handed Mace",
+            "Two-Handed Mace",
+            "One-Handed Sword",
+        },
         "offHandTypes": {"Held In Off-hand"},
     },
     ("evoker", "devastation"): {
         "mode": "caster_1h_or_staff",
-        "mainHandTypes": {"Staff", "Dagger", "One-Handed Mace", "One-Handed Sword"},
+        "mainHandTypes": {
+            "Staff",
+            "Dagger",
+            "One-Handed Mace",
+            "Two-Handed Mace",
+            "One-Handed Sword",
+        },
         "offHandTypes": {"Held In Off-hand"},
     },
     ("evoker", "preservation"): {
         "mode": "caster_1h_or_staff",
-        "mainHandTypes": {"Staff", "Dagger", "One-Handed Mace", "One-Handed Sword"},
+        "mainHandTypes": {
+            "Staff",
+            "Dagger",
+            "One-Handed Mace",
+            "Two-Handed Mace",
+            "One-Handed Sword",
+        },
         "offHandTypes": {"Held In Off-hand"},
     },
     ("hunter", "beast_mastery"): {
@@ -17327,6 +17345,22 @@ def portable_gear_slot(slot):
     return normalize_slot(slot) in PORTABLE_GEAR_SLOTS
 
 
+def payload_restriction_id_values(payload, *keys):
+    payload = payload if isinstance(payload, dict) else {}
+    result = []
+    for key in keys:
+        raw_values = payload.get(key)
+        if raw_values in (None, "", [], {}):
+            continue
+        values = raw_values if isinstance(raw_values, (list, tuple, set)) else [raw_values]
+        for raw_value in values:
+            value = raw_value.get("id") if isinstance(raw_value, dict) else raw_value
+            text = str(value or "").strip()
+            if text and text not in result:
+                result.append(text)
+    return result
+
+
 def class_spec_context_from_payload(payload):
     payload = payload if isinstance(payload, dict) else {}
     class_keys = payload.get("classKeys") or payload.get("classes") or []
@@ -17337,6 +17371,27 @@ def class_spec_context_from_payload(payload):
         spec_keys = [spec_keys]
     class_values = [str(item or "").strip() for item in class_keys if str(item or "").strip()]
     spec_values = [str(item or "").strip() for item in spec_keys if str(item or "").strip()]
+    for raw_class_id in payload_restriction_id_values(
+        payload,
+        "requiredClassIds",
+        "classIds",
+    ):
+        try:
+            class_id = int(raw_class_id)
+        except (TypeError, ValueError):
+            class_id = 0
+        mapped_class = GAME_CLASS_ID_TO_KEY.get(class_id, "")
+        if mapped_class:
+            class_values.append(mapped_class)
+    for raw_spec_id in payload_restriction_id_values(payload, "specIds"):
+        try:
+            spec_id = int(raw_spec_id)
+        except (TypeError, ValueError):
+            spec_id = 0
+        mapped_spec = SPEC_ID_TO_KEY.get(spec_id)
+        if mapped_spec:
+            class_values.append(mapped_spec[0])
+            spec_values.append(mapped_spec[1])
     if payload.get("officialVariantSource"):
         return unique_text_list(class_values), unique_text_list(spec_values)
     for ref in payload.get("observedProfileRefs") or []:
@@ -17351,7 +17406,13 @@ def class_spec_context_from_payload(payload):
     return unique_text_list(class_values), unique_text_list(spec_values)
 
 
-def catalog_context_compatible(row, class_key, spec_key, slot=""):
+def catalog_context_compatible(
+    row,
+    class_key,
+    spec_key,
+    slot="",
+    item_context=None,
+):
     if portable_gear_slot(slot):
         return True
     payload = row.get("payload") if isinstance(row, dict) else {}
@@ -17378,6 +17439,29 @@ def catalog_context_compatible(row, class_key, spec_key, slot=""):
             for item in observed_spec_keys
             if slugify(item, "")
         }
+        if not normalized_classes and isinstance(item_context, dict):
+            item_class_keys, item_spec_keys = class_spec_context_from_payload(
+                item_context
+            )
+            item_payload = (
+                item_context.get("payload")
+                if isinstance(item_context.get("payload"), dict)
+                else {}
+            )
+            if not item_class_keys and not item_spec_keys and item_payload:
+                item_class_keys, item_spec_keys = class_spec_context_from_payload(
+                    item_payload
+                )
+            normalized_classes = {
+                slugify(item, "")
+                for item in item_class_keys
+                if slugify(item, "")
+            }
+            normalized_specs = {
+                slugify(item, "")
+                for item in item_spec_keys
+                if slugify(item, "")
+            }
         if not normalized_classes:
             return False
     if normalized_classes and class_key not in normalized_classes:
@@ -17389,13 +17473,37 @@ def catalog_context_compatible(row, class_key, spec_key, slot=""):
     return True
 
 
-def catalog_variant_compatible(variant, class_key, spec_key, item_slot=""):
+def catalog_variant_compatible(
+    variant,
+    class_key,
+    spec_key,
+    item_slot="",
+    item_context=None,
+):
     slot = normalize_slot((variant or {}).get("slot") or item_slot)
-    return catalog_context_compatible(variant, class_key, spec_key, slot)
+    return catalog_context_compatible(
+        variant,
+        class_key,
+        spec_key,
+        slot,
+        item_context,
+    )
 
 
-def catalog_source_compatible(source, class_key, spec_key, item_slot=""):
-    return catalog_context_compatible(source, class_key, spec_key, item_slot)
+def catalog_source_compatible(
+    source,
+    class_key,
+    spec_key,
+    item_slot="",
+    item_context=None,
+):
+    return catalog_context_compatible(
+        source,
+        class_key,
+        spec_key,
+        item_slot,
+        item_context,
+    )
 
 
 def catalog_variant_display_key(variant):
@@ -17564,7 +17672,17 @@ def catalog_compatibility(item, sources, variants, class_key, spec_key):
             "classKey": class_key,
             "specKey": spec_key,
         }
-    compatible_sources = [source for source in sources if catalog_source_compatible(source, class_key, spec_key, item_slot)]
+    compatible_sources = [
+        source
+        for source in sources
+        if catalog_source_compatible(
+            source,
+            class_key,
+            spec_key,
+            item_slot,
+            item,
+        )
+    ]
     usable_variants = [
         variant
         for variant in variants
@@ -17573,7 +17691,13 @@ def catalog_compatibility(item, sources, variants, class_key, spec_key):
     compatible_variants = [
         variant
         for variant in usable_variants
-        if catalog_variant_compatible(variant, class_key, spec_key, item_slot)
+        if catalog_variant_compatible(
+            variant,
+            class_key,
+            spec_key,
+            item_slot,
+            item,
+        )
     ]
     scoped_variants = [variant for variant in usable_variants if catalog_variant_has_context(variant)]
     if armor_status == "incompatible":
@@ -17909,11 +18033,27 @@ def enrich_catalog_item(item, sources, variants, socket_options, enchant_options
     )
     if compatibility["status"] != "compatible":
         return None
-    compatible_sources = [source for source in sources if catalog_source_compatible(source, class_key, spec_key, item_slot)]
+    compatible_sources = [
+        source
+        for source in sources
+        if catalog_source_compatible(
+            source,
+            class_key,
+            spec_key,
+            item_slot,
+            item,
+        )
+    ]
     compatible_variants = [
         variant
         for variant in variants
-        if catalog_variant_compatible(variant, class_key, spec_key, item_slot)
+        if catalog_variant_compatible(
+            variant,
+            class_key,
+            spec_key,
+            item_slot,
+            item,
+        )
         and catalog_variant_usable_for_replacement(variant)
     ]
     display_variants = collapse_catalog_variants_for_display(compatible_variants)
@@ -22051,6 +22191,18 @@ def gear_compatibility_from_projected_type(
 
 def payload_playable_class_keys(payload):
     result = []
+    for raw_id in payload_restriction_id_values(
+        payload,
+        "requiredClassIds",
+        "classIds",
+    ):
+        try:
+            class_id = int(raw_id)
+        except (TypeError, ValueError):
+            class_id = 0
+        class_key = GAME_CLASS_ID_TO_KEY.get(class_id, "")
+        if class_key and class_key not in result:
+            result.append(class_key)
     for parent in (payload_preview_item(payload), payload if isinstance(payload, dict) else {}):
         if not isinstance(parent, dict):
             continue
@@ -22141,6 +22293,13 @@ def normalize_gear_item(value, class_key="", spec_key="", default_source_type=""
         text = str(value.get(key) or type_metadata.get(key) or "").strip()
         if text:
             item[key] = text[:120]
+    for key in ("classIds", "requiredClassIds", "specIds"):
+        restriction_values = payload_restriction_id_values(
+            value,
+            key,
+        ) or payload_restriction_id_values(payload, key)
+        if restriction_values:
+            item[key] = restriction_values
     game_asset = normalize_game_asset(
         {},
         game_asset_from_icon_url(
