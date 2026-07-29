@@ -252,7 +252,7 @@ def _is_crafted_progression(
 
 
 def audit_catalog_mapping(binding: Any, rows: Any) -> dict[str, Any]:
-    """Classify whether one active release can become a catalog deterministically."""
+    """Classify whether one authoritative release can become a Catalog."""
 
     active_binding = _mapping(binding)
     source = _mapping(rows)
@@ -262,7 +262,11 @@ def audit_catalog_mapping(binding: Any, rows: Any) -> dict[str, Any]:
     options = [row for row in source.get("options") or [] if isinstance(row, Mapping)]
     problems: list[dict[str, str]] = []
 
-    if not _text(active_binding.get("manifestRevision")):
+    if (
+        not _text(active_binding.get("manifestRevision"))
+        and _text(active_binding.get("bindingMode"))
+        != "validated_release_pair"
+    ):
         problems.append(_problem(
             "CATALOG_ACTIVE_MANIFEST_MISSING",
             "binding.manifestRevision",

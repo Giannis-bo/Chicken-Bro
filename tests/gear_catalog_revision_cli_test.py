@@ -113,6 +113,10 @@ class GearCatalogRevisionCliTest(unittest.TestCase):
             binding["gearReleaseContentHash"],
             requested["gearRelease"]["contentHash"],
         )
+        self.assertEqual(
+            binding["bindingMode"],
+            "validated_release_pair",
+        )
 
     def test_cli_accepts_complete_requested_release_pair_only(self):
         gear_id = "gear-release:sha256:" + ("9" * 64)

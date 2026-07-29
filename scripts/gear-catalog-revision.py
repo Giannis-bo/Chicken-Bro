@@ -300,16 +300,19 @@ def _snapshot_spec_payload_reader(
 
 
 def _catalog_binding(snapshot: Mapping[str, Any]) -> dict[str, Any]:
-    active = (
-        _mapping(snapshot.get("requestedBinding"))
-        or _mapping(snapshot.get("activeBinding"))
-    )
+    requested = _mapping(snapshot.get("requestedBinding"))
+    active = requested or _mapping(snapshot.get("activeBinding"))
     manifest = _mapping(active.get("manifest"))
     gear = _mapping(active.get("gearRelease"))
     dependency_vector = _mapping(gear.get("dependencyVector"))
     if not dependency_vector:
         dependency_vector = _mapping(manifest.get("dependencyVector"))
     return {
+        "bindingMode": (
+            "validated_release_pair"
+            if requested
+            else _text(active.get("bindingMode")) or "active_manifest"
+        ),
         "manifestRevision": _text(manifest.get("manifestRevision")),
         "gearReleaseId": _text(gear.get("releaseId")),
         "gearReleaseContentHash": _text(gear.get("contentHash")),

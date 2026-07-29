@@ -526,6 +526,12 @@ class GearCatalogAuditStore:
     @staticmethod
     def _snapshot_binding(binding: Mapping[str, Any]) -> dict[str, Any]:
         return {
+            "bindingMode": (
+                "validated_release_pair"
+                if _text(binding.get("pointerMode"))
+                == "dormant_requested_pair"
+                else "active_manifest"
+            ),
             "manifest": {
                 "manifestRevision": _text(binding.get("manifestRevision")),
                 "seasonRevision": _text(binding.get("seasonRevision")),

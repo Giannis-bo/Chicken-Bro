@@ -170,6 +170,33 @@ def complete_inputs():
 
 
 class GearCatalogMigrationAuditTest(unittest.TestCase):
+    def test_validated_requested_release_pair_does_not_require_manifest(self):
+        result = audit_catalog_mapping(
+            catalog_binding(
+                manifestRevision="",
+                bindingMode="validated_release_pair",
+            ),
+            complete_catalog_rows(),
+        )
+
+        self.assertEqual(result["status"], "verified")
+        self.assertNotIn(
+            "CATALOG_ACTIVE_MANIFEST_MISSING",
+            result["problemCodes"],
+        )
+
+    def test_unbound_release_without_validated_pair_stays_blocked(self):
+        result = audit_catalog_mapping(
+            catalog_binding(manifestRevision=""),
+            complete_catalog_rows(),
+        )
+
+        self.assertEqual(result["status"], "blocked")
+        self.assertIn(
+            "CATALOG_ACTIVE_MANIFEST_MISSING",
+            result["problemCodes"],
+        )
+
     def test_same_inputs_have_same_report_id_despite_observation_time(self):
         first = build_phase0_report(
             **complete_inputs(),
