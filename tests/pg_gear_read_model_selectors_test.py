@@ -1408,6 +1408,38 @@ class PgGearReadModelSelectorsTest(unittest.TestCase):
         self.assertEqual(read_model["candidateLegalityAudit"]["excludedCandidateCount"], 1)
         self.assertEqual(read_model["candidateLegalityAudit"]["excludedExamples"][0]["itemId"], "mail-head")
 
+    def test_build_catalog_gear_read_model_fragment_excludes_observed_only_items_without_verified_stats(self):
+        from server.pg_gear_read_model_selectors import build_catalog_gear_read_model_fragment
+
+        observed_only_head = {
+            "id": "observed-only-head",
+            "itemId": "observed-only-head",
+            "slot": "head",
+            "simcSlot": "head",
+            "name": "Observed Only Head",
+            "displayName": "Observed Only Head",
+            "sourceType": "catalog",
+            "sources": [{"sourceType": "observed_profile", "label": "Raider.IO observed mage frost"}],
+            "itemLevel": 197,
+            "ilevel": 197,
+            "armorType": "Cloth",
+            "compatibility": {"status": "compatible", "armorStatus": "compatible"},
+            "variantStatus": "partial",
+            "statDisplayStatus": "pending_current_variant",
+            "simcReady": False,
+        }
+
+        read_model = build_catalog_gear_read_model_fragment(
+            [observed_only_head],
+            {"socket": {}, "enchant": {}, "embellishment": {}},
+            "mage",
+            "frost",
+            compact=True,
+        )
+
+        head_group = next(group for group in read_model["replacementCandidates"] if group["slot"] == "head")
+        self.assertEqual(head_group["items"], [])
+
     def test_build_season_recommended_catalog_candidates_by_slot_read_model_filters_and_limits_candidates(self):
         from server.pg_gear_read_model_selectors import build_season_recommended_catalog_candidates_by_slot_read_model
         from server.websim_payload import CANONICAL_GEAR_SLOTS

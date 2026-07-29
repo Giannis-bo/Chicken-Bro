@@ -39,6 +39,7 @@ try:
         gear_candidate_incompatible,
         gear_candidate_quality_score,
         gear_candidate_slots,
+        gear_candidate_visible_for_replacement,
         gear_readiness,
         gear_slot_readiness,
         hero_tree_label,
@@ -90,6 +91,7 @@ except ImportError:
         gear_candidate_incompatible,
         gear_candidate_quality_score,
         gear_candidate_slots,
+        gear_candidate_visible_for_replacement,
         gear_readiness,
         gear_slot_readiness,
         hero_tree_label,
@@ -902,7 +904,7 @@ def build_season_recommended_catalog_candidates_by_slot_read_model(
                 spec_key,
                 candidate_slot,
             )
-            if gear_candidate_incompatible(candidate):
+            if gear_candidate_incompatible(candidate) or not gear_candidate_visible_for_replacement(candidate):
                 continue
             grouped[candidate_slot].append(candidate)
     return {
@@ -1061,6 +1063,8 @@ def build_catalog_gear_read_model_fragment(
             )
             if candidate.get("legalityStatus") == "blocked" or gear_candidate_incompatible(candidate):
                 candidate_legality_excluded.append(candidate)
+                continue
+            if not gear_candidate_visible_for_replacement(candidate):
                 continue
             grouped[candidate_slot].append(candidate)
 
