@@ -838,6 +838,13 @@ def _rebind_import_source_to_manifest_catalog(source, binding):
         ).strip()
         browse_key = aliases.get((item_id, variant_key))
         if not browse_key:
+            # A signed Exact template may resolve its verified source variant
+            # without publishing that variant as a Browse member.  Preserve
+            # that source identity for the Exact projection and Resolver;
+            # do not substitute a merely item-level-similar Catalog variant.
+            if may_defer_to_exact_registry:
+                exact_catalog_deferred_slots[slot] = variant_key
+                continue
             imported = (
                 imported_by_slot.get(slot)
                 if isinstance(imported_by_slot.get(slot), dict)
@@ -860,13 +867,10 @@ def _rebind_import_source_to_manifest_catalog(source, binding):
                     "mapping for the Community selection"
                 )
             if len(candidates) != 1:
-                if not may_defer_to_exact_registry:
-                    raise RuntimeError(
-                        "Manifest Catalog has no unique verified item-level "
-                        "mapping for the Community selection"
-                    )
-                exact_catalog_deferred_slots[slot] = variant_key
-                continue
+                raise RuntimeError(
+                    "Manifest Catalog has no unique verified item-level "
+                    "mapping for the Community selection"
+                )
             browse_key = next(iter(candidates))
             selection["_catalogSourceVariantKey"] = variant_key
         elif variant_key != browse_key:

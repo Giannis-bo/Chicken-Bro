@@ -11100,6 +11100,68 @@ class PostgresCacheStoreTest(unittest.TestCase):
         )
         self.assertNotIn("_authorityVariantKeysBySlot", rebound)
 
+    def test_manifest_v2_import_defers_unique_catalog_mapping_for_verified_exact_template(self):
+        from server.postgres_cache_store import (
+            _rebind_import_source_to_manifest_catalog,
+        )
+
+        catalog_revision = "gear-catalog:sha256:" + ("a" * 64)
+        browse_key = "browse-variant:sha256:" + ("c" * 64)
+        source = {
+            "status": "verified",
+            "template": {
+                "templateAuthorityIdentity": "sha256:" + ("d" * 64),
+            },
+            "selectionIntent": {
+                "authoredAgainst": {},
+                "slots": {
+                    "head": {
+                        "itemId": "item-a",
+                        "variantKey": "observed-profile-variant",
+                    }
+                },
+            },
+            "importedGearBySlot": {
+                "head": {
+                    "itemId": "item-a",
+                    "variantKey": "observed-profile-variant",
+                    "itemLevel": 298,
+                }
+            },
+        }
+        binding = {
+            "manifest": {
+                "schemaRevision": "active-season-manifest-v2",
+                "seasonRevision": "season-17",
+                "gearCatalogRevision": catalog_revision,
+            },
+            "gearCatalog": {
+                "catalogRevision": catalog_revision,
+                "browseVariants": [{
+                    "browseVariantKey": browse_key,
+                    "itemId": "item-a",
+                    "itemLevel": 298,
+                    "evidenceStatus": "verified",
+                    "sourceVariantKeys": ["void_upgrade-298"],
+                }],
+            },
+        }
+
+        rebound = _rebind_import_source_to_manifest_catalog(source, binding)
+
+        self.assertEqual(
+            rebound["selectionIntent"]["slots"]["head"]["variantKey"],
+            "observed-profile-variant",
+        )
+        self.assertEqual(
+            rebound["_exactCatalogDeferredSlots"],
+            {"head": "observed-profile-variant"},
+        )
+        self.assertEqual(
+            rebound["importedGearBySlot"]["head"]["variantKey"],
+            "observed-profile-variant",
+        )
+
     def test_manifest_v2_import_strips_catalog_rebind_marker_before_resolver(self):
         from server.postgres_cache_store import _resolver_selection_intent
 
