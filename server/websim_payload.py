@@ -24480,9 +24480,33 @@ def compact_crafted_gear_variants(variants, primary_key=""):
             compact_variant = compact_gear_variant(variant, "crafted", primary_key)
             if not compact_variant:
                 continue
+            payload = (
+                variant.get("payload")
+                if isinstance(variant.get("payload"), dict)
+                else {}
+            )
+            catalog_variant_key = str(
+                payload.get("browseVariantKey") or ""
+            ).strip()
+            if not (
+                re.fullmatch(
+                    r"browse-variant:sha256:[0-9a-f]{64}",
+                    catalog_variant_key,
+                )
+                and str(compact_variant.get("id") or "").strip()
+                == catalog_variant_key
+            ):
+                catalog_variant_key = ""
             compact_variant["difficultyKey"] = public_key
             compact_variant["difficultyLabel"] = localized_difficulty_label(public_key, variant.get("label"), "crafted")
-            compact_variant["key"] = f"crafted-{public_key}-{item_level}" if item_level else f"crafted-{public_key}"
+            compact_variant["key"] = (
+                catalog_variant_key
+                or (
+                    f"crafted-{public_key}-{item_level}"
+                    if item_level
+                    else f"crafted-{public_key}"
+                )
+            )
             compact_variant["variantKey"] = compact_variant["key"]
             compact_variant["label"] = f"{compact_variant['difficultyLabel']} {item_level}".strip()
             compact_simc_options = compact_variant.get("simcOptions") if isinstance(compact_variant.get("simcOptions"), dict) else {}

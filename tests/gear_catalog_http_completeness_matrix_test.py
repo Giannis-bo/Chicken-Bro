@@ -150,6 +150,17 @@ class GearCatalogHttpCompletenessMatrixTest(unittest.TestCase):
             "CATALOG_HTTP_UNIVERSE_VARIANT_MISSING",
             report["failureCodes"],
         )
+        self.assertEqual(
+            report["catalogUniverse"]["missingVariantSamples"],
+            [{
+                "browseVariantKey": (
+                    "browse-variant:sha256:" + "f" * 64
+                ),
+                "itemId": "1001",
+                "itemLevel": 289,
+                "progressionKind": "",
+            }],
+        )
 
 
 if __name__ == "__main__":

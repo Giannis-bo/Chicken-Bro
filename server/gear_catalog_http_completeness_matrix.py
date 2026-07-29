@@ -227,6 +227,7 @@ def run_catalog_http_completeness_matrix(
     passing_specs = 0
     observed_spec_slots = 0
     nonempty_spec_slots = 0
+    empty_spec_slots: list[dict[str, str]] = []
     visible_item_relations = 0
     visible_variant_relations = 0
     latencies: list[float] = []
@@ -306,6 +307,12 @@ def run_catalog_http_completeness_matrix(
             )
             if items:
                 nonempty_spec_slots += 1
+            elif slot:
+                empty_spec_slots.append({
+                    "classKey": class_key,
+                    "specKey": spec_key,
+                    "slot": slot,
+                })
             seen_group_items: set[str] = set()
             for raw_item in items:
                 item = (
@@ -472,16 +479,59 @@ def run_catalog_http_completeness_matrix(
             "expectedSpecSlotCount": expected_spec_slots,
             "observedSpecSlotCount": observed_spec_slots,
             "nonemptySpecSlotCount": nonempty_spec_slots,
+            "emptySpecSlotSamples": empty_spec_slots[:20],
         },
         "catalogUniverse": {
             "expectedItemCount": len(definitions),
             "observedItemCount": len(observed_items),
             "missingItemCount": len(missing_items),
             "extraItemCount": len(extra_items),
+            "missingItemSamples": [
+                {
+                    "itemId": item_id,
+                    "slot": _text(
+                        definitions[item_id].get("slot")
+                    ),
+                    "armorType": _text(
+                        (
+                            definitions[item_id].get("equipment")
+                            if isinstance(
+                                definitions[item_id].get("equipment"),
+                                Mapping,
+                            )
+                            else {}
+                        ).get("armorType")
+                    ),
+                    "weaponType": _text(
+                        (
+                            definitions[item_id].get("equipment")
+                            if isinstance(
+                                definitions[item_id].get("equipment"),
+                                Mapping,
+                            )
+                            else {}
+                        ).get("weaponType")
+                    ),
+                }
+                for item_id in missing_items[:20]
+            ],
             "expectedVariantCount": len(variants),
             "observedVariantCount": len(observed_variants),
             "missingVariantCount": len(missing_variants),
             "extraVariantCount": len(extra_variants),
+            "missingVariantSamples": [
+                {
+                    "browseVariantKey": key,
+                    "itemId": _text(variants[key].get("itemId")),
+                    "itemLevel": _integer(
+                        variants[key].get("itemLevel")
+                    ),
+                    "progressionKind": _text(
+                        variants[key].get("progressionKind")
+                    ),
+                }
+                for key in missing_variants[:20]
+            ],
         },
         "relations": {
             "visibleItemRelationCount": visible_item_relations,

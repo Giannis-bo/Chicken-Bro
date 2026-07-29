@@ -22861,6 +22861,46 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(compact["variants"][0]["difficultyKey"], "crafted")
         self.assertEqual(compact["variants"][0]["difficultyLabel"], "制造装备")
 
+    def test_compact_crafted_manifest_variant_preserves_catalog_identity(self):
+        browse_key = "browse-variant:sha256:" + ("a" * 64)
+        compact = self.websim_payload.compact_gear_candidate(
+            {
+                "slot": "head",
+                "itemId": "237832",
+                "sourceType": "crafted",
+                "sources": [{
+                    "id": "crafted-237832",
+                    "itemId": "237832",
+                    "sourceType": "crafted",
+                    "sourceLabel": "制造装备",
+                }],
+                "variants": [{
+                    "id": browse_key,
+                    "itemId": "237832",
+                    "slot": "head",
+                    "variantKey": browse_key,
+                    "sourceType": "crafted",
+                    "itemLevel": 285,
+                    "status": "verified",
+                    "payload": {
+                        "browseVariantKey": browse_key,
+                        "catalogEvidenceSource": "manifest_catalog_v2",
+                        "progressionState": {
+                            "kind": "crafted_quality",
+                            "trackKey": "myth",
+                        },
+                    },
+                }],
+            }
+        )
+
+        self.assertEqual(compact["variants"][0]["id"], browse_key)
+        self.assertEqual(compact["variants"][0]["key"], browse_key)
+        self.assertEqual(
+            compact["variants"][0]["variantKey"],
+            browse_key,
+        )
+
     def test_normalize_gear_item_marks_limit_category_as_built_in_embellishment(self):
         for limit_category in (
             {"name": "装备唯一：美化（2）"},
