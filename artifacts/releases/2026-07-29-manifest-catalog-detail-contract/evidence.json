@@ -5,7 +5,7 @@
   "status": "local_verified",
   "highestEvidenceLevel": "local_verified",
   "branch": "codex/manifest-catalog-detail-contract",
-  "commit": "a743072f2098036a798df6229b2307e61dece610",
+  "commit": "5ee695854120e9704cab0e39098cba9b47673b79",
   "identities": {
     "runtime": {
       "status": "pending",
@@ -85,12 +85,12 @@
     {
       "command": "python3 -m unittest tests.gear_attribute_preview_fixture_test tests.gear_exact_template_options_test tests.pg_gear_read_model_selectors_test tests.postgres_cache_store_test tests.websim_payload_test tests.sync_log_summary_test tests.postgres_only_scripts_test tests.deploy_lighthouse_test",
       "status": "pass",
-      "result": "685 tests passed on exact merged HEAD a743072f. The same pre-existing unclosed-SQLite ResourceWarning and module-run RuntimeWarning diagnostics remain visible."
+      "result": "705 tests passed on merged-main integration HEAD 5ee69585, including the 20 Season PVE Universe contract/CLI tests now present on main. The same pre-existing unclosed-SQLite ResourceWarning and module-run RuntimeWarning diagnostics remain visible."
     },
     {
       "command": "npm run test:taro -- apps/mini-taro/src/pages/builds/gear-detail-editor-model.test.ts apps/mini-taro/src/pages/builds/gear-detail-model.test.ts apps/mini-taro/src/pages/builds/gear-detail-page-contract.test.ts",
       "status": "pass",
-      "result": "Three Taro files and 60 gear-detail contract tests passed on exact merged HEAD a743072f."
+      "result": "Three Taro files and 60 gear-detail contract tests passed on merged-main integration HEAD 5ee69585."
     }
   ],
   "candidateDeployment": {
@@ -183,5 +183,5 @@
     "docs/verification-matrix.md",
     "artifacts/releases/2026-07-29-manifest-catalog-detail-contract/requirement.json"
   ],
-  "summary": "The user approved a Strict Catalog repair. Both the 14078788 diagnostic candidate and the later da051891 API/WeChat candidate are superseded for current verification because runtime source advanced. Exact merged HEAD a743072f passes 685 Python tests and 60 Taro gear-detail contracts, including Manifest Catalog provenance fail-closed behavior and the exact-only import through Resolve/ResolvedLoadout/SimC. The cloud gate recovered to 79%, so the packet is local_verified; no immutable current candidate, current WeChat acceptance, official 18-source Universe membership proof, or final Harness/merge closure exists."
+  "summary": "The user approved a Strict Catalog repair. Both the 14078788 diagnostic candidate and the later da051891 API/WeChat candidate are superseded for current verification because runtime source advanced. Merged-main integration HEAD 5ee69585 passes 705 Python tests and 60 Taro gear-detail contracts, including Manifest Catalog provenance fail-closed behavior, the exact-only import through Resolve/ResolvedLoadout/SimC, and the Season PVE Universe foundation now on main. The cloud gate recovered to 79%, so the packet is local_verified; no immutable current candidate, current WeChat acceptance, official 18-source Universe membership proof, or final Harness/merge closure exists."
 }
