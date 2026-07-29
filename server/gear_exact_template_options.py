@@ -693,18 +693,17 @@ def _base_template_identity_candidates(
             slot = _text(reference.get("slot"))
             current = slots.get(slot)
             item_id = _text(reference.get("itemId"))
-            browse_key = aliases.get(
-                (
-                    item_id,
-                    _text(reference.get("sourceVariantKey")),
-                )
+            source_variant = _text(
+                reference.get("sourceVariantKey")
             )
+            browse_key = aliases.get((item_id, source_variant))
+            expected_variant = browse_key or source_variant
             if (
                 not slot
                 or slot in seen_slots
                 or not isinstance(current, Mapping)
                 or _text(current.get("itemId")) != item_id
-                or _text(current.get("variantKey")) != browse_key
+                or _text(current.get("variantKey")) != expected_variant
             ):
                 matched = False
                 break

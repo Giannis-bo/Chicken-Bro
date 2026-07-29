@@ -482,6 +482,41 @@ class GearExactTemplateOptionsTest(unittest.TestCase):
             snapshot["canonicalSimcInput"],
         )
 
+    def test_bind_infers_unique_exact_only_template_from_source_variants(self):
+        """Profile re-resolve must recover one exact template without publishing it."""
+        exact = exact_registry()
+        import_intent = intent()
+        import_intent["slots"]["head"]["variantKey"] = "variant-head"
+        browse_catalog = catalog()
+        browse_catalog["browseVariants"] = [
+            row
+            for row in browse_catalog["browseVariants"]
+            if row["itemId"] != "1001"
+        ]
+        projected = project_exact_template_intent(
+            import_intent,
+            exact,
+            browse_catalog,
+            TEMPLATE_AUTHORITY_IDENTITY,
+        )["selectionIntent"]
+
+        result = bind_exact_template_authority(
+            projected,
+            authority_context(projected),
+            exact,
+            browse_catalog,
+        )
+
+        self.assertEqual(result["status"], "verified")
+        self.assertEqual(
+            result["templateAuthorityIdentity"],
+            TEMPLATE_AUTHORITY_IDENTITY,
+        )
+        self.assertNotIn(
+            "1001",
+            {row["itemId"] for row in browse_catalog["browseVariants"]},
+        )
+
     def test_project_accepts_server_rebound_exact_source_without_publishing_its_alias(self):
         """A server-only fallback mapping may bind exact evidence to one verified Browse row."""
         import_intent = intent()
