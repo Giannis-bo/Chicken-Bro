@@ -555,14 +555,13 @@ class GearReleaseStoreTest(unittest.TestCase):
         self.assertIn("candidate.item_id, candidate.source_type", sql)
         self.assertIn("jsonb_strip_nulls", sql)
         self.assertIn("expected_simc_options", sql)
-        self.assertIn("profile_variant_ids", sql)
-        self.assertIn("reference_id", sql)
-        self.assertIn("matched_reference_ids", sql)
-        self.assertIn("semantic_fallback_variant_ids", sql)
-        self.assertIn("payload_json->>'profileUrl'", sql)
+        self.assertIn("observed_instance_keys", sql)
+        self.assertIn("observed_instance_candidates", sql)
+        self.assertIn("'profileUrl', variant.payload_json->'profileUrl'", sql)
         self.assertIn("'gem_bonus_id'", sql)
         self.assertIn("'gem_ilevel'", sql)
         self.assertIn("'redirected_base_stats'", sql)
+        self.assertNotIn("candidate_profile_urls AS MATERIALIZED", sql)
         self.assertNotIn(
             "AND referenced.item_level\n"
             "                                    = variant.item_level",

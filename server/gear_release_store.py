@@ -2086,36 +2086,7 @@ class GearReleaseStore:
                                     '',
                                     'g'
                                 ), 240)) END
-                            )) AS expected_simc_options,
-                            ARRAY(
-                                SELECT DISTINCT profile_url
-                                FROM (
-                                    SELECT unnest(ARRAY[
-                                        NULLIF(gear_item->>'profileUrl', ''),
-                                        NULLIF(gear_item->>'sourceProfileUrl', ''),
-                                        NULLIF(gear_item->>'sourceUrl', ''),
-                                        NULLIF(gear_item->>'url', '')
-                                    ]) AS profile_url
-                                    UNION ALL
-                                    SELECT unnest(ARRAY[
-                                        NULLIF(profile_ref.value->>'profileUrl', ''),
-                                        NULLIF(profile_ref.value->>'sourceProfileUrl', ''),
-                                        NULLIF(profile_ref.value->>'sourceUrl', ''),
-                                        NULLIF(profile_ref.value->>'url', '')
-                                    ]) AS profile_url
-                                    FROM jsonb_array_elements(
-                                        CASE
-                                            WHEN jsonb_typeof(
-                                                gear_item->'observedProfileRefs'
-                                            ) = 'array'
-                                            THEN gear_item->'observedProfileRefs'
-                                            ELSE '[]'::jsonb
-                                        END
-                                    ) profile_ref(value)
-                                ) profile_urls
-                                WHERE profile_url IS NOT NULL
-                                ORDER BY profile_url
-                            ) AS profile_urls
+                            )) AS expected_simc_options
                         FROM cache.websim_community_gear_templates template
                         CROSS JOIN LATERAL jsonb_array_elements(
                             CASE
@@ -2124,16 +2095,12 @@ class GearReleaseStore:
                                 ELSE '[]'::jsonb
                             END
                         ) gear_item
-                    ), referenced_distinct AS MATERIALIZED (
+                    ), referenced AS MATERIALIZED (
                         SELECT DISTINCT
                                item_id, variant_key, slot, item_level,
-                               expected_simc_options, profile_urls
+                               expected_simc_options
                         FROM raw_referenced
                         WHERE item_id IS NOT NULL
-                    ), referenced AS MATERIALIZED (
-                        SELECT ROW_NUMBER() OVER () AS reference_id,
-                               referenced_distinct.*
-                        FROM referenced_distinct
                     ), candidate_variants AS MATERIALIZED (
                         SELECT variant_id, item_id, variant_key, slot, label,
                                source_type, difficulty_key, item_level,
@@ -2183,75 +2150,10 @@ class GearReleaseStore:
                              = variant.simc_options_json
                         WHERE LOWER(variant.status) = 'verified'
                           AND LOWER(variant.source_type) = 'observed_profile'
-                    ), candidate_profile_urls AS MATERIALIZED (
-                        SELECT DISTINCT variant.variant_id, profile_url
-                        FROM observed_instance_candidates variant
-                        CROSS JOIN LATERAL (
-                            SELECT unnest(ARRAY[
-                                NULLIF(variant.payload_json->>'profileUrl', ''),
-                                NULLIF(variant.payload_json->>'sourceProfileUrl', ''),
-                                NULLIF(variant.payload_json->>'sourceUrl', ''),
-                                NULLIF(variant.payload_json->>'url', '')
-                            ]) AS profile_url
-                            UNION ALL
-                            SELECT unnest(ARRAY[
-                                NULLIF(profile_ref.value->>'profileUrl', ''),
-                                NULLIF(profile_ref.value->>'sourceProfileUrl', ''),
-                                NULLIF(profile_ref.value->>'sourceUrl', ''),
-                                NULLIF(profile_ref.value->>'url', '')
-                            ]) AS profile_url
-                            FROM jsonb_array_elements(
-                                CASE
-                                    WHEN jsonb_typeof(
-                                        variant.payload_json->'observedProfileRefs'
-                                    ) = 'array'
-                                    THEN variant.payload_json->'observedProfileRefs'
-                                    ELSE '[]'::jsonb
-                                END
-                            ) profile_ref(value)
-                        ) candidate_profiles
-                        WHERE profile_url IS NOT NULL
-                    ), profile_matches AS MATERIALIZED (
-                        SELECT DISTINCT referenced.reference_id,
-                                        variant.variant_id
-                        FROM referenced
-                        INNER JOIN observed_instance_candidates variant
-                          ON referenced.item_id = variant.item_id
-                         AND referenced.item_level = variant.item_level
-                         AND referenced.slot = variant.normalized_slot
-                         AND referenced.expected_simc_options
-                             = variant.simc_options_json
-                        INNER JOIN candidate_profile_urls profile
-                          ON profile.variant_id = variant.variant_id
-                         AND profile.profile_url = ANY(referenced.profile_urls)
-                    ), profile_variant_ids AS MATERIALIZED (
-                        SELECT DISTINCT variant_id
-                        FROM profile_matches
-                    ), matched_reference_ids AS MATERIALIZED (
-                        SELECT DISTINCT reference_id
-                        FROM profile_matches
-                    ), unmatched_references AS MATERIALIZED (
-                        SELECT referenced.*
-                        FROM referenced
-                        LEFT JOIN matched_reference_ids matched
-                          ON matched.reference_id = referenced.reference_id
-                        WHERE cardinality(referenced.profile_urls) > 0
-                          AND matched.reference_id IS NULL
-                    ), semantic_fallback_variant_ids AS MATERIALIZED (
-                        SELECT DISTINCT variant.variant_id
-                        FROM unmatched_references referenced
-                        INNER JOIN observed_instance_candidates variant
-                          ON referenced.item_id = variant.item_id
-                         AND referenced.item_level = variant.item_level
-                         AND referenced.slot = variant.normalized_slot
-                         AND referenced.expected_simc_options
-                             = variant.simc_options_json
                     ), selected_variant_ids AS (
                         SELECT variant_id FROM exact_variant_ids
                         UNION
-                        SELECT variant_id FROM profile_variant_ids
-                        UNION
-                        SELECT variant_id FROM semantic_fallback_variant_ids
+                        SELECT variant_id FROM observed_instance_candidates
                     )
                     SELECT variant.variant_id, variant.item_id, variant.variant_key,
                            variant.slot, variant.label, variant.source_type,
