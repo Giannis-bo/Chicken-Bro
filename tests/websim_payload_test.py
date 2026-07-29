@@ -11328,6 +11328,20 @@ class WebSimPayloadTest(unittest.TestCase):
             {item["itemId"] for item in head_group["items"]},
         )
 
+    def test_replacement_visibility_rejects_observed_only_candidate_without_verified_stats(self):
+        candidate = {
+            "itemId": "250780",
+            "slot": "head",
+            "compatibility": {"status": "compatible"},
+            "sourceType": "catalog",
+            "sources": [{"sourceType": "observed_profile", "label": "Raider.IO observed mage frost"}],
+            "variantStatus": "partial",
+            "statDisplayStatus": "pending_current_variant",
+            "simcReady": False,
+        }
+
+        self.assertFalse(self.websim_payload.gear_candidate_visible_for_replacement(candidate))
+
     def test_gear_catalog_health_payload_includes_slot_source_and_observed_variant_coverage(self):
         conn = sqlite3.connect(self.db_path)
         try:

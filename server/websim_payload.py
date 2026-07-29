@@ -23562,6 +23562,8 @@ def gear_candidate_visible_for_replacement(item, minimum_observed_ilevel=0):
         return False
     if item.get("simcReady"):
         return True
+    if not gear_candidate_has_verified_stats(item):
+        return False
     source_types = gear_candidate_source_types(item)
     official_source = bool(source_types & OFFICIAL_REPLACEMENT_SOURCE_TYPES)
     status = str(item.get("variantStatus") or "").strip().lower()
