@@ -2665,6 +2665,37 @@ def prepare_staging_community_release(
         raise GearReleaseIntegrityError("staging community templateId must be non-empty")
     if len(set(template_ids)) != len(template_ids):
         raise GearReleaseIntegrityError("staging community templateId must be unique")
+    release_projection = (
+        gear_snapshot.get("_releaseProjection")
+        if isinstance(gear_snapshot.get("_releaseProjection"), dict)
+        else {}
+    )
+    if (
+        release_projection.get("schemaRevision")
+        == "community-builder-release-projection-v2"
+    ):
+        reference_item_ids = {
+            _text(item_id)
+            for item_id in release_projection.get("referenceItemIds") or []
+            if _text(item_id)
+        }
+        template_item_ids = {
+            _text(item.get("itemId") or item.get("id"))
+            for template in templates
+            if isinstance(template, dict)
+            for item in template.get("gearItems") or []
+            if isinstance(item, dict)
+            and _text(item.get("itemId") or item.get("id"))
+        }
+        missing_reference_items = sorted(
+            template_item_ids - reference_item_ids
+        )
+        if missing_reference_items:
+            raise GearReleaseIntegrityError(
+                "community builder release projection misses staging "
+                "template item scope: "
+                + ",".join(missing_reference_items[:20])
+            )
     templates_by_id = {_text(row.get("templateId")): row for row in templates if _text(row.get("templateId"))}
     release_dependencies = (
         gear_release_descriptor.get("dependencyRevisions")

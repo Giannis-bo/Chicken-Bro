@@ -1098,12 +1098,39 @@ class CandidateGearAuthorityIndex:
                 if isinstance(projection.get("projectionCounts"), dict)
                 else {}
             )
+            reference_item_ids = projection.get("referenceItemIds")
+            reference_item_ids = (
+                list(reference_item_ids)
+                if isinstance(reference_item_ids, list)
+                else []
+            )
+            reference_item_set = {
+                _text(item_id)
+                for item_id in reference_item_ids
+                if _text(item_id)
+            }
+            snapshot_item_ids = {
+                _text(row.get("itemId"))
+                for row in snapshot.get("items") or []
+                if isinstance(row, dict) and _text(row.get("itemId"))
+            }
             valid_projection = (
                 projection.get("schemaRevision")
-                == "community-builder-release-projection-v1"
+                == "community-builder-release-projection-v2"
                 and projection.get("releaseId") == self.release["releaseId"]
                 and projection.get("contentHash") == self.release["contentHash"]
                 and projection.get("fullCounts") == content_counts
+                and reference_item_ids
+                == sorted(reference_item_set)
+                and projection.get("referenceItemDigest")
+                == _hash(reference_item_ids)
+                and snapshot_item_ids == reference_item_set
+                and all(
+                    _text(row.get("itemId")) in reference_item_set
+                    for category in ("sources", "variants")
+                    for row in snapshot.get(category) or []
+                    if isinstance(row, dict)
+                )
                 and all(
                     _int(projection_counts.get(category))
                     == len(snapshot.get(category) or [])
@@ -1111,11 +1138,11 @@ class CandidateGearAuthorityIndex:
                 )
                 and all(
                     _int(projection_counts.get(category))
-                    == _int(content_counts.get(category))
-                    for category in ("items", "variants", "options")
+                    <= _int(content_counts.get(category))
+                    for category in ("items", "sources", "variants")
                 )
-                and _int(projection_counts.get("sources"))
-                <= _int(content_counts.get("sources"))
+                and _int(projection_counts.get("options"))
+                == _int(content_counts.get("options"))
             )
             if not valid_projection:
                 raise GearReleaseIntegrityError(
@@ -1727,10 +1754,44 @@ class GearReleaseStore:
                     raise GearReleaseIntegrityError(
                         "community builder projection requires a Gear Release"
                     )
+                cur.execute(
+                    """
+                    SELECT DISTINCT COALESCE(
+                               NULLIF(gear_item->>'itemId', ''),
+                               NULLIF(gear_item->>'id', '')
+                           ) AS item_id
+                    FROM cache.websim_community_gear_templates template
+                    CROSS JOIN LATERAL jsonb_array_elements(
+                        CASE
+                            WHEN jsonb_typeof(template.gear_items_json) = 'array'
+                            THEN template.gear_items_json
+                            ELSE '[]'::jsonb
+                        END
+                    ) gear_item
+                    WHERE COALESCE(
+                              NULLIF(gear_item->>'itemId', ''),
+                              NULLIF(gear_item->>'id', '')
+                          ) IS NOT NULL
+                    ORDER BY item_id
+                    """
+                )
+                reference_item_ids = [
+                    _text(row[0])
+                    for row in _stream_cursor_rows(cur)
+                    if _text(row[0])
+                ]
+                if (
+                    not reference_item_ids
+                    or reference_item_ids != sorted(set(reference_item_ids))
+                ):
+                    raise GearReleaseIntegrityError(
+                        "community builder reference item scope is invalid"
+                    )
 
                 def read_projected(
                     cursor_name: str,
                     statement: str,
+                    params: tuple[Any, ...],
                     projector,
                 ) -> list[dict[str, Any]]:
                     try:
@@ -1738,7 +1799,7 @@ class GearReleaseStore:
                     except TypeError:
                         stream_cursor = conn.cursor()
                     with stream_cursor as stream:
-                        stream.execute(statement, (normalized,))
+                        stream.execute(statement, params)
                         return [
                             projector(row)
                             for row in _stream_cursor_rows(stream)
@@ -1751,8 +1812,10 @@ class GearReleaseStore:
                            source_status, source_updated_at
                     FROM cache.websim_gear_release_items
                     WHERE release_id = %s
+                      AND item_id = ANY(%s::text[])
                     ORDER BY item_id
                     """,
+                    (normalized, reference_item_ids),
                     lambda row: {
                         "itemId": _text(row[0]),
                         "name": _text(row[1]),
@@ -1777,6 +1840,7 @@ class GearReleaseStore:
                                candidate.*
                         FROM cache.websim_gear_release_sources candidate
                         WHERE candidate.release_id = %s
+                          AND candidate.item_id = ANY(%s::text[])
                         ORDER BY
                             candidate.item_id,
                             candidate.source_type,
@@ -1794,6 +1858,7 @@ class GearReleaseStore:
                     ) selected
                     ORDER BY item_id, source_type, source_id
                     """,
+                    (normalized, reference_item_ids),
                     lambda row: {
                         "sourceId": _text(row[0]),
                         "itemId": _text(row[1]),
@@ -1838,8 +1903,10 @@ class GearReleaseStore:
                            source_updated_at
                     FROM cache.websim_gear_release_variants
                     WHERE release_id = %s
+                      AND item_id = ANY(%s::text[])
                     ORDER BY variant_id
                     """,
+                    (normalized, reference_item_ids),
                     lambda row: {
                         "variantId": _text(row[0]),
                         "itemId": _text(row[1]),
@@ -1866,6 +1933,7 @@ class GearReleaseStore:
                     WHERE release_id = %s
                     ORDER BY option_id
                     """,
+                    (normalized,),
                     lambda row: {
                         "optionId": _text(row[0]),
                         "variantId": _text(row[1]),
@@ -1896,21 +1964,31 @@ class GearReleaseStore:
             for category in ("items", "sources", "variants", "options")
         }
         if (
-            any(
-                projection_counts[category] != _int(full_counts.get(category))
-                for category in ("items", "variants", "options")
+            {row["itemId"] for row in items} != set(reference_item_ids)
+            or any(
+                _text(row.get("itemId")) not in set(reference_item_ids)
+                for category in ("sources", "variants")
+                for row in snapshot[category]
             )
-            or projection_counts["sources"] > _int(full_counts.get("sources"))
+            or any(
+                projection_counts[category] > _int(full_counts.get(category))
+                for category in ("items", "sources", "variants")
+            )
+            or projection_counts["options"] != _int(
+                full_counts.get("options")
+            )
         ):
             raise GearReleaseIntegrityError(
                 "community builder release projection row counts are invalid"
             )
         snapshot["_releaseProjection"] = {
-            "schemaRevision": "community-builder-release-projection-v1",
+            "schemaRevision": "community-builder-release-projection-v2",
             "releaseId": release["releaseId"],
             "contentHash": release["contentHash"],
             "fullCounts": _canonical(full_counts),
             "projectionCounts": projection_counts,
+            "referenceItemIds": reference_item_ids,
+            "referenceItemDigest": _hash(reference_item_ids),
         }
         return snapshot
 

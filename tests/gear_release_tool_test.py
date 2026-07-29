@@ -2215,6 +2215,44 @@ class GearReleaseToolTest(unittest.TestCase):
 
         self.assertEqual(actual, expected)
 
+    def test_community_builder_projection_blocks_template_scope_drift(self):
+        from server.gear_release_store import gear_snapshot_summary
+        from server.gear_release_tool import (
+            GearReleaseIntegrityError,
+            prepare_staging_community_release,
+        )
+
+        snapshot = self.snapshot()
+        descriptor = gear_release.build_release(
+            release_kind="gear",
+            season_revision="season-17",
+            schema_revision="gear-release-v1",
+            content=gear_snapshot_summary(snapshot),
+            dependency_revisions=self.dependencies(),
+            release_status="validated",
+            source={"sourceRevision": "test"},
+        )
+        snapshot["_releaseProjection"] = {
+            "schemaRevision": "community-builder-release-projection-v2",
+            "referenceItemIds": ["item-other"],
+        }
+
+        with self.assertRaisesRegex(
+            GearReleaseIntegrityError,
+            "misses staging template item scope: item-a",
+        ):
+            prepare_staging_community_release(
+                FakeReleaseStore(
+                    snapshot,
+                    templates=[self.template()],
+                ),
+                gear_release_descriptor=descriptor,
+                gear_snapshot=snapshot,
+                dependency_revisions=self.dependencies(),
+                expected_specs=[("mage", "arcane")],
+                now="2026-07-29T00:00:00+00:00",
+            )
+
     def test_prepare_staging_gear_release_excludes_noncombat_cosmetic_rows(self):
         from server.gear_release_tool import prepare_staging_gear_release
 

@@ -493,7 +493,24 @@ class GearReleaseStoreTest(unittest.TestCase):
         )
 
         snapshot = self.snapshot()
-        release = self.gear_release(snapshot)
+        full_snapshot = copy.deepcopy(snapshot)
+        full_snapshot["items"].append({
+            **copy.deepcopy(snapshot["items"][0]),
+            "itemId": "item-b",
+            "name": "Unreferenced Item B",
+        })
+        full_snapshot["sources"].append({
+            **copy.deepcopy(snapshot["sources"][0]),
+            "sourceId": "source-b",
+            "itemId": "item-b",
+        })
+        full_snapshot["variants"].append({
+            **copy.deepcopy(snapshot["variants"][0]),
+            "variantId": "variant-b-id",
+            "itemId": "item-b",
+            "variantKey": "variant-b",
+        })
+        release = self.gear_release(full_snapshot)
         existing_row = (
             release["releaseId"],
             release["releaseKind"],
@@ -510,6 +527,7 @@ class GearReleaseStoreTest(unittest.TestCase):
         )
         conn = FakeConnection(rowsets={
             "FROM cache.websim_release_registry": [existing_row],
+            "jsonb_array_elements": [("item-a",)],
             "FROM cache.websim_gear_release_items": [
                 ("item-a", "Item A", "head", 289, snapshot["items"][0]["payload"], "verified", "2026-07-11T05:00:00+00:00")
             ],
@@ -548,6 +566,16 @@ class GearReleaseStoreTest(unittest.TestCase):
             projected["_releaseProjection"]["releaseId"],
             release["releaseId"],
         )
+        self.assertEqual(
+            projected["_releaseProjection"]["schemaRevision"],
+            "community-builder-release-projection-v2",
+        )
+        self.assertEqual(
+            projected["_releaseProjection"]["referenceItemIds"],
+            ["item-a"],
+        )
+        self.assertEqual(len(projected["items"]), 1)
+        self.assertEqual(len(projected["variants"]), 1)
         self.assertIs(
             prepared.variants_by_item["item-a"][0],
             projected["variants"][0],
