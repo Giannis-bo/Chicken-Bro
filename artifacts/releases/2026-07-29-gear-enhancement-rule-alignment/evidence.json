@@ -19,8 +19,8 @@
       "reason": "The complete task packet is checked only after this evidence is committed and the working tree is clean."
     },
     "closure": {
-      "status": "accepted",
-      "reason": "On 2026-07-29 the user explicitly replied OK，可以收尾。 after the repaired candidate was ready for re-validation."
+      "status": "pending",
+      "reason": "Manual acceptance is complete; the Harness merge-and-push closure sequence has not yet run."
     }
   },
   "manualAcceptance": {
