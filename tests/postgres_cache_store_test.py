@@ -10987,6 +10987,12 @@ class PostgresCacheStoreTest(unittest.TestCase):
             browse_key,
         )
         self.assertEqual(
+            rebound["selectionIntent"]["slots"]["head"][
+                "_catalogSourceVariantKey"
+            ],
+            "observed-profile-variant",
+        )
+        self.assertEqual(
             source["importedGearBySlot"]["head"]["variantKey"],
             "observed-profile-variant",
         )

@@ -861,6 +861,7 @@ def _rebind_import_source_to_manifest_catalog(source, binding):
                 exact_catalog_deferred_slots[slot] = variant_key
                 continue
             browse_key = next(iter(candidates))
+            selection["_catalogSourceVariantKey"] = variant_key
         elif variant_key != browse_key:
             authority_variant_keys_by_slot[slot] = variant_key
         selection["variantKey"] = browse_key

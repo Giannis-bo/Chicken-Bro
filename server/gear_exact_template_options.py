@@ -393,6 +393,14 @@ def _project_identity(
     aliases, alias_problems = _catalog_source_aliases(catalog_value)
     if alias_problems:
         return _blocked(*alias_problems)
+    catalog_browse_item_ids = {
+        _text(row.get("browseVariantKey")): _text(row.get("itemId"))
+        for row in (catalog_value.get("browseVariants") or [])
+        if isinstance(row, Mapping)
+        and row.get("evidenceStatus") == "verified"
+        and _text(row.get("browseVariantKey"))
+        and _text(row.get("itemId"))
+    }
     instances = _unique_index(
         registry.get("exactItemInstances"),
         "exactItemInstanceKey",
@@ -455,10 +463,21 @@ def _project_identity(
         item_id = _text(reference.get("itemId"))
         source_variant = _text(reference.get("sourceVariantKey"))
         browse_key = aliases.get((item_id, source_variant))
+        selected_variant = _text(current.get("variantKey"))
+        rebound_source_variant = _text(
+            current.get("_catalogSourceVariantKey")
+        )
+        catalog_rebound = (
+            not browse_key
+            and rebound_source_variant == source_variant
+            and catalog_browse_item_ids.get(selected_variant) == item_id
+        )
         if (
             _text(current.get("itemId")) != item_id
-            or _text(current.get("variantKey"))
-            != (browse_key or source_variant)
+            or (
+                selected_variant != (browse_key or source_variant)
+                and not catalog_rebound
+            )
         ):
             return _blocked(
                 _problem(
@@ -811,12 +830,18 @@ def bind_exact_template_authority(
         ):
             matches.append(projection)
     if len(matches) == 1:
+        bound_selection_intent = _canonical(matches[0]["selectionIntent"])
+        for selection in (
+            bound_selection_intent.get("slots") or {}
+        ).values():
+            if isinstance(selection, dict):
+                selection.pop("_catalogSourceVariantKey", None)
         return {
             "status": "verified",
             "templateAuthorityIdentity": matches[0][
                 "templateAuthorityIdentity"
             ],
-            "selectionIntent": matches[0]["selectionIntent"],
+            "selectionIntent": bound_selection_intent,
             "authorityContext": _inject_authority(
                 authority_context,
                 matches[0],

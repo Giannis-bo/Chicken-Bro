@@ -260,6 +260,34 @@ class GearExactTemplateOptionsTest(unittest.TestCase):
             [catalog()["browseVariants"][1]],
         )
 
+    def test_project_accepts_server_rebound_exact_source_without_publishing_its_alias(self):
+        """A server-only fallback mapping may bind exact evidence to one verified Browse row."""
+        import_intent = intent()
+        import_intent["slots"]["head"]["_catalogSourceVariantKey"] = "variant-head"
+        browse_catalog = catalog()
+        browse_catalog["browseVariants"][0]["sourceVariantKeys"] = [
+            "catalog-head"
+        ]
+
+        result = project_exact_template_intent(
+            import_intent,
+            exact_registry(),
+            browse_catalog,
+            TEMPLATE_AUTHORITY_IDENTITY,
+        )
+
+        self.assertEqual(result["status"], "verified")
+        self.assertEqual(
+            result["selectionIntent"]["slots"]["head"]["variantKey"],
+            HEAD_BROWSE,
+        )
+        self.assertEqual(
+            result["selectionIntent"]["slots"]["head"][
+                "_catalogSourceVariantKey"
+            ],
+            "variant-head",
+        )
+
     def test_bind_injects_only_the_unique_exact_template_authority(self):
         projection = project_exact_template_intent(
             intent(),
