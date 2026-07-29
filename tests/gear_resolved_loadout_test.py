@@ -16,6 +16,7 @@ MAIN_KEY = "exact-item-instance:sha256:" + ("b" * 64)
 EMPTY_SELECTION = "enhancement-selection:sha256:" + ("c" * 64)
 ENCHANT_SELECTION = "enhancement-selection:sha256:" + ("d" * 64)
 TEMPLATE_HASH = "sha256:" + ("e" * 64)
+TEMPLATE_AUTHORITY_IDENTITY = "sha256:" + ("f" * 64)
 
 
 def exact_instance(key, selection_key, item_id, ilevel, bonus_ids):
@@ -65,6 +66,7 @@ def reference(slot, item_id, key, status="verified", problem_codes=None):
         "catalogRevision": CATALOG_REVISION,
         "templateScope": "community",
         "templateContentHash": TEMPLATE_HASH,
+        "templateAuthorityIdentity": TEMPLATE_AUTHORITY_IDENTITY,
         "slot": slot,
         "itemId": item_id,
         "sourceVariantKey": f"variant-{slot}",
@@ -381,6 +383,33 @@ class GearResolvedLoadoutTest(unittest.TestCase):
                 exact_registry=registry,
                 template_scope="community",
                 template_content_hash=TEMPLATE_HASH,
+            )
+
+        self.assertEqual(matched["status"], "ready")
+        self.assertEqual(builder.call_count, 1)
+        self.assertEqual(
+            builder.call_args.kwargs["template_content_hash"],
+            TEMPLATE_HASH,
+        )
+
+    def test_compatibility_matcher_uses_server_template_identity_without_scanning_groups(self):
+        registry = exact_registry()
+        unrelated_hash = "sha256:" + ("0" * 64)
+        for raw in list(registry["templateReferences"]):
+            row = copy.deepcopy(raw)
+            row["templateContentHash"] = unrelated_hash
+            row["templateAuthorityIdentity"] = "sha256:" + ("1" * 64)
+            registry["templateReferences"].append(row)
+
+        with patch(
+            "server.gear_resolved_loadout.build_resolved_loadout",
+            wraps=build_resolved_loadout,
+        ) as builder:
+            matched = build_resolved_loadout_from_registry(
+                resolver_snapshot=resolver_snapshot(),
+                exact_registry=registry,
+                template_scope="community",
+                template_authority_identity=TEMPLATE_AUTHORITY_IDENTITY,
             )
 
         self.assertEqual(matched["status"], "ready")

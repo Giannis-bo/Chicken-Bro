@@ -397,6 +397,18 @@ def _signature(payload: Any) -> str:
     return f"sha256:{hashlib.sha256(encoded).hexdigest()}"
 
 
+def community_template_authority_identity(template_id: Any) -> str:
+    """Return the privacy-safe server identity shared by template authorities."""
+
+    normalized = _bounded_string(template_id)
+    if normalized is None:
+        return ""
+    return _signature({
+        "source": "community",
+        "templateId": normalized,
+    })
+
+
 def selection_signature(intent: dict[str, Any], eligibility_context: dict[str, Any]) -> str:
     return _signature(
         {
@@ -448,6 +460,7 @@ def profile_signature(
 
 
 __all__ = (
+    "community_template_authority_identity",
     "parse_selection_intent",
     "validate_dependency_vector",
     "validate_authority_context",

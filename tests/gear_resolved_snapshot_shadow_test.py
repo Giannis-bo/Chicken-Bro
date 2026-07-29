@@ -5,6 +5,7 @@ import unittest
 from unittest.mock import patch
 
 from tests.gear_resolved_loadout_test import (
+    TEMPLATE_AUTHORITY_IDENTITY,
     TEMPLATE_HASH,
     exact_registry,
     resolver_snapshot,
@@ -32,6 +33,7 @@ def template(content_hash, marker):
         "classKey": "mage",
         "specKey": "arcane",
         "importStatus": "verified",
+        "templateAuthorityIdentity": TEMPLATE_AUTHORITY_IDENTITY,
         "selectionIntent": {
             "schemaRevision": "selection-intent-v1",
             "eligibilityContext": {
@@ -107,7 +109,39 @@ class GearResolvedSnapshotShadowTest(unittest.TestCase):
             ["public-a"],
         )
 
-    def test_shadow_forwards_public_template_hash_to_exact_matcher(self):
+    def test_verified_import_without_server_template_identity_fails_closed(self):
+        reader = object.__new__(MODULE.ProfileReader)
+        reader._browse_spec = lambda _class_key, _spec_key: {
+            "manifestRevision": "season-manifest:sha256:" + ("a" * 64),
+            "communityTemplates": [{
+                "id": "public-a",
+                "classKey": "mage",
+                "specKey": "frost",
+            }],
+        }
+        reader._request = lambda *_args, **_kwargs: {
+            "status": "verified",
+            "data": {
+                "status": "verified",
+                "template": {},
+                "resolvedSnapshot": {"status": "verified"},
+            },
+            "problems": [],
+        }
+
+        imported = reader.import_template({
+            "id": "public-a",
+            "classKey": "mage",
+            "specKey": "frost",
+        })
+
+        self.assertEqual(imported["importStatus"], "blocked")
+        self.assertEqual(
+            imported["importProblemCodes"],
+            ["RESOLVED_SHADOW_TEMPLATE_AUTHORITY_IDENTITY_MISSING"],
+        )
+
+    def test_shadow_forwards_server_template_identity_to_exact_matcher(self):
         with patch.object(
             MODULE,
             "build_resolved_loadout_from_registry",
@@ -138,8 +172,8 @@ class GearResolvedSnapshotShadowTest(unittest.TestCase):
         self.assertEqual(matcher.call_count, 2)
         for call in matcher.call_args_list:
             self.assertEqual(
-                call.kwargs["template_content_hash"],
-                TEMPLATE_HASH,
+                call.kwargs["template_authority_identity"],
+                TEMPLATE_AUTHORITY_IDENTITY,
             )
 
     def test_ready_and_partial_templates_are_closed_without_silent_drop(self):

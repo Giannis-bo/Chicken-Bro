@@ -6,6 +6,7 @@ from server.gear_exact_item_registry import (
     build_exact_item_registry,
     verify_exact_item_registry,
 )
+from server.gear_contracts import community_template_authority_identity
 from tests.gear_exact_item_instance_test import (
     CATALOG_REVISION,
     CURRENT_BINDING,
@@ -66,6 +67,17 @@ class GearExactItemRegistryTest(unittest.TestCase):
         self.assertEqual(
             result["templateReferences"][0]["exactItemInstanceKey"],
             result["templateReferences"][1]["exactItemInstanceKey"],
+        )
+        self.assertEqual(
+            {
+                row["templateAuthorityIdentity"]
+                for row in result["templateReferences"]
+            },
+            {
+                community_template_authority_identity(
+                    "source-template-should-not-be-persisted"
+                )
+            },
         )
         self.assertNotEqual(
             result["templateReferences"][0]["templateContentHash"],

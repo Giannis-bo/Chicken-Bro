@@ -45,6 +45,15 @@ def _text(value: Any) -> str:
     return str(value or "").strip()
 
 
+def _sha256_identity(value: Any) -> str:
+    normalized = _text(value)
+    return normalized if (
+        len(normalized) == 71
+        and normalized.startswith("sha256:")
+        and all(character in "0123456789abcdef" for character in normalized[7:])
+    ) else ""
+
+
 def _mapping(value: Any) -> dict[str, Any]:
     return dict(value) if isinstance(value, Mapping) else {}
 
@@ -113,6 +122,9 @@ def run_shadow(
                 ),
             },
         )
+        authority_identity = _text(
+            template.get("templateAuthorityIdentity")
+        )
         import_status = _text(template.get("importStatus")) or "verified"
         if import_status != "verified":
             import_problem_codes = sorted(
@@ -138,13 +150,13 @@ def run_shadow(
                     resolver_snapshot=first_resolver,
                     exact_registry=exact_registry,
                     template_scope="community",
-                    template_content_hash=content_hash,
+                    template_authority_identity=authority_identity,
                 )
                 second_loadout = build_resolved_loadout_from_registry(
                     resolver_snapshot=second_resolver,
                     exact_registry=exact_registry,
                     template_scope="community",
-                    template_content_hash=content_hash,
+                    template_authority_identity=authority_identity,
                 )
             except Exception:
                 first_loadout = {
@@ -491,6 +503,10 @@ class ProfileReader:
                 ],
             }
         data = _mapping(envelope.get("data"))
+        public_template = _mapping(data.get("template"))
+        authority_identity = _sha256_identity(
+            public_template.get("templateAuthorityIdentity")
+        )
         snapshot = _mapping(data.get("resolvedSnapshot"))
         status = _text(envelope.get("status"))
         problem_codes = sorted(
@@ -505,12 +521,26 @@ class ProfileReader:
             status == "verified"
             and data.get("status") == "verified"
             and snapshot.get("status") == "verified"
+            and authority_identity
         ):
             return {
                 **stable,
                 "importStatus": "verified",
                 "importProblemCodes": [],
+                "templateAuthorityIdentity": authority_identity,
                 "resolvedSnapshot": snapshot,
+            }
+        if (
+            status == "verified"
+            and data.get("status") == "verified"
+            and snapshot.get("status") == "verified"
+        ):
+            return {
+                **stable,
+                "importStatus": "blocked",
+                "importProblemCodes": [
+                    "RESOLVED_SHADOW_TEMPLATE_AUTHORITY_IDENTITY_MISSING"
+                ],
             }
         return {
             **stable,

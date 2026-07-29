@@ -86,6 +86,10 @@ binding 中的 Exact Registry；删除 runtime `latest exact` 读取。历史 ta
   完全相同的 observed aliases 可折叠到同一 shape。社区导入只能使用该 shape 已封存
   的 source alias，普通手动选择使用 Catalog 的 canonical source 并由服务端重新投影
   Catalog 静态事实，禁止把 observed profile 的宝石/附魔泄漏为默认值。
+- 社区导入成功响应必须携带服务端生成、隐私安全的
+  `templateAuthorityIdentity`；Exact Registry 的模板引用以同一身份绑定具体
+  `templateContentHash`。ResolvedLoadout 只解析该唯一模板组，不信任前端自报内容
+  哈希，也不为缺失身份回退到全注册表猜测；身份缺失或一对多时明确阻断。
 - v1 reader 仅用于 generation 32 回滚 smoke；v2 激活后线上成功响应不得回退到
   staging/latest/未绑定 reader。
 - 独立 legacy-reader inventory 必须证明活动 backend、Taro 和 runtime tooling 的
@@ -134,6 +138,8 @@ binding 中的 Exact Registry；删除 runtime `latest exact` 读取。历史 ta
   全部一致；缺任何一个都返回明确 partial/blocked。
 - 80 个社区模板引用的所有精确 source alias 都必须唯一落到一个 Catalog v2 shape；
   同一物品/装等存在多个真实 shape 时禁止 item-level 猜测，shape 外 alias 必须阻断。
+- 80 个社区导入必须通过服务端 `templateAuthorityIdentity` 唯一落到一个 Exact
+  Registry 模板组；不能使用 UI 投影后的装备字段重算或猜测 exact 内容身份。
 - 40/40 浏览、80/80 导入、26/14 SimC 策略、快照字节确定性和结果复用全部通过。
 - 55 条 Phase 2 多附魔 evidence gap 继续 literal partial，不得补值或升级为 ready。
 - 正式切换、回滚和恢复均通过 CAS，候选失败不改变活动指针。

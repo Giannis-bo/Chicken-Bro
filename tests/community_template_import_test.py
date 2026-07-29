@@ -134,6 +134,7 @@ class CommunityTemplateImportTest(unittest.TestCase):
 
     def test_observed_winner_projects_only_bound_variants_and_visible_options(self):
         from server.community_template_import import build_community_template_selection_intent
+        from server.gear_contracts import community_template_authority_identity
 
         source = self.build_source()
 
@@ -147,6 +148,9 @@ class CommunityTemplateImportTest(unittest.TestCase):
             "profileHash": "profile-frost",
             "gearHash": "gear-frost",
             "sourceFingerprint": "sha256:" + "a" * 64,
+            "templateAuthorityIdentity": community_template_authority_identity(
+                "frost-observed-a"
+            ),
             "attributeCharacterContext": {
                 "schemaRevision": "gear-attribute-character-v1",
                 "raceKey": "human",

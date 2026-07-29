@@ -568,6 +568,7 @@ def build_resolved_loadout_from_registry(
     exact_registry: Any,
     template_scope: str = "",
     template_content_hash: str = "",
+    template_authority_identity: str = "",
 ) -> dict[str, Any]:
     """Match a Resolver result to one unique exact template content group.
 
@@ -581,6 +582,7 @@ def build_resolved_loadout_from_registry(
 
     registry = dict(exact_registry) if isinstance(exact_registry, Mapping) else {}
     requested_hash = _text(template_content_hash)
+    requested_authority = _text(template_authority_identity)
     groups = sorted(
         {
             (
@@ -598,6 +600,11 @@ def build_resolved_loadout_from_registry(
                 and (
                     not requested_hash
                     or _text(row.get("templateContentHash")) == requested_hash
+                )
+                and (
+                    not requested_authority
+                    or _text(row.get("templateAuthorityIdentity"))
+                    == requested_authority
                 )
             )
         }

@@ -110,6 +110,10 @@
     {
       "date": "2026-07-29",
       "decision": "Catalog v2 BrowseVariant identity includes a canonical exact shape of item level, bonus IDs and static facts in addition to item and progression. Equal observed aliases may collapse; different shapes within one progression remain distinct, and a Community import alias must be sealed into the selected shape."
+    },
+    {
+      "date": "2026-07-29",
+      "decision": "A verified Community import carries a server-generated privacy-safe templateAuthorityIdentity that binds one Exact Registry template group. Missing or ambiguous identity blocks; projected UI gear fields and client-provided content hashes cannot be used to guess exact identity."
     }
   ]
 }
