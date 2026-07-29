@@ -339,6 +339,8 @@ class GearReleaseStoreTest(unittest.TestCase):
         self.assertIn("FROM cache.websim_gear_mod_options", sql)
         self.assertEqual(snapshot["items"][0]["itemId"], "item-a")
         self.assertEqual(snapshot["options"][0]["optionKey"], "gem-a")
+        self.assertEqual(conn.cursor_instance.fetchall_calls, 0)
+        self.assertGreaterEqual(conn.cursor_instance.fetchmany_calls, 5)
         self.assertTrue(conn.committed)
 
     def test_snapshot_staging_gear_projects_only_unambiguous_verified_blizzard_media(self):

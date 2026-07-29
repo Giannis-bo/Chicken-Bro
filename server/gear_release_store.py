@@ -1378,63 +1378,40 @@ class GearReleaseStore:
 
     def snapshot_staging_gear(self) -> dict[str, list[dict[str, Any]]]:
         with self.connection() as conn:
-            with conn.cursor() as cur:
-                cur.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
-                cur.execute(
-                    """
-                    SELECT id, name, slot, item_level, payload_json, source_status, updated_at
-                    FROM cache.websim_items
-                    ORDER BY id
-                    """
+            with conn.cursor() as control:
+                control.execute(
+                    "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"
                 )
-                item_rows = cur.fetchall()
-                cur.execute(
-                    """
-                    SELECT asset.entity_id, asset.context_key, asset.icon_url,
-                           asset.source, asset.status
-                    FROM cache.websim_asset_registry asset
-                    JOIN cache.websim_items item
-                      ON item.id = asset.entity_id
-                    WHERE asset.entity_type = 'item'
-                      AND asset.source = 'blizzard'
-                      AND asset.status = 'verified'
-                      AND asset.icon_url <> ''
-                    ORDER BY asset.entity_id, asset.context_key
-                    """
-                )
-                media_rows = cur.fetchall()
-                cur.execute(
-                    """
-                    SELECT id::text, item_id, source_type, source_key, source_label, instance_id,
-                           encounter_id, difficulty_key, season_revision, payload_json, updated_at
-                    FROM cache.websim_gear_sources
-                    ORDER BY id::text
-                    """
-                )
-                source_rows = cur.fetchall()
-                cur.execute(
-                    """
-                    SELECT id::text, item_id, variant_key, slot, label, source_type, difficulty_key,
-                           item_level, simc_options_json, status, blockers_json, payload_json, updated_at
-                    FROM cache.websim_gear_variants
-                    ORDER BY id::text
-                    """
-                )
-                variant_rows = cur.fetchall()
-                cur.execute(
-                    """
-                    SELECT id::text, variant_id::text, option_key, option_type, name,
-                           applicable_slots_json, simc_options_json, status, is_visible,
-                           payload_json, updated_at
-                    FROM cache.websim_gear_mod_options
-                    ORDER BY id::text
-                    """
-                )
-                option_rows = cur.fetchall()
-        return {
-            "items": _project_staging_item_media(
-                [
-                    {
+
+            def read_projected(
+                cursor_name: str,
+                statement: str,
+                projector,
+            ) -> list[Any]:
+                try:
+                    stream_cursor = conn.cursor(name=cursor_name)
+                except TypeError:
+                    # Test doubles and explicitly compatible connection
+                    # facades may not expose named server-side cursors.
+                    stream_cursor = conn.cursor()
+                projected: list[Any] = []
+                with stream_cursor as stream:
+                    stream.execute(statement)
+                    while True:
+                        batch = stream.fetchmany(500)
+                        if not batch:
+                            break
+                        projected.extend(projector(row) for row in batch)
+                return projected
+
+            items = read_projected(
+                "wow_staging_items",
+                """
+                SELECT id, name, slot, item_level, payload_json, source_status, updated_at
+                FROM cache.websim_items
+                ORDER BY id
+                """,
+                lambda row: {
                         "itemId": _text(row[0]),
                         "name": _text(row[1]),
                         "slot": _text(row[2]),
@@ -1444,13 +1421,37 @@ class GearReleaseStore:
                         ),
                         "sourceStatus": _text(row[5]),
                         "updatedAt": _text(row[6]),
-                    }
-                    for row in item_rows
-                ],
+                    },
+            )
+            media_rows = read_projected(
+                "wow_staging_item_media",
+                """
+                SELECT asset.entity_id, asset.context_key, asset.icon_url,
+                       asset.source, asset.status
+                FROM cache.websim_asset_registry asset
+                JOIN cache.websim_items item
+                  ON item.id = asset.entity_id
+                WHERE asset.entity_type = 'item'
+                  AND asset.source = 'blizzard'
+                  AND asset.status = 'verified'
+                  AND asset.icon_url <> ''
+                ORDER BY asset.entity_id, asset.context_key
+                """,
+                lambda row: tuple(row),
+            )
+            items = _project_staging_item_media(
+                items,
                 media_rows,
-            ),
-            "sources": [
-                {
+            )
+            sources = read_projected(
+                "wow_staging_gear_sources",
+                """
+                SELECT id::text, item_id, source_type, source_key, source_label, instance_id,
+                       encounter_id, difficulty_key, season_revision, payload_json, updated_at
+                FROM cache.websim_gear_sources
+                ORDER BY id::text
+                """,
+                lambda row: {
                     "sourceId": _text(row[0]),
                     "itemId": _text(row[1]),
                     "sourceType": _text(row[2]),
@@ -1462,11 +1463,17 @@ class GearReleaseStore:
                     "seasonRevision": _text(row[8]),
                     "payload": _canonical(row[9] if isinstance(row[9], dict) else {}),
                     "updatedAt": _text(row[10]),
-                }
-                for row in source_rows
-            ],
-            "variants": [
-                {
+                },
+            )
+            variants = read_projected(
+                "wow_staging_gear_variants",
+                """
+                SELECT id::text, item_id, variant_key, slot, label, source_type, difficulty_key,
+                       item_level, simc_options_json, status, blockers_json, payload_json, updated_at
+                FROM cache.websim_gear_variants
+                ORDER BY id::text
+                """,
+                lambda row: {
                     "variantId": _text(row[0]),
                     "itemId": _text(row[1]),
                     "variantKey": _text(row[2]),
@@ -1480,11 +1487,18 @@ class GearReleaseStore:
                     "blockers": _canonical(row[10] if isinstance(row[10], list) else []),
                     "payload": _canonical(row[11] if isinstance(row[11], dict) else {}),
                     "updatedAt": _text(row[12]),
-                }
-                for row in variant_rows
-            ],
-            "options": [
-                {
+                },
+            )
+            options = read_projected(
+                "wow_staging_gear_options",
+                """
+                SELECT id::text, variant_id::text, option_key, option_type, name,
+                       applicable_slots_json, simc_options_json, status, is_visible,
+                       payload_json, updated_at
+                FROM cache.websim_gear_mod_options
+                ORDER BY id::text
+                """,
+                lambda row: {
                     "optionId": _text(row[0]),
                     "variantId": _text(row[1]),
                     "optionKey": _text(row[2]),
@@ -1496,9 +1510,13 @@ class GearReleaseStore:
                     "isVisible": row[8] is True,
                     "payload": _canonical(row[9] if isinstance(row[9], dict) else {}),
                     "updatedAt": _text(row[10]),
-                }
-                for row in option_rows
-            ],
+                },
+            )
+        return {
+            "items": items,
+            "sources": sources,
+            "variants": variants,
+            "options": options,
         }
 
     def snapshot_gear_release(
