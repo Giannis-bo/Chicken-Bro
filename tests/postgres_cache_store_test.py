@@ -1,4 +1,5 @@
 import copy
+from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import json
 import os
@@ -2719,6 +2720,61 @@ class PostgresCacheStoreTest(unittest.TestCase):
 
         self.assertEqual(payload["communityTemplates"], [])
         self.assertEqual(payload["baselineTemplates"], [])
+
+    def test_gear_payload_cache_enforces_entry_and_resident_byte_limits(self):
+        from server.postgres_cache_store import SerializedPayloadCache
+
+        cache = SerializedPayloadCache(max_entries=2, max_bytes=80)
+
+        self.assertTrue(cache.put("a", {"value": "a" * 10}))
+        self.assertTrue(cache.put("b", {"value": "b" * 10}))
+        self.assertEqual(cache.get("a"), {"value": "a" * 10})
+        self.assertTrue(cache.put("c", {"value": "c" * 10}))
+
+        self.assertIsNone(cache.get("b"))
+        self.assertLessEqual(cache.entry_count, 2)
+        self.assertLessEqual(cache.byte_size, 80)
+        self.assertFalse(cache.put("too-large", {"value": "x" * 100}))
+        self.assertIsNone(cache.get("too-large"))
+
+    def test_gear_payload_cache_returns_mutation_isolated_values(self):
+        from server.postgres_cache_store import SerializedPayloadCache
+
+        cache = SerializedPayloadCache(max_entries=2, max_bytes=1000)
+        original = {"nested": {"b": 2, "a": 1}}
+
+        self.assertTrue(cache.put("detached", original))
+        original["nested"]["a"] = 999
+        first = cache.get("detached")
+        first["nested"]["b"] = 999
+
+        self.assertEqual(cache.get("detached"), {"nested": {"a": 1, "b": 2}})
+
+    def test_gear_payload_cache_is_thread_safe_and_stays_bounded(self):
+        from server.postgres_cache_store import SerializedPayloadCache
+
+        cache = SerializedPayloadCache(max_entries=16, max_bytes=4096)
+
+        def exercise(worker_id):
+            for index in range(250):
+                key = f"{worker_id}:{index % 24}"
+                cache.put(
+                    key,
+                    {
+                        "worker": worker_id,
+                        "index": index,
+                        "value": "x" * 20,
+                    },
+                )
+                value = cache.get(key)
+                if value is not None:
+                    self.assertEqual(value["worker"], worker_id)
+
+        with ThreadPoolExecutor(max_workers=16) as executor:
+            list(executor.map(exercise, range(16)))
+
+        self.assertLessEqual(cache.entry_count, cache.max_entries)
+        self.assertLessEqual(cache.byte_size, cache.max_bytes)
 
     def test_gear_read_model_caches_repeated_payload_when_fingerprint_unchanged(self):
         import server.postgres_cache_store as postgres_cache_store

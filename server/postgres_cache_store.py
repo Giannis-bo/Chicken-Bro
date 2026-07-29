@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from collections import OrderedDict
 from contextlib import contextmanager
 import copy
 import hashlib
@@ -8,6 +9,7 @@ import os
 import re
 import subprocess
 import tempfile
+import threading
 import time
 import uuid
 from datetime import datetime, timezone
@@ -366,8 +368,90 @@ def utc_now():
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
-PG_GEAR_PAYLOAD_CACHE = {}
+class SerializedPayloadCache:
+    """Thread-safe LRU that retains only bounded serialized payload bytes."""
+
+    def __init__(self, max_entries, max_bytes):
+        if isinstance(max_entries, bool) or not isinstance(max_entries, int) or max_entries <= 0:
+            raise ValueError("max_entries must be a positive integer")
+        if isinstance(max_bytes, bool) or not isinstance(max_bytes, int) or max_bytes <= 0:
+            raise ValueError("max_bytes must be a positive integer")
+        self.max_entries = max_entries
+        self.max_bytes = max_bytes
+        self._entries = OrderedDict()
+        self._byte_size = 0
+        self._lock = threading.RLock()
+
+    @property
+    def entry_count(self):
+        with self._lock:
+            return len(self._entries)
+
+    @property
+    def byte_size(self):
+        with self._lock:
+            return self._byte_size
+
+    def clear(self):
+        with self._lock:
+            self._entries.clear()
+            self._byte_size = 0
+
+    def get(self, key):
+        if not key:
+            return None
+        with self._lock:
+            encoded = self._entries.pop(key, None)
+            if encoded is None:
+                return None
+            self._entries[key] = encoded
+        return json.loads(encoded)
+
+    def put(self, key, value):
+        if not key or not isinstance(value, dict):
+            return False
+        encoded = self._encode_with_limit(value)
+        if encoded is None:
+            return False
+        with self._lock:
+            previous = self._entries.pop(key, None)
+            if previous is not None:
+                self._byte_size -= len(previous)
+            self._entries[key] = encoded
+            self._byte_size += len(encoded)
+            while (
+                len(self._entries) > self.max_entries
+                or self._byte_size > self.max_bytes
+            ):
+                _old_key, old_encoded = self._entries.popitem(last=False)
+                self._byte_size -= len(old_encoded)
+            return key in self._entries
+
+    def _encode_with_limit(self, value):
+        buffer = bytearray()
+        encoder = json.JSONEncoder(
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            default=str,
+        )
+        try:
+            for chunk in encoder.iterencode(value):
+                encoded_chunk = chunk.encode("utf-8")
+                if len(buffer) + len(encoded_chunk) > self.max_bytes:
+                    return None
+                buffer.extend(encoded_chunk)
+        except (TypeError, ValueError):
+            return None
+        return bytes(buffer)
+
+
 PG_GEAR_PAYLOAD_CACHE_MAX = 80
+PG_GEAR_PAYLOAD_CACHE_MAX_BYTES = 8 * 1024 * 1024
+PG_GEAR_PAYLOAD_CACHE = SerializedPayloadCache(
+    max_entries=PG_GEAR_PAYLOAD_CACHE_MAX,
+    max_bytes=PG_GEAR_PAYLOAD_CACHE_MAX_BYTES,
+)
 PG_COMMUNITY_TEMPLATE_IMPORT_CACHE = {}
 PG_COMMUNITY_TEMPLATE_IMPORT_CACHE_MAX = 64
 RECOMMENDED_BIS_SIMC_EVIDENCE_SYNC_KEY = "recommended_bis_v1_simc_evidence"
@@ -618,21 +702,11 @@ def apply_recommended_bis_simc_evidence_overlay(class_key, spec_key, evidence, s
 
 
 def _pg_gear_payload_cache_get(fingerprint):
-    if not fingerprint or fingerprint not in PG_GEAR_PAYLOAD_CACHE:
-        return None
-    payload = PG_GEAR_PAYLOAD_CACHE.pop(fingerprint)
-    PG_GEAR_PAYLOAD_CACHE[fingerprint] = payload
-    return copy.deepcopy(payload)
+    return PG_GEAR_PAYLOAD_CACHE.get(fingerprint)
 
 
 def _pg_gear_payload_cache_put(fingerprint, payload):
-    if not fingerprint or not isinstance(payload, dict):
-        return
-    if fingerprint in PG_GEAR_PAYLOAD_CACHE:
-        PG_GEAR_PAYLOAD_CACHE.pop(fingerprint)
-    while len(PG_GEAR_PAYLOAD_CACHE) >= PG_GEAR_PAYLOAD_CACHE_MAX:
-        PG_GEAR_PAYLOAD_CACHE.pop(next(iter(PG_GEAR_PAYLOAD_CACHE)))
-    PG_GEAR_PAYLOAD_CACHE[fingerprint] = copy.deepcopy(payload)
+    PG_GEAR_PAYLOAD_CACHE.put(fingerprint, payload)
 
 
 def _pg_community_template_import_cache_get(fingerprint):
