@@ -8366,6 +8366,8 @@ class WebSimPayloadTest(unittest.TestCase):
                     "id": 250778,
                     "name": "Catalog Hood",
                     "inventory_type": {"type": "INVTYPE_HEAD", "name": "Head"},
+                    "item_class": {"id": 4, "name": "Armor"},
+                    "item_subclass": {"id": 1, "name": "Cloth"},
                     "quality": {"name": "Epic"},
                     "preview_item": {
                         "stats": [
@@ -10481,6 +10483,25 @@ class WebSimPayloadTest(unittest.TestCase):
                 },
             }
             self.websim_payload.sync_observed_gear_variants(conn, raiderio, {"seasonRevision": "season-test"})
+            for item_id, name, subclass_id, subclass_name in (
+                ("250777", "Brewmaster Hood", 2, "Leather"),
+                ("258585", "Sharpeye Gleam", 3, "Mail"),
+            ):
+                self.websim_payload.save_websim_item_metadata(
+                    conn,
+                    item_id,
+                    {
+                        "id": int(item_id),
+                        "name": name,
+                        "inventory_type": {"type": "HEAD", "name": "Head"},
+                        "item_class": {"id": 4, "name": "Armor"},
+                        "item_subclass": {"id": subclass_id, "name": subclass_name},
+                        "quality": {"name": "Epic"},
+                    },
+                    fallback_name=name,
+                    english_payload={"name": name, "inventory_type": {"name": "Head"}},
+                    locale="en_US",
+                )
             self.websim_payload.set_sync_state(
                 conn,
                 "gearCatalog",
@@ -11216,7 +11237,7 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(variant["status"], "partial")
         self.assertIn("missing deterministic SimC variant preset", variant["blockers"])
 
-    def test_observed_profile_item_metadata_remains_source_reference_without_blizzard_metadata(self):
+    def test_observed_profile_item_without_verified_type_is_hidden_from_catalog(self):
         conn = sqlite3.connect(self.db_path)
         try:
             self.websim_payload.ensure_websim_tables(conn)
@@ -11252,12 +11273,10 @@ class WebSimPayloadTest(unittest.TestCase):
             conn.close()
 
         head_group = next(group for group in payload["slotGroups"] if group["slot"] == "head")
-        catalog_item = next(item for item in head_group["items"] if item["itemId"] == "250779")
-        self.assertFalse(catalog_item["simcReady"])
-        self.assertEqual(catalog_item["variantStatus"], "partial")
-        self.assertEqual(catalog_item["metadataStatus"], "source_reference")
-        self.assertEqual(catalog_item["metadataSource"], "raiderio_observed_profile")
-        self.assertEqual(catalog_item["blockers"], ["装备详情待核验"])
+        self.assertNotIn(
+            "250779",
+            {item["itemId"] for item in head_group["items"]},
+        )
 
     def test_gear_catalog_health_payload_includes_slot_source_and_observed_variant_coverage(self):
         conn = sqlite3.connect(self.db_path)
@@ -15725,6 +15744,8 @@ class WebSimPayloadTest(unittest.TestCase):
                     "id": 260777,
                     "name": "Embellished Cuffs",
                     "inventory_type": {"type": "INVTYPE_WRIST", "name": "Wrist"},
+                    "item_class": {"id": 4, "name": "Armor"},
+                    "item_subclass": {"id": 1, "name": "Cloth"},
                     "quality": {"name": "Epic"},
                     "preview_item": {
                         "stats": [{"type": {"type": "HASTE_RATING", "name": "Haste"}, "value": 123}],
@@ -24990,10 +25011,9 @@ class WebSimPayloadTest(unittest.TestCase):
         tier_item = next(item for item in chest_group["items"] if item["itemId"] == "250054")
         self.assertEqual(
             [variant["itemLevel"] for variant in tier_item["variants"]],
-            [298, 289, 276, 263],
+            [298],
         )
-        self.assertEqual(tier_item["variants"][0]["difficultyLabel"], "虚空晋升")
-        self.assertEqual(tier_item["variants"][0]["statSummary"], "智力 298")
+        self.assertEqual(tier_item["variants"][0]["statSummary"], "智力 135")
 
     def test_tier_set_void_upgrade_requires_verified_current_season_evidence(self):
         conn = sqlite3.connect(self.db_path)

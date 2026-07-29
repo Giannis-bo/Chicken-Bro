@@ -17361,7 +17361,25 @@ def catalog_context_compatible(row, class_key, spec_key, slot=""):
     normalized_classes = {slugify(item, "") for item in class_keys if slugify(item, "")}
     normalized_specs = {slugify(item, "") for item in spec_keys if slugify(item, "")}
     if source_type == "tier_set" and not normalized_classes:
-        return False
+        observed_class_keys = []
+        observed_spec_keys = []
+        for ref in payload.get("observedProfileRefs") or []:
+            if not isinstance(ref, dict):
+                continue
+            observed_class_keys.append(ref.get("classKey") or ref.get("class"))
+            observed_spec_keys.append(ref.get("specKey") or ref.get("spec"))
+        normalized_classes = {
+            slugify(item, "")
+            for item in observed_class_keys
+            if slugify(item, "")
+        }
+        normalized_specs = {
+            slugify(item, "")
+            for item in observed_spec_keys
+            if slugify(item, "")
+        }
+        if not normalized_classes:
+            return False
     if normalized_classes and class_key not in normalized_classes:
         return False
     if normalized_specs and spec_key not in normalized_specs:
@@ -17558,7 +17576,9 @@ def catalog_compatibility(item, sources, variants, class_key, spec_key):
         if catalog_variant_compatible(variant, class_key, spec_key, item_slot)
     ]
     scoped_variants = [variant for variant in usable_variants if catalog_variant_has_context(variant)]
-    if armor_status == "incompatible" or (sources and not compatible_sources):
+    if armor_status == "incompatible":
+        status = "incompatible"
+    elif sources and not compatible_sources and not compatible_variants:
         status = "incompatible"
     elif scoped_variants and not compatible_variants:
         status = "incompatible"
@@ -21890,6 +21910,45 @@ def gear_compatibility_from_payload(payload, class_key, simc_slot, spec_key=""):
     return "compatible" if actual_armor.lower() == expected_armor.lower() else "incompatible"
 
 
+def gear_compatibility_from_projected_type(
+    armor_type,
+    weapon_type,
+    class_key,
+    simc_slot,
+    spec_key="",
+):
+    """Apply the same rules when Catalog projects verified type facts."""
+
+    slot = normalize_slot(simc_slot)
+    normalized_armor = str(armor_type or "").strip()
+    normalized_weapon = str(weapon_type or "").strip()
+    if slot in WEAPON_SLOTS and normalized_weapon:
+        return (
+            "compatible"
+            if weapon_type_allowed_for_slot(
+                class_key,
+                spec_key,
+                slot,
+                normalized_weapon,
+            )
+            else "incompatible"
+        )
+    if slot not in ARMOR_SLOTS:
+        return "unknown"
+    expected_armor = CLASS_ARMOR_TYPES.get(class_key)
+    if (
+        not expected_armor
+        or not normalized_armor
+        or normalized_armor in {"Miscellaneous", "Cosmetic", "Shield"}
+    ):
+        return "unknown"
+    return (
+        "compatible"
+        if normalized_armor.lower() == expected_armor.lower()
+        else "incompatible"
+    )
+
+
 def payload_playable_class_keys(payload):
     result = []
     for parent in (payload_preview_item(payload), payload if isinstance(payload, dict) else {}):
@@ -22090,6 +22149,14 @@ def normalize_gear_item(value, class_key="", spec_key="", default_source_type=""
         or item.get("modCapabilities", {}).get("hasSocket")
     )
     payload_compatibility = gear_compatibility_from_payload(payload, item["classKey"], slot, item["specKey"])
+    if payload_compatibility == "unknown":
+        payload_compatibility = gear_compatibility_from_projected_type(
+            item.get("armorType"),
+            item.get("weaponType"),
+            item["classKey"],
+            slot,
+            item["specKey"],
+        )
     existing_compatibility = str(value.get("compatibility") or "")
     item["compatibility"] = (
         payload_compatibility

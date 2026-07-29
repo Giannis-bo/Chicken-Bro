@@ -888,6 +888,7 @@ class PgGearReadModelSelectorsTest(unittest.TestCase):
                 298,
                 json.dumps(
                     {
+                        "armorType": "Plate",
                         "catalogEvidenceStatus": "verified",
                         "catalogEvidenceSource": "manifest_catalog_v2",
                     }
@@ -959,7 +960,7 @@ class PgGearReadModelSelectorsTest(unittest.TestCase):
         self.assertEqual(len(catalog_items), 1)
         item = catalog_items[0]
         self.assertEqual(item["source"], "团队副本 · 史诗")
-        self.assertNotIn("armorType", item)
+        self.assertEqual(item["armorType"], "Plate")
         self.assertEqual(item["statDisplayStatus"], "verified_variant")
         self.assertEqual(item["itemStats"][0]["value"], 135)
         self.assertEqual(item.get("primaryStatKey"), "strength")
