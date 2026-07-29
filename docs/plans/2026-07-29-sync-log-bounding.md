@@ -2,11 +2,13 @@
 
 **Harness slice:** Strict scheduled-job/runtime safety correction.
 
+**Status:** `已完成`
+
 **Goal:** Stop `wow-websim-sync` and `wow-stat-weights-sync` from writing full
 nested sync payloads into journald/syslog while preserving the complete state in
 PostgreSQL and retaining enough bounded summary/progress evidence for operators.
 
-## Current evidence
+## Initial evidence
 
 - `/var/log` is 4.3 GiB; current and previous syslog files account for about
   2.8 GiB and persistent journal for about 816 MiB.
@@ -34,15 +36,29 @@ PostgreSQL and retaining enough bounded summary/progress evidence for operators.
 2. [x] Add one shared pure summary/sanitization owner.
 3. [x] Route both scheduled scripts through it.
 4. [x] Run targeted sync/deploy tests and local CR.
-5. [ ] Build an immutable candidate or equivalent source-parity smoke without
+5. [x] Build an immutable candidate or equivalent source-parity smoke without
    launching the expensive scheduled jobs.
-6. [ ] Deploy the reviewed scripts, then rotate/vacuum old logs and verify growth
+6. [x] Deploy the reviewed scripts, then rotate/vacuum old logs and verify growth
    remains bounded before reconsidering the cloud disk gate.
 
 Observed local verification: 35 targeted sync, PostgreSQL-only, deploy, and
 bounded-log tests pass. Existing SQLite `ResourceWarning` and module-run
 `RuntimeWarning` diagnostics remain visible and are not represented as clean
 resource evidence.
+
+Observed closure evidence:
+
+- implementation commit `69a8d8a7` was merged through main commit `b6b2bc78`;
+- the three production files match immutable SHA-256 values recorded in the
+  release evidence;
+- a production journald transient smoke emitted one 197-byte `partial` JSON
+  line, omitted the sentinel/raw payload, peaked at 328 KiB, and did not launch
+  either expensive sync;
+- production `/health` returned 200, both scheduled services stayed inactive,
+  and both existing timers stayed active and unchanged;
+- after exact candidate/worktree/SimC retention cleanup, rsyslog rotation,
+  bounded archive compression, and journald vacuum, root usage fell from 92%
+  to 79%; historical PostgreSQL and SQLite backups were retained.
 
 ## Stop lines
 
