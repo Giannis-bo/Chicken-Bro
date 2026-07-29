@@ -2285,7 +2285,10 @@ class GearReleaseStoreTest(unittest.TestCase):
         self.assertEqual(context["dependencyVector"]["gearCatalogRevision"], gear["releaseId"])
 
     def test_manifest_v2_authority_maps_browse_identity_to_bound_source_variant(self):
-        from server.gear_release_store import GearReleaseStore
+        from server.gear_release_store import (
+            GearReleaseIntegrityError,
+            GearReleaseStore,
+        )
 
         gear = self.gear_release()
         catalog_revision = "gear-catalog:sha256:" + ("a" * 64)
@@ -2317,7 +2320,14 @@ class GearReleaseStoreTest(unittest.TestCase):
                     {
                         "browseVariantKey": browse_key,
                         "itemId": "item-a",
-                        "sourceVariantKeys": ["variant-a"],
+                        "sourceVariantKeys": [
+                            "observed-template-a",
+                            "variant-a",
+                        ],
+                        "canonicalSourceVariantKey": "variant-a",
+                        "itemLevel": 276,
+                        "bonusIds": ["13334"],
+                        "staticFacts": {"intellect": 100},
                     }
                 ],
             },
@@ -2395,6 +2405,9 @@ class GearReleaseStoreTest(unittest.TestCase):
             intent,
             runtime,
             binding,
+            source_variant_overrides={
+                "head": "observed-template-a",
+            },
         )
 
         self.assertEqual(
@@ -2407,9 +2420,29 @@ class GearReleaseStoreTest(unittest.TestCase):
             "variant-a",
         )
         self.assertEqual(
+            context["variantsByKey"][browse_key]["resolvedStats"],
+            {"intellect": 100},
+        )
+        self.assertEqual(
+            context["variantsByKey"][browse_key]["simcOptions"],
+            {"bonus_id": "13334", "ilevel": "276"},
+        )
+        self.assertEqual(
             context["itemsById"]["item-a"]["variantKeys"],
             [browse_key],
         )
+        with self.assertRaisesRegex(
+            GearReleaseIntegrityError,
+            "outside its Manifest Catalog shape",
+        ):
+            store.load_active_authority_context(
+                intent,
+                runtime,
+                binding,
+                source_variant_overrides={
+                    "head": "invented-source",
+                },
+            )
 
     def test_manifest_catalog_snapshot_projects_canonical_browse_membership(self):
         from server.gear_release_store import _manifest_catalog_snapshot

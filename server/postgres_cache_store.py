@@ -799,6 +799,7 @@ def _rebind_import_source_to_manifest_catalog(source, binding):
         if isinstance(result.get("importedGearBySlot"), dict)
         else {}
     )
+    authority_variant_keys_by_slot = {}
     for slot, selection in slots.items():
         if not isinstance(selection, dict):
             continue
@@ -834,6 +835,8 @@ def _rebind_import_source_to_manifest_catalog(source, binding):
                     "mapping for the Community selection"
                 )
             browse_key = next(iter(candidates))
+        elif variant_key != browse_key:
+            authority_variant_keys_by_slot[slot] = variant_key
         selection["variantKey"] = browse_key
         imported = imported_by_slot.get(slot)
         if isinstance(imported, dict):
@@ -847,6 +850,10 @@ def _rebind_import_source_to_manifest_catalog(source, binding):
     result["selectionIntent"] = intent
     if imported_by_slot:
         result["importedGearBySlot"] = imported_by_slot
+    if authority_variant_keys_by_slot:
+        result["_authorityVariantKeysBySlot"] = (
+            authority_variant_keys_by_slot
+        )
     return result
 
 
@@ -1936,13 +1943,26 @@ class PostgresCacheStore:
                     "cacheIdentity": cache_identity,
                 }
             try:
-                authority_context = (
-                    self._gear_release_store.load_active_authority_context(
-                        selection_intent,
-                        runtime_authority,
-                        binding,
-                    )
+                source_overrides = source.get(
+                    "_authorityVariantKeysBySlot"
                 )
+                if isinstance(source_overrides, dict) and source_overrides:
+                    authority_context = (
+                        self._gear_release_store.load_active_authority_context(
+                            selection_intent,
+                            runtime_authority,
+                            binding,
+                            source_variant_overrides=source_overrides,
+                        )
+                    )
+                else:
+                    authority_context = (
+                        self._gear_release_store.load_active_authority_context(
+                            selection_intent,
+                            runtime_authority,
+                            binding,
+                        )
+                    )
             except Exception as error:
                 raise CommunityTemplateImportError(
                     "template_import_unavailable",
@@ -2053,11 +2073,26 @@ class PostgresCacheStore:
                 "cacheIdentity": cache_identity,
             }
         try:
-            authority_context = self._gear_release_store.load_active_authority_context(
-                selection_intent,
-                runtime_authority,
-                binding,
+            source_overrides = source.get(
+                "_authorityVariantKeysBySlot"
             )
+            if isinstance(source_overrides, dict) and source_overrides:
+                authority_context = (
+                    self._gear_release_store.load_active_authority_context(
+                        selection_intent,
+                        runtime_authority,
+                        binding,
+                        source_variant_overrides=source_overrides,
+                    )
+                )
+            else:
+                authority_context = (
+                    self._gear_release_store.load_active_authority_context(
+                        selection_intent,
+                        runtime_authority,
+                        binding,
+                    )
+                )
         except Exception as error:
             raise CommunityTemplateImportError(
                 "template_import_unavailable",

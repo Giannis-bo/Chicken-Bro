@@ -545,7 +545,17 @@ def _manifest_catalog_variant_aliases(
             }
         )
         if browse_key and item_id and source_keys:
-            aliases[browse_key] = (item_id, source_keys[0])
+            canonical_source = _text(
+                variant.get("canonicalSourceVariantKey")
+            )
+            aliases[browse_key] = (
+                item_id,
+                (
+                    canonical_source
+                    if canonical_source in source_keys
+                    else source_keys[0]
+                ),
+            )
     return aliases
 
 
@@ -2100,6 +2110,8 @@ class GearReleaseStore:
         selection_intent: dict[str, Any],
         runtime_authority: dict[str, Any],
         binding: dict[str, Any],
+        *,
+        source_variant_overrides: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         if not _readable_release_binding(binding):
             raise GearReleaseIntegrityError("formal active or candidate preview Manifest binding is required")
@@ -2128,7 +2140,31 @@ class GearReleaseStore:
             == "active-season-manifest-v2"
             else {}
         )
-        selected_aliases: dict[str, tuple[str, str]] = {}
+        catalog_variants = {
+            _text(row.get("browseVariantKey")): row
+            for row in (
+                (
+                    binding.get("gearCatalog")
+                    if isinstance(
+                        binding.get("gearCatalog"),
+                        dict,
+                    )
+                    else {}
+                ).get("browseVariants")
+                or []
+            )
+            if isinstance(row, dict)
+            and _text(row.get("browseVariantKey"))
+        }
+        overrides = (
+            source_variant_overrides
+            if isinstance(source_variant_overrides, dict)
+            else {}
+        )
+        selected_aliases: dict[
+            str,
+            tuple[str, str, dict[str, Any]],
+        ] = {}
         slots = (
             authority_read_intent.get("slots")
             if isinstance(
@@ -2149,8 +2185,29 @@ class GearReleaseStore:
                 raise GearReleaseIntegrityError(
                     "Manifest Catalog selection item does not match BrowseVariant"
                 )
+            catalog_variant = catalog_variants.get(browse_key)
+            if not isinstance(catalog_variant, dict):
+                raise GearReleaseIntegrityError(
+                    "Manifest Catalog BrowseVariant is unavailable"
+                )
+            override = _text(overrides.get(slot))
+            if override and override not in {
+                _text(value)
+                for value in catalog_variant.get(
+                    "sourceVariantKeys"
+                )
+                or []
+                if _text(value)
+            }:
+                raise GearReleaseIntegrityError(
+                    "Community source variant is outside its Manifest Catalog shape"
+                )
             selection["variantKey"] = source_key
-            selected_aliases[browse_key] = alias
+            selected_aliases[browse_key] = (
+                item_id,
+                source_key,
+                catalog_variant,
+            )
         context = self.load_candidate_authority_context(
             authority_read_intent,
             runtime_authority,
@@ -2168,13 +2225,46 @@ class GearReleaseStore:
                 if isinstance(context.get("itemsById"), dict)
                 else {}
             )
-            for browse_key, (item_id, source_key) in selected_aliases.items():
+            for (
+                browse_key,
+                (item_id, source_key, catalog_variant),
+            ) in selected_aliases.items():
                 source_variant = variants_by_key.get(source_key)
                 if not isinstance(source_variant, dict):
                     raise GearReleaseIntegrityError(
                         "Manifest Catalog source variant is unavailable"
                     )
                 canonical_variant = _canonical(source_variant)
+                item_level = _int(
+                    catalog_variant.get("itemLevel")
+                )
+                bonus_ids = [
+                    _text(value)
+                    for value in catalog_variant.get("bonusIds") or []
+                    if _text(value)
+                ]
+                static_facts = (
+                    _canonical(catalog_variant.get("staticFacts"))
+                    if isinstance(
+                        catalog_variant.get("staticFacts"),
+                        dict,
+                    )
+                    else {}
+                )
+                if item_level <= 0 or not static_facts:
+                    raise GearReleaseIntegrityError(
+                        "Manifest Catalog exact shape is incomplete"
+                    )
+                canonical_variant["itemLevel"] = item_level
+                canonical_variant["resolvedStats"] = static_facts
+                canonical_variant["simcOptions"] = {
+                    "ilevel": str(item_level),
+                    **(
+                        {"bonus_id": "/".join(bonus_ids)}
+                        if bonus_ids
+                        else {}
+                    ),
+                }
                 canonical_variant["sourceVariantKey"] = source_key
                 canonical_variant["variantKey"] = browse_key
                 canonical_variant["browseVariantKey"] = browse_key

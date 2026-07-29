@@ -10874,6 +10874,10 @@ class PostgresCacheStoreTest(unittest.TestCase):
             },
         )
         self.assertEqual(
+            rebound["_authorityVariantKeysBySlot"],
+            {"head": "legacy-variant-a"},
+        )
+        self.assertEqual(
             release_context["gearCatalogRevision"],
             catalog_revision,
         )
@@ -10946,6 +10950,7 @@ class PostgresCacheStoreTest(unittest.TestCase):
             source["importedGearBySlot"]["head"]["variantKey"],
             "observed-profile-variant",
         )
+        self.assertNotIn("_authorityVariantKeysBySlot", rebound)
 
     def test_manifest_v2_item_level_fallback_fails_closed_when_ambiguous_or_missing(self):
         from server.postgres_cache_store import (

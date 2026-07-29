@@ -106,6 +106,10 @@
     {
       "date": "2026-07-29",
       "decision": "A successful Phase 4 response may not use latest exact, mutable staging or an unbound compatibility reader."
+    },
+    {
+      "date": "2026-07-29",
+      "decision": "Catalog v2 BrowseVariant identity includes a canonical exact shape of item level, bonus IDs and static facts in addition to item and progression. Equal observed aliases may collapse; different shapes within one progression remain distinct, and a Community import alias must be sealed into the selected shape."
     }
   ]
 }
