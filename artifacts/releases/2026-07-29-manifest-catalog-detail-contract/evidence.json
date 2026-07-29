@@ -2,152 +2,175 @@
   "schemaVersion": 2,
   "slug": "manifest-catalog-detail-contract",
   "requirementSlug": "manifest-catalog-detail-contract",
-  "status": "runtime_verified",
-  "highestEvidenceLevel": "runtime_verified",
+  "status": "implementation_allowed",
+  "highestEvidenceLevel": "implementation_allowed",
   "branch": "codex/manifest-catalog-detail-contract",
-  "commit": "140787884e6301c68f5dd6d9ae09adc50d174b0a",
+  "commit": "5bf22997a3a721e4af9bfb05b7a32344221d004b",
   "identities": {
     "runtime": {
-      "status": "bound",
-      "kind": "git_commit",
-      "value": "140787884e6301c68f5dd6d9ae09adc50d174b0a"
+      "status": "pending",
+      "reason": "The da051891 candidate and WeChat bundle are superseded by later runtime changes. The current working tree is not yet sealed to an immutable candidate identity."
     },
     "verification": {
-      "status": "bound_at_check",
-      "kind": "git_ref",
-      "value": "HEAD",
-      "reason": "The expanded Strict scope invalidates prior local verification. The complete task packet is checked only after its implementation is committed and the worktree is clean."
+      "status": "pending",
+      "reason": "The current working tree has scoped local regression evidence, but no clean immutable HEAD, current candidate, current WeChat build, or final clean-Harness verification."
     },
     "closure": {
       "status": "pending",
-      "reason": "Candidate smoke, explicit WeChat manual acceptance, merge, and archive closure have not occurred."
+      "reason": "The historical Catalog/Exact candidate and DevTools preview are superseded. A resource-safe current candidate, all six explicit WeChat acceptance items, final clean-Harness verification, merge, and archive closure remain pending."
     }
   },
   "manualAcceptance": {
     "required": true,
     "status": "pending",
     "items": [
-      {
-        "id": "gear_detail_verified_manifest_facts",
-        "status": "pending"
-      },
-      {
-        "id": "gear_detail_safe_source_and_diagnostics",
-        "status": "pending"
-      },
-      {
-        "id": "gear_detail_named_progression_without_duplicate_observed_rows",
-        "status": "pending"
-      },
-      {
-        "id": "gear_detail_selected_variant_updates_primary_and_secondary_stats",
-        "status": "pending"
-      }
+      {"id": "gear_detail_verified_manifest_facts", "status": "pending"},
+      {"id": "gear_detail_safe_source_and_diagnostics", "status": "pending"},
+      {"id": "gear_detail_named_progression_without_duplicate_observed_rows", "status": "pending"},
+      {"id": "gear_detail_selected_variant_updates_primary_and_secondary_stats", "status": "pending"},
+      {"id": "gear_catalog_mage_browse_eligibility", "status": "pending"},
+      {"id": "gear_catalog_exact_instance_is_not_browse_choice", "status": "pending"}
     ],
-    "rollup": {
-      "total": 4,
-      "accepted": 0,
-      "notRunUserWaived": 0,
-      "pending": 4
-    }
+    "rollup": {"total": 6, "accepted": 0, "notRunUserWaived": 0, "pending": 6}
   },
   "scope": [
-    "Manifest Catalog v2 verified BrowseVariant static-fact and progression projection into the active public gear detail payload",
-    "Specialization-correct primary-stat projection and selected compact-variant display facts",
-    "Safe public collapse of equivalent tertiary-only observed shapes and fail-closed logical-progression conflicts",
-    "Readable verified source labels or safe source-type/difficulty fallbacks",
-    "Catalog evidence preservation through the PG read model and user-safe public candidate diagnostics",
-    "Strict task requirement, local regression, final candidate API smoke, and WeChat preview build; no production deployment or manual acceptance"
+    "Catalog v3 Browse membership and one-progression identity",
+    "ExactItemInstance exclusion from public Browse membership",
+    "Fail-closed non-portable equipment type and tier-class eligibility",
+    "Dormant Catalog / Exact Registry shadow and immutable public candidate",
+    "Existing gear detail selected-variant, source, primary-stat, and diagnostic safety contracts"
   ],
   "verification": [
     {
-      "command": "python3 -m unittest tests.gear_release_store_test tests.pg_gear_read_model_selectors_test tests.websim_payload_test",
+      "command": "Read-only Mage Arcane/Fire/Frost candidate API audit for 268283 and 250033",
+      "status": "blocked",
+      "result": "All three specs expose both head items with armorType null and compatibility status compatible. 250033 exposes a selectable Myth 2/6 alongside multiple Myth 6/6 source shapes. This is failure evidence for the superseded candidate, not runtime verification."
+    },
+    {
+      "command": "python3 -m unittest tests.gear_catalog_revision_test tests.gear_catalog_revision_store_test tests.gear_track_authority_test tests.pg_gear_read_model_selectors_test tests.websim_payload_test",
       "status": "pass",
-      "result": "535 tests passed; three pre-existing SQLite ResourceWarning notices were recorded."
+      "result": "Historical only: 513 affected Python contracts passed at da051891, including new official BNet subclass projection regressions. Pre-existing SQLite ResourceWarning diagnostics were emitted but did not fail the suite. Runtime drift means this result cannot verify the current candidate."
+    },
+    {
+      "command": "Dormant candidate: scripts/gear-catalog-revision.py --output artifacts/candidate-reports/catalog-v4-da051891.json",
+      "status": "pass",
+      "result": "Catalog gear-catalog:sha256:4c85363ba9bbbbe67c93cf6e53ebb250657e8d68c008644ee67d1d99bd9f68ed sealed with 425 ItemDefinitions and 1,309 BrowseVariants. All 40 specs verified with zero unmapped candidates and zero alias collapses; active pointer remained generation 35 / season-manifest:sha256:20453991e93a1dc1650dbacfd85bdd042e9b020737c7851bef943f1e3e68883a."
+    },
+    {
+      "command": "Dormant candidate: scripts/gear-exact-item-instance.py --output artifacts/candidate-reports/exact-v4-da051891.json",
+      "status": "pass",
+      "result": "Exact Registry gear-exact-registry:sha256:cadc4f21dbf6edde6a7023220f424f67ee94e15cf5cc0f7ec10c8e113e305082 sealed deterministically against the v4 Catalog. Registry is explicitly partial for 55 ENHANCEMENT_SINGLE_VALUE_MALFORMED references; no template item is blocked and active pointer remained unchanged."
+    },
+    {
+      "command": "Candidate API: Mage Arcane/Fire/Frost head compact smoke and exact/Browse registry audit",
+      "status": "pass",
+      "result": "Candidate Manifest season-manifest:sha256:78916c41ab45526e7826ad604d3ca326bfdd79dbb2ebfe8621be2568585ed560 reports candidatePreview=true and formalActiveManifest=false. Each Mage spec returns eight Cloth head candidates, excludes 250033 and 268283, and uses Catalog v4. Exact Registry retains 250033 Myth 2/6 as an exact instance, while its Browse rows contain no Myth 2/6."
     },
     {
       "command": "npm run test:taro -- apps/mini-taro/src/pages/builds/gear-detail-editor-model.test.ts apps/mini-taro/src/pages/builds/gear-detail-model.test.ts apps/mini-taro/src/pages/builds/gear-detail-page-contract.test.ts",
       "status": "pass",
-      "result": "3 files and 60 tests passed."
+      "result": "3 gear-detail Taro test files and 60 tests passed at da051891."
     },
     {
-      "command": "npm run lint",
+      "command": "WOW_BACKEND_API_BASE_URL=http://127.0.0.1:18788 npm run refresh:weapp",
       "status": "pass",
-      "result": "ESLint passed with max warnings set to zero."
+      "result": "Historical only: WeChat DevTools opened the candidate bundle built at da051891 with sourceHash sha256:d72d80e7e2015971ea81fba67604552e05b71d6be4533f22c98b37b494872d21. Runtime drift invalidates this bundle for current manual acceptance."
     },
     {
-      "command": "WOW_BACKEND_API_BASE_URL=http://127.0.0.1:18787 npm run refresh:weapp",
+      "command": "python3 -m unittest tests.gear_attribute_preview_fixture_test tests.gear_exact_template_options_test tests.pg_gear_read_model_selectors_test tests.postgres_cache_store_test tests.websim_payload_test",
       "status": "pass",
-      "result": "Taro build succeeded and the official WeChat DevTools CLI refreshed apps/mini-taro at candidate API base 127.0.0.1:18787."
+      "result": "652 affected tests passed at implementation commit 5bf22997, including fail-closed Manifest Catalog provenance and a real exact-only import -> authority -> Resolve -> ResolvedLoadout -> SimulationSnapshot/SimC regression. Pre-existing unclosed-SQLite ResourceWarning diagnostics remain and are not represented as a clean resource result."
     }
   ],
   "candidateDeployment": {
-    "status": "candidate_verified",
+    "status": "superseded",
     "requiredBeforeMerge": true,
-    "commit": "140787884e6301c68f5dd6d9ae09adc50d174b0a",
-    "service": "wow-backend-manifest-catalog-detail-14078788.service",
-    "runtimeDirectory": "/opt/wow-mini-program-candidates/manifest-catalog-detail-14078788",
-    "fileParity": {
-      "status": "pass",
-      "path": "server/websim_payload.py",
-      "sha256": "da105221e34b0cfd8ae151f32b6181754e6ba783e605b8b050f0761151a4ba49"
+    "commit": "da0518913a4c95ef7e775e1de60ab16079a10d3f",
+    "gitTree": "be621753516b83d9143292a863327c5bb75daa91",
+    "candidateService": "wow-backend-manifest-catalog-detail-da051891.service",
+    "candidateRoot": "/opt/wow-mini-program-candidates/manifest-catalog-detail-da051891",
+    "candidatePort": 18788,
+    "manifestRevision": "season-manifest:sha256:78916c41ab45526e7826ad604d3ca326bfdd79dbb2ebfe8621be2568585ed560",
+    "gearCatalogRevision": "gear-catalog:sha256:4c85363ba9bbbbe67c93cf6e53ebb250657e8d68c008644ee67d1d99bd9f68ed",
+    "gearExactRegistryRevision": "gear-exact-registry:sha256:cadc4f21dbf6edde6a7023220f424f67ee94e15cf5cc0f7ec10c8e113e305082",
+    "exactRegistryStatus": "partial",
+    "exactRegistryEvidenceGapCodes": ["ENHANCEMENT_SINGLE_VALUE_MALFORMED"],
+    "activePointer": {
+      "generation": 35,
+      "manifestRevision": "season-manifest:sha256:20453991e93a1dc1650dbacfd85bdd042e9b020737c7851bef943f1e3e68883a",
+      "rollbackManifestRevision": "season-manifest:sha256:b79e6226c7dc406c2e729cf01cf6d86f4944b760b8e8cc185dcd4347032fedb6"
     },
     "smoke": {
-      "status": "pass",
-      "endpoint": "GET /api/websim/gear?class=deathknight&spec=frost&compact=1&mode=slot&slot=head",
-      "result": "268283 and 250033 return strength at root and every selectable variant, named rank labels, compacted choices, and one safe blocked myth 6/6 conflict each."
+      "status": "superseded",
+      "result": "The API smoke passed for da051891 only. It does not verify the current source or working tree."
     },
     "timerBackflow": {
-      "status": "not_applicable",
-      "result": "The isolated candidate has no systemd timer named for its service; the smoke only issued read-only HTTP requests and did not start a sync or backfill."
+      "status": "pass",
+      "result": "Candidate unit has WOW_DEPLOY_START_ASYNC_SYNCS=0; no sync/backfill was started and the active pointer stayed unchanged through Catalog/Exact/Manifest sealing."
     },
-    "rollback": "Stop wow-backend-manifest-catalog-detail-14078788.service and start the retained wow-backend-manifest-catalog-detail-877c7dc1.service."
+    "rollback": {
+      "status": "pass",
+      "result": "The prior wow-backend-manifest-catalog-detail-14078788.service remains active as diagnostic rollback evidence; stopping the new candidate returns the local tunnel to no candidate service without touching retail."
+    },
+    "supersededReason": "Runtime source advanced beyond da051891 and the WeChat bundle is still bound to that old commit. The cloud root gate has since recovered to 79%, so a new candidate is no longer disk-blocked, but no current immutable candidate or WeChat bundle exists yet."
   },
   "runtimeEvidence": [
     {
-      "type": "runtime_file_parity",
-      "status": "pass",
-      "result": "Local and candidate server/websim_payload.py SHA-256 both equal da105221e34b0cfd8ae151f32b6181754e6ba783e605b8b050f0761151a4ba49."
+      "type": "candidate_api_audit",
+      "status": "superseded",
+      "result": "The former candidate returned armorType null with compatibility compatible for Mage Arcane/Fire/Frost, and returned Exact Myth 2/6 as a public choice. It cannot be used for manual acceptance or merge evidence."
     },
     {
       "type": "smoke",
-      "status": "pass",
-      "result": "Candidate service wow-backend-manifest-catalog-detail-14078788.service is active and the two real Frost death knight head items pass compact payload assertions."
+      "status": "superseded",
+      "result": "Historical da051891 candidate smoke only; it cannot verify the current runtime source."
     },
     {
       "type": "timer_backflow",
-      "status": "not_applicable",
-      "result": "No candidate-specific systemd timer exists; no candidate sync/backfill was triggered."
-    },
-    {
-      "type": "weapp_preview_build",
-      "status": "pass",
-      "result": "WeChat DevTools refreshed the 214-file output for git head 140787884e6301c68f5dd6d9ae09adc50d174b0a via the local candidate tunnel."
+      "status": "superseded",
+      "result": "The historical candidate disabled async syncs and left the active retail Manifest pointer unchanged at generation 35; a future candidate must prove this again."
     }
   ],
   "risks": [
     {
-      "id": "missing-exact-source-label",
-      "status": "runtime_smoked",
-      "detail": "When the source snapshot has no exact identity-matched label, the release adapter intentionally shows only a truthful source-type/difficulty fallback rather than inventing an encounter name."
+      "id": "catalog-type-coverage-reduction",
+      "status": "monitored",
+      "detail": "Candidate v4 now projects existing official BNet item_class/item_subclass facts and restores all 1,674 legacy Browse rows to 1,309 canonical BrowseVariants. Forty-five dormant non-members still lack a governed type fact; no Browse row is excluded for missing type."
     },
     {
-      "id": "legacy-sqlite-resource-warning",
-      "status": "observed_baseline",
-      "detail": "The WebSim payload suite exits 0 but currently reports three unclosed SQLite connection ResourceWarning notices outside the changed paths; they are recorded rather than treated as proof of a clean resource lifecycle."
+      "id": "normal-progression-source-conflict",
+      "status": "monitored",
+      "detail": "The v4 Catalog shadow verified all 40 specs with zero unmapped candidates and zero collapsed aliases. The candidate remains non-retail until the user accepts the WeChat matrix."
+    },
+    {
+      "id": "exact-registry-enhancement-evidence-gap",
+      "status": "open",
+      "detail": "The sealed Exact Registry is partial because 55 template references report ENHANCEMENT_SINGLE_VALUE_MALFORMED. They are explicit partial references, not blocked items; candidate acceptance must not represent exact-recovery coverage as fully verified."
+    },
+    {
+      "id": "cloud-root-filesystem-hard-stop",
+      "status": "resolved_guarded",
+      "detail": "The cloud root filesystem recovered from 92% to 79% after the scheduled-output owner was fixed and bounded cleanup completed. Every new candidate still requires a fresh <=80% preflight plus reserve prediction."
+    },
+    {
+      "id": "current-season-pve-universe-not-proven",
+      "status": "blocked",
+      "detail": "The independent Universe foundation now fails closed across 18 required acquisition sources, but no approved official source-to-item/progression membership snapshot exists. Its current result is 18/18 SOURCE_DISCOVERY_MISSING, so the 40-spec Catalog shadow still cannot prove completeness."
     }
   ],
   "rollback": [
     "code_rollback",
-    "feature_hide"
+    "candidate_runtime_rollback",
+    "resync_repair"
   ],
   "cleanup": {
     "required": true,
-    "reason": "After explicit WeChat acceptance and Harness closure, remove the candidate service and directory; retain the prior candidate only until the final runtime is accepted."
+    "reason": "After a new candidate is accepted and Harness closure completes, remove its service and directory. Do not delete the diagnostic 14078788 candidate before the final candidate has a proven rollback path."
   },
   "archivedReferences": [
     "docs/plans/2026-07-28-equipment-simulator-target-architecture.md",
-    "docs/verification-matrix.md"
+    "docs/verification-matrix.md",
+    "artifacts/releases/2026-07-29-manifest-catalog-detail-contract/requirement.json"
   ],
-  "summary": "The final immutable candidate is runtime-verified for named progression, safe conflict collapse, specialization-correct primary/secondary facts, and WeChat preview build. Explicit WeChat acceptance remains pending, so no merge, production deployment, or closure is claimed."
+  "summary": "The user approved a Strict Catalog repair. Both the 14078788 diagnostic candidate and the later da051891 API/WeChat candidate are superseded for current verification because runtime source advanced. Implementation commit 5bf22997 passes 652 affected tests, including Manifest Catalog provenance fail-closed behavior and the exact-only import through Resolve/ResolvedLoadout/SimC. The cloud gate recovered to 79%, but this packet remains implementation_allowed: no immutable current candidate, current WeChat acceptance, official 18-source Universe membership proof, or final Harness/merge closure exists."
 }

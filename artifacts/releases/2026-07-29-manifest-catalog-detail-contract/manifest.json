@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-29T08:16:37.241Z",
+  "generatedAt": "2026-07-29T14:33:56.356Z",
   "release": {
     "date": "2026-07-29",
     "slug": "manifest-catalog-detail-contract"
@@ -53,7 +53,7 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 10934
+          "sizeBytes": 12719
         },
         {
           "path": "docs/README.md",
@@ -99,7 +99,7 @@
         {
           "path": "server/websim_payload.py",
           "exists": true,
-          "lineCount": 27451,
+          "lineCount": 27630,
           "hotspot": true
         },
         {
@@ -111,7 +111,7 @@
         {
           "path": "server/postgres_cache_store.py",
           "exists": true,
-          "lineCount": 9335,
+          "lineCount": 9455,
           "hotspot": true
         }
       ],
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-29-manifest-catalog-detail-contract/evidence.json",
-    "sizeBytes": 6766,
+    "sizeBytes": 11981,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -390,9 +390,9 @@
       "summary"
     ],
     "missingFields": [],
-    "declaredStatus": "runtime_verified",
-    "highestEvidenceLevel": "runtime_verified",
-    "summary": "The final immutable candidate is runtime-verified for named progression, safe conflict collapse, specialization-correct primary/secondary facts, and WeChat preview build. Explicit WeChat acceptance remains pending, so no merge, production deployment, or closure is claimed."
+    "declaredStatus": "implementation_allowed",
+    "highestEvidenceLevel": "implementation_allowed",
+    "summary": "The user approved a Strict Catalog repair. Both the 14078788 diagnostic candidate and the later da051891 API/WeChat candidate are superseded for current verification because runtime source advanced. Implementation commit 5bf22997 passes 652 affected tests, including Manifest Catalog provenance fail-closed behavior and the exact-only import through Resolve/ResolvedLoadout/SimC. The cloud gate recovered to 79%, but this packet remains implementation_allowed: no immutable current candidate, current WeChat acceptance, official 18-source Universe membership proof, or final Harness/merge closure exists."
   },
   "evidence": {
     "localTests": {
@@ -414,10 +414,16 @@
   },
   "riskMatrix": [
     {
+      "id": "dirty_worktree",
+      "severity": "medium",
+      "status": "watch",
+      "detail": "2 changed files currently visible to git status."
+    },
+    {
       "id": "hotspot_files_present",
       "severity": "medium",
       "status": "watch",
-      "detail": "server/websim_payload.py:27451, server/news_backend.py:14220, server/postgres_cache_store.py:9335"
+      "detail": "server/websim_payload.py:27630, server/news_backend.py:14220, server/postgres_cache_store.py:9455"
     },
     {
       "id": "localTests_missing",
@@ -446,9 +452,12 @@
   ],
   "repo": {
     "git": {
-      "status": "clean",
-      "changedFileCount": 0,
-      "changedFiles": []
+      "status": "dirty",
+      "changedFileCount": 2,
+      "changedFiles": [
+        " M artifacts/releases/2026-07-29-manifest-catalog-detail-contract/evidence.json",
+        " M artifacts/releases/2026-07-29-manifest-catalog-detail-contract/manifest.json"
+      ]
     }
   },
   "write": {
