@@ -75,6 +75,7 @@ try:
     from .gear_exact_item_registry_store import GearExactItemRegistryStore
     from .gear_exact_template_options import (
         bind_exact_template_authority,
+        community_template_exact_import_readiness,
         project_exact_template_intent,
     )
     from .simulation_snapshot_store import SimulationSnapshotStore
@@ -82,6 +83,7 @@ except ImportError:
     from gear_exact_item_registry_store import GearExactItemRegistryStore
     from gear_exact_template_options import (
         bind_exact_template_authority,
+        community_template_exact_import_readiness,
         project_exact_template_intent,
     )
     from simulation_snapshot_store import SimulationSnapshotStore
@@ -119,6 +121,11 @@ except ImportError:
         build_community_template_import_source,
         build_community_template_selection_intent,
     )
+
+try:
+    from .gear_contracts import community_template_authority_identity
+except ImportError:
+    from gear_contracts import community_template_authority_identity
 
 try:
     from .websim_payload import (
@@ -1951,6 +1958,62 @@ class PostgresCacheStore:
         ).items():
             visible.setdefault(slot, {}).update(options)
         result["visibleOptionsBySlot"] = visible
+        return result
+
+    def _manifest_public_template_import_availability(self, templates, binding):
+        """Fail closed in browse when a sealed template lacks exact import proof."""
+
+        value = binding if isinstance(binding, dict) else {}
+        manifest = (
+            value.get("manifest")
+            if isinstance(value.get("manifest"), dict)
+            else {}
+        )
+        if manifest.get("schemaRevision") != "active-season-manifest-v2":
+            return templates
+        try:
+            registry = self._manifest_exact_registry(value)
+        except (AttributeError, RuntimeError):
+            # Browse must remain available but may not advertise an import if
+            # the sealed Exact dependency cannot be materialized.
+            registry = None
+        result = []
+        for raw_template in templates or []:
+            if not isinstance(raw_template, dict):
+                continue
+            template = raw_template
+            if registry is None:
+                readiness = {
+                    "status": "blocked",
+                    "problemCodes": ["EXACT_TEMPLATE_REGISTRY_UNAVAILABLE"],
+                }
+            else:
+                nested_payload = (
+                    template.get("payload")
+                    if isinstance(template.get("payload"), dict)
+                    else {}
+                )
+                authority_identity = (
+                    template.get("templateAuthorityIdentity")
+                    or nested_payload.get("templateAuthorityIdentity")
+                    or community_template_authority_identity(
+                        template.get("id")
+                    )
+                )
+                readiness = community_template_exact_import_readiness(
+                    registry,
+                    authority_identity,
+                )
+            if readiness.get("status") == "verified":
+                result.append(template)
+                continue
+            unavailable = copy.deepcopy(template)
+            unavailable["canApplyGear"] = False
+            unavailable["gearImportReadiness"] = {
+                "status": str(readiness.get("status") or "blocked"),
+                "problemCodes": list(readiness.get("problemCodes") or []),
+            }
+            result.append(unavailable)
         return result
 
     def _bind_manifest_exact_authority(
@@ -8772,6 +8835,10 @@ class PostgresCacheStore:
             )
         elif observed.get("state") == "blocked":
             persisted_templates = []
+        persisted_templates = self._manifest_public_template_import_availability(
+            persisted_templates,
+            binding,
+        )
         if mode == "initial":
             payload = self._websim_gear_initial_payload(
                 class_key,

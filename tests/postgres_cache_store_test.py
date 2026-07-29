@@ -655,6 +655,108 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertEqual(result["gearCatalogRevision"], catalog_revision)
         self.assertEqual(result["gearExactRegistryRevision"], exact_revision)
 
+    def test_manifest_v2_payload_withholds_partial_exact_template_from_import(self):
+        from server.gear_contracts import community_template_authority_identity
+        from server.postgres_cache_store import PostgresCacheStore
+        from tests.gear_resolved_loadout_test import (
+            CATALOG_REVISION,
+            exact_registry,
+        )
+
+        verified_identity = community_template_authority_identity(
+            "verified-template"
+        )
+        partial_identity = community_template_authority_identity(
+            "partial-template"
+        )
+        registry = exact_registry()
+        for reference in registry["templateReferences"]:
+            reference["templateAuthorityIdentity"] = verified_identity
+        partial_references = copy.deepcopy(registry["templateReferences"])
+        for reference in partial_references:
+            reference["templateAuthorityIdentity"] = partial_identity
+        partial_references[0]["validationStatus"] = "partial"
+        partial_references[0]["exactItemInstanceKey"] = ""
+        partial_references[0]["problemCodes"] = [
+            "ENHANCEMENT_SINGLE_VALUE_MALFORMED"
+        ]
+        registry["templateReferences"].extend(partial_references)
+
+        class ReleaseStore:
+            def load_active_manifest_public_gear(self, *_args, **_kwargs):
+                return {
+                    "gearRelease": {
+                        "releaseId": "gear-release-a",
+                        "releaseStatus": "validated",
+                    },
+                    "communityRelease": {"releaseId": "community-release-a"},
+                    "communityTemplates": [
+                        {
+                            "id": "verified-template",
+                            "canApplyGear": True,
+                        },
+                        {
+                            "id": "partial-template",
+                            "canApplyGear": True,
+                        },
+                    ],
+                    "gearCatalog": {
+                        "catalogRevision": CATALOG_REVISION,
+                        "status": "verified",
+                    },
+                    "gearExactRegistry": {
+                        "registryRevision": registry["registryRevision"],
+                        "status": "partial",
+                    },
+                    "gearSnapshot": None,
+                }
+
+        binding = {
+            "generation": 33,
+            "formalActiveManifest": True,
+            "manifest": {
+                "schemaRevision": "active-season-manifest-v2",
+                "manifestRevision": "manifest-v2",
+                "seasonRevision": "season-17",
+                "gearCatalogReleaseId": "gear-release-a",
+                "gearCatalogRevision": CATALOG_REVISION,
+                "gearExactRegistryRevision": registry["registryRevision"],
+                "communityTemplateReleaseId": "community-release-a",
+            },
+        }
+        store = PostgresCacheStore(
+            lambda: self.fail("Manifest v2 public read must stay in repositories"),
+            gear_release_store=ReleaseStore(),
+            observed_build_store=FakeObservedBuildStore(active=False),
+        )
+        store._manifest_exact_registry = lambda _binding: registry
+
+        with patch.object(
+            store,
+            "_websim_gear_initial_payload",
+            return_value={"ok": True},
+        ) as initial:
+            store._active_websim_gear_payload(
+                binding,
+                "mage",
+                "frost",
+                True,
+                "initial",
+                "",
+            )
+
+        templates = {row["id"]: row for row in initial.call_args.args[-1]}
+        self.assertTrue(templates["verified-template"]["canApplyGear"])
+        self.assertNotIn("gearImportReadiness", templates["verified-template"])
+        self.assertFalse(templates["partial-template"]["canApplyGear"])
+        self.assertEqual(
+            templates["partial-template"]["gearImportReadiness"],
+            {
+                "status": "partial",
+                "problemCodes": ["EXACT_TEMPLATE_REFERENCE_NOT_VERIFIED"],
+            },
+        )
+
     def test_exact_gear_import_uses_active_observed_projection(self):
         from server import postgres_cache_store
         from server.postgres_cache_store import (

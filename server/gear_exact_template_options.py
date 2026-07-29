@@ -338,6 +338,58 @@ def _refs_for_identity(
     return next(iter(grouped.values())), []
 
 
+def community_template_exact_import_readiness(
+    exact_registry: Any,
+    template_authority_identity: Any,
+) -> dict[str, Any]:
+    """Return the public import availability for one sealed community template.
+
+    This is a deliberately smaller preflight than ``project_exact_template_intent``:
+    browse needs to avoid offering an import that the exact projection will reject,
+    without exposing the source Selection Intent or Exact instance identities.  The
+    import endpoint still performs the full projection and remains the authority.
+    """
+
+    registry = exact_registry if isinstance(exact_registry, Mapping) else {}
+    authority_identity = _text(template_authority_identity)
+    if not _SHA256_PATTERN.fullmatch(authority_identity):
+        return {
+            "status": "blocked",
+            "problemCodes": ["EXACT_TEMPLATE_AUTHORITY_INVALID"],
+        }
+    refs, problems = _refs_for_identity(registry, authority_identity)
+    if problems:
+        return {
+            "status": "blocked",
+            "problemCodes": sorted(
+                {
+                    _text(problem.get("code"))
+                    for problem in problems
+                    if _text(problem.get("code"))
+                }
+            ),
+        }
+    slots: set[str] = set()
+    for reference in refs:
+        slot = _text(reference.get("slot"))
+        if not slot or slot in slots:
+            return {
+                "status": "blocked",
+                "problemCodes": ["EXACT_TEMPLATE_SLOT_AMBIGUOUS"],
+            }
+        slots.add(slot)
+        if (
+            reference.get("validationStatus") != "verified"
+            or reference.get("problemCodes")
+            or not _text(reference.get("exactItemInstanceKey"))
+        ):
+            return {
+                "status": "partial",
+                "problemCodes": ["EXACT_TEMPLATE_REFERENCE_NOT_VERIFIED"],
+            }
+    return {"status": "verified", "problemCodes": []}
+
+
 def _project_identity(
     selection_intent: Any,
     exact_registry: Any,
@@ -878,6 +930,7 @@ def bind_exact_template_authority(
 __all__ = (
     "EXACT_TEMPLATE_OPTION_PREFIX",
     "bind_exact_template_authority",
+    "community_template_exact_import_readiness",
     "has_exact_template_option",
     "project_exact_template_intent",
 )

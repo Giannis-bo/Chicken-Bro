@@ -231,6 +231,30 @@ class GearExactTemplateOptionsTest(unittest.TestCase):
             ambiguous_result["problemCodes"],
         )
 
+    def test_community_template_readiness_hides_partial_exact_evidence_before_import(self):
+        verified = gear_exact_template_options.community_template_exact_import_readiness(
+            exact_registry(),
+            TEMPLATE_AUTHORITY_IDENTITY,
+        )
+        partial_registry = exact_registry()
+        partial_registry["templateReferences"][0]["validationStatus"] = "partial"
+        partial_registry["templateReferences"][0]["exactItemInstanceKey"] = ""
+        partial_registry["templateReferences"][0]["problemCodes"] = [
+            "ENHANCEMENT_SINGLE_VALUE_MALFORMED"
+        ]
+        partial = gear_exact_template_options.community_template_exact_import_readiness(
+            partial_registry,
+            TEMPLATE_AUTHORITY_IDENTITY,
+        )
+
+        self.assertEqual(verified["status"], "verified")
+        self.assertEqual(verified["problemCodes"], [])
+        self.assertEqual(partial["status"], "partial")
+        self.assertEqual(
+            partial["problemCodes"],
+            ["EXACT_TEMPLATE_REFERENCE_NOT_VERIFIED"],
+        )
+
     def test_project_keeps_a_verified_exact_source_variant_outside_public_browse(self):
         """Exact import may use verified source evidence without publishing a BrowseVariant."""
         exact = exact_registry()
