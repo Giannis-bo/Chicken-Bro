@@ -1,0 +1,145 @@
+{
+  "schemaVersion": 2,
+  "slug": "gear-enhancement-rule-alignment",
+  "requirementSlug": "gear-enhancement-rule-alignment",
+  "status": "deployable",
+  "highestEvidenceLevel": "deployable",
+  "branch": "codex/gear-enhancement-rule-alignment",
+  "commit": "3c71cae4a683785d37b79f41023d913479b7ec25",
+  "identities": {
+    "runtime": {
+      "status": "bound",
+      "kind": "git_commit",
+      "value": "3c71cae4a683785d37b79f41023d913479b7ec25"
+    },
+    "verification": {
+      "status": "bound_at_check",
+      "kind": "git_ref",
+      "value": "HEAD",
+      "reason": "The complete task packet is checked only after this evidence is committed and the working tree is clean."
+    },
+    "closure": {
+      "status": "pending",
+      "reason": "The task branch is awaiting the Harness merge-and-push closure sequence."
+    }
+  },
+  "manualAcceptance": {
+    "required": true,
+    "status": "complete",
+    "items": [
+      {
+        "id": "gear_enhancement_eligibility_alignment",
+        "status": "accepted",
+        "evidence": "On 2026-07-29 the user explicitly replied 非常好，我验证了，可以收尾。 after validating the corrected enhancement eligibility."
+      },
+      {
+        "id": "gear_slot_confirmed_markers",
+        "status": "accepted",
+        "evidence": "On 2026-07-29 the user explicitly replied 非常好，我验证了，可以收尾。 after validating that equipment rows show confirmed enhancement markers only."
+      }
+    ],
+    "rollup": {
+      "total": 2,
+      "accepted": 2,
+      "notRunUserWaived": 0,
+      "pending": 0
+    }
+  },
+  "scope": [
+    "Backend-owned socket capacity, enchant eligibility and verified-crafted embellishment capability projection",
+    "Resolver-owned two-embellishment cap presentation in the active Taro gear detail route",
+    "Confirmed-only gear-slot enhancement markers and current UI contracts",
+    "Strict task packet, exact candidate runtime and explicit manual acceptance"
+  ],
+  "verification": [
+    {
+      "command": "python3 -m unittest tests.pg_gear_authority_loader_test tests.gear_rule_matrix_test tests.gear_resolver_test tests.gear_socket_authority_test tests.websim_payload_test",
+      "status": "pass",
+      "summary": "589 targeted backend tests passed on immutable candidate commit 3c71cae4, covering socket capacity, canonical enchant filtering, verified-crafted embellishment capability and the Resolver-owned 2-item cap."
+    },
+    {
+      "command": "npx vitest run apps/mini-taro/src/pages/builds/gear-detail-model.test.ts apps/mini-taro/src/pages/builds/gear-detail-page-contract.test.ts",
+      "status": "pass",
+      "summary": "45 active Taro model and page-contract tests passed, including confirmed-only markers, exact socket-capacity availability and resolver-published embellishment maximum presentation."
+    },
+    {
+      "command": "git diff --check and final local CR",
+      "status": "pass",
+      "summary": "The final whole-branch local review found no remaining Critical, Important or Minor issue; staged bytes had no whitespace errors."
+    },
+    {
+      "command": "candidate runtime parity and smoke",
+      "status": "pass",
+      "summary": "The isolated read-only candidate matched all six changed runtime file SHA-256 values, returned /health and the compact gear endpoint successfully, and executed the deployed module assertions for H/W/W socket candidate scope, positive capacity, legacy socket rejection and verified-crafted embellishment gating."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "candidate_verified",
+    "requiredBeforeMerge": true,
+    "branch": "codex/gear-enhancement-rule-alignment",
+    "commit": "3c71cae4a683785d37b79f41023d913479b7ec25",
+    "gitTree": "c9d0c0638ee2ec2baa70ca3c9dcce032d2b856c8",
+    "host": "wow-lighthouse",
+    "candidatePath": "/opt/wow-mini-program-candidates/gear-enhancement-rule-alignment-3c71cae4",
+    "service": "wow-backend-gear-enhancement-3c71cae4.service",
+    "baseUrl": "http://127.0.0.1:18787",
+    "databaseMode": "postgres_only read-only",
+    "asyncSyncStart": false,
+    "publicPointerChange": false,
+    "smoke": {
+      "status": "pass",
+      "summary": "The candidate /health returned ok=true; /api/websim/gear for mage/arcane returned HTTP 200 with dataStatus=catalogStatus=verified. The current candidate catalog had zero browse items and zero equipped slots, so exact live item examples are not claimed; deployed pure-module assertions covered the changed eligibility branches."
+    },
+    "timerBackflow": {
+      "status": "pass",
+      "summary": "The candidate ran on 127.0.0.1:18787 with collectors disabled, PGOPTIONS default_transaction_read_only=on, no candidate timer, and no async sync start. The production wow-backend remained active with NRestarts=0."
+    },
+    "rollback": "Stop wow-backend-gear-enhancement-3c71cae4.service and remove only /opt/wow-mini-program-candidates/gear-enhancement-rule-alignment-3c71cae4; production code, pointer and data were unchanged."
+  },
+  "runtimeEvidence": [
+    {
+      "type": "runtime_file_parity",
+      "status": "pass",
+      "summary": "The candidate copies of gear_socket_authority.py, pg_gear_authority_loader.py, websim_payload.py, gear-detail-model.ts, detail.tsx and GearDetailComponents.tsx matched the local 3c71cae4 SHA-256 values exactly."
+    },
+    {
+      "type": "candidate_http_smoke",
+      "status": "pass",
+      "summary": "The isolated candidate served /health and the active compact gear payload route without an error-priority candidate journal entry."
+    },
+    {
+      "type": "candidate_eligibility_module_smoke",
+      "status": "pass",
+      "summary": "Within the deployed candidate directory, the real modules proved the six-slot candidate scope, rejected a legacy hasSocket-only item, accepted positive socket capacity, rejected descriptive raw crafting fields and accepted verified crafted provenance."
+    },
+    {
+      "type": "candidate_catalog_observability",
+      "status": "partial",
+      "summary": "The candidate mage/arcane browse payload reported dataStatus=verified and catalogStatus=verified but contained zero catalogItems and zero equipped slots; this is recorded as an environment limitation rather than a positive exact-item smoke."
+    }
+  ],
+  "risks": [
+    {
+      "id": "candidate-browse-sample-empty",
+      "status": "known_partial",
+      "detail": "The isolated candidate did not expose a populated mage/arcane browse sample. The code path, deployed eligibility assertions, local regression matrix and explicit user acceptance are recorded separately; no nonexistent candidate item scenario is claimed."
+    },
+    {
+      "id": "global-data-health-aggregation",
+      "status": "not_task_signal",
+      "detail": "The expensive global /api/data/health aggregation was not used as a candidate success condition after it exceeded the request timeout; /health, gear route, file parity and no-backflow checks are the scoped runtime evidence."
+    }
+  ],
+  "rollback": [
+    "code_rollback",
+    "candidate_runtime_rollback"
+  ],
+  "cleanup": {
+    "required": true,
+    "reason": "The isolated candidate service and directory are temporary and will be stopped and removed after merge/push closure."
+  },
+  "archivedReferences": [
+    "docs/plans/2026-07-29-gear-enhancement-rule-alignment.md"
+  ],
+  "summary": "Candidate commit 3c71cae4 aligns enhancement eligibility with backend facts: socket capacity is per item, enchant options remain canonical and item-type filtered, editable embellishment requires verified crafted provenance, and the Resolver remains the only two-item cap authority. The user accepted both frozen visible behaviors. This packet is deployable from an isolated read-only candidate and is not a production-live claim."
+}
