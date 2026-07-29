@@ -83,6 +83,10 @@ _CRAFTED_SELECTION_STAT_KEYS = frozenset(
         "versatility_rating",
     }
 )
+_CATALOG_ARMOR_SLOTS = frozenset(
+    {"head", "shoulder", "chest", "wrist", "hands", "waist", "legs", "feet"}
+)
+_CATALOG_WEAPON_SLOTS = frozenset({"main_hand", "off_hand"})
 
 
 def _canonical(value: Any) -> Any:
@@ -255,6 +259,27 @@ def _item_payload_section(
             )
         result[key] = value
     return result
+
+
+def _catalog_item_has_governed_equipment_type(
+    row: Mapping[str, Any],
+) -> bool:
+    """Return whether a non-portable item has its governing type fact."""
+
+    slot = _text(row.get("slot")).lower().replace("-", "_")
+    payload = _mapping(row.get("payload"))
+    equipment = _mapping(payload.get("equipment"))
+    if slot in _CATALOG_ARMOR_SLOTS:
+        return bool(
+            _text(payload.get("armorType"))
+            or _text(equipment.get("armorType"))
+        )
+    if slot in _CATALOG_WEAPON_SLOTS:
+        return bool(
+            _text(payload.get("weaponType"))
+            or _text(equipment.get("weaponType"))
+        )
+    return True
 
 
 def _source_definition(row: Mapping[str, Any]) -> dict[str, Any]:
@@ -437,6 +462,14 @@ def build_catalog_revision(
         for row in source_rows.get("variants") or []
         if isinstance(row, Mapping)
     ]
+    type_excluded_item_ids = {
+        _text(row.get("itemId") or row.get("id"))
+        for row in raw_items
+        if (
+            _text(row.get("itemId") or row.get("id"))
+            and not _catalog_item_has_governed_equipment_type(row)
+        )
+    }
     verified_exact_item_ids = {
         _text(row.get("itemId"))
         for row in raw_variants
@@ -470,6 +503,7 @@ def build_catalog_revision(
         list[dict[str, Any]],
     ] = {}
     legacy_browse_count = 0
+    type_excluded_browse_count = 0
     crafted_selection_count = 0
     exact_instance_count = 0
     exact_eligible_count = 0
@@ -489,6 +523,9 @@ def build_catalog_revision(
         if resolution.get("status") != "verified" or not progression_state:
             continue
         item_id = _text(row.get("itemId"))
+        if item_id in type_excluded_item_ids:
+            type_excluded_browse_count += 1
+            continue
         item_level = _positive_int(row.get("itemLevel"))
         bonus_ids = _string_list(row.get("bonusIds"))
         facts = _static_facts(row.get("staticStats"))
@@ -902,6 +939,8 @@ def build_catalog_revision(
             ),
         ),
         "excludedDormantItemCount": excluded_dormant_item_count,
+        "typeExcludedItemCount": len(type_excluded_item_ids),
+        "typeExcludedBrowseRowCount": type_excluded_browse_count,
     }
     return {
         "schemaRevision": CATALOG_SCHEMA_REVISION,

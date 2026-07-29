@@ -17355,11 +17355,13 @@ def catalog_context_compatible(row, class_key, spec_key, slot=""):
     if portable_gear_slot(slot):
         return True
     payload = row.get("payload") if isinstance(row, dict) else {}
-    if not isinstance(payload, dict):
-        return True
+    payload = payload if isinstance(payload, dict) else {}
+    source_type = raw_source_type((row or {}).get("sourceType")).lower()
     class_keys, spec_keys = class_spec_context_from_payload(payload)
     normalized_classes = {slugify(item, "") for item in class_keys if slugify(item, "")}
     normalized_specs = {slugify(item, "") for item in spec_keys if slugify(item, "")}
+    if source_type == "tier_set" and not normalized_classes:
+        return False
     if normalized_classes and class_key not in normalized_classes:
         return False
     if normalized_specs and spec_key not in normalized_specs:
@@ -17528,8 +17530,22 @@ def catalog_variant_has_context(variant):
 
 
 def catalog_compatibility(item, sources, variants, class_key, spec_key):
-    armor_status = item.get("compatibility") or "unknown"
-    item_slot = item.get("slot") or ""
+    raw_armor_status = item.get("compatibility")
+    if isinstance(raw_armor_status, dict):
+        raw_armor_status = raw_armor_status.get("armorStatus")
+    armor_status = str(raw_armor_status or "unknown").strip().lower()
+    item_slot = normalize_slot(item.get("slot") or "")
+    type_required = (
+        item_slot in ARMOR_SLOTS
+        or item_slot in WEAPON_SLOTS
+    )
+    if type_required and armor_status != "compatible":
+        return {
+            "status": "unknown",
+            "armorStatus": armor_status,
+            "classKey": class_key,
+            "specKey": spec_key,
+        }
     compatible_sources = [source for source in sources if catalog_source_compatible(source, class_key, spec_key, item_slot)]
     usable_variants = [
         variant
@@ -17779,6 +17795,15 @@ def enrich_catalog_item(item, sources, variants, socket_options, enchant_options
     if not item:
         return None
     item_slot = item.get("slot") or ""
+    compatibility = catalog_compatibility(
+        item,
+        sources,
+        variants,
+        class_key,
+        spec_key,
+    )
+    if compatibility["status"] != "compatible":
+        return None
     compatible_sources = [source for source in sources if catalog_source_compatible(source, class_key, spec_key, item_slot)]
     compatible_variants = [
         variant
@@ -17824,9 +17849,7 @@ def enrich_catalog_item(item, sources, variants, socket_options, enchant_options
     ]
     item["embellishmentOptions"] = filtered_embellishment_options if mod_capabilities["canEmbellish"] else []
     item["recommendationScore"] = max([int(source.get("recommendationScore") or 0) for source in compatible_sources] + [0])
-    item["compatibility"] = catalog_compatibility(item, sources, variants, class_key, spec_key)
-    if item["compatibility"]["status"] == "incompatible":
-        return None
+    item["compatibility"] = compatibility
     apply_default_catalog_variant(item, display_variants, variants)
     trust_blockers = catalog_item_trust_blockers(item)
     if trust_blockers:

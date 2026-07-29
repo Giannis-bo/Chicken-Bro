@@ -54,6 +54,7 @@ def regular_rows():
                 "sourceStatus": "verified",
                 "payload": {
                     "iconUrl": "/runtime-media/item/1001.webp",
+                    "armorType": "Cloth",
                     "inventoryType": "head",
                     "requiredClassIds": [2],
                     "displayLabel": "Ignored transient label",
@@ -96,7 +97,10 @@ def crafted_rows():
                 "slot": "head",
                 "itemLevel": 285,
                 "sourceStatus": "verified",
-                "payload": {"inventoryType": "head"},
+                "payload": {
+                    "armorType": "Cloth",
+                    "inventoryType": "head",
+                },
                 "hasSourceRefs": True,
                 "hasVariantRefs": True,
             }
@@ -192,6 +196,7 @@ class GearCatalogRevisionTest(unittest.TestCase):
                 "slot": "shoulder",
                 "itemLevel": 276,
                 "sourceStatus": "verified",
+                "payload": {"armorType": "Cloth"},
                 "hasSourceRefs": True,
                 "hasVariantRefs": True,
             }
@@ -508,6 +513,23 @@ class GearCatalogRevisionTest(unittest.TestCase):
         self.assertIn(
             "CATALOG_VARIANT_CANONICAL_DUPLICATE",
             result["problemCodes"],
+        )
+
+    def test_type_unknown_nonportable_item_is_excluded_from_browse_membership(
+        self,
+    ):
+        rows = regular_rows()
+        rows["items"][0]["payload"].pop("armorType")
+
+        result = build_catalog_revision(CURRENT_BINDING, rows)
+
+        self.assertEqual(result["status"], "verified")
+        self.assertEqual(result["itemDefinitions"], [])
+        self.assertEqual(result["browseVariants"], [])
+        self.assertEqual(result["contentSummary"]["typeExcludedItemCount"], 1)
+        self.assertEqual(
+            result["contentSummary"]["typeExcludedBrowseRowCount"],
+            1,
         )
 
     def test_catalog_identity_does_not_include_derived_browse_key(self):

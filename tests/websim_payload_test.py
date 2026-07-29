@@ -12332,6 +12332,71 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertTrue(self.websim_payload.catalog_variant_compatible(variant, "priest", "holy", "waist"))
         self.assertFalse(self.websim_payload.catalog_variant_compatible(variant, "mage", "frost", "waist"))
 
+    def test_websim_gear_hides_nonportable_catalog_item_without_verified_armor_type(self):
+        item = {
+            "itemId": "type-unknown-head",
+            "slot": "head",
+            "compatibility": "unknown",
+            "modCapabilities": {},
+        }
+
+        enriched = self.websim_payload.enrich_catalog_item(
+            item,
+            [{"sourceType": "raid", "status": "verified"}],
+            [],
+            [],
+            [],
+            [],
+            "mage",
+            "frost",
+        )
+
+        self.assertIsNone(enriched)
+
+    def test_catalog_keeps_portable_ring_without_armor_type(self):
+        item = {
+            "itemId": "type-unknown-ring",
+            "slot": "finger1",
+            "compatibility": "unknown",
+            "modCapabilities": {},
+        }
+
+        enriched = self.websim_payload.enrich_catalog_item(
+            item,
+            [{"sourceType": "raid", "status": "verified"}],
+            [],
+            [],
+            [],
+            [],
+            "mage",
+            "frost",
+        )
+
+        self.assertIsNotNone(enriched)
+        self.assertEqual(enriched["compatibility"]["status"], "compatible")
+
+    def test_catalog_context_requires_verified_class_for_tier_set(self):
+        item = {
+            "itemId": "contextless-tier-head",
+            "slot": "head",
+            "armorType": "Cloth",
+            "compatibility": "compatible",
+            "modCapabilities": {},
+        }
+
+        enriched = self.websim_payload.enrich_catalog_item(
+            item,
+            [{"sourceType": "tier_set", "status": "verified", "payload": {}}],
+            [],
+            [],
+            [],
+            [],
+            "mage",
+            "frost",
+        )
+
+        self.assertIsNone(enriched)
+
     def test_websim_gear_filters_shields_from_classes_that_cannot_equip_them(self):
         conn = sqlite3.connect(self.db_path)
         try:
