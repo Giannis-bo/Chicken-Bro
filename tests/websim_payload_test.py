@@ -7864,7 +7864,7 @@ class WebSimPayloadTest(unittest.TestCase):
                                 "kind": "upgrade_track",
                                 "trackKey": "myth",
                                 "rank": 6,
-                                "rankMax": 6,
+                                "maxRank": 6,
                             },
                             "itemStats": [
                                 {"key": "agiint", "label": "主属性", "value": 135},
@@ -7885,7 +7885,7 @@ class WebSimPayloadTest(unittest.TestCase):
                                 "kind": "upgrade_track",
                                 "trackKey": "myth",
                                 "rank": 6,
-                                "rankMax": 6,
+                                "maxRank": 6,
                             },
                             "itemStats": [
                                 {"key": "agiint", "label": "主属性", "value": 135},
@@ -7913,6 +7913,27 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(variant.get("primaryStatKey"), "strength")
         self.assertIn("strength", [stat["key"] for stat in variant["itemStats"]])
         self.assertNotIn("leech_rating", [stat["key"] for stat in variant["itemStats"]])
+
+    def test_compact_manifest_candidate_rebuilds_stale_root_stat_summary(self):
+        compact = self.websim_payload.compact_gear_candidate(
+            {
+                "slot": "head",
+                "itemId": "268283",
+                "name": "溃烂之花冠冕",
+                "primaryStatKey": "strength",
+                "itemStats": [
+                    {"key": "strength", "label": "力量", "value": 135},
+                    {"key": "critical_strike", "label": "暴击", "value": 60},
+                    {"key": "haste", "label": "急速", "value": 112},
+                ],
+                # This mirrors an older cached summary that was generated
+                # before the specialization primary stat was projected.
+                "statSummary": "暴击 60；急速 112",
+                "sources": [{"sourceType": "raid", "sourceLabel": "腐沼 - 孢陨幽境"}],
+            }
+        )
+
+        self.assertEqual(compact["statSummary"], "力量 135；暴击 60；急速 112")
 
     def test_compact_manifest_variants_fail_closed_on_conflicting_progression_facts(self):
         compact = self.websim_payload.compact_gear_candidate(

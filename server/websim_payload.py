@@ -23989,7 +23989,10 @@ def compact_manifest_progression_state(value):
     kind = str(value.get("kind") or "").strip().lower()
     track_key = str(value.get("trackKey") or "").strip().lower()
     rank = positive_int_value(value.get("rank"))
-    rank_max = positive_int_value(value.get("rankMax"))
+    # Persisted Catalog observations historically used both spellings.  The
+    # public compact contract standardizes on ``rankMax`` but must not discard
+    # a real source rank just because the source emitted ``maxRank``.
+    rank_max = positive_int_value(value.get("rankMax") or value.get("maxRank"))
     if not kind:
         return {}
     result = {"kind": kind}
@@ -24359,6 +24362,19 @@ def compact_gear_candidate(item, include_mod_options=True):
         return item
     compact_item = compact_dict(item, COMPACT_GEAR_CANDIDATE_KEYS)
     primary_key = str(item.get("primaryStatKey") or "").strip()
+    # Catalog selectors can specialize itemStats after an older cached
+    # statSummary was produced.  The public root summary must reflect the
+    # same canonical stats as the variants and the Taro detail card.
+    compact_stats = compact_item.get("itemStats") or compact_item.get("stats") or []
+    summary_primary_keys = set()
+    for part in re.split(r"[；;，,\n]+", str(compact_item.get("statSummary") or "")):
+        summary_primary_keys.update(item_stat_primary_keys(part))
+    if (
+        compact_stats
+        and primary_key in PRIMARY_STAT_KEYS
+        and primary_key not in summary_primary_keys
+    ):
+        compact_item["statSummary"] = item_stat_summary(compact_stats)
     item_id = normalize_option_value(item.get("itemId") or item.get("id"))
     placeholder_names = {f"item_{item_id}", f"Item {item_id}"} if item_id else set()
     display_name = next(
