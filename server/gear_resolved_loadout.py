@@ -567,16 +567,20 @@ def build_resolved_loadout_from_registry(
     resolver_snapshot: Any,
     exact_registry: Any,
     template_scope: str = "",
+    template_content_hash: str = "",
 ) -> dict[str, Any]:
     """Match a Resolver result to one unique exact template content group.
 
     This compatibility adapter is intentionally exact-only. It is useful when
     a canonical Selection Intent no longer carries the original template
     content hash: all sealed groups are tried, serializer parity selects the
-    valid group, and multiple distinct ready loadouts remain blocked.
+    valid group, and multiple distinct ready loadouts remain blocked. Callers
+    that still own the server-observed template hash must pass it so only that
+    immutable group is evaluated.
     """
 
     registry = dict(exact_registry) if isinstance(exact_registry, Mapping) else {}
+    requested_hash = _text(template_content_hash)
     groups = sorted(
         {
             (
@@ -590,6 +594,10 @@ def build_resolved_loadout_from_registry(
                 and (
                     not _text(template_scope)
                     or _text(row.get("templateScope")) == _text(template_scope)
+                )
+                and (
+                    not requested_hash
+                    or _text(row.get("templateContentHash")) == requested_hash
                 )
             )
         }

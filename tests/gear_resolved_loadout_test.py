@@ -1,5 +1,6 @@
 import copy
 import unittest
+from unittest.mock import patch
 
 from server.gear_resolved_loadout import (
     build_resolved_loadout,
@@ -361,6 +362,32 @@ class GearResolvedLoadoutTest(unittest.TestCase):
         self.assertIn(
             "LOADOUT_EXACT_TEMPLATE_MATCH_UNAVAILABLE",
             missing["problemCodes"],
+        )
+
+    def test_compatibility_matcher_uses_known_template_hash_without_scanning_groups(self):
+        registry = exact_registry()
+        unrelated_hash = "sha256:" + ("f" * 64)
+        for raw in list(registry["templateReferences"]):
+            row = copy.deepcopy(raw)
+            row["templateContentHash"] = unrelated_hash
+            registry["templateReferences"].append(row)
+
+        with patch(
+            "server.gear_resolved_loadout.build_resolved_loadout",
+            wraps=build_resolved_loadout,
+        ) as builder:
+            matched = build_resolved_loadout_from_registry(
+                resolver_snapshot=resolver_snapshot(),
+                exact_registry=registry,
+                template_scope="community",
+                template_content_hash=TEMPLATE_HASH,
+            )
+
+        self.assertEqual(matched["status"], "ready")
+        self.assertEqual(builder.call_count, 1)
+        self.assertEqual(
+            builder.call_args.kwargs["template_content_hash"],
+            TEMPLATE_HASH,
         )
 
 

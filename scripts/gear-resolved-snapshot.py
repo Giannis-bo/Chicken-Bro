@@ -138,11 +138,13 @@ def run_shadow(
                     resolver_snapshot=first_resolver,
                     exact_registry=exact_registry,
                     template_scope="community",
+                    template_content_hash=content_hash,
                 )
                 second_loadout = build_resolved_loadout_from_registry(
                     resolver_snapshot=second_resolver,
                     exact_registry=exact_registry,
                     template_scope="community",
+                    template_content_hash=content_hash,
                 )
             except Exception:
                 first_loadout = {

@@ -2,6 +2,7 @@ import copy
 import importlib.util
 from pathlib import Path
 import unittest
+from unittest.mock import patch
 
 from tests.gear_resolved_loadout_test import (
     TEMPLATE_HASH,
@@ -105,6 +106,41 @@ class GearResolvedSnapshotShadowTest(unittest.TestCase):
             [row["id"] for row in templates],
             ["public-a"],
         )
+
+    def test_shadow_forwards_public_template_hash_to_exact_matcher(self):
+        with patch.object(
+            MODULE,
+            "build_resolved_loadout_from_registry",
+            return_value={
+                "status": "blocked",
+                "problemCodes": ["LOADOUT_TEST_BLOCKED"],
+            },
+        ) as matcher:
+            MODULE.run_shadow(
+                templates=[template(TEMPLATE_HASH, "known")],
+                exact_registry=exact_registry(),
+                resolver_reader=lambda _template: resolver_snapshot(),
+                snapshot_reader=lambda _loadout, _template: snapshot(),
+                seal_loadout=lambda value: value,
+                seal_snapshot=lambda value: value,
+                pointer_before={"generation": 32},
+                pointer_after_reader=lambda: {"generation": 32},
+                observed_at="2026-07-29T00:00:00Z",
+                expected_template_count=1,
+                expected_spec_count=1,
+                expected_supported_spec_count=1,
+                expected_unsupported_spec_count=0,
+                expected_ready_loadout_count=0,
+                expected_ready_snapshot_count=0,
+                expected_unsupported_snapshot_count=0,
+            )
+
+        self.assertEqual(matcher.call_count, 2)
+        for call in matcher.call_args_list:
+            self.assertEqual(
+                call.kwargs["template_content_hash"],
+                TEMPLATE_HASH,
+            )
 
     def test_ready_and_partial_templates_are_closed_without_silent_drop(self):
         registry = exact_registry()
