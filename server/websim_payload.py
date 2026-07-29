@@ -17593,15 +17593,35 @@ def catalog_item_trust_blockers(item):
     blockers = []
     metadata_status = str(item.get("metadataStatus") or "").strip()
     metadata_source = str(item.get("metadataSource") or "").strip()
-    if metadata_status != "verified" or metadata_source != ITEM_METADATA_SOURCE:
+    catalog_evidence_verified = (
+        str(item.get("catalogEvidenceStatus") or "").strip() == "verified"
+        and str(item.get("catalogEvidenceSource") or "").strip()
+        == "manifest_catalog_v2"
+    )
+    if (
+        not catalog_evidence_verified
+        and (metadata_status != "verified" or metadata_source != ITEM_METADATA_SOURCE)
+    ):
         blockers.append("verified Battle.net metadata")
     if not item.get("itemStats"):
-        blockers.append("Battle.net item stats")
+        blockers.append(
+            "Catalog static item stats"
+            if catalog_evidence_verified
+            else "Battle.net item stats"
+        )
     slot = normalize_slot(item.get("slot"))
     if slot in ARMOR_SLOTS and not item.get("armorType"):
-        blockers.append("Battle.net armor type")
+        blockers.append(
+            "Catalog armor type"
+            if catalog_evidence_verified
+            else "Battle.net armor type"
+        )
     if slot in WEAPON_SLOTS and not item.get("weaponType"):
-        blockers.append("Battle.net weapon type")
+        blockers.append(
+            "Catalog weapon type"
+            if catalog_evidence_verified
+            else "Battle.net weapon type"
+        )
     return blockers
 
 
@@ -21909,6 +21929,10 @@ def normalize_gear_item(value, class_key="", spec_key="", default_source_type=""
         "classKey": slugify(class_key, "") if class_key else str(value.get("classKey") or ""),
         "specKey": slugify(spec_key, "") if spec_key else str(value.get("specKey") or ""),
     }
+    for key in ("catalogEvidenceStatus", "catalogEvidenceSource"):
+        evidence_value = str(value.get(key) or payload.get(key) or "").strip()
+        if evidence_value:
+            item[key] = evidence_value[:120]
     type_metadata = item_type_metadata_from_payload(payload)
     for key in ("armorType", "weaponType", "itemSetName"):
         text = str(value.get(key) or type_metadata.get(key) or "").strip()
@@ -22926,6 +22950,45 @@ def attach_crafted_source_reference(item):
     return item
 
 
+def public_gear_candidate_diagnostics(value):
+    """Return player-safe blockers without leaking serializer or evidence internals."""
+
+    result = []
+    for message in text_list_value(value):
+        if re.search(r"[\u4e00-\u9fff]", message):
+            result.append(message)
+        else:
+            result.append("装备详情待核验")
+    return unique_text_list(result)
+
+
+def sanitize_public_gear_candidate_diagnostics(item):
+    if not isinstance(item, dict):
+        return item
+    sanitized = dict(item)
+    for key in ("blockers", "missingFields", "variantBlockers"):
+        values = public_gear_candidate_diagnostics(sanitized.get(key))
+        if values:
+            sanitized[key] = values
+        else:
+            sanitized.pop(key, None)
+    variants = []
+    for variant in sanitized.get("variants") or []:
+        if not isinstance(variant, dict):
+            continue
+        public_variant = dict(variant)
+        for key in ("blockers", "missingFields"):
+            values = public_gear_candidate_diagnostics(public_variant.get(key))
+            if values:
+                public_variant[key] = values
+            else:
+                public_variant.pop(key, None)
+        variants.append(public_variant)
+    if variants:
+        sanitized["variants"] = variants
+    return sanitized
+
+
 def sanitize_gear_candidate_mod_options(item):
     if not isinstance(item, dict):
         return item
@@ -22970,7 +23033,9 @@ def sanitize_gear_candidate_mod_options(item):
     cloned["socketOptions"] = socket_options if capabilities["hasSocket"] and allow_mod_options else []
     cloned["enchantOptions"] = enchant_options if capabilities["canEnchant"] and allow_mod_options else []
     cloned["embellishmentOptions"] = embellishment_options if capabilities["canEmbellish"] and allow_mod_options else []
-    return hide_candidate_preview_stats(cloned)
+    return sanitize_public_gear_candidate_diagnostics(
+        hide_candidate_preview_stats(cloned)
+    )
 
 
 def gear_candidate_for_slot(item, slot):

@@ -4670,7 +4670,7 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(fallback["statDisplayStatus"], "pending_current_variant")
         self.assertNotIn("itemStats", fallback)
         self.assertNotIn("statSummary", fallback)
-        self.assertIn("missing deterministic SimC variant preset", fallback["blockers"])
+        self.assertEqual(fallback["blockers"], ["装备详情待核验"])
         self.assertEqual(fallback["sources"][0]["sourceType"], "raid")
 
     def test_websim_gear_allows_observed_catalog_candidate_to_replace_preset_before_compact_limit(self):
@@ -8317,6 +8317,40 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertFalse(candidate["modCapabilities"]["hasSocket"])
         self.assertFalse(candidate["modCapabilities"]["canEnchant"])
 
+    def test_gear_candidate_sanitizer_never_exposes_internal_catalog_diagnostics(self):
+        candidate = self.websim_payload.sanitize_gear_candidate_mod_options(
+            {
+                "slot": "head",
+                "itemId": "900001",
+                "id": "900001",
+                "sourceType": "raid",
+                "sources": [{
+                    "id": "source-1",
+                    "sourceType": "raid",
+                    "sourceLabel": "团队副本 · 史诗",
+                }],
+                "blockers": [
+                    "verified Battle.net metadata",
+                    "Battle.net item stats",
+                ],
+                "missingFields": ["Battle.net armor type"],
+                "variants": [{
+                    "id": "variant-1",
+                    "status": "partial",
+                    "blockers": ["Battle.net weapon type"],
+                }],
+                "modCapabilities": {},
+            }
+        )
+
+        self.assertEqual(candidate["blockers"], ["装备详情待核验"])
+        self.assertEqual(candidate["missingFields"], ["装备详情待核验"])
+        self.assertEqual(
+            candidate["variants"][0]["blockers"],
+            ["装备详情待核验"],
+        )
+        self.assertNotIn("Battle.net", json.dumps(candidate, ensure_ascii=False))
+
     def test_gear_catalog_sync_adds_observed_profile_variants_from_raiderio(self):
         conn = sqlite3.connect(self.db_path)
         try:
@@ -10684,7 +10718,7 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(candidate["simcStatStatus"], "failed")
         self.assertEqual(candidate["simcStatFailureKind"], "item_resolution")
         self.assertNotIn("simcStatError", candidate)
-        self.assertIn("SimulationCraft item stats", candidate["blockers"])
+        self.assertEqual(candidate["blockers"], ["装备详情待核验"])
 
     def test_websim_gear_does_not_synthesize_stats_from_same_item_level_variant_at_request_time(self):
         conn = sqlite3.connect(self.db_path)
@@ -10780,7 +10814,7 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertNotIn("statSource", candidate)
         self.assertNotIn("statSummary", candidate)
         self.assertNotIn("itemStats", candidate)
-        self.assertIn("SimulationCraft item stats", candidate.get("blockers") or [])
+        self.assertEqual(candidate.get("blockers") or [], ["装备详情待核验"])
 
     def test_websim_gear_prefers_observed_variant_with_verified_stats(self):
         conn = sqlite3.connect(self.db_path)
@@ -11074,8 +11108,7 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(catalog_item["variantStatus"], "partial")
         self.assertEqual(catalog_item["metadataStatus"], "source_reference")
         self.assertEqual(catalog_item["metadataSource"], "raiderio_observed_profile")
-        self.assertIn("verified Battle.net metadata", catalog_item["blockers"])
-        self.assertIn("Battle.net item stats", catalog_item["blockers"])
+        self.assertEqual(catalog_item["blockers"], ["装备详情待核验"])
 
     def test_gear_catalog_health_payload_includes_slot_source_and_observed_variant_coverage(self):
         conn = sqlite3.connect(self.db_path)

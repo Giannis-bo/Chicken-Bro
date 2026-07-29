@@ -224,6 +224,113 @@ def _int(value: Any) -> int:
         return 0
 
 
+_CATALOG_STATIC_STAT_LABELS = {
+    "agiint": "敏捷或智力",
+    "intagi": "敏捷或智力",
+    "stragi": "力量或敏捷",
+    "strint": "力量或智力",
+    "stragiint": "力量/敏捷/智力",
+    "intellect": "智力",
+    "int": "智力",
+    "agility": "敏捷",
+    "agi": "敏捷",
+    "strength": "力量",
+    "str": "力量",
+    "stamina": "耐力",
+    "sta": "耐力",
+    "crit": "暴击",
+    "crit_rating": "暴击",
+    "critical_strike": "暴击",
+    "critical_strike_rating": "暴击",
+    "haste": "急速",
+    "haste_rating": "急速",
+    "mastery": "精通",
+    "mastery_rating": "精通",
+    "versatility": "全能",
+    "versatility_rating": "全能",
+    "armor": "护甲",
+    "avoidance": "闪避",
+    "avoidance_rating": "闪避",
+    "leech": "吸血",
+    "leech_rating": "吸血",
+    "speed": "速度",
+    "speed_rating": "速度",
+}
+
+_CATALOG_SOURCE_TYPE_LABELS = {
+    "dungeon": "地下城",
+    "mythic_plus": "大秘境",
+    "mythicplus": "大秘境",
+    "raid": "团队副本",
+    "tier_set": "套装",
+    "crafted": "制造装备",
+}
+
+_CATALOG_DIFFICULTY_LABELS = {
+    "normal": "普通",
+    "heroic": "英雄",
+    "mythic": "史诗",
+    "lfr": "随机",
+    "raid_finder": "随机",
+    "mythic_plus": "大秘境",
+    "mythicplus": "大秘境",
+}
+
+
+def _catalog_static_item_stats(static_facts: dict[str, Any]) -> list[dict[str, Any]]:
+    """Project verified Catalog facts into the established public stat shape."""
+
+    result = []
+    for key, value in sorted(static_facts.items()):
+        label = _CATALOG_STATIC_STAT_LABELS.get(_text(key).lower())
+        if not label:
+            continue
+        result.append({"key": _text(key), "label": label, "value": value})
+    if not result:
+        raise GearReleaseIntegrityError(
+            "Manifest Catalog BrowseVariant has no public static stat labels"
+        )
+    return result
+
+
+def _catalog_source_label(source: dict[str, Any]) -> str:
+    """Expose only governed source semantics, never an opaque source key."""
+
+    source_type = _text(source.get("sourceType")).lower()
+    difficulty_key = _text(source.get("difficultyKey")).lower()
+    source_label = _CATALOG_SOURCE_TYPE_LABELS.get(source_type, "")
+    difficulty_label = _CATALOG_DIFFICULTY_LABELS.get(difficulty_key, "")
+    if source_label and difficulty_label and source_label != difficulty_label:
+        return f"{source_label} · {difficulty_label}"
+    return source_label or difficulty_label or "来源待核验"
+
+
+def _catalog_source_display_key(source: dict[str, Any]) -> tuple[str, ...]:
+    return tuple(
+        _text(source.get(key))
+        for key in (
+            "itemId",
+            "sourceType",
+            "sourceKey",
+            "instanceId",
+            "encounterId",
+            "difficultyKey",
+            "seasonRevision",
+        )
+    )
+
+
+def _catalog_source_display_labels(source_snapshot: Any) -> dict[tuple[str, ...], str]:
+    snapshot = source_snapshot if isinstance(source_snapshot, dict) else {}
+    labels = {}
+    for row in snapshot.get("sources") or []:
+        source = row if isinstance(row, dict) else {}
+        label = _text(source.get("sourceLabel"))
+        if label:
+            labels[_catalog_source_display_key(source)] = label
+    return labels
+
+
 def _canonical_rows(rows: Any) -> list[dict[str, Any]]:
     values = [_canonical(row) for row in rows or [] if isinstance(row, dict)]
     return sorted(values, key=lambda row: _canonical_bytes(row))
@@ -577,6 +684,10 @@ def _manifest_catalog_snapshot(
         for row in value.get("itemDefinitions") or []
         if isinstance(row, dict) and _text(row.get("itemId"))
     }
+    source_value = (
+        source_snapshot if isinstance(source_snapshot, dict) else {}
+    )
+    source_display_labels = _catalog_source_display_labels(source_value)
     requested_slot = _text(catalog_slot)
     variants = []
     included_item_ids = set()
@@ -618,6 +729,7 @@ def _manifest_catalog_snapshot(
             raise GearReleaseIntegrityError(
                 "Manifest Catalog BrowseVariant integrity failed"
             )
+        item_stats = _catalog_static_item_stats(static_facts)
         progression = (
             _canonical(variant.get("progressionState"))
             if isinstance(variant.get("progressionState"), dict)
@@ -674,10 +786,20 @@ def _manifest_catalog_snapshot(
                     "catalogRevision": _text(
                         value.get("catalogRevision")
                     ),
+                    "catalogEvidenceStatus": "verified",
+                    "catalogEvidenceSource": "manifest_catalog_v2",
                     "progressionState": progression,
                     "sourceVariantKeys": source_keys,
                     "staticStats": static_facts,
                     "resolvedStats": static_facts,
+                    "itemStats": item_stats,
+                    "stats": item_stats,
+                    "statSummary": "；".join(
+                        f"{stat['label']} {stat['value']}"
+                        for stat in item_stats
+                    ),
+                    "statDisplayStatus": "verified_variant",
+                    "statSource": "manifest_catalog_v2",
                 },
                 "updatedAt": "",
             }
@@ -705,6 +827,8 @@ def _manifest_catalog_snapshot(
                 else {}
             ),
             "catalogRevision": _text(value.get("catalogRevision")),
+            "catalogEvidenceStatus": "verified",
+            "catalogEvidenceSource": "manifest_catalog_v2",
         }
         items.append(
             {
@@ -731,7 +855,14 @@ def _manifest_catalog_snapshot(
                     "itemId": item_id,
                     "sourceType": _text(row.get("sourceType")),
                     "sourceKey": _text(row.get("sourceKey")),
-                    "sourceLabel": "",
+                    "sourceLabel": (
+                        source_display_labels.get(
+                            _catalog_source_display_key(
+                                {**row, "itemId": item_id}
+                            )
+                        )
+                        or _catalog_source_label(row)
+                    ),
                     "instanceId": _text(row.get("instanceId")),
                     "encounterId": _text(row.get("encounterId")),
                     "difficultyKey": _text(
@@ -748,9 +879,6 @@ def _manifest_catalog_snapshot(
                     "updatedAt": "",
                 }
             )
-    source_value = (
-        source_snapshot if isinstance(source_snapshot, dict) else {}
-    )
     options = [
         _canonical(row)
         for row in source_value.get("options") or []

@@ -877,6 +877,90 @@ class PgGearReadModelSelectorsTest(unittest.TestCase):
         self.assertEqual(item["recommendationScore"], 99)
         self.assertEqual(item["observedProfileRefs"], [{"characterName": "Tester"}])
 
+    def test_manifest_catalog_public_item_uses_verified_static_facts_without_battle_net_diagnostics(self):
+        from server.pg_gear_read_model_selectors import build_gear_catalog_items_read_model
+
+        item_rows = [
+            (
+                "900001",
+                "Manifest Helm",
+                "head",
+                298,
+                json.dumps(
+                    {
+                        "armorType": "Plate",
+                        "catalogEvidenceStatus": "verified",
+                        "catalogEvidenceSource": "manifest_catalog_v2",
+                    }
+                ),
+                "verified",
+            )
+        ]
+        sources_by_item = {
+            "900001": [
+                {
+                    "id": "catalog-source-1",
+                    "itemId": "900001",
+                    "sourceType": "raid",
+                    "sourceKey": "loot:1305:2711:900001",
+                    "label": "团队副本 · 史诗",
+                    "sourceLabel": "团队副本 · 史诗",
+                    "difficultyKey": "mythic",
+                    "payload": {"status": "verified"},
+                }
+            ]
+        }
+        variants_by_item = {
+            "900001": [
+                {
+                    "id": "browse-variant-1",
+                    "itemId": "900001",
+                    "slot": "head",
+                    "variantKey": "browse-variant-1",
+                    "key": "browse-variant-1",
+                    "label": "myth 6/6",
+                    "sourceType": "raid",
+                    "difficultyKey": "mythic",
+                    "itemLevel": 298,
+                    "ilevel": 298,
+                    "simcOptions": {"bonus_id": "123", "ilevel": "298"},
+                    "status": "verified",
+                    "blockers": [],
+                    "payload": {
+                        "catalogEvidenceStatus": "verified",
+                        "catalogEvidenceSource": "manifest_catalog_v2",
+                        "itemStats": [
+                            {"key": "strength", "label": "力量", "value": 135},
+                            {"key": "stamina", "label": "耐力", "value": 1974},
+                            {"key": "haste_rating", "label": "急速", "value": 112},
+                        ],
+                        "statDisplayStatus": "verified_variant",
+                        "statSource": "manifest_catalog_v2",
+                    },
+                }
+            ]
+        }
+
+        catalog_items = build_gear_catalog_items_read_model(
+            item_rows,
+            sources_by_item,
+            variants_by_item,
+            {"socket": {"head": []}, "enchant": {"head": []}, "embellishment": {"head": []}},
+            "deathknight",
+            "frost",
+            {"seasonRevision": "s1"},
+        )
+
+        self.assertEqual(len(catalog_items), 1)
+        item = catalog_items[0]
+        self.assertEqual(item["source"], "团队副本 · 史诗")
+        self.assertEqual(item["armorType"], "Plate")
+        self.assertEqual(item["statDisplayStatus"], "verified_variant")
+        self.assertEqual(item["itemStats"][0]["value"], 135)
+        self.assertNotIn("missingFields", item)
+        self.assertNotIn("blockers", item)
+        self.assertNotIn("Battle.net", json.dumps(item, ensure_ascii=False))
+
     def test_build_gear_mod_options_by_slot_read_model_groups_option_rows(self):
         from server.pg_gear_read_model_selectors import build_gear_mod_options_by_slot_read_model
         from server.websim_payload import CANONICAL_GEAR_SLOTS

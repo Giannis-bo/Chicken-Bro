@@ -1,0 +1,96 @@
+{
+  "schemaVersion": 1,
+  "slug": "manifest-catalog-detail-contract",
+  "classification": "Strict",
+  "status": "implementation_allowed",
+  "goal": "Repair the active equipment-detail public payload so a Manifest Catalog v2 verified BrowseVariant presents its verified static attributes, a readable source, and user-safe diagnostic text.",
+  "userValue": "When a player opens an equipment candidate, they can see the attributes and source that the active catalog has verified; incomplete evidence remains honestly marked without exposing internal English diagnostics.",
+  "nonGoals": [
+    "Do not rebuild or switch the active Catalog/Gear Release/Manifest revision, ingest new Battle.net data, or alter resolver, SimC, TemplateSet, PostgreSQL schema, or persisted player data.",
+    "Do not make Taro infer item attributes, source identity, or evidence status from opaque keys; the backend public projection remains authoritative.",
+    "Do not deploy, run sync/backfill, claim candidate/live verification, or claim WeChat manual acceptance in this local implementation phase."
+  ],
+  "currentTruth": {
+    "sources": [
+      "docs/project-state.json",
+      "docs/roadmap.md",
+      "docs/plans/README.md",
+      "docs/plans/2026-07-28-equipment-simulator-target-architecture.md",
+      "docs/harness.md",
+      "docs/verification-matrix.md",
+      "docs/gear-simulation-full-chain-runbook.md",
+      "docs/design/current-ui/routes/gear-detail/truth-adaptation.json",
+      "docs/design/current-ui/routes/gear-detail/component-contract.json"
+    ],
+    "factOwner": "Manifest Catalog v2 owns verified BrowseVariant static facts and provenance; gear release/read-model serializers publish those facts; Taro consumes the public contract without inventing identity or trust.",
+    "baseBranch": "main"
+  },
+  "impactMap": {
+    "mustChange": [
+      "The Manifest Catalog v2 release adapter must project verified static facts as the public itemStats/stats contract with explicit catalog evidence provenance.",
+      "The release adapter must publish a readable, identity-matched source label when available and a safe source-type/difficulty fallback when it is not; opaque source keys cannot become player-facing labels.",
+      "The PG read-model selector and WebSim public normalizer must preserve the catalog evidence identity so verified Manifest facts do not incorrectly require Battle.net-only diagnostics.",
+      "Every public gear candidate diagnostic must be user-safe Chinese text; internal provider and implementation messages must not reach the detail view.",
+      "Targeted backend regressions must freeze the Manifest static-fact, source-label, trust, and diagnostic-sanitization contracts."
+    ],
+    "mustNotChange": [
+      "Do not change active catalog pointers, resolver selection, exact-instance recovery, SimC compilation, source ingestion, timer state, or persisted data.",
+      "Do not relax the fail-closed behavior for an actually missing verified fact; it remains a blocked/partial diagnostic with safe user-facing text.",
+      "Do not add a frontend fallback, route-private UI patch, or a fabricated named drop source."
+    ],
+    "riskUnknown": [
+      "The active source snapshot may omit an exact source label for a verified BrowseVariant; the fallback must remain informative without claiming an unverified encounter name.",
+      "Legacy public candidates can still carry internal diagnostic strings from non-Manifest paths; output sanitization must cover top-level and variant diagnostics without changing internal resolver diagnostics.",
+      "Candidate runtime caches and the active WeChat bundle still require immutable candidate smoke and explicit manual acceptance before merge."
+    ],
+    "evidenceRequired": [
+      "RED/GREEN targeted Python regressions for Manifest static facts, exact source-label identity matching, verified catalog trust, and public diagnostic sanitization.",
+      "Focused release-store/read-model/cache and WebSim payload suites, Harness requirement validation, diff review, and local CR tied to this packet.",
+      "Before merge: immutable candidate-head API/read-model smoke proving a verified BrowseVariant returns readable source and stats, plus the explicit WeChat manual acceptance items below."
+    ]
+  },
+  "ownership": {
+    "factOwner": "server/gear_release_store.py publishes Manifest Catalog v2 BrowseVariant evidence; server/pg_gear_read_model_selectors.py and server/websim_payload.py preserve and safely normalize it; apps/mini-taro/src/pages/builds/gear-detail-model.ts renders the returned public fields.",
+    "consumers": [
+      "server/gear_release_store.py",
+      "server/pg_gear_read_model_selectors.py",
+      "server/websim_payload.py",
+      "apps/mini-taro/src/pages/builds/gear-detail-model.ts",
+      "packages/design-system/src/components/GearDetailComponents.tsx",
+      "apps/mini-taro/src/pages/builds/detail.tsx"
+    ]
+  },
+  "engineeringHealth": {
+    "status": "health_watch_guarded",
+    "reason": "A user-visible public-payload regression crossed the Manifest adapter, PG read model, WebSim normalizer, and active detail consumer. The repair keeps one backend-owned evidence contract, uses TDD at each seam, and retains candidate/manual-acceptance gates."
+  },
+  "acceptanceEvidence": [
+    "A verified Manifest Catalog v2 item detail shows its verified static attributes instead of a blanket 待核验 state.",
+    "A verified item source is a readable exact source label when an identity-matched snapshot record exists, otherwise a truthful source-type/difficulty fallback; no opaque key is shown as a name.",
+    "A verified Manifest Catalog v2 item no longer displays Battle.net-only diagnostics merely because its evidence source is the active Manifest Catalog.",
+    "Any still-blocked public candidate displays safe Chinese diagnostics and does not expose internal provider/implementation text.",
+    "No active pointer, catalog revision, source ingestion, persisted data, remote runtime state, or UI geometry changes."
+  ],
+  "manualAcceptanceContract": {
+    "required": true,
+    "requiredItemIds": [
+      "gear_detail_verified_manifest_facts",
+      "gear_detail_safe_source_and_diagnostics"
+    ]
+  },
+  "releaseTrigger": "public_payload",
+  "rollback": [
+    "code_rollback",
+    "candidate_runtime_rollback"
+  ],
+  "decisionLog": [
+    {
+      "date": "2026-07-29",
+      "decision": "The user approved implementation after the active WebSim payload demonstrated that verified Manifest static facts were dropped, sourceLabel was blank, and internal diagnostics reached the gear detail view."
+    },
+    {
+      "date": "2026-07-29",
+      "decision": "The repair keeps Manifest Catalog v2 as a valid verified provenance source and does not fabricate Battle.net verification, encounter names, frontend-derived identity, or a catalog rebuild."
+    }
+  ]
+}

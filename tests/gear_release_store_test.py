@@ -2461,7 +2461,10 @@ class GearReleaseStoreTest(unittest.TestCase):
                     "itemLevel": 289,
                     "sourceStatus": "verified",
                     "media": {"iconUrl": "/runtime-media/item-a.webp"},
-                    "equipment": {"inventoryType": "head"},
+                    "equipment": {
+                        "armorType": "Plate",
+                        "inventoryType": "head",
+                    },
                     "restrictions": {"requiredClassIds": ["8"]},
                     "sources": [
                         {
@@ -2471,7 +2474,15 @@ class GearReleaseStoreTest(unittest.TestCase):
                             "difficultyKey": "mythic",
                             "seasonRevision": "season-17",
                             "status": "verified",
-                        }
+                        },
+                        {
+                            "sourceIdentity": "catalog-source:sha256:fallback",
+                            "sourceType": "dungeon",
+                            "sourceKey": "opaque-dungeon-key",
+                            "difficultyKey": "heroic",
+                            "seasonRevision": "season-17",
+                            "status": "verified",
+                        },
                     ],
                 }
             ],
@@ -2497,7 +2508,18 @@ class GearReleaseStoreTest(unittest.TestCase):
         }
         legacy_snapshot = {
             "items": [{"itemId": "legacy-must-not-leak"}],
-            "sources": [{"sourceId": "legacy-must-not-leak"}],
+            "sources": [
+                {"sourceId": "legacy-must-not-leak"},
+                {
+                    "sourceId": "display-source-a",
+                    "itemId": "item-a",
+                    "sourceType": "raid",
+                    "sourceKey": "raid-a",
+                    "difficultyKey": "mythic",
+                    "seasonRevision": "season-17",
+                    "sourceLabel": "首领 A - 团队副本 A",
+                },
+            ],
             "variants": [{"variantId": "legacy-must-not-leak"}],
             "options": [{"optionId": "option-a"}],
         }
@@ -2519,6 +2541,35 @@ class GearReleaseStoreTest(unittest.TestCase):
         self.assertEqual(
             snapshot["variants"][0]["payload"]["sourceVariantKeys"],
             ["variant-a"],
+        )
+        self.assertEqual(
+            snapshot["variants"][0]["payload"]["itemStats"],
+            [{"key": "intellect", "label": "智力", "value": 100}],
+        )
+        self.assertEqual(
+            snapshot["variants"][0]["payload"]["statDisplayStatus"],
+            "verified_variant",
+        )
+        self.assertEqual(
+            snapshot["variants"][0]["payload"]["catalogEvidenceStatus"],
+            "verified",
+        )
+        self.assertEqual(
+            snapshot["items"][0]["payload"]["armorType"],
+            "Plate",
+        )
+        self.assertEqual(
+            snapshot["sources"][0]["sourceLabel"],
+            "首领 A - 团队副本 A",
+        )
+        self.assertNotEqual(snapshot["sources"][0]["sourceLabel"], "raid-a")
+        self.assertEqual(
+            snapshot["sources"][1]["sourceLabel"],
+            "地下城 · 英雄",
+        )
+        self.assertNotEqual(
+            snapshot["sources"][1]["sourceLabel"],
+            "opaque-dungeon-key",
         )
         self.assertEqual(snapshot["options"], [{"optionId": "option-a"}])
         self.assertNotIn("legacy-must-not-leak", str(snapshot))
