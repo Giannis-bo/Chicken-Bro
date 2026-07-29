@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import json
 import os
 import sqlite3
 import sys
@@ -10,11 +9,21 @@ try:
     from .db import postgres_only_runtime_enabled, require_sqlite_runtime_enabled
     from .postgres_cache_sync import sync_raiderio_cache_postgres, sync_websim_cache_postgres
     from .raiderio_payload import sync_raiderio_cache
+    from .sync_log_summary import (
+        bounded_json_line,
+        bounded_progress_event,
+        sync_result_summary,
+    )
     from .websim_payload import sync_websim_cache
 except ImportError:
     from db import postgres_only_runtime_enabled, require_sqlite_runtime_enabled
     from postgres_cache_sync import sync_raiderio_cache_postgres, sync_websim_cache_postgres
     from raiderio_payload import sync_raiderio_cache
+    from sync_log_summary import (
+        bounded_json_line,
+        bounded_progress_event,
+        sync_result_summary,
+    )
     from websim_payload import sync_websim_cache
 
 
@@ -23,8 +32,25 @@ DB_PATH = Path(os.environ.get("WOW_NEWS_DB", BASE_DIR / "data" / "wow_news.sqlit
 
 
 def emit_progress(event):
-    payload = {"event": "websim_sync_stage", **event}
-    print(json.dumps(payload, ensure_ascii=False), file=sys.stderr, flush=True)
+    payload = bounded_progress_event(
+        {"event": "websim_sync_stage", **event}
+    )
+    print(
+        bounded_json_line(payload),
+        file=sys.stderr,
+        flush=True,
+    )
+
+
+def emit_result(payload):
+    print(
+        bounded_json_line(
+            sync_result_summary(
+                payload,
+                event="websim_sync_complete",
+            )
+        )
+    )
 
 
 def progress_event(stage, status, started_at=None, **details):
@@ -64,7 +90,7 @@ def main():
                 "runner": "postgres",
             }
             progress_event("raiderio", "skipped", raiderio_started, sourceStatus="skipped", runner="postgres")
-            print(json.dumps(payload, ensure_ascii=False, indent=2))
+            emit_result(payload)
             return 0
         try:
             payload["raiderio"] = sync_raiderio_cache_postgres(stage_callback=emit_progress)
@@ -83,7 +109,7 @@ def main():
                 "errors": [str(error)],
             }
             progress_event("raiderio", "blocked", raiderio_started, errors=1, runner="postgres")
-        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        emit_result(payload)
         return 0
     try:
         require_sqlite_runtime_enabled("websim_sync")
@@ -93,7 +119,7 @@ def main():
             "raiderio": {"sourceStatus": "blocked", "errors": [str(error)]},
         }
         emit_progress({"stage": "sqlite_runtime", "status": "blocked", "errors": 1})
-        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        emit_result(payload)
         return 2
     websim_started = progress_event("websim", "start", includeBlizzard=include_blizzard)
     payload = {
@@ -114,7 +140,7 @@ def main():
             "skipped": "WOW_WEBSIM_SKIP_RAIDERIO",
         }
         progress_event("raiderio", "skipped", raiderio_started, sourceStatus="skipped")
-        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        emit_result(payload)
         return 0
     try:
         with sqlite3.connect(DB_PATH) as conn:
@@ -133,7 +159,7 @@ def main():
             "errors": [str(error)],
         }
         progress_event("raiderio", "blocked", raiderio_started, errors=1)
-    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    emit_result(payload)
     return 0
 
 
