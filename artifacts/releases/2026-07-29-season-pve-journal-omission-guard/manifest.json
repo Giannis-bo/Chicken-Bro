@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-29T15:26:48.336Z",
+  "generatedAt": "2026-07-29T15:39:39.772Z",
   "release": {
     "date": "2026-07-29",
     "slug": "season-pve-journal-omission-guard"
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-29-season-pve-journal-omission-guard/evidence.json",
-    "sizeBytes": 8349,
+    "sizeBytes": 10008,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -390,9 +390,9 @@
       "summary"
     ],
     "missingFields": [],
-    "declaredStatus": "runtime_verified",
-    "highestEvidenceLevel": "runtime_verified",
-    "summary": "Runtime-verified upstream omission guard at commit 615c9238: PostgreSQL Journal discovery now records caps, fetch failures, fallback use, partial raid membership, and structural proof gaps; incomplete inputs preserve LKG in the orchestrator and are rejected again before writer SQL. Exact-file candidate parity, synthetic no-network/no-DB smoke, health, resource, timer/backflow, and rollback checks passed. Full official 18-source completeness remains literally blocked pending network-data landing approval."
+    "declaredStatus": "archived",
+    "highestEvidenceLevel": "archived",
+    "summary": "Archived upstream omission guard: runtime commit 615c9238 passed an immutable candidate, PR #111 passed full CI and merged as 1501b7ae, and production now runs the same three-file SHA-256 set. PostgreSQL Journal discovery records caps, fetch failures, fallback use, partial raid membership, and structural proof gaps; incomplete inputs preserve LKG in the orchestrator and are rejected before writer SQL. Live health endpoints are 200, services/timers remain controlled, and data health remains honestly partial. Full official 18-source completeness is still blocked pending network-data landing approval."
   },
   "evidence": {
     "localTests": {
@@ -417,7 +417,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "2 changed files currently visible to git status."
+      "detail": "3 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
@@ -453,10 +453,11 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 2,
+      "changedFileCount": 3,
       "changedFiles": [
         " M artifacts/releases/2026-07-29-season-pve-journal-omission-guard/evidence.json",
-        " M artifacts/releases/2026-07-29-season-pve-journal-omission-guard/requirement.json"
+        " M docs/plans/2026-07-29-season-pve-journal-omission-guard.md",
+        " M docs/plans/README.md"
       ]
     }
   },
