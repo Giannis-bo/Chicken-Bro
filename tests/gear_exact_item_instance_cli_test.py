@@ -133,6 +133,55 @@ class GearExactItemInstanceCliTest(unittest.TestCase):
         )
         self.assertEqual(sealed, [])
 
+    def test_run_releases_catalogs_before_building_exact_registry(self):
+        original_catalog_build = exact_cli.build_catalog_revision
+        original_registry_build = exact_cli.build_exact_item_registry
+        catalog_refs = []
+
+        class TrackedCatalog(dict):
+            pass
+
+        def tracked_catalog_build(binding, rows):
+            catalog = TrackedCatalog(
+                original_catalog_build(binding, rows)
+            )
+            catalog_refs.append(weakref.ref(catalog))
+            return catalog
+
+        def tracked_catalog_read(revision):
+            catalog = TrackedCatalog({"catalogRevision": revision})
+            catalog_refs.append(weakref.ref(catalog))
+            return catalog
+
+        def registry_after_catalog_release(binding, **build_args):
+            self.assertEqual(len(catalog_refs), 2)
+            self.assertTrue(all(ref() is None for ref in catalog_refs))
+            return original_registry_build(binding, **build_args)
+
+        with (
+            mock.patch.object(
+                exact_cli,
+                "build_catalog_revision",
+                side_effect=tracked_catalog_build,
+            ),
+            mock.patch.object(
+                exact_cli,
+                "build_exact_item_registry",
+                side_effect=registry_after_catalog_release,
+            ),
+        ):
+            report = exact_cli.run_migration(
+                snapshot_reader=lambda **_: snapshot(),
+                pointer_reader=lambda **_: snapshot()["pointerAfter"],
+                catalog_reader=tracked_catalog_read,
+                seal_writer=lambda registry: registry,
+                observed_at="2026-07-29T12:00:00+08:00",
+                elapsed_seconds_reader=lambda: 2.5,
+                peak_bytes_reader=lambda: 128_000_000,
+            )
+
+        self.assertEqual(report["status"], "verified")
+
     def test_one_snapshot_builds_twice_seals_reloads_and_keeps_pointer(self):
         sealed = []
 

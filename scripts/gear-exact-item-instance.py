@@ -167,11 +167,16 @@ def run_migration(
     catalog_rows = _mapping(snapshot.get("catalogRows"))
     catalog = build_catalog_revision(binding, catalog_rows)
     catalog_revision = _text(catalog.get("catalogRevision"))
+    catalog_status = _text(catalog.get("status"))
+    del catalog
     persisted_catalog = _mapping(catalog_reader(catalog_revision))
+    persisted_catalog_revision = _text(
+        persisted_catalog.get("catalogRevision")
+    )
+    del persisted_catalog
     if (
-        catalog.get("status") != "verified"
-        or _text(persisted_catalog.get("catalogRevision"))
-        != catalog_revision
+        catalog_status != "verified"
+        or persisted_catalog_revision != catalog_revision
     ):
         return _blocked_report(
             problem_codes=["EXACT_SHADOW_CATALOG_UNAVAILABLE"],

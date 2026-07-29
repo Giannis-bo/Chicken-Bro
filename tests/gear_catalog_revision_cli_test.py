@@ -160,6 +160,35 @@ class GearCatalogRevisionCliTest(unittest.TestCase):
         )
         self.assertEqual(sealed, [])
 
+    def test_shadow_releases_full_catalog_before_first_spec_projection(self):
+        class TrackedCatalog(dict):
+            pass
+
+        catalog_owner = [
+            TrackedCatalog(
+                revision_cli.build_catalog_revision(
+                    revision_cli._catalog_binding(snapshot()),
+                    snapshot()["catalogRows"],
+                )
+            )
+        ]
+        catalog_ref = weakref.ref(catalog_owner[0])
+
+        def payload_after_release(class_key, spec_key):
+            self.assertIsNone(catalog_ref())
+            return spec_payload(class_key, spec_key)
+
+        shadow, problem_codes = revision_cli._shadow_specs(
+            catalog=catalog_owner.pop(),
+            catalog_rows=snapshot()["catalogRows"],
+            pointer=snapshot()["pointerBefore"],
+            spec_payload_reader=payload_after_release,
+            class_spec_matrix=class_spec_matrix(),
+        )
+
+        self.assertEqual(shadow["status"], "verified")
+        self.assertEqual(problem_codes, [])
+
     def test_snapshot_shadow_reader_reuses_one_projection_without_public_payload_cache(self):
         calls = []
 

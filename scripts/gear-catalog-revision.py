@@ -361,6 +361,7 @@ def _shadow_specs(
                     item_id,
                     f"crafted-{public_track_key}-{item_level}",
                 )] = browse_key
+    del catalog
     aliases = _source_variant_aliases(catalog_rows)
     expected_manifest = _text(pointer.get("manifestRevision"))
     expected_generation = _integer(pointer.get("generation"))
@@ -513,8 +514,11 @@ def run_migration(
     catalog_owner = [second]
     del second
     sealed = _mapping(seal_writer(catalog_owner.pop()))
+    sealed_revision = _text(sealed.get("catalogRevision"))
+    sealed_owner = [sealed]
+    del sealed
     spec_shadow, shadow_codes = _shadow_specs(
-        catalog=sealed,
+        catalog=sealed_owner.pop(),
         catalog_rows=catalog_rows,
         pointer=pointer_before,
         spec_payload_reader=spec_payload_reader,
@@ -526,10 +530,7 @@ def run_migration(
     ))
     pointer_stable = pointer_before == pointer_after
     problem_codes = set(shadow_codes)
-    if (
-        _text(sealed.get("catalogRevision"))
-        != catalog_revision
-    ):
+    if sealed_revision != catalog_revision:
         problem_codes.add("CATALOG_SHADOW_SEAL_IDENTITY_MISMATCH")
     if not pointer_stable:
         problem_codes.add("CATALOG_SHADOW_POINTER_CHANGED")
@@ -619,18 +620,31 @@ def main(argv: list[str] | None = None) -> int:
             batch_size=args.batch_size,
         ))
         binding = _catalog_binding(snapshot)
-        spec_payload_reader = _snapshot_spec_payload_reader(
-            _mapping(snapshot.get("catalogRows")),
-            _mapping(snapshot.get("pointerBefore")),
-            _text(binding.get("seasonRevision")),
-            release_status=_text(
-                _mapping(
-                    _mapping(snapshot.get("activeBinding")).get(
-                        "gearRelease"
+        spec_payload_reader_holder: list[
+            Callable[[str, str], Mapping[str, Any]]
+        ] = []
+
+        def spec_payload_reader(
+            class_key: str,
+            spec_key: str,
+        ) -> Mapping[str, Any]:
+            if not spec_payload_reader_holder:
+                spec_payload_reader_holder.append(
+                    _snapshot_spec_payload_reader(
+                        _mapping(snapshot.get("catalogRows")),
+                        _mapping(snapshot.get("pointerBefore")),
+                        _text(binding.get("seasonRevision")),
+                        release_status=_text(
+                            _mapping(
+                                _mapping(
+                                    snapshot.get("activeBinding")
+                                ).get("gearRelease")
+                            ).get("releaseStatus")
+                        ),
                     )
-                ).get("releaseStatus")
-            ),
-        )
+                )
+            return spec_payload_reader_holder[0](class_key, spec_key)
+
         report = run_migration(
             snapshot_reader=lambda **_: snapshot,
             pointer_reader=audit_store.pointer_identity,
