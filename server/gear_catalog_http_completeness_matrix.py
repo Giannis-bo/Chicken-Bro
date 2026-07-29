@@ -198,7 +198,7 @@ def run_catalog_http_completeness_matrix(
     exact_registry_revision: str,
     observed_at: str,
 ) -> dict[str, Any]:
-    """Cross-check all 40 full public payloads against one sealed Catalog."""
+    """Cross-check every specialization-slot detail against one sealed Catalog."""
 
     expected = sorted({
         (_text(class_key), _text(spec_key))
@@ -233,200 +233,222 @@ def run_catalog_http_completeness_matrix(
     latencies: list[float] = []
 
     for class_key, spec_key in expected:
-        query = urlencode({
-            "class": class_key,
-            "spec": spec_key,
-            "compact": "1",
-            "mode": "full",
-        })
-        try:
-            status, payload, duration_ms = request_json(
-                "GET",
-                f"/api/websim/gear?{query}",
-                None,
-                {"X-Wow-Platform": "miniprogram"},
-            )
-        except Exception:
-            status, payload, duration_ms = 0, {}, 0.0
-        payload = payload if isinstance(payload, dict) else {}
-        latencies.append(float(duration_ms or 0))
         spec_failures: list[dict[str, str]] = []
-        if status != 200:
-            spec_failures.append(_failure(
-                "CATALOG_HTTP_REQUEST_FAILED",
-                class_key,
-                spec_key,
-            ))
-        for code in _binding_failures(
-            payload,
-            manifest_revision=manifest_revision,
-            pointer_generation=pointer_generation,
-            gear_release_id=gear_release_id,
-            community_release_id=community_release_id,
-            catalog_revision=catalog_revision,
-            exact_registry_revision=exact_registry_revision,
-        ):
-            spec_failures.append(_failure(
-                code,
-                class_key,
-                spec_key,
-            ))
+        for requested_slot in CANONICAL_GEAR_SLOTS:
+            query = urlencode({
+                "class": class_key,
+                "spec": spec_key,
+                "compact": "1",
+                "mode": "slot",
+                "slot": requested_slot,
+            })
+            try:
+                status, payload, duration_ms = request_json(
+                    "GET",
+                    f"/api/websim/gear?{query}",
+                    None,
+                    {"X-Wow-Platform": "miniprogram"},
+                )
+            except Exception:
+                status, payload, duration_ms = 0, {}, 0.0
+            payload = payload if isinstance(payload, dict) else {}
+            latencies.append(float(duration_ms or 0))
+            if status != 200:
+                spec_failures.append(_failure(
+                    "CATALOG_HTTP_REQUEST_FAILED",
+                    class_key,
+                    spec_key,
+                    slot=requested_slot,
+                ))
+            for code in _binding_failures(
+                payload,
+                manifest_revision=manifest_revision,
+                pointer_generation=pointer_generation,
+                gear_release_id=gear_release_id,
+                community_release_id=community_release_id,
+                catalog_revision=catalog_revision,
+                exact_registry_revision=exact_registry_revision,
+            ):
+                spec_failures.append(_failure(
+                    code,
+                    class_key,
+                    spec_key,
+                    slot=requested_slot,
+                ))
 
-        groups = (
-            payload.get("replacementCandidates")
-            if isinstance(payload.get("replacementCandidates"), list)
-            else []
-        )
-        group_slots = [
-            _text(group.get("slot"))
-            for group in groups
-            if isinstance(group, Mapping)
-        ]
-        if (
-            tuple(group_slots) != CANONICAL_GEAR_SLOTS
-            or len(set(group_slots)) != len(CANONICAL_GEAR_SLOTS)
-        ):
-            spec_failures.append(_failure(
-                "CATALOG_HTTP_SLOT_TOPOLOGY_INVALID",
-                class_key,
-                spec_key,
-            ))
-        observed_spec_slots += len(group_slots)
-
-        for raw_group in groups:
-            group = (
-                dict(raw_group)
-                if isinstance(raw_group, Mapping)
-                else {}
-            )
-            slot = _text(group.get("slot"))
-            items = (
-                group.get("items")
-                if isinstance(group.get("items"), list)
+            groups = (
+                payload.get("replacementCandidates")
+                if isinstance(
+                    payload.get("replacementCandidates"),
+                    list,
+                )
                 else []
             )
-            if items:
-                nonempty_spec_slots += 1
-            elif slot:
-                empty_spec_slots.append({
-                    "classKey": class_key,
-                    "specKey": spec_key,
-                    "slot": slot,
-                })
-            seen_group_items: set[str] = set()
-            for raw_item in items:
-                item = (
-                    dict(raw_item)
-                    if isinstance(raw_item, Mapping)
-                    else {}
-                )
-                item_id = _text(item.get("itemId") or item.get("id"))
-                visible_item_relations += 1
-                if (
-                    not item_id
-                    or item_id in seen_group_items
-                    or item_id not in definitions
-                ):
-                    spec_failures.append(_failure(
-                        "CATALOG_HTTP_ITEM_RELATION_INVALID",
-                        class_key,
-                        spec_key,
-                        slot=slot,
-                        item_id=item_id,
-                    ))
-                    continue
-                seen_group_items.add(item_id)
-                observed_items.add(item_id)
-                compatibility = (
-                    item.get("compatibility")
-                    if isinstance(item.get("compatibility"), Mapping)
-                    else {}
-                )
-                if (
-                    _text(item.get("slot")) != slot
-                    or _text(compatibility.get("classKey"))
-                    != class_key
-                    or _text(compatibility.get("specKey"))
-                    != spec_key
-                    or _text(compatibility.get("status"))
-                    != "compatible"
-                ):
-                    spec_failures.append(_failure(
-                        "CATALOG_HTTP_ITEM_COMPATIBILITY_INVALID",
-                        class_key,
-                        spec_key,
-                        slot=slot,
-                        item_id=item_id,
-                    ))
+            group_slots = [
+                _text(group.get("slot"))
+                for group in groups
+                if isinstance(group, Mapping)
+            ]
+            if group_slots != [requested_slot]:
+                spec_failures.append(_failure(
+                    "CATALOG_HTTP_SLOT_TOPOLOGY_INVALID",
+                    class_key,
+                    spec_key,
+                    slot=requested_slot,
+                ))
+            observed_spec_slots += len(group_slots)
 
-                item_variants = (
-                    item.get("variants")
-                    if isinstance(item.get("variants"), list)
+            for raw_group in groups:
+                group = (
+                    dict(raw_group)
+                    if isinstance(raw_group, Mapping)
+                    else {}
+                )
+                slot = _text(group.get("slot"))
+                items = (
+                    group.get("items")
+                    if isinstance(group.get("items"), list)
                     else []
                 )
-                actual_keys: set[str] = set()
-                for raw_variant in item_variants:
-                    variant = (
-                        dict(raw_variant)
-                        if isinstance(raw_variant, Mapping)
+                if items:
+                    nonempty_spec_slots += 1
+                elif slot:
+                    empty_spec_slots.append({
+                        "classKey": class_key,
+                        "specKey": spec_key,
+                        "slot": slot,
+                    })
+                seen_group_items: set[str] = set()
+                for raw_item in items:
+                    item = (
+                        dict(raw_item)
+                        if isinstance(raw_item, Mapping)
                         else {}
                     )
-                    key = _text(
-                        variant.get("variantKey")
-                        or variant.get("key")
-                        or variant.get("id")
+                    item_id = _text(
+                        item.get("itemId") or item.get("id")
                     )
-                    visible_variant_relations += 1
-                    expected_variant = variants.get(key)
+                    visible_item_relations += 1
                     if (
-                        not key
-                        or key in actual_keys
-                        or not expected_variant
-                        or _text(variant.get("itemId")) != item_id
-                        or _text(variant.get("status")) != "verified"
-                        or _integer(variant.get("itemLevel"))
-                        != _integer(expected_variant.get("itemLevel"))
-                        or _text(variant.get("sourceType"))
-                        != _text(expected_variant.get("sourceType"))
-                        or _canonical(
-                            compact_manifest_progression_state(
-                                variant.get("progressionState")
-                            )
-                        )
-                        != _canonical(
-                            compact_manifest_progression_state(
-                                expected_variant.get(
-                                    "progressionState"
-                                )
-                            )
-                        )
+                        not item_id
+                        or item_id in seen_group_items
+                        or item_id not in definitions
                     ):
                         spec_failures.append(_failure(
-                            "CATALOG_HTTP_VARIANT_RELATION_INVALID",
+                            "CATALOG_HTTP_ITEM_RELATION_INVALID",
                             class_key,
                             spec_key,
                             slot=slot,
                             item_id=item_id,
                         ))
                         continue
-                    actual_keys.add(key)
-                    observed_variants.add(key)
-                if actual_keys != variants_by_item.get(item_id, set()):
-                    spec_failures.append(_failure(
-                        "CATALOG_HTTP_ITEM_VARIANT_SET_INCOMPLETE",
-                        class_key,
-                        spec_key,
-                        slot=slot,
-                        item_id=item_id,
-                    ))
-                if _text(item.get("defaultVariantKey")) not in actual_keys:
-                    spec_failures.append(_failure(
-                        "CATALOG_HTTP_DEFAULT_VARIANT_INVALID",
-                        class_key,
-                        spec_key,
-                        slot=slot,
-                        item_id=item_id,
-                    ))
+                    seen_group_items.add(item_id)
+                    observed_items.add(item_id)
+                    compatibility = (
+                        item.get("compatibility")
+                        if isinstance(
+                            item.get("compatibility"),
+                            Mapping,
+                        )
+                        else {}
+                    )
+                    if (
+                        _text(item.get("slot")) != slot
+                        or _text(compatibility.get("classKey"))
+                        != class_key
+                        or _text(compatibility.get("specKey"))
+                        != spec_key
+                        or _text(compatibility.get("status"))
+                        != "compatible"
+                    ):
+                        spec_failures.append(_failure(
+                            "CATALOG_HTTP_ITEM_COMPATIBILITY_INVALID",
+                            class_key,
+                            spec_key,
+                            slot=slot,
+                            item_id=item_id,
+                        ))
+
+                    item_variants = (
+                        item.get("variants")
+                        if isinstance(item.get("variants"), list)
+                        else []
+                    )
+                    actual_keys: set[str] = set()
+                    for raw_variant in item_variants:
+                        variant = (
+                            dict(raw_variant)
+                            if isinstance(raw_variant, Mapping)
+                            else {}
+                        )
+                        key = _text(
+                            variant.get("variantKey")
+                            or variant.get("key")
+                            or variant.get("id")
+                        )
+                        visible_variant_relations += 1
+                        expected_variant = variants.get(key)
+                        if (
+                            not key
+                            or key in actual_keys
+                            or not expected_variant
+                            or _text(variant.get("itemId"))
+                            != item_id
+                            or _text(variant.get("status"))
+                            != "verified"
+                            or _integer(variant.get("itemLevel"))
+                            != _integer(
+                                expected_variant.get("itemLevel")
+                            )
+                            or _text(variant.get("sourceType"))
+                            != _text(
+                                expected_variant.get("sourceType")
+                            )
+                            or _canonical(
+                                compact_manifest_progression_state(
+                                    variant.get("progressionState")
+                                )
+                            )
+                            != _canonical(
+                                compact_manifest_progression_state(
+                                    expected_variant.get(
+                                        "progressionState"
+                                    )
+                                )
+                            )
+                        ):
+                            spec_failures.append(_failure(
+                                "CATALOG_HTTP_VARIANT_RELATION_INVALID",
+                                class_key,
+                                spec_key,
+                                slot=slot,
+                                item_id=item_id,
+                            ))
+                            continue
+                        actual_keys.add(key)
+                        observed_variants.add(key)
+                    if (
+                        actual_keys
+                        != variants_by_item.get(item_id, set())
+                    ):
+                        spec_failures.append(_failure(
+                            "CATALOG_HTTP_ITEM_VARIANT_SET_INCOMPLETE",
+                            class_key,
+                            spec_key,
+                            slot=slot,
+                            item_id=item_id,
+                        ))
+                    if (
+                        _text(item.get("defaultVariantKey"))
+                        not in actual_keys
+                    ):
+                        spec_failures.append(_failure(
+                            "CATALOG_HTTP_DEFAULT_VARIANT_INVALID",
+                            class_key,
+                            spec_key,
+                            slot=slot,
+                            item_id=item_id,
+                        ))
 
         if not spec_failures:
             passing_specs += 1
@@ -463,7 +485,7 @@ def run_catalog_http_completeness_matrix(
     )
     stable = {
         "schemaRevision": (
-            "gear-catalog-http-completeness-matrix-v1"
+            "gear-catalog-http-completeness-matrix-v2"
         ),
         "status": status,
         "bindingMode": "candidate_preview",

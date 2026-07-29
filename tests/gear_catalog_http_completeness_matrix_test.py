@@ -1,5 +1,6 @@
 import copy
 import unittest
+from urllib.parse import parse_qs, urlparse
 
 from server.gear_catalog_http_completeness_matrix import (
     CANONICAL_GEAR_SLOTS,
@@ -91,17 +92,28 @@ class GearCatalogHttpCompletenessMatrixTest(unittest.TestCase):
             "replacementCandidates": groups,
         }
 
+    def slot_request(self, payload, requested_paths=None):
+        def request_json(_method, path, _body, _headers):
+            if requested_paths is not None:
+                requested_paths.append(path)
+            slot = parse_qs(urlparse(path).query)["slot"][0]
+            selected = copy.deepcopy(payload)
+            selected["replacementCandidates"] = [
+                group
+                for group in selected["replacementCandidates"]
+                if group["slot"] == slot
+            ]
+            return 200, selected, 10.0
+
+        return request_json
+
     def test_complete_spec_slot_and_catalog_universe_passes(self):
         identities = self.identities()
         payload = self.payload(identities)
         requested_paths = []
 
-        def request_json(_method, path, _body, _headers):
-            requested_paths.append(path)
-            return 200, payload, 10.0
-
         report = run_catalog_http_completeness_matrix(
-            request_json,
+            self.slot_request(payload, requested_paths),
             catalog=self.catalog(identities),
             expected_specs=[("mage", "frost")],
             **identities,
@@ -109,6 +121,10 @@ class GearCatalogHttpCompletenessMatrixTest(unittest.TestCase):
         )
 
         self.assertEqual(report["status"], "pass", report)
+        self.assertEqual(
+            report["schemaRevision"],
+            "gear-catalog-http-completeness-matrix-v2",
+        )
         self.assertEqual(
             report["specCoverage"]["observedSpecSlotCount"],
             16,
@@ -122,8 +138,18 @@ class GearCatalogHttpCompletenessMatrixTest(unittest.TestCase):
             1,
         )
         self.assertEqual(report["failureCount"], 0)
-        self.assertEqual(len(requested_paths), 1)
-        self.assertIn("mode=full", requested_paths[0])
+        self.assertEqual(len(requested_paths), 16)
+        self.assertTrue(all(
+            parse_qs(urlparse(path).query).get("mode") == ["slot"]
+            for path in requested_paths
+        ))
+        self.assertEqual(
+            {
+                parse_qs(urlparse(path).query)["slot"][0]
+                for path in requested_paths
+            },
+            set(CANONICAL_GEAR_SLOTS),
+        )
 
     def test_missing_variant_and_catalog_item_fail_closed(self):
         identities = self.identities()
@@ -134,7 +160,7 @@ class GearCatalogHttpCompletenessMatrixTest(unittest.TestCase):
         ] = []
 
         report = run_catalog_http_completeness_matrix(
-            lambda *_args: (200, payload, 10.0),
+            self.slot_request(payload),
             catalog=self.catalog(identities),
             expected_specs=[("mage", "frost")],
             **identities,
