@@ -483,21 +483,30 @@ def run_migration(
     binding = _catalog_binding(snapshot)
     catalog_rows = _mapping(snapshot.get("catalogRows"))
     first = build_catalog_revision(binding, catalog_rows)
+    first_status = _text(first.get("status"))
+    first_problem_codes = list(first.get("problemCodes") or [])
+    first_problems = list(first.get("problems") or [])
+    first_content_hash = _hash("sha256:", first)
+    del first
     second = build_catalog_revision(binding, catalog_rows)
-    if first.get("status") != "verified":
+    deterministic = first_content_hash == _hash("sha256:", second)
+    if first_status != "verified" or not deterministic:
+        problem_codes = set(first_problem_codes)
+        problem_codes.update(second.get("problemCodes") or [])
+        if not deterministic:
+            problem_codes.add("CATALOG_SHADOW_BUILD_NONDETERMINISTIC")
         return {
             "schemaRevision": "gear-catalog-shadow-report-v1",
             "status": "blocked",
-            "problemCodes": list(first.get("problemCodes") or []),
-            "problems": list(first.get("problems") or []),
+            "problemCodes": sorted(problem_codes),
+            "problems": first_problems,
             "pointerBefore": pointer_before,
             "pointerAfter": pointer_before,
             "pointerStable": True,
-            "deterministicBuild": first == second,
+            "deterministicBuild": deterministic,
             "observedAt": observed_at,
         }
-    deterministic = first == second
-    sealed = _mapping(seal_writer(first))
+    sealed = _mapping(seal_writer(second))
     spec_shadow, shadow_codes = _shadow_specs(
         catalog=sealed,
         catalog_rows=catalog_rows,
@@ -511,11 +520,9 @@ def run_migration(
     ))
     pointer_stable = pointer_before == pointer_after
     problem_codes = set(shadow_codes)
-    if not deterministic:
-        problem_codes.add("CATALOG_SHADOW_BUILD_NONDETERMINISTIC")
     if (
         _text(sealed.get("catalogRevision"))
-        != _text(first.get("catalogRevision"))
+        != _text(second.get("catalogRevision"))
     ):
         problem_codes.add("CATALOG_SHADOW_SEAL_IDENTITY_MISMATCH")
     if not pointer_stable:
@@ -523,7 +530,7 @@ def run_migration(
     report = {
         "schemaRevision": "gear-catalog-shadow-report-v1",
         "status": "blocked" if problem_codes else "verified",
-        "catalogRevision": _text(first.get("catalogRevision")),
+        "catalogRevision": _text(second.get("catalogRevision")),
         "sourceGearReleaseId": _text(binding.get("gearReleaseId")),
         "sourceGearReleaseContentHash": _text(
             binding.get("gearReleaseContentHash")
@@ -532,7 +539,7 @@ def run_migration(
         "pointerStable": pointer_stable,
         "pointerBefore": pointer_before,
         "pointerAfter": pointer_after,
-        "contentSummary": _mapping(first.get("contentSummary")),
+        "contentSummary": _mapping(second.get("contentSummary")),
         "specShadow": spec_shadow,
         "problemCodes": sorted(problem_codes),
         "observedAt": observed_at,

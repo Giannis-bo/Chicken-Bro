@@ -1,6 +1,8 @@
 import importlib.util
 from pathlib import Path
 import unittest
+from unittest import mock
+import weakref
 
 from tests.gear_catalog_revision_test import (
     CURRENT_BINDING,
@@ -88,6 +90,76 @@ def spec_payload(class_key, spec_key):
 
 
 class GearCatalogRevisionCliTest(unittest.TestCase):
+    def test_run_releases_first_full_catalog_before_building_second_copy(self):
+        original_build = revision_cli.build_catalog_revision
+        first_ref = []
+        build_count = 0
+
+        class TrackedCatalog(dict):
+            pass
+
+        def tracked_build(binding, rows):
+            nonlocal build_count
+            build_count += 1
+            if build_count == 2:
+                self.assertIsNone(first_ref[0]())
+            catalog = TrackedCatalog(original_build(binding, rows))
+            if build_count == 1:
+                first_ref.append(weakref.ref(catalog))
+            return catalog
+
+        with mock.patch.object(
+            revision_cli,
+            "build_catalog_revision",
+            side_effect=tracked_build,
+        ):
+            report = revision_cli.run_migration(
+                snapshot_reader=lambda **_: snapshot(),
+                pointer_reader=lambda **_: snapshot()["pointerAfter"],
+                seal_writer=lambda catalog: catalog,
+                spec_payload_reader=spec_payload,
+                class_spec_matrix=class_spec_matrix(),
+                observed_at="2026-07-29T10:00:00+08:00",
+            )
+
+        self.assertEqual(report["status"], "verified")
+        self.assertTrue(report["deterministicBuild"])
+
+    def test_nondeterministic_build_blocks_before_dormant_seal(self):
+        original_build = revision_cli.build_catalog_revision
+        sealed = []
+        build_count = 0
+
+        def nondeterministic_build(binding, rows):
+            nonlocal build_count
+            build_count += 1
+            catalog = original_build(binding, rows)
+            if build_count == 2:
+                catalog["builderRevision"] = "unexpected-drift"
+            return catalog
+
+        with mock.patch.object(
+            revision_cli,
+            "build_catalog_revision",
+            side_effect=nondeterministic_build,
+        ):
+            report = revision_cli.run_migration(
+                snapshot_reader=lambda **_: snapshot(),
+                pointer_reader=lambda **_: snapshot()["pointerAfter"],
+                seal_writer=lambda catalog: sealed.append(catalog),
+                spec_payload_reader=spec_payload,
+                class_spec_matrix=class_spec_matrix(),
+                observed_at="2026-07-29T10:00:00+08:00",
+            )
+
+        self.assertEqual(report["status"], "blocked")
+        self.assertFalse(report["deterministicBuild"])
+        self.assertIn(
+            "CATALOG_SHADOW_BUILD_NONDETERMINISTIC",
+            report["problemCodes"],
+        )
+        self.assertEqual(sealed, [])
+
     def test_snapshot_shadow_reader_reuses_one_projection_without_public_payload_cache(self):
         calls = []
 
