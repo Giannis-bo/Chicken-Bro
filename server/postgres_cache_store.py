@@ -1457,7 +1457,11 @@ class PostgresCacheStore:
             if manifest_binding_cache is not None
             else AuthorityContextCache(
                 max_entries=4,
-                max_bytes=16 * 1024 * 1024,
+                # A current-season Catalog v2 binding is about 18 MiB once
+                # exact variant-shape aliases are sealed. Keep one candidate
+                # binding resident instead of reloading and re-hashing the
+                # entire Catalog for every public import request.
+                max_bytes=32 * 1024 * 1024,
             )
         )
         self._gear_release_store = (

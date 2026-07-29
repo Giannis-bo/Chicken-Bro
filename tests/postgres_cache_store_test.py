@@ -9703,7 +9703,7 @@ class PostgresCacheStoreTest(unittest.TestCase):
                 "entryCount": 0,
                 "byteSize": 0,
                 "maxEntries": 4,
-                "maxBytes": 16 * 1024 * 1024,
+                "maxBytes": 32 * 1024 * 1024,
             },
         })
         self.assertEqual(release_store.calls, [
