@@ -100,7 +100,10 @@ def _unique_index(
 ) -> dict[str, dict[str, Any]] | None:
     result: dict[str, dict[str, Any]] = {}
     for raw in rows or []:
-        row = _canonical(raw) if isinstance(raw, Mapping) else {}
+        # Sealed registries are immutable and byte-verified by their store.
+        # Keep read-only references here; JSON-detaching hundreds of rows for
+        # every import dominated the candidate request CPU budget.
+        row = raw if isinstance(raw, dict) else {}
         key = _text(row.get(key_field))
         if not key or key in result:
             return None

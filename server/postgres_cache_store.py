@@ -1485,6 +1485,8 @@ class PostgresCacheStore:
         self._gear_exact_item_registry_store = GearExactItemRegistryStore(
             connection_factory
         )
+        self._manifest_exact_registry_material_identity = ""
+        self._manifest_exact_registry_material = None
         self._simulation_snapshot_store = SimulationSnapshotStore(
             connection_factory
         )
@@ -1837,7 +1839,31 @@ class PostgresCacheStore:
         )
         if manifest.get("schemaRevision") != "active-season-manifest-v2":
             return {}
-        return self.get_active_gear_exact_registry(
+        identity = ":".join(
+            (
+                str(
+                    manifest.get("manifestRevision")
+                    or value.get("manifestRevision")
+                    or ""
+                ).strip(),
+                str(
+                    manifest.get("gearExactRegistryRevision")
+                    or ""
+                ).strip(),
+                str(_int_value(value.get("generation"))),
+            )
+        )
+        if (
+            identity
+            and identity
+            == self._manifest_exact_registry_material_identity
+            and isinstance(
+                self._manifest_exact_registry_material,
+                dict,
+            )
+        ):
+            return self._manifest_exact_registry_material
+        registry = self.get_active_gear_exact_registry(
             expected_manifest_revision=str(
                 manifest.get("manifestRevision")
                 or value.get("manifestRevision")
@@ -1847,6 +1873,9 @@ class PostgresCacheStore:
                 value.get("generation")
             ),
         )
+        self._manifest_exact_registry_material_identity = identity
+        self._manifest_exact_registry_material = registry
+        return registry
 
     def _project_manifest_exact_import(self, source, binding):
         value = binding if isinstance(binding, dict) else {}

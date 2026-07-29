@@ -9645,6 +9645,46 @@ class PostgresCacheStoreTest(unittest.TestCase):
                 expected_pointer_generation=33,
             )
 
+    def test_manifest_exact_material_is_reused_by_identity_without_json_detach(self):
+        from server import postgres_cache_store
+
+        revision = "gear-exact-registry:sha256:" + ("b" * 64)
+        binding = {
+            "generation": 33,
+            "manifestRevision": "season-manifest:v2",
+            "manifest": {
+                "schemaRevision": "active-season-manifest-v2",
+                "manifestRevision": "season-manifest:v2",
+                "gearExactRegistryRevision": revision,
+            },
+        }
+        registry = {
+            "registryRevision": revision,
+            "templateReferences": [],
+        }
+        store = postgres_cache_store.PostgresCacheStore(
+            lambda: self.fail(
+                "identity cache must not open a database connection"
+            )
+        )
+
+        with patch.object(
+            store,
+            "get_active_gear_exact_registry",
+            return_value=registry,
+        ) as loader:
+            first = store._manifest_exact_registry(binding)
+            second = store._manifest_exact_registry(
+                copy.deepcopy(binding)
+            )
+
+        self.assertIs(first, registry)
+        self.assertIs(second, registry)
+        loader.assert_called_once_with(
+            expected_manifest_revision="season-manifest:v2",
+            expected_pointer_generation=33,
+        )
+
     def test_candidate_release_readers_delegate_to_single_release_repository(self):
         from server import postgres_cache_store
 
