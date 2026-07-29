@@ -556,6 +556,8 @@ class GearReleaseStoreTest(unittest.TestCase):
         self.assertIn("jsonb_strip_nulls", sql)
         self.assertIn("expected_simc_options", sql)
         self.assertIn("profile_variant_ids", sql)
+        self.assertIn("reference_id", sql)
+        self.assertIn("matched_reference_ids", sql)
         self.assertIn("semantic_fallback_variant_ids", sql)
         self.assertIn("payload_json->>'profileUrl'", sql)
         self.assertIn("'gem_bonus_id'", sql)

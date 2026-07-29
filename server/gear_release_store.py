@@ -2124,12 +2124,16 @@ class GearReleaseStore:
                                 ELSE '[]'::jsonb
                             END
                         ) gear_item
-                    ), referenced AS MATERIALIZED (
+                    ), referenced_distinct AS MATERIALIZED (
                         SELECT DISTINCT
                                item_id, variant_key, slot, item_level,
                                expected_simc_options, profile_urls
                         FROM raw_referenced
                         WHERE item_id IS NOT NULL
+                    ), referenced AS MATERIALIZED (
+                        SELECT ROW_NUMBER() OVER () AS reference_id,
+                               referenced_distinct.*
+                        FROM referenced_distinct
                     ), candidate_variants AS MATERIALIZED (
                         SELECT variant_id, item_id, variant_key, slot, label,
                                source_type, difficulty_key, item_level,
@@ -2164,20 +2168,21 @@ class GearReleaseStore:
                                   'g'
                               )
                           )
+                    ), observed_instance_keys AS MATERIALIZED (
+                        SELECT DISTINCT item_id, item_level, slot,
+                               expected_simc_options
+                        FROM referenced
                     ), observed_instance_candidates AS MATERIALIZED (
                         SELECT variant.*
                         FROM candidate_variants variant
+                        INNER JOIN observed_instance_keys instance
+                          ON instance.item_id = variant.item_id
+                         AND instance.item_level = variant.item_level
+                         AND instance.slot = variant.normalized_slot
+                         AND instance.expected_simc_options
+                             = variant.simc_options_json
                         WHERE LOWER(variant.status) = 'verified'
                           AND LOWER(variant.source_type) = 'observed_profile'
-                          AND EXISTS (
-                              SELECT 1
-                              FROM referenced
-                              WHERE referenced.item_id = variant.item_id
-                                AND referenced.item_level = variant.item_level
-                                AND referenced.slot = variant.normalized_slot
-                                AND referenced.expected_simc_options
-                                    = variant.simc_options_json
-                          )
                     ), candidate_profile_urls AS MATERIALIZED (
                         SELECT DISTINCT variant.variant_id, profile_url
                         FROM observed_instance_candidates variant
@@ -2206,8 +2211,9 @@ class GearReleaseStore:
                             ) profile_ref(value)
                         ) candidate_profiles
                         WHERE profile_url IS NOT NULL
-                    ), profile_variant_ids AS MATERIALIZED (
-                        SELECT DISTINCT variant.variant_id
+                    ), profile_matches AS MATERIALIZED (
+                        SELECT DISTINCT referenced.reference_id,
+                                        variant.variant_id
                         FROM referenced
                         INNER JOIN observed_instance_candidates variant
                           ON referenced.item_id = variant.item_id
@@ -2218,23 +2224,19 @@ class GearReleaseStore:
                         INNER JOIN candidate_profile_urls profile
                           ON profile.variant_id = variant.variant_id
                          AND profile.profile_url = ANY(referenced.profile_urls)
+                    ), profile_variant_ids AS MATERIALIZED (
+                        SELECT DISTINCT variant_id
+                        FROM profile_matches
+                    ), matched_reference_ids AS MATERIALIZED (
+                        SELECT DISTINCT reference_id
+                        FROM profile_matches
                     ), unmatched_references AS MATERIALIZED (
                         SELECT referenced.*
                         FROM referenced
+                        LEFT JOIN matched_reference_ids matched
+                          ON matched.reference_id = referenced.reference_id
                         WHERE cardinality(referenced.profile_urls) > 0
-                          AND NOT EXISTS (
-                              SELECT 1
-                              FROM observed_instance_candidates variant
-                              INNER JOIN candidate_profile_urls profile
-                                ON profile.variant_id = variant.variant_id
-                              WHERE referenced.item_id = variant.item_id
-                                AND referenced.item_level = variant.item_level
-                                AND referenced.slot = variant.normalized_slot
-                                AND referenced.expected_simc_options
-                                    = variant.simc_options_json
-                                AND profile.profile_url
-                                    = ANY(referenced.profile_urls)
-                          )
+                          AND matched.reference_id IS NULL
                     ), semantic_fallback_variant_ids AS MATERIALIZED (
                         SELECT DISTINCT variant.variant_id
                         FROM unmatched_references referenced
