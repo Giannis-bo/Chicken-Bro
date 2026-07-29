@@ -2043,6 +2043,7 @@ PRIMARY_STAT_HYBRID_PATTERNS = {
     "intellectstrengthagility": {"strength", "agility", "intellect"},
     "intellectagilitystrength": {"strength", "agility", "intellect"},
 }
+GENERIC_SPEC_PRIMARY_STAT_KEYS = {"agiint", "intagi"}
 GEM_ITEM_CLASS_IDS = {3}
 GEM_CLASS_NAMES = {"gem", "\u5b9d\u77f3"}
 WEAPON_SUBCLASS_TYPES = {
@@ -4088,6 +4089,15 @@ def primary_stat_keys_from_text(value):
 
 def item_stat_primary_keys(stat):
     if isinstance(stat, dict):
+        type_payload = stat.get("type") if isinstance(stat.get("type"), dict) else {}
+        raw_key = type_payload.get("type") or stat.get("key") or stat.get("stat") or ""
+        normalized_key = re.sub(r"[^a-z0-9_]+", "", str(raw_key).lower())
+        # Manifest static facts use agiint/intagi as the game client's
+        # spec-resolved primary-stat placeholder.  It must become the
+        # requested specialization's primary stat rather than disappearing
+        # from a strength consumer's public compact payload.
+        if normalized_key in GENERIC_SPEC_PRIMARY_STAT_KEYS:
+            return set(PRIMARY_STAT_KEYS)
         fragments = [
             stat.get("key"),
             stat.get("label"),
@@ -4098,7 +4108,6 @@ def item_stat_primary_keys(stat):
             stat.get("displayString"),
             stat.get("text"),
         ]
-        type_payload = stat.get("type") if isinstance(stat.get("type"), dict) else {}
         fragments.extend([type_payload.get("type"), type_payload.get("name")])
     else:
         fragments = [stat]
@@ -23814,6 +23823,27 @@ COMPACT_GEAR_MOD_OPTION_KEYS = {
     "item_type_rule",
 }
 
+MANIFEST_PROGRESSION_TERTIARY_STAT_KEYS = {
+    "leech",
+    "avoidance",
+    "speed",
+}
+MANIFEST_PROGRESSION_TRACK_LABELS = {
+    "adventurer": "冒险者",
+    "veteran": "老兵",
+    "champion": "勇士",
+    "hero": "英雄",
+    "myth": "神话",
+    "mythic": "神话",
+    "void_upgrade": "虚空晋升",
+}
+MANIFEST_PROGRESSION_CONFLICT_BLOCKER = "该等级轨道的已核验属性存在冲突，暂不可选择"
+
+
+def manifest_progression_stat_key(stat):
+    key = str((stat or {}).get("key") or "").strip().lower()
+    return key.removesuffix("_rating")
+
 
 def compact_dict(source, allowed_keys):
     if not isinstance(source, dict):
@@ -23953,6 +23983,144 @@ def public_variant_difficulty_key(source_type):
     return ""
 
 
+def compact_manifest_progression_state(value):
+    if not isinstance(value, dict):
+        return {}
+    kind = str(value.get("kind") or "").strip().lower()
+    track_key = str(value.get("trackKey") or "").strip().lower()
+    rank = positive_int_value(value.get("rank"))
+    rank_max = positive_int_value(value.get("rankMax"))
+    if not kind:
+        return {}
+    result = {"kind": kind}
+    if track_key:
+        result["trackKey"] = track_key
+    if rank:
+        result["rank"] = rank
+    if rank_max:
+        result["rankMax"] = rank_max
+    return result
+
+
+def compact_manifest_progression_display(progression):
+    progression = compact_manifest_progression_state(progression)
+    if not progression:
+        return {}
+    kind = progression.get("kind") or ""
+    track_key = progression.get("trackKey") or ""
+    rank = progression.get("rank") or 0
+    rank_max = progression.get("rankMax") or 0
+    track_label = MANIFEST_PROGRESSION_TRACK_LABELS.get(track_key)
+    if not track_label and kind == "ascendant":
+        track_label = "虚空晋升"
+    if not track_label and kind == "crafted_quality":
+        track_label = "制造品质"
+    if not track_label:
+        track_label = "等级轨道待补"
+    label = f"{track_label} {rank}/{rank_max}" if rank and rank_max else track_label
+    return {**progression, "label": label}
+
+
+def compact_manifest_progression_identity(variant):
+    if not isinstance(variant, dict):
+        return ""
+    progression = compact_manifest_progression_state(variant.get("progressionState"))
+    if not progression:
+        return ""
+    return json.dumps(progression, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
+def compact_manifest_progression_core_stat_key(variant):
+    if not isinstance(variant, dict):
+        return ()
+    stats = variant.get("itemStats") or variant.get("stats") or []
+    core_stats = []
+    for stat in normalize_item_stats(stats):
+        key = manifest_progression_stat_key(stat)
+        if not key or key in MANIFEST_PROGRESSION_TERTIARY_STAT_KEYS:
+            continue
+        core_stats.append((key, str(stat.get("value") or "").strip()))
+    return tuple(sorted(core_stats))
+
+
+def compact_manifest_progression_tertiary_count(variant):
+    if not isinstance(variant, dict):
+        return 0
+    stats = variant.get("itemStats") or variant.get("stats") or []
+    return sum(
+        1
+        for stat in normalize_item_stats(stats)
+        if manifest_progression_stat_key(stat) in MANIFEST_PROGRESSION_TERTIARY_STAT_KEYS
+    )
+
+
+def compact_manifest_progression_conflict(group, identity):
+    exemplar = group[0]
+    display = exemplar.get("displayProgression") if isinstance(exemplar.get("displayProgression"), dict) else {}
+    label = str(display.get("label") or exemplar.get("difficultyLabel") or "等级轨道待补").strip()
+    suffix = hashlib.sha256(identity.encode("utf-8")).hexdigest()[:20]
+    result = {
+        "key": f"catalog-progression-conflict:{suffix}",
+        "variantKey": f"catalog-progression-conflict:{suffix}",
+        "label": label,
+        "difficultyLabel": label,
+        "status": "blocked",
+        "blockers": [MANIFEST_PROGRESSION_CONFLICT_BLOCKER],
+        "progressionState": exemplar.get("progressionState") or {},
+        "displayProgression": display,
+    }
+    for key in ("itemId", "slot", "sourceType", "difficultyKey"):
+        value = exemplar.get(key)
+        if value not in (None, "", [], {}):
+            result[key] = value
+    return result
+
+
+def collapse_compact_manifest_progression_variants(variants):
+    grouped = {}
+    ordered = []
+    for variant in variants or []:
+        if not isinstance(variant, dict):
+            continue
+        identity = compact_manifest_progression_identity(variant)
+        if not identity:
+            ordered.append(variant)
+            continue
+        if identity not in grouped:
+            grouped[identity] = []
+            ordered.append(("manifest_progression", identity))
+        grouped[identity].append(variant)
+    compacted = []
+    for entry in ordered:
+        if not isinstance(entry, tuple):
+            compacted.append(entry)
+            continue
+        _, identity = entry
+        group = grouped[identity]
+        item_levels = {
+            positive_int_value(variant.get("itemLevel") or variant.get("ilevel"))
+            for variant in group
+        }
+        core_stat_keys = {
+            compact_manifest_progression_core_stat_key(variant)
+            for variant in group
+        }
+        if len(item_levels) != 1 or len(core_stat_keys) != 1:
+            compacted.append(compact_manifest_progression_conflict(group, identity))
+            continue
+        compacted.append(
+            min(
+                group,
+                key=lambda variant: (
+                    compact_manifest_progression_tertiary_count(variant),
+                    str(variant.get("key") or variant.get("variantKey") or ""),
+                    str(variant.get("id") or ""),
+                ),
+            )
+        )
+    return compacted
+
+
 def compact_gear_variant(variant, public_source_type="", primary_key=""):
     compact_variant = compact_dict(variant, COMPACT_GEAR_VARIANT_KEYS)
     if not compact_variant:
@@ -23989,6 +24157,13 @@ def compact_gear_variant(variant, public_source_type="", primary_key=""):
             public_difficulty_key,
             compact_variant.get("difficultyLabel") or compact_variant.get("label"),
         )
+    progression = compact_manifest_progression_state(payload.get("progressionState"))
+    if progression:
+        display_progression = compact_manifest_progression_display(progression)
+        compact_variant["progressionState"] = progression
+        compact_variant["displayProgression"] = display_progression
+        compact_variant["label"] = display_progression["label"]
+        compact_variant["difficultyLabel"] = display_progression["label"]
     return compact_variant
 
 
@@ -24229,6 +24404,7 @@ def compact_gear_candidate(item, include_mod_options=True):
             if isinstance(variant, dict)
         ]
     variants = [variant for variant in variants if variant]
+    variants = collapse_compact_manifest_progression_variants(variants)
     if variants:
         compact_item["variants"] = variants
     if public_source_type == "crafted" and any(variant.get("craftedStatOptions") for variant in variants):

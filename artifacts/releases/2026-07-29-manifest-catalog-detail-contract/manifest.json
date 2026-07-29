@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-29T06:14:35.393Z",
+  "generatedAt": "2026-07-29T07:59:43.493Z",
   "release": {
     "date": "2026-07-29",
     "slug": "manifest-catalog-detail-contract"
@@ -99,7 +99,7 @@
         {
           "path": "server/websim_payload.py",
           "exists": true,
-          "lineCount": 27254,
+          "lineCount": 27427,
           "hotspot": true
         },
         {
@@ -346,9 +346,7 @@
     }
   },
   "evidencePacket": {
-    "status": "ready",
-    "path": "artifacts/releases/2026-07-29-manifest-catalog-detail-contract/evidence.json",
-    "sizeBytes": 5098,
+    "status": "not_attached",
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -369,30 +367,7 @@
       "archivedReferences",
       "summary"
     ],
-    "fieldsPresent": [
-      "schemaVersion",
-      "slug",
-      "requirementSlug",
-      "status",
-      "highestEvidenceLevel",
-      "branch",
-      "commit",
-      "identities",
-      "manualAcceptance",
-      "scope",
-      "verification",
-      "candidateDeployment",
-      "runtimeEvidence",
-      "risks",
-      "rollback",
-      "cleanup",
-      "archivedReferences",
-      "summary"
-    ],
-    "missingFields": [],
-    "declaredStatus": "local_verified",
-    "highestEvidenceLevel": "local_verified",
-    "summary": "The local repair preserves Manifest Catalog v2 as a verified evidence source, projects its static facts and safe source display into the active detail payload, and strips internal diagnostics from player-visible candidates. It is locally verified only; no candidate, live runtime, or manual acceptance is claimed."
+    "note": "Attach a local evidence packet with --evidence-file when promoting a Standard or Strict requirement."
   },
   "evidence": {
     "localTests": {
@@ -414,10 +389,16 @@
   },
   "riskMatrix": [
     {
+      "id": "dirty_worktree",
+      "severity": "medium",
+      "status": "watch",
+      "detail": "13 changed files currently visible to git status."
+    },
+    {
       "id": "hotspot_files_present",
       "severity": "medium",
       "status": "watch",
-      "detail": "server/websim_payload.py:27254, server/news_backend.py:14220, server/postgres_cache_store.py:9335"
+      "detail": "server/websim_payload.py:27427, server/news_backend.py:14220, server/postgres_cache_store.py:9335"
     },
     {
       "id": "localTests_missing",
@@ -446,9 +427,23 @@
   ],
   "repo": {
     "git": {
-      "status": "clean",
-      "changedFileCount": 0,
-      "changedFiles": []
+      "status": "dirty",
+      "changedFileCount": 13,
+      "changedFiles": [
+        " M apps/mini-taro/src/pages/builds/detail.tsx",
+        " M apps/mini-taro/src/pages/builds/gear-detail-editor-model.test.ts",
+        " M apps/mini-taro/src/pages/builds/gear-detail-editor-model.ts",
+        " M apps/mini-taro/src/pages/builds/gear-detail-model.ts",
+        " M artifacts/releases/2026-07-29-manifest-catalog-detail-contract/evidence.json",
+        " M artifacts/releases/2026-07-29-manifest-catalog-detail-contract/requirement.json",
+        " M docs/plans/README.md",
+        " M server/pg_gear_read_model_selectors.py",
+        " M server/websim_payload.py",
+        " M tests/gear_release_store_test.py",
+        " M tests/pg_gear_read_model_selectors_test.py",
+        " M tests/websim_payload_test.py",
+        "?? docs/plans/2026-07-29-manifest-catalog-progression-display-contract.md"
+      ]
     }
   },
   "write": {

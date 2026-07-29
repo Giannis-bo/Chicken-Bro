@@ -928,6 +928,12 @@ class PgGearReadModelSelectorsTest(unittest.TestCase):
                     "payload": {
                         "catalogEvidenceStatus": "verified",
                         "catalogEvidenceSource": "manifest_catalog_v2",
+                        "progressionState": {
+                            "kind": "upgrade_track",
+                            "trackKey": "hero",
+                            "rank": 6,
+                            "rankMax": 6,
+                        },
                         "itemStats": [
                             {"key": "strength", "label": "力量", "value": 135},
                             {"key": "stamina", "label": "耐力", "value": 1974},
@@ -956,6 +962,11 @@ class PgGearReadModelSelectorsTest(unittest.TestCase):
         self.assertNotIn("armorType", item)
         self.assertEqual(item["statDisplayStatus"], "verified_variant")
         self.assertEqual(item["itemStats"][0]["value"], 135)
+        self.assertEqual(item.get("primaryStatKey"), "strength")
+        self.assertEqual(
+            item["variants"][0]["payload"]["progressionState"]["trackKey"],
+            "hero",
+        )
         self.assertNotIn("missingFields", item)
         self.assertNotIn("blockers", item)
         self.assertNotIn("Battle.net", json.dumps(item, ensure_ascii=False))

@@ -12,6 +12,7 @@ import {
   setGemAtSocket,
   setSingleEnhancement,
 } from './gear-detail-editor-model'
+import { gearCandidates } from './gear-detail-model'
 
 const weaponWithHeroAndMythTracks: GearItemReference = {
   itemId: 'weapon-1',
@@ -45,6 +46,58 @@ describe('gear detail editor model', () => {
     expect(materializeCandidateDraft(selected)).toMatchObject({
       itemId: 'weapon-1', variantKey: 'myth-289', ilevel: 289, difficultyLabel: '神话',
     })
+  })
+
+  it('uses the selected compact variant display facts before canonical resolve', () => {
+    const candidate: GearItemReference = {
+      itemId: 'manifest-head',
+      name: '溃烂之花冠冕',
+      statSummary: '力量 135；暴击 60；急速 112',
+      primaryStatKey: 'strength',
+      variants: [
+        {
+          key: 'myth-298', difficultyLabel: '神话 6/6', itemLevel: 298, status: 'verified',
+          primaryStatKey: 'strength',
+          itemStats: [
+            { key: 'agiint', label: '敏捷 or 智力', value: 135 },
+            { key: 'critical_strike', label: '暴击', value: 60 },
+            { key: 'haste', label: '急速', value: 112 },
+          ],
+          statSummary: '力量 135；暴击 60；急速 112',
+        },
+        {
+          key: 'hero-289', difficultyLabel: '英雄 6/6', itemLevel: 289, status: 'verified',
+          primaryStatKey: 'strength',
+          itemStats: [
+            { key: 'agiint', label: '敏捷 or 智力', value: 124 },
+            { key: 'critical_strike', label: '暴击', value: 57 },
+            { key: 'haste', label: '急速', value: 108 },
+          ],
+          statSummary: '力量 124；暴击 57；急速 108',
+        },
+      ],
+    }
+
+    const selected = selectCandidateVariant(createCandidateDraft('head', candidate), 'hero-289')
+    const materialized = materializeCandidateDraft(selected)
+
+    expect(materialized).toMatchObject({
+      itemId: 'manifest-head',
+      variantKey: 'hero-289',
+      ilevel: 289,
+      primaryStatKey: 'strength',
+      statSummary: '力量 124；暴击 57；急速 108',
+      itemStats: [
+        { key: 'agiint', label: '敏捷 or 智力', value: 124 },
+        { key: 'critical_strike', label: '暴击', value: 57 },
+        { key: 'haste', label: '急速', value: 108 },
+      ],
+    })
+    expect(gearCandidates(materialized ? [materialized] : [])).toEqual([
+      expect.objectContaining({
+        statSummary: '力量 124；暴击 57；急速 108',
+      }),
+    ])
   })
 
   it('uses valid fallback aliases and keeps unknown variant status blocked', () => {

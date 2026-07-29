@@ -498,7 +498,7 @@ function statEntries(item: GearItemReference, primaryKey: PrimaryStatKey | ''): 
       return source.flatMap((row) => {
         if (!row || typeof row !== 'object' || Array.isArray(row)) return []
         const record = row as Readonly<Record<string, unknown>>
-        const key = canonicalStatKey(record['label'] ?? record['name'] ?? record['stat'] ?? record['key'] ?? record['type'], primaryKey)
+        const key = canonicalStatKey(record['key'] ?? record['stat'] ?? record['label'] ?? record['name'] ?? record['type'], primaryKey)
         const value = numericValue(record['value'] ?? record['amount'] ?? record['rating'] ?? record['rawValue'])
         return key && value !== null ? [{ key, value }] : []
       })

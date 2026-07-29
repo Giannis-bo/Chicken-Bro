@@ -141,14 +141,25 @@ function craftedStatViews(candidate: RecordValue): readonly GearCraftedStatView[
   })
 }
 
+function selectedRawCandidateVariant(
+  candidate: GearItemReference,
+  variantKey: string,
+): RecordValue | null {
+  const variants = Array.isArray(candidate['variants']) ? candidate['variants'] : []
+  return variants
+    .map(record)
+    .find((variant): variant is RecordValue => Boolean(
+      variant && firstText(variant['key'], variant['variantKey']) === variantKey,
+    )) ?? null
+}
+
 function selectedVariantCraftedStatViews(
   candidate: GearItemReference,
   variantKey: string,
 ): readonly GearCraftedStatView[] {
   const variants = Array.isArray(candidate['variants']) ? candidate['variants'] : []
   const variantRecords = variants.map(record).filter((variant): variant is RecordValue => Boolean(variant))
-  const selected = variantRecords
-    .find((variant) => variant && firstText(variant['key'], variant['variantKey']) === variantKey)
+  const selected = selectedRawCandidateVariant(candidate, variantKey)
   if (selected && Array.isArray(selected['craftedStatOptions'])) return craftedStatViews(selected)
   if (variantRecords.some((variant) => Array.isArray(variant['craftedStatOptions']))) return []
   return craftedStatViews(candidate)
@@ -189,12 +200,27 @@ export function materializeCandidateDraft(draft: GearCandidateDraft): GearItemRe
     : undefined
   if (draft.requiresVariantSelection && !variant) return null
   const candidate = draft.candidate
+  const selectedRawVariant = variant
+    ? selectedRawCandidateVariant(candidate, variant.key)
+    : null
   const baseVariantKey = text(candidate.variantKey)
   const level = variant?.ilevel ?? finiteLevel(candidate.itemLevel, candidate.ilevel)
   const difficultyLabel = variant?.difficultyLabel ?? firstText(
     candidate['difficultyLabel'],
     candidate['trackLabel'],
   )
+  const selectedItemStats = selectedRawVariant && Array.isArray(selectedRawVariant['itemStats'])
+    ? selectedRawVariant['itemStats']
+    : selectedRawVariant && Array.isArray(selectedRawVariant['stats'])
+      ? selectedRawVariant['stats']
+      : undefined
+  const selectedStats = selectedRawVariant && Array.isArray(selectedRawVariant['stats'])
+    ? selectedRawVariant['stats']
+    : selectedItemStats
+  const statSummary = firstText(selectedRawVariant?.['statSummary'], candidate['statSummary'])
+  const primaryStatKey = firstText(selectedRawVariant?.['primaryStatKey'], candidate['primaryStatKey'])
+  const statDisplayStatus = firstText(selectedRawVariant?.['statDisplayStatus'], candidate['statDisplayStatus'])
+  const statSource = firstText(selectedRawVariant?.['statSource'], candidate['statSource'])
   return {
     ...(text(candidate.id) ? { id: text(candidate.id) } : {}),
     ...(candidate.itemId !== undefined ? { itemId: candidate.itemId } : {}),
@@ -205,7 +231,12 @@ export function materializeCandidateDraft(draft: GearCandidateDraft): GearItemRe
     ...(text(candidate.source) ? { source: text(candidate.source) } : {}),
     ...(text(candidate.sourceUrl) ? { sourceUrl: text(candidate.sourceUrl) } : {}),
     ...(text(candidate.sourceType) ? { sourceType: text(candidate.sourceType) } : {}),
-    ...(text(candidate.statSummary) ? { statSummary: text(candidate.statSummary) } : {}),
+    ...(statSummary ? { statSummary } : {}),
+    ...(primaryStatKey ? { primaryStatKey } : {}),
+    ...(selectedItemStats ? { itemStats: selectedItemStats } : {}),
+    ...(selectedStats ? { stats: selectedStats } : {}),
+    ...(statDisplayStatus ? { statDisplayStatus } : {}),
+    ...(statSource ? { statSource } : {}),
     ...(candidate.simcReady === true ? { simcReady: true } : {}),
     ...(text(candidate.metadataStatus) ? { metadataStatus: text(candidate.metadataStatus) } : {}),
     ...(text(candidate.compatibility) ? { compatibility: text(candidate.compatibility) } : {}),

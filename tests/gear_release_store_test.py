@@ -2555,6 +2555,15 @@ class GearReleaseStoreTest(unittest.TestCase):
             "verified",
         )
         self.assertEqual(
+            snapshot["variants"][0]["payload"]["progressionState"],
+            {
+                "kind": "upgrade_track",
+                "trackKey": "hero",
+                "rank": 6,
+                "rankMax": 6,
+            },
+        )
+        self.assertEqual(
             snapshot["items"][0]["payload"]["armorType"],
             "Plate",
         )

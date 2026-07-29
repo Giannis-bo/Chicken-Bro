@@ -15,6 +15,7 @@ try:
         GEAR_SLOT_LABELS,
         SIMC_GEAR_OPTION_KEYS,
         active_catalog_sources_for_replacement,
+        apply_spec_primary_stat_display_fields,
         apply_gear_candidate_legality,
         apply_gear_mod_option_display_fields,
         blocked_stat_snapshot,
@@ -65,6 +66,7 @@ except ImportError:
         GEAR_SLOT_LABELS,
         SIMC_GEAR_OPTION_KEYS,
         active_catalog_sources_for_replacement,
+        apply_spec_primary_stat_display_fields,
         apply_gear_candidate_legality,
         apply_gear_mod_option_display_fields,
         blocked_stat_snapshot,
@@ -867,6 +869,11 @@ def build_gear_catalog_items_read_model(
             spec_key,
         )
         if item:
+            item = apply_spec_primary_stat_display_fields(
+                item,
+                class_key,
+                spec_key,
+            )
             catalog_items.append(sanitize_gear_candidate_mod_options(item))
     return catalog_items
 

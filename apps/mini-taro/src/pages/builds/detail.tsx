@@ -309,6 +309,17 @@ export default function GearDetailPage() {
   const candidateViews = gearCandidates(candidates)
   const selectedCandidateIndex = candidateDraft ? candidates.indexOf(candidateDraft.candidate) : -1
   const selectedCandidateId = selectedCandidateIndex >= 0 ? candidateViews[selectedCandidateIndex]?.id ?? '' : ''
+  const selectedCandidateDraftItem = candidateDraft
+    ? materializeCandidateDraft(candidateDraft)
+    : null
+  const selectedCandidateDraftView = selectedCandidateDraftItem
+    ? gearCandidates([selectedCandidateDraftItem])[0]
+    : undefined
+  const candidateEditorViews = selectedCandidateDraftView && selectedCandidateIndex >= 0
+    ? candidateViews.map((candidate, index) => index === selectedCandidateIndex
+      ? { ...candidate, ...selectedCandidateDraftView, id: candidate.id }
+      : candidate)
+    : candidateViews
   const selectedCandidate = equipped[selectedSlot]
   const readinessAuthority = canonical.loading
     ? undefined
@@ -956,7 +967,7 @@ export default function GearDetailPage() {
     ? (
         <GearCandidateEditorSheet
           canApply={Boolean(candidateDraft && candidateDraftCanApply(candidateDraft))}
-          candidates={candidateViews}
+          candidates={candidateEditorViews}
           draft={candidateDraft}
           loading={candidateLoading || canonical.loading}
           notice={workbenchNotice}

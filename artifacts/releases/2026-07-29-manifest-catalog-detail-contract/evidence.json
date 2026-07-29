@@ -2,10 +2,10 @@
   "schemaVersion": 2,
   "slug": "manifest-catalog-detail-contract",
   "requirementSlug": "manifest-catalog-detail-contract",
-  "status": "local_verified",
-  "highestEvidenceLevel": "local_verified",
+  "status": "implementation_allowed",
+  "highestEvidenceLevel": "requirement_contract_approved",
   "branch": "codex/manifest-catalog-detail-contract",
-  "commit": "f20de16d3452d1dbe698377c8a8f06d5b7cdf776",
+  "commit": "57b65015d2e4342d90dd129e28523f6a6b91d083",
   "identities": {
     "runtime": {
       "status": "pending",
@@ -15,7 +15,7 @@
       "status": "bound_at_check",
       "kind": "git_ref",
       "value": "HEAD",
-      "reason": "The complete task packet is checked only after it is committed and the worktree is clean."
+      "reason": "The expanded Strict scope invalidates prior local verification. The complete task packet is checked only after its implementation is committed and the worktree is clean."
     },
     "closure": {
       "status": "pending",
@@ -43,33 +43,14 @@
     }
   },
   "scope": [
-    "Manifest Catalog v2 verified BrowseVariant static-fact projection into the active public gear detail payload",
+    "Manifest Catalog v2 verified BrowseVariant static-fact and progression projection into the active public gear detail payload",
+    "Specialization-correct primary-stat projection and selected compact-variant display facts",
+    "Safe public collapse of equivalent tertiary-only observed shapes and fail-closed logical-progression conflicts",
     "Readable verified source labels or safe source-type/difficulty fallbacks",
     "Catalog evidence preservation through the PG read model and user-safe public candidate diagnostics",
     "Strict task requirement and local regression evidence only; no candidate or live deployment"
   ],
-  "verification": [
-    {
-      "command": "python3 -m unittest tests.gear_release_store_test.GearReleaseStoreTest.test_manifest_catalog_snapshot_projects_canonical_browse_membership tests.pg_gear_read_model_selectors_test.PgGearReadModelSelectorsTest.test_manifest_catalog_public_item_uses_verified_static_facts_without_battle_net_diagnostics tests.websim_payload_test.WebSimPayloadTest.test_gear_candidate_sanitizer_never_exposes_internal_catalog_diagnostics",
-      "status": "pass",
-      "summary": "3 focused RED/GREEN regressions passed: static facts and source label projection, read-model trust, and non-leaking public diagnostics."
-    },
-    {
-      "command": "python3 -m unittest tests.gear_release_store_test tests.pg_gear_read_model_selectors_test tests.postgres_cache_store_test",
-      "status": "pass",
-      "summary": "230 release-store, selector, and cache regressions passed."
-    },
-    {
-      "command": "python3 -m unittest tests.websim_payload_test",
-      "status": "pass",
-      "summary": "449 WebSim payload regressions passed. The command emitted three existing SQLite ResourceWarning notices but exited successfully; this task did not modify the warned resource paths."
-    },
-    {
-      "command": "node scripts/project-harness.js --check --requirement-file artifacts/releases/2026-07-29-manifest-catalog-detail-contract/requirement.json --evidence-file artifacts/releases/2026-07-29-manifest-catalog-detail-contract/evidence.json --manifest-file artifacts/releases/2026-07-29-manifest-catalog-detail-contract/manifest.json --base origin/main --json",
-      "status": "pass",
-      "summary": "The clean committed task packet must pass the Harness identity, owner, requirement, evidence, and manifest gates."
-    }
-  ],
+  "verification": [],
   "candidateDeployment": {
     "status": "pending",
     "requiredBeforeMerge": true,
@@ -79,12 +60,12 @@
   "risks": [
     {
       "id": "missing-exact-source-label",
-      "status": "guarded",
+      "status": "pending_reverification",
       "detail": "When the source snapshot has no exact identity-matched label, the release adapter intentionally shows only a truthful source-type/difficulty fallback rather than inventing an encounter name."
     },
     {
       "id": "legacy-sqlite-resource-warning",
-      "status": "not-task-signal",
+      "status": "pending_reverification",
       "detail": "The WebSim payload suite exits 0 but currently reports three unclosed SQLite connection ResourceWarning notices outside the changed paths; they are recorded rather than treated as proof of a clean resource lifecycle."
     }
   ],
@@ -100,5 +81,5 @@
     "docs/plans/2026-07-28-equipment-simulator-target-architecture.md",
     "docs/verification-matrix.md"
   ],
-  "summary": "The local repair preserves Manifest Catalog v2 as a verified evidence source, projects its static facts and safe source display into the active detail payload, and strips internal diagnostics from player-visible candidates. It is locally verified only; no candidate, live runtime, or manual acceptance is claimed."
+  "summary": "The user-approved scope now additionally covers named progression projection, observed-shape collapse, fail-closed progression conflicts, specialization-correct primary stats, and selected-variant display facts. Prior local verification is deliberately invalidated; no candidate, live runtime, or manual acceptance is claimed."
 }

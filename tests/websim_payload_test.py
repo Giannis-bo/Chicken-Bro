@@ -7840,6 +7840,131 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertNotIn("characterName", compact["observedProfileRefs"][0])
         self.assertEqual(compact["statSummary"], "智力 1234")
 
+    def test_compact_manifest_variants_preserve_named_progression_and_primary_stat(self):
+        compact = self.websim_payload.compact_gear_candidate(
+            {
+                "slot": "head",
+                "itemId": "268283",
+                "name": "溃烂之花冠冕",
+                "source": "腐沼 - 孢陨幽境",
+                "primaryStatKey": "strength",
+                "sources": [{
+                    "sourceType": "raid",
+                    "sourceLabel": "腐沼 - 孢陨幽境",
+                }],
+                "variants": [
+                    {
+                        "key": "myth-298-base",
+                        "sourceType": "observed_profile",
+                        "difficultyKey": "observed_profile",
+                        "itemLevel": 298,
+                        "status": "verified",
+                        "payload": {
+                            "progressionState": {
+                                "kind": "upgrade_track",
+                                "trackKey": "myth",
+                                "rank": 6,
+                                "rankMax": 6,
+                            },
+                            "itemStats": [
+                                {"key": "agiint", "label": "主属性", "value": 135},
+                                {"key": "critical_strike", "label": "暴击", "value": 60},
+                                {"key": "haste", "label": "急速", "value": 112},
+                            ],
+                            "statDisplayStatus": "verified_variant",
+                        },
+                    },
+                    {
+                        "key": "myth-298-leech",
+                        "sourceType": "observed_profile",
+                        "difficultyKey": "observed_profile",
+                        "itemLevel": 298,
+                        "status": "verified",
+                        "payload": {
+                            "progressionState": {
+                                "kind": "upgrade_track",
+                                "trackKey": "myth",
+                                "rank": 6,
+                                "rankMax": 6,
+                            },
+                            "itemStats": [
+                                {"key": "agiint", "label": "主属性", "value": 135},
+                                {"key": "critical_strike", "label": "暴击", "value": 60},
+                                {"key": "haste", "label": "急速", "value": 112},
+                                {"key": "leech_rating", "label": "吸血", "value": 43},
+                            ],
+                            "statDisplayStatus": "verified_variant",
+                        },
+                    },
+                ],
+            }
+        )
+
+        self.assertEqual(len(compact["variants"]), 1)
+        variant = compact["variants"][0]
+        self.assertEqual(variant["difficultyLabel"], "神话 6/6")
+        self.assertEqual(variant["displayProgression"], {
+            "kind": "upgrade_track",
+            "trackKey": "myth",
+            "rank": 6,
+            "rankMax": 6,
+            "label": "神话 6/6",
+        })
+        self.assertEqual(variant.get("primaryStatKey"), "strength")
+        self.assertIn("strength", [stat["key"] for stat in variant["itemStats"]])
+        self.assertNotIn("leech_rating", [stat["key"] for stat in variant["itemStats"]])
+
+    def test_compact_manifest_variants_fail_closed_on_conflicting_progression_facts(self):
+        compact = self.websim_payload.compact_gear_candidate(
+            {
+                "slot": "head",
+                "itemId": "268283",
+                "name": "溃烂之花冠冕",
+                "primaryStatKey": "strength",
+                "sources": [{"sourceType": "raid", "sourceLabel": "腐沼 - 孢陨幽境"}],
+                "variants": [
+                    {
+                        "id": "observed-source-myth-298",
+                        "key": "myth-298",
+                        "sourceType": "observed_profile",
+                        "difficultyKey": "observed_profile",
+                        "itemLevel": 298,
+                        "status": "verified",
+                        "payload": {
+                            "progressionState": {"kind": "upgrade_track", "trackKey": "myth", "rank": 6, "rankMax": 6},
+                            "itemStats": [{"key": "agiint", "label": "主属性", "value": 135}],
+                            "statDisplayStatus": "verified_variant",
+                        },
+                    },
+                    {
+                        "id": "observed-source-myth-289",
+                        "key": "myth-289",
+                        "sourceType": "observed_profile",
+                        "difficultyKey": "observed_profile",
+                        "itemLevel": 289,
+                        "status": "verified",
+                        "payload": {
+                            "progressionState": {"kind": "upgrade_track", "trackKey": "myth", "rank": 6, "rankMax": 6},
+                            "itemStats": [{"key": "agiint", "label": "主属性", "value": 124}],
+                            "statDisplayStatus": "verified_variant",
+                        },
+                    },
+                ],
+            }
+        )
+
+        self.assertEqual(len(compact["variants"]), 1)
+        variant = compact["variants"][0]
+        self.assertEqual(variant["difficultyLabel"], "神话 6/6")
+        self.assertEqual(variant["status"], "blocked")
+        self.assertEqual(
+            variant["blockers"],
+            ["该等级轨道的已核验属性存在冲突，暂不可选择"],
+        )
+        self.assertNotIn("simcOptions", variant)
+        self.assertNotIn("itemStats", variant)
+        self.assertNotIn("id", variant)
+
     def test_compact_gear_candidate_surfaces_source_pending_as_explicit_display_text(self):
         compact = self.websim_payload.compact_gear_candidate(
             {

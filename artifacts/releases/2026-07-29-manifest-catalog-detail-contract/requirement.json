@@ -3,10 +3,10 @@
   "slug": "manifest-catalog-detail-contract",
   "classification": "Strict",
   "status": "implementation_allowed",
-  "goal": "Repair the active equipment-detail public payload so a Manifest Catalog v2 verified BrowseVariant presents its verified static attributes, a readable source, and user-safe diagnostic text.",
-  "userValue": "When a player opens an equipment candidate, they can see the attributes and source that the active catalog has verified; incomplete evidence remains honestly marked without exposing internal English diagnostics.",
+  "goal": "Repair the active equipment-detail public payload so a Manifest Catalog v2 verified BrowseVariant presents its verified static attributes, specialization-correct primary stat, readable source, and canonical legal progression choice without exposing internal diagnostics or observed-profile multiplicity.",
+  "userValue": "When a player opens an equipment candidate, they can see a small set of meaningful backend-owned progression choices; choosing one immediately shows that exact variant's primary and secondary attributes, while contradictory catalog evidence remains honestly unavailable instead of being guessed.",
   "nonGoals": [
-    "Do not rebuild or switch the active Catalog/Gear Release/Manifest revision, ingest new Battle.net data, or alter resolver, SimC, TemplateSet, PostgreSQL schema, or persisted player data.",
+    "Do not rebuild or switch the active Catalog/Gear Release/Manifest revision, ingest new Battle.net data, or alter resolver, SimC, TemplateSet, PostgreSQL schema, or persisted player data. A catalog revision rebuild is a separately approved recovery only if the new public conflict audit proves the active source data must be repaired.",
     "Do not make Taro infer item attributes, source identity, or evidence status from opaque keys; the backend public projection remains authoritative.",
     "Do not deploy, run sync/backfill, claim candidate/live verification, or claim WeChat manual acceptance in this local implementation phase."
   ],
@@ -27,11 +27,14 @@
   },
   "impactMap": {
     "mustChange": [
-      "The Manifest Catalog v2 release adapter must project verified static facts as the public itemStats/stats contract with explicit catalog evidence provenance.",
+      "The Manifest Catalog v2 release adapter must project verified static facts and each BrowseVariant progression state as the public itemStats/stats contract with explicit catalog evidence provenance.",
+      "The public compact payload must retain a backend-owned named progression display contract and must collapse only equivalent tertiary-only observed shapes; distinct static-fact shapes for one logical progression must become one explicit non-selectable conflict state rather than multiple indistinguishable choices.",
+      "The read-model/WebSim path must apply the requested class/spec primary-stat contract to the item and every public variant before Taro renders it.",
       "The release adapter must publish a readable, identity-matched source label when available and a safe source-type/difficulty fallback when it is not; opaque source keys cannot become player-facing labels.",
       "The PG read-model selector and WebSim public normalizer must preserve the catalog evidence identity so verified Manifest facts do not incorrectly require Battle.net-only diagnostics.",
       "Every public gear candidate diagnostic must be user-safe Chinese text; internal provider and implementation messages must not reach the detail view.",
-      "Targeted backend regressions must freeze the Manifest static-fact, source-label, trust, and diagnostic-sanitization contracts."
+      "The Taro candidate draft must retain the backend-returned selected-variant static display facts and detail view must render that selection before Apply; Resolve remains authoritative after Apply.",
+      "Targeted backend and Taro regressions must freeze the Manifest static-fact, progression, primary-stat, selected-variant-display, source-label, trust, and diagnostic-sanitization contracts."
     ],
     "mustNotChange": [
       "Do not change active catalog pointers, resolver selection, exact-instance recovery, SimC compilation, source ingestion, timer state, or persisted data.",
@@ -41,7 +44,8 @@
     "riskUnknown": [
       "The active source snapshot may omit an exact source label for a verified BrowseVariant; the fallback must remain informative without claiming an unverified encounter name.",
       "Legacy public candidates can still carry internal diagnostic strings from non-Manifest paths; output sanitization must cover top-level and variant diagnostics without changing internal resolver diagnostics.",
-      "Candidate runtime caches and the active WeChat bundle still require immutable candidate smoke and explicit manual acceptance before merge."
+      "Candidate runtime caches and the active WeChat bundle still require immutable candidate smoke and explicit manual acceptance before merge.",
+      "The active Catalog can contain more than one static-fact shape for a logical progression state. Public projection must never select one arbitrarily; only equivalent tertiary-only shapes can collapse to a deterministic representative."
     ],
     "evidenceRequired": [
       "RED/GREEN targeted Python regressions for Manifest static facts, exact source-label identity matching, verified catalog trust, and public diagnostic sanitization.",
@@ -50,22 +54,26 @@
     ]
   },
   "ownership": {
-    "factOwner": "server/gear_release_store.py publishes Manifest Catalog v2 BrowseVariant evidence; server/pg_gear_read_model_selectors.py and server/websim_payload.py preserve and safely normalize it; apps/mini-taro/src/pages/builds/gear-detail-model.ts renders the returned public fields.",
+    "factOwner": "server/gear_release_store.py publishes Manifest Catalog v2 BrowseVariant facts and progression evidence; server/pg_gear_read_model_selectors.py and server/websim_payload.py preserve, specialize, and safely normalize it; apps/mini-taro/src/pages/builds/gear-detail-model.ts and gear-detail-editor-model.ts render the returned public fields without deriving catalog identity.",
     "consumers": [
       "server/gear_release_store.py",
       "server/pg_gear_read_model_selectors.py",
       "server/websim_payload.py",
       "apps/mini-taro/src/pages/builds/gear-detail-model.ts",
+      "apps/mini-taro/src/pages/builds/gear-detail-editor-model.ts",
       "packages/design-system/src/components/GearDetailComponents.tsx",
       "apps/mini-taro/src/pages/builds/detail.tsx"
     ]
   },
   "engineeringHealth": {
     "status": "health_watch_guarded",
-    "reason": "A user-visible public-payload regression crossed the Manifest adapter, PG read model, WebSim normalizer, and active detail consumer. The repair keeps one backend-owned evidence contract, uses TDD at each seam, and retains candidate/manual-acceptance gates."
+    "reason": "A user-visible public-payload regression crossed the Manifest adapter, PG read model, WebSim normalizer, and active detail consumer. The repair keeps progression and variant facts backend-owned, isolates compact-payload grouping in the existing WebSim boundary, uses TDD at each seam, and retains candidate/manual-acceptance gates."
   },
   "acceptanceEvidence": [
     "A verified Manifest Catalog v2 item detail shows its verified static attributes instead of a blanket 待核验 state.",
+    "A verified candidate shows a backend-owned named progression state rather than 难度待补; duplicate observed shapes never appear as a long list of indistinguishable 套装 rows.",
+    "If one logical progression has conflicting non-tertiary static facts or item levels, it renders once as a safe blocked conflict and cannot be applied.",
+    "For a selected legal variant, the detail summary includes the specialization-correct primary stat and changes to that variant's returned secondary facts before Apply.",
     "A verified item source is a readable exact source label when an identity-matched snapshot record exists, otherwise a truthful source-type/difficulty fallback; no opaque key is shown as a name.",
     "A verified Manifest Catalog v2 item no longer displays Battle.net-only diagnostics merely because its evidence source is the active Manifest Catalog.",
     "Any still-blocked public candidate displays safe Chinese diagnostics and does not expose internal provider/implementation text.",
@@ -75,7 +83,9 @@
     "required": true,
     "requiredItemIds": [
       "gear_detail_verified_manifest_facts",
-      "gear_detail_safe_source_and_diagnostics"
+      "gear_detail_safe_source_and_diagnostics",
+      "gear_detail_named_progression_without_duplicate_observed_rows",
+      "gear_detail_selected_variant_updates_primary_and_secondary_stats"
     ]
   },
   "releaseTrigger": "public_payload",
@@ -91,6 +101,21 @@
     {
       "date": "2026-07-29",
       "decision": "The repair keeps Manifest Catalog v2 as a valid verified provenance source and does not fabricate Battle.net verification, encounter names, frontend-derived identity, or a catalog rebuild."
+    },
+    {
+      "date": "2026-07-29",
+      "decision": "After real WeChat inspection exposed pending progression labels, repeated observed-profile shapes, missing primary stats, and stale selected-variant summaries, the user approved the Strict public-projection and selected-variant contract repair. Conflicting logical progression evidence fails closed; catalog rebuild remains outside this packet unless a later audit is separately approved."
+    }
+  ],
+  "harnessFindings": [
+    {
+      "id": "gear-detail-manifest-projection-followup-20260729",
+      "status": "finding_only",
+      "whatHappened": "The first local repair restored source and static fact visibility but did not exercise real progression multiplicity, specialization primary-stat mapping, or selected-variant rerendering. WeChat inspection exposed all three gaps.",
+      "missedGate": "Impact Map and UI runtime evidence promotion",
+      "impact": "The candidate could not be accepted and required a second Strict public-contract repair before merge.",
+      "recommendedAction": "Keep the two real item IDs in the candidate smoke matrix and require compact progression, conflict, primary-stat, and selected-variant assertions before future public detail claims.",
+      "promotion": "finding_only"
     }
   ]
 }
