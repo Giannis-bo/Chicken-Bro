@@ -23562,30 +23562,7 @@ def gear_candidate_visible_for_replacement(item, minimum_observed_ilevel=0):
         return False
     if item.get("simcReady"):
         return True
-    if not gear_candidate_has_verified_stats(item):
-        return False
-    source_types = gear_candidate_source_types(item)
-    official_source = bool(source_types & OFFICIAL_REPLACEMENT_SOURCE_TYPES)
-    status = str(item.get("variantStatus") or "").strip().lower()
-    difficulty_key = str(item.get("variantDifficultyKey") or "").strip().lower()
-    variant_key = str(item.get("variantKey") or item.get("defaultVariantKey") or "").strip().lower()
-    blockers = " ".join(
-        [
-            *text_list_value(item.get("missingFields")),
-            *text_list_value(item.get("blockers")),
-            *text_list_value(item.get("variantBlockers")),
-        ]
-    ).lower()
-    if official_source and (
-        status in {"", "partial", "blocked"}
-        or difficulty_key in {"needs-variant", "needs_variant", "battle_net_preview"}
-        or variant_key.startswith("battle-net-preview")
-        or "deterministic simc variant" in blockers
-        or "bonus_id/gem_id/enchant_id" in blockers
-        or "ilevel" in blockers
-    ):
-        return False
-    return True
+    return gear_candidate_has_verified_stats(item)
 
 
 def limit_replacement_candidates(items, limit):

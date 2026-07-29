@@ -11342,6 +11342,22 @@ class WebSimPayloadTest(unittest.TestCase):
 
         self.assertFalse(self.websim_payload.gear_candidate_visible_for_replacement(candidate))
 
+    def test_replacement_visibility_keeps_verified_static_catalog_detail_without_simc_identity(self):
+        candidate = {
+            "itemId": "250781",
+            "slot": "head",
+            "compatibility": {"status": "compatible"},
+            "sourceType": "catalog",
+            "sources": [{"sourceType": "dungeon", "label": "Verified Dungeon - Test Encounter"}],
+            "variantStatus": "verified",
+            "variantDifficultyKey": "needs-variant",
+            "statDisplayStatus": "verified_variant",
+            "itemStats": [{"key": "intellect", "label": "智力", "value": 124}],
+            "simcReady": False,
+        }
+
+        self.assertTrue(self.websim_payload.gear_candidate_visible_for_replacement(candidate))
+
     def test_gear_catalog_health_payload_includes_slot_source_and_observed_variant_coverage(self):
         conn = sqlite3.connect(self.db_path)
         try:
