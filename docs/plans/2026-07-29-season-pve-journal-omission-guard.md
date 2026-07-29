@@ -80,6 +80,21 @@ Journal and derived Catalog rows and records blocked sync state.
   invoking Blizzard or writing PostgreSQL.
 - [x] Verify production and candidate health plus rollback identity.
 
+## Closure
+
+- PR `#111` passed the exact-head full Harness profile and merged as
+  `1501b7ae8f913deba79fb723a6267bad5e74949f`.
+- Production received only the three reviewed Journal contract/sync/store
+  files. Their SHA-256 values match the immutable candidate; no migration,
+  source sync, database write, timer change, or async sync launch occurred.
+- The backend remained active, both health endpoints returned HTTP 200, both
+  expensive sync services remained inactive, and their timers remained active
+  with the next natural runs about 18 hours away at deployment time.
+- Live data health remains literally `overallStatus=partial` with
+  `gear_catalog=partial`. This slice prevents future incomplete Journal
+  replacement; it does not prove the separately blocked 18-source Universe
+  complete.
+
 ## Stop lines
 
 - no Blizzard/API download or source sync before explicit network-data
