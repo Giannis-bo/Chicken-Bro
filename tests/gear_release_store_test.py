@@ -527,7 +527,10 @@ class GearReleaseStoreTest(unittest.TestCase):
         )
         conn = FakeConnection(rowsets={
             "FROM cache.websim_release_registry": [existing_row],
-            "jsonb_array_elements": [("item-a",)],
+            "jsonb_array_elements": [
+                ("item-a", "variant-a", "head", 289),
+                ("item-missing", "variant-missing", "head", 289),
+            ],
             "FROM cache.websim_gear_release_items": [
                 ("item-a", "Item A", "head", 289, snapshot["items"][0]["payload"], "verified", "2026-07-11T05:00:00+00:00")
             ],
@@ -572,7 +575,11 @@ class GearReleaseStoreTest(unittest.TestCase):
         )
         self.assertEqual(
             projected["_releaseProjection"]["referenceItemIds"],
-            ["item-a"],
+            ["item-a", "item-missing"],
+        )
+        self.assertEqual(
+            projected["_releaseProjection"]["missingReferenceItemIds"],
+            ["item-missing"],
         )
         self.assertEqual(len(projected["items"]), 1)
         self.assertEqual(len(projected["variants"]), 1)

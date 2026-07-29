@@ -1109,6 +1109,19 @@ class CandidateGearAuthorityIndex:
                 for item_id in reference_item_ids
                 if _text(item_id)
             }
+            missing_reference_item_ids = projection.get(
+                "missingReferenceItemIds"
+            )
+            missing_reference_item_ids = (
+                list(missing_reference_item_ids)
+                if isinstance(missing_reference_item_ids, list)
+                else []
+            )
+            missing_reference_item_set = {
+                _text(item_id)
+                for item_id in missing_reference_item_ids
+                if _text(item_id)
+            }
             snapshot_item_ids = {
                 _text(row.get("itemId"))
                 for row in snapshot.get("items") or []
@@ -1122,11 +1135,16 @@ class CandidateGearAuthorityIndex:
                 and projection.get("fullCounts") == content_counts
                 and reference_item_ids
                 == sorted(reference_item_set)
+                and missing_reference_item_ids
+                == sorted(missing_reference_item_set)
+                and missing_reference_item_set
+                <= reference_item_set
                 and projection.get("referenceItemDigest")
                 == _hash(reference_item_ids)
-                and snapshot_item_ids == reference_item_set
+                and snapshot_item_ids
+                == reference_item_set - missing_reference_item_set
                 and all(
-                    _text(row.get("itemId")) in reference_item_set
+                    _text(row.get("itemId")) in snapshot_item_ids
                     for category in ("sources", "variants")
                     for row in snapshot.get(category) or []
                     if isinstance(row, dict)
@@ -1756,33 +1774,70 @@ class GearReleaseStore:
                     )
                 cur.execute(
                     """
-                    SELECT DISTINCT COALESCE(
-                               NULLIF(gear_item->>'itemId', ''),
-                               NULLIF(gear_item->>'id', '')
-                           ) AS item_id
-                    FROM cache.websim_community_gear_templates template
-                    CROSS JOIN LATERAL jsonb_array_elements(
-                        CASE
-                            WHEN jsonb_typeof(template.gear_items_json) = 'array'
-                            THEN template.gear_items_json
-                            ELSE '[]'::jsonb
-                        END
-                    ) gear_item
-                    WHERE COALESCE(
-                              NULLIF(gear_item->>'itemId', ''),
-                              NULLIF(gear_item->>'id', '')
-                          ) IS NOT NULL
-                    ORDER BY item_id
+                    SELECT DISTINCT reference.item_id, reference.variant_key,
+                                    reference.slot, reference.item_level
+                    FROM (
+                        SELECT
+                            COALESCE(
+                                NULLIF(gear_item->>'itemId', ''),
+                                NULLIF(gear_item->>'id', '')
+                            ) AS item_id,
+                            COALESCE(
+                                NULLIF(gear_item->>'variantKey', ''),
+                                ''
+                            ) AS variant_key,
+                            LOWER(regexp_replace(
+                                COALESCE(
+                                    NULLIF(gear_item->>'slot', ''),
+                                    NULLIF(gear_item->>'simcSlot', ''),
+                                    ''
+                                ),
+                                '[[:space:]-]+',
+                                '_',
+                                'g'
+                            )) AS slot,
+                            CASE
+                                WHEN COALESCE(
+                                    NULLIF(gear_item->>'itemLevel', ''),
+                                    NULLIF(gear_item->>'ilevel', ''),
+                                    ''
+                                ) ~ '^[0-9]+$'
+                                THEN COALESCE(
+                                    NULLIF(gear_item->>'itemLevel', ''),
+                                    NULLIF(gear_item->>'ilevel', '')
+                                )::integer
+                                ELSE 0
+                            END AS item_level
+                        FROM cache.websim_community_gear_templates template
+                        CROSS JOIN LATERAL jsonb_array_elements(
+                            CASE
+                                WHEN jsonb_typeof(template.gear_items_json) = 'array'
+                                THEN template.gear_items_json
+                                ELSE '[]'::jsonb
+                            END
+                        ) gear_item
+                    ) reference
+                    WHERE reference.item_id IS NOT NULL
+                    ORDER BY reference.item_id, reference.variant_key,
+                             reference.slot, reference.item_level
                     """
                 )
-                reference_item_ids = [
-                    _text(row[0])
+                reference_rows = [
+                    (
+                        _text(row[0]),
+                        _text(row[1]),
+                        _text(row[2]),
+                        _int(row[3]),
+                    )
                     for row in _stream_cursor_rows(cur)
                     if _text(row[0])
                 ]
+                reference_item_ids = sorted({
+                    row[0] for row in reference_rows
+                })
                 if (
                     not reference_item_ids
-                    or reference_item_ids != sorted(set(reference_item_ids))
+                    or not reference_rows
                 ):
                     raise GearReleaseIntegrityError(
                         "community builder reference item scope is invalid"
@@ -1876,6 +1931,16 @@ class GearReleaseStore:
                 variants = read_projected(
                     "wow_community_builder_variants",
                     """
+                    WITH referenced(
+                        item_id, variant_key, slot, item_level
+                    ) AS (
+                        SELECT * FROM unnest(
+                            %s::text[],
+                            %s::text[],
+                            %s::text[],
+                            %s::integer[]
+                        )
+                    )
                     SELECT variant_id, item_id, variant_key, slot, label, source_type,
                            difficulty_key, item_level, simc_options_json, status,
                            blockers_json,
@@ -1901,12 +1966,57 @@ class GearReleaseStore:
                                'simcItemLevel', payload_json->'simcItemLevel'
                            )),
                            source_updated_at
-                    FROM cache.websim_gear_release_variants
-                    WHERE release_id = %s
-                      AND item_id = ANY(%s::text[])
-                    ORDER BY variant_id
+                    FROM cache.websim_gear_release_variants variant
+                    WHERE variant.release_id = %s
+                      AND EXISTS (
+                          SELECT 1
+                          FROM referenced
+                          WHERE referenced.item_id = variant.item_id
+                            AND (
+                                (
+                                    referenced.variant_key <> ''
+                                    AND (
+                                        referenced.variant_key
+                                        = variant.variant_key
+                                        OR regexp_replace(
+                                            referenced.variant_key,
+                                            '[^A-Za-z0-9_:/.-]+',
+                                            '',
+                                            'g'
+                                        ) = regexp_replace(
+                                            variant.variant_key,
+                                            '[^A-Za-z0-9_:/.-]+',
+                                            '',
+                                            'g'
+                                        )
+                                    )
+                                )
+                                OR (
+                                    LOWER(variant.source_type)
+                                    = 'observed_profile'
+                                    AND referenced.item_level > 0
+                                    AND referenced.item_level
+                                    = variant.item_level
+                                    AND referenced.slot = LOWER(
+                                        regexp_replace(
+                                            variant.slot,
+                                            '[[:space:]-]+',
+                                            '_',
+                                            'g'
+                                        )
+                                    )
+                                )
+                            )
+                      )
+                    ORDER BY variant.variant_id
                     """,
-                    (normalized, reference_item_ids),
+                    (
+                        [row[0] for row in reference_rows],
+                        [row[1] for row in reference_rows],
+                        [row[2] for row in reference_rows],
+                        [row[3] for row in reference_rows],
+                        normalized,
+                    ),
                     lambda row: {
                         "variantId": _text(row[0]),
                         "itemId": _text(row[1]),
@@ -1963,10 +2073,17 @@ class GearReleaseStore:
             category: len(snapshot[category])
             for category in ("items", "sources", "variants", "options")
         }
+        available_item_ids = {
+            row["itemId"] for row in items
+        }
+        missing_reference_item_ids = sorted(
+            set(reference_item_ids) - available_item_ids
+        )
         if (
-            {row["itemId"] for row in items} != set(reference_item_ids)
+            available_item_ids
+            != set(reference_item_ids) - set(missing_reference_item_ids)
             or any(
-                _text(row.get("itemId")) not in set(reference_item_ids)
+                _text(row.get("itemId")) not in available_item_ids
                 for category in ("sources", "variants")
                 for row in snapshot[category]
             )
@@ -1988,6 +2105,7 @@ class GearReleaseStore:
             "fullCounts": _canonical(full_counts),
             "projectionCounts": projection_counts,
             "referenceItemIds": reference_item_ids,
+            "missingReferenceItemIds": missing_reference_item_ids,
             "referenceItemDigest": _hash(reference_item_ids),
         }
         return snapshot
