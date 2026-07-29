@@ -2,8 +2,8 @@
   "schemaVersion": 2,
   "slug": "season-pve-journal-omission-guard",
   "requirementSlug": "season-pve-journal-omission-guard",
-  "status": "runtime_verified",
-  "highestEvidenceLevel": "runtime_verified",
+  "status": "archived",
+  "highestEvidenceLevel": "archived",
   "branch": "codex/season-pve-journal-omission-guard",
   "commit": "615c9238e09539e5b22e81d13ae64bb438301aec",
   "identities": {
@@ -18,8 +18,9 @@
       "value": "HEAD"
     },
     "closure": {
-      "status": "pending",
-      "reason": "PR CI, merge, production deployment, and archive closure have not occurred."
+      "status": "bound",
+      "kind": "merge_commit",
+      "value": "1501b7ae8f913deba79fb723a6267bad5e74949f"
     }
   },
   "manualAcceptance": {
@@ -70,6 +71,11 @@
       "command": "Immutable remote candidate file-parity and synthetic fail-closed smoke",
       "status": "pass",
       "summary": "Exact committed server files were extracted into one 5.5 MiB temporary candidate. Complete evidence verified; cap, partial-raid, and missing-count evidence blocked; two writer calls rejected before PostgreSQL connection creation. No Blizzard request, source sync, service start, database write, or production file installation occurred."
+    },
+    {
+      "command": "Production exact-file installation, restart, live health, literal data-health, timer/backflow, and writer-rejection smoke",
+      "status": "pass",
+      "summary": "The three reviewed runtime files were installed with candidate-matching SHA-256 and wow-backend restarted active. /health and /api/data/health returned HTTP 200 while overallStatus and gear_catalog remained honestly partial. The deployed writer rejected missing counts before opening PostgreSQL; both expensive sync services remained inactive and their timers unchanged."
     }
   ],
   "candidateDeployment": {
@@ -124,8 +130,23 @@
     },
     {
       "type": "production_untouched",
+      "status": "superseded_by_controlled_deployment",
+      "result": "The isolated candidate did not touch production. After merge and CI, the reviewed three-file runtime set was installed through the controlled minimal deployment described by the production_deployment evidence."
+    },
+    {
+      "type": "production_deployment",
       "status": "pass",
-      "result": "The new contract file was absent from /opt/wow-mini-program; existing production sync/store files were not replaced; no scheduled sync service started."
+      "result": "Production SHA-256 is a133dcf6 for websim_journal_contract.py, a2cc3f35 for postgres_cache_sync.py, and 2639e0ac for postgres_cache_store.py, exactly matching the immutable candidate. A two-file rollback backup is retained at the task-scoped server backup path."
+    },
+    {
+      "type": "live_contract_smoke",
+      "status": "pass",
+      "result": "The deployed contract returned blocked for missing discovery counts and the deployed writer raised before invoking its PostgreSQL connection factory; connection count was zero."
+    },
+    {
+      "type": "live_truth",
+      "status": "partial",
+      "result": "/api/data/health returned overallStatus=partial and gear_catalog=partial. This is retained as a separate unresolved data-completeness fact, not promoted by the code deployment."
     }
   ],
   "risks": [
@@ -136,8 +157,8 @@
     },
     {
       "id": "production-runtime-not-yet-updated",
-      "status": "open",
-      "detail": "The candidate was isolated and removed. Production intentionally remains on the prior Journal implementation until PR CI, merge, and controlled deployment."
+      "status": "resolved",
+      "detail": "PR #111 passed full CI, merged as 1501b7ae, and the three reviewed files were installed with exact candidate SHA-256 parity."
     },
     {
       "id": "existing-test-warnings",
@@ -152,12 +173,12 @@
   ],
   "cleanup": {
     "required": false,
-    "reason": "The temporary candidate directory was removed and no production artifact, service, timer, pointer, database row, Catalog, or Manifest was changed."
+    "reason": "The temporary candidate and deploy staging directories were removed. A small task-scoped two-file code rollback backup is intentionally retained; no database backup was needed because no connection or SQL occurred."
   },
   "archivedReferences": [
     "docs/plans/2026-07-29-season-pve-journal-omission-guard.md",
     "artifacts/releases/2026-07-29-season-pve-journal-omission-guard/requirement.json",
     "docs/plans/2026-07-29-season-pve-universe-reconciliation.md"
   ],
-  "summary": "Runtime-verified upstream omission guard at commit 615c9238: PostgreSQL Journal discovery now records caps, fetch failures, fallback use, partial raid membership, and structural proof gaps; incomplete inputs preserve LKG in the orchestrator and are rejected again before writer SQL. Exact-file candidate parity, synthetic no-network/no-DB smoke, health, resource, timer/backflow, and rollback checks passed. Full official 18-source completeness remains literally blocked pending network-data landing approval."
+  "summary": "Archived upstream omission guard: runtime commit 615c9238 passed an immutable candidate, PR #111 passed full CI and merged as 1501b7ae, and production now runs the same three-file SHA-256 set. PostgreSQL Journal discovery records caps, fetch failures, fallback use, partial raid membership, and structural proof gaps; incomplete inputs preserve LKG in the orchestrator and are rejected before writer SQL. Live health endpoints are 200, services/timers remain controlled, and data health remains honestly partial. Full official 18-source completeness is still blocked pending network-data landing approval."
 }
