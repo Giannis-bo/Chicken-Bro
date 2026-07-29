@@ -73,7 +73,7 @@ import {
 import {
   enhancementDraftSelections,
   isProfileIncompleteOnlySnapshot,
-  resolvedSlotIdentity,
+  resolvedSlotIdentityForWorkbench,
   selectEnhancementDraftSlot as selectEnhancementDraftSlotModel,
   transitionGearEditorCommit,
   updateEnhancementDraftSelection,
@@ -401,7 +401,7 @@ export default function GearDetailPage() {
       : canonical.snapshot?.status === 'verified'
         ? 'verified' as const
         : 'idle' as const
-  const resolvedIdentity = resolvedSlotIdentity(canonical.snapshot, selectedSlot)
+  const resolvedIdentity = resolvedSlotIdentityForWorkbench(canonical.snapshot, selectedSlot)
   const resolvedSlotItemId = resolvedIdentity?.itemId ?? ''
   const resolvedSlotVariantKey = resolvedIdentity?.variantKey ?? ''
   const committedSlotVariantKey = String(equipped[selectedSlot]?.variantKey ?? '').trim()

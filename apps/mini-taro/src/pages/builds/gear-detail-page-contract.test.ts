@@ -216,7 +216,7 @@ describe('gear detail fixed workbench contract', () => {
     expect(pageSource).toContain('resolvedSlotItemId={resolvedSlotItemId}')
     expect(pageSource).toContain('resolvedSlotVariantKey={resolvedSlotVariantKey}')
     expect(pageSource).toContain('committedSlotVariantKey={committedSlotVariantKey}')
-    expect(pageSource).toContain('resolvedSlotIdentity(canonical.snapshot, selectedSlot)')
+    expect(pageSource).toContain('resolvedSlotIdentityForWorkbench(canonical.snapshot, selectedSlot)')
     expect(pageSource).not.toContain('canonical.snapshot.selectionIntent ?? canonical.intent')
     expect(pageSource).toContain('resolveState={gearResolveState}')
     expect(pageSource).toContain('editor={workbenchEditor}')

@@ -201,6 +201,14 @@ export function resolvedSlotIdentity(
   return resolvedSlotIdentityFrom(snapshot, slot)
 }
 
+export function resolvedSlotIdentityForWorkbench(
+  snapshot: GearResolvedSnapshot | undefined,
+  slot: string,
+): ResolvedSlotIdentity | null {
+  return resolvedSlotIdentity(snapshot, slot)
+    ?? resolvedSlotIdentityForIncompleteProfile(snapshot, slot)
+}
+
 export function transitionGearEditorCommit(
   state: GearEditorCommitState,
   event: GearEditorCommitEvent,

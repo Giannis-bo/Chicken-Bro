@@ -10,6 +10,7 @@ import { createCandidateDraft } from './gear-detail-editor-model'
 import * as gearCommitModel from './gear-detail-editor-commit-model'
 import {
   resolvedSlotIdentity,
+  resolvedSlotIdentityForWorkbench,
   transitionGearEditorCommit,
   type GearEditorCommitState,
   type GearEnhancementDraft,
@@ -144,6 +145,36 @@ describe('gear detail editor commit model', () => {
         main_hand: { variantKey: 'new-track', selectedOptions: emptySelection },
       },
     }, 'main_hand')).toBeNull()
+  })
+
+  it('publishes a verified slot identity when only the remaining profile is incomplete', () => {
+    const snapshot: GearResolvedSnapshot = {
+      contractRevision: 'gear-resolved-snapshot-v1',
+      status: 'blocked',
+      resolvedGearSignature: 'sha256:main-hand-only',
+      aggregateLegality: { status: 'verified', problemCodes: [] },
+      profileReadiness: {
+        status: 'blocked',
+        simcReady: false,
+        requiredSlots: ['main_hand', 'head'],
+        readySlots: ['main_hand'],
+        problems: [{ code: 'GEAR_REQUIRED_SLOTS_INCOMPLETE' }],
+      },
+      problems: [{ code: 'GEAR_REQUIRED_SLOTS_INCOMPLETE' }],
+      resolvedSlots: {
+        main_hand: {
+          itemId: candidate.itemId,
+          variantKey: candidate.variantKey,
+          legality: { status: 'verified' },
+          selectedOptions: emptySelection,
+        },
+      },
+    }
+
+    expect(resolvedSlotIdentityForWorkbench(snapshot, 'main_hand')).toEqual({
+      itemId: candidate.itemId,
+      variantKey: candidate.variantKey,
+    })
   })
 
   it('does not commit a candidate from a resolved status without resolved-slot proof', () => {
