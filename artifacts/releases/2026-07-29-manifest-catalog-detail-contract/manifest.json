@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-29T06:14:10.628Z",
+  "generatedAt": "2026-07-29T06:14:35.393Z",
   "release": {
     "date": "2026-07-29",
     "slug": "manifest-catalog-detail-contract"
@@ -346,7 +346,9 @@
     }
   },
   "evidencePacket": {
-    "status": "not_attached",
+    "status": "ready",
+    "path": "artifacts/releases/2026-07-29-manifest-catalog-detail-contract/evidence.json",
+    "sizeBytes": 5098,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -367,7 +369,30 @@
       "archivedReferences",
       "summary"
     ],
-    "note": "Attach a local evidence packet with --evidence-file when promoting a Standard or Strict requirement."
+    "fieldsPresent": [
+      "schemaVersion",
+      "slug",
+      "requirementSlug",
+      "status",
+      "highestEvidenceLevel",
+      "branch",
+      "commit",
+      "identities",
+      "manualAcceptance",
+      "scope",
+      "verification",
+      "candidateDeployment",
+      "runtimeEvidence",
+      "risks",
+      "rollback",
+      "cleanup",
+      "archivedReferences",
+      "summary"
+    ],
+    "missingFields": [],
+    "declaredStatus": "local_verified",
+    "highestEvidenceLevel": "local_verified",
+    "summary": "The local repair preserves Manifest Catalog v2 as a verified evidence source, projects its static facts and safe source display into the active detail payload, and strips internal diagnostics from player-visible candidates. It is locally verified only; no candidate, live runtime, or manual acceptance is claimed."
   },
   "evidence": {
     "localTests": {
@@ -388,12 +413,6 @@
     }
   },
   "riskMatrix": [
-    {
-      "id": "dirty_worktree",
-      "severity": "medium",
-      "status": "watch",
-      "detail": "1 changed files currently visible to git status."
-    },
     {
       "id": "hotspot_files_present",
       "severity": "medium",
@@ -427,11 +446,9 @@
   ],
   "repo": {
     "git": {
-      "status": "dirty",
-      "changedFileCount": 1,
-      "changedFiles": [
-        "?? artifacts/releases/2026-07-29-manifest-catalog-detail-contract/evidence.json"
-      ]
+      "status": "clean",
+      "changedFileCount": 0,
+      "changedFiles": []
     }
   },
   "write": {
