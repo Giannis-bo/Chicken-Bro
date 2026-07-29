@@ -29,6 +29,31 @@ POINTER_ROW = (
     "validated",
 )
 
+TARGET_GEAR_RELEASE_ID = "gear-release:sha256:" + ("5" * 64)
+TARGET_COMMUNITY_RELEASE_ID = "community-release:sha256:" + ("6" * 64)
+TARGET_RELEASE_PAIR_ROW = (
+    TARGET_GEAR_RELEASE_ID,
+    "gear",
+    "season-17",
+    "websim-gear-release-v4",
+    "sha256:" + ("7" * 64),
+    "",
+    "validated",
+    {"gearRuleRevision": "gear-r1"},
+    {"sourceMode": "sealed_candidate_fixture"},
+    {"itemCount": 1, "variantCount": 1},
+    TARGET_COMMUNITY_RELEASE_ID,
+    "community",
+    "season-17",
+    "websim-community-release-v4",
+    "sha256:" + ("8" * 64),
+    TARGET_GEAR_RELEASE_ID,
+    "validated",
+    {"gearRuleRevision": "gear-r1"},
+    {"sourceMode": "sealed_candidate_fixture"},
+    {"winnerCount": 40},
+)
+
 
 class FakeCursor:
     def __init__(self, rowsets=None, fail_marker=""):
@@ -110,6 +135,9 @@ def rowsets(pointer_rows=None):
     pointer_rows = pointer_rows or [[POINTER_ROW], [POINTER_ROW]]
     return {
         "gear_catalog_audit_pointer_binding": pointer_rows,
+        "gear_catalog_audit_requested_release_pair": [
+            TARGET_RELEASE_PAIR_ROW
+        ],
         "gear_catalog_audit_items": [
             (
                 "1001",
@@ -316,6 +344,75 @@ class GearCatalogAuditStoreTest(unittest.TestCase):
             connection.cursor_instance.params[variant_query_index][1],
             ["1001\x1fobserved-hero-3"],
         )
+
+    def test_snapshot_projects_requested_release_pair_without_changing_pointer_fence(self):
+        connection = FakeConnection(rowsets())
+        snapshot = GearCatalogAuditStore(lambda: connection).snapshot(
+            target_gear_release_id=TARGET_GEAR_RELEASE_ID,
+            target_community_release_id=TARGET_COMMUNITY_RELEASE_ID,
+        )
+
+        self.assertEqual(
+            snapshot["activeBinding"]["gearRelease"]["releaseId"],
+            POINTER_ROW[5],
+        )
+        self.assertEqual(
+            snapshot["requestedBinding"]["gearRelease"]["releaseId"],
+            TARGET_GEAR_RELEASE_ID,
+        )
+        self.assertEqual(
+            snapshot["requestedBinding"]["communityRelease"]["releaseId"],
+            TARGET_COMMUNITY_RELEASE_ID,
+        )
+        self.assertEqual(
+            snapshot["requestedBinding"]["manifest"]["seasonRevision"],
+            "season-17",
+        )
+        self.assertEqual(snapshot["pointerBefore"], snapshot["pointerAfter"])
+        item_query_index = next(
+            index
+            for index, statement in enumerate(
+                connection.cursor_instance.statements
+            )
+            if "gear_catalog_audit_items" in statement
+        )
+        community_query_index = next(
+            index
+            for index, statement in enumerate(
+                connection.cursor_instance.statements
+            )
+            if "gear_catalog_audit_community_templates" in statement
+        )
+        self.assertEqual(
+            connection.cursor_instance.params[item_query_index],
+            (TARGET_GEAR_RELEASE_ID,),
+        )
+        self.assertEqual(
+            connection.cursor_instance.params[community_query_index],
+            (TARGET_COMMUNITY_RELEASE_ID,),
+        )
+        self.assertEqual(write_statements(
+            connection.cursor_instance.statements
+        ), [])
+
+    def test_snapshot_rejects_requested_release_pair_mismatch(self):
+        configured = rowsets()
+        mismatched = list(TARGET_RELEASE_PAIR_ROW)
+        mismatched[15] = "gear-release:sha256:" + ("9" * 64)
+        configured["gear_catalog_audit_requested_release_pair"] = [
+            tuple(mismatched)
+        ]
+
+        with self.assertRaisesRegex(
+            RuntimeError,
+            "AUDIT_REQUESTED_RELEASE_PAIR_BINDING_MISMATCH",
+        ):
+            GearCatalogAuditStore(
+                lambda: FakeConnection(configured)
+            ).snapshot(
+                target_gear_release_id=TARGET_GEAR_RELEASE_ID,
+                target_community_release_id=TARGET_COMMUNITY_RELEASE_ID,
+            )
 
     def test_snapshot_projects_structural_templates_without_raw_or_personal_identity(self):
         connection = FakeConnection(rowsets())
@@ -603,6 +700,8 @@ class GearCatalogAuditStoreTest(unittest.TestCase):
             store.snapshot(statement_timeout_ms=30_001)
         with self.assertRaisesRegex(ValueError, "lock_timeout_ms"):
             store.snapshot(lock_timeout_ms=5_001)
+        with self.assertRaisesRegex(ValueError, "must be supplied together"):
+            store.snapshot(target_gear_release_id=TARGET_GEAR_RELEASE_ID)
 
         self.assertFalse(connected)
 

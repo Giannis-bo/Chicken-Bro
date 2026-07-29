@@ -55,6 +55,43 @@ def snapshot():
 
 
 class GearExactItemInstanceCliTest(unittest.TestCase):
+    def test_exact_binding_prefers_explicit_requested_release_pair(self):
+        current = snapshot()
+        requested = copy.deepcopy(current["activeBinding"])
+        requested["manifest"]["manifestRevision"] = ""
+        requested["gearRelease"]["releaseId"] = (
+            "gear-release:sha256:" + ("9" * 64)
+        )
+        requested["gearRelease"]["contentHash"] = (
+            "sha256:" + ("8" * 64)
+        )
+        current["requestedBinding"] = requested
+
+        binding = exact_cli._binding(current)
+
+        self.assertEqual(
+            binding["gearReleaseId"],
+            requested["gearRelease"]["releaseId"],
+        )
+        self.assertEqual(
+            binding["gearReleaseContentHash"],
+            requested["gearRelease"]["contentHash"],
+        )
+
+    def test_cli_accepts_complete_requested_release_pair_only(self):
+        gear_id = "gear-release:sha256:" + ("9" * 64)
+        community_id = "community-release:sha256:" + ("8" * 64)
+
+        parsed = exact_cli.parse_args([
+            "--gear-release-id",
+            gear_id,
+            "--community-release-id",
+            community_id,
+        ])
+
+        self.assertEqual(parsed.gear_release_id, gear_id)
+        self.assertEqual(parsed.community_release_id, community_id)
+
     def test_streaming_hash_matches_canonical_hash(self):
         current = snapshot()
         binding = exact_cli._binding(current)

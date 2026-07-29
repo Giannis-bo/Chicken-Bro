@@ -300,7 +300,10 @@ def _snapshot_spec_payload_reader(
 
 
 def _catalog_binding(snapshot: Mapping[str, Any]) -> dict[str, Any]:
-    active = _mapping(snapshot.get("activeBinding"))
+    active = (
+        _mapping(snapshot.get("requestedBinding"))
+        or _mapping(snapshot.get("activeBinding"))
+    )
     manifest = _mapping(active.get("manifest"))
     gear = _mapping(active.get("gearRelease"))
     dependency_vector = _mapping(gear.get("dependencyVector"))
@@ -595,6 +598,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         description="Build and seal one dormant Gear Catalog revision.",
     )
     parser.add_argument("--output", default="-")
+    parser.add_argument("--gear-release-id", default="")
+    parser.add_argument("--community-release-id", default="")
     parser.add_argument(
         "--statement-timeout-ms",
         type=_bounded_integer("statement_timeout_ms", MAX_STATEMENT_TIMEOUT_MS),
@@ -610,7 +615,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         type=_bounded_integer("batch_size", MAX_BATCH_SIZE),
         default=500,
     )
-    return parser.parse_args(argv)
+    args = parser.parse_args(argv)
+    if bool(_text(args.gear_release_id)) != bool(
+        _text(args.community_release_id)
+    ):
+        parser.error(
+            "--gear-release-id and --community-release-id must be supplied together"
+        )
+    return args
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -634,8 +646,14 @@ def main(argv: list[str] | None = None) -> int:
             statement_timeout_ms=args.statement_timeout_ms,
             lock_timeout_ms=args.lock_timeout_ms,
             batch_size=args.batch_size,
+            target_gear_release_id=args.gear_release_id,
+            target_community_release_id=args.community_release_id,
         ))
         binding = _catalog_binding(snapshot)
+        source_binding = (
+            _mapping(snapshot.get("requestedBinding"))
+            or _mapping(snapshot.get("activeBinding"))
+        )
         spec_payload_reader_holder: list[
             Callable[[str, str], Mapping[str, Any]]
         ] = []
@@ -652,9 +670,7 @@ def main(argv: list[str] | None = None) -> int:
                         _text(binding.get("seasonRevision")),
                         release_status=_text(
                             _mapping(
-                                _mapping(
-                                    snapshot.get("activeBinding")
-                                ).get("gearRelease")
+                                source_binding.get("gearRelease")
                             ).get("releaseStatus")
                         ),
                     )

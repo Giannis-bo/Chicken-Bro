@@ -71,7 +71,10 @@ def _streaming_hash(prefix: str, value: Any) -> str:
 
 
 def _binding(snapshot: Mapping[str, Any]) -> dict[str, Any]:
-    active = _mapping(snapshot.get("activeBinding"))
+    active = (
+        _mapping(snapshot.get("requestedBinding"))
+        or _mapping(snapshot.get("activeBinding"))
+    )
     manifest = _mapping(active.get("manifest"))
     gear = _mapping(active.get("gearRelease"))
     dependency = _mapping(gear.get("dependencyVector"))
@@ -380,6 +383,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         description="Build and seal one dormant exact gear registry.",
     )
     parser.add_argument("--output", default="-")
+    parser.add_argument("--gear-release-id", default="")
+    parser.add_argument("--community-release-id", default="")
     parser.add_argument(
         "--statement-timeout-ms",
         type=_bounded_integer("statement_timeout_ms", MAX_STATEMENT_TIMEOUT_MS),
@@ -395,7 +400,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         type=_bounded_integer("batch_size", MAX_BATCH_SIZE),
         default=500,
     )
-    return parser.parse_args(argv)
+    args = parser.parse_args(argv)
+    if bool(_text(args.gear_release_id)) != bool(
+        _text(args.community_release_id)
+    ):
+        parser.error(
+            "--gear-release-id and --community-release-id must be supplied together"
+        )
+    return args
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -416,7 +428,11 @@ def main(argv: list[str] | None = None) -> int:
     registry_store = GearExactItemRegistryStore(connection_factory)
     try:
         report = run_migration(
-            snapshot_reader=audit_store.snapshot,
+            snapshot_reader=lambda **kwargs: audit_store.snapshot(
+                **kwargs,
+                target_gear_release_id=args.gear_release_id,
+                target_community_release_id=args.community_release_id,
+            ),
             pointer_reader=audit_store.pointer_identity,
             catalog_reader=catalog_store.load_catalog,
             seal_writer=registry_store.seal_registry,

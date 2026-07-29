@@ -1,3 +1,4 @@
+import copy
 import importlib.util
 from pathlib import Path
 import unittest
@@ -90,6 +91,43 @@ def spec_payload(class_key, spec_key):
 
 
 class GearCatalogRevisionCliTest(unittest.TestCase):
+    def test_catalog_binding_prefers_explicit_requested_release_pair(self):
+        current = snapshot()
+        requested = copy.deepcopy(current["activeBinding"])
+        requested["manifest"]["manifestRevision"] = ""
+        requested["gearRelease"]["releaseId"] = (
+            "gear-release:sha256:" + ("9" * 64)
+        )
+        requested["gearRelease"]["contentHash"] = (
+            "sha256:" + ("8" * 64)
+        )
+        current["requestedBinding"] = requested
+
+        binding = revision_cli._catalog_binding(current)
+
+        self.assertEqual(
+            binding["gearReleaseId"],
+            requested["gearRelease"]["releaseId"],
+        )
+        self.assertEqual(
+            binding["gearReleaseContentHash"],
+            requested["gearRelease"]["contentHash"],
+        )
+
+    def test_cli_accepts_complete_requested_release_pair_only(self):
+        gear_id = "gear-release:sha256:" + ("9" * 64)
+        community_id = "community-release:sha256:" + ("8" * 64)
+
+        parsed = revision_cli.parse_args([
+            "--gear-release-id",
+            gear_id,
+            "--community-release-id",
+            community_id,
+        ])
+
+        self.assertEqual(parsed.gear_release_id, gear_id)
+        self.assertEqual(parsed.community_release_id, community_id)
+
     def test_streaming_hash_matches_canonical_hash(self):
         catalog = revision_cli.build_catalog_revision(
             revision_cli._catalog_binding(snapshot()),

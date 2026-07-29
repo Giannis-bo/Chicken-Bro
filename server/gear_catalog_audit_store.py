@@ -431,6 +431,152 @@ class GearCatalogAuditStore:
             "gearReleaseStatus": _text(row[16]),
         }
 
+    def _requested_release_pair(
+        self,
+        cursor,
+        *,
+        gear_release_id: str,
+        community_release_id: str,
+        active_binding: Mapping[str, Any],
+    ) -> dict[str, Any]:
+        self._execute(
+            cursor,
+            """
+            /* gear_catalog_audit_requested_release_pair */
+            SELECT
+                gear.release_id,
+                gear.release_kind,
+                gear.season_revision,
+                gear.schema_revision,
+                gear.content_hash,
+                gear.validated_against_release_id,
+                gear.release_status,
+                gear.dependency_vector_json,
+                gear.source_json,
+                gear.content_summary_json,
+                community.release_id,
+                community.release_kind,
+                community.season_revision,
+                community.schema_revision,
+                community.content_hash,
+                community.validated_against_release_id,
+                community.release_status,
+                community.dependency_vector_json,
+                community.source_json,
+                community.content_summary_json
+            FROM cache.websim_release_registry gear
+            JOIN cache.websim_release_registry community
+              ON community.release_id = %s
+            WHERE gear.release_id = %s
+            """,
+            (community_release_id, gear_release_id),
+        )
+        row = cursor.fetchone()
+        if not row:
+            raise RuntimeError("AUDIT_REQUESTED_RELEASE_PAIR_MISSING")
+        gear_dependency = _mapping(row[7])
+        community_dependency = _mapping(row[17])
+        if (
+            _text(row[0]) != gear_release_id
+            or _text(row[1]) != "gear"
+            or not _text(row[2])
+            or not _text(row[3])
+            or not _text(row[4])
+            or _text(row[6]) != "validated"
+            or not gear_dependency
+            or _text(row[10]) != community_release_id
+            or _text(row[11]) != "community"
+            or not _text(row[13])
+            or not _text(row[14])
+            or _text(row[16]) != "validated"
+            or _text(row[15]) != gear_release_id
+            or _text(row[2]) != _text(row[12])
+            or gear_dependency != community_dependency
+        ):
+            raise RuntimeError(
+                "AUDIT_REQUESTED_RELEASE_PAIR_BINDING_MISMATCH"
+            )
+        return {
+            "generation": _int(active_binding.get("generation")),
+            "manifestRevision": "",
+            "pointerMode": "dormant_requested_pair",
+            "rollbackManifestRevision": "",
+            "seasonRevision": _text(row[2]),
+            "gearReleaseId": _text(row[0]),
+            "communityReleaseId": _text(row[10]),
+            "talentCatalogRevision": _text(
+                active_binding.get("talentCatalogRevision")
+            ),
+            "manifestDependencyVector": gear_dependency,
+            "manifestRollbackRevision": "",
+            "gearDependencyVector": gear_dependency,
+            "communityDependencyVector": community_dependency,
+            "gearSchemaRevision": _text(row[3]),
+            "gearContentHash": _text(row[4]),
+            "gearSource": _mapping(row[8]),
+            "gearContentSummary": _mapping(row[9]),
+            "gearReleaseStatus": _text(row[6]),
+            "communitySchemaRevision": _text(row[13]),
+            "communityContentHash": _text(row[14]),
+            "communitySource": _mapping(row[18]),
+            "communityContentSummary": _mapping(row[19]),
+            "communityReleaseStatus": _text(row[16]),
+        }
+
+    @staticmethod
+    def _snapshot_binding(binding: Mapping[str, Any]) -> dict[str, Any]:
+        return {
+            "manifest": {
+                "manifestRevision": _text(binding.get("manifestRevision")),
+                "seasonRevision": _text(binding.get("seasonRevision")),
+                "talentCatalogRevision": _text(
+                    binding.get("talentCatalogRevision")
+                ),
+                "rollbackManifestRevision": _text(
+                    binding.get("manifestRollbackRevision")
+                ),
+                "dependencyVector": _mapping(
+                    binding.get("manifestDependencyVector")
+                ),
+            },
+            "gearRelease": {
+                "releaseId": _text(binding.get("gearReleaseId")),
+                "schemaRevision": _text(
+                    binding.get("gearSchemaRevision")
+                ),
+                "contentHash": _text(binding.get("gearContentHash")),
+                "releaseStatus": _text(
+                    binding.get("gearReleaseStatus")
+                ),
+                "dependencyVector": _mapping(
+                    binding.get("gearDependencyVector")
+                ),
+                "source": _mapping(binding.get("gearSource")),
+                "contentSummary": _mapping(
+                    binding.get("gearContentSummary")
+                ),
+            },
+            "communityRelease": {
+                "releaseId": _text(binding.get("communityReleaseId")),
+                "schemaRevision": _text(
+                    binding.get("communitySchemaRevision")
+                ),
+                "contentHash": _text(
+                    binding.get("communityContentHash")
+                ),
+                "releaseStatus": _text(
+                    binding.get("communityReleaseStatus")
+                ),
+                "dependencyVector": _mapping(
+                    binding.get("communityDependencyVector")
+                ),
+                "source": _mapping(binding.get("communitySource")),
+                "contentSummary": _mapping(
+                    binding.get("communityContentSummary")
+                ),
+            },
+        }
+
     def _items(self, cursor, release_id: str, batch_size: int) -> list[dict[str, Any]]:
         self._execute(
             cursor,
@@ -1036,6 +1182,8 @@ class GearCatalogAuditStore:
         statement_timeout_ms: int = 15_000,
         lock_timeout_ms: int = 1_000,
         batch_size: int = 500,
+        target_gear_release_id: str = "",
+        target_community_release_id: str = "",
     ) -> dict[str, Any]:
         if not 1 <= _int(statement_timeout_ms) <= 30_000:
             raise ValueError("statement_timeout_ms must be between 1 and 30000")
@@ -1043,6 +1191,16 @@ class GearCatalogAuditStore:
             raise ValueError("lock_timeout_ms must be between 1 and 5000")
         if not 1 <= _int(batch_size) <= 1_000:
             raise ValueError("batch_size must be between 1 and 1000")
+        requested_gear_release_id = _text(target_gear_release_id)
+        requested_community_release_id = _text(
+            target_community_release_id
+        )
+        if bool(requested_gear_release_id) != bool(
+            requested_community_release_id
+        ):
+            raise ValueError(
+                "target Gear and Community Release IDs must be supplied together"
+            )
 
         self.query_count = 0
         self._read_count = 0
@@ -1061,8 +1219,23 @@ class GearCatalogAuditStore:
                     f"SET LOCAL lock_timeout = '{_int(lock_timeout_ms)}ms'",
                 )
                 before = self._pointer_binding(cursor)
-                gear_release_id = _text(before.get("gearReleaseId"))
-                community_release_id = _text(before.get("communityReleaseId"))
+                requested = (
+                    self._requested_release_pair(
+                        cursor,
+                        gear_release_id=requested_gear_release_id,
+                        community_release_id=requested_community_release_id,
+                        active_binding=before,
+                    )
+                    if requested_gear_release_id
+                    else {}
+                )
+                source_binding = requested or before
+                gear_release_id = _text(
+                    source_binding.get("gearReleaseId")
+                )
+                community_release_id = _text(
+                    source_binding.get("communityReleaseId")
+                )
                 items = self._items(cursor, gear_release_id, batch_size)
                 sources = self._sources(cursor, gear_release_id, batch_size)
                 community = self._community_templates(
@@ -1087,7 +1260,11 @@ class GearCatalogAuditStore:
                 )
                 options = self._options(cursor, gear_release_id, batch_size)
                 relation_sizes = self._relation_sizes(cursor, before, batch_size)
-                release_events = self._release_events(cursor, before, batch_size)
+                release_events = self._release_events(
+                    cursor,
+                    source_binding,
+                    batch_size,
+                )
                 after = self._pointer_binding(cursor)
 
             pointer_before = self._pointer_identity(before)
@@ -1096,45 +1273,10 @@ class GearCatalogAuditStore:
                 raise GearCatalogAuditPointerChanged(
                     "AUDIT_POINTER_CHANGED: active Manifest pointer changed during read-only audit"
                 )
-            return {
+            result = {
                 "schemaRevision": "gear-catalog-audit-store-snapshot-v2",
                 "pointerBefore": pointer_before,
-                "activeBinding": {
-                    "manifest": {
-                        "manifestRevision": _text(before.get("manifestRevision")),
-                        "seasonRevision": _text(before.get("seasonRevision")),
-                        "talentCatalogRevision": _text(before.get("talentCatalogRevision")),
-                        "rollbackManifestRevision": _text(
-                            before.get("manifestRollbackRevision")
-                        ),
-                        "dependencyVector": _mapping(
-                            before.get("manifestDependencyVector")
-                        ),
-                    },
-                    "gearRelease": {
-                        "releaseId": gear_release_id,
-                        "schemaRevision": _text(
-                            before.get("gearSchemaRevision")
-                        ),
-                        "contentHash": _text(before.get("gearContentHash")),
-                        "releaseStatus": _text(
-                            before.get("gearReleaseStatus")
-                        ),
-                        "dependencyVector": _mapping(
-                            before.get("gearDependencyVector")
-                        ),
-                        "source": _mapping(before.get("gearSource")),
-                        "contentSummary": _mapping(
-                            before.get("gearContentSummary")
-                        ),
-                    },
-                    "communityRelease": {
-                        "releaseId": community_release_id,
-                        "dependencyVector": _mapping(
-                            before.get("communityDependencyVector")
-                        ),
-                    },
-                },
+                "activeBinding": self._snapshot_binding(before),
                 "catalogRows": {
                     "items": items,
                     "sources": sources,
@@ -1154,6 +1296,11 @@ class GearCatalogAuditStore:
                     "writes": self._write_count,
                 },
             }
+            if requested:
+                result["requestedBinding"] = self._snapshot_binding(
+                    requested
+                )
+            return result
         finally:
             try:
                 connection.rollback()
