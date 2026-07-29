@@ -75,8 +75,10 @@ class FakeConnection:
         self.committed = False
         self.rolled_back = False
         self.closed = False
+        self.cursor_names = []
 
-    def cursor(self):
+    def cursor(self, name=None):
+        self.cursor_names.append(name)
         return self.cursor_instance
 
     def commit(self):
@@ -533,6 +535,15 @@ class GearReleaseStoreTest(unittest.TestCase):
         self.assertIn("jsonb_strip_nulls", sql)
         self.assertGreaterEqual(conn.cursor_instance.fetchmany_calls, 4)
         self.assertEqual(conn.cursor_instance.fetchall_calls, 0)
+        self.assertEqual(
+            {
+                "wow_community_builder_items",
+                "wow_community_builder_sources",
+                "wow_community_builder_variants",
+                "wow_community_builder_options",
+            },
+            {name for name in conn.cursor_names if name},
+        )
         self.assertEqual(
             projected["_releaseProjection"]["releaseId"],
             release["releaseId"],

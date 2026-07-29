@@ -1727,7 +1727,25 @@ class GearReleaseStore:
                     raise GearReleaseIntegrityError(
                         "community builder projection requires a Gear Release"
                     )
-                cur.execute(
+
+                def read_projected(
+                    cursor_name: str,
+                    statement: str,
+                    projector,
+                ) -> list[dict[str, Any]]:
+                    try:
+                        stream_cursor = conn.cursor(name=cursor_name)
+                    except TypeError:
+                        stream_cursor = conn.cursor()
+                    with stream_cursor as stream:
+                        stream.execute(statement, (normalized,))
+                        return [
+                            projector(row)
+                            for row in _stream_cursor_rows(stream)
+                        ]
+
+                items = read_projected(
+                    "wow_community_builder_items",
                     """
                     SELECT item_id, name, slot, item_level, payload_json,
                            source_status, source_updated_at
@@ -1735,10 +1753,7 @@ class GearReleaseStore:
                     WHERE release_id = %s
                     ORDER BY item_id
                     """,
-                    (normalized,),
-                )
-                items = [
-                    {
+                    lambda row: {
                         "itemId": _text(row[0]),
                         "name": _text(row[1]),
                         "slot": _text(row[2]),
@@ -1746,10 +1761,10 @@ class GearReleaseStore:
                         "payload": row[4] if isinstance(row[4], dict) else {},
                         "sourceStatus": _text(row[5]),
                         "updatedAt": _text(row[6]),
-                    }
-                    for row in _stream_cursor_rows(cur)
-                ]
-                cur.execute(
+                    },
+                )
+                sources = read_projected(
+                    "wow_community_builder_sources",
                     """
                     SELECT source_id, item_id, source_type, source_key, source_label,
                            instance_id, encounter_id, difficulty_key, season_revision,
@@ -1779,10 +1794,7 @@ class GearReleaseStore:
                     ) selected
                     ORDER BY item_id, source_type, source_id
                     """,
-                    (normalized,),
-                )
-                sources = [
-                    {
+                    lambda row: {
                         "sourceId": _text(row[0]),
                         "itemId": _text(row[1]),
                         "sourceType": _text(row[2]),
@@ -1794,10 +1806,10 @@ class GearReleaseStore:
                         "seasonRevision": _text(row[8]),
                         "payload": row[9] if isinstance(row[9], dict) else {},
                         "updatedAt": _text(row[10]),
-                    }
-                    for row in _stream_cursor_rows(cur)
-                ]
-                cur.execute(
+                    },
+                )
+                variants = read_projected(
+                    "wow_community_builder_variants",
                     """
                     SELECT variant_id, item_id, variant_key, slot, label, source_type,
                            difficulty_key, item_level, simc_options_json, status,
@@ -1828,10 +1840,7 @@ class GearReleaseStore:
                     WHERE release_id = %s
                     ORDER BY variant_id
                     """,
-                    (normalized,),
-                )
-                variants = [
-                    {
+                    lambda row: {
                         "variantId": _text(row[0]),
                         "itemId": _text(row[1]),
                         "variantKey": _text(row[2]),
@@ -1845,10 +1854,10 @@ class GearReleaseStore:
                         "blockers": row[10] if isinstance(row[10], list) else [],
                         "payload": row[11] if isinstance(row[11], dict) else {},
                         "updatedAt": _text(row[12]),
-                    }
-                    for row in _stream_cursor_rows(cur)
-                ]
-                cur.execute(
+                    },
+                )
+                options = read_projected(
+                    "wow_community_builder_options",
                     """
                     SELECT option_id, variant_id, option_key, option_type, name,
                            applicable_slots_json, simc_options_json, status, is_visible,
@@ -1857,10 +1866,7 @@ class GearReleaseStore:
                     WHERE release_id = %s
                     ORDER BY option_id
                     """,
-                    (normalized,),
-                )
-                options = [
-                    {
+                    lambda row: {
                         "optionId": _text(row[0]),
                         "variantId": _text(row[1]),
                         "optionKey": _text(row[2]),
@@ -1872,9 +1878,8 @@ class GearReleaseStore:
                         "isVisible": row[8] is True,
                         "payload": row[9] if isinstance(row[9], dict) else {},
                         "updatedAt": _text(row[10]),
-                    }
-                    for row in _stream_cursor_rows(cur)
-                ]
+                    },
+                )
         snapshot = {
             "items": items,
             "sources": sources,
