@@ -873,6 +873,11 @@ class GearReleaseStoreTest(unittest.TestCase):
         self.assertIn("jsonb_strip_nulls(jsonb_build_object", sql)
         self.assertIn("'observedProfileRefs'", sql)
         self.assertIn("'gameAsset'", sql)
+        self.assertIn(
+            "'entityType', item.value->'gameAsset'->'entityType'",
+            sql,
+        )
+        self.assertNotIn("'bonuses', item.value->'bonuses'", sql)
         self.assertIn("'' AS raw_string", sql)
         self.assertEqual(rows[0]["gearItems"][0]["itemId"], "item-a")
         self.assertEqual(

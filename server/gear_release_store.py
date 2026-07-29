@@ -2439,51 +2439,109 @@ class GearReleaseStore:
                         SELECT COALESCE(
                             jsonb_agg(
                                 jsonb_strip_nulls(jsonb_build_object(
-                                    'slot', item.value->'slot',
-                                    'simcSlot', item.value->'simcSlot',
-                                    'itemId', item.value->'itemId',
-                                    'id', item.value->'id',
+                                    'slot', to_jsonb(COALESCE(
+                                        NULLIF(item.value->>'slot', ''),
+                                        NULLIF(item.value->>'simcSlot', '')
+                                    )),
+                                    'itemId', to_jsonb(COALESCE(
+                                        NULLIF(item.value->>'itemId', ''),
+                                        NULLIF(item.value->>'id', '')
+                                    )),
                                     'variantKey', item.value->'variantKey',
-                                    'itemLevel', item.value->'itemLevel',
-                                    'ilevel', item.value->'ilevel',
-                                    'bonuses', item.value->'bonuses',
-                                    'bonusIds', item.value->'bonusIds',
-                                    'bonus_id', item.value->'bonus_id',
-                                    'gems', item.value->'gems',
-                                    'gemIds', item.value->'gemIds',
-                                    'gem_id', item.value->'gem_id',
-                                    'gemBonusIds', item.value->'gemBonusIds',
-                                    'gem_bonus_id',
+                                    'ilevel', to_jsonb(COALESCE(
+                                        NULLIF(item.value->>'itemLevel', ''),
+                                        NULLIF(item.value->>'ilevel', ''),
+                                        NULLIF(item.value->>'item_level', '')
+                                    )),
+                                    'bonus_id', COALESCE(
+                                        item.value->'bonus_id',
+                                        item.value->'bonusIds',
+                                        item.value->'bonuses'
+                                    ),
+                                    'gem_id', COALESCE(
+                                        item.value->'gem_id',
+                                        item.value->'gemIds',
+                                        item.value->'gems'
+                                    ),
+                                    'gem_bonus_id', COALESCE(
                                         item.value->'gem_bonus_id',
-                                    'gemItemLevels',
-                                        item.value->'gemItemLevels',
-                                    'gem_ilevel', item.value->'gem_ilevel',
-                                    'enchants', item.value->'enchants',
-                                    'enchant', item.value->'enchant',
-                                    'enchant_id', item.value->'enchant_id',
-                                    'crafted_stats',
+                                        item.value->'gemBonusIds'
+                                    ),
+                                    'gem_ilevel', COALESCE(
+                                        item.value->'gem_ilevel',
+                                        item.value->'gemItemLevels'
+                                    ),
+                                    'enchant_id', COALESCE(
+                                        item.value->'enchant_id',
+                                        item.value->'enchant',
+                                        item.value->'enchants'
+                                    ),
+                                    'crafted_stats', COALESCE(
                                         item.value->'crafted_stats',
-                                    'craftedStats',
-                                        item.value->'craftedStats',
-                                    'embellishment',
+                                        item.value->'craftedStats'
+                                    ),
+                                    'embellishment', COALESCE(
                                         item.value->'embellishment',
-                                    'embellishmentId',
                                         item.value->'embellishmentId',
-                                    'embellishment_id',
-                                        item.value->'embellishment_id',
-                                    'redirected_base_stats',
+                                        item.value->'embellishment_id'
+                                    ),
+                                    'redirected_base_stats', COALESCE(
                                         item.value->'redirected_base_stats',
-                                    'redirectedBaseStats',
-                                        item.value->'redirectedBaseStats',
+                                        item.value->'redirectedBaseStats'
+                                    ),
                                     'profileUrl', item.value->'profileUrl',
-                                    'sourceProfileUrl',
-                                        item.value->'sourceProfileUrl',
+                                    'sourceProfileUrl', item.value->'sourceProfileUrl',
                                     'sourceUrl', item.value->'sourceUrl',
                                     'url', item.value->'url',
                                     'observedProfileRefs',
-                                        item.value->'observedProfileRefs',
+                                        CASE
+                                            WHEN jsonb_typeof(
+                                                item.value->'observedProfileRefs'
+                                            ) = 'array'
+                                            THEN (
+                                                SELECT COALESCE(
+                                                    jsonb_agg(
+                                                        jsonb_strip_nulls(
+                                                            jsonb_build_object(
+                                                                'profileUrl',
+                                                                    profile.value->'profileUrl',
+                                                                'sourceProfileUrl',
+                                                                    profile.value->'sourceProfileUrl',
+                                                                'sourceUrl',
+                                                                    profile.value->'sourceUrl',
+                                                                'url',
+                                                                    profile.value->'url'
+                                                            )
+                                                        )
+                                                        ORDER BY profile.ordinality
+                                                    ),
+                                                    '[]'::jsonb
+                                                )
+                                                FROM jsonb_array_elements(
+                                                    item.value->'observedProfileRefs'
+                                                ) WITH ORDINALITY
+                                                  AS profile(value, ordinality)
+                                            )
+                                        END,
                                     'iconUrl', item.value->'iconUrl',
-                                    'gameAsset', item.value->'gameAsset'
+                                    'gameAsset',
+                                        CASE
+                                            WHEN jsonb_typeof(
+                                                item.value->'gameAsset'
+                                            ) = 'object'
+                                            THEN jsonb_strip_nulls(
+                                                jsonb_build_object(
+                                                    'status',
+                                                        item.value->'gameAsset'->'status',
+                                                    'entityType',
+                                                        item.value->'gameAsset'->'entityType',
+                                                    'entityId',
+                                                        item.value->'gameAsset'->'entityId',
+                                                    'iconUrl',
+                                                        item.value->'gameAsset'->'iconUrl'
+                                                )
+                                            )
+                                        END
                                 ))
                                 ORDER BY item.ordinality
                             ),
