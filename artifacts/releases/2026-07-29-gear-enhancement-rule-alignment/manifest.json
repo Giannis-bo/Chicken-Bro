@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-29T05:23:26.595Z",
+  "generatedAt": "2026-07-29T05:24:00.497Z",
   "release": {
     "date": "2026-07-29",
     "slug": "gear-enhancement-rule-alignment"
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-29-gear-enhancement-rule-alignment/evidence.json",
-    "sizeBytes": 7587,
+    "sizeBytes": 7557,
     "requiredFields": [
       "schemaVersion",
       "slug",
