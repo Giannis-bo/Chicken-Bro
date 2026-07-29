@@ -3,12 +3,12 @@
   "slug": "manifest-catalog-detail-contract",
   "classification": "Strict",
   "status": "implementation_allowed",
-  "goal": "Repair the active equipment-detail public payload so a Manifest Catalog v2 verified BrowseVariant presents its verified static attributes, specialization-correct primary stat, readable source, and canonical legal progression choice without exposing internal diagnostics or observed-profile multiplicity.",
-  "userValue": "When a player opens an equipment candidate, they can see a small set of meaningful backend-owned progression choices; choosing one immediately shows that exact variant's primary and secondary attributes, while contradictory catalog evidence remains honestly unavailable instead of being guessed.",
+  "goal": "Repair the Catalog Browse boundary behind equipment detail so only governed BrowseVariants become selectable, normal tracks expose only their maximum rank, and Mage browsing cannot receive type-unknown or cross-class armor.",
+  "userValue": "When a player opens an equipment candidate, every visible option is a legal catalog choice for the selected class/spec; an imported player's lower-rank instance stays exact-only, and missing type or source proof removes the candidate rather than making the player decide whether it is trustworthy.",
   "nonGoals": [
-    "Do not rebuild or switch the active Catalog/Gear Release/Manifest revision, ingest new Battle.net data, or alter resolver, SimC, TemplateSet, PostgreSQL schema, or persisted player data. A catalog revision rebuild is a separately approved recovery only if the new public conflict audit proves the active source data must be repaired.",
-    "Do not make Taro infer item attributes, source identity, or evidence status from opaque keys; the backend public projection remains authoritative.",
-    "Do not deploy, run sync/backfill, claim candidate/live verification, or claim WeChat manual acceptance in this local implementation phase."
+    "The user approved a Catalog repair after the Mage audit proved active Browse data leaks ExactItemInstances and type-unknown armor. Build and seal only a dormant Catalog v3 / Exact Registry candidate first; do not switch the active Catalog/Gear Release/Manifest pointer, ingest Battle.net data, run a source sync/backfill, alter Resolver rules/SimC compiler/TemplateSet/PostgreSQL schema, or mutate persisted player data.",
+    "Do not make Taro infer item attributes, source identity, type, class compatibility, or evidence status from opaque keys; the backend Catalog and public read model remain authoritative.",
+    "Do not treat the previously deployed 14078788 presentation candidate as valid for this expanded scope. It is superseded pending a new immutable candidate, targeted Catalog shadow, and explicit WeChat acceptance."
   ],
   "currentTruth": {
     "sources": [
@@ -20,42 +20,47 @@
       "docs/verification-matrix.md",
       "docs/gear-simulation-full-chain-runbook.md",
       "docs/design/current-ui/routes/gear-detail/truth-adaptation.json",
-      "docs/design/current-ui/routes/gear-detail/component-contract.json"
+      "docs/design/current-ui/routes/gear-detail/component-contract.json",
+      "server/gear_catalog_revision.py",
+      "server/gear_catalog_migration_audit.py",
+      "server/gear_track_authority.py"
     ],
-    "factOwner": "Manifest Catalog v2 owns verified BrowseVariant static facts and provenance; gear release/read-model serializers publish those facts; Taro consumes the public contract without inventing identity or trust.",
+    "factOwner": "CatalogRevision owns BrowseVariant membership and progression identity; ExactItemRegistry owns imported exact identities. Gear release/read-model serializers publish only their Catalog facts, and Taro consumes the public contract without inventing identity, type, class compatibility, or trust.",
     "baseBranch": "main"
   },
   "impactMap": {
     "mustChange": [
-      "The Manifest Catalog v2 release adapter must project verified static facts and each BrowseVariant progression state as the public itemStats/stats contract with explicit catalog evidence provenance.",
-      "The public compact payload must retain a backend-owned named progression display contract and must collapse only equivalent tertiary-only observed shapes; distinct static-fact shapes for one logical progression must become one explicit non-selectable conflict state rather than multiple indistinguishable choices.",
-      "The read-model/WebSim path must apply the requested class/spec primary-stat contract to the item and every public variant before Taro renders it.",
-      "The release adapter must publish a readable, identity-matched source label when available and a safe source-type/difficulty fallback when it is not; opaque source keys cannot become player-facing labels.",
-      "The PG read-model selector and WebSim public normalizer must preserve the catalog evidence identity so verified Manifest facts do not incorrectly require Battle.net-only diagnostics.",
-      "Every public gear candidate diagnostic must be user-safe Chinese text; internal provider and implementation messages must not reach the detail view.",
-      "The Taro candidate draft must retain the backend-returned selected-variant static display facts and detail view must render that selection before Apply; Resolve remains authoritative after Apply.",
-      "Targeted backend and Taro regressions must freeze the Manifest static-fact, progression, primary-stat, selected-variant-display, source-label, trust, and diagnostic-sanitization contracts."
+      "The Catalog Builder must derive BrowseVariants exclusively from rowFamily browse. An ExactItemInstance may supply governed exact evidence where Track Authority explicitly allows it, but cannot create, extend, select, or supply the static facts of a public BrowseVariant.",
+      "Catalog v3 BrowseVariant identity must be catalogRevision, itemId, and progressionState without v2 shape identity. Each non-crafted normal progression has exactly one source shape at its bound maximum rank; a second shape blocks the dormant candidate rather than being public-compacted.",
+      "The Catalog candidate must explicitly exclude non-portable armor or weapon items lacking a verified governing type fact; the public WebSim compatibility boundary independently hides an unknown type or context-free tier candidate until a governed source repair exists.",
+      "A server-signed Exact template whose source variant is intentionally absent from Browse may retain that source identity only through a matching Exact Registry template reference. It must bind the same Catalog/Exact dependency vector, resolve through canonical authority, build a ready ResolvedLoadout, and compile canonical SimC input without publishing the exact source variant as a BrowseVariant.",
+      "The PG read-model/WebSim path must preserve existing specialization primary-stat, selected-variant, named progression, readable source, and safe diagnostic contracts for the remaining eligible Catalog candidates.",
+      "Targeted Builder, Track Authority, read-model/WebSim, Exact Registry, and Taro regressions must freeze Catalog membership, type eligibility, progression, primary-stat, selected-variant-display, source-label, trust, and diagnostic-sanitization contracts."
     ],
     "mustNotChange": [
-      "Do not change active catalog pointers, resolver selection, exact-instance recovery, SimC compilation, source ingestion, timer state, or persisted data.",
-      "Do not relax the fail-closed behavior for an actually missing verified fact; it remains a blocked/partial diagnostic with safe user-facing text.",
-      "Do not add a frontend fallback, route-private UI patch, or a fabricated named drop source."
+      "Do not change the active catalog pointer, canonical Resolver legality/selection rules, SimC compiler semantics, source ingestion, timer state, or persisted data before the candidate release gate.",
+      "Do not relax fail-closed behavior for missing type, class, source, static-fact, or progression evidence; no frontend fallback or fabricated named drop source is allowed.",
+      "Do not alter active Taro geometry or replace the backend-owned Apply then Resolve flow."
     ],
     "riskUnknown": [
-      "The active source snapshot may omit an exact source label for a verified BrowseVariant; the fallback must remain informative without claiming an unverified encounter name.",
-      "Legacy public candidates can still carry internal diagnostic strings from non-Manifest paths; output sanitization must cover top-level and variant diagnostics without changing internal resolver diagnostics.",
-      "Candidate runtime caches and the active WeChat bundle still require immutable candidate smoke and explicit manual acceptance before merge.",
-      "The active Catalog can contain more than one static-fact shape for a logical progression state. Public projection must never select one arbitrarily; only equivalent tertiary-only shapes can collapse to a deterministic representative."
+      "The active source snapshot can have non-portable equipment without verified armor/weapon type or a tier source without class context. This repair excludes/hides it, but does not manufacture or fetch a type fact.",
+      "A new Catalog v3 can reduce visible Browse coverage and can make Exact Registry replay partial/blocked for references that no longer map to public Browse. Its candidate shadow must report that result literally; it cannot reuse the old 40/40 claim.",
+      "The active Catalog contains multiple static-fact shapes for a logical progression state. Public projection must never select one arbitrarily; Catalog v3 must either publish one governed Browse source shape or block the dormant candidate.",
+      "Candidate runtime caches and the active WeChat bundle still require immutable candidate smoke, a dormant dependency-vector audit, and explicit manual acceptance before merge."
     ],
     "evidenceRequired": [
-      "RED/GREEN targeted Python regressions for Manifest static facts, exact source-label identity matching, verified catalog trust, and public diagnostic sanitization.",
-      "Focused release-store/read-model/cache and WebSim payload suites, Harness requirement validation, diff review, and local CR tied to this packet.",
-      "Before merge: immutable candidate-head API/read-model smoke proving a verified BrowseVariant returns readable source and stats, plus the explicit WeChat manual acceptance items below."
+      "RED/GREEN targeted Python regressions proving ExactItemInstances do not seed Browse membership, one normal progression cannot hold two source shapes, v3 identity rejects duplicates, and missing equipment types/context cannot become selectable.",
+      "One real-code exact-only import regression must cover Exact projection, authority binding, canonical Resolve, ResolvedLoadout, and SimC profile compilation while proving the exact item remains absent from Browse membership.",
+      "Focused Catalog Builder/store, Track Authority, Exact Registry, release-store/read-model, WebSim payload, and existing selected-variant Taro suites; Harness requirement validation, diff review, and local CR tied to this one packet.",
+      "Before merge: deterministic dormant Catalog v3 / Exact Registry shadow, immutable candidate-head API/read-model smoke for Mage Arcane/Fire/Frost plus a valid cloth control, no active-pointer change, and explicit WeChat manual acceptance items below."
     ]
   },
   "ownership": {
-    "factOwner": "server/gear_release_store.py publishes Manifest Catalog v2 BrowseVariant facts and progression evidence; server/pg_gear_read_model_selectors.py and server/websim_payload.py preserve, specialize, and safely normalize it; apps/mini-taro/src/pages/builds/gear-detail-model.ts and gear-detail-editor-model.ts render the returned public fields without deriving catalog identity.",
+    "factOwner": "server/gear_catalog_revision.py owns Catalog v3 Browse membership, one-state identity, and candidate exclusion accounting; server/gear_exact_item_registry.py owns ExactItemInstance identity; server/gear_release_store.py, server/pg_gear_read_model_selectors.py, and server/websim_payload.py preserve, specialize, and safely normalize those facts; apps/mini-taro/src/pages/builds/gear-detail-model.ts and gear-detail-editor-model.ts render returned public fields without deriving catalog identity.",
     "consumers": [
+      "server/gear_catalog_revision.py",
+      "server/gear_catalog_revision_store.py",
+      "server/gear_exact_item_registry.py",
       "server/gear_release_store.py",
       "server/pg_gear_read_model_selectors.py",
       "server/websim_payload.py",
@@ -66,18 +71,19 @@
     ]
   },
   "engineeringHealth": {
-    "status": "health_watch_guarded",
-    "reason": "A user-visible public-payload regression crossed the Manifest adapter, PG read model, WebSim normalizer, and active detail consumer. The repair keeps progression and variant facts backend-owned, isolates compact-payload grouping in the existing WebSim boundary, uses TDD at each seam, and retains candidate/manual-acceptance gates."
+    "status": "health_risk_guarded",
+    "reason": "A user-visible public-payload regression originates in a hot Builder semantic boundary and crosses immutable Catalog, Exact Registry, read model, WebSim, and the active detail consumer. The repair narrows public Browse membership, retains archived v2 readability, uses TDD at each seam, seals only a dormant revision, and requires shadow/candidate/manual-acceptance gates before any pointer action."
   },
   "acceptanceEvidence": [
-    "A verified Manifest Catalog v2 item detail shows its verified static attributes instead of a blanket 待核验 state.",
-    "A verified candidate shows a backend-owned named progression state rather than 难度待补; duplicate observed shapes never appear as a long list of indistinguishable 套装 rows.",
-    "If one logical progression has conflicting non-tertiary static facts or item levels, it renders once as a safe blocked conflict and cannot be applied.",
+    "A verified Catalog v3 item detail shows backend-owned static attributes instead of a blanket 待核验 state, but no type-unknown non-portable item is selectable.",
+    "A verified candidate shows a backend-owned named progression state rather than 难度待补; normal Browse tracks contain only their governed maximum rank and no observed-profile multiplicity.",
+    "If one logical progression has conflicting non-tertiary static facts or item levels, the dormant Catalog build is blocked and the active pointer is unchanged; the public payload never chooses a shape or asks the player to choose between conflicting rows.",
     "For a selected legal variant, the detail summary includes the specialization-correct primary stat and changes to that variant's returned secondary facts before Apply.",
     "A verified item source is a readable exact source label when an identity-matched snapshot record exists, otherwise a truthful source-type/difficulty fallback; no opaque key is shown as a name.",
-    "A verified Manifest Catalog v2 item no longer displays Battle.net-only diagnostics merely because its evidence source is the active Manifest Catalog.",
-    "Any still-blocked public candidate displays safe Chinese diagnostics and does not expose internal provider/implementation text.",
-    "No active pointer, catalog revision, source ingestion, persisted data, remote runtime state, or UI geometry changes."
+    "A verified Catalog item no longer displays Battle.net-only diagnostics merely because its static facts come from the active Manifest Catalog; a type-unknown candidate is hidden rather than presented with an invented type.",
+    "Mage Arcane, Fire, and Frost never receive 250033 or 268283 as selectable head candidates until their equipment type/class facts are governed; a valid cloth control remains selectable, and an imported Myth 2/6 instance remains exact-only.",
+    "A verified exact-only community import can resolve and compile with its exact item level, bonuses, and enhancements while the same exact source identity remains absent from public Browse membership; Catalog/Exact revision mismatch or partial exact evidence blocks the path.",
+    "No active pointer, source ingestion, persisted data, remote production runtime state, or UI geometry changes occur before final candidate acceptance."
   ],
   "manualAcceptanceContract": {
     "required": true,
@@ -85,26 +91,33 @@
       "gear_detail_verified_manifest_facts",
       "gear_detail_safe_source_and_diagnostics",
       "gear_detail_named_progression_without_duplicate_observed_rows",
-      "gear_detail_selected_variant_updates_primary_and_secondary_stats"
+      "gear_detail_selected_variant_updates_primary_and_secondary_stats",
+      "gear_catalog_mage_browse_eligibility",
+      "gear_catalog_exact_instance_is_not_browse_choice"
     ]
   },
-  "releaseTrigger": "public_payload",
+  "releaseTrigger": "pg_read_model",
   "rollback": [
     "code_rollback",
-    "candidate_runtime_rollback"
+    "candidate_runtime_rollback",
+    "resync_repair"
   ],
   "decisionLog": [
     {
       "date": "2026-07-29",
-      "decision": "The user approved implementation after the active WebSim payload demonstrated that verified Manifest static facts were dropped, sourceLabel was blank, and internal diagnostics reached the gear detail view."
+      "decision": "The user approved the original public-payload repair after verified Manifest static facts, source labels, and diagnostics were lost in equipment detail."
     },
     {
       "date": "2026-07-29",
-      "decision": "The repair keeps Manifest Catalog v2 as a valid verified provenance source and does not fabricate Battle.net verification, encounter names, frontend-derived identity, or a catalog rebuild."
+      "decision": "After real WeChat inspection exposed pending progression labels, repeated observed-profile shapes, missing primary stats, and stale selected-variant summaries, the user approved the Strict public-projection and selected-variant contract repair."
     },
     {
       "date": "2026-07-29",
-      "decision": "After real WeChat inspection exposed pending progression labels, repeated observed-profile shapes, missing primary stats, and stale selected-variant summaries, the user approved the Strict public-projection and selected-variant contract repair. Conflicting logical progression evidence fails closed; catalog rebuild remains outside this packet unless a later audit is separately approved."
+      "decision": "The Mage audit proved that the active Catalog v2 Builder promoted ExactItemInstance rows into Browse, retained a normal Myth 2/6 candidate, allowed multiple source shapes for Myth 6/6, and marked armorType-unknown heads compatible. The user confirmed the Catalog repair direction. This packet is extended rather than creating a second task packet on the same branch; the prior 14078788 presentation candidate is superseded."
+    },
+    {
+      "date": "2026-07-29",
+      "decision": "The later current-HEAD review proved that exact-only recovery had become part of the implementation while the packet still forbade that semantic change. The user authorized end-to-end root-cause repair. This packet now explicitly covers only the sealed Exact import recovery needed by the Catalog correction; current-season PVE universe completeness and the 40-specialization real-WeChat matrix remain a subsequent independent Strict Harness phase and cannot be claimed by this packet."
     }
   ],
   "harnessFindings": [
@@ -115,6 +128,15 @@
       "missedGate": "Impact Map and UI runtime evidence promotion",
       "impact": "The candidate could not be accepted and required a second Strict public-contract repair before merge.",
       "recommendedAction": "Keep the two real item IDs in the candidate smoke matrix and require compact progression, conflict, primary-stat, and selected-variant assertions before future public detail claims.",
+      "promotion": "finding_only"
+    },
+    {
+      "id": "catalog-browse-exact-leak-and-type-eligibility-20260729",
+      "status": "finding_only",
+      "whatHappened": "The earlier public-projection repair treated duplicate progressions and missing type facts as presentation concerns. Mage browsing showed a selectable Exact Myth 2/6 item, a conflicting Myth 6/6 source shape, and head items with armorStatus unknown marked compatible.",
+      "missedGate": "Current Truth, Catalog ownership, and candidate API smoke matrix",
+      "impact": "The candidate cannot be accepted: the Catalog has crossed Exact/Browse ownership and public compatibility is no longer fail-closed for non-portable equipment.",
+      "recommendedAction": "Require a Builder-level exact-to-Browse exclusion, one-state v3 identity, type/context eligibility gate, dormant Catalog/Exact shadow, and Mage multi-spec smoke before any future gear detail candidate acceptance.",
       "promotion": "finding_only"
     }
   ]

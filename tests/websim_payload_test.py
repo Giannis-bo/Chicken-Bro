@@ -4105,6 +4105,8 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(candidate["itemStats"][0]["value"], 124)
 
     def test_verified_catalog_detail_does_not_surface_execution_missing_fields_as_detail_blockers(self):
+        catalog_revision = "gear-catalog:sha256:" + ("a" * 64)
+        browse_variant_key = "browse-variant:sha256:" + ("b" * 64)
         candidate = self.websim_payload.enrich_catalog_item(
             {
                 "id": "900002",
@@ -4112,6 +4114,7 @@ class WebSimPayloadTest(unittest.TestCase):
                 "slot": "head",
                 "sourceType": "dungeon",
                 "compatibility": "compatible",
+                "catalogRevision": catalog_revision,
                 "catalogEvidenceStatus": "verified",
                 "catalogEvidenceSource": "manifest_catalog_v2",
                 "modCapabilities": {},
@@ -4124,9 +4127,9 @@ class WebSimPayloadTest(unittest.TestCase):
                 "payload": {"classKeys": ["mage"], "specKeys": ["frost"]},
             }],
             [{
-                "id": "variant-900002",
-                "key": "variant-900002",
-                "variantKey": "variant-900002",
+                "id": browse_variant_key,
+                "key": browse_variant_key,
+                "variantKey": browse_variant_key,
                 "itemId": "900002",
                 "slot": "head",
                 "sourceType": "dungeon",
@@ -4134,6 +4137,10 @@ class WebSimPayloadTest(unittest.TestCase):
                 "status": "verified",
                 "simcOptions": {"ilevel": "289"},
                 "payload": {
+                    "browseVariantKey": browse_variant_key,
+                    "catalogRevision": catalog_revision,
+                    "catalogEvidenceStatus": "verified",
+                    "catalogEvidenceSource": "manifest_catalog_v2",
                     "classKeys": ["mage"],
                     "specKeys": ["frost"],
                     "statDisplayStatus": "verified_variant",
@@ -4153,6 +4160,62 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertFalse(candidate["simcReady"])
         self.assertEqual(candidate["statDisplayStatus"], "verified_variant")
         self.assertNotIn("blockers", candidate)
+
+    def test_verified_looking_exact_detail_keeps_catalog_provenance_blocker(self):
+        candidate = self.websim_payload.enrich_catalog_item(
+            {
+                "id": "900003",
+                "itemId": "900003",
+                "slot": "head",
+                "sourceType": "catalog",
+                "compatibility": "compatible",
+                "metadataStatus": "verified",
+                "metadataSource": self.websim_payload.ITEM_METADATA_SOURCE,
+                "catalogEvidenceStatus": "verified",
+                "catalogEvidenceSource": "gear_exact_registry_v1",
+                "modCapabilities": {},
+            },
+            [{
+                "id": "source-900003",
+                "itemId": "900003",
+                "sourceType": "dungeon",
+                "sourceLabel": "测试地下城",
+                "payload": {"classKeys": ["mage"], "specKeys": ["frost"]},
+            }],
+            [{
+                "id": "exact-variant-900003",
+                "key": "exact-variant-900003",
+                "variantKey": "exact-variant-900003",
+                "itemId": "900003",
+                "slot": "head",
+                "sourceType": "dungeon",
+                "itemLevel": 289,
+                "status": "verified",
+                "simcOptions": {"ilevel": "289", "bonus_id": "12345"},
+                "payload": {
+                    "rowFamily": "exact_instance",
+                    "classKeys": ["mage"],
+                    "specKeys": ["frost"],
+                    "statDisplayStatus": "verified_variant",
+                    "statSource": "gear_exact_registry_v1",
+                    "itemStats": [{"key": "intellect", "label": "智力", "value": 124}],
+                },
+            }],
+            [],
+            [],
+            [],
+            "mage",
+            "frost",
+        )
+
+        candidate = self.websim_payload.sanitize_gear_candidate_mod_options(candidate)
+
+        self.assertFalse(candidate["simcReady"])
+        self.assertEqual(candidate.get("blockers"), ["装备详情待核验"])
+        self.assertNotIn(
+            "Catalog Browse provenance",
+            json.dumps(candidate, ensure_ascii=False),
+        )
 
     def test_websim_gear_catalog_reuses_shared_catalog_rows_across_specs(self):
         conn = sqlite3.connect(self.db_path)
@@ -11219,6 +11282,33 @@ class WebSimPayloadTest(unittest.TestCase):
                 },
             }
             self.websim_payload.sync_observed_gear_variants(conn, raiderio, {"seasonRevision": "season-test"})
+            for item_id, slot in (
+                ("251000", "neck"),
+                ("251001", "finger1"),
+                ("251002", "trinket1"),
+            ):
+                self.websim_payload.upsert_gear_variant(
+                    conn,
+                    {
+                        "id": f"verified-portable-{item_id}",
+                        "itemId": item_id,
+                        "slot": slot,
+                        "variantKey": f"verified-portable-{item_id}-707",
+                        "label": "Observed 707",
+                        "sourceType": "observed_profile",
+                        "difficultyKey": "observed_profile",
+                        "itemLevel": 707,
+                        "simcOptions": {"ilevel": "707", "bonus_id": "12345"},
+                        "status": "verified",
+                        "payload": {
+                            "statDisplayStatus": "verified_variant",
+                            "statSource": "simulationcraft",
+                            "itemStats": [
+                                {"key": "intellect", "label": "智力", "value": 124}
+                            ],
+                        },
+                    },
+                )
             self.websim_payload.set_sync_state(
                 conn,
                 "gearCatalog",
@@ -11343,20 +11433,56 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertFalse(self.websim_payload.gear_candidate_visible_for_replacement(candidate))
 
     def test_replacement_visibility_keeps_verified_static_catalog_detail_without_simc_identity(self):
+        catalog_revision = "gear-catalog:sha256:" + ("a" * 64)
+        browse_variant_key = "browse-variant:sha256:" + ("b" * 64)
         candidate = {
             "itemId": "250781",
             "slot": "head",
             "compatibility": {"status": "compatible"},
             "sourceType": "catalog",
+            "catalogRevision": catalog_revision,
+            "catalogEvidenceStatus": "verified",
+            "catalogEvidenceSource": "manifest_catalog_v2",
             "sources": [{"sourceType": "dungeon", "label": "Verified Dungeon - Test Encounter"}],
             "variantStatus": "verified",
+            "variantKey": browse_variant_key,
             "variantDifficultyKey": "needs-variant",
             "statDisplayStatus": "verified_variant",
             "itemStats": [{"key": "intellect", "label": "智力", "value": 124}],
+            "variants": [{
+                "id": browse_variant_key,
+                "key": browse_variant_key,
+                "variantKey": browse_variant_key,
+                "payload": {
+                    "browseVariantKey": browse_variant_key,
+                    "catalogRevision": catalog_revision,
+                    "catalogEvidenceStatus": "verified",
+                    "catalogEvidenceSource": "manifest_catalog_v2",
+                },
+            }],
             "simcReady": False,
         }
 
         self.assertTrue(self.websim_payload.gear_candidate_visible_for_replacement(candidate))
+
+    def test_replacement_visibility_rejects_verified_exact_stats_without_catalog_provenance(self):
+        candidate = {
+            "itemId": "250782",
+            "slot": "head",
+            "compatibility": {"status": "compatible"},
+            "sourceType": "catalog",
+            "catalogEvidenceStatus": "verified",
+            "catalogEvidenceSource": "gear_exact_registry_v1",
+            "sources": [{"sourceType": "dungeon", "label": "Verified Dungeon - Test Encounter"}],
+            "variantStatus": "verified",
+            "variantDifficultyKey": "mythic",
+            "statDisplayStatus": "verified_variant",
+            "statSource": "gear_exact_registry_v1",
+            "itemStats": [{"key": "intellect", "label": "智力", "value": 124}],
+            "simcReady": False,
+        }
+
+        self.assertFalse(self.websim_payload.gear_candidate_visible_for_replacement(candidate))
 
     def test_gear_catalog_health_payload_includes_slot_source_and_observed_variant_coverage(self):
         conn = sqlite3.connect(self.db_path)
@@ -22220,6 +22346,43 @@ class WebSimPayloadTest(unittest.TestCase):
                     english_payload={"name": name, "inventory_type": {"name": "Head"}},
                     locale="zh_CN",
                 )
+                self.websim_payload.upsert_gear_variant(
+                    conn,
+                    {
+                        "id": f"verified-loot-{item_id}",
+                        "itemId": item_id,
+                        "slot": "head",
+                        "variantKey": f"verified-loot-{item_id}-289",
+                        "label": "Mythic 289",
+                        "sourceType": "dungeon",
+                        "difficultyKey": "mythic",
+                        "itemLevel": 289,
+                        "simcOptions": {"ilevel": "289", "bonus_id": "12345"},
+                        "status": "verified",
+                        "payload": {
+                            "statDisplayStatus": "verified_variant",
+                            "statSource": "simulationcraft",
+                            "itemStats": [
+                                {"key": "intellect", "label": "智力", "value": 124}
+                            ],
+                        },
+                    },
+                )
+                self.websim_payload.upsert_gear_source(
+                    conn,
+                    {
+                        "id": f"verified-source-{item_id}",
+                        "itemId": item_id,
+                        "sourceType": "dungeon",
+                        "sourceLabel": "Arcane Warden - Magisters Terrace",
+                        "instanceId": "1300",
+                        "encounterId": "9001",
+                        "difficultyKey": "mythic",
+                        "seasonRevision": self.websim_payload.get_active_season_payload(conn)[
+                            "seasonRevision"
+                        ],
+                    },
+                )
                 conn.execute(
                     """
                     INSERT INTO websim_loot (
@@ -22286,6 +22449,41 @@ class WebSimPayloadTest(unittest.TestCase):
                     english_payload={"name": item_name, "inventory_type": {"name": "Head"}},
                     locale="en_US",
                 )
+                self.websim_payload.upsert_gear_variant(
+                    conn,
+                    {
+                        "id": f"verified-loot-{item_id}",
+                        "itemId": item_id,
+                        "slot": "head",
+                        "variantKey": f"verified-loot-{item_id}-289",
+                        "label": "Mythic 289",
+                        "sourceType": "raid",
+                        "difficultyKey": "mythic",
+                        "itemLevel": 289,
+                        "simcOptions": {"ilevel": "289", "bonus_id": "12345"},
+                        "status": "verified",
+                        "payload": {
+                            "statDisplayStatus": "verified_variant",
+                            "statSource": "simulationcraft",
+                            "itemStats": [
+                                {"key": "intellect", "label": "Intellect", "value": 124}
+                            ],
+                        },
+                    },
+                )
+                self.websim_payload.upsert_gear_source(
+                    conn,
+                    {
+                        "id": f"verified-source-{item_id}",
+                        "itemId": item_id,
+                        "sourceType": "raid",
+                        "sourceLabel": f"{instance_id} Boss",
+                        "instanceId": instance_id,
+                        "encounterId": f"encounter-{instance_id}",
+                        "difficultyKey": "mythic",
+                        "seasonRevision": season["seasonRevision"],
+                    },
+                )
                 conn.execute(
                     """
                     INSERT INTO websim_loot (
@@ -22304,7 +22502,8 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertIn("250701", item_ids)
         self.assertNotIn("250702", item_ids)
         current_item = next(item for item in head_group["items"] if item["itemId"] == "250701")
-        self.assertNotIn("statSummary", current_item)
+        self.assertEqual(current_item["statDisplayStatus"], "verified_variant")
+        self.assertEqual(current_item["statSummary"], "智力 124")
 
     def test_websim_gear_filters_observed_variants_without_any_catalog_source(self):
         conn = sqlite3.connect(self.db_path)

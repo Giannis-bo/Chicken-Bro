@@ -880,6 +880,8 @@ class PgGearReadModelSelectorsTest(unittest.TestCase):
     def test_manifest_catalog_public_item_uses_verified_static_facts_without_battle_net_diagnostics(self):
         from server.pg_gear_read_model_selectors import build_gear_catalog_items_read_model
 
+        catalog_revision = "gear-catalog:sha256:" + ("a" * 64)
+        browse_variant_key = "browse-variant:sha256:" + ("b" * 64)
         item_rows = [
             (
                 "900001",
@@ -889,6 +891,7 @@ class PgGearReadModelSelectorsTest(unittest.TestCase):
                 json.dumps(
                     {
                         "armorType": "Plate",
+                        "catalogRevision": catalog_revision,
                         "catalogEvidenceStatus": "verified",
                         "catalogEvidenceSource": "manifest_catalog_v2",
                     }
@@ -913,11 +916,11 @@ class PgGearReadModelSelectorsTest(unittest.TestCase):
         variants_by_item = {
             "900001": [
                 {
-                    "id": "browse-variant-1",
+                    "id": browse_variant_key,
                     "itemId": "900001",
                     "slot": "head",
-                    "variantKey": "browse-variant-1",
-                    "key": "browse-variant-1",
+                    "variantKey": browse_variant_key,
+                    "key": browse_variant_key,
                     "label": "myth 6/6",
                     "sourceType": "raid",
                     "difficultyKey": "mythic",
@@ -927,6 +930,8 @@ class PgGearReadModelSelectorsTest(unittest.TestCase):
                     "status": "verified",
                     "blockers": [],
                     "payload": {
+                        "browseVariantKey": browse_variant_key,
+                        "catalogRevision": catalog_revision,
                         "catalogEvidenceStatus": "verified",
                         "catalogEvidenceSource": "manifest_catalog_v2",
                         "progressionState": {

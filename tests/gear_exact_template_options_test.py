@@ -284,6 +284,204 @@ class GearExactTemplateOptionsTest(unittest.TestCase):
             [catalog()["browseVariants"][1]],
         )
 
+    def test_exact_only_import_resolves_and_compiles_without_becoming_browse_visible(self):
+        from server import gear_resolver
+        from server.gear_resolved_loadout import (
+            build_resolved_loadout_from_registry,
+        )
+        from server.simulation_snapshot import (
+            build_simulation_snapshot,
+            talent_profile_key,
+        )
+
+        exact = exact_registry()
+        import_intent = intent()
+        import_intent["slots"]["head"]["variantKey"] = "variant-head"
+        browse_catalog = catalog()
+        browse_catalog["browseVariants"] = [
+            row
+            for row in browse_catalog["browseVariants"]
+            if row["itemId"] != "1001"
+        ]
+        projection = project_exact_template_intent(
+            import_intent,
+            exact,
+            browse_catalog,
+            TEMPLATE_AUTHORITY_IDENTITY,
+        )
+        projected = projection["selectionIntent"]
+        context = authority_context(projected)
+        context["itemsById"] = {
+            "1001": {
+                "itemId": "1001",
+                "displayName": "Exact Head",
+                "allowedSlots": ["head"],
+                "inventoryType": "head",
+                "allowedClassKeys": ["mage"],
+                "allowedSpecKeys": ["arcane"],
+                "armorType": "cloth",
+                "weaponType": "",
+                "handedness": "",
+                "uniqueGroupId": "",
+                "uniqueLimit": 0,
+                "itemSetId": "",
+                "baseStats": {"intellect": 400, "stamina": 700},
+                "baseCapabilities": {
+                    "socketCount": 0,
+                    "canEnchant": False,
+                    "canEmbellish": False,
+                },
+                "sourceRefIds": [],
+            },
+            "1002": {
+                "itemId": "1002",
+                "displayName": "Exact Staff",
+                "allowedSlots": ["main_hand"],
+                "inventoryType": "weapon",
+                "allowedClassKeys": ["mage"],
+                "allowedSpecKeys": ["arcane"],
+                "armorType": "",
+                "weaponType": "staff",
+                "handedness": "two_hand",
+                "uniqueGroupId": "",
+                "uniqueLimit": 0,
+                "itemSetId": "",
+                "baseStats": {"intellect": 600, "haste": 250},
+                "baseCapabilities": {
+                    "socketCount": 0,
+                    "canEnchant": False,
+                    "canEmbellish": False,
+                },
+                "sourceRefIds": [],
+            },
+        }
+        context["variantsByKey"] = {
+            "variant-head": {
+                "variantKey": "variant-head",
+                "itemId": "1001",
+                "status": "verified",
+                "itemLevel": 266,
+                "resolvedStats": {"intellect": 400, "stamina": 700},
+                "statDeltas": {},
+                "simcOptions": {
+                    "ilevel": "266",
+                    "bonus_id": "9001/9002",
+                },
+                "capabilityOverrides": {
+                    "socketCount": 0,
+                    "canEnchant": False,
+                    "canEmbellish": False,
+                },
+                "sourceRefIds": [],
+            },
+            MAIN_BROWSE: {
+                "variantKey": MAIN_BROWSE,
+                "itemId": "1002",
+                "status": "verified",
+                "itemLevel": 272,
+                "resolvedStats": {"intellect": 600, "haste": 250},
+                "statDeltas": {},
+                "simcOptions": {"ilevel": "272", "bonus_id": "9010"},
+                "capabilityOverrides": {
+                    "socketCount": 0,
+                    "canEnchant": False,
+                    "canEmbellish": False,
+                },
+                "sourceRefIds": [],
+            },
+        }
+        context["ruleParameters"] = {
+            "inventoryTypesBySlot": {
+                "head": ["head"],
+                "main_hand": ["weapon"],
+            },
+            "allowedArmorTypesByClass": {"mage": ["cloth"]},
+            "armorRestrictedSlots": ["head"],
+            "allowedWeaponTypesByClassSpec": {
+                "mage:arcane": ["staff"],
+            },
+            "dualWieldByClassSpec": {"mage:arcane": False},
+            "weaponModesByClassSpec": {"mage:arcane": "two_hand"},
+            "requiredSlots": ["head", "main_hand"],
+            "uniqueLimits": {},
+            "uniqueGemLimits": {},
+            "runeforgeAllowedClassSpecs": [],
+            "embellishmentLimit": 2,
+            "catalystRevision": "catalyst-proof-v1",
+            "crossSlotBlockers": [],
+            "setAggregationInputs": [],
+            "sourceRefIds": [],
+        }
+        context["capabilities"] = {
+            "serializer": {
+                "enabled": True,
+                "revision": "websim-profile-compat-v1",
+            },
+            "catalyst": {
+                "enabled": False,
+                "revision": "catalyst-proof-v1",
+            },
+        }
+
+        bound = bind_exact_template_authority(
+            projected,
+            context,
+            exact,
+            browse_catalog,
+            TEMPLATE_AUTHORITY_IDENTITY,
+        )
+        resolver_snapshot = gear_resolver.resolve(
+            bound["selectionIntent"],
+            bound["authorityContext"],
+        )
+        loadout = build_resolved_loadout_from_registry(
+            resolver_snapshot=resolver_snapshot,
+            exact_registry=exact,
+            template_scope="community",
+            template_authority_identity=TEMPLATE_AUTHORITY_IDENTITY,
+        )
+        talent_lines = ["talents=CYQAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"]
+        snapshot = build_simulation_snapshot(
+            resolved_loadout=loadout,
+            talent_profile_key=talent_profile_key(talent_lines),
+            talent_lines=talent_lines,
+            character_context={
+                "classKey": "mage",
+                "specKey": "arcane",
+                "name": "Exact Import",
+                "race": "troll",
+                "level": 90,
+                "role": "spell",
+                "position": "back",
+            },
+            scenario_options={
+                "scenarioKey": "single",
+                "fightStyle": "Patchwerk",
+                "desiredTargets": 1,
+                "maxTime": 300,
+                "iterations": 1000,
+                "varyCombatLength": "0.2",
+                "calculateScaleFactors": 0,
+            },
+            preparation_lines=["optimal_raid=0"],
+            compiler_revision="simc-profile-compiler-v1",
+            simc_runtime_revision="simc-runtime-v1",
+        )
+
+        self.assertEqual(projection["status"], "verified")
+        self.assertEqual(bound["status"], "verified")
+        self.assertEqual(resolver_snapshot["status"], "verified")
+        self.assertEqual(loadout["status"], "ready")
+        self.assertEqual(snapshot["status"], "ready")
+        self.assertNotIn(
+            "1001",
+            {row["itemId"] for row in browse_catalog["browseVariants"]},
+        )
+        self.assertIn(
+            "head=item_1001,id=1001,ilevel=266,bonus_id=9001/9002",
+            snapshot["canonicalSimcInput"],
+        )
+
     def test_project_accepts_server_rebound_exact_source_without_publishing_its_alias(self):
         """A server-only fallback mapping may bind exact evidence to one verified Browse row."""
         import_intent = intent()

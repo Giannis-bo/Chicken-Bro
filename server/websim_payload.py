@@ -17643,6 +17643,87 @@ def apply_default_catalog_variant(item, variants, stat_fallback_variants=None):
     return item
 
 
+def gear_candidate_has_verified_catalog_browse_provenance(item):
+    if not isinstance(item, dict):
+        return False
+    if (
+        str(item.get("catalogEvidenceStatus") or "").strip() != "verified"
+        or str(item.get("catalogEvidenceSource") or "").strip()
+        != "manifest_catalog_v2"
+    ):
+        return False
+    catalog_revision = str(item.get("catalogRevision") or "").strip()
+    if not re.fullmatch(r"gear-catalog:sha256:[0-9a-f]{64}", catalog_revision):
+        return False
+    selected_key = str(
+        item.get("variantKey")
+        or item.get("defaultVariantKey")
+        or ""
+    ).strip()
+    if not re.fullmatch(r"browse-variant:sha256:[0-9a-f]{64}", selected_key):
+        return False
+    for variant in item.get("variants") or []:
+        if not isinstance(variant, dict):
+            continue
+        variant_key = str(
+            variant.get("key")
+            or variant.get("variantKey")
+            or variant.get("id")
+            or ""
+        ).strip()
+        if variant_key != selected_key:
+            continue
+        payload = (
+            variant.get("payload")
+            if isinstance(variant.get("payload"), dict)
+            else {}
+        )
+        return (
+            str(payload.get("catalogEvidenceStatus") or "").strip()
+            == "verified"
+            and str(payload.get("catalogEvidenceSource") or "").strip()
+            == "manifest_catalog_v2"
+            and str(payload.get("catalogRevision") or "").strip()
+            == catalog_revision
+            and str(payload.get("browseVariantKey") or "").strip()
+            == selected_key
+        )
+    return False
+
+
+def gear_candidate_claims_catalog_provenance(item):
+    if not isinstance(item, dict):
+        return False
+    if any(
+        str(item.get(key) or "").strip()
+        for key in (
+            "catalogRevision",
+            "catalogEvidenceStatus",
+            "catalogEvidenceSource",
+        )
+    ):
+        return True
+    for variant in item.get("variants") or []:
+        if not isinstance(variant, dict):
+            continue
+        payload = (
+            variant.get("payload")
+            if isinstance(variant.get("payload"), dict)
+            else {}
+        )
+        if any(
+            str(payload.get(key) or "").strip()
+            for key in (
+                "browseVariantKey",
+                "catalogRevision",
+                "catalogEvidenceStatus",
+                "catalogEvidenceSource",
+            )
+        ):
+            return True
+    return False
+
+
 def catalog_item_trust_blockers(item):
     if not isinstance(item, dict):
         return ["verified Battle.net metadata"]
@@ -17650,10 +17731,14 @@ def catalog_item_trust_blockers(item):
     metadata_status = str(item.get("metadataStatus") or "").strip()
     metadata_source = str(item.get("metadataSource") or "").strip()
     catalog_evidence_verified = (
-        str(item.get("catalogEvidenceStatus") or "").strip() == "verified"
-        and str(item.get("catalogEvidenceSource") or "").strip()
-        == "manifest_catalog_v2"
+        gear_candidate_has_verified_catalog_browse_provenance(item)
     )
+    if (
+        raw_source_type(item.get("sourceType")).lower() == "catalog"
+        and gear_candidate_claims_catalog_provenance(item)
+        and not catalog_evidence_verified
+    ):
+        blockers.append("verified Catalog Browse provenance")
     if (
         not catalog_evidence_verified
         and (metadata_status != "verified" or metadata_source != ITEM_METADATA_SOURCE)
@@ -17882,6 +17967,10 @@ def enrich_catalog_item(item, sources, variants, socket_options, enchant_options
         item.get("variantStatus") == "verified"
         and item.get("statDisplayStatus") == "verified_variant"
         and bool(item.get("itemStats"))
+        and (
+            not gear_candidate_claims_catalog_provenance(item)
+            or gear_candidate_has_verified_catalog_browse_provenance(item)
+        )
     )
     detail_blockers = [*(item.get("variantBlockers") or [])]
     if not verified_static_detail:
@@ -22039,7 +22128,11 @@ def normalize_gear_item(value, class_key="", spec_key="", default_source_type=""
         "classKey": slugify(class_key, "") if class_key else str(value.get("classKey") or ""),
         "specKey": slugify(spec_key, "") if spec_key else str(value.get("specKey") or ""),
     }
-    for key in ("catalogEvidenceStatus", "catalogEvidenceSource"):
+    for key in (
+        "catalogRevision",
+        "catalogEvidenceStatus",
+        "catalogEvidenceSource",
+    ):
         evidence_value = str(value.get(key) or payload.get(key) or "").strip()
         if evidence_value:
             item[key] = evidence_value[:120]
@@ -23557,6 +23650,12 @@ def gear_candidate_visible_for_replacement(item, minimum_observed_ilevel=0):
     if not isinstance(item, dict):
         return False
     if gear_candidate_incompatible(item):
+        return False
+    if (
+        raw_source_type(item.get("sourceType")).lower() == "catalog"
+        and gear_candidate_claims_catalog_provenance(item)
+        and not gear_candidate_has_verified_catalog_browse_provenance(item)
+    ):
         return False
     if observed_only_replacement_candidate_below_current_floor(item, minimum_observed_ilevel):
         return False

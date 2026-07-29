@@ -49,6 +49,16 @@ Active frontend ownership is explicit: `apps/mini-taro` owns the active 14-route
 | P2 | PVE / WCL 恢复决策 | 明确数据授权、样本窗口、入口价值和失败边界 | `pages/pve/`、`pages/simulator/wcl.*` |
 | 待决策 | 产品命名与首页权重 | 确定一句对外定位和第一主线，并同步 README 与导航文案 | [ideas.md](roadmap/ideas.md) |
 
+## 装备模拟状态分层
+
+| 层级 | 状态 | 当前含义 | 权威入口 |
+| --- | --- | --- | --- |
+| 长期目标合同 | 已完成 | 用户主链、40/26/14 能力边界、后端可信边界、fail-closed 状态和验收矩阵已经批准并持续有效；它不是活动执行计划 | [目标架构](plans/2026-07-28-equipment-simulator-target-architecture.md) |
+| v1 已完成基线 | 已完成 | Phase 0-4 已在 generation 35 归档；该结论只证明目标架构 v1 的发布闭环，不把全局 `partial` 包装成健康，也不代表今后没有缺陷纠偏 | [机器状态](project-state.json)、[Phase 4 证据](../artifacts/releases/2026-07-29-equipment-simulator-phase4-manifest-cutover/evidence.json) |
+| Catalog Browse 纠偏 | 正在推进 | 当前候选只修复 Browse membership、最高 rank 和装备类型门禁；正式 Manifest 在最终微信验收和 Harness 关闭前保持 generation 35，不重开已归档 Phase 0-4 | [当前纠偏计划](plans/2026-07-29-manifest-catalog-progression-display-contract.md) |
+| 端到端完整性复核 Goal | 正在推进 | 以当前赛季 PVE 装备宇宙逐项闭包、40 专精跨槽/装备/进度全矩阵、26/14 SimC 和同一不可变候选的真实微信 DevTools 操作为完成标准；现有 40/40 同源投影、旧候选或少量样本均不能证明完成 | [Goal 控制计划](plans/2026-07-29-equipment-simulator-e2e-completeness-goal.md) |
+| `gear_detail` UI 验收 | 正在推进 | 14 路由 Target-First 重建继续独立推进；当前 `gear_detail` 运行态仍为 `UNVERIFIED`，Phase 4 的社区导入/保存/SimC 接力验收不能替代本轮完整视觉和核心交互验收 | [UI 计划](plans/ui-reconstruction.md)、[运行态账本](design/current-ui/runtime-review-status.json) |
+
 ## UI 交付路径
 
 1. 用 canonical target 固化全量目标与设计语言；目标图决定可见结构和几何，真实 API/domain 决定内容与行为。

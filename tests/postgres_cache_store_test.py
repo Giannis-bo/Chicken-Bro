@@ -1074,7 +1074,14 @@ class PostgresCacheStoreTest(unittest.TestCase):
                         {"ilevel": "289", "bonus_id": "12345"},
                         "verified",
                         [],
-                        {"sourceStatus": "verified"},
+                        {
+                            "sourceStatus": "verified",
+                            "statDisplayStatus": "verified_variant",
+                            "statSource": "simulationcraft",
+                            "itemStats": [
+                                {"key": "intellect", "label": "智力", "value": 124}
+                            ],
+                        },
                         "2026-06-28T01:00:00+00:00",
                     )
                 ],
@@ -1174,7 +1181,14 @@ class PostgresCacheStoreTest(unittest.TestCase):
                         {"ilevel": 678},
                         "verified",
                         [],
-                        {"sourceStatus": "verified"},
+                        {
+                            "sourceStatus": "verified",
+                            "statDisplayStatus": "verified_variant",
+                            "statSource": "simulationcraft",
+                            "itemStats": [
+                                {"key": "intellect", "label": "智力", "value": 124}
+                            ],
+                        },
                         "2026-06-28T01:00:00+00:00",
                     )
                 ],
@@ -1283,7 +1297,14 @@ class PostgresCacheStoreTest(unittest.TestCase):
                         {"ilevel": 678},
                         "verified",
                         [],
-                        {"sourceStatus": "verified"},
+                        {
+                            "sourceStatus": "verified",
+                            "statDisplayStatus": "verified_variant",
+                            "statSource": "simulationcraft",
+                            "itemStats": [
+                                {"key": "intellect", "label": "智力", "value": 124}
+                            ],
+                        },
                         "2026-06-28T01:00:00+00:00",
                     )
                 ],
@@ -1395,7 +1416,14 @@ class PostgresCacheStoreTest(unittest.TestCase):
                         {"ilevel": "289", "bonus_id": "12345"},
                         "verified",
                         [],
-                        {"sourceStatus": "verified"},
+                        {
+                            "sourceStatus": "verified",
+                            "statDisplayStatus": "verified_variant",
+                            "statSource": "simulationcraft",
+                            "itemStats": [
+                                {"key": "intellect", "label": "智力", "value": 124}
+                            ],
+                        },
                         "2026-06-28T01:00:00+00:00",
                     )
                 ],
@@ -1422,6 +1450,8 @@ class PostgresCacheStoreTest(unittest.TestCase):
                             "id": "feet-a",
                             "name": "Feet A",
                             "inventory_type": {"type": "FEET", "name": "脚"},
+                            "item_class": {"id": 4, "name": "Armor"},
+                            "item_subclass": {"id": 1, "name": "Cloth"},
                             "quality": "epic",
                             "iconUrl": "https://render.worldofwarcraft.com/feet-a.jpg",
                         },
@@ -1475,7 +1505,14 @@ class PostgresCacheStoreTest(unittest.TestCase):
                     {"ilevel": str(item_level), "bonus_id": "12345"},
                     "verified",
                     [],
-                    {"sourceStatus": "verified"},
+                    {
+                        "sourceStatus": "verified",
+                        "statDisplayStatus": "verified_variant",
+                        "statSource": "simulationcraft",
+                        "itemStats": [
+                            {"key": "intellect", "label": "智力", "value": item_level}
+                        ],
+                    },
                     "2026-06-28T01:00:00+00:00",
                 )
             )
@@ -1489,6 +1526,8 @@ class PostgresCacheStoreTest(unittest.TestCase):
                         "id": item_id,
                         "name": f"Raid Wrist {index}",
                         "inventory_type": {"type": "WRIST", "name": "腕部"},
+                        "item_class": {"id": 4, "name": "Armor"},
+                        "item_subclass": {"id": 1, "name": "Cloth"},
                         "quality": "epic",
                     },
                     "verified",
@@ -1529,6 +1568,13 @@ class PostgresCacheStoreTest(unittest.TestCase):
                     "craftedStatKey": "haste-mastery",
                     "craftedStatLabel": "急速 + 精通",
                     "statSummary": "智力 285；急速 + 精通",
+                    "statDisplayStatus": "verified_variant",
+                    "statSource": "simulationcraft",
+                    "itemStats": [
+                        {"key": "intellect", "label": "智力", "value": 285},
+                        {"key": "haste_rating", "label": "急速", "value": 40},
+                        {"key": "mastery_rating", "label": "精通", "value": 32},
+                    ],
                 },
                 "2026-06-28T01:00:00+00:00",
             )
@@ -1543,6 +1589,8 @@ class PostgresCacheStoreTest(unittest.TestCase):
                     "id": crafted_id,
                     "name": "制造护腕",
                     "inventory_type": {"type": "WRIST", "name": "腕部"},
+                    "item_class": {"id": 4, "name": "Armor"},
+                    "item_subclass": {"id": 1, "name": "Cloth"},
                     "quality": "epic",
                 },
                 "verified",

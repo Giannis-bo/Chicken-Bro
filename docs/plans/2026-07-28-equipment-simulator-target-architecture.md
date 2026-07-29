@@ -1,6 +1,9 @@
 # 装备模拟目标架构
 
-状态：`已批准；Phase 0-3 已完整归档；Phase 4 单一 Manifest 切换与旧 reader 淘汰正在推进`
+状态：`长期目标合同已批准并持续有效；v1 Phase 0-4 已完整归档`
+
+当前 Catalog Browse 缺陷纠偏和 14 路由 UI 验收分别由活动计划控制；它们不得恢复
+本文已归档阶段的执行权，也不得把历史微信主路径验收替代为当前 UI 全量验收。
 
 批准日期：`2026-07-28`
 
@@ -407,36 +410,37 @@ active hot payload
 - 本地 Git 与 origin 一致，但云端 Manifest/runtime identity 不一致。
 - 微信构建成功，但 DevTools 未加载最新源码哈希产物或用户未完成主路径验收。
 
-## 14. 设计批准后的下一步
+## 14. 当前状态与执行边界
 
-本文件定义长期目标；当前执行仍受 Harness 任务 packet 控制。
-[Phase 0 归档证据](../../artifacts/releases/2026-07-28-equipment-simulator-phase0-unblock/evidence.json)
-记录：
+本文件只定义长期目标、可信边界和验收合同，不持有活动任务进度。当前事实顺序仍是
+[project-state.json](../project-state.json) → [roadmap](../roadmap.md) →
+[计划索引](README.md) → 当前 Harness task packet。
 
-- 活动 Manifest 为 generation 32，绑定一个 immutable Gear Release 和一个
-  80 槽 Community Release；
-- 排除非战斗 Cosmetic 后，1,674 条 legacy Browse 归并为 1,309 个 canonical
-  BrowseVariant，1,309/1,309 均有精确映射和静态属性；
-- 438 条制造属性组合仍作为 EnhancementSelection 关联，折叠 365 个重复 Browse
-  身份；
-- 40/40 专精浏览与 80/80 社区 ExactItemInstance 导入通过；
-- 26/26 支持专精真实执行 SimC 并产生 DPS，14/14 不支持专精在 Runner 前确定性阻断；
-- Community Builder 在 1,467,432,960 bytes 峰值 RSS、24,622 ms、0 临时字节、
-  0 写入下通过硬门禁；
-- Manifest 回滚到上一稳定版本及恢复 generation 32 均通过真实 API/SimC smoke。
+### 14.1 v1 已完成基线
 
-全局 `/api/data/health` 仍为 `partial`：活动 Manifest 和 stat worker 已 verified，
-但旧 staging catalog、旧 template chain、上一轮 release refresh 失败和
-manual-override legality health 仍由旧 owner 报告。这些状态不推翻独立活动 Release
-验收，也不能被包装成全局健康成功；它们必须进入后续 Catalog/authority 迁移。
+[Phase 4 归档证据](../../artifacts/releases/2026-07-29-equipment-simulator-phase4-manifest-cutover/evidence.json)
+已经关闭 Phase 0-4：正式 Manifest v2 generation 35 原子绑定 Catalog、Exact、Gear、
+Community、Talent 与 SimC runtime；40/40 专精、80 个社区模板、26/26 支持专精真实
+SimC、14/14 不支持专精前置阻断、CAS 回滚/恢复、官方微信社区导入/保存/SimC 接力和
+三方 runtime identity 均已验证。
 
-Phase 0 的两项真实微信验收、PR CI、合入、最新 `main` 微信刷新和
-本地/`origin/main`/云端身份收口已完成。Phase 1-3 又依次归档
-`CatalogRevision + ItemDefinition + BrowseVariant`、`ExactItemInstance +
-EnhancementSelection`、`ResolvedLoadout + SimulationSnapshot`，并在生产验证
-80 模板、40 专精、26/14 SimC 与结果复用。当前只剩最终切换：
+该基线不代表全局健康为绿色。独立 gear refresh、staging catalog、legality、talent、
+community 和 cutover-readiness owner 仍可保持 literal `partial` / `blocked`；这些状态
+不得被 generation 35 的独立验收覆盖。
 
-1. 把 Catalog、Community、Resolver、template、profile、task 和 health consumers
-   收敛到同一个活动 Manifest dependency vector。
-2. 在完整 shadow、真实微信、回滚和 caller inventory 为零后删除旧 reader/兼容补全。
-3. 完成资源回收、三方 identity parity 和目标架构最终归档。
+### 14.2 当前 Catalog Browse 纠偏
+
+[当前纠偏计划](2026-07-29-manifest-catalog-progression-display-contract.md)只修复
+Browse membership、普通轨道最高 rank 和装备类型门禁。它是对长期目标合同的缺陷纠偏，
+不是 Phase 0-4 续跑。最终微信验收和 Harness 关闭前，正式 Manifest 保持 generation 35；
+候选证据不得写成生产切换或新的 v1 完成声明。
+
+### 14.3 当前 UI 验收
+
+[14 路由 UI 计划](ui-reconstruction.md)和
+[运行态账本](../design/current-ui/runtime-review-status.json)继续独立控制视觉与交互交付。
+当前 `gear_detail` 仍是 `UNVERIFIED`。Phase 4 已完成的社区导入、保存和 SimC 接力验收
+只证明当时任务主路径，不证明当前 Target-First 视觉、几何、素材和核心交互矩阵通过。
+
+未来装备模拟任务必须在“当前执行计划”登记，并由自己的 Harness requirement、evidence
+和 acceptance 集合关闭；不得从本文或旧 release packet 推断新的执行授权。
