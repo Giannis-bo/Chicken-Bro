@@ -2,8 +2,8 @@
   "schemaVersion": 2,
   "slug": "sync-log-bounding",
   "requirementSlug": "sync-log-bounding",
-  "status": "runtime_verified",
-  "highestEvidenceLevel": "runtime_verified",
+  "status": "archived",
+  "highestEvidenceLevel": "archived",
   "branch": "codex/sync-log-bounding",
   "commit": "69a8d8a7b7a15bbc6af0c10fb825f31bb34d6b11",
   "identities": {
@@ -18,8 +18,9 @@
       "value": "HEAD"
     },
     "closure": {
-      "status": "pending",
-      "reason": "Production scripts, bounded post-deploy journal growth, safe log rotation/vacuum, main merge, remote parity, and cleanup are still pending."
+      "status": "bound",
+      "kind": "merge_commit",
+      "value": "b6b2bc78361d99ec55e365bcc9f94e7b32705ec0"
     }
   },
   "manualAcceptance": {
@@ -60,6 +61,16 @@
       "command": "git diff --check",
       "status": "pass",
       "result": "No whitespace errors before the implementation commit."
+    },
+    {
+      "command": "Production exact-file parity, transient journald integration smoke, health, timer/backflow, and resource cleanup verification",
+      "status": "pass",
+      "result": "Production SHA-256 matched all three reviewed files. A MemoryMax=64M transient smoke emitted one 197-byte literal partial JSON line, omitted the raw sentinel, and peaked at 328 KiB without launching either expensive job. /health returned 200; both scheduled services remained inactive and both timers remained active and unchanged."
+    },
+    {
+      "command": "Safe post-deploy rsyslog rotation, bounded archive compression, journald vacuum, and exact retained-runtime audit",
+      "status": "pass",
+      "result": "Root usage fell from 92% to 79%; journald fell from 816.0 MiB to 238.9 MiB; the 1.76 GiB current syslog was retained as a 118,405,105-byte compressed time-stamped archive. Historical PostgreSQL and SQLite backups were not deleted."
     }
   ],
   "candidateDeployment": {
@@ -96,20 +107,35 @@
     },
     {
       "type": "timer_backflow",
-      "status": "not_applicable",
-      "result": "No scheduled job or timer was launched or changed."
+      "status": "pass",
+      "result": "No scheduled job was launched by deploy or smoke. Both scheduled services are inactive; both pre-existing timers remain active and unchanged."
+    },
+    {
+      "type": "production_file_parity",
+      "status": "pass",
+      "result": "Production hashes are sync_log_summary.py 97cdd40c33dfef5212ea6de56931e73e46f39a0ff5dd9c46bb7fa13df0a69675, websim_sync.py 592734ee740a6159cb1ef5c52d57e4e7fee17bcf6b9a803ed636e6f195a3b309, and stat_weights_sync.py 93ddeb6c7a0c03286611dbc18d3019e42a293a4053bf4e3b414e351dccea1e39."
+    },
+    {
+      "type": "production_health",
+      "status": "pass",
+      "result": "Production /health returned HTTP 200 after file installation, log rotation, compression, and journal vacuum."
+    },
+    {
+      "type": "resource_gate",
+      "status": "pass",
+      "result": "Root usage is 79% with 15 GiB available and journald is 238.9 MiB, below the equipment Goal hard stop of greater than 80%."
     }
   ],
   "risks": [
     {
       "id": "production-not-yet-deployed",
-      "status": "open",
-      "detail": "Production still runs the old unbounded scripts until merge/deploy parity is complete."
+      "status": "resolved",
+      "detail": "The reviewed immutable files are installed in production and exact SHA-256 parity passed."
     },
     {
       "id": "cloud-root-filesystem",
-      "status": "blocked",
-      "detail": "After safe cleanup of 14 superseded candidates, the root filesystem is still 89% used. Old logs must not be vacuumed until the bounded scripts are deployed and verified."
+      "status": "resolved",
+      "detail": "After upstream output repair and bounded cleanup, the root filesystem is 79% used with 15 GiB available."
     },
     {
       "id": "existing-resource-warnings",
@@ -122,13 +148,13 @@
     "candidate_runtime_rollback"
   ],
   "cleanup": {
-    "required": true,
-    "reason": "After production parity and bounded journal growth are verified, rotate/vacuum old logs with an explicit retained window and record the new disk usage. The ephemeral candidate is already removed."
+    "required": false,
+    "reason": "The ephemeral candidate was removed; old logs were rotated, preserved in compressed form, and vacuumed to the retained window; obsolete unreferenced candidates/worktrees and old SimC materializations were removed while current plus one rollback runtime and all database backups were retained."
   },
   "archivedReferences": [
     "docs/plans/2026-07-29-sync-log-bounding.md",
     "artifacts/releases/2026-07-29-sync-log-bounding/requirement.json",
     "docs/database-architecture.md"
   ],
-  "summary": "Commit 69a8d8a7 replaces full scheduled WebSim/stat-weight terminal payloads with an 8 KiB fail-closed summary/progress contract. Thirty-five targeted tests and an exact-file remote synthetic smoke pass without launching the expensive jobs. Production deployment, journal-growth proof, safe old-log reclamation, main/origin/cloud parity, and closure remain pending."
+  "summary": "Archived closure: commit 69a8d8a7 replaces full scheduled WebSim/stat-weight terminal payloads with an 8 KiB fail-closed summary/progress contract and was merged through b6b2bc78. Exact production file parity, a bounded literal-partial journald smoke, HTTP health, unchanged timer/backflow state, safe log retention, and root-disk recovery from 92% to 79% all pass without launching either expensive sync. Historical database backups remain intact; only pre-existing test warnings remain open."
 }

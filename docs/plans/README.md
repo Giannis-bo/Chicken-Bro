@@ -14,7 +14,7 @@
 | 装备强化资格与已确认标记对齐 | 正在推进 | [实施计划](2026-07-29-gear-enhancement-rule-alignment.md) |
 | Manifest 装备详情进度与变体属性合同修复 | 正在推进 | [实施计划](2026-07-29-manifest-catalog-progression-display-contract.md) |
 | 当前赛季 PVE 装备 Universe 与逐项差集 | 正在推进 | [实施计划](2026-07-29-season-pve-universe-reconciliation.md) |
-| WebSim / stat-weight 定时同步日志有界化 | 正在推进 | [实施计划](2026-07-29-sync-log-bounding.md) |
+| WebSim / stat-weight 定时同步日志有界化 | 已完成 | [实施计划](2026-07-29-sync-log-bounding.md) · [live evidence](../../artifacts/releases/2026-07-29-sync-log-bounding/evidence.json) |
 | 装备模拟目标架构 | v1 已实现并归档；正式 Manifest v2、40 专精、Exact/Enhancement、ResolvedLoadout/Snapshot、26/14 SimC、CAS 回滚恢复和真实微信闭环均已验证 | [目标架构](2026-07-28-equipment-simulator-target-architecture.md) · [Phase 4 归档证据](../../artifacts/releases/2026-07-29-equipment-simulator-phase4-manifest-cutover/evidence.json) · [Track Authority 规则输入](2026-07-28-equipment-simulator-track-authority-correction.md) · [Phase 3 归档证据](../../artifacts/releases/2026-07-29-equipment-simulator-phase3-resolved-snapshot/evidence.json) · [Phase 2 归档证据](../../artifacts/releases/2026-07-29-equipment-simulator-phase2-exact-enhancement/evidence.json) · [Phase 1 归档证据](../../artifacts/releases/2026-07-29-equipment-simulator-phase1-catalog-contract/evidence.json) · [Phase 0 归档证据](../../artifacts/releases/2026-07-28-equipment-simulator-phase0-unblock/evidence.json) |
 | Observed Build Registry 与 80 槽 TemplateSet 重构 | 正在推进 | [设计](2026-07-23-observed-build-registry-design.md) · [核心切片实施计划](2026-07-23-observed-build-registry-core-implementation.md) · [共享玩家切换计划](2026-07-23-observed-build-registry-cutover-implementation.md) |
 | builds_home 职业命令卡组 | 正在推进 | [builds-home-command-deck.md](builds-home-command-deck.md) |
