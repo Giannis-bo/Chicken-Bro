@@ -225,15 +225,9 @@ def preview_template_for_payload(payload: Any) -> dict[str, Any] | None:
 
 
 def append_preview_template(payload: Any) -> dict[str, Any]:
-    """Append the candidate-only fixture without mutating the canonical payload."""
+    """Keep the internal fixture out of the public Community template catalogue."""
 
-    template = preview_template_for_payload(payload)
-    if template is None or not isinstance(payload, dict):
-        return payload if isinstance(payload, dict) else {}
-    existing = payload.get("communityTemplates") if isinstance(payload.get("communityTemplates"), list) else []
-    if any(isinstance(item, dict) and item.get("id") == PREVIEW_TEMPLATE_ID for item in existing):
-        return payload
-    return {**payload, "communityTemplates": [template, *copy.deepcopy(existing)]}
+    return payload if isinstance(payload, dict) else {}
 
 
 def preview_community_import(

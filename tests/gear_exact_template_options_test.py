@@ -231,6 +231,35 @@ class GearExactTemplateOptionsTest(unittest.TestCase):
             ambiguous_result["problemCodes"],
         )
 
+    def test_project_keeps_a_verified_exact_source_variant_outside_public_browse(self):
+        """Exact import may use verified source evidence without publishing a BrowseVariant."""
+        exact = exact_registry()
+        import_intent = intent()
+        import_intent["slots"]["head"]["variantKey"] = "variant-head"
+        browse_catalog = catalog()
+        browse_catalog["browseVariants"] = [
+            row
+            for row in browse_catalog["browseVariants"]
+            if row["itemId"] != "1001"
+        ]
+
+        result = project_exact_template_intent(
+            import_intent,
+            exact,
+            browse_catalog,
+            TEMPLATE_AUTHORITY_IDENTITY,
+        )
+
+        self.assertEqual(result["status"], "verified")
+        self.assertEqual(
+            result["selectionIntent"]["slots"]["head"]["variantKey"],
+            "variant-head",
+        )
+        self.assertEqual(
+            browse_catalog["browseVariants"],
+            [catalog()["browseVariants"][1]],
+        )
+
     def test_bind_injects_only_the_unique_exact_template_authority(self):
         projection = project_exact_template_intent(
             intent(),

@@ -35,7 +35,7 @@ class GearAttributePreviewFixtureTest(unittest.TestCase):
             self.assertEqual(append_preview_template(PAYLOAD), PAYLOAD)
             self.assertIsNone(preview_community_import({}, PAYLOAD, "request-a"))
 
-    def test_enabled_preview_preserves_exact_armory_static_input_and_import_contract(self):
+    def test_enabled_preview_keeps_internal_armory_fixture_out_of_public_community_templates(self):
         with patch.dict(os.environ, {PREVIEW_ENV: "1"}, clear=False):
             template = preview_template_for_payload(PAYLOAD)
             self.assertIsNotNone(template)
@@ -45,8 +45,7 @@ class GearAttributePreviewFixtureTest(unittest.TestCase):
             self.assertEqual(len(template["gearItems"]), 15)
 
             augmented = append_preview_template(PAYLOAD)
-            self.assertEqual(augmented["communityTemplates"][0]["id"], PREVIEW_TEMPLATE_ID)
-            self.assertEqual(augmented["communityTemplates"][1]["id"], "real-template")
+            self.assertEqual(augmented["communityTemplates"], [{"id": "real-template"}])
             response = preview_community_import({
                 "classKey": "mage", "specKey": "frost", "templateId": PREVIEW_TEMPLATE_ID,
                 "expectedManifestRevision": PAYLOAD["manifestRevision"],

@@ -456,9 +456,9 @@ def _project_identity(
         source_variant = _text(reference.get("sourceVariantKey"))
         browse_key = aliases.get((item_id, source_variant))
         if (
-            not browse_key
-            or _text(current.get("itemId")) != item_id
-            or _text(current.get("variantKey")) != browse_key
+            _text(current.get("itemId")) != item_id
+            or _text(current.get("variantKey"))
+            != (browse_key or source_variant)
         ):
             return _blocked(
                 _problem(

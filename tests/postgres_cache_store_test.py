@@ -10992,6 +10992,111 @@ class PostgresCacheStoreTest(unittest.TestCase):
         )
         self.assertNotIn("_authorityVariantKeysBySlot", rebound)
 
+    def test_manifest_v2_import_defers_unmapped_exact_slot_without_creating_browse_membership(self):
+        """A verified exact template may retain its source variant when Browse excludes it."""
+        from server.postgres_cache_store import (
+            _rebind_import_source_to_manifest_catalog,
+        )
+
+        catalog_revision = "gear-catalog:sha256:" + ("a" * 64)
+        source_variant = "observed-profile-exact-298"
+        binding = {
+            "manifest": {
+                "schemaRevision": "active-season-manifest-v2",
+                "seasonRevision": "season-17",
+                "gearCatalogRevision": catalog_revision,
+            },
+            "gearCatalog": {
+                "catalogRevision": catalog_revision,
+                "browseVariants": [],
+            },
+        }
+        source = {
+            "status": "verified",
+            "template": {
+                "templateAuthorityIdentity": "sha256:" + ("d" * 64),
+            },
+            "selectionIntent": {
+                "authoredAgainst": {},
+                "slots": {
+                    "head": {
+                        "itemId": "item-exact-only",
+                        "variantKey": source_variant,
+                    }
+                },
+            },
+            "importedGearBySlot": {
+                "head": {
+                    "itemId": "item-exact-only",
+                    "variantKey": source_variant,
+                    "itemLevel": 298,
+                }
+            },
+        }
+
+        rebound = _rebind_import_source_to_manifest_catalog(source, binding)
+
+        self.assertEqual(
+            rebound["selectionIntent"]["slots"]["head"]["variantKey"],
+            source_variant,
+        )
+        self.assertEqual(
+            rebound["importedGearBySlot"]["head"]["variantKey"],
+            source_variant,
+        )
+        self.assertEqual(
+            rebound["_exactCatalogDeferredSlots"],
+            {"head": source_variant},
+        )
+        self.assertEqual(binding["gearCatalog"]["browseVariants"], [])
+
+    def test_deferred_catalog_slot_requires_verified_exact_template_evidence(self):
+        """A deferred exact-only slot must not turn partial registry evidence into an import."""
+        from server.postgres_cache_store import PostgresCacheStore
+        from tests.gear_exact_template_options_test import catalog, intent
+        from tests.gear_resolved_loadout_test import (
+            CATALOG_REVISION,
+            TEMPLATE_AUTHORITY_IDENTITY,
+            exact_registry,
+        )
+
+        registry = exact_registry()
+        registry["templateReferences"][0]["validationStatus"] = "partial"
+        registry["templateReferences"][0]["exactItemInstanceKey"] = ""
+        registry["templateReferences"][0]["problemCodes"] = [
+            "ENHANCEMENT_SINGLE_VALUE_MALFORMED"
+        ]
+        import_intent = intent()
+        import_intent["slots"]["head"]["variantKey"] = "variant-head"
+        browse_catalog = catalog()
+        browse_catalog["browseVariants"] = [
+            row
+            for row in browse_catalog["browseVariants"]
+            if row["itemId"] != "1001"
+        ]
+        binding = {
+            "manifest": {
+                "schemaRevision": "active-season-manifest-v2",
+                "gearCatalogRevision": CATALOG_REVISION,
+            },
+            "gearCatalog": browse_catalog,
+        }
+        store = PostgresCacheStore(lambda: self.fail("no database read expected"))
+        store._manifest_exact_registry = lambda _binding: registry
+        source = {
+            "selectionIntent": import_intent,
+            "template": {
+                "templateAuthorityIdentity": TEMPLATE_AUTHORITY_IDENTITY,
+            },
+            "_exactCatalogDeferredSlots": {"head": "variant-head"},
+        }
+
+        with self.assertRaisesRegex(
+            RuntimeError,
+            "EXACT_TEMPLATE_REFERENCE_NOT_VERIFIED",
+        ):
+            store._project_manifest_exact_import(source, binding)
+
     def test_manifest_v2_item_level_fallback_fails_closed_when_ambiguous_or_missing(self):
         from server.postgres_cache_store import (
             _rebind_import_source_to_manifest_catalog,

@@ -5,6 +5,7 @@ import hashlib
 import json
 import math
 import os
+import re
 import subprocess
 import tempfile
 import time
@@ -807,7 +808,20 @@ def _rebind_import_source_to_manifest_catalog(source, binding):
         if isinstance(result.get("importedGearBySlot"), dict)
         else {}
     )
+    template = (
+        result.get("template")
+        if isinstance(result.get("template"), dict)
+        else {}
+    )
+    exact_identity = str(
+        template.get("templateAuthorityIdentity") or ""
+    ).strip()
+    may_defer_to_exact_registry = (
+        result.get("status") == "verified"
+        and bool(re.fullmatch(r"sha256:[0-9a-f]{64}", exact_identity))
+    )
     authority_variant_keys_by_slot = {}
+    exact_catalog_deferred_slots = {}
     for slot, selection in slots.items():
         if not isinstance(selection, dict):
             continue
@@ -833,15 +847,19 @@ def _rebind_import_source_to_manifest_catalog(source, binding):
                 (item_id, item_level),
                 set(),
             )
-            if (
-                imported_item_id != item_id
-                or item_level <= 0
-                or len(candidates) != 1
-            ):
+            if imported_item_id != item_id or item_level <= 0:
                 raise RuntimeError(
                     "Manifest Catalog has no unique verified item-level "
                     "mapping for the Community selection"
                 )
+            if len(candidates) != 1:
+                if not may_defer_to_exact_registry:
+                    raise RuntimeError(
+                        "Manifest Catalog has no unique verified item-level "
+                        "mapping for the Community selection"
+                    )
+                exact_catalog_deferred_slots[slot] = variant_key
+                continue
             browse_key = next(iter(candidates))
         elif variant_key != browse_key:
             authority_variant_keys_by_slot[slot] = variant_key
@@ -862,6 +880,8 @@ def _rebind_import_source_to_manifest_catalog(source, binding):
         result["_authorityVariantKeysBySlot"] = (
             authority_variant_keys_by_slot
         )
+    if exact_catalog_deferred_slots:
+        result["_exactCatalogDeferredSlots"] = exact_catalog_deferred_slots
     return result
 
 
@@ -1899,6 +1919,11 @@ class PostgresCacheStore:
             template.get("templateAuthorityIdentity"),
         )
         if projection.get("status") != "verified":
+            if result.get("_exactCatalogDeferredSlots"):
+                raise RuntimeError(
+                    "Manifest Exact Registry deferred Catalog projection is unavailable: "
+                    + ",".join(projection.get("problemCodes") or [])
+                )
             if set(projection.get("problemCodes") or []) == {
                 "EXACT_TEMPLATE_REFERENCE_NOT_VERIFIED"
             }:
