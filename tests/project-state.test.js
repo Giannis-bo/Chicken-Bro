@@ -473,7 +473,8 @@ test('roadmap stays a concise current control plane without PR-level execution h
 
 test('real WeChat interaction verification cannot wait forever inside one route', () => {
   const verifier = fs.readFileSync('scripts/verify-ui-interactions.js', 'utf8')
-  assert.match(verifier, /const caseTimeoutMs = 25000/)
+  assert.match(verifier, /const routeReadyTimeoutMs = 35000/)
+  assert.match(verifier, /const caseTimeoutMs = 60000/)
   assert.match(verifier, /maximumInteractionElements = 32/)
   assert.match(verifier, /interaction query cap exceeded/)
   assert.match(verifier, /metrics\.slice\(0, maximumInteractionElements\)/)

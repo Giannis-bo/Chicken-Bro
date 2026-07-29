@@ -71,6 +71,18 @@ test('the core interaction contract has one executable candidate apply flow per 
   assert.doesNotMatch(executor, /waitForElementMissing\(page, applySelector\)/u)
 })
 
+test('the real gear interaction waits for route readiness before opening a slot', () => {
+  const executor = fs.readFileSync(path.join(root, 'scripts/verify-ui-interactions.js'), 'utf8')
+  const flowStart = executor.indexOf('async function runGearDetailCandidateApplyFlow')
+  const readinessWait = executor.indexOf('await requiredRouteReady(page)', flowStart)
+  const slotLookup = executor.indexOf("const mainHandSelector = '.wx-data-role-gear-slot-row", flowStart)
+
+  assert.ok(flowStart >= 0)
+  assert.ok(readinessWait > flowStart)
+  assert.ok(slotLookup > readinessWait)
+  assert.match(executor, /\.wx-data-route-state-ready/u)
+})
+
 test('gear apply evidence rejects a stale verified snapshot and accepts this resolving completion', () => {
   const { gearApplyEvidenceMatches } = require('../scripts/gear-apply-evidence.js')
   const evidence = {

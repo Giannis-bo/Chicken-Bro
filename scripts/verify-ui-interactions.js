@@ -11,9 +11,10 @@ const { writeBoundedJsonAtomic } = require('./bounded-json-detail')
 const coreInteractionContract = require('../docs/design/current-ui/core-interaction-contract.json')
 
 const operationTimeoutMs = 10000
+const routeReadyTimeoutMs = 35000
 // A case includes a bounded route open plus a bounded precondition/action. Keep
 // a small outer margin so the semantic failure can win the timeout race.
-const caseTimeoutMs = 25000
+const caseTimeoutMs = 60000
 const maximumInteractionElements = 32
 let requestedRoutes = new Set()
 
@@ -94,6 +95,24 @@ async function requiredElementsOrUnavailable(page, selector, minimum, unavailabl
     await settle(200)
   }
   throw new Error(`required interaction elements missing: ${selector} expected>=${minimum}`)
+}
+
+async function requiredRouteReady(page) {
+  const deadline = Date.now() + routeReadyTimeoutMs
+  const terminalStates = ['blocked', 'error', 'stale', 'empty']
+  while (Date.now() < deadline) {
+    if (await timeout(page.$('.wx-data-route-state-ready'), 2000, 'query ready route state')) return
+    for (const state of terminalStates) {
+      const marker = await timeout(
+        page.$(`.wx-data-route-state-${state}`),
+        1000,
+        `query terminal route state ${state}`,
+      )
+      if (marker) throw new Error(`interaction route unavailable: routeState=${state}`)
+    }
+    await settle(200)
+  }
+  throw new Error(`interaction route did not become ready after ${routeReadyTimeoutMs}ms`)
 }
 
 async function waitForTextChange(page, selector, before) {
@@ -184,6 +203,7 @@ async function runCase(results, definition, action) {
 
 async function runGearDetailCandidateApplyFlow(miniProgram) {
   const page = await open(miniProgram, contractPath('gear_detail'))
+  await requiredRouteReady(page)
   const mainHandSelector = '.wx-data-role-gear-slot-row.wx-data-slot-key-main_hand'
   const workbenchSelector = '.wx-data-owner-gear-slot-workbench'
   const mainHand = await requiredElement(page, mainHandSelector)
