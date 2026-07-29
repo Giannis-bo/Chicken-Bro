@@ -50,7 +50,8 @@
 
 - [x] Run targeted Python socket/payload/resolver tests and targeted Vitest model/component tests.
 - [x] Run `npm run typecheck`, `npm run audit:ui-architecture`, `npm run build:weapp`, `git diff --check`, and a local CR against this requirement and plan.
-- [ ] Promote a clean candidate-head evidence packet only after candidate deployment and the two manual acceptance items are exercised; these remain pending.
+- [x] Deploy and smoke the repaired exact candidate head with runtime parity, read-only PostgreSQL, bootstrap/compact-gear and no-backflow checks.
+- [ ] Re-exercise the two manual acceptance items against the repaired candidate before merge/push closure; the prior acceptance predates the source-only recovery repair.
 
 ## Acceptance and rollback
 
