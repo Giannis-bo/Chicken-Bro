@@ -6,6 +6,11 @@ from __future__ import annotations
 import json
 from typing import Any
 
+try:
+    from .gear_contracts import community_template_authority_identity
+except ImportError:
+    from gear_contracts import community_template_authority_identity
+
 
 COMMUNITY_TEMPLATE_IMPORT_CONTRACT_REVISION = "websim-community-template-import-v2"
 COMMUNITY_TEMPLATE_IMPORT_EVIDENCE_V1 = "community-template-import-evidence-v1"
@@ -375,6 +380,9 @@ def build_community_template_import_source(
         "profileHash": _text(row.get("profileHash")),
         "gearHash": _text(row.get("gearHash")),
         "sourceFingerprint": _text(import_evidence.get("sourceFingerprint")),
+        "templateAuthorityIdentity": community_template_authority_identity(
+            row.get("templateId")
+        ),
         "attributeCharacterContext": _attribute_character_context_from_evidence(import_evidence),
     }
     stable_effect_context = _attribute_stable_effect_context_from_evidence(import_evidence)

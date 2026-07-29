@@ -1,0 +1,157 @@
+{
+  "schemaVersion": 2,
+  "slug": "equipment-simulator-phase4-manifest-cutover",
+  "requirementSlug": "equipment-simulator-phase4-manifest-cutover",
+  "status": "runtime_verified",
+  "highestEvidenceLevel": "runtime_verified",
+  "branch": "codex/equipment-simulator-phase4-manifest-cutover",
+  "commit": "4a5c6575879c9749cc0eb28a5aa973dd466770d6",
+  "identities": {
+    "runtime": {
+      "status": "bound",
+      "kind": "git_commit",
+      "value": "4a5c6575879c9749cc0eb28a5aa973dd466770d6"
+    },
+    "verification": {
+      "status": "bound_at_check",
+      "kind": "git_ref",
+      "value": "HEAD"
+    },
+    "closure": {
+      "status": "pending",
+      "reason": "PR, production cutover, rollback/restore, parity and archive are pending."
+    }
+  },
+  "manualAcceptance": {
+    "required": false,
+    "status": "not_applicable",
+    "reason": "The user delegated official WeChat self-testing and autonomous continuation for this goal.",
+    "items": [],
+    "rollup": {
+      "total": 0,
+      "accepted": 0,
+      "notRunUserWaived": 0,
+      "pending": 0
+    }
+  },
+  "scope": [
+    "Manifest v2 Catalog and Exact Registry dependency binding",
+    "Catalog, Community, Resolver, Profile, Snapshot, task and owned-health consumer cutover",
+    "Legacy runtime reader caller retirement",
+    "Immutable candidate, CAS promotion, rollback/restore, official WeChat and three-party closure"
+  ],
+  "verification": [
+    {
+      "command": "Manifest v2 and store TDD suites",
+      "status": "pass",
+      "summary": "Manifest v2 identity, PostgreSQL migration, append-only Exact header, repeatable-read active/candidate binding, v1 rollback compatibility, Catalog public projection, Community import rebinding, Profile/Snapshot/task Exact binding and owned health pass. Exact-template matching is whole-template, server-bound and fail-closed for ambiguous enhancement evidence."
+    },
+    {
+      "command": "Consumer, caller and bounded shadow suites",
+      "status": "pass",
+      "summary": "The dedicated gear-manifest-v2-reader audit is verified with prohibitedCallerCount=0 and reportId gear-manifest-v2-readers:sha256:f5b5e59bf9ac1867af5d3de76883e4b62dac217e36ab69028ce6e04e280ee3de. The single remaining load_active_public_gear reference is explicitly scoped to Manifest v1 rollback."
+    },
+    {
+      "command": "backend and full Harness profiles",
+      "status": "pass",
+      "summary": "Final runtime HEAD passed all 169 full-profile commands: 694 Node tests, 2135 Python tests with one expected skip, 404 Taro tests, compileall, typecheck, lint, 14-route UI architecture audit, package integrity, Harness validation and git diff check."
+    },
+    {
+      "command": "candidate exact shadow and real SimC matrix",
+      "status": "pass",
+      "summary": "The immutable 4a5c6575 candidate classified all 80 templates across all 40 specializations from the sealed Exact Registry: expected and actual were 37 ready loadouts, 21 supported ready snapshots and 16 unsupported snapshots. Real SimC then generated and executed all 26 supported profiles with DPS and deterministically blocked all 14 unsupported specializations with zero failures."
+    },
+    {
+      "command": "CAS promotion, v1 rollback, v2 restore and official WeChat",
+      "status": "not_run",
+      "summary": "Pending PR CI and production-compatible deployment."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "candidate_verified",
+    "requiredBeforeMerge": true,
+    "branch": "codex/equipment-simulator-phase4-manifest-cutover",
+    "commit": "4a5c6575879c9749cc0eb28a5aa973dd466770d6",
+    "gitTree": "9152c69a088a773a83ca8e7ad1f6169a175d58ba",
+    "host": "wow-lighthouse",
+    "path": "/opt/wow-mini-program-candidates/manifest-v2-4a5c6575",
+    "manifestRevision": "season-manifest:sha256:20453991e93a1dc1650dbacfd85bdd042e9b020737c7851bef943f1e3e68883a",
+    "gearCatalogRevision": "gear-catalog:sha256:2ddd8fe84202d086f0f9bf08d7e1cf1b56ff613a181bf8754cbf95841be4eb40",
+    "gearExactRegistryRevision": "gear-exact-registry:sha256:c56221bce4070f683e3afb71b65eaa573f4b9d8dc30b26c055f5538cc1aa4523",
+    "pointerGeneration": 32,
+    "asyncSyncStart": false,
+    "publicPointerChange": false,
+    "smoke": {
+      "status": "pass",
+      "summary": "Isolated read-only and read-write candidate services bind Manifest v2 20453991 while the production pointer remains on v1 generation 32. The exact shadow, real SimC matrix and identity checks passed without fallback."
+    },
+    "timerBackflow": {
+      "status": "pass",
+      "summary": "No candidate timer was installed or enabled, deploy-triggered async sync stayed disabled, the production backend remained active with NRestarts=0, and natural production timers did not change the generation-32 Manifest pointer."
+    },
+    "reason": "The exact final runtime commit passed exhaustive candidate classification, real SimC execution, resource, determinism, pointer-fence and production-isolation gates."
+  },
+  "runtimeEvidence": [
+    {
+      "id": "candidate-manifest-v2-binding",
+      "type": "manifest_binding",
+      "status": "pass",
+      "summary": "Sealed inactive Manifest v2 20453991 binds Gear Release 9299fe1f, Community Release 686708be, Catalog 2ddd8fe8, Exact Registry c56221bc, Talent Catalog simc-1e357922 and SimC runtime b92847e8. The production pointer remained v1 generation 32 throughout candidate validation."
+    },
+    {
+      "id": "candidate-catalog-and-exact-registry",
+      "type": "sealed_data",
+      "status": "pass",
+      "summary": "Catalog 2ddd8fe8 contains 566 ItemDefinitions and 4718 BrowseVariants, including 3409 exact-derived variants, and covers all 40 specializations. Exact Registry c56221bc contains 80 templates, 1242 references, 1187 verified references and 55 explicit partial references; no partial reference was inferred or promoted."
+    },
+    {
+      "id": "candidate-resolved-snapshot-shadow",
+      "type": "bounded_shadow",
+      "status": "pass",
+      "summary": "Report gear-resolved-snapshot-shadow:sha256:85c605331e8d4c1f88c895f0f19b3b637b9e100a67a9bc6066fd4e06bd787bc independently derived and matched 37 ready loadouts, 21 ready supported snapshots and 16 unsupported snapshots across 80 templates and 40 specs. Loadouts and snapshots were deterministic, the pointer was stable, peak RSS was 915693568 bytes and total time was 472.313 seconds."
+    },
+    {
+      "id": "candidate-real-simc-matrix",
+      "type": "simc_execution",
+      "status": "pass",
+      "summary": "Report simc-execution-matrix:sha256:ef7128612e00d19450cb387ffd9291a207d079b5ddd7ebdc86001a6b18a75989 generated 26/26 supported profiles, executed 26/26 with the bound real SimC binary and observed DPS for 26/26; all 14 unsupported specializations were deterministically blocked. Failure count was zero."
+    },
+    {
+      "id": "candidate-final-harness",
+      "type": "local_verification",
+      "status": "pass",
+      "summary": "The exact 4a5c6575 runtime HEAD passed the full 169-command Harness profile with 694 Node, 2135 Python and 404 Taro tests plus type, lint, architecture, package, syntax, control-packet and diff checks."
+    }
+  ],
+  "risks": [
+    {
+      "id": "catalog-source-variant-adapter",
+      "status": "resolved",
+      "detail": "Catalog v2 seals exact item-level, bonus-ID and static-fact shapes; candidate browse and import consumers use the backend compatibility mapping under one Manifest vector with no frontend fallback."
+    },
+    {
+      "id": "v1-v2-rollback-boundary",
+      "status": "open",
+      "detail": "v1 must remain a valid rollback target without being accepted as a v2 single-vector success."
+    },
+    {
+      "id": "global-business-health",
+      "status": "known_partial",
+      "detail": "Global data health remains partial under independent owners and cannot be represented as a Phase 4 pass."
+    }
+  ],
+  "rollback": [
+    "code_rollback",
+    "service_rollback",
+    "manifest_pointer_cas_rollback",
+    "append_only_rows_retained"
+  ],
+  "cleanup": {
+    "required": true,
+    "scope": "Remove only Phase 4 candidates, retired reader code and the task branch after verified closure; retain the active and one rollback Manifest plus snapshot-referenced identities."
+  },
+  "archivedReferences": [
+    "artifacts/releases/2026-07-29-equipment-simulator-phase3-resolved-snapshot/evidence.json"
+  ],
+  "summary": "Manifest v2 runtime commit 4a5c6575 passed the full local Harness, exhaustive 80-template exact shadow and real 26/14 SimC matrix on an isolated candidate. Production remains unchanged on v1 generation 32. PR CI, production-compatible deployment, CAS promotion, v1 rollback, v2 restore, official WeChat self-test, merge/deploy parity and archive remain pending."
+}

@@ -174,6 +174,7 @@ class GearCatalogRevisionTest(unittest.TestCase):
                 first["catalogRevision"],
                 variant["itemId"],
                 variant["progressionState"],
+                variant["variantShapeKey"],
             ),
         )
         self.assertRegex(
@@ -406,10 +407,124 @@ class GearCatalogRevisionTest(unittest.TestCase):
             definitions["exact-only"]["legacySourceStatus"],
             "unknown",
         )
+        exact_variants = [
+            row
+            for row in result["browseVariants"]
+            if row["itemId"] == "exact-only"
+        ]
+        self.assertEqual(len(exact_variants), 1)
+        self.assertEqual(
+            exact_variants[0]["sourceVariantKeys"],
+            ["observed-exact-only"],
+        )
+        self.assertEqual(
+            exact_variants[0]["staticFacts"],
+            {"haste_rating": 90},
+        )
         self.assertEqual(
             result["contentSummary"]["excludedDormantItemCount"],
             2,
         )
+
+    def test_exact_instances_with_one_shape_share_one_browse_variant(self):
+        rows = regular_rows()
+        first = {
+            "variantId": "observed-hero-6-a",
+            "variantKey": "observed-hero-6-a",
+            "itemId": "1001",
+            "rowFamily": "exact_instance",
+            "itemLevel": 276,
+            "slot": "head",
+            "sourceType": "observed_profile",
+            "bonusIds": ["13334", "9001"],
+            "staticStats": {
+                "haste_rating": 120,
+                "mastery_rating": 80,
+            },
+            "simcOptions": {
+                "ilevel": "276",
+                "bonus_id": "13334/9001",
+                "gem_id": "240892",
+            },
+            "status": "verified",
+        }
+        second = copy.deepcopy(first)
+        second["variantId"] = "observed-hero-6-b"
+        second["variantKey"] = "observed-hero-6-b"
+        second["simcOptions"]["gem_id"] = "240897"
+        rows["variants"].extend([first, second])
+
+        result = build_catalog_revision(CURRENT_BINDING, rows)
+
+        self.assertEqual(result["status"], "verified")
+        exact_variants = [
+            row
+            for row in result["browseVariants"]
+            if "observed-hero-6-a" in row["sourceVariantKeys"]
+        ]
+        self.assertEqual(len(exact_variants), 1)
+        self.assertEqual(
+            exact_variants[0]["sourceVariantKeys"],
+            ["observed-hero-6-a", "observed-hero-6-b"],
+        )
+        self.assertRegex(
+            exact_variants[0]["variantShapeKey"],
+            r"^variant-shape:sha256:[0-9a-f]{64}$",
+        )
+        self.assertEqual(
+            result["contentSummary"]["exactDerivedVariantCount"],
+            1,
+        )
+
+    def test_exact_instances_with_different_static_shapes_remain_distinct(self):
+        rows = regular_rows()
+        rows["variants"] = []
+        for suffix, stats in (
+            ("haste", {"stamina": 100, "haste_rating": 80}),
+            ("mastery", {"stamina": 100, "mastery_rating": 80}),
+        ):
+            rows["variants"].append(
+                {
+                    "variantId": f"observed-{suffix}",
+                    "variantKey": f"observed-{suffix}",
+                    "itemId": "1001",
+                    "rowFamily": "exact_instance",
+                    "itemLevel": 276,
+                    "slot": "head",
+                    "sourceType": "observed_profile",
+                    "bonusIds": ["13334", "9001"],
+                    "staticStats": stats,
+                    "simcOptions": {
+                        "ilevel": "276",
+                        "bonus_id": "13334/9001",
+                    },
+                    "status": "verified",
+                }
+            )
+
+        result = build_catalog_revision(CURRENT_BINDING, rows)
+
+        self.assertEqual(result["status"], "verified")
+        self.assertEqual(len(result["browseVariants"]), 2)
+        self.assertEqual(
+            len(
+                {
+                    row["browseVariantKey"]
+                    for row in result["browseVariants"]
+                }
+            ),
+            2,
+        )
+        self.assertEqual(
+            len(
+                {
+                    row["progressionKey"]
+                    for row in result["browseVariants"]
+                }
+            ),
+            1,
+        )
+        self.assertEqual(verify_catalog_revision(result), [])
 
     def test_catalog_identity_does_not_include_derived_browse_key(self):
         result = build_catalog_revision(CURRENT_BINDING, regular_rows())

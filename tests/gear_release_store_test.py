@@ -1557,6 +1557,171 @@ class GearReleaseStoreTest(unittest.TestCase):
         self.assertIn("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY", sql)
         self.assertEqual(sql.count("FROM cache.websim_active_manifest_pointer pointer"), 1)
 
+    def test_active_manifest_v2_binding_loads_catalog_and_exact_in_same_snapshot(self):
+        from server.gear_release_store import GearReleaseStore
+
+        gear = self.gear_release()
+        community_rows = self.community_rows()
+        community = self.community_release(gear["releaseId"], community_rows)
+        catalog_revision = "gear-catalog:sha256:" + ("a" * 64)
+        exact_registry_revision = "gear-exact-registry:sha256:" + ("b" * 64)
+        manifest = gear_release.build_manifest(
+            season_revision="season-17",
+            gear_release=gear,
+            community_release=community,
+            talent_catalog_revision="talent-r1",
+            dependency_revisions={
+                **self.dependencies(),
+                "gearCatalogRevision": catalog_revision,
+                "gearExactRegistryRevision": exact_registry_revision,
+            },
+            catalog_revision=catalog_revision,
+            exact_registry_revision=exact_registry_revision,
+        )
+        catalog = {
+            "status": "verified",
+            "catalogRevision": catalog_revision,
+            "seasonRevision": "season-17",
+            "dependencyVector": {
+                "gearRuleRevision": self.dependencies()["gearRuleRevision"],
+            },
+            "provenance": {"sourceGearReleaseId": gear["releaseId"]},
+        }
+        exact_registry = {
+            "status": "partial",
+            "registryRevision": exact_registry_revision,
+            "catalogRevision": catalog_revision,
+            "seasonRevision": "season-17",
+            "gearRuleRevision": self.dependencies()["gearRuleRevision"],
+        }
+        conn = FakeConnection(rowsets={
+            "FROM cache.websim_active_manifest_pointer pointer": [(
+                "retail",
+                "active",
+                manifest["manifestRevision"],
+                33,
+                "season-manifest:sha256:old",
+                "2026-07-29T09:00:00+00:00",
+                "phase4-test",
+                manifest,
+            )],
+            "FROM cache.websim_release_registry": {
+                (gear["releaseId"],): [self.release_row(gear)],
+                (community["releaseId"],): [self.release_row(community)],
+            },
+        })
+
+        with patch(
+            "server.gear_release_store.GearCatalogRevisionStore._load_with_cursor",
+            return_value=catalog,
+        ) as catalog_loader, patch(
+            "server.gear_release_store.GearExactItemRegistryStore._load_header_with_cursor",
+            return_value=exact_registry,
+        ) as exact_loader:
+            binding = GearReleaseStore(
+                lambda: conn
+            ).load_active_manifest_binding()
+
+        self.assertEqual(binding["gearCatalog"], catalog)
+        self.assertEqual(binding["gearExactRegistry"], exact_registry)
+        catalog_loader.assert_called_once_with(
+            conn.cursor_instance,
+            catalog_revision,
+        )
+        exact_loader.assert_called_once_with(
+            conn.cursor_instance,
+            exact_registry_revision,
+        )
+        sql = "\n".join(conn.cursor_instance.statements)
+        self.assertEqual(
+            sql.count(
+                "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"
+            ),
+            1,
+        )
+
+    def test_candidate_manifest_v2_binding_reads_without_the_retail_pointer(self):
+        from server.gear_release_store import GearReleaseStore
+
+        gear = self.gear_release()
+        community_rows = self.community_rows()
+        community = self.community_release(
+            gear["releaseId"],
+            community_rows,
+        )
+        catalog_revision = "gear-catalog:sha256:" + ("a" * 64)
+        exact_registry_revision = (
+            "gear-exact-registry:sha256:" + ("b" * 64)
+        )
+        manifest = gear_release.build_manifest(
+            season_revision="season-17",
+            gear_release=gear,
+            community_release=community,
+            talent_catalog_revision="talent-r1",
+            dependency_revisions={
+                **self.dependencies(),
+                "gearCatalogRevision": catalog_revision,
+                "gearExactRegistryRevision": exact_registry_revision,
+            },
+            catalog_revision=catalog_revision,
+            exact_registry_revision=exact_registry_revision,
+        )
+        catalog = {
+            "status": "verified",
+            "catalogRevision": catalog_revision,
+            "seasonRevision": "season-17",
+            "dependencyVector": {
+                "gearRuleRevision": (
+                    self.dependencies()["gearRuleRevision"]
+                ),
+            },
+            "provenance": {
+                "sourceGearReleaseId": gear["releaseId"],
+            },
+        }
+        exact_registry = {
+            "status": "verified",
+            "registryRevision": exact_registry_revision,
+            "catalogRevision": catalog_revision,
+            "seasonRevision": "season-17",
+            "gearRuleRevision": self.dependencies()["gearRuleRevision"],
+        }
+        conn = FakeConnection(rowsets={
+            "FROM cache.websim_season_manifests": [(
+                manifest,
+            )],
+            "FROM cache.websim_release_registry": {
+                (gear["releaseId"],): [self.release_row(gear)],
+                (community["releaseId"],): [
+                    self.release_row(community)
+                ],
+            },
+        })
+
+        with patch(
+            "server.gear_release_store.GearCatalogRevisionStore._load_with_cursor",
+            return_value=catalog,
+        ), patch(
+            "server.gear_release_store.GearExactItemRegistryStore._load_header_with_cursor",
+            return_value=exact_registry,
+        ):
+            binding = GearReleaseStore(
+                lambda: conn
+            ).load_candidate_manifest_binding(
+                manifest["manifestRevision"]
+            )
+
+        self.assertTrue(binding["candidatePreview"])
+        self.assertFalse(binding["formalActiveManifest"])
+        self.assertEqual(binding["manifest"], manifest)
+        self.assertEqual(binding["gearCatalog"], catalog)
+        self.assertEqual(binding["gearExactRegistry"], exact_registry)
+        sql = "\n".join(conn.cursor_instance.statements)
+        self.assertNotIn(
+            "FROM cache.websim_active_manifest_pointer",
+            sql,
+        )
+
     def test_active_manifest_binding_models_zero_row_and_transitional_without_staging_queries(self):
         from server.gear_release_store import GearReleaseStore
 
@@ -2118,6 +2283,339 @@ class GearReleaseStoreTest(unittest.TestCase):
         self.assertTrue(context["manifest"]["formalActiveManifest"])
         self.assertEqual(context["manifest"]["gearCatalogRevision"], gear["releaseId"])
         self.assertEqual(context["dependencyVector"]["gearCatalogRevision"], gear["releaseId"])
+
+    def test_manifest_v2_authority_maps_browse_identity_to_bound_source_variant(self):
+        from server.gear_release_store import (
+            GearReleaseIntegrityError,
+            GearReleaseStore,
+        )
+
+        gear = self.gear_release()
+        catalog_revision = "gear-catalog:sha256:" + ("a" * 64)
+        exact_registry_revision = "gear-exact-registry:sha256:" + ("b" * 64)
+        browse_key = "browse-variant:sha256:" + ("c" * 64)
+        manifest = gear_release.build_manifest(
+            season_revision="season-17",
+            gear_release=gear,
+            community_release=None,
+            talent_catalog_revision="talent-r1",
+            dependency_revisions={
+                **self.dependencies(),
+                "gearCatalogRevision": catalog_revision,
+                "gearExactRegistryRevision": exact_registry_revision,
+            },
+            catalog_revision=catalog_revision,
+            exact_registry_revision=exact_registry_revision,
+        )
+        binding = {
+            "pointerMode": "active",
+            "generation": 33,
+            "formalActiveManifest": True,
+            "manifest": manifest,
+            "gearRelease": gear,
+            "communityRelease": None,
+            "gearCatalog": {
+                "catalogRevision": catalog_revision,
+                "browseVariants": [
+                    {
+                        "browseVariantKey": browse_key,
+                        "itemId": "item-a",
+                        "sourceVariantKeys": [
+                            "observed-template-a",
+                            "variant-a",
+                        ],
+                        "canonicalSourceVariantKey": "variant-a",
+                        "itemLevel": 276,
+                        "bonusIds": ["13334"],
+                        "staticFacts": {"intellect": 100},
+                    }
+                ],
+            },
+            "gearExactRegistry": {
+                "registryRevision": exact_registry_revision,
+            },
+        }
+        runtime = {
+            "dependencyRevisions": {
+                **self.dependencies(),
+                "capabilityRevision": (
+                    gear_socket_authority.CAPABILITY_REVISION
+                ),
+            },
+            "supportedCapabilityRevisions": list(
+                gear_socket_authority.SUPPORTED_CAPABILITY_REVISIONS
+            ),
+        }
+        intent = {
+            "schemaRevision": "selection-intent-v1",
+            "authoredAgainst": {
+                "seasonRevision": "season-17",
+                "gearCatalogRevision": catalog_revision,
+            },
+            "eligibilityContext": {
+                "classKey": "mage",
+                "specKey": "arcane",
+                "level": 90,
+            },
+            "slots": {
+                "head": {
+                    "itemId": "item-a",
+                    "variantKey": browse_key,
+                    "gemOptionIds": [],
+                    "enchantOptionId": "",
+                    "embellishmentOptionId": "",
+                    "craftedOptionId": "",
+                    "catalystOptionId": "",
+                }
+            },
+        }
+        store = GearReleaseStore(lambda: FakeConnection())
+
+        def load_source_authority(translated, _runtime, release_id):
+            self.assertEqual(release_id, gear["releaseId"])
+            self.assertEqual(
+                translated["authoredAgainst"]["gearCatalogRevision"],
+                gear["releaseId"],
+            )
+            self.assertEqual(
+                translated["slots"]["head"]["variantKey"],
+                "variant-a",
+            )
+            return {
+                "missingFields": [],
+                "itemsById": {
+                    "item-a": {
+                        "itemId": "item-a",
+                        "variantKeys": ["variant-a"],
+                    }
+                },
+                "variantsByKey": {
+                    "variant-a": {
+                        "itemId": "item-a",
+                        "variantKey": "variant-a",
+                        "serializerInput": {"id": "item-a"},
+                    }
+                },
+                "optionsById": {},
+            }
+
+        store.load_candidate_authority_context = load_source_authority
+
+        context = store.load_active_authority_context(
+            intent,
+            runtime,
+            binding,
+            source_variant_overrides={
+                "head": "observed-template-a",
+            },
+        )
+
+        self.assertEqual(
+            context["manifest"]["gearCatalogRevision"],
+            catalog_revision,
+        )
+        self.assertIn(browse_key, context["variantsByKey"])
+        self.assertEqual(
+            context["variantsByKey"][browse_key]["sourceVariantKey"],
+            "variant-a",
+        )
+        self.assertEqual(
+            context["variantsByKey"][browse_key]["resolvedStats"],
+            {"intellect": 100},
+        )
+        self.assertEqual(
+            context["variantsByKey"][browse_key]["simcOptions"],
+            {"bonus_id": "13334", "ilevel": "276"},
+        )
+        self.assertEqual(
+            context["itemsById"]["item-a"]["variantKeys"],
+            [browse_key],
+        )
+        with self.assertRaisesRegex(
+            GearReleaseIntegrityError,
+            "outside its Manifest Catalog shape",
+        ):
+            store.load_active_authority_context(
+                intent,
+                runtime,
+                binding,
+                source_variant_overrides={
+                    "head": "invented-source",
+                },
+            )
+
+    def test_manifest_catalog_snapshot_projects_canonical_browse_membership(self):
+        from server.gear_release_store import _manifest_catalog_snapshot
+
+        browse_key = "browse-variant:sha256:" + ("c" * 64)
+        catalog = {
+            "status": "verified",
+            "catalogRevision": (
+                "gear-catalog:sha256:" + ("a" * 64)
+            ),
+            "itemDefinitions": [
+                {
+                    "itemId": "item-a",
+                    "name": "Item A",
+                    "slot": "head",
+                    "itemLevel": 289,
+                    "sourceStatus": "verified",
+                    "media": {"iconUrl": "/runtime-media/item-a.webp"},
+                    "equipment": {"inventoryType": "head"},
+                    "restrictions": {"requiredClassIds": ["8"]},
+                    "sources": [
+                        {
+                            "sourceIdentity": "catalog-source:sha256:test",
+                            "sourceType": "raid",
+                            "sourceKey": "raid-a",
+                            "difficultyKey": "mythic",
+                            "seasonRevision": "season-17",
+                            "status": "verified",
+                        }
+                    ],
+                }
+            ],
+            "browseVariants": [
+                {
+                    "browseVariantKey": browse_key,
+                    "itemId": "item-a",
+                    "progressionKind": "upgrade_track",
+                    "progressionState": {
+                        "kind": "upgrade_track",
+                        "trackKey": "hero",
+                        "rank": 6,
+                        "rankMax": 6,
+                    },
+                    "itemLevel": 289,
+                    "bonusIds": ["1", "2"],
+                    "staticFacts": {"intellect": 100},
+                    "sourceType": "raid",
+                    "sourceVariantKeys": ["variant-a"],
+                    "evidenceStatus": "verified",
+                }
+            ],
+        }
+        legacy_snapshot = {
+            "items": [{"itemId": "legacy-must-not-leak"}],
+            "sources": [{"sourceId": "legacy-must-not-leak"}],
+            "variants": [{"variantId": "legacy-must-not-leak"}],
+            "options": [{"optionId": "option-a"}],
+        }
+
+        snapshot = _manifest_catalog_snapshot(
+            catalog,
+            legacy_snapshot,
+            catalog_slot="head",
+        )
+
+        self.assertEqual(
+            [row["itemId"] for row in snapshot["items"]],
+            ["item-a"],
+        )
+        self.assertEqual(
+            [row["variantKey"] for row in snapshot["variants"]],
+            [browse_key],
+        )
+        self.assertEqual(
+            snapshot["variants"][0]["payload"]["sourceVariantKeys"],
+            ["variant-a"],
+        )
+        self.assertEqual(snapshot["options"], [{"optionId": "option-a"}])
+        self.assertNotIn("legacy-must-not-leak", str(snapshot))
+
+    def test_manifest_v2_public_gear_projects_only_the_bound_catalog(self):
+        from server.gear_release_store import GearReleaseStore
+
+        catalog_revision = "gear-catalog:sha256:" + ("a" * 64)
+        exact_revision = "gear-exact-registry:sha256:" + ("b" * 64)
+        browse_key = "browse-variant:sha256:" + ("c" * 64)
+        binding = {
+            "formalActiveManifest": True,
+            "manifest": {
+                "schemaRevision": "active-season-manifest-v2",
+                "gearCatalogReleaseId": "gear-release-a",
+                "gearCatalogRevision": catalog_revision,
+                "gearExactRegistryRevision": exact_revision,
+                "communityTemplateReleaseId": "community-release-a",
+            },
+            "gearCatalog": {
+                "status": "verified",
+                "catalogRevision": catalog_revision,
+                "itemDefinitions": [{
+                    "itemId": "item-a",
+                    "name": "Item A",
+                    "slot": "head",
+                    "itemLevel": 289,
+                    "sourceStatus": "verified",
+                    "sources": [{
+                        "sourceIdentity": "catalog-source:sha256:test",
+                        "sourceType": "raid",
+                        "sourceKey": "raid-a",
+                        "difficultyKey": "mythic",
+                        "seasonRevision": "season-17",
+                        "status": "verified",
+                    }],
+                }],
+                "browseVariants": [{
+                    "browseVariantKey": browse_key,
+                    "itemId": "item-a",
+                    "progressionState": {
+                        "trackKey": "hero",
+                        "rank": 6,
+                        "rankMax": 6,
+                    },
+                    "itemLevel": 289,
+                    "bonusIds": ["1"],
+                    "staticFacts": {"intellect": 100},
+                    "sourceVariantKeys": ["variant-a"],
+                    "evidenceStatus": "verified",
+                }],
+            },
+            "gearExactRegistry": {
+                "registryRevision": exact_revision,
+                "status": "verified",
+            },
+        }
+        store = GearReleaseStore(lambda: self.fail("unit test must not open PostgreSQL"))
+        calls = []
+
+        def load_material(exact_binding, class_key, spec_key, *, include_catalog, catalog_slot=""):
+            calls.append((exact_binding, class_key, spec_key, include_catalog, catalog_slot))
+            return {
+                "gearRelease": {
+                    "releaseId": "gear-release-a",
+                    "releaseStatus": "validated",
+                },
+                "communityRelease": {"releaseId": "community-release-a"},
+                "communityTemplates": [{"id": "template-a"}],
+                "gearSnapshot": {
+                    "items": [{"itemId": "legacy-must-not-leak"}],
+                    "sources": [{"sourceId": "legacy-must-not-leak"}],
+                    "variants": [{"variantId": "legacy-must-not-leak"}],
+                    "options": [{"optionId": "option-a"}],
+                },
+            }
+
+        store._load_public_release_material = load_material
+        result = store.load_active_manifest_public_gear(
+            binding,
+            "mage",
+            "arcane",
+            include_catalog=True,
+            catalog_slot="head",
+        )
+
+        self.assertEqual(calls, [(binding, "mage", "arcane", True, "head")])
+        self.assertEqual(
+            [row["variantKey"] for row in result["gearSnapshot"]["variants"]],
+            [browse_key],
+        )
+        self.assertNotIn("legacy-must-not-leak", str(result["gearSnapshot"]))
+        self.assertIs(result["gearCatalog"], binding["gearCatalog"])
+        self.assertIs(
+            result["gearExactRegistry"],
+            binding["gearExactRegistry"],
+        )
 
     def test_candidate_authority_reads_one_exact_release_without_staging_fallback(self):
         from server.gear_release_store import GearReleaseStore

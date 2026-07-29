@@ -9,8 +9,10 @@ import re
 from typing import Any, Mapping
 
 try:
+    from .gear_contracts import community_template_authority_identity
     from .gear_exact_item_instance import build_exact_item_instance
 except ImportError:
+    from gear_contracts import community_template_authority_identity
     from gear_exact_item_instance import build_exact_item_instance
 
 
@@ -177,6 +179,7 @@ def _reference_row(
     status: str,
     exact_key: str = "",
     problem_codes: list[str] | None = None,
+    authority_identity: str = "",
 ) -> dict[str, Any]:
     row = {
         "schemaRevision": EXACT_TEMPLATE_REFERENCE_SCHEMA_REVISION,
@@ -190,6 +193,8 @@ def _reference_row(
         "validationStatus": status,
         "problemCodes": sorted(set(problem_codes or [])),
     }
+    if _HASH_PATTERN.fullmatch(_text(authority_identity)):
+        row["templateAuthorityIdentity"] = _text(authority_identity)
     return {
         **row,
         "rowHash": _hash("sha256:", row),
@@ -264,6 +269,14 @@ def build_exact_item_registry(
             template_count += 1
             classified_template_count += 1
             content_hash = template_content_hash(template)
+            authority_identity = _text(template.get("templateIdentity"))
+            if (
+                scope == "community"
+                and not _HASH_PATTERN.fullmatch(authority_identity)
+            ):
+                authority_identity = community_template_authority_identity(
+                    template.get("templateId")
+                )
             items = template.get("gearItems")
             if not isinstance(items, list) or not items:
                 problem = _problem(
@@ -281,6 +294,7 @@ def build_exact_item_registry(
                     variant_key="",
                     status="blocked",
                     problem_codes=[problem["code"]],
+                    authority_identity=authority_identity,
                 ))
                 continue
 
@@ -355,6 +369,7 @@ def build_exact_item_registry(
                         variant_key=variant_key,
                         status="partial" if evidence_partial else "blocked",
                         problem_codes=sorted(item_problem_codes),
+                        authority_identity=authority_identity,
                     ))
                     continue
 
@@ -386,6 +401,7 @@ def build_exact_item_registry(
                         variant_key=variant_key,
                         status="blocked",
                         problem_codes=[conflict["code"]],
+                        authority_identity=authority_identity,
                     ))
                     continue
                 validation_rows[validation_key] = validation
@@ -399,6 +415,7 @@ def build_exact_item_registry(
                     variant_key=variant_key,
                     status="verified",
                     exact_key=instance["exactItemInstanceKey"],
+                    authority_identity=authority_identity,
                 ))
 
     references_by_hash = {

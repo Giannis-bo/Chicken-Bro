@@ -72,9 +72,17 @@ except ImportError:
 
 try:
     from .gear_exact_item_registry_store import GearExactItemRegistryStore
+    from .gear_exact_template_options import (
+        bind_exact_template_authority,
+        project_exact_template_intent,
+    )
     from .simulation_snapshot_store import SimulationSnapshotStore
 except ImportError:
     from gear_exact_item_registry_store import GearExactItemRegistryStore
+    from gear_exact_template_options import (
+        bind_exact_template_authority,
+        project_exact_template_intent,
+    )
     from simulation_snapshot_store import SimulationSnapshotStore
 
 try:
@@ -664,6 +672,9 @@ class CommunityTemplateImportError(RuntimeError):
 
 COMMUNITY_GEAR_PREVIEW_RELEASE_ENV = "WOW_COMMUNITY_GEAR_PREVIEW_RELEASE_ID"
 GEAR_PREVIEW_RELEASE_ENV = "WOW_GEAR_PREVIEW_RELEASE_ID"
+GEAR_MANIFEST_PREVIEW_REVISION_ENV = (
+    "WOW_GEAR_MANIFEST_PREVIEW_REVISION"
+)
 
 
 def _release_binding_is_readable(binding):
@@ -701,16 +712,157 @@ def _binding_uses_sealed_v2_community(binding):
 def _community_template_import_release_context(binding):
     value = binding if isinstance(binding, dict) else {}
     manifest = value.get("manifest") if isinstance(value.get("manifest"), dict) else {}
+    catalog_revision = str(
+        manifest.get("gearCatalogRevision")
+        or manifest.get("gearCatalogReleaseId")
+        or ""
+    ).strip()
     return {
         "manifestRevision": str(manifest.get("manifestRevision") or value.get("manifestRevision") or "").strip(),
         "pointerGeneration": _int_value(value.get("generation")),
         "seasonRevision": str(manifest.get("seasonRevision") or "").strip(),
         "gearCatalogReleaseId": str(manifest.get("gearCatalogReleaseId") or "").strip(),
-        "gearCatalogRevision": str(manifest.get("gearCatalogReleaseId") or "").strip(),
+        "gearCatalogRevision": catalog_revision,
+        "gearExactRegistryRevision": str(
+            manifest.get("gearExactRegistryRevision") or ""
+        ).strip(),
         "communityTemplateRevision": str(manifest.get("communityTemplateReleaseId") or "").strip(),
         "formalActiveManifest": value.get("formalActiveManifest") is True,
         "candidatePreview": value.get("candidatePreview") is True,
     }
+
+
+def _rebind_import_source_to_manifest_catalog(source, binding):
+    """Project a sealed Community selection onto its Manifest v2 BrowseVariants."""
+
+    value = binding if isinstance(binding, dict) else {}
+    manifest = (
+        value.get("manifest")
+        if isinstance(value.get("manifest"), dict)
+        else {}
+    )
+    if manifest.get("schemaRevision") != "active-season-manifest-v2":
+        return source
+    result = copy.deepcopy(source) if isinstance(source, dict) else {}
+    intent = (
+        result.get("selectionIntent")
+        if isinstance(result.get("selectionIntent"), dict)
+        else None
+    )
+    if intent is None:
+        return result
+    catalog = (
+        value.get("gearCatalog")
+        if isinstance(value.get("gearCatalog"), dict)
+        else {}
+    )
+    catalog_revision = str(
+        manifest.get("gearCatalogRevision") or ""
+    ).strip()
+    if (
+        not catalog_revision
+        or str(catalog.get("catalogRevision") or "").strip()
+        != catalog_revision
+    ):
+        raise RuntimeError(
+            "Manifest v2 Community import Catalog binding is invalid"
+        )
+    aliases = {}
+    item_level_candidates = {}
+    for row in catalog.get("browseVariants") or []:
+        variant = row if isinstance(row, dict) else {}
+        browse_key = str(
+            variant.get("browseVariantKey") or ""
+        ).strip()
+        item_id = str(variant.get("itemId") or "").strip()
+        if not browse_key or not item_id:
+            continue
+        item_level = _int_value(variant.get("itemLevel"))
+        if (
+            variant.get("evidenceStatus") == "verified"
+            and item_level > 0
+        ):
+            item_level_candidates.setdefault(
+                (item_id, item_level),
+                set(),
+            ).add(browse_key)
+        for source_key in {
+            browse_key,
+            *[
+                str(value or "").strip()
+                for value in variant.get("sourceVariantKeys") or []
+                if str(value or "").strip()
+            ],
+        }:
+            alias_key = (item_id, source_key)
+            previous = aliases.get(alias_key)
+            if previous and previous != browse_key:
+                raise RuntimeError(
+                    "Manifest Catalog source variant mapping is ambiguous"
+                )
+            aliases[alias_key] = browse_key
+    slots = intent.get("slots") if isinstance(intent.get("slots"), dict) else {}
+    imported_by_slot = (
+        result.get("importedGearBySlot")
+        if isinstance(result.get("importedGearBySlot"), dict)
+        else {}
+    )
+    authority_variant_keys_by_slot = {}
+    for slot, selection in slots.items():
+        if not isinstance(selection, dict):
+            continue
+        item_id = str(selection.get("itemId") or "").strip()
+        variant_key = str(
+            selection.get("variantKey") or ""
+        ).strip()
+        browse_key = aliases.get((item_id, variant_key))
+        if not browse_key:
+            imported = (
+                imported_by_slot.get(slot)
+                if isinstance(imported_by_slot.get(slot), dict)
+                else {}
+            )
+            imported_item_id = str(
+                imported.get("itemId") or ""
+            ).strip()
+            item_level = _int_value(
+                imported.get("itemLevel")
+                or imported.get("ilevel")
+            )
+            candidates = item_level_candidates.get(
+                (item_id, item_level),
+                set(),
+            )
+            if (
+                imported_item_id != item_id
+                or item_level <= 0
+                or len(candidates) != 1
+            ):
+                raise RuntimeError(
+                    "Manifest Catalog has no unique verified item-level "
+                    "mapping for the Community selection"
+                )
+            browse_key = next(iter(candidates))
+        elif variant_key != browse_key:
+            authority_variant_keys_by_slot[slot] = variant_key
+        selection["variantKey"] = browse_key
+        imported = imported_by_slot.get(slot)
+        if isinstance(imported, dict):
+            imported["variantKey"] = browse_key
+    intent["authoredAgainst"] = {
+        "seasonRevision": str(
+            manifest.get("seasonRevision") or ""
+        ).strip(),
+        "gearCatalogRevision": catalog_revision,
+    }
+    result["selectionIntent"] = intent
+    if imported_by_slot:
+        result["importedGearBySlot"] = imported_by_slot
+    if authority_variant_keys_by_slot:
+        result["_authorityVariantKeysBySlot"] = (
+            authority_variant_keys_by_slot
+        )
+    return result
 
 
 def _community_template_import_cache_fingerprint(
@@ -1300,12 +1452,25 @@ class PostgresCacheStore:
         gear_authority_context_cache=None,
         gear_release_store=None,
         observed_build_store=None,
+        manifest_binding_cache=None,
     ):
         self.connection_factory = connection_factory
         self._gear_authority_context_cache = (
             gear_authority_context_cache
             if gear_authority_context_cache is not None
             else AuthorityContextCache(max_entries=32, max_bytes=4 * 1024 * 1024)
+        )
+        self._manifest_binding_cache = (
+            manifest_binding_cache
+            if manifest_binding_cache is not None
+            else AuthorityContextCache(
+                max_entries=4,
+                # A current-season Catalog v2 binding is about 18 MiB once
+                # exact variant-shape aliases are sealed. Keep one candidate
+                # binding resident instead of reloading and re-hashing the
+                # entire Catalog for every public import request.
+                max_bytes=32 * 1024 * 1024,
+            )
         )
         self._gear_release_store = (
             gear_release_store
@@ -1320,6 +1485,8 @@ class PostgresCacheStore:
         self._gear_exact_item_registry_store = GearExactItemRegistryStore(
             connection_factory
         )
+        self._manifest_exact_registry_material_identity = ""
+        self._manifest_exact_registry_material = None
         self._simulation_snapshot_store = SimulationSnapshotStore(
             connection_factory
         )
@@ -1505,16 +1672,293 @@ class PostgresCacheStore:
                     cache=self._gear_authority_context_cache,
                 )
 
-    def get_latest_gear_exact_registry(
+    def get_active_gear_exact_registry(
         self,
         *,
-        catalog_revision="",
-        gear_rule_revision="",
+        expected_manifest_revision="",
+        expected_pointer_generation=0,
     ):
-        return self._gear_exact_item_registry_store.load_latest_registry(
-            catalog_revision=catalog_revision,
-            gear_rule_revision=gear_rule_revision,
+        binding = self._active_manifest_binding_for_authority()
+        binding = binding if isinstance(binding, dict) else {}
+        manifest = (
+            binding.get("manifest")
+            if isinstance(binding.get("manifest"), dict)
+            else {}
         )
+        if (
+            not _release_binding_is_readable(binding)
+            or manifest.get("schemaRevision")
+            != "active-season-manifest-v2"
+        ):
+            raise RuntimeError(
+                "Manifest v2 Exact Registry binding is unavailable"
+            )
+        active_revision = str(
+            manifest.get("manifestRevision")
+            or binding.get("manifestRevision")
+            or ""
+        ).strip()
+        active_generation = _int_value(binding.get("generation"))
+        expected_revision = str(
+            expected_manifest_revision or ""
+        ).strip()
+        expected_generation = _int_value(
+            expected_pointer_generation
+        )
+        if expected_revision and expected_revision != active_revision:
+            raise RuntimeError(
+                "Manifest revision changed during exact registry binding"
+            )
+        if (
+            expected_generation
+            and expected_generation != active_generation
+        ):
+            raise RuntimeError(
+                "Manifest generation changed during exact registry binding"
+            )
+        registry_header = (
+            binding.get("gearExactRegistry")
+            if isinstance(binding.get("gearExactRegistry"), dict)
+            else {}
+        )
+        if (
+            not registry_header
+            or str(
+                registry_header.get("registryRevision") or ""
+            ).strip()
+            != str(
+                manifest.get("gearExactRegistryRevision") or ""
+            ).strip()
+        ):
+            raise RuntimeError(
+                "Manifest v2 Exact Registry binding is invalid"
+            )
+        if all(
+            isinstance(registry_header.get(field), list)
+            for field in (
+                "enhancementSelections",
+                "exactItemInstances",
+                "validations",
+                "templateReferences",
+            )
+        ):
+            return copy.deepcopy(registry_header)
+
+        material_cache_key = (
+            "exact-registry-material:"
+            + active_revision
+            + ":"
+            + str(
+                manifest.get("gearExactRegistryRevision") or ""
+            ).strip()
+        )
+        cached_registry = self._manifest_binding_cache.get(
+            material_cache_key
+        )
+        if (
+            isinstance(cached_registry, dict)
+            and str(
+                cached_registry.get("registryRevision") or ""
+            ).strip()
+            == str(
+                registry_header.get("registryRevision") or ""
+            ).strip()
+            and str(
+                cached_registry.get("catalogRevision") or ""
+            ).strip()
+            == str(
+                registry_header.get("catalogRevision") or ""
+            ).strip()
+        ):
+            return cached_registry
+
+        registry = self._gear_exact_item_registry_store.load_registry(
+            str(manifest.get("gearExactRegistryRevision") or "").strip()
+        )
+        if (
+            not isinstance(registry, dict)
+            or str(registry.get("registryRevision") or "").strip()
+            != str(
+                registry_header.get("registryRevision") or ""
+            ).strip()
+            or str(registry.get("catalogRevision") or "").strip()
+            != str(
+                registry_header.get("catalogRevision") or ""
+            ).strip()
+            or str(registry.get("seasonRevision") or "").strip()
+            != str(
+                registry_header.get("seasonRevision") or ""
+            ).strip()
+            or str(registry.get("gearRuleRevision") or "").strip()
+            != str(
+                registry_header.get("gearRuleRevision") or ""
+            ).strip()
+            or str(registry.get("status") or "").strip()
+            != str(registry_header.get("status") or "").strip()
+        ):
+            raise RuntimeError(
+                "Manifest v2 Exact Registry material is invalid"
+            )
+
+        binding_after = self._active_manifest_binding_for_authority()
+        manifest_after = (
+            binding_after.get("manifest")
+            if isinstance(binding_after, dict)
+            and isinstance(binding_after.get("manifest"), dict)
+            else {}
+        )
+        if (
+            str(
+                binding_after.get("manifestRevision")
+                or manifest_after.get("manifestRevision")
+                or ""
+            ).strip()
+            != active_revision
+            or _int_value(binding_after.get("generation"))
+            != active_generation
+            or str(
+                manifest_after.get("gearExactRegistryRevision") or ""
+            ).strip()
+            != str(registry.get("registryRevision") or "").strip()
+        ):
+            raise RuntimeError(
+                "Manifest changed during exact registry materialization"
+            )
+        self._manifest_binding_cache.put(
+            material_cache_key,
+            registry,
+        )
+        return registry
+
+    def _manifest_exact_registry(self, binding):
+        value = binding if isinstance(binding, dict) else {}
+        manifest = (
+            value.get("manifest")
+            if isinstance(value.get("manifest"), dict)
+            else {}
+        )
+        if manifest.get("schemaRevision") != "active-season-manifest-v2":
+            return {}
+        identity = ":".join(
+            (
+                str(
+                    manifest.get("manifestRevision")
+                    or value.get("manifestRevision")
+                    or ""
+                ).strip(),
+                str(
+                    manifest.get("gearExactRegistryRevision")
+                    or ""
+                ).strip(),
+                str(_int_value(value.get("generation"))),
+            )
+        )
+        if (
+            identity
+            and identity
+            == self._manifest_exact_registry_material_identity
+            and isinstance(
+                self._manifest_exact_registry_material,
+                dict,
+            )
+        ):
+            return self._manifest_exact_registry_material
+        registry = self.get_active_gear_exact_registry(
+            expected_manifest_revision=str(
+                manifest.get("manifestRevision")
+                or value.get("manifestRevision")
+                or ""
+            ).strip(),
+            expected_pointer_generation=_int_value(
+                value.get("generation")
+            ),
+        )
+        self._manifest_exact_registry_material_identity = identity
+        self._manifest_exact_registry_material = registry
+        return registry
+
+    def _project_manifest_exact_import(self, source, binding):
+        value = binding if isinstance(binding, dict) else {}
+        manifest = (
+            value.get("manifest")
+            if isinstance(value.get("manifest"), dict)
+            else {}
+        )
+        if manifest.get("schemaRevision") != "active-season-manifest-v2":
+            return source
+        result = copy.deepcopy(source) if isinstance(source, dict) else {}
+        template = (
+            result.get("template")
+            if isinstance(result.get("template"), dict)
+            else {}
+        )
+        projection = project_exact_template_intent(
+            result.get("selectionIntent"),
+            self._manifest_exact_registry(value),
+            value.get("gearCatalog"),
+            template.get("templateAuthorityIdentity"),
+        )
+        if projection.get("status") != "verified":
+            if set(projection.get("problemCodes") or []) == {
+                "EXACT_TEMPLATE_REFERENCE_NOT_VERIFIED"
+            }:
+                result["_exactTemplateReadiness"] = {
+                    "status": "partial",
+                    "problemCodes": projection.get(
+                        "problemCodes"
+                    )
+                    or [],
+                }
+                return result
+            raise RuntimeError(
+                "Manifest Exact Registry template projection is unavailable: "
+                + ",".join(projection.get("problemCodes") or [])
+            )
+        result["selectionIntent"] = projection["selectionIntent"]
+        visible = (
+            result.get("visibleOptionsBySlot")
+            if isinstance(result.get("visibleOptionsBySlot"), dict)
+            else {}
+        )
+        for slot, options in (
+            projection.get("visibleOptionsBySlot") or {}
+        ).items():
+            visible.setdefault(slot, {}).update(options)
+        result["visibleOptionsBySlot"] = visible
+        return result
+
+    def _bind_manifest_exact_authority(
+        self,
+        selection_intent,
+        authority_context,
+        binding,
+        *,
+        required=False,
+        template_authority_identity="",
+    ):
+        value = binding if isinstance(binding, dict) else {}
+        manifest = (
+            value.get("manifest")
+            if isinstance(value.get("manifest"), dict)
+            else {}
+        )
+        if manifest.get("schemaRevision") != "active-season-manifest-v2":
+            return authority_context
+        bound = bind_exact_template_authority(
+            selection_intent,
+            authority_context,
+            self._manifest_exact_registry(value),
+            value.get("gearCatalog"),
+            template_authority_identity,
+        )
+        if bound.get("status") == "verified":
+            return bound["authorityContext"]
+        if required or bound.get("status") == "blocked":
+            raise RuntimeError(
+                "Manifest Exact Registry authority binding is unavailable: "
+                + ",".join(bound.get("problemCodes") or [])
+            )
+        return authority_context
 
     def seal_resolved_loadout(self, value):
         return self._simulation_snapshot_store.seal_loadout(value)
@@ -1644,7 +2088,15 @@ class PostgresCacheStore:
             }
             try:
                 source = gear_import_source_from_active_record(record)
-            except ValueError as error:
+                source = _rebind_import_source_to_manifest_catalog(
+                    source,
+                    binding,
+                )
+                source = self._project_manifest_exact_import(
+                    source,
+                    binding,
+                )
+            except (ValueError, RuntimeError) as error:
                 raise CommunityTemplateImportError(
                     "template_import_blocked",
                     "The requested template cannot be imported safely.",
@@ -1671,12 +2123,40 @@ class PostgresCacheStore:
                     "cacheIdentity": cache_identity,
                 }
             try:
-                authority_context = (
-                    self._gear_release_store.load_active_authority_context(
-                        selection_intent,
-                        runtime_authority,
-                        binding,
+                source_overrides = source.get(
+                    "_authorityVariantKeysBySlot"
+                )
+                if isinstance(source_overrides, dict) and source_overrides:
+                    authority_context = (
+                        self._gear_release_store.load_active_authority_context(
+                            selection_intent,
+                            runtime_authority,
+                            binding,
+                            source_variant_overrides=source_overrides,
+                        )
                     )
+                else:
+                    authority_context = (
+                        self._gear_release_store.load_active_authority_context(
+                            selection_intent,
+                            runtime_authority,
+                            binding,
+                        )
+                    )
+                authority_context = self._bind_manifest_exact_authority(
+                    selection_intent,
+                    authority_context,
+                    binding,
+                    template_authority_identity=(
+                        (
+                            source.get("template")
+                            if isinstance(
+                                source.get("template"),
+                                dict,
+                            )
+                            else {}
+                        ).get("templateAuthorityIdentity")
+                    ),
                 )
             except Exception as error:
                 raise CommunityTemplateImportError(
@@ -1765,6 +2245,21 @@ class PostgresCacheStore:
             items=release_rows.get("items"),
             sources=release_rows.get("sources"),
         )
+        try:
+            source = _rebind_import_source_to_manifest_catalog(
+                source,
+                binding,
+            )
+            source = self._project_manifest_exact_import(
+                source,
+                binding,
+            )
+        except RuntimeError as error:
+            raise CommunityTemplateImportError(
+                "template_import_blocked",
+                "The requested template is outside the active Manifest Catalog.",
+                release_context=release_context,
+            ) from error
         selection_intent = build_community_template_selection_intent(source)
         reconcile_ms = (time.perf_counter() - source_started) * 1000
         if selection_intent is None:
@@ -1777,10 +2272,40 @@ class PostgresCacheStore:
                 "cacheIdentity": cache_identity,
             }
         try:
-            authority_context = self._gear_release_store.load_active_authority_context(
+            source_overrides = source.get(
+                "_authorityVariantKeysBySlot"
+            )
+            if isinstance(source_overrides, dict) and source_overrides:
+                authority_context = (
+                    self._gear_release_store.load_active_authority_context(
+                        selection_intent,
+                        runtime_authority,
+                        binding,
+                        source_variant_overrides=source_overrides,
+                    )
+                )
+            else:
+                authority_context = (
+                    self._gear_release_store.load_active_authority_context(
+                        selection_intent,
+                        runtime_authority,
+                        binding,
+                    )
+                )
+            authority_context = self._bind_manifest_exact_authority(
                 selection_intent,
-                runtime_authority,
+                authority_context,
                 binding,
+                template_authority_identity=(
+                    (
+                        source.get("template")
+                        if isinstance(
+                            source.get("template"),
+                            dict,
+                        )
+                        else {}
+                    ).get("templateAuthorityIdentity")
+                ),
             )
         except Exception as error:
             raise CommunityTemplateImportError(
@@ -1804,19 +2329,113 @@ class PostgresCacheStore:
         _pg_community_template_import_cache_put(cache_identity, payload)
 
     def _candidate_preview_binding(self, binding):
-        """Bind only the candidate service to sealed Gear/Community releases without moving the pointer."""
+        """Bind only the candidate service to sealed dependencies without moving the pointer."""
 
+        manifest_preview_revision = str(
+            os.environ.get(GEAR_MANIFEST_PREVIEW_REVISION_ENV) or ""
+        ).strip()
         community_release_id = str(os.environ.get(COMMUNITY_GEAR_PREVIEW_RELEASE_ENV) or "").strip()
         requested_gear_release_id = str(
             os.environ.get(GEAR_PREVIEW_RELEASE_ENV) or ""
         ).strip()
-        if not community_release_id and not requested_gear_release_id:
+        if (
+            manifest_preview_revision
+            and (community_release_id or requested_gear_release_id)
+        ):
+            raise RuntimeError(
+                "Manifest preview cannot be combined with legacy release previews"
+            )
+        if (
+            not manifest_preview_revision
+            and not community_release_id
+            and not requested_gear_release_id
+        ):
             return binding
         active = binding if isinstance(binding, dict) else {}
         if active.get("formalActiveManifest") is not True:
             raise RuntimeError(
                 "candidate preview requires a formal active Gear Release"
             )
+        if manifest_preview_revision:
+            active_generation = _int_value(active.get("generation"))
+            active_revision = str(
+                active.get("manifestRevision")
+                or (
+                    active.get("manifest")
+                    if isinstance(active.get("manifest"), dict)
+                    else {}
+                ).get("manifestRevision")
+                or ""
+            ).strip()
+            cache_key = (
+                "candidate-manifest-binding:"
+                f"{active_generation}:{active_revision}:"
+                f"{manifest_preview_revision}"
+            )
+            cached = self._manifest_binding_cache.get(cache_key)
+            cached_manifest = (
+                cached.get("manifest")
+                if isinstance(cached, dict)
+                and isinstance(cached.get("manifest"), dict)
+                else {}
+            )
+            if (
+                isinstance(cached, dict)
+                and cached.get("candidatePreview") is True
+                and _int_value(cached.get("generation"))
+                == active_generation
+                and str(
+                    cached.get("manifestRevision")
+                    or cached_manifest.get("manifestRevision")
+                    or ""
+                ).strip()
+                == manifest_preview_revision
+            ):
+                return cached
+            preview_reader = getattr(
+                self._gear_release_store,
+                "load_candidate_manifest_binding",
+                None,
+            )
+            if not callable(preview_reader):
+                raise RuntimeError(
+                    "candidate Manifest preview reader is unavailable"
+                )
+            preview = preview_reader(manifest_preview_revision)
+            preview = preview if isinstance(preview, dict) else {}
+            manifest = (
+                preview.get("manifest")
+                if isinstance(preview.get("manifest"), dict)
+                else {}
+            )
+            if (
+                str(
+                    preview.get("manifestRevision")
+                    or manifest.get("manifestRevision")
+                    or ""
+                ).strip()
+                != manifest_preview_revision
+                or manifest.get("schemaRevision")
+                != "active-season-manifest-v2"
+            ):
+                raise RuntimeError(
+                    "candidate Manifest v2 preview binding is invalid"
+                )
+            result = {
+                **preview,
+                "pointerMode": "candidate_preview",
+                "generation": active_generation,
+                "rollbackManifestRevision": str(
+                    active.get("rollbackManifestRevision") or ""
+                ).strip(),
+                "formalActiveManifest": False,
+                "candidatePreview": True,
+            }
+            self._manifest_binding_cache.put(
+                cache_key,
+                result,
+            )
+            return result
         manifest = active.get("manifest") if isinstance(active.get("manifest"), dict) else {}
         active_gear = active.get("gearRelease") if isinstance(active.get("gearRelease"), dict) else {}
         active_gear_release_id = str(manifest.get("gearCatalogReleaseId") or "").strip()
@@ -1931,7 +2550,7 @@ class PostgresCacheStore:
         generation = _int_value(pointer.get("generation"))
         if pointer_mode == "active" and manifest_revision:
             cache_key = f"active-manifest-binding:{generation}:{manifest_revision}"
-            cached = self._gear_authority_context_cache.get(cache_key)
+            cached = self._manifest_binding_cache.get(cache_key)
             if (
                 isinstance(cached, dict)
                 and cached.get("formalActiveManifest") is True
@@ -1946,7 +2565,7 @@ class PostgresCacheStore:
                 and _int_value(binding.get("generation")) == generation
                 and str(binding.get("manifestRevision") or "").strip() == manifest_revision
             ):
-                self._gear_authority_context_cache.put(cache_key, binding)
+                self._manifest_binding_cache.put(cache_key, binding)
             return self._candidate_preview_binding(binding)
         return self._candidate_preview_binding(self._gear_release_store.load_active_manifest_binding())
 
@@ -1981,6 +2600,11 @@ class PostgresCacheStore:
         context = self._gear_release_store.load_active_authority_context(
             selection_intent,
             runtime_authority,
+            binding,
+        )
+        context = self._bind_manifest_exact_authority(
+            selection_intent,
+            context,
             binding,
         )
         if isinstance(context, dict) and context.get("missingFields") == []:
@@ -2218,6 +2842,12 @@ class PostgresCacheStore:
             "byteSize": self._gear_authority_context_cache.byte_size,
             "maxEntries": self._gear_authority_context_cache.max_entries,
             "maxBytes": self._gear_authority_context_cache.max_bytes,
+            "manifestBinding": {
+                "entryCount": self._manifest_binding_cache.entry_count,
+                "byteSize": self._manifest_binding_cache.byte_size,
+                "maxEntries": self._manifest_binding_cache.max_entries,
+                "maxBytes": self._manifest_binding_cache.max_bytes,
+            },
         }
 
     def active_manifest_health(self):
@@ -2236,8 +2866,36 @@ class PostgresCacheStore:
                 "blockers": ["active Manifest pointer or release binding is invalid"],
             }
         manifest = binding.get("manifest") if isinstance(binding.get("manifest"), dict) else {}
+        catalog = (
+            binding.get("gearCatalog")
+            if isinstance(binding.get("gearCatalog"), dict)
+            else {}
+        )
+        exact_registry = (
+            binding.get("gearExactRegistry")
+            if isinstance(binding.get("gearExactRegistry"), dict)
+            else {}
+        )
         mode = str(binding.get("pointerMode") or "invalid")
         formal = binding.get("formalActiveManifest") is True
+        manifest_schema = str(
+            manifest.get("schemaRevision") or ""
+        )
+        catalog_revision = str(
+            manifest.get("gearCatalogRevision") or ""
+        )
+        exact_registry_revision = str(
+            manifest.get("gearExactRegistryRevision") or ""
+        )
+        single_authority_vector = bool(
+            manifest_schema == "active-season-manifest-v2"
+            and catalog_revision
+            and exact_registry_revision
+            and str(catalog.get("catalogRevision") or "")
+            == catalog_revision
+            and str(exact_registry.get("registryRevision") or "")
+            == exact_registry_revision
+        )
         details = {
             "pointerMode": mode,
             "formalActiveManifest": formal,
@@ -2246,6 +2904,14 @@ class PostgresCacheStore:
             "rollbackManifestRevision": str(binding.get("rollbackManifestRevision") or ""),
             "seasonRevision": str(manifest.get("seasonRevision") or ""),
             "gearCatalogReleaseId": str(manifest.get("gearCatalogReleaseId") or ""),
+            "manifestSchemaRevision": manifest_schema,
+            "singleAuthorityVector": single_authority_vector,
+            "gearCatalogRevision": catalog_revision,
+            "gearCatalogStatus": str(catalog.get("status") or ""),
+            "gearExactRegistryRevision": exact_registry_revision,
+            "gearExactRegistryStatus": str(
+                exact_registry.get("status") or ""
+            ),
             "communityTemplateReleaseId": str(manifest.get("communityTemplateReleaseId") or ""),
             "talentCatalogRevision": str(manifest.get("talentCatalogRevision") or ""),
             "updatedAt": str(binding.get("updatedAt") or ""),
@@ -7941,6 +8607,11 @@ class PostgresCacheStore:
         manifest = binding.get("manifest") if isinstance(binding.get("manifest"), dict) else {}
         gear = data.get("gearRelease") if isinstance(data.get("gearRelease"), dict) else {}
         community = data.get("communityRelease") if isinstance(data.get("communityRelease"), dict) else {}
+        catalog_revision = str(
+            manifest.get("gearCatalogRevision")
+            or gear.get("releaseId")
+            or ""
+        )
         return {
             "formalActiveManifest": binding.get("formalActiveManifest") is True,
             "candidatePreview": binding.get("candidatePreview") is True,
@@ -7948,7 +8619,10 @@ class PostgresCacheStore:
             "pointerGeneration": _int_value(binding.get("generation")),
             "seasonRevision": str(manifest.get("seasonRevision") or ""),
             "gearCatalogReleaseId": str(gear.get("releaseId") or ""),
-            "gearCatalogRevision": str(gear.get("releaseId") or ""),
+            "gearCatalogRevision": catalog_revision,
+            "gearExactRegistryRevision": str(
+                manifest.get("gearExactRegistryRevision") or ""
+            ),
             "communityTemplateReleaseId": str(community.get("releaseId") or ""),
             "talentCatalogRevision": str(manifest.get("talentCatalogRevision") or ""),
         }
@@ -7992,7 +8666,18 @@ class PostgresCacheStore:
         observed=None,
     ):
         include_catalog = mode != "initial"
-        data = self._gear_release_store.load_active_public_gear(
+        manifest = (
+            binding.get("manifest")
+            if isinstance(binding.get("manifest"), dict)
+            else {}
+        )
+        public_reader = (
+            self._gear_release_store.load_active_manifest_public_gear
+            if manifest.get("schemaRevision")
+            == "active-season-manifest-v2"
+            else self._gear_release_store.load_active_public_gear
+        )
+        data = public_reader(
             binding,
             class_key,
             spec_key,
@@ -8002,6 +8687,18 @@ class PostgresCacheStore:
         identity = self._active_release_identity(binding, data)
         gear_release = data.get("gearRelease") if isinstance(data.get("gearRelease"), dict) else {}
         release_status = str(gear_release.get("releaseStatus") or "blocked")
+        catalog = (
+            data.get("gearCatalog")
+            if isinstance(data.get("gearCatalog"), dict)
+            else {}
+        )
+        catalog_status = (
+            str(catalog.get("status") or "blocked")
+            if manifest.get("schemaRevision")
+            == "active-season-manifest-v2"
+            else "verified" if release_status == "validated" else "partial"
+        )
+        catalog_verified = catalog_status == "verified"
         season = {
             "seasonRevision": identity["seasonRevision"],
             "dataStatus": "verified" if release_status == "validated" else "partial",
@@ -8009,12 +8706,21 @@ class PostgresCacheStore:
         }
         season_fields = season_metadata_fields(season)
         catalog_state = {
-            "status": "verified" if release_status == "validated" else "partial",
-            "sourceStatus": release_status,
+            "status": "verified" if catalog_verified else "partial",
+            "sourceStatus": (
+                catalog_status
+                if manifest.get("schemaRevision")
+                == "active-season-manifest-v2"
+                else release_status
+            ),
             "schemaRevision": identity["gearCatalogRevision"],
             "itemDatabaseRevision": identity["gearCatalogRevision"],
             "variantRevision": identity["gearCatalogRevision"],
-            "blockers": [] if release_status == "validated" else ["active Gear Release is degraded"],
+            "blockers": (
+                []
+                if catalog_verified
+                else ["active Manifest Catalog is degraded"]
+            ),
         }
         catalog_blockers = list(catalog_state["blockers"])
         persisted_templates = [
@@ -8161,9 +8867,34 @@ class PostgresCacheStore:
                 )
             )
             active_fingerprint = (
-                "pg-websim-gear-release-v1",
+                (
+                    "pg-websim-gear-manifest-v2"
+                    if (
+                        binding.get("manifest")
+                        if isinstance(binding.get("manifest"), dict)
+                        else {}
+                    ).get("schemaRevision")
+                    == "active-season-manifest-v2"
+                    else "pg-websim-gear-release-v1"
+                ),
                 str(binding.get("manifestRevision") or ""),
                 _int_value(binding.get("generation")),
+                str(
+                    (
+                        binding.get("manifest")
+                        if isinstance(binding.get("manifest"), dict)
+                        else {}
+                    ).get("gearCatalogRevision")
+                    or ""
+                ),
+                str(
+                    (
+                        binding.get("manifest")
+                        if isinstance(binding.get("manifest"), dict)
+                        else {}
+                    ).get("gearExactRegistryRevision")
+                    or ""
+                ),
                 class_key,
                 spec_key,
                 compact,

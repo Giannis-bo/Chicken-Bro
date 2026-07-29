@@ -8,13 +8,15 @@ class SimcExecutionMatrixTest(unittest.TestCase):
         manifest_revision = "season-manifest:sha256:" + "a" * 64
         gear_release_id = "gear-release:sha256:" + "b" * 64
         community_release_id = "community-release:sha256:" + "c" * 64
+        catalog_revision = "gear-catalog:sha256:" + "e" * 64
+        exact_registry_revision = "gear-exact-registry:sha256:" + "f" * 64
         simc_revision = "simc:" + "d" * 40
         snapshot = {
             "contractRevision": "gear-resolved-snapshot-v1",
             "status": "verified",
             "dependencyVector": {
                 "seasonRevision": "season-r1",
-                "gearCatalogRevision": gear_release_id,
+                "gearCatalogRevision": catalog_revision,
                 "simcRuntimeRevision": simc_revision,
             },
             "eligibilityContext": {"level": 90},
@@ -85,10 +87,13 @@ class SimcExecutionMatrixTest(unittest.TestCase):
                         "canApplyGear": True,
                     })
                 return 200, {
-                    "formalActiveManifest": True,
+                    "formalActiveManifest": False,
+                    "candidatePreview": True,
                     "manifestRevision": manifest_revision,
                     "pointerGeneration": 27,
                     "gearCatalogReleaseId": gear_release_id,
+                    "gearCatalogRevision": catalog_revision,
+                    "gearExactRegistryRevision": exact_registry_revision,
                     "communityTemplateReleaseId": community_release_id,
                     "communityTemplates": templates,
                 }, 1.0
@@ -125,7 +130,8 @@ class SimcExecutionMatrixTest(unittest.TestCase):
                     "releaseContext": {
                         "manifestRevision": manifest_revision,
                         "pointerGeneration": 27,
-                        "gearCatalogRevision": gear_release_id,
+                        "gearCatalogRevision": catalog_revision,
+                        "gearExactRegistryRevision": exact_registry_revision,
                         "simcRuntimeRevision": simc_revision,
                     },
                     "data": {
@@ -163,6 +169,8 @@ class SimcExecutionMatrixTest(unittest.TestCase):
             pointer_generation=27,
             gear_release_id=gear_release_id,
             community_release_id=community_release_id,
+            catalog_revision=catalog_revision,
+            exact_registry_revision=exact_registry_revision,
             simc_runtime_revision=simc_revision,
             observed_at="2026-07-28T00:00:00+00:00",
         )
@@ -179,6 +187,11 @@ class SimcExecutionMatrixTest(unittest.TestCase):
             "deterministicallyBlockedSpecCount": 1,
         })
         self.assertEqual(report["failureCount"], 0)
+        self.assertEqual(report["gearCatalogRevision"], catalog_revision)
+        self.assertEqual(
+            report["gearExactRegistryRevision"],
+            exact_registry_revision,
+        )
         self.assertNotIn("matrix\\nspec=", str(report))
         self.assertNotIn("talents-mage-frost", str(report))
 

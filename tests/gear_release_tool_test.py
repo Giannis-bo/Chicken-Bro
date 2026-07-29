@@ -4143,6 +4143,103 @@ class GearReleaseToolTest(unittest.TestCase):
         self.assertEqual(updated_by, "candidate-test")
         self.assertEqual(json.loads(output.getvalue())["pointer"]["generation"], 1)
 
+    def test_seal_manifest_v2_does_not_move_the_retail_pointer(self):
+        from server import gear_release_tool
+        from server.gear_release_store import (
+            community_rows_summary,
+            gear_snapshot_summary,
+        )
+
+        snapshot = self.snapshot()
+        gear = gear_release.build_release(
+            release_kind="gear",
+            season_revision="season-17",
+            schema_revision="gear-release-v1",
+            content=gear_snapshot_summary(snapshot),
+            dependency_revisions=self.dependencies(),
+            release_status="validated",
+            source={"sourceRevision": "legacy-import-r0"},
+        )
+        community = gear_release.build_release(
+            release_kind="community",
+            season_revision="season-17",
+            schema_revision="community-release-v1",
+            content=community_rows_summary([{
+                "templateId": "template-a",
+                "classKey": "mage",
+                "specKey": "arcane",
+                "role": "winner",
+                "electionRank": 1,
+                "sourceKey": "observed",
+            }]),
+            dependency_revisions=self.dependencies(),
+            release_status="validated",
+            source={"sourceRevision": "legacy-import-r0"},
+            validated_against_release_id=gear["releaseId"],
+        )
+        catalog_revision = "gear-catalog:sha256:" + ("a" * 64)
+        exact_revision = (
+            "gear-exact-registry:sha256:" + ("b" * 64)
+        )
+
+        class SealStore:
+            def get_release(self, release_id):
+                return {
+                    gear["releaseId"]: gear,
+                    community["releaseId"]: community,
+                }.get(release_id, {})
+
+            def seal_manifest(self, manifest):
+                self.manifest = manifest
+                return {
+                    "status": "inserted",
+                    "manifestRevision": manifest["manifestRevision"],
+                }
+
+            def seal_manifest_and_compare_and_swap_pointer(self, *_args, **_kwargs):
+                raise AssertionError("candidate seal must not move the pointer")
+
+        store = SealStore()
+        output = io.StringIO()
+        with patch.object(
+            gear_release_tool,
+            "_store_from_environment",
+            return_value=store,
+        ), patch.object(
+            gear_release_tool,
+            "runtime_dependency_revisions",
+            return_value=self.dependencies(),
+        ), redirect_stdout(output):
+            status = gear_release_tool.main([
+                "seal-manifest",
+                "--season-revision", "season-17",
+                "--simc-runtime-revision", "simc-r1",
+                "--gear-release-id", gear["releaseId"],
+                "--community-release-id", community["releaseId"],
+                "--talent-catalog-revision", "talent-r1",
+                "--gear-catalog-revision", catalog_revision,
+                "--gear-exact-registry-revision", exact_revision,
+                "--rollback-manifest-revision", "manifest-v1",
+            ])
+
+        self.assertEqual(status, 0)
+        self.assertEqual(
+            store.manifest["schemaRevision"],
+            "active-season-manifest-v2",
+        )
+        self.assertEqual(
+            store.manifest["gearCatalogRevision"],
+            catalog_revision,
+        )
+        self.assertEqual(
+            store.manifest["gearExactRegistryRevision"],
+            exact_revision,
+        )
+        self.assertEqual(
+            json.loads(output.getvalue())["manifestRevision"],
+            store.manifest["manifestRevision"],
+        )
+
     def test_rollback_command_advances_to_explicit_transitional_pointer(self):
         from server import gear_release_tool
 

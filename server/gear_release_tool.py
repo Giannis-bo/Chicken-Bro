@@ -3078,6 +3078,7 @@ def _parser() -> argparse.ArgumentParser:
             "build-legacy-all",
             "show",
             "shadow",
+            "seal-manifest",
             "promote",
             "rollback",
         ),
@@ -3088,6 +3089,8 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--release-id", default="")
     parser.add_argument("--gear-release-id", default="")
     parser.add_argument("--community-release-id", default="")
+    parser.add_argument("--gear-catalog-revision", default="")
+    parser.add_argument("--gear-exact-registry-revision", default="")
     parser.add_argument("--talent-catalog-revision", default="")
     parser.add_argument("--manifest-revision", default="")
     parser.add_argument("--rollback-manifest-revision", default="")
@@ -3102,17 +3105,25 @@ def _parser() -> argparse.ArgumentParser:
 
 def main(argv=None) -> int:
     args = _parser().parse_args(argv)
-    if args.command == "promote":
+    if args.command in {"seal-manifest", "promote"}:
         required = {
             "--season-revision": args.season_revision,
             "--simc-runtime-revision": args.simc_runtime_revision,
             "--gear-release-id": args.gear_release_id,
             "--talent-catalog-revision": args.talent_catalog_revision,
-            "--updated-by": args.updated_by,
         }
+        if args.command == "promote":
+            required["--updated-by"] = args.updated_by
         missing = [name for name, value in required.items() if not _text(value)]
-        if args.expected_generation < 0:
+        if args.command == "promote" and args.expected_generation < 0:
             missing.append("--expected-generation")
+        if bool(_text(args.gear_catalog_revision)) != bool(
+            _text(args.gear_exact_registry_revision)
+        ):
+            missing.append(
+                "--gear-catalog-revision and "
+                "--gear-exact-registry-revision"
+            )
         if missing:
             raise SystemExit(", ".join(missing) + " are required")
         store = _store_from_environment()
@@ -3124,7 +3135,17 @@ def main(argv=None) -> int:
             community_descriptor = store.get_release(args.community_release_id)
             if not community_descriptor:
                 raise GearReleaseIntegrityError("Community Release is missing")
-        dependencies = runtime_dependency_revisions(args.simc_runtime_revision)
+        dependencies = runtime_dependency_revisions(
+            args.simc_runtime_revision
+        )
+        if args.gear_catalog_revision:
+            dependencies = {
+                **dependencies,
+                "gearCatalogRevision": args.gear_catalog_revision,
+                "gearExactRegistryRevision": (
+                    args.gear_exact_registry_revision
+                ),
+            }
         manifest = gear_release.build_manifest(
             season_revision=args.season_revision,
             gear_release=gear_descriptor,
@@ -3132,7 +3153,19 @@ def main(argv=None) -> int:
             talent_catalog_revision=args.talent_catalog_revision,
             dependency_revisions=dependencies,
             rollback_manifest_revision=args.rollback_manifest_revision,
+            catalog_revision=args.gear_catalog_revision,
+            exact_registry_revision=(
+                args.gear_exact_registry_revision
+            ),
         )
+        if args.command == "seal-manifest":
+            result = store.seal_manifest(manifest)
+            print(json.dumps({
+                "status": result.get("status"),
+                "manifestRevision": manifest["manifestRevision"],
+                "manifest": manifest,
+            }, ensure_ascii=False, sort_keys=True))
+            return 0
         command = gear_release.build_pointer_command(
             "promote",
             manifest["manifestRevision"],

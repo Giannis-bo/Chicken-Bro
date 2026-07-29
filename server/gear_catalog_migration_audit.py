@@ -13,11 +13,18 @@ import json
 import re
 from typing import Any, Iterable, Mapping
 
-from server.gear_track_authority import (
-    resolve_exact_instance_progression,
-    resolve_legacy_browse_progression,
-    track_authority_for_binding,
-)
+try:
+    from server.gear_track_authority import (
+        resolve_exact_instance_progression,
+        resolve_legacy_browse_progression,
+        track_authority_for_binding,
+    )
+except ImportError:
+    from gear_track_authority import (
+        resolve_exact_instance_progression,
+        resolve_legacy_browse_progression,
+        track_authority_for_binding,
+    )
 
 AUDIT_SCHEMA_REVISION = "equipment-simulator-catalog-migration-audit-v2"
 AUDIT_REPORT_PREFIX = "catalog-migration-audit:sha256:"

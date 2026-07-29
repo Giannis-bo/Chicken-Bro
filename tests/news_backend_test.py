@@ -126,7 +126,7 @@ class NewsBackendTest(unittest.TestCase):
         self.addCleanup(setattr, simulator_payload, "call_chat_completion", original_call_chat_completion)
         simulator_payload.call_chat_completion = fake_call_chat_completion
 
-    def test_cache_data_store_reuses_only_authority_cache_for_same_database_url(self):
+    def test_cache_data_store_reuses_authority_and_manifest_caches_for_same_database_url(self):
         with patch.dict(
             os.environ,
             {
@@ -142,6 +142,14 @@ class NewsBackendTest(unittest.TestCase):
                 first._gear_authority_context_cache,
                 second._gear_authority_context_cache,
             )
+            self.assertIs(
+                first._manifest_binding_cache,
+                second._manifest_binding_cache,
+            )
+            self.assertEqual(
+                first._manifest_binding_cache.max_bytes,
+                32 * 1024 * 1024,
+            )
 
             os.environ["WOW_DATABASE_URL"] = "postgresql://example.invalid/wow-b"
             other_database = self.backend.cache_data_store()
@@ -150,8 +158,12 @@ class NewsBackendTest(unittest.TestCase):
                 first._gear_authority_context_cache,
                 other_database._gear_authority_context_cache,
             )
+            self.assertIsNot(
+                first._manifest_binding_cache,
+                other_database._manifest_binding_cache,
+            )
 
-    def test_cache_data_store_does_not_retain_authority_cache_when_pg_runtime_is_disabled(self):
+    def test_cache_data_store_does_not_retain_runtime_caches_when_pg_runtime_is_disabled(self):
         with patch.dict(
             os.environ,
             {
@@ -161,6 +173,9 @@ class NewsBackendTest(unittest.TestCase):
         ):
             self.assertIsNone(self.backend.cache_data_store())
             self.assertIsNone(self.backend._GEAR_AUTHORITY_CACHE)
+            self.assertIsNone(
+                self.backend._GEAR_MANIFEST_BINDING_CACHE
+            )
 
     def test_blizzard_forum_source_uses_slug_url_without_stale_category_id(self):
         forum_source = self.backend.NEWS_SOURCES_BY_ID["blizzard-forums"]
@@ -2020,6 +2035,9 @@ class NewsBackendTest(unittest.TestCase):
             "contractRevision": "gear-resolved-snapshot-v1",
             "status": "verified",
             "resolvedGearSignature": "sha256:" + "b" * 64,
+            "dependencyVector": {
+                "templateOriginSignature": "sha256:" + "f" * 64,
+            },
         }
         release_context = {
             "manifestRevision": "season-manifest:r17",
@@ -2063,8 +2081,20 @@ class NewsBackendTest(unittest.TestCase):
         class FakePhase3CacheStore:
             def __init__(self):
                 self.sealed = []
+                self.exact_binding_calls = []
 
-            def get_latest_gear_exact_registry(self):
+            def get_active_gear_exact_registry(
+                self,
+                *,
+                expected_manifest_revision="",
+                expected_pointer_generation=0,
+            ):
+                self.exact_binding_calls.append(
+                    (
+                        expected_manifest_revision,
+                        expected_pointer_generation,
+                    )
+                )
                 return {"registryRevision": "gear-exact-registry:test"}
 
             def seal_resolved_loadout(self, value):
@@ -2149,7 +2179,7 @@ class NewsBackendTest(unittest.TestCase):
             self.backend,
             "build_resolved_loadout_from_registry",
             return_value=phase3_loadout,
-        ), patch.object(
+        ) as loadout_builder, patch.object(
             self.backend,
             "snapshot_from_compatibility_profile",
             return_value=phase3_snapshot,
@@ -2203,6 +2233,19 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(
             [kind for kind, _value in phase3_cache_store.sealed],
             ["loadout", "snapshot", "loadout", "snapshot"],
+        )
+        self.assertEqual(
+            phase3_cache_store.exact_binding_calls,
+            [("season-manifest:r17", 9)] * 4,
+        )
+        self.assertEqual(loadout_builder.call_count, 4)
+        self.assertTrue(
+            all(
+                call.kwargs["template_authority_identity"]
+                == "sha256:" + "f" * 64
+                and call.kwargs["template_scope"] == "community"
+                for call in loadout_builder.call_args_list
+            )
         )
         self.assertEqual(queued["simcReport"]["build"]["statSnapshot"]["primary"]["value"], "2,624")
         self.assertIn("# canonical-resolver-profile", analysis["agent"]["draftProfile"])

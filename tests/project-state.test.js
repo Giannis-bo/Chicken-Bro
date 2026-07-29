@@ -100,6 +100,7 @@ test('project-state is the single machine-readable current truth entry', () => {
   assert.ok(activeContractIds.has('taro_target_first_14_route_rebuild'))
   assert.ok(activeContractIds.has('observed_build_registry_cutover'))
   assert.ok(activeContractIds.has('equipment_simulator_target_architecture_v1'))
+  assert.ok(activeContractIds.has('equipment_simulator_phase4_manifest_cutover'))
   assert.ok(activeContractIds.has('equipment_simulator_catalog_migration_phase0'))
   assert.ok(activeContractIds.has('equipment_simulator_track_authority_correction'))
   assert.ok(!activeContractIds.has('equipment_simulator_phase1_catalog_contract'))
@@ -114,9 +115,17 @@ test('project-state is the single machine-readable current truth entry', () => {
   const equipmentTargetArchitecture = state.activeContracts.find(
     (entry) => entry.id === 'equipment_simulator_target_architecture_v1',
   )
+  const equipmentPhase4Cutover = state.activeContracts.find(
+    (entry) => entry.id === 'equipment_simulator_phase4_manifest_cutover',
+  )
   assert.equal(
     equipmentTargetArchitecture?.status,
     'approved_phase4_active',
+  )
+  assert.equal(equipmentPhase4Cutover?.status, 'implementation_allowed')
+  assert.equal(
+    equipmentPhase4Cutover?.path,
+    'docs/plans/2026-07-29-equipment-simulator-phase4-manifest-cutover.md',
   )
   assert.equal(
     catalogMigrationPhase0?.path,

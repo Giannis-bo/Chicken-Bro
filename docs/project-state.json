@@ -63,6 +63,15 @@
       "notes": "The approved target architecture remains active. Phase 0-3 are archived with complete browse/Community/SimC/WeChat, CatalogRevision, ExactItemInstance, EnhancementSelection, exact ResolvedLoadout and immutable SimulationSnapshot evidence. Phase 4 is the final cutover slice: one active Manifest dependency vector, caller-proof old-reader retirement, health-owner migration, rollback and final real-WeChat closure. The 55 Phase 2 partial references remain non-consumable and generation 32 stays unchanged until a verified cutover."
     },
     {
+      "id": "equipment_simulator_phase4_manifest_cutover",
+      "path": "docs/plans/2026-07-29-equipment-simulator-phase4-manifest-cutover.md",
+      "status": "implementation_allowed",
+      "lifecycle": "active",
+      "requirement": "artifacts/releases/2026-07-29-equipment-simulator-phase4-manifest-cutover/requirement.json",
+      "baseCommit": "ae537ff5bdfcca1984459747b909dcbcb59b5046",
+      "notes": "Strict final cutover: Manifest v2 binds CatalogRevision and Exact Registry with Gear/Community/runtime dependencies, all active consumers move to one immutable binding, legacy runtime readers reach zero callers, and CAS promotion/rollback plus official WeChat and three-party closure are mandatory."
+    },
+    {
       "id": "equipment_simulator_track_authority_correction",
       "path": "docs/plans/2026-07-28-equipment-simulator-track-authority-correction.md",
       "status": "superseded_by_verified_phase0_runtime",

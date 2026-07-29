@@ -23,23 +23,35 @@ if str(REPOSITORY_ROOT) not in sys.path:
     sys.path.insert(0, str(REPOSITORY_ROOT))
 
 from server.gear_catalog_audit_store import GearCatalogAuditStore  # noqa: E402
-from server.gear_exact_item_registry import template_content_hash  # noqa: E402
-from server.gear_resolved_loadout import build_resolved_loadout  # noqa: E402
-from server.gear_resolver import resolve  # noqa: E402
+from server.gear_resolved_loadout import (  # noqa: E402
+    build_resolved_loadout_from_registry,
+)
 from server.postgres_cache_store import PostgresCacheStore  # noqa: E402
 from server.simc_support_policy import simc_execution_support  # noqa: E402
 from server.simulation_snapshot_compat import (  # noqa: E402
     snapshot_from_compatibility_profile,
 )
-from server.websim_payload import gear_resolver_runtime_authority  # noqa: E402
+from server.websim_payload import (  # noqa: E402
+    build_websim_profile_response_from_resolved_snapshot,
+)
 
 
 MAX_SECONDS = 300.0
+MAX_TOTAL_SECONDS = 600.0
 MAX_BYTES = 2_000_000_000
 
 
 def _text(value: Any) -> str:
     return str(value or "").strip()
+
+
+def _sha256_identity(value: Any) -> str:
+    normalized = _text(value)
+    return normalized if (
+        len(normalized) == 71
+        and normalized.startswith("sha256:")
+        and all(character in "0123456789abcdef" for character in normalized[7:])
+    ) else ""
 
 
 def _mapping(value: Any) -> dict[str, Any]:
@@ -72,6 +84,67 @@ def _problem_counts(rows: list[dict[str, Any]]) -> dict[str, int]:
     return {key: result[key] for key in sorted(result)}
 
 
+def _expected_exact_outcomes(
+    templates: list[Mapping[str, Any]],
+    exact_registry: Mapping[str, Any],
+) -> dict[str, int]:
+    """Derive readiness counts from sealed references, not old sample counts."""
+
+    groups: dict[
+        str,
+        dict[str, list[Mapping[str, Any]]],
+    ] = {}
+    for raw in exact_registry.get("templateReferences") or []:
+        if not isinstance(raw, Mapping):
+            continue
+        identity = _text(raw.get("templateAuthorityIdentity"))
+        content_hash = _text(raw.get("templateContentHash"))
+        if (
+            _text(raw.get("templateScope")) != "community"
+            or not identity
+            or not content_hash
+        ):
+            continue
+        groups.setdefault(identity, {}).setdefault(
+            content_hash,
+            [],
+        ).append(raw)
+
+    ready_loadouts = 0
+    ready_snapshots = 0
+    unsupported_snapshots = 0
+    for raw in templates:
+        template = _mapping(raw)
+        identity = _text(
+            template.get("templateAuthorityIdentity")
+        )
+        content_groups = groups.get(identity) or {}
+        if len(content_groups) != 1:
+            continue
+        references = next(iter(content_groups.values()))
+        if not references or any(
+            reference.get("validationStatus") != "verified"
+            or reference.get("problemCodes")
+            or not _text(reference.get("exactItemInstanceKey"))
+            for reference in references
+        ):
+            continue
+        ready_loadouts += 1
+        support = simc_execution_support(
+            template.get("classKey"),
+            template.get("specKey"),
+        )
+        if support.get("supported"):
+            ready_snapshots += 1
+        else:
+            unsupported_snapshots += 1
+    return {
+        "readyLoadoutCount": ready_loadouts,
+        "readySnapshotCount": ready_snapshots,
+        "unsupportedSnapshotCount": unsupported_snapshots,
+    }
+
+
 def run_shadow(
     *,
     templates: list[Mapping[str, Any]],
@@ -90,34 +163,87 @@ def run_shadow(
     expected_spec_count: int = 40,
     expected_supported_spec_count: int = 26,
     expected_unsupported_spec_count: int = 14,
+    expected_ready_loadout_count: int | None = None,
+    expected_ready_snapshot_count: int | None = None,
+    expected_unsupported_snapshot_count: int | None = None,
+    elapsed_before_shadow: float = 0.0,
+    max_total_seconds: float = MAX_TOTAL_SECONDS,
 ) -> dict[str, Any]:
     started = time.monotonic()
+    derived_expectations = _expected_exact_outcomes(
+        templates,
+        exact_registry,
+    )
+    expected_ready_loadout_count = (
+        derived_expectations["readyLoadoutCount"]
+        if expected_ready_loadout_count is None
+        else expected_ready_loadout_count
+    )
+    expected_ready_snapshot_count = (
+        derived_expectations["readySnapshotCount"]
+        if expected_ready_snapshot_count is None
+        else expected_ready_snapshot_count
+    )
+    expected_unsupported_snapshot_count = (
+        derived_expectations["unsupportedSnapshotCount"]
+        if expected_unsupported_snapshot_count is None
+        else expected_unsupported_snapshot_count
+    )
     rows: list[dict[str, Any]] = []
     for raw_template in templates:
         template = _mapping(raw_template)
-        intent = _mapping(template.get("selectionIntent"))
-        content_hash = template_content_hash(template)
-        try:
-            first_resolver = _mapping(resolver_reader(intent))
-            second_resolver = _mapping(resolver_reader(intent))
-            first_loadout = build_resolved_loadout(
-                resolver_snapshot=first_resolver,
-                exact_registry=exact_registry,
-                template_scope="community",
-                template_content_hash=content_hash,
+        content_hash = _text(template.get("templateContentHash")) or _hash(
+            "sha256:",
+            {
+                "classKey": _text(template.get("classKey")),
+                "specKey": _text(template.get("specKey")),
+                "templateId": _text(
+                    template.get("templateId") or template.get("id")
+                ),
+            },
+        )
+        authority_identity = _text(
+            template.get("templateAuthorityIdentity")
+        )
+        import_status = _text(template.get("importStatus")) or "verified"
+        if import_status != "verified":
+            import_problem_codes = sorted(
+                {
+                    _text(code)
+                    for code in template.get("importProblemCodes") or []
+                    if _text(code)
+                }
             )
-            second_loadout = build_resolved_loadout(
-                resolver_snapshot=second_resolver,
-                exact_registry=exact_registry,
-                template_scope="community",
-                template_content_hash=content_hash,
-            )
-        except Exception:
             first_loadout = {
                 "status": "blocked",
-                "problemCodes": ["RESOLVED_SHADOW_RESOLVER_FAILED"],
+                "problemCodes": (
+                    import_problem_codes
+                    or ["RESOLVED_SHADOW_IMPORT_BLOCKED"]
+                ),
             }
             second_loadout = first_loadout
+        else:
+            try:
+                first_resolver = _mapping(resolver_reader(template))
+                second_resolver = _mapping(resolver_reader(template))
+                first_loadout = build_resolved_loadout_from_registry(
+                    resolver_snapshot=first_resolver,
+                    exact_registry=exact_registry,
+                    template_scope="community",
+                    template_authority_identity=authority_identity,
+                )
+                second_loadout = build_resolved_loadout_from_registry(
+                    resolver_snapshot=second_resolver,
+                    exact_registry=exact_registry,
+                    template_scope="community",
+                    template_authority_identity=authority_identity,
+                )
+            except Exception:
+                first_loadout = {
+                    "status": "blocked",
+                    "problemCodes": ["RESOLVED_SHADOW_RESOLVER_FAILED"],
+                }
+                second_loadout = first_loadout
 
         deterministic_loadout = first_loadout == second_loadout
         snapshot_status = "not_applicable"
@@ -170,6 +296,7 @@ def run_shadow(
 
     pointer_after = _mapping(pointer_after_reader())
     elapsed = time.monotonic() - started
+    total_elapsed = max(0.0, float(elapsed_before_shadow)) + elapsed
     peak_bytes = _peak_bytes()
     spec_pairs = {
         (_text(row.get("classKey")), _text(row.get("specKey")))
@@ -241,6 +368,12 @@ def run_shadow(
             ),
             "expectedSupportedSpecCount": expected_supported_spec_count,
             "expectedUnsupportedSpecCount": expected_unsupported_spec_count,
+            "expectedReadyLoadoutCount": expected_ready_loadout_count,
+            "expectedReadySnapshotCount": expected_ready_snapshot_count,
+            "expectedUnsupportedSnapshotCount": (
+                expected_unsupported_snapshot_count
+            ),
+            "expectationSource": "sealed_exact_registry",
         },
         "deterministic": {
             "loadouts": all(row["deterministicLoadout"] for row in rows),
@@ -262,6 +395,18 @@ def run_shadow(
         problem_codes.add(
             "RESOLVED_SHADOW_UNSUPPORTED_SPEC_COVERAGE_INCOMPLETE"
         )
+    if len(ready_rows) != expected_ready_loadout_count:
+        problem_codes.add(
+            "RESOLVED_SHADOW_READY_LOADOUT_COUNT_MISMATCH"
+        )
+    if len(ready_snapshots) != expected_ready_snapshot_count:
+        problem_codes.add(
+            "RESOLVED_SHADOW_READY_SNAPSHOT_COUNT_MISMATCH"
+        )
+    if len(unsupported_snapshots) != expected_unsupported_snapshot_count:
+        problem_codes.add(
+            "RESOLVED_SHADOW_UNSUPPORTED_SNAPSHOT_COUNT_MISMATCH"
+        )
     if not stable["pointerStable"]:
         problem_codes.add("RESOLVED_SHADOW_POINTER_CHANGED")
     if not stable["deterministic"]["loadouts"]:
@@ -274,6 +419,10 @@ def run_shadow(
         problem_codes.add("RESOLVED_SHADOW_READY_SNAPSHOT_BLOCKED")
     if elapsed > MAX_SECONDS:
         problem_codes.add("RESOLVED_SHADOW_RESOURCE_SECONDS_EXCEEDED")
+    if total_elapsed > max_total_seconds:
+        problem_codes.add(
+            "RESOLVED_SHADOW_TOTAL_SECONDS_EXCEEDED"
+        )
     if peak_bytes > MAX_BYTES:
         problem_codes.add("RESOLVED_SHADOW_RESOURCE_BYTES_EXCEEDED")
     status = "verified" if not problem_codes else "blocked"
@@ -283,9 +432,15 @@ def run_shadow(
         "problemCodes": sorted(problem_codes),
         "observedAt": _text(observed_at),
         "resource": {
-            "elapsedSeconds": round(elapsed, 6),
+            "shadowElapsedSeconds": round(elapsed, 6),
+            "setupAndImportElapsedSeconds": round(
+                max(0.0, float(elapsed_before_shadow)),
+                6,
+            ),
+            "totalElapsedSeconds": round(total_elapsed, 6),
             "peakBytes": peak_bytes,
             "maxSeconds": MAX_SECONDS,
+            "maxTotalSeconds": max_total_seconds,
             "maxBytes": MAX_BYTES,
         },
     }
@@ -307,6 +462,7 @@ class ProfileReader:
         self.options = self._request("GET", "/api/simulator/simc/options")
         races = _mapping(self.options.get("races"))
         self.default_races = _mapping(races.get("defaultByClass"))
+        self.browse: dict[tuple[str, str], dict[str, Any]] = {}
         self.heroes: dict[tuple[str, str], list[str]] = {}
         self.talents: dict[tuple[str, str, str], str] = {}
 
@@ -315,6 +471,8 @@ class ProfileReader:
         method: str,
         path: str,
         payload: Mapping[str, Any] | None = None,
+        *,
+        accept_http_errors: bool = False,
     ) -> dict[str, Any]:
         data = (
             json.dumps(
@@ -337,17 +495,21 @@ class ProfileReader:
                 raw = response.read()
         except HTTPError as error:
             raw = error.read()
-            if error.code >= 400:
+            if error.code >= 400 and not accept_http_errors:
                 raise RuntimeError(f"profile HTTP {error.code}") from error
         decoded = json.loads(raw.decode("utf-8"))
         if not isinstance(decoded, dict):
             raise RuntimeError("profile response is not an object")
         return decoded
 
-    def _talent_import(self, class_key: str, spec_key: str) -> str:
+    def _browse_spec(
+        self,
+        class_key: str,
+        spec_key: str,
+    ) -> dict[str, Any]:
         pair = (class_key, spec_key)
-        if pair not in self.heroes:
-            browse = self._request(
+        if pair not in self.browse:
+            self.browse[pair] = self._request(
                 "GET",
                 "/api/websim/gear?"
                 + urlencode(
@@ -359,6 +521,138 @@ class ProfileReader:
                     }
                 ),
             )
+        return self.browse[pair]
+
+    def import_template(
+        self,
+        template: Mapping[str, Any],
+    ) -> dict[str, Any]:
+        class_key = _text(template.get("classKey"))
+        spec_key = _text(template.get("specKey"))
+        template_id = _text(
+            template.get("templateId") or template.get("id")
+        )
+        stable = {
+            "templateContentHash": _text(
+                template.get("templateContentHash")
+                or template.get("contentHash")
+            ),
+            "templateId": template_id,
+            "classKey": class_key,
+            "specKey": spec_key,
+        }
+        try:
+            browse = self._browse_spec(class_key, spec_key)
+            manifest_revision = _text(
+                browse.get("manifestRevision")
+            )
+            matches = [
+                row
+                for row in browse.get("communityTemplates") or []
+                if (
+                    isinstance(row, Mapping)
+                    and _text(row.get("id")) == template_id
+                    and _text(row.get("classKey")) == class_key
+                    and _text(row.get("specKey")) == spec_key
+                )
+            ]
+            if len(matches) != 1 or not manifest_revision:
+                return {
+                    **stable,
+                    "importStatus": "blocked",
+                    "importProblemCodes": [
+                        "RESOLVED_SHADOW_TEMPLATE_NOT_BROWSABLE"
+                    ],
+                }
+            envelope = self._request(
+                "POST",
+                "/api/websim/gear/community-import",
+                {
+                    "classKey": class_key,
+                    "specKey": spec_key,
+                    "templateId": template_id,
+                    "expectedManifestRevision": manifest_revision,
+                },
+                accept_http_errors=True,
+            )
+        except Exception:
+            return {
+                **stable,
+                "importStatus": "unavailable",
+                "importProblemCodes": [
+                    "RESOLVED_SHADOW_IMPORT_REQUEST_FAILED"
+                ],
+            }
+        data = _mapping(envelope.get("data"))
+        public_template = _mapping(data.get("template"))
+        authority_identity = _sha256_identity(
+            public_template.get("templateAuthorityIdentity")
+        )
+        snapshot = _mapping(data.get("resolvedSnapshot"))
+        status = _text(envelope.get("status"))
+        problem_codes = sorted(
+            {
+                _text(problem.get("code"))
+                for problem in envelope.get("problems") or []
+                if isinstance(problem, Mapping)
+                and _text(problem.get("code"))
+            }
+        )
+        if (
+            status == "verified"
+            and data.get("status") == "verified"
+            and snapshot.get("status") == "verified"
+            and authority_identity
+        ):
+            return {
+                **stable,
+                "importStatus": "verified",
+                "importProblemCodes": [],
+                "templateAuthorityIdentity": authority_identity,
+                "resolvedSnapshot": snapshot,
+            }
+        if (
+            status == "verified"
+            and data.get("status") == "verified"
+            and snapshot.get("status") == "verified"
+        ):
+            return {
+                **stable,
+                "importStatus": "blocked",
+                "importProblemCodes": [
+                    "RESOLVED_SHADOW_TEMPLATE_AUTHORITY_IDENTITY_MISSING"
+                ],
+            }
+        return {
+            **stable,
+            "importStatus": status or "blocked",
+            "importProblemCodes": (
+                problem_codes
+                or ["RESOLVED_SHADOW_IMPORT_BLOCKED"]
+            ),
+        }
+
+    def templates_for_spec(
+        self,
+        class_key: str,
+        spec_key: str,
+    ) -> list[dict[str, Any]]:
+        browse = self._browse_spec(class_key, spec_key)
+        return [
+            _mapping(row)
+            for row in browse.get("communityTemplates") or []
+            if (
+                isinstance(row, Mapping)
+                and _text(row.get("id"))
+                and _text(row.get("classKey")) == class_key
+                and _text(row.get("specKey")) == spec_key
+            )
+        ]
+
+    def _talent_import(self, class_key: str, spec_key: str) -> str:
+        pair = (class_key, spec_key)
+        if pair not in self.heroes:
+            browse = self._browse_spec(class_key, spec_key)
             self.heroes[pair] = sorted(
                 {
                     _text(row.get("heroKey"))
@@ -392,32 +686,53 @@ class ProfileReader:
         if not support.get("supported"):
             return ""
         talent = self._talent_import(class_key, spec_key)
-        response = self._request(
-            "POST",
-            "/api/websim/profile",
-            {
-                "selectionIntent": _mapping(
-                    template.get("selectionIntent")
-                ),
-                "profileContext": {
-                    "classKey": class_key,
-                    "specKey": spec_key,
-                    "race": _text(self.default_races.get(class_key)),
-                    "scenarioKey": "single",
-                    "talents": talent,
-                },
+        response = build_websim_profile_response_from_resolved_snapshot(
+            _mapping(template.get("resolvedSnapshot")),
+            source_context={
+                "classKey": class_key,
+                "specKey": spec_key,
+                "race": _text(self.default_races.get(class_key)),
+                "scenarioKey": "single",
+                "talents": talent,
             },
         )
-        data = _mapping(response.get("data"))
-        profile = data.get("profile")
+        profile = response.get("profile")
         if (
             response.get("status") != "resolved"
-            or data.get("status") != "resolved"
             or not isinstance(profile, str)
             or not profile.strip()
         ):
             raise RuntimeError("canonical profile unavailable")
         return profile
+
+
+def verify_public_import(
+    profile_reader: ProfileReader,
+    template: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Repeat only successful imports; literal blocked outcomes need no retry."""
+
+    first_import = profile_reader.import_template(template)
+    if first_import.get("importStatus") != "verified":
+        return first_import
+    second_import = profile_reader.import_template(template)
+    if first_import == second_import:
+        return first_import
+    return {
+        "templateContentHash": _text(
+            template.get("templateContentHash")
+            or template.get("contentHash")
+        ),
+        "templateId": _text(
+            template.get("templateId") or template.get("id")
+        ),
+        "classKey": _text(template.get("classKey")),
+        "specKey": _text(template.get("specKey")),
+        "importStatus": "blocked",
+        "importProblemCodes": [
+            "RESOLVED_SHADOW_IMPORT_NONDETERMINISTIC"
+        ],
+    }
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -431,6 +746,7 @@ def _parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
+    total_started = time.monotonic()
     if _text(os.environ.get("WOW_DATABASE_RUNTIME")) != "postgres_only":
         print("RESOLVED_SHADOW_REQUIRES_POSTGRES_ONLY", file=sys.stderr)
         return 2
@@ -450,17 +766,39 @@ def main(argv: list[str] | None = None) -> int:
     )
     try:
         audit = audit_store.snapshot()
-        registry = cache_store.get_latest_gear_exact_registry()
+        pointer_before = _mapping(audit.get("pointerBefore"))
+        registry = cache_store.get_active_gear_exact_registry()
 
-        def resolver_reader(intent):
-            eligibility = _mapping(intent.get("eligibilityContext"))
-            runtime = gear_resolver_runtime_authority(
-                eligibility.get("classKey"),
-                eligibility.get("specKey"),
-                simc_runtime_revision=args.simc_runtime_revision,
+        spec_pairs = sorted(
+            {
+                (
+                    _text(row.get("classKey")),
+                    _text(row.get("specKey")),
+                )
+                for row in audit.get("communityTemplates") or []
+                if (
+                    isinstance(row, Mapping)
+                    and _text(row.get("classKey"))
+                    and _text(row.get("specKey"))
+                )
+            }
+        )
+        public_templates = [
+            row
+            for class_key, spec_key in spec_pairs
+            for row in profile_reader.templates_for_spec(
+                class_key,
+                spec_key,
             )
-            context = cache_store.get_gear_authority_context(intent, runtime)
-            return resolve(intent, context)
+        ]
+        imported_templates = []
+        for row in public_templates:
+            imported_templates.append(
+                verify_public_import(profile_reader, row)
+            )
+
+        def resolver_reader(template):
+            return _mapping(template.get("resolvedSnapshot"))
 
         def snapshot_reader(loadout, template):
             class_key = _text(template.get("classKey"))
@@ -488,19 +826,18 @@ def main(argv: list[str] | None = None) -> int:
             )
 
         report = run_shadow(
-            templates=[
-                row
-                for row in audit.get("communityTemplates") or []
-                if isinstance(row, Mapping)
-            ],
+            templates=imported_templates,
             exact_registry=registry,
             resolver_reader=resolver_reader,
             snapshot_reader=snapshot_reader,
             seal_loadout=cache_store.seal_resolved_loadout,
             seal_snapshot=cache_store.seal_simulation_snapshot,
-            pointer_before=_mapping(audit.get("pointerBefore")),
+            pointer_before=pointer_before,
             pointer_after_reader=audit_store.pointer_identity,
             observed_at=datetime.now(timezone.utc).isoformat(),
+            elapsed_before_shadow=(
+                time.monotonic() - total_started
+            ),
         )
     except Exception as error:
         print(

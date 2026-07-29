@@ -12,6 +12,11 @@ import json
 import re
 from typing import Any, Iterable, Mapping
 
+try:
+    from .gear_contracts import community_template_authority_identity
+except ImportError:
+    from gear_contracts import community_template_authority_identity
+
 
 _RELATION_ALLOWLIST = (
     "app.build_templates",
@@ -646,10 +651,9 @@ class GearCatalogAuditStore:
                         evidence.get("observedItemLevel")
                     )
             result.append({
-                "templateIdentity": _anonymous_hash({
-                    "source": "community",
-                    "templateId": _text(row[0]),
-                }),
+                "templateIdentity": community_template_authority_identity(
+                    row[0]
+                ),
                 "classKey": _text(row[1]),
                 "specKey": _text(row[2]),
                 "selectionIntent": selection_intent,

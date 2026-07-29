@@ -13,17 +13,31 @@ import json
 import re
 from typing import Any, Iterable, Mapping
 
-from .gear_catalog_migration_audit import audit_catalog_mapping
-from .gear_track_authority import resolve_legacy_browse_progression
+try:
+    from .gear_catalog_migration_audit import audit_catalog_mapping
+    from .gear_track_authority import (
+        resolve_exact_instance_progression,
+        resolve_legacy_browse_progression,
+    )
+except ImportError:
+    from gear_catalog_migration_audit import audit_catalog_mapping
+    from gear_track_authority import (
+        resolve_exact_instance_progression,
+        resolve_legacy_browse_progression,
+    )
 
 
-CATALOG_SCHEMA_REVISION = "gear-catalog-revision-v1"
-CATALOG_BUILDER_REVISION = "gear-catalog-builder-v1"
+LEGACY_CATALOG_SCHEMA_REVISION = "gear-catalog-revision-v1"
+CATALOG_SCHEMA_REVISION = "gear-catalog-revision-v2"
+CATALOG_BUILDER_REVISION = "gear-catalog-builder-v2"
 CATALOG_REVISION_PATTERN = re.compile(
     r"^gear-catalog:sha256:[0-9a-f]{64}$"
 )
 BROWSE_VARIANT_KEY_PATTERN = re.compile(
     r"^browse-variant:sha256:[0-9a-f]{64}$"
+)
+VARIANT_SHAPE_KEY_PATTERN = re.compile(
+    r"^variant-shape:sha256:[0-9a-f]{64}$"
 )
 
 _NON_IDENTITY_KEYS = {
@@ -184,15 +198,34 @@ def catalog_browse_variant_key(
     catalog_revision: str,
     item_id: str,
     progression_state: Mapping[str, Any],
+    variant_shape_key: str = "",
 ) -> str:
     """Derive a Catalog-bound BrowseVariant identity after Catalog hashing."""
 
+    identity = {
+        "catalogRevision": _text(catalog_revision),
+        "itemId": _text(item_id),
+        "progressionState": _canonical(progression_state),
+    }
+    if _text(variant_shape_key):
+        identity["variantShapeKey"] = _text(variant_shape_key)
     return _hash(
         "browse-variant:sha256:",
+        identity,
+    )
+
+
+def _variant_shape_key(
+    item_level: int,
+    bonus_ids: Iterable[str],
+    static_facts: Mapping[str, int | float],
+) -> str:
+    return _hash(
+        "variant-shape:sha256:",
         {
-            "catalogRevision": _text(catalog_revision),
-            "itemId": _text(item_id),
-            "progressionState": _canonical(progression_state),
+            "itemLevel": item_level,
+            "bonusIds": list(bonus_ids),
+            "staticFacts": _canonical(static_facts),
         },
     )
 
@@ -247,6 +280,7 @@ def _source_definition(row: Mapping[str, Any]) -> dict[str, Any]:
 
 def _catalog_identity_seed(
     *,
+    schema_revision: str,
     builder_revision: str,
     season_revision: str,
     dependency_vector: Mapping[str, Any],
@@ -289,7 +323,7 @@ def _catalog_identity_seed(
         )
     )
     return {
-        "schemaRevision": CATALOG_SCHEMA_REVISION,
+        "schemaRevision": _text(schema_revision),
         "builderRevision": _text(builder_revision),
         "seasonRevision": _text(season_revision),
         "dependencyVector": _canonical(dependency_vector),
@@ -430,9 +464,15 @@ def build_catalog_revision(
                 _source_definition(row)
             )
 
-    candidate_rows: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    candidate_rows: dict[
+        tuple[str, str, str],
+        list[dict[str, Any]],
+    ] = {}
     legacy_browse_count = 0
     crafted_selection_count = 0
+    exact_instance_count = 0
+    exact_eligible_count = 0
+    exact_excluded_count = 0
     for index, row in enumerate(raw_variants):
         if _text(row.get("rowFamily")) != "browse":
             continue
@@ -496,24 +536,161 @@ def build_catalog_revision(
             sort_keys=True,
             separators=(",", ":"),
         )
-        candidate_rows.setdefault((item_id, progression_key), []).append({
+        shape_key = _variant_shape_key(item_level, bonus_ids, facts)
+        candidate_rows.setdefault(
+            (item_id, progression_key, shape_key),
+            [],
+        ).append({
             "itemId": item_id,
             "progressionState": _canonical(progression_state),
             "progressionKind": _text(progression_state.get("kind")),
+            "variantShapeKey": shape_key,
             "itemLevel": item_level,
             "bonusIds": bonus_ids,
             "staticFacts": facts,
             "sourceVariantKey": source_variant_key,
             "sourceType": _text(row.get("sourceType")),
             "crafted": crafted,
+            "rowFamily": "browse",
+            "enhancementFieldCount": 0,
             "rowIndex": index,
         })
 
-    variant_seeds: list[dict[str, Any]] = []
-    progressions_by_item: dict[str, list[dict[str, Any]]] = {}
-    for (item_id, _), candidates in sorted(candidate_rows.items()):
+    for index, row in enumerate(raw_variants):
+        if _text(row.get("rowFamily")) != "exact_instance":
+            continue
+        exact_instance_count += 1
+        if (
+            _text(row.get("status")).lower() != "verified"
+            or row.get("blockers")
+        ):
+            exact_excluded_count += 1
+            continue
+        resolution = resolve_exact_instance_progression(active, row)
+        progression_state = _mapping(resolution.get("progressionState"))
+        item_id = _text(row.get("itemId"))
+        item_level = _positive_int(row.get("itemLevel"))
+        bonus_ids = _string_list(row.get("bonusIds"))
+        facts = _static_facts(row.get("staticStats"))
+        source_variant_key = _text(
+            row.get("variantKey") or row.get("variantId")
+        )
+        if (
+            resolution.get("status") != "verified"
+            or not progression_state
+            or not item_id
+            or item_id not in verified_exact_item_ids
+            or not item_level
+            or bonus_ids is None
+            or facts is None
+            or not source_variant_key
+        ):
+            exact_excluded_count += 1
+            continue
+        progression_key = json.dumps(
+            _canonical(progression_state),
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        shape_key = _variant_shape_key(item_level, bonus_ids, facts)
+        simc_options = _mapping(row.get("simcOptions"))
+        enhancement_field_count = sum(
+            bool(simc_options.get(field))
+            for field in (
+                "gem_id",
+                "gem_bonus_id",
+                "gem_ilevel",
+                "enchant_id",
+                "crafted_stats",
+                "embellishment",
+            )
+        )
+        candidate_rows.setdefault(
+            (item_id, progression_key, shape_key),
+            [],
+        ).append({
+            "itemId": item_id,
+            "progressionState": _canonical(progression_state),
+            "progressionKind": _text(progression_state.get("kind")),
+            "variantShapeKey": shape_key,
+            "itemLevel": item_level,
+            "bonusIds": bonus_ids,
+            "staticFacts": facts,
+            "sourceVariantKey": source_variant_key,
+            # observed_profile is evidence provenance, not an acquisition
+            # source. ItemDefinition.sources owns the public PVE source.
+            "sourceType": "",
+            "crafted": False,
+            "rowFamily": "exact_instance",
+            "enhancementFieldCount": enhancement_field_count,
+            "rowIndex": index,
+        })
+        exact_eligible_count += 1
+
+    crafted_browse_groups: dict[
+        tuple[str, str],
+        list[dict[str, Any]],
+    ] = {}
+    for (
+        item_id,
+        progression_key,
+        _shape_key,
+    ), candidates in candidate_rows.items():
+        for candidate in candidates:
+            if (
+                candidate["rowFamily"] == "browse"
+                and candidate["crafted"]
+            ):
+                crafted_browse_groups.setdefault(
+                    (item_id, progression_key),
+                    [],
+                ).append(candidate)
+    for (item_id, _), candidates in sorted(
+        crafted_browse_groups.items()
+    ):
         exemplar = candidates[0]
-        if not exemplar["crafted"] and len(candidates) != 1:
+        expected = {
+            "itemLevel": exemplar["itemLevel"],
+            "bonusIds": exemplar["bonusIds"],
+            "staticFacts": exemplar["staticFacts"],
+            "sourceType": exemplar["sourceType"],
+        }
+        if any(
+            {
+                "itemLevel": candidate["itemLevel"],
+                "bonusIds": candidate["bonusIds"],
+                "staticFacts": candidate["staticFacts"],
+                "sourceType": candidate["sourceType"],
+            }
+            != expected
+            for candidate in candidates[1:]
+        ):
+            problems.append(_problem(
+                "CATALOG_CRAFTED_INVARIANT_FACT_CONFLICT",
+                f"rows.variants[{item_id}]",
+                "Crafted stat selections disagree on selection-independent facts.",
+            ))
+
+    variant_seeds: list[dict[str, Any]] = []
+    progressions_by_item: dict[
+        str,
+        dict[str, dict[str, Any]],
+    ] = {}
+    for (item_id, progression_key, shape_key), candidates in sorted(
+        candidate_rows.items()
+    ):
+        exemplar = candidates[0]
+        browse_candidates = [
+            candidate
+            for candidate in candidates
+            if candidate["rowFamily"] == "browse"
+        ]
+        if (
+            browse_candidates
+            and not browse_candidates[0]["crafted"]
+            and len(browse_candidates) != 1
+        ):
             # The Phase 0 audit also reports this, but keep the builder
             # independently fail-closed if the audit implementation changes.
             problems.append(_problem(
@@ -526,14 +703,12 @@ def build_catalog_revision(
             "itemLevel": exemplar["itemLevel"],
             "bonusIds": exemplar["bonusIds"],
             "staticFacts": exemplar["staticFacts"],
-            "sourceType": exemplar["sourceType"],
         }
         if any(
             {
                 "itemLevel": candidate["itemLevel"],
                 "bonusIds": candidate["bonusIds"],
                 "staticFacts": candidate["staticFacts"],
-                "sourceType": candidate["sourceType"],
             }
             != invariant_shape
             for candidate in candidates[1:]
@@ -547,27 +722,50 @@ def build_catalog_revision(
         source_variant_keys = sorted(
             {candidate["sourceVariantKey"] for candidate in candidates}
         )
+        canonical_candidate = min(
+            candidates,
+            key=lambda candidate: (
+                0 if candidate["rowFamily"] == "browse" else 1,
+                candidate["enhancementFieldCount"],
+                candidate["sourceVariantKey"],
+            ),
+        )
+        source_type = next(
+            (
+                candidate["sourceType"]
+                for candidate in sorted(
+                    browse_candidates,
+                    key=lambda candidate: candidate["sourceVariantKey"],
+                )
+                if candidate["sourceType"]
+            ),
+            "",
+        )
         seed = {
             "itemId": item_id,
             "progressionState": exemplar["progressionState"],
             "progressionKind": exemplar["progressionKind"],
+            "variantShapeKey": shape_key,
             "itemLevel": exemplar["itemLevel"],
             "bonusIds": exemplar["bonusIds"],
             "staticFacts": exemplar["staticFacts"],
-            "sourceType": exemplar["sourceType"],
+            "sourceType": source_type,
             "sourceVariantKeys": source_variant_keys,
+            "canonicalSourceVariantKey": canonical_candidate[
+                "sourceVariantKey"
+            ],
+            "sourceFamilies": sorted(
+                {candidate["rowFamily"] for candidate in candidates}
+            ),
             "evidenceStatus": "verified",
         }
         variant_seeds.append(seed)
-        progressions_by_item.setdefault(item_id, []).append(
-            exemplar["progressionState"]
-        )
+        progressions_by_item.setdefault(item_id, {})[
+            progression_key
+        ] = exemplar["progressionState"]
 
     item_definitions: list[dict[str, Any]] = []
-    membership_item_ids = (
-        set(progressions_by_item)
-        | verified_exact_item_ids
-    )
+    membership_item_ids = set(progressions_by_item)
     excluded_dormant_item_count = 0
     for index, row in enumerate(raw_items):
         item_id = _text(row.get("itemId") or row.get("id"))
@@ -637,7 +835,10 @@ def build_catalog_revision(
             "availableProgressions": sorted(
                 (
                     _canonical(progression)
-                    for progression in progressions_by_item.get(item_id, [])
+                    for progression in progressions_by_item.get(
+                        item_id,
+                        {},
+                    ).values()
                 ),
                 key=_canonical_bytes,
             ),
@@ -669,6 +870,7 @@ def build_catalog_revision(
         ),
     })
     identity_seed = _catalog_identity_seed(
+        schema_revision=CATALOG_SCHEMA_REVISION,
         builder_revision=builder,
         season_revision=season_revision,
         dependency_vector=dependency_vector,
@@ -685,6 +887,7 @@ def build_catalog_revision(
                 catalog_revision,
                 seed["itemId"],
                 seed["progressionState"],
+                seed["variantShapeKey"],
             ),
             "progressionKey": _canonical_progression_key(
                 seed["progressionState"]
@@ -700,6 +903,13 @@ def build_catalog_revision(
     content_summary = {
         "itemDefinitionCount": len(item_definitions),
         "legacyBrowseVariantRowCount": legacy_browse_count,
+        "exactInstanceRowCount": exact_instance_count,
+        "exactEligibleRowCount": exact_eligible_count,
+        "exactExcludedRowCount": exact_excluded_count,
+        "exactDerivedVariantCount": sum(
+            "exact_instance" in variant.get("sourceFamilies", [])
+            for variant in browse_variants
+        ),
         "browseVariantCount": len(browse_variants),
         "craftedEnhancementSelectionRowCount": crafted_selection_count,
         "collapsedCraftedVariantRowCount": max(
@@ -768,6 +978,7 @@ def verify_catalog_revision(catalog: Any) -> list[str]:
     expected_revision = _hash(
         "gear-catalog:sha256:",
         _catalog_identity_seed(
+            schema_revision=_text(catalog.get("schemaRevision")),
             builder_revision=_text(catalog.get("builderRevision")),
             season_revision=_text(catalog.get("seasonRevision")),
             dependency_vector=_mapping(catalog.get("dependencyVector")),
@@ -797,30 +1008,58 @@ def verify_catalog_revision(catalog: Any) -> list[str]:
             problems.append("CATALOG_ITEM_DEFINITION_HASH_MISMATCH")
 
     seen_variants: set[str] = set()
-    seen_progressions: set[tuple[str, str]] = set()
+    seen_shapes: set[tuple[str, str, str]] = set()
+    schema_revision = _text(catalog.get("schemaRevision"))
+    if schema_revision not in {
+        LEGACY_CATALOG_SCHEMA_REVISION,
+        CATALOG_SCHEMA_REVISION,
+    }:
+        problems.append("CATALOG_SCHEMA_REVISION_UNSUPPORTED")
     for variant in variants:
         item_id = _text(variant.get("itemId"))
         progression = _mapping(variant.get("progressionState"))
         key = _text(variant.get("browseVariantKey"))
+        variant_shape_key = _text(variant.get("variantShapeKey"))
         if not BROWSE_VARIANT_KEY_PATTERN.fullmatch(key):
             problems.append("CATALOG_BROWSE_VARIANT_KEY_INVALID")
+        if schema_revision == CATALOG_SCHEMA_REVISION:
+            expected_shape_key = _variant_shape_key(
+                _positive_int(variant.get("itemLevel")),
+                _string_list(variant.get("bonusIds")) or [],
+                _static_facts(variant.get("staticFacts")) or {},
+            )
+            if (
+                not VARIANT_SHAPE_KEY_PATTERN.fullmatch(variant_shape_key)
+                or variant_shape_key != expected_shape_key
+            ):
+                problems.append("CATALOG_VARIANT_SHAPE_KEY_MISMATCH")
         expected_key = catalog_browse_variant_key(
             catalog_revision,
             item_id,
             progression,
+            (
+                variant_shape_key
+                if schema_revision == CATALOG_SCHEMA_REVISION
+                else ""
+            ),
         )
         if key != expected_key:
             problems.append("CATALOG_BROWSE_VARIANT_KEY_MISMATCH")
         if key in seen_variants:
             problems.append("CATALOG_BROWSE_VARIANT_KEY_DUPLICATE")
         seen_variants.add(key)
-        progression_identity = (
+        shape_identity = (
             item_id,
             _canonical_progression_key(progression),
+            (
+                variant_shape_key
+                if schema_revision == CATALOG_SCHEMA_REVISION
+                else ""
+            ),
         )
-        if progression_identity in seen_progressions:
-            problems.append("CATALOG_BROWSE_PROGRESSION_DUPLICATE")
-        seen_progressions.add(progression_identity)
+        if shape_identity in seen_shapes:
+            problems.append("CATALOG_BROWSE_VARIANT_SHAPE_DUPLICATE")
+        seen_shapes.add(shape_identity)
         if item_id not in seen_items:
             problems.append("CATALOG_BROWSE_VARIANT_ITEM_ORPHAN")
         expected_hash = _hash(
