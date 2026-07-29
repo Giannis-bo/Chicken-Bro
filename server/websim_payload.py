@@ -17609,19 +17609,16 @@ def catalog_item_trust_blockers(item):
             if catalog_evidence_verified
             else "Battle.net item stats"
         )
-    slot = normalize_slot(item.get("slot"))
-    if slot in ARMOR_SLOTS and not item.get("armorType"):
-        blockers.append(
-            "Catalog armor type"
-            if catalog_evidence_verified
-            else "Battle.net armor type"
-        )
-    if slot in WEAPON_SLOTS and not item.get("weaponType"):
-        blockers.append(
-            "Catalog weapon type"
-            if catalog_evidence_verified
-            else "Battle.net weapon type"
-        )
+    # BrowseVariant provenance verifies the display facts independently of
+    # optional type metadata. A missing type stays unavailable to legality
+    # rules, but must not turn an otherwise verified catalog detail into a
+    # false player-facing stat/evidence error.
+    if not catalog_evidence_verified:
+        slot = normalize_slot(item.get("slot"))
+        if slot in ARMOR_SLOTS and not item.get("armorType"):
+            blockers.append("Battle.net armor type")
+        if slot in WEAPON_SLOTS and not item.get("weaponType"):
+            blockers.append("Battle.net weapon type")
     return blockers
 
 
