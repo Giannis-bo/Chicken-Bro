@@ -572,6 +572,74 @@ def _enhancement_semantics(intent: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
+def _base_template_identity_candidates(
+    intent: Mapping[str, Any],
+    registry: Mapping[str, Any],
+    catalog: Any,
+) -> list[str]:
+    """Narrow whole-template candidates without rebuilding Exact indexes."""
+
+    slots = (
+        intent.get("slots")
+        if isinstance(intent.get("slots"), Mapping)
+        else {}
+    )
+    aliases, alias_problems = _catalog_source_aliases(catalog)
+    if alias_problems or not slots:
+        return []
+    grouped: dict[
+        str,
+        dict[str, list[Mapping[str, Any]]],
+    ] = {}
+    for raw in registry.get("templateReferences") or []:
+        if not isinstance(raw, Mapping):
+            continue
+        identity = _text(raw.get("templateAuthorityIdentity"))
+        content_hash = _text(raw.get("templateContentHash"))
+        if (
+            _text(raw.get("templateScope")) != "community"
+            or not _SHA256_PATTERN.fullmatch(identity)
+            or not content_hash
+        ):
+            continue
+        grouped.setdefault(identity, {}).setdefault(
+            content_hash,
+            [],
+        ).append(raw)
+    matches = []
+    for identity, content_groups in grouped.items():
+        if len(content_groups) != 1:
+            continue
+        refs = next(iter(content_groups.values()))
+        if len(refs) != len(slots):
+            continue
+        seen_slots = set()
+        matched = True
+        for reference in refs:
+            slot = _text(reference.get("slot"))
+            current = slots.get(slot)
+            item_id = _text(reference.get("itemId"))
+            browse_key = aliases.get(
+                (
+                    item_id,
+                    _text(reference.get("sourceVariantKey")),
+                )
+            )
+            if (
+                not slot
+                or slot in seen_slots
+                or not isinstance(current, Mapping)
+                or _text(current.get("itemId")) != item_id
+                or _text(current.get("variantKey")) != browse_key
+            ):
+                matched = False
+                break
+            seen_slots.add(slot)
+        if matched and seen_slots == set(slots):
+            matches.append(identity)
+    return sorted(matches)
+
+
 def _inject_authority(
     authority_context: Any,
     projection: Mapping[str, Any],
@@ -705,6 +773,7 @@ def bind_exact_template_authority(
     authority_context: Any,
     exact_registry: Any,
     catalog: Any,
+    template_authority_identity: Any = "",
 ) -> dict[str, Any]:
     """Bind a saved Intent to exactly one whole-template Exact authority."""
 
@@ -714,18 +783,15 @@ def bind_exact_template_authority(
         else {}
     )
     registry = exact_registry if isinstance(exact_registry, Mapping) else {}
-    identities = sorted(
-        {
-            _text(row.get("templateAuthorityIdentity"))
-            for row in registry.get("templateReferences") or []
-            if (
-                isinstance(row, Mapping)
-                and _text(row.get("templateScope")) == "community"
-                and _SHA256_PATTERN.fullmatch(
-                    _text(row.get("templateAuthorityIdentity"))
-                )
-            )
-        }
+    expected_identity = _text(template_authority_identity)
+    identities = (
+        [expected_identity]
+        if _SHA256_PATTERN.fullmatch(expected_identity)
+        else _base_template_identity_candidates(
+            intent,
+            registry,
+            catalog,
+        )
     )
     matches: list[dict[str, Any]] = []
     for identity in identities:

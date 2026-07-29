@@ -1,6 +1,8 @@
 import copy
 import unittest
+from unittest.mock import patch
 
+from server import gear_exact_template_options
 from server.gear_exact_template_options import (
     bind_exact_template_authority,
     has_exact_template_option,
@@ -340,6 +342,40 @@ class GearExactTemplateOptionsTest(unittest.TestCase):
             ],
             TEMPLATE_AUTHORITY_IDENTITY,
         )
+
+    def test_binding_prefilters_unrelated_template_groups_before_projection(self):
+        registry = exact_registry()
+        unrelated_identity = "sha256:" + ("1" * 64)
+        unrelated = copy.deepcopy(registry["templateReferences"])
+        for row in unrelated:
+            row["templateAuthorityIdentity"] = unrelated_identity
+            row["templateContentHash"] = "sha256:" + ("2" * 64)
+            row["itemId"] = "9999"
+            row["sourceVariantKey"] = "variant-unrelated"
+        registry["templateReferences"].extend(unrelated)
+        projected = project_exact_template_intent(
+            intent(),
+            registry,
+            catalog(),
+            TEMPLATE_AUTHORITY_IDENTITY,
+        )["selectionIntent"]
+        original_projector = (
+            gear_exact_template_options._project_identity
+        )
+
+        with patch(
+            "server.gear_exact_template_options._project_identity",
+            wraps=original_projector,
+        ) as projector:
+            result = bind_exact_template_authority(
+                projected,
+                authority_context(intent()),
+                registry,
+                catalog(),
+            )
+
+        self.assertEqual(result["status"], "verified")
+        self.assertEqual(projector.call_count, 1)
 
 
 if __name__ == "__main__":

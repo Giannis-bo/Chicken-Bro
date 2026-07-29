@@ -1905,6 +1905,7 @@ class PostgresCacheStore:
         binding,
         *,
         required=False,
+        template_authority_identity="",
     ):
         value = binding if isinstance(binding, dict) else {}
         manifest = (
@@ -1919,6 +1920,7 @@ class PostgresCacheStore:
             authority_context,
             self._manifest_exact_registry(value),
             value.get("gearCatalog"),
+            template_authority_identity,
         )
         if bound.get("status") == "verified":
             return bound["authorityContext"]
@@ -2116,6 +2118,16 @@ class PostgresCacheStore:
                     selection_intent,
                     authority_context,
                     binding,
+                    template_authority_identity=(
+                        (
+                            source.get("template")
+                            if isinstance(
+                                source.get("template"),
+                                dict,
+                            )
+                            else {}
+                        ).get("templateAuthorityIdentity")
+                    ),
                 )
             except Exception as error:
                 raise CommunityTemplateImportError(
@@ -2255,6 +2267,16 @@ class PostgresCacheStore:
                 selection_intent,
                 authority_context,
                 binding,
+                template_authority_identity=(
+                    (
+                        source.get("template")
+                        if isinstance(
+                            source.get("template"),
+                            dict,
+                        )
+                        else {}
+                    ).get("templateAuthorityIdentity")
+                ),
             )
         except Exception as error:
             raise CommunityTemplateImportError(
