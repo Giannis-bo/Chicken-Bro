@@ -4136,6 +4136,16 @@ def item_stat_summary_primary_compatible(summary, primary_key):
     return item_stats_primary_compatible(parts, primary_key)
 
 
+def item_stat_summary_includes_primary(summary, primary_key):
+    primary_key = str(primary_key or "").strip()
+    if primary_key not in PRIMARY_STAT_KEYS:
+        return False
+    return any(
+        primary_key in item_stat_primary_keys(part)
+        for part in re.split(r"[\uff1b;，,\n]+", str(summary or ""))
+    )
+
+
 def replace_primary_stat_text_for_spec(text, primary_key):
     label = PRIMARY_STAT_LABELS_ZH.get(primary_key)
     if not label:
@@ -4238,8 +4248,9 @@ def apply_primary_stat_filter_to_stat_payload(payload, primary_key):
             payload = dict(payload)
             payload["itemStats"] = filtered_stats
             payload["stats"] = filtered_stats
-            if payload.get("statSummary"):
-                payload["statSummary"] = filter_item_stat_summary_for_spec(payload.get("statSummary"), primary_key)
+            filtered_summary = filter_item_stat_summary_for_spec(payload.get("statSummary"), primary_key)
+            if item_stat_summary_includes_primary(filtered_summary, primary_key):
+                payload["statSummary"] = filtered_summary
             else:
                 payload["statSummary"] = item_stat_summary(filtered_stats)
     elif payload.get("statSummary") and not item_stat_summary_primary_compatible(payload.get("statSummary"), primary_key):
@@ -24366,13 +24377,10 @@ def compact_gear_candidate(item, include_mod_options=True):
     # statSummary was produced.  The public root summary must reflect the
     # same canonical stats as the variants and the Taro detail card.
     compact_stats = compact_item.get("itemStats") or compact_item.get("stats") or []
-    summary_primary_keys = set()
-    for part in re.split(r"[；;，,\n]+", str(compact_item.get("statSummary") or "")):
-        summary_primary_keys.update(item_stat_primary_keys(part))
     if (
         compact_stats
         and primary_key in PRIMARY_STAT_KEYS
-        and primary_key not in summary_primary_keys
+        and not item_stat_summary_includes_primary(compact_item.get("statSummary"), primary_key)
     ):
         compact_item["statSummary"] = item_stat_summary(compact_stats)
     item_id = normalize_option_value(item.get("itemId") or item.get("id"))

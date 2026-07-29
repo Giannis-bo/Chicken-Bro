@@ -7871,6 +7871,7 @@ class WebSimPayloadTest(unittest.TestCase):
                                 {"key": "critical_strike", "label": "暴击", "value": 60},
                                 {"key": "haste", "label": "急速", "value": 112},
                             ],
+                            "statSummary": "暴击 60；急速 112",
                             "statDisplayStatus": "verified_variant",
                         },
                     },
@@ -7893,6 +7894,7 @@ class WebSimPayloadTest(unittest.TestCase):
                                 {"key": "haste", "label": "急速", "value": 112},
                                 {"key": "leech_rating", "label": "吸血", "value": 43},
                             ],
+                            "statSummary": "暴击 60；急速 112；吸血 43",
                             "statDisplayStatus": "verified_variant",
                         },
                     },
@@ -7913,6 +7915,7 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(variant.get("primaryStatKey"), "strength")
         self.assertIn("strength", [stat["key"] for stat in variant["itemStats"]])
         self.assertNotIn("leech_rating", [stat["key"] for stat in variant["itemStats"]])
+        self.assertEqual(variant["statSummary"], "力量 135；暴击 60；急速 112")
 
     def test_compact_manifest_candidate_rebuilds_stale_root_stat_summary(self):
         compact = self.websim_payload.compact_gear_candidate(
