@@ -111,6 +111,7 @@ class GearRuntimeTest(unittest.TestCase):
                 "pointerGeneration": 9,
                 "communityTemplateReleaseId": "community-release:r17",
                 "talentCatalogRevision": "talent-catalog:r17",
+                "gearExactRegistryRevision": "gear-exact-registry:r17",
                 "formalActiveManifest": True,
             }
         )
@@ -140,6 +141,10 @@ class GearRuntimeTest(unittest.TestCase):
             "community-release:r17",
         )
         self.assertEqual(envelope["releaseContext"]["talentCatalogRevision"], "talent-catalog:r17")
+        self.assertEqual(
+            envelope["releaseContext"]["gearExactRegistryRevision"],
+            "gear-exact-registry:r17",
+        )
         self.assertTrue(envelope["releaseContext"]["formalActiveManifest"])
 
     def test_release_context_exposes_capability_revision(self):

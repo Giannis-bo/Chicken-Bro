@@ -174,6 +174,8 @@ def run_simc_execution_matrix(
     pointer_generation: int,
     gear_release_id: str,
     community_release_id: str,
+    catalog_revision: str,
+    exact_registry_revision: str,
     simc_runtime_revision: str,
     observed_at: str,
 ) -> dict[str, Any]:
@@ -251,10 +253,17 @@ def run_simc_execution_matrix(
             browse_status, browse = 0, {}
         if (
             browse_status != 200
-            or browse.get("formalActiveManifest") is not True
+            or (
+                browse.get("formalActiveManifest") is not True
+                and browse.get("candidatePreview") is not True
+            )
             or _text(browse.get("manifestRevision")) != manifest_revision
             or _integer(browse.get("pointerGeneration")) != pointer_generation
             or _text(browse.get("gearCatalogReleaseId")) != gear_release_id
+            or _text(browse.get("gearCatalogRevision"))
+            != catalog_revision
+            or _text(browse.get("gearExactRegistryRevision"))
+            != exact_registry_revision
             or _text(browse.get("communityTemplateReleaseId")) != community_release_id
         ):
             spec_failures.append(_failure("SIMC_BROWSE_IDENTITY_MISMATCH", class_key, spec_key))
@@ -383,7 +392,12 @@ def run_simc_execution_matrix(
                 or readiness.get("simcReady") is not True
                 or _text(release_context.get("manifestRevision")) != manifest_revision
                 or _integer(release_context.get("pointerGeneration")) != pointer_generation
-                or _text(release_context.get("gearCatalogRevision")) != gear_release_id
+                or _text(release_context.get("gearCatalogRevision"))
+                != catalog_revision
+                or _text(
+                    release_context.get("gearExactRegistryRevision")
+                )
+                != exact_registry_revision
                 or _text(release_context.get("simcRuntimeRevision")) != simc_runtime_revision
                 or not profile.strip()
             ):
@@ -474,6 +488,8 @@ def run_simc_execution_matrix(
         "pointerGeneration": _integer(pointer_generation),
         "gearReleaseId": _text(gear_release_id),
         "communityReleaseId": _text(community_release_id),
+        "gearCatalogRevision": _text(catalog_revision),
+        "gearExactRegistryRevision": _text(exact_registry_revision),
         "simcRuntimeRevision": _text(simc_runtime_revision),
         "totalSpecCount": len(expected),
         "supported": {

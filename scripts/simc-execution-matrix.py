@@ -38,6 +38,8 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--pointer-generation", required=True, type=int)
     parser.add_argument("--gear-release-id", required=True)
     parser.add_argument("--community-release-id", required=True)
+    parser.add_argument("--gear-catalog-revision", required=True)
+    parser.add_argument("--gear-exact-registry-revision", required=True)
     parser.add_argument("--simc-runtime-revision", required=True)
     parser.add_argument("--output", required=True)
     parser.add_argument("--http-timeout-seconds", type=float, default=30.0)
@@ -175,6 +177,8 @@ def main(argv=None) -> int:
         pointer_generation=args.pointer_generation,
         gear_release_id=args.gear_release_id,
         community_release_id=args.community_release_id,
+        catalog_revision=args.gear_catalog_revision,
+        exact_registry_revision=args.gear_exact_registry_revision,
         simc_runtime_revision=args.simc_runtime_revision,
         observed_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
     )

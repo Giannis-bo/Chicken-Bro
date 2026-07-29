@@ -75,6 +75,7 @@ def _release_context(authority_context: Any) -> dict[str, Any]:
         "seasonRevision",
         "gearCatalogReleaseId",
         "gearCatalogRevision",
+        "gearExactRegistryRevision",
         "gearRuleRevision",
         "resolverContractRevision",
         "serializerRevision",
@@ -100,6 +101,7 @@ def _release_context(authority_context: Any) -> dict[str, Any]:
         }
     )
     output["formalActiveManifest"] = manifest.get("formalActiveManifest") is True
+    output["candidatePreview"] = manifest.get("candidatePreview") is True
     return {key: value for key, value in output.items() if value not in (None, "")}
 
 
