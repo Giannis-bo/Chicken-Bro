@@ -58,18 +58,9 @@
     {
       "id": "equipment_simulator_target_architecture_v1",
       "path": "docs/plans/2026-07-28-equipment-simulator-target-architecture.md",
-      "status": "approved_phase4_active",
+      "status": "implemented_v1",
       "lifecycle": "active",
-      "notes": "The approved target architecture remains active. Phase 0-3 are archived with complete browse/Community/SimC/WeChat, CatalogRevision, ExactItemInstance, EnhancementSelection, exact ResolvedLoadout and immutable SimulationSnapshot evidence. Phase 4 is the final cutover slice: one active Manifest dependency vector, caller-proof old-reader retirement, health-owner migration, rollback and final real-WeChat closure. The 55 Phase 2 partial references remain non-consumable and generation 32 stays unchanged until a verified cutover."
-    },
-    {
-      "id": "equipment_simulator_phase4_manifest_cutover",
-      "path": "docs/plans/2026-07-29-equipment-simulator-phase4-manifest-cutover.md",
-      "status": "implementation_allowed",
-      "lifecycle": "active",
-      "requirement": "artifacts/releases/2026-07-29-equipment-simulator-phase4-manifest-cutover/requirement.json",
-      "baseCommit": "ae537ff5bdfcca1984459747b909dcbcb59b5046",
-      "notes": "Strict final cutover: Manifest v2 binds CatalogRevision and Exact Registry with Gear/Community/runtime dependencies, all active consumers move to one immutable binding, legacy runtime readers reach zero callers, and CAS promotion/rollback plus official WeChat and three-party closure are mandatory."
+      "notes": "Target architecture v1 is implemented and archived through Phase 0-4. Production generation 35 serves one formal Manifest v2 dependency vector across Catalog, Exact Registry, Gear, Community, Resolver, Profile, SimulationSnapshot and task execution; legacy runtime reader callers are zero, CAS promotion/v1 rollback/v2 restore and official WeChat handoff pass. The 55 source-ambiguous references remain non-consumable and global data health remains literally partial under independent owners."
     },
     {
       "id": "equipment_simulator_track_authority_correction",
@@ -129,6 +120,14 @@
     }
   ],
   "completedBaselines": [
+    {
+      "id": "equipment_simulator_phase4_manifest_cutover_20260729",
+      "domain": "equipment_simulator_target_architecture_v1_phase4",
+      "status": "completed",
+      "evidence": "artifacts/releases/2026-07-29-equipment-simulator-phase4-manifest-cutover/evidence.json",
+      "mergeCommit": "bba6d301ee65351a01495744285429dafda70722",
+      "notes": "Strict Phase 4 archived through PR #107, immutable candidate and CI, production-compatible deployment, Manifest v2 generation-35 cutover, CAS v1 rollback/v2 restore, live 80-template and 26/14 SimC matrices, official WeChat community-import/save/SimC handoff, three-party runtime parity and candidate cleanup."
+    },
     {
       "id": "equipment_simulator_phase3_resolved_snapshot_20260729",
       "domain": "equipment_simulator_target_architecture_v1_phase3",
@@ -557,12 +556,14 @@
       "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase3c-workbench-cutover/evidence.json"
     },
     "gearReleaseTrain": {
-      "status": "active_manifest_phase0_verified",
+      "status": "manifest_v2_phase4_live_verified",
       "formalActiveManifest": true,
       "pointerMode": "active",
-      "pointerGeneration": 32,
-      "activeManifestRevision": "season-manifest:sha256:b79e6226c7dc406c2e729cf01cf6d86f4944b760b8e8cc185dcd4347032fedb6",
-      "rollbackManifestRevision": "season-manifest:sha256:ab1cdff36be524d9f6f499732e0ffca88e4eea39bb6013d735a33a5a01a3b88a",
+      "pointerGeneration": 35,
+      "activeManifestRevision": "season-manifest:sha256:20453991e93a1dc1650dbacfd85bdd042e9b020737c7851bef943f1e3e68883a",
+      "rollbackManifestRevision": "season-manifest:sha256:b79e6226c7dc406c2e729cf01cf6d86f4944b760b8e8cc185dcd4347032fedb6",
+      "activeGearCatalogRevision": "gear-catalog:sha256:2ddd8fe84202d086f0f9bf08d7e1cf1b56ff613a181bf8754cbf95841be4eb40",
+      "activeGearExactRegistryRevision": "gear-exact-registry:sha256:c56221bce4070f683e3afb71b65eaa573f4b9d8dc30b26c055f5538cc1aa4523",
       "runbook": "docs/gear-simulation-full-chain-runbook.md",
       "purePolicyModule": "server/gear_release.py",
       "releaseRepository": "server/gear_release_store.py",
@@ -571,7 +572,7 @@
       "activeManifestPointerRows": 1,
       "scheduledRefresh": "timer_enabled_previous_run_failed_health_blocked",
       "globalDataHealth": "partial",
-      "evidence": "artifacts/releases/2026-07-28-equipment-simulator-phase0-unblock/evidence.json"
+      "evidence": "artifacts/releases/2026-07-29-equipment-simulator-phase4-manifest-cutover/evidence.json"
     },
     "gearStatSnapshot": {
       "status": "phase5_complete_live_verified",
@@ -640,15 +641,15 @@
     },
     {
       "id": "equipment_simulator_catalog_migration_phase0_blockers",
-      "status": "resolved_generation_32",
-      "trigger": "The generation-32 Phase 0 audit maps 1309/1309 canonical Browse candidates, verifies 80/80 Community ExactItemInstance templates and 40/40 specializations, measures builder resources below hard limits, classifies every caller and observes zero source writes with a stable pointer. Two real-WeChat acceptance items and merge closure remain before Phase 1 implementation.",
-      "evidence": "artifacts/releases/2026-07-28-equipment-simulator-phase0-unblock/evidence.json"
+      "status": "resolved_manifest_v2_generation_35",
+      "trigger": "Phase 0-4 are archived. Production generation 35 serves the verified Manifest v2 Catalog/Exact dependency vector, classifies all 80 templates and 40 specializations, executes 26 supported SimC profiles, blocks 14 unsupported specializations and passes official WeChat import/save/SimC handoff.",
+      "evidence": "artifacts/releases/2026-07-29-equipment-simulator-phase4-manifest-cutover/evidence.json"
     },
     {
       "id": "equipment_simulator_legacy_health_owners",
-      "status": "open_partial",
-      "trigger": "Global /api/data/health remains partial even though the active generation-32 Manifest, release matrices and stat worker pass. gear_release_refresh retains the previous failed event; gear_catalog and community template summaries still read staging/legacy chains; gear_legality_authority still reports manual_override source authority. Migrate these owners during the target Catalog/authority work and do not present global health as green.",
-      "evidence": "artifacts/releases/2026-07-28-equipment-simulator-phase0-unblock/evidence.json"
+      "status": "manifest_owner_resolved_global_partial_remains",
+      "trigger": "The Manifest v2 active owner is verified at generation 35 and runtime consumer callers no longer mix staging/latest readers. Global /api/data/health remains partial because independent gear refresh, staging catalog, legality, talent, community and cutover-readiness owners still report literal blocked/partial states; do not represent that global state as green.",
+      "evidence": "artifacts/releases/2026-07-29-equipment-simulator-phase4-manifest-cutover/evidence.json"
     }
   ]
 }

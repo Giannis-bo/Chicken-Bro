@@ -2,8 +2,8 @@
   "schemaVersion": 2,
   "slug": "equipment-simulator-phase4-manifest-cutover",
   "requirementSlug": "equipment-simulator-phase4-manifest-cutover",
-  "status": "runtime_verified",
-  "highestEvidenceLevel": "runtime_verified",
+  "status": "archived",
+  "highestEvidenceLevel": "archived",
   "branch": "codex/equipment-simulator-phase4-manifest-cutover",
   "commit": "4a5c6575879c9749cc0eb28a5aa973dd466770d6",
   "identities": {
@@ -18,8 +18,9 @@
       "value": "HEAD"
     },
     "closure": {
-      "status": "pending",
-      "reason": "PR, production cutover, rollback/restore, parity and archive are pending."
+      "status": "bound",
+      "kind": "merge_commit",
+      "value": "bba6d301ee65351a01495744285429dafda70722"
     }
   },
   "manualAcceptance": {
@@ -63,8 +64,8 @@
     },
     {
       "command": "CAS promotion, v1 rollback, v2 restore and official WeChat",
-      "status": "not_run",
-      "summary": "Pending PR CI and production-compatible deployment."
+      "status": "pass",
+      "summary": "PR #107 passed Project Harness CI and merged as bba6d301. Production promoted Manifest v2 with expected generation 32, rolled back to v1 with expected generation 33, then restored v2 with expected generation 34; the pointer advanced monotonically 32 -> 33 -> 34 -> 35 with no ABA. The latest main WeChat build was atomically refreshed in official DevTools and an automated real-runtime flow imported a community Frost Mage template, observed a verified 16-slot canonical loadout, saved the current Catalog-bound selectionIntent and confirmed the SimC page selected that saved gear source while honestly blocking the missing talent template."
     }
   ],
   "candidateDeployment": {
@@ -121,6 +122,36 @@
       "type": "local_verification",
       "status": "pass",
       "summary": "The exact 4a5c6575 runtime HEAD passed the full 169-command Harness profile with 694 Node, 2135 Python and 404 Taro tests plus type, lint, architecture, package, syntax, control-packet and diff checks."
+    },
+    {
+      "id": "live-manifest-v2-cas-cycle",
+      "type": "manifest_cutover",
+      "status": "pass",
+      "summary": "Production promoted Manifest v2 20453991 at generation 33, rolled back to Manifest v1 b79e6226 at generation 34, then restored v2 at generation 35. Each transition used expected-generation CAS, browse, community import, canonical Profile and real SimC smoke passed at both versions, and the final rollback target is the verified v1 Manifest."
+    },
+    {
+      "id": "live-resolved-snapshot-shadow",
+      "type": "bounded_shadow",
+      "status": "pass",
+      "summary": "Live report gear-resolved-snapshot-shadow:sha256:7c37c313ef5849bd04320dd0ea6238ad1ea746ad3ab8f31e8da2ba161511b383 classified all 80 templates and 40 specializations at generation 35: 37 ready loadouts, 43 explicit blocked loadouts, 21 supported ready snapshots and 16 policy-unsupported snapshots. Independent expected and actual classifications matched, loadouts and snapshots were deterministic, the pointer stayed stable, peak RSS was 915337216 bytes and total time was 382.703332 seconds."
+    },
+    {
+      "id": "live-real-simc-matrix",
+      "type": "simc_execution",
+      "status": "pass",
+      "summary": "Live report simc-execution-matrix:sha256:3edbb2a0e85d16c7963c6a601b5c194d1edcb1414a01f31a956ff18d27fdad15 generated, executed and observed DPS for 26/26 supported profiles, deterministically blocked all 14 unsupported specializations before execution and recorded zero failures under Manifest v2 generation 35."
+    },
+    {
+      "id": "official-wechat-main-flow",
+      "type": "wechat_runtime",
+      "status": "pass",
+      "summary": "npm run refresh:weapp rebuilt and atomically installed 214 files from main bba6d301 with source hash sha256:b00cc9b385a5652b71ab4327758b9c253bdb7c2501e7e8be61a206d5f48c731f, then opened the official DevTools CLI. Automation connected to AppID wx17543b6fc4305479, imported a community Frost Mage template into a verified 16-slot workbench, saved a selection-intent-v1 template authored against Catalog 2ddd8fe8 and season-17-f131dd36ddf1, and verified that the SimC page selected the saved gear source while presenting the missing-talent blocker."
+    },
+    {
+      "id": "live-runtime-parity-and-operations",
+      "type": "deployment",
+      "status": "pass",
+      "summary": "All 21 deployed runtime files match the immutable candidate bytes, production records deploy revision bba6d301, localhost, nginx and public API return the same formal Manifest v2 20453991, Catalog 2ddd8fe8, Exact Registry c56221bc and generation 35 identity. wow-backend and the Gear stat worker are active with NRestarts=0; deployment-triggered async sync remained disabled. Global /api/data/health remains literally partial under independent owners."
     }
   ],
   "risks": [
@@ -131,8 +162,8 @@
     },
     {
       "id": "v1-v2-rollback-boundary",
-      "status": "open",
-      "detail": "v1 must remain a valid rollback target without being accepted as a v2 single-vector success."
+      "status": "resolved",
+      "detail": "The production CAS cycle proved v2 promotion, v1 rollback and v2 restore with monotonically increasing generations 32 through 35. v1 remains the explicit rollback target and is never accepted as a v2 dependency-vector success."
     },
     {
       "id": "global-business-health",
@@ -147,11 +178,11 @@
     "append_only_rows_retained"
   ],
   "cleanup": {
-    "required": true,
-    "scope": "Remove only Phase 4 candidates, retired reader code and the task branch after verified closure; retain the active and one rollback Manifest plus snapshot-referenced identities."
+    "required": false,
+    "scope": "All 15 Phase 4 candidate directories, both transient candidate services, matching temporary environment/report files and the published task branch were removed after verified closure. The active generation-35 Manifest v2, rollback Manifest v1, append-only identities and /opt/wow-mini-program/backups/equipment-simulator-phase4-predeploy-bba6d301 remain."
   },
   "archivedReferences": [
     "artifacts/releases/2026-07-29-equipment-simulator-phase3-resolved-snapshot/evidence.json"
   ],
-  "summary": "Manifest v2 runtime commit 4a5c6575 passed the full local Harness, exhaustive 80-template exact shadow and real 26/14 SimC matrix on an isolated candidate. Production remains unchanged on v1 generation 32. PR CI, production-compatible deployment, CAS promotion, v1 rollback, v2 restore, official WeChat self-test, merge/deploy parity and archive remain pending."
+  "summary": "The equipment simulator target architecture v1 is archived through Phase 4. Immutable runtime 4a5c6575 passed the full local Harness, exhaustive candidate shadow and real 26/14 SimC matrix; PR #107 passed CI and merged as bba6d301. Production now serves one formal Manifest v2 dependency vector at generation 35 after a verified v2 promotion, v1 rollback and v2 restore. Live 80-template/40-spec classification, 26 supported SimC executions, 14 deterministic unsupported blocks, official WeChat community-import/save/SimC handoff, runtime parity, service state and cleanup all pass. The 55 source-ambiguous references and global /api/data/health remain literally partial instead of being promoted or represented as green."
 }

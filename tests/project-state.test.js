@@ -100,7 +100,7 @@ test('project-state is the single machine-readable current truth entry', () => {
   assert.ok(activeContractIds.has('taro_target_first_14_route_rebuild'))
   assert.ok(activeContractIds.has('observed_build_registry_cutover'))
   assert.ok(activeContractIds.has('equipment_simulator_target_architecture_v1'))
-  assert.ok(activeContractIds.has('equipment_simulator_phase4_manifest_cutover'))
+  assert.ok(!activeContractIds.has('equipment_simulator_phase4_manifest_cutover'))
   assert.ok(activeContractIds.has('equipment_simulator_catalog_migration_phase0'))
   assert.ok(activeContractIds.has('equipment_simulator_track_authority_correction'))
   assert.ok(!activeContractIds.has('equipment_simulator_phase1_catalog_contract'))
@@ -115,17 +115,17 @@ test('project-state is the single machine-readable current truth entry', () => {
   const equipmentTargetArchitecture = state.activeContracts.find(
     (entry) => entry.id === 'equipment_simulator_target_architecture_v1',
   )
-  const equipmentPhase4Cutover = state.activeContracts.find(
-    (entry) => entry.id === 'equipment_simulator_phase4_manifest_cutover',
+  const completedPhase4Cutover = state.completedBaselines.find(
+    (entry) => entry.id === 'equipment_simulator_phase4_manifest_cutover_20260729',
   )
   assert.equal(
     equipmentTargetArchitecture?.status,
-    'approved_phase4_active',
+    'implemented_v1',
   )
-  assert.equal(equipmentPhase4Cutover?.status, 'implementation_allowed')
+  assert.equal(completedPhase4Cutover?.status, 'completed')
   assert.equal(
-    equipmentPhase4Cutover?.path,
-    'docs/plans/2026-07-29-equipment-simulator-phase4-manifest-cutover.md',
+    completedPhase4Cutover?.evidence,
+    'artifacts/releases/2026-07-29-equipment-simulator-phase4-manifest-cutover/evidence.json',
   )
   assert.equal(
     catalogMigrationPhase0?.path,
@@ -339,6 +339,10 @@ test('project-state is the single machine-readable current truth entry', () => {
     'Harness Superpowers method-layer contract should be recorded as a completed baseline'
   )
   assert.ok(
+    state.completedBaselines.some((entry) => entry.id === 'equipment_simulator_phase4_manifest_cutover_20260729'),
+    'Equipment simulator target architecture Phase 4 should be recorded as a completed baseline'
+  )
+  assert.ok(
     state.completedBaselines.some((entry) => entry.id === 'equipment_simulator_phase1_20260710'),
     'Equipment simulator Phase 1 should be recorded as a completed baseline'
   )
@@ -394,16 +398,18 @@ test('project-state is the single machine-readable current truth entry', () => {
   assert.equal(gearStat.explicitNonReadySpecCount, 8)
 
   const gearReleaseTrain = state.runtimeBaseline.gearReleaseTrain
-  assert.equal(gearReleaseTrain.status, 'active_manifest_phase0_verified')
-  assert.equal(gearReleaseTrain.pointerGeneration, 32)
-  assert.equal(gearReleaseTrain.activeManifestRevision, 'season-manifest:sha256:b79e6226c7dc406c2e729cf01cf6d86f4944b760b8e8cc185dcd4347032fedb6')
-  assert.equal(gearReleaseTrain.rollbackManifestRevision, 'season-manifest:sha256:ab1cdff36be524d9f6f499732e0ffca88e4eea39bb6013d735a33a5a01a3b88a')
+  assert.equal(gearReleaseTrain.status, 'manifest_v2_phase4_live_verified')
+  assert.equal(gearReleaseTrain.pointerGeneration, 35)
+  assert.equal(gearReleaseTrain.activeManifestRevision, 'season-manifest:sha256:20453991e93a1dc1650dbacfd85bdd042e9b020737c7851bef943f1e3e68883a')
+  assert.equal(gearReleaseTrain.rollbackManifestRevision, 'season-manifest:sha256:b79e6226c7dc406c2e729cf01cf6d86f4944b760b8e8cc185dcd4347032fedb6')
+  assert.equal(gearReleaseTrain.activeGearCatalogRevision, 'gear-catalog:sha256:2ddd8fe84202d086f0f9bf08d7e1cf1b56ff613a181bf8754cbf95841be4eb40')
+  assert.equal(gearReleaseTrain.activeGearExactRegistryRevision, 'gear-exact-registry:sha256:c56221bce4070f683e3afb71b65eaa573f4b9d8dc30b26c055f5538cc1aa4523')
   assert.equal(gearReleaseTrain.activeGearReleaseId, 'gear-release:sha256:9299fe1f942dc272f402e4d735d6a1bf8111a8f156464e0777cd6df78769edc7')
   assert.equal(gearReleaseTrain.activeCommunityReleaseId, 'community-release:sha256:686708be049323a979b66bfba42cae3f2b80f7337e740d26b299fd73e0665804')
   assert.equal(gearReleaseTrain.scheduledRefresh, 'timer_enabled_previous_run_failed_health_blocked')
   assert.equal(
     gearReleaseTrain.evidence,
-    'artifacts/releases/2026-07-28-equipment-simulator-phase0-unblock/evidence.json',
+    'artifacts/releases/2026-07-29-equipment-simulator-phase4-manifest-cutover/evidence.json',
   )
 
   const phase5Evidence = readJson(path.join(archivedPhase5Release, 'evidence.json'))
