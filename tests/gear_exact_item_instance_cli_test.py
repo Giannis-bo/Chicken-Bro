@@ -2,6 +2,8 @@ import copy
 import importlib.util
 from pathlib import Path
 import unittest
+from unittest import mock
+import weakref
 
 from tests.gear_catalog_revision_test import (
     CURRENT_BINDING as CATALOG_BINDING,
@@ -53,6 +55,84 @@ def snapshot():
 
 
 class GearExactItemInstanceCliTest(unittest.TestCase):
+    def test_run_releases_first_full_registry_before_building_second_copy(self):
+        original_build = exact_cli.build_exact_item_registry
+        first_ref = []
+        build_count = 0
+
+        class TrackedRegistry(dict):
+            pass
+
+        def tracked_build(binding, **build_args):
+            nonlocal build_count
+            build_count += 1
+            if build_count == 2:
+                self.assertIsNone(first_ref[0]())
+            registry = TrackedRegistry(
+                original_build(binding, **build_args)
+            )
+            if build_count == 1:
+                first_ref.append(weakref.ref(registry))
+            return registry
+
+        with mock.patch.object(
+            exact_cli,
+            "build_exact_item_registry",
+            side_effect=tracked_build,
+        ):
+            report = exact_cli.run_migration(
+                snapshot_reader=lambda **_: snapshot(),
+                pointer_reader=lambda **_: snapshot()["pointerAfter"],
+                catalog_reader=lambda revision: {
+                    "catalogRevision": revision
+                },
+                seal_writer=lambda registry: registry,
+                observed_at="2026-07-29T12:00:00+08:00",
+                elapsed_seconds_reader=lambda: 2.5,
+                peak_bytes_reader=lambda: 128_000_000,
+            )
+
+        self.assertEqual(report["status"], "verified")
+        self.assertTrue(report["deterministicBuild"])
+
+    def test_nondeterministic_registry_blocks_before_dormant_seal(self):
+        original_build = exact_cli.build_exact_item_registry
+        sealed = []
+        build_count = 0
+
+        def nondeterministic_build(binding, **build_args):
+            nonlocal build_count
+            build_count += 1
+            registry = original_build(binding, **build_args)
+            if build_count == 2:
+                registry["schemaRevision"] = "unexpected-drift"
+            return registry
+
+        with mock.patch.object(
+            exact_cli,
+            "build_exact_item_registry",
+            side_effect=nondeterministic_build,
+        ):
+            report = exact_cli.run_migration(
+                snapshot_reader=lambda **_: snapshot(),
+                pointer_reader=lambda **_: snapshot()["pointerAfter"],
+                catalog_reader=lambda revision: {
+                    "catalogRevision": revision
+                },
+                seal_writer=lambda registry: sealed.append(registry),
+                observed_at="2026-07-29T12:00:00+08:00",
+                elapsed_seconds_reader=lambda: 2.5,
+                peak_bytes_reader=lambda: 128_000_000,
+            )
+
+        self.assertEqual(report["status"], "blocked")
+        self.assertFalse(report["deterministicBuild"])
+        self.assertIn(
+            "EXACT_SHADOW_BUILD_NONDETERMINISTIC",
+            report["problemCodes"],
+        )
+        self.assertEqual(sealed, [])
+
     def test_one_snapshot_builds_twice_seals_reloads_and_keeps_pointer(self):
         sealed = []
 

@@ -197,8 +197,11 @@ def run_migration(
         "personal_templates": snapshot.get("personalGearTemplates") or [],
     }
     first = build_exact_item_registry(binding, **build_args)
-    second = build_exact_item_registry(binding, **build_args)
-    deterministic = first == second
+    first_problem_codes = set(first.get("problemCodes") or [])
+    first_content_hash = _hash("sha256:", first)
+    del first
+    registry = build_exact_item_registry(binding, **build_args)
+    deterministic = first_content_hash == _hash("sha256:", registry)
     elapsed = (
         float(elapsed_seconds_reader())
         if elapsed_seconds_reader
@@ -209,7 +212,9 @@ def run_migration(
         if peak_bytes_reader
         else _peak_rss_bytes()
     )
-    registry_problem_codes = set(first.get("problemCodes") or [])
+    registry_problem_codes = first_problem_codes | set(
+        registry.get("problemCodes") or []
+    )
     evidence_gap_codes = (
         registry_problem_codes & EXACT_REGISTRY_EVIDENCE_GAP_CODES
     )
@@ -222,7 +227,7 @@ def run_migration(
         preseal_codes.add("EXACT_SHADOW_RESOURCE_SECONDS_EXCEEDED")
     if peak_bytes > MAX_CANDIDATE_BYTES:
         preseal_codes.add("EXACT_SHADOW_RESOURCE_BYTES_EXCEEDED")
-    summary = _mapping(first.get("summary"))
+    summary = _mapping(registry.get("summary"))
     if (
         summary.get("templateCount")
         != summary.get("classifiedTemplateCount")
@@ -236,7 +241,7 @@ def run_migration(
         )
     ):
         preseal_codes.add("EXACT_SHADOW_TEMPLATE_SILENT_DROP")
-    registry_status = _text(first.get("status"))
+    registry_status = _text(registry.get("status"))
     if (
         registry_status not in {"verified", "partial"}
         or (registry_status == "verified" and registry_problem_codes)
@@ -256,13 +261,13 @@ def run_migration(
             pointer_after=snapshot_after,
             deterministic=deterministic,
             observed_at=observed_at,
-            registry=first,
+            registry=registry,
             catalog_revision=catalog_revision,
             elapsed_seconds=elapsed,
             peak_bytes=peak_bytes,
         )
 
-    sealed = _mapping(seal_writer(first))
+    sealed = _mapping(seal_writer(registry))
     elapsed = (
         float(elapsed_seconds_reader())
         if elapsed_seconds_reader
@@ -279,7 +284,7 @@ def run_migration(
     ))
     problem_codes: set[str] = set()
     if _text(sealed.get("registryRevision")) != _text(
-        first.get("registryRevision")
+        registry.get("registryRevision")
     ):
         problem_codes.add("EXACT_SHADOW_SEAL_IDENTITY_MISMATCH")
     if (
@@ -297,7 +302,7 @@ def run_migration(
         "schemaRevision": "gear-exact-shadow-report-v1",
         "status": "blocked" if problem_codes else "verified",
         "catalogRevision": catalog_revision,
-        "registryRevision": _text(first.get("registryRevision")),
+        "registryRevision": _text(registry.get("registryRevision")),
         "registryStatus": registry_status,
         "sourceGearReleaseId": _text(binding.get("gearReleaseId")),
         "sourceGearReleaseContentHash": _text(
