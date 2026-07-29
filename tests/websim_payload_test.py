@@ -4104,6 +4104,56 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(candidate["statSummary"], "智力 124；耐力 1768；急速 55")
         self.assertEqual(candidate["itemStats"][0]["value"], 124)
 
+    def test_verified_catalog_detail_does_not_surface_execution_missing_fields_as_detail_blockers(self):
+        candidate = self.websim_payload.enrich_catalog_item(
+            {
+                "id": "900002",
+                "itemId": "900002",
+                "slot": "head",
+                "sourceType": "dungeon",
+                "compatibility": "compatible",
+                "catalogEvidenceStatus": "verified",
+                "catalogEvidenceSource": "manifest_catalog_v2",
+                "modCapabilities": {},
+            },
+            [{
+                "id": "source-900002",
+                "itemId": "900002",
+                "sourceType": "dungeon",
+                "sourceLabel": "测试地下城",
+                "payload": {"classKeys": ["mage"], "specKeys": ["frost"]},
+            }],
+            [{
+                "id": "variant-900002",
+                "key": "variant-900002",
+                "variantKey": "variant-900002",
+                "itemId": "900002",
+                "slot": "head",
+                "sourceType": "dungeon",
+                "itemLevel": 289,
+                "status": "verified",
+                "simcOptions": {"ilevel": "289"},
+                "payload": {
+                    "classKeys": ["mage"],
+                    "specKeys": ["frost"],
+                    "statDisplayStatus": "verified_variant",
+                    "statSource": "manifest_catalog_v2",
+                    "itemStats": [{"key": "intellect", "label": "智力", "value": 124}],
+                },
+            }],
+            [],
+            [],
+            [],
+            "mage",
+            "frost",
+        )
+
+        candidate = self.websim_payload.sanitize_gear_candidate_mod_options(candidate)
+
+        self.assertFalse(candidate["simcReady"])
+        self.assertEqual(candidate["statDisplayStatus"], "verified_variant")
+        self.assertNotIn("blockers", candidate)
+
     def test_websim_gear_catalog_reuses_shared_catalog_rows_across_specs(self):
         conn = sqlite3.connect(self.db_path)
         try:

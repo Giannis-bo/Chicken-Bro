@@ -17875,7 +17875,18 @@ def enrich_catalog_item(item, sources, variants, socket_options, enchant_options
     if trust_blockers:
         item["missingFields"] = unique_text_list([*(item.get("missingFields") or []), *trust_blockers])
         item["simcReady"] = False
-    item["blockers"] = sorted(set([*(item.get("variantBlockers") or []), *(item.get("missingFields") or [])]))
+    # A verified BrowseVariant can truthfully expose static item facts before it
+    # has every exact SimC input.  Keep simcReady/missingFields for execution
+    # readiness, but do not present that separate gap as a failed item detail.
+    verified_static_detail = (
+        item.get("variantStatus") == "verified"
+        and item.get("statDisplayStatus") == "verified_variant"
+        and bool(item.get("itemStats"))
+    )
+    detail_blockers = [*(item.get("variantBlockers") or [])]
+    if not verified_static_detail:
+        detail_blockers.extend(item.get("missingFields") or [])
+    item["blockers"] = sorted(set(detail_blockers))
     if catalog_item_should_hide_preview_stats(item):
         hide_candidate_current_variant_stats(item)
     return item
