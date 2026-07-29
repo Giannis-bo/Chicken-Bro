@@ -94,9 +94,14 @@ class GearCatalogHttpCompletenessMatrixTest(unittest.TestCase):
     def test_complete_spec_slot_and_catalog_universe_passes(self):
         identities = self.identities()
         payload = self.payload(identities)
+        requested_paths = []
+
+        def request_json(_method, path, _body, _headers):
+            requested_paths.append(path)
+            return 200, payload, 10.0
 
         report = run_catalog_http_completeness_matrix(
-            lambda *_args: (200, payload, 10.0),
+            request_json,
             catalog=self.catalog(identities),
             expected_specs=[("mage", "frost")],
             **identities,
@@ -117,6 +122,8 @@ class GearCatalogHttpCompletenessMatrixTest(unittest.TestCase):
             1,
         )
         self.assertEqual(report["failureCount"], 0)
+        self.assertEqual(len(requested_paths), 1)
+        self.assertIn("mode=full", requested_paths[0])
 
     def test_missing_variant_and_catalog_item_fail_closed(self):
         identities = self.identities()

@@ -234,6 +234,7 @@ def run_catalog_http_completeness_matrix(
             "class": class_key,
             "spec": spec_key,
             "compact": "1",
+            "mode": "full",
         })
         try:
             status, payload, duration_ms = request_json(
