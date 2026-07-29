@@ -303,7 +303,7 @@ class GearExactItemInstanceCliTest(unittest.TestCase):
     def test_allowed_evidence_gap_seals_partial_registry_and_passes_shadow(self):
         current = snapshot()
         exact = current["catalogRows"]["variants"][-1]
-        exact["simcOptions"]["enchant_id"] = "7443/7444"
+        exact["simcOptions"]["enchant_id"] = "7443,7444"
         current["communityTemplates"][0]["gearItems"][0].pop("enchantId")
         sealed = []
 

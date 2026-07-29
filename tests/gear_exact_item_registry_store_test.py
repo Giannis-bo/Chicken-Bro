@@ -258,7 +258,7 @@ class GearExactItemRegistryStoreTest(unittest.TestCase):
 
     def test_partial_evidence_registry_is_append_only_and_reloadable(self):
         unresolved = exact_row()
-        unresolved["simcOptions"]["enchant_id"] = "7443/7444"
+        unresolved["simcOptions"]["enchant_id"] = "7443,7444"
         partial_template = template()
         partial_template["gearItems"][0].pop("enchantId")
         registry = build_exact_item_registry(

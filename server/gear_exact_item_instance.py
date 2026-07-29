@@ -199,13 +199,14 @@ def canonical_enhancement_selection(raw_selection: Any) -> dict[str, Any]:
 
     raw_enchant = raw.get("enchantId")
     enchant_tokens = _raw_tokens(raw_enchant)
-    if enchant_tokens is None or len(enchant_tokens) > 1:
+    if enchant_tokens is None:
         problems.append(_problem(
             "ENHANCEMENT_SINGLE_VALUE_MALFORMED",
             "enhancement.enchantId",
-            "enchantId must be empty or one bounded value.",
+            "enchantId must be an empty or slash-separated bounded token "
+            "sequence.",
         ))
-    enchant_id = enchant_tokens[0] if enchant_tokens and len(enchant_tokens) == 1 else ""
+    enchant_id = "/".join(enchant_tokens or [])
 
     if gem_ids is not None and gem_bonus_ids is not None and (
         gem_bonus_ids and len(gem_bonus_ids) != len(gem_ids)

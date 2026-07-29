@@ -153,7 +153,7 @@ class GearExactItemInstanceTest(unittest.TestCase):
             [problem["code"] for problem in unresolved["problems"]],
         )
 
-    def test_enhancement_sequences_must_have_simc_semantic_cardinality(self):
+    def test_enhancement_sequences_preserve_composite_source_enchants(self):
         malformed = canonical_enhancement_selection(
             {
                 "gemIds": ["240892", "240897"],
@@ -164,11 +164,18 @@ class GearExactItemInstanceTest(unittest.TestCase):
                 "embellishmentIds": [],
             }
         )
-        duplicate_single = copy.deepcopy(exact_row())
-        duplicate_single["simcOptions"]["enchant_id"] = "7443/7444"
-        duplicate_result = build_exact_item_instance(
+        composite_source = copy.deepcopy(exact_row())
+        composite_source["simcOptions"]["enchant_id"] = "7443/7444"
+        composite_result = build_exact_item_instance(
             CURRENT_BINDING,
-            duplicate_single,
+            composite_source,
+            catalog_revision=CATALOG_REVISION,
+        )
+        malformed_source = copy.deepcopy(exact_row())
+        malformed_source["simcOptions"]["enchant_id"] = "7443,7444"
+        malformed_result = build_exact_item_instance(
+            CURRENT_BINDING,
+            malformed_source,
             catalog_revision=CATALOG_REVISION,
         )
 
@@ -177,8 +184,17 @@ class GearExactItemInstanceTest(unittest.TestCase):
             "ENHANCEMENT_GEM_SEQUENCE_MISMATCH",
             [problem["code"] for problem in malformed["problems"]],
         )
-        self.assertEqual(duplicate_result["status"], "blocked")
+        self.assertEqual(composite_result["status"], "verified")
+        self.assertEqual(
+            composite_result["enhancementSelection"]["enchantId"],
+            "7443/7444",
+        )
+        self.assertEqual(
+            composite_result["serializerInput"]["enchant_id"],
+            "7443/7444",
+        )
+        self.assertEqual(malformed_result["status"], "blocked")
         self.assertIn(
             "ENHANCEMENT_SINGLE_VALUE_MALFORMED",
-            [problem["code"] for problem in duplicate_result["problems"]],
+            [problem["code"] for problem in malformed_result["problems"]],
         )

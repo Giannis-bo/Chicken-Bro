@@ -212,9 +212,9 @@ class GearExactItemRegistryTest(unittest.TestCase):
         self.assertNotIn("sourceVariantKey", result["validations"][0])
         self.assertNotIn("slot", result["validations"][0])
 
-    def test_unresolved_multi_enchant_is_classified_partial_without_materialization(self):
+    def test_malformed_enchant_is_classified_partial_without_materialization(self):
         unresolved = exact_row()
-        unresolved["simcOptions"]["enchant_id"] = "7443/7444"
+        unresolved["simcOptions"]["enchant_id"] = "7443,7444"
         partial_template = template()
         partial_template["gearItems"][0].pop("enchantId")
 
@@ -244,6 +244,32 @@ class GearExactItemRegistryTest(unittest.TestCase):
             ["ENHANCEMENT_SINGLE_VALUE_MALFORMED"],
         )
         self.assertEqual(verify_exact_item_registry(result), [])
+
+    def test_composite_source_enchant_materializes_verified_instance(self):
+        source = exact_row()
+        source["simcOptions"]["enchant_id"] = "7443/7444"
+        source_template = template()
+        source_template["gearItems"][0].pop("enchantId")
+
+        result = build_exact_item_registry(
+            CURRENT_BINDING,
+            catalog_revision=CATALOG_REVISION,
+            exact_rows=[source],
+            community_templates=[source_template],
+            personal_templates=[],
+        )
+
+        self.assertEqual(result["status"], "verified")
+        self.assertEqual(
+            result["summary"]["verifiedTemplateItemCount"],
+            1,
+        )
+        self.assertEqual(
+            result["exactItemInstances"][0]["enhancementSelection"][
+                "enchantId"
+            ],
+            "7443/7444",
+        )
 
     def test_missing_community_and_ambiguous_source_fail_closed_without_drop(self):
         duplicate = copy.deepcopy(exact_row())
