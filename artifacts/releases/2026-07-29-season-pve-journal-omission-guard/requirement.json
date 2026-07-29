@@ -1,0 +1,109 @@
+{
+  "schemaVersion": 1,
+  "slug": "season-pve-journal-omission-guard",
+  "classification": "Strict",
+  "status": "implementation_allowed",
+  "goal": "Make PostgreSQL current-season Journal discovery and replacement fail closed for every cap, fetch failure, fallback, missing completeness count, and blocked membership state so an incomplete source subset cannot replace LKG or be presented as a verified Catalog source.",
+  "userValue": "Players do not silently lose obtainable current-season PVE equipment because an upstream instance, encounter, or item was capped or failed before staging.",
+  "nonGoals": [
+    "Do not download Blizzard data, trigger a source sync, install dependencies, or change an external source in this slice.",
+    "Do not mutate production PostgreSQL rows, rebuild or promote a Catalog/Manifest, change timers, or touch the WeChat consumer.",
+    "Do not claim the full 18-source Season PVE Universe is complete; this slice repairs the Journal direct-drop discovery/write boundary only."
+  ],
+  "currentTruth": {
+    "sources": [
+      "docs/project-state.json",
+      "docs/roadmap.md",
+      "docs/plans/README.md",
+      "docs/plans/2026-07-29-equipment-simulator-e2e-completeness-goal.md",
+      "docs/plans/2026-07-29-season-pve-universe-reconciliation.md",
+      "docs/plans/2026-07-29-season-pve-journal-omission-guard.md",
+      "docs/harness.md",
+      "docs/verification-matrix.md",
+      "docs/database-architecture.md"
+    ],
+    "factOwner": "server/websim_journal_contract.py owns discovery completeness; server/postgres_cache_sync.py owns collection and orchestration; server/postgres_cache_store.py owns the replacing PostgreSQL write boundary.",
+    "baseBranch": "main"
+  },
+  "impactMap": {
+    "mustChange": [
+      "Record configured Journal caps and every omitted dungeon instance, raid instance, encounter, and item relation.",
+      "Represent cap, fetch-failure, and static fallback paths as machine-readable gaps with stable blocker codes.",
+      "Treat partial expected raid membership as blocked even when one or more current-season raid refs survive.",
+      "Require explicit membershipComplete=true, verified source status, zero gaps, and zero blockers before Journal replacement.",
+      "Require all four boundary limit/truncation counters, fetch-failure count, and diagnostic lists before replacement.",
+      "Preserve the last-known-good Journal and derived Catalog when discovery is incomplete.",
+      "Reject incomplete replacement at the PostgreSQL writer before any SQL executes.",
+      "Keep blocked sync-state diagnostics bounded and literal."
+    ],
+    "mustNotChange": [
+      "No frontend filtering, default variant, observed-profile backfill, or Catalog projection may compensate for missing Journal membership.",
+      "No missing discovery counts may default to success.",
+      "No external fetch, production sync, database write, Catalog/Manifest promotion, timer change, or async sync launch is authorized by this slice."
+    ],
+    "riskUnknown": [
+      "The currently deployed PostgreSQL sync may already have replaced an older complete Journal snapshot with a capped subset; this slice prevents recurrence but does not reconstruct missing official membership without the separately approved source snapshot.",
+      "Non-Journal PVE reward pools remain outside this direct-drop repair and stay blocked in the 18-source Universe audit."
+    ],
+    "evidenceRequired": [
+      "RED/GREEN regressions for encounter/item caps, raid fallback, orchestrator LKG preservation, and pre-SQL writer rejection.",
+      "Exact-head adjacent backend tests, compile checks, owner-map/Harness validation, and CI full profile.",
+      "Immutable candidate identity, resource gate, synthetic no-network contract smoke, health checks, and rollback identity."
+    ]
+  },
+  "ownership": {
+    "factOwner": "The shared Journal discovery contract decides replacement eligibility; PostgreSQL sync and store remain the collection/write owners.",
+    "consumers": [
+      "server/postgres_cache_sync.py",
+      "server/postgres_cache_store.py",
+      "server/websim_sync.py",
+      "server/data_health_followup.py",
+      "SeasonPveUniverse discovery adapter"
+    ]
+  },
+  "engineeringHealth": {
+    "status": "health_watch_guarded",
+    "reason": "The repair touches a scheduled destructive replacement path. Verification must not trigger source collection or PostgreSQL writes, and candidate deployment must keep WOW_DEPLOY_START_ASYNC_SYNCS=0."
+  },
+  "acceptanceEvidence": [
+    "Every configured cap emits its exact omitted count and SOURCE_CAP_TRUNCATED.",
+    "Static raid-ref fallback emits SOURCE_FALLBACK_USED and cannot claim complete membership.",
+    "A partially discovered current-season raid pool emits SOURCE_MEMBERSHIP_INCOMPLETE and cannot claim complete membership.",
+    "Fetch and selection failures emit SOURCE_FETCH_FAILED.",
+    "Success flags without four-boundary counts and diagnostics emit SOURCE_DISCOVERY_CONTRACT_INVALID.",
+    "Incomplete discovery does not call Journal replacement or Catalog rebuild and records blocked sync truth.",
+    "The writer rejects incomplete or missing completeness evidence before any SQL statement.",
+    "A complete explicit fixture still writes and rebuilds normally.",
+    "No external fetch, production database mutation, timer, active pointer, Manifest, Catalog, or WeChat change occurs."
+  ],
+  "manualAcceptanceContract": {
+    "required": false,
+    "requiredItemIds": []
+  },
+  "releaseTrigger": "scheduled_jobs",
+  "rollback": [
+    "code_rollback",
+    "retain_last_known_good_journal_and_catalog"
+  ],
+  "decisionLog": [
+    {
+      "date": "2026-07-29",
+      "decision": "The equipment completeness Goal forbids silent cap/fetch/fallback omissions and authorizes fixing the actual upstream owner instead of filtering the public view."
+    },
+    {
+      "date": "2026-07-29",
+      "decision": "Official network snapshot capture remains separately approval-gated; this repair uses only deterministic fixtures and no source sync."
+    }
+  ],
+  "harnessFindings": [
+    {
+      "id": "postgres-journal-silent-cap-replacement-20260729",
+      "status": "rule_promoted",
+      "whatHappened": "The PostgreSQL Journal collector discarded encounter/item cap omissions, used static raid fallbacks without a gap, and the replacing writer cleared LKG without validating discovery completeness.",
+      "missedGate": "Current-season Journal membership completeness before destructive replacement",
+      "impact": "A non-empty subset could reach staging and Catalog while omitted equipment relations became invisible to downstream 40-specialization checks.",
+      "recommendedAction": "Require the shared fail-closed discovery contract in both the sync orchestrator and PostgreSQL writer.",
+      "promotion": "rule_promoted"
+    }
+  ]
+}

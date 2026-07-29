@@ -2427,6 +2427,27 @@ class PostgresCacheSyncTest(unittest.TestCase):
         journal_data = {
             "season": {"seasonRevision": "season-pg-rev", "dataStatus": "verified", "dungeons": [{}]},
             "instances": [{"id": "1300", "encounters": [{"id": "9001", "items": [{"itemId": "111"}]}]}],
+            "counts": {
+                "sourceStatus": "verified",
+                "membershipComplete": True,
+                "limits": {
+                    "dungeonInstances": 20,
+                    "raidInstances": 8,
+                    "encounters": 200,
+                    "items": 1000,
+                },
+                "truncation": {
+                    "dungeonInstances": 0,
+                    "raidInstances": 0,
+                    "encounters": 0,
+                    "items": 0,
+                },
+                "fetchFailureCount": 0,
+                "gaps": [],
+                "blockerCodes": [],
+                "blockers": [],
+                "errors": [],
+            },
         }
 
         with patch.object(postgres_cache_sync, "extract_simc_generated_data", return_value={"talents": [], "presets": []}), patch.object(
@@ -2440,6 +2461,406 @@ class PostgresCacheSyncTest(unittest.TestCase):
         self.assertEqual(payload["blizzard"]["runner"], "postgres")
         self.assertEqual(payload["blizzard"]["loot"], 1)
         self.assertEqual(payload["gearCatalog"]["sourceCount"], 1)
+
+    def test_postgres_journal_fetch_records_every_cap_omission(self):
+        from server import postgres_cache_sync
+
+        season = {
+            "seasonId": "season-pg",
+            "seasonLabel": "Season PG",
+            "seasonRevision": "season-pg-rev",
+            "locale": "zh_CN",
+            "dataStatus": "verified",
+            "dungeons": [
+                {
+                    "id": "dungeon-a",
+                    "instanceId": "1300",
+                    "name": "Dungeon A",
+                }
+            ],
+        }
+
+        def fake_blizzard_get(path, token, region="us", locale="zh_CN", namespace=""):
+            if path == "/data/wow/journal-instance/1300":
+                return {
+                    "id": 1300,
+                    "name": "Dungeon A",
+                    "category": {"name": "Dungeon"},
+                    "encounters": [
+                        {"id": 9001, "name": "Boss A"},
+                        {"id": 9002, "name": "Boss B"},
+                    ],
+                }
+            if path == "/data/wow/journal-encounter/9001":
+                return {
+                    "id": 9001,
+                    "name": "Boss A",
+                    "items": [
+                        {"item": {"id": 111, "name": "Item A"}},
+                        {"item": {"id": 112, "name": "Item B"}},
+                    ],
+                }
+            raise AssertionError(f"unexpected Blizzard path {path}")
+
+        def fake_item_metadata(
+            token,
+            item_id,
+            region="us",
+            locale="zh_CN",
+            fallback_name="",
+            fallback_slot="",
+        ):
+            return {
+                "payload": {
+                    "id": int(item_id),
+                    "name": fallback_name,
+                    "inventory_type": {"type": "HEAD", "name": "Head"},
+                    "item_class": {"type": "ARMOR", "name": "Armor"},
+                },
+                "media": {},
+            }
+
+        with patch.dict(
+            os.environ,
+            {
+                "WOW_WEBSIM_SYNC_INSTANCE_LIMIT": "1",
+                "WOW_WEBSIM_SYNC_RAID_INSTANCE_LIMIT": "0",
+                "WOW_WEBSIM_SYNC_ENCOUNTER_LIMIT": "1",
+                "WOW_WEBSIM_SYNC_ITEM_LIMIT": "1",
+            },
+        ), patch.object(
+            postgres_cache_sync,
+            "get_blizzard_access_token",
+            return_value="token",
+        ), patch.object(
+            postgres_cache_sync,
+            "resolve_current_mythic_season",
+            return_value=season,
+        ), patch.object(
+            postgres_cache_sync,
+            "selected_journal_instance_refs",
+            return_value=([], "Midnight"),
+        ), patch.object(
+            postgres_cache_sync,
+            "official_current_season_raid_refs",
+            return_value=[],
+        ), patch.object(
+            postgres_cache_sync,
+            "blizzard_get",
+            side_effect=fake_blizzard_get,
+        ), patch.object(
+            postgres_cache_sync,
+            "fetch_blizzard_item_metadata",
+            side_effect=fake_item_metadata,
+        ):
+            payload = postgres_cache_sync.fetch_websim_journal_data_postgres()
+
+        self.assertEqual(
+            payload["counts"].get("truncation"),
+            {
+                "dungeonInstances": 0,
+                "raidInstances": 0,
+                "encounters": 1,
+                "items": 1,
+            },
+        )
+        self.assertEqual(payload["counts"].get("sourceStatus"), "blocked")
+        self.assertIn(
+            "SOURCE_CAP_TRUNCATED",
+            payload["counts"].get("blockerCodes") or [],
+        )
+
+    def test_postgres_journal_fetch_records_raid_reference_fallback(self):
+        from server import postgres_cache_sync
+
+        season = {
+            "seasonId": "season-pg",
+            "seasonRevision": "season-pg-rev",
+            "locale": "zh_CN",
+            "dataStatus": "verified",
+            "dungeons": [],
+        }
+
+        def fake_blizzard_get(path, token, region="us", locale="zh_CN", namespace=""):
+            if path == "/data/wow/journal-instance/1400":
+                return {
+                    "id": 1400,
+                    "name": "Fallback Raid",
+                    "category": {"name": "Raid"},
+                    "encounters": [],
+                }
+            raise AssertionError(f"unexpected Blizzard path {path}")
+
+        with patch.object(
+            postgres_cache_sync,
+            "get_blizzard_access_token",
+            return_value="token",
+        ), patch.object(
+            postgres_cache_sync,
+            "resolve_current_mythic_season",
+            return_value=season,
+        ), patch.object(
+            postgres_cache_sync,
+            "selected_journal_instance_refs",
+            return_value=([], "Midnight"),
+        ), patch.object(
+            postgres_cache_sync,
+            "current_season_raid_pool_status",
+            return_value={
+                "status": "blocked",
+                "refs": [],
+                "blockers": [
+                    "current season raid pool missing verified journal refs",
+                ],
+            },
+        ), patch.object(
+            postgres_cache_sync,
+            "official_current_season_raid_refs",
+            return_value=[
+                {
+                    "id": "1400",
+                    "instanceId": "1400",
+                    "name": "Fallback Raid",
+                    "category": "Raid",
+                }
+            ],
+        ), patch.object(
+            postgres_cache_sync,
+            "blizzard_get",
+            side_effect=fake_blizzard_get,
+        ):
+            payload = postgres_cache_sync.fetch_websim_journal_data_postgres()
+
+        self.assertEqual(payload["counts"]["sourceStatus"], "blocked")
+        self.assertIn(
+            "SOURCE_FALLBACK_USED",
+            payload["counts"]["blockerCodes"],
+        )
+        self.assertEqual(
+            [
+                gap["boundary"]
+                for gap in payload["counts"]["gaps"]
+                if gap["kind"] == "fallback"
+            ],
+            ["raidInstances"],
+        )
+
+    def test_postgres_journal_fetch_blocks_partial_raid_membership_without_fallback(self):
+        from server import postgres_cache_sync
+
+        season = {
+            "seasonId": "season-pg",
+            "seasonLabel": "Season PG",
+            "seasonRevision": "season-pg-rev",
+            "locale": "zh_CN",
+            "dataStatus": "verified",
+            "dungeons": [],
+        }
+
+        def fake_blizzard_get(path, token, region="us", locale="zh_CN", namespace=""):
+            if path == "/data/wow/journal-instance/1400":
+                return {
+                    "id": 1400,
+                    "name": "Only Discovered Raid",
+                    "category": {"name": "Raid"},
+                    "encounters": [],
+                }
+            raise AssertionError(f"unexpected Blizzard path {path}")
+
+        with patch.object(
+            postgres_cache_sync,
+            "get_blizzard_access_token",
+            return_value="token",
+        ), patch.object(
+            postgres_cache_sync,
+            "resolve_current_mythic_season",
+            return_value=season,
+        ), patch.object(
+            postgres_cache_sync,
+            "selected_journal_instance_refs",
+            return_value=([], "Midnight"),
+        ), patch.object(
+            postgres_cache_sync,
+            "current_season_raid_pool_status",
+            return_value={
+                "refs": [
+                    {
+                        "id": "1400",
+                        "instanceId": "1400",
+                        "name": "Only Discovered Raid",
+                        "category": "Raid",
+                    }
+                ],
+                "missingNames": ["Missing Raid"],
+                "staleRefs": [],
+                "blockers": [
+                    "current season raid pool missing verified journal refs",
+                ],
+            },
+        ), patch.object(
+            postgres_cache_sync,
+            "official_current_season_raid_refs",
+            return_value=[],
+        ), patch.object(
+            postgres_cache_sync,
+            "blizzard_get",
+            side_effect=fake_blizzard_get,
+        ):
+            payload = postgres_cache_sync.fetch_websim_journal_data_postgres()
+
+        self.assertEqual(payload["counts"]["sourceStatus"], "blocked")
+        self.assertIn(
+            "SOURCE_MEMBERSHIP_INCOMPLETE",
+            payload["counts"]["blockerCodes"],
+        )
+        self.assertEqual(
+            [
+                gap["boundary"]
+                for gap in payload["counts"]["gaps"]
+                if gap["kind"] == "membership"
+            ],
+            ["raidInstances"],
+        )
+
+    def test_postgres_journal_fetch_records_instance_fetch_failure(self):
+        from server import postgres_cache_sync
+
+        season = {
+            "seasonId": "season-pg",
+            "seasonLabel": "Season PG",
+            "seasonRevision": "season-pg-rev",
+            "locale": "zh_CN",
+            "dataStatus": "verified",
+            "dungeons": [
+                {
+                    "id": "dungeon-a",
+                    "instanceId": "1300",
+                    "name": "Dungeon A",
+                }
+            ],
+        }
+
+        with patch.object(
+            postgres_cache_sync,
+            "get_blizzard_access_token",
+            return_value="token",
+        ), patch.object(
+            postgres_cache_sync,
+            "resolve_current_mythic_season",
+            return_value=season,
+        ), patch.object(
+            postgres_cache_sync,
+            "selected_journal_instance_refs",
+            return_value=([], "Midnight"),
+        ), patch.object(
+            postgres_cache_sync,
+            "current_season_raid_pool_status",
+            return_value={
+                "refs": [],
+                "missingNames": [],
+                "staleRefs": [],
+                "blockers": [],
+            },
+        ), patch.object(
+            postgres_cache_sync,
+            "official_current_season_raid_refs",
+            return_value=[],
+        ), patch.object(
+            postgres_cache_sync,
+            "blizzard_get",
+            side_effect=RuntimeError("instance unavailable"),
+        ):
+            payload = postgres_cache_sync.fetch_websim_journal_data_postgres()
+
+        self.assertEqual(payload["counts"]["sourceStatus"], "blocked")
+        self.assertEqual(payload["counts"]["fetchFailureCount"], 1)
+        self.assertIn(
+            "SOURCE_FETCH_FAILED",
+            payload["counts"]["blockerCodes"],
+        )
+        self.assertEqual(
+            [
+                gap["identity"]
+                for gap in payload["counts"]["gaps"]
+                if gap["kind"] == "fetch_failure"
+            ],
+            ["1300"],
+        )
+
+    def test_websim_postgres_sync_preserves_journal_lkg_when_discovery_is_incomplete(self):
+        from server import postgres_cache_sync
+
+        store = FakePostgresSyncStore()
+        journal_data = {
+            "season": {
+                "seasonRevision": "season-pg-rev",
+                "dataStatus": "verified",
+                "dungeons": [{}],
+            },
+            "instances": [
+                {
+                    "id": "1300",
+                    "encounters": [
+                        {
+                            "id": "9001",
+                            "items": [{"itemId": "111"}],
+                        }
+                    ],
+                }
+            ],
+            "counts": {
+                "sourceStatus": "blocked",
+                "membershipComplete": False,
+                "truncated": True,
+                "truncation": {
+                    "dungeonInstances": 0,
+                    "raidInstances": 0,
+                    "encounters": 1,
+                    "items": 0,
+                },
+                "gaps": [
+                    {
+                        "kind": "cap",
+                        "boundary": "encounters",
+                        "identity": "journal:encounters",
+                        "omittedCount": 1,
+                        "evidenceRef": "blizzard:game-data:journal",
+                    }
+                ],
+                "blockerCodes": ["SOURCE_CAP_TRUNCATED"],
+                "blockers": [
+                    "SOURCE_CAP_TRUNCATED: 1 Journal discovery gap(s)",
+                ],
+            },
+        }
+
+        with patch.object(
+            postgres_cache_sync,
+            "extract_simc_generated_data",
+            return_value={"talents": [], "presets": []},
+        ), patch.object(
+            postgres_cache_sync,
+            "fetch_websim_journal_data_postgres",
+            return_value=journal_data,
+        ):
+            payload = postgres_cache_sync.sync_websim_cache_postgres(
+                include_blizzard=True,
+                store=store,
+            )
+
+        self.assertFalse(hasattr(store, "journal_data"))
+        self.assertFalse(hasattr(store, "gear_catalog_season"))
+        self.assertEqual(payload["blizzard"]["sourceStatus"], "blocked")
+        self.assertIn(
+            "SOURCE_CAP_TRUNCATED",
+            payload["blizzard"]["blockerCodes"],
+        )
+        self.assertTrue(
+            any(
+                "SOURCE_CAP_TRUNCATED" in blocker
+                for blocker in payload["errors"]
+            )
+        )
 
     def test_refresh_websim_item_metadata_postgres_fetches_and_writes_item_ids(self):
         from server import postgres_cache_sync

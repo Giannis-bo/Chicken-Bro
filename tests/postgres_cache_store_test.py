@@ -9392,6 +9392,27 @@ class PostgresCacheStoreTest(unittest.TestCase):
                         ],
                     }
                 ],
+                "counts": {
+                    "sourceStatus": "verified",
+                    "membershipComplete": True,
+                    "limits": {
+                        "dungeonInstances": 20,
+                        "raidInstances": 8,
+                        "encounters": 200,
+                        "items": 1000,
+                    },
+                    "truncation": {
+                        "dungeonInstances": 0,
+                        "raidInstances": 0,
+                        "encounters": 0,
+                        "items": 0,
+                    },
+                    "fetchFailureCount": 0,
+                    "gaps": [],
+                    "blockerCodes": [],
+                    "blockers": [],
+                    "errors": [],
+                },
             }
         )
 
@@ -9414,6 +9435,46 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertIn("cache.websim_items.payload_json ? 'inventory_type'", sql)
         self.assertIn("cache.websim_items.payload_json ? 'item_class'", sql)
         self.assertIn("THEN cache.websim_items.payload_json", sql)
+
+    def test_postgres_native_journal_writer_rejects_incomplete_discovery_before_sql(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        conn = FakeConnection()
+        store = PostgresCacheStore(lambda: conn)
+
+        with self.assertRaisesRegex(
+            RuntimeError,
+            "SOURCE_CAP_TRUNCATED",
+        ):
+            store.replace_websim_journal_data(
+                {
+                    "season": {
+                        "seasonId": "season-pg",
+                        "seasonRevision": "season-pg-rev",
+                        "dataStatus": "verified",
+                    },
+                    "instances": [],
+                    "counts": {
+                        "sourceStatus": "blocked",
+                        "membershipComplete": False,
+                        "gaps": [
+                            {
+                                "kind": "cap",
+                                "boundary": "encounters",
+                                "identity": "journal:encounters",
+                                "omittedCount": 1,
+                                "evidenceRef": "blizzard:game-data:journal",
+                            }
+                        ],
+                        "blockerCodes": ["SOURCE_CAP_TRUNCATED"],
+                        "blockers": [
+                            "SOURCE_CAP_TRUNCATED: 1 Journal discovery gap(s)",
+                        ],
+                    },
+                }
+            )
+
+        self.assertEqual(conn.cursor_instance.statements, [])
 
     def test_postgres_native_gear_catalog_writer_derives_loot_sources(self):
         from server.postgres_cache_store import PostgresCacheStore
