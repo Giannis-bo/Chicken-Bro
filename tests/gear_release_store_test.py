@@ -2583,6 +2583,100 @@ class GearReleaseStoreTest(unittest.TestCase):
         self.assertEqual(snapshot["options"], [{"optionId": "option-a"}])
         self.assertNotIn("legacy-must-not-leak", str(snapshot))
 
+    def test_manifest_catalog_snapshot_expands_equivalent_and_offhand_source_slots(self):
+        from server.gear_release_store import _manifest_catalog_snapshot
+
+        catalog = {
+            "status": "verified",
+            "catalogRevision": (
+                "gear-catalog:sha256:" + ("a" * 64)
+            ),
+            "itemDefinitions": [],
+            "browseVariants": [],
+        }
+        for index, (item_id, slot) in enumerate(
+            (
+                ("ring-a", "finger1"),
+                ("trinket-a", "trinket1"),
+                ("dagger-a", "main_hand"),
+            )
+        ):
+            catalog["itemDefinitions"].append(
+                {
+                    "itemId": item_id,
+                    "name": item_id,
+                    "slot": slot,
+                    "itemLevel": 289,
+                    "sourceStatus": "verified",
+                    "equipment": {
+                        "weaponType": (
+                            "Dagger" if slot == "main_hand" else ""
+                        ),
+                    },
+                    "sources": [
+                        {
+                            "sourceIdentity": (
+                                f"catalog-source:sha256:{index}"
+                            ),
+                            "sourceType": "raid",
+                            "sourceKey": f"raid-{index}",
+                            "difficultyKey": "mythic",
+                            "seasonRevision": "season-17",
+                            "status": "verified",
+                        }
+                    ],
+                }
+            )
+            catalog["browseVariants"].append(
+                {
+                    "browseVariantKey": (
+                        f"browse-variant:sha256:{index:064x}"
+                    ),
+                    "itemId": item_id,
+                    "progressionState": {
+                        "kind": "upgrade_track",
+                        "trackKey": "myth",
+                        "rank": 6,
+                        "rankMax": 6,
+                    },
+                    "itemLevel": 289,
+                    "bonusIds": [str(index + 1)],
+                    "staticFacts": {"stamina": 100 + index},
+                    "sourceType": "raid",
+                    "sourceVariantKeys": [f"variant-{index}"],
+                    "evidenceStatus": "verified",
+                }
+            )
+
+        finger2 = _manifest_catalog_snapshot(
+            catalog,
+            {},
+            catalog_slot="finger2",
+        )
+        trinket2 = _manifest_catalog_snapshot(
+            catalog,
+            {},
+            catalog_slot="trinket2",
+        )
+        off_hand = _manifest_catalog_snapshot(
+            catalog,
+            {},
+            catalog_slot="off_hand",
+        )
+
+        self.assertEqual(
+            [row["itemId"] for row in finger2["items"]],
+            ["ring-a"],
+        )
+        self.assertEqual(
+            [row["itemId"] for row in trinket2["items"]],
+            ["trinket-a"],
+        )
+        self.assertEqual(
+            [row["itemId"] for row in off_hand["items"]],
+            ["dagger-a"],
+        )
+
     def test_manifest_v2_public_gear_projects_only_the_bound_catalog(self):
         from server.gear_release_store import GearReleaseStore
 

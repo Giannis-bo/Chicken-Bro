@@ -689,6 +689,16 @@ def _manifest_catalog_snapshot(
     )
     source_display_labels = _catalog_source_display_labels(source_value)
     requested_slot = _text(catalog_slot)
+    source_slots = {
+        "finger1": {"finger1", "finger2"},
+        "finger2": {"finger1", "finger2"},
+        "trinket1": {"trinket1", "trinket2"},
+        "trinket2": {"trinket1", "trinket2"},
+        # One-handed and Fury two-handed weapons are catalogued from the
+        # canonical main-hand inventory type.  Spec legality projects them
+        # into off_hand later in the read-model owner.
+        "off_hand": {"main_hand", "off_hand"},
+    }.get(requested_slot, {requested_slot})
     variants = []
     included_item_ids = set()
     for row in value.get("browseVariants") or []:
@@ -696,7 +706,7 @@ def _manifest_catalog_snapshot(
         item_id = _text(variant.get("itemId"))
         definition = definitions.get(item_id) or {}
         slot = _text(definition.get("slot"))
-        if requested_slot and slot != requested_slot:
+        if requested_slot and slot not in source_slots:
             continue
         browse_key = _text(variant.get("browseVariantKey"))
         source_keys = sorted(
