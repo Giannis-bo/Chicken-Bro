@@ -29,6 +29,21 @@ class FakeReleaseStore:
         self.requested_specs = list(expected_specs)
         return copy.deepcopy(self.templates)
 
+    def snapshot_staging_community_builder_templates(self, expected_specs):
+        self.requested_specs = list(expected_specs)
+        return copy.deepcopy(
+            getattr(self, "builder_templates", self.templates)
+        )
+
+    def snapshot_staging_community_templates_by_ids(self, template_ids):
+        self.requested_template_ids = sorted(template_ids)
+        requested = set(template_ids)
+        return copy.deepcopy([
+            template
+            for template in self.templates
+            if template.get("templateId") in requested
+        ])
+
     def snapshot_staging_community_talent_candidates(self, expected_specs):
         self.requested_specs = list(expected_specs)
         return copy.deepcopy(self.talent_candidates)
@@ -3641,12 +3656,17 @@ class GearReleaseToolTest(unittest.TestCase):
         spell = self.template("spellslinger")
         spell["sourceIdentity"] = "raiderio:cn|realm|spellslinger"
         spell["payload"]["sourceIdentity"] = spell["sourceIdentity"]
+        spell["gearItems"][0]["displayName"] = "Hydrated full winner item"
         talent_candidates = [
             {"id": "talent-frost-top", "classKey": "mage", "specKey": "arcane", "heroKey": "sunfury", "scenarioKey": "mythic_plus", "sourceKey": "raiderio", "sourceIdentity": frost_top["sourceIdentity"], "talentCandidateRank": 1},
             {"id": "talent-frost-fallback", "classKey": "mage", "specKey": "arcane", "heroKey": "sunfury", "scenarioKey": "mythic_plus", "sourceKey": "raiderio", "sourceIdentity": frost_fallback["sourceIdentity"], "talentCandidateRank": 2},
             {"id": "talent-spell", "classKey": "mage", "specKey": "arcane", "heroKey": "spellslinger", "scenarioKey": "mythic_plus", "sourceKey": "raiderio", "sourceIdentity": spell["sourceIdentity"], "talentCandidateRank": 1},
         ]
         store = FakeReleaseStore(snapshot, [frost_top, frost_fallback, spell], talent_candidates)
+        store.builder_templates = copy.deepcopy(store.templates)
+        for template in store.builder_templates:
+            for item in template.get("gearItems") or []:
+                item.pop("displayName", None)
 
         with patch.object(
             gear_release_tool,
@@ -3671,6 +3691,14 @@ class GearReleaseToolTest(unittest.TestCase):
         self.assertEqual(winners["sunfury"]["payload"]["gearProjectionMode"], "gear_fallback")
         self.assertEqual(winners["sunfury"]["payload"]["gearSourceTemplateId"], "frost-fallback")
         self.assertEqual(winners["spellslinger"]["payload"]["gearProjectionMode"], "talent_winner")
+        self.assertEqual(
+            winners["spellslinger"]["payload"]["gearItems"][0]["displayName"],
+            "Hydrated full winner item",
+        )
+        self.assertEqual(
+            store.requested_template_ids,
+            ["frost-fallback", "spellslinger"],
+        )
         self.assertEqual(
             winners["spellslinger"]["payload"]["importEvidence"]["schemaRevision"],
             "community-template-import-evidence-v3",

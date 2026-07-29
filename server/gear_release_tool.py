@@ -2633,6 +2633,126 @@ def _projected_community_release_rows(
     return rows, election
 
 
+def _rehydrate_projected_community_rows(
+    rows: Iterable[dict[str, Any]],
+    *,
+    builder_templates: Iterable[dict[str, Any]],
+    full_templates: Iterable[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Restore full public winner payloads without accepting staging drift."""
+
+    builder_by_id = {
+        _text(template.get("templateId")): template
+        for template in builder_templates
+        if isinstance(template, dict) and _text(template.get("templateId"))
+    }
+    full_by_id = {
+        _text(template.get("templateId")): template
+        for template in full_templates
+        if isinstance(template, dict) and _text(template.get("templateId"))
+    }
+    source_ids = {
+        _text(
+            (
+                row.get("payload")
+                if isinstance(row.get("payload"), dict)
+                else {}
+            ).get("gearSourceTemplateId")
+        )
+        for row in rows
+        if isinstance(row, dict)
+    }
+    source_ids.discard("")
+    if not source_ids or set(full_by_id) != source_ids:
+        raise GearReleaseIntegrityError(
+            "community winner hydration is incomplete"
+        )
+
+    stable_fields = (
+        "templateId",
+        "classKey",
+        "specKey",
+        "sourceKey",
+        "sourceUrl",
+        "sourceStatus",
+        "status",
+        "signature",
+        "updatedAt",
+        "expiresAt",
+        "scanRunId",
+    )
+    for template_id in sorted(source_ids):
+        builder = builder_by_id.get(template_id)
+        full = full_by_id.get(template_id)
+        if (
+            not isinstance(builder, dict)
+            or not isinstance(full, dict)
+            or any(
+                builder.get(field) != full.get(field)
+                for field in stable_fields
+            )
+        ):
+            raise GearReleaseIntegrityError(
+                "community winner hydration changed staging identity"
+            )
+        builder_token = _text(builder.get("_builderSnapshotToken"))
+        full_token = _text(full.get("_builderSnapshotToken"))
+        if (
+            bool(builder_token) != bool(full_token)
+            or (
+                builder_token
+                and builder_token != full_token
+            )
+        ):
+            raise GearReleaseIntegrityError(
+                "community winner hydration changed staging content"
+            )
+
+    projection_fields = (
+        "id",
+        "templateId",
+        "gearSourceTemplateId",
+        "heroKey",
+        "talentWinnerId",
+        "gearProjectionMode",
+        "gearProjectionFallbackScope",
+        "gearProjectionFallbackReason",
+        "canApplyGear",
+        "importEvidence",
+    )
+    hydrated_rows = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        projected_payload = (
+            row.get("payload")
+            if isinstance(row.get("payload"), dict)
+            else {}
+        )
+        source_id = _text(projected_payload.get("gearSourceTemplateId"))
+        full = _canonical(full_by_id[source_id])
+        full.pop("_builderSnapshotToken", None)
+        for field in projection_fields:
+            if field in projected_payload:
+                full[field] = _canonical(projected_payload[field])
+        nested_payload = (
+            full.get("payload")
+            if isinstance(full.get("payload"), dict)
+            else {}
+        )
+        nested_payload = _canonical(nested_payload)
+        nested_payload["sourceIdentity"] = _observed_source_identity(full)
+        full["payload"] = nested_payload
+        hydrated = dict(row)
+        hydrated["payload"] = full
+        hydrated["evidence"] = _canonical(
+            nested_payload.get("templateEvidence")
+            or {"sourceRefs": full.get("sourceRefs") or []}
+        )
+        hydrated_rows.append(hydrated)
+    return hydrated_rows
+
+
 def prepare_staging_community_release(
     store: GearReleaseStore,
     *,
@@ -2653,8 +2773,17 @@ def prepare_staging_community_release(
     })
     if not expected:
         raise GearReleaseIntegrityError("expected_specs must contain at least one spec")
-    templates = store.snapshot_staging_community_templates(expected)
     projection_enabled = bool(getattr(store, "community_hero_projection_enabled", False))
+    builder_template_reader = getattr(
+        store,
+        "snapshot_staging_community_builder_templates",
+        None,
+    )
+    templates = (
+        builder_template_reader(expected)
+        if projection_enabled and callable(builder_template_reader)
+        else store.snapshot_staging_community_templates(expected)
+    )
     talent_snapshot = (
         store.snapshot_staging_community_talent_candidates(expected)
         if projection_enabled
@@ -2777,6 +2906,31 @@ def prepare_staging_community_release(
             gear_release_id=gear_release_descriptor["releaseId"],
             now=now,
         )
+        hydration_reader = getattr(
+            store,
+            "snapshot_staging_community_templates_by_ids",
+            None,
+        )
+        if rows and callable(hydration_reader):
+            source_template_ids = {
+                _text(
+                    (
+                        row.get("payload")
+                        if isinstance(row.get("payload"), dict)
+                        else {}
+                    ).get("gearSourceTemplateId")
+                )
+                for row in rows
+                if isinstance(row, dict)
+            }
+            source_template_ids.discard("")
+            rows = _rehydrate_projected_community_rows(
+                rows,
+                builder_templates=templates,
+                full_templates=hydration_reader(
+                    sorted(source_template_ids)
+                ),
+            )
         summary = community_rows_summary(rows)
         release = gear_release.build_release(
             release_kind="community",

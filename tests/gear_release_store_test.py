@@ -838,6 +838,48 @@ class GearReleaseStoreTest(unittest.TestCase):
         self.assertEqual(rows[0]["gearItems"][0]["variantKey"], "variant-a")
         self.assertEqual(rows[0]["payload"]["profileHash"], "profile:a")
 
+    def test_snapshot_staging_community_builder_templates_projects_only_resolver_item_facts(self):
+        from server.gear_release_store import GearReleaseStore
+
+        conn = FakeConnection(rowsets={
+            "community_builder_templates": [
+                (
+                    "template-a", "mage", "arcane", "Observed A",
+                    "raiderio_observed_profile", "Raider.IO",
+                    "https://raider.io/a", "synced", "complete", "gear:sig",
+                    [{"sourceKey": "raiderio_observed_profile"}],
+                    [{
+                        "slot": "head",
+                        "itemId": "item-a",
+                        "variantKey": "variant-a",
+                        "ilevel": 289,
+                    }],
+                    "", 16, [], "observed", {"profileHash": "profile:a"},
+                    "2026-07-11T05:00:00+00:00",
+                    "2026-07-25T05:00:00+00:00", "scan-a",
+                    "md5:builder-a",
+                )
+            ]
+        })
+
+        rows = GearReleaseStore(
+            lambda: conn
+        ).snapshot_staging_community_builder_templates(
+            [("mage", "arcane")]
+        )
+        sql = "\n".join(conn.cursor_instance.statements)
+
+        self.assertIn("community_builder_templates", sql)
+        self.assertIn("jsonb_strip_nulls(jsonb_build_object", sql)
+        self.assertIn("'observedProfileRefs'", sql)
+        self.assertIn("'gameAsset'", sql)
+        self.assertIn("'' AS raw_string", sql)
+        self.assertEqual(rows[0]["gearItems"][0]["itemId"], "item-a")
+        self.assertEqual(
+            rows[0]["_builderSnapshotToken"],
+            "md5:builder-a",
+        )
+
     def test_snapshot_staging_talent_candidates_reads_persisted_election_order_without_cap(self):
         from server.gear_release_store import GearReleaseStore
 

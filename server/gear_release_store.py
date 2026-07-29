@@ -2281,6 +2281,35 @@ class GearReleaseStore:
         }
         return snapshot
 
+    @staticmethod
+    def _staging_community_template_from_row(row: Any) -> dict[str, Any]:
+        values = list(row or ())
+        template = {
+            "templateId": _text(values[0]),
+            "classKey": _text(values[1]),
+            "specKey": _text(values[2]),
+            "name": _text(values[3]),
+            "sourceKey": _text(values[4]),
+            "sourceName": _text(values[5]),
+            "sourceUrl": _text(values[6]),
+            "sourceStatus": _text(values[7]),
+            "status": _text(values[8]),
+            "signature": _text(values[9]),
+            "sourceRefs": values[10] if isinstance(values[10], list) else [],
+            "gearItems": values[11] if isinstance(values[11], list) else [],
+            "rawString": _text(values[12]),
+            "readySlotCount": _int(values[13]),
+            "missingSlots": values[14] if isinstance(values[14], list) else [],
+            "analysisWindow": _text(values[15]),
+            "payload": values[16] if isinstance(values[16], dict) else {},
+            "updatedAt": _text(values[17]),
+            "expiresAt": _text(values[18]),
+            "scanRunId": _text(values[19]),
+        }
+        if len(values) > 20 and _text(values[20]):
+            template["_builderSnapshotToken"] = _text(values[20])
+        return template
+
     def snapshot_staging_community_templates(
         self,
         expected_specs: Iterable[tuple[str, str]],
@@ -2330,28 +2359,215 @@ class GearReleaseStore:
                     (class_keys, spec_keys),
                 )
                 return [
-                    {
-                        "templateId": _text(row[0]),
-                        "classKey": _text(row[1]),
-                        "specKey": _text(row[2]),
-                        "name": _text(row[3]),
-                        "sourceKey": _text(row[4]),
-                        "sourceName": _text(row[5]),
-                        "sourceUrl": _text(row[6]),
-                        "sourceStatus": _text(row[7]),
-                        "status": _text(row[8]),
-                        "signature": _text(row[9]),
-                        "sourceRefs": row[10] if isinstance(row[10], list) else [],
-                        "gearItems": row[11] if isinstance(row[11], list) else [],
-                        "rawString": _text(row[12]),
-                        "readySlotCount": _int(row[13]),
-                        "missingSlots": row[14] if isinstance(row[14], list) else [],
-                        "analysisWindow": _text(row[15]),
-                        "payload": row[16] if isinstance(row[16], dict) else {},
-                        "updatedAt": _text(row[17]),
-                        "expiresAt": _text(row[18]),
-                        "scanRunId": _text(row[19]),
-                    }
+                    self._staging_community_template_from_row(row)
+                    for row in _stream_cursor_rows(cur)
+                ]
+
+    def snapshot_staging_community_builder_templates(
+        self,
+        expected_specs: Iterable[tuple[str, str]],
+    ) -> list[dict[str, Any]]:
+        """Read all candidates with only resolver-required per-item facts."""
+
+        specs = sorted({
+            (_text(class_key), _text(spec_key))
+            for class_key, spec_key in expected_specs
+            if _text(class_key) and _text(spec_key)
+        })
+        if not specs or len(specs) > 40:
+            raise GearReleaseIntegrityError(
+                "community builder snapshot requires 1 to 40 explicit specs"
+            )
+        class_keys = [class_key for class_key, _spec_key in specs]
+        spec_keys = [spec_key for _class_key, spec_key in specs]
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"
+                )
+                cur.execute(
+                    """
+                    /* community_builder_templates */
+                    WITH expected(class_key, spec_key) AS (
+                        SELECT * FROM unnest(%s::text[], %s::text[])
+                    ), ranked AS (
+                        SELECT template.*,
+                               ROW_NUMBER() OVER (
+                                   PARTITION BY template.class_key,
+                                                template.spec_key
+                                   ORDER BY template.status,
+                                            template.ready_slot_count DESC,
+                                            template.updated_at DESC,
+                                            template.id
+                               ) AS candidate_rank
+                        FROM cache.websim_community_gear_templates AS template
+                        INNER JOIN expected
+                          ON expected.class_key = template.class_key
+                         AND expected.spec_key = template.spec_key
+                    )
+                    SELECT template.id, template.class_key, template.spec_key,
+                           template.name, template.source_key,
+                           template.source_name, template.source_url,
+                           template.source_status, template.status,
+                           template.signature, template.source_refs_json,
+                           projected.gear_items_json,
+                           '' AS raw_string,
+                           template.ready_slot_count,
+                           template.missing_slots_json,
+                           template.analysis_window, template.payload_json,
+                           template.updated_at, template.expires_at,
+                           template.scan_run_id,
+                           'md5:' || md5(jsonb_build_array(
+                               template.id, template.class_key,
+                               template.spec_key, template.name,
+                               template.source_key, template.source_name,
+                               template.source_url, template.source_status,
+                               template.status, template.signature,
+                               template.source_refs_json,
+                               template.gear_items_json,
+                               template.raw_string,
+                               template.ready_slot_count,
+                               template.missing_slots_json,
+                               template.analysis_window,
+                               template.payload_json,
+                               template.updated_at,
+                               template.expires_at,
+                               template.scan_run_id
+                           )::text) AS builder_snapshot_token
+                    FROM ranked AS template
+                    CROSS JOIN LATERAL (
+                        SELECT COALESCE(
+                            jsonb_agg(
+                                jsonb_strip_nulls(jsonb_build_object(
+                                    'slot', item.value->'slot',
+                                    'simcSlot', item.value->'simcSlot',
+                                    'itemId', item.value->'itemId',
+                                    'id', item.value->'id',
+                                    'variantKey', item.value->'variantKey',
+                                    'itemLevel', item.value->'itemLevel',
+                                    'ilevel', item.value->'ilevel',
+                                    'bonuses', item.value->'bonuses',
+                                    'bonusIds', item.value->'bonusIds',
+                                    'bonus_id', item.value->'bonus_id',
+                                    'gems', item.value->'gems',
+                                    'gemIds', item.value->'gemIds',
+                                    'gem_id', item.value->'gem_id',
+                                    'gemBonusIds', item.value->'gemBonusIds',
+                                    'gem_bonus_id',
+                                        item.value->'gem_bonus_id',
+                                    'gemItemLevels',
+                                        item.value->'gemItemLevels',
+                                    'gem_ilevel', item.value->'gem_ilevel',
+                                    'enchants', item.value->'enchants',
+                                    'enchant', item.value->'enchant',
+                                    'enchant_id', item.value->'enchant_id',
+                                    'crafted_stats',
+                                        item.value->'crafted_stats',
+                                    'craftedStats',
+                                        item.value->'craftedStats',
+                                    'embellishment',
+                                        item.value->'embellishment',
+                                    'embellishmentId',
+                                        item.value->'embellishmentId',
+                                    'embellishment_id',
+                                        item.value->'embellishment_id',
+                                    'redirected_base_stats',
+                                        item.value->'redirected_base_stats',
+                                    'redirectedBaseStats',
+                                        item.value->'redirectedBaseStats',
+                                    'profileUrl', item.value->'profileUrl',
+                                    'sourceProfileUrl',
+                                        item.value->'sourceProfileUrl',
+                                    'sourceUrl', item.value->'sourceUrl',
+                                    'url', item.value->'url',
+                                    'observedProfileRefs',
+                                        item.value->'observedProfileRefs',
+                                    'iconUrl', item.value->'iconUrl',
+                                    'gameAsset', item.value->'gameAsset'
+                                ))
+                                ORDER BY item.ordinality
+                            ),
+                            '[]'::jsonb
+                        ) AS gear_items_json
+                        FROM jsonb_array_elements(
+                            CASE
+                                WHEN jsonb_typeof(
+                                    template.gear_items_json
+                                ) = 'array'
+                                THEN template.gear_items_json
+                                ELSE '[]'::jsonb
+                            END
+                        ) WITH ORDINALITY AS item(value, ordinality)
+                    ) projected
+                    ORDER BY template.class_key, template.spec_key,
+                             template.candidate_rank, template.id
+                    """,
+                    (class_keys, spec_keys),
+                )
+                return [
+                    self._staging_community_template_from_row(row)
+                    for row in _stream_cursor_rows(cur)
+                ]
+
+    def snapshot_staging_community_templates_by_ids(
+        self,
+        template_ids: Iterable[str],
+    ) -> list[dict[str, Any]]:
+        """Hydrate only elected templates and bind them to their slim snapshot."""
+
+        normalized = sorted({
+            _text(template_id)
+            for template_id in template_ids
+            if _text(template_id)
+        })
+        if not normalized or len(normalized) > 80:
+            raise GearReleaseIntegrityError(
+                "community winner hydration requires 1 to 80 template IDs"
+            )
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"
+                )
+                cur.execute(
+                    """
+                    /* community_winner_template_hydration */
+                    SELECT template.id, template.class_key, template.spec_key,
+                           template.name, template.source_key,
+                           template.source_name, template.source_url,
+                           template.source_status, template.status,
+                           template.signature, template.source_refs_json,
+                           template.gear_items_json, template.raw_string,
+                           template.ready_slot_count,
+                           template.missing_slots_json,
+                           template.analysis_window, template.payload_json,
+                           template.updated_at, template.expires_at,
+                           template.scan_run_id,
+                           'md5:' || md5(jsonb_build_array(
+                               template.id, template.class_key,
+                               template.spec_key, template.name,
+                               template.source_key, template.source_name,
+                               template.source_url, template.source_status,
+                               template.status, template.signature,
+                               template.source_refs_json,
+                               template.gear_items_json,
+                               template.raw_string,
+                               template.ready_slot_count,
+                               template.missing_slots_json,
+                               template.analysis_window,
+                               template.payload_json,
+                               template.updated_at,
+                               template.expires_at,
+                               template.scan_run_id
+                           )::text) AS builder_snapshot_token
+                    FROM cache.websim_community_gear_templates AS template
+                    WHERE template.id = ANY(%s::text[])
+                    ORDER BY template.id
+                    """,
+                    (normalized,),
+                )
+                return [
+                    self._staging_community_template_from_row(row)
                     for row in _stream_cursor_rows(cur)
                 ]
 
