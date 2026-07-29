@@ -215,6 +215,62 @@ def _text(value: Any) -> str:
     return str(value or "").strip()
 
 
+def _verified_blizzard_item_media(
+    rows: Iterable[Iterable[Any]],
+) -> dict[str, dict[str, Any]]:
+    """Return one conflict-free official icon fact for each staging item."""
+
+    candidates: dict[str, set[str]] = {}
+    for raw in rows or []:
+        row = tuple(raw or ())
+        item_id = _text(row[0] if len(row) > 0 else "")
+        icon_url = _text(row[2] if len(row) > 2 else "")
+        source = _text(row[3] if len(row) > 3 else "")
+        status = _text(row[4] if len(row) > 4 else "")
+        if (
+            not item_id
+            or not icon_url
+            or source != "blizzard"
+            or status != "verified"
+        ):
+            continue
+        candidates.setdefault(item_id, set()).add(icon_url)
+    return {
+        item_id: {
+            "iconUrl": next(iter(icon_urls)),
+            "gameAsset": {
+                "status": "verified",
+                "source": "blizzard",
+                "iconUrl": next(iter(icon_urls)),
+            },
+        }
+        for item_id, icon_urls in candidates.items()
+        if len(icon_urls) == 1
+    }
+
+
+def _project_staging_item_media(
+    items: Iterable[dict[str, Any]],
+    media_rows: Iterable[Iterable[Any]],
+) -> list[dict[str, Any]]:
+    media_by_item = _verified_blizzard_item_media(media_rows)
+    projected = []
+    for raw in items or []:
+        item = dict(raw) if isinstance(raw, dict) else {}
+        payload = (
+            dict(item.get("payload"))
+            if isinstance(item.get("payload"), dict)
+            else {}
+        )
+        if not _text(payload.get("iconUrl") or payload.get("icon")):
+            media = media_by_item.get(_text(item.get("itemId")))
+            if isinstance(media, dict):
+                payload.update(_canonical(media))
+        item["payload"] = payload
+        projected.append(item)
+    return projected
+
+
 def _int(value: Any) -> int:
     if isinstance(value, bool):
         return 0
@@ -1334,6 +1390,21 @@ class GearReleaseStore:
                 item_rows = cur.fetchall()
                 cur.execute(
                     """
+                    SELECT asset.entity_id, asset.context_key, asset.icon_url,
+                           asset.source, asset.status
+                    FROM cache.websim_asset_registry asset
+                    JOIN cache.websim_items item
+                      ON item.id = asset.entity_id
+                    WHERE asset.entity_type = 'item'
+                      AND asset.source = 'blizzard'
+                      AND asset.status = 'verified'
+                      AND asset.icon_url <> ''
+                    ORDER BY asset.entity_id, asset.context_key
+                    """
+                )
+                media_rows = cur.fetchall()
+                cur.execute(
+                    """
                     SELECT id::text, item_id, source_type, source_key, source_label, instance_id,
                            encounter_id, difficulty_key, season_revision, payload_json, updated_at
                     FROM cache.websim_gear_sources
@@ -1361,18 +1432,23 @@ class GearReleaseStore:
                 )
                 option_rows = cur.fetchall()
         return {
-            "items": [
-                {
-                    "itemId": _text(row[0]),
-                    "name": _text(row[1]),
-                    "slot": _text(row[2]),
-                    "itemLevel": row[3],
-                    "payload": _canonical(row[4] if isinstance(row[4], dict) else {}),
-                    "sourceStatus": _text(row[5]),
-                    "updatedAt": _text(row[6]),
-                }
-                for row in item_rows
-            ],
+            "items": _project_staging_item_media(
+                [
+                    {
+                        "itemId": _text(row[0]),
+                        "name": _text(row[1]),
+                        "slot": _text(row[2]),
+                        "itemLevel": row[3],
+                        "payload": _canonical(
+                            row[4] if isinstance(row[4], dict) else {}
+                        ),
+                        "sourceStatus": _text(row[5]),
+                        "updatedAt": _text(row[6]),
+                    }
+                    for row in item_rows
+                ],
+                media_rows,
+            ),
             "sources": [
                 {
                     "sourceId": _text(row[0]),

@@ -341,6 +341,109 @@ class GearReleaseStoreTest(unittest.TestCase):
         self.assertEqual(snapshot["options"][0]["optionKey"], "gem-a")
         self.assertTrue(conn.committed)
 
+    def test_snapshot_staging_gear_projects_only_unambiguous_verified_blizzard_media(self):
+        from server.gear_release_store import GearReleaseStore
+
+        existing_icon = (
+            "https://render.worldofwarcraft.com/icons/existing.jpg"
+        )
+        verified_icon = (
+            "https://render.worldofwarcraft.com/icons/verified.jpg"
+        )
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_items": [
+                    (
+                        "item-existing",
+                        "Existing",
+                        "head",
+                        289,
+                        {"iconUrl": existing_icon},
+                        "verified",
+                        "2026-07-11T05:00:00+00:00",
+                    ),
+                    (
+                        "item-verified",
+                        "Verified",
+                        "main_hand",
+                        295,
+                        {},
+                        "verified",
+                        "2026-07-11T05:00:00+00:00",
+                    ),
+                    (
+                        "item-conflict",
+                        "Conflict",
+                        "off_hand",
+                        295,
+                        {},
+                        "verified",
+                        "2026-07-11T05:00:00+00:00",
+                    ),
+                ],
+                "FROM cache.websim_asset_registry asset": [
+                    (
+                        "item-verified",
+                        "websim-item-metadata",
+                        verified_icon,
+                        "blizzard",
+                        "verified",
+                    ),
+                    (
+                        "item-verified",
+                        "websim-item-loot",
+                        verified_icon,
+                        "blizzard",
+                        "verified",
+                    ),
+                    (
+                        "item-conflict",
+                        "websim-item-metadata",
+                        "https://render.worldofwarcraft.com/icons/first.jpg",
+                        "blizzard",
+                        "verified",
+                    ),
+                    (
+                        "item-conflict",
+                        "websim-item-loot",
+                        "https://render.worldofwarcraft.com/icons/second.jpg",
+                        "blizzard",
+                        "verified",
+                    ),
+                ],
+            }
+        )
+
+        snapshot = GearReleaseStore(
+            lambda: conn
+        ).snapshot_staging_gear()
+
+        items = {
+            row["itemId"]: row["payload"]
+            for row in snapshot["items"]
+        }
+        self.assertEqual(
+            items["item-existing"]["iconUrl"],
+            existing_icon,
+        )
+        self.assertNotIn("gameAsset", items["item-existing"])
+        self.assertEqual(
+            items["item-verified"],
+            {
+                "iconUrl": verified_icon,
+                "gameAsset": {
+                    "status": "verified",
+                    "source": "blizzard",
+                    "iconUrl": verified_icon,
+                },
+            },
+        )
+        self.assertNotIn("iconUrl", items["item-conflict"])
+        self.assertIn(
+            "FROM cache.websim_asset_registry asset",
+            "\n".join(conn.cursor_instance.statements),
+        )
+
     def test_snapshot_gear_release_reads_one_exact_immutable_release(self):
         from server.gear_release_store import GearReleaseStore
 
