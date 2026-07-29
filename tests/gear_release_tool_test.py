@@ -2180,6 +2180,41 @@ class GearReleaseToolTest(unittest.TestCase):
         self.assertTrue(source_evidence["socketProbeDigest"].startswith("sha256:"))
         self.assertTrue(source_evidence["materializedSocketFactDigest"].startswith("sha256:"))
 
+    def test_materialized_socket_fact_digest_streams_the_legacy_exact_hash(self):
+        from server import gear_release_tool
+
+        snapshot = self.snapshot()
+        snapshot["items"][0]["payload"]["baseCapabilities"] = {
+            "socketCount": 1
+        }
+        snapshot["items"][0]["payload"]["socketEvidence"] = {
+            "minimumTotal": 1,
+            "claims": [{"source": "item"}],
+        }
+        snapshot["variants"][0]["payload"]["capabilityOverrides"] = {
+            "socketCount": 2
+        }
+        snapshot["variants"][0]["payload"]["socketEvidence"] = {
+            "minimumTotal": 2,
+            "claims": [{"source": "variant"}],
+        }
+        expected = gear_release_tool._materialized_socket_fact_digest(
+            snapshot
+        )
+
+        with patch.object(
+            gear_release_tool,
+            "_canonical_digest",
+            side_effect=AssertionError(
+                "socket fact digest must not encode one full duplicate graph"
+            ),
+        ):
+            actual = gear_release_tool._materialized_socket_fact_digest(
+                snapshot
+            )
+
+        self.assertEqual(actual, expected)
+
     def test_prepare_staging_gear_release_excludes_noncombat_cosmetic_rows(self):
         from server.gear_release_tool import prepare_staging_gear_release
 

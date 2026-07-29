@@ -190,15 +190,20 @@ def _canonical(value: Any) -> Any:
     return json.loads(json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), default=str))
 
 
-def _canonical_digest(value: Any) -> str:
-    encoded = json.dumps(
+def _canonical_bytes(value: Any) -> bytes:
+    return json.dumps(
         value,
         ensure_ascii=False,
         sort_keys=True,
         separators=(",", ":"),
         default=str,
     ).encode("utf-8")
-    return "sha256:" + hashlib.sha256(encoded).hexdigest()
+
+
+def _canonical_digest(value: Any) -> str:
+    return "sha256:" + hashlib.sha256(
+        _canonical_bytes(value)
+    ).hexdigest()
 
 
 def _socket_probe_digest(socket_bonus_minimums: Mapping[str, Any]) -> str:
@@ -290,18 +295,42 @@ def _socket_fact_value(row: dict[str, Any], field: str) -> dict[str, Any]:
 
 
 def _materialized_socket_fact_digest(snapshot: dict[str, Any]) -> str:
-    items = [
-        {
+    digest = hashlib.sha256()
+    digest.update(b'{"items":[')
+    items = sorted(
+        (
+            row
+            for row in snapshot.get("items") or []
+            if isinstance(row, dict)
+        ),
+        key=lambda row: _text(row.get("itemId")),
+    )
+    for index, row in enumerate(items):
+        if index:
+            digest.update(b",")
+        digest.update(_canonical_bytes({
             "itemId": _text(row.get("itemId")),
             "socketCount": _int(_socket_fact_value(row, "baseCapabilities").get("socketCount")),
             "socketEvidence": _canonical(_socket_fact_value(row, "socketEvidence")),
             "socketEligibility": _canonical(_socket_fact_value(row, "socketEligibility")),
-        }
-        for row in snapshot.get("items") or []
-        if isinstance(row, dict)
-    ]
-    variants = [
-        {
+        }))
+    digest.update(b'],"variants":[')
+    variants = sorted(
+        (
+            row
+            for row in snapshot.get("variants") or []
+            if isinstance(row, dict)
+        ),
+        key=lambda row: (
+            _text(row.get("variantId")),
+            _text(row.get("itemId")),
+            _text(row.get("variantKey")),
+        ),
+    )
+    for index, row in enumerate(variants):
+        if index:
+            digest.update(b",")
+        digest.update(_canonical_bytes({
             "variantId": _text(row.get("variantId")),
             "itemId": _text(row.get("itemId")),
             "variantKey": _text(row.get("variantKey")),
@@ -309,13 +338,9 @@ def _materialized_socket_fact_digest(snapshot: dict[str, Any]) -> str:
                 _socket_fact_value(row, "capabilityOverrides").get("socketCount")
             ),
             "socketEvidence": _canonical(_socket_fact_value(row, "socketEvidence")),
-        }
-        for row in snapshot.get("variants") or []
-        if isinstance(row, dict)
-    ]
-    items.sort(key=lambda row: row["itemId"])
-    variants.sort(key=lambda row: (row["variantId"], row["itemId"], row["variantKey"]))
-    return _canonical_digest({"items": items, "variants": variants})
+        }))
+    digest.update(b"]}")
+    return "sha256:" + digest.hexdigest()
 
 
 def _project_socket_facts_into_release_payloads(
