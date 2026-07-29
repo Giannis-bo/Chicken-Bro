@@ -38,6 +38,8 @@ class FakeCursor:
         self.current_rows = []
         self.statements = []
         self.params = []
+        self.fetchmany_sizes = []
+        self.fetchall_calls = 0
 
     def __enter__(self):
         return self
@@ -72,8 +74,15 @@ class FakeCursor:
         return self.current_rows.pop(0) if self.current_rows else None
 
     def fetchall(self):
+        self.fetchall_calls += 1
         rows = list(self.current_rows)
         self.current_rows = []
+        return rows
+
+    def fetchmany(self, size):
+        self.fetchmany_sizes.append(size)
+        rows = list(self.current_rows[:size])
+        self.current_rows = self.current_rows[size:]
         return rows
 
 
@@ -276,6 +285,12 @@ class GearCatalogAuditStoreTest(unittest.TestCase):
         self.assertLessEqual(store.query_count, 13)
         self.assertEqual(snapshot["queryMetrics"]["writes"], 0)
         self.assertEqual(snapshot["pointerBefore"], snapshot["pointerAfter"])
+        self.assertEqual(connection.cursor_instance.fetchall_calls, 0)
+        self.assertTrue(connection.cursor_instance.fetchmany_sizes)
+        self.assertLessEqual(
+            max(connection.cursor_instance.fetchmany_sizes),
+            500,
+        )
         self.assertTrue(connection.rolled_back)
         self.assertFalse(connection.committed)
         self.assertTrue(connection.closed)

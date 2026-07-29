@@ -333,22 +333,32 @@ class GearCatalogAuditStore:
             ) from None
 
     @staticmethod
-    def _bounded_rows(cursor, batch_size: int) -> list[Any]:
+    def _iter_bounded_rows(cursor, batch_size: int):
         fetchmany = getattr(cursor, "fetchmany", None)
         if not callable(fetchmany):
             rows = list(cursor.fetchall())
             if len(rows) > _MAX_ROWS_PER_SECTION:
                 raise RuntimeError("gear catalog audit section exceeds row limit")
-            return rows
-        rows = []
+            yield from rows
+            return
+        row_count = 0
         while True:
             chunk = list(fetchmany(batch_size))
             if not chunk:
                 break
-            rows.extend(chunk)
-            if len(rows) > _MAX_ROWS_PER_SECTION:
+            row_count += len(chunk)
+            if row_count > _MAX_ROWS_PER_SECTION:
                 raise RuntimeError("gear catalog audit section exceeds row limit")
-        return rows
+            yield from chunk
+
+    @staticmethod
+    def _bounded_rows(cursor, batch_size: int) -> list[Any]:
+        return list(
+            GearCatalogAuditStore._iter_bounded_rows(
+                cursor,
+                batch_size,
+            )
+        )
 
     def _pointer_binding(self, cursor) -> dict[str, Any]:
         self._execute(
@@ -447,7 +457,7 @@ class GearCatalogAuditStore:
                 "hasSourceRefs": row[6] is True,
                 "hasVariantRefs": row[7] is True,
             }
-            for row in self._bounded_rows(cursor, batch_size)
+            for row in self._iter_bounded_rows(cursor, batch_size)
         ]
 
     def _variants(self, cursor, release_id: str, batch_size: int) -> list[dict[str, Any]]:
@@ -492,7 +502,7 @@ class GearCatalogAuditStore:
             (release_id,),
         )
         result = []
-        for row in self._bounded_rows(cursor, batch_size):
+        for row in self._iter_bounded_rows(cursor, batch_size):
             simc_options = _mapping(row[6])
             payload = _mapping(row[9])
             bonus_ids = payload.get("bonusIds")
@@ -560,7 +570,7 @@ class GearCatalogAuditStore:
             (release_id,),
         )
         result = []
-        for row in self._bounded_rows(cursor, batch_size):
+        for row in self._iter_bounded_rows(cursor, batch_size):
             payload = _mapping(row[9])
             result.append({
                 "sourceId": _text(row[0]),
@@ -600,7 +610,7 @@ class GearCatalogAuditStore:
                 "simcOptions": _mapping(row[4]),
                 "payload": _mapping(row[5]),
             }
-            for row in self._bounded_rows(cursor, batch_size)
+            for row in self._iter_bounded_rows(cursor, batch_size)
         ]
 
     def _community_templates(
@@ -628,7 +638,7 @@ class GearCatalogAuditStore:
             (release_id,),
         )
         result = []
-        for row in self._bounded_rows(cursor, batch_size):
+        for row in self._iter_bounded_rows(cursor, batch_size):
             selection_intent = _mapping(row[3])
             payload = _mapping(row[4])
             source = {
@@ -678,7 +688,7 @@ class GearCatalogAuditStore:
             """,
         )
         result = []
-        for row in self._bounded_rows(cursor, batch_size):
+        for row in self._iter_bounded_rows(cursor, batch_size):
             config_hash = _text(row[0])
             identity = (
                 f"sha256:{config_hash}"
@@ -852,7 +862,7 @@ class GearCatalogAuditStore:
                 "activeLogicalBytes": _int(row[2]),
                 "rollbackLogicalBytes": _int(row[3]),
             }
-            for row in self._bounded_rows(cursor, batch_size)
+            for row in self._iter_bounded_rows(cursor, batch_size)
         ]
 
     def _release_events(
@@ -897,7 +907,7 @@ class GearCatalogAuditStore:
                 "count": _int(row[1]),
                 "latestAt": _text(row[2]),
             }
-            for row in self._bounded_rows(cursor, batch_size)
+            for row in self._iter_bounded_rows(cursor, batch_size)
         ]
 
     @staticmethod
