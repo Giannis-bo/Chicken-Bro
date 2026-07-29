@@ -68,5 +68,5 @@
 
 - [x] Run focused backend suites and Taro tests: `python3 -m unittest tests.gear_release_store_test tests.pg_gear_read_model_selectors_test tests.websim_payload_test` and `npm run test:taro -- apps/mini-taro/src/pages/builds/gear-detail-editor-model.test.ts apps/mini-taro/src/pages/builds/gear-detail-model.test.ts apps/mini-taro/src/pages/builds/gear-detail-page-contract.test.ts`.
 - [x] Run `node scripts/project-harness.js --json --write --date 2026-07-29 --slug manifest-catalog-detail-contract`, `node scripts/project-harness.js --json --check-requirement --requirement-file artifacts/releases/2026-07-29-manifest-catalog-detail-contract/requirement.json`, and `git diff --check`.
-- [ ] After final clean-head commit, deploy one immutable candidate and smoke `268283`/`250033` for named progression, no duplicate observed rows, primary stat, selected-stat change, safe conflict, runtime identity, timer backflow, and rollback.
+- [x] After final runtime commit, deploy the immutable `14078788` candidate and smoke `268283`/`250033` for named progression, no duplicate observed rows, primary and selected-stat changes, safe conflict, runtime identity, timer backflow, and rollback. The active candidate is read-only and no candidate-specific timer exists.
 - [ ] Obtain explicit WeChat acceptance for the four release-packet acceptance items before merge.

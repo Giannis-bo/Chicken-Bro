@@ -2,14 +2,15 @@
   "schemaVersion": 2,
   "slug": "manifest-catalog-detail-contract",
   "requirementSlug": "manifest-catalog-detail-contract",
-  "status": "implementation_allowed",
-  "highestEvidenceLevel": "requirement_contract_approved",
+  "status": "runtime_verified",
+  "highestEvidenceLevel": "runtime_verified",
   "branch": "codex/manifest-catalog-detail-contract",
-  "commit": "57b65015d2e4342d90dd129e28523f6a6b91d083",
+  "commit": "140787884e6301c68f5dd6d9ae09adc50d174b0a",
   "identities": {
     "runtime": {
-      "status": "pending",
-      "reason": "Candidate deployment has not been requested or performed; no runtime identity is claimed."
+      "status": "bound",
+      "kind": "git_commit",
+      "value": "140787884e6301c68f5dd6d9ae09adc50d174b0a"
     },
     "verification": {
       "status": "bound_at_check",
@@ -33,13 +34,21 @@
       {
         "id": "gear_detail_safe_source_and_diagnostics",
         "status": "pending"
+      },
+      {
+        "id": "gear_detail_named_progression_without_duplicate_observed_rows",
+        "status": "pending"
+      },
+      {
+        "id": "gear_detail_selected_variant_updates_primary_and_secondary_stats",
+        "status": "pending"
       }
     ],
     "rollup": {
-      "total": 2,
+      "total": 4,
       "accepted": 0,
       "notRunUserWaived": 0,
-      "pending": 2
+      "pending": 4
     }
   },
   "scope": [
@@ -48,24 +57,83 @@
     "Safe public collapse of equivalent tertiary-only observed shapes and fail-closed logical-progression conflicts",
     "Readable verified source labels or safe source-type/difficulty fallbacks",
     "Catalog evidence preservation through the PG read model and user-safe public candidate diagnostics",
-    "Strict task requirement and local regression evidence only; no candidate or live deployment"
+    "Strict task requirement, local regression, final candidate API smoke, and WeChat preview build; no production deployment or manual acceptance"
   ],
-  "verification": [],
+  "verification": [
+    {
+      "command": "python3 -m unittest tests.gear_release_store_test tests.pg_gear_read_model_selectors_test tests.websim_payload_test",
+      "status": "pass",
+      "result": "535 tests passed; three pre-existing SQLite ResourceWarning notices were recorded."
+    },
+    {
+      "command": "npm run test:taro -- apps/mini-taro/src/pages/builds/gear-detail-editor-model.test.ts apps/mini-taro/src/pages/builds/gear-detail-model.test.ts apps/mini-taro/src/pages/builds/gear-detail-page-contract.test.ts",
+      "status": "pass",
+      "result": "3 files and 60 tests passed."
+    },
+    {
+      "command": "npm run lint",
+      "status": "pass",
+      "result": "ESLint passed with max warnings set to zero."
+    },
+    {
+      "command": "WOW_BACKEND_API_BASE_URL=http://127.0.0.1:18787 npm run refresh:weapp",
+      "status": "pass",
+      "result": "Taro build succeeded and the official WeChat DevTools CLI refreshed apps/mini-taro at candidate API base 127.0.0.1:18787."
+    }
+  ],
   "candidateDeployment": {
-    "status": "pending",
+    "status": "candidate_verified",
     "requiredBeforeMerge": true,
-    "reason": "This is a public-payload runtime change. Candidate deployment, immutable runtime parity, API smoke, and timer/backflow evidence remain required before merge."
+    "commit": "140787884e6301c68f5dd6d9ae09adc50d174b0a",
+    "service": "wow-backend-manifest-catalog-detail-14078788.service",
+    "runtimeDirectory": "/opt/wow-mini-program-candidates/manifest-catalog-detail-14078788",
+    "fileParity": {
+      "status": "pass",
+      "path": "server/websim_payload.py",
+      "sha256": "da105221e34b0cfd8ae151f32b6181754e6ba783e605b8b050f0761151a4ba49"
+    },
+    "smoke": {
+      "status": "pass",
+      "endpoint": "GET /api/websim/gear?class=deathknight&spec=frost&compact=1&mode=slot&slot=head",
+      "result": "268283 and 250033 return strength at root and every selectable variant, named rank labels, compacted choices, and one safe blocked myth 6/6 conflict each."
+    },
+    "timerBackflow": {
+      "status": "not_applicable",
+      "result": "The isolated candidate has no systemd timer named for its service; the smoke only issued read-only HTTP requests and did not start a sync or backfill."
+    },
+    "rollback": "Stop wow-backend-manifest-catalog-detail-14078788.service and start the retained wow-backend-manifest-catalog-detail-877c7dc1.service."
   },
-  "runtimeEvidence": [],
+  "runtimeEvidence": [
+    {
+      "type": "runtime_file_parity",
+      "status": "pass",
+      "result": "Local and candidate server/websim_payload.py SHA-256 both equal da105221e34b0cfd8ae151f32b6181754e6ba783e605b8b050f0761151a4ba49."
+    },
+    {
+      "type": "smoke",
+      "status": "pass",
+      "result": "Candidate service wow-backend-manifest-catalog-detail-14078788.service is active and the two real Frost death knight head items pass compact payload assertions."
+    },
+    {
+      "type": "timer_backflow",
+      "status": "not_applicable",
+      "result": "No candidate-specific systemd timer exists; no candidate sync/backfill was triggered."
+    },
+    {
+      "type": "weapp_preview_build",
+      "status": "pass",
+      "result": "WeChat DevTools refreshed the 214-file output for git head 140787884e6301c68f5dd6d9ae09adc50d174b0a via the local candidate tunnel."
+    }
+  ],
   "risks": [
     {
       "id": "missing-exact-source-label",
-      "status": "pending_reverification",
+      "status": "runtime_smoked",
       "detail": "When the source snapshot has no exact identity-matched label, the release adapter intentionally shows only a truthful source-type/difficulty fallback rather than inventing an encounter name."
     },
     {
       "id": "legacy-sqlite-resource-warning",
-      "status": "pending_reverification",
+      "status": "observed_baseline",
       "detail": "The WebSim payload suite exits 0 but currently reports three unclosed SQLite connection ResourceWarning notices outside the changed paths; they are recorded rather than treated as proof of a clean resource lifecycle."
     }
   ],
@@ -74,12 +142,12 @@
     "feature_hide"
   ],
   "cleanup": {
-    "required": false,
-    "reason": "No candidate service, runtime directory, data mutation, or external resource has been created in the local verification phase."
+    "required": true,
+    "reason": "After explicit WeChat acceptance and Harness closure, remove the candidate service and directory; retain the prior candidate only until the final runtime is accepted."
   },
   "archivedReferences": [
     "docs/plans/2026-07-28-equipment-simulator-target-architecture.md",
     "docs/verification-matrix.md"
   ],
-  "summary": "The user-approved scope now additionally covers named progression projection, observed-shape collapse, fail-closed progression conflicts, specialization-correct primary stats, and selected-variant display facts. Prior local verification is deliberately invalidated; no candidate, live runtime, or manual acceptance is claimed."
+  "summary": "The final immutable candidate is runtime-verified for named progression, safe conflict collapse, specialization-correct primary/secondary facts, and WeChat preview build. Explicit WeChat acceptance remains pending, so no merge, production deployment, or closure is claimed."
 }
