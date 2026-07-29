@@ -294,6 +294,7 @@ _WEB_GEAR_BUILD_LIMITER_LIMIT = None
 _WEB_GEAR_BUILD_LIMITER_LOCK = threading.Lock()
 _GEAR_AUTHORITY_CACHE_KEY = None
 _GEAR_AUTHORITY_CACHE = None
+_GEAR_MANIFEST_BINDING_CACHE = None
 _GEAR_AUTHORITY_CACHE_LOCK = threading.Lock()
 CHICKENBRO_ALLOWED_TOOL_TOPICS = {
     "wcl",
@@ -520,12 +521,15 @@ def content_data_store():
 
 
 def cache_data_store():
-    global _GEAR_AUTHORITY_CACHE_KEY, _GEAR_AUTHORITY_CACHE
+    global _GEAR_AUTHORITY_CACHE_KEY
+    global _GEAR_AUTHORITY_CACHE
+    global _GEAR_MANIFEST_BINDING_CACHE
     config = database_config_from_env()
     if not postgres_personal_runtime_enabled(config):
         with _GEAR_AUTHORITY_CACHE_LOCK:
             _GEAR_AUTHORITY_CACHE_KEY = None
             _GEAR_AUTHORITY_CACHE = None
+            _GEAR_MANIFEST_BINDING_CACHE = None
         return None
     try:
         from .postgres_cache_store import AuthorityContextCache, PostgresCacheStore
@@ -533,16 +537,26 @@ def cache_data_store():
         from postgres_cache_store import AuthorityContextCache, PostgresCacheStore
     cache_key = hashlib.sha256(config.database_url.encode("utf-8")).hexdigest()
     with _GEAR_AUTHORITY_CACHE_LOCK:
-        if _GEAR_AUTHORITY_CACHE_KEY != cache_key or _GEAR_AUTHORITY_CACHE is None:
+        if (
+            _GEAR_AUTHORITY_CACHE_KEY != cache_key
+            or _GEAR_AUTHORITY_CACHE is None
+            or _GEAR_MANIFEST_BINDING_CACHE is None
+        ):
             _GEAR_AUTHORITY_CACHE_KEY = cache_key
             _GEAR_AUTHORITY_CACHE = AuthorityContextCache(
                 max_entries=32,
                 max_bytes=4 * 1024 * 1024,
             )
+            _GEAR_MANIFEST_BINDING_CACHE = AuthorityContextCache(
+                max_entries=4,
+                max_bytes=32 * 1024 * 1024,
+            )
         authority_cache = _GEAR_AUTHORITY_CACHE
+        manifest_binding_cache = _GEAR_MANIFEST_BINDING_CACHE
     return PostgresCacheStore(
         lambda: connect_postgres(config.database_url),
         gear_authority_context_cache=authority_cache,
+        manifest_binding_cache=manifest_binding_cache,
     )
 
 
