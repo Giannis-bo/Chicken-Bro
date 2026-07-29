@@ -2,18 +2,19 @@
   "schemaVersion": 2,
   "slug": "manifest-catalog-detail-contract",
   "requirementSlug": "manifest-catalog-detail-contract",
-  "status": "implementation_allowed",
-  "highestEvidenceLevel": "implementation_allowed",
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
   "branch": "codex/manifest-catalog-detail-contract",
-  "commit": "5bf22997a3a721e4af9bfb05b7a32344221d004b",
+  "commit": "a743072f2098036a798df6229b2307e61dece610",
   "identities": {
     "runtime": {
       "status": "pending",
       "reason": "The da051891 candidate and WeChat bundle are superseded by later runtime changes. The current working tree is not yet sealed to an immutable candidate identity."
     },
     "verification": {
-      "status": "pending",
-      "reason": "The current working tree has scoped local regression evidence, but no clean immutable HEAD, current candidate, current WeChat build, or final clean-Harness verification."
+      "status": "bound_at_check",
+      "kind": "git_ref",
+      "value": "HEAD"
     },
     "closure": {
       "status": "pending",
@@ -80,6 +81,16 @@
       "command": "python3 -m unittest tests.gear_attribute_preview_fixture_test tests.gear_exact_template_options_test tests.pg_gear_read_model_selectors_test tests.postgres_cache_store_test tests.websim_payload_test",
       "status": "pass",
       "result": "652 affected tests passed at implementation commit 5bf22997, including fail-closed Manifest Catalog provenance and a real exact-only import -> authority -> Resolve -> ResolvedLoadout -> SimulationSnapshot/SimC regression. Pre-existing unclosed-SQLite ResourceWarning diagnostics remain and are not represented as a clean resource result."
+    },
+    {
+      "command": "python3 -m unittest tests.gear_attribute_preview_fixture_test tests.gear_exact_template_options_test tests.pg_gear_read_model_selectors_test tests.postgres_cache_store_test tests.websim_payload_test tests.sync_log_summary_test tests.postgres_only_scripts_test tests.deploy_lighthouse_test",
+      "status": "pass",
+      "result": "685 tests passed on exact merged HEAD a743072f. The same pre-existing unclosed-SQLite ResourceWarning and module-run RuntimeWarning diagnostics remain visible."
+    },
+    {
+      "command": "npm run test:taro -- apps/mini-taro/src/pages/builds/gear-detail-editor-model.test.ts apps/mini-taro/src/pages/builds/gear-detail-model.test.ts apps/mini-taro/src/pages/builds/gear-detail-page-contract.test.ts",
+      "status": "pass",
+      "result": "Three Taro files and 60 gear-detail contract tests passed on exact merged HEAD a743072f."
     }
   ],
   "candidateDeployment": {
@@ -172,5 +183,5 @@
     "docs/verification-matrix.md",
     "artifacts/releases/2026-07-29-manifest-catalog-detail-contract/requirement.json"
   ],
-  "summary": "The user approved a Strict Catalog repair. Both the 14078788 diagnostic candidate and the later da051891 API/WeChat candidate are superseded for current verification because runtime source advanced. Implementation commit 5bf22997 passes 652 affected tests, including Manifest Catalog provenance fail-closed behavior and the exact-only import through Resolve/ResolvedLoadout/SimC. The cloud gate recovered to 79%, but this packet remains implementation_allowed: no immutable current candidate, current WeChat acceptance, official 18-source Universe membership proof, or final Harness/merge closure exists."
+  "summary": "The user approved a Strict Catalog repair. Both the 14078788 diagnostic candidate and the later da051891 API/WeChat candidate are superseded for current verification because runtime source advanced. Exact merged HEAD a743072f passes 685 Python tests and 60 Taro gear-detail contracts, including Manifest Catalog provenance fail-closed behavior and the exact-only import through Resolve/ResolvedLoadout/SimC. The cloud gate recovered to 79%, so the packet is local_verified; no immutable current candidate, current WeChat acceptance, official 18-source Universe membership proof, or final Harness/merge closure exists."
 }
