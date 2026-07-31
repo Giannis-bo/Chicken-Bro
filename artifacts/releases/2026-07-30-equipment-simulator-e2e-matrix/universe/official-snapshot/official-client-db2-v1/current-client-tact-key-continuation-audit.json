@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "capturedAt": "2026-07-31T13:18:56.1481972Z",
+  "capturedAt": "2026-07-31T14:38:39.225721+00:00",
   "status": "blocked",
   "build": "12.0.7.68887",
   "authority": {
@@ -13,24 +13,31 @@
   "localOfficialClientCache": {
     "relativeInstallPath": "_retail_/Cache/ADB/zhCN/DBCache.bin",
     "locale": "zhCN",
-    "bytes": 1360908,
-    "sha256": "1b2633137830197cc766ada884c2cbaf5c21ec79b0e3ba15862c010f71067fca",
-    "lastWriteTimeUtc": "2026-07-23T11:47:04.5363088Z",
+    "bytes": 1376502,
+    "sha256": "d5aa61dc347115b4a0c403eb1da4807299aaaeba844bd9bcd30695947b71b723",
+    "lastWriteTimeUtc": "2026-07-31T14:23:11.0385190Z",
     "header": {
       "magic": "XFTH",
       "version": 9,
       "build": 68887,
-      "verifyHashSha256": "a70e9b50a14ed3dc0662c2c750752ac63682c1783433ec7ef752cba3991d5699"
+      "verifyHashSha256": "f3f96406b9a4a78fd7bcf735ff82d83504df3de226635622f00c0341796da2d9"
     },
     "scan": {
-      "targetTableEntryCount": 346,
+      "countScope": "composite effective-client state formed from archived static TactKey/TactKeyLookup plus the post-exit local hotfix cache",
+      "cacheOnlyJoinedMaterialTargetKeyCount": 2,
+      "cacheOnlyAssociatedTargetRecordCount": 47,
+      "cacheOnlyJoinedMaterialTargetTactKeyIds": [
+        "be7d592cd36508a2",
+        "dd9ea834c9585585"
+      ],
+      "targetTableEntryCount": 512,
       "joinedHotfixKeyCount": 123,
       "broadcastTextEntryCount": 200,
       "broadcastTextTactKeyEntryCount": 19,
-      "availableKeyIdentityCount": 124,
-      "presentTargetKeyCount": 8,
-      "presentTargetRecordCount": 92,
-      "presentTargetTactKeyIds": [
+      "compositeObservedKeyIdentityCount": 124,
+      "compositeJoinedMaterialTargetKeyCount": 8,
+      "compositeAssociatedTargetRecordCount": 92,
+      "compositeJoinedMaterialTargetTactKeyIds": [
         "291af9fe83d992e4",
         "529c356e187dd913",
         "570ed145f83e8b7b",
@@ -40,7 +47,7 @@
         "d1055199767fb373",
         "dd9ea834c9585585"
       ],
-      "missingTargetTactKeyIds": [
+      "compositeMissingTargetTactKeyIds": [
         "14f4b11d7b067aa2",
         "59ea247e0185ee0d",
         "62bf37a70e6d54f6",
@@ -51,14 +58,17 @@
         "62bf37a70e6d54f6",
         "fbbf041f980ce0dc"
       ],
+      "compositeBroadcastReferenceTargetIdentityCount": 0,
       "keyMaterialEmitted": false
     }
   },
   "loginRefreshAttempt": {
     "clientVersionObserved": "12.0.7.68887 (zhCN x64)",
-    "result": "login_required",
+    "result": "authenticated_world_entry_confirmed_user_reported_normal_exit_post_exit_cache_observed",
     "authenticationAutomated": false,
+    "authenticatedWorldEntryConfirmed": true,
     "cacheChangedAtLoginScreen": false,
+    "postExitObservationFoundChangedCache": true,
     "clientClosedAfterObservation": true
   },
   "localAlternateCacheSearch": {
@@ -75,9 +85,33 @@
     ],
     "alternateCacheContainsBlockerIdentityCount": 0,
     "classicCacheFound": false,
-    "currentRetailCacheChanged": false,
+    "currentRetailCacheChanged": true,
+    "clientWorldEntryConfirmedAt": "2026-07-31T14:15:55.6505638Z",
+    "postLoginPreExitCache": {
+      "observedAt": "2026-07-31T14:15:55.6505638Z",
+      "bytes": 1360908,
+      "mtimeUtc": "2026-07-23T11:47:04.5363088Z",
+      "sha256": "1b2633137830197cc766ada884c2cbaf5c21ec79b0e3ba15862c010f71067fca",
+      "build": 68887,
+      "stableDuringRead": true,
+      "changedFromBaseline": false
+    },
+    "postExitCache": {
+      "observedAt": "2026-07-31T14:24:17.3246503Z",
+      "bytes": 1376502,
+      "mtimeUtc": "2026-07-31T14:23:11.0385190Z",
+      "sha256": "d5aa61dc347115b4a0c403eb1da4807299aaaeba844bd9bcd30695947b71b723",
+      "build": 68887,
+      "changedFromBaseline": true,
+      "blockerPresentKeyCount": 0,
+      "evidenceRef": {
+        "path": "local-official-client-post-login-cache-audit.json",
+        "bytes": 5381,
+        "sha256": "e9c5fd2cc5da692cec2084345eaf48cfeb055c34677731f9ba09a3ebb26d600c"
+      }
+    },
     "keyMaterialEmittedBySearch": false,
-    "conclusion": "No alternate local cache is both exact-build 68887 and capable of supplying any blocker identity."
+    "conclusion": "No alternate local cache is both exact-build 68887 and capable of supplying any blocker identity. After the authenticated in-world session and user-reported normal exit, the post-exit observation found a new exact-build cache. Its body alone contributes joined material for 2/12 targets (47 associated records), while the composite static-plus-hotfix view contains 8/12 (92 associated records); neither contains a blocker identity."
   },
   "metadataResearch": {
     "keyMetadata": {
@@ -143,24 +177,158 @@
         "zeroLengthStateFourBlockerRecordCount": 3,
         "decryptionVerified": false
       }
+    },
+    "historicalVerifiedCacheCandidates": {
+      "status": "metadata_only_not_scanned_unsealed",
+      "evidenceClassification": "unsealed_research_observation",
+      "evidenceRef": {
+        "path": "historical-tact-key-source-metadata-audit.json",
+        "bytes": 5020,
+        "sha256": "fe3296acf22445a764185de36fc811446a65c5ab524c46b287977473d35bcd0d"
+      },
+      "authority": "Raidbots verified enUS client hotfix caches bound to Wago build identities",
+      "targetOrigins": [
+        {
+          "tactKeyIds": [
+            "14f4b11d7b067aa2",
+            "62bf37a70e6d54f6"
+          ],
+          "build": "12.0.7.67227",
+          "productCode": "wowxptr",
+          "channel": "xptr",
+          "buildConfig": "d09d7489b2edf52e9e0b4510fcfc9980",
+          "cdnConfig": "a213af1da211f170200efafff8f7d904",
+          "productConfig": "c5983bded94d708c1958dde1fa6dbf22",
+          "verifiedSnapshotCount": 2,
+          "verifiedSnapshotBytes": 173351
+        },
+        {
+          "tactKeyIds": [
+            "fbbf041f980ce0dc"
+          ],
+          "buildFamily": "12.0.0.64xxx",
+          "productCode": "wow_beta",
+          "channel": "beta",
+          "buildsWithVerifiedSnapshots": [
+            64124,
+            64228,
+            64339,
+            64529,
+            64611,
+            64741,
+            64774
+          ],
+          "verifiedSnapshotCount": 61,
+          "verifiedSnapshotBytes": 60917268
+        }
+      ],
+      "verifiedSnapshotCount": 63,
+      "verifiedSnapshotBytes": 61090619,
+      "uniqueContentMetadataCount": 63,
+      "gcsMetadataPaginationTerminal": true,
+      "rawCachesDownloaded": false,
+      "keyMaterialEmitted": false,
+      "approvalBoundary": "Historical third-party cache bodies remain unscanned pending explicit download approval or a successful refreshed exact-build client cache."
+    },
+    "wagoArchivedMajor12TactKeyScan": {
+      "status": "observed_key_material_missing_unsealed",
+      "evidenceClassification": "unsealed_research_observation",
+      "evidenceRef": {
+        "path": "historical-tact-key-source-metadata-audit.json",
+        "bytes": 5020,
+        "sha256": "fe3296acf22445a764185de36fc811446a65c5ab524c46b287977473d35bcd0d"
+      },
+      "source": {
+        "buildIndex": "https://wago.tools/builds",
+        "exactBuildTactKeyLookup": "https://wago.tools/db2/TactKeyLookup?build=12.0.7.68887",
+        "exactBuildTactKey": "https://wago.tools/db2/TactKey?build=12.0.7.68887"
+      },
+      "archivedBuildCount": 96,
+      "branches": [
+        "retail",
+        "ptr",
+        "xptr",
+        "beta"
+      ],
+      "targetLookupIdentityCount": 3,
+      "matchingTactKeyMaterialRowCount": 0,
+      "targetRows": [
+        {
+          "tactKeyId": "14f4b11d7b067aa2",
+          "tactKeyRecordId": 8193,
+          "earliestMappedBuild": "12.0.7.67227",
+          "earliestMappedBranch": "xptr"
+        },
+        {
+          "tactKeyId": "62bf37a70e6d54f6",
+          "tactKeyRecordId": 8225,
+          "earliestMappedBuild": "12.0.7.67227",
+          "earliestMappedBranch": "xptr"
+        },
+        {
+          "tactKeyId": "fbbf041f980ce0dc",
+          "tactKeyRecordId": 8087,
+          "earliestMappedBuild": "12.0.0.63534",
+          "earliestMappedBranch": "beta"
+        }
+      ],
+      "mayEstablishKeyMaterialOrDecryption": false
     }
   },
   "rollingCorpusContinuation": {
-    "lastExtendedAt": "2026-07-31T13:51:28.911583+00:00",
+    "lastExtendedAt": "2026-07-31T14:38:39.225721+00:00",
     "status": "partial",
-    "batchCount": 5,
-    "selectedCacheObservationCount": 399,
-    "fetchedCacheObservationCount": 399,
+    "batchCount": 6,
+    "selectedCacheObservationCount": 403,
+    "fetchedCacheObservationCount": 403,
     "failedCacheObservationCount": 0,
-    "totalFetchedBytes": 1098143766,
-    "uniqueCacheContentHashCount": 329,
+    "totalFetchedBytes": 1113575177,
+    "uniqueCacheContentHashCount": 333,
     "duplicateCacheObservationCount": 70,
     "listPageSize": 100,
     "savedPageCursorPresent": true,
     "publicCursorParameterContractFound": false,
+    "cursorPathTraversalObserved": true,
+    "observedCursorRequestShape": "GET /api/dbcache/{verified|unverified}/{percent-encoded opaque cursor}",
+    "verifiedPagination": {
+      "capturedAt": "2026-07-31T14:38:22.159124+00:00",
+      "evidenceRef": {
+        "path": "dbcache-verified-pagination-ledger-20260731T1438Z.json",
+        "bytes": 462915,
+        "sha256": "d0b233af489c367855fb6ea0905a9356c4f3a425c10888af289a685ab372f2f9"
+      },
+      "pageCount": 55,
+      "descriptorCount": 5428,
+      "uniqueUrlHashCount": 5428,
+      "duplicateUrlHashCount": 0,
+      "totalResponseBytes": 1247699,
+      "terminalCursorNull": true,
+      "paginationExhaustedForObservedTraversal": true,
+      "firstPageResponseSha256": "d614fb8579b1a76d3c25979f983fe1142c46f6e7a2ec1d22c62ed550675bc2f6",
+      "terminalPageResponseSha256": "441e803aacb9244789ca34ad45dd2601c990b8976872c2d129c89a89f2f087b6",
+      "pageLedgerSha256": "217078b5b753bce64e415e5479bc5cbf64231ebfd481a5273c3d1f82fe4a69b7",
+      "descriptorUrlHashManifestSha256": "2c698704b6cbdca2c98b6dfb5d089e6bbe6136fb1c639936575da1f0ffdbe8ae"
+    },
+    "unverifiedPagination": {
+      "capturedAt": "2026-07-31T14:38:39.225721+00:00",
+      "evidenceRef": {
+        "path": "dbcache-unverified-pagination-probe-20260731T1438Z.json",
+        "bytes": 18582,
+        "sha256": "3e8eabd64af39cc963adba179e889be3cbd134b84f2f194b8b8c40d13a4e95b4"
+      },
+      "cursorPathTraversalObserved": true,
+      "boundedProbePageCount": 2,
+      "boundedProbeDescriptorCount": 200,
+      "zeroUrlOverlapAcrossProbePages": true,
+      "totalResponseBytes": 43276,
+      "descriptorUrlHashManifestSha256": "2714386d3adfaa4fd179016ee685c0ce1ac03a26adc1ed63ba5bcc0dc2e7c47f",
+      "terminalCursorObserved": false,
+      "paginationExhausted": false,
+      "snapshotIsolationDocumented": false
+    },
     "paginationExhausted": false,
     "mayEstablishDBCacheCorpusExhaustion": false,
-    "uniqueCacheContentHashSetSha256": "58b1fe5dc1734b7d67d2439240d08c361a6ef4c3412aa4d9534ddf8250746c53",
+    "uniqueCacheContentHashSetSha256": "ad5746e16019720a667427c31db47e43881d8aabfb6f50349f3c14755173e7af",
     "batches": [
       {
         "kind": "verified",
@@ -170,6 +338,24 @@
         "sourceListSha256": "d614fb8579b1a76d3c25979f983fe1142c46f6e7a2ec1d22c62ed550675bc2f6",
         "auditSha256": "50fd683bfd0bdb2bf8e590fefc130b0afcd55eb916c835b54a4efb8745893f18",
         "contentHashSetSha256": "a295669fb62ddadead737f9c1e6a21d57173e2209780d5369b9e483b3780cd03"
+      },
+      {
+        "kind": "verified_xptr",
+        "capturedAt": "2026-07-31T14:13:36.551846+00:00",
+        "selectedCacheCount": 4,
+        "totalFetchedBytes": 15431411,
+        "sourceListSha256": "d614fb8579b1a76d3c25979f983fe1142c46f6e7a2ec1d22c62ed550675bc2f6",
+        "auditSha256": "9c2aa08cab8ae98ffcd20e885a3b33484f8353263f344952c1182f11e374b943",
+        "auditBytes": 12912,
+        "contentHashSetSha256": "c62aa36b6f1d31bba9a09d60bc97fdc3ba6a220cd31217acfc4bb1c2aa96e00f",
+        "countScope": "archived static tables plus each selected xptr hotfix cache overlay",
+        "cacheOnlyJoinedMaterialTargetKeyCount": 2,
+        "cacheOnlyAssociatedTargetRecordCount": 47,
+        "compositeJoinedMaterialTargetKeyCount": 6,
+        "compositeAssociatedTargetRecordCount": 82,
+        "broadcastReferenceOnlyTargetIdentityCount": 0,
+        "addsBlockerKeyCount": 0,
+        "evidenceRef": "dbcache-68887-verified-xptr-corpus-audit.json"
       },
       {
         "kind": "unverified_handoff",
@@ -211,9 +397,9 @@
         "evidenceRef": "dbcache-68887-unverified-delta-20260731T135128-audit.json"
       }
     ],
-    "allBatchUnionAvailableTargetKeyCount": 6,
-    "allBatchUnionCoveredTargetRecordCount": 82,
-    "dbcacheAddsTargetKeyBeyondCurrentPublicCount": 0,
+    "allBatchCompositeJoinedMaterialTargetKeyCount": 6,
+    "allBatchCompositeAssociatedTargetRecordCount": 82,
+    "dbcacheAddsJoinedMaterialTargetKeyBeyondCurrentPublicCount": 0,
     "rawCachesPersistedAfterAudit": false,
     "auditContainsKeyMaterial": false
   },
@@ -233,11 +419,11 @@
   "blockers": [
     "APPROVED_PUBLIC_TACT_KEYS_INCOMPLETE",
     "CURRENT_CLIENT_DBCACHE_CORPUS_TACT_KEYS_INCOMPLETE",
-    "DBCACHE_CORPUS_PAGINATION_UNPROVEN",
-    "CURRENT_CLIENT_ENCRYPTED_SOURCE_RECORDS_UNAVAILABLE",
-    "LOCAL_OFFICIAL_CLIENT_LOGIN_CONTEXT_REQUIRED"
+    "UNVERIFIED_DBCACHE_PAGINATION_EXHAUSTION_UNPROVEN",
+    "UNVERIFIED_DBCACHE_SNAPSHOT_ISOLATION_UNDOCUMENTED",
+    "CURRENT_CLIENT_ENCRYPTED_SOURCE_RECORDS_UNAVAILABLE"
   ],
-  "conclusion": "The installed exact-build zhCN cache and 329 unique selected cache contents remain subsets of the current public TACTKeys source. The public DBCache endpoint returns capped 100-entry pages with a cursor but no proven public cursor traversal contract, so these observations cannot establish corpus exhaustion. Metadata narrows the likely origin of the three missing identities but cannot decrypt, exclude, or establish current-season membership for the 64 unavailable records.",
+  "conclusion": "The post-exit exact-build zhCN cache body contributes joined material for only 2 of 12 targets; the composite official static-plus-hotfix client state contains 8 of 12. A verified-endpoint cursor-path traversal reached an explicit terminal cursor and is bound by a persisted 55-page ledger, but this is an observed behavior rather than a provider-published contract. The rapidly moving unverified endpoint is not exhausted and has no documented snapshot-isolation contract. Four exact-build xptr caches likewise add no blocker identity. Historical Beta/XPTR counts remain unsealed research leads and their bodies remain unscanned. The authenticated official-client refresh removes the local environment blocker but does not decrypt, exclude, or establish current-season membership for the 64 unavailable records.",
   "productionMutation": false,
   "releasePointerMutation": false
 }

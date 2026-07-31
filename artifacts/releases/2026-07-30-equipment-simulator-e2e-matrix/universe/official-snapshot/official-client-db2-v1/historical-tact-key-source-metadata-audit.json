@@ -1,0 +1,147 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-31T14:28:29.541440+00:00",
+  "status": "blocked",
+  "build": "12.0.7.68887",
+  "authority": {
+    "type": "third_party_metadata_observation_unsealed",
+    "mayEstablishLookupIdentity": false,
+    "mayEstablishKeyMaterialOrDecryption": false,
+    "mayEstablishOfficialSeasonMembership": false,
+    "auditContainsKeyMaterial": false,
+    "rawHistoricalCachesDownloaded": false,
+    "evidenceClassification": "research_lead_only"
+  },
+  "reproducibility": {
+    "sourceResponsesPersisted": false,
+    "sourceResponseHashesPersisted": false,
+    "countsReproducibleFromCommittedEvidence": false,
+    "marlaminSourceCommitAndHashBound": true
+  },
+  "sources": {
+    "wagoBuildIndex": "https://wago.tools/builds",
+    "wagoExactBuildTactKeyLookup": "https://wago.tools/db2/TactKeyLookup?build=12.0.7.68887",
+    "wagoExactBuildTactKey": "https://wago.tools/db2/TactKey?build=12.0.7.68887",
+    "marlaminKeyMetadata": {
+      "repository": "Marlamin/wow.tools.local",
+      "commit": "0558e3993c9346f530e479b68b8d24174613f75f",
+      "path": "Services/KeyMetadata.cs",
+      "bytes": 102603,
+      "sha256": "67224141939c10f142a289eb33cccfdef187f8d5cac15005b76e44bf1c48e76a"
+    },
+    "raidbotsVerifiedEndpoint": "https://www.raidbots.com/api/dbcache/verified"
+  },
+  "wagoArchivedMajor12Scan": {
+    "archivedBuildCount": 96,
+    "branches": [
+      "retail",
+      "ptr",
+      "xptr",
+      "beta"
+    ],
+    "targetLookupIdentityCount": 3,
+    "matchingTactKeyMaterialRowCount": 0,
+    "targetRows": [
+      {
+        "tactKeyId": "14f4b11d7b067aa2",
+        "tactKeyRecordId": 8193,
+        "earliestMappedBuild": "12.0.7.67227",
+        "earliestMappedBranch": "xptr"
+      },
+      {
+        "tactKeyId": "62bf37a70e6d54f6",
+        "tactKeyRecordId": 8225,
+        "earliestMappedBuild": "12.0.7.67227",
+        "earliestMappedBranch": "xptr"
+      },
+      {
+        "tactKeyId": "fbbf041f980ce0dc",
+        "tactKeyRecordId": 8087,
+        "earliestMappedBuild": "12.0.0.63534",
+        "earliestMappedBranch": "beta"
+      }
+    ]
+  },
+  "historicalVerifiedCacheCandidates": {
+    "status": "metadata_only_not_scanned",
+    "targetOrigins": [
+      {
+        "tactKeyIds": [
+          "14f4b11d7b067aa2",
+          "62bf37a70e6d54f6"
+        ],
+        "build": 67227,
+        "productCode": "wowxptr",
+        "channel": "xptr",
+        "buildConfig": "d09d7489b2edf52e9e0b4510fcfc9980",
+        "cdnConfig": "a213af1da211f170200efafff8f7d904",
+        "productConfig": "c5983bded94d708c1958dde1fa6dbf22",
+        "verifiedSnapshotCount": 2,
+        "verifiedSnapshotBytes": 173351
+      },
+      {
+        "tactKeyIds": [
+          "fbbf041f980ce0dc"
+        ],
+        "productCode": "wow_beta",
+        "channel": "beta",
+        "builds": [
+          {
+            "build": 64124,
+            "verifiedSnapshotCount": 3,
+            "verifiedSnapshotBytes": 417674
+          },
+          {
+            "build": 64228,
+            "verifiedSnapshotCount": 1,
+            "verifiedSnapshotBytes": 24252
+          },
+          {
+            "build": 64339,
+            "verifiedSnapshotCount": 19,
+            "verifiedSnapshotBytes": 19792780
+          },
+          {
+            "build": 64529,
+            "verifiedSnapshotCount": 7,
+            "verifiedSnapshotBytes": 6144989
+          },
+          {
+            "build": 64611,
+            "verifiedSnapshotCount": 6,
+            "verifiedSnapshotBytes": 16363820
+          },
+          {
+            "build": 64741,
+            "verifiedSnapshotCount": 12,
+            "verifiedSnapshotBytes": 4177693
+          },
+          {
+            "build": 64774,
+            "verifiedSnapshotCount": 13,
+            "verifiedSnapshotBytes": 13996060,
+            "buildConfig": "fae5148fdd99734dc8167dcd421b80c9",
+            "cdnConfig": "cf97986147bf929bf823598f1eaaed59",
+            "productConfig": "f78960b65c1658baf0d4ffa39a3308d5"
+          }
+        ],
+        "verifiedSnapshotCount": 61,
+        "verifiedSnapshotBytes": 60917268
+      }
+    ],
+    "verifiedSnapshotCount": 63,
+    "verifiedSnapshotBytes": 61090619,
+    "uniqueContentMetadataCount": 63,
+    "gcsMetadataPaginationTerminal": true,
+    "rawCachesDownloaded": false
+  },
+  "approvalBoundary": "Historical third-party cache bodies remain unscanned pending explicit download approval.",
+  "blockers": [
+    "HISTORICAL_TACT_KEY_MATERIAL_MISSING",
+    "HISTORICAL_CACHE_BODIES_NOT_SCANNED",
+    "DECRYPTION_UNVERIFIED"
+  ],
+  "conclusion": "A bounded live research observation found the three lookup identities across major-version-12 metadata but no corresponding TactKey material row or authoritative successful-decryption record. The Wago and Raidbots response bodies or response hashes were not sealed, so the 96-build and 63-candidate counts are research leads, not reproducible authority. Historical cache bodies remain unscanned and cannot be promoted as evidence.",
+  "productionMutation": false,
+  "releasePointerMutation": false
+}

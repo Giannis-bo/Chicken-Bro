@@ -1,0 +1,361 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-31T14:13:36.551846+00:00",
+  "status": "partial",
+  "build": "12.0.7.68887",
+  "authority": {
+    "type": "verified_third_party_client_hotfix_cache_corpus",
+    "provider": "Raidbots",
+    "collector": "Raidbots",
+    "upstreamBytes": "Blizzard server-delivered World of Warcraft client hotfix caches",
+    "collectionProvenance": "third_party",
+    "mayEstablishOfficialSeasonMembership": false,
+    "auditContainsKeyMaterial": false,
+    "rawCachesPersistedAfterAudit": false,
+    "scanMode": "archived_static_tact_key_tables_plus_selected_hotfix_cache_overlays_scanned_serially_in_memory",
+    "expectedVersion": "xptr",
+    "expectedVerified": true,
+    "selectionScope": "four matching descriptors from one saved mixed-channel verified page",
+    "identityPresenceSemantics": "the legacy presentInCorpusUnion field is composite static-plus-hotfix state; a separate cache-only decomposition is recorded below. All six composite target hits are joined TactKey material and none is BroadcastText-reference-only."
+  },
+  "sourceList": {
+    "path": "dbcache-68887-verified-list.json",
+    "url": "https://www.raidbots.com/api/dbcache/verified",
+    "bytes": 22828,
+    "sha256": "d614fb8579b1a76d3c25979f983fe1142c46f6e7a2ec1d22c62ed550675bc2f6",
+    "reportedEntryCount": 100,
+    "selectedExactBuildEntryCount": 4,
+    "selectionLimit": 4,
+    "cursorPresent": true,
+    "paginationExhausted": false,
+    "mixedChannelPage": true,
+    "selectionPredicate": {
+      "version": "xptr",
+      "build": 68887,
+      "verified": true
+    }
+  },
+  "inputs": {
+    "sourceArchive": {
+      "sha256": "d5b2a6bfbb955f9be7a13f4637e278745684225f48bb477b76105ff2ba963ea5",
+      "fileCount": 1498
+    },
+    "staticCoverageAudit": {
+      "archiveEntry": "artifacts/releases/2026-07-30-equipment-simulator-e2e-matrix/universe/official-snapshot/official-client-db2-v1/current-client-tact-key-coverage.json",
+      "bytes": 5233,
+      "sha256": "321545478ec574eef2aeafb6425397927cfc3afea4783295db35ed852f2327c4"
+    },
+    "baseTactKeyCsv": {
+      "archiveEntry": "artifacts/releases/2026-07-30-equipment-simulator-e2e-matrix/universe/official-snapshot/official-client-db2-v1/derived-tact-key-v1/TactKey.csv",
+      "bytes": 1581,
+      "sha256": "7e13c58fdd2bedd55c58dd1362c0767c3bbbb3afce387e1199d59ff0afcca5ef",
+      "containsKeyMaterial": true,
+      "persistedInGit": false,
+      "keyMaterialEmittedByAudit": false
+    },
+    "baseTactKeyLookupCsv": {
+      "archiveEntry": "artifacts/releases/2026-07-30-equipment-simulator-e2e-matrix/universe/official-snapshot/official-client-db2-v1/derived-tact-key-v1/TactKeyLookup.csv",
+      "bytes": 6858,
+      "sha256": "5fd782df8e8b95d44e6e18294495e60892b2b7bf5c03734035a53c7279dbcd3c",
+      "persistedInGit": false,
+      "keyMaterialEmittedByAudit": false
+    }
+  },
+  "corpus": {
+    "summary": {
+      "countScope": "composite effective-client state formed from archived static TactKey/TactKeyLookup plus each selected xptr hotfix cache",
+      "selectedCacheCount": 4,
+      "fetchedCacheCount": 4,
+      "failedCacheCount": 0,
+      "totalFetchedBytes": 15431411,
+      "totalFetchByteLimit": 20971520,
+      "broadcastTextEntryCount": 794,
+      "broadcastTextTactKeyEntryCount": 51,
+      "targetKeyCount": 12,
+      "targetRecordCount": 178,
+      "compositeUnionJoinedMaterialTargetKeyCount": 6,
+      "compositeUnionMissingTargetKeyCount": 6,
+      "compositeUnionAssociatedTargetRecordCount": 82,
+      "compositeUnionMissingTargetRecordCount": 96
+    },
+    "evidenceDecomposition": {
+      "cacheOnly": {
+        "joinedMaterialTargetKeyCount": 2,
+        "associatedTargetRecordCount": 47,
+        "joinedMaterialTargetTactKeyIds": [
+          "be7d592cd36508a2",
+          "dd9ea834c9585585"
+        ],
+        "broadcastReferenceTargetIdentityCount": 0,
+        "broadcastReferenceTargetTactKeyIds": []
+      },
+      "compositeStaticPlusHotfix": {
+        "joinedMaterialTargetKeyCount": 6,
+        "associatedTargetRecordCount": 82,
+        "joinedMaterialTargetTactKeyIds": [
+          "529c356e187dd913",
+          "57c16bba581fd295",
+          "be544f7e94038018",
+          "be7d592cd36508a2",
+          "d1055199767fb373",
+          "dd9ea834c9585585"
+        ],
+        "broadcastReferenceTargetIdentityCount": 0,
+        "broadcastReferenceTargetTactKeyIds": []
+      }
+    },
+    "targetKeyPresenceFieldScope": "presentInCorpusUnion means present in the composite archived-static-plus-hotfix union, not cache-body-only",
+    "targetKeys": [
+      {
+        "tactKeyId": "14f4b11d7b067aa2",
+        "blteKeyId": "a27a067b1db1f414",
+        "recordCount": 12,
+        "tables": [
+          "ItemModifiedAppearance"
+        ],
+        "presentInCorpusUnion": false
+      },
+      {
+        "tactKeyId": "291af9fe83d992e4",
+        "blteKeyId": "e492d983fef91a29",
+        "recordCount": 9,
+        "tables": [
+          "ItemModifiedAppearance"
+        ],
+        "presentInCorpusUnion": false
+      },
+      {
+        "tactKeyId": "529c356e187dd913",
+        "blteKeyId": "13d97d186e359c52",
+        "recordCount": 3,
+        "tables": [
+          "ItemModifiedAppearance"
+        ],
+        "presentInCorpusUnion": true
+      },
+      {
+        "tactKeyId": "570ed145f83e8b7b",
+        "blteKeyId": "7b8b3ef845d10e57",
+        "recordCount": 1,
+        "tables": [
+          "ItemModifiedAppearance"
+        ],
+        "presentInCorpusUnion": false
+      },
+      {
+        "tactKeyId": "57c16bba581fd295",
+        "blteKeyId": "95d21f58ba6bc157",
+        "recordCount": 1,
+        "tables": [
+          "ItemModifiedAppearance"
+        ],
+        "presentInCorpusUnion": true
+      },
+      {
+        "tactKeyId": "59ea247e0185ee0d",
+        "blteKeyId": "0dee85017e24ea59",
+        "recordCount": 22,
+        "tables": [
+          "ItemModifiedAppearance"
+        ],
+        "presentInCorpusUnion": false
+      },
+      {
+        "tactKeyId": "62bf37a70e6d54f6",
+        "blteKeyId": "f6546d0ea737bf62",
+        "recordCount": 8,
+        "tables": [
+          "ItemModifiedAppearance"
+        ],
+        "presentInCorpusUnion": false
+      },
+      {
+        "tactKeyId": "be544f7e94038018",
+        "blteKeyId": "188003947e4f54be",
+        "recordCount": 28,
+        "tables": [
+          "ItemModifiedAppearance"
+        ],
+        "presentInCorpusUnion": true
+      },
+      {
+        "tactKeyId": "be7d592cd36508a2",
+        "blteKeyId": "a20865d32c597dbe",
+        "recordCount": 12,
+        "tables": [
+          "CollectableSourceInfo",
+          "CollectableSourceVendor",
+          "CollectableSourceVendorSparse",
+          "ItemModifiedAppearance"
+        ],
+        "presentInCorpusUnion": true
+      },
+      {
+        "tactKeyId": "d1055199767fb373",
+        "blteKeyId": "73b37f76995105d1",
+        "recordCount": 3,
+        "tables": [
+          "ItemModifiedAppearance"
+        ],
+        "presentInCorpusUnion": true
+      },
+      {
+        "tactKeyId": "dd9ea834c9585585",
+        "blteKeyId": "855558c934a89edd",
+        "recordCount": 35,
+        "tables": [
+          "CollectableSourceInfo",
+          "CollectableSourceVendor",
+          "CollectableSourceVendorSparse",
+          "ItemModifiedAppearance"
+        ],
+        "presentInCorpusUnion": true
+      },
+      {
+        "tactKeyId": "fbbf041f980ce0dc",
+        "blteKeyId": "dce00c981f04bffb",
+        "recordCount": 44,
+        "tables": [
+          "ItemModifiedAppearance"
+        ],
+        "presentInCorpusUnion": false
+      }
+    ],
+    "cacheAudits": [
+      {
+        "index": 1,
+        "status": "verified",
+        "sourceVersion": "xptr",
+        "sourceVerified": true,
+        "url": "https://storage.googleapis.com/raidbots-static/wow%2F68887%2FenUS%2FDBCache-kfEhcJdWfkJCzE4eja7SmL.bin",
+        "created": "2026-07-30T18:19:04.098Z",
+        "declaredEntries": 136985,
+        "declaredPushIds": 469,
+        "bytes": 5338977,
+        "sha256": "6709001c705ddc768062701892d4888d0b7a5cba7d037edd6cf7213380371a27",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "898e55a7daef703bfc36315f3c6bd55b3bd1464be91e48e0bc28fa99e4302cae"
+        },
+        "targetTableEntryCount": 125413,
+        "joinedHotfixKeyCount": 107,
+        "broadcastTextEntryCount": 200,
+        "broadcastTextTactKeyEntryCount": 13,
+        "compositeObservedKeyIdentityCount": 108,
+        "compositeJoinedMaterialTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 2,
+        "status": "verified",
+        "sourceVersion": "xptr",
+        "sourceVerified": true,
+        "url": "https://storage.googleapis.com/raidbots-static/wow%2F68887%2FenUS%2FDBCache-qPxetRhRTPpAVgM9VmQhgC.bin",
+        "created": "2026-07-30T00:17:25.474Z",
+        "declaredEntries": 124851,
+        "declaredPushIds": 467,
+        "bytes": 4950635,
+        "sha256": "9bea976493958096c8f4a3ba510cbb8812a60624865a949a26e58a1a9a9fb20a",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "cf3a7bd391cc5f9e936929e9e5d59182e8a092ec04c5b5a8e434eee04d00c41f"
+        },
+        "targetTableEntryCount": 113284,
+        "joinedHotfixKeyCount": 107,
+        "broadcastTextEntryCount": 200,
+        "broadcastTextTactKeyEntryCount": 13,
+        "compositeObservedKeyIdentityCount": 108,
+        "compositeJoinedMaterialTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 3,
+        "status": "verified",
+        "sourceVersion": "xptr",
+        "sourceVerified": true,
+        "url": "https://storage.googleapis.com/raidbots-static/wow%2F68887%2FenUS%2FDBCache-pAQ7hNUrsxyawNnBurQwRs.bin",
+        "created": "2026-07-27T19:40:52.810Z",
+        "declaredEntries": 89632,
+        "declaredPushIds": 464,
+        "bytes": 3823420,
+        "sha256": "46e370f4b6c8cd3277f024b7ef7b4cd57ce4aa8bb73a15bbca51a3e9ba3cb62e",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "7e193283d1bae87cf530e1fc1549937dc3ff014ba9d6ebfcca8c5973d02cb9f3"
+        },
+        "targetTableEntryCount": 78073,
+        "joinedHotfixKeyCount": 107,
+        "broadcastTextEntryCount": 200,
+        "broadcastTextTactKeyEntryCount": 13,
+        "compositeObservedKeyIdentityCount": 108,
+        "compositeJoinedMaterialTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 4,
+        "status": "verified",
+        "sourceVersion": "xptr",
+        "sourceVerified": true,
+        "url": "https://storage.googleapis.com/raidbots-static/wow%2F68887%2FenUS%2FDBCache-pcAU3EqRWS4Xwq8qRd9ECQ.bin",
+        "created": "2026-07-22T21:48:09.178Z",
+        "declaredEntries": 11610,
+        "declaredPushIds": 447,
+        "bytes": 1318379,
+        "sha256": "3514c55541863d99ee231485639830c62bf6fa98269a694d4af57c9c2fdfd9cb",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "2a475f176378ba6ca085ad86a553740ed5eac4f1e8ce54402f2a754671a76d08"
+        },
+        "targetTableEntryCount": 182,
+        "joinedHotfixKeyCount": 107,
+        "broadcastTextEntryCount": 194,
+        "broadcastTextTactKeyEntryCount": 12,
+        "compositeObservedKeyIdentityCount": 108,
+        "compositeJoinedMaterialTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      }
+    ],
+    "blockers": [
+      "DBCACHE_CORPUS_TACT_KEYS_INCOMPLETE"
+    ]
+  },
+  "conclusion": "The four xptr exact-build hotfix caches selected from one saved mixed-channel verified page contribute joined material for only 2 of 12 targets (47 associated records). When overlaid on the archived official static tables, the composite state contains joined material for 6 of 12 targets (82 associated records). Neither view adds any blocker identity; this remains page-scoped third-party xptr evidence, not a paginated-corpus, retail, or season-membership claim.",
+  "productionMutation": false,
+  "releasePointerMutation": false
+}

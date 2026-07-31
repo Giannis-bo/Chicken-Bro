@@ -1,0 +1,129 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-31T14:33:23.3484314Z",
+  "status": "partial",
+  "build": "12.0.7.68887",
+  "authority": {
+    "type": "installed_official_client_hotfix_cache",
+    "product": "World of Warcraft retail zhCN",
+    "collectionProvenance": "local_official_client_after_authenticated_world_session",
+    "mayEstablishCompositeJoinedKeyMaterialPresence": true,
+    "mayEstablishOfficialSeasonMembership": false,
+    "auditContainsKeyMaterial": false,
+    "rawCacheCopied": false
+  },
+  "clientRefresh": {
+    "status": "complete",
+    "authenticatedWorldEntryConfirmedAt": "2026-07-31T14:15:55.6505638Z",
+    "preExitCacheObservedAt": "2026-07-31T14:15:55.6505638Z",
+    "normalExitReportedByUser": true,
+    "postExitProcessAndCacheObservedAt": "2026-07-31T14:24:17.3246503Z",
+    "wowProcessCountAfterExit": 0,
+    "postExitObservationFoundChangedCache": true
+  },
+  "cache": {
+    "relativeInstallPath": "_retail_/Cache/ADB/zhCN/DBCache.bin",
+    "baseline": {
+      "bytes": 1360908,
+      "mtimeUtc": "2026-07-23T11:47:04.5363088Z",
+      "sha256": "1b2633137830197cc766ada884c2cbaf5c21ec79b0e3ba15862c010f71067fca"
+    },
+    "preExit": {
+      "observedAt": "2026-07-31T14:15:55.6505638Z",
+      "bytes": 1360908,
+      "mtimeUtc": "2026-07-23T11:47:04.5363088Z",
+      "sha256": "1b2633137830197cc766ada884c2cbaf5c21ec79b0e3ba15862c010f71067fca",
+      "stableDuringRead": true
+    },
+    "postExit": {
+      "observedAt": "2026-07-31T14:24:17.3246503Z",
+      "bytes": 1376502,
+      "mtimeUtc": "2026-07-31T14:23:11.0385190Z",
+      "sha256": "d5aa61dc347115b4a0c403eb1da4807299aaaeba844bd9bcd30695947b71b723",
+      "header": {
+        "magic": "XFTH",
+        "version": 9,
+        "build": 68887,
+        "verifyHashSha256": "f3f96406b9a4a78fd7bcf735ff82d83504df3de226635622f00c0341796da2d9"
+      }
+    }
+  },
+  "inputs": {
+    "verifiedHandoffArchiveSha256": "d5b2a6bfbb955f9be7a13f4637e278745684225f48bb477b76105ff2ba963ea5",
+    "staticCoverageAudit": {
+      "archiveEntry": "artifacts/releases/2026-07-30-equipment-simulator-e2e-matrix/universe/official-snapshot/official-client-db2-v1/current-client-tact-key-coverage.json",
+      "bytes": 5233,
+      "sha256": "321545478ec574eef2aeafb6425397927cfc3afea4783295db35ed852f2327c4"
+    },
+    "baseTactKeyCsv": {
+      "archiveEntry": "artifacts/releases/2026-07-30-equipment-simulator-e2e-matrix/universe/official-snapshot/official-client-db2-v1/derived-tact-key-v1/TactKey.csv",
+      "bytes": 1581,
+      "sha256": "7e13c58fdd2bedd55c58dd1362c0767c3bbbb3afce387e1199d59ff0afcca5ef",
+      "containsKeyMaterial": true,
+      "persistedInGit": false,
+      "keyMaterialEmittedByAudit": false
+    },
+    "baseTactKeyLookupCsv": {
+      "archiveEntry": "artifacts/releases/2026-07-30-equipment-simulator-e2e-matrix/universe/official-snapshot/official-client-db2-v1/derived-tact-key-v1/TactKeyLookup.csv",
+      "bytes": 6858,
+      "sha256": "5fd782df8e8b95d44e6e18294495e60892b2b7bf5c03734035a53c7279dbcd3c",
+      "persistedInGit": false,
+      "keyMaterialEmittedByAudit": false
+    }
+  },
+  "scan": {
+    "countScope": "composite effective-client state formed from archived static TactKey/TactKeyLookup plus the post-exit local hotfix cache",
+    "cacheOnly": {
+      "joinedMaterialTargetKeyCount": 2,
+      "associatedTargetRecordCount": 47,
+      "joinedMaterialTargetTactKeyIds": [
+        "be7d592cd36508a2",
+        "dd9ea834c9585585"
+      ],
+      "broadcastReferenceTargetIdentityCount": 0,
+      "broadcastReferenceTargetTactKeyIds": []
+    },
+    "targetTableEntryCount": 512,
+    "joinedHotfixKeyCount": 123,
+    "broadcastTextEntryCount": 200,
+    "broadcastTextTactKeyEntryCount": 19,
+    "compositeObservedKeyIdentityCount": 124,
+    "compositeJoinedMaterialTargetKeyCount": 8,
+    "compositeAssociatedTargetRecordCount": 92,
+    "compositeJoinedMaterialTargetTactKeyIds": [
+      "291af9fe83d992e4",
+      "529c356e187dd913",
+      "570ed145f83e8b7b",
+      "57c16bba581fd295",
+      "be544f7e94038018",
+      "be7d592cd36508a2",
+      "d1055199767fb373",
+      "dd9ea834c9585585"
+    ],
+    "compositeMissingTargetKeyCount": 4,
+    "compositeMissingTargetRecordCount": 86,
+    "compositeMissingTargetTactKeyIds": [
+      "14f4b11d7b067aa2",
+      "59ea247e0185ee0d",
+      "62bf37a70e6d54f6",
+      "fbbf041f980ce0dc"
+    ],
+    "blockerPresentKeyCount": 0,
+    "blockerMissingRecordCount": 64,
+    "compositeBroadcastReferenceTargetIdentityCount": 0,
+    "compositeBroadcastReferenceTargetTactKeyIds": [],
+    "blockerTactKeyIds": [
+      "14f4b11d7b067aa2",
+      "62bf37a70e6d54f6",
+      "fbbf041f980ce0dc"
+    ],
+    "keyMaterialEmitted": false
+  },
+  "blockers": [
+    "LOCAL_OFFICIAL_CLIENT_DBCACHE_TACT_KEYS_INCOMPLETE",
+    "CURRENT_CLIENT_ENCRYPTED_SOURCE_RECORDS_UNAVAILABLE"
+  ],
+  "conclusion": "A post-exit observation after the authenticated exact-build session found a new local cache, eliminating the local refresh environment blocker. The cache body alone contributes joined material for 2 of 12 targets (47 associated records); the composite official static-plus-hotfix client state contains joined material for 8 of 12 targets (92 associated records). Neither view contains any of the three blocker identities, so 64 encrypted ItemModifiedAppearance records remain unavailable.",
+  "productionMutation": false,
+  "releasePointerMutation": false
+}

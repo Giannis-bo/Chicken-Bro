@@ -22,7 +22,18 @@
 - 固定 `c034041` 的首轮 v4 审计曾把 WDC5 `uint64` 文本和 BLTE 原始 8-byte identity 当成两个 namespace，直接字符串比较得到伪 `0/12` 重合。刨根后确认 12 组 identity 实际逐一对应：把 WDC5 ID 按字节反转，重合为 `12/12`；例如 `be7d592cd36508a2 → a20865d32c597dbe`。因此旧的“record/BLTE namespace mismatch”结论已撤回，它不是上游密钥缺失事实，而是提取器 keyfile writer 的字节序合同错误。
 - 该追踪共暴露三条提取器契约问题：SimC JSON keyfile 大小写与 `keyfile.find` 不一致；WDC5 little-endian `uint64` 文本没有转换为 BLTE byte order；旧隔离环境缺少 `fixedint` 时会禁用 Salsa20、把加密 chunk 零填充并仍留下看似成功的 WDC5 文件。当前 Goal-only writer 同时统一小写并执行 byte-order mapping，抓取器强制验证 Salsa20，且单独发布 key/hit/decrypt/zero-fallback 计数；正式 SimC 运行时未修改。
 - freshness 复核发现 `c034041` 不是仓库当前头后，用户授权 Goal 内必要操作无需逐项确认。当前已精确抓取 `wowdev/TACTKeys@a3449fd5cfc3a0053cbff2c65f7d16166774cbf9`：981,450 bytes、19,629 行、SHA-256 `e4fe2fd39ccc43b5ee14b1ced69dce9f21d4d90267a8a3e2bbb2b953597f55f9`。当前头覆盖 WDC5 `9/12` 个 key、`114/178` 条记录；byte-order mapping 后 SimC 执行前 lookup 为 `9/12`，v5 实际得到 `key hit=17/20`、`decrypted=17/20`、`zero fallback=3/20`，四表解析行数精确增加 114，剩余 3 个 key 对应 64 条记录继续不可用。current-source 状态是 literal `partial`，不是 complete。原始 `WoW.txt`、临时 keyfile、v5 工作集和早期 `c034041` 的 49,026,131-byte transient 工作集均已精确删除；Goal transient 剩余文件数为 0，只保留不含 key material 的哈希、计数、官方 DB2 与派生审计。清理后根盘 80%、`MemAvailable≈2.19 GiB`、生产后端 `active/NRestarts=0`，没有同步生产、修改正式 SimC 或切换指针。
-- 上游来源追踪继续覆盖 Raidbots 公布的 exact-build DBCache：9 份 `verified retail/enUS` 缓存和列表中全部 98 份 build `68887` 的 opt-in retail 缓存均以单线程、内存内目标表扫描完成，抓取失败为 0，总读取 298,323,339 bytes，原始缓存和完整 key 输出均未落盘。两套缓存语料的并集都只有 `6/12` 个 target key、覆盖 `82/178` 条记录，且完全是 current TACTKeys `9/12` 的子集，新增 key 为 0；`git ls-remote` 复核仓库头仍是 `a3449fd`。因此当前公开仓库与 107 份 exact-build 缓存的总并集仍为 `9/12`、`114/178`，缺失仍精确是 `14f4b11d7b067aa2`、`62bf37a70e6d54f6`、`fbbf041f980ce0dc` 及其 64 条记录。这把边界收敛为“当前公开/缓存语料均未提供”，但不能推断所有地区、账号资格或内容门禁下都不存在；完整性仍保持 `blocked`。
+- 上游来源追踪继续覆盖 Raidbots 公布的 exact-build DBCache：9 份 `verified
+  retail/enUS` 缓存和当时保存的 unverified 第一页中 98 份 build `68887` opt-in
+  retail 缓存均以单线程、内存内目标表扫描完成，抓取失败为 0，总读取
+  298,323,339 bytes，原始缓存和完整 key 输出均未落盘。旧 scanner 会预载归档 static
+  TactKey/TactKeyLookup，因此其 `6/12`、关联 `82/178` 是 composite effective-client
+  view，不是 cache-body-only 口径；该旧快照也没有持久化 cache-only 分解。可安全保留的
+  结论是这些选中观察没有补出三枚 blocker key，也没有向 current TACTKeys `9/12`
+  增加 target。`git ls-remote` 复核仓库头仍是 `a3449fd`，故当前批准 source union
+  仍为 `9/12`、`114/178`，缺失仍精确是 `14f4b11d7b067aa2`、
+  `62bf37a70e6d54f6`、`fbbf041f980ce0dc` 及其 64 条记录。这把边界收敛为
+  “已选公开/缓存观察均未提供”，但不能推断所有地区、账号资格、内容门禁或未穷尽
+  unverified corpus 下都不存在；完整性仍保持 `blocked`。
 - 用户已明确授权本 Goal 内所有必要项目操作直接推进，不再逐项询问；授权不放松 Harness 的资源门禁、隔离候选、生产/正式指针切换条件、手工验收关闭条件或 fail-closed 状态纪律。
 - 24 个已抓取 Blizzard 权威页面也完成 item-link 反查：仅出现 9 个 item ID，其中 8 个是坐骑、PvP、外观或 cosmetic 奖励；唯一 PVE 装备关系 `249367 Chiming Void Curio` 已存在于 current-client Journal 成员证据。本轮没有发现新的 PVE 战斗装备成员，也没有关闭 21 条缺口。
 - 新补录的 Revelations 上线页和 7 月 29 日发布的 7 月 28 日热修页把证据新鲜度推进到当前：热修明确 Val/Naigtal 世界 Boss 奖励必须匹配玩家所选专精。Ritual Sites、Lost Armaments、Val/Naigtal 世界 Boss、Voidforge、Prey 的官方页面仍只定义动态战利品专精/战团奖励池、档位或粗粒度 transform 条件，不枚举战斗装备成员；这能收紧 eligibility 事实，但不能解除 `OFFICIAL_SOURCE_MEMBERSHIP_API_UNAVAILABLE`。
@@ -223,37 +234,79 @@ branch 和 `git ls-remote` 均为
 - 从已校验归档恢复原始 DBCache 语义解析器及测试后，重新绑定当前
   Raidbots source-list 并串行内存扫描；unverified 滚动列表曾瞬时显示 100 个
   exact-build 条目，实际扫描快照为 verified 9/9、unverified 99/99，抓取失败 0，
-  总读取 296,829,090 bytes。两套语料仍只有 `6/12`、`82/178`，
+  总读取 296,829,090 bytes。这里的计数是归档 static TactKey/TactKeyLookup 与
+  hotfix cache overlay 的 composite view：两套语料仍只有 `6/12` joined-material
+  target keys、对应 `82/178` 条关系，
   三枚 blocker key 均未出现；重建的 aggregate 仍为 source union `9/12`、
   `114/178`、缺 `3/12` 和 `64/178`。
 - 滚动 unverified endpoint 随后又产生两批独立快照：97/97 与 96/96，抓取失败
   均为 0；与交接 98、接力 99 和 verified 9 一起累计 399 次缓存观察、329 个
-  唯一内容 SHA-256、1,098,143,766 bytes。新增两批仍各自只有 `6/12`、`82/178`，
+  唯一内容 SHA-256、1,098,143,766 bytes。新增两批的 composite view 仍各自只有
+  `6/12` joined-material targets、对应 `82/178` 条关系，
   没有向 current public TACTKeys 之外增加 key。为防止无界轮询，本轮在两批增量后
   停止重采样；原始缓存仍未落盘，只记录 redacted audit、source-list 与内容哈希。
 - 纠偏：上述 Raidbots 结果只证明多个选中快照，不证明公开 corpus 穷尽。每个保存
   的 list 都固定返回 100 个 descriptor 并携带非空 `cursor`；当前 endpoint 对已尝试
   的 `cursor`/`start_cursor`/`pageToken`/limit 参数均返回同一第一页，仓库扫描器也不
-  遍历 cursor。因此旧文中的“全部 98”或“完整 corpus”不得继续作为穷尽证据；新增
-  blocker 为 `DBCACHE_CORPUS_PAGINATION_UNPROVEN`。在取得官方分页合同或完成终止页
-  证明前，只能报告 329 个唯一 cache 内容样本均未补出 blocker key。
+  遍历 cursor。因此旧文中的“全部 98”或“完整 corpus”不得继续作为穷尽证据；
+  后续实测到 cursor path traversal 并闭合 verified 终止页，但本段样本仍不能外推为
+  unverified 穷尽。只能报告 329 个唯一 cache 内容样本均未补出 blocker key。
 - 归档中的旧 aggregate 曾引用随后被同名刷新覆盖的 corpus SHA。Harness
   verifier 现在必须接收 snapshot root，并逐一复算 public、verified corpus 和
   unverified corpus 三个 component 的路径、字节数与 SHA-256；缺文件、越界路径、
   同名覆盖或 SHA 漂移都会 fail closed。
 - 本机已安装的 Blizzard 正式 `zhCN` DBCache 精确为 build 68887，覆盖
-  `8/12`、`92/178`，但仍不含三枚 blocker key，且仍是 current public TACTKeys
-  的严格子集。直接启动正式客户端只到账号登录页，缓存未变化；没有自动处理
-  认证，客户端已关闭。第三方 metadata 只能把三枚 key 的首次观察收窄到
+  cache-body-only `2/12` joined-material targets（关联 `47/178` 条关系）；与归档
+  official static 表叠加后的 composite client view 为 `8/12`（关联 `92/178`），
+  但两种口径均不含三枚 blocker key，且 composite view 仍是 current public TACTKeys
+  的严格子集。用户随后完成认证、进入角色世界并正常退出；post-exit observation
+  发现 cache 从 1,360,908
+  bytes / SHA-256 `1b263313…67fca` 更新为 1,376,502 bytes / SHA-256
+  `d5aa61dc…b723`，但 redacted 复扫的两种口径未增加 blocker key，三枚仍为 0。
+  第三方 metadata 只能把三枚 key 的首次观察收窄到
   12.0.7 XPTR/12.0.0 Beta 的未知 quest/transmog/item-set 上下文，不能据此解密、
   排除或证明当前赛季成员关系。
 - 本机 6,395 个候选文件的 header 枚举只找到 8 个 XFTH：当前 68887 cache 与
   7 个 build 66192-67823 的旧 `.tmp`；旧 cache 均不含 blocker identity，且 build
   不匹配。Wago exact-build `TactKeyLookup` 可把三枚 identity 分别绑定到 record
   8193、8225、8087，但 exact-build `TactKey` 无对应记录；Blizzard build config
-  与 Raidbots verified enUS cache 也没有可用 state-1/state-2 记录。因此当前分类
+  与 Raidbots verified enUS cache 也没有可用 state-1/state-2 记录。另一次未封存
+  source response 的 bounded Wago research observation 枚举了 96 个
+  major-version-12 retail/PTR/XPTR/Beta build，观察到三枚 lookup identity、未观察到
+  对应 `TactKey` material row；该 96-build 计数和 absence 只能作为 research lead，
+  不能升级为可复验 authority。因此当前分类
   仍是 `identity_confirmed_exact_build`、`key_material_missing`、
   `decryption_unverified`，64 条记录继续 fail closed。
+- Raidbots cursor path 的只读实测 request shape 为
+  `GET /api/dbcache/{verified|unverified}/{percent-encoded opaque cursor}`。verified
+  链在 55 页、5,428 个不重复 descriptor 后以显式 `cursor=null` 终止；持久化 ledger
+  包含逐页响应哈希和 5,428 个 redacted descriptor URL 哈希，可独立复核计数与去重。
+  unverified 只完成两页 200 项无重叠探测，因 30 天滚动写入且没有已发布的
+  snapshot-isolation
+  合同，整体 corpus 穷尽仍不得宣称；保留
+  `UNVERIFIED_DBCACHE_PAGINATION_EXHAUSTION_UNPROVEN` 与
+  `UNVERIFIED_DBCACHE_SNAPSHOT_ISOLATION_UNDOCUMENTED`。该 request shape 是实测行为，
+  不是 provider-published API contract。
+- exact-build 68887 的 verified 第一页还包含 4 个 `version=xptr` cache；已在内存中
+  全部扫描，共 15,431,411 bytes、抓取失败 0。cache-body-only 只有 `2/12`
+  joined-material targets（关联 `47/178`），叠加归档 static 表的 composite view 为
+  `6/12`（关联 `82/178`），两种口径均无三枚 blocker key。累计样本更新为 403 次
+  观察、333 个唯一内容 SHA-256、1,113,575,177 bytes；四个 XPTR cache body 未持久化，
+  redacted audit 未输出 key material；含 key material 的已校验 static 输入仍只保留在
+  Git 外的隔离 handoff 解包目录。
+- Wago build identity 与 Raidbots verified metadata 进一步给出 63 个历史候选：
+  XPTR build 67227 两个，以及 12.0.0 Beta 七个 build 共 61 个，metadata 合计
+  61,090,619 bytes。这些 96-build / 63-candidate 计数没有封存源响应或响应哈希，
+  只作为 research leads；候选 cache body 尚未下载或扫描，不能算作 key/decryption
+  evidence。
+- 官方客户端的人机刷新动作已经闭合：退出后 WoW 进程为 0，新 cache 仍为 XFTH v9 /
+  build 68887，并由 `local-official-client-post-login-cache-audit.json` 绑定；
+  原先已跟踪的 `LOCAL_OFFICIAL_CLIENT_LOGIN_CONTEXT_REQUIRED` 已移除。该动作没有复制
+  原始 cache、没有输出 key material，也没有触碰生产或 release pointer。
+- 如果后续获得 key，最小安全重放路径是固定四个已知 BLTE range 与 build/config/
+  root identity，而不是重新绑定已经推进的 live retail。执行前仍需补齐 expected-build/
+  config 门禁、输出 root-MD5、完整解密非零退出、禁止覆盖及下游 `12/12` 成功路径；
+  即使 64 条记录恢复，也仍需单独闭合 21 个 Universe 缺口。
 
 当前首要 blocker 仍是取得三枚缺失 TACT key 的获批 exact-build 来源，或取得
 64 条记录的权威解密结果。未解除该 blocker 前，不进入 19 类来源的完成性宣称、
