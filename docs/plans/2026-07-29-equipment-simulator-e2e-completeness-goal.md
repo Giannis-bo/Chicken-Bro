@@ -445,3 +445,32 @@ Exact、云端生产消费或正式指针。旧 Goal 继续是 `blocked`，当�
 缺失 key 分别阻断 12/8/44 条记录；19 类投影仍为 complete 0、partial 9、blocked 10、
 21 个 gap。下一切片仍是取得获批 exact-build key 来源或 64 条关系的权威 exact-build
 解密记录；成功前不进入 19 类闭包完成宣称、正式候选或终局微信/SimC 矩阵。
+
+## 11. 2026-08-01 fixed-63 MD5 内容类闭包
+
+**状态：** `正在推进`
+
+Git 外隔离审计已把历史 fixed-63 取证边界收敛到一个可复核、但有明确前提的结论：原始
+八次顺序且穷尽的 prefix query 观察到 63 个对象、61,090,619 bytes、63 个唯一 MD5 内容类；
+本地 carrier union 同样为 63 个 body、61,090,619 bytes、63 个唯一 MD5，并以 63 条固定
+generation metadata 逐项绑定。最终 scanner 覆盖该 union 的 63/63 个 body，三枚 blocker
+identity 命中仍为 0。因此，在已记录的 flat-namespace availability premise 下，只闭合
+`MD5(C)=O_Q_MD5` 这一内容类集合等式。
+
+该结论不恢复历史 object-identity ledger，不把 MD5 宣称为数学意义上的字节同一性，也不建立
+exact-build key、权威 plaintext 或解密 authority。bucket owner 没有提供认证的 storage-layout
+attestation，公开文档也不能排除更早的 private preview；两项限制均保留为真值，不能被上述
+基数证明消除。本次 metadata 核验共 67 个 request，redirect、retry、list request 与 object
+body download 均为 0。
+
+脱敏仓库入口为
+[historical-fixed63-md5-content-class-closure-audit.json](../../artifacts/releases/2026-07-30-equipment-simulator-e2e-matrix/universe/official-snapshot/official-client-db2-v1/historical-fixed63-md5-content-class-closure-audit.json)。
+它只绑定外部隔离 audit 的相对标识、字节数、SHA-256、证明边界和计数，不包含 URL、绝对路径、
+对象名或实际 key material。本切片没有让云端生产消费证据，没有修改 Manifest、release pointer
+或生产状态；旧 Goal 与历史 handoff 继续保持 `blocked`。
+
+fixed-63 的历史 carrier 内容类缺口关闭后，核心事实仍未变化：source union 为 `partial`，
+`9/12` keys、`114/178` encrypted relations、64 条不可用；19 类投影仍为 complete 0、
+partial 9、blocked 10、21 个 gap。下一切片仍严格是取得三枚缺失 TACT key 的获批
+exact-build 来源，或 64 条关系的权威 exact-build 解密记录；成功前不进入 19 类闭包完成宣称、
+正式候选或终局微信/SimC 矩阵。

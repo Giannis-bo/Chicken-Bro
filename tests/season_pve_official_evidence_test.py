@@ -27,6 +27,197 @@ from server.season_pve_official_evidence import (
 
 
 class SeasonPveOfficialEvidenceTest(unittest.TestCase):
+    def test_historical_fixed63_md5_content_class_closure_is_bounded(self):
+        evidence_root = (
+            Path(__file__).resolve().parents[1]
+            / "artifacts"
+            / "releases"
+            / "2026-07-30-equipment-simulator-e2e-matrix"
+            / "universe"
+            / "official-snapshot"
+            / "official-client-db2-v1"
+        )
+        audit_path = (
+            evidence_root
+            / "historical-fixed63-md5-content-class-closure-audit.json"
+        )
+        self.assertTrue(
+            audit_path.is_file(),
+            "historical fixed-63 MD5 content-class closure audit is missing",
+        )
+
+        audit_bytes = audit_path.read_bytes()
+        audit = json.loads(audit_bytes)
+        self.assertEqual(
+            set(audit),
+            {
+                "schemaVersion",
+                "kind",
+                "capturedAt",
+                "status",
+                "goals",
+                "evidence",
+                "contentClassClosure",
+                "authorityBoundary",
+                "networkBoundary",
+                "remainingTruth",
+                "safety",
+                "closedBlockers",
+                "remainingBlockers",
+                "nextSlice",
+            },
+        )
+        self.assertEqual(audit["schemaVersion"], 1)
+        self.assertEqual(
+            audit["kind"],
+            "historical-fixed63-md5-content-class-closure-audit",
+        )
+        self.assertEqual(
+            audit["status"],
+            "complete_with_documented_flat_namespace_premise",
+        )
+        self.assertEqual(
+            audit["goals"],
+            {
+                "currentGoalId": "019fb823-90bf-7f63-ae60-9aaa82662f9c",
+                "continuesGoalId": "019faddb-abb5-79a3-a477-3cb6e6368120",
+                "continuedGoalFinalStatus": "blocked",
+                "continuedGoalMarkedComplete": False,
+                "historicalHandoffStatus": "blocked",
+            },
+        )
+
+        self.assertEqual(
+            audit["evidence"],
+            {
+                "externalAudit": {
+                    "relativeIsolationId": (
+                        "historical-fixed63-identity-closure-20260801/"
+                        "redacted-audit.json"
+                    ),
+                    "bytes": 12_614,
+                    "sha256": (
+                        "2ce85ee882c9f0fcf73bf56cff6caa6357ae54f688fd2ca4"
+                        "de191e19dd37b4ae"
+                    ),
+                },
+            },
+        )
+        self.assertEqual(
+            audit["contentClassClosure"],
+            {
+                "scope": "MD5(C)=O_Q_MD5",
+                "localCarrierBodyCount": 63,
+                "localCarrierBodyBytes": 61_090_619,
+                "localCarrierUniqueMd5Count": 63,
+                "observedQueryBodyCount": 63,
+                "observedQueryBodyBytes": 61_090_619,
+                "observedQueryUniqueMd5Count": 63,
+                "metadataRecordCount": 63,
+                "finalScannerMatchedBodyCount": 63,
+                "finalScannerTargetHitCount": 0,
+                "documentedFlatNamespacePremise": True,
+                "ownerAuthenticatedStorageLayoutAttestation": False,
+                "privatePreviewCannotBeExcludedFromPublicDocs": True,
+            },
+        )
+        self.assertEqual(
+            audit["authorityBoundary"],
+            {
+                "historicalObjectIdentityLedgerRecovered": False,
+                "originalPerObjectMd5LedgerPersisted": False,
+                "md5MathematicalByteIdentityClaim": False,
+                "exactBuildKeyAuthorityEstablished": False,
+                "authoritativePlaintextEstablished": False,
+                "authoritativeDecryptionEstablished": False,
+            },
+        )
+
+        self.assertEqual(
+            audit["networkBoundary"],
+            {
+                "requestCount": 67,
+                "redirectCount": 0,
+                "retryCount": 0,
+                "listRequestCount": 0,
+                "objectBodyDownloadCount": 0,
+            },
+        )
+        self.assertEqual(
+            audit["remainingTruth"],
+            {
+                "sourceUnionStatus": "partial",
+                "sourceUnionKeyCount": 9,
+                "requiredKeyCount": 12,
+                "recoveredEncryptedRecordCount": 114,
+                "encryptedRecordCount": 178,
+                "unavailableEncryptedRecordCount": 64,
+                "officialSourceProjection": {
+                    "complete": 0,
+                    "partial": 9,
+                    "blocked": 10,
+                    "gapCount": 21,
+                },
+                "universeComplete": False,
+                "formalGearCommunityManifestCandidateComplete": False,
+                "productionPromotionAllowed": False,
+            },
+        )
+        self.assertEqual(
+            audit["safety"],
+            {
+                "cloudProductionConsumed": False,
+                "productionMutation": False,
+                "manifestMutation": False,
+                "releasePointerMutation": False,
+                "containsUrl": False,
+                "containsAbsolutePath": False,
+                "containsObjectNames": False,
+                "containsActualKeyMaterial": False,
+            },
+        )
+        self.assertEqual(
+            audit["closedBlockers"],
+            [
+                "FIXED63_LOCAL_TO_GCS_GENERATION_BINDING_MISSING",
+                "FIXED63_ORIGINAL_QUERY_MD5_CONTENT_CLASS_COVERAGE_UNPROVEN",
+                "FIXED63_FINAL_SCANNER_LOCAL_UNION_BINDING_MISSING",
+            ],
+        )
+        self.assertEqual(
+            audit["remainingBlockers"],
+            [
+                "APPROVED_PUBLIC_TACT_KEYS_INCOMPLETE",
+                "CURRENT_CLIENT_ENCRYPTED_SOURCE_RECORDS_UNAVAILABLE",
+                "EXACT_BUILD_KEY_OR_AUTHORITATIVE_DECRYPTION_RECORD_REQUIRED",
+                "OFFICIAL_SOURCE_UNIVERSE_GAPS_REMAIN_21",
+            ],
+        )
+        self.assertEqual(
+            audit["nextSlice"],
+            {
+                "order": 1,
+                "action": (
+                    "Obtain an approved exact-build source for the three "
+                    "missing TACT keys or authoritative exact-build "
+                    "decryption records for the 64 encrypted relations."
+                ),
+                "afterSuccess": (
+                    "Rebuild the one-to-one inclusion, exclusion, and "
+                    "blocked closure for all 19 seasonal PVE source classes."
+                ),
+                "fullMatrixMayStartBeforeSuccess": False,
+            },
+        )
+
+        serialized = audit_bytes.decode("utf-8")
+        self.assertNotIn("http://", serialized)
+        self.assertNotIn("https://", serialized)
+        self.assertIsNone(re.search(r"[A-Za-z]:\\\\", serialized))
+        self.assertNotIn('"/var/', serialized)
+        self.assertNotIn('"/home/', serialized)
+        self.assertNotIn('"/opt/', serialized)
+
     def test_exact_build_authority_and_replay_readiness_stays_fail_closed(self):
         evidence_root = (
             Path(__file__).resolve().parents[1]

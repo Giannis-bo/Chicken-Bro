@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "kind": "historical-fixed63-md5-content-class-closure-audit",
+  "capturedAt": "2026-07-31T21:29:52.223070Z",
+  "status": "complete_with_documented_flat_namespace_premise",
+  "goals": {
+    "currentGoalId": "019fb823-90bf-7f63-ae60-9aaa82662f9c",
+    "continuesGoalId": "019faddb-abb5-79a3-a477-3cb6e6368120",
+    "continuedGoalFinalStatus": "blocked",
+    "continuedGoalMarkedComplete": false,
+    "historicalHandoffStatus": "blocked"
+  },
+  "evidence": {
+    "externalAudit": {
+      "relativeIsolationId": "historical-fixed63-identity-closure-20260801/redacted-audit.json",
+      "bytes": 12614,
+      "sha256": "2ce85ee882c9f0fcf73bf56cff6caa6357ae54f688fd2ca4de191e19dd37b4ae"
+    }
+  },
+  "contentClassClosure": {
+    "scope": "MD5(C)=O_Q_MD5",
+    "localCarrierBodyCount": 63,
+    "localCarrierBodyBytes": 61090619,
+    "localCarrierUniqueMd5Count": 63,
+    "observedQueryBodyCount": 63,
+    "observedQueryBodyBytes": 61090619,
+    "observedQueryUniqueMd5Count": 63,
+    "metadataRecordCount": 63,
+    "finalScannerMatchedBodyCount": 63,
+    "finalScannerTargetHitCount": 0,
+    "documentedFlatNamespacePremise": true,
+    "ownerAuthenticatedStorageLayoutAttestation": false,
+    "privatePreviewCannotBeExcludedFromPublicDocs": true
+  },
+  "authorityBoundary": {
+    "historicalObjectIdentityLedgerRecovered": false,
+    "originalPerObjectMd5LedgerPersisted": false,
+    "md5MathematicalByteIdentityClaim": false,
+    "exactBuildKeyAuthorityEstablished": false,
+    "authoritativePlaintextEstablished": false,
+    "authoritativeDecryptionEstablished": false
+  },
+  "networkBoundary": {
+    "requestCount": 67,
+    "redirectCount": 0,
+    "retryCount": 0,
+    "listRequestCount": 0,
+    "objectBodyDownloadCount": 0
+  },
+  "remainingTruth": {
+    "sourceUnionStatus": "partial",
+    "sourceUnionKeyCount": 9,
+    "requiredKeyCount": 12,
+    "recoveredEncryptedRecordCount": 114,
+    "encryptedRecordCount": 178,
+    "unavailableEncryptedRecordCount": 64,
+    "officialSourceProjection": {
+      "complete": 0,
+      "partial": 9,
+      "blocked": 10,
+      "gapCount": 21
+    },
+    "universeComplete": false,
+    "formalGearCommunityManifestCandidateComplete": false,
+    "productionPromotionAllowed": false
+  },
+  "safety": {
+    "cloudProductionConsumed": false,
+    "productionMutation": false,
+    "manifestMutation": false,
+    "releasePointerMutation": false,
+    "containsUrl": false,
+    "containsAbsolutePath": false,
+    "containsObjectNames": false,
+    "containsActualKeyMaterial": false
+  },
+  "closedBlockers": [
+    "FIXED63_LOCAL_TO_GCS_GENERATION_BINDING_MISSING",
+    "FIXED63_ORIGINAL_QUERY_MD5_CONTENT_CLASS_COVERAGE_UNPROVEN",
+    "FIXED63_FINAL_SCANNER_LOCAL_UNION_BINDING_MISSING"
+  ],
+  "remainingBlockers": [
+    "APPROVED_PUBLIC_TACT_KEYS_INCOMPLETE",
+    "CURRENT_CLIENT_ENCRYPTED_SOURCE_RECORDS_UNAVAILABLE",
+    "EXACT_BUILD_KEY_OR_AUTHORITATIVE_DECRYPTION_RECORD_REQUIRED",
+    "OFFICIAL_SOURCE_UNIVERSE_GAPS_REMAIN_21"
+  ],
+  "nextSlice": {
+    "order": 1,
+    "action": "Obtain an approved exact-build source for the three missing TACT keys or authoritative exact-build decryption records for the 64 encrypted relations.",
+    "afterSuccess": "Rebuild the one-to-one inclusion, exclusion, and blocked closure for all 19 seasonal PVE source classes.",
+    "fullMatrixMayStartBeforeSuccess": false
+  }
+}
