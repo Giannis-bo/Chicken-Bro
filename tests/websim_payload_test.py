@@ -18356,7 +18356,10 @@ class WebSimPayloadTest(unittest.TestCase):
         main_hand_group = next(group for group in payload["replacementCandidates"] if group["slot"] == "main_hand")
         weapon = next(item for item in main_hand_group["items"] if item["itemId"] == "260100")
         self.assertEqual([variant["itemLevel"] for variant in weapon["variants"]], [295, 285])
-        self.assertEqual([variant["difficultyLabel"] for variant in weapon["variants"]], ["虚空晋升", "神话"])
+        self.assertEqual(
+            [variant["difficultyLabel"] for variant in weapon["variants"]],
+            ["虚空晋升", "制造品质 · 神话"],
+        )
         self.assertEqual(weapon["variants"][0]["craftedStatOptions"][0]["label"], "急速 + 精通")
         self.assertEqual(weapon["variants"][0]["craftedStatOptions"][0]["statSummary"], "智力 295；急速 + 精通")
         self.assertEqual(health["details"]["sourceCoverage"]["crafted"], 2)
@@ -23250,6 +23253,18 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(
             compact["variants"][0]["variantKey"],
             browse_key,
+        )
+        self.assertEqual(
+            compact["variants"][0]["displayProgression"],
+            {
+                "kind": "crafted_quality",
+                "trackKey": "myth",
+                "label": "制造品质 · 神话",
+            },
+        )
+        self.assertEqual(
+            compact["variants"][0]["difficultyLabel"],
+            "制造品质 · 神话",
         )
 
     def test_normalize_gear_item_marks_limit_category_as_built_in_embellishment(self):

@@ -24489,11 +24489,17 @@ def compact_manifest_progression_display(progression):
     track_key = progression.get("trackKey") or ""
     rank = progression.get("rank") or 0
     rank_max = progression.get("rankMax") or 0
-    track_label = MANIFEST_PROGRESSION_TRACK_LABELS.get(track_key)
-    if not track_label and kind == "ascendant":
+    canonical_track_label = MANIFEST_PROGRESSION_TRACK_LABELS.get(track_key)
+    if kind == "ascendant":
         track_label = "虚空晋升"
-    if not track_label and kind == "crafted_quality":
-        track_label = "制造品质"
+    elif kind == "crafted_quality":
+        track_label = (
+            f"制造品质 · {canonical_track_label}"
+            if canonical_track_label
+            else "制造品质"
+        )
+    else:
+        track_label = canonical_track_label
     if not track_label:
         track_label = "等级轨道待补"
     label = f"{track_label} {rank}/{rank_max}" if rank and rank_max else track_label
@@ -24840,7 +24846,31 @@ def compact_crafted_gear_variants(variants, primary_key=""):
             ):
                 catalog_variant_key = ""
             compact_variant["difficultyKey"] = public_key
-            compact_variant["difficultyLabel"] = localized_difficulty_label(public_key, variant.get("label"), "crafted")
+            display_progression = (
+                compact_variant.get("displayProgression")
+                if isinstance(
+                    compact_variant.get("displayProgression"),
+                    dict,
+                )
+                else {}
+            )
+            crafted_track_label = MANIFEST_PROGRESSION_TRACK_LABELS.get(
+                public_key,
+            )
+            crafted_progression_label = (
+                f"制造品质 · {crafted_track_label}"
+                if crafted_track_label and public_key != "void_upgrade"
+                else ""
+            )
+            compact_variant["difficultyLabel"] = (
+                str(display_progression.get("label") or "").strip()
+                or crafted_progression_label
+                or localized_difficulty_label(
+                    public_key,
+                    variant.get("label"),
+                    "crafted",
+                )
+            )
             compact_variant["key"] = (
                 catalog_variant_key
                 or (

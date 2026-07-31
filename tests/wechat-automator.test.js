@@ -8,6 +8,7 @@ const {
   assertExpectedProject,
   connectAutomatorEndpoint,
   expectedAppId,
+  findElementBySemanticValue,
   hasRenderedRoot,
   queryElementsByXpathSequentially,
   queryElementsWithXpathFallback,
@@ -225,6 +226,44 @@ test('queryElementsByXpathSequentially treats the current DevTools phantom wrapp
   assert.equal(
     (await queryElementsByXpathSequentially(page, '//*[contains(@class, "variant")]', 3)).length,
     1,
+  )
+})
+
+test('findElementBySemanticValue locates a long rendered identity without a CSS value selector', async () => {
+  const longVariantKey = (
+    'browse-variant-sha256-'
+    + '809f88c0a861d315ab7fb993257b29e78e8256c9dfa5fe278cffdeda600a55cb'
+  )
+  const element = (key) => ({
+    key,
+    attribute: async (name) => {
+      if (name === 'data-variant-key') return null
+      if (name === 'class') {
+        return (
+          'wx-data-role-gear-candidate-variant '
+          + `wx-data-variant-key-${key}`
+        )
+      }
+      return null
+    },
+  })
+  const values = [element('another-variant'), element(longVariantKey)]
+  const page = {
+    getElementByXpath: async (xpath) => {
+      const match = xpath.match(/\[(\d+)\]$/u)
+      return match ? values[Number(match[1]) - 1] ?? null : null
+    },
+  }
+
+  assert.equal(
+    await findElementBySemanticValue(
+      page,
+      '//*[contains(@class, "wx-data-role-gear-candidate-variant")]',
+      32,
+      'variant-key',
+      longVariantKey,
+    ),
+    values[1],
   )
 })
 

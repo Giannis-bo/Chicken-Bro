@@ -130,6 +130,27 @@ async function queryElementsByXpathSequentially(page, xpath, maximumElements) {
   return elements
 }
 
+async function findElementBySemanticValue(
+  page,
+  xpath,
+  maximumElements,
+  attribute,
+  expectedValue,
+) {
+  const expected = String(expectedValue ?? '')
+  const elements = await queryElementsByXpathSequentially(
+    page,
+    xpath,
+    maximumElements,
+  )
+  for (const element of elements) {
+    if (String(await readSemanticValue(element, attribute) ?? '') === expected) {
+      return element
+    }
+  }
+  return null
+}
+
 async function assertAutomatorRuntimeCompatible(
   miniProgram,
   compatibilityTimeoutMs = reuseConnectTimeoutMs,
@@ -253,6 +274,7 @@ module.exports = {
   connectAutomatorEndpoint,
   connectMiniProgram,
   expectedAppId,
+  findElementBySemanticValue,
   hasRenderedRoot,
   queryElementsByXpathSequentially,
   queryElementsWithXpathFallback,

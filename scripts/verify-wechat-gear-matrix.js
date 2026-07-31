@@ -5,6 +5,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 const {
   connectMiniProgram,
+  findElementBySemanticValue,
   queryElementsByXpathSequentially,
   readSemanticValue,
   timeout,
@@ -401,9 +402,17 @@ async function inspectCandidateVariants(page, relation) {
   let selectedCraftedOptionFactChecks = 0
   const craftedApplyTargets = []
   for (const variant of relation.variants.filter((item) => item.uiState === 'ready' || item.uiState === 'partial')) {
-    const current = await requiredElement(
-      page,
-      `.wx-data-role-gear-candidate-variant.wx-data-variant-key-${variant.markerKey}`,
+    const current = await poll(
+      () => findElementBySemanticValue(
+        page,
+        variantXpath,
+        maximumVariantsPerItem,
+        'variant-key',
+        variant.markerKey,
+      ),
+      Boolean,
+      operationTimeoutMs,
+      `rendered canonical variant ${relation.itemId}/${variant.variantKey}`,
     )
     await timeout(
       current.tap(),
@@ -768,9 +777,17 @@ async function applyCraftedCandidateAndResolve(page, target) {
     `.wx-data-role-gear-candidate-row.wx-data-candidate-item-id-${normalizeSelectorMarker(itemId)}`,
   )
   await timeout(candidate.tap(), 3000, `select crafted candidate ${itemId}`)
-  const variant = await requiredElement(
-    page,
-    `.wx-data-role-gear-candidate-variant.wx-data-variant-key-${normalizeSelectorMarker(variantKey)}`,
+  const variant = await poll(
+    () => findElementBySemanticValue(
+      page,
+      variantXpath,
+      maximumVariantsPerItem,
+      'variant-key',
+      normalizeSelectorMarker(variantKey),
+    ),
+    Boolean,
+    operationTimeoutMs,
+    `rendered crafted variant ${itemId}/${variantKey}`,
   )
   const variantState = String(await readSemanticValue(variant, 'state') ?? '')
   if (variantState !== 'ready' && variantState !== 'partial') {
