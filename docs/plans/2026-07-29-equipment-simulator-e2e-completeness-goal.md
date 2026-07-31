@@ -226,6 +226,17 @@ branch 和 `git ls-remote` 均为
   总读取 296,829,090 bytes。两套语料仍只有 `6/12`、`82/178`，
   三枚 blocker key 均未出现；重建的 aggregate 仍为 source union `9/12`、
   `114/178`、缺 `3/12` 和 `64/178`。
+- 滚动 unverified endpoint 随后又产生两批独立快照：97/97 与 96/96，抓取失败
+  均为 0；与交接 98、接力 99 和 verified 9 一起累计 399 次缓存观察、329 个
+  唯一内容 SHA-256、1,098,143,766 bytes。新增两批仍各自只有 `6/12`、`82/178`，
+  没有向 current public TACTKeys 之外增加 key。为防止无界轮询，本轮在两批增量后
+  停止重采样；原始缓存仍未落盘，只记录 redacted audit、source-list 与内容哈希。
+- 纠偏：上述 Raidbots 结果只证明多个选中快照，不证明公开 corpus 穷尽。每个保存
+  的 list 都固定返回 100 个 descriptor 并携带非空 `cursor`；当前 endpoint 对已尝试
+  的 `cursor`/`start_cursor`/`pageToken`/limit 参数均返回同一第一页，仓库扫描器也不
+  遍历 cursor。因此旧文中的“全部 98”或“完整 corpus”不得继续作为穷尽证据；新增
+  blocker 为 `DBCACHE_CORPUS_PAGINATION_UNPROVEN`。在取得官方分页合同或完成终止页
+  证明前，只能报告 329 个唯一 cache 内容样本均未补出 blocker key。
 - 归档中的旧 aggregate 曾引用随后被同名刷新覆盖的 corpus SHA。Harness
   verifier 现在必须接收 snapshot root，并逐一复算 public、verified corpus 和
   unverified corpus 三个 component 的路径、字节数与 SHA-256；缺文件、越界路径、
@@ -236,6 +247,13 @@ branch 和 `git ls-remote` 均为
   认证，客户端已关闭。第三方 metadata 只能把三枚 key 的首次观察收窄到
   12.0.7 XPTR/12.0.0 Beta 的未知 quest/transmog/item-set 上下文，不能据此解密、
   排除或证明当前赛季成员关系。
+- 本机 6,395 个候选文件的 header 枚举只找到 8 个 XFTH：当前 68887 cache 与
+  7 个 build 66192-67823 的旧 `.tmp`；旧 cache 均不含 blocker identity，且 build
+  不匹配。Wago exact-build `TactKeyLookup` 可把三枚 identity 分别绑定到 record
+  8193、8225、8087，但 exact-build `TactKey` 无对应记录；Blizzard build config
+  与 Raidbots verified enUS cache 也没有可用 state-1/state-2 记录。因此当前分类
+  仍是 `identity_confirmed_exact_build`、`key_material_missing`、
+  `decryption_unverified`，64 条记录继续 fail closed。
 
 当前首要 blocker 仍是取得三枚缺失 TACT key 的获批 exact-build 来源，或取得
 64 条记录的权威解密结果。未解除该 blocker 前，不进入 19 类来源的完成性宣称、

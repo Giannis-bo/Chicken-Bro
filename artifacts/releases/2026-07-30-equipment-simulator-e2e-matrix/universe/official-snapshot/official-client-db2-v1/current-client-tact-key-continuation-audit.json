@@ -61,6 +61,24 @@
     "cacheChangedAtLoginScreen": false,
     "clientClosedAfterObservation": true
   },
+  "localAlternateCacheSearch": {
+    "headerScannedFileCount": 6395,
+    "xfthFileCount": 8,
+    "exactBuild68887FileCount": 1,
+    "alternateTemporaryCacheCount": 7,
+    "alternateBuilds": [
+      66192,
+      66337,
+      66838,
+      67451,
+      67823
+    ],
+    "alternateCacheContainsBlockerIdentityCount": 0,
+    "classicCacheFound": false,
+    "currentRetailCacheChanged": false,
+    "keyMaterialEmittedBySearch": false,
+    "conclusion": "No alternate local cache is both exact-build 68887 and capable of supplying any blocker identity."
+  },
   "metadataResearch": {
     "keyMetadata": {
       "repository": "Marlamin/wow.tools.local",
@@ -100,7 +118,104 @@
       "allThreeBlockerIdentitiesObserved": true,
       "keyMaterialAvailable": false,
       "maySubstituteForExactBuild68887": false
+    },
+    "exactBuildIdentityAuthority": {
+      "blizzardBuildConfig": {
+        "build": "12.0.7.68887",
+        "buildConfig": "0fcf22030198cca211997a998743ba7f",
+        "containsBlockerIdentityCount": 0,
+        "mayEstablishKeyMaterialOrDecryption": false
+      },
+      "wagoExactBuildTables": {
+        "tactKeyLookupRecordIds": {
+          "14f4b11d7b067aa2": 8193,
+          "62bf37a70e6d54f6": 8225,
+          "fbbf041f980ce0dc": 8087
+        },
+        "matchingTactKeyRecordCount": 0,
+        "classification": "identity_confirmed_exact_build_key_material_missing"
+      },
+      "raidbotsVerifiedEnUs": {
+        "build": 68887,
+        "xfthVersion": 9,
+        "parsedEntryCount": 138483,
+        "usableStateOneOrTwoBlockerRecordCount": 0,
+        "zeroLengthStateFourBlockerRecordCount": 3,
+        "decryptionVerified": false
+      }
     }
+  },
+  "rollingCorpusContinuation": {
+    "lastExtendedAt": "2026-07-31T13:51:28.911583+00:00",
+    "status": "partial",
+    "batchCount": 5,
+    "selectedCacheObservationCount": 399,
+    "fetchedCacheObservationCount": 399,
+    "failedCacheObservationCount": 0,
+    "totalFetchedBytes": 1098143766,
+    "uniqueCacheContentHashCount": 329,
+    "duplicateCacheObservationCount": 70,
+    "listPageSize": 100,
+    "savedPageCursorPresent": true,
+    "publicCursorParameterContractFound": false,
+    "paginationExhausted": false,
+    "mayEstablishDBCacheCorpusExhaustion": false,
+    "uniqueCacheContentHashSetSha256": "58b1fe5dc1734b7d67d2439240d08c361a6ef4c3412aa4d9534ddf8250746c53",
+    "batches": [
+      {
+        "kind": "verified",
+        "capturedAt": "2026-07-31T13:15:43.955593+00:00",
+        "selectedCacheCount": 9,
+        "totalFetchedBytes": 31267354,
+        "sourceListSha256": "d614fb8579b1a76d3c25979f983fe1142c46f6e7a2ec1d22c62ed550675bc2f6",
+        "auditSha256": "50fd683bfd0bdb2bf8e590fefc130b0afcd55eb916c835b54a4efb8745893f18",
+        "contentHashSetSha256": "a295669fb62ddadead737f9c1e6a21d57173e2209780d5369b9e483b3780cd03"
+      },
+      {
+        "kind": "unverified_handoff",
+        "capturedAt": "2026-07-31T13:17:57.766577+00:00",
+        "selectedCacheCount": 98,
+        "totalFetchedBytes": 254667671,
+        "sourceListSha256": "7d79633dcf82863aa0ec7e942166d76e82a654bb0f81a68b1295a53e01ff4abc",
+        "auditSha256": "95da752b8b856d2e66fd95707199c9064ddfa1875c913da0c64024a2324186f8",
+        "contentHashSetSha256": "3bca5dd89f207ec23047269476b8b9c5cd0c26c2e643a0ef858a19817abdd1d1",
+        "evidenceRef": "git:a61d282c60f05dba647c1450557e6c4682c77001"
+      },
+      {
+        "kind": "unverified_resumed",
+        "capturedAt": "2026-07-31T13:35:19.438901+00:00",
+        "selectedCacheCount": 99,
+        "totalFetchedBytes": 265561736,
+        "sourceListSha256": "02155140e20a497195fc44149ad36d2f8181db005ee4aa7d04e346f4a89b7672",
+        "auditSha256": "1e481d57c6b061cb2209bf9e140f778a39777d6e2f4cf09903be3e1b62eb8a76",
+        "contentHashSetSha256": "52bc9d5649ef8e5b1e017fc5b4ace634a51c247a0075abe0ca18cba5a617b983"
+      },
+      {
+        "kind": "unverified_delta",
+        "capturedAt": "2026-07-31T13:48:46.536703+00:00",
+        "selectedCacheCount": 97,
+        "totalFetchedBytes": 281278054,
+        "sourceListSha256": "adda86efeac6d810731fa0b7d8c0ca2a6c93c47440eb1ebb15ff9bd806fe3246",
+        "auditSha256": "f3251123b778562868b6d8a2e1a04b1aaacff5633e31ae6678050f7dc6022d9e",
+        "contentHashSetSha256": "3ddb51de9a9ff26a4d1222c7b98c6620e16e8eac917b86348218361789a57b8d",
+        "evidenceRef": "dbcache-68887-unverified-delta-20260731T134846-audit.json"
+      },
+      {
+        "kind": "unverified_delta",
+        "capturedAt": "2026-07-31T13:51:28.911583+00:00",
+        "selectedCacheCount": 96,
+        "totalFetchedBytes": 265368951,
+        "sourceListSha256": "2f3674ab26b52d60047b4aa6199568a7cb8a3454b0254721d81412aca0824e83",
+        "auditSha256": "a50f49fa7fe106e9564d5354ff080dd0cb82ff7516531a864d793dc70ae43a75",
+        "contentHashSetSha256": "ae608dbe1311565f21473cf6610f6955b42afb92f92199f2920eb0c99194c67a",
+        "evidenceRef": "dbcache-68887-unverified-delta-20260731T135128-audit.json"
+      }
+    ],
+    "allBatchUnionAvailableTargetKeyCount": 6,
+    "allBatchUnionCoveredTargetRecordCount": 82,
+    "dbcacheAddsTargetKeyBeyondCurrentPublicCount": 0,
+    "rawCachesPersistedAfterAudit": false,
+    "auditContainsKeyMaterial": false
   },
   "coverage": {
     "status": "partial",
@@ -118,10 +233,11 @@
   "blockers": [
     "APPROVED_PUBLIC_TACT_KEYS_INCOMPLETE",
     "CURRENT_CLIENT_DBCACHE_CORPUS_TACT_KEYS_INCOMPLETE",
+    "DBCACHE_CORPUS_PAGINATION_UNPROVEN",
     "CURRENT_CLIENT_ENCRYPTED_SOURCE_RECORDS_UNAVAILABLE",
     "LOCAL_OFFICIAL_CLIENT_LOGIN_CONTEXT_REQUIRED"
   ],
-  "conclusion": "The installed exact-build zhCN cache is wider than the verified enUS cache corpus but remains a strict subset of the current public TACTKeys source. Metadata narrows the likely origin of the three missing identities but cannot decrypt, exclude, or establish current-season membership for the 64 unavailable records.",
+  "conclusion": "The installed exact-build zhCN cache and 329 unique selected cache contents remain subsets of the current public TACTKeys source. The public DBCache endpoint returns capped 100-entry pages with a cursor but no proven public cursor traversal contract, so these observations cannot establish corpus exhaustion. Metadata narrows the likely origin of the three missing identities but cannot decrypt, exclude, or establish current-season membership for the 64 unavailable records.",
   "productionMutation": false,
   "releasePointerMutation": false
 }

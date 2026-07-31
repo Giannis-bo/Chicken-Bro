@@ -7,6 +7,10 @@
     "scope": "current public TACTKeys plus exact-build DBCache corpora",
     "tactKeysObservedHead": "a3449fd5cfc3a0053cbff2c65f7d16166774cbf9",
     "dbcacheCollectionProvenance": "third_party",
+    "dbcacheListPageSize": 100,
+    "dbcacheListCursorPresent": true,
+    "dbcachePaginationContractProven": false,
+    "mayEstablishDBCacheCorpusExhaustion": false,
     "mayEstablishOfficialSeasonMembership": false,
     "auditContainsKeyMaterial": false,
     "rawKeyOrCacheMaterialPersistedAfterAudit": false
@@ -255,7 +259,7 @@
       "CURRENT_CLIENT_ENCRYPTED_SOURCE_RECORDS_UNAVAILABLE"
     ]
   },
-  "conclusion": "the exact current TACTKeys head remains the widest approved source; nine verified caches and 99 opt-in retail caches add no target key beyond it, leaving three key identities and 64 records unavailable",
+  "conclusion": "the exact current TACTKeys head remains the widest approved source in the selected snapshots; nine verified caches and one 99-entry opt-in retail page add no target key beyond it, while endpoint pagination remains unproven and three key identities with 64 records remain unavailable",
   "productionMutation": false,
   "releasePointerMutation": false
 }
