@@ -1,0 +1,127 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-31T13:18:56.1481972Z",
+  "status": "blocked",
+  "build": "12.0.7.68887",
+  "authority": {
+    "localCacheBytes": "installed Blizzard retail zhCN client hotfix cache",
+    "metadataSources": "third_party",
+    "mayEstablishOfficialSeasonMembership": false,
+    "auditContainsKeyMaterial": false,
+    "rawCacheCopied": false
+  },
+  "localOfficialClientCache": {
+    "relativeInstallPath": "_retail_/Cache/ADB/zhCN/DBCache.bin",
+    "locale": "zhCN",
+    "bytes": 1360908,
+    "sha256": "1b2633137830197cc766ada884c2cbaf5c21ec79b0e3ba15862c010f71067fca",
+    "lastWriteTimeUtc": "2026-07-23T11:47:04.5363088Z",
+    "header": {
+      "magic": "XFTH",
+      "version": 9,
+      "build": 68887,
+      "verifyHashSha256": "a70e9b50a14ed3dc0662c2c750752ac63682c1783433ec7ef752cba3991d5699"
+    },
+    "scan": {
+      "targetTableEntryCount": 346,
+      "joinedHotfixKeyCount": 123,
+      "broadcastTextEntryCount": 200,
+      "broadcastTextTactKeyEntryCount": 19,
+      "availableKeyIdentityCount": 124,
+      "presentTargetKeyCount": 8,
+      "presentTargetRecordCount": 92,
+      "presentTargetTactKeyIds": [
+        "291af9fe83d992e4",
+        "529c356e187dd913",
+        "570ed145f83e8b7b",
+        "57c16bba581fd295",
+        "be544f7e94038018",
+        "be7d592cd36508a2",
+        "d1055199767fb373",
+        "dd9ea834c9585585"
+      ],
+      "missingTargetTactKeyIds": [
+        "14f4b11d7b067aa2",
+        "59ea247e0185ee0d",
+        "62bf37a70e6d54f6",
+        "fbbf041f980ce0dc"
+      ],
+      "blockerTargetTactKeyIds": [
+        "14f4b11d7b067aa2",
+        "62bf37a70e6d54f6",
+        "fbbf041f980ce0dc"
+      ],
+      "keyMaterialEmitted": false
+    }
+  },
+  "loginRefreshAttempt": {
+    "clientVersionObserved": "12.0.7.68887 (zhCN x64)",
+    "result": "login_required",
+    "authenticationAutomated": false,
+    "cacheChangedAtLoginScreen": false,
+    "clientClosedAfterObservation": true
+  },
+  "metadataResearch": {
+    "keyMetadata": {
+      "repository": "Marlamin/wow.tools.local",
+      "commit": "0558e3993c9346f530e479b68b8d24174613f75f",
+      "path": "Services/KeyMetadata.cs",
+      "bytes": 102603,
+      "sha256": "67224141939c10f142a289eb33cccfdef187f8d5cac15005b76e44bf1c48e76a",
+      "mayEstablishExactBuildAvailabilityOrExclusion": false,
+      "targetRows": [
+        {
+          "tactKeyId": "14f4b11d7b067aa2",
+          "metadataId": 8193,
+          "firstSeen": "WOW-67227patch12.0.7_XPTR",
+          "description": "Unknown quests"
+        },
+        {
+          "tactKeyId": "62bf37a70e6d54f6",
+          "metadataId": 8225,
+          "firstSeen": "WOW-67227patch12.0.7_XPTR",
+          "description": "Unknown transmog set"
+        },
+        {
+          "tactKeyId": "fbbf041f980ce0dc",
+          "metadataId": 8087,
+          "firstSeen": "WOW-64xxxpatch12.0.0_Beta",
+          "description": "Unknown item set"
+        }
+      ]
+    },
+    "laterBuildEncryptedBlockMetadata": {
+      "repository": "LiangYuxuan/ElvUI_RhythmBox",
+      "commit": "e0d382f3d6eea6d09f26dd89a9c0f805f135b8c4",
+      "path": "Builder/buildInfo.json",
+      "bytes": 88337,
+      "sha256": "fd4e69cf055bfab59dd57f06eee95876f38bbf5573422e55d8e48957c3d84527",
+      "gameVersion": "12.1.0.68914",
+      "allThreeBlockerIdentitiesObserved": true,
+      "keyMaterialAvailable": false,
+      "maySubstituteForExactBuild68887": false
+    }
+  },
+  "coverage": {
+    "status": "partial",
+    "sourceUnionAvailableTargetKeyCount": 9,
+    "sourceUnionMissingTargetKeyCount": 3,
+    "sourceUnionCoveredTargetRecordCount": 114,
+    "sourceUnionMissingTargetRecordCount": 64,
+    "dbcacheAddsTargetKeyBeyondCurrentPublicCount": 0,
+    "missingTactKeyIds": [
+      "14f4b11d7b067aa2",
+      "62bf37a70e6d54f6",
+      "fbbf041f980ce0dc"
+    ]
+  },
+  "blockers": [
+    "APPROVED_PUBLIC_TACT_KEYS_INCOMPLETE",
+    "CURRENT_CLIENT_DBCACHE_CORPUS_TACT_KEYS_INCOMPLETE",
+    "CURRENT_CLIENT_ENCRYPTED_SOURCE_RECORDS_UNAVAILABLE",
+    "LOCAL_OFFICIAL_CLIENT_LOGIN_CONTEXT_REQUIRED"
+  ],
+  "conclusion": "The installed exact-build zhCN cache is wider than the verified enUS cache corpus but remains a strict subset of the current public TACTKeys source. Metadata narrows the likely origin of the three missing identities but cannot decrypt, exclude, or establish current-season membership for the 64 unavailable records.",
+  "productionMutation": false,
+  "releasePointerMutation": false
+}

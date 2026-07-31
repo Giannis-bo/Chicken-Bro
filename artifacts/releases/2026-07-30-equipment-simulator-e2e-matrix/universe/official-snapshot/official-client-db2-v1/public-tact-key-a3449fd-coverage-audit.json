@@ -1,0 +1,183 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-31T03:52:42Z",
+  "status": "blocked",
+  "build": "12.0.7.68887",
+  "authority": {
+    "type": "current_public_third_party_key_snapshot",
+    "repository": "wowdev/TACTKeys",
+    "commit": "a3449fd5cfc3a0053cbff2c65f7d16166774cbf9",
+    "sourceRawUrl": "https://raw.githubusercontent.com/wowdev/TACTKeys/a3449fd5cfc3a0053cbff2c65f7d16166774cbf9/WoW.txt",
+    "auditContainsKeyMaterial": false,
+    "ephemeralKeyfileContainsKeyMaterial": true,
+    "rawPersistedAfterAudit": false
+  },
+  "inputs": {
+    "baseKeyfile": {
+      "bytes": 50805,
+      "sha256": "a17d86da4345d4f87bb3c8f0d212ccbf679e602736507c6ab58548f479e9e751"
+    },
+    "currentPublicWoWTxt": {
+      "bytes": 981450,
+      "lineCount": 19629,
+      "sha256": "e4fe2fd39ccc43b5ee14b1ced69dce9f21d4d90267a8a3e2bbb2b953597f55f9"
+    },
+    "staticCoverageAudit": {
+      "path": "current-client-tact-key-coverage.json",
+      "bytes": 5233,
+      "sha256": "321545478ec574eef2aeafb6425397927cfc3afea4783295db35ed852f2327c4"
+    }
+  },
+  "coverage": {
+    "status": "blocked",
+    "summary": {
+      "currentPublicKeyCount": 19629,
+      "targetKeyCount": 12,
+      "targetRecordCount": 178,
+      "availableTargetKeyCount": 9,
+      "missingTargetKeyCount": 3,
+      "coveredTargetRecordCount": 114,
+      "missingTargetRecordCount": 64
+    },
+    "targetKeys": [
+      {
+        "tactKeyId": "14f4b11d7b067aa2",
+        "blteKeyId": "a27a067b1db1f414",
+        "recordCount": 12,
+        "tables": [
+          "ItemModifiedAppearance"
+        ],
+        "presentInCurrentPublicSnapshot": false,
+        "availableInEphemeralSimcKeyfile": false
+      },
+      {
+        "tactKeyId": "291af9fe83d992e4",
+        "blteKeyId": "e492d983fef91a29",
+        "recordCount": 9,
+        "tables": [
+          "ItemModifiedAppearance"
+        ],
+        "presentInCurrentPublicSnapshot": true,
+        "availableInEphemeralSimcKeyfile": true
+      },
+      {
+        "tactKeyId": "529c356e187dd913",
+        "blteKeyId": "13d97d186e359c52",
+        "recordCount": 3,
+        "tables": [
+          "ItemModifiedAppearance"
+        ],
+        "presentInCurrentPublicSnapshot": true,
+        "availableInEphemeralSimcKeyfile": true
+      },
+      {
+        "tactKeyId": "570ed145f83e8b7b",
+        "blteKeyId": "7b8b3ef845d10e57",
+        "recordCount": 1,
+        "tables": [
+          "ItemModifiedAppearance"
+        ],
+        "presentInCurrentPublicSnapshot": true,
+        "availableInEphemeralSimcKeyfile": true
+      },
+      {
+        "tactKeyId": "57c16bba581fd295",
+        "blteKeyId": "95d21f58ba6bc157",
+        "recordCount": 1,
+        "tables": [
+          "ItemModifiedAppearance"
+        ],
+        "presentInCurrentPublicSnapshot": true,
+        "availableInEphemeralSimcKeyfile": true
+      },
+      {
+        "tactKeyId": "59ea247e0185ee0d",
+        "blteKeyId": "0dee85017e24ea59",
+        "recordCount": 22,
+        "tables": [
+          "ItemModifiedAppearance"
+        ],
+        "presentInCurrentPublicSnapshot": true,
+        "availableInEphemeralSimcKeyfile": true
+      },
+      {
+        "tactKeyId": "62bf37a70e6d54f6",
+        "blteKeyId": "f6546d0ea737bf62",
+        "recordCount": 8,
+        "tables": [
+          "ItemModifiedAppearance"
+        ],
+        "presentInCurrentPublicSnapshot": false,
+        "availableInEphemeralSimcKeyfile": false
+      },
+      {
+        "tactKeyId": "be544f7e94038018",
+        "blteKeyId": "188003947e4f54be",
+        "recordCount": 28,
+        "tables": [
+          "ItemModifiedAppearance"
+        ],
+        "presentInCurrentPublicSnapshot": true,
+        "availableInEphemeralSimcKeyfile": true
+      },
+      {
+        "tactKeyId": "be7d592cd36508a2",
+        "blteKeyId": "a20865d32c597dbe",
+        "recordCount": 12,
+        "tables": [
+          "CollectableSourceInfo",
+          "CollectableSourceVendor",
+          "CollectableSourceVendorSparse",
+          "ItemModifiedAppearance"
+        ],
+        "presentInCurrentPublicSnapshot": true,
+        "availableInEphemeralSimcKeyfile": true
+      },
+      {
+        "tactKeyId": "d1055199767fb373",
+        "blteKeyId": "73b37f76995105d1",
+        "recordCount": 3,
+        "tables": [
+          "ItemModifiedAppearance"
+        ],
+        "presentInCurrentPublicSnapshot": true,
+        "availableInEphemeralSimcKeyfile": true
+      },
+      {
+        "tactKeyId": "dd9ea834c9585585",
+        "blteKeyId": "855558c934a89edd",
+        "recordCount": 35,
+        "tables": [
+          "CollectableSourceInfo",
+          "CollectableSourceVendor",
+          "CollectableSourceVendorSparse",
+          "ItemModifiedAppearance"
+        ],
+        "presentInCurrentPublicSnapshot": true,
+        "availableInEphemeralSimcKeyfile": true
+      },
+      {
+        "tactKeyId": "fbbf041f980ce0dc",
+        "blteKeyId": "dce00c981f04bffb",
+        "recordCount": 44,
+        "tables": [
+          "ItemModifiedAppearance"
+        ],
+        "presentInCurrentPublicSnapshot": false,
+        "availableInEphemeralSimcKeyfile": false
+      }
+    ],
+    "blockers": [
+      "APPROVED_PUBLIC_TACT_KEYS_INCOMPLETE"
+    ]
+  },
+  "ephemeralOutput": {
+    "bytes": 54984,
+    "sha256": "30d267f610f6bcec188e1add88eba0ca3cb0a975f98a998a214b117800d44bb3",
+    "mode": "0600",
+    "persistedAfterAudit": false
+  },
+  "conclusion": "the exact current repository head covers 9 of 12 WDC5 record TACT-key identities and 114 of 178 encrypted record identities; the corresponding BLTE identities are the byte-reversed WDC5 uint64 values and produced 9 of 12 SimC key lookups",
+  "productionMutation": false,
+  "releasePointerMutation": false
+}

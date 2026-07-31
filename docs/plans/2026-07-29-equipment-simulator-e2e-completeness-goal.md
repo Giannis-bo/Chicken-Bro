@@ -200,3 +200,42 @@ SHA-256 为
 `/opt/wow-mini-program`，保持压缩、按需在非生产工作区解包，不供生产服务、
 数据库、定时任务或正式指针消费；可迁移的结论、哈希、阻断项和微信实测报告
 继续以任务分支中的 handoff 为入口。
+
+## 8. 2026-07-31 接力恢复
+
+**状态：** `正在推进`
+
+新 Goal `019fb823-90bf-7f63-ae60-9aaa82662f9c` 接续旧 Goal
+`019faddb-abb5-79a3-a477-3cb6e6368120`；旧 Goal 的最终状态仍是
+`blocked`，没有改标为完成。接力 checkpoint 的 local HEAD、origin task
+branch 和 `git ls-remote` 均为
+`9183bad2322a429da47912b12a1d0bd693e3f5ba`。
+
+- 云端归档再次通过 archive SHA、handoff SHA、`zstd -t` 和逐文件校验：
+  1,498 个文件全部匹配，另有 88 个目录条目；handoff 仍为 `blocked`，
+  `productionPromotionAllowed=false`、`cloudProductionConsumed=false`。
+- 最新生产仍是 generation 35、Manifest
+  `season-manifest:sha256:20453991e93a1dc1650dbacfd85bdd042e9b020737c7851bef943f1e3e68883a`，
+  `/api/data/health` 如实为 `partial`，正式 Gear、Community、Catalog 和 Exact
+  指针没有被本接力 Goal 修改。`wow-gear-release-refresh.service` 在自然 timer
+  触发后运行 20 分钟并超时为 `failed`；backend 仍为 `active/NRestarts=0`，
+  未自动重跑或 reset 该失败。
+- 从已校验归档恢复原始 DBCache 语义解析器及 6 项测试后，重新绑定当前
+  Raidbots source-list 并串行内存扫描：verified 9/9、unverified 98/98，
+  抓取失败 0，总读取 285,935,025 bytes。两套语料仍只有 `6/12`、`82/178`，
+  三枚 blocker key 均未出现；重建的 aggregate 仍为 source union `9/12`、
+  `114/178`、缺 `3/12` 和 `64/178`。
+- 归档中的旧 aggregate 曾引用随后被同名刷新覆盖的 corpus SHA。Harness
+  verifier 现在必须接收 snapshot root，并逐一复算 public、verified corpus 和
+  unverified corpus 三个 component 的路径、字节数与 SHA-256；缺文件、越界路径、
+  同名覆盖或 SHA 漂移都会 fail closed。
+- 本机已安装的 Blizzard 正式 `zhCN` DBCache 精确为 build 68887，覆盖
+  `8/12`、`92/178`，但仍不含三枚 blocker key，且仍是 current public TACTKeys
+  的严格子集。直接启动正式客户端只到账号登录页，缓存未变化；没有自动处理
+  认证，客户端已关闭。第三方 metadata 只能把三枚 key 的首次观察收窄到
+  12.0.7 XPTR/12.0.0 Beta 的未知 quest/transmog/item-set 上下文，不能据此解密、
+  排除或证明当前赛季成员关系。
+
+当前首要 blocker 仍是取得三枚缺失 TACT key 的获批 exact-build 来源，或取得
+64 条记录的权威解密结果。未解除该 blocker 前，不进入 19 类来源的完成性宣称、
+候选 promotion 或终局微信/SimC 矩阵。

@@ -324,10 +324,87 @@ def verify_current_client_public_tact_key_reextract_audit(
     }
 
 
+def verify_current_client_tact_key_upstream_input_files(
+    inputs: Any,
+    *,
+    snapshot_root: Path,
+) -> dict[str, dict[str, Any]]:
+    """Verify that every upstream source input still matches its file."""
+
+    expected_sources = {
+        "currentPublicTactKeys",
+        "verifiedDBCacheCorpus",
+        "unverifiedDBCacheCorpus",
+    }
+    if not isinstance(inputs, dict) or set(inputs) != expected_sources:
+        raise OfficialEvidenceError(
+            "TACT-key upstream source input files are incomplete"
+        )
+    root = Path(snapshot_root).resolve()
+
+    def _verify_file(evidence: Any, label: str):
+        relative_text = (
+            _text(evidence.get("path"))
+            if isinstance(evidence, dict)
+            else ""
+        )
+        relative_path = Path(relative_text)
+        resolved_path = (root / relative_path).resolve()
+        if (
+            not relative_text
+            or relative_path.is_absolute()
+            or not resolved_path.is_relative_to(root)
+            or not resolved_path.is_file()
+        ):
+            raise OfficialEvidenceError(
+                f"TACT-key upstream source input file is invalid: {label}"
+            )
+        payload = resolved_path.read_bytes()
+        actual_sha256 = hashlib.sha256(payload).hexdigest()
+        if (
+            evidence.get("bytes") != len(payload)
+            or evidence.get("sha256") != actual_sha256
+        ):
+            raise OfficialEvidenceError(
+                f"TACT-key upstream source input file drifted: {label}"
+            )
+        return payload, {
+            "relativePath": resolved_path.relative_to(root).as_posix(),
+            "bytes": len(payload),
+            "sha256": actual_sha256,
+        }
+
+    verified = {}
+    for source_name in sorted(expected_sources):
+        evidence = inputs.get(source_name)
+        payload, verified[source_name] = _verify_file(evidence, source_name)
+        if source_name == "currentPublicTactKeys":
+            continue
+        try:
+            component = json.loads(payload)
+        except (UnicodeDecodeError, json.JSONDecodeError) as error:
+            raise OfficialEvidenceError(
+                "TACT-key upstream source component is invalid: "
+                f"{source_name}"
+            ) from error
+        source_list = (
+            component.get("sourceList")
+            if isinstance(component, dict)
+            else None
+        )
+        _, source_list_verified = _verify_file(
+            source_list,
+            f"{source_name}.sourceList",
+        )
+        verified[source_name]["sourceList"] = source_list_verified
+    return verified
+
+
 def verify_current_client_tact_key_upstream_source_audit(
     payload: Any,
     *,
     expected_encrypted_record_count: int,
+    snapshot_root: Path | None = None,
 ) -> dict[str, Any]:
     """Verify that current public and cache key sources remain incomplete."""
 
@@ -381,6 +458,14 @@ def verify_current_client_tact_key_upstream_source_audit(
         raise OfficialEvidenceError(
             "TACT-key upstream source audit inputs are invalid"
         )
+    if snapshot_root is None:
+        raise OfficialEvidenceError(
+            "TACT-key upstream source snapshot root is required"
+        )
+    verify_current_client_tact_key_upstream_input_files(
+        inputs,
+        snapshot_root=snapshot_root,
+    )
     coverage = payload.get("coverage")
     summary = coverage.get("summary") if isinstance(coverage, dict) else None
     if (

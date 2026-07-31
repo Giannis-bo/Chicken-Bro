@@ -1,0 +1,3125 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-31T13:17:57.766577+00:00",
+  "status": "partial",
+  "build": "12.0.7.68887",
+  "authority": {
+    "type": "unverified_opt_in_client_hotfix_cache_corpus",
+    "provider": "Raidbots",
+    "collector": "Raider.IO opt-in users",
+    "upstreamBytes": "Blizzard server-delivered World of Warcraft client hotfix caches",
+    "collectionProvenance": "third_party",
+    "mayEstablishOfficialSeasonMembership": false,
+    "auditContainsKeyMaterial": false,
+    "rawCachesPersistedAfterAudit": false,
+    "scanMode": "serial_in_memory_tact_key_tables_and_broadcast_text_optional_data"
+  },
+  "sourceList": {
+    "path": "dbcache-68887-unverified-list.json",
+    "url": "https://www.raidbots.com/api/dbcache/unverified",
+    "bytes": 21642,
+    "sha256": "7d79633dcf82863aa0ec7e942166d76e82a654bb0f81a68b1295a53e01ff4abc",
+    "reportedEntryCount": 100,
+    "selectedExactBuildEntryCount": 98,
+    "selectionLimit": 100
+  },
+  "inputs": {
+    "staticCoverageAudit": {
+      "path": "current-client-tact-key-coverage.json",
+      "bytes": 5233,
+      "sha256": "321545478ec574eef2aeafb6425397927cfc3afea4783295db35ed852f2327c4"
+    },
+    "baseTactKeyCsv": {
+      "path": "TactKey.csv",
+      "bytes": 1581,
+      "sha256": "7e13c58fdd2bedd55c58dd1362c0767c3bbbb3afce387e1199d59ff0afcca5ef",
+      "keyMaterialEmittedByAudit": false
+    },
+    "baseTactKeyLookupCsv": {
+      "path": "TactKeyLookup.csv",
+      "bytes": 6858,
+      "sha256": "5fd782df8e8b95d44e6e18294495e60892b2b7bf5c03734035a53c7279dbcd3c",
+      "keyMaterialEmittedByAudit": false
+    }
+  },
+  "corpus": {
+    "summary": {
+      "selectedCacheCount": 98,
+      "fetchedCacheCount": 98,
+      "failedCacheCount": 0,
+      "totalFetchedBytes": 254667671,
+      "broadcastTextEntryCount": 66665,
+      "broadcastTextTactKeyEntryCount": 31885,
+      "targetKeyCount": 12,
+      "targetRecordCount": 178,
+      "unionAvailableTargetKeyCount": 6,
+      "unionMissingTargetKeyCount": 6,
+      "unionCoveredTargetRecordCount": 82,
+      "unionMissingTargetRecordCount": 96
+    },
+    "targetKeys": [
+      {
+        "tactKeyId": "14f4b11d7b067aa2",
+        "blteKeyId": "a27a067b1db1f414",
+        "recordCount": 12,
+        "tables": [
+          "ItemModifiedAppearance"
+        ],
+        "presentInCorpusUnion": false
+      },
+      {
+        "tactKeyId": "291af9fe83d992e4",
+        "blteKeyId": "e492d983fef91a29",
+        "recordCount": 9,
+        "tables": [
+          "ItemModifiedAppearance"
+        ],
+        "presentInCorpusUnion": false
+      },
+      {
+        "tactKeyId": "529c356e187dd913",
+        "blteKeyId": "13d97d186e359c52",
+        "recordCount": 3,
+        "tables": [
+          "ItemModifiedAppearance"
+        ],
+        "presentInCorpusUnion": true
+      },
+      {
+        "tactKeyId": "570ed145f83e8b7b",
+        "blteKeyId": "7b8b3ef845d10e57",
+        "recordCount": 1,
+        "tables": [
+          "ItemModifiedAppearance"
+        ],
+        "presentInCorpusUnion": false
+      },
+      {
+        "tactKeyId": "57c16bba581fd295",
+        "blteKeyId": "95d21f58ba6bc157",
+        "recordCount": 1,
+        "tables": [
+          "ItemModifiedAppearance"
+        ],
+        "presentInCorpusUnion": true
+      },
+      {
+        "tactKeyId": "59ea247e0185ee0d",
+        "blteKeyId": "0dee85017e24ea59",
+        "recordCount": 22,
+        "tables": [
+          "ItemModifiedAppearance"
+        ],
+        "presentInCorpusUnion": false
+      },
+      {
+        "tactKeyId": "62bf37a70e6d54f6",
+        "blteKeyId": "f6546d0ea737bf62",
+        "recordCount": 8,
+        "tables": [
+          "ItemModifiedAppearance"
+        ],
+        "presentInCorpusUnion": false
+      },
+      {
+        "tactKeyId": "be544f7e94038018",
+        "blteKeyId": "188003947e4f54be",
+        "recordCount": 28,
+        "tables": [
+          "ItemModifiedAppearance"
+        ],
+        "presentInCorpusUnion": true
+      },
+      {
+        "tactKeyId": "be7d592cd36508a2",
+        "blteKeyId": "a20865d32c597dbe",
+        "recordCount": 12,
+        "tables": [
+          "CollectableSourceInfo",
+          "CollectableSourceVendor",
+          "CollectableSourceVendorSparse",
+          "ItemModifiedAppearance"
+        ],
+        "presentInCorpusUnion": true
+      },
+      {
+        "tactKeyId": "d1055199767fb373",
+        "blteKeyId": "73b37f76995105d1",
+        "recordCount": 3,
+        "tables": [
+          "ItemModifiedAppearance"
+        ],
+        "presentInCorpusUnion": true
+      },
+      {
+        "tactKeyId": "dd9ea834c9585585",
+        "blteKeyId": "855558c934a89edd",
+        "recordCount": 35,
+        "tables": [
+          "CollectableSourceInfo",
+          "CollectableSourceVendor",
+          "CollectableSourceVendorSparse",
+          "ItemModifiedAppearance"
+        ],
+        "presentInCorpusUnion": true
+      },
+      {
+        "tactKeyId": "fbbf041f980ce0dc",
+        "blteKeyId": "dce00c981f04bffb",
+        "recordCount": 44,
+        "tables": [
+          "ItemModifiedAppearance"
+        ],
+        "presentInCorpusUnion": false
+      }
+    ],
+    "cacheAudits": [
+      {
+        "index": 1,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-cyK15iKzTZ2M8ZaqHS3GXM.bin",
+        "created": "2026-07-31T13:15:24.988Z",
+        "declaredEntries": 103784,
+        "declaredPushIds": 472,
+        "bytes": 4498607,
+        "sha256": "6015e29c4a714bc86cf4b6eba064d6c2a8bf7e2da5e89e51f3e0def0dc465393",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "98e86e2c8661d1bac0352e592a4338ea33cb0bd245d2e3b4faa2dc628378a9a0"
+        },
+        "targetTableEntryCount": 89248,
+        "joinedHotfixKeyCount": 108,
+        "broadcastTextEntryCount": 945,
+        "broadcastTextTactKeyEntryCount": 448,
+        "availableKeyIdentityCount": 161,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 2,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-w6mcPYAz7D6BndqUH2YBDN.bin",
+        "created": "2026-07-31T13:15:17.539Z",
+        "declaredEntries": 31022,
+        "declaredPushIds": 470,
+        "bytes": 2027073,
+        "sha256": "1e16709cf9e3469ba4d8f20cd90d868c9919847e3e268d3620049d6254432f4a",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "31b51806c39d7edb5aaffdeb6d99225dc663f23215631b78d95ac5a39d2436a3"
+        },
+        "targetTableEntryCount": 16834,
+        "joinedHotfixKeyCount": 110,
+        "broadcastTextEntryCount": 326,
+        "broadcastTextTactKeyEntryCount": 28,
+        "availableKeyIdentityCount": 111,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 3,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-qyBpYzU7AsKdBJTEqnc5JS.bin",
+        "created": "2026-07-31T13:15:17.079Z",
+        "declaredEntries": 61526,
+        "declaredPushIds": 472,
+        "bytes": 3967138,
+        "sha256": "8f90678ca4621554cff3f073100f4efe696eaf07ad20528c50438ba790227a47",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "19ff3366c2c67fa62c43a2331185ca2ba986b014b00294fd64100798f45c129a"
+        },
+        "targetTableEntryCount": 32953,
+        "joinedHotfixKeyCount": 108,
+        "broadcastTextEntryCount": 405,
+        "broadcastTextTactKeyEntryCount": 39,
+        "availableKeyIdentityCount": 109,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 4,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-ic8kHAAL4jBkS7eFbKfEKn.bin",
+        "created": "2026-07-31T13:15:10.196Z",
+        "declaredEntries": 16197,
+        "declaredPushIds": 472,
+        "bytes": 1503847,
+        "sha256": "01422c87332ce8f1a162df99724b252f88f477491c58e06c386f9cc54d958ef1",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "39438240b63ef04f1888791c6ea5ff486b4e9b9f3a0601d3a23e6dfd5c12cf77"
+        },
+        "targetTableEntryCount": 4178,
+        "joinedHotfixKeyCount": 109,
+        "broadcastTextEntryCount": 215,
+        "broadcastTextTactKeyEntryCount": 29,
+        "availableKeyIdentityCount": 110,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 5,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-tqjprqCx4u6E7veXs2X44B.bin",
+        "created": "2026-07-31T13:15:09.403Z",
+        "declaredEntries": 110606,
+        "declaredPushIds": 471,
+        "bytes": 4910900,
+        "sha256": "6faed802d0f91a1dbe90498816d528eaa9f0e62df2fe78a7fdfc1b847d32e98d",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "8d1997227afc3712bd07097dad1875cd9894aa622e2fdd36dc5f345e58c82936"
+        },
+        "targetTableEntryCount": 94280,
+        "joinedHotfixKeyCount": 107,
+        "broadcastTextEntryCount": 2719,
+        "broadcastTextTactKeyEntryCount": 1238,
+        "availableKeyIdentityCount": 1300,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 6,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-8CAo7idDC77JA3KM5xHugS.bin",
+        "created": "2026-07-31T13:15:04.084Z",
+        "declaredEntries": 28769,
+        "declaredPushIds": 472,
+        "bytes": 1923829,
+        "sha256": "440c70357fadd691e40a1b8c0eebe9da1a36d27e4bb696a2c61434b3edc21b36",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "72c0f1d87030b5ead445e8176f4af568d5eb8cd7ee36a75849fbd9ded72c71be"
+        },
+        "targetTableEntryCount": 10783,
+        "joinedHotfixKeyCount": 109,
+        "broadcastTextEntryCount": 348,
+        "broadcastTextTactKeyEntryCount": 106,
+        "availableKeyIdentityCount": 110,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 7,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-7Et6Gr6tBZxkga5TRoyNXS.bin",
+        "created": "2026-07-31T13:14:56.565Z",
+        "declaredEntries": 42581,
+        "declaredPushIds": 471,
+        "bytes": 2502184,
+        "sha256": "7c36033abfbcfce02dab1a551ae84e1acdc9f6f6782591b895db31ea834e696f",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "7e93210c4db7d264179d9c8d0753f71f82e2bc6d2c09a400605b28d79259b577"
+        },
+        "targetTableEntryCount": 28685,
+        "joinedHotfixKeyCount": 109,
+        "broadcastTextEntryCount": 1099,
+        "broadcastTextTactKeyEntryCount": 523,
+        "availableKeyIdentityCount": 147,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 8,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-68uGN7H2CgdK8HE8cpqECV.bin",
+        "created": "2026-07-31T13:14:53.163Z",
+        "declaredEntries": 76864,
+        "declaredPushIds": 472,
+        "bytes": 3577285,
+        "sha256": "4375ab2e0482bbfaa6073b0e9a051cb0bfaba73a347da6a40622c5657337b40a",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "fb4d1451a6a4b9e786574061671c7db4df918b06049cba6257dc295c13ce298a"
+        },
+        "targetTableEntryCount": 58834,
+        "joinedHotfixKeyCount": 110,
+        "broadcastTextEntryCount": 961,
+        "broadcastTextTactKeyEntryCount": 423,
+        "availableKeyIdentityCount": 168,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 9,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-hbEwErHwkHe4n9nrspzEu7.bin",
+        "created": "2026-07-31T13:14:37.689Z",
+        "declaredEntries": 22302,
+        "declaredPushIds": 472,
+        "bytes": 1731130,
+        "sha256": "64ff0dfea38d689b22d1b92a578fe09297a4b469a7e39a49fc2b5c11fe474f7c",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "c0279ba4c77973749c5c7f7a96fd5eab1349d02c11a8938096cdebc9ca7b40ec"
+        },
+        "targetTableEntryCount": 9395,
+        "joinedHotfixKeyCount": 107,
+        "broadcastTextEntryCount": 339,
+        "broadcastTextTactKeyEntryCount": 95,
+        "availableKeyIdentityCount": 128,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 10,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-5jz8jrJgaCkwHg98cpc16x.bin",
+        "created": "2026-07-31T13:14:36.038Z",
+        "declaredEntries": 33693,
+        "declaredPushIds": 472,
+        "bytes": 2099110,
+        "sha256": "e61f979718fb1f9f78862bb48820fd2b0098f59a8f8fe017dacbe0c6d4a253c7",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "b7a8db958317a4e3d118bebb04e13b6a84d1ca4b6fbb781dbec4524ba92ab775"
+        },
+        "targetTableEntryCount": 20758,
+        "joinedHotfixKeyCount": 108,
+        "broadcastTextEntryCount": 480,
+        "broadcastTextTactKeyEntryCount": 204,
+        "availableKeyIdentityCount": 116,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 11,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-qU3zNhmxrQhRjtiGLguqfa.bin",
+        "created": "2026-07-31T13:14:35.265Z",
+        "declaredEntries": 35648,
+        "declaredPushIds": 472,
+        "bytes": 2224011,
+        "sha256": "0dca2d8cf791e83520967cc8a7e00b9ae4ad13800a467245d3f5bd7ef62597b9",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "9ec33d651f1994eb98ab927d15d161e0a74edec40ae75242647cf1818bce2d85"
+        },
+        "targetTableEntryCount": 21948,
+        "joinedHotfixKeyCount": 107,
+        "broadcastTextEntryCount": 924,
+        "broadcastTextTactKeyEntryCount": 550,
+        "availableKeyIdentityCount": 150,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 12,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-hXiK3fxDhz7JCafN8zA39X.bin",
+        "created": "2026-07-31T13:14:34.120Z",
+        "declaredEntries": 13066,
+        "declaredPushIds": 469,
+        "bytes": 1422539,
+        "sha256": "58fc98c49836444d457b34289e8f843927826fe38b515fa17fca8701e063d090",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "6fcd037a568edb4723860984ffd6dab3c0b877643825d57dd3072acc436b4963"
+        },
+        "targetTableEntryCount": 1339,
+        "joinedHotfixKeyCount": 108,
+        "broadcastTextEntryCount": 286,
+        "broadcastTextTactKeyEntryCount": 97,
+        "availableKeyIdentityCount": 187,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 13,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-eYCN6nap2Cc3kmFCMYAcMy.bin",
+        "created": "2026-07-31T13:14:30.114Z",
+        "declaredEntries": 86154,
+        "declaredPushIds": 472,
+        "bytes": 3858462,
+        "sha256": "7b06d14f973c8b5b2d0378f001dc695379b6fa99601d17d2abf0e4740fabc423",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "ddf5216727d0fa0c7202e0fff26a65ecff146cd9667936db42c9f5e4c8c8d4fe"
+        },
+        "targetTableEntryCount": 60336,
+        "joinedHotfixKeyCount": 108,
+        "broadcastTextEntryCount": 1075,
+        "broadcastTextTactKeyEntryCount": 500,
+        "availableKeyIdentityCount": 304,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 14,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-gHQdzCrmZwLyfinJxgd6bJ.bin",
+        "created": "2026-07-31T13:14:23.516Z",
+        "declaredEntries": 106050,
+        "declaredPushIds": 472,
+        "bytes": 4666551,
+        "sha256": "5f607bc342167abd246dea17da18a1faac15456e15c638cc8ed8ca5467c86e93",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "2a9350ea69cc0e57c20ee99f4f68891f359aab11274c5aee3301cecebfb1e8ff"
+        },
+        "targetTableEntryCount": 85506,
+        "joinedHotfixKeyCount": 110,
+        "broadcastTextEntryCount": 1425,
+        "broadcastTextTactKeyEntryCount": 808,
+        "availableKeyIdentityCount": 672,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 15,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-1AwLH8482LGFpp7gBp4mHE.bin",
+        "created": "2026-07-31T13:14:23.279Z",
+        "declaredEntries": 60086,
+        "declaredPushIds": 472,
+        "bytes": 2975123,
+        "sha256": "59ce14a00b8f4161534c76a766a9e32434b03c6230b275c604aeb1c1b036a56d",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "4fd514153ca471cfc6814568ac6324254dc8ccdc5181ebb0a13a93f6c009dfb6"
+        },
+        "targetTableEntryCount": 42326,
+        "joinedHotfixKeyCount": 108,
+        "broadcastTextEntryCount": 359,
+        "broadcastTextTactKeyEntryCount": 36,
+        "availableKeyIdentityCount": 119,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 16,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-9aKhBR5rDiMdH6ggkhvNkz.bin",
+        "created": "2026-07-31T13:14:05.204Z",
+        "declaredEntries": 15292,
+        "declaredPushIds": 472,
+        "bytes": 1478866,
+        "sha256": "597e0eab12fe4ed2884653f7415e345819ae8ae1e6c99f3380cf936083432315",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "64017a18498282765141b55fedd223feeb11df4db7a2c850ec0cb971a320efed"
+        },
+        "targetTableEntryCount": 3335,
+        "joinedHotfixKeyCount": 108,
+        "broadcastTextEntryCount": 246,
+        "broadcastTextTactKeyEntryCount": 22,
+        "availableKeyIdentityCount": 110,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 17,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-uqQTrn29rZss9g3aBsQb41.bin",
+        "created": "2026-07-31T13:13:58.413Z",
+        "declaredEntries": 23267,
+        "declaredPushIds": 472,
+        "bytes": 1813323,
+        "sha256": "f639269ff0473d2a3b69cdf2d6baed7f1c35ed012f02eb4266ac8d459444dbfd",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "6b99fac88fab5d77418358cae5297d252d9a5a3ae191a0e7a8632379910d702b"
+        },
+        "targetTableEntryCount": 10594,
+        "joinedHotfixKeyCount": 111,
+        "broadcastTextEntryCount": 600,
+        "broadcastTextTactKeyEntryCount": 337,
+        "availableKeyIdentityCount": 115,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 18,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-aAAi7TL8TY9mvRi8DiiMfX.bin",
+        "created": "2026-07-31T13:13:54.418Z",
+        "declaredEntries": 41938,
+        "declaredPushIds": 472,
+        "bytes": 2351420,
+        "sha256": "3c963019dfd0c0bf628bba9a7cc542ebfbe77f3ca0b268da3bc854fa56505b29",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "cdcf37089cb7a291311af606548927919c31629ddcb35baac4734de9a236aa3e"
+        },
+        "targetTableEntryCount": 27811,
+        "joinedHotfixKeyCount": 110,
+        "broadcastTextEntryCount": 404,
+        "broadcastTextTactKeyEntryCount": 18,
+        "availableKeyIdentityCount": 111,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 19,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-et7C2Xvhzbps8KEjmXNpBf.bin",
+        "created": "2026-07-31T13:13:43.279Z",
+        "declaredEntries": 98510,
+        "declaredPushIds": 472,
+        "bytes": 4189527,
+        "sha256": "8b4c4d178f620b922dd1ddeaedd670f8235267d24646227d965bc1a0009751fb",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "4cd0ee07024ec5e926b84fd3f7c22456e49b3f37f748cfda10176a6f6db13c98"
+        },
+        "targetTableEntryCount": 83995,
+        "joinedHotfixKeyCount": 108,
+        "broadcastTextEntryCount": 657,
+        "broadcastTextTactKeyEntryCount": 342,
+        "availableKeyIdentityCount": 184,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 20,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-m8AEZMvPNQMetvgVJL6jfM.bin",
+        "created": "2026-07-31T13:13:35.618Z",
+        "declaredEntries": 17174,
+        "declaredPushIds": 472,
+        "bytes": 1577207,
+        "sha256": "3ecdf2bbaa1f48e576c40a8dc3e69b693973c81e4e3b6368894764453531c4b3",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "84a9818185d14d40567500125986cda3a952ba7b0e74af5ebad8e345973a9dd8"
+        },
+        "targetTableEntryCount": 5225,
+        "joinedHotfixKeyCount": 109,
+        "broadcastTextEntryCount": 403,
+        "broadcastTextTactKeyEntryCount": 193,
+        "availableKeyIdentityCount": 112,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 21,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-ronKfRFXhKkffNtCEtxR3m.bin",
+        "created": "2026-07-31T13:13:32.190Z",
+        "declaredEntries": 35808,
+        "declaredPushIds": 472,
+        "bytes": 2194143,
+        "sha256": "0bb11fca5eed6f5dc03f63f63d9b611ecef3174847f63c45e16aff5bbf44a039",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "a25f4cfc9385c238acd83913e4fa217a5f8f14ff9d9a97a3b2b6556019802a11"
+        },
+        "targetTableEntryCount": 22781,
+        "joinedHotfixKeyCount": 107,
+        "broadcastTextEntryCount": 700,
+        "broadcastTextTactKeyEntryCount": 386,
+        "availableKeyIdentityCount": 160,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 22,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-13KKArm38QNpgLL2U5437k.bin",
+        "created": "2026-07-31T13:13:29.094Z",
+        "declaredEntries": 76242,
+        "declaredPushIds": 472,
+        "bytes": 3577921,
+        "sha256": "e4cb0f08d91f1fafc00db49f0682b0cc0064dc84260100fb13f9fd7d80be77d5",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "50af18ddd6c9290876b937805d32590c8c88a4ee2b0e25cd68daa6c135362c1d"
+        },
+        "targetTableEntryCount": 61636,
+        "joinedHotfixKeyCount": 109,
+        "broadcastTextEntryCount": 1154,
+        "broadcastTextTactKeyEntryCount": 598,
+        "availableKeyIdentityCount": 211,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 23,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-98xbHpDnm2VMkhQADHHFng.bin",
+        "created": "2026-07-31T13:13:16.886Z",
+        "declaredEntries": 23145,
+        "declaredPushIds": 471,
+        "bytes": 1739221,
+        "sha256": "0d62446edc27d6239e79f0c08b5d2740f080b73f9e820f5f0065fc185962f210",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "19b7e437466e66f2a4ea21f2bd85408c6ca9aad83a36021bb994594d529b5139"
+        },
+        "targetTableEntryCount": 9787,
+        "joinedHotfixKeyCount": 109,
+        "broadcastTextEntryCount": 371,
+        "broadcastTextTactKeyEntryCount": 92,
+        "availableKeyIdentityCount": 112,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 24,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-ax7T1ZgUE5vSLSefJtAgnH.bin",
+        "created": "2026-07-31T13:13:15.092Z",
+        "declaredEntries": 54673,
+        "declaredPushIds": 472,
+        "bytes": 2791824,
+        "sha256": "f7ea320630be73585c3c3749cc95edd82cba161cb92eb49f0cf7d860f7c10875",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "7dc4d72306dc1e304cfe6f49f33f93fbaf2f8458cc980b1efa29d1627d3b0192"
+        },
+        "targetTableEntryCount": 40538,
+        "joinedHotfixKeyCount": 107,
+        "broadcastTextEntryCount": 638,
+        "broadcastTextTactKeyEntryCount": 347,
+        "availableKeyIdentityCount": 147,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 25,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-wfP5BK9HTdo1614q4mRq9T.bin",
+        "created": "2026-07-31T13:13:12.621Z",
+        "declaredEntries": 60029,
+        "declaredPushIds": 471,
+        "bytes": 3002093,
+        "sha256": "79006a5c30c8b9f872612aa9d001ea07b52b2247ab96d5f75df7d7208192fdbc",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "31edb4d39db204f8c54b6c7ad06b67b81306069702be2a68bca08a3f5cb372ef"
+        },
+        "targetTableEntryCount": 44607,
+        "joinedHotfixKeyCount": 109,
+        "broadcastTextEntryCount": 872,
+        "broadcastTextTactKeyEntryCount": 420,
+        "availableKeyIdentityCount": 151,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 26,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-3YtMtoYssuZkhEJZRF9CHC.bin",
+        "created": "2026-07-31T13:13:01.531Z",
+        "declaredEntries": 29840,
+        "declaredPushIds": 472,
+        "bytes": 1983443,
+        "sha256": "465dcb4b2505c849a91574d8afea147fe48912dd185757cd2ba705ec8c4451e4",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "ac6485c732a363653c57a9d26a29d91aad7064bcb7a31fe37b0beafbfd53f330"
+        },
+        "targetTableEntryCount": 16507,
+        "joinedHotfixKeyCount": 108,
+        "broadcastTextEntryCount": 521,
+        "broadcastTextTactKeyEntryCount": 207,
+        "availableKeyIdentityCount": 155,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 27,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-pQG9efEc8LyzzeeR9fVHyr.bin",
+        "created": "2026-07-31T13:13:00.681Z",
+        "declaredEntries": 54540,
+        "declaredPushIds": 471,
+        "bytes": 2815095,
+        "sha256": "da482e907cdf39aafaf2e6af215f3d459ce2c8cedcdb7e6d1752f06512ea0897",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "07f836a3e9babc3a047ae75895c8181bfc043d36e631807e01d1febedb1b9920"
+        },
+        "targetTableEntryCount": 40568,
+        "joinedHotfixKeyCount": 110,
+        "broadcastTextEntryCount": 735,
+        "broadcastTextTactKeyEntryCount": 338,
+        "availableKeyIdentityCount": 163,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 28,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-1YA3r23eEM3FDVqZg2nHVx.bin",
+        "created": "2026-07-31T13:12:47.002Z",
+        "declaredEntries": 25400,
+        "declaredPushIds": 472,
+        "bytes": 1818491,
+        "sha256": "11c4fc461a11f8c0887329fa6a6eac70004f677c5d7a93324ba9ede5f3542d66",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "01b66ea1cd644266772467c9755b45515ac550152e978befc21f922cd0eeaaf5"
+        },
+        "targetTableEntryCount": 6444,
+        "joinedHotfixKeyCount": 108,
+        "broadcastTextEntryCount": 260,
+        "broadcastTextTactKeyEntryCount": 69,
+        "availableKeyIdentityCount": 109,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 29,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-kAPuYUrjW6QLNLrwvdbL5E.bin",
+        "created": "2026-07-31T13:12:45.392Z",
+        "declaredEntries": 43973,
+        "declaredPushIds": 472,
+        "bytes": 2503626,
+        "sha256": "5fb9f4cb1cc9277f34c9af338d9dd37b11e1c5d6b28f4ccdd44d387c49e4953d",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "f7a180f52b1e6d30cab9f11b40d0e8c5ff5f91657e991db0185412e00989fbcb"
+        },
+        "targetTableEntryCount": 29346,
+        "joinedHotfixKeyCount": 111,
+        "broadcastTextEntryCount": 611,
+        "broadcastTextTactKeyEntryCount": 135,
+        "availableKeyIdentityCount": 116,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 30,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-ot8Xf5RcTZfMJj6kCmyTM1.bin",
+        "created": "2026-07-31T13:12:42.854Z",
+        "declaredEntries": 44090,
+        "declaredPushIds": 471,
+        "bytes": 2464275,
+        "sha256": "30c8e1261fbaa986051f12e70138bd5653c4ac485ff82cc5940a54dfe3e2d4c1",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "eea0c761ec5b7578aa7fdfcfe7241661b9805ea48df9e61fa97e913ffa6c50db"
+        },
+        "targetTableEntryCount": 26818,
+        "joinedHotfixKeyCount": 109,
+        "broadcastTextEntryCount": 519,
+        "broadcastTextTactKeyEntryCount": 240,
+        "availableKeyIdentityCount": 160,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 31,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-e9eh8sYsNNK4eBeB6NicWT.bin",
+        "created": "2026-07-31T13:12:41.823Z",
+        "declaredEntries": 12754,
+        "declaredPushIds": 469,
+        "bytes": 1402469,
+        "sha256": "eea4a677c96902db7fc48318126685a10aa429962d4857757a98de7569766993",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "9fc1e6917f92c584e2ab38ad6d437be15696a45879d925e722c6487f89ff8116"
+        },
+        "targetTableEntryCount": 1059,
+        "joinedHotfixKeyCount": 107,
+        "broadcastTextEntryCount": 210,
+        "broadcastTextTactKeyEntryCount": 19,
+        "availableKeyIdentityCount": 108,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 32,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-56UypFDX35z2krneSDhBNY.bin",
+        "created": "2026-07-31T13:12:38.700Z",
+        "declaredEntries": 48540,
+        "declaredPushIds": 472,
+        "bytes": 2605044,
+        "sha256": "b3f7cf89a621fc1b17a5e22a069a9eb5e4d89defaaec71e21419e42fc92721a4",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "c193f155308d2fda630f709473483c6062137cef8b58166ab506fb32561072bd"
+        },
+        "targetTableEntryCount": 35188,
+        "joinedHotfixKeyCount": 108,
+        "broadcastTextEntryCount": 586,
+        "broadcastTextTactKeyEntryCount": 292,
+        "availableKeyIdentityCount": 157,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 33,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-ovDUzrZoVXkj2BvLA5XS6f.bin",
+        "created": "2026-07-31T13:12:31.823Z",
+        "declaredEntries": 42407,
+        "declaredPushIds": 471,
+        "bytes": 2429892,
+        "sha256": "0f8148ab53a5576bb539506e2cfec743cb553fe1aad4230fbebf65352d0b88ef",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "b935b852abf513a9f31db1abd7c87c67e29782206870e504f60691f229abaa62"
+        },
+        "targetTableEntryCount": 26865,
+        "joinedHotfixKeyCount": 108,
+        "broadcastTextEntryCount": 680,
+        "broadcastTextTactKeyEntryCount": 387,
+        "availableKeyIdentityCount": 161,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 34,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-1edYuM1FhUgZ7cVoxDt8bv.bin",
+        "created": "2026-07-31T13:12:06.187Z",
+        "declaredEntries": 26255,
+        "declaredPushIds": 471,
+        "bytes": 1862355,
+        "sha256": "58ebe2c6a69e07508b4642a9f1278c6200923aaa1388fba9af69416fa2c69995",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "3c47776684436139a3ffd88046cb9e3d784ae19edf14749368a9356c2eef6bd3"
+        },
+        "targetTableEntryCount": 9307,
+        "joinedHotfixKeyCount": 108,
+        "broadcastTextEntryCount": 410,
+        "broadcastTextTactKeyEntryCount": 198,
+        "availableKeyIdentityCount": 157,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 35,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-4SA6qKQCHZF74MhK8m7vjs.bin",
+        "created": "2026-07-31T13:11:57.614Z",
+        "declaredEntries": 32960,
+        "declaredPushIds": 471,
+        "bytes": 2122077,
+        "sha256": "e2c4d80baca7e43c88962ef5c8a6ac0992fbde09a6a4ccf7fbc342f1fb6eac61",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "0a5269eaa4fa2a193cd37f5f97ec0a37a0664f5a55aca3d20e75751dbb5e8e0c"
+        },
+        "targetTableEntryCount": 19747,
+        "joinedHotfixKeyCount": 108,
+        "broadcastTextEntryCount": 688,
+        "broadcastTextTactKeyEntryCount": 366,
+        "availableKeyIdentityCount": 151,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 36,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-8pBsWwv7R3qQ48owZNLshG.bin",
+        "created": "2026-07-31T13:11:53.244Z",
+        "declaredEntries": 23428,
+        "declaredPushIds": 472,
+        "bytes": 1759085,
+        "sha256": "eb22307ab58d00447650f89119378c359a0bed608e0c17dbfb89a0cfb510cbfc",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "e8f29c9a2becf20cc359322e28c9608c4f32d38e2f69031239d6185b408dc0f3"
+        },
+        "targetTableEntryCount": 10485,
+        "joinedHotfixKeyCount": 107,
+        "broadcastTextEntryCount": 379,
+        "broadcastTextTactKeyEntryCount": 143,
+        "availableKeyIdentityCount": 117,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 37,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-5QirPWbRVxfQcgx55zGaFA.bin",
+        "created": "2026-07-31T13:11:47.345Z",
+        "declaredEntries": 20361,
+        "declaredPushIds": 472,
+        "bytes": 1669857,
+        "sha256": "7812c75300d2b1388aa6a049045993c0efd26934a067430895ba3890841cf0ca",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "0aec72d32a74374860808b8d187538daea84d09f1737ba801e9b8bee0551c845"
+        },
+        "targetTableEntryCount": 7980,
+        "joinedHotfixKeyCount": 108,
+        "broadcastTextEntryCount": 475,
+        "broadcastTextTactKeyEntryCount": 256,
+        "availableKeyIdentityCount": 116,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 38,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-1voJ8wkKZiHXFfKqqmtXH2.bin",
+        "created": "2026-07-31T13:11:47.291Z",
+        "declaredEntries": 17747,
+        "declaredPushIds": 471,
+        "bytes": 1564262,
+        "sha256": "d1d823b846bcc26f839bf4d3c2d92d203846bf8bdfdcbbadbc1e2ef52cef71b7",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "68a65203d12312ef1bdc17d3e1715e37cdc68086c71ab7fd9ea0f8000a47b65f"
+        },
+        "targetTableEntryCount": 5484,
+        "joinedHotfixKeyCount": 108,
+        "broadcastTextEntryCount": 331,
+        "broadcastTextTactKeyEntryCount": 129,
+        "availableKeyIdentityCount": 169,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 39,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-4L46J8cEqzn9jPtFZzwKzN.bin",
+        "created": "2026-07-31T13:11:39.833Z",
+        "declaredEntries": 80405,
+        "declaredPushIds": 472,
+        "bytes": 3632920,
+        "sha256": "074398ff37c53f5b66b3e04bf6d0f6ed8489df5ea6900f7c0910092fca23a83b",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "da35c278ba2492f6316ca9e9ee55f022b8043a884bf5bd727d745355504646f1"
+        },
+        "targetTableEntryCount": 65537,
+        "joinedHotfixKeyCount": 110,
+        "broadcastTextEntryCount": 688,
+        "broadcastTextTactKeyEntryCount": 258,
+        "availableKeyIdentityCount": 111,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 40,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-hjADc2bq18g3JCpFcGgENz.bin",
+        "created": "2026-07-31T13:11:36.285Z",
+        "declaredEntries": 36073,
+        "declaredPushIds": 472,
+        "bytes": 2194500,
+        "sha256": "ecea5fb34de73067b307e0336841bb6b9f293566e67f401db43a9f76b4047782",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "e6c9d2ec5065b55b75c05113595151deff26e456df739a46e85bcdb4b40ffd27"
+        },
+        "targetTableEntryCount": 22861,
+        "joinedHotfixKeyCount": 108,
+        "broadcastTextEntryCount": 577,
+        "broadcastTextTactKeyEntryCount": 283,
+        "availableKeyIdentityCount": 162,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 41,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-iB5uQYXG1oYJoPrRKGJdjF.bin",
+        "created": "2026-07-31T13:11:31.748Z",
+        "declaredEntries": 44085,
+        "declaredPushIds": 472,
+        "bytes": 2487960,
+        "sha256": "8ee04c43628db1bc93d7a7690d2f6af7a35a87a1961aedca19b47e75d42e8115",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "abc569214a5bc5082449775884e5640edb787107f11727d06611ea87c128ced2"
+        },
+        "targetTableEntryCount": 30530,
+        "joinedHotfixKeyCount": 110,
+        "broadcastTextEntryCount": 672,
+        "broadcastTextTactKeyEntryCount": 371,
+        "availableKeyIdentityCount": 229,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 42,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-fp1Gf3Ai9upYZNLws7twaG.bin",
+        "created": "2026-07-31T13:11:19.337Z",
+        "declaredEntries": 47375,
+        "declaredPushIds": 471,
+        "bytes": 2541681,
+        "sha256": "b7f62765258d0d5147881c6c6985caae542c1ec0b638da1e93d5e51d42b365aa",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "2b8c351ace8443e347e226a994668ea4f663254ac5cf167a3af9033d72d8b179"
+        },
+        "targetTableEntryCount": 31153,
+        "joinedHotfixKeyCount": 110,
+        "broadcastTextEntryCount": 539,
+        "broadcastTextTactKeyEntryCount": 254,
+        "availableKeyIdentityCount": 123,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 43,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-xtamsx6kuj5C4twLDKRMqk.bin",
+        "created": "2026-07-31T13:11:03.003Z",
+        "declaredEntries": 25321,
+        "declaredPushIds": 472,
+        "bytes": 1820038,
+        "sha256": "4c58f5015b6675e97ab9c6457ba7ad7341571139c8792881d5263e77214450c0",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "532091675943ad7839d5bca4aaefe2b2440099d12877e6010e35cb811de97a11"
+        },
+        "targetTableEntryCount": 12671,
+        "joinedHotfixKeyCount": 107,
+        "broadcastTextEntryCount": 325,
+        "broadcastTextTactKeyEntryCount": 107,
+        "availableKeyIdentityCount": 174,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 44,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-wVj3tQyreMYhpbmo5HLbyh.bin",
+        "created": "2026-07-31T13:10:58.871Z",
+        "declaredEntries": 52002,
+        "declaredPushIds": 472,
+        "bytes": 2726992,
+        "sha256": "95c8a5fac3a7e28cca8a3c67cf2f4607b006fc7b50fa410c8721d6f58627e743",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "5dcb3ee5a7287d6c3c2042c39c979af3f852cd0527085f26ffe98a55dfc8939e"
+        },
+        "targetTableEntryCount": 35821,
+        "joinedHotfixKeyCount": 108,
+        "broadcastTextEntryCount": 758,
+        "broadcastTextTactKeyEntryCount": 399,
+        "availableKeyIdentityCount": 199,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 45,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-aB7XAUTczCwEZPakdYK9xG.bin",
+        "created": "2026-07-31T13:10:52.068Z",
+        "declaredEntries": 35546,
+        "declaredPushIds": 472,
+        "bytes": 2199352,
+        "sha256": "3ea0d358a07de611c4a2088b3795334f8166d50139267674bf04a5c72748ef6a",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "6b09969cd849991e1861458c43a83117a88880c8d9bb03d6135b44abf7a21695"
+        },
+        "targetTableEntryCount": 22063,
+        "joinedHotfixKeyCount": 108,
+        "broadcastTextEntryCount": 825,
+        "broadcastTextTactKeyEntryCount": 496,
+        "availableKeyIdentityCount": 149,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 46,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-6ERRHQ2njBTzS1fp7LyQ85.bin",
+        "created": "2026-07-31T13:10:49.580Z",
+        "declaredEntries": 66159,
+        "declaredPushIds": 472,
+        "bytes": 3193594,
+        "sha256": "bc5ccdd76d4e4984a1f6c2c6bdc6fb813408ef2ef38fe5f753546e83676553fb",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "4e8579cdf7d3caf298fbd556b032de701d89689a71f48f6f048dc43bd73e2eab"
+        },
+        "targetTableEntryCount": 36327,
+        "joinedHotfixKeyCount": 109,
+        "broadcastTextEntryCount": 775,
+        "broadcastTextTactKeyEntryCount": 452,
+        "availableKeyIdentityCount": 156,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 47,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-1HX7MqZtbeaJmnnkgvswGD.bin",
+        "created": "2026-07-31T13:10:47.930Z",
+        "declaredEntries": 49660,
+        "declaredPushIds": 472,
+        "bytes": 2645712,
+        "sha256": "12a659af953b1840231e40ca0419a2eeb9521168453c085d3678eaeae36769fe",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "953f47ed3ab1cf618933915003a252aa8b4b7a3dc53bae03cbb80d567f2057bc"
+        },
+        "targetTableEntryCount": 35027,
+        "joinedHotfixKeyCount": 109,
+        "broadcastTextEntryCount": 684,
+        "broadcastTextTactKeyEntryCount": 260,
+        "availableKeyIdentityCount": 177,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 48,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-gG1rhgMA5auUiBqPGWuYi1.bin",
+        "created": "2026-07-31T13:10:46.791Z",
+        "declaredEntries": 16525,
+        "declaredPushIds": 472,
+        "bytes": 1520844,
+        "sha256": "77cf8cdcc749debdab34bbc5b6eb0e73a4a288f69a59a3c4f7c5459c263ac5e2",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "aafb5ac641065992aaaeabe2f501d4e19d02592b773647417688bba9e6ae2912"
+        },
+        "targetTableEntryCount": 2299,
+        "joinedHotfixKeyCount": 108,
+        "broadcastTextEntryCount": 256,
+        "broadcastTextTactKeyEntryCount": 35,
+        "availableKeyIdentityCount": 110,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 49,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-5D2cQVdbarUkbdWy3VaD1G.bin",
+        "created": "2026-07-31T13:10:44.435Z",
+        "declaredEntries": 62864,
+        "declaredPushIds": 472,
+        "bytes": 3114386,
+        "sha256": "e5402145a492e9c1328cbf690a6b449ea1961e407e2742433eb073f0ac4848cd",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "d0dfdac1eebfa8acfa899d47c19c3f5d7c251f1a15086e56d3b049bb491312b9"
+        },
+        "targetTableEntryCount": 49286,
+        "joinedHotfixKeyCount": 109,
+        "broadcastTextEntryCount": 839,
+        "broadcastTextTactKeyEntryCount": 410,
+        "availableKeyIdentityCount": 151,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 50,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-sYrYihHJ2a58M6G5YhZFuC.bin",
+        "created": "2026-07-31T13:10:22.918Z",
+        "declaredEntries": 12952,
+        "declaredPushIds": 472,
+        "bytes": 1412601,
+        "sha256": "bacd4cba789087acf91b55b9ada1c887493ba3bbe005a37af47af9fe8dde87ba",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "3e1b5d98c922424cfa9a2f2a9798e7aa1f493a565c455465ec33d0285da4cad2"
+        },
+        "targetTableEntryCount": 1243,
+        "joinedHotfixKeyCount": 108,
+        "broadcastTextEntryCount": 202,
+        "broadcastTextTactKeyEntryCount": 21,
+        "availableKeyIdentityCount": 109,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 51,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-qtu36VU8LSmfn1ftyxM2d1.bin",
+        "created": "2026-07-31T13:10:22.181Z",
+        "declaredEntries": 18273,
+        "declaredPushIds": 472,
+        "bytes": 1595168,
+        "sha256": "71382240afe0225e7779ee9106275c30fc18fa2304c9fe28581f63b85a894d2a",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "d4796107339d10c55fc41ac4bebf8d3d998378f7a993c2455f75bb08c5f422f6"
+        },
+        "targetTableEntryCount": 6200,
+        "joinedHotfixKeyCount": 107,
+        "broadcastTextEntryCount": 392,
+        "broadcastTextTactKeyEntryCount": 192,
+        "availableKeyIdentityCount": 144,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 52,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-x4QBiFbLaYYv4acjNDo5sY.bin",
+        "created": "2026-07-31T13:10:13.802Z",
+        "declaredEntries": 24358,
+        "declaredPushIds": 472,
+        "bytes": 1826407,
+        "sha256": "646db911b0a698c00a1bc4320531e621b2248fbed4e39c56b1d2325a435fd4d4",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "7735b6426262b9fdc30446fc303372aa0b038855f595e172395d6c35dc034e45"
+        },
+        "targetTableEntryCount": 11227,
+        "joinedHotfixKeyCount": 108,
+        "broadcastTextEntryCount": 488,
+        "broadcastTextTactKeyEntryCount": 238,
+        "availableKeyIdentityCount": 120,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 53,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-mw3nqhrPZwUUsjqYC3YvPj.bin",
+        "created": "2026-07-31T13:10:12.838Z",
+        "declaredEntries": 57990,
+        "declaredPushIds": 472,
+        "bytes": 2913101,
+        "sha256": "8cd347e28cf0e2384e7a693b1ec8ecccf88a56d2d4bab378784f7abbddd223cb",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "cae2a506b795f58b7a1c1db5212b9bb6631a61334800e197f90da393b77378d3"
+        },
+        "targetTableEntryCount": 26741,
+        "joinedHotfixKeyCount": 108,
+        "broadcastTextEntryCount": 668,
+        "broadcastTextTactKeyEntryCount": 391,
+        "availableKeyIdentityCount": 146,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 54,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-eqR822MR3uBEiud91XgiFU.bin",
+        "created": "2026-07-31T13:10:07.047Z",
+        "declaredEntries": 29623,
+        "declaredPushIds": 471,
+        "bytes": 1978827,
+        "sha256": "8dff8d06de34da5013532a2be2d21fbff90635520d9a7b935e98be7bf95e36f2",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "ce85e65c9b70deeb7e23c0651f876fb27bf99e074b1cb60fb839828c191d1966"
+        },
+        "targetTableEntryCount": 15287,
+        "joinedHotfixKeyCount": 111,
+        "broadcastTextEntryCount": 402,
+        "broadcastTextTactKeyEntryCount": 160,
+        "availableKeyIdentityCount": 116,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 55,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-bAHDAGW6KHpgPzvRfFfB1T.bin",
+        "created": "2026-07-31T13:10:06.254Z",
+        "declaredEntries": 43864,
+        "declaredPushIds": 472,
+        "bytes": 2480888,
+        "sha256": "8b2d41838627addf4bb1c9c1fd2d54db3c84cb8e1e70ff514d49832fd0e979fc",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "2883ab1d3ce23329256f379b42051ad0f4c734edda2aff17a1e8eeb471c01387"
+        },
+        "targetTableEntryCount": 30342,
+        "joinedHotfixKeyCount": 110,
+        "broadcastTextEntryCount": 672,
+        "broadcastTextTactKeyEntryCount": 371,
+        "availableKeyIdentityCount": 229,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 56,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-5FP6d2AA3jE3RRr3yBFLc2.bin",
+        "created": "2026-07-31T13:10:02.895Z",
+        "declaredEntries": 64779,
+        "declaredPushIds": 472,
+        "bytes": 3240274,
+        "sha256": "f1d7aba033cb4ed83d4c9b25275a0d0a06f3618ce68d841299400f2e052cba17",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "6083800142253e65e2b390ed3c29b97ac0aa65700a1bd6146579be959439f019"
+        },
+        "targetTableEntryCount": 50270,
+        "joinedHotfixKeyCount": 108,
+        "broadcastTextEntryCount": 1462,
+        "broadcastTextTactKeyEntryCount": 1003,
+        "availableKeyIdentityCount": 745,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 57,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-3AE7tpD8SuJKAtqSuU5Jmn.bin",
+        "created": "2026-07-31T13:09:58.724Z",
+        "declaredEntries": 82183,
+        "declaredPushIds": 471,
+        "bytes": 3761035,
+        "sha256": "dc11e1d6d8a610b3eb182a453106d2cbce94261cb3f9b6d9abdfa3ff7460ae6f",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "e68219585fcaa71a6c75078cad05811390b8f05e5f54ea0db26844d904e93856"
+        },
+        "targetTableEntryCount": 65457,
+        "joinedHotfixKeyCount": 107,
+        "broadcastTextEntryCount": 1147,
+        "broadcastTextTactKeyEntryCount": 601,
+        "availableKeyIdentityCount": 347,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 58,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-9UWMxkUUeDvRyCSXKgvt5r.bin",
+        "created": "2026-07-31T13:09:56.689Z",
+        "declaredEntries": 20823,
+        "declaredPushIds": 472,
+        "bytes": 1676909,
+        "sha256": "bd0a4a6ff616bc6689337c6f5e37f0b9c34f8b0118c5b4424d9d13c780ec1f38",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "366e5ef28e723f8fbffe3a1115177f763aa5be987c21d29ac4f2826cf5b52adf"
+        },
+        "targetTableEntryCount": 8694,
+        "joinedHotfixKeyCount": 108,
+        "broadcastTextEntryCount": 282,
+        "broadcastTextTactKeyEntryCount": 49,
+        "availableKeyIdentityCount": 109,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 59,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-8AjGU44pZgzV6bWsNWe6Na.bin",
+        "created": "2026-07-31T13:09:55.909Z",
+        "declaredEntries": 32890,
+        "declaredPushIds": 472,
+        "bytes": 2085093,
+        "sha256": "04d482b9ca6fa27a226d1adfb7ae9f38deacc39d63a3cc471ee01881d2f99976",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "2adc3bcac8ffafec4e729e71675c2fd9fd0094677be8f57336e3769cd85aae95"
+        },
+        "targetTableEntryCount": 19509,
+        "joinedHotfixKeyCount": 109,
+        "broadcastTextEntryCount": 571,
+        "broadcastTextTactKeyEntryCount": 208,
+        "availableKeyIdentityCount": 153,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 60,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-qLY1srWtcYL2NT9oB8Var6.bin",
+        "created": "2026-07-31T13:09:43.977Z",
+        "declaredEntries": 23546,
+        "declaredPushIds": 471,
+        "bytes": 1775566,
+        "sha256": "06ed1322790d0e817a82050c910d5329c45f0de18c918954f64dfd324e020dcc",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "2e537ef83c621ce625e7f14d810b01d29e20dc473d192b58cc990b87cc6b0fe2"
+        },
+        "targetTableEntryCount": 10733,
+        "joinedHotfixKeyCount": 109,
+        "broadcastTextEntryCount": 400,
+        "broadcastTextTactKeyEntryCount": 157,
+        "availableKeyIdentityCount": 156,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 61,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-vWLRmF3XheLFcWXpNpAF4A.bin",
+        "created": "2026-07-31T13:09:43.252Z",
+        "declaredEntries": 43727,
+        "declaredPushIds": 470,
+        "bytes": 2476450,
+        "sha256": "a9611e9d53a6e81b2ae54ffa0e75155cd3e13c9686974983f9961fe91db7ca23",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "50126a9ac4e861680dd270d2903c43733ffc4af3385af4dccc7857ea06c2116a"
+        },
+        "targetTableEntryCount": 30248,
+        "joinedHotfixKeyCount": 110,
+        "broadcastTextEntryCount": 672,
+        "broadcastTextTactKeyEntryCount": 371,
+        "availableKeyIdentityCount": 229,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 62,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-7gQq2a27QFcX2KcV5uZ1c8.bin",
+        "created": "2026-07-31T13:09:31.191Z",
+        "declaredEntries": 21754,
+        "declaredPushIds": 471,
+        "bytes": 1736085,
+        "sha256": "36addd203250d7b77319960bfef64c94adef83fa1a1efc6c3c05a0e9c5fd4a91",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "61a9a0526260db5b44b16fa297da6019d1151bc992e16284b754de78f34ed992"
+        },
+        "targetTableEntryCount": 9304,
+        "joinedHotfixKeyCount": 107,
+        "broadcastTextEntryCount": 651,
+        "broadcastTextTactKeyEntryCount": 352,
+        "availableKeyIdentityCount": 237,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 63,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-odrXNxavbwRYNr8EtWZZ5W.bin",
+        "created": "2026-07-31T13:09:15.956Z",
+        "declaredEntries": 34161,
+        "declaredPushIds": 472,
+        "bytes": 2126840,
+        "sha256": "1af4bdef28277197b8c475b0d840032b748366c9289a61dc3b64d9190b0cde54",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "50872b39ae3a17a7a372b61b07dc3001219162b921926a0dbe543a19e9258a44"
+        },
+        "targetTableEntryCount": 12317,
+        "joinedHotfixKeyCount": 108,
+        "broadcastTextEntryCount": 535,
+        "broadcastTextTactKeyEntryCount": 267,
+        "availableKeyIdentityCount": 151,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 64,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-6A177677MS2K1tK2jWx652.bin",
+        "created": "2026-07-31T13:09:05.193Z",
+        "declaredEntries": 139300,
+        "declaredPushIds": 472,
+        "bytes": 5575192,
+        "sha256": "163e209c2f5e94f20b643ec7e6a26e4847abca761ca50fbc8ceb639b611014ba",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "b3c905262f7f3096018739354f8a47eebac35282b98c4b728adf5f25ea755aee"
+        },
+        "targetTableEntryCount": 110542,
+        "joinedHotfixKeyCount": 110,
+        "broadcastTextEntryCount": 603,
+        "broadcastTextTactKeyEntryCount": 241,
+        "availableKeyIdentityCount": 119,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 65,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-3JFd3exKzwS6pZqWdhyYGn.bin",
+        "created": "2026-07-31T13:08:41.956Z",
+        "declaredEntries": 56878,
+        "declaredPushIds": 471,
+        "bytes": 2915954,
+        "sha256": "f6a4517ee4ffc8258ae89dbc7eaca710a14d60bc5f5d98be47a851fb0974304b",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "98cf5ae3354775016aa7d93769ba7a77105db26fee898a19c6ebe25d3d3ee715"
+        },
+        "targetTableEntryCount": 41877,
+        "joinedHotfixKeyCount": 107,
+        "broadcastTextEntryCount": 919,
+        "broadcastTextTactKeyEntryCount": 518,
+        "availableKeyIdentityCount": 160,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 66,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-3wHYsSqnmMPSCyAFLGgytr.bin",
+        "created": "2026-07-31T13:08:23.941Z",
+        "declaredEntries": 42747,
+        "declaredPushIds": 472,
+        "bytes": 2472896,
+        "sha256": "c7afe0acbdfea692fbb96d200ee9ee1bd836c513a1e8d5e8150c07f265c03dfe",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "467f2242e252db96e2e4da0c968828b42e84c8fb9c818d49523487243e54930c"
+        },
+        "targetTableEntryCount": 28239,
+        "joinedHotfixKeyCount": 109,
+        "broadcastTextEntryCount": 943,
+        "broadcastTextTactKeyEntryCount": 508,
+        "availableKeyIdentityCount": 278,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 67,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-1Zh5G2dtCEfZtDGPaN9jKD.bin",
+        "created": "2026-07-31T13:08:12.916Z",
+        "declaredEntries": 74095,
+        "declaredPushIds": 472,
+        "bytes": 3565107,
+        "sha256": "fe55b6067b8f280f38e708eaa9a4bc5b9b16ed7c0b816b7431f0d84c95fdcc75",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "a5e758fa3a5817eb807f897cfb28f318cda88736894b6d9bfa04a475c38f40e2"
+        },
+        "targetTableEntryCount": 57809,
+        "joinedHotfixKeyCount": 107,
+        "broadcastTextEntryCount": 1438,
+        "broadcastTextTactKeyEntryCount": 710,
+        "availableKeyIdentityCount": 525,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 68,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-6MXNbm1m4ouMWcjmHoWqJ2.bin",
+        "created": "2026-07-31T13:08:06.958Z",
+        "declaredEntries": 35140,
+        "declaredPushIds": 471,
+        "bytes": 2144414,
+        "sha256": "f2cd3746a471b67fbcb0ad7928fb68e4fed2f068ad3d743354b91867c256957c",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "6c96967d92a3a43da5d951912daef82abf9da6107dedf2fbf8c67983f84bcaff"
+        },
+        "targetTableEntryCount": 21821,
+        "joinedHotfixKeyCount": 108,
+        "broadcastTextEntryCount": 500,
+        "broadcastTextTactKeyEntryCount": 229,
+        "availableKeyIdentityCount": 153,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 69,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-af6H6HhMDD9t2XVcEhzDHG.bin",
+        "created": "2026-07-31T13:08:03.967Z",
+        "declaredEntries": 124878,
+        "declaredPushIds": 471,
+        "bytes": 5481262,
+        "sha256": "4a478336f0da75cf196ce1835e10a130b68ffcf70961eff9077bfce57420b8c9",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "e4147549d26fd028c4f7b15978c2c5219aa6af851779149f4d5beaa3eb9c5fd4"
+        },
+        "targetTableEntryCount": 101985,
+        "joinedHotfixKeyCount": 111,
+        "broadcastTextEntryCount": 2964,
+        "broadcastTextTactKeyEntryCount": 1273,
+        "availableKeyIdentityCount": 838,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 70,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-f7rsAX3MAZWY4Ydspz5WH9.bin",
+        "created": "2026-07-31T13:07:59.251Z",
+        "declaredEntries": 35284,
+        "declaredPushIds": 472,
+        "bytes": 2158021,
+        "sha256": "167c44400c81940066106be23e74ce33fad9faa587a0bab3e349f2656641e892",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "af42b1246e10d464e3cbe3fc1fbb5b395128782c899b8d5ae08b56e54255dfd4"
+        },
+        "targetTableEntryCount": 18349,
+        "joinedHotfixKeyCount": 108,
+        "broadcastTextEntryCount": 561,
+        "broadcastTextTactKeyEntryCount": 307,
+        "availableKeyIdentityCount": 162,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 71,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-pEE9RSHS2pDasVEd6njKXD.bin",
+        "created": "2026-07-31T13:07:45.510Z",
+        "declaredEntries": 59224,
+        "declaredPushIds": 472,
+        "bytes": 2964633,
+        "sha256": "be02bebfa872d166e984980c05156c36c38fc6847ce2de6fef8dcb6264c07a83",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "7242e2adc8cdabdbe4cbade96b4001de6429deb4e4c3e3b0cc320244390d721e"
+        },
+        "targetTableEntryCount": 44359,
+        "joinedHotfixKeyCount": 108,
+        "broadcastTextEntryCount": 745,
+        "broadcastTextTactKeyEntryCount": 448,
+        "availableKeyIdentityCount": 269,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 72,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-nawkLN5NgzE6uALZKKnTuz.bin",
+        "created": "2026-07-31T13:07:43.095Z",
+        "declaredEntries": 37689,
+        "declaredPushIds": 472,
+        "bytes": 2255456,
+        "sha256": "2ecd344299b29a7b9fd0a1e6efed53a9f4c9c3a9c32e92e226dd7e2fc972f531",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "b1d565b2ef7a39b4c1d07514552c6b0ee34bab2632c9d2e9975401ddb91ac219"
+        },
+        "targetTableEntryCount": 22624,
+        "joinedHotfixKeyCount": 108,
+        "broadcastTextEntryCount": 706,
+        "broadcastTextTactKeyEntryCount": 412,
+        "availableKeyIdentityCount": 156,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 73,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-96BJJ6fEWonvRu6Si3gUvV.bin",
+        "created": "2026-07-31T13:07:41.659Z",
+        "declaredEntries": 170666,
+        "declaredPushIds": 471,
+        "bytes": 6511478,
+        "sha256": "e676b7795ebc97b990c0429ac742ba8edc6306b5c9673b14f7c50d02d83fe933",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "5e57ba7f69096489098097be46e7806e378f5fdc1f4bdacfcaa83440211ff8c9"
+        },
+        "targetTableEntryCount": 148268,
+        "joinedHotfixKeyCount": 110,
+        "broadcastTextEntryCount": 774,
+        "broadcastTextTactKeyEntryCount": 326,
+        "availableKeyIdentityCount": 164,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 74,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-ifYMf5Sqz26uPJGDkGh2zv.bin",
+        "created": "2026-07-31T13:07:38.068Z",
+        "declaredEntries": 100245,
+        "declaredPushIds": 472,
+        "bytes": 4394374,
+        "sha256": "619dfe724363d1dc876560a75935040140b8457ef1c192f58cb98dcacc81878c",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "3f9b94b848716a27cd52f210b96ec9147d1e862129f23cf0aa057a448f15ac51"
+        },
+        "targetTableEntryCount": 82614,
+        "joinedHotfixKeyCount": 109,
+        "broadcastTextEntryCount": 1225,
+        "broadcastTextTactKeyEntryCount": 799,
+        "availableKeyIdentityCount": 526,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 75,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-gfrzEQwqVn2phnkpA9FQAc.bin",
+        "created": "2026-07-31T13:07:28.735Z",
+        "declaredEntries": 73917,
+        "declaredPushIds": 472,
+        "bytes": 3584333,
+        "sha256": "c8d68ee3e5f0f7fbfe651bfb00f6fba96adbc74d4688479b54a80af5e1d9fc0f",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "201d25ee2fe82728c000c1e2c2d6df68ee5ea073251f1c52f385bf2520e75741"
+        },
+        "targetTableEntryCount": 58297,
+        "joinedHotfixKeyCount": 107,
+        "broadcastTextEntryCount": 1596,
+        "broadcastTextTactKeyEntryCount": 1076,
+        "availableKeyIdentityCount": 335,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 76,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-oTUx1qMk2UcAprh7U3xZXc.bin",
+        "created": "2026-07-31T13:07:28.682Z",
+        "declaredEntries": 38148,
+        "declaredPushIds": 472,
+        "bytes": 2281061,
+        "sha256": "56d4d29e1c40d56b78ad3aef7a7e11632f130a2eb3d38a7980d5459c41d47566",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "1830d52151276609af64f02e70208619b5ebc9dc4dbdc89191a1f809d1e3c100"
+        },
+        "targetTableEntryCount": 22790,
+        "joinedHotfixKeyCount": 109,
+        "broadcastTextEntryCount": 362,
+        "broadcastTextTactKeyEntryCount": 93,
+        "availableKeyIdentityCount": 110,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 77,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-5p9gvVQ55udkeH8mDGkR7u.bin",
+        "created": "2026-07-31T13:07:25.212Z",
+        "declaredEntries": 37809,
+        "declaredPushIds": 471,
+        "bytes": 2226932,
+        "sha256": "8ad3f9b704d049bbbeaaf1f4087b6569ed29f20ad742dd401ac9056f670b26ae",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "0e66c3d8ec9560bdddd554b16835a1cdea3134abdebebaef998d8114f89a8b20"
+        },
+        "targetTableEntryCount": 24597,
+        "joinedHotfixKeyCount": 109,
+        "broadcastTextEntryCount": 505,
+        "broadcastTextTactKeyEntryCount": 248,
+        "availableKeyIdentityCount": 110,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 78,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-83VrssnqN6HAckqk9dQaoA.bin",
+        "created": "2026-07-31T13:07:09.900Z",
+        "declaredEntries": 35059,
+        "declaredPushIds": 472,
+        "bytes": 2150821,
+        "sha256": "f0581f90c1c0729943a542ccb4677ca68412b83e092defaef033c342d42a5e49",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "c35f3787dc771469c8c5603be2779f7dfb3e4707e03689714047bae7a65e965f"
+        },
+        "targetTableEntryCount": 18157,
+        "joinedHotfixKeyCount": 108,
+        "broadcastTextEntryCount": 561,
+        "broadcastTextTactKeyEntryCount": 307,
+        "availableKeyIdentityCount": 162,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 79,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-jGyTF4TURphhiTucthLbg9.bin",
+        "created": "2026-07-31T13:07:08.148Z",
+        "declaredEntries": 13646,
+        "declaredPushIds": 472,
+        "bytes": 1434298,
+        "sha256": "0a6d2234b4eebffc036eeeb4e330c42d7143f3fde2bea963712663fd00507974",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "26f46fd04538d3edfe36ac6cb577eb0bb3b82eb2cb291f4944e21955429426ce"
+        },
+        "targetTableEntryCount": 1819,
+        "joinedHotfixKeyCount": 108,
+        "broadcastTextEntryCount": 230,
+        "broadcastTextTactKeyEntryCount": 39,
+        "availableKeyIdentityCount": 109,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 80,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-9ujryZSAX6xw7MKj1wGWsh.bin",
+        "created": "2026-07-31T13:07:00.248Z",
+        "declaredEntries": 20019,
+        "declaredPushIds": 472,
+        "bytes": 1702233,
+        "sha256": "3934ab82f273d7007762bb8b3783d0d6db36f735ee65938ba04ba7d009ec7fb7",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "7c7bab20241b818997a57a752466e4006716c853fff812abfcd28bebda9b2859"
+        },
+        "targetTableEntryCount": 7461,
+        "joinedHotfixKeyCount": 107,
+        "broadcastTextEntryCount": 457,
+        "broadcastTextTactKeyEntryCount": 192,
+        "availableKeyIdentityCount": 142,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 81,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-p6ARF657PBFSupGPtmU7Lm.bin",
+        "created": "2026-07-31T13:06:50.105Z",
+        "declaredEntries": 13129,
+        "declaredPushIds": 471,
+        "bytes": 1422066,
+        "sha256": "9e5c005d4a194147ea27dbcb386c46f67e0191620dba041e6f9cfb7b3bd8c9cb",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "56ce8773ede3d87b83f750bcba08446a8c0e21767803172e1cb85a422926c683"
+        },
+        "targetTableEntryCount": 1436,
+        "joinedHotfixKeyCount": 108,
+        "broadcastTextEntryCount": 224,
+        "broadcastTextTactKeyEntryCount": 41,
+        "availableKeyIdentityCount": 109,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 82,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-7uPbT4oeCtj6hDRRSqR46R.bin",
+        "created": "2026-07-31T13:06:47.439Z",
+        "declaredEntries": 15890,
+        "declaredPushIds": 472,
+        "bytes": 1521784,
+        "sha256": "956995951f223dda9492631b62d3ae92da70d5b35fc76e33ac3c7f8382e1d075",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "ef19e35fc294d56e36524e08dbae186f4e5e84a6c06598debdbc3da1597d7de0"
+        },
+        "targetTableEntryCount": 3744,
+        "joinedHotfixKeyCount": 110,
+        "broadcastTextEntryCount": 271,
+        "broadcastTextTactKeyEntryCount": 31,
+        "availableKeyIdentityCount": 120,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 83,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-6BE1Eyxbv4omGVJTWZGQpo.bin",
+        "created": "2026-07-31T13:06:17.820Z",
+        "declaredEntries": 39550,
+        "declaredPushIds": 471,
+        "bytes": 2319675,
+        "sha256": "2d8737474c0de838de798a9760d08d2d542c2bbebac421d5a0e1d9e3602aa956",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "d420465422211f8af10e6c20d2e836464f5519743a51e4dd1eb4cb59f24b982e"
+        },
+        "targetTableEntryCount": 25335,
+        "joinedHotfixKeyCount": 109,
+        "broadcastTextEntryCount": 449,
+        "broadcastTextTactKeyEntryCount": 105,
+        "availableKeyIdentityCount": 110,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 84,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-prFVwcp75sDXV4LCuh6Wem.bin",
+        "created": "2026-07-31T13:06:12.327Z",
+        "declaredEntries": 81210,
+        "declaredPushIds": 471,
+        "bytes": 3658345,
+        "sha256": "56cd4138583060175fb8099dec68c46b27f25bfa6ad0b3db17fa378f0ca0cd61",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "da595574cc845bded5d0feb378b80ada18d316187e7589d191c8e13f189663d7"
+        },
+        "targetTableEntryCount": 44745,
+        "joinedHotfixKeyCount": 109,
+        "broadcastTextEntryCount": 595,
+        "broadcastTextTactKeyEntryCount": 268,
+        "availableKeyIdentityCount": 170,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 85,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-qPofSNg4mBwhEyw7mXPnFP.bin",
+        "created": "2026-07-31T13:06:06.074Z",
+        "declaredEntries": 68805,
+        "declaredPushIds": 472,
+        "bytes": 3295593,
+        "sha256": "8af2f78a09583449e00f1c9b6ecb58be5315cb0d23401920071c992a3ed6023b",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "00d147873ad4da60816f6355b68b48449af523fbdcc582598613769e802e2684"
+        },
+        "targetTableEntryCount": 43271,
+        "joinedHotfixKeyCount": 108,
+        "broadcastTextEntryCount": 791,
+        "broadcastTextTactKeyEntryCount": 396,
+        "availableKeyIdentityCount": 158,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 86,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-1k36LnF1vxq61WPLJ8yfs3.bin",
+        "created": "2026-07-31T13:06:05.282Z",
+        "declaredEntries": 63386,
+        "declaredPushIds": 472,
+        "bytes": 4042731,
+        "sha256": "83aceb9881975743763f6de03949a20246c573c4e3431afd3ef594414ceff482",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "db31bd75ed87c1e234d14392d14e5c206276fcf22b8674b09ed42345f1cbe028"
+        },
+        "targetTableEntryCount": 34472,
+        "joinedHotfixKeyCount": 108,
+        "broadcastTextEntryCount": 405,
+        "broadcastTextTactKeyEntryCount": 39,
+        "availableKeyIdentityCount": 109,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 87,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-pv4iJZgWp8dYXsEfKPeTfF.bin",
+        "created": "2026-07-31T13:06:04.513Z",
+        "declaredEntries": 38314,
+        "declaredPushIds": 472,
+        "bytes": 2273846,
+        "sha256": "b94b8449651a4bb0868f22e0a897f7a0972caa6fc036b498e681ac5d9d77df45",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "ae61accffb4b8adebea0a5b9831dae8ec8a394a8690caeba39b023caddc4e583"
+        },
+        "targetTableEntryCount": 24878,
+        "joinedHotfixKeyCount": 108,
+        "broadcastTextEntryCount": 512,
+        "broadcastTextTactKeyEntryCount": 249,
+        "availableKeyIdentityCount": 143,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 88,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-uHBo2HMZJiPnbDAXuRws8p.bin",
+        "created": "2026-07-31T13:05:58.270Z",
+        "declaredEntries": 39988,
+        "declaredPushIds": 471,
+        "bytes": 2309168,
+        "sha256": "2fbb7ecd0e91edc473e573a4ee9cd96b0c87d7595f95f5331b535135c5da6ea1",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "6b40d840151893d002561e6770c4c78a8395d903e8e2e759f4bf75347b4ccd4a"
+        },
+        "targetTableEntryCount": 27583,
+        "joinedHotfixKeyCount": 108,
+        "broadcastTextEntryCount": 575,
+        "broadcastTextTactKeyEntryCount": 285,
+        "availableKeyIdentityCount": 130,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 89,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-cLQ1aMvVtG11y2HniYePMT.bin",
+        "created": "2026-07-31T13:05:54.925Z",
+        "declaredEntries": 72064,
+        "declaredPushIds": 472,
+        "bytes": 3501449,
+        "sha256": "5fa8d9ba7b7585d1c9b73657d9a0fcee760172c2ad1afedc8af2387d4eadd01f",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "7758ea1ec3abf9558f0b3b0a9902517611c7765c517d823c558abb9d3747d494"
+        },
+        "targetTableEntryCount": 58126,
+        "joinedHotfixKeyCount": 107,
+        "broadcastTextEntryCount": 1433,
+        "broadcastTextTactKeyEntryCount": 902,
+        "availableKeyIdentityCount": 584,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 90,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-m8rywHZJ5CLbuJFZs7zv8o.bin",
+        "created": "2026-07-31T13:05:35.942Z",
+        "declaredEntries": 55462,
+        "declaredPushIds": 471,
+        "bytes": 2841895,
+        "sha256": "610cb0d23984000994eeed53b3aa7f75847f56e23f8e5dc86a271df889959fe7",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "6023b42558478e1ae14fe78b4e3428e55a139016b7b3229a1df12946163d50d0"
+        },
+        "targetTableEntryCount": 40784,
+        "joinedHotfixKeyCount": 109,
+        "broadcastTextEntryCount": 845,
+        "broadcastTextTactKeyEntryCount": 459,
+        "availableKeyIdentityCount": 157,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 91,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-juGPjK48doMkXTRz9faijm.bin",
+        "created": "2026-07-31T13:05:34.457Z",
+        "declaredEntries": 33059,
+        "declaredPushIds": 472,
+        "bytes": 2074022,
+        "sha256": "ae3f8457feb54a7a08b7d58e804470b24b1f140565b646becc4254e6b090007a",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "821bc314e2dbe4b7abe2a2d61f121db3c723b5a4dd3392eb812215c695c01c49"
+        },
+        "targetTableEntryCount": 19387,
+        "joinedHotfixKeyCount": 108,
+        "broadcastTextEntryCount": 449,
+        "broadcastTextTactKeyEntryCount": 209,
+        "availableKeyIdentityCount": 140,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 92,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-ne3G4aGMnY12SUSd5387VS.bin",
+        "created": "2026-07-31T13:05:27.628Z",
+        "declaredEntries": 30815,
+        "declaredPushIds": 472,
+        "bytes": 2026227,
+        "sha256": "91d5d166325751411115c4af3b0afaab617340481bb9552a2e83e86d091acd33",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "4034f75fc90585188d82feead24b8ecc78cb2bbf8055056844b1e785214aec14"
+        },
+        "targetTableEntryCount": 17890,
+        "joinedHotfixKeyCount": 108,
+        "broadcastTextEntryCount": 625,
+        "broadcastTextTactKeyEntryCount": 298,
+        "availableKeyIdentityCount": 148,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 93,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-d8UoTfrVoAUWbrgkDoLh5C.bin",
+        "created": "2026-07-31T13:05:19.895Z",
+        "declaredEntries": 15285,
+        "declaredPushIds": 472,
+        "bytes": 1489001,
+        "sha256": "05e7632727bfdf68c4576cdc903f2f229f451ba31696b01f718c2d02d2cd400c",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "caaf2d264b961eb2b51fca574a1bb8819df2803fb32aa22e0affd8970b8cee09"
+        },
+        "targetTableEntryCount": 3364,
+        "joinedHotfixKeyCount": 108,
+        "broadcastTextEntryCount": 296,
+        "broadcastTextTactKeyEntryCount": 94,
+        "availableKeyIdentityCount": 109,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 94,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-rrNxUa9HCwy6SaeEotJJFK.bin",
+        "created": "2026-07-31T13:05:12.234Z",
+        "declaredEntries": 43542,
+        "declaredPushIds": 472,
+        "bytes": 2454972,
+        "sha256": "76dda5c14c32c729426b0c58a8a1480a7e7b45e36c7ab7cdf88a7a6c86e3c9c2",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "6b281676be98722cffafadc6afec508f573416f3f25c5307011aaeac13dcf5cd"
+        },
+        "targetTableEntryCount": 16211,
+        "joinedHotfixKeyCount": 108,
+        "broadcastTextEntryCount": 662,
+        "broadcastTextTactKeyEntryCount": 362,
+        "availableKeyIdentityCount": 149,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 95,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-v6uUjhDbxCfVcqtQguWpcW.bin",
+        "created": "2026-07-31T13:05:04.707Z",
+        "declaredEntries": 16536,
+        "declaredPushIds": 472,
+        "bytes": 1528970,
+        "sha256": "6f57d0347cc885b6359d384aad09b46f81efae5fa9ba3eb1784ba1fa251b8f9f",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "e7d25ce8df8bf18b99f8389186b537e7331adc2e5c7c75d0a84c430dbdd972c2"
+        },
+        "targetTableEntryCount": 4471,
+        "joinedHotfixKeyCount": 107,
+        "broadcastTextEntryCount": 292,
+        "broadcastTextTactKeyEntryCount": 100,
+        "availableKeyIdentityCount": 109,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 96,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-mRaqQWxsJuwPqUNevYTJsw.bin",
+        "created": "2026-07-31T13:05:03.123Z",
+        "declaredEntries": 67895,
+        "declaredPushIds": 472,
+        "bytes": 3227487,
+        "sha256": "586e83eba880c156f61be99bf1b770a1725794fa7dcd05b0dc787116591782e7",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "bcb733ec493fc93b450827a4d50ae00aeb405dd00a14660b9a7c27fd91b6e6b5"
+        },
+        "targetTableEntryCount": 46630,
+        "joinedHotfixKeyCount": 110,
+        "broadcastTextEntryCount": 755,
+        "broadcastTextTactKeyEntryCount": 416,
+        "availableKeyIdentityCount": 164,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 97,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-2pyMWVshV32KnpMU24Z4VH.bin",
+        "created": "2026-07-31T13:05:02.037Z",
+        "declaredEntries": 49418,
+        "declaredPushIds": 471,
+        "bytes": 2643351,
+        "sha256": "89494dee4f1b3bdce25e6015bcd4a7a21d6554cd400b588f5358901f2db0938d",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "9a2cee428336b808014b94cb038a02a936f7d4077425901e1d5872f9c5512e03"
+        },
+        "targetTableEntryCount": 33156,
+        "joinedHotfixKeyCount": 108,
+        "broadcastTextEntryCount": 721,
+        "broadcastTextTactKeyEntryCount": 339,
+        "availableKeyIdentityCount": 191,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      },
+      {
+        "index": 98,
+        "status": "verified",
+        "url": "https://storage.googleapis.com/raidbots-dbcache-temp/DBCache-jpwWZ2QNXq6w8LfjG4CJ3Y.bin",
+        "created": "2026-07-31T13:04:53.755Z",
+        "declaredEntries": 68952,
+        "declaredPushIds": 472,
+        "bytes": 3452096,
+        "sha256": "b2e9e7f53796f1554cfd217cea5c1b50a834d5d1cb7fb44124f6bc5166772a88",
+        "header": {
+          "magic": "XFTH",
+          "version": 9,
+          "build": 68887,
+          "verifyHashSha256": "8aff309d56b9b79144b4a8af79ab265c8027f31535078d3f9f47cd4ca4e11bcf"
+        },
+        "targetTableEntryCount": 52729,
+        "joinedHotfixKeyCount": 108,
+        "broadcastTextEntryCount": 1838,
+        "broadcastTextTactKeyEntryCount": 1202,
+        "availableKeyIdentityCount": 974,
+        "presentTargetBlteKeyIds": [
+          "13d97d186e359c52",
+          "188003947e4f54be",
+          "73b37f76995105d1",
+          "855558c934a89edd",
+          "95d21f58ba6bc157",
+          "a20865d32c597dbe"
+        ],
+        "rawPersistedAfterAudit": false
+      }
+    ],
+    "blockers": [
+      "DBCACHE_CORPUS_TACT_KEYS_INCOMPLETE"
+    ]
+  },
+  "conclusion": "the full selected exact-build cache corpus does not close every target key",
+  "productionMutation": false,
+  "releasePointerMutation": false
+}

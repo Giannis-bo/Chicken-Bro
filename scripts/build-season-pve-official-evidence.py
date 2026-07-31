@@ -680,6 +680,7 @@ def build(args) -> dict:
                             "encryptedRecordCount"
                         ]
                     ),
+                    snapshot_root=snapshot_root,
                 )
             )
             upstream_inputs = upstream_source.get("inputs")

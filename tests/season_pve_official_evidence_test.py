@@ -4,6 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import server.season_pve_official_evidence as official_evidence
 from server.season_pve_official_evidence import (
     OfficialEvidenceError,
     authority_identity,
@@ -25,6 +26,142 @@ from server.season_pve_official_evidence import (
 
 
 class SeasonPveOfficialEvidenceTest(unittest.TestCase):
+    @staticmethod
+    def _write_tact_key_upstream_input_fixture(root):
+        inputs = {}
+        public_payload = b'{"status":"partial"}\n'
+        (root / "currentPublicTactKeys.json").write_bytes(public_payload)
+        inputs["currentPublicTactKeys"] = {
+            "path": "currentPublicTactKeys.json",
+            "bytes": len(public_payload),
+            "sha256": hashlib.sha256(public_payload).hexdigest(),
+        }
+        for source_name in (
+            "verifiedDBCacheCorpus",
+            "unverifiedDBCacheCorpus",
+        ):
+            list_name = f"{source_name}-list.json"
+            list_payload = f'{{"source":"{source_name}"}}\n'.encode()
+            (root / list_name).write_bytes(list_payload)
+            component_payload = (
+                json.dumps(
+                    {
+                        "sourceList": {
+                            "path": list_name,
+                            "bytes": len(list_payload),
+                            "sha256": hashlib.sha256(
+                                list_payload
+                            ).hexdigest(),
+                        }
+                    },
+                    sort_keys=True,
+                ).encode()
+                + b"\n"
+            )
+            component_name = f"{source_name}.json"
+            (root / component_name).write_bytes(component_payload)
+            inputs[source_name] = {
+                "path": component_name,
+                "bytes": len(component_payload),
+                "sha256": hashlib.sha256(component_payload).hexdigest(),
+            }
+        return inputs
+
+    def test_tact_key_upstream_inputs_reject_overwritten_component(self):
+        verifier = getattr(
+            official_evidence,
+            "verify_current_client_tact_key_upstream_input_files",
+            None,
+        )
+        self.assertIsNotNone(
+            verifier,
+            "TACT-key upstream component file verifier is missing",
+        )
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            inputs = self._write_tact_key_upstream_input_fixture(root)
+
+            verified = verifier(inputs, snapshot_root=root)
+            self.assertEqual(
+                set(verified),
+                {
+                    "currentPublicTactKeys",
+                    "verifiedDBCacheCorpus",
+                    "unverifiedDBCacheCorpus",
+                },
+            )
+
+            (root / "unverifiedDBCacheCorpus.json").write_bytes(
+                b'{"generation":2}\n'
+            )
+            with self.assertRaisesRegex(
+                OfficialEvidenceError,
+                "unverifiedDBCacheCorpus",
+            ):
+                verifier(inputs, snapshot_root=root)
+
+    def test_tact_key_upstream_inputs_reject_overwritten_source_list(self):
+        verifier = (
+            official_evidence.verify_current_client_tact_key_upstream_input_files
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            inputs = self._write_tact_key_upstream_input_fixture(root)
+
+            verifier(inputs, snapshot_root=root)
+            (root / "unverifiedDBCacheCorpus-list.json").write_bytes(
+                b'{"source":"replacement"}\n'
+            )
+
+            with self.assertRaisesRegex(
+                OfficialEvidenceError,
+                "unverifiedDBCacheCorpus.sourceList",
+            ):
+                verifier(inputs, snapshot_root=root)
+
+    def test_tact_key_upstream_source_verifier_binds_component_files(self):
+        audit_path = (
+            Path(__file__).resolve().parents[1]
+            / "artifacts/releases/"
+            "2026-07-30-equipment-simulator-e2e-matrix/"
+            "universe/official-snapshot/official-client-db2-v1/"
+            "current-client-tact-key-upstream-source-audit.json"
+        )
+        audit = json.loads(audit_path.read_text(encoding="utf-8"))
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            audit["inputs"] = self._write_tact_key_upstream_input_fixture(
+                root
+            )
+
+            try:
+                verified = verify_current_client_tact_key_upstream_source_audit(
+                    audit,
+                    expected_encrypted_record_count=178,
+                    snapshot_root=root,
+                )
+            except TypeError as error:
+                self.fail(
+                    "TACT-key upstream verifier must bind component files: "
+                    f"{error}"
+                )
+            self.assertEqual(verified["status"], "partial")
+
+            (root / "unverifiedDBCacheCorpus.json").write_bytes(
+                b"unverified-v2\n"
+            )
+            with self.assertRaisesRegex(
+                OfficialEvidenceError,
+                "unverifiedDBCacheCorpus",
+            ):
+                verify_current_client_tact_key_upstream_source_audit(
+                    audit,
+                    expected_encrypted_record_count=178,
+                    snapshot_root=root,
+                )
+
     def test_tact_key_upstream_source_audit_retains_64_record_blocker(self):
         audit_path = (
             Path(__file__).resolve().parents[1]
@@ -35,9 +172,19 @@ class SeasonPveOfficialEvidenceTest(unittest.TestCase):
         )
         audit = json.loads(audit_path.read_text(encoding="utf-8"))
 
+        with self.assertRaisesRegex(
+            OfficialEvidenceError,
+            "snapshot root",
+        ):
+            verify_current_client_tact_key_upstream_source_audit(
+                audit,
+                expected_encrypted_record_count=178,
+            )
+
         verified = verify_current_client_tact_key_upstream_source_audit(
             audit,
             expected_encrypted_record_count=178,
+            snapshot_root=audit_path.parent,
         )
 
         self.assertEqual(verified["status"], "partial")
@@ -53,6 +200,7 @@ class SeasonPveOfficialEvidenceTest(unittest.TestCase):
             verify_current_client_tact_key_upstream_source_audit(
                 audit,
                 expected_encrypted_record_count=178,
+                snapshot_root=audit_path.parent,
             )
 
     def test_public_tact_key_reextract_audit_retains_static_payload_blocker(self):

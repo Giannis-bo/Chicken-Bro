@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "capturedAt": "2026-07-31T04:51:19.398973+00:00",
+  "capturedAt": "2026-07-31T13:22:31.049139+00:00",
   "status": "partial",
   "build": "12.0.7.68887",
   "authority": {
@@ -19,13 +19,13 @@
     },
     "verifiedDBCacheCorpus": {
       "path": "dbcache-68887-verified-corpus-audit.json",
-      "bytes": 13823,
-      "sha256": "05c36bc411177d32fe8af35c96c755e99efe2b689ea694414e9b3da5b8802778"
+      "bytes": 15590,
+      "sha256": "50fd683bfd0bdb2bf8e590fefc130b0afcd55eb916c835b54a4efb8745893f18"
     },
     "unverifiedDBCacheCorpus": {
       "path": "dbcache-68887-unverified-corpus-audit.json",
-      "bytes": 98066,
-      "sha256": "283b5ad4c27578d9cb7d98b827d4aff75a9eca52d9efe29902fe2800b612a1ad"
+      "bytes": 113990,
+      "sha256": "95da752b8b856d2e66fd95707199c9064ddfa1875c913da0c64024a2324186f8"
     }
   },
   "sourceResults": {
@@ -38,6 +38,8 @@
       "fetchedCacheCount": 9,
       "failedCacheCount": 0,
       "totalFetchedBytes": 31267354,
+      "broadcastTextEntryCount": 1794,
+      "broadcastTextTactKeyEntryCount": 171,
       "targetKeyCount": 12,
       "targetRecordCount": 178,
       "unionAvailableTargetKeyCount": 6,
@@ -49,7 +51,9 @@
       "selectedCacheCount": 98,
       "fetchedCacheCount": 98,
       "failedCacheCount": 0,
-      "totalFetchedBytes": 267055985,
+      "totalFetchedBytes": 254667671,
+      "broadcastTextEntryCount": 66665,
+      "broadcastTextTactKeyEntryCount": 31885,
       "targetKeyCount": 12,
       "targetRecordCount": 178,
       "unionAvailableTargetKeyCount": 6,
