@@ -191,5 +191,12 @@
 
 迁移入口为任务分支 `codex/equipment-simulator-e2e-matrix` 及
 `artifacts/releases/2026-07-30-equipment-simulator-e2e-matrix/handoff.json`。
-隔离原始官方快照约 791 MB，仅保留在本机证据目录，没有提交 Git、同步生产或
-上传云服务器；可迁移的结论、哈希、阻断项和微信实测报告已进入任务分支。
+隔离原始官方快照仍保留在本机证据目录且没有提交 Git。为支持跨电脑接力，
+1,498 个证据文件已归档为 63,202,189 字节的 zstd 文件，存放在云服务器隔离目录
+`/var/lib/wow-evidence-handoff/equipment-simulator-e2e/d6426b07/`；归档
+SHA-256 为
+`d5b2a6bfbb955f9be7a13f4637e278745684225f48bb477b76105ff2ba963ea5`，
+并已通过远端 SHA、zstd、tar 目录和文件数校验。该目录不属于
+`/opt/wow-mini-program`，保持压缩、按需在非生产工作区解包，不供生产服务、
+数据库、定时任务或正式指针消费；可迁移的结论、哈希、阻断项和微信实测报告
+继续以任务分支中的 handoff 为入口。
