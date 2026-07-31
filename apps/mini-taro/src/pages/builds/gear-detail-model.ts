@@ -517,7 +517,7 @@ const metricFallbacks = [
   { id: 'versatility', label: '全能' },
   { id: 'leech', label: '吸血' },
   { id: 'avoidance', label: '闪避' },
-  { id: 'speed', label: '加速' },
+  { id: 'speed', label: '速度' },
 ] as const
 
 const weaponTypeLabels: Readonly<Record<string, string>> = {
@@ -551,7 +551,7 @@ const statLabels: Readonly<Record<string, string>> = {
   versatility: '全能',
   leech: '吸血',
   avoidance: '闪避',
-  speed: '加速',
+  speed: '速度',
   armor: '护甲',
 }
 

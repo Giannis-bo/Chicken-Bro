@@ -907,7 +907,7 @@ describe('gear detail truth model', () => {
         { key: 'versatility', label: '全能', value: '400' },
         { key: 'leech', label: '吸血', value: '50' },
         { key: 'avoidance', label: '闪避', value: '60' },
-        { key: 'speed', label: '加速', value: '70' },
+        { key: 'speed', label: '速度', value: '70' },
       ],
     }
     const readiness = gearReadiness({ head: readyItem }, stats, 'ready', {

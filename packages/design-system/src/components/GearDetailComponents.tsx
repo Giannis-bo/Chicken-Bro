@@ -201,7 +201,7 @@ const summaryMetricLabels = {
   versatility: '全能',
   leech: '吸血',
   avoidance: '闪避',
-  speed: '加速',
+  speed: '速度',
 } as const
 
 const primaryMetricIds = ['primary', 'stamina'] as const

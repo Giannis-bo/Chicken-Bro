@@ -8,6 +8,8 @@ const {
   findElementBySemanticValue,
   queryElementsByXpathSequentially,
   readSemanticValue,
+  scrollElementIntoView,
+  scrollPageElementIntoView,
   timeout,
   waitForRenderedPage,
   waitForSystemInfo,
@@ -19,10 +21,12 @@ const {
   gearSlots,
   normalizeCandidateDisplayRelations,
   normalizeCommittedGearEntries,
+  normalizeGearSlotShard,
   normalizeSelectorMarker,
   normalizeSimcPolicy,
   normalizeSpecMatrix,
   normalizeTaskIds,
+  requiredActions,
   selectCandidateApplySlot,
   selectCraftedApplyTarget,
   storageValueChanged,
@@ -344,10 +348,43 @@ async function visibleVariantElements(page, relation) {
   })))
 }
 
+async function tapGearEditorElement(page, element, label, requery = null) {
+  const scrollView = await requiredElement(page, '.wx-data-role-gear-editor-scroll')
+  const scrolled = await scrollElementIntoView(scrollView, element, label)
+  if (scrolled) await settle()
+  const current = requery ? await requery() : element
+  await timeout(current.tap(), 3000, label)
+}
+
+async function tapPageElement(
+  miniProgram,
+  page,
+  systemInfo,
+  element,
+  label,
+  requery = null,
+) {
+  const scrolled = await scrollPageElementIntoView(
+    miniProgram,
+    page,
+    element,
+    systemInfo.windowHeight,
+    label,
+  )
+  if (scrolled) await settle()
+  const current = requery ? await requery() : element
+  await timeout(current.tap(), 3000, label)
+}
+
 async function inspectCandidateVariants(page, relation) {
   const candidateSelector = `.wx-data-role-gear-candidate-row.wx-data-candidate-item-id-${normalizeSelectorMarker(relation.itemId)}`
   const candidate = await requiredElement(page, candidateSelector)
-  await timeout(candidate.tap(), 3000, `open candidate ${relation.itemId}`)
+  await tapGearEditorElement(
+    page,
+    candidate,
+    `open candidate ${relation.itemId}`,
+    () => requiredElement(page, candidateSelector),
+  )
   const selectedDetail = await poll(
     async () => {
       const element = await timeout(
@@ -414,10 +451,22 @@ async function inspectCandidateVariants(page, relation) {
       operationTimeoutMs,
       `rendered canonical variant ${relation.itemId}/${variant.variantKey}`,
     )
-    await timeout(
-      current.tap(),
-      3000,
+    await tapGearEditorElement(
+      page,
+      current,
       `select inspected canonical variant ${variant.markerKey}`,
+      () => poll(
+        () => findElementBySemanticValue(
+          page,
+          variantXpath,
+          maximumVariantsPerItem,
+          'variant-key',
+          variant.markerKey,
+        ),
+        Boolean,
+        operationTimeoutMs,
+        `requery canonical variant ${relation.itemId}/${variant.variantKey}`,
+      ),
     )
     const selected = await poll(
       async () => {
@@ -493,10 +542,23 @@ async function inspectCandidateVariants(page, relation) {
       )
       craftedOptionFactChecks += 1
       if (option.uiState !== 'ready') continue
-      await timeout(
-        actualOption.element.tap(),
-        3000,
+      await tapGearEditorElement(
+        page,
+        actualOption.element,
         `select crafted option ${option.optionId}`,
+        async () => {
+          const rendered = await timeout(
+            page.$$('.wx-data-role-gear-crafted-stat-option'),
+            3000,
+            `requery crafted options for ${relation.itemId}/${variant.variantKey}`,
+          )
+          for (const element of rendered) {
+            if (String(await readSemanticValue(element, 'crafted-option-id') ?? '') === option.optionId) {
+              return element
+            }
+          }
+          throw new Error(`crafted option ${option.optionId} disappeared after scroll`)
+        },
       )
       await poll(
         async () => {
@@ -556,7 +618,7 @@ async function closeCandidateEditor(page) {
   await waitForMissing(page, '.wx-data-owner-gear-candidate-editor-sheet')
 }
 
-async function inspectSlot(page, apiBaseUrl, spec, slot, stableIdentity) {
+async function inspectSlot(miniProgram, page, systemInfo, apiBaseUrl, spec, slot, stableIdentity) {
   const payload = await fetchJson(slotUrl(apiBaseUrl, spec, slot), `${spec.specId}/${slot} compact slot`)
   assertIdentityVector(stableIdentity, identityVector(payload), `${spec.specId}/${slot}`)
   const group = expectedSlot(payload, slot)
@@ -565,7 +627,15 @@ async function inspectSlot(page, apiBaseUrl, spec, slot, stableIdentity) {
     page,
     `.wx-data-role-gear-slot-row.wx-data-slot-key-${normalizeSelectorMarker(slot)}`,
   )
-  await timeout(slotControl.tap(), 3000, `open ${slot}`)
+  const slotSelector = `.wx-data-role-gear-slot-row.wx-data-slot-key-${normalizeSelectorMarker(slot)}`
+  await tapPageElement(
+    miniProgram,
+    page,
+    systemInfo,
+    slotControl,
+    `open ${slot}`,
+    () => requiredElement(page, slotSelector),
+  )
   await requiredElement(page, '.wx-data-owner-gear-candidate-editor-sheet')
   const rows = await visibleCandidateRows(page, relations.length)
   const byItem = await rowIdentityMap(rows)
@@ -662,9 +732,17 @@ async function readSlotState(page, slot) {
   }
 }
 
-async function applyCandidateAndResolve(page, slot) {
+async function applyCandidateAndResolve(miniProgram, page, systemInfo, slot) {
   const before = await readSlotState(page, slot)
-  await timeout(before.row.tap(), 3000, `open ${slot} for apply`)
+  const slotSelector = `.wx-data-role-gear-slot-row.wx-data-slot-key-${normalizeSelectorMarker(slot)}`
+  await tapPageElement(
+    miniProgram,
+    page,
+    systemInfo,
+    before.row,
+    `open ${slot} for apply`,
+    () => requiredElement(page, slotSelector),
+  )
   await requiredElement(page, '.wx-data-owner-gear-candidate-editor-sheet')
   const rows = await poll(
     () => timeout(page.$$('.wx-data-role-gear-candidate-row'), 3000, 'query apply candidates'),
@@ -762,7 +840,7 @@ async function applyCandidateAndResolve(page, slot) {
   }
 }
 
-async function applyCraftedCandidateAndResolve(page, target) {
+async function applyCraftedCandidateAndResolve(miniProgram, page, systemInfo, target) {
   const {
     slot,
     itemId,
@@ -770,13 +848,29 @@ async function applyCraftedCandidateAndResolve(page, target) {
     craftedOptionId,
   } = target
   const before = await readSlotState(page, slot)
-  await timeout(before.row.tap(), 3000, `open ${slot} for crafted apply`)
+  await tapPageElement(
+    miniProgram,
+    page,
+    systemInfo,
+    before.row,
+    `open ${slot} for crafted apply`,
+    () => requiredElement(
+      page,
+      `.wx-data-role-gear-slot-row.wx-data-slot-key-${normalizeSelectorMarker(slot)}`,
+    ),
+  )
   await requiredElement(page, '.wx-data-owner-gear-candidate-editor-sheet')
   const candidate = await requiredElement(
     page,
     `.wx-data-role-gear-candidate-row.wx-data-candidate-item-id-${normalizeSelectorMarker(itemId)}`,
   )
-  await timeout(candidate.tap(), 3000, `select crafted candidate ${itemId}`)
+  const candidateSelector = `.wx-data-role-gear-candidate-row.wx-data-candidate-item-id-${normalizeSelectorMarker(itemId)}`
+  await tapGearEditorElement(
+    page,
+    candidate,
+    `select crafted candidate ${itemId}`,
+    () => requiredElement(page, candidateSelector),
+  )
   const variant = await poll(
     () => findElementBySemanticValue(
       page,
@@ -795,7 +889,23 @@ async function applyCraftedCandidateAndResolve(page, target) {
       `crafted candidate ${itemId}/${variantKey} is not selectable: ${variantState}`,
     )
   }
-  await timeout(variant.tap(), 3000, `select crafted variant ${variantKey}`)
+  await tapGearEditorElement(
+    page,
+    variant,
+    `select crafted variant ${variantKey}`,
+    () => poll(
+      () => findElementBySemanticValue(
+        page,
+        variantXpath,
+        maximumVariantsPerItem,
+        'variant-key',
+        normalizeSelectorMarker(variantKey),
+      ),
+      Boolean,
+      operationTimeoutMs,
+      `requery crafted variant ${itemId}/${variantKey}`,
+    ),
+  )
   const options = await poll(
     () => timeout(
       page.$$('.wx-data-role-gear-crafted-stat-option'),
@@ -820,10 +930,23 @@ async function applyCraftedCandidateAndResolve(page, target) {
       `crafted option ${craftedOptionId} is not ready for ${itemId}/${variantKey}`,
     )
   }
-  await timeout(
-    option.element.tap(),
-    3000,
+  await tapGearEditorElement(
+    page,
+    option.element,
     `select crafted option ${craftedOptionId}`,
+    async () => {
+      const rendered = await timeout(
+        page.$$('.wx-data-role-gear-crafted-stat-option'),
+        3000,
+        `requery crafted options for ${itemId}/${variantKey}`,
+      )
+      for (const element of rendered) {
+        if (String(await readSemanticValue(element, 'crafted-option-id') ?? '') === craftedOptionId) {
+          return element
+        }
+      }
+      throw new Error(`crafted option ${craftedOptionId} disappeared after scroll`)
+    },
   )
   const detail = await poll(
     async () => {
@@ -1591,6 +1714,7 @@ async function simcExecutionOrPolicyBlock(
 
 async function runSpec(
   miniProgram,
+  systemInfo,
   apiBaseUrl,
   spec,
   stableIdentity,
@@ -1598,6 +1722,7 @@ async function runSpec(
   build,
   simcPolicy,
   phase,
+  slotShard,
   diagnosticActionOnly = false,
 ) {
   const route = `/pages/builds/detail?query=gear&spec=${encodeURIComponent(spec.specId)}`
@@ -1610,10 +1735,55 @@ async function runSpec(
   compareStringSets(gearSlots, renderedSlots.map(String), `${spec.specId} rendered slots`)
 
   const slots = []
+  const slotsToInspect = slotShard ? [slotShard] : gearSlots
   if (!diagnosticActionOnly) {
-    for (const slot of gearSlots) {
-      slots.push(await inspectSlot(page, apiBaseUrl, spec, slot, stableIdentity))
+    for (const slot of slotsToInspect) {
+      slots.push(await inspectSlot(
+        miniProgram,
+        page,
+        systemInfo,
+        apiBaseUrl,
+        spec,
+        slot,
+        stableIdentity,
+      ))
     }
+  }
+  if (slotShard) {
+    const result = {
+      classKey: spec.classKey,
+      className: spec.className,
+      specId: spec.specId,
+      specKey: spec.specKey,
+      specName: spec.specName,
+      status: 'SLOT_SHARD_PASS',
+      runtimeBuildIdentity,
+      slots,
+      actions: Object.fromEntries(
+        requiredActions.map((action) => [action, 'NOT_RUN_SLOT_SHARD']),
+      ),
+      actionEvidence: {},
+    }
+    process.stderr.write(`[wechat-gear-matrix:spec:end] ${spec.classKey}/${spec.specKey} SLOT_SHARD_PASS\n`)
+    return result
+  }
+  if (phase === 'preview_catalog_only') {
+    const result = {
+      classKey: spec.classKey,
+      className: spec.className,
+      specId: spec.specId,
+      specKey: spec.specKey,
+      specName: spec.specName,
+      status: 'CATALOG_ONLY_PASS',
+      runtimeBuildIdentity,
+      slots,
+      actions: Object.fromEntries(
+        requiredActions.map((action) => [action, 'NOT_RUN_CATALOG_ONLY']),
+      ),
+      actionEvidence: {},
+    }
+    process.stderr.write(`[wechat-gear-matrix:spec:end] ${spec.classKey}/${spec.specKey} CATALOG_ONLY_PASS\n`)
+    return result
   }
   const applySlots = ['head', 'main_hand', 'trinket1']
   const applySelection = diagnosticActionOnly
@@ -1622,7 +1792,12 @@ async function runSpec(
   const candidateApplyResolve = diagnosticActionOnly
     ? { status: 'SKIP_DIAGNOSTIC_ONLY' }
     : {
-        ...await applyCandidateAndResolve(page, applySelection.slot),
+        ...await applyCandidateAndResolve(
+          miniProgram,
+          page,
+          systemInfo,
+          applySelection.slot,
+        ),
         preferredSlot: applySelection.preferredSlot,
         usedFallback: applySelection.usedFallback,
       }
@@ -1654,7 +1829,9 @@ async function runSpec(
   const craftedStatApplyResolve = diagnosticActionOnly
     ? { status: 'SKIP_DIAGNOSTIC_ONLY' }
     : await applyCraftedCandidateAndResolve(
+        miniProgram,
         page,
+        systemInfo,
         craftedTarget,
       )
   const baselineStorage = await storageValue(miniProgram)
@@ -1730,10 +1907,23 @@ async function main() {
   const outputPath = path.resolve(requiredEnvironment('WECHAT_GEAR_MATRIX_OUTPUT'))
   const buildMetadataPath = path.resolve(requiredEnvironment('WECHAT_GEAR_MATRIX_BUILD_METADATA'))
   const diagnosticActionOnly = process.env.WECHAT_GEAR_MATRIX_DIAGNOSTIC_ACTION_ONLY === '1'
-  const phase = String(process.env.WECHAT_GEAR_MATRIX_PHASE || 'full').trim()
-  if (phase !== 'full' && phase !== 'preview_catalog_actions') {
-    throw new Error(`unsupported WECHAT_GEAR_MATRIX_PHASE ${phase}`)
+  const slotShard = normalizeGearSlotShard(
+    process.env.WECHAT_GEAR_MATRIX_SLOT_SHARD,
+  )
+  if (slotShard && diagnosticActionOnly) {
+    throw new Error('slot shard and diagnostic action-only modes cannot be combined')
   }
+  const requestedPhase = String(process.env.WECHAT_GEAR_MATRIX_PHASE || 'full').trim()
+  if (
+    requestedPhase !== 'full'
+    && requestedPhase !== 'preview_catalog_actions'
+    && requestedPhase !== 'preview_catalog_only'
+  ) {
+    throw new Error(`unsupported WECHAT_GEAR_MATRIX_PHASE ${requestedPhase}`)
+  }
+  const phase = slotShard
+    ? 'preview_catalog_slot_shard'
+    : requestedPhase
   const build = JSON.parse(fs.readFileSync(buildMetadataPath, 'utf8'))
   if (!build?.gitHead || !build?.sourceHash) throw new Error('WeChat build metadata lacks gitHead/sourceHash')
   const home = await fetchJson(new URL('/api/builds/home', apiBaseUrl), 'builds home')
@@ -1758,6 +1948,7 @@ async function main() {
       try {
         results.push(await runSpec(
           miniProgram,
+          systemInfo,
           apiBaseUrl,
           spec,
           stableIdentity,
@@ -1765,6 +1956,7 @@ async function main() {
           build,
           simcPolicy,
           phase,
+          slotShard,
           diagnosticActionOnly,
         ))
       } catch (error) {
@@ -1795,14 +1987,36 @@ async function main() {
         break
       }
     }
+    const catalogOnly = phase === 'preview_catalog_only'
+    const expectedResultStatus = slotShard
+      ? 'SLOT_SHARD_PASS'
+      : catalogOnly
+        ? 'CATALOG_ONLY_PASS'
+      : phase === 'preview_catalog_actions'
+        ? 'PREVIEW_PASS'
+        : 'PASS'
+    const successStatus = slotShard
+      ? 'SLOT_SHARD_PASS'
+      : catalogOnly
+        ? 'CATALOG_ONLY_PASS'
+      : phase === 'preview_catalog_actions'
+        ? 'PREVIEW_CATALOG_ACTIONS_PASS'
+        : 'PASS'
     const report = {
       schemaVersion: 1,
-      kind: 'wechat-gear-class-matrix',
+      kind: slotShard
+        ? 'wechat-gear-slot-shard'
+        : catalogOnly
+          ? 'wechat-gear-catalog-only-class-matrix'
+        : 'wechat-gear-class-matrix',
       scope: {
         classKey,
+        ...(slotShard ? { slotShard } : {}),
         expectedSpecs: specs.map((item) => item.specId),
-        expectedSlotsPerSpec: gearSlots,
+        expectedSlotsPerSpec: slotShard ? [slotShard] : gearSlots,
         partialClassRunCannotProveGoal: true,
+        catalogOnly: Boolean(slotShard || catalogOnly),
+        actionsExcluded: Boolean(slotShard || catalogOnly),
         diagnosticActionOnly,
         phase,
         formalManifestRequiredForSkippedSimc: phase === 'preview_catalog_actions',
@@ -1811,12 +2025,8 @@ async function main() {
         ? (!failure ? 'DIAGNOSTIC_PASS' : 'DIAGNOSTIC_FAIL')
         : !failure
           && results.length === specs.length
-          && results.every((item) => item.status === (
-            phase === 'preview_catalog_actions' ? 'PREVIEW_PASS' : 'PASS'
-          ))
-          ? phase === 'preview_catalog_actions'
-            ? 'PREVIEW_CATALOG_ACTIONS_PASS'
-            : 'PASS'
+          && results.every((item) => item.status === expectedResultStatus)
+          ? successStatus
           : 'FAIL',
       startedAt,
       completedAt: new Date().toISOString(),
@@ -1840,7 +2050,7 @@ async function main() {
         specsExpected: specs.length,
         specsExecuted: results.length,
         specsPassed: results.filter((item) => (
-          item.status === (phase === 'preview_catalog_actions' ? 'PREVIEW_PASS' : 'PASS')
+          item.status === expectedResultStatus
         )).length,
         slotChecks: results.reduce((sum, item) => sum + item.slots.length, 0),
         itemProgressionRelations: results.reduce(
@@ -1914,7 +2124,9 @@ async function main() {
       classKey,
       outputPath,
       totals: report.totals,
-      note: phase === 'preview_catalog_actions'
+      note: slotShard
+        ? 'A catalog slot shard cannot prove action, SimC, or the 40-spec Goal verdict.'
+        : phase === 'preview_catalog_actions'
         ? 'Preview catalog/actions evidence cannot prove final formal SimC or the 40-spec Goal verdict.'
         : 'A class PASS is not the 40-spec Goal verdict.',
     }, null, 2)}\n`)
@@ -1922,6 +2134,8 @@ async function main() {
       report.status !== 'PASS'
       && report.status !== 'DIAGNOSTIC_PASS'
       && report.status !== 'PREVIEW_CATALOG_ACTIONS_PASS'
+      && report.status !== 'SLOT_SHARD_PASS'
+      && report.status !== 'CATALOG_ONLY_PASS'
     ) process.exitCode = 1
   } finally {
     try {

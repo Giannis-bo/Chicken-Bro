@@ -1,6 +1,6 @@
 # 装备模拟端到端完整性验证 Goal
 
-**状态：** 正在推进
+**状态：** `blocked`（2026-07-31 截止收口；未达到完整性和全矩阵完成门禁）
 
 **Harness 分级：** Strict，多阶段 Goal；每个会改变数据、Catalog、运行时或发布状态的切片必须使用自己的唯一 task-scoped release packet。
 **用户目标：** 玩家在真实微信小程序中浏览、导入、编辑、保存并模拟当前赛季 PVE 装备时，看到的是完整、合法、可追溯且可执行的后端事实；不能漏装备，不能把 `partial` / `blocked` 包装成通过，也不能靠视图绕过上游问题。
@@ -148,3 +148,48 @@
 5. merge、production、local/origin/cloud parity 与清理完成；
 
 之后才能标记完成。
+
+## 7. 2026-07-31 截止收口
+
+本 Goal 按用户要求在 17:30 前停止扩展并完成迁移收口。结论必须保持
+`blocked`，不能标记为完成或允许生产 promotion：
+
+- 官方 build `12.0.7.68887` 的来源关系链共有 178 条加密记录，已真实恢复
+  114 条，仍有 64 条不可用。当前公开 TACTKeys、9 份 verified DBCache
+  和 98 份 opt-in exact-build DBCache 的并集仍缺
+  `14f4b11d7b067aa2`（12 条）、`62bf37a70e6d54f6`（8 条）和
+  `fbbf041f980ce0dc`（44 条），因此
+  `APPROVED_PUBLIC_TACT_KEYS_INCOMPLETE` 与
+  `CURRENT_CLIENT_ENCRYPTED_SOURCE_RECORDS_UNAVAILABLE` 未解除。
+- 官方来源投影仍为 19 类中的 `complete=0`、`partial=9`、`blocked=10`，
+  21 条 progression、source membership 和 transform eligibility 缺口没有
+  得到治理性 closure；候选 Universe、Catalog 和 production pointer 均未把这些
+  缺口伪装为成功。
+- 隔离 Gear Release
+  `gear-release:sha256:2b197bf7609411575a5e433b20386325c533bf473c67ba47fc5e3f4479e5d2ad`
+  已校验为 1564 items、33599 sources、52713 variants、73 mod options。
+  但新的社区模板构建仅有 7/80 能满足同 item、已核验 progression authority，
+  所以未发布 Community Release，也未组成可 promotion 的正式 Manifest。
+- 最新微信包绑定源码头 `1b33356c3e97653bc91f3747ecd046784650d0a7`、
+  source hash
+  `sha256:e9e8556a3a630f38125e8ff586ef593136f5e028046ddc38c49335f742a044e1`
+  和上述 gear-only preview。官方微信开发者工具实际完成死亡骑士 3 专精、
+  48 槽、432 个候选、1269 个 item/progression relation 的可见事实检查，并
+  实际选择 1173 个 ready/partial 变体，结果为 `CATALOG_ONLY_PASS`。动作、
+  Exact、保存、Resolve 和 SimC 明确未在该只读阶段执行；其余 12 职业、
+  37 专精和完整 13×40×16 终局矩阵未完成，因此不能外推为 Goal 通过。
+- 本轮按真实微信失败追到并修正三条事实/证据合同：`speed` 后端权威标签统一为
+  “速度”；上游 progression conflict 的 blocked 变体不再被要求或伪造装等；
+  UI 不再在用户点击前把后端默认 variant 标记成已选择，避免 stale stats
+  被 runner 误认成目标变体。相邻回归为 Vitest 44/44、Node 53/53。
+- 云端候选 service、484 MB 隔离数据库、116 MB 候选目录和专用凭据均已回收；
+  根盘由 80% 回到 79%，`MemAvailable=2551 MiB`，生产 backend
+  `active/NRestarts=0`。两个原有 timer 已恢复 active；Persistent timer
+  触发的 community backflow 被立即停止并 reset 为 inactive，下一次自然运行
+  为次日窗口。生产 generation 仍为 35，Manifest/Gear/Community/Catalog/Exact
+  五个正式指针与 Goal 前完全相同。
+
+迁移入口为任务分支 `codex/equipment-simulator-e2e-matrix` 及
+`artifacts/releases/2026-07-30-equipment-simulator-e2e-matrix/handoff.json`。
+隔离原始官方快照约 791 MB，仅保留在本机证据目录，没有提交 Git、同步生产或
+上传云服务器；可迁移的结论、哈希、阻断项和微信实测报告已进入任务分支。

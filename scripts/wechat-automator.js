@@ -138,6 +138,33 @@ async function findElementBySemanticValue(
   expectedValue,
 ) {
   const expected = String(expectedValue ?? '')
+  const normalizedAttribute = attribute.replace(/^data-/u, '')
+  if (
+    /^[A-Za-z0-9_-]+$/u.test(normalizedAttribute)
+    && /^[A-Za-z0-9_-]+$/u.test(expected)
+  ) {
+    const marker = `wx-data-${normalizedAttribute}-${expected}`
+    try {
+      const direct = await timeout(
+        page.getElementByXpath(`//*[contains(@class, "${marker}")]`),
+        2000,
+        `query semantic marker ${marker}`,
+      )
+      if (
+        direct
+        && String(await readSemanticValue(direct, normalizedAttribute) ?? '') === expected
+      ) {
+        return direct
+      }
+    } catch (error) {
+      if (
+        !(error instanceof Error)
+        || error.message !== "Cannot read properties of undefined (reading 'attributes')"
+      ) {
+        throw error
+      }
+    }
+  }
   const elements = await queryElementsByXpathSequentially(
     page,
     xpath,
@@ -149,6 +176,95 @@ async function findElementBySemanticValue(
     }
   }
   return null
+}
+
+function finiteOffset(value, field, label) {
+  const number = Number(value?.[field])
+  if (!Number.isFinite(number)) {
+    throw new Error(`${label} is missing a finite ${field} offset`)
+  }
+  return number
+}
+
+async function scrollElementIntoView(
+  scrollView,
+  element,
+  label = 'element',
+  margin = 16,
+) {
+  const [scrollOffset, scrollSize, elementOffset, elementSize, scrollTop] = await Promise.all([
+    timeout(scrollView.offset(), 1500, `read ${label} scroll offset`),
+    timeout(scrollView.size(), 1500, `read ${label} scroll size`),
+    timeout(element.offset(), 1500, `read ${label} offset`),
+    timeout(element.size(), 1500, `read ${label} size`),
+    timeout(scrollView.property('scrollTop'), 1500, `read ${label} scroll top`),
+  ])
+  const viewportTop = finiteOffset(scrollOffset, 'top', `${label} scroll`)
+  const viewportHeight = finiteOffset(scrollSize, 'height', `${label} scroll`)
+  const targetTop = finiteOffset(elementOffset, 'top', label)
+  const targetHeight = finiteOffset(elementSize, 'height', label)
+  const currentScrollTop = Number(scrollTop)
+  if (!Number.isFinite(currentScrollTop)) {
+    throw new Error(`${label} scrollTop is not finite`)
+  }
+  const safeMargin = Math.max(0, Math.min(Number(margin) || 0, viewportHeight / 3))
+  const viewportBottom = viewportTop + viewportHeight
+  const targetBottom = targetTop + targetHeight
+  let nextScrollTop = currentScrollTop
+  if (targetTop < viewportTop + safeMargin) {
+    nextScrollTop += targetTop - viewportTop - safeMargin
+  } else if (targetBottom > viewportBottom - safeMargin) {
+    nextScrollTop += targetBottom - viewportBottom + safeMargin
+  } else {
+    return false
+  }
+  await timeout(
+    scrollView.scrollTo(0, Math.max(0, Math.round(nextScrollTop))),
+    2000,
+    `scroll ${label} into view`,
+  )
+  return true
+}
+
+async function scrollPageElementIntoView(
+  miniProgram,
+  page,
+  element,
+  viewportHeight,
+  label = 'element',
+  margin = 16,
+) {
+  const [elementOffset, elementSize, scrollTop] = await Promise.all([
+    timeout(element.offset(), 1500, `read ${label} page offset`),
+    timeout(element.size(), 1500, `read ${label} page size`),
+    timeout(page.scrollTop(), 1500, `read ${label} page scroll top`),
+  ])
+  const targetTop = finiteOffset(elementOffset, 'top', label)
+  const targetHeight = finiteOffset(elementSize, 'height', label)
+  const currentScrollTop = Number(scrollTop)
+  const safeViewportHeight = Number(viewportHeight)
+  if (!Number.isFinite(currentScrollTop) || !Number.isFinite(safeViewportHeight) || safeViewportHeight <= 0) {
+    throw new Error(`${label} page viewport is not finite`)
+  }
+  const safeMargin = Math.max(0, Math.min(Number(margin) || 0, safeViewportHeight / 3))
+  const targetBottom = targetTop + targetHeight
+  let nextScrollTop = currentScrollTop
+  if (targetTop < safeMargin) {
+    nextScrollTop += targetTop - safeMargin
+  } else if (targetBottom > safeViewportHeight - safeMargin) {
+    nextScrollTop += targetBottom - safeViewportHeight + safeMargin
+  } else {
+    return false
+  }
+  await timeout(
+    miniProgram.callWxMethod('pageScrollTo', {
+      scrollTop: Math.max(0, Math.round(nextScrollTop)),
+      duration: 0,
+    }),
+    2000,
+    `scroll page to ${label}`,
+  )
+  return true
 }
 
 async function assertAutomatorRuntimeCompatible(
@@ -279,6 +395,8 @@ module.exports = {
   queryElementsByXpathSequentially,
   queryElementsWithXpathFallback,
   readSemanticValue,
+  scrollElementIntoView,
+  scrollPageElementIntoView,
   timeout,
   waitForRenderedPage,
   waitForSystemInfo,

@@ -172,7 +172,7 @@ function CandidateDetails({
       className={style('candidateDetails')}
       data-candidate-draft-crafted-option-id={draft.selectedCraftedOptionId}
       data-candidate-draft-item-id={String(draft.candidate.itemId ?? '').trim()}
-      data-candidate-draft-variant-key={draft.selectedVariantKey || String(draft.candidate.variantKey ?? '').trim()}
+      data-candidate-draft-variant-key={draft.selectedVariantKey}
       data-role="gear-candidate-detail"
     >
       <View className={style('detailHeading')}>

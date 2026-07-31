@@ -7,8 +7,10 @@ const { writeBoundedJsonAtomic } = require('./bounded-json-detail')
 const {
   normalizeSpecMatrix,
   requiredActions,
+  summarizeWechatGearCatalogOnlyClassReports,
   summarizeWechatGearClassReports,
   summarizeWechatGearPreviewClassReports,
+  summarizeWechatGearSlotShardReports,
 } = require('./wechat-gear-matrix-contract')
 
 const requestTimeoutMs = 15000
@@ -43,7 +45,12 @@ async function main() {
   const buildMetadataPath = path.resolve(requiredEnvironment('WECHAT_GEAR_MATRIX_BUILD_METADATA'))
   const outputPath = path.resolve(requiredEnvironment('WECHAT_GEAR_MATRIX_SUMMARY_OUTPUT'))
   const phase = String(process.env.WECHAT_GEAR_MATRIX_SUMMARY_PHASE || 'full').trim()
-  if (phase !== 'full' && phase !== 'preview_catalog_actions') {
+  if (
+    phase !== 'full'
+    && phase !== 'preview_catalog_actions'
+    && phase !== 'preview_catalog_only_classes'
+    && phase !== 'preview_catalog_slot_shards'
+  ) {
     throw new Error(`unsupported WECHAT_GEAR_MATRIX_SUMMARY_PHASE ${phase}`)
   }
   const rawReportPaths = JSON.parse(requiredEnvironment('WECHAT_GEAR_MATRIX_REPORTS'))
@@ -56,24 +63,41 @@ async function main() {
   const reports = reportPaths.map((filePath) => readJson(filePath, 'WeChat class matrix report'))
   const home = await fetchJson(new URL('/api/builds/home', apiBaseUrl), 'builds home')
   const expectedSpecs = normalizeSpecMatrix(home)
-  const summary = phase === 'preview_catalog_actions'
-    ? summarizeWechatGearPreviewClassReports(reports, expectedSpecs, build)
-    : summarizeWechatGearClassReports(reports, expectedSpecs, build)
-  const expectedStatus = phase === 'preview_catalog_actions'
-    ? 'PREVIEW_CATALOG_ACTIONS_PASS'
-    : 'PASS'
+  const summary = phase === 'preview_catalog_only_classes'
+    ? summarizeWechatGearCatalogOnlyClassReports(reports, expectedSpecs, build)
+    : phase === 'preview_catalog_slot_shards'
+    ? summarizeWechatGearSlotShardReports(reports, expectedSpecs, build)
+    : phase === 'preview_catalog_actions'
+      ? summarizeWechatGearPreviewClassReports(reports, expectedSpecs, build)
+      : summarizeWechatGearClassReports(reports, expectedSpecs, build)
+  const expectedStatus = phase === 'preview_catalog_only_classes'
+    ? 'CATALOG_ONLY_MATRIX_PASS'
+    : phase === 'preview_catalog_slot_shards'
+    ? 'SLOT_SHARD_MATRIX_PASS'
+    : phase === 'preview_catalog_actions'
+      ? 'PREVIEW_CATALOG_ACTIONS_PASS'
+      : 'PASS'
   const artifact = {
     schemaVersion: 1,
-    kind: phase === 'preview_catalog_actions'
-      ? 'wechat-gear-preview-catalog-actions-summary'
-      : 'wechat-gear-goal-matrix-summary',
+    kind: phase === 'preview_catalog_only_classes'
+      ? 'wechat-gear-preview-catalog-only-class-summary'
+      : phase === 'preview_catalog_slot_shards'
+      ? 'wechat-gear-preview-slot-shard-summary'
+      : phase === 'preview_catalog_actions'
+        ? 'wechat-gear-preview-catalog-actions-summary'
+        : 'wechat-gear-goal-matrix-summary',
     status: summary.status,
     completedAt: new Date().toISOString(),
     scope: {
       requiredClasses: 13,
       requiredSpecs: 40,
       requiredSlotsPerSpec: 16,
-      requiredActionsPerSpec: requiredActions.length,
+      requiredActionsPerSpec: (
+        phase === 'preview_catalog_slot_shards'
+        || phase === 'preview_catalog_only_classes'
+      )
+        ? 0
+        : requiredActions.length,
       diagnosticReportsAllowed: false,
       phase,
       formalSimcProven: phase === 'full',

@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Resource-bounded audit trail for the isolated official current-client DB2 capture",
+  "build": "12.0.7.68887",
+  "attempts": [
+    {
+      "sequence": 1,
+      "approach": "stock_simc_extractor_default_keyfile",
+      "status": "failed_before_capture",
+      "rootCause": "The extractor resolved its default keyfile relative to the wrong working directory.",
+      "persistedDb2Count": 0
+    },
+    {
+      "sequence": 2,
+      "approach": "stock_simc_extractor_archive_enumeration",
+      "status": "stopped",
+      "rootCause": "The stock extractor enumerated archive indexes serially and did not satisfy the Goal's bounded-resource capture contract.",
+      "observedArchiveIndexes": "132/1347",
+      "persistedDb2Count": 0
+    },
+    {
+      "sequence": 3,
+      "approach": "direct_loose_encoding_probe",
+      "status": "diagnostic_only",
+      "rootCause": "The loose encoding object is 184704226 bytes; the initial unbounded request had no progress or timeout evidence and was stopped.",
+      "persistedDb2Count": 0
+    },
+    {
+      "sequence": 4,
+      "approach": "full_encoding_and_root_maps",
+      "status": "stopped_on_resource_gate",
+      "rootCause": "Materializing the full encoding and root maps exceeded the intended audit footprint.",
+      "observedDiskPercent": 81,
+      "action": "Stopped immediately; removed only recoverable or incomplete isolated capture copies.",
+      "persistedDb2Count": 0
+    },
+    {
+      "sequence": 5,
+      "approach": "full_encoding_and_root_maps_bounded_unit",
+      "status": "timed_out",
+      "rootCause": "The map-heavy design remained unsuitable even under a unit boundary.",
+      "timeoutSeconds": 900,
+      "peakMemoryMiB": 512.5,
+      "cumulativeSwapMiB": 1000.3,
+      "persistedDb2Count": 0
+    },
+    {
+      "sequence": 6,
+      "approach": "streaming_targeted_smoke",
+      "status": "complete",
+      "requestedFileCount": 1,
+      "capturedFileCount": 1,
+      "elapsedSeconds": 44.64,
+      "peakMemoryMiB": 256.4,
+      "swapMiB": 0,
+      "persistedDb2Count": 1,
+      "manifest": "smoke-manifest.json"
+    },
+    {
+      "sequence": 7,
+      "approach": "streaming_targeted_full",
+      "status": "partial",
+      "requestedFileCount": 53,
+      "capturedFileCount": 51,
+      "missingFileCount": 2,
+      "elapsedSeconds": 151.27,
+      "peakMemoryMiB": 256.4,
+      "swapMiB": 0,
+      "persistedDb2Count": 51,
+      "manifest": "capture-manifest.json"
+    }
+  ],
+  "finalSafetyState": {
+    "productionBackendRestarts": 0,
+    "candidateBackendRestarts": 0,
+    "productionMutation": false,
+    "releasePointerMutation": false,
+    "asyncSyncsStarted": false,
+    "expensiveTimers": {
+      "wow-gear-release-refresh.timer": "inactive",
+      "wow-community-template-sync.timer": "inactive"
+    },
+    "healthFollowup": {
+      "timer": "active_preexisting",
+      "lastRunActions": [],
+      "simcRuntimeUpdateTriggered": false
+    }
+  }
+}

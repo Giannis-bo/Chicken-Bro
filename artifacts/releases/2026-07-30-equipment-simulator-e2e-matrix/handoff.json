@@ -1,0 +1,156 @@
+{
+  "schemaVersion": 1,
+  "kind": "equipment-simulator-e2e-goal-handoff",
+  "status": "blocked",
+  "closedAt": "2026-07-31T16:33:00+08:00",
+  "deadline": "2026-07-31T17:30:00+08:00",
+  "goalId": "019faddb-abb5-79a3-a477-3cb6e6368120",
+  "git": {
+    "branch": "codex/equipment-simulator-e2e-matrix",
+    "testedSourceHead": "1b33356c3e97653bc91f3747ecd046784650d0a7",
+    "wechatSourceHash": "sha256:e9e8556a3a630f38125e8ff586ef593136f5e028046ddc38c49335f742a044e1",
+    "handoffRevision": "branch-head"
+  },
+  "completionGates": {
+    "officialUniverseComplete": false,
+    "formalCandidateManifestComplete": false,
+    "automatedFortySpecMatrixComplete": false,
+    "wechatFortySpecMatrixComplete": false,
+    "supportedSimcTwentySixComplete": false,
+    "unsupportedSimcFourteenComplete": false,
+    "postTestUserAcceptance": false,
+    "productionPromotionAllowed": false
+  },
+  "officialUniverse": {
+    "status": "blocked",
+    "clientBuild": "12.0.7.68887",
+    "requiredSourceCount": 19,
+    "completeSourceCount": 0,
+    "partialSourceCount": 9,
+    "blockedSourceCount": 10,
+    "gapCount": 21,
+    "encryptedRecordCount": 178,
+    "decryptedRecordCount": 114,
+    "unavailableEncryptedRecordCount": 64,
+    "missingTactKeys": [
+      {
+        "id": "14f4b11d7b067aa2",
+        "recordCount": 12
+      },
+      {
+        "id": "62bf37a70e6d54f6",
+        "recordCount": 8
+      },
+      {
+        "id": "fbbf041f980ce0dc",
+        "recordCount": 44
+      }
+    ],
+    "blockers": [
+      "APPROVED_PUBLIC_TACT_KEYS_INCOMPLETE",
+      "CURRENT_CLIENT_DBCACHE_CORPUS_TACT_KEYS_INCOMPLETE",
+      "CURRENT_CLIENT_ENCRYPTED_SOURCE_RECORDS_UNAVAILABLE",
+      "OFFICIAL_SOURCE_MEMBERSHIP_API_UNAVAILABLE",
+      "OFFICIAL_PROGRESSION_STATE_UNAVAILABLE",
+      "OFFICIAL_TRANSFORM_ELIGIBILITY_RELATION_UNAVAILABLE"
+    ],
+    "catalogMutation": false,
+    "productionMutation": false
+  },
+  "candidate": {
+    "gearReleaseId": "gear-release:sha256:2b197bf7609411575a5e433b20386325c533bf473c67ba47fc5e3f4479e5d2ad",
+    "snapshotHash": "sha256:7005cbafecdd6cd5c9b97fc99a9a37a113fdf4a04d49f381c19255ad006819f0",
+    "contentHash": "sha256:703fd0e2cae4799f99f9442d4c3fdf7a491aa544491bc47cb40602f1d0040dcc",
+    "counts": {
+      "items": 1564,
+      "sources": 33599,
+      "variants": 52713,
+      "modOptions": 73
+    },
+    "communityReleasePublished": false,
+    "communityTemplateDiagnostic": {
+      "requiredTemplates": 80,
+      "readyTemplates": 7,
+      "rootCause": "same-item verified crafted progression authority is unavailable for the new gear release"
+    },
+    "formalManifestPublished": false,
+    "productionPromotion": false,
+    "cleanup": {
+      "backendService": "inactive",
+      "databaseRemoved": true,
+      "candidateRootRemoved": true,
+      "candidateCredentialsRemoved": true
+    }
+  },
+  "wechatDevTools": {
+    "version": "2.02.2607161",
+    "phase": "preview_catalog_only",
+    "status": "CATALOG_ONLY_PASS",
+    "classes": 1,
+    "specs": 3,
+    "slotChecks": 48,
+    "candidateRowFactChecks": 432,
+    "candidateMediaChecks": 432,
+    "candidateDetailFactChecks": 432,
+    "itemProgressionRelations": 1269,
+    "variantDisplayFactChecks": 1269,
+    "expectedSelectableVariants": 1173,
+    "selectedVariantFactChecks": 1173,
+    "actionsExcluded": true,
+    "report": "wechat/catalog-only-classes/deathknight.json",
+    "reportSha256": "2afb8bbec53e33b179c3cf1511cfb9cdc1487b8e7ce8ac3e9508668470d812b6",
+    "cannotProveGoal": true
+  },
+  "fixes": [
+    "render backend speed authority as 速度 instead of 加速",
+    "preserve blocked progression-conflict variants without inventing item level",
+    "do not mark a backend default variant as explicitly selected before the real tap transition"
+  ],
+  "verification": {
+    "vitest": {
+      "filesPassed": 2,
+      "testsPassed": 44,
+      "testsFailed": 0
+    },
+    "nodeTest": {
+      "testsPassed": 53,
+      "testsFailed": 0
+    },
+    "diffCheck": "pass"
+  },
+  "production": {
+    "pointerGeneration": 35,
+    "manifestRevision": "season-manifest:sha256:20453991e93a1dc1650dbacfd85bdd042e9b020737c7851bef943f1e3e68883a",
+    "gearReleaseId": "gear-release:sha256:9299fe1f942dc272f402e4d735d6a1bf8111a8f156464e0777cd6df78769edc7",
+    "communityReleaseId": "community-release:sha256:686708be049323a979b66bfba42cae3f2b80f7337e740d26b299fd73e0665804",
+    "gearCatalogRevision": "gear-catalog:sha256:2ddd8fe84202d086f0f9bf08d7e1cf1b56ff613a181bf8754cbf95841be4eb40",
+    "gearExactRegistryRevision": "gear-exact-registry:sha256:c56221bce4070f683e3afb71b65eaa573f4b9d8dc30b26c055f5538cc1aa4523",
+    "backendActive": true,
+    "backendRestarts": 0,
+    "overallDataHealth": "partial",
+    "gearCatalogHealth": "partial",
+    "rootDiskUsedPercent": 79,
+    "memoryAvailableMiB": 2551,
+    "swapFreeMiB": 1864,
+    "gearRefreshTimer": "active",
+    "communityTemplateTimer": "active",
+    "gearRefreshService": "inactive",
+    "communityTemplateService": "inactive"
+  },
+  "evidence": {
+    "rawSnapshotLocalOnly": true,
+    "rawSnapshotBytesOnClosure": 830447616,
+    "rawSnapshotCommittedToGit": false,
+    "rawSnapshotUploadedToCloud": false,
+    "officialMembershipSnapshotSha256": "e7be43c5a22e93b64fc8c5850704082a69d07d5b134a21ae2ed98d71d950a3f0",
+    "clientSourceRelationsAuditSha256": "f52c7da7166f80b4da8c77eb7b0f9213938bc3a0a77e99238148eed842483d87",
+    "tactKeyUpstreamAuditSha256": "fa5990177feae8715ae9d641d486c11596153a34c492e4e36681f71998c42ab3"
+  },
+  "resumeOrder": [
+    "obtain an approved exact-build source for the three missing TACT keys or authoritative decrypted records",
+    "rebuild the 19-source one-to-one inclusion, exclusion, and blocked universe ledger",
+    "rebuild a formal Gear plus Community plus Manifest candidate without degraded templates",
+    "run all 13 classes, 40 specs, 640 slots, actions, Exact, Resolve, save and 26 plus 14 SimC paths in the official WeChat DevTools",
+    "request explicit post-test user acceptance before merge or production promotion"
+  ]
+}

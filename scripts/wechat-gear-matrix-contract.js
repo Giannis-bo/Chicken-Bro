@@ -31,6 +31,15 @@ const requiredActions = Object.freeze([
   'simcExecutionOrPolicyBlock',
 ])
 
+function normalizeGearSlotShard(value) {
+  const slot = String(value ?? '').trim()
+  if (!slot) return null
+  if (!gearSlots.includes(slot)) {
+    throw new Error(`unsupported WeChat gear slot shard ${slot}`)
+  }
+  return slot
+}
+
 function normalizeSelectorMarker(value) {
   const normalized = String(value)
     .trim()
@@ -218,8 +227,14 @@ function normalizeCandidateDisplayRelations(group) {
         'variant label',
         itemId,
       )
+      const apiStatus = requiredDisplayText(
+        firstDisplayText(variant?.status, variant?.state),
+        'variant status',
+        itemId,
+      )
+      const uiState = variantUiState(variant)
       const variantLevel = finitePositiveNumber(variant?.itemLevel, variant?.ilevel)
-      if (variantLevel === null) {
+      if (variantLevel === null && uiState !== 'blocked') {
         throw new Error(`candidate ${itemId} variant ${variantKey} is missing item level`)
       }
       const progression = requiredDisplayText(
@@ -232,12 +247,6 @@ function normalizeCandidateDisplayRelations(group) {
         'variant progression kind',
         itemId,
       )
-      const apiStatus = requiredDisplayText(
-        firstDisplayText(variant?.status, variant?.state),
-        'variant status',
-        itemId,
-      )
-      const uiState = variantUiState(variant)
       const variantStatSummary = displayText(variant?.statSummary)
       if (uiState !== 'blocked' && !variantStatSummary) {
         throw new Error(`candidate ${itemId} variant ${variantKey} is missing variant stats`)
@@ -254,7 +263,7 @@ function normalizeCandidateDisplayRelations(group) {
         variantKey,
         markerKey: normalizeSelectorMarker(variantKey),
         label,
-        levelLabel: `装等 ${Math.round(variantLevel)}`,
+        levelLabel: variantLevel === null ? '' : `装等 ${Math.round(variantLevel)}`,
         itemLevel: variantLevel,
         statSummary: variantStatSummary,
         progression,
@@ -542,6 +551,391 @@ function sameStringSet(actualValues, expectedValues) {
   const actual = [...new Set((actualValues ?? []).map(String))].sort()
   const expected = [...new Set((expectedValues ?? []).map(String))].sort()
   return JSON.stringify(actual) === JSON.stringify(expected)
+}
+
+function summarizeWechatGearSlotShardReports(
+  reports,
+  expectedSpecs,
+  expectedBuild,
+) {
+  const reasonCodes = new Set()
+  const expectedByClass = new Map()
+  const expectedBySpecId = new Map()
+  for (const spec of expectedSpecs) {
+    if (!expectedByClass.has(spec.classKey)) expectedByClass.set(spec.classKey, [])
+    expectedByClass.get(spec.classKey).push(spec)
+    expectedBySpecId.set(spec.specId, spec)
+  }
+  if (expectedSpecs.length !== 40 || expectedByClass.size !== 13) {
+    reasonCodes.add('topology_incomplete')
+  }
+  const expectedShardKeys = new Set(
+    [...expectedByClass.keys()].flatMap(
+      (classKey) => gearSlots.map((slot) => `${classKey}/${slot}`),
+    ),
+  )
+  const reportShardKeys = reports.map((report) => (
+    `${String(report?.scope?.classKey ?? '')}/${String(report?.scope?.slotShard ?? '')}`
+  ))
+  if (
+    reports.length !== expectedShardKeys.size
+    || new Set(reportShardKeys).size !== reports.length
+    || reportShardKeys.some((key) => !expectedShardKeys.has(key))
+    || [...expectedShardKeys].some((key) => !reportShardKeys.includes(key))
+  ) {
+    reasonCodes.add('slot_shard_reports_incomplete')
+  }
+
+  const expectedRuntimeIdentity = {
+    gitHead: normalizeSelectorMarker(expectedBuild?.gitHead ?? ''),
+    sourceHash: normalizeSelectorMarker(expectedBuild?.sourceHash ?? ''),
+  }
+  const apiIdentityFields = [
+    'manifestRevision',
+    'gearCatalogRevision',
+    'gearExactRegistryRevision',
+    'gearCatalogReleaseId',
+    'communityTemplateReleaseId',
+    'pointerGeneration',
+  ]
+  const apiIdentityVectors = new Set()
+  const seenSpecSlots = new Set()
+  const seenSpecs = new Set()
+  const seenClasses = new Set()
+  let slotChecks = 0
+  let itemChecks = 0
+  let variantChecks = 0
+  let itemProgressionRelations = 0
+  let candidateRowFactChecks = 0
+  let candidateMediaChecks = 0
+  let candidateDetailFactChecks = 0
+  let variantDisplayFactChecks = 0
+  let expectedSelectableVariants = 0
+  let selectedVariantFactChecks = 0
+  let craftedOptionFactChecks = 0
+  let selectedCraftedOptionFactChecks = 0
+
+  for (const report of reports) {
+    const classKey = String(report?.scope?.classKey ?? '')
+    const slotShard = String(report?.scope?.slotShard ?? '')
+    const classSpecs = expectedByClass.get(classKey) ?? []
+    const classSpecIds = classSpecs.map((spec) => spec.specId)
+    const reportResults = Array.isArray(report?.results) ? report.results : []
+    if (
+      report?.kind !== 'wechat-gear-slot-shard'
+      || report?.status !== 'SLOT_SHARD_PASS'
+    ) {
+      reasonCodes.add('slot_shard_report_failed')
+    }
+    if (
+      !gearSlots.includes(slotShard)
+      || report?.scope?.catalogOnly !== true
+      || report?.scope?.actionsExcluded !== true
+      || report?.scope?.diagnosticActionOnly === true
+      || report?.scope?.phase !== 'preview_catalog_slot_shard'
+      || !sameStringSet(report?.scope?.expectedSpecs, classSpecIds)
+      || !sameStringSet(report?.scope?.expectedSlotsPerSpec, [slotShard])
+      || !sameStringSet(reportResults.map((result) => result?.specId), classSpecIds)
+    ) {
+      reasonCodes.add('slot_shard_scope_mismatch')
+    }
+    if (
+      String(report?.runtime?.build?.gitHead ?? '') !== String(expectedBuild?.gitHead ?? '')
+      || String(report?.runtime?.build?.sourceHash ?? '') !== String(expectedBuild?.sourceHash ?? '')
+    ) {
+      reasonCodes.add('runtime_build_mismatch')
+    }
+    const apiIdentity = Object.fromEntries(
+      apiIdentityFields.map((field) => [field, report?.runtime?.apiIdentity?.[field]]),
+    )
+    if (
+      apiIdentityFields.some((field) => (
+        field === 'pointerGeneration'
+          ? !Number.isInteger(Number(apiIdentity[field]))
+          : !String(apiIdentity[field] ?? '').trim()
+      ))
+    ) {
+      reasonCodes.add('api_identity_incomplete')
+    } else {
+      apiIdentityVectors.add(JSON.stringify(apiIdentity))
+    }
+
+    let reportItemProgressionRelations = 0
+    let reportCandidateRowFactChecks = 0
+    let reportCandidateMediaChecks = 0
+    let reportCandidateDetailFactChecks = 0
+    let reportVariantDisplayFactChecks = 0
+    let reportExpectedSelectableVariants = 0
+    let reportSelectedVariantFactChecks = 0
+    let reportCraftedOptionFactChecks = 0
+    let reportSelectedCraftedOptionFactChecks = 0
+    for (const result of reportResults) {
+      const expectedSpec = expectedBySpecId.get(String(result?.specId ?? ''))
+      const resultSlots = Array.isArray(result?.slots) ? result.slots : []
+      if (
+        result?.status !== 'SLOT_SHARD_PASS'
+        || !expectedSpec
+        || expectedSpec.classKey !== classKey
+        || String(result?.classKey ?? '') !== classKey
+        || String(result?.specKey ?? '') !== expectedSpec.specKey
+        || resultSlots.length !== 1
+        || resultSlots[0]?.slot !== slotShard
+      ) {
+        reasonCodes.add('slot_shard_result_mismatch')
+      }
+      const runtimeIdentity = result?.runtimeBuildIdentity ?? {}
+      if (
+        runtimeIdentity.gitHead !== expectedRuntimeIdentity.gitHead
+        || runtimeIdentity.sourceHash !== expectedRuntimeIdentity.sourceHash
+      ) {
+        reasonCodes.add('runtime_build_mismatch')
+      }
+      seenClasses.add(classKey)
+      if (expectedSpec) seenSpecs.add(expectedSpec.specId)
+      const specSlotKey = `${String(result?.specId ?? '')}/${slotShard}`
+      if (seenSpecSlots.has(specSlotKey)) reasonCodes.add('slot_shard_result_duplicate')
+      seenSpecSlots.add(specSlotKey)
+      slotChecks += resultSlots.length
+
+      for (const slot of resultSlots) {
+        const expectedItems = Number(slot?.expectedItems)
+        const actualItems = Number(slot?.actualItems)
+        const expectedVariants = Number(slot?.expectedVariants)
+        const actualVariants = Number(slot?.actualVariants)
+        if (
+          slot?.status !== 'PASS'
+          || !Number.isInteger(expectedItems)
+          || expectedItems < 0
+          || actualItems !== expectedItems
+          || !Number.isInteger(expectedVariants)
+          || expectedVariants < 0
+          || actualVariants !== expectedVariants
+        ) {
+          reasonCodes.add('catalog_surface_mismatch')
+        } else {
+          itemChecks += expectedItems
+          variantChecks += expectedVariants
+        }
+        const visibleCounts = [
+          ['candidateRowFactChecks', expectedItems],
+          ['candidateMediaChecks', expectedItems],
+          ['candidateDetailFactChecks', expectedItems],
+          ['variantDisplayFactChecks', expectedVariants],
+        ]
+        for (const [field, expected] of visibleCounts) {
+          if (!Number.isInteger(Number(slot?.[field])) || Number(slot?.[field]) !== expected) {
+            reasonCodes.add('visible_fact_matrix_incomplete')
+          }
+        }
+        const selectableVariants = Number(slot?.expectedSelectableVariants)
+        const selectedFacts = Number(slot?.selectedVariantFactChecks)
+        const craftedFacts = Number(slot?.craftedOptionFactChecks)
+        const selectedCraftedFacts = Number(slot?.selectedCraftedOptionFactChecks)
+        if (
+          !Number.isInteger(selectableVariants)
+          || selectableVariants < 0
+          || selectableVariants > expectedVariants
+          || selectedFacts !== selectableVariants
+          || !Number.isInteger(craftedFacts)
+          || craftedFacts < 0
+          || selectedCraftedFacts !== craftedFacts
+        ) {
+          reasonCodes.add('visible_fact_matrix_incomplete')
+        }
+        const relations = Array.isArray(slot?.itemRelations) ? slot.itemRelations : []
+        if (
+          relations.length !== expectedVariants
+          || relations.some((relation) => (
+            !String(relation?.itemId ?? '')
+            || !String(relation?.variantKey ?? '')
+            || relation?.status !== 'PASS'
+            || relation?.displayFactsStatus !== 'PASS'
+            || !['PASS', 'NOT_SELECTABLE_BLOCKED'].includes(
+              String(relation?.selectedDetailStatus ?? ''),
+            )
+          ))
+        ) {
+          reasonCodes.add('item_progression_relations_incomplete')
+        }
+        reportItemProgressionRelations += relations.length
+        reportCandidateRowFactChecks += Number(slot?.candidateRowFactChecks) || 0
+        reportCandidateMediaChecks += Number(slot?.candidateMediaChecks) || 0
+        reportCandidateDetailFactChecks += Number(slot?.candidateDetailFactChecks) || 0
+        reportVariantDisplayFactChecks += Number(slot?.variantDisplayFactChecks) || 0
+        reportExpectedSelectableVariants += selectableVariants || 0
+        reportSelectedVariantFactChecks += selectedFacts || 0
+        reportCraftedOptionFactChecks += craftedFacts || 0
+        reportSelectedCraftedOptionFactChecks += selectedCraftedFacts || 0
+      }
+    }
+
+    itemProgressionRelations += reportItemProgressionRelations
+    candidateRowFactChecks += reportCandidateRowFactChecks
+    candidateMediaChecks += reportCandidateMediaChecks
+    candidateDetailFactChecks += reportCandidateDetailFactChecks
+    variantDisplayFactChecks += reportVariantDisplayFactChecks
+    expectedSelectableVariants += reportExpectedSelectableVariants
+    selectedVariantFactChecks += reportSelectedVariantFactChecks
+    craftedOptionFactChecks += reportCraftedOptionFactChecks
+    selectedCraftedOptionFactChecks += reportSelectedCraftedOptionFactChecks
+    if (
+      Number(report?.totals?.specsExpected) !== classSpecs.length
+      || Number(report?.totals?.specsExecuted) !== reportResults.length
+      || Number(report?.totals?.specsPassed) !== reportResults.filter(
+        (result) => result?.status === 'SLOT_SHARD_PASS',
+      ).length
+      || Number(report?.totals?.slotChecks) !== reportResults.length
+      || Number(report?.totals?.itemProgressionRelations) !== reportItemProgressionRelations
+      || Number(report?.totals?.candidateRowFactChecks) !== reportCandidateRowFactChecks
+      || Number(report?.totals?.candidateMediaChecks) !== reportCandidateMediaChecks
+      || Number(report?.totals?.candidateDetailFactChecks) !== reportCandidateDetailFactChecks
+      || Number(report?.totals?.variantDisplayFactChecks) !== reportVariantDisplayFactChecks
+      || Number(report?.totals?.expectedSelectableVariants) !== reportExpectedSelectableVariants
+      || Number(report?.totals?.selectedVariantFactChecks) !== reportSelectedVariantFactChecks
+      || Number(report?.totals?.craftedOptionFactChecks) !== reportCraftedOptionFactChecks
+      || Number(report?.totals?.selectedCraftedOptionFactChecks) !== reportSelectedCraftedOptionFactChecks
+    ) {
+      reasonCodes.add('slot_shard_totals_mismatch')
+    }
+  }
+
+  if (
+    seenClasses.size !== 13
+    || seenSpecs.size !== 40
+    || seenSpecSlots.size !== 40 * gearSlots.length
+    || slotChecks !== 40 * gearSlots.length
+  ) {
+    reasonCodes.add('topology_incomplete')
+  }
+  if (apiIdentityVectors.size !== 1) reasonCodes.add('api_identity_mismatch')
+  return {
+    status: reasonCodes.size === 0 ? 'SLOT_SHARD_MATRIX_PASS' : 'FAIL',
+    classes: seenClasses.size,
+    specs: seenSpecs.size,
+    reports: reports.length,
+    slotChecks,
+    itemChecks,
+    variantChecks,
+    itemProgressionRelations,
+    candidateRowFactChecks,
+    candidateMediaChecks,
+    candidateDetailFactChecks,
+    variantDisplayFactChecks,
+    expectedSelectableVariants,
+    selectedVariantFactChecks,
+    craftedOptionFactChecks,
+    selectedCraftedOptionFactChecks,
+    apiIdentityCount: apiIdentityVectors.size,
+    reasonCodes: [...reasonCodes].sort(),
+  }
+}
+
+function summarizeWechatGearCatalogOnlyClassReports(
+  reports,
+  expectedSpecs,
+  expectedBuild,
+) {
+  const reasonCodes = new Set()
+  const expectedByClass = new Map()
+  for (const spec of expectedSpecs) {
+    if (!expectedByClass.has(spec.classKey)) expectedByClass.set(spec.classKey, [])
+    expectedByClass.get(spec.classKey).push(spec)
+  }
+  const virtualShards = []
+  for (const report of reports) {
+    const classKey = String(report?.scope?.classKey ?? '')
+    const expectedClassSpecs = expectedByClass.get(classKey) ?? []
+    const expectedSpecIds = expectedClassSpecs.map((spec) => spec.specId)
+    const results = Array.isArray(report?.results) ? report.results : []
+    if (
+      report?.kind !== 'wechat-gear-catalog-only-class-matrix'
+      || report?.status !== 'CATALOG_ONLY_PASS'
+      || report?.scope?.phase !== 'preview_catalog_only'
+      || report?.scope?.catalogOnly !== true
+      || report?.scope?.actionsExcluded !== true
+      || report?.scope?.diagnosticActionOnly === true
+      || !sameStringSet(report?.scope?.expectedSpecs, expectedSpecIds)
+      || !sameStringSet(report?.scope?.expectedSlotsPerSpec, gearSlots)
+      || !sameStringSet(results.map((result) => result?.specId), expectedSpecIds)
+    ) {
+      reasonCodes.add('catalog_only_class_scope_mismatch')
+    }
+    if (
+      results.some((result) => (
+        result?.status !== 'CATALOG_ONLY_PASS'
+        || requiredActions.some(
+          (action) => result?.actions?.[action] !== 'NOT_RUN_CATALOG_ONLY',
+        )
+      ))
+    ) {
+      reasonCodes.add('catalog_only_action_boundary_missing')
+    }
+    for (const slot of gearSlots) {
+      const shardResults = results.map((result) => ({
+        ...result,
+        status: 'SLOT_SHARD_PASS',
+        slots: (Array.isArray(result?.slots) ? result.slots : [])
+          .filter((entry) => entry?.slot === slot),
+      }))
+      const sumSlotField = (field) => shardResults.reduce(
+        (sum, result) => sum + (
+          Number(result?.slots?.[0]?.[field]) || 0
+        ),
+        0,
+      )
+      virtualShards.push({
+        schemaVersion: 1,
+        kind: 'wechat-gear-slot-shard',
+        status: 'SLOT_SHARD_PASS',
+        scope: {
+          classKey,
+          slotShard: slot,
+          expectedSpecs: expectedSpecIds,
+          expectedSlotsPerSpec: [slot],
+          catalogOnly: true,
+          actionsExcluded: true,
+          diagnosticActionOnly: false,
+          phase: 'preview_catalog_slot_shard',
+        },
+        runtime: report?.runtime,
+        totals: {
+          specsExpected: expectedClassSpecs.length,
+          specsExecuted: shardResults.length,
+          specsPassed: shardResults.length,
+          slotChecks: shardResults.length,
+          itemProgressionRelations: shardResults.reduce(
+            (sum, result) => sum + (
+              Array.isArray(result?.slots?.[0]?.itemRelations)
+                ? result.slots[0].itemRelations.length
+                : 0
+            ),
+            0,
+          ),
+          candidateRowFactChecks: sumSlotField('candidateRowFactChecks'),
+          candidateMediaChecks: sumSlotField('candidateMediaChecks'),
+          candidateDetailFactChecks: sumSlotField('candidateDetailFactChecks'),
+          variantDisplayFactChecks: sumSlotField('variantDisplayFactChecks'),
+          expectedSelectableVariants: sumSlotField('expectedSelectableVariants'),
+          selectedVariantFactChecks: sumSlotField('selectedVariantFactChecks'),
+          craftedOptionFactChecks: sumSlotField('craftedOptionFactChecks'),
+          selectedCraftedOptionFactChecks: sumSlotField('selectedCraftedOptionFactChecks'),
+        },
+        results: shardResults,
+      })
+    }
+  }
+  const summary = summarizeWechatGearSlotShardReports(
+    virtualShards,
+    expectedSpecs,
+    expectedBuild,
+  )
+  for (const reason of summary.reasonCodes) reasonCodes.add(reason)
+  return {
+    ...summary,
+    status: reasonCodes.size === 0 ? 'CATALOG_ONLY_MATRIX_PASS' : 'FAIL',
+    reports: reports.length,
+    reasonCodes: [...reasonCodes].sort(),
+  }
 }
 
 function summarizeWechatGearClassReportsForPhase(
@@ -992,6 +1386,7 @@ module.exports = {
   gearSlots,
   normalizeCandidateDisplayRelations,
   normalizeCommittedGearEntries,
+  normalizeGearSlotShard,
   normalizeSelectorMarker,
   normalizeSimcPolicy,
   normalizeSpecMatrix,
@@ -1000,7 +1395,9 @@ module.exports = {
   selectCandidateApplySlot,
   selectCraftedApplyTarget,
   storageValueChanged,
+  summarizeWechatGearCatalogOnlyClassReports,
   summarizeWechatGearClassReports,
   summarizeWechatGearMatrix,
   summarizeWechatGearPreviewClassReports,
+  summarizeWechatGearSlotShardReports,
 }

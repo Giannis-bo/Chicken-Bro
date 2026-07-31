@@ -10,6 +10,7 @@ const {
   gearSlots,
   normalizeCommittedGearEntries,
   normalizeCandidateDisplayRelations,
+  normalizeGearSlotShard,
   normalizeSelectorMarker,
   normalizeSimcPolicy,
   normalizeSpecMatrix,
@@ -18,8 +19,10 @@ const {
   selectCraftedApplyTarget,
   storageValueChanged,
   summarizeWechatGearClassReports,
+  summarizeWechatGearCatalogOnlyClassReports,
   summarizeWechatGearMatrix,
   summarizeWechatGearPreviewClassReports,
+  summarizeWechatGearSlotShardReports,
 } = require('../scripts/wechat-gear-matrix-contract')
 
 test('normalizeCandidateDisplayRelations requires complete backend-owned visible facts', () => {
@@ -75,6 +78,16 @@ test('normalizeCandidateDisplayRelations requires complete backend-owned visible
   }])
 })
 
+test('normalizeGearSlotShard accepts only one canonical equipment slot', () => {
+  assert.equal(normalizeGearSlotShard(' back '), 'back')
+  assert.equal(normalizeGearSlotShard(''), null)
+  assert.equal(normalizeGearSlotShard(undefined), null)
+  assert.throws(
+    () => normalizeGearSlotShard('weapon'),
+    /unsupported WeChat gear slot shard/u,
+  )
+})
+
 test('normalizeCandidateDisplayRelations fails closed for missing display authority', () => {
   const fixture = {
     items: [{
@@ -112,6 +125,42 @@ test('normalizeCandidateDisplayRelations fails closed for missing display author
       new RegExp(label.replace(' ', '.*'), 'iu'),
     )
   }
+})
+
+test('normalizeCandidateDisplayRelations keeps an upstream progression conflict visibly blocked without inventing item level', () => {
+  const [relation] = normalizeCandidateDisplayRelations({
+    items: [{
+      itemId: '268291',
+      displayName: '腐沼的孢子之心',
+      source: '团队副本',
+      ilevel: 298,
+      statSummary: '暴击 48；精通 275',
+      iconUrl: 'https://render.worldofwarcraft.com/us/icons/56/item.jpg',
+      status: 'verified',
+      equipmentBadges: [{ key: 'equipment_type', label: '项链' }],
+      variants: [{
+        variantKey: 'catalog-progression-conflict:096afec1ccc59bea391d',
+        difficultyLabel: '神话 6/6',
+        status: 'blocked',
+        blockers: ['该等级轨道的已核验属性存在冲突，暂不可选择'],
+        progressionState: { kind: 'upgrade_track' },
+        displayProgression: { label: '神话 6/6' },
+      }],
+    }],
+  })
+
+  assert.deepEqual(
+    {
+      itemLevel: relation.variants[0].itemLevel,
+      levelLabel: relation.variants[0].levelLabel,
+      uiState: relation.variants[0].uiState,
+    },
+    {
+      itemLevel: null,
+      levelLabel: '',
+      uiState: 'blocked',
+    },
+  )
 })
 
 test('normalizeCandidateDisplayRelations preserves selectable crafted-stat identities', () => {
@@ -215,6 +264,8 @@ test('WeChat runner prepares supported SimC talent input through the rendered UI
   )
   assert.match(source, /sawResolving = state\.resolveState === 'resolving' \|\| sawResolving/u)
   assert.match(source, /select inspected canonical variant/u)
+  assert.match(source, /scrollPageElementIntoView/u)
+  assert.match(source, /const current = requery \? await requery\(\) : element/u)
   assert.match(source, /state === 'ready' \|\| item\.state === 'partial'/u)
   assert.match(source, /wait for .* enhancement option .* active/u)
   assert.match(
@@ -299,6 +350,51 @@ test('WeChat runner keeps preview catalog actions distinct from the final formal
   assert.match(summarySource, /WECHAT_GEAR_MATRIX_SUMMARY_PHASE/u)
   assert.match(summarySource, /wechat-gear-preview-catalog-actions-summary/u)
   assert.match(summarySource, /formalSimcProven: phase === 'full'/u)
+})
+
+test('WeChat runner isolates catalog slot shards from action and SimC claims', () => {
+  const source = fs.readFileSync(
+    path.resolve(__dirname, '../scripts/verify-wechat-gear-matrix.js'),
+    'utf8',
+  )
+
+  assert.match(source, /WECHAT_GEAR_MATRIX_SLOT_SHARD/u)
+  assert.match(source, /preview_catalog_slot_shard/u)
+  assert.match(source, /SLOT_SHARD_PASS/u)
+  assert.match(source, /NOT_RUN_SLOT_SHARD/u)
+  assert.match(source, /const slotsToInspect = slotShard \? \[slotShard\] : gearSlots/u)
+  assert.match(source, /catalogOnly: Boolean\(slotShard \|\| catalogOnly\)/u)
+  assert.match(source, /actionsExcluded: Boolean\(slotShard \|\| catalogOnly\)/u)
+})
+
+test('WeChat runner can cover every slot per class without making action or SimC claims', () => {
+  const source = fs.readFileSync(
+    path.resolve(__dirname, '../scripts/verify-wechat-gear-matrix.js'),
+    'utf8',
+  )
+  const summarySource = fs.readFileSync(
+    path.resolve(__dirname, '../scripts/summarize-wechat-gear-matrix.js'),
+    'utf8',
+  )
+
+  assert.match(source, /preview_catalog_only/u)
+  assert.match(source, /CATALOG_ONLY_PASS/u)
+  assert.match(source, /NOT_RUN_CATALOG_ONLY/u)
+  assert.match(summarySource, /preview_catalog_only_classes/u)
+  assert.match(summarySource, /summarizeWechatGearCatalogOnlyClassReports/u)
+  assert.match(summarySource, /CATALOG_ONLY_MATRIX_PASS/u)
+})
+
+test('WeChat matrix summarizer has a distinct fail-closed slot-shard phase', () => {
+  const source = fs.readFileSync(
+    path.resolve(__dirname, '../scripts/summarize-wechat-gear-matrix.js'),
+    'utf8',
+  )
+
+  assert.match(source, /preview_catalog_slot_shards/u)
+  assert.match(source, /summarizeWechatGearSlotShardReports/u)
+  assert.match(source, /wechat-gear-preview-slot-shard-summary/u)
+  assert.match(source, /SLOT_SHARD_MATRIX_PASS/u)
 })
 
 test('WeChat runner opens every candidate and every selectable variant to prove visible facts', () => {
@@ -633,6 +729,125 @@ function passingPreviewClassReports(specs, build) {
   return reports
 }
 
+function passingSlotShardReports(specs, build) {
+  const fullReports = passingPreviewClassReports(specs, build)
+  const reports = []
+  for (const fullReport of fullReports) {
+    for (const slot of gearSlots) {
+      const results = fullReport.results.map((result) => ({
+        ...structuredClone(result),
+        status: 'SLOT_SHARD_PASS',
+        slots: result.slots
+          .filter((entry) => entry.slot === slot)
+          .map((entry) => ({
+            ...entry,
+            itemRelations: entry.itemRelations.map((relation) => ({
+              ...relation,
+              displayFactsStatus: 'PASS',
+              selectedDetailStatus: 'PASS',
+            })),
+          })),
+        actions: Object.fromEntries(
+          Object.keys(result.actions).map((key) => [key, 'NOT_RUN_SLOT_SHARD']),
+        ),
+        actionEvidence: {},
+      }))
+      reports.push({
+        schemaVersion: 1,
+        kind: 'wechat-gear-slot-shard',
+        status: 'SLOT_SHARD_PASS',
+        scope: {
+          classKey: fullReport.scope.classKey,
+          slotShard: slot,
+          expectedSpecs: results.map((result) => result.specId),
+          expectedSlotsPerSpec: [slot],
+          catalogOnly: true,
+          actionsExcluded: true,
+          diagnosticActionOnly: false,
+          phase: 'preview_catalog_slot_shard',
+        },
+        runtime: structuredClone(fullReport.runtime),
+        totals: {
+          ...fullReport.totals,
+          slotChecks: results.length,
+          itemProgressionRelations: results.reduce(
+            (sum, result) => sum + result.slots[0].itemRelations.length,
+            0,
+          ),
+          candidateRowFactChecks: results.reduce(
+            (sum, result) => sum + result.slots[0].candidateRowFactChecks,
+            0,
+          ),
+          candidateMediaChecks: results.reduce(
+            (sum, result) => sum + result.slots[0].candidateMediaChecks,
+            0,
+          ),
+          candidateDetailFactChecks: results.reduce(
+            (sum, result) => sum + result.slots[0].candidateDetailFactChecks,
+            0,
+          ),
+          variantDisplayFactChecks: results.reduce(
+            (sum, result) => sum + result.slots[0].variantDisplayFactChecks,
+            0,
+          ),
+          expectedSelectableVariants: results.reduce(
+            (sum, result) => sum + result.slots[0].expectedSelectableVariants,
+            0,
+          ),
+          selectedVariantFactChecks: results.reduce(
+            (sum, result) => sum + result.slots[0].selectedVariantFactChecks,
+            0,
+          ),
+          craftedOptionFactChecks: results.reduce(
+            (sum, result) => sum + result.slots[0].craftedOptionFactChecks,
+            0,
+          ),
+          selectedCraftedOptionFactChecks: results.reduce(
+            (sum, result) => sum + result.slots[0].selectedCraftedOptionFactChecks,
+            0,
+          ),
+        },
+        results,
+      })
+    }
+  }
+  return reports
+}
+
+function passingCatalogOnlyClassReports(specs, build) {
+  return passingPreviewClassReports(specs, build).map((report) => {
+    const results = report.results.map((result) => ({
+      ...structuredClone(result),
+      status: 'CATALOG_ONLY_PASS',
+      slots: result.slots.map((slot) => ({
+        ...structuredClone(slot),
+        itemRelations: slot.itemRelations.map((relation) => ({
+          ...relation,
+          displayFactsStatus: 'PASS',
+          selectedDetailStatus: 'PASS',
+        })),
+      })),
+      actions: Object.fromEntries(
+        Object.keys(result.actions).map((key) => [key, 'NOT_RUN_CATALOG_ONLY']),
+      ),
+      actionEvidence: {},
+    }))
+    return {
+      ...structuredClone(report),
+      kind: 'wechat-gear-catalog-only-class-matrix',
+      status: 'CATALOG_ONLY_PASS',
+      scope: {
+        ...structuredClone(report.scope),
+        catalogOnly: true,
+        actionsExcluded: true,
+        phase: 'preview_catalog_only',
+        formalManifestRequiredForSkippedSimc: false,
+      },
+      results,
+    }
+  })
+}
+
 function simcOptionsFixture(specs) {
   return {
     contractRevision: 'simc-options-v1',
@@ -821,6 +1036,83 @@ test('summarizeWechatGearClassReports proves only 13 non-diagnostic reports with
   assert.equal(summary.simcExecuted, 26)
   assert.equal(summary.simcPolicyBlocked, 14)
   assert.deepEqual(summary.reasonCodes, [])
+})
+
+test('summarizeWechatGearSlotShardReports proves the exact 13-class by 16-slot catalog topology', () => {
+  const build = {
+    gitHead: '0123456789abcdef0123456789abcdef01234567',
+    sourceHash: 'sha256:current-wechat-build',
+  }
+  const specs = normalizeSpecMatrix(homeFixture())
+  const reports = passingSlotShardReports(specs, build)
+  const summary = summarizeWechatGearSlotShardReports(reports, specs, build)
+
+  assert.equal(reports.length, 13 * gearSlots.length)
+  assert.equal(
+    summary.status,
+    'SLOT_SHARD_MATRIX_PASS',
+    JSON.stringify(summary),
+  )
+  assert.equal(summary.classes, 13)
+  assert.equal(summary.specs, 40)
+  assert.equal(summary.slotChecks, 40 * gearSlots.length)
+  assert.equal(summary.apiIdentityCount, 1)
+  assert.deepEqual(summary.reasonCodes, [])
+})
+
+test('summarizeWechatGearCatalogOnlyClassReports proves 13 classes, 40 specs, and 640 slot checks', () => {
+  const specs = normalizeSpecMatrix(homeFixture())
+  const build = {
+    gitHead: '1b33356c3e97653bc91f3747ecd046784650d0a7',
+    sourceHash: 'sha256:b032b3f02921d2c39328fd60859a988e40406f0b743a24482f18bb2aaca9ebef',
+  }
+  const reports = passingCatalogOnlyClassReports(specs, build)
+
+  const summary = summarizeWechatGearCatalogOnlyClassReports(reports, specs, build)
+
+  assert.equal(summary.status, 'CATALOG_ONLY_MATRIX_PASS', JSON.stringify(summary))
+  assert.equal(summary.classes, 13)
+  assert.equal(summary.specs, 40)
+  assert.equal(summary.slotChecks, 640)
+  assert.deepEqual(summary.reasonCodes, [])
+})
+
+test('summarizeWechatGearSlotShardReports fails closed for missing, duplicate, or mixed-build shards', () => {
+  const build = {
+    gitHead: '0123456789abcdef0123456789abcdef01234567',
+    sourceHash: 'sha256:current-wechat-build',
+  }
+  const specs = normalizeSpecMatrix(homeFixture())
+  const complete = passingSlotShardReports(specs, build)
+
+  const missing = summarizeWechatGearSlotShardReports(
+    complete.slice(1),
+    specs,
+    build,
+  )
+  assert.equal(missing.status, 'FAIL')
+  assert.ok(missing.reasonCodes.includes('slot_shard_reports_incomplete'))
+
+  const duplicate = structuredClone(complete)
+  duplicate[1].scope.classKey = duplicate[0].scope.classKey
+  duplicate[1].scope.slotShard = duplicate[0].scope.slotShard
+  const duplicateSummary = summarizeWechatGearSlotShardReports(
+    duplicate,
+    specs,
+    build,
+  )
+  assert.equal(duplicateSummary.status, 'FAIL')
+  assert.ok(duplicateSummary.reasonCodes.includes('slot_shard_reports_incomplete'))
+
+  const mixedBuild = structuredClone(complete)
+  mixedBuild[0].runtime.build.gitHead = 'stale'
+  const mixedBuildSummary = summarizeWechatGearSlotShardReports(
+    mixedBuild,
+    specs,
+    build,
+  )
+  assert.equal(mixedBuildSummary.status, 'FAIL')
+  assert.ok(mixedBuildSummary.reasonCodes.includes('runtime_build_mismatch'))
 })
 
 test('summarizeWechatGearClassReports rejects an enhancement fallback without unavailable-control proof', () => {

@@ -145,6 +145,48 @@ describe('gear editor sheet behavior', () => {
     expect(detailIndex).toBeLessThan(markup.indexOf('data-candidate-id="head-raidfinder"'))
   })
 
+  it('does not claim the backend default variant was explicitly selected before the tap transition', () => {
+    const markup = renderToStaticMarkup(createElement(GearCandidateEditorSheet, {
+      slotLabel: '披风',
+      candidates: [{
+        id: 'back-candidate',
+        itemId: '255490',
+        label: '星河角斗士的披风',
+        levelLabel: '装等 263',
+        sourceLabel: '来源待核验',
+        statSummary: '急速 23；耐力 580',
+        badgeLabels: ['披风'],
+        state: 'ready' as const,
+      }],
+      selectedCandidateId: 'back-candidate',
+      draft: {
+        slot: 'back',
+        candidate: { itemId: '255490', variantKey: 'champion-263', blockers: [] },
+        requiresVariantSelection: true,
+        selectedVariantKey: '',
+        requiresCraftedStatSelection: false,
+        selectedCraftedOptionId: '',
+        variants: [{
+          key: 'champion-263',
+          label: '勇士 6/6',
+          difficultyLabel: '勇士 6/6',
+          ilevel: 263,
+          state: 'ready' as const,
+          blockers: [],
+        }],
+        craftedStatOptions: [],
+      },
+      canApply: false,
+      onSelectCandidate: () => undefined,
+      onSelectVariant: () => undefined,
+      onSelectCraftedStat: () => undefined,
+      onApply: () => undefined,
+      onClose: () => undefined,
+    }))
+
+    expect(markup).toContain('data-candidate-draft-variant-key=""')
+  })
+
   it('renders crafted stats as selectable resolver options instead of display-only facts', () => {
     const markup = renderToStaticMarkup(createElement(GearCandidateEditorSheet, {
       slotLabel: '头部',

@@ -13,6 +13,8 @@ const {
   queryElementsByXpathSequentially,
   queryElementsWithXpathFallback,
   readSemanticValue,
+  scrollElementIntoView,
+  scrollPageElementIntoView,
   waitForSystemInfo,
 } = require('../scripts/wechat-automator')
 
@@ -265,6 +267,108 @@ test('findElementBySemanticValue locates a long rendered identity without a CSS 
     ),
     values[1],
   )
+})
+
+test('findElementBySemanticValue queries the exact semantic class before enumerating XPath siblings', async () => {
+  const longVariantKey = (
+    'browse-variant-sha256-'
+    + '0427c68800674547f1848a0fcbc55a9ee9237e764cb032e1082e9a9f40caa6c1'
+  )
+  const target = {
+    attribute: async (name) => {
+      if (name === 'data-variant-key') return null
+      if (name === 'class') {
+        return (
+          'wx-data-role-gear-candidate-variant '
+          + `wx-data-variant-key-${longVariantKey}`
+        )
+      }
+      return null
+    },
+  }
+  const page = {
+    getElementByXpath: async (xpath) => {
+      assert.equal(
+        xpath,
+        `//*[contains(@class, "wx-data-variant-key-${longVariantKey}")]`,
+      )
+      return target
+    },
+  }
+
+  assert.equal(
+    await findElementBySemanticValue(
+      page,
+      '//*[contains(@class, "wx-data-role-gear-candidate-variant")]',
+      32,
+      'variant-key',
+      longVariantKey,
+    ),
+    target,
+  )
+})
+
+test('scrollElementIntoView scrolls a lower sheet control into the visible viewport', async () => {
+  const calls = []
+  const scrollView = {
+    offset: async () => ({ left: 0, top: 100 }),
+    size: async () => ({ width: 390, height: 400 }),
+    property: async (name) => name === 'scrollTop' ? 240 : null,
+    scrollTo: async (x, y) => calls.push([x, y]),
+  }
+  const element = {
+    offset: async () => ({ left: 20, top: 540 }),
+    size: async () => ({ width: 350, height: 80 }),
+  }
+
+  assert.equal(
+    await scrollElementIntoView(scrollView, element, 'third variant'),
+    true,
+  )
+  assert.deepEqual(calls, [[0, 376]])
+})
+
+test('scrollElementIntoView leaves an already visible control in place', async () => {
+  const calls = []
+  const scrollView = {
+    offset: async () => ({ left: 0, top: 100 }),
+    size: async () => ({ width: 390, height: 400 }),
+    property: async (name) => name === 'scrollTop' ? 240 : null,
+    scrollTo: async (x, y) => calls.push([x, y]),
+  }
+  const element = {
+    offset: async () => ({ left: 20, top: 180 }),
+    size: async () => ({ width: 350, height: 80 }),
+  }
+
+  assert.equal(
+    await scrollElementIntoView(scrollView, element, 'visible variant'),
+    false,
+  )
+  assert.deepEqual(calls, [])
+})
+
+test('scrollPageElementIntoView uses the real page scroll API before an offscreen tap', async () => {
+  const calls = []
+  const miniProgram = {
+    callWxMethod: async (method, value) => calls.push([method, value]),
+  }
+  const page = {
+    scrollTop: async () => 300,
+  }
+  const element = {
+    offset: async () => ({ left: 20, top: 820 }),
+    size: async () => ({ width: 350, height: 100 }),
+  }
+
+  assert.equal(
+    await scrollPageElementIntoView(miniProgram, page, element, 844, 'back slot'),
+    true,
+  )
+  assert.deepEqual(calls, [[
+    'pageScrollTo',
+    { scrollTop: 392, duration: 0 },
+  ]])
 })
 
 test('waitForSystemInfo tolerates the build handoff before the WeChat runtime responds', async () => {

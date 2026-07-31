@@ -1,0 +1,257 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-31T04:51:19.398973+00:00",
+  "status": "partial",
+  "build": "12.0.7.68887",
+  "authority": {
+    "scope": "current public TACTKeys plus exact-build DBCache corpora",
+    "tactKeysObservedHead": "a3449fd5cfc3a0053cbff2c65f7d16166774cbf9",
+    "dbcacheCollectionProvenance": "third_party",
+    "mayEstablishOfficialSeasonMembership": false,
+    "auditContainsKeyMaterial": false,
+    "rawKeyOrCacheMaterialPersistedAfterAudit": false
+  },
+  "inputs": {
+    "currentPublicTactKeys": {
+      "path": "public-tact-key-a3449fd-coverage-audit.json",
+      "bytes": 5648,
+      "sha256": "f03f5078ab13e7da6546038606f55683e03fa1215f1535a721dfd08b3a18a442"
+    },
+    "verifiedDBCacheCorpus": {
+      "path": "dbcache-68887-verified-corpus-audit.json",
+      "bytes": 13823,
+      "sha256": "05c36bc411177d32fe8af35c96c755e99efe2b689ea694414e9b3da5b8802778"
+    },
+    "unverifiedDBCacheCorpus": {
+      "path": "dbcache-68887-unverified-corpus-audit.json",
+      "bytes": 98066,
+      "sha256": "283b5ad4c27578d9cb7d98b827d4aff75a9eca52d9efe29902fe2800b612a1ad"
+    }
+  },
+  "sourceResults": {
+    "currentPublicTactKeys": {
+      "availableTargetKeyCount": 9,
+      "coveredTargetRecordCount": 114
+    },
+    "verifiedDBCacheCorpus": {
+      "selectedCacheCount": 9,
+      "fetchedCacheCount": 9,
+      "failedCacheCount": 0,
+      "totalFetchedBytes": 31267354,
+      "targetKeyCount": 12,
+      "targetRecordCount": 178,
+      "unionAvailableTargetKeyCount": 6,
+      "unionMissingTargetKeyCount": 6,
+      "unionCoveredTargetRecordCount": 82,
+      "unionMissingTargetRecordCount": 96
+    },
+    "unverifiedDBCacheCorpus": {
+      "selectedCacheCount": 98,
+      "fetchedCacheCount": 98,
+      "failedCacheCount": 0,
+      "totalFetchedBytes": 267055985,
+      "targetKeyCount": 12,
+      "targetRecordCount": 178,
+      "unionAvailableTargetKeyCount": 6,
+      "unionMissingTargetKeyCount": 6,
+      "unionCoveredTargetRecordCount": 82,
+      "unionMissingTargetRecordCount": 96
+    }
+  },
+  "coverage": {
+    "status": "partial",
+    "summary": {
+      "targetKeyCount": 12,
+      "targetRecordCount": 178,
+      "sourceUnionAvailableTargetKeyCount": 9,
+      "sourceUnionMissingTargetKeyCount": 3,
+      "sourceUnionCoveredTargetRecordCount": 114,
+      "sourceUnionMissingTargetRecordCount": 64,
+      "dbcacheAddsTargetKeyBeyondCurrentPublicCount": 0
+    },
+    "targetKeys": [
+      {
+        "tactKeyId": "14f4b11d7b067aa2",
+        "blteKeyId": "a27a067b1db1f414",
+        "recordCount": 12,
+        "tables": [
+          "ItemModifiedAppearance"
+        ],
+        "sourcePresence": {
+          "currentPublicTactKeys": false,
+          "verifiedDBCacheCorpus": false,
+          "unverifiedDBCacheCorpus": false
+        },
+        "presentInSourceUnion": false
+      },
+      {
+        "tactKeyId": "291af9fe83d992e4",
+        "blteKeyId": "e492d983fef91a29",
+        "recordCount": 9,
+        "tables": [
+          "ItemModifiedAppearance"
+        ],
+        "sourcePresence": {
+          "currentPublicTactKeys": true,
+          "verifiedDBCacheCorpus": false,
+          "unverifiedDBCacheCorpus": false
+        },
+        "presentInSourceUnion": true
+      },
+      {
+        "tactKeyId": "529c356e187dd913",
+        "blteKeyId": "13d97d186e359c52",
+        "recordCount": 3,
+        "tables": [
+          "ItemModifiedAppearance"
+        ],
+        "sourcePresence": {
+          "currentPublicTactKeys": true,
+          "verifiedDBCacheCorpus": true,
+          "unverifiedDBCacheCorpus": true
+        },
+        "presentInSourceUnion": true
+      },
+      {
+        "tactKeyId": "570ed145f83e8b7b",
+        "blteKeyId": "7b8b3ef845d10e57",
+        "recordCount": 1,
+        "tables": [
+          "ItemModifiedAppearance"
+        ],
+        "sourcePresence": {
+          "currentPublicTactKeys": true,
+          "verifiedDBCacheCorpus": false,
+          "unverifiedDBCacheCorpus": false
+        },
+        "presentInSourceUnion": true
+      },
+      {
+        "tactKeyId": "57c16bba581fd295",
+        "blteKeyId": "95d21f58ba6bc157",
+        "recordCount": 1,
+        "tables": [
+          "ItemModifiedAppearance"
+        ],
+        "sourcePresence": {
+          "currentPublicTactKeys": true,
+          "verifiedDBCacheCorpus": true,
+          "unverifiedDBCacheCorpus": true
+        },
+        "presentInSourceUnion": true
+      },
+      {
+        "tactKeyId": "59ea247e0185ee0d",
+        "blteKeyId": "0dee85017e24ea59",
+        "recordCount": 22,
+        "tables": [
+          "ItemModifiedAppearance"
+        ],
+        "sourcePresence": {
+          "currentPublicTactKeys": true,
+          "verifiedDBCacheCorpus": false,
+          "unverifiedDBCacheCorpus": false
+        },
+        "presentInSourceUnion": true
+      },
+      {
+        "tactKeyId": "62bf37a70e6d54f6",
+        "blteKeyId": "f6546d0ea737bf62",
+        "recordCount": 8,
+        "tables": [
+          "ItemModifiedAppearance"
+        ],
+        "sourcePresence": {
+          "currentPublicTactKeys": false,
+          "verifiedDBCacheCorpus": false,
+          "unverifiedDBCacheCorpus": false
+        },
+        "presentInSourceUnion": false
+      },
+      {
+        "tactKeyId": "be544f7e94038018",
+        "blteKeyId": "188003947e4f54be",
+        "recordCount": 28,
+        "tables": [
+          "ItemModifiedAppearance"
+        ],
+        "sourcePresence": {
+          "currentPublicTactKeys": true,
+          "verifiedDBCacheCorpus": true,
+          "unverifiedDBCacheCorpus": true
+        },
+        "presentInSourceUnion": true
+      },
+      {
+        "tactKeyId": "be7d592cd36508a2",
+        "blteKeyId": "a20865d32c597dbe",
+        "recordCount": 12,
+        "tables": [
+          "CollectableSourceInfo",
+          "CollectableSourceVendor",
+          "CollectableSourceVendorSparse",
+          "ItemModifiedAppearance"
+        ],
+        "sourcePresence": {
+          "currentPublicTactKeys": true,
+          "verifiedDBCacheCorpus": true,
+          "unverifiedDBCacheCorpus": true
+        },
+        "presentInSourceUnion": true
+      },
+      {
+        "tactKeyId": "d1055199767fb373",
+        "blteKeyId": "73b37f76995105d1",
+        "recordCount": 3,
+        "tables": [
+          "ItemModifiedAppearance"
+        ],
+        "sourcePresence": {
+          "currentPublicTactKeys": true,
+          "verifiedDBCacheCorpus": true,
+          "unverifiedDBCacheCorpus": true
+        },
+        "presentInSourceUnion": true
+      },
+      {
+        "tactKeyId": "dd9ea834c9585585",
+        "blteKeyId": "855558c934a89edd",
+        "recordCount": 35,
+        "tables": [
+          "CollectableSourceInfo",
+          "CollectableSourceVendor",
+          "CollectableSourceVendorSparse",
+          "ItemModifiedAppearance"
+        ],
+        "sourcePresence": {
+          "currentPublicTactKeys": true,
+          "verifiedDBCacheCorpus": true,
+          "unverifiedDBCacheCorpus": true
+        },
+        "presentInSourceUnion": true
+      },
+      {
+        "tactKeyId": "fbbf041f980ce0dc",
+        "blteKeyId": "dce00c981f04bffb",
+        "recordCount": 44,
+        "tables": [
+          "ItemModifiedAppearance"
+        ],
+        "sourcePresence": {
+          "currentPublicTactKeys": false,
+          "verifiedDBCacheCorpus": false,
+          "unverifiedDBCacheCorpus": false
+        },
+        "presentInSourceUnion": false
+      }
+    ],
+    "blockers": [
+      "APPROVED_PUBLIC_TACT_KEYS_INCOMPLETE",
+      "CURRENT_CLIENT_DBCACHE_CORPUS_TACT_KEYS_INCOMPLETE",
+      "CURRENT_CLIENT_ENCRYPTED_SOURCE_RECORDS_UNAVAILABLE"
+    ]
+  },
+  "conclusion": "the exact current TACTKeys head remains the widest approved source; nine verified caches and 98 opt-in retail caches add no target key beyond it, leaving three key identities and 64 records unavailable",
+  "productionMutation": false,
+  "releasePointerMutation": false
+}
