@@ -409,3 +409,39 @@ Git 外隔离目录。本切片没有修改 Manifest、Gear、Community、Catalo
 `14f4b11d7b067aa2`、`62bf37a70e6d54f6`、`fbbf041f980ce0dc`
 的获批 exact-build 来源，或 64 条关系的权威 exact-build 解密记录；成功后才重建
 19 类季节 PVE 来源的一对一 inclusion/exclusion/blocked 闭包。
+
+## 10. 2026-08-01 exact-build authority 与负向重放就绪性
+
+**状态：** `正在推进`
+
+本切片仍只服务于三枚 TACT key / 64 条关系的首要 blocker。获批来源的有界核查没有
+发现目标 material 或权威解密记录；官方 build `12.0.7.68887` 的 in-game API 只能形成
+runtime projection，既不能枚举完整 `ItemModifiedAppearance`，也不能替代 raw OrderIndex、
+Flags、parent bytes 或 TACT 解密 authority，因此没有制作 addon，也没有把 API 投影降级为
+完整性证明。
+
+为使后续一旦获得获批 material 即可安全复验，Git 外隔离目录建立了固定 exact-build
+config/root/encoding 与四段 transport 的 negative-only runner：总计 3,516,950 raw bytes、
+20 个 encrypted chunks。显式空来源保持 `0/20`、当前固定 public snapshot 保持 `17/20`；
+两者均为 `blocked`，DB2 输出为 0。即使未来达到 `20/20`，runner 也只返回
+`FULL_SUCCESS_OUTPUT_DISABLED`，不得在该路径发布 DB2、候选或生产输入。
+
+永久 audit 的状态固定为 `prepared-unverified`、`selfPromotable=false`。initial result digest
+ACK 前只能存在 pending 文件；匹配 ACK 后才允许 same-handle、no-replace rename；commit ACK、
+worker exit、parent final handle verification 与外部 CLI receipt 共同构成交付证明。任一 ACK
+缺失/不匹配或 CLI write/flush 失败，都不会让 audit 自称完成。runner、tests、dependency
+manifest、network-deny shim、pinned input 与两份负向 audit 已冻结为 7 元组；fresh 48/48、
+AST 3/3 通过，两路独立只读 CR 均为 P0/P1/P2 0，根代理复跑后 7 元组仍稳定。冻结目录
+无 pending、receipt、DB2、part、bytecode、native executable、reparse 或临时残留，ACL 保持
+隔离；这些证据只证明负向 transport readiness，不建立 key/plaintext authority。
+
+脱敏仓库入口为
+[exact-build-authority-and-replay-readiness-audit.json](../../artifacts/releases/2026-07-30-equipment-simulator-e2e-matrix/universe/official-snapshot/official-client-db2-v1/exact-build-authority-and-replay-readiness-audit.json)。
+它只保存相对隔离标识、字节数、哈希、边界和计数，不保存 URL、绝对路径、实际 key
+material、decoded DB2 或权威 plaintext；没有修改 Manifest、Gear、Community、Catalog、
+Exact、云端生产消费或正式指针。旧 Goal 继续是 `blocked`，当前 Goal 未被外推为完成。
+
+当前事实仍是 source union `partial`：`9/12` keys、`114/178` encrypted relations，三枚
+缺失 key 分别阻断 12/8/44 条记录；19 类投影仍为 complete 0、partial 9、blocked 10、
+21 个 gap。下一切片仍是取得获批 exact-build key 来源或 64 条关系的权威 exact-build
+解密记录；成功前不进入 19 类闭包完成宣称、正式候选或终局微信/SimC 矩阵。

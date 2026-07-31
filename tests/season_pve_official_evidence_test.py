@@ -27,6 +27,490 @@ from server.season_pve_official_evidence import (
 
 
 class SeasonPveOfficialEvidenceTest(unittest.TestCase):
+    def test_exact_build_authority_and_replay_readiness_stays_fail_closed(self):
+        evidence_root = (
+            Path(__file__).resolve().parents[1]
+            / "artifacts"
+            / "releases"
+            / "2026-07-30-equipment-simulator-e2e-matrix"
+            / "universe"
+            / "official-snapshot"
+            / "official-client-db2-v1"
+        )
+        audit_path = (
+            evidence_root
+            / "exact-build-authority-and-replay-readiness-audit.json"
+        )
+        self.assertTrue(
+            audit_path.is_file(),
+            "exact-build authority and replay readiness audit is missing",
+        )
+
+        audit_bytes = audit_path.read_bytes()
+        audit = json.loads(audit_bytes)
+        self.assertEqual(
+            set(audit),
+            {
+                "schemaVersion",
+                "kind",
+                "capturedAt",
+                "status",
+                "goals",
+                "authorityBoundary",
+                "evidence",
+                "negativeOnlyReplay",
+                "remainingTruth",
+                "safety",
+                "blockers",
+                "nextSlice",
+            },
+        )
+        self.assertEqual(audit["schemaVersion"], 1)
+        self.assertEqual(
+            audit["kind"],
+            "exact-build-authority-and-replay-readiness-audit",
+        )
+        self.assertEqual(audit["status"], "blocked")
+        self.assertRegex(
+            audit["capturedAt"],
+            r"^2026-07-31T[0-9:.]+Z$",
+        )
+        self.assertEqual(
+            audit["goals"],
+            {
+                "currentGoalId": "019fb823-90bf-7f63-ae60-9aaa82662f9c",
+                "continuesGoalId": "019faddb-abb5-79a3-a477-3cb6e6368120",
+                "continuedGoalFinalStatus": "blocked",
+                "continuedGoalMarkedComplete": False,
+            },
+        )
+
+        self.assertEqual(
+            audit["authorityBoundary"],
+            {
+                "exactBuild": "12.0.7.68887",
+                "recognizedSourceScanIsBounded": True,
+                "approvedExactBuildTargetKeySourceObtained": False,
+                "authoritativeExactBuildPlaintextObtained": False,
+                "authoritativeExactBuildDecryptionRecordObtained": False,
+                "recognizedSourceScanMayEstablishInternetExhaustion": False,
+                "runtimeApiProjectionMaySubstituteForRawDecryption": False,
+                "negativeOnlyReplayMayEstablishKeyOrDecryptionAuthority": (
+                    False
+                ),
+                "negativeOnlyReplayMayPublishDb2": False,
+                "frozenAuditState": "prepared-unverified",
+                "frozenAuditSelfPromotable": False,
+            },
+        )
+
+        self.assertEqual(
+            audit["evidence"],
+            {
+                "recognizedSourceScan": {
+                    "status": "blocked",
+                    "targetMaterialHitCount": 0,
+                    "authoritativeDecryptionRecordHitCount": 0,
+                    "evidenceRef": {
+                        "relativeIsolationId": (
+                            "approved-key-source-scan-20260801/"
+                            "recognized-source-redacted-audit.json"
+                        ),
+                        "bytes": 18_106,
+                        "sha256": (
+                            "80ba43b905b54e2cb3beadd0f60e22f1cf20df18a1c09688"
+                            "a7a0bdd99dbeb85e"
+                        ),
+                    },
+                },
+                "inGameApiFeasibility": {
+                    "status": (
+                        "blocked_api_projection_not_authoritative_decryption"
+                    ),
+                    "exactUiCommit": (
+                        "4383ced30106d51b27e3e86d1987f1552f0d259d"
+                    ),
+                    "strictAuthoritativeClosureFeasible": False,
+                    "diagnosticProbeImplemented": False,
+                    "evidenceRef": {
+                        "relativeIsolationId": (
+                            "ingame-api-itemmodifiedappearance-feasibility-"
+                            "20260801/redacted-audit.json"
+                        ),
+                        "bytes": 16_710,
+                        "sha256": (
+                            "07a5d01edf182c4d33e73761f3339d42d7d415768aface65"
+                            "2ad77508ff71aec4"
+                        ),
+                    },
+                },
+            },
+        )
+
+        replay = audit["negativeOnlyReplay"]
+        self.assertEqual(
+            set(replay),
+            {
+                "exactBuildPins",
+                "transport",
+                "policy",
+                "scenarios",
+                "verification",
+            },
+        )
+        self.assertEqual(
+            replay["exactBuildPins"],
+            {
+                "buildConfig": "0fcf22030198cca211997a998743ba7f",
+                "root": "b5cdb4350d97a3c70d5b0170003e0656",
+                "encoding": "968b76a940430f92887dffc3e353b064",
+            },
+        )
+        expected_ranges = [
+            {
+                "name": "CollectableSourceInfo",
+                "fileDataId": 5_152_112,
+                "dataFile": "data.105",
+                "offset": 1_020_644_009,
+                "bytes": 647_793,
+                "encryptedChunks": 2,
+                "sha256": (
+                    "74f1de28f5fca932f2c7a14a325021981573028b79257362"
+                    "679febe9f99e9f1b"
+                ),
+                "expectedRootMd5": "bc88ae2de0b9189164178a4e169a537d",
+            },
+            {
+                "name": "CollectableSourceVendor",
+                "fileDataId": 5_163_410,
+                "dataFile": "data.105",
+                "offset": 1_022_297_761,
+                "bytes": 441_665,
+                "encryptedChunks": 2,
+                "sha256": (
+                    "9f651b2179dfd8cde7d768369570c4e4c1f2dc4b946cfb31"
+                    "958a9618f8c100cb"
+                ),
+                "expectedRootMd5": "96625b91a3655ac276d99d56ff0d8bf7",
+            },
+            {
+                "name": "CollectableSourceVendorSparse",
+                "fileDataId": 5_159_897,
+                "dataFile": "data.105",
+                "offset": 1_021_293_569,
+                "bytes": 1_003_310,
+                "encryptedChunks": 4,
+                "sha256": (
+                    "9deba843af19013225b1033857a245349659a132e3ad0caa"
+                    "ba6eb2b21f965262"
+                ),
+                "expectedRootMd5": "2280b4597106d24a0c3ab6c0f7f52a7d",
+            },
+            {
+                "name": "ItemModifiedAppearance",
+                "fileDataId": 982_457,
+                "dataFile": "data.009",
+                "offset": 1_038_996_460,
+                "bytes": 1_424_182,
+                "encryptedChunks": 12,
+                "sha256": (
+                    "e16f466eb47b5908000960cd2a677e64def7b85e0e06f987"
+                    "a11865cd0404e7af"
+                ),
+                "expectedRootMd5": "dc3cbe0a7ec914600145d58f398030f4",
+            },
+        ]
+        transport = replay["transport"]
+        self.assertEqual(
+            set(transport),
+            {"rangeCount", "rawBytes", "encryptedChunkCount", "ranges"},
+        )
+        self.assertEqual(transport["ranges"], expected_ranges)
+        self.assertEqual(transport["rangeCount"], len(expected_ranges))
+        self.assertEqual(
+            transport["rawBytes"],
+            sum(item["bytes"] for item in expected_ranges),
+        )
+        self.assertEqual(
+            transport["encryptedChunkCount"],
+            sum(item["encryptedChunks"] for item in expected_ranges),
+        )
+        self.assertEqual(transport["rawBytes"], 3_516_950)
+        self.assertEqual(transport["encryptedChunkCount"], 20)
+        self.assertEqual(
+            len({item["fileDataId"] for item in expected_ranges}),
+            4,
+        )
+
+        self.assertEqual(
+            replay["policy"],
+            {
+                "commitMode": "negative-only",
+                "fullSuccessOutputDisabled": True,
+                "db2OutputCount": 0,
+                "canonicalAuditRequiresMatchingInitialResultDigestAck": True,
+                "canonicalAuditRequiresNoReplaceSameHandleRename": True,
+                "auditCompletionRequiresCommitDigestAckAndExternalParentReceipt": (
+                    True
+                ),
+                "noInitialAckCanonicalAuditCreated": False,
+                "initialDigestMismatchCanonicalAuditCreated": False,
+                "commitAckFailureMayLeavePreparedUnverifiedCanonicalAudit": (
+                    True
+                ),
+                "cliWriteOrFlushFailureMayLeavePreparedUnverifiedCanonicalAudit": (
+                    True
+                ),
+                "frozenAuditSelfPromotable": False,
+                "auditClaimsCliEmission": False,
+                "parentReceiptPersistedInFrozenRun": False,
+            },
+        )
+
+        scenarios = replay["scenarios"]
+        self.assertEqual(set(scenarios), {"explicitEmpty", "pinnedPublicPartial"})
+        self.assertEqual(
+            scenarios["explicitEmpty"],
+            {
+                "status": "blocked",
+                "blocker": "EXPLICIT_EMPTY_KEY_SOURCE",
+                "encryptedChunkCount": 20,
+                "keyAvailableChunkCount": 0,
+                "decryptedChunkCount": 0,
+                "zeroFallbackChunkCount": 20,
+                "matchedRootMd5Count": 0,
+                "allRequiredRootMd5Matched": False,
+                "auditState": "prepared-unverified",
+                "selfPromotable": False,
+                "db2OutputCount": 0,
+                "evidenceRef": {
+                    "relativeIsolationId": (
+                        "hardened-exact-build-replay-v3-20260801/runs/"
+                        "empty-key-negative/redacted-audit.json"
+                    ),
+                    "bytes": 10_832,
+                    "sha256": (
+                        "6a25b060bbe3aec64fef2531b0c0c36b643c2b1f9cae6da0"
+                        "24f8beb1aeb0c0f8"
+                    ),
+                },
+            },
+        )
+        self.assertEqual(
+            scenarios["pinnedPublicPartial"],
+            {
+                "status": "blocked",
+                "blocker": "INCOMPLETE_DECRYPTION",
+                "publicSourceCommit": (
+                    "a3449fd5cfc3a0053cbff2c65f7d16166774cbf9"
+                ),
+                "publicSourceBytes": 981_450,
+                "publicSourceSha256": (
+                    "e4fe2fd39ccc43b5ee14b1ced69dce9f21d4d90267a8a3e"
+                    "2bbb2b953597f55f9"
+                ),
+                "encryptedChunkCount": 20,
+                "keyAvailableChunkCount": 17,
+                "decryptedChunkCount": 17,
+                "zeroFallbackChunkCount": 3,
+                "matchedRootMd5Count": 3,
+                "allRequiredRootMd5Matched": False,
+                "auditState": "prepared-unverified",
+                "selfPromotable": False,
+                "db2OutputCount": 0,
+                "evidenceRef": {
+                    "relativeIsolationId": (
+                        "hardened-exact-build-replay-v3-20260801/runs/"
+                        "public-partial-negative/redacted-audit.json"
+                    ),
+                    "bytes": 10_986,
+                    "sha256": (
+                        "611104643b3147d1031c03203ca04c3e965a267c465f24077"
+                        "e8016761a1a9fa3"
+                    ),
+                },
+            },
+        )
+        for scenario in scenarios.values():
+            self.assertEqual(
+                scenario["decryptedChunkCount"]
+                + scenario["zeroFallbackChunkCount"],
+                scenario["encryptedChunkCount"],
+            )
+            self.assertEqual(scenario["db2OutputCount"], 0)
+            self.assertFalse(scenario["allRequiredRootMd5Matched"])
+            self.assertFalse(scenario["selfPromotable"])
+
+        self.assertEqual(
+            replay["verification"],
+            {
+                "runnerRef": {
+                    "relativeIsolationId": (
+                        "hardened-exact-build-replay-v3-20260801/"
+                        "hardened_exact_build_replay.py"
+                    ),
+                    "bytes": 119_822,
+                    "sha256": (
+                        "eb9433400ffba7533f07706595d8d869f471174a2e88451d"
+                        "4e0c57288747d442"
+                    ),
+                },
+                "testsRef": {
+                    "relativeIsolationId": (
+                        "hardened-exact-build-replay-v3-20260801/tests/"
+                        "test_hardened_exact_build_replay.py"
+                    ),
+                    "bytes": 63_217,
+                    "sha256": (
+                        "be614f9cb9673bb4f10a3693056c8718ec554e9232fb8d1"
+                        "35a9051847fde826a"
+                    ),
+                },
+                "dependencyManifestRef": {
+                    "relativeIsolationId": (
+                        "hardened-exact-build-replay-v3-20260801/"
+                        "dependency-manifest.json"
+                    ),
+                    "bytes": 6_699,
+                    "sha256": (
+                        "89e22a83039a4937143a033482cfa5be3389c4d74f2ea9e3"
+                        "581850d4ca3b221f"
+                    ),
+                },
+                "networkDenyShimRef": {
+                    "relativeIsolationId": (
+                        "hardened-exact-build-replay-v3-20260801/"
+                        "network_deny_requests.py"
+                    ),
+                    "bytes": 849,
+                    "sha256": (
+                        "c1400a6a7472ebbeb8162ef77699f311f6e2504e22822b79"
+                        "77bb8aad2b2a5db1"
+                    ),
+                },
+                "pinnedPublicInputRef": {
+                    "relativeIsolationId": (
+                        "hardened-exact-build-replay-v3-20260801/inputs/"
+                        "wowdev-tactkeys-a3449fd5-WoW.txt"
+                    ),
+                    "bytes": 981_450,
+                    "sha256": (
+                        "e4fe2fd39ccc43b5ee14b1ced69dce9f21d4d90267a8a3e"
+                        "2bbb2b953597f55f9"
+                    ),
+                },
+                "scopedTestCount": 48,
+                "rootFreshTestCount": 48,
+                "astParseCount": 3,
+                "independentReviewCount": 2,
+                "independentReviewP0Count": 0,
+                "independentReviewP1Count": 0,
+                "independentReviewP2Count": 0,
+                "freezeTupleStableAfterReviewAndRootVerification": True,
+                "oldFortyFiveTestFreezeValid": False,
+            },
+        )
+
+        truth = audit["remainingTruth"]
+        self.assertEqual(
+            truth,
+            {
+                "sourceUnionStatus": "partial",
+                "sourceUnionKeyCount": 9,
+                "requiredKeyCount": 12,
+                "recoveredEncryptedRecordCount": 114,
+                "encryptedRecordCount": 178,
+                "unavailableEncryptedRecordCount": 64,
+                "missingTactKeys": [
+                    {"id": "14f4b11d7b067aa2", "recordCount": 12},
+                    {"id": "62bf37a70e6d54f6", "recordCount": 8},
+                    {"id": "fbbf041f980ce0dc", "recordCount": 44},
+                ],
+                "officialSourceProjection": {
+                    "complete": 0,
+                    "partial": 9,
+                    "blocked": 10,
+                    "gapCount": 21,
+                },
+                "universeComplete": False,
+                "formalGearCommunityManifestCandidateComplete": False,
+                "productionPromotionAllowed": False,
+            },
+        )
+        self.assertEqual(
+            truth["sourceUnionKeyCount"]
+            + len(truth["missingTactKeys"]),
+            truth["requiredKeyCount"],
+        )
+        self.assertEqual(
+            truth["recoveredEncryptedRecordCount"]
+            + truth["unavailableEncryptedRecordCount"],
+            truth["encryptedRecordCount"],
+        )
+        self.assertEqual(
+            sum(item["recordCount"] for item in truth["missingTactKeys"]),
+            truth["unavailableEncryptedRecordCount"],
+        )
+        self.assertEqual(
+            sum(
+                truth["officialSourceProjection"][key]
+                for key in ("complete", "partial", "blocked")
+            ),
+            19,
+        )
+
+        self.assertEqual(
+            audit["safety"],
+            {
+                "containsUrl": False,
+                "containsAbsolutePath": False,
+                "containsActualKeyMaterial": False,
+                "containsAuthoritativePlaintext": False,
+                "containsDecodedDb2": False,
+                "externalEvidenceAclRestricted": True,
+                "repositoryRawEvidenceMutation": False,
+                "productionMutation": False,
+                "releasePointerMutation": False,
+                "manifestMutation": False,
+                "cloudProductionConsumed": False,
+                "oldGoalStatusChanged": False,
+            },
+        )
+        self.assertEqual(
+            audit["blockers"],
+            [
+                "APPROVED_PUBLIC_TACT_KEYS_INCOMPLETE",
+                "CURRENT_CLIENT_ENCRYPTED_SOURCE_RECORDS_UNAVAILABLE",
+                "EXACT_BUILD_KEY_OR_AUTHORITATIVE_DECRYPTION_RECORD_REQUIRED",
+                "OFFICIAL_SOURCE_UNIVERSE_GAPS_REMAIN_21",
+            ],
+        )
+        self.assertEqual(
+            audit["nextSlice"],
+            {
+                "order": 1,
+                "action": (
+                    "Obtain an approved exact-build source for the three "
+                    "missing TACT keys or authoritative exact-build decryption "
+                    "records for the 64 encrypted relations."
+                ),
+                "afterSuccess": (
+                    "Rebuild the one-to-one inclusion, exclusion, and blocked "
+                    "closure for all 19 seasonal PVE source classes."
+                ),
+                "fullMatrixMayStartBeforeSuccess": False,
+            },
+        )
+
+        serialized = audit_bytes.decode("utf-8")
+        self.assertNotIn("http://", serialized)
+        self.assertNotIn("https://", serialized)
+        self.assertIsNone(re.search(r"[A-Za-z]:\\\\", serialized))
+        self.assertNotIn("\\\\\\\\", serialized)
+        self.assertNotIn('"/var/', serialized)
+        self.assertNotIn('"/home/', serialized)
+        self.assertNotIn('"/opt/', serialized)
+
     def test_tact_key_origin_timeline_continuation_stays_fail_closed(self):
         evidence_root = (
             Path(__file__).resolve().parents[1]
