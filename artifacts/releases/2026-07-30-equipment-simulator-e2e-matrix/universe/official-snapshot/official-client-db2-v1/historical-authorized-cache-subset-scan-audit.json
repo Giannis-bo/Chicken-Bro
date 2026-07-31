@@ -1,0 +1,133 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-31T16:03:56.3477992Z",
+  "status": "blocked",
+  "build": "12.0.7.68887",
+  "scope": "historical_authorized_cache_subset_scan",
+  "authority": {
+    "authorizedSet": "fixed_63_descriptors",
+    "recoverySource": "complete objects recovered from the original main rollout only",
+    "authorizedDescriptorCount": 63,
+    "recoveredDescriptorCount": 52,
+    "missingDescriptorCount": 11,
+    "freshVerifiedMetadataSameIdentityProven": false,
+    "freshVerifiedMetadataAuthorizationInherited": false,
+    "mayEstablishOfficialSeasonMembership": false,
+    "mayEstablishSuccessfulDecryption": false
+  },
+  "originalAuthorizedSet": {
+    "descriptorCount": 63,
+    "metadataObservedBytes": 61090619,
+    "distribution": {
+      "XPTR": {
+        "67227": 2
+      },
+      "Beta": {
+        "64124": 3,
+        "64228": 1,
+        "64339": 19,
+        "64529": 7,
+        "64611": 6,
+        "64741": 12,
+        "64774": 13
+      }
+    }
+  },
+  "recoveredAuthorizedSubset": {
+    "status": "downloaded_scanned_no_target_identity",
+    "descriptorCount": 52,
+    "missingDescriptorCount": 11,
+    "missingDistribution": {
+      "Beta": {
+        "64124": 3,
+        "64228": 1,
+        "64339": 7
+      }
+    },
+    "distribution": {
+      "XPTR": {
+        "67227": 2
+      },
+      "Beta": {
+        "64339": 12,
+        "64529": 7,
+        "64611": 6,
+        "64741": 12,
+        "64774": 13
+      }
+    },
+    "downloadedBodyCount": 52,
+    "scannedBodyCount": 52,
+    "totalDownloadedBytes": 58259882,
+    "uniqueBodySha256Count": 52,
+    "uniqueXfthV9BodyCount": 52,
+    "headerBuildMatchCount": 52,
+    "targetIdentityHitCount": 0,
+    "partFileCount": 0,
+    "requestUrlLeakCount": 0,
+    "actualKeyMaterialLeakCount": 0
+  },
+  "externalEvidence": {
+    "manifest": {
+      "relativeIsolationId": "historical-recovered-52/manifest.internal.json",
+      "bytes": 58888,
+      "sha256": "c3ad739bb982281191de2bd08fb96a9ee67e347b6aaa08376e30d5e214ef61dd",
+      "requestUrlHashSetSha256": "412facab891e32e26ca895b8ffd17371e4ea0e40a0c292fe05304731c1d212f7",
+      "objectIdentityHashSetSha256": "5c9f0508d40fcc93ae6fd959b26db10b16ef9045569f5c4691263f52044cd3bb"
+    },
+    "xptrRedactedAudit": {
+      "relativeIsolationId": "historical-recovered-52/xptr/redacted-audit.json",
+      "bytes": 2974,
+      "sha256": "00bb2974ad03f977dc461d6347db67caa2b34165c8cd7671912a1aea07a3e7b4"
+    },
+    "betaRedactedAudit": {
+      "relativeIsolationId": "historical-recovered-52/beta/redacted-audit.json",
+      "bytes": 75494,
+      "sha256": "910198a092c2ef4839d93781bb64200ec178d445558b15f7beec69fdd1477585"
+    }
+  },
+  "freshVerifiedMetadata": {
+    "status": "separate_unbound_research_lead",
+    "descriptorCount": 52,
+    "distribution": {
+      "XPTR": {
+        "67227": 2
+      },
+      "Beta": {
+        "64124": 3,
+        "64228": 1,
+        "64339": 19,
+        "64529": 7,
+        "64611": 6,
+        "64741": 9,
+        "64774": 5
+      }
+    },
+    "requestUrlHashSetSha256": "0a00f1b7705102caa01eb76a40b7542d35a83f987d9677391214ad4fc0f5df65",
+    "objectIdentityHashSetSha256": "c6df57bfa7e647cca4768929cf2e42fc30d67ed884be8a9dcb908ee6064a3a19",
+    "sameIdentityAsAuthorizedSetProven": false,
+    "inheritsAuthorizedDownloadScope": false,
+    "bodiesDownloaded": false,
+    "bodiesScanned": false
+  },
+  "remainingTruth": {
+    "authorizedSetMissingDescriptorCount": 11,
+    "missingTargetKeyCount": 3,
+    "unavailableEncryptedRecordCount": 64,
+    "universeGapCount": 21,
+    "handoffHistoricalBlocked": true
+  },
+  "blockers": [
+    "APPROVED_PUBLIC_TACT_KEYS_INCOMPLETE",
+    "CURRENT_CLIENT_DBCACHE_CORPUS_TACT_KEYS_INCOMPLETE",
+    "CURRENT_CLIENT_ENCRYPTED_SOURCE_RECORDS_UNAVAILABLE",
+    "AUTHORIZED_HISTORICAL_CACHE_SET_INCOMPLETE_11_DESCRIPTORS_UNRECOVERED"
+  ],
+  "containsRequestUrls": false,
+  "containsRawKeyOrMaterial": false,
+  "containsAbsoluteLocalPaths": false,
+  "externalEvidenceAclRestricted": true,
+  "productionMutation": false,
+  "releasePointerMutation": false,
+  "conclusion": "The fixed authorized set remains 63 descriptors. Complete bodies for 52 descriptors were recovered from the original main rollout, downloaded and scanned as 58259882 bytes across 52 unique XFTH v9 bodies, and produced zero target identity hits. Eleven authorized descriptors remain unrecovered. A fresh verified 52-descriptor metadata set is a separate unbound research lead: identity equivalence is unproven, its bodies were not downloaded, and it does not inherit the fixed-set authorization. The Goal remains blocked with 3 target keys, 64 encrypted records, and 21 universe gaps unresolved; handoff-historical, production, and release pointer state are unchanged."
+}

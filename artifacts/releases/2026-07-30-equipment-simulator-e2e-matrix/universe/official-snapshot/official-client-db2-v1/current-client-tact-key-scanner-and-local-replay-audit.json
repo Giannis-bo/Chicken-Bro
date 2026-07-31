@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
-  "capturedAt": "2026-07-31T15:23:55.8840777Z",
+  "capturedAt": "2026-07-31T16:03:56.3477992Z",
   "status": "blocked",
   "build": "12.0.7.68887",
   "authority": {
     "scope": "corrected local HTFX v9 TactKey scanner semantics, current public-source continuity, and installed exact-build CASC no-download replay readiness",
     "localClientProvenance": "installed Blizzard World of Warcraft retail zhCN client",
     "publicSourceProvenance": "pinned public third-party source repositories",
-    "historicalCandidateProvenance": "fixed third-party metadata scope authorized by the user; cache bodies not yet downloaded or scanned",
+    "historicalCandidateProvenance": "fixed 63-descriptor third-party metadata scope authorized by the user; 52 complete bodies recovered from the original main rollout were scanned with zero target identity hits, while 11 authorized descriptors remain unrecovered",
     "mayEstablishOfficialSeasonMembership": false,
     "mayEstablishSuccessfulDecryption": false,
     "auditContainsKeyMaterial": false,
@@ -158,23 +158,34 @@
       "explicitUserDownloadAuthorizationReceived": true,
       "downloadAuthorized": true,
       "authorizedScopeIsFixed": true,
-      "rawBodiesDownloaded": false,
-      "rawBodiesScanned": false,
-      "metadataRefreshStatus": "in_progress",
       "candidateCount": 63,
       "xptrCandidateCount": 2,
       "betaCandidateCount": 61,
-      "metadataObservedBytesUpperBound": 61090619
+      "metadataObservedBytesUpperBound": 61090619,
+      "recoveredAuthorizedBodyCount": 52,
+      "downloadedAuthorizedBodyCount": 52,
+      "scannedAuthorizedBodyCount": 52,
+      "downloadedAuthorizedBodyBytes": 58259882,
+      "targetIdentityHitCount": 0,
+      "unrecoveredAuthorizedDescriptorCount": 11,
+      "freshVerifiedMetadataStatus": "separate_unbound_52_descriptor_set_not_downloaded",
+      "freshVerifiedMetadataSameIdentityProven": false,
+      "freshVerifiedMetadataAuthorizationInherited": false
     }
+  },
+  "historicalAuthorizedCacheSubsetEvidenceRef": {
+    "path": "historical-authorized-cache-subset-scan-audit.json",
+    "bytes": 4733,
+    "sha256": "5aa37842f39738546fb1cde3be151b7af498bd53692de0f215d3163639b1f0ef"
   },
   "blockers": [
     "APPROVED_PUBLIC_TACT_KEYS_INCOMPLETE",
     "CURRENT_CLIENT_DBCACHE_CORPUS_TACT_KEYS_INCOMPLETE",
     "CURRENT_CLIENT_ENCRYPTED_SOURCE_RECORDS_UNAVAILABLE",
     "LOCAL_CASC_RAW_BODY_EXTRACTION_UNAVAILABLE",
-    "HISTORICAL_CACHE_BODIES_NOT_YET_SCANNED"
+    "AUTHORIZED_HISTORICAL_CACHE_SET_INCOMPLETE_11_DESCRIPTORS_UNRECOVERED"
   ],
-  "conclusion": "Corrected BroadcastText semantics and a fresh local scan confirm that valid entries carry material without exposing it, but neither the cache-only nor composite view contains a blocker identity. The pinned public source remains at 9/12 target keys and 114/178 records. Installed exact-build CASC transport is locally addressable for all four target BLTE objects, but bodies have not been extracted and no safe ready local extractor exists. The user has authorized the fixed 2 XPTR plus 61 Beta historical-body scope; metadata refresh is in progress, and no body has yet been downloaded or scanned. The Goal remains blocked; no production or release pointer was changed.",
+  "conclusion": "Corrected BroadcastText semantics and a fresh local scan confirm that valid entries carry material without exposing it, but neither the cache-only nor composite view contains a blocker identity. The pinned public source remains at 9/12 target keys and 114/178 records. Installed exact-build CASC transport is locally addressable for all four target BLTE objects, but bodies have not been extracted and no safe ready local extractor exists. The authorized historical set remains fixed at 63 descriptors: 52 complete bodies recovered from the original main rollout were downloaded and scanned as 58259882 bytes across 52 unique XFTH v9 bodies with zero target identity hits, while 11 authorized descriptors remain unrecovered. A fresh verified 52-descriptor metadata set is separate, is not proven to have the same identities, was not downloaded, and does not inherit the fixed authorization. The Goal remains blocked with 3 keys, 64 encrypted records, and 21 universe gaps unchanged; no production or release pointer was changed.",
   "productionMutation": false,
   "releasePointerMutation": false
 }

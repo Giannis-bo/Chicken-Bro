@@ -1,5 +1,6 @@
 import hashlib
 import json
+import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -26,6 +27,210 @@ from server.season_pve_official_evidence import (
 
 
 class SeasonPveOfficialEvidenceTest(unittest.TestCase):
+    def test_historical_authorized_cache_subset_scan_audit_is_fail_closed(self):
+        evidence_root = (
+            Path(__file__).resolve().parents[1]
+            / "artifacts"
+            / "releases"
+            / "2026-07-30-equipment-simulator-e2e-matrix"
+            / "universe"
+            / "official-snapshot"
+            / "official-client-db2-v1"
+        )
+        audit_path = (
+            evidence_root
+            / "historical-authorized-cache-subset-scan-audit.json"
+        )
+        self.assertTrue(
+            audit_path.is_file(),
+            "historical authorized cache subset scan audit is missing",
+        )
+
+        audit_bytes = audit_path.read_bytes()
+        audit = json.loads(audit_bytes)
+        self.assertEqual(audit["status"], "blocked")
+        self.assertEqual(audit["originalAuthorizedSet"]["descriptorCount"], 63)
+        self.assertEqual(
+            audit["recoveredAuthorizedSubset"]["descriptorCount"], 52
+        )
+        self.assertEqual(
+            audit["recoveredAuthorizedSubset"]["missingDescriptorCount"], 11
+        )
+        self.assertEqual(
+            audit["recoveredAuthorizedSubset"]["missingDistribution"],
+            {"Beta": {"64124": 3, "64228": 1, "64339": 7}},
+        )
+        self.assertEqual(
+            audit["recoveredAuthorizedSubset"]["distribution"],
+            {
+                "XPTR": {"67227": 2},
+                "Beta": {
+                    "64339": 12,
+                    "64529": 7,
+                    "64611": 6,
+                    "64741": 12,
+                    "64774": 13,
+                },
+            },
+        )
+        self.assertEqual(
+            audit["recoveredAuthorizedSubset"]["downloadedBodyCount"], 52
+        )
+        self.assertEqual(
+            audit["recoveredAuthorizedSubset"]["scannedBodyCount"], 52
+        )
+        self.assertEqual(
+            audit["recoveredAuthorizedSubset"]["totalDownloadedBytes"],
+            58_259_882,
+        )
+        self.assertEqual(
+            audit["recoveredAuthorizedSubset"]["uniqueXfthV9BodyCount"], 52
+        )
+        self.assertEqual(
+            audit["recoveredAuthorizedSubset"]["targetIdentityHitCount"], 0
+        )
+        self.assertEqual(
+            audit["remainingTruth"]["missingTargetKeyCount"], 3
+        )
+        self.assertEqual(
+            audit["remainingTruth"]["unavailableEncryptedRecordCount"], 64
+        )
+        self.assertEqual(audit["remainingTruth"]["universeGapCount"], 21)
+        blocker = (
+            "AUTHORIZED_HISTORICAL_CACHE_SET_INCOMPLETE_"
+            "11_DESCRIPTORS_UNRECOVERED"
+        )
+        self.assertIn(blocker, audit["blockers"])
+        self.assertNotIn(
+            "HISTORICAL_CACHE_BODIES_NOT_YET_SCANNED", audit["blockers"]
+        )
+
+        fresh = audit["freshVerifiedMetadata"]
+        self.assertEqual(fresh["descriptorCount"], 52)
+        self.assertEqual(
+            fresh["distribution"],
+            {
+                "XPTR": {"67227": 2},
+                "Beta": {
+                    "64124": 3,
+                    "64228": 1,
+                    "64339": 19,
+                    "64529": 7,
+                    "64611": 6,
+                    "64741": 9,
+                    "64774": 5,
+                },
+            },
+        )
+        self.assertFalse(fresh["sameIdentityAsAuthorizedSetProven"])
+        self.assertFalse(fresh["inheritsAuthorizedDownloadScope"])
+        self.assertFalse(fresh["bodiesDownloaded"])
+        self.assertEqual(
+            fresh["requestUrlHashSetSha256"],
+            "0a00f1b7705102caa01eb76a40b7542d35a83f987d9677391214ad4fc0f5df65",
+        )
+        self.assertEqual(
+            fresh["objectIdentityHashSetSha256"],
+            "c6df57bfa7e647cca4768929cf2e42fc30d67ed884be8a9dcb908ee6064a3a19",
+        )
+
+        external = audit["externalEvidence"]
+        self.assertEqual(
+            external["manifest"],
+            {
+                "relativeIsolationId": (
+                    "historical-recovered-52/manifest.internal.json"
+                ),
+                "bytes": 58_888,
+                "sha256": (
+                    "c3ad739bb982281191de2bd08fb96a9ee67e347b6aaa08376e30d5e214ef61dd"
+                ),
+                "requestUrlHashSetSha256": (
+                    "412facab891e32e26ca895b8ffd17371e4ea0e40a0c292fe05304731c1d212f7"
+                ),
+                "objectIdentityHashSetSha256": (
+                    "5c9f0508d40fcc93ae6fd959b26db10b16ef9045569f5c4691263f52044cd3bb"
+                ),
+            },
+        )
+        self.assertEqual(
+            external["xptrRedactedAudit"],
+            {
+                "relativeIsolationId": (
+                    "historical-recovered-52/xptr/redacted-audit.json"
+                ),
+                "bytes": 2_974,
+                "sha256": (
+                    "00bb2974ad03f977dc461d6347db67caa2b34165c8cd7671912a1aea07a3e7b4"
+                ),
+            },
+        )
+        self.assertEqual(
+            external["betaRedactedAudit"],
+            {
+                "relativeIsolationId": (
+                    "historical-recovered-52/beta/redacted-audit.json"
+                ),
+                "bytes": 75_494,
+                "sha256": (
+                    "910198a092c2ef4839d93781bb64200ec178d445558b15f7beec69fdd1477585"
+                ),
+            },
+        )
+
+        serialized = audit_bytes.decode("utf-8")
+        self.assertNotIn("http://", serialized)
+        self.assertNotIn("https://", serialized)
+        self.assertIsNone(re.search(r"[A-Za-z]:\\\\", serialized))
+        self.assertNotIn('"/var/', serialized)
+        self.assertNotIn('"/home/', serialized)
+        self.assertNotIn('"/opt/', serialized)
+        self.assertFalse(audit["containsRawKeyOrMaterial"])
+        self.assertFalse(audit["containsAbsoluteLocalPaths"])
+        self.assertTrue(audit["externalEvidenceAclRestricted"])
+
+        expected_ref = {
+            "path": audit_path.name,
+            "bytes": len(audit_bytes),
+            "sha256": hashlib.sha256(audit_bytes).hexdigest(),
+        }
+        scanner_path = (
+            evidence_root
+            / "current-client-tact-key-scanner-and-local-replay-audit.json"
+        )
+        continuation_path = (
+            evidence_root
+            / "current-client-tact-key-continuation-audit.json"
+        )
+        scanner_bytes = scanner_path.read_bytes()
+        scanner = json.loads(scanner_bytes)
+        continuation = json.loads(continuation_path.read_bytes())
+        self.assertEqual(
+            scanner["historicalAuthorizedCacheSubsetEvidenceRef"], expected_ref
+        )
+        self.assertEqual(
+            continuation["historicalAuthorizedCacheSubset"]["evidenceRef"],
+            expected_ref,
+        )
+        self.assertEqual(
+            continuation["scannerAndLocalReplayContinuation"]["evidenceRef"],
+            {
+                "path": scanner_path.name,
+                "bytes": len(scanner_bytes),
+                "sha256": hashlib.sha256(scanner_bytes).hexdigest(),
+            },
+        )
+        self.assertIn(blocker, scanner["blockers"])
+        self.assertIn(blocker, continuation["blockers"])
+        self.assertNotIn(
+            "HISTORICAL_CACHE_BODIES_NOT_YET_SCANNED",
+            scanner["blockers"],
+        )
+        self.assertNotIn(
+            "HISTORICAL_CACHE_BODIES_NOT_YET_SCANNED",
+            continuation["blockers"],
+        )
+
     @staticmethod
     def _write_tact_key_upstream_input_fixture(root, source_audit=None):
         inputs = {}

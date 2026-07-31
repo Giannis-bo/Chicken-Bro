@@ -294,11 +294,19 @@ branch 和 `git ls-remote` 均为
   观察、333 个唯一内容 SHA-256、1,113,575,177 bytes；四个 XPTR cache body 未持久化，
   redacted audit 未输出 key material；含 key material 的已校验 static 输入仍只保留在
   Git 外的隔离 handoff 解包目录。
-- Wago build identity 与 Raidbots verified metadata 进一步给出 63 个历史候选：
-  XPTR build 67227 两个，以及 12.0.0 Beta 七个 build 共 61 个，metadata 合计
-  61,090,619 bytes。这些 96-build / 63-candidate 计数没有封存源响应或响应哈希，
-  只作为 research leads；候选 cache body 尚未下载或扫描，不能算作 key/decryption
-  evidence。
+- 用户授权范围仍固定为原始 63 个历史 descriptor：XPTR build 67227 两个，
+  以及 12.0.0 Beta 七个 build 共 61 个，metadata 合计 61,090,619 bytes。
+  从原始 main rollout 只恢复出 52 个完整 descriptor：XPTR 67227=2；Beta
+  64339=12、64529=7、64611=6、64741=12、64774=13。对应 52 个 body 已下载并
+  扫描，共 58,259,882 bytes，全部为唯一 XFTH v9 且 header build 匹配，三枚
+  target identity 命中 0；`.part`、request URL 泄露和 actual key/material 泄露均为
+  0，Git 外隔离证据 ACL 保持 restricted。原授权集合仍缺 11 个 descriptor：Beta
+  64124=3、64228=1、64339=7，因此 blocker 精确更新为
+  `AUTHORIZED_HISTORICAL_CACHE_SET_INCOMPLETE_11_DESCRIPTORS_UNRECOVERED`。
+  另一次 fresh verified metadata 得到的是独立 52 项集合（XPTR 67227=2；Beta
+  64124=3、64228=1、64339=19、64529=7、64611=6、64741=9、64774=5），其 URL
+  set hash 为 `0a00f1…f5df65`、object set hash 为 `c6df57…4a3a19`；它与原授权
+  descriptor 是否同一 identity 未获证明，body 未下载，也不继承 fixed-63 授权。
 - 官方客户端的人机刷新动作已经闭合：退出后 WoW 进程为 0，新 cache 仍为 XFTH v9 /
   build 68887，并由 `local-official-client-post-login-cache-audit.json` 绑定；
   原先已跟踪的 `LOCAL_OFFICIAL_CLIENT_LOGIN_CONTEXT_REQUIRED` 已移除。该动作没有复制
@@ -324,15 +332,22 @@ branch 和 `git ls-remote` 均为
   计划读取 3,516,950 bytes；正文尚未抽取，当前没有安全现成 local extractor，
   `Data/config` 只观察到 1 个 key identity 且 target match 为 0。这只证明 offline
   transport replay readiness，不缩小 3 keys / 64 records。另有 2 XPTR + 61 Beta
-  共 63 个历史第三方 body 的固定范围已得到用户明确下载授权；当前正在刷新 metadata，
-  metadata observed 上限仍为 61,090,619 bytes，body 尚未下载或扫描，不能写成已取得
-  key/decryption evidence。
+  共 63 个历史第三方 descriptor 的固定范围已得到用户明确下载授权；其中从原始 main
+  rollout 恢复的 52 个 body 已扫描且 target 命中为 0，但 11 个授权 descriptor 仍未
+  恢复。独立 fresh 52 项 metadata 不能补齐该缺口或继承授权。因此 3 keys / 64 records /
+  21 个 Universe 缺口均未改变，handoff 历史入口继续 `blocked`，production 与 release
+  pointer 也未改变。
 - 新的 fail-closed 证据入口是
   [current-client-tact-key-scanner-and-local-replay-audit.json](../../artifacts/releases/2026-07-30-equipment-simulator-e2e-matrix/universe/official-snapshot/official-client-db2-v1/current-client-tact-key-scanner-and-local-replay-audit.json)。
+  授权历史子集的脱敏扫描链由
+  [historical-authorized-cache-subset-scan-audit.json](../../artifacts/releases/2026-07-30-equipment-simulator-e2e-matrix/universe/official-snapshot/official-client-db2-v1/historical-authorized-cache-subset-scan-audit.json)
+  绑定；仓库 artifact 不含 request URL、raw key/material 或绝对本机路径。
   旧 [handoff](../../artifacts/releases/2026-07-30-equipment-simulator-e2e-matrix/handoff.json)
-  仍是 `blocked` 历史入口；其中 `branch-head` 文字不能代替实时 SHA 校验。本次只读复核的
-  local HEAD、`origin/codex/equipment-simulator-e2e-matrix` tracking ref 与实时
-  `git ls-remote` 均为 `b722c57672c22e7dfc1258573bd05c0ce578d3f1`。Goal 与生产状态
+  仍是 `blocked` 历史入口；其中 `branch-head` 文字不能代替实时 SHA 校验。本轮未提交
+  证据 diff 的历史 checkpoint 于 `2026-07-31T16:15:36.3282380Z` 核对：local HEAD、
+  `origin/codex/equipment-simulator-e2e-matrix` tracking ref 与实时 `git ls-remote` 均为
+  `2afcaf2382e556c5c4914f81bc34a471eb856400`；它不是提交后的 current HEAD，提交并推送后
+  仍须重新实时校验三者一致。Goal 与生产状态
   均未改变，没有合入 `main`、生产 mutation 或 release pointer mutation。
 
 当前首要 blocker 仍是取得三枚缺失 TACT key 的获批 exact-build 来源，或取得

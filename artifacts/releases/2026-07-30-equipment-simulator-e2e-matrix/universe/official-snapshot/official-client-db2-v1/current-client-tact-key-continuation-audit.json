@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "capturedAt": "2026-07-31T15:23:55.8840777Z",
+  "capturedAt": "2026-07-31T16:03:56.3477992Z",
   "status": "blocked",
   "build": "12.0.7.68887",
   "authority": {
@@ -14,12 +14,29 @@
     "status": "blocked",
     "evidenceRef": {
       "path": "current-client-tact-key-scanner-and-local-replay-audit.json",
-      "bytes": 7075,
-      "sha256": "034914cecbef0ee53cc1a698b21987ad16a4ad4a6c743f1dc20f09c1178ab33b"
+      "bytes": 8162,
+      "sha256": "fbb2222a34cc672d56ceabe208378c23c6f2da52be8d6b4aa6eb99820b804efc"
     },
     "broadcastTextSemantics": "valid HTFX v9 BroadcastText tails carry actual TactKey material rather than a reference; no material is persisted in this audit",
     "localReplayReadiness": "all four target raw BLTE objects have unique local idx matches in the installed exact-build CASC, but bodies remain unextracted and no safe ready local extractor is available",
-    "historicalBodyAuthorization": "the user authorized the fixed 2 XPTR plus 61 Beta scope; metadata refresh is in progress, and bodies remain not downloaded or scanned",
+    "historicalBodyAuthorization": "the user authorized the fixed 2 XPTR plus 61 Beta scope; 52 complete bodies recovered from the original main rollout were downloaded and scanned with zero target identity hits, while 11 authorized descriptors remain unrecovered",
+    "coverageChanged": false
+  },
+  "historicalAuthorizedCacheSubset": {
+    "status": "blocked_incomplete_11_descriptors_unrecovered",
+    "evidenceRef": {
+      "path": "historical-authorized-cache-subset-scan-audit.json",
+      "bytes": 4733,
+      "sha256": "5aa37842f39738546fb1cde3be151b7af498bd53692de0f215d3163639b1f0ef"
+    },
+    "originalAuthorizedDescriptorCount": 63,
+    "recoveredAndScannedDescriptorCount": 52,
+    "unrecoveredAuthorizedDescriptorCount": 11,
+    "downloadedAndScannedBytes": 58259882,
+    "uniqueXfthV9BodyCount": 52,
+    "targetIdentityHitCount": 0,
+    "freshVerifiedMetadataSameIdentityProven": false,
+    "freshVerifiedMetadataAuthorizationInherited": false,
     "coverageChanged": false
   },
   "localOfficialClientCache": {
@@ -219,7 +236,7 @@
       }
     },
     "historicalVerifiedCacheCandidates": {
-      "status": "metadata_only_not_scanned_unsealed",
+      "status": "authorized_subset_scanned_incomplete_11_descriptors_unrecovered",
       "evidenceClassification": "unsealed_research_observation",
       "evidenceRef": {
         "path": "historical-tact-key-source-metadata-audit.json",
@@ -268,11 +285,24 @@
       "gcsMetadataPaginationTerminal": true,
       "downloadAuthorized": true,
       "authorizedScopeIsFixed": true,
-      "metadataRefreshStatus": "in_progress",
-      "rawCachesDownloaded": false,
-      "rawCachesScanned": false,
+      "recoveredAuthorizedSnapshotCount": 52,
+      "unrecoveredAuthorizedDescriptorCount": 11,
+      "recoveredAuthorizedSnapshotBytes": 58259882,
+      "recoveredAuthorizedSnapshotsDownloaded": true,
+      "recoveredAuthorizedSnapshotsScanned": true,
+      "recoveredAuthorizedTargetIdentityHitCount": 0,
+      "freshVerifiedMetadata": {
+        "status": "separate_unbound_research_lead",
+        "descriptorCount": 52,
+        "requestUrlHashSetSha256": "0a00f1b7705102caa01eb76a40b7542d35a83f987d9677391214ad4fc0f5df65",
+        "objectIdentityHashSetSha256": "c6df57bfa7e647cca4768929cf2e42fc30d67ed884be8a9dcb908ee6064a3a19",
+        "sameIdentityAsAuthorizedSetProven": false,
+        "inheritsAuthorizedDownloadScope": false,
+        "bodiesDownloaded": false,
+        "bodiesScanned": false
+      },
       "keyMaterialEmitted": false,
-      "approvalBoundary": "The user authorized the fixed 2 XPTR plus 61 Beta historical-body scope with a metadata-observed upper bound of 61090619 bytes. Metadata refresh is in progress; no body has yet been downloaded or scanned."
+      "approvalBoundary": "The user authorized the fixed 2 XPTR plus 61 Beta historical-body scope with a metadata-observed upper bound of 61090619 bytes. Of those 63 descriptors, 52 complete bodies recovered from the original main rollout were downloaded and scanned; 11 authorized descriptors remain unrecovered. The separately refreshed 52-descriptor metadata set is not proven identical and does not inherit authorization."
     },
     "wagoArchivedMajor12TactKeyScan": {
       "status": "observed_key_material_missing_unsealed",
@@ -467,9 +497,9 @@
     "UNVERIFIED_DBCACHE_SNAPSHOT_ISOLATION_UNDOCUMENTED",
     "CURRENT_CLIENT_ENCRYPTED_SOURCE_RECORDS_UNAVAILABLE",
     "LOCAL_CASC_RAW_BODY_EXTRACTION_UNAVAILABLE",
-    "HISTORICAL_CACHE_BODIES_NOT_YET_SCANNED"
+    "AUTHORIZED_HISTORICAL_CACHE_SET_INCOMPLETE_11_DESCRIPTORS_UNRECOVERED"
   ],
-  "conclusion": "The corrected scanner confirms that valid BroadcastText hotfix tails carry actual material without persisting it. The post-exit exact-build zhCN cache body contributes joined material for only 2 of 12 targets; the composite official static-plus-hotfix client state contains 8 of 12, and neither contains a blocker identity. A verified-endpoint cursor-path traversal reached an explicit terminal cursor and is bound by a persisted 55-page ledger, but this is observed behavior rather than a provider-published contract. The rapidly moving unverified endpoint is not exhausted and has no documented snapshot-isolation contract. The four selected exact-build xptr raw bodies were not retained or replayed with the corrected scanner; their target BroadcastText-carried-material count was already zero, so target coverage is unchanged. Installed exact-build CASC proves offline transport replay readiness for four local BLTE objects but has not yielded extracted bodies or successful decryption. The user has authorized the fixed 2 XPTR plus 61 Beta historical-body scope, metadata refresh is in progress, and no body has yet been downloaded or scanned. The Goal remains blocked with 3 target keys and 64 records unavailable.",
+  "conclusion": "The corrected scanner confirms that valid BroadcastText hotfix tails carry actual material without persisting it. The post-exit exact-build zhCN cache body contributes joined material for only 2 of 12 targets; the composite official static-plus-hotfix client state contains 8 of 12, and neither contains a blocker identity. A verified-endpoint cursor-path traversal reached an explicit terminal cursor and is bound by a persisted 55-page ledger, but this is observed behavior rather than a provider-published contract. The rapidly moving unverified endpoint is not exhausted and has no documented snapshot-isolation contract. The four selected exact-build xptr raw bodies were not retained or replayed with the corrected scanner; their target BroadcastText-carried-material count was already zero, so target coverage is unchanged. Installed exact-build CASC proves offline transport replay readiness for four local BLTE objects but has not yielded extracted bodies or successful decryption. The authorized historical set remains fixed at 63 descriptors: 52 complete bodies recovered from the original main rollout were downloaded and scanned as 58259882 bytes across 52 unique XFTH v9 bodies with zero target identity hits, while 11 authorized descriptors remain unrecovered. A fresh verified 52-descriptor metadata set is separate, is not proven to have the same identities, was not downloaded, and does not inherit authorization. The Goal remains blocked with 3 target keys, 64 records, and 21 universe gaps unchanged; handoff-historical remains blocked and production/release pointer state is unchanged.",
   "productionMutation": false,
   "releasePointerMutation": false
 }
