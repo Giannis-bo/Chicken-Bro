@@ -1,6 +1,7 @@
 {
   "schemaVersion": 1,
-  "capturedAt": "2026-07-31T14:13:36.551846+00:00",
+  "capturedAt": "2026-07-31T15:17:09.9503950Z",
+  "underlyingScanCapturedAt": "2026-07-31T14:13:36.551846+00:00",
   "status": "partial",
   "build": "12.0.7.68887",
   "authority": {
@@ -16,7 +17,7 @@
     "expectedVersion": "xptr",
     "expectedVerified": true,
     "selectionScope": "four matching descriptors from one saved mixed-channel verified page",
-    "identityPresenceSemantics": "the legacy presentInCorpusUnion field is composite static-plus-hotfix state; a separate cache-only decomposition is recorded below. All six composite target hits are joined TactKey material and none is BroadcastText-reference-only."
+    "identityPresenceSemantics": "the legacy presentInCorpusUnion field is composite static-plus-hotfix state; a separate cache-only decomposition is recorded below. BroadcastText valid hotfix tails carry actual TactKey material rather than references. The raw cache bodies were not retained and were not replayed with the corrected scanner; this artifact therefore makes only a semantic field-name correction. Its target BroadcastText-carried-material count was zero, so target coverage remains unchanged."
   },
   "sourceList": {
     "path": "dbcache-68887-verified-list.json",
@@ -86,8 +87,8 @@
           "be7d592cd36508a2",
           "dd9ea834c9585585"
         ],
-        "broadcastReferenceTargetIdentityCount": 0,
-        "broadcastReferenceTargetTactKeyIds": []
+        "broadcastCarriedMaterialTargetIdentityCount": 0,
+        "broadcastCarriedMaterialTargetTactKeyIds": []
       },
       "compositeStaticPlusHotfix": {
         "joinedMaterialTargetKeyCount": 6,
@@ -100,8 +101,8 @@
           "d1055199767fb373",
           "dd9ea834c9585585"
         ],
-        "broadcastReferenceTargetIdentityCount": 0,
-        "broadcastReferenceTargetTactKeyIds": []
+        "broadcastCarriedMaterialTargetIdentityCount": 0,
+        "broadcastCarriedMaterialTargetTactKeyIds": []
       }
     },
     "targetKeyPresenceFieldScope": "presentInCorpusUnion means present in the composite archived-static-plus-hotfix union, not cache-body-only",

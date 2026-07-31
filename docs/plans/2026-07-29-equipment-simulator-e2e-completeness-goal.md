@@ -307,6 +307,33 @@ branch 和 `git ls-remote` 均为
   root identity，而不是重新绑定已经推进的 live retail。执行前仍需补齐 expected-build/
   config 门禁、输出 root-MD5、完整解密非零退出、禁止覆盖及下游 `12/12` 成功路径；
   即使 64 条记录恢复，也仍需单独闭合 21 个 Universe 缺口。
+- `BroadcastText` 语义已按固定上游源码纠偏：有效 HTFX v9 条目尾部 28 bytes
+  是 4-byte `TactKey` table hash、8-byte identity 和 16-byte actual material，
+  不是 reference；审计只保留计数和源码 pin，不持久化 material。纠正后的本机 cache
+  扫描解析 12,212 条、未识别 table 11,500 条、未建模 state 0 条；cache-only
+  joined 2、Broadcast effective records 19、carried unique material identities 1、
+  available identities 3，composite joined 123、available identities 124，两种口径的
+  blocker present 都是 0。相关旧 artifact 已把 `broadcastReference*` 纠正为
+  `broadcastCarriedMaterial*`；四个 XPTR raw body 未保留、未按新 scanner 重放，
+  但其 target Broadcast count 原本就是 0，因此 target coverage 不变。
+- 当前 public `wowdev/TACTKeys` 仍固定在
+  `a3449fd5cfc3a0053cbff2c65f7d16166774cbf9`；`WoW.txt` 981,450 bytes、
+  SHA-256 `e4fe2fd39ccc43b5ee14b1ced69dce9f21d4d90267a8a3e2bbb2b953597f55f9`，
+  三枚 blocker identity 命中 0，所以 `9/12` keys、`114/178` records 未变。
+  本机已安装 exact-build CASC 的四个目标 raw BLTE 都能在 local idx 唯一定位，
+  计划读取 3,516,950 bytes；正文尚未抽取，当前没有安全现成 local extractor，
+  `Data/config` 只观察到 1 个 key identity 且 target match 为 0。这只证明 offline
+  transport replay readiness，不缩小 3 keys / 64 records。另有 2 XPTR + 61 Beta
+  共 63 个历史第三方 body 的固定范围已得到用户明确下载授权；当前正在刷新 metadata，
+  metadata observed 上限仍为 61,090,619 bytes，body 尚未下载或扫描，不能写成已取得
+  key/decryption evidence。
+- 新的 fail-closed 证据入口是
+  [current-client-tact-key-scanner-and-local-replay-audit.json](../../artifacts/releases/2026-07-30-equipment-simulator-e2e-matrix/universe/official-snapshot/official-client-db2-v1/current-client-tact-key-scanner-and-local-replay-audit.json)。
+  旧 [handoff](../../artifacts/releases/2026-07-30-equipment-simulator-e2e-matrix/handoff.json)
+  仍是 `blocked` 历史入口；其中 `branch-head` 文字不能代替实时 SHA 校验。本次只读复核的
+  local HEAD、`origin/codex/equipment-simulator-e2e-matrix` tracking ref 与实时
+  `git ls-remote` 均为 `b722c57672c22e7dfc1258573bd05c0ce578d3f1`。Goal 与生产状态
+  均未改变，没有合入 `main`、生产 mutation 或 release pointer mutation。
 
 当前首要 blocker 仍是取得三枚缺失 TACT key 的获批 exact-build 来源，或取得
 64 条记录的权威解密结果。未解除该 blocker 前，不进入 19 类来源的完成性宣称、

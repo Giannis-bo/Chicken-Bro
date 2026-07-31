@@ -16,6 +16,12 @@ XFTH_ENTRY_V9 = struct.Struct("<4siiIIIIB3s")
 TACT_KEY_TABLE_HASH = 0xDF2F53CF
 TACT_KEY_LOOKUP_TABLE_HASH = 0xAFC190D1
 BROADCAST_TEXT_TABLE_HASH = 0x021826BB
+MODELED_RECORD_STATES = {1, 2, 3, 4}
+RECOGNIZED_TABLE_NAMES = {
+    TACT_KEY_TABLE_HASH: "TactKey",
+    TACT_KEY_LOOKUP_TABLE_HASH: "TactKeyLookup",
+    BROADCAST_TEXT_TABLE_HASH: "BroadcastText",
+}
 
 
 def _file_evidence(path):
@@ -90,10 +96,18 @@ def scan_xfth_target_keys(
 
     key_material_record_ids = set(base_key_material_record_ids or ())
     lookup_by_record_id = dict(base_lookup_by_record_id or {})
-    broadcast_text_key_ids = set()
+    broadcast_text_key_by_record_id = {}
     target_table_entry_count = 0
     broadcast_text_entry_count = 0
     broadcast_text_tact_key_entry_count = 0
+    parsed_entry_count = 0
+    unrecognized_table_entry_count = 0
+    record_state_counts = {}
+    recognized_table_record_state_counts = {
+        table_name: {}
+        for table_name in sorted(RECOGNIZED_TABLE_NAMES.values())
+    }
+    unmodeled_record_state_count = 0
     offset = XFTH_HEADER.size
     while offset < len(payload):
         if len(payload) - offset < XFTH_ENTRY_V9.size:
@@ -121,6 +135,24 @@ def scan_xfth_target_keys(
         entry_payload = payload[offset:end_offset]
         offset = end_offset
 
+        parsed_entry_count += 1
+        state_key = str(state)
+        record_state_counts[state_key] = (
+            record_state_counts.get(state_key, 0) + 1
+        )
+        if state not in MODELED_RECORD_STATES:
+            unmodeled_record_state_count += 1
+        table_name = RECOGNIZED_TABLE_NAMES.get(table_hash)
+        if table_name is None:
+            unrecognized_table_entry_count += 1
+        else:
+            table_state_counts = recognized_table_record_state_counts[
+                table_name
+            ]
+            table_state_counts[state_key] = (
+                table_state_counts.get(state_key, 0) + 1
+            )
+
         if table_hash == TACT_KEY_TABLE_HASH:
             target_table_entry_count += 1
             if state == 1:
@@ -129,7 +161,7 @@ def scan_xfth_target_keys(
                         f"TactKey hotfix record has length {length}, expected 16"
                     )
                 key_material_record_ids.add(record_id)
-            elif state == 2:
+            else:
                 key_material_record_ids.discard(record_id)
         elif table_hash == TACT_KEY_LOOKUP_TABLE_HASH:
             target_table_entry_count += 1
@@ -140,18 +172,23 @@ def scan_xfth_target_keys(
                         f"{length}, expected 8"
                     )
                 lookup_by_record_id[record_id] = entry_payload.hex()
-            elif state == 2:
+            else:
                 lookup_by_record_id.pop(record_id, None)
         elif table_hash == BROADCAST_TEXT_TABLE_HASH:
             broadcast_text_entry_count += 1
-            if state != 1 or length < 28:
+            if state != 1:
+                broadcast_text_key_by_record_id.pop(record_id, None)
+                continue
+            if length < 28:
+                broadcast_text_key_by_record_id.pop(record_id, None)
                 continue
             optional_data = entry_payload[-28:]
             extra_table_hash = struct.unpack_from("<I", optional_data)[0]
             if extra_table_hash != TACT_KEY_TABLE_HASH:
+                broadcast_text_key_by_record_id.pop(record_id, None)
                 continue
             key_id = struct.unpack_from("<Q", optional_data, 4)[0]
-            broadcast_text_key_ids.add(f"{key_id:016x}")
+            broadcast_text_key_by_record_id[record_id] = f"{key_id:016x}"
             broadcast_text_tact_key_entry_count += 1
 
     joined_key_ids = {
@@ -159,6 +196,7 @@ def scan_xfth_target_keys(
         for record_id, key_id in lookup_by_record_id.items()
         if record_id in key_material_record_ids
     }
+    broadcast_text_key_ids = set(broadcast_text_key_by_record_id.values())
     available_key_ids = joined_key_ids | broadcast_text_key_ids
     return {
         "header": {
@@ -168,10 +206,23 @@ def scan_xfth_target_keys(
             "verifyHashSha256": hashlib.sha256(verify_hash).hexdigest(),
         },
         "targetTableEntryCount": target_table_entry_count,
+        "parsedEntryCount": parsed_entry_count,
+        "unrecognizedTableEntryCount": unrecognized_table_entry_count,
+        "recordStateCounts": record_state_counts,
+        "recognizedTableRecordStateCounts": (
+            recognized_table_record_state_counts
+        ),
+        "unmodeledRecordStateCount": unmodeled_record_state_count,
         "joinedHotfixKeyCount": len(joined_key_ids),
         "broadcastTextEntryCount": broadcast_text_entry_count,
         "broadcastTextTactKeyEntryCount": (
             broadcast_text_tact_key_entry_count
+        ),
+        "broadcastTextEffectiveTactKeyRecordCount": len(
+            broadcast_text_key_by_record_id
+        ),
+        "broadcastTextCarriedMaterialKeyCount": len(
+            broadcast_text_key_ids
         ),
         "availableKeyIdentityCount": len(available_key_ids),
         "presentTargetBlteKeyIds": sorted(

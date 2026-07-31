@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "capturedAt": "2026-07-31T14:38:39.225721+00:00",
+  "capturedAt": "2026-07-31T15:23:55.8840777Z",
   "status": "blocked",
   "build": "12.0.7.68887",
   "authority": {
@@ -9,6 +9,18 @@
     "mayEstablishOfficialSeasonMembership": false,
     "auditContainsKeyMaterial": false,
     "rawCacheCopied": false
+  },
+  "scannerAndLocalReplayContinuation": {
+    "status": "blocked",
+    "evidenceRef": {
+      "path": "current-client-tact-key-scanner-and-local-replay-audit.json",
+      "bytes": 7075,
+      "sha256": "034914cecbef0ee53cc1a698b21987ad16a4ad4a6c743f1dc20f09c1178ab33b"
+    },
+    "broadcastTextSemantics": "valid HTFX v9 BroadcastText tails carry actual TactKey material rather than a reference; no material is persisted in this audit",
+    "localReplayReadiness": "all four target raw BLTE objects have unique local idx matches in the installed exact-build CASC, but bodies remain unextracted and no safe ready local extractor is available",
+    "historicalBodyAuthorization": "the user authorized the fixed 2 XPTR plus 61 Beta scope; metadata refresh is in progress, and bodies remain not downloaded or scanned",
+    "coverageChanged": false
   },
   "localOfficialClientCache": {
     "relativeInstallPath": "_retail_/Cache/ADB/zhCN/DBCache.bin",
@@ -24,6 +36,31 @@
     },
     "scan": {
       "countScope": "composite effective-client state formed from archived static TactKey/TactKeyLookup plus the post-exit local hotfix cache",
+      "parsedEntryCount": 12212,
+      "unrecognizedTableEntryCount": 11500,
+      "recordStateCounts": {
+        "1": 8869,
+        "2": 796,
+        "3": 2127,
+        "4": 420
+      },
+      "recognizedTableRecordStateCounts": {
+        "BroadcastText": {
+          "1": 149,
+          "3": 51
+        },
+        "TactKey": {
+          "1": 99,
+          "3": 17,
+          "4": 392
+        },
+        "TactKeyLookup": {
+          "1": 2,
+          "4": 2
+        }
+      },
+      "unmodeledRecordStateCount": 0,
+      "cacheOnlyJoinedHotfixKeyCount": 2,
       "cacheOnlyJoinedMaterialTargetKeyCount": 2,
       "cacheOnlyAssociatedTargetRecordCount": 47,
       "cacheOnlyJoinedMaterialTargetTactKeyIds": [
@@ -34,6 +71,9 @@
       "joinedHotfixKeyCount": 123,
       "broadcastTextEntryCount": 200,
       "broadcastTextTactKeyEntryCount": 19,
+      "broadcastTextEffectiveTactKeyRecordCount": 19,
+      "broadcastTextCarriedMaterialKeyCount": 1,
+      "cacheOnlyAvailableKeyIdentityCount": 3,
       "compositeObservedKeyIdentityCount": 124,
       "compositeJoinedMaterialTargetKeyCount": 8,
       "compositeAssociatedTargetRecordCount": 92,
@@ -58,7 +98,7 @@
         "62bf37a70e6d54f6",
         "fbbf041f980ce0dc"
       ],
-      "compositeBroadcastReferenceTargetIdentityCount": 0,
+      "compositeBroadcastCarriedMaterialTargetIdentityCount": 0,
       "keyMaterialEmitted": false
     }
   },
@@ -106,8 +146,8 @@
       "blockerPresentKeyCount": 0,
       "evidenceRef": {
         "path": "local-official-client-post-login-cache-audit.json",
-        "bytes": 5381,
-        "sha256": "e9c5fd2cc5da692cec2084345eaf48cfeb055c34677731f9ba09a3ebb26d600c"
+        "bytes": 6181,
+        "sha256": "39f8b5f592a8e44aee912ab49ca53cc233bb534e065440da8f17abf000c3087b"
       }
     },
     "keyMaterialEmittedBySearch": false,
@@ -226,9 +266,13 @@
       "verifiedSnapshotBytes": 61090619,
       "uniqueContentMetadataCount": 63,
       "gcsMetadataPaginationTerminal": true,
+      "downloadAuthorized": true,
+      "authorizedScopeIsFixed": true,
+      "metadataRefreshStatus": "in_progress",
       "rawCachesDownloaded": false,
+      "rawCachesScanned": false,
       "keyMaterialEmitted": false,
-      "approvalBoundary": "Historical third-party cache bodies remain unscanned pending explicit download approval or a successful refreshed exact-build client cache."
+      "approvalBoundary": "The user authorized the fixed 2 XPTR plus 61 Beta historical-body scope with a metadata-observed upper bound of 61090619 bytes. Metadata refresh is in progress; no body has yet been downloaded or scanned."
     },
     "wagoArchivedMajor12TactKeyScan": {
       "status": "observed_key_material_missing_unsealed",
@@ -345,15 +389,15 @@
         "selectedCacheCount": 4,
         "totalFetchedBytes": 15431411,
         "sourceListSha256": "d614fb8579b1a76d3c25979f983fe1142c46f6e7a2ec1d22c62ed550675bc2f6",
-        "auditSha256": "9c2aa08cab8ae98ffcd20e885a3b33484f8353263f344952c1182f11e374b943",
-        "auditBytes": 12912,
+        "auditSha256": "0b432b34608067e684ec81e0ebade6c1f20a3bb140dac0442d670149bbb5adb0",
+        "auditBytes": 13239,
         "contentHashSetSha256": "c62aa36b6f1d31bba9a09d60bc97fdc3ba6a220cd31217acfc4bb1c2aa96e00f",
         "countScope": "archived static tables plus each selected xptr hotfix cache overlay",
         "cacheOnlyJoinedMaterialTargetKeyCount": 2,
         "cacheOnlyAssociatedTargetRecordCount": 47,
         "compositeJoinedMaterialTargetKeyCount": 6,
         "compositeAssociatedTargetRecordCount": 82,
-        "broadcastReferenceOnlyTargetIdentityCount": 0,
+        "broadcastCarriedMaterialTargetIdentityCount": 0,
         "addsBlockerKeyCount": 0,
         "evidenceRef": "dbcache-68887-verified-xptr-corpus-audit.json"
       },
@@ -421,9 +465,11 @@
     "CURRENT_CLIENT_DBCACHE_CORPUS_TACT_KEYS_INCOMPLETE",
     "UNVERIFIED_DBCACHE_PAGINATION_EXHAUSTION_UNPROVEN",
     "UNVERIFIED_DBCACHE_SNAPSHOT_ISOLATION_UNDOCUMENTED",
-    "CURRENT_CLIENT_ENCRYPTED_SOURCE_RECORDS_UNAVAILABLE"
+    "CURRENT_CLIENT_ENCRYPTED_SOURCE_RECORDS_UNAVAILABLE",
+    "LOCAL_CASC_RAW_BODY_EXTRACTION_UNAVAILABLE",
+    "HISTORICAL_CACHE_BODIES_NOT_YET_SCANNED"
   ],
-  "conclusion": "The post-exit exact-build zhCN cache body contributes joined material for only 2 of 12 targets; the composite official static-plus-hotfix client state contains 8 of 12. A verified-endpoint cursor-path traversal reached an explicit terminal cursor and is bound by a persisted 55-page ledger, but this is an observed behavior rather than a provider-published contract. The rapidly moving unverified endpoint is not exhausted and has no documented snapshot-isolation contract. Four exact-build xptr caches likewise add no blocker identity. Historical Beta/XPTR counts remain unsealed research leads and their bodies remain unscanned. The authenticated official-client refresh removes the local environment blocker but does not decrypt, exclude, or establish current-season membership for the 64 unavailable records.",
+  "conclusion": "The corrected scanner confirms that valid BroadcastText hotfix tails carry actual material without persisting it. The post-exit exact-build zhCN cache body contributes joined material for only 2 of 12 targets; the composite official static-plus-hotfix client state contains 8 of 12, and neither contains a blocker identity. A verified-endpoint cursor-path traversal reached an explicit terminal cursor and is bound by a persisted 55-page ledger, but this is observed behavior rather than a provider-published contract. The rapidly moving unverified endpoint is not exhausted and has no documented snapshot-isolation contract. The four selected exact-build xptr raw bodies were not retained or replayed with the corrected scanner; their target BroadcastText-carried-material count was already zero, so target coverage is unchanged. Installed exact-build CASC proves offline transport replay readiness for four local BLTE objects but has not yielded extracted bodies or successful decryption. The user has authorized the fixed 2 XPTR plus 61 Beta historical-body scope, metadata refresh is in progress, and no body has yet been downloaded or scanned. The Goal remains blocked with 3 target keys and 64 records unavailable.",
   "productionMutation": false,
   "releasePointerMutation": false
 }

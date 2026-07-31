@@ -1,0 +1,180 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-31T15:23:55.8840777Z",
+  "status": "blocked",
+  "build": "12.0.7.68887",
+  "authority": {
+    "scope": "corrected local HTFX v9 TactKey scanner semantics, current public-source continuity, and installed exact-build CASC no-download replay readiness",
+    "localClientProvenance": "installed Blizzard World of Warcraft retail zhCN client",
+    "publicSourceProvenance": "pinned public third-party source repositories",
+    "historicalCandidateProvenance": "fixed third-party metadata scope authorized by the user; cache bodies not yet downloaded or scanned",
+    "mayEstablishOfficialSeasonMembership": false,
+    "mayEstablishSuccessfulDecryption": false,
+    "auditContainsKeyMaterial": false,
+    "rawCacheOrBlteBodiesPersistedByAudit": false
+  },
+  "sourcePins": {
+    "broadcastTextCarriedMaterialSemantics": {
+      "statement": "For an HTFX v9 BroadcastText hotfix entry valid under op == 1, the trailing 28 bytes are a 4-byte TactKey table hash, an 8-byte key identity, and 16 bytes of actual TactKey material. They are not a material reference.",
+      "tailLayout": [
+        {
+          "bytes": 4,
+          "meaning": "TactKey table hash"
+        },
+        {
+          "bytes": 8,
+          "meaning": "TactKey identity"
+        },
+        {
+          "bytes": 16,
+          "meaning": "actual TactKey material",
+          "persistedInAudit": false
+        }
+      ],
+      "sources": [
+        {
+          "repository": "wowdev/TACTKeys",
+          "commit": "a3449fd5cfc3a0053cbff2c65f7d16166774cbf9",
+          "path": "README.md",
+          "url": "https://github.com/wowdev/TACTKeys/blob/a3449fd5cfc3a0053cbff2c65f7d16166774cbf9/README.md"
+        },
+        {
+          "repository": "Marlamin/wow.tools.local",
+          "commit": "126ad551c53995e5897307a7f7541d08b26e106d",
+          "path": "Controllers/KeyController.cs",
+          "url": "https://github.com/Marlamin/wow.tools.local/blob/126ad551c53995e5897307a7f7541d08b26e106d/Controllers/KeyController.cs"
+        },
+        {
+          "repository": "wowdev/DBCD",
+          "commit": "9ca6553713e76505a47b33e47ddc48063e9f74f9",
+          "locator": "HTFX V9 IsValid; op == 1",
+          "url": "https://github.com/wowdev/DBCD/tree/9ca6553713e76505a47b33e47ddc48063e9f74f9"
+        }
+      ]
+    }
+  },
+  "scannerVerification": {
+    "status": "fresh_local_scan_recorded",
+    "inputs": {
+      "scanner": {
+        "path": "scripts/build-dbcache-tact-key-coverage-audit.py",
+        "bytes": 16415,
+        "sha256": "23977d4f4e4862aed393b094ac45b4c65ba3e1a15f40e932cda9e4e3cfb003ac",
+        "gitState": "uncommitted"
+      },
+      "test": {
+        "path": "tests/dbcache_tact_key_coverage_audit_test.py",
+        "bytes": 15171,
+        "sha256": "34ea5baf05c69111c720c4cf099d0c650f6388db8b6858cf560b3bd413081616",
+        "gitState": "uncommitted"
+      },
+      "localCache": {
+        "relativeInstallPath": "_retail_/Cache/ADB/zhCN/DBCache.bin",
+        "bytes": 1376502,
+        "sha256": "d5aa61dc347115b4a0c403eb1da4807299aaaeba844bd9bcd30695947b71b723",
+        "rawCopied": false
+      }
+    },
+    "ledger": {
+      "parsedEntryCount": 12212,
+      "unrecognizedTableEntryCount": 11500,
+      "recordStateCounts": {
+        "1": 8869,
+        "2": 796,
+        "3": 2127,
+        "4": 420
+      },
+      "recognizedTableRecordStateCounts": {
+        "BroadcastText": {
+          "1": 149,
+          "3": 51
+        },
+        "TactKey": {
+          "1": 99,
+          "3": 17,
+          "4": 392
+        },
+        "TactKeyLookup": {
+          "1": 2,
+          "4": 2
+        }
+      },
+      "unmodeledRecordStateCount": 0
+    },
+    "cacheOnly": {
+      "joinedHotfixKeyCount": 2,
+      "broadcastTextEffectiveTactKeyRecordCount": 19,
+      "broadcastTextCarriedMaterialKeyCount": 1,
+      "availableKeyIdentityCount": 3,
+      "blockerPresentKeyCount": 0
+    },
+    "compositeStaticPlusHotfix": {
+      "joinedHotfixKeyCount": 123,
+      "broadcastTextCarriedMaterialKeyCount": 1,
+      "availableKeyIdentityCount": 124,
+      "blockerPresentKeyCount": 0
+    },
+    "keyMaterialEmitted": false
+  },
+  "publicSource": {
+    "repository": "wowdev/TACTKeys",
+    "commit": "a3449fd5cfc3a0053cbff2c65f7d16166774cbf9",
+    "blobPath": "WoW.txt",
+    "bytes": 981450,
+    "sha256": "e4fe2fd39ccc43b5ee14b1ced69dce9f21d4d90267a8a3e2bbb2b953597f55f9",
+    "blockerIdentityPresentCount": 0,
+    "availableTargetKeyCount": 9,
+    "targetKeyCount": 12,
+    "coveredTargetRecordCount": 114,
+    "targetRecordCount": 178,
+    "coverageChangedByThisAudit": false
+  },
+  "localReplayReadiness": {
+    "status": "offline_transport_replay_ready_body_extraction_blocked",
+    "collectionMode": "installed exact-build CASC; no download",
+    "client": {
+      "build": "12.0.7.68887",
+      "buildConfig": "0fcf22030198cca211997a998743ba7f",
+      "root": "b5cdb4350d97a3c70d5b0170003e0656",
+      "encoding": "968b76a940430f92887dffc3e353b064"
+    },
+    "targetTransport": {
+      "targetRawBlteObjectCount": 4,
+      "localIdxUniqueMatchCount": 4,
+      "plannedRawBytes": 3516950,
+      "rawBodiesExtracted": false,
+      "safeReadyLocalExtractorAvailable": false
+    },
+    "installedConfigKeyObservation": {
+      "keyIdentityCount": 1,
+      "targetMatchCount": 0,
+      "keyIdentityOrValuePersisted": false
+    },
+    "boundary": "This proves offline transport replay readiness only. It does not reduce the three missing target keys or the 64 unavailable encrypted records."
+  },
+  "authorizationBoundary": {
+    "historicalThirdPartyCacheBodies": {
+      "explicitUserDownloadAuthorizationWasRequired": true,
+      "explicitUserDownloadAuthorizationReceived": true,
+      "downloadAuthorized": true,
+      "authorizedScopeIsFixed": true,
+      "rawBodiesDownloaded": false,
+      "rawBodiesScanned": false,
+      "metadataRefreshStatus": "in_progress",
+      "candidateCount": 63,
+      "xptrCandidateCount": 2,
+      "betaCandidateCount": 61,
+      "metadataObservedBytesUpperBound": 61090619
+    }
+  },
+  "blockers": [
+    "APPROVED_PUBLIC_TACT_KEYS_INCOMPLETE",
+    "CURRENT_CLIENT_DBCACHE_CORPUS_TACT_KEYS_INCOMPLETE",
+    "CURRENT_CLIENT_ENCRYPTED_SOURCE_RECORDS_UNAVAILABLE",
+    "LOCAL_CASC_RAW_BODY_EXTRACTION_UNAVAILABLE",
+    "HISTORICAL_CACHE_BODIES_NOT_YET_SCANNED"
+  ],
+  "conclusion": "Corrected BroadcastText semantics and a fresh local scan confirm that valid entries carry material without exposing it, but neither the cache-only nor composite view contains a blocker identity. The pinned public source remains at 9/12 target keys and 114/178 records. Installed exact-build CASC transport is locally addressable for all four target BLTE objects, but bodies have not been extracted and no safe ready local extractor exists. The user has authorized the fixed 2 XPTR plus 61 Beta historical-body scope; metadata refresh is in progress, and no body has yet been downloaded or scanned. The Goal remains blocked; no production or release pointer was changed.",
+  "productionMutation": false,
+  "releasePointerMutation": false
+}

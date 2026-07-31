@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "capturedAt": "2026-07-31T14:33:23.3484314Z",
+  "capturedAt": "2026-07-31T15:17:09.9503950Z",
   "status": "partial",
   "build": "12.0.7.68887",
   "authority": {
@@ -74,19 +74,50 @@
   "scan": {
     "countScope": "composite effective-client state formed from archived static TactKey/TactKeyLookup plus the post-exit local hotfix cache",
     "cacheOnly": {
+      "joinedHotfixKeyCount": 2,
       "joinedMaterialTargetKeyCount": 2,
       "associatedTargetRecordCount": 47,
       "joinedMaterialTargetTactKeyIds": [
         "be7d592cd36508a2",
         "dd9ea834c9585585"
       ],
-      "broadcastReferenceTargetIdentityCount": 0,
-      "broadcastReferenceTargetTactKeyIds": []
+      "broadcastTextEffectiveTactKeyRecordCount": 19,
+      "broadcastTextCarriedMaterialKeyCount": 1,
+      "availableKeyIdentityCount": 3,
+      "broadcastCarriedMaterialTargetIdentityCount": 0,
+      "broadcastCarriedMaterialTargetTactKeyIds": [],
+      "blockerPresentKeyCount": 0
     },
+    "parsedEntryCount": 12212,
+    "unrecognizedTableEntryCount": 11500,
+    "recordStateCounts": {
+      "1": 8869,
+      "2": 796,
+      "3": 2127,
+      "4": 420
+    },
+    "recognizedTableRecordStateCounts": {
+      "BroadcastText": {
+        "1": 149,
+        "3": 51
+      },
+      "TactKey": {
+        "1": 99,
+        "3": 17,
+        "4": 392
+      },
+      "TactKeyLookup": {
+        "1": 2,
+        "4": 2
+      }
+    },
+    "unmodeledRecordStateCount": 0,
     "targetTableEntryCount": 512,
     "joinedHotfixKeyCount": 123,
     "broadcastTextEntryCount": 200,
     "broadcastTextTactKeyEntryCount": 19,
+    "broadcastTextEffectiveTactKeyRecordCount": 19,
+    "broadcastTextCarriedMaterialKeyCount": 1,
     "compositeObservedKeyIdentityCount": 124,
     "compositeJoinedMaterialTargetKeyCount": 8,
     "compositeAssociatedTargetRecordCount": 92,
@@ -110,8 +141,8 @@
     ],
     "blockerPresentKeyCount": 0,
     "blockerMissingRecordCount": 64,
-    "compositeBroadcastReferenceTargetIdentityCount": 0,
-    "compositeBroadcastReferenceTargetTactKeyIds": [],
+    "compositeBroadcastCarriedMaterialTargetIdentityCount": 0,
+    "compositeBroadcastCarriedMaterialTargetTactKeyIds": [],
     "blockerTactKeyIds": [
       "14f4b11d7b067aa2",
       "62bf37a70e6d54f6",
