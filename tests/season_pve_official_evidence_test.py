@@ -27,6 +27,342 @@ from server.season_pve_official_evidence import (
 
 
 class SeasonPveOfficialEvidenceTest(unittest.TestCase):
+    def test_tact_key_origin_timeline_continuation_stays_fail_closed(self):
+        evidence_root = (
+            Path(__file__).resolve().parents[1]
+            / "artifacts"
+            / "releases"
+            / "2026-07-30-equipment-simulator-e2e-matrix"
+            / "universe"
+            / "official-snapshot"
+            / "official-client-db2-v1"
+        )
+        audit_path = (
+            evidence_root
+            / "tact-key-origin-timeline-continuation-audit.json"
+        )
+        self.assertTrue(
+            audit_path.is_file(),
+            "TACT-key origin timeline continuation audit is missing",
+        )
+
+        audit_bytes = audit_path.read_bytes()
+        audit = json.loads(audit_bytes)
+        self.assertEqual(audit["schemaVersion"], 1)
+        self.assertEqual(
+            audit["kind"],
+            "tact-key-origin-timeline-continuation-audit",
+        )
+        self.assertEqual(audit["status"], "blocked")
+        self.assertEqual(
+            audit["goals"],
+            {
+                "currentGoalId": (
+                    "019fb823-90bf-7f63-ae60-9aaa82662f9c"
+                ),
+                "continuesGoalId": (
+                    "019faddb-abb5-79a3-a477-3cb6e6368120"
+                ),
+                "continuedGoalFinalStatus": "blocked",
+                "continuedGoalMarkedComplete": False,
+            },
+        )
+
+        scanner = audit["scanner"]
+        self.assertEqual(
+            scanner["sha256"],
+            "bfde604c5829483bac5b5d4a1444f7242feb21188962552b59b75b9cac9bd236",
+        )
+        self.assertEqual(scanner["corpusSchemaVersion"], 2)
+        self.assertEqual(scanner["scopedTestCount"], 13)
+        self.assertEqual(scanner["adversarialProbeCount"], 4)
+        self.assertEqual(scanner["independentReview"], "no_findings")
+        self.assertTrue(scanner["unknownRecognizedStateFailsClosed"])
+        self.assertTrue(scanner["effectiveAndRecoverableSeparated"])
+        self.assertTrue(scanner["recoveryRequiresEffectiveCoexistence"])
+
+        client = audit["currentClientPostLogin"]
+        self.assertEqual(client["build"], "12.0.7.68887")
+        self.assertEqual(client["cacheBytes"], 1_376_502)
+        self.assertEqual(
+            client["cacheSha256"],
+            "d5aa61dc347115b4a0c403eb1da4807299aaaeba844bd9bcd30695947b71b723",
+        )
+        self.assertEqual(client["cacheOnlyRecoverableIdentityCount"], 3)
+        self.assertEqual(client["cacheOnlyRecoverableTargetCount"], 2)
+        self.assertEqual(client["compositeRecoverableIdentityCount"], 124)
+        self.assertEqual(client["compositeRecoverableTargetCount"], 8)
+        self.assertEqual(client["blockerTargetHitCount"], 0)
+        self.assertFalse(client["coverageChanged"])
+
+        unified = audit["verifiedTimeline"][
+            "unifiedRetainedTimelineCrossCheck"
+        ]
+        self.assertEqual(unified["status"], "complete_no_target")
+        self.assertEqual(unified["timelineUniqueBodyCount"], 202)
+        self.assertEqual(unified["otherRetainedUniqueBodyCount"], 80)
+        self.assertEqual(unified["timelineRetainedIntersectionCount"], 0)
+        self.assertEqual(unified["uniqueBodyCount"], 282)
+        self.assertEqual(unified["scannedBodyBytes"], 939_441_229)
+        self.assertEqual(unified["targetHitCount"], 0)
+        self.assertEqual(
+            unified["filteredBeta63534Through66198"],
+            {
+                "bodyCount": 252,
+                "uniqueBodyCount": 252,
+                "scannedBodyBytes": 814_077_372,
+                "bodyHashSetSha256": (
+                    "70c7582d621ea93db198b786a5a1313c906f1736709820370bd43524a429a821"
+                ),
+                "targetHitCount": 0,
+            },
+        )
+        self.assertEqual(
+            unified["outsideFilteredBetaRange"],
+            {
+                "bodyCount": 30,
+                "scannedBodyBytes": 125_363_857,
+                "distribution": [
+                    {
+                        "version": "beta",
+                        "build": 66220,
+                        "bodyCount": 16,
+                        "bodyBytes": 115_451_009,
+                    },
+                    {
+                        "version": "ptr",
+                        "build": 64741,
+                        "bodyCount": 3,
+                        "bodyBytes": 194_547,
+                    },
+                    {
+                        "version": "ptr",
+                        "build": 64774,
+                        "bodyCount": 8,
+                        "bodyBytes": 9_520_184,
+                    },
+                    {
+                        "version": "ptr",
+                        "build": 68914,
+                        "bodyCount": 1,
+                        "bodyBytes": 24_766,
+                    },
+                    {
+                        "version": "xptr",
+                        "build": 67227,
+                        "bodyCount": 2,
+                        "bodyBytes": 173_351,
+                    },
+                ],
+            },
+        )
+        self.assertEqual(
+            unified["evidenceRef"],
+            {
+                "relativeIsolationId": (
+                    "verified-beta-timeline-63534-66198-20260801/"
+                    "current-scanner-unified-rescan-audit.json"
+                ),
+                "bytes": 387_033,
+                "sha256": (
+                    "875ed71a04dbd9e0a403e8b2ce4d5f8e00e08c9aed40bf602b9a97e622caa968"
+                ),
+            },
+        )
+
+        pre = audit["verifiedTimeline"]["pre67227NonBeta"]
+        self.assertEqual(pre["status"], "complete_no_target")
+        self.assertEqual(pre["buildGroupCount"], 71)
+        self.assertEqual(pre["sliceCount"], 121)
+        self.assertEqual(pre["verifiedObjectCount"], 1_322)
+        self.assertEqual(pre["uniqueBodyCount"], 1_313)
+        self.assertEqual(pre["scannedBodyBytes"], 6_539_165_207)
+        self.assertEqual(pre["targetHitCount"], 0)
+        self.assertEqual(
+            pre["evidenceRef"]["sha256"],
+            "91183790238848e4163130b24a7118bbbba2cc7be734f99a302388e3c5e5b630",
+        )
+
+        later = audit["verifiedTimeline"][
+            "atOrAfter67227VerifiedSelection"
+        ]
+        self.assertEqual(
+            later["status"],
+            "complete_no_target_for_selection_bound_set",
+        )
+        self.assertFalse(later["singleAggregateAuditExists"])
+        self.assertEqual(later["sourceAuditFileCount"], 45)
+        self.assertEqual(
+            later["sourceAuditStatuses"],
+            {"complete_no_target": 43, "complete": 1, "running": 1},
+        )
+        self.assertEqual(
+            later["productObjectCounts"],
+            {"retail": 243, "ptr": 86, "xptr": 53},
+        )
+        self.assertEqual(later["selectedObjectCount"], 382)
+        self.assertEqual(later["scannedBodyCount"], 382)
+        self.assertEqual(later["uniqueBodyCount"], 381)
+        self.assertEqual(later["scannedBodyBytes"], 788_883_989)
+        self.assertEqual(later["targetHitCount"], 0)
+        self.assertTrue(later["scopeExhaustedOnlyForSelectionBoundSet"])
+        self.assertFalse(later["mayClaimAllVerifiedProviderHistoryExhausted"])
+        manifest_path = (
+            evidence_root
+            / "tact-key-at-or-after-67227-selection-manifest.txt"
+        )
+        self.assertTrue(
+            manifest_path.is_file(),
+            "selection-bound deterministic manifest is missing",
+        )
+        manifest_bytes = manifest_path.read_bytes()
+        self.assertEqual(len(manifest_bytes), 6_956)
+        self.assertEqual(
+            hashlib.sha256(manifest_bytes).hexdigest(),
+            "7a58693d961d509f294ae9b3d9509193f1b02e9d26c5d8d9860b20d72cb0a4c7",
+        )
+        self.assertEqual(
+            later["evidenceManifestRef"],
+            {
+                "path": manifest_path.name,
+                "bytes": len(manifest_bytes),
+                "sha256": hashlib.sha256(manifest_bytes).hexdigest(),
+                "memberCount": 45,
+                "lineFormat": (
+                    "path|file_bytes|file_sha256|selector|selected_objects|"
+                    "selected_bodies|selected_body_bytes|selected_hits"
+                ),
+            },
+        )
+        manifest_lines = manifest_bytes.decode("utf-8").splitlines()
+        self.assertEqual(len(manifest_lines), 45)
+        rows = [line.split("|") for line in manifest_lines]
+        self.assertTrue(all(len(row) == 8 for row in rows))
+        self.assertEqual([row[0] for row in rows], sorted(row[0] for row in rows))
+        self.assertEqual(sum(int(row[4]) for row in rows), 382)
+        self.assertEqual(sum(int(row[5]) for row in rows), 381)
+        self.assertEqual(sum(int(row[6]) for row in rows), 788_883_989)
+        self.assertEqual(sum(int(row[7]) for row in rows), 0)
+        self.assertFalse(any("http" in field for row in rows for field in row))
+        self.assertFalse(
+            any(re.match(r"[A-Za-z]:\\", field) for row in rows for field in row)
+        )
+
+        retained = audit["verifiedTimeline"][
+            "retainedCurrentScannerCrossCheck"
+        ]
+        self.assertEqual(retained["retainedObjectCount"], 685)
+        self.assertEqual(retained["uniqueBodyCount"], 667)
+        self.assertEqual(retained["scannedObjectBytes"], 1_565_037_822)
+        self.assertEqual(retained["targetHitCount"], 0)
+        self.assertFalse(retained["mayClaimProviderHistoryExhausted"])
+        self.assertEqual(
+            retained["evidenceRef"]["sha256"],
+            "2c10c73841754477fbb9722bbce3440a37125bcf4935fea992690ac27c13fcbb",
+        )
+
+        rolling = audit["rollingUnverifiedRetainedWindow"]
+        self.assertEqual(rolling["status"], "complete_no_target")
+        self.assertEqual(rolling["retainedObjectCount"], 963)
+        self.assertEqual(rolling["uniqueBodyCount"], 961)
+        self.assertEqual(rolling["scannedObjectBytes"], 2_421_168_975)
+        self.assertEqual(rolling["targetHitCount"], 0)
+        self.assertEqual(rolling["unscannedSelectedObjectCount"], 1_037)
+        self.assertFalse(rolling["corpusExhausted"])
+        self.assertFalse(rolling["snapshotIsolationProven"])
+        self.assertFalse(rolling["sameWindowResumePossible"])
+        self.assertEqual(
+            rolling["evidenceRef"]["sha256"],
+            "5352a7061a903f042e5e467b631adeadd2d855a0d696aa83b44e568a13eef049",
+        )
+
+        ptr = audit["laterOfficialContinuity"]["ptr68914"]
+        self.assertEqual(
+            ptr["status"], "blocked_explicit_empty_keyfile_undecrypted"
+        )
+        self.assertEqual(ptr["build"], "12.1.0.68914")
+        self.assertEqual(ptr["fileDataId"], 982_457)
+        self.assertEqual(ptr["recordCount"], 161_175)
+        self.assertEqual(ptr["unencryptedRecordCount"], 161_037)
+        self.assertEqual(ptr["encryptedRecordCount"], 138)
+        self.assertEqual(
+            ptr["targetEncryptedRecordCounts"],
+            {
+                "14f4b11d7b067aa2": 12,
+                "62bf37a70e6d54f6": 8,
+                "fbbf041f980ce0dc": 44,
+            },
+        )
+        self.assertFalse(ptr["exactBuild68887Closed"])
+        self.assertEqual(
+            ptr["keyMaterialAvailabilityBeyondThisRun"], "not_assessed"
+        )
+        self.assertEqual(ptr["runnerReview"], "no_findings")
+        self.assertEqual(ptr["runnerTestCount"], 18)
+        self.assertEqual(
+            ptr["evidenceRef"]["sha256"],
+            "f8f5c653f3e03315d98ddde09ad5a591961fa511bbf6985e36810c1fc435ab02",
+        )
+
+        truth = audit["remainingTruth"]
+        self.assertEqual(truth["sourceUnionKeyCount"], 9)
+        self.assertEqual(truth["requiredKeyCount"], 12)
+        self.assertEqual(truth["recoveredEncryptedRecordCount"], 114)
+        self.assertEqual(truth["encryptedRecordCount"], 178)
+        self.assertEqual(truth["unavailableEncryptedRecordCount"], 64)
+        self.assertEqual(truth["officialSourceProjection"], {
+            "complete": 0,
+            "partial": 9,
+            "blocked": 10,
+            "gapCount": 21,
+        })
+        self.assertFalse(truth["universeComplete"])
+        self.assertFalse(truth["productionPromotionAllowed"])
+
+        production = audit["productionSnapshot"]
+        self.assertEqual(production["generation"], 35)
+        self.assertEqual(
+            production["manifestRevision"],
+            "season-manifest:sha256:20453991e93a1dc1650dbacfd85bdd042e9b020737c7851bef943f1e3e68883a",
+        )
+        self.assertEqual(
+            production["gearReleaseId"],
+            "gear-release:sha256:9299fe1f942dc272f402e4d735d6a1bf8111a8f156464e0777cd6df78769edc7",
+        )
+        self.assertEqual(
+            production["communityReleaseId"],
+            "community-release:sha256:686708be049323a979b66bfba42cae3f2b80f7337e740d26b299fd73e0665804",
+        )
+        self.assertEqual(production["dataHealth"], "partial")
+        self.assertEqual(production["backend"], {
+            "activeState": "active",
+            "subState": "running",
+            "restartCount": 0,
+        })
+        self.assertEqual(production["gearRefreshService"], {
+            "activeState": "failed",
+            "subState": "failed",
+            "result": "timeout",
+        })
+        self.assertTrue(production["matchesGoalBaseline"])
+        self.assertFalse(production["mutationPerformed"])
+
+        safety = audit["safety"]
+        self.assertTrue(safety["productionStateRecheckedInThisAudit"])
+        self.assertFalse(safety["productionMutation"])
+        self.assertFalse(safety["releasePointerMutation"])
+        self.assertFalse(safety["rawKeyMaterialInAudit"])
+        self.assertFalse(safety["absoluteLocalPathInAudit"])
+        self.assertEqual(safety["historicalHandoffStatus"], "blocked")
+
+        serialized = audit_bytes.decode("utf-8")
+        self.assertNotIn("http://", serialized)
+        self.assertNotIn("https://", serialized)
+        self.assertIsNone(re.search(r"[A-Za-z]:\\\\", serialized))
+        self.assertNotIn('"/var/', serialized)
+        self.assertNotIn('"/home/', serialized)
+        self.assertNotIn('"/opt/', serialized)
+
     def test_historical_authorized_cache_subset_scan_audit_is_fail_closed(self):
         evidence_root = (
             Path(__file__).resolve().parents[1]

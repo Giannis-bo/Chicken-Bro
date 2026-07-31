@@ -205,6 +205,7 @@ def build_corpus_audit(
     target_blte_ids = {row["blteKeyId"] for row in target_rows}
     cache_audits = []
     union_present = set()
+    union_effective_present = set()
     total_cache_bytes = 0
     failed_count = 0
     broadcast_text_entry_count = 0
@@ -233,8 +234,12 @@ def build_corpus_audit(
                 base_key_material_record_ids=base_key_material_record_ids,
                 base_lookup_by_record_id=base_lookup_by_record_id,
             )
-            present = set(scan["presentTargetBlteKeyIds"])
+            effective_present = set(
+                scan["effectivePresentTargetBlteKeyIds"]
+            )
+            present = set(scan["recoverableTargetBlteKeyIds"])
             union_present.update(present)
+            union_effective_present.update(effective_present)
             total_cache_bytes += len(payload)
             broadcast_text_entry_count += scan[
                 "broadcastTextEntryCount"
@@ -257,15 +262,28 @@ def build_corpus_audit(
                         "targetTableEntryCount"
                     ],
                     "joinedHotfixKeyCount": scan["joinedHotfixKeyCount"],
+                    "observedJoinedMaterialKeyCount": scan[
+                        "observedJoinedMaterialKeyCount"
+                    ],
                     "broadcastTextEntryCount": scan[
                         "broadcastTextEntryCount"
                     ],
                     "broadcastTextTactKeyEntryCount": scan[
                         "broadcastTextTactKeyEntryCount"
                     ],
+                    "broadcastTextObservedCarriedMaterialKeyCount": scan[
+                        "broadcastTextObservedCarriedMaterialKeyCount"
+                    ],
                     "availableKeyIdentityCount": scan[
                         "availableKeyIdentityCount"
                     ],
+                    "recoverableKeyIdentityCount": scan[
+                        "recoverableKeyIdentityCount"
+                    ],
+                    "effectivePresentTargetBlteKeyIds": sorted(
+                        effective_present
+                    ),
+                    "recoverableTargetBlteKeyIds": sorted(present),
                     "presentTargetBlteKeyIds": sorted(present),
                     "rawPersistedAfterAudit": False,
                 }
@@ -302,10 +320,13 @@ def build_corpus_audit(
     covered_record_count = 0
     for row in target_rows:
         present = row["blteKeyId"] in union_present
+        effective_present = row["blteKeyId"] in union_effective_present
         audited_targets.append(
             {
                 **row,
                 "presentInCorpusUnion": present,
+                "effectivePresentInCorpusUnion": effective_present,
+                "recoverableInCorpusUnion": present,
             }
         )
         if present:
@@ -348,7 +369,7 @@ def build_corpus_audit(
             "keyMaterialEmittedByAudit": False,
         }
     return {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "capturedAt": datetime.now(timezone.utc).isoformat(),
         "status": status,
         "build": f"12.0.7.{expected_build}",
@@ -367,9 +388,13 @@ def build_corpus_audit(
             "mayEstablishOfficialSeasonMembership": False,
             "auditContainsKeyMaterial": False,
             "rawCachesPersistedAfterAudit": False,
+            "targetPresenceSemantics": (
+                "recoverable from any validated state-1 material occurrence; "
+                "effective final DB2 state is reported separately"
+            ),
             "scanMode": (
-                "serial_in_memory_tact_key_tables_and_"
-                "broadcast_text_optional_data"
+                "serial_in_memory_effective_state_and_ever_observed_"
+                "tact_key_material"
             ),
         },
         "sourceList": {
@@ -396,6 +421,10 @@ def build_corpus_audit(
                 "targetKeyCount": len(target_rows),
                 "targetRecordCount": target_record_count,
                 "unionAvailableTargetKeyCount": len(union_present),
+                "unionEffectiveTargetKeyCount": len(
+                    union_effective_present
+                ),
+                "unionRecoverableTargetKeyCount": len(union_present),
                 "unionMissingTargetKeyCount": missing_key_count,
                 "unionCoveredTargetRecordCount": covered_record_count,
                 "unionMissingTargetRecordCount": (

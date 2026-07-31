@@ -97,6 +97,15 @@ def scan_xfth_target_keys(
     key_material_record_ids = set(base_key_material_record_ids or ())
     lookup_by_record_id = dict(base_lookup_by_record_id or {})
     broadcast_text_key_by_record_id = {}
+    # Effective DB2 state and recoverable key material are different facts:
+    # a later row deletion cannot make already delivered key bytes unusable,
+    # but material and identity must have coexisted in one effective state.
+    recoverable_joined_key_ids = {
+        key_id
+        for record_id, key_id in lookup_by_record_id.items()
+        if record_id in key_material_record_ids
+    }
+    observed_broadcast_key_ids = set()
     target_table_entry_count = 0
     broadcast_text_entry_count = 0
     broadcast_text_tact_key_entry_count = 0
@@ -146,6 +155,11 @@ def scan_xfth_target_keys(
         if table_name is None:
             unrecognized_table_entry_count += 1
         else:
+            if state not in MODELED_RECORD_STATES:
+                raise ValueError(
+                    f"{table_name} hotfix record has unmodeled "
+                    f"record state {state}"
+                )
             table_state_counts = recognized_table_record_state_counts[
                 table_name
             ]
@@ -163,6 +177,10 @@ def scan_xfth_target_keys(
                 key_material_record_ids.add(record_id)
             else:
                 key_material_record_ids.discard(record_id)
+            if record_id in key_material_record_ids:
+                key_id = lookup_by_record_id.get(record_id)
+                if key_id is not None:
+                    recoverable_joined_key_ids.add(key_id)
         elif table_hash == TACT_KEY_LOOKUP_TABLE_HASH:
             target_table_entry_count += 1
             if state == 1:
@@ -171,9 +189,14 @@ def scan_xfth_target_keys(
                         "TactKeyLookup hotfix record has length "
                         f"{length}, expected 8"
                     )
-                lookup_by_record_id[record_id] = entry_payload.hex()
+                key_id = entry_payload.hex()
+                lookup_by_record_id[record_id] = key_id
             else:
                 lookup_by_record_id.pop(record_id, None)
+            if record_id in key_material_record_ids:
+                key_id = lookup_by_record_id.get(record_id)
+                if key_id is not None:
+                    recoverable_joined_key_ids.add(key_id)
         elif table_hash == BROADCAST_TEXT_TABLE_HASH:
             broadcast_text_entry_count += 1
             if state != 1:
@@ -187,8 +210,12 @@ def scan_xfth_target_keys(
             if extra_table_hash != TACT_KEY_TABLE_HASH:
                 broadcast_text_key_by_record_id.pop(record_id, None)
                 continue
-            key_id = struct.unpack_from("<Q", optional_data, 4)[0]
-            broadcast_text_key_by_record_id[record_id] = f"{key_id:016x}"
+            # Preserve the on-wire byte order used by BLTE key names. Reading
+            # this field as a little-endian integer produces the WDC5-facing
+            # TACT identity instead and cannot be compared with BLTE IDs.
+            blte_key_id = optional_data[4:12].hex()
+            broadcast_text_key_by_record_id[record_id] = blte_key_id
+            observed_broadcast_key_ids.add(blte_key_id)
             broadcast_text_tact_key_entry_count += 1
 
     joined_key_ids = {
@@ -198,6 +225,9 @@ def scan_xfth_target_keys(
     }
     broadcast_text_key_ids = set(broadcast_text_key_by_record_id.values())
     available_key_ids = joined_key_ids | broadcast_text_key_ids
+    recoverable_key_ids = (
+        recoverable_joined_key_ids | observed_broadcast_key_ids
+    )
     return {
         "header": {
             "magic": "XFTH",
@@ -214,6 +244,9 @@ def scan_xfth_target_keys(
         ),
         "unmodeledRecordStateCount": unmodeled_record_state_count,
         "joinedHotfixKeyCount": len(joined_key_ids),
+        "observedJoinedMaterialKeyCount": len(
+            recoverable_joined_key_ids
+        ),
         "broadcastTextEntryCount": broadcast_text_entry_count,
         "broadcastTextTactKeyEntryCount": (
             broadcast_text_tact_key_entry_count
@@ -224,9 +257,19 @@ def scan_xfth_target_keys(
         "broadcastTextCarriedMaterialKeyCount": len(
             broadcast_text_key_ids
         ),
+        "broadcastTextObservedCarriedMaterialKeyCount": len(
+            observed_broadcast_key_ids
+        ),
         "availableKeyIdentityCount": len(available_key_ids),
-        "presentTargetBlteKeyIds": sorted(
+        "recoverableKeyIdentityCount": len(recoverable_key_ids),
+        "effectivePresentTargetBlteKeyIds": sorted(
             available_key_ids & normalized_targets
+        ),
+        "recoverableTargetBlteKeyIds": sorted(
+            recoverable_key_ids & normalized_targets
+        ),
+        "presentTargetBlteKeyIds": sorted(
+            recoverable_key_ids & normalized_targets
         ),
     }
 

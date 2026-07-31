@@ -33,13 +33,13 @@ def xfth_entry(index, table_hash, record_id, payload, state=1):
     ) + payload
 
 
-def broadcast_text_payload(key_id, material_byte):
+def broadcast_text_payload(blte_key_id, material_byte):
     return (
         b"first text\x00"
         + b"second text\x00"
         + bytes(43)
         + struct.pack("<I", MODULE.TACT_KEY_TABLE_HASH)
-        + struct.pack("<Q", int(key_id, 16))
+        + bytes.fromhex(blte_key_id)
         + bytes.fromhex(material_byte * 16)
     )
 
@@ -163,7 +163,7 @@ class DBCacheTactKeyCoverageAuditTest(unittest.TestCase):
             + b"second text\x00"
             + bytes(43)
             + struct.pack("<I", MODULE.TACT_KEY_TABLE_HASH)
-            + struct.pack("<Q", int(target_key_id, 16))
+            + bytes.fromhex(target_key_id)
             + key_material
         )
         payload = header + struct.pack(
@@ -192,6 +192,35 @@ class DBCacheTactKeyCoverageAuditTest(unittest.TestCase):
         self.assertEqual(scan["broadcastTextEntryCount"], 1)
         self.assertEqual(scan["broadcastTextTactKeyEntryCount"], 1)
         self.assertNotIn(key_material.hex(), json.dumps(scan))
+
+    def test_broadcast_text_identity_is_normalized_to_blte_raw_byte_order(self):
+        header = struct.pack(
+            "<4sII32s",
+            b"XFTH",
+            10,
+            68887,
+            b"v" * 32,
+        )
+        tact_key_id = "14f4b11d7b067aa2"
+        blte_key_id = bytes.fromhex(tact_key_id)[::-1].hex()
+        self.assertEqual(
+            struct.pack("<Q", int(tact_key_id, 16)),
+            bytes.fromhex(blte_key_id),
+        )
+        payload = header + xfth_entry(
+            1,
+            MODULE.BROADCAST_TEXT_TABLE_HASH,
+            9001,
+            broadcast_text_payload(blte_key_id, "34"),
+        )
+
+        scan = MODULE.scan_xfth_target_keys(
+            payload,
+            expected_build=68887,
+            target_blte_key_ids={blte_key_id},
+        )
+
+        self.assertEqual(scan["presentTargetBlteKeyIds"], [blte_key_id])
 
     def test_broadcast_text_replacements_keep_only_effective_record_material(self):
         header = struct.pack(
@@ -246,7 +275,27 @@ class DBCacheTactKeyCoverageAuditTest(unittest.TestCase):
 
         self.assertEqual(
             scan["presentTargetBlteKeyIds"],
+            sorted(
+                {
+                    removed_without_key,
+                    replaced_old_key,
+                    replacement_key,
+                }
+            ),
+        )
+        self.assertEqual(
+            scan["effectivePresentTargetBlteKeyIds"],
             [replacement_key],
+        )
+        self.assertEqual(
+            scan["recoverableTargetBlteKeyIds"],
+            sorted(
+                {
+                    removed_without_key,
+                    replaced_old_key,
+                    replacement_key,
+                }
+            ),
         )
         self.assertEqual(scan["broadcastTextTactKeyEntryCount"], 3)
         self.assertEqual(
@@ -254,6 +303,10 @@ class DBCacheTactKeyCoverageAuditTest(unittest.TestCase):
             1,
         )
         self.assertEqual(scan["broadcastTextCarriedMaterialKeyCount"], 1)
+        self.assertEqual(
+            scan["broadcastTextObservedCarriedMaterialKeyCount"],
+            3,
+        )
         serialized = json.dumps(scan)
         self.assertNotIn(old_material * 16, serialized)
         self.assertNotIn(replacement_material * 16, serialized)
@@ -343,7 +396,20 @@ class DBCacheTactKeyCoverageAuditTest(unittest.TestCase):
             },
         )
 
-        self.assertEqual(scan["presentTargetBlteKeyIds"], [])
+        self.assertEqual(
+            scan["presentTargetBlteKeyIds"],
+            sorted({tact_key_target, lookup_target, broadcast_target}),
+        )
+        self.assertEqual(scan["effectivePresentTargetBlteKeyIds"], [])
+        self.assertEqual(
+            scan["recoverableTargetBlteKeyIds"],
+            sorted({tact_key_target, lookup_target, broadcast_target}),
+        )
+        self.assertEqual(scan["observedJoinedMaterialKeyCount"], 2)
+        self.assertEqual(
+            scan["broadcastTextObservedCarriedMaterialKeyCount"],
+            1,
+        )
         self.assertEqual(scan["parsedEntryCount"], 9)
         self.assertEqual(scan["unrecognizedTableEntryCount"], 1)
         self.assertEqual(
@@ -364,6 +430,66 @@ class DBCacheTactKeyCoverageAuditTest(unittest.TestCase):
         self.assertNotIn("52" * 16, serialized)
         self.assertNotIn("53" * 16, serialized)
         self.assertNotIn("54" * 16, serialized)
+
+    def test_recovery_requires_material_and_lookup_to_coexist(self):
+        header = struct.pack(
+            "<4sII32s",
+            b"XFTH",
+            10,
+            68887,
+            b"v" * 32,
+        )
+        target = "a27a067b1db1f414"
+        payload = (
+            header
+            + xfth_entry(
+                1,
+                MODULE.TACT_KEY_TABLE_HASH,
+                9201,
+                b"",
+                state=2,
+            )
+            + xfth_entry(
+                2,
+                MODULE.TACT_KEY_LOOKUP_TABLE_HASH,
+                9201,
+                bytes.fromhex(target),
+            )
+        )
+
+        scan = MODULE.scan_xfth_target_keys(
+            payload,
+            expected_build=68887,
+            target_blte_key_ids={target},
+            base_key_material_record_ids={9201},
+        )
+
+        self.assertEqual(scan["effectivePresentTargetBlteKeyIds"], [])
+        self.assertEqual(scan["recoverableTargetBlteKeyIds"], [])
+        self.assertEqual(scan["observedJoinedMaterialKeyCount"], 0)
+
+    def test_unmodeled_state_in_key_carrier_table_fails_closed(self):
+        header = struct.pack(
+            "<4sII32s",
+            b"XFTH",
+            10,
+            68887,
+            b"v" * 32,
+        )
+        payload = header + xfth_entry(
+            1,
+            MODULE.TACT_KEY_TABLE_HASH,
+            9301,
+            bytes.fromhex("61" * 16),
+            state=9,
+        )
+
+        with self.assertRaisesRegex(ValueError, "unmodeled record state"):
+            MODULE.scan_xfth_target_keys(
+                payload,
+                expected_build=68887,
+                target_blte_key_ids={"a27a067b1db1f414"},
+            )
 
     def test_partial_coverage_is_redacted_and_byte_order_mapped(self):
         with tempfile.TemporaryDirectory() as temp_dir:

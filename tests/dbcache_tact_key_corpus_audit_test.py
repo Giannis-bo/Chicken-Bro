@@ -46,6 +46,110 @@ def cache_payload(records):
 
 
 class DBCacheTactKeyCorpusTest(unittest.TestCase):
+    def test_corpus_uses_ever_observed_material_after_later_revocation(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            static_path = root / "static.json"
+            static_path.write_text(
+                json.dumps(
+                    {
+                        "build": "12.0.7.68887",
+                        "coverage": {
+                            "targetKeys": [
+                                {
+                                    "tactKeyId": "14f4b11d7b067aa2",
+                                    "recordCount": 12,
+                                    "tables": ["CollectableSourceInfo"],
+                                }
+                            ]
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            url = (
+                "https://storage.googleapis.com/"
+                "raidbots-dbcache-temp/recoverable.bin"
+            )
+            header = struct.pack(
+                "<4sII32s",
+                b"XFTH",
+                10,
+                68887,
+                b"v" * 32,
+            )
+
+            def entry(index, table_hash, record_id, value, state):
+                return struct.pack(
+                    "<4siiIIIIB3s",
+                    b"XFTH",
+                    1,
+                    index,
+                    index,
+                    table_hash,
+                    record_id,
+                    len(value),
+                    state,
+                    b"\x00\x00\x00",
+                ) + value
+
+            payload = (
+                header
+                + entry(
+                    1,
+                    MODULE.DB_CACHE_AUDIT.TACT_KEY_LOOKUP_TABLE_HASH,
+                    8193,
+                    bytes.fromhex("a27a067b1db1f414"),
+                    1,
+                )
+                + entry(
+                    2,
+                    MODULE.DB_CACHE_AUDIT.TACT_KEY_TABLE_HASH,
+                    8193,
+                    bytes.fromhex("11" * 16),
+                    1,
+                )
+                + entry(
+                    3,
+                    MODULE.DB_CACHE_AUDIT.TACT_KEY_TABLE_HASH,
+                    8193,
+                    b"",
+                    4,
+                )
+            )
+            list_payload = json.dumps(
+                {
+                    "data": [
+                        {
+                            "version": "retail",
+                            "build": 68887,
+                            "verified": True,
+                            "url": url,
+                        }
+                    ]
+                }
+            ).encode()
+
+            audit = MODULE.build_corpus_audit(
+                list_payload=list_payload,
+                list_url="https://www.raidbots.com/api/dbcache/verified",
+                list_output_path=root / "dbcache-list.json",
+                static_coverage_audit_path=static_path,
+                expected_build=68887,
+                expected_version="retail",
+                expected_verified=True,
+                max_files=100,
+                cache_fetcher=lambda _url, _max_bytes: payload,
+            )
+
+            self.assertEqual(audit["status"], "complete")
+            cache = audit["corpus"]["cacheAudits"][0]
+            self.assertEqual(cache["effectivePresentTargetBlteKeyIds"], [])
+            self.assertEqual(
+                cache["recoverableTargetBlteKeyIds"],
+                ["a27a067b1db1f414"],
+            )
+
     def test_corpus_union_is_complete_without_persisting_key_material(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
@@ -132,10 +236,7 @@ class DBCacheTactKeyCorpusTest(unittest.TestCase):
                                     "<I",
                                     MODULE.DB_CACHE_AUDIT.TACT_KEY_TABLE_HASH,
                                 )
-                                + struct.pack(
-                                    "<Q",
-                                    int("dce00c981f04bffb", 16),
-                                )
+                                + bytes.fromhex("dce00c981f04bffb")
                                 + bytes.fromhex("22" * 16)
                             ),
                         ),

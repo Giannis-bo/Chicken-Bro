@@ -1,0 +1,386 @@
+{
+  "schemaVersion": 1,
+  "kind": "tact-key-origin-timeline-continuation-audit",
+  "capturedAt": "2026-07-31T18:29:35.8728514Z",
+  "status": "blocked",
+  "goals": {
+    "currentGoalId": "019fb823-90bf-7f63-ae60-9aaa82662f9c",
+    "continuesGoalId": "019faddb-abb5-79a3-a477-3cb6e6368120",
+    "continuedGoalFinalStatus": "blocked",
+    "continuedGoalMarkedComplete": false
+  },
+  "authority": {
+    "purpose": "Bind the final scanner semantics and the bounded origin-timeline observations used to continue the exact-build TACT-key blocker investigation.",
+    "mayEstablishOfficialSeasonMembership": false,
+    "maySubstituteLaterBuildsForExactBuild68887": false,
+    "mayClaimRollingUnverifiedCorpusExhaustion": false,
+    "auditContainsKeyMaterial": false,
+    "rawBodiesStoredInRepository": false
+  },
+  "scanner": {
+    "path": "scripts/build-dbcache-tact-key-coverage-audit.py",
+    "repoHeadAtScan": "8c79688eab6afb53d5ad8a43db44301343bd2edd",
+    "sha256": "bfde604c5829483bac5b5d4a1444f7242feb21188962552b59b75b9cac9bd236",
+    "corpusSchemaVersion": 2,
+    "scopedTestCount": 13,
+    "adversarialProbeCount": 4,
+    "independentReview": "no_findings",
+    "unknownRecognizedStateFailsClosed": true,
+    "effectiveAndRecoverableSeparated": true,
+    "recoveryRequiresEffectiveCoexistence": true,
+    "broadcastIdentityUsesRawBytes": true,
+    "diffCheck": "pass"
+  },
+  "currentClientPostLogin": {
+    "status": "complete_no_target",
+    "build": "12.0.7.68887",
+    "locale": "zhCN",
+    "cacheBytes": 1376502,
+    "cacheSha256": "d5aa61dc347115b4a0c403eb1da4807299aaaeba844bd9bcd30695947b71b723",
+    "cacheLastWriteTimeUtc": "2026-07-31T14:23:11.0385190Z",
+    "cacheHeader": {
+      "magic": "XFTH",
+      "version": 9,
+      "build": 68887
+    },
+    "cacheOnlyEffectiveIdentityCount": 3,
+    "cacheOnlyRecoverableIdentityCount": 3,
+    "cacheOnlyEffectiveTargetCount": 2,
+    "cacheOnlyRecoverableTargetCount": 2,
+    "compositeEffectiveIdentityCount": 124,
+    "compositeRecoverableIdentityCount": 124,
+    "compositeEffectiveTargetCount": 8,
+    "compositeRecoverableTargetCount": 8,
+    "blockerTargetHitCount": 0,
+    "coverageChanged": false,
+    "evidenceRef": {
+      "path": "local-official-client-post-login-cache-audit.json",
+      "bytes": 6181,
+      "sha256": "39f8b5f592a8e44aee912ab49ca53cc233bb534e065440da8f17abf000c3087b"
+    }
+  },
+  "verifiedTimeline": {
+    "unifiedRetainedTimelineCrossCheck": {
+      "status": "complete_no_target",
+      "scope": "the exact 202 timeline bodies plus 80 other retained bodies bound by the referenced unified audit and rescanned with the final scanner; this is a cross-product retained set, not a Beta-only range",
+      "timelineUniqueBodyCount": 202,
+      "otherRetainedUniqueBodyCount": 80,
+      "timelineRetainedIntersectionCount": 0,
+      "uniqueBodyCount": 282,
+      "scannedBodyBytes": 939441229,
+      "bodyHashSetSha256": "e0028c0c3e0852c5abe872c0c4846079e3f070fe542006e1382b20c6c24583a9",
+      "targetHitCount": 0,
+      "filteredBeta63534Through66198": {
+        "bodyCount": 252,
+        "uniqueBodyCount": 252,
+        "scannedBodyBytes": 814077372,
+        "bodyHashSetSha256": "70c7582d621ea93db198b786a5a1313c906f1736709820370bd43524a429a821",
+        "targetHitCount": 0
+      },
+      "outsideFilteredBetaRange": {
+        "bodyCount": 30,
+        "scannedBodyBytes": 125363857,
+        "distribution": [
+          {
+            "version": "beta",
+            "build": 66220,
+            "bodyCount": 16,
+            "bodyBytes": 115451009
+          },
+          {
+            "version": "ptr",
+            "build": 64741,
+            "bodyCount": 3,
+            "bodyBytes": 194547
+          },
+          {
+            "version": "ptr",
+            "build": 64774,
+            "bodyCount": 8,
+            "bodyBytes": 9520184
+          },
+          {
+            "version": "ptr",
+            "build": 68914,
+            "bodyCount": 1,
+            "bodyBytes": 24766
+          },
+          {
+            "version": "xptr",
+            "build": 67227,
+            "bodyCount": 2,
+            "bodyBytes": 173351
+          }
+        ]
+      },
+      "scopeExhaustedOnlyForRetainedSet": true,
+      "mayClaimAllHistoricalBetaCachesExhausted": false,
+      "evidenceRef": {
+        "relativeIsolationId": "verified-beta-timeline-63534-66198-20260801/current-scanner-unified-rescan-audit.json",
+        "bytes": 387033,
+        "sha256": "875ed71a04dbd9e0a403e8b2ce4d5f8e00e08c9aed40bf602b9a97e622caa968"
+      }
+    },
+    "pre67227NonBeta": {
+      "status": "complete_no_target",
+      "scope": "provider-verified non-Beta cache objects with official build identity below 67227, rescanned with the final scanner",
+      "buildGroupCount": 71,
+      "sliceCount": 121,
+      "verifiedObjectCount": 1322,
+      "uniqueNormalizedObjectCount": 1322,
+      "uniqueBodyCount": 1313,
+      "reusedBodyCount": 413,
+      "downloadedBodyCount": 909,
+      "scannedBodyBytes": 6539165207,
+      "bodyHashSetSha256": "fe8f0cd1367f86e27a11a6f453802b92cbfe673fd6088ad8535211fb0e153e63",
+      "normalizedObjectSetSha256": "0ee42626c7d9fe631fa83397422dd509b0f8fb7642233861fea1aa25e1531400",
+      "sliceAuditSetSha256": "a325af14d768c2e189db1ae40708efdf1afb71349943834c2e52a8cd370c1616",
+      "targetHitCount": 0,
+      "keyfileCount": 0,
+      "partFileCount": 0,
+      "scopeExhaustedOnlyForVerifiedObjectsInBoundSlices": true,
+      "evidenceRef": {
+        "relativeIsolationId": "verified-pre67227-nonbeta-final-unified-20260801/redacted-audit.json",
+        "bytes": 36543,
+        "sha256": "91183790238848e4163130b24a7118bbbba2cc7be734f99a302388e3c5e5b630"
+      }
+    },
+    "atOrAfter67227VerifiedSelection": {
+      "status": "complete_no_target_for_selection_bound_set",
+      "scope": "selection-bound rows from existing provider-verified retail, PTR, and XPTR audits whose official build identity is at least 67227",
+      "singleAggregateAuditExists": false,
+      "sourceAuditFileCount": 45,
+      "sourceAuditStatuses": {
+        "complete_no_target": 43,
+        "complete": 1,
+        "running": 1
+      },
+      "runningAuditClosure": "The running retail 68256 audit contributes its first 15 objects; the corresponding resume-02 complete_no_target audit contributes the sixteenth object and closes that fixed 16-object selection.",
+      "productObjectCounts": {
+        "retail": 243,
+        "ptr": 86,
+        "xptr": 53
+      },
+      "selectedObjectCount": 382,
+      "scannedBodyCount": 382,
+      "uniqueBodyCount": 381,
+      "scannedBodyBytes": 788883989,
+      "targetHitCount": 0,
+      "scopeExhaustedOnlyForSelectionBoundSet": true,
+      "mayClaimAllVerifiedProviderHistoryExhausted": false,
+      "evidenceManifestRef": {
+        "path": "tact-key-at-or-after-67227-selection-manifest.txt",
+        "bytes": 6956,
+        "sha256": "7a58693d961d509f294ae9b3d9509193f1b02e9d26c5d8d9860b20d72cb0a4c7",
+        "memberCount": 45,
+        "lineFormat": "path|file_bytes|file_sha256|selector|selected_objects|selected_bodies|selected_body_bytes|selected_hits"
+      }
+    },
+    "retainedCurrentScannerCrossCheck": {
+      "status": "complete_no_target",
+      "scope": "all 685 retained provider-verified objects available to the current-build scan workspace; this set overlaps other timeline slices and is not labeled as a disjoint aggregate",
+      "retainedObjectCount": 685,
+      "uniqueBodyCount": 667,
+      "scannedObjectBytes": 1565037822,
+      "targetHitCount": 0,
+      "scopeExhaustedOnlyForRetainedSet": true,
+      "mayClaimProviderHistoryExhausted": false,
+      "evidenceRef": {
+        "relativeIsolationId": "verified-current-build-tact-scan-20260801/broadcast-raw-identity-rescan-audit.json",
+        "bytes": 937880,
+        "sha256": "2c10c73841754477fbb9722bbce3440a37125bcf4935fea992690ac27c13fcbb"
+      }
+    }
+  },
+  "rollingUnverifiedRetainedWindow": {
+    "status": "complete_no_target",
+    "scope": "only retained bodies from two bounded rolling-window runs, rescanned with the final scanner",
+    "retainedObjectCount": 963,
+    "uniqueBodyCount": 961,
+    "scannedObjectBytes": 2421168975,
+    "bodyHashSetSha256": "f3fb83c148ecf822ffad6d2f4290542548c18d5aea73af70219942ccaccd8c9d",
+    "targetHitCount": 0,
+    "latestWindowSelectedObjectCount": 1888,
+    "latestWindowProcessedObjectCount": 851,
+    "unscannedSelectedObjectCount": 1037,
+    "corpusExhausted": false,
+    "terminalPageObserved": false,
+    "pageLimitReached": true,
+    "snapshotIsolationProven": false,
+    "sameWindowResumePossible": false,
+    "newCrawlWouldBeANewRollingWindow": true,
+    "sourceAuditRefs": [
+      {
+        "relativeIsolationId": "rolling-unverified-dbcache-scan-20260801-run02/redacted-audit.json",
+        "bytes": 150155,
+        "sha256": "0472d70994f1ea8a1ef7d7dfac0f32812e8ecff5c25eead65a25fb4e27e30e2b"
+      },
+      {
+        "relativeIsolationId": "rolling-unverified-dbcache-scan-20260801-run03/redacted-audit.json",
+        "bytes": 1062787,
+        "sha256": "aeaccec9031f42053f7faddcde89abe849bbbec453c0afbe24457d6dde5881bb"
+      }
+    ],
+    "evidenceRef": {
+      "relativeIsolationId": "rolling-unverified-dbcache-scan-20260801-run03/final-live-retained-rescan-audit.json",
+      "bytes": 1016335,
+      "sha256": "5352a7061a903f042e5e467b631adeadd2d855a0d696aa83b44e568a13eef049"
+    }
+  },
+  "laterOfficialContinuity": {
+    "ptr68914": {
+      "status": "blocked_explicit_empty_keyfile_undecrypted",
+      "authority": "official Blizzard PTR CDN objects pinned to exact build, config, root, encoding, archive index, and range identities",
+      "product": "wowt",
+      "build": "12.1.0.68914",
+      "fileDataId": 982457,
+      "fileName": "ItemModifiedAppearance.db2",
+      "contentKey": "a69cdcbc20b96ad79f753313a008647a",
+      "encodingKey": "411b58ae411d1e9ed67024593145fe2b",
+      "encodedSha256": "401c91b00b26104faa3c4c944ad0788b41c3035452fabbbb310758ff36e6227a",
+      "recordCount": 161175,
+      "unencryptedRecordCount": 161037,
+      "encryptedRecordCount": 138,
+      "sectionCount": 14,
+      "targetEncryptedRecordCounts": {
+        "14f4b11d7b067aa2": 12,
+        "62bf37a70e6d54f6": 8,
+        "fbbf041f980ce0dc": 44
+      },
+      "explicitEmptyKeyfile": true,
+      "fullyDecrypted": false,
+      "decodedOutputCommitted": false,
+      "exactBuild68887Closed": false,
+      "keyMaterialAvailabilityBeyondThisRun": "not_assessed",
+      "maySubstituteForExactBuild68887": false,
+      "runnerProductionMutation": false,
+      "productionConsumptionAssessment": "not_assessed_by_runner",
+      "resourceLimits": {
+        "wallClockSeconds": 600,
+        "rssBytes": 2147483648,
+        "decodedBytes": 536870912,
+        "networkBytes": 536870912,
+        "isolatedOutputDiskBytes": 1153433600,
+        "minimumFreeDiskBytes": 2147483648
+      },
+      "runnerReview": "no_findings",
+      "runnerTestCount": 18,
+      "runnerRefs": {
+        "script": {
+          "relativeIsolationId": "official-ptr-single-file-68914-20260801/safe_ptr_single_file_fetch.py",
+          "bytes": 68537,
+          "sha256": "ee3a7447d8c8af2238f3362a3506794d86959b2bcec75ac8a5240312afcd9b10"
+        },
+        "tests": {
+          "relativeIsolationId": "official-ptr-single-file-68914-20260801/test_safe_ptr_single_file_fetch.py",
+          "bytes": 14902,
+          "sha256": "84cbf35727ca19c4b44908973169343e1ac6f69daaea663f99de942e24e1508e"
+        }
+      },
+      "evidenceRef": {
+        "relativeIsolationId": "official-ptr-single-file-68914-20260801/redacted-audit.json",
+        "bytes": 79687,
+        "sha256": "f8f5c653f3e03315d98ddde09ad5a591961fa511bbf6985e36810c1fc435ab02"
+      }
+    }
+  },
+  "approvedSourceState": {
+    "publicTactKeysCommit": "a3449fd5cfc3a0053cbff2c65f7d16166774cbf9",
+    "publicTactKeysFileBytes": 981450,
+    "publicTactKeysFileSha256": "e4fe2fd39ccc43b5ee14b1ced69dce9f21d4d90267a8a3e2bbb2b953597f55f9",
+    "publicTargetHitCount": 0,
+    "sourceUnionCoverageChanged": false,
+    "wagoExactBuildAddsKeyMaterialCount": 0,
+    "keyMetadataMayEstablishKeyOrDecryptionAuthority": false,
+    "laterOfficialPtrMayEstablishContinuityOnly": true
+  },
+  "remainingTruth": {
+    "build": "12.0.7.68887",
+    "sourceUnionKeyCount": 9,
+    "requiredKeyCount": 12,
+    "recoveredEncryptedRecordCount": 114,
+    "encryptedRecordCount": 178,
+    "unavailableEncryptedRecordCount": 64,
+    "missingTactKeys": [
+      {
+        "id": "14f4b11d7b067aa2",
+        "recordCount": 12
+      },
+      {
+        "id": "62bf37a70e6d54f6",
+        "recordCount": 8
+      },
+      {
+        "id": "fbbf041f980ce0dc",
+        "recordCount": 44
+      }
+    ],
+    "officialSourceProjection": {
+      "complete": 0,
+      "partial": 9,
+      "blocked": 10,
+      "gapCount": 21
+    },
+    "approvedExactBuildKeySourceObtained": false,
+    "authoritativeExactBuildDecryptionRecordObtained": false,
+    "universeComplete": false,
+    "formalGearCommunityManifestCandidateComplete": false,
+    "productionPromotionAllowed": false
+  },
+  "blockers": [
+    "APPROVED_PUBLIC_TACT_KEYS_INCOMPLETE",
+    "CURRENT_CLIENT_ENCRYPTED_SOURCE_RECORDS_UNAVAILABLE",
+    "EXACT_BUILD_KEY_OR_AUTHORITATIVE_DECRYPTION_RECORD_REQUIRED",
+    "OFFICIAL_SOURCE_UNIVERSE_GAPS_REMAIN_21"
+  ],
+  "nextSlice": {
+    "order": 1,
+    "action": "Obtain an approved exact-build source for the three missing TACT keys or authoritative exact-build decryption records for the 64 encrypted relations.",
+    "afterSuccess": "Rebuild the one-to-one inclusion, exclusion, and blocked closure for all 19 seasonal PVE source classes.",
+    "fullMatrixMayStartBeforeSuccess": false
+  },
+  "productionSnapshot": {
+    "capturedAt": "2026-07-31T18:29:35.8728514Z",
+    "resourceGate": {
+      "rootFilesystemBytes": 73859022848,
+      "rootFilesystemUsedBytes": 55785742336,
+      "rootFilesystemAvailableBytes": 14943047680,
+      "rootFilesystemUsedPercent": 79,
+      "memAvailableKb": 2614176,
+      "swapTotalKb": 2035708,
+      "swapFreeKb": 1830436
+    },
+    "backend": {
+      "activeState": "active",
+      "subState": "running",
+      "restartCount": 0
+    },
+    "gearRefreshService": {
+      "activeState": "failed",
+      "subState": "failed",
+      "result": "timeout"
+    },
+    "wowTimerCountObserved": 10,
+    "generation": 35,
+    "pointerMode": "active",
+    "manifestRevision": "season-manifest:sha256:20453991e93a1dc1650dbacfd85bdd042e9b020737c7851bef943f1e3e68883a",
+    "gearReleaseId": "gear-release:sha256:9299fe1f942dc272f402e4d735d6a1bf8111a8f156464e0777cd6df78769edc7",
+    "communityReleaseId": "community-release:sha256:686708be049323a979b66bfba42cae3f2b80f7337e740d26b299fd73e0665804",
+    "catalogRevision": "gear-catalog:sha256:2ddd8fe84202d086f0f9bf08d7e1cf1b56ff613a181bf8754cbf95841be4eb40",
+    "exactRegistryRevision": "gear-exact-registry:sha256:c56221bce4070f683e3afb71b65eaa573f4b9d8dc30b26c055f5538cc1aa4523",
+    "dataHealth": "partial",
+    "matchesGoalBaseline": true,
+    "mutationPerformed": false
+  },
+  "safety": {
+    "productionStateRecheckedInThisAudit": true,
+    "productionMutation": false,
+    "releasePointerMutation": false,
+    "manifestMutation": false,
+    "cloudEvidenceConsumedByProduction": false,
+    "rawKeyMaterialInAudit": false,
+    "absoluteLocalPathInAudit": false,
+    "historicalHandoffStatus": "blocked",
+    "oldGoalStatusChanged": false
+  }
+}

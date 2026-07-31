@@ -353,3 +353,59 @@ branch 和 `git ls-remote` 均为
 当前首要 blocker 仍是取得三枚缺失 TACT key 的获批 exact-build 来源，或取得
 64 条记录的权威解密结果。未解除该 blocker 前，不进入 19 类来源的完成性宣称、
 候选 promotion 或终局微信/SimC 矩阵。
+
+## 9. 2026-08-01 TACT key 来源时间线收口
+
+**状态：** `正在推进`
+
+本切片只继续首要 blocker，没有把历史缓存取证扩展为无界爬取，也没有提前进入
+19 类来源闭包或终局矩阵。最终 scanner 将“当前有效状态”与“曾经实际交付、仍可恢复的
+material”分开：只有 material 与 identity 在同一有效状态共存过才能进入 recoverable；
+BroadcastText 使用原始 BLTE 字节序；已识别 key-carrier 的未知 state 必须 fail closed。
+独立只读 CR 无发现，相关 scoped tests 13/13、对抗语义探针 4/4 通过。
+
+- 用户完成登录并正常退出后形成的正式 `zhCN` build 68887 cache，经最终 scanner
+  重放仍是 cache-only recoverable identity 3、目标 2；叠加 exact-build static base
+  后是 identity 124、目标 8；三枚 blocker 命中仍为 0，source union 保持
+  `9/12` keys、`114/178` records。
+- provider-verified 统一保留交叉集合为 282 个唯一 body、939,441,229 bytes、0 命中，
+  但它不是 Beta-only：其中真正满足 Beta build 63534–66198 的子集是 252 个 body、
+  814,077,372 bytes；其余 30 个来自 Beta 66220、PTR 64741/64774/68914 和 XPTR 67227，
+  共 125,363,857 bytes。build 67227 之前的非 Beta 固定切片为 71 个 build group、
+  121 个 slice、1,322 个 verified object、1,313 个唯一 body、6,539,165,207 bytes、
+  0 命中。build 67227 及之后的 45 个既存审计没有单一 aggregate；按 selector 绑定的
+  deterministic set 为 382 个 object、381 个唯一 body、788,883,989 bytes、0 命中，
+  其中 retail/PTR/XPTR 分别为 243/86/53，不得误写成仅 PTR/XPTR。
+- rolling unverified 只对实际保留的 963 个对象、961 个唯一 body、
+  2,421,168,975 bytes 给出 0 命中。最近窗口仍有 1,037 个选中对象因 2 GiB 门禁未扫描，
+  没有终止页、没有 snapshot-isolation 证明，也没有可恢复的同窗口 cursor；因此既不宣称
+  corpus 穷尽，也不继续用新滚动窗口制造伪 resume。
+- 新的最小官方连续性证明固定到 PTR build `12.1.0.68914` 的官方 config/root/encoding、
+  archive index 和 `ItemModifiedAppearance.db2` range。该 WDC5 有 161,175 条记录，其中
+  138 条位于加密 section；三枚 blocker 的 section 仍精确为 12/8/44。显式空 keyfile
+  下 target DB2 没有提交，状态保持
+  `blocked_explicit_empty_keyfile_undecrypted`、`exactBuild68887Closed=false`、
+  `keyMaterialAvailabilityBeyondThisRun=not_assessed`。受硬门禁 runner 的独立 CR 无发现，
+  18/18 tests 通过；后续 build 只能证明身份连续性，不能替代 exact-build 68887 plaintext。
+- 同切片的最新生产只读复核仍是 generation 35、Manifest
+  `season-manifest:sha256:20453991e93a1dc1650dbacfd85bdd042e9b020737c7851bef943f1e3e68883a`；
+  正式 Gear、Community、Catalog、Exact 分别保持
+  `9299fe1f…69edc7`、`686708be…65804`、`2ddd8fe8…e4eb40`、
+  `c56221bc…a4523`，`/api/data/health=partial`。根盘 79%、可用 14,943,047,680 bytes，
+  `MemAvailable=2,614,176 kB`、swap free 1,830,436/2,035,708 kB；backend
+  `active/running`、`NRestarts=0`。原有 `wow-gear-release-refresh.service` 仍是
+  `failed/result=timeout`，没有被本 Goal reset 或重跑；所有检查均为只读。
+
+本轮可提交的脱敏入口为
+[tact-key-origin-timeline-continuation-audit.json](../../artifacts/releases/2026-07-30-equipment-simulator-e2e-matrix/universe/official-snapshot/official-client-db2-v1/tact-key-origin-timeline-continuation-audit.json)。
+其中 build 67227 及以后 45 个审计的 selector、文件 SHA 和逐项计数由
+[selection manifest](../../artifacts/releases/2026-07-30-equipment-simulator-e2e-matrix/universe/official-snapshot/official-client-db2-v1/tact-key-at-or-after-67227-selection-manifest.txt)
+直接绑定，可在不接触 raw body 的情况下重算 382/381/788,883,989/0 汇总。
+该 artifact 不含 URL、绝对本机路径或 TACT key material；原始 body 和 runner 继续位于
+Git 外隔离目录。本切片没有修改 Manifest、Gear、Community、Catalog、Exact 或生产。
+旧 Goal 仍为 `blocked`，当前 Goal 也没有被外推为完成。
+
+下一切片仍严格是取得
+`14f4b11d7b067aa2`、`62bf37a70e6d54f6`、`fbbf041f980ce0dc`
+的获批 exact-build 来源，或 64 条关系的权威 exact-build 解密记录；成功后才重建
+19 类季节 PVE 来源的一对一 inclusion/exclusion/blocked 闭包。
