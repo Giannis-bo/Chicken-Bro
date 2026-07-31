@@ -466,6 +466,78 @@ def verify_current_client_tact_key_upstream_source_audit(
         inputs,
         snapshot_root=snapshot_root,
     )
+    root = Path(snapshot_root).resolve()
+    input_documents = {}
+    for source_name, evidence in inputs.items():
+        try:
+            input_documents[source_name] = json.loads(
+                (root / evidence["path"]).read_bytes()
+            )
+        except (UnicodeDecodeError, json.JSONDecodeError) as error:
+            raise OfficialEvidenceError(
+                "TACT-key upstream source component is invalid: "
+                f"{source_name}"
+            ) from error
+
+    def _component_target_state(
+        source_name: str,
+        *,
+        section_name: str,
+        presence_name: str,
+    ) -> dict[str, tuple[str, int, bool]]:
+        document = input_documents[source_name]
+        section = (
+            document.get(section_name)
+            if isinstance(document, dict)
+            else None
+        )
+        rows = section.get("targetKeys") if isinstance(section, dict) else None
+        if not isinstance(rows, list) or len(rows) != 12:
+            raise OfficialEvidenceError(
+                "TACT-key upstream source component target ledger is invalid: "
+                f"{source_name}"
+            )
+        result = {}
+        for row in rows:
+            tact_key_id = _text(row.get("tactKeyId"))
+            state = (
+                _text(row.get("blteKeyId")),
+                row.get("recordCount"),
+                row.get(presence_name),
+            )
+            if (
+                not re.fullmatch(r"[0-9a-f]{16}", tact_key_id)
+                or tact_key_id in result
+                or not re.fullmatch(r"[0-9a-f]{16}", state[0])
+                or not isinstance(state[1], int)
+                or isinstance(state[1], bool)
+                or state[1] < 1
+                or not isinstance(state[2], bool)
+            ):
+                raise OfficialEvidenceError(
+                    "TACT-key upstream source component target row is invalid: "
+                    f"{source_name}"
+                )
+            result[tact_key_id] = state
+        return result
+
+    component_target_states = {
+        "currentPublicTactKeys": _component_target_state(
+            "currentPublicTactKeys",
+            section_name="coverage",
+            presence_name="presentInCurrentPublicSnapshot",
+        ),
+        "verifiedDBCacheCorpus": _component_target_state(
+            "verifiedDBCacheCorpus",
+            section_name="corpus",
+            presence_name="presentInCorpusUnion",
+        ),
+        "unverifiedDBCacheCorpus": _component_target_state(
+            "unverifiedDBCacheCorpus",
+            section_name="corpus",
+            presence_name="presentInCorpusUnion",
+        ),
+    }
     coverage = payload.get("coverage")
     summary = coverage.get("summary") if isinstance(coverage, dict) else None
     if (
@@ -507,6 +579,7 @@ def verify_current_client_tact_key_upstream_source_audit(
     covered_record_count = 0
     for row in target_rows:
         tact_key_id = _text(row.get("tactKeyId"))
+        blte_key_id = _text(row.get("blteKeyId"))
         source_presence = row.get("sourcePresence")
         record_count = row.get("recordCount")
         if (
@@ -514,7 +587,7 @@ def verify_current_client_tact_key_upstream_source_audit(
             or tact_key_id in seen_ids
             or not re.fullmatch(
                 r"[0-9a-f]{16}",
-                _text(row.get("blteKeyId")),
+                blte_key_id,
             )
             or not isinstance(record_count, int)
             or isinstance(record_count, bool)
@@ -535,6 +608,14 @@ def verify_current_client_tact_key_upstream_source_audit(
         ):
             raise OfficialEvidenceError(
                 "TACT-key upstream target row is invalid"
+            )
+        if any(
+            component_target_states[source_name].get(tact_key_id)
+            != (blte_key_id, record_count, source_presence[source_name])
+            for source_name in component_target_states
+        ):
+            raise OfficialEvidenceError(
+                "TACT-key upstream target row does not match component files"
             )
         seen_ids.add(tact_key_id)
         target_record_count += record_count
@@ -562,26 +643,88 @@ def verify_current_client_tact_key_upstream_source_audit(
             "TACT-key upstream source union is invalid"
         )
     source_results = payload.get("sourceResults")
+    if not isinstance(source_results, dict) or set(source_results) != {
+        "currentPublicTactKeys",
+        "verifiedDBCacheCorpus",
+        "unverifiedDBCacheCorpus",
+    }:
+        raise OfficialEvidenceError(
+            "TACT-key upstream cache corpus summary is invalid"
+        )
+    public_summary = source_results.get("currentPublicTactKeys")
     verified_summary = (
         source_results.get("verifiedDBCacheCorpus")
-        if isinstance(source_results, dict)
-        else None
     )
     unverified_summary = (
         source_results.get("unverifiedDBCacheCorpus")
-        if isinstance(source_results, dict)
-        else None
     )
+    public_component_summary = input_documents["currentPublicTactKeys"].get(
+        "coverage", {}
+    ).get("summary")
+    verified_component_summary = input_documents[
+        "verifiedDBCacheCorpus"
+    ].get("corpus", {}).get("summary")
+    unverified_component_summary = input_documents[
+        "unverifiedDBCacheCorpus"
+    ].get("corpus", {}).get("summary")
+    public_keys = {
+        "availableTargetKeyCount",
+        "coveredTargetRecordCount",
+    }
+    corpus_keys = {
+        "selectedCacheCount",
+        "fetchedCacheCount",
+        "failedCacheCount",
+        "totalFetchedBytes",
+        "broadcastTextEntryCount",
+        "broadcastTextTactKeyEntryCount",
+        "targetKeyCount",
+        "targetRecordCount",
+        "unionAvailableTargetKeyCount",
+        "unionMissingTargetKeyCount",
+        "unionCoveredTargetRecordCount",
+        "unionMissingTargetRecordCount",
+    }
+
+    def _matches_component_summary(summary, component_summary, keys):
+        return (
+            isinstance(summary, dict)
+            and set(summary) == keys
+            and isinstance(component_summary, dict)
+            and all(
+                isinstance(summary[key], int)
+                and not isinstance(summary[key], bool)
+                and summary[key] >= 0
+                and summary[key] == component_summary.get(key)
+                for key in keys
+            )
+        )
+
     if (
-        not isinstance(verified_summary, dict)
-        or not isinstance(unverified_summary, dict)
-        or verified_summary.get("selectedCacheCount") != 9
-        or verified_summary.get("fetchedCacheCount") != 9
+        not _matches_component_summary(
+            public_summary,
+            public_component_summary,
+            public_keys,
+        )
+        or not _matches_component_summary(
+            verified_summary,
+            verified_component_summary,
+            corpus_keys,
+        )
+        or not _matches_component_summary(
+            unverified_summary,
+            unverified_component_summary,
+            corpus_keys,
+        )
+        or verified_summary.get("selectedCacheCount") < 1
+        or verified_summary.get("fetchedCacheCount")
+        != verified_summary.get("selectedCacheCount")
         or verified_summary.get("failedCacheCount") != 0
         or verified_summary.get("unionAvailableTargetKeyCount") != 6
         or verified_summary.get("unionCoveredTargetRecordCount") != 82
-        or unverified_summary.get("selectedCacheCount") != 98
-        or unverified_summary.get("fetchedCacheCount") != 98
+        or unverified_summary.get("selectedCacheCount") < 1
+        or unverified_summary.get("fetchedCacheCount")
+        != unverified_summary.get("selectedCacheCount")
         or unverified_summary.get("failedCacheCount") != 0
         or unverified_summary.get("unionAvailableTargetKeyCount") != 6
         or unverified_summary.get("unionCoveredTargetRecordCount") != 82
@@ -596,8 +739,8 @@ def verify_current_client_tact_key_upstream_source_audit(
         "sourceUnionMissingTargetKeyCount": 3,
         "sourceUnionCoveredTargetRecordCount": 114,
         "sourceUnionMissingTargetRecordCount": 64,
-        "verifiedCacheCount": 9,
-        "unverifiedCacheCount": 98,
+        "verifiedCacheCount": verified_summary["selectedCacheCount"],
+        "unverifiedCacheCount": unverified_summary["selectedCacheCount"],
         "dbcacheAddsTargetKeyBeyondCurrentPublicCount": 0,
         "missingTactKeyIds": sorted(_TACT_KEY_UPSTREAM_MISSING_IDS),
         "blockers": sorted(_TACT_KEY_UPSTREAM_SOURCE_BLOCKERS),

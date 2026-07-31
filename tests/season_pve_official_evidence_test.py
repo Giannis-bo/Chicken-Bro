@@ -27,9 +27,29 @@ from server.season_pve_official_evidence import (
 
 class SeasonPveOfficialEvidenceTest(unittest.TestCase):
     @staticmethod
-    def _write_tact_key_upstream_input_fixture(root):
+    def _write_tact_key_upstream_input_fixture(root, source_audit=None):
         inputs = {}
-        public_payload = b'{"status":"partial"}\n'
+        public_document = {"status": "partial"}
+        if source_audit is not None:
+            public_document["coverage"] = {
+                "summary": source_audit["sourceResults"][
+                    "currentPublicTactKeys"
+                ],
+                "targetKeys": [
+                    {
+                        "tactKeyId": row["tactKeyId"],
+                        "blteKeyId": row["blteKeyId"],
+                        "recordCount": row["recordCount"],
+                        "presentInCurrentPublicSnapshot": row[
+                            "sourcePresence"
+                        ]["currentPublicTactKeys"],
+                    }
+                    for row in source_audit["coverage"]["targetKeys"]
+                ],
+            }
+        public_payload = (
+            json.dumps(public_document, sort_keys=True).encode() + b"\n"
+        )
         (root / "currentPublicTactKeys.json").write_bytes(public_payload)
         inputs["currentPublicTactKeys"] = {
             "path": "currentPublicTactKeys.json",
@@ -43,19 +63,30 @@ class SeasonPveOfficialEvidenceTest(unittest.TestCase):
             list_name = f"{source_name}-list.json"
             list_payload = f'{{"source":"{source_name}"}}\n'.encode()
             (root / list_name).write_bytes(list_payload)
-            component_payload = (
-                json.dumps(
-                    {
-                        "sourceList": {
-                            "path": list_name,
-                            "bytes": len(list_payload),
-                            "sha256": hashlib.sha256(
-                                list_payload
-                            ).hexdigest(),
+            component_document = {
+                "sourceList": {
+                    "path": list_name,
+                    "bytes": len(list_payload),
+                    "sha256": hashlib.sha256(list_payload).hexdigest(),
+                }
+            }
+            if source_audit is not None:
+                component_document["corpus"] = {
+                    "summary": source_audit["sourceResults"][source_name],
+                    "targetKeys": [
+                        {
+                            "tactKeyId": row["tactKeyId"],
+                            "blteKeyId": row["blteKeyId"],
+                            "recordCount": row["recordCount"],
+                            "presentInCorpusUnion": row["sourcePresence"][
+                                source_name
+                            ],
                         }
-                    },
-                    sort_keys=True,
-                ).encode()
+                        for row in source_audit["coverage"]["targetKeys"]
+                    ],
+                }
+            component_payload = (
+                json.dumps(component_document, sort_keys=True).encode()
                 + b"\n"
             )
             component_name = f"{source_name}.json"
@@ -133,7 +164,8 @@ class SeasonPveOfficialEvidenceTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             audit["inputs"] = self._write_tact_key_upstream_input_fixture(
-                root
+                root,
+                source_audit=audit,
             )
 
             try:
@@ -148,6 +180,22 @@ class SeasonPveOfficialEvidenceTest(unittest.TestCase):
                     f"{error}"
                 )
             self.assertEqual(verified["status"], "partial")
+
+            audit["sourceResults"]["unverifiedDBCacheCorpus"][
+                "selectedCacheCount"
+            ] -= 1
+            with self.assertRaisesRegex(
+                OfficialEvidenceError,
+                "cache corpus summary",
+            ):
+                verify_current_client_tact_key_upstream_source_audit(
+                    audit,
+                    expected_encrypted_record_count=178,
+                    snapshot_root=root,
+                )
+            audit["sourceResults"]["unverifiedDBCacheCorpus"][
+                "selectedCacheCount"
+            ] += 1
 
             (root / "unverifiedDBCacheCorpus.json").write_bytes(
                 b"unverified-v2\n"
@@ -193,7 +241,7 @@ class SeasonPveOfficialEvidenceTest(unittest.TestCase):
         self.assertEqual(verified["sourceUnionCoveredTargetRecordCount"], 114)
         self.assertEqual(verified["sourceUnionMissingTargetRecordCount"], 64)
         self.assertEqual(verified["verifiedCacheCount"], 9)
-        self.assertEqual(verified["unverifiedCacheCount"], 98)
+        self.assertEqual(verified["unverifiedCacheCount"], 99)
 
         audit["authority"]["rawKeyOrCacheMaterialPersistedAfterAudit"] = True
         with self.assertRaises(OfficialEvidenceError):

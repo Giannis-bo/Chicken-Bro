@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "capturedAt": "2026-07-31T13:22:31.049139+00:00",
+  "capturedAt": "2026-07-31T13:35:56.9718035Z",
   "status": "partial",
   "build": "12.0.7.68887",
   "authority": {
@@ -24,8 +24,8 @@
     },
     "unverifiedDBCacheCorpus": {
       "path": "dbcache-68887-unverified-corpus-audit.json",
-      "bytes": 113990,
-      "sha256": "95da752b8b856d2e66fd95707199c9064ddfa1875c913da0c64024a2324186f8"
+      "bytes": 115128,
+      "sha256": "1e481d57c6b061cb2209bf9e140f778a39777d6e2f4cf09903be3e1b62eb8a76"
     }
   },
   "sourceResults": {
@@ -48,12 +48,12 @@
       "unionMissingTargetRecordCount": 96
     },
     "unverifiedDBCacheCorpus": {
-      "selectedCacheCount": 98,
-      "fetchedCacheCount": 98,
+      "selectedCacheCount": 99,
+      "fetchedCacheCount": 99,
       "failedCacheCount": 0,
-      "totalFetchedBytes": 254667671,
-      "broadcastTextEntryCount": 66665,
-      "broadcastTextTactKeyEntryCount": 31885,
+      "totalFetchedBytes": 265561736,
+      "broadcastTextEntryCount": 63887,
+      "broadcastTextTactKeyEntryCount": 29278,
       "targetKeyCount": 12,
       "targetRecordCount": 178,
       "unionAvailableTargetKeyCount": 6,
@@ -255,7 +255,7 @@
       "CURRENT_CLIENT_ENCRYPTED_SOURCE_RECORDS_UNAVAILABLE"
     ]
   },
-  "conclusion": "the exact current TACTKeys head remains the widest approved source; nine verified caches and 98 opt-in retail caches add no target key beyond it, leaving three key identities and 64 records unavailable",
+  "conclusion": "the exact current TACTKeys head remains the widest approved source; nine verified caches and 99 opt-in retail caches add no target key beyond it, leaving three key identities and 64 records unavailable",
   "productionMutation": false,
   "releasePointerMutation": false
 }

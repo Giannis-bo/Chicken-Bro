@@ -220,9 +220,10 @@ branch 和 `git ls-remote` 均为
   指针没有被本接力 Goal 修改。`wow-gear-release-refresh.service` 在自然 timer
   触发后运行 20 分钟并超时为 `failed`；backend 仍为 `active/NRestarts=0`，
   未自动重跑或 reset 该失败。
-- 从已校验归档恢复原始 DBCache 语义解析器及 6 项测试后，重新绑定当前
-  Raidbots source-list 并串行内存扫描：verified 9/9、unverified 98/98，
-  抓取失败 0，总读取 285,935,025 bytes。两套语料仍只有 `6/12`、`82/178`，
+- 从已校验归档恢复原始 DBCache 语义解析器及测试后，重新绑定当前
+  Raidbots source-list 并串行内存扫描；unverified 滚动列表曾瞬时显示 100 个
+  exact-build 条目，实际扫描快照为 verified 9/9、unverified 99/99，抓取失败 0，
+  总读取 296,829,090 bytes。两套语料仍只有 `6/12`、`82/178`，
   三枚 blocker key 均未出现；重建的 aggregate 仍为 source union `9/12`、
   `114/178`、缺 `3/12` 和 `64/178`。
 - 归档中的旧 aggregate 曾引用随后被同名刷新覆盖的 corpus SHA。Harness
