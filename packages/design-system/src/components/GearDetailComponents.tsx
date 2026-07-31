@@ -6,7 +6,7 @@ import { ControlButton } from './ControlButton'
 import type { ProductionAssetId } from '@wow-mini/assets-manifest'
 
 import { resolveRuntimeMediaUrl } from '../runtime-media'
-import { styleSelectorClass } from './selector-markers'
+import { dataSelectorClass, styleSelectorClass } from './selector-markers'
 import { SystemGlyph } from './SystemGlyph'
 import { useTrustedMediaLoadState } from './useTrustedMediaLoadState'
 import styles from './GearDetailComponents.module.scss'
@@ -378,7 +378,9 @@ export interface GearSlotWorkbenchProps {
   resolveState?: 'idle' | 'resolving' | 'verified' | 'error'
   resolvedSlotItemId?: string
   resolvedSlotVariantKey?: string
+  resolvedSlotCraftedOptionId?: string
   committedSlotVariantKey?: string
+  committedSlotCraftedOptionId?: string
   onSlot: (item: GearWorkbenchSlotItem) => void
   onCandidate: (item: GearWorkbenchCandidateItem) => void
   onClose: () => void
@@ -419,6 +421,7 @@ function GearSlotRow({
       className={classes(
         style('slotRow'),
         style(`slotRow-${item.state}`),
+        dataSelectorClass('has-committed-item', item.state !== 'empty' && Boolean(item.itemId)),
       )}
       data-active={item.selected ? 'true' : 'false'}
       data-committed-item-id={item.itemId}
@@ -488,7 +491,9 @@ export function GearSlotWorkbench({
   resolveState = 'idle',
   resolvedSlotItemId = '',
   resolvedSlotVariantKey = '',
+  resolvedSlotCraftedOptionId = '',
   committedSlotVariantKey = '',
+  committedSlotCraftedOptionId = '',
   onSlot,
   onCandidate,
   onClose,
@@ -508,9 +513,11 @@ export function GearSlotWorkbench({
   return (
     <View
       className={style('workbenchOwner')}
+      data-committed-slot-crafted-option-id={committedSlotCraftedOptionId}
       data-committed-slot-variant-key={committedSlotVariantKey}
       data-gear-resolve-state={resolveState}
       data-resolved-slot-item-id={resolvedSlotItemId}
+      data-resolved-slot-crafted-option-id={resolvedSlotCraftedOptionId}
       data-resolved-slot-variant-key={resolvedSlotVariantKey}
       data-owner="gear-slot-workbench"
       data-region="equipment_slots_panel"

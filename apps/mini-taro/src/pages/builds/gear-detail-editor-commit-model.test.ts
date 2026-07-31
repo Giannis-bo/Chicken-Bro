@@ -125,12 +125,42 @@ describe('gear detail editor commit model', () => {
     })
   })
 
+  it('enables enhancement confirmation only after the requested kind is configured', () => {
+    expect(gearCommitModel).toHaveProperty('enhancementDraftCanConfirm')
+    const canConfirm = gearCommitModel.enhancementDraftCanConfirm as unknown as (
+      draft: GearEnhancementDraft | null,
+    ) => boolean
+
+    expect(canConfirm(enhancementDraft(emptySelection))).toBe(false)
+    expect(canConfirm(enhancementDraft(nextMainHandEnhancement))).toBe(true)
+    expect(canConfirm({ ...enhancementDraft(nextMainHandEnhancement), blockers: ['blocked'] })).toBe(false)
+    const missingItemDraft: GearEnhancementDraft = {
+      slot: 'main_hand',
+      requestedKind: 'socket',
+      selection: nextMainHandEnhancement,
+      blockers: [],
+    }
+    expect(canConfirm(missingItemDraft)).toBe(false)
+  })
+
   it('reads item and variant identity only from a complete verified resolved slot', () => {
     const snapshot = resolvedSnapshot(candidate, emptySelection)
 
     expect(resolvedSlotIdentity(snapshot, 'main_hand')).toEqual({
       itemId: 'new-main-hand',
       variantKey: 'new-track',
+      craftedOptionId: '',
+    })
+    expect(resolvedSlotIdentity(
+      resolvedSnapshot(candidate, {
+        ...emptySelection,
+        craftedOptionId: 'crafted-stats-haste-mastery',
+      }),
+      'main_hand',
+    )).toEqual({
+      itemId: 'new-main-hand',
+      variantKey: 'new-track',
+      craftedOptionId: 'crafted-stats-haste-mastery',
     })
     expect(resolvedSlotIdentity({ ...snapshot, status: 'partial' }, 'main_hand')).toBeNull()
     expect(resolvedSlotIdentity({
@@ -174,6 +204,7 @@ describe('gear detail editor commit model', () => {
     expect(resolvedSlotIdentityForWorkbench(snapshot, 'main_hand')).toEqual({
       itemId: candidate.itemId,
       variantKey: candidate.variantKey,
+      craftedOptionId: '',
     })
   })
 
@@ -289,6 +320,71 @@ describe('gear detail editor commit model', () => {
     expect(transition.state.candidateDraft).toBeNull()
   })
 
+  it('commits a resolver-echoed crafted option with a candidate even when the remaining profile is incomplete', () => {
+    const before = state()
+    const craftedSelection = {
+      ...emptySelection,
+      craftedOptionId: 'crafted-stats-haste-mastery',
+    }
+    const partialSnapshot: GearResolvedSnapshot = {
+      contractRevision: 'gear-resolved-snapshot-v1',
+      status: 'blocked',
+      resolvedGearSignature: 'sha256:crafted-main-hand-only',
+      aggregateLegality: { status: 'verified', problemCodes: [] },
+      profileReadiness: {
+        status: 'blocked',
+        simcReady: false,
+        requiredSlots: ['head', 'main_hand', 'neck'],
+        readySlots: ['head', 'main_hand'],
+        problems: [{ code: 'GEAR_REQUIRED_SLOTS_INCOMPLETE' }],
+      },
+      problems: [{ code: 'GEAR_REQUIRED_SLOTS_INCOMPLETE' }],
+      resolvedSlots: {
+        main_hand: {
+          itemId: candidate.itemId,
+          variantKey: candidate.variantKey,
+          legality: { status: 'verified' },
+          selectedOptions: craftedSelection,
+        },
+      },
+    }
+
+    const transition = transitionGearEditorCommit(before, {
+      status: 'slot_resolved',
+      kind: 'candidate',
+      slot: 'main_hand',
+      item: candidate,
+      selection: craftedSelection,
+      snapshot: partialSnapshot,
+    })
+
+    expect(transition.committed).toBe(true)
+    expect(transition.state.enhancements).toEqual({
+      main_hand: craftedSelection,
+      head: headEnhancement,
+    })
+  })
+
+  it('preserves the candidate draft when Resolver does not echo the requested crafted option', () => {
+    const before = state()
+    const requestedSelection = {
+      ...emptySelection,
+      craftedOptionId: 'crafted-stats-haste-mastery',
+    }
+
+    const transition = transitionGearEditorCommit(before, {
+      status: 'resolved',
+      kind: 'candidate',
+      slot: 'main_hand',
+      item: candidate,
+      selection: requestedSelection,
+      snapshot: resolvedSnapshot(candidate, emptySelection),
+    })
+
+    expect(transition.committed).toBe(false)
+    expect(transition.state).toBe(before)
+  })
+
   it.each([
     {
       name: 'mismatched resolved variant',
@@ -357,6 +453,19 @@ describe('gear detail editor commit model', () => {
     })
     expect(transition.state.candidateDraft).toBe(before.candidateDraft)
     expect(transition.state.enhancementDraft).toBeNull()
+  })
+
+  it('preserves the enhancement draft when the verified snapshot omits the requested kind', () => {
+    const before = state()
+    const transition = transitionGearEditorCommit(before, {
+      status: 'resolved',
+      kind: 'enhancement',
+      slot: 'main_hand',
+      snapshot: resolvedSnapshot(oldMainHand, emptySelection),
+    })
+
+    expect(transition.committed).toBe(false)
+    expect(transition.state).toBe(before)
   })
 
   it('does not commit an enhancement without resolved-slot proof', () => {

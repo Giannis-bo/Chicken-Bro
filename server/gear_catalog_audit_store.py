@@ -219,6 +219,25 @@ def _gear_items_from_slots(slots: Any, enhancements: Any = None) -> list[dict[st
     ]
 
 
+def _editor_managed_enhancement_fields(value: Any) -> list[str]:
+    selection = _mapping(value)
+    fields = []
+    for field in (
+        "gemOptionIds",
+        "enchantOptionId",
+        "embellishmentOptionId",
+        "craftedOptionId",
+    ):
+        selected = selection.get(field)
+        if (
+            any(_text(option_id) for option_id in selected)
+            if isinstance(selected, list)
+            else bool(_text(selected))
+        ):
+            fields.append(field)
+    return fields
+
+
 def _gear_items_from_template_payload(payload: Any, metadata: Any = None) -> list[dict[str, Any]]:
     source = _mapping(payload)
     meta = _mapping(metadata)
@@ -881,6 +900,12 @@ class GearCatalogAuditStore:
             evidence_slots = _mapping(import_evidence.get("slots"))
             for item in gear_items:
                 slot = _text(item.get("slot"))
+                selection_slot = _mapping(
+                    _mapping(selection_intent.get("slots")).get(slot)
+                )
+                item["editorManagedEnhancementFields"] = (
+                    _editor_managed_enhancement_fields(selection_slot)
+                )
                 evidence = _mapping(evidence_slots.get(slot))
                 if (
                     evidence

@@ -70,6 +70,7 @@ _CAPABILITY_FIELDS = (
     "allowedEmbellishmentOptionIds",
     "allowedCraftedOptionIds",
     "allowedCatalystOptionIds",
+    "requiresCraftedOption",
 )
 
 

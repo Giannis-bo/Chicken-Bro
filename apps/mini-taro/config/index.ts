@@ -21,6 +21,8 @@ if (configuredAssetRuntimeRoot && !isImmutableRemoteAssetRoot(configuredAssetRun
   throw new Error('WOW_ASSET_RUNTIME_ROOT must be an immutable HTTPS path ending in /releases/<release-id>')
 }
 const configuredRuntimeMediaRoot = process.env['WOW_RUNTIME_MEDIA_ROOT']?.trim() ?? ''
+const runtimeGitHead = process.env['WOW_WEAPP_RUNTIME_GIT_HEAD']?.trim() ?? ''
+const runtimeSourceHash = process.env['WOW_WEAPP_RUNTIME_SOURCE_HASH']?.trim() ?? ''
 if (configuredRuntimeMediaRoot && !isImmutableRemoteAssetRoot(configuredRuntimeMediaRoot)) {
   throw new Error('WOW_RUNTIME_MEDIA_ROOT must be an immutable HTTPS path ending in /releases/<release-id>')
 }
@@ -85,6 +87,8 @@ export default defineConfig<'webpack5'>({
     __WOW_ASSET_RUNTIME_ROOT__: JSON.stringify(configuredAssetRuntimeRoot || '/assets/ui-v2'),
     __WOW_RUNTIME_MEDIA_ROOT__: JSON.stringify(configuredRuntimeMediaRoot),
     __WOW_BACKEND_API_BASE_URL__: JSON.stringify(configuredBackendApiBaseUrl),
+    __WOW_WEAPP_RUNTIME_GIT_HEAD__: JSON.stringify(runtimeGitHead),
+    __WOW_WEAPP_RUNTIME_SOURCE_HASH__: JSON.stringify(runtimeSourceHash),
   },
   csso: {
     config: {

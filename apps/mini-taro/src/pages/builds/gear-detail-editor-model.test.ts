@@ -3,11 +3,13 @@ import { describe, expect, it } from 'vitest'
 import type { GearItemReference } from '@wow-mini/domain'
 
 import {
+  candidateDraftEnhancementSelection,
   candidateDraftCanApply,
   createCandidateDraft,
   emptyEnhancementSelection,
   isEnhancementKindConfigured,
   materializeCandidateDraft,
+  selectCandidateCraftedStat,
   selectCandidateVariant,
   setGemAtSocket,
   setSingleEnhancement,
@@ -31,8 +33,20 @@ const craftedWeapon: GearItemReference = {
   name: '制造的星界短杖',
   variants: [{ key: 'crafted-myth-285', difficultyLabel: '神话', ilevel: 285, status: 'ready' }],
   craftedStatOptions: [
-    { key: 'haste_mastery', label: '急速 / 精通', simcOptions: ['haste', 'mastery'] },
-    { key: 'crit_vers', label: '暴击 / 全能', simcOptions: ['crit', 'vers'] },
+    {
+      key: 'haste_mastery',
+      optionId: 'crafted-stats-haste-mastery',
+      label: '急速 / 精通',
+      simcOptions: ['haste', 'mastery'],
+      status: 'verified',
+    },
+    {
+      key: 'crit_vers',
+      optionId: 'crafted-stats-crit-versatility',
+      label: '暴击 / 全能',
+      simcOptions: ['crit', 'vers'],
+      status: 'verified',
+    },
   ],
 }
 
@@ -52,6 +66,8 @@ describe('gear detail editor model', () => {
     const candidate: GearItemReference = {
       itemId: 'manifest-head',
       name: '溃烂之花冠冕',
+      armorType: 'Cloth',
+      equipmentBadges: [{ key: 'equipment_type', label: '布甲' }],
       statSummary: '力量 135；暴击 60；急速 112',
       primaryStatKey: 'strength',
       variants: [
@@ -87,6 +103,8 @@ describe('gear detail editor model', () => {
       ilevel: 289,
       primaryStatKey: 'strength',
       statSummary: '力量 124；暴击 57；急速 108',
+      armorType: 'Cloth',
+      equipmentBadges: [{ key: 'equipment_type', label: '布甲' }],
       itemStats: [
         { key: 'agiint', label: '敏捷 or 智力', value: 124 },
         { key: 'critical_strike', label: '暴击', value: 57 },
@@ -96,6 +114,7 @@ describe('gear detail editor model', () => {
     expect(gearCandidates(materialized ? [materialized] : [])).toEqual([
       expect.objectContaining({
         statSummary: '力量 124；暴击 57；急速 108',
+        badgeLabels: ['布甲'],
       }),
     ])
   })
@@ -171,14 +190,24 @@ describe('gear detail editor model', () => {
     expect(materializeCandidateDraft(incompatible)).toBeNull()
   })
 
-  it('does not turn display-only craftedStatOptions into a resolver selection', () => {
+  it('requires a verified crafted stat option and materializes it as a resolver enhancement selection', () => {
     const draft = selectCandidateVariant(createCandidateDraft('main_hand', craftedWeapon), 'crafted-myth-285')
 
     expect(draft.craftedStatOptions).toHaveLength(2)
-    expect(materializeCandidateDraft(draft)).not.toHaveProperty('craftedOptionId')
+    expect(draft.requiresCraftedStatSelection).toBe(true)
+    expect(candidateDraftCanApply(draft)).toBe(false)
+
+    const selected = selectCandidateCraftedStat(draft, 'crafted-stats-haste-mastery')
+
+    expect(candidateDraftCanApply(selected)).toBe(true)
+    expect(candidateDraftEnhancementSelection(selected)).toEqual({
+      ...emptyEnhancementSelection(),
+      craftedOptionId: 'crafted-stats-haste-mastery',
+    })
+    expect(materializeCandidateDraft(selected)).not.toHaveProperty('craftedOptionId')
   })
 
-  it('projects display-only crafted stats from the selected compact variant', () => {
+  it('projects resolver-owned crafted options from the selected compact variant', () => {
     const compactCrafted: GearItemReference = {
       itemId: 'compact-crafted',
       variants: [{
@@ -186,10 +215,13 @@ describe('gear detail editor model', () => {
         difficultyLabel: '神话',
         itemLevel: 289,
         status: 'ready',
+        craftedStatSelectionRequired: true,
         craftedStatOptions: [{
           key: 'haste_mastery',
+          optionId: 'crafted-stats-haste-mastery',
           displayLabel: '急速 / 精通',
           simcOptions: { crafted_stats: '32/49', ilevel: 289 },
+          status: 'verified',
         }],
       }],
     }
@@ -200,10 +232,16 @@ describe('gear detail editor model', () => {
     expect(initial.craftedStatOptions).toEqual([])
     expect(selected.craftedStatOptions).toEqual([{
       key: 'haste_mastery',
+      optionId: 'crafted-stats-haste-mastery',
       label: '急速 / 精通',
       simcOptions: ['crafted_stats=32/49', 'ilevel=289'],
+      state: 'ready',
+      blockers: [],
     }])
-    expect(materializeCandidateDraft(selected)).not.toHaveProperty('craftedOptionId')
+    expect(candidateDraftCanApply(selected)).toBe(false)
+    expect(candidateDraftCanApply(
+      selectCandidateCraftedStat(selected, 'crafted-stats-haste-mastery'),
+    )).toBe(true)
   })
 
   it('does not leak candidate-level crafted display into another compact variant', () => {
@@ -218,10 +256,13 @@ describe('gear detail editor model', () => {
         {
           key: 'crafted-hero',
           status: 'ready',
+          craftedStatSelectionRequired: true,
           craftedStatOptions: [{
             key: 'hero-stats',
+            optionId: 'crafted-stats-hero',
             displayLabel: '英雄属性',
             simcOptions: { crafted_stats: '32/49' },
+            status: 'verified',
           }],
         },
         { key: 'crafted-myth', status: 'ready' },
@@ -234,6 +275,45 @@ describe('gear detail editor model', () => {
     )
 
     expect(selected.craftedStatOptions).toEqual([])
+  })
+
+  it('fails closed when a customizable crafted variant has no selectable option identity', () => {
+    const selected = selectCandidateVariant(createCandidateDraft('head', {
+      itemId: 'crafted-missing-option',
+      variants: [{
+        key: 'crafted-myth-285',
+        status: 'ready',
+        craftedStatSelectionRequired: true,
+        craftedStatOptions: [{
+          key: 'haste',
+          displayLabel: '急速',
+          simcOptions: { crafted_stats: '36' },
+          status: 'blocked',
+          blockers: ['制造属性选项身份不可用'],
+        }],
+      }],
+    }), 'crafted-myth-285')
+
+    expect(selected.requiresCraftedStatSelection).toBe(true)
+    expect(candidateDraftCanApply(selected)).toBe(false)
+    expect(selectCandidateCraftedStat(selected, 'forged-option')).toBe(selected)
+  })
+
+  it('keeps fixed-stat crafted variants free of a fabricated stat selector', () => {
+    const selected = selectCandidateVariant(createCandidateDraft('wrist', {
+      itemId: 'crafted-fixed',
+      variants: [{
+        key: 'crafted-myth-285',
+        status: 'ready',
+        craftedStatSelectionRequired: false,
+        craftedStatOptions: [],
+      }],
+    }), 'crafted-myth-285')
+
+    expect(selected.requiresCraftedStatSelection).toBe(false)
+    expect(selected.craftedStatOptions).toEqual([])
+    expect(candidateDraftCanApply(selected)).toBe(true)
+    expect(candidateDraftEnhancementSelection(selected)).toEqual(emptyEnhancementSelection())
   })
 
   it('replaces a gem in place and keeps removals as a packed ordered sequence', () => {

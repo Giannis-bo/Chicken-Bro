@@ -1213,12 +1213,27 @@ def _link_allowed_options(
     intent: dict[str, Any],
     items_by_id: dict[str, dict[str, Any]],
     options_by_id: dict[str, dict[str, Any]],
+    *,
+    link_all_applicable_options: bool = False,
 ) -> None:
     for slot, selection in intent["slots"].items():
         item = items_by_id.get(selection["itemId"])
         if not isinstance(item, dict):
             continue
-        for option_id in _selected_option_ids({**intent, "slots": {slot: selection}}):
+        base_capabilities = item.get("baseCapabilities")
+        base_capabilities = (
+            base_capabilities
+            if isinstance(base_capabilities, dict)
+            else {}
+        )
+        option_ids = (
+            sorted(options_by_id)
+            if link_all_applicable_options
+            else _selected_option_ids(
+                {**intent, "slots": {slot: selection}}
+            )
+        )
+        for option_id in option_ids:
             option = options_by_id.get(option_id)
             if not isinstance(option, dict):
                 continue
@@ -1226,8 +1241,36 @@ def _link_allowed_options(
             if applicable and slot not in applicable and "*" not in applicable:
                 continue
             field = _OPTION_ALLOW_FIELDS[option["optionType"]]
+            if link_all_applicable_options:
+                if (
+                    field == "allowedGemOptionIds"
+                    and _non_negative_int(
+                        base_capabilities.get("socketCount")
+                    )
+                    <= 0
+                ):
+                    continue
+                if (
+                    field == "allowedEnchantOptionIds"
+                    and base_capabilities.get("canEnchant") is not True
+                ):
+                    continue
+                if (
+                    field == "allowedEmbellishmentOptionIds"
+                    and base_capabilities.get("canEmbellish") is not True
+                ):
+                    continue
+                # Crafted and Catalyst permissions require their dedicated
+                # provenance/rule owners. Loading a release-wide editor
+                # catalogue must not grant either capability by slot alone.
+                if field in {
+                    "allowedCraftedOptionIds",
+                    "allowedCatalystOptionIds",
+                }:
+                    continue
             item[field] = _texts([*item.get(field, []), option_id])
-            item["baseCapabilities"][field] = list(item[field])
+            base_capabilities[field] = list(item[field])
+        item["baseCapabilities"] = base_capabilities
 
 
 def build_gear_authority_context_from_rows(
@@ -1239,6 +1282,7 @@ def build_gear_authority_context_from_rows(
     item_rows: Iterable[Any],
     option_rows: Iterable[Any],
     missing_fields: Iterable[str] = (),
+    link_all_applicable_options: bool = False,
 ) -> dict[str, Any]:
     """Project one Authority Context from caller-owned, release-scoped rows."""
 
@@ -1302,7 +1346,12 @@ def build_gear_authority_context_from_rows(
         )
         if option is not None:
             options_by_id[requested_option_id] = option
-    _link_allowed_options(intent, items_by_id, options_by_id)
+    _link_allowed_options(
+        intent,
+        items_by_id,
+        options_by_id,
+        link_all_applicable_options=link_all_applicable_options,
+    )
 
     selections = list(intent["slots"].values())
     option_ids = _selected_option_ids(intent)

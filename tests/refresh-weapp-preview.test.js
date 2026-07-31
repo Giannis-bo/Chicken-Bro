@@ -5,6 +5,7 @@ const path = require('node:path')
 const test = require('node:test')
 
 const {
+  ensureDevToolsRuntimeProject,
   resolveDevToolsCli,
   verifyWeappOutput,
   refreshWeappPreview,
@@ -19,6 +20,17 @@ function createFixture() {
   fs.mkdirSync(path.join(projectRoot, 'src'), { recursive: true })
   fs.writeFileSync(path.join(projectRoot, 'project.config.json'), JSON.stringify({
     miniprogramRoot: 'dist/weapp/',
+    projectname: 'wow-mini-taro',
+    setting: {
+      urlCheck: true,
+    },
+  }))
+  fs.writeFileSync(path.join(projectRoot, 'project.private.config.json'), JSON.stringify({
+    projectname: 'wow-mini-taro',
+    setting: {
+      urlCheck: false,
+      compileHotReLoad: true,
+    },
   }))
   fs.writeFileSync(path.join(outputRoot, 'app.json'), JSON.stringify({ pages: ['pages/news/news'] }))
   fs.writeFileSync(path.join(outputRoot, 'app.js'), 'App({})\n')
@@ -77,7 +89,46 @@ test('WeChat output verification requires the configured output and final app.js
   assert.ok(result.fileCount >= 3)
 })
 
-test('refresh builds first and opens the repository project through the detected CLI', () => {
+test('DevTools runtime project opens the exact built package without relying on miniprogramRoot', () => {
+  const fixture = createFixture()
+  const verified = verifyWeappOutput(fixture.root)
+  const runtimeProjectRoot = ensureDevToolsRuntimeProject(verified)
+  const runtimeConfig = JSON.parse(fs.readFileSync(
+    path.join(runtimeProjectRoot, 'project.config.json'),
+    'utf8',
+  ))
+  const sourceConfig = JSON.parse(fs.readFileSync(
+    path.join(fixture.projectRoot, 'project.config.json'),
+    'utf8',
+  ))
+
+  assert.equal(runtimeProjectRoot, fixture.outputRoot)
+  assert.equal(runtimeConfig.appid, sourceConfig.appid)
+  assert.equal(runtimeConfig.compileType, 'miniprogram')
+  assert.equal(runtimeConfig.miniprogramRoot, '')
+  assert.match(runtimeConfig.projectname, /runtime$/u)
+})
+
+test('DevTools runtime project preserves the ignored local domain-check override outside release config', () => {
+  const fixture = createFixture()
+  const verified = verifyWeappOutput(fixture.root)
+  ensureDevToolsRuntimeProject(verified)
+  const runtimeConfig = JSON.parse(fs.readFileSync(
+    path.join(fixture.outputRoot, 'project.config.json'),
+    'utf8',
+  ))
+  const runtimePrivateConfig = JSON.parse(fs.readFileSync(
+    path.join(fixture.outputRoot, 'project.private.config.json'),
+    'utf8',
+  ))
+
+  assert.equal(runtimeConfig.setting.urlCheck, true)
+  assert.equal(runtimePrivateConfig.projectname, 'wow-mini-taro-runtime')
+  assert.equal(runtimePrivateConfig.setting.urlCheck, false)
+  assert.equal(runtimePrivateConfig.setting.compileHotReLoad, true)
+})
+
+test('refresh builds first and opens the exact runtime package through the detected CLI', () => {
   const fixture = createFixture()
   const cli = path.join(fixture.root, 'wechat-cli')
   fs.writeFileSync(cli, '#!/bin/sh\n')
@@ -97,7 +148,8 @@ test('refresh builds first and opens the repository project through the detected
   assert.equal(result.status, 'preview_refreshed')
   assert.deepEqual(calls[0].args, ['run', 'build:weapp'])
   assert.equal(calls[1].command, cli)
-  assert.deepEqual(calls[1].args, ['open', '--project', fixture.projectRoot, '--lang', 'zh'])
+  assert.deepEqual(calls[1].args, ['open', '--project', fixture.outputRoot, '--lang', 'zh'])
+  assert.equal(result.devToolsProjectRoot, fixture.outputRoot)
 })
 
 test('refresh launches the Windows cli.bat through a shell', () => {

@@ -4805,6 +4805,61 @@ class PostgresCacheSyncTest(unittest.TestCase):
         self.assertNotIn("not implemented", json.dumps(payload))
         self.assertEqual(store.saved_states[-1][0], postgres_cache_sync.CRAFTED_GEAR_BACKFILL_SYNC_KEY)
 
+    def test_default_crafted_seed_covers_all_members_and_stat_modes(self):
+        from server import postgres_cache_sync
+
+        with patch.dict(
+            os.environ,
+            {"WOW_CRAFTED_GEAR_SEED_JSON": ""},
+            clear=False,
+        ):
+            rows = postgres_cache_sync.load_crafted_gear_seed_postgres()
+
+        item_ids = {row["itemId"] for row in rows}
+        self.assertEqual(len(item_ids), 172)
+        self.assertIn(
+            {
+                "32",
+                "36",
+                "40",
+                "49",
+            },
+            [
+                {
+                    row["crafted_stats"]
+                    for row in rows
+                    if row["itemId"] == item_id
+                }
+                for item_id in item_ids
+                if any(
+                    row["itemId"] == item_id
+                    and row["secondaryStatMode"]
+                    == "amplify_one_secondary"
+                    for row in rows
+                )
+            ],
+        )
+        fixed = [
+            row
+            for row in rows
+            if row["secondaryStatMode"]
+            == "fixed_or_recipe_defined_stats"
+        ]
+        self.assertTrue(fixed)
+        self.assertTrue(all(row["crafted_stats"] == "" for row in fixed))
+        self.assertTrue(all(row["status"] == "partial" for row in rows))
+        self.assertTrue(
+            all(
+                "OFFICIAL_PROGRESSION_STATE_UNAVAILABLE"
+                in row["blockers"]
+                for row in rows
+            )
+        )
+        self.assertNotIn(
+            "crafted_void_upgrade",
+            {row["difficultyKey"] for row in rows},
+        )
+
     def test_stat_weight_postgres_sync_builds_and_writes_pg_payloads(self):
         from server import postgres_cache_sync
 

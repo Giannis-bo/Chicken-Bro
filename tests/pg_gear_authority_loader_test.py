@@ -328,6 +328,84 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
             legacy["variantsByKey"]["variant-head"],
         )
 
+    def test_exact_import_scope_links_all_release_verified_applicable_editor_options(self):
+        exact_option_id = "exact-option:sha256:" + ("a" * 64)
+        intent = self.intent(slots={
+            "head": {
+                "itemId": "item-head",
+                "variantKey": "variant-head",
+                "gemOptionIds": [],
+                "enchantOptionId": exact_option_id,
+                "embellishmentOptionId": "",
+                "craftedOptionId": "",
+                "catalystOptionId": "",
+            },
+        })
+        item_row = self.item_row(item={
+            "payload": {
+                "inventoryType": "head",
+                "armorType": "plate",
+                "baseStats": {"strength": 80, "stamina": 120},
+                "itemSetId": "set:authority",
+                "canEnchant": True,
+            },
+        })
+        official_record = self.option_row(
+            optionKey="official-head-enchant",
+            optionType="enchant",
+            name="Official Head Enchant",
+            applicableSlots=["head"],
+            simcOptions={"enchant_id": "official"},
+        )[1]
+        official = ("official-head-enchant", official_record)
+        wrong_slot_record = self.option_row(
+            optionKey="official-back-enchant",
+            optionType="enchant",
+            name="Official Back Enchant",
+            applicableSlots=["back"],
+            simcOptions={"enchant_id": "back"},
+        )[1]
+        wrong_slot = ("official-back-enchant", wrong_slot_record)
+
+        context = pg_gear_authority_loader.build_gear_authority_context_from_rows(
+            intent,
+            self.runtime_authority(),
+            manifest={
+                "contractRevision": "active-season-manifest-v1",
+                "manifestType": "active",
+                "formalActiveManifest": True,
+                "seasonRevision": "season-17-active",
+                "gearCatalogReleaseId": "gear-release-17",
+                "gearCatalogRevision": self.catalog_revision(),
+            },
+            dependency_vector={
+                "seasonRevision": "season-17-active",
+                "gearCatalogReleaseId": "gear-release-17",
+                "gearCatalogRevision": self.catalog_revision(),
+                **self.runtime_authority()["dependencyRevisions"],
+            },
+            item_rows=[item_row],
+            option_rows=[official, wrong_slot],
+            link_all_applicable_options=True,
+        )
+
+        self.assertEqual(
+            context["itemsById"]["item-head"]["baseCapabilities"][
+                "allowedEnchantOptionIds"
+            ],
+            ["official-head-enchant"],
+        )
+        self.assertEqual(
+            context["itemsById"]["item-head"]["allowedEnchantOptionIds"],
+            ["official-head-enchant"],
+        )
+        self.assertIn("official-head-enchant", context["optionsById"])
+        self.assertIn("official-back-enchant", context["optionsById"])
+        self.assertIn(
+            f"optionsById.{exact_option_id}",
+            context["missingFields"],
+        )
+
     def test_v2_source_only_built_in_projects_noneditable_resolver_capability(self):
         management = {
             "schemaRevision": "gear-enhancement-management-v1",

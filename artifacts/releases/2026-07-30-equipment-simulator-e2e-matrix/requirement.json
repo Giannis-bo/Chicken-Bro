@@ -1,0 +1,398 @@
+{
+  "schemaVersion": 1,
+  "slug": "equipment-simulator-e2e-matrix",
+  "classification": "Strict",
+  "status": "implementation_allowed",
+  "goal": "Prove and repair the complete current-season obtainable PVE equipment simulator end to end: independent source-universe closure, Catalog and Exact authority, all 40 specializations and legal slots, enhancements, ResolvedLoadout, saved templates, 26 real SimC paths, 14 deterministic blocks, task results, and the actual WeChat DevTools journey.",
+  "userValue": "A player can choose any specialization and trust that every actually obtainable current-season PVE item is present, legal, traceable, editable and simulatable without hidden omissions, stale runtime data, invented frontend facts, or a partial state presented as success.",
+  "nonGoals": [
+    "Necessary in-Goal fixed-source downloads, isolated audits, candidate operations and cloud verification are authorized without repeated approval prompts. Persist only checksum-bound, key-material-free evidence; keep raw key material transient; do not bypass Harness resource, candidate, formal-pointer, rollback or manual-acceptance gates.",
+    "Do not repair missing data by filtering a view, fabricating a frontend identity or capability, selecting a default variant, or degrading a blocked result to success.",
+    "Do not promote a Manifest pointer, merge the task branch, or claim completion from HTTP 200, local tests, same-source 40-spec parity, a historical candidate, diagnostic mode, or one or two WeChat samples.",
+    "Do not run concurrent heavy candidate, source-sync, backfill, SimC or matrix workloads on the cloud host."
+  ],
+  "currentTruth": {
+    "sources": [
+      "docs/project-state.json",
+      "docs/roadmap.md",
+      "docs/plans/README.md",
+      "docs/plans/2026-07-29-equipment-simulator-e2e-completeness-goal.md",
+      "docs/plans/2026-07-29-season-pve-universe-reconciliation.md",
+      "docs/plans/2026-07-28-equipment-simulator-target-architecture.md",
+      "docs/harness.md",
+      "docs/verification-matrix.md",
+      "docs/gear-simulation-full-chain-runbook.md",
+      "docs/community-template-import-full-chain-runbook.md",
+      "docs/simulator-simc-end-to-end.md"
+    ],
+    "factOwner": "The versioned source policy and approved independent official discovery snapshot own current-season obtainable membership; CatalogRevision owns BrowseVariant membership; Exact Registry owns concrete imported identity and source-only facts; Enhancement Resolver and canonical Resolve own legal edits and ResolvedLoadout; the Taro consumer renders those facts without reinterpretation.",
+    "baseBranch": "main"
+  },
+  "impactMap": {
+    "mustChange": [
+      "Every required acquisition source must bind a well-formed effective window and independently captured membership; every source, item and progression relation must have exactly one included, governed-excluded, or blocked outcome.",
+      "Universe reconciliation must expose source caps, pagination, fetch failure, fallback, revision drift, downstream-only membership, staging gaps and Catalog gaps without using downstream counts as the independent denominator.",
+      "ExactItemInstance imports must preserve source-only bonus, gem, enchant, crafted-stat and embellishment facts while the backend publishes only editor-managed capabilities and options; Exact identity must never become Browse membership.",
+      "All 13 classes and 40 specializations must expose exactly the 16 legal equipment rows, with every returned candidate item and progression variant checked against the same immutable API identity; legally empty off-hands remain explicit rather than fabricated.",
+      "Each specialization must exercise candidate Apply and canonical Resolve, Community Exact import, a real socket/enchant/embellishment edit where supported, and save/reset/reload recovery.",
+      "The final WeChat matrix must bind AppID, Git commit and source hash to the same final build, reject stale or unidentified automation endpoints, and aggregate 13 non-diagnostic class reports into one fail-closed Goal verdict.",
+      "All 26 supported specializations must execute the real SimC task path to a truthful terminal result and all 14 unsupported specializations must block before execution with deterministic policy evidence.",
+      "Every unexpected empty, blocked, stale, error or mismatched display must be traced through UI, typed payload, read model, Manifest, Catalog/Exact, staging and source universe to the actual fact owner before repair."
+    ],
+    "mustNotChange": [
+      "Do not write source authority, eligibility, progression, item identity or enhancement capability in Taro.",
+      "Do not treat source-only Exact fields as editor-managed or rewrite an Exact instance into a BrowseVariant.",
+      "Do not permit mixed Catalog, Exact, Gear, Community, Manifest, SimC or WeChat build identities.",
+      "Do not start async syncs or backfills during deployment; WOW_DEPLOY_START_ASYNC_SYNCS=0 remains mandatory.",
+      "Do not exceed the cloud disk, memory or cgroup stop lines, perform destructive database cleanup, or change the production pointer before final candidate gates pass.",
+      "Do not represent diagnostic, partial, blocked or stale evidence as full matrix acceptance."
+    ],
+    "riskUnknown": [
+      "Official current-season membership may be spread across Journal, activity reward pools, vendors, transforms, time-bounded events, crafting and in-game-only structures rather than one API.",
+      "The current v2 policy declares 19 required source families and official effective windows, but the independently captured snapshot is still partial or blocked for all 19 sources and the policy is not approved, so current obtainability remains blocked even though downstream Catalog matrices are internally consistent.",
+      "Some imported Exact items expose source-only enhancements that are immutable facts, while editable slots and public option catalogs vary by item and specialization.",
+      "WeChat DevTools can keep an old automation port alive for the same AppID; AppID-only connection checks are insufficient.",
+      "The final full matrix is intentionally large and must run serially with resource checks between class batches.",
+      "Server-delivered TACT keys may vary by region, account entitlement, character state or content gate. Absence from the current public repository and published exact-build enUS cache corpus is a verified boundary, not proof that no other official delivery context can contain them."
+    ],
+    "evidenceRequired": [
+      "Fail-closed SeasonPveUniverseRevision with approved source windows and independent source-to-item/progression snapshot, exact inclusion/exclusion/blocked ledger, and zero silent cap/fetch/pagination/fallback omissions.",
+      "Targeted and full Python, Taro/Vitest, Node and typecheck evidence at the final source head, plus Harness requirement/packet checks, git diff review and local CR.",
+      "Immutable candidate API evidence covering 13 classes, 40 specializations, 640 slot checks, complete candidate item/progression relations, 80 Community imports, Exact and ResolvedLoadout parity, and 26/14 SimC outcomes.",
+      "Thirteen non-diagnostic WeChat DevTools class reports with one final aggregator PASS, runtime build identity parity, 640 actual slot surfaces, 280 action checks, cross-slot application, all three enhancement kinds, save/reload, 26 completed real SimC task paths, and 14 backend-owned policy blocks without task creation.",
+      "Cloud disk, MemAvailable, cgroup current/peak, serial-execution, timer/backflow, zero-restart, active-pointer, rollback and runtime file/build parity evidence.",
+      "Explicit post-test user acceptance before Harness closure, followed by merge, production smoke, local/origin/cloud parity and cleanup."
+    ]
+  },
+  "ownership": {
+    "factOwner": "server/season_pve_universe.py owns pure source reconciliation; source discovery and PostgreSQL staging own captured evidence; Gear Release and CatalogRevision own browse facts; Gear Exact Registry and Enhancement Resolver own concrete imported facts and editable selections; canonical Resolver and SimC compiler own execution; the WeChat matrix verifies the Taro consumer without becoming a fact source.",
+    "consumers": [
+      "scripts/season-pve-universe.py",
+      "server/gear_catalog_revision.py",
+      "server/gear_exact_item_registry.py",
+      "server/gear_exact_template_options.py",
+      "server/postgres_cache_store.py",
+      "server/pg_gear_read_model_selectors.py",
+      "server/websim_payload.py",
+      "apps/mini-taro/src/pages/builds/detail.tsx",
+      "apps/mini-taro/src/pages/builds/gear-detail-model.ts",
+      "packages/design-system/src/components/GearEditorSheets.tsx",
+      "scripts/verify-wechat-gear-matrix.js",
+      "scripts/summarize-wechat-gear-matrix.js"
+    ]
+  },
+  "engineeringHealth": {
+    "status": "strict_full_chain_guarded",
+    "reason": "This Goal crosses an independent source denominator, immutable data authorities, hot PostgreSQL/read-model code, the active WeChat consumer and real SimC/cloud execution. It uses TDD for each discovered root cause, a resource-limited candidate with async work disabled, fail-closed runtime identity and one serial full-matrix acceptance boundary."
+  },
+  "acceptanceEvidence": [
+    "The official source universe is current at the audit instant and every expected source/item/progression relation is included, governed-excluded, or explicitly blocked; no unknown, capped, failed, paginated, stale or fallback relation is silently omitted.",
+    "All 13 classes, 40 specializations and 640 legal slot rows are actually opened in WeChat DevTools, and every API candidate item and progression variant is present with matching state.",
+    "Across the full matrix, head, main-hand and trinket application paths all Resolve canonically, and socket, enchant and embellishment edits all reach verified resolved state.",
+    "Every specialization imports a Community Exact template, preserves sealed Exact identity and source-only facts, then saves, resets and reloads the same gear and confirmed enhancements.",
+    "All 26 supported specializations traverse real task submission/list/detail terminal results and all 14 unsupported specializations block before execution with the expected policy reason.",
+    "The WeChat page reports the exact final Git commit and source hash; a missing, stale or different runtime identity fails before any route result can count.",
+    "The cloud candidate remains within disk, memory and cgroup budgets, production stays online, expensive timers remain inactive, the active pointer is unchanged until approval, and rollback is demonstrated.",
+    "The user explicitly accepts the final actual WeChat behavior before merge and production closure."
+  ],
+  "manualAcceptanceContract": {
+    "required": true,
+    "requiredItemIds": [
+      "wechat_final_runtime_identity",
+      "wechat_13_class_40_spec_640_slot_matrix",
+      "wechat_candidate_apply_and_resolve_cross_slots",
+      "wechat_community_exact_import",
+      "wechat_socket_enchant_embellishment_matrix",
+      "wechat_save_reset_reload_recovery",
+      "wechat_26_supported_14_blocked_simc_tasks",
+      "season_pve_universe_completeness"
+    ]
+  },
+  "releaseTrigger": "pg_read_model",
+  "rollback": [
+    "code_rollback",
+    "candidate_runtime_rollback",
+    "manifest_pointer_cas_rollback",
+    "database_restore",
+    "retain_last_known_good_source_and_catalog",
+    "resync_repair"
+  ],
+  "decisionLog": [
+    {
+      "date": "2026-07-29",
+      "decision": "The user accepted the equipment-simulator objective and created an end-to-end Goal with authority for necessary project, candidate, cloud, PR and post-acceptance closure operations."
+    },
+    {
+      "date": "2026-07-29",
+      "decision": "The user required complete current-season obtainable PVE equipment coverage, upstream root-cause repair, cloud performance protection and Harness-governed progression."
+    },
+    {
+      "date": "2026-07-29",
+      "decision": "The user required actual WeChat DevTools operation rather than API or build-only proof."
+    },
+    {
+      "date": "2026-07-29",
+      "decision": "The user explicitly rejected one- or two-sample acceptance and required multi-class, all-specialization and cross-equipment validation."
+    },
+    {
+      "date": "2026-07-30",
+      "decision": "The user explicitly approved downloading and persisting official current-season PVE sources, effective windows and membership snapshots into this Goal's isolated evidence directory for audit and candidate construction only; production sync and formal-pointer cutover remain prohibited."
+    },
+    {
+      "date": "2026-07-31",
+      "decision": "The user explicitly approved downloading and persisting the fixed current wowdev/WoWDBDefs commit and relevant DB2 definitions into the Goal's isolated evidence directory as a schema aid only; third-party code execution, production sync and pointer mutation remain prohibited, unknown fields remain unverified, and membership candidates still require independent official validation."
+    },
+    {
+      "date": "2026-07-31",
+      "decision": "The user explicitly approved downloading wowdev/TACTKeys@c034041cc4570016d845e2cb711d684b5e0a74bf WoW.txt into local and cloud transient Goal-only directories and temporarily merging matching target identities into the existing isolated SimC extractor. The raw snapshot and all transient keyfiles were deleted after the audit; only hashes, counts, key identities, official DB2 bytes and key-material-free audit results may persist, with no dependency install, production sync or pointer mutation."
+    },
+    {
+      "date": "2026-07-31",
+      "decision": "The user authorized all necessary operations within this Goal to proceed without repeated approval prompts. Harness isolation, resource budgets, candidate-first validation, fail-closed status, rollback proof, formal-pointer gates and post-test manual acceptance remain mandatory."
+    },
+    {
+      "date": "2026-07-31",
+      "decision": "Root-cause tracing proved that WDC5 renders the TACT key identity as a little-endian uint64 while BLTE exposes the original eight-byte order. The Goal-only writer now performs the explicit byte-order conversion: all 12 identities map, current TACTKeys head decrypts 17 of 20 chunks and recovers 114 of 178 records, while three keys and 64 records remain unavailable. Raw/key material and the cloud transient workset were deleted; production SimC and formal pointers were unchanged."
+    },
+    {
+      "date": "2026-07-31",
+      "decision": "The Goal audited all currently listed exact-build Raidbots cache sources without persisting raw caches: 9 verified retail/enUS caches and 98 opt-in retail caches, 298323339 bytes total, zero fetch failures. Both cache corpora cover only 6 of 12 target keys and add zero beyond current TACTKeys head, so the source union remains 9 of 12 keys, 114 of 178 records and literal partial."
+    }
+  ],
+  "harnessFindings": [
+    {
+      "id": "wechat-stale-automation-port-20260730",
+      "status": "finding_only",
+      "whatHappened": "The WeChat CLI reported success while its requested automation port was already owned by an older same-AppID DevTools runtime, so diagnostic failures were produced by a stale bundle.",
+      "missedGate": "WeChat runtime build identity",
+      "impact": "AppID-only automation connection could misattribute old UI behavior to the current source and invalidate the matrix.",
+      "recommendedAction": "Require explicit endpoint plus rendered Git commit/source-hash parity before route or action evidence, and aggregate only non-diagnostic class reports.",
+      "promotion": "finding_only"
+    },
+    {
+      "id": "wechat-enhancement-fallback-masked-failure-20260730",
+      "status": "finding_only",
+      "whatHappened": "Seventeen specialization reports fell back from the preferred socket, enchant, or embellishment path to another kind and still counted PASS without proving that the preferred control was absent or disabled.",
+      "missedGate": "Requested enhancement action integrity",
+      "impact": "An enabled enhancement path could fail upstream while another path hides the failure, contradicting the root-cause and no-view-workaround requirement.",
+      "recommendedAction": "Allow fallback only after an explicit missing or disabled control marker; once an enabled path is attempted, any hydration, selection, Resolve, or commit failure must fail the specialization and retain bounded diagnostics.",
+      "promotion": "finding_only"
+    },
+    {
+      "id": "wechat-embellishment-global-limit-availability-drift-20260730",
+      "status": "finding_only",
+      "whatHappened": "The Mage Fire Community Exact import had already consumed the resolver-owned global embellishment limit, but the WeChat editor preferred an unconfigured Finger 1 slot and advertised its add action as available; canonical Resolve correctly returned blocked with GEAR_CRAFT_EMBELLISHMENT_LIMIT_EXCEEDED.",
+      "missedGate": "Aggregate enhancement availability parity",
+      "impact": "A player could be led into a guaranteed backend rejection even though replacing an existing embellishment remained legal, while the old runner hid the rejection by switching to enchant.",
+      "recommendedAction": "Use resolver constraints embellishmentUsed and embellishmentMax at the category, preferred-slot and compatible-slot layers; at the limit permit only replacement of an already configured embellishment and disable any action that would add another occupied slot.",
+      "promotion": "finding_only"
+    },
+    {
+      "id": "exact-managed-capability-replacement-options-missing-20260730",
+      "status": "finding_only",
+      "whatHappened": "The Mage Frost Community Exact head socket was proven by the observed item instance, but Exact authority published only the currently imported gem in allowedGemOptionIds even though the canonical slot payload contained 21 verified replacement gems.",
+      "missedGate": "Exact editor replacement option completeness",
+      "impact": "The WeChat socket category and editor appeared available but could not perform a real edit; the runner previously continued with enchant and hid the missing upstream allow-list.",
+      "recommendedAction": "When an editor-managed Exact selection proves a capability absent from the base Catalog item, retain the Exact option and also publish every canonical option of the same type that applies to the slot; preserve whole-template binding and leave final legality, capacity, uniqueness and aggregate limits to Resolver.",
+      "promotion": "finding_only"
+    },
+    {
+      "id": "season-source-effective-window-missing-20260730",
+      "status": "resolved_in_candidate_policy",
+      "whatHappened": "The initial 18 required source-policy entries omitted effectiveWindow even though the approved policy contract requires current-obtainability windows; the v2 candidate policy now covers 19 required source families and gives every row an official effective window.",
+      "missedGate": "Current-season source-policy validity",
+      "impact": "A time-bounded or expired source could remain in the current universe, or a future source could be treated as currently obtainable.",
+      "recommendedAction": "Retain fail-closed validation for missing or malformed windows, exclude well-formed inactive sources, and do not approve the v2 policy until independent membership discovery closes.",
+      "promotion": "candidate_only"
+    },
+    {
+      "id": "season-universe-blocked-audit-evidence-drift-20260730",
+      "status": "resolved_by_exact_head_regeneration",
+      "whatHappened": "The earlier stored blocked audit predated the v2 source policy and isolated official snapshot; the exact-head audit now adapts all 19 active sources without inventing canonical members and emits 19 blocked source rows, 21 explicit upstream gap rows and the unapproved-policy gate.",
+      "missedGate": "Exact-head Universe evidence parity",
+      "impact": "A historical or empty-discovery result could be mistaken for the current root cause and hide the specific Journal difficulty, progression, recipe-output, dynamic-source API and transform-eligibility gaps.",
+      "recommendedAction": "Bind the current Goal to its own exact-head Universe report and regenerate the final evidence packet after official discovery and final source-head verification.",
+      "promotion": "candidate_only"
+    },
+    {
+      "id": "official-item-range-arbitrary-bound-omission-20260730",
+      "status": "resolved_in_capture_contract",
+      "whatHappened": "The first planned official Item Search range ended at itemId 280000 even though the already captured official level-90 index contains itemId 282426, while scaled legacy and Timewalking equipment may also sit below the planned lower bound.",
+      "missedGate": "Independent item-opposition scope closure",
+      "impact": "A range-limited opposition ledger could silently omit official equippable candidates and falsely strengthen the no-missing-equipment claim.",
+      "recommendedAction": "Capture the complete positive item-ID range with ordered capped-page cursor advancement, empty-output immutability, exact raw-file manifest closure, response checksums and a proven terminal page; retain sourceMembershipComplete=false because an all-equippable index is still not a Season PVE source denominator.",
+      "promotion": "candidate_only"
+    },
+    {
+      "id": "official-item-range-pagination-semantics-20260730",
+      "status": "resolved_in_capture_contract",
+      "whatHappened": "Blizzard Item Search reports pageCount=4 while resultCountCapped=true at a requested page size of 250, then omits resultCountCapped while the remaining uncapped result still spans pageCount 4, 3, 2 and 1. The first validator rejected legal capped metadata; the next termination rule would have stopped at the first uncapped page and silently omitted up to 750 items.",
+      "missedGate": "Official item cursor and terminal-page closure",
+      "impact": "A superficially successful capture could either fail unnecessarily or, more seriously, publish a false complete index that omitted the final uncapped pages.",
+      "recommendedAction": "Require page=1, bounded pageSize, ordered unique in-range equippable IDs and full requested pages while capped; continue the ID cursor whenever pageCount>1 even when resultCountCapped is absent, and terminate only on an empty page, explicit endId, or an uncapped pageCount=1 response.",
+      "promotion": "candidate_only"
+    },
+    {
+      "id": "official-item-range-byte-unit-drift-20260730",
+      "status": "resolved_in_exact_head_verifier",
+      "whatHappened": "The capture enforces maxResponseBytes against the compact API wire body before JSON parsing, but the exact-head verifier compared that limit with the larger pretty-printed persisted file. The largest persisted page was 8658364 bytes against an 8388608-byte wire limit.",
+      "missedGate": "Evidence byte-budget unit parity",
+      "impact": "A valid, checksum-identical 109786-item capture was blocked even though the matched capture implementation had enforced the intended wire limit and the total persisted-byte budget remained satisfied.",
+      "recommendedAction": "Validate the wire-limit parameter against the bounded 1-16 MiB safety policy and the capture implementation hash; compare the persisted aggregate only with maxTotalResponseBytes, never compare formatted file bytes to a wire-body limit.",
+      "promotion": "candidate_only"
+    },
+    {
+      "id": "wechat-save-storage-reference-comparison-20260730",
+      "status": "resolved_in_matrix_runner",
+      "whatHappened": "The WeChat save/reload runner treated value !== beforeStorage as proof that getStorageSync changed, but identical persisted content may be returned as a new object reference.",
+      "missedGate": "Save action persistence evidence",
+      "impact": "The wait could pass before this save changed storage, weakening the claim that each specialization performed a real save before reset and reload.",
+      "recommendedAction": "Use deep persisted-content comparison, then continue to require exact gear equality and confirmed enhancement state after reset and UI reload.",
+      "promotion": "candidate_only"
+    },
+    {
+      "id": "candidate-simulation-snapshot-flag-missing-20260730",
+      "status": "finding_only",
+      "whatHappened": "The isolated transient candidate omitted WOW_SIMULATION_SNAPSHOT_V1_ENABLED even though both repository-owned backend service templates enable it.",
+      "missedGate": "Candidate service environment parity",
+      "impact": "The SimC options endpoint advertised simulationSnapshot.enabled=false and would have blocked all 26 supported WeChat task paths despite otherwise ready policy metadata.",
+      "recommendedAction": "Bind the repository service environment to every final candidate, verify options reports simulationSnapshot.enabled=true before task execution, and retain drop-in removal plus candidate restart as the configuration rollback.",
+      "promotion": "finding_only"
+    },
+    {
+      "id": "exact-import-editor-option-replacement-20260730",
+      "status": "finding_only",
+      "whatHappened": "Replacing an existing Community Exact gem or embellishment with a verified release option caused Manifest Exact authority binding to reject the edited intent and surface HTTP 503 GEAR_AUTHORITY_READ_UNAVAILABLE.",
+      "missedGate": "Exact import editor replacement authority",
+      "impact": "The WeChat enhancement editor advertised backend-allowed options but could fail the canonical Resolve; a fallback enhancement kind could hide the upstream rejection.",
+      "recommendedAction": "Allow normal catalog options to replace or clear exact import-only enhancements while retaining whole-template identity and rejecting any stale, forged or cross-template exact-option; verify the originally requested kind reaches a verified UI commit.",
+      "promotion": "finding_only"
+    },
+    {
+      "id": "catalog-equipment-type-display-authority-missing-20260730",
+      "status": "resolved_in_candidate_code",
+      "whatHappened": "The compact Catalog item already carried backend weaponType or armorType facts, but equipmentBadges published only handedness, built-in embellishment and unique-equipped state. The Taro candidate UI intentionally consumes only backend badges, so the requested equipment type was absent without any frontend-owned repair path.",
+      "missedGate": "Backend-owned visible equipment type",
+      "impact": "Players could see a one-hand or two-hand badge while still not seeing whether the item was a sword, axe, staff, cloth item, necklace, ring or trinket.",
+      "recommendedAction": "Centralize backend equipment type labels, publish an equipment_type badge from governed weapon or armor metadata and use deterministic backend slot labels for jewelry; retain the frontend rule that raw fields may not recreate missing badges.",
+      "promotion": "candidate_only"
+    },
+    {
+      "id": "candidate-variant-materialization-dropped-display-authority-20260730",
+      "status": "resolved_in_candidate_code",
+      "whatHappened": "Selecting a concrete candidate progression variant materialized its item level and static stats but discarded backend equipmentBadges, armorType and weaponType. The selected detail therefore lost the equipment type exactly when the player changed variants.",
+      "missedGate": "Variant-specific visible fact continuity",
+      "impact": "A base candidate could display complete backend facts while a user-selected canonical variant silently rendered a weaker or contradictory detail view.",
+      "recommendedAction": "Preserve the backend-owned type fields and badge collection while replacing only variant-owned level and stat facts; cover the transition with model tests and real WeChat per-variant detail checks.",
+      "promotion": "candidate_only"
+    },
+    {
+      "id": "wechat-matrix-visible-facts-not-proven-20260730",
+      "status": "resolved_in_matrix_runner",
+      "whatHappened": "The prior 40-spec preview runner compared candidate item IDs and variant keys/states, but it did not prove the visible name, source, equipment type, item level, static stat summary, variant progression label or trusted image state, and it selected at most one variant per item.",
+      "missedGate": "Complete actual WeChat visible-fact matrix",
+      "impact": "A complete identity matrix could pass while thousands of rows or variants rendered missing, stale or mismatched facts, contrary to the user's explicit full DevTools requirement.",
+      "recommendedAction": "Fail closed on incomplete backend display authority, check every rendered candidate row and image, open every item detail, validate every variant button, select every ready or partial variant, and aggregate exact row, media, detail, variant-display and selected-detail counts.",
+      "promotion": "candidate_only"
+    },
+    {
+      "id": "crafted-membership-progression-transform-overpromotion-20260731",
+      "status": "resolved_in_candidate_code",
+      "whatHappened": "The membership backfill inferred void-upgrade eligibility from a crafted item's weapon, off-hand or trinket slot and could mark a variant verified after a successful SimulationCraft stat probe even though official progression and transform eligibility remained blocked.",
+      "missedGate": "Independent progression and transform authority",
+      "impact": "A complete crafted recipe-output list and computable item stats could be mistaken for proof that the exact progression or transform is currently obtainable.",
+      "recommendedAction": "Require an explicit verified upstream voidUpgradeEligibilityStatus before publishing crafted_void_upgrade, and preserve OFFICIAL_PROGRESSION_STATE_UNAVAILABLE as a blocking variant reason even when SimulationCraft resolves static stats.",
+      "promotion": "candidate_only"
+    },
+    {
+      "id": "wechat-automator-transitive-version-helper-20260731",
+      "status": "resolved_in_candidate_code",
+      "whatHappened": "The WeChat automation connection guard imported licia/cmpVersion directly even though licia is only a transitive dependency of miniprogram-automator.",
+      "missedGate": "Clean-environment automation portability",
+      "impact": "A clean dependency layout could fail before DevTools validation or accept malformed runtime SDK identity through a helper whose availability the project did not own.",
+      "recommendedAction": "Use a small repository-owned strict numeric SDK comparator, preserve the explicit dev-runtime exception, and fail closed on missing, malformed or obsolete runtime versions.",
+      "promotion": "candidate_only"
+    },
+    {
+      "id": "official-db2-semantic-schema-unavailable-20260731",
+      "status": "refined_by_pinned_schema_audit",
+      "whatHappened": "Seven captured official client DB2 tables were initially identifiable only by WDC5 structure. After explicit approval, fixed wowdev/WoWDBDefs layouts and three official join tables made every unencrypted record in a ten-table relation set parseable, while unknown fields remained explicitly unverified.",
+      "missedGate": "Official current-season source and progression relation closure",
+      "impact": "Treating packed integer columns as inferred item, vendor, activity, season or reward IDs could silently manufacture membership and falsely close the 21 remaining Universe gaps.",
+      "recommendedAction": "Retain the fixed schema only as a checksum-bound layout aid. Never promote a field or relation whose meaning is marked unverified, and require an independent official current-season PVE identity before membership promotion.",
+      "promotion": "finding_only"
+    },
+    {
+      "id": "official-db2-source-relations-unverified-and-encrypted-20260731",
+      "status": "finding_only",
+      "whatHappened": "The initial complete unencrypted join reached 19307 vendor-chain item candidates and 11058 quest-package candidates. The corrected partial re-extraction recovered 114 of 178 encrypted membership-chain records and raises the vendor candidate set to 19309, but 64 records remain unavailable. The recovered rows are level-1 cosmetics, participation tabards or vendor-sparse identities with no promotable current-season PVE member; the full candidate sets still contain legacy, PvP and non-current-season equipment and lack current-season PVE vendor and quest-package authority.",
+      "missedGate": "Official current-season source membership identity and encrypted-record closure",
+      "impact": "Promoting the relation candidates, ignoring the remaining 64 encrypted rows or treating the 114 recovered cosmetic rows as current PVE membership could omit valid equipment, include invalid equipment, and falsely claim that the 21 Universe gaps are closed.",
+      "recommendedAction": "Keep promotableMemberCount at zero, bind the corrected 10-table audit and recovered-row disposition to the official snapshot and item opposition, preserve all 21 gaps, and close the blockers only with official current-season PVE relation authority plus complete treatment of all 178 encrypted records.",
+      "promotion": "finding_only"
+    },
+    {
+      "id": "official-static-tact-key-coverage-zero-20260731",
+      "status": "finding_only",
+      "whatHappened": "The official current-client TactKey and TactKeyLookup tables contain 24 joined static key identities, but zero of the 12 key identities required by the 178 encrypted membership-chain records.",
+      "missedGate": "Encrypted current-client relationship-record availability",
+      "impact": "Changing DB2 field layouts or treating the static client key tables as complete would omit all 178 records from that source. A separately approved current public source recovers 114 records, but the static-table result does not close the remaining 64 and cannot certify the current-season PVE equipment universe.",
+      "recommendedAction": "Keep the static-source result and the current public-source partial result distinct, persist only key-identity coverage counts with no key material, and require checksum-bound authoritative closure for the three missing keys before reconciling the remaining sections.",
+      "promotion": "finding_only"
+    },
+    {
+      "id": "simc-keyfile-case-contract-drift-20260731",
+      "status": "resolved_in_isolated_extractor_contract",
+      "whatHappened": "The existing SimC JSON keyfile stored uppercase key IDs while keyfile.find derives lowercase hexadecimal IDs from BLTE bytes and performs a case-sensitive dictionary lookup. All 408 otherwise usable base entries therefore produced zero lookup hits until the Goal-only keyfile writer normalized IDs to lowercase.",
+      "missedGate": "SimulationCraft keyfile lookup compatibility",
+      "impact": "A key-assisted extraction could appear configured while silently behaving as if every key were absent, invalidating any encrypted-record conclusion.",
+      "recommendedAction": "Normalize key IDs before writing an isolated extractor keyfile, validate target lookup hits explicitly, and keep the production SimC runtime unchanged until a separately governed runtime correction is approved and verified.",
+      "promotion": "finding_only"
+    },
+    {
+      "id": "wdc5-blte-key-id-byte-order-contract-drift-20260731",
+      "status": "resolved_in_isolated_extractor_contract",
+      "whatHappened": "The first audit directly compared WDC5 uint64 text identities with BLTE raw eight-byte identities and reported a false 0-of-12 overlap. WDC5 stores the value in little-endian representation, so reversing its bytes maps all 12 identities one-to-one. The Goal-only writer previously emitted the WDC5 text order and therefore produced 0-of-20 SimC chunk hits; the corrected mapping produces 9-of-12 execution-time identity lookups, 17-of-20 chunk hits and decryptions, and 114 recovered records.",
+      "missedGate": "WDC5-to-BLTE key identity representation",
+      "impact": "The byte-order drift made available keys appear absent, hid 114 readable relationship records and led to a false record-key versus BLTE-key namespace-separation conclusion.",
+      "recommendedAction": "Retain the explicit WDC5-to-BLTE conversion and one-to-one mapping tests, record execution-time key lookup and decryption counts separately, and keep production SimC unchanged until the corrected extractor contract passes its separately governed runtime gates.",
+      "promotion": "candidate_only"
+    },
+    {
+      "id": "simc-casc-capture-decryption-capability-not-gated-20260731",
+      "status": "resolved_in_capture_contract",
+      "whatHappened": "The targeted CDN capture accepted four WDC5 outputs when the isolated SimC environment lacked fixedint and disabled Salsa20. SimC zero-filled encrypted BLTE chunks and skipped full MD5 validation, so transport completion was previously indistinguishable from readable encrypted content.",
+      "missedGate": "Encrypted payload decryption readiness",
+      "impact": "A 4-of-4 capture result could falsely imply that encrypted relationship records had been faithfully re-extracted even though every encrypted chunk was zero-filled.",
+      "recommendedAction": "Require an explicit Salsa20-capable runtime for this audit, instrument actual BLTE chunk key, hit and decrypt counts, publish encryptedPayloadStatus separately from capture status, and fail closed whenever any chunk uses zero fallback.",
+      "promotion": "candidate_only"
+    },
+    {
+      "id": "public-tact-record-blte-key-namespace-mismatch-20260731",
+      "status": "superseded_by_byte_order_root_cause",
+      "whatHappened": "The historical approved c034041 snapshot covers 6 of 12 WDC5 identities and 66 of 178 records, while current a3449fd5cfc3a0053cbff2c65f7d16166774cbf9 covers 9 of 12 and 114 of 178. The earlier conclusion that record and BLTE identities occupied separate namespaces was false: direct text comparison ignored WDC5 little-endian uint64 representation. Byte reversal maps all 12 identities one-to-one; with the corrected writer and Salsa20 runtime, the v5 extractor matches and decrypts 17 of 20 chunks and recovers 114 records.",
+      "missedGate": "Record encryption and BLTE transport encryption separation",
+      "impact": "The false namespace conclusion understated recoverable evidence and obscured the actual boundary: three missing current public keys leave three chunks and 64 records unavailable, so the Universe still cannot be certified complete.",
+      "recommendedAction": "Use the explicit byte-order mapping in all record and BLTE ledgers, preserve APPROVED_PUBLIC_TACT_KEYS_INCOMPLETE plus CURRENT_CLIENT_BLTE_DECRYPTION_KEYS_UNAVAILABLE for the remaining three keys, and require authoritative closure of all 64 unavailable records before any affected membership relation can certify completeness.",
+      "promotion": "finding_only"
+    },
+    {
+      "id": "approved-public-tact-key-snapshot-freshness-drift-20260731",
+      "status": "resolved_by_current_head_capture",
+      "whatHappened": "The user-approved TACTKeys commit c034041 was published before repository head a3449fd5cfc3a0053cbff2c65f7d16166774cbf9. After the user authorized all necessary in-Goal operations, the exact current file was captured transiently: 981450 bytes, 19629 lines, SHA-256 e4fe2fd39ccc43b5ee14b1ced69dce9f21d4d90267a8a3e2bbb2b953597f55f9. The redacted audit proves 9 of 12 record keys and 114 of 178 records; the raw file was deleted and no key material persisted.",
+      "missedGate": "Third-party key snapshot freshness",
+      "impact": "The stale-snapshot undercount is corrected in current-source evidence. Byte-order-correct v5 extraction recovers 114 records, but completeness remains blocked because three keys, three chunks and 64 records are still unavailable.",
+      "recommendedAction": "Keep the exact current-head checksum, corrected mapping, partial extraction counts, cache-corpus boundary and raw/key cleanup proof bound to the candidate, and continue upstream investigation for the exact three missing identities without promoting the partial result.",
+      "promotion": "finding_only"
+    },
+    {
+      "id": "current-build-dbcache-corpus-does-not-close-keys-20260731",
+      "status": "finding_only",
+      "whatHappened": "The Goal serially scanned all currently listed build-68887 retail caches: 9 verified retail/enUS caches and 98 opt-in retail caches, with zero fetch failures and 298323339 bytes read in memory. Both cache corpora contain only 6 of 12 target keys covering 82 of 178 records; those six are a strict subset of the exact current TACTKeys head, so the cache corpus adds zero key and the combined source union remains 9 of 12 keys and 114 of 178 records.",
+      "missedGate": "Server-delivered current-build TACT-key corpus closure",
+      "impact": "A single-client DBCache or the presence of many cache records could be mistaken for a complete server hotfix source. Three key identities and 64 encrypted relationship records remain unavailable, so current-season source completeness is still unproven.",
+      "recommendedAction": "Bind the redacted 9-cache verified and 98-cache opt-in corpus audits to official evidence, preserve the exact three missing identities, and seek an authoritative region, entitlement or content-gate closure rather than promoting the partial cache union or assuming the records are irrelevant.",
+      "promotion": "finding_only"
+    }
+  ]
+}

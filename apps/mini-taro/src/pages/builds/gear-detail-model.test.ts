@@ -10,7 +10,10 @@ import * as gearDetailModel from './gear-detail-model'
 import {
   gearCandidates,
   gearEnhancementBarItems,
+  gearEmbellishmentSlotLimitState,
   hydrateCompactSlotGroup,
+  hydrateImportedExactGear,
+  preferredEnhancementSlot,
   prepareHydratedEnhancementDraft,
   gearEnhancementGroups,
   gearEnhancementOptions,
@@ -122,6 +125,267 @@ describe('gear detail truth model', () => {
         catalystOptionId: '',
       },
     })
+  })
+
+  it('preserves an imported ExactItemInstance and hydrates only resolver-allowed editor options', () => {
+    const group = {
+      slot: 'finger1',
+      label: '戒指 1',
+      items: [{
+        itemId: 'exact-ring',
+        variantKey: 'browse-ring',
+        modCapabilities: { hasSocket: false, socketCount: 0, canEnchant: true },
+      }],
+      socketOptions: [
+        { optionKey: 'official-gem', status: 'verified', label: '官方宝石' },
+        { optionKey: 'not-allowed-gem', status: 'verified', label: '越权宝石' },
+      ],
+      enchantOptions: [
+        { optionKey: 'official-enchant', status: 'verified', label: '官方附魔' },
+      ],
+    } as WebsimGearPayload['replacementCandidates'][number] & {
+      socketOptions: NonNullable<GearItemReference['socketOptions']>
+      enchantOptions: NonNullable<GearItemReference['enchantOptions']>
+    }
+    const imported = hydrateImportedExactGear(
+      {
+        finger1: {
+          itemId: 'exact-ring',
+          variantKey: 'exact-source-ring',
+          name: '来源戒指',
+        },
+      },
+      {
+        status: 'verified',
+        resolvedSlots: {
+          finger1: {
+            itemId: 'exact-ring',
+            variantKey: 'exact-source-ring',
+            effectiveCapabilities: {
+              hasSocket: true,
+              socketCount: 1,
+              canEnchant: true,
+              canEmbellish: false,
+              allowedGemOptionIds: ['exact-gem', 'official-gem'],
+              allowedEnchantOptionIds: ['official-enchant'],
+              allowedEmbellishmentOptionIds: [],
+            },
+          },
+        },
+      },
+      {
+        finger1: {
+          'exact-gem': {
+            optionKey: 'exact-gem',
+            optionType: 'gem',
+            name: '已导入宝石',
+          },
+          'source-only-enchant': {
+            optionKey: 'source-only-enchant',
+            optionType: 'enchant',
+            name: '不得提升的来源附魔',
+          },
+        },
+      },
+    )
+    const committed = imported['finger1']
+
+    expect(committed).toMatchObject({
+      itemId: 'exact-ring',
+      variantKey: 'exact-source-ring',
+      modCapabilities: {
+        socketCount: 1,
+        canEnchant: true,
+      },
+      socketOptions: [{ optionKey: 'exact-gem', status: 'verified' }],
+      enchantOptions: [],
+      embellishmentOptions: [],
+    })
+    expect(committed).toBeDefined()
+    if (!committed) throw new Error('expected the exact imported ring')
+    const prepared = prepareHydratedEnhancementDraft(
+      group,
+      committed,
+      {
+        gemOptionIds: ['exact-gem'],
+        enchantOptionId: '',
+        embellishmentOptionId: '',
+        craftedOptionId: '',
+        catalystOptionId: '',
+      },
+    )
+    expect(prepared?.item).toMatchObject({
+      itemId: 'exact-ring',
+      variantKey: 'exact-source-ring',
+      socketOptions: [
+        { optionKey: 'exact-gem' },
+        { optionKey: 'official-gem' },
+      ],
+      enchantOptions: [{ optionKey: 'official-enchant' }],
+    })
+    expect(prepared?.item.socketOptions?.map((option) => option.optionKey)).not.toContain('not-allowed-gem')
+    expect(prepared?.item.enchantOptions?.map((option) => option.optionKey)).not.toContain('source-only-enchant')
+    expect(prepared?.selection.gemOptionIds).toEqual(['exact-gem'])
+  })
+
+  it('treats an explicit zero socket count as complete detail for an enchant-only ExactItemInstance', () => {
+    const committed: GearItemReference = {
+      itemId: 'exact-cloak',
+      variantKey: 'exact-source-cloak',
+      modCapabilities: {
+        socketCount: 0,
+        canEnchant: true,
+        canEmbellish: false,
+        allowedGemOptionIds: [],
+        allowedEnchantOptionIds: ['exact-enchant'],
+        allowedEmbellishmentOptionIds: [],
+      },
+      socketOptions: [],
+      enchantOptions: [{
+        optionKey: 'exact-enchant',
+        status: 'verified',
+        label: '已导入附魔',
+      }],
+      embellishmentOptions: [],
+    }
+    const group = {
+      slot: 'back',
+      label: '背部',
+      items: [],
+      socketOptions: [],
+      enchantOptions: [],
+      embellishmentOptions: [],
+    } as unknown as WebsimGearPayload['replacementCandidates'][number]
+
+    expect(prepareHydratedEnhancementDraft(
+      group,
+      committed,
+      {
+        gemOptionIds: [],
+        enchantOptionId: 'exact-enchant',
+        embellishmentOptionId: '',
+        craftedOptionId: '',
+        catalystOptionId: '',
+      },
+    )).toEqual({
+      item: committed,
+      selection: {
+        gemOptionIds: [],
+        enchantOptionId: 'exact-enchant',
+        embellishmentOptionId: '',
+        craftedOptionId: '',
+        catalystOptionId: '',
+      },
+    })
+  })
+
+  it('opens an unconfigured resolver-capable slot before a locked imported exact selection', () => {
+    const equipped = {
+      head: {
+        itemId: 'exact-head',
+        modCapabilities: { canEnchant: true },
+      },
+      back: {
+        itemId: 'editable-back',
+        modCapabilities: { canEnchant: true },
+      },
+      trinket1: {
+        itemId: 'trinket',
+        modCapabilities: { canEnchant: false },
+      },
+    }
+    const enhancements = {
+      head: {
+        gemOptionIds: [],
+        enchantOptionId: 'exact-head-enchant',
+        embellishmentOptionId: '',
+        craftedOptionId: '',
+        catalystOptionId: '',
+      },
+    }
+
+    expect(preferredEnhancementSlot(
+      equipped,
+      enhancements,
+      'head',
+      'enchant',
+    )).toBe('back')
+    expect(preferredEnhancementSlot(
+      equipped,
+      enhancements,
+      'back',
+      'enchant',
+    )).toBe('back')
+  })
+
+  it('opens an occupied embellishment slot when the resolver-owned global limit is exhausted', () => {
+    const equipped = {
+      back: {
+        itemId: 'crafted-back',
+        modCapabilities: { canEmbellish: true },
+      },
+      finger1: {
+        itemId: 'crafted-ring',
+        modCapabilities: { canEmbellish: true },
+      },
+    }
+    const enhancements = {
+      back: {
+        gemOptionIds: [],
+        enchantOptionId: '',
+        embellishmentOptionId: 'existing-embellishment',
+        craftedOptionId: '',
+        catalystOptionId: '',
+      },
+    }
+
+    expect(preferredEnhancementSlot(
+      equipped,
+      enhancements,
+      'finger1',
+      'embellishment',
+      2,
+      2,
+    )).toBe('back')
+  })
+
+  it('blocks only new embellishment slots at the resolver-owned global limit', () => {
+    const confirmed = {
+      back: {
+        gemOptionIds: [],
+        enchantOptionId: '',
+        embellishmentOptionId: 'existing-embellishment',
+        craftedOptionId: '',
+        catalystOptionId: '',
+      },
+    }
+
+    expect(gearEmbellishmentSlotLimitState(
+      confirmed,
+      confirmed,
+      'back',
+      2,
+      2,
+    )).toEqual({ state: 'available', used: 2, max: 2 })
+    expect(gearEmbellishmentSlotLimitState(
+      confirmed,
+      confirmed,
+      'finger1',
+      2,
+      2,
+    )).toEqual({ state: 'blocked', used: 2, max: 2 })
+    expect(gearEmbellishmentSlotLimitState(
+      confirmed,
+      {
+        back: {
+          ...confirmed.back,
+          embellishmentOptionId: '',
+        },
+      },
+      'finger1',
+      2,
+      2,
+    )).toEqual({ state: 'available', used: 1, max: 2 })
   })
 
   it('keeps seasonal puncher gem options behind each exact item socket capacity', () => {
@@ -569,6 +833,44 @@ describe('gear detail truth model', () => {
     }, 2).find((group) => group.id === 'embellishment')).toMatchObject({
       value: '已配置 1 / 2 件 · 可用',
       selectedCount: 1,
+    })
+
+    expect(gearEnhancementBarItems({
+      wrist: {
+        itemId: 'built-in-embellished-cuffs',
+        modCapabilities: { canEmbellish: true },
+      },
+    }, {}, 2, 2).find((group) => group.id === 'embellishment')).toMatchObject({
+      value: '已达上限 2 / 2 · 不可用',
+      optionCount: 0,
+      selectedCount: 0,
+      availabilityLabel: '不可用',
+      disabled: true,
+    })
+
+    expect(gearEnhancementBarItems({
+      back: {
+        itemId: 'crafted-back',
+        modCapabilities: { canEmbellish: true },
+      },
+      wrist: {
+        itemId: 'crafted-cuffs',
+        modCapabilities: { canEmbellish: true },
+      },
+    }, {
+      back: {
+        gemOptionIds: [],
+        enchantOptionId: '',
+        embellishmentOptionId: 'existing-embellishment',
+        craftedOptionId: '',
+        catalystOptionId: '',
+      },
+    }, 2, 2).find((group) => group.id === 'embellishment')).toMatchObject({
+      value: '已配置 1 / 2 件 · 可用',
+      optionCount: 1,
+      selectedCount: 1,
+      availabilityLabel: '可用',
+      disabled: false,
     })
   })
 

@@ -6272,11 +6272,14 @@ class PostgresCacheStoreTest(unittest.TestCase):
         params = repr(conn.cursor_instance.params)
         self.assertEqual(observed["variantCount"], 1)
         self.assertEqual(crafted["variantCount"], 1)
+        self.assertEqual(crafted["optionCount"], 1)
         self.assertIn("INSERT INTO cache.websim_items", sql)
         self.assertIn("INSERT INTO cache.websim_gear_sources", sql)
         self.assertIn("INSERT INTO cache.websim_gear_variants", sql)
+        self.assertIn("INSERT INTO cache.websim_gear_mod_options", sql)
         self.assertIn("observed_profile", params)
         self.assertIn("crafted", params)
+        self.assertIn("crafted-stats-crit-mastery", params)
         self.assertTrue(conn.committed)
 
     def test_observed_backfill_variants_are_scoped_to_profile_identity(self):
@@ -11559,6 +11562,67 @@ class PostgresCacheStoreTest(unittest.TestCase):
             "EXACT_TEMPLATE_REFERENCE_NOT_VERIFIED",
         ):
             store._project_manifest_exact_import(source, binding)
+
+    def test_exact_projection_replaces_public_visible_option_for_the_same_managed_field(self):
+        from server.postgres_cache_store import PostgresCacheStore
+        from tests.gear_exact_template_options_test import catalog, intent
+        from tests.gear_resolved_loadout_test import (
+            CATALOG_REVISION,
+            TEMPLATE_AUTHORITY_IDENTITY,
+            exact_registry,
+        )
+
+        store = PostgresCacheStore(
+            lambda: self.fail("no database read expected")
+        )
+        store._manifest_exact_registry = lambda _binding: exact_registry()
+        source = {
+            "selectionIntent": intent(),
+            "template": {
+                "templateAuthorityIdentity": TEMPLATE_AUTHORITY_IDENTITY,
+            },
+            "visibleOptionsBySlot": {
+                "head": {
+                    "unrelated-gem": {
+                        "optionKey": "unrelated-gem",
+                        "optionType": "gem",
+                        "name": "Unrelated gem",
+                    },
+                },
+                "main_hand": {
+                    "catalog-enchant-placeholder": {
+                        "optionKey": "catalog-enchant-placeholder",
+                        "optionType": "enchant",
+                        "name": "Catalog enchant",
+                    },
+                },
+            },
+        }
+        binding = {
+            "manifest": {
+                "schemaRevision": "active-season-manifest-v2",
+                "gearCatalogRevision": CATALOG_REVISION,
+            },
+            "gearCatalog": catalog(),
+        }
+
+        result = store._project_manifest_exact_import(source, binding)
+
+        main_options = result["visibleOptionsBySlot"]["main_hand"]
+        self.assertEqual(len(main_options), 1)
+        exact_option_id = next(iter(main_options))
+        self.assertRegex(
+            exact_option_id,
+            r"^exact-option:sha256:[0-9a-f]{64}$",
+        )
+        self.assertEqual(
+            main_options[exact_option_id]["optionType"],
+            "enchant",
+        )
+        self.assertEqual(
+            result["visibleOptionsBySlot"]["head"],
+            source["visibleOptionsBySlot"]["head"],
+        )
 
     def test_manifest_v2_item_level_fallback_fails_closed_when_ambiguous_or_missing(self):
         from server.postgres_cache_store import (

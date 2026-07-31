@@ -80,6 +80,7 @@ def _effective_item_for_selection(
         "allowedEmbellishmentOptionIds",
         "allowedCraftedOptionIds",
         "allowedCatalystOptionIds",
+        "requiresCraftedOption",
     ):
         if field in item and field not in capabilities:
             capabilities[field] = item[field]
@@ -428,6 +429,18 @@ def _embellishment_and_crafted(intent: dict[str, Any], authority: dict[str, Any]
             continue
         item = _effective_item_for_selection(selection, item, authority)
         source_only_built_in = _source_only_built_in_embellishment(selection, authority)
+        if (
+            item.get("requiresCraftedOption") is True
+            and not selection["craftedOptionId"]
+        ):
+            problems.append(
+                _problem(
+                    "GEAR_CRAFT_",
+                    "OPTION_REQUIRED",
+                    "A customizable crafted item requires one authoritative crafted-stat option.",
+                    path=f"slots.{slot}.craftedOptionId",
+                )
+            )
         for field, option_type, allowed_field, unknown_suffix in (
             ("embellishmentOptionId", "embellishment", "allowedEmbellishmentOptionIds", "EMBELLISHMENT_UNKNOWN"),
             ("craftedOptionId", "crafted", "allowedCraftedOptionIds", "OPTION_UNKNOWN"),

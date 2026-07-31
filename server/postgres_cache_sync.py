@@ -7,6 +7,7 @@ import time
 from datetime import datetime, timezone
 
 try:
+    from .crafted_pve_membership import crafted_pve_membership_items
     from .db import connect_postgres, database_config_from_env
     from .postgres_cache_store import (
         PostgresCacheStore,
@@ -70,6 +71,7 @@ try:
         websim_gear_template_chain_state,
     )
 except ImportError:
+    from crafted_pve_membership import crafted_pve_membership_items
     from db import connect_postgres, database_config_from_env
     from postgres_cache_store import (
         PostgresCacheStore,
@@ -135,6 +137,15 @@ except ImportError:
 
 
 CRAFTED_GEAR_BACKFILL_SYNC_KEY = "crafted_gear_backfill"
+CRAFTED_DOUBLE_SECONDARY_VALUES = (
+    "32/36",
+    "32/40",
+    "32/49",
+    "36/40",
+    "36/49",
+    "40/49",
+)
+CRAFTED_SINGLE_SECONDARY_VALUES = ("32", "36", "40", "49")
 COMMUNITY_TALENT_COVERAGE_MATRIX_REVISION = "community-talent-coverage-matrix-v1"
 COMMUNITY_GEAR_TEMPLATE_PREFLIGHT_REVISION = "community-gear-template-preflight-v1"
 COMMUNITY_TEMPLATE_STAGE_TIMING_REVISION = "community-template-stage-timings-v1"
@@ -4222,12 +4233,69 @@ def sync_recommended_bis_guard_postgres(mode="scheduled", store=None):
 
 def load_crafted_gear_seed_postgres():
     raw = os.environ.get("WOW_CRAFTED_GEAR_SEED_JSON", "").strip()
-    if not raw:
-        return []
-    parsed = json.loads(raw)
-    if isinstance(parsed, dict):
-        parsed = parsed.get("items") or parsed.get("gear") or []
-    return parsed if isinstance(parsed, list) else []
+    if raw:
+        parsed = json.loads(raw)
+        if isinstance(parsed, dict):
+            parsed = parsed.get("items") or parsed.get("gear") or []
+        return parsed if isinstance(parsed, list) else []
+    rows = []
+    for item in crafted_pve_membership_items():
+        mode = str(item.get("secondaryStatMode") or "").strip()
+        if mode == "customize_two_secondary":
+            stat_values = CRAFTED_DOUBLE_SECONDARY_VALUES
+        elif mode == "amplify_one_secondary":
+            stat_values = CRAFTED_SINGLE_SECONDARY_VALUES
+        elif mode == "fixed_or_recipe_defined_stats":
+            stat_values = ("",)
+        else:
+            continue
+        slot = str(item.get("slot") or "").strip()
+        levels = [("crafted_myth", 285)]
+        if (
+            item.get("supportsVoidUpgrade") is True
+            and str(
+                item.get("voidUpgradeEligibilityStatus") or ""
+            ).strip()
+            == "verified"
+        ):
+            levels.append(("crafted_void_upgrade", 295))
+        for difficulty_key, item_level in levels:
+            for crafted_stats in stat_values:
+                variant_suffix = crafted_stats.replace("/", "-") or "fixed"
+                rows.append(
+                    {
+                        **item,
+                        "itemLevel": item_level,
+                        "crafted_stats": crafted_stats,
+                        "difficultyKey": difficulty_key,
+                        "variantKey": (
+                            f"crafted-{difficulty_key}-{item_level}-"
+                            f"{variant_suffix}"
+                        ),
+                        "sourceLabel": "制造装备",
+                        "sourceRefs": [
+                            {
+                                "sourceType": "current_client_crafting_relation",
+                                "status": item.get("membershipStatus"),
+                                "recipeId": item.get("recipeId"),
+                                "clientBuild": item.get("clientBuild"),
+                                "evidenceRef": item.get("evidenceRef"),
+                            },
+                            {
+                                "sourceType": "battle_net_item_search",
+                                "status": "verified",
+                                "sourceUrl": item.get("officialItemRef"),
+                            },
+                        ],
+                        "status": "partial",
+                        "blockers": [
+                            "current-season membership verified; exact "
+                            "SimulationCraft stat payload pending",
+                            "OFFICIAL_PROGRESSION_STATE_UNAVAILABLE",
+                        ],
+                    }
+                )
+    return rows
 
 
 def run_gear_observed_backfill_postgres(

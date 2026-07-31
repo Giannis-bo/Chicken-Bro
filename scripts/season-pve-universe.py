@@ -48,6 +48,11 @@ def parse_args(argv=None):
     parser.add_argument("--catalog", required=True, type=_json_file)
     parser.add_argument("--exclusions", type=_json_file)
     parser.add_argument(
+        "--output",
+        type=Path,
+        help="Optional path for the exact bounded JSON report.",
+    )
+    parser.add_argument(
         "--max-ledger-rows",
         type=int,
         default=100,
@@ -75,14 +80,20 @@ def main(argv=None):
         report,
         max_ledger_rows=args.max_ledger_rows,
     )
-    print(
-        json.dumps(
-            bounded,
-            ensure_ascii=False,
-            sort_keys=True,
-            separators=(",", ":"),
-        )
+    serialized = json.dumps(
+        bounded,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
     )
+    if args.output:
+        output = args.output.expanduser().resolve()
+        if not output.parent.is_dir() or output.is_dir():
+            raise UniverseContractError(
+                "output parent must exist and output must not be a directory"
+            )
+        output.write_text(serialized + "\n", encoding="utf-8")
+    print(serialized)
     return 0 if report["status"] == "verified" else 2
 
 

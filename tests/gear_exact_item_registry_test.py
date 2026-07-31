@@ -29,6 +29,12 @@ def template(*, slot="head", item_id="1001", variant_key="observed-hero-3", **ex
             "enchantId": "7443",
             "craftedStats": ["36", "32"],
             "embellishmentIds": ["999002", "999001"],
+            "editorManagedEnhancementFields": [
+                "gemOptionIds",
+                "enchantOptionId",
+                "craftedOptionId",
+                "embellishmentOptionId",
+            ],
         }],
         **extra,
     }
@@ -59,6 +65,15 @@ class GearExactItemRegistryTest(unittest.TestCase):
             48_554,
         )
         self.assertEqual(verify_exact_item_registry(result), [])
+        self.assertEqual(
+            result["templateReferences"][0]["editorManagedEnhancementFields"],
+            [
+                "craftedOptionId",
+                "embellishmentOptionId",
+                "enchantOptionId",
+                "gemOptionIds",
+            ],
+        )
 
     def test_only_referenced_instances_are_materialized_and_deduplicated(self):
         second = exact_row(

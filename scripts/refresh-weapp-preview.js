@@ -79,6 +79,57 @@ function verifyWeappOutput(root) {
   }
 }
 
+function writeRuntimeProjectConfig(destination, payload) {
+  const encoded = `${JSON.stringify(payload, null, 2)}\n`
+  if (isFile(destination) && fs.readFileSync(destination, 'utf8') === encoded) return
+
+  const temporary = `${destination}.wow-next-${process.pid}-${Date.now()}`
+  try {
+    fs.writeFileSync(temporary, encoded, { encoding: 'utf8', flag: 'wx', mode: 0o600 })
+    fs.renameSync(temporary, destination)
+  } finally {
+    fs.rmSync(temporary, { force: true })
+  }
+}
+
+function ensureDevToolsRuntimeProject(verified) {
+  const expectedOutputRoot = path.join(verified.projectRoot, 'dist', 'weapp')
+  if (path.resolve(verified.outputRoot) !== path.resolve(expectedOutputRoot)) {
+    throw new Error(`Unexpected WeChat runtime project root: ${verified.outputRoot}`)
+  }
+  const outputStat = fs.lstatSync(verified.outputRoot)
+  if (!outputStat.isDirectory() || outputStat.isSymbolicLink()) {
+    throw new Error(`WeChat runtime project root must be a real directory: ${verified.outputRoot}`)
+  }
+
+  const sourceConfigPath = path.join(verified.projectRoot, 'project.config.json')
+  const sourceConfig = JSON.parse(fs.readFileSync(sourceConfigPath, 'utf8'))
+  const runtimeConfig = {
+    ...sourceConfig,
+    compileType: 'miniprogram',
+    miniprogramRoot: '',
+    projectname: `${sourceConfig.projectname || 'wow-mini-taro'}-runtime`,
+  }
+  writeRuntimeProjectConfig(
+    path.join(verified.outputRoot, 'project.config.json'),
+    runtimeConfig,
+  )
+
+  const sourcePrivateConfigPath = path.join(verified.projectRoot, 'project.private.config.json')
+  if (isFile(sourcePrivateConfigPath)) {
+    const sourcePrivateConfig = JSON.parse(fs.readFileSync(sourcePrivateConfigPath, 'utf8'))
+    writeRuntimeProjectConfig(
+      path.join(verified.outputRoot, 'project.private.config.json'),
+      {
+        ...sourcePrivateConfig,
+        projectname: runtimeConfig.projectname,
+      },
+    )
+  }
+
+  return verified.outputRoot
+}
+
 function defaultExecute(command, args, options) {
   return spawnSync(command, args, {
     cwd: options.cwd,
@@ -107,16 +158,18 @@ function refreshWeappPreview({
   }
 
   const verified = verifyWeappOutput(root)
+  const devToolsProjectRoot = ensureDevToolsRuntimeProject(verified)
   const cli = resolveCli({ platform, env })
   if (!cli) {
     return {
       ...verified,
+      devToolsProjectRoot,
       status: 'manual_open_required',
-      reason: 'WeChat DevTools CLI was not found. Set WECHAT_DEVTOOLS_CLI or import apps/mini-taro manually.',
+      reason: `WeChat DevTools CLI was not found. Set WECHAT_DEVTOOLS_CLI or import ${devToolsProjectRoot} manually.`,
     }
   }
 
-  const opened = execute(cli, ['open', '--project', verified.projectRoot, '--lang', 'zh'], {
+  const opened = execute(cli, ['open', '--project', devToolsProjectRoot, '--lang', 'zh'], {
     cwd: root,
     env,
     shell: platform === 'win32',
@@ -124,6 +177,7 @@ function refreshWeappPreview({
   if (opened.status !== 0) {
     return {
       ...verified,
+      devToolsProjectRoot,
       status: 'manual_open_required',
       cli,
       cliExitCode: opened.status,
@@ -133,6 +187,7 @@ function refreshWeappPreview({
 
   return {
     ...verified,
+    devToolsProjectRoot,
     status: 'preview_refreshed',
     cli,
   }
@@ -156,6 +211,7 @@ if (require.main === module) {
 }
 
 module.exports = {
+  ensureDevToolsRuntimeProject,
   resolveDevToolsCli,
   verifyWeappOutput,
   refreshWeappPreview,

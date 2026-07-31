@@ -4,7 +4,14 @@
 const { execFileSync } = require('node:child_process')
 const fs = require('node:fs')
 const path = require('node:path')
-const { connectMiniProgram, timeout, waitForRenderedPage, waitForSystemInfo } = require('./wechat-automator')
+const {
+  connectMiniProgram,
+  queryElementsWithXpathFallback,
+  readSemanticValue,
+  timeout,
+  waitForRenderedPage,
+  waitForSystemInfo,
+} = require('./wechat-automator')
 const { gearApplyEvidenceMatches } = require('./gear-apply-evidence')
 const { requireOnlineRouteBatch } = require('./online-route-batch')
 const { writeBoundedJsonAtomic } = require('./bounded-json-detail')
@@ -16,6 +23,7 @@ const routeReadyTimeoutMs = 35000
 // a small outer margin so the semantic failure can win the timeout race.
 const caseTimeoutMs = 60000
 const maximumInteractionElements = 32
+const gearCandidateVariantXpath = '//*[contains(@class, "wx-data-role-gear-candidate-variant") and (contains(@class, "wx-data-state-ready") or contains(@class, "wx-data-state-partial"))]'
 let requestedRoutes = new Set()
 
 function contractDefinition(route, accept) {
@@ -207,25 +215,31 @@ async function runGearDetailCandidateApplyFlow(miniProgram) {
   const mainHandSelector = '.wx-data-role-gear-slot-row.wx-data-slot-key-main_hand'
   const workbenchSelector = '.wx-data-owner-gear-slot-workbench'
   const mainHand = await requiredElement(page, mainHandSelector)
-  const committedBefore = String(await timeout(
-    mainHand.attribute('data-committed-item-id'),
-    2000,
-    'read committed main hand item id',
+  const committedBefore = String(await readSemanticValue(
+    mainHand,
+    'committed-item-id',
+    'committed main hand item id',
   ) ?? '')
   await timeout(mainHand.tap(), 2000, 'open main hand gear candidate editor')
   const workbenchBefore = await requiredElement(page, workbenchSelector)
-  const resolvedBefore = String(await timeout(
-    workbenchBefore.attribute('data-resolved-slot-item-id'),
-    2000,
-    'read resolved main hand item id before apply',
+  const resolvedBefore = String(await readSemanticValue(
+    workbenchBefore,
+    'resolved-slot-item-id',
+    'resolved main hand item id before apply',
   ) ?? '')
-  const committedVariantBefore = String(await workbenchBefore.attribute('data-committed-slot-variant-key') ?? '')
-  const resolvedVariantBefore = String(await workbenchBefore.attribute('data-resolved-slot-variant-key') ?? '')
+  const committedVariantBefore = String(await readSemanticValue(
+    workbenchBefore,
+    'committed-slot-variant-key',
+  ) ?? '')
+  const resolvedVariantBefore = String(await readSemanticValue(
+    workbenchBefore,
+    'resolved-slot-variant-key',
+  ) ?? '')
   const candidates = await requiredElements(page, '.wx-data-role-gear-candidate-row', 1)
   const candidateRows = await Promise.all(candidates.map(async (element) => ({
     element,
-    itemId: String(await element.attribute('data-candidate-item-id') ?? ''),
-    state: String(await element.attribute('data-state') ?? ''),
+    itemId: String(await readSemanticValue(element, 'candidate-item-id') ?? ''),
+    state: String(await readSemanticValue(element, 'state') ?? ''),
   })))
   const candidate = candidateRows.find((item) => (
     item.itemId
@@ -238,38 +252,50 @@ async function runGearDetailCandidateApplyFlow(miniProgram) {
   }
   await timeout(candidate.element.tap(), 2000, 'choose gear candidate draft')
   await settle(200)
-  const committedAfterCandidate = String(await (await requiredElement(page, mainHandSelector)).attribute('data-committed-item-id') ?? '')
+  const committedAfterCandidate = String(await readSemanticValue(
+    await requiredElement(page, mainHandSelector),
+    'committed-item-id',
+  ) ?? '')
   if (committedAfterCandidate !== committedBefore) {
     throw new Error(`committed id changed before apply: before=${committedBefore} afterCandidate=${committedAfterCandidate}`)
   }
-  const variants = await timeout(page.$$('.wx-data-role-gear-candidate-variant'), 3000, 'query returned gear candidate variants')
+  const variants = await timeout(queryElementsWithXpathFallback(
+    page,
+    '.wx-data-role-gear-candidate-variant',
+    gearCandidateVariantXpath,
+  ), 3000, 'query returned gear candidate variants')
   if (variants.length > maximumInteractionElements) {
     throw new Error(`interaction query cap exceeded: gear candidate variants ${variants.length}/${maximumInteractionElements}`)
   }
   if (variants.length > 0) {
     const variantRows = await Promise.all(variants.map(async (element) => ({
       element,
-      variantKey: String(await element.attribute('data-variant-key') ?? ''),
-      state: String(await element.attribute('data-state') ?? ''),
+      variantKey: String(await readSemanticValue(element, 'variant-key') ?? ''),
+      state: String(await readSemanticValue(element, 'state') ?? ''),
     })))
     const variant = variantRows.find((item) => item.state === 'ready' || item.state === 'partial')
     if (!variant) throw new Error('no resolver-eligible returned gear candidate variant')
     await timeout(variant.element.tap(), 2000, 'choose returned gear candidate variant')
     await settle(200)
-    const selectedVariantKey = String(await (
-      await requiredElement(page, '.wx-data-role-gear-candidate-detail')
-    ).attribute('data-candidate-draft-variant-key') ?? '')
+    const selectedVariantKey = String(await readSemanticValue(
+      await requiredElement(page, '.wx-data-role-gear-candidate-detail'),
+      'candidate-draft-variant-key',
+    ) ?? '')
     if (!variant.variantKey || selectedVariantKey !== variant.variantKey) {
       throw new Error(`selected returned variant mismatch: expected=${variant.variantKey} actual=${selectedVariantKey}`)
     }
-    const committedAfterVariant = String(await (await requiredElement(page, mainHandSelector)).attribute('data-committed-item-id') ?? '')
+    const committedAfterVariant = String(await readSemanticValue(
+      await requiredElement(page, mainHandSelector),
+      'committed-item-id',
+    ) ?? '')
     if (committedAfterVariant !== committedBefore) {
       throw new Error(`committed id changed before apply: before=${committedBefore} afterVariant=${committedAfterVariant}`)
     }
   }
-  const candidateVariantKey = String(await (
-    await requiredElement(page, '.wx-data-role-gear-candidate-detail')
-  ).attribute('data-candidate-draft-variant-key') ?? '')
+  const candidateVariantKey = String(await readSemanticValue(
+    await requiredElement(page, '.wx-data-role-gear-candidate-detail'),
+    'candidate-draft-variant-key',
+  ) ?? '')
   const applySelector = contractSelector('gear_detail')
   await timeout((await requiredElement(page, applySelector)).tap(), operationTimeoutMs, 'apply gear candidate draft')
   await requiredElement(page, '.wx-data-gear-resolve-state-resolving')
@@ -281,12 +307,15 @@ async function runGearDetailCandidateApplyFlow(miniProgram) {
   let resolvedVariantAfter = resolvedVariantBefore
   let resolveState = 'resolving'
   while (Date.now() < deadline) {
-    committedAfterApply = String(await (await requiredElement(page, mainHandSelector)).attribute('data-committed-item-id') ?? '')
+    committedAfterApply = String(await readSemanticValue(
+      await requiredElement(page, mainHandSelector),
+      'committed-item-id',
+    ) ?? '')
     const workbench = await requiredElement(page, workbenchSelector)
-    resolveState = String(await workbench.attribute('data-gear-resolve-state') ?? '')
-    resolvedAfterApply = String(await workbench.attribute('data-resolved-slot-item-id') ?? '')
-    committedVariantAfter = String(await workbench.attribute('data-committed-slot-variant-key') ?? '')
-    resolvedVariantAfter = String(await workbench.attribute('data-resolved-slot-variant-key') ?? '')
+    resolveState = String(await readSemanticValue(workbench, 'gear-resolve-state') ?? '')
+    resolvedAfterApply = String(await readSemanticValue(workbench, 'resolved-slot-item-id') ?? '')
+    committedVariantAfter = String(await readSemanticValue(workbench, 'committed-slot-variant-key') ?? '')
+    resolvedVariantAfter = String(await readSemanticValue(workbench, 'resolved-slot-variant-key') ?? '')
     if (gearApplyEvidenceMatches({
       candidateItemId: candidate.itemId,
       candidateVariantKey,

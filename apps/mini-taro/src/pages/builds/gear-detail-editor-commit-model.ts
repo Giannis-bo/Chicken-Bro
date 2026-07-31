@@ -6,6 +6,7 @@ import type {
 import { gearEnhancementsFromResolvedSnapshot } from '@wow-mini/domain'
 
 import {
+  isEnhancementKindConfigured,
   packedEnhancementSelection,
   type GearCandidateDraft,
 } from './gear-detail-editor-model'
@@ -36,6 +37,7 @@ export type GearEditorCommitEvent =
       readonly kind: 'candidate'
       readonly slot: string
       readonly item: GearItemReference
+      readonly selection?: GearEnhancementSelection
       readonly snapshot?: GearResolvedSnapshot
     }
   | {
@@ -60,6 +62,55 @@ export interface GearEditorCommitTransition {
 export interface ResolvedSlotIdentity {
   readonly itemId: string
   readonly variantKey: string
+  readonly craftedOptionId: string
+}
+
+function resolvedSlotEnhancementSelectionFrom(
+  snapshot: GearResolvedSnapshot | undefined,
+  slot: string,
+): GearEnhancementSelection | null {
+  if (!resolvedSlotIdentityFrom(snapshot, slot)) return null
+  const resolved = snapshot?.resolvedSlots?.[slot]
+  const selected = record(resolved) ? resolved['selectedOptions'] : null
+  if (!record(selected)) return null
+  return packedEnhancementSelection({
+    gemOptionIds: selected['gemOptionIds'] as readonly string[],
+    enchantOptionId: selected['enchantOptionId'] as string,
+    embellishmentOptionId: selected['embellishmentOptionId'] as string,
+    craftedOptionId: selected['craftedOptionId'] as string,
+    catalystOptionId: selected['catalystOptionId'] as string,
+  })
+}
+
+function enhancementSelectionsEqual(
+  left: GearEnhancementSelection,
+  right: GearEnhancementSelection,
+): boolean {
+  return JSON.stringify(packedEnhancementSelection(left))
+    === JSON.stringify(packedEnhancementSelection(right))
+}
+
+function enhancementSelectionConfigured(
+  selection: GearEnhancementSelection,
+): boolean {
+  const packed = packedEnhancementSelection(selection)
+  return Boolean(
+    packed.gemOptionIds.length
+    || packed.enchantOptionId
+    || packed.embellishmentOptionId
+    || packed.craftedOptionId
+    || packed.catalystOptionId,
+  )
+}
+
+export function enhancementDraftCanConfirm(
+  draft: GearEnhancementDraft | null,
+): boolean {
+  return Boolean(
+    draft?.item
+    && !draft.blockers.length
+    && isEnhancementKindConfigured(draft.selection, draft.requestedKind),
+  )
 }
 
 export function enhancementDraftSelections(
@@ -157,6 +208,7 @@ function resolvedSlotIdentityFrom(
   return {
     itemId,
     variantKey: identifier(resolved['variantKey']),
+    craftedOptionId: identifier(selectedOptions['craftedOptionId']),
   }
 }
 
@@ -229,6 +281,15 @@ export function transitionGearEditorCommit(
   }
   if (event.kind === 'candidate') {
     const nextEquipped = { ...state.equipped, [event.slot]: event.item }
+    const requestedSelection = packedEnhancementSelection(
+      event.selection ?? {
+        gemOptionIds: [],
+        enchantOptionId: '',
+        embellishmentOptionId: '',
+        craftedOptionId: '',
+        catalystOptionId: '',
+      },
+    )
     const resolvedCandidate = event.status === 'slot_resolved'
       ? resolvedSlotIdentityForIncompleteProfile(event.snapshot, event.slot)
       : resolvedSlotIdentity(event.snapshot, event.slot)
@@ -237,8 +298,28 @@ export function transitionGearEditorCommit(
       || resolvedCandidate.itemId !== identifier(event.item.itemId)
       || resolvedCandidate.variantKey !== identifier(event.item.variantKey)
     ) return { state, committed: false, reload: false }
+    const resolvedTarget = resolvedSlotEnhancementSelectionFrom(
+      event.snapshot,
+      event.slot,
+    )
+    if (
+      !resolvedTarget
+      || !enhancementSelectionsEqual(
+        resolvedTarget,
+        requestedSelection,
+      )
+    ) return { state, committed: false, reload: false }
     const resolvedEnhancements = event.status === 'slot_resolved'
-      ? Object.fromEntries(Object.entries(state.enhancements).filter(([slot]) => slot !== event.slot))
+      ? {
+          ...Object.fromEntries(
+            Object.entries(state.enhancements).filter(
+              ([slot]) => slot !== event.slot,
+            ),
+          ),
+          ...(enhancementSelectionConfigured(resolvedTarget)
+            ? { [event.slot]: resolvedTarget }
+            : {}),
+        }
       : gearEnhancementsFromResolvedSnapshot(event.snapshot, nextEquipped)
     if (!resolvedEnhancements) return { state, committed: false, reload: false }
     return {
@@ -256,7 +337,15 @@ export function transitionGearEditorCommit(
     event.snapshot,
     state.equipped,
   )
-  if (!resolvedEnhancements?.[event.slot]) return { state, committed: false, reload: false }
+  const resolvedTarget = resolvedEnhancements?.[event.slot]
+  const requestedKind = state.enhancementDraft?.slot === event.slot
+    ? state.enhancementDraft.requestedKind
+    : null
+  if (
+    !resolvedTarget
+    || !requestedKind
+    || !isEnhancementKindConfigured(resolvedTarget, requestedKind)
+  ) return { state, committed: false, reload: false }
   return {
     state: {
       ...state,

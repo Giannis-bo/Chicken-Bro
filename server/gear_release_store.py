@@ -177,6 +177,33 @@ WHERE option.release_id = target.release_id
 ORDER BY option.option_key
 """
 
+RELEASE_VISIBLE_EDITOR_OPTION_SQL = """
+/* gear_release_authority_visible_editor_options */
+WITH target AS (
+    SELECT %s::text AS release_id
+)
+SELECT
+    option.option_key,
+    jsonb_build_object(
+        'id', option.option_id,
+        'optionKey', option.option_key,
+        'optionType', option.option_type,
+        'name', option.name,
+        'applicableSlots', option.applicable_slots_json,
+        'simcOptions', option.simc_options_json,
+        'status', option.status,
+        'isVisible', option.is_visible,
+        'payload', option.payload_json,
+        'updatedAt', option.source_updated_at::text
+    ) AS option_record
+FROM cache.websim_gear_release_mod_options option
+CROSS JOIN target
+WHERE option.release_id = target.release_id
+  AND option.status = 'verified'
+  AND option.is_visible = TRUE
+ORDER BY option.option_key
+"""
+
 
 class GearReleaseIntegrityError(RuntimeError):
     pass
@@ -1245,6 +1272,7 @@ def build_candidate_authority_context(
     gear_release: dict[str, Any],
     *,
     prepared_index: CandidateGearAuthorityIndex | None = None,
+    include_applicable_options: bool = False,
 ) -> dict[str, Any]:
     """Build an inactive candidate Authority Context from an exact sealed snapshot."""
 
@@ -1359,7 +1387,12 @@ def build_candidate_authority_context(
         )
     selected_option_ids.discard("")
     option_rows = []
-    for option_id in sorted(selected_option_ids):
+    option_scope = (
+        sorted(options_by_key)
+        if include_applicable_options
+        else sorted(selected_option_ids)
+    )
+    for option_id in option_scope:
         option = options_by_key.get(option_id)
         record = None
         if isinstance(option, dict):
@@ -1399,6 +1432,7 @@ def build_candidate_authority_context(
         dependency_vector=dependencies,
         item_rows=item_rows,
         option_rows=option_rows,
+        link_all_applicable_options=include_applicable_options,
     )
 
 
@@ -2852,6 +2886,8 @@ class GearReleaseStore:
         selection_intent: dict[str, Any],
         runtime_authority: dict[str, Any],
         gear_release_id: str,
+        *,
+        include_applicable_options: bool = False,
     ) -> dict[str, Any]:
         """Read selected authority facts from one exact inactive Gear Release."""
 
@@ -2924,7 +2960,16 @@ class GearReleaseStore:
                             values[4],
                         )
                     item_rows.append(tuple(values[:5]))
-                cur.execute(RELEASE_SELECTED_OPTION_SQL, (release_id, option_ids))
+                if include_applicable_options:
+                    cur.execute(
+                        RELEASE_VISIBLE_EDITOR_OPTION_SQL,
+                        (release_id,),
+                    )
+                else:
+                    cur.execute(
+                        RELEASE_SELECTED_OPTION_SQL,
+                        (release_id, option_ids),
+                    )
                 option_rows = cur.fetchall()
 
         dependencies = {
@@ -2950,6 +2995,7 @@ class GearReleaseStore:
             dependency_vector=dependencies,
             item_rows=item_rows,
             option_rows=option_rows,
+            link_all_applicable_options=include_applicable_options,
         )
 
     @staticmethod
@@ -3054,6 +3100,7 @@ class GearReleaseStore:
         binding: dict[str, Any],
         *,
         source_variant_overrides: dict[str, str] | None = None,
+        include_applicable_options: bool = False,
     ) -> dict[str, Any]:
         if not _readable_release_binding(binding):
             raise GearReleaseIntegrityError("formal active or candidate preview Manifest binding is required")
@@ -3150,11 +3197,19 @@ class GearReleaseStore:
                 source_key,
                 catalog_variant,
             )
-        context = self.load_candidate_authority_context(
-            authority_read_intent,
-            runtime_authority,
-            gear_release_id,
-        )
+        if include_applicable_options:
+            context = self.load_candidate_authority_context(
+                authority_read_intent,
+                runtime_authority,
+                gear_release_id,
+                include_applicable_options=True,
+            )
+        else:
+            context = self.load_candidate_authority_context(
+                authority_read_intent,
+                runtime_authority,
+                gear_release_id,
+            )
         context = _canonical(context)
         if selected_aliases:
             variants_by_key = (

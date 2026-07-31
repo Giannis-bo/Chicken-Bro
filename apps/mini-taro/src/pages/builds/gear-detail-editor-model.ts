@@ -11,8 +11,11 @@ export interface GearCandidateVariantView {
 
 export interface GearCraftedStatView {
   readonly key: string
+  readonly optionId: string
   readonly label: string
   readonly simcOptions: readonly string[]
+  readonly state: 'ready' | 'partial' | 'blocked'
+  readonly blockers: readonly string[]
 }
 
 export interface GearCandidateDraft {
@@ -21,6 +24,8 @@ export interface GearCandidateDraft {
   readonly state: 'ready' | 'partial' | 'blocked'
   readonly requiresVariantSelection: boolean
   readonly selectedVariantKey: string
+  readonly requiresCraftedStatSelection: boolean
+  readonly selectedCraftedOptionId: string
   readonly variants: readonly GearCandidateVariantView[]
   readonly craftedStatOptions: readonly GearCraftedStatView[]
 }
@@ -135,10 +140,32 @@ function craftedStatViews(candidate: RecordValue): readonly GearCraftedStatView[
     const option = record(value)
     if (!option) return []
     const key = text(option['key'])
+    const optionId = identifier(option['optionId'] ?? option['id'])
     const label = text(option['displayLabel'] ?? option['label'] ?? option['name'])
     if (!key && !label) return []
-    return [{ key, label: label || key, simcOptions: displayStrings(option['simcOptions']) }]
+    const blockers = strings(option['blockers'])
+    const status = text(option['status']).toLowerCase()
+    const state = (
+      !optionId || blockers.length || status === 'blocked'
+        ? 'blocked'
+        : status === 'verified' || status === 'ready'
+          ? 'ready'
+          : 'partial'
+    )
+    return [{
+      key,
+      optionId,
+      label: label || key,
+      simcOptions: displayStrings(option['simcOptions']),
+      state,
+      blockers,
+    }]
   })
+}
+
+function rawCandidateRequiresCraftedStatSelection(candidate: RecordValue): boolean {
+  return candidate['craftedStatSelectionRequired'] === true
+    || craftedStatViews(candidate).length > 0
 }
 
 function selectedRawCandidateVariant(
@@ -173,6 +200,12 @@ export function createCandidateDraft(slot: string, candidate: GearItemReference)
     state: gearCandidateEligibilityState(candidate),
     requiresVariantSelection: rawVariants.length > 0,
     selectedVariantKey: '',
+    requiresCraftedStatSelection: (
+      rawVariants.length > 0
+        ? false
+        : rawCandidateRequiresCraftedStatSelection(candidate)
+    ),
+    selectedCraftedOptionId: '',
     variants: candidateVariants(candidate),
     craftedStatOptions: craftedStatViews(candidate),
   }
@@ -180,17 +213,69 @@ export function createCandidateDraft(slot: string, candidate: GearItemReference)
 
 export function selectCandidateVariant(draft: GearCandidateDraft, variantKey: string): GearCandidateDraft {
   const selectedVariantKey = text(variantKey)
+  const selected = selectedRawCandidateVariant(
+    draft.candidate,
+    selectedVariantKey,
+  )
+  const craftedStatOptions = selectedVariantCraftedStatViews(
+    draft.candidate,
+    selectedVariantKey,
+  )
   return {
     ...draft,
     selectedVariantKey,
-    craftedStatOptions: selectedVariantCraftedStatViews(draft.candidate, selectedVariantKey),
+    requiresCraftedStatSelection: Boolean(
+      (
+        selected
+        && rawCandidateRequiresCraftedStatSelection(selected)
+      )
+      || craftedStatOptions.length,
+    ),
+    selectedCraftedOptionId: '',
+    craftedStatOptions,
   }
+}
+
+export function selectCandidateCraftedStat(
+  draft: GearCandidateDraft,
+  optionId: string,
+): GearCandidateDraft {
+  const selectedCraftedOptionId = text(optionId)
+  if (!draft.craftedStatOptions.some(
+    (option) => option.optionId === selectedCraftedOptionId && option.state === 'ready',
+  )) return draft
+  return { ...draft, selectedCraftedOptionId }
 }
 
 export function candidateDraftCanApply(draft: GearCandidateDraft): boolean {
   if (draft.state === 'blocked') return false
-  if (!draft.requiresVariantSelection) return true
-  return Boolean(draft.selectedVariantKey && draft.variants.some((item) => item.key === draft.selectedVariantKey && item.state !== 'blocked'))
+  if (
+    draft.requiresVariantSelection
+    && !(
+      draft.selectedVariantKey
+      && draft.variants.some(
+        (item) => item.key === draft.selectedVariantKey && item.state !== 'blocked',
+      )
+    )
+  ) return false
+  if (!draft.requiresCraftedStatSelection) return true
+  return draft.craftedStatOptions.some(
+    (option) => (
+      option.optionId === draft.selectedCraftedOptionId
+      && option.state === 'ready'
+    ),
+  )
+}
+
+export function candidateDraftEnhancementSelection(
+  draft: GearCandidateDraft,
+): GearEnhancementSelection {
+  return {
+    ...emptyEnhancementSelection(),
+    craftedOptionId: draft.requiresCraftedStatSelection
+      ? text(draft.selectedCraftedOptionId)
+      : '',
+  }
 }
 
 export function materializeCandidateDraft(draft: GearCandidateDraft): GearItemReference | null {
@@ -231,6 +316,11 @@ export function materializeCandidateDraft(draft: GearCandidateDraft): GearItemRe
     ...(text(candidate.source) ? { source: text(candidate.source) } : {}),
     ...(text(candidate.sourceUrl) ? { sourceUrl: text(candidate.sourceUrl) } : {}),
     ...(text(candidate.sourceType) ? { sourceType: text(candidate.sourceType) } : {}),
+    ...(text(candidate['armorType']) ? { armorType: text(candidate['armorType']) } : {}),
+    ...(text(candidate['weaponType']) ? { weaponType: text(candidate['weaponType']) } : {}),
+    ...(Array.isArray(candidate['equipmentBadges'])
+      ? { equipmentBadges: candidate['equipmentBadges'] }
+      : {}),
     ...(statSummary ? { statSummary } : {}),
     ...(primaryStatKey ? { primaryStatKey } : {}),
     ...(selectedItemStats ? { itemStats: selectedItemStats } : {}),

@@ -60,17 +60,20 @@ import {
 } from '../_shared/route-runtime'
 import {
   candidateDraftCanApply,
+  candidateDraftEnhancementSelection,
   createCandidateDraft,
   emptyEnhancementSelection,
   isEnhancementKindConfigured,
   materializeCandidateDraft,
   packedEnhancementSelection,
   selectCandidateVariant,
+  selectCandidateCraftedStat,
   setGemAtSocket,
   setSingleEnhancement,
   type GearCandidateDraft,
 } from './gear-detail-editor-model'
 import {
+  enhancementDraftCanConfirm,
   enhancementDraftSelections,
   isProfileIncompleteOnlySnapshot,
   resolvedSlotIdentityForWorkbench,
@@ -86,10 +89,13 @@ import {
   gearEnhancementBarItems,
   gearEnhancementOptions,
   gearEnhancementSocketCount,
+  gearEmbellishmentSlotLimitState,
   gearItemIconUrl,
   gearItemLevel,
   gearItemName,
   hydrateCompactSlotGroup,
+  hydrateImportedExactGear,
+  preferredEnhancementSlot,
   gearReadiness,
   gearSlots,
   prepareHydratedEnhancementDraft,
@@ -137,8 +143,17 @@ type GearImportSelection =
   | { kind: 'saved'; draft: GearTemplateDraft; label: string }
 
 type SlotHydrationResult =
-  | { readonly status: 'current'; readonly items: readonly GearItemReference[] }
+  | {
+      readonly status: 'current'
+      readonly group: WebsimGearPayload['replacementCandidates'][number]
+      readonly items: readonly GearItemReference[]
+    }
   | { readonly status: 'failed' | 'stale' }
+
+interface CachedSlotHydration {
+  readonly group: WebsimGearPayload['replacementCandidates'][number]
+  readonly items: readonly GearItemReference[]
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -181,7 +196,7 @@ export default function GearDetailPage() {
   const [workbenchNotice, setWorkbenchNotice] = useState('')
   const selectionChanged = useRef(false)
   const candidateRequestId = useRef(0)
-  const slotDetailCache = useRef(new Map<string, readonly GearItemReference[]>())
+  const slotDetailCache = useRef(new Map<string, CachedSlotHydration>())
   const requestFence = useRef(new GearRequestFence())
 
   useEffect(() => {
@@ -334,6 +349,7 @@ export default function GearDetailPage() {
     equipped,
     enhancements,
     canonical.snapshot?.constraints?.['embellishmentMax'],
+    canonical.snapshot?.constraints?.['embellishmentUsed'],
   )
   const enhancementOptions = gearEnhancementOptions(selectedCandidate, enhancements, selectedSlot)
   const enhancementSelections = enhancementDraft
@@ -374,6 +390,16 @@ export default function GearDetailPage() {
         const knownOptions = gearEnhancementOptions(item, { [slot.slot]: selection }, slot.slot)
           .filter((option) => option.kind === kind)
         const configured = isEnhancementKindConfigured(selection, kind)
+        const embellishmentLimit = kind === 'embellishment'
+          ? gearEmbellishmentSlotLimitState(
+              enhancements,
+              enhancementSelections,
+              slot.slot,
+              canonical.snapshot?.constraints?.['embellishmentMax'],
+              canonical.snapshot?.constraints?.['embellishmentUsed'],
+            )
+          : null
+        const disabled = embellishmentLimit?.state === 'blocked'
         const itemLevel = gearItemLevel(item)
         const iconUrl = gearItemIconUrl(item)
         return [{
@@ -386,10 +412,13 @@ export default function GearDetailPage() {
           },
           summary: configured
             ? '草稿已配置'
+            : disabled
+              ? `已达美化上限 ${embellishmentLimit.used}/${embellishmentLimit.max}`
             : knownOptions.length
               ? `${knownOptions.length} 项可选`
               : '选择后核验',
           selected: enhancementDraft.slot === slot.slot,
+          disabled,
         }]
       })
     : []
@@ -404,7 +433,11 @@ export default function GearDetailPage() {
   const resolvedIdentity = resolvedSlotIdentityForWorkbench(canonical.snapshot, selectedSlot)
   const resolvedSlotItemId = resolvedIdentity?.itemId ?? ''
   const resolvedSlotVariantKey = resolvedIdentity?.variantKey ?? ''
+  const resolvedSlotCraftedOptionId = resolvedIdentity?.craftedOptionId ?? ''
   const committedSlotVariantKey = String(equipped[selectedSlot]?.variantKey ?? '').trim()
+  const committedSlotCraftedOptionId = String(
+    enhancementSelections[selectedSlot]?.craftedOptionId ?? '',
+  ).trim()
   const statsReady = Boolean(
     canonical.snapshot?.status === 'verified'
     && canonical.intent
@@ -556,8 +589,8 @@ export default function GearDetailPage() {
     const cached = slotDetailCache.current.get(slot)
     if (cached) {
       if (candidateRequestId.current !== requestId) return { status: 'stale' }
-      if (publishCandidates) setCandidates(cached)
-      return { status: 'current', items: cached }
+      if (publishCandidates) setCandidates(cached.items)
+      return { status: 'current', ...cached }
     }
     if (!data || route.state.state !== 'ready') {
       if (candidateRequestId.current === requestId) {
@@ -584,9 +617,9 @@ export default function GearDetailPage() {
         return { status: 'failed' }
       }
       const items = hydrateCompactSlotGroup(group)
-      slotDetailCache.current.set(slot, items)
+      slotDetailCache.current.set(slot, { group, items })
       if (publishCandidates) setCandidates(items)
-      return { status: 'current', items }
+      return { status: 'current', group, items }
     } catch {
       if (candidateRequestId.current !== requestId) return { status: 'stale' }
       setWorkbenchNotice('槽位详情加载失败，已确认装备保持不变')
@@ -642,6 +675,13 @@ export default function GearDetailPage() {
       : current)
   }
 
+  const chooseCandidateCraftedStat = (optionId: string) => {
+    if (canonical.loading) return
+    setCandidateDraft((current) => current
+      ? selectCandidateCraftedStat(current, optionId)
+      : current)
+  }
+
   const applyCandidateDraft = async () => {
     const draft = candidateDraft
     const item = draft && materializeCandidateDraft(draft)
@@ -653,9 +693,11 @@ export default function GearDetailPage() {
       enhancementDraft,
     }
     const nextEquipped = { ...equipped, [draft.slot]: item }
+    const candidateSelection = candidateDraftEnhancementSelection(draft)
     const nextEnhancements = Object.fromEntries(
       Object.entries(enhancements).filter(([slot]) => slot !== draft.slot),
     )
+    nextEnhancements[draft.slot] = candidateSelection
     const resolved = await resolveSelection(nextEquipped, nextEnhancements)
     if (resolved.status === 'conflict') return
     if (resolved.status !== 'resolved' && resolved.status !== 'slot_resolved') return
@@ -664,6 +706,7 @@ export default function GearDetailPage() {
       kind: 'candidate',
       slot: draft.slot,
       item,
+      selection: candidateSelection,
       snapshot: resolved.snapshot,
     })
     if (!transition.committed) return
@@ -749,7 +792,7 @@ export default function GearDetailPage() {
       }
       return
     }
-    const prepared = prepareHydratedEnhancementDraft(hydrated.items, committedItem, confirmed)
+    const prepared = prepareHydratedEnhancementDraft(hydrated.group, committedItem, confirmed)
     if (!prepared) {
       setEnhancementDraft((current) => current && current.slot === slot
         ? { ...current, blockers: ['未找到已确认物品的完整后端详情'] }
@@ -788,7 +831,15 @@ export default function GearDetailPage() {
           ...(current.snapshot ? { snapshot: current.snapshot } : {}),
         }
       : current)
-    const target = equippedSlots.find((entry) => entry.slot === selectedSlot) ?? equippedSlots[0]
+    const targetSlot = preferredEnhancementSlot(
+      equipped,
+      enhancements,
+      selectedSlot,
+      item.id,
+      canonical.snapshot?.constraints?.['embellishmentMax'],
+      canonical.snapshot?.constraints?.['embellishmentUsed'],
+    )
+    const target = equippedSlots.find((entry) => entry.slot === targetSlot)
     if (!target) return
     const confirmed = enhancements[target.slot] ?? emptyEnhancementSelection()
     const initialDraft: GearEnhancementDraft = {
@@ -876,6 +927,11 @@ export default function GearDetailPage() {
           imported = importedGearBySlot(result.payload.data['importedGearBySlot'])
           importedSnapshot = result.payload.data.resolvedSnapshot
           if (imported && importedSnapshot) {
+            imported = hydrateImportedExactGear(
+              imported,
+              importedSnapshot,
+              result.payload.data.visibleOptionsBySlot ?? {},
+            )
             importedEnhancements = gearEnhancementsFromResolvedSnapshot(importedSnapshot, imported) ?? {}
             importedIntent = serializeGearSelectionIntent({
               ...(data.gear.resolverContext ? { resolverContext: data.gear.resolverContext } : {}),
@@ -976,6 +1032,7 @@ export default function GearDetailPage() {
           onApply={() => void applyCandidateDraft()}
           onClose={closeCandidateEditor}
           onSelectCandidate={chooseCandidate}
+          onSelectCraftedStat={chooseCandidateCraftedStat}
           onSelectVariant={chooseCandidateVariant}
         />
       )
@@ -984,7 +1041,7 @@ export default function GearDetailPage() {
           <GearEnhancementEditorSheet
             activeSlot={enhancementDraft.slot}
             blockers={enhancementDraft.blockers}
-            canConfirm={Boolean(enhancementDraft.item && !enhancementDraft.blockers.length)}
+            canConfirm={enhancementDraftCanConfirm(enhancementDraft)}
             compatibleSlots={enhancementCompatibleSlots}
             draft={enhancementDraft.selection}
             item={enhancementEditorItem}
@@ -1034,7 +1091,12 @@ export default function GearDetailPage() {
           variant="gear-detail"
           onBack={() => goBack('/pages/builds/builds')}
         >
-          <View className={styles['surface'] ?? ''} data-region="page_frame">
+          <View
+            className={styles['surface'] ?? ''}
+            data-region="page_frame"
+            data-weapp-runtime-git-head={__WOW_WEAPP_RUNTIME_GIT_HEAD__}
+            data-weapp-runtime-source-hash={__WOW_WEAPP_RUNTIME_SOURCE_HASH__}
+          >
             <RouteRegion className={styles['professionRegion'] ?? ''} data-region="profession_selector">
               <GearProfessionSelector
                 items={classItems}
@@ -1067,8 +1129,10 @@ export default function GearDetailPage() {
                 editor={workbenchEditor}
                 enhancements={enhancementOptions}
                 notice={workbenchNotice}
+                committedSlotCraftedOptionId={committedSlotCraftedOptionId}
                 committedSlotVariantKey={committedSlotVariantKey}
                 resolvedSlotItemId={resolvedSlotItemId}
+                resolvedSlotCraftedOptionId={resolvedSlotCraftedOptionId}
                 resolvedSlotVariantKey={resolvedSlotVariantKey}
                 resolveState={gearResolveState}
                 selectedSlot={selectedSlot}

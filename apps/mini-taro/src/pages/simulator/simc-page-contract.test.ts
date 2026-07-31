@@ -65,4 +65,20 @@ describe('SimC active Taro canonical contract', () => {
     expect(components).toContain('data-readonly="true"')
     expect(components).not.toContain('onDurationSelect: (index: number) => void')
   })
+
+  it('publishes backend-owned specialization support semantics for the real WeChat matrix', () => {
+    const source = readFileSync(resolve(
+      process.cwd(),
+      'apps/mini-taro/src/pages/simulator/simc.tsx',
+    ), 'utf8')
+
+    expect(source).toContain('data-simc-specialization-id=')
+    expect(source).toContain('data-simc-specialization-supported=')
+    expect(source).toContain('data-simc-specialization-blocker-code=')
+    expect(source).toContain('data-simc-options-state=')
+    expect(source).toContain("dataSelectorClass('simc-specialization-id'")
+    expect(source).toContain("dataSelectorClass('simc-specialization-supported'")
+    expect(source).toContain("dataSelectorClass('simc-specialization-blocker-code'")
+    expect(source).toContain("dataSelectorClass('simc-options-state'")
+  })
 })

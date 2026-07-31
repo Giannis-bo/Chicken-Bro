@@ -92,7 +92,7 @@ Journal and derived Catalog rows and records blocked sync state.
   with the next natural runs about 18 hours away at deployment time.
 - Live data health remains literally `overallStatus=partial` with
   `gear_catalog=partial`. This slice prevents future incomplete Journal
-  replacement; it does not prove the separately blocked 18-source Universe
+  replacement; it does not prove the separately blocked 19-source Universe
   complete.
 
 ## Stop lines

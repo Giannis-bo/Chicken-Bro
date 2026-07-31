@@ -143,6 +143,8 @@ describe('gear detail fixed workbench contract', () => {
   it('renders backend-owned enhancement availability and disables only known-impossible groups', () => {
     expect(pageSource).toContain('gearEnhancementBarItems(')
     expect(pageSource).toContain("canonical.snapshot?.constraints?.['embellishmentMax']")
+    expect(pageSource).toContain("canonical.snapshot?.constraints?.['embellishmentUsed']")
+    expect(pageSource).toContain('gearEmbellishmentSlotLimitState(')
     expect(pageSource).toContain("item.modCapabilities?.['canEmbellish'] === true")
     expect(componentSource).toContain("data-disabled={item.disabled ? 'true' : 'false'}")
     expect(componentSource).toContain('disabled={Boolean(item.disabled)}')
@@ -207,10 +209,13 @@ describe('gear detail fixed workbench contract', () => {
 
   it('publishes committed and draft identities separately with a canonical resolve marker', () => {
     expect(componentSource).toContain('data-committed-item-id={item.itemId}')
+    expect(componentSource).toContain("dataSelectorClass('has-committed-item', item.state !== 'empty' && Boolean(item.itemId))")
     expect(componentSource).toContain('data-gear-resolve-state={resolveState}')
     expect(componentSource).toContain('data-resolved-slot-item-id={resolvedSlotItemId}')
     expect(componentSource).toContain('data-resolved-slot-variant-key={resolvedSlotVariantKey}')
+    expect(componentSource).toContain('data-resolved-slot-crafted-option-id={resolvedSlotCraftedOptionId}')
     expect(componentSource).toContain('data-committed-slot-variant-key={committedSlotVariantKey}')
+    expect(componentSource).toContain('data-committed-slot-crafted-option-id={committedSlotCraftedOptionId}')
     expect(editorComponentSource).toContain('data-candidate-item-id={item.itemId}')
     expect(pageSource).toContain("? 'resolving' as const")
     expect(pageSource).toContain('resolvedSlotItemId={resolvedSlotItemId}')
@@ -225,26 +230,28 @@ describe('gear detail fixed workbench contract', () => {
   it('hydrates slot editor items from compact group-level enhancement options', () => {
     expect(pageSource).toContain('hydrateCompactSlotGroup(group)')
     expect(pageSource).not.toContain('compact: false')
-    expect(pageSource).toMatch(/const hydrateSlot = async[\s\S]*?const group = result\.payload\.replacementCandidates\.find[\s\S]*?hydrateCompactSlotGroup\(group\)[\s\S]*?slotDetailCache\.current\.set\(slot, items\)/u)
+    expect(pageSource).toMatch(/const hydrateSlot = async[\s\S]*?const group = result\.payload\.replacementCandidates\.find[\s\S]*?hydrateCompactSlotGroup\(group\)[\s\S]*?slotDetailCache\.current\.set\(slot, \{ group, items \}\)/u)
   })
 
-  it('rehydrates the committed exact variant through the canonical editor model', () => {
+  it('preserves exact import identity while consuming backend-owned capabilities', () => {
     const exactItemSource = modelSource.match(/function exactHydratedItem\([\s\S]*?\n\}/u)?.[0] ?? ''
     expect(exactItemSource).toContain("const draft = createCandidateDraft('', item)")
     expect(exactItemSource).toContain('selectCandidateVariant(draft, committedVariantKey)')
     expect(exactItemSource).toContain('materializeCandidateDraft')
     expect(exactItemSource).not.toContain("item['variants']")
-    expect(modelSource).toMatch(/export function prepareHydratedEnhancementDraft\([\s\S]*?exactHydratedItem\(items, committed\)[\s\S]*?packedEnhancementSelection\(confirmed\)/u)
-    expect(pageSource).toContain('prepareHydratedEnhancementDraft(hydrated.items, committedItem, confirmed)')
+    expect(modelSource).toMatch(/function exactCommittedItem\([\s\S]*?committed\.modCapabilities[\s\S]*?allowedOptionIds/u)
+    expect(modelSource).toMatch(/export function prepareHydratedEnhancementDraft\([\s\S]*?exactHydratedItem\(items, committed\)[\s\S]*?exactCommittedItem\(group, committed\)[\s\S]*?packedEnhancementSelection\(confirmed\)/u)
+    expect(pageSource).toContain('prepareHydratedEnhancementDraft(hydrated.group, committedItem, confirmed)')
+    expect(pageSource).toContain('hydrateImportedExactGear(')
   })
 
-  it('keeps crafted stats display-only and maps editor actions to draft callbacks', () => {
+  it('maps crafted stat choices and editor actions to draft callbacks', () => {
     const craftedStatSource = editorComponentSource.match(/draft\.craftedStatOptions\.map\(\(item\) => \([\s\S]*?\)\)\}/u)?.[0] ?? ''
-    expect(craftedStatSource).toContain('data-role="gear-crafted-stat-display"')
-    expect(craftedStatSource).toContain('<View')
-    expect(craftedStatSource).not.toContain('<ControlButton')
-    expect(craftedStatSource).not.toContain('onClick=')
-    expect(craftedStatSource).not.toContain('data-active=')
+    expect(craftedStatSource).toContain('data-role="gear-crafted-stat-option"')
+    expect(craftedStatSource).toContain('<ControlButton')
+    expect(craftedStatSource).toContain('onSelectCraftedStat(item.optionId)')
+    expect(craftedStatSource).toContain('data-active=')
+    expect(pageSource).toContain('onSelectCraftedStat={chooseCandidateCraftedStat}')
     expect(editorComponentSource).toContain("onClick={() => onSetGem(socketIndex, '')}")
     expect(editorComponentSource).toContain('onClick={() => onSetGem(socketIndex, item.id)}')
     expect(editorComponentSource.match(/data-socket-index=\{socketIndex\}/gu)).toHaveLength(3)

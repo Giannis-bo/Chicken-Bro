@@ -13203,16 +13203,19 @@ class WebSimPayloadTest(unittest.TestCase):
                     "sourceType": "crafted",
                     "difficultyKey": "crafted_myth",
                     "itemLevel": 285,
-                    "simcOptions": {"ilevel": "285", "crafted_stats": "40/32"},
+                    "simcOptions": {"ilevel": "285", "crafted_stats": "36/49"},
                     "status": "verified",
                     "payload": {
-                        "craftedStatKey": "strength-haste",
-                        "craftedStatLabel": "力量 + 急速",
+                        "craftedStatKey": "haste-mastery",
+                        "craftedOptionId": "crafted-stats-haste-mastery",
+                        "craftedStatLabel": "急速 + 精通",
+                        "secondaryStatMode": "customize_two_secondary",
                         "itemStats": [
                             {"key": "strength", "label": "力量", "value": 285},
                             {"key": "haste", "label": "急速", "value": 40},
+                            {"key": "mastery", "label": "精通", "value": 32},
                         ],
-                        "statSummary": "力量 285；急速 40",
+                        "statSummary": "力量 285；急速 40；精通 32",
                     },
                 },
                 {
@@ -13220,16 +13223,19 @@ class WebSimPayloadTest(unittest.TestCase):
                     "sourceType": "crafted",
                     "difficultyKey": "crafted_myth",
                     "itemLevel": 285,
-                    "simcOptions": {"ilevel": "285", "crafted_stats": "36/49"},
+                    "simcOptions": {"ilevel": "285", "crafted_stats": "32/40"},
                     "status": "verified",
                     "payload": {
-                        "craftedStatKey": "intellect-mastery",
-                        "craftedStatLabel": "智力 + 精通",
+                        "craftedStatKey": "crit-versatility",
+                        "craftedOptionId": "crafted-stats-crit-versatility",
+                        "craftedStatLabel": "暴击 + 全能",
+                        "secondaryStatMode": "customize_two_secondary",
                         "itemStats": [
                             {"key": "intellect", "label": "智力", "value": 285},
-                            {"key": "mastery", "label": "精通", "value": 49},
+                            {"key": "crit", "label": "暴击", "value": 32},
+                            {"key": "versatility", "label": "全能", "value": 40},
                         ],
-                        "statSummary": "智力 285；精通 49",
+                        "statSummary": "智力 285；暴击 32；全能 40",
                     },
                 },
             ],
@@ -13238,8 +13244,45 @@ class WebSimPayloadTest(unittest.TestCase):
         compact = self.websim_payload.compact_gear_candidate(item)
         options = compact["variants"][0]["craftedStatOptions"]
 
-        self.assertEqual([option["label"] for option in options], ["力量 + 急速"])
-        self.assertEqual(options[0]["statSummary"], "力量 285；急速 40")
+        self.assertEqual([option["label"] for option in options], ["急速 + 精通"])
+        self.assertEqual(
+            options[0]["statSummary"],
+            "力量 285；急速 40；精通 32",
+        )
+        self.assertEqual(
+            options[0]["optionId"],
+            "crafted-stats-haste-mastery",
+        )
+        self.assertTrue(compact["variants"][0]["craftedStatSelectionRequired"])
+
+    def test_compact_crafted_stat_option_blocks_conflicting_payload_identity(self):
+        option = self.websim_payload.compact_crafted_stat_option(
+            {
+                "id": "crafted-conflicting-option",
+                "sourceType": "crafted",
+                "difficultyKey": "crafted_myth",
+                "itemLevel": 285,
+                "simcOptions": {
+                    "ilevel": "285",
+                    "crafted_stats": "36/49",
+                },
+                "status": "verified",
+                "payload": {
+                    "craftedOptionId": "crafted-stats-crit-versatility",
+                    "craftedStatKey": "crit-versatility",
+                    "craftedStatLabel": "暴击 + 全能",
+                },
+            },
+        )
+
+        self.assertEqual(option["optionId"], "crafted-stats-haste-mastery")
+        self.assertEqual(option["key"], "haste-mastery")
+        self.assertEqual(option["label"], "急速 + 精通")
+        self.assertEqual(option["status"], "blocked")
+        self.assertIn(
+            "manufacturing stat option identity conflicts with crafted_stats",
+            option["blockers"],
+        )
 
     def test_compact_gear_payload_includes_handedness_and_unique_badges(self):
         conn = sqlite3.connect(self.db_path)
@@ -13310,8 +13353,28 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(item["handednessLabel"], "双手")
         self.assertTrue(item["uniqueEquipped"])
         self.assertEqual(item["uniqueEquippedLabel"], "唯一")
+        self.assertIn({"key": "equipment_type", "label": "双手剑"}, item["equipmentBadges"])
         self.assertIn({"key": "weapon_handedness", "label": "双手"}, item["equipmentBadges"])
         self.assertIn({"key": "unique_equipped", "label": "唯一"}, item["equipmentBadges"])
+
+    def test_gear_equipment_badges_publish_backend_owned_armor_and_jewelry_types(self):
+        cloth = self.websim_payload.annotate_gear_item_display_fields(
+            {
+                "itemId": "260205",
+                "slot": "head",
+                "armorType": "Cloth",
+            }
+        )
+        necklace = self.websim_payload.annotate_gear_item_display_fields(
+            {
+                "itemId": "260206",
+                "slot": "neck",
+                "armorType": "Miscellaneous",
+            }
+        )
+
+        self.assertIn({"key": "equipment_type", "label": "布甲"}, cloth["equipmentBadges"])
+        self.assertIn({"key": "equipment_type", "label": "项链"}, necklace["equipmentBadges"])
 
     def test_gear_catalog_health_blocks_socket_capable_items_without_socket_mod_options(self):
         conn = sqlite3.connect(self.db_path)
@@ -18147,7 +18210,7 @@ class WebSimPayloadTest(unittest.TestCase):
                     "sourceType": "crafted",
                     "difficultyKey": "crafted_myth",
                     "itemLevel": 285,
-                    "simcOptions": {"ilevel": "285", "bonus_id": "8793/8960", "crafted_stats": "40/32"},
+                    "simcOptions": {"ilevel": "285", "bonus_id": "8793/8960", "crafted_stats": "36/49"},
                     "status": "verified",
                     "payload": {
                         "seasonRevision": season["seasonRevision"],
@@ -18184,7 +18247,7 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(crafted_item["variants"][0]["difficultyKey"], "myth")
         self.assertEqual(crafted_item["variants"][0]["itemLevel"], 285)
         self.assertEqual(crafted_item["variants"][0]["craftedStatOptions"][0]["label"], "急速 + 精通")
-        self.assertEqual(crafted_item["variants"][0]["craftedStatOptions"][0]["simcOptions"]["crafted_stats"], "40/32")
+        self.assertEqual(crafted_item["variants"][0]["craftedStatOptions"][0]["simcOptions"]["crafted_stats"], "36/49")
 
     def test_backfill_crafted_item_level_variants_writes_tracks_and_stat_options(self):
         conn = sqlite3.connect(self.db_path)
@@ -18236,7 +18299,7 @@ class WebSimPayloadTest(unittest.TestCase):
                         "supportsVoidUpgrade": True,
                         "allowedTracks": ["crafted_myth", "crafted_void_upgrade"],
                         "allowedCraftedStats": [
-                            {"key": "haste-mastery", "label": "急速 + 精通", "value": "40/32"}
+                            {"key": "haste-mastery", "label": "急速 + 精通", "value": "36/49"}
                         ],
                     },
                     {
@@ -18251,8 +18314,8 @@ class WebSimPayloadTest(unittest.TestCase):
                             {"difficultyKey": "void_upgrade", "itemLevel": 295, "label": "虚空晋升 295"},
                         ],
                         "allowedCraftedStats": [
-                            {"key": "haste-mastery", "label": "急速 + 精通", "value": "40/32"},
-                            {"key": "crit-vers", "label": "暴击 + 全能", "value": "36/36"},
+                            {"key": "haste-mastery", "label": "急速 + 精通", "value": "36/49"},
+                            {"key": "crit-vers", "label": "暴击 + 全能", "value": "32/40"},
                         ],
                     },
                 ],
@@ -18299,6 +18362,88 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(health["details"]["sourceCoverage"]["crafted"], 2)
         self.assertEqual(health["details"]["modOptionCoverage"]["crafted_stats"]["optionCount"], 2)
         self.assertEqual(set(health["details"]["modOptionCoverage"]["crafted_stats"]["coveredSlots"]), {"head", "main_hand"})
+
+    def test_backfill_crafted_variants_supports_single_and_fixed_secondary_modes(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            season = self.websim_payload.current_season_payload(
+                season_id="17",
+                season_label="Fresh Season",
+            )
+            self.websim_payload.save_active_season_payload(conn, season)
+
+            def fake_stat_resolver(item, item_level, stat_option, track):
+                return {
+                    "itemStats": [
+                        {"key": "intellect", "label": "智力", "value": item_level},
+                    ],
+                    "statSummary": f"智力 {item_level}",
+                }
+
+            result = self.websim_payload.backfill_crafted_item_level_variants(
+                conn,
+                [
+                    {
+                        "itemId": "260110",
+                        "name": "Amplified Goggles",
+                        "slot": "head",
+                        "secondaryStatMode": "amplify_one_secondary",
+                        "allowedTracks": ["crafted_myth"],
+                        "allowedCraftedStats": [
+                            {
+                                "key": "crit",
+                                "label": "暴击",
+                                "value": "32",
+                                "status": "verified",
+                            },
+                            {
+                                "key": "haste",
+                                "label": "急速",
+                                "value": "36",
+                                "status": "verified",
+                            },
+                        ],
+                    },
+                    {
+                        "itemId": "260111",
+                        "name": "Fixed Trinket",
+                        "slot": "trinket1",
+                        "secondaryStatMode": "fixed_or_recipe_defined_stats",
+                        "allowedTracks": ["crafted_myth"],
+                        "allowedCraftedStats": [],
+                    },
+                ],
+                stat_resolver=fake_stat_resolver,
+            )
+            rows = conn.execute(
+                """
+                SELECT item_id, simc_options_json, payload_json
+                FROM websim_gear_variants
+                WHERE source_type = 'crafted'
+                ORDER BY item_id, variant_key
+                """
+            ).fetchall()
+        finally:
+            conn.close()
+
+        self.assertEqual(result["items"], 2)
+        self.assertEqual(result["verifiedVariants"], 3)
+        by_item = {}
+        for item_id, simc_options_json, payload_json in rows:
+            by_item.setdefault(item_id, []).append(
+                (json.loads(simc_options_json), json.loads(payload_json))
+            )
+        self.assertEqual(
+            {row[0]["crafted_stats"] for row in by_item["260110"]},
+            {"32", "36"},
+        )
+        self.assertEqual(len(by_item["260111"]), 1)
+        self.assertEqual(by_item["260111"][0][0], {"ilevel": "285"})
+        self.assertEqual(
+            by_item["260111"][0][1]["secondaryStatMode"],
+            "fixed_or_recipe_defined_stats",
+        )
 
     def test_backfill_crafted_item_level_variants_removes_stale_item_variants(self):
         conn = sqlite3.connect(self.db_path)
@@ -18530,6 +18675,9 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(crafted_item["variants"][0]["itemLevel"], 285)
         self.assertEqual(crafted_item["variants"][0]["simcOptions"], {"ilevel": "285"})
         self.assertEqual(crafted_item["variants"][0]["craftedStatOptions"], [])
+        self.assertFalse(
+            crafted_item["variants"][0]["craftedStatSelectionRequired"]
+        )
 
     def test_crafted_preview_catalog_items_from_profile_presets_builds_governed_seed(self):
         import importlib
@@ -18686,7 +18834,10 @@ class WebSimPayloadTest(unittest.TestCase):
             conn.close()
 
         by_id = {item["itemId"]: item for item in items}
-        self.assertEqual(set(by_id), {"237831", "237832", "237838", "240949"})
+        self.assertEqual(
+            set(by_id),
+            {"237831", "237832", "237838", "240949", "244774"},
+        )
         self.assertEqual(by_id["237832"]["slot"], "head")
         self.assertEqual(by_id["240949"]["slot"], "finger1")
         self.assertEqual(by_id["237831"]["slot"], "off_hand")
@@ -18703,8 +18854,132 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual([track["itemLevel"] for track in by_id["237838"]["allowedTracks"]], [285, 295])
         self.assertEqual([track["itemLevel"] for track in by_id["237831"]["allowedTracks"]], [285, 295])
         self.assertEqual(len(by_id["237832"]["allowedCraftedStats"]), 6)
+        self.assertEqual(
+            by_id["244774"]["secondaryStatMode"],
+            "amplify_one_secondary",
+        )
+        self.assertEqual(
+            [option["value"] for option in by_id["244774"]["allowedCraftedStats"]],
+            ["32", "36", "40", "49"],
+        )
         self.assertEqual(by_id["237832"]["sourceRefs"][0]["sourceType"], "battle_net_item_metadata")
         self.assertEqual(by_id["237832"]["profession"], "blacksmithing")
+
+    def test_crafted_catalog_items_from_membership_keeps_all_current_members(self):
+        from server import crafted_gear_backfill
+
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            items = crafted_gear_backfill.crafted_catalog_items_from_membership(
+                conn
+            )
+        finally:
+            conn.close()
+
+        self.assertEqual(len(items), 172)
+        by_id = {item["itemId"]: item for item in items}
+        self.assertEqual(len(by_id), 172)
+        self.assertEqual(
+            len(
+                [
+                    item
+                    for item in items
+                    if item["secondaryStatMode"]
+                    == "customize_two_secondary"
+                ]
+            ),
+            106,
+        )
+        self.assertEqual(
+            [option["value"] for option in by_id["244774"]["allowedCraftedStats"]],
+            ["32", "36", "40", "49"],
+        )
+        fixed = next(
+            item
+            for item in items
+            if item["secondaryStatMode"]
+            == "fixed_or_recipe_defined_stats"
+        )
+        self.assertEqual(fixed["allowedCraftedStats"], [])
+        self.assertEqual(
+            fixed["trackEvidence"][0]["progressionAuthorityStatus"],
+            "blocked",
+        )
+        transform_candidates = [
+            item
+            for item in items
+            if item["slot"] in {
+                "main_hand",
+                "off_hand",
+                "trinket1",
+                "trinket2",
+            }
+        ]
+        self.assertTrue(transform_candidates)
+        self.assertTrue(
+            all(
+                item["supportsVoidUpgrade"] is False
+                and [
+                    track["difficultyKey"]
+                    for track in item["allowedTracks"]
+                ]
+                == ["crafted_myth"]
+                for item in transform_candidates
+            )
+        )
+
+    def test_membership_progression_blocker_survives_successful_simc_stat_probe(self):
+        from server import crafted_gear_backfill
+
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            season = self.websim_payload.current_season_payload(
+                season_id="17",
+                season_label="Fresh Season",
+            )
+            self.websim_payload.save_active_season_payload(conn, season)
+            item = crafted_gear_backfill.crafted_catalog_items_from_membership(
+                conn,
+                limit=1,
+            )[0]
+
+            result = self.websim_payload.backfill_crafted_item_level_variants(
+                conn,
+                [item],
+                stat_resolver=lambda *_args: {
+                    "itemStats": [
+                        {
+                            "key": "stamina",
+                            "label": "耐力",
+                            "value": 100,
+                        }
+                    ],
+                },
+            )
+            rows = conn.execute(
+                """
+                SELECT status, blockers_json
+                FROM websim_gear_variants
+                WHERE item_id = ?
+                ORDER BY id
+                """,
+                (item["itemId"],),
+            ).fetchall()
+        finally:
+            conn.close()
+
+        self.assertGreater(len(rows), 0)
+        self.assertEqual(result["verifiedVariants"], 0)
+        self.assertTrue(all(status == "blocked" for status, _ in rows))
+        self.assertTrue(
+            all(
+                "OFFICIAL_PROGRESSION_STATE_UNAVAILABLE"
+                in json.loads(blockers)
+                for _, blockers in rows
+            )
+        )
 
     def test_crafted_candidates_stay_visible_below_regular_item_level_floor(self):
         conn = sqlite3.connect(self.db_path)

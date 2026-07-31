@@ -24,7 +24,7 @@ function gearApplyEvidenceMatches({
     && typeof resolvedVariantAfter === 'string'
     && committedBefore !== candidateItemId
     && resolvedBefore !== candidateItemId
-    && resolveState === 'verified'
+    && (resolveState === 'verified' || resolveState === 'idle')
     && committedAfter === candidateItemId
     && resolvedAfter === candidateItemId
     && committedVariantAfter === candidateVariantKey

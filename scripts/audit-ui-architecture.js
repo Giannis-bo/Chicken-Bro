@@ -2618,7 +2618,7 @@ record(
   'wechat_automation_reuse_probe_is_bounded_and_never_launches_devtools',
   reuseConnectTimeoutMs > 0
     && reuseConnectTimeoutMs <= 3000
-    && !/automator\.launch|WECHAT_AUTOMATOR_LAUNCH|WECHAT_DEVTOOLS_CLI|WECHAT_AUTOMATOR_PROJECT/u.test(wechatAutomator)
+    && !/automator\.launch\s*\(|WECHAT_AUTOMATOR_LAUNCH|WECHAT_DEVTOOLS_CLI|WECHAT_AUTOMATOR_PROJECT/u.test(wechatAutomator)
     && wechatAutomator.includes("callWxMethod('getAccountInfoSync')")
     && wechatAutomator.includes('refusing to launch or relaunch DevTools'),
   `reuseConnectTimeoutMs=${reuseConnectTimeoutMs || 'missing'}`,

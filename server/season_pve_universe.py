@@ -64,7 +64,7 @@ def _instant(value: Any, label: str) -> datetime:
 
 def item_relation_identity(value: dict[str, Any]) -> dict[str, Any]:
     row = value if isinstance(value, dict) else {}
-    return {
+    identity = {
         "sourceKey": _text(row.get("sourceKey")),
         "instanceId": _text(row.get("instanceId")),
         "encounterId": _text(row.get("encounterId")),
@@ -75,14 +75,26 @@ def item_relation_identity(value: dict[str, Any]) -> dict[str, Any]:
             "item relation progressionState",
         ),
     }
+    for field in (
+        "sourceKey",
+        "instanceId",
+        "encounterId",
+        "difficultyKey",
+        "itemId",
+    ):
+        if not identity[field]:
+            raise UniverseContractError(
+                f"item relation requires {field}"
+            )
+    if not _text(identity["progressionState"].get("kind")):
+        raise UniverseContractError(
+            "item relation requires progressionState.kind"
+        )
+    return identity
 
 
 def item_relation_key(value: dict[str, Any]) -> str:
     identity = item_relation_identity(value)
-    if not identity["sourceKey"] or not identity["itemId"]:
-        raise UniverseContractError(
-            "item relation requires sourceKey and itemId"
-        )
     return f"season-pve-item:sha256:{_content_hash(identity)}"
 
 
@@ -198,6 +210,7 @@ def _validated_exclusions(
             raise UniverseContractError("exclusion must be an object")
         for field in required_fields:
             _require_text(raw_row, field, "exclusion")
+        _instant(raw_row.get("decidedAt"), "exclusion decidedAt")
         member_key = _text(raw_row.get("memberKey"))
         if member_key in index:
             raise UniverseContractError(
@@ -212,7 +225,98 @@ GAP_REASON_CODES = {
     "pagination": "SOURCE_PAGINATION_INCOMPLETE",
     "fetch_failure": "SOURCE_FETCH_FAILED",
     "fallback": "SOURCE_FALLBACK_USED",
+    "official_journal_difficulty_membership_unavailable": (
+        "OFFICIAL_JOURNAL_DIFFICULTY_MEMBERSHIP_UNAVAILABLE"
+    ),
+    "official_progression_state_unavailable": (
+        "OFFICIAL_PROGRESSION_STATE_UNAVAILABLE"
+    ),
+    "official_recipe_output_item_id_unavailable": (
+        "OFFICIAL_RECIPE_OUTPUT_ITEM_ID_UNAVAILABLE"
+    ),
+    "official_source_membership_api_unavailable": (
+        "OFFICIAL_SOURCE_MEMBERSHIP_API_UNAVAILABLE"
+    ),
+    "official_transform_eligibility_relation_unavailable": (
+        "OFFICIAL_TRANSFORM_ELIGIBILITY_RELATION_UNAVAILABLE"
+    ),
 }
+
+
+def _source_effective_window(
+    policy_source: dict[str, Any],
+    *,
+    as_of: datetime,
+) -> dict[str, str]:
+    raw_window = policy_source.get("effectiveWindow")
+    if not isinstance(raw_window, dict):
+        return {
+            "state": "missing",
+            "reasonCode": "SOURCE_EFFECTIVE_WINDOW_MISSING",
+            "startsAt": "",
+            "endsAt": "",
+        }
+    starts_at_raw = _text(raw_window.get("startsAt"))
+    ends_at_raw = _text(raw_window.get("endsAt"))
+    end_policy = _text(raw_window.get("endPolicy"))
+    has_bounded_end = bool(ends_at_raw)
+    has_open_end = end_policy == "until_officially_superseded"
+    if (
+        not starts_at_raw
+        or has_bounded_end == has_open_end
+        or (end_policy and not has_open_end)
+    ):
+        return {
+            "state": "invalid",
+            "reasonCode": "SOURCE_EFFECTIVE_WINDOW_INVALID",
+            "startsAt": starts_at_raw,
+            "endsAt": ends_at_raw,
+            "endPolicy": end_policy,
+        }
+    try:
+        starts_at = _instant(
+            starts_at_raw,
+            f"{_text(policy_source.get('sourceKey'))} effectiveWindow.startsAt",
+        )
+        ends_at = (
+            _instant(
+                ends_at_raw,
+                f"{_text(policy_source.get('sourceKey'))} effectiveWindow.endsAt",
+            )
+            if has_bounded_end
+            else None
+        )
+    except UniverseContractError:
+        return {
+            "state": "invalid",
+            "reasonCode": "SOURCE_EFFECTIVE_WINDOW_INVALID",
+            "startsAt": starts_at_raw,
+            "endsAt": ends_at_raw,
+            "endPolicy": end_policy,
+        }
+    if ends_at is not None and starts_at > ends_at:
+        return {
+            "state": "invalid",
+            "reasonCode": "SOURCE_EFFECTIVE_WINDOW_INVALID",
+            "startsAt": starts_at_raw,
+            "endsAt": ends_at_raw,
+            "endPolicy": end_policy,
+        }
+    if as_of < starts_at or (ends_at is not None and as_of > ends_at):
+        return {
+            "state": "outside",
+            "reasonCode": "SOURCE_OUTSIDE_EFFECTIVE_WINDOW",
+            "startsAt": starts_at_raw,
+            "endsAt": ends_at_raw,
+            "endPolicy": end_policy,
+        }
+    return {
+        "state": "active",
+        "reasonCode": "",
+        "startsAt": starts_at_raw,
+        "endsAt": ends_at_raw,
+        "endPolicy": end_policy,
+    }
 
 
 def _gap_ledger_row(
@@ -243,6 +347,10 @@ def _source_ledger_row(
     as_of: datetime,
 ) -> dict[str, Any]:
     source_key = _text(policy_source.get("sourceKey"))
+    effective_window = _source_effective_window(
+        policy_source,
+        as_of=as_of,
+    )
     base = {
         "memberKey": _source_member_key(source_key),
         "memberType": "source",
@@ -251,7 +359,29 @@ def _source_ledger_row(
         "membershipMode": _text(policy_source.get("membershipMode")),
         "authorityRefs": list(policy_source.get("authorityRefs") or []),
         "minimumMemberCount": int(policy_source.get("minimumMemberCount") or 1),
+        "effectiveWindowState": effective_window["state"],
+        "effectiveStartsAt": effective_window["startsAt"],
+        "effectiveEndsAt": effective_window["endsAt"],
+        "effectiveEndPolicy": effective_window.get("endPolicy") or "",
     }
+    if effective_window["state"] in {"missing", "invalid"}:
+        return {
+            **base,
+            "outcome": "blocked",
+            "reasonCode": effective_window["reasonCode"],
+            "evidenceRef": "",
+            "capturedAt": "",
+        }
+    if effective_window["state"] == "outside":
+        return {
+            **base,
+            "outcome": "excluded",
+            "reasonCode": effective_window["reasonCode"],
+            "factOwner": _text(policy_source.get("sourcePolicyOwner"))
+            or "source_policy",
+            "evidenceRef": ";".join(base["authorityRefs"]),
+            "capturedAt": "",
+        }
     if discovered_source is None:
         return {
             **base,
@@ -517,6 +647,10 @@ def bounded_universe_report(
         "discoveryStatus",
         "capturedAt",
         "validUntil",
+        "effectiveWindowState",
+        "effectiveStartsAt",
+        "effectiveEndsAt",
+        "effectiveEndPolicy",
         "minimumMemberCount",
         "membershipComplete",
         "declaredMemberCount",
@@ -558,6 +692,7 @@ def bounded_universe_report(
             "universeRevision",
             "seasonRevision",
             "sourcePolicyRevision",
+            "sourcePolicyStatus",
             "asOf",
             "catalogRevision",
             "counts",
@@ -599,6 +734,7 @@ def build_season_pve_universe(
         "sourcePolicyRevision",
         "source policy",
     )
+    source_policy_status = _text(policy.get("status")).lower()
     policy_sources = _validated_policy_sources(policy)
     exclusion_index = _validated_exclusions(exclusions)
     as_of = _instant(discovery.get("asOf"), "discovery asOf")
@@ -621,6 +757,16 @@ def build_season_pve_universe(
     )
 
     ledger: list[dict[str, Any]] = []
+    if source_policy_status != "approved":
+        ledger.append(
+            _contract_ledger_row(
+                "SOURCE_POLICY_NOT_APPROVED",
+                {
+                    "owner": "source_policy",
+                    "actualStatus": source_policy_status or "missing",
+                },
+            )
+        )
     if not _text(catalog.get("catalogRevision")):
         ledger.append(
             _contract_ledger_row(
@@ -676,16 +822,19 @@ def build_season_pve_universe(
             )
         )
 
+    active_policy_source_count = 0
     for policy_source in policy_sources:
         source_key = _text(policy_source.get("sourceKey"))
         discovered_source = discovered_sources.get(source_key)
-        ledger.append(
-            _source_ledger_row(
-                policy_source,
-                discovered_source,
-                as_of=as_of,
-            )
+        source_ledger_row = _source_ledger_row(
+            policy_source,
+            discovered_source,
+            as_of=as_of,
         )
+        ledger.append(source_ledger_row)
+        if source_ledger_row.get("effectiveWindowState") != "active":
+            continue
+        active_policy_source_count += 1
         if discovered_source is None:
             continue
         for gap in discovered_source.get("gaps") or []:
@@ -694,8 +843,20 @@ def build_season_pve_universe(
                     f"{source_key} discovery gap must be an object"
                 )
             ledger.append(_gap_ledger_row(source_key, gap))
+        raw_members = discovered_source.get("members")
+        if isinstance(raw_members, list):
+            for raw_member in raw_members:
+                if (
+                    isinstance(raw_member, dict)
+                    and _text(raw_member.get("sourceKey")) != source_key
+                ):
+                    raise UniverseContractError(
+                        "discovery member sourceKey "
+                        f"{_text(raw_member.get('sourceKey')) or 'missing'} "
+                        f"does not match container {source_key}"
+                    )
         members = _index_unique(
-            discovered_source.get("members"),
+            raw_members,
             item_relation_key,
             f"{source_key} discovery members",
         )
@@ -708,6 +869,16 @@ def build_season_pve_universe(
                     exclusion_index,
                 )
             )
+    if active_policy_source_count == 0:
+        ledger.append(
+            _contract_ledger_row(
+                "NO_ACTIVE_REQUIRED_SOURCES",
+                {
+                    "owner": "source_policy",
+                    "auditInstant": as_of_raw,
+                },
+            )
+        )
 
     discovered_member_keys = {
         row["memberKey"]
@@ -774,6 +945,7 @@ def build_season_pve_universe(
         "schemaRevision": UNIVERSE_SCHEMA_REVISION,
         "seasonRevision": season_revision,
         "sourcePolicyRevision": source_policy_revision,
+        "sourcePolicyStatus": source_policy_status,
         "asOf": as_of_raw,
         "catalogRevision": _text(catalog.get("catalogRevision")),
         "policySources": policy_sources,
@@ -788,6 +960,7 @@ def build_season_pve_universe(
         ),
         "seasonRevision": season_revision,
         "sourcePolicyRevision": source_policy_revision,
+        "sourcePolicyStatus": source_policy_status,
         "asOf": as_of_raw,
         "catalogRevision": _text(catalog.get("catalogRevision")),
         "counts": counts,

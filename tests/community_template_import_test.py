@@ -309,6 +309,12 @@ class CommunityTemplateImportTest(unittest.TestCase):
             {"manifestRevision": "manifest-a", "pointerGeneration": 7},
         )
         self.assertEqual(public["importedGearBySlot"]["head"]["itemLevel"], 292)
+        self.assertEqual(public["visibleOptionsBySlot"], {
+            "head": {
+                "gem-a": {"optionKey": "gem-a", "optionType": "gem", "name": "Gem A"},
+                "enchant-a": {"optionKey": "enchant-a", "optionType": "enchant", "name": "Enchant A"},
+            }
+        })
         self.assertNotIn("selectedGearBySlot", public)
         self.assertNotIn("unresolvedBySlot", public)
 

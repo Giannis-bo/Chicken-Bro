@@ -29,6 +29,7 @@ class SeasonPveUniverseCliTest(unittest.TestCase):
                     "schemaVersion": 1,
                     "seasonRevision": "season-r1",
                     "sourcePolicyRevision": "policy-r1",
+                    "status": "approved",
                     "sources": [
                         {
                             "sourceKey": source_key,
@@ -87,6 +88,7 @@ class SeasonPveUniverseCliTest(unittest.TestCase):
                     "members": [],
                 },
             )
+            output = root / "blocked-report.json"
 
             completed = subprocess.run(
                 [
@@ -102,11 +104,16 @@ class SeasonPveUniverseCliTest(unittest.TestCase):
                     str(catalog),
                     "--max-ledger-rows",
                     "1",
+                    "--output",
+                    str(output),
                 ],
                 cwd=ROOT,
                 text=True,
                 capture_output=True,
                 check=False,
+            )
+            persisted_output = json.loads(
+                output.read_text(encoding="utf-8")
             )
 
         self.assertEqual(completed.returncode, 2)
@@ -115,6 +122,7 @@ class SeasonPveUniverseCliTest(unittest.TestCase):
         self.assertEqual(payload["diagnostics"]["ledgerRowsEmitted"], 1)
         self.assertTrue(payload["diagnostics"]["truncated"])
         self.assertNotIn("must-never-reach-stdout", completed.stdout)
+        self.assertEqual(persisted_output, payload)
 
     def test_verified_report_exits_zero(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -138,6 +146,10 @@ class SeasonPveUniverseCliTest(unittest.TestCase):
                 "required": True,
                 "membershipMode": "recipe",
                 "authorityRefs": ["official"],
+                "effectiveWindow": {
+                    "startsAt": "2026-07-01T00:00:00Z",
+                    "endsAt": "2026-08-31T23:59:59Z",
+                },
             }
             policy = self._write_json(
                 root,
@@ -146,6 +158,7 @@ class SeasonPveUniverseCliTest(unittest.TestCase):
                     "schemaVersion": 1,
                     "seasonRevision": "season-r1",
                     "sourcePolicyRevision": "policy-r1",
+                    "status": "approved",
                     "sources": [source_row],
                 },
             )

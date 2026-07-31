@@ -72,7 +72,11 @@ def intent():
                 "itemId": "1002",
                 "variantKey": MAIN_BROWSE,
                 "gemOptionIds": [],
-                "enchantOptionId": "",
+                # Community Release already decided this observed value is
+                # editor-managed. Exact projection may replace that public
+                # option identity, but may not invent occupancy from raw
+                # source-only Exact facts.
+                "enchantOptionId": "catalog-enchant-placeholder",
                 "embellishmentOptionId": "",
                 "craftedOptionId": "",
                 "catalystOptionId": "",
@@ -193,6 +197,30 @@ class GearExactTemplateOptionsTest(unittest.TestCase):
             projected["slots"]["head"]["enchantOptionId"],
             "",
         )
+
+    def test_project_does_not_promote_source_only_exact_enhancements_into_editor_state(self):
+        source_only = intent()
+        source_only["slots"]["main_hand"]["enchantOptionId"] = ""
+        registry = exact_registry()
+        for reference in registry["templateReferences"]:
+            reference["editorManagedEnhancementFields"] = []
+
+        result = project_exact_template_intent(
+            source_only,
+            registry,
+            catalog(),
+            TEMPLATE_AUTHORITY_IDENTITY,
+        )
+
+        self.assertEqual(result["status"], "verified")
+        self.assertEqual(
+            result["selectionIntent"]["slots"]["main_hand"]["enchantOptionId"],
+            "",
+        )
+        self.assertEqual(result["optionsById"], {})
+        self.assertEqual(result["evidenceRecordsById"], {})
+        self.assertEqual(result["visibleOptionsBySlot"], {})
+        self.assertFalse(has_exact_template_option(result["selectionIntent"]))
 
     def test_projection_blocks_partial_or_one_identity_to_many_content_groups(self):
         partial = exact_registry()
@@ -554,6 +582,29 @@ class GearExactTemplateOptionsTest(unittest.TestCase):
         )
         projected = projection["selectionIntent"]
         context = authority_context(projected)
+        context["itemsById"]["1002"]["baseCapabilities"].update({
+            "canEnchant": True,
+            "allowedEnchantOptionIds": [
+                "catalog-enchant-placeholder",
+                "official-main-enchant",
+            ],
+        })
+        context["variantsByKey"][MAIN_BROWSE]["capabilityOverrides"].update({
+            "canEnchant": True,
+            "allowedEnchantOptionIds": [
+                "catalog-enchant-placeholder",
+                "official-main-enchant",
+            ],
+        })
+        context["optionsById"]["official-main-enchant"] = {
+            "optionId": "official-main-enchant",
+            "optionType": "enchant",
+            "displayName": "Official Main Hand Enchant",
+            "applicableSlots": ["main_hand"],
+            "statDeltas": {},
+            "simcOptions": {"enchant_id": "official"},
+            "sourceRefIds": [],
+        }
 
         result = bind_exact_template_authority(
             projected,
@@ -581,6 +632,12 @@ class GearExactTemplateOptionsTest(unittest.TestCase):
                 "allowedEnchantOptionIds"
             ],
         )
+        self.assertEqual(
+            bound["itemsById"]["1002"]["baseCapabilities"][
+                "allowedEnchantOptionIds"
+            ],
+            [option_id, "official-main-enchant"],
+        )
         self.assertTrue(
             bound["itemsById"]["1002"]["baseCapabilities"]["canEnchant"]
         )
@@ -595,8 +652,113 @@ class GearExactTemplateOptionsTest(unittest.TestCase):
                 "capabilityOverrides"
             ]["allowedEnchantOptionIds"],
         )
+        self.assertEqual(
+            bound["variantsByKey"][MAIN_BROWSE][
+                "capabilityOverrides"
+            ]["allowedEnchantOptionIds"],
+            [option_id, "official-main-enchant"],
+        )
         source_ref = bound["optionsById"][option_id]["sourceRefIds"][0]
         self.assertIn(source_ref, bound["evidenceRecordsById"])
+
+    def test_exact_managed_enhancement_publishes_verified_slot_options_for_replacement(self):
+        projection = project_exact_template_intent(
+            intent(),
+            exact_registry(),
+            catalog(),
+            TEMPLATE_AUTHORITY_IDENTITY,
+        )
+        projected = projection["selectionIntent"]
+        context = authority_context(projected)
+        context["optionsById"]["official-main-enchant"] = {
+            "optionId": "official-main-enchant",
+            "optionType": "enchant",
+            "displayName": "Official Main Hand Enchant",
+            "applicableSlots": ["main_hand"],
+            "statDeltas": {},
+            "simcOptions": {"enchant_id": "official"},
+            "sourceRefIds": [],
+        }
+
+        result = bind_exact_template_authority(
+            projected,
+            context,
+            exact_registry(),
+            catalog(),
+            TEMPLATE_AUTHORITY_IDENTITY,
+        )
+
+        self.assertEqual(result["status"], "verified")
+        bound = result["authorityContext"]
+        exact_option_id = projected["slots"]["main_hand"]["enchantOptionId"]
+        expected = [exact_option_id, "official-main-enchant"]
+        self.assertEqual(
+            bound["itemsById"]["1002"]["baseCapabilities"][
+                "allowedEnchantOptionIds"
+            ],
+            expected,
+        )
+        self.assertEqual(
+            bound["variantsByKey"][MAIN_BROWSE]["capabilityOverrides"][
+                "allowedEnchantOptionIds"
+            ],
+            expected,
+        )
+
+    def test_exact_managed_socket_publishes_canonical_gem_replacements(self):
+        registry = exact_registry()
+        registry["templateReferences"][0]["editorManagedEnhancementFields"] = [
+            "gemOptionIds"
+        ]
+        registry["enhancementSelections"][0]["selection"]["gemIds"] = [
+            "240908"
+        ]
+        projection = project_exact_template_intent(
+            intent(),
+            registry,
+            catalog(),
+            TEMPLATE_AUTHORITY_IDENTITY,
+        )
+        projected = projection["selectionIntent"]
+        context = authority_context(projected)
+        context["optionsById"]["official-head-gem"] = {
+            "optionId": "official-head-gem",
+            "optionType": "gem",
+            "displayName": "Official Head Gem",
+            "applicableSlots": ["head"],
+            "statDeltas": {},
+            "simcOptions": {"gem_id": "240888"},
+            "sourceRefIds": [],
+        }
+
+        result = bind_exact_template_authority(
+            projected,
+            context,
+            registry,
+            catalog(),
+            TEMPLATE_AUTHORITY_IDENTITY,
+        )
+
+        self.assertEqual(result["status"], "verified")
+        bound = result["authorityContext"]
+        exact_option_id = projected["slots"]["head"]["gemOptionIds"][0]
+        expected = [exact_option_id, "official-head-gem"]
+        self.assertEqual(
+            bound["itemsById"]["1001"]["baseCapabilities"]["socketCount"],
+            1,
+        )
+        self.assertEqual(
+            bound["itemsById"]["1001"]["baseCapabilities"][
+                "allowedGemOptionIds"
+            ],
+            expected,
+        )
+        self.assertEqual(
+            bound["variantsByKey"][HEAD_BROWSE]["capabilityOverrides"][
+                "allowedGemOptionIds"
+            ],
+            expected,
+        )
 
     def test_forged_or_stale_exact_option_fails_closed(self):
         projection = project_exact_template_intent(
@@ -621,6 +783,106 @@ class GearExactTemplateOptionsTest(unittest.TestCase):
         self.assertIn(
             "EXACT_TEMPLATE_OPTION_NOT_AUTHORIZED",
             result["problemCodes"],
+        )
+
+    def test_binding_preserves_exact_options_and_allows_official_edit_on_an_empty_field(self):
+        projected = project_exact_template_intent(
+            intent(),
+            exact_registry(),
+            catalog(),
+            TEMPLATE_AUTHORITY_IDENTITY,
+        )["selectionIntent"]
+        edited = copy.deepcopy(projected)
+        edited["slots"]["head"]["enchantOptionId"] = "official-head-enchant"
+        context = authority_context(projected)
+        context["optionsById"]["official-head-enchant"] = {
+            "optionId": "official-head-enchant",
+            "optionType": "enchant",
+            "displayName": "Official Head Enchant",
+            "applicableSlots": ["head"],
+            "statDeltas": {},
+            "simcOptions": {"enchant_id": "official"},
+            "sourceRefIds": [],
+        }
+        context["itemsById"]["1001"]["baseCapabilities"].update({
+            "canEnchant": True,
+            "allowedEnchantOptionIds": ["official-head-enchant"],
+        })
+        context["variantsByKey"][HEAD_BROWSE]["capabilityOverrides"].update({
+            "canEnchant": True,
+            "allowedEnchantOptionIds": ["official-head-enchant"],
+        })
+
+        result = bind_exact_template_authority(
+            edited,
+            context,
+            exact_registry(),
+            catalog(),
+            TEMPLATE_AUTHORITY_IDENTITY,
+        )
+
+        self.assertEqual(result["status"], "verified")
+        self.assertEqual(
+            result["selectionIntent"]["slots"]["head"]["enchantOptionId"],
+            "official-head-enchant",
+        )
+        self.assertRegex(
+            result["selectionIntent"]["slots"]["main_hand"]["enchantOptionId"],
+            r"^exact-option:sha256:[0-9a-f]{64}$",
+        )
+
+    def test_binding_allows_official_option_to_replace_an_exact_import_option(self):
+        projected = project_exact_template_intent(
+            intent(),
+            exact_registry(),
+            catalog(),
+            TEMPLATE_AUTHORITY_IDENTITY,
+        )["selectionIntent"]
+        edited = copy.deepcopy(projected)
+        edited["slots"]["main_hand"]["enchantOptionId"] = (
+            "official-main-enchant"
+        )
+        context = authority_context(projected)
+        context["optionsById"]["official-main-enchant"] = {
+            "optionId": "official-main-enchant",
+            "optionType": "enchant",
+            "displayName": "Official Main Hand Enchant",
+            "applicableSlots": ["main_hand"],
+            "statDeltas": {},
+            "simcOptions": {"enchant_id": "official"},
+            "sourceRefIds": [],
+        }
+        context["itemsById"]["1002"]["baseCapabilities"].update({
+            "canEnchant": True,
+            "allowedEnchantOptionIds": ["official-main-enchant"],
+        })
+        context["variantsByKey"][MAIN_BROWSE][
+            "capabilityOverrides"
+        ].update({
+            "canEnchant": True,
+            "allowedEnchantOptionIds": ["official-main-enchant"],
+        })
+
+        result = bind_exact_template_authority(
+            edited,
+            context,
+            exact_registry(),
+            catalog(),
+            TEMPLATE_AUTHORITY_IDENTITY,
+        )
+
+        self.assertEqual(result["status"], "verified")
+        self.assertEqual(
+            result["selectionIntent"]["slots"]["main_hand"][
+                "enchantOptionId"
+            ],
+            "official-main-enchant",
+        )
+        self.assertEqual(
+            result["authorityContext"]["dependencyVector"][
+                "templateOriginSignature"
+            ],
+            TEMPLATE_AUTHORITY_IDENTITY,
         )
 
     def test_unique_empty_enhancement_loadout_still_binds_template_identity(self):

@@ -6,6 +6,7 @@ import { AppShell } from '@wow-mini/design-system/components/AppShell'
 import { PageFrame } from '@wow-mini/design-system/components/PageFrame'
 import { RouteStage } from '@wow-mini/design-system/components/RouteStage'
 import { RouteRegion } from '@wow-mini/design-system/components/RouteFlow'
+import { dataSelectorClass } from '@wow-mini/design-system/components/selector-markers'
 import {
   SimcBlockerPanel,
   SimcCombatConfiguration,
@@ -496,6 +497,9 @@ export default function SimcSubmitPage() {
   }
   const confirmationView = simcConfirmationLabel(confirmation.state, submitting, submittedTaskId)
   const loading = route.state.state === 'loading' && !data
+  const simcSpecializationId = data
+    ? `${data.selection.classKey}:${data.selection.specKey}`
+    : ''
 
   return (
     <AppShell
@@ -589,7 +593,20 @@ export default function SimcSubmitPage() {
           <RouteRegion className={styles['blockerRegion'] ?? ''} data-region="submission_blockers">
             <SimcBlockerPanel items={simcBlockerRows(modelInput)} />
           </RouteRegion>
-          <RouteRegion className={styles['actionRegion'] ?? ''} data-region="submission_action">
+          <RouteRegion
+            className={[
+              styles['actionRegion'] ?? '',
+              dataSelectorClass('simc-specialization-id', simcSpecializationId),
+              dataSelectorClass('simc-specialization-supported', optionsView.specializationSupported),
+              dataSelectorClass('simc-specialization-blocker-code', optionsView.specializationBlockerCode || 'none'),
+              dataSelectorClass('simc-options-state', optionsView.state),
+            ].filter(Boolean).join(' ')}
+            data-region="submission_action"
+            data-simc-options-state={optionsView.state}
+            data-simc-specialization-blocker-code={optionsView.specializationBlockerCode || 'none'}
+            data-simc-specialization-id={simcSpecializationId}
+            data-simc-specialization-supported={optionsView.specializationSupported}
+          >
             <SimcSubmissionActionBar
               canConfirm={canPrepare}
               canSubmit={confirmation.state === 'ready'}

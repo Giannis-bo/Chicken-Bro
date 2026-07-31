@@ -358,6 +358,50 @@ class GearRuleMatrixTest(unittest.TestCase):
         craft_codes = {problem["code"] for problem in self.result_for(result, "embellishment_and_crafted")["problems"]}
         self.assertEqual(craft_codes, {"GEAR_CRAFT_EMBELLISHMENT_UNKNOWN", "GEAR_CRAFT_OPTION_UNKNOWN"})
 
+    def test_customizable_crafted_variant_requires_its_resolver_option(self):
+        authority = self.authority()
+        authority["variantsByKey"]["variant-head"].update(
+            {
+                "status": "verified",
+                "capabilityOverrides": {"requiresCraftedOption": True},
+            }
+        )
+
+        missing = gear_rule_matrix.evaluate_rule_matrix(
+            self.intent({"head": self.slot("item-head", "variant-head")}),
+            authority,
+        )
+        selected = gear_rule_matrix.evaluate_rule_matrix(
+            self.intent(
+                {
+                    "head": self.slot(
+                        "item-head",
+                        "variant-head",
+                        craftedOptionId="crafted-a",
+                    )
+                }
+            ),
+            authority,
+        )
+
+        self.assertEqual(
+            [
+                problem["code"]
+                for problem in self.result_for(
+                    missing,
+                    "embellishment_and_crafted",
+                )["problems"]
+            ],
+            ["GEAR_CRAFT_OPTION_REQUIRED"],
+        )
+        self.assertEqual(
+            self.result_for(
+                selected,
+                "embellishment_and_crafted",
+            )["problems"],
+            [],
+        )
+
     def test_rule_matrix_keeps_catalyst_blocked_without_verified_capability(self):
         intent = self.intent(
             {"head": self.slot("item-head", "variant-head", catalystOptionId="catalyst-head")}

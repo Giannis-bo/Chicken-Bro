@@ -836,6 +836,7 @@ export interface CommunityTemplateImportData {
   template?: Readonly<Record<string, unknown>>
   manifest?: Readonly<Record<string, unknown>>
   importedGearBySlot?: Readonly<Record<string, GearItemReference>>
+  visibleOptionsBySlot?: Readonly<Record<string, Readonly<Record<string, GearEnhancementOption>>>>
   resolvedSnapshot?: GearResolvedSnapshot
 }
 

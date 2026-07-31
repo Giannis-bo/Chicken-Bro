@@ -69,6 +69,11 @@ try:
 except ImportError:
     from gear_resolved_loadout import canonical_simc_options
 
+try:
+    from .crafted_stats_authority import crafted_stats_option_identity
+except ImportError:
+    from crafted_stats_authority import crafted_stats_option_identity
+
 
 BASE_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = BASE_DIR.parent
@@ -9266,6 +9271,24 @@ def backfill_crafted_item_level_variants(conn, items, stat_resolver=None):
         }
         tracks = crafted_item_level_tracks_for_item(item)
         stat_options = crafted_stat_options_for_item(item)
+        secondary_stat_mode = str(
+            raw_item.get("secondaryStatMode") or ""
+        ).strip()
+        if (
+            not stat_options
+            and secondary_stat_mode == "fixed_or_recipe_defined_stats"
+        ):
+            stat_options = [
+                {
+                    "key": "fixed",
+                    "label": "固定属性",
+                    "value": "",
+                    "status": "verified",
+                    "payload": {
+                        "source": "official_recipe_capability",
+                    },
+                }
+            ]
         if not tracks:
             counts["skipped"] += 1
             counts["errors"].append(f"{item_id}: missing crafted item-level track evidence")
@@ -9287,6 +9310,7 @@ def backfill_crafted_item_level_variants(conn, items, stat_resolver=None):
             "sourceRefs": normalize_source_refs(raw_item.get("sourceRefs") or []),
             "trackEvidence": raw_item.get("trackEvidence") or raw_item.get("evidence") or [],
             "supportsVoidUpgrade": bool(crafted_item_supports_void_upgrade(item)),
+            "secondaryStatMode": secondary_stat_mode,
         }
         upsert_gear_source(
             conn,
@@ -9300,20 +9324,30 @@ def backfill_crafted_item_level_variants(conn, items, stat_resolver=None):
             },
         )
         for stat_option in stat_options:
+            if not normalize_option_value(stat_option.get("value")):
+                continue
+            option_identity = crafted_stats_option_identity(
+                stat_option.get("value"),
+            )
+            if not option_identity:
+                continue
             upsert_gear_mod_option(
                 conn,
                 {
-                    "id": f"crafted-stats-{stat_option['key']}",
+                    "id": option_identity["optionId"],
                     "type": "crafted_stats",
-                    "name": stat_option["label"],
+                    "name": option_identity["label"],
                     "applicableSlots": [slot],
-                    "simcOptions": {"crafted_stats": stat_option["value"]},
+                    "simcOptions": {
+                        "crafted_stats": option_identity["value"],
+                    },
                     "status": stat_option.get("status") or "verified",
                     "payload": {
                         **(stat_option.get("payload") or {}),
                         "source": "crafted_catalog",
-                        "craftedStatKey": stat_option["key"],
-                        "craftedStatLabel": stat_option["label"],
+                        "craftedOptionId": option_identity["optionId"],
+                        "craftedStatKey": option_identity["key"],
+                        "craftedStatLabel": option_identity["label"],
                     },
                 },
             )
@@ -9334,7 +9368,50 @@ def backfill_crafted_item_level_variants(conn, items, stat_resolver=None):
                 if not stats or stat_option.get("status") != "verified":
                     status = "partial"
                     blockers.append(str(stat_payload.get("error") or "SimC crafted item probe missing item stats")[:1000])
-                simc_options = {"ilevel": str(item_level), "crafted_stats": stat_option["value"]}
+                progression_evidence = [
+                    evidence
+                    for evidence in [
+                        *(raw_item.get("trackEvidence") or []),
+                        *(track.get("trackEvidence") or []),
+                    ]
+                    if isinstance(evidence, dict)
+                ]
+                progression_statuses = {
+                    str(
+                        evidence.get("progressionAuthorityStatus")
+                        or ""
+                    ).strip()
+                    for evidence in progression_evidence
+                    if str(
+                        evidence.get("progressionAuthorityStatus")
+                        or ""
+                    ).strip()
+                }
+                progression_reason_codes = unique_text_list(
+                    [
+                        evidence.get("progressionReasonCode")
+                        for evidence in progression_evidence
+                    ]
+                )
+                if "blocked" in progression_statuses:
+                    status = "blocked"
+                    blockers.extend(
+                        progression_reason_codes
+                        or ["crafted progression authority is blocked"]
+                    )
+                elif progression_statuses - {"verified"}:
+                    status = "partial"
+                    blockers.extend(
+                        progression_reason_codes
+                        or ["crafted progression authority is incomplete"]
+                    )
+                blockers = unique_text_list(blockers)
+                simc_options = {"ilevel": str(item_level)}
+                crafted_stats = normalize_option_value(
+                    stat_option.get("value")
+                )
+                if crafted_stats:
+                    simc_options["crafted_stats"] = crafted_stats
                 for key in ("bonus_id", "bonusId"):
                     value = normalize_option_value(raw_item.get(key) or track.get(key))
                     if value:
@@ -9346,10 +9423,51 @@ def backfill_crafted_item_level_variants(conn, items, stat_resolver=None):
                     "derivedVariantSource": CRAFTED_ITEM_LEVEL_PROBE_SOURCE,
                     "itemLevelTrack": difficulty_key,
                     "publicDifficultyKey": crafted_public_difficulty_key(difficulty_key),
-                    "craftedStatKey": stat_option["key"],
-                    "craftedStatLabel": stat_option["label"],
-                    "crafted_stats": stat_option["value"],
+                    "secondaryStatMode": secondary_stat_mode,
                     "statSource": "simulationcraft",
+                }
+                if crafted_stats:
+                    option_identity = crafted_stats_option_identity(
+                        crafted_stats,
+                    )
+                    if not option_identity:
+                        status = "blocked"
+                        blockers.append(
+                            "canonical crafted stat option identity unavailable"
+                        )
+                    payload.update(
+                        {
+                            "craftedOptionId": (
+                                option_identity["optionId"]
+                                if option_identity
+                                else ""
+                            ),
+                            "craftedStatKey": (
+                                option_identity["key"]
+                                if option_identity
+                                else stat_option["key"]
+                            ),
+                            "craftedStatLabel": (
+                                option_identity["label"]
+                                if option_identity
+                                else stat_option["label"]
+                            ),
+                            "crafted_stats": crafted_stats,
+                        }
+                    )
+                payload["capabilityOverrides"] = {
+                    **(
+                        payload.get("capabilityOverrides")
+                        if isinstance(
+                            payload.get("capabilityOverrides"),
+                            dict,
+                        )
+                        else {}
+                    ),
+                    "requiresCraftedOption": secondary_stat_mode in {
+                        "customize_two_secondary",
+                        "amplify_one_secondary",
+                    },
                 }
                 for key, value in stat_payload.items():
                     if value not in (None, "", [], {}):
@@ -9360,6 +9478,12 @@ def backfill_crafted_item_level_variants(conn, items, stat_resolver=None):
                     payload["statSummary"] = stat_payload.get("statSummary") or item_stat_summary(stats)
                     payload["statDisplayStatus"] = stat_payload.get("statDisplayStatus") or "verified_variant"
                 variant_id = f"crafted-itemlevel-{item_id}-{slot}-{difficulty_key}-{item_level}-{stat_option['key']}"
+                label = (
+                    f"{localized_difficulty_label(difficulty_key, track.get('label'), 'crafted')} "
+                    f"{item_level}"
+                )
+                if crafted_stats:
+                    label = f"{label} · {stat_option['label']}"
                 upsert_gear_variant(
                     conn,
                     {
@@ -9367,7 +9491,7 @@ def backfill_crafted_item_level_variants(conn, items, stat_resolver=None):
                         "itemId": item_id,
                         "slot": slot,
                         "variantKey": f"{crafted_public_difficulty_key(difficulty_key)}-{item_level}-{stat_option['key']}",
-                        "label": f"{localized_difficulty_label(difficulty_key, track.get('label'), 'crafted')} {item_level} · {stat_option['label']}",
+                        "label": label,
                         "sourceType": "crafted",
                         "difficultyKey": difficulty_key,
                         "itemLevel": item_level,
@@ -22656,6 +22780,9 @@ def gear_equipment_badges(item):
         if badge not in badges:
             badges.append(badge)
 
+    equipment_type_label = gear_public_contract.gear_equipment_type_label(item)
+    if equipment_type_label:
+        append_badge("equipment_type", equipment_type_label)
     handedness_label = str(item.get("handednessLabel") or "").strip()
     if handedness_label:
         append_badge("weapon_handedness", handedness_label)
@@ -24586,23 +24713,69 @@ def crafted_stat_option_key_from_variant(variant):
 def compact_crafted_stat_option(variant, primary_key=""):
     payload = variant.get("payload") if isinstance((variant or {}).get("payload"), dict) else {}
     simc_options = variant.get("simcOptions") if isinstance((variant or {}).get("simcOptions"), dict) else {}
-    crafted_stats = normalize_option_value(
+    raw_crafted_stats = normalize_option_value(
         simc_options.get("crafted_stats")
         or payload.get("crafted_stats")
         or payload.get("craftedStats")
     )
-    if not crafted_stats:
+    if not raw_crafted_stats:
         return None
+    option_identity = crafted_stats_option_identity(raw_crafted_stats)
+    crafted_stats = (
+        str(option_identity.get("value") or "").strip()
+        if isinstance(option_identity, dict)
+        else raw_crafted_stats
+    )
+    option_id = (
+        str(option_identity.get("optionId") or "").strip()
+        if isinstance(option_identity, dict)
+        else ""
+    )
+    option_key = (
+        str(option_identity.get("key") or "").strip()
+        if isinstance(option_identity, dict)
+        else crafted_stat_option_key_from_variant(variant)
+    )
+    option_label = (
+        str(option_identity.get("label") or "").strip()
+        if isinstance(option_identity, dict)
+        else crafted_stats
+    )
+    identity_conflict = bool(
+        option_identity
+        and any(
+            actual and actual != expected
+            for actual, expected in (
+                (
+                    str(payload.get("craftedOptionId") or "").strip(),
+                    option_id,
+                ),
+                (
+                    str(payload.get("craftedStatKey") or "").strip(),
+                    option_key,
+                ),
+                (
+                    str(payload.get("craftedStatLabel") or "").strip(),
+                    option_label,
+                ),
+            )
+        )
+    )
     if primary_key in PRIMARY_STAT_KEYS:
         filtered_payload = apply_primary_stat_filter_to_stat_payload(dict(payload), primary_key)
         if filtered_payload is None:
             return None
         payload = filtered_payload
     option = {
-        "key": crafted_stat_option_key_from_variant(variant),
-        "label": str(payload.get("craftedStatLabel") or crafted_stats),
+        "key": option_key,
+        "optionId": option_id,
+        "label": option_label,
         "simcOptions": {"crafted_stats": crafted_stats},
-        "status": str(variant.get("status") or payload.get("status") or "blocked"),
+        "status": (
+            str(variant.get("status") or payload.get("status") or "blocked")
+            if option_id and not identity_conflict
+            else "blocked"
+        ),
     }
     for key in (
         "itemStats",
@@ -24618,8 +24791,18 @@ def compact_crafted_stat_option(variant, primary_key=""):
         if value not in (None, "", [], {}):
             option[key] = value
     blockers = variant.get("blockers") or []
+    if not option_id:
+        blockers = [
+            *blockers,
+            "manufacturing stat option identity unavailable",
+        ]
+    if identity_conflict:
+        blockers = [
+            *blockers,
+            "manufacturing stat option identity conflicts with crafted_stats",
+        ]
     if blockers:
-        option["blockers"] = blockers
+        option["blockers"] = list(dict.fromkeys(blockers))
     return option
 
 
@@ -24675,8 +24858,22 @@ def compact_crafted_gear_variants(variants, primary_key=""):
             else:
                 compact_variant.pop("simcOptions", None)
             compact_variant["craftedStatOptions"] = []
+            compact_variant["craftedStatSelectionRequired"] = False
             by_track[track_key] = compact_variant
             order.append(track_key)
+        payload = (
+            variant.get("payload")
+            if isinstance(variant.get("payload"), dict)
+            else {}
+        )
+        secondary_stat_mode = str(
+            payload.get("secondaryStatMode") or ""
+        ).strip()
+        if option or secondary_stat_mode in {
+            "customize_two_secondary",
+            "amplify_one_secondary",
+        }:
+            by_track[track_key]["craftedStatSelectionRequired"] = True
         if option:
             existing_keys = {row.get("key") for row in by_track[track_key]["craftedStatOptions"]}
             if option["key"] not in existing_keys:

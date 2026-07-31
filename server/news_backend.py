@@ -21,6 +21,11 @@ from urllib.parse import parse_qs, urlencode, unquote, urlparse
 from urllib.request import urlopen
 
 try:
+    from . import gear_public_contract
+except ImportError:
+    import gear_public_contract
+
+try:
     from .analytics import (
         analytics_events,
         analytics_features,
@@ -10057,51 +10062,10 @@ def admin_gate_gear_class_label_payload(class_keys):
     }
 
 
-GEAR_ARMOR_TYPE_LABELS = {
-    "Cloth": "布甲",
-    "Leather": "皮甲",
-    "Mail": "锁甲",
-    "Plate": "板甲",
-    "Shield": "盾牌",
-    "Cosmetic": "外观",
-    "Miscellaneous": "其他护甲",
-}
-
-GEAR_WEAPON_TYPE_LABELS = {
-    "Dagger": "匕首",
-    "Fist Weapon": "拳套",
-    "One-Handed Axe": "单手斧",
-    "One-Handed Mace": "单手锤",
-    "One-Handed Sword": "单手剑",
-    "Warglaive": "战刃",
-    "Wand": "魔杖",
-    "Two-Handed Axe": "双手斧",
-    "Two-Handed Mace": "双手锤",
-    "Two-Handed Sword": "双手剑",
-    "Polearm": "长柄武器",
-    "Staff": "法杖",
-    "Bow": "弓",
-    "Crossbow": "弩",
-    "Gun": "枪械",
-    "Held In Off-hand": "副手物品",
-    "Shield": "盾牌",
-}
-
-GEAR_JEWELRY_SLOT_LABELS = {
-    "neck": "项链",
-    "finger": "戒指",
-    "finger1": "戒指",
-    "finger2": "戒指",
-    "trinket": "饰品",
-    "trinket1": "饰品",
-    "trinket2": "饰品",
-}
-
-GEAR_MISC_SLOT_TYPE_LABELS = {
-    "back": "披风",
-    "shirt": "衬衣",
-    "tabard": "战袍",
-}
+GEAR_ARMOR_TYPE_LABELS = gear_public_contract.GEAR_ARMOR_TYPE_LABELS
+GEAR_WEAPON_TYPE_LABELS = gear_public_contract.GEAR_WEAPON_TYPE_LABELS
+GEAR_JEWELRY_SLOT_LABELS = gear_public_contract.GEAR_JEWELRY_SLOT_LABELS
+GEAR_MISC_SLOT_TYPE_LABELS = gear_public_contract.GEAR_MISC_SLOT_TYPE_LABELS
 
 
 def admin_gate_nested_dict(payload, keys):

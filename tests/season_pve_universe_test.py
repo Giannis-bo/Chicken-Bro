@@ -62,6 +62,7 @@ def policy(*source_keys):
         "schemaVersion": 1,
         "seasonRevision": "season-midnight-s1-r1",
         "sourcePolicyRevision": "season-pve-source-policy-v1",
+        "status": "approved",
         "sources": [
             {
                 "sourceKey": key,
@@ -69,6 +70,10 @@ def policy(*source_keys):
                 "required": True,
                 "membershipMode": "direct_drop",
                 "authorityRefs": [f"official:{key}"],
+                "effectiveWindow": {
+                    "startsAt": "2026-07-01T00:00:00Z",
+                    "endsAt": "2026-08-31T23:59:59Z",
+                },
             }
             for key in source_keys
         ],
@@ -119,6 +124,197 @@ def catalog(*members):
 
 
 class SeasonPveUniverseTest(unittest.TestCase):
+    def test_unapproved_source_policy_cannot_claim_verified_universe(self):
+        source_policy = policy("raid:voidspire")
+        source_policy["status"] = "draft"
+
+        result = build_season_pve_universe(
+            source_policy,
+            discovery(source("raid:voidspire", members=[member("1001")])),
+            staging(member("1001")),
+            catalog(member("1001")),
+        )
+
+        self.assertEqual(result["status"], "blocked")
+        self.assertIn("SOURCE_POLICY_NOT_APPROVED", result["blockerCodes"])
+
+    def test_missing_source_effective_window_blocks_current_obtainability(self):
+        source_policy = policy("raid:voidspire")
+        source_policy["sources"][0].pop("effectiveWindow")
+
+        result = build_season_pve_universe(
+            source_policy,
+            discovery(source("raid:voidspire", members=[member("1001")])),
+            staging(member("1001")),
+            catalog(member("1001")),
+        )
+
+        self.assertEqual(result["status"], "blocked")
+        self.assertIn(
+            "SOURCE_EFFECTIVE_WINDOW_MISSING",
+            result["blockerCodes"],
+        )
+        source_row = next(
+            row for row in result["ledger"] if row["memberType"] == "source"
+        )
+        self.assertEqual(source_row["outcome"], "blocked")
+        self.assertEqual(
+            source_row["reasonCode"],
+            "SOURCE_EFFECTIVE_WINDOW_MISSING",
+        )
+
+    def test_source_outside_effective_window_is_excluded_from_current_universe(self):
+        source_policy = policy(
+            "raid:voidspire",
+            "timewalking_event:turbulent",
+        )
+        source_policy["sources"][1]["effectiveWindow"] = {
+            "startsAt": "2026-06-30T00:00:00Z",
+            "endsAt": "2026-07-28T23:59:59Z",
+        }
+        active_member = member("1001")
+
+        result = build_season_pve_universe(
+            source_policy,
+            discovery(source("raid:voidspire", members=[active_member])),
+            staging(active_member),
+            catalog(active_member),
+        )
+
+        self.assertEqual(result["status"], "verified")
+        source_row = next(
+            row
+            for row in result["ledger"]
+            if row["memberType"] == "source"
+            and row["sourceKey"] == "timewalking_event:turbulent"
+        )
+        self.assertEqual(source_row["outcome"], "excluded")
+        self.assertEqual(
+            source_row["reasonCode"],
+            "SOURCE_OUTSIDE_EFFECTIVE_WINDOW",
+        )
+
+    def test_invalid_source_effective_window_blocks_instead_of_guessing(self):
+        source_policy = policy("raid:voidspire")
+        source_policy["sources"][0]["effectiveWindow"] = {
+            "startsAt": "2026-08-01T00:00:00Z",
+            "endsAt": "2026-07-01T00:00:00Z",
+        }
+
+        result = build_season_pve_universe(
+            source_policy,
+            discovery(),
+            staging(),
+            catalog(),
+        )
+
+        self.assertEqual(result["status"], "blocked")
+        self.assertIn(
+            "SOURCE_EFFECTIVE_WINDOW_INVALID",
+            result["blockerCodes"],
+        )
+
+    def test_open_ended_season_window_is_active_until_officially_superseded(self):
+        source_policy = policy("raid:voidspire")
+        source_policy["sources"][0]["effectiveWindow"] = {
+            "startsAt": "2026-03-17T00:00:00Z",
+            "endPolicy": "until_officially_superseded",
+        }
+        discovered = member("1001")
+
+        result = build_season_pve_universe(
+            source_policy,
+            discovery(source("raid:voidspire", members=[discovered])),
+            staging(discovered),
+            catalog(discovered),
+        )
+
+        self.assertEqual(result["status"], "verified")
+        source_row = next(
+            row for row in result["ledger"] if row["memberType"] == "source"
+        )
+        self.assertEqual(source_row["effectiveWindowState"], "active")
+        self.assertEqual(
+            source_row["effectiveEndPolicy"],
+            "until_officially_superseded",
+        )
+        self.assertEqual(source_row["effectiveEndsAt"], "")
+
+    def test_unknown_open_ended_policy_blocks_instead_of_inventing_an_end(self):
+        source_policy = policy("raid:voidspire")
+        source_policy["sources"][0]["effectiveWindow"] = {
+            "startsAt": "2026-03-17T00:00:00Z",
+            "endPolicy": "assume_forever",
+        }
+
+        result = build_season_pve_universe(
+            source_policy,
+            discovery(),
+            staging(),
+            catalog(),
+        )
+
+        self.assertEqual(result["status"], "blocked")
+        self.assertIn(
+            "SOURCE_EFFECTIVE_WINDOW_INVALID",
+            result["blockerCodes"],
+        )
+
+    def test_no_active_required_source_blocks_empty_current_universe(self):
+        source_policy = policy("timewalking_event:turbulent")
+        source_policy["sources"][0]["effectiveWindow"] = {
+            "startsAt": "2026-06-30T00:00:00Z",
+            "endsAt": "2026-07-28T23:59:59Z",
+        }
+
+        result = build_season_pve_universe(
+            source_policy,
+            discovery(),
+            staging(),
+            catalog(),
+        )
+
+        self.assertEqual(result["status"], "blocked")
+        self.assertIn("NO_ACTIVE_REQUIRED_SOURCES", result["blockerCodes"])
+
+    def test_item_relation_requires_full_source_identity_and_progression_kind(self):
+        complete = member("1001")
+        for field in (
+            "instanceId",
+            "encounterId",
+            "difficultyKey",
+        ):
+            invalid = dict(complete)
+            invalid.pop(field)
+            with self.subTest(field=field):
+                with self.assertRaisesRegex(
+                    UniverseContractError,
+                    field,
+                ):
+                    item_relation_key(invalid)
+
+        invalid_progression = copy.deepcopy(complete)
+        invalid_progression["progressionState"].pop("kind")
+        with self.assertRaisesRegex(
+            UniverseContractError,
+            "progressionState.kind",
+        ):
+            item_relation_key(invalid_progression)
+
+    def test_discovery_member_source_must_match_its_container(self):
+        mismatched = member("1001", source_key="delve:season-1")
+
+        with self.assertRaisesRegex(
+            UniverseContractError,
+            "does not match container",
+        ):
+            build_season_pve_universe(
+                policy("raid:voidspire"),
+                discovery(source("raid:voidspire", members=[mismatched])),
+                staging(),
+                catalog(),
+            )
+
     def test_empty_required_source_cannot_claim_verified_membership(self):
         result = build_season_pve_universe(
             policy("raid:voidspire"),
@@ -365,6 +561,44 @@ class SeasonPveUniverseTest(unittest.TestCase):
         )
         self.assertEqual(result["counts"]["gapMembers"], 4)
 
+    def test_official_evidence_gap_keeps_its_upstream_reason_code(self):
+        result = build_season_pve_universe(
+            policy("raid:voidspire"),
+            discovery(
+                source(
+                    status="captured_partial",
+                    gaps=[
+                        {
+                            "kind": (
+                                "official_journal_difficulty_"
+                                "membership_unavailable"
+                            ),
+                            "boundary": (
+                                "journal_relation_to_difficulty"
+                            ),
+                            "identity": (
+                                "OFFICIAL_JOURNAL_DIFFICULTY_"
+                                "MEMBERSHIP_UNAVAILABLE"
+                            ),
+                            "evidenceRef": "official:snapshot",
+                        }
+                    ],
+                )
+            ),
+            staging(),
+            catalog(),
+        )
+
+        gap_row = next(
+            row
+            for row in result["ledger"]
+            if row["memberType"] == "gap"
+        )
+        self.assertEqual(
+            gap_row["reasonCode"],
+            "OFFICIAL_JOURNAL_DIFFICULTY_MEMBERSHIP_UNAVAILABLE",
+        )
+
     def test_each_discovered_item_is_included_or_blocked_at_exact_missing_layer(self):
         included = member("1001")
         staging_missing = member("1002")
@@ -440,6 +674,20 @@ class SeasonPveUniverseTest(unittest.TestCase):
                         catalog(),
                         exclusions=[invalid],
                     )
+
+        invalid_time = dict(valid)
+        invalid_time["decidedAt"] = "not-an-instant"
+        with self.assertRaisesRegex(
+            UniverseContractError,
+            "decidedAt requires an ISO-8601 instant",
+        ):
+            build_season_pve_universe(
+                policy("raid:voidspire"),
+                discovery(source(members=[excluded])),
+                staging(),
+                catalog(),
+                exclusions=[invalid_time],
+            )
 
     def test_revision_is_deterministic_across_input_order(self):
         first = member("1010", encounter_id="boss-2")
@@ -523,6 +771,10 @@ class SeasonPveUniverseTest(unittest.TestCase):
 
     def test_real_policy_covers_all_officially_named_acquisition_families(self):
         real_policy = json.loads(POLICY_PATH.read_text(encoding="utf-8"))
+        self.assertEqual(
+            real_policy["status"],
+            "required_membership_discovery",
+        )
         source_types = {
             row["sourceType"]
             for row in real_policy["sources"]
@@ -550,6 +802,66 @@ class SeasonPveUniverseTest(unittest.TestCase):
         for source_row in real_policy["sources"]:
             self.assertTrue(source_row["authorityRefs"])
             self.assertTrue(source_row["membershipMode"])
+
+        for source_row in real_policy["sources"]:
+            window = source_row.get("effectiveWindow")
+            self.assertIsInstance(window, dict)
+            self.assertTrue(window.get("startsAt"))
+            self.assertTrue(
+                bool(window.get("endsAt"))
+                ^ (
+                    window.get("endPolicy")
+                    == "until_officially_superseded"
+                )
+            )
+            self.assertTrue(window.get("startPrecision"))
+
+    def test_real_policy_current_guard_reports_exact_window_and_approval_blockers(self):
+        real_policy = json.loads(POLICY_PATH.read_text(encoding="utf-8"))
+        result = build_season_pve_universe(
+            real_policy,
+            {
+                "schemaVersion": 1,
+                "seasonRevision": real_policy["seasonRevision"],
+                "sourcePolicyRevision": real_policy["sourcePolicyRevision"],
+                "asOf": "2026-07-29T14:30:00Z",
+                "sources": [],
+            },
+            {
+                "schemaVersion": 1,
+                "seasonRevision": real_policy["seasonRevision"],
+                "members": [],
+            },
+            {
+                "schemaVersion": 1,
+                "seasonRevision": real_policy["seasonRevision"],
+                "catalogRevision": "blocked:not-independently-captured",
+                "members": [],
+            },
+        )
+
+        self.assertEqual(result["status"], "blocked")
+        self.assertEqual(
+            result["blockerCodes"],
+            [
+                "SOURCE_DISCOVERY_MISSING",
+                "SOURCE_POLICY_NOT_APPROVED",
+            ],
+        )
+        self.assertEqual(result["counts"]["sourceMembers"], 19)
+        self.assertEqual(result["counts"]["blocked"], 20)
+        self.assertEqual(
+            {
+                row["sourceKey"]
+                for row in result["ledger"]
+                if row.get("reasonCode")
+                == "SOURCE_DISCOVERY_MISSING"
+            },
+            {
+                source_row["sourceKey"]
+                for source_row in real_policy["sources"]
+            },
+        )
 
     def test_bounded_report_never_prints_an_unbounded_ledger(self):
         rows = [

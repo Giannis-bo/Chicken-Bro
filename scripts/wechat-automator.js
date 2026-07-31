@@ -9,6 +9,26 @@ const reuseConnectTimeoutMs = 2000
 const renderedPageTimeoutMs = 30000
 const systemInfoTimeoutMs = 30000
 const expectedAppId = projectConfig.appid
+const minimumAutomatorSdkVersion = '2.7.3'
+
+function parseSdkVersion(value) {
+  const raw = String(value ?? '').trim()
+  if (!/^\d+(?:\.\d+){2,}$/u.test(raw)) return null
+  const parts = raw.split('.').map(Number)
+  return parts.every(Number.isSafeInteger) ? parts : null
+}
+
+function compareSdkVersions(left, right) {
+  const leftParts = parseSdkVersion(left)
+  const rightParts = parseSdkVersion(right)
+  if (!leftParts || !rightParts) return null
+  const length = Math.max(leftParts.length, rightParts.length)
+  for (let index = 0; index < length; index += 1) {
+    const difference = (leftParts[index] ?? 0) - (rightParts[index] ?? 0)
+    if (difference) return Math.sign(difference)
+  }
+  return 0
+}
 
 function timeout(promise, milliseconds, label) {
   let timer
@@ -64,10 +84,109 @@ async function readSemanticValue(element, attribute, label = attribute) {
   return marker?.[1] ?? null
 }
 
+async function queryElementsWithXpathFallback(page, selector, xpath) {
+  const elements = await timeout(page.$$(selector), 2000, `query ${selector}`)
+  if (elements.length || !xpath) return elements
+  const fallback = await timeout(page.getElementByXpath(xpath), 2000, `query xpath fallback for ${selector}`)
+  return fallback ? [fallback] : []
+}
+
+async function queryElementsByXpathSequentially(page, xpath, maximumElements) {
+  if (!Number.isInteger(maximumElements) || maximumElements < 1) {
+    throw new Error(`invalid xpath element cap: ${maximumElements}`)
+  }
+  const elements = []
+  for (let index = 1; index <= maximumElements + 1; index += 1) {
+    const indexedXpath = `(${xpath})[${index}]`
+    const element = await timeout(
+      page.getElementByXpath(indexedXpath),
+      2000,
+      `query xpath element ${index}/${maximumElements}`,
+    )
+    if (!element) return elements
+    try {
+      const renderedClass = await timeout(
+        element.attribute('class'),
+        1500,
+        `validate xpath element ${index}/${maximumElements}`,
+      )
+      if (renderedClass === null || renderedClass === undefined) return elements
+    } catch (error) {
+      // WeChat DevTools 2.01.2501200 can return an Element wrapper whose
+      // protocol payload is undefined when an indexed XPath has no match.
+      if (
+        error instanceof Error
+        && error.message === "Cannot read properties of undefined (reading 'attributes')"
+      ) {
+        return elements
+      }
+      throw error
+    }
+    if (index > maximumElements) {
+      throw new Error(`xpath element cap exceeded: ${xpath} >${maximumElements}`)
+    }
+    elements.push(element)
+  }
+  return elements
+}
+
+async function assertAutomatorRuntimeCompatible(
+  miniProgram,
+  compatibilityTimeoutMs = reuseConnectTimeoutMs,
+) {
+  const systemInfo = await timeout(
+    miniProgram.callWxMethod('getSystemInfoSync'),
+    compatibilityTimeoutMs,
+    'read connected mini program runtime SDK',
+  )
+  const sdkVersion = systemInfo?.SDKVersion
+  if (typeof sdkVersion !== 'string' || !sdkVersion.trim()) {
+    throw new Error('WeChat runtime SDKVersion is missing; refusing an unverified Automator connection')
+  }
+  const versionComparison = (
+    sdkVersion === 'dev'
+      ? 0
+      : compareSdkVersions(sdkVersion, minimumAutomatorSdkVersion)
+  )
+  if (versionComparison === null) {
+    throw new Error(
+      `WeChat runtime SDKVersion is invalid: ${sdkVersion}`,
+    )
+  }
+  if (versionComparison < 0) {
+    throw new Error(
+      `WeChat runtime SDKVersion is ${sdkVersion}, while Automator requires at least ${minimumAutomatorSdkVersion}`,
+    )
+  }
+  return systemInfo
+}
+
+async function connectAutomatorEndpoint(
+  endpoint,
+  connectTool = automator.launcher.connectTool.bind(automator.launcher),
+  compatibilityTimeoutMs = reuseConnectTimeoutMs,
+) {
+  // DevTools 2.02.2607161 returns {version} from Tool.getInfo instead of the
+  // SDKVersion expected by miniprogram-automator 0.12.1. Connect to the
+  // protocol without that broken probe, then validate the real runtime SDK.
+  const miniProgram = await connectTool({ wsEndpoint: endpoint })
+  try {
+    await assertAutomatorRuntimeCompatible(miniProgram, compatibilityTimeoutMs)
+    return miniProgram
+  } catch (error) {
+    miniProgram.disconnect?.()
+    throw error
+  }
+}
+
 async function connectMiniProgram() {
   const endpoint = process.env.WECHAT_AUTOMATOR_ENDPOINT
   if (endpoint) {
-    const miniProgram = await timeout(automator.connect({ wsEndpoint: endpoint }), explicitConnectTimeoutMs, `connect ${endpoint}`)
+    const miniProgram = await timeout(
+      connectAutomatorEndpoint(endpoint, undefined, explicitConnectTimeoutMs),
+      explicitConnectTimeoutMs,
+      `connect ${endpoint}`,
+    )
     try {
       await assertExpectedProject(miniProgram)
       return miniProgram
@@ -81,7 +200,11 @@ async function connectMiniProgram() {
     if (await portIsListening(port)) {
       let miniProgram
       try {
-        miniProgram = await timeout(automator.connect({ wsEndpoint: `ws://127.0.0.1:${port}` }), reuseConnectTimeoutMs, `connect automation port ${port}`)
+        miniProgram = await timeout(
+          connectAutomatorEndpoint(`ws://127.0.0.1:${port}`),
+          reuseConnectTimeoutMs,
+          `connect automation port ${port}`,
+        )
         await assertExpectedProject(miniProgram)
         return miniProgram
       } catch {
@@ -125,10 +248,14 @@ function portIsListening(port) {
 }
 
 module.exports = {
+  assertAutomatorRuntimeCompatible,
   assertExpectedProject,
+  connectAutomatorEndpoint,
   connectMiniProgram,
   expectedAppId,
   hasRenderedRoot,
+  queryElementsByXpathSequentially,
+  queryElementsWithXpathFallback,
   readSemanticValue,
   timeout,
   waitForRenderedPage,

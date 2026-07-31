@@ -21,6 +21,11 @@ except ImportError:
     import gear_public_contract
 
 try:
+    from .crafted_stats_authority import crafted_stats_option_identity
+except ImportError:
+    from crafted_stats_authority import crafted_stats_option_identity
+
+try:
     from . import pg_gear_template_selectors
 except ImportError:
     import pg_gear_template_selectors
@@ -2054,7 +2059,22 @@ class PostgresCacheStore:
         for slot, options in (
             projection.get("visibleOptionsBySlot") or {}
         ).items():
-            visible.setdefault(slot, {}).update(options)
+            slot_visible = visible.setdefault(slot, {})
+            projected_types = {
+                str(option.get("optionType") or "").strip()
+                for option in options.values()
+                if isinstance(option, dict)
+                and str(option.get("optionType") or "").strip()
+            }
+            for option_key in list(slot_visible):
+                option = slot_visible.get(option_key)
+                if (
+                    isinstance(option, dict)
+                    and str(option.get("optionType") or "").strip()
+                    in projected_types
+                ):
+                    slot_visible.pop(option_key, None)
+            slot_visible.update(options)
         result["visibleOptionsBySlot"] = visible
         return result
 
@@ -2175,6 +2195,18 @@ class PostgresCacheStore:
 
         started = time.perf_counter()
         binding = self._active_manifest_binding_for_authority()
+        binding_manifest = (
+            binding.get("manifest")
+            if isinstance(binding, dict)
+            and isinstance(binding.get("manifest"), dict)
+            else {}
+        )
+        exact_editor_authority_kwargs = (
+            {"include_applicable_options": True}
+            if binding_manifest.get("schemaRevision")
+            == "active-season-manifest-v2"
+            else {}
+        )
         release_context = _community_template_import_release_context(binding)
         if not _release_binding_is_readable(binding):
             raise CommunityTemplateImportError(
@@ -2323,6 +2355,7 @@ class PostgresCacheStore:
                             runtime_authority,
                             binding,
                             source_variant_overrides=source_overrides,
+                            **exact_editor_authority_kwargs,
                         )
                     )
                 else:
@@ -2331,6 +2364,7 @@ class PostgresCacheStore:
                             resolver_selection_intent,
                             runtime_authority,
                             binding,
+                            **exact_editor_authority_kwargs,
                         )
                     )
                 authority_context = self._bind_manifest_exact_authority(
@@ -2476,6 +2510,7 @@ class PostgresCacheStore:
                         runtime_authority,
                         binding,
                         source_variant_overrides=source_overrides,
+                        **exact_editor_authority_kwargs,
                     )
                 )
             else:
@@ -2484,6 +2519,7 @@ class PostgresCacheStore:
                         resolver_selection_intent,
                         runtime_authority,
                         binding,
+                        **exact_editor_authority_kwargs,
                     )
                 )
             authority_context = self._bind_manifest_exact_authority(
@@ -7258,6 +7294,7 @@ class PostgresCacheStore:
             "verifiedCount": 0,
             "partialCount": 0,
             "blockedCount": 0,
+            "optionCount": 0,
             "errors": [],
         }
         prepared = []
@@ -7277,9 +7314,38 @@ class PostgresCacheStore:
                 counts["errors"].append(f"skipped backfill item missing required fields: {item_id or 'unknown'}")
                 continue
             simc_options = self._backfill_simc_options(row, item_level)
+            secondary_stat_mode = str(
+                row.get("secondaryStatMode") or ""
+            ).strip()
+            crafted_stats = normalize_option_value(
+                simc_options.get("crafted_stats")
+            )
+            crafted_option = (
+                crafted_stats_option_identity(crafted_stats)
+                if source_type == "crafted" and crafted_stats
+                else None
+            )
+            requires_crafted_option = (
+                source_type == "crafted"
+                and (
+                    secondary_stat_mode in {
+                        "customize_two_secondary",
+                        "amplify_one_secondary",
+                    }
+                    or bool(crafted_stats)
+                )
+            )
             default_status = "verified" if len(simc_options) > 1 else "partial"
             status = str(row.get("status") or default_status).strip() or default_status
             blockers = unique_text_list(row.get("blockers") or [])
+            if requires_crafted_option and not crafted_option:
+                status = "blocked"
+                blockers = unique_text_list(
+                    [
+                        *blockers,
+                        "canonical crafted stat option identity unavailable",
+                    ]
+                )
             if source_type == "observed_profile":
                 if observed_variant_stat_payload_fields(row):
                     status = "verified" if not blockers else "partial"
@@ -7329,6 +7395,18 @@ class PostgresCacheStore:
                     "status": status,
                     "blockers": blockers,
                     "simcOptions": simc_options,
+                    "craftedOption": crafted_option,
+                    "payloadCapabilityOverrides": {
+                        **(
+                            row.get("capabilityOverrides")
+                            if isinstance(
+                                row.get("capabilityOverrides"),
+                                dict,
+                            )
+                            else {}
+                        ),
+                        "requiresCraftedOption": requires_crafted_option,
+                    },
                 }
             )
         if not prepared:
@@ -7338,6 +7416,19 @@ class PostgresCacheStore:
                 counts["errors"].append("no PG-native gear backfill rows were eligible")
             return counts
         now = utc_now()
+        crafted_options = {}
+        for row in prepared:
+            option = row.get("craftedOption")
+            if not isinstance(option, dict):
+                continue
+            option_id = str(option.get("optionId") or "").strip()
+            if not option_id:
+                continue
+            aggregate = crafted_options.setdefault(
+                option_id,
+                {**option, "slots": set()},
+            )
+            aggregate["slots"].add(row["slot"])
         with self.connection() as conn:
             with conn.cursor() as cur:
                 for row in prepared:
@@ -7347,6 +7438,28 @@ class PostgresCacheStore:
                     status = row["status"]
                     source_key = row["sourceKey"]
                     variant_key = row["variantKey"]
+                    variant_payload = {
+                        key: value
+                        for key, value in row.items()
+                        if key not in {
+                            "craftedOption",
+                            "payloadCapabilityOverrides",
+                        }
+                    }
+                    variant_payload["capabilityOverrides"] = row[
+                        "payloadCapabilityOverrides"
+                    ]
+                    crafted_option = row.get("craftedOption")
+                    if isinstance(crafted_option, dict):
+                        variant_payload.update(
+                            {
+                                "craftedOptionId": crafted_option[
+                                    "optionId"
+                                ],
+                                "craftedStatKey": crafted_option["key"],
+                                "craftedStatLabel": crafted_option["label"],
+                            }
+                        )
                     cur.execute(
                         """
                         INSERT INTO cache.websim_items (id, name, slot, item_level, payload_json, source_status, updated_at)
@@ -7454,7 +7567,7 @@ class PostgresCacheStore:
                             row.get("name") or row.get("itemName") or f"Item {item_id}",
                             row["slot"],
                             item_level,
-                            json_param(row),
+                            json_param(variant_payload),
                             status,
                             now,
                         ),
@@ -7481,7 +7594,7 @@ class PostgresCacheStore:
                             item_id,
                             source_type,
                             source_key,
-                            json_param(row),
+                            json_param(variant_payload),
                             now,
                             row["sourceLabel"],
                             row.get("instanceId") or "",
@@ -7519,7 +7632,7 @@ class PostgresCacheStore:
                             item_id,
                             variant_key,
                             status,
-                            json_param(row),
+                            json_param(variant_payload),
                             now,
                             row["slot"],
                             row.get("label") or row.get("name") or f"{source_type} {item_id}",
@@ -7534,6 +7647,55 @@ class PostgresCacheStore:
                     counts["itemCount"] += 1
                     counts["sourceCount"] += 1
                     counts["variantCount"] += 1
+                for option_id in sorted(crafted_options):
+                    option = crafted_options[option_id]
+                    applicable_slots = sorted(option["slots"])
+                    cur.execute(
+                        """
+                        INSERT INTO cache.websim_gear_mod_options (
+                            id, variant_id, option_key, is_visible,
+                            payload_json, updated_at, option_type, name,
+                            applicable_slots_json, simc_options_json, status
+                        ) VALUES (
+                            %s, NULL, %s, TRUE, %s::jsonb, %s,
+                            'crafted_stats', %s, %s::jsonb, %s::jsonb,
+                            'verified'
+                        )
+                        ON CONFLICT (id) DO UPDATE SET
+                            option_key = EXCLUDED.option_key,
+                            is_visible = TRUE,
+                            payload_json = EXCLUDED.payload_json,
+                            updated_at = EXCLUDED.updated_at,
+                            option_type = EXCLUDED.option_type,
+                            name = EXCLUDED.name,
+                            applicable_slots_json = EXCLUDED.applicable_slots_json,
+                            simc_options_json = EXCLUDED.simc_options_json,
+                            status = EXCLUDED.status
+                        """,
+                        (
+                            self._deterministic_uuid(
+                                "gear-crafted-option",
+                                option_id,
+                            ),
+                            option_id,
+                            json_param(
+                                {
+                                    "source": "crafted_catalog",
+                                    "craftedOptionId": option_id,
+                                    "craftedStatKey": option["key"],
+                                    "craftedStatLabel": option["label"],
+                                    "statIds": option["statIds"],
+                                }
+                            ),
+                            now,
+                            option["label"],
+                            json_param(applicable_slots),
+                            json_param(
+                                {"crafted_stats": option["value"]}
+                            ),
+                        ),
+                    )
+                counts["optionCount"] = len(crafted_options)
         counts["sourceStatus"] = "partial" if counts["partialCount"] or counts["blockedCount"] else "verified"
         counts["status"] = counts["sourceStatus"]
         return counts

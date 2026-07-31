@@ -61,7 +61,7 @@ def validation(key, item_id, ilevel, bonus_ids, static_facts, **options):
 
 
 def reference(slot, item_id, key, status="verified", problem_codes=None):
-    return {
+    row = {
         "schemaRevision": "gear-exact-template-reference-v1",
         "catalogRevision": CATALOG_REVISION,
         "templateScope": "community",
@@ -75,6 +75,9 @@ def reference(slot, item_id, key, status="verified", problem_codes=None):
         "problemCodes": problem_codes or [],
         "rowHash": "sha256:" + ("8" * 64 if slot == "head" else "9" * 64),
     }
+    if slot == "main_hand":
+        row["editorManagedEnhancementFields"] = ["enchantOptionId"]
+    return row
 
 
 def exact_registry():

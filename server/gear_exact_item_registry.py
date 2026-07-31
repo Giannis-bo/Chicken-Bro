@@ -30,6 +30,12 @@ _ENHANCEMENT_FIELDS = (
     "craftedStats",
     "embellishmentIds",
 )
+_EDITOR_MANAGED_ENHANCEMENT_FIELDS = frozenset({
+    "gemOptionIds",
+    "enchantOptionId",
+    "embellishmentOptionId",
+    "craftedOptionId",
+})
 EXACT_REGISTRY_EVIDENCE_GAP_CODES = frozenset({
     "ENHANCEMENT_SINGLE_VALUE_MALFORMED",
 })
@@ -148,6 +154,13 @@ def _template_item_semantics(item: Any) -> dict[str, Any]:
             })
     if "enchantId" in row:
         result["enchantId"] = _text(row.get("enchantId"))
+    managed_fields = sorted({
+        _text(field)
+        for field in row.get("editorManagedEnhancementFields") or []
+        if _text(field) in _EDITOR_MANAGED_ENHANCEMENT_FIELDS
+    })
+    if managed_fields:
+        result["editorManagedEnhancementFields"] = managed_fields
     return result
 
 
@@ -193,6 +206,7 @@ def _reference_row(
     exact_key: str = "",
     problem_codes: list[str] | None = None,
     authority_identity: str = "",
+    editor_managed_enhancement_fields: Any = None,
 ) -> dict[str, Any]:
     row = {
         "schemaRevision": EXACT_TEMPLATE_REFERENCE_SCHEMA_REVISION,
@@ -205,6 +219,11 @@ def _reference_row(
         "exactItemInstanceKey": exact_key,
         "validationStatus": status,
         "problemCodes": sorted(set(problem_codes or [])),
+        "editorManagedEnhancementFields": sorted({
+            _text(field)
+            for field in editor_managed_enhancement_fields or []
+            if _text(field) in _EDITOR_MANAGED_ENHANCEMENT_FIELDS
+        }),
     }
     if _HASH_PATTERN.fullmatch(_text(authority_identity)):
         row["templateAuthorityIdentity"] = _text(authority_identity)
@@ -309,6 +328,9 @@ def build_exact_item_registry(
                     status="blocked",
                     problem_codes=[problem["code"]],
                     authority_identity=authority_identity,
+                    editor_managed_enhancement_fields=item.get(
+                        "editorManagedEnhancementFields"
+                    ),
                 ))
                 continue
 
@@ -384,6 +406,9 @@ def build_exact_item_registry(
                         status="partial" if evidence_partial else "blocked",
                         problem_codes=sorted(item_problem_codes),
                         authority_identity=authority_identity,
+                        editor_managed_enhancement_fields=item.get(
+                            "editorManagedEnhancementFields"
+                        ),
                     ))
                     continue
 
@@ -416,6 +441,9 @@ def build_exact_item_registry(
                         status="blocked",
                         problem_codes=[conflict["code"]],
                         authority_identity=authority_identity,
+                        editor_managed_enhancement_fields=item.get(
+                            "editorManagedEnhancementFields"
+                        ),
                     ))
                     continue
                 validation_rows[validation_key] = validation
@@ -430,6 +458,9 @@ def build_exact_item_registry(
                     status="verified",
                     exact_key=instance["exactItemInstanceKey"],
                     authority_identity=authority_identity,
+                    editor_managed_enhancement_fields=item.get(
+                        "editorManagedEnhancementFields"
+                    ),
                 ))
 
     references_by_hash = {

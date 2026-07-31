@@ -7,6 +7,14 @@ import sys
 from pathlib import Path
 
 try:
+    from .crafted_stats_authority import (
+        CRAFTED_STAT_ID_LABELS,
+        canonical_crafted_stats_value as canonical_crafted_stats_authority_value,
+        crafted_stats_option_identity,
+    )
+    from .crafted_pve_membership import (
+        crafted_pve_membership_items,
+    )
     from .db import (
         connect_postgres,
         database_config_from_env,
@@ -17,6 +25,14 @@ try:
     from .postgres_cache_sync import run_crafted_gear_backfill_postgres
     from . import websim_payload
 except ImportError:
+    from crafted_stats_authority import (
+        CRAFTED_STAT_ID_LABELS,
+        canonical_crafted_stats_value as canonical_crafted_stats_authority_value,
+        crafted_stats_option_identity,
+    )
+    from crafted_pve_membership import (
+        crafted_pve_membership_items,
+    )
     from db import (
         connect_postgres,
         database_config_from_env,
@@ -33,34 +49,15 @@ DB_PATH = Path(os.environ.get("WOW_NEWS_DB", BASE_DIR / "data" / "wow_news.sqlit
 DEFAULT_SQLITE_BUSY_TIMEOUT_MS = int(os.environ.get("WOW_CRAFTED_GEAR_BACKFILL_SQLITE_BUSY_TIMEOUT_MS", "30000"))
 DEFAULT_SIMC_BIN = os.environ.get("WOW_SIMC_BIN", "/opt/wow-simc/current/simc")
 
-CRAFTED_STAT_ID_LABELS = {
-    "32": ("crit", "暴击"),
-    "36": ("haste", "急速"),
-    "40": ("versatility", "全能"),
-    "49": ("mastery", "精通"),
-}
 STANDARD_CRAFTED_STATS_VALUES = ("32/36", "32/40", "32/49", "36/40", "36/49", "40/49")
 CURRENT_PVE_CRAFTED_METADATA_ITEMS = {
-    # Blacksmithing: epic plate armor and weapons.
-    **{str(item_id): {"profession": "blacksmithing", "evidence": "midnight_pve_recipe_audit"} for item_id in range(237828, 237851)},
-    # Tailoring: epic cloth armor.
-    **{str(item_id): {"profession": "tailoring", "evidence": "midnight_pve_recipe_audit"} for item_id in range(239648, 239657)},
-    # Jewelcrafting: epic customizable ring and neck. PvP competitor jewelry is intentionally excluded.
-    "240949": {"profession": "jewelcrafting", "evidence": "midnight_pve_recipe_audit"},
-    "240950": {"profession": "jewelcrafting", "evidence": "midnight_pve_recipe_audit"},
-    # Leatherworking: epic leather and mail armor.
-    **{str(item_id): {"profession": "leatherworking", "evidence": "midnight_pve_recipe_audit"} for item_id in range(244569, 244585)},
-    # Inscription: epic weapons and off-hand.
-    "245769": {"profession": "inscription", "evidence": "midnight_pve_recipe_audit"},
-    "245770": {"profession": "inscription", "evidence": "midnight_pve_recipe_audit"},
-    "245771": {"profession": "inscription", "evidence": "midnight_pve_recipe_audit"},
-    "265337": {"profession": "inscription", "evidence": "midnight_pve_recipe_audit"},
+    item["itemId"]: {
+        **item,
+        "evidence": "current_client_official_crafted_membership",
+    }
+    for item in crafted_pve_membership_items()
 }
-UNSUPPORTED_CRAFTED_METADATA_ITEMS = {
-    # Engineering combat gear uses a single amplified secondary stat. Keep it out
-    # of the two-stat crafted_stats lane until the probe and UI support it.
-    "244774": "engineering_single_stat_crafted_gear_unsupported",
-}
+UNSUPPORTED_CRAFTED_METADATA_ITEMS = {}
 EXCLUDED_CRAFTED_METADATA_ITEMS = {
     # Previous/observed random-stat or drop items that expose crafting-like item
     # metadata but are not current-season PVE crafted recipes.
@@ -122,36 +119,81 @@ def ensure_simc_env():
         os.environ["WOW_SIMC_BIN"] = str(DEFAULT_SIMC_BIN)
 
 
-def canonical_crafted_stats_value(value):
-    text = websim_payload.normalize_option_value(value)
-    if not text:
-        return ""
-    parts = [part for part in text.split("/") if part]
-    if len(parts) != 2:
-        return ""
-    if any(part not in CRAFTED_STAT_ID_LABELS for part in parts):
-        return ""
-    return "/".join(sorted(parts, key=lambda part: int(part)))
+def canonical_crafted_stats_value(value, *, expected_count=2):
+    return canonical_crafted_stats_authority_value(
+        websim_payload.normalize_option_value(value),
+        expected_count=int(expected_count or 0),
+    )
 
 
-def crafted_stats_option(value, *, observed=False):
-    canonical = canonical_crafted_stats_value(value)
+def crafted_stats_option(value, *, observed=False, expected_count=2):
+    canonical = canonical_crafted_stats_value(
+        value,
+        expected_count=expected_count,
+    )
     if not canonical:
         return None
-    parts = canonical.split("/")
-    keys = [CRAFTED_STAT_ID_LABELS[part][0] for part in parts]
-    labels = [CRAFTED_STAT_ID_LABELS[part][1] for part in parts]
+    identity = crafted_stats_option_identity(
+        canonical,
+        expected_count=expected_count,
+    )
+    if not identity:
+        return None
     return {
-        "key": "-".join(keys),
-        "label": " + ".join(labels),
+        "key": identity["key"],
+        "optionId": identity["optionId"],
+        "label": identity["label"],
         "value": canonical,
         "status": "verified",
         "payload": {
-            "statIds": parts,
+            "statIds": identity["statIds"],
             "source": "simulationcraft_profile_preset",
             "observedInProfilePreset": bool(observed),
         },
     }
+
+
+def crafted_stat_options_for_mode(
+    secondary_stat_mode,
+    *,
+    observed_values=None,
+    observed_only=False,
+):
+    observed = {
+        websim_payload.normalize_option_value(value)
+        for value in (observed_values or [])
+        if websim_payload.normalize_option_value(value)
+    }
+    if secondary_stat_mode == "customize_two_secondary":
+        values = (
+            sorted(observed)
+            if observed_only
+            else list(STANDARD_CRAFTED_STATS_VALUES)
+        )
+        expected_count = 2
+    elif secondary_stat_mode == "amplify_one_secondary":
+        values = (
+            sorted(observed)
+            if observed_only
+            else list(CRAFTED_STAT_ID_LABELS)
+        )
+        expected_count = 1
+    elif secondary_stat_mode == "fixed_or_recipe_defined_stats":
+        return []
+    else:
+        return []
+    return [
+        option
+        for option in (
+            crafted_stats_option(
+                value,
+                observed=value in observed,
+                expected_count=expected_count,
+            )
+            for value in values
+        )
+        if option
+    ]
 
 
 def profile_source_ref(preset_id, class_key, spec_key, name):
@@ -240,6 +282,39 @@ def curated_source_ref(item_id, curated):
     }
 
 
+def membership_source_refs(item):
+    item = item if isinstance(item, dict) else {}
+    item_id = str(item.get("itemId") or "").strip()
+    refs = [
+        {
+            "id": f"current-client-crafted-recipe-{item.get('recipeId')}",
+            "sourceType": "current_client_crafting_relation",
+            "sourceLabel": "Current WoW client recipe output relation",
+            "itemId": item_id,
+            "recipeId": str(item.get("recipeId") or "").strip(),
+            "clientBuild": str(item.get("clientBuild") or "").strip(),
+            "status": str(
+                item.get("membershipStatus")
+                or "verified_output_item"
+            ).strip(),
+            "evidenceRef": str(item.get("evidenceRef") or "").strip(),
+        }
+    ]
+    official_item_ref = str(item.get("officialItemRef") or "").strip()
+    if official_item_ref:
+        refs.append(
+            {
+                "id": f"official-equippable-item-{item_id}",
+                "sourceType": "battle_net_item_search",
+                "sourceLabel": "Battle.net official equippable item index",
+                "itemId": item_id,
+                "status": "verified",
+                "sourceUrl": official_item_ref,
+            }
+        )
+    return refs
+
+
 def metadata_track_evidence(slot, supports_void_upgrade, *, source="battle_net_item_metadata", evidence="modified_crafting_stat"):
     evidence = {
         "source": source,
@@ -253,6 +328,17 @@ def metadata_track_evidence(slot, supports_void_upgrade, *, source="battle_net_i
     else:
         evidence["voidUpgradeRule"] = "not_weapon_or_shield"
     return evidence
+
+
+def membership_supports_void_upgrade(item):
+    item = item if isinstance(item, dict) else {}
+    return (
+        item.get("supportsVoidUpgrade") is True
+        and str(
+            item.get("voidUpgradeEligibilityStatus") or ""
+        ).strip()
+        == "verified"
+    )
 
 
 def crafted_metadata_supports_void_upgrade(metadata, profile_item=None):
@@ -338,13 +424,20 @@ def _catalog_item_from_aggregate(conn, item_id, aggregate, *, stat_scope="all"):
     if supports_void_upgrade:
         tracks.append(_track_for_item(aggregate, "crafted_void_upgrade", 295, "虚空晋升 295", observed_levels))
     observed_stats = set(aggregate.get("craftedStats", set()))
-    if stat_scope == "observed":
-        stat_values = sorted(observed_stats)
-    else:
-        stat_values = list(STANDARD_CRAFTED_STATS_VALUES)
-    stat_options = [crafted_stats_option(value, observed=value in observed_stats) for value in stat_values]
-    stat_options = [option for option in stat_options if option]
-    if not stat_options:
+    governed = CURRENT_PVE_CRAFTED_METADATA_ITEMS.get(item_id) or {}
+    secondary_stat_mode = str(
+        governed.get("secondaryStatMode")
+        or "customize_two_secondary"
+    ).strip()
+    stat_options = crafted_stat_options_for_mode(
+        secondary_stat_mode,
+        observed_values=observed_stats,
+        observed_only=stat_scope == "observed",
+    )
+    if (
+        not stat_options
+        and secondary_stat_mode != "fixed_or_recipe_defined_stats"
+    ):
         return None
     source_refs = aggregate.get("sourceRefs") or []
     return {
@@ -361,6 +454,7 @@ def _catalog_item_from_aggregate(conn, item_id, aggregate, *, stat_scope="all"):
         "profession": "profile_preview",
         "recipeId": "",
         "status": "verified",
+        "secondaryStatMode": secondary_stat_mode,
         "supportsVoidUpgrade": supports_void_upgrade,
         "allowedTracks": tracks,
         "allowedCraftedStats": stat_options,
@@ -409,7 +503,18 @@ def crafted_catalog_items_from_simc_presets(conn, *, item_ids=None, limit=None, 
                 continue
             if item_id not in CURRENT_PVE_CRAFTED_METADATA_ITEMS:
                 continue
-            option = crafted_stats_option(item.get("crafted_stats"), observed=True)
+            governed = CURRENT_PVE_CRAFTED_METADATA_ITEMS[item_id]
+            mode = str(
+                governed.get("secondaryStatMode")
+                or "customize_two_secondary"
+            ).strip()
+            option = crafted_stats_option(
+                item.get("crafted_stats"),
+                observed=True,
+                expected_count=(
+                    1 if mode == "amplify_one_secondary" else 2
+                ),
+            )
             if not option:
                 continue
             aggregate = aggregates.setdefault(
@@ -548,11 +653,28 @@ def crafted_catalog_items_from_metadata(conn, *, item_ids=None, slots=None, limi
         for ref in profile_item.get("sourceRefs") or []:
             if isinstance(ref, dict):
                 _merge_source_ref(source_refs, ref)
-        if stat_scope == "observed" and profile_item.get("allowedCraftedStats"):
+        secondary_stat_mode = str(
+            governed.get("secondaryStatMode")
+            or "customize_two_secondary"
+        ).strip()
+        if (
+            stat_scope == "observed"
+            and profile_item.get("allowedCraftedStats")
+        ):
             stat_options = profile_item["allowedCraftedStats"]
         else:
-            stat_options = [crafted_stats_option(value, observed=False) for value in STANDARD_CRAFTED_STATS_VALUES]
-            stat_options = [option for option in stat_options if option]
+            stat_options = crafted_stat_options_for_mode(
+                secondary_stat_mode,
+                observed_values=[
+                    option.get("value")
+                    for option in profile_item.get(
+                        "allowedCraftedStats",
+                    )
+                    or []
+                    if isinstance(option, dict)
+                ],
+                observed_only=stat_scope == "observed",
+            )
         type_metadata = websim_payload.item_type_metadata_from_payload(metadata_payload)
         items.append(
             {
@@ -569,6 +691,7 @@ def crafted_catalog_items_from_metadata(conn, *, item_ids=None, slots=None, limi
                 ),
                 "recipeId": str(profile_item.get("recipeId") or curated.get("recipeId") or ""),
                 "status": "verified",
+                "secondaryStatMode": secondary_stat_mode,
                 "supportsVoidUpgrade": supports_void_upgrade,
                 "allowedTracks": metadata_tracks_for_item(supports_void_upgrade, evidence, profile_item),
                 "allowedCraftedStats": stat_options,
@@ -576,6 +699,145 @@ def crafted_catalog_items_from_metadata(conn, *, item_ids=None, slots=None, limi
                 "trackEvidence": [evidence, *(profile_item.get("trackEvidence") or [])],
                 "armorType": type_metadata.get("armorType") or "",
                 "weaponType": type_metadata.get("weaponType") or "",
+            }
+        )
+        if limit and len(items) >= int(limit):
+            break
+    return items
+
+
+def crafted_catalog_items_from_membership(
+    conn,
+    *,
+    item_ids=None,
+    slots=None,
+    limit=None,
+    stat_scope="all",
+):
+    """Materialize all governed crafted members, including fixed-stat recipes."""
+
+    websim_payload.ensure_websim_tables(conn)
+    target_ids = {
+        websim_payload.normalize_option_value(item_id)
+        for item_id in (item_ids or [])
+        if websim_payload.normalize_option_value(item_id)
+    }
+    target_slots = {
+        websim_payload.normalize_slot(slot)
+        for slot in (slots or [])
+        if websim_payload.normalize_slot(slot)
+    }
+    profile_items_by_id = {
+        item["itemId"]: item
+        for item in crafted_catalog_items_from_simc_presets(
+            conn,
+            item_ids=item_ids,
+            stat_scope="observed",
+        )
+    }
+    items = []
+    for item_id, governed in sorted(
+        CURRENT_PVE_CRAFTED_METADATA_ITEMS.items(),
+        key=lambda row: int(row[0]),
+    ):
+        if target_ids and item_id not in target_ids:
+            continue
+        slot = websim_payload.normalize_slot(governed.get("slot"))
+        if not slot or (target_slots and slot not in target_slots):
+            continue
+        metadata = websim_payload.existing_websim_item_metadata(
+            conn,
+            item_id,
+        ) or {}
+        metadata_payload = (
+            metadata.get("payload")
+            if isinstance(metadata.get("payload"), dict)
+            else {}
+        )
+        type_metadata = websim_payload.item_type_metadata_from_payload(
+            metadata_payload
+        )
+        profile_item = profile_items_by_id.get(item_id) or {}
+        secondary_stat_mode = str(
+            governed.get("secondaryStatMode") or ""
+        ).strip()
+        observed_values = [
+            option.get("value")
+            for option in profile_item.get("allowedCraftedStats") or []
+            if isinstance(option, dict)
+        ]
+        stat_options = crafted_stat_options_for_mode(
+            secondary_stat_mode,
+            observed_values=observed_values,
+            observed_only=stat_scope == "observed",
+        )
+        supports_void_upgrade = membership_supports_void_upgrade(
+            governed
+        )
+        evidence = metadata_track_evidence(
+            slot,
+            supports_void_upgrade,
+            source="current_client_official_crafted_membership",
+            evidence="verified_recipe_output_and_equippable_item_identity",
+        )
+        evidence["progressionAuthorityStatus"] = "blocked"
+        evidence["progressionReasonCode"] = (
+            "OFFICIAL_PROGRESSION_STATE_UNAVAILABLE"
+        )
+        source_refs = membership_source_refs(governed)
+        for ref in profile_item.get("sourceRefs") or []:
+            if isinstance(ref, dict):
+                _merge_source_ref(source_refs, ref)
+        items.append(
+            {
+                "itemId": item_id,
+                "name": str(
+                    metadata.get("displayName")
+                    or metadata.get("name")
+                    or governed.get("name")
+                    or f"item_{item_id}"
+                ),
+                "slot": slot,
+                "sourceId": f"crafted-governed-{item_id}",
+                "sourceLabel": "制造装备",
+                "profession": str(
+                    governed.get("profession") or ""
+                ),
+                "recipeId": str(governed.get("recipeId") or ""),
+                "status": "verified",
+                "membershipStatus": str(
+                    governed.get("membershipStatus")
+                    or "verified_output_item"
+                ),
+                "secondaryStatMode": secondary_stat_mode,
+                "canAddEmbellishment": bool(
+                    governed.get("canAddEmbellishment")
+                ),
+                "supportsSocketReagent": bool(
+                    governed.get("supportsSocketReagent")
+                ),
+                "supportsVoidUpgrade": supports_void_upgrade,
+                "allowedTracks": metadata_tracks_for_item(
+                    supports_void_upgrade,
+                    evidence,
+                    profile_item,
+                ),
+                "allowedCraftedStats": stat_options,
+                "sourceRefs": source_refs,
+                "trackEvidence": [
+                    evidence,
+                    *(profile_item.get("trackEvidence") or []),
+                ],
+                "armorType": str(
+                    type_metadata.get("armorType")
+                    or governed.get("armorType")
+                    or ""
+                ),
+                "weaponType": str(
+                    type_metadata.get("weaponType")
+                    or governed.get("weaponType")
+                    or ""
+                ),
             }
         )
         if limit and len(items) >= int(limit):
@@ -615,6 +877,7 @@ def parse_args(argv=None):
     parser = argparse.ArgumentParser(description="Backfill governed crafted gear catalog variants.")
     parser.add_argument("--db", default=str(DB_PATH), help="Path to wow_news.sqlite3")
     parser.add_argument("--from-metadata", action="store_true", help="Build crafted catalog items from existing websim_items metadata with modified_crafting_stat.")
+    parser.add_argument("--from-membership", action="store_true", help="Build the complete current-season crafted catalog from governed membership.")
     parser.add_argument("--from-simc-presets", action="store_true", help="Build crafted preview catalog items from existing SimC profile presets.")
     parser.add_argument("--seed-json", help="Path to a controlled crafted catalog seed JSON file.")
     parser.add_argument("--item-id", action="append", default=[], help="Only include the given item id. Can be repeated.")
@@ -627,8 +890,13 @@ def parse_args(argv=None):
 
 def main(argv=None):
     args = parse_args(argv)
-    if not args.from_metadata and not args.from_simc_presets and not args.seed_json:
-        print("error: pass --from-metadata, --from-simc-presets, or --seed-json", file=sys.stderr)
+    if (
+        not args.from_membership
+        and not args.from_metadata
+        and not args.from_simc_presets
+        and not args.seed_json
+    ):
+        print("error: pass --from-membership, --from-metadata, --from-simc-presets, or --seed-json", file=sys.stderr)
         return 2
     if postgres_only_runtime_enabled() and not sqlite_migration_source_enabled():
         summary = run_crafted_gear_backfill_postgres()
@@ -647,6 +915,14 @@ def main(argv=None):
                 ]
             if args.limit:
                 items = items[: max(0, int(args.limit))]
+        elif args.from_membership:
+            items = crafted_catalog_items_from_membership(
+                conn,
+                item_ids=args.item_id,
+                slots=args.slot or None,
+                limit=max(0, int(args.limit or 0)) or None,
+                stat_scope=args.stat_scope,
+            )
         elif args.from_metadata:
             items = crafted_catalog_items_from_metadata(
                 conn,

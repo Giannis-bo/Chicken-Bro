@@ -536,6 +536,32 @@ def community_template_import_public_data(
     )
     if status == "verified" and imported is None:
         return None
+    public_visible_options: dict[str, dict[str, dict[str, str]]] = {}
+    visible_options = value.get("visibleOptionsBySlot")
+    if status == "verified" and isinstance(visible_options, dict):
+        for slot, raw_options in sorted(visible_options.items()):
+            if not isinstance(slot, str) or not slot or not isinstance(raw_options, dict):
+                continue
+            projected: dict[str, dict[str, str]] = {}
+            for option_key, raw_option in sorted(raw_options.items()):
+                option = raw_option if isinstance(raw_option, dict) else {}
+                normalized_key = _text(option.get("optionKey"))
+                option_type = _text(option.get("optionType"))
+                name = _text(option.get("name"))
+                if (
+                    not isinstance(option_key, str)
+                    or option_key != normalized_key
+                    or option_type not in {"gem", "enchant", "embellishment", "crafted"}
+                    or not name
+                ):
+                    continue
+                projected[option_key] = {
+                    "optionKey": option_key,
+                    "optionType": option_type,
+                    "name": name,
+                }
+            if projected:
+                public_visible_options[slot] = projected
     return _copy({
         "contractRevision": COMMUNITY_TEMPLATE_IMPORT_CONTRACT_REVISION,
         "status": status,
@@ -545,6 +571,7 @@ def community_template_import_public_data(
             "pointerGeneration": context.get("pointerGeneration") if isinstance(context.get("pointerGeneration"), int) else 0,
         },
         "importedGearBySlot": imported if status == "verified" else {},
+        "visibleOptionsBySlot": public_visible_options,
         "resolvedSnapshot": resolved_snapshot if status == "verified" and isinstance(resolved_snapshot, dict) else {},
     })
 

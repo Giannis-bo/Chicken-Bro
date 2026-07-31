@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "seasonRevision": "midnight-season-1-revelations-2026-06-16",
-  "sourcePolicyRevision": "midnight-season-1-pve-source-policy-v1",
+  "sourcePolicyRevision": "midnight-season-1-pve-source-policy-v2",
   "status": "required_membership_discovery",
   "sources": [
     {
@@ -10,6 +10,11 @@
       "required": true,
       "minimumMemberCount": 1,
       "membershipMode": "journal_direct_drop",
+      "effectiveWindow": {
+        "startsAt": "2026-03-17T00:00:00Z",
+        "endPolicy": "until_officially_superseded",
+        "startPrecision": "official_week"
+      },
       "authorityRefs": [
         "https://worldofwarcraft.blizzard.com/en-us/news/24264417",
         "https://community.developer.battle.net/documentation/world-of-warcraft/game-data-apis"
@@ -22,8 +27,13 @@
       "required": true,
       "minimumMemberCount": 1,
       "membershipMode": "journal_direct_drop",
-      "effectiveFrom": "2026-06-16T00:00:00Z",
+      "effectiveWindow": {
+        "startsAt": "2026-06-16T00:00:00Z",
+        "endPolicy": "until_officially_superseded",
+        "startPrecision": "official_date"
+      },
       "authorityRefs": [
+        "https://worldofwarcraft.blizzard.com/en-us/news/24272110",
         "https://worldofwarcraft.blizzard.com/en-us/news/24244888",
         "https://community.developer.battle.net/documentation/world-of-warcraft/game-data-apis"
       ]
@@ -34,6 +44,11 @@
       "required": true,
       "minimumMemberCount": 1,
       "membershipMode": "journal_pool_with_progression_projection",
+      "effectiveWindow": {
+        "startsAt": "2026-03-24T00:00:00Z",
+        "endPolicy": "until_officially_superseded",
+        "startPrecision": "official_date"
+      },
       "authorityRefs": [
         "https://worldofwarcraft.blizzard.com/en-us/news/24266321/midnight-season-1-has-begun",
         "https://community.developer.battle.net/documentation/world-of-warcraft/game-data-apis"
@@ -46,7 +61,13 @@
       "required": true,
       "minimumMemberCount": 1,
       "membershipMode": "journal_direct_drop_with_difficulty",
+      "effectiveWindow": {
+        "startsAt": "2026-03-17T00:00:00Z",
+        "endPolicy": "until_officially_superseded",
+        "startPrecision": "official_week"
+      },
       "authorityRefs": [
+        "https://worldofwarcraft.blizzard.com/en-us/news/24222916",
         "https://worldofwarcraft.blizzard.com/en-us/news/24266321/midnight-season-1-has-begun",
         "https://community.developer.battle.net/documentation/world-of-warcraft/game-data-apis"
       ]
@@ -57,6 +78,11 @@
       "required": true,
       "minimumMemberCount": 1,
       "membershipMode": "activity_reward_pool",
+      "effectiveWindow": {
+        "startsAt": "2026-03-17T00:00:00Z",
+        "endPolicy": "until_officially_superseded",
+        "startPrecision": "official_week"
+      },
       "authorityRefs": [
         "https://worldofwarcraft.blizzard.com/en-us/news/24244644/unleash-your-skills-in-midnights-new-delves",
         "https://worldofwarcraft.blizzard.com/en-us/news/24266321/midnight-season-1-has-begun"
@@ -69,6 +95,11 @@
       "required": true,
       "minimumMemberCount": 1,
       "membershipMode": "rotating_direct_drop",
+      "effectiveWindow": {
+        "startsAt": "2026-03-17T00:00:00Z",
+        "endPolicy": "until_officially_superseded",
+        "startPrecision": "official_week"
+      },
       "authorityRefs": [
         "https://worldofwarcraft.blizzard.com/en-us/news/24244646"
       ],
@@ -80,8 +111,13 @@
       "required": true,
       "minimumMemberCount": 1,
       "membershipMode": "rotating_direct_drop",
-      "effectiveFrom": "2026-06-16T00:00:00Z",
+      "effectiveWindow": {
+        "startsAt": "2026-06-16T00:00:00Z",
+        "endPolicy": "until_officially_superseded",
+        "startPrecision": "official_date"
+      },
       "authorityRefs": [
+        "https://worldofwarcraft.blizzard.com/en-us/news/24271372",
         "https://worldofwarcraft.blizzard.com/en-us/news/24244888"
       ]
     },
@@ -91,7 +127,13 @@
       "required": true,
       "minimumMemberCount": 1,
       "membershipMode": "difficulty_reward_pool",
+      "effectiveWindow": {
+        "startsAt": "2026-03-17T00:00:00Z",
+        "endPolicy": "until_officially_superseded",
+        "startPrecision": "official_week"
+      },
       "authorityRefs": [
+        "https://worldofwarcraft.blizzard.com/en-us/news/24262569",
         "https://worldofwarcraft.blizzard.com/en-us/news/24243639",
         "https://worldofwarcraft.blizzard.com/en-us/news/24271855/1205-content-update-notes"
       ]
@@ -102,6 +144,11 @@
       "required": true,
       "minimumMemberCount": 1,
       "membershipMode": "reward_pool_projection",
+      "effectiveWindow": {
+        "startsAt": "2026-03-17T00:00:00Z",
+        "endPolicy": "until_officially_superseded",
+        "startPrecision": "official_week"
+      },
       "authorityRefs": [
         "https://worldofwarcraft.blizzard.com/en-us/news/24266321/midnight-season-1-has-begun",
         "https://worldofwarcraft.blizzard.com/en-us/news/24267938"
@@ -113,6 +160,11 @@
       "required": true,
       "minimumMemberCount": 1,
       "membershipMode": "profession_recipe_and_quality",
+      "effectiveWindow": {
+        "startsAt": "2026-03-03T00:00:00Z",
+        "endPolicy": "until_officially_superseded",
+        "startPrecision": "official_launch_date"
+      },
       "authorityRefs": [
         "https://worldofwarcraft.blizzard.com/en-us/news/24244646",
         "https://community.developer.battle.net/documentation/world-of-warcraft/game-data-apis"
@@ -124,6 +176,11 @@
       "required": true,
       "minimumMemberCount": 1,
       "membershipMode": "world_quest_rare_event_cache_pool",
+      "effectiveWindow": {
+        "startsAt": "2026-03-03T00:00:00Z",
+        "endPolicy": "until_officially_superseded",
+        "startPrecision": "official_launch_date"
+      },
       "authorityRefs": [
         "https://worldofwarcraft.blizzard.com/en-us/news/24263349",
         "https://worldofwarcraft.blizzard.com/en-us/news/24266320"
@@ -131,11 +188,35 @@
       "notes": "Core Midnight max-level world quests, rare-creature equipment, public events, weekly quests, and equipment-bearing caches. Cosmetic-only rewards require governed exclusion."
     },
     {
+      "sourceKey": "world_content:revelations-val-naigtal",
+      "sourceType": "world_content",
+      "required": true,
+      "minimumMemberCount": 1,
+      "membershipMode": "rotating_world_quest_rare_event_reward_pool",
+      "effectiveWindow": {
+        "startsAt": "2026-06-16T00:00:00Z",
+        "endPolicy": "until_officially_superseded",
+        "startPrecision": "official_date",
+        "eligibilityPolicy": "normal_or_heroic_world_difficulty"
+      },
+      "authorityRefs": [
+        "https://worldofwarcraft.blizzard.com/en-us/news/24271372",
+        "https://worldofwarcraft.blizzard.com/en-us/news/24244888"
+      ],
+      "notes": "Val and Naigtal rotate weekly. Rare enemies award Champion 1/6 in Normal and Champion 4/6 in Heroic; this pool is distinct from the rotating world-boss reward."
+    },
+    {
       "sourceKey": "renown_vendor:midnight-power-gear",
       "sourceType": "renown_vendor",
       "required": true,
       "minimumMemberCount": 1,
       "membershipMode": "reputation_and_currency_vendor_pool",
+      "effectiveWindow": {
+        "startsAt": "2026-03-03T00:00:00Z",
+        "endPolicy": "until_officially_superseded",
+        "startPrecision": "official_launch_date",
+        "eligibilityPolicy": "character_renown_and_currency"
+      },
       "authorityRefs": [
         "https://worldofwarcraft.blizzard.com/en-us/news/24263349",
         "https://worldofwarcraft.blizzard.com/en-us/news/24276957"
@@ -148,6 +229,11 @@
       "required": true,
       "minimumMemberCount": 1,
       "membershipMode": "raid_token_vendor_transform",
+      "effectiveWindow": {
+        "startsAt": "2026-03-31T00:00:00Z",
+        "endPolicy": "until_officially_superseded",
+        "startPrecision": "official_raid_release_date"
+      },
       "authorityRefs": [
         "https://worldofwarcraft.blizzard.com/en-us/news/24244458"
       ],
@@ -159,6 +245,12 @@
       "required": true,
       "minimumMemberCount": 1,
       "membershipMode": "eligible_item_transform",
+      "effectiveWindow": {
+        "startsAt": "2026-03-17T00:00:00Z",
+        "endPolicy": "until_officially_superseded",
+        "startPrecision": "official_week",
+        "eligibilityPolicy": "character_class_set_four_piece_unlock"
+      },
       "authorityRefs": [
         "https://worldofwarcraft.blizzard.com/en-us/news/24244646"
       ]
@@ -169,7 +261,14 @@
       "required": true,
       "minimumMemberCount": 1,
       "membershipMode": "activity_pool_random_projection",
+      "effectiveWindow": {
+        "startsAt": "2026-04-21T00:00:00Z",
+        "endPolicy": "until_officially_superseded",
+        "startPrecision": "official_patch_date",
+        "eligibilityPolicy": "character_voidforge_unlock"
+      },
       "authorityRefs": [
+        "https://worldofwarcraft.blizzard.com/en-us/news/24267938",
         "https://worldofwarcraft.blizzard.com/en-us/news/24271855/1205-content-update-notes"
       ]
     },
@@ -179,7 +278,14 @@
       "required": true,
       "minimumMemberCount": 1,
       "membershipMode": "weapon_trinket_progression_transform",
+      "effectiveWindow": {
+        "startsAt": "2026-04-21T00:00:00Z",
+        "endPolicy": "until_officially_superseded",
+        "startPrecision": "official_patch_not_before",
+        "eligibilityPolicy": "character_ascendant_nilhammer_unlock"
+      },
       "authorityRefs": [
+        "https://worldofwarcraft.blizzard.com/en-us/news/24267938",
         "https://worldofwarcraft.blizzard.com/en-us/news/24271855/1205-content-update-notes"
       ]
     },
@@ -189,7 +295,14 @@
       "required": true,
       "minimumMemberCount": 1,
       "membershipMode": "activity_and_currency_vendor_pool",
+      "effectiveWindow": {
+        "startsAt": "2026-04-21T00:00:00Z",
+        "endPolicy": "until_officially_superseded",
+        "startPrecision": "official_patch_date"
+      },
       "authorityRefs": [
+        "https://worldofwarcraft.blizzard.com/en-us/news/24266324",
+        "https://worldofwarcraft.blizzard.com/en-us/news/24244461",
         "https://worldofwarcraft.blizzard.com/en-us/news/24267938"
       ]
     },
@@ -199,9 +312,14 @@
       "required": true,
       "minimumMemberCount": 1,
       "membershipMode": "time_bounded_dungeon_and_vendor_pool",
-      "effectiveFrom": "2026-06-30T00:00:00Z",
-      "effectiveUntil": "2026-08-11T23:59:59Z",
+      "effectiveWindow": {
+        "startsAt": "2026-06-30T00:00:00Z",
+        "endsAt": "2026-08-11T23:59:59Z",
+        "startPrecision": "official_date",
+        "endPrecision": "official_date"
+      },
       "authorityRefs": [
+        "https://worldofwarcraft.blizzard.com/en-us/news/24264422",
         "https://worldofwarcraft.blizzard.com/en-us/news/24244888"
       ]
     }

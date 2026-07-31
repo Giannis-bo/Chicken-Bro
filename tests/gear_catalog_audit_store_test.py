@@ -446,6 +446,10 @@ class GearCatalogAuditStoreTest(unittest.TestCase):
                     "head": {
                         "itemId": "1001",
                         "variantKey": "observed-289-a",
+                        "gemOptionIds": ["gem-a"],
+                        "enchantOptionId": "",
+                        "embellishmentOptionId": "embellishment-a",
+                        "craftedOptionId": "",
                     }
                 }
             },
@@ -472,6 +476,10 @@ class GearCatalogAuditStoreTest(unittest.TestCase):
 
         self.assertEqual(item["variantKey"], "observed-289-a")
         self.assertEqual(item["observedItemLevel"], 289)
+        self.assertEqual(
+            item["editorManagedEnhancementFields"],
+            ["gemOptionIds", "embellishmentOptionId"],
+        )
         self.assertNotIn("iconUrl", item)
         self.assertNotIn("importEvidence", json.dumps(snapshot))
 

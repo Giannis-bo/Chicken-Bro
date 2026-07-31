@@ -69,6 +69,7 @@ describe('gear editor sheet behavior', () => {
       canApply: false,
       onSelectCandidate: () => undefined,
       onSelectVariant: () => undefined,
+      onSelectCraftedStat: () => undefined,
       onApply: () => undefined,
       onClose: () => undefined,
     }))
@@ -118,6 +119,8 @@ describe('gear editor sheet behavior', () => {
         candidate: { itemId: '123', variantKey: 'heroic', blockers: [] },
         requiresVariantSelection: true,
         selectedVariantKey: 'heroic',
+        requiresCraftedStatSelection: false,
+        selectedCraftedOptionId: '',
         variants: [{
           key: 'heroic',
           label: '英雄',
@@ -131,13 +134,69 @@ describe('gear editor sheet behavior', () => {
       canApply: true,
       onSelectCandidate: () => undefined,
       onSelectVariant: () => undefined,
+      onSelectCraftedStat: () => undefined,
       onApply: () => undefined,
       onClose: () => undefined,
     }))
 
     const detailIndex = markup.indexOf('data-role="gear-candidate-detail"')
+    expect(markup).toContain('data-candidate-draft-item-id="123"')
     expect(detailIndex).toBeGreaterThan(markup.indexOf('data-candidate-id="head-mythic"'))
     expect(detailIndex).toBeLessThan(markup.indexOf('data-candidate-id="head-raidfinder"'))
+  })
+
+  it('renders crafted stats as selectable resolver options instead of display-only facts', () => {
+    const markup = renderToStaticMarkup(createElement(GearCandidateEditorSheet, {
+      slotLabel: '头部',
+      candidates: [{
+        id: 'crafted-head',
+        itemId: '244743',
+        label: '以太流明遮目镜',
+        levelLabel: '装等 285',
+        sourceLabel: '制造装备',
+        statSummary: '智力 200',
+        badgeLabels: ['布甲'],
+        state: 'ready' as const,
+      }],
+      selectedCandidateId: 'crafted-head',
+      draft: {
+        slot: 'head',
+        candidate: { itemId: '244743' },
+        requiresVariantSelection: true,
+        selectedVariantKey: 'crafted-myth-285',
+        requiresCraftedStatSelection: true,
+        selectedCraftedOptionId: 'crafted-stats-haste',
+        variants: [{
+          key: 'crafted-myth-285',
+          label: '制造装备',
+          difficultyLabel: '制造装备',
+          ilevel: 285,
+          state: 'ready' as const,
+          blockers: [],
+        }],
+        craftedStatOptions: [{
+          key: 'haste',
+          optionId: 'crafted-stats-haste',
+          label: '急速',
+          simcOptions: ['crafted_stats=36'],
+          state: 'ready' as const,
+          blockers: [],
+        }],
+      },
+      canApply: true,
+      onSelectCandidate: () => undefined,
+      onSelectVariant: () => undefined,
+      onSelectCraftedStat: () => undefined,
+      onApply: () => undefined,
+      onClose: () => undefined,
+    }))
+
+    expect(markup).toContain('制造属性')
+    expect(markup).toContain('data-role="gear-crafted-stat-option"')
+    expect(markup).toContain('data-crafted-option-id="crafted-stats-haste"')
+    expect(markup).toContain('data-active="true"')
+    expect(markup).toContain('data-candidate-draft-crafted-option-id="crafted-stats-haste"')
+    expect(markup).not.toContain('仅展示')
   })
 
   it('shows the equipment identity before configuring its enhancements', () => {
@@ -195,6 +254,11 @@ describe('gear editor sheet behavior', () => {
     }))
 
     expect([...markup.matchAll(/data-role="gear-enhancement-compatible-slot"/gu)]).toHaveLength(2)
+    expect(markup).toContain('data-active-slot="head"')
+    expect(markup).toContain('data-has-item="true"')
+    expect(markup).toContain('data-option-count="1"')
+    expect(markup).toContain('data-requested-kind="socket"')
+    expect(markup).toContain('data-socket-count="1"')
     expect(markup).toContain('data-enhancement-kind="socket"')
     expect(markup).not.toContain('data-enhancement-kind="enchant"')
     expect(markup).not.toContain('data-enhancement-kind="embellishment"')

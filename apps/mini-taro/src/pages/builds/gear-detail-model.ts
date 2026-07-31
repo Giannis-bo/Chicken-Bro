@@ -6,6 +6,7 @@ import type {
   GearItemStaticStatsBySlot,
   GearProfileReadiness,
   GearReadiness,
+  GearResolvedSnapshot,
   GearStatSnapshotPayload,
   GearStatsPayload,
   ReadinessState,
@@ -245,6 +246,15 @@ function enhancementOptionAppliesToItem(
   key: GearEnhancementOptionKey,
 ): boolean {
   if (!verifiedEnhancementOption(option)) return false
+  const allowedField = key === 'socketOptions'
+    ? 'allowedGemOptionIds'
+    : key === 'enchantOptions'
+      ? 'allowedEnchantOptionIds'
+      : 'allowedEmbellishmentOptionIds'
+  const backendAllowed = item.modCapabilities?.[allowedField]
+  if (Array.isArray(backendAllowed)) {
+    return backendAllowed.map(text).includes(optionIdentity(option))
+  }
   if (key === 'enchantOptions') return enchantOptionAppliesToItem(option, item, slot)
   if (key === 'embellishmentOptions') {
     return !itemHasBuiltInEmbellishment(item)
@@ -286,6 +296,77 @@ export function hydrateCompactSlotGroup(
   }))
 }
 
+type VisibleEnhancementOptionsBySlot =
+  Readonly<Record<string, Readonly<Record<string, GearEnhancementOption>>>>
+
+function recordValue(value: unknown): Readonly<Record<string, unknown>> | null {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Readonly<Record<string, unknown>>
+    : null
+}
+
+function allowedOptionIds(
+  capabilities: Readonly<Record<string, unknown>>,
+  field: string,
+): ReadonlySet<string> {
+  const values = capabilities[field]
+  return new Set(Array.isArray(values) ? values.map(text).filter(Boolean) : [])
+}
+
+function visibleImportedOptions(
+  options: Readonly<Record<string, GearEnhancementOption>> | undefined,
+  allowed: ReadonlySet<string>,
+  optionType: 'gem' | 'enchant' | 'embellishment',
+): readonly GearEnhancementOption[] {
+  return Object.entries(options ?? {}).flatMap(([key, raw]) => {
+    if (
+      !allowed.has(key)
+      || text(raw.optionKey) !== key
+      || text(raw.optionType) !== optionType
+      || !text(raw.name)
+    ) return []
+    return [{ ...raw, status: 'verified' }]
+  })
+}
+
+export function hydrateImportedExactGear(
+  imported: Readonly<Record<string, GearItemReference>>,
+  snapshot: GearResolvedSnapshot,
+  visibleOptionsBySlot: VisibleEnhancementOptionsBySlot = {},
+): Readonly<Record<string, GearItemReference>> {
+  const resolvedSlots = recordValue(snapshot.resolvedSlots) ?? {}
+  return Object.fromEntries(Object.entries(imported).map(([slot, item]) => {
+    const resolved = recordValue(resolvedSlots[slot])
+    const capabilities = recordValue(resolved?.['effectiveCapabilities'])
+    if (
+      !resolved
+      || !capabilities
+      || text(resolved['itemId']) !== gearItemId(item)
+      || text(resolved['variantKey']) !== text(item.variantKey)
+    ) return [slot, item]
+    const visible = visibleOptionsBySlot[slot]
+    return [slot, {
+      ...item,
+      modCapabilities: capabilities,
+      socketOptions: visibleImportedOptions(
+        visible,
+        allowedOptionIds(capabilities, 'allowedGemOptionIds'),
+        'gem',
+      ),
+      enchantOptions: visibleImportedOptions(
+        visible,
+        allowedOptionIds(capabilities, 'allowedEnchantOptionIds'),
+        'enchant',
+      ),
+      embellishmentOptions: visibleImportedOptions(
+        visible,
+        allowedOptionIds(capabilities, 'allowedEmbellishmentOptionIds'),
+        'embellishment',
+      ),
+    }]
+  }))
+}
+
 export interface HydratedEnhancementDraftInput {
   readonly item: GearItemReference
   readonly selection: GearEnhancementSelection
@@ -318,15 +399,61 @@ export function gearEnhancementSocketCount(item: GearItemReference): number | nu
   if (!capabilities || typeof capabilities !== 'object' || Array.isArray(capabilities)) return null
   if (capabilities['hasSocket'] === false) return 0
   const count = capabilities['socketCount']
-  return Number.isInteger(count) && Number(count) > 0 ? Number(count) : null
+  return Number.isInteger(count) && Number(count) >= 0 ? Number(count) : null
+}
+
+function mergeAllowedExactOptions(
+  committed: readonly GearEnhancementOption[] | undefined,
+  group: readonly GearEnhancementOption[],
+  allowed: ReadonlySet<string>,
+): readonly GearEnhancementOption[] {
+  const merged = [...(committed ?? []), ...group]
+  const seen = new Set<string>()
+  return merged.filter((option) => {
+    const id = optionIdentity(option)
+    if (!allowed.has(id) || seen.has(id) || !verifiedEnhancementOption(option)) return false
+    seen.add(id)
+    return true
+  })
+}
+
+function exactCommittedItem(
+  group: GearReplacementCandidateGroup,
+  committed: GearItemReference,
+): GearItemReference | undefined {
+  const capabilities = recordValue(committed.modCapabilities)
+  if (!capabilities || !gearItemId(committed) || !text(committed.variantKey)) return undefined
+  return {
+    ...committed,
+    socketOptions: mergeAllowedExactOptions(
+      committed.socketOptions,
+      compactGroupOptions(group, 'socketOptions'),
+      allowedOptionIds(capabilities, 'allowedGemOptionIds'),
+    ),
+    enchantOptions: mergeAllowedExactOptions(
+      committed.enchantOptions,
+      compactGroupOptions(group, 'enchantOptions'),
+      allowedOptionIds(capabilities, 'allowedEnchantOptionIds'),
+    ),
+    embellishmentOptions: mergeAllowedExactOptions(
+      committed.embellishmentOptions,
+      compactGroupOptions(group, 'embellishmentOptions'),
+      allowedOptionIds(capabilities, 'allowedEmbellishmentOptionIds'),
+    ),
+  }
 }
 
 export function prepareHydratedEnhancementDraft(
-  items: readonly GearItemReference[],
+  groupOrItems: GearReplacementCandidateGroup | readonly GearItemReference[],
   committed: GearItemReference,
   confirmed: GearEnhancementSelection,
 ): HydratedEnhancementDraftInput | null {
+  const group = Array.isArray(groupOrItems)
+    ? undefined
+    : groupOrItems as GearReplacementCandidateGroup
+  const items = group ? hydrateCompactSlotGroup(group) : groupOrItems as readonly GearItemReference[]
   const item = exactHydratedItem(items, committed)
+    ?? (group ? exactCommittedItem(group, committed) : undefined)
   if (
     !item
     || !Array.isArray(item.socketOptions)
@@ -872,33 +999,89 @@ function enhancementSelectionCount(
   )).length
 }
 
+export interface GearEmbellishmentSlotLimitState {
+  readonly state: 'available' | 'blocked' | 'unknown'
+  readonly used: number | null
+  readonly max: number | null
+}
+
+export function gearEmbellishmentSlotLimitState(
+  confirmedEnhancements: Readonly<Record<string, GearEnhancementSelection>>,
+  draftEnhancements: Readonly<Record<string, GearEnhancementSelection>>,
+  slot: string,
+  embellishmentMax: unknown,
+  embellishmentUsed: unknown,
+): GearEmbellishmentSlotLimitState {
+  const max = Number.isInteger(embellishmentMax) && Number(embellishmentMax) >= 0
+    ? Number(embellishmentMax)
+    : null
+  const resolverUsed = Number.isInteger(embellishmentUsed) && Number(embellishmentUsed) >= 0
+    ? Number(embellishmentUsed)
+    : null
+  if (max === null || resolverUsed === null) {
+    return {
+      state: draftEnhancements[slot]?.embellishmentOptionId ? 'available' : 'unknown',
+      used: null,
+      max,
+    }
+  }
+  const confirmedSelected = enhancementSelectionCount(confirmedEnhancements, 'embellishment')
+  const builtInUsed = Math.max(0, resolverUsed - confirmedSelected)
+  const used = builtInUsed + enhancementSelectionCount(draftEnhancements, 'embellishment')
+  return {
+    state: draftEnhancements[slot]?.embellishmentOptionId || used < max ? 'available' : 'blocked',
+    used,
+    max,
+  }
+}
+
 export function gearEnhancementBarItems(
   equipped: Readonly<Record<string, GearItemReference>>,
   enhancements: Readonly<Record<string, GearEnhancementSelection>>,
   embellishmentMax: unknown = undefined,
+  embellishmentUsed: unknown = undefined,
 ): readonly GearEnhancementGroupView[] {
   const items = Object.entries(equipped)
   const resolverEmbellishmentMax = Number.isInteger(embellishmentMax) && Number(embellishmentMax) >= 0
     ? Number(embellishmentMax)
     : null
+  const resolverEmbellishmentUsed = Number.isInteger(embellishmentUsed) && Number(embellishmentUsed) >= 0
+    ? Number(embellishmentUsed)
+    : null
   return enhancementDefinitions.map((definition) => {
     const selectedCount = enhancementSelectionCount(enhancements, definition.id)
-    const availability = items.map(([slot, item]) => (
-      itemEnhancementAvailability(item, definition.id, slot)
-    ))
-    const availabilityLabel: GearEnhancementAvailability = selectedCount > 0 || availability.includes('可用')
-      ? '可用'
-      : items.length === 0 || availability.includes('待核验')
-        ? '待核验'
-        : '不可用'
-    const optionCount = availability.filter((state) => state === '可用').length
+    const availability = items.map(([slot, item]) => ({
+      slot,
+      state: itemEnhancementAvailability(item, definition.id, slot),
+    }))
+    const embellishmentLimitReached = definition.id === 'embellishment'
+      && resolverEmbellishmentMax !== null
+      && resolverEmbellishmentUsed !== null
+      && resolverEmbellishmentUsed >= resolverEmbellishmentMax
+    const replaceableCount = embellishmentLimitReached
+      ? availability.filter(({ slot, state }) => (
+          state === '可用' && Boolean(enhancements[slot]?.embellishmentOptionId)
+        )).length
+      : 0
+    const availabilityLabel: GearEnhancementAvailability = embellishmentLimitReached
+      ? replaceableCount > 0 ? '可用' : '不可用'
+      : selectedCount > 0 || availability.some(({ state }) => state === '可用')
+        ? '可用'
+        : items.length === 0 || availability.some(({ state }) => state === '待核验')
+          ? '待核验'
+          : '不可用'
+    const optionCount = embellishmentLimitReached
+      ? replaceableCount
+      : availability.filter(({ state }) => state === '可用').length
     const disabled = availabilityLabel === '不可用'
     return {
       id: definition.id,
       label: definition.label,
       optionCount,
       selectedCount,
-      value: selectedCount
+      value: embellishmentLimitReached && replaceableCount === 0
+        ? `已达上限 ${resolverEmbellishmentUsed} / ${resolverEmbellishmentMax} · ${availabilityLabel}`
+        : selectedCount
         ? definition.id === 'embellishment' && resolverEmbellishmentMax !== null
           ? `已配置 ${selectedCount} / ${resolverEmbellishmentMax} 件 · ${availabilityLabel}`
           : `已配置 ${selectedCount} 件 · ${availabilityLabel}`
@@ -908,6 +1091,45 @@ export function gearEnhancementBarItems(
       disabled,
     }
   })
+}
+
+export function preferredEnhancementSlot(
+  equipped: Readonly<Record<string, GearItemReference>>,
+  enhancements: Readonly<Record<string, GearEnhancementSelection>>,
+  selectedSlot: string,
+  kind: GearEnhancementGroupView['id'],
+  embellishmentMax: unknown = undefined,
+  embellishmentUsed: unknown = undefined,
+): string {
+  const supports = ([, item]: readonly [string, GearItemReference]) => {
+    const capabilities = item.modCapabilities
+    if (!capabilities || typeof capabilities !== 'object' || Array.isArray(capabilities)) return false
+    if (kind === 'socket') return Number(capabilities['socketCount']) > 0
+    return capabilities[kind === 'enchant' ? 'canEnchant' : 'canEmbellish'] === true
+  }
+  const configured = ([slot]: readonly [string, GearItemReference]) => {
+    const selection = enhancements[slot]
+    if (!selection) return false
+    if (kind === 'socket') return selection.gemOptionIds.some(Boolean)
+    if (kind === 'enchant') return Boolean(selection.enchantOptionId)
+    return Boolean(selection.embellishmentOptionId)
+  }
+  const entries = Object.entries(equipped)
+  const selected = entries.find(([slot]) => slot === selectedSlot)
+  const embellishmentLimitReached = kind === 'embellishment'
+    && Number.isInteger(embellishmentMax)
+    && Number(embellishmentMax) >= 0
+    && Number.isInteger(embellishmentUsed)
+    && Number(embellishmentUsed) >= Number(embellishmentMax)
+  if (embellishmentLimitReached) {
+    if (selected && supports(selected) && configured(selected)) return selected[0]
+    return entries.find((entry) => supports(entry) && configured(entry))?.[0] ?? ''
+  }
+  if (selected && supports(selected) && !configured(selected)) return selected[0]
+  const unconfigured = entries.find((entry) => supports(entry) && !configured(entry))
+  if (unconfigured) return unconfigured[0]
+  if (selected && supports(selected)) return selected[0]
+  return entries.find(supports)?.[0] ?? selected?.[0] ?? entries[0]?.[0] ?? ''
 }
 
 export function selectedGearEnhancementId(

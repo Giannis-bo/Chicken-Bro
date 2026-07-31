@@ -227,6 +227,7 @@ def _enhancement_projection(
     exact_key: str,
     selection_key: str,
     selection: Mapping[str, Any],
+    managed_fields: set[str],
 ) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
     fields = {
         "gemOptionIds": [],
@@ -237,7 +238,11 @@ def _enhancement_projection(
     }
     options: dict[str, Any] = {}
     evidence: dict[str, Any] = {}
-    gem_ids = [_text(value) for value in selection.get("gemIds") or []]
+    gem_ids = (
+        [_text(value) for value in selection.get("gemIds") or []]
+        if "gemOptionIds" in managed_fields
+        else []
+    )
     gem_bonus_ids = [
         _text(value) for value in selection.get("gemBonusIds") or []
     ]
@@ -281,6 +286,8 @@ def _enhancement_projection(
         ),
     )
     for source_field, intent_field, option_type, simc_field in scalar_specs:
+        if intent_field not in managed_fields:
+            continue
         raw = selection.get(source_field)
         if isinstance(raw, (list, tuple)):
             tokens = [_text(value) for value in raw if _text(value)]
@@ -574,6 +581,14 @@ def _project_identity(
             exact_key=exact_key,
             selection_key=selection_key,
             selection=exact_selection,
+            managed_fields={
+                _text(field)
+                for field in reference.get(
+                    "editorManagedEnhancementFields"
+                )
+                or []
+                if _text(field) in _ENHANCEMENT_FIELDS
+            },
         )
         projected_slots[slot].update(fields)
         options.update(slot_options)
@@ -644,6 +659,54 @@ def _enhancement_semantics(intent: Mapping[str, Any]) -> dict[str, Any]:
         for slot, selection in sorted(slots.items())
         if isinstance(selection, Mapping)
     }
+
+
+def _preserves_exact_projection(
+    projected_intent: Mapping[str, Any],
+    current_intent: Mapping[str, Any],
+) -> bool:
+    projected = _enhancement_semantics(projected_intent)
+    current = _enhancement_semantics(current_intent)
+    if set(projected) != set(current):
+        return False
+    for slot, projected_selection in projected.items():
+        current_selection = current.get(slot) or {}
+        for field in _ENHANCEMENT_FIELDS:
+            projected_value = projected_selection.get(field)
+            current_value = current_selection.get(field)
+            projected_values = (
+                projected_value
+                if isinstance(projected_value, list)
+                else [projected_value]
+            )
+            current_values = (
+                current_value
+                if isinstance(current_value, list)
+                else [current_value]
+            )
+            projected_exact = [
+                _text(value)
+                for value in projected_values
+                if EXACT_TEMPLATE_OPTION_PATTERN.fullmatch(_text(value))
+            ]
+            current_exact = [
+                _text(value)
+                for value in current_values
+                if EXACT_TEMPLATE_OPTION_PATTERN.fullmatch(_text(value))
+            ]
+            if projected_exact:
+                # Exact option identities remain valid only inside their
+                # originating whole-template projection.  The editor may,
+                # however, replace or remove an imported enhancement with a
+                # normal catalog option; the Resolver will validate that
+                # catalog option against the injected canonical authority.
+                # Retain the strict boundary for any exact identities that
+                # remain in the edited selection.
+                if any(value not in projected_exact for value in current_exact):
+                    return False
+            elif current_exact:
+                return False
+    return True
 
 
 def _base_template_identity_candidates(
@@ -737,18 +800,72 @@ def _inject_authority(
         owner: dict[str, Any],
         capabilities: dict[str, Any],
         selection: Mapping[str, Any],
+        slot: str,
+        inherited: Mapping[str, Any] | None = None,
     ) -> None:
         option_specs = (
-            ("gemOptionIds", "allowedGemOptionIds", "socketCount"),
-            ("enchantOptionId", "allowedEnchantOptionIds", "canEnchant"),
+            (
+                "gemOptionIds",
+                "allowedGemOptionIds",
+                "socketCount",
+                {"gem"},
+            ),
+            (
+                "enchantOptionId",
+                "allowedEnchantOptionIds",
+                "canEnchant",
+                {"enchant", "runeforge"},
+            ),
             (
                 "embellishmentOptionId",
                 "allowedEmbellishmentOptionIds",
                 "canEmbellish",
+                {"embellishment"},
             ),
-            ("craftedOptionId", "allowedCraftedOptionIds", ""),
+            (
+                "craftedOptionId",
+                "allowedCraftedOptionIds",
+                "",
+                {"crafted"},
+            ),
         )
-        for intent_field, allowed_field, capability_field in option_specs:
+        inherited_capabilities = (
+            inherited if isinstance(inherited, Mapping) else {}
+        )
+
+        def verified_allowed(
+            values: Iterable[Any],
+            option_types: set[str],
+        ) -> list[str]:
+            allowed_ids = []
+            for value in values or []:
+                option_id = _text(value)
+                option = options.get(option_id)
+                applicable = (
+                    option.get("applicableSlots")
+                    if isinstance(option, Mapping)
+                    else []
+                )
+                if (
+                    not option_id
+                    or not isinstance(option, Mapping)
+                    or _text(option.get("optionType")) not in option_types
+                    or (
+                        applicable
+                        and slot not in applicable
+                        and "*" not in applicable
+                    )
+                ):
+                    continue
+                allowed_ids.append(option_id)
+            return allowed_ids
+
+        for (
+            intent_field,
+            allowed_field,
+            capability_field,
+            option_types,
+        ) in option_specs:
             raw = selection.get(intent_field)
             selected = raw if isinstance(raw, list) else [raw]
             selected = [
@@ -760,17 +877,27 @@ def _inject_authority(
                 continue
             allowed = sorted(
                 {
-                    *[
-                        _text(value)
-                        for value in owner.get(allowed_field) or []
-                        if _text(value)
-                    ],
-                    *[
-                        _text(value)
-                        for value in capabilities.get(allowed_field) or []
-                        if _text(value)
-                    ],
-                    *selected,
+                    *verified_allowed(
+                        owner.get(allowed_field) or [],
+                        option_types,
+                    ),
+                    *verified_allowed(
+                        capabilities.get(allowed_field) or [],
+                        option_types,
+                    ),
+                    *verified_allowed(
+                        inherited_capabilities.get(allowed_field) or [],
+                        option_types,
+                    ),
+                    # An editor-managed Exact option proves the effective
+                    # capability even when the base Catalog item does not
+                    # own it (for example, a socket granted by the observed
+                    # item instance). Publish every canonical option that is
+                    # applicable to this slot so the player can replace the
+                    # imported value; the Resolver remains the authority for
+                    # legality, capacity, uniqueness, and aggregate limits.
+                    *verified_allowed(options, option_types),
+                    *verified_allowed(selected, option_types),
                 }
             )
             owner[allowed_field] = allowed
@@ -789,11 +916,17 @@ def _inject_authority(
 
     for slot, selection in intent["slots"].items():
         item = items.get(selection["itemId"])
+        item_capabilities = None
         if isinstance(item, dict):
+            item_capabilities = item.setdefault(
+                "baseCapabilities",
+                {},
+            )
             extend_capabilities(
                 item,
-                item.setdefault("baseCapabilities", {}),
+                item_capabilities,
                 selection,
+                slot,
             )
         variant = variants.get(selection["variantKey"])
         if isinstance(variant, dict):
@@ -803,7 +936,13 @@ def _inject_authority(
             )
             # Variant overrides are applied after item capabilities, so exact
             # import permissions must be present at this final stage as well.
-            extend_capabilities(overrides, overrides, selection)
+            extend_capabilities(
+                overrides,
+                overrides,
+                selection,
+                slot,
+                inherited=item_capabilities,
+            )
 
     exact_option_ids = set(projection.get("optionsById") or {})
     context["missingFields"] = sorted(
@@ -876,12 +1015,14 @@ def bind_exact_template_authority(
         )
         if (
             projection.get("status") == "verified"
-            and _enhancement_semantics(projection["selectionIntent"])
-            == _enhancement_semantics(intent)
+            and _preserves_exact_projection(
+                projection["selectionIntent"],
+                intent,
+            )
         ):
             matches.append(projection)
     if len(matches) == 1:
-        bound_selection_intent = _canonical(matches[0]["selectionIntent"])
+        bound_selection_intent = _canonical(intent)
         for selection in (
             bound_selection_intent.get("slots") or {}
         ).values():

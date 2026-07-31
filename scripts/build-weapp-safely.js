@@ -7,7 +7,10 @@ const os = require('node:os')
 const path = require('node:path')
 
 const { finalizeWeappBuild } = require('./finalize-weapp-build')
-const { writeWeappBuildIdentity } = require('./weapp-build-identity')
+const {
+  createWeappBuildIdentity,
+  writeWeappBuildIdentity,
+} = require('./weapp-build-identity')
 
 const repositoryRoot = path.resolve(__dirname, '..')
 const appRoot = path.join(repositoryRoot, 'apps/mini-taro')
@@ -240,18 +243,27 @@ function stampWeappBuild(root, options = {}) {
 }
 
 function run() {
+  const runtimeIdentity = createWeappBuildIdentity(repositoryRoot)
+  const runtimeIdentityEnvironment = {
+    ...process.env,
+    WOW_WEAPP_RUNTIME_GIT_HEAD: runtimeIdentity.gitHead,
+    WOW_WEAPP_RUNTIME_SOURCE_HASH: runtimeIdentity.sourceHash,
+  }
   const explicitOutputRoot = process.env.WOW_TARO_OUTPUT_ROOT?.trim()
   if (explicitOutputRoot) {
     const isolatedOutputRoot = resolveIsolatedOutputRoot(explicitOutputRoot)
     const command = taroBuildCommand()
     const result = spawnSync(command.executable, command.args, {
       cwd: appRoot,
-      env: process.env,
+      env: runtimeIdentityEnvironment,
       stdio: 'inherit',
     })
     if (result.error) throw result.error
     if (result.status !== 0) throw new Error(`Taro WeChat build failed with status ${result.status ?? 1}`)
-    stampWeappBuild(isolatedOutputRoot)
+    stampWeappBuild(isolatedOutputRoot, {
+      gitHead: runtimeIdentity.gitHead,
+      builtAt: runtimeIdentity.builtAt,
+    })
     return
   }
 
@@ -264,7 +276,7 @@ function run() {
     const result = spawnSync(command.executable, command.args, {
       cwd: appRoot,
       env: {
-        ...process.env,
+        ...runtimeIdentityEnvironment,
         WOW_TARO_ISOLATED_BUILD: '1',
         WOW_TARO_OUTPUT_ROOT: stagingRoot,
       },
@@ -272,7 +284,10 @@ function run() {
     })
     if (result.error) throw result.error
     if (result.status !== 0) throw new Error(`Taro WeChat build failed with status ${result.status ?? 1}`)
-    stampWeappBuild(stagingRoot)
+    stampWeappBuild(stagingRoot, {
+      gitHead: runtimeIdentity.gitHead,
+      builtAt: runtimeIdentity.builtAt,
+    })
     const resultSummary = promoteWeappBuild(stagingRoot)
     process.stdout.write(`${JSON.stringify({ status: 'pass', strategy: 'staged-atomic-promotion', ...resultSummary })}\n`)
   } finally {

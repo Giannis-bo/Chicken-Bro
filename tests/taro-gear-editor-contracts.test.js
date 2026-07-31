@@ -50,6 +50,7 @@ test('the core interaction contract has one executable candidate apply flow per 
   const routeIds = contract.interactions.map((interaction) => interaction.route)
   const gearInteractions = contract.interactions.filter((interaction) => interaction.route === 'gear_detail')
   const executor = fs.readFileSync(path.join(root, 'scripts/verify-ui-interactions.js'), 'utf8')
+  const automator = fs.readFileSync(path.join(root, 'scripts/wechat-automator.js'), 'utf8')
 
   assert.equal(new Set(routeIds).size, routeIds.length)
   assert.equal(gearInteractions.length, 1)
@@ -58,14 +59,20 @@ test('the core interaction contract has one executable candidate apply flow per 
   assert.match(executor, /gear-candidate-row/u)
   assert.match(executor, /gear-candidate-variant/u)
   assert.match(executor, /if \(variants\.length > 0\)/u)
-  assert.match(executor, /data-committed-item-id/u)
-  assert.match(executor, /data-candidate-item-id/u)
-  assert.match(executor, /data-candidate-draft-variant-key/u)
-  assert.match(executor, /data-resolved-slot-item-id/u)
-  assert.match(executor, /data-resolved-slot-variant-key/u)
-  assert.match(executor, /data-committed-slot-variant-key/u)
+  assert.match(executor, /queryElementsWithXpathFallback/u)
+  assert.match(executor, /gearCandidateVariantXpath/u)
+  assert.match(automator, /getElementByXpath/u)
+  assert.match(executor, /committed-item-id/u)
+  assert.match(executor, /candidate-item-id/u)
+  assert.match(executor, /candidate-draft-variant-key/u)
+  assert.match(executor, /resolved-slot-item-id/u)
+  assert.match(executor, /resolved-slot-variant-key/u)
+  assert.match(executor, /committed-slot-variant-key/u)
   assert.match(executor, /gear-resolve-state-resolving/u)
   assert.match(executor, /gearApplyEvidenceMatches/u)
+  assert.match(executor, /readSemanticValue/u)
+  assert.doesNotMatch(executor, /attribute\('data-candidate-item-id'\)/u)
+  assert.doesNotMatch(executor, /attribute\('data-candidate-draft-variant-key'\)/u)
   assert.match(executor, /committed id changed before apply/u)
   assert.match(executor, /verified resolve did not commit selected candidate/u)
   assert.doesNotMatch(executor, /waitForElementMissing\(page, applySelector\)/u)
@@ -83,7 +90,7 @@ test('the real gear interaction waits for route readiness before opening a slot'
   assert.match(executor, /\.wx-data-route-state-ready/u)
 })
 
-test('gear apply evidence rejects a stale verified snapshot and accepts this resolving completion', () => {
+test('gear apply evidence accepts verified or slot-resolved completion but rejects stale and error states', () => {
   const { gearApplyEvidenceMatches } = require('../scripts/gear-apply-evidence.js')
   const evidence = {
     candidateItemId: 'candidate-main-hand',
@@ -101,6 +108,16 @@ test('gear apply evidence rejects a stale verified snapshot and accepts this res
 
   assert.equal(gearApplyEvidenceMatches({ ...evidence, sawResolving: false }), false)
   assert.equal(gearApplyEvidenceMatches({ ...evidence, sawResolving: true }), true)
+  assert.equal(gearApplyEvidenceMatches({
+    ...evidence,
+    sawResolving: true,
+    resolveState: 'idle',
+  }), true)
+  assert.equal(gearApplyEvidenceMatches({
+    ...evidence,
+    sawResolving: true,
+    resolveState: 'error',
+  }), false)
   assert.equal(gearApplyEvidenceMatches({
     ...evidence,
     sawResolving: true,
@@ -127,12 +144,22 @@ test('the active page keeps draft item ids out of committed slot markers', () =>
   assert.match(commitModel, /if \(event\.status !== 'resolved' && event\.status !== 'slot_resolved'\) \{\s*return \{ state, committed: false, reload: false \}/u)
   assert.match(commitModel, /gearEnhancementsFromResolvedSnapshot/u)
   assert.match(workbench, /data-committed-item-id=\{item\.itemId\}/u)
+  assert.match(
+    workbench,
+    /dataSelectorClass\('has-committed-item', item\.state !== 'empty' && Boolean\(item\.itemId\)\)/u,
+  )
   assert.match(workbench, /data-committed-slot-variant-key=\{committedSlotVariantKey\}/u)
   assert.match(workbench, /data-gear-resolve-state=\{resolveState\}/u)
   assert.match(workbench, /data-resolved-slot-item-id=\{resolvedSlotItemId\}/u)
   assert.match(workbench, /data-resolved-slot-variant-key=\{resolvedSlotVariantKey\}/u)
+  assert.match(workbench, /data-resolved-slot-crafted-option-id=\{resolvedSlotCraftedOptionId\}/u)
+  assert.match(workbench, /data-committed-slot-crafted-option-id=\{committedSlotCraftedOptionId\}/u)
   assert.match(editor, /data-candidate-item-id=\{item\.itemId\}/u)
   assert.match(editor, /data-candidate-draft-variant-key/u)
+  assert.match(
+    fs.readFileSync(path.join(root, 'scripts/verify-wechat-gear-matrix.js'), 'utf8'),
+    /readSemanticValue\(row, 'has-committed-item'\)/u,
+  )
 })
 
 test('selected-state partitioning validates independent gear enhancement selections', () => {

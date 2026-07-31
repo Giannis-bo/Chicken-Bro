@@ -88,8 +88,11 @@ export interface GearCandidateEditorVariant {
 
 export interface GearCandidateEditorCraftedStat {
   readonly key: string
+  readonly optionId: string
   readonly label: string
   readonly simcOptions: readonly string[]
+  readonly state: 'ready' | 'partial' | 'blocked'
+  readonly blockers: readonly string[]
 }
 
 /**
@@ -101,6 +104,8 @@ export interface GearCandidateEditorDraft {
   readonly candidate: GearItemReference
   readonly requiresVariantSelection: boolean
   readonly selectedVariantKey: string
+  readonly requiresCraftedStatSelection: boolean
+  readonly selectedCraftedOptionId: string
   readonly variants: readonly GearCandidateEditorVariant[]
   readonly craftedStatOptions: readonly GearCandidateEditorCraftedStat[]
 }
@@ -134,6 +139,7 @@ export interface GearCandidateEditorSheetProps {
   loading?: boolean | undefined
   notice?: string | undefined
   onSelectCandidate: (candidateId: string) => void
+  onSelectCraftedStat: (optionId: string) => void
   onSelectVariant: (variantKey: string) => void
   onApply: () => void
   onClose: () => void
@@ -143,11 +149,13 @@ function CandidateDetails({
   draft,
   selectedCandidate,
   loading,
+  onSelectCraftedStat,
   onSelectVariant,
 }: {
   draft: GearCandidateEditorDraft | null
   selectedCandidate: GearCandidateEditorItem | undefined
   loading: boolean
+  onSelectCraftedStat: (optionId: string) => void
   onSelectVariant: (variantKey: string) => void
 }) {
   if (!draft || !selectedCandidate) {
@@ -162,6 +170,8 @@ function CandidateDetails({
   return (
     <View
       className={style('candidateDetails')}
+      data-candidate-draft-crafted-option-id={draft.selectedCraftedOptionId}
+      data-candidate-draft-item-id={String(draft.candidate.itemId ?? '').trim()}
       data-candidate-draft-variant-key={draft.selectedVariantKey || String(draft.candidate.variantKey ?? '').trim()}
       data-role="gear-candidate-detail"
     >
@@ -212,17 +222,34 @@ function CandidateDetails({
       </View>
 
       {draft.craftedStatOptions.length ? (
-        <View className={style('section')} data-role="gear-crafted-stats-display">
-          <Text className={style('sectionTitle')}>制造属性（仅展示）</Text>
+        <View className={style('section')} data-role="gear-crafted-stats-editor">
+          <Text className={style('sectionTitle')}>制造属性</Text>
           <View className={style('craftedStatList')}>
             {draft.craftedStatOptions.map((item) => (
-              <View key={item.key || item.label} className={style('craftedStat')} data-role="gear-crafted-stat-display">
+              <ControlButton
+                key={item.optionId || item.key || item.label}
+                className={classes(
+                  style('craftedStat'),
+                  item.state !== 'ready' && style('optionControlBlocked'),
+                )}
+                data-active={draft.selectedCraftedOptionId === item.optionId ? 'true' : 'false'}
+                data-crafted-option-id={item.optionId}
+                data-role="gear-crafted-stat-option"
+                data-state={item.state}
+                disabled={loading || item.state !== 'ready'}
+                onClick={() => onSelectCraftedStat(item.optionId)}
+              >
                 <Text>{item.label}</Text>
                 <Text>{item.simcOptions.length ? item.simcOptions.join(' · ') : '具体数值由后端校验'}</Text>
-              </View>
+                {item.blockers.map((blocker) => <Text key={blocker}>{blocker}</Text>)}
+              </ControlButton>
             ))}
           </View>
         </View>
+      ) : draft.requiresCraftedStatSelection ? (
+        <Text className={style('sectionEmpty')} data-role="gear-crafted-stat-blocked">
+          制造属性选项待后端核验
+        </Text>
       ) : null}
     </View>
   )
@@ -237,6 +264,7 @@ export function GearCandidateEditorSheet({
   loading = false,
   notice = '',
   onSelectCandidate,
+  onSelectCraftedStat,
   onSelectVariant,
   onApply,
   onClose,
@@ -305,6 +333,7 @@ export function GearCandidateEditorSheet({
                         draft={draft}
                         loading={loading}
                         selectedCandidate={selectedCandidate}
+                        onSelectCraftedStat={onSelectCraftedStat}
                         onSelectVariant={onSelectVariant}
                       />
                     ) : null}
@@ -322,6 +351,7 @@ export function GearCandidateEditorSheet({
               draft={draft}
               loading={loading}
               selectedCandidate={selectedCandidate}
+              onSelectCraftedStat={onSelectCraftedStat}
               onSelectVariant={onSelectVariant}
             />
           ) : null}
@@ -509,7 +539,16 @@ export function GearEnhancementEditorSheet({
   const showEmbellishment = !requestedKind || requestedKind === 'embellishment'
   const kindLabel = requestedKind ? enhancementKindLabel(requestedKind) : '强化'
   return (
-    <View className={style('workbenchSheet')} data-owner="gear-enhancement-editor-sheet">
+    <View
+      className={style('workbenchSheet')}
+      data-active-slot={activeSlot}
+      data-blocker-count={blockers.length}
+      data-has-item={item ? 'true' : 'false'}
+      data-option-count={options.length}
+      data-owner="gear-enhancement-editor-sheet"
+      data-requested-kind={requestedKind ?? ''}
+      data-socket-count={socketCount}
+    >
       <View className={style('sheetHeader')}>
         <View>
           <Text>编辑{slotLabel || '装备'}{kindLabel}</Text>
