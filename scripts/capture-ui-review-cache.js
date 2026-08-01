@@ -7,7 +7,6 @@ const os = require('node:os')
 const path = require('node:path')
 const { execFileSync } = require('node:child_process')
 
-const { connectMiniProgram, timeout, waitForRenderedPage, waitForSystemInfo } = require('./wechat-automator')
 const { readBoundedFile } = require('./bounded-file')
 const { readBoundedJson, writeBoundedJsonAtomic } = require('./bounded-json-detail')
 const { normalizeSystemViewport } = require('./wechat-viewport')
@@ -19,6 +18,12 @@ const maxCaptureBytes = 8 * 1024 * 1024
 const maxCaptureScale = 4
 const maxManifestBytes = 1024 * 1024
 const maxRoutesPerCaptureRun = 2
+let wechatAutomator
+
+function getWechatAutomator() {
+  wechatAutomator ??= require('./wechat-automator')
+  return wechatAutomator
+}
 
 function selectedRoutes(value) {
   const requested = (value ?? '').split(',').map((item) => item.trim()).filter(Boolean)
@@ -88,6 +93,7 @@ function writeManifest(manifestPath, manifest) {
 }
 
 async function captureWithRetry(miniProgram, artifactPath, route) {
+  const { timeout } = getWechatAutomator()
   let lastError
   for (let attempt = 1; attempt <= 3; attempt += 1) {
     try {
@@ -102,6 +108,7 @@ async function captureWithRetry(miniProgram, artifactPath, route) {
 }
 
 async function inspectRenderer(page, route) {
+  const { timeout } = getWechatAutomator()
   const [shell, regions] = await Promise.all([
     timeout(page.$('.wx-style-shell'), 3000, `query shell ${route.route}`),
     timeout(page.$$('.wx-style-routeregion'), 3000, `query regions ${route.route}`),
@@ -117,6 +124,7 @@ async function inspectRenderer(page, route) {
 
 async function main() {
   const routes = selectedRoutes(process.env.UI_REVIEW_ROUTES)
+  const { connectMiniProgram, timeout, waitForRenderedPage, waitForSystemInfo } = getWechatAutomator()
   const commit = execFileSync('git', ['rev-parse', '--short=12', 'HEAD'], { encoding: 'utf8' }).trim()
   const cacheRoot = process.env.UI_REVIEW_CACHE_ROOT || path.join(os.tmpdir(), 'wow-mini-ui-review-cache')
   let miniProgram

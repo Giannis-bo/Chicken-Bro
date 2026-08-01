@@ -255,6 +255,13 @@ class FakeConnection:
 
 
 class GearCatalogMigrationAuditCliTest(unittest.TestCase):
+    def test_default_filesystem_measurement_is_cross_platform(self):
+        facts = audit_cli.default_filesystem_facts(ROOT)
+
+        self.assertGreater(facts.f_blocks, 0)
+        self.assertGreater(facts.f_frsize, 0)
+        self.assertGreaterEqual(facts.f_bavail, 0)
+
     def test_compact_slot_payloads_count_as_specialization_candidates(self):
         payload = {
             "replacementCandidates": [

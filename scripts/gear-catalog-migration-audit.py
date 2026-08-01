@@ -11,8 +11,10 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
 import signal
 import sys
+from types import SimpleNamespace
 import uuid
 from typing import Any, Callable, Iterable, Mapping
 
@@ -718,6 +720,17 @@ def _caller_summary(caller_report: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
+def default_filesystem_facts(path: str | os.PathLike[str]) -> Any:
+    if hasattr(os, "statvfs"):
+        return os.statvfs(path)
+    usage = shutil.disk_usage(path)
+    return SimpleNamespace(
+        f_blocks=usage.total,
+        f_bavail=usage.free,
+        f_frsize=1,
+    )
+
+
 def _resource_rows(
     snapshot: Mapping[str, Any],
     *,
@@ -845,7 +858,9 @@ def run_audit(
     spec_payload_reader: Callable[[str, str], Mapping[str, Any]] | None = None,
     class_spec_matrix: Any = None,
     filesystem_roots: Iterable[Path] | None = None,
-    statvfs_fn: Callable[[str | os.PathLike[str]], Any] = os.statvfs,
+    statvfs_fn: Callable[
+        [str | os.PathLike[str]], Any
+    ] = default_filesystem_facts,
     observed_at: str | None = None,
     connection_factory: Callable[[], Any] | None = None,
     resource_report: Mapping[str, Any] | None = None,

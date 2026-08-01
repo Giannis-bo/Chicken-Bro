@@ -9,7 +9,6 @@ import hashlib
 import json
 import os
 from pathlib import Path
-import resource
 import sys
 import time
 from typing import Any, Callable, Mapping
@@ -27,6 +26,7 @@ from server.gear_resolved_loadout import (  # noqa: E402
     build_resolved_loadout_from_registry,
 )
 from server.postgres_cache_store import PostgresCacheStore  # noqa: E402
+from server.process_resource_usage import peak_rss_bytes  # noqa: E402
 from server.simc_support_policy import simc_execution_support  # noqa: E402
 from server.simulation_snapshot_compat import (  # noqa: E402
     snapshot_from_compatibility_profile,
@@ -70,8 +70,7 @@ def _hash(prefix: str, value: Any) -> str:
 
 
 def _peak_bytes() -> int:
-    peak = int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss or 0)
-    return peak if sys.platform == "darwin" else peak * 1024
+    return peak_rss_bytes()
 
 
 def _problem_counts(rows: list[dict[str, Any]]) -> dict[str, int]:

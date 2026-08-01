@@ -78,6 +78,14 @@ def prepared_result():
 
 
 class GearReleaseResourceProbeTest(unittest.TestCase):
+    def test_peak_rss_measurement_is_available_on_the_current_platform(self):
+        from server.gear_release_resource_probe import current_peak_rss_bytes
+
+        observed = current_peak_rss_bytes()
+
+        self.assertIsInstance(observed, int)
+        self.assertGreater(observed, 0)
+
     def test_postgres_only_environment_and_read_only_connection_are_mandatory(self):
         from server.gear_release_resource_probe import (
             ReadOnlyConnectionFactory,

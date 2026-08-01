@@ -8,11 +8,11 @@ import json
 import os
 from pathlib import Path
 import re
-import resource
-import sys
 import tempfile
 import time
 from typing import Any, Callable, Iterable, Mapping
+
+from .process_resource_usage import peak_rss_bytes
 
 
 SCHEMA_REVISION = "gear-release-resource-probe-v1"
@@ -190,8 +190,7 @@ class ReadOnlyConnectionFactory:
 
 
 def current_peak_rss_bytes() -> int:
-    observed = _integer(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
-    return observed if sys.platform == "darwin" else observed * 1024
+    return peak_rss_bytes()
 
 
 def _directory_bytes(root: Path) -> int:

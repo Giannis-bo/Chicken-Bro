@@ -9,7 +9,6 @@ import hashlib
 import json
 import os
 from pathlib import Path
-import resource
 import sys
 import time
 from typing import Any, Callable, Mapping
@@ -29,6 +28,7 @@ from server.gear_exact_item_registry import (  # noqa: E402
 from server.gear_exact_item_registry_store import (  # noqa: E402
     GearExactItemRegistryStore,
 )
+from server.process_resource_usage import peak_rss_bytes  # noqa: E402
 
 
 MAX_STATEMENT_TIMEOUT_MS = 30_000
@@ -105,8 +105,7 @@ def _binding(snapshot: Mapping[str, Any]) -> dict[str, Any]:
 
 
 def _peak_rss_bytes() -> int:
-    peak = int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss or 0)
-    return peak if sys.platform == "darwin" else peak * 1024
+    return peak_rss_bytes()
 
 
 def _blocked_report(
