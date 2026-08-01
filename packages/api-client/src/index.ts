@@ -12,7 +12,13 @@ export type { WowApiClientConfig, WowApiClients } from './clients'
 export { createNewsClient, isNewsHomeVisuallyEmpty, isReadyNewsArticle } from './news'
 export type { NewsClient } from './news'
 export { SimulatorClient } from './simulator'
-export type { SimulatorRequestOptions, TaskDetailPayload, TaskListPayload } from './simulator'
+export type {
+  ChickenbroMessageRequest,
+  ChickenbroSessionListRequest,
+  SimulatorRequestOptions,
+  TaskDetailPayload,
+  TaskListPayload,
+} from './simulator'
 export { taroStorage } from './storage'
 export type { StorageAdapter } from './storage'
 export { TemplateRepository } from './templates'

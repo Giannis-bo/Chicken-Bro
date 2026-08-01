@@ -129,22 +129,6 @@ export type {
   GearWorkbenchSlotItem,
 } from './components/GearDetailComponents'
 export {
-  SimulatorCaptainAction,
-  SimulatorComposer,
-  SimulatorEvidenceShelf,
-  SimulatorGuidancePanel,
-  SimulatorTranscript,
-} from './components/SimulatorHomeComponents'
-export type {
-  SimulatorCaptainActionProps,
-  SimulatorComposerProps,
-  SimulatorEvidenceCard,
-  SimulatorEvidenceShelfProps,
-  SimulatorGuidancePanelProps,
-  SimulatorInputState,
-  SimulatorTranscriptProps,
-} from './components/SimulatorHomeComponents'
-export {
   SimcBlockerPanel,
   SimcCombatConfiguration,
   SimcFooterNotice,
@@ -171,29 +155,14 @@ export type {
   SimcTemplateSlotProps,
 } from './components/SimcSubmitComponents'
 export {
-  ChickenbroAnswerStatePanel,
-  ChickenbroAssistantTurnSlot,
+  ChickenbroArchiveList,
   ChickenbroComposer,
-  ChickenbroContextPanel,
-  ChickenbroEvidenceAnswer,
-  ChickenbroEvidenceBoundary,
-  ChickenbroIntroMessage,
-  ChickenbroTopicLibrary,
-  ChickenbroUserTurnSlot,
+  ChickenbroTranscript,
 } from './components/ChickenbroChatComponents'
 export type {
-  ChickenbroAnswerStatePanelProps,
-  ChickenbroAssistantTurnSlotProps,
-  ChickenbroBoundaryItem,
+  ChickenbroArchiveListProps,
   ChickenbroComposerProps,
-  ChickenbroContextCell,
-  ChickenbroContextPanelProps,
-  ChickenbroEvidenceAnswerProps,
-  ChickenbroEvidenceBoundaryProps,
-  ChickenbroEvidenceRowItem,
-  ChickenbroIntroMessageProps,
-  ChickenbroTopicLibraryProps,
-  ChickenbroUserTurnSlotProps,
+  ChickenbroTranscriptProps,
 } from './components/ChickenbroChatComponents'
 export {
   TaskBottomActions,

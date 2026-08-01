@@ -75,11 +75,11 @@
     },
     {
       "route": "simulator_home",
-      "path": "artifacts/ui-visual-targets/current/simulator-home.png",
-      "width": 834,
-      "height": 1886,
-      "bytes": 1964831,
-      "sha256": "92e9c8e9d30d5be67fc40c125abfb9e78cac00e6a060f87678fd99a46cd78bcc"
+      "path": "artifacts/ui-visual-targets/current/captain-chat-root-v1.png",
+      "width": 853,
+      "height": 1844,
+      "bytes": 1748002,
+      "sha256": "15e49fb4e3ee1887fb725f4f67f449a90f2feb3e9f0a68bb77908f5699e79a8d"
     },
     {
       "route": "SimC_submit",
@@ -91,11 +91,11 @@
     },
     {
       "route": "chickenbro_chat",
-      "path": "artifacts/ui-visual-targets/current/chickenbro-chat.png",
+      "path": "artifacts/ui-visual-targets/current/captain-chat-archive-v1.png",
       "width": 853,
       "height": 1844,
-      "bytes": 1890187,
-      "sha256": "61418f362c7814492f36be5d7f8f93addd1eff8ff2ef47b38d459668f56a421d"
+      "bytes": 1566694,
+      "sha256": "6970fd9435d0d8592c7032bd220a5c7034a686a748e59b5bb72bd4bbcd2108ee"
     },
     {
       "route": "tasks_list",

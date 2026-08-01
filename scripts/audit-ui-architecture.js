@@ -826,9 +826,11 @@ record(
 for (const interaction of interactionContract.interactions ?? []) {
   const sourceExists = typeof interaction.source === 'string' && fs.existsSync(path.join(root, interaction.source))
   const marker = `${interaction.selectorAttribute}="${interaction.selectorValue}"`
+  const componentProp = String(interaction.selectorAttribute).replace(/-([a-z])/gu, (_, letter) => letter.toUpperCase())
+  const propMarker = `${componentProp}="${interaction.selectorValue}"`
   record(
     `interaction_selector:${interaction.route}`,
-    sourceExists && read(interaction.source).includes(marker),
+    sourceExists && (read(interaction.source).includes(marker) || read(interaction.source).includes(propMarker)),
     sourceExists ? marker : `missing source ${interaction.source}`,
   )
 }
@@ -1275,7 +1277,6 @@ const dynamicStyleFamilies = [
 ]
 const externallyOwnedStyleClasses = new Set([
   'packages/design-system/src/components/ChickenbroChatComponents.module.scss:taro-textarea',
-  'packages/design-system/src/components/SimulatorHomeComponents.module.scss:taro-textarea',
 ])
 const unownedUiStyleClasses = routedUiStyleFiles.flatMap((file) => {
   const classNames = [...new Set([...read(file).matchAll(/\.([A-Za-z_][\w-]*)/gu)].map((match) => match[1]))]
@@ -2041,7 +2042,6 @@ const viewportFitStyles = {
   newsDetail: read('apps/mini-taro/src/pages/news/news-detail.module.scss'),
   gearDetail: read('apps/mini-taro/src/pages/builds/gear-detail.module.scss'),
   simcSubmit: read('apps/mini-taro/src/pages/simulator/simc-submit.module.scss'),
-  chickenbro: read('apps/mini-taro/src/pages/simulator/chickenbro.module.scss'),
   taskDetail: read('apps/mini-taro/src/pages/simulator/task-detail.module.scss'),
   profile: read('apps/mini-taro/src/pages/profile/profile.module.scss'),
 }
@@ -2075,11 +2075,6 @@ const responsiveHorizontalRegionGroups = [
     route: 'simc',
     source: viewportFitStyles.simcSubmit,
     names: simcVerticalRegionNames,
-  },
-  {
-    route: 'chickenbro',
-    source: viewportFitStyles.chickenbro,
-    names: ['contextRegion', 'introRegion', 'primaryUserRegion', 'answerRegion', 'boundaryRegion', 'followupUserRegion', 'followupAnswerRegion', 'answerStateRegion', 'topicRegion'],
   },
 ]
 const invalidResponsiveHorizontalRegions = responsiveHorizontalRegionGroups.flatMap(({ route, source, names }) => names.flatMap((name) => {
@@ -2131,8 +2126,7 @@ record(
 )
 record(
   'fixed_dock_controls_are_presence_complete_across_native_and_role_buttons',
-  /"route":\s*"simulator_home"[^\n]*"requiredFixedDockControlRoles":\s*\["simulator-dock-upload", "simulator-dock-paste", "simulator-dock-send"\]/u.test(read('docs/design/current-ui/route-geometry-contract.json'))
-    && /"route":\s*"chickenbro_chat"[^\n]*"requiredFixedDockControlRoles":\s*\["chickenbro-dock-new-topic", "chickenbro-dock-send"\]/u.test(read('docs/design/current-ui/route-geometry-contract.json'))
+  /"route":\s*"simulator_home"[^\n]*"requiredFixedDockControlRoles":\s*\["chickenbro-dock-send"\]/u.test(read('docs/design/current-ui/route-geometry-contract.json'))
     && /page\.\$\$\('\[role="button"\]'\)/u.test(read('scripts/verify-ui-route-geometry.js'))
     && /page\.\$\$\('\.wx-style-shelldock \[role="button"\]'\)/u.test(read('scripts/verify-ui-route-geometry.js'))
     && /missing-fixed-dock-control/u.test(read('scripts/verify-ui-route-geometry.js'))
@@ -2276,7 +2270,7 @@ for (const file of componentSources.filter((candidate) => candidate.endsWith('.t
 }
 record(
   'all_interactive_asset_descendants_declare_material_ownership',
-  interactiveAssetMaterialOwners.length >= 9 && interactiveAssetMaterialOwners.every((owner) => owner.valid),
+  interactiveAssetMaterialOwners.length >= 8 && interactiveAssetMaterialOwners.every((owner) => owner.valid),
   interactiveAssetMaterialOwners.filter((owner) => !owner.valid).map((owner) => `${owner.file}:${owner.line}:${owner.role}`).join(', ')
     || `controls=${interactiveAssetMaterialOwners.length}`,
 )

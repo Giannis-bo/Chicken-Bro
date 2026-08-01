@@ -511,3 +511,16 @@ test('UI audit uses the plan whitelist without claiming authority over non-UI pl
     /JSON\.stringify\(currentPlanFiles\) === JSON\.stringify\(sorted\(evidencePolicy\.allowedPlanFiles/u,
   )
 })
+
+test('UI audit contracts the Captain root conversation and archive routes without adding a fifteenth route', () => {
+  const audit = fs.readFileSync(path.join(root, 'scripts', 'audit-ui-architecture.js'), 'utf8')
+  const geometry = fs.readFileSync(path.join(root, 'docs', 'design', 'current-ui', 'route-geometry-contract.json'), 'utf8')
+
+  assert.match(geometry, /"route":\s*"simulator_home"[^\n]*"captain_transcript"/u)
+  assert.match(geometry, /"route":\s*"chickenbro_chat"[^\n]*"archive_list"/u)
+  assert.match(geometry, /"chickenbro-dock-send"/u)
+  assert.doesNotMatch(geometry, /simulator-dock-upload|simulator-dock-paste|chickenbro-dock-new-topic/u)
+  assert.match(audit, /chickenbro-dock-send/u)
+  assert.doesNotMatch(audit, /simulator-dock-upload", "simulator-dock-paste", "simulator-dock-send/u)
+  assert.doesNotMatch(audit, /chickenbro-dock-new-topic", "chickenbro-dock-send/u)
+})

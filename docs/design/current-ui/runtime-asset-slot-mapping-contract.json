@@ -128,11 +128,12 @@
       "path": "/pages/simulator/simulator",
       "assetContract": "docs/design/current-ui/routes/simulator-home/asset-contract.json",
       "runtimeSlots": {
-        "asset_slot.simulator-page-frame": "asset_slot.simulator-page-frame",
-        "asset_slot.simulator-context-emblem": "asset_slot.simulator-context-emblem",
-        "asset_slot.simulator-suggestion-family": "asset_slot.simulator-suggestion-family",
-        "asset_slot.simulator-evidence-shelf": "asset_slot.simulator-evidence-shelf",
-        "asset_slot.simulator-composer-family": "asset_slot.simulator-composer-family",
+        "asset_slot.captain-page-frame": "asset_slot.captain-page-frame",
+        "asset_slot.captain-header-actions": "asset_slot.captain-header-actions",
+        "asset_slot.captain-transcript": "asset_slot.captain-transcript",
+        "asset_slot.captain-assistant-identity": "asset_slot.captain-assistant-identity",
+        "asset_slot.captain-attachment": "asset_slot.captain-attachment",
+        "asset_slot.captain-composer": "asset_slot.captain-composer",
         "asset_slot.product-tab-glyphs": "shared:asset_slot.product-tab-glyphs",
         "asset_slot.utility-glyph-family": "shared:asset_slot.utility-glyph-family"
       }
@@ -164,18 +165,12 @@
       "path": "/pages/simulator/chickenbro",
       "assetContract": "docs/design/current-ui/routes/chickenbro-chat/asset-contract.json",
       "runtimeSlots": {
-        "asset_slot.chickenbro-page-frame": "asset_slot.chickenbro-page-frame",
-        "asset_slot.chickenbro-header-identity": "asset_slot.chickenbro-header-identity",
-        "asset_slot.chickenbro-context-family": "asset_slot.chickenbro-context-family",
-        "asset_slot.chickenbro-captain-avatar": "asset_slot.chickenbro-captain-avatar",
-        "asset_slot.chickenbro-user-avatar": "asset_slot.chickenbro-user-avatar",
-        "asset_slot.chickenbro-answer-basis": "asset_slot.chickenbro-answer-basis",
-        "asset_slot.chickenbro-evidence-rows": "asset_slot.chickenbro-evidence-rows",
-        "asset_slot.chickenbro-boundary-family": "asset_slot.chickenbro-boundary-family",
-        "asset_slot.chickenbro-answer-state": "asset_slot.chickenbro-answer-state",
-        "asset_slot.chickenbro-topic-library": "asset_slot.chickenbro-topic-library",
-        "asset_slot.chickenbro-composer-actions": "asset_slot.chickenbro-composer-actions",
-        "asset_slot.chickenbro-selector-affordances": "asset_slot.chickenbro-selector-affordances",
+        "asset_slot.archive-page-frame": "asset_slot.archive-page-frame",
+        "asset_slot.archive-header-navigation": "asset_slot.archive-header-navigation",
+        "asset_slot.archive-list": "asset_slot.archive-list",
+        "asset_slot.archive-row-disclosure": "asset_slot.archive-row-disclosure",
+        "asset_slot.archive-empty": "asset_slot.archive-empty",
+        "asset_slot.product-tab-glyphs": "shared:asset_slot.product-tab-glyphs",
         "asset_slot.pushed-back-medallion": "shared:asset_slot.pushed-back-medallion",
         "asset_slot.utility-glyph-family": "shared:asset_slot.utility-glyph-family"
       }

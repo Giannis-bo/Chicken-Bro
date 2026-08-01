@@ -15,12 +15,13 @@ export type PageFrameVariant =
   | 'task-detail'
   | 'profile'
 
-export type PageChromeMode = 'root' | 'pushed' | 'pushed-action' | 'chat'
-export type PageFrameRightActionLayout = 'default' | 'builds-class-selector'
+export type PageChromeMode = 'root' | 'pushed' | 'pushed-action'
+export type PageFrameRightActionLayout = 'default' | 'builds-class-selector' | 'captain-chat'
 
 const PAGE_FRAME_RIGHT_ACTION_WIDTHS: Readonly<Record<PageFrameRightActionLayout, number>> = {
   default: 36,
   'builds-class-selector': 120,
+  'captain-chat': 80,
 }
 
 const ROOT_PAGE_VARIANTS = new Set<PageFrameVariant>([
@@ -38,8 +39,14 @@ export function resolvePageChromeMode(
   const pushed = variant === 'workbench' || Boolean(onBack)
   if (!pushed) return 'root'
   if (variant === 'build-intel' || variant === 'simc-submit') return 'pushed-action'
-  if (variant === 'chickenbro-chat') return 'chat'
   return 'pushed'
+}
+
+export function resolvePageFrameRightActionLayout(
+  variant: PageFrameVariant,
+  requestedLayout: PageFrameRightActionLayout = 'default',
+): PageFrameRightActionLayout {
+  return variant === 'simulator-home' ? 'captain-chat' : requestedLayout
 }
 
 export function resolvePageFrameRightActionWidth(

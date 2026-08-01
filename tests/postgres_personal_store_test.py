@@ -394,6 +394,46 @@ class PostgresPersonalStoreTest(unittest.TestCase):
         self.assertIn("WHERE user_id = %s AND id = %s", sql)
         self.assertIn("WHERE user_id = %s AND id = %s AND job_type = 'chickenbro'", sql)
 
+    def test_chickenbro_archive_summary_query_is_owner_bound_and_does_not_expose_metadata(self):
+        from server.postgres_personal_store import PostgresPersonalStore
+
+        rows = [
+            (
+                "33333333-3333-4333-8333-333333333333",
+                "最新话题",
+                "ptr",
+                "2026-08-01T00:00:00+00:00",
+                "2026-08-01T03:00:00+00:00",
+            ),
+            (
+                "22222222-2222-4222-8222-222222222222",
+                "较早话题",
+                "retail",
+                "2026-08-01T00:00:00+00:00",
+                "2026-08-01T02:00:00+00:00",
+            ),
+        ]
+        conn = FakeConnection(rows=rows)
+        store = PostgresPersonalStore(lambda: conn)
+
+        sessions = store.list_chickenbro_sessions(
+            "owner-a",
+            3,
+            {"updatedAt": "2026-08-01T04:00:00+00:00", "sessionId": "44444444-4444-4444-8444-444444444444"},
+        )
+
+        self.assertEqual([item["title"] for item in sessions], ["最新话题", "较早话题"])
+        self.assertEqual(sessions[0]["productPhase"], "ptr")
+        self.assertTrue(all("metadata" not in item for item in sessions))
+        sql = conn.cursor_instance.statements[0]
+        params = conn.cursor_instance.params[0]
+        self.assertIn("FROM app.chickenbro_sessions", sql)
+        self.assertIn("WHERE user_id = %s", sql)
+        self.assertIn("updated_at < %s::timestamptz", sql)
+        self.assertNotIn("SELECT id, user_id, title, status, context_json", sql)
+        self.assertEqual(params[0], "owner-a")
+        self.assertEqual(params[-1], 3)
+
 
 if __name__ == "__main__":
     unittest.main()

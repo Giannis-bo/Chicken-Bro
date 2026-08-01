@@ -6,9 +6,9 @@ Keep the simulator SimC path deterministic and evidence-bound: the mini program 
 
 ## Current Flow
 
-1. `pages/simulator/simulator` is the 智能分析 tab and now renders the 炸鸡队长 chat surface directly through `pages/simulator/chickenbro-chat.js`. It no longer asks the player to choose SimC / WCL / Chickenbro cards first.
+1. `pages/simulator/simulator` is the 智能分析 tab and the active Taro 炸鸡队长 root: it contains only conversation history, “对话存档”, “+ 新话题” and a text composer. It no longer asks the player to choose SimC / WCL / Chickenbro cards first.
 2. `GET /api/simulator/home` remains a compatibility payload for backend smoke and older clients, but it is not the current mini-program first screen.
-3. `pages/simulator/chickenbro` is an independent route that uses the same shared chat controller as the tab entry.
+3. `pages/simulator/chickenbro` is the pushed Taro 对话存档 route. It lists the current owner's recent sessions and returns to the root to restore a selected session.
 4. `pages/simulator/simc` is still the SimC submission path, but the player-facing entry is now from `pages/builds/builds` quick action `simc`, saved templates, or direct navigation during development.
 5. The SimC page posts to `POST /api/simulator/analyze` with:
 
@@ -174,11 +174,11 @@ Player-facing task details should lead with the simplified SimC result and run c
 
 `pages/simulator/wcl` remains a WCL input surface in code, but it is not registered in `app.json` and is not part of the current 智能分析 first screen. The backend parses report URL/code/fight and blocks deterministically when the report is missing or credentials are unavailable. Without `WOW_WARCRAFTLOGS_CLIENT_ID` / `WOW_WARCRAFTLOGS_CLIENT_SECRET` or another supported WCL credential, the system must not call LLM to fabricate log conclusions.
 
-`pages/simulator/simulator` and `pages/simulator/chickenbro` are the current 炸鸡队长 chat entries. Both use `pages/simulator/chickenbro-chat.js`, post to `POST /api/chickenbro/messages`, and can read `GET /api/chickenbro/sessions`, `GET /api/chickenbro/jobs`, and `GET /api/chickenbro/profiles`.
+`pages/simulator/simulator` is the current 炸鸡队长 chat entry. It posts to `POST /api/chickenbro/messages`, reads a selected detail from `GET /api/chickenbro/sessions?id=...`, and opens `pages/simulator/chickenbro` for the owner-isolated `GET /api/chickenbro/sessions` archive list. The archive route does not create, rename or delete sessions.
 
 Chickenbro rules:
 
-- Frontend sends a short message plus bounded context such as `productPhase`, `region`, `classKey`, `specKey`, and `scenarioKey`; it does not send raw DB access, API keys, full logs, or complete SimC profiles to an LLM.
+- Frontend sends only the typed message and session id when present; it does not automatically read or send class, specialization, scenario, template, raw DB access, API keys, full logs or complete SimC profiles to an LLM.
 - Backend stores lightweight sessions/messages/jobs, builds a bounded context, validates topic scope and allowed numbers, then either runs the configured Codex runner or returns deterministic fallback.
 - `WOW_CHICKENBRO_CODEX_ENABLED=1` enables the Codex runner. Without a published profile, the backend may use direct Codex chat mode for in-scope WoW questions so the player can test the conversation feel, but the answer must not present general model knowledge as local evidence.
 - `published` spec profiles may support conclusions; `partial` profiles are background only; `stale` / `blocked` / `needs_review` profiles do not enter the conclusion chain.

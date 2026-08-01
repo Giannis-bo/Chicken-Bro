@@ -8234,6 +8234,120 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(len(session_payload["messages"]), 2)
         self.assertEqual(error.exception.code, 404)
 
+    def test_chickenbro_archive_lists_only_the_owner_sessions_in_recent_first_pages(self):
+        titles = ["最早的话题", "中间的话题", "最新的话题"]
+        updated_at = [
+            "2026-08-01T00:01:00+00:00",
+            "2026-08-01T00:02:00+00:00",
+            "2026-08-01T00:03:00+00:00",
+        ]
+        created = [
+            self.backend.create_chickenbro_session(
+                guest_id="archive-owner-a",
+                metadata={"title": title},
+            )["session"]
+            for title in titles
+        ]
+        other = self.backend.create_chickenbro_session(
+            guest_id="archive-owner-b",
+            metadata={"title": "其他玩家的话题"},
+        )["session"]
+
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            for session, timestamp in zip(created, updated_at):
+                conn.execute(
+                    "UPDATE chickenbro_sessions SET updated_at = ? WHERE id = ?",
+                    (timestamp, session["sessionId"]),
+                )
+            conn.commit()
+
+        first_page = self.backend.list_chickenbro_sessions(
+            "",
+            allow_guest=True,
+            guest_id="archive-owner-a",
+            limit=2,
+        )
+        second_page = self.backend.list_chickenbro_sessions(
+            "",
+            allow_guest=True,
+            guest_id="archive-owner-a",
+            limit=2,
+            cursor=first_page["nextCursor"],
+        )
+        other_owner = self.backend.list_chickenbro_sessions(
+            "",
+            allow_guest=True,
+            guest_id="archive-owner-b",
+            limit=2,
+        )
+
+        self.assertEqual([item["title"] for item in first_page["sessions"]], ["最新的话题", "中间的话题"])
+        self.assertEqual([item["title"] for item in second_page["sessions"]], ["最早的话题"])
+        self.assertTrue(first_page["nextCursor"])
+        self.assertIsNone(second_page["nextCursor"])
+        self.assertEqual([item["sessionId"] for item in other_owner["sessions"]], [other["sessionId"]])
+        self.assertNotIn("user", first_page)
+        self.assertTrue(all("metadata" not in item for item in first_page["sessions"]))
+
+    def test_chickenbro_archive_rejects_unowned_or_malformed_pagination_requests(self):
+        self.backend.create_chickenbro_session(
+            guest_id="archive-validation-owner",
+            metadata={"title": "验证话题"},
+        )
+
+        with self.assertRaises(PermissionError):
+            self.backend.list_chickenbro_sessions("", allow_guest=True, guest_id="missing-archive-owner")
+        with self.assertRaises(ValueError):
+            self.backend.list_chickenbro_sessions(
+                "",
+                allow_guest=True,
+                guest_id="archive-validation-owner",
+                limit=0,
+            )
+        with self.assertRaises(ValueError):
+            self.backend.list_chickenbro_sessions(
+                "",
+                allow_guest=True,
+                guest_id="archive-validation-owner",
+                cursor="not-a-valid-cursor",
+            )
+
+    def test_http_chickenbro_archive_list_reports_real_empty_and_bad_pagination_separately(self):
+        self.backend.create_chickenbro_session(
+            guest_id="archive-http-owner",
+            metadata={"title": "HTTP 存档"},
+        )
+        server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            archive_url = (
+                f"http://127.0.0.1:{server.server_port}/api/chickenbro/sessions"
+                "?guest=1&guestId=archive-http-owner&limit=1"
+            )
+            with urlopen(archive_url, timeout=5) as response:
+                archive_payload = json.loads(response.read().decode("utf-8"))
+
+            invalid_limit_url = (
+                f"http://127.0.0.1:{server.server_port}/api/chickenbro/sessions"
+                "?guest=1&guestId=archive-http-owner&limit=0"
+            )
+            with self.assertRaises(HTTPError) as invalid_limit:
+                urlopen(invalid_limit_url, timeout=5)
+
+            missing_owner_url = f"http://127.0.0.1:{server.server_port}/api/chickenbro/sessions?guest=1&guestId=unknown-owner"
+            with self.assertRaises(HTTPError) as missing_owner:
+                urlopen(missing_owner_url, timeout=5)
+        finally:
+            server.shutdown()
+            thread.join(timeout=2)
+            server.server_close()
+
+        self.assertEqual([item["title"] for item in archive_payload["sessions"]], ["HTTP 存档"])
+        self.assertIsNone(archive_payload["nextCursor"])
+        self.assertEqual(invalid_limit.exception.code, 400)
+        self.assertEqual(missing_owner.exception.code, 401)
+
     def test_saved_wcl_task_preserves_log_evidence_status(self):
         login = self.backend.login_with_wechat_code(
             "wx-code-wcl-evidence",

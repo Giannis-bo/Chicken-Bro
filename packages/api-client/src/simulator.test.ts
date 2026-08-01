@@ -298,11 +298,60 @@ describe('SimulatorClient task contract', () => {
         ? { payload: payload as T, fromFallback: false, error: '' }
         : { payload: options.fallback(), fromFallback: true, error: 'invalid payload' }
       return new SimulatorClient({ requestEndpoint } as unknown as ApiTransport, new MemoryStorage())
-        .message({ mode: 'chickenbro', message: '当前缺什么证据？', sessionId: '' })
+        .message({ message: '当前缺什么证据？', sessionId: '' })
     }))
 
     expect(results[0]?.fromFallback).toBe(false)
     expect(results.slice(1).every((result) => result.fromFallback)).toBe(true)
+  })
+
+  it('validates owner-scoped Chickenbro archive summaries and session details', async () => {
+    const session = {
+      sessionId: 'session-archive-1',
+      title: '版本职业咨询',
+      productPhase: 'retail',
+      createdAt: '2026-08-01T00:00:00+00:00',
+      updatedAt: '2026-08-01T01:00:00+00:00',
+    }
+    const validList = { sessions: [session], nextCursor: 'cursor-1' }
+    const validDetail = {
+      session,
+      messages: [
+        { messageId: 'message-1', role: 'user', content: '正式服火法怎么开爆发？', createdAt: '2026-08-01T00:00:00+00:00' },
+        { messageId: 'message-2', role: 'assistant', content: '先确认当前版本和目标场景。', createdAt: '2026-08-01T00:01:00+00:00' },
+      ],
+    }
+    const invalidList = [
+      { sessions: [{ ...session, updatedAt: '' }], nextCursor: null },
+      { sessions: [session], nextCursor: 1 },
+    ]
+    const invalidDetail = [
+      { session: { ...session, productPhase: '' }, messages: [] },
+      { session, messages: [{ role: 'assistant', content: '' }] },
+    ]
+    const run = async (payload: unknown, kind: 'list' | 'detail') => {
+      const requestEndpoint = async <T>(
+        endpoint: string,
+        path: string,
+        options: Omit<RequestOptions<T>, 'method'>,
+      ): Promise<ApiResult<T>> => {
+        expect(endpoint).toBe(kind === 'list' ? 'chickenbro.sessions' : 'chickenbro.session')
+        expect(path).toContain('/api/chickenbro/sessions?')
+        expect(path).toContain('guest=1')
+        return options.validate?.(payload)
+          ? { payload: payload as T, fromFallback: false, error: '' }
+          : { payload: options.fallback(), fromFallback: true, error: 'invalid payload' }
+      }
+      const client = new SimulatorClient({ requestEndpoint } as unknown as ApiTransport, new MemoryStorage())
+      return kind === 'list'
+        ? client.chickenbroSessions({ limit: 1, cursor: 'cursor-0' })
+        : client.chickenbroSession('session-archive-1')
+    }
+
+    expect((await run(validList, 'list')).fromFallback).toBe(false)
+    expect((await run(validDetail, 'detail')).fromFallback).toBe(false)
+    for (const payload of invalidList) expect((await run(payload, 'list')).fromFallback).toBe(true)
+    for (const payload of invalidDetail) expect((await run(payload, 'detail')).fromFallback).toBe(true)
   })
 
   it('requires a complete confirmation response for the requested SimC mode', async () => {

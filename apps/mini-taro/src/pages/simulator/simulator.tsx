@@ -1,111 +1,129 @@
-import { View } from '@tarojs/components'
-import { useMemo, useState } from 'react'
+import { useDidShow } from '@tarojs/taro'
+import { useCallback, useState } from 'react'
 
-import { wowApi } from '@wow-mini/api-client'
+import { taroStorage, wowApi } from '@wow-mini/api-client'
+import { ActionButton } from '@wow-mini/design-system/components/ActionButton'
 import { AppShell } from '@wow-mini/design-system/components/AppShell'
+import { ChickenbroComposer, ChickenbroTranscript } from '@wow-mini/design-system/components/ChickenbroChatComponents'
 import { PageFrame } from '@wow-mini/design-system/components/PageFrame'
-import { RouteStage } from '@wow-mini/design-system/components/RouteStage'
 import { RouteRegion } from '@wow-mini/design-system/components/RouteFlow'
-import {
-  SimulatorCaptainAction,
-  SimulatorComposer,
-  SimulatorEvidenceShelf,
-  SimulatorGuidancePanel,
-  SimulatorTranscript,
-} from '@wow-mini/design-system/components/SimulatorHomeComponents'
-import type { ChatMessage } from '@wow-mini/domain'
+import { RouteStage } from '@wow-mini/design-system/components/RouteStage'
+import { storageKey, type ChatMessage } from '@wow-mini/domain'
 
 import { useTabRootIdentity } from '../../use-tab-root-identity'
+import { navigateTo } from '../_shared/route-runtime'
 import {
-  initialSimulatorHomeMessages,
-  simulatorAssistantStatus,
-  simulatorEvidenceCards,
-  simulatorHomeContext,
-  simulatorHomeSuggestions,
-  type SimulatorHomeInputState,
-} from './simulator-home-model'
+  boundedChickenbroMessage,
+  chickenbroMarkMessageReceived,
+  chickenbroTranscript,
+  type ChickenbroInputState,
+} from './chickenbro-model'
 import styles from './simulator-home.module.scss'
 
-function updateMessageStatus(
-  messages: readonly ChatMessage[],
-  messageId: string,
-  status: string,
-): readonly ChatMessage[] {
-  return messages.map((message) => message.messageId === messageId ? { ...message, status } : message)
-}
+const pendingSessionStorageKey = storageKey('chickenbro.pendingSessionId')
 
 export default function SimulatorHomePage() {
   useTabRootIdentity('pages/simulator/simulator')
-  const [messages, setMessages] = useState<readonly ChatMessage[]>(initialSimulatorHomeMessages)
+  const [messages, setMessages] = useState<readonly ChatMessage[]>([])
   const [draft, setDraft] = useState('')
   const [sessionId, setSessionId] = useState('')
-  const [inputState, setInputState] = useState<SimulatorHomeInputState>('ready')
+  const [inputState, setInputState] = useState<ChickenbroInputState>('idle')
   const [lastSubmitted, setLastSubmitted] = useState('')
+  const [failedMessageId, setFailedMessageId] = useState('')
+  const [restoreSessionId, setRestoreSessionId] = useState('')
 
-  const context = useMemo(() => simulatorHomeContext(messages), [messages])
-  const evidenceCards = useMemo(() => simulatorEvidenceCards(messages), [messages])
+  const restoreSession = useCallback(async (requestedSessionId: string) => {
+    if (!requestedSessionId) return
+    setRestoreSessionId(requestedSessionId)
+    setInputState('loading')
+    try {
+      const result = await wowApi.simulator.chickenbroSession(requestedSessionId)
+      if (result.fromFallback || !result.payload.session) {
+        setInputState('error')
+        return
+      }
+      setSessionId(result.payload.session.sessionId)
+      setMessages(chickenbroTranscript(result.payload.messages))
+      setDraft('')
+      setLastSubmitted('')
+      setFailedMessageId('')
+      setRestoreSessionId('')
+      setInputState('ready')
+    } catch {
+      setInputState('error')
+    }
+  }, [])
 
-  const resetTopic = () => {
-    setMessages(initialSimulatorHomeMessages())
+  useDidShow(() => {
+    const selectedSessionId = taroStorage.get<string>(pendingSessionStorageKey)
+    if (!selectedSessionId) return
+    taroStorage.remove(pendingSessionStorageKey)
+    void restoreSession(selectedSessionId)
+  })
+
+  const newTopic = () => {
+    if (inputState === 'loading') return
+    setMessages([])
     setDraft('')
     setSessionId('')
-    setInputState('ready')
     setLastSubmitted('')
+    setFailedMessageId('')
+    setRestoreSessionId('')
+    setInputState('idle')
   }
 
   const send = async (explicitMessage?: string) => {
-    const message = (explicitMessage ?? draft).trim().slice(0, 2000)
+    const message = boundedChickenbroMessage(explicitMessage ?? draft)
     if (!message || inputState === 'loading') return
 
     const localMessageId = `local-user-${Date.now()}`
-    const userMessage: ChatMessage = {
+    setMessages((current) => [...current, {
       messageId: localMessageId,
       role: 'user',
       content: message,
-      status: '等待后端',
-    }
-    setLastSubmitted(message)
+      status: 'sending',
+    }])
     setDraft('')
+    setLastSubmitted(message)
+    setFailedMessageId('')
+    setRestoreSessionId('')
     setInputState('loading')
-    setMessages((current) => [...current, userMessage].slice(-80))
 
     try {
       const result = await wowApi.simulator.message({
         message,
-        sessionId,
-        mode: 'chickenbro',
-        context: {},
+        ...(sessionId ? { sessionId } : {}),
       })
-
       if (result.fromFallback) {
-        setMessages((current) => updateMessageStatus(current, localMessageId, '发送失败 · 可重试'))
+        setFailedMessageId(localMessageId)
         setInputState('error')
         return
       }
-
       const assistant = result.payload.assistantMessage
-      setSessionId(result.payload.session.sessionId || sessionId)
+      setSessionId(result.payload.session.sessionId)
       setMessages((current) => [
-        ...updateMessageStatus(current, localMessageId, '已提交'),
+        ...chickenbroMarkMessageReceived(current, localMessageId),
         {
           ...assistant,
           messageId: assistant.messageId || `assistant-${Date.now()}`,
-          status: simulatorAssistantStatus(assistant, false),
+          status: 'received',
         },
-      ].slice(-80))
+      ])
       setInputState('ready')
     } catch {
-      setMessages((current) => updateMessageStatus(current, localMessageId, '发送失败 · 可重试'))
+      setFailedMessageId(localMessageId)
       setInputState('error')
     }
   }
 
   const retry = () => {
-    if (!lastSubmitted || inputState === 'loading') return
-    setMessages((current) => current.filter((message) => (
-      message.messageId !== 'assistant-transport-error'
-      && !(message.role === 'user' && message.status === '发送失败 · 可重试')
-    )))
+    if (inputState === 'loading') return
+    if (restoreSessionId) {
+      void restoreSession(restoreSessionId)
+      return
+    }
+    if (!lastSubmitted) return
+    if (failedMessageId) setMessages((current) => current.filter((message) => message.messageId !== failedMessageId))
     void send(lastSubmitted)
   }
 
@@ -113,59 +131,32 @@ export default function SimulatorHomePage() {
     <AppShell
       surfaceAssetId="builds-surface-texture.default"
       surfaceMode="tile"
-      surfaceSlotId="asset_slot.simulator-page-frame"
+      surfaceSlotId="asset_slot.captain-page-frame"
       tabRoot
       dock={(
-        <View className={styles['composerDock'] ?? ''}>
-          <SimulatorComposer
-            draft={draft}
-            inputState={inputState}
-            onDraftChange={setDraft}
-            onRetry={retry}
-            onSend={() => void send()}
-          />
-        </View>
+        <RouteRegion className={styles['composerDock'] ?? ''} data-region="composer_dock">
+          <ChickenbroComposer draft={draft} state={inputState} onDraftChange={setDraft} onSend={() => void send()} />
+        </RouteRegion>
       )}
     >
-      <RouteStage
-        className={styles['pageFrame'] ?? ''}
-        routeState={inputState}
-        targetRegionCount={7}
-        width="full"
-      >
+      <RouteStage className={styles['pageFrame'] ?? ''} routeState={inputState} targetRegionCount={3} width="full">
         <PageFrame
-          region="header_bar"
-          rightAction={(
-            <SimulatorCaptainAction
-              disabled={inputState === 'loading'}
-              onReset={resetTopic}
-            />
+          region="page_header"
+          leftAction={(
+            <ActionButton ariaLabel="查看对话存档" dataRole="chickenbro-open-archive" disabled={inputState === 'loading'} variant="ghost" onClick={() => navigateTo('/pages/simulator/chickenbro')}>
+              对话存档
+            </ActionButton>
           )}
-          title="智能分析"
+          rightAction={(
+            <ActionButton ariaLabel="新话题" dataRole="chickenbro-new-topic" disabled={inputState === 'loading'} variant="ghost" onClick={newTopic}>
+              + 新话题
+            </ActionButton>
+          )}
+          title="炸鸡队长"
           variant="simulator-home"
         >
-          <RouteRegion className={styles['guidanceRegion'] ?? ''} data-region="simulator_guidance">
-            <SimulatorGuidancePanel
-              answerSourceLabel={context.answerSourceLabel}
-              confidenceLabel={context.confidenceLabel}
-              evidenceCount={context.evidenceCount}
-              evidenceStateLabel={context.evidenceStateLabel}
-              limitations={context.limitations}
-              missingInputs={context.missingInputs}
-              suggestions={simulatorHomeSuggestions}
-              onManageEvidence={() => setDraft('请列出当前回答引用的证据、缺失输入和限制。')}
-              onSuggestion={setDraft}
-            />
-          </RouteRegion>
-          <RouteRegion className={styles['transcriptRegion'] ?? ''} data-region="simulator_transcript">
-            <SimulatorTranscript messages={messages} inputState={inputState} onRetry={retry} />
-          </RouteRegion>
-          <RouteRegion className={styles['evidenceRegion'] ?? ''} data-region="evidence_shelf">
-            <SimulatorEvidenceShelf
-              cards={evidenceCards}
-              evidenceCount={context.evidenceCount}
-              onManageEvidence={() => setDraft('请列出当前回答引用的证据、缺失输入和限制。')}
-            />
+          <RouteRegion className={styles['transcriptRegion'] ?? ''} data-region="captain_transcript">
+            <ChickenbroTranscript messages={messages} state={inputState} onRetry={retry} />
           </RouteRegion>
         </PageFrame>
       </RouteStage>
