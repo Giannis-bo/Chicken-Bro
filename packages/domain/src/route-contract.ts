@@ -273,16 +273,20 @@ export const routeContracts = [
     "navigation": "tab_root_with_input_dock",
     "query": [],
     "endpoints": [
-      "chickenbro.messages"
+      "chickenbro.messages",
+      "chickenbro.session"
     ],
     "storage": [
-      "simulator.guestId"
+      "simulator.guestId",
+      "chickenbro.pendingSessionId"
     ],
-    "outgoing": [],
+    "outgoing": [
+      "chickenbro_chat"
+    ],
     "criticalParity": [
       "tab_chat_entry",
-      "suggested_prompts",
-      "bounded_evidence",
+      "full_conversation_history",
+      "new_topic_is_local",
       "retry",
       "input_and_tabbar_do_not_overlap"
     ]
@@ -343,47 +347,22 @@ export const routeContracts = [
   {
     "routeKey": "chickenbro_chat",
     "targetPage": "pages/simulator/chickenbro",
-    "navigation": "pushed_with_input_dock",
-    "query": [
-      {
-        "name": "from",
-        "required": false,
-        "decode": "decodeURIComponent"
-      },
-      {
-        "name": "classKey",
-        "required": false,
-        "decode": "decodeURIComponent"
-      },
-      {
-        "name": "specKey",
-        "required": false,
-        "decode": "decodeURIComponent"
-      },
-      {
-        "name": "spec",
-        "required": false,
-        "decode": "decodeURIComponent"
-      },
-      {
-        "name": "scenario",
-        "required": false,
-        "decode": "decodeURIComponent"
-      }
-    ],
+    "navigation": "pushed",
+    "query": [],
     "endpoints": [
-      "chickenbro.messages"
+      "chickenbro.sessions"
     ],
     "storage": [
-      "simulator.guestId"
+      "simulator.guestId",
+      "chickenbro.pendingSessionId"
     ],
-    "outgoing": [],
+    "outgoing": [
+      "simulator_home"
+    ],
     "criticalParity": [
-      "bounded_workbench_context",
-      "new_topic",
-      "message_limit",
-      "fallback_is_labeled",
-      "input_safe_area"
+      "owner_isolated_recent_archive",
+      "archive_selection_restores_root_session",
+      "fallback_is_not_empty_archive"
     ]
   },
   {
@@ -622,6 +601,20 @@ export const endpointContracts = [
     "allowInsecureGuestRequest": true
   },
   {
+    "id": "chickenbro.sessions",
+    "method": "GET",
+    "path": "/api/chickenbro/sessions",
+    "auth": "requested",
+    "allowInsecureGuestRequest": true
+  },
+  {
+    "id": "chickenbro.session",
+    "method": "GET",
+    "path": "/api/chickenbro/sessions",
+    "auth": "requested",
+    "allowInsecureGuestRequest": true
+  },
+  {
     "id": "chickenbro.messages",
     "method": "POST",
     "path": "/api/chickenbro/messages",
@@ -721,6 +714,10 @@ export const storageContracts = [
   {
     "id": "simulator.guestId",
     "key": "wow_simulator_guest_id"
+  },
+  {
+    "id": "chickenbro.pendingSessionId",
+    "key": "wow_chickenbro_pending_session_id"
   },
   {
     "id": "templates.local",

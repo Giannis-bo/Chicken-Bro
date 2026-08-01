@@ -1,6 +1,9 @@
 import {
   storageKey,
   type ChickenbroResponse,
+  type ChickenbroSessionDetailPayload,
+  type ChickenbroSessionListPayload,
+  type ChickenbroSessionSummary,
   type SimcOptionsPayload,
   type SimulatorAnalysisResponse,
   type SimulatorTaskRecord,
@@ -12,6 +15,8 @@ import type { ApiResult, ApiTransport } from './transport'
 
 export interface TaskListPayload { tasks: readonly SimulatorTaskRecord[] }
 export interface TaskDetailPayload { task: SimulatorTaskRecord | null }
+export interface ChickenbroMessageRequest { message: string; sessionId?: string }
+export interface ChickenbroSessionListRequest { limit?: number; cursor?: string }
 
 export interface SimulatorRequestOptions {
   auth?: boolean
@@ -158,6 +163,38 @@ function isChickenbroResponse(value: unknown): boolean {
   if (!isChickenbroAssistantPayload(assistantMessage['payload'])) return false
   const job = value['job']
   return job === undefined || (isRecord(job) && nonEmptyString(job['jobId']) && nonEmptyString(job['status']))
+}
+
+function isChickenbroSessionSummary(value: unknown): value is ChickenbroSessionSummary {
+  return isRecord(value)
+    && nonEmptyString(value['sessionId'])
+    && nonEmptyString(value['title'])
+    && nonEmptyString(value['productPhase'])
+    && nonEmptyString(value['createdAt'])
+    && nonEmptyString(value['updatedAt'])
+}
+
+function isChickenbroTranscriptMessage(value: unknown): boolean {
+  return isRecord(value)
+    && (value['role'] === 'user' || value['role'] === 'assistant' || value['role'] === 'system')
+    && nonEmptyString(value['content'])
+    && optionalString(value['messageId'])
+    && optionalString(value['status'])
+    && optionalRecord(value['payload'])
+}
+
+function isChickenbroSessionListPayload(value: unknown): value is ChickenbroSessionListPayload {
+  return isRecord(value)
+    && Array.isArray(value['sessions'])
+    && value['sessions'].every(isChickenbroSessionSummary)
+    && (value['nextCursor'] === null || nonEmptyString(value['nextCursor']))
+}
+
+function isChickenbroSessionDetailPayload(value: unknown): boolean {
+  return isRecord(value)
+    && isChickenbroSessionSummary(value['session'])
+    && Array.isArray(value['messages'])
+    && value['messages'].every(isChickenbroTranscriptMessage)
 }
 
 function isSimcScenario(value: unknown): value is SimcOptionsPayload['scenarios'][number] {
@@ -332,17 +369,43 @@ export class SimulatorClient {
     })
   }
 
-  message(request: Readonly<Record<string, unknown>>): Promise<ApiResult<ChickenbroResponse>> {
-    const data = { ...request, guestId: this.guestId() }
+  chickenbroSessions(request: ChickenbroSessionListRequest = {}): Promise<ApiResult<ChickenbroSessionListPayload>> {
+    const limit = request.limit ?? 20
+    const cursor = request.cursor ? `&cursor=${encodeURIComponent(request.cursor)}` : ''
+    const query = `guest=1&guestId=${encodeURIComponent(this.guestId())}&limit=${encodeURIComponent(String(limit))}${cursor}`
+    return this.transport.requestEndpoint('chickenbro.sessions', `/api/chickenbro/sessions?${query}`, {
+      auth: true,
+      allowInsecureGuestRequest: true,
+      fallback: () => ({ sessions: [], nextCursor: null }),
+      validate: isChickenbroSessionListPayload,
+    })
+  }
+
+  chickenbroSession(sessionId: string): Promise<ApiResult<ChickenbroSessionDetailPayload>> {
+    const query = `id=${encodeURIComponent(sessionId)}&guest=1&guestId=${encodeURIComponent(this.guestId())}`
+    return this.transport.requestEndpoint('chickenbro.session', `/api/chickenbro/sessions?${query}`, {
+      auth: true,
+      allowInsecureGuestRequest: true,
+      fallback: () => ({ session: null, messages: [] }),
+      validate: isChickenbroSessionDetailPayload,
+    })
+  }
+
+  message(request: ChickenbroMessageRequest): Promise<ApiResult<ChickenbroResponse>> {
+    const data = {
+      message: request.message,
+      ...(request.sessionId ? { sessionId: request.sessionId } : {}),
+      guestId: this.guestId(),
+    }
     return this.transport.requestEndpoint('chickenbro.messages', '/api/chickenbro/messages', {
       data,
       auth: true,
       allowInsecureGuestRequest: true,
       fallback: () => ({
         mode: 'chickenbro',
-        session: { sessionId: typeof request['sessionId'] === 'string' ? request['sessionId'] : '' },
+        session: { sessionId: request.sessionId || '' },
         job: { jobId: '', status: 'failed' },
-        userMessage: { role: 'user', content: typeof request['message'] === 'string' ? request['message'] : '' },
+        userMessage: { role: 'user', content: request.message },
         assistantMessage: {
           role: 'assistant',
           content: '后端暂时无法连接炸鸡队长；当前不会使用本地假结论替代真实证据链。',

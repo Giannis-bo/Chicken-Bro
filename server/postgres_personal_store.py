@@ -102,6 +102,18 @@ def _public_chickenbro_session_from_pg_row(row):
     }
 
 
+def _public_chickenbro_session_summary_from_pg_row(row):
+    if not row:
+        return None
+    return {
+        "sessionId": str(row[0]),
+        "title": row[1] or "",
+        "productPhase": row[2] or "retail",
+        "createdAt": str(row[3] or ""),
+        "updatedAt": str(row[4] or ""),
+    }
+
+
 def _public_chickenbro_message_from_pg_row(row):
     if not row:
         return None
@@ -836,6 +848,31 @@ class PostgresPersonalStore:
                     """,
                     (updated_at or None, user_id, session_id),
                 )
+
+    def list_chickenbro_sessions(self, user_id, limit, cursor=None):
+        cursor = cursor if isinstance(cursor, dict) else None
+        where = ["user_id = %s"]
+        params = [user_id]
+        if cursor:
+            where.append("(updated_at < %s::timestamptz OR (updated_at = %s::timestamptz AND id::text < %s))")
+            params.extend([cursor.get("updatedAt") or "", cursor.get("updatedAt") or "", cursor.get("sessionId") or ""])
+        params.append(int(limit))
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"""
+                    SELECT id, title,
+                           COALESCE(NULLIF(context_json ->> 'productPhase', ''), 'retail') AS product_phase,
+                           created_at, updated_at
+                    FROM app.chickenbro_sessions
+                    WHERE {' AND '.join(where)}
+                    ORDER BY updated_at DESC, id DESC
+                    LIMIT %s
+                    """,
+                    tuple(params),
+                )
+                rows = cur.fetchall()
+        return [_public_chickenbro_session_summary_from_pg_row(row) for row in rows]
 
     def get_chickenbro_session(self, user_id, session_id):
         with self.connection() as conn:

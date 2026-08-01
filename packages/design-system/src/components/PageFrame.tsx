@@ -3,10 +3,10 @@ import type { CSSProperties, ReactNode } from 'react'
 
 import { ActionButton } from './ActionButton'
 import { ProductionAssetImage } from './ProductionAsset'
-import { ProductionAssetGlyph } from './ProductionAssetGlyph'
 import { SystemGlyph } from './SystemGlyph'
 import {
   resolvePageChromeMode,
+  resolvePageFrameRightActionLayout,
   resolvePageFrameRightActionWidth,
   type PageFrameRightActionLayout,
   type PageFrameVariant,
@@ -30,6 +30,7 @@ export interface PageFrameProps {
   onBack?: (() => void) | undefined
   backRegion?: string | undefined
   onRefresh?: (() => void) | undefined
+  leftAction?: ReactNode | undefined
   rightAction?: ReactNode | undefined
   rightActionLayout?: PageFrameRightActionLayout | undefined
   sourceLabel?: string | undefined
@@ -76,6 +77,7 @@ export function PageFrame({
   onBack,
   backRegion,
   onRefresh,
+  leftAction,
   rightAction,
   rightActionLayout = 'default',
   sourceLabel,
@@ -84,11 +86,12 @@ export function PageFrame({
   region = 'shared_page-frame',
 }: PageFrameProps) {
   const chromeMode = resolvePageChromeMode(variant, onBack)
-  const rightActionWidth = resolvePageFrameRightActionWidth(rightActionLayout)
+  const resolvedRightActionLayout = resolvePageFrameRightActionLayout(variant, rightActionLayout)
+  const rightActionWidth = resolvePageFrameRightActionWidth(resolvedRightActionLayout)
   const pageFrameStyle = {
     '--page-frame-right-action-width': `${rightActionWidth}px`,
   } as CSSProperties
-  const pushed = chromeMode === 'pushed' || chromeMode === 'pushed-action' || chromeMode === 'chat'
+  const pushed = chromeMode === 'pushed' || chromeMode === 'pushed-action'
   const labeledBack = variant === 'build-intel'
 
   const titleNode = (
@@ -102,20 +105,6 @@ export function PageFrame({
       </Text>
     </View>
   )
-  const pushedTitleNode = variant === 'chickenbro-chat' ? (
-    <View className={reconstructionStyle('chickenbroHeaderIdentity')} data-slot-id="asset_slot.chickenbro-header-identity">
-      <View className={reconstructionStyle('chickenbroHeaderMedallion')}>
-        <ProductionAssetGlyph
-          assetId="mascot-shell-family.captain"
-          className={reconstructionStyle('chickenbroHeaderGlyph')}
-          fallbackAssetId="utility-glyph-family.assistant"
-          fallbackSlotId="asset_slot.utility-glyph-family"
-          slotId="asset_slot.chickenbro-header-identity"
-        />
-      </View>
-      {titleNode}
-    </View>
-  ) : titleNode
   const rootContextNode = sourceLabel || headerStatusLabel ? (
     variant === 'news-home' && sourceLabel && headerStatusLabel ? (
       <View className={reconstructionStyle('headerEvidenceSocket')} data-role="header-source-status">
@@ -144,6 +133,7 @@ export function PageFrame({
       </View>
     )
   ) : null
+  const rootHeaderCenter = leftAction ? titleNode : rootContextNode
 
   return (
     <View
@@ -153,7 +143,7 @@ export function PageFrame({
       )}
       data-owner="page-frame"
       data-chrome-mode={chromeMode}
-      data-right-action-layout={rightActionLayout}
+      data-right-action-layout={resolvedRightActionLayout}
       data-size={size}
       data-variant={variant}
       style={pageFrameStyle}
@@ -165,7 +155,7 @@ export function PageFrame({
         )}
         data-chrome-owner="page-frame"
         data-layout-mode={chromeMode}
-        data-root-header-layout={!pushed ? 'inline' : undefined}
+        data-root-header-layout={!pushed ? (leftAction ? 'actions-title-actions' : 'inline') : undefined}
         data-region={region}
         data-route-variant={variant}
       >
@@ -202,7 +192,7 @@ export function PageFrame({
                 {labeledBack ? <Text className={ownerStyle('pageFrameBackLabel')}>返回</Text> : null}
               </ActionButton>
             </View>
-          ) : titleNode}
+          ) : (leftAction ?? titleNode)}
         </View>
 
         {pushed ? (
@@ -214,7 +204,7 @@ export function PageFrame({
               )}
               data-ornament-side="left"
             />
-            {pushed ? pushedTitleNode : titleNode}
+            {titleNode}
             <View
               className={ownerClass(
                 ownerStyle('pageFrameTitleRail'),
@@ -225,7 +215,7 @@ export function PageFrame({
           </View>
         ) : (
           <View className={ownerStyle('pageFrameRootContext')} data-role="page-root-context">
-            {rootContextNode}
+            {rootHeaderCenter}
           </View>
         )}
 

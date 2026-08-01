@@ -1066,6 +1066,10 @@
       "writeOwner": "server/news_backend.py",
       "consumers": [
         "server/codex_worker.py",
+        "server/postgres_personal_store.py",
+        "packages/api-client/src/simulator.ts",
+        "apps/mini-taro/src/pages/simulator/simulator.tsx",
+        "apps/mini-taro/src/pages/simulator/chickenbro.tsx",
         "pages/simulator/chickenbro.js",
         "pages/simulator/chickenbro-chat.js",
         "pages/simulator/simulator-api.js"
@@ -1080,6 +1084,9 @@
       ],
       "characterization": [
         "tests/news_backend_test.py",
+        "tests/postgres_personal_store_test.py",
+        "packages/api-client/src/simulator.test.ts",
+        "apps/mini-taro/src/pages/simulator/chickenbro-model.test.ts",
         "tests/simulator-page.test.js",
         "tests/profile-auth.test.js",
         "tests/codex_worker_test.py"
@@ -1087,6 +1094,9 @@
       "runtimeSurfaces": [
         "server/news_backend.py",
         "server/codex_worker.py",
+        "server/postgres_personal_store.py",
+        "apps/mini-taro/src/pages/simulator/simulator.tsx",
+        "apps/mini-taro/src/pages/simulator/chickenbro.tsx",
         "pages/simulator/chickenbro.js",
         "pages/simulator/chickenbro-chat.js"
       ],
@@ -1106,7 +1116,12 @@
       "releaseTrigger": "backend_api",
       "changedPathPatterns": [
         "server/news_backend.py",
+        "server/postgres_personal_store.py",
         "server/codex_worker.py",
+        "packages/domain/src/entities.ts",
+        "packages/api-client/src/simulator.ts",
+        "apps/mini-taro/src/pages/simulator/{simulator,chickenbro,chickenbro-model}.*",
+        "packages/design-system/src/components/{PageFrame,ChickenbroChatComponents}.*",
         "pages/simulator/chickenbro.*",
         "pages/simulator/chickenbro-chat.js"
       ],
@@ -1120,6 +1135,9 @@
         "summary": "Existing backend, simulator page, profile auth and codex worker tests characterize session/job ownership, evidence boundaries and fallback behavior.",
         "coverage": [
           "tests/news_backend_test.py",
+          "tests/postgres_personal_store_test.py",
+          "packages/api-client/src/simulator.test.ts",
+          "apps/mini-taro/src/pages/simulator/chickenbro-model.test.ts",
           "tests/simulator-page.test.js",
           "tests/profile-auth.test.js",
           "tests/codex_worker_test.py"

@@ -2,105 +2,18 @@
   "schemaVersion": 1,
   "route": "simulator_home",
   "status": "truth_adaptation_complete",
-  "implementationStatus": "implemented_visual_debt_open",
-  "authority": "docs/plans/ui-reconstruction.md",
+  "implementationStatus": "implementation_in_progress",
+  "authority": "docs/plans/2026-08-01-chickenbro-chat-surface-design.md",
   "targetInventory": "docs/design/current-ui/routes/simulator-home/target-inventory.json",
   "targetGeometry": "docs/design/current-ui/routes/simulator-home/target-geometry.json",
-  "runtimeFacts": {
-    "route": "pages/simulator/simulator",
-    "navigation": "tab_root_with_input_dock",
-    "endpoints": [
-      "chickenbro.messages"
-    ],
-    "storage": [
-      "simulator.guestId"
-    ],
-    "localInteractions": [
-      "suggested_prompt_fill",
-      "message_send",
-      "message_retry",
-      "new_local_topic",
-      "evidence_prompt_fill",
-      "product_tab_navigation"
-    ]
-  },
-  "apiProbe": {
-    "probedAt": "2026-07-15T05:18:07+08:00",
-    "via": "http://127.0.0.1:10086/wow-api/api/chickenbro/messages",
-    "method": "POST",
-    "httpStatus": 200,
-    "mode": "chickenbro",
-    "sessionCreated": true,
-    "jobStatus": "succeeded",
-    "answerLayer": "direct_chat",
-    "answerSource": "deterministic_fallback",
-    "confidence": "low",
-    "basisLabel": "通用建议",
-    "evidenceRefCount": 0,
-    "allowedNumberCount": 0,
-    "missingInputs": [
-      "class_spec",
-      "published_profile"
-    ],
-    "limitations": [
-      "missing_published_profile"
-    ],
-    "nextQuestionPresent": true,
-    "codexStatus": "failed",
-    "codexError": "timed_out",
-    "validationStatus": "failed",
-    "responseSemantics": "The backend returned a bounded deterministic answer after the model path timed out. It is a real backend response but not a verified evidence-backed conclusion."
-  },
-  "trustRules": [
-    "All target percentages, evidence counts, timestamps, chat messages, source names, player identities, avatar identities and tab labels are placeholders and never runtime facts.",
-    "The target defines the seven-region composition, three suggested-question rows, three evidence-card positions, three composer action positions and four-column Product TabBar topology.",
-    "The initial route has no conversation-history endpoint. It renders one deterministic boundary message and must not fabricate the target's two user messages or two assistant answers.",
-    "A sent user message is local pending state until the backend returns. The assistant content, session id, source, confidence, limitations, missing inputs, next question and evidence references come only from chickenbro.messages.",
-    "A deterministic_fallback answer returned by the backend is usable bounded guidance but remains low confidence and must expose its source or limitation. A transport fallback is blocked and offers retry without a local fake answer.",
-    "The target's 2/10 and 20% evidence progress are forbidden. The context panel may show the real evidenceRefs count and missing-input state without inventing a capacity or percentage.",
-    "The two evidence source cards map only to returned evidenceRefs. Missing references retain the two card positions as blocked placeholders; no battle log, timeline, SimC, WCL or profile is invented.",
-    "Upload evidence and paste-link actions retain their target positions but remain disabled until an owned ingestion contract exists. Their presence cannot imply an uploaded source.",
-    "The canonical product navigation remains 资讯, 专精, 队长, 我的 with 队长 selected on this route. The target's first-tab 智能分析 selection is a visual placeholder and cannot replace the registered route contract.",
-    "AppShell, PageFrame and the shared ProductTabBar remain the only safe-area, header-capsule and bottom-navigation owners."
-  ],
+  "runtimeFacts": { "route": "pages/simulator/simulator", "endpoints": ["chickenbro.message", "chickenbro.session"], "storage": ["chickenbro.pendingSessionId"], "outgoing": ["chickenbro_chat"] },
+  "apiProbe": { "required": ["send first message", "restore selected session"], "fallbackPolicy": "transport fallback is visibly recoverable and never an empty archive" },
+  "trustRules": ["No class, specialization, scenario or template context is read or sent automatically.", "Only backend-returned answer attachments may render inline.", "No WCL, Raider.IO or SimC result is implied without a future controlled Tool response."],
   "mappings": [
-    {
-      "region": "page_frame",
-      "runtime": "AppShell tab-root surface and PageFrame simulator-home variant"
-    },
-    {
-      "region": "header_bar",
-      "runtime": "fixed title 智能分析 plus a local new-topic captain identity action"
-    },
-    {
-      "region": "analysis_guidance_panel",
-      "runtime": "real carried context, real evidence reference and missing-input state, plus three app-authored safe prompt actions"
-    },
-    {
-      "region": "chat_transcript",
-      "runtime": "one deterministic initial boundary message followed only by locally sent and backend-returned messages"
-    },
-    {
-      "region": "evidence_shelf",
-      "runtime": "two returned evidence reference positions or blocked placeholders plus one unavailable ingestion position"
-    },
-    {
-      "region": "message_composer",
-      "runtime": "editable draft, disabled unsupported upload and link actions, real send and retry state"
-    },
-    {
-      "region": "product_tab_bar",
-      "runtime": "shared four-item product navigation with the registered 队长 route selected"
-    }
+    { "region": "page_header", "runtime": "shared PageFrame root chrome" },
+    { "region": "captain_transcript", "runtime": "server-backed full message list" },
+    { "region": "composer_dock", "runtime": "text-only ChickenbroComposer" }
   ],
-  "stateContract": {
-    "idle": "mount all seven regions, three prompt rows, a stable transcript viewport, three evidence positions, three composer actions and four product tabs",
-    "submitting": "retain all geometry, append the real pending user message, disable duplicate send and show a bounded loading state",
-    "ready": "append the backend assistant message and expose answer source, confidence, limitations, missing inputs and evidence references when present",
-    "partial": "retain the backend deterministic answer while clearly labeling low confidence, missing inputs or absent evidence",
-    "blocked": "retain all regions, show the transport boundary, keep the last submitted message and expose retry",
-    "error": "retain all regions and allow deterministic retry without synthesizing an answer",
-    "empty": "use only the deterministic initial boundary message; do not synthesize target conversation history"
-  },
-  "pendingTruthGaps": []
+  "stateContract": { "empty": "brief greeting only", "newTopic": "no backend write", "loading": "send disabled with visible state", "error": "retryable visible state" },
+  "pendingTruthGaps": ["Controlled external Tool execution is outside Phase 1."]
 }

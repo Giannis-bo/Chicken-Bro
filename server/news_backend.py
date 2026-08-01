@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import base64
 import copy
 import gzip
 import hashlib
@@ -7798,6 +7799,16 @@ def public_chickenbro_session_from_row(row):
     }
 
 
+def public_chickenbro_session_summary_from_row(row):
+    return {
+        "sessionId": row[0],
+        "title": row[1],
+        "productPhase": row[2],
+        "createdAt": row[3],
+        "updatedAt": row[4],
+    }
+
+
 def public_chickenbro_message_from_row(row):
     payload = safe_json_loads(row[5], {}, f"chickenbro message payload {row[0]}")
     return {
@@ -7835,6 +7846,52 @@ def resolve_chickenbro_user(access_token="", guest_id="", create_guest=False):
     if not user:
         raise PermissionError("invalid auth token")
     return user
+
+
+def parse_chickenbro_session_list_limit(value):
+    raw_limit = "20" if value is None or value == "" else str(value)
+    try:
+        limit = int(raw_limit)
+    except (TypeError, ValueError) as error:
+        raise ValueError("chickenbro session limit must be an integer between 1 and 50") from error
+    if limit < 1 or limit > 50:
+        raise ValueError("chickenbro session limit must be an integer between 1 and 50")
+    return limit
+
+
+def encode_chickenbro_session_list_cursor(session):
+    payload = {
+        "updatedAt": clean_text((session or {}).get("updatedAt"), 80),
+        "sessionId": clean_text((session or {}).get("sessionId"), 80),
+    }
+    if not payload["updatedAt"] or not payload["sessionId"]:
+        raise ValueError("chickenbro session cursor is incomplete")
+    raw = json.dumps(payload, ensure_ascii=True, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
+
+
+def decode_chickenbro_session_list_cursor(value):
+    cursor = clean_text(value, 512)
+    if not cursor:
+        return None
+    try:
+        padding = "=" * (-len(cursor) % 4)
+        payload = json.loads(base64.urlsafe_b64decode((cursor + padding).encode("ascii")).decode("utf-8"))
+    except (UnicodeEncodeError, UnicodeDecodeError, ValueError, json.JSONDecodeError) as error:
+        raise ValueError("chickenbro session cursor is invalid") from error
+    if not isinstance(payload, dict) or set(payload) != {"updatedAt", "sessionId"}:
+        raise ValueError("chickenbro session cursor is invalid")
+    updated_at = clean_text(payload.get("updatedAt"), 80)
+    session_id = clean_text(payload.get("sessionId"), 80)
+    if not updated_at or not re.fullmatch(r"[A-Za-z0-9-]{1,80}", session_id):
+        raise ValueError("chickenbro session cursor is invalid")
+    try:
+        timestamp = datetime.fromisoformat(updated_at.replace("Z", "+00:00"))
+    except ValueError as error:
+        raise ValueError("chickenbro session cursor is invalid") from error
+    if timestamp.tzinfo is None:
+        raise ValueError("chickenbro session cursor is invalid")
+    return {"updatedAt": updated_at, "sessionId": session_id}
 
 
 def create_chickenbro_session(access_token="", guest_id="", metadata=None):
@@ -8238,6 +8295,43 @@ def get_chickenbro_session(access_token, session_id, allow_guest=False, guest_id
         "user": user,
         "session": public_chickenbro_session_from_row(row),
         "messages": [public_chickenbro_message_from_row(message_row) for message_row in message_rows],
+    }
+
+
+def list_chickenbro_sessions(access_token, allow_guest=False, guest_id="", limit=20, cursor=""):
+    user = authenticate_token(access_token)
+    if not user and allow_guest:
+        user = find_guest_simulator_user(guest_id)
+    if not user:
+        raise PermissionError("invalid auth token")
+    page_limit = parse_chickenbro_session_list_limit(limit)
+    page_cursor = decode_chickenbro_session_list_cursor(cursor)
+    store = personal_data_store()
+    if store:
+        sessions = store.list_chickenbro_sessions(user["id"], page_limit + 1, page_cursor)
+    else:
+        where = ["user_id = ?"]
+        params = [user["id"]]
+        if page_cursor:
+            where.append("(updated_at < ? OR (updated_at = ? AND id < ?))")
+            params.extend([page_cursor["updatedAt"], page_cursor["updatedAt"], page_cursor["sessionId"]])
+        params.append(page_limit + 1)
+        with db_connection() as conn:
+            rows = conn.execute(
+                f"""
+                SELECT id, title, product_phase, created_at, updated_at
+                FROM chickenbro_sessions
+                WHERE {' AND '.join(where)}
+                ORDER BY updated_at DESC, id DESC
+                LIMIT ?
+                """,
+                tuple(params),
+            ).fetchall()
+        sessions = [public_chickenbro_session_summary_from_row(row) for row in rows]
+    visible_sessions = sessions[:page_limit]
+    return {
+        "sessions": visible_sessions,
+        "nextCursor": encode_chickenbro_session_list_cursor(visible_sessions[-1]) if len(sessions) > page_limit else None,
     }
 
 
@@ -13661,20 +13755,29 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/api/chickenbro/sessions":
             try:
-                json_response(
-                    self,
-                    200,
-                    get_chickenbro_session(
+                session_id = query.get("id", query.get("sessionId", [""]))[0]
+                if session_id:
+                    payload = get_chickenbro_session(
                         bearer_token_from_headers(self.headers),
-                        query.get("id", query.get("sessionId", [""]))[0],
+                        session_id,
                         allow_guest=query.get("guest", ["0"])[0] == "1",
                         guest_id=query.get("guestId", [""])[0],
-                    ),
-                )
+                    )
+                else:
+                    payload = list_chickenbro_sessions(
+                        bearer_token_from_headers(self.headers),
+                        allow_guest=query.get("guest", ["0"])[0] == "1",
+                        guest_id=query.get("guestId", [""])[0],
+                        limit=query.get("limit", ["20"])[0],
+                        cursor=query.get("cursor", [""])[0],
+                    )
+                json_response(self, 200, payload)
             except PermissionError:
                 json_response(self, 401, {"error": "unauthorized"})
             except KeyError:
                 json_response(self, 404, {"error": "chickenbro_session_not_found"})
+            except ValueError as error:
+                json_response(self, 400, {"error": "invalid_chickenbro_session_request", "message": str(error)})
             return
         if path == "/api/chickenbro/jobs":
             try:

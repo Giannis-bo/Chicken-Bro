@@ -946,6 +946,24 @@ export interface ChatMessage {
   payload?: AssistantPayload
 }
 
+export interface ChickenbroSessionSummary {
+  sessionId: string
+  title: string
+  productPhase: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ChickenbroSessionListPayload {
+  sessions: readonly ChickenbroSessionSummary[]
+  nextCursor: string | null
+}
+
+export interface ChickenbroSessionDetailPayload {
+  session: ChickenbroSessionSummary | null
+  messages: readonly ChatMessage[]
+}
+
 export interface ChickenbroResponse {
   mode: 'chickenbro'
   session: { sessionId: string; title?: string }

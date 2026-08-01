@@ -36,7 +36,7 @@ function routeForModule(id: string): string {
   if (id === 'talents') return '/pages/builds/talent-simulator'
   if (id === 'gear') return '/pages/builds/detail'
   if (id === 'simc') return '/pages/simulator/simc'
-  if (id === 'assistant') return '/pages/simulator/chickenbro'
+  if (id === 'assistant') return '/pages/simulator/simulator'
   return '/pages/profile/profile'
 }
 
