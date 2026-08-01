@@ -1,0 +1,138 @@
+{
+  "schemaVersion": 2,
+  "slug": "chickenbro-source-agent",
+  "requirementSlug": "chickenbro-source-agent",
+  "status": "runtime_verified",
+  "highestEvidenceLevel": "runtime_verified",
+  "branch": "codex/chickenbro-dynamic-replies",
+  "commit": "pending_pr_head",
+  "identities": {
+    "runtime": {
+      "status": "bound",
+      "kind": "build_identity",
+      "value": "chickenbro-source-agent:sha256:2386c43a5ff90b30aaa54505383ac4462afcefcbeea17c3f110f0e7cb2cb2ad4"
+    },
+    "verification": {
+      "status": "bound_at_check",
+      "kind": "git_ref",
+      "value": "HEAD"
+    },
+    "closure": {
+      "status": "pending",
+      "reason": "Awaiting merge into main during Harness user-acceptance closure."
+    }
+  },
+  "manualAcceptance": {
+    "required": true,
+    "status": "complete",
+    "items": [
+      {
+        "id": "captain_chat_ui_and_dynamic_reply",
+        "status": "accepted",
+        "evidence": "The user manually reviewed the Captain UI and live response behavior, then explicitly authorized closure on 2026-08-01 with ‘OK，先收尾’."
+      }
+    ],
+    "rollup": {
+      "total": 1,
+      "accepted": 1,
+      "notRunUserWaived": 0,
+      "pending": 0
+    }
+  },
+  "scope": [
+    "Captain chat UI and typed API contract",
+    "Natural source-agent response shaping and fail-closed retry behavior",
+    "Raider.IO source-memory refresh timer and deploy wiring",
+    "Cloud Codex proxy-route repair, enablement, and candidate smoke"
+  ],
+  "verification": [
+    {
+      "command": "python -m unittest tests.chickenbro_agent_test tests.chickenbro_source_refresh_test tests.news_backend_test tests.database_adapter_test tests.deploy_lighthouse_test",
+      "status": "pass",
+      "result": "340 tests passed. Expected HTTP status-path coverage includes retryable 503 model generation failures."
+    },
+    {
+      "command": "npm run typecheck",
+      "status": "pass",
+      "result": "TypeScript project check passed."
+    },
+    {
+      "command": "Codex bundled Node 24: vitest simulator/transport tests and node --test frontend-api-client/simulator-page",
+      "status": "pass",
+      "result": "24 Vitest tests and 97 Node compatibility/API/page tests passed. The initial shell PATH selected DevTools Node 16; the rerun used the bundled Node 24 runtime without modifying repository code."
+    },
+    {
+      "command": "npm run audit:ui-architecture",
+      "status": "pass",
+      "result": "14 routes, 14 contracts, and 283 checks passed with zero findings."
+    },
+    {
+      "command": "git diff --check",
+      "status": "pass",
+      "result": "No whitespace errors before the task commit."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "candidate_verified",
+    "requiredBeforeMerge": true,
+    "buildIdentity": "chickenbro-source-agent:sha256:2386c43a5ff90b30aaa54505383ac4462afcefcbeea17c3f110f0e7cb2cb2ad4",
+    "candidateRoot": "/opt/wow-mini-program",
+    "smoke": {
+      "status": "pass",
+      "result": "After the Mihomo route repair and final wow-backend restart, ChatGPT/Auth smoke reached HTTP 403/405 instead of TLS reset. A normal PTR 12.1 Frost Death Knight request and a same-session follow-up both returned HTTP 200 with succeeded Codex jobs; the follow-up retained its client message ID, class/spec, recent owner-isolated history, and inherited patch token."
+    },
+    "timerBackflow": {
+      "status": "pass",
+      "result": "wow-chickenbro-source-refresh.timer is active and owns the decoupled source refresh; no general async deployment sync was started."
+    },
+    "rollback": {
+      "status": "pass",
+      "result": "The prior wow-backend environment file was timestamp-backed up before Codex enablement; disabling WOW_CHICKENBRO_CODEX_ENABLED and restarting wow-backend restores the previous executor state."
+    }
+  },
+  "runtimeEvidence": [
+    {
+      "type": "source_parity",
+      "status": "pass",
+      "result": "Remote SHA-256 matched local news_backend.py, chickenbro_agent.py, postgres_personal_store.py, and chickenbro_source_refresh.py. Remote systemd unit SHA-256 matched the repository backend and source-refresh service/timer files."
+    },
+    {
+      "type": "service_health",
+      "status": "pass",
+      "result": "mihomo.service, wow-backend.service, and wow-chickenbro-source-refresh.timer were active; localhost /health returned 200."
+    },
+    {
+      "type": "codex_chat_smoke",
+      "status": "pass",
+      "result": "A real POST /api/chickenbro/messages returned HTTP 200, a succeeded job, a source_reference answer layer, and a succeeded Codex result with returnCode 0; the same-session follow-up also returned 200 after the version-token continuity repair."
+    }
+  ],
+  "risks": [
+    {
+      "id": "community_source_freshness",
+      "status": "open",
+      "detail": "Source facts remain subject to their explicit freshness and partial/blocked states; no source trend is promoted to a personal-log conclusion."
+    },
+    {
+      "id": "codex_upstream_route",
+      "status": "mitigated_watch",
+      "detail": "The selected route is currently verified, but provider subscription freshness remains an operational dependency; the executor flag remains reversible."
+    }
+  ],
+  "rollback": [
+    "code_rollback",
+    "config_disable",
+    "service_restart",
+    "source_refresh_timer_disable"
+  ],
+  "cleanup": {
+    "required": true,
+    "reason": "Remove this task branch after main parity; retain the remote timestamped configuration backup and systemd-managed source-refresh state."
+  },
+  "archivedReferences": [
+    "docs/plans/2026-07-24-chickenbro-chatbot-design.md",
+    "docs/plans/2026-08-01-chickenbro-source-agent-implementation.md",
+    "docs/simulator-simc-end-to-end.md"
+  ],
+  "summary": "The Captain now uses a source-bounded natural-response Agent without fixed reply templates, refreshes Raider.IO source memory independently, and has a verified cloud Codex executor path after proxy repair. Local API/frontend checks and candidate runtime parity/smokes pass; user acceptance was explicitly provided before closure."
+}

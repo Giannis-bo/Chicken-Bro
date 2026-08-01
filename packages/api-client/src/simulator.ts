@@ -15,7 +15,7 @@ import type { ApiResult, ApiTransport } from './transport'
 
 export interface TaskListPayload { tasks: readonly SimulatorTaskRecord[] }
 export interface TaskDetailPayload { task: SimulatorTaskRecord | null }
-export interface ChickenbroMessageRequest { message: string; sessionId?: string }
+export interface ChickenbroMessageRequest { message: string; sessionId?: string; clientMessageId?: string }
 export interface ChickenbroSessionListRequest { limit?: number; cursor?: string }
 
 export interface SimulatorRequestOptions {
@@ -142,7 +142,7 @@ function isChickenbroAssistantPayload(value: unknown): boolean {
     || !stringList(value['limitations'])
     || !optionalString(value['answerLayer'])
     || !optionalString(value['basisLabel'])
-    || !optionalString(value['nextQuestion'])
+    || (value['nextQuestion'] !== undefined && typeof value['nextQuestion'] !== 'string')
     || (value['missingInputs'] !== undefined && !stringList(value['missingInputs']))) return false
 
   return value['priorityActions'].every((action) => isRecord(action)
@@ -395,6 +395,7 @@ export class SimulatorClient {
     const data = {
       message: request.message,
       ...(request.sessionId ? { sessionId: request.sessionId } : {}),
+      ...(request.clientMessageId ? { clientMessageId: request.clientMessageId } : {}),
       guestId: this.guestId(),
     }
     return this.transport.requestEndpoint('chickenbro.messages', '/api/chickenbro/messages', {

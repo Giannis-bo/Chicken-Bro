@@ -1,4 +1,5 @@
 import importlib
+import json
 import os
 import subprocess
 import sys
@@ -920,6 +921,25 @@ class DatabaseAdapterTest(unittest.TestCase):
         }
         backend.personal_data_store = lambda: fake
         backend.load_chickenbro_profiles = lambda context: []
+
+        def fake_model_runner(prompt, **kwargs):
+            return {
+                "status": "succeeded",
+                "content": json.dumps(
+                    {
+                        "answer": "先确认战斗场景，再补一份可复查的 SimC 或 WCL。",
+                        "confidence": "low",
+                        "answerLayer": "diagnostic",
+                        "basisLabel": "需要证据确认",
+                        "priorityActions": [],
+                        "evidenceRefs": [],
+                        "limitations": ["missing_published_profile"],
+                        "missingInputs": ["simc_or_wcl"],
+                        "nextQuestion": "",
+                    },
+                ),
+            }
+
         try:
             result = backend.send_chickenbro_message(
                 {
@@ -927,6 +947,7 @@ class DatabaseAdapterTest(unittest.TestCase):
                     "context": {"classKey": "mage", "specKey": "arcane", "scenarioKey": "mplus_fortified"},
                 },
                 access_token="token-pg",
+                codex_runner=fake_model_runner,
             )
         finally:
             if originals["personal_data_store"] is not None:

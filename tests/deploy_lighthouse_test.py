@@ -56,6 +56,25 @@ class DeployLighthouseScriptTest(unittest.TestCase):
         self.assertIn("Environment=WOW_CODEX_SANDBOX=workspace-write", service)
         self.assertIn("/home/ubuntu/.local/bin", service)
 
+    def test_systemd_service_disables_chickenbro_codex_agent_until_cloud_route_is_ready(self):
+        service = Path("server/wow-backend.service").read_text(encoding="utf-8")
+
+        self.assertIn("Environment=WOW_CHICKENBRO_CODEX_ENABLED=0", service)
+
+    def test_chickenbro_source_refresh_is_isolated_from_observed_build_sync(self):
+        service = Path("server/wow-chickenbro-source-refresh.service").read_text(encoding="utf-8")
+        timer = Path("server/wow-chickenbro-source-refresh.timer").read_text(encoding="utf-8")
+
+        self.assertIn("server.chickenbro_source_refresh", service)
+        self.assertIn("/run/lock/wow-mini-program-sync.lock", service)
+        self.assertNotIn("observed_build_sync", service)
+        self.assertIn("OnUnitActiveSec=4h", timer)
+        self.assertIn("Persistent=true", timer)
+
+        deploy_script = Path("server/deploy_lighthouse.sh").read_text(encoding="utf-8")
+        self.assertIn("wow-chickenbro-source-refresh.service", deploy_script)
+        self.assertIn("enable --now wow-chickenbro-source-refresh.timer", deploy_script)
+
     def test_websim_sync_service_budget_covers_full_season_gear_catalog(self):
         service = Path("server/wow-websim-sync.service").read_text(encoding="utf-8")
         env = dict(re.findall(r"^Environment=([^=]+)=(.+)$", service, flags=re.MULTILINE))

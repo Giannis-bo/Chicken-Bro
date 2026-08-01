@@ -1,4 +1,5 @@
 const SOURCE_LABELS = {
+  llm: '队长回答',
   codex: '通用回答',
   deterministic_fallback: '降级回复',
   deterministic_scope_refusal: '证据不足',

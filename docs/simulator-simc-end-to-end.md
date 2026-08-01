@@ -179,11 +179,11 @@ Player-facing task details should lead with the simplified SimC result and run c
 Chickenbro rules:
 
 - Frontend sends only the typed message and session id when present; it does not automatically read or send class, specialization, scenario, template, raw DB access, API keys, full logs or complete SimC profiles to an LLM.
-- Backend stores lightweight sessions/messages/jobs, builds a bounded context, validates topic scope and allowed numbers, then either runs the configured Codex runner or returns deterministic fallback.
-- `WOW_CHICKENBRO_CODEX_ENABLED=1` enables the Codex runner. Without a published profile, the backend may use direct Codex chat mode for in-scope WoW questions so the player can test the conversation feel, but the answer must not present general model knowledge as local evidence.
+- Backend stores lightweight sessions/messages/jobs, builds a bounded context, validates topic scope and allowed numbers, then runs the enabled Codex executor; when it is explicitly disabled, the configured regular LLM is the operational fallback. Topic classification constrains facts and Tool use only; it never becomes a fixed-response shortcut.
+- `WOW_CHICKENBRO_CODEX_ENABLED=1` enables the Codex executor. The regular LLM fallback is configured through `WOW_LLM_API_URL`, `WOW_LLM_API_KEY`, and `WOW_LLM_MODEL`. Without a published profile, either executor may use direct chat mode, but the answer must not present general model knowledge as local evidence.
 - `published` spec profiles may support conclusions; `partial` profiles are background only; `stale` / `blocked` / `needs_review` profiles do not enter the conclusion chain.
-- Codex output must pass `validate_chickenbro_codex_output`. Schema failure, unknown evidence refs, unapproved numbers, timeout, or missing runner falls back to deterministic response.
-- The frontend fallback explicitly says the backend is unavailable and must not substitute fake coaching conclusions.
+- Model output must pass `validate_chickenbro_model_output`. Schema failure, unknown evidence refs, unapproved numbers, timeout, or missing executor records a failed job and returns a retryable error without persisting an assistant message.
+- The frontend preserves the user's real message and offers retry; it must not substitute fake coaching conclusions.
 
 ## Response Shape
 

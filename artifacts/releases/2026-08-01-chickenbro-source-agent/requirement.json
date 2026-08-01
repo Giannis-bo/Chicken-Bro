@@ -1,0 +1,109 @@
+{
+  "schemaVersion": 1,
+  "slug": "chickenbro-source-agent",
+  "classification": "Standard",
+  "status": "implementation_allowed",
+  "goal": "Deliver the minimal Captain chat surface backed by a natural-language source Agent, so normal retail and PTR questions use allowed fresh WoW facts without requiring a WCL link or returning a fixed reply template.",
+  "userValue": "A player can ask the Captain a WoW question naturally, start a clean topic, revisit an owner-isolated archive, and receive a useful current answer grounded in the sources that are actually available.",
+  "nonGoals": [
+    "Do not collect Archon.gg pages without an approved API or written permission.",
+    "Do not turn private WCL logs, chat content, model output, API keys, or unverified claims into shared source memory.",
+    "Do not require normal build questions to provide a WCL, SimC, or profile link.",
+    "Do not represent source-reference trends as personal WCL conclusions, DPS rankings, or global BiS facts."
+  ],
+  "currentTruth": {
+    "sources": [
+      "docs/project-state.json",
+      "docs/roadmap.md",
+      "docs/plans/README.md",
+      "docs/plans/2026-07-24-chickenbro-chatbot-design.md",
+      "docs/plans/2026-08-01-chickenbro-chat-surface-design.md",
+      "docs/plans/2026-08-01-chickenbro-source-agent-implementation.md",
+      "docs/harness.md",
+      "docs/verification-matrix.md"
+    ],
+    "factOwner": "news_backend owns the owner-isolated chat API, bounded context, source status, response validation, and persisted session/job state; chickenbro_agent owns narrow request classification and source-result shaping; Raider.IO and the official Warcraft Logs adapter remain the source owners.",
+    "baseBranch": "main"
+  },
+  "impactMap": {
+    "mustChange": [
+      "Render the Captain as a conversation with new-topic and archive actions instead of the old analysis dashboard.",
+      "Build bounded source context for natural answers from allowed Raider.IO and WCL facts, with no fixed answer template.",
+      "Keep failed model generation retryable without fabricating or persisting an assistant reply.",
+      "Run the decoupled Raider.IO source refresh on its own bounded systemd timer and install it through the repository deploy script.",
+      "Enable the cloud Codex executor only after its proxy route and an end-to-end chat smoke are verified."
+    ],
+    "mustNotChange": [
+      "Keep guest and authenticated session ownership isolation intact.",
+      "Keep numeric and evidence-reference validation fail closed.",
+      "Keep SimC execution and personal WCL deep analysis on their existing worker paths.",
+      "Keep async deploy syncs disabled unless an explicit source-refresh unit owns the work."
+    ],
+    "riskUnknown": [
+      "Community source freshness can still become partial or blocked and must remain visible as such.",
+      "Codex availability depends on the selected cloud proxy route and must remain separately observable from source freshness."
+    ],
+    "evidenceRequired": [
+      "Targeted Python source-agent, API, database adapter, refresh, and deploy tests.",
+      "Typed API, legacy compatibility page, and UI architecture tests.",
+      "Candidate file-parity, service/timer, proxy, health, and end-to-end Codex chat smoke.",
+      "Explicit user acceptance of the visible Captain experience before closure."
+    ]
+  },
+  "ownership": {
+    "factOwner": "The backend validates source facts and response claims before persistence; the Taro/compatibility clients only render the typed result and preserve retry state.",
+    "consumers": [
+      "POST /api/chickenbro/messages",
+      "GET /api/chickenbro/sessions",
+      "GET /api/chickenbro/jobs",
+      "packages/api-client/src/simulator.ts",
+      "components/chickenbro-coach-surface",
+      "wow-chickenbro-source-refresh.timer"
+    ]
+  },
+  "engineeringHealth": {
+    "status": "hotspot_guarded",
+    "reason": "The change extends the large news_backend hotspot, so source shaping is isolated in chickenbro_agent, refresh work is isolated in a one-shot timer unit, and API/model failure paths are covered by targeted regression tests."
+  },
+  "acceptanceEvidence": [
+    "The Captain exposes only a conversation, new topic, and archive as its own top-level actions.",
+    "A normal WoW class question can produce a natural source-reference answer without a WCL link.",
+    "Model/schema failures return a retryable error and do not persist a fabricated assistant turn.",
+    "Cloud Codex completes a real owner-isolated chat request after proxy and backend restart.",
+    "The source refresh unit is active independently of the failed legacy community-template sync path."
+  ],
+  "manualAcceptanceContract": {
+    "required": true,
+    "requiredItemIds": [
+      "captain_chat_ui_and_dynamic_reply"
+    ]
+  },
+  "releaseTrigger": "backend_api",
+  "rollback": [
+    "code_rollback",
+    "config_disable",
+    "service_restart",
+    "source_refresh_timer_disable"
+  ],
+  "decisionLog": [
+    {
+      "date": "2026-08-01",
+      "decision": "The user confirmed the Captain should feel like normal chat, with source/tool use and source-memory updates in the backend rather than explicit forms, fixed templates, or model-weight training."
+    },
+    {
+      "date": "2026-08-01",
+      "decision": "The user accepted the visible Captain result and authorized closure with ‘OK，先收尾’."
+    }
+  ],
+  "harnessFindings": [
+    {
+      "id": "codex-proxy-route-tls-interruption-20260801",
+      "status": "finding_only",
+      "whatHappened": "The selected cloud proxy upstream accepted CONNECT but reset the ChatGPT TLS handshake, leaving the Codex executor unavailable.",
+      "missedGate": "Codex response-route end-to-end smoke",
+      "impact": "A dynamic source answer could still run through the alternate executor, but the configured Codex path was not usable.",
+      "recommendedAction": "Probe the selected upstream against ChatGPT before enabling Codex, retain source-route and executor smoke separately, and keep the feature flag reversible.",
+      "promotion": "finding_only"
+    }
+  ]
+}

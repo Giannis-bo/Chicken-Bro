@@ -259,7 +259,7 @@ describe('SimulatorClient task contract', () => {
     ))).toBe(true)
   })
 
-  it('accepts only a complete typed Chickenbro answer and rejects malformed assistant evidence', async () => {
+  it('accepts an empty optional next question while rejecting malformed assistant evidence', async () => {
     const valid = {
       mode: 'chickenbro',
       session: { sessionId: 'session-1', title: '证据检查' },
@@ -288,7 +288,14 @@ describe('SimulatorClient task contract', () => {
       { ...valid, assistantMessage: { ...valid.assistantMessage, payload: { ...valid.assistantMessage.payload, evidenceRefs: 'simc://task/1' } } },
       { ...valid, assistantMessage: { ...valid.assistantMessage, payload: { ...valid.assistantMessage.payload, priorityActions: [{ title: '', evidenceRefs: [] }] } } },
     ]
-    const responses = [valid, ...invalid]
+    const emptyNextQuestion = {
+      ...valid,
+      assistantMessage: {
+        ...valid.assistantMessage,
+        payload: { ...valid.assistantMessage.payload, nextQuestion: '' },
+      },
+    }
+    const responses = [emptyNextQuestion, ...invalid]
     const results = await Promise.all(responses.map(async (payload) => {
       const requestEndpoint = async <T>(
         _endpoint: string,
@@ -303,6 +310,27 @@ describe('SimulatorClient task contract', () => {
 
     expect(results[0]?.fromFallback).toBe(false)
     expect(results.slice(1).every((result) => result.fromFallback)).toBe(true)
+  })
+
+  it('forwards a stable client message id for Chickenbro retry de-duplication', async () => {
+    let capturedData: unknown
+    const requestEndpoint = async <T>(
+      _endpoint: string,
+      _path: string,
+      options: Omit<RequestOptions<T>, 'method'>,
+    ): Promise<ApiResult<T>> => {
+      capturedData = options.data
+      return { payload: options.fallback(), fromFallback: true, error: 'not needed for request contract' }
+    }
+
+    await new SimulatorClient({ requestEndpoint } as unknown as ApiTransport, new MemoryStorage())
+      .message({ message: 'frost death knight build', sessionId: 'session-1', clientMessageId: 'turn-1' })
+
+    expect(capturedData).toMatchObject({
+      message: 'frost death knight build',
+      sessionId: 'session-1',
+      clientMessageId: 'turn-1',
+    })
   })
 
   it('validates owner-scoped Chickenbro archive summaries and session details', async () => {

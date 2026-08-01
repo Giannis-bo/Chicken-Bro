@@ -456,6 +456,8 @@ sudo cp "${REMOTE_DIR}/server/wow-websim-sync.service" "/etc/systemd/system/wow-
 sudo cp "${REMOTE_DIR}/server/wow-websim-sync.timer" "/etc/systemd/system/wow-websim-sync.timer"
 sudo cp "${REMOTE_DIR}/server/wow-stat-weights-sync.service" "/etc/systemd/system/wow-stat-weights-sync.service"
 sudo cp "${REMOTE_DIR}/server/wow-stat-weights-sync.timer" "/etc/systemd/system/wow-stat-weights-sync.timer"
+sudo cp "${REMOTE_DIR}/server/wow-chickenbro-source-refresh.service" "/etc/systemd/system/wow-chickenbro-source-refresh.service"
+sudo cp "${REMOTE_DIR}/server/wow-chickenbro-source-refresh.timer" "/etc/systemd/system/wow-chickenbro-source-refresh.timer"
 sudo cp "${REMOTE_DIR}/server/wow-community-template-sync.service" "/etc/systemd/system/wow-community-template-sync.service"
 sudo cp "${REMOTE_DIR}/server/wow-community-template-sync.timer" "/etc/systemd/system/wow-community-template-sync.timer"
 sudo cp "${REMOTE_DIR}/server/wow-gear-observed-backfill.service" "/etc/systemd/system/wow-gear-observed-backfill.service"
@@ -552,6 +554,8 @@ sudo systemctl reset-failed wow-websim-sync.service >/dev/null 2>&1 || true
 sudo systemctl enable --now wow-websim-sync.timer
 sudo systemctl reset-failed wow-stat-weights-sync.service >/dev/null 2>&1 || true
 sudo systemctl enable --now wow-stat-weights-sync.timer
+sudo systemctl reset-failed wow-chickenbro-source-refresh.service >/dev/null 2>&1 || true
+sudo systemctl enable --now wow-chickenbro-source-refresh.timer
 sudo systemctl reset-failed wow-community-template-sync.service >/dev/null 2>&1 || true
 sudo systemctl enable --now wow-community-template-sync.timer
 sudo systemctl reset-failed wow-gear-observed-backfill.service >/dev/null 2>&1 || true

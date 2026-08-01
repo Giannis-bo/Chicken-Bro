@@ -54,6 +54,7 @@ try:
         SIMCRAFT_TEMPLATE_SCENARIOS,
         analyze_simulator_request,
         build_simulator_home_payload,
+        build_wcl_log_evidence,
         clean_simc_gear_items,
         normalize_simc_race,
         normalize_simc_slot,
@@ -66,6 +67,7 @@ try:
         from .codex_worker import run_codex_job
     except ImportError:
         run_codex_job = None
+    from .llm_client import call_chat_completion, llm_configured
     from .raiderio_payload import (
         enrich_builds_detail_payload as enrich_raiderio_builds_detail_payload,
         enrich_builds_home_payload as enrich_raiderio_builds_home_payload,
@@ -172,6 +174,7 @@ except ImportError:
         SIMCRAFT_TEMPLATE_SCENARIOS,
         analyze_simulator_request,
         build_simulator_home_payload,
+        build_wcl_log_evidence,
         clean_simc_gear_items,
         normalize_simc_race,
         normalize_simc_slot,
@@ -184,6 +187,7 @@ except ImportError:
         from codex_worker import run_codex_job
     except ImportError:
         run_codex_job = None
+    from llm_client import call_chat_completion, llm_configured
     from raiderio_payload import (
         enrich_builds_detail_payload as enrich_raiderio_builds_detail_payload,
         enrich_builds_home_payload as enrich_raiderio_builds_home_payload,
@@ -261,6 +265,22 @@ except ImportError:
         weapon_type_allowed_for_slot,
     )
 
+try:
+    from .chickenbro_agent import (
+        build_raiderio_chickenbro_tool_result,
+        build_wcl_chickenbro_tool_result,
+        classify_chickenbro_request,
+        raiderio_payload_with_freshness,
+    )
+except ImportError:
+    from chickenbro_agent import (
+        build_raiderio_chickenbro_tool_result,
+        build_wcl_chickenbro_tool_result,
+        classify_chickenbro_request,
+        raiderio_payload_with_freshness,
+    )
+
+
 BASE_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = BASE_DIR.parent
 WEBSIM_DIR = PROJECT_DIR / "websim"
@@ -317,6 +337,11 @@ CHICKENBRO_ALLOWED_TOOL_TOPICS = {
     "插件",
     "宏",
 }
+
+
+class ChickenbroGenerationUnavailable(RuntimeError):
+    """The requested reply could not be generated without inventing a fallback."""
+
 
 CHANNELS = [
     {"id": "retail", "title": "正式服动态", "desc": "官方公告、热修、活动与正式服版本内容"},
@@ -7129,12 +7154,12 @@ def chickenbro_topic_scope(message, context=None):
     if context.get("classKey") or (context.get("character") or {}).get("classKey"):
         return {"status": "in_scope", "reason": "structured_context"}
     wow_terms = (
-        "魔兽", "wow", "正式服", "ptr", "beta", "大秘境", "团本", "副本", "专精", "天赋",
+        "魔兽", "wow", "正式服", "ptr", "beta", "测试服", "測試服", "dps", "大秘境", "团本", "副本", "专精", "天赋",
         "装备", "配装", "手法", "属性", "绿字", "强韧", "残暴", "法师", "奥法", "冰法",
         "火法", "战士", "术士", "牧师", "盗贼", "潜行者", "武僧", "萨满", "猎人",
         "德鲁伊", "圣骑", "死亡骑士", "恶魔猎手", "唤魔师",
     )
-    if any(term in lowered for term in CHICKENBRO_ALLOWED_TOOL_TOPICS) or any(term in text for term in wow_terms):
+    if any(term in lowered for term in CHICKENBRO_ALLOWED_TOOL_TOPICS) or any(term in lowered for term in wow_terms):
         return {"status": "in_scope", "reason": "wow_topic"}
     return {"status": "out_of_scope", "reason": "non_wow_topic"}
 
@@ -7351,6 +7376,10 @@ def compact_chickenbro_context_evidence(context):
 
 def chickenbro_evidence_packet_from_context(bounded_context):
     context_evidence = bounded_context.get("contextEvidence") if isinstance(bounded_context.get("contextEvidence"), dict) else {}
+    source_evidence = [
+        item for item in (bounded_context.get("sourceEvidence") or [])
+        if isinstance(item, dict)
+    ]
     profiles = [
         profile
         for profile in (bounded_context.get("usableProfiles") or [])[:2]
@@ -7372,12 +7401,18 @@ def chickenbro_evidence_packet_from_context(bounded_context):
         append_unique_text(evidence_refs, ref)
     for limitation in (bounded_context.get("limitations") or []) + (context_evidence.get("limitations") or []):
         append_unique_text(limitations, limitation)
+    for source in source_evidence:
+        for ref in source.get("evidenceRefs") or []:
+            append_unique_text(evidence_refs, ref)
+        for limitation in source.get("limitations") or []:
+            append_unique_text(limitations, limitation)
     return {
         "schemaRevision": "chickenbro-evidence-packet-v1",
         "answerLayer": bounded_context.get("answerLayer") or chickenbro_answer_layer_for_context(bounded_context),
         "requestContext": bounded_context.get("requestContext") or {},
         "profiles": profiles,
         "contextEvidence": context_evidence,
+        "sourceEvidence": source_evidence,
         "allowedNumbers": allowed_numbers,
         "evidenceRefs": evidence_refs,
         "limitations": limitations,
@@ -7390,6 +7425,18 @@ def chickenbro_answer_layer_for_context(bounded_context):
     context_evidence = bounded_context.get("contextEvidence") if isinstance(bounded_context.get("contextEvidence"), dict) else {}
     if context_evidence.get("evidenceRefs") or context_evidence.get("allowedNumbers"):
         return "evidence"
+    if any(
+        item.get("sourceKey") == "warcraftlogs" and item.get("status") == "verified" and item.get("evidenceRefs")
+        for item in (bounded_context.get("sourceEvidence") or [])
+        if isinstance(item, dict)
+    ):
+        return "wcl_evidence"
+    if any(
+        item.get("status") in {"source_reference", "verified"} and item.get("evidenceRefs")
+        for item in (bounded_context.get("sourceEvidence") or [])
+        if isinstance(item, dict)
+    ):
+        return "source_reference"
     evidence_packet = bounded_context.get("evidencePacket") if isinstance(bounded_context.get("evidencePacket"), dict) else {}
     if evidence_packet.get("evidenceRefs") or evidence_packet.get("allowedNumbers"):
         return "evidence"
@@ -7402,6 +7449,8 @@ def chickenbro_answer_layer_for_context(bounded_context):
 def chickenbro_basis_label(answer_layer):
     return {
         "evidence": "已基于你的模板或 SimC 分析",
+        "wcl_evidence": "已基于你的 WCL 日志证据",
+        "source_reference": "社区来源参考",
         "diagnostic": "需要证据确认",
         "direct_chat": "通用建议",
     }.get(answer_layer, "通用建议")
@@ -7430,6 +7479,8 @@ def chickenbro_next_question_for_context(bounded_context, answer_layer):
     request_context = bounded_context.get("requestContext") if isinstance(bounded_context.get("requestContext"), dict) else {}
     if answer_layer == "evidence":
         return "要不要补你的个人 SimC 或 WCL，让我把建议收窄到你自己的角色？"
+    if answer_layer == "wcl_evidence":
+        return "你更想先看哪一场战斗，还是想和你的 SimC 对照？"
     if answer_layer == "diagnostic":
         return "你能补一份 SimC 报告或 WCL 链接吗？"
     if not request_context.get("classKey") and not request_context.get("specKey"):
@@ -7447,12 +7498,63 @@ def enrich_chickenbro_context_layers(bounded_context):
     return enriched
 
 
-def build_chickenbro_bounded_context(message, context, user_profile=None):
+def chickenbro_cached_raiderio_payload():
+    if postgres_only_runtime_enabled():
+        return raiderio_payload_with_freshness(runtime_raiderio_payload())
+    try:
+        init_db()
+        with db_connection() as conn:
+            return raiderio_payload_with_freshness(get_raiderio_payload(conn, allow_sync=False))
+    except Exception as error:
+        return {
+            "sourceName": "Raider.IO",
+            "sourceStatus": "blocked",
+            "status": "blocked",
+            "errors": [clean_text(error, 240)],
+        }
+
+
+def load_chickenbro_source_tool_results(message, context, history=None):
+    intent = classify_chickenbro_request(message, history or [])
+    if intent.get("kind") == "personal_wcl":
+        return [build_wcl_chickenbro_tool_result(build_wcl_log_evidence({"prompt": message}))]
+    if intent.get("kind") != "community_build" or not intent.get("classKey") or not intent.get("specKey"):
+        return []
+    return [build_raiderio_chickenbro_tool_result(chickenbro_cached_raiderio_payload(), intent)]
+
+
+def compact_chickenbro_history(messages, limit=6):
+    compact = []
+    for message in messages if isinstance(messages, (list, tuple)) else []:
+        if not isinstance(message, dict):
+            continue
+        role = str(message.get("role") or "").strip().lower()
+        if role not in {"user", "assistant"}:
+            continue
+        content = clean_text(message.get("content"), 600)
+        if content:
+            compact.append({"role": role, "content": content})
+    return compact[-max(1, min(6, int(limit or 6))):]
+
+
+def build_chickenbro_bounded_context(message, context, user_profile=None, source_tool_results=None, history=None):
     context = context if isinstance(context, dict) else {}
-    topic = chickenbro_topic_scope(message, context)
-    profiles = load_chickenbro_profiles(context)
+    conversation_history = compact_chickenbro_history(history)
+    intent = classify_chickenbro_request(message, conversation_history)
+    lookup_context = dict(context)
+    if not lookup_context.get("classKey") and intent.get("classKey"):
+        lookup_context["classKey"] = intent["classKey"]
+    if not lookup_context.get("specKey") and intent.get("specKey"):
+        lookup_context["specKey"] = intent["specKey"]
+    if not lookup_context.get("productPhase") and intent.get("productPhase"):
+        lookup_context["productPhase"] = intent["productPhase"]
+    topic = chickenbro_topic_scope(message, lookup_context)
+    profiles = load_chickenbro_profiles(lookup_context)
     desired_region = normalize_chickenbro_region(context.get("region"))
     context_evidence = compact_chickenbro_context_evidence(context)
+    if source_tool_results is None:
+        source_tool_results = load_chickenbro_source_tool_results(message, context, conversation_history)
+    source_evidence = [item for item in (source_tool_results or []) if isinstance(item, dict)][:3]
     usable = []
     background = []
     excluded = []
@@ -7492,23 +7594,39 @@ def build_chickenbro_bounded_context(message, context, user_profile=None):
             append_unique_text(allowed_numbers, str(number))
     for limitation in context_evidence.get("limitations") or []:
         append_unique_text(limitations, limitation)
+    for source in source_evidence:
+        for ref in source.get("evidenceRefs") or []:
+            append_unique_text(allowed_refs, ref)
+        for number in source.get("allowedNumbers") or []:
+            append_unique_text(allowed_numbers, str(number))
+        for limitation in source.get("limitations") or []:
+            append_unique_text(limitations, limitation)
+    for number in chickenbro_text_numbers(message):
+        append_unique_text(allowed_numbers, number)
+    for historic_message in conversation_history:
+        if historic_message.get("role") != "user":
+            continue
+        for number in chickenbro_text_numbers(historic_message.get("content")):
+            append_unique_text(allowed_numbers, number)
 
     bounded_context = {
         "schemaRevision": "chickenbro-bounded-context-v1",
         "topic": topic,
         "message": clean_text(message, 1000),
+        "conversationHistory": conversation_history,
         "requestContext": {
-            "productPhase": normalize_chickenbro_phase(context.get("productPhase") or context.get("phase")),
+            "productPhase": normalize_chickenbro_phase(lookup_context.get("productPhase") or lookup_context.get("phase")),
             "region": desired_region,
-            "classKey": str(context.get("classKey") or (context.get("character") or {}).get("classKey") or "").strip().lower(),
-            "specKey": str(context.get("specKey") or (context.get("character") or {}).get("specKey") or "").strip().lower(),
-            "scenarioKey": normalize_chickenbro_scenario(context.get("scenarioKey") or context.get("scenario")),
+            "classKey": str(lookup_context.get("classKey") or (lookup_context.get("character") or {}).get("classKey") or "").strip().lower(),
+            "specKey": str(lookup_context.get("specKey") or (lookup_context.get("character") or {}).get("specKey") or "").strip().lower(),
+            "scenarioKey": normalize_chickenbro_scenario(lookup_context.get("scenarioKey") or lookup_context.get("scenario")),
         },
         "userProfile": user_profile if isinstance(user_profile, dict) else {},
         "usableProfiles": usable[:2],
         "backgroundProfiles": background[:3],
         "excludedProfiles": excluded[:5],
         "contextEvidence": context_evidence,
+        "sourceEvidence": source_evidence,
         "allowedEvidenceRefs": allowed_refs,
         "allowedNumbers": [number for number in allowed_numbers if number],
         "limitations": limitations,
@@ -7534,6 +7652,23 @@ def chickenbro_prompt_from_context(bounded_context):
             "不要编造 DPS、排名、分位、日志发现或来源。",
             "最多追问一个关键缺口；输出 JSON：answer, confidence, answerLayer, basisLabel, priorityActions, evidenceRefs, limitations, missingInputs, nextQuestion。",
         ]
+    elif answer_layer == "wcl_evidence":
+        instructions = [
+            "你是炸鸡队长，只回答魔兽世界正式服和 PTR/Beta 相关问题。",
+            "当前有该用户 WCL 日志证据：根据 boundedContext.sourceEvidence 自然回答，不要套固定模板。",
+            "只能陈述已有 report/fight 事实；没有明确字段时不要自行补 DPS、分位、技能次数、死因或冷却失误。",
+            "只能引用 boundedContext 中的 evidenceRefs；如需更深复盘，说明要补的战斗或匹配样本。",
+            "最多追问一个真正影响结论的关键问题；输出 JSON：answer, confidence, answerLayer, basisLabel, priorityActions, evidenceRefs, limitations, missingInputs, nextQuestion。",
+        ]
+    elif answer_layer == "source_reference":
+        instructions = [
+            "你是炸鸡队长，只回答魔兽世界正式服和 PTR/Beta 相关问题。",
+            "当前有社区来源参考：根据 boundedContext.sourceEvidence 自然回答，不要套固定模板。",
+            "For normal build chat, do not require the player to provide WCL, SimC, or a link; mention personal-log evidence only when the player explicitly asks for log analysis.",
+            "Raider.IO 只能说明大秘境社区样本趋势；不要把它写成 WCL 日志结论、全局 BiS、DPS 排名或个人角色结论。",
+            "只能引用 boundedContext 中的 evidenceRefs；没有明确数字时不要自行补数字。",
+            "最多追问一个真正影响结论的关键问题；输出 JSON：answer, confidence, answerLayer, basisLabel, priorityActions, evidenceRefs, limitations, missingInputs, nextQuestion。",
+        ]
     elif answer_layer == "diagnostic":
         instructions = [
             "你是炸鸡队长，只回答魔兽世界正式服和 PTR/Beta 相关问题。",
@@ -7550,6 +7685,10 @@ def chickenbro_prompt_from_context(bounded_context):
             "不要编造 DPS、排名、分位、日志发现或来源。",
             "最多追问一个关键缺口；输出 JSON：answer, confidence, answerLayer, basisLabel, priorityActions, evidenceRefs, limitations, missingInputs, nextQuestion。",
         ]
+    instructions.insert(
+        1,
+        "问候时自然回应并邀请用户提出魔兽问题；非魔兽问题也要按用户原话自然说明范围，禁止复用固定回复模板。",
+    )
     return json.dumps(
         {
             "instructions": instructions,
@@ -7560,54 +7699,99 @@ def chickenbro_prompt_from_context(bounded_context):
     )
 
 
-def default_chickenbro_codex_runner(prompt, schema=None):
-    if os.environ.get("WOW_CHICKENBRO_CODEX_ENABLED") != "1" or run_codex_job is None:
-        return {"status": "skipped", "error": "chickenbro codex disabled"}
-    timeout_seconds = max(1, min(60, int_env("WOW_CHICKENBRO_CODEX_TIMEOUT_SECONDS", 12)))
-    return run_codex_job(prompt, schema=schema, timeout_seconds=timeout_seconds)
+def default_chickenbro_model_runner(prompt, schema=None):
+    if os.environ.get("WOW_CHICKENBRO_CODEX_ENABLED") == "1":
+        if run_codex_job is None:
+            return {"status": "skipped", "error": "chickenbro codex worker is unavailable"}
+        return run_codex_job(
+            prompt,
+            schema=schema,
+            sandbox="read-only",
+            timeout_seconds=max(1, min(60, int_env("WOW_CHICKENBRO_CODEX_TIMEOUT_SECONDS", 45))),
+        )
+    if not llm_configured():
+        return {"status": "skipped", "error": "chickenbro model is not configured"}
+    result = call_chat_completion(
+        system_prompt=(
+            "你是炸鸡队长，一个面向魔兽世界正式服和 PTR/Beta 的中文陪练。"
+            "根据用户消息和 boundedContext 自然作答，不得使用固定回复模板。"
+            "没有受验证的实时资料时，明确说明无法确认当前排名、DPS 或改动，而不要猜测。"
+            "只返回一个符合用户提示中 schema 的 JSON 对象，不要 Markdown 或额外文字。"
+        ),
+        user_prompt=prompt,
+        temperature=0.3,
+    )
+    if not isinstance(result, dict):
+        return {"status": "failed", "error": "invalid chickenbro model response"}
+    if result.get("error"):
+        return {"status": "failed", "error": str(result.get("error")), "model": result.get("model")}
+    return {
+        "status": "succeeded",
+        "content": result.get("content") or "",
+        "model": result.get("model") or "",
+    }
 
 
-def parse_chickenbro_codex_output(codex_result):
-    if isinstance(codex_result, dict) and isinstance(codex_result.get("answer"), str):
-        return codex_result
+def parse_chickenbro_model_output(model_result):
+    if isinstance(model_result, dict) and isinstance(model_result.get("answer"), str):
+        return model_result
     last_message = ""
-    if isinstance(codex_result, dict):
-        last_message = codex_result.get("lastMessage") or codex_result.get("content") or ""
+    if isinstance(model_result, dict):
+        last_message = model_result.get("lastMessage") or model_result.get("content") or ""
     if not str(last_message).strip():
-        raise ValueError("empty codex output")
+        raise ValueError("empty model output")
     try:
         payload = json.loads(last_message)
     except json.JSONDecodeError as error:
-        raise ValueError(f"invalid codex json: {error}") from error
+        raise ValueError(f"invalid model json: {error}") from error
     if not isinstance(payload, dict):
-        raise ValueError("codex output must be an object")
+        raise ValueError("model output must be an object")
     return payload
 
 
+def normalize_chickenbro_model_payload(payload):
+    if not isinstance(payload, dict):
+        return payload
+    normalized = dict(payload)
+    actions = normalized.get("priorityActions")
+    if isinstance(actions, str):
+        actions = [actions]
+    if not isinstance(actions, list):
+        return normalized
+    normalized_actions = []
+    for action in actions:
+        if isinstance(action, str) and clean_text(action, 220):
+            normalized_actions.append({"title": clean_text(action, 220), "evidenceRefs": []})
+        else:
+            normalized_actions.append(action)
+    normalized["priorityActions"] = normalized_actions
+    return normalized
+
+
 def chickenbro_text_numbers(value):
-    return re.findall(r"(?<![A-Za-z])\d{3,}(?:\.\d+)?%?", str(value or ""))
+    return re.findall(r"(?<![A-Za-z0-9.])(?:\+?\d{2,}(?:\.\d+)?|\d+\.\d+)%?(?![\d.])", str(value or ""))
 
 
-def validate_chickenbro_codex_output(payload, bounded_context):
+def validate_chickenbro_model_output(payload, bounded_context):
     answer = str(payload.get("answer") or "").strip()
     if not answer:
         raise ValueError("missing answer")
     allowed_refs = set(bounded_context.get("allowedEvidenceRefs") or [])
     refs = [str(ref) for ref in payload.get("evidenceRefs") or [] if ref]
     if any(ref not in allowed_refs for ref in refs):
-        raise ValueError("codex_output_invalid: unknown evidence ref")
+        raise ValueError("model_output_invalid: unknown evidence ref")
     for action in payload.get("priorityActions") or []:
         if not isinstance(action, dict):
-            raise ValueError("codex_output_invalid: priority action must be object")
+            raise ValueError("model_output_invalid: priority action must be object")
         for ref in action.get("evidenceRefs") or []:
             if str(ref) not in allowed_refs:
-                raise ValueError("codex_output_invalid: unknown action evidence ref")
+                raise ValueError("model_output_invalid: unknown action evidence ref")
     allowed_numbers = {str(number).rstrip("%") for number in bounded_context.get("allowedNumbers") or []}
     output_text = json.dumps(payload, ensure_ascii=False)
     for number in chickenbro_text_numbers(output_text):
         normalized = number.rstrip("%")
         if normalized not in allowed_numbers:
-            raise ValueError("codex_output_invalid: unapproved number")
+            raise ValueError("model_output_invalid: unapproved number")
     answer_layer = bounded_context.get("answerLayer") or chickenbro_answer_layer_for_context(bounded_context)
     basis_label = bounded_context.get("basisLabel") or chickenbro_basis_label(answer_layer)
     missing_inputs = (
@@ -7629,82 +7813,6 @@ def validate_chickenbro_codex_output(payload, bounded_context):
         "limitations": payload.get("limitations") if isinstance(payload.get("limitations"), list) else [],
         "missingInputs": [str(item) for item in (missing_inputs or []) if str(item or "").strip()],
         "nextQuestion": next_question,
-    }
-
-
-def deterministic_chickenbro_answer(bounded_context, answer_source="deterministic_fallback"):
-    topic = bounded_context.get("topic") or {}
-    if topic.get("status") != "in_scope":
-        return {
-            "answer": "炸鸡队长只回答魔兽世界正式服和 PTR/Beta 相关的玩法、机制、日志、构筑、装备、SimC、WCL、Raider.IO、插件和宏问题。这个问题不在范围内。",
-            "answerSource": "deterministic_scope_refusal",
-            "confidence": "blocked",
-            "answerLayer": "direct_chat",
-            "basisLabel": "通用建议",
-            "priorityActions": [],
-            "evidenceRefs": [],
-            "missingInputs": [],
-            "nextQuestion": "",
-            "limitations": [topic.get("reason") or "out_of_scope"],
-        }
-    usable = bounded_context.get("usableProfiles") or []
-    if not usable:
-        answer_layer = bounded_context.get("answerLayer") or chickenbro_answer_layer_for_context(bounded_context)
-        basis_label = bounded_context.get("basisLabel") or chickenbro_basis_label(answer_layer)
-        missing_inputs = bounded_context.get("missingInputs") or []
-        next_question = bounded_context.get("nextQuestion") or ""
-        if answer_layer == "diagnostic":
-            return {
-                "answer": "按专业教练的排查顺序，先把问题拆成三步：第一看当前场景是不是大秘境还是团本，第二检查天赋和装备是否能稳定服务这个场景，第三再用 SimC 或 WCL 确认瓶颈。现在没有本地证据，所以这些是待验证 checklist，不是强结论。",
-                "answerSource": answer_source,
-                "confidence": "low",
-                "answerLayer": answer_layer,
-                "basisLabel": basis_label,
-                "priorityActions": [
-                    {"title": "先确认当前场景和目标：大秘境群体、团本单体，或某个具体副本机制。", "evidenceRefs": []},
-                    {"title": "检查天赋、饰品和爆发技能是否围绕主要战斗窗口服务。", "evidenceRefs": []},
-                    {"title": "补一份 SimC 或 WCL 后，再判断到底是配装、循环还是战斗执行问题。", "evidenceRefs": []},
-                ],
-                "evidenceRefs": [],
-                "missingInputs": missing_inputs,
-                "nextQuestion": next_question,
-                "limitations": bounded_context.get("limitations") or ["missing_published_profile"],
-            }
-        return {
-            "answer": "先按老玩家陪练的方式说：别一上来追求所谓最优，先把问题拆小。大秘境打得乱，通常先看三件事：是不是经常在不该交爆发的小波次交掉了技能、是不是天赋和饰品服务的场景不一致、以及是不是因为走位和断档导致实际输出窗口变短。没有你的角色证据时，我只能给通用方向，不会说你具体排名或 DPS。",
-            "answerSource": answer_source,
-            "confidence": "low",
-            "answerLayer": answer_layer,
-            "basisLabel": basis_label,
-            "priorityActions": [
-                {"title": "先选一个最常出问题的场景，把爆发、资源和生存压力分开看。", "evidenceRefs": []},
-                {"title": "再补职业专精、主要场景和一份 SimC 或 WCL，我再帮你收窄判断。", "evidenceRefs": []},
-            ],
-            "evidenceRefs": [],
-            "missingInputs": missing_inputs,
-            "nextQuestion": next_question,
-            "limitations": bounded_context.get("limitations") or ["missing_published_profile"],
-        }
-    profile = usable[0]
-    actions = [
-        action for action in profile.get("priorityActions") or []
-        if isinstance(action, dict)
-    ][:3]
-    refs = []
-    for ref in profile.get("evidenceRefs") or []:
-        append_unique_text(refs, ref)
-    summary = profile.get("summary") or "已找到可用的专精打法画像，但摘要为空。"
-    return {
-        "answer": summary,
-        "answerSource": answer_source,
-        "confidence": "medium",
-        "answerLayer": bounded_context.get("answerLayer") or "evidence",
-        "basisLabel": bounded_context.get("basisLabel") or chickenbro_basis_label("evidence"),
-        "priorityActions": actions,
-        "evidenceRefs": refs,
-        "missingInputs": bounded_context.get("missingInputs") or [],
-        "nextQuestion": bounded_context.get("nextQuestion") or "",
-        "limitations": list((bounded_context.get("limitations") or []) + (profile.get("limitations") or [])),
     }
 
 
@@ -7979,6 +8087,53 @@ def find_or_create_chickenbro_session(conn, user, session_id, message, context):
     }
 
 
+def clean_chickenbro_client_message_id(value):
+    client_message_id = clean_text(value, 96)
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,95}", client_message_id):
+        return ""
+    return client_message_id
+
+
+def find_chickenbro_user_message_by_client_id(conn, user_id, client_message_id, session_id=""):
+    if not client_message_id:
+        return None
+    where = ["user_id = ?", "role = 'user'"]
+    params = [user_id]
+    if session_id:
+        where.append("session_id = ?")
+        params.append(session_id)
+    rows = conn.execute(
+        f"""
+        SELECT id, session_id, user_id, role, content, payload_json, agent_job_id, created_at
+        FROM chickenbro_messages
+        WHERE {' AND '.join(where)}
+        ORDER BY created_at DESC
+        LIMIT 80
+        """,
+        tuple(params),
+    ).fetchall()
+    for row in rows:
+        message = public_chickenbro_message_from_row(row)
+        if clean_chickenbro_client_message_id((message.get("payload") or {}).get("clientMessageId")) == client_message_id:
+            return message
+    return None
+
+
+def load_chickenbro_recent_history(conn, user_id, session_id, limit=6):
+    rows = conn.execute(
+        """
+        SELECT id, session_id, user_id, role, content, payload_json, agent_job_id, created_at
+        FROM chickenbro_messages
+        WHERE user_id = ? AND session_id = ?
+        ORDER BY created_at DESC
+        LIMIT ?
+        """,
+        (user_id, session_id, max(1, min(6, int(limit or 6)))),
+    ).fetchall()
+    rows.reverse()
+    return compact_chickenbro_history([public_chickenbro_message_from_row(row) for row in rows], limit=limit)
+
+
 def insert_chickenbro_message(conn, user_id, session_id, role, content, payload=None, agent_job_id=""):
     now = utc_now()
     message_id = uuid.uuid4().hex
@@ -8060,15 +8215,7 @@ def update_agent_job(conn, job_id, status, result=None, error="", started_at=Non
 
 
 def run_chickenbro_agent(bounded_context, codex_runner=None):
-    if (bounded_context.get("topic") or {}).get("status") != "in_scope":
-        answer = deterministic_chickenbro_answer(bounded_context)
-        return {
-            "answer": answer,
-            "topic": bounded_context.get("topic"),
-            "validation": {"status": "skipped", "reason": "out_of_scope"},
-            "codex": {"status": "skipped"},
-        }
-    runner = codex_runner or default_chickenbro_codex_runner
+    runner = codex_runner or default_chickenbro_model_runner
     prompt = chickenbro_prompt_from_context(bounded_context)
     schema = {
         "type": "object",
@@ -8087,7 +8234,7 @@ def run_chickenbro_agent(bounded_context, codex_runner=None):
         "properties": {
             "answer": {"type": "string"},
             "confidence": {"type": "string"},
-            "answerLayer": {"type": "string", "enum": ["direct_chat", "diagnostic", "evidence"]},
+                "answerLayer": {"type": "string", "enum": ["direct_chat", "diagnostic", "evidence", "source_reference", "wcl_evidence"]},
             "basisLabel": {"type": "string"},
             "priorityActions": {
                 "type": "array",
@@ -8108,32 +8255,52 @@ def run_chickenbro_agent(bounded_context, codex_runner=None):
         },
     }
     try:
-        codex_result = runner(prompt, schema=schema)
-        if isinstance(codex_result, dict) and codex_result.get("status") in {"skipped", "timed_out", "failed"}:
-            raise ValueError(codex_result.get("error") or codex_result.get("status"))
-        parsed = parse_chickenbro_codex_output(codex_result)
-        validated = validate_chickenbro_codex_output(parsed, bounded_context)
-        validated["answerSource"] = "codex"
+        model_result = runner(prompt, schema=schema)
+        if isinstance(model_result, dict) and model_result.get("status") in {"skipped", "timed_out", "failed"}:
+            raise ChickenbroGenerationUnavailable(model_result.get("error") or model_result.get("status"))
+        parsed = normalize_chickenbro_model_payload(parse_chickenbro_model_output(model_result))
+        validated = validate_chickenbro_model_output(parsed, bounded_context)
+        validated["answerSource"] = "llm"
         return {
             "answer": validated,
             "topic": bounded_context.get("topic"),
             "validation": {"status": "passed"},
-            "codex": {"status": (codex_result or {}).get("status", "succeeded") if isinstance(codex_result, dict) else "succeeded"},
+            "model": {
+                "status": (model_result or {}).get("status", "succeeded") if isinstance(model_result, dict) else "succeeded",
+                "name": clean_text((model_result or {}).get("model"), 160) if isinstance(model_result, dict) else "",
+            },
         }
+    except ChickenbroGenerationUnavailable:
+        raise
     except Exception as error:
-        fallback = deterministic_chickenbro_answer(bounded_context)
-        return {
-            "answer": fallback,
-            "topic": bounded_context.get("topic"),
-            "validation": {"status": "failed", "error": f"codex_output_invalid: {error}"},
-            "codex": {"status": "failed", "error": str(error)},
-        }
+        raise ChickenbroGenerationUnavailable(f"chickenbro model output rejected: {error}") from error
+
+
+def chickenbro_failed_agent_result(bounded_context, error):
+    return {
+        "topic": bounded_context.get("topic") or {},
+        "validation": {"status": "failed", "error": str(error)},
+        "model": {"status": "failed", "error": str(error)},
+    }
 
 
 def send_chickenbro_message_postgres(store, user, payload, message, context, codex_runner=None):
     requested_session_id = clean_text(payload.get("sessionId"), 80)
-    if requested_session_id:
-        session = store.get_chickenbro_session(user["id"], requested_session_id)["session"]
+    client_message_id = clean_chickenbro_client_message_id(payload.get("clientMessageId"))
+    existing_user_message = None
+    session_payload = None
+    if client_message_id and hasattr(store, "find_chickenbro_message_by_client_id"):
+        existing_user_message = store.find_chickenbro_message_by_client_id(
+            user["id"],
+            client_message_id,
+            requested_session_id,
+        )
+    if existing_user_message:
+        session_payload = store.get_chickenbro_session(user["id"], existing_user_message["sessionId"])
+        session = session_payload["session"]
+    elif requested_session_id:
+        session_payload = store.get_chickenbro_session(user["id"], requested_session_id)
+        session = session_payload["session"]
     else:
         metadata = {
             "createdFrom": "message",
@@ -8146,33 +8313,54 @@ def send_chickenbro_message_postgres(store, user, payload, message, context, cod
             metadata,
             utc_now(),
         )
+    history = compact_chickenbro_history((session_payload or {}).get("messages"))
+    if existing_user_message:
+        history = [
+            item for item in history
+            if item.get("content") != existing_user_message.get("content") or item.get("role") != "user"
+        ]
 
     existing_profile = store.load_chickenbro_user_profile(user["id"])
     user_profile = merge_chickenbro_user_profile(existing_profile, context, message)
     store.upsert_chickenbro_user_profile(user["id"], user_profile, utc_now())
-    bounded_context = build_chickenbro_bounded_context(message, context, user_profile=user_profile)
+    bounded_context = build_chickenbro_bounded_context(message, context, user_profile=user_profile, history=history)
     sanitized_request = {
         "message": message,
         "context": sanitize_chickenbro_request_context(context),
         "sessionId": session["sessionId"],
     }
-    user_message = store.insert_chickenbro_message(
+    if client_message_id:
+        sanitized_request["clientMessageId"] = client_message_id
+    user_message = existing_user_message or store.insert_chickenbro_message(
         user["id"],
         session["sessionId"],
         "user",
         message,
-        {"context": sanitized_request["context"]},
+        {"context": sanitized_request["context"], "clientMessageId": client_message_id},
         now=utc_now(),
     )
     job_id = store.insert_agent_job(user["id"], session["sessionId"], sanitized_request, bounded_context, utc_now())
     started_at = utc_now()
     store.update_agent_job(user["id"], job_id, "running", started_at=started_at, now=started_at)
 
-    agent_result = run_chickenbro_agent(bounded_context, codex_runner=codex_runner)
+    try:
+        agent_result = run_chickenbro_agent(bounded_context, codex_runner=codex_runner)
+    except ChickenbroGenerationUnavailable as error:
+        finished_at = utc_now()
+        store.update_agent_job(
+            user["id"],
+            job_id,
+            "failed",
+            result=chickenbro_failed_agent_result(bounded_context, error),
+            error=str(error),
+            finished_at=finished_at,
+            now=finished_at,
+        )
+        store.touch_chickenbro_session(user["id"], session["sessionId"], finished_at)
+        raise
     answer_payload = agent_result["answer"]
-    job_status = "timed_out" if (agent_result.get("codex") or {}).get("status") == "timed_out" else "succeeded"
     finished_at = utc_now()
-    store.update_agent_job(user["id"], job_id, job_status, result=agent_result, finished_at=finished_at, now=finished_at)
+    store.update_agent_job(user["id"], job_id, "succeeded", result=agent_result, finished_at=finished_at, now=finished_at)
     assistant_message = store.insert_chickenbro_message(
         user["id"],
         session["sessionId"],
@@ -8206,31 +8394,70 @@ def send_chickenbro_message(payload, access_token="", codex_runner=None):
         return send_chickenbro_message_postgres(store, user, payload, message, context, codex_runner=codex_runner)
 
     with db_connection() as conn:
-        session = find_or_create_chickenbro_session(conn, user, payload.get("sessionId"), message, context)
+        requested_session_id = clean_text(payload.get("sessionId"), 80)
+        client_message_id = clean_chickenbro_client_message_id(payload.get("clientMessageId"))
+        existing_user_message = find_chickenbro_user_message_by_client_id(
+            conn,
+            user["id"],
+            client_message_id,
+            requested_session_id,
+        )
+        session = find_or_create_chickenbro_session(
+            conn,
+            user,
+            existing_user_message["sessionId"] if existing_user_message else requested_session_id,
+            message,
+            context,
+        )
+        history = load_chickenbro_recent_history(conn, user["id"], session["sessionId"])
+        if existing_user_message:
+            history = [
+                item for item in history
+                if item.get("content") != existing_user_message.get("content") or item.get("role") != "user"
+            ]
         user_profile = upsert_chickenbro_user_profile(conn, user["id"], context, message)
-        bounded_context = build_chickenbro_bounded_context(message, context, user_profile=user_profile)
-        sanitized_request = {
-            "message": message,
-            "context": sanitize_chickenbro_request_context(context),
-            "sessionId": session["sessionId"],
-        }
-        user_message = insert_chickenbro_message(
+    bounded_context = build_chickenbro_bounded_context(message, context, user_profile=user_profile, history=history)
+    sanitized_request = {
+        "message": message,
+        "context": sanitize_chickenbro_request_context(context),
+        "sessionId": session["sessionId"],
+    }
+    if client_message_id:
+        sanitized_request["clientMessageId"] = client_message_id
+    with db_connection() as conn:
+        user_message = existing_user_message or insert_chickenbro_message(
             conn,
             user["id"],
             session["sessionId"],
             "user",
             message,
-            {"context": sanitized_request["context"]},
+            {"context": sanitized_request["context"], "clientMessageId": client_message_id},
         )
         job_id = insert_agent_job(conn, user["id"], session["sessionId"], sanitized_request, bounded_context)
         update_agent_job(conn, job_id, "running", started_at=utc_now())
 
-    agent_result = run_chickenbro_agent(bounded_context, codex_runner=codex_runner)
+    try:
+        agent_result = run_chickenbro_agent(bounded_context, codex_runner=codex_runner)
+    except ChickenbroGenerationUnavailable as error:
+        finished_at = utc_now()
+        with db_connection() as conn:
+            update_agent_job(
+                conn,
+                job_id,
+                "failed",
+                result=chickenbro_failed_agent_result(bounded_context, error),
+                error=str(error),
+                finished_at=finished_at,
+            )
+            conn.execute(
+                "UPDATE chickenbro_sessions SET updated_at = ? WHERE id = ?",
+                (finished_at, session["sessionId"]),
+            )
+        raise
     answer_payload = agent_result["answer"]
-    job_status = "timed_out" if (agent_result.get("codex") or {}).get("status") == "timed_out" else "succeeded"
     finished_at = utc_now()
     with db_connection() as conn:
-        update_agent_job(conn, job_id, job_status, result=agent_result, finished_at=finished_at)
+        update_agent_job(conn, job_id, "succeeded", result=agent_result, finished_at=finished_at)
         assistant_message = insert_chickenbro_message(
             conn,
             user["id"],
@@ -14077,6 +14304,15 @@ class Handler(BaseHTTPRequestHandler):
                 )
             except PermissionError:
                 json_response(self, 401, {"error": "unauthorized"})
+            except ChickenbroGenerationUnavailable:
+                json_response(
+                    self,
+                    503,
+                    {
+                        "error": "chickenbro_generation_unavailable",
+                        "retryable": True,
+                    },
+                )
             except (KeyError, ValueError) as error:
                 json_response(self, 400, {"error": "invalid_chickenbro_message", "message": str(error)})
             return

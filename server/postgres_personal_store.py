@@ -903,6 +903,29 @@ class PostgresPersonalStore:
             "messages": [_public_chickenbro_message_from_pg_row(message_row) for message_row in message_rows],
         }
 
+    def find_chickenbro_message_by_client_id(self, user_id, client_message_id, session_id=""):
+        if not client_message_id:
+            return None
+        where = ["user_id = %s", "role = 'user'", "payload_json ->> 'clientMessageId' = %s"]
+        params = [user_id, client_message_id]
+        if session_id:
+            where.append("session_id = %s")
+            params.append(session_id)
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"""
+                    SELECT id, session_id, user_id, role, content, payload_json, agent_job_id, created_at
+                    FROM app.chickenbro_messages
+                    WHERE {' AND '.join(where)}
+                    ORDER BY created_at DESC
+                    LIMIT 1
+                    """,
+                    tuple(params),
+                )
+                row = cur.fetchone()
+        return _public_chickenbro_message_from_pg_row(row)
+
     def get_chickenbro_job(self, user_id, job_id):
         with self.connection() as conn:
             with conn.cursor() as cur:

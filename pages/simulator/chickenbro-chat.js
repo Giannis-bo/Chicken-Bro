@@ -354,6 +354,7 @@ function createChickenbroChatPage(options = {}) {
       requestError: '',
       chatDraft: '',
       lastSubmittedMessage: '',
+      lastSubmittedClientMessageId: '',
       session: null,
       job: null,
       chatMessages: initialMessages(),
@@ -443,6 +444,7 @@ function createChickenbroChatPage(options = {}) {
       this.setData({
         chatDraft: '',
         lastSubmittedMessage: '',
+        lastSubmittedClientMessageId: '',
         session: null,
         job: null,
         chatMessages: compactChatMessages(initialMessages()),
@@ -489,10 +491,10 @@ function createChickenbroChatPage(options = {}) {
         return Promise.resolve()
       }
       this.setData({ chatDraft: message })
-      return this.submitChickenbroMessage()
+      return this.submitChickenbroMessage({ retry: true })
     },
 
-    submitChickenbroMessage() {
+    submitChickenbroMessage(options = {}) {
       if (this.data.loading) return Promise.resolve()
       const message = cleanText(this.data.chatDraft, 1000)
       if (!message) {
@@ -503,17 +505,23 @@ function createChickenbroChatPage(options = {}) {
 
       const context = mergeMessageContext(this.data.boundedContext, contextFromMessage(message), message)
       const now = Date.now()
-      const localUserId = `local-user-${now}`
-      const pendingAssistantId = `pending-assistant-${now}`
+      this.chickenbroMessageSequence = (this.chickenbroMessageSequence || 0) + 1
+      const priorClientMessageId = cleanText(this.data.lastSubmittedClientMessageId, 96)
+      const clientMessageId = options.retry && /^[A-Za-z0-9][A-Za-z0-9_-]{0,95}$/.test(priorClientMessageId)
+        ? priorClientMessageId
+        : `turn-${now}-${this.chickenbroMessageSequence}`
+      const localUserId = clientMessageId
+      const pendingAssistantId = `pending-assistant-${clientMessageId}-${now}`
+      const userAlreadyDisplayed = (this.data.chatMessages || []).some((item) => item.messageId === localUserId && item.role === 'user')
       const nextMessages = compactChatMessages([
         ...(this.data.chatMessages || []),
-        {
+        ...(userAlreadyDisplayed ? [] : [{
           messageId: localUserId,
           role: 'user',
           content: message,
           status: 'sending',
           statusText: ''
-        },
+        }]),
         {
           messageId: pendingAssistantId,
           role: 'assistant',
@@ -528,6 +536,7 @@ function createChickenbroChatPage(options = {}) {
       this.setData({
         chatDraft: '',
         lastSubmittedMessage: message,
+        lastSubmittedClientMessageId: clientMessageId,
         chatMessages: nextMessages,
         loading: true,
         requestError: '',
@@ -548,7 +557,8 @@ function createChickenbroChatPage(options = {}) {
       return requestChickenbroMessage({
         message,
         sessionId: this.data.session && this.data.session.sessionId,
-        context
+        context,
+        clientMessageId
       }).then((result = {}) => {
         if (this.activeChickenbroRequestId !== requestId) return
         const { payload, fromFallback, error } = result || {}

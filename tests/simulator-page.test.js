@@ -2613,6 +2613,57 @@ test('chickenbro page surfaces request failures without leaving loading stuck', 
   }
 })
 
+test('chickenbro retry preserves one player bubble and reuses its client message id', async () => {
+  const requests = []
+  const pageDefinition = loadPageModule('../pages/simulator/chickenbro.js', {
+    '../pages/simulator/simulator-api.js': {
+      requestChickenbroMessage: (request) => {
+        requests.push(request)
+        return requests.length === 1
+          ? Promise.reject(new Error('temporary failure'))
+          : Promise.resolve({
+            payload: {
+              mode: 'chickenbro',
+              session: { sessionId: 'retry-session', title: 'Retry topic' },
+              job: { jobId: 'retry-job', status: 'succeeded' },
+              userMessage: { messageId: 'server-user-retry', role: 'user', content: request.message },
+              assistantMessage: {
+                messageId: 'server-assistant-retry',
+                role: 'assistant',
+                content: 'Retry completed.',
+                payload: {
+                  answerSource: 'llm', confidence: 'low', answerLayer: 'direct_chat', basisLabel: 'General guidance',
+                  priorityActions: [], evidenceRefs: [], limitations: [], missingInputs: [], nextQuestion: ''
+                }
+              }
+            }, fromFallback: false, error: ''
+          })
+      }
+    },
+    '../pages/common/analytics-client.js': {
+      trackEvent: () => Promise.resolve(false), trackPageLeave: () => Promise.resolve(false), trackPageView: () => Promise.resolve(false)
+    }
+  })
+  const originalWx = global.wx
+  global.wx = { showToast() {} }
+  try {
+    const page = createPageInstance(pageDefinition)
+    page.setData({ chatDraft: 'frost death knight build' })
+    page.submitChickenbroMessage()
+    await flushPromises()
+    await flushPromises()
+    page.retryChickenbroMessage()
+    await flushPromises()
+    await flushPromises()
+
+    assert.equal(requests.length, 2)
+    assert.equal(requests[0].clientMessageId, requests[1].clientMessageId)
+    assert.equal(page.data.chatMessages.filter((item) => item.role === 'user' && item.content === 'frost death knight build').length, 1)
+  } finally {
+    global.wx = originalWx
+  }
+})
+
 test('simulator task detail page renders saved task analysis', () => {
   const js = fs.readFileSync('pages/simulator/task-detail.js', 'utf8')
   const wxml = fs.readFileSync('pages/simulator/task-detail.wxml', 'utf8')

@@ -7600,6 +7600,25 @@ class NewsBackendTest(unittest.TestCase):
             exchange_code=lambda code: {"openid": "openid-chickenbro-memory"},
         )
 
+        def fake_model_runner(prompt, **kwargs):
+            return {
+                "status": "succeeded",
+                "content": json.dumps(
+                    {
+                        "answer": "我会按你明确提供的职业、专精和场景继续分析。",
+                        "confidence": "low",
+                        "answerLayer": "diagnostic",
+                        "basisLabel": "需要证据确认",
+                        "priorityActions": [],
+                        "evidenceRefs": [],
+                        "limitations": ["missing_published_profile"],
+                        "missingInputs": ["simc_or_wcl"],
+                        "nextQuestion": "",
+                    },
+                    ensure_ascii=False,
+                ),
+            }
+
         result = self.backend.send_chickenbro_message(
             {
                 "message": "我是奥法，主要打强韧大秘境，后面继续按这个角色分析。",
@@ -7611,6 +7630,7 @@ class NewsBackendTest(unittest.TestCase):
                 },
             },
             access_token=login["accessToken"],
+            codex_runner=fake_model_runner,
         )
 
         with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
@@ -7731,7 +7751,7 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(bounded_context["backgroundProfiles"][0]["status"], "partial")
         self.assertIn("cn_sample_insufficient_global_fallback", bounded_context["limitations"])
         self.assertEqual(result["job"]["status"], "succeeded")
-        self.assertEqual(result["assistantMessage"]["payload"]["answerSource"], "codex")
+        self.assertEqual(result["assistantMessage"]["payload"]["answerSource"], "llm")
         self.assertIn("global.summary", result["assistantMessage"]["payload"]["evidenceRefs"])
 
     def test_chickenbro_profile_upsert_preserves_published_at_on_status_downgrade(self):
@@ -7777,19 +7797,92 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(profiles[0]["status"], "partial")
         self.assertEqual(profiles[0]["publishedAt"], "2026-06-22T00:00:00+00:00")
 
-    def test_chickenbro_rejects_non_wow_scope_without_calling_codex(self):
-        def fail_if_called(*args, **kwargs):
-            raise AssertionError("out-of-scope chickenbro requests must not call Codex")
+    def test_chickenbro_sends_non_wow_scope_to_model_without_template(self):
+        captured = {}
+
+        def fake_model_runner(prompt, **kwargs):
+            captured["prompt"] = prompt
+            captured["schema"] = kwargs.get("schema")
+            return {
+                "status": "succeeded",
+                "content": json.dumps(
+                    {
+                        "answer": "我主要处理魔兽世界正式服与测试服内容；如果你想聊版本、职业或副本，直接发我就行。",
+                        "confidence": "low",
+                        "answerLayer": "direct_chat",
+                        "basisLabel": "通用建议",
+                        "priorityActions": [],
+                        "evidenceRefs": [],
+                        "limitations": ["non_wow_topic"],
+                        "missingInputs": [],
+                        "nextQuestion": "",
+                    },
+                    ensure_ascii=False,
+                ),
+            }
 
         result = self.backend.send_chickenbro_message(
-            {"message": "今天北京天气怎么样？", "guestId": "scope-device"},
-            codex_runner=fail_if_called,
+            {"message": "今天天气怎么样？", "guestId": "scope-device"},
+            codex_runner=fake_model_runner,
         )
 
+        self.assertIn("boundedContext", json.loads(captured["prompt"]))
         self.assertEqual(result["job"]["status"], "succeeded")
-        self.assertEqual(result["assistantMessage"]["payload"]["answerSource"], "deterministic_scope_refusal")
-        self.assertIn("只回答魔兽世界正式服和 PTR", result["assistantMessage"]["content"])
+        self.assertEqual(result["assistantMessage"]["payload"]["answerSource"], "llm")
+        self.assertEqual(result["assistantMessage"]["content"], "我主要处理魔兽世界正式服与测试服内容；如果你想聊版本、职业或副本，直接发我就行。")
         self.assertEqual(result["job"]["result"]["topic"]["status"], "out_of_scope")
+
+    def test_chickenbro_model_failure_keeps_user_message_without_assistant_template(self):
+        def unavailable_model(*args, **kwargs):
+            return {"status": "failed", "error": "model unavailable"}
+
+        with self.assertRaisesRegex(self.backend.ChickenbroGenerationUnavailable, "model unavailable"):
+            self.backend.send_chickenbro_message(
+                {"message": "测试服 DPS 怎么看？", "guestId": "model-failure-device"},
+                codex_runner=unavailable_model,
+            )
+
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            roles = [row[0] for row in conn.execute("SELECT role FROM chickenbro_messages ORDER BY created_at")]
+            job = conn.execute("SELECT status, error FROM agent_jobs ORDER BY created_at DESC LIMIT 1").fetchone()
+
+        self.assertEqual(roles, ["user"])
+        self.assertEqual(job[0], "failed")
+        self.assertIn("model unavailable", job[1])
+
+    def test_chickenbro_scope_recognizes_chinese_ptr_and_dps_terms(self):
+        scope = self.backend.chickenbro_topic_scope("12.1 测试服现在哪个 DPS 最牛？")
+
+        self.assertEqual(scope, {"status": "in_scope", "reason": "wow_topic"})
+
+    def test_chickenbro_normalizes_string_model_actions_without_granting_evidence(self):
+        def fake_model_runner(prompt, **kwargs):
+            return {
+                "status": "succeeded",
+                "content": json.dumps(
+                    {
+                        "answer": "当前没有受验证的实时强度榜，建议等可验证来源返回后再比较。",
+                        "confidence": "low",
+                        "answerLayer": "direct_chat",
+                        "basisLabel": "通用建议",
+                        "priorityActions": ["先确认正式服还是测试服，以及具体场景。"],
+                        "evidenceRefs": [],
+                        "limitations": ["no_realtime_external_fetch"],
+                        "missingInputs": [],
+                        "nextQuestion": "",
+                    },
+                    ensure_ascii=False,
+                ),
+            }
+
+        result = self.backend.send_chickenbro_message(
+            {"message": "测试服现在哪个 DPS 最牛？", "guestId": "string-actions-device"},
+            codex_runner=fake_model_runner,
+        )
+
+        action = result["assistantMessage"]["payload"]["priorityActions"]
+        self.assertEqual(action, [{"title": "先确认正式服还是测试服，以及具体场景。", "evidenceRefs": []}])
+        self.assertEqual(result["assistantMessage"]["payload"]["evidenceRefs"], [])
 
     def test_chickenbro_missing_profile_still_calls_codex_for_direct_chat(self):
         captured = {}
@@ -7827,54 +7920,37 @@ class NewsBackendTest(unittest.TestCase):
         self.assertTrue(any("direct Codex chat" in item for item in prompt_payload["instructions"]))
         self.assertFalse(any("只能使用 boundedContext 中的事实" in item for item in prompt_payload["instructions"]))
         self.assertIs(captured["schema"]["additionalProperties"], False)
-        self.assertEqual(result["assistantMessage"]["payload"]["answerSource"], "codex")
+        self.assertEqual(result["assistantMessage"]["payload"]["answerSource"], "llm")
         self.assertEqual(result["job"]["result"]["validation"]["status"], "passed")
-        self.assertEqual(result["job"]["result"]["codex"]["status"], "succeeded")
+        self.assertEqual(result["job"]["result"]["model"]["status"], "succeeded")
         self.assertIn("通用冰DK", result["assistantMessage"]["content"])
 
-    def test_chickenbro_direct_chat_without_profile_returns_player_coach_layer(self):
-        def skip_codex(prompt, **kwargs):
+    def test_chickenbro_direct_chat_without_model_does_not_return_a_template(self):
+        def unavailable_model(prompt, **kwargs):
             return {"status": "skipped", "error": "disabled in test"}
 
-        result = self.backend.send_chickenbro_message(
-            {
-                "message": "大秘境打得很乱，先从哪里改？",
-                "guestId": "direct-chat-layer-device",
-            },
-            codex_runner=skip_codex,
-        )
+        with self.assertRaisesRegex(self.backend.ChickenbroGenerationUnavailable, "disabled in test"):
+            self.backend.send_chickenbro_message(
+                {
+                    "message": "大秘境打得很乱，先从哪里改？",
+                    "guestId": "direct-chat-layer-device",
+                },
+                codex_runner=unavailable_model,
+            )
 
-        payload = result["assistantMessage"]["payload"]
-        self.assertEqual(payload["answerLayer"], "direct_chat")
-        self.assertEqual(payload["basisLabel"], "通用建议")
-        self.assertIn("老玩家", payload["answer"])
-        self.assertIn("missing_published_profile", payload["limitations"])
-        self.assertTrue(payload["nextQuestion"])
-        self.assertLessEqual(payload["nextQuestion"].count("？") + payload["nextQuestion"].count("?"), 1)
-        self.assertIn("class_spec", payload["missingInputs"])
-        self.assertNotIn("只补齐角色、专精、场景和可追踪证据", payload["answer"])
-
-    def test_chickenbro_sparse_context_uses_diagnostic_coach_layer(self):
-        def skip_codex(prompt, **kwargs):
+    def test_chickenbro_diagnostic_context_without_model_does_not_return_a_template(self):
+        def unavailable_model(prompt, **kwargs):
             return {"status": "skipped", "error": "disabled in test"}
 
-        result = self.backend.send_chickenbro_message(
-            {
-                "message": "我是冰DK，大秘境伤害低，先排查什么？",
-                "guestId": "diagnostic-layer-device",
-                "context": {"classKey": "deathknight", "specKey": "frost", "scenarioKey": "mplus_fortified"},
-            },
-            codex_runner=skip_codex,
-        )
-
-        payload = result["assistantMessage"]["payload"]
-        self.assertEqual(payload["answerLayer"], "diagnostic")
-        self.assertEqual(payload["basisLabel"], "需要证据确认")
-        self.assertGreaterEqual(len(payload["priorityActions"]), 2)
-        self.assertTrue(all(not action["evidenceRefs"] for action in payload["priorityActions"]))
-        self.assertEqual(payload["evidenceRefs"], [])
-        self.assertIn("simc_or_wcl", payload["missingInputs"])
-        self.assertLessEqual(payload["nextQuestion"].count("？") + payload["nextQuestion"].count("?"), 1)
+        with self.assertRaisesRegex(self.backend.ChickenbroGenerationUnavailable, "disabled in test"):
+            self.backend.send_chickenbro_message(
+                {
+                    "message": "我是冰DK，大秘境伤害低，先排查什么？",
+                    "guestId": "diagnostic-layer-device",
+                    "context": {"classKey": "deathknight", "specKey": "frost", "scenarioKey": "mplus_fortified"},
+                },
+                codex_runner=unavailable_model,
+            )
 
     def test_chickenbro_pg_only_missing_spec_profile_store_degrades_without_sqlite(self):
         original_postgres_only = self.backend.postgres_only_runtime_enabled
@@ -8036,7 +8112,7 @@ class NewsBackendTest(unittest.TestCase):
         self.assertIn("123456", payload["answer"])
         self.assertIn("simc.dps", payload["evidenceRefs"])
 
-    def test_chickenbro_invalid_codex_output_downgrades_to_deterministic_answer(self):
+    def test_chickenbro_invalid_model_output_is_retryable_without_template(self):
         self.seed_chickenbro_profile()
 
         def fake_codex_runner(prompt, **kwargs):
@@ -8053,21 +8129,135 @@ class NewsBackendTest(unittest.TestCase):
                 ),
             }
 
+        with self.assertRaisesRegex(self.backend.ChickenbroGenerationUnavailable, "unknown evidence ref"):
+            self.backend.send_chickenbro_message(
+                {
+                    "message": "奥法强韧大秘境怎么优化？",
+                    "guestId": "invalid-codex-device",
+                    "context": {"classKey": "mage", "specKey": "arcane", "scenarioKey": "mplus_fortified"},
+                },
+                codex_runner=fake_codex_runner,
+            )
+
+    def test_chickenbro_allows_the_player_patch_version_without_authorizing_new_numbers(self):
+        def fake_codex_runner(prompt, **kwargs):
+            bounded_context = json.loads(prompt)["boundedContext"]
+            return {
+                "status": "succeeded",
+                "lastMessage": json.dumps(
+                    {
+                        "answer": "For PTR 12.1, start by checking the changed frost death knight talent nodes.",
+                        "confidence": "low",
+                        "answerLayer": bounded_context["answerLayer"],
+                        "basisLabel": bounded_context["basisLabel"],
+                        "priorityActions": [],
+                        "evidenceRefs": [],
+                        "limitations": [],
+                        "missingInputs": [],
+                        "nextQuestion": "",
+                    }
+                ),
+            }
+
         result = self.backend.send_chickenbro_message(
             {
-                "message": "奥法强韧大秘境怎么优化？",
-                "guestId": "invalid-codex-device",
-                "context": {"classKey": "mage", "specKey": "arcane", "scenarioKey": "mplus_fortified"},
+                "message": "PTR 12.1 frost death knight build changed how?",
+                "guestId": "patch-version-device",
             },
             codex_runner=fake_codex_runner,
         )
 
-        payload = result["assistantMessage"]["payload"]
-        self.assertEqual(payload["answerSource"], "deterministic_fallback")
-        self.assertIn("codex_output_invalid", result["job"]["result"]["validation"]["error"])
-        self.assertNotIn("999999", result["assistantMessage"]["content"])
-        self.assertNotIn("made.up", json.dumps(payload, ensure_ascii=False))
-        self.assertIn("profile.summary", payload["evidenceRefs"])
+        self.assertIn("12.1", result["assistantMessage"]["content"])
+
+    def test_chickenbro_follow_up_uses_only_recent_history_from_its_own_session(self):
+        captured_contexts = []
+
+        def fake_codex_runner(prompt, **kwargs):
+            bounded_context = json.loads(prompt)["boundedContext"]
+            captured_contexts.append(bounded_context)
+            answer = (
+                "PTR 12.1 follow-up should retain the same specialization context."
+                if bounded_context["conversationHistory"]
+                else "Starting the specialization discussion."
+            )
+            return {
+                "status": "succeeded",
+                "lastMessage": json.dumps(
+                    {
+                        "answer": answer,
+                        "confidence": "low",
+                        "answerLayer": bounded_context["answerLayer"],
+                        "basisLabel": bounded_context["basisLabel"],
+                        "priorityActions": [],
+                        "evidenceRefs": [],
+                        "limitations": [],
+                        "missingInputs": [],
+                        "nextQuestion": "",
+                    }
+                ),
+            }
+
+        first = self.backend.send_chickenbro_message(
+            {"message": "PTR 12.1 frost death knight mythic plus build", "guestId": "history-owner"},
+            codex_runner=fake_codex_runner,
+        )
+        self.backend.send_chickenbro_message(
+            {
+                "message": "and what changes for raid?",
+                "guestId": "history-owner",
+                "sessionId": first["session"]["sessionId"],
+            },
+            codex_runner=fake_codex_runner,
+        )
+
+        follow_up = captured_contexts[-1]
+        self.assertEqual("deathknight", follow_up["requestContext"]["classKey"])
+        self.assertEqual("frost", follow_up["requestContext"]["specKey"])
+        self.assertIn(
+            {"role": "user", "content": "PTR 12.1 frost death knight mythic plus build"},
+            follow_up["conversationHistory"],
+        )
+
+    def test_chickenbro_retry_reuses_the_original_user_message_when_the_first_generation_failed(self):
+        request = {
+            "message": "frost death knight build",
+            "guestId": "retry-owner",
+            "clientMessageId": "retry-turn-1",
+        }
+
+        with self.assertRaisesRegex(self.backend.ChickenbroGenerationUnavailable, "offline"):
+            self.backend.send_chickenbro_message(
+                request,
+                codex_runner=lambda prompt, **kwargs: {"status": "skipped", "error": "offline"},
+            )
+
+        def succeeding_runner(prompt, **kwargs):
+            bounded_context = json.loads(prompt)["boundedContext"]
+            return {
+                "status": "succeeded",
+                "lastMessage": json.dumps(
+                    {
+                        "answer": "Retry completed.",
+                        "confidence": "low",
+                        "answerLayer": bounded_context["answerLayer"],
+                        "basisLabel": bounded_context["basisLabel"],
+                        "priorityActions": [],
+                        "evidenceRefs": [],
+                        "limitations": [],
+                        "missingInputs": [],
+                        "nextQuestion": "",
+                    }
+                ),
+            }
+
+        result = self.backend.send_chickenbro_message(request, codex_runner=succeeding_runner)
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            user_count = conn.execute("SELECT COUNT(*) FROM chickenbro_messages WHERE role = 'user'").fetchone()[0]
+            session_count = conn.execute("SELECT COUNT(*) FROM chickenbro_sessions").fetchone()[0]
+
+        self.assertEqual(1, user_count)
+        self.assertEqual(1, session_count)
+        self.assertEqual("retry-turn-1", result["userMessage"]["payload"]["clientMessageId"])
 
     def test_chickenbro_codex_schema_is_strict_for_responses_api(self):
         self.seed_chickenbro_profile()
@@ -8100,26 +8290,24 @@ class NewsBackendTest(unittest.TestCase):
             codex_runner=fake_codex_runner,
         )
 
-        self.assertEqual(result["assistantMessage"]["payload"]["answerSource"], "codex")
+        self.assertEqual(result["assistantMessage"]["payload"]["answerSource"], "llm")
         schema = captured["schema"]
         self.assertIs(schema["additionalProperties"], False)
         action_items = schema["properties"]["priorityActions"]["items"]
         self.assertIs(action_items["additionalProperties"], False)
 
-    def test_chickenbro_default_runner_uses_codex_when_enabled(self):
+    def test_chickenbro_default_runner_uses_configured_llm(self):
         self.seed_chickenbro_profile()
         captured = {}
-        previous_env = os.environ.get("WOW_CHICKENBRO_CODEX_ENABLED")
-        previous_timeout = os.environ.get("WOW_CHICKENBRO_CODEX_TIMEOUT_SECONDS")
-        previous_runner = self.backend.run_codex_job
 
-        def fake_run_codex_job(prompt, **kwargs):
-            captured["prompt"] = prompt
-            captured["schema"] = kwargs.get("schema")
-            captured["timeoutSeconds"] = kwargs.get("timeout_seconds")
+        def fake_call_chat_completion(system_prompt, user_prompt, temperature):
+            captured["systemPrompt"] = system_prompt
+            captured["prompt"] = user_prompt
+            captured["temperature"] = temperature
             return {
-                "status": "succeeded",
-                "lastMessage": json.dumps(
+                "called": True,
+                "model": "test-llm",
+                "content": json.dumps(
                     {
                         "answer": "先根据 profile.summary 安排强韧波次爆发。",
                         "confidence": "medium",
@@ -8131,12 +8319,14 @@ class NewsBackendTest(unittest.TestCase):
                     },
                     ensure_ascii=False,
                 ),
+                "error": "",
             }
 
-        try:
-            os.environ["WOW_CHICKENBRO_CODEX_ENABLED"] = "1"
-            os.environ["WOW_CHICKENBRO_CODEX_TIMEOUT_SECONDS"] = "3"
-            self.backend.run_codex_job = fake_run_codex_job
+        with patch.object(self.backend, "llm_configured", return_value=True), patch.object(
+            self.backend,
+            "call_chat_completion",
+            side_effect=fake_call_chat_completion,
+        ):
             result = self.backend.send_chickenbro_message(
                 {
                     "message": "奥法强韧大秘境怎么优化？",
@@ -8144,22 +8334,12 @@ class NewsBackendTest(unittest.TestCase):
                     "context": {"classKey": "mage", "specKey": "arcane", "scenarioKey": "mplus_fortified"},
                 },
             )
-        finally:
-            self.backend.run_codex_job = previous_runner
-            if previous_env is None:
-                os.environ.pop("WOW_CHICKENBRO_CODEX_ENABLED", None)
-            else:
-                os.environ["WOW_CHICKENBRO_CODEX_ENABLED"] = previous_env
-            if previous_timeout is None:
-                os.environ.pop("WOW_CHICKENBRO_CODEX_TIMEOUT_SECONDS", None)
-            else:
-                os.environ["WOW_CHICKENBRO_CODEX_TIMEOUT_SECONDS"] = previous_timeout
 
         self.assertIn("boundedContext", json.loads(captured["prompt"]))
-        self.assertIs(captured["schema"]["additionalProperties"], False)
-        self.assertEqual(captured["timeoutSeconds"], 3)
-        self.assertEqual(result["assistantMessage"]["payload"]["answerSource"], "codex")
-        self.assertEqual(result["job"]["result"]["codex"]["status"], "succeeded")
+        self.assertIn("不得使用固定回复模板", captured["systemPrompt"])
+        self.assertEqual(captured["temperature"], 0.3)
+        self.assertEqual(result["assistantMessage"]["payload"]["answerSource"], "llm")
+        self.assertEqual(result["job"]["result"]["model"]["status"], "succeeded")
 
     def test_json_response_gzips_large_json_when_client_accepts_gzip(self):
         server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
@@ -8180,6 +8360,27 @@ class NewsBackendTest(unittest.TestCase):
             server.server_close()
 
     def test_http_chickenbro_api_supports_guest_session_job_and_owner_isolation(self):
+        def fake_model_runner(prompt, **kwargs):
+            return {
+                "status": "succeeded",
+                "content": json.dumps(
+                    {
+                        "answer": "先从你的天赋、装备和一份可复查的 SimC 或 WCL 开始收集证据。",
+                        "confidence": "low",
+                        "answerLayer": "diagnostic",
+                        "basisLabel": "需要证据确认",
+                        "priorityActions": [],
+                        "evidenceRefs": [],
+                        "limitations": ["missing_published_profile"],
+                        "missingInputs": ["simc_or_wcl"],
+                        "nextQuestion": "",
+                    },
+                    ensure_ascii=False,
+                ),
+            }
+
+        previous_runner = self.backend.default_chickenbro_model_runner
+        self.backend.default_chickenbro_model_runner = fake_model_runner
         server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
@@ -8228,11 +8429,41 @@ class NewsBackendTest(unittest.TestCase):
         finally:
             server.shutdown()
             server.server_close()
+            self.backend.default_chickenbro_model_runner = previous_runner
 
         self.assertEqual(payload["mode"], "chickenbro")
         self.assertEqual(payload["job"]["status"], "succeeded")
         self.assertEqual(len(session_payload["messages"]), 2)
         self.assertEqual(error.exception.code, 404)
+
+    def test_http_chickenbro_model_failure_returns_retryable_503_without_assistant_turn(self):
+        server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            request = Request(
+                f"http://127.0.0.1:{server.server_port}/api/chickenbro/messages",
+                data=json.dumps(
+                    {"guestId": "http-model-failure-device", "message": "测试服 DPS 怎么看？"},
+                    ensure_ascii=False,
+                ).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with self.assertRaises(HTTPError) as error:
+                urlopen(request, timeout=5)
+            payload = json.loads(error.exception.read().decode("utf-8"))
+        finally:
+            server.shutdown()
+            thread.join(timeout=2)
+            server.server_close()
+
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            roles = [row[0] for row in conn.execute("SELECT role FROM chickenbro_messages ORDER BY created_at")]
+
+        self.assertEqual(error.exception.code, 503)
+        self.assertEqual(payload, {"error": "chickenbro_generation_unavailable", "retryable": True})
+        self.assertEqual(roles, ["user"])
 
     def test_chickenbro_archive_lists_only_the_owner_sessions_in_recent_first_pages(self):
         titles = ["最早的话题", "中间的话题", "最新的话题"]
