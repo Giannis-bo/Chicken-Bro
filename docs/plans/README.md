@@ -14,9 +14,9 @@
 | Taro 装备候选与强化编辑恢复 | 正在推进 | [设计](2026-07-24-taro-gear-editor-recovery-design.md) · [实施计划](2026-07-24-taro-gear-editor-recovery-implementation.md) |
 | 装备强化资格与已确认标记对齐 | 正在推进 | [实施计划](2026-07-29-gear-enhancement-rule-alignment.md) |
 | Manifest 装备详情与 Catalog Browse 完整性修复 | 正在推进 | [实施计划](2026-07-29-manifest-catalog-progression-display-contract.md) |
-| 装备模拟端到端完整性验证 Goal | 正在推进 | [Goal 控制计划](2026-07-29-equipment-simulator-e2e-completeness-goal.md) |
+| 装备模拟端到端完整性验证 Goal | 暂缓 | [Goal 控制计划](2026-07-29-equipment-simulator-e2e-completeness-goal.md) |
 | WebSim / stat-weight 定时同步日志有界化 | 已完成 | [实施计划](2026-07-29-sync-log-bounding.md) · [live evidence](../../artifacts/releases/2026-07-29-sync-log-bounding/evidence.json) |
-| 当前赛季 PVE 装备 Universe 与逐项差集 | 正在推进 | [实施计划](2026-07-29-season-pve-universe-reconciliation.md) |
+| 当前赛季 PVE 装备 Universe 与逐项差集 | 暂缓 | [实施计划](2026-07-29-season-pve-universe-reconciliation.md) |
 | 当前赛季 PVE Journal 静默遗漏门禁 | 已完成 | [实施计划](2026-07-29-season-pve-journal-omission-guard.md) · [live evidence](../../artifacts/releases/2026-07-29-season-pve-journal-omission-guard/evidence.json) |
 | Observed Build Registry 与 80 槽 TemplateSet 重构 | 正在推进 | [设计](2026-07-23-observed-build-registry-design.md) · [核心切片实施计划](2026-07-23-observed-build-registry-core-implementation.md) · [共享玩家切换计划](2026-07-23-observed-build-registry-cutover-implementation.md) |
 | builds_home 职业命令卡组 | 正在推进 | [builds-home-command-deck.md](builds-home-command-deck.md) |

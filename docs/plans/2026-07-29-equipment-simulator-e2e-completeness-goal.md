@@ -474,3 +474,22 @@ fixed-63 的历史 carrier 内容类缺口关闭后，核心事实仍未变化�
 partial 9、blocked 10、21 个 gap。下一切片仍严格是取得三枚缺失 TACT key 的获批
 exact-build 来源，或 64 条关系的权威 exact-build 解密记录；成功前不进入 19 类闭包完成宣称、
 正式候选或终局微信/SimC 矩阵。
+
+## 12. 2026-08-01 blocked 整合收尾
+
+**状态：** `暂缓`
+
+用户确认当前 TACT authority blocker 无可用解法，并决定跳过本 Goal、保留真实 `blocked`
+状态，同时把已经通过自动化合同和 fail-closed 审计的实现、测试与脱敏证据整合进主干。
+该决定不是 post-test acceptance，也不把 catalog-only 死亡骑士样本外推为 13 职业、40
+专精、640 槽、Apply/Exact/强化/保存/重载/Resolve 或 26+14 SimC 完成。
+
+本次仓库收尾允许关闭旧 PR 和删除已整合的任务分支；独立且尚未获准合入的历史 Gear
+Evidence Registry checkpoint 只能以不可变归档引用保留，不能吞并进当前实现。无论代码是否
+进入 `main`，历史 handoff 继续保持 `status=blocked`、`productionPromotionAllowed=false`、
+`cloudProductionConsumed=false`；正式 generation 35、Manifest、Gear、Community、Catalog、
+Exact 与全局 `partial` 均不因仓库整合而改变。
+
+唯一恢复条件仍是取得 `14f4b11d7b067aa2`、`62bf37a70e6d54f6`、
+`fbbf041f980ce0dc` 的获批 exact-build 来源，或对应 64 条关系的权威 exact-build 解密记录。
+满足该条件后才按原顺序恢复 19 类来源闭包、正式隔离候选以及完整微信/SimC 终局矩阵。
