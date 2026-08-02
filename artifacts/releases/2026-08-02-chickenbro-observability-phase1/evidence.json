@@ -81,7 +81,8 @@
     "status": "pass",
     "corrections": [
       "Unknown but format-valid request-scope slugs now collapse to empty categorical dimensions before projection.",
-      "The SQLite compatibility migration ledger now invalidates the prior init fast-path so existing databases create the Trace table once."
+      "The SQLite compatibility migration ledger now invalidates the prior init fast-path so existing databases create the Trace table once.",
+      "PostgreSQL migration 0024 now explicitly limits wow_app to SELECT and INSERT so runtime Trace writes do not depend on historic default privileges."
     ],
     "assertions": [
       "No prompt, answer, message content, Tool fact, character or realm, report identity, URL, token, or stdout enters Trace or projection.",

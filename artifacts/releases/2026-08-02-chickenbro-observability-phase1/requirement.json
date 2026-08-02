@@ -124,6 +124,15 @@
       "impact": "The compatibility path could answer normally but fail every Trace write after an upgrade.",
       "recommendedAction": "Every additive SQLite compatibility schema change must add a migration ledger identity that invalidates the init fast-path once.",
       "promotion": "finding_only"
+    },
+    {
+      "id": "postgres-trace-runtime-privileges-20260802",
+      "status": "finding_only",
+      "whatHappened": "Candidate pre-deployment review found that migration 0024 did not explicitly grant the PostgreSQL runtime role access to the new Trace table.",
+      "missedGate": "Runtime-role privilege contract for additive PostgreSQL tables",
+      "impact": "A migration applied by postgres instead of wow_migrator could leave online Trace writes failing while normal answers continued through best-effort containment.",
+      "recommendedAction": "Every runtime-owned PostgreSQL table must declare least-privilege grants explicitly and test them independently of default-privilege history.",
+      "promotion": "finding_only"
     }
   ]
 }

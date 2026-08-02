@@ -18,6 +18,9 @@ ON app.chickenbro_agent_traces (user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_chickenbro_agent_traces_session_created
 ON app.chickenbro_agent_traces (session_id, created_at);
 
+REVOKE UPDATE, DELETE ON app.chickenbro_agent_traces FROM wow_app;
+GRANT SELECT, INSERT ON app.chickenbro_agent_traces TO wow_app;
+
 INSERT INTO ops.schema_migrations (id, description)
 VALUES (
     '0024_chickenbro_agent_observability',

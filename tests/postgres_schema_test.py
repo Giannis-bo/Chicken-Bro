@@ -215,6 +215,14 @@ class PostgresSchemaTest(unittest.TestCase):
         self.assertIn("payload_json jsonb NOT NULL", normalized)
         self.assertIn("idx_chickenbro_agent_traces_owner_created", normalized)
         self.assertIn("idx_chickenbro_agent_traces_session_created", normalized)
+        self.assertIn(
+            "REVOKE UPDATE, DELETE ON app.chickenbro_agent_traces FROM wow_app",
+            normalized,
+        )
+        self.assertIn(
+            "GRANT SELECT, INSERT ON app.chickenbro_agent_traces TO wow_app",
+            normalized,
+        )
         self.assertIn("0024_chickenbro_agent_observability", normalized)
 
     def test_content_runtime_migration_adds_public_article_queue_and_refresh_runs(self):
