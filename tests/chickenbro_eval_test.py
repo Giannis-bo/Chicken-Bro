@@ -105,6 +105,14 @@ class ChickenbroEvalTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "bounded context keys"):
             evaluate_chickenbro_trace_case(case)
 
+    def test_eval_summary_rejects_empty_or_duplicate_case_sets(self):
+        with self.assertRaisesRegex(ValueError, "non-empty"):
+            evaluate_chickenbro_trace_cases([])
+
+        case = self.successful_case()
+        with self.assertRaisesRegex(ValueError, "duplicate"):
+            evaluate_chickenbro_trace_cases([case, case])
+
 
 if __name__ == "__main__":
     unittest.main()

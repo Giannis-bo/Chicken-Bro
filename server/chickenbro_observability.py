@@ -71,7 +71,75 @@ SIGNAL_CODES = {
     "explicit_correction",
 }
 SIGNAL_SEVERITIES = {"info", "warning", "error"}
-SAFE_SCOPE_VALUE = re.compile(r"^[a-z0-9_-]{0,48}$")
+REQUEST_SCOPE_ALLOWED_VALUES = {
+    "topicStatus": {"", "in_scope", "out_of_scope"},
+    "productPhase": {"", "retail", "ptr", "beta"},
+    "region": {"", "cn", "global", "us", "eu", "kr", "tw"},
+    "classKey": {
+        "",
+        "deathknight",
+        "demonhunter",
+        "druid",
+        "evoker",
+        "hunter",
+        "mage",
+        "monk",
+        "paladin",
+        "priest",
+        "rogue",
+        "shaman",
+        "warlock",
+        "warrior",
+    },
+    "specKey": {
+        "",
+        "affliction",
+        "arcane",
+        "arms",
+        "assassination",
+        "augmentation",
+        "balance",
+        "beast_mastery",
+        "blood",
+        "brewmaster",
+        "demonology",
+        "destruction",
+        "devastation",
+        "devourer",
+        "discipline",
+        "elemental",
+        "enhancement",
+        "feral",
+        "fire",
+        "frost",
+        "fury",
+        "guardian",
+        "havoc",
+        "holy",
+        "marksmanship",
+        "mistweaver",
+        "outlaw",
+        "preservation",
+        "protection",
+        "restoration",
+        "retribution",
+        "shadow",
+        "subtlety",
+        "survival",
+        "unholy",
+        "vengeance",
+        "windwalker",
+    },
+    "scenarioKey": {
+        "",
+        "mythic_plus",
+        "mplus_fortified",
+        "mplus_tyrannical",
+        "raid_single",
+        "raid_cleave",
+        "raid_multi",
+    },
+}
 SAFE_EVIDENCE_REF_PATTERNS = (
     re.compile(r"^profile\.[a-z0-9_.-]{1,96}$"),
     re.compile(r"^simc\.[a-z0-9_.-]{1,96}$"),
@@ -86,9 +154,9 @@ def _text(value, limit=160):
     return str(value or "").strip()[:limit]
 
 
-def _scope_value(value):
+def _scope_value(value, allowed_values):
     normalized = _text(value, 48).lower()
-    return normalized if SAFE_SCOPE_VALUE.fullmatch(normalized) else ""
+    return normalized if normalized in allowed_values else ""
 
 
 def _capability_id(source_key):
@@ -109,12 +177,26 @@ def _request_scope(bounded_context):
     )
     topic = context.get("topic") if isinstance(context.get("topic"), dict) else {}
     return {
-        "topicStatus": _scope_value(topic.get("status")),
-        "productPhase": _scope_value(request.get("productPhase")),
-        "region": _scope_value(request.get("region")),
-        "classKey": _scope_value(request.get("classKey")),
-        "specKey": _scope_value(request.get("specKey")),
-        "scenarioKey": _scope_value(request.get("scenarioKey")),
+        "topicStatus": _scope_value(
+            topic.get("status"), REQUEST_SCOPE_ALLOWED_VALUES["topicStatus"]
+        ),
+        "productPhase": _scope_value(
+            request.get("productPhase"),
+            REQUEST_SCOPE_ALLOWED_VALUES["productPhase"],
+        ),
+        "region": _scope_value(
+            request.get("region"), REQUEST_SCOPE_ALLOWED_VALUES["region"]
+        ),
+        "classKey": _scope_value(
+            request.get("classKey"), REQUEST_SCOPE_ALLOWED_VALUES["classKey"]
+        ),
+        "specKey": _scope_value(
+            request.get("specKey"), REQUEST_SCOPE_ALLOWED_VALUES["specKey"]
+        ),
+        "scenarioKey": _scope_value(
+            request.get("scenarioKey"),
+            REQUEST_SCOPE_ALLOWED_VALUES["scenarioKey"],
+        ),
     }
 
 
@@ -255,11 +337,9 @@ def validate_chickenbro_agent_trace(trace):
     request_scope = trace["requestScope"]
     if not isinstance(request_scope, dict) or set(request_scope) != REQUEST_SCOPE_KEYS:
         raise ValueError("invalid chickenbro trace request scope")
-    if any(
-        not isinstance(value, str) or not SAFE_SCOPE_VALUE.fullmatch(value)
-        for value in request_scope.values()
-    ):
-        raise ValueError("invalid chickenbro trace request scope value")
+    for key, value in request_scope.items():
+        if not isinstance(value, str) or value not in REQUEST_SCOPE_ALLOWED_VALUES[key]:
+            raise ValueError("invalid chickenbro trace request scope value")
     if trace["answerStatus"] not in {"succeeded", "failed", "timed_out", "skipped"}:
         raise ValueError("invalid chickenbro trace answer status")
     if trace["validationStatus"] not in {"passed", "failed"}:

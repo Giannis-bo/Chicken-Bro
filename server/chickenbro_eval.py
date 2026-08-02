@@ -7,7 +7,7 @@ from pathlib import Path
 
 from server.chickenbro_observability import (
     CAPABILITY_IDS,
-    SAFE_SCOPE_VALUE,
+    REQUEST_SCOPE_ALLOWED_VALUES,
     SIGNAL_CODES,
     SOURCE_CAPABILITY_IDS,
     TOOL_STATUSES,
@@ -60,17 +60,16 @@ def _validate_bounded_context(bounded_context):
     topic = bounded_context["topic"]
     if not isinstance(topic, dict) or set(topic) != {"status"}:
         raise ValueError("invalid chickenbro eval topic keys")
-    if not isinstance(topic["status"], str) or not SAFE_SCOPE_VALUE.fullmatch(topic["status"]):
+    if topic["status"] not in REQUEST_SCOPE_ALLOWED_VALUES["topicStatus"]:
         raise ValueError("invalid chickenbro eval topic status")
 
     request_context = bounded_context["requestContext"]
     if not isinstance(request_context, dict) or set(request_context) != REQUEST_CONTEXT_KEYS:
         raise ValueError("invalid chickenbro eval request context keys")
-    if any(
-        not isinstance(value, str) or not SAFE_SCOPE_VALUE.fullmatch(value)
-        for value in request_context.values()
-    ):
-        raise ValueError("invalid chickenbro eval request context value")
+    for key, value in request_context.items():
+        trace_key = key[0].lower() + key[1:]
+        if value not in REQUEST_SCOPE_ALLOWED_VALUES[trace_key]:
+            raise ValueError("invalid chickenbro eval request context value")
 
     source_evidence = bounded_context["sourceEvidence"]
     if not isinstance(source_evidence, list):
@@ -197,9 +196,13 @@ def evaluate_chickenbro_trace_case(case):
 
 
 def evaluate_chickenbro_trace_cases(cases):
-    if not isinstance(cases, list):
-        raise ValueError("invalid chickenbro eval cases")
-    results = [evaluate_chickenbro_trace_case(case) for case in cases]
+    if not isinstance(cases, list) or not cases:
+        raise ValueError("chickenbro eval cases must be a non-empty list")
+    validated_cases = [validate_eval_case(case) for case in cases]
+    case_ids = [case["caseId"] for case in validated_cases]
+    if len(case_ids) != len(set(case_ids)):
+        raise ValueError("duplicate chickenbro eval case id")
+    results = [evaluate_chickenbro_trace_case(case) for case in validated_cases]
     passed_count = sum(result["status"] == "passed" for result in results)
     failed_count = len(results) - passed_count
     return {

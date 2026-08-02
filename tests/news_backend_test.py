@@ -5704,6 +5704,7 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(foreign_keys, 1)
         self.assertIn("core_schema_v1", migrations)
         self.assertIn("user_build_templates_v1", migrations)
+        self.assertIn("chickenbro_agent_observability_v1", migrations)
         self.assertIn("simulator_task_summary_v1", migrations)
         self.assertIn("simulator_task_worker_ready_v1", migrations)
         self.assertIn("summary_json", simulator_task_columns)

@@ -142,6 +142,36 @@ class ChickenbroObservabilityTest(unittest.TestCase):
         self.assertNotIn("2026-08-02T00:00:00+00:00", encoded)
         self.assertNotIn("SECRET", encoded)
 
+    def test_unknown_scope_slugs_cannot_become_deidentified_dimensions(self):
+        bounded_context = self.bounded_context()
+        bounded_context["topic"]["status"] = "secret_topic_slug"
+        bounded_context["requestContext"].update(
+            {
+                "productPhase": "secret_phase_slug",
+                "region": "secret_region_slug",
+                "classKey": "secret_player_name",
+                "specKey": "secret_character_name",
+                "scenarioKey": "secret_scenario_slug",
+            }
+        )
+
+        trace = self.build_trace(bounded_context=bounded_context)
+        projection = deidentify_chickenbro_agent_trace(trace)
+        encoded = json.dumps(projection, ensure_ascii=False)
+
+        self.assertEqual(
+            {
+                "topicStatus": "",
+                "productPhase": "",
+                "region": "",
+                "classKey": "",
+                "specKey": "",
+                "scenarioKey": "",
+            },
+            trace["requestScope"],
+        )
+        self.assertNotIn("secret_", encoded)
+
     def test_rejects_unknown_fields_and_free_text_signal_payloads(self):
         trace = self.build_trace()
         trace["rawAnswer"] = "must not persist"

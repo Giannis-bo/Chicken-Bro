@@ -309,6 +309,7 @@ SCHEMA_MIGRATIONS = [
     ("core_schema_v1", "Core news, auth, simulator, WebSim, and analytics tables are initialized."),
     ("user_build_templates_v1", "Authenticated user build template sync table is initialized."),
     ("chickenbro_backend_v1", "Chickenbro sessions, messages, jobs, structured memory, and playstyle profiles are initialized."),
+    ("chickenbro_agent_observability_v1", "Owner-bound Chickenbro agent trace compatibility table is initialized."),
     ("simulator_task_summary_v1", "Simulator tasks persist a compact list summary read model."),
     ("simulator_task_worker_ready_v1", "Simulator tasks reserve worker-ready queue governance fields."),
     ("admin_gate_diagnostics_v1", "Admin gate diagnostics and audit log overlay tables are initialized."),
