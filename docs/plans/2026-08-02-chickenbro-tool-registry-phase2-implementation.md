@@ -32,7 +32,7 @@
 | --- | --- |
 | `server/chickenbro_registry.py` | Pure Manifest/Release canonicalization, hash validation and deterministic discovery |
 | `server/chickenbro_tool_runtime.py` | 60-second verified snapshot cache and approved adapter dispatch |
-| `server/migrations/postgres/0025_chickenbro_tool_registry.sql` | Immutable Manifest/Release tables, initial release and least-privilege grants |
+| `server/migrations/postgres/0025_chickenbro_tool_registry.sql` | Immutable Manifest/Release tables, single active pointer, initial release and least-privilege grants |
 | `server/postgres_ops_store.py` | Transactional active Registry Release read |
 | `server/news_backend.py` | RequestIntent orchestration, Registry loading, ToolResult wiring and health projection |
 | `server/chickenbro_observability.py` | Trace v1 compatibility and Registry Trace v2/projection |
@@ -183,8 +183,8 @@ Add `CHICKENBRO_TOOL_REGISTRY = ROOT / "server" / "migrations" / "postgres" / "0
 CREATE TABLE IF NOT EXISTS ops.chickenbro_tool_manifests
 PRIMARY KEY (tool_id, version)
 CREATE TABLE IF NOT EXISTS ops.chickenbro_tool_registry_releases
-CREATE UNIQUE INDEX IF NOT EXISTS chickenbro_tool_registry_one_active
-WHERE status = 'active'
+CREATE TABLE IF NOT EXISTS ops.chickenbro_tool_registry_active
+CHECK (singleton_id = 1)
 REFERENCES ops.chickenbro_tool_manifests (tool_id, version)
 GRANT SELECT ON ops.chickenbro_tool_manifests TO wow_app
 GRANT SELECT ON ops.chickenbro_tool_registry_releases TO wow_app
@@ -206,7 +206,7 @@ Expected: missing 0025 file or constant.
 
 - [ ] **Step 3: Create migration 0025**
 
-Store each complete manifest as JSONB plus indexed identity/hash columns. Store `manifest_refs_json` and `release_hash` on the release row. Use CHECK constraints for hash prefix, statuses and non-empty IDs; use one partial unique active index. Seed exact canonical JSON produced by Task 1 and insert the migration ledger row idempotently. Revoke write privileges from `wow_app` after granting SELECT.
+Store each complete manifest as JSONB plus indexed identity/hash columns. Store `manifest_refs_json` and `release_hash` on the immutable release row, ordered membership rows with composite FKs, and one `singleton_id=1` active pointer row. Use CHECK constraints for hash prefix and non-empty IDs. Seed exact canonical JSON produced by Task 1 and insert the migration ledger row idempotently. Revoke write privileges from `wow_app` after granting SELECT.
 
 - [ ] **Step 4: Write failing Ops store projection test**
 
@@ -224,7 +224,7 @@ self.assertNotIn("credential", json.dumps(release).lower())
 
 - [ ] **Step 5: Implement one transactional active-release read**
 
-`load_active_chickenbro_registry_release` must query the single active row, then fetch exact `(tool_id, version)` pairs. It returns raw JSON projections to Task 1 validation and raises `KeyError("active chickenbro registry release not found")` for zero rows or `RuntimeError("multiple active chickenbro registry releases")` for multiple rows. It must not write, lock for update or activate a release.
+`load_active_chickenbro_registry_release` must query the singleton active pointer joined to its immutable release, then fetch exact ordered `(tool_id, version)` pairs. It returns raw JSON projections to Task 1 validation and raises `KeyError("active chickenbro registry release not found")` for zero rows or `RuntimeError("multiple active chickenbro registry releases")` for multiple rows. It must not write, lock for update or activate a release.
 
 - [ ] **Step 6: Run PostgreSQL contract tests and commit**
 
@@ -557,7 +557,7 @@ Update evidence to `candidate_verified`, run final local CR and targeted tests, 
 | Boundary | Required proof |
 | --- | --- |
 | User journey | Existing build, WCL and general questions preserve response schema and evidence behavior |
-| Registry | One immutable active release, exactly two approved manifests, deterministic hashes |
+| Registry | One immutable release behind a singleton active pointer, exactly two approved manifests, deterministic hashes |
 | Execution | Repository adapter binding only; no arbitrary code/URL/owner/credential from data |
 | Selection | discovered and selected sets are deterministic and correctly separated |
 | Failure | Invalid/unavailable Registry never invokes fixed allowlist or unregistered Tool |

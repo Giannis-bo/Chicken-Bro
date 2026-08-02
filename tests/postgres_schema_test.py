@@ -27,6 +27,7 @@ WEBSIM_SIMULATION_SNAPSHOT = ROOT / "server" / "migrations" / "postgres" / "0021
 WEBSIM_MANIFEST_V2 = ROOT / "server" / "migrations" / "postgres" / "0022_websim_manifest_v2.sql"
 WEBSIM_GEAR_CATALOG_VARIANT_SHAPES = ROOT / "server" / "migrations" / "postgres" / "0023_websim_gear_catalog_variant_shapes.sql"
 CHICKENBRO_AGENT_OBSERVABILITY = ROOT / "server" / "migrations" / "postgres" / "0024_chickenbro_agent_observability.sql"
+CHICKENBRO_TOOL_REGISTRY = ROOT / "server" / "migrations" / "postgres" / "0025_chickenbro_tool_registry.sql"
 
 
 class PostgresSchemaTest(unittest.TestCase):
@@ -621,3 +622,31 @@ class PostgresSchemaTest(unittest.TestCase):
             normalized,
         )
         self.assertIn("0018_observed_build_registry", normalized)
+
+    def test_chickenbro_tool_registry_migration_is_immutable_and_read_only(self):
+        self.assertTrue(CHICKENBRO_TOOL_REGISTRY.exists(), "missing Chickenbro Tool Registry migration")
+        normalized = " ".join(CHICKENBRO_TOOL_REGISTRY.read_text(encoding="utf-8").split())
+        for table in (
+            "ops.chickenbro_tool_manifests",
+            "ops.chickenbro_tool_registry_releases",
+            "ops.chickenbro_tool_registry_release_manifests",
+            "ops.chickenbro_tool_registry_active",
+        ):
+            self.assertIn(f"CREATE TABLE IF NOT EXISTS {table}", normalized)
+        self.assertIn("PRIMARY KEY (tool_id, version)", normalized)
+        self.assertIn("FOREIGN KEY (tool_id, version) REFERENCES ops.chickenbro_tool_manifests (tool_id, version)", normalized)
+        self.assertIn("CHECK (singleton_id = 1)", normalized)
+        self.assertIn("source:raiderio:v1", normalized)
+        self.assertIn("source:warcraftlogs:v1", normalized)
+        self.assertIn("sha256:9e14fb40e1ee51ba8820cc498fd90d2aa745d3cf9cf1125d878a003996caea25", normalized)
+        self.assertIn("sha256:c532f1760e75612cdf8396af9eaf0484b0f8da04398fb06499c9689efd3a934c", normalized)
+        self.assertIn("sha256:c9d49f00695540052d69d8aea15653ffb227dbed4ecdb6db1ebd01f734e4734a", normalized)
+        for table in (
+            "ops.chickenbro_tool_manifests",
+            "ops.chickenbro_tool_registry_releases",
+            "ops.chickenbro_tool_registry_release_manifests",
+            "ops.chickenbro_tool_registry_active",
+        ):
+            self.assertIn(f"GRANT SELECT ON {table} TO wow_app", normalized)
+            self.assertIn(f"REVOKE INSERT, UPDATE, DELETE ON {table} FROM wow_app", normalized)
+        self.assertIn("0025_chickenbro_tool_registry", normalized)
