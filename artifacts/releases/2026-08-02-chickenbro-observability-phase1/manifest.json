@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-08-02T11:27:14.049Z",
+  "generatedAt": "2026-08-02T12:10:49.446Z",
   "release": {
     "date": "2026-08-02",
     "slug": "chickenbro-observability-phase1"
@@ -43,7 +43,7 @@
         {
           "path": "docs/project-owner-map.json",
           "exists": true,
-          "sizeBytes": 79245
+          "sizeBytes": 79313
         },
         {
           "path": "docs/verification-matrix.md",
@@ -53,7 +53,7 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 13970
+          "sizeBytes": 14055
         },
         {
           "path": "docs/README.md",
@@ -68,7 +68,7 @@
         {
           "path": "docs/backend-owner-map.json",
           "exists": true,
-          "sizeBytes": 55505
+          "sizeBytes": 55541
         }
       ],
       "historicalDocsDefaultToEvidenceOnly": true
@@ -105,7 +105,7 @@
         {
           "path": "server/news_backend.py",
           "exists": true,
-          "lineCount": 14736,
+          "lineCount": 14737,
           "hotspot": true
         },
         {
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-08-02-chickenbro-observability-phase1/evidence.json",
-    "sizeBytes": 11373,
+    "sizeBytes": 12985,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -390,9 +390,9 @@
       "summary"
     ],
     "missingFields": [],
-    "declaredStatus": "runtime_verified",
-    "highestEvidenceLevel": "runtime_verified",
-    "summary": "Phase 1 is runtime verified on candidate commit 9cfe202: bounded owner-isolated Trace persistence, deterministic outcome mapping, text-free projection, and four-case offline Eval are implemented without changing frontend or answer policy. PostgreSQL migration, real API/Trace isolation, file parity, service health, and non-destructive rollback/restore passed. Merge, main parity, production closure, and cleanup remain pending explicit user authorization."
+    "declaredStatus": "archived",
+    "highestEvidenceLevel": "archived",
+    "summary": "Chickenbro capability evolution Phase 1 is merged, verified, and archived. Merge commit c1d5c52 integrated bounded owner-isolated Trace persistence, deterministic outcome mapping, text-free projection, and four-case offline Eval without changing frontend or answer policy. Final source commit 22db29a additionally closes the fresh-SQLite test-order precondition and passed the complete 173-command Harness from an empty database state; local and origin main parity was verified before archive capture, task resources were removed, and the live PostgreSQL runtime remains immutably bound to verified candidate 9cfe202."
   },
   "evidence": {
     "localTests": {
@@ -414,16 +414,10 @@
   },
   "riskMatrix": [
     {
-      "id": "dirty_worktree",
-      "severity": "medium",
-      "status": "watch",
-      "detail": "3 changed files currently visible to git status."
-    },
-    {
       "id": "hotspot_files_present",
       "severity": "medium",
       "status": "watch",
-      "detail": "server/websim_payload.py:28040, server/news_backend.py:14736, server/postgres_cache_store.py:9698"
+      "detail": "server/websim_payload.py:28040, server/news_backend.py:14737, server/postgres_cache_store.py:9698"
     },
     {
       "id": "localTests_missing",
@@ -452,13 +446,9 @@
   ],
   "repo": {
     "git": {
-      "status": "dirty",
-      "changedFileCount": 3,
-      "changedFiles": [
-        " M artifacts/releases/2026-08-02-chickenbro-observability-phase1/evidence.json",
-        " M docs/plans/2026-08-02-chickenbro-observability-phase1-implementation.md",
-        " M docs/roadmap.md"
-      ]
+      "status": "clean",
+      "changedFileCount": 0,
+      "changedFiles": []
     }
   },
   "write": {
