@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-08-02T14:29:32.943Z",
+  "generatedAt": "2026-08-02T15:17:08.967Z",
   "release": {
     "date": "2026-08-02",
     "slug": "chickenbro-tool-registry-phase2"
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-08-02-chickenbro-tool-registry-phase2/evidence.json",
-    "sizeBytes": 5577,
+    "sizeBytes": 13800,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -390,9 +390,9 @@
       "summary"
     ],
     "missingFields": [],
-    "declaredStatus": "local_verified",
-    "highestEvidenceLevel": "local_verified",
-    "summary": "Phase 2 implementation and focused local review are complete. Exact clean-HEAD full Harness verification, immutable candidate deployment, live three-path smoke and code rollback proof remain pending."
+    "declaredStatus": "live_verified",
+    "highestEvidenceLevel": "live_verified",
+    "summary": "Chickenbro Tool Registry Phase 2 is locally and live verified on immutable candidate 8507030. PostgreSQL migration 0025, exact two-Tool discovery, read-only privileges, three-path Trace v2 smoke, bounded cache/failure behavior and P1 code rollback/restoration all passed without frontend or public response changes; merge and archive closure remain pending."
   },
   "evidence": {
     "localTests": {
@@ -417,7 +417,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "3 changed files currently visible to git status."
+      "detail": "5 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
@@ -453,11 +453,13 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 3,
+      "changedFileCount": 5,
       "changedFiles": [
         " M artifacts/releases/2026-08-02-chickenbro-tool-registry-phase2/evidence.json",
-        " M artifacts/releases/2026-08-02-chickenbro-tool-registry-phase2/requirement.json",
-        " M tests/database_adapter_test.py"
+        " M docs/plans/2026-08-02-chickenbro-capability-evolution-design.md",
+        " M docs/plans/2026-08-02-chickenbro-tool-registry-phase2-design.md",
+        " M docs/plans/2026-08-02-chickenbro-tool-registry-phase2-implementation.md",
+        " M docs/plans/README.md"
       ]
     }
   },

@@ -2,14 +2,24 @@
   "schemaVersion": 2,
   "slug": "chickenbro-tool-registry-phase2",
   "requirementSlug": "chickenbro-tool-registry-phase2",
-  "status": "local_verified",
-  "highestEvidenceLevel": "local_verified",
+  "status": "live_verified",
+  "highestEvidenceLevel": "live_verified",
   "branch": "codex/chickenbro-tool-registry-phase2",
-  "commit": "d1f2b44c733ad3435237f43f2ed6445b141c4fc8",
+  "commit": "8507030f0a40e1b082769372d0d8974390c1910f",
   "identities": {
     "runtime": {
-      "status": "pending",
-      "reason": "The immutable candidate commit and cloud file hashes are not yet bound."
+      "status": "bound",
+      "kind": "git_commit",
+      "value": "8507030f0a40e1b082769372d0d8974390c1910f",
+      "fileHashes": {
+        "server/news_backend.py": "20ad8e401ecc36b1b7b284183cfd69f665c2ec6f0cd1b0faa56ea263eccfe5a0",
+        "server/postgres_ops_store.py": "fcd06954afd0a5eb2a5eae6c6747f5d23759383f2f6b5865ef005f32e98ea3ba",
+        "server/chickenbro_observability.py": "0ff68b6cf24497951f4cd7094dbe83b6ead6e6f884bfcb9b3434090b97265bde",
+        "server/chickenbro_eval.py": "30f61f1527180f21ce3fd7ab88c95d99fb238361769f2ea3aa7e890e5ed19f94",
+        "server/chickenbro_registry.py": "a7bde8cef90e8c1ab05268bd411a24a1dd2cf8021d92e25fc5027804805a2a5f",
+        "server/chickenbro_tool_runtime.py": "4a4fbdeade0fdb847decd67556c38665c14b0da8f1c11197b85948b72e4e52c8",
+        "server/migrations/postgres/0025_chickenbro_tool_registry.sql": "d2e7834b7533332fcc8e10842255220c09944bb56951126b0dabdff25967c39b"
+      }
     },
     "verification": {
       "status": "bound_at_check",
@@ -73,15 +83,190 @@
     },
     {
       "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-08-02-chickenbro-tool-registry-phase2",
-      "status": "not_run",
-      "summary": "Pending exact clean-HEAD full Harness verification."
+      "status": "pass",
+      "summary": "Node 23.9.0 completed all 173 Harness commands on exact clean candidate 8507030; 2410 Python tests passed with one conditional skip, and JS tests, typecheck, lint, Vitest, UI architecture, isolated production builds, packet binding and whitespace checks passed without installing dependencies."
     }
   ],
   "candidateDeployment": {
-    "status": "pending",
-    "reason": "Candidate deployment, live three-path smoke and rollback proof are pending."
+    "status": "candidate_verified",
+    "requiredBeforeMerge": true,
+    "branch": "codex/chickenbro-tool-registry-phase2",
+    "commit": "8507030f0a40e1b082769372d0d8974390c1910f",
+    "deployedTarget": "ubuntu@124.223.51.33:/opt/wow-mini-program",
+    "method": "Targeted staging and exact file installation with no repository overlay, dependency installation, third-party download or async sync start.",
+    "asyncSyncStarted": false,
+    "database": {
+      "name": "wow_test",
+      "host": "127.0.0.1",
+      "port": 5432,
+      "runtime": "postgres_only"
+    },
+    "backup": {
+      "path": "/var/backups/wow-backend/chickenbro-tool-registry-phase2-20260802T145200Z",
+      "postgresDumpBytes": 819602727,
+      "postgresDumpSha256": "b60a0573cff921757054575a8462b244e779848134c61bf2882c9fe688f98359",
+      "postgresDumpMode": "0600",
+      "environmentBackupMode": "0600",
+      "priorNewsBackendSha256": "caecc0ab55a38be5e066f027b276e02291a6d74662619b9704511589956f9b51",
+      "priorPostgresOpsStoreSha256": "dabd9a39e17453d7797b3b09464311898f989b777282129c825db5fa4c2aa9c9",
+      "priorObservabilitySha256": "a22ebeb8d619d4abcc0a1cf0c10ede7fce0073aa669b336d81bbb0baf4444b3b"
+    },
+    "migration": {
+      "status": "pass",
+      "dryRunTransactionRolledBack": true,
+      "ledgerId": "0025_chickenbro_tool_registry",
+      "registryVersion": "chickenbro-tools-1",
+      "releaseHash": "sha256:c9d49f00695540052d69d8aea15653ffb227dbed4ecdb6db1ebd01f734e4734a",
+      "manifestCount": 2,
+      "releaseCount": 1,
+      "membershipCount": 2,
+      "activePointerCount": 1,
+      "immutableTriggerCount": 3,
+      "wowAppSelect": true,
+      "wowAppInsert": false,
+      "wowAppUpdate": false,
+      "wowAppDelete": false
+    },
+    "smoke": {
+      "status": "pass",
+      "service": "active",
+      "localhostHealthHttpStatus": 200,
+      "publicHealthHttpStatus": 200,
+      "publicResponseTopLevelKeys": [
+        "assistantMessage",
+        "job",
+        "mode",
+        "session",
+        "user",
+        "userMessage"
+      ],
+      "publicAssistantPayloadKeys": [
+        "answer",
+        "answerLayer",
+        "answerSource",
+        "basisLabel",
+        "confidence",
+        "evidenceRefs",
+        "limitations",
+        "missingInputs",
+        "nextQuestion",
+        "priorityActions"
+      ],
+      "registryFieldsLeakedToPublicResponse": false,
+      "build": {
+        "jobId": "c27b556b-7fe7-4c5a-9117-b7232a402261",
+        "status": "succeeded",
+        "registrySource": "postgres",
+        "selectedCapabilityIds": [
+          "source:raiderio:v1"
+        ],
+        "toolStatus": "source_reference"
+      },
+      "wcl": {
+        "jobId": "1de192ec-e600-42da-9dc5-35a20543adcd",
+        "status": "succeeded",
+        "registrySource": "postgres",
+        "selectedCapabilityIds": [
+          "source:warcraftlogs:v1"
+        ],
+        "toolStatus": "blocked",
+        "note": "The synthetic public report URL intentionally had no retrievable report; selection and bounded failure behavior were verified without claiming log evidence."
+      },
+      "general": {
+        "jobId": "c4d1075e-98ea-4684-88fe-94daa099e1b7",
+        "status": "succeeded",
+        "registrySource": "postgres",
+        "selectedCapabilityIds": []
+      },
+      "trace": {
+        "schemaRevision": "chickenbro-agent-trace-v2",
+        "runtimeVersion": "chickenbro-registry-runtime-v1",
+        "requestAndReportTextAbsent": true,
+        "wrongOwnerStoreReadIsNotFound": true
+      },
+      "health": {
+        "status": "verified",
+        "registryVersion": "chickenbro-tools-1",
+        "releaseHashPrefix": "sha256:c9d49f0069554005",
+        "activeToolIds": [
+          "source:raiderio:v1",
+          "source:warcraftlogs:v1"
+        ],
+        "registrySource": "postgres"
+      },
+      "failureProbes": {
+        "verifiedCacheAt30Seconds": true,
+        "expiredAt61SecondsBlocked": true,
+        "invalidToolResultCount": 0,
+        "invalidLimitation": "registry_invalid",
+        "unavailableToolResultCount": 0,
+        "unavailableLimitation": "registry_unavailable"
+      }
+    },
+    "timerBackflow": {
+      "status": "pass",
+      "newAsyncSyncOrBackfillStarted": false,
+      "preExistingFailedUnits": [
+        "wow-backend-equipment-e2e-m1b33356c.service",
+        "wow-community-template-sync.service",
+        "wow-gear-release-refresh.service"
+      ],
+      "newFailedUnits": []
+    },
+    "rollback": {
+      "status": "pass",
+      "priorCodeRestored": true,
+      "serviceHealthPassed": true,
+      "threePublicPathsPassed": true,
+      "traceSchemaRevision": "chickenbro-agent-trace-v1",
+      "runtimeVersion": "chickenbro-fixed-allowlist-v1",
+      "additiveMigrationRetained": true,
+      "additiveReleaseRetained": true
+    },
+    "restoredCandidate": {
+      "status": "pass",
+      "allFileHashesMatch": true,
+      "serviceHealthPassed": true,
+      "jobId": "0fac10da-ac43-4e51-8508-79acbb6cb5b0",
+      "traceSchemaRevision": "chickenbro-agent-trace-v2",
+      "registrySource": "postgres",
+      "selectedCapabilityIds": [
+        "source:raiderio:v1"
+      ]
+    }
   },
-  "runtimeEvidence": [],
+  "runtimeEvidence": [
+    {
+      "type": "candidate_file_parity",
+      "status": "pass",
+      "summary": "All six deployed Python files and migration 0025 match the immutable 8507030 candidate hashes after final restoration."
+    },
+    {
+      "type": "postgres_migration",
+      "status": "pass",
+      "summary": "Transactionally rolled-back dry run and final apply produced one release, exactly two manifests and memberships, one active pointer, three immutable triggers and SELECT-only wow_app access."
+    },
+    {
+      "type": "smoke",
+      "status": "pass",
+      "summary": "Real build, WCL and general guest requests selected Raider.IO only, Warcraft Logs only and no Tool respectively while preserving the public response schema and writing bounded owner-isolated Trace v2."
+    },
+    {
+      "type": "registry_failure_degradation",
+      "status": "pass",
+      "summary": "A real PostgreSQL snapshot degraded to verified cache within 30 seconds; expired, invalid and unavailable isolated probes failed closed with zero ToolResults and no fixed fallback."
+    },
+    {
+      "type": "code_rollback",
+      "status": "pass",
+      "summary": "Restored P1 code passed the same three paths with Trace v1/fixed_allowlist while additive 0025 state remained, then exact P2 hashes were restored and produced Registry-backed Trace v2."
+    },
+    {
+      "type": "timer_backflow",
+      "status": "pass",
+      "summary": "No async sync or backfill was started; the same three unrelated failed units were present before and after candidate deployment and no new failed unit appeared."
+    }
+  ],
   "localReview": {
     "status": "pass",
     "findings": [],
@@ -98,8 +283,10 @@
     ]
   },
   "risks": [
-    "Registry reads, runtime-role privileges, cache degradation and script-entrypoint wiring still require candidate cloud proof.",
-    "Phase 2 must remain exactly two Tools and must not become a publication surface for generated code."
+    "The overall data-health response remains partial for unrelated data domains even though chickenbro_tool_registry is verified.",
+    "Three unrelated systemd units were already failed before deployment and remain outside this task; no new failed unit appeared.",
+    "The existing intent classifier did not classify the Chinese shorthand 奥法 smoke as community_build, while the canonical supported Protection Warrior wording did; Phase 2 intentionally preserves classifier behavior and records this as a future capability gap rather than expanding scope.",
+    "Phase 2 remains exactly two Tools and is not a publication surface for generated code."
   ],
   "rollback": [
     "code_rollback",
@@ -118,5 +305,5 @@
     "docs/plans/2026-08-02-chickenbro-tool-registry-phase2-design.md",
     "docs/plans/2026-08-02-chickenbro-tool-registry-phase2-implementation.md"
   ],
-  "summary": "Phase 2 implementation and focused local review are complete. Exact clean-HEAD full Harness verification, immutable candidate deployment, live three-path smoke and code rollback proof remain pending."
+  "summary": "Chickenbro Tool Registry Phase 2 is locally and live verified on immutable candidate 8507030. PostgreSQL migration 0025, exact two-Tool discovery, read-only privileges, three-path Trace v2 smoke, bounded cache/failure behavior and P1 code rollback/restoration all passed without frontend or public response changes; merge and archive closure remain pending."
 }
