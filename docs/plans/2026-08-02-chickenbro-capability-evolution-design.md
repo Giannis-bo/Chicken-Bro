@@ -4,9 +4,9 @@
 分类：`Strict（分阶段实施）`
 确认日期：2026-08-02
 
-本设计扩展[炸鸡队长统一 ChatBot 与受控分析架构](2026-07-24-chickenbro-chatbot-design.md)和[来源驱动 Agent 实施计划](2026-08-01-chickenbro-source-agent-implementation.md)。它定义长期能力演化边界，但不把现有来源 Agent 描述成已经具备 Toolsmith、动态 Tool Registry 或自动晋级能力。Phase 1 已获得单独实施授权；Phase 2–5 仍必须分别规划、审阅、验证和发布，不能从本次授权推导。
+本设计扩展[炸鸡队长统一 ChatBot 与受控分析架构](2026-07-24-chickenbro-chatbot-design.md)和[来源驱动 Agent 实施计划](2026-08-01-chickenbro-source-agent-implementation.md)。它定义长期能力演化边界，但不把现有来源 Agent 描述成已经具备 Toolsmith、动态 Tool Registry 或自动晋级能力。Phase 1 已归档；Phase 2 Tool Registry 已获得单独设计与实施授权；Phase 3–5 仍必须分别规划、审阅、验证和发布，不能从本次授权推导。
 
-实施入口：[Phase 1：Trace、Outcome 与 Eval 基础实施计划](2026-08-02-chickenbro-observability-phase1-implementation.md)
+实施入口：[Phase 1：Trace、Outcome 与 Eval 基础实施计划](2026-08-02-chickenbro-observability-phase1-implementation.md) · [Phase 2：Tool Registry 专项设计](2026-08-02-chickenbro-tool-registry-phase2-design.md)
 
 当前事实入口：[project-state.json](../project-state.json)、[roadmap.md](../roadmap.md)、[Harness](../harness.md)、[验证矩阵](../verification-matrix.md)
 
@@ -310,6 +310,8 @@ shadow 不影响用户回答；canary 只接收策略允许的少量真实请求
 ### Phase 2：Tool Registry 与在线动态调用
 
 将现有固定 allowlist 迁移为版本化 manifest 和 Registry 驱动发现，保留后端参数、owner、来源和副作用校验。首批只注册现有、已验证 Tool；不在本阶段制造新 Tool。
+
+已确认专项边界见[Phase 2：Tool Registry 专项设计](2026-08-02-chickenbro-tool-registry-phase2-design.md)：初始 Registry 只包含 Raider.IO 与 Warcraft Logs；个人模板和 SimC 继续作为 context evidence；Registry 只驱动发现，执行仍绑定仓库内获准 adapter。
 
 ### Phase 3：CapabilityGap 聚类与审核
 
