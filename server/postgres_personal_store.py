@@ -5,7 +5,10 @@ import json
 import secrets
 import uuid
 
-from server.chickenbro_observability import validate_chickenbro_agent_trace
+try:
+    from .chickenbro_observability import validate_chickenbro_agent_trace
+except ImportError:  # pragma: no cover - script entrypoint compatibility
+    from chickenbro_observability import validate_chickenbro_agent_trace
 
 
 IDENTITY_NAMESPACE = uuid.UUID("b8589a4f-2d8f-4d34-82a8-f2f29d3e7ed6")

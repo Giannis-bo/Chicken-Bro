@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-08-02T10:57:56.687Z",
+  "generatedAt": "2026-08-02T11:13:16.117Z",
   "release": {
     "date": "2026-08-02",
     "slug": "chickenbro-observability-phase1"
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-08-02-chickenbro-observability-phase1/evidence.json",
-    "sizeBytes": 5353,
+    "sizeBytes": 5515,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -457,8 +457,8 @@
       "changedFiles": [
         " M artifacts/releases/2026-08-02-chickenbro-observability-phase1/evidence.json",
         " M artifacts/releases/2026-08-02-chickenbro-observability-phase1/requirement.json",
-        " M server/migrations/postgres/0024_chickenbro_agent_observability.sql",
-        " M tests/postgres_schema_test.py"
+        " M server/postgres_personal_store.py",
+        " M tests/postgres_personal_store_test.py"
       ]
     }
   },

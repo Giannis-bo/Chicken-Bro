@@ -133,6 +133,15 @@
       "impact": "A migration applied by postgres instead of wow_migrator could leave online Trace writes failing while normal answers continued through best-effort containment.",
       "recommendedAction": "Every runtime-owned PostgreSQL table must declare least-privilege grants explicitly and test them independently of default-privilege history.",
       "promotion": "finding_only"
+    },
+    {
+      "id": "postgres-store-script-entrypoint-import-20260802",
+      "status": "finding_only",
+      "whatHappened": "The first candidate API smoke found that postgres_personal_store imported the new Trace validator only through the server package path, while production starts news_backend.py as a script.",
+      "missedGate": "Production script-entrypoint import compatibility",
+      "impact": "Chickenbro session creation closed the HTTP connection before a response even though package-mode unit tests passed.",
+      "recommendedAction": "Every module reachable from the script-mode backend entrypoint must retain package and top-level import compatibility with a subprocess regression test.",
+      "promotion": "finding_only"
     }
   ]
 }

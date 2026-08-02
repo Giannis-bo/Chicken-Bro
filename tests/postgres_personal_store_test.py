@@ -1,4 +1,7 @@
 import json
+from pathlib import Path
+import subprocess
+import sys
 import unittest
 
 
@@ -46,6 +49,19 @@ class FakeConnection:
 
 
 class PostgresPersonalStoreTest(unittest.TestCase):
+    def test_module_imports_when_backend_runs_as_a_script(self):
+        server_root = Path(__file__).resolve().parents[1] / "server"
+
+        result = subprocess.run(
+            [sys.executable, "-c", "import postgres_personal_store"],
+            cwd=server_root,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+
+        self.assertEqual(0, result.returncode, result.stderr)
+
     def test_upsert_wechat_user_writes_identity_and_provider_rows(self):
         from server.postgres_personal_store import PostgresPersonalStore
 
