@@ -104,6 +104,7 @@ class ChickenbroRegistryRuntime:
             raise RegistryInvalid("chickenbro tool registry invalid") from error
         return {
             **resolution,
+            "activeCapabilityIds": [item["toolId"] for item in release["manifests"]],
             "registrySource": source,
             "registryStatus": "verified",
         }

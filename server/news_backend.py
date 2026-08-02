@@ -276,6 +276,12 @@ try:
         build_chickenbro_agent_trace,
         validate_chickenbro_agent_trace,
     )
+    from .chickenbro_tool_runtime import (
+        ChickenbroRegistryRuntime,
+        RegistryInvalid,
+        RegistryUnavailable,
+        execute_chickenbro_selected_tools,
+    )
 except ImportError:
     from chickenbro_agent import (
         build_raiderio_chickenbro_tool_result,
@@ -286,6 +292,12 @@ except ImportError:
     from chickenbro_observability import (
         build_chickenbro_agent_trace,
         validate_chickenbro_agent_trace,
+    )
+    from chickenbro_tool_runtime import (
+        ChickenbroRegistryRuntime,
+        RegistryInvalid,
+        RegistryUnavailable,
+        execute_chickenbro_selected_tools,
     )
 
 
@@ -331,6 +343,7 @@ _GEAR_AUTHORITY_CACHE_KEY = None
 _GEAR_AUTHORITY_CACHE = None
 _GEAR_MANIFEST_BINDING_CACHE = None
 _GEAR_AUTHORITY_CACHE_LOCK = threading.Lock()
+_CHICKENBRO_TOOL_REGISTRY_RUNTIME = ChickenbroRegistryRuntime(cache_ttl_seconds=60)
 CHICKENBRO_ALLOWED_TOOL_TOPICS = {
     "wcl",
     "warcraft logs",
@@ -2416,6 +2429,63 @@ def data_health_component(key, title, status, *, checked_at="", details=None, bl
     }
 
 
+def chickenbro_tool_registry_health_component(registry_loader=None, registry_runtime=None):
+    runtime = registry_runtime or _CHICKENBRO_TOOL_REGISTRY_RUNTIME
+    loader = registry_loader or chickenbro_registry_release_loader
+    try:
+        resolution = runtime.resolve(
+            loader,
+            {"kind": "general", "productPhase": "retail"},
+            {"region": "cn", "productPhase": "retail"},
+        )
+    except RegistryInvalid:
+        return data_health_component(
+            "chickenbro_tool_registry",
+            "Chickenbro Tool Registry",
+            "blocked",
+            checked_at=utc_now(),
+            details={
+                "registryVersion": "",
+                "releaseHashPrefix": "",
+                "activeToolIds": [],
+                "registrySource": "",
+            },
+            blockers=["registry_invalid"],
+        )
+    except RegistryUnavailable:
+        return data_health_component(
+            "chickenbro_tool_registry",
+            "Chickenbro Tool Registry",
+            "blocked",
+            checked_at=utc_now(),
+            details={
+                "registryVersion": "",
+                "releaseHashPrefix": "",
+                "activeToolIds": [],
+                "registrySource": "",
+            },
+            blockers=["registry_unavailable"],
+        )
+    cache_source = resolution.get("registrySource") or ""
+    return data_health_component(
+        "chickenbro_tool_registry",
+        "Chickenbro Tool Registry",
+        "verified" if cache_source == "postgres" else "partial",
+        checked_at=utc_now(),
+        details={
+            "registryVersion": resolution.get("registryVersion") or "",
+            "releaseHashPrefix": str(resolution.get("registryReleaseHash") or "")[:23],
+            "activeToolIds": list(resolution.get("activeCapabilityIds") or []),
+            "registrySource": cache_source,
+        },
+        blockers=(
+            []
+            if cache_source == "postgres"
+            else ["active registry read unavailable; using bounded verified cache"]
+        ),
+    )
+
+
 def data_health_followup_health_component(cache_store):
     if cache_store is None or not hasattr(cache_store, "get_sync_state"):
         return data_health_component(
@@ -3539,6 +3609,7 @@ def build_postgres_only_data_health_payload(*, include_template_evidence_audit=T
         community_status = "partial" if community_status in {"synced", "verified"} else (community_status or "partial")
     components = [
         data_health_component("backend", "Backend service", "verified", checked_at=utc_now()),
+        chickenbro_tool_registry_health_component(),
         data_health_followup_health_component(cache_store),
         active_manifest_health_component(cache_store),
         release_refresh_health_component(cache_store),
@@ -3699,6 +3770,7 @@ def build_data_health_payload(*, include_template_evidence_audit=True):
     pg_gear_state = cache_store.get_sync_state("gearCatalog") if cache_store else {}
     components = [
         data_health_component("backend", "Backend service", "verified", checked_at=utc_now()),
+        chickenbro_tool_registry_health_component(),
         data_health_followup_health_component(cache_store),
         news_health_component(),
         attribute_rule_audit_health_component(),
@@ -7556,13 +7628,93 @@ def chickenbro_cached_raiderio_payload():
         }
 
 
-def load_chickenbro_source_tool_results(message, context, history=None):
+def chickenbro_registry_release_loader():
+    store = ops_data_store()
+    if store is None or not hasattr(store, "load_active_chickenbro_registry_release"):
+        raise ConnectionError("chickenbro tool registry store is unavailable")
+    return store.load_active_chickenbro_registry_release()
+
+
+def empty_chickenbro_registry_context(status="unavailable"):
+    return {
+        "status": status,
+        "registryVersion": "",
+        "registryReleaseHash": "",
+        "registrySource": "",
+        "discoveredCapabilityIds": [],
+        "selectedCapabilityIds": [],
+    }
+
+
+def load_chickenbro_source_tool_results(
+    message,
+    context,
+    history=None,
+    include_registry=False,
+    registry_loader=None,
+    registry_runtime=None,
+):
+    context = context if isinstance(context, dict) else {}
     intent = classify_chickenbro_request(message, history or [])
-    if intent.get("kind") == "personal_wcl":
-        return [build_wcl_chickenbro_tool_result(build_wcl_log_evidence({"prompt": message}))]
-    if intent.get("kind") != "community_build" or not intent.get("classKey") or not intent.get("specKey"):
-        return []
-    return [build_raiderio_chickenbro_tool_result(chickenbro_cached_raiderio_payload(), intent)]
+    request_context = {
+        "region": normalize_chickenbro_region(context.get("region")),
+        "productPhase": normalize_chickenbro_phase(
+            context.get("productPhase") or intent.get("productPhase")
+        ),
+        "classKey": str(context.get("classKey") or intent.get("classKey") or "").strip().lower(),
+        "specKey": str(context.get("specKey") or intent.get("specKey") or "").strip().lower(),
+    }
+    runtime = registry_runtime or _CHICKENBRO_TOOL_REGISTRY_RUNTIME
+    loader = registry_loader or chickenbro_registry_release_loader
+    try:
+        resolution = runtime.resolve(loader, intent, request_context)
+    except RegistryUnavailable:
+        packet = {
+            "sourceToolResults": [],
+            "registryContext": empty_chickenbro_registry_context("unavailable"),
+            "limitations": ["registry_unavailable"],
+        }
+    except RegistryInvalid:
+        packet = {
+            "sourceToolResults": [],
+            "registryContext": empty_chickenbro_registry_context("invalid"),
+            "limitations": ["registry_invalid"],
+        }
+    else:
+        registry_context = {
+            "status": resolution["registryStatus"],
+            "registryVersion": resolution["registryVersion"],
+            "registryReleaseHash": resolution["registryReleaseHash"],
+            "registrySource": resolution["registrySource"],
+            "discoveredCapabilityIds": list(resolution["discoveredCapabilityIds"]),
+            "selectedCapabilityIds": list(resolution["selectedCapabilityIds"]),
+        }
+        try:
+            source_tool_results = execute_chickenbro_selected_tools(
+                resolution,
+                {
+                    "chickenbro.source.raiderio.v1": lambda request: build_raiderio_chickenbro_tool_result(
+                        chickenbro_cached_raiderio_payload(), request["intent"]
+                    ),
+                    "chickenbro.source.warcraftlogs.v1": lambda request: build_wcl_chickenbro_tool_result(
+                        build_wcl_log_evidence({"prompt": request["message"]})
+                    ),
+                },
+                {"message": message, "intent": intent, "context": request_context},
+            )
+        except RegistryInvalid:
+            packet = {
+                "sourceToolResults": [],
+                "registryContext": empty_chickenbro_registry_context("invalid"),
+                "limitations": ["registry_invalid"],
+            }
+        else:
+            packet = {
+                "sourceToolResults": source_tool_results,
+                "registryContext": registry_context,
+                "limitations": [],
+            }
+    return packet if include_registry else packet["sourceToolResults"]
 
 
 def compact_chickenbro_history(messages, limit=6):
@@ -7579,7 +7731,15 @@ def compact_chickenbro_history(messages, limit=6):
     return compact[-max(1, min(6, int(limit or 6))):]
 
 
-def build_chickenbro_bounded_context(message, context, user_profile=None, source_tool_results=None, history=None):
+def build_chickenbro_bounded_context(
+    message,
+    context,
+    user_profile=None,
+    source_tool_results=None,
+    history=None,
+    registry_loader=None,
+    registry_runtime=None,
+):
     context = context if isinstance(context, dict) else {}
     conversation_history = compact_chickenbro_history(history)
     intent = classify_chickenbro_request(message, conversation_history)
@@ -7594,13 +7754,43 @@ def build_chickenbro_bounded_context(message, context, user_profile=None, source
     profiles = load_chickenbro_profiles(lookup_context)
     desired_region = normalize_chickenbro_region(context.get("region"))
     context_evidence = compact_chickenbro_context_evidence(context)
+    registry_context = empty_chickenbro_registry_context("unavailable")
+    registry_limitations = []
     if source_tool_results is None:
-        source_tool_results = load_chickenbro_source_tool_results(message, context, conversation_history)
+        if registry_loader is None and registry_runtime is None:
+            loaded_sources = load_chickenbro_source_tool_results(
+                message,
+                lookup_context,
+                conversation_history,
+                True,
+            )
+        else:
+            loaded_sources = load_chickenbro_source_tool_results(
+                message,
+                lookup_context,
+                conversation_history,
+                True,
+                registry_loader,
+                registry_runtime,
+            )
+        if isinstance(loaded_sources, dict):
+            source_tool_results = loaded_sources.get("sourceToolResults") or []
+            registry_context = loaded_sources.get("registryContext") or registry_context
+            registry_limitations = loaded_sources.get("limitations") or []
+        else:
+            source_tool_results = loaded_sources
+    elif isinstance(source_tool_results, dict):
+        loaded_sources = source_tool_results
+        source_tool_results = loaded_sources.get("sourceToolResults") or []
+        registry_context = loaded_sources.get("registryContext") or registry_context
+        registry_limitations = loaded_sources.get("limitations") or []
     source_evidence = [item for item in (source_tool_results or []) if isinstance(item, dict)][:3]
     usable = []
     background = []
     excluded = []
     limitations = []
+    for limitation in registry_limitations:
+        append_unique_text(limitations, limitation)
     for profile in profiles:
         compact = compact_chickenbro_runtime_profile(profile)
         status = profile.get("status")
@@ -7669,6 +7859,7 @@ def build_chickenbro_bounded_context(message, context, user_profile=None, source
         "excludedProfiles": excluded[:5],
         "contextEvidence": context_evidence,
         "sourceEvidence": source_evidence,
+        "registryContext": registry_context,
         "allowedEvidenceRefs": allowed_refs,
         "allowedNumbers": [number for number in allowed_numbers if number],
         "limitations": limitations,

@@ -7237,6 +7237,26 @@ class NewsBackendTest(unittest.TestCase):
 
         self.assertIn("data_health_followup", components)
         self.assertEqual(components["data_health_followup"]["details"].get("mode"), "revision_gated")
+        self.assertIn("chickenbro_tool_registry", components)
+
+    def test_chickenbro_tool_registry_health_is_read_only_and_bounded(self):
+        from server.chickenbro_tool_runtime import ChickenbroRegistryRuntime
+        from tests.chickenbro_registry_test import signed_release
+
+        component = self.backend.chickenbro_tool_registry_health_component(
+            registry_loader=lambda: signed_release(),
+            registry_runtime=ChickenbroRegistryRuntime(60),
+        )
+
+        self.assertEqual("chickenbro_tool_registry", component["key"])
+        self.assertEqual("verified", component["status"])
+        self.assertEqual("chickenbro-tools-1", component["details"]["registryVersion"])
+        self.assertEqual(
+            ["source:raiderio:v1", "source:warcraftlogs:v1"],
+            component["details"]["activeToolIds"],
+        )
+        self.assertEqual("postgres", component["details"]["registrySource"])
+        self.assertNotIn("manifest", json.dumps(component).lower())
 
     def test_http_data_health_route_returns_read_only_status_payload(self):
         server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
