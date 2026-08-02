@@ -7121,6 +7121,7 @@ def load_chickenbro_profiles(context):
         )
     if postgres_only_runtime_enabled():
         return []
+    init_db()
     with db_connection() as conn:
         rows = conn.execute(
             """

@@ -1,6 +1,7 @@
 import importlib
 import json
 import os
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -148,6 +149,30 @@ class DatabaseAdapterTest(unittest.TestCase):
                 foreign_keys = conn.execute("PRAGMA foreign_keys").fetchone()[0]
 
         self.assertEqual(foreign_keys, 1)
+
+    def test_sqlite_chickenbro_profile_read_bootstraps_fresh_schema(self):
+        import server.news_backend as backend
+
+        with tempfile.TemporaryDirectory() as tmp:
+            os.environ.pop("WOW_DATABASE_URL", None)
+            os.environ.pop("WOW_DATABASE_RUNTIME", None)
+            os.environ["WOW_NEWS_DB"] = str(Path(tmp) / "fresh-chickenbro.sqlite3")
+            backend = importlib.reload(backend)
+
+            try:
+                profiles = backend.load_chickenbro_profiles(
+                    {
+                        "productPhase": "retail",
+                        "region": "global",
+                        "classKey": "warrior",
+                        "specKey": "protection",
+                        "scenarioKey": "mythic_plus",
+                    }
+                )
+            except sqlite3.OperationalError as error:
+                profiles = f"sqlite error: {error}"
+
+        self.assertEqual(profiles, [])
 
     def test_news_backend_imports_as_direct_script_module(self):
         with tempfile.TemporaryDirectory() as tmp:
