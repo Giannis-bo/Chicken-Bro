@@ -18,7 +18,15 @@
             "status": "source_reference",
             "evidenceRefs": ["raiderio:mage:arcane:mythic_plus"]
           }
-        ]
+        ],
+        "registryContext": {
+          "status": "verified",
+          "registryVersion": "chickenbro-tools-1",
+          "registryReleaseHash": "sha256:c9d49f00695540052d69d8aea15653ffb227dbed4ecdb6db1ebd01f734e4734a",
+          "registrySource": "postgres",
+          "discoveredCapabilityIds": ["source:raiderio:v1"],
+          "selectedCapabilityIds": ["source:raiderio:v1"]
+        }
       },
       "agentResult": {
         "validation": {"status": "passed"},
@@ -31,7 +39,8 @@
       "answerStatus": "succeeded",
       "requiredSignals": ["answer_succeeded"],
       "forbiddenSignals": ["explicit_correction", "evidence_missing"],
-      "selectedCapabilityIds": ["source:raiderio:v1"]
+      "selectedCapabilityIds": ["source:raiderio:v1"],
+      "registryVersion": "chickenbro-tools-1"
     }
   },
   {
@@ -53,7 +62,15 @@
             "status": "blocked",
             "evidenceRefs": []
           }
-        ]
+        ],
+        "registryContext": {
+          "status": "verified",
+          "registryVersion": "chickenbro-tools-1",
+          "registryReleaseHash": "sha256:c9d49f00695540052d69d8aea15653ffb227dbed4ecdb6db1ebd01f734e4734a",
+          "registrySource": "postgres",
+          "discoveredCapabilityIds": ["source:raiderio:v1"],
+          "selectedCapabilityIds": ["source:raiderio:v1"]
+        }
       },
       "agentResult": {
         "validation": {"status": "failed"},
@@ -66,7 +83,8 @@
       "answerStatus": "failed",
       "requiredSignals": ["model_failed", "tool_failed", "evidence_missing"],
       "forbiddenSignals": ["explicit_correction"],
-      "selectedCapabilityIds": ["source:raiderio:v1"]
+      "selectedCapabilityIds": ["source:raiderio:v1"],
+      "registryVersion": "chickenbro-tools-1"
     }
   },
   {
@@ -82,7 +100,15 @@
           "specKey": "protection",
           "scenarioKey": "raid_single"
         },
-        "sourceEvidence": []
+        "sourceEvidence": [],
+        "registryContext": {
+          "status": "verified",
+          "registryVersion": "chickenbro-tools-1",
+          "registryReleaseHash": "sha256:c9d49f00695540052d69d8aea15653ffb227dbed4ecdb6db1ebd01f734e4734a",
+          "registrySource": "postgres",
+          "discoveredCapabilityIds": [],
+          "selectedCapabilityIds": []
+        }
       },
       "agentResult": {
         "validation": {"status": "failed"},
@@ -95,7 +121,8 @@
       "answerStatus": "failed",
       "requiredSignals": ["model_failed", "schema_invalid"],
       "forbiddenSignals": ["explicit_correction"],
-      "selectedCapabilityIds": []
+      "selectedCapabilityIds": [],
+      "registryVersion": "chickenbro-tools-1"
     }
   },
   {
@@ -117,7 +144,15 @@
             "status": "verified",
             "evidenceRefs": ["wcl.report"]
           }
-        ]
+        ],
+        "registryContext": {
+          "status": "verified",
+          "registryVersion": "chickenbro-tools-1",
+          "registryReleaseHash": "sha256:c9d49f00695540052d69d8aea15653ffb227dbed4ecdb6db1ebd01f734e4734a",
+          "registrySource": "postgres",
+          "discoveredCapabilityIds": ["source:warcraftlogs:v1"],
+          "selectedCapabilityIds": ["source:warcraftlogs:v1"]
+        }
       },
       "agentResult": {
         "validation": {"status": "failed"},
@@ -130,7 +165,8 @@
       "answerStatus": "failed",
       "requiredSignals": ["model_failed", "schema_invalid", "verification_conflict"],
       "forbiddenSignals": ["explicit_correction"],
-      "selectedCapabilityIds": ["source:warcraftlogs:v1"]
+      "selectedCapabilityIds": ["source:warcraftlogs:v1"],
+      "registryVersion": "chickenbro-tools-1"
     }
   }
 ]

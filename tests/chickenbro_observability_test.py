@@ -3,7 +3,11 @@ import unittest
 
 from server.chickenbro_observability import (
     PROJECTION_SCHEMA_REVISION,
+    PROJECTION_SCHEMA_REVISION_V1,
+    RUNTIME_VERSION,
+    RUNTIME_VERSION_V1,
     TRACE_SCHEMA_REVISION,
+    TRACE_SCHEMA_REVISION_V1,
     build_chickenbro_agent_trace,
     deidentify_chickenbro_agent_trace,
     validate_chickenbro_agent_trace,
@@ -18,7 +22,30 @@ class ChickenbroObservabilityTest(unittest.TestCase):
             "model": {"status": "succeeded"},
         }
 
-    def bounded_context(self, *, source_evidence=None, message="SECRET RAW USER MESSAGE"):
+    def bounded_context(
+        self,
+        *,
+        source_evidence=None,
+        message="SECRET RAW USER MESSAGE",
+        registry_context=None,
+    ):
+        sources = source_evidence if source_evidence is not None else [
+            {
+                "sourceKey": "raiderio",
+                "status": "source_reference",
+                "evidenceRefs": ["raiderio:deathknight:frost:mythic_plus"],
+                "facts": [{"summary": "SECRET SOURCE FACT"}],
+                "sourceUrl": "https://example.invalid/private",
+            }
+        ]
+        selected = [
+            {
+                "raiderio": "source:raiderio:v1",
+                "warcraftlogs": "source:warcraftlogs:v1",
+            }[row["sourceKey"]]
+            for row in sources
+            if row.get("sourceKey") in {"raiderio", "warcraftlogs"}
+        ]
         return {
             "message": message,
             "conversationHistory": [{"role": "user", "content": "SECRET HISTORY"}],
@@ -32,17 +59,15 @@ class ChickenbroObservabilityTest(unittest.TestCase):
                 "characterName": "SECRET CHARACTER",
                 "realm": "SECRET REALM",
             },
-            "sourceEvidence": source_evidence
-            if source_evidence is not None
-            else [
-                {
-                    "sourceKey": "raiderio",
-                    "status": "source_reference",
-                    "evidenceRefs": ["raiderio:deathknight:frost:mythic_plus"],
-                    "facts": [{"summary": "SECRET SOURCE FACT"}],
-                    "sourceUrl": "https://example.invalid/private",
-                }
-            ],
+            "sourceEvidence": sources,
+            "registryContext": registry_context or {
+                "status": "verified",
+                "registryVersion": "chickenbro-tools-1",
+                "registryReleaseHash": "sha256:c9d49f00695540052d69d8aea15653ffb227dbed4ecdb6db1ebd01f734e4734a",
+                "registrySource": "postgres",
+                "discoveredCapabilityIds": selected,
+                "selectedCapabilityIds": selected,
+            },
         }
 
     def build_trace(self, **overrides):
@@ -61,6 +86,12 @@ class ChickenbroObservabilityTest(unittest.TestCase):
 
         encoded = json.dumps(trace, ensure_ascii=False)
         self.assertEqual(TRACE_SCHEMA_REVISION, trace["schemaRevision"])
+        self.assertEqual(RUNTIME_VERSION, trace["runtimeVersion"])
+        self.assertEqual("registry", trace["selectionMode"])
+        self.assertEqual("verified", trace["registryStatus"])
+        self.assertEqual("chickenbro-tools-1", trace["registryVersion"])
+        self.assertEqual("postgres", trace["registrySource"])
+        self.assertEqual(["source:raiderio:v1"], trace["discoveredCapabilityIds"])
         self.assertEqual("succeeded", trace["answerStatus"])
         self.assertEqual(["source:raiderio:v1"], trace["selectedCapabilityIds"])
         self.assertEqual(
@@ -141,6 +172,81 @@ class ChickenbroObservabilityTest(unittest.TestCase):
         self.assertNotIn("raiderio:deathknight:frost:mythic_plus", encoded)
         self.assertNotIn("2026-08-02T00:00:00+00:00", encoded)
         self.assertNotIn("SECRET", encoded)
+
+    def test_literal_historical_v1_trace_still_validates_and_projects_unchanged(self):
+        historical = {
+            "schemaRevision": TRACE_SCHEMA_REVISION_V1,
+            "runtimeVersion": RUNTIME_VERSION_V1,
+            "selectionMode": "fixed_allowlist",
+            "requestScope": {
+                "topicStatus": "in_scope",
+                "productPhase": "retail",
+                "region": "cn",
+                "classKey": "deathknight",
+                "specKey": "frost",
+                "scenarioKey": "mythic_plus",
+            },
+            "discoveredCapabilityIds": ["source:raiderio:v1"],
+            "selectedCapabilityIds": ["source:raiderio:v1"],
+            "toolStatuses": [
+                {
+                    "capabilityId": "source:raiderio:v1",
+                    "status": "source_reference",
+                    "freshnessState": "fresh",
+                    "evidenceCount": 1,
+                }
+            ],
+            "evidenceRefs": ["raiderio:deathknight:frost:mythic_plus"],
+            "answerStatus": "succeeded",
+            "validationStatus": "passed",
+            "outcomeSignals": [{"code": "answer_succeeded", "severity": "info"}],
+            "latencyMs": 1200,
+            "boundedCost": {"status": "not_available"},
+            "createdAt": "2026-08-02T00:00:00+00:00",
+        }
+
+        validated = validate_chickenbro_agent_trace(historical)
+        projection = deidentify_chickenbro_agent_trace(historical)
+
+        self.assertEqual(historical, validated)
+        self.assertEqual(PROJECTION_SCHEMA_REVISION_V1, projection["schemaRevision"])
+        self.assertNotIn("registryVersion", projection)
+
+    def test_v2_rejects_unknown_registry_source_hash_and_selection_drift(self):
+        trace = self.build_trace()
+        trace["registrySource"] = "client_payload"
+        with self.assertRaisesRegex(ValueError, "registry source"):
+            validate_chickenbro_agent_trace(trace)
+
+        trace = self.build_trace()
+        trace["registryReleaseHash"] = "sha256:" + "0" * 63
+        with self.assertRaisesRegex(ValueError, "release hash"):
+            validate_chickenbro_agent_trace(trace)
+
+        trace = self.build_trace()
+        trace["selectedCapabilityIds"] = ["source:unknown:v1"]
+        with self.assertRaisesRegex(ValueError, "undiscovered"):
+            validate_chickenbro_agent_trace(trace)
+
+    def test_v2_unavailable_registry_requires_empty_identity_and_selection(self):
+        trace = self.build_trace(
+            bounded_context=self.bounded_context(
+                source_evidence=[],
+                registry_context={
+                    "status": "unavailable",
+                    "registryVersion": "",
+                    "registryReleaseHash": "",
+                    "registrySource": "",
+                    "discoveredCapabilityIds": [],
+                    "selectedCapabilityIds": [],
+                },
+            )
+        )
+        self.assertEqual("unavailable", trace["registryStatus"])
+
+        trace["registryVersion"] = "stale-client-version"
+        with self.assertRaisesRegex(ValueError, "unverified registry identity"):
+            validate_chickenbro_agent_trace(trace)
 
     def test_unknown_scope_slugs_cannot_become_deidentified_dimensions(self):
         bounded_context = self.bounded_context()

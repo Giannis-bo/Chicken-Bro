@@ -9,9 +9,12 @@ import re
 from datetime import datetime
 
 
-TRACE_SCHEMA_REVISION = "chickenbro-agent-trace-v1"
-PROJECTION_SCHEMA_REVISION = "chickenbro-trace-projection-v1"
-RUNTIME_VERSION = "chickenbro-fixed-allowlist-v1"
+TRACE_SCHEMA_REVISION_V1 = "chickenbro-agent-trace-v1"
+PROJECTION_SCHEMA_REVISION_V1 = "chickenbro-trace-projection-v1"
+RUNTIME_VERSION_V1 = "chickenbro-fixed-allowlist-v1"
+TRACE_SCHEMA_REVISION = "chickenbro-agent-trace-v2"
+PROJECTION_SCHEMA_REVISION = "chickenbro-trace-projection-v2"
+RUNTIME_VERSION = "chickenbro-registry-runtime-v1"
 
 CAPABILITY_IDS = {
     "source:raiderio:v1",
@@ -21,7 +24,7 @@ SOURCE_CAPABILITY_IDS = {
     "raiderio": "source:raiderio:v1",
     "warcraftlogs": "source:warcraftlogs:v1",
 }
-TRACE_KEYS = {
+TRACE_KEYS_V1 = {
     "schemaRevision",
     "runtimeVersion",
     "selectionMode",
@@ -37,6 +40,25 @@ TRACE_KEYS = {
     "boundedCost",
     "createdAt",
 }
+TRACE_KEYS = TRACE_KEYS_V1 | {
+    "registryStatus",
+    "registryVersion",
+    "registryReleaseHash",
+    "registrySource",
+}
+REGISTRY_CONTEXT_KEYS = {
+    "status",
+    "registryVersion",
+    "registryReleaseHash",
+    "registrySource",
+    "discoveredCapabilityIds",
+    "selectedCapabilityIds",
+}
+REGISTRY_STATUSES = {"verified", "unavailable", "invalid"}
+REGISTRY_SOURCES = {"postgres", "verified_cache"}
+CAPABILITY_ID_PATTERN = re.compile(r"^source:[a-z0-9_.-]{1,64}:v[0-9]+$")
+REGISTRY_VERSION_PATTERN = re.compile(r"^[a-z0-9][a-z0-9_.-]{0,95}$")
+RELEASE_HASH_PATTERN = re.compile(r"^sha256:[0-9a-f]{64}$")
 REQUEST_SCOPE_KEYS = {
     "topicStatus",
     "productPhase",
@@ -163,6 +185,18 @@ def _capability_id(source_key):
     return SOURCE_CAPABILITY_IDS.get(_text(source_key, 48).lower(), "")
 
 
+def _registry_capability_id(source_key, selected_capability_ids):
+    source = _text(source_key, 64).lower()
+    matches = [
+        capability_id
+        for capability_id in selected_capability_ids
+        if isinstance(capability_id, str)
+        and CAPABILITY_ID_PATTERN.fullmatch(capability_id)
+        and capability_id.split(":")[1] == source
+    ]
+    return matches[0] if len(matches) == 1 else ""
+
+
 def _safe_evidence_ref(value):
     ref = _text(value, 160).lower()
     return ref if any(pattern.fullmatch(ref) for pattern in SAFE_EVIDENCE_REF_PATTERNS) else ""
@@ -231,13 +265,28 @@ def build_chickenbro_agent_trace(
     else:
         answer_status = "failed"
 
+    registry_context = (
+        context.get("registryContext")
+        if isinstance(context.get("registryContext"), dict)
+        else None
+    )
+    registry_selected = (
+        list(registry_context.get("selectedCapabilityIds") or [])
+        if registry_context is not None
+        and isinstance(registry_context.get("selectedCapabilityIds"), list)
+        else []
+    )
     source_rows = [
         row for row in context.get("sourceEvidence") or [] if isinstance(row, dict)
     ][:8]
     tool_statuses = []
     evidence_refs = []
     for row in source_rows:
-        capability_id = _capability_id(row.get("sourceKey"))
+        capability_id = (
+            _registry_capability_id(row.get("sourceKey"), registry_selected)
+            if registry_context is not None
+            else _capability_id(row.get("sourceKey"))
+        )
         if not capability_id:
             continue
         raw_status = _text(row.get("status"), 32).lower()
@@ -295,28 +344,61 @@ def build_chickenbro_agent_trace(
         seen_signals.add(code)
 
     capability_ids = sorted({row["capabilityId"] for row in tool_statuses})
-    return validate_chickenbro_agent_trace(
-        {
-            "schemaRevision": TRACE_SCHEMA_REVISION,
-            "runtimeVersion": RUNTIME_VERSION,
-            "selectionMode": "fixed_allowlist",
-            "requestScope": _request_scope(context),
-            "discoveredCapabilityIds": capability_ids,
-            "selectedCapabilityIds": capability_ids,
-            "toolStatuses": tool_statuses,
-            "evidenceRefs": evidence_refs,
-            "answerStatus": answer_status,
-            "validationStatus": validation_status,
-            "outcomeSignals": outcome_signals,
-            "latencyMs": max(0, int(latency_ms or 0)),
-            "boundedCost": {"status": "not_available"},
-            "createdAt": _text(created_at, 80),
-        }
-    )
+    trace = {
+        "schemaRevision": TRACE_SCHEMA_REVISION_V1,
+        "runtimeVersion": RUNTIME_VERSION_V1,
+        "selectionMode": "fixed_allowlist",
+        "requestScope": _request_scope(context),
+        "discoveredCapabilityIds": capability_ids,
+        "selectedCapabilityIds": capability_ids,
+        "toolStatuses": tool_statuses,
+        "evidenceRefs": evidence_refs,
+        "answerStatus": answer_status,
+        "validationStatus": validation_status,
+        "outcomeSignals": outcome_signals,
+        "latencyMs": max(0, int(latency_ms or 0)),
+        "boundedCost": {"status": "not_available"},
+        "createdAt": _text(created_at, 80),
+    }
+    if registry_context is not None:
+        trace.update(
+            {
+                "schemaRevision": TRACE_SCHEMA_REVISION,
+                "runtimeVersion": RUNTIME_VERSION,
+                "selectionMode": "registry",
+                "registryStatus": _text(registry_context.get("status"), 32).lower(),
+                "registryVersion": _text(
+                    registry_context.get("registryVersion"), 96
+                ).lower(),
+                "registryReleaseHash": _text(
+                    registry_context.get("registryReleaseHash"), 80
+                ).lower(),
+                "registrySource": _text(
+                    registry_context.get("registrySource"), 32
+                ).lower(),
+                "discoveredCapabilityIds": copy.deepcopy(
+                    registry_context.get("discoveredCapabilityIds")
+                ),
+                "selectedCapabilityIds": copy.deepcopy(
+                    registry_context.get("selectedCapabilityIds")
+                ),
+            }
+        )
+    return validate_chickenbro_agent_trace(trace)
 
 
-def _validate_capability_ids(values, field_name):
+def _validate_v1_capability_ids(values, field_name):
     if not isinstance(values, list) or any(value not in CAPABILITY_IDS for value in values):
+        raise ValueError(f"invalid chickenbro trace {field_name} capability")
+    if len(values) != len(set(values)):
+        raise ValueError(f"duplicate chickenbro trace {field_name} capability")
+
+
+def _validate_v2_capability_ids(values, field_name):
+    if not isinstance(values, list) or any(
+        not isinstance(value, str) or not CAPABILITY_ID_PATTERN.fullmatch(value)
+        for value in values
+    ):
         raise ValueError(f"invalid chickenbro trace {field_name} capability")
     if len(values) != len(set(values)):
         raise ValueError(f"duplicate chickenbro trace {field_name} capability")
@@ -325,15 +407,49 @@ def _validate_capability_ids(values, field_name):
 def validate_chickenbro_agent_trace(trace):
     """Reject payload drift and return a defensive copy of a valid trace."""
 
-    if not isinstance(trace, dict) or set(trace) != TRACE_KEYS:
+    if not isinstance(trace, dict):
         raise ValueError("invalid chickenbro trace keys")
-    if trace["schemaRevision"] != TRACE_SCHEMA_REVISION:
+    schema_revision = trace.get("schemaRevision")
+    if schema_revision == TRACE_SCHEMA_REVISION_V1:
+        if set(trace) != TRACE_KEYS_V1:
+            raise ValueError("invalid chickenbro trace keys")
+        if (
+            trace["runtimeVersion"] != RUNTIME_VERSION_V1
+            or trace["selectionMode"] != "fixed_allowlist"
+        ):
+            raise ValueError("invalid chickenbro trace runtime identity")
+        capability_validator = _validate_v1_capability_ids
+    elif schema_revision == TRACE_SCHEMA_REVISION:
+        if set(trace) != TRACE_KEYS:
+            raise ValueError("invalid chickenbro trace keys")
+        if (
+            trace["runtimeVersion"] != RUNTIME_VERSION
+            or trace["selectionMode"] != "registry"
+        ):
+            raise ValueError("invalid chickenbro trace runtime identity")
+        capability_validator = _validate_v2_capability_ids
+        registry_status = trace["registryStatus"]
+        if registry_status not in REGISTRY_STATUSES:
+            raise ValueError("invalid chickenbro trace registry status")
+        if registry_status == "verified":
+            if not REGISTRY_VERSION_PATTERN.fullmatch(trace["registryVersion"]):
+                raise ValueError("invalid chickenbro trace registry version")
+            if not RELEASE_HASH_PATTERN.fullmatch(trace["registryReleaseHash"]):
+                raise ValueError("invalid chickenbro trace registry release hash")
+            if trace["registrySource"] not in REGISTRY_SOURCES:
+                raise ValueError("invalid chickenbro trace registry source")
+        elif any(
+            (
+                trace["registryVersion"],
+                trace["registryReleaseHash"],
+                trace["registrySource"],
+                trace["discoveredCapabilityIds"],
+                trace["selectedCapabilityIds"],
+            )
+        ):
+            raise ValueError("invalid chickenbro trace unverified registry identity")
+    else:
         raise ValueError("invalid chickenbro trace schema revision")
-    if (
-        trace["runtimeVersion"] != RUNTIME_VERSION
-        or trace["selectionMode"] != "fixed_allowlist"
-    ):
-        raise ValueError("invalid chickenbro trace runtime identity")
     request_scope = trace["requestScope"]
     if not isinstance(request_scope, dict) or set(request_scope) != REQUEST_SCOPE_KEYS:
         raise ValueError("invalid chickenbro trace request scope")
@@ -357,8 +473,8 @@ def validate_chickenbro_agent_trace(trace):
     if created_at.tzinfo is None or created_at.utcoffset() is None:
         raise ValueError("invalid chickenbro trace createdAt timezone")
 
-    _validate_capability_ids(trace["discoveredCapabilityIds"], "discovered")
-    _validate_capability_ids(trace["selectedCapabilityIds"], "selected")
+    capability_validator(trace["discoveredCapabilityIds"], "discovered")
+    capability_validator(trace["selectedCapabilityIds"], "selected")
     if not set(trace["selectedCapabilityIds"]).issubset(trace["discoveredCapabilityIds"]):
         raise ValueError("undiscovered chickenbro trace capability")
 
@@ -374,11 +490,13 @@ def validate_chickenbro_agent_trace(trace):
     tool_statuses = trace["toolStatuses"]
     if not isinstance(tool_statuses, list):
         raise ValueError("invalid chickenbro trace tool statuses")
+    tool_capability_ids = []
     for row in tool_statuses:
         if not isinstance(row, dict) or set(row) != TOOL_STATUS_KEYS:
             raise ValueError("invalid chickenbro trace tool status")
         if row["capabilityId"] not in trace["selectedCapabilityIds"]:
             raise ValueError("unselected chickenbro trace capability")
+        tool_capability_ids.append(row["capabilityId"])
         if row["status"] not in TOOL_STATUSES:
             raise ValueError("invalid chickenbro trace tool status value")
         if row["freshnessState"] not in {"fresh", "stale", "unavailable", "unknown"}:
@@ -389,6 +507,12 @@ def validate_chickenbro_agent_trace(trace):
             or row["evidenceCount"] < 0
         ):
             raise ValueError("invalid chickenbro trace evidence count")
+    if len(tool_capability_ids) != len(set(tool_capability_ids)):
+        raise ValueError("duplicate chickenbro trace tool status capability")
+    if schema_revision == TRACE_SCHEMA_REVISION and set(tool_capability_ids) != set(
+        trace["selectedCapabilityIds"]
+    ):
+        raise ValueError("missing chickenbro trace selected tool status")
 
     outcome_signals = trace["outcomeSignals"]
     if not isinstance(outcome_signals, list):
@@ -429,8 +553,8 @@ def deidentify_chickenbro_agent_trace(trace):
         validated["requestScope"]["scenarioKey"],
         ",".join(sorted(item["code"] for item in validated["outcomeSignals"])),
     ]
-    return {
-        "schemaRevision": PROJECTION_SCHEMA_REVISION,
+    projection = {
+        "schemaRevision": PROJECTION_SCHEMA_REVISION_V1,
         "problemSignature": ":".join(signature_parts),
         "requestScope": dict(validated["requestScope"]),
         "selectionMode": validated["selectionMode"],
@@ -442,3 +566,17 @@ def deidentify_chickenbro_agent_trace(trace):
         "latencyBucket": latency_bucket,
         "costStatus": validated["boundedCost"]["status"],
     }
+    if validated["schemaRevision"] == TRACE_SCHEMA_REVISION:
+        projection.update(
+            {
+                "schemaRevision": PROJECTION_SCHEMA_REVISION,
+                "registryStatus": validated["registryStatus"],
+                "registryVersion": validated["registryVersion"],
+                "registryReleaseHash": validated["registryReleaseHash"],
+                "registrySource": validated["registrySource"],
+                "discoveredCapabilityIds": list(
+                    validated["discoveredCapabilityIds"]
+                ),
+            }
+        )
+    return projection
