@@ -831,6 +831,7 @@ class DatabaseAdapterTest(unittest.TestCase):
             def __init__(self):
                 self.calls = []
                 self.result = {}
+                self.trace = None
 
             def authenticate_token(self, token, now):
                 self.calls.append(("auth", token, now))
@@ -896,6 +897,29 @@ class DatabaseAdapterTest(unittest.TestCase):
 
             def touch_chickenbro_session(self, user_id, session_id, updated_at):
                 self.calls.append(("touch_session", user_id, session_id, updated_at))
+
+            def insert_chickenbro_agent_trace(
+                self,
+                user_id,
+                session_id,
+                user_message_id,
+                agent_job_id,
+                trace,
+                now,
+            ):
+                self.trace = trace
+                self.calls.append(
+                    (
+                        "insert_trace",
+                        user_id,
+                        session_id,
+                        user_message_id,
+                        agent_job_id,
+                        trace,
+                        now,
+                    )
+                )
+                return "trace-pg-1"
 
             def get_chickenbro_job(self, user_id, job_id):
                 self.calls.append(("get_job", user_id, job_id))
@@ -973,9 +997,14 @@ class DatabaseAdapterTest(unittest.TestCase):
                 "update_job",
                 "insert_message",
                 "touch_session",
+                "insert_trace",
                 "get_job",
             ],
         )
+        encoded_trace = json.dumps(fake.trace, ensure_ascii=False)
+        self.assertNotIn("Arcane opener?", encoded_trace)
+        self.assertNotIn(result["assistantMessage"]["content"], encoded_trace)
+        self.assertEqual("chickenbro-agent-trace-v1", fake.trace["schemaRevision"])
 
     def test_news_backend_routes_guest_lookup_to_postgres_personal_store(self):
         import server.news_backend as backend

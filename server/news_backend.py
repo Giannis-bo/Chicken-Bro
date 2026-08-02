@@ -272,7 +272,10 @@ try:
         classify_chickenbro_request,
         raiderio_payload_with_freshness,
     )
-    from .chickenbro_observability import validate_chickenbro_agent_trace
+    from .chickenbro_observability import (
+        build_chickenbro_agent_trace,
+        validate_chickenbro_agent_trace,
+    )
 except ImportError:
     from chickenbro_agent import (
         build_raiderio_chickenbro_tool_result,
@@ -280,7 +283,10 @@ except ImportError:
         classify_chickenbro_request,
         raiderio_payload_with_freshness,
     )
-    from chickenbro_observability import validate_chickenbro_agent_trace
+    from chickenbro_observability import (
+        build_chickenbro_agent_trace,
+        validate_chickenbro_agent_trace,
+    )
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -8383,6 +8389,55 @@ def chickenbro_failed_agent_result(bounded_context, error):
     }
 
 
+def record_chickenbro_terminal_trace(
+    *,
+    store,
+    conn,
+    user_id,
+    session_id,
+    user_message_id,
+    job_id,
+    bounded_context,
+    agent_result=None,
+    error="",
+    latency_ms=0,
+    created_at="",
+):
+    try:
+        timestamp = created_at or utc_now()
+        trace = build_chickenbro_agent_trace(
+            bounded_context=bounded_context,
+            agent_result=agent_result,
+            error=error,
+            latency_ms=latency_ms,
+            created_at=timestamp,
+        )
+        if store:
+            trace_id = store.insert_chickenbro_agent_trace(
+                user_id,
+                session_id,
+                user_message_id,
+                job_id,
+                trace,
+                timestamp,
+            )
+        else:
+            trace_id = insert_chickenbro_agent_trace(
+                conn,
+                user_id,
+                session_id,
+                user_message_id,
+                job_id,
+                trace,
+                timestamp,
+            )
+    except Exception as trace_error:
+        warning = clean_text(trace_error, 160) or type(trace_error).__name__
+        print(f"warning: chickenbro trace write failed: {warning}", file=sys.stderr)
+        return {"status": "failed", "traceId": ""}
+    return {"status": "recorded", "traceId": trace_id}
+
+
 def send_chickenbro_message_postgres(store, user, payload, message, context, codex_runner=None):
     requested_session_id = clean_text(payload.get("sessionId"), 80)
     client_message_id = clean_chickenbro_client_message_id(payload.get("clientMessageId"))
@@ -8442,21 +8497,38 @@ def send_chickenbro_message_postgres(store, user, payload, message, context, cod
     started_at = utc_now()
     store.update_agent_job(user["id"], job_id, "running", started_at=started_at, now=started_at)
 
+    started_clock = time.perf_counter()
     try:
         agent_result = run_chickenbro_agent(bounded_context, codex_runner=codex_runner)
     except ChickenbroGenerationUnavailable as error:
+        latency_ms = max(0, int((time.perf_counter() - started_clock) * 1000))
         finished_at = utc_now()
+        failed_result = chickenbro_failed_agent_result(bounded_context, error)
         store.update_agent_job(
             user["id"],
             job_id,
             "failed",
-            result=chickenbro_failed_agent_result(bounded_context, error),
+            result=failed_result,
             error=str(error),
             finished_at=finished_at,
             now=finished_at,
         )
         store.touch_chickenbro_session(user["id"], session["sessionId"], finished_at)
+        record_chickenbro_terminal_trace(
+            store=store,
+            conn=None,
+            user_id=user["id"],
+            session_id=session["sessionId"],
+            user_message_id=user_message["messageId"],
+            job_id=job_id,
+            bounded_context=bounded_context,
+            agent_result=failed_result,
+            error=str(error),
+            latency_ms=latency_ms,
+            created_at=finished_at,
+        )
         raise
+    latency_ms = max(0, int((time.perf_counter() - started_clock) * 1000))
     answer_payload = agent_result["answer"]
     finished_at = utc_now()
     store.update_agent_job(user["id"], job_id, "succeeded", result=agent_result, finished_at=finished_at, now=finished_at)
@@ -8470,6 +8542,18 @@ def send_chickenbro_message_postgres(store, user, payload, message, context, cod
         now=finished_at,
     )
     store.touch_chickenbro_session(user["id"], session["sessionId"], finished_at)
+    record_chickenbro_terminal_trace(
+        store=store,
+        conn=None,
+        user_id=user["id"],
+        session_id=session["sessionId"],
+        user_message_id=user_message["messageId"],
+        job_id=job_id,
+        bounded_context=bounded_context,
+        agent_result=agent_result,
+        latency_ms=latency_ms,
+        created_at=finished_at,
+    )
     return {
         "mode": "chickenbro",
         "user": user,
@@ -8535,16 +8619,19 @@ def send_chickenbro_message(payload, access_token="", codex_runner=None):
         job_id = insert_agent_job(conn, user["id"], session["sessionId"], sanitized_request, bounded_context)
         update_agent_job(conn, job_id, "running", started_at=utc_now())
 
+    started_clock = time.perf_counter()
     try:
         agent_result = run_chickenbro_agent(bounded_context, codex_runner=codex_runner)
     except ChickenbroGenerationUnavailable as error:
+        latency_ms = max(0, int((time.perf_counter() - started_clock) * 1000))
         finished_at = utc_now()
+        failed_result = chickenbro_failed_agent_result(bounded_context, error)
         with db_connection() as conn:
             update_agent_job(
                 conn,
                 job_id,
                 "failed",
-                result=chickenbro_failed_agent_result(bounded_context, error),
+                result=failed_result,
                 error=str(error),
                 finished_at=finished_at,
             )
@@ -8552,7 +8639,21 @@ def send_chickenbro_message(payload, access_token="", codex_runner=None):
                 "UPDATE chickenbro_sessions SET updated_at = ? WHERE id = ?",
                 (finished_at, session["sessionId"]),
             )
+            record_chickenbro_terminal_trace(
+                store=None,
+                conn=conn,
+                user_id=user["id"],
+                session_id=session["sessionId"],
+                user_message_id=user_message["messageId"],
+                job_id=job_id,
+                bounded_context=bounded_context,
+                agent_result=failed_result,
+                error=str(error),
+                latency_ms=latency_ms,
+                created_at=finished_at,
+            )
         raise
+    latency_ms = max(0, int((time.perf_counter() - started_clock) * 1000))
     answer_payload = agent_result["answer"]
     finished_at = utc_now()
     with db_connection() as conn:
@@ -8569,6 +8670,18 @@ def send_chickenbro_message(payload, access_token="", codex_runner=None):
         conn.execute(
             "UPDATE chickenbro_sessions SET updated_at = ? WHERE id = ?",
             (finished_at, session["sessionId"]),
+        )
+        record_chickenbro_terminal_trace(
+            store=None,
+            conn=conn,
+            user_id=user["id"],
+            session_id=session["sessionId"],
+            user_message_id=user_message["messageId"],
+            job_id=job_id,
+            bounded_context=bounded_context,
+            agent_result=agent_result,
+            latency_ms=latency_ms,
+            created_at=finished_at,
         )
         job_row = conn.execute(
             """

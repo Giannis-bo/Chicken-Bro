@@ -1,4 +1,5 @@
 import gzip
+import io
 import os
 import json
 import sqlite3
@@ -6,7 +7,7 @@ import tempfile
 import threading
 import time
 import unittest
-from contextlib import closing
+from contextlib import closing, redirect_stderr
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 from urllib.error import HTTPError
@@ -125,6 +126,27 @@ class NewsBackendTest(unittest.TestCase):
 
         self.addCleanup(setattr, simulator_payload, "call_chat_completion", original_call_chat_completion)
         simulator_payload.call_chat_completion = fake_call_chat_completion
+
+    @staticmethod
+    def successful_chickenbro_trace_runner(prompt, **kwargs):
+        bounded = json.loads(prompt)["boundedContext"]
+        return {
+            "status": "succeeded",
+            "content": json.dumps(
+                {
+                    "answer": "Trace-safe test answer.",
+                    "confidence": "low",
+                    "answerLayer": bounded["answerLayer"],
+                    "basisLabel": bounded["basisLabel"],
+                    "priorityActions": [],
+                    "evidenceRefs": [],
+                    "limitations": [],
+                    "missingInputs": [],
+                    "nextQuestion": "",
+                },
+                ensure_ascii=False,
+            ),
+        }
 
     def test_cache_data_store_reuses_authority_and_manifest_caches_for_same_database_url(self):
         with patch.dict(
@@ -7902,6 +7924,125 @@ class NewsBackendTest(unittest.TestCase):
         self.assertIn("UNIQUE", table_sql.upper())
         self.assertIn("idx_chickenbro_agent_traces_owner_created", indexes)
         self.assertIn("idx_chickenbro_agent_traces_session_created", indexes)
+
+    def test_chickenbro_success_persists_one_bounded_trace(self):
+        message = "frost death knight build"
+        result = self.backend.send_chickenbro_message(
+            {"message": message, "guestId": "trace-success-owner"},
+            codex_runner=self.successful_chickenbro_trace_runner,
+        )
+
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            rows = conn.execute(
+                "SELECT user_id, agent_job_id, answer_status, payload_json "
+                "FROM chickenbro_agent_traces"
+            ).fetchall()
+
+        self.assertEqual(1, len(rows))
+        self.assertEqual(result["job"]["jobId"], rows[0][1])
+        self.assertEqual("succeeded", rows[0][2])
+        self.assertNotIn(message, rows[0][3])
+        self.assertNotIn(result["assistantMessage"]["content"], rows[0][3])
+
+    def test_chickenbro_model_failure_persists_failure_trace_and_no_assistant_message(self):
+        with self.assertRaisesRegex(self.backend.ChickenbroGenerationUnavailable, "offline"):
+            self.backend.send_chickenbro_message(
+                {"message": "PTR DPS?", "guestId": "trace-failure-owner"},
+                codex_runner=lambda *_args, **_kwargs: {
+                    "status": "failed",
+                    "error": "offline",
+                },
+            )
+
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            trace = json.loads(
+                conn.execute("SELECT payload_json FROM chickenbro_agent_traces").fetchone()[0]
+            )
+            roles = [
+                row[0]
+                for row in conn.execute(
+                    "SELECT role FROM chickenbro_messages ORDER BY created_at"
+                )
+            ]
+
+        self.assertEqual("failed", trace["answerStatus"])
+        self.assertIn(
+            "model_failed",
+            {item["code"] for item in trace["outcomeSignals"]},
+        )
+        self.assertEqual(["user"], roles)
+
+    def test_trace_store_failure_does_not_change_successful_answer(self):
+        stderr = io.StringIO()
+        with patch.object(
+            self.backend,
+            "insert_chickenbro_agent_trace",
+            side_effect=RuntimeError("trace offline"),
+        ), redirect_stderr(stderr):
+            result = self.backend.send_chickenbro_message(
+                {"message": "hello", "guestId": "trace-write-failure"},
+                codex_runner=self.successful_chickenbro_trace_runner,
+            )
+
+        self.assertEqual("succeeded", result["job"]["status"])
+        self.assertEqual("Trace-safe test answer.", result["assistantMessage"]["content"])
+        self.assertIn("warning: chickenbro trace write failed", stderr.getvalue())
+        self.assertNotIn("trace offline", result["assistantMessage"]["content"])
+
+    def test_trace_store_failure_does_not_replace_model_failure(self):
+        stderr = io.StringIO()
+        with patch.object(
+            self.backend,
+            "insert_chickenbro_agent_trace",
+            side_effect=RuntimeError("trace offline"),
+        ), redirect_stderr(stderr):
+            with self.assertRaisesRegex(
+                self.backend.ChickenbroGenerationUnavailable,
+                "original model offline",
+            ):
+                self.backend.send_chickenbro_message(
+                    {"message": "hello", "guestId": "trace-double-failure"},
+                    codex_runner=lambda *_args, **_kwargs: {
+                        "status": "failed",
+                        "error": "original model offline",
+                    },
+                )
+
+        self.assertIn("warning: chickenbro trace write failed", stderr.getvalue())
+
+    def test_retry_creates_one_trace_per_job_but_reuses_user_message(self):
+        request = {
+            "message": "frost death knight build",
+            "guestId": "trace-retry-owner",
+            "clientMessageId": "trace-retry-turn-1",
+        }
+        with self.assertRaises(self.backend.ChickenbroGenerationUnavailable):
+            self.backend.send_chickenbro_message(
+                request,
+                codex_runner=lambda *_args, **_kwargs: {
+                    "status": "failed",
+                    "error": "offline",
+                },
+            )
+        self.backend.send_chickenbro_message(
+            request,
+            codex_runner=self.successful_chickenbro_trace_runner,
+        )
+
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            trace_count = conn.execute(
+                "SELECT COUNT(*) FROM chickenbro_agent_traces"
+            ).fetchone()[0]
+            distinct_job_count = conn.execute(
+                "SELECT COUNT(DISTINCT agent_job_id) FROM chickenbro_agent_traces"
+            ).fetchone()[0]
+            user_message_count = conn.execute(
+                "SELECT COUNT(*) FROM chickenbro_messages WHERE role = 'user'"
+            ).fetchone()[0]
+
+        self.assertEqual(2, trace_count)
+        self.assertEqual(2, distinct_job_count)
+        self.assertEqual(1, user_message_count)
 
     def test_chickenbro_scope_recognizes_chinese_ptr_and_dps_terms(self):
         scope = self.backend.chickenbro_topic_scope("12.1 测试服现在哪个 DPS 最牛？")
