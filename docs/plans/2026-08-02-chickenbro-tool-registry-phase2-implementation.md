@@ -8,11 +8,13 @@
 
 **Tech Stack:** Python 3 standard library, `unittest`, PostgreSQL/psycopg, existing `wow-backend`, existing Raider.IO and Warcraft Logs adapters, Project Harness, systemd.
 
-状态：`正在推进`
+状态：`正在推进（候选验证与回滚已通过，等待集成归档）`
 分类：`Strict`
 确认日期：2026-08-02
 
 设计入口：[Phase 2 Tool Registry 设计](2026-08-02-chickenbro-tool-registry-phase2-design.md)
+
+证据入口：[Phase 2 task-scoped evidence](../../artifacts/releases/2026-08-02-chickenbro-tool-registry-phase2/evidence.json)
 
 ## Global Constraints
 
@@ -32,7 +34,7 @@
 | --- | --- |
 | `server/chickenbro_registry.py` | Pure Manifest/Release canonicalization, hash validation and deterministic discovery |
 | `server/chickenbro_tool_runtime.py` | 60-second verified snapshot cache and approved adapter dispatch |
-| `server/migrations/postgres/0025_chickenbro_tool_registry.sql` | Immutable Manifest/Release tables, initial release and least-privilege grants |
+| `server/migrations/postgres/0025_chickenbro_tool_registry.sql` | Immutable Manifest/Release tables, single active pointer, initial release and least-privilege grants |
 | `server/postgres_ops_store.py` | Transactional active Registry Release read |
 | `server/news_backend.py` | RequestIntent orchestration, Registry loading, ToolResult wiring and health projection |
 | `server/chickenbro_observability.py` | Trace v1 compatibility and Registry Trace v2/projection |
@@ -57,7 +59,7 @@
 - Produces: `canonical_json(value) -> str`, `manifest_content_hash(manifest) -> str`, `registry_release_hash(manifest_refs) -> str`, `validate_chickenbro_tool_manifest(manifest) -> dict`, `validate_chickenbro_registry_release(release) -> dict`, and `discover_chickenbro_capabilities(release, request_intent, request_context) -> dict`.
 - Consumers: Tasks 2-5.
 
-- [ ] **Step 1: Write failing Manifest and Release validation tests**
+- [x] **Step 1: Write failing Manifest and Release validation tests**
 
 Create two valid manifest fixtures in the test module. The Raider.IO fixture must use:
 
@@ -104,7 +106,7 @@ self.assertRaisesRegex(ValueError, "contentHash", validate_chickenbro_tool_manif
 
 Build one release with ordered refs and assert duplicate IDs, missing hash, unknown status and changed `releaseHash` fail closed.
 
-- [ ] **Step 2: Run the focused test and verify RED**
+- [x] **Step 2: Run the focused test and verify RED**
 
 Run:
 
@@ -114,11 +116,11 @@ python -m unittest tests.chickenbro_registry_test -v
 
 Expected: `ModuleNotFoundError: No module named 'server.chickenbro_registry'`.
 
-- [ ] **Step 3: Implement exact-key validation and canonical hashes**
+- [x] **Step 3: Implement exact-key validation and canonical hashes**
 
 Use `json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))` and SHA-256. `contentHash` is calculated from the manifest without `contentHash`; `releaseHash` is calculated only from ordered `manifestRefs`. Enforce the two approved Tool IDs and implementation refs, exact manifest keys, exact release keys, non-empty semantic version, ISO timezone timestamps, positive timeout, `kind=tool`, `namespace=source`, `riskClass=read_only`, empty side effects, and `status in {active, disabled}`.
 
-- [ ] **Step 4: Write failing deterministic discovery tests**
+- [x] **Step 4: Write failing deterministic discovery tests**
 
 Cover this exact matrix:
 
@@ -144,7 +146,7 @@ The result contract is:
 }
 ```
 
-- [ ] **Step 5: Implement deterministic discovery and verify GREEN**
+- [x] **Step 5: Implement deterministic discovery and verify GREEN**
 
 Discovery must sort by numeric `priority` descending, then `toolId`; selected manifests are defensive copies. Run:
 
@@ -154,7 +156,7 @@ python -m unittest tests.chickenbro_registry_test -v
 
 Expected: all tests pass.
 
-- [ ] **Step 6: Commit the pure Registry contract**
+- [x] **Step 6: Commit the pure Registry contract**
 
 ```powershell
 git add server/chickenbro_registry.py tests/chickenbro_registry_test.py
@@ -175,7 +177,7 @@ git commit -m "feat(chickenbro): define immutable tool registry contracts"
 - Consumes: Task 1 manifest/release validators.
 - Produces: `PostgresOpsStore.load_active_chickenbro_registry_release() -> dict`.
 
-- [ ] **Step 1: Write failing schema tests**
+- [x] **Step 1: Write failing schema tests**
 
 Add `CHICKENBRO_TOOL_REGISTRY = ROOT / "server" / "migrations" / "postgres" / "0025_chickenbro_tool_registry.sql"`. Assert normalized SQL contains:
 
@@ -183,8 +185,8 @@ Add `CHICKENBRO_TOOL_REGISTRY = ROOT / "server" / "migrations" / "postgres" / "0
 CREATE TABLE IF NOT EXISTS ops.chickenbro_tool_manifests
 PRIMARY KEY (tool_id, version)
 CREATE TABLE IF NOT EXISTS ops.chickenbro_tool_registry_releases
-CREATE UNIQUE INDEX IF NOT EXISTS chickenbro_tool_registry_one_active
-WHERE status = 'active'
+CREATE TABLE IF NOT EXISTS ops.chickenbro_tool_registry_active
+CHECK (singleton_id = 1)
 REFERENCES ops.chickenbro_tool_manifests (tool_id, version)
 GRANT SELECT ON ops.chickenbro_tool_manifests TO wow_app
 GRANT SELECT ON ops.chickenbro_tool_registry_releases TO wow_app
@@ -196,7 +198,7 @@ source:warcraftlogs:v1
 
 Also assert the seed includes deterministic content/release hashes and exactly two manifest rows.
 
-- [ ] **Step 2: Run schema test and verify RED**
+- [x] **Step 2: Run schema test and verify RED**
 
 ```powershell
 python -m unittest tests.postgres_schema_test.PostgresSchemaTest.test_chickenbro_tool_registry_migration_is_immutable_and_read_only -v
@@ -204,11 +206,11 @@ python -m unittest tests.postgres_schema_test.PostgresSchemaTest.test_chickenbro
 
 Expected: missing 0025 file or constant.
 
-- [ ] **Step 3: Create migration 0025**
+- [x] **Step 3: Create migration 0025**
 
-Store each complete manifest as JSONB plus indexed identity/hash columns. Store `manifest_refs_json` and `release_hash` on the release row. Use CHECK constraints for hash prefix, statuses and non-empty IDs; use one partial unique active index. Seed exact canonical JSON produced by Task 1 and insert the migration ledger row idempotently. Revoke write privileges from `wow_app` after granting SELECT.
+Store each complete manifest as JSONB plus indexed identity/hash columns. Store `manifest_refs_json` and `release_hash` on the immutable release row, ordered membership rows with composite FKs, and one `singleton_id=1` active pointer row. Use CHECK constraints for hash prefix and non-empty IDs. Seed exact canonical JSON produced by Task 1 and insert the migration ledger row idempotently. Revoke write privileges from `wow_app` after granting SELECT.
 
-- [ ] **Step 4: Write failing Ops store projection test**
+- [x] **Step 4: Write failing Ops store projection test**
 
 Use the existing fake cursor/connection style and return one release row followed by two manifest rows. Assert one transaction, ordered refs and validation:
 
@@ -222,11 +224,11 @@ self.assertEqual(
 self.assertNotIn("credential", json.dumps(release).lower())
 ```
 
-- [ ] **Step 5: Implement one transactional active-release read**
+- [x] **Step 5: Implement one transactional active-release read**
 
-`load_active_chickenbro_registry_release` must query the single active row, then fetch exact `(tool_id, version)` pairs. It returns raw JSON projections to Task 1 validation and raises `KeyError("active chickenbro registry release not found")` for zero rows or `RuntimeError("multiple active chickenbro registry releases")` for multiple rows. It must not write, lock for update or activate a release.
+`load_active_chickenbro_registry_release` must query the singleton active pointer joined to its immutable release, then fetch exact ordered `(tool_id, version)` pairs. It returns raw JSON projections to Task 1 validation and raises `KeyError("active chickenbro registry release not found")` for zero rows or `RuntimeError("multiple active chickenbro registry releases")` for multiple rows. It must not write, lock for update or activate a release.
 
-- [ ] **Step 6: Run PostgreSQL contract tests and commit**
+- [x] **Step 6: Run PostgreSQL contract tests and commit**
 
 ```powershell
 python -m unittest tests.postgres_schema_test tests.postgres_ops_store_test tests.chickenbro_registry_test -v
@@ -248,7 +250,7 @@ Expected: all tests pass.
 - Consumes: `validate_chickenbro_registry_release`, `discover_chickenbro_capabilities`.
 - Produces: `ChickenbroRegistryRuntime(cache_ttl_seconds=60)`, `.resolve(loader, request_intent, request_context, now=None) -> dict`, and `execute_chickenbro_selected_tools(resolution, adapter_bindings, request) -> list[dict]`.
 
-- [ ] **Step 1: Write failing cache tests**
+- [x] **Step 1: Write failing cache tests**
 
 Use an injected loader and timezone-aware clock. Cover:
 
@@ -262,7 +264,7 @@ invalid database release -> RegistryInvalid raised and prior cache is not silent
 
 Invalid Registry data is a security/configuration failure, not a transient read failure; cached fallback is allowed only when the loader itself raises an availability error before returning data.
 
-- [ ] **Step 2: Run and verify RED**
+- [x] **Step 2: Run and verify RED**
 
 ```powershell
 python -m unittest tests.chickenbro_tool_runtime_test -v
@@ -270,7 +272,7 @@ python -m unittest tests.chickenbro_tool_runtime_test -v
 
 Expected: missing runtime module.
 
-- [ ] **Step 3: Implement thread-safe verified cache resolution**
+- [x] **Step 3: Implement thread-safe verified cache resolution**
 
 Use a lock around snapshot replacement. Store defensive copies, verified-at monotonic/UTC timestamp, Registry identity and no user request data. Return resolution with:
 
@@ -282,11 +284,11 @@ Use a lock around snapshot replacement. Store defensive copies, verified-at mono
 }
 ```
 
-- [ ] **Step 4: Write failing adapter security and execution tests**
+- [x] **Step 4: Write failing adapter security and execution tests**
 
 Bindings are explicit callables keyed only by approved implementation refs. Tests must assert unknown refs fail before any callable runs; the request object passed to adapters contains only `message`, `intent` and sanitized `context`; one adapter failure returns a bounded ToolResult with `status=failed`, no exception text longer than 160 characters and no fallback adapter call.
 
-- [ ] **Step 5: Implement adapter dispatch and verify GREEN**
+- [x] **Step 5: Implement adapter dispatch and verify GREEN**
 
 Execute only `selectedManifests`, once each, in discovery order. The adapter result must be a dict with `sourceKey`, `status`, `facts`, `evidence`, `evidenceRefs`, `limitations` and `nextActions`; otherwise return `status=failed` for that capability. Run:
 
@@ -294,7 +296,7 @@ Execute only `selectedManifests`, once each, in discovery order. The adapter res
 python -m unittest tests.chickenbro_registry_test tests.chickenbro_tool_runtime_test -v
 ```
 
-- [ ] **Step 6: Commit runtime isolation**
+- [x] **Step 6: Commit runtime isolation**
 
 ```powershell
 git add server/chickenbro_tool_runtime.py tests/chickenbro_tool_runtime_test.py
@@ -314,7 +316,7 @@ git commit -m "feat(chickenbro): add verified registry runtime"
 - Consumes: Tasks 1-3 and existing `classify_chickenbro_request`, Raider.IO builder and WCL builder.
 - Produces: Registry-backed `load_chickenbro_source_tool_results` and bounded `registryContext` in each new Agent request.
 
-- [ ] **Step 1: Write failing parity and no-fallback tests**
+- [x] **Step 1: Write failing parity and no-fallback tests**
 
 Capture the current ToolResult for:
 
@@ -329,7 +331,7 @@ community build missing spec
 
 Inject an active Registry loader and assert exact ToolResult parity for supported paths. Then make the Registry loader unavailable/invalid and assert `load_chickenbro_source_tool_results` does not call either old direct branch, returns no fabricated evidence and adds `registry_unavailable`/`registry_invalid` to bounded limitations.
 
-- [ ] **Step 2: Run focused backend tests and verify RED**
+- [x] **Step 2: Run focused backend tests and verify RED**
 
 ```powershell
 python -m unittest tests.chickenbro_agent_test tests.news_backend_test.NewsBackendTest.test_chickenbro_registry_unavailable_never_uses_fixed_allowlist -v
@@ -337,7 +339,7 @@ python -m unittest tests.chickenbro_agent_test tests.news_backend_test.NewsBacke
 
 Expected: no Registry injection/context exists or fixed branch still runs.
 
-- [ ] **Step 3: Wire Ops store, cache and explicit adapters**
+- [x] **Step 3: Wire Ops store, cache and explicit adapters**
 
 Create one process-level `ChickenbroRegistryRuntime(60)`. The loader calls `ops_data_store().load_active_chickenbro_registry_release()` and fails when the Ops store is missing. Bind:
 
@@ -354,7 +356,7 @@ Create one process-level `ChickenbroRegistryRuntime(60)`. The loader calls `ops_
 
 Do not accept adapter keys from the HTTP payload. Delete the intent-based direct Tool dispatch in `load_chickenbro_source_tool_results`.
 
-- [ ] **Step 4: Attach bounded Registry context before model execution**
+- [x] **Step 4: Attach bounded Registry context before model execution**
 
 `build_chickenbro_bounded_context` must include:
 
@@ -371,11 +373,11 @@ Do not accept adapter keys from the HTTP payload. Delete the intent-based direct
 
 Do not include manifests, purpose, implementation refs or exception text. Registry failure limitations feed the existing answer/evidence path but do not change the public response schema.
 
-- [ ] **Step 5: Add a read-only health component**
+- [x] **Step 5: Add a read-only health component**
 
 `build_data_health_payload` adds `chickenbro_tool_registry` with status `verified`, `partial` or `blocked`, checked time, Registry version/hash prefix, active Tool IDs, cache source and blockers. It must not refresh sources, execute Tool adapters or expose manifests.
 
-- [ ] **Step 6: Run backend regression and commit**
+- [x] **Step 6: Run backend regression and commit**
 
 ```powershell
 python -m unittest tests.chickenbro_registry_test tests.chickenbro_tool_runtime_test tests.chickenbro_agent_test tests.news_backend_test -v
@@ -400,7 +402,7 @@ Expected: all tests pass and supported ToolResults are unchanged.
 - Consumes: Task 4 `registryContext`.
 - Produces: `chickenbro-agent-trace-v2` and `chickenbro-trace-projection-v2`; preserves v1 validators/projection for historical records.
 
-- [ ] **Step 1: Write failing Trace v2 tests**
+- [x] **Step 1: Write failing Trace v2 tests**
 
 Add verified Registry context and assert:
 
@@ -416,7 +418,7 @@ self.assertEqual(["source:raiderio:v1"], trace["selectedCapabilityIds"])
 
 Also assert a literal P1 v1 fixture still validates and projects unchanged; unknown Registry source/hash/capability and selected-not-discovered fail.
 
-- [ ] **Step 2: Run focused tests and verify RED**
+- [x] **Step 2: Run focused tests and verify RED**
 
 ```powershell
 python -m unittest tests.chickenbro_observability_test tests.chickenbro_eval_test -v
@@ -424,15 +426,15 @@ python -m unittest tests.chickenbro_observability_test tests.chickenbro_eval_tes
 
 Expected: current builder emits v1/fixed_allowlist and lacks Registry keys.
 
-- [ ] **Step 3: Implement version-dispatched validation**
+- [x] **Step 3: Implement version-dispatched validation**
 
 Keep frozen v1 constants and validation path. New runtime context emits v2. v2 capability IDs come from the validated Registry context rather than a global fixed set, but must match `source:[a-z0-9_.-]+:v[0-9]+`, be unique and have a matching selected Tool status. `registryReleaseHash` must be `sha256:` plus 64 lowercase hex chars. Projection v2 includes version/hash, source, discovered/selected IDs and existing bounded status fields only.
 
-- [ ] **Step 4: Update the offline Eval corpus**
+- [x] **Step 4: Update the offline Eval corpus**
 
 Every P2 case adds the deterministic initial Registry context. Retain one explicit `historical_trace_v1_is_readable` unit fixture outside the JSON corpus. Eval continues without DB, model, network or Tool execution and validates expected Registry version/selection.
 
-- [ ] **Step 5: Run Trace/Eval and backend terminal-path tests**
+- [x] **Step 5: Run Trace/Eval and backend terminal-path tests**
 
 ```powershell
 python -m unittest tests.chickenbro_observability_test tests.chickenbro_eval_test tests.news_backend_test tests.postgres_personal_store_test -v
@@ -441,7 +443,7 @@ python scripts/evaluate_chickenbro_traces.py
 
 Expected: all tests pass; Eval summary reports all cases passed; one successful/failed terminal request writes one v2 Trace while old v1 reads remain valid.
 
-- [ ] **Step 6: Commit observability cutover**
+- [x] **Step 6: Commit observability cutover**
 
 ```powershell
 git add server/chickenbro_observability.py server/chickenbro_eval.py tests/chickenbro_observability_test.py tests/chickenbro_eval_test.py tests/fixtures/chickenbro_trace_eval_cases.json
@@ -467,11 +469,11 @@ git commit -m "feat(chickenbro): trace registry discovery identity"
 - Consumes: Tasks 1-5 and Harness schema v2.
 - Produces: one task-scoped release packet, candidate/live evidence, merge/closure identity and archived control-plane status.
 
-- [ ] **Step 1: Update owner maps**
+- [x] **Step 1: Update owner maps**
 
 Make `server/chickenbro_registry.py` the Manifest/Release/discovery fact owner, `server/chickenbro_tool_runtime.py` the runtime adapter/cache owner, `postgres_ops_store.py` the read-store owner and `news_backend.py` an orchestrator. Add must-not-change rules for arbitrary implementation refs, owner/credential override, fixed-allowlist fallback and Phase 3-5 scope.
 
-- [ ] **Step 2: Create the Strict requirement packet**
+- [x] **Step 2: Create the Strict requirement packet**
 
 Use slug `chickenbro-tool-registry-phase2`. The requirement scope is exactly:
 
@@ -499,7 +501,7 @@ Out of scope is exactly:
 
 Set classification `Strict`, release trigger `backend_api`, manual acceptance not required, and evidence requirements for migration, full Harness, candidate three-path smoke and rollback.
 
-- [ ] **Step 3: Run focused verification and local CR**
+- [x] **Step 3: Run focused verification and local CR**
 
 ```powershell
 python -m unittest tests.chickenbro_registry_test tests.chickenbro_tool_runtime_test tests.postgres_schema_test tests.postgres_ops_store_test -v
@@ -512,7 +514,7 @@ git diff --check
 
 CR must explicitly confirm: exactly two Tools; no new external call or credential; no manifest-provided executable code; no fixed fallback in P2 code; ToolResult and public response parity; v1 read compatibility; Registry failure fail closed; no frontend diff.
 
-- [ ] **Step 4: Create manifest/evidence and run exact full Harness**
+- [x] **Step 4: Create manifest/evidence and run exact full Harness**
 
 Generate `manifest.json` through the repository Harness identity flow. On an exact clean HEAD run:
 
@@ -523,11 +525,11 @@ $node = 'C:\Users\blizz\.cache\codex-runtimes\codex-primary-runtime\dependencies
 
 Expected: one complete packet selected, full profile passes, verification identity binds exact HEAD, and no P1 packet is reused.
 
-- [ ] **Step 5: Deploy one immutable candidate**
+- [x] **Step 5: Deploy one immutable candidate**
 
 Before writes, record candidate SHA, remote service/health, current P1 runtime hashes, PostgreSQL migration ledger, current timer state and a PostgreSQL backup. Keep `WOW_DEPLOY_START_ASYNC_SYNCS=0`. Deploy only affected server files plus migration 0025, apply it through the existing repository migration path, restart `wow-backend`, and verify exact file hashes and migration identity.
 
-- [ ] **Step 6: Run live three-path and failure smoke**
+- [x] **Step 6: Run live three-path and failure smoke**
 
 Using isolated guest sessions, verify:
 
@@ -544,7 +546,7 @@ health -> chickenbro_tool_registry reports initial release and exactly two activ
 
 Do not mutate the active release to simulate failure on the shared candidate. Use injected isolated process/probe or a transactionally rolled-back test connection.
 
-- [ ] **Step 7: Prove code rollback**
+- [x] **Step 7: Prove code rollback**
 
 Restore the recorded P1 backend/runtime files, restart and verify health plus the same WCL/build/general smoke under fixed allowlist, leaving additive 0025 tables intact. Restore the exact P2 candidate and repeat health plus one Registry-backed request. Record hashes and Trace schema differences.
 
@@ -557,7 +559,7 @@ Update evidence to `candidate_verified`, run final local CR and targeted tests, 
 | Boundary | Required proof |
 | --- | --- |
 | User journey | Existing build, WCL and general questions preserve response schema and evidence behavior |
-| Registry | One immutable active release, exactly two approved manifests, deterministic hashes |
+| Registry | One immutable release behind a singleton active pointer, exactly two approved manifests, deterministic hashes |
 | Execution | Repository adapter binding only; no arbitrary code/URL/owner/credential from data |
 | Selection | discovered and selected sets are deterministic and correctly separated |
 | Failure | Invalid/unavailable Registry never invokes fixed allowlist or unregistered Tool |

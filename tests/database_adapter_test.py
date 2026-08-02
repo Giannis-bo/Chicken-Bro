@@ -851,6 +851,7 @@ class DatabaseAdapterTest(unittest.TestCase):
 
     def test_news_backend_routes_chickenbro_message_runtime_to_postgres_personal_store(self):
         import server.news_backend as backend
+        from server.chickenbro_tool_runtime import ChickenbroRegistryRuntime
 
         class FakeStore:
             def __init__(self):
@@ -967,9 +968,13 @@ class DatabaseAdapterTest(unittest.TestCase):
         originals = {
             "personal_data_store": getattr(backend, "personal_data_store", None),
             "load_chickenbro_profiles": backend.load_chickenbro_profiles,
+            "ops_data_store": backend.ops_data_store,
+            "registry_runtime": backend._CHICKENBRO_TOOL_REGISTRY_RUNTIME,
         }
         backend.personal_data_store = lambda: fake
         backend.load_chickenbro_profiles = lambda context: []
+        backend.ops_data_store = lambda: None
+        backend._CHICKENBRO_TOOL_REGISTRY_RUNTIME = ChickenbroRegistryRuntime(60)
 
         def fake_model_runner(prompt, **kwargs):
             return {
@@ -1004,6 +1009,8 @@ class DatabaseAdapterTest(unittest.TestCase):
             else:
                 delattr(backend, "personal_data_store")
             backend.load_chickenbro_profiles = originals["load_chickenbro_profiles"]
+            backend.ops_data_store = originals["ops_data_store"]
+            backend._CHICKENBRO_TOOL_REGISTRY_RUNTIME = originals["registry_runtime"]
 
         self.assertEqual(result["mode"], "chickenbro")
         self.assertEqual(result["session"]["sessionId"], "session-pg-1")
@@ -1029,7 +1036,13 @@ class DatabaseAdapterTest(unittest.TestCase):
         encoded_trace = json.dumps(fake.trace, ensure_ascii=False)
         self.assertNotIn("Arcane opener?", encoded_trace)
         self.assertNotIn(result["assistantMessage"]["content"], encoded_trace)
-        self.assertEqual("chickenbro-agent-trace-v1", fake.trace["schemaRevision"])
+        self.assertEqual("chickenbro-agent-trace-v2", fake.trace["schemaRevision"])
+        self.assertEqual("unavailable", fake.trace["registryStatus"])
+        self.assertEqual("", fake.trace["registryVersion"])
+        self.assertEqual("", fake.trace["registryReleaseHash"])
+        self.assertEqual("", fake.trace["registrySource"])
+        self.assertEqual([], fake.trace["discoveredCapabilityIds"])
+        self.assertEqual([], fake.trace["selectedCapabilityIds"])
 
     def test_news_backend_routes_guest_lookup_to_postgres_personal_store(self):
         import server.news_backend as backend

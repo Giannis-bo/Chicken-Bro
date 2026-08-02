@@ -1,12 +1,12 @@
 # 炸鸡队长能力演化 Phase 2：Tool Registry 设计
 
-状态：`已确认设计`
+状态：`正在推进（候选已验证，等待集成归档）`
 分类：`Strict`
 确认日期：2026-08-02
 
 本设计落实[能力演化控制面总设计](2026-08-02-chickenbro-capability-evolution-design.md)的 Phase 2。Phase 1 的 Trace、Outcome 与离线 Eval 已归档；本阶段只把现有 Raider.IO 与 Warcraft Logs 来源 Tool 从固定分支迁移到版本化 Registry，不制造新 Tool，不授权后续 Gap、Toolsmith、shadow、canary 或自动 promotion。
 
-当前事实入口：[project-state.json](../project-state.json)、[roadmap.md](../roadmap.md)、[plans/README.md](README.md)、[Phase 1 证据](../../artifacts/releases/2026-08-02-chickenbro-observability-phase1/evidence.json)、[Harness](../harness.md)、[验证矩阵](../verification-matrix.md)
+当前事实入口：[project-state.json](../project-state.json)、[roadmap.md](../roadmap.md)、[plans/README.md](README.md)、[Phase 1 证据](../../artifacts/releases/2026-08-02-chickenbro-observability-phase1/evidence.json)、[Phase 2 证据](../../artifacts/releases/2026-08-02-chickenbro-tool-registry-phase2/evidence.json)、[Harness](../harness.md)、[验证矩阵](../verification-matrix.md)
 
 ## 需求合同
 
@@ -111,19 +111,17 @@ Runtime adapter map 在仓库源码中把这两个标识绑定到现有 builder/
 
 ### Registry Release
 
-Release 是一组 manifest 引用的不可变快照：
+Release 是一组 manifest 引用的不可变快照，当前生效身份由独立单行 pointer 指向：
 
 ```text
 registryVersion
 manifestRefs          # ordered toolId + version + contentHash
 releaseHash
-status                # active | retired
 provenance
 createdAt
-activatedAt
 ```
 
-数据库只允许一个 active release。Runtime 必须在一次事务读取 active release 和全部引用 manifest，重新计算 content/release hash，并验证引用完整、ID 唯一、状态 active、implementationRef 获准。部分读取、重复 ID、hash 冲突或未知字段均视为整个快照无效。
+`ops.chickenbro_tool_registry_active` 只保留一行 `singleton_id=1`、当前 `registry_version`、激活时间和 provenance；切换只更新 pointer，不修改历史 Release。Runtime 必须在一次事务读取 pointer、Release 和全部引用 manifest，重新计算 content/release hash，并验证引用完整、ID 唯一、manifest 状态 active、implementationRef 获准。部分读取、重复 ID、hash 冲突或未知字段均视为整个快照无效。
 
 Phase 2 初始 release 只包含：
 
@@ -210,7 +208,7 @@ selectedCapabilityIds
 
 ### PostgreSQL 与运行时
 
-- migration 0025 的表、唯一 active release、hash、FK/约束、只读 runtime 权限和 ledger 通过；
+- migration 0025 的不可变表、唯一 active pointer、hash、FK/约束、只读 runtime 权限和 ledger 通过；
 - clean exact HEAD full Harness 通过；
 - 已知云服务器候选部署验证 migration、active release、两个真实 Tool 路径、一般无 Tool 路径、invalid/unavailable 降级、Trace v2、health、timer/backflow 和代码回滚；
 - candidate、local、origin/main 和 cloud runtime identity 在收尾时精确对齐。

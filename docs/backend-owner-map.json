@@ -437,6 +437,11 @@
           "id": "chickenbro_session_api",
           "status": "characterized",
           "traceFactOwner": "server/chickenbro_observability.py",
+          "registryFactOwner": "server/chickenbro_registry.py",
+          "registryRuntimeOwner": "server/chickenbro_tool_runtime.py",
+          "registryReadOwner": "server/postgres_ops_store.py",
+          "registryMigrationOwner": "server/migrations/postgres/0025_chickenbro_tool_registry.sql",
+          "registryOrchestrator": "server/news_backend.py",
           "traceWriteOwners": [
             "server/news_backend.py",
             "server/postgres_personal_store.py",
@@ -452,17 +457,24 @@
             "guest session job APIs",
             "bounded workbench context",
             "task/session persistence boundary",
-            "owner-bound structured agent trace facts"
+            "owner-bound structured agent trace facts",
+            "verified Tool Registry discovery and bounded adapter dispatch"
           ],
           "mustNotChange": [
             "Guest chat must not require WeChat login preflight.",
             "Raw SimC, logs, tokens, and internal blockers must stay out of user-facing chat payloads.",
             "Chickenbro direct chat does not create verified evidence without read-model support.",
             "Agent traces must never contain raw chat, prompts, answer text, credentials, WCL report identity, SimC stdout, or cross-owner references.",
-            "Trace persistence failure must not change a validated answer or replace the original model error."
+            "Trace persistence failure must not change a validated answer or replace the original model error.",
+            "Registry manifests must not load arbitrary implementations or supply owner, credential, URL, SQL, Shell or Python execution values.",
+            "Registry failure must not fall back to the former fixed Tool allowlist.",
+            "Personal templates and SimC remain bounded context evidence rather than registered Tools.",
+            "CapabilityGap, Toolsmith, shadow, canary and promotion remain outside Phase 2."
           ],
           "characterization": [
             "tests/news_backend_test.py Chickenbro API tests",
+            "tests/chickenbro_registry_test.py",
+            "tests/chickenbro_tool_runtime_test.py",
             "tests/chickenbro_observability_test.py",
             "tests/chickenbro_eval_test.py",
             "tests/postgres_personal_store_test.py",

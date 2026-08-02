@@ -4,9 +4,135 @@ import unittest
 
 import server.news_backend as backend
 import server.chickenbro_agent as agent
+from server.chickenbro_tool_runtime import ChickenbroRegistryRuntime
+from tests.chickenbro_registry_test import signed_release
 
 
 class ChickenbroAgentIntentTest(unittest.TestCase):
+    def test_registry_discovery_preserves_raiderio_tool_result(self):
+        intent = backend.classify_chickenbro_request("protection warrior build", [])
+        payload = {
+            "sourceName": "Raider.IO",
+            "sourceStatus": "synced",
+            "checkedAt": "2099-08-01T10:00:00+00:00",
+            "expiresAt": "2099-08-01T16:00:00+00:00",
+            "region": "cn",
+            "specAggregates": [
+                {"classKey": "warrior", "specKey": "protection", "fullName": "Protection Warrior"}
+            ],
+            "communityTemplates": [],
+        }
+        expected = agent.build_raiderio_chickenbro_tool_result(payload, intent)
+        original_payload = backend.chickenbro_cached_raiderio_payload
+        backend.chickenbro_cached_raiderio_payload = lambda: payload
+        try:
+            loaded = backend.load_chickenbro_source_tool_results(
+                "protection warrior build",
+                {"region": "cn"},
+                include_registry=True,
+                registry_loader=lambda: signed_release(),
+                registry_runtime=ChickenbroRegistryRuntime(60),
+            )
+        finally:
+            backend.chickenbro_cached_raiderio_payload = original_payload
+
+        self.assertEqual([expected], loaded["sourceToolResults"])
+        self.assertEqual("verified", loaded["registryContext"]["status"])
+        self.assertEqual(["source:raiderio:v1"], loaded["registryContext"]["selectedCapabilityIds"])
+
+    def test_registry_discovery_preserves_wcl_and_general_paths(self):
+        log_evidence = {
+            "sourceStatus": "verified",
+            "reportCode": "ABC123",
+            "sourceUrl": "https://www.warcraftlogs.com/reports/ABC123?fight=7",
+            "fightId": "7",
+            "evidenceRefs": ["wcl.report", "wcl.fight"],
+        }
+        original_builder = backend.build_wcl_log_evidence
+        backend.build_wcl_log_evidence = lambda request: log_evidence
+        try:
+            loaded = backend.load_chickenbro_source_tool_results(
+                "review https://www.warcraftlogs.com/reports/ABC123?fight=7",
+                {"region": "cn"},
+                include_registry=True,
+                registry_loader=lambda: signed_release(),
+                registry_runtime=ChickenbroRegistryRuntime(60),
+            )
+        finally:
+            backend.build_wcl_log_evidence = original_builder
+        general = backend.load_chickenbro_source_tool_results(
+            "hello",
+            {"region": "cn"},
+            include_registry=True,
+            registry_loader=lambda: signed_release(),
+            registry_runtime=ChickenbroRegistryRuntime(60),
+        )
+
+        self.assertEqual(
+            [agent.build_wcl_chickenbro_tool_result(log_evidence)],
+            loaded["sourceToolResults"],
+        )
+        self.assertEqual(["source:warcraftlogs:v1"], loaded["registryContext"]["selectedCapabilityIds"])
+        self.assertEqual([], general["sourceToolResults"])
+        self.assertEqual([], general["registryContext"]["selectedCapabilityIds"])
+
+    def test_registry_unavailable_or_invalid_never_uses_fixed_allowlist(self):
+        original_raiderio = backend.chickenbro_cached_raiderio_payload
+        original_wcl = backend.build_wcl_log_evidence
+        backend.chickenbro_cached_raiderio_payload = lambda: (_ for _ in ()).throw(
+            AssertionError("fixed Raider.IO branch must not run")
+        )
+        backend.build_wcl_log_evidence = lambda request: (_ for _ in ()).throw(
+            AssertionError("fixed WCL branch must not run")
+        )
+        try:
+            unavailable = backend.load_chickenbro_source_tool_results(
+                "protection warrior build",
+                {"region": "cn"},
+                include_registry=True,
+                registry_loader=lambda: (_ for _ in ()).throw(ConnectionError("offline")),
+                registry_runtime=ChickenbroRegistryRuntime(60),
+            )
+            invalid = backend.load_chickenbro_source_tool_results(
+                "review https://www.warcraftlogs.com/reports/ABC123?fight=7",
+                {"region": "cn"},
+                include_registry=True,
+                registry_loader=lambda: signed_release(releaseHash="sha256:" + "0" * 64),
+                registry_runtime=ChickenbroRegistryRuntime(60),
+            )
+        finally:
+            backend.chickenbro_cached_raiderio_payload = original_raiderio
+            backend.build_wcl_log_evidence = original_wcl
+
+        self.assertEqual([], unavailable["sourceToolResults"])
+        self.assertEqual(["registry_unavailable"], unavailable["limitations"])
+        self.assertEqual("unavailable", unavailable["registryContext"]["status"])
+        self.assertEqual([], invalid["sourceToolResults"])
+        self.assertEqual(["registry_invalid"], invalid["limitations"])
+        self.assertEqual("invalid", invalid["registryContext"]["status"])
+
+    def test_bounded_context_exposes_only_bounded_registry_projection(self):
+        bounded = backend.build_chickenbro_bounded_context(
+            "protection warrior build",
+            {"region": "cn"},
+            registry_loader=lambda: signed_release(),
+            registry_runtime=ChickenbroRegistryRuntime(60),
+        )
+
+        self.assertEqual(
+            {
+                "status",
+                "registryVersion",
+                "registryReleaseHash",
+                "registrySource",
+                "discoveredCapabilityIds",
+                "selectedCapabilityIds",
+            },
+            set(bounded["registryContext"]),
+        )
+        self.assertNotIn("manifest", str(bounded["registryContext"]).lower())
+        self.assertEqual(["source:raiderio:v1"], bounded["registryContext"]["selectedCapabilityIds"])
+
     def test_protection_warrior_build_question_is_a_community_build_intent(self):
         classifier = getattr(backend, "classify_chickenbro_request", None)
 
@@ -213,6 +339,8 @@ class ChickenbroAgentIntentTest(unittest.TestCase):
             results = backend.load_chickenbro_source_tool_results(
                 "帮我看看 https://www.warcraftlogs.com/reports/ABC123?fight=7 的防战手法",
                 {},
+                registry_loader=lambda: signed_release(),
+                registry_runtime=ChickenbroRegistryRuntime(60),
             )
         finally:
             backend.build_wcl_log_evidence = original_builder

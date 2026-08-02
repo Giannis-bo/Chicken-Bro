@@ -117,3 +117,51 @@ class PostgresOpsStore:
                 )
                 rows = cur.fetchall()
         return [_diagnosis_from_row(row) for row in rows]
+
+    def load_active_chickenbro_registry_release(self):
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT release.registry_version,
+                           release.manifest_refs_json,
+                           release.release_hash,
+                           release.provenance_json,
+                           release.created_at::text,
+                           active.activated_at::text
+                    FROM ops.chickenbro_tool_registry_active AS active
+                    JOIN ops.chickenbro_tool_registry_releases AS release
+                      ON release.registry_version = active.registry_version
+                    WHERE active.singleton_id = 1
+                    """
+                )
+                release_rows = cur.fetchall()
+                if not release_rows:
+                    raise KeyError("active chickenbro registry release not found")
+                if len(release_rows) > 1:
+                    raise RuntimeError("multiple active chickenbro registry releases")
+                release_row = release_rows[0]
+                cur.execute(
+                    """
+                    SELECT membership.ordinal, manifest.manifest_json
+                    FROM ops.chickenbro_tool_registry_release_manifests AS membership
+                    JOIN ops.chickenbro_tool_manifests AS manifest
+                      ON manifest.tool_id = membership.tool_id
+                     AND manifest.version = membership.version
+                     AND manifest.content_hash = membership.content_hash
+                    WHERE membership.registry_version = %s
+                    ORDER BY membership.ordinal ASC
+                    """,
+                    (release_row[0],),
+                )
+                manifest_rows = cur.fetchall()
+        return {
+            "registryVersion": _text(release_row[0]),
+            "manifestRefs": _json_value(release_row[1], []),
+            "releaseHash": _text(release_row[2]),
+            "status": "active",
+            "provenance": _json_value(release_row[3], {}),
+            "createdAt": _text(release_row[4]),
+            "activatedAt": _text(release_row[5]),
+            "manifests": [_json_value(row[1], {}) for row in manifest_rows],
+        }

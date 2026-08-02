@@ -6,7 +6,12 @@ import re
 from pathlib import Path
 
 from server.chickenbro_observability import (
-    CAPABILITY_IDS,
+    CAPABILITY_ID_PATTERN,
+    REGISTRY_CONTEXT_KEYS,
+    REGISTRY_SOURCES,
+    REGISTRY_STATUSES,
+    REGISTRY_VERSION_PATTERN,
+    RELEASE_HASH_PATTERN,
     REQUEST_SCOPE_ALLOWED_VALUES,
     SIGNAL_CODES,
     SOURCE_CAPABILITY_IDS,
@@ -26,8 +31,9 @@ EVAL_EXPECT_KEYS = {
     "requiredSignals",
     "forbiddenSignals",
     "selectedCapabilityIds",
+    "registryVersion",
 }
-BOUNDED_CONTEXT_KEYS = {"topic", "requestContext", "sourceEvidence"}
+BOUNDED_CONTEXT_KEYS = {"topic", "requestContext", "sourceEvidence", "registryContext"}
 REQUEST_CONTEXT_KEYS = {
     "productPhase",
     "region",
@@ -87,6 +93,41 @@ def _validate_bounded_context(bounded_context):
         ):
             raise ValueError("invalid chickenbro eval evidence refs")
 
+    registry = bounded_context["registryContext"]
+    if not isinstance(registry, dict) or set(registry) != REGISTRY_CONTEXT_KEYS:
+        raise ValueError("invalid chickenbro eval registry context keys")
+    if registry["status"] not in REGISTRY_STATUSES:
+        raise ValueError("invalid chickenbro eval registry status")
+    discovered = registry["discoveredCapabilityIds"]
+    selected = registry["selectedCapabilityIds"]
+    for name, values in (("discovered", discovered), ("selected", selected)):
+        if not isinstance(values, list) or any(
+            not isinstance(value, str) or not CAPABILITY_ID_PATTERN.fullmatch(value)
+            for value in values
+        ):
+            raise ValueError(f"invalid chickenbro eval registry {name} capability")
+        if len(values) != len(set(values)):
+            raise ValueError(f"duplicate chickenbro eval registry {name} capability")
+    if not set(selected).issubset(discovered):
+        raise ValueError("undiscovered chickenbro eval registry capability")
+    if registry["status"] == "verified":
+        if not REGISTRY_VERSION_PATTERN.fullmatch(registry["registryVersion"]):
+            raise ValueError("invalid chickenbro eval registry version")
+        if not RELEASE_HASH_PATTERN.fullmatch(registry["registryReleaseHash"]):
+            raise ValueError("invalid chickenbro eval registry release hash")
+        if registry["registrySource"] not in REGISTRY_SOURCES:
+            raise ValueError("invalid chickenbro eval registry source")
+    elif any(
+        (
+            registry["registryVersion"],
+            registry["registryReleaseHash"],
+            registry["registrySource"],
+            discovered,
+            selected,
+        )
+    ):
+        raise ValueError("invalid chickenbro eval unverified registry identity")
+
 
 def _validate_agent_result(agent_result):
     if not isinstance(agent_result, dict) or set(agent_result) != {"validation", "model"}:
@@ -141,11 +182,19 @@ def validate_eval_case(case):
         name="forbidden signals",
         allowed=SIGNAL_CODES,
     )
-    _validate_string_list(
-        expected["selectedCapabilityIds"],
-        name="selected capability ids",
-        allowed=CAPABILITY_IDS,
-    )
+    selected_capability_ids = expected["selectedCapabilityIds"]
+    if not isinstance(selected_capability_ids, list) or any(
+        not isinstance(value, str) or not CAPABILITY_ID_PATTERN.fullmatch(value)
+        for value in selected_capability_ids
+    ):
+        raise ValueError("invalid chickenbro eval selected capability ids")
+    if len(selected_capability_ids) != len(set(selected_capability_ids)):
+        raise ValueError("duplicate chickenbro eval selected capability ids")
+    if (
+        expected["registryVersion"]
+        != case_input["boundedContext"]["registryContext"]["registryVersion"]
+    ):
+        raise ValueError("invalid chickenbro eval expected registry version")
     return copy.deepcopy(case)
 
 
@@ -188,6 +237,8 @@ def evaluate_chickenbro_trace_case(case):
         expected["selectedCapabilityIds"]
     ):
         failures.append("selected_capability_ids")
+    if projection.get("registryVersion") != expected["registryVersion"]:
+        failures.append("registry_version")
     return {
         "caseId": validated_case["caseId"],
         "status": "passed" if not failures else "failed",

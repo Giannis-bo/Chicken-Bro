@@ -28,6 +28,14 @@ class ChickenbroEvalTest(unittest.TestCase):
                         "scenarioKey": "mythic_plus",
                     },
                     "sourceEvidence": [],
+                    "registryContext": {
+                        "status": "verified",
+                        "registryVersion": "chickenbro-tools-1",
+                        "registryReleaseHash": "sha256:c9d49f00695540052d69d8aea15653ffb227dbed4ecdb6db1ebd01f734e4734a",
+                        "registrySource": "postgres",
+                        "discoveredCapabilityIds": [],
+                        "selectedCapabilityIds": [],
+                    },
                 },
                 "agentResult": {
                     "validation": {"status": "passed"},
@@ -41,6 +49,7 @@ class ChickenbroEvalTest(unittest.TestCase):
                 "requiredSignals": ["answer_succeeded"],
                 "forbiddenSignals": ["explicit_correction"],
                 "selectedCapabilityIds": [],
+                "registryVersion": "chickenbro-tools-1",
             },
         }
 

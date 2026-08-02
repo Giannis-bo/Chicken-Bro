@@ -7237,6 +7237,26 @@ class NewsBackendTest(unittest.TestCase):
 
         self.assertIn("data_health_followup", components)
         self.assertEqual(components["data_health_followup"]["details"].get("mode"), "revision_gated")
+        self.assertIn("chickenbro_tool_registry", components)
+
+    def test_chickenbro_tool_registry_health_is_read_only_and_bounded(self):
+        from server.chickenbro_tool_runtime import ChickenbroRegistryRuntime
+        from tests.chickenbro_registry_test import signed_release
+
+        component = self.backend.chickenbro_tool_registry_health_component(
+            registry_loader=lambda: signed_release(),
+            registry_runtime=ChickenbroRegistryRuntime(60),
+        )
+
+        self.assertEqual("chickenbro_tool_registry", component["key"])
+        self.assertEqual("verified", component["status"])
+        self.assertEqual("chickenbro-tools-1", component["details"]["registryVersion"])
+        self.assertEqual(
+            ["source:raiderio:v1", "source:warcraftlogs:v1"],
+            component["details"]["activeToolIds"],
+        )
+        self.assertEqual("postgres", component["details"]["registrySource"])
+        self.assertNotIn("manifest", json.dumps(component).lower())
 
     def test_http_data_health_route_returns_read_only_status_payload(self):
         server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
@@ -7944,6 +7964,10 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual("succeeded", rows[0][2])
         self.assertNotIn(message, rows[0][3])
         self.assertNotIn(result["assistantMessage"]["content"], rows[0][3])
+        trace = json.loads(rows[0][3])
+        self.assertEqual("chickenbro-agent-trace-v2", trace["schemaRevision"])
+        self.assertEqual("chickenbro-registry-runtime-v1", trace["runtimeVersion"])
+        self.assertEqual("unavailable", trace["registryStatus"])
 
     def test_chickenbro_model_failure_persists_failure_trace_and_no_assistant_message(self):
         with self.assertRaisesRegex(self.backend.ChickenbroGenerationUnavailable, "offline"):
@@ -7967,6 +7991,8 @@ class NewsBackendTest(unittest.TestCase):
             ]
 
         self.assertEqual("failed", trace["answerStatus"])
+        self.assertEqual("chickenbro-agent-trace-v2", trace["schemaRevision"])
+        self.assertEqual("unavailable", trace["registryStatus"])
         self.assertIn(
             "model_failed",
             {item["code"] for item in trace["outcomeSignals"]},
