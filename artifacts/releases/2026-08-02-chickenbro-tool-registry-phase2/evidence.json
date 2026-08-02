@@ -67,6 +67,11 @@
       "summary": "All 16 backend and project owner-map contract tests passed."
     },
     {
+      "command": "python -m unittest tests.database_adapter_test -v",
+      "status": "pass",
+      "summary": "All 32 database adapter tests passed after the production PostgreSQL Chickenbro route was made deterministic and updated to assert the complete unavailable Registry Trace v2 identity."
+    },
+    {
       "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-08-02-chickenbro-tool-registry-phase2",
       "status": "not_run",
       "summary": "Pending exact clean-HEAD full Harness verification."
@@ -80,6 +85,10 @@
   "localReview": {
     "status": "pass",
     "findings": [],
+    "corrections": [
+      "The plan whitelist now registers the previously approved SQLite retirement design as a separate next task without expanding the Phase 2 implementation scope.",
+      "The PostgreSQL Chickenbro route characterization now resets Registry cache state and asserts complete fail-closed Trace v2 identity instead of the historical v1 schema."
+    ],
     "confirmedBoundaries": [
       "The initial release and source bindings contain exactly source:raiderio:v1 and source:warcraftlogs:v1.",
       "Manifests are data-only and adapter dispatch accepts only two repository-owned implementation references after preflight.",

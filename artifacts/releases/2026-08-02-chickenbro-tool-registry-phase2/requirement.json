@@ -107,5 +107,16 @@
       "date": "2026-08-02",
       "decision": "The user authorized Phase 2 completion with exactly the two existing source Tools; Phase 3-5 remain separately gated."
     }
+  ],
+  "harnessFindings": [
+    {
+      "id": "postgres-routing-trace-v2-characterization-20260802",
+      "status": "finding_only",
+      "whatHappened": "The full Harness found that the PostgreSQL Chickenbro routing characterization still asserted the historical Trace v1 schema after Registry-backed requests had moved to Trace v2.",
+      "missedGate": "Production adapter characterization in the focused Phase 2 test set",
+      "impact": "The Phase 2 focused suites passed while one full-profile contract still described the old runtime trace identity.",
+      "recommendedAction": "When a versioned runtime contract changes, include every production adapter characterization that asserts the prior version in the focused verification set and assert the complete replacement identity rather than only its version string.",
+      "promotion": "finding_only"
+    }
   ]
 }

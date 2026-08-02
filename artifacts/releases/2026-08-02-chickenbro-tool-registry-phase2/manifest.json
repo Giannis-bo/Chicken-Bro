@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-08-02T14:22:01.764Z",
+  "generatedAt": "2026-08-02T14:29:32.943Z",
   "release": {
     "date": "2026-08-02",
     "slug": "chickenbro-tool-registry-phase2"
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-08-02-chickenbro-tool-registry-phase2/evidence.json",
-    "sizeBytes": 4895,
+    "sizeBytes": 5577,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -417,7 +417,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "1 changed files currently visible to git status."
+      "detail": "3 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
@@ -453,9 +453,11 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 1,
+      "changedFileCount": 3,
       "changedFiles": [
-        " M artifacts/releases/2026-08-02-chickenbro-tool-registry-phase2/evidence.json"
+        " M artifacts/releases/2026-08-02-chickenbro-tool-registry-phase2/evidence.json",
+        " M artifacts/releases/2026-08-02-chickenbro-tool-registry-phase2/requirement.json",
+        " M tests/database_adapter_test.py"
       ]
     }
   },
