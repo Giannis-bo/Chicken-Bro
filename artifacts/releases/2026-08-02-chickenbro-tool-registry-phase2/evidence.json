@@ -2,18 +2,19 @@
   "schemaVersion": 2,
   "slug": "chickenbro-tool-registry-phase2",
   "requirementSlug": "chickenbro-tool-registry-phase2",
-  "status": "implementation_allowed",
-  "highestEvidenceLevel": "implementation_allowed",
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
   "branch": "codex/chickenbro-tool-registry-phase2",
-  "commit": "pending_candidate_commit",
+  "commit": "d1f2b44c733ad3435237f43f2ed6445b141c4fc8",
   "identities": {
     "runtime": {
       "status": "pending",
       "reason": "The immutable candidate commit and cloud file hashes are not yet bound."
     },
     "verification": {
-      "status": "pending",
-      "reason": "Exact clean-HEAD full Harness verification is pending."
+      "status": "bound_at_check",
+      "kind": "git_ref",
+      "value": "HEAD"
     },
     "closure": {
       "status": "pending",
@@ -42,28 +43,28 @@
   "verification": [
     {
       "command": "python -m unittest tests.chickenbro_registry_test tests.chickenbro_tool_runtime_test tests.postgres_schema_test tests.postgres_ops_store_test -v",
-      "status": "not_run",
-      "summary": "Pending final focused verification."
+      "status": "pass",
+      "summary": "44 Registry validation, verified-cache, adapter security, PostgreSQL schema and active-release store tests passed."
     },
     {
       "command": "python -m unittest tests.chickenbro_observability_test tests.chickenbro_eval_test tests.chickenbro_agent_test -v",
-      "status": "not_run",
-      "summary": "Pending final focused verification."
+      "status": "pass",
+      "summary": "36 Trace v1/v2, offline Eval and source-Agent parity tests passed."
     },
     {
       "command": "python -m unittest tests.news_backend_test tests.postgres_personal_store_test -v",
-      "status": "not_run",
-      "summary": "Pending final backend regression verification."
+      "status": "pass",
+      "summary": "298 backend and PostgreSQL personal-store regression tests passed in the SQLite-safe sequential order."
     },
     {
       "command": "python scripts/evaluate_chickenbro_traces.py",
-      "status": "not_run",
-      "summary": "Pending final deterministic Eval verification."
+      "status": "pass",
+      "summary": "All four deterministic registry-aware synthetic cases passed with failedCount=0."
     },
     {
       "command": "node --test tests/project-owner-map.test.js tests/backend-owner-map.test.js",
-      "status": "not_run",
-      "summary": "Pending owner-map verification."
+      "status": "pass",
+      "summary": "All 16 backend and project owner-map contract tests passed."
     },
     {
       "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-08-02-chickenbro-tool-registry-phase2",
@@ -76,6 +77,17 @@
     "reason": "Candidate deployment, live three-path smoke and rollback proof are pending."
   },
   "runtimeEvidence": [],
+  "localReview": {
+    "status": "pass",
+    "findings": [],
+    "confirmedBoundaries": [
+      "The initial release and source bindings contain exactly source:raiderio:v1 and source:warcraftlogs:v1.",
+      "Manifests are data-only and adapter dispatch accepts only two repository-owned implementation references after preflight.",
+      "Personal templates and SimC remain context evidence and no frontend or public response contract changed.",
+      "Trace v1 fixed_allowlist constants remain only in the frozen historical validator; Registry-backed requests use dynamic Trace v2 validation.",
+      "Unavailable, invalid and expired Registry states fail closed without invoking the former fixed allowlist."
+    ]
+  },
   "risks": [
     "Registry reads, runtime-role privileges, cache degradation and script-entrypoint wiring still require candidate cloud proof.",
     "Phase 2 must remain exactly two Tools and must not become a publication surface for generated code."
@@ -97,5 +109,5 @@
     "docs/plans/2026-08-02-chickenbro-tool-registry-phase2-design.md",
     "docs/plans/2026-08-02-chickenbro-tool-registry-phase2-implementation.md"
   ],
-  "summary": "Phase 2 implementation is complete locally and awaits exact clean-HEAD verification, immutable candidate deployment, live three-path smoke and code rollback proof."
+  "summary": "Phase 2 implementation and focused local review are complete. Exact clean-HEAD full Harness verification, immutable candidate deployment, live three-path smoke and code rollback proof remain pending."
 }
