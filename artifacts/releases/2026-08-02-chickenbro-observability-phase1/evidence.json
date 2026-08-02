@@ -1,0 +1,244 @@
+{
+  "schemaVersion": 2,
+  "slug": "chickenbro-observability-phase1",
+  "requirementSlug": "chickenbro-observability-phase1",
+  "status": "runtime_verified",
+  "highestEvidenceLevel": "runtime_verified",
+  "branch": "codex/chickenbro-observability-phase1",
+  "commit": "9cfe20211cfc64628920624f55a65265f6b7d4f5",
+  "identities": {
+    "runtime": {
+      "status": "bound",
+      "kind": "git_commit",
+      "value": "9cfe20211cfc64628920624f55a65265f6b7d4f5",
+      "fileHashes": {
+        "server/news_backend.py": "caecc0ab55a38be5e066f027b276e02291a6d74662619b9704511589956f9b51",
+        "server/postgres_personal_store.py": "bc0c9a43d36b10fd4b9fff35c2b105b2a3215cb18452179b465f50d30ecfcffd",
+        "server/chickenbro_observability.py": "a22ebeb8d619d4abcc0a1cf0c10ede7fce0073aa669b336d81bbb0baf4444b3b",
+        "server/migrations/postgres/0024_chickenbro_agent_observability.sql": "05a6aff4d75cc62855fabfbe0773257c64c89c9024a998c805a7811fb9b7aa4e"
+      }
+    },
+    "verification": {
+      "status": "bound_at_check",
+      "kind": "git_ref",
+      "value": "HEAD"
+    },
+    "closure": {
+      "status": "pending",
+      "reason": "Merge, main parity, and archive closure are not authorized by implementation-start approval."
+    }
+  },
+  "manualAcceptance": {
+    "required": false,
+    "status": "not_applicable",
+    "reason": "Phase 1 adds backend observability only and intentionally changes no frontend, public response schema, Tool selection, or answer policy.",
+    "items": [],
+    "rollup": {
+      "total": 0,
+      "accepted": 0,
+      "notRunUserWaived": 0,
+      "pending": 0
+    }
+  },
+  "scope": [
+    "owner-bound structured Chickenbro agent traces",
+    "deterministic terminal outcome signals",
+    "text-free deidentified trace projection",
+    "offline no-network trace eval corpus"
+  ],
+  "verification": [
+    {
+      "command": "python -m unittest tests.chickenbro_observability_test tests.chickenbro_eval_test",
+      "status": "pass",
+      "summary": "14 pure Trace and Eval contract tests passed, including unknown-scope redaction and empty/duplicate corpus rejection."
+    },
+    {
+      "command": "python -m unittest tests.news_backend_test tests.chickenbro_agent_test",
+      "status": "pass",
+      "summary": "301 backend and Chickenbro Agent tests passed in the approved SQLite-safe order."
+    },
+    {
+      "command": "python -m unittest tests.postgres_schema_test tests.postgres_personal_store_test tests.database_adapter_test",
+      "status": "pass",
+      "summary": "73 PostgreSQL schema, owner-bound store, production script-entrypoint import, and database adapter tests passed."
+    },
+    {
+      "command": "python scripts/evaluate_chickenbro_traces.py",
+      "status": "pass",
+      "summary": "Four synthetic cases passed with failedCount=0 and no runtime dependencies."
+    },
+    {
+      "command": "node --test tests/project-owner-map.test.js tests/backend-owner-map.test.js",
+      "status": "pass",
+      "summary": "16 owner-map contract tests passed after binding Trace ownership and offline Eval consumers."
+    },
+    {
+      "command": "Node 23.9.0: node scripts/verify-project.js --profile full --release artifacts/releases/2026-08-02-chickenbro-observability-phase1",
+      "status": "pass",
+      "summary": "The exact clean 9cfe202 candidate passed all 173 Harness commands; 2389 Python tests passed with one existing conditional skip, and frontend typecheck/production build plus packet binding passed. Existing dependency directories were reused without installation."
+    },
+    {
+      "command": "git diff --check",
+      "status": "pass",
+      "summary": "No whitespace errors were reported for the candidate diff."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "passed",
+    "requiredBeforeMerge": true,
+    "branch": "codex/chickenbro-observability-phase1",
+    "commit": "9cfe20211cfc64628920624f55a65265f6b7d4f5",
+    "deployedTarget": "ubuntu@124.223.51.33:/opt/wow-mini-program",
+    "method": "Targeted candidate file copy with no full-repository overlay and no dependency installation.",
+    "asyncSyncStarted": false,
+    "database": {
+      "name": "wow_test",
+      "host": "127.0.0.1",
+      "port": 5432,
+      "runtime": "postgres_only"
+    },
+    "backup": {
+      "path": "/var/backups/wow-backend/chickenbro-observability-phase1-20260802T110334Z",
+      "postgresDumpBytes": 819597198,
+      "postgresDumpSha256": "91f5b74fbf28016db80d6a3256dfda9d9919615729196fcaea33b56ffc83a43d",
+      "environmentBackupMode": "0600",
+      "priorNewsBackendSha256": "373020a6ae62b621859bb3fe200a132cb1d5be004657cf5d7dc17a11c7a5a403",
+      "priorPersonalStoreSha256": "f517687cd4cdb64e79aab400016f1e9f6d2e5e54da16a7626183cd1713372665"
+    },
+    "attempts": [
+      {
+        "commit": "2dde210741caa6c66c7e0502605899806b3418e5",
+        "status": "failed_and_rolled_back",
+        "reason": "The first real session request exposed package-only Trace-validator import wiring under the production script entrypoint.",
+        "recovery": "Restored both prior code hashes, removed the two newly added files, restarted the service, and verified health plus a 200 session request before fixing the candidate."
+      },
+      {
+        "commit": "9cfe20211cfc64628920624f55a65265f6b7d4f5",
+        "status": "passed",
+        "reason": "A script-entrypoint subprocess regression test and dual import path closed the first-attempt failure."
+      }
+    ],
+    "smoke": {
+      "service": "active",
+      "localhostHealthHttpStatus": 200,
+      "publicHealthHttpStatus": 200,
+      "migration": {
+        "dryRunTransactionRolledBack": true,
+        "ledgerId": "0024_chickenbro_agent_observability",
+        "table": "app.chickenbro_agent_traces",
+        "requiredIndexCount": 2,
+        "wowAppSelect": true,
+        "wowAppInsert": true,
+        "wowAppUpdate": false,
+        "wowAppDelete": false
+      },
+      "apiTrace": {
+        "sessionHttpStatus": 200,
+        "messageHttpStatus": 200,
+        "jobStatus": "succeeded",
+        "traceCountForJob": 1,
+        "ownerSessionMessageJobIdentitiesMatch": true,
+        "schemaRevision": "chickenbro-agent-trace-v1",
+        "runtimeVersion": "chickenbro-fixed-allowlist-v1",
+        "requestTextAbsent": true,
+        "answerTextAbsent": true,
+        "wrongOwnerReadIsolated": true,
+        "publicResponseSchemaChanged": false
+      },
+      "rollback": {
+        "priorCodeRestored": true,
+        "healthHttpStatus": 200,
+        "normalMessageHttpStatus": 200,
+        "normalMessageJobStatus": "succeeded",
+        "additiveTableRetained": true,
+        "traceCountBeforeAndAfterPriorCodeMessage": 2
+      },
+      "restoredCandidate": {
+        "healthHttpStatus": 200,
+        "normalMessageHttpStatus": 200,
+        "normalMessageJobStatus": "succeeded",
+        "traceCountForJob": 1,
+        "totalTraceIncrement": 1
+      },
+      "timers": {
+        "newAsyncSyncOrBackfillStarted": false,
+        "wow-websim-sync.timer": "enabled/active",
+        "wow-stat-weights-sync.timer": "enabled/inactive",
+        "wow-community-template-sync.timer": "enabled/active",
+        "wow-season-recommended-gear-sync.timer": "enabled/active",
+        "wow-data-health-followup.timer": "enabled/active"
+      },
+      "recentWarnings": "none"
+    },
+    "productionReleaseStatus": "pending_user_closure"
+  },
+  "runtimeEvidence": [
+    {
+      "type": "candidate_file_parity",
+      "status": "pass",
+      "summary": "All four deployed runtime and migration files matched the 9cfe202 candidate hashes after the final restart."
+    },
+    {
+      "type": "postgres_migration",
+      "status": "pass",
+      "summary": "A transactionally rolled-back dry run and the final idempotent apply both produced migration 0024, the owner/session indexes, and least-privilege wow_app access."
+    },
+    {
+      "type": "owner_bound_trace",
+      "status": "pass",
+      "summary": "A real successful Agent job produced exactly one linked Trace; request and answer text were absent and a wrong-owner store read raised not found."
+    },
+    {
+      "type": "code_rollback",
+      "status": "pass",
+      "summary": "The prior code answered normally with the additive table retained and no new Trace, after which the exact candidate was restored and produced one new Trace."
+    },
+    {
+      "type": "service_and_backflow",
+      "status": "pass",
+      "summary": "Localhost and public health passed, no new async sync/backfill was started, existing timer states were recorded, and recent backend warnings were empty."
+    }
+  ],
+  "localReview": {
+    "status": "pass",
+    "corrections": [
+      "Unknown but format-valid request-scope slugs now collapse to empty categorical dimensions before projection.",
+      "The SQLite compatibility migration ledger now invalidates the prior init fast-path so existing databases create the Trace table once.",
+      "PostgreSQL migration 0024 now explicitly limits wow_app to SELECT and INSERT so runtime Trace writes do not depend on historic default privileges.",
+      "postgres_personal_store now imports the Trace validator in both package and production script-entrypoint modes, covered by a subprocess regression test."
+    ],
+    "assertions": [
+      "No prompt, answer, message content, Tool fact, character or realm, report identity, URL, token, or stdout enters Trace or projection.",
+      "No cross-owner list/read method exists.",
+      "No Tool selection, prompt, model schema, answer validation, public API, or frontend file changed.",
+      "No Trace error can mask a validated answer or original generation failure.",
+      "No Phase 2-5 table, runtime, flag, or lifecycle status exists."
+    ]
+  },
+  "risks": [
+    {
+      "id": "candidate_runtime_pending",
+      "status": "resolved",
+      "detail": "Exact candidate file parity, PostgreSQL migration, real owner-bound Trace creation, wrong-owner isolation, service health, and code rollback/restore were verified on the known cloud server."
+    },
+    {
+      "id": "phase1_signal_limits",
+      "status": "bounded",
+      "detail": "Phase 1 records deterministic terminal outcomes only; it does not infer user correction, create shared facts, cluster CapabilityGap, or promote abilities."
+    }
+  ],
+  "rollback": [
+    "Restore the previous backend and personal-store code/build identity, restart wow-backend, and retain the additive 0024 Trace table.",
+    "Do not delete owner-bound Trace, message, session, or Agent job rows during code rollback."
+  ],
+  "cleanup": {
+    "required": true,
+    "reason": "Remove the task worktree and branch only after explicit closure authorization, merge, pushed main parity, and final verification."
+  },
+  "archivedReferences": [
+    "docs/plans/2026-08-02-chickenbro-capability-evolution-design.md",
+    "docs/plans/2026-08-02-chickenbro-observability-phase1-implementation.md",
+    "docs/harness.md"
+  ],
+  "summary": "Phase 1 is runtime verified on candidate commit 9cfe202: bounded owner-isolated Trace persistence, deterministic outcome mapping, text-free projection, and four-case offline Eval are implemented without changing frontend or answer policy. PostgreSQL migration, real API/Trace isolation, file parity, service health, and non-destructive rollback/restore passed. Merge, main parity, production closure, and cleanup remain pending explicit user authorization."
+}

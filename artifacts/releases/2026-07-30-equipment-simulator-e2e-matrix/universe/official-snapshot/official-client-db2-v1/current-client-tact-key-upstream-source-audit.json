@@ -23,13 +23,13 @@
     },
     "verifiedDBCacheCorpus": {
       "path": "dbcache-68887-verified-corpus-audit.json",
-      "bytes": 15590,
-      "sha256": "50fd683bfd0bdb2bf8e590fefc130b0afcd55eb916c835b54a4efb8745893f18"
+      "bytes": 15138,
+      "sha256": "2653f25bd563a405f204d431ac63f91e58356e31563c5ba3e27d180701d9b15b"
     },
     "unverifiedDBCacheCorpus": {
       "path": "dbcache-68887-unverified-corpus-audit.json",
-      "bytes": 115128,
-      "sha256": "1e481d57c6b061cb2209bf9e140f778a39777d6e2f4cf09903be3e1b62eb8a76"
+      "bytes": 111972,
+      "sha256": "748157bc81fe63eae69857ebb242ed39bc7f6434c935121ed5f054d682e4f506"
     }
   },
   "sourceResults": {

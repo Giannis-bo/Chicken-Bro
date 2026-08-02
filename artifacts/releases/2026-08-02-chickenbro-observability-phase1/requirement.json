@@ -1,0 +1,147 @@
+{
+  "schemaVersion": 1,
+  "slug": "chickenbro-observability-phase1",
+  "classification": "Strict",
+  "status": "implementation_allowed",
+  "goal": "Add an owner-bound, privacy-bounded observability baseline for the existing Chickenbro source Agent without changing its answer, Tool selection, public API, or frontend behavior.",
+  "userValue": "Repeated success and failure patterns can become independently testable evidence for later capability improvement, while the player's raw conversation remains owner-bound and the current chat experience stays unchanged.",
+  "scope": [
+    "owner-bound structured Chickenbro agent traces",
+    "deterministic terminal outcome signals",
+    "text-free deidentified trace projection",
+    "offline no-network trace eval corpus"
+  ],
+  "outOfScope": [
+    "dynamic Tool Registry",
+    "CapabilityGap persistence or clustering",
+    "Cloud Codex Toolsmith",
+    "shadow, canary, promotion or model training",
+    "frontend or answer-policy changes"
+  ],
+  "nonGoals": [
+    "Do not add a dynamic Tool Registry, CapabilityGap store, Cloud Codex Toolsmith, shadow, canary, promotion, or model training.",
+    "Do not change Tool selection, prompts, model schemas, answer validation, public endpoints, frontend files, or answer policy.",
+    "Do not persist raw chat, prompts, answer text, credentials, WCL report identity, SimC stdout, URLs, Tool facts, or cross-owner references in Trace or projection.",
+    "Do not infer explicit user correction signals from natural-language chat in Phase 1."
+  ],
+  "currentTruth": {
+    "sources": [
+      "docs/project-state.json",
+      "docs/roadmap.md",
+      "docs/plans/README.md",
+      "docs/plans/2026-08-02-chickenbro-capability-evolution-design.md",
+      "docs/plans/2026-08-02-chickenbro-observability-phase1-implementation.md",
+      "docs/backend-owner-map.json",
+      "docs/project-owner-map.json",
+      "docs/harness.md",
+      "docs/verification-matrix.md"
+    ],
+    "activeMilestone": "chickenbro_capability_evolution_phase1",
+    "featureIteration": "phase1_only_later_phases_not_authorized",
+    "baseBranch": "main"
+  },
+  "impactMap": {
+    "mustChange": [
+      "Create a strict, allowlisted Chickenbro Agent Trace and text-free deidentified projection.",
+      "Persist exactly one owner-bound Trace per terminal Agent job in PostgreSQL and the SQLite compatibility adapter.",
+      "Map only deterministic terminal execution outcomes and keep explicit correction reserved for future verified feedback events.",
+      "Provide a synthetic offline Eval corpus and deterministic runner with no network, model, database, or Tool execution."
+    ],
+    "mustNotChange": [
+      "Agent traces must never contain raw chat, prompts, answer text, credentials, WCL report identity, SimC stdout, or cross-owner references.",
+      "Trace persistence failure must not change a validated answer or replace the original model error.",
+      "Existing Tool selection, prompt, model schema, answer validation, public API, frontend, and user-visible answer behavior remain unchanged.",
+      "No Phase 2-5 runtime, table, flag, lifecycle, or publishing state is introduced."
+    ],
+    "riskUnknown": [
+      "Candidate PostgreSQL migration and live terminal Trace creation still require the planned cloud smoke and rollback proof.",
+      "Phase 1 records bounded outcomes but does not yet provide cross-user clustering, quality grading, or promotion decisions."
+    ],
+    "evidenceRequired": [
+      "Focused Trace, Eval, backend, PostgreSQL schema/store, SQLite adapter, and database adapter tests.",
+      "Offline CLI result with exactly four passing synthetic cases and no runtime dependency.",
+      "Local CR confirming privacy, owner isolation, failure containment, public-contract stability, and Phase 1 scope.",
+      "Exact clean-HEAD full Harness verification for this task-scoped packet.",
+      "Candidate file/build identity, migration presence, real API/Trace owner-isolation smoke, timer/backflow state, and non-destructive rollback proof."
+    ]
+  },
+  "ownership": {
+    "factOwner": "server/chickenbro_observability.py owns the bounded Trace and projection contracts; server/news_backend.py and server/postgres_personal_store.py own terminal writes; raw chat and response facts remain in their existing owner-bound stores.",
+    "consumers": [
+      "server/news_backend.py terminal Agent paths",
+      "server/postgres_personal_store.py owner-bound persistence",
+      "server/chickenbro_eval.py offline deterministic evaluation",
+      "scripts/evaluate_chickenbro_traces.py",
+      "tests/fixtures/chickenbro_trace_eval_cases.json"
+    ]
+  },
+  "engineeringHealth": {
+    "status": "hotspot_guarded",
+    "reason": "The terminal hook is necessarily placed in the existing news_backend hotspot, while Trace shaping and Eval remain isolated pure modules; writes are additive, owner-bound, idempotent by Agent job, and best-effort after terminal response persistence."
+  },
+  "acceptanceEvidence": [
+    "Normal successful and failed Chickenbro paths preserve their existing response/exception behavior while creating one bounded Trace per job.",
+    "Owner-mismatched PostgreSQL and SQLite reads return no Trace, and no cross-owner list/read method exists.",
+    "The four-case synthetic Eval suite and CLI pass without importing news_backend or using network, model, database, or Tool execution.",
+    "The task-scoped full Harness passes on an exact clean HEAD.",
+    "Candidate deployment verifies migration 0024, service health, one real owner-isolated API/Trace path, timer/backflow state, and code rollback with the additive table retained."
+  ],
+  "manualAcceptanceContract": {
+    "required": false,
+    "requiredItemIds": []
+  },
+  "releaseTrigger": "backend_api",
+  "rollback": [
+    "code_rollback",
+    "service_restart",
+    "retain_additive_trace_table"
+  ],
+  "decisionLog": [
+    {
+      "date": "2026-08-02",
+      "decision": "The user approved a capability evolution control plane instead of a static public knowledge base or online self-modifying Agent."
+    },
+    {
+      "date": "2026-08-02",
+      "decision": "The user authorized Phase 1 implementation; later Registry, Gap, Toolsmith, shadow, canary, and promotion phases remain separately gated."
+    }
+  ],
+  "harnessFindings": [
+    {
+      "id": "trace-scope-categorical-allowlist-20260802",
+      "status": "finding_only",
+      "whatHappened": "Local CR found that format-valid but unknown scope slugs could enter the deidentified projection.",
+      "missedGate": "Deidentified projection categorical allowlist",
+      "impact": "A user-controlled class, spec, region, phase, topic, or scenario slug could have become a cross-user projection dimension.",
+      "recommendedAction": "Keep every projection dimension on an explicit product taxonomy allowlist and regress unknown slugs to the empty category.",
+      "promotion": "finding_only"
+    },
+    {
+      "id": "sqlite-observability-migration-fast-path-20260802",
+      "status": "finding_only",
+      "whatHappened": "Local CR found that an existing SQLite compatibility database with all prior migration IDs would skip creation of the new Trace table.",
+      "missedGate": "Existing-database compatibility migration identity",
+      "impact": "The compatibility path could answer normally but fail every Trace write after an upgrade.",
+      "recommendedAction": "Every additive SQLite compatibility schema change must add a migration ledger identity that invalidates the init fast-path once.",
+      "promotion": "finding_only"
+    },
+    {
+      "id": "postgres-trace-runtime-privileges-20260802",
+      "status": "finding_only",
+      "whatHappened": "Candidate pre-deployment review found that migration 0024 did not explicitly grant the PostgreSQL runtime role access to the new Trace table.",
+      "missedGate": "Runtime-role privilege contract for additive PostgreSQL tables",
+      "impact": "A migration applied by postgres instead of wow_migrator could leave online Trace writes failing while normal answers continued through best-effort containment.",
+      "recommendedAction": "Every runtime-owned PostgreSQL table must declare least-privilege grants explicitly and test them independently of default-privilege history.",
+      "promotion": "finding_only"
+    },
+    {
+      "id": "postgres-store-script-entrypoint-import-20260802",
+      "status": "finding_only",
+      "whatHappened": "The first candidate API smoke found that postgres_personal_store imported the new Trace validator only through the server package path, while production starts news_backend.py as a script.",
+      "missedGate": "Production script-entrypoint import compatibility",
+      "impact": "Chickenbro session creation closed the HTTP connection before a response even though package-mode unit tests passed.",
+      "recommendedAction": "Every module reachable from the script-mode backend entrypoint must retain package and top-level import compatibility with a subprocess regression test.",
+      "promotion": "finding_only"
+    }
+  ]
+}

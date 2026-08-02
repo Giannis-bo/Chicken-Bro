@@ -5,6 +5,11 @@ import json
 import secrets
 import uuid
 
+try:
+    from .chickenbro_observability import validate_chickenbro_agent_trace
+except ImportError:  # pragma: no cover - script entrypoint compatibility
+    from chickenbro_observability import validate_chickenbro_agent_trace
+
 
 IDENTITY_NAMESPACE = uuid.UUID("b8589a4f-2d8f-4d34-82a8-f2f29d3e7ed6")
 CHICKENBRO_JOB_STATUSES = {"queued", "running", "succeeded", "failed", "timed_out"}
@@ -798,6 +803,84 @@ class PostgresPersonalStore:
                     ),
                 )
         return job_id
+
+    def insert_chickenbro_agent_trace(
+        self,
+        user_id,
+        session_id,
+        user_message_id,
+        agent_job_id,
+        trace,
+        now,
+    ):
+        payload = validate_chickenbro_agent_trace(trace)
+        trace_id = str(uuid.uuid4())
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO app.chickenbro_agent_traces (
+                        id, user_id, session_id, user_message_id, agent_job_id,
+                        schema_revision, runtime_version, answer_status, payload_json, created_at
+                    ) VALUES (
+                        %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb,
+                        COALESCE(%s::timestamptz, now())
+                    )
+                    ON CONFLICT (agent_job_id) DO NOTHING
+                    RETURNING id
+                    """,
+                    (
+                        trace_id,
+                        user_id,
+                        session_id,
+                        user_message_id,
+                        agent_job_id,
+                        payload["schemaRevision"],
+                        payload["runtimeVersion"],
+                        payload["answerStatus"],
+                        json_param(payload),
+                        now or None,
+                    ),
+                )
+                row = cur.fetchone()
+                if row:
+                    return str(row[0])
+                cur.execute(
+                    """
+                    SELECT id
+                    FROM app.chickenbro_agent_traces
+                    WHERE user_id = %s AND agent_job_id = %s
+                    """,
+                    (user_id, agent_job_id),
+                )
+                row = cur.fetchone()
+                if not row:
+                    raise PermissionError("chickenbro trace job owner mismatch")
+                return str(row[0])
+
+    def get_chickenbro_agent_trace(self, user_id, agent_job_id):
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT id, session_id, user_message_id, agent_job_id, payload_json, created_at
+                    FROM app.chickenbro_agent_traces
+                    WHERE user_id = %s AND agent_job_id = %s
+                    """,
+                    (user_id, agent_job_id),
+                )
+                row = cur.fetchone()
+        if not row:
+            raise KeyError("chickenbro agent trace not found")
+        payload = _json_value(row[4], {})
+        return {
+            "traceId": str(row[0]),
+            "sessionId": str(row[1]),
+            "userMessageId": str(row[2]),
+            "agentJobId": str(row[3]),
+            "payload": payload if isinstance(payload, dict) else {},
+            "createdAt": str(row[5]),
+        }
 
     def update_agent_job(
         self,

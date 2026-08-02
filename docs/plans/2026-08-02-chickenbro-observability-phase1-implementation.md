@@ -8,7 +8,9 @@
 
 **Tech Stack:** Python 3 标准库、`unittest`、现有 `wow-backend`、PostgreSQL personal store、SQLite 测试适配器、JSON fixture、Project Harness。
 
-状态：`下一步，待用户确认实施`
+状态：`正在推进`（Phase 1 候选运行时验证已完成；合并、`main` parity、正式收尾与清理等待用户明确授权）
+
+当前证据：[Phase 1 release packet](../../artifacts/releases/2026-08-02-chickenbro-observability-phase1/evidence.json)
 
 设计依据：[能力演化控制面设计](2026-08-02-chickenbro-capability-evolution-design.md)
 
@@ -870,7 +872,7 @@ Add `insert_chickenbro_agent_trace` to the fake store in `test_news_backend_rout
 Run:
 
 ```powershell
-python -m unittest tests.chickenbro_observability_test tests.chickenbro_agent_test tests.news_backend_test tests.database_adapter_test tests.postgres_personal_store_test tests.postgres_schema_test
+python -m unittest tests.chickenbro_observability_test tests.news_backend_test tests.chickenbro_agent_test tests.database_adapter_test tests.postgres_personal_store_test tests.postgres_schema_test
 ```
 
 Expected: all pass; existing model failure still returns the same retryable 503 at HTTP level, no fixed assistant message appears, and successful answer content is byte-for-byte unchanged by tracing.
@@ -1122,7 +1124,7 @@ Run sequentially on the exact candidate HEAD:
 
 ```powershell
 python -m unittest tests.chickenbro_observability_test tests.chickenbro_eval_test
-python -m unittest tests.chickenbro_agent_test tests.news_backend_test
+python -m unittest tests.news_backend_test tests.chickenbro_agent_test
 python -m unittest tests.postgres_schema_test tests.postgres_personal_store_test tests.database_adapter_test
 python scripts/evaluate_chickenbro_traces.py
 git diff --check
