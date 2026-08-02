@@ -20,7 +20,7 @@
 | 当前赛季 PVE Journal 静默遗漏门禁 | 已完成 | [实施计划](2026-07-29-season-pve-journal-omission-guard.md) · [live evidence](../../artifacts/releases/2026-07-29-season-pve-journal-omission-guard/evidence.json) |
 | Observed Build Registry 与 80 槽 TemplateSet 重构 | 正在推进 | [设计](2026-07-23-observed-build-registry-design.md) · [核心切片实施计划](2026-07-23-observed-build-registry-core-implementation.md) · [共享玩家切换计划](2026-07-23-observed-build-registry-cutover-implementation.md) |
 | builds_home 职业命令卡组 | 正在推进 | [builds-home-command-deck.md](builds-home-command-deck.md) |
-| 炸鸡队长统一 ChatBot 与受控分析工具 | 正在推进（Phase 2 候选已验证） | [后端架构](2026-07-24-chickenbro-chatbot-design.md) · [Phase 1 极简聊天表面](2026-08-01-chickenbro-chat-surface-design.md) · [聊天表面实施计划](2026-08-01-chickenbro-chat-surface-implementation.md) · [来源驱动 Agent 实施计划](2026-08-01-chickenbro-source-agent-implementation.md) · [能力演化控制面设计](2026-08-02-chickenbro-capability-evolution-design.md) · [能力演化 Phase 1 实施计划](2026-08-02-chickenbro-observability-phase1-implementation.md) · [能力演化 Phase 2 设计](2026-08-02-chickenbro-tool-registry-phase2-design.md) · [能力演化 Phase 2 实施计划](2026-08-02-chickenbro-tool-registry-phase2-implementation.md) · [Phase 2 证据](../../artifacts/releases/2026-08-02-chickenbro-tool-registry-phase2/evidence.json) |
+| 炸鸡队长统一 ChatBot 与受控分析工具 | 正在推进（Phase 2 已归档；Phase 3–5 未授权） | [后端架构](2026-07-24-chickenbro-chatbot-design.md) · [Phase 1 极简聊天表面](2026-08-01-chickenbro-chat-surface-design.md) · [聊天表面实施计划](2026-08-01-chickenbro-chat-surface-implementation.md) · [来源驱动 Agent 实施计划](2026-08-01-chickenbro-source-agent-implementation.md) · [能力演化控制面设计](2026-08-02-chickenbro-capability-evolution-design.md) · [能力演化 Phase 1 实施计划](2026-08-02-chickenbro-observability-phase1-implementation.md) |
 | SQLite 全面退役 | 下一步 | [退役设计](2026-08-02-sqlite-complete-retirement-design.md) |
 
 ## 稳定目标与归档基线
@@ -32,6 +32,7 @@
 | --- | --- | --- |
 | 装备模拟长期目标合同 | 已完成 | [目标架构](2026-07-28-equipment-simulator-target-architecture.md) |
 | 装备模拟 v1 基线 | 已完成 | [Phase 4 归档证据](../../artifacts/releases/2026-07-29-equipment-simulator-phase4-manifest-cutover/evidence.json) · [Track Authority 规则输入](2026-07-28-equipment-simulator-track-authority-correction.md) · [Phase 3 归档证据](../../artifacts/releases/2026-07-29-equipment-simulator-phase3-resolved-snapshot/evidence.json) · [Phase 2 归档证据](../../artifacts/releases/2026-07-29-equipment-simulator-phase2-exact-enhancement/evidence.json) · [Phase 1 归档证据](../../artifacts/releases/2026-07-29-equipment-simulator-phase1-catalog-contract/evidence.json) · [Phase 0 归档证据](../../artifacts/releases/2026-07-28-equipment-simulator-phase0-unblock/evidence.json) |
+| 炸鸡队长 Tool Registry Phase 2 基线 | 已完成 | [设计](2026-08-02-chickenbro-tool-registry-phase2-design.md) · [实施记录](2026-08-02-chickenbro-tool-registry-phase2-implementation.md) · [归档证据](../../artifacts/releases/2026-08-02-chickenbro-tool-registry-phase2/evidence.json) |
 
 新的多步骤计划必须先在“当前执行计划”登记。计划完成或被替代后，从当前执行表移除；
 稳定结论进入 architecture、runbook、roadmap 或本页明确标注为无执行权的稳定参考。

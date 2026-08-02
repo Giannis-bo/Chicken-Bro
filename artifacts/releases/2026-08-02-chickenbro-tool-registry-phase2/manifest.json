@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-08-02T15:17:08.967Z",
+  "generatedAt": "2026-08-02T15:43:57.094Z",
   "release": {
     "date": "2026-08-02",
     "slug": "chickenbro-tool-registry-phase2"
@@ -53,7 +53,7 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 14493
+          "sizeBytes": 14536
         },
         {
           "path": "docs/README.md",
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-08-02-chickenbro-tool-registry-phase2/evidence.json",
-    "sizeBytes": 13800,
+    "sizeBytes": 14673,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -390,9 +390,9 @@
       "summary"
     ],
     "missingFields": [],
-    "declaredStatus": "live_verified",
-    "highestEvidenceLevel": "live_verified",
-    "summary": "Chickenbro Tool Registry Phase 2 is locally and live verified on immutable candidate 8507030. PostgreSQL migration 0025, exact two-Tool discovery, read-only privileges, three-path Trace v2 smoke, bounded cache/failure behavior and P1 code rollback/restoration all passed without frontend or public response changes; merge and archive closure remain pending."
+    "declaredStatus": "archived",
+    "highestEvidenceLevel": "archived",
+    "summary": "Chickenbro Tool Registry Phase 2 is merged, verified and archived. Merge commit 4176bb7 integrated PostgreSQL migration 0025, exact two-Tool discovery, read-only privileges, Registry Trace v2, bounded cache/failure behavior and P1-compatible rollback without frontend or public response changes. PR CI and post-merge scoped verification passed; local and origin main parity was verified before task cleanup, and the live runtime remains immutably bound to verified candidate 8507030."
   },
   "evidence": {
     "localTests": {
@@ -417,7 +417,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "5 changed files currently visible to git status."
+      "detail": "6 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
@@ -453,13 +453,14 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 5,
+      "changedFileCount": 6,
       "changedFiles": [
         " M artifacts/releases/2026-08-02-chickenbro-tool-registry-phase2/evidence.json",
         " M docs/plans/2026-08-02-chickenbro-capability-evolution-design.md",
         " M docs/plans/2026-08-02-chickenbro-tool-registry-phase2-design.md",
         " M docs/plans/2026-08-02-chickenbro-tool-registry-phase2-implementation.md",
-        " M docs/plans/README.md"
+        " M docs/plans/README.md",
+        " M docs/roadmap.md"
       ]
     }
   },

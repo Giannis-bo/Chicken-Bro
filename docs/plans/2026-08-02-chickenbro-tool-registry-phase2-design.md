@@ -1,6 +1,6 @@
 # 炸鸡队长能力演化 Phase 2：Tool Registry 设计
 
-状态：`正在推进（候选已验证，等待集成归档）`
+状态：`已完成（已合入并归档）`
 分类：`Strict`
 确认日期：2026-08-02
 
@@ -231,3 +231,4 @@ selectedCapabilityIds
 - 2026-08-02：用户批准继续能力演化 P2 并要求推进到完成收尾。
 - 2026-08-02：首批 Registry 只包含 Raider.IO 与 Warcraft Logs；个人模板和 SimC 保持 context evidence。
 - 2026-08-02：采用 PostgreSQL 不可变 Manifest/Release + 仓库内 adapter 绑定；拒绝静态文件 Registry 和数据库任意代码加载。
+- 2026-08-02：PR #113 在完整 CI 通过后以 merge commit `4176bb75957c57cbcb4e11f3c887eb6a1b38679c` 合入；Phase 2 归档，Phase 3–5 未授权。

@@ -8,7 +8,7 @@
 
 **Tech Stack:** Python 3 standard library, `unittest`, PostgreSQL/psycopg, existing `wow-backend`, existing Raider.IO and Warcraft Logs adapters, Project Harness, systemd.
 
-状态：`正在推进（候选验证与回滚已通过，等待集成归档）`
+状态：`已完成（已合入并归档）`
 分类：`Strict`
 确认日期：2026-08-02
 
@@ -550,9 +550,11 @@ Do not mutate the active release to simulate failure on the shared candidate. Us
 
 Restore the recorded P1 backend/runtime files, restart and verify health plus the same WCL/build/general smoke under fixed allowlist, leaving additive 0025 tables intact. Restore the exact P2 candidate and repeat health plus one Registry-backed request. Record hashes and Trace schema differences.
 
-- [ ] **Step 8: Final CR, commit, merge and archive**
+- [x] **Step 8: Final CR, commit, merge and archive**
 
 Update evidence to `candidate_verified`, run final local CR and targeted tests, commit all task files, push the task branch and open/update its PR. After CI is green, merge without history rewrite, verify merged `main` with scoped tests, push, verify local `main == origin/main`, verify cloud files/runtime identity match the approved candidate or deploy exact merged tree if required, then update evidence/control-plane status to archived and remove only this task worktree/local/published branch. No WeChat refresh is required because active frontend files do not change.
+
+Closure evidence: PR #113 passed the full CI profile and merged as `4176bb75957c57cbcb4e11f3c887eb6a1b38679c`. The merged tree passed the scoped 44 + 36 + 298 + 32 Python tests, four-case Eval and 16 owner-map tests. The live runtime remains bound to immutable candidate `8507030f0a40e1b082769372d0d8974390c1910f`; the final archive commit changes documentation and evidence only.
 
 ## Final acceptance matrix
 
