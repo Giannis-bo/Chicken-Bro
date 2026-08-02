@@ -1,12 +1,12 @@
 # 炸鸡队长能力演化 Phase 2：Tool Registry 设计
 
-状态：`已确认设计`
+状态：`正在推进（本地实现完成，等待候选验证）`
 分类：`Strict`
 确认日期：2026-08-02
 
 本设计落实[能力演化控制面总设计](2026-08-02-chickenbro-capability-evolution-design.md)的 Phase 2。Phase 1 的 Trace、Outcome 与离线 Eval 已归档；本阶段只把现有 Raider.IO 与 Warcraft Logs 来源 Tool 从固定分支迁移到版本化 Registry，不制造新 Tool，不授权后续 Gap、Toolsmith、shadow、canary 或自动 promotion。
 
-当前事实入口：[project-state.json](../project-state.json)、[roadmap.md](../roadmap.md)、[plans/README.md](README.md)、[Phase 1 证据](../../artifacts/releases/2026-08-02-chickenbro-observability-phase1/evidence.json)、[Harness](../harness.md)、[验证矩阵](../verification-matrix.md)
+当前事实入口：[project-state.json](../project-state.json)、[roadmap.md](../roadmap.md)、[plans/README.md](README.md)、[Phase 1 证据](../../artifacts/releases/2026-08-02-chickenbro-observability-phase1/evidence.json)、[Phase 2 证据](../../artifacts/releases/2026-08-02-chickenbro-tool-registry-phase2/evidence.json)、[Harness](../harness.md)、[验证矩阵](../verification-matrix.md)
 
 ## 需求合同
 

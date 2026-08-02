@@ -8,11 +8,13 @@
 
 **Tech Stack:** Python 3 standard library, `unittest`, PostgreSQL/psycopg, existing `wow-backend`, existing Raider.IO and Warcraft Logs adapters, Project Harness, systemd.
 
-状态：`正在推进`
+状态：`正在推进（候选验证与回滚证明）`
 分类：`Strict`
 确认日期：2026-08-02
 
 设计入口：[Phase 2 Tool Registry 设计](2026-08-02-chickenbro-tool-registry-phase2-design.md)
+
+证据入口：[Phase 2 task-scoped evidence](../../artifacts/releases/2026-08-02-chickenbro-tool-registry-phase2/evidence.json)
 
 ## Global Constraints
 

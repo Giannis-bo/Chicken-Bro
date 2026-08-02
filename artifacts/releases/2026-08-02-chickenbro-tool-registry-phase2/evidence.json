@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 2,
+  "slug": "chickenbro-tool-registry-phase2",
+  "requirementSlug": "chickenbro-tool-registry-phase2",
+  "status": "implementation_allowed",
+  "highestEvidenceLevel": "implementation_allowed",
+  "branch": "codex/chickenbro-tool-registry-phase2",
+  "commit": "pending_candidate_commit",
+  "identities": {
+    "runtime": {
+      "status": "pending",
+      "reason": "The immutable candidate commit and cloud file hashes are not yet bound."
+    },
+    "verification": {
+      "status": "pending",
+      "reason": "Exact clean-HEAD full Harness verification is pending."
+    },
+    "closure": {
+      "status": "pending",
+      "reason": "Merge and archive closure have not occurred."
+    }
+  },
+  "manualAcceptance": {
+    "required": false,
+    "status": "not_applicable",
+    "reason": "Phase 2 changes backend capability discovery and observability without changing the frontend or public answer schema.",
+    "items": [],
+    "rollup": {
+      "total": 0,
+      "accepted": 0,
+      "notRunUserWaived": 0,
+      "pending": 0
+    }
+  },
+  "scope": [
+    "immutable PostgreSQL Tool manifests and active Registry Release",
+    "deterministic Registry discovery for existing Raider.IO and Warcraft Logs Tools",
+    "repository-bound adapter execution with no arbitrary implementation loading",
+    "Registry Trace v2 with P1 Trace v1 read compatibility",
+    "read-only Registry health and bounded verified-cache degradation"
+  ],
+  "verification": [
+    {
+      "command": "python -m unittest tests.chickenbro_registry_test tests.chickenbro_tool_runtime_test tests.postgres_schema_test tests.postgres_ops_store_test -v",
+      "status": "not_run",
+      "summary": "Pending final focused verification."
+    },
+    {
+      "command": "python -m unittest tests.chickenbro_observability_test tests.chickenbro_eval_test tests.chickenbro_agent_test -v",
+      "status": "not_run",
+      "summary": "Pending final focused verification."
+    },
+    {
+      "command": "python -m unittest tests.news_backend_test tests.postgres_personal_store_test -v",
+      "status": "not_run",
+      "summary": "Pending final backend regression verification."
+    },
+    {
+      "command": "python scripts/evaluate_chickenbro_traces.py",
+      "status": "not_run",
+      "summary": "Pending final deterministic Eval verification."
+    },
+    {
+      "command": "node --test tests/project-owner-map.test.js tests/backend-owner-map.test.js",
+      "status": "not_run",
+      "summary": "Pending owner-map verification."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-08-02-chickenbro-tool-registry-phase2",
+      "status": "not_run",
+      "summary": "Pending exact clean-HEAD full Harness verification."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "pending",
+    "reason": "Candidate deployment, live three-path smoke and rollback proof are pending."
+  },
+  "runtimeEvidence": [],
+  "risks": [
+    "Registry reads, runtime-role privileges, cache degradation and script-entrypoint wiring still require candidate cloud proof.",
+    "Phase 2 must remain exactly two Tools and must not become a publication surface for generated code."
+  ],
+  "rollback": [
+    "code_rollback",
+    "service_restart",
+    "retain_additive_registry_tables"
+  ],
+  "cleanup": {
+    "required": true,
+    "items": [
+      "remove task worktree after archived main and origin parity",
+      "delete local and published task branch after containment proof"
+    ]
+  },
+  "archivedReferences": [
+    "docs/plans/2026-08-02-chickenbro-capability-evolution-design.md",
+    "docs/plans/2026-08-02-chickenbro-tool-registry-phase2-design.md",
+    "docs/plans/2026-08-02-chickenbro-tool-registry-phase2-implementation.md"
+  ],
+  "summary": "Phase 2 implementation is complete locally and awaits exact clean-HEAD verification, immutable candidate deployment, live three-path smoke and code rollback proof."
+}

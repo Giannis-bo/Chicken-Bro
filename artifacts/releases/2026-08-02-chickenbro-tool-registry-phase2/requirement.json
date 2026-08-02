@@ -1,0 +1,111 @@
+{
+  "schemaVersion": 1,
+  "slug": "chickenbro-tool-registry-phase2",
+  "classification": "Strict",
+  "status": "implementation_allowed",
+  "goal": "Replace Chickenbro's fixed source Tool selection with a PostgreSQL-backed immutable Tool Registry Release while preserving answer, evidence, owner and source boundaries.",
+  "userValue": "Players keep asking natural-language questions while the service can prove which released source capabilities were available, discovered and selected without opening an arbitrary-code or self-publishing path.",
+  "scope": [
+    "immutable PostgreSQL Tool manifests and active Registry Release",
+    "deterministic Registry discovery for existing Raider.IO and Warcraft Logs Tools",
+    "repository-bound adapter execution with no arbitrary implementation loading",
+    "Registry Trace v2 with P1 Trace v1 read compatibility",
+    "read-only Registry health and bounded verified-cache degradation"
+  ],
+  "outOfScope": [
+    "new Tools or wrapping personal template and SimC context as Tools",
+    "CapabilityGap persistence or clustering",
+    "Cloud Codex Toolsmith or candidate generation",
+    "shadow, canary, promotion or model training",
+    "frontend, public response schema or answer-policy changes"
+  ],
+  "nonGoals": [
+    "Do not add new Tools or register personal template and SimC context as Tools.",
+    "Do not add CapabilityGap persistence, Cloud Codex Toolsmith, candidate generation, shadow, canary, promotion or model training.",
+    "Do not allow manifests, models or clients to select arbitrary implementations, code, URLs, credentials or owner values.",
+    "Do not change the frontend, public response schema or answer policy."
+  ],
+  "currentTruth": {
+    "sources": [
+      "docs/project-state.json",
+      "docs/roadmap.md",
+      "docs/plans/README.md",
+      "docs/plans/2026-08-02-chickenbro-capability-evolution-design.md",
+      "docs/plans/2026-08-02-chickenbro-tool-registry-phase2-design.md",
+      "docs/plans/2026-08-02-chickenbro-tool-registry-phase2-implementation.md",
+      "docs/backend-owner-map.json",
+      "docs/project-owner-map.json",
+      "docs/harness.md",
+      "docs/verification-matrix.md"
+    ],
+    "activeMilestone": "chickenbro_capability_evolution_phase2",
+    "featureIteration": "phase2_only_phase3_to_phase5_not_authorized",
+    "baseBranch": "main"
+  },
+  "impactMap": {
+    "mustChange": [
+      "Create immutable PostgreSQL Registry manifests, releases, membership and one separately mutable active pointer.",
+      "Discover exactly the existing Raider.IO and Warcraft Logs capabilities from a verified active release.",
+      "Execute only repository-bound adapters and expose bounded Registry identity in Trace v2 and health.",
+      "Fail closed without the old fixed allowlist when Registry identity is unavailable, invalid or expired."
+    ],
+    "mustNotChange": [
+      "The initial Registry contains exactly source:raiderio:v1 and source:warcraftlogs:v1.",
+      "Personal templates and SimC remain context evidence rather than Tools.",
+      "No arbitrary implementation, code, URL, credential or owner input becomes executable.",
+      "Existing public response schema, frontend and answer policy remain unchanged.",
+      "Phase 3-5 persistence, generation and promotion surfaces remain absent."
+    ],
+    "riskUnknown": [
+      "Candidate PostgreSQL privilege behavior, bounded cache degradation and production script-entrypoint wiring require cloud proof.",
+      "Additive Registry tables remain after code rollback and must not affect the restored P1 fixed-allowlist runtime."
+    ],
+    "evidenceRequired": [
+      "Migration and Ops-store contract tests with immutable rows and read-only wow_app privileges.",
+      "Focused Registry, runtime, Trace v2, Eval and backend regression tests.",
+      "Local CR and exact clean-HEAD full Harness verification.",
+      "Candidate three-path smoke, isolated failure probes, exact health and owner-isolated Trace reads.",
+      "Code rollback to P1 and exact P2 candidate restoration with service, hash and timer/backflow evidence."
+    ]
+  },
+  "ownership": {
+    "factOwner": "server/chickenbro_registry.py owns immutable Registry validation and discovery; server/chickenbro_tool_runtime.py owns verified cache and approved adapter dispatch; server/postgres_ops_store.py owns the transactional active-release read; server/news_backend.py only orchestrates the request path.",
+    "consumers": [
+      "server/news_backend.py",
+      "server/chickenbro_tool_runtime.py",
+      "server/chickenbro_observability.py",
+      "server/chickenbro_eval.py"
+    ]
+  },
+  "engineeringHealth": {
+    "status": "hotspot_guarded",
+    "reason": "The request-path seam remains in news_backend, but schema validation, discovery, verified caching and adapter dispatch are isolated pure modules; PostgreSQL runtime access is read-only and failures are explicit and fail closed."
+  },
+  "acceptanceEvidence": [
+    "Exactly two deterministic manifest identities are loaded behind one active immutable release and wow_app cannot write Registry state.",
+    "Build, public WCL and general questions preserve existing public responses while Trace v2 separates discovered and selected capabilities.",
+    "Unavailable, invalid and expired Registry probes do not call the fixed allowlist or an unregistered adapter.",
+    "Historical Trace v1 remains readable while new Registry-backed requests write Trace v2.",
+    "The exact clean candidate passes full Harness, candidate cloud smoke and P1 code rollback/restoration."
+  ],
+  "manualAcceptanceContract": {
+    "required": false,
+    "requiredItemIds": []
+  },
+  "releaseTrigger": "backend_api",
+  "rollback": [
+    "code_rollback",
+    "service_restart",
+    "retain_additive_registry_tables"
+  ],
+  "decisionLog": [
+    {
+      "date": "2026-08-02",
+      "decision": "The user approved a dynamic capability mechanism rather than a static public knowledge base."
+    },
+    {
+      "date": "2026-08-02",
+      "decision": "The user authorized Phase 2 completion with exactly the two existing source Tools; Phase 3-5 remain separately gated."
+    }
+  ]
+}
