@@ -1062,8 +1062,19 @@
       "status": "active",
       "ownerRole": "fact_owner",
       "factOwner": "server/news_backend.py",
+      "traceFactOwner": "server/chickenbro_observability.py",
       "writeBehavior": true,
       "writeOwner": "server/news_backend.py",
+      "traceWriteOwners": [
+        "server/news_backend.py",
+        "server/postgres_personal_store.py",
+        "server/migrations/postgres/0024_chickenbro_agent_observability.sql"
+      ],
+      "nonRuntimeEvaluationConsumers": [
+        "server/chickenbro_eval.py",
+        "scripts/evaluate_chickenbro_traces.py",
+        "tests/fixtures/chickenbro_trace_eval_cases.json"
+      ],
       "consumers": [
         "server/codex_worker.py",
         "server/postgres_personal_store.py",
@@ -1080,11 +1091,17 @@
       ],
       "mustNotChange": [
         "Do not expose raw SimC, logs, tokens or internal blockers in chat payloads.",
-        "Do not let direct chat create verified local evidence without read-model support."
+        "Do not let direct chat create verified local evidence without read-model support.",
+        "Agent traces must never contain raw chat, prompts, answer text, credentials, WCL report identity, SimC stdout, or cross-owner references.",
+        "Trace persistence failure must not change a validated answer or replace the original model error."
       ],
       "characterization": [
         "tests/news_backend_test.py",
+        "tests/chickenbro_observability_test.py",
+        "tests/chickenbro_eval_test.py",
         "tests/postgres_personal_store_test.py",
+        "tests/postgres_schema_test.py",
+        "tests/database_adapter_test.py",
         "packages/api-client/src/simulator.test.ts",
         "apps/mini-taro/src/pages/simulator/chickenbro-model.test.ts",
         "tests/simulator-page.test.js",
@@ -1095,6 +1112,8 @@
         "server/news_backend.py",
         "server/codex_worker.py",
         "server/postgres_personal_store.py",
+        "server/chickenbro_observability.py",
+        "server/migrations/postgres/0024_chickenbro_agent_observability.sql",
         "apps/mini-taro/src/pages/simulator/simulator.tsx",
         "apps/mini-taro/src/pages/simulator/chickenbro.tsx",
         "pages/simulator/chickenbro.js",
@@ -1118,6 +1137,17 @@
         "server/news_backend.py",
         "server/postgres_personal_store.py",
         "server/codex_worker.py",
+        "server/chickenbro_observability.py",
+        "server/chickenbro_eval.py",
+        "server/migrations/postgres/0024_chickenbro_agent_observability.sql",
+        "scripts/evaluate_chickenbro_traces.py",
+        "tests/chickenbro_observability_test.py",
+        "tests/chickenbro_eval_test.py",
+        "tests/fixtures/chickenbro_trace_eval_cases.json",
+        "tests/news_backend_test.py",
+        "tests/postgres_personal_store_test.py",
+        "tests/postgres_schema_test.py",
+        "tests/database_adapter_test.py",
         "packages/domain/src/entities.ts",
         "packages/api-client/src/simulator.ts",
         "apps/mini-taro/src/pages/simulator/{simulator,chickenbro,chickenbro-model}.*",
@@ -1135,7 +1165,11 @@
         "summary": "Existing backend, simulator page, profile auth and codex worker tests characterize session/job ownership, evidence boundaries and fallback behavior.",
         "coverage": [
           "tests/news_backend_test.py",
+          "tests/chickenbro_observability_test.py",
+          "tests/chickenbro_eval_test.py",
           "tests/postgres_personal_store_test.py",
+          "tests/postgres_schema_test.py",
+          "tests/database_adapter_test.py",
           "packages/api-client/src/simulator.test.ts",
           "apps/mini-taro/src/pages/simulator/chickenbro-model.test.ts",
           "tests/simulator-page.test.js",

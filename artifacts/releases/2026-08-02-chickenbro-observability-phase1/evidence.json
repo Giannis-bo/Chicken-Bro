@@ -1,0 +1,120 @@
+{
+  "schemaVersion": 2,
+  "slug": "chickenbro-observability-phase1",
+  "requirementSlug": "chickenbro-observability-phase1",
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
+  "branch": "codex/chickenbro-observability-phase1",
+  "commit": "pending_pr_head",
+  "identities": {
+    "runtime": {
+      "status": "pending",
+      "reason": "Candidate deployment and immutable runtime build identity are pending Task 6."
+    },
+    "verification": {
+      "status": "bound_at_check",
+      "kind": "git_ref",
+      "value": "HEAD"
+    },
+    "closure": {
+      "status": "pending",
+      "reason": "Merge, main parity, and archive closure are not authorized by implementation-start approval."
+    }
+  },
+  "manualAcceptance": {
+    "required": false,
+    "status": "not_applicable",
+    "reason": "Phase 1 adds backend observability only and intentionally changes no frontend, public response schema, Tool selection, or answer policy.",
+    "items": [],
+    "rollup": {
+      "total": 0,
+      "accepted": 0,
+      "notRunUserWaived": 0,
+      "pending": 0
+    }
+  },
+  "scope": [
+    "owner-bound structured Chickenbro agent traces",
+    "deterministic terminal outcome signals",
+    "text-free deidentified trace projection",
+    "offline no-network trace eval corpus"
+  ],
+  "verification": [
+    {
+      "command": "python -m unittest tests.chickenbro_observability_test tests.chickenbro_eval_test",
+      "status": "pass",
+      "summary": "14 pure Trace and Eval contract tests passed, including unknown-scope redaction and empty/duplicate corpus rejection."
+    },
+    {
+      "command": "python -m unittest tests.news_backend_test tests.chickenbro_agent_test",
+      "status": "pass",
+      "summary": "301 backend and Chickenbro Agent tests passed in the approved SQLite-safe order."
+    },
+    {
+      "command": "python -m unittest tests.postgres_schema_test tests.postgres_personal_store_test tests.database_adapter_test",
+      "status": "pass",
+      "summary": "72 PostgreSQL schema, owner-bound store, and database adapter tests passed."
+    },
+    {
+      "command": "python scripts/evaluate_chickenbro_traces.py",
+      "status": "pass",
+      "summary": "Four synthetic cases passed with failedCount=0 and no runtime dependencies."
+    },
+    {
+      "command": "Codex bundled Node: node --test tests/project-owner-map.test.js tests/backend-owner-map.test.js",
+      "status": "pass",
+      "summary": "16 owner-map contract tests passed after binding Trace ownership and offline Eval consumers."
+    },
+    {
+      "command": "git diff --check",
+      "status": "pass",
+      "summary": "No whitespace errors were reported for the candidate diff."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "pending",
+    "requiredBeforeMerge": true,
+    "reason": "Task 6 candidate file parity, migration, API/Trace, timer/backflow, and rollback smoke have not run yet."
+  },
+  "runtimeEvidence": [],
+  "localReview": {
+    "status": "pass",
+    "corrections": [
+      "Unknown but format-valid request-scope slugs now collapse to empty categorical dimensions before projection.",
+      "The SQLite compatibility migration ledger now invalidates the prior init fast-path so existing databases create the Trace table once."
+    ],
+    "assertions": [
+      "No prompt, answer, message content, Tool fact, character or realm, report identity, URL, token, or stdout enters Trace or projection.",
+      "No cross-owner list/read method exists.",
+      "No Tool selection, prompt, model schema, answer validation, public API, or frontend file changed.",
+      "No Trace error can mask a validated answer or original generation failure.",
+      "No Phase 2-5 table, runtime, flag, or lifecycle status exists."
+    ]
+  },
+  "risks": [
+    {
+      "id": "candidate_runtime_pending",
+      "status": "open",
+      "detail": "Local tests do not prove the PostgreSQL migration, service integration, owner-bound live Trace row, or rollback path on the known cloud server."
+    },
+    {
+      "id": "phase1_signal_limits",
+      "status": "bounded",
+      "detail": "Phase 1 records deterministic terminal outcomes only; it does not infer user correction, create shared facts, cluster CapabilityGap, or promote abilities."
+    }
+  ],
+  "rollback": [
+    "Restore the previous backend and personal-store code/build identity, restart wow-backend, and retain the additive 0024 Trace table.",
+    "Do not delete owner-bound Trace, message, session, or Agent job rows during code rollback."
+  ],
+  "cleanup": {
+    "required": true,
+    "reason": "Remove the task worktree and branch only after explicit closure authorization, merge, pushed main parity, and final verification."
+  },
+  "archivedReferences": [
+    "docs/plans/2026-08-02-chickenbro-capability-evolution-design.md",
+    "docs/plans/2026-08-02-chickenbro-observability-phase1-implementation.md",
+    "docs/harness.md"
+  ],
+  "summary": "Phase 1 code is locally verified: bounded owner-isolated Trace persistence, deterministic outcome mapping, text-free projection, and four-case offline Eval are implemented without changing frontend or answer policy. Candidate deployment and live rollback proof remain pending."
+}

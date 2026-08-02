@@ -1,10 +1,12 @@
 # 炸鸡队长能力演化控制面设计
 
-状态：`已确认设计，未授权实施`
+状态：`已确认设计`
 分类：`Strict（分阶段实施）`
 确认日期：2026-08-02
 
-本设计扩展[炸鸡队长统一 ChatBot 与受控分析架构](2026-07-24-chickenbro-chatbot-design.md)和[来源驱动 Agent 实施计划](2026-08-01-chickenbro-source-agent-implementation.md)。它定义长期能力演化边界，但不把现有来源 Agent 描述成已经具备 Toolsmith、动态 Tool Registry 或自动晋级能力，也不授予任何阶段实施、部署或生产发布权。每个实施阶段必须在本设计经用户书面审阅后单独规划、验证和发布。
+本设计扩展[炸鸡队长统一 ChatBot 与受控分析架构](2026-07-24-chickenbro-chatbot-design.md)和[来源驱动 Agent 实施计划](2026-08-01-chickenbro-source-agent-implementation.md)。它定义长期能力演化边界，但不把现有来源 Agent 描述成已经具备 Toolsmith、动态 Tool Registry 或自动晋级能力。Phase 1 已获得单独实施授权；Phase 2–5 仍必须分别规划、审阅、验证和发布，不能从本次授权推导。
+
+实施入口：[Phase 1：Trace、Outcome 与 Eval 基础实施计划](2026-08-02-chickenbro-observability-phase1-implementation.md)
 
 当前事实入口：[project-state.json](../project-state.json)、[roadmap.md](../roadmap.md)、[Harness](../harness.md)、[验证矩阵](../verification-matrix.md)
 
