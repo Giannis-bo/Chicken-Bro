@@ -394,6 +394,84 @@ class PostgresPersonalStoreTest(unittest.TestCase):
         self.assertIn("WHERE user_id = %s AND id = %s", sql)
         self.assertIn("WHERE user_id = %s AND id = %s AND job_type = 'chickenbro'", sql)
 
+    def test_chickenbro_agent_trace_insert_and_read_are_owner_bound(self):
+        from server.postgres_personal_store import PostgresPersonalStore
+
+        session_id = "11111111-1111-4111-8111-111111111111"
+        message_id = "22222222-2222-4222-8222-222222222222"
+        job_id = "33333333-3333-4333-8333-333333333333"
+        created_at = "2026-08-02T00:00:02+00:00"
+        trace_payload = {
+            "schemaRevision": "chickenbro-agent-trace-v1",
+            "runtimeVersion": "chickenbro-fixed-allowlist-v1",
+            "selectionMode": "fixed_allowlist",
+            "requestScope": {
+                "topicStatus": "in_scope",
+                "productPhase": "retail",
+                "region": "cn",
+                "classKey": "mage",
+                "specKey": "arcane",
+                "scenarioKey": "mythic_plus",
+            },
+            "discoveredCapabilityIds": [],
+            "selectedCapabilityIds": [],
+            "toolStatuses": [],
+            "evidenceRefs": [],
+            "answerStatus": "succeeded",
+            "validationStatus": "passed",
+            "outcomeSignals": [{"code": "answer_succeeded", "severity": "info"}],
+            "latencyMs": 500,
+            "boundedCost": {"status": "not_available"},
+            "createdAt": created_at,
+        }
+        connections = [
+            FakeConnection(rows=[("trace-pg-1",)]),
+            FakeConnection(
+                rows=[
+                    (
+                        "trace-pg-1",
+                        session_id,
+                        message_id,
+                        job_id,
+                        trace_payload,
+                        created_at,
+                    )
+                ]
+            ),
+            FakeConnection(),
+        ]
+        used = []
+
+        def connection_factory():
+            conn = connections.pop(0)
+            used.append(conn)
+            return conn
+
+        store = PostgresPersonalStore(connection_factory)
+        trace_id = store.insert_chickenbro_agent_trace(
+            "user-pg-1",
+            session_id,
+            message_id,
+            job_id,
+            trace_payload,
+            created_at,
+        )
+        trace = store.get_chickenbro_agent_trace("user-pg-1", job_id)
+
+        self.assertEqual("trace-pg-1", trace_id)
+        self.assertEqual("chickenbro-agent-trace-v1", trace["payload"]["schemaRevision"])
+        self.assertNotIn("user-pg-1", json.dumps(trace["payload"]))
+        self.assertNotIn("Answer text", json.dumps(trace["payload"]))
+        self.assertNotIn("How should Arcane play?", json.dumps(trace["payload"]))
+        sql = "\n".join(
+            statement for conn in used for statement in conn.cursor_instance.statements
+        )
+        self.assertIn("INSERT INTO app.chickenbro_agent_traces", sql)
+        self.assertIn("WHERE user_id = %s AND agent_job_id = %s", sql)
+        self.assertNotIn("SELECT content", sql)
+        with self.assertRaisesRegex(KeyError, "chickenbro agent trace not found"):
+            store.get_chickenbro_agent_trace("owner-b", job_id)
+
     def test_chickenbro_archive_summary_query_is_owner_bound_and_does_not_expose_metadata(self):
         from server.postgres_personal_store import PostgresPersonalStore
 

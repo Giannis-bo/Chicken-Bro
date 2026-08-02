@@ -26,6 +26,7 @@ WEBSIM_GEAR_EXACT_ITEM_INSTANCE = ROOT / "server" / "migrations" / "postgres" / 
 WEBSIM_SIMULATION_SNAPSHOT = ROOT / "server" / "migrations" / "postgres" / "0021_websim_simulation_snapshot.sql"
 WEBSIM_MANIFEST_V2 = ROOT / "server" / "migrations" / "postgres" / "0022_websim_manifest_v2.sql"
 WEBSIM_GEAR_CATALOG_VARIANT_SHAPES = ROOT / "server" / "migrations" / "postgres" / "0023_websim_gear_catalog_variant_shapes.sql"
+CHICKENBRO_AGENT_OBSERVABILITY = ROOT / "server" / "migrations" / "postgres" / "0024_chickenbro_agent_observability.sql"
 
 
 class PostgresSchemaTest(unittest.TestCase):
@@ -45,6 +46,7 @@ class PostgresSchemaTest(unittest.TestCase):
         cls.websim_simulation_snapshot_sql = WEBSIM_SIMULATION_SNAPSHOT.read_text(encoding="utf-8")
         cls.websim_manifest_v2_sql = WEBSIM_MANIFEST_V2.read_text(encoding="utf-8")
         cls.websim_gear_catalog_variant_shapes_sql = WEBSIM_GEAR_CATALOG_VARIANT_SHAPES.read_text(encoding="utf-8")
+        cls.chickenbro_agent_observability_sql = CHICKENBRO_AGENT_OBSERVABILITY.read_text(encoding="utf-8")
 
     def table_section(self, table_name):
         start = self.sql.index(f"CREATE TABLE IF NOT EXISTS {table_name}")
@@ -189,6 +191,31 @@ class PostgresSchemaTest(unittest.TestCase):
         self.assertIn("ADD COLUMN IF NOT EXISTS agent_job_id", normalized)
         self.assertIn("ADD COLUMN IF NOT EXISTS bounded_context_json", normalized)
         self.assertIn("0004_chickenbro_runtime_fields", normalized)
+
+    def test_chickenbro_agent_observability_migration_is_owner_bound_and_idempotent(self):
+        normalized = " ".join(self.chickenbro_agent_observability_sql.split())
+        self.assertIn("CREATE TABLE IF NOT EXISTS app.chickenbro_agent_traces", normalized)
+        self.assertIn(
+            "user_id uuid NOT NULL REFERENCES identity.users(id) ON DELETE CASCADE",
+            normalized,
+        )
+        self.assertIn(
+            "session_id uuid NOT NULL REFERENCES app.chickenbro_sessions(id) ON DELETE CASCADE",
+            normalized,
+        )
+        self.assertIn(
+            "user_message_id uuid NOT NULL REFERENCES app.chickenbro_messages(id) ON DELETE CASCADE",
+            normalized,
+        )
+        self.assertIn(
+            "agent_job_id uuid NOT NULL REFERENCES app.agent_jobs(id) ON DELETE CASCADE",
+            normalized,
+        )
+        self.assertIn("UNIQUE (agent_job_id)", normalized)
+        self.assertIn("payload_json jsonb NOT NULL", normalized)
+        self.assertIn("idx_chickenbro_agent_traces_owner_created", normalized)
+        self.assertIn("idx_chickenbro_agent_traces_session_created", normalized)
+        self.assertIn("0024_chickenbro_agent_observability", normalized)
 
     def test_content_runtime_migration_adds_public_article_queue_and_refresh_runs(self):
         normalized = " ".join(self.content_runtime_sql.split())

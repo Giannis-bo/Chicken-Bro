@@ -7850,6 +7850,59 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(job[0], "failed")
         self.assertIn("model unavailable", job[1])
 
+    def test_sqlite_chickenbro_agent_trace_helpers_are_owner_bound(self):
+        from server.chickenbro_observability import build_chickenbro_agent_trace
+
+        trace = build_chickenbro_agent_trace(
+            bounded_context={
+                "topic": {"status": "in_scope"},
+                "requestContext": {
+                    "productPhase": "retail",
+                    "region": "cn",
+                    "classKey": "mage",
+                    "specKey": "arcane",
+                    "scenarioKey": "mythic_plus",
+                },
+                "sourceEvidence": [],
+            },
+            agent_result={
+                "validation": {"status": "passed"},
+                "model": {"status": "succeeded"},
+            },
+            error="",
+            latency_ms=500,
+            created_at="2026-08-02T00:00:02+00:00",
+        )
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            trace_id = self.backend.insert_chickenbro_agent_trace(
+                conn,
+                "owner-a",
+                "session-a",
+                "message-a",
+                "job-a",
+                trace,
+                "2026-08-02T00:00:02+00:00",
+            )
+            stored = self.backend.get_chickenbro_agent_trace(conn, "owner-a", "job-a")
+            with self.assertRaisesRegex(KeyError, "chickenbro agent trace not found"):
+                self.backend.get_chickenbro_agent_trace(conn, "owner-b", "job-a")
+            table_sql = conn.execute(
+                "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'chickenbro_agent_traces'"
+            ).fetchone()[0]
+            indexes = {
+                row[0]
+                for row in conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'chickenbro_agent_traces'"
+                ).fetchall()
+            }
+
+        self.assertTrue(trace_id)
+        self.assertEqual(trace_id, stored["traceId"])
+        self.assertEqual("chickenbro-agent-trace-v1", stored["payload"]["schemaRevision"])
+        self.assertIn("UNIQUE", table_sql.upper())
+        self.assertIn("idx_chickenbro_agent_traces_owner_created", indexes)
+        self.assertIn("idx_chickenbro_agent_traces_session_created", indexes)
+
     def test_chickenbro_scope_recognizes_chinese_ptr_and_dps_terms(self):
         scope = self.backend.chickenbro_topic_scope("12.1 测试服现在哪个 DPS 最牛？")
 

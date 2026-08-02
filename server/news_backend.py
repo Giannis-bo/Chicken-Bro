@@ -272,6 +272,7 @@ try:
         classify_chickenbro_request,
         raiderio_payload_with_freshness,
     )
+    from .chickenbro_observability import validate_chickenbro_agent_trace
 except ImportError:
     from chickenbro_agent import (
         build_raiderio_chickenbro_tool_result,
@@ -279,6 +280,7 @@ except ImportError:
         classify_chickenbro_request,
         raiderio_payload_with_freshness,
     )
+    from chickenbro_observability import validate_chickenbro_agent_trace
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -1003,6 +1005,38 @@ def ensure_chickenbro_tables(conn):
         """
         CREATE INDEX IF NOT EXISTS idx_agent_jobs_owner_status_updated
         ON agent_jobs (user_id, status, updated_at DESC)
+        """
+    )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS chickenbro_agent_traces (
+            id TEXT PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            session_id TEXT NOT NULL,
+            user_message_id TEXT NOT NULL,
+            agent_job_id TEXT NOT NULL UNIQUE,
+            schema_revision TEXT NOT NULL,
+            runtime_version TEXT NOT NULL,
+            answer_status TEXT NOT NULL,
+            payload_json TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(user_id) REFERENCES wechat_users(id) ON DELETE CASCADE,
+            FOREIGN KEY(session_id) REFERENCES chickenbro_sessions(id) ON DELETE CASCADE,
+            FOREIGN KEY(user_message_id) REFERENCES chickenbro_messages(id) ON DELETE CASCADE,
+            FOREIGN KEY(agent_job_id) REFERENCES agent_jobs(id) ON DELETE CASCADE
+        )
+        """
+    )
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_chickenbro_agent_traces_owner_created
+        ON chickenbro_agent_traces (user_id, created_at DESC)
+        """
+    )
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_chickenbro_agent_traces_session_created
+        ON chickenbro_agent_traces (session_id, created_at)
         """
     )
     conn.execute(
@@ -8186,6 +8220,71 @@ def insert_agent_job(conn, user_id, session_id, request_payload, bounded_context
         ),
     )
     return job_id
+
+
+def insert_chickenbro_agent_trace(
+    conn,
+    user_id,
+    session_id,
+    user_message_id,
+    agent_job_id,
+    trace,
+    now,
+):
+    payload = validate_chickenbro_agent_trace(trace)
+    trace_id = uuid.uuid4().hex
+    conn.execute(
+        """
+        INSERT OR IGNORE INTO chickenbro_agent_traces (
+            id, user_id, session_id, user_message_id, agent_job_id,
+            schema_revision, runtime_version, answer_status, payload_json, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            trace_id,
+            user_id,
+            session_id,
+            user_message_id,
+            agent_job_id,
+            payload["schemaRevision"],
+            payload["runtimeVersion"],
+            payload["answerStatus"],
+            json.dumps(payload, ensure_ascii=False),
+            now or utc_now(),
+        ),
+    )
+    row = conn.execute(
+        """
+        SELECT id
+        FROM chickenbro_agent_traces
+        WHERE user_id = ? AND agent_job_id = ?
+        """,
+        (user_id, agent_job_id),
+    ).fetchone()
+    if not row:
+        raise PermissionError("chickenbro trace job owner mismatch")
+    return row[0]
+
+
+def get_chickenbro_agent_trace(conn, user_id, agent_job_id):
+    row = conn.execute(
+        """
+        SELECT id, session_id, user_message_id, agent_job_id, payload_json, created_at
+        FROM chickenbro_agent_traces
+        WHERE user_id = ? AND agent_job_id = ?
+        """,
+        (user_id, agent_job_id),
+    ).fetchone()
+    if not row:
+        raise KeyError("chickenbro agent trace not found")
+    return {
+        "traceId": row[0],
+        "sessionId": row[1],
+        "userMessageId": row[2],
+        "agentJobId": row[3],
+        "payload": json.loads(row[4]),
+        "createdAt": row[5],
+    }
 
 
 def update_agent_job(conn, job_id, status, result=None, error="", started_at=None, finished_at=None):
