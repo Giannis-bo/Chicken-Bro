@@ -73,6 +73,42 @@ class ChickenbroQuestionFrameTest(unittest.TestCase):
         self.assertEqual("12.1", frame["scope"]["patchVersion"])
         self.assertEqual("mythic_plus", frame["scope"]["scenarioKey"])
 
+    def test_explicit_retail_correction_overrides_ptr_history(self):
+        frame = self._builder()(
+            "不是，你看元素萨现在版本，不需要测试服的大秘境强度",
+            [{"role": "user", "content": "元素萨在 12.1 PTR 大秘境强度如何？"}],
+        )
+
+        self.assertEqual("current_research", frame["questionType"])
+        self.assertEqual(
+            {"classKey": "shaman", "specKey": "elemental", "resolution": "resolved"},
+            frame["subject"],
+        )
+        self.assertEqual("retail", frame["scope"]["productPhase"])
+        self.assertEqual("", frame["scope"]["patchVersion"])
+        self.assertEqual("mythic_plus", frame["scope"]["scenarioKey"])
+        self.assertEqual(["comparative_strength_signal"], frame["evidenceNeeds"])
+
+    def test_positive_ptr_beats_a_generic_current_version_marker(self):
+        frame = self._builder()("12.1 PTR 当前版本元素萨大秘境强度如何？", [])
+
+        self.assertEqual("ptr", frame["scope"]["productPhase"])
+        self.assertEqual("12.1", frame["scope"]["patchVersion"])
+
+    def test_history_strength_does_not_turn_a_follow_up_build_question_into_research(self):
+        frame = self._builder()(
+            "那天赋怎么点？",
+            [{"role": "user", "content": "元素萨现在版本大秘境强度如何？"}],
+        )
+
+        self.assertEqual("community_build", frame["questionType"])
+        self.assertEqual(["community_build_reference"], frame["evidenceNeeds"])
+
+    def test_generic_raid_scope_is_preserved_without_becoming_mythic_plus(self):
+        frame = self._builder()("元素萨正式服团本单体强度如何？", [])
+
+        self.assertEqual("raid", frame["scope"]["scenarioKey"])
+
 
 if __name__ == "__main__":
     unittest.main()

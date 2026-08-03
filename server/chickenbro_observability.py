@@ -26,11 +26,15 @@ CAPABILITY_IDS = {
     "source:raiderio:v1",
     "source:warcraftlogs:v1",
     "source:current-wow-sources:v1",
+    "source:raiderio-strength:v1",
+    "source:warcraftlogs-public-rankings:v1",
 }
 SOURCE_CAPABILITY_IDS = {
     "raiderio": "source:raiderio:v1",
     "warcraftlogs": "source:warcraftlogs:v1",
     "current_wow_sources": "source:current-wow-sources:v1",
+    "raiderio_strength": "source:raiderio-strength:v1",
+    "warcraftlogs_public_rankings": "source:warcraftlogs-public-rankings:v1",
 }
 TRACE_KEYS_V1 = {
     "schemaRevision",
@@ -171,6 +175,7 @@ REQUEST_SCOPE_ALLOWED_VALUES = {
         "mythic_plus",
         "mplus_fortified",
         "mplus_tyrannical",
+        "raid",
         "raid_single",
         "raid_cleave",
         "raid_multi",
@@ -182,6 +187,9 @@ SAFE_EVIDENCE_REF_PATTERNS = (
     re.compile(r"^wcl\.[a-z0-9_.-]{1,96}$"),
     re.compile(
         r"^raiderio:[a-z0-9_-]{1,48}:[a-z0-9_-]{1,48}:[a-z0-9_-]{1,48}$"
+    ),
+    re.compile(
+        r"^raiderio-strength:[a-z0-9_-]{1,48}:[a-z0-9_-]{1,48}:[a-z0-9_-]{1,48}$"
     ),
     re.compile(r"^current\.[a-z0-9-]{1,64}\.[a-z0-9-]{1,96}$"),
 )

@@ -282,10 +282,12 @@ except ImportError:
 try:
     from .chickenbro_agent import (
         build_raiderio_chickenbro_tool_result,
+        build_raiderio_strength_chickenbro_tool_result,
         build_wcl_chickenbro_tool_result,
         classify_chickenbro_request,
         raiderio_payload_with_freshness,
     )
+    from .chickenbro_community_strength import build_wcl_public_rankings_tool_result
     from .chickenbro_current_sources import build_current_wow_sources_tool_result
     from .chickenbro_question_frame import build_chickenbro_question_frame
     from .chickenbro_observability import (
@@ -301,10 +303,12 @@ try:
 except ImportError:
     from chickenbro_agent import (
         build_raiderio_chickenbro_tool_result,
+        build_raiderio_strength_chickenbro_tool_result,
         build_wcl_chickenbro_tool_result,
         classify_chickenbro_request,
         raiderio_payload_with_freshness,
     )
+    from chickenbro_community_strength import build_wcl_public_rankings_tool_result
     from chickenbro_current_sources import build_current_wow_sources_tool_result
     from chickenbro_question_frame import build_chickenbro_question_frame
     from chickenbro_observability import (
@@ -7588,11 +7592,30 @@ def chickenbro_has_official_current_source(bounded_context):
     )
 
 
+def chickenbro_has_comparative_strength_source(bounded_context):
+    return any(
+        isinstance(source, dict)
+        and source.get("sourceKey") == "raiderio_strength"
+        and source.get("status") in {"source_reference", "verified"}
+        and source.get("evidenceRefs")
+        for source in (bounded_context.get("sourceEvidence") or [])
+    )
+
+
+def chickenbro_has_current_research_source(bounded_context):
+    return (
+        chickenbro_has_official_current_source(bounded_context)
+        or chickenbro_has_comparative_strength_source(bounded_context)
+    )
+
+
 def chickenbro_basis_label(answer_layer, bounded_context=None):
-    if answer_layer == "source_reference" and chickenbro_has_official_current_source(
-        bounded_context if isinstance(bounded_context, dict) else {}
-    ):
-        return "已核对官方当前来源"
+    if answer_layer == "source_reference":
+        context = bounded_context if isinstance(bounded_context, dict) else {}
+        if chickenbro_has_official_current_source(context):
+            return "已核对官方当前来源"
+        if chickenbro_has_comparative_strength_source(context):
+            return "已核对社区当前数据"
     return {
         "evidence": "已基于你的模板或 SimC 分析",
         "wcl_evidence": "已基于你的 WCL 日志证据",
@@ -7685,11 +7708,15 @@ _CHICKENBRO_CAPABILITY_EVIDENCE = {
     "source:raiderio:v1": {"community_build_reference"},
     "source:warcraftlogs:v1": {"personal_log_evidence"},
     "source:current-wow-sources:v1": {"official_current_changes"},
+    "source:raiderio-strength:v1": {"comparative_strength_signal"},
+    "source:warcraftlogs-public-rankings:v1": set(),
 }
 _CHICKENBRO_SOURCE_EVIDENCE = {
     "raiderio": {"community_build_reference"},
     "warcraftlogs": {"personal_log_evidence"},
     "current_wow_sources": {"official_current_changes"},
+    "raiderio_strength": {"comparative_strength_signal"},
+    "warcraftlogs_public_rankings": set(),
 }
 
 
@@ -7772,15 +7799,20 @@ def load_chickenbro_source_tool_results(
 ):
     context = context if isinstance(context, dict) else {}
     intent = classify_chickenbro_request(message, history or [])
+    # The deterministic frame is built from the current player turn (plus the
+    # bounded user history).  Client/profile scope may fill an absent field,
+    # but it must never turn an explicit raid/retail correction back into a
+    # stale Mythic+/PTR dispatch.
     request_context = {
         "region": normalize_chickenbro_region(context.get("region")),
         "productPhase": normalize_chickenbro_phase(
-            context.get("productPhase") or intent.get("productPhase")
+            intent.get("productPhase") or context.get("productPhase")
         ),
-        "classKey": str(context.get("classKey") or intent.get("classKey") or "").strip().lower(),
-        "specKey": str(context.get("specKey") or intent.get("specKey") or "").strip().lower(),
+        "classKey": str(intent.get("classKey") or context.get("classKey") or "").strip().lower(),
+        "specKey": str(intent.get("specKey") or context.get("specKey") or "").strip().lower(),
         "questionType": str(intent.get("questionType") or intent.get("kind") or "").strip().lower(),
-        "patchVersion": str(context.get("patchVersion") or intent.get("patchVersion") or "").strip(),
+        "patchVersion": str(intent.get("patchVersion") or context.get("patchVersion") or "").strip(),
+        "scenarioKey": str(intent.get("scenarioKey") or context.get("scenarioKey") or "").strip().lower(),
     }
     current_source_frame = chickenbro_current_source_frame(intent, request_context)
     runtime = registry_runtime or _CHICKENBRO_TOOL_REGISTRY_RUNTIME
@@ -7815,8 +7847,14 @@ def load_chickenbro_source_tool_results(
                     "chickenbro.source.raiderio.v1": lambda request: build_raiderio_chickenbro_tool_result(
                         chickenbro_cached_raiderio_payload(), request["intent"]
                     ),
+                    "chickenbro.source.raiderio_strength.v1": lambda request: build_raiderio_strength_chickenbro_tool_result(
+                        chickenbro_cached_raiderio_payload(), request["intent"]
+                    ),
                     "chickenbro.source.warcraftlogs.v1": lambda request: build_wcl_chickenbro_tool_result(
                         build_wcl_log_evidence({"prompt": request["intent"].get("wclReport") or ""})
+                    ),
+                    "chickenbro.source.warcraftlogs_public_rankings.v1": lambda request: build_wcl_public_rankings_tool_result(
+                        request["intent"]
                     ),
                     "chickenbro.source.current_wow_sources.v1": lambda _request: build_current_wow_sources_tool_result(
                         current_source_frame,
@@ -8013,7 +8051,7 @@ def chickenbro_prompt_from_context(bounded_context):
     question_frame = bounded_context.get("questionFrame") if isinstance(bounded_context.get("questionFrame"), dict) else {}
     current_research_without_source = (
         question_frame.get("questionType") == "current_research"
-        and not chickenbro_has_official_current_source(bounded_context)
+        and not chickenbro_has_current_research_source(bounded_context)
     )
     if answer_layer == "evidence":
         instructions = [
@@ -8039,6 +8077,15 @@ def chickenbro_prompt_from_context(bounded_context):
                 "必须明确区分“已确认改动”“基于改动的解释”和“强度结论”。若 capabilityPlan.unmetEvidenceNeeds 含 comparative_strength_signal，必须明确说横向强度证据不足，不能给 T0/T1、排名、DPS、分位或优劣结论。",
                 "不要声称系统没有抓取或检索能力；本轮能否读取来源以 sourceEvidence 的实际状态为准。",
                 "只能引用 boundedContext 中的 evidenceRefs；没有明确数字时不要自行补数字。",
+                "最多追问一个真正影响结论的关键问题；输出 JSON：answer, confidence, answerLayer, basisLabel, priorityActions, evidenceRefs, limitations, missingInputs, nextQuestion。",
+            ]
+        elif chickenbro_has_comparative_strength_source(bounded_context):
+            instructions = [
+                "你是炸鸡队长，只回答魔兽世界正式服和 PTR/Beta 相关问题。",
+                "当前有经注册的社区当前强度证据：先直接回答玩家问的职业、专精和场景，再按 boundedContext.sourceEvidence 的事实做对比和总结，禁止套固定模板。",
+                "必须区分来源信号的含义：高层钥匙样本只能说明该职责下的高层趋势；公共 WCL 排行页只能证明该专精当前有对应日志样本，不能把它扩写成跨专精 DPS、覆盖率或统一 Tier。",
+                "不要把已返回的来源写成“无法获取数据”，不要要求玩家自行到 WCL、Raider.IO 或 SimC 查询；仅在本轮来源确实缺少时，说明具体缺口。",
+                "只能使用 boundedContext 中的事实、evidenceRefs 和 allowedNumbers；没有明确数字时不要自行补数字。",
                 "最多追问一个真正影响结论的关键问题；输出 JSON：answer, confidence, answerLayer, basisLabel, priorityActions, evidenceRefs, limitations, missingInputs, nextQuestion。",
             ]
         else:
@@ -8236,6 +8283,14 @@ _UNSUPPORTED_COMPARATIVE_STRENGTH_PATTERNS = (
     re.compile(r"第一梯队|顶级|最强|全职业第一"),
 )
 _COMPARATIVE_NEGATION_MARKERS = ("不能", "无法", "不足", "缺少", "没有", "尚无", "未有", "不够", "not enough", "cannot")
+_AVAILABLE_DATA_DENIAL_PATTERN = re.compile(
+    r"(?:没有|无法(?:获取)?|未能(?:获取)?).{0,8}(?:数据|资料|样本|抓取)|(?:no\s+(?:data|samples?)|cannot\s+(?:fetch|retrieve|access))",
+    re.IGNORECASE,
+)
+_MANUAL_COMMUNITY_LOOKUP_PATTERN = re.compile(
+    r"(?:自己|你).{0,18}(?:去|到).{0,8}(?:wcl|warcraft\s*logs|raider\.?io|simc).{0,10}(?:查|搜索|看)|(?:go|search|check).{0,24}(?:wcl|warcraft\s*logs|raider\.?io|simc)",
+    re.IGNORECASE,
+)
 
 
 def chickenbro_reject_unsupported_comparative_strength(output_text, bounded_context):
@@ -8255,6 +8310,26 @@ def chickenbro_reject_unsupported_comparative_strength(output_text, bounded_cont
                 raise ValueError("model_output_invalid: unsupported comparative strength claim")
 
 
+def chickenbro_require_returned_comparative_evidence(answer, refs, bounded_context):
+    """Keep a live source result from being discarded by a generic reply."""
+    comparative_refs = set()
+    for source in bounded_context.get("sourceEvidence") or []:
+        if not isinstance(source, dict):
+            continue
+        if (
+            source.get("sourceKey") == "raiderio_strength"
+            and str(source.get("status") or "").strip().lower() in {"source_reference", "verified"}
+        ):
+            comparative_refs.update(str(ref) for ref in (source.get("evidenceRefs") or []) if str(ref))
+    if not comparative_refs:
+        return
+    if not comparative_refs.intersection(refs):
+        raise ValueError("model_output_invalid: missing returned comparative evidence ref")
+    normalized = str(answer or "")
+    if _AVAILABLE_DATA_DENIAL_PATTERN.search(normalized) or _MANUAL_COMMUNITY_LOOKUP_PATTERN.search(normalized):
+        raise ValueError("model_output_invalid: returned comparative evidence must be summarized in the answer")
+
+
 def validate_chickenbro_model_output(payload, bounded_context):
     answer = str(payload.get("answer") or "").strip()
     if not answer:
@@ -8263,6 +8338,7 @@ def validate_chickenbro_model_output(payload, bounded_context):
     refs = [str(ref) for ref in payload.get("evidenceRefs") or [] if ref]
     if any(ref not in allowed_refs for ref in refs):
         raise ValueError("model_output_invalid: unknown evidence ref")
+    chickenbro_require_returned_comparative_evidence(answer, refs, bounded_context)
     for action in payload.get("priorityActions") or []:
         if not isinstance(action, dict):
             raise ValueError("model_output_invalid: priority action must be object")
@@ -8772,6 +8848,83 @@ def update_agent_job(conn, job_id, status, result=None, error="", started_at=Non
     )
 
 
+def chickenbro_comparative_strength_fallback(bounded_context):
+    """Produce a generic, data-derived response when a model discards live evidence."""
+    context = bounded_context if isinstance(bounded_context, dict) else {}
+    allowed_numbers = {str(item).rstrip("%") for item in (context.get("allowedNumbers") or [])}
+    for source in context.get("sourceEvidence") or []:
+        if not isinstance(source, dict):
+            continue
+        if (
+            source.get("sourceKey") != "raiderio_strength"
+            or str(source.get("status") or "").strip().lower() not in {"source_reference", "verified"}
+        ):
+            continue
+        refs = [str(ref) for ref in (source.get("evidenceRefs") or []) if str(ref)]
+        facts = source.get("facts") if isinstance(source.get("facts"), list) else []
+        fact = next((item for item in facts if isinstance(item, dict) and isinstance(item.get("highKeySignal"), dict)), None)
+        if not refs or not fact:
+            continue
+        signal = fact["highKeySignal"]
+
+        def number(key):
+            value = signal.get(key)
+            try:
+                numeric = float(value)
+            except (TypeError, ValueError):
+                return ""
+            if numeric <= 0:
+                return ""
+            compact = str(int(numeric)) if numeric.is_integer() else str(numeric)
+            return compact if compact in allowed_numbers else ""
+
+        summary = clean_text(fact.get("summary"), 220)
+        placement = number("sameRolePlacement")
+        population = number("sameRolePopulation")
+        best_score = number("bestObservedScore")
+        max_key_level = number("maxKeyLevel")
+        sample_count = number("sampleCount")
+        observations = []
+        if placement and population:
+            observations.append(f"本轮同职责缓存样本中位于第 {placement}/{population}")
+        if best_score:
+            observations.append(f"最高观测评分为 {best_score}")
+        if max_key_level:
+            observations.append(f"最高钥匙层数为 {max_key_level}")
+        if sample_count:
+            observations.append(f"纳入样本为 {sample_count}")
+        answer = "针对当前大秘境，已读取本轮 Raider.IO 社区高层样本。"
+        if summary:
+            answer += summary
+        if observations:
+            answer += "；".join(observations) + "。"
+        answer += "这只能说明该缓存内同职责的高层趋势，不等同于全职业 Tier、DPS、出场率或你的个人最优配置。"
+        return {
+            "answer": answer,
+            "confidence": "medium",
+            "priorityActions": [],
+            "evidenceRefs": [refs[0]],
+            "limitations": [str(item) for item in (source.get("limitations") or []) if str(item or "").strip()],
+            "missingInputs": context.get("missingInputs") if isinstance(context.get("missingInputs"), list) else [],
+            "nextQuestion": clean_text(context.get("nextQuestion") or "", 240),
+        }
+    return None
+
+
+def chickenbro_source_fallback_result(bounded_context, error):
+    fallback_payload = chickenbro_comparative_strength_fallback(bounded_context)
+    if not fallback_payload:
+        return None
+    validated = validate_chickenbro_model_output(fallback_payload, bounded_context)
+    validated["answerSource"] = "deterministic_source_fallback"
+    return {
+        "answer": validated,
+        "topic": bounded_context.get("topic"),
+        "validation": {"status": "fallback", "reason": clean_text(error, 160)},
+        "model": {"status": "fallback", "name": ""},
+    }
+
+
 def run_chickenbro_agent(bounded_context, codex_runner=None):
     runner = codex_runner or default_chickenbro_model_runner
     prompt = chickenbro_prompt_from_context(bounded_context)
@@ -8792,9 +8945,15 @@ def run_chickenbro_agent(bounded_context, codex_runner=None):
                 "name": clean_text((model_result or {}).get("model"), 160) if isinstance(model_result, dict) else "",
             },
         }
-    except ChickenbroGenerationUnavailable:
+    except ChickenbroGenerationUnavailable as error:
+        fallback = chickenbro_source_fallback_result(bounded_context, error)
+        if fallback:
+            return fallback
         raise
     except Exception as error:
+        fallback = chickenbro_source_fallback_result(bounded_context, error)
+        if fallback:
+            return fallback
         raise ChickenbroGenerationUnavailable(f"chickenbro model output rejected: {error}") from error
 
 
@@ -8802,24 +8961,42 @@ def run_chickenbro_agent_stream(bounded_context, stream_runner=None):
     runner = stream_runner or default_chickenbro_stream_runner
     prompt = chickenbro_prompt_from_context(bounded_context)
     parser = ChickenbroAnswerStream(bounded_context.get("allowedNumbers") or [])
+    requires_comparative_guard = chickenbro_has_comparative_strength_source(bounded_context)
     try:
         for content in runner(prompt, schema=chickenbro_model_schema()):
             for text in parser.feed(content):
-                yield {"type": "delta", "text": text}
+                # A streamed delta cannot be retracted.  Buffer only the path
+                # whose live comparative evidence has an answer postcondition.
+                if not requires_comparative_guard:
+                    yield {"type": "delta", "text": text}
         parsed = normalize_chickenbro_model_payload(parser.finish())
         validated = validate_chickenbro_model_output(parsed, bounded_context)
         validated["answerSource"] = "llm"
+        if requires_comparative_guard:
+            yield {"type": "delta", "text": validated["answer"]}
         return {
             "answer": validated,
             "topic": bounded_context.get("topic"),
             "validation": {"status": "passed"},
             "model": {"status": "succeeded", "name": ""},
         }
-    except ChickenbroGenerationUnavailable:
+    except ChickenbroGenerationUnavailable as error:
+        fallback = chickenbro_source_fallback_result(bounded_context, error)
+        if fallback:
+            yield {"type": "delta", "text": fallback["answer"]["answer"]}
+            return fallback
         raise
     except (ChickenbroStreamUnavailable, ChickenbroStreamValidationError, ValueError) as error:
+        fallback = chickenbro_source_fallback_result(bounded_context, error)
+        if fallback:
+            yield {"type": "delta", "text": fallback["answer"]["answer"]}
+            return fallback
         raise ChickenbroGenerationUnavailable(f"chickenbro stream output rejected: {error}") from error
     except Exception as error:
+        fallback = chickenbro_source_fallback_result(bounded_context, error)
+        if fallback:
+            yield {"type": "delta", "text": fallback["answer"]["answer"]}
+            return fallback
         raise ChickenbroGenerationUnavailable(f"chickenbro stream generation failed: {error}") from error
 
 

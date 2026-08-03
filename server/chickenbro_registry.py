@@ -37,7 +37,7 @@ DISCOVERY_POLICY_KEYS = {
     "regions",
     "priority",
 }
-DISCOVERY_POLICY_OPTIONAL_KEYS = {"evidenceNeeds"}
+DISCOVERY_POLICY_OPTIONAL_KEYS = {"evidenceNeeds", "scenarioKeys"}
 RELEASE_KEYS = {
     "registryVersion",
     "manifestRefs",
@@ -53,9 +53,11 @@ APPROVED_IMPLEMENTATIONS = {
     "source:raiderio:v1": "chickenbro.source.raiderio.v1",
     "source:warcraftlogs:v1": "chickenbro.source.warcraftlogs.v1",
     "source:current-wow-sources:v1": "chickenbro.source.current_wow_sources.v1",
+    "source:raiderio-strength:v1": "chickenbro.source.raiderio_strength.v1",
+    "source:warcraftlogs-public-rankings:v1": "chickenbro.source.warcraftlogs_public_rankings.v1",
 }
 ALLOWED_REQUEST_KINDS = {"community_build", "personal_wcl", "current_research"}
-ALLOWED_CONTEXT_FIELDS = {"classKey", "specKey", "wclReport", "questionType", "patchVersion"}
+ALLOWED_CONTEXT_FIELDS = {"classKey", "specKey", "wclReport", "questionType", "patchVersion", "scenarioKey"}
 ALLOWED_EVIDENCE_NEEDS = {
     "community_build_reference",
     "comparative_strength_signal",
@@ -64,6 +66,16 @@ ALLOWED_EVIDENCE_NEEDS = {
 }
 ALLOWED_PRODUCT_PHASES = {"retail", "ptr"}
 ALLOWED_REGIONS = {"cn", "global", "us", "eu", "kr", "tw"}
+ALLOWED_SCENARIO_KEYS = {
+    "mythic_plus",
+    "mplus_fortified",
+    "mplus_tyrannical",
+    "raid",
+    "raid_single",
+    "raid_cleave",
+    "raid_multi",
+    "pvp",
+}
 HASH_PATTERN = re.compile(r"^sha256:[0-9a-f]{64}$")
 VERSION_PATTERN = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+$")
 REGISTRY_VERSION_PATTERN = re.compile(r"^[a-z0-9][a-z0-9_.-]{0,95}$")
@@ -140,6 +152,8 @@ def validate_chickenbro_tool_manifest(manifest):
     _string_list(policy["regions"], ALLOWED_REGIONS)
     if "evidenceNeeds" in policy:
         _string_list(policy["evidenceNeeds"], ALLOWED_EVIDENCE_NEEDS)
+    if "scenarioKeys" in policy:
+        _string_list(policy["scenarioKeys"], ALLOWED_SCENARIO_KEYS)
     if not isinstance(policy["priority"], int) or isinstance(policy["priority"], bool):
         raise ValueError("invalid manifest priority")
     if manifest.get("riskClass") != "read_only" or manifest.get("sideEffects") != []:
@@ -148,6 +162,15 @@ def validate_chickenbro_tool_manifest(manifest):
         raise ValueError("invalid manifest ownerPolicy")
     if not isinstance(manifest.get("sourcePolicy"), dict) or not isinstance(manifest.get("freshnessPolicy"), dict):
         raise ValueError("invalid manifest source or freshness policy")
+    freshness_policy = manifest["freshnessPolicy"]
+    if "requireCheckedAt" in freshness_policy and not isinstance(freshness_policy["requireCheckedAt"], bool):
+        raise ValueError("invalid manifest freshness requireCheckedAt")
+    if "maxAgeSeconds" in freshness_policy and (
+        not isinstance(freshness_policy["maxAgeSeconds"], int)
+        or isinstance(freshness_policy["maxAgeSeconds"], bool)
+        or freshness_policy["maxAgeSeconds"] <= 0
+    ):
+        raise ValueError("invalid manifest freshness maxAgeSeconds")
     timeout = manifest.get("timeoutBudgetMs")
     if not isinstance(timeout, int) or isinstance(timeout, bool) or timeout <= 0:
         raise ValueError("invalid manifest timeoutBudgetMs")
@@ -232,6 +255,7 @@ def discover_chickenbro_capabilities(release, request_intent, request_context):
     request_kind = str(intent.get("kind") or "").strip().lower()
     product_phase = str(intent.get("productPhase") or context.get("productPhase") or "").strip().lower()
     region = str(context.get("region") or "").strip().lower()
+    scenario_key = str(context.get("scenarioKey") or intent.get("scenarioKey") or "").strip().lower()
     candidates = []
     missing_fields = []
     for manifest in validated["manifests"]:
@@ -257,6 +281,8 @@ def discover_chickenbro_capabilities(release, request_intent, request_context):
         if required_missing:
             continue
         if product_phase not in policy["productPhases"] or region not in policy["regions"]:
+            continue
+        if "scenarioKeys" in policy and scenario_key not in policy["scenarioKeys"]:
             continue
         candidates.append(manifest)
     candidates.sort(key=lambda item: (-item["discoveryPolicy"]["priority"], item["toolId"]))

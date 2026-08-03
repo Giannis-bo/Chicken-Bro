@@ -12,6 +12,11 @@ _QUESTION_FRAME_REVISION = "chickenbro-question-frame-v1"
 _WCL_REPORT_PATTERN = re.compile(r"(?:warcraftlogs\.com/reports/|report/[A-Za-z0-9]+)", re.IGNORECASE)
 _PATCH_PATTERN = re.compile(r"(?<!\d)(\d{1,2}\.\d{1,2}(?:\.\d{1,2})?)(?!\d)")
 _PTR_MARKERS = ("ptr", "测试服", "测试版", "beta", "public test realm")
+_RETAIL_MARKERS = ("正式服", "当前版本", "现在版本", "现版本", "retail", "live")
+_PTR_NEGATION_PATTERN = re.compile(
+    r"(?:不(?:是|需要|用|看)|非|不用|不看).{0,8}(?:ptr|测试服|测试版|beta|public test realm)",
+    re.IGNORECASE,
+)
 _CURRENT_RESEARCH_MARKERS = (
     "强度",
     "最强",
@@ -24,6 +29,8 @@ _CURRENT_RESEARCH_MARKERS = (
     "buff",
     "nerf",
 )
+_COMPARATIVE_STRENGTH_MARKERS = ("强度", "最强", "排行", "排名", "tier", "表现")
+_CURRENT_CHANGE_MARKERS = ("改动", "调整", "buff", "nerf")
 _COMMUNITY_BUILD_MARKERS = ("天赋", "属性", "装备", "配装", "build", "talent", "哪里获取")
 _SCENARIO_MARKERS = (
     ("mythic_plus", ("大秘境", "mythic+", "mythic +", "m+")),
@@ -136,11 +143,27 @@ def _first_patch_version(*texts):
     return ""
 
 
+def _explicit_phase(text):
+    normalized = _normalized_text(text)
+    if not normalized:
+        return ""
+    # A direct correction such as "不要 PTR" has higher precedence than a
+    # positive PTR token.  A generic phrase like "当前版本" does not: players
+    # commonly say "PTR 当前版本" and still mean the test realm.
+    if _PTR_NEGATION_PATTERN.search(normalized):
+        return "retail"
+    if any(marker in normalized for marker in _PTR_MARKERS):
+        return "ptr"
+    if any(marker in normalized for marker in _RETAIL_MARKERS):
+        return "retail"
+    return ""
+
+
 def _phase(*texts):
     for text in texts:
-        normalized = _normalized_text(text)
-        if any(marker in normalized for marker in _PTR_MARKERS):
-            return "ptr"
+        explicit = _explicit_phase(text)
+        if explicit:
+            return explicit
     return "retail"
 
 
@@ -155,25 +178,35 @@ def _scenario(*texts):
 
 def _question_type(message, history, subject, product_phase):
     normalized = _normalized_text(message)
-    history_text = "\n".join(history).lower()
-    all_text = "\n".join((normalized, history_text))
     if _WCL_REPORT_PATTERN.search(normalized):
         return "personal_wcl"
-    has_research_marker = any(marker in all_text for marker in _CURRENT_RESEARCH_MARKERS)
-    if product_phase == "ptr" or has_research_marker:
+    # History can resolve a subject/scope, but it must not silently carry a
+    # prior strength question into a new build question.
+    has_research_marker = any(marker in normalized for marker in _CURRENT_RESEARCH_MARKERS)
+    if has_research_marker or _explicit_phase(normalized) == "ptr":
         return "current_research"
     if any(marker in normalized for marker in _COMMUNITY_BUILD_MARKERS) or subject["resolution"] == "resolved":
         return "community_build"
     return "general"
 
 
-def _evidence_needs(question_type):
+def _evidence_needs(question_type, product_phase="", patch_version="", message=""):
     if question_type == "personal_wcl":
         return ["personal_log_evidence"]
     if question_type == "community_build":
         return ["community_build_reference"]
     if question_type == "current_research":
-        return ["official_current_changes", "comparative_strength_signal"]
+        normalized = _normalized_text(message)
+        needs = []
+        if (
+            product_phase == "ptr"
+            or patch_version
+            or any(marker in normalized for marker in _CURRENT_CHANGE_MARKERS)
+        ):
+            needs.append("official_current_changes")
+        if any(marker in normalized for marker in _COMPARATIVE_STRENGTH_MARKERS):
+            needs.append("comparative_strength_signal")
+        return needs or ["official_current_changes"]
     return []
 
 
@@ -187,8 +220,11 @@ def build_chickenbro_question_frame(message, history):
             subject = _resolve_subject(previous_text)
             if subject["resolution"] != "unresolved":
                 break
+    explicit_phase = _explicit_phase(text)
     product_phase = _phase(text, *reversed(history_texts))
-    patch_version = _first_patch_version(text, *reversed(history_texts))
+    patch_version = _first_patch_version(text)
+    if not patch_version and explicit_phase != "retail":
+        patch_version = _first_patch_version(*reversed(history_texts))
     scenario_key = _scenario(text, *reversed(history_texts))
     question_type = _question_type(text, history_texts, subject, product_phase)
     unresolved = []
@@ -206,6 +242,6 @@ def build_chickenbro_question_frame(message, history):
             "region": "cn",
             "scenarioKey": scenario_key,
         },
-        "evidenceNeeds": _evidence_needs(question_type),
+        "evidenceNeeds": _evidence_needs(question_type, product_phase, patch_version, text),
         "unresolvedFields": unresolved,
     }

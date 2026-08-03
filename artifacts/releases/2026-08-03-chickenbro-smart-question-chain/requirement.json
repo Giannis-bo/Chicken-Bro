@@ -3,22 +3,25 @@
   "slug": "chickenbro-smart-question-chain",
   "classification": "Strict",
   "status": "implementation_allowed",
-  "goal": "Replace Chickenbro's generic fallback for time-sensitive player questions with a general semantic QuestionFrame, deterministic evidence-needs planning, a bounded official current-source capability and de-identified planning traces.",
-  "userValue": "Players can ask a natural question in their own vocabulary and receive an evidence-led answer path: confirmed current facts are cited, while missing comparative evidence remains visibly incomplete instead of becoming a fabricated strength verdict.",
+  "goal": "Replace Chickenbro's generic no-data fallback for time-sensitive player questions with a general semantic QuestionFrame, scenario-scoped deterministic evidence planning, bounded official/community source capabilities, evidence-derived fallback answers and de-identified planning traces.",
+  "userValue": "Players can ask a natural current-strength question in their own vocabulary and receive an evidence-led answer: suitable fresh community data is retrieved, compared within its real scope and cited; absent, stale or unsupported evidence remains visibly incomplete instead of being fabricated or pushed back to the player for manual lookup.",
   "scope": [
     "semantic QuestionFrame for player vocabulary, product phase, patch and evidence needs",
     "registry-published official Blizzard current-source capability with bounded in-memory collection",
-    "evidence-aware answer constraints and de-identified Trace v3",
-    "immutable Registry release migration 0026 and candidate/live verification"
+    "scenario-scoped Raider.IO same-role high-key comparator from the fresh backend cache",
+    "configured public WCL Mythic+ supplementary sample with explicit target contract, bounded timeout, TTL/singleflight/rate control and freshness gate",
+    "evidence-aware answer/stream postconditions, generic source-derived fallback and de-identified Trace v3",
+    "immutable Registry release migration 0027 and candidate/live verification"
   ],
   "outOfScope": [
     "case-specific or fixed answers for NQ, any class or any patch",
     "arbitrary browser, URL, code, credential, SQL or shell access for the model",
-    "comparative ranking corpus, CapabilityGap persistence, Toolsmith, shadow, canary or promotion",
+    "universal comparative ranking corpus, CapabilityGap persistence, Toolsmith, shadow, canary or promotion",
+    "Archon, Wowhead, Icy Veins or other third-party retrieval without an explicitly approved source contract",
     "frontend layout or public response-schema changes"
   ],
   "nonGoals": [
-    "Do not treat an official patch-change fact as proof of a T0/T1 ranking, DPS, percentile, BiS or personal performance conclusion.",
+    "Do not treat an official patch-change fact, a single WCL specialization page, or a same-role Raider.IO cache sample as proof of a T0/T1 ranking, DPS, percentile, BiS or personal performance conclusion.",
     "Do not allow a client, model or manifest to choose an implementation, source URL, owner or credential.",
     "Do not start syncs, backfills or scheduled collectors during candidate or live deployment."
   ],
@@ -35,35 +38,39 @@
       "docs/verification-matrix.md"
     ],
     "activeMilestone": "chickenbro_smart_question_chain",
-    "featureIteration": "bounded_current_source_slice_only",
+    "featureIteration": "scenario_scoped_community_strength_correction",
     "baseBranch": "main"
   },
   "impactMap": {
     "mustChange": [
       "Normalize player phrasing into a safe QuestionFrame before capability discovery.",
       "Select only an immutable Registry capability whose declared evidence needs match the frame.",
-      "Return only bounded official facts, source references, status and limitations to answer composition.",
+      "Return only bounded official/community facts, source references, freshness/status and limitations to answer composition.",
+      "Require Registry scenario eligibility before dispatch so Mythic+ data cannot answer raid/PvP questions.",
+      "Reject and source-fallback a model/stream answer that discards a returned comparative source or tells the player to manually query it.",
       "Record de-identified selected and unmet evidence types in Trace v3."
     ],
     "mustNotChange": [
-      "Existing Raider.IO and Warcraft Logs capability identities and their guarded adapter paths remain available.",
+      "Existing Raider.IO build and owner-bound Warcraft Logs report capability identities and their guarded adapter paths remain available.",
       "Personal templates and SimC remain bounded context evidence, not registry Tools.",
       "Raw chat, prompts, answer text, source bodies, credentials, WCL identity and arbitrary URLs remain out of traces and adapter inputs.",
-      "A partial, failed, stale or unmatched official source never becomes a comparative strength claim."
+      "A partial, failed, stale or unmatched source never becomes a comparative strength claim.",
+      "WCL public rows never satisfy cross-specialization comparison by themselves; community sources only run for their declared scenario and an unconfigured WCL target does not send an external request."
     ],
     "riskUnknown": [
       "Official current pages may lack an exact class/spec/PTR match; that is a literal partial evidence result, not a model-failure substitute.",
-      "Candidate database active-pointer promotion temporarily requires compatible runtime code on both candidate and live service; deployment must minimise that window and retain the v1 pointer rollback value."
+      "The public WCL target contract must be independently confirmed current before it is configured; until then WCL remains literal partial while the fresh Raider.IO comparator can still answer its supported Mythic+ scope.",
+      "Candidate database active-pointer promotion temporarily requires compatible runtime code on both candidate and live service; deployment must minimise that window and retain the recorded chickenbro-tools-2 pointer rollback value."
     ],
     "evidenceRequired": [
-      "QuestionFrame, current-source, Registry/runtime, Trace/Eval and affected backend regressions.",
+      "QuestionFrame, community source, Registry/runtime, answer/stream postcondition, Trace/Eval and affected backend regressions.",
       "Clean candidate-head full Harness and local CR against the source and owner boundaries.",
-      "Transactional migration, registry identity, file parity, generic/PTR/WCL/Raider.IO smoke, timer/backflow state and rollback pointer proof.",
-      "User acceptance of the real WeChat natural-language PTR question flow after self-test handoff."
+      "Transactional migration, registry identity, file parity, retail Mythic+/PTR/raid-scoping/WCL-contract/Raider.IO smoke, timer/backflow state and rollback pointer proof.",
+      "User acceptance of the real WeChat natural-language formal-retail Mythic+ strength flow after self-test handoff."
     ]
   },
   "ownership": {
-    "factOwner": "server/chickenbro_question_frame.py owns semantic normalization; server/chickenbro_registry.py owns immutable eligibility; server/chickenbro_current_sources.py owns bounded official facts; server/news_backend.py only orchestrates their safe projections; server/chickenbro_observability.py owns Trace v3.",
+    "factOwner": "server/chickenbro_question_frame.py owns semantic normalization; server/chickenbro_registry.py owns immutable eligibility and scenario policy; server/chickenbro_agent.py and server/chickenbro_community_strength.py own bounded community projections; server/chickenbro_current_sources.py owns bounded official facts; server/news_backend.py only orchestrates safe projections/fallback; server/chickenbro_observability.py owns Trace v3.",
     "consumers": [
       "server/news_backend.py",
       "server/chickenbro_tool_runtime.py",
@@ -79,6 +86,8 @@
   "acceptanceEvidence": [
     "Equivalent player slang resolves into a canonical class/spec/phase frame without answer text or fixed per-question response.",
     "A matching official current source produces a cited fact; no comparison evidence produces an explicit limitation and blocks strength/ranking language.",
+    "A formal retail Mythic+ strength question dispatches only the registered, fresh Raider.IO comparator (plus WCL only when its explicit current target is configured), cites the returned Raider.IO evidence and cannot emit the prior no-data/manual-lookup reply.",
+    "A raid/PvP strength question does not dispatch a Mythic+ source; positive PTR still wins over a generic current-version marker; a later build question does not inherit a strength intent.",
     "Existing community-build and WCL selections retain their v1 capability identity.",
     "Candidate and live deployment prove migration/pointer identity, file parity, health, generic/PTR/WCL/Raider.IO paths, trace redaction and no new timer backflow.",
     "The user verifies the real WeChat PTR question path and explicitly accepts it."
@@ -103,6 +112,10 @@
     {
       "date": "2026-08-03",
       "decision": "The user authorized bounded synchronous current-source reads, deployment, self-test and subsequent handoff for user acceptance."
+    },
+    {
+      "date": "2026-08-03",
+      "decision": "The user rejected generic cannot-get-data replies and explicitly expected controlled community-source analysis; WCL is supplementary until its current target is explicitly verified, while Archon remains excluded without an approved data contract."
     }
   ]
 }

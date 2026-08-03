@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+from time import sleep
 import unittest
 
 from tests.chickenbro_registry_test import signed_release
@@ -19,6 +20,54 @@ CONTEXT = {
 
 
 class ChickenbroToolRuntimeTest(unittest.TestCase):
+    def test_dispatch_stops_waiting_when_the_manifest_timeout_budget_expires(self):
+        from server.chickenbro_tool_runtime import execute_chickenbro_selected_tools
+
+        resolution = {
+            "selectedManifests": [{
+                "toolId": "source:raiderio:v1",
+                "implementationRef": "chickenbro.source.raiderio.v1",
+                "sourcePolicy": {"sourceKey": "raiderio"},
+                "timeoutBudgetMs": 1,
+            }]
+        }
+        results = execute_chickenbro_selected_tools(
+            resolution,
+            {"chickenbro.source.raiderio.v1": lambda _request: (sleep(0.05), {})[1]},
+            {"intent": INTENT, "context": CONTEXT},
+        )
+
+        self.assertEqual("failed", results[0]["status"])
+        self.assertIn("timeout", results[0]["limitations"][0].lower())
+
+    def test_dispatch_demotes_timestamp_less_current_source_evidence_to_stale(self):
+        from server.chickenbro_tool_runtime import execute_chickenbro_selected_tools
+
+        resolution = {
+            "selectedManifests": [{
+                "toolId": "source:raiderio:v1",
+                "implementationRef": "chickenbro.source.raiderio.v1",
+                "sourcePolicy": {"sourceKey": "raiderio"},
+                "timeoutBudgetMs": 1000,
+                "freshnessPolicy": {"maxAgeSeconds": 60, "requireCheckedAt": True},
+            }]
+        }
+        results = execute_chickenbro_selected_tools(
+            resolution,
+            {"chickenbro.source.raiderio.v1": lambda _request: {
+                "sourceKey": "raiderio",
+                "status": "source_reference",
+                "facts": [{"summary": "missing timestamp"}],
+                "evidence": [{"id": "raiderio:test"}],
+                "evidenceRefs": ["raiderio:test"],
+                "limitations": [],
+                "nextActions": [],
+            }},
+            {"intent": INTENT, "context": CONTEXT},
+        )
+
+        self.assertEqual("stale", results[0]["status"])
+        self.assertEqual([], results[0]["evidenceRefs"])
     def test_verified_release_uses_postgres_then_bounded_cache(self):
         from server.chickenbro_tool_runtime import (
             ChickenbroRegistryRuntime,

@@ -122,6 +122,33 @@ def current_sources_manifest(**overrides):
     return signed_manifest(**values)
 
 
+def community_strength_manifest(tool_id, implementation_ref, source_key, **overrides):
+    values = {
+        "toolId": tool_id,
+        "purpose": "Load bounded public community Mythic+ strength evidence.",
+        "inputSchema": {"required": ["classKey", "specKey", "questionType"]},
+        "discoveryPolicy": {
+            "requestKinds": ["current_research"],
+            "requiredContextFields": ["classKey", "specKey", "questionType", "scenarioKey"],
+            "productPhases": ["retail"],
+            "regions": ["cn", "global", "us", "eu", "kr", "tw"],
+            "scenarioKeys": ["mythic_plus"],
+            "evidenceNeeds": ["comparative_strength_signal"],
+            "priority": 90,
+        },
+        "freshnessPolicy": {"maxAgeSeconds": 900, "staleBehavior": "limitation_only"},
+        "timeoutBudgetMs": 10000,
+        "costBudget": {"status": "bounded_live_public_read"},
+        "implementationRef": implementation_ref,
+        "evalRefs": ["chickenbro-eval:community_strength"],
+        "sourcePolicy": {"sourceKey": source_key, "requiredStatuses": ["source_reference", "partial", "failed"]},
+        "provenance": {"kind": "repository_migration", "revision": "0027"},
+        "createdAt": "2026-08-03T00:00:00+00:00",
+    }
+    values.update(overrides)
+    return signed_manifest(**values)
+
+
 def signed_release(manifests=None, **overrides):
     manifests = list(manifests or [signed_manifest(), wcl_manifest()])
     refs = [
@@ -253,6 +280,86 @@ class ChickenbroRegistryTest(unittest.TestCase):
 
         self.assertEqual(["source:current-wow-sources:v1"], result["selectedCapabilityIds"])
         self.assertEqual([], result["missingContextFields"])
+
+    def test_retail_strength_research_discovers_registered_community_comparators(self):
+        rio = community_strength_manifest(
+            "source:raiderio-strength:v1",
+            "chickenbro.source.raiderio_strength.v1",
+            "raiderio_strength",
+        )
+        wcl = community_strength_manifest(
+            "source:warcraftlogs-public-rankings:v1",
+            "chickenbro.source.warcraftlogs_public_rankings.v1",
+            "warcraftlogs_public_rankings",
+        )
+        release = signed_release(
+            [signed_manifest(), wcl_manifest(), current_sources_manifest(), rio, wcl],
+            registryVersion="chickenbro-tools-3",
+            provenance={"kind": "repository_migration", "revision": "0027"},
+        )
+
+        try:
+            result = discover_chickenbro_capabilities(
+                release,
+                {
+                    "kind": "current_research",
+                    "questionType": "current_research",
+                    "productPhase": "retail",
+                    "classKey": "shaman",
+                    "specKey": "elemental",
+                    "scenarioKey": "mythic_plus",
+                    "evidenceNeeds": ["comparative_strength_signal"],
+                },
+                {
+                    "region": "cn",
+                    "productPhase": "retail",
+                    "classKey": "shaman",
+                    "specKey": "elemental",
+                    "questionType": "current_research",
+                    "scenarioKey": "mythic_plus",
+                },
+            )
+        except ValueError as error:
+            self.fail(f"retail strength sources must be accepted by the Registry: {error}")
+
+        self.assertEqual(
+            ["source:raiderio-strength:v1", "source:warcraftlogs-public-rankings:v1"],
+            result["selectedCapabilityIds"],
+        )
+
+    def test_mythic_plus_sources_are_not_discovered_for_a_raid_question(self):
+        rio = community_strength_manifest(
+            "source:raiderio-strength:v1",
+            "chickenbro.source.raiderio_strength.v1",
+            "raiderio_strength",
+        )
+        release = signed_release(
+            [signed_manifest(), wcl_manifest(), current_sources_manifest(), rio],
+            registryVersion="chickenbro-tools-3",
+            provenance={"kind": "repository_migration", "revision": "0027"},
+        )
+        result = discover_chickenbro_capabilities(
+            release,
+            {
+                "kind": "current_research",
+                "questionType": "current_research",
+                "productPhase": "retail",
+                "classKey": "shaman",
+                "specKey": "elemental",
+                "scenarioKey": "raid",
+                "evidenceNeeds": ["comparative_strength_signal"],
+            },
+            {
+                "region": "cn",
+                "productPhase": "retail",
+                "classKey": "shaman",
+                "specKey": "elemental",
+                "questionType": "current_research",
+                "scenarioKey": "raid",
+            },
+        )
+
+        self.assertEqual([], result["selectedCapabilityIds"])
 
 
 if __name__ == "__main__":

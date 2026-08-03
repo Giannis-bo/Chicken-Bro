@@ -2,7 +2,7 @@
 
 import copy
 from datetime import datetime, timezone
-from threading import RLock
+from threading import Event, RLock, Thread
 
 try:
     from .chickenbro_registry import (
@@ -27,8 +27,9 @@ _REQUEST_INTENT_FIELDS = {
     "specKey",
     "wclReport",
     "evidenceNeeds",
+    "scenarioKey",
 }
-_REQUEST_CONTEXT_FIELDS = {"region", "productPhase", "patchVersion", "questionType", "classKey", "specKey"}
+_REQUEST_CONTEXT_FIELDS = {"region", "productPhase", "patchVersion", "questionType", "classKey", "specKey", "scenarioKey"}
 _TOOL_RESULT_FIELDS = {
     "sourceKey",
     "status",
@@ -161,6 +162,75 @@ def _validated_tool_result(result, manifest):
     return copy.deepcopy(result)
 
 
+def _failed_freshness_result(result, reason):
+    output = copy.deepcopy(result)
+    output["status"] = "stale"
+    output["facts"] = []
+    output["evidenceRefs"] = []
+    limitations = list(output.get("limitations") or [])
+    limitations.append(reason)
+    output["limitations"] = limitations
+    return output
+
+
+def _timestamp(value):
+    text = str(value or "").strip()
+    if not text:
+        return None
+    try:
+        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        return None
+    return parsed.astimezone(timezone.utc)
+
+
+def _enforce_manifest_freshness(result, manifest, now=None):
+    policy = manifest.get("freshnessPolicy") if isinstance(manifest, dict) else {}
+    if not isinstance(policy, dict) or not policy.get("requireCheckedAt"):
+        return result
+    if str(result.get("status") or "").strip().lower() not in {"source_reference", "verified"}:
+        return result
+    max_age = policy.get("maxAgeSeconds")
+    if not isinstance(max_age, int) or isinstance(max_age, bool) or max_age <= 0:
+        return _failed_freshness_result(result, "source freshness policy is invalid")
+    timestamps = [
+        _timestamp(item.get("checkedAt"))
+        for item in (result.get("evidence") or [])
+        if isinstance(item, dict)
+    ]
+    timestamps = [item for item in timestamps if item is not None]
+    if not timestamps:
+        return _failed_freshness_result(result, "source evidence has no valid checkedAt timestamp")
+    current = now or datetime.now(timezone.utc)
+    newest = max(timestamps)
+    if (current - newest).total_seconds() > max_age:
+        return _failed_freshness_result(result, "source evidence exceeded its max-age freshness policy")
+    return result
+
+
+def _adapter_result_with_timeout(adapter, request, timeout_budget_ms):
+    completed = Event()
+    outcome = {}
+
+    def invoke():
+        try:
+            outcome["result"] = adapter(copy.deepcopy(request))
+        except Exception as error:  # pragma: no cover - asserted by caller contract
+            outcome["error"] = error
+        finally:
+            completed.set()
+
+    thread = Thread(target=invoke, daemon=True)
+    thread.start()
+    if not completed.wait(max(1, int(timeout_budget_ms)) / 1000):
+        raise TimeoutError("adapter timeout budget exceeded")
+    if "error" in outcome:
+        raise outcome["error"]
+    return outcome.get("result")
+
+
 def execute_chickenbro_selected_tools(resolution, adapter_bindings, request):
     resolution = resolution if isinstance(resolution, dict) else {}
     manifests = resolution.get("selectedManifests")
@@ -185,7 +255,8 @@ def execute_chickenbro_selected_tools(resolution, adapter_bindings, request):
     results = []
     for manifest, adapter in adapters:
         try:
-            result = adapter(copy.deepcopy(sanitized))
+            timeout_budget_ms = manifest.get("timeoutBudgetMs") or 10000
+            result = _adapter_result_with_timeout(adapter, sanitized, timeout_budget_ms)
         except Exception as error:
             results.append(
                 _failed_tool_result(
@@ -197,5 +268,7 @@ def execute_chickenbro_selected_tools(resolution, adapter_bindings, request):
         validated = _validated_tool_result(result, manifest)
         if validated is None:
             validated = _failed_tool_result(manifest, f"{manifest['toolId']} adapter returned an invalid result")
+        else:
+            validated = _enforce_manifest_freshness(validated, manifest)
         results.append(validated)
     return results

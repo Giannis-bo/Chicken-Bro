@@ -6,7 +6,7 @@ import unittest
 import server.news_backend as backend
 import server.chickenbro_agent as agent
 from server.chickenbro_tool_runtime import ChickenbroRegistryRuntime
-from tests.chickenbro_registry_test import current_sources_manifest, signed_release
+from tests.chickenbro_registry_test import community_strength_manifest, current_sources_manifest, signed_release
 
 
 class ChickenbroAgentIntentTest(unittest.TestCase):
@@ -408,6 +408,347 @@ class ChickenbroAgentIntentTest(unittest.TestCase):
         self.assertIn("+18", result["allowedNumbers"])
         self.assertNotIn("DO_NOT_PASS_IMPORT_CODE_TO_AGENT", str(result))
         self.assertTrue(any("do not replace" in item for item in result["limitations"]))
+
+    def test_raiderio_strength_projects_same_role_high_key_signal_without_player_identity(self):
+        builder = getattr(agent, "build_raiderio_strength_chickenbro_tool_result", None)
+
+        self.assertIsNotNone(builder, "current-strength research needs a dedicated Raider.IO adapter")
+        result = builder(
+            {
+                "sourceName": "Raider.IO",
+                "sourceStatus": "synced",
+                "seasonSlug": "season-mn-1",
+                "region": "cn",
+                "checkedAt": "2099-08-01T10:00:00+00:00",
+                "expiresAt": "2099-08-01T16:00:00+00:00",
+                "leaderboardUrl": "https://raider.io/mythic-plus-rankings",
+                "specAggregates": [
+                    {
+                        "classKey": "shaman",
+                        "specKey": "elemental",
+                        "fullName": "Elemental Shaman",
+                        "role": "dps",
+                        "sampleCount": 24,
+                        "maxKeyLevel": 23,
+                        "bestScore": 4226.13,
+                        "topRuns": [{"sourceUrl": "https://raider.io/mythic-plus-spec-rankings/season-mn-1/world/shaman/elemental"}],
+                        "characterName": "MUST_NOT_ESCAPE",
+                    },
+                    {
+                        "classKey": "mage",
+                        "specKey": "frost",
+                        "fullName": "Frost Mage",
+                        "role": "dps",
+                        "sampleCount": 20,
+                        "maxKeyLevel": 24,
+                        "bestScore": 4300.0,
+                    },
+                    {
+                        "classKey": "warrior",
+                        "specKey": "protection",
+                        "fullName": "Protection Warrior",
+                        "role": "tank",
+                        "sampleCount": 20,
+                        "maxKeyLevel": 24,
+                        "bestScore": 4300.0,
+                    },
+                ],
+            },
+            {"classKey": "shaman", "specKey": "elemental", "productPhase": "retail"},
+        )
+
+        self.assertEqual("raiderio_strength", result["sourceKey"])
+        self.assertEqual("source_reference", result["status"])
+        self.assertEqual(["raiderio-strength:shaman:elemental:mythic_plus"], result["evidenceRefs"])
+        signal = result["facts"][0]["highKeySignal"]
+        self.assertEqual(2, signal["sameRolePopulation"])
+        self.assertEqual(2, signal["sameRolePlacement"])
+        self.assertEqual(4226.13, signal["bestObservedScore"])
+        self.assertEqual(23, signal["maxKeyLevel"])
+        self.assertIn("23", result["allowedNumbers"])
+        self.assertNotIn("MUST_NOT_ESCAPE", str(result))
+
+    def test_raiderio_strength_fails_closed_when_the_real_aggregate_has_no_positive_best_score(self):
+        result = agent.build_raiderio_strength_chickenbro_tool_result(
+            {
+                "sourceName": "Raider.IO",
+                "sourceStatus": "synced",
+                "checkedAt": "2099-08-01T10:00:00+00:00",
+                "expiresAt": "2099-08-01T16:00:00+00:00",
+                "specAggregates": [{
+                    "classKey": "shaman",
+                    "specKey": "elemental",
+                    "role": "dps",
+                    "sampleCount": 24,
+                    "maxKeyLevel": 23,
+                }],
+            },
+            {"classKey": "shaman", "specKey": "elemental", "productPhase": "retail"},
+        )
+
+        self.assertEqual("partial", result["status"])
+        self.assertEqual([], result["evidenceRefs"])
+        self.assertIn("bestScore", result["limitations"][0])
+
+    def test_retail_strength_query_executes_registered_raiderio_and_public_wcl_sources(self):
+        wcl_builder = getattr(backend, "build_wcl_public_rankings_tool_result", None)
+
+        self.assertIsNotNone(wcl_builder, "backend must bind the registered public WCL rankings adapter")
+        payload = {
+            "sourceName": "Raider.IO",
+            "sourceStatus": "synced",
+            "checkedAt": "2099-08-01T10:00:00+00:00",
+            "expiresAt": "2099-08-01T16:00:00+00:00",
+            "region": "cn",
+            "specAggregates": [
+                {
+                    "classKey": "shaman",
+                    "specKey": "elemental",
+                    "fullName": "Elemental Shaman",
+                    "role": "dps",
+                    "sampleCount": 24,
+                    "maxKeyLevel": 23,
+                    "bestScore": 4226.13,
+                },
+                {
+                    "classKey": "mage",
+                    "specKey": "frost",
+                    "fullName": "Frost Mage",
+                    "role": "dps",
+                    "sampleCount": 20,
+                    "maxKeyLevel": 24,
+                    "bestScore": 4300,
+                },
+            ],
+        }
+        wcl_result = {
+            "sourceKey": "warcraftlogs_public_rankings",
+            "status": "source_reference",
+            "facts": [{"summary": "Current WCL public Mythic+ rows are available.", "sampleCount": 2}],
+            "evidence": [{"id": "wcl.public.shaman.elemental.mythic_plus"}],
+            "evidenceRefs": ["wcl.public.shaman.elemental.mythic_plus"],
+            "allowedNumbers": ["2"],
+            "limitations": [],
+            "nextActions": [],
+        }
+        rio = community_strength_manifest(
+            "source:raiderio-strength:v1",
+            "chickenbro.source.raiderio_strength.v1",
+            "raiderio_strength",
+        )
+        wcl = community_strength_manifest(
+            "source:warcraftlogs-public-rankings:v1",
+            "chickenbro.source.warcraftlogs_public_rankings.v1",
+            "warcraftlogs_public_rankings",
+        )
+        release = signed_release(
+            [signed_release()["manifests"][0], signed_release()["manifests"][1], current_sources_manifest(), rio, wcl],
+            registryVersion="chickenbro-tools-3",
+            provenance={"kind": "repository_migration", "revision": "0027"},
+        )
+        original_payload = backend.chickenbro_cached_raiderio_payload
+        original_wcl_builder = backend.build_wcl_public_rankings_tool_result
+        backend.chickenbro_cached_raiderio_payload = lambda: payload
+        backend.build_wcl_public_rankings_tool_result = lambda intent: wcl_result
+        try:
+            loaded = backend.load_chickenbro_source_tool_results(
+                "元素萨现在版本大秘境强度如何？",
+                {"region": "cn"},
+                include_registry=True,
+                registry_loader=lambda: release,
+                registry_runtime=ChickenbroRegistryRuntime(60),
+            )
+        finally:
+            backend.chickenbro_cached_raiderio_payload = original_payload
+            backend.build_wcl_public_rankings_tool_result = original_wcl_builder
+
+        self.assertEqual(
+            ["raiderio_strength", "warcraftlogs_public_rankings"],
+            [item["sourceKey"] for item in loaded["sourceToolResults"]],
+        )
+        bounded = backend.build_chickenbro_bounded_context(
+            "元素萨现在版本大秘境强度如何？",
+            {},
+            source_tool_results=loaded,
+        )
+        self.assertEqual([], bounded["capabilityPlan"]["unmetEvidenceNeeds"])
+        self.assertEqual("source_reference", bounded["answerLayer"])
+        self.assertIn("raiderio-strength:shaman:elemental:mythic_plus", bounded["allowedEvidenceRefs"])
+        self.assertIn("wcl.public.shaman.elemental.mythic_plus", bounded["allowedEvidenceRefs"])
+        self.assertEqual("已核对社区当前数据", bounded["basisLabel"])
+        prompt = json.loads(backend.chickenbro_prompt_from_context(bounded))
+        self.assertTrue(any("当前强度证据" in item for item in prompt["instructions"]))
+        self.assertFalse(any("来源证据不可用" in item for item in prompt["instructions"]))
+
+    def test_public_wcl_rows_do_not_satisfy_a_cross_spec_strength_requirement(self):
+        plan = backend.chickenbro_capability_plan(
+            {"questionType": "current_research", "evidenceNeeds": ["comparative_strength_signal"]},
+            {"selectedCapabilityIds": ["source:warcraftlogs-public-rankings:v1"]},
+            [{
+                "sourceKey": "warcraftlogs_public_rankings",
+                "status": "source_reference",
+                "evidenceRefs": ["wcl.public.shaman.elemental.mythic_plus"],
+            }],
+        )
+
+        self.assertEqual(["comparative_strength_signal"], plan["unmetEvidenceNeeds"])
+
+    def test_current_message_scenario_cannot_be_overridden_by_a_stale_client_mplus_context(self):
+        rio = community_strength_manifest(
+            "source:raiderio-strength:v1",
+            "chickenbro.source.raiderio_strength.v1",
+            "raiderio_strength",
+        )
+        release = signed_release(
+            [signed_release()["manifests"][0], signed_release()["manifests"][1], current_sources_manifest(), rio],
+            registryVersion="chickenbro-tools-3",
+            provenance={"kind": "repository_migration", "revision": "0027"},
+        )
+        loaded = backend.load_chickenbro_source_tool_results(
+            "元素萨正式服团本单体强度如何？",
+            {"region": "cn", "scenarioKey": "mythic_plus", "productPhase": "retail"},
+            include_registry=True,
+            registry_loader=lambda: release,
+            registry_runtime=ChickenbroRegistryRuntime(60),
+        )
+
+        self.assertEqual([], loaded["sourceToolResults"])
+        self.assertEqual([], loaded["registryContext"]["selectedCapabilityIds"])
+
+    def test_returned_community_strength_evidence_rejects_no_data_manual_lookup_reply(self):
+        bounded_context = backend.build_chickenbro_bounded_context(
+            "元素萨现在版本大秘境强度如何？",
+            {},
+            source_tool_results={
+                "sourceToolResults": [{
+                    "sourceKey": "raiderio_strength",
+                    "status": "source_reference",
+                    "facts": [{"summary": "Current Elemental Shaman high-key signal.", "highKeySignal": {"bestObservedScore": 4226.13}}],
+                    "evidence": [{"id": "raiderio-strength:shaman:elemental:mythic_plus", "checkedAt": "2099-08-01T10:00:00+00:00"}],
+                    "evidenceRefs": ["raiderio-strength:shaman:elemental:mythic_plus"],
+                    "allowedNumbers": ["4226.13"],
+                    "limitations": [],
+                    "nextActions": [],
+                }],
+                "registryContext": {
+                    "status": "verified",
+                    "registryVersion": "chickenbro-tools-3",
+                    "registryReleaseHash": "sha256:" + "1" * 64,
+                    "registrySource": "postgres",
+                    "discoveredCapabilityIds": ["source:raiderio-strength:v1"],
+                    "selectedCapabilityIds": ["source:raiderio-strength:v1"],
+                },
+            },
+        )
+
+        with self.assertRaisesRegex(ValueError, "comparative evidence"):
+            backend.validate_chickenbro_model_output(
+                {
+                    "answer": "我目前没有数据，你可以自己去 WCL 或 Raider.IO 查询。",
+                    "confidence": "medium",
+                    "priorityActions": [],
+                    "evidenceRefs": [],
+                    "limitations": [],
+                    "missingInputs": [],
+                    "nextQuestion": "",
+                },
+                bounded_context,
+            )
+
+    def test_rejected_strength_model_reply_uses_a_generic_evidence_backed_fallback(self):
+        bounded_context = backend.build_chickenbro_bounded_context(
+            "元素萨现在版本大秘境强度如何？",
+            {},
+            source_tool_results={
+                "sourceToolResults": [{
+                    "sourceKey": "raiderio_strength",
+                    "status": "source_reference",
+                    "facts": [{
+                        "summary": "Raider.IO current Mythic+ high-key signal is available for Elemental Shaman.",
+                        "highKeySignal": {
+                            "bestObservedScore": 4226.13,
+                            "sameRolePlacement": 2,
+                            "sameRolePopulation": 12,
+                            "maxKeyLevel": 23,
+                            "sampleCount": 24,
+                        },
+                    }],
+                    "evidence": [{"id": "raiderio-strength:shaman:elemental:mythic_plus", "checkedAt": "2099-08-01T10:00:00+00:00"}],
+                    "evidenceRefs": ["raiderio-strength:shaman:elemental:mythic_plus"],
+                    "allowedNumbers": ["4226.13", "2", "12", "23", "24"],
+                    "limitations": ["same-role high-key samples are not a universal tier list"],
+                    "nextActions": [],
+                }],
+                "registryContext": {
+                    "status": "verified",
+                    "registryVersion": "chickenbro-tools-3",
+                    "registryReleaseHash": "sha256:" + "1" * 64,
+                    "registrySource": "postgres",
+                    "discoveredCapabilityIds": ["source:raiderio-strength:v1"],
+                    "selectedCapabilityIds": ["source:raiderio-strength:v1"],
+                },
+            },
+        )
+        result = backend.run_chickenbro_agent(
+            bounded_context,
+            codex_runner=lambda *_args, **_kwargs: {
+                "status": "succeeded",
+                "content": '{"answer":"没有数据，你自己去 Raider.IO 查。","confidence":"medium","priorityActions":[],"evidenceRefs":[],"limitations":[],"missingInputs":[],"nextQuestion":""}',
+            },
+        )
+
+        self.assertEqual("deterministic_source_fallback", result["answer"]["answerSource"])
+        self.assertEqual(["raiderio-strength:shaman:elemental:mythic_plus"], result["answer"]["evidenceRefs"])
+        self.assertNotIn("没有数据", result["answer"]["answer"])
+        self.assertIn("4226.13", result["answer"]["answer"])
+
+    def test_streamed_strength_reply_is_buffered_until_evidence_validation_then_falls_back(self):
+        bounded_context = backend.build_chickenbro_bounded_context(
+            "元素萨现在版本大秘境强度如何？",
+            {},
+            source_tool_results={
+                "sourceToolResults": [{
+                    "sourceKey": "raiderio_strength",
+                    "status": "source_reference",
+                    "facts": [{"summary": "Current Elemental Shaman high-key signal.", "highKeySignal": {"bestObservedScore": 4226.13, "sameRolePlacement": 2, "sameRolePopulation": 12, "maxKeyLevel": 23, "sampleCount": 24}}],
+                    "evidence": [{"id": "raiderio-strength:shaman:elemental:mythic_plus", "checkedAt": "2099-08-01T10:00:00+00:00"}],
+                    "evidenceRefs": ["raiderio-strength:shaman:elemental:mythic_plus"],
+                    "allowedNumbers": ["4226.13", "2", "12", "23", "24"],
+                    "limitations": [],
+                    "nextActions": [],
+                }],
+                "registryContext": {
+                    "status": "verified", "registryVersion": "chickenbro-tools-3", "registryReleaseHash": "sha256:" + "1" * 64,
+                    "registrySource": "postgres", "discoveredCapabilityIds": ["source:raiderio-strength:v1"], "selectedCapabilityIds": ["source:raiderio-strength:v1"],
+                },
+            },
+        )
+        payload = '{"answer":"没有数据，你自己去 Raider.IO 查。","confidence":"medium","priorityActions":[],"evidenceRefs":[],"limitations":[],"missingInputs":[],"nextQuestion":""}'
+        stream = backend.run_chickenbro_agent_stream(bounded_context, stream_runner=lambda *_args, **_kwargs: [payload])
+        events = []
+        while True:
+            try:
+                events.append(next(stream))
+            except StopIteration as stop:
+                result = stop.value
+                break
+
+        self.assertEqual(1, len(events))
+        self.assertNotIn("没有数据", events[0]["text"])
+        self.assertEqual("deterministic_source_fallback", result["answer"]["answerSource"])
+        with self.assertRaisesRegex(ValueError, "summarized"):
+            backend.validate_chickenbro_model_output(
+                {
+                    "answer": "我目前没有数据，你可以自己去 WCL 或 Raider.IO 查询。",
+                    "confidence": "medium",
+                    "priorityActions": [],
+                    "evidenceRefs": ["raiderio-strength:shaman:elemental:mythic_plus"],
+                    "limitations": [],
+                    "missingInputs": [],
+                    "nextQuestion": "",
+                },
+                bounded_context,
+            )
 
     def test_source_result_enriches_plain_chat_without_client_context(self):
         parameters = inspect.signature(backend.build_chickenbro_bounded_context).parameters

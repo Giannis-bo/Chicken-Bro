@@ -29,6 +29,7 @@ WEBSIM_GEAR_CATALOG_VARIANT_SHAPES = ROOT / "server" / "migrations" / "postgres"
 CHICKENBRO_AGENT_OBSERVABILITY = ROOT / "server" / "migrations" / "postgres" / "0024_chickenbro_agent_observability.sql"
 CHICKENBRO_TOOL_REGISTRY = ROOT / "server" / "migrations" / "postgres" / "0025_chickenbro_tool_registry.sql"
 CHICKENBRO_SMART_QUESTION_CHAIN = ROOT / "server" / "migrations" / "postgres" / "0026_chickenbro_smart_question_chain.sql"
+CHICKENBRO_COMMUNITY_STRENGTH = ROOT / "server" / "migrations" / "postgres" / "0027_chickenbro_community_strength_sources.sql"
 
 
 class PostgresSchemaTest(unittest.TestCase):
@@ -663,3 +664,14 @@ class PostgresSchemaTest(unittest.TestCase):
         self.assertIn("INSERT INTO ops.chickenbro_tool_registry_release_manifests", normalized)
         self.assertIn("INSERT INTO ops.chickenbro_tool_registry_active", normalized)
         self.assertIn("0026_chickenbro_smart_question_chain", normalized)
+
+    def test_community_strength_sources_append_registry_v3_without_mutating_prior_releases(self):
+        self.assertTrue(CHICKENBRO_COMMUNITY_STRENGTH.exists(), "missing Chickenbro community-strength Registry migration")
+        normalized = " ".join(CHICKENBRO_COMMUNITY_STRENGTH.read_text(encoding="utf-8").split())
+        self.assertIn("source:raiderio-strength:v1", normalized)
+        self.assertIn("source:warcraftlogs-public-rankings:v1", normalized)
+        self.assertIn("chickenbro.source.raiderio_strength.v1", normalized)
+        self.assertIn("chickenbro.source.warcraftlogs_public_rankings.v1", normalized)
+        self.assertIn("chickenbro-tools-3", normalized)
+        self.assertIn("active.registry_version = 'chickenbro-tools-2'", normalized)
+        self.assertIn("0027_chickenbro_community_strength_sources", normalized)
