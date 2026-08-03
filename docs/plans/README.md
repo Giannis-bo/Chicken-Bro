@@ -21,6 +21,7 @@
 | Observed Build Registry 与 80 槽 TemplateSet 重构 | 正在推进 | [设计](2026-07-23-observed-build-registry-design.md) · [核心切片实施计划](2026-07-23-observed-build-registry-core-implementation.md) · [共享玩家切换计划](2026-07-23-observed-build-registry-cutover-implementation.md) |
 | builds_home 职业命令卡组 | 正在推进 | [builds-home-command-deck.md](builds-home-command-deck.md) |
 | 炸鸡队长统一 ChatBot 与受控分析工具 | 正在推进（Phase 2 已归档；流式交互生产已验证；能力演化 Phase 3–5 未授权） | [后端架构](2026-07-24-chickenbro-chatbot-design.md) · [Phase 1 极简聊天表面](2026-08-01-chickenbro-chat-surface-design.md) · [聊天表面实施计划](2026-08-01-chickenbro-chat-surface-implementation.md) · [来源驱动 Agent 实施计划](2026-08-01-chickenbro-source-agent-implementation.md) · [流式体验设计](2026-08-03-chickenbro-streaming-scroll-design.md) · [流式体验实施计划](2026-08-03-chickenbro-streaming-scroll-implementation.md) · [生产证据](../../artifacts/releases/2026-08-03-chickenbro-streaming-scroll/evidence.json) · [能力演化控制面设计](2026-08-02-chickenbro-capability-evolution-design.md) · [能力演化 Phase 1 实施计划](2026-08-02-chickenbro-observability-phase1-implementation.md) |
+| 炸鸡队长 Smart Question Chain | 正在推进（已授权在线 QuestionFrame、受控当前来源与 Trace observation；不含 Toolsmith/shadow/canary/promotion） | [设计](2026-08-03-chickenbro-smart-question-chain-design.md) · [实施计划](2026-08-03-chickenbro-smart-question-chain-implementation.md) |
 | SQLite 全面退役 | 下一步 | [退役设计](2026-08-02-sqlite-complete-retirement-design.md) |
 
 ## 稳定目标与归档基线
