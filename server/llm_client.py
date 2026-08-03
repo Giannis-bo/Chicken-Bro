@@ -49,10 +49,7 @@ def stream_chat_completion(system_prompt, user_prompt, schema, temperature=0.3, 
             ],
             "temperature": temperature,
             "stream": True,
-            "response_format": {
-                "type": "json_schema",
-                "json_schema": {"name": "chickenbro_response", "strict": True, "schema": schema},
-            },
+            "response_format": {"type": "json_object"},
         },
         ensure_ascii=False,
     ).encode("utf-8")

@@ -4,7 +4,7 @@
 
 **目标：** 在不改变 owner、来源、最终校验和持久化权威的前提下，让炸鸡队长通过服务端代理的真实模型 delta 输出回答，并在玩家仍阅读最新内容时自动跟随；上滑阅读时不抢滚动位置。
 
-**架构：** 独立的 Chickenbro 流式 provider 配置仅由后端读取。服务端读取 OpenAI-compatible Chat Completions 的 SSE delta，经过 answer 字段和数字门禁后，转换成小程序可消费的 HTTP chunked NDJSON。`final` 仍走既有完整 `ChickenbroResponse` 校验和持久化；任何中断、取消、解码或最终校验失败都丢弃内存中的 partial 文本并不写 assistant 消息。
+**架构：** 独立的 Chickenbro 流式 provider 配置仅由后端读取。服务端以 provider-compatible 的 JSON object 模式读取 OpenAI-compatible Chat Completions SSE delta，经过 `answer` 字段、完整 schema 和数字门禁后，转换成小程序可消费的 HTTP chunked NDJSON。`final` 仍走既有完整 `ChickenbroResponse` 校验和持久化；任何中断、取消、解码或最终校验失败都丢弃内存中的 partial 文本并不写 assistant 消息。
 
 **技术栈：** Python 标准库 HTTP/urllib、现有 `news_backend.py` / PostgreSQL personal store、Taro `request.onChunkReceived` / `ScrollView`、TypeScript node:test。
 
@@ -43,7 +43,7 @@
 - 新增：`tests/llm_client_test.py`
 
 1. 先在 `tests/chickenbro_stream_test.py` 写入失败测试：JSON `{"answer":"..."}` 被任意 Unicode 边界分段时，只释放完整、安全的 answer 新增前缀；未知顶层字段、未经允许的数字、超限缓冲和不完整终态均不释放。
-2. 在 `tests/llm_client_test.py` 写入失败测试：仅当 `WOW_CHICKENBRO_STREAM_ENABLED=1` 和专用 URL/key/model 都存在才启用；请求带 `stream: true`、受控 JSON schema 和 `Accept: text/event-stream`；SSE 的 `[DONE]`、空 delta 与 malformed 行有明确结果，测试日志不含 key。
+2. 在 `tests/llm_client_test.py` 写入失败测试：仅当 `WOW_CHICKENBRO_STREAM_ENABLED=1` 和专用 URL/key/model 都存在才启用；请求带 `stream: true`、provider-compatible 的 `json_object` 与 `Accept: text/event-stream`；SSE 的 `[DONE]`、空 delta 与 malformed 行有明确结果，测试日志不含 key。完整 schema 仍由后端流解析器与最终校验器执行。
 3. 新建 `ChickenbroAnswerStream`，以 answer JSON 字符串的完整前缀作为唯一 public text 来源；在流内保持 64 字符数字尾部，调用既有 allowed-number/文本门禁后才按 sequence 释放。
 4. 在 `llm_client.py` 新增无副作用的专用配置读取及 `stream_chat_completion(...)` 生成器。保持现有 `call_chat_completion` 行为不变；不复用全局 LLM 配置以免意外改变其他调用。
 5. 运行 `python3 -m unittest tests.chickenbro_stream_test tests.llm_client_test`；确认先红、实现后绿，再局部审查无凭据输出。

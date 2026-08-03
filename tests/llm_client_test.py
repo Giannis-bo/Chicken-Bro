@@ -39,7 +39,7 @@ class LlmClientStreamTest(unittest.TestCase):
         self.assertEqual(config, {"enabled": True, "model": "test-stream-model"})
         self.assertNotIn("secret", json.dumps(config))
 
-    def test_posts_schema_and_yields_only_nonempty_sse_content_deltas(self):
+    def test_posts_json_object_mode_and_yields_only_nonempty_sse_content_deltas(self):
         from server.llm_client import stream_chat_completion
 
         captured = {}
@@ -63,8 +63,7 @@ class LlmClientStreamTest(unittest.TestCase):
 
         self.assertEqual(chunks, ["你好", "世界"])
         self.assertTrue(captured["body"]["stream"])
-        self.assertEqual(captured["body"]["response_format"]["type"], "json_schema")
-        self.assertEqual(captured["body"]["response_format"]["json_schema"]["schema"], {"type": "object"})
+        self.assertEqual(captured["body"]["response_format"], {"type": "json_object"})
         self.assertEqual(captured["headers"]["Accept"], "text/event-stream")
         self.assertEqual(captured["headers"]["Authorization"], "Bearer test-secret-must-not-leak")
 
