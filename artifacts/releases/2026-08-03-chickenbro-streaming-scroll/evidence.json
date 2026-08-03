@@ -86,6 +86,31 @@
       "command": "post-merge scoped verification at 721587f1c6a52b205915e8e31208065270e02e3d: python3 -m unittest tests.news_backend_test tests.postgres_personal_store_test tests.database_adapter_test tests.chickenbro_stream_test tests.llm_client_test; npx vitest run packages/api-client/src/transport.test.ts packages/api-client/src/simulator.test.ts apps/mini-taro/src/pages/simulator/chickenbro-model.test.ts apps/mini-taro/src/pages/simulator/simulator-home-dock-contract.test.ts; npx tsc -p tsconfig.json --noEmit; npm run lint; node --test tests/audit-ui-architecture-paths.test.js",
       "status": "pass",
       "summary": "合并结果上 341 项 Python、36 项 Vitest、TypeScript、eslint 零 warning 与 18 项 UI architecture audit 均通过。"
+    },
+    {
+      "command": "production file parity at /opt/wow-mini-program after WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 ./server/deploy_lighthouse.sh and an explicit wow-backend restart",
+      "status": "pass",
+      "summary": "生产 server/news_backend.py、llm_client.py、chickenbro_stream.py 与 postgres_personal_store.py 的 SHA-256 均与 63153fa8 当前 main 对应文件一致；新进程 PID 1989276 于 2026-08-03 14:37:21 CST active。"
+    },
+    {
+      "command": "public HTTPS POST https://api.chickenbro.cloud/api/chickenbro/messages/stream with a fresh guest owner",
+      "status": "pass",
+      "summary": "收到 application/x-ndjson chunked 响应，事件顺序为 started、status、16 个严格递增 delta、final；首个 delta 在 13294ms，final 在 14154ms，job succeeded，持久化角色恰为 user、assistant。"
+    },
+    {
+      "command": "production stream disconnect after started/status, then owner-scoped transcript read",
+      "status": "pass",
+      "summary": "断开后会话只保留 user，assistantPartialPersisted=false。"
+    },
+    {
+      "command": "public HTTPS POST https://api.chickenbro.cloud/api/chickenbro/messages with a fresh guest owner",
+      "status": "pass",
+      "summary": "旧完整 JSON 端点仍返回 HTTP 200 和 succeeded job，持久化角色恰为 user、assistant。"
+    },
+    {
+      "command": "production GET /api/data/health after deployment",
+      "status": "pass",
+      "summary": "请求在 22 秒返回 HTTP 200，overallStatus=partial；20 个组件中 8 verified、7 partial、4 blocked、1 pending_official_audit。该数据健康状态按字面记录，不作为流式成功的替代结论。"
     }
   ],
   "candidateDeployment": {
@@ -148,6 +173,81 @@
       "fallback": "source tests cover pre-start HTTP 503 and complete-response compatibility; no production rollback was needed because no production deployment occurred"
     }
   },
+  "productionDeployment": {
+    "status": "live_verified",
+    "commit": "63153fa8c179d3dac35b380d089b24454e70e40c",
+    "gitTree": "48f47f5cebfb50d145a60caa91bf015f25554ff4",
+    "deployedTarget": "ubuntu@124.223.51.33:/opt/wow-mini-program via wow-backend.service",
+    "method": "WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 hot deploy reused existing remote packages and SimC. Source parity was observed before the original process had reloaded, so the existing service was explicitly restarted; the verified active PID is 1989276.",
+    "backup": {
+      "path": "/var/backups/wow-backend/chickenbro-streaming-production-20260803T062100Z",
+      "contents": ["news_backend.py", "llm_client.py", "postgres_personal_store.py", "absence marker for chickenbro_stream.py", "wow-backend.env", "before.sha256"],
+      "environmentMode": "0600"
+    },
+    "dedicatedProvider": {
+      "enabled": true,
+      "apiUrlPresent": true,
+      "apiKeyPresent": true,
+      "modelPresent": true,
+      "timeoutSeconds": 60,
+      "source": "existing production WOW_LLM_API_URL, WOW_LLM_API_KEY and WOW_LLM_MODEL copied into dedicated stream variables without recording values",
+      "secretsRecorded": false
+    },
+    "runtime": {
+      "mainPid": 1989276,
+      "activeSince": "2026-08-03 14:37:21 CST",
+      "fileHashes": {
+        "server/chickenbro_stream.py": "90438b87c2e63611ed3eafd50a0d5861b0ed52b149f2af2e13a8b1e71cdbabd7",
+        "server/llm_client.py": "bb37753e40fedabbb371a1522881bc27150d575cea70ebc202da257813d78461",
+        "server/news_backend.py": "c8ae511e0dea4c623330e2988fbf5a31164f13ae8932c7953174a45d8f1e921d",
+        "server/postgres_personal_store.py": "3d831a0f3cf1ccb3bb41ba140b13832231ee7ecfee5f6bb545803a8615022eb8"
+      }
+    },
+    "smoke": {
+      "status": "pass",
+      "health": {"httpStatus": 200, "ok": true, "service": "wow-backend"},
+      "stream": {
+        "publicBaseUrl": "https://api.chickenbro.cloud",
+        "contentType": "application/x-ndjson; charset=utf-8",
+        "transferEncoding": "chunked",
+        "eventOrder": ["started", "status", "delta x16", "final"],
+        "deltaSequenceStrictlyIncreasing": true,
+        "firstDeltaMs": 13294,
+        "finalMs": 14154,
+        "jobStatus": "succeeded",
+        "persistedRoles": ["user", "assistant"]
+      },
+      "cancelledStream": {
+        "after": ["started", "status"],
+        "persistedRoles": ["user"],
+        "assistantPartialPersisted": false
+      },
+      "completeEndpoint": {"httpStatus": 200, "jobStatus": "succeeded", "persistedRoles": ["user", "assistant"]},
+      "dataHealth": {
+        "httpStatus": 200,
+        "elapsedSeconds": 22,
+        "overallStatus": "partial",
+        "componentStatusCounts": {"verified": 8, "partial": 7, "blocked": 4, "pending_official_audit": 1}
+      }
+    },
+    "timerBackflow": {
+      "requestedAsyncSyncStarts": false,
+      "timerStates": {
+        "wow-websim-sync.timer": "active",
+        "wow-stat-weights-sync.timer": "active",
+        "wow-community-template-sync.timer": "active",
+        "wow-season-recommended-gear-sync.timer": "active",
+        "wow-data-health-followup.timer": "active",
+        "wow-chickenbro-source-refresh.timer": "active"
+      },
+      "preExistingFailedUnit": "wow-backend-equipment-e2e-m1b33356c.service"
+    },
+    "rollback": {
+      "status": "ready",
+      "path": "restore the four saved code files and /etc/wow-backend.env from /var/backups/wow-backend/chickenbro-streaming-production-20260803T062100Z, remove chickenbro_stream.py because the backup records it absent, then restart wow-backend.service",
+      "database": "no schema or migration ran; guest smoke rows remain owner-isolated test data"
+    }
+  },
   "runtimeEvidence": [
     {
       "type": "candidate_file_parity",
@@ -173,6 +273,21 @@
       "type": "timer_backflow",
       "status": "pass",
       "summary": "候选验证未启动 collector、refresh、backfill 或任何新的异步同步任务，生产 wow-backend 未改动。"
+    },
+    {
+      "type": "production_file_parity",
+      "status": "pass",
+      "summary": "生产 /opt/wow-mini-program 的四个流式运行文件与 63153fa8 的 SHA-256 完全一致，wow-backend 新 PID 1989276 已加载该运行时。"
+    },
+    {
+      "type": "production_public_stream",
+      "status": "pass",
+      "summary": "公网 HTTPS 真实请求输出 16 个严格递增 delta，首个 delta 早于 final，最终 succeeded 且只落一条 assistant。"
+    },
+    {
+      "type": "production_cancel_zero_partial",
+      "status": "pass",
+      "summary": "生产连接在 started/status 后断开时，仅保留 user 消息，未留 assistant partial。"
     }
   ],
   "localReview": {
@@ -184,12 +299,12 @@
     ],
     "confirmedBoundaries": [
       "候选有真实 delta 才记录流成功；started、HTTP 200 和 loading 状态均不单独算成功。",
-      "生产服务、生产环境文件、主数据健康和异步任务不在本次候选任务的成功范围内。"
+      "候选证据与生产证据分层保留；生产发布后仍以真实 delta、final 持久化和取消零 partial 为成功条件。"
     ]
   },
   "risks": [
-    "生产尚未部署该 commit 或配置专用流式 provider；合并不等于生产可对话。",
-    "候选整体 /api/data/health 仍为 partial，属于本功能之外的数据域状态。",
+    "生产 /api/data/health 在 22 秒返回 overallStatus=partial，包含 7 partial、4 blocked 和 1 pending_official_audit 组件；这不是本次流式发布的成功结论。",
+    "部署脚本的源码复制已经完成时，最初探针仍观察到旧 PID；显式 restart 后才加载新路由。后续 deploy runbook 应保留 PID/路由而不只检查文件哈希。",
     "用户确认当前样式并授权收尾，但未记录一次单独的人工上滑/回到最新操作；该项以用户 waiver 和自动化 reducer contract 记录，而非冒充人工通过。"
   ],
   "rollback": [
@@ -200,7 +315,7 @@
   "cleanup": {
     "required": true,
     "status": "complete",
-    "reason": "在 bb76ca95 与 origin/main SHA 对齐、最新 main DevTools 包刷新后，已停止 e41839bb candidate service，并删除 57fccbe2/e41839bb 两个 task-scoped candidate 的精确 source roots、env 与 unit files；SSH control tunnel 已退出。生产 wow-backend、/opt/wow-mini-program、wow-data-health-followup.timer 与 wow-chickenbro-source-refresh.timer 未改动且保持 active。"
+    "reason": "在 bb76ca95 与 origin/main SHA 对齐、最新 main DevTools 包刷新后，已停止 e41839bb candidate service，并删除 57fccbe2/e41839bb 两个 task-scoped candidate 的精确 source roots、env 与 unit files；SSH control tunnel 已退出。随后用户授权生产发布，生产 backup 保留在 /var/backups/wow-backend/chickenbro-streaming-production-20260803T062100Z。"
   },
   "archivedReferences": [
     "docs/plans/README.md",
@@ -208,5 +323,5 @@
     "docs/plans/2026-08-03-chickenbro-streaming-scroll-implementation.md",
     "docs/roadmap/ideas.md"
   ],
-  "summary": "721587f1 已合并 e41839bb 的候选验证实现；隔离候选证明了真实 provider delta、UTF-8 NDJSON、最终 assistant 单次落库和取消零 partial，官方 DevTools 候选 build 完成了真实发送与最终回复展示。用户确认当前样式符合预期并要求收尾。最新 main 的 214 文件 DevTools 包已刷新，候选服务、配置、源码目录和 SSH tunnel 已清理。此 archive 不证明生产可对话：生产部署与生产 provider 配置仍未授权。"
+  "summary": "63153fa8 已部署到生产 wow-backend，生产专用流式 provider 从已有通用生产 LLM 配置派生且未记录密钥。公网 HTTPS 已证明真实 chunked NDJSON、16 个严格递增 delta、final 单次 assistant 落库、取消零 partial 和旧完整接口兼容；生产运行文件哈希与 main 一致。用户此前确认当前样式符合预期。/api/data/health 于 22 秒返回 literal partial，继续作为独立数据域风险，而非流式发布的成功替代。"
 }
