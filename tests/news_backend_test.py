@@ -8392,6 +8392,101 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(result["validation"], {"status": "passed"})
         self.assertEqual(result["model"]["name"], "")
 
+    def test_chickenbro_stream_agent_normalizes_numeric_confidence_before_number_validation(self):
+        bounded = self.backend.build_chickenbro_bounded_context("NQ 在12.1 PTR 强度如何", {})
+        answer = "目前只能确认 PTR 12.1 仍在变动，先看职业改动说明再决定是否调整配装。"
+        payload = {
+            "answer": answer,
+            "confidence": "0.4",
+            "answerLayer": bounded["answerLayer"],
+            "basisLabel": bounded["basisLabel"],
+            "priorityActions": [{"title": "围绕 PTR 12.1 的改动继续核对。", "evidenceRefs": []}],
+            "evidenceRefs": [],
+            "limitations": ["当前没有经过验证的 PTR 12.1 本地证据。"],
+            "missingInputs": [],
+            "nextQuestion": "你更关心 PTR 12.1 的单体还是大秘境表现？",
+        }
+        stream = self.backend.run_chickenbro_agent_stream(
+            bounded,
+            stream_runner=lambda *_args, **_kwargs: [json.dumps(payload, ensure_ascii=False)],
+        )
+        events = []
+        try:
+            while True:
+                try:
+                    events.append(next(stream))
+                except StopIteration as completed:
+                    result = completed.value
+                    break
+        except self.backend.ChickenbroGenerationUnavailable as error:
+            self.fail(f"numeric confidence must not reject an otherwise allowed reply: {error}")
+
+        self.assertEqual("".join(event["text"] for event in events), answer)
+        self.assertEqual(result["answer"]["confidence"], "low")
+        self.assertEqual(result["validation"], {"status": "passed"})
+
+    def test_chickenbro_stream_agent_requests_categorical_confidence_from_the_provider(self):
+        bounded = self.backend.build_chickenbro_bounded_context("冰DK大秘境先排查什么？", {})
+        observed = {}
+        payload = {
+            "answer": "先确认主要爆发是否对齐了高价值怪群。",
+            "confidence": "low",
+            "answerLayer": bounded["answerLayer"],
+            "basisLabel": bounded["basisLabel"],
+            "priorityActions": [],
+            "evidenceRefs": [],
+            "limitations": [],
+            "missingInputs": [],
+            "nextQuestion": "",
+        }
+
+        def stream_runner(_prompt, schema=None):
+            observed["schema"] = schema
+            return [json.dumps(payload, ensure_ascii=False)]
+
+        stream = self.backend.run_chickenbro_agent_stream(bounded, stream_runner=stream_runner)
+        while True:
+            try:
+                next(stream)
+            except StopIteration:
+                break
+
+        self.assertEqual(
+            observed["schema"]["properties"]["confidence"].get("enum"),
+            ["low", "medium", "high"],
+        )
+
+    def test_chickenbro_stream_agent_allows_an_authorized_numeric_evidence_reference(self):
+        bounded = self.backend.build_chickenbro_bounded_context("冰DK大秘境先排查什么？", {})
+        bounded["allowedEvidenceRefs"] = ["report-2026"]
+        payload = {
+            "answer": "请先对照这份已授权的战斗记录，再决定下一步排查方向。",
+            "confidence": "low",
+            "answerLayer": bounded["answerLayer"],
+            "basisLabel": bounded["basisLabel"],
+            "priorityActions": [{"title": "先查看已授权战斗记录。", "evidenceRefs": ["report-2026"]}],
+            "evidenceRefs": ["report-2026"],
+            "limitations": [],
+            "missingInputs": [],
+            "nextQuestion": "",
+        }
+        stream = self.backend.run_chickenbro_agent_stream(
+            bounded,
+            stream_runner=lambda *_args, **_kwargs: [json.dumps(payload, ensure_ascii=False)],
+        )
+        try:
+            while True:
+                try:
+                    next(stream)
+                except StopIteration as completed:
+                    result = completed.value
+                    break
+        except self.backend.ChickenbroGenerationUnavailable as error:
+            self.fail(f"an authorized evidence reference must not reject an otherwise safe reply: {error}")
+
+        self.assertEqual(result["answer"]["evidenceRefs"], ["report-2026"])
+        self.assertEqual(result["answer"]["priorityActions"][0]["evidenceRefs"], ["report-2026"])
+
     def test_chickenbro_stream_agent_does_not_emit_unapproved_number(self):
         bounded = self.backend.build_chickenbro_bounded_context("冰DK大秘境先排查什么？", {})
         payload = {

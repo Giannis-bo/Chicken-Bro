@@ -7936,6 +7936,7 @@ def chickenbro_prompt_from_context(bounded_context):
         1,
         "问候时自然回应并邀请用户提出魔兽问题；非魔兽问题也要按用户原话自然说明范围，禁止复用固定回复模板。",
     )
+    instructions.insert(2, 'confidence 只能是 "low"、"medium" 或 "high"，不得以数字表示置信度。')
     return json.dumps(
         {
             "instructions": instructions,
@@ -7996,7 +7997,7 @@ def chickenbro_model_schema():
         ],
         "properties": {
             "answer": {"type": "string"},
-            "confidence": {"type": "string"},
+            "confidence": {"type": "string", "enum": ["low", "medium", "high"]},
             "answerLayer": {"type": "string", "enum": ["direct_chat", "diagnostic", "evidence", "source_reference", "wcl_evidence"]},
             "basisLabel": {"type": "string"},
             "priorityActions": {
@@ -8056,6 +8057,22 @@ def normalize_chickenbro_model_payload(payload):
     if not isinstance(payload, dict):
         return payload
     normalized = dict(payload)
+    confidence = str(normalized.get("confidence") or "").strip().lower()
+    if confidence not in {"low", "medium", "high"}:
+        try:
+            confidence_score = float(confidence)
+        except (TypeError, ValueError):
+            confidence = "medium"
+        else:
+            if not 0 <= confidence_score <= 1:
+                confidence = "medium"
+            elif confidence_score <= 0.4:
+                confidence = "low"
+            elif confidence_score >= 0.75:
+                confidence = "high"
+            else:
+                confidence = "medium"
+    normalized["confidence"] = confidence
     actions = normalized.get("priorityActions")
     if isinstance(actions, str):
         actions = [actions]
@@ -8090,7 +8107,16 @@ def validate_chickenbro_model_output(payload, bounded_context):
             if str(ref) not in allowed_refs:
                 raise ValueError("model_output_invalid: unknown action evidence ref")
     allowed_numbers = {str(number).rstrip("%") for number in bounded_context.get("allowedNumbers") or []}
-    output_text = json.dumps(payload, ensure_ascii=False)
+    output_text = json.dumps(
+        {
+            "answer": answer,
+            "priorityActions": [action.get("title") for action in payload.get("priorityActions") or []],
+            "limitations": payload.get("limitations") or [],
+            "missingInputs": payload.get("missingInputs") or [],
+            "nextQuestion": payload.get("nextQuestion") or "",
+        },
+        ensure_ascii=False,
+    )
     for number in chickenbro_text_numbers(output_text):
         normalized = number.rstrip("%")
         if normalized not in allowed_numbers:
