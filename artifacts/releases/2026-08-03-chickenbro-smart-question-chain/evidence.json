@@ -2,18 +2,19 @@
   "schemaVersion": 2,
   "slug": "chickenbro-smart-question-chain",
   "requirementSlug": "chickenbro-smart-question-chain",
-  "status": "implementation_allowed",
-  "highestEvidenceLevel": "implementation_allowed",
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
   "branch": "codex/chickenbro-smart-question-chain",
-  "commit": "pending_candidate_head",
+  "commit": "16e8a50d223ab7fdc360f940d3065643a02acd6e",
   "identities": {
     "runtime": {
       "status": "pending",
       "reason": "Candidate deployment has not yet bound the immutable runtime head."
     },
     "verification": {
-      "status": "pending",
-      "reason": "The final clean candidate-head Harness run is pending."
+      "status": "bound_at_check",
+      "kind": "git_ref",
+      "value": "HEAD"
     },
     "closure": {
       "status": "pending",
@@ -44,8 +45,8 @@
   "verification": [
     {
       "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-08-03-chickenbro-smart-question-chain",
-      "status": "not_run",
-      "summary": "Pending final local candidate-head verification."
+      "status": "pass",
+      "summary": "The exact 16e8a50d candidate head passed all 173 commands: 747 Node tests, 2448 Python tests with one conditional skip, typecheck, lint, 432 Taro tests, UI architecture, production-package mechanics, packet validation and whitespace checks. Existing release configuration remained literal partial because its approved asset/API/request-domain values are not configured."
     }
   ],
   "candidateDeployment": {
@@ -71,5 +72,5 @@
     "docs/plans/2026-08-03-chickenbro-smart-question-chain-design.md",
     "docs/plans/2026-08-03-chickenbro-smart-question-chain-implementation.md"
   ],
-  "summary": "Implementation is ready for final local verification and candidate/live deployment; no candidate, live or user-acceptance evidence is claimed yet."
+  "summary": "The exact candidate head is locally verified; candidate/live deployment and user acceptance remain pending."
 }
