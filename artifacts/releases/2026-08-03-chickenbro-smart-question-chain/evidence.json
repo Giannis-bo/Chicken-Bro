@@ -5,7 +5,7 @@
   "status": "local_verified",
   "highestEvidenceLevel": "local_verified",
   "branch": "codex/chickenbro-smart-question-chain",
-  "commit": "16e8a50d223ab7fdc360f940d3065643a02acd6e",
+  "commit": "5774443bf7a3e1b9e1b4195b6444cea53a611d13",
   "identities": {
     "runtime": {
       "status": "pending",
@@ -46,7 +46,7 @@
     {
       "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-08-03-chickenbro-smart-question-chain",
       "status": "pass",
-      "summary": "The exact 16e8a50d candidate head passed all 173 commands: 747 Node tests, 2448 Python tests with one conditional skip, typecheck, lint, 432 Taro tests, UI architecture, production-package mechanics, packet validation and whitespace checks. Existing release configuration remained literal partial because its approved asset/API/request-domain values are not configured."
+      "summary": "The exact 5774443b candidate runtime head passed all 173 commands: 747 Node tests, 2448 Python tests with one conditional skip, typecheck, lint, 432 Taro tests, UI architecture, production-package mechanics, packet validation and whitespace checks. Existing release configuration remained literal partial because its approved asset/API/request-domain values are not configured."
     }
   ],
   "candidateDeployment": {
