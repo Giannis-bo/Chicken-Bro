@@ -85,6 +85,18 @@ class ChickenbroCurrentSourcesTest(unittest.TestCase):
         self.assertIn("comparative_strength_signal_missing", result["limitations"])
         self.assertNotIn("allowedNumbers", result)
 
+    def test_patch_version_comparison_ignores_trailing_zero_components(self):
+        result = self._builder()(
+            current_ptr_holy_paladin_frame(),
+            article_loader=lambda: [],
+            collector=lambda *_args, **_kwargs: ([official_article(versionEvent={"productPhase": "ptr", "patchVersion": "12.1.0"})], []),
+            approved_sources=APPROVED_SOURCES,
+            now=NOW,
+        )
+
+        self.assertEqual("source_reference", result["status"])
+        self.assertEqual(["current.blizzard-forums.official-holy-paladin-121"], result["evidenceRefs"])
+
     def test_phase_level_official_fact_is_partial_not_a_strength_verdict(self):
         result = self._builder()(
             current_ptr_holy_paladin_frame(),

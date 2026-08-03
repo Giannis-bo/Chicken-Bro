@@ -88,6 +88,16 @@ def _article_patch_version(article):
     return match.group(1) if match else ""
 
 
+def _canonical_patch_version(value):
+    raw = str(value or "").strip()
+    if not _PATCH_PATTERN.fullmatch(raw):
+        return raw
+    components = [int(component) for component in raw.split(".")]
+    while len(components) > 2 and components[-1] == 0:
+        components.pop()
+    return tuple(components)
+
+
 def _article_is_approved(article):
     source_id = _normalized(article.get("sourceId")) if isinstance(article, dict) else ""
     source_url = str(article.get("sourceUrl") or "") if isinstance(article, dict) else ""
@@ -150,7 +160,10 @@ def _scope_matches(article, scope):
     if _article_phase(article) != scope["productPhase"]:
         return False
     article_patch = _article_patch_version(article)
-    return not scope["patchVersion"] or article_patch == scope["patchVersion"]
+    return (
+        not scope["patchVersion"]
+        or _canonical_patch_version(article_patch) == _canonical_patch_version(scope["patchVersion"])
+    )
 
 
 def _cached_articles(article_loader, scope, now):
