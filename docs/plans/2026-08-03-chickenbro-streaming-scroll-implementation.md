@@ -76,7 +76,7 @@
 
 1. 先写失败测试：端点合同要求认证且支持 guest；中文 UTF-8 和 JSON 行在任意 ArrayBuffer 边界仍精确还原；不合法 JSON、未知 event、requestId 不一致、重复或倒退 sequence fail closed 并 abort。
 2. 将 Taro `request` 的 `enableChunked`、`responseType: 'arraybuffer'` 与 `onChunkReceived` 封装在 transport；保留 auth、guest、URL 和 telemetry 中央路径。公开 task 仅能 `abort()`，不得暴露原始响应字节给页面。
-3. 在 simulator client 声明封闭 `ChickenbroStreamEvent` 联合与 `streamMessage`。只有 transport 建连前失败时允许调用同一个 `clientMessageId` 的完整接口；收到 `started` 后的任何失败都只报失败，不自动再跑一次 agent。
+3. 在 simulator client 声明封闭 `ChickenbroStreamEvent` 联合与 `streamMessage`。只有服务端在开始前明确返回 `HTTP 503` 时，才允许以同一个 `clientMessageId` 调用完整接口；未知网络失败、取消或收到 `started` 后的任何失败都只报失败，不自动再跑一次 agent。
 4. 完成后运行 `npm test -- --runInBand packages/api-client/src/transport.test.ts packages/api-client/src/simulator.test.ts`；若仓库 test runner 不接受该参数，使用 `node --test` 的现有等价 scoped command 并记录实际命令。
 
 ## 任务 4：会话临时 turn 与阅读主权 UI

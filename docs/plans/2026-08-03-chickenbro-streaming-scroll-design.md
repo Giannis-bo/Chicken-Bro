@@ -31,7 +31,7 @@
 
 - 新增同一后端、同一认证与 owner 规则下的 `POST /api/chickenbro/messages/stream`。请求体、访客/认证 owner 注入、会话选择和幂等语义与现有 `POST /api/chickenbro/messages` 一致。
 - 响应为 UTF-8、逐行结束的 `application/x-ndjson; charset=utf-8`。服务端在每一条已完成 JSON 记录后 flush，并为既有部署链路显式关闭可能的代理缓冲。
-- 现有 `POST /api/chickenbro/messages` 保持完整 JSON 响应合同与超时语义，作为不支持流式传输、流式连接建立失败或后续兼容调用的降级路径；它不是第二个事实来源。
+- 现有 `POST /api/chickenbro/messages` 保持完整 JSON 响应合同与超时语义。只有服务端在写出 `started` 前明确返回 `HTTP 503`（流式 provider 未配置/不可用）时，客户端才以同一 `clientMessageId` 调用它降级；未知网络断开或取消只保留用户消息供重试，绝不自动重跑 Agent。它不是第二个事实来源。
 - 每次发送只允许一个活动请求。新话题、重试、离开页面或取消当前发送都会取消当前传输；旧请求的迟到事件不得写入新会话或覆盖新一轮状态。
 
 对外事件严格限于下列公开协议，所有记录都带 `requestId`，`delta` 另带单调递增的 `sequence`：
@@ -65,7 +65,7 @@
 - decoder 必须容忍 JSON 行、换行符和 UTF-8 中文字符被任意切分；只有完整且 schema 合法的一行才交给会话状态机。
 - 页面保持 `empty`、`loading`、`ready`、`sending`、`error` 既有含义。`sending` 中的临时 assistant turn 只存在于内存，不能被会话归档、路由恢复、缓存或重新加载当作历史。
 - `final` 到达后，以完整响应原子替换临时 turn；`failed`、网络断开、取消、解析失败或最终校验失败时移除临时 turn。若用户主动取消，则不制造“队长回答失败”的结论；他仍可继续输入或重试原用户消息。
-- 完整接口的 fallback 与流式接口使用同一用户消息、同一 `clientMessageId`、同一会话归属与幂等约束，避免一次手动发送形成两条用户消息或两次 Agent 执行。
+- 完整接口的受限 fallback 与流式接口使用同一用户消息、同一 `clientMessageId`、同一会话归属与幂等约束。因为服务端在创建 job 后才发送 `started`，未知断线不能被当成“尚未执行”，只能提示重试，避免一次手动发送形成两次 Agent 执行。
 
 ### 4. 自动跟随与阅读主权
 

@@ -367,6 +367,45 @@ describe('SimulatorClient task contract', () => {
     expect(failures).toEqual(['invalid chickenbro stream event'])
   })
 
+  it('falls back only for the server pre-stream unavailable response, never an ambiguous transport failure', async () => {
+    let streamOptions: { onFailure: (error: string) => void } | undefined
+    const requestStreamEndpoint = vi.fn((_endpoint: string, _path: string, options) => {
+      streamOptions = options
+      return { abort: vi.fn() }
+    })
+    const client = new SimulatorClient({ requestStreamEndpoint } as unknown as ApiTransport, new MemoryStorage())
+    const fullMessage = vi.spyOn(client, 'message').mockResolvedValue({
+      payload: {} as never,
+      fromFallback: false,
+      error: '',
+    })
+    const failures: string[] = []
+    const fallback = vi.fn()
+
+    client.streamMessage(
+      { message: '冰DK大秘境先排查什么？', clientMessageId: 'turn-transport-failure' },
+      { onEvent: vi.fn(), onFailure: (error) => failures.push(error), onFallback: fallback },
+    )
+    streamOptions?.onFailure('network down')
+    await Promise.resolve()
+
+    expect(fullMessage).not.toHaveBeenCalled()
+    expect(failures).toEqual(['network down'])
+
+    client.streamMessage(
+      { message: '冰DK大秘境先排查什么？', clientMessageId: 'turn-pre-stream-unavailable' },
+      { onEvent: vi.fn(), onFailure: (error) => failures.push(error), onFallback: fallback },
+    )
+    streamOptions?.onFailure('HTTP 503')
+    await Promise.resolve()
+
+    expect(fullMessage).toHaveBeenCalledWith({
+      message: '冰DK大秘境先排查什么？',
+      clientMessageId: 'turn-pre-stream-unavailable',
+    })
+    expect(fallback).toHaveBeenCalledOnce()
+  })
+
   it('validates owner-scoped Chickenbro archive summaries and session details', async () => {
     const session = {
       sessionId: 'session-archive-1',

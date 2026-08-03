@@ -495,7 +495,7 @@ export class SimulatorClient {
       },
       onFailure: (error) => {
         if (terminal || cancelled) return
-        if (!requestId && handlers.onFallback) {
+        if (!requestId && error === 'HTTP 503' && handlers.onFallback) {
           terminal = true
           void this.message(request).then(handlers.onFallback).catch(() => handlers.onFailure(error))
           return
