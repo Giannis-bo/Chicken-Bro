@@ -2,14 +2,26 @@
   "schemaVersion": 2,
   "slug": "chickenbro-smart-question-chain",
   "requirementSlug": "chickenbro-smart-question-chain",
-  "status": "local_verified",
-  "highestEvidenceLevel": "local_verified",
+  "status": "live_verified",
+  "highestEvidenceLevel": "live_verified",
   "branch": "codex/chickenbro-smart-question-chain",
   "commit": "5774443bf7a3e1b9e1b4195b6444cea53a611d13",
   "identities": {
     "runtime": {
-      "status": "pending",
-      "reason": "Candidate deployment has not yet bound the immutable runtime head."
+      "status": "bound",
+      "kind": "git_commit",
+      "value": "5774443bf7a3e1b9e1b4195b6444cea53a611d13",
+      "fileHashes": {
+        "server/news_backend.py": "065dfc4673da51c6017b6b11a2560cce93c5d1ba0a3f252d3b46eca42558ad56",
+        "server/chickenbro_agent.py": "a14cdd25fea307bb2f86c7e56f59e6004f900ec774864f0ea9f70839c841c4ab",
+        "server/chickenbro_current_sources.py": "e7347900be6149194df373fdb7e8787d8cfbaf22ec5e8cf53f265ed93b26d255",
+        "server/chickenbro_question_frame.py": "4f735a76359cd695dc3be780f6b28f25db207b51fbda39e21e4e3468bfa2f12b",
+        "server/chickenbro_registry.py": "f1d07cf89eee2309ec09a1d3c13130228c9c1192ada7b33d36725cff94e46f89",
+        "server/chickenbro_tool_runtime.py": "283138470e3a7e8de2ffb7aa8537aa30021ceea47c91baa492f5440846b74087",
+        "server/chickenbro_observability.py": "944ec1ef4e44ab8da50a43cf5e2f8fd91ddf316ceb9360ac3e7bdda17e124e5b",
+        "server/chickenbro_eval.py": "293f8e408ff1e3e7e5fab85e5cc8a62a730e594e14af55ca7b85d38da0b79398",
+        "server/migrations/postgres/0026_chickenbro_smart_question_chain.sql": "443ccdf237180f615cd0dc3f409728fa4af1f65735011c23d4735c8736d7ec44"
+      }
     },
     "verification": {
       "status": "bound_at_check",
@@ -47,16 +59,123 @@
       "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-08-03-chickenbro-smart-question-chain",
       "status": "pass",
       "summary": "The exact 5774443b candidate runtime head passed all 173 commands: 747 Node tests, 2448 Python tests with one conditional skip, typecheck, lint, 432 Taro tests, UI architecture, production-package mechanics, packet validation and whitespace checks. Existing release configuration remained literal partial because its approved asset/API/request-domain values are not configured."
+    },
+    {
+      "command": "candidate PostgreSQL migration, localhost health and natural-language PTR smoke",
+      "status": "pass",
+      "summary": "The isolated 5774443b candidate ran the migration dry-run transaction and then ledger application, served health on 127.0.0.1:18789, and completed the NQ PTR question through QuestionFrame, Registry v2, current-source adapter and Trace v3. The official source tool returned failed because no approved 12.1 PTR source was available; the answer remained evidence-limited rather than claiming a strength verdict."
+    },
+    {
+      "command": "production health, runtime-hash parity and natural-language smoke",
+      "status": "pass",
+      "summary": "Production wow-backend was restarted with the exact runtime hashes, active Registry pointer chickenbro-tools-2 and 0026 ledger. The PTR NQ question succeeded with current-source selection and a recorded evidence gap; a separate community-build question succeeded with Raider.IO selection and partial-sample degradation. No new sync, backfill or scheduled collector was started."
     }
   ],
   "candidateDeployment": {
-    "status": "pending",
-    "reason": "Candidate deployment and live smoke have not yet run."
+    "status": "candidate_verified",
+    "requiredBeforeMerge": true,
+    "branch": "codex/chickenbro-smart-question-chain",
+    "commit": "5774443bf7a3e1b9e1b4195b6444cea53a611d13",
+    "deployedTarget": "ubuntu@124.223.51.33:/opt/wow-mini-program-candidates/chickenbro-smart-question-5774443b",
+    "service": "wow-backend-chickenbro-smart-question-5774443b.service",
+    "method": "Isolated candidate root, explicit runtime-parity environment, targeted code staging, transactional PostgreSQL migration and bounded synchronous smoke; no dependency installation, third-party download or async sync start.",
+    "asyncSyncStarted": false,
+    "backup": {
+      "path": "/var/backups/wow-backend/chickenbro-smart-question-20260803T104500Z",
+      "postgresDumpBytes": 852749298,
+      "postgresDumpSha256": "487c39b2361fac69ac93bb7e55df4f480f551d3b21557d0abad9567d0ea530af",
+      "postgresDumpMode": "0600"
+    },
+    "migration": {
+      "status": "pass",
+      "dryRunTransactionRolledBack": true,
+      "ledgerId": "0026_chickenbro_smart_question_chain",
+      "registryVersion": "chickenbro-tools-2",
+      "releaseHash": "sha256:a25340f6fe51dfa01d956b7d944891de39771694e4fd3b33fb41b4fba2d9a102",
+      "manifestCount": 3
+    },
+    "smoke": {
+      "status": "pass",
+      "localhostHealthHttpStatus": 200,
+      "ptrQuestion": {
+        "status": "succeeded",
+        "questionType": "current_research",
+        "subject": "paladin/holy",
+        "selectedCapabilityIds": [
+          "source:current-wow-sources:v1"
+        ],
+        "toolStatus": "failed",
+        "answerStatus": "evidence_limited_no_strength_verdict"
+      }
+    },
+    "timerBackflow": {
+      "status": "pass",
+      "asyncSyncStarted": false,
+      "summary": "No sync, backfill or scheduled collector was started by the candidate deployment."
+    }
   },
-  "runtimeEvidence": [],
+  "runtimeEvidence": [
+    {
+      "type": "live_smoke",
+      "status": "pass",
+      "target": "ubuntu@124.223.51.33:/opt/wow-mini-program",
+      "service": "wow-backend.service",
+      "health": {
+        "localhostHttpStatus": 200,
+        "activeState": "active",
+        "subState": "running",
+        "execMainStatus": 0,
+        "activeSince": "2026-08-03 18:56:39 CST"
+      },
+      "registry": {
+        "version": "chickenbro-tools-2",
+        "releaseHash": "sha256:a25340f6fe51dfa01d956b7d944891de39771694e4fd3b33fb41b4fba2d9a102",
+        "manifestCount": 3,
+        "migrationLedger": "0026_chickenbro_smart_question_chain"
+      },
+      "smoke": {
+        "ptrQuestion": {
+          "jobId": "49a571ff-73ff-4632-9d2e-640eab812085",
+          "status": "succeeded",
+          "questionType": "current_research",
+          "selectedCapabilityIds": [
+            "source:current-wow-sources:v1"
+          ],
+          "toolStatus": "failed",
+          "answerStatus": "evidence_limited_no_strength_verdict",
+          "traceSchema": "chickenbro-agent-trace-v3"
+        },
+        "communityBuildQuestion": {
+          "jobId": "2fb354f4-6245-4c02-b85c-d6d8a18d5de1",
+          "status": "succeeded",
+          "questionType": "community_build",
+          "selectedCapabilityIds": [
+            "source:raiderio:v1"
+          ],
+          "toolStatus": "partial",
+          "answerStatus": "evidence_limited_no_optimal_build_claim",
+          "traceSchema": "chickenbro-agent-trace-v3"
+        }
+      },
+      "dataHealth": {
+        "overallStatus": "partial",
+        "raiderioStatus": "verified"
+      },
+      "timerBackflow": {
+        "asyncSyncStarted": false,
+        "preExistingSourceRefreshService": "failed/exit-code; not restarted by this release"
+      }
+    }
+  ],
   "risks": [
     {
       "description": "Exact official PTR evidence can be unavailable; the intended output remains partial rather than a fabricated conclusion."
+    },
+    {
+      "description": "At the live smoke time, Blizzard News timed out at the bounded two-second read while retrieved Blizzard Forum entries did not match 12.1 PTR. The current-source tool therefore recorded failed and the answer did not make a strength claim."
+    },
+    {
+      "description": "The pre-existing wow-chickenbro-source-refresh service remains failed and was not restarted; this release performed no sync/backfill start and does not treat that baseline service state as healthy."
     }
   ],
   "rollback": [
@@ -72,5 +191,5 @@
     "docs/plans/2026-08-03-chickenbro-smart-question-chain-design.md",
     "docs/plans/2026-08-03-chickenbro-smart-question-chain-implementation.md"
   ],
-  "summary": "The exact candidate head is locally verified; candidate/live deployment and user acceptance remain pending."
+  "summary": "The exact 5774443b runtime is candidate- and live-verified with literal evidence-gap handling; one real WeChat natural-language PTR acceptance remains pending."
 }
