@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-08-03T07:09:24.746Z",
+  "generatedAt": "2026-08-03T09:16:51.223Z",
   "release": {
     "date": "2026-08-03",
     "slug": "chickenbro-decimal-stream-boundary"
@@ -105,7 +105,7 @@
         {
           "path": "server/news_backend.py",
           "exists": true,
-          "lineCount": 15220,
+          "lineCount": 15246,
           "hotspot": true
         },
         {
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-08-03-chickenbro-decimal-stream-boundary/evidence.json",
-    "sizeBytes": 5819,
+    "sizeBytes": 6747,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -392,7 +392,7 @@
     "missingFields": [],
     "declaredStatus": "live_verified",
     "highestEvidenceLevel": "live_verified",
-    "summary": "12.1 这类 allowed decimal 在上游 chunk 边界被误判为未批准整数的生产故障已通过测试、隔离候选和生产同题烟测修复；等待开发者工具人工复验后关闭。"
+    "summary": "12.1 这类 allowed decimal 的 chunk 边界、数值 confidence 和数字 evidenceRef 的元数据误拒已通过测试、隔离候选和生产原题加追问烟测修复；等待开发者工具人工复验后关闭。"
   },
   "evidence": {
     "localTests": {
@@ -417,13 +417,13 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "1 changed files currently visible to git status."
+      "detail": "2 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
       "severity": "medium",
       "status": "watch",
-      "detail": "server/websim_payload.py:28040, server/news_backend.py:15220, server/postgres_cache_store.py:9698"
+      "detail": "server/websim_payload.py:28040, server/news_backend.py:15246, server/postgres_cache_store.py:9698"
     },
     {
       "id": "localTests_missing",
@@ -453,9 +453,10 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 1,
+      "changedFileCount": 2,
       "changedFiles": [
-        "?? artifacts/releases/2026-08-03-chickenbro-decimal-stream-boundary/"
+        " M artifacts/releases/2026-08-03-chickenbro-decimal-stream-boundary/evidence.json",
+        " M artifacts/releases/2026-08-03-chickenbro-decimal-stream-boundary/requirement.json"
       ]
     }
   },
