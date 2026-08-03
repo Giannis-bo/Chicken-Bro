@@ -78,8 +78,8 @@
     },
     {
       "command": "node scripts/project-harness.js --check --requirement-file artifacts/releases/2026-08-03-chickenbro-streaming-scroll/requirement.json --evidence-file artifacts/releases/2026-08-03-chickenbro-streaming-scroll/evidence.json --manifest-file artifacts/releases/2026-08-03-chickenbro-streaming-scroll/manifest.json --base origin/main",
-      "status": "not_run",
-      "summary": "将在本证据提交后的干净 task HEAD 运行。"
+      "status": "pass",
+      "summary": "c65b48c9492d5df6c16fc7ff39b289774cc27b0d 的干净 task HEAD 通过 packet identity、manual acceptance matrix、runtime candidate binding 和 owner-map 检查；Harness profile 的 93 项 contract 测试与 6 个命令也全部通过。"
     }
   ],
   "candidateDeployment": {
