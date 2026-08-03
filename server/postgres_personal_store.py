@@ -12,7 +12,7 @@ except ImportError:  # pragma: no cover - script entrypoint compatibility
 
 
 IDENTITY_NAMESPACE = uuid.UUID("b8589a4f-2d8f-4d34-82a8-f2f29d3e7ed6")
-CHICKENBRO_JOB_STATUSES = {"queued", "running", "succeeded", "failed", "timed_out"}
+CHICKENBRO_JOB_STATUSES = {"queued", "running", "succeeded", "failed", "timed_out", "cancelled"}
 
 
 def auth_token_hash(token):

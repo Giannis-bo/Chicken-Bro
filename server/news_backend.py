@@ -67,7 +67,14 @@ try:
         from .codex_worker import run_codex_job
     except ImportError:
         run_codex_job = None
-    from .llm_client import call_chat_completion, llm_configured
+    from .llm_client import (
+        ChickenbroStreamUnavailable,
+        call_chat_completion,
+        chickenbro_stream_config,
+        llm_configured,
+        stream_chat_completion,
+    )
+    from .chickenbro_stream import ChickenbroAnswerStream, ChickenbroStreamValidationError
     from .raiderio_payload import (
         enrich_builds_detail_payload as enrich_raiderio_builds_detail_payload,
         enrich_builds_home_payload as enrich_raiderio_builds_home_payload,
@@ -187,7 +194,14 @@ except ImportError:
         from codex_worker import run_codex_job
     except ImportError:
         run_codex_job = None
-    from llm_client import call_chat_completion, llm_configured
+    from llm_client import (
+        ChickenbroStreamUnavailable,
+        call_chat_completion,
+        chickenbro_stream_config,
+        llm_configured,
+        stream_chat_completion,
+    )
+    from chickenbro_stream import ChickenbroAnswerStream, ChickenbroStreamValidationError
     from raiderio_payload import (
         enrich_builds_detail_payload as enrich_raiderio_builds_detail_payload,
         enrich_builds_home_payload as enrich_raiderio_builds_home_payload,
@@ -327,7 +341,7 @@ SCHEMA_MIGRATIONS = [
     ("admin_gate_diagnostics_v1", "Admin gate diagnostics and audit log overlay tables are initialized."),
 ]
 CHICKENBRO_PROFILE_STATUSES = {"published", "partial", "stale", "blocked", "needs_review"}
-CHICKENBRO_JOB_STATUSES = {"queued", "running", "succeeded", "failed", "timed_out"}
+CHICKENBRO_JOB_STATUSES = {"queued", "running", "succeeded", "failed", "timed_out", "cancelled"}
 CHICKENBRO_PRODUCT_PHASES = {"retail", "ptr", "beta"}
 CHICKENBRO_SCENARIOS = {
     "raid_single",
@@ -7965,6 +7979,62 @@ def default_chickenbro_model_runner(prompt, schema=None):
     }
 
 
+def chickenbro_model_schema():
+    return {
+        "type": "object",
+        "additionalProperties": False,
+        "required": [
+            "answer",
+            "confidence",
+            "answerLayer",
+            "basisLabel",
+            "priorityActions",
+            "evidenceRefs",
+            "limitations",
+            "missingInputs",
+            "nextQuestion",
+        ],
+        "properties": {
+            "answer": {"type": "string"},
+            "confidence": {"type": "string"},
+            "answerLayer": {"type": "string", "enum": ["direct_chat", "diagnostic", "evidence", "source_reference", "wcl_evidence"]},
+            "basisLabel": {"type": "string"},
+            "priorityActions": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "required": ["title", "evidenceRefs"],
+                    "properties": {
+                        "title": {"type": "string"},
+                        "evidenceRefs": {"type": "array", "items": {"type": "string"}},
+                    },
+                },
+            },
+            "evidenceRefs": {"type": "array", "items": {"type": "string"}},
+            "limitations": {"type": "array", "items": {"type": "string"}},
+            "missingInputs": {"type": "array", "items": {"type": "string"}},
+            "nextQuestion": {"type": "string"},
+        },
+    }
+
+
+def default_chickenbro_stream_runner(prompt, schema=None):
+    if not chickenbro_stream_config().get("enabled"):
+        raise ChickenbroGenerationUnavailable("chickenbro stream provider is not configured")
+    return stream_chat_completion(
+        system_prompt=(
+            "你是炸鸡队长，一个面向魔兽世界正式服和 PTR/Beta 的中文陪练。"
+            "根据用户消息和 boundedContext 自然作答，不得使用固定回复模板。"
+            "没有受验证的实时资料时，明确说明无法确认当前排名、DPS 或改动，而不要猜测。"
+            "只返回一个符合用户提示中 schema 的 JSON 对象，不要 Markdown 或额外文字。"
+        ),
+        user_prompt=prompt,
+        schema=schema or chickenbro_model_schema(),
+        temperature=0.3,
+    )
+
+
 def parse_chickenbro_model_output(model_result):
     if isinstance(model_result, dict) and isinstance(model_result.get("answer"), str):
         return model_result
@@ -8515,43 +8585,7 @@ def update_agent_job(conn, job_id, status, result=None, error="", started_at=Non
 def run_chickenbro_agent(bounded_context, codex_runner=None):
     runner = codex_runner or default_chickenbro_model_runner
     prompt = chickenbro_prompt_from_context(bounded_context)
-    schema = {
-        "type": "object",
-        "additionalProperties": False,
-        "required": [
-            "answer",
-            "confidence",
-            "answerLayer",
-            "basisLabel",
-            "priorityActions",
-            "evidenceRefs",
-            "limitations",
-            "missingInputs",
-            "nextQuestion",
-        ],
-        "properties": {
-            "answer": {"type": "string"},
-            "confidence": {"type": "string"},
-                "answerLayer": {"type": "string", "enum": ["direct_chat", "diagnostic", "evidence", "source_reference", "wcl_evidence"]},
-            "basisLabel": {"type": "string"},
-            "priorityActions": {
-                "type": "array",
-                "items": {
-                    "type": "object",
-                    "additionalProperties": False,
-                    "required": ["title", "evidenceRefs"],
-                    "properties": {
-                        "title": {"type": "string"},
-                        "evidenceRefs": {"type": "array", "items": {"type": "string"}},
-                    },
-                },
-            },
-            "evidenceRefs": {"type": "array", "items": {"type": "string"}},
-            "limitations": {"type": "array", "items": {"type": "string"}},
-            "missingInputs": {"type": "array", "items": {"type": "string"}},
-            "nextQuestion": {"type": "string"},
-        },
-    }
+    schema = chickenbro_model_schema()
     try:
         model_result = runner(prompt, schema=schema)
         if isinstance(model_result, dict) and model_result.get("status") in {"skipped", "timed_out", "failed"}:
@@ -8572,6 +8606,31 @@ def run_chickenbro_agent(bounded_context, codex_runner=None):
         raise
     except Exception as error:
         raise ChickenbroGenerationUnavailable(f"chickenbro model output rejected: {error}") from error
+
+
+def run_chickenbro_agent_stream(bounded_context, stream_runner=None):
+    runner = stream_runner or default_chickenbro_stream_runner
+    prompt = chickenbro_prompt_from_context(bounded_context)
+    parser = ChickenbroAnswerStream(bounded_context.get("allowedNumbers") or [])
+    try:
+        for content in runner(prompt, schema=chickenbro_model_schema()):
+            for text in parser.feed(content):
+                yield {"type": "delta", "text": text}
+        parsed = normalize_chickenbro_model_payload(parser.finish())
+        validated = validate_chickenbro_model_output(parsed, bounded_context)
+        validated["answerSource"] = "llm"
+        return {
+            "answer": validated,
+            "topic": bounded_context.get("topic"),
+            "validation": {"status": "passed"},
+            "model": {"status": "succeeded", "name": ""},
+        }
+    except ChickenbroGenerationUnavailable:
+        raise
+    except (ChickenbroStreamUnavailable, ChickenbroStreamValidationError, ValueError) as error:
+        raise ChickenbroGenerationUnavailable(f"chickenbro stream output rejected: {error}") from error
+    except Exception as error:
+        raise ChickenbroGenerationUnavailable(f"chickenbro stream generation failed: {error}") from error
 
 
 def chickenbro_failed_agent_result(bounded_context, error):
@@ -8892,6 +8951,190 @@ def send_chickenbro_message(payload, access_token="", codex_runner=None):
         "assistantMessage": assistant_message,
         "job": public_chickenbro_job_from_row(job_row),
     }
+
+
+def prepare_chickenbro_stream_message(payload, access_token=""):
+    payload = payload if isinstance(payload, dict) else {}
+    message = clean_text(payload.get("message") or payload.get("prompt") or payload.get("question"), 4000)
+    if not message:
+        raise ValueError("chickenbro message is required")
+    context = payload.get("context") if isinstance(payload.get("context"), dict) else {}
+    guest_id = payload.get("guestId") or context.get("guestId") or ""
+    user = resolve_chickenbro_user(access_token, guest_id, create_guest=True)
+    requested_session_id = clean_text(payload.get("sessionId"), 80)
+    client_message_id = clean_chickenbro_client_message_id(payload.get("clientMessageId"))
+    store = personal_data_store()
+    session_payload = None
+    if store:
+        existing_user_message = None
+        if client_message_id and hasattr(store, "find_chickenbro_message_by_client_id"):
+            existing_user_message = store.find_chickenbro_message_by_client_id(user["id"], client_message_id, requested_session_id)
+        if existing_user_message:
+            session_payload = store.get_chickenbro_session(user["id"], existing_user_message["sessionId"])
+            session = session_payload["session"]
+        elif requested_session_id:
+            session_payload = store.get_chickenbro_session(user["id"], requested_session_id)
+            session = session_payload["session"]
+        else:
+            session = store.create_chickenbro_session(
+                user["id"], clean_text(message, 36) or "炸鸡队长对话",
+                normalize_chickenbro_phase(context.get("productPhase") or context.get("phase")),
+                {"createdFrom": "message", "context": sanitize_chickenbro_request_context(context)}, utc_now(),
+            )
+        history = compact_chickenbro_history((session_payload or {}).get("messages"))
+        if existing_user_message:
+            history = [item for item in history if item.get("content") != existing_user_message.get("content") or item.get("role") != "user"]
+        user_profile = merge_chickenbro_user_profile(store.load_chickenbro_user_profile(user["id"]), context, message)
+        store.upsert_chickenbro_user_profile(user["id"], user_profile, utc_now())
+    else:
+        with db_connection() as conn:
+            existing_user_message = find_chickenbro_user_message_by_client_id(conn, user["id"], client_message_id, requested_session_id)
+            session = find_or_create_chickenbro_session(
+                conn, user, existing_user_message["sessionId"] if existing_user_message else requested_session_id, message, context,
+            )
+            history = load_chickenbro_recent_history(conn, user["id"], session["sessionId"])
+            if existing_user_message:
+                history = [item for item in history if item.get("content") != existing_user_message.get("content") or item.get("role") != "user"]
+            user_profile = upsert_chickenbro_user_profile(conn, user["id"], context, message)
+
+    bounded_context = build_chickenbro_bounded_context(message, context, user_profile=user_profile, history=history)
+    sanitized_request = {"message": message, "context": sanitize_chickenbro_request_context(context), "sessionId": session["sessionId"]}
+    if client_message_id:
+        sanitized_request["clientMessageId"] = client_message_id
+    if store:
+        user_message = existing_user_message or store.insert_chickenbro_message(
+            user["id"], session["sessionId"], "user", message,
+            {"context": sanitized_request["context"], "clientMessageId": client_message_id}, now=utc_now(),
+        )
+        job_id = store.insert_agent_job(user["id"], session["sessionId"], sanitized_request, bounded_context, utc_now())
+        started_at = utc_now()
+        store.update_agent_job(user["id"], job_id, "running", started_at=started_at, now=started_at)
+    else:
+        with db_connection() as conn:
+            user_message = existing_user_message or insert_chickenbro_message(
+                conn, user["id"], session["sessionId"], "user", message,
+                {"context": sanitized_request["context"], "clientMessageId": client_message_id},
+            )
+            job_id = insert_agent_job(conn, user["id"], session["sessionId"], sanitized_request, bounded_context)
+            started_at = utc_now()
+            update_agent_job(conn, job_id, "running", started_at=started_at)
+    return {
+        "store": store,
+        "user": user,
+        "session": session,
+        "userMessage": user_message,
+        "jobId": job_id,
+        "boundedContext": bounded_context,
+        "startedAt": started_at,
+    }
+
+
+def finish_chickenbro_stream_failure(prepared, status, error, latency_ms):
+    finished_at = utc_now()
+    failed_result = chickenbro_failed_agent_result(prepared["boundedContext"], error)
+    store = prepared["store"]
+    if store:
+        store.update_agent_job(
+            prepared["user"]["id"], prepared["jobId"], status, result=failed_result,
+            error=str(error), finished_at=finished_at, now=finished_at,
+        )
+        store.touch_chickenbro_session(prepared["user"]["id"], prepared["session"]["sessionId"], finished_at)
+        record_chickenbro_terminal_trace(
+            store=store, conn=None, user_id=prepared["user"]["id"], session_id=prepared["session"]["sessionId"],
+            user_message_id=prepared["userMessage"]["messageId"], job_id=prepared["jobId"],
+            bounded_context=prepared["boundedContext"], agent_result=failed_result, error=str(error),
+            latency_ms=latency_ms, created_at=finished_at,
+        )
+        return
+    with db_connection() as conn:
+        update_agent_job(conn, prepared["jobId"], status, result=failed_result, error=str(error), finished_at=finished_at)
+        conn.execute("UPDATE chickenbro_sessions SET updated_at = ? WHERE id = ?", (finished_at, prepared["session"]["sessionId"]))
+        record_chickenbro_terminal_trace(
+            store=None, conn=conn, user_id=prepared["user"]["id"], session_id=prepared["session"]["sessionId"],
+            user_message_id=prepared["userMessage"]["messageId"], job_id=prepared["jobId"],
+            bounded_context=prepared["boundedContext"], agent_result=failed_result, error=str(error),
+            latency_ms=latency_ms, created_at=finished_at,
+        )
+
+
+def finish_chickenbro_stream_success(prepared, agent_result, latency_ms):
+    finished_at = utc_now()
+    answer_payload = agent_result["answer"]
+    store = prepared["store"]
+    if store:
+        store.update_agent_job(prepared["user"]["id"], prepared["jobId"], "succeeded", result=agent_result, finished_at=finished_at, now=finished_at)
+        assistant_message = store.insert_chickenbro_message(
+            prepared["user"]["id"], prepared["session"]["sessionId"], "assistant", answer_payload.get("answer", ""),
+            answer_payload, agent_job_id=prepared["jobId"], now=finished_at,
+        )
+        store.touch_chickenbro_session(prepared["user"]["id"], prepared["session"]["sessionId"], finished_at)
+        record_chickenbro_terminal_trace(
+            store=store, conn=None, user_id=prepared["user"]["id"], session_id=prepared["session"]["sessionId"],
+            user_message_id=prepared["userMessage"]["messageId"], job_id=prepared["jobId"],
+            bounded_context=prepared["boundedContext"], agent_result=agent_result, latency_ms=latency_ms, created_at=finished_at,
+        )
+        job = store.get_chickenbro_job(prepared["user"]["id"], prepared["jobId"])
+    else:
+        with db_connection() as conn:
+            update_agent_job(conn, prepared["jobId"], "succeeded", result=agent_result, finished_at=finished_at)
+            assistant_message = insert_chickenbro_message(
+                conn, prepared["user"]["id"], prepared["session"]["sessionId"], "assistant", answer_payload.get("answer", ""),
+                answer_payload, agent_job_id=prepared["jobId"],
+            )
+            conn.execute("UPDATE chickenbro_sessions SET updated_at = ? WHERE id = ?", (finished_at, prepared["session"]["sessionId"]))
+            record_chickenbro_terminal_trace(
+                store=None, conn=conn, user_id=prepared["user"]["id"], session_id=prepared["session"]["sessionId"],
+                user_message_id=prepared["userMessage"]["messageId"], job_id=prepared["jobId"],
+                bounded_context=prepared["boundedContext"], agent_result=agent_result, latency_ms=latency_ms, created_at=finished_at,
+            )
+            job_row = conn.execute(
+                "SELECT id, user_id, session_id, kind, status, request_json, bounded_context_json, result_json, error, created_at, updated_at, started_at, finished_at FROM agent_jobs WHERE id = ?",
+                (prepared["jobId"],),
+            ).fetchone()
+        job = public_chickenbro_job_from_row(job_row)
+    return {
+        "mode": "chickenbro", "user": prepared["user"], "session": prepared["session"],
+        "userMessage": prepared["userMessage"], "assistantMessage": assistant_message, "job": job,
+    }
+
+
+def stream_chickenbro_message(payload, access_token="", stream_runner=None):
+    prepared = prepare_chickenbro_stream_message(payload, access_token=access_token)
+    request_id = uuid.uuid4().hex
+    started_clock = time.perf_counter()
+    sequence = 0
+    yield {"type": "started", "requestId": request_id, "sessionId": prepared["session"]["sessionId"]}
+    yield {"type": "status", "requestId": request_id, "stage": "generating"}
+    try:
+        iterator = run_chickenbro_agent_stream(prepared["boundedContext"], stream_runner=stream_runner)
+        while True:
+            try:
+                event = next(iterator)
+            except StopIteration as completed:
+                agent_result = completed.value
+                break
+            if event.get("type") == "delta" and event.get("text"):
+                sequence += 1
+                yield {"type": "delta", "requestId": request_id, "sequence": sequence, "text": event["text"]}
+        response = finish_chickenbro_stream_success(
+            prepared, agent_result, max(0, int((time.perf_counter() - started_clock) * 1000)),
+        )
+        yield {"type": "final", "requestId": request_id, "response": response}
+    except GeneratorExit:
+        finish_chickenbro_stream_failure(
+            prepared, "cancelled", "client_cancelled", max(0, int((time.perf_counter() - started_clock) * 1000)),
+        )
+        raise
+    except ChickenbroGenerationUnavailable:
+        finish_chickenbro_stream_failure(
+            prepared, "failed", "chickenbro_generation_unavailable", max(0, int((time.perf_counter() - started_clock) * 1000)),
+        )
+        yield {"type": "failed", "requestId": request_id, "code": "chickenbro_generation_unavailable", "retryable": True}
+    except Exception:
+        finish_chickenbro_stream_failure(
+            prepared, "failed", "chickenbro_stream_failed", max(0, int((time.perf_counter() - started_clock) * 1000)),
+        )
+        yield {"type": "failed", "requestId": request_id, "code": "chickenbro_stream_failed", "retryable": True}
 
 
 def get_chickenbro_session(access_token, session_id, allow_guest=False, guest_id=""):
@@ -14075,6 +14318,36 @@ def json_response(handler, status, payload, *, extra_headers=None):
         return False
 
 
+def ndjson_stream_response(handler, events):
+    """Write public Chickenbro events as HTTP/1.1 chunks without buffering them."""
+    try:
+        handler.send_response(200)
+        handler.send_header("Content-Type", "application/x-ndjson; charset=utf-8")
+        handler.send_header("Transfer-Encoding", "chunked")
+        handler.send_header("Cache-Control", "no-cache, no-transform")
+        handler.send_header("X-Accel-Buffering", "no")
+        handler.send_header("Access-Control-Allow-Origin", "*")
+        handler.send_header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
+        handler.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Wow-Client-Id, X-Wow-Session-Id, X-Wow-Platform")
+        handler.end_headers()
+        for event in events:
+            if not isinstance(event, dict):
+                raise ValueError("invalid chickenbro stream event")
+            data = (json.dumps(event, ensure_ascii=False, separators=(",", ":")) + "\n").encode("utf-8")
+            handler.wfile.write(f"{len(data):X}\r\n".encode("ascii"))
+            handler.wfile.write(data)
+            handler.wfile.write(b"\r\n")
+            handler.wfile.flush()
+        handler.wfile.write(b"0\r\n\r\n")
+        handler.wfile.flush()
+        return True
+    except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+        close = getattr(events, "close", None)
+        if callable(close):
+            close()
+        return False
+
+
 def community_import_server_timing(timings):
     """Serialize fixed numeric timing fields without request or template content."""
 
@@ -14318,6 +14591,8 @@ def websim_submission_blocked_response(request_payload, blockers):
 
 
 class Handler(BaseHTTPRequestHandler):
+    protocol_version = "HTTP/1.1"
+
     def do_OPTIONS(self):
         json_response(self, 200, {"ok": True})
 
@@ -14720,6 +14995,23 @@ class Handler(BaseHTTPRequestHandler):
                 )
             except (KeyError, ValueError) as error:
                 json_response(self, 400, {"error": "invalid_chickenbro_message", "message": str(error)})
+            return
+        if parsed.path == "/api/chickenbro/messages/stream":
+            payload = read_json_body(self)
+            message = clean_text(payload.get("message") or payload.get("prompt") or payload.get("question"), 4000)
+            if not message:
+                json_response(self, 400, {"error": "invalid_chickenbro_message", "message": "chickenbro message is required"})
+                return
+            if not chickenbro_stream_config().get("enabled"):
+                json_response(self, 503, {"error": "chickenbro_stream_unavailable", "retryable": True})
+                return
+            try:
+                ndjson_stream_response(
+                    self,
+                    stream_chickenbro_message(payload, access_token=bearer_token_from_headers(self.headers)),
+                )
+            except PermissionError:
+                json_response(self, 401, {"error": "unauthorized"})
             return
         if parsed.path == "/api/simulator/analyze":
             json_response(

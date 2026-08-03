@@ -8360,6 +8360,59 @@ class NewsBackendTest(unittest.TestCase):
                 codex_runner=fake_codex_runner,
             )
 
+    def test_chickenbro_stream_agent_emits_safe_deltas_then_returns_existing_validated_shape(self):
+        bounded = self.backend.build_chickenbro_bounded_context("冰DK大秘境先排查什么？", {})
+        answer = "先确认你是否把主爆发留给大波次，并在每次进战斗前准备好资源。"
+        payload = {
+            "answer": answer,
+            "confidence": "low",
+            "answerLayer": bounded["answerLayer"],
+            "basisLabel": bounded["basisLabel"],
+            "priorityActions": [],
+            "evidenceRefs": [],
+            "limitations": [],
+            "missingInputs": [],
+            "nextQuestion": "",
+        }
+
+        events = []
+        stream = self.backend.run_chickenbro_agent_stream(
+            bounded,
+            stream_runner=lambda *_args, **_kwargs: [json.dumps(payload, ensure_ascii=False)],
+        )
+        while True:
+            try:
+                events.append(next(stream))
+            except StopIteration as completed:
+                result = completed.value
+                break
+
+        self.assertEqual("".join(event["text"] for event in events), answer)
+        self.assertEqual(result["answer"]["answer"], answer)
+        self.assertEqual(result["validation"], {"status": "passed"})
+        self.assertEqual(result["model"]["name"], "")
+
+    def test_chickenbro_stream_agent_does_not_emit_unapproved_number(self):
+        bounded = self.backend.build_chickenbro_bounded_context("冰DK大秘境先排查什么？", {})
+        payload = {
+            "answer": "你现在应该稳定打 999999 DPS。",
+            "confidence": "low",
+            "answerLayer": bounded["answerLayer"],
+            "basisLabel": bounded["basisLabel"],
+            "priorityActions": [],
+            "evidenceRefs": [],
+            "limitations": [],
+            "missingInputs": [],
+            "nextQuestion": "",
+        }
+        stream = self.backend.run_chickenbro_agent_stream(
+            bounded,
+            stream_runner=lambda *_args, **_kwargs: [json.dumps(payload, ensure_ascii=False)],
+        )
+
+        with self.assertRaisesRegex(self.backend.ChickenbroGenerationUnavailable, "unapproved number"):
+            next(stream)
+
     def test_chickenbro_allows_the_player_patch_version_without_authorizing_new_numbers(self):
         def fake_codex_runner(prompt, **kwargs):
             bounded_context = json.loads(prompt)["boundedContext"]
@@ -8656,6 +8709,55 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(payload["job"]["status"], "succeeded")
         self.assertEqual(len(session_payload["messages"]), 2)
         self.assertEqual(error.exception.code, 404)
+
+    def test_http_chickenbro_stream_emits_ndjson_and_persists_only_final_assistant(self):
+        bounded = self.backend.build_chickenbro_bounded_context("冰DK大秘境先排查什么？", {})
+        answer = "先确认你是否把主爆发留给大波次，并在每次进战斗前准备好资源。"
+        model_payload = {
+            "answer": answer,
+            "confidence": "low",
+            "answerLayer": bounded["answerLayer"],
+            "basisLabel": bounded["basisLabel"],
+            "priorityActions": [],
+            "evidenceRefs": [],
+            "limitations": [],
+            "missingInputs": [],
+            "nextQuestion": "",
+        }
+        previous_runner = self.backend.default_chickenbro_stream_runner
+        previous_config = self.backend.chickenbro_stream_config
+        self.backend.default_chickenbro_stream_runner = lambda *_args, **_kwargs: [json.dumps(model_payload, ensure_ascii=False)]
+        self.backend.chickenbro_stream_config = lambda: {"enabled": True, "model": "test-stream-model"}
+        server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            request = Request(
+                f"http://127.0.0.1:{server.server_port}/api/chickenbro/messages/stream",
+                data=json.dumps({"guestId": "stream-guest", "message": "冰DK大秘境先排查什么？"}, ensure_ascii=False).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urlopen(request, timeout=5) as response:
+                events = [json.loads(line) for line in response.read().decode("utf-8").splitlines() if line]
+                content_type = response.headers.get("Content-Type")
+                transfer_encoding = response.headers.get("Transfer-Encoding")
+        finally:
+            server.shutdown()
+            thread.join(timeout=2)
+            server.server_close()
+            self.backend.default_chickenbro_stream_runner = previous_runner
+            self.backend.chickenbro_stream_config = previous_config
+
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            rows = list(conn.execute("SELECT role, content FROM chickenbro_messages ORDER BY created_at"))
+
+        self.assertEqual(content_type, "application/x-ndjson; charset=utf-8")
+        self.assertEqual(transfer_encoding, "chunked")
+        self.assertEqual([event["type"] for event in events], ["started", "status", "delta", "final"])
+        self.assertEqual("".join(event.get("text", "") for event in events), answer)
+        self.assertEqual(events[-1]["response"]["assistantMessage"]["content"], answer)
+        self.assertEqual(rows, [("user", "冰DK大秘境先排查什么？"), ("assistant", answer)])
 
     def test_http_chickenbro_model_failure_returns_retryable_503_without_assistant_turn(self):
         server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
