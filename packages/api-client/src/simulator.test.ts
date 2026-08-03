@@ -367,6 +367,57 @@ describe('SimulatorClient task contract', () => {
     expect(failures).toEqual(['invalid chickenbro stream event'])
   })
 
+  it('preserves nonempty whitespace delta chunks so streamed markdown layout is not rejected', () => {
+    let streamOptions: {
+      onEvent: (event: unknown) => void
+      onFailure: (error: string) => void
+    } | undefined
+    const abort = vi.fn()
+    const requestStreamEndpoint = vi.fn((_endpoint: string, _path: string, options) => {
+      streamOptions = options
+      return { abort }
+    })
+    const client = new SimulatorClient({ requestStreamEndpoint } as unknown as ApiTransport, new MemoryStorage())
+    const events: string[] = []
+    const failures: string[] = []
+
+    client.streamMessage(
+      { message: '冰DK大秘境先排查什么？', sessionId: 'session-1', clientMessageId: 'turn-markdown-layout' },
+      { onEvent: (event) => events.push(event.type), onFailure: (error) => failures.push(error) },
+    )
+    streamOptions?.onEvent({ type: 'started', requestId: 'request-1', sessionId: 'session-1' })
+    streamOptions?.onEvent({ type: 'delta', requestId: 'request-1', sequence: 1, text: '先确认资源。' })
+    streamOptions?.onEvent({ type: 'delta', requestId: 'request-1', sequence: 2, text: '\n\n' })
+    streamOptions?.onEvent({ type: 'delta', requestId: 'request-1', sequence: 3, text: '再对齐爆发。' })
+
+    expect(events).toEqual(['started', 'delta', 'delta', 'delta'])
+    expect(failures).toEqual([])
+    expect(abort).not.toHaveBeenCalled()
+  })
+
+  it('still rejects an empty delta chunk', () => {
+    let streamOptions: {
+      onEvent: (event: unknown) => void
+      onFailure: (error: string) => void
+    } | undefined
+    const abort = vi.fn()
+    const requestStreamEndpoint = vi.fn((_endpoint: string, _path: string, options) => {
+      streamOptions = options
+      return { abort }
+    })
+    const failures: string[] = []
+
+    new SimulatorClient({ requestStreamEndpoint } as unknown as ApiTransport, new MemoryStorage()).streamMessage(
+      { message: '冰DK大秘境先排查什么？', sessionId: 'session-1', clientMessageId: 'turn-empty-chunk' },
+      { onEvent: vi.fn(), onFailure: (error) => failures.push(error) },
+    )
+    streamOptions?.onEvent({ type: 'started', requestId: 'request-1', sessionId: 'session-1' })
+    streamOptions?.onEvent({ type: 'delta', requestId: 'request-1', sequence: 1, text: '' })
+
+    expect(abort).toHaveBeenCalledOnce()
+    expect(failures).toEqual(['invalid chickenbro stream event'])
+  })
+
   it('falls back only for the server pre-stream unavailable response, never an ambiguous transport failure', async () => {
     let streamOptions: { onFailure: (error: string) => void } | undefined
     const requestStreamEndpoint = vi.fn((_endpoint: string, _path: string, options) => {

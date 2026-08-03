@@ -3,7 +3,7 @@
   "slug": "chickenbro-decimal-stream-boundary",
   "classification": "Standard",
   "status": "implementation_allowed",
-  "goal": "修复炸鸡队长流式回答在已允许小数版本号跨 chunk 拆分、或模型元数据携带非事实数字时被误判为未批准游戏数字的问题。",
+  "goal": "修复炸鸡队长流式回答在已允许小数版本号跨 chunk 拆分、模型元数据携带非事实数字，或 delta 承载 Markdown 换行时被误判为非法的问题。",
   "userValue": "玩家询问 12.1 PTR 等带小数版本号的问题并继续追问时，应像其他正常咨询一样持续收到真实流式回答，而不是在回答后回退成“重试发送”。",
   "nonGoals": [
     "不放宽面向玩家的事实文本数字白名单、来源、owner 或 assistant 持久化校验。",
@@ -26,21 +26,23 @@
     "mustChange": [
       "server/chickenbro_stream.py 仅在不完整 answer 末尾是已允许小数的整数前缀时暂缓数字判断。",
       "server/news_backend.py 将非事实 confidence 归一为 low、medium、high，并只对面向玩家的事实文本执行数字白名单；evidenceRefs 继续按引用白名单校验。",
-      "tests/chickenbro_stream_test.py 覆盖 12 与 .1 位于相邻流 chunk 的真实解析边界；tests/news_backend_test.py 覆盖数值 confidence 和带数字的授权 evidenceRef。"
+      "packages/api-client/src/simulator.ts 允许非空的空白 delta.text，以保留 Markdown 换行和缩进分块；requestId、sessionId、事件类型和严格递增 sequence 校验不变。",
+      "tests/chickenbro_stream_test.py 覆盖 12 与 .1 位于相邻流 chunk 的真实解析边界；tests/news_backend_test.py 覆盖数值 confidence 和带数字的授权 evidenceRef；packages/api-client/src/simulator.test.ts 覆盖换行 delta。"
     ],
     "mustNotChange": [
       "完整 JSON、非末尾数字和未批准数字仍须 fail closed。",
       "后端对 answer、行动项、限制、缺失输入和追问的最终数字、来源和 owner 校验，以及 assistant 写入语义保持不变。",
-      "生产专用 provider 配置、异步同步和前端源码不变。"
+      "生产专用 provider 配置、异步同步、前端 UI 和路由不变。"
     ],
     "riskUnknown": [
-      "上游模型字段与输出分片位置均不可预测，因此候选和生产均需用真实 12.1 PTR 原题及追问验证。"
+      "上游模型字段与输出分片位置均不可预测，因此候选和生产均需用真实 12.1 PTR 原题及追问验证。",
+      "流式文本合法地包含换行和缩进；只有空字符串应被拒绝，不能把格式字符当作协议异常。"
     ],
     "evidenceRequired": [
       "先失败后通过的小数跨 chunk、数值 confidence 与授权数字 evidenceRef 回归测试和受影响后端测试。",
       "隔离候选的文件哈希、真实 delta 顺序、final 和 owner 范围内的最终 assistant 持久化。",
       "生产同题流式烟测、服务身份和可恢复的文件级回滚备份。",
-      "用户在开发者工具对原始失败场景的重新发送确认。"
+      "本机最终 weapp 构建在开发者工具对原始失败场景完成真实流式回答，且用户再行确认。"
     ]
   },
   "ownership": {
@@ -58,6 +60,7 @@
   "acceptanceEvidence": [
     "12.1 被分为 12 和 .1 两个 JSON 流 chunk 时，已允许小数能完成最终验证；模型返回 0.4 confidence 时会安全归一为 low。",
     "带数字的已授权 evidenceRef 不再触发数字白名单误拒；answer、行动项、限制、缺失输入和追问中的未授权数字仍 fail closed。",
+    "非空换行 delta 不会被客户端拒绝；requestId、sessionId、事件类型和严格递增 sequence 仍 fail closed。",
     "候选和生产同题请求均观察到严格递增的真实 delta，随后 final，且 owner 会话只写入一条 assistant。",
     "用户在开发者工具重新发送原始 PTR 问题后不再看到“重试发送”。"
   ],
@@ -80,6 +83,10 @@
     {
       "date": "2026-08-03",
       "decision": "首次生产热修后，候选同题仍偶发失败；真实失败证明模型可把 0.4 写入 confidence，且整包数字扫描也会误拒带数字的已授权 evidenceRef。保留面向玩家事实文本的严格数字白名单，改由 confidence 枚举归一和引用白名单分别处理元数据。"
+    },
+    {
+      "date": "2026-08-03",
+      "decision": "开发者工具现场复现显示请求 HTTP 200 后在 12.47 秒被客户端取消。服务端真实序列和 final 完整；客户端把合法 Markdown 换行 delta 当成未裁剪字段而拒绝。修复仅允许非空文本分块，保留其他流协议校验。"
     }
   ]
 }

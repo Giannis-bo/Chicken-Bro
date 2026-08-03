@@ -39,6 +39,10 @@ function nonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim() === value && value.length > 0
 }
 
+function nonEmptyTextChunk(value: unknown): value is string {
+  return typeof value === 'string' && value.length > 0
+}
+
 function uniqueNonEmptyStrings(value: unknown): value is readonly string[] {
   return Array.isArray(value)
     && value.length > 0
@@ -181,7 +185,7 @@ function isChickenbroStreamEvent(value: unknown): value is ChickenbroStreamEvent
   if (!isRecord(value) || !nonEmptyString(value['type']) || !nonEmptyString(value['requestId'])) return false
   if (value['type'] === 'started') return nonEmptyString(value['sessionId'])
   if (value['type'] === 'status') return value['stage'] === 'preparing' || value['stage'] === 'generating'
-  if (value['type'] === 'delta') return positiveInteger(value['sequence']) && nonEmptyString(value['text'])
+  if (value['type'] === 'delta') return positiveInteger(value['sequence']) && nonEmptyTextChunk(value['text'])
   if (value['type'] === 'final') return isChickenbroResponse(value['response'])
   return value['type'] === 'failed' && nonEmptyString(value['code']) && typeof value['retryable'] === 'boolean'
 }
