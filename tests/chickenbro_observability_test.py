@@ -3,10 +3,13 @@ import unittest
 
 from server.chickenbro_observability import (
     PROJECTION_SCHEMA_REVISION,
+    PROJECTION_SCHEMA_REVISION_V3,
     PROJECTION_SCHEMA_REVISION_V1,
     RUNTIME_VERSION,
+    RUNTIME_VERSION_V3,
     RUNTIME_VERSION_V1,
     TRACE_SCHEMA_REVISION,
+    TRACE_SCHEMA_REVISION_V3,
     TRACE_SCHEMA_REVISION_V1,
     build_chickenbro_agent_trace,
     deidentify_chickenbro_agent_trace,
@@ -42,9 +45,10 @@ class ChickenbroObservabilityTest(unittest.TestCase):
             {
                 "raiderio": "source:raiderio:v1",
                 "warcraftlogs": "source:warcraftlogs:v1",
+                "current_wow_sources": "source:current-wow-sources:v1",
             }[row["sourceKey"]]
             for row in sources
-            if row.get("sourceKey") in {"raiderio", "warcraftlogs"}
+            if row.get("sourceKey") in {"raiderio", "warcraftlogs", "current_wow_sources"}
         ]
         return {
             "message": message,
@@ -172,6 +176,54 @@ class ChickenbroObservabilityTest(unittest.TestCase):
         self.assertNotIn("raiderio:deathknight:frost:mythic_plus", encoded)
         self.assertNotIn("2026-08-02T00:00:00+00:00", encoded)
         self.assertNotIn("SECRET", encoded)
+
+    def test_v3_trace_keeps_only_semantic_question_plan_and_current_source_outcome(self):
+        bounded_context = self.bounded_context(
+            source_evidence=[
+                {
+                    "sourceKey": "current_wow_sources",
+                    "status": "failed",
+                    "evidenceRefs": [],
+                    "facts": [{"summary": "SECRET OFFICIAL SOURCE BODY"}],
+                }
+            ],
+            registry_context={
+                "status": "verified",
+                "registryVersion": "chickenbro-tools-2",
+                "registryReleaseHash": "sha256:a25340f6fe51dfa01d956b7d944891de39771694e4fd3b33fb41b4fba2d9a102",
+                "registrySource": "postgres",
+                "discoveredCapabilityIds": ["source:current-wow-sources:v1"],
+                "selectedCapabilityIds": ["source:current-wow-sources:v1"],
+            },
+        )
+        bounded_context["questionFrame"] = {
+            "schemaRevision": "chickenbro-question-frame-v1",
+            "questionType": "current_research",
+            "subject": {"classKey": "paladin", "specKey": "holy", "resolution": "resolved"},
+            "scope": {"productPhase": "ptr", "patchVersion": "12.1", "region": "cn", "scenarioKey": ""},
+            "evidenceNeeds": ["official_current_changes", "comparative_strength_signal"],
+            "unresolvedFields": ["scenarioKey"],
+        }
+        bounded_context["capabilityPlan"] = {
+            "questionType": "current_research",
+            "requestedEvidenceNeeds": ["official_current_changes", "comparative_strength_signal"],
+            "selectedCapabilityIds": ["source:current-wow-sources:v1"],
+            "unmetEvidenceNeeds": ["official_current_changes", "comparative_strength_signal"],
+        }
+
+        trace = self.build_trace(bounded_context=bounded_context)
+        projection = deidentify_chickenbro_agent_trace(trace)
+        encoded = json.dumps({"trace": trace, "projection": projection}, ensure_ascii=False)
+
+        self.assertEqual(TRACE_SCHEMA_REVISION_V3, trace["schemaRevision"])
+        self.assertEqual(RUNTIME_VERSION_V3, trace["runtimeVersion"])
+        self.assertEqual("current_research", trace["questionType"])
+        self.assertEqual("resolved", trace["subjectResolution"])
+        self.assertEqual(["official_current_changes", "comparative_strength_signal"], trace["requestedEvidenceNeeds"])
+        self.assertEqual(["official_current_changes", "comparative_strength_signal"], trace["unmetEvidenceNeeds"])
+        self.assertIn("tool_failed", {signal["code"] for signal in trace["outcomeSignals"]})
+        self.assertEqual(PROJECTION_SCHEMA_REVISION_V3, projection["schemaRevision"])
+        self.assertNotIn("SECRET OFFICIAL SOURCE BODY", encoded)
 
     def test_literal_historical_v1_trace_still_validates_and_projects_unchanged(self):
         historical = {

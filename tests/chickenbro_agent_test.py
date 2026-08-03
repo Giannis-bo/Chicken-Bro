@@ -1,4 +1,5 @@
 import inspect
+import json
 import os
 import unittest
 
@@ -120,6 +121,102 @@ class ChickenbroAgentIntentTest(unittest.TestCase):
         self.assertEqual("holy", captured["frame"]["subject"]["specKey"])
         self.assertEqual("12.1", captured["frame"]["scope"]["patchVersion"])
         self.assertNotIn("message", str(captured))
+
+    def test_current_source_context_is_evidence_aware_and_rejects_unsupported_strength_tier(self):
+        registry_context = {
+            "status": "verified",
+            "registryVersion": "chickenbro-tools-2",
+            "registryReleaseHash": "sha256:a25340f6fe51dfa01d956b7d944891de39771694e4fd3b33fb41b4fba2d9a102",
+            "registrySource": "postgres",
+            "discoveredCapabilityIds": ["source:current-wow-sources:v1"],
+            "selectedCapabilityIds": ["source:current-wow-sources:v1"],
+        }
+        source = {
+            "sourceKey": "current_wow_sources",
+            "status": "source_reference",
+            "facts": [{"kind": "official_change", "summary": "Holy Paladin PTR adjustment."}],
+            "evidence": [{"id": "current.blizzard-forums.holy-paladin-121"}],
+            "evidenceRefs": ["current.blizzard-forums.holy-paladin-121"],
+            "limitations": ["comparative_strength_signal_missing"],
+            "nextActions": [],
+        }
+        bounded = backend.build_chickenbro_bounded_context(
+            "NQ 在 12.1 PTR 强度如何？",
+            {},
+            source_tool_results={"sourceToolResults": [source], "registryContext": registry_context},
+        )
+
+        self.assertEqual("current_research", bounded["questionFrame"]["questionType"])
+        self.assertEqual("holy", bounded["questionFrame"]["subject"]["specKey"])
+        self.assertEqual(["source:current-wow-sources:v1"], bounded["capabilityPlan"]["selectedCapabilityIds"])
+        self.assertEqual(["comparative_strength_signal"], bounded["capabilityPlan"]["unmetEvidenceNeeds"])
+        self.assertEqual("已核对官方当前来源", bounded["basisLabel"])
+        prompt = json.loads(backend.chickenbro_prompt_from_context(bounded))
+        self.assertTrue(any("已确认改动" in item for item in prompt["instructions"]))
+        self.assertFalse(any("没有抓取能力" in item for item in prompt["instructions"]))
+
+        with self.assertRaisesRegex(ValueError, "unsupported comparative strength"):
+            backend.validate_chickenbro_model_output(
+                {
+                    "answer": "奶骑在 PTR 目前是 T0。",
+                    "confidence": "medium",
+                    "priorityActions": [],
+                    "evidenceRefs": ["current.blizzard-forums.holy-paladin-121"],
+                    "limitations": [],
+                    "missingInputs": [],
+                    "nextQuestion": "",
+                },
+                bounded,
+            )
+
+    def test_current_source_failure_records_actual_unmet_evidence_without_a_fixed_reply(self):
+        bounded = backend.build_chickenbro_bounded_context(
+            "NQ 在 12.1 PTR 强度如何？",
+            {},
+            source_tool_results={
+                "sourceToolResults": [
+                    {
+                        "sourceKey": "current_wow_sources",
+                        "status": "failed",
+                        "facts": [],
+                        "evidence": [],
+                        "evidenceRefs": [],
+                        "limitations": ["current_source_unavailable"],
+                        "nextActions": [],
+                    }
+                ],
+                "registryContext": {
+                    "status": "verified",
+                    "registryVersion": "chickenbro-tools-2",
+                    "registryReleaseHash": "sha256:a25340f6fe51dfa01d956b7d944891de39771694e4fd3b33fb41b4fba2d9a102",
+                    "registrySource": "postgres",
+                    "discoveredCapabilityIds": ["source:current-wow-sources:v1"],
+                    "selectedCapabilityIds": ["source:current-wow-sources:v1"],
+                },
+            },
+        )
+
+        self.assertEqual(
+            ["official_current_changes", "comparative_strength_signal"],
+            bounded["capabilityPlan"]["unmetEvidenceNeeds"],
+        )
+        self.assertIn("current_source_unavailable", bounded["limitations"])
+        self.assertNotIn("answer", bounded["capabilityPlan"])
+
+    def test_source_reference_without_an_evidence_ref_does_not_satisfy_the_capability_plan(self):
+        plan = backend.chickenbro_capability_plan(
+            {
+                "questionType": "current_research",
+                "evidenceNeeds": ["official_current_changes", "comparative_strength_signal"],
+            },
+            {"selectedCapabilityIds": ["source:current-wow-sources:v1"]},
+            [{"sourceKey": "current_wow_sources", "status": "source_reference", "evidenceRefs": []}],
+        )
+
+        self.assertEqual(
+            ["official_current_changes", "comparative_strength_signal"],
+            plan["unmetEvidenceNeeds"],
+        )
 
     def test_registry_unavailable_or_invalid_never_uses_fixed_allowlist(self):
         original_raiderio = backend.chickenbro_cached_raiderio_payload

@@ -12,9 +12,12 @@ from server.chickenbro_observability import (
     REGISTRY_STATUSES,
     REGISTRY_VERSION_PATTERN,
     RELEASE_HASH_PATTERN,
+    EVIDENCE_NEEDS,
+    QUESTION_TYPES,
     REQUEST_SCOPE_ALLOWED_VALUES,
     SIGNAL_CODES,
     SOURCE_CAPABILITY_IDS,
+    SUBJECT_RESOLUTIONS,
     TOOL_STATUSES,
     _safe_evidence_ref,
     build_chickenbro_agent_trace,
@@ -33,7 +36,8 @@ EVAL_EXPECT_KEYS = {
     "selectedCapabilityIds",
     "registryVersion",
 }
-BOUNDED_CONTEXT_KEYS = {"topic", "requestContext", "sourceEvidence", "registryContext"}
+BOUNDED_CONTEXT_KEYS_V1 = {"topic", "requestContext", "sourceEvidence", "registryContext"}
+BOUNDED_CONTEXT_KEYS = BOUNDED_CONTEXT_KEYS_V1 | {"questionFrame", "capabilityPlan"}
 REQUEST_CONTEXT_KEYS = {
     "productPhase",
     "region",
@@ -49,6 +53,7 @@ EVAL_ERROR_CODES = {
     "model_output_invalid: unknown evidence ref",
 }
 CASE_ID_PATTERN = re.compile(r"^[a-z0-9_]{1,80}$")
+PATCH_VERSION_PATTERN = re.compile(r"^$|^[0-9]{1,2}\.[0-9]{1,2}(?:\.[0-9]{1,2})?$")
 
 
 def _validate_string_list(values, *, name, allowed):
@@ -61,7 +66,10 @@ def _validate_string_list(values, *, name, allowed):
 
 
 def _validate_bounded_context(bounded_context):
-    if not isinstance(bounded_context, dict) or set(bounded_context) != BOUNDED_CONTEXT_KEYS:
+    if (
+        not isinstance(bounded_context, dict)
+        or (set(bounded_context) != BOUNDED_CONTEXT_KEYS_V1 and set(bounded_context) != BOUNDED_CONTEXT_KEYS)
+    ):
         raise ValueError("invalid chickenbro eval bounded context keys")
     topic = bounded_context["topic"]
     if not isinstance(topic, dict) or set(topic) != {"status"}:
@@ -127,6 +135,47 @@ def _validate_bounded_context(bounded_context):
         )
     ):
         raise ValueError("invalid chickenbro eval unverified registry identity")
+
+    if set(bounded_context) == BOUNDED_CONTEXT_KEYS:
+        frame = bounded_context["questionFrame"]
+        if not isinstance(frame, dict) or set(frame) != {
+            "schemaRevision", "questionType", "subject", "scope", "evidenceNeeds", "unresolvedFields"
+        }:
+            raise ValueError("invalid chickenbro eval question frame keys")
+        if frame["schemaRevision"] != "chickenbro-question-frame-v1" or frame["questionType"] not in QUESTION_TYPES:
+            raise ValueError("invalid chickenbro eval question frame identity")
+        subject = frame["subject"]
+        if not isinstance(subject, dict) or set(subject) != {"classKey", "specKey", "resolution"}:
+            raise ValueError("invalid chickenbro eval question subject")
+        if subject["classKey"] not in REQUEST_SCOPE_ALLOWED_VALUES["classKey"] or subject["specKey"] not in REQUEST_SCOPE_ALLOWED_VALUES["specKey"] or subject["resolution"] not in SUBJECT_RESOLUTIONS:
+            raise ValueError("invalid chickenbro eval question subject value")
+        scope = frame["scope"]
+        if not isinstance(scope, dict) or set(scope) != {"productPhase", "patchVersion", "region", "scenarioKey"}:
+            raise ValueError("invalid chickenbro eval question scope")
+        if (
+            scope["productPhase"] not in REQUEST_SCOPE_ALLOWED_VALUES["productPhase"]
+            or scope["region"] not in REQUEST_SCOPE_ALLOWED_VALUES["region"]
+            or scope["scenarioKey"] not in REQUEST_SCOPE_ALLOWED_VALUES["scenarioKey"]
+            or not isinstance(scope["patchVersion"], str)
+            or not PATCH_VERSION_PATTERN.fullmatch(scope["patchVersion"])
+        ):
+            raise ValueError("invalid chickenbro eval question scope value")
+        _validate_string_list(frame["evidenceNeeds"], name="question evidence needs", allowed=EVIDENCE_NEEDS)
+        unresolved = frame["unresolvedFields"]
+        if not isinstance(unresolved, list) or any(value not in {"subject", "scenarioKey"} for value in unresolved) or len(unresolved) != len(set(unresolved)):
+            raise ValueError("invalid chickenbro eval question unresolved fields")
+
+        plan = bounded_context["capabilityPlan"]
+        if not isinstance(plan, dict) or set(plan) != {"questionType", "requestedEvidenceNeeds", "selectedCapabilityIds", "unmetEvidenceNeeds"}:
+            raise ValueError("invalid chickenbro eval capability plan keys")
+        if plan["questionType"] != frame["questionType"]:
+            raise ValueError("invalid chickenbro eval capability plan question type")
+        _validate_string_list(plan["requestedEvidenceNeeds"], name="plan requested evidence", allowed=EVIDENCE_NEEDS)
+        _validate_string_list(plan["unmetEvidenceNeeds"], name="plan unmet evidence", allowed=EVIDENCE_NEEDS)
+        if not set(plan["unmetEvidenceNeeds"]).issubset(plan["requestedEvidenceNeeds"]):
+            raise ValueError("invalid chickenbro eval capability plan unmet evidence")
+        if plan["selectedCapabilityIds"] != selected:
+            raise ValueError("invalid chickenbro eval capability plan selection")
 
 
 def _validate_agent_result(agent_result):

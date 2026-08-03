@@ -7578,7 +7578,21 @@ def chickenbro_answer_layer_for_context(bounded_context):
     return "direct_chat"
 
 
-def chickenbro_basis_label(answer_layer):
+def chickenbro_has_official_current_source(bounded_context):
+    return any(
+        isinstance(source, dict)
+        and source.get("sourceKey") == "current_wow_sources"
+        and source.get("status") == "source_reference"
+        and source.get("evidenceRefs")
+        for source in (bounded_context.get("sourceEvidence") or [])
+    )
+
+
+def chickenbro_basis_label(answer_layer, bounded_context=None):
+    if answer_layer == "source_reference" and chickenbro_has_official_current_source(
+        bounded_context if isinstance(bounded_context, dict) else {}
+    ):
+        return "已核对官方当前来源"
     return {
         "evidence": "已基于你的模板或 SimC 分析",
         "wcl_evidence": "已基于你的 WCL 日志证据",
@@ -7601,6 +7615,9 @@ def chickenbro_missing_inputs_for_context(bounded_context, answer_layer):
         missing.extend(["simc_or_wcl", "published_profile"])
     elif answer_layer == "evidence":
         missing.append("personal_simc_or_wcl")
+    capability_plan = bounded_context.get("capabilityPlan") if isinstance(bounded_context.get("capabilityPlan"), dict) else {}
+    if "comparative_strength_signal" in (capability_plan.get("unmetEvidenceNeeds") or []):
+        missing.append("comparative_strength_signal")
     output = []
     for item in missing:
         append_unique_text(output, item)
@@ -7624,7 +7641,7 @@ def enrich_chickenbro_context_layers(bounded_context):
     enriched = dict(bounded_context)
     answer_layer = chickenbro_answer_layer_for_context(enriched)
     enriched["answerLayer"] = answer_layer
-    enriched["basisLabel"] = chickenbro_basis_label(answer_layer)
+    enriched["basisLabel"] = chickenbro_basis_label(answer_layer, enriched)
     enriched["missingInputs"] = chickenbro_missing_inputs_for_context(enriched, answer_layer)
     enriched["nextQuestion"] = chickenbro_next_question_for_context(enriched, answer_layer)
     return enriched
@@ -7661,6 +7678,59 @@ def empty_chickenbro_registry_context(status="unavailable"):
         "registrySource": "",
         "discoveredCapabilityIds": [],
         "selectedCapabilityIds": [],
+    }
+
+
+_CHICKENBRO_CAPABILITY_EVIDENCE = {
+    "source:raiderio:v1": {"community_build_reference"},
+    "source:warcraftlogs:v1": {"personal_log_evidence"},
+    "source:current-wow-sources:v1": {"official_current_changes"},
+}
+_CHICKENBRO_SOURCE_EVIDENCE = {
+    "raiderio": {"community_build_reference"},
+    "warcraftlogs": {"personal_log_evidence"},
+    "current_wow_sources": {"official_current_changes"},
+}
+
+
+def chickenbro_capability_plan(question_frame, registry_context, source_evidence):
+    """Compute evidence satisfaction from published capabilities, never model text."""
+    frame = question_frame if isinstance(question_frame, dict) else {}
+    registry = registry_context if isinstance(registry_context, dict) else {}
+    requested = []
+    for item in frame.get("evidenceNeeds") or []:
+        evidence_need = str(item).strip()
+        if evidence_need and evidence_need not in requested:
+            requested.append(evidence_need)
+    selected = [
+        str(item).strip()
+        for item in registry.get("selectedCapabilityIds") or []
+        if str(item).strip()
+    ]
+    satisfied = set()
+    for source in source_evidence if isinstance(source_evidence, (list, tuple)) else []:
+        if not isinstance(source, dict):
+            continue
+        status = str(source.get("status") or "").strip().lower()
+        if status not in {"source_reference", "verified"} or not source.get("evidenceRefs"):
+            continue
+        source_key = str(source.get("sourceKey") or "").strip().lower()
+        for evidence_need in _CHICKENBRO_SOURCE_EVIDENCE.get(source_key, set()):
+            capability_id = next(
+                (
+                    item
+                    for item in selected
+                    if evidence_need in _CHICKENBRO_CAPABILITY_EVIDENCE.get(item, set())
+                ),
+                "",
+            )
+            if capability_id:
+                satisfied.add(evidence_need)
+    return {
+        "questionType": str(frame.get("questionType") or "").strip().lower(),
+        "requestedEvidenceNeeds": requested,
+        "selectedCapabilityIds": selected,
+        "unmetEvidenceNeeds": [item for item in requested if item not in satisfied],
     }
 
 
@@ -7797,6 +7867,7 @@ def build_chickenbro_bounded_context(
 ):
     context = context if isinstance(context, dict) else {}
     conversation_history = compact_chickenbro_history(history)
+    question_frame = build_chickenbro_question_frame(message, conversation_history)
     intent = classify_chickenbro_request(message, conversation_history)
     lookup_context = dict(context)
     if not lookup_context.get("classKey") and intent.get("classKey"):
@@ -7840,6 +7911,11 @@ def build_chickenbro_bounded_context(
         registry_context = loaded_sources.get("registryContext") or registry_context
         registry_limitations = loaded_sources.get("limitations") or []
     source_evidence = [item for item in (source_tool_results or []) if isinstance(item, dict)][:3]
+    capability_plan = chickenbro_capability_plan(
+        question_frame,
+        registry_context,
+        source_evidence,
+    )
     usable = []
     background = []
     excluded = []
@@ -7914,6 +7990,8 @@ def build_chickenbro_bounded_context(
         "excludedProfiles": excluded[:5],
         "contextEvidence": context_evidence,
         "sourceEvidence": source_evidence,
+        "questionFrame": question_frame,
+        "capabilityPlan": capability_plan,
         "registryContext": registry_context,
         "allowedEvidenceRefs": allowed_refs,
         "allowedNumbers": [number for number in allowed_numbers if number],
@@ -7922,7 +8000,7 @@ def build_chickenbro_bounded_context(
             "publishedProfilesSupportConclusions": True,
             "partialProfilesAreBackgroundOnly": True,
             "staleBlockedNeedsReviewExcluded": True,
-            "noRealtimeExternalFetch": True,
+            "sourceReads": "registry_controlled_read_only",
         },
     }
     bounded_context = enrich_chickenbro_context_layers(bounded_context)
@@ -7949,14 +8027,24 @@ def chickenbro_prompt_from_context(bounded_context):
             "最多追问一个真正影响结论的关键问题；输出 JSON：answer, confidence, answerLayer, basisLabel, priorityActions, evidenceRefs, limitations, missingInputs, nextQuestion。",
         ]
     elif answer_layer == "source_reference":
-        instructions = [
-            "你是炸鸡队长，只回答魔兽世界正式服和 PTR/Beta 相关问题。",
-            "当前有社区来源参考：根据 boundedContext.sourceEvidence 自然回答，不要套固定模板。",
-            "For normal build chat, do not require the player to provide WCL, SimC, or a link; mention personal-log evidence only when the player explicitly asks for log analysis.",
-            "Raider.IO 只能说明大秘境社区样本趋势；不要把它写成 WCL 日志结论、全局 BiS、DPS 排名或个人角色结论。",
-            "只能引用 boundedContext 中的 evidenceRefs；没有明确数字时不要自行补数字。",
-            "最多追问一个真正影响结论的关键问题；输出 JSON：answer, confidence, answerLayer, basisLabel, priorityActions, evidenceRefs, limitations, missingInputs, nextQuestion。",
-        ]
+        if chickenbro_has_official_current_source(bounded_context):
+            instructions = [
+                "你是炸鸡队长，只回答魔兽世界正式服和 PTR/Beta 相关问题。",
+                "当前有经注册的官方当前来源：先回答该专精与版本已经确认的改动，并引用 boundedContext.sourceEvidence 的 evidenceRefs；不要套固定模板。",
+                "必须明确区分“已确认改动”“基于改动的解释”和“强度结论”。若 capabilityPlan.unmetEvidenceNeeds 含 comparative_strength_signal，必须明确说横向强度证据不足，不能给 T0/T1、排名、DPS、分位或优劣结论。",
+                "不要声称系统没有抓取或检索能力；本轮能否读取来源以 sourceEvidence 的实际状态为准。",
+                "只能引用 boundedContext 中的 evidenceRefs；没有明确数字时不要自行补数字。",
+                "最多追问一个真正影响结论的关键问题；输出 JSON：answer, confidence, answerLayer, basisLabel, priorityActions, evidenceRefs, limitations, missingInputs, nextQuestion。",
+            ]
+        else:
+            instructions = [
+                "你是炸鸡队长，只回答魔兽世界正式服和 PTR/Beta 相关问题。",
+                "当前有社区来源参考：根据 boundedContext.sourceEvidence 自然回答，不要套固定模板。",
+                "For normal build chat, do not require the player to provide WCL, SimC, or a link; mention personal-log evidence only when the player explicitly asks for log analysis.",
+                "Raider.IO 只能说明大秘境社区样本趋势；不要把它写成 WCL 日志结论、全局 BiS、DPS 排名或个人角色结论。",
+                "只能引用 boundedContext 中的 evidenceRefs；没有明确数字时不要自行补数字。",
+                "最多追问一个真正影响结论的关键问题；输出 JSON：answer, confidence, answerLayer, basisLabel, priorityActions, evidenceRefs, limitations, missingInputs, nextQuestion。",
+            ]
     elif answer_layer == "diagnostic":
         instructions = [
             "你是炸鸡队长，只回答魔兽世界正式服和 PTR/Beta 相关问题。",
@@ -8133,6 +8221,30 @@ def chickenbro_text_numbers(value):
     return re.findall(r"(?<![A-Za-z0-9.])(?:\+?\d{2,}(?:\.\d+)?|\d+\.\d+)%?(?![\d.])", str(value or ""))
 
 
+_UNSUPPORTED_COMPARATIVE_STRENGTH_PATTERNS = (
+    re.compile(r"\bt[0-2]\b", re.IGNORECASE),
+    re.compile(r"第一梯队|顶级|最强|全职业第一"),
+)
+_COMPARATIVE_NEGATION_MARKERS = ("不能", "无法", "不足", "缺少", "没有", "尚无", "未有", "不够", "not enough", "cannot")
+
+
+def chickenbro_reject_unsupported_comparative_strength(output_text, bounded_context):
+    frame = bounded_context.get("questionFrame") if isinstance(bounded_context.get("questionFrame"), dict) else {}
+    plan = bounded_context.get("capabilityPlan") if isinstance(bounded_context.get("capabilityPlan"), dict) else {}
+    if (
+        frame.get("questionType") != "current_research"
+        or "comparative_strength_signal" not in (plan.get("unmetEvidenceNeeds") or [])
+    ):
+        return
+    text = str(output_text or "")
+    normalized = text.lower()
+    for pattern in _UNSUPPORTED_COMPARATIVE_STRENGTH_PATTERNS:
+        for match in pattern.finditer(normalized):
+            prefix = normalized[max(0, match.start() - 24):match.start()]
+            if not any(marker in prefix for marker in _COMPARATIVE_NEGATION_MARKERS):
+                raise ValueError("model_output_invalid: unsupported comparative strength claim")
+
+
 def validate_chickenbro_model_output(payload, bounded_context):
     answer = str(payload.get("answer") or "").strip()
     if not answer:
@@ -8162,8 +8274,9 @@ def validate_chickenbro_model_output(payload, bounded_context):
         normalized = number.rstrip("%")
         if normalized not in allowed_numbers:
             raise ValueError("model_output_invalid: unapproved number")
+    chickenbro_reject_unsupported_comparative_strength(output_text, bounded_context)
     answer_layer = bounded_context.get("answerLayer") or chickenbro_answer_layer_for_context(bounded_context)
-    basis_label = bounded_context.get("basisLabel") or chickenbro_basis_label(answer_layer)
+    basis_label = bounded_context.get("basisLabel") or chickenbro_basis_label(answer_layer, bounded_context)
     missing_inputs = (
         payload.get("missingInputs")
         if isinstance(payload.get("missingInputs"), list)
