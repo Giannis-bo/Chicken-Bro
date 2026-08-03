@@ -97,7 +97,7 @@ class ChickenbroAnswerStream:
             return []
         self._answer = answer
         self._answer_closed = closed
-        if not self._numbers_are_allowed(answer):
+        if not self._numbers_are_allowed(answer, allow_decimal_prefix=True):
             self._terminal_error = "model_output_invalid: unapproved number"
             return []
         return self._emit(force=closed)
@@ -134,14 +134,22 @@ class ChickenbroAnswerStream:
             index += 6
         return "".join(value), False
 
-    def _numbers_are_allowed(self, answer):
-        for number in chickenbro_text_numbers(answer):
+    def _numbers_are_allowed(self, answer, allow_decimal_prefix=False):
+        numbers = chickenbro_text_numbers(answer)
+        for index, number in enumerate(numbers):
             if number.rstrip("%") not in self.allowed_numbers:
+                if (
+                    allow_decimal_prefix
+                    and index == len(numbers) - 1
+                    and answer.endswith(number)
+                    and any(allowed.startswith(f"{number}.") for allowed in self.allowed_numbers)
+                ):
+                    continue
                 return False
         return True
 
     def _emit(self, force=False):
-        if not self._numbers_are_allowed(self._answer):
+        if not self._numbers_are_allowed(self._answer, allow_decimal_prefix=not force):
             self._terminal_error = "model_output_invalid: unapproved number"
             return []
         end = len(self._answer) if force else max(0, len(self._answer) - self.holdback_chars)

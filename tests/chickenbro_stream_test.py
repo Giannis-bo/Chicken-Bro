@@ -21,6 +21,18 @@ class ChickenbroAnswerStreamTest(unittest.TestCase):
         with self.assertRaises(ChickenbroStreamValidationError):
             stream.finish()
 
+    def test_accepts_an_allowed_decimal_when_the_fraction_arrives_in_the_next_chunk(self):
+        from server.chickenbro_stream import ChickenbroAnswerStream
+
+        answer = "PTR 12.1 版本的强度需要结合后续说明判断。"
+        stream = ChickenbroAnswerStream(allowed_numbers=["12.1"])
+        emitted = []
+        for chunk in ('{"answer":"PTR 12', '.1 版本的强度需要结合后续说明判断。"}'):
+            emitted.extend(stream.feed(chunk))
+
+        self.assertEqual("".join(emitted), answer)
+        self.assertEqual(stream.finish()["answer"], answer)
+
     def test_rejects_unknown_top_level_fields_before_releasing_complete_payload(self):
         from server.chickenbro_stream import ChickenbroAnswerStream, ChickenbroStreamValidationError
 
