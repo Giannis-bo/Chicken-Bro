@@ -14,6 +14,8 @@ export type { NewsClient } from './news'
 export { SimulatorClient } from './simulator'
 export type {
   ChickenbroMessageRequest,
+  ChickenbroStreamEvent,
+  ChickenbroStreamHandlers,
   ChickenbroSessionListRequest,
   SimulatorRequestOptions,
   TaskDetailPayload,
@@ -34,6 +36,7 @@ export {
   createTaroTransport,
   DEV_API_BASE_URL,
   isInsecureHttpUrl,
+  NdjsonDecoder,
 } from './transport'
 export { canonicalGearSlots, createWebsimClient } from './websim'
 export type {
@@ -44,9 +47,11 @@ export type {
 } from './websim'
 export type {
   ApiResult,
+  ApiStreamTask,
   ApiTransport,
   RequestData,
   RequestMethod,
   RequestOptions,
+  StreamRequestOptions,
   TransportConfig,
 } from './transport'

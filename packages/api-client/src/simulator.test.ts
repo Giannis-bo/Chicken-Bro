@@ -333,6 +333,40 @@ describe('SimulatorClient task contract', () => {
     })
   })
 
+  it('forwards only monotonic, request-bound Chickenbro stream events and aborts malformed events', () => {
+    let streamOptions: {
+      onEvent: (event: unknown) => void
+      onFailure: (error: string) => void
+    } | undefined
+    const abort = vi.fn()
+    const requestStreamEndpoint = vi.fn((_endpoint: string, _path: string, options) => {
+      streamOptions = options
+      return { abort }
+    })
+    const client = new SimulatorClient({ requestStreamEndpoint } as unknown as ApiTransport, new MemoryStorage())
+    const events: string[] = []
+    const failures: string[] = []
+
+    client.streamMessage(
+      { message: '冰DK大秘境先排查什么？', sessionId: 'session-1', clientMessageId: 'turn-1' },
+      { onEvent: (event) => events.push(event.type), onFailure: (error) => failures.push(error) },
+    )
+    streamOptions?.onEvent({ type: 'started', requestId: 'request-1', sessionId: 'session-1' })
+    streamOptions?.onEvent({ type: 'delta', requestId: 'request-1', sequence: 1, text: '先检查资源。' })
+    streamOptions?.onEvent({ type: 'delta', requestId: 'request-1', sequence: 1, text: '重复。' })
+
+    expect(requestStreamEndpoint).toHaveBeenCalledWith(
+      'chickenbro.messages.stream',
+      '/api/chickenbro/messages/stream',
+      expect.objectContaining({
+        data: expect.objectContaining({ sessionId: 'session-1', clientMessageId: 'turn-1' }),
+      }),
+    )
+    expect(events).toEqual(['started', 'delta'])
+    expect(abort).toHaveBeenCalledOnce()
+    expect(failures).toEqual(['invalid chickenbro stream event'])
+  })
+
   it('validates owner-scoped Chickenbro archive summaries and session details', async () => {
     const session = {
       sessionId: 'session-archive-1',

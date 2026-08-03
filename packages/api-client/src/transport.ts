@@ -38,6 +38,21 @@ export interface RequestOptions<T> {
   validate?: (value: unknown) => boolean
 }
 
+export interface StreamRequestOptions<T> {
+  data: RequestData
+  header?: Readonly<Record<string, string>>
+  timeoutMs?: number
+  auth?: boolean
+  allowInsecureGuestRequest?: boolean
+  attachAnalyticsHeaders?: boolean
+  onEvent: (event: T) => void
+  onFailure: (error: string) => void
+}
+
+export interface ApiStreamTask {
+  abort(): void
+}
+
 export interface ApiTransport {
   request<T>(path: string, options: RequestOptions<T>): Promise<ApiResult<T>>
   requestEndpoint<T>(
@@ -45,6 +60,11 @@ export interface ApiTransport {
     path: string,
     options: Omit<RequestOptions<T>, 'method'>,
   ): Promise<ApiResult<T>>
+  requestStreamEndpoint?<T>(
+    endpointId: EndpointId,
+    path: string,
+    options: Omit<StreamRequestOptions<T>, 'method'>,
+  ): ApiStreamTask
 }
 
 export interface TransportConfig {
@@ -136,6 +156,39 @@ function errorMessage(error: unknown): string {
   return 'request failed'
 }
 
+export class NdjsonDecoder {
+  private readonly decoder = new TextDecoder('utf-8')
+  private buffered = ''
+
+  push(data: ArrayBuffer): unknown[] {
+    this.buffered += this.decoder.decode(new Uint8Array(data), { stream: true })
+    return this.takeCompleteLines()
+  }
+
+  finish(): unknown[] {
+    this.buffered += this.decoder.decode()
+    const events = this.takeCompleteLines()
+    if (this.buffered.trim()) throw new Error('incomplete NDJSON payload')
+    return events
+  }
+
+  private takeCompleteLines(): unknown[] {
+    const lines = this.buffered.split('\n')
+    this.buffered = lines.pop() ?? ''
+    const events: unknown[] = []
+    for (const line of lines) {
+      const text = line.endsWith('\r') ? line.slice(0, -1) : line
+      if (!text) continue
+      try {
+        events.push(JSON.parse(text))
+      } catch {
+        throw new Error('malformed stream payload')
+      }
+    }
+    return events
+  }
+}
+
 export function createTaroTransport(config: TransportConfig = {}): ApiTransport {
   const storage = config.storage ?? taroStorage
   const analytics = new AnalyticsIdentity(storage)
@@ -196,6 +249,101 @@ export function createTaroTransport(config: TransportConfig = {}): ApiTransport 
     }
   }
 
+  const requestStreamEndpoint = <T>(
+    endpointId: EndpointId,
+    path: string,
+    options: Omit<StreamRequestOptions<T>, 'method'>,
+  ): ApiStreamTask => {
+    const endpoint = endpointContract(endpointId)
+    const endpointAllowsInsecureGuest = 'allowInsecureGuestRequest' in endpoint
+      && endpoint.allowInsecureGuestRequest === true
+    const allowInsecureGuestRequest = endpointAllowsInsecureGuest
+      && options.allowInsecureGuestRequest === true
+    const auth = endpoint.auth === 'optional_by_call'
+      ? options.auth === true
+      : endpoint.auth !== 'none'
+    const timeoutMs = options.timeoutMs
+      ?? ('timeoutMs' in endpoint ? endpoint.timeoutMs : undefined)
+    const baseUrl = resolveBaseUrl()
+    const url = baseUrl ? `${baseUrl}${path}` : ''
+    let failed = false
+    const fail = (message: string) => {
+      if (failed) return
+      failed = true
+      options.onFailure(message)
+    }
+    if (!url) {
+      fail('missing api base url')
+      return { abort() {} }
+    }
+    if (auth && isInsecureHttpUrl(url) && !allowInsecureGuestRequest) {
+      fail('insecure api base url for authenticated request')
+      return { abort() {} }
+    }
+    const header: Record<string, string> = {
+      ...((options.attachAnalyticsHeaders ?? !(
+        'transport' in endpoint && endpoint.transport === 'direct_request_without_analytics_headers'
+      )) ? analytics.headers(platform) : {}),
+      ...options.header,
+    }
+    if (auth && !isInsecureHttpUrl(url)) {
+      const token = storage.get<string>(storageKey('auth.token'))
+      if (token) header['Authorization'] = `Bearer ${token}`
+    }
+
+    const decoder = new NdjsonDecoder()
+    const task = Taro.request<unknown>({
+      url,
+      method: endpoint.method,
+      data: options.data,
+      header,
+      timeout: timeoutMs ?? 6000,
+      enableChunked: true,
+      responseType: 'arraybuffer',
+    }) as unknown as Promise<{ statusCode: number }> & {
+      abort?: () => void
+      onChunkReceived?: (callback: (payload: { data: ArrayBuffer }) => void) => void
+    }
+    const abort = () => task.abort?.()
+    const emit = (event: unknown) => {
+      if (failed) return
+      try {
+        options.onEvent(event as T)
+      } catch {
+        abort()
+        fail('invalid stream event')
+      }
+    }
+    if (typeof task.onChunkReceived !== 'function') {
+      abort()
+      fail('chunked response is unavailable')
+    } else {
+      task.onChunkReceived(({ data }) => {
+        if (failed) return
+        try {
+          decoder.push(data).forEach(emit)
+        } catch {
+          abort()
+          fail('malformed stream payload')
+        }
+      })
+    }
+    void task.then((response) => {
+      if (failed) return
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        fail(`HTTP ${response.statusCode}`)
+        return
+      }
+      try {
+        decoder.finish().forEach(emit)
+      } catch {
+        abort()
+        fail('malformed stream payload')
+      }
+    }).catch((error) => fail(errorMessage(error)))
+    return { abort }
+  }
+
   return {
     request,
     requestEndpoint<T>(
@@ -225,5 +373,6 @@ export function createTaroTransport(config: TransportConfig = {}): ApiTransport 
         ),
       })
     },
+    requestStreamEndpoint,
   }
 }

@@ -274,6 +274,7 @@ export const routeContracts = [
     "query": [],
     "endpoints": [
       "chickenbro.messages",
+      "chickenbro.messages.stream",
       "chickenbro.session"
     ],
     "storage": [
@@ -618,6 +619,14 @@ export const endpointContracts = [
     "id": "chickenbro.messages",
     "method": "POST",
     "path": "/api/chickenbro/messages",
+    "auth": "requested",
+    "allowInsecureGuestRequest": true,
+    "timeoutMs": 90000
+  },
+  {
+    "id": "chickenbro.messages.stream",
+    "method": "POST",
+    "path": "/api/chickenbro/messages/stream",
     "auth": "requested",
     "allowInsecureGuestRequest": true,
     "timeoutMs": 90000

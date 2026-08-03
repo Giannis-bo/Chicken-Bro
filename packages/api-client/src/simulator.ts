@@ -11,12 +11,24 @@ import {
 
 import { isRecord } from './guards'
 import { taroStorage, type StorageAdapter } from './storage'
-import type { ApiResult, ApiTransport } from './transport'
+import type { ApiResult, ApiStreamTask, ApiTransport } from './transport'
 
 export interface TaskListPayload { tasks: readonly SimulatorTaskRecord[] }
 export interface TaskDetailPayload { task: SimulatorTaskRecord | null }
 export interface ChickenbroMessageRequest { message: string; sessionId?: string; clientMessageId?: string }
 export interface ChickenbroSessionListRequest { limit?: number; cursor?: string }
+export type ChickenbroStreamEvent =
+  | { type: 'started'; requestId: string; sessionId: string }
+  | { type: 'status'; requestId: string; stage: 'preparing' | 'generating' }
+  | { type: 'delta'; requestId: string; sequence: number; text: string }
+  | { type: 'final'; requestId: string; response: ChickenbroResponse }
+  | { type: 'failed'; requestId: string; code: string; retryable: boolean }
+
+export interface ChickenbroStreamHandlers {
+  onEvent: (event: ChickenbroStreamEvent) => void
+  onFailure: (error: string) => void
+  onFallback?: (result: ApiResult<ChickenbroResponse>) => void
+}
 
 export interface SimulatorRequestOptions {
   auth?: boolean
@@ -163,6 +175,15 @@ function isChickenbroResponse(value: unknown): boolean {
   if (!isChickenbroAssistantPayload(assistantMessage['payload'])) return false
   const job = value['job']
   return job === undefined || (isRecord(job) && nonEmptyString(job['jobId']) && nonEmptyString(job['status']))
+}
+
+function isChickenbroStreamEvent(value: unknown): value is ChickenbroStreamEvent {
+  if (!isRecord(value) || !nonEmptyString(value['type']) || !nonEmptyString(value['requestId'])) return false
+  if (value['type'] === 'started') return nonEmptyString(value['sessionId'])
+  if (value['type'] === 'status') return value['stage'] === 'preparing' || value['stage'] === 'generating'
+  if (value['type'] === 'delta') return positiveInteger(value['sequence']) && nonEmptyString(value['text'])
+  if (value['type'] === 'final') return isChickenbroResponse(value['response'])
+  return value['type'] === 'failed' && nonEmptyString(value['code']) && typeof value['retryable'] === 'boolean'
 }
 
 function isChickenbroSessionSummary(value: unknown): value is ChickenbroSessionSummary {
@@ -418,5 +439,76 @@ export class SimulatorClient {
       }),
       validate: isChickenbroResponse,
     })
+  }
+
+  streamMessage(request: ChickenbroMessageRequest, handlers: ChickenbroStreamHandlers): ApiStreamTask {
+    const data = {
+      message: request.message,
+      ...(request.sessionId ? { sessionId: request.sessionId } : {}),
+      ...(request.clientMessageId ? { clientMessageId: request.clientMessageId } : {}),
+      guestId: this.guestId(),
+    }
+    const stream = this.transport.requestStreamEndpoint
+    if (!stream) {
+      handlers.onFailure('chunked response is unavailable')
+      return { abort() {} }
+    }
+    let task: ApiStreamTask | undefined
+    let requestId = ''
+    let expectedSequence = 1
+    let terminal = false
+    let cancelled = false
+    const reject = () => {
+      if (terminal) return
+      terminal = true
+      task?.abort()
+      handlers.onFailure('invalid chickenbro stream event')
+    }
+    task = stream('chickenbro.messages.stream', '/api/chickenbro/messages/stream', {
+      data,
+      auth: true,
+      allowInsecureGuestRequest: true,
+      onEvent: (value) => {
+        if (terminal || cancelled || !isChickenbroStreamEvent(value)) {
+          reject()
+          return
+        }
+        if (value.type === 'started') {
+          if (requestId || (request.sessionId && value.sessionId !== request.sessionId)) {
+            reject()
+            return
+          }
+          requestId = value.requestId
+        } else if (!requestId || value.requestId !== requestId) {
+          reject()
+          return
+        } else if (value.type === 'delta') {
+          if (value.sequence !== expectedSequence) {
+            reject()
+            return
+          }
+          expectedSequence += 1
+        } else if (value.type === 'final' || value.type === 'failed') {
+          terminal = true
+        }
+        handlers.onEvent(value)
+      },
+      onFailure: (error) => {
+        if (terminal || cancelled) return
+        if (!requestId && handlers.onFallback) {
+          terminal = true
+          void this.message(request).then(handlers.onFallback).catch(() => handlers.onFailure(error))
+          return
+        }
+        terminal = true
+        handlers.onFailure(error)
+      },
+    })
+    return {
+      abort() {
+        cancelled = true
+        task?.abort()
+      },
+    }
   }
 }
