@@ -253,6 +253,7 @@ export default function SimulatorHomePage() {
               scrollTop={scrollTop}
               hasUnseen={streamState.hasUnseen}
               onScroll={(detail) => {
+                if (detail.clientHeight <= 0) return
                 const distance = Math.max(0, detail.scrollHeight - detail.scrollTop - detail.clientHeight)
                 const next = chickenbroFollowFromDistance(streamStateRef.current, distance)
                 if (next.followLatest !== streamStateRef.current.followLatest || next.hasUnseen !== streamStateRef.current.hasUnseen) {
