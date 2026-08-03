@@ -1,0 +1,108 @@
+{
+  "schemaVersion": 1,
+  "slug": "chickenbro-smart-question-chain",
+  "classification": "Strict",
+  "status": "implementation_allowed",
+  "goal": "Replace Chickenbro's generic fallback for time-sensitive player questions with a general semantic QuestionFrame, deterministic evidence-needs planning, a bounded official current-source capability and de-identified planning traces.",
+  "userValue": "Players can ask a natural question in their own vocabulary and receive an evidence-led answer path: confirmed current facts are cited, while missing comparative evidence remains visibly incomplete instead of becoming a fabricated strength verdict.",
+  "scope": [
+    "semantic QuestionFrame for player vocabulary, product phase, patch and evidence needs",
+    "registry-published official Blizzard current-source capability with bounded in-memory collection",
+    "evidence-aware answer constraints and de-identified Trace v3",
+    "immutable Registry release migration 0026 and candidate/live verification"
+  ],
+  "outOfScope": [
+    "case-specific or fixed answers for NQ, any class or any patch",
+    "arbitrary browser, URL, code, credential, SQL or shell access for the model",
+    "comparative ranking corpus, CapabilityGap persistence, Toolsmith, shadow, canary or promotion",
+    "frontend layout or public response-schema changes"
+  ],
+  "nonGoals": [
+    "Do not treat an official patch-change fact as proof of a T0/T1 ranking, DPS, percentile, BiS or personal performance conclusion.",
+    "Do not allow a client, model or manifest to choose an implementation, source URL, owner or credential.",
+    "Do not start syncs, backfills or scheduled collectors during candidate or live deployment."
+  ],
+  "currentTruth": {
+    "sources": [
+      "docs/project-state.json",
+      "docs/roadmap.md",
+      "docs/plans/README.md",
+      "docs/plans/2026-08-03-chickenbro-smart-question-chain-design.md",
+      "docs/plans/2026-08-03-chickenbro-smart-question-chain-implementation.md",
+      "docs/backend-owner-map.json",
+      "docs/project-owner-map.json",
+      "docs/harness.md",
+      "docs/verification-matrix.md"
+    ],
+    "activeMilestone": "chickenbro_smart_question_chain",
+    "featureIteration": "bounded_current_source_slice_only",
+    "baseBranch": "main"
+  },
+  "impactMap": {
+    "mustChange": [
+      "Normalize player phrasing into a safe QuestionFrame before capability discovery.",
+      "Select only an immutable Registry capability whose declared evidence needs match the frame.",
+      "Return only bounded official facts, source references, status and limitations to answer composition.",
+      "Record de-identified selected and unmet evidence types in Trace v3."
+    ],
+    "mustNotChange": [
+      "Existing Raider.IO and Warcraft Logs capability identities and their guarded adapter paths remain available.",
+      "Personal templates and SimC remain bounded context evidence, not registry Tools.",
+      "Raw chat, prompts, answer text, source bodies, credentials, WCL identity and arbitrary URLs remain out of traces and adapter inputs.",
+      "A partial, failed, stale or unmatched official source never becomes a comparative strength claim."
+    ],
+    "riskUnknown": [
+      "Official current pages may lack an exact class/spec/PTR match; that is a literal partial evidence result, not a model-failure substitute.",
+      "Candidate database active-pointer promotion temporarily requires compatible runtime code on both candidate and live service; deployment must minimise that window and retain the v1 pointer rollback value."
+    ],
+    "evidenceRequired": [
+      "QuestionFrame, current-source, Registry/runtime, Trace/Eval and affected backend regressions.",
+      "Clean candidate-head full Harness and local CR against the source and owner boundaries.",
+      "Transactional migration, registry identity, file parity, generic/PTR/WCL/Raider.IO smoke, timer/backflow state and rollback pointer proof.",
+      "User acceptance of the real WeChat natural-language PTR question flow after self-test handoff."
+    ]
+  },
+  "ownership": {
+    "factOwner": "server/chickenbro_question_frame.py owns semantic normalization; server/chickenbro_registry.py owns immutable eligibility; server/chickenbro_current_sources.py owns bounded official facts; server/news_backend.py only orchestrates their safe projections; server/chickenbro_observability.py owns Trace v3.",
+    "consumers": [
+      "server/news_backend.py",
+      "server/chickenbro_tool_runtime.py",
+      "server/chickenbro_observability.py",
+      "server/chickenbro_eval.py",
+      "apps/mini-taro/src/pages/simulator/chickenbro.tsx"
+    ]
+  },
+  "engineeringHealth": {
+    "status": "hotspot_guarded",
+    "reason": "The existing HTTP hotspot only composes pure semantic, registry, adapter and trace owners; the new source adapter accepts a finite projection and source allowlist rather than arbitrary model-selected retrieval."
+  },
+  "acceptanceEvidence": [
+    "Equivalent player slang resolves into a canonical class/spec/phase frame without answer text or fixed per-question response.",
+    "A matching official current source produces a cited fact; no comparison evidence produces an explicit limitation and blocks strength/ranking language.",
+    "Existing community-build and WCL selections retain their v1 capability identity.",
+    "Candidate and live deployment prove migration/pointer identity, file parity, health, generic/PTR/WCL/Raider.IO paths, trace redaction and no new timer backflow.",
+    "The user verifies the real WeChat PTR question path and explicitly accepts it."
+  ],
+  "manualAcceptanceContract": {
+    "required": true,
+    "requiredItemIds": [
+      "live_wechat_smart_question_chain"
+    ]
+  },
+  "releaseTrigger": "backend_api",
+  "rollback": [
+    "code_rollback",
+    "service_restart",
+    "registry_pointer_rollback"
+  ],
+  "decisionLog": [
+    {
+      "date": "2026-08-03",
+      "decision": "The user approved a general smarter player-question chain, explicitly rejecting fixed Q&A or case-by-case hardcoding."
+    },
+    {
+      "date": "2026-08-03",
+      "decision": "The user authorized bounded synchronous current-source reads, deployment, self-test and subsequent handoff for user acceptance."
+    }
+  ]
+}
