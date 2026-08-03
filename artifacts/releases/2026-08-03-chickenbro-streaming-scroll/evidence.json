@@ -199,8 +199,8 @@
   ],
   "cleanup": {
     "required": true,
-    "status": "pending",
-    "reason": "合并并刷新最新 main 的 DevTools 包后，必须停止并删除两个 task-scoped candidate services、其精确 source roots/env/unit files 及本地 SSH tunnel；生产运行时不在清理目标中。"
+    "status": "complete",
+    "reason": "在 bb76ca95 与 origin/main SHA 对齐、最新 main DevTools 包刷新后，已停止 e41839bb candidate service，并删除 57fccbe2/e41839bb 两个 task-scoped candidate 的精确 source roots、env 与 unit files；SSH control tunnel 已退出。生产 wow-backend、/opt/wow-mini-program、wow-data-health-followup.timer 与 wow-chickenbro-source-refresh.timer 未改动且保持 active。"
   },
   "archivedReferences": [
     "docs/plans/README.md",
@@ -208,5 +208,5 @@
     "docs/plans/2026-08-03-chickenbro-streaming-scroll-implementation.md",
     "docs/roadmap/ideas.md"
   ],
-  "summary": "721587f1 已合并 e41839bb 的候选验证实现；隔离候选证明了真实 provider delta、UTF-8 NDJSON、最终 assistant 单次落库和取消零 partial，官方 DevTools 候选 build 完成了真实发送与最终回复展示。用户确认当前样式符合预期并要求收尾。此 archive 不证明生产可对话：生产部署与生产 provider 配置仍未授权，候选清理将在 main 推送与最新 DevTools 刷新后完成。"
+  "summary": "721587f1 已合并 e41839bb 的候选验证实现；隔离候选证明了真实 provider delta、UTF-8 NDJSON、最终 assistant 单次落库和取消零 partial，官方 DevTools 候选 build 完成了真实发送与最终回复展示。用户确认当前样式符合预期并要求收尾。最新 main 的 214 文件 DevTools 包已刷新，候选服务、配置、源码目录和 SSH tunnel 已清理。此 archive 不证明生产可对话：生产部署与生产 provider 配置仍未授权。"
 }
