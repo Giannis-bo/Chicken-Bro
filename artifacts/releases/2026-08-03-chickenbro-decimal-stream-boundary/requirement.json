@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "slug": "chickenbro-decimal-stream-boundary",
+  "classification": "Standard",
+  "status": "implementation_allowed",
+  "goal": "修复炸鸡队长流式回答中已允许小数版本号被跨 chunk 拆分后误判为未批准数字的问题。",
+  "userValue": "玩家询问 12.1 PTR 等带小数版本号的问题时，应像其他正常咨询一样收到真实流式回答，而不是看到“重试发送”。",
+  "nonGoals": [
+    "不放宽最终数字白名单、来源、owner 或 assistant 持久化校验。",
+    "不改变完整 POST /api/chickenbro/messages 合同、前端 UI、provider 配置或定时任务。",
+    "不把未通过最终校验的 partial 文本写入会话。"
+  ],
+  "currentTruth": {
+    "sources": [
+      "docs/project-state.json",
+      "docs/roadmap.md",
+      "docs/plans/README.md",
+      "docs/plans/2026-08-03-chickenbro-streaming-scroll-implementation.md",
+      "docs/harness.md"
+    ],
+    "activeMilestone": "taro_target_first_14_route_rebuild",
+    "featureIteration": "chickenbro_streaming_production_hotfix",
+    "baseBranch": "main"
+  },
+  "impactMap": {
+    "mustChange": [
+      "server/chickenbro_stream.py 仅在不完整 answer 末尾是已允许小数的整数前缀时暂缓数字判断。",
+      "tests/chickenbro_stream_test.py 覆盖 12 与 .1 位于相邻流 chunk 的真实解析边界。"
+    ],
+    "mustNotChange": [
+      "完整 JSON、非末尾数字和未批准数字仍须 fail closed。",
+      "后端的最终 schema、数字、来源和 owner 校验，以及 assistant 写入语义保持不变。",
+      "生产专用 provider 配置、异步同步和前端源码不变。"
+    ],
+    "riskUnknown": [
+      "上游模型输出分片位置不可预测，因此候选和生产均需用真实 12.1 PTR 请求验证。"
+    ],
+    "evidenceRequired": [
+      "先失败后通过的小数跨 chunk 解析回归测试和受影响后端测试。",
+      "隔离候选的文件哈希、真实 delta 顺序、final 和 owner 范围内的最终 assistant 持久化。",
+      "生产同题流式烟测、服务身份和可恢复的文件级回滚备份。",
+      "用户在开发者工具对原始失败场景的重新发送确认。"
+    ]
+  },
+  "ownership": {
+    "factOwner": "server/chickenbro_stream.py 负责流中 answer 前缀的临时数字边界判断；server/news_backend.py 继续拥有最终校验、owner 隔离与 assistant 持久化。",
+    "consumers": [
+      "POST /api/chickenbro/messages/stream",
+      "packages/api-client/src/simulator.ts",
+      "apps/mini-taro/src/pages/simulator/simulator.tsx"
+    ]
+  },
+  "engineeringHealth": {
+    "status": "health_safe",
+    "reason": "修复被限制在独立流解析器；回归测试同时保留未批准数字和完整 JSON 的 fail-closed 边界。"
+  },
+  "acceptanceEvidence": [
+    "12.1 被分为 12 和 .1 两个 JSON 流 chunk 时，已允许小数能完成最终验证。",
+    "候选和生产同题请求均观察到严格递增的真实 delta，随后 final，且 owner 会话只写入一条 assistant。",
+    "用户在开发者工具重新发送原始 PTR 问题后不再看到“重试发送”。"
+  ],
+  "manualAcceptanceContract": {
+    "required": true,
+    "requiredItemIds": [
+      "production_ptr_decimal_stream"
+    ]
+  },
+  "releaseTrigger": "backend_api",
+  "rollback": [
+    "code_rollback",
+    "service_restart"
+  ],
+  "decisionLog": [
+    {
+      "date": "2026-08-03",
+      "decision": "用户报告生产开发者工具中“ NQ 在12.1 PTR 强度如何 ”显示重试发送；隔离复现和真实 provider 诊断确认是 allowed decimal 的 chunk 边界误判。"
+    }
+  ]
+}

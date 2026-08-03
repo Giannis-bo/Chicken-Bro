@@ -1,0 +1,131 @@
+{
+  "schemaVersion": 2,
+  "slug": "chickenbro-decimal-stream-boundary",
+  "requirementSlug": "chickenbro-decimal-stream-boundary",
+  "status": "live_verified",
+  "highestEvidenceLevel": "live_verified",
+  "branch": "codex/chickenbro-decimal-stream-boundary",
+  "commit": "dc9638d512e9665427d95e08d7de100859e29ce9",
+  "identities": {
+    "runtime": {
+      "status": "bound",
+      "kind": "git_commit",
+      "value": "dc9638d512e9665427d95e08d7de100859e29ce9",
+      "fileHashes": {
+        "server/chickenbro_stream.py": "00b97c37fd8f8701f6dafb0d674c887d47c79ca007ec28028cc69a488e806f5c"
+      }
+    },
+    "verification": {
+      "status": "bound_at_check",
+      "kind": "git_ref",
+      "value": "HEAD"
+    },
+    "closure": {
+      "status": "pending",
+      "reason": "等待用户在开发者工具重新发送原始 PTR 问题后的明确验收和主干合并。"
+    }
+  },
+  "manualAcceptance": {
+    "required": true,
+    "status": "pending",
+    "items": [
+      {
+        "id": "production_ptr_decimal_stream",
+        "status": "pending"
+      }
+    ],
+    "rollup": {
+      "total": 1,
+      "accepted": 0,
+      "notRunUserWaived": 0,
+      "pending": 1
+    }
+  },
+  "scope": [
+    "流式 answer 的小数数字 chunk 边界",
+    "12.1 PTR 生产失败场景的候选和生产修复验证"
+  ],
+  "verification": [
+    {
+      "command": "python3 -m unittest tests.chickenbro_stream_test.ChickenbroAnswerStreamTest.test_accepts_an_allowed_decimal_when_the_fraction_arrives_in_the_next_chunk -v",
+      "status": "pass",
+      "summary": "先在未修复代码上按预期失败；最小修复后通过，覆盖 12 与 .1 分属相邻 chunk。"
+    },
+    {
+      "command": "python3 -m unittest tests.chickenbro_stream_test tests.llm_client_test tests.news_backend_test -q",
+      "status": "pass",
+      "summary": "299 项受影响流解析、provider 和后端回归测试通过；测试内预期的损坏 fixture 警告和 HTTP 负例不代表失败。"
+    },
+    {
+      "command": "candidate POST http://127.0.0.1:18790/api/chickenbro/messages/stream with fresh guest and NQ 在12.1 PTR 强度如何",
+      "status": "pass",
+      "summary": "候选两次真实 provider 请求均从 started/status 进入严格递增 delta 后 final；第二次为 delta x79，owner transcript 为 user、assistant，assistantCount=1。"
+    },
+    {
+      "command": "production POST https://api.chickenbro.cloud/api/chickenbro/messages/stream with fresh guest and NQ 在12.1 PTR 强度如何",
+      "status": "pass",
+      "summary": "生产返回 chunked application/x-ndjson；事件为 started、status、delta x56、final，首 delta 13061ms，sequence 严格递增，owner transcript 为 user、assistant，assistantCount=1。"
+    }
+  ],
+  "candidateDeployment": {
+    "status": "candidate_verified",
+    "branch": "codex/chickenbro-decimal-stream-boundary",
+    "commit": "dc9638d512e9665427d95e08d7de100859e29ce9",
+    "gitTree": "0fa422714f7d8fa09f1769e1eb0d3498621b01cb",
+    "deployedTarget": "ubuntu@124.223.51.33:/opt/wow-mini-program-candidate/chickenbro-decimal-dc9638d5",
+    "service": "wow-backend-chickenbro-decimal-dc9638d5-r1.service",
+    "localhostPort": 18790,
+    "fileParity": "candidate server/chickenbro_stream.py SHA-256 equals the local runtime commit hash 00b97c37fd8f8701f6dafb0d674c887d47c79ca007ec28028cc69a488e806f5c",
+    "smoke": {
+      "status": "pass",
+      "summary": "NQ 在12.1 PTR 强度如何 completed with real validated deltas, final, and exactly one persisted assistant in an isolated guest session."
+    },
+    "timerBackflow": {
+      "status": "not_applicable",
+      "reason": "候选是独立 transient service，WOW_NEWS_ENABLE_COLLECTORS=0、WOW_NEWS_MAX_COLLECTED_ARTICLES=0、WOW_DEPLOY_START_ASYNC_SYNCS=0；未安装或启动任何同步/回填任务。"
+    },
+    "rollback": {
+      "status": "ready",
+      "path": "stop wow-backend-chickenbro-decimal-dc9638d5-r1.service; production is unchanged by candidate cleanup"
+    }
+  },
+  "runtimeEvidence": [
+    {
+      "type": "candidate_file_parity",
+      "status": "pass",
+      "summary": "候选和本地 server/chickenbro_stream.py SHA-256 都是 00b97c37fd8f8701f6dafb0d674c887d47c79ca007ec28028cc69a488e806f5c。"
+    },
+    {
+      "type": "smoke",
+      "status": "pass",
+      "summary": "候选与生产均对原始 PTR 提问输出真实 delta 和 final，而非 HTTP 200 或 started 的假成功。"
+    },
+    {
+      "type": "production_file_parity",
+      "status": "pass",
+      "summary": "生产 /opt/wow-mini-program/server/chickenbro_stream.py 的 SHA-256 与 runtime commit 相同；wow-backend 在 PID 2002988 active。"
+    }
+  ],
+  "risks": [
+    {
+      "id": "manual_devtools_confirmation_pending",
+      "status": "open",
+      "detail": "生产 API 已证明原问题通过；仍需用户在开发者工具对其真实会话重新发送确认。"
+    }
+  ],
+  "rollback": [
+    "restore /var/backups/wow-backend/chickenbro-decimal-stream-fix-20260803T1507Z/chickenbro_stream.py to /opt/wow-mini-program/server/chickenbro_stream.py",
+    "restart wow-backend.service"
+  ],
+  "cleanup": {
+    "required": true,
+    "target": "wow-backend-chickenbro-decimal-dc9638d5-r1.service and /opt/wow-mini-program-candidate/chickenbro-decimal-dc9638d5 after closure",
+    "reason": "候选仅用于本次热修验证；生产不依赖它。"
+  },
+  "archivedReferences": [
+    "docs/project-state.json",
+    "docs/plans/2026-08-03-chickenbro-streaming-scroll-implementation.md",
+    "artifacts/releases/2026-08-03-chickenbro-streaming-scroll/evidence.json"
+  ],
+  "summary": "12.1 这类 allowed decimal 在上游 chunk 边界被误判为未批准整数的生产故障已通过测试、隔离候选和生产同题烟测修复；等待开发者工具人工复验后关闭。"
+}
