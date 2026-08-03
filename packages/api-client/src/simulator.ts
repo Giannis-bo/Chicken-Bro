@@ -453,7 +453,7 @@ export class SimulatorClient {
       handlers.onFailure('chunked response is unavailable')
       return { abort() {} }
     }
-    let task: ApiStreamTask | undefined
+    const taskRef: { current: ApiStreamTask | undefined } = { current: undefined }
     let requestId = ''
     let expectedSequence = 1
     let terminal = false
@@ -461,10 +461,10 @@ export class SimulatorClient {
     const reject = () => {
       if (terminal) return
       terminal = true
-      task?.abort()
+      taskRef.current?.abort()
       handlers.onFailure('invalid chickenbro stream event')
     }
-    task = stream('chickenbro.messages.stream', '/api/chickenbro/messages/stream', {
+    const task = stream('chickenbro.messages.stream', '/api/chickenbro/messages/stream', {
       data,
       auth: true,
       allowInsecureGuestRequest: true,
@@ -504,10 +504,11 @@ export class SimulatorClient {
         handlers.onFailure(error)
       },
     })
+    taskRef.current = task
     return {
       abort() {
         cancelled = true
-        task?.abort()
+        taskRef.current?.abort()
       },
     }
   }
