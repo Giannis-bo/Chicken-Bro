@@ -4,8 +4,8 @@
   "requirementSlug": "chickenbro-decimal-stream-boundary",
   "status": "runtime_verified",
   "highestEvidenceLevel": "runtime_verified",
-  "branch": "codex/chickenbro-decimal-stream-boundary",
-  "commit": "pending_task_head",
+  "branch": "main",
+  "commit": "a859770d0d1ae0cd359ae969670230169f05e8f6",
   "identities": {
     "runtime": {
       "status": "bound",
@@ -24,23 +24,24 @@
     },
     "closure": {
       "status": "pending",
-      "reason": "等待用户在开发者工具重新发送原始 PTR 问题后的明确验收和主干合并。"
+      "reason": "用户已在 2026-08-03 明确验收；运行时代码已合入并推送 main。证据包保留为待常规归档的 runtime_verified 记录。"
     }
   },
   "manualAcceptance": {
     "required": true,
-    "status": "pending",
+    "status": "complete",
     "items": [
       {
         "id": "production_ptr_decimal_stream",
-        "status": "pending"
+        "status": "accepted",
+        "evidence": "用户在开发者工具完成复测后，于 2026-08-03 明确授权收尾：“OK，可以收尾。”"
       }
     ],
     "rollup": {
       "total": 1,
-      "accepted": 0,
+      "accepted": 1,
       "notRunUserWaived": 0,
-      "pending": 1
+      "pending": 0
     }
   },
   "scope": [
@@ -87,13 +88,13 @@
   ],
   "candidateDeployment": {
     "status": "candidate_verified",
-    "branch": "codex/chickenbro-decimal-stream-boundary",
-    "commit": "pending_task_head",
+    "branch": "codex/chickenbro-decimal-stream-boundary (merged and deleted)",
+    "commit": "a859770d0d1ae0cd359ae969670230169f05e8f6",
     "gitTree": "working_tree_build_identity",
     "buildIdentity": "mini-taro-weapp:sha256:5e83c782ed33febd9082462c233bb4a05ea0a0a961287ccd480000f8bd2c5d21",
     "deployedTarget": "/Users/boyuan/Documents/wow_mini_program/apps/mini-taro/dist/weapp",
     "service": "already-open WeChat DevTools local mini-program runtime",
-    "fileParity": "dist/weapp/common.js SHA-256 is 5e83c782ed33febd9082462c233bb4a05ea0a0a961287ccd480000f8bd2c5d21; source packages/api-client/src/simulator.ts SHA-256 is a57e20960bc6a6391e78288d79c24c5133c32c47998654c204cad9beff4a3562. The prior isolated backend candidate remains recorded below and production server SHA parity remains unchanged.",
+    "fileParity": "dist/weapp/common.js SHA-256 is 5e83c782ed33febd9082462c233bb4a05ea0a0a961287ccd480000f8bd2c5d21; source packages/api-client/src/simulator.ts SHA-256 is a57e20960bc6a6391e78288d79c24c5133c32c47998654c204cad9beff4a3562. The isolated backend candidate is recorded below and was removed after closure; production server SHA parity remained unchanged.",
     "smoke": {
       "status": "pass",
       "summary": "最终本地 DevTools 构建对原始 PTR 提问显示完整回答且无“重试发送”；此前的 isolated backend candidate 已完成两名隔离访客的原题和追问真实 delta/final 验证。"
@@ -132,8 +133,8 @@
   "risks": [
     {
       "id": "manual_devtools_confirmation_pending",
-      "status": "open",
-      "detail": "最终本地 DevTools 构建已由代理现场复现通过；仍需用户在其真实会话重新发送确认，随后才能提交、合入和刷新主干 weapp。"
+      "status": "resolved",
+      "detail": "用户已在开发者工具完成复测，并于 2026-08-03 明确授权收尾；运行时代码已合入 main、刷新 weapp 并与 origin/main 校验一致。"
     }
   ],
   "rollback": [
@@ -143,14 +144,15 @@
     "rebuild apps/mini-taro/dist/weapp from the prior task ref and reload the local DevTools runtime"
   ],
   "cleanup": {
-    "required": true,
-    "target": "wow-backend-chickenbro-decimal-dc9638d5-r1.service and /opt/wow-mini-program-candidate/chickenbro-decimal-dc9638d5 after closure",
-    "reason": "候选仅用于本次热修验证；生产不依赖它。"
+    "required": false,
+    "status": "complete",
+    "target": "wow-backend-chickenbro-decimal-dc9638d5-r1.service and /opt/wow-mini-program-candidate/chickenbro-decimal-dc9638d5",
+    "reason": "用户收尾授权后已停止 transient 候选服务并删除精确候选目录；生产 wow-backend.service 随后验证仍为 active。"
   },
   "archivedReferences": [
     "docs/project-state.json",
     "docs/plans/2026-08-03-chickenbro-streaming-scroll-implementation.md",
     "artifacts/releases/2026-08-03-chickenbro-streaming-scroll/evidence.json"
   ],
-  "summary": "12.1 这类 allowed decimal 的 chunk 边界、数值 confidence、数字 evidenceRef 和 Markdown 空白 delta 的误拒均已收紧修复。后端问题通过隔离候选和生产原题加追问验证；最终本地 DevTools 构建对原始失败问题已成功回答。等待用户在真实会话确认后关闭。"
+  "summary": "12.1 这类 allowed decimal 的 chunk 边界、数值 confidence、数字 evidenceRef 和 Markdown 空白 delta 的误拒均已收紧修复。后端问题通过隔离候选和生产原题加追问验证；最终本地 DevTools 构建对原始失败问题已成功回答。用户已明确验收，运行时代码已合入并推送 main，主干 weapp 已刷新，隔离后端候选已清理且生产服务保持 active。"
 }
