@@ -147,6 +147,19 @@ class ChickenbroAgentIntentTest(unittest.TestCase):
         self.assertEqual("protection", intent["specKey"])
         self.assertEqual("retail", intent["productPhase"])
 
+    def test_classifier_projects_question_frame_for_current_ptr_research(self):
+        intent = backend.classify_chickenbro_request("NQ 在 12.1 PTR 强度如何？", [])
+
+        self.assertEqual("current_research", intent["kind"])
+        self.assertEqual("paladin", intent["classKey"])
+        self.assertEqual("holy", intent["specKey"])
+        self.assertEqual("ptr", intent["productPhase"])
+        self.assertEqual("12.1", intent["patchVersion"])
+        self.assertEqual(
+            ["official_current_changes", "comparative_strength_signal"],
+            intent["evidenceNeeds"],
+        )
+
     def test_classifier_recognizes_canonical_specialization_names_beyond_protection_warrior(self):
         intent = backend.classify_chickenbro_request("frost death knight raid build", [])
 
