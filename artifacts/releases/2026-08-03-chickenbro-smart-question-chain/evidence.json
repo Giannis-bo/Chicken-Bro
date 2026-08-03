@@ -5,7 +5,7 @@
   "status": "implementation_allowed",
   "highestEvidenceLevel": "implementation_allowed",
   "branch": "codex/chickenbro-smart-question-chain",
-  "commit": "",
+  "commit": "pending_final_head",
   "identities": {
     "runtime": {
       "status": "pending",
