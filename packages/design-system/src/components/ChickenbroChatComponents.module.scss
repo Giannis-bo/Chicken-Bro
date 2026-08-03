@@ -1,4 +1,6 @@
 .transcript,
+.transcriptShell,
+.transcriptScroll,
 .emptyConversation,
 .composer,
 .archiveList,
@@ -23,6 +25,8 @@
 .emptyConversation text:first-child { font-size: 16px; font-weight: 650; line-height: 24px; }
 .emptyConversation text:last-child { margin-top: 4px; color: #9e988d; font-size: 13px; line-height: 20px; }
 
+.transcriptShell { position: relative; display: flex; width: 100%; min-height: 0; flex: 1 1 auto; }
+.transcriptScroll { width: 100%; min-height: 0; height: 100%; flex: 1 1 auto; }
 .transcript { display: grid; width: 100%; gap: 14px; padding: 18px 18px 10px; }
 .userMessage,
 .assistantMessage { display: flex; min-width: 0; }
@@ -46,6 +50,7 @@
 .attachment text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pending { padding-left: 6px; color: #aaa295; font-size: 13px; }
 .retryAction { width: max-content; margin-left: 6px; color: #d4bd81; }
+.returnLatest { position: absolute; right: 18px; bottom: 14px; z-index: 1; border: 1px solid rgba(184, 149, 76, 0.72); border-radius: 999px; padding: 7px 12px; color: #f0deb2; background: rgba(25, 28, 30, 0.94); font-size: 12px; }
 
 .composer { display: grid; grid-template-columns: minmax(0, 1fr) 72px; align-items: center; gap: 10px; padding: 10px 14px 10px; border-top: 1px solid rgba(169, 139, 76, 0.28); background: rgba(13, 16, 20, 0.97); }
 .composerInput,

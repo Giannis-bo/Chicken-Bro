@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { storageKey } from '@wow-mini/domain'
 
-import { configuredApiBaseUrl, createTaroTransport, DEV_API_BASE_URL } from './transport'
+import { NdjsonDecoder, configuredApiBaseUrl, createTaroTransport, DEV_API_BASE_URL } from './transport'
 import type { StorageAdapter } from './storage'
 
 const taro = vi.hoisted(() => ({
@@ -204,5 +204,47 @@ describe('Taro transport parity', () => {
 
     expect(result).toMatchObject({ fromFallback: true, httpStatus: 0, offline: true })
     expect(result.transportError).toContain('network down')
+  })
+
+  it('decodes UTF-8 NDJSON only after complete lines arrive across arbitrary chunks', () => {
+    const decoder = new NdjsonDecoder()
+    const encoder = new TextEncoder()
+    const first = encoder.encode('{"type":"delta","text":"你').buffer
+    const second = encoder.encode('好"}\n{"type":"status","stage":"generating"}\n').buffer
+
+    expect(decoder.push(first)).toEqual([])
+    expect(decoder.push(second)).toEqual([
+      { type: 'delta', text: '你好' },
+      { type: 'status', stage: 'generating' },
+    ])
+    expect(decoder.finish()).toEqual([])
+  })
+
+  it('aborts and reports one failure when a chunk contains malformed NDJSON', async () => {
+    let receive: ((value: { data: ArrayBuffer }) => void) | undefined
+    const abort = vi.fn()
+    const task = Object.assign(Promise.resolve({ statusCode: 200, data: null }), {
+      abort,
+      onChunkReceived: vi.fn((listener) => { receive = listener }),
+    })
+    taro.request.mockReturnValue(task)
+    const failures: string[] = []
+    const transport = createTaroTransport({ storage: new MemoryStorage(), resolveBaseUrl: () => 'https://example.test' })
+    const requestStreamEndpoint = transport.requestStreamEndpoint
+    expect(requestStreamEndpoint).toBeTypeOf('function')
+    if (!requestStreamEndpoint) throw new Error('stream transport must be present')
+    requestStreamEndpoint('chickenbro.messages.stream', '/api/chickenbro/messages/stream', {
+      data: { message: '测试' },
+      auth: true,
+      allowInsecureGuestRequest: true,
+      onEvent: () => { throw new Error('must not emit malformed event') },
+      onFailure: (error) => failures.push(error),
+    })
+
+    receive?.({ data: new TextEncoder().encode('{not-json}\n').buffer })
+    await Promise.resolve()
+
+    expect(abort).toHaveBeenCalledOnce()
+    expect(failures).toEqual(['malformed stream payload'])
   })
 })
