@@ -202,6 +202,9 @@ class ChickenbroAgentIntentTest(unittest.TestCase):
         )
         self.assertIn("current_source_unavailable", bounded["limitations"])
         self.assertNotIn("answer", bounded["capabilityPlan"])
+        prompt = json.loads(backend.chickenbro_prompt_from_context(bounded))
+        self.assertTrue(any("本轮来源证据不可用" in item for item in prompt["instructions"]))
+        self.assertFalse(any("系统没有抓取能力" in item for item in prompt["instructions"]))
 
     def test_source_reference_without_an_evidence_ref_does_not_satisfy_the_capability_plan(self):
         plan = backend.chickenbro_capability_plan(

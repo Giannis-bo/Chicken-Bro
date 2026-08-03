@@ -8010,6 +8010,11 @@ def build_chickenbro_bounded_context(
 
 def chickenbro_prompt_from_context(bounded_context):
     answer_layer = bounded_context.get("answerLayer") or chickenbro_answer_layer_for_context(bounded_context)
+    question_frame = bounded_context.get("questionFrame") if isinstance(bounded_context.get("questionFrame"), dict) else {}
+    current_research_without_source = (
+        question_frame.get("questionType") == "current_research"
+        and not chickenbro_has_official_current_source(bounded_context)
+    )
     if answer_layer == "evidence":
         instructions = [
             "你是炸鸡队长，只回答魔兽世界正式服和 PTR/Beta 相关问题。",
@@ -8065,7 +8070,12 @@ def chickenbro_prompt_from_context(bounded_context):
         1,
         "问候时自然回应并邀请用户提出魔兽问题；非魔兽问题也要按用户原话自然说明范围，禁止复用固定回复模板。",
     )
-    instructions.insert(2, 'confidence 只能是 "low"、"medium" 或 "high"，不得以数字表示置信度。')
+    if current_research_without_source:
+        instructions.insert(
+            2,
+            "本轮来源证据不可用时，只能如实说明当前证据未取得或不匹配；不要把它写成系统没有抓取、检索或调用来源的能力。",
+        )
+    instructions.insert(3, 'confidence 只能是 "low"、"medium" 或 "high"，不得以数字表示置信度。')
     return json.dumps(
         {
             "instructions": instructions,
