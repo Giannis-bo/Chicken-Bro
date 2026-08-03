@@ -5,7 +5,7 @@ import unittest
 import server.news_backend as backend
 import server.chickenbro_agent as agent
 from server.chickenbro_tool_runtime import ChickenbroRegistryRuntime
-from tests.chickenbro_registry_test import signed_release
+from tests.chickenbro_registry_test import current_sources_manifest, signed_release
 
 
 class ChickenbroAgentIntentTest(unittest.TestCase):
@@ -75,6 +75,51 @@ class ChickenbroAgentIntentTest(unittest.TestCase):
         self.assertEqual(["source:warcraftlogs:v1"], loaded["registryContext"]["selectedCapabilityIds"])
         self.assertEqual([], general["sourceToolResults"])
         self.assertEqual([], general["registryContext"]["selectedCapabilityIds"])
+
+    def test_current_research_executes_only_the_registered_official_source_adapter(self):
+        captured = {}
+        expected = {
+            "sourceKey": "current_wow_sources",
+            "status": "source_reference",
+            "facts": [{"kind": "official_change", "summary": "Official holy paladin PTR change."}],
+            "evidence": [{"id": "current.blizzard-forums.holy-paladin-121"}],
+            "evidenceRefs": ["current.blizzard-forums.holy-paladin-121"],
+            "limitations": ["comparative_strength_signal_missing"],
+            "nextActions": [],
+        }
+        original_builder = getattr(backend, "build_current_wow_sources_tool_result", None)
+
+        def fake_current_source(frame, **kwargs):
+            captured["frame"] = frame
+            captured["kwargs"] = kwargs
+            return expected
+
+        backend.build_current_wow_sources_tool_result = fake_current_source
+        try:
+            loaded = backend.load_chickenbro_source_tool_results(
+                "NQ 在 12.1 PTR 强度如何？",
+                {"region": "cn"},
+                include_registry=True,
+                registry_loader=lambda: signed_release(
+                    [signed_release()["manifests"][0], signed_release()["manifests"][1], current_sources_manifest()],
+                    registryVersion="chickenbro-tools-2",
+                    provenance={"kind": "repository_migration", "revision": "0026"},
+                ),
+                registry_runtime=ChickenbroRegistryRuntime(60),
+            )
+        finally:
+            if original_builder is None:
+                delattr(backend, "build_current_wow_sources_tool_result")
+            else:
+                backend.build_current_wow_sources_tool_result = original_builder
+
+        self.assertEqual([expected], loaded["sourceToolResults"])
+        self.assertEqual(["source:current-wow-sources:v1"], loaded["registryContext"]["selectedCapabilityIds"])
+        self.assertEqual("current_research", captured["frame"]["questionType"])
+        self.assertEqual("paladin", captured["frame"]["subject"]["classKey"])
+        self.assertEqual("holy", captured["frame"]["subject"]["specKey"])
+        self.assertEqual("12.1", captured["frame"]["scope"]["patchVersion"])
+        self.assertNotIn("message", str(captured))
 
     def test_registry_unavailable_or_invalid_never_uses_fixed_allowlist(self):
         original_raiderio = backend.chickenbro_cached_raiderio_payload

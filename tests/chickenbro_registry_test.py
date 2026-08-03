@@ -89,6 +89,39 @@ def wcl_manifest(**overrides):
     return signed_manifest(**values)
 
 
+def current_sources_manifest(**overrides):
+    values = {
+        "toolId": "source:current-wow-sources:v1",
+        "purpose": "Load bounded official current Warcraft facts for a resolved question frame.",
+        "inputSchema": {"required": ["classKey", "specKey", "questionType", "patchVersion"]},
+        "discoveryPolicy": {
+            "requestKinds": ["current_research"],
+            "requiredContextFields": ["classKey", "specKey", "questionType", "patchVersion"],
+            "productPhases": ["retail", "ptr"],
+            "regions": ["cn", "global", "us", "eu", "kr", "tw"],
+            "evidenceNeeds": ["official_current_changes"],
+            "priority": 100,
+        },
+        "sourcePolicy": {
+            "sourceKey": "current_wow_sources",
+            "requiredStatuses": ["source_reference", "partial", "failed"],
+            "approvedSourceIds": ["blizzard", "blizzard-forums"],
+        },
+        "freshnessPolicy": {
+            "maxAgeSeconds": 900,
+            "staleBehavior": "failed",
+        },
+        "timeoutBudgetMs": 10000,
+        "costBudget": {"status": "bounded_live_official_read", "maxArticlesPerSource": 1},
+        "implementationRef": "chickenbro.source.current_wow_sources.v1",
+        "evalRefs": ["chickenbro-eval:current_official_source"],
+        "provenance": {"kind": "repository_migration", "revision": "0026"},
+        "createdAt": "2026-08-03T00:00:00+00:00",
+    }
+    values.update(overrides)
+    return signed_manifest(**values)
+
+
 def signed_release(manifests=None, **overrides):
     manifests = list(manifests or [signed_manifest(), wcl_manifest()])
     refs = [
@@ -191,6 +224,35 @@ class ChickenbroRegistryTest(unittest.TestCase):
                     expected_ids,
                     [item["toolId"] for item in result["selectedManifests"]],
                 )
+
+    def test_current_research_discovers_only_the_evidence_appropriate_official_tool(self):
+        release = signed_release(
+            [signed_manifest(), wcl_manifest(), current_sources_manifest()],
+            registryVersion="chickenbro-tools-2",
+            provenance={"kind": "repository_migration", "revision": "0026"},
+        )
+        intent = {
+            "kind": "current_research",
+            "questionType": "current_research",
+            "productPhase": "ptr",
+            "patchVersion": "12.1",
+            "classKey": "paladin",
+            "specKey": "holy",
+            "evidenceNeeds": ["official_current_changes", "comparative_strength_signal"],
+        }
+        context = {
+            "region": "cn",
+            "productPhase": "ptr",
+            "questionType": "current_research",
+            "patchVersion": "12.1",
+            "classKey": "paladin",
+            "specKey": "holy",
+        }
+
+        result = discover_chickenbro_capabilities(release, intent, context)
+
+        self.assertEqual(["source:current-wow-sources:v1"], result["selectedCapabilityIds"])
+        self.assertEqual([], result["missingContextFields"])
 
 
 if __name__ == "__main__":

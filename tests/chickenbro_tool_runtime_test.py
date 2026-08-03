@@ -146,7 +146,7 @@ class ChickenbroToolRuntimeTest(unittest.TestCase):
             },
         )
 
-        self.assertEqual({"message", "intent", "context"}, set(received[0]))
+        self.assertEqual({"intent", "context"}, set(received[0]))
         self.assertNotIn("credential", received[0]["intent"])
         self.assertNotIn("userId", received[0]["context"])
         self.assertEqual("failed", results[0]["status"])
@@ -182,6 +182,72 @@ class ChickenbroToolRuntimeTest(unittest.TestCase):
 
         self.assertEqual([expected], results)
         self.assertIsNot(expected, results[0])
+
+    def test_current_source_adapter_receives_only_frame_projection_not_raw_message_or_owner(self):
+        from server.chickenbro_tool_runtime import execute_chickenbro_selected_tools
+
+        received = []
+        resolution = {
+            "selectedManifests": [
+                {
+                    "toolId": "source:current-wow-sources:v1",
+                    "implementationRef": "chickenbro.source.current_wow_sources.v1",
+                    "sourcePolicy": {"sourceKey": "current_wow_sources"},
+                }
+            ]
+        }
+        expected = {
+            "sourceKey": "current_wow_sources",
+            "status": "partial",
+            "facts": [],
+            "evidence": [],
+            "evidenceRefs": [],
+            "limitations": ["subject_specific_official_change_missing"],
+            "nextActions": [],
+        }
+        results = execute_chickenbro_selected_tools(
+            resolution,
+            {"chickenbro.source.current_wow_sources.v1": lambda request: received.append(request) or expected},
+            {
+                "message": "NQ 12.1 PTR https://not-blizzard.example/anything",
+                "intent": {
+                    "kind": "current_research",
+                    "questionType": "current_research",
+                    "productPhase": "ptr",
+                    "patchVersion": "12.1",
+                    "classKey": "paladin",
+                    "specKey": "holy",
+                    "evidenceNeeds": ["official_current_changes", "comparative_strength_signal"],
+                    "ownerId": "must-not-pass",
+                },
+                "context": {
+                    "region": "cn",
+                    "productPhase": "ptr",
+                    "questionType": "current_research",
+                    "patchVersion": "12.1",
+                    "classKey": "paladin",
+                    "specKey": "holy",
+                    "ownerId": "must-not-pass",
+                },
+            },
+        )
+
+        self.assertEqual([expected], results)
+        self.assertEqual({"intent", "context"}, set(received[0]))
+        self.assertNotIn("ownerId", str(received[0]))
+        self.assertNotIn("not-blizzard.example", str(received[0]))
+        self.assertEqual(
+            {
+                "kind",
+                "questionType",
+                "productPhase",
+                "patchVersion",
+                "classKey",
+                "specKey",
+                "evidenceNeeds",
+            },
+            set(received[0]["intent"]),
+        )
 
 
 if __name__ == "__main__":

@@ -18,8 +18,17 @@ except ImportError:  # pragma: no cover - direct server module execution
     )
 
 
-_REQUEST_INTENT_FIELDS = {"kind", "productPhase", "classKey", "specKey", "wclReport"}
-_REQUEST_CONTEXT_FIELDS = {"region", "productPhase", "classKey", "specKey"}
+_REQUEST_INTENT_FIELDS = {
+    "kind",
+    "questionType",
+    "productPhase",
+    "patchVersion",
+    "classKey",
+    "specKey",
+    "wclReport",
+    "evidenceNeeds",
+}
+_REQUEST_CONTEXT_FIELDS = {"region", "productPhase", "patchVersion", "questionType", "classKey", "specKey"}
 _TOOL_RESULT_FIELDS = {
     "sourceKey",
     "status",
@@ -115,7 +124,6 @@ def _sanitized_request(request):
     raw_intent = request.get("intent") if isinstance(request.get("intent"), dict) else {}
     raw_context = request.get("context") if isinstance(request.get("context"), dict) else {}
     return {
-        "message": str(request.get("message") or ""),
         "intent": copy.deepcopy(
             {key: raw_intent[key] for key in _REQUEST_INTENT_FIELDS if key in raw_intent}
         ),

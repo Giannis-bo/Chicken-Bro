@@ -37,6 +37,7 @@ DISCOVERY_POLICY_KEYS = {
     "regions",
     "priority",
 }
+DISCOVERY_POLICY_OPTIONAL_KEYS = {"evidenceNeeds"}
 RELEASE_KEYS = {
     "registryVersion",
     "manifestRefs",
@@ -51,9 +52,16 @@ MANIFEST_REF_KEYS = {"toolId", "version", "contentHash"}
 APPROVED_IMPLEMENTATIONS = {
     "source:raiderio:v1": "chickenbro.source.raiderio.v1",
     "source:warcraftlogs:v1": "chickenbro.source.warcraftlogs.v1",
+    "source:current-wow-sources:v1": "chickenbro.source.current_wow_sources.v1",
 }
-ALLOWED_REQUEST_KINDS = {"community_build", "personal_wcl"}
-ALLOWED_CONTEXT_FIELDS = {"classKey", "specKey", "wclReport"}
+ALLOWED_REQUEST_KINDS = {"community_build", "personal_wcl", "current_research"}
+ALLOWED_CONTEXT_FIELDS = {"classKey", "specKey", "wclReport", "questionType", "patchVersion"}
+ALLOWED_EVIDENCE_NEEDS = {
+    "community_build_reference",
+    "comparative_strength_signal",
+    "official_current_changes",
+    "personal_log_evidence",
+}
 ALLOWED_PRODUCT_PHASES = {"retail", "ptr"}
 ALLOWED_REGIONS = {"cn", "global", "us", "eu", "kr", "tw"}
 HASH_PATTERN = re.compile(r"^sha256:[0-9a-f]{64}$")
@@ -120,12 +128,18 @@ def validate_chickenbro_tool_manifest(manifest):
     if not isinstance(manifest.get("inputSchema"), dict) or not isinstance(manifest.get("outputSchema"), dict):
         raise ValueError("invalid manifest schema")
     policy = manifest.get("discoveryPolicy")
-    if not isinstance(policy, dict) or set(policy) != DISCOVERY_POLICY_KEYS:
+    if (
+        not isinstance(policy, dict)
+        or not DISCOVERY_POLICY_KEYS.issubset(policy)
+        or set(policy) - DISCOVERY_POLICY_KEYS - DISCOVERY_POLICY_OPTIONAL_KEYS
+    ):
         raise ValueError("invalid manifest discoveryPolicy")
     _string_list(policy["requestKinds"], ALLOWED_REQUEST_KINDS)
     _string_list(policy["requiredContextFields"], ALLOWED_CONTEXT_FIELDS)
     _string_list(policy["productPhases"], ALLOWED_PRODUCT_PHASES)
     _string_list(policy["regions"], ALLOWED_REGIONS)
+    if "evidenceNeeds" in policy:
+        _string_list(policy["evidenceNeeds"], ALLOWED_EVIDENCE_NEEDS)
     if not isinstance(policy["priority"], int) or isinstance(policy["priority"], bool):
         raise ValueError("invalid manifest priority")
     if manifest.get("riskClass") != "read_only" or manifest.get("sideEffects") != []:
@@ -223,6 +237,14 @@ def discover_chickenbro_capabilities(release, request_intent, request_context):
     for manifest in validated["manifests"]:
         policy = manifest["discoveryPolicy"]
         if request_kind not in policy["requestKinds"]:
+            continue
+        required_evidence = set(policy.get("evidenceNeeds") or [])
+        supplied_evidence = {
+            str(item).strip()
+            for item in (intent.get("evidenceNeeds") or [])
+            if str(item).strip()
+        }
+        if required_evidence and not required_evidence.issubset(supplied_evidence):
             continue
         required_missing = [
             field

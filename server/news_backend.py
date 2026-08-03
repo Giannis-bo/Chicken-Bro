@@ -286,6 +286,8 @@ try:
         classify_chickenbro_request,
         raiderio_payload_with_freshness,
     )
+    from .chickenbro_current_sources import build_current_wow_sources_tool_result
+    from .chickenbro_question_frame import build_chickenbro_question_frame
     from .chickenbro_observability import (
         build_chickenbro_agent_trace,
         validate_chickenbro_agent_trace,
@@ -303,6 +305,8 @@ except ImportError:
         classify_chickenbro_request,
         raiderio_payload_with_freshness,
     )
+    from chickenbro_current_sources import build_current_wow_sources_tool_result
+    from chickenbro_question_frame import build_chickenbro_question_frame
     from chickenbro_observability import (
         build_chickenbro_agent_trace,
         validate_chickenbro_agent_trace,
@@ -7660,6 +7664,34 @@ def empty_chickenbro_registry_context(status="unavailable"):
     }
 
 
+def chickenbro_current_source_frame(intent, request_context):
+    """Project only parsed semantic fields into the live official-source adapter."""
+    intent = intent if isinstance(intent, dict) else {}
+    request_context = request_context if isinstance(request_context, dict) else {}
+    class_key = str(request_context.get("classKey") or intent.get("classKey") or "").strip().lower()
+    spec_key = str(request_context.get("specKey") or intent.get("specKey") or "").strip().lower()
+    resolution = "resolved" if class_key and spec_key else "partial" if class_key else "unresolved"
+    question_type = str(intent.get("questionType") or intent.get("kind") or "").strip().lower()
+    evidence_needs = [
+        str(item).strip()
+        for item in (intent.get("evidenceNeeds") or [])
+        if str(item).strip()
+    ]
+    return {
+        "schemaRevision": "chickenbro-question-frame-v1",
+        "questionType": question_type,
+        "subject": {"classKey": class_key, "specKey": spec_key, "resolution": resolution},
+        "scope": {
+            "productPhase": str(request_context.get("productPhase") or intent.get("productPhase") or "retail").strip().lower(),
+            "patchVersion": str(request_context.get("patchVersion") or intent.get("patchVersion") or "").strip(),
+            "region": str(request_context.get("region") or "cn").strip().lower(),
+            "scenarioKey": str(intent.get("scenarioKey") or "").strip().lower(),
+        },
+        "evidenceNeeds": evidence_needs,
+        "unresolvedFields": [field for field in ("subject",) if resolution != "resolved"],
+    }
+
+
 def load_chickenbro_source_tool_results(
     message,
     context,
@@ -7677,7 +7709,10 @@ def load_chickenbro_source_tool_results(
         ),
         "classKey": str(context.get("classKey") or intent.get("classKey") or "").strip().lower(),
         "specKey": str(context.get("specKey") or intent.get("specKey") or "").strip().lower(),
+        "questionType": str(intent.get("questionType") or intent.get("kind") or "").strip().lower(),
+        "patchVersion": str(context.get("patchVersion") or intent.get("patchVersion") or "").strip(),
     }
+    current_source_frame = chickenbro_current_source_frame(intent, request_context)
     runtime = registry_runtime or _CHICKENBRO_TOOL_REGISTRY_RUNTIME
     loader = registry_loader or chickenbro_registry_release_loader
     try:
@@ -7711,10 +7746,16 @@ def load_chickenbro_source_tool_results(
                         chickenbro_cached_raiderio_payload(), request["intent"]
                     ),
                     "chickenbro.source.warcraftlogs.v1": lambda request: build_wcl_chickenbro_tool_result(
-                        build_wcl_log_evidence({"prompt": request["message"]})
+                        build_wcl_log_evidence({"prompt": request["intent"].get("wclReport") or ""})
+                    ),
+                    "chickenbro.source.current_wow_sources.v1": lambda _request: build_current_wow_sources_tool_result(
+                        current_source_frame,
+                        article_loader=lambda: [],
+                        collector=collect_feed_articles,
+                        approved_sources=FEED_SOURCES,
                     ),
                 },
-                {"message": message, "intent": intent, "context": request_context},
+                {"intent": intent, "context": request_context},
             )
         except RegistryInvalid:
             packet = {

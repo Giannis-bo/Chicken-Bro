@@ -28,6 +28,7 @@ WEBSIM_MANIFEST_V2 = ROOT / "server" / "migrations" / "postgres" / "0022_websim_
 WEBSIM_GEAR_CATALOG_VARIANT_SHAPES = ROOT / "server" / "migrations" / "postgres" / "0023_websim_gear_catalog_variant_shapes.sql"
 CHICKENBRO_AGENT_OBSERVABILITY = ROOT / "server" / "migrations" / "postgres" / "0024_chickenbro_agent_observability.sql"
 CHICKENBRO_TOOL_REGISTRY = ROOT / "server" / "migrations" / "postgres" / "0025_chickenbro_tool_registry.sql"
+CHICKENBRO_SMART_QUESTION_CHAIN = ROOT / "server" / "migrations" / "postgres" / "0026_chickenbro_smart_question_chain.sql"
 
 
 class PostgresSchemaTest(unittest.TestCase):
@@ -650,3 +651,15 @@ class PostgresSchemaTest(unittest.TestCase):
             self.assertIn(f"GRANT SELECT ON {table} TO wow_app", normalized)
             self.assertIn(f"REVOKE INSERT, UPDATE, DELETE ON {table} FROM wow_app", normalized)
         self.assertIn("0025_chickenbro_tool_registry", normalized)
+
+    def test_smart_question_chain_appends_immutable_registry_v2_and_moves_only_active_pointer(self):
+        self.assertTrue(CHICKENBRO_SMART_QUESTION_CHAIN.exists(), "missing Smart Question Chain migration")
+        normalized = " ".join(CHICKENBRO_SMART_QUESTION_CHAIN.read_text(encoding="utf-8").split())
+        self.assertIn("source:current-wow-sources:v1", normalized)
+        self.assertIn("chickenbro.source.current_wow_sources.v1", normalized)
+        self.assertIn("chickenbro-tools-2", normalized)
+        self.assertIn("INSERT INTO ops.chickenbro_tool_manifests", normalized)
+        self.assertIn("INSERT INTO ops.chickenbro_tool_registry_releases", normalized)
+        self.assertIn("INSERT INTO ops.chickenbro_tool_registry_release_manifests", normalized)
+        self.assertIn("INSERT INTO ops.chickenbro_tool_registry_active", normalized)
+        self.assertIn("0026_chickenbro_smart_question_chain", normalized)
