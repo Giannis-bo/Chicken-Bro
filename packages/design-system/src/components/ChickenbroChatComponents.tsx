@@ -1,4 +1,6 @@
-import { Text, Textarea, View } from '@tarojs/components'
+import Taro from '@tarojs/taro'
+import { ScrollView, Text, Textarea, View } from '@tarojs/components'
+import { useEffect, useState } from 'react'
 
 import type { ChatMessage, ChickenbroSessionSummary } from '@wow-mini/domain'
 
@@ -11,6 +13,11 @@ export interface ChickenbroTranscriptProps {
   messages: readonly ChatMessage[]
   state: 'idle' | 'loading' | 'ready' | 'error'
   onRetry: () => void
+  temporaryAssistantText?: string
+  scrollTop?: number
+  hasUnseen?: boolean
+  onScroll?: (detail: { scrollTop: number; scrollHeight: number; clientHeight: number }) => void
+  onReturnToLatest?: () => void
 }
 
 function messageKey(message: ChatMessage, index: number): string {
@@ -21,7 +28,31 @@ function attachmentRefs(message: ChatMessage): readonly string[] {
   return message.role === 'assistant' ? message.payload?.evidenceRefs ?? [] : []
 }
 
-export function ChickenbroTranscript({ messages, state, onRetry }: ChickenbroTranscriptProps) {
+export function ChickenbroTranscript({
+  messages,
+  state,
+  onRetry,
+  temporaryAssistantText = '',
+  scrollTop = 0,
+  hasUnseen = false,
+  onScroll,
+  onReturnToLatest,
+}: ChickenbroTranscriptProps) {
+  const [clientHeight, setClientHeight] = useState(0)
+  useEffect(() => {
+    try {
+      Taro.createSelectorQuery()
+        .select('#chickenbro-transcript-scroll')
+        .boundingClientRect((rect) => {
+          const value = Array.isArray(rect) ? rect[0] : rect
+          setClientHeight(Math.max(0, Number(value?.height) || 0))
+        })
+        .exec()
+    } catch {
+      // Scroll auto-follow remains disabled until the native view reports its height.
+    }
+  }, [messages.length, temporaryAssistantText])
+
   if (messages.length === 0) {
     return (
       <View className={styles['emptyConversation'] ?? ''} data-owner="chickenbro-transcript" data-region="captain_greeting">
@@ -35,30 +66,53 @@ export function ChickenbroTranscript({ messages, state, onRetry }: ChickenbroTra
   }
 
   return (
-    <View className={styles['transcript'] ?? ''} data-owner="chickenbro-transcript" data-region="captain_transcript" data-state={state}>
-      {messages.map((message, index) => {
-        const refs = attachmentRefs(message)
-        return (
-          <View key={messageKey(message, index)} className={styles[message.role === 'user' ? 'userMessage' : 'assistantMessage'] ?? ''} data-role={`chickenbro-message-${message.role}`}>
-            <View className={styles['messageBubble'] ?? ''}>
-              <Text>{message.content}</Text>
-              {refs.length > 0 ? (
-                <View className={styles['attachmentList'] ?? ''} data-region="captain_attachment">
-                  {refs.map((reference) => (
-                    <View key={reference} className={styles['attachment'] ?? ''} data-role="chickenbro-answer-attachment">
-                      <SystemGlyph assetId="utility-glyph-family.document" slotId="asset_slot.captain-attachment" />
-                      <Text>{reference}</Text>
+    <View className={styles['transcriptShell'] ?? ''} data-owner="chickenbro-transcript" data-region="captain_transcript" data-state={state}>
+      <ScrollView
+        className={styles['transcriptScroll'] ?? ''}
+        data-role="chickenbro-transcript-scroll"
+        id="chickenbro-transcript-scroll"
+        scrollY
+        scrollTop={scrollTop}
+        onScroll={(event) => onScroll?.({
+          scrollTop: Number(event.detail.scrollTop) || 0,
+          scrollHeight: Number(event.detail.scrollHeight) || 0,
+          clientHeight,
+        })}
+      >
+        <View className={styles['transcript'] ?? ''}>
+          {messages.map((message, index) => {
+            const refs = attachmentRefs(message)
+            return (
+              <View key={messageKey(message, index)} className={styles[message.role === 'user' ? 'userMessage' : 'assistantMessage'] ?? ''} data-role={`chickenbro-message-${message.role}`}>
+                <View className={styles['messageBubble'] ?? ''}>
+                  <Text>{message.content}</Text>
+                  {refs.length > 0 ? (
+                    <View className={styles['attachmentList'] ?? ''} data-region="captain_attachment">
+                      {refs.map((reference) => (
+                        <View key={reference} className={styles['attachment'] ?? ''} data-role="chickenbro-answer-attachment">
+                          <SystemGlyph assetId="utility-glyph-family.document" slotId="asset_slot.captain-attachment" />
+                          <Text>{reference}</Text>
+                        </View>
+                      ))}
                     </View>
-                  ))}
+                  ) : null}
                 </View>
-              ) : null}
+              </View>
+            )
+          })}
+          {temporaryAssistantText ? (
+            <View className={styles['assistantMessage'] ?? ''} data-role="chickenbro-message-assistant-temporary">
+              <View className={styles['messageBubble'] ?? ''}><Text>{temporaryAssistantText}</Text></View>
             </View>
-          </View>
-        )
-      })}
-      {state === 'loading' ? <Text className={styles['pending'] ?? ''}>炸鸡队长正在回复…</Text> : null}
-      {state === 'error' ? (
-        <ControlButton className={styles['retryAction'] ?? ''} data-role="chickenbro-retry" onClick={onRetry}>重试发送</ControlButton>
+          ) : null}
+          {state === 'loading' && !temporaryAssistantText ? <Text className={styles['pending'] ?? ''}>炸鸡队长正在回复…</Text> : null}
+          {state === 'error' ? (
+            <ControlButton className={styles['retryAction'] ?? ''} data-role="chickenbro-retry" onClick={onRetry}>重试发送</ControlButton>
+          ) : null}
+        </View>
+      </ScrollView>
+      {hasUnseen && onReturnToLatest ? (
+        <ControlButton className={styles['returnLatest'] ?? ''} data-role="chickenbro-return-latest" onClick={onReturnToLatest}>回到最新</ControlButton>
       ) : null}
     </View>
   )
@@ -93,7 +147,7 @@ export function ChickenbroComposer({ draft, state, onDraftChange, onSend }: Chic
         onClick={onSend}
       >
         <SystemGlyph assetId="utility-glyph-family.send" slotId="asset_slot.captain-composer" />
-        <Text>{loading ? '发送中' : '发送'}</Text>
+        <Text>{loading ? '回复中' : '发送'}</Text>
       </ControlButton>
     </View>
   )

@@ -1,5 +1,5 @@
 import { useDidShow } from '@tarojs/taro'
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { taroStorage, wowApi } from '@wow-mini/api-client'
 import { ActionButton } from '@wow-mini/design-system/components/ActionButton'
@@ -14,8 +14,15 @@ import { useTabRootIdentity } from '../../use-tab-root-identity'
 import { navigateTo } from '../_shared/route-runtime'
 import {
   boundedChickenbroMessage,
+  chickenbroAppendStreamDelta,
+  chickenbroClearStream,
+  chickenbroFollowFromDistance,
   chickenbroMarkMessageReceived,
+  chickenbroNoteIncoming,
+  chickenbroResumeLatest,
+  chickenbroStartStream,
   chickenbroTranscript,
+  type ChickenbroStreamState,
   type ChickenbroInputState,
 } from './chickenbro-model'
 import styles from './simulator-home.module.scss'
@@ -31,9 +38,42 @@ export default function SimulatorHomePage() {
   const [lastSubmitted, setLastSubmitted] = useState('')
   const [failedMessageId, setFailedMessageId] = useState('')
   const [restoreSessionId, setRestoreSessionId] = useState('')
+  const [streamState, setStreamState] = useState<ChickenbroStreamState>(() => chickenbroClearStream(chickenbroStartStream('initial')))
+  const [scrollTop, setScrollTop] = useState(0)
+  const streamStateRef = useRef<ChickenbroStreamState>(chickenbroClearStream(chickenbroStartStream('initial')))
+  const streamTaskRef = useRef<{ abort: () => void } | null>(null)
+  const streamGenerationRef = useRef(0)
+  const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const updateStreamState = useCallback((next: ChickenbroStreamState) => {
+    streamStateRef.current = next
+    setStreamState(next)
+  }, [])
+
+  const queueScrollToLatest = useCallback(() => {
+    if (scrollTimerRef.current) return
+    scrollTimerRef.current = setTimeout(() => {
+      scrollTimerRef.current = null
+      setScrollTop((current) => current + 1000000)
+    }, 0)
+  }, [])
+
+  const abortActiveStream = useCallback(() => {
+    streamGenerationRef.current += 1
+    streamTaskRef.current?.abort()
+    streamTaskRef.current = null
+    updateStreamState(chickenbroClearStream(streamStateRef.current))
+  }, [updateStreamState])
+
+  useEffect(() => () => {
+    streamGenerationRef.current += 1
+    streamTaskRef.current?.abort()
+    if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current)
+  }, [])
 
   const restoreSession = useCallback(async (requestedSessionId: string) => {
     if (!requestedSessionId) return
+    abortActiveStream()
     setRestoreSessionId(requestedSessionId)
     setInputState('loading')
     try {
@@ -48,11 +88,13 @@ export default function SimulatorHomePage() {
       setLastSubmitted('')
       setFailedMessageId('')
       setRestoreSessionId('')
+      updateStreamState(chickenbroClearStream(chickenbroStartStream('restored')))
+      queueScrollToLatest()
       setInputState('ready')
     } catch {
       setInputState('error')
     }
-  }, [])
+  }, [abortActiveStream, queueScrollToLatest, updateStreamState])
 
   useDidShow(() => {
     const selectedSessionId = taroStorage.get<string>(pendingSessionStorageKey)
@@ -62,21 +104,25 @@ export default function SimulatorHomePage() {
   })
 
   const newTopic = () => {
-    if (inputState === 'loading') return
+    abortActiveStream()
     setMessages([])
     setDraft('')
     setSessionId('')
     setLastSubmitted('')
     setFailedMessageId('')
     setRestoreSessionId('')
+    updateStreamState(chickenbroClearStream(chickenbroStartStream('new-topic')))
     setInputState('idle')
   }
 
-  const send = async (explicitMessage?: string) => {
+  const send = (explicitMessage?: string) => {
     const message = boundedChickenbroMessage(explicitMessage ?? draft)
     if (!message || inputState === 'loading') return
 
-    const localMessageId = `local-user-${Date.now()}`
+    abortActiveStream()
+    const requestGeneration = streamGenerationRef.current + 1
+    streamGenerationRef.current = requestGeneration
+    const localMessageId = `local-user-${Date.now()}-${requestGeneration}`
     setMessages((current) => [...current, {
       messageId: localMessageId,
       role: 'user',
@@ -89,14 +135,16 @@ export default function SimulatorHomePage() {
     setRestoreSessionId('')
     setInputState('loading')
 
-    try {
-      const result = await wowApi.simulator.message({
-        message,
-        ...(sessionId ? { sessionId } : {}),
-      })
+    const failCurrentMessage = () => {
+      if (streamGenerationRef.current !== requestGeneration) return
+      updateStreamState(chickenbroClearStream(streamStateRef.current))
+      setFailedMessageId(localMessageId)
+      setInputState('error')
+    }
+    const acceptFinalResponse = (result: Awaited<ReturnType<typeof wowApi.simulator.message>>) => {
+      if (streamGenerationRef.current !== requestGeneration) return
       if (result.fromFallback) {
-        setFailedMessageId(localMessageId)
-        setInputState('error')
+        failCurrentMessage()
         return
       }
       const assistant = result.payload.assistantMessage
@@ -109,11 +157,52 @@ export default function SimulatorHomePage() {
           status: 'received',
         },
       ])
+      const beforeFinal = chickenbroNoteIncoming(streamStateRef.current)
+      const clearedStream = chickenbroClearStream(beforeFinal)
+      const nextStreamState = beforeFinal.followLatest ? clearedStream : { ...clearedStream, hasUnseen: true }
+      updateStreamState(nextStreamState)
+      if (nextStreamState.followLatest) queueScrollToLatest()
       setInputState('ready')
-    } catch {
-      setFailedMessageId(localMessageId)
-      setInputState('error')
     }
+    const task = wowApi.simulator.streamMessage(
+      {
+        message,
+        ...(sessionId ? { sessionId } : {}),
+        clientMessageId: localMessageId,
+      },
+      {
+        onEvent: (event) => {
+          if (streamGenerationRef.current !== requestGeneration) return
+          if (event.type === 'started') {
+            updateStreamState(chickenbroStartStream(event.requestId))
+            setSessionId(event.sessionId)
+            queueScrollToLatest()
+            return
+          }
+          if (event.type === 'status') return
+          if (event.type === 'delta') {
+            const appended = chickenbroAppendStreamDelta(streamStateRef.current, event.requestId, event.sequence, event.text)
+            if (!appended.accepted) {
+              streamTaskRef.current?.abort()
+              failCurrentMessage()
+              return
+            }
+            const nextStreamState = chickenbroNoteIncoming(appended.state)
+            updateStreamState(nextStreamState)
+            if (nextStreamState.followLatest) queueScrollToLatest()
+            return
+          }
+          if (event.type === 'final') {
+            acceptFinalResponse({ payload: event.response, fromFallback: false, error: '' })
+            return
+          }
+          failCurrentMessage()
+        },
+        onFailure: failCurrentMessage,
+        onFallback: acceptFinalResponse,
+      },
+    )
+    if (streamGenerationRef.current === requestGeneration) streamTaskRef.current = task
   }
 
   const retry = () => {
@@ -148,7 +237,7 @@ export default function SimulatorHomePage() {
             </ActionButton>
           )}
           rightAction={(
-            <ActionButton ariaLabel="新话题" dataRole="chickenbro-new-topic" disabled={inputState === 'loading'} variant="ghost" onClick={newTopic}>
+            <ActionButton ariaLabel="新话题" dataRole="chickenbro-new-topic" variant="ghost" onClick={newTopic}>
               + 新话题
             </ActionButton>
           )}
@@ -156,7 +245,25 @@ export default function SimulatorHomePage() {
           variant="simulator-home"
         >
           <RouteRegion className={styles['transcriptRegion'] ?? ''} data-region="captain_transcript">
-            <ChickenbroTranscript messages={messages} state={inputState} onRetry={retry} />
+            <ChickenbroTranscript
+              messages={messages}
+              state={inputState}
+              onRetry={retry}
+              temporaryAssistantText={streamState.temporaryText}
+              scrollTop={scrollTop}
+              hasUnseen={streamState.hasUnseen}
+              onScroll={(detail) => {
+                const distance = Math.max(0, detail.scrollHeight - detail.scrollTop - detail.clientHeight)
+                const next = chickenbroFollowFromDistance(streamStateRef.current, distance)
+                if (next.followLatest !== streamStateRef.current.followLatest || next.hasUnseen !== streamStateRef.current.hasUnseen) {
+                  updateStreamState(next)
+                }
+              }}
+              onReturnToLatest={() => {
+                updateStreamState(chickenbroResumeLatest(streamStateRef.current))
+                queueScrollToLatest()
+              }}
+            />
           </RouteRegion>
         </PageFrame>
       </RouteStage>

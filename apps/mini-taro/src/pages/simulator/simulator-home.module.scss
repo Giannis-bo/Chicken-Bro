@@ -4,6 +4,8 @@
 }
 
 .transcriptRegion {
+  display: flex;
+  height: calc(var(--route-safe-viewport-height) - 170px);
   min-height: calc(var(--route-safe-viewport-height) - 170px);
 }
 

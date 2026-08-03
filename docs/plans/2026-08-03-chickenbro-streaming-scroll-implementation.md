@@ -94,7 +94,7 @@
 2. 以 reducer/纯函数承载 request generation、临时文本、followLatest、unseen 状态，避免在 JSX 内做字节或协议判断。
 3. 将 transcript 改为受控 `ScrollView`。用 layout 后、按帧合并的 `scrollTop` 更新实现跟随；`onScroll` 检测用户离底；锁定时渲染不遮挡 composer 的“回到最新”。不要用每个 delta 的同步强制滚动。
 4. 页面使用 typed `streamMessage`；发送、新话题、重试、session change、unmount 统一 abort 当前 task，并用 generation 忽略迟到回调。partial 不进入 `loadTranscript`、本地归档或恢复状态。保留 composer/loading/error 和底部导航合同。
-5. 运行 `node --test apps/mini-taro/src/pages/simulator/chickenbro-model.test.ts apps/mini-taro/src/pages/simulator/simulator-home-dock-contract.test.ts tests/audit-ui-architecture-paths.test.js`，并用 Taro build/type check 的现有 scoped 脚本验证无 JSX/样式回归。
+5. 运行 `npx vitest run apps/mini-taro/src/pages/simulator/chickenbro-model.test.ts apps/mini-taro/src/pages/simulator/simulator-home-dock-contract.test.ts`、`node --test tests/audit-ui-architecture-paths.test.js`，并用 Taro build/type check 的现有 scoped 脚本验证无 JSX/样式回归。
 
 ## 任务 5：集成验证、候选烟测和人工验收包
 

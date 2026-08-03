@@ -5,7 +5,13 @@ import type { ChatMessage } from '@wow-mini/domain'
 import {
   boundedChickenbroMessage,
   chickenbroAttachmentRefs,
+  chickenbroAppendStreamDelta,
+  chickenbroClearStream,
+  chickenbroFollowFromDistance,
   chickenbroMarkMessageReceived,
+  chickenbroNoteIncoming,
+  chickenbroResumeLatest,
+  chickenbroStartStream,
   chickenbroTranscript,
 } from './chickenbro-model'
 
@@ -57,5 +63,29 @@ describe('Captain conversation model', () => {
       { messageId: 'local-user-1', role: 'user', content: '第一条问题', status: 'received' },
       { messageId: 'server-user-2', role: 'user', content: '第二条问题', status: 'received' },
     ])
+  })
+
+  it('keeps stream text transient, enforces request sequence, and clears it on terminal failure', () => {
+    const started = chickenbroStartStream('request-2')
+    const first = chickenbroAppendStreamDelta(started, 'request-2', 1, '先确认资源。')
+    const stale = chickenbroAppendStreamDelta(first.state, 'request-1', 2, '迟到内容。')
+    const repeated = chickenbroAppendStreamDelta(first.state, 'request-2', 1, '重复内容。')
+
+    expect(first).toEqual({ accepted: true, state: expect.objectContaining({ temporaryText: '先确认资源。', expectedSequence: 2 }) })
+    expect(stale.accepted).toBe(false)
+    expect(repeated.accepted).toBe(false)
+    expect(chickenbroClearStream(first.state)).toMatchObject({ active: false, temporaryText: '', requestId: '' })
+  })
+
+  it('follows only near the bottom and makes new content visible by explicit resume', () => {
+    const started = chickenbroStartStream('request-3')
+    const locked = chickenbroFollowFromDistance(started, 81)
+    const unseen = chickenbroNoteIncoming(locked)
+    const resumed = chickenbroResumeLatest(unseen)
+
+    expect(chickenbroFollowFromDistance(started, 80).followLatest).toBe(true)
+    expect(locked.followLatest).toBe(false)
+    expect(unseen.hasUnseen).toBe(true)
+    expect(resumed).toMatchObject({ followLatest: true, hasUnseen: false })
   })
 })

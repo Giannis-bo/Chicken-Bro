@@ -8759,6 +8759,36 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(events[-1]["response"]["assistantMessage"]["content"], answer)
         self.assertEqual(rows, [("user", "冰DK大秘境先排查什么？"), ("assistant", answer)])
 
+    def test_chickenbro_stream_cancellation_discards_partial_assistant_and_marks_job_cancelled(self):
+        bounded = self.backend.build_chickenbro_bounded_context("冰DK大秘境先排查什么？", {})
+        payload = {
+            "answer": "先确认你是否把主爆发留给大波次，并在每次进战斗前准备好资源。",
+            "confidence": "low",
+            "answerLayer": bounded["answerLayer"],
+            "basisLabel": bounded["basisLabel"],
+            "priorityActions": [],
+            "evidenceRefs": [],
+            "limitations": [],
+            "missingInputs": [],
+            "nextQuestion": "",
+        }
+        stream = self.backend.stream_chickenbro_message(
+            {"guestId": "cancel-stream-guest", "message": "冰DK大秘境先排查什么？"},
+            stream_runner=lambda *_args, **_kwargs: [json.dumps(payload, ensure_ascii=False)],
+        )
+
+        self.assertEqual(next(stream)["type"], "started")
+        self.assertEqual(next(stream)["type"], "status")
+        self.assertEqual(next(stream)["type"], "delta")
+        stream.close()
+
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            roles = [row[0] for row in conn.execute("SELECT role FROM chickenbro_messages ORDER BY created_at")]
+            statuses = [row[0] for row in conn.execute("SELECT status FROM agent_jobs ORDER BY created_at")]
+
+        self.assertEqual(roles, ["user"])
+        self.assertEqual(statuses, ["cancelled"])
+
     def test_http_chickenbro_model_failure_returns_retryable_503_without_assistant_turn(self):
         server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
         thread = threading.Thread(target=server.serve_forever, daemon=True)

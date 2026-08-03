@@ -18,4 +18,16 @@ describe('Captain root dock spacing', () => {
     expect(composerStyle).not.toContain('env(safe-area-inset-bottom)')
     expect(routeStyle).not.toMatch(/\.transcriptRegion\s*\{[^}]*padding-bottom:/u)
   })
+
+  it('keeps transcript scrolling inside the captain region with an explicit return-to-latest control', () => {
+    const chatComponent = readFileSync(resolve(
+      process.cwd(),
+      'packages/design-system/src/components/ChickenbroChatComponents.tsx',
+    ), 'utf8')
+
+    expect(chatComponent).toContain('<ScrollView')
+    expect(chatComponent).toContain('data-role="chickenbro-transcript-scroll"')
+    expect(chatComponent).toContain('data-role="chickenbro-return-latest"')
+    expect(chatComponent).toContain('scrollTop={scrollTop}')
+  })
 })
