@@ -2,8 +2,8 @@
   "schemaVersion": 2,
   "slug": "chickenbro-streaming-scroll",
   "requirementSlug": "chickenbro-streaming-scroll",
-  "status": "live_verified",
-  "highestEvidenceLevel": "live_verified",
+  "status": "archived",
+  "highestEvidenceLevel": "archived",
   "branch": "codex/chickenbro-streaming-scroll",
   "commit": "e41839bb6cda6a226391cf33ddd72257ed0ffe58",
   "identities": {
@@ -28,8 +28,9 @@
       "value": "HEAD"
     },
     "closure": {
-      "status": "pending",
-      "reason": "候选已通过，等待合并、合并后 scoped verification 和候选清理。"
+      "status": "bound",
+      "kind": "merge_commit",
+      "value": "721587f1c6a52b205915e8e31208065270e02e3d"
     }
   },
   "manualAcceptance": {
@@ -80,6 +81,11 @@
       "command": "node scripts/project-harness.js --check --requirement-file artifacts/releases/2026-08-03-chickenbro-streaming-scroll/requirement.json --evidence-file artifacts/releases/2026-08-03-chickenbro-streaming-scroll/evidence.json --manifest-file artifacts/releases/2026-08-03-chickenbro-streaming-scroll/manifest.json --base origin/main",
       "status": "pass",
       "summary": "c65b48c9492d5df6c16fc7ff39b289774cc27b0d 的干净 task HEAD 通过 packet identity、manual acceptance matrix、runtime candidate binding 和 owner-map 检查；Harness profile 的 93 项 contract 测试与 6 个命令也全部通过。"
+    },
+    {
+      "command": "post-merge scoped verification at 721587f1c6a52b205915e8e31208065270e02e3d: python3 -m unittest tests.news_backend_test tests.postgres_personal_store_test tests.database_adapter_test tests.chickenbro_stream_test tests.llm_client_test; npx vitest run packages/api-client/src/transport.test.ts packages/api-client/src/simulator.test.ts apps/mini-taro/src/pages/simulator/chickenbro-model.test.ts apps/mini-taro/src/pages/simulator/simulator-home-dock-contract.test.ts; npx tsc -p tsconfig.json --noEmit; npm run lint; node --test tests/audit-ui-architecture-paths.test.js",
+      "status": "pass",
+      "summary": "合并结果上 341 项 Python、36 项 Vitest、TypeScript、eslint 零 warning 与 18 项 UI architecture audit 均通过。"
     }
   ],
   "candidateDeployment": {
@@ -202,5 +208,5 @@
     "docs/plans/2026-08-03-chickenbro-streaming-scroll-implementation.md",
     "docs/roadmap/ideas.md"
   ],
-  "summary": "e41839bb 在隔离候选服务上证明了真实 provider delta、UTF-8 NDJSON、最终 assistant 单次落库和取消零 partial；官方 DevTools 打开的候选 build 完成了真实发送与最终回复展示。用户确认当前样式符合预期并要求收尾。此 packet 仅证明候选，生产部署与生产 provider 配置仍未授权。"
+  "summary": "721587f1 已合并 e41839bb 的候选验证实现；隔离候选证明了真实 provider delta、UTF-8 NDJSON、最终 assistant 单次落库和取消零 partial，官方 DevTools 候选 build 完成了真实发送与最终回复展示。用户确认当前样式符合预期并要求收尾。此 archive 不证明生产可对话：生产部署与生产 provider 配置仍未授权，候选清理将在 main 推送与最新 DevTools 刷新后完成。"
 }
