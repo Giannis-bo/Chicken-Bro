@@ -1,0 +1,42 @@
+import unittest
+
+
+class ChickenbroAnswerStreamTest(unittest.TestCase):
+    def test_releases_only_safe_answer_after_unicode_json_chunks(self):
+        from server.chickenbro_stream import ChickenbroAnswerStream
+
+        stream = ChickenbroAnswerStream(allowed_numbers=["100"])
+        emitted = []
+        for chunk in ('{"answer":"你好，', '这是', ' 100% 的建议', '"}'):
+            emitted.extend(stream.feed(chunk))
+
+        self.assertEqual("".join(emitted), "你好，这是 100% 的建议")
+        self.assertEqual(stream.finish()["answer"], "你好，这是 100% 的建议")
+
+    def test_holds_an_unapproved_number_and_rejects_terminal_payload(self):
+        from server.chickenbro_stream import ChickenbroAnswerStream, ChickenbroStreamValidationError
+
+        stream = ChickenbroAnswerStream(allowed_numbers=["100"])
+        self.assertEqual(stream.feed('{"answer":"请打 200%"}'), [])
+        with self.assertRaises(ChickenbroStreamValidationError):
+            stream.finish()
+
+    def test_rejects_unknown_top_level_fields_before_releasing_complete_payload(self):
+        from server.chickenbro_stream import ChickenbroAnswerStream, ChickenbroStreamValidationError
+
+        stream = ChickenbroAnswerStream(allowed_numbers=[])
+        self.assertEqual(stream.feed('{"answer":"安全文本","internal":"secret"}'), [])
+        with self.assertRaises(ChickenbroStreamValidationError):
+            stream.finish()
+
+    def test_caps_incomplete_payload_without_releasing_text(self):
+        from server.chickenbro_stream import ChickenbroAnswerStream, ChickenbroStreamValidationError
+
+        stream = ChickenbroAnswerStream(allowed_numbers=[], max_buffer_chars=42)
+        self.assertEqual(stream.feed('{"answer":"' + ("a" * 31)), [])
+        with self.assertRaises(ChickenbroStreamValidationError):
+            stream.feed("a")
+
+
+if __name__ == "__main__":
+    unittest.main()
