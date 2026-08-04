@@ -103,8 +103,11 @@ IMPORTED_CALLABLE_ALLOWLIST = {
         "gear_canonical_kernel.seal_canonical_document",
         "gear_canonical_kernel.verified_payload_copy",
         "gear_exact_item_instance._verified_exact_payload_copy",
+        "gear_exact_item_instance._validate_exact_item_payload",
+        "gear_exact_item_instance._validate_exact_static_facts_payload",
         "gear_exact_item_instance.seal_exact_static_facts",
         "gear_track_authority.resolve_exact_instance_progression",
+        "simc_item_effect_support._validate_effect_aggregate_payload",
     }),
     "server/simc_item_effect_support.py": frozenset({
         "datetime.datetime.fromisoformat",
@@ -118,6 +121,7 @@ IMPORTED_CALLABLE_ALLOWLIST = {
         "gear_canonical_kernel.seal_canonical_document",
         "gear_canonical_kernel.verified_payload_copy",
         "gear_canonical_kernel.verify_sealed_document",
+        "gear_exact_item_instance._validate_exact_item_payload",
     }),
     "server/simc_item_effect_probe.py": frozenset({
         "gear_canonical_kernel.CanonicalIssue",
@@ -143,6 +147,117 @@ IMPORTED_CALLABLE_ALLOWLIST = {
         "server.simc_item_effect_probe.evaluate_effect_probe",
         "sys.stderr.write",
         "sys.stdout.buffer.write",
+    }),
+}
+
+CALLABLE_KEYWORD_ARGUMENTS = frozenset({
+    "default",
+    "item_rule",
+    "key",
+    "object_pairs_hook",
+    "parse_constant",
+    "parse_float",
+    "parse_int",
+    "payload_validator",
+})
+
+LOCAL_CALLABLE_ALLOWLIST = {
+    "server/gear_exact_item_instance.py": frozenset({
+        ("_bounded_exact_static_facts_payload", "len"),
+        ("_canonical_exact_slot_payload", "len"),
+        ("_canonical_exact_slot_payload", "list"),
+        ("_canonical_exact_static_facts", "abs"),
+        ("_canonical_exact_static_facts", "facts.items"),
+        ("_canonical_exact_static_facts", "len"),
+        ("_canonical_exact_static_facts", "raw_amount.is_integer"),
+        ("_canonical_exact_static_facts", "type"),
+        ("_require_exact_mapping_keys", "any"),
+        ("_require_exact_mapping_keys", "exact_keys.difference"),
+        ("_require_exact_mapping_keys", "set"),
+        ("_require_exact_mapping_keys", "set(value).difference"),
+        ("_require_exact_mapping_keys", "sorted"),
+        ("_require_exact_mapping_keys", "type"),
+        (
+            "_validate_exact_static_facts_payload",
+            "EXACT_ITEM_INSTANCE_KEY_PATTERN.fullmatch",
+        ),
+        ("_validate_exact_static_facts_payload", "dict"),
+        ("_validate_exact_static_facts_payload", "type"),
+        ("_validate_exact_static_facts_payload", "value.get"),
+        ("_validate_exact_item_payload", "dict"),
+        ("derive_simc_serializer_input", "'/'.join"),
+    }),
+    "server/gear_exact_authority.py": frozenset({
+        ("_validate_exact_progression_payload", "dict"),
+        ("_validate_exact_progression_payload", "list"),
+        ("_validate_exact_progression_payload", "resolved.get"),
+        ("_validate_exact_progression_payload", "type"),
+        ("_validate_effect_aggregate_for_envelope", "type"),
+        ("_validate_effect_aggregate_for_envelope", "value.get"),
+        ("seal_exact_authority_envelope", "TypeError"),
+        ("seal_exact_authority_envelope", "documents.items"),
+        ("seal_exact_authority_envelope", "type"),
+        ("seal_exact_progression", "list"),
+        ("seal_exact_progression", "problem.get"),
+        ("seal_exact_progression", "resolved.get"),
+        ("seal_exact_progression", "tuple"),
+        ("seal_exact_progression", "type"),
+    }),
+    "server/simc_item_effect_support.py": frozenset({
+        ("_canonical_effect_tokens", "len"),
+        ("_canonical_effect_tokens", "list"),
+        ("_canonical_effect_tokens", "sum"),
+        ("_canonical_effect_tokens", "token.encode"),
+        ("_canonical_snapshot_key", "_SNAPSHOT_KEY_PATTERN.fullmatch"),
+        ("_canonical_timestamp", "timestamp.endswith"),
+        ("_canonical_variant_signature", "_VARIANT_SIGNATURE_PATTERN.fullmatch"),
+        ("_validate_effect_aggregate_payload", "_EXACT_KEY_PATTERN.fullmatch"),
+        ("_validate_effect_aggregate_payload", "_RECORD_KEY_PATTERN.fullmatch"),
+        ("_validate_effect_aggregate_payload", "dict"),
+        ("_validate_effect_aggregate_payload", "enumerate"),
+        ("_validate_effect_aggregate_payload", "len"),
+        ("_validate_effect_aggregate_payload", "rebuilt_records.append"),
+        ("_validate_effect_aggregate_payload", "rebuilt_subjects.append"),
+        ("_validate_effect_aggregate_payload", "record.pop"),
+        ("_validate_effect_aggregate_payload", "zip"),
+        ("_validate_effect_record_payload", "dict"),
+        ("_validate_effect_record_payload", "rebuilt.update"),
+        ("_validate_effect_record_payload", "type"),
+        ("_validate_effect_record_payload", "value.get"),
+        ("<lambda>@541:18", "frozenset"),
+        ("<lambda>@541:18", "frozenset(record).union"),
+        ("<lambda>@541:18", "type"),
+        ("derive_exact_effect_subjects", "enumerate"),
+        ("derive_exact_effect_subjects", "list"),
+        ("derive_exact_effect_subjects", "subjects.append"),
+        ("derive_exact_effect_subjects", "tuple"),
+        ("resolve_exact_effect_support", "aggregate_records.append"),
+        ("resolve_exact_effect_support", "aggregate_subjects.append"),
+        ("resolve_exact_effect_support", "enumerate"),
+        ("resolve_exact_effect_support", "expected_positions.get"),
+        ("resolve_exact_effect_support", "isinstance"),
+    }),
+    "server/simc_item_effect_probe.py": frozenset({
+        ("_canonical_warnings", "len"),
+        ("_canonical_warnings", "list"),
+        ("_canonical_warnings", "sum"),
+        ("_canonical_warnings", "warning.encode"),
+        ("_validate_manifest", "dict"),
+        ("_validate_report", "dict"),
+        ("_validate_report", "type"),
+        ("evaluate_effect_probe", "any"),
+        ("evaluate_effect_probe", "next"),
+        ("evaluate_effect_probe", "type"),
+    }),
+    "scripts/simc-item-effect-probe.py": frozenset({
+        ("_read", "Path(path).read_text"),
+        ("_parse_bounded_int", "int"),
+        ("_parse_bounded_int", "len"),
+        ("_parse_bounded_int", "value.startswith"),
+        ("_parse_finite_float", "float"),
+        ("main", "parser.add_argument"),
+        ("main", "parser.parse_args"),
+        ("main", "result.status.upper"),
     }),
 }
 
@@ -251,7 +366,18 @@ class _CallableTarget:
     argument_bindings: tuple[tuple[str, tuple[object, ...]], ...] = ()
 
 
+@dataclass(frozen=True)
+class _ClassTarget:
+    node: ast.ClassDef
+    label: str
+    closure_scopes: tuple[dict[str, list[object]], ...]
+
+
 _UNKNOWN_BINDING = _UnknownBinding()
+
+
+def _lambda_label(node: ast.Lambda) -> str:
+    return f"<lambda>@{node.lineno}:{node.col_offset}"
 
 
 def _argument_names(node: ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda) -> set[str]:
@@ -291,18 +417,39 @@ class _ScopeBindingCollector(ast.NodeVisitor):
         return
 
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
-        self._add(node.name, _ResolvedSymbol(node.name))
+        self._add(node.name, node)
+
+    def _add_assignment_target(self, target: ast.expr, value: object) -> None:
+        if isinstance(target, ast.Name):
+            self._add(target.id, value, assignment=True)
+            return
+        if isinstance(target, (ast.Tuple, ast.List)):
+            source_values: tuple[object, ...] | None = None
+            if isinstance(value, (ast.Tuple, ast.List)):
+                source_values = tuple(value.elts)
+            if source_values is not None and len(source_values) == len(target.elts):
+                for child, source in zip(target.elts, source_values, strict=True):
+                    self._add_assignment_target(child, source)
+                return
+            for child in target.elts:
+                self._add_assignment_target(
+                    child,
+                    _UnknownValue(f"unpacked assignment: {ast.unparse(target)}"),
+                )
 
     def visit_Assign(self, node: ast.Assign) -> None:
         for target in node.targets:
-            if isinstance(target, ast.Name):
-                self._add(target.id, node.value, assignment=True)
+            self._add_assignment_target(target, node.value)
         self.visit(node.value)
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
         if isinstance(node.target, ast.Name) and node.value is not None:
             self._add(node.target.id, node.value, assignment=True)
             self.visit(node.value)
+
+    def visit_NamedExpr(self, node: ast.NamedExpr) -> None:
+        self._add_assignment_target(node.target, node.value)
+        self.visit(node.value)
 
     def visit_Import(self, node: ast.Import) -> None:
         for alias in node.names:
@@ -343,10 +490,12 @@ def _resolve_expression(
     expression: object,
     scopes: tuple[dict[str, list[object]], ...],
     seen: frozenset[tuple[int, str]] = frozenset(),
-) -> list[_ResolvedSymbol | _CallableTarget | _UnknownValue]:
+) -> list[_ResolvedSymbol | _CallableTarget | _ClassTarget | _UnknownValue]:
     if isinstance(expression, _ResolvedSymbol):
         return [expression]
     if isinstance(expression, _CallableTarget):
+        return [expression]
+    if isinstance(expression, _ClassTarget):
         return [expression]
     if isinstance(expression, _UnknownValue):
         return [expression]
@@ -354,8 +503,10 @@ def _resolve_expression(
         return [_UnknownValue("dynamic parameter")]
     if isinstance(expression, (ast.FunctionDef, ast.AsyncFunctionDef)):
         return [_CallableTarget(expression, expression.name, scopes)]
+    if isinstance(expression, ast.ClassDef):
+        return [_ClassTarget(expression, expression.name, scopes)]
     if isinstance(expression, ast.Lambda):
-        return [_CallableTarget(expression, "<lambda>", scopes)]
+        return [_CallableTarget(expression, _lambda_label(expression), scopes)]
     if isinstance(expression, ast.Name):
         for index, scope in enumerate(scopes):
             if expression.id not in scope:
@@ -363,7 +514,9 @@ def _resolve_expression(
             key = (id(scope), expression.id)
             if key in seen:
                 return []
-            resolved: list[_ResolvedSymbol | _CallableTarget | _UnknownValue] = []
+            resolved: list[
+                _ResolvedSymbol | _CallableTarget | _ClassTarget | _UnknownValue
+            ] = []
             nested_scopes = scopes[index:]
             for value in scope[expression.id]:
                 if isinstance(value, ast.Lambda):
@@ -388,6 +541,30 @@ def _resolve_expression(
         return [_ResolvedSymbol(expression.id)]
     if isinstance(expression, ast.Attribute):
         resolved = _resolve_expression(expression.value, scopes, seen)
+        class_targets = [
+            item for item in resolved if isinstance(item, _ClassTarget)
+        ]
+        class_members: list[_CallableTarget | _UnknownValue] = []
+        for target in class_targets:
+            methods = [
+                statement
+                for statement in target.node.body
+                if isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef))
+                and statement.name == expression.attr
+            ]
+            if methods:
+                class_members.extend(
+                    _CallableTarget(
+                        method,
+                        f"{target.label}.{expression.attr}",
+                        target.closure_scopes,
+                    )
+                    for method in methods
+                )
+            else:
+                class_members.append(_UnknownValue(ast.unparse(expression)))
+        if class_members:
+            return class_members
         symbols = [
             _ResolvedSymbol(
                 f"{item.qualified_name}.{expression.attr}",
@@ -404,7 +581,27 @@ def _resolve_expression(
             *_resolve_expression(expression.body, scopes, seen),
             *_resolve_expression(expression.orelse, scopes, seen),
         ]
-    return []
+    if isinstance(expression, ast.NamedExpr):
+        return _resolve_expression(expression.value, scopes, seen)
+    if isinstance(expression, ast.BoolOp):
+        return [
+            item
+            for value in expression.values
+            for item in _resolve_expression(value, scopes, seen)
+        ]
+    if isinstance(expression, ast.AST):
+        return [_UnknownValue(ast.unparse(expression))]
+    return [_UnknownValue(type(expression).__name__)]
+
+
+def _resolve_callable_expression(
+    expression: ast.expr,
+    scopes: tuple[dict[str, list[object]], ...],
+) -> list[_ResolvedSymbol | _CallableTarget | _ClassTarget | _UnknownValue]:
+    resolved = _resolve_expression(expression, scopes)
+    if resolved:
+        return resolved
+    return [_UnknownValue(ast.unparse(expression))]
 
 
 class _DirectScopeUsage(ast.NodeVisitor):
@@ -456,9 +653,29 @@ def _called_targets(
 ) -> list[_CallableTarget]:
     targets: list[_CallableTarget] = []
     for call in _direct_scope_usage(node).calls:
-        for item in _resolve_expression(call.func, scopes):
+        for item in _resolve_callable_expression(call.func, scopes):
             if isinstance(item, _CallableTarget):
                 targets.append(_bind_callable_target(item, call, scopes))
+            elif isinstance(item, _ClassTarget):
+                for statement in item.node.body:
+                    if (
+                        isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef))
+                        and statement.name in {"__new__", "__init__"}
+                    ):
+                        targets.append(_CallableTarget(
+                            statement,
+                            f"{item.label}.{statement.name}",
+                            item.closure_scopes,
+                        ))
+        for argument in (
+            *call.args,
+            *(keyword.value for keyword in call.keywords),
+        ):
+            targets.extend(
+                item
+                for item in _resolve_expression(argument, scopes)
+                if isinstance(item, _CallableTarget)
+            )
     return targets
 
 
@@ -531,6 +748,8 @@ def _binding_identity(target: _CallableTarget) -> tuple[object, ...]:
                 )
             elif isinstance(value, _CallableTarget):
                 value_identities.append(("callable", id(value.node)))
+            elif isinstance(value, _ClassTarget):
+                value_identities.append(("class", id(value.node)))
             elif isinstance(value, _UnknownValue):
                 value_identities.append(("unknown", value.detail))
         identities.append((name, tuple(value_identities)))
@@ -652,7 +871,7 @@ def _identity_primitive_violations(
                 ))
 
     for child in usage.calls:
-        resolved_callables = _resolve_expression(child.func, scopes)
+        resolved_callables = _resolve_callable_expression(child.func, scopes)
         resolved_callees = {
             item
             for item in resolved_callables
@@ -668,6 +887,44 @@ def _identity_primitive_violations(
                 ))
         callees = {item.qualified_name for item in resolved_callees}
         allowed_imported = IMPORTED_CALLABLE_ALLOWLIST[path]
+        allowed_local = LOCAL_CALLABLE_ALLOWLIST[path]
+        for keyword in child.keywords:
+            if keyword.arg not in CALLABLE_KEYWORD_ARGUMENTS:
+                continue
+            callback_values = _resolve_callable_expression(
+                keyword.value,
+                scopes,
+            )
+            for callback in callback_values:
+                if isinstance(callback, _UnknownValue):
+                    violations.append(Violation(
+                        path,
+                        function,
+                        "UNKNOWN_DYNAMIC_CALLABLE",
+                        ast.unparse(keyword.value),
+                    ))
+                elif isinstance(callback, _ResolvedSymbol):
+                    normalized_callback = callback.qualified_name.lstrip(".")
+                    if (
+                        callback.imported
+                        and normalized_callback not in allowed_imported
+                    ):
+                        violations.append(Violation(
+                            path,
+                            function,
+                            "UNAPPROVED_IMPORTED_CALLABLE",
+                            normalized_callback,
+                        ))
+                    elif (
+                        not callback.imported
+                        and (function, normalized_callback) not in allowed_local
+                    ):
+                        violations.append(Violation(
+                            path,
+                            function,
+                            "UNKNOWN_DYNAMIC_CALLABLE",
+                            ast.unparse(keyword.value),
+                        ))
         for item in resolved_callees:
             normalized = item.qualified_name.lstrip(".")
             if item.imported and normalized not in allowed_imported:
@@ -676,6 +933,23 @@ def _identity_primitive_violations(
                     function,
                     "UNAPPROVED_IMPORTED_CALLABLE",
                     normalized,
+                ))
+            if (
+                not item.imported
+                and (function, normalized) not in allowed_local
+                and normalized.rsplit(".", 1)[-1] not in {"str", "strip"}
+                and not (
+                    normalized == "json.dumps"
+                    or normalized.endswith(".json.dumps")
+                    or "hashlib" in normalized.lower().split(".")
+                    or "catalog" in normalized.lower()
+                )
+            ):
+                violations.append(Violation(
+                    path,
+                    function,
+                    "UNKNOWN_DYNAMIC_CALLABLE",
+                    ast.unparse(child.func),
                 ))
         if any(symbol.rsplit(".", 1)[-1] == "strip" for symbol in callees):
             violations.append(Violation(path, function, "IDENTITY_TRIM", ".strip()"))
@@ -1251,6 +1525,301 @@ conditional(exact)
                 found_code == code
                 for _, found_code, _ in observed
             ), _formatted(violations))
+
+    def test_gate_fails_closed_for_dynamic_callable_expressions(self):
+        base_trees = {
+            path: ast.parse((ROOT / path).read_text(encoding="utf-8"), filename=path)
+            for path in TASK2_CONSUMERS
+        }
+        setup = """
+from builtins import str as hidden_str
+from server.hidden_strip import strip as hidden_strip
+from hashlib import sha256 as hidden_hash
+from json import dumps as hidden_json
+from server.hidden_catalog import lookup as hidden_catalog
+from server.hidden_unknown import helper as hidden_unknown
+"""
+        cases = {
+            "tuple subscript": "(hidden_str,)[0](exact)",
+            "list subscript": "[hidden_strip][0](exact)",
+            "dict subscript": '{"hash": hidden_hash}["hash"](exact)',
+            "walrus callable": "(callback := hidden_json)(exact)",
+            "boolean callable": "(hidden_catalog or hidden_unknown)(exact)",
+            "getattr bound method": 'getattr(exact, "strip")()',
+            "unbound helper": "hidden_runtime_helper(exact)",
+            "unknown bound method": "exact.hidden_helper()",
+        }
+        for label, invocation in cases.items():
+            with self.subTest(label=label):
+                trees = copy.deepcopy(base_trees)
+                item_tree = trees["server/gear_exact_item_instance.py"]
+                item_tree.body.extend(ast.parse(setup).body)
+                serializer = _function_definitions(item_tree)[
+                    "derive_simc_serializer_input"
+                ]
+                serializer.body[:0] = ast.parse(invocation).body
+                violations = [
+                    item
+                    for item in _consumer_violations(trees)
+                    if item.path == "server/gear_exact_item_instance.py"
+                    and item.function == "derive_simc_serializer_input"
+                ]
+                self.assertTrue(any(
+                    item.code in {
+                        "UNKNOWN_DYNAMIC_CALLABLE",
+                        "UNAPPROVED_IMPORTED_CALLABLE",
+                    }
+                    for item in violations
+                ), f"{label}\n{_formatted(violations)}")
+
+    def test_gate_fails_closed_for_container_unpacking_and_alias_chains(self):
+        base_trees = {
+            path: ast.parse((ROOT / path).read_text(encoding="utf-8"), filename=path)
+            for path in TASK2_CONSUMERS
+        }
+        setup = """
+from builtins import str as hidden_str
+from server.hidden_strip import strip as hidden_strip
+from hashlib import sha256 as hidden_hash
+from json import dumps as hidden_json
+from server.hidden_catalog import lookup as hidden_catalog
+from server.hidden_unknown import helper as hidden_unknown
+"""
+        cases = {
+            "tuple alias chain": """
+_callbacks = (hidden_str, hidden_strip)
+_callbacks_alias = _callbacks
+_callbacks_alias[0](exact)
+""",
+            "list alias chain": """
+_callbacks = [hidden_hash, hidden_json]
+_callbacks_alias = _callbacks
+_callbacks_alias[1](exact)
+""",
+            "dict alias chain": """
+_callbacks = {"catalog": hidden_catalog, "unknown": hidden_unknown}
+_callbacks_alias = _callbacks
+_callbacks_alias["catalog"](exact)
+""",
+            "unpacked alias": """
+_callbacks = (hidden_str, hidden_strip)
+_first, _second = _callbacks
+_first(exact)
+""",
+            "walrus later alias": """
+(callback := hidden_json)
+callback(exact)
+""",
+        }
+        for label, body in cases.items():
+            with self.subTest(label=label):
+                trees = copy.deepcopy(base_trees)
+                item_tree = trees["server/gear_exact_item_instance.py"]
+                item_tree.body.extend(ast.parse(setup).body)
+                serializer = _function_definitions(item_tree)[
+                    "derive_simc_serializer_input"
+                ]
+                serializer.body[:0] = ast.parse(body).body
+                violations = [
+                    item
+                    for item in _consumer_violations(trees)
+                    if item.path == "server/gear_exact_item_instance.py"
+                    and item.function == "derive_simc_serializer_input"
+                ]
+                self.assertTrue(any(
+                    item.code in {
+                        "UNKNOWN_DYNAMIC_CALLABLE",
+                        "UNAPPROVED_IMPORTED_CALLABLE",
+                    }
+                    for item in violations
+                ), f"{label}\n{_formatted(violations)}")
+
+    def test_gate_fails_closed_for_returned_and_wrapped_callables(self):
+        base_trees = {
+            path: ast.parse((ROOT / path).read_text(encoding="utf-8"), filename=path)
+            for path in TASK2_CONSUMERS
+        }
+        setup = """
+import functools
+from builtins import str as hidden_str
+from json import dumps as hidden_json
+
+def _factory(callback):
+    return callback
+
+def _lambda_wrapper(callback, value):
+    return (lambda callbacks: callbacks[0](value))((callback,))
+"""
+        cases = {
+            "factory return": (
+                "_factory(hidden_str)(exact)",
+                "_factory(hidden_str)",
+            ),
+            "partial return": (
+                "functools.partial(hidden_str)(exact)",
+                "functools.partial(hidden_str)",
+            ),
+            "lambda subscript callback": (
+                "_lambda_wrapper(hidden_json, exact)",
+                "callbacks[0]",
+            ),
+        }
+        for label, (invocation, dynamic_callable) in cases.items():
+            with self.subTest(label=label):
+                trees = copy.deepcopy(base_trees)
+                item_tree = trees["server/gear_exact_item_instance.py"]
+                item_tree.body.extend(ast.parse(setup).body)
+                serializer = _function_definitions(item_tree)[
+                    "derive_simc_serializer_input"
+                ]
+                serializer.body[:0] = ast.parse(invocation).body
+                violations = [
+                    item
+                    for item in _consumer_violations(trees)
+                    if item.path == "server/gear_exact_item_instance.py"
+                ]
+                self.assertTrue(any(
+                    item.code == "UNKNOWN_DYNAMIC_CALLABLE"
+                    and item.detail == dynamic_callable
+                    for item in violations
+                ), f"{label}\n{_formatted(violations)}")
+
+    def test_gate_follows_local_staticmethods_and_blocks_local_instances(self):
+        base_trees = {
+            path: ast.parse((ROOT / path).read_text(encoding="utf-8"), filename=path)
+            for path in TASK2_CONSUMERS
+        }
+        setup = """
+from builtins import str as hidden_str
+from server.hidden_strip import strip as hidden_strip
+
+class _HiddenStatic:
+    @staticmethod
+    def invoke(value):
+        return hidden_str(value)
+
+class _HiddenCallable:
+    def __call__(self, value):
+        return hidden_strip(value)
+"""
+        cases = {
+            "local staticmethod": ("_HiddenStatic.invoke(exact)", False),
+            "local callable instance": ("_HiddenCallable()(exact)", True),
+            "local callable alias": (
+                "callback = _HiddenCallable()\ncallback(exact)",
+                True,
+            ),
+        }
+        for label, (body, expects_unknown) in cases.items():
+            with self.subTest(label=label):
+                trees = copy.deepcopy(base_trees)
+                item_tree = trees["server/gear_exact_item_instance.py"]
+                item_tree.body.extend(ast.parse(setup).body)
+                serializer = _function_definitions(item_tree)[
+                    "derive_simc_serializer_input"
+                ]
+                serializer.body[:0] = ast.parse(body).body
+                violations = [
+                    item
+                    for item in _consumer_violations(trees)
+                    if item.path == "server/gear_exact_item_instance.py"
+                ]
+                if expects_unknown:
+                    self.assertTrue(any(
+                        item.code == "UNKNOWN_DYNAMIC_CALLABLE"
+                        for item in violations
+                    ), f"{label}\n{_formatted(violations)}")
+                else:
+                    self.assertTrue(any(
+                        item.code in {
+                            "IDENTITY_COERCION",
+                            "UNAPPROVED_IMPORTED_CALLABLE",
+                        }
+                        and item.detail in {"str(...)", "builtins.str"}
+                        for item in violations
+                    ), f"{label}\n{_formatted(violations)}")
+
+    def test_gate_does_not_approve_local_callable_by_spelling_in_another_helper(self):
+        trees = {
+            path: ast.parse((ROOT / path).read_text(encoding="utf-8"), filename=path)
+            for path in TASK2_CONSUMERS
+        }
+        item_tree = trees["server/gear_exact_item_instance.py"]
+        item_tree.body.extend(ast.parse("""
+def _shadow_safe_spelling(value):
+    return value.get("hidden")
+""").body)
+        serializer = _function_definitions(item_tree)[
+            "derive_simc_serializer_input"
+        ]
+        serializer.body.insert(0, ast.parse("_shadow_safe_spelling(exact)").body[0])
+
+        violations = _consumer_violations(trees)
+        self.assertTrue(any(
+            item.path == "server/gear_exact_item_instance.py"
+            and item.function == "_shadow_safe_spelling"
+            and item.code == "UNKNOWN_DYNAMIC_CALLABLE"
+            and item.detail == "value.get"
+            for item in violations
+        ), _formatted(violations))
+
+    def test_gate_follows_inline_lambda_passed_to_an_approved_owner(self):
+        trees = {
+            path: ast.parse((ROOT / path).read_text(encoding="utf-8"), filename=path)
+            for path in TASK2_CONSUMERS
+        }
+        item_tree = trees["server/gear_exact_item_instance.py"]
+        item_tree.body.extend(ast.parse("""
+from builtins import str as hidden_str
+""").body)
+        serializer = _function_definitions(item_tree)[
+            "derive_simc_serializer_input"
+        ]
+        serializer.body.insert(0, ast.parse("""
+canonical_ordered_list(
+    [],
+    path="hidden",
+    item_rule=lambda value, path: (hidden_str,)[0](value),
+)
+""").body[0])
+
+        violations = _consumer_violations(trees)
+        self.assertTrue(any(
+            item.path == "server/gear_exact_item_instance.py"
+            and item.function.startswith("<lambda>@")
+            and item.code == "UNKNOWN_DYNAMIC_CALLABLE"
+            and item.detail == "(hidden_str,)[0]"
+            for item in violations
+        ), _formatted(violations))
+
+    def test_gate_rejects_an_imported_callable_passed_to_an_approved_owner(self):
+        trees = {
+            path: ast.parse((ROOT / path).read_text(encoding="utf-8"), filename=path)
+            for path in TASK2_CONSUMERS
+        }
+        item_tree = trees["server/gear_exact_item_instance.py"]
+        item_tree.body.extend(ast.parse("""
+from server.hidden_owner import normalize as hidden_callback
+""").body)
+        serializer = _function_definitions(item_tree)[
+            "derive_simc_serializer_input"
+        ]
+        serializer.body.insert(0, ast.parse("""
+canonical_ordered_list(
+    [],
+    path="hidden",
+    item_rule=hidden_callback,
+)
+""").body[0])
+
+        violations = _consumer_violations(trees)
+        self.assertTrue(any(
+            item.path == "server/gear_exact_item_instance.py"
+            and item.function == "derive_simc_serializer_input"
+            and item.code == "UNAPPROVED_IMPORTED_CALLABLE"
+            and item.detail == "server.hidden_owner.normalize"
+            for item in violations
+        ), _formatted(violations))
 
     def test_task5_control_plane_matches_the_implemented_pure_foundation(self):
         requirement = json.loads((
