@@ -24,6 +24,12 @@
 | 炸鸡队长 Smart Question Chain | 正在推进（Evidence Planner 第一切片候选已验证，真实 WeChat 验收待办；不含 Toolsmith/shadow/canary/promotion） | [设计](2026-08-03-chickenbro-smart-question-chain-design.md) · [实施计划](2026-08-03-chickenbro-smart-question-chain-implementation.md) · [Evidence Planner 设计](2026-08-04-chickenbro-evidence-planner-design.md) · [Evidence Planner 实施计划](2026-08-04-chickenbro-evidence-planner-implementation.md) · [候选证据](../../artifacts/releases/2026-08-04-chickenbro-evidence-planner/evidence.json) |
 | SQLite 全面退役 | 下一步 | [退役设计](2026-08-02-sqlite-complete-retirement-design.md) |
 
+## 已确认方向（未授权实施）
+
+| 领域 | 状态 | 入口 |
+| --- | --- | --- |
+| 炸鸡队长 Codex 自主研究循环 | 设计待用户审阅；ToolBox 是原子执行能力，Codex 是研究主体 | [设计](2026-08-04-chickenbro-agentic-research-design.md) |
+
 ## 稳定目标与归档基线
 
 本节只提供长期目标和已完成基线的可达入口，不授予执行权，也不把后续缺陷纠偏或 UI
