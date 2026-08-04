@@ -4,6 +4,8 @@
 
 **Goal:** Make time-sensitive Chickenbro questions produce a general, source-bounded Evidence Plan and a user-visible `answered`/`partial`/`researching`/`blocked` outcome instead of treating an unsupported comparison as a failed or terminal chat turn.
 
+**Status:** Candidate verification passed at runtime identity `71882e89`; real WeChat acceptance remains pending. See [candidate evidence](../../artifacts/releases/2026-08-04-chickenbro-evidence-planner/evidence.json).
+
 **Architecture:** Keep `QuestionFrame` as the source-agnostic natural-language parser and add a pure `EvidencePlan` projection that maps declared evidence needs to scenario-specific facets. `news_backend.py` remains the owner of Registry dispatch and answer composition; it attaches the pure plan to bounded context, preserves the existing public envelope with an additive `evidenceOutcome`, and composes deterministic partial answers only from the plan. Trace v4 records only allowlisted facet keys, statuses, comparison scope and outcome.
 
 **Tech Stack:** Python standard library and `unittest`; PostgreSQL-backed immutable Chickenbro Registry; TypeScript, React/Taro, Vitest; existing Harness and candidate backend/WeChat package scripts.
