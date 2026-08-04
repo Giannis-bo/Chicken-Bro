@@ -33,6 +33,18 @@ class ChickenbroAnswerStreamTest(unittest.TestCase):
         self.assertEqual("".join(emitted), answer)
         self.assertEqual(stream.finish()["answer"], answer)
 
+    def test_accepts_an_allowed_decimal_when_its_fraction_is_split_mid_digit(self):
+        from server.chickenbro_stream import ChickenbroAnswerStream
+
+        answer = "最高观察分数是 4326.51。"
+        stream = ChickenbroAnswerStream(allowed_numbers=["4326.51"])
+        emitted = []
+        for chunk in ('{"answer":"最高观察分数是 4326.5', '1。"}'):
+            emitted.extend(stream.feed(chunk))
+
+        self.assertEqual("".join(emitted), answer)
+        self.assertEqual(stream.finish()["answer"], answer)
+
     def test_rejects_unknown_top_level_fields_before_releasing_complete_payload(self):
         from server.chickenbro_stream import ChickenbroAnswerStream, ChickenbroStreamValidationError
 

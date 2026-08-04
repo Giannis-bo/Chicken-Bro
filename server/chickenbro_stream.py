@@ -143,7 +143,11 @@ class ChickenbroAnswerStream:
                     allow_decimal_prefix
                     and index == len(numbers) - 1
                     and answer.endswith(number)
-                    and any(allowed.startswith(f"{number}.") for allowed in self.allowed_numbers)
+                    and any(
+                        allowed.startswith(number.rstrip("%"))
+                        and allowed != number.rstrip("%")
+                        for allowed in self.allowed_numbers
+                    )
                 ):
                     continue
                 return False
