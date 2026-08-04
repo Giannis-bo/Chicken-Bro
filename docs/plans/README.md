@@ -15,6 +15,7 @@
 | 装备强化资格与已确认标记对齐 | 正在推进 | [实施计划](2026-07-29-gear-enhancement-rule-alignment.md) |
 | Manifest 装备详情与 Catalog Browse 完整性修复 | 正在推进 | [实施计划](2026-07-29-manifest-catalog-progression-display-contract.md) |
 | 装备模拟端到端完整性验证 Goal | 暂缓 | [Goal 控制计划](2026-07-29-equipment-simulator-e2e-completeness-goal.md) |
+| 装备模拟 Exact-first 与三来源 Catalog | 下一步（实施计划已形成、待执行授权） | [设计](2026-08-04-equipment-simulator-exact-first-catalog-design.md) · [实施计划](2026-08-04-equipment-simulator-exact-first-implementation.md) |
 | WebSim / stat-weight 定时同步日志有界化 | 已完成 | [实施计划](2026-07-29-sync-log-bounding.md) · [live evidence](../../artifacts/releases/2026-07-29-sync-log-bounding/evidence.json) |
 | 当前赛季 PVE 装备 Universe 与逐项差集 | 暂缓 | [实施计划](2026-07-29-season-pve-universe-reconciliation.md) |
 | 当前赛季 PVE Journal 静默遗漏门禁 | 已完成 | [实施计划](2026-07-29-season-pve-journal-omission-guard.md) · [live evidence](../../artifacts/releases/2026-07-29-season-pve-journal-omission-guard/evidence.json) |
@@ -30,7 +31,6 @@
 
 | 领域 | 状态 | 入口 |
 | --- | --- | --- |
-| 装备模拟 Exact-first 与三来源 Catalog | 下一步（设计已确认、未授权实施） | [设计](2026-08-04-equipment-simulator-exact-first-catalog-design.md) |
 | 装备模拟长期目标合同 | 已完成 | [目标架构](2026-07-28-equipment-simulator-target-architecture.md) |
 | 装备模拟 v1 基线 | 已完成 | [Phase 4 归档证据](../../artifacts/releases/2026-07-29-equipment-simulator-phase4-manifest-cutover/evidence.json) · [Track Authority 规则输入](2026-07-28-equipment-simulator-track-authority-correction.md) · [Phase 3 归档证据](../../artifacts/releases/2026-07-29-equipment-simulator-phase3-resolved-snapshot/evidence.json) · [Phase 2 归档证据](../../artifacts/releases/2026-07-29-equipment-simulator-phase2-exact-enhancement/evidence.json) · [Phase 1 归档证据](../../artifacts/releases/2026-07-29-equipment-simulator-phase1-catalog-contract/evidence.json) · [Phase 0 归档证据](../../artifacts/releases/2026-07-28-equipment-simulator-phase0-unblock/evidence.json) |
 | 炸鸡队长 Tool Registry Phase 2 基线 | 已完成 | [设计](2026-08-02-chickenbro-tool-registry-phase2-design.md) · [实施记录](2026-08-02-chickenbro-tool-registry-phase2-implementation.md) · [归档证据](../../artifacts/releases/2026-08-02-chickenbro-tool-registry-phase2/evidence.json) |
