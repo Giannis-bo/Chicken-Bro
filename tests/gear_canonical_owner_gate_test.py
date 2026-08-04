@@ -191,6 +191,9 @@ TRACK_AUTHORITY_ABSOLUTE_IMPORT = (
     "resolve_exact_instance_progression",
 )
 TRACK_AUTHORITY_OWNER_NAME = "resolve_exact_instance_progression"
+TRACK_AUTHORITY_PRODUCTION_ASSIGNMENT_SHA256 = (
+    "0c5d9ae84b8b0c5754f46be974e462a7c2235d89593c3fa6a5197b8b74ebc75d"
+)
 FROZEN_V1_DIRECT_PRIMITIVE_EXCEPTIONS = Counter((
     ("server/gear_exact_item_instance.py", "_canonical", "DUPLICATE_JSON_OWNER", "7231941be36f1e81041b1597a91a543b42f48c410be92ac9238de06fd4dc1058"),
     ("server/gear_exact_item_instance.py", "_canonical_bytes", "DUPLICATE_JSON_OWNER", "7231941be36f1e81041b1597a91a543b42f48c410be92ac9238de06fd4dc1058"),
@@ -923,18 +926,26 @@ def _bound_target_names(node: ast.AST) -> set[str]:
 
 
 class _TrackOwnerLexicalBindings(ast.NodeVisitor):
-    """Collect only bindings that can change the sealed Track owner lookup."""
+    """Collect one outer lexical binding while skipping nested code bodies."""
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        binding_name: str,
+        *,
+        approved_assignment: ast.Assign | None = None,
+    ) -> None:
+        self.binding_name = binding_name
+        self.approved_assignment = approved_assignment
         self.reasons: set[str] = set()
 
     def _record_target(self, node: ast.AST, reason: str) -> None:
-        if TRACK_AUTHORITY_OWNER_NAME in _bound_target_names(node):
+        if self.binding_name in _bound_target_names(node):
             self.reasons.add(reason)
 
     def visit_Assign(self, node: ast.Assign) -> None:
-        for target in node.targets:
-            self._record_target(target, "assign")
+        if node is not self.approved_assignment:
+            for target in node.targets:
+                self._record_target(target, "assign")
         self.visit(node.value)
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
@@ -970,7 +981,7 @@ class _TrackOwnerLexicalBindings(ast.NodeVisitor):
     visit_AsyncWith = visit_With
 
     def visit_ExceptHandler(self, node: ast.ExceptHandler) -> None:
-        if node.name == TRACK_AUTHORITY_OWNER_NAME:
+        if node.name == self.binding_name:
             self.reasons.add("except")
         if node.type is not None:
             self.visit(node.type)
@@ -984,34 +995,34 @@ class _TrackOwnerLexicalBindings(ast.NodeVisitor):
     def visit_Import(self, node: ast.Import) -> None:
         for item in node.names:
             bound_name = item.asname or item.name.split(".", 1)[0]
-            if bound_name == TRACK_AUTHORITY_OWNER_NAME:
+            if bound_name == self.binding_name:
                 self.reasons.add("import")
 
     def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
         for item in node.names:
-            if (item.asname or item.name) == TRACK_AUTHORITY_OWNER_NAME:
+            if (item.asname or item.name) == self.binding_name:
                 self.reasons.add("import")
 
     def visit_Global(self, node: ast.Global) -> None:
-        if TRACK_AUTHORITY_OWNER_NAME in node.names:
+        if self.binding_name in node.names:
             self.reasons.add("global")
 
     def visit_Nonlocal(self, node: ast.Nonlocal) -> None:
-        if TRACK_AUTHORITY_OWNER_NAME in node.names:
+        if self.binding_name in node.names:
             self.reasons.add("nonlocal")
 
     def visit_MatchAs(self, node: ast.MatchAs) -> None:
-        if node.name == TRACK_AUTHORITY_OWNER_NAME:
+        if node.name == self.binding_name:
             self.reasons.add("match")
         if node.pattern is not None:
             self.visit(node.pattern)
 
     def visit_MatchStar(self, node: ast.MatchStar) -> None:
-        if node.name == TRACK_AUTHORITY_OWNER_NAME:
+        if node.name == self.binding_name:
             self.reasons.add("match")
 
     def visit_MatchMapping(self, node: ast.MatchMapping) -> None:
-        if node.rest == TRACK_AUTHORITY_OWNER_NAME:
+        if node.rest == self.binding_name:
             self.reasons.add("match")
         self.generic_visit(node)
 
@@ -1019,7 +1030,7 @@ class _TrackOwnerLexicalBindings(ast.NodeVisitor):
         self,
         node: ast.FunctionDef | ast.AsyncFunctionDef,
     ) -> None:
-        if node.name == TRACK_AUTHORITY_OWNER_NAME:
+        if node.name == self.binding_name:
             self.reasons.add("function")
         for item in (*node.decorator_list, *node.args.defaults):
             self.visit(item)
@@ -1034,7 +1045,7 @@ class _TrackOwnerLexicalBindings(ast.NodeVisitor):
         self._visit_definition_header(node)
 
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
-        if node.name == TRACK_AUTHORITY_OWNER_NAME:
+        if node.name == self.binding_name:
             self.reasons.add("class")
         for item in (*node.decorator_list, *node.bases):
             self.visit(item)
@@ -1055,14 +1066,16 @@ class _TrackOwnerLexicalBindings(ast.NodeVisitor):
 
 
 class _TrackOwnerCallCounter(ast.NodeVisitor):
-    """Count bare Track-owner calls evaluated while defining in owner scope."""
+    """Count only extra Track-owner invocations in the outer definition."""
 
-    def __init__(self) -> None:
+    def __init__(self, approved_call: ast.Call | None) -> None:
         self.count = 0
+        self.approved_call = approved_call
 
     def visit_Call(self, node: ast.Call) -> None:
         if (
-            isinstance(node.func, ast.Name)
+            node is not self.approved_call
+            and isinstance(node.func, ast.Name)
             and node.func.id == TRACK_AUTHORITY_OWNER_NAME
         ):
             self.count += 1
@@ -1129,13 +1142,41 @@ class _TrackOwnerCallCounter(ast.NodeVisitor):
     visit_GeneratorExp = _visit_outer_comprehension_iterable
 
 
+def _track_production_assignments(
+    progression: ast.FunctionDef | None,
+) -> list[ast.Assign]:
+    if progression is None:
+        return []
+    first_try = next(
+        (node for node in progression.body if isinstance(node, ast.Try)),
+        None,
+    )
+    if first_try is None:
+        return []
+    return [
+        statement
+        for statement in first_try.body
+        if (
+            isinstance(statement, ast.Assign)
+            and len(statement.targets) == 1
+            and isinstance(statement.targets[0], ast.Name)
+            and statement.targets[0].id == "resolved"
+            and isinstance(statement.value, ast.Call)
+            and isinstance(statement.value.func, ast.Name)
+            and statement.value.func.id == TRACK_AUTHORITY_OWNER_NAME
+            and _ast_digest(statement)
+            == TRACK_AUTHORITY_PRODUCTION_ASSIGNMENT_SHA256
+        )
+    ]
+
+
 def _track_owner_scope_state(
     progression: ast.FunctionDef | None,
-) -> tuple[int, set[str]]:
+) -> tuple[int, int, set[str], set[str]]:
     if progression is None:
-        return 0, set()
+        return 0, 0, set(), set()
 
-    bindings = _TrackOwnerLexicalBindings()
+    bindings = _TrackOwnerLexicalBindings(TRACK_AUTHORITY_OWNER_NAME)
     parameters = (
         *progression.args.posonlyargs,
         *progression.args.args,
@@ -1159,11 +1200,55 @@ def _track_owner_scope_state(
     ):
         bindings.reasons.add("parameter")
 
-    calls = _TrackOwnerCallCounter()
+    production_assignments = _track_production_assignments(progression)
+    approved_assignment = (
+        production_assignments[0]
+        if len(production_assignments) == 1
+        else None
+    )
+    approved_call = (
+        approved_assignment.value
+        if approved_assignment is not None
+        and isinstance(approved_assignment.value, ast.Call)
+        else None
+    )
+    calls = _TrackOwnerCallCounter(approved_call)
+    result_bindings = _TrackOwnerLexicalBindings(
+        "resolved",
+        approved_assignment=approved_assignment,
+    )
+    result_parameters = (
+        *progression.args.posonlyargs,
+        *progression.args.args,
+        *progression.args.kwonlyargs,
+    )
+    if any(item.arg == "resolved" for item in result_parameters):
+        result_bindings.reasons.add("parameter")
+    if any(
+        getattr(item, "name", None) == "resolved"
+        for item in getattr(progression, "type_params", ())
+    ):
+        result_bindings.reasons.add("type-parameter")
+    if (
+        progression.args.vararg is not None
+        and progression.args.vararg.arg == "resolved"
+    ):
+        result_bindings.reasons.add("parameter")
+    if (
+        progression.args.kwarg is not None
+        and progression.args.kwarg.arg == "resolved"
+    ):
+        result_bindings.reasons.add("parameter")
     for statement in progression.body:
         bindings.visit(statement)
         calls.visit(statement)
-    return calls.count, bindings.reasons
+        result_bindings.visit(statement)
+    return (
+        len(production_assignments),
+        calls.count,
+        bindings.reasons,
+        result_bindings.reasons,
+    )
 
 
 def _dynamic_annotation(node: ast.AST) -> bool:
@@ -1646,27 +1731,49 @@ def _ownership_violations(
         } if progression is not None else set()
         if "canonical_slot" not in calls:
             violations.append(Violation("server/gear_exact_authority.py", "seal_exact_progression", "MISSING_PRODUCTION_OWNER_CALL", "canonical_slot"))
-        track_call_count, track_scope_bindings = _track_owner_scope_state(progression)
-        if track_call_count != 1:
+        (
+            production_call_count,
+            extra_call_count,
+            track_scope_bindings,
+            result_scope_bindings,
+        ) = _track_owner_scope_state(progression)
+        if production_call_count != 1 or extra_call_count != 0:
             violations.append(Violation(
                 "server/gear_exact_authority.py",
                 "seal_exact_progression",
                 "TRACK_AUTHORITY_CALL_INVALID",
-                f"expected=1,actual={track_call_count}",
+                (
+                    f"expected_production=1,actual={production_call_count};"
+                    f"expected_extra=0,actual={extra_call_count}"
+                ),
             ))
-            if track_call_count == 0:
+            if production_call_count == 0:
                 violations.append(Violation(
                     "server/gear_exact_authority.py",
                     "seal_exact_progression",
                     "MISSING_PRODUCTION_OWNER_CALL",
                     TRACK_AUTHORITY_OWNER_NAME,
                 ))
+        if extra_call_count:
+            violations.append(Violation(
+                "server/gear_exact_authority.py",
+                "seal_exact_progression",
+                "TRACK_AUTHORITY_EXTRA_CALL_INVALID",
+                f"expected=0,actual={extra_call_count}",
+            ))
         if track_scope_bindings:
             violations.append(Violation(
                 "server/gear_exact_authority.py",
                 "seal_exact_progression",
                 "TRACK_AUTHORITY_SCOPE_SHADOWED",
                 ",".join(sorted(track_scope_bindings)),
+            ))
+        if result_scope_bindings:
+            violations.append(Violation(
+                "server/gear_exact_authority.py",
+                "seal_exact_progression",
+                "TRACK_AUTHORITY_RESULT_BINDING_INVALID",
+                ",".join(sorted(result_scope_bindings)),
             ))
         physical = Counter(_physical_imports(authority))
         module_bindings = _module_import_bindings(
@@ -1696,8 +1803,10 @@ def _ownership_violations(
             and registered_imports[TRACK_AUTHORITY_RELATIVE_IMPORT] == 1
             and registered_imports[TRACK_AUTHORITY_ABSOLUTE_IMPORT] == 1
             and registered_pairs[expected_pair] == 1
-            and track_call_count == 1
+            and production_call_count == 1
+            and extra_call_count == 0
             and not track_scope_bindings
+            and not result_scope_bindings
         )
         if not provenance_valid:
             violations.append(Violation(
@@ -2731,15 +2840,21 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
         for label, (source, expected_count) in implicit_invocations.items():
             with self.subTest(label=label):
                 trees, registry, progression = mutation(source)
-                actual_count, _ = _track_owner_scope_state(progression)
-                self.assertEqual(expected_count, actual_count)
+                production_count, extra_count, _, _ = (
+                    _track_owner_scope_state(progression)
+                )
+                self.assertEqual(1, production_count)
+                self.assertEqual(expected_count - 1, extra_count)
                 violations = _ownership_violations(trees, registry)
                 self.assertIn(
                     Violation(
                         path,
                         "seal_exact_progression",
                         "TRACK_AUTHORITY_CALL_INVALID",
-                        f"expected=1,actual={expected_count}",
+                        (
+                            "expected_production=1,actual=1;"
+                            f"expected_extra=0,actual={expected_count - 1}"
+                        ),
                     ),
                     violations,
                     _formatted(violations),
@@ -2762,8 +2877,11 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
         for label, source in reference_only.items():
             with self.subTest(label=label):
                 trees, registry, progression = mutation(source)
-                actual_count, _ = _track_owner_scope_state(progression)
-                self.assertEqual(1, actual_count)
+                production_count, extra_count, _, _ = (
+                    _track_owner_scope_state(progression)
+                )
+                self.assertEqual(1, production_count)
+                self.assertEqual(0, extra_count)
                 violations = _ownership_violations(trees, registry)
                 self.assertNotIn(
                     "TRACK_AUTHORITY_CALL_INVALID",
@@ -2775,17 +2893,399 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
             trees, registry, progression = mutation(
                 f"@{owner_name}()\ndef nested():\n    pass"
             )
-            actual_count, _ = _track_owner_scope_state(progression)
-            self.assertEqual(2, actual_count)
+            production_count, extra_count, _, _ = (
+                _track_owner_scope_state(progression)
+            )
+            self.assertEqual(1, production_count)
+            self.assertEqual(1, extra_count)
             violations = _ownership_violations(trees, registry)
             self.assertIn(
                 Violation(
                     path,
                     "seal_exact_progression",
                     "TRACK_AUTHORITY_CALL_INVALID",
-                    "expected=1,actual=2",
+                    (
+                        "expected_production=1,actual=1;"
+                        "expected_extra=0,actual=1"
+                    ),
                 ),
                 violations,
+                _formatted(violations),
+            )
+
+    def test_track_authority_extra_invocation_cannot_replace_production_assignment(self):
+        path = "server/gear_exact_authority.py"
+        owner_name = TRACK_AUTHORITY_OWNER_NAME
+        extra_sources = {
+            "bare function decorator": (
+                f"@{owner_name}\ndef nested():\n    pass"
+            ),
+            "bare metaclass": (
+                f"class Nested(metaclass={owner_name}):\n    pass"
+            ),
+            "decorator factory": (
+                f"@{owner_name}()\ndef nested():\n    pass"
+            ),
+            "nested default": (
+                f"def nested(value={owner_name}()):\n    pass"
+            ),
+            "lambda default": (
+                f"handler = lambda value={owner_name}(): value"
+            ),
+            "class base call": (
+                f"class Nested({owner_name}()):\n    pass"
+            ),
+            "comprehension first iterable": (
+                f"items = [value for value in {owner_name}()]"
+            ),
+            "class body call": (
+                f"class Nested:\n    field = {owner_name}()"
+            ),
+        }
+
+        for label, source in extra_sources.items():
+            with self.subTest(label=label):
+                trees = copy.deepcopy(TREES)
+                progression = next(
+                    node for node in trees[path].body
+                    if isinstance(node, ast.FunctionDef)
+                    and node.name == "seal_exact_progression"
+                )
+                production_call = next(
+                    node for node in ast.walk(progression)
+                    if isinstance(node, ast.Call)
+                    and isinstance(node.func, ast.Name)
+                    and node.func.id == owner_name
+                )
+                production_call.func.id = "hidden_owner"
+                progression.body[0:0] = ast.parse(source).body
+
+                violations = _ownership_violations(trees, REGISTRY)
+                codes = _codes(violations)
+                self.assertIn(
+                    "MISSING_PRODUCTION_OWNER_CALL",
+                    codes,
+                    _formatted(violations),
+                )
+                self.assertIn(
+                    "TRACK_AUTHORITY_EXTRA_CALL_INVALID",
+                    codes,
+                    _formatted(violations),
+                )
+                self.assertIn(
+                    "TRACK_AUTHORITY_PROVENANCE_INVALID",
+                    codes,
+                    _formatted(violations),
+                )
+
+    def test_track_authority_deleted_production_assignment_is_not_satisfied_by_extra_invocation(self):
+        path = "server/gear_exact_authority.py"
+        owner_name = TRACK_AUTHORITY_OWNER_NAME
+        extra_sources = {
+            "bare decorator": f"@{owner_name}\ndef nested():\n    pass",
+            "bare metaclass": f"class Nested(metaclass={owner_name}):\n    pass",
+            "decorator factory": f"@{owner_name}()\ndef nested():\n    pass",
+            "nested default": f"def nested(value={owner_name}()):\n    pass",
+            "class base call": f"class Nested({owner_name}()):\n    pass",
+            "lambda default": f"handler = lambda value={owner_name}(): value",
+            "comprehension first iterable": (
+                f"items = [value for value in {owner_name}()]"
+            ),
+            "class body call": f"class Nested:\n    field = {owner_name}()",
+        }
+
+        for label, source in extra_sources.items():
+            with self.subTest(label=label):
+                trees = copy.deepcopy(TREES)
+                progression = next(
+                    node for node in trees[path].body
+                    if isinstance(node, ast.FunctionDef)
+                    and node.name == "seal_exact_progression"
+                )
+                owner_statement = next(
+                    node for node in ast.walk(progression)
+                    if isinstance(node, ast.Assign)
+                    and any(
+                        isinstance(target, ast.Name) and target.id == "resolved"
+                        for target in node.targets
+                    )
+                    and isinstance(node.value, ast.Call)
+                    and isinstance(node.value.func, ast.Name)
+                    and node.value.func.id == owner_name
+                )
+                first_try = next(
+                    node for node in progression.body if isinstance(node, ast.Try)
+                )
+                first_try.body.remove(owner_statement)
+                progression.body[0:0] = ast.parse(source).body
+
+                violations = _ownership_violations(trees, REGISTRY)
+                codes = _codes(violations)
+                self.assertIn(
+                    "MISSING_PRODUCTION_OWNER_CALL",
+                    codes,
+                    _formatted(violations),
+                )
+                self.assertIn(
+                    "TRACK_AUTHORITY_EXTRA_CALL_INVALID",
+                    codes,
+                    _formatted(violations),
+                )
+                self.assertIn(
+                    "TRACK_AUTHORITY_PROVENANCE_INVALID",
+                    codes,
+                    _formatted(violations),
+                )
+
+    def test_track_authority_production_assignment_role_and_result_binding_are_exact(self):
+        path = "server/gear_exact_authority.py"
+        owner_name = TRACK_AUTHORITY_OWNER_NAME
+
+        def mutation() -> tuple[
+            dict[str, ast.Module],
+            ast.FunctionDef,
+            ast.Try,
+            ast.Assign,
+        ]:
+            trees = copy.deepcopy(TREES)
+            progression = next(
+                node for node in trees[path].body
+                if isinstance(node, ast.FunctionDef)
+                and node.name == "seal_exact_progression"
+            )
+            first_try = next(
+                node for node in progression.body if isinstance(node, ast.Try)
+            )
+            owner_statement = next(
+                node for node in first_try.body
+                if isinstance(node, ast.Assign)
+                and len(node.targets) == 1
+                and isinstance(node.targets[0], ast.Name)
+                and node.targets[0].id == "resolved"
+                and isinstance(node.value, ast.Call)
+                and isinstance(node.value.func, ast.Name)
+                and node.value.func.id == owner_name
+            )
+            return trees, progression, first_try, owner_statement
+
+        for label, replacement in (
+            (
+                "wrong assignment target",
+                lambda statement: setattr(statement.targets[0], "id", "other"),
+            ),
+            (
+                "attribute owner call",
+                lambda statement: setattr(
+                    statement.value,
+                    "func",
+                    ast.Attribute(
+                        value=ast.Name(id="hidden", ctx=ast.Load()),
+                        attr=owner_name,
+                        ctx=ast.Load(),
+                    ),
+                ),
+            ),
+        ):
+            with self.subTest(label=label):
+                trees, _, _, owner_statement = mutation()
+                replacement(owner_statement)
+                violations = _ownership_violations(trees, REGISTRY)
+                self.assertIn(
+                    "MISSING_PRODUCTION_OWNER_CALL",
+                    _codes(violations),
+                    _formatted(violations),
+                )
+                if label == "wrong assignment target":
+                    self.assertIn(
+                        "TRACK_AUTHORITY_EXTRA_CALL_INVALID",
+                        _codes(violations),
+                        _formatted(violations),
+                    )
+
+        with self.subTest(label="expression call is only an extra invocation"):
+            trees, _, first_try, owner_statement = mutation()
+            index = first_try.body.index(owner_statement)
+            first_try.body[index] = ast.Expr(value=owner_statement.value)
+            violations = _ownership_violations(trees, REGISTRY)
+            self.assertIn(
+                "MISSING_PRODUCTION_OWNER_CALL",
+                _codes(violations),
+                _formatted(violations),
+            )
+            self.assertIn(
+                "TRACK_AUTHORITY_EXTRA_CALL_INVALID",
+                _codes(violations),
+                _formatted(violations),
+            )
+
+        for label, wrapper in (
+            (
+                "nested function",
+                lambda statement: ast.FunctionDef(
+                    name="nested",
+                    args=ast.arguments(
+                        posonlyargs=[], args=[], kwonlyargs=[], kw_defaults=[],
+                        defaults=[], vararg=None, kwarg=None,
+                    ),
+                    body=[statement],
+                    decorator_list=[],
+                ),
+            ),
+            (
+                "dead branch",
+                lambda statement: ast.If(
+                    test=ast.Constant(value=False),
+                    body=[statement],
+                    orelse=[],
+                ),
+            ),
+        ):
+            with self.subTest(label=f"production assignment moved to {label}"):
+                trees, _, first_try, owner_statement = mutation()
+                index = first_try.body.index(owner_statement)
+                first_try.body[index] = wrapper(owner_statement)
+                violations = _ownership_violations(trees, REGISTRY)
+                self.assertIn(
+                    "MISSING_PRODUCTION_OWNER_CALL",
+                    _codes(violations),
+                    _formatted(violations),
+                )
+
+        for label, source in (
+            ("second assignment", "resolved = hidden"),
+            ("destructuring assignment", "resolved, other = pair"),
+            ("hidden overwrite", "resolved = hidden()"),
+            ("annotated binding", "resolved: object"),
+            ("augmented binding", "resolved += hidden"),
+            ("walrus binding", "if (resolved := hidden):\n    pass"),
+            ("for binding", "for resolved in values:\n    pass"),
+            ("with binding", "with manager as resolved:\n    pass"),
+            ("except binding", "try:\n    pass\nexcept Exception as resolved:\n    pass"),
+            ("match binding", "match value:\n    case {'resolved': resolved}:\n        pass"),
+            ("delete binding", "del resolved"),
+            ("import binding", "from hidden import value as resolved"),
+            ("function binding", "def resolved():\n    pass"),
+            ("class binding", "class resolved:\n    pass"),
+            ("global binding", "global resolved"),
+            ("nonlocal binding", "nonlocal resolved"),
+        ):
+            with self.subTest(label=label):
+                trees, _, first_try, owner_statement = mutation()
+                index = first_try.body.index(owner_statement)
+                first_try.body[index + 1:index + 1] = ast.parse(source).body
+                violations = _ownership_violations(trees, REGISTRY)
+                self.assertIn(
+                    "TRACK_AUTHORITY_RESULT_BINDING_INVALID",
+                    _codes(violations),
+                    _formatted(violations),
+                )
+
+        parameter_mutations = {
+            "posonly parameter": lambda arguments: arguments.posonlyargs.append(
+                ast.arg(arg="resolved")
+            ),
+            "positional parameter": lambda arguments: arguments.args.append(
+                ast.arg(arg="resolved")
+            ),
+            "keyword-only parameter": lambda arguments: (
+                arguments.kwonlyargs.append(ast.arg(arg="resolved")),
+                arguments.kw_defaults.append(None),
+            ),
+            "variadic parameter": lambda arguments: setattr(
+                arguments, "vararg", ast.arg(arg="resolved")
+            ),
+            "keyword variadic parameter": lambda arguments: setattr(
+                arguments, "kwarg", ast.arg(arg="resolved")
+            ),
+        }
+        for label, mutate_arguments in parameter_mutations.items():
+            with self.subTest(label=label):
+                trees, progression, _, _ = mutation()
+                mutate_arguments(progression.args)
+                violations = _ownership_violations(trees, REGISTRY)
+                self.assertIn(
+                    "TRACK_AUTHORITY_RESULT_BINDING_INVALID",
+                    _codes(violations),
+                    _formatted(violations),
+                )
+
+        type_var = getattr(ast, "TypeVar", None)
+        if type_var is not None:
+            with self.subTest(label="type parameter"):
+                trees, progression, _, _ = mutation()
+                getattr(progression, "type_params").append(
+                    type_var(name="resolved")
+                )
+                violations = _ownership_violations(trees, REGISTRY)
+                self.assertIn(
+                    "TRACK_AUTHORITY_RESULT_BINDING_INVALID",
+                    _codes(violations),
+                    _formatted(violations),
+                )
+
+        with self.subTest(label="duplicate approved assignment"):
+            trees, _, first_try, owner_statement = mutation()
+            first_try.body.insert(
+                first_try.body.index(owner_statement) + 1,
+                copy.deepcopy(owner_statement),
+            )
+            violations = _ownership_violations(trees, REGISTRY)
+            self.assertIn(
+                "TRACK_AUTHORITY_CALL_INVALID",
+                _codes(violations),
+                _formatted(violations),
+            )
+
+        with self.subTest(label="legitimate production plus extra is invalid"):
+            trees, progression, _, _ = mutation()
+            progression.body.insert(0, ast.Expr(value=ast.Call(
+                func=ast.Name(id=owner_name, ctx=ast.Load()),
+                args=[],
+                keywords=[],
+            )))
+            violations = _ownership_violations(trees, REGISTRY)
+            self.assertIn(
+                "TRACK_AUTHORITY_EXTRA_CALL_INVALID",
+                _codes(violations),
+                _formatted(violations),
+            )
+
+        with self.subTest(label="nested decoy cannot satisfy hidden production"):
+            trees, progression, _, owner_statement = mutation()
+            owner_statement.value.func.id = "hidden_owner"
+            nested_statement = copy.deepcopy(owner_statement)
+            nested_statement.value.func.id = owner_name
+            progression.body.insert(0, ast.FunctionDef(
+                name="nested",
+                args=ast.arguments(
+                    posonlyargs=[], args=[], kwonlyargs=[], kw_defaults=[],
+                    defaults=[], vararg=None, kwarg=None,
+                ),
+                body=[nested_statement],
+                decorator_list=[],
+            ))
+            violations = _ownership_violations(trees, REGISTRY)
+            self.assertIn(
+                "MISSING_PRODUCTION_OWNER_CALL",
+                _codes(violations),
+                _formatted(violations),
+            )
+
+        with self.subTest(label="current production statement is exact"):
+            violations = _ownership_violations(copy.deepcopy(TREES), REGISTRY)
+            self.assertNotIn(
+                "MISSING_PRODUCTION_OWNER_CALL",
+                _codes(violations),
+                _formatted(violations),
+            )
+            self.assertNotIn(
+                "TRACK_AUTHORITY_EXTRA_CALL_INVALID",
+                _codes(violations),
+                _formatted(violations),
+            )
+            self.assertNotIn(
+                "TRACK_AUTHORITY_RESULT_BINDING_INVALID",
+                _codes(violations),
                 _formatted(violations),
             )
 
