@@ -35,7 +35,7 @@ TASK_3A_VERIFIED_CHECKS = (
     "canonical_hash_and_json_projection",
     "six_kind_schema_prefix_closed_matrix",
     "seven_exact_foreign_keys",
-    "aggregate_and_bundle_binding_triggers",
+    "binding_trigger_first_missing_effect_documents_and_bundle_bindings",
     "three_table_update_delete_truncate_immutability",
     "wow_app_explicit_and_effective_select_only_acl",
     "whole_bundle_typed_readback",
@@ -134,7 +134,7 @@ class Task3ACandidateAttestationTest(unittest.TestCase):
             "canonical_hash_and_json_projection",
             "six_kind_schema_prefix_closed_matrix",
             "seven_exact_foreign_keys",
-            "aggregate_and_bundle_binding_triggers",
+            "binding_trigger_first_missing_effect_documents_and_bundle_bindings",
             "three_table_update_delete_truncate_immutability",
             "wow_app_explicit_and_effective_select_only_acl",
             "whole_bundle_typed_readback",
@@ -192,6 +192,34 @@ class Task3ACandidateAttestationTest(unittest.TestCase):
             [(keyword.arg, getattr(keyword.value, "value", None))
              for keyword in final.value.keywords],
             [("flush", True)],
+        )
+
+    def test_missing_effect_documents_are_binding_trigger_first_not_fk_runtime(self):
+        import inspect
+
+        source = inspect.getsource(
+            PostgresExactAuthorityCandidateTest.
+            _assert_missing_effect_documents_fail_binding_trigger_first,
+        )
+        self.assertIn('sqlstate="P0001"', source)
+        self.assertNotIn('sqlstate="23503"', source)
+        migration = (
+            ROOT / "server" / "migrations" / "postgres"
+            / "0026_websim_exact_authority_bundle.sql"
+        ).read_text(encoding="utf-8")
+        normalized = " ".join(migration.split())
+        self.assertIn(
+            "CREATE TRIGGER trg_websim_effect_aggregate_record_binding "
+            "BEFORE INSERT ON cache.websim_effect_aggregate_records",
+            normalized,
+        )
+        self.assertIn(
+            "binding_trigger_first_missing_effect_documents_and_bundle_bindings",
+            TASK_3A_VERIFIED_CHECKS,
+        )
+        self.assertNotIn(
+            "aggregate_and_bundle_binding_triggers",
+            TASK_3A_VERIFIED_CHECKS,
         )
 
 
@@ -614,6 +642,21 @@ class PostgresExactAuthorityCandidateTest(unittest.TestCase):
                 sqlstate="P0001",
             )
 
+    def _assert_missing_effect_documents_fail_binding_trigger_first(self, dsn):
+        # The BEFORE INSERT binding trigger reads both documents first and raises
+        # P0001 for missing kinds. The seven FK definitions are proven separately
+        # by _assert_exact_foreign_key_catalog; this probe is not an FK violation.
+        self._assert_sqlstate_rejected(
+            dsn,
+            "INSERT INTO cache.websim_effect_aggregate_records "
+            "(effect_support_key, ordinal, effect_record_key) VALUES (%s, 0, %s)",
+            (
+                "simc-item-effect-support:sha256:" + "1" * 64,
+                "simc-item-effect-record:sha256:" + "2" * 64,
+            ),
+            sqlstate="P0001",
+        )
+
     def _assert_grants_and_bundle_smoke(self, dsn):
         from tests.gear_exact_authority_store_test import authority_bundle
 
@@ -659,16 +702,7 @@ class PostgresExactAuthorityCandidateTest(unittest.TestCase):
                 )
                 self.assertEqual(cur.fetchone()[0], 1)
         sealed = self._assert_absent_row_reverse_shared_record_concurrency(dsn)
-        self._assert_sqlstate_rejected(
-            dsn,
-            "INSERT INTO cache.websim_effect_aggregate_records "
-            "(effect_support_key, ordinal, effect_record_key) VALUES (%s, 0, %s)",
-            (
-                "simc-item-effect-support:sha256:" + "1" * 64,
-                "simc-item-effect-record:sha256:" + "2" * 64,
-            ),
-            sqlstate="23503",
-        )
+        self._assert_missing_effect_documents_fail_binding_trigger_first(dsn)
         self._assert_sqlstate_rejected(
             dsn,
             "INSERT INTO cache.websim_effect_aggregate_records "

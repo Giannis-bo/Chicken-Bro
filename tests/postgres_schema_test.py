@@ -132,10 +132,34 @@ def exact_authority_schema_violations(sql, migrations):
         if normalized.count(clause) != 1:
             violations.append(f"binding trigger {clause.split()[2]}")
 
-    aggregate_function = _sql_section(
-        sql,
-        "CREATE OR REPLACE FUNCTION cache.verify_websim_effect_aggregate_record_insert()",
-        "$function$;",
+    function_names = (
+        "cache.verify_websim_effect_aggregate_record_insert",
+        "cache.verify_websim_exact_authority_bundle_insert",
+        "cache.reject_websim_exact_authority_mutation",
+    )
+    function_sections = {}
+    for function_name in function_names:
+        marker = f"CREATE OR REPLACE FUNCTION {function_name}()"
+        try:
+            section = _sql_section(sql, marker, "$function$;")
+        except ValueError:
+            violations.append(f"missing function {function_name}")
+            continue
+        function_sections[function_name] = section
+        declaration = _normalized(f"""
+            CREATE OR REPLACE FUNCTION {function_name}()
+            RETURNS trigger
+            LANGUAGE plpgsql
+            SECURITY INVOKER
+            SET search_path = pg_catalog, pg_temp
+            AS $function$
+        """)
+        if section.count(declaration) != 1:
+            violations.append(f"exact function declaration {function_name}")
+
+    aggregate_function = function_sections.get(
+        "cache.verify_websim_effect_aggregate_record_insert",
+        "",
     )
     aggregate_predicates = (
         "aggregate_kind IS DISTINCT FROM 'effect_aggregate'",
@@ -148,10 +172,9 @@ def exact_authority_schema_violations(sql, migrations):
         if aggregate_function.count(predicate) != 1:
             violations.append(f"aggregate binding {predicate}")
 
-    bundle_function = _sql_section(
-        sql,
-        "CREATE OR REPLACE FUNCTION cache.verify_websim_exact_authority_bundle_insert()",
-        "$function$;",
+    bundle_function = function_sections.get(
+        "cache.verify_websim_exact_authority_bundle_insert",
+        "",
     )
     bundle_predicates = (
         "envelope_kind IS DISTINCT FROM 'exact_authority'",
@@ -175,6 +198,26 @@ def exact_authority_schema_violations(sql, migrations):
     for predicate in bundle_predicates:
         if bundle_function.count(predicate) != 1:
             violations.append(f"bundle binding {predicate}")
+
+    authority_tables = (
+        "cache.websim_canonical_documents, "
+        "cache.websim_effect_aggregate_records, "
+        "cache.websim_exact_authority_bundles"
+    )
+    acl_contract = (
+        f"REVOKE ALL ON {authority_tables} FROM PUBLIC;",
+        f"REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON {authority_tables} FROM wow_app;",
+        f"GRANT SELECT ON {authority_tables} TO wow_app;",
+    )
+    for clause in acl_contract:
+        if normalized.count(clause) != 1:
+            violations.append(f"exact authority ACL {clause.split()[0]}")
+    if normalized.count("REVOKE ALL ON") != 1:
+        violations.append("PUBLIC revoke ACL universe")
+    if normalized.count("REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON") != 1:
+        violations.append("wow_app write revoke ACL universe")
+    if normalized.count("GRANT SELECT ON") != 1:
+        violations.append("wow_app select grant ACL universe")
 
     migration_names = [name for name, _ in migrations]
     if migration_names.count("0026_websim_exact_authority_bundle.sql") != 1:
@@ -275,6 +318,28 @@ class PostgresSchemaTest(unittest.TestCase):
             ),
             [],
         )
+        acl_tables = (
+            "    cache.websim_canonical_documents,\n"
+            "    cache.websim_effect_aggregate_records,\n"
+            "    cache.websim_exact_authority_bundles"
+        )
+        acl_starts = tuple(
+            match.start()
+            for match in re.finditer(
+                re.escape(acl_tables),
+                self.websim_exact_authority_bundle_sql,
+            )
+        )
+        self.assertEqual(len(acl_starts), 3)
+
+        def shrink_acl(index):
+            start = acl_starts[index]
+            return (
+                self.websim_exact_authority_bundle_sql[:start]
+                + "    cache.websim_canonical_documents"
+                + self.websim_exact_authority_bundle_sql[start + len(acl_tables):]
+            )
+
         mutations = (
             self.websim_exact_authority_bundle_sql.replace(
                 "effect_record_key text NOT NULL",
@@ -296,12 +361,54 @@ class PostgresSchemaTest(unittest.TestCase):
                 "document_kind = 'unknown_authority'",
                 1,
             ),
+            self.websim_exact_authority_bundle_sql.replace(
+                "SET search_path = pg_catalog, pg_temp",
+                "",
+                1,
+            ),
+            self.websim_exact_authority_bundle_sql.replace(
+                "SECURITY INVOKER",
+                "",
+                1,
+            ),
+            shrink_acl(0),
+            shrink_acl(1),
+            shrink_acl(2),
         )
         for mutated in mutations:
             with self.subTest(mutated=mutated[:80]):
                 self.assertTrue(
                     exact_authority_schema_violations(mutated, migrations),
                 )
+        for function_name in (
+            "cache.verify_websim_effect_aggregate_record_insert",
+            "cache.verify_websim_exact_authority_bundle_insert",
+            "cache.reject_websim_exact_authority_mutation",
+        ):
+            start = self.websim_exact_authority_bundle_sql.index(
+                f"CREATE OR REPLACE FUNCTION {function_name}()",
+            )
+            end = self.websim_exact_authority_bundle_sql.index(
+                "$function$;",
+                start,
+            )
+            function_sql = self.websim_exact_authority_bundle_sql[start:end]
+            for clause in (
+                "LANGUAGE plpgsql",
+                "SECURITY INVOKER",
+                "SET search_path = pg_catalog, pg_temp",
+            ):
+                with self.subTest(function=function_name, clause=clause):
+                    self.assertIn(clause, function_sql)
+                    mutated_function = function_sql.replace(clause, "", 1)
+                    mutated = (
+                        self.websim_exact_authority_bundle_sql[:start]
+                        + mutated_function
+                        + self.websim_exact_authority_bundle_sql[end:]
+                    )
+                    self.assertTrue(
+                        exact_authority_schema_violations(mutated, migrations),
+                    )
         duplicate_identity = migrations + ((
             "9999_duplicate.sql",
             "SELECT '0026_websim_exact_authority_bundle';",
