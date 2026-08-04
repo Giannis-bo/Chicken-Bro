@@ -28,6 +28,7 @@ _REQUEST_INTENT_FIELDS = {
     "wclReport",
     "evidenceNeeds",
     "scenarioKey",
+    "comparisonScope",
 }
 _REQUEST_CONTEXT_FIELDS = {"region", "productPhase", "patchVersion", "questionType", "classKey", "specKey", "scenarioKey"}
 _TOOL_RESULT_FIELDS = {

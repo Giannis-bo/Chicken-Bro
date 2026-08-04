@@ -850,6 +850,64 @@ class ChickenbroAgentIntentTest(unittest.TestCase):
         self.assertIn("同口径", events[0]["text"])
         self.assertNotIn("没有数据", events[0]["text"])
 
+    def test_streamed_cross_spec_strength_request_does_not_reuse_a_prior_subject_source(self):
+        bounded_context = backend.build_chickenbro_bounded_context(
+            "给我当前全职业 DPS 横向排名",
+            {},
+            history=[
+                {"role": "user", "content": "元素萨现在版本大秘境强度如何？"},
+                {"role": "assistant", "content": "元素萨在同职责高层样本中的趋势已返回。"},
+                {"role": "user", "content": "排第一的是啥呢？"},
+                {"role": "assistant", "content": "这是同职责高层样本中的领先条目。"},
+            ],
+            source_tool_results={
+                "sourceToolResults": [{
+                    "sourceKey": "raiderio_strength",
+                    "status": "source_reference",
+                    "facts": [{"summary": "Current Elemental Shaman high-key signal.", "highKeySignal": {
+                        "bestObservedScore": 4326.51,
+                        "sameRolePlacement": 15,
+                        "sameRolePopulation": 27,
+                        "maxKeyLevel": 24,
+                        "sampleCount": 100,
+                    }}],
+                    "evidence": [{"id": "raiderio-strength:shaman:elemental:mythic_plus", "checkedAt": "2099-08-01T10:00:00+00:00"}],
+                    "evidenceRefs": ["raiderio-strength:shaman:elemental:mythic_plus"],
+                    "allowedNumbers": ["4326.51", "15", "27", "24", "100"],
+                    "limitations": ["same-role high-key samples are not a universal tier list"],
+                    "nextActions": [],
+                }],
+                "registryContext": {
+                    "status": "verified",
+                    "registryVersion": "chickenbro-tools-3",
+                    "registryReleaseHash": "sha256:" + "1" * 64,
+                    "registrySource": "postgres",
+                    "discoveredCapabilityIds": ["source:raiderio-strength:v1"],
+                    "selectedCapabilityIds": ["source:raiderio-strength:v1"],
+                },
+            },
+        )
+
+        stream = backend.run_chickenbro_agent_stream(
+            bounded_context,
+            stream_runner=lambda *_args, **_kwargs: (_ for _ in ()).throw(
+                AssertionError("cross-spec strength request must not call the model")
+            ),
+        )
+        events = []
+        while True:
+            try:
+                events.append(next(stream))
+            except StopIteration as stop:
+                result = stop.value
+                break
+
+        self.assertEqual("cross_spec", bounded_context["questionFrame"]["comparisonScope"])
+        self.assertEqual(["comparative_strength_signal"], bounded_context["capabilityPlan"]["unmetEvidenceNeeds"])
+        self.assertEqual("deterministic_evidence_boundary", result["answer"]["answerSource"])
+        self.assertIn("不能给出全职业 DPS 排名", events[0]["text"])
+        self.assertNotIn("15/27", events[0]["text"])
+
     def test_streamed_strength_ratio_follow_up_fallback_explains_the_dynamic_ratio(self):
         bounded_context = backend.build_chickenbro_bounded_context(
             "解读一下2/12是啥意思？",

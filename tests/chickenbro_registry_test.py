@@ -327,6 +327,47 @@ class ChickenbroRegistryTest(unittest.TestCase):
             result["selectedCapabilityIds"],
         )
 
+    def test_cross_spec_strength_request_does_not_select_a_subject_bound_comparator(self):
+        rio = community_strength_manifest(
+            "source:raiderio-strength:v1",
+            "chickenbro.source.raiderio_strength.v1",
+            "raiderio_strength",
+        )
+        wcl = community_strength_manifest(
+            "source:warcraftlogs-public-rankings:v1",
+            "chickenbro.source.warcraftlogs_public_rankings.v1",
+            "warcraftlogs_public_rankings",
+        )
+        release = signed_release(
+            [signed_manifest(), wcl_manifest(), current_sources_manifest(), rio, wcl],
+            registryVersion="chickenbro-tools-3",
+            provenance={"kind": "repository_migration", "revision": "0027"},
+        )
+
+        result = discover_chickenbro_capabilities(
+            release,
+            {
+                "kind": "current_research",
+                "questionType": "current_research",
+                "productPhase": "retail",
+                "classKey": "shaman",
+                "specKey": "elemental",
+                "scenarioKey": "mythic_plus",
+                "comparisonScope": "cross_spec",
+                "evidenceNeeds": ["comparative_strength_signal"],
+            },
+            {
+                "region": "cn",
+                "productPhase": "retail",
+                "classKey": "shaman",
+                "specKey": "elemental",
+                "questionType": "current_research",
+                "scenarioKey": "mythic_plus",
+            },
+        )
+
+        self.assertEqual([], result["selectedCapabilityIds"])
+
     def test_mythic_plus_sources_are_not_discovered_for_a_raid_question(self):
         rio = community_strength_manifest(
             "source:raiderio-strength:v1",

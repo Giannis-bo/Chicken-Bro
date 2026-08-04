@@ -23,6 +23,7 @@ def classify_chickenbro_request(message, history):
         "classKey": subject["classKey"],
         "specKey": subject["specKey"],
         "scenarioKey": scope["scenarioKey"],
+        "comparisonScope": frame.get("comparisonScope") or "subject",
         "wclReport": "" if not has_wcl_report else text,
         "patchVersion": scope["patchVersion"],
         "evidenceNeeds": list(frame["evidenceNeeds"]),

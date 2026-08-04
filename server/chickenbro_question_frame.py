@@ -32,6 +32,11 @@ _CURRENT_RESEARCH_MARKERS = (
 _COMPARATIVE_STRENGTH_MARKERS = ("强度", "最强", "排行", "排名", "tier", "表现")
 _CURRENT_CHANGE_MARKERS = ("改动", "调整", "buff", "nerf")
 _COMMUNITY_BUILD_MARKERS = ("天赋", "属性", "装备", "配装", "build", "talent", "哪里获取")
+_CROSS_SPEC_COMPARISON_PATTERN = re.compile(
+    r"(?:全(?:职|专)业|所有职业|跨(?:职|专)业|职业总览).{0,16}(?:dps|排名|排行|强度|tier)"
+    r"|(?:dps|排名|排行|强度|tier).{0,16}(?:全(?:职|专)业|所有职业|跨(?:职|专)业|职业总览)",
+    re.IGNORECASE,
+)
 _EVIDENCE_RATIO_FOLLOW_UP_PATTERN = re.compile(r"(?<!\d)\d{1,6}\s*/\s*\d{1,6}(?!\d)")
 _EVIDENCE_LEADER_FOLLOW_UP_PATTERN = re.compile(
     r"(?:排(?:名)?\s*第?\s*一|第\s*一(?:名)?\s*(?:是|为)?\s*(?:谁|啥|什么)|(?:谁|啥|什么).*?(?:排(?:名)?\s*第?\s*一|第\s*一(?:名)?))"
@@ -180,6 +185,10 @@ def _scenario(*texts):
     return ""
 
 
+def _comparison_scope(text):
+    return "cross_spec" if _CROSS_SPEC_COMPARISON_PATTERN.search(_normalized_text(text)) else "subject"
+
+
 def _question_type(message, history, subject, product_phase):
     normalized = _normalized_text(message)
     if _WCL_REPORT_PATTERN.search(normalized):
@@ -261,8 +270,9 @@ def build_chickenbro_question_frame(message, history):
     """Return the safe, deterministic planning frame for one player question."""
     text = str(message or "").strip()
     history_texts = _recent_user_history(history)
+    comparison_scope = _comparison_scope(text)
     subject = _resolve_subject(text)
-    if subject["resolution"] == "unresolved":
+    if subject["resolution"] == "unresolved" and comparison_scope != "cross_spec":
         for previous_text in reversed(history_texts):
             subject = _resolve_subject(previous_text)
             if subject["resolution"] != "unresolved":
@@ -275,7 +285,7 @@ def build_chickenbro_question_frame(message, history):
     scenario_key = _scenario(text, *reversed(history_texts))
     question_type = _question_type(text, history_texts, subject, product_phase)
     unresolved = []
-    if subject["resolution"] != "resolved":
+    if subject["resolution"] != "resolved" and comparison_scope != "cross_spec":
         unresolved.append("subject")
     if question_type == "current_research" and not scenario_key:
         unresolved.append("scenarioKey")
@@ -283,6 +293,7 @@ def build_chickenbro_question_frame(message, history):
         "schemaRevision": _QUESTION_FRAME_REVISION,
         "questionType": question_type,
         "subject": subject,
+        "comparisonScope": comparison_scope,
         "scope": {
             "productPhase": product_phase,
             "patchVersion": patch_version,

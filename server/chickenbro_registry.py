@@ -256,6 +256,7 @@ def discover_chickenbro_capabilities(release, request_intent, request_context):
     product_phase = str(intent.get("productPhase") or context.get("productPhase") or "").strip().lower()
     region = str(context.get("region") or "").strip().lower()
     scenario_key = str(context.get("scenarioKey") or intent.get("scenarioKey") or "").strip().lower()
+    comparison_scope = str(intent.get("comparisonScope") or "subject").strip().lower()
     candidates = []
     missing_fields = []
     for manifest in validated["manifests"]:
@@ -268,6 +269,8 @@ def discover_chickenbro_capabilities(release, request_intent, request_context):
             for item in (intent.get("evidenceNeeds") or [])
             if str(item).strip()
         }
+        if comparison_scope == "cross_spec" and "comparative_strength_signal" in required_evidence:
+            continue
         if required_evidence and not required_evidence.issubset(supplied_evidence):
             continue
         required_missing = [

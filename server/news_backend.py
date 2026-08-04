@@ -7740,6 +7740,7 @@ def chickenbro_capability_plan(question_frame, registry_context, source_evidence
         for item in registry.get("selectedCapabilityIds") or []
         if str(item).strip()
     ]
+    cross_spec_comparison = str(frame.get("comparisonScope") or "").strip().lower() == "cross_spec"
     satisfied = set()
     for source in source_evidence if isinstance(source_evidence, (list, tuple)) else []:
         if not isinstance(source, dict):
@@ -7749,6 +7750,8 @@ def chickenbro_capability_plan(question_frame, registry_context, source_evidence
             continue
         source_key = str(source.get("sourceKey") or "").strip().lower()
         for evidence_need in _CHICKENBRO_SOURCE_EVIDENCE.get(source_key, set()):
+            if cross_spec_comparison and evidence_need == "comparative_strength_signal":
+                continue
             capability_id = next(
                 (
                     item
@@ -8298,11 +8301,6 @@ _MANUAL_COMMUNITY_LOOKUP_PATTERN = re.compile(
     re.IGNORECASE,
 )
 _EVIDENCE_RATIO_REFERENCE_PATTERN = re.compile(r"(?<!\d)\d{1,6}\s*/\s*\d{1,6}(?!\d)")
-_CROSS_SPEC_COMPARATIVE_SCOPE_PATTERN = re.compile(
-    r"(?:全(?:职|专)业|所有职业|跨(?:职|专)业|职业总览).{0,16}(?:dps|排名|排行|强度|tier)"
-    r"|(?:dps|排名|排行|强度|tier).{0,16}(?:全(?:职|专)业|所有职业|跨(?:职|专)业|职业总览)",
-    re.IGNORECASE,
-)
 
 
 def chickenbro_reject_unsupported_comparative_strength(output_text, bounded_context):
@@ -8324,6 +8322,9 @@ def chickenbro_reject_unsupported_comparative_strength(output_text, bounded_cont
 
 def chickenbro_require_returned_comparative_evidence(answer, refs, bounded_context):
     """Keep a live source result from being discarded by a generic reply."""
+    capability_plan = bounded_context.get("capabilityPlan") if isinstance(bounded_context.get("capabilityPlan"), dict) else {}
+    if "comparative_strength_signal" in (capability_plan.get("unmetEvidenceNeeds") or []):
+        return
     comparative_refs = set()
     for source in bounded_context.get("sourceEvidence") or []:
         if not isinstance(source, dict):
@@ -9003,7 +9004,7 @@ def chickenbro_unmet_comparative_strength_result(bounded_context):
     if (
         question_frame.get("questionType") != "current_research"
         or "comparative_strength_signal" not in (capability_plan.get("unmetEvidenceNeeds") or [])
-        or not _CROSS_SPEC_COMPARATIVE_SCOPE_PATTERN.search(str(context.get("message") or ""))
+        or question_frame.get("comparisonScope") != "cross_spec"
     ):
         return None
     fallback_payload = {
@@ -9042,6 +9043,8 @@ def chickenbro_authoritative_strength_evidence_result(bounded_context):
     )
     if not has_current_strength_evidence:
         return None
+    if question_frame.get("comparisonScope") == "cross_spec":
+        return chickenbro_unmet_comparative_strength_result(context)
     return (
         chickenbro_source_fallback_result(context, "bounded_strength_evidence")
         or chickenbro_unmet_comparative_strength_result(context)
