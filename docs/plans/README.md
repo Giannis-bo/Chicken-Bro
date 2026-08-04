@@ -15,7 +15,7 @@
 | 装备强化资格与已确认标记对齐 | 正在推进 | [实施计划](2026-07-29-gear-enhancement-rule-alignment.md) |
 | Manifest 装备详情与 Catalog Browse 完整性修复 | 正在推进 | [实施计划](2026-07-29-manifest-catalog-progression-display-contract.md) |
 | 装备模拟端到端完整性验证 Goal | 暂缓 | [Goal 控制计划](2026-07-29-equipment-simulator-e2e-completeness-goal.md) |
-| 装备模拟 Exact-first 与三来源 Catalog | 正在推进（foundation complete；重排计划 PASS；仅 Task 3A READY，双 PG candidate 前 candidate_pending） | [设计](2026-08-04-equipment-simulator-exact-first-catalog-design.md) · [原实施计划](2026-08-04-equipment-simulator-exact-first-implementation.md) · [持久化与运行链重排](2026-08-04-equipment-simulator-exact-first-persistence-resequence.md) |
+| 装备模拟 Exact-first 与三来源 Catalog | 正在推进（Task 3A 本地实现/验证完成；独立实现复审与双 PG candidate 待完成，保持 candidate_pending；无 runtime consumer） | [设计](2026-08-04-equipment-simulator-exact-first-catalog-design.md) · [原实施计划](2026-08-04-equipment-simulator-exact-first-implementation.md) · [持久化与运行链重排](2026-08-04-equipment-simulator-exact-first-persistence-resequence.md) |
 | 装备模拟 Canonical Kernel 重设计 | 已完成（pure foundation + source_change_control_only；不含 runtime/release） | [重设计](2026-08-04-equipment-simulator-canonical-kernel-redesign.md) · [已停止的原实施计划](2026-08-04-equipment-simulator-canonical-kernel-implementation.md) · [owner change-control](2026-08-04-equipment-simulator-canonical-owner-change-control.md) · [重复 effect subject 纠偏](2026-08-04-equipment-simulator-duplicate-effect-subject-correction.md) |
 | WebSim / stat-weight 定时同步日志有界化 | 已完成 | [实施计划](2026-07-29-sync-log-bounding.md) · [live evidence](../../artifacts/releases/2026-07-29-sync-log-bounding/evidence.json) |
 | 当前赛季 PVE 装备 Universe 与逐项差集 | 暂缓 | [实施计划](2026-07-29-season-pve-universe-reconciliation.md) |

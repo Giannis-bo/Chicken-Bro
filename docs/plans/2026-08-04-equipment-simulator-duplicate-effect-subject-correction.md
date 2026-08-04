@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` and `superpowers:test-driven-development`. This is a bounded semantic correction after the Canonical foundation whole-branch review failed; it is not an owner-gate patch and does not relax the existing Stop Gate.
 
-状态：`已完成（仅 duplicate-subject correction 与 pure-foundation whole-branch PASS/APPROVED；后续 readiness audit 已停止原 Task 3）`
+状态：`已完成（仅 duplicate-subject correction 与 pure-foundation whole-branch PASS/APPROVED；replacement Task 3A 已本地实现/验证但仍 candidate_pending，原 Task 3 继续停止）`
 
 ## Goal
 

@@ -15,6 +15,7 @@ try:
         CanonicalResult,
         CanonicalValueError,
         SealedCanonicalDocument,
+        _rehydrate_canonical_document,
         canonical_identity_token,
         canonical_mapping,
         canonical_ordered_list,
@@ -35,6 +36,7 @@ except ImportError:
         CanonicalResult,
         CanonicalValueError,
         SealedCanonicalDocument,
+        _rehydrate_canonical_document,
         canonical_identity_token,
         canonical_mapping,
         canonical_ordered_list,
@@ -377,6 +379,27 @@ def verify_effect_record(
     )
 
 
+def reload_effect_record(
+    canonical_bytes: bytes,
+    content_key: str,
+    *,
+    runtime_revision: str,
+) -> SealedCanonicalDocument:
+    """Reload one runtime-bound effect record from exact persisted bytes."""
+
+    return _rehydrate_canonical_document(
+        canonical_bytes=canonical_bytes,
+        content_key=content_key,
+        document_kind=EFFECT_RECORD_DOCUMENT_KIND,
+        schema_revision=EFFECT_RECORD_SCHEMA_REVISION,
+        key_prefix=EFFECT_RECORD_KEY_PREFIX,
+        payload_validator=lambda payload: _validate_effect_record_payload(
+            payload,
+            runtime_revision=runtime_revision,
+        ),
+    )
+
+
 def _verified_effect_record_payload_copy(
     document: SealedCanonicalDocument,
     *,
@@ -646,6 +669,61 @@ def _validate_effect_aggregate_payload(
     return rebuilt
 
 
+def reload_effect_aggregate(
+    canonical_bytes: bytes,
+    content_key: str,
+    *,
+    exact: SealedCanonicalDocument,
+    runtime_revision: str,
+    records: tuple[SealedCanonicalDocument, ...],
+) -> SealedCanonicalDocument:
+    """Reload an Exact/runtime-bound aggregate with exact ordered records."""
+
+    if type(records) is not tuple:
+        raise CanonicalValueError(
+            "INVALID_EFFECT_RECORD_SEQUENCE", "effectAggregate.records",
+        )
+    verified_record_list: list[SealedCanonicalDocument] = []
+    for index, record in enumerate(records):
+        if type(record) is not SealedCanonicalDocument:
+            raise CanonicalValueError(
+                "INVALID_EFFECT_RECORD",
+                f"effectAggregate.records[{index}]",
+            )
+        verified_record_list.append(reload_effect_record(
+            record.canonical_bytes,
+            record.content_key,
+            runtime_revision=runtime_revision,
+        ))
+    verified_records = tuple(verified_record_list)
+
+    def validate(value: object) -> object:
+        payload = _validate_effect_aggregate_payload(
+            value,
+            exact=exact,
+            runtime_revision=runtime_revision,
+        )
+        stored_keys = tuple(
+            entry["supportRecordKey"] for entry in payload["supportRecords"]
+        )
+        expected_keys = tuple(record.content_key for record in verified_records)
+        if stored_keys != expected_keys:
+            raise CanonicalValueError(
+                "EFFECT_AGGREGATE_RECORD_SEQUENCE_MISMATCH",
+                "effectAggregate.supportRecords",
+            )
+        return payload
+
+    return _rehydrate_canonical_document(
+        canonical_bytes=canonical_bytes,
+        content_key=content_key,
+        document_kind=EFFECT_AGGREGATE_DOCUMENT_KIND,
+        schema_revision=EFFECT_SUPPORT_SCHEMA_REVISION,
+        key_prefix=EFFECT_AGGREGATE_KEY_PREFIX,
+        payload_validator=validate,
+    )
+
+
 def resolve_exact_effect_support(
     exact: SealedCanonicalDocument,
     *,
@@ -803,6 +881,8 @@ __all__ = (
     "EffectSupportOutcome",
     "derive_exact_effect_subjects",
     "resolve_exact_effect_support",
+    "reload_effect_aggregate",
+    "reload_effect_record",
     "seal_effect_record",
     "verify_effect_record",
 )

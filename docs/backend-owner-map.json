@@ -13,12 +13,12 @@
   "hotspotFiles": [
     {
       "path": "server/gear_canonical_kernel.py",
-      "healthStatus": "task3a_authority_persistence_implementation_allowed_candidate_pending",
-      "summary": "Owns the completed pure Canonical foundation and source change-control; only replacement Task 3A append-only authority persistence is implementation-allowed, with no runtime consumer and two PostgreSQL candidates required before completion.",
+      "healthStatus": "task3a_authority_persistence_local_verified_candidate_pending",
+      "summary": "Owns the completed pure Canonical foundation and source change-control; replacement Task 3A append-only authority persistence is locally implemented and verified, with no runtime consumer and independent review plus two PostgreSQL candidates still required before completion.",
       "owners": [
         {
           "id": "equipment_simulator_canonical_kernel_task1_5",
-          "status": "task3a_authority_persistence_implementation_allowed_candidate_pending",
+          "status": "task3a_authority_persistence_local_verified_candidate_pending",
           "factOwner": "server/gear_canonical_kernel.py",
           "kernelSemanticOwner": "server/gear_canonical_kernel.py",
           "slotSetOwner": "server/gear_contracts.py",
@@ -77,7 +77,7 @@
             "task_5a_api_runtime",
             "task_6c_observation_catalog"
           ],
-          "capabilityBoundary": "The pure Canonical foundation remains final PASS/APPROVED. Two independent third-round reviews returned Plan Spec PASS and Task 3A READY with zero findings. Only replacement Task 3A append-only authority persistence is implementation-allowed; two fresh PostgreSQL candidate paths are required before completion. The registry remains test-only, proofClaim stays source_change_control_only, runtimeConsumers is empty, original Task 3 remains stopped, and generation 35, Catalog/pointers, worker, Resolver/API/UI, raw-text privacy and v1 identities remain unchanged."
+          "capabilityBoundary": "The pure Canonical foundation remains final PASS/APPROVED. Replacement Task 3A append-only authority persistence is locally implemented and verified, but independent implementation review and two fresh PostgreSQL candidate paths remain mandatory before completion. The registry remains test-only, proofClaim stays source_change_control_only, runtimeConsumers is empty, original Task 3 remains stopped, and generation 35, Catalog/pointers, worker, Resolver/API/UI, raw-text privacy and v1 identities remain unchanged."
         }
       ]
     },

@@ -9,6 +9,7 @@ try:
         CanonicalResult,
         CanonicalValueError,
         SealedCanonicalDocument,
+        _rehydrate_canonical_document,
         canonical_identity_token,
         canonical_int,
         canonical_json_bytes,
@@ -43,6 +44,7 @@ except ImportError:
         CanonicalResult,
         CanonicalValueError,
         SealedCanonicalDocument,
+        _rehydrate_canonical_document,
         canonical_identity_token,
         canonical_int,
         canonical_json_bytes,
@@ -344,6 +346,27 @@ def seal_exact_progression(
         return _blocked_progression(error)
 
 
+def reload_exact_progression(
+    canonical_bytes: bytes,
+    content_key: str,
+    *,
+    exact: SealedCanonicalDocument,
+) -> SealedCanonicalDocument:
+    """Reload progression and replay production Track Authority."""
+
+    return _rehydrate_canonical_document(
+        canonical_bytes=canonical_bytes,
+        content_key=content_key,
+        document_kind=_SEALED_PROGRESSION_DOCUMENT_KIND,
+        schema_revision=_SEALED_PROGRESSION_SCHEMA_REVISION,
+        key_prefix=_SEALED_PROGRESSION_KEY_PREFIX,
+        payload_validator=lambda payload: _validate_exact_progression_payload(
+            payload,
+            exact=exact,
+        ),
+    )
+
+
 def _blocked_exact_authority(error: CanonicalValueError) -> CanonicalResult:
     return CanonicalResult(
         "blocked",
@@ -466,7 +489,100 @@ def seal_exact_authority_envelope(
         return _blocked_exact_authority(error)
 
 
+def reload_exact_authority_envelope(
+    canonical_bytes: bytes,
+    content_key: str,
+    *,
+    exact: SealedCanonicalDocument,
+    static_facts: SealedCanonicalDocument,
+    progression: SealedCanonicalDocument,
+    effect_support: SealedCanonicalDocument,
+    resolver_revision: str,
+) -> SealedCanonicalDocument:
+    """Reload an authority envelope only with its exact dependency closure."""
+
+    _verified_exact_payload_copy(exact)
+    static_payload = verified_payload_copy(
+        static_facts,
+        document_kind=EXACT_STATIC_FACTS_DOCUMENT_KIND,
+        schema_revision=EXACT_STATIC_FACTS_SCHEMA_REVISION,
+        key_prefix=EXACT_STATIC_FACTS_KEY_PREFIX,
+        payload_validator=_validate_exact_static_facts_payload,
+    )
+    progression_payload = _validate_exact_progression_payload(
+        verified_payload_copy(
+            progression,
+            document_kind=_SEALED_PROGRESSION_DOCUMENT_KIND,
+            schema_revision=_SEALED_PROGRESSION_SCHEMA_REVISION,
+            key_prefix=_SEALED_PROGRESSION_KEY_PREFIX,
+            payload_validator=lambda payload: _validate_exact_progression_payload(
+                payload, exact=exact,
+            ),
+        ),
+        exact=exact,
+    )
+    effect_payload = verified_payload_copy(
+        effect_support,
+        document_kind=EFFECT_AGGREGATE_DOCUMENT_KIND,
+        schema_revision=EFFECT_SUPPORT_SCHEMA_REVISION,
+        key_prefix=EFFECT_AGGREGATE_KEY_PREFIX,
+        payload_validator=lambda payload: _validate_effect_aggregate_for_envelope(
+            payload, exact=exact,
+        ),
+    )
+    resolver = canonical_identity_token(
+        resolver_revision, path="exactAuthority.resolverRevision",
+    )
+    for payload, path in (
+        (static_payload, "exactAuthority.staticFacts"),
+        (progression_payload, "exactAuthority.progression"),
+        (effect_payload, "exactAuthority.effectSupport"),
+    ):
+        if payload["exactItemInstanceKey"] != exact.content_key:
+            raise CanonicalValueError(
+                "EXACT_ITEM_BINDING_MISMATCH", f"{path}.exactItemInstanceKey",
+            )
+    if effect_payload["status"] != "verified":
+        raise CanonicalValueError(
+            "EFFECT_SUPPORT_NOT_VERIFIED", "exactAuthority.effectSupport.status",
+        )
+
+    def validate(value: object) -> object:
+        payload = canonical_mapping(
+            value,
+            path="exactAuthority",
+            exact_keys=frozenset({
+                "schemaRevision", "exactItemInstanceKey", "staticFactsKey",
+                "progressionBindingKey", "effectSupportKey", "resolverRevision",
+            }),
+        )
+        rebuilt = {
+            "schemaRevision": _SEALED_AUTHORITY_SCHEMA_REVISION,
+            "exactItemInstanceKey": exact.content_key,
+            "staticFactsKey": static_facts.content_key,
+            "progressionBindingKey": progression.content_key,
+            "effectSupportKey": effect_support.content_key,
+            "resolverRevision": resolver,
+        }
+        if dict(payload) != rebuilt:
+            raise CanonicalValueError(
+                "EXACT_AUTHORITY_BINDING_MISMATCH", "exactAuthority",
+            )
+        return rebuilt
+
+    return _rehydrate_canonical_document(
+        canonical_bytes=canonical_bytes,
+        content_key=content_key,
+        document_kind=_SEALED_AUTHORITY_DOCUMENT_KIND,
+        schema_revision=_SEALED_AUTHORITY_SCHEMA_REVISION,
+        key_prefix=_SEALED_AUTHORITY_KEY_PREFIX,
+        payload_validator=validate,
+    )
+
+
 __all__ = (
+    "reload_exact_authority_envelope",
+    "reload_exact_progression",
     "seal_exact_authority_envelope",
     "seal_exact_progression",
     "seal_exact_static_facts",

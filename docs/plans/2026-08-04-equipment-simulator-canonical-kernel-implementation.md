@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-状态：`已停止（pure foundation 的 forward replacement 与 final whole-branch re-review 已完成；其“原 Task 3 可开始”结论已被后续 readiness audit 推翻，持久化重排计划复审通过前不得启动）`
+状态：`已停止（pure foundation 的 forward replacement 与 final whole-branch re-review 已完成；replacement Task 3A 已本地实现/验证但仍 candidate_pending；本计划原 Task 3 继续停止）`
 
 **Task 5 schema replacement:** [Canonical Ownership Change-Control Plan](2026-08-04-equipment-simulator-canonical-owner-change-control.md)。本计划不得改名进入第六轮；历史提交保留，不 reset/rebase。
 

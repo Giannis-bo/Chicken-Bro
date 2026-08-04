@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "slug": "equipment-simulator-exact-first",
   "classification": "Strict",
-  "status": "implementation_allowed",
+  "status": "local_verified",
   "goal": "完成 replacement Task 3A：为已通过的 pure Canonical foundation 增加可按原始 canonical bytes 完整重验的 append-only Exact Authority Bundle 持久层；不激活 worker、Resolver、API、UI 或 runtime consumer。",
   "userValue": "Exact 装备事实可以跨进程保存和完整重载，不依赖 Catalog membership，也不会把缺失、篡改、错序或部分 authority 包装成可模拟；本轮仍不承诺玩家可见能力。",
   "nonGoals": [
@@ -118,8 +118,8 @@
     "task3AMigration": "server/migrations/postgres/0026_websim_exact_authority_bundle.sql"
   },
   "engineeringHealth": {
-    "status": "task3a_authority_persistence_implementation_allowed_candidate_pending",
-    "reason": "The pure Canonical foundation remains complete. Two independent third-round reviews returned Plan Spec PASS and Task 3A READY with zero findings after freezing exact bytes, dependency closure, typed reload, slot identity, worker-role future boundaries and two truly fresh PostgreSQL candidates. Only replacement Task 3A is implementation-allowed; runtimeConsumers remains empty, original Task 3 is stopped, and completion stays candidate_pending until both real PostgreSQL paths pass."
+    "status": "task3a_authority_persistence_local_verified_candidate_pending",
+    "reason": "Replacement Task 3A implementation and local verification are complete: six typed reload APIs, append-only 0026 authority persistence, whole-bundle store/import gates, frozen v1/v2 identities and the scoped Python, Vitest, Node, Harness, JSON, pycompile and diff checks pass. Independent implementation review and both real run-id-bound PostgreSQL candidates remain pending because this checkout has no psql or explicit candidate DSNs. runtimeConsumers remains empty, no evidence/manifest has been promoted, original Task 3 is stopped, and completion remains literal candidate_pending."
   },
   "dataPrivacyBoundary": {
     "rawPluginText": "ephemeral parser input only; it must not be persisted, logged, templated, queued, included in artifact evidence, or returned in output payloads.",
@@ -194,6 +194,10 @@
     {
       "date": "2026-08-04",
       "decision": "Harness requirement 从 pure-foundation 历史合同切换为 replacement Task 3A：允许完整 authority bundle append-only persistence，runtimeConsumers 仍为空；缺少 fresh/upgrade 两个 run-id-bound disposable PostgreSQL candidates 时状态只能是 candidate_pending。"
+    },
+    {
+      "date": "2026-08-05",
+      "decision": "Replacement Task 3A 的六个 typed reload、完整 authority bundle store、0026 append-only migration、双候选测试拓扑和本地验证已完成；独立实现复审与两个真实 PostgreSQL candidate 尚未执行，本机缺少 psql/明确 DSN，因此状态严格保持 local_verified/candidate_pending，不生成 evidence.json 或 manifest.json，也不激活任何 runtime consumer。"
     }
   ]
 }

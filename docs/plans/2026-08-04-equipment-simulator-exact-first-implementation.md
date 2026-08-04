@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-状态：`已被 forward-replace（pure Canonical foundation final PASS/APPROVED；重排计划已由两位独立 reviewer 判定 PASS，且只授权 replacement Task 3A；下方旧 Task 3-8 仍停止）`
+状态：`已被 forward-replace（pure Canonical foundation final PASS/APPROVED；replacement Task 3A 已本地实现/验证，但独立实现复审与双真实 PG candidate 仍 pending；下方旧 Task 3-8 继续停止）`
 
 **Task 2 replacement:** [Canonical Kernel 重设计](2026-08-04-equipment-simulator-canonical-kernel-redesign.md)、[Canonical Ownership Change-Control Plan](2026-08-04-equipment-simulator-canonical-owner-change-control.md) 与 [重复 Effect Subject 语义纠偏](2026-08-04-equipment-simulator-duplicate-effect-subject-correction.md) 已完成 final whole-branch PASS/APPROVED。该结论只关闭 pure foundation，不授权直接执行下方旧 Task 3。
 

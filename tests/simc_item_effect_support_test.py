@@ -14,6 +14,8 @@ from server.simc_item_effect_support import (
     _validate_effect_aggregate_payload,
     derive_exact_effect_subjects,
     resolve_exact_effect_support,
+    reload_effect_aggregate,
+    reload_effect_record,
     verify_effect_record,
     seal_effect_record,
 )
@@ -68,6 +70,47 @@ def canonical_record(subject, **overrides):
 
 
 class SealedSimcItemEffectSupportTest(unittest.TestCase):
+    def test_typed_reload_record_and_aggregate_preserve_ordered_duplicate_records(self):
+        exact = exact_document(
+            gemIds=["240892", "240893", "240892"],
+            gemBonusIds=["1514", "1515", "1514"],
+            gemItemLevels=[90, 91, 90],
+            enchantId="",
+            craftedStats=[],
+            embellishmentIds=[],
+        )
+        records = tuple(canonical_record(subject) for subject in derive_exact_effect_subjects(exact))
+        aggregate = resolve_exact_effect_support(
+            exact, runtime_revision=RUNTIME, records=records,
+        ).document
+
+        self.assertEqual(
+            reload_effect_record(
+                records[0].canonical_bytes,
+                records[0].content_key,
+                runtime_revision=RUNTIME,
+            ),
+            records[0],
+        )
+        self.assertEqual(
+            reload_effect_aggregate(
+                aggregate.canonical_bytes,
+                aggregate.content_key,
+                exact=exact,
+                runtime_revision=RUNTIME,
+                records=records,
+            ),
+            aggregate,
+        )
+        with self.assertRaises(CanonicalValueError):
+            reload_effect_aggregate(
+                aggregate.canonical_bytes,
+                aggregate.content_key,
+                exact=exact,
+                runtime_revision=RUNTIME,
+                records=(records[0], records[2], records[1], records[3]),
+            )
+
     def test_sealed_record_factory_requires_explicit_keyword_runtime(self):
         subject = derive_exact_effect_subjects(exact_document())[0]
         payload = canonical_record_payload(subject)

@@ -20,6 +20,7 @@ try:
         CanonicalResult,
         CanonicalValueError,
         SealedCanonicalDocument,
+        _rehydrate_canonical_document,
         canonical_identity_token,
         canonical_int,
         canonical_json_bytes,
@@ -36,6 +37,7 @@ except ImportError:
         CanonicalResult,
         CanonicalValueError,
         SealedCanonicalDocument,
+        _rehydrate_canonical_document,
         canonical_identity_token,
         canonical_int,
         canonical_json_bytes,
@@ -490,6 +492,22 @@ def _verified_exact_payload_copy(exact: object) -> dict[str, object]:
     )
 
 
+def reload_exact_item(
+    canonical_bytes: bytes,
+    content_key: str,
+) -> SealedCanonicalDocument:
+    """Reload an Exact v2 document from its exact persisted bytes."""
+
+    return _rehydrate_canonical_document(
+        canonical_bytes=canonical_bytes,
+        content_key=content_key,
+        document_kind=EXACT_ITEM_DOCUMENT_KIND,
+        schema_revision=EXACT_ITEM_IDENTITY_SCHEMA_REVISION,
+        key_prefix=EXACT_ITEM_KEY_PREFIX,
+        payload_validator=_validate_exact_item_payload,
+    )
+
+
 def _canonical_exact_static_facts(
     facts: object,
     *,
@@ -574,6 +592,35 @@ def _validate_exact_static_facts_payload(value: object) -> object:
             "exactStaticFacts",
         )
     return rebuilt
+
+
+def reload_exact_static_facts(
+    canonical_bytes: bytes,
+    content_key: str,
+    *,
+    exact: SealedCanonicalDocument,
+) -> SealedCanonicalDocument:
+    """Reload static facts only when they remain bound to the supplied Exact."""
+
+    _verified_exact_payload_copy(exact)
+
+    def validate(value: object) -> object:
+        payload = _validate_exact_static_facts_payload(value)
+        if payload["exactItemInstanceKey"] != exact.content_key:
+            raise CanonicalValueError(
+                "EXACT_ITEM_BINDING_MISMATCH",
+                "exactStaticFacts.exactItemInstanceKey",
+            )
+        return payload
+
+    return _rehydrate_canonical_document(
+        canonical_bytes=canonical_bytes,
+        content_key=content_key,
+        document_kind=EXACT_STATIC_FACTS_DOCUMENT_KIND,
+        schema_revision=EXACT_STATIC_FACTS_SCHEMA_REVISION,
+        key_prefix=EXACT_STATIC_FACTS_KEY_PREFIX,
+        payload_validator=validate,
+    )
 
 
 def _blocked_canonical_result(error: CanonicalValueError) -> CanonicalResult:
@@ -936,6 +983,8 @@ __all__ = (
     "build_exact_item_instance",
     "canonical_enhancement_selection",
     "derive_simc_serializer_input",
+    "reload_exact_item",
+    "reload_exact_static_facts",
     "seal_exact_item",
     "seal_exact_static_facts",
 )

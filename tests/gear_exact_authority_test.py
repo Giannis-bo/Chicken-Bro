@@ -7,6 +7,8 @@ import server.gear_exact_authority as exact_authority_module
 import server.gear_exact_item_instance as exact_item_module
 from server.gear_exact_authority import (
     _validate_exact_progression_payload,
+    reload_exact_authority_envelope,
+    reload_exact_progression,
     seal_exact_progression,
 )
 from server.gear_canonical_kernel import (
@@ -133,6 +135,45 @@ def verify_progression(document, exact):
 
 
 class GearExactAuthorityTest(unittest.TestCase):
+    def test_typed_reload_progression_and_envelope_replay_all_authority_bindings(self):
+        exact, static, progression, effect = sealed_task4_inputs()
+        envelope = exact_authority_module.seal_exact_authority_envelope(
+            exact=exact,
+            static_facts=static,
+            progression=progression,
+            effect_support=effect,
+            resolver_revision="resolver-v2",
+        ).document
+
+        self.assertEqual(
+            reload_exact_progression(
+                progression.canonical_bytes, progression.content_key, exact=exact,
+            ),
+            progression,
+        )
+        self.assertEqual(
+            reload_exact_authority_envelope(
+                envelope.canonical_bytes,
+                envelope.content_key,
+                exact=exact,
+                static_facts=static,
+                progression=progression,
+                effect_support=effect,
+                resolver_revision="resolver-v2",
+            ),
+            envelope,
+        )
+        with self.assertRaises(CanonicalValueError):
+            reload_exact_authority_envelope(
+                envelope.canonical_bytes,
+                envelope.content_key,
+                exact=exact,
+                static_facts=static,
+                progression=progression,
+                effect_support=effect,
+                resolver_revision="resolver-v3",
+            )
+
     def test_progression_requires_canonical_slot_and_production_track_authority(self):
         exact = sealed_exact()
         ready = seal_exact_progression(

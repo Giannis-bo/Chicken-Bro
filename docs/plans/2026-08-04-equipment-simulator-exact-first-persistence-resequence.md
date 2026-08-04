@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILLS: Use `superpowers:subagent-driven-development`, `superpowers:test-driven-development`, and `superpowers:verification-before-completion`. This plan forward-replaces the old implementation plan's Task 3 and later execution order after two independent readiness audits returned `NOT_READY`.
 
-状态：`正在推进（两位独立 reviewer：Plan Spec PASS / Task 3A READY / 0 findings；Task 3A Harness requirement 已冻结并校验通过；实现尚未开始；双 PostgreSQL candidate 前保持 candidate_pending）`
+状态：`正在推进（Task 3A 本地实现与本地验证已完成；独立实现复审及 fresh/upgrade 两个真实 PostgreSQL candidate 尚未完成；本机缺少 psql/明确 DSN，保持 literal candidate_pending；未生成 evidence/manifest；无 runtime consumer）`
 
 ## Goal
 
@@ -207,17 +207,19 @@ Read path loads exact canonical bytes, reconstructs Exact -> Static/Progression 
 
 ### TDD and verification
 
-- [ ] Preflight `0026` is absent; stop on collision.
-- [ ] RED Kernel/domain reload: exact bytes/key pass; whitespace, duplicate key, non-NFC, over-bound, wrong kind/schema/prefix/key and cross-document binding fail.
-- [ ] RED store: full frozen-dataclass round-trip, `A/B/A` batch order, identical idempotency, collision, missing component, wrong runtime/rule/resolver, duplicate/gapped/extra/missing effect-record ordinal, repeated same record at two ordinals, reordered non-adjacent duplicate, concurrent same-key writes, tampered canonical bytes/hash/JSON projection, distinct `1`/`1.0`/exponent lexical bytes and partial transaction rollback.
-- [ ] RED store import boundary: direct Kernel-private/domain-validator/serializer/Catalog imports fail while typed reload imports pass; registry remains five targets/nine exemptions and `source_change_control_only`.
-- [ ] RED SQL/static: exact kind/schema/prefix/hash/bytes-to-JSON matrix, both aggregate FKs, component FKs/binding trigger, fixed search path, immutable triggers, wow_app SELECT-only and unique migration identity.
+- [x] Preflight `0026` is absent; stop on collision.
+- [x] RED Kernel/domain reload: exact bytes/key pass; whitespace, duplicate key, non-NFC, over-bound, wrong kind/schema/prefix/key and cross-document binding fail.
+- [x] RED store: full frozen-dataclass round-trip, `A/B/A` batch order, identical idempotency, collision, missing component, wrong runtime/rule/resolver, duplicate/gapped/extra/missing effect-record ordinal, repeated same record at two ordinals, reordered non-adjacent duplicate, concurrent same-key writes, tampered canonical bytes/hash/JSON projection, distinct `1`/`1.0`/exponent lexical bytes and partial transaction rollback.
+- [x] RED store import boundary: direct Kernel-private/domain-validator/serializer/Catalog imports fail while typed reload imports pass; registry remains five targets/nine exemptions and `source_change_control_only`.
+- [x] RED SQL/static: exact kind/schema/prefix/hash/bytes-to-JSON matrix, both aggregate FKs, component FKs/binding trigger, fixed search path, immutable triggers, wow_app SELECT-only and unique migration identity.
 - [ ] RED PostgreSQL integration uses two operator-provisioned empty disposable databases and never creates/drops a database. `WOW_PG_TEST_RUN_ID_0026` matching `^[a-z0-9]{8,32}$`, `WOW_PG_TEST_DSN_FRESH_0026`, and `WOW_PG_TEST_DSN_UPGRADE_0026` are mandatory. The DSNs must identify distinct `wow_exact_first_fresh_test_<run-id>` and `wow_exact_first_upgrade_test_<run-id>` databases whose database comments are exactly `wow_exact_first_disposable:<run-id>:fresh` and `wow_exact_first_disposable:<run-id>:upgrade`. Before any write, the suite rejects any existing project schema (`identity|app|content|cache|knowledge|analytics|ops`), `ops.schema_migrations`, project table or mismatched/missing comment. Fresh then applies `0001..0026`. Upgrade starts from the independently proven empty DB, applies `0001..0025`, seeds frozen v1 rows and row hashes, snapshots them, then applies `0026`. Verify the before/after v1 snapshot is byte-for-byte equal plus hash/JSON/FK/trigger/grant/concurrency/bundle behavior. Both candidates bind the final runtime-affecting commit SHA, its Git tree SHA and migration file SHA-256; candidate 后只允许 evidence/manifest 与任务状态文档变化，任何代码、测试、migration、requirement 或 owner-contract 变化都使 candidate 失效并要求重跑。Harness verification identity 另行绑定最终 PR HEAD。Databases remain intact through evidence/manifest archival and review; only then may the operator discard those exact identities. Tests never reset, drop or reuse a prior run-id.
-- [ ] Implement minimal reload/store/migration; do not add jobs or snapshot v2.
-- [ ] Run focused suites, full Canonical matrix, owner gate, existing v1 store/snapshot suites, Node/Harness/JSON/pycompile/diff.
-- [ ] Freeze both existing v1/v2 Exact keys.
+- [x] Implement minimal reload/store/migration; do not add jobs or snapshot v2.
+- [x] Run focused suites, full Canonical matrix, owner gate, existing v1 store/snapshot suites, Node/Harness/JSON/pycompile/diff.
+- [x] Freeze both existing v1/v2 Exact keys.
 - [ ] Independent spec/code review must be `PASS/APPROVED`.
 - [ ] Candidate PostgreSQL evidence from both explicit DSNs is mandatory before Task 3A is `已完成`. Missing `psql` or either DSN yields literal `candidate_pending`; one database, a shared development database, skipped tests or schema-only mocks cannot be packaged as green.
+
+本地实现已覆盖双候选测试拓扑，但当前 checkout 无 `psql`，且未提供三个 Task 3A candidate 环境变量；因此真实 PostgreSQL 行保持未勾选，状态为 literal `candidate_pending`，不得生成或晋升 `evidence.json`/`manifest.json`。
 
 ---
 

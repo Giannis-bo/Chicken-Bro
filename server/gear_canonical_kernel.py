@@ -367,6 +367,55 @@ def _strict_payload(canonical_bytes: object) -> dict[str, object]:
     return value
 
 
+def _rehydrate_canonical_document(
+    *,
+    canonical_bytes: bytes,
+    content_key: str,
+    document_kind: str,
+    schema_revision: str,
+    key_prefix: str,
+    payload_validator: Callable[[object], object],
+) -> SealedCanonicalDocument:
+    """Recreate one sealed document from exact persisted bytes or fail closed."""
+
+    try:
+        _seal_inputs(
+            document_kind=document_kind,
+            schema_revision=schema_revision,
+            key_prefix=key_prefix,
+        )
+        if type(canonical_bytes) is not bytes:
+            raise CanonicalValueError("INVALID_CANONICAL_BYTES", "canonicalBytes")
+        if type(content_key) is not str:
+            raise CanonicalValueError("INVALID_CONTENT_KEY", "contentKey")
+        payload = _strict_payload(canonical_bytes)
+        payload_validator(payload)
+        if canonical_json_bytes(payload) != canonical_bytes:
+            raise CanonicalValueError("NON_CANONICAL_JSON_BYTES", "canonicalBytes")
+        expected_key = _content_key(key_prefix, canonical_bytes)
+        if content_key != expected_key:
+            raise CanonicalValueError("CONTENT_KEY_MISMATCH", "contentKey")
+        return SealedCanonicalDocument(
+            _SEAL_TOKEN,
+            document_kind=document_kind,
+            schema_revision=schema_revision,
+            canonical_bytes=canonical_bytes,
+            content_key=content_key,
+        )
+    except CanonicalValueError:
+        raise
+    except (
+        TypeError,
+        ValueError,
+        UnicodeError,
+        json.JSONDecodeError,
+        RecursionError,
+    ) as error:
+        raise CanonicalValueError(
+            "INVALID_CANONICAL_DOCUMENT", "canonicalBytes",
+        ) from error
+
+
 def verify_sealed_document(
     document: object,
     *,

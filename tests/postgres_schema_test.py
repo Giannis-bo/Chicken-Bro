@@ -28,6 +28,7 @@ WEBSIM_MANIFEST_V2 = ROOT / "server" / "migrations" / "postgres" / "0022_websim_
 WEBSIM_GEAR_CATALOG_VARIANT_SHAPES = ROOT / "server" / "migrations" / "postgres" / "0023_websim_gear_catalog_variant_shapes.sql"
 CHICKENBRO_AGENT_OBSERVABILITY = ROOT / "server" / "migrations" / "postgres" / "0024_chickenbro_agent_observability.sql"
 CHICKENBRO_TOOL_REGISTRY = ROOT / "server" / "migrations" / "postgres" / "0025_chickenbro_tool_registry.sql"
+WEBSIM_EXACT_AUTHORITY_BUNDLE = ROOT / "server" / "migrations" / "postgres" / "0026_websim_exact_authority_bundle.sql"
 
 
 class PostgresSchemaTest(unittest.TestCase):
@@ -48,6 +49,56 @@ class PostgresSchemaTest(unittest.TestCase):
         cls.websim_manifest_v2_sql = WEBSIM_MANIFEST_V2.read_text(encoding="utf-8")
         cls.websim_gear_catalog_variant_shapes_sql = WEBSIM_GEAR_CATALOG_VARIANT_SHAPES.read_text(encoding="utf-8")
         cls.chickenbro_agent_observability_sql = CHICKENBRO_AGENT_OBSERVABILITY.read_text(encoding="utf-8")
+        cls.websim_exact_authority_bundle_sql = WEBSIM_EXACT_AUTHORITY_BUNDLE.read_text(encoding="utf-8")
+
+    def test_exact_authority_bundle_migration_binds_bytes_closure_and_read_only_grants(self):
+        normalized = " ".join(self.websim_exact_authority_bundle_sql.split())
+        for table in (
+            "cache.websim_canonical_documents",
+            "cache.websim_effect_aggregate_records",
+            "cache.websim_exact_authority_bundles",
+        ):
+            self.assertIn(f"CREATE TABLE IF NOT EXISTS {table}", normalized)
+        self.assertIn("to_regprocedure('pg_catalog.sha256(bytea)')", normalized)
+        self.assertRegex(
+            normalized,
+            r"canonical_sha256 = pg_catalog\.encode\(\s*pg_catalog\.sha256\(canonical_bytes\), 'hex'\s*\)",
+        )
+        self.assertIn(
+            "canonical_json = pg_catalog.convert_from(canonical_bytes, 'UTF8')::jsonb",
+            normalized,
+        )
+        for kind, schema, prefix in (
+            ("exact_item", "gear-exact-item-instance-v2", "exact-item-instance:sha256:"),
+            ("exact_static_facts", "exact-static-facts-v1", "exact-static-facts:sha256:"),
+            ("exact_progression", "exact-progression-binding-v1", "exact-progression:sha256:"),
+            ("effect_record", "simc-item-effect-record-v1", "simc-item-effect-record:sha256:"),
+            ("effect_aggregate", "simc-item-effect-support-v1", "simc-item-effect-support:sha256:"),
+            ("exact_authority", "exact-authority-envelope-v1", "exact-authority:sha256:"),
+        ):
+            self.assertIn(f"document_kind = '{kind}'", normalized)
+            self.assertIn(f"schema_revision = '{schema}'", normalized)
+            self.assertIn(f"'{prefix}' || canonical_sha256", normalized)
+        self.assertGreaterEqual(
+            normalized.count("REFERENCES cache.websim_canonical_documents(content_key)"),
+            6,
+        )
+        self.assertIn("SECURITY INVOKER SET search_path = pg_catalog, pg_temp", normalized)
+        self.assertIn("FOR KEY SHARE", normalized)
+        self.assertIn(
+            "effect_relation_count IS DISTINCT FROM pg_catalog.jsonb_array_length( effect_json -> 'supportRecords' )",
+            normalized,
+        )
+        self.assertIn(
+            "REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON cache.websim_canonical_documents",
+            normalized,
+        )
+        self.assertIn(
+            "GRANT SELECT ON cache.websim_canonical_documents",
+            normalized,
+        )
+        self.assertNotIn("GRANT SELECT, INSERT", normalized)
+        self.assertIn("0026_websim_exact_authority_bundle", normalized)
 
     def table_section(self, table_name):
         start = self.sql.index(f"CREATE TABLE IF NOT EXISTS {table_name}")

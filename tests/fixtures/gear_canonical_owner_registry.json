@@ -7,12 +7,16 @@
       "path": "server/gear_exact_item_instance.py",
       "profile": "server_owner_declaration_v1",
       "sealedEntrypoints": [
+        "reload_exact_item",
+        "reload_exact_static_facts",
         "seal_exact_item",
         "seal_exact_static_facts",
         "derive_simc_serializer_input"
       ],
       "publicCallables": [
         "canonical_enhancement_selection",
+        "reload_exact_item",
+        "reload_exact_static_facts",
         "seal_exact_item",
         "seal_exact_static_facts",
         "derive_simc_serializer_input",
@@ -38,11 +42,23 @@
         "build_exact_item_instance",
         "canonical_enhancement_selection",
         "derive_simc_serializer_input",
+        "reload_exact_item",
+        "reload_exact_static_facts",
         "seal_exact_item",
         "seal_exact_static_facts"
       ],
       "reexports": [],
       "imports": [
+        {
+          "module": ".gear_canonical_kernel",
+          "symbol": "_rehydrate_canonical_document",
+          "alias": "_rehydrate_canonical_document"
+        },
+        {
+          "module": "gear_canonical_kernel",
+          "symbol": "_rehydrate_canonical_document",
+          "alias": "_rehydrate_canonical_document"
+        },
         {
           "module": "__future__",
           "symbol": "annotations",
@@ -215,6 +231,18 @@
         }
       ],
       "importFallbackPairs": [
+        {
+          "relative": {
+            "module": ".gear_canonical_kernel",
+            "symbol": "_rehydrate_canonical_document",
+            "alias": "_rehydrate_canonical_document"
+          },
+          "absolute": {
+            "module": "gear_canonical_kernel",
+            "symbol": "_rehydrate_canonical_document",
+            "alias": "_rehydrate_canonical_document"
+          }
+        },
         {
           "relative": {
             "module": ".gear_canonical_kernel",
@@ -397,14 +425,20 @@
       "path": "server/gear_exact_authority.py",
       "profile": "server_owner_declaration_v1",
       "sealedEntrypoints": [
+        "reload_exact_progression",
+        "reload_exact_authority_envelope",
         "seal_exact_progression",
         "seal_exact_authority_envelope"
       ],
       "publicCallables": [
+        "reload_exact_progression",
+        "reload_exact_authority_envelope",
         "seal_exact_progression",
         "seal_exact_authority_envelope"
       ],
       "exports": [
+        "reload_exact_authority_envelope",
+        "reload_exact_progression",
         "seal_exact_authority_envelope",
         "seal_exact_progression",
         "seal_exact_static_facts"
@@ -418,6 +452,16 @@
         }
       ],
       "imports": [
+        {
+          "module": ".gear_canonical_kernel",
+          "symbol": "_rehydrate_canonical_document",
+          "alias": "_rehydrate_canonical_document"
+        },
+        {
+          "module": "gear_canonical_kernel",
+          "symbol": "_rehydrate_canonical_document",
+          "alias": "_rehydrate_canonical_document"
+        },
         {
           "module": "__future__",
           "symbol": "annotations",
@@ -695,6 +739,18 @@
         }
       ],
       "importFallbackPairs": [
+        {
+          "relative": {
+            "module": ".gear_canonical_kernel",
+            "symbol": "_rehydrate_canonical_document",
+            "alias": "_rehydrate_canonical_document"
+          },
+          "absolute": {
+            "module": "gear_canonical_kernel",
+            "symbol": "_rehydrate_canonical_document",
+            "alias": "_rehydrate_canonical_document"
+          }
+        },
         {
           "relative": {
             "module": ".gear_canonical_kernel",
@@ -1026,6 +1082,8 @@
       "path": "server/simc_item_effect_support.py",
       "profile": "server_owner_declaration_v1",
       "sealedEntrypoints": [
+        "reload_effect_record",
+        "reload_effect_aggregate",
         "derive_exact_effect_subjects",
         "seal_effect_record",
         "verify_effect_record",
@@ -1034,6 +1092,8 @@
       "publicCallables": [
         "EffectSubject",
         "EffectSupportOutcome",
+        "reload_effect_record",
+        "reload_effect_aggregate",
         "seal_effect_record",
         "verify_effect_record",
         "derive_exact_effect_subjects",
@@ -1051,11 +1111,23 @@
         "EffectSupportOutcome",
         "derive_exact_effect_subjects",
         "resolve_exact_effect_support",
+        "reload_effect_aggregate",
+        "reload_effect_record",
         "seal_effect_record",
         "verify_effect_record"
       ],
       "reexports": [],
       "imports": [
+        {
+          "module": ".gear_canonical_kernel",
+          "symbol": "_rehydrate_canonical_document",
+          "alias": "_rehydrate_canonical_document"
+        },
+        {
+          "module": "gear_canonical_kernel",
+          "symbol": "_rehydrate_canonical_document",
+          "alias": "_rehydrate_canonical_document"
+        },
         {
           "module": "__future__",
           "symbol": "annotations",
@@ -1243,6 +1315,18 @@
         }
       ],
       "importFallbackPairs": [
+        {
+          "relative": {
+            "module": ".gear_canonical_kernel",
+            "symbol": "_rehydrate_canonical_document",
+            "alias": "_rehydrate_canonical_document"
+          },
+          "absolute": {
+            "module": "gear_canonical_kernel",
+            "symbol": "_rehydrate_canonical_document",
+            "alias": "_rehydrate_canonical_document"
+          }
+        },
         {
           "relative": {
             "module": ".gear_canonical_kernel",

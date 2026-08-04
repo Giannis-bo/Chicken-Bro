@@ -12,6 +12,8 @@ from server.gear_exact_item_instance import (
     build_exact_item_instance,
     canonical_enhancement_selection,
     derive_simc_serializer_input,
+    reload_exact_item,
+    reload_exact_static_facts,
     seal_exact_item,
 )
 
@@ -87,6 +89,29 @@ def adapter_exact_slot_fields(row):
 
 
 class GearExactItemInstanceTest(unittest.TestCase):
+    def test_typed_reload_exact_and_static_facts_preserve_exact_bytes_and_binding(self):
+        exact = seal_exact_item(exact_v2_row()).document
+        static = __import__(
+            "server.gear_exact_item_instance", fromlist=["seal_exact_static_facts"]
+        ).seal_exact_static_facts(exact, {"haste_rating": 241}).document
+
+        self.assertEqual(
+            reload_exact_item(exact.canonical_bytes, exact.content_key), exact,
+        )
+        self.assertEqual(
+            reload_exact_static_facts(
+                static.canonical_bytes, static.content_key, exact=exact,
+            ),
+            static,
+        )
+        other = seal_exact_item(exact_v2_row(itemId="1002")).document
+        with self.assertRaises(CanonicalValueError):
+            reload_exact_static_facts(
+                static.canonical_bytes, static.content_key, exact=other,
+            )
+        with self.assertRaises(CanonicalValueError):
+            reload_exact_item(exact.canonical_bytes + b" ", exact.content_key)
+
     def test_seal_exact_item_rejects_noncanonical_sets_and_contract_extra_fields(self):
         for field, value in (
             ("craftedStats", ["haste", "crit"]),
@@ -386,7 +411,11 @@ class GearExactItemInstanceTest(unittest.TestCase):
         self.assertEqual(result.status, "blocked")
         self.assertEqual(result.issues[0].path, "exactSlot.craftedEffectIds")
 
-    def test_v1_catalog_wrapper_remains_byte_and_key_compatible(self):
+    def test_v1_wrapper_and_v2_exact_keys_remain_byte_compatible(self):
+        self.assertEqual(
+            seal_exact_item(exact_v2_row()).document.content_key,
+            "exact-item-instance:sha256:e10e93ee691bc1073af958427aa06d451ba1132c5eb8ef0fa8654c70fb4670f6",
+        )
         built = build_exact_item_instance(
             CURRENT_BINDING,
             exact_row(),

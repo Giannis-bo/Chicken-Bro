@@ -43,6 +43,53 @@ WOW_PG_TEST_DSN='postgresql://wow_migrator@localhost/wow_pg_local' \
 
 Without a test DSN the integration suite may skip; a skip is not production evidence.
 
+## Exact Authority Bundle Task 3A Candidates
+
+Migration `0026_websim_exact_authority_bundle.sql` is not production-authorized
+by local unit or schema tests. Task 3A remains literal `candidate_pending` until
+one final committed, clean runtime-affecting head passes two independently empty,
+operator-provisioned disposable databases. The test suite never creates, drops,
+resets or reuses either database.
+
+Choose one lowercase run id matching `[a-z0-9]{8,32}`. An operator with explicit
+authority provisions two distinct empty databases and exact database comments:
+
+- `wow_exact_first_fresh_test_<run-id>` with comment
+  `wow_exact_first_disposable:<run-id>:fresh`;
+- `wow_exact_first_upgrade_test_<run-id>` with comment
+  `wow_exact_first_disposable:<run-id>:upgrade`.
+
+The cluster must already contain the repository's `wow_migrator` and `wow_app`
+roles. Neither migration nor test receives `CREATEDB`, `CREATEROLE` or database
+discard authority. Before its first write, the candidate suite rejects a missing
+or mismatched comment, a different database name, either DSN resolving to the
+same database, or any existing project schema/table/migration ledger.
+
+After the Task 3A code, tests and `0026` are committed and the tree is clean, run:
+
+```bash
+WOW_PG_TEST_RUN_ID_0026='<run-id>' \
+WOW_PG_TEST_DSN_FRESH_0026='<fresh-disposable-dsn>' \
+WOW_PG_TEST_DSN_UPGRADE_0026='<upgrade-disposable-dsn>' \
+python3 -m unittest \
+  tests.postgres_integration_test.PostgresExactAuthorityCandidateTest
+```
+
+The fresh path applies `0001..0026`. The upgrade path independently applies
+`0001..0025`, inserts a frozen v1 row, snapshots its JSON/hash identity, applies
+`0026`, and requires the before/after snapshot to be equal. Both paths verify
+the closed document matrix, database-computed SHA-256/JSON projection, full
+foreign-key and trigger bindings, `wow_app` SELECT-only grants, whole-bundle
+typed reload, duplicate record order, and same-key concurrent idempotency. The
+candidate record binds the clean commit SHA, Git tree SHA and `0026` SHA-256.
+
+Leave both exact databases intact through evidence/manifest archival and scoped
+review. After candidate execution, any change to code, tests, migration,
+requirement or owner contracts invalidates both candidates. Only an operator may
+discard the two exact database identities after archival; the suite never does.
+Missing `psql`, either DSN, or the run id is a skipped candidate and remains
+`candidate_pending`, never green evidence.
+
 ## SQLite Source Inventory
 
 Use only for an approved one-shot migration or audit:

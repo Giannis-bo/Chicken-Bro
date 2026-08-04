@@ -13,6 +13,7 @@ from server.gear_canonical_kernel import (
     CanonicalResult,
     CanonicalValueError,
     SealedCanonicalDocument,
+    _rehydrate_canonical_document,
     canonical_identity_token,
     canonical_int,
     canonical_json_bytes,
@@ -62,6 +63,41 @@ def accept_payload(value: object) -> object:
 
 
 class GearCanonicalKernelTest(unittest.TestCase):
+    def test_private_rehydrate_requires_exact_original_bytes_key_and_domain(self):
+        original = seal_canonical_document(
+            document_kind="fixture",
+            schema_revision="fixture-v1",
+            payload={"schemaRevision": "fixture-v1", "value": "ok"},
+            key_prefix="fixture:sha256:",
+        )
+        reloaded = _rehydrate_canonical_document(
+            canonical_bytes=original.canonical_bytes,
+            content_key=original.content_key,
+            document_kind="fixture",
+            schema_revision="fixture-v1",
+            key_prefix="fixture:sha256:",
+            payload_validator=validate_fixture_payload,
+        )
+        self.assertEqual(reloaded, original)
+
+        hostile = (
+            (b' {"schemaRevision":"fixture-v1","value":"ok"}', original.content_key),
+            (b'{"schemaRevision":"fixture-v1","value":"ok","value":"ok"}', original.content_key),
+            (b'{"schemaRevision":"fixture-v1","value":"cafe\xcc\x81"}', original.content_key),
+            (original.canonical_bytes, "fixture:sha256:" + "0" * 64),
+        )
+        for canonical_bytes, content_key in hostile:
+            with self.subTest(canonical_bytes=canonical_bytes, content_key=content_key):
+                with self.assertRaises(CanonicalValueError):
+                    _rehydrate_canonical_document(
+                        canonical_bytes=canonical_bytes,
+                        content_key=content_key,
+                        document_kind="fixture",
+                        schema_revision="fixture-v1",
+                        key_prefix="fixture:sha256:",
+                        payload_validator=validate_fixture_payload,
+                    )
+
     def test_rejects_ascii_and_unicode_controls_without_normalizing(self):
         for value in MUTATIONS["invalidIdentityStrings"]:
             with self.subTest(value=ascii(value)):

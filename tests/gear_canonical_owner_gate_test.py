@@ -121,6 +121,17 @@ FORBIDDEN_OLD_ENGINE_SYMBOLS = frozenset({
 SEALED_SIGNATURES = {
     (
         "server/gear_exact_item_instance.py",
+        "reload_exact_item",
+    ): "canonical_bytes: bytes, content_key: str -> SealedCanonicalDocument",
+    (
+        "server/gear_exact_item_instance.py",
+        "reload_exact_static_facts",
+    ): (
+        "canonical_bytes: bytes, content_key: str, *, "
+        "exact: SealedCanonicalDocument -> SealedCanonicalDocument"
+    ),
+    (
+        "server/gear_exact_item_instance.py",
         "seal_exact_item",
     ): "exact_slot_payload: object -> CanonicalResult",
     (
@@ -141,6 +152,13 @@ SEALED_SIGNATURES = {
     ),
     (
         "server/gear_exact_authority.py",
+        "reload_exact_progression",
+    ): (
+        "canonical_bytes: bytes, content_key: str, *, "
+        "exact: SealedCanonicalDocument -> SealedCanonicalDocument"
+    ),
+    (
+        "server/gear_exact_authority.py",
         "seal_exact_authority_envelope",
     ): (
         "*, exact: SealedCanonicalDocument, "
@@ -148,6 +166,17 @@ SEALED_SIGNATURES = {
         "progression: SealedCanonicalDocument, "
         "effect_support: SealedCanonicalDocument, "
         "resolver_revision: str -> CanonicalResult"
+    ),
+    (
+        "server/gear_exact_authority.py",
+        "reload_exact_authority_envelope",
+    ): (
+        "canonical_bytes: bytes, content_key: str, *, "
+        "exact: SealedCanonicalDocument, "
+        "static_facts: SealedCanonicalDocument, "
+        "progression: SealedCanonicalDocument, "
+        "effect_support: SealedCanonicalDocument, "
+        "resolver_revision: str -> SealedCanonicalDocument"
     ),
     (
         "server/simc_item_effect_support.py",
@@ -159,6 +188,13 @@ SEALED_SIGNATURES = {
     ): "record_payload: object, *, runtime_revision: str -> CanonicalResult",
     (
         "server/simc_item_effect_support.py",
+        "reload_effect_record",
+    ): (
+        "canonical_bytes: bytes, content_key: str, *, "
+        "runtime_revision: str -> SealedCanonicalDocument"
+    ),
+    (
+        "server/simc_item_effect_support.py",
         "verify_effect_record",
     ): "document: object, *, runtime_revision: object -> bool",
     (
@@ -167,6 +203,15 @@ SEALED_SIGNATURES = {
     ): (
         "exact: SealedCanonicalDocument, *, runtime_revision: object, "
         "records: Sequence[SealedCanonicalDocument] -> EffectSupportOutcome"
+    ),
+    (
+        "server/simc_item_effect_support.py",
+        "reload_effect_aggregate",
+    ): (
+        "canonical_bytes: bytes, content_key: str, *, "
+        "exact: SealedCanonicalDocument, runtime_revision: str, "
+        "records: tuple[SealedCanonicalDocument, ...] "
+        "-> SealedCanonicalDocument"
     ),
     (
         "server/simc_item_effect_probe.py",
@@ -3732,7 +3777,7 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
             ROOT
             / "artifacts/releases/2026-08-04-equipment-simulator-exact-first/requirement.json"
         ).read_text(encoding="utf-8"))
-        self.assertEqual("implementation_allowed", requirement["status"])
+        self.assertEqual("local_verified", requirement["status"])
         self.assertEqual(
             "source_change_control_only",
             requirement["ownership"].get("proofClaim"),
@@ -3798,7 +3843,7 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
         )
         project_foundation = gear_domain["canonicalKernelFoundations"]
         self.assertEqual(
-            "task3a_authority_persistence_implementation_allowed_candidate_pending",
+            "task3a_authority_persistence_local_verified_candidate_pending",
             project_foundation["status"],
         )
         self.assertEqual(
@@ -3838,7 +3883,7 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
         )
         backend_owner = kernel_hotspot["owners"][0]
         self.assertEqual(
-            "task3a_authority_persistence_implementation_allowed_candidate_pending",
+            "task3a_authority_persistence_local_verified_candidate_pending",
             backend_owner["status"],
         )
         self.assertEqual(
