@@ -315,14 +315,15 @@ def build_exact_item_identity(
     }
     for field in sorted(required_fields.difference(row)):
         problems.append(_problem("EXACT_FIELD_MISSING", f"exactRow.{field}", "Every v2 Exact slot field is required."))
-    item_id = _text(row.get("itemId"))
+    raw_item_id = row.get("itemId")
+    item_id = _text(raw_item_id)
     raw_item_level = row.get("declaredItemLevel")
     item_level = raw_item_level if isinstance(raw_item_level, int) and not isinstance(raw_item_level, bool) and raw_item_level > 0 else 0
     bonus_ids = _set_tokens(row.get("bonusIds"))
     raw_context = row.get("context")
     context = raw_context.strip() if isinstance(raw_context, str) and "\n" not in raw_context and len(raw_context.encode("utf-8")) <= 256 else None
     redirected_base_stats = _set_tokens(row.get("redirectedBaseStats"))
-    if not item_id:
+    if not isinstance(raw_item_id, str) or not _TOKEN_PATTERN.fullmatch(item_id):
         problems.append(_problem("EXACT_ITEM_ID_MISSING", "exactRow.itemId", "Exact identity requires itemId."))
     if not item_level:
         problems.append(_problem("EXACT_ILEVEL_MISSING", "exactRow.declaredItemLevel", "Exact identity requires a positive declared item level."))
@@ -338,11 +339,14 @@ def build_exact_item_identity(
     for field in ("bonusIds", "gemIds", "gemBonusIds", "gemItemLevels", "craftedStats", "embellishmentIds", "redirectedBaseStats"):
         if field in row and not isinstance(row.get(field), list):
             problems.append(_problem("EXACT_FIELD_TYPE_INVALID", f"exactRow.{field}", "v2 Exact token fields must be arrays."))
+    for field in ("bonusIds", "gemIds", "gemBonusIds", "craftedStats", "embellishmentIds", "redirectedBaseStats"):
+        if isinstance(row.get(field), list) and any(not isinstance(value, str) or not _TOKEN_PATTERN.fullmatch(value.strip()) for value in row[field]):
+            problems.append(_problem("EXACT_FIELD_TYPE_INVALID", f"exactRow.{field}", "v2 Exact identifiers must be bounded strings."))
     if isinstance(row.get("gemItemLevels"), list) and any(not isinstance(value, int) or isinstance(value, bool) or value <= 0 for value in row["gemItemLevels"]):
         problems.append(_problem("EXACT_FIELD_TYPE_INVALID", "exactRow.gemItemLevels", "gemItemLevels must contain positive integers."))
     if not isinstance(row.get("enchantId"), str):
         problems.append(_problem("EXACT_FIELD_TYPE_INVALID", "exactRow.enchantId", "enchantId must be a string."))
-    selection_input = enhancement_selection if enhancement_selection is not None else {
+    direct_selection_input = {
         "gemIds": row.get("gemIds"),
         "gemBonusIds": row.get("gemBonusIds"),
         "gemItemLevels": row.get("gemItemLevels"),
@@ -350,9 +354,15 @@ def build_exact_item_identity(
         "craftedStats": row.get("craftedStats"),
         "embellishmentIds": row.get("embellishmentIds"),
     }
-    selection_result = canonical_enhancement_selection(selection_input)
+    selection_result = canonical_enhancement_selection(direct_selection_input)
     if selection_result.get("status") != "verified":
         problems.extend(selection_result.get("problems") or [])
+    if enhancement_selection is not None:
+        override_result = canonical_enhancement_selection(enhancement_selection)
+        if override_result.get("status") != "verified":
+            problems.extend(override_result.get("problems") or [])
+        elif selection_result.get("status") == "verified" and override_result.get("selection") != selection_result.get("selection"):
+            problems.append(_problem("EXACT_ENHANCEMENT_OVERRIDE_MISMATCH", "enhancement", "External enhancement selection must match direct v2 fields."))
     if problems:
         return {
             "status": "blocked", "schemaRevision": EXACT_ITEM_IDENTITY_SCHEMA_REVISION,

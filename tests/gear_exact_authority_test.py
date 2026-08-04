@@ -14,7 +14,7 @@ RUNTIME = "simc-2026.08.04"
 EXACT = build_exact_item_identity({}, {"itemId": "1001", "declaredItemLevel": 266, "bonusIds": ["13334"], "context": "heroic", "gemIds": [], "gemBonusIds": [], "gemItemLevels": [], "enchantId": "", "craftedStats": [], "embellishmentIds": [], "redirectedBaseStats": []})
 STATIC = {"schemaRevision": "exact-static-facts-v1", "exactItemInstanceKey": EXACT["exactItemInstanceKey"], "facts": {"haste_rating": 241}}
 SERIALIZER = EXACT["serializerInput"]
-PROGRESSION_PAYLOAD = {"schemaRevision": "exact-progression-binding-v1", "exactItemInstanceKey": EXACT["exactItemInstanceKey"], "gearRuleRevision": "gear-rule-matrix-v1", "progressionState": {"trackKey": "hero", "rank": 3}}
+PROGRESSION_PAYLOAD = {"schemaRevision": "exact-progression-binding-v1", "exactItemInstanceKey": EXACT["exactItemInstanceKey"], "gearRuleRevision": "gear-rule-matrix-v1", "progressionState": {"kind": "upgrade_track", "trackKey": "hero", "rank": 3, "maxRank": 6}}
 PROGRESSION = {**PROGRESSION_PAYLOAD, "progressionBindingKey": "exact-progression:sha256:" + hashlib.sha256(__import__("json").dumps(PROGRESSION_PAYLOAD, sort_keys=True, separators=(",", ":")).encode()).hexdigest()}
 EFFECT = resolve_exact_item_effect_support(EXACT, runtime_revision=RUNTIME, support_records=[seal_effect_record({"schemaRevision": "simc-item-effect-authority-v1", "subjectKind": "item", "subjectKey": "1001", "subjectVariantSignature": EXACT["exactVariantSignature"], "hasDynamicEffect": False, "simcRuntimeRevision": RUNTIME, "verifiedAt": "2026-08-04T00:00:00Z"})])
 
@@ -80,4 +80,17 @@ class GearExactAuthorityTest(unittest.TestCase):
     def test_envelope_rejects_forged_exact_hash_and_non_json_values(self):
         for exact, facts in (({**EXACT, "exactItemInstanceKey": "exact-item-instance:sha256:" + ("f" * 64)}, STATIC), (EXACT, {**STATIC, "facts": {"haste": object()}})):
             result = build_exact_authority_envelope(exact_item=exact, static_facts=facts, serializer_input=SERIALIZER, progression_binding=PROGRESSION, effect_support=EFFECT, resolver_revision="resolver-v2")
+            self.assertEqual(result["status"], "blocked")
+
+    def test_envelope_rejects_non_builder_exact_derived_fields_and_nested_schemas(self):
+        cases = (
+            {"exact_item": {**EXACT, "serializerInput": {"id": "9999", "ilevel": "999"}}},
+            {"exact_item": {**EXACT, "enhancementSelectionKey": "enhancement-selection:sha256:" + ("f" * 64)}},
+            {"exact_item": {**EXACT, "problemCodes": ["BAD"], "problems": [{"code": "BAD"}]}},
+            {"exact_item": {**EXACT, "enhancementSelection": {**EXACT["enhancementSelection"], "schemaRevision": "unknown"}}},
+            {"static_facts": {**STATIC, "facts": {"haste_rating": "241"}}},
+            {"progression_binding": {**PROGRESSION, "progressionState": {"evil": True}}},
+        )
+        for fields in cases:
+            result = build_exact_authority_envelope(**{"exact_item": EXACT, "static_facts": STATIC, "serializer_input": SERIALIZER, "progression_binding": PROGRESSION, "effect_support": EFFECT, "resolver_revision": "resolver-v2", **fields})
             self.assertEqual(result["status"], "blocked")

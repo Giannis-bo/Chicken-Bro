@@ -10,9 +10,19 @@ from datetime import datetime
 from typing import Any, Mapping
 
 try:
-    from .simc_item_effect_support import seal_effect_record
+    from .simc_item_effect_support import (
+        seal_effect_record,
+        valid_effect_tokens,
+        valid_runtime_revision,
+        validate_effect_record,
+    )
 except ImportError:
-    from simc_item_effect_support import seal_effect_record
+    from simc_item_effect_support import (
+        seal_effect_record,
+        valid_effect_tokens,
+        valid_runtime_revision,
+        validate_effect_record,
+    )
 
 
 _MANIFEST_KEYS = frozenset({
@@ -35,7 +45,7 @@ def _canonical(value: Any) -> bytes:
 
 
 def _tokens(value: Any) -> list[str] | None:
-    if not isinstance(value, list) or not value:
+    if not valid_effect_tokens(value):
         return None
     values = [_text(item) for item in value]
     return values if all(values) else None
@@ -65,6 +75,8 @@ def evaluate_effect_probe(manifest: Any, experiment: Any, control: Any) -> dict[
     actions, buffs = _tokens(manifest.get("expectedActionTokens")), _tokens(manifest.get("expectedBuffTokens"))
     if not actions or not buffs or not all(_text(manifest.get(field)) for field in _MANIFEST_KEYS if field not in {"expectedActionTokens", "expectedBuffTokens"}):
         return _unknown("MANIFEST_EVIDENCE_INCOMPLETE")
+    if not valid_runtime_revision(manifest.get("simcRuntimeRevision")):
+        return _unknown("RUNTIME_INVALID")
     if not _VARIANT_PATTERN.fullmatch(_text(manifest.get("subjectVariantSignature"))) or not _SNAPSHOT_KEY_PATTERN.fullmatch(_text(manifest.get("experimentSnapshotKey"))) or not _SNAPSHOT_KEY_PATTERN.fullmatch(_text(manifest.get("controlSnapshotKey"))) or not _timestamp(manifest.get("verifiedAt")):
         return _unknown("MANIFEST_SEAL_INVALID")
     if not isinstance(experiment, Mapping) or not isinstance(control, Mapping):
@@ -78,7 +90,7 @@ def evaluate_effect_probe(manifest: Any, experiment: Any, control: Any) -> dict[
         return _unknown("SNAPSHOT_IDENTITY_MISMATCH")
     if experiment.get("timedOut") or control.get("timedOut"):
         return _unknown("PROBE_TIMEOUT")
-    if experiment.get("exitCode") != 0 or control.get("exitCode") != 0:
+    if type(experiment.get("exitCode")) is not int or type(control.get("exitCode")) is not int or experiment.get("exitCode") != 0 or control.get("exitCode") != 0:
         return _unknown("PROBE_EXIT_FAILED")
     if experiment.get("warnings") or control.get("warnings"):
         return _unknown("ITEM_RESOLUTION_WARNING")
@@ -100,7 +112,8 @@ def evaluate_effect_probe(manifest: Any, experiment: Any, control: Any) -> dict[
         "experimentSnapshotKey": manifest["experimentSnapshotKey"], "controlSnapshotKey": manifest["controlSnapshotKey"],
         "verifiedAt": manifest["verifiedAt"],
     }
-    return seal_effect_record(record)
+    sealed = seal_effect_record(record)
+    return sealed if validate_effect_record(sealed, runtime_revision=runtime) else _unknown("SEALED_RECORD_INVALID")
 
 
 __all__ = ("evaluate_effect_probe",)

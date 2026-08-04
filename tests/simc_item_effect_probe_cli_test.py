@@ -41,6 +41,9 @@ class SimcItemEffectProbeCliTest(unittest.TestCase):
         self.assertNotEqual(completed.returncode, 0)
         self.assertEqual(completed.stdout, "")
 
+    def test_cli_rejects_malformed_token_and_boolean_exit_without_stdout(self):
+        self._assert_cli_failure({**EXPERIMENT, "exitCode": False}, RUNTIME=MANIFEST["simcRuntimeRevision"])
+
     def _assert_cli_failure(self, experiment, *, RUNTIME):
         root = Path(__file__).resolve().parents[1]
         with tempfile.TemporaryDirectory() as directory:

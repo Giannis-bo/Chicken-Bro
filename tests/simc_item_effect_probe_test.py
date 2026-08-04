@@ -70,3 +70,15 @@ class SimcItemEffectProbeTest(unittest.TestCase):
         record = evaluate_effect_probe(MANIFEST, EXPERIMENT, CONTROL)
         support = resolve_exact_item_effect_support({"itemId": "1001", "exactVariantSignature": MANIFEST["subjectVariantSignature"], "enhancementSelection": {}}, runtime_revision=RUNTIME, support_records=[record])
         self.assertEqual(support["status"], "verified")
+
+    def test_probe_rejects_malformed_tokens_boolean_exit_and_empty_runtime(self):
+        for manifest, experiment, control in (
+            ({**MANIFEST, "expectedActionTokens": ["bad\ntoken"]}, EXPERIMENT, CONTROL),
+            ({**MANIFEST, "expectedActionTokens": ["x" * 257]}, EXPERIMENT, CONTROL),
+            (MANIFEST, {**EXPERIMENT, "exitCode": False}, CONTROL),
+            ({**MANIFEST, "simcRuntimeRevision": ""}, {**EXPERIMENT, "runtimeRevision": ""}, {**CONTROL, "runtimeRevision": ""}),
+            ({**MANIFEST, "expectedActionTokens": ["a"] * 33}, EXPERIMENT, CONTROL),
+            ({**MANIFEST, "expectedActionTokens": ["bad/"]}, EXPERIMENT, CONTROL),
+            ({**MANIFEST, "expectedActionTokens": ["x" * 129] * 32}, EXPERIMENT, CONTROL),
+        ):
+            self.assertEqual(evaluate_effect_probe(manifest, experiment, control)["status"], "unknown")

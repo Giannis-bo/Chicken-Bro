@@ -150,3 +150,19 @@ class SimcItemEffectSupportTest(unittest.TestCase):
         first = resolve_exact_item_effect_support({**ITEM, "enhancementSelection": {**ITEM["enhancementSelection"], "gemIds": ["a"], "gemBonusIds": ["b:c"], "gemItemLevels": ["d"]}}, runtime_revision=RUNTIME, support_records=[])
         second = resolve_exact_item_effect_support({**ITEM, "enhancementSelection": {**ITEM["enhancementSelection"], "gemIds": ["a"], "gemBonusIds": ["b"], "gemItemLevels": ["c:d"]}}, runtime_revision=RUNTIME, support_records=[])
         self.assertNotEqual(first["subjects"][1]["subjectVariantSignature"], second["subjects"][1]["subjectVariantSignature"])
+
+    def test_unsupported_record_is_included_in_aggregate_identity(self):
+        subject = resolve_exact_item_effect_support(ITEM, runtime_revision=RUNTIME, support_records=[])["subjects"][0]
+        def unsupported(reason, verified_at):
+            return seal_effect_record({**{field: subject[field] for field in ("subjectKind", "subjectKey", "subjectVariantSignature")}, "schemaRevision": "simc-item-effect-record-v1", "status": "unsupported", "hasDynamicEffect": True, "simcRuntimeRevision": RUNTIME, "unsupportedReason": reason, "verifiedAt": verified_at})
+        first = resolve_exact_item_effect_support(ITEM, runtime_revision=RUNTIME, support_records=[unsupported("NOT_IMPLEMENTED", "2026-08-04T00:00:00Z"), *(static_record(value) for value in resolve_exact_item_effect_support(ITEM, runtime_revision=RUNTIME, support_records=[])["subjects"][1:])])
+        second = resolve_exact_item_effect_support(ITEM, runtime_revision=RUNTIME, support_records=[unsupported("RUNTIME_GAP", "2026-08-04T01:00:00Z"), *(static_record(value) for value in resolve_exact_item_effect_support(ITEM, runtime_revision=RUNTIME, support_records=[])["subjects"][1:])])
+        self.assertEqual(first["status"], "unsupported")
+        self.assertTrue(first["supportRecordKeys"])
+        self.assertNotEqual(first["effectSupportKey"], second["effectSupportKey"])
+
+    def test_effect_records_reject_empty_runtime_and_malformed_tokens(self):
+        subject = resolve_exact_item_effect_support(ITEM, runtime_revision=RUNTIME, support_records=[])["subjects"][0]
+        bad = seal_effect_record({**{field: subject[field] for field in ("subjectKind", "subjectKey", "subjectVariantSignature")}, "schemaRevision": "simc-item-effect-record-v1", "status": "verified", "hasDynamicEffect": True, "simcRuntimeRevision": "", "effectType": "on_use", "experimentSnapshotKey": "simulation-snapshot:sha256:" + ("4" * 64), "controlSnapshotKey": "simulation-snapshot:sha256:" + ("5" * 64), "expectedActionTokens": ["bad\ntoken"], "expectedBuffTokens": ["buff"], "verifiedAt": "2026-08-04T00:00:00Z"})
+        result = resolve_exact_item_effect_support(ITEM, runtime_revision="", support_records=[bad])
+        self.assertEqual(result["status"], "unknown")

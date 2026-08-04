@@ -5,13 +5,16 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import re
 from typing import Any, Mapping
 
 try:
-    from .simc_item_effect_support import effect_support_key, resolve_exact_item_effect_support
+    from .gear_exact_item_instance import canonical_enhancement_selection
+    from .simc_item_effect_support import effect_support_key, resolve_exact_item_effect_support, validate_effect_record
 except ImportError:
-    from simc_item_effect_support import effect_support_key, resolve_exact_item_effect_support
+    from gear_exact_item_instance import canonical_enhancement_selection
+    from simc_item_effect_support import effect_support_key, resolve_exact_item_effect_support, validate_effect_record
 
 
 _EXACT_KEY_PATTERN = re.compile(r"^exact-item-instance:sha256:[0-9a-f]{64}$")
@@ -50,12 +53,15 @@ def _valid_exact(exact: Mapping[str, Any]) -> bool:
         return False
     if not isinstance(exact.get("itemId"), str) or not isinstance(exact.get("itemLevel"), int) or isinstance(exact.get("itemLevel"), bool):
         return False
-    if not isinstance(exact.get("bonusIds"), list) or not isinstance(exact.get("redirectedBaseStats"), list) or not isinstance(exact.get("enhancementSelection"), Mapping):
+    if not isinstance(exact.get("bonusIds"), list) or not isinstance(exact.get("redirectedBaseStats"), list) or not isinstance(exact.get("enhancementSelection"), Mapping) or exact.get("problemCodes") != [] or exact.get("problems") != []:
         return False
     try:
+        enhancement = canonical_enhancement_selection(exact["enhancementSelection"])
+        if enhancement.get("status") != "verified" or exact.get("enhancementSelection") != enhancement.get("selection") or exact.get("enhancementSelectionKey") != enhancement.get("enhancementSelectionKey"):
+            return False
         variant = {"itemId": exact["itemId"], "bonusIds": exact["bonusIds"], "context": exact["context"], "itemLevel": exact["itemLevel"], "redirectedBaseStats": exact["redirectedBaseStats"]}
         instance = {"schemaRevision": "gear-exact-item-instance-v2", **variant, "enhancementSelection": exact["enhancementSelection"]}
-        return exact.get("exactVariantSignature") == _hash("exact-variant:sha256:", variant) and exact.get("exactItemInstanceKey") == _hash("exact-item-instance:sha256:", instance)
+        return exact.get("serializerInput") == _expected_serializer(exact) and exact.get("exactVariantSignature") == _hash("exact-variant:sha256:", variant) and exact.get("exactItemInstanceKey") == _hash("exact-item-instance:sha256:", instance)
     except (KeyError, TypeError, ValueError):
         return False
 
@@ -72,11 +78,30 @@ def _expected_serializer(exact: Mapping[str, Any]) -> dict[str, str]:
 
 
 def _valid_static_facts(value: Any, exact_key: str) -> bool:
-    return isinstance(value, Mapping) and set(value) == _STATIC_KEYS and value.get("schemaRevision") == "exact-static-facts-v1" and value.get("exactItemInstanceKey") == exact_key and isinstance(value.get("facts"), Mapping) and bool(value["facts"])
+    return (
+        isinstance(value, Mapping) and set(value) == _STATIC_KEYS
+        and value.get("schemaRevision") == "exact-static-facts-v1"
+        and value.get("exactItemInstanceKey") == exact_key
+        and isinstance(value.get("facts"), Mapping) and bool(value["facts"])
+        and all(isinstance(amount, (int, float)) and not isinstance(amount, bool) and math.isfinite(amount) for amount in value["facts"].values())
+    )
+
+
+def _valid_progression_state(value: Any) -> bool:
+    if not isinstance(value, Mapping):
+        return False
+    kind = value.get("kind")
+    if kind == "upgrade_track":
+        return set(value) == {"kind", "trackKey", "rank", "maxRank"} and isinstance(value.get("trackKey"), str) and isinstance(value.get("rank"), int) and not isinstance(value.get("rank"), bool) and 1 <= value["rank"] <= 6 and value.get("maxRank") == 6
+    if kind == "crafted_quality":
+        return set(value) == {"kind", "trackKey", "qualityKey"} and all(isinstance(value.get(field), str) and value[field] for field in ("trackKey", "qualityKey"))
+    if kind == "ascendant":
+        return set(value) == {"kind", "trackKey", "originKind"} and isinstance(value.get("trackKey"), str) and isinstance(value.get("originKind"), str) and value["trackKey"] and value["originKind"]
+    return False
 
 
 def _valid_progression(value: Any, exact_key: str) -> bool:
-    if not isinstance(value, Mapping) or set(value) != _PROGRESSION_KEYS or value.get("schemaRevision") != "exact-progression-binding-v1" or value.get("exactItemInstanceKey") != exact_key or not isinstance(value.get("gearRuleRevision"), str) or not value["gearRuleRevision"] or not isinstance(value.get("progressionState"), Mapping) or not value["progressionState"]:
+    if not isinstance(value, Mapping) or set(value) != _PROGRESSION_KEYS or value.get("schemaRevision") != "exact-progression-binding-v1" or value.get("exactItemInstanceKey") != exact_key or not isinstance(value.get("gearRuleRevision"), str) or not value["gearRuleRevision"] or not _valid_progression_state(value.get("progressionState")):
         return False
     payload = {key: value[key] for key in _PROGRESSION_KEYS if key != "progressionBindingKey"}
     return _PROGRESSION_KEY_PATTERN.fullmatch(str(value.get("progressionBindingKey") or "")) is not None and value["progressionBindingKey"] == _hash("exact-progression:sha256:", payload)
@@ -88,6 +113,8 @@ def _valid_effect_support(exact: Mapping[str, Any], effect: Any) -> bool:
     if effect.get("schemaRevision") != "simc-item-effect-support-v1" or effect.get("status") != "verified" or not isinstance(effect.get("simcRuntimeRevision"), str) or not effect["simcRuntimeRevision"]:
         return False
     try:
+        if any(not validate_effect_record(record, runtime_revision=effect["simcRuntimeRevision"]) for record in effect["supportRecords"]):
+            return False
         recomputed = resolve_exact_item_effect_support(exact, runtime_revision=effect["simcRuntimeRevision"], support_records=effect["supportRecords"])
         return effect == recomputed and effect.get("effectSupportKey") == effect_support_key(effect)
     except (KeyError, TypeError, ValueError):

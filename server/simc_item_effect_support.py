@@ -17,6 +17,11 @@ EFFECT_SUBJECT_KINDS = (
 _RECORD_KEY_PATTERN = re.compile(r"^simc-item-effect-record:sha256:[0-9a-f]{64}$")
 _SNAPSHOT_KEY_PATTERN = re.compile(r"^simulation-snapshot:sha256:[0-9a-f]{64}$")
 _EFFECT_TYPES = frozenset({"on_use", "proc", "buff"})
+_RUNTIME_PATTERN = re.compile(r"^[A-Za-z0-9_.:-]{1,256}$")
+_EFFECT_TOKEN_PATTERN = re.compile(r"^[A-Za-z0-9_.: -]{1,256}$")
+_MAX_EFFECT_TOKENS = 32
+_MAX_EFFECT_TOKEN_BYTES = 256
+_MAX_EFFECT_SEQUENCE_BYTES = 4096
 _STATIC_KEYS = frozenset({"schemaRevision", "subjectKind", "subjectKey", "subjectVariantSignature", "hasDynamicEffect", "simcRuntimeRevision", "verifiedAt", "supportRecordKey"})
 _DYNAMIC_KEYS = frozenset({"schemaRevision", "status", "subjectKind", "subjectKey", "subjectVariantSignature", "hasDynamicEffect", "simcRuntimeRevision", "effectType", "expectedActionTokens", "expectedBuffTokens", "experimentSnapshotKey", "controlSnapshotKey", "verifiedAt", "supportRecordKey"})
 _UNSUPPORTED_KEYS = frozenset({"schemaRevision", "status", "subjectKind", "subjectKey", "subjectVariantSignature", "hasDynamicEffect", "simcRuntimeRevision", "unsupportedReason", "verifiedAt", "supportRecordKey"})
@@ -65,7 +70,24 @@ def _valid_timestamp(value: Any) -> bool:
 
 
 def _tokens(value: Any) -> bool:
-    return isinstance(value, list) and bool(value) and all(_text(token) for token in value)
+    if not isinstance(value, list) or not value or len(value) > _MAX_EFFECT_TOKENS:
+        return False
+    total = 0
+    for token in value:
+        text = _text(token)
+        encoded = text.encode("utf-8")
+        if not _EFFECT_TOKEN_PATTERN.fullmatch(text) or len(encoded) > _MAX_EFFECT_TOKEN_BYTES:
+            return False
+        total += len(encoded)
+    return total <= _MAX_EFFECT_SEQUENCE_BYTES
+
+
+def valid_runtime_revision(value: Any) -> bool:
+    return bool(_RUNTIME_PATTERN.fullmatch(_text(value)))
+
+
+def valid_effect_tokens(value: Any) -> bool:
+    return _tokens(value)
 
 
 def _valid_subject(record: Mapping[str, Any]) -> bool:
@@ -91,6 +113,7 @@ def _valid_static(record: Mapping[str, Any], runtime: str) -> bool:
         set(record) == _STATIC_KEYS
         and _text(record.get("schemaRevision")) == "simc-item-effect-authority-v1"
         and record.get("hasDynamicEffect") is False
+        and valid_runtime_revision(runtime)
         and _text(record.get("simcRuntimeRevision")) == runtime
         and _valid_subject(record)
         and _valid_timestamp(record.get("verifiedAt"))
@@ -104,6 +127,7 @@ def _valid_dynamic(record: Mapping[str, Any], runtime: str) -> bool:
         and _text(record.get("schemaRevision")) == "simc-item-effect-record-v1"
         and _text(record.get("status")) == "verified"
         and record.get("hasDynamicEffect") is True
+        and valid_runtime_revision(runtime)
         and _text(record.get("simcRuntimeRevision")) == runtime
         and _valid_subject(record)
         and _text(record.get("effectType")) in _EFFECT_TYPES
@@ -123,6 +147,7 @@ def _valid_unsupported(record: Mapping[str, Any], runtime: str) -> bool:
         and _text(record.get("schemaRevision")) == "simc-item-effect-record-v1"
         and _text(record.get("status")) == "unsupported"
         and record.get("hasDynamicEffect") is True
+        and valid_runtime_revision(runtime)
         and _text(record.get("simcRuntimeRevision")) == runtime
         and _valid_subject(record)
         and bool(_text(record.get("unsupportedReason")))
@@ -172,6 +197,15 @@ def _subject_status(subject: Mapping[str, str], runtime: str, records: Any) -> d
     return {**subject, "status": "unknown"}
 
 
+def validate_effect_record(record: Any, *, runtime_revision: str) -> bool:
+    """Validate one sealed effect record for its current runtime."""
+
+    if not isinstance(record, Mapping):
+        return False
+    runtime = _text(runtime_revision)
+    return _valid_static(record, runtime) or _valid_dynamic(record, runtime) or _valid_unsupported(record, runtime)
+
+
 def effect_support_key(result: Mapping[str, Any]) -> str:
     payload = {key: result[key] for key in ("schemaRevision", "status", "simcRuntimeRevision", "subjects", "supportRecords", "supportRecordKeys")}
     return "simc-item-effect-support:sha256:" + hashlib.sha256(_canonical(payload)).hexdigest()
@@ -188,7 +222,7 @@ def resolve_exact_item_effect_support(exact_item: Any, *, runtime_revision: str,
     sealed = []
     for subject in resolved:
         for record in _matching(support_records, subject):
-            if _valid_static(record, runtime) or _valid_dynamic(record, runtime):
+            if _valid_static(record, runtime) or _valid_dynamic(record, runtime) or _valid_unsupported(record, runtime):
                 sealed.append(dict(record))
     sealed.sort(key=lambda record: _text(record.get("supportRecordKey")))
     result = {"schemaRevision": EFFECT_SUPPORT_SCHEMA_REVISION, "status": status, "simcRuntimeRevision": runtime, "subjects": resolved, "supportRecords": sealed, "supportRecordKeys": [record["supportRecordKey"] for record in sealed]}
@@ -196,4 +230,4 @@ def resolve_exact_item_effect_support(exact_item: Any, *, runtime_revision: str,
     return result
 
 
-__all__ = ("EFFECT_SUBJECT_KINDS", "EFFECT_SUPPORT_SCHEMA_REVISION", "effect_record_key", "effect_support_key", "resolve_exact_item_effect_support", "seal_effect_record")
+__all__ = ("EFFECT_SUBJECT_KINDS", "EFFECT_SUPPORT_SCHEMA_REVISION", "effect_record_key", "effect_support_key", "resolve_exact_item_effect_support", "seal_effect_record", "valid_effect_tokens", "valid_runtime_revision", "validate_effect_record")
