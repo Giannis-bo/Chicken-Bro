@@ -1,4 +1,5 @@
 import copy
+import inspect
 import json
 import unittest
 
@@ -167,6 +168,26 @@ class GearExactItemInstanceTest(unittest.TestCase):
                 "crafted_stats": "32/36",
                 "embellishment": "999001/999002",
             },
+        )
+
+    def test_serializer_derivation_is_byte_stable_and_has_no_caller_payload_parameter(self):
+        exact = seal_exact_item(exact_v2_row()).document
+        first = derive_simc_serializer_input(exact)
+        second = derive_simc_serializer_input(exact)
+        self.assertEqual(
+            json.dumps(first, sort_keys=True, separators=(",", ":")).encode(),
+            json.dumps(second, sort_keys=True, separators=(",", ":")).encode(),
+        )
+        self.assertEqual(
+            tuple(inspect.signature(derive_simc_serializer_input).parameters),
+            ("exact",),
+        )
+        first["id"] = "9999"
+        first["ilevel"] = "999"
+        first["bonus_id"] = "forged"
+        self.assertEqual(
+            derive_simc_serializer_input(exact),
+            second,
         )
 
     def test_simc_derivation_rejects_raw_wrong_or_tampered_exact_documents(self):

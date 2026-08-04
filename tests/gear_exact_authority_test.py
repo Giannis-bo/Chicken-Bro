@@ -1,8 +1,11 @@
 import copy
 import hashlib
+import inspect
 import json
 import unittest
 
+import server.gear_exact_authority as exact_authority_module
+import server.gear_exact_item_instance as exact_item_module
 from server.gear_exact_authority import (
     _validate_exact_progression_payload,
     build_exact_authority_envelope,
@@ -16,7 +19,10 @@ from server.gear_canonical_kernel import (
 )
 from server.gear_exact_item_instance import build_exact_item_identity, seal_exact_item
 from server.simc_item_effect_support import (
+    derive_exact_effect_subjects,
+    resolve_exact_effect_support,
     resolve_exact_item_effect_support,
+    seal_effect_record,
     seal_legacy_effect_record,
 )
 
@@ -64,6 +70,88 @@ def sealed_exact(**overrides):
     }
     payload.update(overrides)
     return seal_exact_item(payload).document
+
+
+def sealed_effect_aggregate(exact, *, status="verified", runtime=RUNTIME):
+    records = []
+    for index, subject in enumerate(derive_exact_effect_subjects(exact)):
+        payload = {
+            "schemaRevision": "simc-item-effect-record-v1",
+            "status": "verified",
+            "subjectKind": subject.kind,
+            "subjectKey": subject.key,
+            "subjectVariantSignature": subject.variant_signature,
+            "hasDynamicEffect": False,
+            "simcRuntimeRevision": runtime,
+            "verifiedAt": "2026-08-04T00:00:00Z",
+        }
+        if status == "unsupported" and index == 0:
+            payload.update({
+                "status": "unsupported",
+                "hasDynamicEffect": True,
+                "unsupportedReason": "NOT_IMPLEMENTED",
+            })
+        sealed = seal_effect_record(payload, runtime_revision=runtime)
+        if sealed.status != "verified":
+            raise AssertionError(sealed.issues)
+        records.append(sealed.document)
+    outcome = resolve_exact_effect_support(
+        exact,
+        runtime_revision=runtime,
+        records=records,
+    )
+    if outcome.status != status:
+        raise AssertionError((outcome.status, outcome.issues))
+    return outcome.document
+
+
+def sealed_task4_inputs(exact=None, *, facts=None):
+    exact = exact or sealed_exact()
+    static = exact_item_module.seal_exact_static_facts(
+        exact,
+        {"haste_rating": 241} if facts is None else facts,
+    )
+    progression = seal_exact_progression(
+        exact,
+        season_revision=SEASON,
+        gear_rule_revision=RULE,
+        slot="head",
+        has_crafted_source=False,
+    )
+    if static.status != "verified" or progression.status != "verified":
+        raise AssertionError((static.issues, progression.issues))
+    return exact, static.document, progression.document, sealed_effect_aggregate(exact)
+
+
+def forged_document(document, *, payload=None, kind=None, schema=None, prefix=None):
+    return seal_canonical_document(
+        document_kind=kind or document.document_kind,
+        schema_revision=schema or document.schema_revision,
+        payload=json.loads(document.canonical_bytes) if payload is None else payload,
+        key_prefix=prefix or {
+            "exact_item": "exact-item-instance:sha256:",
+            "exact_static_facts": "exact-static-facts:sha256:",
+            "exact_progression": "exact-progression:sha256:",
+            "effect_aggregate": "simc-item-effect-support:sha256:",
+        }[document.document_kind],
+    )
+
+
+def tampered_document(document, *, canonical_bytes=None, content_key=None):
+    tampered = object.__new__(SealedCanonicalDocument)
+    object.__setattr__(tampered, "document_kind", document.document_kind)
+    object.__setattr__(tampered, "schema_revision", document.schema_revision)
+    object.__setattr__(
+        tampered,
+        "canonical_bytes",
+        canonical_bytes if canonical_bytes is not None else document.canonical_bytes,
+    )
+    object.__setattr__(
+        tampered,
+        "content_key",
+        content_key if content_key is not None else document.content_key,
+    )
+    return tampered
 
 
 def verify_progression(document, exact):
@@ -545,3 +633,286 @@ class GearExactAuthorityTest(unittest.TestCase):
             resolver_revision="resolver-v2",
         )
         self.assertEqual(result["status"], "ready")
+
+
+class SealedExactAuthorityEnvelopeTest(unittest.TestCase):
+    def test_static_facts_require_reverified_exact_and_strict_numeric_mapping(self):
+        exact = sealed_exact()
+        ready = exact_item_module.seal_exact_static_facts(
+            exact,
+            {"haste_rating": 241, "crit_pct": 1.5},
+        )
+        self.assertEqual(ready.status, "verified")
+        self.assertEqual(ready.document.document_kind, "exact_static_facts")
+        self.assertEqual(
+            ready.document.schema_revision,
+            "exact-static-facts-v1",
+        )
+        self.assertRegex(
+            ready.document.content_key,
+            r"^exact-static-facts:sha256:[0-9a-f]{64}$",
+        )
+        self.assertEqual(
+            json.loads(ready.document.canonical_bytes),
+            {
+                "schemaRevision": "exact-static-facts-v1",
+                "exactItemInstanceKey": exact.content_key,
+                "facts": {"haste_rating": 241, "crit_pct": 1.5},
+            },
+        )
+
+        invalid_facts = (
+            {},
+            {1: 241},
+            {1: 241, "1": 242},
+            {" stat": 241},
+            {"stat ": 241},
+            {"stat\u0085x": 241},
+            {"stat\u2028x": 241},
+            {"x" * 257: 241},
+            {"stat": True},
+            {"stat": float("nan")},
+            {"stat": float("inf")},
+            {"stat": float("-inf")},
+            {"stat": "241"},
+            {"stat": [241]},
+            {"stat": {"nested": 241}},
+        )
+        for facts in invalid_facts:
+            with self.subTest(facts=facts):
+                self.assertEqual(
+                    exact_item_module.seal_exact_static_facts(exact, facts).status,
+                    "blocked",
+                )
+
+        payload = json.loads(exact.canonical_bytes)
+        invalid_exact_documents = (
+            payload,
+            forged_document(exact, kind="other"),
+            forged_document(exact, schema="wrong-schema"),
+            forged_document(exact, prefix="attacker:sha256:"),
+            forged_document(exact, payload={**payload, "itemId": " 1001"}),
+            tampered_document(
+                exact,
+                canonical_bytes=exact.canonical_bytes.replace(b'"1001"', b'"1002"'),
+            ),
+            tampered_document(
+                exact,
+                content_key="exact-item-instance:sha256:" + "f" * 64,
+            ),
+        )
+        for invalid_exact in invalid_exact_documents:
+            with self.subTest(invalid_exact=invalid_exact):
+                self.assertEqual(
+                    exact_item_module.seal_exact_static_facts(
+                        invalid_exact,
+                        {"haste_rating": 241},
+                    ).status,
+                    "blocked",
+                )
+
+    def test_static_facts_are_deterministic_and_bind_every_fact_and_exact_identity(self):
+        exact = sealed_exact()
+        same_a = exact_item_module.seal_exact_static_facts(
+            exact, {"haste_rating": 241, "crit_rating": 180},
+        ).document
+        same_b = exact_item_module.seal_exact_static_facts(
+            exact, {"crit_rating": 180, "haste_rating": 241},
+        ).document
+        changed_key = exact_item_module.seal_exact_static_facts(
+            exact, {"haste": 241, "crit_rating": 180},
+        ).document
+        changed_value = exact_item_module.seal_exact_static_facts(
+            exact, {"haste_rating": 242, "crit_rating": 180},
+        ).document
+        changed_exact = exact_item_module.seal_exact_static_facts(
+            sealed_exact(itemId="1002"),
+            {"haste_rating": 241, "crit_rating": 180},
+        ).document
+        self.assertEqual(same_a, same_b)
+        for changed in (changed_key, changed_value, changed_exact):
+            self.assertNotEqual(same_a.content_key, changed.content_key)
+
+    def test_envelope_rejects_raw_types_and_cross_exact_documents(self):
+        exact_a, static_a, progression_a, effect_a = sealed_task4_inputs()
+        exact_b, static_b, progression_b, effect_b = sealed_task4_inputs(
+            sealed_exact(itemId="1002")
+        )
+        valid = {
+            "exact": exact_a,
+            "static_facts": static_a,
+            "progression": progression_a,
+            "effect_support": effect_a,
+            "resolver_revision": "resolver-v2",
+        }
+        for field in ("exact", "static_facts", "progression", "effect_support"):
+            with self.subTest(field=field):
+                raw = json.loads(valid[field].canonical_bytes)
+                with self.assertRaises(TypeError):
+                    exact_authority_module.seal_exact_authority_envelope(
+                        **{**valid, field: raw}
+                    )
+
+        for fields in (
+            {"static_facts": static_b},
+            {"progression": progression_b},
+            {"effect_support": effect_b},
+            {"exact": exact_b},
+        ):
+            with self.subTest(fields=fields):
+                self.assertEqual(
+                    exact_authority_module.seal_exact_authority_envelope(
+                        **{**valid, **fields}
+                    ).status,
+                    "blocked",
+                )
+
+    def test_envelope_composes_only_verified_sealed_identities(self):
+        exact, static, progression, effect = sealed_task4_inputs()
+        first = exact_authority_module.seal_exact_authority_envelope(
+            exact=exact,
+            static_facts=static,
+            progression=progression,
+            effect_support=effect,
+            resolver_revision="resolver-v2",
+        )
+        second = exact_authority_module.seal_exact_authority_envelope(
+            exact=exact,
+            static_facts=static,
+            progression=progression,
+            effect_support=effect,
+            resolver_revision="resolver-v2",
+        )
+        self.assertEqual(first.status, "verified")
+        self.assertEqual(first.document, second.document)
+        self.assertEqual(first.document.document_kind, "exact_authority")
+        self.assertEqual(
+            first.document.schema_revision,
+            "exact-authority-envelope-v1",
+        )
+        self.assertRegex(
+            first.document.content_key,
+            r"^exact-authority:sha256:[0-9a-f]{64}$",
+        )
+        self.assertEqual(
+            json.loads(first.document.canonical_bytes),
+            {
+                "schemaRevision": "exact-authority-envelope-v1",
+                "exactItemInstanceKey": exact.content_key,
+                "staticFactsKey": static.content_key,
+                "progressionBindingKey": progression.content_key,
+                "effectSupportKey": effect.content_key,
+                "resolverRevision": "resolver-v2",
+            },
+        )
+        self.assertNotIn(
+            "serializer_input",
+            inspect.signature(
+                exact_authority_module.seal_exact_authority_envelope
+            ).parameters,
+        )
+        with self.assertRaises(TypeError):
+            exact_authority_module.seal_exact_authority_envelope(
+                exact=exact,
+                static_facts=static,
+                progression=progression,
+                effect_support=effect,
+                resolver_revision="resolver-v2",
+                serializer_input={"id": "9999", "ilevel": "999"},
+            )
+
+        changed_static = exact_item_module.seal_exact_static_facts(
+            exact, {"haste_rating": 242},
+        ).document
+        changed_resolver = exact_authority_module.seal_exact_authority_envelope(
+            exact=exact,
+            static_facts=static,
+            progression=progression,
+            effect_support=effect,
+            resolver_revision="resolver-v3",
+        ).document
+        changed_facts = exact_authority_module.seal_exact_authority_envelope(
+            exact=exact,
+            static_facts=changed_static,
+            progression=progression,
+            effect_support=effect,
+            resolver_revision="resolver-v2",
+        ).document
+        self.assertNotEqual(first.document.content_key, changed_resolver.content_key)
+        self.assertNotEqual(first.document.content_key, changed_facts.content_key)
+
+    def test_envelope_blocks_unsupported_unknown_stale_duplicate_and_unrelated_effect_evidence(self):
+        exact, static, progression, effect = sealed_task4_inputs()
+        unsupported = sealed_effect_aggregate(exact, status="unsupported")
+        payload = json.loads(effect.canonical_bytes)
+        forged_effects = (
+            unsupported,
+            forged_document(effect, payload={**payload, "status": "unknown"}),
+            forged_document(
+                effect,
+                payload={**payload, "simcRuntimeRevision": "stale-runtime"},
+            ),
+            forged_document(
+                effect,
+                payload={**payload, "subjects": [*payload["subjects"], payload["subjects"][0]]},
+            ),
+            forged_document(
+                effect,
+                payload={**payload, "supportRecords": []},
+            ),
+            sealed_effect_aggregate(sealed_exact(itemId="1002")),
+        )
+        for invalid_effect in forged_effects:
+            with self.subTest(invalid_effect=invalid_effect):
+                self.assertEqual(
+                    exact_authority_module.seal_exact_authority_envelope(
+                        exact=exact,
+                        static_facts=static,
+                        progression=progression,
+                        effect_support=invalid_effect,
+                        resolver_revision="resolver-v2",
+                    ).status,
+                    "blocked",
+                )
+
+    def test_envelope_returns_blocked_for_wrong_or_tampered_seals_without_partial_authority(self):
+        exact, static, progression, effect = sealed_task4_inputs()
+        valid = {
+            "exact": exact,
+            "static_facts": static,
+            "progression": progression,
+            "effect_support": effect,
+            "resolver_revision": "resolver-v2",
+        }
+        for field, document in (
+            ("exact", exact),
+            ("static_facts", static),
+            ("progression", progression),
+            ("effect_support", effect),
+        ):
+            candidates = (
+                forged_document(document, kind="wrong_kind"),
+                forged_document(document, schema="wrong-schema"),
+                forged_document(document, prefix="attacker:sha256:"),
+                tampered_document(
+                    document,
+                    content_key=document.content_key[:-1] + (
+                        "0" if document.content_key[-1] != "0" else "1"
+                    ),
+                ),
+            )
+            for candidate in candidates:
+                with self.subTest(field=field, candidate=candidate):
+                    result = exact_authority_module.seal_exact_authority_envelope(
+                        **{**valid, field: candidate}
+                    )
+                    self.assertEqual(result.status, "blocked")
+                    self.assertIsNone(result.document)
+                    self.assertTrue(result.issues)
+
+        for resolver_revision in (" resolver-v2", "resolver-v2\n", False, ""):
+            with self.subTest(resolver_revision=resolver_revision):
+                result = exact_authority_module.seal_exact_authority_envelope(
+                    **{**valid, "resolver_revision": resolver_revision}
+                )
+                self.assertEqual(result.status, "blocked")
