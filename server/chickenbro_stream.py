@@ -16,6 +16,7 @@ _ALLOWED_RESPONSE_KEYS = {
     "limitations",
     "missingInputs",
     "nextQuestion",
+    "claimRefs",
 }
 _NUMBER_PATTERN = re.compile(r"(?<![A-Za-z0-9.])(?:\+?\d{2,}(?:\.\d+)?|\d+\.\d+)%?(?![\d.])")
 _ANSWER_KEY_PATTERN = re.compile(r'"answer"\s*:\s*"')

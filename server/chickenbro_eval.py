@@ -14,6 +14,7 @@ from server.chickenbro_observability import (
     RELEASE_HASH_PATTERN,
     EVIDENCE_NEEDS,
     QUESTION_TYPES,
+    RESEARCH_STATUSES,
     REQUEST_SCOPE_ALLOWED_VALUES,
     SIGNAL_CODES,
     SOURCE_CAPABILITY_IDS,
@@ -37,7 +38,9 @@ EVAL_EXPECT_KEYS = {
     "registryVersion",
 }
 BOUNDED_CONTEXT_KEYS_V1 = {"topic", "requestContext", "sourceEvidence", "registryContext"}
-BOUNDED_CONTEXT_KEYS = BOUNDED_CONTEXT_KEYS_V1 | {"questionFrame", "capabilityPlan"}
+BOUNDED_CONTEXT_KEYS_V2 = BOUNDED_CONTEXT_KEYS_V1 | {"questionFrame", "capabilityPlan"}
+BOUNDED_CONTEXT_KEYS_V3 = BOUNDED_CONTEXT_KEYS_V2 | {"agenticResearch"}
+BOUNDED_CONTEXT_KEYS = BOUNDED_CONTEXT_KEYS_V2
 REQUEST_CONTEXT_KEYS = {
     "productPhase",
     "region",
@@ -46,6 +49,9 @@ REQUEST_CONTEXT_KEYS = {
     "scenarioKey",
 }
 SOURCE_EVIDENCE_KEYS = {"sourceKey", "status", "evidenceRefs"}
+AGENTIC_RESEARCH_KEYS = {"status", "turns", "observations"}
+AGENTIC_TURN_KEYS = {"turn", "decision", "toolIds"}
+AGENTIC_OBSERVATION_KEYS = {"toolId", "status", "evidenceRefs"}
 EVAL_ERROR_CODES = {
     "",
     "source_blocked",
@@ -68,7 +74,14 @@ def _validate_string_list(values, *, name, allowed):
 def _validate_bounded_context(bounded_context):
     if (
         not isinstance(bounded_context, dict)
-        or (set(bounded_context) != BOUNDED_CONTEXT_KEYS_V1 and set(bounded_context) != BOUNDED_CONTEXT_KEYS)
+        or not any(
+            set(bounded_context) == keys
+            for keys in (
+                BOUNDED_CONTEXT_KEYS_V1,
+                BOUNDED_CONTEXT_KEYS_V2,
+                BOUNDED_CONTEXT_KEYS_V3,
+            )
+        )
     ):
         raise ValueError("invalid chickenbro eval bounded context keys")
     topic = bounded_context["topic"]
@@ -136,7 +149,7 @@ def _validate_bounded_context(bounded_context):
     ):
         raise ValueError("invalid chickenbro eval unverified registry identity")
 
-    if set(bounded_context) == BOUNDED_CONTEXT_KEYS:
+    if set(bounded_context) == BOUNDED_CONTEXT_KEYS_V2 or set(bounded_context) == BOUNDED_CONTEXT_KEYS_V3:
         frame = bounded_context["questionFrame"]
         if not isinstance(frame, dict) or set(frame) != {
             "schemaRevision", "questionType", "subject", "scope", "evidenceNeeds", "unresolvedFields"
@@ -176,6 +189,49 @@ def _validate_bounded_context(bounded_context):
             raise ValueError("invalid chickenbro eval capability plan unmet evidence")
         if plan["selectedCapabilityIds"] != selected:
             raise ValueError("invalid chickenbro eval capability plan selection")
+
+    if set(bounded_context) == BOUNDED_CONTEXT_KEYS_V3:
+        research = bounded_context["agenticResearch"]
+        if not isinstance(research, dict) or set(research) != AGENTIC_RESEARCH_KEYS:
+            raise ValueError("invalid chickenbro eval agentic research keys")
+        if research["status"] not in RESEARCH_STATUSES:
+            raise ValueError("invalid chickenbro eval agentic research status")
+        turns = research["turns"]
+        if not isinstance(turns, list) or len(turns) > 2:
+            raise ValueError("invalid chickenbro eval agentic turns")
+        planned = []
+        for index, turn in enumerate(turns):
+            if not isinstance(turn, dict) or set(turn) != AGENTIC_TURN_KEYS:
+                raise ValueError("invalid chickenbro eval agentic turn")
+            if turn["turn"] != index or turn["decision"] not in {"continue", "answer"}:
+                raise ValueError("invalid chickenbro eval agentic turn")
+            tool_ids = turn["toolIds"]
+            if (
+                not isinstance(tool_ids, list)
+                or len(tool_ids) > 3
+                or any(not isinstance(tool_id, str) or not CAPABILITY_ID_PATTERN.fullmatch(tool_id) for tool_id in tool_ids)
+                or len(tool_ids) != len(set(tool_ids))
+            ):
+                raise ValueError("invalid chickenbro eval agentic tools")
+            for tool_id in tool_ids:
+                if tool_id not in planned:
+                    planned.append(tool_id)
+        observations = research["observations"]
+        if not isinstance(observations, list) or len(observations) > 6:
+            raise ValueError("invalid chickenbro eval agentic observations")
+        for observation in observations:
+            if not isinstance(observation, dict) or set(observation) != AGENTIC_OBSERVATION_KEYS:
+                raise ValueError("invalid chickenbro eval agentic observation")
+            if (
+                observation["toolId"] not in planned
+                or observation["status"] not in TOOL_STATUSES
+                or not isinstance(observation["evidenceRefs"], list)
+                or any(
+                    not isinstance(ref, str) or _safe_evidence_ref(ref) != ref
+                    for ref in observation["evidenceRefs"]
+                )
+            ):
+                raise ValueError("invalid chickenbro eval agentic observation")
 
 
 def _validate_agent_result(agent_result):

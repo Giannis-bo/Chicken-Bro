@@ -147,6 +147,40 @@ class ChickenbroEvalTest(unittest.TestCase):
         self.assertEqual({"caseId", "status", "failures"}, set(result))
         self.assertEqual("passed", result["status"])
 
+    def test_eval_agentic_packet_accepts_only_deidentified_execution_metadata(self):
+        case = self.successful_case()
+        context = case["input"]["boundedContext"]
+        context["registryContext"]["discoveredCapabilityIds"] = ["source:raiderio:v1"]
+        context["registryContext"]["selectedCapabilityIds"] = ["source:raiderio:v1"]
+        context["questionFrame"] = {
+            "schemaRevision": "chickenbro-question-frame-v1",
+            "questionType": "current_research",
+            "subject": {"classKey": "mage", "specKey": "arcane", "resolution": "resolved"},
+            "scope": {"productPhase": "retail", "patchVersion": "", "region": "cn", "scenarioKey": "mythic_plus"},
+            "evidenceNeeds": ["comparative_strength_signal"],
+            "unresolvedFields": [],
+        }
+        context["capabilityPlan"] = {
+            "questionType": "current_research",
+            "requestedEvidenceNeeds": ["comparative_strength_signal"],
+            "selectedCapabilityIds": ["source:raiderio:v1"],
+            "unmetEvidenceNeeds": [],
+        }
+        context["agenticResearch"] = {
+            "status": "completed",
+            "turns": [{"turn": 0, "decision": "answer", "toolIds": ["source:raiderio:v1"]}],
+            "observations": [{
+                "toolId": "source:raiderio:v1",
+                "status": "source_reference",
+                "evidenceRefs": ["raiderio:deathknight:frost:mythic_plus"],
+            }],
+        }
+        case["expect"]["selectedCapabilityIds"] = ["source:raiderio:v1"]
+
+        result = evaluate_chickenbro_trace_case(case)
+
+        self.assertEqual("passed", result["status"])
+
     def test_eval_results_do_not_echo_inputs_or_trace_payloads(self):
         case = self.successful_case()
         result = evaluate_chickenbro_trace_case(case)

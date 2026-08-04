@@ -22,6 +22,143 @@ def agentic_plan(tool_id, arguments, decision):
 
 
 class ChickenbroAgentIntentTest(unittest.TestCase):
+    @staticmethod
+    def agentic_bounded_context():
+        return {
+            "questionFrame": {
+                "questionType": "current_research",
+                "comparisonScope": "cross_spec",
+                "evidenceNeeds": ["comparative_strength_signal"],
+            },
+            "evidencePlan": {"outcome": "partial"},
+            "agenticResearch": {
+                "status": "completed",
+                "turns": [{"turn": 0, "decision": "answer", "toolIds": ["source:raiderio:v1"]}],
+                "observations": [{
+                    "toolId": "source:raiderio:v1",
+                    "sourceKey": "raiderio",
+                    "status": "source_reference",
+                    "evidenceRefs": ["fixture.raiderio"],
+                    "scope": {"scenarioKey": "mythic_plus"},
+                    "facts": [{"summary": "Fixture high-key observation"}],
+                    "limitations": [],
+                }],
+            },
+            "sourceEvidence": [{
+                "sourceKey": "raiderio",
+                "status": "source_reference",
+                "facts": [{"summary": "Fixture high-key observation"}],
+                "evidence": [],
+                "evidenceRefs": ["fixture.raiderio"],
+                "limitations": [],
+                "nextActions": [],
+            }],
+            "allowedEvidenceRefs": ["fixture.raiderio"],
+            "allowedNumbers": [],
+            "answerLayer": "source_reference",
+            "basisLabel": "已核对社区当前数据",
+            "missingInputs": [],
+            "nextQuestion": "",
+        }
+
+    def test_agentic_answer_requires_claims_grounded_in_returned_observations(self):
+        bounded = self.agentic_bounded_context()
+        payload = {
+            "answer": "当前观察只覆盖高层大秘境样本。",
+            "confidence": "medium",
+            "priorityActions": [],
+            "evidenceRefs": ["fixture.raiderio"],
+            "limitations": [],
+            "missingInputs": [],
+            "nextQuestion": "",
+        }
+        with self.assertRaisesRegex(ValueError, "claim has no returned evidence"):
+            backend.validate_chickenbro_model_output(payload, bounded)
+
+        validated = backend.validate_chickenbro_model_output(
+            {
+                **payload,
+                "claimRefs": [{
+                    "statement": "当前观察只覆盖高层大秘境样本。",
+                    "evidenceRefs": ["fixture.raiderio"],
+                }],
+            },
+            bounded,
+        )
+        self.assertEqual("partial", validated["evidenceOutcome"])
+        self.assertNotIn("claimRefs", validated)
+
+    def test_agentic_path_bypasses_keyword_strength_fallback_and_calls_model(self):
+        bounded = self.agentic_bounded_context()
+        result = backend.run_chickenbro_agent(
+            bounded,
+            codex_runner=lambda *_args, **_kwargs: {
+                "answer": "当前观察只覆盖高层大秘境样本。",
+                "confidence": "medium",
+                "priorityActions": [],
+                "evidenceRefs": ["fixture.raiderio"],
+                "limitations": ["样本范围有限"],
+                "missingInputs": [],
+                "nextQuestion": "",
+                "claimRefs": [{
+                    "statement": "当前观察只覆盖高层大秘境样本。",
+                    "evidenceRefs": ["fixture.raiderio"],
+                }],
+            },
+        )
+
+        self.assertEqual("llm", result["answer"]["answerSource"])
+        self.assertEqual("passed", result["validation"]["status"])
+
+    def test_agentic_partial_without_a_returned_ref_allows_a_literal_no_claim_answer(self):
+        bounded = self.agentic_bounded_context()
+        bounded["agenticResearch"]["status"] = "partial"
+        bounded["agenticResearch"]["observations"][0]["status"] = "failed"
+        bounded["agenticResearch"]["observations"][0]["evidenceRefs"] = []
+        bounded["sourceEvidence"][0]["status"] = "failed"
+        bounded["sourceEvidence"][0]["evidenceRefs"] = []
+        bounded["allowedEvidenceRefs"] = []
+
+        validated = backend.validate_chickenbro_model_output(
+            {
+                "answer": "本轮已执行来源查询，但没有返回可引用的有效样本，因此不能据此给出强度结论。",
+                "confidence": "low",
+                "priorityActions": [],
+                "evidenceRefs": [],
+                "limitations": ["来源未返回有效样本"],
+                "missingInputs": [],
+                "nextQuestion": "",
+                "claimRefs": [],
+            },
+            bounded,
+        )
+
+        self.assertEqual("partial", validated["evidenceOutcome"])
+
+    def test_agentic_stream_does_not_emit_before_claim_validation(self):
+        bounded = self.agentic_bounded_context()
+        payload = json.dumps(
+            {
+                "answer": "当前观察只覆盖高层大秘境样本。",
+                "confidence": "medium",
+                "priorityActions": [],
+                "evidenceRefs": ["fixture.raiderio"],
+                "limitations": [],
+                "missingInputs": [],
+                "nextQuestion": "",
+                "claimRefs": [],
+            },
+            ensure_ascii=False,
+        )
+
+        stream = backend.run_chickenbro_agent_stream(
+            bounded,
+            stream_runner=lambda *_args, **_kwargs: iter([payload]),
+        )
+
+        with self.assertRaisesRegex(backend.ChickenbroGenerationUnavailable, "claim has no returned evidence"):
+            next(stream)
+
     def test_feature_flag_uses_agentic_observations_without_legacy_dispatch(self):
         packet = {
             "status": "completed",

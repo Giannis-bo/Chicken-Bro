@@ -177,7 +177,7 @@ class ChickenbroObservabilityTest(unittest.TestCase):
         self.assertNotIn("2026-08-02T00:00:00+00:00", encoded)
         self.assertNotIn("SECRET", encoded)
 
-    def test_v4_trace_keeps_only_semantic_question_plan_and_current_source_outcome(self):
+    def test_v5_trace_keeps_only_semantic_question_plan_and_current_source_outcome(self):
         bounded_context = self.bounded_context(
             source_evidence=[
                 {
@@ -215,17 +215,17 @@ class ChickenbroObservabilityTest(unittest.TestCase):
         projection = deidentify_chickenbro_agent_trace(trace)
         encoded = json.dumps({"trace": trace, "projection": projection}, ensure_ascii=False)
 
-        self.assertEqual("chickenbro-agent-trace-v4", trace["schemaRevision"])
-        self.assertEqual("chickenbro-evidence-planner-runtime-v1", trace["runtimeVersion"])
+        self.assertEqual("chickenbro-agent-trace-v5", trace["schemaRevision"])
+        self.assertEqual("chickenbro-agentic-research-runtime-v1", trace["runtimeVersion"])
         self.assertEqual("current_research", trace["questionType"])
         self.assertEqual("resolved", trace["subjectResolution"])
         self.assertEqual(["official_current_changes", "comparative_strength_signal"], trace["requestedEvidenceNeeds"])
         self.assertEqual(["official_current_changes", "comparative_strength_signal"], trace["unmetEvidenceNeeds"])
         self.assertIn("tool_failed", {signal["code"] for signal in trace["outcomeSignals"]})
-        self.assertEqual("chickenbro-trace-projection-v4", projection["schemaRevision"])
+        self.assertEqual("chickenbro-trace-projection-v5", projection["schemaRevision"])
         self.assertNotIn("SECRET OFFICIAL SOURCE BODY", encoded)
 
-    def test_trace_v4_keeps_only_allowlisted_evidence_plan_projection(self):
+    def test_trace_v5_keeps_only_allowlisted_evidence_plan_projection(self):
         bounded_context = self.bounded_context(source_evidence=[])
         bounded_context["questionFrame"] = {
             "questionType": "current_research",
@@ -251,13 +251,42 @@ class ChickenbroObservabilityTest(unittest.TestCase):
         projection = deidentify_chickenbro_agent_trace(trace)
         encoded = json.dumps({"trace": trace, "projection": projection}, ensure_ascii=False)
 
-        self.assertEqual("chickenbro-agent-trace-v4", trace["schemaRevision"])
+        self.assertEqual("chickenbro-agent-trace-v5", trace["schemaRevision"])
         self.assertEqual("cross_spec", trace["comparisonScope"])
         self.assertEqual(["cross_spec_performance"], trace["evidenceFacetKeys"])
         self.assertEqual(["unavailable"], trace["evidenceFacetStatuses"])
         self.assertEqual("partial", trace["evidenceOutcome"])
-        self.assertEqual("chickenbro-trace-projection-v4", projection["schemaRevision"])
+        self.assertEqual("chickenbro-trace-projection-v5", projection["schemaRevision"])
         self.assertNotIn("全职业 DPS 横向排名", encoded)
+
+    def test_trace_v5_projects_only_agentic_execution_metadata(self):
+        bounded_context = self.bounded_context(source_evidence=[])
+        bounded_context["agenticResearch"] = {
+            "status": "completed",
+            "turns": [{"turn": 0, "decision": "answer", "toolIds": ["source:raiderio:v1"]}],
+            "observations": [{
+                "toolId": "source:raiderio:v1",
+                "sourceKey": "raiderio",
+                "status": "source_reference",
+                "evidenceRefs": ["raiderio:deathknight:frost:mythic_plus"],
+                "scope": {"scenarioKey": "mythic_plus"},
+                "facts": [{"summary": "SECRET AGENTIC FACT"}],
+                "limitations": ["SECRET AGENTIC LIMITATION"],
+            }],
+        }
+
+        trace = self.build_trace(bounded_context=bounded_context)
+        projection = deidentify_chickenbro_agent_trace(trace)
+        encoded = json.dumps({"trace": trace, "projection": projection}, ensure_ascii=False)
+
+        self.assertEqual("chickenbro-agent-trace-v5", trace["schemaRevision"])
+        self.assertEqual("completed", trace["researchStatus"])
+        self.assertEqual(1, trace["researchTurnCount"])
+        self.assertEqual(["source:raiderio:v1"], trace["plannedToolIds"])
+        self.assertEqual(["source_reference"], trace["observationStatuses"])
+        self.assertEqual("chickenbro-trace-projection-v5", projection["schemaRevision"])
+        self.assertNotIn("SECRET AGENTIC FACT", encoded)
+        self.assertNotIn("SECRET AGENTIC LIMITATION", encoded)
 
     def test_literal_historical_v1_trace_still_validates_and_projects_unchanged(self):
         historical = {
@@ -307,6 +336,10 @@ class ChickenbroObservabilityTest(unittest.TestCase):
             "evidenceFacetKeys",
             "evidenceFacetStatuses",
             "evidenceOutcome",
+            "researchStatus",
+            "researchTurnCount",
+            "plannedToolIds",
+            "observationStatuses",
         ):
             historical.pop(key)
 

@@ -7637,6 +7637,25 @@ def chickenbro_has_current_research_source(bounded_context):
     )
 
 
+def chickenbro_agentic_research_active(bounded_context):
+    """Return whether this answer has a usable agent-planned observation packet.
+
+    A registry/model outage remains a compatibility-fallback case.  Once the
+    planner has returned observations, however, the answer must follow that
+    packet rather than being redirected through the legacy question rules.
+    """
+    context = bounded_context if isinstance(bounded_context, dict) else {}
+    research = (
+        context.get("agenticResearch")
+        if isinstance(context.get("agenticResearch"), dict)
+        else {}
+    )
+    return (
+        str(research.get("status") or "").strip().lower() in {"completed", "partial"}
+        and isinstance(research.get("observations"), list)
+    )
+
+
 def chickenbro_basis_label(answer_layer, bounded_context=None):
     context = bounded_context if isinstance(bounded_context, dict) else {}
     evidence_plan = context.get("evidencePlan") if isinstance(context.get("evidencePlan"), dict) else {}
@@ -7926,7 +7945,7 @@ def run_chickenbro_research(
     """Run at most two Codex-planned, signed read-only research turns."""
     runtime = registry_runtime or _CHICKENBRO_TOOL_REGISTRY_RUNTIME
     loader = registry_loader or chickenbro_registry_release_loader
-    runner = planner_runner or default_chickenbro_model_runner
+    runner = planner_runner or default_chickenbro_research_runner
     bindings = adapter_bindings or chickenbro_tool_adapter_bindings()
     try:
         published = runtime.published(loader)
@@ -8339,6 +8358,24 @@ def build_chickenbro_bounded_context(
 
 
 def chickenbro_prompt_from_context(bounded_context):
+    if chickenbro_agentic_research_active(bounded_context):
+        instructions = [
+            "你是炸鸡队长，只回答魔兽世界正式服和 PTR/Beta 相关问题。",
+            "本轮已由受控 ToolBox 按研究计划执行并返回 observations。直接回答玩家的问题；不要把已返回的来源说成无法抓取，也不要要求玩家自行搜索。",
+            "只能根据 boundedContext.agenticResearch.observations 的事实、范围和 evidenceRefs 下结论。每一条可验证结论都必须在 claimRefs 中逐条绑定本轮返回的 evidenceRefs。",
+            "不要把不同 productPhase、scenarioKey、region、seasonSlug、partition、encounterId 的 observations 合并成同一结论；范围不一致或证据不足时，直接说明具体缺口。",
+            "不得编造 DPS、排名、分位、日志发现、来源或未观察到的职业比较；不要向玩家暴露工具 ID、规划过程或内部观察字段。",
+            "最多追问一个真正影响下一轮研究的关键问题；输出 JSON：answer, confidence, answerLayer, basisLabel, priorityActions, evidenceRefs, limitations, missingInputs, nextQuestion, claimRefs。",
+            'confidence 只能是 "low"、"medium" 或 "high"，不得以数字表示置信度。',
+        ]
+        return json.dumps(
+            {
+                "instructions": instructions,
+                "boundedContext": bounded_context,
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
     answer_layer = bounded_context.get("answerLayer") or chickenbro_answer_layer_for_context(bounded_context)
     question_frame = bounded_context.get("questionFrame") if isinstance(bounded_context.get("questionFrame"), dict) else {}
     current_research_without_source = (
@@ -8458,6 +8495,39 @@ def default_chickenbro_model_runner(prompt, schema=None):
     }
 
 
+def default_chickenbro_research_runner(prompt, schema=None):
+    """Run the same configured model in planner mode, not answer mode."""
+    if os.environ.get("WOW_CHICKENBRO_CODEX_ENABLED") == "1":
+        if run_codex_job is None:
+            return {"status": "skipped", "error": "chickenbro codex worker is unavailable"}
+        return run_codex_job(
+            prompt,
+            schema=schema,
+            sandbox="read-only",
+            timeout_seconds=max(1, min(60, int_env("WOW_CHICKENBRO_CODEX_TIMEOUT_SECONDS", 45))),
+        )
+    if not llm_configured():
+        return {"status": "skipped", "error": "chickenbro model is not configured"}
+    result = call_chat_completion(
+        system_prompt=(
+            "You are a research planner for a World of Warcraft coach. "
+            "Use only the published tool catalog in the user prompt, return one bounded plan matching its schema, "
+            "and never answer the player or request unlisted capabilities."
+        ),
+        user_prompt=prompt,
+        temperature=0.1,
+    )
+    if not isinstance(result, dict):
+        return {"status": "failed", "error": "invalid chickenbro research planner response"}
+    if result.get("error"):
+        return {"status": "failed", "error": str(result.get("error")), "model": result.get("model")}
+    return {
+        "status": "succeeded",
+        "content": result.get("content") or "",
+        "model": result.get("model") or "",
+    }
+
+
 def chickenbro_model_schema():
     return {
         "type": "object",
@@ -8494,6 +8564,18 @@ def chickenbro_model_schema():
             "limitations": {"type": "array", "items": {"type": "string"}},
             "missingInputs": {"type": "array", "items": {"type": "string"}},
             "nextQuestion": {"type": "string"},
+            "claimRefs": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "required": ["statement", "evidenceRefs"],
+                    "properties": {
+                        "statement": {"type": "string"},
+                        "evidenceRefs": {"type": "array", "items": {"type": "string"}},
+                    },
+                },
+            },
         },
     }
 
@@ -8626,6 +8708,84 @@ def chickenbro_require_returned_comparative_evidence(answer, refs, bounded_conte
         raise ValueError("model_output_invalid: returned comparative evidence must be summarized in the answer")
 
 
+_AGENTIC_SCOPE_KEYS = {
+    "productPhase",
+    "scenarioKey",
+    "region",
+    "seasonSlug",
+    "partition",
+    "encounterId",
+}
+
+
+def validate_agentic_claims(payload, bounded_context):
+    """Bind player-visible evidence to this run's actual observations only."""
+    research = bounded_context.get("agenticResearch") if isinstance(bounded_context, dict) else {}
+    observations = research.get("observations") if isinstance(research, dict) else []
+    returned_refs = set()
+    scopes_by_ref = {}
+    for observation in observations if isinstance(observations, list) else []:
+        if not isinstance(observation, dict):
+            continue
+        if str(observation.get("status") or "").strip().lower() not in {"source_reference", "verified"}:
+            continue
+        scope = observation.get("scope") if isinstance(observation.get("scope"), dict) else {}
+        safe_scope = {
+            key: str(scope.get(key) or "").strip().lower()
+            for key in _AGENTIC_SCOPE_KEYS
+            if str(scope.get(key) or "").strip()
+        }
+        for raw_ref in observation.get("evidenceRefs") or []:
+            ref = str(raw_ref or "").strip()
+            if not ref:
+                continue
+            returned_refs.add(ref)
+            scopes_by_ref.setdefault(ref, safe_scope)
+
+    raw_claims = payload.get("claimRefs") if isinstance(payload, dict) else None
+    if not returned_refs:
+        if raw_claims not in (None, []):
+            raise ValueError("model_output_invalid: claim has no returned evidence")
+        return
+    if not isinstance(raw_claims, list) or not raw_claims:
+        raise ValueError("model_output_invalid: claim has no returned evidence")
+    if len(raw_claims) > 12:
+        raise ValueError("model_output_invalid: too many agentic claims")
+
+    claim_refs = set()
+    for claim in raw_claims:
+        if not isinstance(claim, dict) or set(claim) != {"statement", "evidenceRefs"}:
+            raise ValueError("model_output_invalid: invalid agentic claim")
+        statement = clean_text(claim.get("statement"), 360)
+        refs = [str(ref or "").strip() for ref in claim.get("evidenceRefs") or []]
+        refs = [ref for ref in refs if ref]
+        if not statement or not refs or len(refs) != len(set(refs)):
+            raise ValueError("model_output_invalid: invalid agentic claim")
+        if not set(refs).issubset(returned_refs):
+            raise ValueError("model_output_invalid: claim has no returned evidence")
+        for field in _AGENTIC_SCOPE_KEYS:
+            values = {scopes_by_ref.get(ref, {}).get(field, "") for ref in refs}
+            values.discard("")
+            if len(values) > 1:
+                raise ValueError("model_output_invalid: incompatible observation scope")
+        claim_refs.update(refs)
+
+    visible_refs = {
+        str(ref or "").strip()
+        for ref in payload.get("evidenceRefs") or []
+        if str(ref or "").strip()
+    }
+    for action in payload.get("priorityActions") or []:
+        if isinstance(action, dict):
+            visible_refs.update(
+                str(ref or "").strip()
+                for ref in action.get("evidenceRefs") or []
+                if str(ref or "").strip()
+            )
+    if not visible_refs.issubset(claim_refs):
+        raise ValueError("model_output_invalid: visible evidence ref has no returned claim")
+
+
 def validate_chickenbro_model_output(payload, bounded_context):
     answer = str(payload.get("answer") or "").strip()
     if not answer:
@@ -8634,7 +8794,11 @@ def validate_chickenbro_model_output(payload, bounded_context):
     refs = [str(ref) for ref in payload.get("evidenceRefs") or [] if ref]
     if any(ref not in allowed_refs for ref in refs):
         raise ValueError("model_output_invalid: unknown evidence ref")
-    chickenbro_require_returned_comparative_evidence(answer, refs, bounded_context)
+    agentic_active = chickenbro_agentic_research_active(bounded_context)
+    if agentic_active:
+        validate_agentic_claims(payload, bounded_context)
+    else:
+        chickenbro_require_returned_comparative_evidence(answer, refs, bounded_context)
     for action in payload.get("priorityActions") or []:
         if not isinstance(action, dict):
             raise ValueError("model_output_invalid: priority action must be object")
@@ -8656,7 +8820,8 @@ def validate_chickenbro_model_output(payload, bounded_context):
         normalized = number.rstrip("%")
         if normalized not in allowed_numbers:
             raise ValueError("model_output_invalid: unapproved number")
-    chickenbro_reject_unsupported_comparative_strength(output_text, bounded_context)
+    if not agentic_active:
+        chickenbro_reject_unsupported_comparative_strength(output_text, bounded_context)
     answer_layer = bounded_context.get("answerLayer") or chickenbro_answer_layer_for_context(bounded_context)
     basis_label = bounded_context.get("basisLabel") or chickenbro_basis_label(answer_layer, bounded_context)
     missing_inputs = (
@@ -9347,7 +9512,8 @@ def chickenbro_authoritative_strength_evidence_result(bounded_context):
 
 
 def run_chickenbro_agent(bounded_context, codex_runner=None):
-    authoritative = chickenbro_authoritative_strength_evidence_result(bounded_context)
+    agentic_active = chickenbro_agentic_research_active(bounded_context)
+    authoritative = None if agentic_active else chickenbro_authoritative_strength_evidence_result(bounded_context)
     if authoritative:
         return authoritative
     runner = codex_runner or default_chickenbro_model_runner
@@ -9370,37 +9536,41 @@ def run_chickenbro_agent(bounded_context, codex_runner=None):
             },
         }
     except ChickenbroGenerationUnavailable as error:
-        fallback = chickenbro_source_fallback_result(bounded_context, error)
+        fallback = None if agentic_active else chickenbro_source_fallback_result(bounded_context, error)
         if fallback:
             return fallback
         raise
     except Exception as error:
-        fallback = chickenbro_source_fallback_result(bounded_context, error)
+        fallback = None if agentic_active else chickenbro_source_fallback_result(bounded_context, error)
         if fallback:
             return fallback
         raise ChickenbroGenerationUnavailable(f"chickenbro model output rejected: {error}") from error
 
 
 def run_chickenbro_agent_stream(bounded_context, stream_runner=None):
-    authoritative = chickenbro_authoritative_strength_evidence_result(bounded_context)
+    agentic_active = chickenbro_agentic_research_active(bounded_context)
+    authoritative = None if agentic_active else chickenbro_authoritative_strength_evidence_result(bounded_context)
     if authoritative:
         yield {"type": "delta", "text": authoritative["answer"]["answer"]}
         return authoritative
     runner = stream_runner or default_chickenbro_stream_runner
     prompt = chickenbro_prompt_from_context(bounded_context)
     parser = ChickenbroAnswerStream(bounded_context.get("allowedNumbers") or [])
-    requires_comparative_guard = chickenbro_has_comparative_strength_source(bounded_context)
+    requires_post_validation_buffer = (
+        agentic_active
+        or chickenbro_has_comparative_strength_source(bounded_context)
+    )
     try:
         for content in runner(prompt, schema=chickenbro_model_schema()):
             for text in parser.feed(content):
                 # A streamed delta cannot be retracted.  Buffer only the path
                 # whose live comparative evidence has an answer postcondition.
-                if not requires_comparative_guard:
+                if not requires_post_validation_buffer:
                     yield {"type": "delta", "text": text}
         parsed = normalize_chickenbro_model_payload(parser.finish())
         validated = validate_chickenbro_model_output(parsed, bounded_context)
         validated["answerSource"] = "llm"
-        if requires_comparative_guard:
+        if requires_post_validation_buffer:
             yield {"type": "delta", "text": validated["answer"]}
         return {
             "answer": validated,
@@ -9409,19 +9579,19 @@ def run_chickenbro_agent_stream(bounded_context, stream_runner=None):
             "model": {"status": "succeeded", "name": ""},
         }
     except ChickenbroGenerationUnavailable as error:
-        fallback = chickenbro_source_fallback_result(bounded_context, error)
+        fallback = None if agentic_active else chickenbro_source_fallback_result(bounded_context, error)
         if fallback:
             yield {"type": "delta", "text": fallback["answer"]["answer"]}
             return fallback
         raise
     except (ChickenbroStreamUnavailable, ChickenbroStreamValidationError, ValueError) as error:
-        fallback = chickenbro_source_fallback_result(bounded_context, error)
+        fallback = None if agentic_active else chickenbro_source_fallback_result(bounded_context, error)
         if fallback:
             yield {"type": "delta", "text": fallback["answer"]["answer"]}
             return fallback
         raise ChickenbroGenerationUnavailable(f"chickenbro stream output rejected: {error}") from error
     except Exception as error:
-        fallback = chickenbro_source_fallback_result(bounded_context, error)
+        fallback = None if agentic_active else chickenbro_source_fallback_result(bounded_context, error)
         if fallback:
             yield {"type": "delta", "text": fallback["answer"]["answer"]}
             return fallback
