@@ -620,6 +620,11 @@ git commit -m "refactor(websim): compose sealed exact authority"
 
 **Files:**
 
+- Modify: `server/gear_exact_item_instance.py`
+- Modify: `server/gear_exact_authority.py`
+- Modify: `server/simc_item_effect_support.py`
+- Modify: `server/simc_item_effect_probe.py`
+- Modify: `scripts/simc-item-effect-probe.py`
 - Create: `tests/gear_canonical_owner_gate_test.py`
 - Modify: `tests/gear_canonical_kernel_test.py`
 - Modify: `tests/gear_contracts_test.py`
@@ -736,9 +741,9 @@ Expected: all suites pass；原 89 条实验行为被新版 sealed tests 覆盖�
 
 把 report 放在 `.superpowers/sdd/<plan>/task-5-report.md`，不提交为 release evidence；正式 evidence 仍属于后续 release slice/Harness closure。
 
-- [ ] **Step 6: 更新当前控制面，但保持 Task 3 未启动**
+- [ ] **Step 6: Task 5 独立 review clean 后由 controller 更新当前控制面，但保持原 Task 3 未启动**
 
-只有 Task 1-5 独立 review 全部 clean 后：
+只有 Task 1-5 独立 review 全部 clean 后，controller 才在独立状态提交中：
 
 - 重设计文档标记 `已完成（Task 2 canonical foundation）`；
 - 本计划标记 `已完成`；
@@ -750,16 +755,16 @@ Expected: all suites pass；原 89 条实验行为被新版 sealed tests 覆盖�
 
 Local CR 必须对照设计检查：合法 v2/v1 bytes、slot owner、Unicode/control、sealed type boundary、Track Authority reuse、effect subject derivation、raw text privacy、Catalog independence、Task 3 absence。修复任何有效发现后重跑 Step 4。
 
-- [ ] **Step 8: 提交 consolidation**
+- [ ] **Step 8: 提交 consolidation implementation**
 
 ```bash
-git add tests/gear_canonical_owner_gate_test.py tests/gear_canonical_kernel_test.py tests/gear_contracts_test.py tests/gear_exact_item_instance_test.py tests/gear_exact_authority_test.py tests/simc_item_effect_support_test.py tests/simc_item_effect_probe_test.py tests/simc_item_effect_probe_cli_test.py docs/project-owner-map.json docs/backend-owner-map.json docs/plans/2026-08-04-equipment-simulator-canonical-kernel-redesign.md docs/plans/2026-08-04-equipment-simulator-canonical-kernel-implementation.md docs/plans/README.md docs/roadmap.md
+git add server/gear_exact_item_instance.py server/gear_exact_authority.py server/simc_item_effect_support.py server/simc_item_effect_probe.py scripts/simc-item-effect-probe.py tests/gear_canonical_owner_gate_test.py tests/gear_canonical_kernel_test.py tests/gear_contracts_test.py tests/gear_exact_item_instance_test.py tests/gear_exact_authority_test.py tests/simc_item_effect_support_test.py tests/simc_item_effect_probe_test.py tests/simc_item_effect_probe_cli_test.py docs/project-owner-map.json docs/backend-owner-map.json
 git commit -m "test(websim): gate exact canonical ownership"
 ```
 
 - [ ] **Step 9: 由 controller 运行 fresh broad review**
 
-提交后，controller 生成从本 replacement plan Task 1 base 到 Task 5 head 的完整 review package，交给未参与实现的 fresh final reviewer。Reviewer 必须分别给出 Spec verdict 与 Code Quality verdict；只有 `PASS` 且 `APPROVED` 才能完成本计划。若发现 Critical/Important，回到 Task 5 fix loop 并在修复提交后重新生成 review package。
+consolidation implementation 提交后先做 Task 5 独立 spec/code-quality review。该 review clean 后，controller 执行 Step 6 的控制面状态提交，再生成从本 replacement plan Task 1 base 到最终状态 head 的完整 review package，交给未参与实现的 fresh final reviewer。Reviewer 必须分别给出 Spec verdict 与 Code Quality verdict；只有 `PASS` 且 `APPROVED` 才能完成本计划。若发现 Critical/Important，回到 Task 5 fix loop 并在修复提交后重新生成 review package。
 
 ## Stop Gate
 
