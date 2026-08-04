@@ -931,6 +931,7 @@ export interface AssistantPayload {
   confidence: string
   answerLayer?: string
   basisLabel?: string
+  evidenceOutcome?: 'answered' | 'partial' | 'researching' | 'blocked'
   priorityActions: readonly ChatEvidenceAction[]
   evidenceRefs: readonly string[]
   limitations: readonly string[]

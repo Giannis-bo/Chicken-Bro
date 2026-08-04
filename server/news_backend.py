@@ -289,6 +289,7 @@ try:
     )
     from .chickenbro_community_strength import build_wcl_public_rankings_tool_result
     from .chickenbro_current_sources import build_current_wow_sources_tool_result
+    from .chickenbro_evidence_plan import build_chickenbro_evidence_plan
     from .chickenbro_question_frame import (
         build_chickenbro_question_frame,
         chickenbro_strength_evidence_follow_up_kind,
@@ -313,6 +314,7 @@ except ImportError:
     )
     from chickenbro_community_strength import build_wcl_public_rankings_tool_result
     from chickenbro_current_sources import build_current_wow_sources_tool_result
+    from chickenbro_evidence_plan import build_chickenbro_evidence_plan
     from chickenbro_question_frame import (
         build_chickenbro_question_frame,
         chickenbro_strength_evidence_follow_up_kind,
@@ -7616,8 +7618,15 @@ def chickenbro_has_current_research_source(bounded_context):
 
 
 def chickenbro_basis_label(answer_layer, bounded_context=None):
+    context = bounded_context if isinstance(bounded_context, dict) else {}
+    evidence_plan = context.get("evidencePlan") if isinstance(context.get("evidencePlan"), dict) else {}
+    question_frame = context.get("questionFrame") if isinstance(context.get("questionFrame"), dict) else {}
+    if (
+        question_frame.get("questionType") == "current_research"
+        and evidence_plan.get("outcome") == "partial"
+    ):
+        return "部分可验证证据"
     if answer_layer == "source_reference":
-        context = bounded_context if isinstance(bounded_context, dict) else {}
         if chickenbro_has_official_current_source(context):
             return "已核对官方当前来源"
         if chickenbro_has_comparative_strength_source(context):
@@ -7963,6 +7972,11 @@ def build_chickenbro_bounded_context(
         registry_context,
         source_evidence,
     )
+    evidence_plan = build_chickenbro_evidence_plan(
+        question_frame,
+        registry_context,
+        source_evidence,
+    )
     usable = []
     background = []
     excluded = []
@@ -8039,6 +8053,7 @@ def build_chickenbro_bounded_context(
         "sourceEvidence": source_evidence,
         "questionFrame": question_frame,
         "capabilityPlan": capability_plan,
+        "evidencePlan": evidence_plan,
         "registryContext": registry_context,
         "allowedEvidenceRefs": allowed_refs,
         "allowedNumbers": [number for number in allowed_numbers if number],
@@ -8385,7 +8400,7 @@ def validate_chickenbro_model_output(payload, bounded_context):
         payload.get("nextQuestion") or bounded_context.get("nextQuestion") or "",
         240,
     )
-    return {
+    validated = {
         "answer": answer,
         "confidence": str(payload.get("confidence") or "medium"),
         "answerLayer": answer_layer,
@@ -8396,6 +8411,11 @@ def validate_chickenbro_model_output(payload, bounded_context):
         "missingInputs": [str(item) for item in (missing_inputs or []) if str(item or "").strip()],
         "nextQuestion": next_question,
     }
+    evidence_plan = bounded_context.get("evidencePlan") if isinstance(bounded_context.get("evidencePlan"), dict) else {}
+    evidence_outcome = str(evidence_plan.get("outcome") or "").strip().lower()
+    if evidence_outcome in {"answered", "partial", "researching", "blocked"}:
+        validated["evidenceOutcome"] = evidence_outcome
+    return validated
 
 
 def sanitize_chickenbro_request_context(context):

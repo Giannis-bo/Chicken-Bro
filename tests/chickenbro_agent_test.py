@@ -150,7 +150,8 @@ class ChickenbroAgentIntentTest(unittest.TestCase):
         self.assertEqual("holy", bounded["questionFrame"]["subject"]["specKey"])
         self.assertEqual(["source:current-wow-sources:v1"], bounded["capabilityPlan"]["selectedCapabilityIds"])
         self.assertEqual(["comparative_strength_signal"], bounded["capabilityPlan"]["unmetEvidenceNeeds"])
-        self.assertEqual("已核对官方当前来源", bounded["basisLabel"])
+        self.assertEqual("partial", bounded["evidencePlan"]["outcome"])
+        self.assertEqual("部分可验证证据", bounded["basisLabel"])
         prompt = json.loads(backend.chickenbro_prompt_from_context(bounded))
         self.assertTrue(any("已确认改动" in item for item in prompt["instructions"]))
         self.assertFalse(any("没有抓取能力" in item for item in prompt["instructions"]))
@@ -168,6 +169,20 @@ class ChickenbroAgentIntentTest(unittest.TestCase):
                 },
                 bounded,
             )
+
+        validated = backend.validate_chickenbro_model_output(
+            {
+                "answer": "已确认奶骑在 12.1 PTR 有这条改动，但当前没有同口径横向强度证据。",
+                "confidence": "medium",
+                "priorityActions": [],
+                "evidenceRefs": ["current.blizzard-forums.holy-paladin-121"],
+                "limitations": ["comparative_strength_signal_missing"],
+                "missingInputs": ["comparative_strength_signal"],
+                "nextQuestion": "你想继续看已确认改动，还是等待同场景比较来源？",
+            },
+            bounded,
+        )
+        self.assertEqual("partial", validated["evidenceOutcome"])
 
     def test_current_source_failure_records_actual_unmet_evidence_without_a_fixed_reply(self):
         bounded = backend.build_chickenbro_bounded_context(

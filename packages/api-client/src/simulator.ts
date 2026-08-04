@@ -158,6 +158,11 @@ function isChickenbroAssistantPayload(value: unknown): boolean {
     || !stringList(value['limitations'])
     || !optionalString(value['answerLayer'])
     || !optionalString(value['basisLabel'])
+    || (value['evidenceOutcome'] !== undefined
+      && value['evidenceOutcome'] !== 'answered'
+      && value['evidenceOutcome'] !== 'partial'
+      && value['evidenceOutcome'] !== 'researching'
+      && value['evidenceOutcome'] !== 'blocked')
     || (value['nextQuestion'] !== undefined && typeof value['nextQuestion'] !== 'string')
     || (value['missingInputs'] !== undefined && !stringList(value['missingInputs']))) return false
 
