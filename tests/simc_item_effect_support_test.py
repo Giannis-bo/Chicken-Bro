@@ -5,6 +5,7 @@ from server.simc_item_effect_support import (
     resolve_exact_item_effect_support,
     valid_effect_tokens,
     valid_runtime_revision,
+    validate_effect_record,
 )
 from server.simc_item_effect_support import seal_effect_record
 
@@ -19,7 +20,6 @@ ITEM = {
         "embellishmentIds": ["emb-a"],
         "craftedStats": ["crit"],
     },
-    "craftedEffectIds": ["craft-a"],
 }
 
 
@@ -43,7 +43,7 @@ class SimcItemEffectSupportTest(unittest.TestCase):
             [
                 ("item", "1001"), ("gem", "gem-a"), ("gem", "gem-b"),
                 ("enchant", "ench-a"), ("embellishment", "emb-a"),
-                ("crafted_effect", "craft-a"),
+                ("crafted_effect", "crit"),
             ],
         )
         self.assertEqual(result["status"], "unknown")
@@ -179,3 +179,98 @@ class SimcItemEffectSupportTest(unittest.TestCase):
             [(" " * 10000) + "action"],
         ):
             self.assertFalse(valid_effect_tokens(tokens), tokens)
+
+    def test_validate_effect_record_rejects_raw_padded_or_malformed_record_identities(self):
+        subject = resolve_exact_item_effect_support(
+            ITEM, runtime_revision=RUNTIME, support_records=[],
+        )["subjects"][0]
+        valid = static_record(subject)
+        for field, replacements in (
+            ("supportRecordKey", (
+                f" {valid['supportRecordKey']}", f"{valid['supportRecordKey']} ",
+                f"{valid['supportRecordKey']}\n", "x" * 300,
+            )),
+            ("subjectKey", (" 1001", "1001 ", "1001\n", "x" * 300)),
+            ("simcRuntimeRevision", (
+                f" {RUNTIME}", f"{RUNTIME} ", f"{RUNTIME}\n", "x" * 300,
+            )),
+        ):
+            for replacement in replacements:
+                record = {**valid, field: replacement}
+                if field != "supportRecordKey":
+                    record = seal_effect_record({
+                        key: value for key, value in record.items()
+                        if key != "supportRecordKey"
+                    })
+                runtime = replacement if field == "simcRuntimeRevision" else RUNTIME
+                self.assertFalse(
+                    validate_effect_record(record, runtime_revision=runtime),
+                    (field, replacement),
+                )
+
+    def test_validate_effect_record_rejects_raw_malformed_snapshot_identities(self):
+        subject = resolve_exact_item_effect_support(
+            ITEM, runtime_revision=RUNTIME, support_records=[],
+        )["subjects"][0]
+        base = {
+            **subject,
+            "schemaRevision": "simc-item-effect-record-v1",
+            "status": "verified",
+            "hasDynamicEffect": True,
+            "simcRuntimeRevision": RUNTIME,
+            "effectType": "on_use",
+            "expectedActionTokens": ["action"],
+            "expectedBuffTokens": ["buff"],
+            "experimentSnapshotKey": "simulation-snapshot:sha256:" + ("4" * 64),
+            "controlSnapshotKey": "simulation-snapshot:sha256:" + ("5" * 64),
+            "verifiedAt": "2026-08-04T00:00:00Z",
+        }
+        for field in ("experimentSnapshotKey", "controlSnapshotKey"):
+            original = base[field]
+            for replacement in (
+                f" {original}", f"{original} ", f"{original}\n", "x" * 300,
+            ):
+                self.assertFalse(
+                    validate_effect_record(
+                        seal_effect_record({**base, field: replacement}),
+                        runtime_revision=RUNTIME,
+                    ),
+                    (field, replacement),
+                )
+
+    def test_resolver_does_not_trim_runtime_or_subject_identity_when_matching(self):
+        subjects = resolve_exact_item_effect_support(
+            ITEM, runtime_revision=RUNTIME, support_records=[],
+        )["subjects"]
+        records = [static_record(subject) for subject in subjects]
+        for invalid_runtime in (
+            f" {RUNTIME} ", f"{RUNTIME}\n", "runtime\x00revision", "x" * 300,
+        ):
+            invalid_runtime_records = [
+                seal_effect_record({
+                    **{key: value for key, value in record.items() if key != "supportRecordKey"},
+                    "simcRuntimeRevision": invalid_runtime,
+                })
+                for record in records
+            ]
+            self.assertEqual(
+                resolve_exact_item_effect_support(
+                    ITEM,
+                    runtime_revision=invalid_runtime,
+                    support_records=invalid_runtime_records,
+                )["status"],
+                "unknown",
+                invalid_runtime,
+            )
+        padded_subject = seal_effect_record({
+            **{key: value for key, value in records[0].items() if key != "supportRecordKey"},
+            "subjectKey": " 1001 ",
+        })
+        self.assertEqual(
+            resolve_exact_item_effect_support(
+                ITEM,
+                runtime_revision=RUNTIME,
+                support_records=[padded_subject, *records[1:]],
+            )["status"],
+            "unknown",
+        )

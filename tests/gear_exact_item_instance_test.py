@@ -53,14 +53,14 @@ def exact_v2_row(**overrides):
     row = {
         "itemId": "1001",
         "declaredItemLevel": 266,
-        "bonusIds": ["9002", "13334", "9001"],
+        "bonusIds": ["13334", "9001", "9002"],
         "context": "heroic",
         "gemIds": ["240892", "240897"],
         "gemBonusIds": ["1514", "1514"],
         "gemItemLevels": [90, 90],
         "enchantId": "7443",
-        "craftedStats": ["36", "32"],
-        "embellishmentIds": ["999002", "999001"],
+        "craftedStats": ["32", "36"],
+        "embellishmentIds": ["999001", "999002"],
         "redirectedBaseStats": ["haste_rating"],
     }
     row.update(overrides)
@@ -89,7 +89,7 @@ class GearExactItemInstanceTest(unittest.TestCase):
         self.assertEqual(listed["exactItemInstanceKey"], unlisted["exactItemInstanceKey"])
         for field, replacement in (
             ("itemLevel", 269),
-            ("bonusIds", ["9002", "13334", "9001", "7777"]),
+            ("bonusIds", ["13334", "7777", "9001", "9002"]),
             ("context", "mythic"),
             ("gems", ["240897", "240892"]),
             ("enchant", "9999"),
@@ -233,6 +233,60 @@ class GearExactItemInstanceTest(unittest.TestCase):
             exact_v2_row(gemItemLevels=[10000, 90]),
         ):
             self.assertEqual(build_exact_item_identity(CURRENT_BINDING, row)["status"], "blocked", row)
+
+    def test_v2_set_like_direct_fields_must_already_be_sorted_and_unique(self):
+        for field, values in (
+            ("bonusIds", (["13334", "100"], ["100", "100", "13334"])),
+            ("craftedStats", (["haste", "crit"], ["crit", "crit", "haste"])),
+            ("embellishmentIds", (["emb-b", "emb-a"], ["emb-a", "emb-a", "emb-b"])),
+            ("redirectedBaseStats", (["mastery", "crit"], ["crit", "crit", "mastery"])),
+        ):
+            for replacement in values:
+                result = build_exact_item_identity(
+                    CURRENT_BINDING, exact_v2_row(**{field: replacement}),
+                )
+                self.assertEqual(result["status"], "blocked", (field, replacement))
+
+    def test_v2_override_must_match_raw_direct_six_fields_without_normalization(self):
+        base = exact_v2_row(
+            craftedStats=["crit", "haste"],
+            embellishmentIds=["emb-a", "emb-b"],
+        )
+        fields = (
+            "gemIds", "gemBonusIds", "gemItemLevels", "enchantId",
+            "craftedStats", "embellishmentIds",
+        )
+        for field, replacements in (
+            ("craftedStats", (["haste", "crit"], ["crit", "crit", "haste"])),
+            ("embellishmentIds", (["emb-b", "emb-a"], ["emb-a", "emb-a", "emb-b"])),
+        ):
+            for replacement in replacements:
+                override = {name: copy.deepcopy(base[name]) for name in fields}
+                override[field] = replacement
+                result = build_exact_item_identity(
+                    CURRENT_BINDING, base, enhancement_selection=override,
+                )
+                self.assertEqual(result["status"], "blocked", (field, replacement))
+
+    def test_v2_blocks_out_of_contract_crafted_effect_ids_at_first_boundary(self):
+        direct = build_exact_item_identity(
+            CURRENT_BINDING, exact_v2_row(craftedEffectIds=["effect-a"]),
+        )
+        base = exact_v2_row()
+        override = {
+            name: copy.deepcopy(base[name])
+            for name in (
+                "gemIds", "gemBonusIds", "gemItemLevels", "enchantId",
+                "craftedStats", "embellishmentIds",
+            )
+        }
+        override["craftedEffectIds"] = ["effect-a"]
+        derived = build_exact_item_identity(
+            CURRENT_BINDING, base, enhancement_selection=override,
+        )
+        for result in (direct, derived):
+            self.assertEqual(result["status"], "blocked")
+            self.assertIn("EXACT_CRAFTED_EFFECT_IDS_UNSUPPORTED", result["problemCodes"])
 
     def test_v1_catalog_wrapper_remains_byte_and_key_compatible(self):
         built = build_exact_item_instance(

@@ -3,7 +3,10 @@ import hashlib
 import json
 import unittest
 
-from server.gear_exact_authority import build_exact_authority_envelope
+from server.gear_exact_authority import (
+    build_exact_authority_envelope,
+    build_exact_progression_binding,
+)
 from server.gear_exact_item_instance import build_exact_item_identity
 from server.simc_item_effect_support import (
     resolve_exact_item_effect_support,
@@ -15,7 +18,23 @@ RUNTIME = "simc-2026.08.04"
 EXACT = build_exact_item_identity({}, {"itemId": "1001", "declaredItemLevel": 266, "bonusIds": ["13334"], "context": "heroic", "gemIds": [], "gemBonusIds": [], "gemItemLevels": [], "enchantId": "", "craftedStats": [], "embellishmentIds": [], "redirectedBaseStats": []})
 STATIC = {"schemaRevision": "exact-static-facts-v1", "exactItemInstanceKey": EXACT["exactItemInstanceKey"], "facts": {"haste_rating": 241}}
 SERIALIZER = EXACT["serializerInput"]
-PROGRESSION_PAYLOAD = {"schemaRevision": "exact-progression-binding-v1", "exactItemInstanceKey": EXACT["exactItemInstanceKey"], "gearRuleRevision": "gear-rule-matrix-v1", "progressionState": {"kind": "upgrade_track", "trackKey": "hero", "rank": 3, "maxRank": 6}}
+PROGRESSION_PAYLOAD = {
+    "schemaRevision": "exact-progression-binding-v1",
+    "exactItemInstanceKey": EXACT["exactItemInstanceKey"],
+    "gearRuleRevision": "gear-rule-matrix-v1",
+    "trackAuthorityRuleRevision": "midnight-season-1-track-authority-v1",
+    "trackAuthorityRecordKey": "exact_hero_3",
+    "trackAuthorityInput": {
+        "seasonRevision": "season-17-f131dd36ddf1",
+        "gearRuleRevision": "gear-rule-matrix-v1",
+        "slot": "head",
+        "hasCraftedSource": False,
+    },
+    "progressionState": {
+        "kind": "upgrade_track", "trackKey": "hero", "rank": 3,
+        "maxRank": 6,
+    },
+}
 PROGRESSION = {**PROGRESSION_PAYLOAD, "progressionBindingKey": "exact-progression:sha256:" + hashlib.sha256(__import__("json").dumps(PROGRESSION_PAYLOAD, sort_keys=True, separators=(",", ":")).encode()).hexdigest()}
 EFFECT = resolve_exact_item_effect_support(EXACT, runtime_revision=RUNTIME, support_records=[seal_effect_record({"schemaRevision": "simc-item-effect-authority-v1", "subjectKind": "item", "subjectKey": "1001", "subjectVariantSignature": EXACT["exactVariantSignature"], "hasDynamicEffect": False, "simcRuntimeRevision": RUNTIME, "verifiedAt": "2026-08-04T00:00:00Z"})])
 
@@ -46,7 +65,11 @@ def reconstructed_exact(**changes):
     return exact
 
 
-def authority_inputs(exact, *, facts=None, progression_state=None):
+def authority_inputs(
+    exact, *, facts=None, progression_state=None,
+    gear_rule_revision="gear-rule-matrix-v1",
+    track_record_key="exact_hero_3", slot="head", has_crafted_source=False,
+):
     static = {
         "schemaRevision": "exact-static-facts-v1",
         "exactItemInstanceKey": exact["exactItemInstanceKey"],
@@ -56,7 +79,15 @@ def authority_inputs(exact, *, facts=None, progression_state=None):
     progression_payload = {
         "schemaRevision": "exact-progression-binding-v1",
         "exactItemInstanceKey": exact["exactItemInstanceKey"],
-        "gearRuleRevision": "gear-rule-matrix-v1",
+        "gearRuleRevision": gear_rule_revision,
+        "trackAuthorityRuleRevision": "midnight-season-1-track-authority-v1",
+        "trackAuthorityRecordKey": track_record_key,
+        "trackAuthorityInput": {
+            "seasonRevision": "season-17-f131dd36ddf1",
+            "gearRuleRevision": gear_rule_revision,
+            "slot": slot,
+            "hasCraftedSource": has_crafted_source,
+        },
         "progressionState": state,
     }
     progression = {
@@ -79,6 +110,35 @@ def authority_inputs(exact, *, facts=None, progression_state=None):
 
 
 class GearExactAuthorityTest(unittest.TestCase):
+    def test_progression_builder_requires_byte_equivalent_exact_builder_output(self):
+        authority_input = PROGRESSION_PAYLOAD["trackAuthorityInput"]
+        self.assertEqual(
+            build_exact_progression_binding(EXACT, authority_input),
+            PROGRESSION,
+        )
+        forged = reconstructed_exact(itemLevel=269)
+        forged["serializerInput"] = {"id": "1001", "ilevel": "266", "bonus_id": "13334"}
+        self.assertEqual(
+            build_exact_progression_binding(forged, authority_input)["status"],
+            "blocked",
+        )
+
+    def test_progression_binding_requires_byte_equivalence_not_python_numeric_equality(self):
+        numerically_equal = {
+            **PROGRESSION,
+            "progressionState": {
+                **PROGRESSION["progressionState"],
+                "rank": 3.0,
+            },
+        }
+        result = build_exact_authority_envelope(
+            exact_item=EXACT, static_facts=STATIC,
+            serializer_input=SERIALIZER,
+            progression_binding=numerically_equal, effect_support=EFFECT,
+            resolver_revision="resolver-v2",
+        )
+        self.assertEqual(result["status"], "blocked")
+
     def test_ready_envelope_is_strict_content_addressed_and_binds_all_authority_inputs(self):
         first = build_exact_authority_envelope(exact_item=EXACT, static_facts=STATIC, serializer_input=SERIALIZER, progression_binding=PROGRESSION, effect_support=EFFECT, resolver_revision="resolver-v2")
         second = build_exact_authority_envelope(exact_item=copy.deepcopy(EXACT), static_facts=copy.deepcopy(STATIC), serializer_input=copy.deepcopy(SERIALIZER), progression_binding=copy.deepcopy(PROGRESSION), effect_support=copy.deepcopy(EFFECT), resolver_revision="resolver-v2")
@@ -196,3 +256,117 @@ class GearExactAuthorityTest(unittest.TestCase):
                 resolver_revision="resolver-v2",
             )
             self.assertEqual(result["status"], "blocked", state)
+
+    def test_envelope_rebuilds_current_track_authority_instead_of_accepting_self_hashed_shape(self):
+        legacy_shape_payload = {
+            "schemaRevision": "exact-progression-binding-v1",
+            "exactItemInstanceKey": EXACT["exactItemInstanceKey"],
+            "gearRuleRevision": "gear-rule-matrix-v1",
+            "progressionState": {
+                "kind": "upgrade_track", "trackKey": "hero", "rank": 6,
+                "maxRank": 6,
+            },
+        }
+        legacy_shape = {
+            **legacy_shape_payload,
+            "progressionBindingKey": content_key(
+                "exact-progression:sha256:", legacy_shape_payload,
+            ),
+        }
+        self.assertEqual(
+            build_exact_authority_envelope(
+                exact_item=EXACT, static_facts=STATIC,
+                serializer_input=SERIALIZER,
+                progression_binding=legacy_shape, effect_support=EFFECT,
+                resolver_revision="resolver-v2",
+            )["status"],
+            "blocked",
+        )
+        for state, rule_revision, record_key in (
+            (
+                {"kind": "upgrade_track", "trackKey": "hero", "rank": 6, "maxRank": 6},
+                "gear-rule-matrix-v1", "exact_hero_6",
+            ),
+            (
+                {"kind": "upgrade_track", "trackKey": "myth", "rank": 3, "maxRank": 6},
+                "gear-rule-matrix-v1", "exact_myth_3",
+            ),
+            (
+                {"kind": "crafted_quality", "trackKey": "myth", "qualityKey": "radiance_max"},
+                "gear-rule-matrix-v1", "exact_crafted_myth",
+            ),
+            (
+                {"kind": "ascendant", "trackKey": "void_upgrade", "originKind": "upgrade_track"},
+                "gear-rule-matrix-v1", "exact_ascendant_13654",
+            ),
+            (
+                {"kind": "upgrade_track", "trackKey": "hero", "rank": 3, "maxRank": 6},
+                "arbitrary-rule", "exact_hero_3",
+            ),
+        ):
+            static, serializer, progression, effect = authority_inputs(
+                EXACT, progression_state=state,
+                gear_rule_revision=rule_revision,
+                track_record_key=record_key,
+            )
+            result = build_exact_authority_envelope(
+                exact_item=EXACT, static_facts=static,
+                serializer_input=serializer,
+                progression_binding=progression, effect_support=effect,
+                resolver_revision="resolver-v2",
+            )
+            self.assertEqual(
+                result["status"], "blocked",
+                (state, rule_revision, record_key),
+            )
+
+    def test_crafted_stats_reach_crafted_effect_support_and_ready_envelope(self):
+        crafted_exact = build_exact_item_identity({}, {
+            "itemId": "1001", "declaredItemLevel": 266,
+            "bonusIds": ["13334"], "context": "heroic",
+            "gemIds": [], "gemBonusIds": [], "gemItemLevels": [],
+            "enchantId": "", "craftedStats": ["crit"],
+            "embellishmentIds": [], "redirectedBaseStats": [],
+        })
+        subjects = resolve_exact_item_effect_support(
+            crafted_exact, runtime_revision=RUNTIME, support_records=[],
+        )["subjects"]
+        self.assertEqual(
+            [(subject["subjectKind"], subject["subjectKey"]) for subject in subjects],
+            [("item", "1001"), ("crafted_effect", "crit")],
+        )
+        item_only = seal_effect_record({
+            **{field: subjects[0][field] for field in (
+                "subjectKind", "subjectKey", "subjectVariantSignature",
+            )},
+            "schemaRevision": "simc-item-effect-authority-v1",
+            "hasDynamicEffect": False, "simcRuntimeRevision": RUNTIME,
+            "verifiedAt": "2026-08-04T00:00:00Z",
+        })
+        unknown = resolve_exact_item_effect_support(
+            crafted_exact, runtime_revision=RUNTIME, support_records=[item_only],
+        )
+        self.assertEqual(unknown["status"], "unknown")
+        records = [
+            seal_effect_record({
+                **{field: subject[field] for field in (
+                    "subjectKind", "subjectKey", "subjectVariantSignature",
+                )},
+                "schemaRevision": "simc-item-effect-authority-v1",
+                "hasDynamicEffect": False,
+                "simcRuntimeRevision": RUNTIME,
+                "verifiedAt": "2026-08-04T00:00:00Z",
+            })
+            for subject in subjects
+        ]
+        effect = resolve_exact_item_effect_support(
+            crafted_exact, runtime_revision=RUNTIME, support_records=records,
+        )
+        static, serializer, progression, _ = authority_inputs(crafted_exact)
+        result = build_exact_authority_envelope(
+            exact_item=crafted_exact, static_facts=static,
+            serializer_input=serializer,
+            progression_binding=progression, effect_support=effect,
+            resolver_revision="resolver-v2",
+        )
+        self.assertEqual(result["status"], "ready")

@@ -27,8 +27,8 @@ _DYNAMIC_KEYS = frozenset({"schemaRevision", "status", "subjectKind", "subjectKe
 _UNSUPPORTED_KEYS = frozenset({"schemaRevision", "status", "subjectKind", "subjectKey", "subjectVariantSignature", "hasDynamicEffect", "simcRuntimeRevision", "unsupportedReason", "verifiedAt", "supportRecordKey"})
 
 
-def _text(value: Any) -> str:
-    return value.strip() if isinstance(value, str) else ""
+def _raw_text(value: Any) -> str:
+    return value if isinstance(value, str) else ""
 
 
 def _canonical_text(value: Any, *, max_bytes: int = 256, allow_empty: bool = False) -> str | None:
@@ -46,7 +46,7 @@ def _canonical_text(value: Any, *, max_bytes: int = 256, allow_empty: bool = Fal
 def _signature_token(value: Any) -> str:
     if isinstance(value, bool):
         return ""
-    return value.strip() if isinstance(value, str) else str(value) if isinstance(value, int) else ""
+    return value if isinstance(value, str) else str(value) if isinstance(value, int) else ""
 
 
 def _canonical(value: Any) -> bytes:
@@ -112,8 +112,8 @@ def _valid_subject(record: Mapping[str, Any]) -> bool:
 
 
 def _valid_record_key(record: Mapping[str, Any]) -> bool:
-    key = _text(record.get("supportRecordKey"))
-    if not _RECORD_KEY_PATTERN.fullmatch(key):
+    key = _canonical_text(record.get("supportRecordKey"))
+    if key is None or not _RECORD_KEY_PATTERN.fullmatch(key):
         return False
     try:
         return key == effect_record_key(record)
@@ -146,9 +146,11 @@ def _valid_dynamic(record: Mapping[str, Any], runtime: str) -> bool:
         and record.get("effectType") in _EFFECT_TYPES
         and _tokens(record.get("expectedActionTokens"))
         and _tokens(record.get("expectedBuffTokens"))
-        and bool(_SNAPSHOT_KEY_PATTERN.fullmatch(_text(record.get("experimentSnapshotKey"))))
-        and bool(_SNAPSHOT_KEY_PATTERN.fullmatch(_text(record.get("controlSnapshotKey"))))
-        and _text(record.get("experimentSnapshotKey")) != _text(record.get("controlSnapshotKey"))
+        and _canonical_text(record.get("experimentSnapshotKey")) is not None
+        and _canonical_text(record.get("controlSnapshotKey")) is not None
+        and bool(_SNAPSHOT_KEY_PATTERN.fullmatch(record["experimentSnapshotKey"]))
+        and bool(_SNAPSHOT_KEY_PATTERN.fullmatch(record["controlSnapshotKey"]))
+        and record.get("experimentSnapshotKey") != record.get("controlSnapshotKey")
         and _valid_timestamp(record.get("verifiedAt"))
         and _valid_record_key(record)
     )
@@ -176,21 +178,21 @@ def _subject_signature(kind: str, value: Any) -> str:
 def _subjects(exact_item: Any) -> list[dict[str, str]]:
     item = exact_item if isinstance(exact_item, Mapping) else {}
     selection = item.get("enhancementSelection") if isinstance(item.get("enhancementSelection"), Mapping) else {}
-    result = [{"subjectKind": "item", "subjectKey": _text(item.get("itemId")), "subjectVariantSignature": _text(item.get("exactVariantSignature"))}]
+    result = [{"subjectKind": "item", "subjectKey": _raw_text(item.get("itemId")), "subjectVariantSignature": _raw_text(item.get("exactVariantSignature"))}]
     gem_ids, bonuses, levels = list(selection.get("gemIds") or []), list(selection.get("gemBonusIds") or []), list(selection.get("gemItemLevels") or [])
     for index, key in enumerate(gem_ids):
-        token = _text(key)
+        token = _raw_text(key)
         if token:
             bonus = _signature_token(bonuses[index]) if index < len(bonuses) else ""
             level = _signature_token(levels[index]) if index < len(levels) else ""
             result.append({"subjectKind": "gem", "subjectKey": token, "subjectVariantSignature": _subject_signature("gem", [token, bonus, level])})
-    enchant = _text(selection.get("enchantId"))
+    enchant = _raw_text(selection.get("enchantId"))
     if enchant:
         result.append({"subjectKind": "enchant", "subjectKey": enchant, "subjectVariantSignature": _subject_signature("enchant", [enchant])})
-    for kind, field in (("embellishment", "embellishmentIds"), ("crafted_effect", "craftedEffectIds")):
-        values = selection.get(field) if field in selection else item.get(field)
+    for kind, field in (("embellishment", "embellishmentIds"), ("crafted_effect", "craftedStats")):
+        values = selection.get(field)
         for key in values or []:
-            token = _text(key)
+            token = _raw_text(key)
             if token:
                 result.append({"subjectKind": kind, "subjectKey": token, "subjectVariantSignature": _subject_signature(kind, [token])})
     return result
@@ -198,7 +200,18 @@ def _subjects(exact_item: Any) -> list[dict[str, str]]:
 
 def _matching(records: Any, subject: Mapping[str, str]) -> list[Mapping[str, Any]]:
     source = records.get("records") if isinstance(records, Mapping) else records
-    return [record for record in (source or []) if isinstance(record, Mapping) and all(_text(record.get(field)) == subject[field] for field in ("subjectKind", "subjectKey", "subjectVariantSignature"))]
+    identity_fields = ("subjectKind", "subjectKey", "subjectVariantSignature")
+    if any(_canonical_text(subject.get(field)) is None for field in identity_fields):
+        return []
+    return [
+        record for record in (source or [])
+        if isinstance(record, Mapping)
+        and all(
+            _canonical_text(record.get(field)) is not None
+            and record.get(field) == subject[field]
+            for field in identity_fields
+        )
+    ]
 
 
 def _subject_status(subject: Mapping[str, str], runtime: str, records: Any) -> dict[str, str]:
@@ -227,7 +240,7 @@ def effect_support_key(result: Mapping[str, Any]) -> str:
 def resolve_exact_item_effect_support(exact_item: Any, *, runtime_revision: str, support_records: Any) -> dict[str, Any]:
     """Aggregate Exact-owned subjects into verified, unknown, or unsupported."""
 
-    runtime = _text(runtime_revision)
+    runtime = runtime_revision if isinstance(runtime_revision, str) else ""
     subjects = _subjects(exact_item)
     resolved = [_subject_status(subject, runtime, support_records) for subject in subjects]
     statuses = {entry["status"] for entry in resolved}
@@ -237,7 +250,7 @@ def resolve_exact_item_effect_support(exact_item: Any, *, runtime_revision: str,
         for record in _matching(support_records, subject):
             if _valid_static(record, runtime) or _valid_dynamic(record, runtime) or _valid_unsupported(record, runtime):
                 sealed.append(dict(record))
-    sealed.sort(key=lambda record: _text(record.get("supportRecordKey")))
+    sealed.sort(key=lambda record: _raw_text(record.get("supportRecordKey")))
     result = {"schemaRevision": EFFECT_SUPPORT_SCHEMA_REVISION, "status": status, "simcRuntimeRevision": runtime, "subjects": resolved, "supportRecords": sealed, "supportRecordKeys": [record["supportRecordKey"] for record in sealed]}
     result["effectSupportKey"] = effect_support_key(result)
     return result

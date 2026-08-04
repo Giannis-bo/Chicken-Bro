@@ -162,7 +162,10 @@ def _strict_identifier_list(value: Any, *, ordered: bool) -> list[str] | None:
         if token is None:
             return None
         result.append(token)
-    return result if ordered else sorted(set(result))
+    if ordered:
+        return result
+    canonical = sorted(set(result))
+    return result if result == canonical else None
 
 
 def _strict_level_list(value: Any) -> list[int] | None:
@@ -200,11 +203,7 @@ def _strict_v2_enhancement_selection(raw_selection: Any) -> dict[str, Any]:
             )],
         }
     raw = dict(raw_selection)
-    allowed_keys = fields | {"schemaRevision"}
-    if set(raw) not in (fields, allowed_keys) or (
-        "schemaRevision" in raw
-        and raw["schemaRevision"] != ENHANCEMENT_SELECTION_SCHEMA_REVISION
-    ):
+    if set(raw) != fields:
         return {
             "status": "blocked",
             "schemaRevision": ENHANCEMENT_SELECTION_SCHEMA_REVISION,
@@ -446,6 +445,12 @@ def build_exact_item_identity(
     }
     for field in sorted(required_fields.difference(row)):
         problems.append(_problem("EXACT_FIELD_MISSING", f"exactRow.{field}", "Every v2 Exact slot field is required."))
+    if "craftedEffectIds" in row:
+        problems.append(_problem(
+            "EXACT_CRAFTED_EFFECT_IDS_UNSUPPORTED",
+            "exactRow.craftedEffectIds",
+            "exact-loadout-intent-v2 does not define craftedEffectIds; use its governed craftedStats or embellishmentIds fields.",
+        ))
     raw_item_id = row.get("itemId")
     item_id = _strict_identifier(raw_item_id)
     raw_item_level = row.get("declaredItemLevel")
@@ -484,10 +489,16 @@ def build_exact_item_identity(
     if selection_result.get("status") != "verified":
         problems.extend(selection_result.get("problems") or [])
     if enhancement_selection is not None:
+        if isinstance(enhancement_selection, Mapping) and "craftedEffectIds" in enhancement_selection:
+            problems.append(_problem(
+                "EXACT_CRAFTED_EFFECT_IDS_UNSUPPORTED",
+                "enhancement.craftedEffectIds",
+                "exact-loadout-intent-v2 does not define craftedEffectIds; use its governed craftedStats or embellishmentIds fields.",
+            ))
         override_result = _strict_v2_enhancement_selection(enhancement_selection)
         if override_result.get("status") != "verified":
             problems.extend(override_result.get("problems") or [])
-        elif selection_result.get("status") == "verified" and override_result.get("selection") != selection_result.get("selection"):
+        elif selection_result.get("status") == "verified" and dict(enhancement_selection) != direct_selection_input:
             problems.append(_problem("EXACT_ENHANCEMENT_OVERRIDE_MISMATCH", "enhancement", "External enhancement selection must match direct v2 fields."))
     if problems:
         return {

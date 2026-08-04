@@ -11,9 +11,11 @@ from typing import Any, Mapping
 
 try:
     from .gear_exact_item_instance import build_exact_item_identity
+    from .gear_track_authority import resolve_exact_instance_progression
     from .simc_item_effect_support import effect_support_key, resolve_exact_item_effect_support, validate_effect_record
 except ImportError:
     from gear_exact_item_instance import build_exact_item_identity
+    from gear_track_authority import resolve_exact_instance_progression
     from simc_item_effect_support import effect_support_key, resolve_exact_item_effect_support, validate_effect_record
 
 
@@ -22,7 +24,14 @@ _PROGRESSION_KEY_PATTERN = re.compile(r"^exact-progression:sha256:[0-9a-f]{64}$"
 _FORBIDDEN_FRAGMENTS = ("owner", "catalog", "observ", "provenance", "sourceurl", "profileurl")
 _EXACT_OUTPUT_KEYS = frozenset({"status", "schemaRevision", "exactItemInstanceKey", "exactVariantSignature", "enhancementSelectionKey", "itemId", "bonusIds", "context", "itemLevel", "redirectedBaseStats", "enhancementSelection", "serializerInput", "problemCodes", "problems"})
 _STATIC_KEYS = frozenset({"schemaRevision", "exactItemInstanceKey", "facts"})
-_PROGRESSION_KEYS = frozenset({"schemaRevision", "exactItemInstanceKey", "gearRuleRevision", "progressionState", "progressionBindingKey"})
+_PROGRESSION_KEYS = frozenset({
+    "schemaRevision", "exactItemInstanceKey", "gearRuleRevision",
+    "trackAuthorityRuleRevision", "trackAuthorityRecordKey",
+    "trackAuthorityInput", "progressionState", "progressionBindingKey",
+})
+_TRACK_AUTHORITY_INPUT_KEYS = frozenset({
+    "seasonRevision", "gearRuleRevision", "slot", "hasCraftedSource",
+})
 _SERIALIZER_FIELDS = frozenset({"id", "ilevel", "bonus_id", "gem_id", "gem_bonus_id", "gem_ilevel", "enchant_id", "crafted_stats", "embellishment"})
 _TOKEN_PATTERN = re.compile(r"^[A-Za-z0-9_.:-]{1,256}$")
 
@@ -103,24 +112,91 @@ def _valid_static_facts(value: Any, exact_key: str) -> bool:
     )
 
 
-def _valid_progression_state(value: Any) -> bool:
-    if not isinstance(value, Mapping):
-        return False
-    kind = value.get("kind")
-    if kind == "upgrade_track":
-        return set(value) == {"kind", "trackKey", "rank", "maxRank"} and value.get("trackKey") in {"champion", "hero", "myth"} and type(value.get("rank")) is int and 1 <= value["rank"] <= 6 and value.get("maxRank") == 6
-    if kind == "crafted_quality":
-        return set(value) == {"kind", "trackKey", "qualityKey"} and value.get("trackKey") == "myth" and value.get("qualityKey") == "radiance_max"
-    if kind == "ascendant":
-        return set(value) == {"kind", "trackKey", "originKind"} and value.get("trackKey") == "void_upgrade" and value.get("originKind") in {"upgrade_track", "crafted_quality"}
-    return False
+def build_exact_progression_binding(
+    exact_item: Any,
+    track_authority_input: Any,
+) -> dict[str, Any]:
+    """Rebuild one progression binding through the production Track Authority."""
+
+    exact = exact_item if isinstance(exact_item, Mapping) else {}
+    authority_input = (
+        dict(track_authority_input)
+        if isinstance(track_authority_input, Mapping) else {}
+    )
+    if (
+        set(authority_input) != _TRACK_AUTHORITY_INPUT_KEYS
+        or not _valid_token(authority_input.get("seasonRevision"))
+        or not _valid_token(authority_input.get("gearRuleRevision"))
+        or not _valid_token(authority_input.get("slot"))
+        or type(authority_input.get("hasCraftedSource")) is not bool
+        or not _valid_exact(exact)
+        or not _EXACT_KEY_PATTERN.fullmatch(
+            exact.get("exactItemInstanceKey")
+            if isinstance(exact.get("exactItemInstanceKey"), str) else ""
+        )
+    ):
+        return {
+            "schemaRevision": "exact-progression-binding-v1",
+            "status": "blocked",
+            "problemCodes": ["EXACT_PROGRESSION_TRACK_AUTHORITY_INPUT_INVALID"],
+        }
+    resolved = resolve_exact_instance_progression(
+        {
+            "seasonRevision": authority_input["seasonRevision"],
+            "gearRuleRevision": authority_input["gearRuleRevision"],
+        },
+        {
+            "rowFamily": "exact_instance",
+            "status": "verified",
+            "itemId": exact.get("itemId"),
+            "variantKey": exact.get("exactItemInstanceKey"),
+            "itemLevel": exact.get("itemLevel"),
+            "bonusIds": exact.get("bonusIds"),
+            "slot": authority_input["slot"],
+            "hasCraftedSource": authority_input["hasCraftedSource"],
+        },
+    )
+    if resolved.get("status") != "verified":
+        return {
+            "schemaRevision": "exact-progression-binding-v1",
+            "status": "blocked",
+            "problemCodes": [
+                problem.get("code")
+                for problem in resolved.get("problems") or []
+                if isinstance(problem, Mapping) and _valid_token(problem.get("code"))
+            ] or ["EXACT_PROGRESSION_TRACK_AUTHORITY_BLOCKED"],
+        }
+    payload = {
+        "schemaRevision": "exact-progression-binding-v1",
+        "exactItemInstanceKey": exact["exactItemInstanceKey"],
+        "gearRuleRevision": authority_input["gearRuleRevision"],
+        "trackAuthorityRuleRevision": resolved["ruleRevision"],
+        "trackAuthorityRecordKey": resolved["recordKey"],
+        "trackAuthorityInput": authority_input,
+        "progressionState": resolved["progressionState"],
+    }
+    return {
+        **payload,
+        "progressionBindingKey": _hash("exact-progression:sha256:", payload),
+    }
 
 
-def _valid_progression(value: Any, exact_key: str) -> bool:
-    if not isinstance(value, Mapping) or set(value) != _PROGRESSION_KEYS or value.get("schemaRevision") != "exact-progression-binding-v1" or value.get("exactItemInstanceKey") != exact_key or not _valid_token(value.get("gearRuleRevision")) or not _valid_progression_state(value.get("progressionState")):
+def _valid_progression(value: Any, exact: Mapping[str, Any]) -> bool:
+    if (
+        not isinstance(value, Mapping)
+        or set(value) != _PROGRESSION_KEYS
+        or value.get("schemaRevision") != "exact-progression-binding-v1"
+        or value.get("exactItemInstanceKey") != exact.get("exactItemInstanceKey")
+        or not _PROGRESSION_KEY_PATTERN.fullmatch(
+            value.get("progressionBindingKey")
+            if isinstance(value.get("progressionBindingKey"), str) else ""
+        )
+    ):
         return False
-    payload = {key: value[key] for key in _PROGRESSION_KEYS if key != "progressionBindingKey"}
-    return _PROGRESSION_KEY_PATTERN.fullmatch(str(value.get("progressionBindingKey") or "")) is not None and value["progressionBindingKey"] == _hash("exact-progression:sha256:", payload)
+    rebuilt = build_exact_progression_binding(
+        exact, value.get("trackAuthorityInput"),
+    )
+    return "status" not in rebuilt and _canonical(value) == _canonical(rebuilt)
 
 
 def _valid_effect_support(exact: Mapping[str, Any], effect: Any) -> bool:
@@ -155,7 +231,7 @@ def build_exact_authority_envelope(*, exact_item: Any, static_facts: Any, serial
         return _blocked("EXACT_AUTHORITY_STATIC_FACTS_MISSING")
     if not isinstance(serializer_input, Mapping) or set(serializer_input).difference(_SERIALIZER_FIELDS) or serializer_input != _expected_serializer(exact_item):
         return _blocked("EXACT_AUTHORITY_SERIALIZER_INPUT_MISMATCH")
-    if not _valid_progression(progression_binding, exact_key):
+    if not _valid_progression(progression_binding, exact_item):
         return _blocked("EXACT_AUTHORITY_PROGRESSION_BINDING_MISSING")
     if not _valid_effect_support(exact_item, effect_support):
         return _blocked("EXACT_AUTHORITY_EFFECT_SUPPORT_NOT_READY")
@@ -165,4 +241,4 @@ def build_exact_authority_envelope(*, exact_item: Any, static_facts: Any, serial
     return {"schemaRevision": "exact-authority-envelope-v1", "status": "ready", "exactAuthorityKey": _hash("exact-authority:sha256:", payload), "canonicalPayload": json.loads(_canonical(payload))}
 
 
-__all__ = ("build_exact_authority_envelope",)
+__all__ = ("build_exact_authority_envelope", "build_exact_progression_binding")
