@@ -5,16 +5,17 @@
   "status": "live_verified",
   "highestEvidenceLevel": "live_verified",
   "branch": "codex/chickenbro-smart-question-chain",
-  "commit": "d6340db1433356ee377aec5777755dfeec400483",
+  "commit": "bc7ff9a1d37921bdc5f24c54308e69fecb32705a",
   "identities": {
     "runtime": {
       "status": "bound",
       "kind": "git_commit",
-      "value": "d6340db1433356ee377aec5777755dfeec400483",
+      "value": "bc7ff9a1d37921bdc5f24c54308e69fecb32705a",
       "fileHashes": {
         "server/chickenbro_agent.py": "72a69f3e097ae5b33f3d7996615d3ae44d5f864f3cc4f168026933d2efbddbe7",
         "server/chickenbro_community_strength.py": "1a68f0de894b33fa0209b77176bf7041eb18a286466f0b052ea077a968007a6e",
-        "server/news_backend.py": "578469df4cfa93ef1964f879fe21d9cf29f2114cefaafb9aac27950e6256df51",
+        "server/chickenbro_question_frame.py": "577c906a323dda36fc8d96ea366b6734dd72ccbdf33d9aec02fce2ad05ab399c",
+        "server/news_backend.py": "0eac176bbc491d82f4c523ff4bc0ede86e37772824845447483ba55248aa817e",
         "server/wow-backend.service": "d85fa51f0ee1ab256e3c39442de955c2c7c6ae2a43cdbb5c3ad62ebc1f27e47b"
       }
     },
@@ -49,18 +50,19 @@
     "bounded official/current and community Mythic+ source chain",
     "Registry v3, source freshness/timeout/rate controls and Trace v3",
     "model/stream evidence postcondition and generic source-derived fallback",
+    "bounded evidence-ratio follow-up routing and dynamic fallback explanation",
     "explicit public WCL target configuration for candidate and production service units"
   ],
   "verification": [
     {
-      "command": "python3 -m unittest tests.chickenbro_agent_test tests.chickenbro_question_frame_test tests.chickenbro_registry_test tests.chickenbro_tool_runtime_test tests.chickenbro_community_strength_test tests.chickenbro_observability_test tests.chickenbro_eval_test tests.news_backend_test tests.postgres_schema_test -q",
+      "command": "python3 -m unittest tests.chickenbro_question_frame_test tests.chickenbro_agent_test tests.chickenbro_registry_test tests.chickenbro_tool_runtime_test tests.chickenbro_community_strength_test tests.chickenbro_observability_test tests.news_backend_test -q",
       "status": "pass",
-      "summary": "407 focused backend, Registry, source, Trace and API tests passed locally."
+      "summary": "369 focused QuestionFrame, source, Registry/runtime, stream fallback, Trace and API tests passed locally; the new coverage proves immediate ratio follow-up inheritance, an intervening-turn boundary and a dynamic source-derived explanation when the stream model is unavailable."
     },
     {
       "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-08-03-chickenbro-smart-question-chain --base origin/main",
-      "status": "pass",
-      "summary": "Full Harness passed for the correction source: 173 commands, including Python 2471 tests with one skip, Node 747 tests and Taro 432 tests. The UI package check reports its pre-existing release-configuration partial state separately and was not promoted to a release success claim."
+      "status": "blocked",
+      "summary": "Current full Harness ran Node 747/747, Python 2474/2474 (one skip), typecheck, lint and Taro 432/432 successfully, then the unrelated UI-package build could not start because this isolated worktree lacks node_modules/@tarojs/cli/bin/taro. No dependency download/install was authorized; this does not replace the passing targeted backend suite or live candidate/production smoke."
     },
     {
       "command": "systemd-analyze verify server/wow-backend.service server/wow-backend-candidate.service; candidate and production service restart",
@@ -68,14 +70,14 @@
       "summary": "The tracked explicit WCL target unit files passed systemd verification. Production wow-backend restarted active with the three configured public WCL target variables; candidate retained the same explicit contract."
     },
     {
-      "command": "candidate POST http://127.0.0.1:18790/api/chickenbro/messages with retail Mythic+ elemental shaman, PTR elemental shaman and retail raid elemental shaman prompts",
+      "command": "candidate POST http://127.0.0.1:18790/api/chickenbro/messages/stream with a retail Mythic+ strength question followed by a same-session evidence-ratio explanation",
       "status": "pass",
-      "summary": "Retail Mythic+ returned Raider.IO plus WCL evidenceRefs and a v3 trace with both capabilities source_reference/fresh. PTR returned no retail community evidenceRefs and stated low-confidence evidence absence. Raid returned no Mythic+ evidenceRefs, proving scenario isolation."
+      "summary": "The candidate returned started/status/delta/final for both turns while its model call received HTTP 503. The follow-up was current_research with comparative_strength_signal, selected Raider.IO strength plus WCL public rankings, and deterministically explained 15/27 from the returned source fields."
     },
     {
-      "command": "production POST http://127.0.0.1:8787/api/chickenbro/messages with retail Mythic+ elemental shaman prompt; inspect app.chickenbro_agent_traces",
+      "command": "production POST http://127.0.0.1:8787/api/chickenbro/messages/stream with a retail Mythic+ strength question followed by a same-session evidence-ratio explanation",
       "status": "pass",
-      "summary": "The real production answer cited raiderio-strength:shaman:elemental:mythic_plus and wcl.public.shaman.elemental.mythic_plus, reported 27 same-role groups / placement 15 / best observed score 4326.51 / key 24 / sample 100 within limitations, and the persisted de-identified v3 trace marked both capabilities source_reference/fresh."
+      "summary": "Both production stream calls reached final/succeeded. The follow-up selected the same bounded Raider.IO/WCL capabilities and, via the live source-derived fallback, answered: 15/27 means placement 15 among 27 same-role high-key samples, not a global class, DPS, completion-rate or representation ranking."
     },
     {
       "command": "production health, Registry identity, service/journal and chickenbro-source-refresh timer inspection",
@@ -87,16 +89,16 @@
     "status": "candidate_verified",
     "requiredBeforeMerge": true,
     "branch": "codex/chickenbro-smart-question-chain",
-    "commit": "d6340db1433356ee377aec5777755dfeec400483",
+    "commit": "bc7ff9a1d37921bdc5f24c54308e69fecb32705a",
     "gitTree": "candidate-source-files-parity",
     "deployedTarget": "/opt/wow-mini-program-candidates/chickenbro-smart-question-44fc389e",
     "service": "wow-backend-chickenbro-smart-question-44fc389e.service (127.0.0.1:18790)",
     "databaseBackup": "/var/backups/wow-backend/chickenbro-community-strength-44fc389e-20260803T122029Z/wow_test.pg_dump; SHA-256 ca301f938c6442f00e731bf1f3d218fc4a96d60b4047bb4683ea1e987ac4ea8b; pg_restore --list passed",
     "registryMigration": "0027 ran first in a rolled-back transaction (pointer returned to chickenbro-tools-2), then applied once through PostgreSQL; active pointer is chickenbro-tools-3 and migration count is 1.",
-    "fileParity": "All 14 changed server files were SHA-256-equal between the candidate and the correction source. Production has the same active runtime files; its non-executed candidate unit template was also copied after parity audit.",
+    "fileParity": "The current correction's two changed runtime files are SHA-256-equal between source, candidate and production: QuestionFrame 577c906a and news_backend 0eac176b. The previously verified Registry v3/runtime files remain unchanged.",
     "smoke": {
       "status": "pass",
-      "summary": "A real candidate retail Mythic+ question returned source-derived comparative Raider.IO evidence and configured WCL public coverage; PTR and raid counterexamples did not dispatch the retail Mythic+ sources."
+      "summary": "A real candidate two-turn stream smoke forced the model-unavailable fallback path and still returned final/succeeded for the evidence-ratio follow-up with the correct bounded source plan and dynamic explanation."
     },
     "timerBackflow": {
       "status": "pass",
@@ -104,24 +106,24 @@
     },
     "rollback": {
       "status": "ready",
-      "path": "Stop the exact candidate service; on production disable the three WCL public-target variables or restore the prior retained candidate code, set the Registry pointer back to chickenbro-tools-2, restart wow-backend, and retain the verified PostgreSQL dump for data recovery."
+      "path": "Stop the exact candidate service; for this correction restore the two pre-bc7ff9a1 production file backups and restart wow-backend, or restore the equivalent candidate backups and restart its service. The prior Registry and PostgreSQL rollback path remains retained for an independent source-registry rollback."
     }
   },
   "runtimeEvidence": [
     {
       "type": "candidate_file_parity",
       "status": "pass",
-      "summary": "Candidate and source matched all 14 changed server files, including the QuestionFrame, Registry, adapters, runtime, migration and service templates."
+      "summary": "The two current correction files are equal across source and candidate: QuestionFrame 577c906a and news_backend 0eac176b."
     },
     {
       "type": "production_file_parity",
       "status": "pass",
-      "summary": "Production and candidate matched the changed active backend files; production wow-backend is active on 8787 with the explicit public WCL target contract."
+      "summary": "Production and candidate matched the two current correction files; wow-backend and the retained candidate service are active on 8787 and 18790."
     },
     {
       "type": "smoke",
       "status": "pass",
-      "summary": "Production real chat output answered the player question using current Raider.IO comparative evidence plus WCL public coverage, without the prior cannot-get-data/manual-search fallback."
+      "summary": "Production retried the exact two-turn player journey using the source-fallback path and produced a final evidence-ratio explanation rather than a failed event or retry prompt."
     },
     {
       "type": "timer_backflow",
@@ -149,11 +151,16 @@
       "id": "production_code_rollback_parity",
       "status": "active",
       "detail": "The verified PostgreSQL backup is exact. The retained prior candidate gives a code rollback reference, but the immediately pre-stage production code was not independently re-hashed before the runtime files were copied; do not represent it as byte-identical production rollback evidence."
+    },
+    {
+      "id": "local_ui_package_dependency",
+      "status": "active",
+      "detail": "The current full Harness is blocked only at the unrelated local UI-package build because this isolated worktree lacks the Taro CLI package. No dependency installation or download was performed without authorization; targeted backend tests and live runtime evidence remain separately recorded."
     }
   ],
   "rollback": [
-    "disable WOW_CHICKENBRO_WCL_PUBLIC_MPLUS_* in the wow-backend unit and restart wow-backend.service",
-    "restore code from the retained prior candidate reference only after checking its runtime identity, then restart wow-backend.service",
+    "restore /opt/wow-mini-program/server/chickenbro_question_frame.py.prebc7ff9a1 and news_backend.py.prebc7ff9a1 to their active names, then restart wow-backend.service",
+    "restore the equivalent pre-bc7ff9a1 candidate file backups and restart wow-backend-chickenbro-smart-question-44fc389e.service if the candidate must be rolled back",
     "move the active Registry pointer from chickenbro-tools-3 back to chickenbro-tools-2 using the recorded PostgreSQL rollback procedure",
     "recover database state from /var/backups/wow-backend/chickenbro-community-strength-44fc389e-20260803T122029Z/wow_test.pg_dump only when a data rollback is required"
   ],
@@ -166,5 +173,5 @@
     "docs/plans/2026-08-03-chickenbro-smart-question-chain-design.md",
     "docs/plans/2026-08-03-chickenbro-smart-question-chain-implementation.md"
   ],
-  "summary": "The generic no-data path is replaced by a source-bounded semantic chain, not fixed Q&A: retail Mythic+ strength resolves and evaluates fresh Raider.IO same-role signals plus an explicit WCL public sample; PTR and raid are isolated. Candidate and production self-tests passed with literal source limitations, Registry v3 and no sync/backfill start. Real WeChat acceptance is still required before merge, push or cleanup."
+  "summary": "The source-bounded semantic chain remains general rather than fixed Q&A. This correction adds a tightly bounded evidence-ratio follow-up: only the immediate prior current-strength turn may carry scope, and a model/stream failure now yields a dynamic explanation from fresh Raider.IO fields instead of a failed event or repeated generic summary. Candidate and production both passed the real two-turn stream smoke with no sync/backfill start. The full Harness's unrelated UI package stage is blocked by an absent local Taro CLI and is recorded literally. Real WeChat acceptance is still required before merge, push or cleanup."
 }
