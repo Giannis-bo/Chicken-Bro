@@ -1041,8 +1041,10 @@ class _TrackOwnerLexicalBindings(ast.NodeVisitor):
         for item in node.keywords:
             self.visit(item.value)
 
-    def visit_TypeAlias(self, node: ast.TypeAlias) -> None:
-        self._record_target(node.name, "type-alias")
+    def visit_TypeAlias(self, node: ast.AST) -> None:
+        name = getattr(node, "name", None)
+        if isinstance(name, ast.AST):
+            self._record_target(name, "type-alias")
 
     def visit_Lambda(self, node: ast.Lambda) -> None:
         for item in node.args.defaults:
@@ -1053,7 +1055,7 @@ class _TrackOwnerLexicalBindings(ast.NodeVisitor):
 
 
 class _TrackOwnerCallCounter(ast.NodeVisitor):
-    """Count bare Track-owner calls in the sealed function's lexical scope."""
+    """Count bare Track-owner calls evaluated while defining in owner scope."""
 
     def __init__(self) -> None:
         self.count = 0
@@ -1066,16 +1068,50 @@ class _TrackOwnerCallCounter(ast.NodeVisitor):
             self.count += 1
         self.generic_visit(node)
 
+    def _visit_defaults(self, arguments: ast.arguments) -> None:
+        for item in arguments.defaults:
+            self.visit(item)
+        for item in arguments.kw_defaults:
+            if item is not None:
+                self.visit(item)
+
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+        for item in node.decorator_list:
+            self.visit(item)
+        self._visit_defaults(node.args)
+
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+        self.visit_FunctionDef(node)
+
+    def visit_Lambda(self, node: ast.Lambda) -> None:
+        self._visit_defaults(node.args)
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> None:
+        for item in (*node.decorator_list, *node.bases):
+            self.visit(item)
+        for item in node.keywords:
+            self.visit(item.value)
+        for statement in node.body:
+            self.visit(statement)
+
+    def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
+        if node.value is not None:
+            self.visit(node.value)
+
+    def visit_TypeAlias(self, node: ast.AST) -> None:
         return
 
-    visit_AsyncFunctionDef = visit_FunctionDef
-    visit_ClassDef = visit_FunctionDef
-    visit_Lambda = visit_FunctionDef
-    visit_ListComp = visit_FunctionDef
-    visit_SetComp = visit_FunctionDef
-    visit_DictComp = visit_FunctionDef
-    visit_GeneratorExp = visit_FunctionDef
+    def _visit_outer_comprehension_iterable(
+        self,
+        node: ast.ListComp | ast.SetComp | ast.DictComp | ast.GeneratorExp,
+    ) -> None:
+        if node.generators:
+            self.visit(node.generators[0].iter)
+
+    visit_ListComp = _visit_outer_comprehension_iterable
+    visit_SetComp = _visit_outer_comprehension_iterable
+    visit_DictComp = _visit_outer_comprehension_iterable
+    visit_GeneratorExp = _visit_outer_comprehension_iterable
 
 
 def _track_owner_scope_state(
@@ -1093,8 +1129,8 @@ def _track_owner_scope_state(
     if any(item.arg == TRACK_AUTHORITY_OWNER_NAME for item in parameters):
         bindings.reasons.add("parameter")
     if any(
-        item.name == TRACK_AUTHORITY_OWNER_NAME
-        for item in progression.type_params
+        getattr(item, "name", None) == TRACK_AUTHORITY_OWNER_NAME
+        for item in getattr(progression, "type_params", ())
     ):
         bindings.reasons.add("type-parameter")
     if (
@@ -2365,7 +2401,6 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
             "except": f"try:\n    pass\nexcept Exception as {owner_name}:\n    pass",
             "match": f"match value:\n    case {{'owner': {owner_name}}}:\n        pass",
             "local class": f"class {owner_name}:\n    pass",
-            "type alias": f"type {owner_name} = int",
             "delete": f"del {owner_name}",
             "global": f"global {owner_name}",
             "nonlocal": f"nonlocal {owner_name}",
@@ -2373,6 +2408,8 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
                 f"items = [({owner_name} := value) for value in values]"
             ),
         }
+        if getattr(ast, "TypeAlias", None) is not None:
+            scope_sources["type alias"] = f"type {owner_name} = int"
         for label, source in scope_sources.items():
             with self.subTest(label=label):
                 trees, registry, progression = mutation()
@@ -2405,14 +2442,19 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
                     _formatted(violations),
                 )
 
-        for label, type_parameter in (
-            ("typevar", ast.TypeVar(name=owner_name)),
-            ("typevartuple", ast.TypeVarTuple(name=owner_name)),
-            ("paramspec", ast.ParamSpec(name=owner_name)),
+        type_parameter_cases = []
+        for label, attribute in (
+            ("typevar", "TypeVar"),
+            ("typevartuple", "TypeVarTuple"),
+            ("paramspec", "ParamSpec"),
         ):
+            constructor = getattr(ast, attribute, None)
+            if constructor is not None:
+                type_parameter_cases.append((label, constructor(name=owner_name)))
+        for label, type_parameter in type_parameter_cases:
             with self.subTest(label=label):
                 trees, registry, progression = mutation()
-                progression.type_params.append(type_parameter)
+                getattr(progression, "type_params").append(type_parameter)
                 violations = _ownership_violations(trees, registry)
                 self.assertIn(
                     "TRACK_AUTHORITY_SCOPE_SHADOWED",
@@ -2507,6 +2549,155 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
                     _codes(violations),
                     _formatted(violations),
                 )
+
+    def test_track_authority_call_counts_definition_time_outer_evaluation_only(self):
+        path = "server/gear_exact_authority.py"
+        owner_name = "resolve_exact_instance_progression"
+
+        def mutation(source: str) -> tuple[dict[str, ast.Module], dict[str, object]]:
+            trees = copy.deepcopy(TREES)
+            registry = copy.deepcopy(REGISTRY)
+            progression = next(
+                node for node in trees[path].body
+                if isinstance(node, ast.FunctionDef)
+                and node.name == "seal_exact_progression"
+            )
+            progression.body[0:0] = ast.parse(source).body
+            return trees, registry
+
+        definition_time_sources = {
+            "lambda default": f"handler = lambda value={owner_name}(): value",
+            "nested positional default": f"def nested(value={owner_name}()):\n    pass",
+            "nested keyword default": f"def nested(*, value={owner_name}()):\n    pass",
+            "nested multilayer default": (
+                f"def nested(value=(lambda inner={owner_name}(): inner)):\n    pass"
+            ),
+            "function decorator": f"@{owner_name}()\ndef nested():\n    pass",
+            "async function default": f"async def nested(value={owner_name}()):\n    pass",
+            "async function decorator": f"@{owner_name}()\nasync def nested():\n    pass",
+            "class base": f"class Nested({owner_name}()):\n    pass",
+            "class metaclass": f"class Nested(metaclass={owner_name}()):\n    pass",
+            "class keyword": f"class Nested(flag={owner_name}()):\n    pass",
+            "class decorator": f"@{owner_name}()\nclass Nested:\n    pass",
+            "class body descriptor": f"class Nested:\n    field = {owner_name}()",
+            "class method default": (
+                f"class Nested:\n    def method(self, value={owner_name}()):\n        pass"
+            ),
+            "class method decorator": (
+                f"class Nested:\n    @{owner_name}()\n    def method(self):\n        pass"
+            ),
+            "nested class body": (
+                f"class Outer:\n    class Inner({owner_name}()):\n        pass"
+            ),
+            "list comprehension outer iterable": (
+                f"items = [value for value in {owner_name}()]"
+            ),
+            "set comprehension outer iterable": (
+                f"items = {{value for value in {owner_name}()}}"
+            ),
+            "dict comprehension outer iterable": (
+                f"items = {{value: value for value in {owner_name}()}}"
+            ),
+            "generator outer iterable": (
+                f"items = (value for value in {owner_name}())"
+            ),
+            "class comprehension outer iterable": (
+                f"class Nested:\n    items = [value for value in {owner_name}()]"
+            ),
+        }
+        for label, source in definition_time_sources.items():
+            with self.subTest(label=label):
+                trees, registry = mutation(source)
+                violations = _ownership_violations(trees, registry)
+                self.assertIn(
+                    "TRACK_AUTHORITY_CALL_INVALID",
+                    _codes(violations),
+                    _formatted(violations),
+                )
+
+        nested_scope_sources = {
+            "nested function body": f"def nested():\n    return {owner_name}()",
+            "async function body": f"async def nested():\n    return {owner_name}()",
+            "lambda body": f"handler = lambda: {owner_name}()",
+            "class method body": (
+                f"class Nested:\n    def method(self):\n        return {owner_name}()"
+            ),
+            "comprehension element": (
+                f"items = [{owner_name}() for value in values]"
+            ),
+            "comprehension filter": (
+                f"items = [value for value in values if {owner_name}()]"
+            ),
+            "comprehension later iterable": (
+                f"items = [right for left in values for right in {owner_name}()]"
+            ),
+            "generator element": (
+                f"items = ({owner_name}() for value in values)"
+            ),
+            "generator later iterable": (
+                f"items = (right for left in values for right in {owner_name}())"
+            ),
+            "function annotation under future annotations": (
+                f"def nested(value: {owner_name}()) -> {owner_name}():\n    pass"
+            ),
+            "class annotation under future annotations": (
+                f"class Nested:\n    field: {owner_name}()"
+            ),
+        }
+        if getattr(ast, "TypeAlias", None) is not None:
+            nested_scope_sources["lazy type alias value"] = (
+                f"type NestedAlias = {owner_name}()"
+            )
+        if getattr(ast, "TypeVar", None) is not None:
+            nested_scope_sources["lazy type parameter bound"] = (
+                f"def nested[T: {owner_name}()]():\n    pass"
+            )
+        for label, source in nested_scope_sources.items():
+            with self.subTest(label=label):
+                trees, registry = mutation(source)
+                violations = _ownership_violations(trees, registry)
+                self.assertNotIn(
+                    "TRACK_AUTHORITY_CALL_INVALID",
+                    _codes(violations),
+                    _formatted(violations),
+                )
+
+    def test_track_authority_pep695_support_is_capability_guarded(self):
+        import sys
+        import types
+        from unittest import mock
+
+        path = "server/gear_exact_authority.py"
+        trees = copy.deepcopy(TREES)
+        progression = next(
+            node for node in trees[path].body
+            if isinstance(node, ast.FunctionDef)
+            and node.name == "seal_exact_progression"
+        )
+        if hasattr(progression, "type_params"):
+            delattr(progression, "type_params")
+        self.assertEqual(_ownership_violations(trees, REGISTRY), [])
+
+        compatibility_ast = types.ModuleType("ast")
+        pep695_names = {"TypeAlias", "TypeVar", "TypeVarTuple", "ParamSpec"}
+        for name, value in vars(ast).items():
+            if name not in pep695_names:
+                setattr(compatibility_ast, name, value)
+        source = (ROOT / "tests/gear_canonical_owner_gate_test.py").read_text(
+            encoding="utf-8"
+        )
+        namespace = {
+            "__name__": "gear_canonical_owner_gate_py311_compat",
+            "__file__": str(ROOT / "tests/gear_canonical_owner_gate_test.py"),
+        }
+        with mock.patch.dict(sys.modules, {"ast": compatibility_ast}):
+            exec(compile(source, namespace["__file__"], "exec"), namespace)
+        case = namespace["GearCanonicalOwnerGateTest"](
+            "test_track_authority_call_has_one_unshadowed_bare_name_in_owner_scope"
+        )
+        result = unittest.TestResult()
+        case.run(result)
+        self.assertTrue(result.wasSuccessful(), result.failures + result.errors)
 
     def test_exemption_orphan_multimatch_and_ast_change_fail_closed(self):
         path = "server/gear_exact_item_instance.py"
