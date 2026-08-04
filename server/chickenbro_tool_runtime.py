@@ -8,12 +8,14 @@ try:
     from .chickenbro_registry import (
         APPROVED_IMPLEMENTATIONS,
         discover_chickenbro_capabilities,
+        validate_chickenbro_tool_manifest,
         validate_chickenbro_registry_release,
     )
 except ImportError:  # pragma: no cover - direct server module execution
     from chickenbro_registry import (
         APPROVED_IMPLEMENTATIONS,
         discover_chickenbro_capabilities,
+        validate_chickenbro_tool_manifest,
         validate_chickenbro_registry_release,
     )
 
@@ -269,6 +271,66 @@ def execute_chickenbro_selected_tools(resolution, adapter_bindings, request):
         validated = _validated_tool_result(result, manifest)
         if validated is None:
             validated = _failed_tool_result(manifest, f"{manifest['toolId']} adapter returned an invalid result")
+        else:
+            validated = _enforce_manifest_freshness(validated, manifest)
+        results.append(validated)
+    return results
+
+
+def execute_chickenbro_tool_calls(manifests, adapter_bindings, calls):
+    """Run only signed manifests named by an already validated research plan."""
+    bindings = adapter_bindings if isinstance(adapter_bindings, dict) else {}
+    manifest_by_id = {}
+    for raw_manifest in manifests if isinstance(manifests, list) else []:
+        manifest = validate_chickenbro_tool_manifest(raw_manifest)
+        if manifest["status"] != "active" or manifest["riskClass"] != "read_only":
+            raise RegistryInvalid("invalid agentic tool manifest")
+        if manifest["toolId"] in manifest_by_id:
+            raise RegistryInvalid("duplicate agentic tool manifest")
+        manifest_by_id[manifest["toolId"]] = manifest
+
+    if not isinstance(calls, list):
+        raise RegistryInvalid("invalid agentic tool calls")
+    results = []
+    seen = set()
+    for call in calls:
+        if not isinstance(call, dict) or set(call) != {"toolId", "arguments"}:
+            raise RegistryInvalid("invalid agentic tool call")
+        tool_id = str(call.get("toolId") or "")
+        if tool_id not in manifest_by_id or tool_id in seen:
+            raise RegistryInvalid("unpublished or duplicate agentic tool call")
+        seen.add(tool_id)
+        manifest = manifest_by_id[tool_id]
+        implementation_ref = str(manifest.get("implementationRef") or "")
+        if APPROVED_IMPLEMENTATIONS.get(tool_id) != implementation_ref:
+            raise RegistryInvalid("unapproved tool adapter")
+        adapter = bindings.get(implementation_ref)
+        if not callable(adapter):
+            raise RegistryInvalid("missing tool adapter")
+        arguments = call.get("arguments") if isinstance(call.get("arguments"), dict) else None
+        if arguments is None:
+            raise RegistryInvalid("invalid agentic tool arguments")
+        request = _sanitized_request({"intent": arguments, "context": arguments})
+        try:
+            result = _adapter_result_with_timeout(
+                adapter,
+                request,
+                manifest.get("timeoutBudgetMs") or 10000,
+            )
+        except Exception as error:
+            results.append(
+                _failed_tool_result(
+                    manifest,
+                    f"{manifest['toolId']} adapter failed: {type(error).__name__}",
+                )
+            )
+            continue
+        validated = _validated_tool_result(result, manifest)
+        if validated is None:
+            validated = _failed_tool_result(
+                manifest,
+                f"{manifest['toolId']} adapter returned an invalid result",
+            )
         else:
             validated = _enforce_manifest_freshness(validated, manifest)
         results.append(validated)

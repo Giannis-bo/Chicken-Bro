@@ -20,6 +20,57 @@ CONTEXT = {
 
 
 class ChickenbroToolRuntimeTest(unittest.TestCase):
+    def test_each_validated_agentic_call_receives_its_own_arguments(self):
+        from server.chickenbro_tool_runtime import execute_chickenbro_tool_calls
+        from tests.chickenbro_registry_test import signed_manifest, wcl_manifest
+
+        manifests = [signed_manifest(), wcl_manifest()]
+
+        def raiderio_adapter(request):
+            return {
+                "sourceKey": "raiderio",
+                "status": "source_reference",
+                "facts": [{"classKey": request["intent"]["classKey"]}],
+                "evidence": [],
+                "evidenceRefs": ["fixture.raiderio"],
+                "limitations": [],
+                "nextActions": [],
+            }
+
+        def wcl_adapter(request):
+            return {
+                "sourceKey": "warcraftlogs",
+                "status": "verified",
+                "facts": [{"report": request["intent"]["wclReport"]}],
+                "evidence": [],
+                "evidenceRefs": ["fixture.wcl"],
+                "limitations": [],
+                "nextActions": [],
+            }
+
+        results = execute_chickenbro_tool_calls(
+            manifests,
+            {
+                "chickenbro.source.raiderio.v1": raiderio_adapter,
+                "chickenbro.source.warcraftlogs.v1": wcl_adapter,
+            },
+            [
+                {
+                    "toolId": "source:raiderio:v1",
+                    "arguments": {"classKey": "paladin", "specKey": "holy"},
+                },
+                {
+                    "toolId": "source:warcraftlogs:v1",
+                    "arguments": {"wclReport": "https://www.warcraftlogs.com/reports/ABC123"},
+                },
+            ],
+        )
+
+        self.assertEqual("paladin", results[0]["facts"][0]["classKey"])
+        self.assertEqual(
+            "https://www.warcraftlogs.com/reports/ABC123",
+            results[1]["facts"][0]["report"],
+        )
     def test_dispatch_stops_waiting_when_the_manifest_timeout_budget_expires(self):
         from server.chickenbro_tool_runtime import execute_chickenbro_selected_tools
 

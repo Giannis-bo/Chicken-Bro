@@ -5,6 +5,7 @@ import unittest
 
 from server.chickenbro_registry import (
     discover_chickenbro_capabilities,
+    published_chickenbro_tools,
     validate_chickenbro_registry_release,
     validate_chickenbro_tool_manifest,
 )
@@ -174,6 +175,26 @@ def signed_release(manifests=None, **overrides):
 
 
 class ChickenbroRegistryTest(unittest.TestCase):
+    def test_published_catalog_does_not_depend_on_question_frame(self):
+        release = signed_release(
+            [
+                current_sources_manifest(),
+                community_strength_manifest(
+                    "source:raiderio-strength:v1",
+                    "chickenbro.source.raiderio_strength.v1",
+                    "raiderio_strength",
+                ),
+            ],
+            registryVersion="chickenbro-tools-agentic",
+        )
+
+        catalog = published_chickenbro_tools(release)
+
+        self.assertEqual(
+            ["source:current-wow-sources:v1", "source:raiderio-strength:v1"],
+            [tool["toolId"] for tool in catalog],
+        )
+
     def test_manifest_rejects_unknown_code_and_hash_mutation(self):
         manifest = signed_manifest()
         validated = validate_chickenbro_tool_manifest(manifest)

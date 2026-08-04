@@ -242,6 +242,16 @@ def validate_chickenbro_registry_release(release):
     }
 
 
+def published_chickenbro_tools(release):
+    """Return all signed, active, read-only tools without examining a question."""
+    validated = validate_chickenbro_registry_release(release)
+    return [
+        copy.deepcopy(manifest)
+        for manifest in sorted(validated["manifests"], key=lambda item: item["toolId"])
+        if manifest["status"] == "active" and manifest["riskClass"] == "read_only"
+    ]
+
+
 def _context_value(field, intent, context):
     if field == "wclReport":
         return str(intent.get(field) or "").strip()
