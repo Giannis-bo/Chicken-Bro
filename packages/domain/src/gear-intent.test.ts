@@ -21,7 +21,28 @@ const exactCoreSlots = [
   'legs', 'feet', 'finger1', 'finger2', 'trinket1', 'trinket2', 'main_hand',
 ]
 
-function exactSlot(itemId: string) {
+interface MutableExactSlot {
+  itemId: string
+  declaredItemLevel: number | null
+  bonusIds: string[]
+  context: string
+  gemIds: string[]
+  gemBonusIds: string[]
+  gemItemLevels: number[]
+  enchantId: string
+  craftedStats: string[]
+  embellishmentIds: string[]
+  redirectedBaseStats: string[]
+}
+
+interface MutableExactIntentFixture {
+  schemaRevision: string
+  authoredAgainst: { seasonRevision: string; gameBuild: string }
+  eligibilityContext: { classKey: string; specKey: string; level: number }
+  slots: Record<string, MutableExactSlot>
+}
+
+function exactSlot(itemId: string): MutableExactSlot {
   return {
     itemId, declaredItemLevel: null, bonusIds: [], context: '', gemIds: [],
     gemBonusIds: [], gemItemLevels: [], enchantId: '', craftedStats: [],
@@ -29,7 +50,7 @@ function exactSlot(itemId: string) {
   }
 }
 
-function validExactIntent() {
+function validExactIntent(): MutableExactIntentFixture {
   return {
     schemaRevision: 'exact-loadout-intent-v2',
     authoredAgainst: { seasonRevision: 'season-r1', gameBuild: 'build-r1' },
@@ -106,19 +127,21 @@ describe('canonical gear selection intent', () => {
   it('rejects the shared raw control mutation corpus in every exact v2 string field', () => {
     const cases = (value: string) => {
       const values: unknown[] = []
-      for (const [section, key] of [
-        ['authoredAgainst', 'seasonRevision'],
-        ['authoredAgainst', 'gameBuild'],
-        ['eligibilityContext', 'classKey'],
-        ['eligibilityContext', 'specKey'],
-      ] as const) {
+      for (const key of ['seasonRevision', 'gameBuild'] as const) {
         const candidate = validExactIntent()
-        candidate[section][key] = value
+        candidate.authoredAgainst[key] = value
+        values.push(candidate)
+      }
+      for (const key of ['classKey', 'specKey'] as const) {
+        const candidate = validExactIntent()
+        candidate.eligibilityContext[key] = value
         values.push(candidate)
       }
       for (const key of ['itemId', 'context', 'enchantId'] as const) {
         const candidate = validExactIntent()
-        candidate.slots.head[key] = value
+        const head = candidate.slots['head']
+        if (!head) throw new Error('Exact fixture must include head.')
+        head[key] = value
         values.push(candidate)
       }
       for (const key of [
@@ -126,7 +149,9 @@ describe('canonical gear selection intent', () => {
         'embellishmentIds', 'redirectedBaseStats',
       ] as const) {
         const candidate = validExactIntent()
-        candidate.slots.head[key] = [value]
+        const head = candidate.slots['head']
+        if (!head) throw new Error('Exact fixture must include head.')
+        head[key] = [value]
         values.push(candidate)
       }
       return values
