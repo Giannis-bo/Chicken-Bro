@@ -22,6 +22,7 @@ try:
         SealedCanonicalDocument,
         canonical_identity_token,
         canonical_int,
+        canonical_json_bytes,
         canonical_mapping,
         canonical_ordered_list,
         canonical_set_list,
@@ -37,6 +38,7 @@ except ImportError:
         SealedCanonicalDocument,
         canonical_identity_token,
         canonical_int,
+        canonical_json_bytes,
         canonical_mapping,
         canonical_ordered_list,
         canonical_set_list,
@@ -55,6 +57,9 @@ EXACT_ITEM_KEY_PREFIX = "exact-item-instance:sha256:"
 EXACT_STATIC_FACTS_DOCUMENT_KIND = "exact_static_facts"
 EXACT_STATIC_FACTS_SCHEMA_REVISION = "exact-static-facts-v1"
 EXACT_STATIC_FACTS_KEY_PREFIX = "exact-static-facts:sha256:"
+EXACT_STATIC_FACTS_MAX_COUNT = 128
+EXACT_STATIC_FACTS_MAX_ABSOLUTE_NUMBER = (2 ** 53) - 1
+EXACT_STATIC_FACTS_MAX_CANONICAL_BYTES = 64 * 1024
 
 CATALOG_REVISION_PATTERN = re.compile(r"^gear-catalog:sha256:[0-9a-f]{64}$")
 EXACT_ITEM_INSTANCE_KEY_PATTERN = re.compile(
@@ -624,18 +629,51 @@ def _canonical_exact_static_facts(
         raise CanonicalValueError("INVALID_MAPPING", path)
     if not facts:
         raise CanonicalValueError("STATIC_FACTS_REQUIRED", path)
+    if len(facts) > EXACT_STATIC_FACTS_MAX_COUNT:
+        raise CanonicalValueError("STATIC_FACT_COUNT_BOUNDS", path)
     result: dict[str, int | float] = {}
     for raw_key, raw_amount in facts.items():
         key = canonical_identity_token(raw_key, path=f"{path}.key")
+        amount_path = f"{path}.{key}"
         if type(raw_amount) not in {int, float}:
-            raise CanonicalValueError("INVALID_STATIC_FACT_NUMBER", f"{path}.{key}")
-        if type(raw_amount) is float and not math.isfinite(raw_amount):
-            raise CanonicalValueError("INVALID_STATIC_FACT_NUMBER", f"{path}.{key}")
+            raise CanonicalValueError("INVALID_STATIC_FACT_NUMBER", amount_path)
+        if type(raw_amount) is int:
+            if abs(raw_amount) > EXACT_STATIC_FACTS_MAX_ABSOLUTE_NUMBER:
+                raise CanonicalValueError("STATIC_FACT_NUMBER_BOUNDS", amount_path)
+        else:
+            if not math.isfinite(raw_amount):
+                raise CanonicalValueError("INVALID_STATIC_FACT_NUMBER", amount_path)
+            if abs(raw_amount) > EXACT_STATIC_FACTS_MAX_ABSOLUTE_NUMBER:
+                raise CanonicalValueError("STATIC_FACT_NUMBER_BOUNDS", amount_path)
+            if raw_amount.is_integer():
+                raise CanonicalValueError(
+                    "AMBIGUOUS_INTEGRAL_STATIC_FACT_FLOAT",
+                    amount_path,
+                )
         result[key] = raw_amount
     return result
 
 
+def _bounded_exact_static_facts_payload(value: object) -> None:
+    try:
+        encoded = canonical_json_bytes(value)
+    except (ValueError, OverflowError) as error:
+        raise CanonicalValueError(
+            "STATIC_FACTS_SERIALIZATION_INVALID",
+            "exactStaticFacts",
+        ) from error
+    if len(encoded) > EXACT_STATIC_FACTS_MAX_CANONICAL_BYTES:
+        raise CanonicalValueError(
+            "STATIC_FACTS_PAYLOAD_BOUNDS",
+            "exactStaticFacts",
+        )
+
+
 def _validate_exact_static_facts_payload(value: object) -> object:
+    if type(value) is not dict:
+        raise CanonicalValueError("INVALID_MAPPING", "exactStaticFacts")
+    canonical_facts = _canonical_exact_static_facts(value.get("facts"))
+    _bounded_exact_static_facts_payload(value)
     raw = canonical_mapping(
         value,
         path="exactStaticFacts",
@@ -658,7 +696,7 @@ def _validate_exact_static_facts_payload(value: object) -> object:
     rebuilt = {
         "schemaRevision": EXACT_STATIC_FACTS_SCHEMA_REVISION,
         "exactItemInstanceKey": exact_key,
-        "facts": _canonical_exact_static_facts(raw["facts"]),
+        "facts": canonical_facts,
     }
     if dict(raw) != rebuilt:
         raise CanonicalValueError(
@@ -707,13 +745,13 @@ def seal_exact_static_facts(
         payload = {
             "schemaRevision": EXACT_STATIC_FACTS_SCHEMA_REVISION,
             "exactItemInstanceKey": exact.content_key,
-            "facts": _canonical_exact_static_facts(facts),
+            "facts": facts,
         }
-        _validate_exact_static_facts_payload(payload)
+        canonical_payload = _validate_exact_static_facts_payload(payload)
         document = seal_canonical_document(
             document_kind=EXACT_STATIC_FACTS_DOCUMENT_KIND,
             schema_revision=EXACT_STATIC_FACTS_SCHEMA_REVISION,
-            payload=payload,
+            payload=canonical_payload,
             key_prefix=EXACT_STATIC_FACTS_KEY_PREFIX,
         )
         return CanonicalResult("verified", document, ())
@@ -724,6 +762,16 @@ def seal_exact_static_facts(
             (CanonicalIssue(
                 error.code,
                 error.path,
+                "Re-resolve finite numeric facts for the sealed Exact item.",
+            ),),
+        )
+    except (ValueError, OverflowError):
+        return CanonicalResult(
+            "blocked",
+            None,
+            (CanonicalIssue(
+                "STATIC_FACTS_SERIALIZATION_INVALID",
+                "exactStaticFacts",
                 "Re-resolve finite numeric facts for the sealed Exact item.",
             ),),
         )
@@ -1114,6 +1162,9 @@ __all__ = (
     "EXACT_ITEM_VALIDATION_SCHEMA_REVISION",
     "EXACT_STATIC_FACTS_DOCUMENT_KIND",
     "EXACT_STATIC_FACTS_KEY_PREFIX",
+    "EXACT_STATIC_FACTS_MAX_ABSOLUTE_NUMBER",
+    "EXACT_STATIC_FACTS_MAX_CANONICAL_BYTES",
+    "EXACT_STATIC_FACTS_MAX_COUNT",
     "EXACT_STATIC_FACTS_SCHEMA_REVISION",
     "EXACT_VARIANT_SIGNATURE_PATTERN",
     "build_exact_item_instance",

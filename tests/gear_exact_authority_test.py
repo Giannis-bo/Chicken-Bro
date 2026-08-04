@@ -3,6 +3,7 @@ import hashlib
 import inspect
 import json
 import unittest
+from unittest.mock import patch
 
 import server.gear_exact_authority as exact_authority_module
 import server.gear_exact_item_instance as exact_item_module
@@ -13,6 +14,7 @@ from server.gear_exact_authority import (
     seal_exact_progression,
 )
 from server.gear_canonical_kernel import (
+    CanonicalValueError,
     SealedCanonicalDocument,
     seal_canonical_document,
     verify_sealed_document,
@@ -732,6 +734,131 @@ class SealedExactAuthorityEnvelopeTest(unittest.TestCase):
         self.assertEqual(same_a, same_b)
         for changed in (changed_key, changed_value, changed_exact):
             self.assertNotEqual(same_a.content_key, changed.content_key)
+
+    def test_static_facts_bound_count_numeric_magnitude_and_serialized_payload(self):
+        exact = sealed_exact()
+        legal = exact_item_module.seal_exact_static_facts(
+            exact,
+            {
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "fraction": 1.5,
+            },
+        )
+        self.assertEqual(legal.status, "verified")
+
+        invalid = (
+            (
+                {"stat": 10 ** 4999},
+                "STATIC_FACT_NUMBER_BOUNDS",
+                "exactStaticFacts.facts.stat",
+            ),
+            (
+                {"stat": 9007199254740992},
+                "STATIC_FACT_NUMBER_BOUNDS",
+                "exactStaticFacts.facts.stat",
+            ),
+            (
+                {"stat": -9007199254740992},
+                "STATIC_FACT_NUMBER_BOUNDS",
+                "exactStaticFacts.facts.stat",
+            ),
+            (
+                {"stat": 9007199254740992.0},
+                "STATIC_FACT_NUMBER_BOUNDS",
+                "exactStaticFacts.facts.stat",
+            ),
+            (
+                {"stat": -9007199254740992.0},
+                "STATIC_FACT_NUMBER_BOUNDS",
+                "exactStaticFacts.facts.stat",
+            ),
+            (
+                {f"stat_{index:03d}": index for index in range(129)},
+                "STATIC_FACT_COUNT_BOUNDS",
+                "exactStaticFacts.facts",
+            ),
+        )
+        for facts, expected_code, expected_path in invalid:
+            with self.subTest(expected_code=expected_code, expected_path=expected_path):
+                try:
+                    result = exact_item_module.seal_exact_static_facts(exact, facts)
+                except (ValueError, OverflowError) as error:
+                    self.fail(
+                        f"static fact boundary leaked {type(error).__name__}"
+                    )
+                self.assertEqual(result.status, "blocked")
+                self.assertIsNone(result.document)
+                self.assertEqual(result.issues[0].code, expected_code)
+                self.assertEqual(result.issues[0].path, expected_path)
+
+        oversize_payload = {
+            "schemaRevision": "exact-static-facts-v1",
+            "exactItemInstanceKey": exact.content_key,
+            "facts": {"stat": 1},
+            "padding": "x" * 65536,
+        }
+        with self.assertRaises(CanonicalValueError) as raised:
+            exact_item_module._validate_exact_static_facts_payload(
+                oversize_payload
+            )
+        self.assertEqual(raised.exception.code, "STATIC_FACTS_PAYLOAD_BOUNDS")
+        self.assertEqual(raised.exception.path, "exactStaticFacts")
+
+    def test_static_facts_reject_integral_float_and_negative_zero_ambiguity(self):
+        exact = sealed_exact()
+        for amount in (1.0, -1.0, 0.0, -0.0, 9007199254740991.0):
+            with self.subTest(amount=repr(amount)):
+                result = exact_item_module.seal_exact_static_facts(
+                    exact,
+                    {"stat": amount},
+                )
+                self.assertEqual(result.status, "blocked")
+                self.assertEqual(
+                    result.issues[0].code,
+                    "AMBIGUOUS_INTEGRAL_STATIC_FACT_FLOAT",
+                )
+                self.assertEqual(
+                    result.issues[0].path,
+                    "exactStaticFacts.facts.stat",
+                )
+
+        first = exact_item_module.seal_exact_static_facts(
+            exact, {"stat": 1, "fraction": 1.5},
+        ).document
+        same = exact_item_module.seal_exact_static_facts(
+            exact, {"fraction": 1.5, "stat": 1},
+        ).document
+        changed = exact_item_module.seal_exact_static_facts(
+            exact, {"stat": 2, "fraction": 1.5},
+        ).document
+        self.assertEqual(first, same)
+        self.assertNotEqual(first.content_key, changed.content_key)
+
+    def test_static_facts_serialization_failures_return_blocked_without_broad_catch(self):
+        exact = sealed_exact()
+        for error in (ValueError("invalid canonical integer"), OverflowError("overflow")):
+            with self.subTest(error=type(error).__name__):
+                with patch.object(
+                    exact_item_module,
+                    "canonical_json_bytes",
+                    side_effect=error,
+                    create=True,
+                ):
+                    result = exact_item_module.seal_exact_static_facts(
+                        exact,
+                        {"stat": 1},
+                    )
+                self.assertEqual(result.status, "blocked")
+                self.assertIsNone(result.document)
+                self.assertEqual(
+                    result.issues[0].code,
+                    "STATIC_FACTS_SERIALIZATION_INVALID",
+                )
+                self.assertEqual(
+                    result.issues[0].path,
+                    "exactStaticFacts",
+                )
 
     def test_envelope_rejects_raw_types_and_cross_exact_documents(self):
         exact_a, static_a, progression_a, effect_a = sealed_task4_inputs()
