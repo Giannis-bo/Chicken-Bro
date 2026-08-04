@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-状态：`下一步（计划已形成、待执行授权）`
+状态：`正在推进（Subagent-Driven，Task 1）`
 
 **Goal:** 让完整、合法且被当前 SimC runtime 明确支持的精确装备，即使不在 Catalog 中，也能确定性保存、重载、生成不可变快照并模拟；同时把模拟器可换装 Catalog 收敛为大秘境、团本和制造三个来源内、可物化为 SimC-ready Exact 的受治理子集。
 
@@ -34,6 +34,8 @@
 - Create: `artifacts/releases/2026-08-04-equipment-simulator-exact-first/requirement.json`
 - Create: `server/simc_gear_import.py`
 - Create: `tests/simc_gear_import_test.py`
+- Modify: `server/news_backend.py`
+- Modify: `tests/news_backend_test.py`
 - Modify: `server/gear_contracts.py`
 - Modify: `tests/gear_contracts_test.py`
 - Modify: `packages/domain/src/entities.ts`
@@ -157,7 +159,7 @@ def build_exact_authority_envelope(
 - [ ] 在 `tests/gear_exact_authority_test.py` 写 RED：envelope 内容寻址、字段严格、绑定 exact item/static facts/serializer/rule/runtime/effect record；`unknown|unsupported` 不能返回 ready envelope。
 - [ ] 运行 `python3 -m unittest tests.gear_exact_item_instance_test tests.simc_item_effect_support_test tests.simc_item_effect_probe_test tests.simc_item_effect_probe_cli_test tests.gear_exact_authority_test`，确认新接口缺失导致 RED。
 - [ ] 把当前 `build_exact_item_instance` 内不依赖 Catalog 的 canonical identity 抽成 `build_exact_item_identity`；保留 v1 wrapper 的 `CATALOG_REVISION_PATTERN` 与输出不变。
-- [ ] 实现 effect support：静态判定必须消费显式 `hasDynamicEffect=false` authority；动态 record 必须绑定 `itemId`、exact variant signature、`simcRuntimeRevision`、probe/record identity 和 `verifiedAt`，不接受进程退出码字段作为证据。
+- [ ] 实现 effect support：静态判定必须消费显式 `hasDynamicEffect=false` authority；动态 record 必须绑定 subject kind/key、subject variant signature、`simcRuntimeRevision`、probe/record identity 和 `verifiedAt`，不接受进程退出码字段作为证据。
 - [ ] 实现 pure probe evaluator 和薄 CLI；CLI 只接受本地 manifest/snapshot 文件与当前 SimC runtime，不联网、不写 Catalog，只向 stdout 输出通过 evaluator 的 canonical support record JSON，后续由 Task 3 store ingestion 校验并封存。
 - [ ] 实现 ExactAuthorityEnvelope；key 格式固定 `exact-authority:sha256:<64 hex>`，canonical payload 不包含 owner、Catalog 或观察计数。
 - [ ] 运行 Task 2 Python 测试，预期全部通过；再运行 `python3 -m unittest tests.gear_track_authority_test tests.gear_exact_item_registry_test`，预期 v1 回归通过。
@@ -587,8 +589,8 @@ export type ExactImportEnvelope =
 - `failed`：展示系统验证失败与重试动作，保留当前输入，禁止提交；不得显示为装备不支持。
 
 - [ ] 写 model RED：raw profile 只在当前 component/model memory；route unload、保存成功或明确清空时移除；不能写 build template、local storage、analytics 或 error log。
-- [ ] 写 model RED：pending 按服务端 `retryAfterMs=1000` 有界轮询，离开页面取消；重复点击复用同 job；blocked/unsupported 停止轮询。
-- [ ] 写 UI RED：`ready+unlisted`/`out_of_scope` 的保存和提交按钮可用；pending/blocked/unsupported 不可提交；所有 problem 显示对象、字段、恢复动作。
+- [ ] 写 model RED：pending 按服务端 `retryAfterMs=1000` 有界轮询，离开页面取消；重复点击复用同 job；blocked/unsupported/failed 停止轮询。
+- [ ] 写 UI RED：`ready+unlisted`/`out_of_scope` 的保存和提交按钮可用；pending/blocked/unsupported/failed 不可提交；所有 problem 显示对象、字段、恢复动作。
 - [ ] 写回归 RED：raw-only gear template 仍不是 SimC-ready；只有后端 resolved v2 snapshot 可进入 `simc-submit-model`；v1 已封存模板继续可提交。
 - [ ] 运行 `npm exec vitest run apps/mini-taro/src/pages/builds/gear-exact-import-model.test.ts apps/mini-taro/src/pages/builds/gear-detail-model.test.ts apps/mini-taro/src/pages/simulator/simc-submit-model.test.ts`，确认 RED。
 - [ ] 实现导入入口和状态展示；前端不得根据 itemId、source label、Catalog presence 或 SimC stdout 推断 ready。
