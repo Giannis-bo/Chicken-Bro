@@ -43,7 +43,9 @@ _TOOL_RESULT_FIELDS = {
     "limitations",
     "nextActions",
 }
-_MAX_AGENTIC_TOOL_CALLS = 3
+# Process-wide ceiling only. Each signed manifest declares its own per-tool
+# budget, and ResearchPlan separately enforces the same total-turn ceiling.
+_MAX_AGENTIC_TOOL_CALLS = 8
 
 
 class RegistryUnavailable(RuntimeError):

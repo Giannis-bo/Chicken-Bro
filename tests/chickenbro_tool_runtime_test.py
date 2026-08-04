@@ -122,6 +122,42 @@ class ChickenbroToolRuntimeTest(unittest.TestCase):
 
         self.assertEqual(["first", "second"], received)
         self.assertEqual(2, len(results))
+
+    def test_agentic_runtime_accepts_the_published_eight_call_process_ceiling(self):
+        from server.chickenbro_tool_runtime import execute_chickenbro_tool_calls
+        from tests.chickenbro_registry_test import public_web_research_manifest
+
+        manifest = public_web_research_manifest(
+            toolId="source:public-web-research:v2",
+            version="2.0.0",
+            implementationRef="chickenbro.source.public_web_research.v2",
+            provenance={"kind": "fixture", "revision": "process-ceiling"},
+            costBudget={"status": "bounded", "maxCallsPerTurn": 8},
+        )
+
+        def adapter(request):
+            target = request["intent"]["target"]
+            return {
+                "sourceKey": "public_web_research",
+                "status": "source_reference",
+                "facts": [{"summary": target}],
+                "evidence": [{"checkedAt": datetime.now(timezone.utc).isoformat()}],
+                "evidenceRefs": [f"fixture.{target}"],
+                "limitations": [],
+                "nextActions": [],
+            }
+
+        results = execute_chickenbro_tool_calls(
+            [manifest],
+            {"chickenbro.source.public_web_research.v2": adapter},
+            [
+                {"toolId": manifest["toolId"], "arguments": {"target": f"source-{index}"}}
+                for index in range(8)
+            ],
+        )
+
+        self.assertEqual(8, len(results))
+        self.assertEqual("fixture.source-7", results[-1]["evidenceRefs"][0])
     def test_dispatch_stops_waiting_when_the_manifest_timeout_budget_expires(self):
         from server.chickenbro_tool_runtime import execute_chickenbro_selected_tools
 
