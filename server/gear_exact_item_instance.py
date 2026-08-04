@@ -73,7 +73,7 @@ ENHANCEMENT_SELECTION_KEY_PATTERN = re.compile(
 )
 
 _TOKEN_PATTERN = re.compile(r"^[A-Za-z0-9_.:-]{1,256}$")
-_NON_IDENTITY_CONTEXT_KEYS = {
+_NON_IDENTITY_CONTEXT_KEYS = frozenset({
     "checkedAt",
     "createdAt",
     "displayLabel",
@@ -86,7 +86,7 @@ _NON_IDENTITY_CONTEXT_KEYS = {
     "sourceUrl",
     "updatedAt",
     "url",
-}
+})
 _EXACT_SLOT_INPUT_KEYS = frozenset({
     "itemId", "declaredItemLevel", "bonusIds", "context", "gemIds",
     "gemBonusIds", "gemItemLevels", "enchantId", "craftedStats",
