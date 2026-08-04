@@ -3763,7 +3763,7 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
         )
         project_foundation = gear_domain["canonicalKernelFoundations"]
         self.assertEqual(
-            "pure_canonical_foundation_complete_task3_available_not_started",
+            "pure_canonical_foundation_complete_task3_plan_correction_required",
             project_foundation["status"],
         )
         self.assertEqual(
@@ -3792,7 +3792,7 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
         )
         backend_owner = kernel_hotspot["owners"][0]
         self.assertEqual(
-            "pure_canonical_foundation_complete_task3_available_not_started",
+            "pure_canonical_foundation_complete_task3_plan_correction_required",
             backend_owner["status"],
         )
         self.assertEqual(

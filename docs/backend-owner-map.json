@@ -13,12 +13,12 @@
   "hotspotFiles": [
     {
       "path": "server/gear_canonical_kernel.py",
-      "healthStatus": "pure_canonical_foundation_complete_task3_available_not_started",
-      "summary": "Owns the completed pure Canonical foundation, bounded deterministic JSON bytes, private sealed-document boundaries and source change-control; original Task 3 is available but not started.",
+      "healthStatus": "pure_canonical_foundation_complete_task3_plan_correction_required",
+      "summary": "Owns the completed pure Canonical foundation and source change-control; Task 3 persistence/runtime planning is being corrected before implementation.",
       "owners": [
         {
           "id": "equipment_simulator_canonical_kernel_task1_5",
-          "status": "pure_canonical_foundation_complete_task3_available_not_started",
+          "status": "pure_canonical_foundation_complete_task3_plan_correction_required",
           "factOwner": "server/gear_canonical_kernel.py",
           "kernelSemanticOwner": "server/gear_canonical_kernel.py",
           "slotSetOwner": "server/gear_contracts.py",
@@ -65,7 +65,7 @@
           "runtimeConsumers": [],
           "proofClaim": "source_change_control_only",
           "originalTask3Activated": false,
-          "capabilityBoundary": "The pure Canonical foundation, source change-control, control-plane and duplicate-effect-subject correction have final scoped and whole-branch PASS/APPROVED verdicts with zero findings. Repeated effect subjects use bounded positional matching and passed a 5,461-sequence independent oracle. The registry remains test-only and not runtime authority. runtimeConsumers is empty; original Task 3 is available but not started; generation 35, Catalog/pointers, persistence/worker, Resolver/API/UI, raw-text privacy and v1 identities remain unchanged."
+          "capabilityBoundary": "The pure Canonical foundation remains final PASS/APPROVED. Task 3 implementation-readiness is NOT_READY and is being forward-replanned because persistence closure, v2 sequencing, worker permissions and job lifecycle contracts were stale. The registry remains test-only and not runtime authority. runtimeConsumers is empty; original Task 3 has not started; generation 35, Catalog/pointers, persistence/worker, Resolver/API/UI, raw-text privacy and v1 identities remain unchanged."
         }
       ]
     },

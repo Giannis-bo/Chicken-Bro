@@ -2,9 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-状态：`正在推进（pure Canonical foundation final whole-branch PASS/APPROVED；原 Task 3 可开始，尚未启动）`
+状态：`正在纠正（pure Canonical foundation final PASS/APPROVED；原 Task 3 readiness NOT_READY；持久化与运行链 forward replacement 待独立 review）`
 
-**Task 2 replacement:** [Canonical Kernel 重设计](2026-08-04-equipment-simulator-canonical-kernel-redesign.md)、[Canonical Ownership Change-Control Plan](2026-08-04-equipment-simulator-canonical-owner-change-control.md) 与 [重复 Effect Subject 语义纠偏](2026-08-04-equipment-simulator-duplicate-effect-subject-correction.md) 已完成 final whole-branch PASS/APPROVED。原 Task 2 不再执行；本计划原 Task 3 现在具备开始条件，但尚未启动。
+**Task 2 replacement:** [Canonical Kernel 重设计](2026-08-04-equipment-simulator-canonical-kernel-redesign.md)、[Canonical Ownership Change-Control Plan](2026-08-04-equipment-simulator-canonical-owner-change-control.md) 与 [重复 Effect Subject 语义纠偏](2026-08-04-equipment-simulator-duplicate-effect-subject-correction.md) 已完成 final whole-branch PASS/APPROVED。该结论只关闭 pure foundation，不授权直接执行下方旧 Task 3。
+
+**Task 3+ replacement:** [Exact-first 持久化与运行链重排计划](2026-08-04-equipment-simulator-exact-first-persistence-resequence.md)。两次独立 readiness audit 已证明下方旧 Task 3-8 的身份、authority closure、v2 顺序、DB role 与 job lifecycle 合同不闭合；这些章节只保留历史，不再授予执行权。
 
 **Goal:** 让完整、合法且被当前 SimC runtime 明确支持的精确装备，即使不在 Catalog 中，也能确定性保存、重载、生成不可变快照并模拟；同时把模拟器可换装 Catalog 收敛为大秘境、团本和制造三个来源内、可物化为 SimC-ready Exact 的受治理子集。
 

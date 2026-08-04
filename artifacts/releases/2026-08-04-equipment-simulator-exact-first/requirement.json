@@ -20,6 +20,7 @@
       "docs/plans/2026-08-04-equipment-simulator-canonical-kernel-implementation.md",
       "docs/plans/2026-08-04-equipment-simulator-canonical-owner-change-control.md",
       "docs/plans/2026-08-04-equipment-simulator-duplicate-effect-subject-correction.md",
+      "docs/plans/2026-08-04-equipment-simulator-exact-first-persistence-resequence.md",
       "docs/harness.md"
     ],
     "activeMilestone": "taro_target_first_14_route_rebuild",
@@ -95,8 +96,8 @@
     "originalTask3Activated": false
   },
   "engineeringHealth": {
-    "status": "pure_canonical_foundation_complete_task3_available_not_started",
-    "reason": "Task 1 source change-control, Task 2 control-plane, duplicate-effect-subject correction and the final whole-branch re-review are all PASS/APPROVED with zero findings. Fresh evidence is Python 178/178, Vitest 9/9, Node 40/40, owner gate 27/27 and a 5,461-sequence repeated-subject oracle. runtimeConsumers is empty and original Task 3 is available but not started. Full TypeScript still has the documented 11 pre-existing TS4111 diagnostics, and real Python 3.11 was not locally executed."
+    "status": "pure_canonical_foundation_complete_task3_plan_correction_required",
+    "reason": "The pure Canonical foundation remains complete and PASS/APPROVED, but two independent Task 3 readiness audits returned NOT_READY. The old persistence plan uses stale effect identities, omits the authority dependency closure and exact canonical bytes, orders v2 persistence before v2 verifiers, and cannot express the promised worker permissions/job lifecycle. A forward replacement plan is pending independent review; runtimeConsumers is empty and original Task 3 has not started."
   },
   "dataPrivacyBoundary": {
     "rawPluginText": "ephemeral parser input only; it must not be persisted, logged, templated, queued, included in artifact evidence, or returned in output payloads.",
@@ -156,6 +157,10 @@
     {
       "date": "2026-08-04",
       "decision": "Final whole-branch re-review（7cf5c37b..64740b52）为 PASS/APPROVED、0 findings；独立重复序列 oracle 扩展到 5,461 个输入。Pure Canonical foundation 与 source change-control 可以关闭，原 Task 3 具备开始条件但尚未启动；runtime/release/deploy 不在本结论内。"
+    },
+    {
+      "date": "2026-08-04",
+      "decision": "原 Task 3 implementation-readiness 双审为 NOT_READY：旧 effect identity、authority closure、canonical bytes、v2 任务顺序、DB role 与 job lifecycle 合同不闭合。旧 Task 3-8 停止执行，forward-replace 为 3A authority bundle -> pure v2 -> 3B snapshot persistence -> worker/jobs 的顺序。"
     }
   ]
 }
