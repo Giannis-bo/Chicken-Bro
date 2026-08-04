@@ -8990,7 +8990,17 @@ def chickenbro_source_fallback_result(bounded_context, error):
     }
 
 
+def chickenbro_authoritative_strength_evidence_result(bounded_context):
+    """Answer a bounded source-reference follow-up from its evidence, not model prose."""
+    if chickenbro_strength_evidence_follow_up_kind((bounded_context or {}).get("message")) not in {"ratio", "leader"}:
+        return None
+    return chickenbro_source_fallback_result(bounded_context, "bounded_evidence_reference")
+
+
 def run_chickenbro_agent(bounded_context, codex_runner=None):
+    authoritative = chickenbro_authoritative_strength_evidence_result(bounded_context)
+    if authoritative:
+        return authoritative
     runner = codex_runner or default_chickenbro_model_runner
     prompt = chickenbro_prompt_from_context(bounded_context)
     schema = chickenbro_model_schema()
@@ -9023,6 +9033,10 @@ def run_chickenbro_agent(bounded_context, codex_runner=None):
 
 
 def run_chickenbro_agent_stream(bounded_context, stream_runner=None):
+    authoritative = chickenbro_authoritative_strength_evidence_result(bounded_context)
+    if authoritative:
+        yield {"type": "delta", "text": authoritative["answer"]["answer"]}
+        return authoritative
     runner = stream_runner or default_chickenbro_stream_runner
     prompt = chickenbro_prompt_from_context(bounded_context)
     parser = ChickenbroAnswerStream(bounded_context.get("allowedNumbers") or [])

@@ -922,8 +922,14 @@ class ChickenbroAgentIntentTest(unittest.TestCase):
                 },
             },
         )
-        payload = '{"answer":"没有数据，你自己去 Raider.IO 查。","confidence":"medium","priorityActions":[],"evidenceRefs":[],"limitations":[],"missingInputs":[],"nextQuestion":""}'
-        stream = backend.run_chickenbro_agent_stream(bounded_context, stream_runner=lambda *_args, **_kwargs: [payload])
+        payload = '{"answer":"Frost Mage 排第一。","confidence":"medium","priorityActions":[],"evidenceRefs":["raiderio-strength:shaman:elemental:mythic_plus"],"limitations":[],"missingInputs":[],"nextQuestion":""}'
+        invocations = []
+
+        def runner(*_args, **_kwargs):
+            invocations.append(True)
+            return [payload]
+
+        stream = backend.run_chickenbro_agent_stream(bounded_context, stream_runner=runner)
         events = []
         while True:
             try:
@@ -931,6 +937,7 @@ class ChickenbroAgentIntentTest(unittest.TestCase):
             except StopIteration:
                 break
 
+        self.assertEqual([], invocations)
         self.assertIn("并列第一", events[0]["text"])
         self.assertIn("Frost Mage", events[0]["text"])
         self.assertIn("Unholy Death Knight", events[0]["text"])
