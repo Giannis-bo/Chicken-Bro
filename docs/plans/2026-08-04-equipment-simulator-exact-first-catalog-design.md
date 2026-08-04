@@ -1,5 +1,7 @@
 # 装备模拟 Exact-first 与来源受限 Catalog 设计
 
+> Task 2 的 canonical language、sealed value object 和 authority 组合边界由 [Canonical Kernel 重设计](2026-08-04-equipment-simulator-canonical-kernel-redesign.md) 收紧；本文件的 Exact-first/Catalog 解耦产品方向保持不变。
+
 状态：`下一步`
 
 性质：已确认的目标设计；不授予实施、候选发布、生产切换或恢复 Universe Goal 的权限。
