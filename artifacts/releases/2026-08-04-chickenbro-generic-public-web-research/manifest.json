@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-08-04T12:53:01.248Z",
+  "generatedAt": "2026-08-04T13:45:55.511Z",
   "release": {
     "date": "2026-08-04",
     "slug": "chickenbro-generic-public-web-research"
@@ -105,7 +105,7 @@
         {
           "path": "server/news_backend.py",
           "exists": true,
-          "lineCount": 16356,
+          "lineCount": 16467,
           "hotspot": true
         },
         {
@@ -346,7 +346,9 @@
     }
   },
   "evidencePacket": {
-    "status": "not_attached",
+    "status": "ready",
+    "path": "artifacts/releases/2026-08-04-chickenbro-generic-public-web-research/evidence.json",
+    "sizeBytes": 8273,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -367,7 +369,30 @@
       "archivedReferences",
       "summary"
     ],
-    "note": "Attach a local evidence packet with --evidence-file when promoting a Standard or Strict requirement."
+    "fieldsPresent": [
+      "schemaVersion",
+      "slug",
+      "requirementSlug",
+      "status",
+      "highestEvidenceLevel",
+      "branch",
+      "commit",
+      "identities",
+      "manualAcceptance",
+      "scope",
+      "verification",
+      "candidateDeployment",
+      "runtimeEvidence",
+      "risks",
+      "rollback",
+      "cleanup",
+      "archivedReferences",
+      "summary"
+    ],
+    "missingFields": [],
+    "declaredStatus": "runtime_verified",
+    "highestEvidenceLevel": "runtime_verified",
+    "summary": "候选 v5 Registry 已以 05e3e65b 部署：Codex 自主选择已发布的只读 ToolBox，通用 public-web-research Tool 只接受其选择的短查询或安全公开 HTTPS 页面，不为 Archon、Raider.IO、WCL、职业、版本或结论写固定路由。ResearchPlan 与 runtime 的通用调用上限一致；模型引用合同失败会以本轮 observations 的保守回答恢复，而不阻断追问。真实首问和自然追问均已在最终候选 API 成功；候选微信包已绑定该提交、指向本机到候选的隧道并在 DevTools 打开。生产服务与 v3 active pointer 未改。真实用户验收仍是未完成边界。"
   },
   "evidence": {
     "localTests": {
@@ -392,13 +417,13 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "14 changed files currently visible to git status."
+      "detail": "2 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
       "severity": "medium",
       "status": "watch",
-      "detail": "server/websim_payload.py:28040, server/news_backend.py:16356, server/postgres_cache_store.py:9698"
+      "detail": "server/websim_payload.py:28040, server/news_backend.py:16467, server/postgres_cache_store.py:9698"
     },
     {
       "id": "localTests_missing",
@@ -428,22 +453,10 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 14,
+      "changedFileCount": 2,
       "changedFiles": [
         " M artifacts/releases/2026-08-04-chickenbro-generic-public-web-research/evidence.json",
-        " M artifacts/releases/2026-08-04-chickenbro-generic-public-web-research/manifest.json",
-        " M artifacts/releases/2026-08-04-chickenbro-generic-public-web-research/requirement.json",
-        " M docs/plans/2026-08-04-chickenbro-generic-public-web-research-tool.md",
-        " M docs/roadmap.md",
-        " M server/chickenbro_registry.py",
-        " M server/chickenbro_research.py",
-        " M server/chickenbro_tool_runtime.py",
-        " M server/news_backend.py",
-        " M tests/chickenbro_registry_test.py",
-        " M tests/chickenbro_research_test.py",
-        " M tests/chickenbro_tool_runtime_test.py",
-        " M tests/postgres_schema_test.py",
-        "?? server/migrations/postgres/0029_chickenbro_public_web_repeat_budget.sql"
+        " M artifacts/releases/2026-08-04-chickenbro-generic-public-web-research/manifest.json"
       ]
     }
   },
