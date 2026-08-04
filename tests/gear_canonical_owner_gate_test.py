@@ -3733,6 +3733,23 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
             / "artifacts/releases/2026-08-04-equipment-simulator-exact-first/requirement.json"
         ).read_text(encoding="utf-8"))
         self.assertEqual("implementation_allowed", requirement["status"])
+        self.assertEqual(
+            "source_change_control_only",
+            requirement["ownership"].get("proofClaim"),
+        )
+        self.assertEqual(
+            "server/gear_canonical_kernel.py",
+            requirement["ownership"].get("kernelSemanticOwner"),
+        )
+        requirement_registry = requirement["ownership"].get(
+            "sourceChangeControlRegistry", {}
+        )
+        self.assertEqual(
+            "tests/fixtures/gear_canonical_owner_registry.json",
+            requirement_registry.get("path"),
+        )
+        self.assertFalse(requirement_registry.get("runtimeAuthority"))
+        self.assertTrue(requirement_registry.get("reviewDiffRequired"))
         self.assertEqual([], requirement["ownership"]["runtimeConsumers"])
         self.assertFalse(requirement["ownership"]["originalTask3Activated"])
 
@@ -3744,10 +3761,26 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
             for domain in project_map["criticalDomains"]
             if "canonicalKernelFoundations" in domain
         )
+        project_foundation = gear_domain["canonicalKernelFoundations"]
         self.assertEqual(
-            "none_pending_source_change_control_replacement",
-            gear_domain["canonicalKernelFoundations"]["proofClaim"],
+            "task1_source_change_control_scoped_clean_whole_branch_pending",
+            project_foundation["status"],
         )
+        self.assertEqual(
+            "source_change_control_only",
+            project_foundation["proofClaim"],
+        )
+        self.assertIn(
+            "tests/fixtures/gear_canonical_owner_registry.json",
+            project_foundation["tests"],
+        )
+        project_registry = project_foundation["sourceChangeControlRegistry"]
+        self.assertEqual(
+            "test_only_source_change_control",
+            project_registry["role"],
+        )
+        self.assertFalse(project_registry["runtimeAuthority"])
+        self.assertTrue(project_registry["reviewDiffRequired"])
 
         backend_map = json.loads(
             (ROOT / "docs/backend-owner-map.json").read_text(encoding="utf-8")
@@ -3757,10 +3790,26 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
             for hotspot in backend_map["hotspotFiles"]
             if hotspot["path"] == "server/gear_canonical_kernel.py"
         )
+        backend_owner = kernel_hotspot["owners"][0]
         self.assertEqual(
-            "none_pending_source_change_control_replacement",
-            kernel_hotspot["owners"][0]["proofClaim"],
+            "task1_source_change_control_scoped_clean_whole_branch_pending",
+            backend_owner["status"],
         )
+        self.assertEqual(
+            "source_change_control_only",
+            backend_owner["proofClaim"],
+        )
+        self.assertIn(
+            "tests/fixtures/gear_canonical_owner_registry.json",
+            backend_owner["characterization"],
+        )
+        backend_registry = backend_owner["sourceChangeControlRegistry"]
+        self.assertEqual(
+            "test_only_source_change_control",
+            backend_registry["role"],
+        )
+        self.assertFalse(backend_registry["runtimeAuthority"])
+        self.assertTrue(backend_registry["reviewDiffRequired"])
 
 
 if __name__ == "__main__":

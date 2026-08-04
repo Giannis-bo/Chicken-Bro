@@ -384,9 +384,24 @@
         "activationBoundary": "Task 1 defines deterministic max-not-sum socket facts only; release materialization and runtime consumption remain outside this slice."
       },
       "canonicalKernelFoundations": {
-        "status": "task1_5_owner_change_control_correction",
+        "status": "task1_source_change_control_scoped_clean_whole_branch_pending",
         "factOwner": "server/gear_canonical_kernel.py",
+        "kernelSemanticOwner": "server/gear_canonical_kernel.py",
         "slotSetOwner": "server/gear_contracts.py",
+        "domainSchemaOwners": [
+          "server/gear_contracts.py",
+          "packages/domain/src/gear-intent.ts",
+          "server/gear_exact_item_instance.py",
+          "server/gear_exact_authority.py",
+          "server/simc_item_effect_support.py",
+          "server/simc_item_effect_probe.py"
+        ],
+        "sourceChangeControlRegistry": {
+          "path": "tests/fixtures/gear_canonical_owner_registry.json",
+          "role": "test_only_source_change_control",
+          "runtimeAuthority": false,
+          "reviewDiffRequired": true
+        },
         "modules": [
           "server/gear_canonical_kernel.py",
           "server/gear_contracts.py",
@@ -400,6 +415,7 @@
         "tests": [
           "tests/gear_canonical_kernel_test.py",
           "tests/gear_canonical_owner_gate_test.py",
+          "tests/fixtures/gear_canonical_owner_registry.json",
           "tests/fixtures/gear_canonical_mutations.json",
           "packages/domain/src/gear-intent.test.ts",
           "tests/gear_exact_item_instance_test.py",
@@ -413,7 +429,7 @@
           "Task 1-5 strict NFC canonical primitive validation without trim, coercion, normalization, sort, dedupe or defaulting",
           "byte-, depth-, node- and cycle-bounded deterministic canonical JSON with exact string object keys and SHA-256 content keys",
           "module-private sealed canonical document construction and reload verification",
-          "the current AST gate is not accepted as authority proof after its five-round Stop Gate; the authorized replacement is source change-control for five module-load profiles, exact import/symbol ownership and sealed boundaries"
+          "canonical ownership source change-control for four server declaration-only profiles, one CLI bootstrap profile, exact physical imports, fixed digest-bound exemptions and public/export ownership"
         ],
         "mustNotChange": [
           "server/gear_contracts.py remains the sole canonical gear slot-set owner.",
@@ -421,8 +437,9 @@
           "Cross-domain consumers require sealed documents; raw objects are allowed only at explicit Exact import, Static Facts, Effect record, Probe and CLI decoder boundaries that validate before sealing.",
           "Do not read database, Catalog, environment or runtime process state."
         ],
-        "proofClaim": "none_pending_source_change_control_replacement",
-        "activationBoundary": "Canonical semantic fixes are locally verified, but the prior AST owner gate reached its five-round Stop Gate and is being forward-replaced by declaration-only source change-control. runtimeConsumers is empty, original Task 3 is not activated, and generation 35, Catalog/pointers, persistence/worker, Resolver/API/UI, raw-text privacy and v1 identities remain unchanged."
+        "proofClaim": "source_change_control_only",
+        "originalTask3Activated": false,
+        "activationBoundary": "Task 1 canonical ownership source change-control has a final scoped PASS/APPROVED review with zero findings. The registry is test-only, is not runtime authority, and every registry update must appear in the review diff. Task 2 control-plane scoped review and fresh whole-branch review remain pending; runtimeConsumers is empty, original Task 3 is inactive, and generation 35, Catalog/pointers, persistence/worker, Resolver/API/UI, raw-text privacy and v1 identities remain unchanged."
       },
       "trackAuthorityFoundations": {
         "status": "pure_contract_only_unconsumed",

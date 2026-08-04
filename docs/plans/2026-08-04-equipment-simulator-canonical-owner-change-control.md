@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` to execute this plan task by task. This is a schema-boundary replacement after the previous Task 5 reached its five-round Stop Gate; it is not a sixth patch round.
 
-状态：`正在推进（边界重设计完成，计划待独立 review；原 Task 3 blocked）`
+状态：`正在推进（Task 1 final scoped PASS/APPROVED；Task 2 控制面已更新、scoped review pending；fresh whole-branch review pending；原 Task 3 blocked）`
 
 **Goal:** 保留已经通过语义测试的 Canonical Kernel、sealed documents、Exact/Progression/Effect/Probe/CLI/Envelope contracts，把失控增长的 Python AST “authority proof” 替换成诚实、可维护的 source change-control：四个 server owner 使用 declaration-only module-load profile，CLI 使用独立的受限 bootstrap profile，所有未知模块加载语法 fail closed。
 
@@ -187,24 +187,24 @@ Replacement gate 不再声称解释任意函数运行语义，也不递归 impor
 - Test: `tests/backend-owner-map.test.js`
 - Test: existing Kernel/Exact/Progression/Effect/Probe/CLI/Envelope and frozen-v1 suites
 
-- [ ] 先把旧 control-plane test 改为断言当前 Stop Gate 与 `none_pending_source_change_control_replacement`，使 committed baseline 不因过期文案失败；不得用无关失败充当 RED。
-- [ ] 写 registry schema/target completeness/`proofClaim`/public API/export/re-export RED。
-- [ ] 参数化五个 target，分别注入 `from server.hidden_owner import mutate; mutate()`；断言精确 `path + code + detail`。在 report 中记录预期失败测试名、数量和 reason code；NameError、checker 未定义或旧 control-plane assertion 不算 RED。
-- [ ] 写 module-load mutation RED：未登记 import/symbol/alias、star import、re-export、已批准 module 的未批准 symbol、`__import__`/`importlib`、IIFE/lambda、comprehension/generator、call-valued default/annotation、移除 future annotations、function/class decorator、base/metaclass/class-body call、mutable module state、namespace mutation、module hooks。
-- [ ] 写 registry RED：orphan、duplicate、wildcard exemption、digest mismatch、相同 AST 多命中、修改 exemption AST 未更新 digest、扩大 proof claim、未登记 public callable/`__all__`/re-export。
-- [ ] 写 positive controls：当前四个 server profile、两个 numeric Assign + 两个 starred-frozenset Assign 组成的四个 server exemptions、两个 frozen dataclass、五个 CLI node exemptions 与 `seal_exact_static_facts` re-export 必须被明确识别，不能依赖无关 finding“碰巧变绿”。
-- [ ] 删除/替换原跨模块 resolver、call graph、callback/alias/dataflow interpreter 和大规模 per-function callable allowlists；不得在新名字下保留相同模型。
-- [ ] 实现独立、小型 `_module_load_violations(path, tree, profile, registry)`；所有未知 AST 节点 fail closed。
-- [ ] 实现精确 import/symbol/alias/fallback/public/export/re-export registry、server/CLI profiles、`python_ast_dump_v1` digest 和 exception hygiene；绝不 import origin module。
-- [ ] physical import registry 使用独立的 file-wide、非 interprocedural syntactic scan，只收集 `Import`/`ImportFrom` nodes（包括函数体内的 physical import），不解析或遍历其周围函数调用语义；module-load checker 仍不进入普通 `FunctionDef.body`。
-- [ ] 将 `_NON_IDENTITY_CONTEXT_KEYS` 改为 `frozenset`；不做其它生产重构。
-- [ ] 让本 Task 全部 RED 转 GREEN；五个真实 target baseline 必须零 module-load violation。RED 与 GREEN 在同一 TDD task/report 内完成，只提交 GREEN，不提交有意失败的 Task。
-- [ ] 保留并改写 raw API/public callable/`__all__`/sealed signature/slot owner/production Track Authority/direct duplicate-owner lint；删除只服务于旧 interprocedural engine 的 alias/callback/factory/class-execution self-tests，并把 decorator/default/class/module-load 风险迁到 grammar tests。
-- [ ] 增加机器检查，禁止残留 `_ResolvedSymbol`、`_UnknownBinding`、`_CallableTarget`、`_ClassTarget`、`_ScopeBindingCollector`、`_resolve_expression`、`_called_targets`、`_bind_callable_target`、`_sealed_call_graph` 与旧 callable allowlist 常量；普通 `FunctionDef.body` 不得被 module-load checker 遍历，file-wide direct lint 必须独立且非递归。
-- [ ] 记录旧 gate 的净删除规模。Task 1 changed-file allowlist 仅允许 registry、owner-gate test 与 `gear_exact_item_instance.py` 的 set→frozenset；其余四个 production target 必须零 diff。
-- [ ] 重跑完整 semantic/frozen-identity/CLI 行为矩阵。
-- [ ] 运行 hostile snippets，确认原 module-load helper、alias/re-export、dynamic import、decorator/default/class/annotation 等均产生目标 finding。
-- [ ] 独立 spec 与 code-quality review 必须明确写出：gate 是 `source_change_control_only`，不是 Python semantics proof。
+- [x] 先把旧 control-plane test 改为断言当前 Stop Gate 与 `none_pending_source_change_control_replacement`，使 committed baseline 不因过期文案失败；不得用无关失败充当 RED。
+- [x] 写 registry schema/target completeness/`proofClaim`/public API/export/re-export RED。
+- [x] 参数化五个 target，分别注入 `from server.hidden_owner import mutate; mutate()`；断言精确 `path + code + detail`。在 report 中记录预期失败测试名、数量和 reason code；NameError、checker 未定义或旧 control-plane assertion 不算 RED。
+- [x] 写 module-load mutation RED：未登记 import/symbol/alias、star import、re-export、已批准 module 的未批准 symbol、`__import__`/`importlib`、IIFE/lambda、comprehension/generator、call-valued default/annotation、移除 future annotations、function/class decorator、base/metaclass/class-body call、mutable module state、namespace mutation、module hooks。
+- [x] 写 registry RED：orphan、duplicate、wildcard exemption、digest mismatch、相同 AST 多命中、修改 exemption AST 未更新 digest、扩大 proof claim、未登记 public callable/`__all__`/re-export。
+- [x] 写 positive controls：当前四个 server profile、两个 numeric Assign + 两个 starred-frozenset Assign 组成的四个 server exemptions、两个 frozen dataclass、五个 CLI node exemptions 与 `seal_exact_static_facts` re-export 必须被明确识别，不能依赖无关 finding“碰巧变绿”。
+- [x] 删除/替换原跨模块 resolver、call graph、callback/alias/dataflow interpreter 和大规模 per-function callable allowlists；不得在新名字下保留相同模型。
+- [x] 实现独立、小型 `_module_load_violations(path, tree, profile, registry)`；所有未知 AST 节点 fail closed。
+- [x] 实现精确 import/symbol/alias/fallback/public/export/re-export registry、server/CLI profiles、`python_ast_dump_v1` digest 和 exception hygiene；绝不 import origin module。
+- [x] physical import registry 使用独立的 file-wide、非 interprocedural syntactic scan，只收集 `Import`/`ImportFrom` nodes（包括函数体内的 physical import），不解析或遍历其周围函数调用语义；module-load checker 仍不进入普通 `FunctionDef.body`。
+- [x] 将 `_NON_IDENTITY_CONTEXT_KEYS` 改为 `frozenset`；不做其它生产重构。
+- [x] 让本 Task 全部 RED 转 GREEN；五个真实 target baseline 必须零 module-load violation。RED 与 GREEN 在同一 TDD task/report 内完成，只提交 GREEN，不提交有意失败的 Task。
+- [x] 保留并改写 raw API/public callable/`__all__`/sealed signature/slot owner/production Track Authority/direct duplicate-owner lint；删除只服务于旧 interprocedural engine 的 alias/callback/factory/class-execution self-tests，并把 decorator/default/class/module-load 风险迁到 grammar tests。
+- [x] 增加机器检查，禁止残留 `_ResolvedSymbol`、`_UnknownBinding`、`_CallableTarget`、`_ClassTarget`、`_ScopeBindingCollector`、`_resolve_expression`、`_called_targets`、`_bind_callable_target`、`_sealed_call_graph` 与旧 callable allowlist 常量；普通 `FunctionDef.body` 不得被 module-load checker 遍历，file-wide direct lint 必须独立且非递归。
+- [x] 记录旧 gate 的净删除规模。Task 1 changed-file allowlist 仅允许 registry、owner-gate test 与 `gear_exact_item_instance.py` 的 set→frozenset；其余四个 production target 必须零 diff。
+- [x] 重跑完整 semantic/frozen-identity/CLI 行为矩阵。
+- [x] 运行 hostile snippets，确认原 module-load helper、alias/re-export、dynamic import、decorator/default/class/annotation 等均产生目标 finding。
+- [x] 独立 spec 与 code-quality review 必须明确写出：gate 是 `source_change_control_only`，不是 Python semantics proof。
 
 ## Task 2: 收敛控制面与证据语言
 
@@ -219,13 +219,13 @@ Replacement gate 不再声称解释任意函数运行语义，也不递归 impor
 - Modify: `docs/plans/2026-08-04-equipment-simulator-canonical-kernel-redesign.md`
 - Modify: `docs/plans/2026-08-04-equipment-simulator-canonical-kernel-implementation.md`
 - Modify: `docs/plans/2026-08-04-equipment-simulator-exact-first-implementation.md`
-- Modify: `tests/gear_canonical_owner_gate_test.py`（只允许更新 `test_task5_control_plane_records_the_owner_gate_stop_boundary` 的 control-plane assertions；Task 1 gate/analyzer/mutations 不得改变）
+- Modify: `tests/gear_canonical_owner_gate_test.py`（只允许更新 `test_control_plane_records_stop_gate_before_task2` 的 control-plane assertions；Task 1 gate/analyzer/mutations 不得改变）
 
-- [ ] 将 `owner authority proof`、`exact imported-callable owner gate` 等过度声明统一改为 `canonical ownership source change-control`。
-- [ ] 明确三层 owner：Kernel semantic owner、domain schema/business owner、source change-control registry。
-- [ ] owner maps/requirement 固定 `proofClaim=source_change_control_only`、`runtimeConsumers=[]`、`originalTask3Activated=false`。
-- [ ] owner maps 明确 registry 是 test-only source change-control，不是 runtime authority；每次 registry 更新必须出现在 review diff。
-- [ ] 记录五轮 Stop Gate 与 forward replacement，不把 163/9/40 绿测包装成原 gate clean。
+- [x] 将 `owner authority proof`、`exact imported-callable owner gate` 等过度声明统一改为 `canonical ownership source change-control`。
+- [x] 明确三层 owner：Kernel semantic owner、domain schema/business owner、source change-control registry。
+- [x] owner maps/requirement 固定 `proofClaim=source_change_control_only`、`runtimeConsumers=[]`、`originalTask3Activated=false`。
+- [x] owner maps 明确 registry 是 test-only source change-control，不是 runtime authority；每次 registry 更新必须出现在 review diff。
+- [x] 记录五轮 Stop Gate 与 forward replacement，不把 163/9/40 绿测包装成原 gate clean。
 - [ ] Harness requirement、owner-map tests、`jq empty` 和 `git diff --check` 全绿后接受独立 review。
 
 ## Task 3: Fresh whole-branch closure review

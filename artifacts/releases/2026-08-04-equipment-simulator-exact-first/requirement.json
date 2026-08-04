@@ -40,7 +40,8 @@
       "tests/fixtures/gear_canonical_mutations.json shared Python/TypeScript mutation corpus",
       "server/gear_exact_item_instance.py, server/gear_exact_authority.py, server/simc_item_effect_support.py and server/simc_item_effect_probe.py sealed schema/business derivation",
       "scripts/simc-item-effect-probe.py strict local decoder adapter",
-      "tests/gear_canonical_owner_gate_test.py, tests/fixtures/gear_canonical_owner_registry.json and project/backend owner maps for exact module-load profiles, imports, exemptions and owner boundaries"
+      "tests/gear_canonical_owner_gate_test.py and tests/fixtures/gear_canonical_owner_registry.json for four server declaration-only profiles, one CLI bootstrap profile, exact physical imports, fixed exemptions and public/export owner boundaries",
+      "project/backend owner maps and active plans for proofClaim=source_change_control_only, test-only registry ownership and an explicit no-runtime/no-original-Task-3 boundary"
     ],
     "mustNotChange": [
       "generation 35 and accepted canonical identities remain byte/key stable",
@@ -51,13 +52,36 @@
       "original Task 3 remains inactive"
     ],
     "evidenceRequired": [
-      "Task 1-5 RED then GREEN Python and TypeScript contract suites, shared Unicode mutation corpus, hostile JSON bounds and frozen byte/key assertions",
-      "Task 1-5 source change-control tests for five target profiles, exact import/symbol registry, module-load hostile mutations, exemption digests, deleted raw APIs and zero baseline violations",
-      "Task 1-5 sealed Exact, Progression, Effect, Probe, CLI and Envelope regressions plus Harness requirement and owner-map checks"
+      "Replacement semantic suites for Kernel and Exact v2 Python/TypeScript validation, shared Unicode mutations, hostile JSON bounds, seal/reload invariants and frozen v1/v2 byte/key assertions",
+      "Task 1 source-change-control tests for four server declaration-only profiles and one CLI bootstrap profile, exact import/symbol registry, module-load hostile mutations, fixed exemption digests, deleted raw APIs and zero baseline violations",
+      "Sealed Exact, Progression, Effect, Probe, CLI and Envelope regressions plus focused owner-gate, Harness requirement, owner-map and JSON checks",
+      "Task 1 final scoped review PASS/APPROVED with zero findings; Task 2 scoped review and a fresh whole-branch PASS/APPROVED remain required before closure"
     ]
   },
   "ownership": {
-    "factOwner": "server/gear_canonical_kernel.py owns canonical primitives, bounded JSON bytes and seals; server/gear_contracts.py and packages/domain/src/gear-intent.ts own Exact v2 structural validation; domain consumers own only their sealed schema/business derivation.",
+    "factOwner": "Canonical semantics, domain schema/business derivation and source change-control remain three separate ownership layers.",
+    "kernelSemanticOwner": "server/gear_canonical_kernel.py",
+    "domainSchemaOwners": [
+      "server/gear_contracts.py",
+      "packages/domain/src/gear-intent.ts",
+      "server/gear_exact_item_instance.py",
+      "server/gear_exact_authority.py",
+      "server/simc_item_effect_support.py",
+      "server/simc_item_effect_probe.py"
+    ],
+    "sourceChangeControlRegistry": {
+      "path": "tests/fixtures/gear_canonical_owner_registry.json",
+      "role": "test_only_source_change_control",
+      "runtimeAuthority": false,
+      "reviewDiffRequired": true,
+      "targets": [
+        "server/gear_exact_item_instance.py",
+        "server/gear_exact_authority.py",
+        "server/simc_item_effect_support.py",
+        "server/simc_item_effect_probe.py",
+        "scripts/simc-item-effect-probe.py"
+      ]
+    },
     "consumers": [
       "server/gear_exact_item_instance.py",
       "server/gear_exact_authority.py",
@@ -65,12 +89,13 @@
       "server/simc_item_effect_probe.py",
       "scripts/simc-item-effect-probe.py"
     ],
+    "proofClaim": "source_change_control_only",
     "runtimeConsumers": [],
     "originalTask3Activated": false
   },
   "engineeringHealth": {
-    "status": "implementation_allowed",
-    "reason": "Canonical semantics remain a pure local foundation with strict fail-closed bounds and frozen identity regressions. The prior AST authority-proof gate reached its five-round Stop Gate and is being forward-replaced by declaration-only source change-control; no runtime consumer exists and original Task 3 remains inactive."
+    "status": "task1_source_change_control_scoped_clean_whole_branch_pending",
+    "reason": "Replacement Task 1 source change-control has a final scoped PASS/APPROVED review with zero findings. This proves only the registered module-load syntax and source ownership boundary for five protected files; Kernel/domain semantics remain supported by their behavior suites. Task 2 control-plane review and a fresh whole-branch review are pending, runtimeConsumers is empty, and original Task 3 remains inactive."
   },
   "dataPrivacyBoundary": {
     "rawPluginText": "ephemeral parser input only; it must not be persisted, logged, templated, queued, included in artifact evidence, or returned in output payloads.",
@@ -84,13 +109,15 @@
   "acceptanceEvidence": [
     "Exact v2 rejects whitespace mutation, forbidden controls, invalid UTF-8 bounds and non-NFC input without normalizing it.",
     "Kernel rejects oversized, over-depth, over-node and cyclic JSON with controlled failure while escaped string structure and accepted fixture bytes/key remain stable.",
-    "Five protected files satisfy exact registered module-load profiles and exemptions while sealed consumer behavior and frozen v1 identities remain byte/key stable; this is source change-control, not arbitrary Python semantics proof."
+    "Four server owners satisfy declaration-only module-load profiles and the CLI satisfies its restricted bootstrap profile; the test-only registry exactly records five targets, physical imports, public/export ownership and nine digest-bound exemptions.",
+    "Sealed Exact, Progression, Effect, Probe, CLI and Envelope semantic suites plus frozen v1/v2 identities remain green independently of the source-change-control gate.",
+    "The registry and gate prove source_change_control_only, not trusted-import safety, arbitrary Python semantics or runtime authority; every registry update must appear in the review diff."
   ],
   "manualAcceptanceContract": {
     "required": false,
     "requiredItemIds": []
   },
-  "closureCondition": "Replacement Task 1-5 may close only on fresh local semantic-contract, source-change-control, frozen-identity and Harness evidence plus a fresh whole-branch PASS/APPROVED review; original Task 3 stays inactive.",
+  "closureCondition": "Replacement Task 1-5 may close only after Task 1 source-change-control scoped PASS/APPROVED, Task 2 control-plane scoped PASS/APPROVED, fresh local semantic/frozen-identity/Harness evidence and a fresh whole-branch PASS/APPROVED review are simultaneously present; original Task 3 stays inactive until then.",
   "releaseTrigger": "docs_tooling_only",
   "rollback": [
     "code_rollback",
@@ -108,6 +135,10 @@
     {
       "date": "2026-08-04",
       "decision": "Task 5 AST owner gate 在五轮 fix/re-review 后仍允许 module-load imported helper 零告警执行，Stop Gate 已触发。保留 Kernel 语义修复，forward-replace 静态解释器为四个 server declaration-only profile、一个 CLI bootstrap profile 与 exact registry；proofClaim 固定 source_change_control_only，不递归证明 imported Python 语义。"
+    },
+    {
+      "date": "2026-08-04",
+      "decision": "Canonical Ownership Change-Control Task 1 final scoped review 为 PASS/APPROVED、0 findings。该结论仅覆盖五个受保护源文件的 source_change_control_only profile/registry 边界；Task 2 控制面 scoped review 与 fresh whole-branch PASS/APPROVED 仍是关闭条件，原 Task 3 保持 inactive。"
     }
   ]
 }

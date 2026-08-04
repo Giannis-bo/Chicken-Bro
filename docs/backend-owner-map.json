@@ -13,13 +13,14 @@
   "hotspotFiles": [
     {
       "path": "server/gear_canonical_kernel.py",
-      "healthStatus": "task1_5_owner_change_control_correction",
-      "summary": "Owns replacement Task 1-5 canonical primitives, bounded deterministic JSON bytes and private sealed-document boundaries; the failed AST authority-proof gate is being forward-replaced by source change-control without runtime integration.",
+      "healthStatus": "task1_source_change_control_scoped_clean_whole_branch_pending",
+      "summary": "Owns replacement Task 1-5 canonical primitives, bounded deterministic JSON bytes and private sealed-document boundaries; Task 1 canonical ownership source change-control is scoped clean while Task 2 control-plane and whole-branch reviews remain pending.",
       "owners": [
         {
           "id": "equipment_simulator_canonical_kernel_task1_5",
-          "status": "task1_5_owner_change_control_correction",
+          "status": "task1_source_change_control_scoped_clean_whole_branch_pending",
           "factOwner": "server/gear_canonical_kernel.py",
+          "kernelSemanticOwner": "server/gear_canonical_kernel.py",
           "slotSetOwner": "server/gear_contracts.py",
           "domainSchemaOwners": [
             "packages/domain/src/gear-intent.ts",
@@ -30,11 +31,17 @@
           ],
           "adapterBoundary": "scripts/simc-item-effect-probe.py",
           "ownerGate": "tests/gear_canonical_owner_gate_test.py",
+          "sourceChangeControlRegistry": {
+            "path": "tests/fixtures/gear_canonical_owner_registry.json",
+            "role": "test_only_source_change_control",
+            "runtimeAuthority": false,
+            "reviewDiffRequired": true
+          },
           "owns": [
             "strict NFC raw-value canonical identity/report token, integer, list, mapping and slot validation",
             "byte-, depth-, node- and cycle-bounded deterministic canonical JSON with exact string object keys and SHA-256 content keys",
             "module-private sealed document construction, reload verification and verified payload copies",
-            "the current AST gate is not accepted as authority proof after its five-round Stop Gate; the authorized replacement is source change-control for five module-load profiles, exact import/symbol ownership and sealed parameters"
+            "canonical ownership source change-control for four server declaration-only profiles, one CLI bootstrap profile, exact physical imports, fixed digest-bound exemptions and public/export ownership"
           ],
           "mustNotChange": [
             "server/gear_contracts.py remains the sole owner of CANONICAL_GEAR_SLOTS.",
@@ -46,6 +53,7 @@
           "characterization": [
             "tests/gear_canonical_kernel_test.py",
             "tests/gear_canonical_owner_gate_test.py",
+            "tests/fixtures/gear_canonical_owner_registry.json",
             "tests/fixtures/gear_canonical_mutations.json",
             "packages/domain/src/gear-intent.test.ts",
             "tests/gear_exact_item_instance_test.py",
@@ -55,8 +63,9 @@
             "tests/simc_item_effect_probe_cli_test.py"
           ],
           "runtimeConsumers": [],
-          "proofClaim": "none_pending_source_change_control_replacement",
-          "capabilityBoundary": "Canonical semantic fixes are locally verified, but the prior AST owner gate reached its five-round Stop Gate and is being forward-replaced by declaration-only source change-control. runtimeConsumers is empty, original Task 3 is not activated, and generation 35, Catalog/pointers, persistence/worker, Resolver/API/UI, raw-text privacy and v1 identities remain unchanged."
+          "proofClaim": "source_change_control_only",
+          "originalTask3Activated": false,
+          "capabilityBoundary": "Task 1 canonical ownership source change-control has a final scoped PASS/APPROVED review with zero findings. The registry is test-only, is not runtime authority, and every registry update must appear in the review diff. Task 2 control-plane scoped review and fresh whole-branch review remain pending; runtimeConsumers is empty, original Task 3 is inactive, and generation 35, Catalog/pointers, persistence/worker, Resolver/API/UI, raw-text privacy and v1 identities remain unchanged."
         }
       ]
     },
