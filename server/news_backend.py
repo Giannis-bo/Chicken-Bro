@@ -8298,6 +8298,11 @@ _MANUAL_COMMUNITY_LOOKUP_PATTERN = re.compile(
     re.IGNORECASE,
 )
 _EVIDENCE_RATIO_REFERENCE_PATTERN = re.compile(r"(?<!\d)\d{1,6}\s*/\s*\d{1,6}(?!\d)")
+_CROSS_SPEC_COMPARATIVE_SCOPE_PATTERN = re.compile(
+    r"(?:全(?:职|专)业|所有职业|跨(?:职|专)业|职业总览).{0,16}(?:dps|排名|排行|强度|tier)"
+    r"|(?:dps|排名|排行|强度|tier).{0,16}(?:全(?:职|专)业|所有职业|跨(?:职|专)业|职业总览)",
+    re.IGNORECASE,
+)
 
 
 def chickenbro_reject_unsupported_comparative_strength(output_text, bounded_context):
@@ -8990,6 +8995,43 @@ def chickenbro_source_fallback_result(bounded_context, error):
     }
 
 
+def chickenbro_unmet_comparative_strength_result(bounded_context):
+    """Return an explicit evidence boundary when no comparable source is available."""
+    context = bounded_context if isinstance(bounded_context, dict) else {}
+    question_frame = context.get("questionFrame") if isinstance(context.get("questionFrame"), dict) else {}
+    capability_plan = context.get("capabilityPlan") if isinstance(context.get("capabilityPlan"), dict) else {}
+    if (
+        question_frame.get("questionType") != "current_research"
+        or "comparative_strength_signal" not in (capability_plan.get("unmetEvidenceNeeds") or [])
+        or not _CROSS_SPEC_COMPARATIVE_SCOPE_PATTERN.search(str(context.get("message") or ""))
+    ):
+        return None
+    fallback_payload = {
+        "answer": (
+            "当前受控来源没有与这次问题同口径的横向强度证据，因此不能给出全职业 DPS 排名。"
+            "已接入的 Raider.IO 强度信号只用于已命中专精和场景的同职责大秘境高层趋势；"
+            "配置的 WCL 公共页也不构成跨专精 DPS 榜。"
+            "你可以指定一个已覆盖的专精和场景，我会按可验证范围比较。"
+        ),
+        "confidence": "high",
+        "priorityActions": [],
+        "evidenceRefs": [],
+        "limitations": ["comparative_strength_signal_unavailable"],
+        "missingInputs": ["comparative_strength_signal"],
+        "nextQuestion": "你更想比较当前大秘境的同职责趋势，还是指定团本与专精后再判断？",
+    }
+    validated = validate_chickenbro_model_output(fallback_payload, context)
+    validated["answerLayer"] = "diagnostic"
+    validated["basisLabel"] = "当前来源范围不足"
+    validated["answerSource"] = "deterministic_evidence_boundary"
+    return {
+        "answer": validated,
+        "topic": context.get("topic"),
+        "validation": {"status": "fallback", "reason": "comparative_strength_signal_unavailable"},
+        "model": {"status": "not_called", "name": ""},
+    }
+
+
 def chickenbro_authoritative_strength_evidence_result(bounded_context):
     """Answer a bounded current-strength evidence question from its evidence, not model prose."""
     context = bounded_context if isinstance(bounded_context, dict) else {}
@@ -9000,7 +9042,10 @@ def chickenbro_authoritative_strength_evidence_result(bounded_context):
     )
     if not has_current_strength_evidence:
         return None
-    return chickenbro_source_fallback_result(context, "bounded_strength_evidence")
+    return (
+        chickenbro_source_fallback_result(context, "bounded_strength_evidence")
+        or chickenbro_unmet_comparative_strength_result(context)
+    )
 
 
 def run_chickenbro_agent(bounded_context, codex_runner=None):

@@ -805,6 +805,51 @@ class ChickenbroAgentIntentTest(unittest.TestCase):
                 bounded_context,
             )
 
+    def test_streamed_unmet_comparative_strength_returns_an_evidence_boundary_without_model(self):
+        bounded_context = backend.build_chickenbro_bounded_context(
+            "给我当前全职业 DPS 横向排名",
+            {},
+            history=[
+                {"role": "user", "content": "元素萨现在版本大秘境强度如何？"},
+                {"role": "assistant", "content": "元素萨在同职责高层样本中的趋势已返回。"},
+                {"role": "user", "content": "排第一的是啥呢？"},
+                {"role": "assistant", "content": "这是同职责高层样本中的领先条目。"},
+            ],
+            source_tool_results={
+                "sourceToolResults": [],
+                "registryContext": {
+                    "status": "verified",
+                    "registryVersion": "chickenbro-tools-3",
+                    "registryReleaseHash": "sha256:" + "1" * 64,
+                    "registrySource": "postgres",
+                    "discoveredCapabilityIds": ["source:raiderio-strength:v1"],
+                    "selectedCapabilityIds": [],
+                },
+            },
+        )
+
+        def unexpected_model_call(*_args, **_kwargs):
+            raise AssertionError("unmet comparative evidence must not call the model")
+
+        stream = backend.run_chickenbro_agent_stream(
+            bounded_context,
+            stream_runner=unexpected_model_call,
+        )
+        events = []
+        while True:
+            try:
+                events.append(next(stream))
+            except StopIteration as stop:
+                result = stop.value
+                break
+
+        self.assertEqual(["comparative_strength_signal"], bounded_context["capabilityPlan"]["unmetEvidenceNeeds"])
+        self.assertEqual(1, len(events))
+        self.assertEqual("deterministic_evidence_boundary", result["answer"]["answerSource"])
+        self.assertIn("不能给出全职业 DPS 排名", events[0]["text"])
+        self.assertIn("同口径", events[0]["text"])
+        self.assertNotIn("没有数据", events[0]["text"])
+
     def test_streamed_strength_ratio_follow_up_fallback_explains_the_dynamic_ratio(self):
         bounded_context = backend.build_chickenbro_bounded_context(
             "解读一下2/12是啥意思？",
