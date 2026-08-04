@@ -1,4 +1,5 @@
 import copy
+from dataclasses import replace
 import json
 import unittest
 
@@ -26,15 +27,27 @@ SEASON = "season-17-f131dd36ddf1"
 RESOLVER = "resolver-v2"
 
 
-def authority_bundle(item_id="1001", *, gems=("240892", "240893", "240892")):
+def authority_bundle(
+    item_id="1001",
+    *,
+    gems=("240892", "240893", "240892"),
+    gem_bonus_ids=None,
+    gem_item_levels=None,
+):
+    if gem_bonus_ids is None:
+        gem_bonus_ids = ("1514", "1515", "1514")[:len(gems)]
+    if gem_item_levels is None:
+        gem_item_levels = (90, 91, 90)[:len(gems)]
+    if len(gems) != len(gem_bonus_ids) or len(gems) != len(gem_item_levels):
+        raise ValueError("gem fixture vectors must have equal length")
     exact = seal_exact_item({
         "itemId": item_id,
         "declaredItemLevel": 266,
         "bonusIds": ["13334"],
         "context": "heroic",
         "gemIds": list(gems),
-        "gemBonusIds": ["1514", "1515", "1514"][:len(gems)],
-        "gemItemLevels": [90, 91, 90][:len(gems)],
+        "gemBonusIds": list(gem_bonus_ids),
+        "gemItemLevels": list(gem_item_levels),
         "enchantId": "",
         "craftedStats": [],
         "embellishmentIds": [],
@@ -88,6 +101,7 @@ class FakeDatabase:
         self.relations = {}
         self.bundles = {}
         self.statements = []
+        self.document_insert_keys = []
         self.fail_on_bundle_insert = False
 
 
@@ -118,6 +132,7 @@ class FakeCursor:
             )]
         elif "exact_authority_document_insert" in normalized:
             key, kind, schema, raw = params
+            self.database.document_insert_keys.append(key)
             self.database.documents.setdefault(
                 key, (key, kind, schema, bytes(raw), True),
             )
@@ -237,6 +252,110 @@ class GearExactAuthorityStoreTest(unittest.TestCase):
             records,
             (a.effect_records[1], a.effect_records[2], a.effect_records[1]),
         )
+
+    def test_document_inserts_are_globally_sorted_and_deduplicated(self):
+        bundle = authority_bundle()
+        self.store.seal_authority_bundle(bundle)
+        all_documents = (
+            bundle.exact_item,
+            bundle.static_facts,
+            bundle.progression,
+            *bundle.effect_records,
+            bundle.effect_support,
+            bundle.envelope,
+        )
+        expected = sorted({document.content_key for document in all_documents})
+
+        self.assertEqual(self.database.document_insert_keys, expected)
+        self.assertEqual(
+            len(self.database.relations),
+            len(bundle.effect_records),
+        )
+
+    def test_concurrency_fixtures_share_two_records_in_reverse_order(self):
+        a = authority_bundle(
+            "1001",
+            gems=("240892", "240893"),
+            gem_bonus_ids=("1514", "1515"),
+            gem_item_levels=(90, 91),
+        )
+        b = authority_bundle(
+            "1002",
+            gems=("240893", "240892"),
+            gem_bonus_ids=("1515", "1514"),
+            gem_item_levels=(91, 90),
+        )
+
+        a_shared = tuple(record.content_key for record in a.effect_records[1:])
+        b_shared = tuple(record.content_key for record in b.effect_records[1:])
+        self.assertEqual(a_shared, tuple(reversed(b_shared)))
+        self.assertEqual(len(set(a_shared)), 2)
+
+    def test_same_content_key_with_different_sealed_document_fails_before_db(self):
+        bundle = authority_bundle()
+        duplicate_index = 2
+        conflicting = copy.deepcopy(bundle.effect_records[duplicate_index])
+        object.__setattr__(
+            conflicting,
+            "content_key",
+            bundle.effect_records[1].content_key,
+        )
+        records = list(bundle.effect_records)
+        records[duplicate_index] = conflicting
+        invalid = replace(bundle, effect_records=tuple(records))
+
+        with self.assertRaisesRegex(
+            GearExactAuthorityStoreIntegrityError,
+            "same content key has different sealed documents",
+        ):
+            self.store.seal_authority_bundle(invalid)
+        self.assertEqual(self.connections, [])
+
+    def test_existing_same_key_with_different_stored_value_is_write_collision(self):
+        bundle = self.store.seal_authority_bundle(authority_bundle())
+        key = bundle.exact_item.content_key
+        original = self.database.documents[key]
+        conflicting = (original[0], original[1], original[2], original[3] + b" ", True)
+        self.database.documents[key] = conflicting
+
+        with self.assertRaisesRegex(
+            GearExactAuthorityStoreIntegrityError,
+            "canonical authority document collision",
+        ):
+            self.store.seal_authority_bundle(bundle)
+        self.assertEqual(self.database.documents[key], conflicting)
+        self.assertTrue(self.connections[-1].rolled_back)
+
+    def test_jsonb_equivalent_float_and_exponent_raw_bytes_fail_typed_reload(self):
+        bundle = self.store.seal_authority_bundle(authority_bundle())
+        key = bundle.exact_item.content_key
+        original = self.database.documents[key]
+        marker = b'"itemLevel":266'
+        self.assertIn(marker, original[3])
+
+        for replacement in (b'"itemLevel":266.0', b'"itemLevel":2.66e2'):
+            with self.subTest(replacement=replacement):
+                self.database.documents[key] = (
+                    original[0],
+                    original[1],
+                    original[2],
+                    original[3].replace(marker, replacement),
+                    True,
+                )
+                with self.assertRaises(
+                    GearExactAuthorityStoreIntegrityError,
+                ) as raised:
+                    self.store.load_verified_bundle(
+                        bundle.envelope.content_key,
+                        gear_rule_revision=RULE,
+                        simc_runtime_revision=RUNTIME,
+                        resolver_revision=RESOLVER,
+                    )
+                self.assertEqual(
+                    getattr(raised.exception.__cause__, "code", None),
+                    "INVALID_INTEGER",
+                )
+        self.database.documents[key] = original
 
     def test_missing_revision_mismatch_collision_and_ordinal_drift_fail_closed(self):
         sealed = self.store.seal_authority_bundle(authority_bundle())

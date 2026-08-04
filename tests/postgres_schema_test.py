@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 import unittest
 
 
@@ -29,6 +30,161 @@ WEBSIM_GEAR_CATALOG_VARIANT_SHAPES = ROOT / "server" / "migrations" / "postgres"
 CHICKENBRO_AGENT_OBSERVABILITY = ROOT / "server" / "migrations" / "postgres" / "0024_chickenbro_agent_observability.sql"
 CHICKENBRO_TOOL_REGISTRY = ROOT / "server" / "migrations" / "postgres" / "0025_chickenbro_tool_registry.sql"
 WEBSIM_EXACT_AUTHORITY_BUNDLE = ROOT / "server" / "migrations" / "postgres" / "0026_websim_exact_authority_bundle.sql"
+POSTGRES_MIGRATIONS_0001_0026 = tuple(sorted(
+    (ROOT / "server" / "migrations" / "postgres").glob("[0-9][0-9][0-9][0-9]_*.sql")
+))
+
+
+def _normalized(value):
+    return " ".join(value.split())
+
+
+def _sql_section(sql, start_marker, end_marker):
+    start = sql.index(start_marker)
+    end = sql.index(end_marker, start) + len(end_marker)
+    return _normalized(sql[start:end])
+
+
+def exact_authority_schema_violations(sql, migrations):
+    violations = []
+    normalized = _normalized(sql)
+    documents = _sql_section(
+        sql,
+        "CREATE TABLE IF NOT EXISTS cache.websim_canonical_documents",
+        "\n);",
+    )
+    relations = _sql_section(
+        sql,
+        "CREATE TABLE IF NOT EXISTS cache.websim_effect_aggregate_records",
+        "\n);",
+    )
+    bundles = _sql_section(
+        sql,
+        "CREATE TABLE IF NOT EXISTS cache.websim_exact_authority_bundles",
+        "\n);",
+    )
+    matrix = (
+        ("exact_item", "gear-exact-item-instance-v2", "exact-item-instance:sha256:"),
+        ("exact_static_facts", "exact-static-facts-v1", "exact-static-facts:sha256:"),
+        ("exact_progression", "exact-progression-binding-v1", "exact-progression:sha256:"),
+        ("effect_record", "simc-item-effect-record-v1", "simc-item-effect-record:sha256:"),
+        ("effect_aggregate", "simc-item-effect-support-v1", "simc-item-effect-support:sha256:"),
+        ("exact_authority", "exact-authority-envelope-v1", "exact-authority:sha256:"),
+    )
+    if documents.count("document_kind = '") != 6:
+        violations.append("closed matrix document_kind count")
+    if documents.count("schema_revision = '") != 6:
+        violations.append("closed matrix schema_revision count")
+    if documents.count("content_key = '") != 6:
+        violations.append("closed matrix content_key count")
+    for kind, schema, prefix in matrix:
+        branch = _normalized(f"""
+            (
+                document_kind = '{kind}'
+                AND schema_revision = '{schema}'
+                AND content_key = '{prefix}' || canonical_sha256
+            )
+        """)
+        if documents.count(branch) != 1:
+            violations.append(f"closed matrix branch {kind}")
+
+    fk_contract = (
+        (relations, "effect_support_key text NOT NULL REFERENCES cache.websim_canonical_documents(content_key) ON DELETE RESTRICT"),
+        (relations, "effect_record_key text NOT NULL REFERENCES cache.websim_canonical_documents(content_key) ON DELETE RESTRICT"),
+        (bundles, "exact_authority_envelope_key text PRIMARY KEY REFERENCES cache.websim_canonical_documents(content_key) ON DELETE RESTRICT"),
+        (bundles, "exact_item_instance_key text NOT NULL REFERENCES cache.websim_canonical_documents(content_key) ON DELETE RESTRICT"),
+        (bundles, "static_facts_key text NOT NULL REFERENCES cache.websim_canonical_documents(content_key) ON DELETE RESTRICT"),
+        (bundles, "progression_binding_key text NOT NULL REFERENCES cache.websim_canonical_documents(content_key) ON DELETE RESTRICT"),
+        (bundles, "effect_support_key text NOT NULL REFERENCES cache.websim_canonical_documents(content_key) ON DELETE RESTRICT"),
+    )
+    for section, clause in fk_contract:
+        if section.count(clause) != 1:
+            violations.append(f"exact foreign key {clause.split()[0]}")
+    if normalized.count(
+        "REFERENCES cache.websim_canonical_documents(content_key) ON DELETE RESTRICT"
+    ) != 7:
+        violations.append("exact foreign key universe")
+
+    trigger_contract = (
+        ("websim_canonical_documents", "trg_websim_canonical_documents_immutable", "trg_websim_canonical_documents_truncate"),
+        ("websim_effect_aggregate_records", "trg_websim_effect_aggregate_records_immutable", "trg_websim_effect_aggregate_records_truncate"),
+        ("websim_exact_authority_bundles", "trg_websim_exact_authority_bundles_immutable", "trg_websim_exact_authority_bundles_truncate"),
+    )
+    for table, row_trigger, truncate_trigger in trigger_contract:
+        row_clause = (
+            f"CREATE TRIGGER {row_trigger} BEFORE UPDATE OR DELETE ON cache.{table} "
+            "FOR EACH ROW EXECUTE FUNCTION cache.reject_websim_exact_authority_mutation();"
+        )
+        truncate_clause = (
+            f"CREATE TRIGGER {truncate_trigger} BEFORE TRUNCATE ON cache.{table} "
+            "FOR EACH STATEMENT EXECUTE FUNCTION cache.reject_websim_exact_authority_mutation();"
+        )
+        if normalized.count(row_clause) != 1:
+            violations.append(f"immutable row trigger {table}")
+        if normalized.count(truncate_clause) != 1:
+            violations.append(f"immutable truncate trigger {table}")
+
+    binding_trigger_contract = (
+        "CREATE TRIGGER trg_websim_effect_aggregate_record_binding BEFORE INSERT ON cache.websim_effect_aggregate_records FOR EACH ROW EXECUTE FUNCTION cache.verify_websim_effect_aggregate_record_insert();",
+        "CREATE TRIGGER trg_websim_exact_authority_bundle_binding BEFORE INSERT ON cache.websim_exact_authority_bundles FOR EACH ROW EXECUTE FUNCTION cache.verify_websim_exact_authority_bundle_insert();",
+    )
+    for clause in binding_trigger_contract:
+        if normalized.count(clause) != 1:
+            violations.append(f"binding trigger {clause.split()[2]}")
+
+    aggregate_function = _sql_section(
+        sql,
+        "CREATE OR REPLACE FUNCTION cache.verify_websim_effect_aggregate_record_insert()",
+        "$function$;",
+    )
+    aggregate_predicates = (
+        "aggregate_kind IS DISTINCT FROM 'effect_aggregate'",
+        "record_kind IS DISTINCT FROM 'effect_record'",
+        "pg_catalog.jsonb_typeof(aggregate_json -> 'supportRecords') IS DISTINCT FROM 'array'",
+        "NEW.ordinal >= pg_catalog.jsonb_array_length( aggregate_json -> 'supportRecords' )",
+        "aggregate_json -> 'supportRecords' -> NEW.ordinal ->> 'supportRecordKey' IS DISTINCT FROM NEW.effect_record_key",
+    )
+    for predicate in aggregate_predicates:
+        if aggregate_function.count(predicate) != 1:
+            violations.append(f"aggregate binding {predicate}")
+
+    bundle_function = _sql_section(
+        sql,
+        "CREATE OR REPLACE FUNCTION cache.verify_websim_exact_authority_bundle_insert()",
+        "$function$;",
+    )
+    bundle_predicates = (
+        "envelope_kind IS DISTINCT FROM 'exact_authority'",
+        "exact_kind IS DISTINCT FROM 'exact_item'",
+        "static_kind IS DISTINCT FROM 'exact_static_facts'",
+        "progression_kind IS DISTINCT FROM 'exact_progression'",
+        "effect_kind IS DISTINCT FROM 'effect_aggregate'",
+        "pg_catalog.jsonb_typeof(effect_json -> 'supportRecords') IS DISTINCT FROM 'array'",
+        "effect_relation_count IS DISTINCT FROM pg_catalog.jsonb_array_length( effect_json -> 'supportRecords' )",
+        "envelope_json ->> 'exactItemInstanceKey' IS DISTINCT FROM NEW.exact_item_instance_key",
+        "envelope_json ->> 'staticFactsKey' IS DISTINCT FROM NEW.static_facts_key",
+        "envelope_json ->> 'progressionBindingKey' IS DISTINCT FROM NEW.progression_binding_key",
+        "envelope_json ->> 'effectSupportKey' IS DISTINCT FROM NEW.effect_support_key",
+        "envelope_json ->> 'resolverRevision' IS DISTINCT FROM NEW.resolver_revision",
+        "static_json ->> 'exactItemInstanceKey' IS DISTINCT FROM NEW.exact_item_instance_key",
+        "progression_json ->> 'exactItemInstanceKey' IS DISTINCT FROM NEW.exact_item_instance_key",
+        "progression_json ->> 'gearRuleRevision' IS DISTINCT FROM NEW.gear_rule_revision",
+        "effect_json ->> 'exactItemInstanceKey' IS DISTINCT FROM NEW.exact_item_instance_key",
+        "effect_json ->> 'simcRuntimeRevision' IS DISTINCT FROM NEW.simc_runtime_revision",
+    )
+    for predicate in bundle_predicates:
+        if bundle_function.count(predicate) != 1:
+            violations.append(f"bundle binding {predicate}")
+
+    migration_names = [name for name, _ in migrations]
+    if migration_names.count("0026_websim_exact_authority_bundle.sql") != 1:
+        violations.append("0026 filename identity")
+    if sum(
+        body.count("'0026_websim_exact_authority_bundle'")
+        for _, body in migrations
+    ) != 1:
+        violations.append("0026 ledger identity")
+    return violations
 
 
 class PostgresSchemaTest(unittest.TestCase):
@@ -53,6 +209,17 @@ class PostgresSchemaTest(unittest.TestCase):
 
     def test_exact_authority_bundle_migration_binds_bytes_closure_and_read_only_grants(self):
         normalized = " ".join(self.websim_exact_authority_bundle_sql.split())
+        migrations = tuple(
+            (path.name, path.read_text(encoding="utf-8"))
+            for path in POSTGRES_MIGRATIONS_0001_0026
+        )
+        self.assertEqual(
+            exact_authority_schema_violations(
+                self.websim_exact_authority_bundle_sql,
+                migrations,
+            ),
+            [],
+        )
         for table in (
             "cache.websim_canonical_documents",
             "cache.websim_effect_aggregate_records",
@@ -79,10 +246,6 @@ class PostgresSchemaTest(unittest.TestCase):
             self.assertIn(f"document_kind = '{kind}'", normalized)
             self.assertIn(f"schema_revision = '{schema}'", normalized)
             self.assertIn(f"'{prefix}' || canonical_sha256", normalized)
-        self.assertGreaterEqual(
-            normalized.count("REFERENCES cache.websim_canonical_documents(content_key)"),
-            6,
-        )
         self.assertIn("SECURITY INVOKER SET search_path = pg_catalog, pg_temp", normalized)
         self.assertIn("FOR KEY SHARE", normalized)
         self.assertIn(
@@ -99,6 +262,68 @@ class PostgresSchemaTest(unittest.TestCase):
         )
         self.assertNotIn("GRANT SELECT, INSERT", normalized)
         self.assertIn("0026_websim_exact_authority_bundle", normalized)
+
+    def test_exact_authority_contract_mutations_fail_closed(self):
+        migrations = tuple(
+            (path.name, path.read_text(encoding="utf-8"))
+            for path in POSTGRES_MIGRATIONS_0001_0026
+        )
+        self.assertEqual(
+            exact_authority_schema_violations(
+                self.websim_exact_authority_bundle_sql,
+                migrations,
+            ),
+            [],
+        )
+        mutations = (
+            self.websim_exact_authority_bundle_sql.replace(
+                "effect_record_key text NOT NULL",
+                "effect_record_key text",
+                1,
+            ),
+            self.websim_exact_authority_bundle_sql.replace(
+                "CREATE TRIGGER trg_websim_exact_authority_bundles_truncate",
+                "CREATE TRIGGER trg_removed_exact_authority_bundles_truncate",
+                1,
+            ),
+            self.websim_exact_authority_bundle_sql.replace(
+                "envelope_json ->> 'resolverRevision'",
+                "envelope_json ->> 'ignoredResolverRevision'",
+                1,
+            ),
+            self.websim_exact_authority_bundle_sql.replace(
+                "document_kind = 'exact_authority'",
+                "document_kind = 'unknown_authority'",
+                1,
+            ),
+        )
+        for mutated in mutations:
+            with self.subTest(mutated=mutated[:80]):
+                self.assertTrue(
+                    exact_authority_schema_violations(mutated, migrations),
+                )
+        duplicate_identity = migrations + ((
+            "9999_duplicate.sql",
+            "SELECT '0026_websim_exact_authority_bundle';",
+        ),)
+        self.assertTrue(exact_authority_schema_violations(
+            self.websim_exact_authority_bundle_sql,
+            duplicate_identity,
+        ))
+
+    def test_migrations_0001_through_0026_never_manage_databases(self):
+        self.assertEqual(
+            POSTGRES_MIGRATIONS_0001_0026[-1].name,
+            "0026_websim_exact_authority_bundle.sql",
+        )
+        database_ddl = re.compile(
+            r"(?i)\b(?:CREATE|DROP|ALTER)\s+DATABASE\b",
+        )
+        for migration in POSTGRES_MIGRATIONS_0001_0026:
+            with self.subTest(migration=migration.name):
+                self.assertIsNone(database_ddl.search(
+                    migration.read_text(encoding="utf-8"),
+                ))
 
     def table_section(self, table_name):
         start = self.sql.index(f"CREATE TABLE IF NOT EXISTS {table_name}")

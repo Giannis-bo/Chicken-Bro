@@ -64,6 +64,25 @@ class GearExactAuthorityStore:
         return self._connection_factory()
 
     @staticmethod
+    def _sorted_unique_documents(
+        documents: tuple[SealedCanonicalDocument, ...],
+    ) -> tuple[SealedCanonicalDocument, ...]:
+        unique: dict[str, SealedCanonicalDocument] = {}
+        for document in documents:
+            if type(document) is not SealedCanonicalDocument:
+                raise GearExactAuthorityStoreIntegrityError(
+                    "bundle fields must be exact SealedCanonicalDocument values",
+                )
+            key = _exact_text(document.content_key, field="content_key")
+            existing = unique.get(key)
+            if existing is not None and existing != document:
+                raise GearExactAuthorityStoreIntegrityError(
+                    "same content key has different sealed documents",
+                )
+            unique[key] = document
+        return tuple(unique[key] for key in sorted(unique))
+
+    @staticmethod
     def _revision_projection(cur: Any, bundle: ExactAuthorityBundle) -> tuple[str, str, str]:
         cur.execute(
             """
@@ -337,6 +356,14 @@ class GearExactAuthorityStore:
             raise GearExactAuthorityStoreIntegrityError(
                 "bundle requires a non-empty effect record tuple",
             )
+        self._sorted_unique_documents((
+            bundle.exact_item,
+            bundle.static_facts,
+            bundle.progression,
+            *bundle.effect_records,
+            bundle.effect_support,
+            bundle.envelope,
+        ))
         try:
             exact = reload_exact_item(
                 bundle.exact_item.canonical_bytes,
@@ -396,14 +423,15 @@ class GearExactAuthorityStore:
                     effect_support=effect,
                     envelope=envelope,
                 )
-                for document in (
+                documents = self._sorted_unique_documents((
                     exact,
                     static,
                     progression,
                     *records,
                     effect,
                     envelope,
-                ):
+                ))
+                for document in documents:
                     self._insert_document(cur, document)
                 for ordinal, record in enumerate(records):
                     cur.execute(

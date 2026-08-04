@@ -60,10 +60,21 @@ authority provisions two distinct empty databases and exact database comments:
   `wow_exact_first_disposable:<run-id>:upgrade`.
 
 The cluster must already contain the repository's `wow_migrator` and `wow_app`
-roles. Neither migration nor test receives `CREATEDB`, `CREATEROLE` or database
-discard authority. Before its first write, the candidate suite rejects a missing
-or mismatched comment, a different database name, either DSN resolving to the
-same database, or any existing project schema/table/migration ledger.
+roles. Historical migration `0009_runtime_reconcile_privileges.sql` executes
+`ALTER DEFAULT PRIVILEGES FOR ROLE postgres`; therefore each explicit candidate
+DSN must use an existing operator/migrator identity that already has the
+authority required by migrations `0001..0025` (commonly `postgres`, or an
+existing operator that can `SET ROLE postgres`). The suite does not create,
+alter or grant roles, and it does not change any historical migration. Do not
+add a non-superuser role gate that would contradict the frozen migration chain.
+
+The safety boundary is instead exact and machine-checked: the two explicit DSNs
+must resolve to the exact run-id-bound names/comments above; both databases must
+have no project schema, table or ledger before the first write; the suite never
+creates, drops, resets or reuses a database; and migrations `0001..0026` contain
+no `CREATE DATABASE`, `DROP DATABASE` or `ALTER DATABASE`. Every migration DDL
+statement is therefore scoped to the current DSN database. No additional DSN or
+implicit admin connection is accepted.
 
 After the Task 3A code, tests and `0026` are committed and the tree is clean, run:
 
@@ -76,12 +87,26 @@ python3 -m unittest \
 ```
 
 The fresh path applies `0001..0026`. The upgrade path independently applies
-`0001..0025`, inserts a frozen v1 row, snapshots its JSON/hash identity, applies
-`0026`, and requires the before/after snapshot to be equal. Both paths verify
-the closed document matrix, database-computed SHA-256/JSON projection, full
-foreign-key and trigger bindings, `wow_app` SELECT-only grants, whole-bundle
-typed reload, duplicate record order, and same-key concurrent idempotency. The
-candidate record binds the clean commit SHA, Git tree SHA and `0026` SHA-256.
+`0001..0025`, inserts a frozen v1 row, snapshots its complete row including
+`sealed_at` plus all existing project schemas, tables, columns, constraints,
+indexes, triggers, default ACLs and effective `wow_app` grants, applies `0026`,
+and requires every pre-existing value to remain equal. Both paths verify the
+exact six-kind/schema/prefix closed matrix, database-computed SHA-256/JSON
+projection, all seven foreign keys, complete binding predicates, all three
+tables' UPDATE/DELETE/TRUNCATE immutability, explicit and effective `wow_app`
+SELECT-only ACLs, whole-bundle typed reload and duplicate record order. The
+concurrency smoke starts from absent authority rows and concurrently writes two
+legal bundles that share two effect records in reverse order; both must finish
+without deadlock and independently read back.
+
+After every assertion passes, the test rechecks the clean commit, Git tree,
+`0026` SHA-256 and both database names/comments, then emits exactly one compact
+JSON attestation as its final stdout line. Archive that single line verbatim for
+the later Task 3A `evidence.json`/`manifest.json` promotion review; it contains
+the run id, both database identities, commit/tree/migration hashes,
+`passed=true`, and the exact verified-check list, but no DSN or credential.
+Local/skipped runs emit no successful attestation and must not create or update
+either evidence file.
 
 Leave both exact databases intact through evidence/manifest archival and scoped
 review. After candidate execution, any change to code, tests, migration,
