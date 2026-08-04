@@ -141,6 +141,34 @@ class ChickenbroAgentIntentTest(unittest.TestCase):
 
         self.assertEqual("partial", validated["evidenceOutcome"])
 
+    def test_agentic_partial_without_a_returned_ref_allows_no_evidence_explanation_claims(self):
+        bounded = self.agentic_bounded_context()
+        bounded["agenticResearch"]["status"] = "partial"
+        bounded["agenticResearch"]["observations"][0]["status"] = "failed"
+        bounded["agenticResearch"]["observations"][0]["evidenceRefs"] = []
+        bounded["sourceEvidence"][0]["status"] = "failed"
+        bounded["sourceEvidence"][0]["evidenceRefs"] = []
+        bounded["allowedEvidenceRefs"] = []
+
+        validated = backend.validate_chickenbro_model_output(
+            {
+                "answer": "本轮没有返回可引用的有效样本，因此不能确认相对强度。",
+                "confidence": "low",
+                "priorityActions": [{"title": "等待匹配范围的样本", "evidenceRefs": []}],
+                "evidenceRefs": [],
+                "limitations": ["来源未返回有效样本"],
+                "missingInputs": [],
+                "nextQuestion": "",
+                "claimRefs": [{
+                    "statement": "本轮没有返回可引用的有效样本。",
+                    "evidenceRefs": [],
+                }],
+            },
+            bounded,
+        )
+
+        self.assertEqual("partial", validated["evidenceOutcome"])
+
     def test_agentic_stream_does_not_emit_before_claim_validation(self):
         bounded = self.agentic_bounded_context()
         payload = json.dumps(

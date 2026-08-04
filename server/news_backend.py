@@ -8363,6 +8363,7 @@ def chickenbro_prompt_from_context(bounded_context):
             "你是炸鸡队长，只回答魔兽世界正式服和 PTR/Beta 相关问题。",
             "本轮已由受控 ToolBox 按研究计划执行并返回 observations。直接回答玩家的问题；不要把已返回的来源说成无法抓取，也不要要求玩家自行搜索。",
             "只能根据 boundedContext.agenticResearch.observations 的事实、范围和 evidenceRefs 下结论。每一条可验证结论都必须在 claimRefs 中逐条绑定本轮返回的 evidenceRefs。",
+            "如果本轮没有任何 source_reference 或 verified observation，则这是“未取得可引用证据”的降级回答：evidenceRefs 和 claimRefs 都必须为空数组，priorityActions 的 evidenceRefs 也必须为空。只说明无法确认的结论和具体证据缺口，不要把来源缺失包装成系统没有检索能力。",
             "不要把不同 productPhase、scenarioKey、region、seasonSlug、partition、encounterId 的 observations 合并成同一结论；范围不一致或证据不足时，直接说明具体缺口。",
             "不得编造 DPS、排名、分位、日志发现、来源或未观察到的职业比较；不要向玩家暴露工具 ID、规划过程或内部观察字段。",
             "最多追问一个真正影响下一轮研究的关键问题；输出 JSON：answer, confidence, answerLayer, basisLabel, priorityActions, evidenceRefs, limitations, missingInputs, nextQuestion, claimRefs。",
@@ -8745,8 +8746,19 @@ def validate_agentic_claims(payload, bounded_context):
 
     raw_claims = payload.get("claimRefs") if isinstance(payload, dict) else None
     if not returned_refs:
-        if raw_claims not in (None, []):
+        if raw_claims in (None, []):
+            return
+        if not isinstance(raw_claims, list):
             raise ValueError("model_output_invalid: claim has no returned evidence")
+        # Failed or out-of-scope tool attempts may leave no public evidence ref
+        # at all.  Preserve a model-generated explanation of that absence
+        # rather than converting it into a transport error, while refusing any
+        # attempt to attach a fabricated or unreturned reference.
+        for claim in raw_claims:
+            if not isinstance(claim, dict) or set(claim) != {"statement", "evidenceRefs"}:
+                raise ValueError("model_output_invalid: invalid agentic claim")
+            if not clean_text(claim.get("statement"), 360) or claim.get("evidenceRefs") != []:
+                raise ValueError("model_output_invalid: claim has no returned evidence")
         return
     if not isinstance(raw_claims, list) or not raw_claims:
         raise ValueError("model_output_invalid: claim has no returned evidence")
