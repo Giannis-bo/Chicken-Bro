@@ -101,7 +101,7 @@
     {
       "command": "production health, Registry identity, service/journal and chickenbro-source-refresh timer inspection",
       "status": "pass",
-      "summary": "Production /health was 200 after the runtime restart and all five changed runtime file hashes matched source and candidate. Direct stream smoke, not a credential-only health row, proved the player journey. The independent wow-chickenbro-source-refresh timer run started at 11:35:01 CST before this deployment and was still active during final inspection; it was neither triggered nor stopped by this correction."
+      "summary": "Production /health was 200 after the runtime restart and all five changed runtime file hashes matched source and candidate. Direct stream smoke, not a credential-only health row, proved the player journey. The independent wow-chickenbro-source-refresh timer run started at 11:35:01 CST before this deployment; it was observed active during initial inspection, then completed inactive with Result=success, and was neither triggered nor stopped by this correction."
     }
   ],
   "candidateDeployment": {
@@ -121,7 +121,7 @@
     },
     "timerBackflow": {
       "status": "pass",
-      "summary": "Candidate used zero collectors and no async sync. An independent production source-refresh timer invocation was already active from 11:35:01 CST before this deployment; this correction did not start, stop or modify it."
+      "summary": "Candidate used zero collectors and no async sync. An independent production source-refresh timer invocation began at 11:35:01 CST before this deployment and later completed with Result=success; this correction did not start, stop or modify it."
     },
     "rollback": {
       "status": "ready",
@@ -147,7 +147,7 @@
     {
       "type": "timer_backflow",
       "status": "pass",
-      "summary": "No source refresh, backfill or scheduled collector was started by the correction. An independent source-refresh timer run that began before deployment was observed active and left untouched."
+      "summary": "No source refresh, backfill or scheduled collector was started by the correction. An independent source-refresh timer run began before deployment, was left untouched, and later completed with Result=success."
     }
   ],
   "risks": [
@@ -178,8 +178,8 @@
     },
     {
       "id": "source_refresh_inflight",
-      "status": "observed",
-      "detail": "wow-chickenbro-source-refresh.service was independently activated by its timer at 11:35:01 CST, before this code deployment, and remained active during final inspection. Its completion/result is not claimed by this release evidence."
+      "status": "resolved",
+      "detail": "wow-chickenbro-source-refresh.service was independently activated by its timer at 11:35:01 CST before this code deployment. Final inspection found it inactive/dead with Result=success; it was not started, stopped or modified by this correction."
     }
   ],
   "rollback": [
@@ -199,5 +199,5 @@
     "docs/plans/2026-08-03-chickenbro-smart-question-chain-design.md",
     "docs/plans/2026-08-03-chickenbro-smart-question-chain-implementation.md"
   ],
-  "summary": "The source-bounded semantic chain remains general rather than fixed Q&A. A current-strength question with verified comparative evidence, and its consecutive ratio or leader references, directly answer from the same controlled source data; no model is asked to reinterpret rankings. A topic/build boundary stops the inheritance. A cross-spec DPS, Tier or ranking request is a scope escalation: it clears inherited subject evidence from source planning and can only use a registered same-metric cross-spec comparator. Until such a comparator exists, it returns an immediate evidence boundary rather than a retry, fabricated ranking or reused per-spec value. Raider.IO leaders remain tie-safe, and provider streams retain an end-to-end deadline. Candidate and production both passed the real four-turn stream smoke. The independently scheduled source refresh run is recorded as observed, not as release success. Real WeChat acceptance is still required before merge, push or cleanup."
+  "summary": "The source-bounded semantic chain remains general rather than fixed Q&A. A current-strength question with verified comparative evidence, and its consecutive ratio or leader references, directly answer from the same controlled source data; no model is asked to reinterpret rankings. A topic/build boundary stops the inheritance. A cross-spec DPS, Tier or ranking request is a scope escalation: it clears inherited subject evidence from source planning and can only use a registered same-metric cross-spec comparator. Until such a comparator exists, it returns an immediate evidence boundary rather than a retry, fabricated ranking or reused per-spec value. Raider.IO leaders remain tie-safe, and provider streams retain an end-to-end deadline. Candidate and production both passed the real four-turn stream smoke. The independently scheduled source refresh run started before deployment, was not touched by the correction, and later completed with Result=success. Real WeChat acceptance is still required before merge, push or cleanup."
 }
