@@ -8940,6 +8940,39 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(1, jobs)
         self.assertEqual(1, assistants)
 
+    def test_chickenbro_stream_canonicalizes_legacy_action_fields_in_final_response(self):
+        """A provider-side action/reason object must not leak past the public stream contract."""
+        bounded = self.backend.build_chickenbro_bounded_context("冰DK大秘境先排查什么？", {})
+        model_payload = {
+            "answer": "先确认你是否把主爆发留给大波次。",
+            "confidence": "low",
+            "answerLayer": bounded["answerLayer"],
+            "basisLabel": bounded["basisLabel"],
+            "priorityActions": [
+                {
+                    "action": "先确认本轮的可引用证据。",
+                    "reason": "避免把不同场景的结论混在一起。",
+                    "evidenceRefs": [],
+                }
+            ],
+            "evidenceRefs": [],
+            "limitations": [],
+            "missingInputs": [],
+            "nextQuestion": "",
+        }
+
+        events = list(
+            self.backend.stream_chickenbro_message(
+                {"guestId": "legacy-action-stream", "message": "冰DK大秘境先排查什么？"},
+                stream_runner=lambda *_args, **_kwargs: [json.dumps(model_payload, ensure_ascii=False)],
+            )
+        )
+
+        self.assertEqual(
+            events[-1]["response"]["assistantMessage"]["payload"]["priorityActions"],
+            [{"title": "先确认本轮的可引用证据。", "evidenceRefs": []}],
+        )
+
     def test_chickenbro_stream_cancellation_discards_partial_assistant_and_marks_job_cancelled(self):
         bounded = self.backend.build_chickenbro_bounded_context("冰DK大秘境先排查什么？", {})
         payload = {

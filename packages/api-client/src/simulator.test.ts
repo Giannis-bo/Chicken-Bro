@@ -287,6 +287,7 @@ describe('SimulatorClient task contract', () => {
       { ...valid, assistantMessage: { ...valid.assistantMessage, content: null } },
       { ...valid, assistantMessage: { ...valid.assistantMessage, payload: { ...valid.assistantMessage.payload, evidenceRefs: 'simc://task/1' } } },
       { ...valid, assistantMessage: { ...valid.assistantMessage, payload: { ...valid.assistantMessage.payload, priorityActions: [{ title: '', evidenceRefs: [] }] } } },
+      { ...valid, assistantMessage: { ...valid.assistantMessage, payload: { ...valid.assistantMessage.payload, priorityActions: [{ action: '遗留字段', reason: '不是公共契约', evidenceRefs: [] }] } } },
     ]
     const emptyNextQuestion = {
       ...valid,

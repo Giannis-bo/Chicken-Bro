@@ -8644,6 +8644,16 @@ def normalize_chickenbro_model_payload(payload):
     for action in actions:
         if isinstance(action, str) and clean_text(action, 220):
             normalized_actions.append({"title": clean_text(action, 220), "evidenceRefs": []})
+        elif isinstance(action, dict):
+            title = clean_text(
+                action.get("title") or action.get("action") or action.get("summary") or action.get("reason"),
+                220,
+            )
+            evidence_refs = action.get("evidenceRefs")
+            if title and isinstance(evidence_refs, list):
+                normalized_actions.append({"title": title, "evidenceRefs": evidence_refs})
+            else:
+                normalized_actions.append(action)
         else:
             normalized_actions.append(action)
     normalized["priorityActions"] = normalized_actions
@@ -8815,7 +8825,12 @@ def validate_chickenbro_model_output(payload, bounded_context):
     for action in payload.get("priorityActions") or []:
         if not isinstance(action, dict):
             raise ValueError("model_output_invalid: priority action must be object")
-        for ref in action.get("evidenceRefs") or []:
+        if not clean_text(action.get("title"), 220):
+            raise ValueError("model_output_invalid: priority action title required")
+        action_refs = action.get("evidenceRefs")
+        if not isinstance(action_refs, list):
+            raise ValueError("model_output_invalid: priority action evidence refs must be a list")
+        for ref in action_refs:
             if str(ref) not in allowed_refs:
                 raise ValueError("model_output_invalid: unknown action evidence ref")
     allowed_numbers = {
