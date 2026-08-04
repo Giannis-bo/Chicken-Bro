@@ -386,6 +386,7 @@ git commit -m "refactor(websim): seal exact identity and progression"
 - Modify: `tests/simc_item_effect_probe_test.py`
 - Modify: `scripts/simc-item-effect-probe.py`
 - Modify: `tests/simc_item_effect_probe_cli_test.py`
+- Modify: `tests/gear_exact_authority_test.py`（仅将 pre-Task-4 raw Effect fixture callsites 切到显式 legacy helper；不得修改 Envelope assertions 或生产实现）
 
 **Interfaces:**
 
@@ -472,6 +473,8 @@ Expected: raw-dict APIs/current local validators cannot satisfy sealed interface
 删除 effect 模块的 `_canonical_text`、runtime/token/hash duplicates，全部调用 Kernel。Subject 只由 `verified_payload_copy(exact)` 派生；gem signature 使用 canonical JSON hash of `{id, bonusIds, itemLevel}`，不用字符串分隔拼接。
 
 Static/dynamic/unsupported record 都由 `seal_effect_record` 建立；records 是 sealed sequence，caller 不能提交 raw record dict 给 aggregate。
+
+`seal_effect_record` 的 `runtime_revision` 必须是强制 keyword-only 参数，并且只能返回 `CanonicalResult`。为保持 Task 4 尚未迁移时的 frozen Envelope 回归，可保留单独命名的 legacy raw helper，并只把 `tests/gear_exact_authority_test.py` 的旧 fixture callsites 切到该 helper；禁止用 optional argument 或联合返回类型混合两条路径。
 
 - [ ] **Step 6: 实现 Probe 与 CLI 单一路径**
 
