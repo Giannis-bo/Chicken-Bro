@@ -145,6 +145,137 @@ def _set_tokens(value: Any) -> list[str] | None:
     return sorted(set(tokens))
 
 
+def _strict_identifier(value: Any) -> str | None:
+    if not isinstance(value, str) or value != value.strip():
+        return None
+    if any(ord(character) < 32 or ord(character) == 127 for character in value):
+        return None
+    return value if _TOKEN_PATTERN.fullmatch(value) else None
+
+
+def _strict_identifier_list(value: Any, *, ordered: bool) -> list[str] | None:
+    if not isinstance(value, list):
+        return None
+    result: list[str] = []
+    for raw_token in value:
+        token = _strict_identifier(raw_token)
+        if token is None:
+            return None
+        result.append(token)
+    return result if ordered else sorted(set(result))
+
+
+def _strict_level_list(value: Any) -> list[int] | None:
+    if not isinstance(value, list):
+        return None
+    if any(type(level) is not int or not 1 <= level <= 9999 for level in value):
+        return None
+    return list(value)
+
+
+def _strict_enchant(value: Any) -> str | None:
+    if not isinstance(value, str) or value != value.strip():
+        return None
+    if not value:
+        return ""
+    pieces = value.split("/")
+    if any(_strict_identifier(piece) is None for piece in pieces):
+        return None
+    return "/".join(pieces)
+
+
+def _strict_v2_enhancement_selection(raw_selection: Any) -> dict[str, Any]:
+    fields = frozenset({
+        "gemIds", "gemBonusIds", "gemItemLevels", "enchantId",
+        "craftedStats", "embellishmentIds",
+    })
+    if not isinstance(raw_selection, Mapping):
+        return {
+            "status": "blocked",
+            "schemaRevision": ENHANCEMENT_SELECTION_SCHEMA_REVISION,
+            "problemCodes": ["ENHANCEMENT_FIELDS_INVALID"],
+            "problems": [_problem(
+                "ENHANCEMENT_FIELDS_INVALID", "enhancement",
+                "v2 enhancement must be one strict canonical object.",
+            )],
+        }
+    raw = dict(raw_selection)
+    allowed_keys = fields | {"schemaRevision"}
+    if set(raw) not in (fields, allowed_keys) or (
+        "schemaRevision" in raw
+        and raw["schemaRevision"] != ENHANCEMENT_SELECTION_SCHEMA_REVISION
+    ):
+        return {
+            "status": "blocked",
+            "schemaRevision": ENHANCEMENT_SELECTION_SCHEMA_REVISION,
+            "problemCodes": ["ENHANCEMENT_FIELDS_INVALID"],
+            "problems": [_problem(
+                "ENHANCEMENT_FIELDS_INVALID", "enhancement",
+                "v2 enhancement fields and schema revision must be exact.",
+            )],
+        }
+
+    gem_ids = _strict_identifier_list(raw.get("gemIds"), ordered=True)
+    gem_bonus_ids = _strict_identifier_list(raw.get("gemBonusIds"), ordered=True)
+    gem_item_levels = _strict_level_list(raw.get("gemItemLevels"))
+    crafted_stats = _strict_identifier_list(raw.get("craftedStats"), ordered=False)
+    embellishment_ids = _strict_identifier_list(raw.get("embellishmentIds"), ordered=False)
+    enchant_id = _strict_enchant(raw.get("enchantId"))
+    values = (
+        (gem_ids, "gemIds"), (gem_bonus_ids, "gemBonusIds"),
+        (gem_item_levels, "gemItemLevels"),
+        (crafted_stats, "craftedStats"),
+        (embellishment_ids, "embellishmentIds"),
+        (enchant_id, "enchantId"),
+    )
+    problems = [
+        _problem(
+            "ENHANCEMENT_VALUE_NON_CANONICAL", f"enhancement.{field}",
+            f"{field} must use its strict canonical v2 type and value bounds.",
+        )
+        for value, field in values if value is None
+    ]
+    if gem_ids is not None and gem_bonus_ids is not None and (
+        gem_bonus_ids and len(gem_bonus_ids) != len(gem_ids)
+    ):
+        problems.append(_problem(
+            "ENHANCEMENT_GEM_SEQUENCE_MISMATCH", "enhancement.gemBonusIds",
+            "gemBonusIds must be empty or match gemIds cardinality.",
+        ))
+    if gem_ids is not None and gem_item_levels is not None and (
+        gem_item_levels and len(gem_item_levels) != len(gem_ids)
+    ):
+        problems.append(_problem(
+            "ENHANCEMENT_GEM_SEQUENCE_MISMATCH", "enhancement.gemItemLevels",
+            "gemItemLevels must be empty or match gemIds cardinality.",
+        ))
+    if problems:
+        return {
+            "status": "blocked",
+            "schemaRevision": ENHANCEMENT_SELECTION_SCHEMA_REVISION,
+            "problemCodes": sorted({problem["code"] for problem in problems}),
+            "problems": problems,
+        }
+
+    selection = _enhancement_identity({
+        "gemIds": gem_ids, "gemBonusIds": gem_bonus_ids,
+        "gemItemLevels": gem_item_levels, "enchantId": enchant_id,
+        "craftedStats": crafted_stats, "embellishmentIds": embellishment_ids,
+    })
+    key = _hash("enhancement-selection:sha256:", selection)
+    return {
+        "status": "verified",
+        "schemaRevision": ENHANCEMENT_SELECTION_SCHEMA_REVISION,
+        "enhancementSelectionKey": key,
+        "selection": selection,
+        "rowHash": "sha256:" + hashlib.sha256(_canonical_bytes({
+            "enhancementSelectionKey": key, "selection": selection,
+        })).hexdigest(),
+        "problemCodes": [],
+        "problems": [],
+    }
+
+
 def _static_facts(value: Any) -> dict[str, int | float] | None:
     if not isinstance(value, Mapping) or not value:
         return None
@@ -316,14 +447,19 @@ def build_exact_item_identity(
     for field in sorted(required_fields.difference(row)):
         problems.append(_problem("EXACT_FIELD_MISSING", f"exactRow.{field}", "Every v2 Exact slot field is required."))
     raw_item_id = row.get("itemId")
-    item_id = _text(raw_item_id)
+    item_id = _strict_identifier(raw_item_id)
     raw_item_level = row.get("declaredItemLevel")
-    item_level = raw_item_level if isinstance(raw_item_level, int) and not isinstance(raw_item_level, bool) and raw_item_level > 0 else 0
-    bonus_ids = _set_tokens(row.get("bonusIds"))
+    item_level = raw_item_level if type(raw_item_level) is int and 1 <= raw_item_level <= 9999 else 0
+    bonus_ids = _strict_identifier_list(row.get("bonusIds"), ordered=False)
     raw_context = row.get("context")
-    context = raw_context.strip() if isinstance(raw_context, str) and "\n" not in raw_context and len(raw_context.encode("utf-8")) <= 256 else None
-    redirected_base_stats = _set_tokens(row.get("redirectedBaseStats"))
-    if not isinstance(raw_item_id, str) or not _TOKEN_PATTERN.fullmatch(item_id):
+    context = raw_context if (
+        isinstance(raw_context, str)
+        and raw_context == raw_context.strip()
+        and len(raw_context.encode("utf-8")) <= 256
+        and not any(ord(character) < 32 or ord(character) == 127 for character in raw_context)
+    ) else None
+    redirected_base_stats = _strict_identifier_list(row.get("redirectedBaseStats"), ordered=False)
+    if item_id is None:
         problems.append(_problem("EXACT_ITEM_ID_MISSING", "exactRow.itemId", "Exact identity requires itemId."))
     if not item_level:
         problems.append(_problem("EXACT_ILEVEL_MISSING", "exactRow.declaredItemLevel", "Exact identity requires a positive declared item level."))
@@ -336,16 +472,6 @@ def build_exact_item_identity(
     if redirected_base_stats is None:
         problems.append(_problem("EXACT_REDIRECTED_BASE_STATS_MALFORMED", "exactRow.redirectedBaseStats", "redirectedBaseStats must be a bounded token sequence."))
         redirected_base_stats = []
-    for field in ("bonusIds", "gemIds", "gemBonusIds", "gemItemLevels", "craftedStats", "embellishmentIds", "redirectedBaseStats"):
-        if field in row and not isinstance(row.get(field), list):
-            problems.append(_problem("EXACT_FIELD_TYPE_INVALID", f"exactRow.{field}", "v2 Exact token fields must be arrays."))
-    for field in ("bonusIds", "gemIds", "gemBonusIds", "craftedStats", "embellishmentIds", "redirectedBaseStats"):
-        if isinstance(row.get(field), list) and any(not isinstance(value, str) or not _TOKEN_PATTERN.fullmatch(value.strip()) for value in row[field]):
-            problems.append(_problem("EXACT_FIELD_TYPE_INVALID", f"exactRow.{field}", "v2 Exact identifiers must be bounded strings."))
-    if isinstance(row.get("gemItemLevels"), list) and any(not isinstance(value, int) or isinstance(value, bool) or value <= 0 for value in row["gemItemLevels"]):
-        problems.append(_problem("EXACT_FIELD_TYPE_INVALID", "exactRow.gemItemLevels", "gemItemLevels must contain positive integers."))
-    if not isinstance(row.get("enchantId"), str):
-        problems.append(_problem("EXACT_FIELD_TYPE_INVALID", "exactRow.enchantId", "enchantId must be a string."))
     direct_selection_input = {
         "gemIds": row.get("gemIds"),
         "gemBonusIds": row.get("gemBonusIds"),
@@ -354,11 +480,11 @@ def build_exact_item_identity(
         "craftedStats": row.get("craftedStats"),
         "embellishmentIds": row.get("embellishmentIds"),
     }
-    selection_result = canonical_enhancement_selection(direct_selection_input)
+    selection_result = _strict_v2_enhancement_selection(direct_selection_input)
     if selection_result.get("status") != "verified":
         problems.extend(selection_result.get("problems") or [])
     if enhancement_selection is not None:
-        override_result = canonical_enhancement_selection(enhancement_selection)
+        override_result = _strict_v2_enhancement_selection(enhancement_selection)
         if override_result.get("status") != "verified":
             problems.extend(override_result.get("problems") or [])
         elif selection_result.get("status") == "verified" and override_result.get("selection") != selection_result.get("selection"):

@@ -1,7 +1,11 @@
 import unittest
 import hashlib
 
-from server.simc_item_effect_support import resolve_exact_item_effect_support
+from server.simc_item_effect_support import (
+    resolve_exact_item_effect_support,
+    valid_effect_tokens,
+    valid_runtime_revision,
+)
 from server.simc_item_effect_support import seal_effect_record
 
 
@@ -166,3 +170,12 @@ class SimcItemEffectSupportTest(unittest.TestCase):
         bad = seal_effect_record({**{field: subject[field] for field in ("subjectKind", "subjectKey", "subjectVariantSignature")}, "schemaRevision": "simc-item-effect-record-v1", "status": "verified", "hasDynamicEffect": True, "simcRuntimeRevision": "", "effectType": "on_use", "experimentSnapshotKey": "simulation-snapshot:sha256:" + ("4" * 64), "controlSnapshotKey": "simulation-snapshot:sha256:" + ("5" * 64), "expectedActionTokens": ["bad\ntoken"], "expectedBuffTokens": ["buff"], "verifiedAt": "2026-08-04T00:00:00Z"})
         result = resolve_exact_item_effect_support(ITEM, runtime_revision="", support_records=[bad])
         self.assertEqual(result["status"], "unknown")
+
+    def test_runtime_and_effect_token_limits_apply_to_raw_untrimmed_bytes(self):
+        for runtime in (f" {RUNTIME}", f"{RUNTIME} ", f"{RUNTIME}\n", (" " * 2000) + RUNTIME):
+            self.assertFalse(valid_runtime_revision(runtime), runtime)
+        for tokens in (
+            [" action"], ["action "], ["action\n"],
+            [(" " * 10000) + "action"],
+        ):
+            self.assertFalse(valid_effect_tokens(tokens), tokens)

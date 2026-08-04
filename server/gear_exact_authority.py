@@ -10,10 +10,10 @@ import re
 from typing import Any, Mapping
 
 try:
-    from .gear_exact_item_instance import canonical_enhancement_selection
+    from .gear_exact_item_instance import build_exact_item_identity
     from .simc_item_effect_support import effect_support_key, resolve_exact_item_effect_support, validate_effect_record
 except ImportError:
-    from gear_exact_item_instance import canonical_enhancement_selection
+    from gear_exact_item_instance import build_exact_item_identity
     from simc_item_effect_support import effect_support_key, resolve_exact_item_effect_support, validate_effect_record
 
 
@@ -24,6 +24,7 @@ _EXACT_OUTPUT_KEYS = frozenset({"status", "schemaRevision", "exactItemInstanceKe
 _STATIC_KEYS = frozenset({"schemaRevision", "exactItemInstanceKey", "facts"})
 _PROGRESSION_KEYS = frozenset({"schemaRevision", "exactItemInstanceKey", "gearRuleRevision", "progressionState", "progressionBindingKey"})
 _SERIALIZER_FIELDS = frozenset({"id", "ilevel", "bonus_id", "gem_id", "gem_bonus_id", "gem_ilevel", "enchant_id", "crafted_stats", "embellishment"})
+_TOKEN_PATTERN = re.compile(r"^[A-Za-z0-9_.:-]{1,256}$")
 
 
 def _canonical(value: Any) -> bytes:
@@ -49,21 +50,35 @@ def _contains_forbidden(value: Any) -> bool:
 def _valid_exact(exact: Mapping[str, Any]) -> bool:
     if set(exact) != _EXACT_OUTPUT_KEYS or exact.get("schemaRevision") != "gear-exact-item-instance-v2" or exact.get("status") != "verified":
         return False
-    if not _EXACT_KEY_PATTERN.fullmatch(str(exact.get("exactItemInstanceKey") or "")):
-        return False
-    if not isinstance(exact.get("itemId"), str) or not isinstance(exact.get("itemLevel"), int) or isinstance(exact.get("itemLevel"), bool):
-        return False
-    if not isinstance(exact.get("bonusIds"), list) or not isinstance(exact.get("redirectedBaseStats"), list) or not isinstance(exact.get("enhancementSelection"), Mapping) or exact.get("problemCodes") != [] or exact.get("problems") != []:
-        return False
     try:
-        enhancement = canonical_enhancement_selection(exact["enhancementSelection"])
-        if enhancement.get("status") != "verified" or exact.get("enhancementSelection") != enhancement.get("selection") or exact.get("enhancementSelectionKey") != enhancement.get("enhancementSelectionKey"):
+        selection = exact["enhancementSelection"]
+        if not isinstance(selection, Mapping):
             return False
-        variant = {"itemId": exact["itemId"], "bonusIds": exact["bonusIds"], "context": exact["context"], "itemLevel": exact["itemLevel"], "redirectedBaseStats": exact["redirectedBaseStats"]}
-        instance = {"schemaRevision": "gear-exact-item-instance-v2", **variant, "enhancementSelection": exact["enhancementSelection"]}
-        return exact.get("serializerInput") == _expected_serializer(exact) and exact.get("exactVariantSignature") == _hash("exact-variant:sha256:", variant) and exact.get("exactItemInstanceKey") == _hash("exact-item-instance:sha256:", instance)
+        rebuilt = build_exact_item_identity({}, {
+            "itemId": exact["itemId"],
+            "declaredItemLevel": exact["itemLevel"],
+            "bonusIds": exact["bonusIds"],
+            "context": exact["context"],
+            "gemIds": selection["gemIds"],
+            "gemBonusIds": selection["gemBonusIds"],
+            "gemItemLevels": selection["gemItemLevels"],
+            "enchantId": selection["enchantId"],
+            "craftedStats": selection["craftedStats"],
+            "embellishmentIds": selection["embellishmentIds"],
+            "redirectedBaseStats": exact["redirectedBaseStats"],
+        })
+        return rebuilt.get("status") == "verified" and dict(exact) == rebuilt
     except (KeyError, TypeError, ValueError):
         return False
+
+
+def _valid_token(value: Any) -> bool:
+    return (
+        isinstance(value, str)
+        and value == value.strip()
+        and _TOKEN_PATTERN.fullmatch(value) is not None
+        and not any(ord(character) < 32 or ord(character) == 127 for character in value)
+    )
 
 
 def _expected_serializer(exact: Mapping[str, Any]) -> dict[str, str]:
@@ -83,6 +98,7 @@ def _valid_static_facts(value: Any, exact_key: str) -> bool:
         and value.get("schemaRevision") == "exact-static-facts-v1"
         and value.get("exactItemInstanceKey") == exact_key
         and isinstance(value.get("facts"), Mapping) and bool(value["facts"])
+        and all(_valid_token(key) for key in value["facts"])
         and all(isinstance(amount, (int, float)) and not isinstance(amount, bool) and math.isfinite(amount) for amount in value["facts"].values())
     )
 
@@ -92,16 +108,16 @@ def _valid_progression_state(value: Any) -> bool:
         return False
     kind = value.get("kind")
     if kind == "upgrade_track":
-        return set(value) == {"kind", "trackKey", "rank", "maxRank"} and isinstance(value.get("trackKey"), str) and isinstance(value.get("rank"), int) and not isinstance(value.get("rank"), bool) and 1 <= value["rank"] <= 6 and value.get("maxRank") == 6
+        return set(value) == {"kind", "trackKey", "rank", "maxRank"} and value.get("trackKey") in {"champion", "hero", "myth"} and type(value.get("rank")) is int and 1 <= value["rank"] <= 6 and value.get("maxRank") == 6
     if kind == "crafted_quality":
-        return set(value) == {"kind", "trackKey", "qualityKey"} and all(isinstance(value.get(field), str) and value[field] for field in ("trackKey", "qualityKey"))
+        return set(value) == {"kind", "trackKey", "qualityKey"} and value.get("trackKey") == "myth" and value.get("qualityKey") == "radiance_max"
     if kind == "ascendant":
-        return set(value) == {"kind", "trackKey", "originKind"} and isinstance(value.get("trackKey"), str) and isinstance(value.get("originKind"), str) and value["trackKey"] and value["originKind"]
+        return set(value) == {"kind", "trackKey", "originKind"} and value.get("trackKey") == "void_upgrade" and value.get("originKind") in {"upgrade_track", "crafted_quality"}
     return False
 
 
 def _valid_progression(value: Any, exact_key: str) -> bool:
-    if not isinstance(value, Mapping) or set(value) != _PROGRESSION_KEYS or value.get("schemaRevision") != "exact-progression-binding-v1" or value.get("exactItemInstanceKey") != exact_key or not isinstance(value.get("gearRuleRevision"), str) or not value["gearRuleRevision"] or not _valid_progression_state(value.get("progressionState")):
+    if not isinstance(value, Mapping) or set(value) != _PROGRESSION_KEYS or value.get("schemaRevision") != "exact-progression-binding-v1" or value.get("exactItemInstanceKey") != exact_key or not _valid_token(value.get("gearRuleRevision")) or not _valid_progression_state(value.get("progressionState")):
         return False
     payload = {key: value[key] for key in _PROGRESSION_KEYS if key != "progressionBindingKey"}
     return _PROGRESSION_KEY_PATTERN.fullmatch(str(value.get("progressionBindingKey") or "")) is not None and value["progressionBindingKey"] == _hash("exact-progression:sha256:", payload)
@@ -143,9 +159,9 @@ def build_exact_authority_envelope(*, exact_item: Any, static_facts: Any, serial
         return _blocked("EXACT_AUTHORITY_PROGRESSION_BINDING_MISSING")
     if not _valid_effect_support(exact_item, effect_support):
         return _blocked("EXACT_AUTHORITY_EFFECT_SUPPORT_NOT_READY")
-    if not isinstance(resolver_revision, str) or not resolver_revision.strip():
+    if not _valid_token(resolver_revision):
         return _blocked("EXACT_AUTHORITY_REVISION_MISSING")
-    payload = {"schemaRevision": "exact-authority-envelope-v1", "exactItem": exact_item, "staticFacts": static_facts, "serializerInput": serializer_input, "progressionBinding": progression_binding, "effectSupport": effect_support, "resolverRevision": resolver_revision.strip()}
+    payload = {"schemaRevision": "exact-authority-envelope-v1", "exactItem": exact_item, "staticFacts": static_facts, "serializerInput": serializer_input, "progressionBinding": progression_binding, "effectSupport": effect_support, "resolverRevision": resolver_revision}
     return {"schemaRevision": "exact-authority-envelope-v1", "status": "ready", "exactAuthorityKey": _hash("exact-authority:sha256:", payload), "canonicalPayload": json.loads(_canonical(payload))}
 
 

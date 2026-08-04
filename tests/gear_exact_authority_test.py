@@ -1,5 +1,6 @@
 import copy
 import hashlib
+import json
 import unittest
 
 from server.gear_exact_authority import build_exact_authority_envelope
@@ -17,6 +18,64 @@ SERIALIZER = EXACT["serializerInput"]
 PROGRESSION_PAYLOAD = {"schemaRevision": "exact-progression-binding-v1", "exactItemInstanceKey": EXACT["exactItemInstanceKey"], "gearRuleRevision": "gear-rule-matrix-v1", "progressionState": {"kind": "upgrade_track", "trackKey": "hero", "rank": 3, "maxRank": 6}}
 PROGRESSION = {**PROGRESSION_PAYLOAD, "progressionBindingKey": "exact-progression:sha256:" + hashlib.sha256(__import__("json").dumps(PROGRESSION_PAYLOAD, sort_keys=True, separators=(",", ":")).encode()).hexdigest()}
 EFFECT = resolve_exact_item_effect_support(EXACT, runtime_revision=RUNTIME, support_records=[seal_effect_record({"schemaRevision": "simc-item-effect-authority-v1", "subjectKind": "item", "subjectKey": "1001", "subjectVariantSignature": EXACT["exactVariantSignature"], "hasDynamicEffect": False, "simcRuntimeRevision": RUNTIME, "verifiedAt": "2026-08-04T00:00:00Z"})])
+
+
+def content_key(prefix, payload):
+    return prefix + hashlib.sha256(
+        json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+
+
+def reconstructed_exact(**changes):
+    exact = copy.deepcopy(EXACT)
+    exact.update(changes)
+    variant = {
+        "itemId": exact["itemId"], "bonusIds": exact["bonusIds"],
+        "context": exact["context"], "itemLevel": exact["itemLevel"],
+        "redirectedBaseStats": exact["redirectedBaseStats"],
+    }
+    exact["exactVariantSignature"] = content_key("exact-variant:sha256:", variant)
+    exact["exactItemInstanceKey"] = content_key(
+        "exact-item-instance:sha256:",
+        {"schemaRevision": "gear-exact-item-instance-v2", **variant,
+         "enhancementSelection": exact["enhancementSelection"]},
+    )
+    exact["serializerInput"] = {**exact["serializerInput"], "id": exact["itemId"], "ilevel": str(exact["itemLevel"])}
+    if "bonusIds" in changes:
+        exact["serializerInput"]["bonus_id"] = "/".join(str(value) for value in exact["bonusIds"])
+    return exact
+
+
+def authority_inputs(exact, *, facts=None, progression_state=None):
+    static = {
+        "schemaRevision": "exact-static-facts-v1",
+        "exactItemInstanceKey": exact["exactItemInstanceKey"],
+        "facts": {"haste_rating": 241} if facts is None else facts,
+    }
+    state = progression_state or {"kind": "upgrade_track", "trackKey": "hero", "rank": 3, "maxRank": 6}
+    progression_payload = {
+        "schemaRevision": "exact-progression-binding-v1",
+        "exactItemInstanceKey": exact["exactItemInstanceKey"],
+        "gearRuleRevision": "gear-rule-matrix-v1",
+        "progressionState": state,
+    }
+    progression = {
+        **progression_payload,
+        "progressionBindingKey": content_key("exact-progression:sha256:", progression_payload),
+    }
+    subject = {
+        "schemaRevision": "simc-item-effect-authority-v1",
+        "subjectKind": "item",
+        "subjectKey": str(exact["itemId"]).strip(),
+        "subjectVariantSignature": exact["exactVariantSignature"],
+        "hasDynamicEffect": False,
+        "simcRuntimeRevision": RUNTIME,
+        "verifiedAt": "2026-08-04T00:00:00Z",
+    }
+    effect = resolve_exact_item_effect_support(
+        exact, runtime_revision=RUNTIME, support_records=[seal_effect_record(subject)],
+    )
+    return static, exact["serializerInput"], progression, effect
 
 
 class GearExactAuthorityTest(unittest.TestCase):
@@ -94,3 +153,46 @@ class GearExactAuthorityTest(unittest.TestCase):
         for fields in cases:
             result = build_exact_authority_envelope(**{"exact_item": EXACT, "static_facts": STATIC, "serializer_input": SERIALIZER, "progression_binding": PROGRESSION, "effect_support": EFFECT, "resolver_revision": "resolver-v2", **fields})
             self.assertEqual(result["status"], "blocked")
+
+    def test_envelope_rejects_reconstructed_noncanonical_exact_values_even_with_fresh_hashes(self):
+        for exact in (
+            reconstructed_exact(itemLevel=-1),
+            reconstructed_exact(context="heroic\nforged"),
+            reconstructed_exact(itemId=" 1001 "),
+            reconstructed_exact(bonusIds=("13334",)),
+        ):
+            static, serializer, progression, effect = authority_inputs(exact)
+            result = build_exact_authority_envelope(
+                exact_item=exact, static_facts=static, serializer_input=serializer,
+                progression_binding=progression, effect_support=effect,
+                resolver_revision="resolver-v2",
+            )
+            self.assertEqual(result["status"], "blocked", exact)
+
+    def test_envelope_rejects_noncanonical_static_fact_keys(self):
+        for facts in (
+            {1: 241}, {"": 241}, {" haste_rating": 241},
+            {"haste_rating ": 241}, {"haste\nrating": 241},
+        ):
+            static, serializer, progression, effect = authority_inputs(EXACT, facts=facts)
+            result = build_exact_authority_envelope(
+                exact_item=EXACT, static_facts=static, serializer_input=serializer,
+                progression_binding=progression, effect_support=effect,
+                resolver_revision="resolver-v2",
+            )
+            self.assertEqual(result["status"], "blocked", facts)
+
+    def test_envelope_rejects_empty_or_invalid_progression_discriminator_combinations(self):
+        for state in (
+            {"kind": "upgrade_track", "trackKey": "", "rank": 3, "maxRank": 6},
+            {"kind": "upgrade_track", "trackKey": " hero ", "rank": 3, "maxRank": 6},
+            {"kind": "crafted_quality", "trackKey": "hero", "qualityKey": "radiance_max"},
+            {"kind": "ascendant", "trackKey": "void_upgrade", "originKind": "arbitrary"},
+        ):
+            static, serializer, progression, effect = authority_inputs(EXACT, progression_state=state)
+            result = build_exact_authority_envelope(
+                exact_item=EXACT, static_facts=static, serializer_input=serializer,
+                progression_binding=progression, effect_support=effect,
+                resolver_revision="resolver-v2",
+            )
+            self.assertEqual(result["status"], "blocked", state)

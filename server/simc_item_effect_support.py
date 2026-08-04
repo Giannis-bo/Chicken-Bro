@@ -31,6 +31,18 @@ def _text(value: Any) -> str:
     return value.strip() if isinstance(value, str) else ""
 
 
+def _canonical_text(value: Any, *, max_bytes: int = 256, allow_empty: bool = False) -> str | None:
+    if not isinstance(value, str) or value != value.strip():
+        return None
+    if not allow_empty and not value:
+        return None
+    if len(value.encode("utf-8")) > max_bytes:
+        return None
+    if any(ord(character) < 32 or ord(character) == 127 for character in value):
+        return None
+    return value
+
+
 def _signature_token(value: Any) -> str:
     if isinstance(value, bool):
         return ""
@@ -60,8 +72,8 @@ def seal_effect_record(record: Mapping[str, Any]) -> dict[str, Any]:
 
 
 def _valid_timestamp(value: Any) -> bool:
-    text = _text(value)
-    if not text.endswith("Z") or "\n" in text:
+    text = _canonical_text(value, max_bytes=64)
+    if text is None or not text.endswith("Z"):
         return False
     try:
         return datetime.fromisoformat(text[:-1] + "+00:00").tzinfo is not None
@@ -69,32 +81,33 @@ def _valid_timestamp(value: Any) -> bool:
         return False
 
 
-def _tokens(value: Any) -> bool:
-    if not isinstance(value, list) or not value or len(value) > _MAX_EFFECT_TOKENS:
+def _tokens(value: Any, *, allow_empty: bool = False) -> bool:
+    if not isinstance(value, list) or (not allow_empty and not value) or len(value) > _MAX_EFFECT_TOKENS:
         return False
     total = 0
     for token in value:
-        text = _text(token)
-        encoded = text.encode("utf-8")
-        if not _EFFECT_TOKEN_PATTERN.fullmatch(text) or len(encoded) > _MAX_EFFECT_TOKEN_BYTES:
+        text = _canonical_text(token, max_bytes=_MAX_EFFECT_TOKEN_BYTES)
+        if text is None or not _EFFECT_TOKEN_PATTERN.fullmatch(text):
             return False
+        encoded = token.encode("utf-8")
         total += len(encoded)
     return total <= _MAX_EFFECT_SEQUENCE_BYTES
 
 
 def valid_runtime_revision(value: Any) -> bool:
-    return bool(_RUNTIME_PATTERN.fullmatch(_text(value)))
+    text = _canonical_text(value, max_bytes=256)
+    return text is not None and _RUNTIME_PATTERN.fullmatch(text) is not None
 
 
-def valid_effect_tokens(value: Any) -> bool:
-    return _tokens(value)
+def valid_effect_tokens(value: Any, *, allow_empty: bool = False) -> bool:
+    return _tokens(value, allow_empty=allow_empty)
 
 
 def _valid_subject(record: Mapping[str, Any]) -> bool:
     return (
-        _text(record.get("subjectKind")) in EFFECT_SUBJECT_KINDS
-        and bool(_text(record.get("subjectKey")))
-        and bool(_text(record.get("subjectVariantSignature")))
+        record.get("subjectKind") in EFFECT_SUBJECT_KINDS
+        and _canonical_text(record.get("subjectKey")) is not None
+        and _canonical_text(record.get("subjectVariantSignature")) is not None
     )
 
 
@@ -111,10 +124,10 @@ def _valid_record_key(record: Mapping[str, Any]) -> bool:
 def _valid_static(record: Mapping[str, Any], runtime: str) -> bool:
     return (
         set(record) == _STATIC_KEYS
-        and _text(record.get("schemaRevision")) == "simc-item-effect-authority-v1"
+        and record.get("schemaRevision") == "simc-item-effect-authority-v1"
         and record.get("hasDynamicEffect") is False
         and valid_runtime_revision(runtime)
-        and _text(record.get("simcRuntimeRevision")) == runtime
+        and record.get("simcRuntimeRevision") == runtime
         and _valid_subject(record)
         and _valid_timestamp(record.get("verifiedAt"))
         and _valid_record_key(record)
@@ -124,13 +137,13 @@ def _valid_static(record: Mapping[str, Any], runtime: str) -> bool:
 def _valid_dynamic(record: Mapping[str, Any], runtime: str) -> bool:
     return (
         set(record) == _DYNAMIC_KEYS
-        and _text(record.get("schemaRevision")) == "simc-item-effect-record-v1"
-        and _text(record.get("status")) == "verified"
+        and record.get("schemaRevision") == "simc-item-effect-record-v1"
+        and record.get("status") == "verified"
         and record.get("hasDynamicEffect") is True
         and valid_runtime_revision(runtime)
-        and _text(record.get("simcRuntimeRevision")) == runtime
+        and record.get("simcRuntimeRevision") == runtime
         and _valid_subject(record)
-        and _text(record.get("effectType")) in _EFFECT_TYPES
+        and record.get("effectType") in _EFFECT_TYPES
         and _tokens(record.get("expectedActionTokens"))
         and _tokens(record.get("expectedBuffTokens"))
         and bool(_SNAPSHOT_KEY_PATTERN.fullmatch(_text(record.get("experimentSnapshotKey"))))
@@ -144,13 +157,13 @@ def _valid_dynamic(record: Mapping[str, Any], runtime: str) -> bool:
 def _valid_unsupported(record: Mapping[str, Any], runtime: str) -> bool:
     return (
         set(record) == _UNSUPPORTED_KEYS
-        and _text(record.get("schemaRevision")) == "simc-item-effect-record-v1"
-        and _text(record.get("status")) == "unsupported"
+        and record.get("schemaRevision") == "simc-item-effect-record-v1"
+        and record.get("status") == "unsupported"
         and record.get("hasDynamicEffect") is True
         and valid_runtime_revision(runtime)
-        and _text(record.get("simcRuntimeRevision")) == runtime
+        and record.get("simcRuntimeRevision") == runtime
         and _valid_subject(record)
-        and bool(_text(record.get("unsupportedReason")))
+        and _canonical_text(record.get("unsupportedReason")) is not None
         and _valid_timestamp(record.get("verifiedAt"))
         and _valid_record_key(record)
     )
@@ -202,7 +215,7 @@ def validate_effect_record(record: Any, *, runtime_revision: str) -> bool:
 
     if not isinstance(record, Mapping):
         return False
-    runtime = _text(runtime_revision)
+    runtime = runtime_revision if isinstance(runtime_revision, str) else ""
     return _valid_static(record, runtime) or _valid_dynamic(record, runtime) or _valid_unsupported(record, runtime)
 
 

@@ -190,6 +190,50 @@ class GearExactItemInstanceTest(unittest.TestCase):
         ):
             self.assertEqual(build_exact_item_identity(CURRENT_BINDING, row)["status"], "blocked")
 
+    def test_v2_enhancement_override_rejects_every_noncanonical_identifier_shape(self):
+        base = exact_v2_row()
+        fields = (
+            "gemIds", "gemBonusIds", "gemItemLevels", "enchantId",
+            "craftedStats", "embellishmentIds",
+        )
+        identifier_fields = ("gemIds", "gemBonusIds", "craftedStats", "embellishmentIds")
+        for field in identifier_fields:
+            original = base[field]
+            for replacement in (
+                [1001, *original[1:]],
+                [True, *original[1:]],
+                tuple(original),
+                [f" {original[0]} ", *original[1:]],
+                [f"{original[0]}\n", *original[1:]],
+            ):
+                override = {name: copy.deepcopy(base[name]) for name in fields}
+                override[field] = replacement
+                result = build_exact_item_identity(
+                    CURRENT_BINDING, base, enhancement_selection=override,
+                )
+                self.assertEqual(result["status"], "blocked", (field, replacement))
+
+        for replacement in ([10000, 90], [True, 90], ["90", 90], (90, 90)):
+            override = {name: copy.deepcopy(base[name]) for name in fields}
+            override["gemItemLevels"] = replacement
+            result = build_exact_item_identity(
+                CURRENT_BINDING, base, enhancement_selection=override,
+            )
+            self.assertEqual(result["status"], "blocked", replacement)
+
+    def test_v2_direct_strings_and_levels_must_already_be_canonical_and_bounded(self):
+        for row in (
+            exact_v2_row(itemId=" 1001 "),
+            exact_v2_row(itemId="1001\n"),
+            exact_v2_row(context=" heroic "),
+            exact_v2_row(context="heroic\nforged"),
+            exact_v2_row(gemIds=[" 240892 ", "240897"]),
+            exact_v2_row(gemIds=["240892\n", "240897"]),
+            exact_v2_row(declaredItemLevel=10000),
+            exact_v2_row(gemItemLevels=[10000, 90]),
+        ):
+            self.assertEqual(build_exact_item_identity(CURRENT_BINDING, row)["status"], "blocked", row)
+
     def test_v1_catalog_wrapper_remains_byte_and_key_compatible(self):
         built = build_exact_item_instance(
             CURRENT_BINDING,

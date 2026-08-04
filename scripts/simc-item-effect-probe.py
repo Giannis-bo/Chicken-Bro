@@ -13,6 +13,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from server.simc_item_effect_probe import evaluate_effect_probe  # noqa: E402
+from server.simc_item_effect_support import valid_runtime_revision  # noqa: E402
 
 
 def _read(path: str) -> object:
@@ -29,10 +30,12 @@ def main(argv: list[str] | None = None) -> int:
     manifest = _read(args.manifest)
     experiment = _read(args.experiment_report)
     control = _read(args.control_report)
-    runtime = str(args.runtime_revision or "").strip()
+    runtime = args.runtime_revision
     if not isinstance(manifest, dict) or not isinstance(experiment, dict) or not isinstance(control, dict):
         return 1
-    if runtime != str(manifest.get("simcRuntimeRevision") or "").strip() or runtime != str(experiment.get("runtimeRevision") or "").strip() or runtime != str(control.get("runtimeRevision") or "").strip():
+    if not valid_runtime_revision(runtime):
+        return 1
+    if runtime != manifest.get("simcRuntimeRevision") or runtime != experiment.get("runtimeRevision") or runtime != control.get("runtimeRevision"):
         return 1
     result = evaluate_effect_probe(manifest, experiment, control)
     if result.get("status") != "verified":

@@ -82,3 +82,27 @@ class SimcItemEffectProbeTest(unittest.TestCase):
             ({**MANIFEST, "expectedActionTokens": ["x" * 129] * 32}, EXPERIMENT, CONTROL),
         ):
             self.assertEqual(evaluate_effect_probe(manifest, experiment, control)["status"], "unknown")
+
+    def test_probe_rejects_padded_manifest_values_and_malformed_report_types(self):
+        padded_runtime = f" {RUNTIME} "
+        for manifest, experiment, control in (
+            (
+                {**MANIFEST, "simcRuntimeRevision": padded_runtime},
+                {**EXPERIMENT, "runtimeRevision": padded_runtime},
+                {**CONTROL, "runtimeRevision": padded_runtime},
+            ),
+            (
+                {**MANIFEST, "expectedActionTokens": [(" " * 10000) + "Thunderclap"]},
+                EXPERIMENT,
+                CONTROL,
+            ),
+            (MANIFEST, {**EXPERIMENT, "warnings": ""}, CONTROL),
+            (MANIFEST, {**EXPERIMENT, "timedOut": 0}, CONTROL),
+            (MANIFEST, {**EXPERIMENT, "actions": [" Thunderclap "]}, CONTROL),
+            (MANIFEST, EXPERIMENT, {**CONTROL, "buffs": ()}),
+        ):
+            self.assertEqual(
+                evaluate_effect_probe(manifest, experiment, control)["status"],
+                "unknown",
+                (manifest, experiment, control),
+            )
