@@ -673,13 +673,10 @@ def resolve_exact_effect_support(
             "effectSupport.records",
             "Supply a list or tuple of sealed effect records.",
         )
-    expected_positions = {
-        _subject_identity(subject): index for index, subject in enumerate(subjects)
-    }
-    record_by_subject: dict[
-        tuple[str, str, str], tuple[SealedCanonicalDocument, dict[str, object]]
-    ] = {}
-    previous_position = -1
+    expected_identities = [_subject_identity(subject) for subject in subjects]
+    matched_records: list[
+        tuple[SealedCanonicalDocument, dict[str, object]]
+    ] = []
     for index, document in enumerate(records):
         if not verify_effect_record(document, runtime_revision=runtime):
             return _unknown(
@@ -698,42 +695,50 @@ def resolve_exact_effect_support(
                 "Regenerate the record from the current governed runtime.",
             )
         identity = _record_subject_identity(payload)
-        position = expected_positions.get(identity)
-        if position is None:
+        if index >= len(expected_identities):
+            code = (
+                "DUPLICATE_EFFECT_RECORD"
+                if identity in expected_identities
+                else "UNEXPECTED_EFFECT_RECORD"
+            )
+            return _unknown(
+                code,
+                f"effectSupport.records[{index}]",
+                "Supply exactly one record for each Exact-derived subject position.",
+            )
+        if identity == expected_identities[index]:
+            matched_records.append((document, payload))
+            continue
+        if identity not in expected_identities:
             return _unknown(
                 "UNEXPECTED_EFFECT_RECORD",
                 f"effectSupport.records[{index}]",
                 "Supply records only for subjects derived from this Exact item.",
             )
-        if identity in record_by_subject:
-            return _unknown(
-                "DUPLICATE_EFFECT_RECORD",
-                f"effectSupport.records[{index}]",
-                "Supply exactly one record for each required effect subject.",
-            )
-        if position <= previous_position:
+        if identity in expected_identities[index + 1:]:
             return _unknown(
                 "NON_CANONICAL_EFFECT_RECORD_ORDER",
                 f"effectSupport.records[{index}]",
                 "Supply records in the Exact-derived subject order.",
             )
-        previous_position = position
-        record_by_subject[identity] = (document, payload)
-    missing = [
-        subject for subject in subjects
-        if _subject_identity(subject) not in record_by_subject
-    ]
-    if missing:
+        return _unknown(
+            "DUPLICATE_EFFECT_RECORD",
+            f"effectSupport.records[{index}]",
+            "Supply exactly one record for each Exact-derived subject position.",
+        )
+    if len(matched_records) < len(subjects):
+        missing = subjects[len(matched_records)]
         return _unknown(
             "EFFECT_RECORD_MISSING",
-            f"effectSupport.subjects.{missing[0].kind}",
+            f"effectSupport.subjects.{missing.kind}",
             "Run the governed effect probe for every required subject.",
         )
     aggregate_subjects = []
     aggregate_records = []
     has_unsupported = False
-    for subject in subjects:
-        document, payload = record_by_subject[_subject_identity(subject)]
+    for subject, (document, payload) in zip(
+        subjects, matched_records, strict=True,
+    ):
         has_unsupported = has_unsupported or payload["status"] == "unsupported"
         aggregate_subjects.append({
             "subjectKind": subject.kind,

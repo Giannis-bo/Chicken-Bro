@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` and `superpowers:test-driven-development`. This is a bounded semantic correction after the Canonical foundation whole-branch review failed; it is not an owner-gate patch and does not relax the existing Stop Gate.
 
-状态：`正在推进（whole-branch review FAIL / 1 Important；实现与 scoped review 待完成；原 Task 3 blocked）`
+状态：`正在推进（Task 1 implementation complete；scoped review 与 whole-branch re-review 待完成；原 Task 3 blocked）`
 
 ## Goal
 
@@ -74,14 +74,14 @@ Examples for expected `[item, A, B]`:
 
 ## Task 1: TDD ordered-multiset correction
 
-- [ ] Add a RED aggregate test with two identical gem positions and records `[item, gem, gem]`; require `verified`, three aggregate subjects and three support records in exact order.
-- [ ] Add RED boundaries for one missing occurrence, one extra duplicate, distinct-subject wrong order and an unrelated record, asserting the decision table reason codes exactly.
-- [ ] Add a non-adjacent repeated-subject RED using gem order `A/B/A`; require positional aggregate order and no identity-keyed collapse.
-- [ ] Add a repeated-subject RED whose two valid records have different keys/status (`verified` and `unsupported`); require both records to remain and aggregate `unsupported`.
-- [ ] Add authority-envelope regressions proving all-verified duplicate-gem Exact reaches pure `ready`, while the mixed verified/unsupported duplicate remains blocked.
-- [ ] Replace identity-keyed aggregation with bounded positional matching; do not add a second schema, occurrence key or deduplication pass.
-- [ ] Keep all existing effect, Exact, Track Authority, CLI, owner-gate and frozen identity regressions green.
-- [ ] Commit only after focused RED becomes GREEN and the full matrix passes.
+- [x] Add a RED aggregate test with two identical gem positions and records `[item, gem, gem]`; require `verified`, three aggregate subjects and three support records in exact order.
+- [x] Add RED boundaries for one missing occurrence, one extra duplicate, distinct-subject wrong order and an unrelated record, asserting the decision table reason codes exactly.
+- [x] Add a non-adjacent repeated-subject RED using gem order `A/B/A`; require positional aggregate order and no identity-keyed collapse.
+- [x] Add a repeated-subject RED whose two valid records have different keys/status (`verified` and `unsupported`); require both records to remain and aggregate `unsupported`.
+- [x] Add authority-envelope regressions proving all-verified duplicate-gem Exact reaches pure `ready`, while the mixed verified/unsupported duplicate remains blocked.
+- [x] Replace identity-keyed aggregation with bounded positional matching; do not add a second schema, occurrence key or deduplication pass.
+- [x] Keep all existing effect, Exact, Track Authority, CLI, owner-gate and frozen identity regressions green: focused `33/33`, full Python `178/178`, Vitest `9/9`, Node `40/40`, owner gate `27/27`.
+- [x] Commit only after focused RED becomes GREEN and the full matrix passes.
 
 ## Task 2: Independent scoped review
 

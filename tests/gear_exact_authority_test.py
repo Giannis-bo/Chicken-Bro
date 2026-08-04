@@ -344,6 +344,86 @@ class GearExactAuthorityTest(unittest.TestCase):
         )
         self.assertEqual(ready.status, "verified")
 
+    def test_duplicate_gem_effect_evidence_is_ready_only_when_every_position_verified(self):
+        exact = sealed_exact(
+            gemIds=["240892", "240892"],
+            gemBonusIds=["1514", "1514"],
+            gemItemLevels=[90, 90],
+        )
+        subjects = derive_exact_effect_subjects(exact)
+        records = []
+        for subject in subjects:
+            sealed = seal_effect_record(
+                {
+                    "schemaRevision": "simc-item-effect-record-v1",
+                    "status": "verified",
+                    "subjectKind": subject.kind,
+                    "subjectKey": subject.key,
+                    "subjectVariantSignature": subject.variant_signature,
+                    "hasDynamicEffect": False,
+                    "simcRuntimeRevision": RUNTIME,
+                    "verifiedAt": "2026-08-04T00:00:00Z",
+                },
+                runtime_revision=RUNTIME,
+            )
+            self.assertEqual(sealed.status, "verified")
+            records.append(sealed.document)
+        verified_effect = resolve_exact_effect_support(
+            exact, runtime_revision=RUNTIME, records=records,
+        )
+        self.assertEqual(verified_effect.status, "verified")
+
+        mixed_payload = {
+            "schemaRevision": "simc-item-effect-record-v1",
+            "status": "unsupported",
+            "subjectKind": subjects[2].kind,
+            "subjectKey": subjects[2].key,
+            "subjectVariantSignature": subjects[2].variant_signature,
+            "hasDynamicEffect": True,
+            "simcRuntimeRevision": RUNTIME,
+            "verifiedAt": "2026-08-04T01:00:00Z",
+            "unsupportedReason": "NOT_IMPLEMENTED",
+        }
+        mixed_record = seal_effect_record(
+            mixed_payload, runtime_revision=RUNTIME,
+        )
+        self.assertEqual(mixed_record.status, "verified")
+        mixed_effect = resolve_exact_effect_support(
+            exact,
+            runtime_revision=RUNTIME,
+            records=[records[0], records[1], mixed_record.document],
+        )
+        self.assertEqual(mixed_effect.status, "unsupported")
+
+        static = exact_item_module.seal_exact_static_facts(
+            exact, {"haste_rating": 241},
+        ).document
+        progression = seal_exact_progression(
+            exact,
+            season_revision=SEASON,
+            gear_rule_revision=RULE,
+            slot="head",
+            has_crafted_source=False,
+        ).document
+        ready = exact_authority_module.seal_exact_authority_envelope(
+            exact=exact,
+            static_facts=static,
+            progression=progression,
+            effect_support=verified_effect.document,
+            resolver_revision="resolver-v2",
+        )
+        blocked = exact_authority_module.seal_exact_authority_envelope(
+            exact=exact,
+            static_facts=static,
+            progression=progression,
+            effect_support=mixed_effect.document,
+            resolver_revision="resolver-v2",
+        )
+        self.assertEqual(ready.status, "verified")
+        self.assertEqual(blocked.status, "blocked")
+        self.assertIsNone(blocked.document)
+        self.assertEqual(blocked.issues[0].code, "EFFECT_SUPPORT_NOT_VERIFIED")
+
 
 class SealedExactAuthorityEnvelopeTest(unittest.TestCase):
     def test_static_facts_require_reverified_exact_and_strict_numeric_mapping(self):

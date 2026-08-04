@@ -156,6 +156,175 @@ class SealedSimcItemEffectSupportTest(unittest.TestCase):
         self.assertIsNone(outcome.document)
         self.assertEqual(outcome.issues[0].code, "EFFECT_RECORD_MISSING")
 
+    def test_adjacent_duplicate_gems_preserve_all_positional_evidence(self):
+        exact = exact_document(
+            gemIds=["240892", "240892"],
+            gemBonusIds=["1514", "1514"],
+            gemItemLevels=[90, 90],
+            enchantId="",
+            craftedStats=[],
+            embellishmentIds=[],
+        )
+        subjects = derive_exact_effect_subjects(exact)
+        self.assertEqual(
+            [(subject.kind, subject.key) for subject in subjects],
+            [("item", "1001"), ("gem", "240892"), ("gem", "240892")],
+        )
+        records = [canonical_record(subject) for subject in subjects]
+
+        outcome = resolve_exact_effect_support(
+            exact, runtime_revision=RUNTIME, records=records,
+        )
+
+        self.assertEqual(outcome.status, "verified")
+        self.assertEqual(outcome.issues, ())
+        payload = json.loads(outcome.document.canonical_bytes)
+        self.assertEqual(len(payload["subjects"]), 3)
+        self.assertEqual(len(payload["supportRecords"]), 3)
+        self.assertEqual(
+            [entry["subjectKey"] for entry in payload["subjects"]],
+            ["1001", "240892", "240892"],
+        )
+        self.assertEqual(
+            [entry["subjectKey"] for entry in payload["supportRecords"]],
+            ["1001", "240892", "240892"],
+        )
+        self.assertEqual(
+            [entry["supportRecordKey"] for entry in payload["supportRecords"]],
+            [record.content_key for record in records],
+        )
+        self.assertEqual(records[1].content_key, records[2].content_key)
+
+    def test_record_sequence_reason_codes_follow_positional_decision_table(self):
+        exact = exact_document(
+            gemIds=["240892", "240893"],
+            gemBonusIds=["1514", "1515"],
+            gemItemLevels=[90, 91],
+            enchantId="",
+            craftedStats=[],
+            embellishmentIds=[],
+        )
+        item, gem_a, gem_b = derive_exact_effect_subjects(exact)
+        item_record = canonical_record(item)
+        gem_a_record = canonical_record(gem_a)
+        gem_b_record = canonical_record(gem_b)
+        unrelated_subject = derive_exact_effect_subjects(
+            exact_document(
+                itemId="9000",
+                gemIds=[],
+                gemBonusIds=[],
+                gemItemLevels=[],
+                enchantId="",
+                craftedStats=[],
+                embellishmentIds=[],
+            )
+        )[0]
+        unrelated_record = canonical_record(unrelated_subject)
+        cases = (
+            ([item_record, gem_a_record], "EFFECT_RECORD_MISSING"),
+            ([item_record, gem_b_record], "NON_CANONICAL_EFFECT_RECORD_ORDER"),
+            ([item_record, unrelated_record], "UNEXPECTED_EFFECT_RECORD"),
+            ([item_record, gem_a_record, gem_a_record], "DUPLICATE_EFFECT_RECORD"),
+            (
+                [item_record, gem_a_record, gem_b_record, gem_a_record],
+                "DUPLICATE_EFFECT_RECORD",
+            ),
+            (
+                [item_record, gem_a_record, gem_b_record, unrelated_record],
+                "UNEXPECTED_EFFECT_RECORD",
+            ),
+        )
+
+        for records, expected_code in cases:
+            with self.subTest(expected_code=expected_code):
+                outcome = resolve_exact_effect_support(
+                    exact, runtime_revision=RUNTIME, records=records,
+                )
+                self.assertEqual(outcome.status, "unknown")
+                self.assertIsNone(outcome.document)
+                self.assertEqual(outcome.issues[0].code, expected_code)
+
+    def test_non_adjacent_duplicate_gems_preserve_a_b_a_order(self):
+        exact = exact_document(
+            gemIds=["240892", "240893", "240892"],
+            gemBonusIds=["1514", "1515", "1514"],
+            gemItemLevels=[90, 91, 90],
+            enchantId="",
+            craftedStats=[],
+            embellishmentIds=[],
+        )
+        subjects = derive_exact_effect_subjects(exact)
+        records = [canonical_record(subject) for subject in subjects]
+
+        outcome = resolve_exact_effect_support(
+            exact, runtime_revision=RUNTIME, records=records,
+        )
+
+        self.assertEqual(outcome.status, "verified")
+        payload = json.loads(outcome.document.canonical_bytes)
+        self.assertEqual(
+            [entry["subjectKey"] for entry in payload["subjects"]],
+            ["1001", "240892", "240893", "240892"],
+        )
+        self.assertEqual(
+            [entry["supportRecordKey"] for entry in payload["supportRecords"]],
+            [record.content_key for record in records],
+        )
+
+    def test_duplicate_identity_keeps_distinct_valid_records_by_position(self):
+        exact = exact_document(
+            gemIds=["240892", "240892"],
+            gemBonusIds=["1514", "1514"],
+            gemItemLevels=[90, 90],
+            enchantId="",
+            craftedStats=[],
+            embellishmentIds=[],
+        )
+        item, gem_a, gem_a_again = derive_exact_effect_subjects(exact)
+        item_record = canonical_record(item)
+        verified_record = canonical_record(
+            gem_a, verifiedAt="2026-08-04T01:00:00Z",
+        )
+        unsupported_record = canonical_record(
+            gem_a_again,
+            status="unsupported",
+            hasDynamicEffect=True,
+            unsupportedReason="NOT_IMPLEMENTED",
+            verifiedAt="2026-08-04T02:00:00Z",
+        )
+        self.assertNotEqual(
+            verified_record.content_key, unsupported_record.content_key,
+        )
+
+        outcome = resolve_exact_effect_support(
+            exact,
+            runtime_revision=RUNTIME,
+            records=[item_record, verified_record, unsupported_record],
+        )
+
+        self.assertEqual(outcome.status, "unsupported")
+        payload = json.loads(outcome.document.canonical_bytes)
+        self.assertEqual(
+            [entry["status"] for entry in payload["subjects"]],
+            ["verified", "verified", "unsupported"],
+        )
+        self.assertEqual(
+            [entry["supportRecordKey"] for entry in payload["supportRecords"]],
+            [
+                item_record.content_key,
+                verified_record.content_key,
+                unsupported_record.content_key,
+            ],
+        )
+        self.assertEqual(
+            [entry["verifiedAt"] for entry in payload["supportRecords"]],
+            [
+                "2026-08-04T00:00:00Z",
+                "2026-08-04T01:00:00Z",
+                "2026-08-04T02:00:00Z",
+            ],
+        )
+
     def test_static_dynamic_and_unsupported_records_share_one_seal(self):
         subject = derive_exact_effect_subjects(exact_document())[0]
         static = seal_effect_record(
