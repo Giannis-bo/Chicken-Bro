@@ -4,7 +4,7 @@
 
 状态：`待决策（Subagent-Driven Task 2 已达 5 轮修复上限；需重开 canonical validation 设计，Task 3 未启动）`
 
-**Task 2 replacement design:** [装备模拟 Canonical Kernel 重设计](2026-08-04-equipment-simulator-canonical-kernel-redesign.md)。本计划的 Task 2 在 replacement implementation plan 获批前不得恢复执行。
+**Task 2 replacement:** [Canonical Kernel 重设计](2026-08-04-equipment-simulator-canonical-kernel-redesign.md) 与 [replacement implementation plan](2026-08-04-equipment-simulator-canonical-kernel-implementation.md)。原 Task 2 不再执行；replacement Task 1-5 全部 review clean 后才允许进入本计划 Task 3。
 
 **Goal:** 让完整、合法且被当前 SimC runtime 明确支持的精确装备，即使不在 Catalog 中，也能确定性保存、重载、生成不可变快照并模拟；同时把模拟器可换装 Catalog 收敛为大秘境、团本和制造三个来源内、可物化为 SimC-ready Exact 的受治理子集。
 
