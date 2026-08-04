@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
 import * as gearIntentExports from './gear-intent'
@@ -8,6 +10,33 @@ import {
   gearItemStaticStatsFromResolvedSnapshot,
   serializeGearSelectionIntent,
 } from './gear-intent'
+
+const mutationPath = fileURLToPath(new URL('../../../tests/fixtures/gear_canonical_mutations.json', import.meta.url))
+const mutations = JSON.parse(readFileSync(mutationPath, 'utf8')) as {
+  invalidIdentityStrings: string[]
+}
+
+const exactCoreSlots = [
+  'head', 'neck', 'shoulder', 'back', 'chest', 'wrist', 'hands', 'waist',
+  'legs', 'feet', 'finger1', 'finger2', 'trinket1', 'trinket2', 'main_hand',
+]
+
+function exactSlot(itemId: string) {
+  return {
+    itemId, declaredItemLevel: null, bonusIds: [], context: '', gemIds: [],
+    gemBonusIds: [], gemItemLevels: [], enchantId: '', craftedStats: [],
+    embellishmentIds: [], redirectedBaseStats: [],
+  }
+}
+
+function validExactIntent() {
+  return {
+    schemaRevision: 'exact-loadout-intent-v2',
+    authoredAgainst: { seasonRevision: 'season-r1', gameBuild: 'build-r1' },
+    eligibilityContext: { classKey: 'warrior', specKey: 'fury', level: 80 },
+    slots: Object.fromEntries(exactCoreSlots.map((name, index) => [name, exactSlot(String(225574 + index))])),
+  }
+}
 
 describe('canonical gear selection intent', () => {
   it('accepts exactly the complete catalog-independent exact v2 identity', () => {
@@ -72,6 +101,43 @@ describe('canonical gear selection intent', () => {
       { ...valid, slots: { ...valid.slots, head: { ...valid.slots.head, redirectedBaseStats: [newline] } } },
     ]
     expect(cases.every((value) => canonicalExactLoadoutIntent(value, 'warrior', 'fury') === null)).toBe(true)
+  })
+
+  it('rejects the shared raw control mutation corpus in every exact v2 string field', () => {
+    const cases = (value: string) => {
+      const values: unknown[] = []
+      for (const [section, key] of [
+        ['authoredAgainst', 'seasonRevision'],
+        ['authoredAgainst', 'gameBuild'],
+        ['eligibilityContext', 'classKey'],
+        ['eligibilityContext', 'specKey'],
+      ] as const) {
+        const candidate = validExactIntent()
+        candidate[section][key] = value
+        values.push(candidate)
+      }
+      for (const key of ['itemId', 'context', 'enchantId'] as const) {
+        const candidate = validExactIntent()
+        candidate.slots.head[key] = value
+        values.push(candidate)
+      }
+      for (const key of [
+        'bonusIds', 'gemIds', 'gemBonusIds', 'craftedStats',
+        'embellishmentIds', 'redirectedBaseStats',
+      ] as const) {
+        const candidate = validExactIntent()
+        candidate.slots.head[key] = [value]
+        values.push(candidate)
+      }
+      return values
+    }
+
+    for (const mutation of mutations.invalidIdentityStrings) {
+      expect(
+        cases(mutation).every((value) => canonicalExactLoadoutIntent(value, 'warrior', 'fury') === null),
+        JSON.stringify(mutation),
+      ).toBe(true)
+    }
   })
 
   it('accepts only structurally canonical selection-intent-v1 storage for the current identity', () => {

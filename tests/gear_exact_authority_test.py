@@ -4,10 +4,17 @@ import json
 import unittest
 
 from server.gear_exact_authority import (
+    _validate_exact_progression_payload,
     build_exact_authority_envelope,
     build_exact_progression_binding,
+    seal_exact_progression,
 )
-from server.gear_exact_item_instance import build_exact_item_identity
+from server.gear_canonical_kernel import (
+    SealedCanonicalDocument,
+    seal_canonical_document,
+    verify_sealed_document,
+)
+from server.gear_exact_item_instance import build_exact_item_identity, seal_exact_item
 from server.simc_item_effect_support import (
     resolve_exact_item_effect_support,
     seal_effect_record,
@@ -15,6 +22,8 @@ from server.simc_item_effect_support import (
 
 
 RUNTIME = "simc-2026.08.04"
+SEASON = "season-17-f131dd36ddf1"
+RULE = "gear-rule-matrix-v1"
 EXACT = build_exact_item_identity({}, {"itemId": "1001", "declaredItemLevel": 266, "bonusIds": ["13334"], "context": "heroic", "gemIds": [], "gemBonusIds": [], "gemItemLevels": [], "enchantId": "", "craftedStats": [], "embellishmentIds": [], "redirectedBaseStats": []})
 STATIC = {"schemaRevision": "exact-static-facts-v1", "exactItemInstanceKey": EXACT["exactItemInstanceKey"], "facts": {"haste_rating": 241}}
 SERIALIZER = EXACT["serializerInput"]
@@ -43,6 +52,30 @@ def content_key(prefix, payload):
     return prefix + hashlib.sha256(
         json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
     ).hexdigest()
+
+
+def sealed_exact(**overrides):
+    payload = {
+        "itemId": "1001", "declaredItemLevel": 266,
+        "bonusIds": ["13334"], "context": "heroic",
+        "gemIds": [], "gemBonusIds": [], "gemItemLevels": [],
+        "enchantId": "", "craftedStats": [], "embellishmentIds": [],
+        "redirectedBaseStats": [],
+    }
+    payload.update(overrides)
+    return seal_exact_item(payload).document
+
+
+def verify_progression(document, exact):
+    return verify_sealed_document(
+        document,
+        document_kind="exact_progression",
+        schema_revision="exact-progression-binding-v1",
+        key_prefix="exact-progression:sha256:",
+        payload_validator=lambda payload: _validate_exact_progression_payload(
+            payload, exact=exact,
+        ),
+    )
 
 
 def reconstructed_exact(**changes):
@@ -110,6 +143,148 @@ def authority_inputs(
 
 
 class GearExactAuthorityTest(unittest.TestCase):
+    def test_progression_requires_canonical_slot_and_production_track_authority(self):
+        exact = sealed_exact()
+        ready = seal_exact_progression(
+            exact,
+            season_revision=SEASON,
+            gear_rule_revision=RULE,
+            slot="head",
+            has_crafted_source=False,
+        )
+        self.assertEqual(ready.status, "verified")
+        self.assertEqual(ready.document.document_kind, "exact_progression")
+        self.assertEqual(ready.document.schema_revision, "exact-progression-binding-v1")
+        self.assertRegex(
+            ready.document.content_key,
+            r"^exact-progression:sha256:[0-9a-f]{64}$",
+        )
+        self.assertTrue(verify_progression(ready.document, exact))
+        for slot in ("bogus", "HEAD", "trinket_1", "mainhand"):
+            with self.subTest(slot=slot):
+                self.assertEqual(
+                    seal_exact_progression(
+                        exact,
+                        season_revision=SEASON,
+                        gear_rule_revision=RULE,
+                        slot=slot,
+                        has_crafted_source=False,
+                    ).status,
+                    "blocked",
+                )
+        self.assertEqual(
+            seal_exact_progression(
+                {"raw": "dict"},
+                season_revision=SEASON,
+                gear_rule_revision=RULE,
+                slot="head",
+                has_crafted_source=False,
+            ).status,
+            "blocked",
+        )
+
+    def test_progression_seals_the_full_canonical_track_authority_input(self):
+        exact = sealed_exact()
+        progression = seal_exact_progression(
+            exact,
+            season_revision=SEASON,
+            gear_rule_revision=RULE,
+            slot="head",
+            has_crafted_source=False,
+        ).document
+        payload = json.loads(progression.canonical_bytes)
+        self.assertEqual(
+            payload["trackAuthorityInput"],
+            {
+                "seasonRevision": SEASON,
+                "gearRuleRevision": RULE,
+                "rowFamily": "exact_instance",
+                "status": "verified",
+                "itemId": "1001",
+                "variantKey": exact.content_key,
+                "itemLevel": 266,
+                "bonusIds": ["13334"],
+                "slot": "head",
+                "hasCraftedSource": False,
+            },
+        )
+        self.assertEqual(
+            payload["progressionState"],
+            {"kind": "upgrade_track", "trackKey": "hero", "rank": 3, "maxRank": 6},
+        )
+
+    def test_progression_reload_rejects_forged_owner_outputs_and_inputs(self):
+        exact = sealed_exact()
+        ready = seal_exact_progression(
+            exact,
+            season_revision=SEASON,
+            gear_rule_revision=RULE,
+            slot="head",
+            has_crafted_source=False,
+        ).document
+        base = json.loads(ready.canonical_bytes)
+        mutations = (
+            {**base, "progressionState": {"kind": "upgrade_track", "trackKey": "hero", "rank": 6, "maxRank": 6}},
+            {**base, "trackAuthorityRecordKey": "exact_myth_3", "progressionState": {"kind": "upgrade_track", "trackKey": "myth", "rank": 3, "maxRank": 6}},
+            {**base, "trackAuthorityRecordKey": "exact_crafted_myth", "progressionState": {"kind": "crafted_quality", "trackKey": "myth", "qualityKey": "radiance_max"}},
+            {**base, "trackAuthorityRecordKey": "exact_ascendant_13654", "progressionState": {"kind": "ascendant", "trackKey": "void_upgrade", "originKind": "upgrade_track"}},
+            {**base, "trackAuthorityRecordKey": "arbitrary-record"},
+            {
+                **base,
+                "gearRuleRevision": "arbitrary-rule",
+                "trackAuthorityInput": {**base["trackAuthorityInput"], "gearRuleRevision": "arbitrary-rule"},
+            },
+            {
+                **base,
+                "trackAuthorityInput": {**base["trackAuthorityInput"], "callerRank": 6},
+            },
+        )
+        for payload in mutations:
+            with self.subTest(payload=payload):
+                forged = seal_canonical_document(
+                    document_kind="exact_progression",
+                    schema_revision="exact-progression-binding-v1",
+                    payload=payload,
+                    key_prefix="exact-progression:sha256:",
+                )
+                self.assertFalse(verify_progression(forged, exact))
+
+    def test_progression_reload_rejects_wrong_seals_tampering_and_cross_exact_reuse(self):
+        exact = sealed_exact()
+        ready = seal_exact_progression(
+            exact,
+            season_revision=SEASON,
+            gear_rule_revision=RULE,
+            slot="head",
+            has_crafted_source=False,
+        ).document
+        payload = json.loads(ready.canonical_bytes)
+        wrong_documents = (
+            seal_canonical_document(
+                document_kind="other", schema_revision=ready.schema_revision,
+                payload=payload, key_prefix="exact-progression:sha256:",
+            ),
+            seal_canonical_document(
+                document_kind="exact_progression", schema_revision="wrong-schema",
+                payload=payload, key_prefix="exact-progression:sha256:",
+            ),
+            seal_canonical_document(
+                document_kind="exact_progression", schema_revision=ready.schema_revision,
+                payload=payload, key_prefix="attacker:sha256:",
+            ),
+        )
+        for document in wrong_documents:
+            with self.subTest(document=document):
+                self.assertFalse(verify_progression(document, exact))
+
+        tampered = object.__new__(SealedCanonicalDocument)
+        object.__setattr__(tampered, "document_kind", ready.document_kind)
+        object.__setattr__(tampered, "schema_revision", ready.schema_revision)
+        object.__setattr__(tampered, "canonical_bytes", ready.canonical_bytes.replace(b'"rank":3', b'"rank":6'))
+        object.__setattr__(tampered, "content_key", ready.content_key)
+        self.assertFalse(verify_progression(tampered, exact))
+        self.assertFalse(verify_progression(ready, sealed_exact(itemId="1002")))
+
     def test_progression_builder_requires_byte_equivalent_exact_builder_output(self):
         authority_input = PROGRESSION_PAYLOAD["trackAuthorityInput"]
         self.assertEqual(

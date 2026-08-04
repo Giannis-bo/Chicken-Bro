@@ -97,9 +97,11 @@ function boundedIntentString(value: unknown, allowEmpty = false): value is strin
 }
 
 function boundedExactIntentString(value: unknown, allowEmpty = false): value is string {
-  return boundedIntentString(value, allowEmpty)
-    && !value.includes('\n')
-    && !value.includes('\r')
+  return typeof value === 'string'
+    && value === value.trim()
+    && new TextEncoder().encode(value).byteLength <= 256
+    && (allowEmpty || value.length > 0)
+    && !/[\p{Cc}\p{Cf}\p{Cs}\p{Zl}\p{Zp}]/u.test(value)
 }
 
 /**

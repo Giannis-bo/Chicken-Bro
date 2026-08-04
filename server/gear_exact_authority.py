@@ -10,11 +10,43 @@ import re
 from typing import Any, Mapping
 
 try:
-    from .gear_exact_item_instance import build_exact_item_identity
+    from .gear_canonical_kernel import (
+        CanonicalIssue,
+        CanonicalResult,
+        CanonicalValueError,
+        SealedCanonicalDocument,
+        canonical_identity_token,
+        canonical_int,
+        canonical_json_bytes,
+        canonical_mapping,
+        canonical_set_list,
+        canonical_slot,
+        seal_canonical_document,
+    )
+    from .gear_exact_item_instance import (
+        _verified_exact_payload_copy,
+        build_exact_item_identity,
+    )
     from .gear_track_authority import resolve_exact_instance_progression
     from .simc_item_effect_support import effect_support_key, resolve_exact_item_effect_support, validate_effect_record
 except ImportError:
-    from gear_exact_item_instance import build_exact_item_identity
+    from gear_canonical_kernel import (
+        CanonicalIssue,
+        CanonicalResult,
+        CanonicalValueError,
+        SealedCanonicalDocument,
+        canonical_identity_token,
+        canonical_int,
+        canonical_json_bytes,
+        canonical_mapping,
+        canonical_set_list,
+        canonical_slot,
+        seal_canonical_document,
+    )
+    from gear_exact_item_instance import (
+        _verified_exact_payload_copy,
+        build_exact_item_identity,
+    )
     from gear_track_authority import resolve_exact_instance_progression
     from simc_item_effect_support import effect_support_key, resolve_exact_item_effect_support, validate_effect_record
 
@@ -34,6 +66,18 @@ _TRACK_AUTHORITY_INPUT_KEYS = frozenset({
 })
 _SERIALIZER_FIELDS = frozenset({"id", "ilevel", "bonus_id", "gem_id", "gem_bonus_id", "gem_ilevel", "enchant_id", "crafted_stats", "embellishment"})
 _TOKEN_PATTERN = re.compile(r"^[A-Za-z0-9_.:-]{1,256}$")
+_SEALED_PROGRESSION_DOCUMENT_KIND = "exact_progression"
+_SEALED_PROGRESSION_SCHEMA_REVISION = "exact-progression-binding-v1"
+_SEALED_PROGRESSION_KEY_PREFIX = "exact-progression:sha256:"
+_SEALED_PROGRESSION_PAYLOAD_KEYS = frozenset({
+    "schemaRevision", "exactItemInstanceKey", "gearRuleRevision",
+    "trackAuthorityRuleRevision", "trackAuthorityRecordKey",
+    "trackAuthorityInput", "progressionState",
+})
+_SEALED_TRACK_AUTHORITY_INPUT_KEYS = frozenset({
+    "seasonRevision", "gearRuleRevision", "rowFamily", "status", "itemId",
+    "variantKey", "itemLevel", "bonusIds", "slot", "hasCraftedSource",
+})
 
 
 def _canonical(value: Any) -> bytes:
@@ -110,6 +154,260 @@ def _valid_static_facts(value: Any, exact_key: str) -> bool:
         and all(_valid_token(key) for key in value["facts"])
         and all(isinstance(amount, (int, float)) and not isinstance(amount, bool) and math.isfinite(amount) for amount in value["facts"].values())
     )
+
+
+def _canonical_progression_identifier(value: object, path: str) -> str:
+    return canonical_identity_token(value, path=path)
+
+
+def _validate_exact_progression_payload(
+    value: object,
+    *,
+    exact: SealedCanonicalDocument,
+) -> object:
+    """Rebuild decoded progression bytes against one verified sealed Exact."""
+
+    exact_payload = _verified_exact_payload_copy(exact)
+    payload = canonical_mapping(
+        value,
+        path="exactProgression",
+        exact_keys=_SEALED_PROGRESSION_PAYLOAD_KEYS,
+    )
+    if payload["schemaRevision"] != _SEALED_PROGRESSION_SCHEMA_REVISION:
+        raise CanonicalValueError(
+            "SCHEMA_REVISION_MISMATCH", "exactProgression.schemaRevision",
+        )
+    if payload["exactItemInstanceKey"] != exact.content_key:
+        raise CanonicalValueError(
+            "EXACT_ITEM_BINDING_MISMATCH",
+            "exactProgression.exactItemInstanceKey",
+        )
+    gear_rule_revision = canonical_identity_token(
+        payload["gearRuleRevision"],
+        path="exactProgression.gearRuleRevision",
+    )
+    track_rule_revision = canonical_identity_token(
+        payload["trackAuthorityRuleRevision"],
+        path="exactProgression.trackAuthorityRuleRevision",
+    )
+    track_record_key = canonical_identity_token(
+        payload["trackAuthorityRecordKey"],
+        path="exactProgression.trackAuthorityRecordKey",
+    )
+    authority = canonical_mapping(
+        payload["trackAuthorityInput"],
+        path="exactProgression.trackAuthorityInput",
+        exact_keys=_SEALED_TRACK_AUTHORITY_INPUT_KEYS,
+    )
+    season_revision = canonical_identity_token(
+        authority["seasonRevision"],
+        path="exactProgression.trackAuthorityInput.seasonRevision",
+    )
+    authority_rule_revision = canonical_identity_token(
+        authority["gearRuleRevision"],
+        path="exactProgression.trackAuthorityInput.gearRuleRevision",
+    )
+    row_family = canonical_identity_token(
+        authority["rowFamily"],
+        path="exactProgression.trackAuthorityInput.rowFamily",
+    )
+    status = canonical_identity_token(
+        authority["status"],
+        path="exactProgression.trackAuthorityInput.status",
+    )
+    item_id = canonical_identity_token(
+        authority["itemId"],
+        path="exactProgression.trackAuthorityInput.itemId",
+    )
+    variant_key = canonical_identity_token(
+        authority["variantKey"],
+        path="exactProgression.trackAuthorityInput.variantKey",
+    )
+    item_level = canonical_int(
+        authority["itemLevel"],
+        path="exactProgression.trackAuthorityInput.itemLevel",
+        minimum=1,
+        maximum=9999,
+    )
+    bonus_ids = canonical_set_list(
+        authority["bonusIds"],
+        path="exactProgression.trackAuthorityInput.bonusIds",
+        item_rule=_canonical_progression_identifier,
+        max_items=256,
+    )
+    slot = canonical_slot(
+        authority["slot"],
+        path="exactProgression.trackAuthorityInput.slot",
+    )
+    if type(authority["hasCraftedSource"]) is not bool:
+        raise CanonicalValueError(
+            "INVALID_BOOLEAN",
+            "exactProgression.trackAuthorityInput.hasCraftedSource",
+        )
+    has_crafted_source = authority["hasCraftedSource"]
+    if row_family != "exact_instance" or status != "verified":
+        raise CanonicalValueError(
+            "INVALID_TRACK_AUTHORITY_INPUT",
+            "exactProgression.trackAuthorityInput",
+        )
+    if gear_rule_revision != authority_rule_revision:
+        raise CanonicalValueError(
+            "GEAR_RULE_REVISION_MISMATCH",
+            "exactProgression.gearRuleRevision",
+        )
+    if (
+        item_id != exact_payload["itemId"]
+        or variant_key != exact.content_key
+        or item_level != exact_payload["itemLevel"]
+        or list(bonus_ids) != exact_payload["bonusIds"]
+    ):
+        raise CanonicalValueError(
+            "EXACT_ITEM_BINDING_MISMATCH",
+            "exactProgression.trackAuthorityInput",
+        )
+    canonical_input = {
+        "seasonRevision": season_revision,
+        "gearRuleRevision": authority_rule_revision,
+        "rowFamily": row_family,
+        "status": status,
+        "itemId": item_id,
+        "variantKey": variant_key,
+        "itemLevel": item_level,
+        "bonusIds": list(bonus_ids),
+        "slot": slot,
+        "hasCraftedSource": has_crafted_source,
+    }
+    if dict(authority) != canonical_input:
+        raise CanonicalValueError(
+            "TRACK_AUTHORITY_INPUT_MISMATCH",
+            "exactProgression.trackAuthorityInput",
+        )
+    resolved = resolve_exact_instance_progression(
+        {
+            "seasonRevision": season_revision,
+            "gearRuleRevision": authority_rule_revision,
+        },
+        canonical_input,
+    )
+    if resolved.get("status") != "verified":
+        raise CanonicalValueError(
+            "TRACK_AUTHORITY_BLOCKED",
+            "exactProgression.trackAuthorityInput",
+        )
+    if track_rule_revision != resolved.get("ruleRevision"):
+        raise CanonicalValueError(
+            "TRACK_AUTHORITY_RULE_MISMATCH",
+            "exactProgression.trackAuthorityRuleRevision",
+        )
+    if track_record_key != resolved.get("recordKey"):
+        raise CanonicalValueError(
+            "TRACK_AUTHORITY_RECORD_MISMATCH",
+            "exactProgression.trackAuthorityRecordKey",
+        )
+    if canonical_json_bytes(payload["progressionState"]) != canonical_json_bytes(
+        resolved.get("progressionState")
+    ):
+        raise CanonicalValueError(
+            "TRACK_AUTHORITY_STATE_MISMATCH",
+            "exactProgression.progressionState",
+        )
+    return value
+
+
+def _blocked_progression(error: CanonicalValueError) -> CanonicalResult:
+    return CanonicalResult(
+        "blocked",
+        None,
+        (CanonicalIssue(
+            error.code,
+            error.path,
+            "Re-import the exact item and use the current canonical progression inputs.",
+        ),),
+    )
+
+
+def seal_exact_progression(
+    exact: SealedCanonicalDocument,
+    *,
+    season_revision: str,
+    gear_rule_revision: str,
+    slot: str,
+    has_crafted_source: bool,
+) -> CanonicalResult:
+    """Seal only the progression state returned by production Track Authority."""
+
+    try:
+        canonical_slot_value = canonical_slot(slot, path="exactProgression.slot")
+        canonical_season_revision = canonical_identity_token(
+            season_revision, path="exactProgression.seasonRevision",
+        )
+        canonical_gear_rule_revision = canonical_identity_token(
+            gear_rule_revision, path="exactProgression.gearRuleRevision",
+        )
+        if type(has_crafted_source) is not bool:
+            raise CanonicalValueError(
+                "INVALID_BOOLEAN", "exactProgression.hasCraftedSource",
+            )
+        exact_payload = _verified_exact_payload_copy(exact)
+        authority_input = {
+            "seasonRevision": canonical_season_revision,
+            "gearRuleRevision": canonical_gear_rule_revision,
+            "rowFamily": "exact_instance",
+            "status": "verified",
+            "itemId": exact_payload["itemId"],
+            "variantKey": exact.content_key,
+            "itemLevel": exact_payload["itemLevel"],
+            "bonusIds": list(exact_payload["bonusIds"]),
+            "slot": canonical_slot_value,
+            "hasCraftedSource": has_crafted_source,
+        }
+        resolved = resolve_exact_instance_progression(
+            {
+                "seasonRevision": canonical_season_revision,
+                "gearRuleRevision": canonical_gear_rule_revision,
+            },
+            authority_input,
+        )
+        if resolved.get("status") != "verified":
+            issues = tuple(
+                CanonicalIssue(
+                    problem.get("code")
+                    if type(problem.get("code")) is str
+                    else "TRACK_AUTHORITY_BLOCKED",
+                    "exactProgression.trackAuthorityInput",
+                    "Choose an exact item with verified current-season progression evidence.",
+                )
+                for problem in resolved.get("problems", ())
+                if type(problem) is dict
+            )
+            return CanonicalResult(
+                "blocked",
+                None,
+                issues or (CanonicalIssue(
+                    "TRACK_AUTHORITY_BLOCKED",
+                    "exactProgression.trackAuthorityInput",
+                    "Choose an exact item with verified current-season progression evidence.",
+                ),),
+            )
+        payload = {
+            "schemaRevision": _SEALED_PROGRESSION_SCHEMA_REVISION,
+            "exactItemInstanceKey": exact.content_key,
+            "gearRuleRevision": canonical_gear_rule_revision,
+            "trackAuthorityRuleRevision": resolved["ruleRevision"],
+            "trackAuthorityRecordKey": resolved["recordKey"],
+            "trackAuthorityInput": authority_input,
+            "progressionState": resolved["progressionState"],
+        }
+        _validate_exact_progression_payload(payload, exact=exact)
+        document = seal_canonical_document(
+            document_kind=_SEALED_PROGRESSION_DOCUMENT_KIND,
+            schema_revision=_SEALED_PROGRESSION_SCHEMA_REVISION,
+            payload=payload,
+            key_prefix=_SEALED_PROGRESSION_KEY_PREFIX,
+        )
+        return CanonicalResult("verified", document, ())
+    except CanonicalValueError as error:
+        return _blocked_progression(error)
 
 
 def build_exact_progression_binding(
@@ -241,4 +539,8 @@ def build_exact_authority_envelope(*, exact_item: Any, static_facts: Any, serial
     return {"schemaRevision": "exact-authority-envelope-v1", "status": "ready", "exactAuthorityKey": _hash("exact-authority:sha256:", payload), "canonicalPayload": json.loads(_canonical(payload))}
 
 
-__all__ = ("build_exact_authority_envelope", "build_exact_progression_binding")
+__all__ = (
+    "build_exact_authority_envelope",
+    "build_exact_progression_binding",
+    "seal_exact_progression",
+)

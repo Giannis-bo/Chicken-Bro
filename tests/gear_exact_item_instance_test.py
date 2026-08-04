@@ -1,10 +1,18 @@
 import copy
+import json
 import unittest
 
+from server.gear_canonical_kernel import (
+    CanonicalValueError,
+    SealedCanonicalDocument,
+    seal_canonical_document,
+)
 from server.gear_exact_item_instance import (
     build_exact_item_identity,
     build_exact_item_instance,
     canonical_enhancement_selection,
+    derive_simc_serializer_input,
+    seal_exact_item,
 )
 
 
@@ -67,7 +75,131 @@ def exact_v2_row(**overrides):
     return row
 
 
+EXACT_SLOT_KEYS = frozenset({
+    "itemId", "declaredItemLevel", "bonusIds", "context", "gemIds",
+    "gemBonusIds", "gemItemLevels", "enchantId", "craftedStats",
+    "embellishmentIds", "redirectedBaseStats",
+})
+
+
+def adapter_exact_slot_fields(row):
+    return {key: copy.deepcopy(row[key]) for key in EXACT_SLOT_KEYS}
+
+
 class GearExactItemInstanceTest(unittest.TestCase):
+    def test_seal_exact_item_rejects_noncanonical_sets_and_contract_extra_fields(self):
+        for field, value in (
+            ("craftedStats", ["haste", "crit"]),
+            ("craftedStats", ["crit", "crit", "haste"]),
+            ("embellishmentIds", ["emb-b", "emb-a"]),
+            ("bonusIds", ["9002", "13334"]),
+            ("redirectedBaseStats", ["mastery", "crit"]),
+        ):
+            with self.subTest(field=field, value=value):
+                self.assertEqual(
+                    seal_exact_item(exact_v2_row(**{field: value})).status,
+                    "blocked",
+                )
+
+        crafted_effect = seal_exact_item(
+            exact_v2_row(craftedEffectIds=["craft-a"])
+        )
+        listed = seal_exact_item(exact_v2_row(listed=False))
+        self.assertEqual(crafted_effect.status, "blocked")
+        self.assertEqual(crafted_effect.issues[0].path, "exactSlot.craftedEffectIds")
+        self.assertEqual(listed.status, "blocked")
+        self.assertEqual(listed.issues[0].path, "exactSlot.listed")
+
+    def test_sealed_exact_ignores_adapter_only_catalog_provenance_and_binds_every_exact_field(self):
+        base_row = exact_v2_row()
+        base = seal_exact_item(base_row)
+        self.assertEqual(base.status, "verified")
+        self.assertEqual(base.document.document_kind, "exact_item")
+        self.assertEqual(base.document.schema_revision, "gear-exact-item-instance-v2")
+        self.assertRegex(
+            base.document.content_key,
+            r"^exact-item-instance:sha256:[0-9a-f]{64}$",
+        )
+        unlisted_import = adapter_exact_slot_fields({**base_row, "listed": False})
+        self.assertEqual(base.document, seal_exact_item(unlisted_import).document)
+        self.assertEqual(
+            seal_exact_item({**base_row, "listed": False}).status,
+            "blocked",
+        )
+
+        for field, replacement in (
+            ("itemId", "1002"),
+            ("declaredItemLevel", 269),
+            ("bonusIds", ["13334", "9001"]),
+            ("context", "mythic"),
+            ("gemIds", ["240893", "240897"]),
+            ("gemBonusIds", ["1514", "1515"]),
+            ("gemItemLevels", [90, 91]),
+            ("enchantId", "7444"),
+            ("craftedStats", ["32"]),
+            ("embellishmentIds", ["999001"]),
+            ("redirectedBaseStats", ["mastery_rating"]),
+        ):
+            with self.subTest(field=field):
+                changed = seal_exact_item(exact_v2_row(**{field: replacement}))
+                self.assertEqual(changed.status, "verified")
+                self.assertNotEqual(
+                    base.document.content_key,
+                    changed.document.content_key,
+                )
+
+    def test_sealed_exact_preserves_ordered_arrays_and_derives_the_only_simc_input(self):
+        exact = seal_exact_item(exact_v2_row()).document
+        payload = json.loads(exact.canonical_bytes)
+        self.assertEqual(payload["gemIds"], ["240892", "240897"])
+        self.assertEqual(payload["gemBonusIds"], ["1514", "1514"])
+        self.assertEqual(payload["gemItemLevels"], [90, 90])
+        self.assertEqual(
+            derive_simc_serializer_input(exact),
+            {
+                "id": "1001",
+                "ilevel": "266",
+                "bonus_id": "13334/9001/9002",
+                "gem_id": "240892/240897",
+                "gem_bonus_id": "1514/1514",
+                "gem_ilevel": "90/90",
+                "enchant_id": "7443",
+                "crafted_stats": "32/36",
+                "embellishment": "999001/999002",
+            },
+        )
+
+    def test_simc_derivation_rejects_raw_wrong_or_tampered_exact_documents(self):
+        exact = seal_exact_item(exact_v2_row()).document
+        payload = json.loads(exact.canonical_bytes)
+        wrong_documents = (
+            payload,
+            seal_canonical_document(
+                document_kind="other", schema_revision=exact.schema_revision,
+                payload=payload, key_prefix="exact-item-instance:sha256:",
+            ),
+            seal_canonical_document(
+                document_kind="exact_item", schema_revision="wrong-schema",
+                payload=payload, key_prefix="exact-item-instance:sha256:",
+            ),
+            seal_canonical_document(
+                document_kind="exact_item", schema_revision=exact.schema_revision,
+                payload=payload, key_prefix="attacker:sha256:",
+            ),
+        )
+        for document in wrong_documents:
+            with self.subTest(document=document):
+                with self.assertRaises(CanonicalValueError):
+                    derive_simc_serializer_input(document)
+
+        tampered = object.__new__(SealedCanonicalDocument)
+        object.__setattr__(tampered, "document_kind", exact.document_kind)
+        object.__setattr__(tampered, "schema_revision", exact.schema_revision)
+        object.__setattr__(tampered, "canonical_bytes", exact.canonical_bytes.replace(b'"1001"', b'"1002"'))
+        object.__setattr__(tampered, "content_key", exact.content_key)
+        with self.assertRaises(CanonicalValueError):
+            derive_simc_serializer_input(tampered)
+
     def test_v2_identity_ignores_catalog_listing_and_changes_for_each_exact_field(self):
         base = exact_v2_row()
         listed = build_exact_item_identity(

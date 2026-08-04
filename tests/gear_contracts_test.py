@@ -1,9 +1,16 @@
+import copy
 import inspect
 import hashlib
 import json
+from pathlib import Path
 import unittest
 
 from server import gear_contracts, gear_socket_authority
+
+
+CANONICAL_MUTATIONS = json.loads(
+    (Path(__file__).parent / "fixtures" / "gear_canonical_mutations.json").read_text(encoding="utf-8")
+)
 
 
 class GearContractsTest(unittest.TestCase):
@@ -47,6 +54,42 @@ class GearContractsTest(unittest.TestCase):
         parsed_v1, v1_issues = gear_contracts.parse_selection_intent(v1)
         self.assertEqual(v1_issues, [])
         self.assertEqual(parsed_v1, v1)
+
+    # Catches trim-then-accept and the narrower CR/LF-only predicate that let
+    # C1, format controls, and Unicode line/paragraph separators cross Task 1.
+    def test_exact_v2_rejects_the_shared_raw_control_mutation_corpus(self):
+        def cases(value):
+            fields = []
+            for section, key in (
+                ("authoredAgainst", "seasonRevision"),
+                ("authoredAgainst", "gameBuild"),
+                ("eligibilityContext", "classKey"),
+                ("eligibilityContext", "specKey"),
+            ):
+                candidate = self.valid_exact_intent()
+                candidate[section][key] = value
+                fields.append((f"intent.{section}.{key}", candidate))
+            for key in ("itemId", "context", "enchantId"):
+                candidate = self.valid_exact_intent()
+                candidate["slots"]["head"][key] = value
+                fields.append((f"intent.slots.head.{key}", candidate))
+            for key in (
+                "bonusIds", "gemIds", "gemBonusIds", "craftedStats",
+                "embellishmentIds", "redirectedBaseStats",
+            ):
+                candidate = self.valid_exact_intent()
+                candidate["slots"]["head"][key] = [value]
+                fields.append((f"intent.slots.head.{key}.0", candidate))
+            return fields
+
+        for mutation in CANONICAL_MUTATIONS["invalidIdentityStrings"]:
+            for path, candidate in cases(mutation):
+                with self.subTest(mutation=ascii(mutation), path=path):
+                    parsed, issues = gear_contracts.parse_exact_loadout_intent(
+                        copy.deepcopy(candidate)
+                    )
+                    self.assertIsNone(parsed)
+                    self.assertTrue(any(issue["path"] == path for issue in issues))
 
     # Catches defaulting absent Exact fields into a new identity rather than
     # rejecting an input whose slot key set is structurally incomplete.

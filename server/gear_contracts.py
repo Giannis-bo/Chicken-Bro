@@ -11,6 +11,7 @@ from __future__ import annotations
 import hashlib
 import json
 from typing import Any, NotRequired, TypedDict
+import unicodedata
 
 
 SELECTION_INTENT_SCHEMA_REVISION = "selection-intent-v1"
@@ -326,10 +327,22 @@ def parse_selection_intent(raw_intent: Any) -> tuple[dict[str, Any] | None, list
 
 
 def _exact_identifier(value: Any, *, allow_empty: bool = False) -> str | None:
-    normalized = _bounded_string(value, allow_empty=allow_empty)
-    if normalized is None or "\n" in normalized or "\r" in normalized:
+    if type(value) is not str or value != value.strip():
         return None
-    return normalized
+    if (not value and not allow_empty):
+        return None
+    try:
+        encoded = value.encode("utf-8")
+    except UnicodeEncodeError:
+        return None
+    if len(encoded) > _MAX_IDENTIFIER_LENGTH:
+        return None
+    if any(
+        unicodedata.category(character) in {"Cc", "Cf", "Cs", "Zl", "Zp"}
+        for character in value
+    ):
+        return None
+    return value
 
 
 def _exact_identifier_list(value: Any, path: str, issues: list[dict[str, str]]) -> list[str]:
