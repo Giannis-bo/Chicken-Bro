@@ -8542,6 +8542,7 @@ def chickenbro_model_schema():
             "limitations",
             "missingInputs",
             "nextQuestion",
+            "claimRefs",
         ],
         "properties": {
             "answer": {"type": "string"},

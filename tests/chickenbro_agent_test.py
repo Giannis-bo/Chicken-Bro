@@ -61,6 +61,12 @@ class ChickenbroAgentIntentTest(unittest.TestCase):
             "nextQuestion": "",
         }
 
+    def test_codex_answer_schema_requires_every_declared_property(self):
+        schema = backend.chickenbro_model_schema()
+
+        self.assertEqual(set(schema["properties"]), set(schema["required"]))
+        self.assertIn("claimRefs", schema["required"])
+
     def test_agentic_answer_requires_claims_grounded_in_returned_observations(self):
         bounded = self.agentic_bounded_context()
         payload = {
