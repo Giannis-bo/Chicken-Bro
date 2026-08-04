@@ -1,4 +1,5 @@
 import json
+import os
 import subprocess
 import tempfile
 import unittest
@@ -153,6 +154,23 @@ class SimcItemEffectProbeCliTest(unittest.TestCase):
         self._assert_private_failure(completed)
         self.assertEqual(completed.stderr, b"INPUT_JSON_INVALID\n")
 
+    def test_cli_rejects_oversized_integers_when_python_digit_limit_is_disabled(self):
+        experiment_text = json.dumps(EXPERIMENT, separators=(",", ":"))
+        for oversized_integer in (("9" * 5000), "-" + ("9" * 5000)):
+            with self.subTest(sign=oversized_integer[0]):
+                malformed = experiment_text.replace(
+                    '"dps":100', '"dps":' + oversized_integer,
+                )
+                completed = self._run_raw_json(
+                    manifest=json.dumps(MANIFEST),
+                    experiment=malformed,
+                    control=json.dumps(CONTROL),
+                    runtime=RUNTIME,
+                    environment={**os.environ, "PYTHONINTMAXSTRDIGITS": "0"},
+                )
+                self._assert_private_failure(completed)
+                self.assertEqual(completed.stderr, b"INPUT_JSON_INVALID\n")
+
     def _run_payloads(self, *, manifest, experiment, control, runtime):
         return self._run_raw_json(
             manifest=json.dumps(manifest),
@@ -161,7 +179,9 @@ class SimcItemEffectProbeCliTest(unittest.TestCase):
             runtime=runtime,
         )
 
-    def _run_raw_json(self, *, manifest, experiment, control, runtime):
+    def _run_raw_json(
+        self, *, manifest, experiment, control, runtime, environment=None,
+    ):
         root = Path(__file__).resolve().parents[1]
         with tempfile.TemporaryDirectory() as directory:
             paths = {}
@@ -184,6 +204,7 @@ class SimcItemEffectProbeCliTest(unittest.TestCase):
                 cwd=root,
                 capture_output=True,
                 check=False,
+                env=environment,
             )
 
     def _assert_private_failure(self, completed):

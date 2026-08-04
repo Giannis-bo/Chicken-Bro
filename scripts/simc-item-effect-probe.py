@@ -16,6 +16,9 @@ if str(ROOT) not in sys.path:
 from server.simc_item_effect_probe import evaluate_effect_probe  # noqa: E402
 
 
+_MAX_JSON_INTEGER_DIGITS = 640
+
+
 class _StrictJsonError(ValueError):
     """One local input is not in the strict JSON language."""
 
@@ -47,12 +50,20 @@ def _parse_finite_float(value: str) -> float:
     return parsed
 
 
+def _parse_bounded_int(value: str) -> int:
+    digit_count = len(value) - (1 if value.startswith("-") else 0)
+    if digit_count > _MAX_JSON_INTEGER_DIGITS:
+        raise _StrictJsonError("JSON integer exceeds the decoder digit bound.")
+    return int(value)
+
+
 def _read(path: str) -> object:
     return json.loads(
         Path(path).read_text(encoding="utf-8"),
         object_pairs_hook=_reject_duplicate_pairs,
         parse_constant=_reject_nonfinite_constant,
         parse_float=_parse_finite_float,
+        parse_int=_parse_bounded_int,
     )
 
 
