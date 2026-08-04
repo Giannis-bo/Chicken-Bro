@@ -393,15 +393,6 @@ def _verified_effect_record_payload_copy(
     )
 
 
-def _signature(prefix: str, payload: dict[str, object]) -> str:
-    return seal_canonical_document(
-        document_kind="effect_subject_signature",
-        schema_revision="effect-subject-signature-v1",
-        payload=payload,
-        key_prefix=prefix,
-    ).content_key
-
-
 def derive_exact_effect_subjects(
     exact: SealedCanonicalDocument,
 ) -> tuple[EffectSubject, ...]:
@@ -424,7 +415,12 @@ def derive_exact_effect_subjects(
     subjects = [EffectSubject(
         "item",
         payload["itemId"],
-        _signature("exact-variant:sha256:", item_variant_payload),
+        seal_canonical_document(
+            document_kind="effect_subject_signature",
+            schema_revision="effect-subject-signature-v1",
+            payload=item_variant_payload,
+            key_prefix="exact-variant:sha256:",
+        ).content_key,
     )]
     gem_bonus_ids = payload["gemBonusIds"]
     gem_item_levels = payload["gemItemLevels"]
@@ -437,15 +433,23 @@ def derive_exact_effect_subjects(
         subjects.append(EffectSubject(
             "gem",
             gem_id,
-            _signature("gem-variant:sha256:", gem_payload),
+            seal_canonical_document(
+                document_kind="effect_subject_signature",
+                schema_revision="effect-subject-signature-v1",
+                payload=gem_payload,
+                key_prefix="gem-variant:sha256:",
+            ).content_key,
         ))
     if payload["enchantId"]:
         subjects.append(EffectSubject(
             "enchant",
             payload["enchantId"],
-            _signature(
-                "enchant-variant:sha256:", {"id": payload["enchantId"]},
-            ),
+            seal_canonical_document(
+                document_kind="effect_subject_signature",
+                schema_revision="effect-subject-signature-v1",
+                payload={"id": payload["enchantId"]},
+                key_prefix="enchant-variant:sha256:",
+            ).content_key,
         ))
     for kind, field, prefix in (
         ("embellishment", "embellishmentIds", "embellishment-variant:sha256:"),
@@ -455,7 +459,12 @@ def derive_exact_effect_subjects(
             subjects.append(EffectSubject(
                 kind,
                 key,
-                _signature(prefix, {"id": key}),
+                seal_canonical_document(
+                    document_kind="effect_subject_signature",
+                    schema_revision="effect-subject-signature-v1",
+                    payload={"id": key},
+                    key_prefix=prefix,
+                ).content_key,
             ))
     return tuple(subjects)
 
@@ -777,239 +786,6 @@ def resolve_exact_effect_support(
     return EffectSupportOutcome("verified", document, ())
 
 
-# The following raw-dict helpers are compatibility-only for the pre-Task-4
-# envelope tests. New Effect/Probe/CLI authority does not call them. Task 5 owns
-# their deletion after Envelope itself consumes sealed documents.
-
-
-def valid_runtime_revision(value: object) -> bool:
-    try:
-        _canonical_runtime(value, path="runtimeRevision")
-        return True
-    except CanonicalValueError:
-        return False
-
-
-def valid_effect_tokens(value: object, *, allow_empty: bool = False) -> bool:
-    try:
-        _canonical_effect_tokens(
-            value, path="effectTokens", allow_empty=allow_empty,
-        )
-        return True
-    except CanonicalValueError:
-        return False
-
-
-def effect_record_key(record: Mapping[str, object]) -> str:
-    payload = {
-        key: value for key, value in record.items() if key != "supportRecordKey"
-    }
-    return seal_canonical_document(
-        document_kind="legacy_effect_record",
-        schema_revision="legacy-effect-record-v1",
-        payload=payload,
-        key_prefix=EFFECT_RECORD_KEY_PREFIX,
-    ).content_key
-
-
-def seal_legacy_effect_record(record_payload: object) -> dict[str, object]:
-    """Seal one pre-Task-4 raw fixture for frozen compatibility tests only."""
-
-    if not isinstance(record_payload, Mapping):
-        return {}
-    sealed = dict(record_payload)
-    sealed["supportRecordKey"] = effect_record_key(sealed)
-    return sealed
-
-
-def _legacy_to_canonical_record(
-    record: object,
-    *,
-    runtime_revision: object,
-) -> dict[str, object] | None:
-    try:
-        if not isinstance(record, Mapping):
-            return None
-        raw = dict(record)
-        support_key = raw.pop("supportRecordKey", None)
-        if type(support_key) is not str:
-            return None
-        if raw.get("schemaRevision") == "simc-item-effect-authority-v1":
-            canonical = {
-                **raw,
-                "schemaRevision": EFFECT_RECORD_SCHEMA_REVISION,
-                "status": "verified",
-            }
-        else:
-            canonical = raw
-        validated = _validate_effect_record_payload(
-            canonical, runtime_revision=runtime_revision,
-        )
-        if support_key != effect_record_key(raw):
-            return None
-        return validated
-    except (CanonicalValueError, TypeError, ValueError, UnicodeError):
-        return None
-
-
-def validate_effect_record(record: object, *, runtime_revision: object) -> bool:
-    return _legacy_to_canonical_record(
-        record, runtime_revision=runtime_revision,
-    ) is not None
-
-
-def _legacy_subjects(exact_item: object) -> list[dict[str, str]]:
-    item = exact_item if isinstance(exact_item, Mapping) else {}
-    selection = (
-        item.get("enhancementSelection")
-        if isinstance(item.get("enhancementSelection"), Mapping)
-        else {}
-    )
-    item_key = item.get("itemId")
-    item_signature = item.get("exactVariantSignature")
-    result = [{
-        "subjectKind": item_key and "item" or "item",
-        "subjectKey": item_key if type(item_key) is str else "",
-        "subjectVariantSignature": item_signature
-        if type(item_signature) is str else "",
-    }]
-    gem_ids = selection.get("gemIds")
-    gem_bonus_ids = selection.get("gemBonusIds")
-    gem_item_levels = selection.get("gemItemLevels")
-    if type(gem_ids) is list:
-        for index, gem_id in enumerate(gem_ids):
-            bonus = (
-                gem_bonus_ids[index]
-                if type(gem_bonus_ids) is list and index < len(gem_bonus_ids)
-                else None
-            )
-            level = (
-                gem_item_levels[index]
-                if type(gem_item_levels) is list and index < len(gem_item_levels)
-                else None
-            )
-            if type(gem_id) is str and gem_id:
-                result.append({
-                    "subjectKind": "gem",
-                    "subjectKey": gem_id,
-                    "subjectVariantSignature": _signature(
-                        "gem-variant:sha256:",
-                        {
-                            "id": gem_id,
-                            "bonusIds": [bonus] if bonus is not None else [],
-                            "itemLevel": level,
-                        },
-                    ),
-                })
-    enchant = selection.get("enchantId")
-    if type(enchant) is str and enchant:
-        result.append({
-            "subjectKind": "enchant",
-            "subjectKey": enchant,
-            "subjectVariantSignature": _signature(
-                "enchant-variant:sha256:", {"id": enchant},
-            ),
-        })
-    for kind, field, prefix in (
-        ("embellishment", "embellishmentIds", "embellishment-variant:sha256:"),
-        ("crafted_effect", "craftedStats", "crafted_effect-variant:sha256:"),
-    ):
-        values = selection.get(field)
-        if type(values) is list:
-            for key in values:
-                if type(key) is str and key:
-                    result.append({
-                        "subjectKind": kind,
-                        "subjectKey": key,
-                        "subjectVariantSignature": _signature(
-                            prefix, {"id": key},
-                        ),
-                    })
-    return result
-
-
-def effect_support_key(result: Mapping[str, object]) -> str:
-    payload = {
-        key: result[key]
-        for key in (
-            "schemaRevision", "status", "simcRuntimeRevision", "subjects",
-            "supportRecords", "supportRecordKeys",
-        )
-    }
-    return seal_canonical_document(
-        document_kind="legacy_effect_aggregate",
-        schema_revision="legacy-effect-aggregate-v1",
-        payload=payload,
-        key_prefix=EFFECT_AGGREGATE_KEY_PREFIX,
-    ).content_key
-
-
-def resolve_exact_item_effect_support(
-    exact_item: object,
-    *,
-    runtime_revision: object,
-    support_records: object,
-) -> dict[str, object]:
-    runtime = runtime_revision if valid_runtime_revision(runtime_revision) else ""
-    subjects = _legacy_subjects(exact_item)
-    source = (
-        support_records.get("records")
-        if isinstance(support_records, Mapping)
-        else support_records
-    )
-    records = list(source) if type(source) in {list, tuple} else []
-    resolved_subjects = []
-    selected_records = []
-    selected_keys = []
-    for subject in subjects:
-        matches = [
-            record for record in records
-            if isinstance(record, Mapping)
-            and all(record.get(field) == subject[field] for field in (
-                "subjectKind", "subjectKey", "subjectVariantSignature",
-            ))
-        ]
-        verified_matches = [
-            record for record in matches
-            if validate_effect_record(record, runtime_revision=runtime)
-        ]
-        unsupported = next(
-            (
-                record for record in verified_matches
-                if record.get("status") == "unsupported"
-            ),
-            None,
-        )
-        selected = unsupported or (
-            verified_matches[0] if verified_matches else None
-        )
-        status = (
-            "unsupported" if unsupported is not None
-            else "verified" if selected is not None
-            else "unknown"
-        )
-        resolved_subjects.append({**subject, "status": status})
-        if selected is not None:
-            selected_records.append(dict(selected))
-            selected_keys.append(selected["supportRecordKey"])
-    statuses = {subject["status"] for subject in resolved_subjects}
-    status = (
-        "unsupported" if "unsupported" in statuses
-        else "unknown" if "unknown" in statuses
-        else "verified"
-    )
-    result = {
-        "schemaRevision": EFFECT_SUPPORT_SCHEMA_REVISION,
-        "status": status,
-        "simcRuntimeRevision": runtime,
-        "subjects": resolved_subjects,
-        "supportRecords": selected_records,
-        "supportRecordKeys": selected_keys,
-    }
-    result["effectSupportKey"] = effect_support_key(result)
-    return result
-
-
 __all__ = (
     "EFFECT_AGGREGATE_DOCUMENT_KIND",
     "EFFECT_AGGREGATE_KEY_PREFIX",
@@ -1021,14 +797,7 @@ __all__ = (
     "EffectSubject",
     "EffectSupportOutcome",
     "derive_exact_effect_subjects",
-    "effect_record_key",
-    "effect_support_key",
     "resolve_exact_effect_support",
-    "resolve_exact_item_effect_support",
     "seal_effect_record",
-    "seal_legacy_effect_record",
-    "valid_effect_tokens",
-    "valid_runtime_revision",
-    "validate_effect_record",
     "verify_effect_record",
 )

@@ -13,31 +13,47 @@
   "hotspotFiles": [
     {
       "path": "server/gear_canonical_kernel.py",
-      "healthStatus": "task2_primitive_bytes_seal_only",
-      "summary": "Owns the replacement-plan Task 2 canonical primitive language, deterministic JSON bytes and private sealed-document boundary without runtime integration.",
+      "healthStatus": "task2_sealed_consumers_consolidation_implementation_allowed",
+      "summary": "Owns the replacement-plan Task 2 canonical primitive language, deterministic JSON bytes, private sealed-document boundary and static ownership stop gate without runtime integration.",
       "owners": [
         {
           "id": "equipment_simulator_canonical_kernel_task2",
-          "status": "task2_primitive_bytes_seal_only",
+          "status": "task2_sealed_consumers_consolidation_implementation_allowed",
           "factOwner": "server/gear_canonical_kernel.py",
           "slotSetOwner": "server/gear_contracts.py",
+          "domainSchemaOwners": [
+            "server/gear_exact_item_instance.py",
+            "server/gear_exact_authority.py",
+            "server/simc_item_effect_support.py",
+            "server/simc_item_effect_probe.py"
+          ],
+          "adapterBoundary": "scripts/simc-item-effect-probe.py",
+          "ownerGate": "tests/gear_canonical_owner_gate_test.py",
           "owns": [
             "raw-value canonical identity/report token, integer, list, mapping and slot validation",
             "deterministic canonical JSON bytes with exact string object keys and SHA-256 content keys",
-            "module-private sealed document construction, reload verification and verified payload copies"
+            "module-private sealed document construction, reload verification and verified payload copies",
+            "AST stop gate for deleted raw APIs, duplicate primitive owners and sealed cross-domain parameters"
           ],
           "mustNotChange": [
             "server/gear_contracts.py remains the sole owner of CANONICAL_GEAR_SLOTS.",
             "Do not read database, Catalog, environment or runtime process state.",
-            "Do not migrate Exact, Progression, Effect or Envelope consumers in this slice.",
+            "Domain modules own only Exact, Static Facts, Progression, Effect, Probe and Envelope schema or business derivation; primitive validation, canonical bytes and seals remain Kernel-owned.",
+            "Do not reintroduce raw cross-domain APIs or a second serializer payload.",
             "Do not persist, log or echo raw plugin text."
           ],
           "characterization": [
             "tests/gear_canonical_kernel_test.py",
-            "tests/fixtures/gear_canonical_mutations.json"
+            "tests/gear_canonical_owner_gate_test.py",
+            "tests/fixtures/gear_canonical_mutations.json",
+            "tests/gear_exact_item_instance_test.py",
+            "tests/gear_exact_authority_test.py",
+            "tests/simc_item_effect_support_test.py",
+            "tests/simc_item_effect_probe_test.py",
+            "tests/simc_item_effect_probe_cli_test.py"
           ],
           "runtimeConsumers": [],
-          "futureExtractionDirection": "Later replacement-plan slices may consume the Kernel only after their independent review gate; this slice has no consumer migration."
+          "futureExtractionDirection": "Controller review may close the replacement foundation; original Task 3 remains forbidden until that review is clean, and this pure slice has no runtime integration."
         }
       ]
     },
@@ -112,6 +128,8 @@
         {
           "id": "equipment_simulator_exact_item_instance_phase2",
           "status": "phase2_archived",
+          "canonicalKernelOwner": "server/gear_canonical_kernel.py",
+          "canonicalOwnerGate": "tests/gear_canonical_owner_gate_test.py",
           "factOwner": "server/gear_exact_item_instance.py",
           "exactAuthorityOwner": "server/gear_exact_authority.py",
           "effectSupportOwner": "server/simc_item_effect_support.py",
@@ -128,6 +146,7 @@
             "Catalog and Gear Rule bound static-fact validation",
             "Catalog-independent Exact v2 identity and strict ExactAuthorityEnvelope",
             "pure, runtime-bound SimC effect-support tri-state and local probe evaluation",
+            "sealed Exact, Static Facts, Progression, Effect and Envelope schema/business derivation without legacy raw cross-domain APIs",
             "privacy-safe Community and personal template content references",
             "append-only dormant exact registry seal, reload and bounded pointer-fenced shadow"
           ],
@@ -141,6 +160,7 @@
           "characterization": [
             "tests/gear_exact_item_instance_test.py",
             "tests/gear_exact_authority_test.py",
+            "tests/gear_canonical_owner_gate_test.py",
             "tests/simc_item_effect_support_test.py",
             "tests/simc_item_effect_probe_test.py",
             "tests/simc_item_effect_probe_cli_test.py",
@@ -151,7 +171,7 @@
             "tests/postgres_schema_test.py"
           ],
           "runtimeConsumers": [],
-          "futureExtractionDirection": "Phase 3 consumes only verified exact keys; partial references remain explicit blockers and sealed Phase 2 rows remain immutable."
+          "futureExtractionDirection": "The replacement sealed foundation remains implementation_allowed pending controller review. Original Task 3 may consume only reviewed sealed identities; archived Phase 2 rows remain immutable and partial references remain explicit blockers."
         },
         {
           "id": "equipment_simulator_resolved_snapshot_phase3",

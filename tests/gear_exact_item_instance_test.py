@@ -9,7 +9,6 @@ from server.gear_canonical_kernel import (
     seal_canonical_document,
 )
 from server.gear_exact_item_instance import (
-    build_exact_item_identity,
     build_exact_item_instance,
     canonical_enhancement_selection,
     derive_simc_serializer_input,
@@ -221,62 +220,36 @@ class GearExactItemInstanceTest(unittest.TestCase):
         with self.assertRaises(CanonicalValueError):
             derive_simc_serializer_input(tampered)
 
-    def test_v2_identity_ignores_catalog_listing_and_changes_for_each_exact_field(self):
-        base = exact_v2_row()
-        listed = build_exact_item_identity(
-            CURRENT_BINDING,
-            {**base, "catalogStatus": "listed", "catalogRevision": CATALOG_REVISION},
+    def test_sealed_exact_rejects_noncanonical_types_text_and_cardinality(self):
+        invalid_rows = (
+            exact_v2_row(itemId=1001),
+            exact_v2_row(itemId=" 1001 "),
+            exact_v2_row(itemId="1001\n"),
+            exact_v2_row(declaredItemLevel=True),
+            exact_v2_row(declaredItemLevel=266.9),
+            exact_v2_row(declaredItemLevel=10000),
+            exact_v2_row(context={"difficulty": "heroic"}),
+            exact_v2_row(context=" heroic "),
+            exact_v2_row(context="heroic\u2028forged"),
+            exact_v2_row(bonusIds=[13334]),
+            exact_v2_row(gemIds=[240892, "240897"]),
+            exact_v2_row(gemBonusIds=[True, "1514"]),
+            exact_v2_row(gemItemLevels=[90.5, 90]),
+            exact_v2_row(gemItemLevels=[10000, 90]),
+            exact_v2_row(gemBonusIds=["1514"]),
+            exact_v2_row(gemItemLevels=[90]),
+            exact_v2_row(enchantId=7443),
         )
-        unlisted = build_exact_item_identity(
-            CURRENT_BINDING,
-            {
-                **base,
-                "catalogStatus": "unlisted",
-                "catalogRevision": "gear-catalog:sha256:" + ("3" * 64),
-                "owner": "never-an-identity-input",
-                "observationCount": 99,
-            },
-        )
-
-        self.assertEqual(listed["status"], "verified")
-        self.assertEqual(listed["exactItemInstanceKey"], unlisted["exactItemInstanceKey"])
-        for field, replacement in (
-            ("itemLevel", 269),
-            ("bonusIds", ["13334", "7777", "9001", "9002"]),
-            ("context", "mythic"),
-            ("gems", ["240897", "240892"]),
-            ("enchant", "9999"),
-            ("craftedStats", ["32"]),
-            ("embellishments", ["999001"]),
-            ("redirectedBaseStats", ["crit_rating"]),
-        ):
-            changed = exact_v2_row()
-            if field == "context":
-                changed["context"] = replacement
-            elif field == "gems":
-                changed["gemIds"] = replacement
-            elif field == "enchant":
-                changed["enchantId"] = replacement
-            elif field == "craftedStats":
-                changed["craftedStats"] = replacement
-            elif field == "embellishments":
-                changed["embellishmentIds"] = replacement
-            elif field == "redirectedBaseStats":
-                changed["redirectedBaseStats"] = replacement
-            else:
-                changed[field] = replacement
-                if field == "itemLevel":
-                    changed["declaredItemLevel"] = changed.pop("itemLevel")
-            candidate = build_exact_item_identity(CURRENT_BINDING, changed)
-            self.assertEqual(candidate["status"], "verified", field)
-            self.assertNotEqual(listed["exactItemInstanceKey"], candidate["exactItemInstanceKey"], field)
+        for row in invalid_rows:
+            with self.subTest(row=row):
+                self.assertEqual(seal_exact_item(row).status, "blocked")
 
     def test_v2_identity_accepts_exact_slot_contract_without_v1_catalog_row_fields(self):
-        result = build_exact_item_identity(CURRENT_BINDING, exact_v2_row())
-        self.assertEqual(result["status"], "verified")
+        result = seal_exact_item(exact_v2_row())
+        self.assertEqual(result.status, "verified")
 
     def test_each_direct_v2_enhancement_field_changes_exact_key(self):
-        original = build_exact_item_identity(CURRENT_BINDING, exact_v2_row())
+        original = seal_exact_item(exact_v2_row()).document
         for field, value in (
             ("gemIds", ["240897", "240892"]),
             ("gemBonusIds", ["1515", "1514"]),
@@ -285,18 +258,20 @@ class GearExactItemInstanceTest(unittest.TestCase):
             ("craftedStats", ["32"]),
             ("embellishmentIds", ["999001"]),
         ):
-            result = build_exact_item_identity(CURRENT_BINDING, exact_v2_row(**{field: value}))
-            self.assertEqual(result["status"], "verified", field)
-            self.assertNotEqual(result["exactItemInstanceKey"], original["exactItemInstanceKey"], field)
+            result = seal_exact_item(exact_v2_row(**{field: value}))
+            self.assertEqual(result.status, "verified", field)
+            self.assertNotEqual(result.document.content_key, original.content_key, field)
 
     def test_arbitrary_variant_key_cannot_gate_or_rescue_v2_identity(self):
-        original = build_exact_item_identity(CURRENT_BINDING, exact_v2_row())
-        changed = build_exact_item_identity(
-            CURRENT_BINDING,
-            exact_v2_row(variantKey="fabricated-not-canonical", rowFamily="exact_instance", status="verified"),
+        original = seal_exact_item(exact_v2_row()).document
+        external = exact_v2_row(
+            variantKey="fabricated-not-canonical",
+            rowFamily="exact_instance",
+            status="verified",
         )
-        self.assertEqual(changed["status"], "verified")
-        self.assertEqual(changed["exactItemInstanceKey"], original["exactItemInstanceKey"])
+        self.assertEqual(seal_exact_item(external).status, "blocked")
+        projected = adapter_exact_slot_fields(external)
+        self.assertEqual(seal_exact_item(projected).document, original)
 
     def test_v2_identity_blocks_out_of_contract_numeric_and_context_values(self):
         for changed in (
@@ -306,32 +281,36 @@ class GearExactItemInstanceTest(unittest.TestCase):
             exact_v2_row(context={"x": False}),
             exact_v2_row(gemItemLevels=[90.5, 90]),
         ):
-            self.assertEqual(build_exact_item_identity(CURRENT_BINDING, changed)["status"], "blocked")
+            self.assertEqual(seal_exact_item(changed).status, "blocked")
 
     def test_v2_identity_rejects_mismatched_external_enhancement_override(self):
-        row = exact_v2_row()
-        result = build_exact_item_identity(CURRENT_BINDING, row, enhancement_selection={"gemIds": ["different"], "gemBonusIds": ["1514"], "gemItemLevels": [90], "enchantId": "7443", "craftedStats": ["36", "32"], "embellishmentIds": ["999002", "999001"]})
-        self.assertEqual(result["status"], "blocked")
+        self.assertEqual(
+            tuple(inspect.signature(seal_exact_item).parameters),
+            ("exact_slot_payload",),
+        )
+        with self.assertRaises(TypeError):
+            seal_exact_item(
+                exact_v2_row(),
+                enhancement_selection={"gemIds": ["different"]},
+            )
 
     def test_v2_identity_direct_enhancements_remain_authoritative_with_override(self):
-        base = exact_v2_row()
-        equivalent = {key: base[key] for key in ("gemIds", "gemBonusIds", "gemItemLevels", "enchantId", "craftedStats", "embellishmentIds")}
-        first = build_exact_item_identity(CURRENT_BINDING, base, enhancement_selection=equivalent)
-        second_row = exact_v2_row(gemIds=["240897", "240892"])
-        second_equivalent = {key: second_row[key] for key in equivalent}
-        second = build_exact_item_identity(CURRENT_BINDING, second_row, enhancement_selection=second_equivalent)
-        self.assertEqual(first["status"], "verified")
-        self.assertEqual(second["status"], "verified")
-        self.assertNotEqual(first["exactItemInstanceKey"], second["exactItemInstanceKey"])
+        first = seal_exact_item(exact_v2_row()).document
+        second = seal_exact_item(
+            exact_v2_row(gemIds=["240897", "240892"]),
+        ).document
+        self.assertNotEqual(first.content_key, second.content_key)
+        self.assertEqual(
+            json.loads(second.canonical_bytes)["gemIds"],
+            ["240897", "240892"],
+        )
 
     def test_every_direct_enhancement_field_changes_identity_with_equivalent_override(self):
-        base = exact_v2_row()
-        fields = ("gemIds", "gemBonusIds", "gemItemLevels", "enchantId", "craftedStats", "embellishmentIds")
-        first = build_exact_item_identity(CURRENT_BINDING, base, enhancement_selection={field: base[field] for field in fields})
+        first = seal_exact_item(exact_v2_row()).document
         for field, value in (("gemIds", ["240897", "240892"]), ("gemBonusIds", ["1515", "1514"]), ("gemItemLevels", [91, 90]), ("enchantId", "9999"), ("craftedStats", ["32"]), ("embellishmentIds", ["999001"])):
-            row = exact_v2_row(**{field: value})
-            result = build_exact_item_identity(CURRENT_BINDING, row, enhancement_selection={name: row[name] for name in fields})
-            self.assertNotEqual(first["exactItemInstanceKey"], result["exactItemInstanceKey"], field)
+            result = seal_exact_item(exact_v2_row(**{field: value}))
+            self.assertEqual(result.status, "verified", field)
+            self.assertNotEqual(first.content_key, result.document.content_key, field)
 
     def test_v2_identity_rejects_non_string_identifiers_without_normalizing_them(self):
         for row in (
@@ -341,17 +320,12 @@ class GearExactItemInstanceTest(unittest.TestCase):
             exact_v2_row(gemBonusIds=[True, "1514"]),
             exact_v2_row(enchantId=7443),
         ):
-            self.assertEqual(build_exact_item_identity(CURRENT_BINDING, row)["status"], "blocked")
+            self.assertEqual(seal_exact_item(row).status, "blocked")
 
     def test_v2_enhancement_override_rejects_every_noncanonical_identifier_shape(self):
-        base = exact_v2_row()
-        fields = (
-            "gemIds", "gemBonusIds", "gemItemLevels", "enchantId",
-            "craftedStats", "embellishmentIds",
-        )
         identifier_fields = ("gemIds", "gemBonusIds", "craftedStats", "embellishmentIds")
         for field in identifier_fields:
-            original = base[field]
+            original = exact_v2_row()[field]
             for replacement in (
                 [1001, *original[1:]],
                 [True, *original[1:]],
@@ -359,20 +333,16 @@ class GearExactItemInstanceTest(unittest.TestCase):
                 [f" {original[0]} ", *original[1:]],
                 [f"{original[0]}\n", *original[1:]],
             ):
-                override = {name: copy.deepcopy(base[name]) for name in fields}
-                override[field] = replacement
-                result = build_exact_item_identity(
-                    CURRENT_BINDING, base, enhancement_selection=override,
+                result = seal_exact_item(
+                    exact_v2_row(**{field: replacement}),
                 )
-                self.assertEqual(result["status"], "blocked", (field, replacement))
+                self.assertEqual(result.status, "blocked", (field, replacement))
 
         for replacement in ([10000, 90], [True, 90], ["90", 90], (90, 90)):
-            override = {name: copy.deepcopy(base[name]) for name in fields}
-            override["gemItemLevels"] = replacement
-            result = build_exact_item_identity(
-                CURRENT_BINDING, base, enhancement_selection=override,
+            result = seal_exact_item(
+                exact_v2_row(gemItemLevels=replacement),
             )
-            self.assertEqual(result["status"], "blocked", replacement)
+            self.assertEqual(result.status, "blocked", replacement)
 
     def test_v2_direct_strings_and_levels_must_already_be_canonical_and_bounded(self):
         for row in (
@@ -385,7 +355,7 @@ class GearExactItemInstanceTest(unittest.TestCase):
             exact_v2_row(declaredItemLevel=10000),
             exact_v2_row(gemItemLevels=[10000, 90]),
         ):
-            self.assertEqual(build_exact_item_identity(CURRENT_BINDING, row)["status"], "blocked", row)
+            self.assertEqual(seal_exact_item(row).status, "blocked", row)
 
     def test_v2_set_like_direct_fields_must_already_be_sorted_and_unique(self):
         for field, values in (
@@ -395,51 +365,26 @@ class GearExactItemInstanceTest(unittest.TestCase):
             ("redirectedBaseStats", (["mastery", "crit"], ["crit", "crit", "mastery"])),
         ):
             for replacement in values:
-                result = build_exact_item_identity(
-                    CURRENT_BINDING, exact_v2_row(**{field: replacement}),
-                )
-                self.assertEqual(result["status"], "blocked", (field, replacement))
+                result = seal_exact_item(exact_v2_row(**{field: replacement}))
+                self.assertEqual(result.status, "blocked", (field, replacement))
 
     def test_v2_override_must_match_raw_direct_six_fields_without_normalization(self):
-        base = exact_v2_row(
-            craftedStats=["crit", "haste"],
-            embellishmentIds=["emb-a", "emb-b"],
-        )
-        fields = (
-            "gemIds", "gemBonusIds", "gemItemLevels", "enchantId",
-            "craftedStats", "embellishmentIds",
-        )
         for field, replacements in (
             ("craftedStats", (["haste", "crit"], ["crit", "crit", "haste"])),
             ("embellishmentIds", (["emb-b", "emb-a"], ["emb-a", "emb-a", "emb-b"])),
         ):
             for replacement in replacements:
-                override = {name: copy.deepcopy(base[name]) for name in fields}
-                override[field] = replacement
-                result = build_exact_item_identity(
-                    CURRENT_BINDING, base, enhancement_selection=override,
+                result = seal_exact_item(
+                    exact_v2_row(**{field: replacement}),
                 )
-                self.assertEqual(result["status"], "blocked", (field, replacement))
+                self.assertEqual(result.status, "blocked", (field, replacement))
 
     def test_v2_blocks_out_of_contract_crafted_effect_ids_at_first_boundary(self):
-        direct = build_exact_item_identity(
-            CURRENT_BINDING, exact_v2_row(craftedEffectIds=["effect-a"]),
+        result = seal_exact_item(
+            exact_v2_row(craftedEffectIds=["effect-a"]),
         )
-        base = exact_v2_row()
-        override = {
-            name: copy.deepcopy(base[name])
-            for name in (
-                "gemIds", "gemBonusIds", "gemItemLevels", "enchantId",
-                "craftedStats", "embellishmentIds",
-            )
-        }
-        override["craftedEffectIds"] = ["effect-a"]
-        derived = build_exact_item_identity(
-            CURRENT_BINDING, base, enhancement_selection=override,
-        )
-        for result in (direct, derived):
-            self.assertEqual(result["status"], "blocked")
-            self.assertIn("EXACT_CRAFTED_EFFECT_IDS_UNSUPPORTED", result["problemCodes"])
+        self.assertEqual(result.status, "blocked")
+        self.assertEqual(result.issues[0].path, "exactSlot.craftedEffectIds")
 
     def test_v1_catalog_wrapper_remains_byte_and_key_compatible(self):
         built = build_exact_item_instance(

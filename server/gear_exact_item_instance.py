@@ -195,136 +195,6 @@ def _set_tokens(value: Any) -> list[str] | None:
     return sorted(set(tokens))
 
 
-def _strict_identifier(value: Any) -> str | None:
-    if not isinstance(value, str) or value != value.strip():
-        return None
-    if any(ord(character) < 32 or ord(character) == 127 for character in value):
-        return None
-    return value if _TOKEN_PATTERN.fullmatch(value) else None
-
-
-def _strict_identifier_list(value: Any, *, ordered: bool) -> list[str] | None:
-    if not isinstance(value, list):
-        return None
-    result: list[str] = []
-    for raw_token in value:
-        token = _strict_identifier(raw_token)
-        if token is None:
-            return None
-        result.append(token)
-    if ordered:
-        return result
-    canonical = sorted(set(result))
-    return result if result == canonical else None
-
-
-def _strict_level_list(value: Any) -> list[int] | None:
-    if not isinstance(value, list):
-        return None
-    if any(type(level) is not int or not 1 <= level <= 9999 for level in value):
-        return None
-    return list(value)
-
-
-def _strict_enchant(value: Any) -> str | None:
-    if not isinstance(value, str) or value != value.strip():
-        return None
-    if not value:
-        return ""
-    pieces = value.split("/")
-    if any(_strict_identifier(piece) is None for piece in pieces):
-        return None
-    return "/".join(pieces)
-
-
-def _strict_v2_enhancement_selection(raw_selection: Any) -> dict[str, Any]:
-    fields = frozenset({
-        "gemIds", "gemBonusIds", "gemItemLevels", "enchantId",
-        "craftedStats", "embellishmentIds",
-    })
-    if not isinstance(raw_selection, Mapping):
-        return {
-            "status": "blocked",
-            "schemaRevision": ENHANCEMENT_SELECTION_SCHEMA_REVISION,
-            "problemCodes": ["ENHANCEMENT_FIELDS_INVALID"],
-            "problems": [_problem(
-                "ENHANCEMENT_FIELDS_INVALID", "enhancement",
-                "v2 enhancement must be one strict canonical object.",
-            )],
-        }
-    raw = dict(raw_selection)
-    if set(raw) != fields:
-        return {
-            "status": "blocked",
-            "schemaRevision": ENHANCEMENT_SELECTION_SCHEMA_REVISION,
-            "problemCodes": ["ENHANCEMENT_FIELDS_INVALID"],
-            "problems": [_problem(
-                "ENHANCEMENT_FIELDS_INVALID", "enhancement",
-                "v2 enhancement fields and schema revision must be exact.",
-            )],
-        }
-
-    gem_ids = _strict_identifier_list(raw.get("gemIds"), ordered=True)
-    gem_bonus_ids = _strict_identifier_list(raw.get("gemBonusIds"), ordered=True)
-    gem_item_levels = _strict_level_list(raw.get("gemItemLevels"))
-    crafted_stats = _strict_identifier_list(raw.get("craftedStats"), ordered=False)
-    embellishment_ids = _strict_identifier_list(raw.get("embellishmentIds"), ordered=False)
-    enchant_id = _strict_enchant(raw.get("enchantId"))
-    values = (
-        (gem_ids, "gemIds"), (gem_bonus_ids, "gemBonusIds"),
-        (gem_item_levels, "gemItemLevels"),
-        (crafted_stats, "craftedStats"),
-        (embellishment_ids, "embellishmentIds"),
-        (enchant_id, "enchantId"),
-    )
-    problems = [
-        _problem(
-            "ENHANCEMENT_VALUE_NON_CANONICAL", f"enhancement.{field}",
-            f"{field} must use its strict canonical v2 type and value bounds.",
-        )
-        for value, field in values if value is None
-    ]
-    if gem_ids is not None and gem_bonus_ids is not None and (
-        gem_bonus_ids and len(gem_bonus_ids) != len(gem_ids)
-    ):
-        problems.append(_problem(
-            "ENHANCEMENT_GEM_SEQUENCE_MISMATCH", "enhancement.gemBonusIds",
-            "gemBonusIds must be empty or match gemIds cardinality.",
-        ))
-    if gem_ids is not None and gem_item_levels is not None and (
-        gem_item_levels and len(gem_item_levels) != len(gem_ids)
-    ):
-        problems.append(_problem(
-            "ENHANCEMENT_GEM_SEQUENCE_MISMATCH", "enhancement.gemItemLevels",
-            "gemItemLevels must be empty or match gemIds cardinality.",
-        ))
-    if problems:
-        return {
-            "status": "blocked",
-            "schemaRevision": ENHANCEMENT_SELECTION_SCHEMA_REVISION,
-            "problemCodes": sorted({problem["code"] for problem in problems}),
-            "problems": problems,
-        }
-
-    selection = _enhancement_identity({
-        "gemIds": gem_ids, "gemBonusIds": gem_bonus_ids,
-        "gemItemLevels": gem_item_levels, "enchantId": enchant_id,
-        "craftedStats": crafted_stats, "embellishmentIds": embellishment_ids,
-    })
-    key = _hash("enhancement-selection:sha256:", selection)
-    return {
-        "status": "verified",
-        "schemaRevision": ENHANCEMENT_SELECTION_SCHEMA_REVISION,
-        "enhancementSelectionKey": key,
-        "selection": selection,
-        "rowHash": "sha256:" + hashlib.sha256(_canonical_bytes({
-            "enhancementSelectionKey": key, "selection": selection,
-        })).hexdigest(),
-        "problemCodes": [],
-        "problems": [],
-    }
-
-
 def _static_facts(value: Any) -> dict[str, int | float] | None:
     if not isinstance(value, Mapping) or not value:
         return None
@@ -496,11 +366,11 @@ def _require_exact_mapping_keys(
     return canonical_mapping(value, path=path, exact_keys=exact_keys)
 
 
-def _canonical_identifier_item(value: object, path: str) -> str:
+def _exact_identity_field(value: object, path: str) -> str:
     return canonical_identity_token(value, path=path)
 
 
-def _canonical_level_item(value: object, path: str) -> int:
+def _exact_item_level_field(value: object, path: str) -> int:
     return canonical_int(value, path=path, minimum=1, maximum=9999)
 
 
@@ -523,22 +393,22 @@ def _canonical_exact_slot_payload(
     )
     bonus_ids = canonical_set_list(
         raw["bonusIds"], path=f"{path}.bonusIds",
-        item_rule=_canonical_identifier_item, max_items=256,
+        item_rule=_exact_identity_field, max_items=256,
     )
     context = canonical_identity_token(
         raw["context"], path=f"{path}.context", allow_empty=True,
     )
     gem_ids = canonical_ordered_list(
         raw["gemIds"], path=f"{path}.gemIds",
-        item_rule=_canonical_identifier_item, max_items=16,
+        item_rule=_exact_identity_field, max_items=16,
     )
     gem_bonus_ids = canonical_ordered_list(
         raw["gemBonusIds"], path=f"{path}.gemBonusIds",
-        item_rule=_canonical_identifier_item, max_items=16,
+        item_rule=_exact_identity_field, max_items=16,
     )
     gem_item_levels = canonical_ordered_list(
         raw["gemItemLevels"], path=f"{path}.gemItemLevels",
-        item_rule=_canonical_level_item, max_items=16,
+        item_rule=_exact_item_level_field, max_items=16,
     )
     if gem_bonus_ids and len(gem_bonus_ids) != len(gem_ids):
         raise CanonicalValueError(
@@ -553,15 +423,15 @@ def _canonical_exact_slot_payload(
     )
     crafted_stats = canonical_set_list(
         raw["craftedStats"], path=f"{path}.craftedStats",
-        item_rule=_canonical_identifier_item, max_items=16,
+        item_rule=_exact_identity_field, max_items=16,
     )
     embellishment_ids = canonical_set_list(
         raw["embellishmentIds"], path=f"{path}.embellishmentIds",
-        item_rule=_canonical_identifier_item, max_items=16,
+        item_rule=_exact_identity_field, max_items=16,
     )
     redirected_base_stats = canonical_set_list(
         raw["redirectedBaseStats"], path=f"{path}.redirectedBaseStats",
-        item_rule=_canonical_identifier_item, max_items=16,
+        item_rule=_exact_identity_field, max_items=16,
     )
     return {
         "schemaRevision": EXACT_ITEM_IDENTITY_SCHEMA_REVISION,
@@ -804,110 +674,6 @@ def derive_simc_serializer_input(
     if payload["enchantId"]:
         result["enchant_id"] = payload["enchantId"]
     return result
-
-
-def build_exact_item_identity(
-    binding: Any,
-    exact_row: Any,
-    *,
-    enhancement_selection: Any = None,
-) -> dict[str, Any]:
-    """Build a Catalog-independent identity from one v2 Exact slot contract."""
-
-    del binding
-    row = dict(exact_row) if isinstance(exact_row, Mapping) else {}
-    problems: list[dict[str, str]] = []
-    required_fields = {
-        "itemId", "declaredItemLevel", "bonusIds", "context", "gemIds",
-        "gemBonusIds", "gemItemLevels", "enchantId", "craftedStats",
-        "embellishmentIds", "redirectedBaseStats",
-    }
-    for field in sorted(required_fields.difference(row)):
-        problems.append(_problem("EXACT_FIELD_MISSING", f"exactRow.{field}", "Every v2 Exact slot field is required."))
-    if "craftedEffectIds" in row:
-        problems.append(_problem(
-            "EXACT_CRAFTED_EFFECT_IDS_UNSUPPORTED",
-            "exactRow.craftedEffectIds",
-            "exact-loadout-intent-v2 does not define craftedEffectIds; use its governed craftedStats or embellishmentIds fields.",
-        ))
-    raw_item_id = row.get("itemId")
-    item_id = _strict_identifier(raw_item_id)
-    raw_item_level = row.get("declaredItemLevel")
-    item_level = raw_item_level if type(raw_item_level) is int and 1 <= raw_item_level <= 9999 else 0
-    bonus_ids = _strict_identifier_list(row.get("bonusIds"), ordered=False)
-    raw_context = row.get("context")
-    context = raw_context if (
-        isinstance(raw_context, str)
-        and raw_context == raw_context.strip()
-        and len(raw_context.encode("utf-8")) <= 256
-        and not any(ord(character) < 32 or ord(character) == 127 for character in raw_context)
-    ) else None
-    redirected_base_stats = _strict_identifier_list(row.get("redirectedBaseStats"), ordered=False)
-    if item_id is None:
-        problems.append(_problem("EXACT_ITEM_ID_MISSING", "exactRow.itemId", "Exact identity requires itemId."))
-    if not item_level:
-        problems.append(_problem("EXACT_ILEVEL_MISSING", "exactRow.declaredItemLevel", "Exact identity requires a positive declared item level."))
-    if bonus_ids is None:
-        problems.append(_problem("EXACT_BONUS_IDS_MALFORMED", "exactRow.bonusIds", "bonusIds must be a bounded token sequence."))
-        bonus_ids = []
-    if context is None:
-        problems.append(_problem("EXACT_CONTEXT_MALFORMED", "exactRow.context", "context must be a bounded newline-free string."))
-        context = ""
-    if redirected_base_stats is None:
-        problems.append(_problem("EXACT_REDIRECTED_BASE_STATS_MALFORMED", "exactRow.redirectedBaseStats", "redirectedBaseStats must be a bounded token sequence."))
-        redirected_base_stats = []
-    direct_selection_input = {
-        "gemIds": row.get("gemIds"),
-        "gemBonusIds": row.get("gemBonusIds"),
-        "gemItemLevels": row.get("gemItemLevels"),
-        "enchantId": row.get("enchantId"),
-        "craftedStats": row.get("craftedStats"),
-        "embellishmentIds": row.get("embellishmentIds"),
-    }
-    selection_result = _strict_v2_enhancement_selection(direct_selection_input)
-    if selection_result.get("status") != "verified":
-        problems.extend(selection_result.get("problems") or [])
-    if enhancement_selection is not None:
-        if isinstance(enhancement_selection, Mapping) and "craftedEffectIds" in enhancement_selection:
-            problems.append(_problem(
-                "EXACT_CRAFTED_EFFECT_IDS_UNSUPPORTED",
-                "enhancement.craftedEffectIds",
-                "exact-loadout-intent-v2 does not define craftedEffectIds; use its governed craftedStats or embellishmentIds fields.",
-            ))
-        override_result = _strict_v2_enhancement_selection(enhancement_selection)
-        if override_result.get("status") != "verified":
-            problems.extend(override_result.get("problems") or [])
-        elif selection_result.get("status") == "verified" and dict(enhancement_selection) != direct_selection_input:
-            problems.append(_problem("EXACT_ENHANCEMENT_OVERRIDE_MISMATCH", "enhancement", "External enhancement selection must match direct v2 fields."))
-    if problems:
-        return {
-            "status": "blocked", "schemaRevision": EXACT_ITEM_IDENTITY_SCHEMA_REVISION,
-            "problemCodes": sorted({_text(problem.get("code")) for problem in problems}),
-            "problems": _canonical(problems),
-        }
-    selection = selection_result["selection"]
-    variant_identity = {
-        "itemId": item_id, "bonusIds": bonus_ids, "context": context,
-        "itemLevel": item_level, "redirectedBaseStats": redirected_base_stats,
-    }
-    instance_identity = {
-        "schemaRevision": EXACT_ITEM_IDENTITY_SCHEMA_REVISION,
-        **variant_identity, "enhancementSelection": selection,
-    }
-    exact_variant_signature = _hash("exact-variant:sha256:", variant_identity)
-    exact_key = _hash("exact-item-instance:sha256:", instance_identity)
-    return {
-        "status": "verified",
-        "schemaRevision": EXACT_ITEM_IDENTITY_SCHEMA_REVISION,
-        "exactItemInstanceKey": exact_key,
-        "exactVariantSignature": exact_variant_signature,
-        "enhancementSelectionKey": selection_result["enhancementSelectionKey"],
-        **variant_identity,
-        "enhancementSelection": selection,
-        "serializerInput": _serializer_input(item_id, item_level, bonus_ids, selection),
-        "problemCodes": [],
-        "problems": [],
-    }
 
 
 def build_exact_item_instance(
@@ -1168,7 +934,6 @@ __all__ = (
     "EXACT_STATIC_FACTS_SCHEMA_REVISION",
     "EXACT_VARIANT_SIGNATURE_PATTERN",
     "build_exact_item_instance",
-    "build_exact_item_identity",
     "canonical_enhancement_selection",
     "derive_simc_serializer_input",
     "seal_exact_item",
