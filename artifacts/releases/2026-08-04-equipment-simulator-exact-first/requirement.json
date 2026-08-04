@@ -118,7 +118,7 @@
     "required": false,
     "requiredItemIds": []
   },
-  "closureCondition": "Replacement Task 1-5 may close only after Task 1 source-change-control scoped PASS/APPROVED, Task 2 control-plane scoped PASS/APPROVED, fresh local semantic/frozen-identity/Harness evidence and a fresh whole-branch PASS/APPROVED review are simultaneously present; original Task 3 stays inactive until then.",
+  "closureCondition": "Replacement Task 1-5 may close only after Task 1 source-change-control scoped PASS/APPROVED, Task 2 control-plane scoped PASS/APPROVED, duplicate-effect-subject correction scoped PASS/APPROVED, fresh local semantic/frozen-identity/Harness evidence and a fresh whole-branch PASS/APPROVED review are simultaneously present; original Task 3 stays inactive until then.",
   "releaseTrigger": "docs_tooling_only",
   "rollback": [
     "code_rollback",

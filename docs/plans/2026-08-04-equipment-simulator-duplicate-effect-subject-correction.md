@@ -17,10 +17,29 @@
 ## Fixed semantics
 
 - Exact 派生 subjects 是有序、可重复的序列；不得去重，也不得改变 Exact v2 identity/schema。
-- 输入 records 必须与 expected subjects 逐位置匹配；相同 sealed record 可以在两个相同 subject 位置重复出现。
+- 输入 records 必须与 expected subjects 逐位置匹配。相同 sealed record 可以在两个相同 subject 位置重复出现，但不是强制要求；同 identity 的两个位置也可以各自使用不同 bytes/key 的有效 sealed record。
 - aggregate 的 `subjects` 与 `supportRecords` 必须保留相同数量、顺序和重复项；相同 record 的 content key 可以重复。
-- 少一条仍为 `EFFECT_RECORD_MISSING`；多一条为 `UNEXPECTED_EFFECT_RECORD`；存在于后续位置的错序 record 仍为 `NON_CANONICAL_EFFECT_RECORD_ORDER`；identity 不属于 Exact 时仍为 `UNEXPECTED_EFFECT_RECORD`。
+- 同 identity 的不同有效 records 若 status/verifiedAt 不同，按各位置原样保留；任一位置为 `unsupported`，aggregate 必须为 `unsupported`，authority envelope 必须 fail closed 而不是 `ready`。
 - 不把位置写入 effect-record identity，不要求对相同效果重复探测，也不修改 record schema/key。
+
+### Reason-code decision table
+
+在 exact/runtime/sequence type 与 record seal/reload 验证通过后，按输入 index 依次判定，前一条命中后不再尝试后续分类：
+
+1. `index >= len(expected_subjects)`：identity 属于任一 expected subject 时为 `DUPLICATE_EFFECT_RECORD`，否则为 `UNEXPECTED_EFFECT_RECORD`。
+2. identity 等于 `expected_subjects[index]`：接受该位置。
+3. identity 不属于完整 expected subject 序列：`UNEXPECTED_EFFECT_RECORD`。
+4. identity 出现在 `expected_subjects[index + 1:]`：`NON_CANONICAL_EFFECT_RECORD_ORDER`，即后续位置被提前提交。
+5. 其余情况表示该 identity 的 expected occurrence 已在前面耗尽：`DUPLICATE_EFFECT_RECORD`。
+6. 所有已提交 records 均逐位置接受、但数量小于 expected 时：`EFFECT_RECORD_MISSING`，指向第一个未满足位置。
+
+Examples for expected `[item, A, B]`:
+
+- `[item, A]` -> `EFFECT_RECORD_MISSING`
+- `[item, B]` -> `NON_CANONICAL_EFFECT_RECORD_ORDER`
+- `[item, X]` -> `UNEXPECTED_EFFECT_RECORD`
+- `[item, A, A]` or `[item, A, B, A]` -> `DUPLICATE_EFFECT_RECORD`
+- `[item, A, B, X]` -> `UNEXPECTED_EFFECT_RECORD`
 
 ## Scope
 
@@ -42,7 +61,9 @@
 - Modify: `docs/roadmap.md`
 - Modify: `docs/plans/2026-08-04-equipment-simulator-canonical-kernel-redesign.md`
 - Modify: `docs/plans/2026-08-04-equipment-simulator-canonical-owner-change-control.md`
+- Modify: `docs/plans/2026-08-04-equipment-simulator-canonical-kernel-implementation.md` only to keep its stopped status current
 - Modify: `docs/plans/2026-08-04-equipment-simulator-exact-first-implementation.md`
+- Modify: `docs/plans/2026-08-04-equipment-simulator-duplicate-effect-subject-correction.md`
 - Modify: `tests/gear_canonical_owner_gate_test.py` only for current-truth status assertions; gate/analyzer/registry/mutations must not change.
 
 ## Must not change
@@ -54,8 +75,10 @@
 ## Task 1: TDD ordered-multiset correction
 
 - [ ] Add a RED aggregate test with two identical gem positions and records `[item, gem, gem]`; require `verified`, three aggregate subjects and three support records in exact order.
-- [ ] Add RED boundaries for one missing duplicate, one extra duplicate, distinct-subject wrong order and an unrelated record.
-- [ ] Add a RED authority-envelope regression proving the duplicate-gem Exact reaches pure `ready` with the same repeated record positions.
+- [ ] Add RED boundaries for one missing occurrence, one extra duplicate, distinct-subject wrong order and an unrelated record, asserting the decision table reason codes exactly.
+- [ ] Add a non-adjacent repeated-subject RED using gem order `A/B/A`; require positional aggregate order and no identity-keyed collapse.
+- [ ] Add a repeated-subject RED whose two valid records have different keys/status (`verified` and `unsupported`); require both records to remain and aggregate `unsupported`.
+- [ ] Add authority-envelope regressions proving all-verified duplicate-gem Exact reaches pure `ready`, while the mixed verified/unsupported duplicate remains blocked.
 - [ ] Replace identity-keyed aggregation with bounded positional matching; do not add a second schema, occurrence key or deduplication pass.
 - [ ] Keep all existing effect, Exact, Track Authority, CLI, owner-gate and frozen identity regressions green.
 - [ ] Commit only after focused RED becomes GREEN and the full matrix passes.
@@ -81,4 +104,3 @@ Stop and redesign if the fix requires any of the following:
 - modifying the owner-gate analyzer/registry or expanding `proofClaim`;
 - touching persistence, worker, Resolver/API/UI, generation 35 or SimC runtime;
 - making missing, extra, unordered or unsealed evidence pass as verified.
-
