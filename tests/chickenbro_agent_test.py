@@ -67,6 +67,29 @@ class ChickenbroAgentIntentTest(unittest.TestCase):
         self.assertEqual(set(schema["properties"]), set(schema["required"]))
         self.assertIn("claimRefs", schema["required"])
 
+    def test_agentic_output_accepts_explicit_positive_form_of_an_allowed_number(self):
+        bounded = self.agentic_bounded_context()
+        bounded["allowedNumbers"] = ["24"]
+
+        validated = backend.validate_chickenbro_model_output(
+            {
+                "answer": "最高观察层数为 +24。",
+                "confidence": "medium",
+                "priorityActions": [],
+                "evidenceRefs": ["fixture.raiderio"],
+                "limitations": [],
+                "missingInputs": [],
+                "nextQuestion": "",
+                "claimRefs": [{
+                    "statement": "最高观察层数为 +24。",
+                    "evidenceRefs": ["fixture.raiderio"],
+                }],
+            },
+            bounded,
+        )
+
+        self.assertEqual("最高观察层数为 +24。", validated["answer"])
+
     def test_agentic_answer_requires_claims_grounded_in_returned_observations(self):
         bounded = self.agentic_bounded_context()
         payload = {

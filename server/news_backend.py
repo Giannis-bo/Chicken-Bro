@@ -8818,7 +8818,10 @@ def validate_chickenbro_model_output(payload, bounded_context):
         for ref in action.get("evidenceRefs") or []:
             if str(ref) not in allowed_refs:
                 raise ValueError("model_output_invalid: unknown action evidence ref")
-    allowed_numbers = {str(number).rstrip("%") for number in bounded_context.get("allowedNumbers") or []}
+    allowed_numbers = {
+        str(number).rstrip("%").lstrip("+")
+        for number in bounded_context.get("allowedNumbers") or []
+    }
     output_text = json.dumps(
         {
             "answer": answer,
@@ -8830,7 +8833,7 @@ def validate_chickenbro_model_output(payload, bounded_context):
         ensure_ascii=False,
     )
     for number in chickenbro_text_numbers(output_text):
-        normalized = number.rstrip("%")
+        normalized = number.rstrip("%").lstrip("+")
         if normalized not in allowed_numbers:
             raise ValueError("model_output_invalid: unapproved number")
     if not agentic_active:

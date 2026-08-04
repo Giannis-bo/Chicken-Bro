@@ -45,6 +45,15 @@ class ChickenbroAnswerStreamTest(unittest.TestCase):
         self.assertEqual("".join(emitted), answer)
         self.assertEqual(stream.finish()["answer"], answer)
 
+    def test_accepts_a_positive_number_with_an_explicit_plus_sign(self):
+        from server.chickenbro_stream import ChickenbroAnswerStream
+
+        stream = ChickenbroAnswerStream(allowed_numbers=["24"])
+        emitted = stream.feed('{"answer":"最高钥石层数为 +24。"}')
+
+        self.assertEqual("最高钥石层数为 +24。", "".join(emitted))
+        self.assertEqual("最高钥石层数为 +24。", stream.finish()["answer"])
+
     def test_rejects_unknown_top_level_fields_before_releasing_complete_payload(self):
         from server.chickenbro_stream import ChickenbroAnswerStream, ChickenbroStreamValidationError
 
