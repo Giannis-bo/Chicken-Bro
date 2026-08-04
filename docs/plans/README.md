@@ -15,8 +15,8 @@
 | 装备强化资格与已确认标记对齐 | 正在推进 | [实施计划](2026-07-29-gear-enhancement-rule-alignment.md) |
 | Manifest 装备详情与 Catalog Browse 完整性修复 | 正在推进 | [实施计划](2026-07-29-manifest-catalog-progression-display-contract.md) |
 | 装备模拟端到端完整性验证 Goal | 暂缓 | [Goal 控制计划](2026-07-29-equipment-simulator-e2e-completeness-goal.md) |
-| 装备模拟 Exact-first 与三来源 Catalog | 待决策（Task 1-2 与重复 effect subject 纠偏 scoped clean；whole-branch re-review pending；原 Task 3 未启动） | [设计](2026-08-04-equipment-simulator-exact-first-catalog-design.md) · [实施计划](2026-08-04-equipment-simulator-exact-first-implementation.md) |
-| 装备模拟 Canonical Kernel 重设计 | 正在纠正（全部 scoped reviews PASS/APPROVED；whole-branch re-review pending） | [重设计](2026-08-04-equipment-simulator-canonical-kernel-redesign.md) · [已停止的原实施计划](2026-08-04-equipment-simulator-canonical-kernel-implementation.md) · [owner change-control](2026-08-04-equipment-simulator-canonical-owner-change-control.md) · [重复 effect subject 纠偏](2026-08-04-equipment-simulator-duplicate-effect-subject-correction.md) |
+| 装备模拟 Exact-first 与三来源 Catalog | 正在推进（pure foundation final whole-branch PASS/APPROVED；原 Task 3 可开始，尚未启动） | [设计](2026-08-04-equipment-simulator-exact-first-catalog-design.md) · [实施计划](2026-08-04-equipment-simulator-exact-first-implementation.md) |
+| 装备模拟 Canonical Kernel 重设计 | 已完成（pure foundation + source_change_control_only；不含 runtime/release） | [重设计](2026-08-04-equipment-simulator-canonical-kernel-redesign.md) · [已停止的原实施计划](2026-08-04-equipment-simulator-canonical-kernel-implementation.md) · [owner change-control](2026-08-04-equipment-simulator-canonical-owner-change-control.md) · [重复 effect subject 纠偏](2026-08-04-equipment-simulator-duplicate-effect-subject-correction.md) |
 | WebSim / stat-weight 定时同步日志有界化 | 已完成 | [实施计划](2026-07-29-sync-log-bounding.md) · [live evidence](../../artifacts/releases/2026-07-29-sync-log-bounding/evidence.json) |
 | 当前赛季 PVE 装备 Universe 与逐项差集 | 暂缓 | [实施计划](2026-07-29-season-pve-universe-reconciliation.md) |
 | 当前赛季 PVE Journal 静默遗漏门禁 | 已完成 | [实施计划](2026-07-29-season-pve-journal-omission-guard.md) · [live evidence](../../artifacts/releases/2026-07-29-season-pve-journal-omission-guard/evidence.json) |

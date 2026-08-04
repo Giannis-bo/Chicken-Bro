@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` and `superpowers:test-driven-development`. This is a bounded semantic correction after the Canonical foundation whole-branch review failed; it is not an owner-gate patch and does not relax the existing Stop Gate.
 
-状态：`正在推进（Task 1 implementation complete；Task 2 scoped PASS/APPROVED、0 findings；whole-branch re-review pending；原 Task 3 blocked）`
+状态：`已完成（Task 1 implementation、Task 2 scoped review 与 Task 3 whole-branch re-review 均 PASS/APPROVED；原 Task 3 可开始但尚未启动）`
 
 ## Goal
 
@@ -91,9 +91,9 @@ Examples for expected `[item, A, B]`:
 
 ## Task 3: Fresh whole-branch re-review
 
-- [ ] From `7cf5c37bb1612ca703cbfbdef21ef31024d7e1e0`, re-run the full independent whole-branch review on a committed clean HEAD.
-- [ ] Re-run Python/Vitest/Node/Harness/JSON/pycompile/diff, hostile owner-gate replays and both frozen keys.
-- [ ] Only simultaneous scoped `PASS/APPROVED` and whole-branch `PASS/APPROVED` allow controller status closure. This still does not activate original Task 3 or authorize runtime/release/deploy.
+- [x] From `7cf5c37bb1612ca703cbfbdef21ef31024d7e1e0`, re-run the full independent whole-branch review on a committed clean HEAD.
+- [x] Re-run Python/Vitest/Node/Harness/JSON/pycompile/diff, hostile owner-gate replays and both frozen keys.
+- [x] Only simultaneous scoped `PASS/APPROVED` and whole-branch `PASS/APPROVED` allow controller status closure. This still does not activate original Task 3 or authorize runtime/release/deploy.
 
 ## Stop Gate
 

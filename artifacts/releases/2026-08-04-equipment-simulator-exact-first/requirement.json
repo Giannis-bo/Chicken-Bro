@@ -95,8 +95,8 @@
     "originalTask3Activated": false
   },
   "engineeringHealth": {
-    "status": "duplicate_effect_subject_correction_scoped_clean_whole_branch_rereview_pending",
-    "reason": "The duplicate-effect-subject correction has a final scoped PASS/APPROVED review with zero findings after replacing identity-keyed aggregation with bounded positional matching. Independent adversarial replay covered 3,071 repeated-subject sequences and the full matrix is green. A fresh whole-branch re-review remains pending; runtimeConsumers is empty and original Task 3 remains inactive."
+    "status": "pure_canonical_foundation_complete_task3_available_not_started",
+    "reason": "Task 1 source change-control, Task 2 control-plane, duplicate-effect-subject correction and the final whole-branch re-review are all PASS/APPROVED with zero findings. Fresh evidence is Python 178/178, Vitest 9/9, Node 40/40, owner gate 27/27 and a 5,461-sequence repeated-subject oracle. runtimeConsumers is empty and original Task 3 is available but not started. Full TypeScript still has the documented 11 pre-existing TS4111 diagnostics, and real Python 3.11 was not locally executed."
   },
   "dataPrivacyBoundary": {
     "rawPluginText": "ephemeral parser input only; it must not be persisted, logged, templated, queued, included in artifact evidence, or returned in output payloads.",
@@ -152,6 +152,10 @@
     {
       "date": "2026-08-04",
       "decision": "重复 effect subject ordered-multiset 纠偏 scoped review 为 PASS/APPROVED、0 findings；独立 oracle 枚举 3,071 个序列与 reason-code 判定表一致。Fresh whole-branch re-review 仍是 controller closure 的最后门禁，原 Task 3 保持 inactive。"
+    },
+    {
+      "date": "2026-08-04",
+      "decision": "Final whole-branch re-review（7cf5c37b..64740b52）为 PASS/APPROVED、0 findings；独立重复序列 oracle 扩展到 5,461 个输入。Pure Canonical foundation 与 source change-control 可以关闭，原 Task 3 具备开始条件但尚未启动；runtime/release/deploy 不在本结论内。"
     }
   ]
 }

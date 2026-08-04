@@ -1,8 +1,8 @@
 # 装备模拟 Canonical Kernel 重设计
 
-状态：`正在纠正（Task 1-2 与重复 effect subject 纠偏 scoped PASS/APPROVED；fresh whole-branch re-review pending；原 Task 3 不得启动）`
+状态：`已完成（pure Canonical foundation 与 source change-control final whole-branch PASS/APPROVED；原 Task 3 可开始但尚未启动）`
 
-**当前 replacement:** [Canonical Ownership Change-Control Plan](2026-08-04-equipment-simulator-canonical-owner-change-control.md) 与 [重复 Effect Subject 语义纠偏](2026-08-04-equipment-simulator-duplicate-effect-subject-correction.md)。Task 1 的 gate 只声明 `source_change_control_only`；Task 1-2 与 ordered-multiset 语义纠偏 scoped reviews 已 PASS/APPROVED。Fresh whole-branch re-review 尚未完成。
+**当前 replacement:** [Canonical Ownership Change-Control Plan](2026-08-04-equipment-simulator-canonical-owner-change-control.md) 与 [重复 Effect Subject 语义纠偏](2026-08-04-equipment-simulator-duplicate-effect-subject-correction.md) 已完成。Task 1 的 gate 只声明 `source_change_control_only`；final whole-branch re-review 为 PASS/APPROVED、0 findings。原 Task 3 可开始但尚未启动。
 
 **目标：** 在不改变 v1 identity、generation 35、Task 1 `exact-loadout-intent-v2` 字段结构和 Exact-first/Catalog 解耦方向的前提下，替换未发布的 Task 2 内部实现，让 Exact、Progression、Effect、Probe、CLI 和 Authority Envelope 只消费同一个 canonical 语言与同一类封存对象。
 

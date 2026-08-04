@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` to execute this plan task by task. This is a schema-boundary replacement after the previous Task 5 reached its five-round Stop Gate; it is not a sixth patch round.
 
-状态：`正在推进（Task 1-2 与重复 effect subject 纠偏 scoped PASS/APPROVED；fresh whole-branch re-review pending；原 Task 3 blocked）`
+状态：`已完成（Task 1-2 scoped 与 final whole-branch re-review 均 PASS/APPROVED；proofClaim=source_change_control_only；原 Task 3 可开始但尚未启动）`
 
 **Goal:** 保留已经通过语义测试的 Canonical Kernel、sealed documents、Exact/Progression/Effect/Probe/CLI/Envelope contracts，把失控增长的 Python AST “authority proof” 替换成诚实、可维护的 source change-control：四个 server owner 使用 declaration-only module-load profile，CLI 使用独立的受限 bootstrap profile，所有未知模块加载语法 fail closed。
 
@@ -230,11 +230,11 @@ Replacement gate 不再声称解释任意函数运行语义，也不递归 impor
 
 ## Task 3: Fresh whole-branch closure review
 
-- [ ] 在 committed clean HEAD 重跑完整 Python/Vitest/Node/Harness/JSON/py_compile/diff matrix；全仓 TypeScript 仍单独记录已有 11 条 pre-existing TS4111，不得写成新绿。
-- [ ] 分别冻结并报告 shared valid Exact v2 key `exact-item-instance:sha256:e10e93ee691bc1073af958427aa06d451ba1132c5eb8ef0fa8654c70fb4670f6` 与 frozen v1 wrapper key `exact-item-instance:sha256:38b1a60808918f4bab94bd5bc0fd9240418ce72d631369beb054ec485ab636aa`。
-- [ ] 从 `7cf5c37bb1612ca703cbfbdef21ef31024d7e1e0` 生成 fresh whole-branch review package，由未参与实现的 reviewer 给出 Spec `PASS/FAIL` 与 Code Quality `APPROVED/CHANGES_REQUIRED`。
-- [ ] Reviewer 必须在最终 tree 重放 module-load helper 反例，验证 registry/exemption hygiene，并确认旧 interprocedural proof engine 已删除而非隐藏。
-- [ ] 只有本计划 Task 1-2 scoped reviews clean 且 whole-branch 同时 `PASS/APPROVED`，controller 才能把 canonical foundation 标记完成，并把原计划状态改成“Task 3 可开始，尚未启动”。
+- [x] 在 committed clean HEAD 重跑完整 Python/Vitest/Node/Harness/JSON/py_compile/diff matrix；全仓 TypeScript 仍单独记录已有 11 条 pre-existing TS4111，不得写成新绿。
+- [x] 分别冻结并报告 shared valid Exact v2 key `exact-item-instance:sha256:e10e93ee691bc1073af958427aa06d451ba1132c5eb8ef0fa8654c70fb4670f6` 与 frozen v1 wrapper key `exact-item-instance:sha256:38b1a60808918f4bab94bd5bc0fd9240418ce72d631369beb054ec485ab636aa`。
+- [x] 从 `7cf5c37bb1612ca703cbfbdef21ef31024d7e1e0` 生成 fresh whole-branch review package，由未参与实现的 reviewer 给出 Spec `PASS/FAIL` 与 Code Quality `APPROVED/CHANGES_REQUIRED`。
+- [x] Reviewer 必须在最终 tree 重放 module-load helper 反例，验证 registry/exemption hygiene，并确认旧 interprocedural proof engine 已删除而非隐藏。
+- [x] 只有本计划 Task 1-2 scoped reviews clean 且 whole-branch 同时 `PASS/APPROVED`，controller 才能把 canonical foundation 标记完成，并把原计划状态改成“Task 3 可开始，尚未启动”。
 
 ## Stop Gate
 
