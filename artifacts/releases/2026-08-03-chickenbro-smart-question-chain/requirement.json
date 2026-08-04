@@ -11,14 +11,15 @@
     "scenario-scoped Raider.IO same-role high-key comparator from the fresh backend cache",
     "configured public WCL Mythic+ supplementary sample with explicit target contract, bounded timeout, TTL/singleflight/rate control and freshness gate",
     "evidence-aware answer/stream postconditions, generic source-derived fallback and de-identified Trace v3",
-    "immutable Registry release migration 0027 and candidate/live verification"
+    "immutable Registry release migration 0027 and candidate/live verification",
+    "Captain root transcript viewport composition: one flexible internal scroll region between the shared header and fixed composer dock"
   ],
   "outOfScope": [
     "case-specific or fixed answers for NQ, any class or any patch",
     "arbitrary browser, URL, code, credential, SQL or shell access for the model",
     "universal comparative ranking corpus, CapabilityGap persistence, Toolsmith, shadow, canary or promotion",
     "Archon, Wowhead, Icy Veins or other third-party retrieval without an explicitly approved source contract",
-    "frontend layout or public response-schema changes"
+    "public response-schema changes"
   ],
   "nonGoals": [
     "Do not treat an official patch-change fact, a single WCL specialization page, or a same-role Raider.IO cache sample as proof of a T0/T1 ranking, DPS, percentile, BiS or personal performance conclusion.",
@@ -66,6 +67,7 @@
       "QuestionFrame, community source, Registry/runtime, answer/stream postcondition, Trace/Eval and affected backend regressions.",
       "Clean candidate-head full Harness and local CR against the source and owner boundaries.",
       "Transactional migration, registry identity, file parity, retail Mythic+/PTR/raid-scoping/WCL-contract/Raider.IO smoke, timer/backflow state and rollback pointer proof.",
+      "Release-configured WeChat package mechanics and a real-device/DevTools confirmation that long transcript cards remain entirely inside the transcript scroll region.",
       "User acceptance of the real WeChat natural-language formal-retail Mythic+ strength flow after self-test handoff."
     ]
   },
@@ -90,6 +92,7 @@
     "A raid/PvP strength question does not dispatch a Mythic+ source; positive PTR still wins over a generic current-version marker; a later build question does not inherit a strength intent.",
     "Existing community-build and WCL selections retain their v1 capability identity.",
     "Candidate and live deployment prove migration/pointer identity, file parity, health, generic/PTR/WCL/Raider.IO paths, trace redaction and no new timer backflow.",
+    "Long source-backed assistant answers stay fully visible within the Captain transcript scroll region above the fixed composer, without a blank body gap or card clipping.",
     "The user verifies the real WeChat PTR question path and explicitly accepts it."
   ],
   "manualAcceptanceContract": {
@@ -116,6 +119,10 @@
     {
       "date": "2026-08-03",
       "decision": "The user rejected generic cannot-get-data replies and explicitly expected controlled community-source analysis; WCL is supplementary until its current target is explicitly verified, while Archon remains excluded without an approved data contract."
+    },
+    {
+      "date": "2026-08-04",
+      "decision": "The user reported a Captain transcript clipping defect during the real multi-turn flow; the correction must be a shared viewport composition fix, not content-specific formatting or a fixed-answer exception."
     }
   ]
 }

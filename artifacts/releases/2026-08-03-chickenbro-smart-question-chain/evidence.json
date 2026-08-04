@@ -60,7 +60,8 @@
     "end-to-end stream deadline for a keepalive-only provider connection",
     "explicit public WCL target configuration for candidate and production service units",
     "cross-spec comparison-scope planning that prevents inherited per-spec evidence from answering a universal DPS request",
-    "immediate deterministic evidence-boundary terminal result when no same-metric cross-spec comparator is registered"
+    "immediate deterministic evidence-boundary terminal result when no same-metric cross-spec comparator is registered",
+    "Captain root transcript viewport uses one flexible internal scroll region above the fixed composer dock"
   ],
   "verification": [
     {
@@ -70,8 +71,13 @@
     },
     {
       "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-08-03-chickenbro-smart-question-chain --base origin/main",
-      "status": "blocked",
-      "summary": "Current full Harness ran Node 747/747, Python 2474/2474 (one skip), typecheck, lint and Taro 432/432 successfully, then the unrelated UI-package build could not start because this isolated worktree lacks node_modules/@tarojs/cli/bin/taro. No dependency download/install was authorized; this does not replace the passing targeted backend suite or live candidate/production smoke."
+      "status": "pass",
+      "summary": "Fresh clean-head full Harness completed successfully after reusing the already installed local Taro packages without download or installation. It covered the Node and Python suites, typecheck, lint, Taro tests, UI architecture audit and WeChat package build mechanics."
+    },
+    {
+      "command": "WOW_ASSET_RUNTIME_ROOT=https://api.chickenbro.cloud/wow-assets/releases/2026-07-19-taro-full-integration WOW_RUNTIME_MEDIA_ROOT=https://api.chickenbro.cloud/wow-media/releases/2026-07-20-wow-icons-v1 WOW_BACKEND_API_BASE_URL=https://api.chickenbro.cloud WOW_WECHAT_REQUEST_DOMAIN_APPROVED=yes npm run build:weapp && npm run verify:ui-package:release",
+      "status": "pass",
+      "summary": "The exact Captain layout commit 3fee5c6a built a 145-file release-configured WeChat candidate. The package gate passed with the approved HTTPS API, immutable asset and runtime-media releases, explicit WeChat domain approval, and zero release blockers."
     },
     {
       "command": "systemd-analyze verify server/wow-backend.service server/wow-backend-candidate.service; candidate and production service restart",
@@ -115,6 +121,13 @@
     "databaseBackup": "/var/backups/wow-backend/chickenbro-community-strength-44fc389e-20260803T122029Z/wow_test.pg_dump; SHA-256 ca301f938c6442f00e731bf1f3d218fc4a96d60b4047bb4683ea1e987ac4ea8b; pg_restore --list passed",
     "registryMigration": "0027 ran first in a rolled-back transaction (pointer returned to chickenbro-tools-2), then applied once through PostgreSQL; active pointer is chickenbro-tools-3 and migration count is 1.",
     "fileParity": "All five changed runtime files are SHA-256-equal between source, candidate and production: QuestionFrame 445057fd, chickenbro_agent fc5be81b, chickenbro_tool_runtime f7f57d7c, chickenbro_registry 3578e9dd and news_backend 0b82650d.",
+    "frontendCandidate": {
+      "status": "package_verified_user_preview_pending",
+      "sourceCommit": "3fee5c6aa0336b18fd01d00491241641eb7532fe",
+      "buildIdentity": "wow-weapp-build-v1 sourceHash sha256:c7f599016baef17dc57bd71374c3c340cf2515b374e01c24d3f70a86c32c8651",
+      "layoutProof": "Compiled pages/simulator/simulator.wxss contains the route-scoped flex column, flexible PageFrame child and flex transcript region; the former calc(--route-safe-viewport-height - 170px) transcript height is absent.",
+      "manualPreview": "pending: no reusable WeChat Automator endpoint was listening, and the workflow refuses to launch or reload the user's existing DevTools session."
+    },
     "smoke": {
       "status": "pass",
       "summary": "A real candidate four-turn stream smoke returned final/succeeded for the source-backed strength request, both evidence-reference follow-ups, and a cross-spec DPS-ranking scope escalation. The final turn returned an immediate evidence boundary without a provider call and did not reuse the prior specialization signal."
@@ -148,6 +161,11 @@
       "type": "timer_backflow",
       "status": "pass",
       "summary": "No source refresh, backfill or scheduled collector was started by the correction. An independent source-refresh timer run began before deployment, was left untouched, and later completed with Result=success."
+    },
+    {
+      "type": "frontend_candidate_package",
+      "status": "pass",
+      "summary": "Release-configured WeChat package mechanics pass for commit 3fee5c6a; visual/device acceptance remains pending because no reusable DevTools Automator endpoint was available."
     }
   ],
   "risks": [
@@ -173,8 +191,13 @@
     },
     {
       "id": "local_ui_package_dependency",
+      "status": "resolved",
+      "detail": "The isolated worktree reused the already installed local Taro packages through temporary ignored links; no dependency installation or download occurred. The fresh full Harness and release-configured package checks passed."
+    },
+    {
+      "id": "wechat_automator_preview",
       "status": "active",
-      "detail": "The current full Harness is blocked only at the unrelated local UI-package build because this isolated worktree lacks the Taro CLI package. No dependency installation or download was performed without authorization; targeted backend tests and live runtime evidence remain separately recorded."
+      "detail": "No reusable endpoint for the configured mini-program was listening on ports 9420-9460. The workflow intentionally did not launch or reload the user's DevTools session, so visual/device acceptance remains pending rather than inferred from package success."
     },
     {
       "id": "source_refresh_inflight",
@@ -186,6 +209,7 @@
     "restore /opt/wow-mini-program/server/news_backend.py.pre34a42b56 to its active name, then restart wow-backend.service to revert the latest direct-source optimization",
     "restore the retained candidate news_backend.py.pre34a42b56 backup and restart wow-backend-chickenbro-smart-question-44fc389e.service to revert the equivalent candidate optimization",
     "restore chickenbro_question_frame.py, chickenbro_agent.py, chickenbro_tool_runtime.py, chickenbro_registry.py and news_backend.py from the named 30362c75 production or candidate rollback directory, then restart only that backend service",
+    "revert the isolated Captain layout commit 3fee5c6a and rebuild the WeChat package if the viewport correction must be rolled back",
     "for a full correction rollback, restore the four production *.pre8ab97a5c runtime-file backups and restart wow-backend.service",
     "move the active Registry pointer from chickenbro-tools-3 back to chickenbro-tools-2 using the recorded PostgreSQL rollback procedure",
     "recover database state from /var/backups/wow-backend/chickenbro-community-strength-44fc389e-20260803T122029Z/wow_test.pg_dump only when a data rollback is required"
@@ -199,5 +223,5 @@
     "docs/plans/2026-08-03-chickenbro-smart-question-chain-design.md",
     "docs/plans/2026-08-03-chickenbro-smart-question-chain-implementation.md"
   ],
-  "summary": "The source-bounded semantic chain remains general rather than fixed Q&A. A current-strength question with verified comparative evidence, and its consecutive ratio or leader references, directly answer from the same controlled source data; no model is asked to reinterpret rankings. A topic/build boundary stops the inheritance. A cross-spec DPS, Tier or ranking request is a scope escalation: it clears inherited subject evidence from source planning and can only use a registered same-metric cross-spec comparator. Until such a comparator exists, it returns an immediate evidence boundary rather than a retry, fabricated ranking or reused per-spec value. Raider.IO leaders remain tie-safe, and provider streams retain an end-to-end deadline. Candidate and production both passed the real four-turn stream smoke. The independently scheduled source refresh run started before deployment, was not touched by the correction, and later completed with Result=success. Real WeChat acceptance is still required before merge, push or cleanup."
+  "summary": "The source-bounded semantic chain remains general rather than fixed Q&A. A current-strength question with verified comparative evidence, and its consecutive ratio or leader references, directly answer from the same controlled source data; no model is asked to reinterpret rankings. A topic/build boundary stops the inheritance. A cross-spec DPS, Tier or ranking request is a scope escalation: it clears inherited subject evidence from source planning and can only use a registered same-metric cross-spec comparator. Until such a comparator exists, it returns an immediate evidence boundary rather than a retry, fabricated ranking or reused per-spec value. Raider.IO leaders remain tie-safe, and provider streams retain an end-to-end deadline. Candidate and production both passed the real four-turn stream smoke. The Captain viewport regression is corrected by one flexible internal transcript scroll region, not content-specific styling; its release-configured WeChat package passed mechanics at commit 3fee5c6a. Real WeChat visual acceptance is still required before merge, push or cleanup."
 }
