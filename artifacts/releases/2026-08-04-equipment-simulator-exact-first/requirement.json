@@ -3,13 +3,14 @@
   "slug": "equipment-simulator-exact-first",
   "classification": "Strict",
   "status": "implementation_allowed",
-  "goal": "完成 replacement Task 1-5 的纯 Canonical foundation：Exact v2 严格输入、唯一 Kernel、sealed schema/business derivation 与诚实的 ownership source change-control；不激活原 Task 3。",
-  "userValue": "后续 Exact-first 链路获得一个不会修复、猜测或默默接受非规范输入的稳定事实边界；本轮不承诺玩家可见能力。",
+  "goal": "完成 replacement Task 3A：为已通过的 pure Canonical foundation 增加可按原始 canonical bytes 完整重验的 append-only Exact Authority Bundle 持久层；不激活 worker、Resolver、API、UI 或 runtime consumer。",
+  "userValue": "Exact 装备事实可以跨进程保存和完整重载，不依赖 Catalog membership，也不会把缺失、篡改、错序或部分 authority 包装成可模拟；本轮仍不承诺玩家可见能力。",
   "nonGoals": [
-    "不激活原 Task 3，不新增持久化、worker、Resolver、API、UI 或 SimC runtime consumer。",
+    "不执行已停止的原 Task 3；只执行重排后的 Task 3A authority bundle persistence，不新增 job、worker、Resolver、snapshot v2、API、UI 或 SimC runtime consumer。",
     "不从 itemId、相似 bonus、Catalog 或默认值补充 declaredItemLevel、variant 或其他装备事实。",
     "不改写 generation 35、Catalog/Manifest pointer、selection-intent-v1 或既有 canonical bytes/key。",
-    "不将原始插件导出文本写入 artifact、日志、template、queue 或公开 payload。"
+    "不将原始插件导出文本写入数据库、artifact、日志、template、queue 或公开 payload。",
+    "不在缺少 fresh/upgrade 两个真实 disposable PostgreSQL candidate 的情况下声称 Task 3A 完成、release-ready 或 production-ready。"
   ],
   "currentTruth": {
     "sources": [
@@ -24,44 +25,61 @@
       "docs/harness.md"
     ],
     "activeMilestone": "taro_target_first_14_route_rebuild",
-    "featureIteration": "equipment_simulator_exact_first_task1_5_pure_foundation",
+    "featureIteration": "equipment_simulator_exact_first_task3a_authority_persistence",
     "baseBranch": "main"
   },
   "releaseSlices": [
     {
-      "id": "replacement_task_1_5_pure_canonical_foundation",
-      "planHeading": "Replacement Task 1-5：纯 Canonical foundation",
-      "scope": "Exact v2 Python/TypeScript/shared corpus、bounded Kernel、sealed Exact/Progression/Effect/Probe/CLI/Envelope consumers 与 source-change-control registry",
-      "gate": "strict NFC and bounded JSON fail closed; frozen identities stay byte/key stable; five protected files satisfy registered module-load profiles; proofClaim stays source_change_control_only; runtimeConsumers remains empty"
+      "id": "replacement_task_3a_exact_authority_persistence",
+      "planHeading": "Task 3A：完整 Canonical Authority Bundle 持久化",
+      "scope": "六个 typed canonical reload API、canonical bytes/hash/JSON projection、完整 Exact/Static/Progression/ordered Effect Records/Aggregate/Envelope closure、append-only PostgreSQL 0026 与无 runtime consumer 的 store",
+      "gate": "typed reload and store fail closed; database independently binds SHA-256 and JSON projection to exact bytes; full bundle round-trip preserves order and duplicates; wow_app is read-only; source registry remains five targets with proofClaim source_change_control_only; two fresh disposable PostgreSQL candidates pass before completion"
     }
   ],
+  "executionAuthorization": {
+    "allowedStages": [
+      "task_3a_authority_bundle_persistence"
+    ],
+    "blockedStages": [
+      "task_4p_pure_v2",
+      "task_4l_loadout_effect_authority",
+      "task_3b_snapshot_persistence",
+      "task_4w_worker_jobs",
+      "task_5a_api_runtime",
+      "task_6c_observation_catalog"
+    ],
+    "runtimeConsumersAllowed": false
+  },
   "impactMap": {
     "mustChange": [
-      "server/gear_canonical_kernel.py plus tests/gear_canonical_kernel_test.py for bounded canonical primitives, JSON bytes, private seals and hostile-input verification",
-      "server/gear_contracts.py plus packages/domain/src/gear-intent.ts and packages/domain/src/gear-intent.test.ts for one Exact v2 structural language",
-      "tests/fixtures/gear_canonical_mutations.json shared Python/TypeScript mutation corpus",
-      "server/gear_exact_item_instance.py, server/gear_exact_authority.py, server/simc_item_effect_support.py and server/simc_item_effect_probe.py sealed schema/business derivation",
-      "scripts/simc-item-effect-probe.py strict local decoder adapter",
-      "tests/gear_canonical_owner_gate_test.py and tests/fixtures/gear_canonical_owner_registry.json for four server declaration-only profiles, one CLI bootstrap profile, exact physical imports, fixed exemptions and public/export owner boundaries",
-      "project/backend owner maps and active plans for proofClaim=source_change_control_only, test-only registry ownership and an explicit no-runtime/no-original-Task-3 boundary"
+      "server/gear_canonical_kernel.py and its tests for one private exact-bytes rehydration primitive with all existing size, UTF-8, duplicate-key, NFC, canonical-byte and content-key checks",
+      "server/gear_exact_item_instance.py, server/gear_exact_authority.py and server/simc_item_effect_support.py plus their tests for the six frozen typed reload APIs and parent/runtime/revision bindings",
+      "server/migrations/postgres/0026_websim_exact_authority_bundle.sql for three append-only authority tables with database-computed SHA-256, JSON projection equality, closed kind/schema/prefix matrix, full foreign-key closure and immutable grants",
+      "server/gear_exact_authority_store.py plus store and independent import-boundary tests for transactional whole-bundle seal/reload, frozen ExactAuthorityBundle and order-preserving duplicate batch loads",
+      "tests/postgres_schema_test.py and tests/postgres_integration_test.py for static SQL plus isolated fresh and 0025-to-0026 candidate paths",
+      "tests/fixtures/gear_canonical_owner_registry.json and tests/gear_canonical_owner_gate_test.py only for exact typed reload imports while retaining exactly five targets, nine exemptions and source_change_control_only",
+      "Harness packet, owner maps, roadmap, plan index, PostgreSQL runbook and active plan statuses for Task 3A implementation/candidate truth"
     ],
     "mustNotChange": [
       "generation 35 and accepted canonical identities remain byte/key stable",
       "Catalog contents, Catalog/Manifest pointer state and release materialization remain unchanged",
-      "persistence, worker, Resolver, API, UI and SimC runtime behavior remain unchanged",
+      "existing persistence behavior and all worker, Resolver, API, UI and SimC runtime behavior remain unchanged; the new store has zero runtime consumers",
       "raw plugin text remains ephemeral with zero persistence, logging or echo",
       "selection-intent-v1 and all other frozen v1 contracts remain unchanged",
-      "original Task 3 remains inactive"
+      "the stopped original Task 3 remains inactive; Task 4P, Task 4L, Task 3B, Task 4W, Task 5A and Task 6C remain unauthorized"
     ],
     "evidenceRequired": [
-      "Replacement semantic suites for Kernel and Exact v2 Python/TypeScript validation, shared Unicode mutations, hostile JSON bounds, seal/reload invariants and frozen v1/v2 byte/key assertions",
-      "Task 1 source-change-control tests for four server declaration-only profiles and one CLI bootstrap profile, exact import/symbol registry, module-load hostile mutations, fixed exemption digests, deleted raw APIs and zero baseline violations",
-      "Sealed Exact, Progression, Effect, Probe, CLI and Envelope regressions plus focused owner-gate, Harness requirement, owner-map and JSON checks",
-      "Task 1, Task 2 and duplicate-effect-subject correction final scoped reviews PASS/APPROVED with zero findings; a fresh whole-branch re-review PASS/APPROVED remains required before closure"
+      "RED/GREEN tests for all six typed reload APIs, hostile bytes/key/schema/binding mutations and frozen v1/v2 keys",
+      "Store tests for immutable ExactAuthorityBundle, complete closure, exact readback, idempotency/collision/rollback, missing rows, A-B-A order, repeated/non-adjacent records, ordinal gaps and concurrent same-key writes",
+      "Static SQL tests for core sha256, bytes-to-JSON equality, both aggregate foreign keys, bundle binding triggers, safe search_path, immutable triggers, wow_app read-only and unique 0026 ledger identity",
+      "Two real empty disposable PostgreSQL candidates identified by run-id/name/database comment: fresh 0001-to-0026 and upgrade 0001-to-0025 plus frozen v1 seed/snapshot to 0026; before/after v1 bytes/hash/grants remain equal",
+      "Candidate evidence binds the final runtime-affecting commit SHA, its Git tree SHA and 0026 migration file SHA-256 to both database identities and all recorded smoke results; Harness verification identity separately binds the final PR HEAD",
+      "Focused/full Canonical regressions, owner gate, existing v1 store/snapshot regressions, Node owner maps, Harness requirement, JSON, pycompile and diff checks",
+      "Independent Task 3A spec and code-quality review PASS/APPROVED with zero unresolved findings"
     ]
   },
   "ownership": {
-    "factOwner": "Canonical semantics, domain schema/business derivation and source change-control remain three separate ownership layers.",
+    "factOwner": "Canonical semantics, domain typed reload, append-only persistence and source change-control remain separate ownership layers; persistence may only consume typed reload APIs.",
     "kernelSemanticOwner": "server/gear_canonical_kernel.py",
     "domainSchemaOwners": [
       "server/gear_contracts.py",
@@ -89,40 +107,47 @@
       "server/gear_exact_authority.py",
       "server/simc_item_effect_support.py",
       "server/simc_item_effect_probe.py",
-      "scripts/simc-item-effect-probe.py"
+      "scripts/simc-item-effect-probe.py",
+      "server/gear_exact_authority_store.py (Task 3A persistence consumer only; not runtime-wired)"
     ],
     "proofClaim": "source_change_control_only",
     "runtimeConsumers": [],
-    "originalTask3Activated": false
+    "originalTask3Activated": false,
+    "replacementTask3AActivated": true,
+    "task3AStoreOwner": "server/gear_exact_authority_store.py",
+    "task3AMigration": "server/migrations/postgres/0026_websim_exact_authority_bundle.sql"
   },
   "engineeringHealth": {
-    "status": "pure_canonical_foundation_complete_task3_plan_correction_required",
-    "reason": "The pure Canonical foundation remains complete and PASS/APPROVED, but two independent Task 3 readiness audits returned NOT_READY. The old persistence plan uses stale effect identities, omits the authority dependency closure and exact canonical bytes, orders v2 persistence before v2 verifiers, and cannot express the promised worker permissions/job lifecycle. A forward replacement plan is pending independent review; runtimeConsumers is empty and original Task 3 has not started."
+    "status": "task3a_authority_persistence_implementation_allowed_candidate_pending",
+    "reason": "The pure Canonical foundation remains complete. Two independent third-round reviews returned Plan Spec PASS and Task 3A READY with zero findings after freezing exact bytes, dependency closure, typed reload, slot identity, worker-role future boundaries and two truly fresh PostgreSQL candidates. Only replacement Task 3A is implementation-allowed; runtimeConsumers remains empty, original Task 3 is stopped, and completion stays candidate_pending until both real PostgreSQL paths pass."
   },
   "dataPrivacyBoundary": {
     "rawPluginText": "ephemeral parser input only; it must not be persisted, logged, templated, queued, included in artifact evidence, or returned in output payloads.",
     "identity": "class/spec and sanitized item identifiers are contract inputs; player name, realm and raw profile metadata are not Exact v2 facts."
   },
   "candidateDeployment": {
-    "required": false,
-    "beforeMerge": "Not applicable to this pure foundation because it has no runtime consumer or external write path.",
-    "rollback": "Code rollback only; no data, pointer or runtime state is changed."
+    "required": true,
+    "beforeMerge": "At the committed final runtime-affecting head with a clean tree, record that commit SHA, its Git tree SHA and 0026 file SHA-256; use the same identities for two operator-provisioned empty disposable PostgreSQL databases with one unique run-id and exact database comments. Prove fresh 0001-to-0026 and upgrade 0001-to-0025 plus seeded frozen v1 rows to 0026, then run bundle/grant/concurrency smoke. After candidate, only evidence.json, manifest.json and task-status documentation may change; any code, test, migration, requirement or owner-contract change invalidates candidate and requires a rerun. Harness verification identity binds the later final PR HEAD. Record endpoint smoke and timer/backflow as explicitly not_applicable because Task 3A has no service, scheduled job or runtime consumer. No production migration is authorized.",
+    "rollback": "Task code rollback plus preservation of both exact candidate databases through evidence.json/manifest.json archival and review. Only after archival may the operator discard those explicitly identified databases through the runbook; no production data, generation 35, Catalog/Manifest pointer or service state is changed."
   },
   "acceptanceEvidence": [
-    "Exact v2 rejects whitespace mutation, forbidden controls, invalid UTF-8 bounds and non-NFC input without normalizing it.",
-    "Kernel rejects oversized, over-depth, over-node and cyclic JSON with controlled failure while escaped string structure and accepted fixture bytes/key remain stable.",
-    "Four server owners satisfy declaration-only module-load profiles and the CLI satisfies its restricted bootstrap profile; the test-only registry exactly records five targets, physical imports, public/export ownership and nine digest-bound exemptions.",
-    "Sealed Exact, Progression, Effect, Probe, CLI and Envelope semantic suites plus frozen v1/v2 identities remain green independently of the source-change-control gate.",
-    "The registry and gate prove source_change_control_only, not trusted-import safety, arbitrary Python semantics or runtime authority; every registry update must appear in the review diff."
+    "Every stored document retains exact canonical bytes; PostgreSQL independently verifies SHA-256, key prefix and JSON projection while typed reload verifies lexical canonical form and domain bindings.",
+    "A complete Exact Authority Bundle round-trips Exact, Static Facts, Progression, ordered duplicate Effect Records, Effect Aggregate and Envelope or fails closed with no partial success.",
+    "Batch loads preserve input order and multiplicity exactly, including A-B-A; Exact-key latest lookup and Catalog-derived substitution do not exist.",
+    "wow_app can only read the three new authority tables; it cannot insert, update, delete or truncate. No worker, job, API, UI, Resolver, service or runtime consumer is activated.",
+    "Fresh and upgrade PostgreSQL candidates start from independently proven empty databases and preserve all seeded v1 bytes, keys and row hashes.",
+    "Both candidates identify the same final runtime-affecting commit, its Git tree and 0026 SHA-256; the final PR HEAD is separately bound by Harness verification identity, and service endpoint smoke plus timer/backflow are recorded as not_applicable rather than silently omitted.",
+    "The registry remains five targets and nine exemptions with proofClaim source_change_control_only; the independent store import gate prevents direct Kernel-private, validator, serializer or Catalog imports."
   ],
   "manualAcceptanceContract": {
     "required": false,
     "requiredItemIds": []
   },
-  "closureCondition": "Replacement Task 1-5 may close only after Task 1 source-change-control scoped PASS/APPROVED, Task 2 control-plane scoped PASS/APPROVED, duplicate-effect-subject correction scoped PASS/APPROVED, fresh local semantic/frozen-identity/Harness evidence and a fresh whole-branch PASS/APPROVED review are simultaneously present; original Task 3 stays inactive until then.",
-  "releaseTrigger": "docs_tooling_only",
+  "closureCondition": "Task 3A may close only after local typed-reload/store/SQL/Canonical/v1/Harness evidence, both run-id-bound empty PostgreSQL candidate paths, frozen v1/v2 identity proof and independent scoped PASS/APPROVED review are simultaneously present. Missing psql or either DSN remains literal candidate_pending. Original Task 3 and all Task 4P+ runtime stages stay inactive.",
+  "releaseTrigger": "pg_read_model",
   "rollback": [
     "code_rollback",
+    "disposable_candidate_database_discard_only_after_identity_check",
     "no_catalog_or_manifest_mutation"
   ],
   "decisionLog": [
@@ -161,6 +186,14 @@
     {
       "date": "2026-08-04",
       "decision": "原 Task 3 implementation-readiness 双审为 NOT_READY：旧 effect identity、authority closure、canonical bytes、v2 任务顺序、DB role 与 job lifecycle 合同不闭合。旧 Task 3-8 停止执行，forward-replace 为 3A authority bundle -> pure v2 -> 3B snapshot persistence -> worker/jobs 的顺序。"
+    },
+    {
+      "date": "2026-08-04",
+      "decision": "持久化重排计划经两轮纠偏和两位独立第三轮 reviewer 一致判定 Plan Spec PASS、Task 3A READY、0 findings。执行顺序冻结为 3A -> 4P -> 4L -> 3B -> 4W；本结论只授权 3A，不授权 worker/runtime。"
+    },
+    {
+      "date": "2026-08-04",
+      "decision": "Harness requirement 从 pure-foundation 历史合同切换为 replacement Task 3A：允许完整 authority bundle append-only persistence，runtimeConsumers 仍为空；缺少 fresh/upgrade 两个 run-id-bound disposable PostgreSQL candidates 时状态只能是 candidate_pending。"
     }
   ]
 }

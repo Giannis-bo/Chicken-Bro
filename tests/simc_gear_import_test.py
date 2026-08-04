@@ -145,11 +145,11 @@ class SimcGearImportTest(unittest.TestCase):
         self.assertIn("intent.slots.off_hand.declaredItemLevel", [problem["path"] for problem in result["problems"]])
 
     # Catches a release requirement that is valid JSON but cannot pass the
-    # Harness Strict validator or drifts from the approved four slice headings.
-    def test_exact_first_requirement_passes_harness_and_freezes_plan_release_slices(self):
+    # Harness Strict validator or drifts back to the stopped four-slice plan.
+    def test_exact_first_requirement_passes_harness_and_freezes_task3a_slice(self):
         root = Path(__file__).resolve().parents[1]
         requirement = root / "artifacts/releases/2026-08-04-equipment-simulator-exact-first/requirement.json"
-        plan = root / "docs/plans/2026-08-04-equipment-simulator-exact-first-implementation.md"
+        plan = root / "docs/plans/2026-08-04-equipment-simulator-exact-first-persistence-resequence.md"
         completed = subprocess.run(
             ["node", "scripts/project-harness.js", "--json", "--check-requirement", "--requirement-file", str(requirement)],
             cwd=root, text=True, capture_output=True, check=False,
@@ -160,12 +160,7 @@ class SimcGearImportTest(unittest.TestCase):
         requirement_payload = json.loads(requirement.read_text())
         self.assertEqual(
             [slice_["planHeading"] for slice_ in requirement_payload["releaseSlices"]],
-            [
-                "Release Slice 1：Catalog-independent Exact 模拟主链",
-                "Release Slice 2：隔离 Observation Queue",
-                "Release Slice 3：三来源 Catalog Admission 与发布硬门禁",
-                "Release Slice 4：微信体验、候选环境与用户验收",
-            ],
+            ["Task 3A：完整 Canonical Authority Bundle 持久化"],
         )
         plan_text = plan.read_text()
         for slice_ in requirement_payload["releaseSlices"]:

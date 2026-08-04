@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-状态：`已停止（Task 5 fix/re-review 5/5 仍不 clean；语义 Task 1-4 与已验证修复保留；forward replacement 与 final whole-branch re-review 已完成；原 Task 3 可开始但尚未启动）`
+状态：`已停止（pure foundation 的 forward replacement 与 final whole-branch re-review 已完成；其“原 Task 3 可开始”结论已被后续 readiness audit 推翻，持久化重排计划复审通过前不得启动）`
 
 **Task 5 schema replacement:** [Canonical Ownership Change-Control Plan](2026-08-04-equipment-simulator-canonical-owner-change-control.md)。本计划不得改名进入第六轮；历史提交保留，不 reset/rebase。
 
@@ -755,7 +755,7 @@ Expected: all suites pass；原 89 条实验行为被新版 sealed tests 覆盖�
 
 - 重设计文档标记 `已完成（Task 2 canonical foundation）`；
 - 本计划标记 `已完成`；
-- 原实施计划状态改为 `正在推进（Task 3 可开始，尚未启动）`；
+- 当时的关闭动作曾把原实施计划改为 `正在推进（Task 3 可开始，尚未启动）`；该动作现已被后续 readiness audit 和持久化重排计划 supersede，不再授予执行权；
 - roadmap 从 `待决策` 改为 `正在推进`，明确 Task 2 sealed foundation 已通过、Task 3 尚未开始；
 - owner maps 指向最终 Kernel/consumer/tests。
 

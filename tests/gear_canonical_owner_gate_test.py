@@ -3727,7 +3727,7 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
             _codes(_deleted_name_violations(repository)),
         )
 
-    def test_control_plane_records_stop_gate_before_task2(self):
+    def test_control_plane_records_task3a_scope_after_stop_gate(self):
         requirement = json.loads((
             ROOT
             / "artifacts/releases/2026-08-04-equipment-simulator-exact-first/requirement.json"
@@ -3752,6 +3752,41 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
         self.assertTrue(requirement_registry.get("reviewDiffRequired"))
         self.assertEqual([], requirement["ownership"]["runtimeConsumers"])
         self.assertFalse(requirement["ownership"]["originalTask3Activated"])
+        self.assertTrue(requirement["ownership"]["replacementTask3AActivated"])
+        self.assertEqual("pg_read_model", requirement["releaseTrigger"])
+        self.assertTrue(requirement["candidateDeployment"]["required"])
+        self.assertEqual(
+            ["replacement_task_3a_exact_authority_persistence"],
+            [slice_["id"] for slice_ in requirement["releaseSlices"]],
+        )
+        expected_allowed_stages = ["task_3a_authority_bundle_persistence"]
+        expected_blocked_stages = [
+            "task_4p_pure_v2",
+            "task_4l_loadout_effect_authority",
+            "task_3b_snapshot_persistence",
+            "task_4w_worker_jobs",
+            "task_5a_api_runtime",
+            "task_6c_observation_catalog",
+        ]
+        self.assertEqual(
+            expected_allowed_stages,
+            requirement["executionAuthorization"]["allowedStages"],
+        )
+        self.assertEqual(
+            expected_blocked_stages,
+            requirement["executionAuthorization"]["blockedStages"],
+        )
+        self.assertFalse(
+            requirement["executionAuthorization"]["runtimeConsumersAllowed"]
+        )
+        self.assertEqual(
+            "server/gear_exact_authority_store.py",
+            requirement["ownership"]["task3AStoreOwner"],
+        )
+        self.assertEqual(
+            "server/migrations/postgres/0026_websim_exact_authority_bundle.sql",
+            requirement["ownership"]["task3AMigration"],
+        )
 
         project_map = json.loads(
             (ROOT / "docs/project-owner-map.json").read_text(encoding="utf-8")
@@ -3763,7 +3798,7 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
         )
         project_foundation = gear_domain["canonicalKernelFoundations"]
         self.assertEqual(
-            "pure_canonical_foundation_complete_task3_plan_correction_required",
+            "task3a_authority_persistence_implementation_allowed_candidate_pending",
             project_foundation["status"],
         )
         self.assertEqual(
@@ -3781,6 +3816,17 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
         )
         self.assertFalse(project_registry["runtimeAuthority"])
         self.assertTrue(project_registry["reviewDiffRequired"])
+        self.assertEqual([], project_foundation["runtimeConsumers"])
+        self.assertFalse(project_foundation["originalTask3Activated"])
+        self.assertTrue(project_foundation["replacementTask3AActivated"])
+        self.assertEqual(
+            expected_allowed_stages,
+            project_foundation["authorizedReplacementStages"],
+        )
+        self.assertEqual(
+            expected_blocked_stages,
+            project_foundation["blockedReplacementStages"],
+        )
 
         backend_map = json.loads(
             (ROOT / "docs/backend-owner-map.json").read_text(encoding="utf-8")
@@ -3792,7 +3838,7 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
         )
         backend_owner = kernel_hotspot["owners"][0]
         self.assertEqual(
-            "pure_canonical_foundation_complete_task3_plan_correction_required",
+            "task3a_authority_persistence_implementation_allowed_candidate_pending",
             backend_owner["status"],
         )
         self.assertEqual(
@@ -3810,6 +3856,17 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
         )
         self.assertFalse(backend_registry["runtimeAuthority"])
         self.assertTrue(backend_registry["reviewDiffRequired"])
+        self.assertEqual([], backend_owner["runtimeConsumers"])
+        self.assertFalse(backend_owner["originalTask3Activated"])
+        self.assertTrue(backend_owner["replacementTask3AActivated"])
+        self.assertEqual(
+            expected_allowed_stages,
+            backend_owner["authorizedReplacementStages"],
+        )
+        self.assertEqual(
+            expected_blocked_stages,
+            backend_owner["blockedReplacementStages"],
+        )
 
 
 if __name__ == "__main__":

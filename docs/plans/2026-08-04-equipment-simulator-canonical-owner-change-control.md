@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` to execute this plan task by task. This is a schema-boundary replacement after the previous Task 5 reached its five-round Stop Gate; it is not a sixth patch round.
 
-状态：`已完成（Task 1-2 scoped 与 final whole-branch re-review 均 PASS/APPROVED；proofClaim=source_change_control_only；原 Task 3 可开始但尚未启动）`
+状态：`已完成（仅 Task 1-2 scoped 与 pure-foundation final whole-branch PASS/APPROVED；proofClaim=source_change_control_only；后续 readiness audit 已停止原 Task 3）`
 
 **Goal:** 保留已经通过语义测试的 Canonical Kernel、sealed documents、Exact/Progression/Effect/Probe/CLI/Envelope contracts，把失控增长的 Python AST “authority proof” 替换成诚实、可维护的 source change-control：四个 server owner 使用 declaration-only module-load profile，CLI 使用独立的受限 bootstrap profile，所有未知模块加载语法 fail closed。
 
@@ -234,7 +234,7 @@ Replacement gate 不再声称解释任意函数运行语义，也不递归 impor
 - [x] 分别冻结并报告 shared valid Exact v2 key `exact-item-instance:sha256:e10e93ee691bc1073af958427aa06d451ba1132c5eb8ef0fa8654c70fb4670f6` 与 frozen v1 wrapper key `exact-item-instance:sha256:38b1a60808918f4bab94bd5bc0fd9240418ce72d631369beb054ec485ab636aa`。
 - [x] 从 `7cf5c37bb1612ca703cbfbdef21ef31024d7e1e0` 生成 fresh whole-branch review package，由未参与实现的 reviewer 给出 Spec `PASS/FAIL` 与 Code Quality `APPROVED/CHANGES_REQUIRED`。
 - [x] Reviewer 必须在最终 tree 重放 module-load helper 反例，验证 registry/exemption hygiene，并确认旧 interprocedural proof engine 已删除而非隐藏。
-- [x] 只有本计划 Task 1-2 scoped reviews clean 且 whole-branch 同时 `PASS/APPROVED`，controller 才能把 canonical foundation 标记完成，并把原计划状态改成“Task 3 可开始，尚未启动”。
+- [x] 本计划 Task 1-2 scoped reviews 与 whole-branch `PASS/APPROVED` 只完成 canonical foundation；当时写入的“Task 3 可开始”状态已被后续 readiness audit supersede，不再授予持久化执行权。
 
 ## Stop Gate
 

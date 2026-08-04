@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILLS: Use `superpowers:subagent-driven-development`, `superpowers:test-driven-development`, and `superpowers:verification-before-completion`. This plan forward-replaces the old implementation plan's Task 3 and later execution order after two independent readiness audits returned `NOT_READY`.
 
-状态：`正在纠正（readiness audit FAIL；计划待独立 review；旧 Task 3 未启动）`
+状态：`正在推进（两位独立 reviewer：Plan Spec PASS / Task 3A READY / 0 findings；Task 3A Harness requirement 已冻结并校验通过；实现尚未开始；双 PostgreSQL candidate 前保持 candidate_pending）`
 
 ## Goal
 
@@ -35,15 +35,27 @@
 ## Revised execution order
 
 1. **Task 3A:** Canonical authority bundle rehydration + append-only persistence (`0026`)，无 runtime consumer。
-2. **Task 4P:** 提前完成纯函数 v2 Resolver、ResolvedLoadout、SimulationSnapshot（替代旧 Task 5 的 pure domain 部分），无 DB/runtime。
-3. **Task 3B:** v1/v2 conditional loadout/snapshot persistence (`0027`)，只消费 Task 4P 的 verifier。
-4. **Task 4W:** owner-scoped jobs、独立 worker DB role、lease/retention/metrics 与 worker service (`0028`)。
-5. **Task 5A:** Exact import API、正式 SimC submit 接合与 UI typed contract。
-6. **Task 6C:** observation/candidate/admission 从 `0029` 开始，保持独立 candidate/release gate。
+2. **Task 4P:** 提前完成纯函数 v2 Resolver、ResolvedLoadout、SimulationSnapshot（替代旧 Task 5 的 pure domain 部分），无 DB/runtime；遇到 loadout-scoped effect 先显式阻断。
+3. **Task 4L:** 单独设计并 review loadout-scoped effect subject/aggregate authority；未完成前不得把 tier/set/cross-slot effect 配置标成 ready。
+4. **Task 3B:** v1/v2 conditional loadout/snapshot persistence (`0027`)，只消费 Task 4P/4L 的 verifier。
+5. **Task 4W:** owner-scoped jobs、独立 worker DB role、lease/retention/metrics 与 worker service (`0028`)。
+6. **Task 5A:** Exact import API、正式 SimC submit 接合与 UI typed contract。
+7. **Task 6C:** observation/candidate/admission 从 `0029` 开始，保持独立 candidate/release gate。
+
+## Execution authority and changed-file boundaries
+
+- 每一阶段开始前重新读取 `docs/project-state.json`、`docs/roadmap.md`、本计划、原实施计划顶部的 stopped/replacement 状态和 Harness requirement；只以本计划中该阶段的 allowlist 为执行权。目录存在、旧 checkbox 或 Git 历史都不授予执行权。
+- Task 3A 的完整 allowlist 就是下方 Scope 列出的代码/测试/迁移，加 `docs/plans/README.md`、`docs/roadmap.md`、原 Exact-first 实施计划及四份 Canonical foundation/correction 计划的顶部状态、本计划、Harness `requirement.json`/`evidence.json`/`manifest.json`、两个 owner map 和 `docs/postgres-identity-migration-runbook.md` 的任务状态/候选数据库说明。最后这些控制面文件不得借机改变产品承诺。
+- Task 4P 只允许修改 `server/gear_resolver.py`、`server/gear_rule_matrix.py`、`server/gear_resolved_loadout.py`、`server/simulation_snapshot.py`、`server/simulation_snapshot_compat.py`、`tests/gear_resolver_test.py`、`tests/gear_rule_matrix_test.py`、`tests/gear_resolved_loadout_test.py`、`tests/simulation_snapshot_test.py`、`tests/simulation_snapshot_compat_test.py`，再加上述状态控制面文件；不得改 DB、service、deploy、API 或 UI。
+- Task 4L 在执行前必须先冻结独立 owner、canonical aggregate schema、完整性证明、文件 allowlist 和 persistence impact，并通过 plan review；当前没有实现授权。
+- Task 3B 只允许修改 `server/migrations/postgres/0027_websim_exact_snapshot_v2.sql`、`server/simulation_snapshot_store.py`、`tests/simulation_snapshot_store_test.py`、`tests/postgres_schema_test.py`、`tests/postgres_integration_test.py` 与状态控制面文件；不得引入 job/worker/runtime consumer。
+- Task 4W 只允许修改 `server/migrations/postgres/0028_websim_exact_import_jobs.sql`、`server/gear_exact_import_job_store.py`、`server/gear_exact_authority_worker.py`、`server/wow-gear-exact-authority-worker.service`、`server/deploy_lighthouse.sh`、`tests/gear_exact_import_job_store_test.py`、`tests/gear_exact_authority_worker_test.py`、`tests/postgres_schema_test.py`、`tests/postgres_integration_test.py`、数据库 runbook 与状态控制面文件。API/UI 仍不激活。
+- Task 5A 和 Task 6C 在执行前必须各自补出 task-scoped allowlist、用户可见验收、candidate/rollback 和独立 review；本计划当前只给顺序和边界，不提前授权其实现。
+- 任一阶段 diff 越出 allowlist、迁移编号碰撞、当前真相改变或需要触碰 generation 35/Catalog pointers 时立即停止并更新计划，不通过临时 exemption 扩权。
 
 ---
 
-## Task 3A: 完整 Canonical Authority Bundle 持久化
+## Task 3A：完整 Canonical Authority Bundle 持久化
 
 ### Scope
 
@@ -63,6 +75,7 @@
 - Create: `server/migrations/postgres/0026_websim_exact_authority_bundle.sql`
 - Create: `server/gear_exact_authority_store.py`
 - Create: `tests/gear_exact_authority_store_test.py`
+- Create: `tests/gear_exact_authority_store_import_boundary_test.py`
 - Modify: `tests/postgres_schema_test.py`
 - Modify: `tests/postgres_integration_test.py`
 
@@ -70,9 +83,17 @@
 
 - Modify: `tests/fixtures/gear_canonical_owner_registry.json`
 - Modify: `tests/gear_canonical_owner_gate_test.py`
+- Modify: `tests/simc_gear_import_test.py` only to bind the Harness packet to the active Task 3A slice/resequence heading instead of the stopped four-slice plan
 - Modify: `artifacts/releases/2026-08-04-equipment-simulator-exact-first/requirement.json`
 - Modify: `docs/project-owner-map.json`
 - Modify: `docs/backend-owner-map.json`
+- Modify: `docs/plans/README.md`
+- Modify: `docs/roadmap.md`
+- Modify: `docs/plans/2026-08-04-equipment-simulator-exact-first-implementation.md` only for stopped/replacement status
+- Modify: `docs/plans/2026-08-04-equipment-simulator-canonical-kernel-redesign.md` only to remove the stale “original Task 3 may start” claim
+- Modify: `docs/plans/2026-08-04-equipment-simulator-canonical-kernel-implementation.md`, `docs/plans/2026-08-04-equipment-simulator-canonical-owner-change-control.md`, and `docs/plans/2026-08-04-equipment-simulator-duplicate-effect-subject-correction.md` only for the same superseded top-level status
+- Modify: `docs/postgres-identity-migration-runbook.md` only for the two-database candidate procedure
+- Create/Modify: `artifacts/releases/2026-08-04-equipment-simulator-exact-first/evidence.json` and `manifest.json` only after real candidate evidence exists
 - Modify: this plan only for checklist/status
 
 Task 3A must not modify `simulation_snapshot_store.py`, `postgres_cache_store.py`, jobs, worker, API, Resolver, loadout/snapshot domain schemas, deployment, Catalog or runtime.
@@ -90,7 +111,15 @@ Storage reload is a new explicit raw-bytes boundary, not a generic caller-author
   - Effect Record bound to runtime;
   - Effect Aggregate bound to Exact, runtime and ordered records;
   - Exact Authority Envelope bound to all four documents.
+- The only public reload signatures are frozen as follows; each raises `CanonicalValueError` on any mismatch and returns an exact `SealedCanonicalDocument`, never `CanonicalResult`, raw dict or normalized fallback:
+  - `reload_exact_item(canonical_bytes: bytes, content_key: str) -> SealedCanonicalDocument`;
+  - `reload_exact_static_facts(canonical_bytes: bytes, content_key: str, *, exact: SealedCanonicalDocument) -> SealedCanonicalDocument`;
+  - `reload_exact_progression(canonical_bytes: bytes, content_key: str, *, exact: SealedCanonicalDocument) -> SealedCanonicalDocument`; it replays production Track Authority from the sealed payload's season/rule/slot/crafted inputs;
+  - `reload_effect_record(canonical_bytes: bytes, content_key: str, *, runtime_revision: str) -> SealedCanonicalDocument`;
+  - `reload_effect_aggregate(canonical_bytes: bytes, content_key: str, *, exact: SealedCanonicalDocument, runtime_revision: str, records: tuple[SealedCanonicalDocument, ...]) -> SealedCanonicalDocument`;
+  - `reload_exact_authority_envelope(canonical_bytes: bytes, content_key: str, *, exact: SealedCanonicalDocument, static_facts: SealedCanonicalDocument, progression: SealedCanonicalDocument, effect_support: SealedCanonicalDocument, resolver_revision: str) -> SealedCanonicalDocument`.
 - Store code imports only those typed domain reload functions. It must not import private validators, parse/normalize domain fields, instantiate sealed documents, or invent a second serializer.
+- `tests/gear_exact_authority_store_import_boundary_test.py` is an independent AST/import gate for the store: it allowlists only the typed reload functions, sealed-document/dataclass typing and DB adapter imports; direct imports of Kernel private names, domain validators, canonical serializers or Catalog owners fail. This store gate does **not** add a sixth registry target: the source-change-control registry stays exactly five targets/nine exemptions and its claim stays `source_change_control_only`.
 
 Each reload function receives stored canonical bytes/key, rebuilds the sealed domain document, and rejects any bytes/key/schema/binding drift. No `strip`, coercion, normalization, JSONB round-trip or Catalog lookup is allowed.
 
@@ -107,7 +136,10 @@ Each reload function receives stored canonical bytes/key, rebuilds the sealed do
 - `canonical_json jsonb NOT NULL CHECK (jsonb_typeof(canonical_json) = 'object')` as a query/constraint projection only
 - `canonical_sha256 text NOT NULL CHECK (canonical_sha256 ~ '^[0-9a-f]{64}$')`
 - `sealed_at timestamptz NOT NULL DEFAULT clock_timestamp()`
-- `right(content_key, 64) = canonical_sha256`
+- migration preflight requires the PostgreSQL core function `pg_catalog.sha256(bytea)`; absence is a hard blocker and does not authorize `pgcrypto` or an application-only hash check;
+- `canonical_sha256 = pg_catalog.encode(pg_catalog.sha256(canonical_bytes), 'hex')`;
+- `canonical_json = pg_catalog.convert_from(canonical_bytes, 'UTF8')::jsonb`;
+- the closed matrix requires `content_key = <kind-specific prefix> || canonical_sha256`, not only a matching suffix.
 - a closed kind/schema/prefix matrix for exactly:
   - `exact_item` / `gear-exact-item-instance-v2` / `exact-item-instance:sha256:`
   - `exact_static_facts` / `exact-static-facts-v1` / `exact-static-facts:sha256:`
@@ -116,15 +148,16 @@ Each reload function receives stored canonical bytes/key, rebuilds the sealed do
   - `effect_aggregate` / `simc-item-effect-support-v1` / `simc-item-effect-support:sha256:`
   - `exact_authority` / `exact-authority-envelope-v1` / `exact-authority:sha256:`
 
-`canonical_bytes` is the identity source. `canonical_json` must equal the decoded JSON value but never generates the key and never replaces byte verification.
+`canonical_bytes` is the identity source. The database independently hashes those bytes and verifies their JSONB projection; `canonical_json` never generates the key and never replaces byte verification. Typed reload remains responsible for strict duplicate-key, NFC, canonical lexical bytes and domain bindings that JSONB cannot prove.
 
 #### `cache.websim_effect_aggregate_records`
 
 - `(effect_support_key, ordinal)` primary key;
+- `effect_support_key` foreign key to canonical documents;
 - `effect_record_key` foreign key to canonical documents;
 - ordinal bounded `0..127`;
 - repeated `effect_record_key` at different ordinals is allowed;
-- insert-time trigger verifies aggregate/record document kinds. Application reload verifies exact ordered equality with aggregate `supportRecords`.
+- insert-time trigger verifies aggregate/record document kinds and the aggregate JSON binding at that ordinal. Application reload verifies exact ordered equality with aggregate `supportRecords`.
 
 #### `cache.websim_exact_authority_bundles`
 
@@ -134,16 +167,33 @@ Each reload function receives stored canonical bytes/key, rebuilds the sealed do
 - insert-time trigger verifies all component kinds and exact JSON key bindings, including envelope keys and projection equality;
 - no owner, Catalog membership or provenance fields.
 
+Every trigger/function in `0026` is schema-qualified, `SECURITY INVOKER`, and declares `SET search_path = pg_catalog, pg_temp` with the temporary schema last; it never resolves an unqualified table/function. Foreign keys provide committed-row existence under concurrency, while the binding triggers lock/reference the exact keyed rows in the same statement. The store inserts documents first, then ordered relations/bundle, and performs exact readback before commit; a concurrent same-key/different-value write fails the insert/readback transaction rather than winning by last-write.
+
 All three tables receive immutable triggers. Explicitly `REVOKE INSERT, UPDATE, DELETE, TRUNCATE FROM wow_app` and grant only `SELECT` in 0026. Task 3A has no runtime writer; Task 4W later grants an independent worker role. Migration/migrator and tests may write during candidate verification.
 
 ### Store contract
 
-`GearExactAuthorityStore` provides no “latest” lookup and no partial-success authority:
+The store return type is frozen as:
 
-- `seal_authority_bundle(exact, static_facts, progression, effect_support, envelope, effect_records)`
-- `load_verified_bundle(envelope_key)`
-- `load_verified_bundles(exact_keys, *, gear_rule_revision, simc_runtime_revision, resolver_revision)`
-- `load_effect_records(record_keys, *, simc_runtime_revision)`
+```python
+@dataclass(frozen=True)
+class ExactAuthorityBundle:
+    exact_item: SealedCanonicalDocument
+    static_facts: SealedCanonicalDocument
+    progression: SealedCanonicalDocument
+    effect_records: tuple[SealedCanonicalDocument, ...]
+    effect_support: SealedCanonicalDocument
+    envelope: SealedCanonicalDocument
+```
+
+`GearExactAuthorityStore` provides no “latest”, Exact-key search or partial-success authority:
+
+- `seal_authority_bundle(bundle: ExactAuthorityBundle) -> ExactAuthorityBundle`
+- `load_verified_bundle(envelope_key, *, gear_rule_revision, simc_runtime_revision, resolver_revision) -> ExactAuthorityBundle`
+- `load_verified_bundles(envelope_keys, *, gear_rule_revision, simc_runtime_revision, resolver_revision) -> tuple[ExactAuthorityBundle, ...]`
+- `load_effect_records(record_keys, *, simc_runtime_revision) -> tuple[SealedCanonicalDocument, ...]`
+
+Batch loads preserve caller input order and multiplicity exactly: `A, B, A` returns bundles/records in `A, B, A` order. They reject empty/invalid keys and any missing or revision-mismatched occurrence. A progression is season/track-authority bound, so an Exact item key is never an authoritative lookup key; callers must provide the exact envelope key selected for that slot.
 
 Write path:
 
@@ -159,14 +209,15 @@ Read path loads exact canonical bytes, reconstructs Exact -> Static/Progression 
 
 - [ ] Preflight `0026` is absent; stop on collision.
 - [ ] RED Kernel/domain reload: exact bytes/key pass; whitespace, duplicate key, non-NFC, over-bound, wrong kind/schema/prefix/key and cross-document binding fail.
-- [ ] RED store: full bundle round-trip, identical idempotency, collision, missing component, wrong runtime/rule/resolver, duplicate effect-record ordinal, repeated same record at two ordinals, reordered non-adjacent duplicate, tampered canonical bytes/JSON projection and partial transaction rollback.
-- [ ] RED SQL/static: exact kind/schema/prefix matrix, component FKs/binding trigger, immutable triggers, wow_app SELECT-only and unique migration identity.
-- [ ] RED PostgreSQL integration: apply `0001..0026` fresh and `0025 -> 0026` with existing v1 rows; verify v1 rows/row hashes unchanged, bytea/JSON equality, trigger/grant behavior and bundle transaction.
+- [ ] RED store: full frozen-dataclass round-trip, `A/B/A` batch order, identical idempotency, collision, missing component, wrong runtime/rule/resolver, duplicate/gapped/extra/missing effect-record ordinal, repeated same record at two ordinals, reordered non-adjacent duplicate, concurrent same-key writes, tampered canonical bytes/hash/JSON projection, distinct `1`/`1.0`/exponent lexical bytes and partial transaction rollback.
+- [ ] RED store import boundary: direct Kernel-private/domain-validator/serializer/Catalog imports fail while typed reload imports pass; registry remains five targets/nine exemptions and `source_change_control_only`.
+- [ ] RED SQL/static: exact kind/schema/prefix/hash/bytes-to-JSON matrix, both aggregate FKs, component FKs/binding trigger, fixed search path, immutable triggers, wow_app SELECT-only and unique migration identity.
+- [ ] RED PostgreSQL integration uses two operator-provisioned empty disposable databases and never creates/drops a database. `WOW_PG_TEST_RUN_ID_0026` matching `^[a-z0-9]{8,32}$`, `WOW_PG_TEST_DSN_FRESH_0026`, and `WOW_PG_TEST_DSN_UPGRADE_0026` are mandatory. The DSNs must identify distinct `wow_exact_first_fresh_test_<run-id>` and `wow_exact_first_upgrade_test_<run-id>` databases whose database comments are exactly `wow_exact_first_disposable:<run-id>:fresh` and `wow_exact_first_disposable:<run-id>:upgrade`. Before any write, the suite rejects any existing project schema (`identity|app|content|cache|knowledge|analytics|ops`), `ops.schema_migrations`, project table or mismatched/missing comment. Fresh then applies `0001..0026`. Upgrade starts from the independently proven empty DB, applies `0001..0025`, seeds frozen v1 rows and row hashes, snapshots them, then applies `0026`. Verify the before/after v1 snapshot is byte-for-byte equal plus hash/JSON/FK/trigger/grant/concurrency/bundle behavior. Both candidates bind the final runtime-affecting commit SHA, its Git tree SHA and migration file SHA-256; candidate 后只允许 evidence/manifest 与任务状态文档变化，任何代码、测试、migration、requirement 或 owner-contract 变化都使 candidate 失效并要求重跑。Harness verification identity 另行绑定最终 PR HEAD。Databases remain intact through evidence/manifest archival and review; only then may the operator discard those exact identities. Tests never reset, drop or reuse a prior run-id.
 - [ ] Implement minimal reload/store/migration; do not add jobs or snapshot v2.
 - [ ] Run focused suites, full Canonical matrix, owner gate, existing v1 store/snapshot suites, Node/Harness/JSON/pycompile/diff.
 - [ ] Freeze both existing v1/v2 Exact keys.
 - [ ] Independent spec/code review must be `PASS/APPROVED`.
-- [ ] Candidate PostgreSQL evidence is mandatory before Task 3A is `已完成`. If `WOW_PG_TEST_DSN`/`psql` is unavailable locally, report local implementation separately as `candidate_pending`; do not package skipped integration as green.
+- [ ] Candidate PostgreSQL evidence from both explicit DSNs is mandatory before Task 3A is `已完成`. Missing `psql` or either DSN yields literal `candidate_pending`; one database, a shared development database, skipped tests or schema-only mocks cannot be packaged as green.
 
 ---
 
@@ -175,22 +226,28 @@ Read path loads exact canonical bytes, reconstructs Exact -> Static/Progression 
 This task executes the old Task 5 pure-domain intent before any v2 store changes.
 
 - Add v2 builders/verifiers in Resolver, ResolvedLoadout, SimulationSnapshot and compatibility modules.
-- Exact Authority Envelope and loadout-level effect records use the frozen prefixes:
+- Exact Authority Envelope and item effect records use the frozen prefixes:
   - `exact-authority:sha256:`
   - `simc-item-effect-record:sha256:`
-- v2 identity binds exact envelope keys, Rule/Resolver/compiler/SimC runtime revisions and complete loadout-level verified effect records; it never binds Catalog membership or provenance.
+- v2 loadout identity binds `exactAuthorityBySlot`, an ordered non-empty list of `{slot, exactAuthorityEnvelopeKey}`. Entries include occupied slots only and must follow `CANONICAL_GEAR_SLOTS`; a slot appears at most once. The same Exact item may legally occur in two slots, but progression binds slot, so each pair must load a bundle whose `progression.trackAuthorityInput.slot` equals the pair's slot; two different slots therefore cannot reuse one Envelope key. Verifiers reject input/key sorting, duplicate slot/key, slot/progression mismatch or a pair list that differs from the resolved loadout.
+- Task 4P's initial `effectEvidenceByOccurrence` is an ordered multiset of slot-scoped `{scope='slot', slot, exactAuthorityEnvelopeKey, recordOrdinal, subjectKind, subjectKey, subjectVariantSignature, supportRecordKey}`. Entries follow `CANONICAL_GEAR_SLOTS`, then each Envelope aggregate's record ordinal; array position and full occurrence fields preserve repeated item/record occurrences, and neither key sorting nor set/dict deduplication is allowed.
+- Task 4P does not invent an incomplete loadout-level record list. If Rule Matrix derives any tier/set/cross-slot/loadout-scoped effect subject, Resolver returns literal `blocked` / `LOADOUT_EFFECT_AUTHORITY_REQUIRED`. Task 4L must later introduce one reviewed subject owner and completeness aggregate before such a loadout can become ready.
+- v2 identity also binds Rule/Resolver/compiler/SimC runtime revisions. It never binds Catalog membership or provenance.
 - `originCatalogRevision` stays outside canonical payload/hash.
 - v1 builder/verifier remains a separate strict branch and all historical bytes/key stay unchanged.
 - No DB, job, worker, API, UI or deployment changes.
+
+Task 4P RED cases must include main/off-hand legality, same Exact with distinct slot-bound Envelopes in finger1/finger2 and trinket1/trinket2, rejection of one Envelope reused across slots, repeated identical effect record occurrences, non-adjacent duplicate records, reordered slot input, reordered evidence input, and fail-closed tier/set subjects. Canonical-equivalent caller order produces the same builder output; verifier input that is not already canonical fails closed.
 
 Task 4P requires a separately reviewed implementation slice before Task 3B.
 
 ## Task 3B: v1/v2 conditional snapshot persistence (`0027`)
 
-Only after Task 4P exists:
+Only after Task 4P and a separately reviewed Task 4L completeness contract exist; this section does not itself authorize `0027`:
 
 - alter loadout/snapshot tables with schema-conditioned Catalog/registry/envelope-key checks;
-- add exact authority envelope keys as non-empty, unique, canonical-order JSON arrays for v2 and exact `[]` for v1;
+- add `exact_authority_by_slot_json` as the exact Task 4P slot-bound ordered pairs for v2 and exact `[]` for v1; do not store a unique key-only array that loses slot or multiplicity;
+- add `effect_evidence_by_occurrence_json` with the exact Task 4P ordered multiset for v2 and exact `[]` for v1;
 - keep `originCatalogRevision` in separate provenance columns/wrappers, outside stored canonical documents and row hashes;
 - reuse Task 4P verifiers in `SimulationSnapshotStore`; no duplicated v2 validator;
 - preserve every historical v1 row/key/hash and append-only trigger;
@@ -198,14 +255,54 @@ Only after Task 4P exists:
 
 ## Task 4W: Owner-scoped jobs and worker (`0028`)
 
-Task 4W must first establish `wow_exact_worker` as a distinct database principal and separate DSN/config. Before runtime activation:
+Task 4W uses two principals and never grants role-management power to migrations or services:
+
+- `wow_exact_worker` is a pre-provisioned `NOLOGIN` group role. `0028` starts with a fail-closed existence/`rolcanlogin=false` assertion; it never executes `CREATE ROLE` and neither `wow_migrator`, `wow_app` nor the service receives `CREATEROLE`.
+- an operator-created `LOGIN INHERIT` principal is granted membership in `wow_exact_worker` outside the migration, with credentials held only in `/etc/wow-exact-worker.env` as `WOW_EXACT_WORKER_DATABASE_URL`; every worker connection immediately executes `SET ROLE wow_exact_worker` and verifies `session_user` membership plus `current_user='wow_exact_worker'`. The worker refuses `WOW_DATABASE_URL`.
+- `server/wow-gear-exact-authority-worker.service` reads only the worker env file. Candidate/deploy preflight verifies the NOLOGIN group role, LOGIN membership, redacted distinct DSNs and rollback to the prior service/env; `docs/postgres-identity-migration-runbook.md` owns the provisioning/check/rollback procedure.
+- migration/runtime preflight also requires PostgreSQL core `pg_catalog.gen_random_uuid()`; absence is a hard compatibility blocker and does not authorize an implicit extension install.
+
+`0028` creates exactly:
+
+- `ops.websim_exact_import_jobs` with `job_id bigserial`, `owner_key_hash text CHECK '^sha256:[0-9a-f]{64}$'`, `request_key text CHECK '^exact-import-request:sha256:[0-9a-f]{64}$'`, `request_bytes bytea` bounded to 131,072 bytes, matching object `request_json jsonb` bounded to 131,072 bytes, `status pending|running|resolved|blocked|unsupported|failed`, `terminal_classification NULL|resolved|incomplete|illegal|runtime_gap|internal_error`, `attempt 0..3`, `locked_by text` bounded to 160 characters, DB-generated `lock_token uuid`, `lease_until`, `queued_at`, `started_at`, `heartbeat_at`, `finished_at`, `cooldown_until`, object `result_json` bounded to 131,072 bytes, object `problem_json` bounded to 16,384 bytes, `created_at`, `updated_at` and the exact row-state checks below;
+- `uq_ops_websim_exact_jobs_deterministic` as a partial unique index on `(owner_key_hash, request_key)` for `pending|running|resolved|blocked|unsupported`, `idx_ops_websim_exact_jobs_failed_cooldown` on `(owner_key_hash, request_key, cooldown_until DESC, job_id DESC)` for failed rows, `idx_ops_websim_exact_jobs_claim` on `(status, lease_until, queued_at, job_id)`, and `idx_ops_websim_exact_jobs_retention` on `(finished_at, job_id)` for terminal rows;
+- `ops.websim_exact_worker_state` keyed by `worker_id`, with runtime/worker revisions, current job, status, heartbeat and object `last_outcome_json` bounded to 16,384 bytes;
+- `ops.websim_exact_import_metrics_daily` keyed by `(metric_day, terminal_classification, catalog_status)`, with only aggregate count and timestamps.
+
+Job row checks are not implementation-defined:
+
+- `pending`: `attempt=0`; lock/token/lease/start/heartbeat/finish/cooldown/classification are NULL or empty as appropriate;
+- `running`: `attempt BETWEEN 1 AND 3`; non-empty `locked_by`, non-NULL UUID token/lease/start/heartbeat; finish/cooldown/classification NULL;
+- `resolved|blocked|unsupported`: cleared lock/token/lease, non-NULL start/finish/classification, NULL cooldown; classification must map respectively to `resolved`, `incomplete|illegal`, or `runtime_gap`;
+- `failed`: cleared lock/token/lease, non-NULL start/finish, classification `internal_error`, and `cooldown_until = finished_at + interval '15 minutes'`;
+- every terminal row has `finished_at >= started_at`; pending/running rows never have a terminal classification. Retry policy identity is frozen as `exact-import-retry-policy-v1` with three total claims, 30-second leases and a 15-minute failed cooldown.
+
+The only accepted request schema is canonical `exact-import-job-request-v1` with exact top-level keys `schemaRevision`, `exactLoadoutIntent`, and `dependencyVector`. The dependency vector has exact keys `seasonRevision`, `gameBuild`, `gearRuleRevision`, `resolverRevision`, `compilerRevision`, `workerRevision`, `simcRuntimeRevision`, and `effectAuthorityRevision`. A typed domain builder verifies the canonical Exact intent, rejects recursively any `rawProfile|rawString|playerName|characterName|realm|server` field, emits canonical bytes, and computes the expected request key. PostgreSQL independently requires `request_json = convert_from(request_bytes,'UTF8')::jsonb` and computes `request_key = 'exact-import-request:sha256:' || encode(sha256(request_bytes),'hex')`. Enqueue compares exact bytes on every reuse; worker claim reloads the same typed request and recomputes the key before doing work.
+
+The callable surface is frozen as:
+
+- `ops.websim_exact_enqueue(p_owner_key_hash text, p_request_bytes bytea, p_request_json jsonb) RETURNS TABLE(job_id bigint, request_key text, status text, reused boolean, cooldown_until timestamptz)`;
+- `ops.websim_exact_read(p_owner_key_hash text, p_job_id bigint) RETURNS TABLE(job_id bigint, request_key text, status text, result_json jsonb, problem_json jsonb, queued_at timestamptz, started_at timestamptz, finished_at timestamptz, cooldown_until timestamptz)`;
+- `ops.websim_exact_claim(p_worker_id text, p_worker_revision text, p_simc_runtime_revision text) RETURNS TABLE(job_id bigint, request_key text, request_bytes bytea, request_json jsonb, lock_token uuid, lease_until timestamptz)`;
+- `ops.websim_exact_heartbeat(p_job_id bigint, p_lock_token uuid) RETURNS TABLE(job_id bigint, lease_until timestamptz)`;
+- `ops.websim_exact_terminalize(p_job_id bigint, p_lock_token uuid, p_terminal_status text, p_terminal_classification text, p_result_json jsonb, p_problem_json jsonb, p_catalog_status text) RETURNS TABLE(job_id bigint, status text, finished_at timestamptz, cooldown_until timestamptz)`;
+- `ops.websim_exact_update_worker_state(p_worker_id text, p_status text, p_worker_revision text, p_simc_runtime_revision text, p_current_job_id bigint, p_last_outcome_json jsonb) RETURNS void`;
+- `ops.websim_exact_prune_jobs(p_limit_rows integer) RETURNS integer` and `ops.websim_exact_prune_metrics(p_limit_rows integer) RETURNS integer`.
+
+These functions use concrete scalar/bytea/jsonb arguments and typed results, never dynamic SQL. All eight functions, including owner-scoped read, are `SECURITY DEFINER`, owned by `wow_migrator`, fully qualify all objects, declare `SET search_path = pg_catalog, pg_temp`, and are followed in the same migration transaction by signature-specific `REVOKE ALL ... FROM PUBLIC`. No caller-provided predicate is composed dynamically.
+
+Before runtime activation:
 
 - revoke authority INSERT and all job/metrics table writes from `wow_app`;
-- grant worker only SELECT/INSERT on authority documents, claim/heartbeat/terminal functions, worker state and bounded prune execution;
-- app may only owner-scope enqueue/read through explicit functions or narrowly granted operations;
-- prune functions are `SECURITY DEFINER`, fixed `search_path`, fully qualified, `REVOKE ALL FROM PUBLIC`, with no bottom-table DELETE grants to app or worker.
+- explicitly `GRANT USAGE ON SCHEMA cache, ops` to `wow_exact_worker`; revoke all direct privileges on the three ops tables and `ops.websim_exact_import_jobs_job_id_seq` from `PUBLIC`, `wow_app` and `wow_exact_worker` before the function grants, overriding migration `0002` default privileges;
+- grant worker only SELECT/INSERT on authority documents and EXECUTE on claim/heartbeat/terminal/worker-state/bounded-prune functions;
+- app gets `EXECUTE` only on owner-scoped enqueue/read and zero table DML or full-table SELECT on the three ops tables;
+- worker gets `EXECUTE` only on claim/heartbeat/terminalize/worker-state/prune functions plus SELECT/INSERT on the three `0026` authority tables; it gets zero direct UPDATE/DELETE on authority or ops tables and no owner-scoped app function;
+- every other function EXECUTE ACL, including PUBLIC defaults and cross-role app/worker calls, is absent.
 
 Job schema includes `started_at`, `finished_at`, `cooldown_until`; terminal retention is `finished_at + 7 days`, metrics retention is 90 days. All time and lease decisions use PostgreSQL `clock_timestamp()`.
+
+Real PostgreSQL permission tests use distinct `WOW_PG_TEST_DSN_MIGRATOR_0028`, `WOW_PG_TEST_DSN_APP_0028`, and actual worker-login `WOW_PG_TEST_DSN_WORKER_0028`. They additionally exercise admin-side `SET ROLE wow_app` / `SET ROLE wow_exact_worker`, but that is not a substitute for the real login DSNs. Tests prove schema usage, allowed functions, zero PUBLIC EXECUTE, cross-owner reads returning no row, table/sequence scans or DML and wrong-role functions failing, worker `SET ROLE`, expired-token CAS updating zero rows, and prune respecting requested `1..100`; static SQL assertions alone are insufficient.
 
 ### Lease decision table
 
@@ -227,6 +324,8 @@ Job schema includes `started_at`, `finished_at`, `cooldown_until`; terminal rete
 
 Request identity binds sanitized intent, season/game build, Rule, Resolver, worker, SimC runtime and explicit effect-authority revision. Catalog status is live/noncanonical projection, never a frozen deterministic terminal fact.
 
+`websim_exact_enqueue` obtains a transaction-scoped PostgreSQL advisory lock derived from the validated `(owner_key_hash, request_key)` before inspecting active/terminal/failed rows. This serializes the no-row and failed-cooldown boundaries; after the 15-minute boundary exactly one concurrent call may create the next pending row and the rest reuse it. Claim uses `FOR UPDATE SKIP LOCKED`; DB generates `lock_token` with `pg_catalog.gen_random_uuid()`. When an expired running row already has `attempt=3`, claim atomically terminalizes it as `failed/internal_error`, writes bounded `ATTEMPT_EXHAUSTED` problem data and increments the daily metric in the same transaction before considering another job. Enqueue and claim both fail closed on request bytes/key/schema drift.
+
 ## Stop Gate
 
 Stop and redesign if any task requires:
@@ -236,6 +335,6 @@ Stop and redesign if any task requires:
 - accepting dangling or partially verified authority documents;
 - adding v2 store validation before the v2 domain verifier exists;
 - using `wow_app` as both public API and privileged authority worker at activation;
+- creating/login-enabling roles inside application migrations or reusing `WOW_DATABASE_URL` in the exact worker;
 - application-provided lease/retention time;
 - changing generation 35, Catalog/Manifest pointers, v1 bytes/key or runtime before its task-scoped review.
-

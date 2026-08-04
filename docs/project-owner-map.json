@@ -384,7 +384,7 @@
         "activationBoundary": "Task 1 defines deterministic max-not-sum socket facts only; release materialization and runtime consumption remain outside this slice."
       },
       "canonicalKernelFoundations": {
-        "status": "pure_canonical_foundation_complete_task3_plan_correction_required",
+        "status": "task3a_authority_persistence_implementation_allowed_candidate_pending",
         "factOwner": "server/gear_canonical_kernel.py",
         "kernelSemanticOwner": "server/gear_canonical_kernel.py",
         "slotSetOwner": "server/gear_contracts.py",
@@ -439,7 +439,19 @@
         ],
         "proofClaim": "source_change_control_only",
         "originalTask3Activated": false,
-        "activationBoundary": "The pure Canonical foundation remains final PASS/APPROVED. Task 3 implementation-readiness is NOT_READY and is being forward-replanned because persistence closure, v2 sequencing, worker permissions and job lifecycle contracts were stale. The registry remains test-only and not runtime authority. runtimeConsumers is empty; original Task 3 has not started; generation 35, Catalog/pointers, persistence/worker, Resolver/API/UI, raw-text privacy and v1 identities remain unchanged."
+        "replacementTask3AActivated": true,
+        "authorizedReplacementStages": [
+          "task_3a_authority_bundle_persistence"
+        ],
+        "blockedReplacementStages": [
+          "task_4p_pure_v2",
+          "task_4l_loadout_effect_authority",
+          "task_3b_snapshot_persistence",
+          "task_4w_worker_jobs",
+          "task_5a_api_runtime",
+          "task_6c_observation_catalog"
+        ],
+        "activationBoundary": "The pure Canonical foundation remains final PASS/APPROVED. Two independent third-round reviews returned Plan Spec PASS and Task 3A READY with zero findings. Only replacement Task 3A append-only authority persistence is implementation-allowed; two fresh PostgreSQL candidate paths are required before completion. The registry remains test-only, proofClaim stays source_change_control_only, runtimeConsumers is empty, original Task 3 remains stopped, and generation 35, Catalog/pointers, worker, Resolver/API/UI, raw-text privacy and v1 identities remain unchanged."
       },
       "trackAuthorityFoundations": {
         "status": "pure_contract_only_unconsumed",
