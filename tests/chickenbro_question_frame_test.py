@@ -104,6 +104,34 @@ class ChickenbroQuestionFrameTest(unittest.TestCase):
         self.assertEqual("community_build", frame["questionType"])
         self.assertEqual(["community_build_reference"], frame["evidenceNeeds"])
 
+    def test_evidence_ratio_follow_up_inherits_only_the_prior_strength_scope(self):
+        frame = self._builder()(
+            "解读一下15/27是啥意思？",
+            [{"role": "user", "content": "现在版本的元素萨在大秘境DPS整体的排名如何？ 强度如何？"}],
+        )
+
+        self.assertEqual("current_research", frame["questionType"])
+        self.assertEqual(["comparative_strength_signal"], frame["evidenceNeeds"])
+        self.assertEqual(
+            {"classKey": "shaman", "specKey": "elemental", "resolution": "resolved"},
+            frame["subject"],
+        )
+        self.assertEqual("retail", frame["scope"]["productPhase"])
+        self.assertEqual("mythic_plus", frame["scope"]["scenarioKey"])
+
+    def test_evidence_ratio_follow_up_does_not_cross_an_intervening_user_turn(self):
+        frame = self._builder()(
+            "解读一下15/27是啥意思？",
+            [
+                {"role": "user", "content": "元素萨现在版本大秘境强度如何？"},
+                {"role": "assistant", "content": "这里是当前高层样本信号。"},
+                {"role": "user", "content": "那天赋怎么点？"},
+            ],
+        )
+
+        self.assertEqual("community_build", frame["questionType"])
+        self.assertEqual(["community_build_reference"], frame["evidenceNeeds"])
+
     def test_generic_raid_scope_is_preserved_without_becoming_mythic_plus(self):
         frame = self._builder()("元素萨正式服团本单体强度如何？", [])
 
