@@ -23,7 +23,7 @@
           "slotSetOwner": "server/gear_contracts.py",
           "owns": [
             "raw-value canonical identity/report token, integer, list, mapping and slot validation",
-            "deterministic canonical JSON bytes and SHA-256 content keys",
+            "deterministic canonical JSON bytes with exact string object keys and SHA-256 content keys",
             "module-private sealed document construction, reload verification and verified payload copies"
           ],
           "mustNotChange": [

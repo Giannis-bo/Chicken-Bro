@@ -398,7 +398,7 @@
         "runtimeConsumers": [],
         "owns": [
           "Task 2 canonical primitive validation without trim, coercion, sort, dedupe or defaulting",
-          "deterministic canonical JSON bytes and SHA-256 content keys",
+          "deterministic canonical JSON bytes with exact string object keys and SHA-256 content keys",
           "module-private sealed canonical document construction and reload verification"
         ],
         "mustNotChange": [

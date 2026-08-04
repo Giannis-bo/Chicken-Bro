@@ -9,6 +9,8 @@ from pathlib import Path
 import unittest
 
 from server.gear_canonical_kernel import (
+    CanonicalIssue,
+    CanonicalResult,
     CanonicalValueError,
     SealedCanonicalDocument,
     canonical_identity_token,
@@ -108,8 +110,20 @@ class GearCanonicalKernelTest(unittest.TestCase):
         self.assertEqual(canonical_json_bytes({"b": 2, "a": "项"}), b'{"a":"\xe9\xa1\xb9","b":2}')
         with self.assertRaises((TypeError, ValueError)):
             canonical_json_bytes({"nan": float("nan")})
-        with self.assertRaises(TypeError):
+        with self.assertRaises(CanonicalValueError):
             canonical_json_bytes({"object": object()})
+
+    def test_canonical_json_rejects_non_string_mapping_keys_without_coercion(self):
+        with self.assertRaises(CanonicalValueError):
+            canonical_json_bytes({1: "integer"})
+        with self.assertRaises(CanonicalValueError):
+            canonical_json_bytes({"nested": {2: "integer"}})
+
+    def test_distinct_raw_mapping_key_types_cannot_share_canonical_bytes(self):
+        string_key_bytes = canonical_json_bytes({"1": "value"})
+        with self.assertRaises(CanonicalValueError):
+            canonical_json_bytes({1: "value"})
+        self.assertEqual(string_key_bytes, b'{"1":"value"}')
 
     def test_sealed_document_cannot_be_forged_or_mutated(self):
         document = seal_canonical_document(
@@ -141,6 +155,7 @@ class GearCanonicalKernelTest(unittest.TestCase):
                 document,
                 document_kind="fixture",
                 schema_revision="fixture-v1",
+                key_prefix="fixture:sha256:",
                 payload_validator=validate_fixture_payload,
             ),
             {"schemaRevision": "fixture-v1", "value": "ok"},
@@ -164,6 +179,20 @@ class GearCanonicalKernelTest(unittest.TestCase):
             "fixture:sha256:" + hashlib.sha256(tampered_bytes.canonical_bytes).hexdigest(),
         )
 
+    def test_verified_payload_copy_rejects_wrong_expected_key_prefix(self):
+        document = seal_canonical_document(
+            document_kind="fixture", schema_revision="fixture-v1",
+            payload={"schemaRevision": "fixture-v1", "value": "ok"}, key_prefix="attacker:key:",
+        )
+        with self.assertRaises(CanonicalValueError):
+            verified_payload_copy(
+                document,
+                document_kind="fixture",
+                schema_revision="fixture-v1",
+                key_prefix="fixture:sha256:",
+                payload_validator=validate_fixture_payload,
+            )
+
     def test_verified_copy_rechecks_a_prefix_that_does_not_contain_sha256_text(self):
         document = seal_canonical_document(
             document_kind="fixture", schema_revision="fixture-v1",
@@ -174,10 +203,31 @@ class GearCanonicalKernelTest(unittest.TestCase):
                 document,
                 document_kind="fixture",
                 schema_revision="fixture-v1",
+                key_prefix="fixture:key:",
                 payload_validator=validate_fixture_payload,
             ),
             {"schemaRevision": "fixture-v1", "value": "ok"},
         )
+
+    def test_canonical_result_rejects_invalid_status_document_issue_combinations(self):
+        document = seal_canonical_document(
+            document_kind="fixture", schema_revision="fixture-v1",
+            payload={"schemaRevision": "fixture-v1", "value": "ok"}, key_prefix="fixture:sha256:",
+        )
+        issue = CanonicalIssue("INVALID_FIXTURE", "payload", "re-import")
+        self.assertEqual(CanonicalResult("verified", document, ()).status, "verified")
+        self.assertEqual(CanonicalResult("blocked", None, (issue,)).status, "blocked")
+        for status, result_document, issues in (
+            ("verified", None, ()),
+            ("verified", document, (issue,)),
+            ("blocked", document, (issue,)),
+            ("blocked", None, ()),
+            ("blocked", None, (object(),)),
+            ("unknown", None, ()),
+        ):
+            with self.subTest(status=status, document=result_document, issues=issues):
+                with self.assertRaises(ValueError):
+                    CanonicalResult(status, result_document, issues)
 
 
 if __name__ == "__main__":

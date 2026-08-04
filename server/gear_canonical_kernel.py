@@ -66,6 +66,22 @@ class CanonicalResult:
     document: SealedCanonicalDocument | None
     issues: tuple[CanonicalIssue, ...]
 
+    def __post_init__(self) -> None:
+        if self.status == "verified":
+            if type(self.document) is not SealedCanonicalDocument or type(self.issues) is not tuple or self.issues:
+                raise ValueError("Verified canonical results require one sealed document and no issues.")
+            return
+        if self.status == "blocked":
+            if (
+                self.document is not None
+                or type(self.issues) is not tuple
+                or not self.issues
+                or any(type(issue) is not CanonicalIssue for issue in self.issues)
+            ):
+                raise ValueError("Blocked canonical results require issues and no document.")
+            return
+        raise ValueError("Canonical result status must be verified or blocked.")
+
 
 def _has_forbidden_codepoint(value: str) -> bool:
     return any(unicodedata.category(ch) in {"Cc", "Cf", "Cs", "Zl", "Zp"} for ch in value)
@@ -170,6 +186,7 @@ def canonical_mapping(value: object, *, path: str, exact_keys: frozenset[str]) -
 
 
 def canonical_json_bytes(value: object) -> bytes:
+    _validate_canonical_json_value(value, path="$")
     return json.dumps(
         value,
         ensure_ascii=False,
@@ -177,6 +194,22 @@ def canonical_json_bytes(value: object) -> bytes:
         separators=(",", ":"),
         allow_nan=False,
     ).encode("utf-8")
+
+
+def _validate_canonical_json_value(value: object, *, path: str) -> None:
+    if type(value) is dict:
+        for key, nested_value in value.items():
+            if type(key) is not str:
+                raise CanonicalValueError("NON_STRING_JSON_KEY", path)
+            _validate_canonical_json_value(nested_value, path=f"{path}.{key}")
+        return
+    if type(value) is list or type(value) is tuple:
+        for index, nested_value in enumerate(value):
+            _validate_canonical_json_value(nested_value, path=f"{path}[{index}]")
+        return
+    if value is None or type(value) in {str, int, float, bool}:
+        return
+    raise CanonicalValueError("INVALID_CANONICAL_JSON_VALUE", path)
 
 
 def _content_key(prefix: str, encoded: bytes) -> str:
@@ -264,11 +297,9 @@ def verified_payload_copy(
     *,
     document_kind: str,
     schema_revision: str,
+    key_prefix: str,
     payload_validator: Callable[[object], object],
 ) -> dict[str, object]:
-    if type(document.content_key) is not str or len(document.content_key) <= 64:
-        raise CanonicalValueError("INVALID_SEALED_DOCUMENT", "document")
-    key_prefix = document.content_key[:-64]
     if not verify_sealed_document(
         document,
         document_kind=document_kind,
