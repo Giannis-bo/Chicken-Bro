@@ -9573,6 +9573,68 @@ def chickenbro_source_fallback_result(bounded_context, error):
     }
 
 
+def chickenbro_agentic_observation_fallback(bounded_context, error):
+    """Return a literal, grounded partial when the answer model cannot pass validation.
+
+    The fallback does not infer an answer from a question label.  It projects
+    only the evidence references that this research run actually returned, so
+    a malformed model citation cannot turn a completed research run into a
+    retry-only transport failure.
+    """
+    context = bounded_context if isinstance(bounded_context, dict) else {}
+    research = context.get("agenticResearch") if isinstance(context.get("agenticResearch"), dict) else {}
+    observations = research.get("observations") if isinstance(research.get("observations"), list) else []
+    refs = []
+    for observation in observations:
+        if not isinstance(observation, dict):
+            continue
+        if str(observation.get("status") or "").strip().lower() not in {"source_reference", "verified"}:
+            continue
+        for value in observation.get("evidenceRefs") or []:
+            reference = str(value or "").strip()
+            if reference and reference not in refs:
+                refs.append(reference)
+            if len(refs) >= 6:
+                break
+        if len(refs) >= 6:
+            break
+
+    if refs:
+        statement = (
+            "本轮已检索到可引用的资料，但当前回答生成未能通过引用校验；"
+            "因此这里只保留资料范围内的保守结论，不把它们扩展成完整排名、普遍强度或个人表现判断。"
+        )
+        fallback_payload = {
+            "answer": statement,
+            "confidence": "low",
+            "priorityActions": [],
+            "evidenceRefs": refs,
+            "limitations": list(context.get("limitations") or [])[:6],
+            "missingInputs": context.get("missingInputs") if isinstance(context.get("missingInputs"), list) else [],
+            "nextQuestion": clean_text(context.get("nextQuestion") or "", 240),
+            "claimRefs": [{"statement": statement, "evidenceRefs": refs}],
+        }
+    else:
+        fallback_payload = {
+            "answer": "本轮已执行已发布的资料检索，但没有返回可引用的观察，因此不能给出确定结论。",
+            "confidence": "low",
+            "priorityActions": [],
+            "evidenceRefs": [],
+            "limitations": list(context.get("limitations") or [])[:6],
+            "missingInputs": context.get("missingInputs") if isinstance(context.get("missingInputs"), list) else [],
+            "nextQuestion": clean_text(context.get("nextQuestion") or "", 240),
+            "claimRefs": [],
+        }
+    validated = validate_chickenbro_model_output(fallback_payload, context)
+    validated["answerSource"] = "deterministic_agentic_observation_fallback"
+    return {
+        "answer": validated,
+        "topic": context.get("topic"),
+        "validation": {"status": "fallback", "reason": clean_text(error, 160)},
+        "model": {"status": "fallback", "name": ""},
+    }
+
+
 def chickenbro_unmet_comparative_strength_result(bounded_context):
     """Compose a bounded partial result when a cross-spec plan has no comparator."""
     context = bounded_context if isinstance(bounded_context, dict) else {}
@@ -9662,12 +9724,20 @@ def run_chickenbro_agent(bounded_context, codex_runner=None):
             },
         }
     except ChickenbroGenerationUnavailable as error:
-        fallback = None if agentic_active else chickenbro_source_fallback_result(bounded_context, error)
+        fallback = (
+            chickenbro_agentic_observation_fallback(bounded_context, error)
+            if agentic_active
+            else chickenbro_source_fallback_result(bounded_context, error)
+        )
         if fallback:
             return fallback
         raise
     except Exception as error:
-        fallback = None if agentic_active else chickenbro_source_fallback_result(bounded_context, error)
+        fallback = (
+            chickenbro_agentic_observation_fallback(bounded_context, error)
+            if agentic_active
+            else chickenbro_source_fallback_result(bounded_context, error)
+        )
         if fallback:
             return fallback
         raise ChickenbroGenerationUnavailable(f"chickenbro model output rejected: {error}") from error

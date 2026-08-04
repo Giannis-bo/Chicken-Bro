@@ -178,6 +178,28 @@ class ChickenbroAgentIntentTest(unittest.TestCase):
 
         self.assertEqual(["fixture.raiderio"], result["answer"]["evidenceRefs"])
 
+    def test_agentic_invalid_claim_output_recovers_with_returned_observation_refs(self):
+        bounded = self.agentic_bounded_context()
+
+        result = backend.run_chickenbro_agent(
+            bounded,
+            codex_runner=lambda *_args, **_kwargs: {
+                "answer": "当前观察只覆盖高层大秘境样本。",
+                "confidence": "medium",
+                "priorityActions": [],
+                "evidenceRefs": ["fixture.raiderio"],
+                "limitations": [],
+                "missingInputs": [],
+                "nextQuestion": "",
+                "claimRefs": [{"statement": "", "evidenceRefs": ["fixture.raiderio"]}],
+            },
+        )
+
+        self.assertEqual("deterministic_agentic_observation_fallback", result["answer"]["answerSource"])
+        self.assertEqual(["fixture.raiderio"], result["answer"]["evidenceRefs"])
+        self.assertEqual("fallback", result["validation"]["status"])
+        self.assertIn("本轮已检索到", result["answer"]["answer"])
+
     def test_agentic_partial_without_a_returned_ref_allows_a_literal_no_claim_answer(self):
         bounded = self.agentic_bounded_context()
         bounded["agenticResearch"]["status"] = "partial"
@@ -231,7 +253,7 @@ class ChickenbroAgentIntentTest(unittest.TestCase):
 
         self.assertEqual("partial", validated["evidenceOutcome"])
 
-    def test_agentic_stream_does_not_emit_before_claim_validation(self):
+    def test_agentic_stream_recovers_after_claim_validation_failure_without_emitting_invalid_text(self):
         bounded = self.agentic_bounded_context()
         payload = json.dumps(
             {
@@ -252,8 +274,11 @@ class ChickenbroAgentIntentTest(unittest.TestCase):
             stream_runner=lambda *_args, **_kwargs: iter([payload]),
         )
 
-        with self.assertRaisesRegex(backend.ChickenbroGenerationUnavailable, "claim has no returned evidence"):
-            next(stream)
+        events = list(stream)
+
+        self.assertEqual(["delta"], [event["type"] for event in events])
+        self.assertIn("本轮已检索到", events[0]["text"])
+        self.assertNotIn("当前观察只覆盖高层大秘境样本。", events[0]["text"])
 
     def test_agentic_stream_recovers_with_a_valid_buffered_model_answer(self):
         bounded = self.agentic_bounded_context()
