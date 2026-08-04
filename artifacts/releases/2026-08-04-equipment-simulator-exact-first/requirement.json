@@ -55,7 +55,7 @@
       "Replacement semantic suites for Kernel and Exact v2 Python/TypeScript validation, shared Unicode mutations, hostile JSON bounds, seal/reload invariants and frozen v1/v2 byte/key assertions",
       "Task 1 source-change-control tests for four server declaration-only profiles and one CLI bootstrap profile, exact import/symbol registry, module-load hostile mutations, fixed exemption digests, deleted raw APIs and zero baseline violations",
       "Sealed Exact, Progression, Effect, Probe, CLI and Envelope regressions plus focused owner-gate, Harness requirement, owner-map and JSON checks",
-      "Task 1 final scoped review PASS/APPROVED with zero findings; Task 2 scoped review and a fresh whole-branch PASS/APPROVED remain required before closure"
+      "Task 1 and Task 2 final scoped reviews PASS/APPROVED with zero findings; a fresh whole-branch PASS/APPROVED remains required before closure"
     ]
   },
   "ownership": {
@@ -94,8 +94,8 @@
     "originalTask3Activated": false
   },
   "engineeringHealth": {
-    "status": "task1_source_change_control_scoped_clean_whole_branch_pending",
-    "reason": "Replacement Task 1 source change-control has a final scoped PASS/APPROVED review with zero findings. This proves only the registered module-load syntax and source ownership boundary for five protected files; Kernel/domain semantics remain supported by their behavior suites. Task 2 control-plane review and a fresh whole-branch review are pending, runtimeConsumers is empty, and original Task 3 remains inactive."
+    "status": "task1_task2_scoped_clean_whole_branch_pending",
+    "reason": "Replacement Task 1 source change-control and Task 2 control-plane reviews both have final scoped PASS/APPROVED verdicts with zero findings. Task 1 proves only the registered module-load syntax and source ownership boundary for five protected files; Kernel/domain semantics remain supported by their behavior suites. A fresh whole-branch review is still pending, runtimeConsumers is empty, and original Task 3 remains inactive."
   },
   "dataPrivacyBoundary": {
     "rawPluginText": "ephemeral parser input only; it must not be persisted, logged, templated, queued, included in artifact evidence, or returned in output payloads.",
@@ -139,6 +139,10 @@
     {
       "date": "2026-08-04",
       "decision": "Canonical Ownership Change-Control Task 1 final scoped review 为 PASS/APPROVED、0 findings。该结论仅覆盖五个受保护源文件的 source_change_control_only profile/registry 边界；Task 2 控制面 scoped review 与 fresh whole-branch PASS/APPROVED 仍是关闭条件，原 Task 3 保持 inactive。"
+    },
+    {
+      "date": "2026-08-04",
+      "decision": "Canonical Ownership Change-Control Task 2 control-plane scoped review 为 PASS/APPROVED、0 findings。Task 1-2 scoped reviews 已 clean，但 fresh whole-branch PASS/APPROVED 仍是关闭条件；原 Task 3、runtime、release 与部署保持 inactive。"
     }
   ]
 }

@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` to execute this plan task by task. This is a schema-boundary replacement after the previous Task 5 reached its five-round Stop Gate; it is not a sixth patch round.
 
-状态：`正在推进（Task 1 final scoped PASS/APPROVED；Task 2 控制面已更新、scoped review pending；fresh whole-branch review pending；原 Task 3 blocked）`
+状态：`正在推进（Task 1-2 final scoped PASS/APPROVED；fresh whole-branch review pending；原 Task 3 blocked）`
 
 **Goal:** 保留已经通过语义测试的 Canonical Kernel、sealed documents、Exact/Progression/Effect/Probe/CLI/Envelope contracts，把失控增长的 Python AST “authority proof” 替换成诚实、可维护的 source change-control：四个 server owner 使用 declaration-only module-load profile，CLI 使用独立的受限 bootstrap profile，所有未知模块加载语法 fail closed。
 
@@ -226,7 +226,7 @@ Replacement gate 不再声称解释任意函数运行语义，也不递归 impor
 - [x] owner maps/requirement 固定 `proofClaim=source_change_control_only`、`runtimeConsumers=[]`、`originalTask3Activated=false`。
 - [x] owner maps 明确 registry 是 test-only source change-control，不是 runtime authority；每次 registry 更新必须出现在 review diff。
 - [x] 记录五轮 Stop Gate 与 forward replacement，不把 163/9/40 绿测包装成原 gate clean。
-- [ ] Harness requirement、owner-map tests、`jq empty` 和 `git diff --check` 全绿后接受独立 review。
+- [x] Harness requirement、owner-map tests、`jq empty` 和 `git diff --check` 全绿后接受独立 review。
 
 ## Task 3: Fresh whole-branch closure review
 

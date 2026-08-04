@@ -3763,7 +3763,7 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
         )
         project_foundation = gear_domain["canonicalKernelFoundations"]
         self.assertEqual(
-            "task1_source_change_control_scoped_clean_whole_branch_pending",
+            "task1_task2_scoped_clean_whole_branch_pending",
             project_foundation["status"],
         )
         self.assertEqual(
@@ -3792,7 +3792,7 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
         )
         backend_owner = kernel_hotspot["owners"][0]
         self.assertEqual(
-            "task1_source_change_control_scoped_clean_whole_branch_pending",
+            "task1_task2_scoped_clean_whole_branch_pending",
             backend_owner["status"],
         )
         self.assertEqual(

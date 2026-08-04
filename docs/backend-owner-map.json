@@ -13,12 +13,12 @@
   "hotspotFiles": [
     {
       "path": "server/gear_canonical_kernel.py",
-      "healthStatus": "task1_source_change_control_scoped_clean_whole_branch_pending",
-      "summary": "Owns replacement Task 1-5 canonical primitives, bounded deterministic JSON bytes and private sealed-document boundaries; Task 1 canonical ownership source change-control is scoped clean while Task 2 control-plane and whole-branch reviews remain pending.",
+      "healthStatus": "task1_task2_scoped_clean_whole_branch_pending",
+      "summary": "Owns replacement Task 1-5 canonical primitives, bounded deterministic JSON bytes and private sealed-document boundaries; Task 1 source change-control and Task 2 control-plane scoped reviews are clean while the fresh whole-branch review remains pending.",
       "owners": [
         {
           "id": "equipment_simulator_canonical_kernel_task1_5",
-          "status": "task1_source_change_control_scoped_clean_whole_branch_pending",
+          "status": "task1_task2_scoped_clean_whole_branch_pending",
           "factOwner": "server/gear_canonical_kernel.py",
           "kernelSemanticOwner": "server/gear_canonical_kernel.py",
           "slotSetOwner": "server/gear_contracts.py",
@@ -65,7 +65,7 @@
           "runtimeConsumers": [],
           "proofClaim": "source_change_control_only",
           "originalTask3Activated": false,
-          "capabilityBoundary": "Task 1 canonical ownership source change-control has a final scoped PASS/APPROVED review with zero findings. The registry is test-only, is not runtime authority, and every registry update must appear in the review diff. Task 2 control-plane scoped review and fresh whole-branch review remain pending; runtimeConsumers is empty, original Task 3 is inactive, and generation 35, Catalog/pointers, persistence/worker, Resolver/API/UI, raw-text privacy and v1 identities remain unchanged."
+          "capabilityBoundary": "Task 1 canonical ownership source change-control and Task 2 control-plane reviews both have final scoped PASS/APPROVED verdicts with zero findings. The registry is test-only, is not runtime authority, and every registry update must appear in the review diff. A fresh whole-branch review remains pending; runtimeConsumers is empty, original Task 3 is inactive, and generation 35, Catalog/pointers, persistence/worker, Resolver/API/UI, raw-text privacy and v1 identities remain unchanged."
         }
       ]
     },
