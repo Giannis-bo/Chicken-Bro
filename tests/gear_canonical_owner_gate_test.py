@@ -3763,7 +3763,7 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
         )
         project_foundation = gear_domain["canonicalKernelFoundations"]
         self.assertEqual(
-            "whole_branch_failed_duplicate_effect_subject_correction_required",
+            "duplicate_effect_subject_correction_scoped_clean_whole_branch_rereview_pending",
             project_foundation["status"],
         )
         self.assertEqual(
@@ -3792,7 +3792,7 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
         )
         backend_owner = kernel_hotspot["owners"][0]
         self.assertEqual(
-            "whole_branch_failed_duplicate_effect_subject_correction_required",
+            "duplicate_effect_subject_correction_scoped_clean_whole_branch_rereview_pending",
             backend_owner["status"],
         )
         self.assertEqual(

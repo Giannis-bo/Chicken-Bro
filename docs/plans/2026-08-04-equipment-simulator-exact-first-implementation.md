@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-状态：`待决策（Task 1-2 scoped clean；whole-branch review FAIL / 1 Important；重复 effect subject 语义纠偏中；旧 Task 2 已停止，原 Task 3 未启动）`
+状态：`待决策（Task 1-2 与重复 effect subject 纠偏 scoped clean；fresh whole-branch re-review pending；旧 Task 2 已停止，原 Task 3 未启动）`
 
-**Task 2 replacement:** [Canonical Kernel 重设计](2026-08-04-equipment-simulator-canonical-kernel-redesign.md)、[Canonical Ownership Change-Control Plan](2026-08-04-equipment-simulator-canonical-owner-change-control.md) 与 [重复 Effect Subject 语义纠偏](2026-08-04-equipment-simulator-duplicate-effect-subject-correction.md)。原 Task 2 不再执行；Task 1-2 scoped reviews 已 PASS/APPROVED，但 fresh whole-branch review 因一项 effect ordered-multiset 语义缺口而 FAIL。纠偏 scoped review 与新的 whole-branch review 全部 clean 后，才允许进入本计划 Task 3。
+**Task 2 replacement:** [Canonical Kernel 重设计](2026-08-04-equipment-simulator-canonical-kernel-redesign.md)、[Canonical Ownership Change-Control Plan](2026-08-04-equipment-simulator-canonical-owner-change-control.md) 与 [重复 Effect Subject 语义纠偏](2026-08-04-equipment-simulator-duplicate-effect-subject-correction.md)。原 Task 2 不再执行；Task 1-2 与 ordered-multiset 纠偏 scoped reviews 已 PASS/APPROVED。Fresh whole-branch re-review 仍必须 clean，之后才允许进入本计划 Task 3。
 
 **Goal:** 让完整、合法且被当前 SimC runtime 明确支持的精确装备，即使不在 Catalog 中，也能确定性保存、重载、生成不可变快照并模拟；同时把模拟器可换装 Catalog 收敛为大秘境、团本和制造三个来源内、可物化为 SimC-ready Exact 的受治理子集。
 

@@ -56,7 +56,7 @@
       "Replacement semantic suites for Kernel and Exact v2 Python/TypeScript validation, shared Unicode mutations, hostile JSON bounds, seal/reload invariants and frozen v1/v2 byte/key assertions",
       "Task 1 source-change-control tests for four server declaration-only profiles and one CLI bootstrap profile, exact import/symbol registry, module-load hostile mutations, fixed exemption digests, deleted raw APIs and zero baseline violations",
       "Sealed Exact, Progression, Effect, Probe, CLI and Envelope regressions plus focused owner-gate, Harness requirement, owner-map and JSON checks",
-      "Task 1 and Task 2 final scoped reviews PASS/APPROVED with zero findings; a fresh whole-branch PASS/APPROVED remains required before closure"
+      "Task 1, Task 2 and duplicate-effect-subject correction final scoped reviews PASS/APPROVED with zero findings; a fresh whole-branch re-review PASS/APPROVED remains required before closure"
     ]
   },
   "ownership": {
@@ -95,8 +95,8 @@
     "originalTask3Activated": false
   },
   "engineeringHealth": {
-    "status": "whole_branch_failed_duplicate_effect_subject_correction_required",
-    "reason": "Replacement Task 1 source change-control and Task 2 control-plane reviews both have final scoped PASS/APPROVED verdicts, but the fresh whole-branch review failed with one Important semantic finding: duplicate same-variant gem subjects are collapsed by identity-keyed effect aggregation. A bounded ordered-multiset correction and fresh scoped plus whole-branch reviews are required; runtimeConsumers is empty and original Task 3 remains inactive."
+    "status": "duplicate_effect_subject_correction_scoped_clean_whole_branch_rereview_pending",
+    "reason": "The duplicate-effect-subject correction has a final scoped PASS/APPROVED review with zero findings after replacing identity-keyed aggregation with bounded positional matching. Independent adversarial replay covered 3,071 repeated-subject sequences and the full matrix is green. A fresh whole-branch re-review remains pending; runtimeConsumers is empty and original Task 3 remains inactive."
   },
   "dataPrivacyBoundary": {
     "rawPluginText": "ephemeral parser input only; it must not be persisted, logged, templated, queued, included in artifact evidence, or returned in output payloads.",
@@ -148,6 +148,10 @@
     {
       "date": "2026-08-04",
       "decision": "Fresh whole-branch review 为 FAIL/CHANGES_REQUIRED：合法重复同变体宝石被 identity-keyed effect aggregate 折叠为 DUPLICATE_EFFECT_RECORD。启动独立 bounded semantic correction；controller closure 与原 Task 3 继续 blocked。"
+    },
+    {
+      "date": "2026-08-04",
+      "decision": "重复 effect subject ordered-multiset 纠偏 scoped review 为 PASS/APPROVED、0 findings；独立 oracle 枚举 3,071 个序列与 reason-code 判定表一致。Fresh whole-branch re-review 仍是 controller closure 的最后门禁，原 Task 3 保持 inactive。"
     }
   ]
 }

@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` to execute this plan task by task. This is a schema-boundary replacement after the previous Task 5 reached its five-round Stop Gate; it is not a sixth patch round.
 
-状态：`正在纠正（Task 1-2 scoped PASS/APPROVED；whole-branch review FAIL / 1 Important；重复 effect subject 语义纠偏中；原 Task 3 blocked）`
+状态：`正在推进（Task 1-2 与重复 effect subject 纠偏 scoped PASS/APPROVED；fresh whole-branch re-review pending；原 Task 3 blocked）`
 
 **Goal:** 保留已经通过语义测试的 Canonical Kernel、sealed documents、Exact/Progression/Effect/Probe/CLI/Envelope contracts，把失控增长的 Python AST “authority proof” 替换成诚实、可维护的 source change-control：四个 server owner 使用 declaration-only module-load profile，CLI 使用独立的受限 bootstrap profile，所有未知模块加载语法 fail closed。
 

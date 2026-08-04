@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` and `superpowers:test-driven-development`. This is a bounded semantic correction after the Canonical foundation whole-branch review failed; it is not an owner-gate patch and does not relax the existing Stop Gate.
 
-状态：`正在推进（Task 1 implementation complete；scoped review 与 whole-branch re-review 待完成；原 Task 3 blocked）`
+状态：`正在推进（Task 1 implementation complete；Task 2 scoped PASS/APPROVED、0 findings；whole-branch re-review pending；原 Task 3 blocked）`
 
 ## Goal
 
@@ -85,9 +85,9 @@ Examples for expected `[item, A, B]`:
 
 ## Task 2: Independent scoped review
 
-- [ ] Fresh reviewer must replay the original duplicate-gem failure and adjacent missing/extra/order cases.
-- [ ] Reviewer must confirm the production diff is limited to ordered matching and does not change schema/key/runtime behavior.
-- [ ] Spec must be `PASS` and Code Quality `APPROVED` with no Critical/Important findings before re-running whole-branch review.
+- [x] Fresh reviewer must replay the original duplicate-gem failure and adjacent missing/extra/order cases.
+- [x] Reviewer must confirm the production diff is limited to ordered matching and does not change schema/key/runtime behavior.
+- [x] Spec must be `PASS` and Code Quality `APPROVED` with no Critical/Important findings before re-running whole-branch review.
 
 ## Task 3: Fresh whole-branch re-review
 

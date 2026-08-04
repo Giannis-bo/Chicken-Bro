@@ -13,12 +13,12 @@
   "hotspotFiles": [
     {
       "path": "server/gear_canonical_kernel.py",
-      "healthStatus": "whole_branch_failed_duplicate_effect_subject_correction_required",
-      "summary": "Owns replacement Task 1-5 canonical primitives, bounded deterministic JSON bytes and private sealed-document boundaries; scoped reviews are clean, but whole-branch review found duplicate same-variant gem subjects are collapsed by effect aggregation.",
+      "healthStatus": "duplicate_effect_subject_correction_scoped_clean_whole_branch_rereview_pending",
+      "summary": "Owns replacement Task 1-5 canonical primitives, bounded deterministic JSON bytes and private sealed-document boundaries; source change-control, control-plane and duplicate-effect-subject correction scoped reviews are clean while whole-branch re-review remains pending.",
       "owners": [
         {
           "id": "equipment_simulator_canonical_kernel_task1_5",
-          "status": "whole_branch_failed_duplicate_effect_subject_correction_required",
+          "status": "duplicate_effect_subject_correction_scoped_clean_whole_branch_rereview_pending",
           "factOwner": "server/gear_canonical_kernel.py",
           "kernelSemanticOwner": "server/gear_canonical_kernel.py",
           "slotSetOwner": "server/gear_contracts.py",
@@ -65,7 +65,7 @@
           "runtimeConsumers": [],
           "proofClaim": "source_change_control_only",
           "originalTask3Activated": false,
-          "capabilityBoundary": "Task 1 source change-control and Task 2 control-plane scoped reviews are clean, but the fresh whole-branch review failed because duplicate same-variant gem subjects are collapsed by effect aggregation. The registry remains test-only and not runtime authority. A bounded semantic correction plus fresh scoped and whole-branch reviews are required; runtimeConsumers is empty, original Task 3 is inactive, and generation 35, Catalog/pointers, persistence/worker, Resolver/API/UI, raw-text privacy and v1 identities remain unchanged."
+          "capabilityBoundary": "Task 1 source change-control, Task 2 control-plane and the duplicate-effect-subject semantic correction all have final scoped PASS/APPROVED verdicts with zero findings. Repeated effect subjects now use bounded positional matching and passed a 3,071-sequence independent oracle. The registry remains test-only and not runtime authority. A fresh whole-branch re-review remains pending; runtimeConsumers is empty, original Task 3 is inactive, and generation 35, Catalog/pointers, persistence/worker, Resolver/API/UI, raw-text privacy and v1 identities remain unchanged."
         }
       ]
     },
