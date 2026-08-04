@@ -8991,10 +8991,16 @@ def chickenbro_source_fallback_result(bounded_context, error):
 
 
 def chickenbro_authoritative_strength_evidence_result(bounded_context):
-    """Answer a bounded source-reference follow-up from its evidence, not model prose."""
-    if chickenbro_strength_evidence_follow_up_kind((bounded_context or {}).get("message")) not in {"ratio", "leader"}:
+    """Answer a bounded current-strength evidence question from its evidence, not model prose."""
+    context = bounded_context if isinstance(bounded_context, dict) else {}
+    question_frame = context.get("questionFrame") if isinstance(context.get("questionFrame"), dict) else {}
+    has_current_strength_evidence = (
+        question_frame.get("questionType") == "current_research"
+        and "comparative_strength_signal" in (question_frame.get("evidenceNeeds") or [])
+    )
+    if not has_current_strength_evidence:
         return None
-    return chickenbro_source_fallback_result(bounded_context, "bounded_evidence_reference")
+    return chickenbro_source_fallback_result(context, "bounded_strength_evidence")
 
 
 def run_chickenbro_agent(bounded_context, codex_runner=None):

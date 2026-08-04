@@ -772,7 +772,13 @@ class ChickenbroAgentIntentTest(unittest.TestCase):
             },
         )
         payload = '{"answer":"没有数据，你自己去 Raider.IO 查。","confidence":"medium","priorityActions":[],"evidenceRefs":[],"limitations":[],"missingInputs":[],"nextQuestion":""}'
-        stream = backend.run_chickenbro_agent_stream(bounded_context, stream_runner=lambda *_args, **_kwargs: [payload])
+        invocations = []
+
+        def runner(*_args, **_kwargs):
+            invocations.append(True)
+            return [payload]
+
+        stream = backend.run_chickenbro_agent_stream(bounded_context, stream_runner=runner)
         events = []
         while True:
             try:
@@ -782,6 +788,7 @@ class ChickenbroAgentIntentTest(unittest.TestCase):
                 break
 
         self.assertEqual(1, len(events))
+        self.assertEqual([], invocations)
         self.assertNotIn("没有数据", events[0]["text"])
         self.assertEqual("deterministic_source_fallback", result["answer"]["answerSource"])
         with self.assertRaisesRegex(ValueError, "summarized"):
