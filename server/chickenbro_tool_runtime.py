@@ -122,6 +122,34 @@ class ChickenbroRegistryRuntime:
             "registryStatus": "verified",
         }
 
+    def published(self, loader, now=None):
+        """Load one verified release for agentic catalog discovery without a request."""
+        current = _utc_now(now)
+        try:
+            loaded = loader()
+        except Exception as error:
+            cached = self._cached_release(current)
+            if cached is None:
+                raise RegistryUnavailable("chickenbro tool registry unavailable") from error
+            release = cached
+            source = "verified_cache"
+        else:
+            try:
+                release = validate_chickenbro_registry_release(loaded)
+            except (TypeError, ValueError) as error:
+                self._clear_cache()
+                raise RegistryInvalid("chickenbro tool registry invalid") from error
+            self._replace_cache(release, current)
+            source = "postgres"
+        return {
+            "registryVersion": release["registryVersion"],
+            "registryReleaseHash": release["releaseHash"],
+            "registrySource": source,
+            "registryStatus": "verified",
+            "manifests": copy.deepcopy(release["manifests"]),
+            "release": copy.deepcopy(release),
+        }
+
 
 def _sanitized_request(request):
     request = request if isinstance(request, dict) else {}

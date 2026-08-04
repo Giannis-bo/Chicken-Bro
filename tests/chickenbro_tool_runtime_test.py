@@ -20,6 +20,19 @@ CONTEXT = {
 
 
 class ChickenbroToolRuntimeTest(unittest.TestCase):
+    def test_published_runtime_loads_signed_release_without_request_discovery(self):
+        from server.chickenbro_tool_runtime import ChickenbroRegistryRuntime
+        from tests.chickenbro_registry_test import signed_release
+
+        runtime = ChickenbroRegistryRuntime(cache_ttl_seconds=60)
+        published = runtime.published(lambda: signed_release())
+
+        self.assertEqual("verified", published["registryStatus"])
+        self.assertEqual(
+            ["source:raiderio:v1", "source:warcraftlogs:v1"],
+            [manifest["toolId"] for manifest in published["manifests"]],
+        )
+
     def test_each_validated_agentic_call_receives_its_own_arguments(self):
         from server.chickenbro_tool_runtime import execute_chickenbro_tool_calls
         from tests.chickenbro_registry_test import signed_manifest, wcl_manifest

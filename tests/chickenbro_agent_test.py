@@ -2,6 +2,7 @@ import inspect
 import json
 import os
 import unittest
+from unittest import mock
 
 import server.news_backend as backend
 import server.chickenbro_agent as agent
@@ -9,7 +10,183 @@ from server.chickenbro_tool_runtime import ChickenbroRegistryRuntime
 from tests.chickenbro_registry_test import community_strength_manifest, current_sources_manifest, signed_release
 
 
+def agentic_plan(tool_id, arguments, decision):
+    return {
+        "schemaRevision": "chickenbro-research-plan-v1",
+        "goal": "验证当前已发布的来源能说明什么",
+        "hypotheses": ["不同来源可以覆盖互补事实"],
+        "informationGaps": ["是否需要第二个来源"],
+        "toolCalls": [{"toolId": tool_id, "arguments": arguments}],
+        "decision": decision,
+    }
+
+
 class ChickenbroAgentIntentTest(unittest.TestCase):
+    def test_feature_flag_uses_agentic_observations_without_legacy_dispatch(self):
+        packet = {
+            "status": "completed",
+            "turns": [{"turn": 0, "decision": "answer", "toolIds": ["source:raiderio:v1"]}],
+            "observations": [{
+                "toolId": "source:raiderio:v1",
+                "sourceKey": "raiderio",
+                "status": "source_reference",
+                "evidenceRefs": ["fixture.raiderio"],
+                "scope": {"scenarioKey": "mythic_plus"},
+                "facts": [{"summary": "Fixture observation"}],
+                "limitations": [],
+            }],
+            "sourceToolResults": [{
+                "sourceKey": "raiderio",
+                "status": "source_reference",
+                "facts": [{"summary": "Fixture observation"}],
+                "evidence": [],
+                "evidenceRefs": ["fixture.raiderio"],
+                "limitations": [],
+                "nextActions": [],
+            }],
+            "registryContext": {
+                "status": "verified",
+                "registryVersion": "fixture",
+                "registryReleaseHash": "sha256:" + "1" * 64,
+                "registrySource": "postgres",
+                "discoveredCapabilityIds": ["source:raiderio:v1"],
+                "selectedCapabilityIds": ["source:raiderio:v1"],
+            },
+            "limitations": [],
+        }
+        with (
+            mock.patch.dict(os.environ, {"WOW_CHICKENBRO_AGENTIC_RESEARCH_ENABLED": "1"}, clear=False),
+            mock.patch.object(backend, "run_chickenbro_research", return_value=packet),
+            mock.patch.object(
+                backend,
+                "classify_chickenbro_request",
+                side_effect=AssertionError("legacy dispatch must not run"),
+            ),
+        ):
+            loaded = backend.load_chickenbro_source_tool_results(
+                "自然语言问题", {}, include_registry=True
+            )
+
+        self.assertEqual(["source:raiderio:v1"], loaded["registryContext"]["selectedCapabilityIds"])
+        self.assertEqual("completed", loaded["agenticResearch"]["status"])
+        bounded = backend.build_chickenbro_bounded_context(
+            "自然语言问题", {}, source_tool_results=loaded
+        )
+        self.assertEqual("completed", bounded["agenticResearch"]["status"])
+        self.assertEqual(["source:raiderio:v1"], bounded["agenticResearch"]["turns"][0]["toolIds"])
+
+    def test_agentic_research_replans_after_a_partial_first_observation(self):
+        release = signed_release()
+        planned = iter(
+            [
+                agentic_plan(
+                    "source:raiderio:v1",
+                    {"classKey": "paladin", "specKey": "holy"},
+                    "continue",
+                ),
+                agentic_plan(
+                    "source:warcraftlogs:v1",
+                    {"wclReport": "https://www.warcraftlogs.com/reports/ABC123"},
+                    "answer",
+                ),
+            ]
+        )
+
+        def planner_runner(*_args, **_kwargs):
+            return {"status": "succeeded", "content": json.dumps(next(planned))}
+
+        def raiderio_adapter(request):
+            return {
+                "sourceKey": "raiderio",
+                "status": "partial",
+                "facts": [{"summary": "Community sample is incomplete.", "scenarioKey": "mythic_plus"}],
+                "evidence": [],
+                "evidenceRefs": [],
+                "limitations": ["fixture partial"],
+                "nextActions": [],
+            }
+
+        def wcl_adapter(request):
+            return {
+                "sourceKey": "warcraftlogs",
+                "status": "verified",
+                "facts": [{"summary": "Owner-scoped report is available.", "scenarioKey": "raid"}],
+                "evidence": [],
+                "evidenceRefs": ["fixture.wcl"],
+                "limitations": [],
+                "nextActions": [],
+            }
+
+        result = backend.run_chickenbro_research(
+            "现在这个版本的表现如何？",
+            [],
+            {},
+            registry_loader=lambda: release,
+            registry_runtime=ChickenbroRegistryRuntime(60),
+            planner_runner=planner_runner,
+            adapter_bindings={
+                "chickenbro.source.raiderio.v1": raiderio_adapter,
+                "chickenbro.source.warcraftlogs.v1": wcl_adapter,
+            },
+        )
+
+        self.assertEqual("completed", result["status"])
+        self.assertEqual(2, len(result["turns"]))
+        self.assertEqual(
+            ["source:raiderio:v1", "source:warcraftlogs:v1"],
+            [row["toolId"] for row in result["observations"]],
+        )
+        self.assertEqual(
+            ["source:raiderio:v1", "source:warcraftlogs:v1"],
+            result["registryContext"]["selectedCapabilityIds"],
+        )
+
+    def test_agentic_research_never_invokes_legacy_question_discovery(self):
+        release = signed_release()
+        with mock.patch.object(
+            backend,
+            "classify_chickenbro_request",
+            side_effect=AssertionError("legacy routing must not run"),
+        ):
+            result = backend.run_chickenbro_research(
+                "随便问一个没有固定问法的问题",
+                [],
+                {},
+                registry_loader=lambda: release,
+                registry_runtime=ChickenbroRegistryRuntime(60),
+                planner_runner=lambda *_args, **_kwargs: {
+                    "status": "succeeded",
+                    "content": json.dumps(
+                        agentic_plan(
+                            "source:raiderio:v1",
+                            {"classKey": "paladin", "specKey": "holy"},
+                            "answer",
+                        )
+                    ),
+                },
+                adapter_bindings={
+                    "chickenbro.source.raiderio.v1": lambda _request: {
+                        "sourceKey": "raiderio",
+                        "status": "partial",
+                        "facts": [],
+                        "evidence": [],
+                        "evidenceRefs": [],
+                        "limitations": ["fixture"],
+                        "nextActions": [],
+                    },
+                    "chickenbro.source.warcraftlogs.v1": lambda _request: {
+                        "sourceKey": "warcraftlogs",
+                        "status": "partial",
+                        "facts": [],
+                        "evidence": [],
+                        "evidenceRefs": [],
+                        "limitations": ["unused"],
+                        "nextActions": [],
+                    },
+                },
+            )
+
+        self.assertEqual("partial", result["status"])
     def test_registry_discovery_preserves_raiderio_tool_result(self):
         intent = backend.classify_chickenbro_request("protection warrior build", [])
         payload = {

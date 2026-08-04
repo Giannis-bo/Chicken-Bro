@@ -31,6 +31,10 @@ _SAFE_TOOL_ID = re.compile(r"^[a-z][a-z0-9_-]{0,47}(?::[a-z][a-z0-9_-]{0,47}){1,
 _SAFE_ARGUMENT_NAME = re.compile(r"^[A-Za-z][A-Za-z0-9]{0,63}$")
 _UNSAFE_ARGUMENT_NAME = re.compile(r"^(?:url|uri|path|file|shell|command|sql|token|secret|credential|password|apiKey)$", re.IGNORECASE)
 _UNSAFE_ARGUMENT_VALUE = re.compile(r"(?:^\s*(?:https?|file|data|ssh)://|(?:^|[\\/])\.\.(?:[\\/]|$)|\x00)", re.IGNORECASE)
+_SAFE_WCL_REPORT = re.compile(
+    r"^https://www\.warcraftlogs\.com/reports/[A-Za-z0-9]+(?:\?fight=[0-9]+)?$",
+    re.IGNORECASE,
+)
 _OBSERVATION_FACT_KEYS = {"summary", "classKey", "specKey", "scenarioKey", "productPhase", "metric", "sampleCount"}
 _OBSERVATION_SCOPE_KEYS = {"productPhase", "scenarioKey", "region", "seasonSlug", "partition", "encounterId"}
 
@@ -198,7 +202,10 @@ def _validate_arguments(value, required):
         if not isinstance(raw, (str, int, float, bool)) or isinstance(raw, bool):
             raise ValueError("invalid research argument")
         text = str(raw).strip()
-        if not text or len(text) > MAX_ARGUMENT_CHARS or _UNSAFE_ARGUMENT_VALUE.search(text):
+        is_owner_report = key == "wclReport" and bool(_SAFE_WCL_REPORT.fullmatch(text))
+        if not text or len(text) > MAX_ARGUMENT_CHARS or (
+            _UNSAFE_ARGUMENT_VALUE.search(text) and not is_owner_report
+        ):
             raise ValueError("unsafe research argument")
         output[key] = text
     return output

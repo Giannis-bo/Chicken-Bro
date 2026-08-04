@@ -290,6 +290,15 @@ try:
     from .chickenbro_community_strength import build_wcl_public_rankings_tool_result
     from .chickenbro_current_sources import build_current_wow_sources_tool_result
     from .chickenbro_evidence_plan import build_chickenbro_evidence_plan
+    from .chickenbro_research import (
+        MAX_RESEARCH_TURNS,
+        build_research_catalog,
+        observations_from_tool_results,
+        parse_research_plan,
+        research_plan_prompt,
+        research_plan_schema,
+        validate_research_plan,
+    )
     from .chickenbro_question_frame import (
         build_chickenbro_question_frame,
         chickenbro_strength_evidence_follow_up_kind,
@@ -302,6 +311,7 @@ try:
         ChickenbroRegistryRuntime,
         RegistryInvalid,
         RegistryUnavailable,
+        execute_chickenbro_tool_calls,
         execute_chickenbro_selected_tools,
     )
 except ImportError:
@@ -315,6 +325,15 @@ except ImportError:
     from chickenbro_community_strength import build_wcl_public_rankings_tool_result
     from chickenbro_current_sources import build_current_wow_sources_tool_result
     from chickenbro_evidence_plan import build_chickenbro_evidence_plan
+    from chickenbro_research import (
+        MAX_RESEARCH_TURNS,
+        build_research_catalog,
+        observations_from_tool_results,
+        parse_research_plan,
+        research_plan_prompt,
+        research_plan_schema,
+        validate_research_plan,
+    )
     from chickenbro_question_frame import (
         build_chickenbro_question_frame,
         chickenbro_strength_evidence_follow_up_kind,
@@ -327,6 +346,7 @@ except ImportError:
         ChickenbroRegistryRuntime,
         RegistryInvalid,
         RegistryUnavailable,
+        execute_chickenbro_tool_calls,
         execute_chickenbro_selected_tools,
     )
 
@@ -7807,7 +7827,251 @@ def chickenbro_current_source_frame(intent, request_context):
     }
 
 
+def chickenbro_agentic_research_enabled():
+    return os.environ.get("WOW_CHICKENBRO_AGENTIC_RESEARCH_ENABLED", "").strip() == "1"
+
+
+def chickenbro_tool_adapter_bindings():
+    """Bind only repository-owned adapters for signed Chickenbro manifests."""
+    return {
+        "chickenbro.source.raiderio.v1": lambda request: build_raiderio_chickenbro_tool_result(
+            chickenbro_cached_raiderio_payload(), request["intent"]
+        ),
+        "chickenbro.source.raiderio_strength.v1": lambda request: build_raiderio_strength_chickenbro_tool_result(
+            chickenbro_cached_raiderio_payload(), request["intent"]
+        ),
+        "chickenbro.source.warcraftlogs.v1": lambda request: build_wcl_chickenbro_tool_result(
+            build_wcl_log_evidence({"prompt": request["intent"].get("wclReport") or ""})
+        ),
+        "chickenbro.source.warcraftlogs_public_rankings.v1": lambda request: build_wcl_public_rankings_tool_result(
+            request["intent"]
+        ),
+        "chickenbro.source.current_wow_sources.v1": lambda request: build_current_wow_sources_tool_result(
+            chickenbro_current_source_frame(request["intent"], request["context"]),
+            article_loader=lambda: [],
+            collector=collect_feed_articles,
+            approved_sources=FEED_SOURCES,
+        ),
+    }
+
+
+def _agentic_registry_context(published, observations):
+    packet = published if isinstance(published, dict) else {}
+    selected = []
+    for row in observations if isinstance(observations, list) else []:
+        tool_id = str(row.get("toolId") or "").strip() if isinstance(row, dict) else ""
+        if tool_id and tool_id not in selected:
+            selected.append(tool_id)
+    discovered = [
+        str(manifest.get("toolId") or "").strip()
+        for manifest in packet.get("manifests") or []
+        if isinstance(manifest, dict) and str(manifest.get("toolId") or "").strip()
+    ]
+    return {
+        "status": packet.get("registryStatus") or "unavailable",
+        "registryVersion": packet.get("registryVersion") or "",
+        "registryReleaseHash": packet.get("registryReleaseHash") or "",
+        "registrySource": packet.get("registrySource") or "",
+        "discoveredCapabilityIds": discovered,
+        "selectedCapabilityIds": selected,
+    }
+
+
+def _agentic_research_projection(packet):
+    packet = packet if isinstance(packet, dict) else {}
+    turns = []
+    for item in packet.get("turns") or []:
+        if not isinstance(item, dict):
+            continue
+        turn = item.get("turn")
+        decision = str(item.get("decision") or "").strip().lower()
+        tool_ids = [
+            str(tool_id).strip()
+            for tool_id in item.get("toolIds") or []
+            if str(tool_id).strip()
+        ]
+        if isinstance(turn, int) and decision in {"continue", "answer"}:
+            turns.append({"turn": turn, "decision": decision, "toolIds": tool_ids})
+    return {
+        "status": str(packet.get("status") or "unavailable").strip().lower(),
+        "turns": turns[:MAX_RESEARCH_TURNS],
+        "observations": observations_from_tool_results(
+            [{"toolId": row.get("toolId", "")} for row in packet.get("observations") or [] if isinstance(row, dict)],
+            [
+                {
+                    "sourceKey": row.get("sourceKey", ""),
+                    "status": row.get("status", "unknown"),
+                    "facts": row.get("facts", []),
+                    "evidence": [],
+                    "evidenceRefs": row.get("evidenceRefs", []),
+                    "limitations": row.get("limitations", []),
+                }
+                for row in packet.get("observations") or []
+                if isinstance(row, dict)
+            ],
+        ),
+    }
+
+
+def run_chickenbro_research(
+    message,
+    history,
+    context,
+    *,
+    registry_loader=None,
+    registry_runtime=None,
+    planner_runner=None,
+    adapter_bindings=None,
+):
+    """Run at most two Codex-planned, signed read-only research turns."""
+    runtime = registry_runtime or _CHICKENBRO_TOOL_REGISTRY_RUNTIME
+    loader = registry_loader or chickenbro_registry_release_loader
+    runner = planner_runner or default_chickenbro_model_runner
+    bindings = adapter_bindings or chickenbro_tool_adapter_bindings()
+    try:
+        published = runtime.published(loader)
+        catalog = build_research_catalog(published["release"])
+    except RegistryUnavailable:
+        return {
+            "status": "unavailable",
+            "turns": [],
+            "observations": [],
+            "sourceToolResults": [],
+            "registryContext": empty_chickenbro_registry_context("unavailable"),
+            "limitations": ["registry_unavailable"],
+        }
+    except (RegistryInvalid, ValueError):
+        return {
+            "status": "unavailable",
+            "turns": [],
+            "observations": [],
+            "sourceToolResults": [],
+            "registryContext": empty_chickenbro_registry_context("invalid"),
+            "limitations": ["registry_invalid"],
+        }
+
+    observations = []
+    source_results = []
+    turns = []
+    limitations = []
+    compact_history = compact_chickenbro_history(history)
+    for turn in range(MAX_RESEARCH_TURNS):
+        try:
+            model_result = runner(
+                research_plan_prompt(message, compact_history, catalog, observations, turn),
+                schema=research_plan_schema(),
+            )
+            if isinstance(model_result, dict) and model_result.get("status") in {"skipped", "timed_out", "failed"}:
+                raise ChickenbroGenerationUnavailable(
+                    model_result.get("error") or model_result.get("status")
+                )
+            plan = validate_research_plan(parse_research_plan(model_result), catalog)
+        except (ChickenbroGenerationUnavailable, ValueError, TypeError) as error:
+            limitations.append(f"research_planner_{type(error).__name__.lower()}")
+            return {
+                "status": "unavailable" if not turns else "partial",
+                "turns": turns,
+                "observations": observations,
+                "sourceToolResults": source_results,
+                "registryContext": _agentic_registry_context(published, observations),
+                "limitations": limitations,
+            }
+        try:
+            results = execute_chickenbro_tool_calls(
+                published["manifests"],
+                bindings,
+                plan["toolCalls"],
+            )
+        except RegistryInvalid:
+            limitations.append("registry_invalid")
+            return {
+                "status": "partial" if turns else "unavailable",
+                "turns": turns,
+                "observations": observations,
+                "sourceToolResults": source_results,
+                "registryContext": _agentic_registry_context(published, observations),
+                "limitations": limitations,
+            }
+        turn_observations = observations_from_tool_results(plan["toolCalls"], results)
+        observations.extend(turn_observations)
+        source_results.extend(results)
+        turns.append(
+            {
+                "turn": turn,
+                "decision": plan["decision"],
+                "toolIds": [call["toolId"] for call in plan["toolCalls"]],
+            }
+        )
+        if plan["decision"] == "answer" or not plan["toolCalls"]:
+            break
+
+    for result in source_results:
+        if not isinstance(result, dict):
+            continue
+        for limitation in result.get("limitations") or []:
+            append_unique_text(limitations, limitation)
+    status = "completed" if any(
+        row.get("status") in {"source_reference", "verified"}
+        for row in observations
+        if isinstance(row, dict)
+    ) else "partial"
+    return {
+        "status": status,
+        "turns": turns,
+        "observations": observations,
+        "sourceToolResults": source_results,
+        "registryContext": _agentic_registry_context(published, observations),
+        "limitations": limitations,
+    }
+
+
 def load_chickenbro_source_tool_results(
+    message,
+    context,
+    history=None,
+    include_registry=False,
+    registry_loader=None,
+    registry_runtime=None,
+):
+    """Load agentic observations when enabled, otherwise preserve the legacy path."""
+    if not chickenbro_agentic_research_enabled():
+        return _load_chickenbro_source_tool_results_legacy(
+            message,
+            context,
+            history,
+            include_registry,
+            registry_loader,
+            registry_runtime,
+        )
+    research = run_chickenbro_research(
+        message,
+        history or [],
+        context,
+        registry_loader=registry_loader,
+        registry_runtime=registry_runtime,
+    )
+    if research.get("status") == "unavailable":
+        fallback = _load_chickenbro_source_tool_results_legacy(
+            message,
+            context,
+            history,
+            True,
+            registry_loader,
+            registry_runtime,
+        )
+        append_unique_text(fallback["limitations"], "agentic_research_unavailable")
+        fallback["agenticResearch"] = _agentic_research_projection(research)
+        return fallback if include_registry else fallback["sourceToolResults"]
+    packet = {
+        "sourceToolResults": list(research.get("sourceToolResults") or []),
+        "registryContext": research.get("registryContext") or empty_chickenbro_registry_context("unavailable"),
+        "limitations": list(research.get("limitations") or []),
+        "agenticResearch": _agentic_research_projection(research),
+    }
+    return packet if include_registry else packet["sourceToolResults"]
+
+
+def _load_chickenbro_source_tool_results_legacy(
     message,
     context,
     history=None,
@@ -7938,6 +8202,7 @@ def build_chickenbro_bounded_context(
     context_evidence = compact_chickenbro_context_evidence(context)
     registry_context = empty_chickenbro_registry_context("unavailable")
     registry_limitations = []
+    agentic_research = {}
     if source_tool_results is None:
         if registry_loader is None and registry_runtime is None:
             loaded_sources = load_chickenbro_source_tool_results(
@@ -7959,6 +8224,7 @@ def build_chickenbro_bounded_context(
             source_tool_results = loaded_sources.get("sourceToolResults") or []
             registry_context = loaded_sources.get("registryContext") or registry_context
             registry_limitations = loaded_sources.get("limitations") or []
+            agentic_research = _agentic_research_projection(loaded_sources.get("agenticResearch"))
         else:
             source_tool_results = loaded_sources
     elif isinstance(source_tool_results, dict):
@@ -7966,6 +8232,7 @@ def build_chickenbro_bounded_context(
         source_tool_results = loaded_sources.get("sourceToolResults") or []
         registry_context = loaded_sources.get("registryContext") or registry_context
         registry_limitations = loaded_sources.get("limitations") or []
+        agentic_research = _agentic_research_projection(loaded_sources.get("agenticResearch"))
     source_evidence = [item for item in (source_tool_results or []) if isinstance(item, dict)][:3]
     capability_plan = chickenbro_capability_plan(
         question_frame,
@@ -8054,6 +8321,7 @@ def build_chickenbro_bounded_context(
         "questionFrame": question_frame,
         "capabilityPlan": capability_plan,
         "evidencePlan": evidence_plan,
+        "agenticResearch": agentic_research,
         "registryContext": registry_context,
         "allowedEvidenceRefs": allowed_refs,
         "allowedNumbers": [number for number in allowed_numbers if number],
