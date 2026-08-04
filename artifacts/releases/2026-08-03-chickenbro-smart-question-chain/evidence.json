@@ -5,18 +5,18 @@
   "status": "live_verified",
   "highestEvidenceLevel": "live_verified",
   "branch": "codex/chickenbro-smart-question-chain",
-  "commit": "8ab97a5cd02a8f84882520ed4c20bc2953d683e1",
+  "commit": "34a42b563207637eb14a8a19ceac1563ecd57342",
   "identities": {
     "runtime": {
       "status": "bound",
       "kind": "git_commit",
-      "value": "8ab97a5cd02a8f84882520ed4c20bc2953d683e1",
+      "value": "34a42b563207637eb14a8a19ceac1563ecd57342",
       "fileHashes": {
         "server/llm_client.py": "03bb6d8041e21804d1f5d117fc4823fc71912104d1dc32b319c1a9851652c4b3",
         "server/chickenbro_agent.py": "f44373695f83dfd5051c8f181efd6ad52d4749fa49832e01c45a3ecdd5293754",
         "server/chickenbro_community_strength.py": "1a68f0de894b33fa0209b77176bf7041eb18a286466f0b052ea077a968007a6e",
         "server/chickenbro_question_frame.py": "3a4cfd059a54a6e1e4f8970f163d497c57a3f02e37644b1aac7d87caed658a6e",
-        "server/news_backend.py": "879ea8d6323d62c0f09bce18c24cf8f9a4343c5d226d5d5f859c9414cd791c00",
+        "server/news_backend.py": "4c21daf533a1042bf2c0957b5bbf089a5a65d1a5ad80df78d31f1a49b8f1e497",
         "server/wow-backend.service": "d85fa51f0ee1ab256e3c39442de955c2c7c6ae2a43cdbb5c3ad62ebc1f27e47b"
       }
     },
@@ -54,6 +54,7 @@
     "bounded evidence-ratio follow-up routing and dynamic fallback explanation",
     "multi-turn evidence-reference inheritance for ratio and leader questions, including topic-switch boundaries",
     "tie-safe Raider.IO same-role leader projection and authoritative evidence-reference answers",
+    "authoritative source answer for a bounded current-strength request before model invocation",
     "end-to-end stream deadline for a keepalive-only provider connection",
     "explicit public WCL target configuration for candidate and production service units"
   ],
@@ -76,12 +77,12 @@
     {
       "command": "candidate POST http://127.0.0.1:18790/api/chickenbro/messages/stream with retail Mythic+ strength -> ratio explanation -> leader follow-up",
       "status": "pass",
-      "summary": "Candidate session 0dd85884-8b4b-429c-8b74-4cd46b8a1b80 returned started/status/delta/final and succeeded for all three turns. Both follow-ups remained current_research with comparative_strength_signal and selected Raider.IO strength plus WCL public rankings. The leader follow-up took 3 seconds, bypassed model prose, and correctly reported the three tied leaders from the source fields."
+      "summary": "Candidate session 0daa0a94-5a1f-474f-95b0-272b771e59c5 returned succeeded for all three turns in seconds. The initial current-strength request and both follow-ups remained current_research with comparative_strength_signal and selected Raider.IO strength plus WCL public rankings. All three answers bypassed model prose and the leader answer correctly reported the three tied leaders from source fields."
     },
     {
       "command": "production POST http://127.0.0.1:8787/api/chickenbro/messages/stream with retail Mythic+ strength -> ratio explanation -> leader follow-up",
       "status": "pass",
-      "summary": "Production session c204ee87-fd7d-4617-ace1-dac7f0756f2c returned started/status/delta/final and succeeded for all three turns. The ratio and leader follow-ups each completed in about one second from deterministic source evidence; the leader answer correctly stated that Devourer Demon Hunter, Augmentation Evoker and Unholy Death Knight are tied first in this bounded same-role sample."
+      "summary": "Production session 0924db33-39b5-41a9-bbc2-c17c79366657 returned succeeded for all three turns in seconds from deterministic source evidence. The leader answer correctly stated that Devourer Demon Hunter, Augmentation Evoker and Unholy Death Knight are tied first in this bounded same-role sample."
     },
     {
       "command": "production health, Registry identity, service/journal and chickenbro-source-refresh timer inspection",
@@ -93,16 +94,16 @@
     "status": "candidate_verified",
     "requiredBeforeMerge": true,
     "branch": "codex/chickenbro-smart-question-chain",
-    "commit": "8ab97a5cd02a8f84882520ed4c20bc2953d683e1",
+    "commit": "34a42b563207637eb14a8a19ceac1563ecd57342",
     "gitTree": "candidate-source-files-parity",
     "deployedTarget": "/opt/wow-mini-program-candidates/chickenbro-smart-question-44fc389e",
     "service": "wow-backend-chickenbro-smart-question-44fc389e.service (127.0.0.1:18790)",
     "databaseBackup": "/var/backups/wow-backend/chickenbro-community-strength-44fc389e-20260803T122029Z/wow_test.pg_dump; SHA-256 ca301f938c6442f00e731bf1f3d218fc4a96d60b4047bb4683ea1e987ac4ea8b; pg_restore --list passed",
     "registryMigration": "0027 ran first in a rolled-back transaction (pointer returned to chickenbro-tools-2), then applied once through PostgreSQL; active pointer is chickenbro-tools-3 and migration count is 1.",
-    "fileParity": "All four current correction files are SHA-256-equal between source, candidate and production: llm_client 03bb6d80, chickenbro_agent f4437369, QuestionFrame 3a4cfd05 and news_backend 879ea8d6. The previously verified Registry v3/runtime files remain unchanged.",
+    "fileParity": "All four current correction files are SHA-256-equal between source, candidate and production: llm_client 03bb6d80, chickenbro_agent f4437369, QuestionFrame 3a4cfd05 and news_backend 4c21daf5. The previously verified Registry v3/runtime files remain unchanged.",
     "smoke": {
       "status": "pass",
-      "summary": "A real candidate three-turn stream smoke returned final/succeeded for the first current-strength request and both evidence-reference follow-ups. The ratio and leader answers were generated directly from the bounded source data; the leader result preserved the real three-way tie."
+      "summary": "A real candidate three-turn stream smoke returned final/succeeded for the current-strength request and both evidence-reference follow-ups. All three were generated directly from bounded source data, so no provider wait was needed; the leader result preserved the real three-way tie."
     },
     "timerBackflow": {
       "status": "pass",
@@ -110,14 +111,14 @@
     },
     "rollback": {
       "status": "ready",
-      "path": "Restore the four production *.pre8ab97a5c runtime-file backups and restart wow-backend, or restore the retained candidate pre-correction file backups and restart its exact candidate service. The prior Registry and PostgreSQL rollback path remains retained for an independent source-registry rollback."
+      "path": "Restore news_backend.py.pre34a42b56 on production or candidate and restart the corresponding service to revert the latest direct-source optimization. The four *.pre8ab97a5c production backups remain available for a full correction rollback. The prior Registry and PostgreSQL rollback path remains retained for an independent source-registry rollback."
     }
   },
   "runtimeEvidence": [
     {
       "type": "candidate_file_parity",
       "status": "pass",
-      "summary": "All four current correction files are equal across source and candidate: llm_client 03bb6d80, chickenbro_agent f4437369, QuestionFrame 3a4cfd05 and news_backend 879ea8d6."
+      "summary": "All four current correction files are equal across source and candidate: llm_client 03bb6d80, chickenbro_agent f4437369, QuestionFrame 3a4cfd05 and news_backend 4c21daf5."
     },
     {
       "type": "production_file_parity",
@@ -127,7 +128,7 @@
     {
       "type": "smoke",
       "status": "pass",
-      "summary": "Production completed the exact three-turn player journey. The leader follow-up reached final/succeeded from deterministic source evidence, retained the bounded current-research plan, and reported the observed tie rather than a fabricated unique rank."
+      "summary": "Production completed the exact three-turn player journey entirely from deterministic source evidence. The leader follow-up retained the bounded current-research plan and reported the observed tie rather than a fabricated unique rank."
     },
     {
       "type": "timer_backflow",
@@ -163,8 +164,9 @@
     }
   ],
   "rollback": [
-    "restore /opt/wow-mini-program/server/llm_client.py.pre8ab97a5c, chickenbro_agent.py.pre8ab97a5c, chickenbro_question_frame.py.pre8ab97a5c and news_backend.py.pre8ab97a5c to their active names, then restart wow-backend.service",
-    "restore the retained candidate pre-correction file backups and restart wow-backend-chickenbro-smart-question-44fc389e.service if the candidate must be rolled back",
+    "restore /opt/wow-mini-program/server/news_backend.py.pre34a42b56 to its active name, then restart wow-backend.service to revert the latest direct-source optimization",
+    "restore the retained candidate news_backend.py.pre34a42b56 backup and restart wow-backend-chickenbro-smart-question-44fc389e.service to revert the equivalent candidate optimization",
+    "for a full correction rollback, restore the four production *.pre8ab97a5c runtime-file backups and restart wow-backend.service",
     "move the active Registry pointer from chickenbro-tools-3 back to chickenbro-tools-2 using the recorded PostgreSQL rollback procedure",
     "recover database state from /var/backups/wow-backend/chickenbro-community-strength-44fc389e-20260803T122029Z/wow_test.pg_dump only when a data rollback is required"
   ],
@@ -177,5 +179,5 @@
     "docs/plans/2026-08-03-chickenbro-smart-question-chain-design.md",
     "docs/plans/2026-08-03-chickenbro-smart-question-chain-implementation.md"
   ],
-  "summary": "The source-bounded semantic chain remains general rather than fixed Q&A. Consecutive ratio and leader references now inherit a current-strength thread until a topic/build boundary occurs; they directly answer from the same verified source evidence rather than asking a model to reinterpret rankings. Raider.IO leaders are tie-safe, so a tied top score is never presented as a unique first place. A provider stream has an end-to-end deadline, preventing keepalive-only sessions from running forever. Candidate and production both passed the real three-turn stream smoke with no sync/backfill start. The full Harness's unrelated UI package stage is blocked by an absent local Taro CLI and is recorded literally. Real WeChat acceptance is still required before merge, push or cleanup."
+  "summary": "The source-bounded semantic chain remains general rather than fixed Q&A. A current-strength question with verified comparative evidence, and its consecutive ratio or leader references, directly answer from the same controlled source data; no model is asked to reinterpret rankings. A topic/build boundary stops the inheritance. Raider.IO leaders are tie-safe, so a tied top score is never presented as a unique first place. A provider stream has an end-to-end deadline, preventing keepalive-only sessions from running forever. Candidate and production both passed the real three-turn stream smoke in seconds with no sync/backfill start. The full Harness's unrelated UI package stage is blocked by an absent local Taro CLI and is recorded literally. Real WeChat acceptance is still required before merge, push or cleanup."
 }
