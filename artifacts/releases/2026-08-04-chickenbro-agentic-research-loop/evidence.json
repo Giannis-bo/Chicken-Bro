@@ -1,0 +1,99 @@
+{
+  "schemaVersion": 2,
+  "slug": "chickenbro-agentic-research-loop",
+  "requirementSlug": "chickenbro-agentic-research-loop",
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
+  "branch": "codex/chickenbro-agentic-research-loop",
+  "commit": "b0253dfe24821f6232d205a3c55b574d60b0821a",
+  "identities": {
+    "runtime": {
+      "status": "pending",
+      "reason": "独立候选尚未部署；runtime identity 必须由候选提交和文件哈希绑定。"
+    },
+    "verification": {
+      "status": "bound_at_check",
+      "kind": "git_ref",
+      "value": "HEAD"
+    },
+    "closure": {
+      "status": "pending",
+      "reason": "候选运行和真实 WeChat 用户验收尚未完成；未合并、推送、生产投产或清理。"
+    }
+  },
+  "manualAcceptance": {
+    "required": true,
+    "status": "pending",
+    "items": [
+      {"id": "candidate_wechat_current_research", "status": "pending"},
+      {"id": "candidate_wechat_natural_followup", "status": "pending"},
+      {"id": "candidate_wechat_scope_change", "status": "pending"},
+      {"id": "candidate_wechat_transcript_scroll", "status": "pending"}
+    ],
+    "rollup": {
+      "total": 4,
+      "accepted": 0,
+      "notRunUserWaived": 0,
+      "pending": 4
+    }
+  },
+  "scope": [
+    "Codex-planned read-only ToolBox research loop with bounded re-plan",
+    "observation-grounded claims, stream post-validation buffering, Trace v5 and deidentified Eval",
+    "candidate deployment and WeChat handoff only; no production rollout or new source onboarding"
+  ],
+  "verification": [
+    {
+      "command": "python3 -m unittest tests.chickenbro_research_test tests.chickenbro_registry_test tests.chickenbro_tool_runtime_test tests.chickenbro_question_frame_test tests.chickenbro_evidence_plan_test tests.chickenbro_agent_test tests.chickenbro_observability_test tests.chickenbro_eval_test -v",
+      "status": "pass",
+      "summary": "111 项纯 ResearchPlan、Registry/runtime、QuestionFrame/EvidencePlan 兼容、agentic re-plan、claim grounding、stream buffer、Trace v5、历史 Trace 与 Eval 回归通过。"
+    },
+    {
+      "command": "npm run test:taro -- packages/api-client/src/simulator.test.ts packages/design-system/src/components/ChickenbroChatComponents.test.ts apps/mini-taro/src/pages/simulator/simulator-home-dock-contract.test.ts && node scripts/audit-ui-architecture.js",
+      "status": "pass",
+      "summary": "3 个相关 Vitest 文件/17 项通过；14 routes/283 UI architecture checks 通过。"
+    },
+    {
+      "command": "npm run build:weapp && npm run verify:ui-package",
+      "status": "not_run",
+      "summary": "候选小程序包将在候选 API identity 固定后构建；尚不代表真实设备验收。"
+    },
+    {
+      "command": "candidate POST /api/chickenbro/messages/stream and inspect v5 Trace/timer state",
+      "status": "not_run",
+      "summary": "独立候选服务尚未部署。"
+    }
+  ],
+  "candidateDeployment": {
+    "status": "pending",
+    "reason": "待检查远端 Codex planner、Registry 和来源 readiness 后，以 b0253dfe 的新候选 unit/port 部署；现有 Evidence Planner 候选保持不动。"
+  },
+  "runtimeEvidence": [],
+  "risks": [
+    {
+      "id": "candidate_planner_readiness",
+      "status": "open",
+      "detail": "若候选缺少已配置的 Codex/LLM planner，则不启用 agentic flag 或伪装为已验证；应停止并记录 literal blocker。"
+    },
+    {
+      "id": "wechat_user_acceptance",
+      "status": "open",
+      "detail": "真实设备连续追问和 transcript scroll 仍待用户验收。"
+    }
+  ],
+  "rollback": [
+    "停止并禁用新建的 task-scoped candidate unit；生产 wow-backend.service 和既有 Evidence Planner candidate 保持不动。",
+    "从新候选 root 的 timestamped backup 恢复本任务运行文件，或移除整个 task-scoped candidate root。",
+    "仅在候选继续保留时重启该候选 unit；不触发 source refresh、collector、backfill 或 async sync。"
+  ],
+  "cleanup": {
+    "required": true,
+    "status": "pending_user_acceptance",
+    "target": "新 candidate root、unit、端口、本任务分支和 worktree 在用户明确真实 WeChat 验收前保留。"
+  },
+  "archivedReferences": [
+    "docs/plans/2026-08-04-chickenbro-agentic-research-design.md",
+    "docs/plans/2026-08-04-chickenbro-agentic-research-loop-implementation.md"
+  ],
+  "summary": "本地已验证 Codex 自主研究循环：模型只可规划已发布 read-only ToolBox，后端验证并执行每轮调用，结论需要绑定实际 observations，失败/空 observation 保持 literal partial。独立候选、实时来源 smoke、候选 WeChat 包和用户真实设备验收仍待完成；没有生产部署、合并、推送或清理声明。"
+}
