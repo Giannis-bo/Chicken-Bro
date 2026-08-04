@@ -145,6 +145,39 @@ class ChickenbroAgentIntentTest(unittest.TestCase):
         self.assertEqual("llm", result["answer"]["answerSource"])
         self.assertEqual("passed", result["validation"]["status"])
 
+    def test_agentic_path_prunes_visible_refs_not_used_by_any_claim(self):
+        bounded = self.agentic_bounded_context()
+        unused_ref = "fixture.unused"
+        bounded["agenticResearch"]["observations"].append({
+            "toolId": "source:community:v1",
+            "sourceKey": "community",
+            "status": "source_reference",
+            "evidenceRefs": [unused_ref],
+            "scope": {"scenarioKey": "mythic_plus"},
+            "facts": [{"summary": "An unused observation."}],
+            "limitations": [],
+        })
+        bounded["allowedEvidenceRefs"].append(unused_ref)
+
+        result = backend.run_chickenbro_agent(
+            bounded,
+            codex_runner=lambda *_args, **_kwargs: {
+                "answer": "当前观察只覆盖高层大秘境样本。",
+                "confidence": "medium",
+                "priorityActions": [],
+                "evidenceRefs": ["fixture.raiderio", unused_ref],
+                "limitations": [],
+                "missingInputs": [],
+                "nextQuestion": "",
+                "claimRefs": [{
+                    "statement": "当前观察只覆盖高层大秘境样本。",
+                    "evidenceRefs": ["fixture.raiderio"],
+                }],
+            },
+        )
+
+        self.assertEqual(["fixture.raiderio"], result["answer"]["evidenceRefs"])
+
     def test_agentic_partial_without_a_returned_ref_allows_a_literal_no_claim_answer(self):
         bounded = self.agentic_bounded_context()
         bounded["agenticResearch"]["status"] = "partial"

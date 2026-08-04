@@ -8678,6 +8678,40 @@ def normalize_chickenbro_model_payload(payload):
     return normalized
 
 
+def chickenbro_prune_unclaimed_visible_evidence(payload):
+    """Do not render an agentic citation that its own claims do not use."""
+    normalized = dict(payload) if isinstance(payload, dict) else payload
+    if not isinstance(normalized, dict) or not isinstance(normalized.get("claimRefs"), list):
+        return normalized
+    claim_refs = {
+        str(ref or "").strip()
+        for claim in normalized["claimRefs"]
+        if isinstance(claim, dict)
+        for ref in (claim.get("evidenceRefs") or [])
+        if str(ref or "").strip()
+    }
+    if isinstance(normalized.get("evidenceRefs"), list):
+        normalized["evidenceRefs"] = [
+            ref for ref in normalized["evidenceRefs"]
+            if str(ref or "").strip() in claim_refs
+        ]
+    actions = normalized.get("priorityActions")
+    if isinstance(actions, list):
+        normalized_actions = []
+        for action in actions:
+            if not isinstance(action, dict) or not isinstance(action.get("evidenceRefs"), list):
+                normalized_actions.append(action)
+                continue
+            projected = dict(action)
+            projected["evidenceRefs"] = [
+                ref for ref in action["evidenceRefs"]
+                if str(ref or "").strip() in claim_refs
+            ]
+            normalized_actions.append(projected)
+        normalized["priorityActions"] = normalized_actions
+    return normalized
+
+
 def chickenbro_text_numbers(value):
     return re.findall(r"(?<![A-Za-z0-9.])(?:\+?\d{2,}(?:\.\d+)?|\d+\.\d+)%?(?![\d.])", str(value or ""))
 
@@ -9614,6 +9648,8 @@ def run_chickenbro_agent(bounded_context, codex_runner=None):
         if isinstance(model_result, dict) and model_result.get("status") in {"skipped", "timed_out", "failed"}:
             raise ChickenbroGenerationUnavailable(model_result.get("error") or model_result.get("status"))
         parsed = normalize_chickenbro_model_payload(parse_chickenbro_model_output(model_result))
+        if agentic_active:
+            parsed = chickenbro_prune_unclaimed_visible_evidence(parsed)
         validated = validate_chickenbro_model_output(parsed, bounded_context)
         validated["answerSource"] = "llm"
         return {
@@ -9674,6 +9710,8 @@ def run_chickenbro_agent_stream(bounded_context, stream_runner=None):
                 if not requires_post_validation_buffer:
                     yield {"type": "delta", "text": text}
         parsed = normalize_chickenbro_model_payload(parser.finish())
+        if agentic_active:
+            parsed = chickenbro_prune_unclaimed_visible_evidence(parsed)
         validated = validate_chickenbro_model_output(parsed, bounded_context)
         validated["answerSource"] = "llm"
         if requires_post_validation_buffer:
