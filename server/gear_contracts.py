@@ -413,6 +413,8 @@ def parse_exact_loadout_intent(raw_intent: Any) -> tuple[dict[str, Any] | None, 
                 continue
             for key in sorted(set(raw_slot).difference(_EXACT_SLOT_KEYS)):
                 issues.append(_issue("INVALID_INTENT", "UNKNOWN_FIELD", f"{path}.{key}", "Field is not part of ExactSlot."))
+            for key in sorted(_EXACT_SLOT_KEYS.difference(raw_slot)):
+                issues.append(_issue("INVALID_INTENT", "MISSING_FIELD", f"{path}.{key}", "Every Exact slot field is required, including explicit empty values."))
             item_id = _exact_identifier(raw_slot.get("itemId"))
             if item_id is None:
                 issues.append(_issue("INVALID_INTENT", "MISSING_ITEM_ID", f"{path}.itemId", "A bounded itemId is required."))

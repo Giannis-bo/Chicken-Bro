@@ -48,6 +48,22 @@ class GearContractsTest(unittest.TestCase):
         self.assertEqual(v1_issues, [])
         self.assertEqual(parsed_v1, v1)
 
+    # Catches defaulting absent Exact fields into a new identity rather than
+    # rejecting an input whose slot key set is structurally incomplete.
+    def test_exact_v2_rejects_every_missing_slot_field_with_path(self):
+        for field in (
+            "itemId", "declaredItemLevel", "bonusIds", "context", "gemIds", "gemBonusIds",
+            "gemItemLevels", "enchantId", "craftedStats", "embellishmentIds", "redirectedBaseStats",
+        ):
+            with self.subTest(field=field):
+                exact = self.valid_exact_intent()
+                exact["slots"]["head"].pop(field)
+
+                parsed, issues = gear_contracts.parse_exact_loadout_intent(exact)
+
+                self.assertIsNone(parsed)
+                self.assertTrue(any(issue["path"] == f"intent.slots.head.{field}" for issue in issues))
+
     # Catches an Exact v2 change accidentally perturbing any sealed v1
     # canonical identity used by existing loadout and snapshot records.
     def test_v1_fixture_canonical_bytes_and_keys_remain_frozen(self):

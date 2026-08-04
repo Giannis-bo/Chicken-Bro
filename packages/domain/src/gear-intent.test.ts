@@ -39,6 +39,41 @@ describe('canonical gear selection intent', () => {
     ].every((value) => canonicalExactLoadoutIntent(value, 'warrior', 'fury') === null)).toBe(true)
   })
 
+  it('rejects newline-bearing identifiers in every exact v2 identity field', () => {
+    const coreSlots = [
+      'head', 'neck', 'shoulder', 'back', 'chest', 'wrist', 'hands', 'waist',
+      'legs', 'feet', 'finger1', 'finger2', 'trinket1', 'trinket2', 'main_hand',
+    ]
+    const slot = (itemId: string) => ({
+      itemId, declaredItemLevel: null, bonusIds: [], context: '', gemIds: [],
+      gemBonusIds: [], gemItemLevels: [], enchantId: '', craftedStats: [],
+      embellishmentIds: [], redirectedBaseStats: [],
+    })
+    const valid = {
+      schemaRevision: 'exact-loadout-intent-v2',
+      authoredAgainst: { seasonRevision: 'season-r1', gameBuild: 'build-r1' },
+      eligibilityContext: { classKey: 'warrior', specKey: 'fury', level: 80 },
+      slots: Object.fromEntries(coreSlots.map((name, index) => [name, slot(String(225574 + index))])),
+    }
+    const newline = 'unsafe\nvalue'
+    const cases = [
+      { ...valid, authoredAgainst: { ...valid.authoredAgainst, seasonRevision: newline } },
+      { ...valid, authoredAgainst: { ...valid.authoredAgainst, gameBuild: newline } },
+      { ...valid, eligibilityContext: { ...valid.eligibilityContext, classKey: newline } },
+      { ...valid, eligibilityContext: { ...valid.eligibilityContext, specKey: newline } },
+      { ...valid, slots: { ...valid.slots, head: { ...valid.slots.head, itemId: newline } } },
+      { ...valid, slots: { ...valid.slots, head: { ...valid.slots.head, context: newline } } },
+      { ...valid, slots: { ...valid.slots, head: { ...valid.slots.head, enchantId: newline } } },
+      { ...valid, slots: { ...valid.slots, head: { ...valid.slots.head, bonusIds: [newline] } } },
+      { ...valid, slots: { ...valid.slots, head: { ...valid.slots.head, gemIds: [newline] } } },
+      { ...valid, slots: { ...valid.slots, head: { ...valid.slots.head, gemBonusIds: [newline] } } },
+      { ...valid, slots: { ...valid.slots, head: { ...valid.slots.head, craftedStats: [newline] } } },
+      { ...valid, slots: { ...valid.slots, head: { ...valid.slots.head, embellishmentIds: [newline] } } },
+      { ...valid, slots: { ...valid.slots, head: { ...valid.slots.head, redirectedBaseStats: [newline] } } },
+    ]
+    expect(cases.every((value) => canonicalExactLoadoutIntent(value, 'warrior', 'fury') === null)).toBe(true)
+  })
+
   it('accepts only structurally canonical selection-intent-v1 storage for the current identity', () => {
     const guard = (gearIntentExports as Readonly<Record<string, unknown>>)['canonicalGearSelectionIntent'] as
       | ((value: unknown, classKey: string, specKey: string) => unknown)

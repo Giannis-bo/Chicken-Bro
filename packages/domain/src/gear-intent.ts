@@ -96,6 +96,12 @@ function boundedIntentString(value: unknown, allowEmpty = false): value is strin
     && (allowEmpty || value.length > 0)
 }
 
+function boundedExactIntentString(value: unknown, allowEmpty = false): value is string {
+  return boundedIntentString(value, allowEmpty)
+    && !value.includes('\n')
+    && !value.includes('\r')
+}
+
 /**
  * Validate only the persisted canonical Selection Intent structure and current
  * identity. Item legality and authority remain backend-owned.
@@ -159,12 +165,12 @@ export function canonicalExactLoadoutIntent(
 
   const authored = value['authoredAgainst']
   if (!exactKeys(authored, exactIntentAuthoredKeys)
-    || !exactIntentAuthoredKeys.every((key) => boundedIntentString(authored[key]))) return null
+    || !exactIntentAuthoredKeys.every((key) => boundedExactIntentString(authored[key]))) return null
 
   const eligibility = value['eligibilityContext']
   if (!exactKeys(eligibility, selectionIntentEligibilityKeys)
-    || !boundedIntentString(eligibility['classKey'])
-    || !boundedIntentString(eligibility['specKey'])
+    || !boundedExactIntentString(eligibility['classKey'])
+    || !boundedExactIntentString(eligibility['specKey'])
     || eligibility['classKey'] !== classKey
     || eligibility['specKey'] !== specKey
     || !Number.isInteger(eligibility['level'])
@@ -180,12 +186,12 @@ export function canonicalExactLoadoutIntent(
     const raw = slots[slot]
     if (!record(raw)
       || !exactKeys(raw, exactIntentSlotKeys)
-      || !boundedIntentString(raw['itemId'])
+      || !boundedExactIntentString(raw['itemId'])
       || (raw['declaredItemLevel'] !== null && (!Number.isInteger(raw['declaredItemLevel']) || Number(raw['declaredItemLevel']) < 1 || Number(raw['declaredItemLevel']) > 9999))
-      || !boundedIntentString(raw['context'], true)
-      || !boundedIntentString(raw['enchantId'], true)) return null
+      || !boundedExactIntentString(raw['context'], true)
+      || !boundedExactIntentString(raw['enchantId'], true)) return null
     const identifierLists = ['bonusIds', 'gemIds', 'gemBonusIds', 'craftedStats', 'embellishmentIds', 'redirectedBaseStats'] as const
-    if (identifierLists.some((key) => !Array.isArray(raw[key]) || !raw[key].every((item) => boundedIntentString(item)))) return null
+    if (identifierLists.some((key) => !Array.isArray(raw[key]) || !raw[key].every((item) => boundedExactIntentString(item)))) return null
     if (!Array.isArray(raw['gemItemLevels']) || raw['gemItemLevels'].some((item) => !Number.isInteger(item) || item < 1 || item > 9999)) return null
   }
   return value as unknown as ExactLoadoutIntent

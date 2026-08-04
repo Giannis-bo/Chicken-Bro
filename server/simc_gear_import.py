@@ -14,7 +14,11 @@ except ImportError:
 
 MAX_RAW_PROFILE_BYTES = 65_536
 _KNOWN_PROFILE_OPTIONS = {"id", "ilevel", "bonus_id", "context", "gem_id", "gem_bonus_id", "gem_ilevel", "enchant_id", "crafted_stats", "embellishment", "redirected_base_stats"}
-_IGNORED_ASSIGNMENTS = {"spec", "race", "level", "talents", "fight_style", "desired_targets", "iterations", "max_time", "vary_combat_length", "calculate_scale_factors", "role", "position"}
+_IGNORED_ASSIGNMENTS = {
+    "spec", "race", "level", "talents", "fight_style", "desired_targets", "iterations",
+    "max_time", "vary_combat_length", "calculate_scale_factors", "role", "position",
+    "region", "server", "professions",
+}
 
 
 def parse_simcraft_template_gear_line(line: object):
@@ -101,6 +105,14 @@ def _tokens(value: str, path: str, problems: list[dict[str, str]], *, integers: 
     return result
 
 
+def _declared_item_level(options: dict[str, str], path: str, problems: list[dict[str, str]]) -> int | None:
+    values = _tokens(options.get("ilevel", ""), path, problems, integers=True)
+    if len(values) > 1:
+        problems.append(_problem("INVALID_GEAR_OPTION", path, "Only one declared item level is allowed."))
+        return None
+    return values[0] if values else None
+
+
 def parse_simc_exact_import(raw_profile: object, *, class_key: str, spec_key: str, level: int, season_revision: str, game_build: str) -> dict[str, object]:
     """Return a sanitized Exact v2 intent or structured blocked diagnostics."""
 
@@ -183,11 +195,9 @@ def parse_simc_exact_import(raw_profile: object, *, class_key: str, spec_key: st
             problems.append(_problem("MISALIGNED_GEM_OPTIONS", f"intent.slots.{slot}.gemBonusIds", "gemBonusIds must align with gemIds."))
         if options.get("gem_ilevel", "") and len(gem_levels) != len(gem_ids):
             problems.append(_problem("MISALIGNED_GEM_OPTIONS", f"intent.slots.{slot}.gemItemLevels", "gemItemLevels must align with gemIds."))
-        ilevel_values = _tokens(options.get("ilevel", ""), f"intent.slots.{slot}.declaredItemLevel", problems, integers=True)
-        if len(ilevel_values) > 1:
-            problems.append(_problem("INVALID_GEAR_OPTION", f"intent.slots.{slot}.declaredItemLevel", "Only one declared item level is allowed."))
+        declared_item_level = _declared_item_level(options, f"intent.slots.{slot}.declaredItemLevel", problems)
         slots[slot] = {
-            "itemId": item_ids[0], "declaredItemLevel": ilevel_values[0] if ilevel_values else None,
+            "itemId": item_ids[0], "declaredItemLevel": declared_item_level,
             "bonusIds": _tokens(options.get("bonus_id", ""), f"intent.slots.{slot}.bonusIds", problems),
             "context": options.get("context", ""), "gemIds": gem_ids, "gemBonusIds": gem_bonus,
             "gemItemLevels": gem_levels, "enchantId": options.get("enchant_id", ""),
@@ -196,13 +206,9 @@ def parse_simc_exact_import(raw_profile: object, *, class_key: str, spec_key: st
             "redirectedBaseStats": _tokens(options.get("redirected_base_stats", ""), f"intent.slots.{slot}.redirectedBaseStats", problems),
         }
     if "off_hand" in slot_rows:
-        # Full parsing is shared with the core-slot path by treating it as a
-        # temporary required slot, then leaving final weapon legality to Resolver.
-        raw_with_offhand = dict(slot_rows)
-        original = EXACT_LOADOUT_CORE_SLOTS
-        # The one-slot duplication below is intentionally avoided: Exact import
-        # accepts off-hand only when it satisfies the same strict field shape.
-        row = raw_with_offhand["off_hand"]
+        # Off-hand is optional, but if present it uses the same strict option
+        # parsing as core slots. Final weapon pairing stays Resolver-owned.
+        row = slot_rows["off_hand"]
         options = row["options"]
         ids = _tokens(options.get("id", ""), "intent.slots.off_hand.itemId", problems)
         if len(ids) == 1:
@@ -213,10 +219,10 @@ def parse_simc_exact_import(raw_profile: object, *, class_key: str, spec_key: st
                 problems.append(_problem("MISALIGNED_GEM_OPTIONS", "intent.slots.off_hand.gemBonusIds", "gemBonusIds must align with gemIds."))
             if options.get("gem_ilevel", "") and len(gem_levels) != len(gem_ids):
                 problems.append(_problem("MISALIGNED_GEM_OPTIONS", "intent.slots.off_hand.gemItemLevels", "gemItemLevels must align with gemIds."))
-            ilevel = _tokens(options.get("ilevel", ""), "intent.slots.off_hand.declaredItemLevel", problems, integers=True)
-            slots["off_hand"] = {"itemId": ids[0], "declaredItemLevel": ilevel[0] if ilevel else None, "bonusIds": _tokens(options.get("bonus_id", ""), "intent.slots.off_hand.bonusIds", problems), "context": options.get("context", ""), "gemIds": gem_ids, "gemBonusIds": gem_bonus, "gemItemLevels": gem_levels, "enchantId": options.get("enchant_id", ""), "craftedStats": _tokens(options.get("crafted_stats", ""), "intent.slots.off_hand.craftedStats", problems), "embellishmentIds": _tokens(options.get("embellishment", ""), "intent.slots.off_hand.embellishmentIds", problems), "redirectedBaseStats": _tokens(options.get("redirected_base_stats", ""), "intent.slots.off_hand.redirectedBaseStats", problems)}
+            slots["off_hand"] = {"itemId": ids[0], "declaredItemLevel": _declared_item_level(options, "intent.slots.off_hand.declaredItemLevel", problems), "bonusIds": _tokens(options.get("bonus_id", ""), "intent.slots.off_hand.bonusIds", problems), "context": options.get("context", ""), "gemIds": gem_ids, "gemBonusIds": gem_bonus, "gemItemLevels": gem_levels, "enchantId": options.get("enchant_id", ""), "craftedStats": _tokens(options.get("crafted_stats", ""), "intent.slots.off_hand.craftedStats", problems), "embellishmentIds": _tokens(options.get("embellishment", ""), "intent.slots.off_hand.embellishmentIds", problems), "redirectedBaseStats": _tokens(options.get("redirected_base_stats", ""), "intent.slots.off_hand.redirectedBaseStats", problems)}
         else:
-            problems.append(_problem("MISSING_ITEM_ID", "intent.slots.off_hand.itemId", "Exact item id is required."))
+            code = "MISSING_ITEM_ID" if not ids else "INVALID_GEAR_OPTION"
+            problems.append(_problem(code, "intent.slots.off_hand.itemId", "Exactly one Exact item id is required."))
     if problems:
         return _blocked(problems)
     intent, intent_problems = parse_exact_loadout_intent({"schemaRevision": "exact-loadout-intent-v2", "authoredAgainst": {"seasonRevision": season_revision, "gameBuild": game_build}, "eligibilityContext": {"classKey": class_key, "specKey": spec_key, "level": level}, "slots": slots})

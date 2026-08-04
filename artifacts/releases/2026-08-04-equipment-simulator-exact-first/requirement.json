@@ -22,10 +22,10 @@
     "baseBranch": "main"
   },
   "releaseSlices": [
-    {"id": "task1", "scope": "冻结 v1 并引入无 Catalog Exact v2 输入合同", "gate": "v1 canonical bytes/key frozen; raw text never leaves parser"},
-    {"id": "task2", "scope": "Exact authority 与 effect-support", "gate": "authority envelope and verified support are immutable and runtime-bound"},
-    {"id": "task3", "scope": "append-only authority/store 与 v1/v2 条件持久化", "gate": "v1 rows remain valid; v2 rows require envelope identities"},
-    {"id": "task4_plus", "scope": "owner-scoped worker、Resolver/API、observations 与 Catalog admission", "gate": "candidate evidence, rollback, and user-visible state remain fail-closed"}
+    {"id": "release_slice_1_catalog_independent_exact_simulation", "planHeading": "Release Slice 1：Catalog-independent Exact 模拟主链", "scope": "任务 1-6 的 Catalog-independent Exact 导入、authority、条件持久化、owner-scoped worker 与 v2 resolve/snapshot 主链", "gate": "v1 canonical bytes/key frozen; raw text never leaves parser; incomplete/illegal/effect-support gaps fail closed before formal SimC task"},
+    {"id": "release_slice_2_isolated_observation_queue", "planHeading": "Release Slice 2：隔离 Observation Queue", "scope": "任务 7 的去身份化、幂等、有界 observation queue", "gate": "request-time Catalog write count is zero and queue loss cannot block ready Exact simulation"},
+    {"id": "release_slice_3_catalog_admission_and_release_gates", "planHeading": "Release Slice 3：三来源 Catalog Admission 与发布硬门禁", "scope": "任务 8 的 mythic_plus、raid、crafted admission 和 immutable candidate/CAS 发布门禁", "gate": "catalog_non_simulatable_count and silent_default_fill_count are zero; failed candidate preserves Catalog/Manifest LKG"},
+    {"id": "release_slice_4_wechat_candidate_and_user_acceptance", "planHeading": "Release Slice 4：微信体验、候选环境与用户验收", "scope": "任务 9-11 的 typed API client、活动 Taro 体验、候选部署、真实微信验收和 Harness closure", "gate": "candidate branch/runtime/rollback evidence is recorded and real WeChat acceptance is explicit before completion"}
   ],
   "impactMap": {
     "mustChange": [
@@ -47,6 +47,10 @@
   "ownership": {
     "factOwner": "server/simc_gear_import.py owns only sanitized plugin-to-Exact-v2 parsing; server/gear_contracts.py and packages/domain/src/gear-intent.ts own structural canonicalization.",
     "consumers": ["future Exact authority worker", "future owner-scoped import API", "server/news_backend.py legacy compatibility parsing"]
+  },
+  "engineeringHealth": {
+    "status": "health_safe",
+    "reason": "Task 1 is limited to pure parsing and structural contracts; the frozen v1 byte/key regression prevents identity drift, and later slices retain runtime/candidate/user-acceptance gates."
   },
   "dataPrivacyBoundary": {
     "rawPluginText": "ephemeral parser input only; it must not be persisted, logged, templated, queued, included in artifact evidence, or returned in output payloads.",

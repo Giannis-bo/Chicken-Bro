@@ -1,7 +1,23 @@
+import json
+import subprocess
 import unittest
+from pathlib import Path
 
 
 class SimcGearImportTest(unittest.TestCase):
+    @staticmethod
+    def complete_profile(*extra_lines):
+        slots = (
+            "head", "neck", "shoulder", "back", "chest", "wrist", "hands",
+            "waist", "legs", "feet", "finger1", "finger2", "trinket1",
+            "trinket2", "main_hand",
+        )
+        return "\n".join([
+            'warrior="Fixture"', "spec=fury", "race=orc", "talents=ABC", "fight_style=Patchwerk",
+            *extra_lines,
+            *[f"{slot}=Fixture_{slot},id={225574 + index}" for index, slot in enumerate(slots)],
+        ])
+
     # Catches a parser that silently drops plugin-only exact fields or fills in
     # item level from an unrelated catalog/default.
     def test_extracts_complete_plugin_export_without_catalog_defaults(self):
@@ -100,6 +116,60 @@ class SimcGearImportTest(unittest.TestCase):
         )
         self.assertEqual(injected["status"], "blocked")
         self.assertIn("intent.eligibilityContext.classKey", [problem["path"] for problem in injected["problems"]])
+
+    # Catches treating standard SimulationCraft character metadata as a second
+    # character section instead of ignoring it as non-gear input.
+    def test_extracts_complete_plugin_export_with_region_server_and_professions(self):
+        from server.simc_gear_import import parse_simc_exact_import
+
+        result = parse_simc_exact_import(
+            self.complete_profile("region=us", "server=area_52", "professions=alchemy=100/engineering=100"),
+            class_key="warrior", spec_key="fury", level=80,
+            season_revision="season-r1", game_build="build-r1",
+        )
+
+        self.assertEqual(result["status"], "parsed")
+        self.assertEqual(result["problems"], [])
+
+    # Catches truncating an ambiguous off-hand `ilevel` to its first value.
+    def test_blocks_ambiguous_off_hand_item_level_at_declared_item_level_path(self):
+        from server.simc_gear_import import parse_simc_exact_import
+
+        result = parse_simc_exact_import(
+            self.complete_profile("off_hand=Fixture Shield,id=225590,ilevel=700/701"),
+            class_key="warrior", spec_key="fury", level=80,
+            season_revision="season-r1", game_build="build-r1",
+        )
+
+        self.assertEqual(result["status"], "blocked")
+        self.assertIn("intent.slots.off_hand.declaredItemLevel", [problem["path"] for problem in result["problems"]])
+
+    # Catches a release requirement that is valid JSON but cannot pass the
+    # Harness Strict validator or drifts from the approved four slice headings.
+    def test_exact_first_requirement_passes_harness_and_freezes_plan_release_slices(self):
+        root = Path(__file__).resolve().parents[1]
+        requirement = root / "artifacts/releases/2026-08-04-equipment-simulator-exact-first/requirement.json"
+        plan = root / "docs/plans/2026-08-04-equipment-simulator-exact-first-implementation.md"
+        completed = subprocess.run(
+            ["node", "scripts/project-harness.js", "--json", "--check-requirement", "--requirement-file", str(requirement)],
+            cwd=root, text=True, capture_output=True, check=False,
+        )
+
+        self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+        self.assertEqual(json.loads(completed.stdout)["status"], "project_harness_requirement_check_passed")
+        requirement_payload = json.loads(requirement.read_text())
+        self.assertEqual(
+            [slice_["planHeading"] for slice_ in requirement_payload["releaseSlices"]],
+            [
+                "Release Slice 1：Catalog-independent Exact 模拟主链",
+                "Release Slice 2：隔离 Observation Queue",
+                "Release Slice 3：三来源 Catalog Admission 与发布硬门禁",
+                "Release Slice 4：微信体验、候选环境与用户验收",
+            ],
+        )
+        plan_text = plan.read_text()
+        for slice_ in requirement_payload["releaseSlices"]:
+            self.assertIn(f"## {slice_['planHeading']}", plan_text)
 
 
 if __name__ == "__main__":
