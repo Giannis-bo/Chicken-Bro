@@ -210,6 +210,7 @@ Replacement gate 不再声称解释任意函数运行语义，也不递归 impor
 
 **Files:**
 
+- Modify: `docs/plans/2026-08-04-equipment-simulator-canonical-owner-change-control.md`
 - Modify: `artifacts/releases/2026-08-04-equipment-simulator-exact-first/requirement.json`
 - Modify: `docs/project-owner-map.json`
 - Modify: `docs/backend-owner-map.json`
@@ -218,6 +219,7 @@ Replacement gate 不再声称解释任意函数运行语义，也不递归 impor
 - Modify: `docs/plans/2026-08-04-equipment-simulator-canonical-kernel-redesign.md`
 - Modify: `docs/plans/2026-08-04-equipment-simulator-canonical-kernel-implementation.md`
 - Modify: `docs/plans/2026-08-04-equipment-simulator-exact-first-implementation.md`
+- Modify: `tests/gear_canonical_owner_gate_test.py`（只允许更新 `test_task5_control_plane_records_the_owner_gate_stop_boundary` 的 control-plane assertions；Task 1 gate/analyzer/mutations 不得改变）
 
 - [ ] 将 `owner authority proof`、`exact imported-callable owner gate` 等过度声明统一改为 `canonical ownership source change-control`。
 - [ ] 明确三层 owner：Kernel semantic owner、domain schema/business owner、source change-control registry。
