@@ -18,9 +18,12 @@ RUNTIME_VERSION_V2 = "chickenbro-registry-runtime-v1"
 TRACE_SCHEMA_REVISION_V3 = "chickenbro-agent-trace-v3"
 PROJECTION_SCHEMA_REVISION_V3 = "chickenbro-trace-projection-v3"
 RUNTIME_VERSION_V3 = "chickenbro-question-planner-runtime-v1"
-TRACE_SCHEMA_REVISION = TRACE_SCHEMA_REVISION_V3
-PROJECTION_SCHEMA_REVISION = PROJECTION_SCHEMA_REVISION_V3
-RUNTIME_VERSION = RUNTIME_VERSION_V3
+TRACE_SCHEMA_REVISION_V4 = "chickenbro-agent-trace-v4"
+PROJECTION_SCHEMA_REVISION_V4 = "chickenbro-trace-projection-v4"
+RUNTIME_VERSION_V4 = "chickenbro-evidence-planner-runtime-v1"
+TRACE_SCHEMA_REVISION = TRACE_SCHEMA_REVISION_V4
+PROJECTION_SCHEMA_REVISION = PROJECTION_SCHEMA_REVISION_V4
+RUNTIME_VERSION = RUNTIME_VERSION_V4
 
 CAPABILITY_IDS = {
     "source:raiderio:v1",
@@ -58,12 +61,19 @@ TRACE_KEYS_V2 = TRACE_KEYS_V1 | {
     "registryReleaseHash",
     "registrySource",
 }
-TRACE_KEYS = TRACE_KEYS_V2 | {
+TRACE_KEYS_V3 = TRACE_KEYS_V2 | {
     "questionType",
     "subjectResolution",
     "requestedEvidenceNeeds",
     "unmetEvidenceNeeds",
 }
+TRACE_KEYS_V4 = TRACE_KEYS_V3 | {
+    "comparisonScope",
+    "evidenceFacetKeys",
+    "evidenceFacetStatuses",
+    "evidenceOutcome",
+}
+TRACE_KEYS = TRACE_KEYS_V4
 REGISTRY_CONTEXT_KEYS = {
     "status",
     "registryVersion",
@@ -201,6 +211,15 @@ EVIDENCE_NEEDS = {
     "official_current_changes",
     "personal_log_evidence",
 }
+COMPARISON_SCOPES = {"subject", "cross_spec"}
+EVIDENCE_FACET_KEYS = {
+    "official_changes",
+    "high_key_trend",
+    "subject_performance",
+    "cross_spec_performance",
+}
+EVIDENCE_FACET_STATUSES = {"supported", "partial", "unavailable"}
+EVIDENCE_OUTCOMES = {"answered", "partial", "researching", "blocked"}
 
 
 def _text(value, limit=160):
@@ -306,6 +325,38 @@ def _trace_question_plan(context):
     }
 
 
+def _trace_evidence_plan(context):
+    frame = context.get("questionFrame") if isinstance(context.get("questionFrame"), dict) else {}
+    plan = context.get("evidencePlan") if isinstance(context.get("evidencePlan"), dict) else {}
+    comparison_scope = _text(plan.get("comparisonScope") or frame.get("comparisonScope"), 32).lower()
+    if comparison_scope not in COMPARISON_SCOPES:
+        comparison_scope = "subject"
+    facet_keys = []
+    facet_statuses = []
+    for facet in plan.get("facets") or []:
+        if not isinstance(facet, dict):
+            continue
+        key = _text(facet.get("key"), 64).lower()
+        status = _text(facet.get("status"), 32).lower()
+        if (
+            key not in EVIDENCE_FACET_KEYS
+            or status not in EVIDENCE_FACET_STATUSES
+            or key in facet_keys
+        ):
+            continue
+        facet_keys.append(key)
+        facet_statuses.append(status)
+    outcome = _text(plan.get("outcome"), 32).lower()
+    if outcome not in EVIDENCE_OUTCOMES:
+        outcome = "partial"
+    return {
+        "comparisonScope": comparison_scope,
+        "evidenceFacetKeys": facet_keys,
+        "evidenceFacetStatuses": facet_statuses,
+        "evidenceOutcome": outcome,
+    }
+
+
 def build_chickenbro_agent_trace(
     *, bounded_context, agent_result, error, latency_ms, created_at
 ):
@@ -333,6 +384,7 @@ def build_chickenbro_agent_trace(
         else None
     )
     question_plan = _trace_question_plan(context)
+    evidence_plan = _trace_evidence_plan(context)
     registry_selected = (
         list(registry_context.get("selectedCapabilityIds") or [])
         if registry_context is not None
@@ -446,6 +498,7 @@ def build_chickenbro_agent_trace(
                     registry_context.get("selectedCapabilityIds")
                 ),
                 **question_plan,
+                **evidence_plan,
             }
         )
     return validate_chickenbro_agent_trace(trace)
@@ -483,9 +536,17 @@ def validate_chickenbro_agent_trace(trace):
         ):
             raise ValueError("invalid chickenbro trace runtime identity")
         capability_validator = _validate_v1_capability_ids
-    elif schema_revision in {TRACE_SCHEMA_REVISION_V2, TRACE_SCHEMA_REVISION_V3}:
-        expected_keys = TRACE_KEYS_V2 if schema_revision == TRACE_SCHEMA_REVISION_V2 else TRACE_KEYS
-        expected_runtime = RUNTIME_VERSION_V2 if schema_revision == TRACE_SCHEMA_REVISION_V2 else RUNTIME_VERSION_V3
+    elif schema_revision in {TRACE_SCHEMA_REVISION_V2, TRACE_SCHEMA_REVISION_V3, TRACE_SCHEMA_REVISION_V4}:
+        expected_keys = {
+            TRACE_SCHEMA_REVISION_V2: TRACE_KEYS_V2,
+            TRACE_SCHEMA_REVISION_V3: TRACE_KEYS_V3,
+            TRACE_SCHEMA_REVISION_V4: TRACE_KEYS_V4,
+        }[schema_revision]
+        expected_runtime = {
+            TRACE_SCHEMA_REVISION_V2: RUNTIME_VERSION_V2,
+            TRACE_SCHEMA_REVISION_V3: RUNTIME_VERSION_V3,
+            TRACE_SCHEMA_REVISION_V4: RUNTIME_VERSION_V4,
+        }[schema_revision]
         if set(trace) != expected_keys:
             raise ValueError("invalid chickenbro trace keys")
         if (
@@ -514,7 +575,7 @@ def validate_chickenbro_agent_trace(trace):
             )
         ):
             raise ValueError("invalid chickenbro trace unverified registry identity")
-        if schema_revision == TRACE_SCHEMA_REVISION_V3:
+        if schema_revision in {TRACE_SCHEMA_REVISION_V3, TRACE_SCHEMA_REVISION_V4}:
             if trace["questionType"] not in QUESTION_TYPES:
                 raise ValueError("invalid chickenbro trace question type")
             if trace["subjectResolution"] not in SUBJECT_RESOLUTIONS:
@@ -530,6 +591,22 @@ def validate_chickenbro_agent_trace(trace):
                     raise ValueError(f"duplicate chickenbro trace {field_name}")
             if not set(trace["unmetEvidenceNeeds"]).issubset(trace["requestedEvidenceNeeds"]):
                 raise ValueError("unrequested chickenbro trace unmet evidence")
+        if schema_revision == TRACE_SCHEMA_REVISION_V4:
+            if trace["comparisonScope"] not in COMPARISON_SCOPES:
+                raise ValueError("invalid chickenbro trace comparison scope")
+            facet_keys = trace["evidenceFacetKeys"]
+            facet_statuses = trace["evidenceFacetStatuses"]
+            if (
+                not isinstance(facet_keys, list)
+                or not isinstance(facet_statuses, list)
+                or len(facet_keys) != len(facet_statuses)
+                or any(not isinstance(value, str) or value not in EVIDENCE_FACET_KEYS for value in facet_keys)
+                or any(not isinstance(value, str) or value not in EVIDENCE_FACET_STATUSES for value in facet_statuses)
+                or len(facet_keys) != len(set(facet_keys))
+            ):
+                raise ValueError("invalid chickenbro trace evidence facets")
+            if trace["evidenceOutcome"] not in EVIDENCE_OUTCOMES:
+                raise ValueError("invalid chickenbro trace evidence outcome")
     else:
         raise ValueError("invalid chickenbro trace schema revision")
     request_scope = trace["requestScope"]
@@ -591,7 +668,7 @@ def validate_chickenbro_agent_trace(trace):
             raise ValueError("invalid chickenbro trace evidence count")
     if len(tool_capability_ids) != len(set(tool_capability_ids)):
         raise ValueError("duplicate chickenbro trace tool status capability")
-    if schema_revision in {TRACE_SCHEMA_REVISION_V2, TRACE_SCHEMA_REVISION_V3} and set(tool_capability_ids) != set(
+    if schema_revision in {TRACE_SCHEMA_REVISION_V2, TRACE_SCHEMA_REVISION_V3, TRACE_SCHEMA_REVISION_V4} and set(tool_capability_ids) != set(
         trace["selectedCapabilityIds"]
     ):
         raise ValueError("missing chickenbro trace selected tool status")
@@ -648,13 +725,17 @@ def deidentify_chickenbro_agent_trace(trace):
         "latencyBucket": latency_bucket,
         "costStatus": validated["boundedCost"]["status"],
     }
-    if validated["schemaRevision"] in {TRACE_SCHEMA_REVISION_V2, TRACE_SCHEMA_REVISION_V3}:
+    if validated["schemaRevision"] in {TRACE_SCHEMA_REVISION_V2, TRACE_SCHEMA_REVISION_V3, TRACE_SCHEMA_REVISION_V4}:
         projection.update(
             {
                 "schemaRevision": (
                     PROJECTION_SCHEMA_REVISION_V2
                     if validated["schemaRevision"] == TRACE_SCHEMA_REVISION_V2
-                    else PROJECTION_SCHEMA_REVISION_V3
+                    else (
+                        PROJECTION_SCHEMA_REVISION_V3
+                        if validated["schemaRevision"] == TRACE_SCHEMA_REVISION_V3
+                        else PROJECTION_SCHEMA_REVISION_V4
+                    )
                 ),
                 "registryStatus": validated["registryStatus"],
                 "registryVersion": validated["registryVersion"],
@@ -665,13 +746,22 @@ def deidentify_chickenbro_agent_trace(trace):
                 ),
             }
         )
-    if validated["schemaRevision"] == TRACE_SCHEMA_REVISION_V3:
+    if validated["schemaRevision"] in {TRACE_SCHEMA_REVISION_V3, TRACE_SCHEMA_REVISION_V4}:
         projection.update(
             {
                 "questionType": validated["questionType"],
                 "subjectResolution": validated["subjectResolution"],
                 "requestedEvidenceNeeds": list(validated["requestedEvidenceNeeds"]),
                 "unmetEvidenceNeeds": list(validated["unmetEvidenceNeeds"]),
+            }
+        )
+    if validated["schemaRevision"] == TRACE_SCHEMA_REVISION_V4:
+        projection.update(
+            {
+                "comparisonScope": validated["comparisonScope"],
+                "evidenceFacetKeys": list(validated["evidenceFacetKeys"]),
+                "evidenceFacetStatuses": list(validated["evidenceFacetStatuses"]),
+                "evidenceOutcome": validated["evidenceOutcome"],
             }
         )
     return projection

@@ -44,6 +44,19 @@
 }
 .userMessage .messageBubble { border-color: rgba(170, 140, 78, 0.56); background: rgba(74, 59, 35, 0.58); }
 .messageBubble > text { white-space: pre-wrap; }
+.evidenceOutcome {
+  width: max-content;
+  max-width: 100%;
+  margin-bottom: 7px;
+  padding: 2px 7px;
+  border: 1px solid rgba(201, 178, 125, 0.34);
+  border-radius: 999px;
+  color: #d6c18a;
+  background: rgba(102, 84, 47, 0.24);
+  font-size: 11px;
+  line-height: 17px;
+}
+.evidenceOutcome text { display: block; white-space: normal; }
 .attachmentList { display: grid; gap: 6px; margin-top: 10px; }
 .attachment { display: flex; align-items: center; gap: 6px; min-width: 0; padding-top: 8px; border-top: 1px solid rgba(178, 151, 91, 0.2); color: #c9b27d; font-size: 12px; }
 .attachment > view { width: 14px; height: 14px; flex: 0 0 auto; }
