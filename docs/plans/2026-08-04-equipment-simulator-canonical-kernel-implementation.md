@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-状态：`正在推进（Subagent-Driven，Task 2；Task 1 review clean）`
+状态：`正在推进（Subagent-Driven，Task 3；Task 1-2 review clean）`
 
 **Goal:** 用唯一 Canonical Kernel 和不可变 sealed documents 替换未发布的 Task 2 内部实现，使 Exact、Progression、Effect、Probe、CLI 与 Authority Envelope 对同一输入语言给出一致、fail-closed、内容寻址的结果。
 
