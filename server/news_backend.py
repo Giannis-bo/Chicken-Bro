@@ -8157,28 +8157,16 @@ def _load_chickenbro_source_tool_results_legacy(
             "selectedCapabilityIds": list(resolution["selectedCapabilityIds"]),
         }
         try:
+            bindings = chickenbro_tool_adapter_bindings()
+            bindings["chickenbro.source.current_wow_sources.v1"] = lambda _request: build_current_wow_sources_tool_result(
+                current_source_frame,
+                article_loader=lambda: [],
+                collector=collect_feed_articles,
+                approved_sources=FEED_SOURCES,
+            )
             source_tool_results = execute_chickenbro_selected_tools(
                 resolution,
-                {
-                    "chickenbro.source.raiderio.v1": lambda request: build_raiderio_chickenbro_tool_result(
-                        chickenbro_cached_raiderio_payload(), request["intent"]
-                    ),
-                    "chickenbro.source.raiderio_strength.v1": lambda request: build_raiderio_strength_chickenbro_tool_result(
-                        chickenbro_cached_raiderio_payload(), request["intent"]
-                    ),
-                    "chickenbro.source.warcraftlogs.v1": lambda request: build_wcl_chickenbro_tool_result(
-                        build_wcl_log_evidence({"prompt": request["intent"].get("wclReport") or ""})
-                    ),
-                    "chickenbro.source.warcraftlogs_public_rankings.v1": lambda request: build_wcl_public_rankings_tool_result(
-                        request["intent"]
-                    ),
-                    "chickenbro.source.current_wow_sources.v1": lambda _request: build_current_wow_sources_tool_result(
-                        current_source_frame,
-                        article_loader=lambda: [],
-                        collector=collect_feed_articles,
-                        approved_sources=FEED_SOURCES,
-                    ),
-                },
+                bindings,
                 {"intent": intent, "context": request_context},
             )
         except RegistryInvalid:

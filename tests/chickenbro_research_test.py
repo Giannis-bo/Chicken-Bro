@@ -123,21 +123,33 @@ class ChickenbroResearchTest(unittest.TestCase):
                 [catalog_tool("source:official:v1", ["target"])],
             )
 
-    def test_plan_rejects_duplicate_tool_or_more_than_three_calls(self):
+    def test_plan_allows_a_bounded_multi_source_evidence_basket_and_rejects_overflow(self):
         module = self._module()
-        catalog = [catalog_tool(f"source:tool-{index}:v1") for index in range(4)]
+        catalog = [catalog_tool(f"source:tool-{index}:v1") for index in range(module.MAX_TOOL_CALLS_PER_TURN + 1)]
         duplicate = plan_with("source:tool-0:v1")
         duplicate["toolCalls"].append({"toolId": "source:tool-0:v1", "arguments": {}})
         with self.assertRaisesRegex(ValueError, "declared budget"):
             module.validate_research_plan(duplicate, catalog)
 
-        oversized = plan_with("source:tool-0:v1")
-        oversized["toolCalls"] = [
+        basket = plan_with("source:tool-0:v1")
+        basket["toolCalls"] = [
             {"toolId": f"source:tool-{index}:v1", "arguments": {}}
             for index in range(4)
         ]
+        self.assertEqual(4, len(module.validate_research_plan(basket, catalog)["toolCalls"]))
+
+        oversized = plan_with("source:tool-0:v1")
+        oversized["toolCalls"] = [
+            {"toolId": f"source:tool-{index}:v1", "arguments": {}}
+            for index in range(module.MAX_TOOL_CALLS_PER_TURN + 1)
+        ]
         with self.assertRaisesRegex(ValueError, "tool call budget"):
             module.validate_research_plan(oversized, catalog)
+
+        self.assertEqual(
+            module.MAX_TOOL_CALLS_PER_TURN,
+            module.research_plan_schema()["properties"]["toolCalls"]["maxItems"],
+        )
 
     def test_plan_allows_manifest_declared_repeated_generic_reads_without_question_rules(self):
         module = self._module()

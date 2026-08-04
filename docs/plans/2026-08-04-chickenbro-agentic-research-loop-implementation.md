@@ -71,7 +71,7 @@ Expected: FAIL because `server.chickenbro_research` does not yet exist.
 ```python
 RESEARCH_PLAN_SCHEMA_REVISION = "chickenbro-research-plan-v1"
 MAX_RESEARCH_TURNS = 2
-MAX_TOOL_CALLS_PER_TURN = 3
+MAX_TOOL_CALLS_PER_TURN = 8  # process resource ceiling; manifests own per-Tool budgets
 
 def validate_research_plan(payload, catalog):
     published = {item["toolId"]: item for item in catalog}
@@ -80,7 +80,7 @@ def validate_research_plan(payload, catalog):
     return _normalized_plan(payload, calls, decision)
 ```
 
-`_bounded_calls` deduplicates no values silently: it rejects unknown/disabled/non-read-only tool ids, more than three calls, duplicate ids, unsupported keys, values longer than the declared limit, nested payloads, URL/path/credential-like keys and arguments absent from that tool's `inputSchema.required`. `build_research_catalog` strips `implementationRef`, Registry hashes and provenance before a model can see it.
+`_bounded_calls` deduplicates no values silently: it rejects unknown/disabled/non-read-only tool ids, calls beyond the process resource ceiling, calls that exceed a manifest-declared per-Tool budget, unsupported keys, values longer than the declared limit, nested payloads, URL/path/credential-like keys and arguments absent from that tool's `inputSchema.required`. `build_research_catalog` strips `implementationRef`, Registry hashes and provenance before a model can see it.
 
 - [ ] **Step 4: Run the contract tests to verify GREEN**
 

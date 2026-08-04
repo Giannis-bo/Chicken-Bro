@@ -13,7 +13,11 @@ except ImportError:  # pragma: no cover - direct server module execution
 
 RESEARCH_PLAN_SCHEMA_REVISION = "chickenbro-research-plan-v1"
 MAX_RESEARCH_TURNS = 2
-MAX_TOOL_CALLS_PER_TURN = 3
+# This is only a process-wide resource ceiling.  The published manifest remains
+# the authority for whether a particular Tool can be called, and how often.
+# Eight admits the current evidence basket without turning one source choice
+# into an answer-routing rule.
+MAX_TOOL_CALLS_PER_TURN = 8
 MAX_GOAL_CHARS = 480
 MAX_LIST_ITEMS = 6
 MAX_LIST_ITEM_CHARS = 240
@@ -133,6 +137,7 @@ def research_plan_schema():
             "informationGaps": {"type": "array", "items": {"type": "string"}},
             "toolCalls": {
                 "type": "array",
+                "maxItems": MAX_TOOL_CALLS_PER_TURN,
                 "items": {
                     "type": "object",
                     "additionalProperties": False,

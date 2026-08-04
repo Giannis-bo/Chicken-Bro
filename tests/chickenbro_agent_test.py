@@ -315,6 +315,29 @@ class ChickenbroAgentIntentTest(unittest.TestCase):
         self.assertEqual("completed", bounded["agenticResearch"]["status"])
         self.assertEqual(["source:raiderio:v1"], bounded["agenticResearch"]["turns"][0]["toolIds"])
 
+    def test_legacy_fallback_keeps_a_published_generic_tool_valid_without_a_target(self):
+        generic = public_web_research_manifest(
+            toolId="source:public-web-research:v2",
+            version="2.0.0",
+            implementationRef="chickenbro.source.public_web_research.v2",
+            provenance={"kind": "repository_migration", "revision": "0029"},
+            costBudget={"status": "bounded", "maxCallsPerTurn": 2},
+        )
+        release = signed_release([generic], registryVersion="chickenbro-tools-5")
+
+        packet = backend._load_chickenbro_source_tool_results_legacy(
+            "血DK当前12.1 PTR大秘境强度如何？",
+            {"region": "cn", "classKey": "deathknight", "specKey": "blood", "productPhase": "ptr"},
+            include_registry=True,
+            registry_loader=lambda: release,
+            registry_runtime=ChickenbroRegistryRuntime(60),
+        )
+
+        self.assertEqual("verified", packet["registryContext"]["status"])
+        self.assertEqual([], packet["limitations"])
+        self.assertEqual("public_web_research", packet["sourceToolResults"][0]["sourceKey"])
+        self.assertEqual("partial", packet["sourceToolResults"][0]["status"])
+
     def test_agentic_research_replans_after_a_partial_first_observation(self):
         release = signed_release()
         planned = iter(
