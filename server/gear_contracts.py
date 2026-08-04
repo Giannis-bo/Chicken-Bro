@@ -337,6 +337,8 @@ def _exact_identifier(value: Any, *, allow_empty: bool = False) -> str | None:
         return None
     if len(encoded) > _MAX_IDENTIFIER_LENGTH:
         return None
+    if not unicodedata.is_normalized("NFC", value):
+        return None
     if any(
         unicodedata.category(character) in {"Cc", "Cf", "Cs", "Zl", "Zp"}
         for character in value

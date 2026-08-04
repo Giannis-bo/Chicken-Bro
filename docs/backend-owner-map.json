@@ -13,15 +13,16 @@
   "hotspotFiles": [
     {
       "path": "server/gear_canonical_kernel.py",
-      "healthStatus": "task2_sealed_consumers_consolidation_implementation_allowed",
-      "summary": "Owns the replacement-plan Task 2 canonical primitive language, deterministic JSON bytes, private sealed-document boundary and static ownership stop gate without runtime integration.",
+      "healthStatus": "task1_5_pure_foundation_implementation_allowed",
+      "summary": "Owns replacement Task 1-5 canonical primitives, bounded deterministic JSON bytes, private sealed-document boundaries and the static ownership stop gate without runtime integration.",
       "owners": [
         {
-          "id": "equipment_simulator_canonical_kernel_task2",
-          "status": "task2_sealed_consumers_consolidation_implementation_allowed",
+          "id": "equipment_simulator_canonical_kernel_task1_5",
+          "status": "task1_5_pure_foundation_implementation_allowed",
           "factOwner": "server/gear_canonical_kernel.py",
           "slotSetOwner": "server/gear_contracts.py",
           "domainSchemaOwners": [
+            "packages/domain/src/gear-intent.ts",
             "server/gear_exact_item_instance.py",
             "server/gear_exact_authority.py",
             "server/simc_item_effect_support.py",
@@ -30,10 +31,10 @@
           "adapterBoundary": "scripts/simc-item-effect-probe.py",
           "ownerGate": "tests/gear_canonical_owner_gate_test.py",
           "owns": [
-            "raw-value canonical identity/report token, integer, list, mapping and slot validation",
-            "deterministic canonical JSON bytes with exact string object keys and SHA-256 content keys",
+            "strict NFC raw-value canonical identity/report token, integer, list, mapping and slot validation",
+            "byte-, depth-, node- and cycle-bounded deterministic canonical JSON with exact string object keys and SHA-256 content keys",
             "module-private sealed document construction, reload verification and verified payload copies",
-            "AST stop gate for deleted raw APIs, duplicate primitive owners and sealed cross-domain parameters"
+            "AST stop gate for deleted raw APIs, duplicate primitive owners, exact imported callables and sealed cross-domain parameters"
           ],
           "mustNotChange": [
             "server/gear_contracts.py remains the sole owner of CANONICAL_GEAR_SLOTS.",
@@ -46,6 +47,7 @@
             "tests/gear_canonical_kernel_test.py",
             "tests/gear_canonical_owner_gate_test.py",
             "tests/fixtures/gear_canonical_mutations.json",
+            "packages/domain/src/gear-intent.test.ts",
             "tests/gear_exact_item_instance_test.py",
             "tests/gear_exact_authority_test.py",
             "tests/simc_item_effect_support_test.py",
@@ -53,7 +55,7 @@
             "tests/simc_item_effect_probe_cli_test.py"
           ],
           "runtimeConsumers": [],
-          "futureExtractionDirection": "Controller review may close the replacement foundation; original Task 3 remains forbidden until that review is clean, and this pure slice has no runtime integration."
+          "capabilityBoundary": "Replacement Task 1-5 is the stable pure canonical foundation under implementation_allowed; runtimeConsumers is empty, original Task 3 is not activated, and generation 35, Catalog/pointers, persistence/worker, Resolver/API/UI, raw-text privacy and v1 identities remain unchanged."
         }
       ]
     },
@@ -171,7 +173,7 @@
             "tests/postgres_schema_test.py"
           ],
           "runtimeConsumers": [],
-          "futureExtractionDirection": "The replacement sealed foundation remains implementation_allowed pending controller review. Original Task 3 may consume only reviewed sealed identities; archived Phase 2 rows remain immutable and partial references remain explicit blockers."
+          "capabilityBoundary": "Archived Phase 2 remains immutable and dormant. Replacement Task 1-5 supplies only pure sealed schema/business derivation; original Task 3 is not activated, runtimeConsumers is empty, and partial references remain explicit blockers."
         },
         {
           "id": "equipment_simulator_resolved_snapshot_phase3",

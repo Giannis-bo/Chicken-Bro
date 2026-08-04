@@ -384,12 +384,13 @@
         "activationBoundary": "Task 1 defines deterministic max-not-sum socket facts only; release materialization and runtime consumption remain outside this slice."
       },
       "canonicalKernelFoundations": {
-        "status": "task2_sealed_consumers_consolidation_implementation_allowed",
+        "status": "task1_5_pure_foundation_implementation_allowed",
         "factOwner": "server/gear_canonical_kernel.py",
         "slotSetOwner": "server/gear_contracts.py",
         "modules": [
           "server/gear_canonical_kernel.py",
           "server/gear_contracts.py",
+          "packages/domain/src/gear-intent.ts",
           "server/gear_exact_item_instance.py",
           "server/gear_exact_authority.py",
           "server/simc_item_effect_support.py",
@@ -400,6 +401,7 @@
           "tests/gear_canonical_kernel_test.py",
           "tests/gear_canonical_owner_gate_test.py",
           "tests/fixtures/gear_canonical_mutations.json",
+          "packages/domain/src/gear-intent.test.ts",
           "tests/gear_exact_item_instance_test.py",
           "tests/gear_exact_authority_test.py",
           "tests/simc_item_effect_support_test.py",
@@ -408,10 +410,10 @@
         ],
         "runtimeConsumers": [],
         "owns": [
-          "Task 2 canonical primitive validation without trim, coercion, sort, dedupe or defaulting",
-          "deterministic canonical JSON bytes with exact string object keys and SHA-256 content keys",
+          "Task 1-5 strict NFC canonical primitive validation without trim, coercion, normalization, sort, dedupe or defaulting",
+          "byte-, depth-, node- and cycle-bounded deterministic canonical JSON with exact string object keys and SHA-256 content keys",
           "module-private sealed canonical document construction and reload verification",
-          "AST ownership stop gate for deleted raw APIs, duplicate primitive owners and sealed cross-domain boundaries"
+          "AST ownership stop gate for deleted raw APIs, duplicate primitive owners, exact imported callables and sealed cross-domain boundaries"
         ],
         "mustNotChange": [
           "server/gear_contracts.py remains the sole canonical gear slot-set owner.",
@@ -419,7 +421,7 @@
           "Cross-domain consumers require sealed documents; raw objects are allowed only at explicit Exact import, Static Facts, Effect record, Probe and CLI decoder boundaries that validate before sealing.",
           "Do not read database, Catalog, environment or runtime process state."
         ],
-        "activationBoundary": "Replacement Task 1-5 pure implementation is present under implementation_allowed and awaits controller-owned review/status closure; it adds no runtime consumer, persistence, Catalog pointer, generation or v1 identity change."
+        "activationBoundary": "Replacement Task 1-5 is the stable pure canonical foundation under implementation_allowed; runtimeConsumers is empty, original Task 3 is not activated, and generation 35, Catalog/pointers, persistence/worker, Resolver/API/UI, raw-text privacy and v1 identities remain unchanged."
       },
       "trackAuthorityFoundations": {
         "status": "pure_contract_only_unconsumed",
@@ -530,7 +532,7 @@
           "tests/postgres_schema_test.py"
         ],
         "runtimeConsumers": [],
-        "activationBoundary": "Archived Phase 2 still seals only template-referenced dormant exact instances, enhancements, validations and privacy-safe references. The replacement Task 2 sealed foundation remains pure implementation_allowed pending controller review; generation 35, public readers, Community/personal template owners, Resolver and live SimC remain unchanged."
+        "activationBoundary": "Archived Phase 2 still seals only template-referenced dormant exact instances, enhancements, validations and privacy-safe references. Replacement Task 1-5 supplies only the stable pure sealed schema/business foundation; original Task 3 is not activated, generation 35 and Catalog/pointers are unchanged, and persistence/worker, Resolver/API/UI and live SimC remain outside this capability boundary."
       },
       "observedBuildRegistryFoundations": {
         "status": "dormant_shadow_core",

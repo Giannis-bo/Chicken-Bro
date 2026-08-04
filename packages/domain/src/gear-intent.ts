@@ -101,6 +101,7 @@ function boundedExactIntentString(value: unknown, allowEmpty = false): value is 
     && value === value.trim()
     && new TextEncoder().encode(value).byteLength <= 256
     && (allowEmpty || value.length > 0)
+    && value.normalize('NFC') === value
     && !/[\p{Cc}\p{Cf}\p{Cs}\p{Zl}\p{Zp}]/u.test(value)
 }
 

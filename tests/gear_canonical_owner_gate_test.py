@@ -1,6 +1,7 @@
 import ast
 import copy
 from dataclasses import dataclass
+import json
 from pathlib import Path
 import unittest
 
@@ -71,6 +72,78 @@ PUBLIC_FUNCTION_ALLOWLIST = {
     }),
     "server/simc_item_effect_probe.py": frozenset({"evaluate_effect_probe"}),
     "scripts/simc-item-effect-probe.py": frozenset({"main"}),
+}
+
+IMPORTED_CALLABLE_ALLOWLIST = {
+    "server/gear_exact_item_instance.py": frozenset({
+        "gear_canonical_kernel.CanonicalIssue",
+        "gear_canonical_kernel.CanonicalResult",
+        "gear_canonical_kernel.CanonicalValueError",
+        "gear_canonical_kernel.canonical_identity_token",
+        "gear_canonical_kernel.canonical_int",
+        "gear_canonical_kernel.canonical_json_bytes",
+        "gear_canonical_kernel.canonical_mapping",
+        "gear_canonical_kernel.canonical_ordered_list",
+        "gear_canonical_kernel.canonical_set_list",
+        "gear_canonical_kernel.seal_canonical_document",
+        "gear_canonical_kernel.verified_payload_copy",
+        "gear_track_authority.resolve_exact_instance_progression",
+        "math.isfinite",
+    }),
+    "server/gear_exact_authority.py": frozenset({
+        "gear_canonical_kernel.CanonicalIssue",
+        "gear_canonical_kernel.CanonicalResult",
+        "gear_canonical_kernel.CanonicalValueError",
+        "gear_canonical_kernel.canonical_identity_token",
+        "gear_canonical_kernel.canonical_int",
+        "gear_canonical_kernel.canonical_json_bytes",
+        "gear_canonical_kernel.canonical_mapping",
+        "gear_canonical_kernel.canonical_set_list",
+        "gear_canonical_kernel.canonical_slot",
+        "gear_canonical_kernel.seal_canonical_document",
+        "gear_canonical_kernel.verified_payload_copy",
+        "gear_exact_item_instance._verified_exact_payload_copy",
+        "gear_exact_item_instance.seal_exact_static_facts",
+        "gear_track_authority.resolve_exact_instance_progression",
+    }),
+    "server/simc_item_effect_support.py": frozenset({
+        "datetime.datetime.fromisoformat",
+        "gear_canonical_kernel.CanonicalIssue",
+        "gear_canonical_kernel.CanonicalResult",
+        "gear_canonical_kernel.CanonicalValueError",
+        "gear_canonical_kernel.canonical_identity_token",
+        "gear_canonical_kernel.canonical_mapping",
+        "gear_canonical_kernel.canonical_ordered_list",
+        "gear_canonical_kernel.canonical_report_token",
+        "gear_canonical_kernel.seal_canonical_document",
+        "gear_canonical_kernel.verified_payload_copy",
+        "gear_canonical_kernel.verify_sealed_document",
+    }),
+    "server/simc_item_effect_probe.py": frozenset({
+        "gear_canonical_kernel.CanonicalIssue",
+        "gear_canonical_kernel.CanonicalResult",
+        "gear_canonical_kernel.CanonicalValueError",
+        "gear_canonical_kernel.canonical_identity_token",
+        "gear_canonical_kernel.canonical_int",
+        "gear_canonical_kernel.canonical_mapping",
+        "gear_canonical_kernel.canonical_ordered_list",
+        "gear_canonical_kernel.canonical_report_token",
+        "simc_item_effect_support._canonical_effect_tokens",
+        "simc_item_effect_support._canonical_runtime",
+        "simc_item_effect_support._canonical_snapshot_key",
+        "simc_item_effect_support._canonical_subject_kind",
+        "simc_item_effect_support._canonical_timestamp",
+        "simc_item_effect_support._canonical_variant_signature",
+        "simc_item_effect_support.seal_effect_record",
+    }),
+    "scripts/simc-item-effect-probe.py": frozenset({
+        "json.loads",
+        "math.isfinite",
+        "pathlib.Path",
+        "server.simc_item_effect_probe.evaluate_effect_probe",
+        "sys.stderr.write",
+        "sys.stdout.buffer.write",
+    }),
 }
 
 FILE_FORBIDDEN_DEFINITIONS = {
@@ -157,6 +230,7 @@ def _function_definitions(tree: ast.AST) -> dict[str, ast.FunctionDef | ast.Asyn
 @dataclass(frozen=True)
 class _ResolvedSymbol:
     qualified_name: str
+    imported: bool = False
 
 
 @dataclass(frozen=True)
@@ -228,7 +302,7 @@ class _ScopeBindingCollector(ast.NodeVisitor):
         for alias in node.names:
             local_name = alias.asname or alias.name.split(".", 1)[0]
             qualified_name = alias.name if alias.asname else local_name
-            self._add(local_name, _ResolvedSymbol(qualified_name))
+            self._add(local_name, _ResolvedSymbol(qualified_name, imported=True))
 
     def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
         module = "." * node.level + (node.module or "")
@@ -237,7 +311,7 @@ class _ScopeBindingCollector(ast.NodeVisitor):
                 continue
             local_name = alias.asname or alias.name
             qualified_name = f"{module}.{alias.name}" if module else alias.name
-            self._add(local_name, _ResolvedSymbol(qualified_name))
+            self._add(local_name, _ResolvedSymbol(qualified_name, imported=True))
 
 
 def _scope_bindings(
@@ -305,7 +379,10 @@ def _resolve_expression(
     if isinstance(expression, ast.Attribute):
         resolved = _resolve_expression(expression.value, scopes, seen)
         symbols = [
-            _ResolvedSymbol(f"{item.qualified_name}.{expression.attr}")
+            _ResolvedSymbol(
+                f"{item.qualified_name}.{expression.attr}",
+                imported=item.imported,
+            )
             for item in resolved
             if isinstance(item, _ResolvedSymbol)
         ]
@@ -477,11 +554,22 @@ def _identity_primitive_violations(
                 ))
 
     for child in usage.calls:
-        callees = {
-            item.qualified_name
+        resolved_callees = {
+            item
             for item in _resolve_expression(child.func, scopes)
             if isinstance(item, _ResolvedSymbol)
         }
+        callees = {item.qualified_name for item in resolved_callees}
+        allowed_imported = IMPORTED_CALLABLE_ALLOWLIST[path]
+        for item in resolved_callees:
+            normalized = item.qualified_name.lstrip(".")
+            if item.imported and normalized not in allowed_imported:
+                violations.append(Violation(
+                    path,
+                    function,
+                    "UNAPPROVED_IMPORTED_CALLABLE",
+                    normalized,
+                ))
         if any(symbol.rsplit(".", 1)[-1] == "strip" for symbol in callees):
             violations.append(Violation(path, function, "IDENTITY_TRIM", ".strip()"))
         if any(symbol.rsplit(".", 1)[-1] == "str" for symbol in callees):
@@ -944,6 +1032,116 @@ _module_lambda(exact)
             ("<module>", "DELETED_IMPORT", "valid_runtime_revision"),
         }
         self.assertLessEqual(expected, observed, _formatted(violations))
+
+    def test_gate_self_test_rejects_unknown_imported_callables(self):
+        trees = {
+            path: ast.parse((ROOT / path).read_text(encoding="utf-8"), filename=path)
+            for path in TASK2_CONSUMERS
+        }
+        item_tree = trees["server/gear_exact_item_instance.py"]
+        item_tree.body.extend(ast.parse("""
+from plugin_a import helper as hidden_str
+from plugin_b import helper as hidden_strip
+from plugin_c import helper as hidden_hash
+from plugin_d import helper as hidden_json
+from plugin_e import helper as hidden_catalog
+from plugin_f import helper as hidden_unknown
+import plugin_g as hidden_module
+""").body)
+        serializer = _function_definitions(item_tree)["derive_simc_serializer_input"]
+        serializer.body[:0] = ast.parse("""
+hidden_str(exact)
+hidden_strip(exact)
+hidden_hash(exact)
+hidden_json(exact)
+hidden_catalog(exact)
+hidden_unknown(exact)
+hidden_module.helper(exact)
+""").body
+
+        violations = _consumer_violations(trees)
+        observed = {
+            (item.code, item.detail)
+            for item in violations
+            if item.path == "server/gear_exact_item_instance.py"
+            and item.function == "derive_simc_serializer_input"
+        }
+        expected = {
+            ("UNAPPROVED_IMPORTED_CALLABLE", f"plugin_{suffix}.helper")
+            for suffix in "abcdefg"
+        }
+        self.assertLessEqual(expected, observed, _formatted(violations))
+
+    def test_task5_control_plane_matches_the_implemented_pure_foundation(self):
+        requirement = json.loads((
+            ROOT
+            / "artifacts/releases/2026-08-04-equipment-simulator-exact-first/requirement.json"
+        ).read_text(encoding="utf-8"))
+        self.assertEqual(requirement["status"], "implementation_allowed")
+        must_change = "\n".join(requirement["impactMap"]["mustChange"])
+        for owner in (
+            "gear_canonical_kernel.py",
+            "gear_contracts.py",
+            "gear-intent.ts",
+            "gear_canonical_mutations.json",
+            "gear_exact_item_instance.py",
+            "gear_exact_authority.py",
+            "simc_item_effect_support.py",
+            "simc_item_effect_probe.py",
+            "simc-item-effect-probe.py",
+            "gear_canonical_owner_gate_test.py",
+        ):
+            self.assertIn(owner, must_change)
+        must_not_change = "\n".join(requirement["impactMap"]["mustNotChange"])
+        for boundary in (
+            "generation 35", "Catalog", "pointer", "persistence", "worker",
+            "Resolver", "API", "UI", "raw plugin", "v1",
+        ):
+            self.assertIn(boundary, must_not_change)
+        evidence = "\n".join(requirement["impactMap"]["evidenceRequired"])
+        self.assertIn("Task 1-5", evidence)
+        self.assertIn("owner gate", evidence)
+        self.assertNotIn("candidate", evidence.lower())
+        self.assertNotIn("wechat", evidence.lower())
+        self.assertEqual(requirement["ownership"]["runtimeConsumers"], [])
+        self.assertFalse(requirement["ownership"]["originalTask3Activated"])
+        self.assertEqual(
+            requirement["engineeringHealth"]["status"],
+            "implementation_allowed",
+        )
+        self.assertIn("Task 1-5", requirement["decisionLog"][-1]["decision"])
+
+        project_map = json.loads(
+            (ROOT / "docs/project-owner-map.json").read_text(encoding="utf-8")
+        )
+        gear_domain = next(
+            domain
+            for domain in project_map["criticalDomains"]
+            if "canonicalKernelFoundations" in domain
+        )
+        project_boundary = gear_domain["canonicalKernelFoundations"][
+            "activationBoundary"
+        ]
+        self.assertNotIn("pending controller", project_boundary.lower())
+        self.assertIn("original Task 3 is not activated", project_boundary)
+
+        backend_map = json.loads(
+            (ROOT / "docs/backend-owner-map.json").read_text(encoding="utf-8")
+        )
+        kernel_hotspot = next(
+            hotspot
+            for hotspot in backend_map["hotspotFiles"]
+            if hotspot["path"] == "server/gear_canonical_kernel.py"
+        )
+        kernel_owner = kernel_hotspot["owners"][0]
+        self.assertNotIn(
+            "pending controller",
+            kernel_owner["capabilityBoundary"].lower(),
+        )
+        self.assertIn(
+            "original Task 3 is not activated",
+            kernel_owner["capabilityBoundary"],
+        )
 
 
 if __name__ == "__main__":

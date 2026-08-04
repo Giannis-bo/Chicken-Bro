@@ -44,6 +44,23 @@ def validate_fixture_payload(value: object) -> object:
     return value
 
 
+def forged_document(canonical_bytes: bytes) -> SealedCanonicalDocument:
+    document = object.__new__(SealedCanonicalDocument)
+    object.__setattr__(document, "document_kind", "fixture")
+    object.__setattr__(document, "schema_revision", "fixture-v1")
+    object.__setattr__(document, "canonical_bytes", canonical_bytes)
+    object.__setattr__(
+        document,
+        "content_key",
+        "fixture:sha256:" + hashlib.sha256(canonical_bytes).hexdigest(),
+    )
+    return document
+
+
+def accept_payload(value: object) -> object:
+    return value
+
+
 class GearCanonicalKernelTest(unittest.TestCase):
     def test_rejects_ascii_and_unicode_controls_without_normalizing(self):
         for value in MUTATIONS["invalidIdentityStrings"]:
@@ -58,6 +75,15 @@ class GearCanonicalKernelTest(unittest.TestCase):
             canonical_identity_token("名字", path="exact.kind")
         with self.assertRaises(CanonicalValueError):
             canonical_report_token("report\tvalue", path="report.title")
+
+    def test_identity_and_report_tokens_require_input_nfc_without_normalizing(self):
+        decomposed = "cafe\u0301"
+        self.assertNotEqual(decomposed, "caf\u00e9")
+        for token_rule in (canonical_identity_token, canonical_report_token):
+            with self.subTest(token_rule=token_rule.__name__):
+                with self.assertRaises(CanonicalValueError) as caught:
+                    token_rule(decomposed, path="token")
+                self.assertEqual(caught.exception.code, "NON_CANONICAL_UNICODE")
 
     def test_slot_uses_the_single_canonical_slot_set(self):
         self.assertEqual(canonical_slot("head", path="slot"), "head")
@@ -112,6 +138,24 @@ class GearCanonicalKernelTest(unittest.TestCase):
             canonical_json_bytes({"nan": float("nan")})
         with self.assertRaises(CanonicalValueError):
             canonical_json_bytes({"object": object()})
+
+    def test_canonical_json_bounds_depth_nodes_and_python_cycles(self):
+        deeply_nested: object = "leaf"
+        for _ in range(65):
+            deeply_nested = [deeply_nested]
+        cyclic: list[object] = []
+        cyclic.append(cyclic)
+        oversized_nodes = list(range(10_001))
+        for value in (deeply_nested, cyclic, oversized_nodes):
+            with self.subTest(kind=type(value).__name__):
+                try:
+                    canonical_json_bytes(value)
+                except CanonicalValueError:
+                    pass
+                except RecursionError as error:
+                    self.fail(f"canonical_json_bytes leaked RecursionError: {error}")
+                else:
+                    self.fail("hostile canonical JSON value was accepted")
 
     def test_canonical_json_rejects_non_string_mapping_keys_without_coercion(self):
         with self.assertRaises(CanonicalValueError):
@@ -178,6 +222,65 @@ class GearCanonicalKernelTest(unittest.TestCase):
             document.content_key,
             "fixture:sha256:" + hashlib.sha256(tampered_bytes.canonical_bytes).hexdigest(),
         )
+
+    def test_verifier_preflights_hostile_json_bytes_before_decode(self):
+        deeply_nested = (
+            b'{"value":' + (b"[" * 1500) + b'"ok"' + (b"]" * 1500) + b"}"
+        )
+        oversized_bytes = b'{"value":"' + (b"x" * (1024 * 1024)) + b'"}'
+        oversized_nodes = json.dumps(
+            {"values": list(range(10_001))},
+            separators=(",", ":"),
+        ).encode("utf-8")
+        for canonical_bytes in (
+            deeply_nested,
+            oversized_bytes,
+            oversized_nodes,
+        ):
+            with self.subTest(byte_count=len(canonical_bytes)):
+                try:
+                    verified = verify_sealed_document(
+                        forged_document(canonical_bytes),
+                        document_kind="fixture",
+                        schema_revision="fixture-v1",
+                        key_prefix="fixture:sha256:",
+                        payload_validator=accept_payload,
+                    )
+                except RecursionError as error:
+                    self.fail(f"verify_sealed_document leaked RecursionError: {error}")
+                self.assertFalse(verified)
+
+    def test_json_preflight_respects_escaped_string_structure_and_frozen_identity(self):
+        document = seal_canonical_document(
+            document_kind="fixture",
+            schema_revision="fixture-v1",
+            payload={"schemaRevision": "fixture-v1", "value": "ok"},
+            key_prefix="fixture:sha256:",
+        )
+        self.assertEqual(
+            document.canonical_bytes,
+            b'{"schemaRevision":"fixture-v1","value":"ok"}',
+        )
+        self.assertEqual(
+            document.content_key,
+            "fixture:sha256:db8d902495512a48ce5b4ab582d5abe50d736288c7e631332d945cc89b2f80b4",
+        )
+        escaped_payload = {
+            "text": "{[\\\"quoted\\\"]}",
+        }
+        escaped = seal_canonical_document(
+            document_kind="fixture",
+            schema_revision="fixture-v1",
+            payload=escaped_payload,
+            key_prefix="fixture:sha256:",
+        )
+        self.assertTrue(verify_sealed_document(
+            escaped,
+            document_kind="fixture",
+            schema_revision="fixture-v1",
+            key_prefix="fixture:sha256:",
+            payload_validator=accept_payload,
+        ))
 
     def test_verified_payload_copy_rejects_wrong_expected_key_prefix(self):
         document = seal_canonical_document(

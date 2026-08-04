@@ -18,6 +18,9 @@ T = TypeVar("T")
 _IDENTITY_PATTERN = re.compile(r"(?:[A-Za-z0-9][A-Za-z0-9._:/-]*)?")
 _REPORT_PATTERN = re.compile(r"(?:[ -~])*")
 _SEAL_TOKEN = object()
+_MAX_CANONICAL_JSON_BYTES = 1024 * 1024
+_MAX_CANONICAL_JSON_DEPTH = 64
+_MAX_CANONICAL_JSON_NODES = 10_000
 
 
 class CanonicalValueError(ValueError):
@@ -109,6 +112,8 @@ def canonical_identity_token(
     if (not allow_empty and not value):
         raise CanonicalValueError("TEXT_BOUNDS", path)
     _bounded_utf8_bytes(value, path=path, max_bytes=max_bytes)
+    if not unicodedata.is_normalized("NFC", value):
+        raise CanonicalValueError("NON_CANONICAL_UNICODE", path)
     if _has_forbidden_codepoint(value) or _IDENTITY_PATTERN.fullmatch(value) is None:
         raise CanonicalValueError("INVALID_IDENTITY_TOKEN", path)
     return value
@@ -126,6 +131,8 @@ def canonical_report_token(
     if (not allow_empty and not value):
         raise CanonicalValueError("TEXT_BOUNDS", path)
     _bounded_utf8_bytes(value, path=path, max_bytes=max_bytes)
+    if not unicodedata.is_normalized("NFC", value):
+        raise CanonicalValueError("NON_CANONICAL_UNICODE", path)
     if _has_forbidden_codepoint(value) or _REPORT_PATTERN.fullmatch(value) is None:
         raise CanonicalValueError("INVALID_REPORT_TOKEN", path)
     return value
@@ -187,29 +194,58 @@ def canonical_mapping(value: object, *, path: str, exact_keys: frozenset[str]) -
 
 def canonical_json_bytes(value: object) -> bytes:
     _validate_canonical_json_value(value, path="$")
-    return json.dumps(
-        value,
-        ensure_ascii=False,
-        sort_keys=True,
-        separators=(",", ":"),
-        allow_nan=False,
-    ).encode("utf-8")
+    try:
+        encoded = json.dumps(
+            value,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        ).encode("utf-8")
+    except (RecursionError, UnicodeError, ValueError) as error:
+        raise CanonicalValueError("INVALID_CANONICAL_JSON_VALUE", "$") from error
+    if len(encoded) > _MAX_CANONICAL_JSON_BYTES:
+        raise CanonicalValueError("CANONICAL_JSON_BYTE_BOUNDS", "$")
+    return encoded
 
 
 def _validate_canonical_json_value(value: object, *, path: str) -> None:
-    if type(value) is dict:
-        for key, nested_value in value.items():
-            if type(key) is not str:
-                raise CanonicalValueError("NON_STRING_JSON_KEY", path)
-            _validate_canonical_json_value(nested_value, path=f"{path}.{key}")
-        return
-    if type(value) is list or type(value) is tuple:
-        for index, nested_value in enumerate(value):
-            _validate_canonical_json_value(nested_value, path=f"{path}[{index}]")
-        return
-    if value is None or type(value) in {str, int, float, bool}:
-        return
-    raise CanonicalValueError("INVALID_CANONICAL_JSON_VALUE", path)
+    pending: list[tuple[bool, object, str, int]] = [(True, value, path, 1)]
+    active_container_ids: set[int] = set()
+    node_count = 0
+    while pending:
+        entering, current, current_path, depth = pending.pop()
+        if not entering:
+            active_container_ids.remove(id(current))
+            continue
+        node_count += 1
+        if node_count > _MAX_CANONICAL_JSON_NODES:
+            raise CanonicalValueError("CANONICAL_JSON_NODE_BOUNDS", current_path)
+        if depth > _MAX_CANONICAL_JSON_DEPTH:
+            raise CanonicalValueError("CANONICAL_JSON_DEPTH_BOUNDS", current_path)
+        if type(current) in {dict, list, tuple}:
+            identity = id(current)
+            if identity in active_container_ids:
+                raise CanonicalValueError("CANONICAL_JSON_CYCLE", current_path)
+            active_container_ids.add(identity)
+            pending.append((False, current, current_path, depth))
+        if type(current) is dict:
+            children: list[tuple[bool, object, str, int]] = []
+            for key, nested_value in current.items():
+                if type(key) is not str:
+                    raise CanonicalValueError("NON_STRING_JSON_KEY", current_path)
+                children.append((True, nested_value, f"{current_path}.{key}", depth + 1))
+            pending.extend(reversed(children))
+            continue
+        if type(current) is list or type(current) is tuple:
+            pending.extend(
+                (True, nested_value, f"{current_path}[{index}]", depth + 1)
+                for index, nested_value in reversed(tuple(enumerate(current)))
+            )
+            continue
+        if current is None or type(current) in {str, int, float, bool}:
+            continue
+        raise CanonicalValueError("INVALID_CANONICAL_JSON_VALUE", current_path)
 
 
 def _content_key(prefix: str, encoded: bytes) -> str:
@@ -255,15 +291,59 @@ def _reject_json_constant(value: str) -> object:
     raise ValueError(f"Non-finite JSON value {value!r} is not canonical.")
 
 
+def _preflight_canonical_json_bytes(canonical_bytes: bytes) -> str:
+    if len(canonical_bytes) > _MAX_CANONICAL_JSON_BYTES:
+        raise CanonicalValueError("CANONICAL_JSON_BYTE_BOUNDS", "$")
+    decoded = canonical_bytes.decode("utf-8")
+    depth = 0
+    node_count = 0
+    in_string = False
+    escaped = False
+    in_plain_token = False
+    for character in decoded:
+        if in_string:
+            if escaped:
+                escaped = False
+            elif character == "\\":
+                escaped = True
+            elif character == '"':
+                in_string = False
+            continue
+        if character == '"':
+            in_string = True
+            in_plain_token = False
+            node_count += 1
+        elif character in "[{":
+            depth += 1
+            in_plain_token = False
+            node_count += 1
+            if depth > _MAX_CANONICAL_JSON_DEPTH:
+                raise CanonicalValueError("CANONICAL_JSON_DEPTH_BOUNDS", "$")
+        elif character in "]}":
+            depth -= 1
+            in_plain_token = False
+            if depth < 0:
+                raise CanonicalValueError("INVALID_CANONICAL_JSON_VALUE", "$")
+        elif character in " \t\r\n,:":
+            in_plain_token = False
+        elif not in_plain_token:
+            in_plain_token = True
+            node_count += 1
+        if node_count > _MAX_CANONICAL_JSON_NODES:
+            raise CanonicalValueError("CANONICAL_JSON_NODE_BOUNDS", "$")
+    return decoded
+
+
 def _strict_payload(canonical_bytes: object) -> dict[str, object]:
     if type(canonical_bytes) is not bytes:
         raise ValueError("Canonical document bytes must be bytes.")
-    decoded = canonical_bytes.decode("utf-8")
+    decoded = _preflight_canonical_json_bytes(canonical_bytes)
     value = json.loads(
         decoded,
         object_pairs_hook=_reject_duplicate_pairs,
         parse_constant=_reject_json_constant,
     )
+    _validate_canonical_json_value(value, path="$")
     if type(value) is not dict:
         raise ValueError("Canonical document payload must be a JSON object.")
     return value
@@ -288,7 +368,14 @@ def verify_sealed_document(
         if canonical_json_bytes(payload) != document.canonical_bytes:
             return False
         return document.content_key == _content_key(key_prefix, document.canonical_bytes)
-    except (CanonicalValueError, TypeError, ValueError, UnicodeError, json.JSONDecodeError):
+    except (
+        CanonicalValueError,
+        TypeError,
+        ValueError,
+        UnicodeError,
+        json.JSONDecodeError,
+        RecursionError,
+    ):
         return False
 
 
