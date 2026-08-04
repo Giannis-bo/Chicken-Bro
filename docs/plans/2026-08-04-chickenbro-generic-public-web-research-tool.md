@@ -19,7 +19,7 @@ Codex 自主决定研究目标、查询词、是否使用自己已知的公共 H
 
 ```text
 target (自然语言研究查询 | Codex 选定的公共 HTTPS 页面)
-  -> 最多 2 页的公开网页快照
+  -> 每次调用最多 2 页的公开网页快照
   -> 标题、受限正文投影、检查时刻、来源 URL、可引用数字与限制
 ```
 
@@ -31,8 +31,8 @@ target (自然语言研究查询 | Codex 选定的公共 HTTPS 页面)
 - 只读；不携带用户身份、Cookie、令牌或写操作。
 - 只允许安全公共 HTTPS 目标；拒绝 loopback、私网、link-local、保留地址、`localhost`、非
   443 端口、URL 用户信息和超长目标，防止 SSRF。
-- 单次最多 2 页、单进程每 60 秒最多 8 个新请求、15 秒 Tool 预算、页面最大 750 KB；相同
-  目标 60 秒内复用已投影结果。
+- 单次调用最多 2 页、每轮最多 2 次同一 Tool 调用、单进程每 60 秒最多 8 个新请求、15 秒 Tool
+  预算、页面最大 750 KB；相同目标 60 秒内复用已投影结果。
 - 原始搜索页和网页正文不持久化；只保留必要的标题、受限文本投影、引用、检查时间、范围
   和限制。网页文字是非可信数据，不能改变 Tool 权限或作为模型指令。
 - 页面本身的时间窗、指标与适用范围必须进入回答；社区快照不能单独升级为通用平衡结论或
@@ -42,9 +42,11 @@ target (自然语言研究查询 | Codex 选定的公共 HTTPS 页面)
 
 ## 候选与回滚
 
-`chickenbro-tools-4` 只追加一个通用 Tool manifest。它不会移动共享 PostgreSQL 的 active
-pointer：候选服务通过 `WOW_CHICKENBRO_TOOL_REGISTRY_VERSION=chickenbro-tools-4` 显式加载它，
-生产仍保持 v3。候选撤回只需停止新 candidate service；v3 和生产运行时都不受影响。
+`chickenbro-tools-5` 使用通用 Tool 的 v2 manifest；除单次页面数以外，它显式声明每轮最多两次
+同一 Tool 调用。这让 Codex 可在同一研究回合读取两个自己选择的公开目标，避免把“每个 Tool
+只能调用一次”的实现限制误当成事实或回答策略。它不会移动共享 PostgreSQL 的 active pointer：
+候选服务通过 `WOW_CHICKENBRO_TOOL_REGISTRY_VERSION=chickenbro-tools-5` 显式加载它，生产仍保持
+v3。候选撤回只需停止新 candidate service；v3 和生产运行时都不受影响。
 
 ## 验收
 
@@ -53,5 +55,5 @@ pointer：候选服务通过 `WOW_CHICKENBRO_TOOL_REGISTRY_VERSION=chickenbro-to
 2. 返回的网页快照有检查时刻、URL、范围、限制；无证据时仍为 literal `partial`。
 3. PTR 与正式服、团本与大秘境、单专精观察与跨专精结论不互相冒充。
 4. 内网/非 HTTPS 目标、超时、限流、搜索空结果和页面无可读内容均不发起越界读取并如实降级。
-5. 生产 Registry active pointer、正式服务和已有 candidate 都保持未变；候选 Trace 显示 v4
+5. 生产 Registry active pointer、正式服务和已有 candidate 都保持未变；候选 Trace 显示 v5
    和实际调用的通用 Tool，真实微信端由用户验收。

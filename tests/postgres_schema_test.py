@@ -31,6 +31,7 @@ CHICKENBRO_TOOL_REGISTRY = ROOT / "server" / "migrations" / "postgres" / "0025_c
 CHICKENBRO_SMART_QUESTION_CHAIN = ROOT / "server" / "migrations" / "postgres" / "0026_chickenbro_smart_question_chain.sql"
 CHICKENBRO_COMMUNITY_STRENGTH = ROOT / "server" / "migrations" / "postgres" / "0027_chickenbro_community_strength_sources.sql"
 CHICKENBRO_GENERIC_PUBLIC_WEB = ROOT / "server" / "migrations" / "postgres" / "0028_chickenbro_generic_public_web_research.sql"
+CHICKENBRO_PUBLIC_WEB_REPEAT_BUDGET = ROOT / "server" / "migrations" / "postgres" / "0029_chickenbro_public_web_repeat_budget.sql"
 
 
 class PostgresSchemaTest(unittest.TestCase):
@@ -684,5 +685,16 @@ class PostgresSchemaTest(unittest.TestCase):
         self.assertIn("chickenbro.source.public_web_research.v1", normalized)
         self.assertIn("chickenbro-tools-4", normalized)
         self.assertIn("0028_chickenbro_generic_public_web_research", normalized)
+        self.assertNotIn("UPDATE ops.chickenbro_tool_registry_active", normalized)
+        self.assertNotIn("INSERT INTO ops.chickenbro_tool_registry_active", normalized)
+
+    def test_generic_public_web_repeat_budget_is_declared_in_a_new_candidate_release(self):
+        self.assertTrue(CHICKENBRO_PUBLIC_WEB_REPEAT_BUDGET.exists(), "missing generic public-web repeat budget migration")
+        normalized = " ".join(CHICKENBRO_PUBLIC_WEB_REPEAT_BUDGET.read_text(encoding="utf-8").split())
+        self.assertIn("source:public-web-research:v2", normalized)
+        self.assertIn("chickenbro.source.public_web_research.v2", normalized)
+        self.assertIn("maxCallsPerTurn", normalized)
+        self.assertIn("chickenbro-tools-5", normalized)
+        self.assertIn("0029_chickenbro_public_web_repeat_budget", normalized)
         self.assertNotIn("UPDATE ops.chickenbro_tool_registry_active", normalized)
         self.assertNotIn("INSERT INTO ops.chickenbro_tool_registry_active", normalized)

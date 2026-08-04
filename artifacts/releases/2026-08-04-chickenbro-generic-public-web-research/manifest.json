@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-08-04T12:41:09.517Z",
+  "generatedAt": "2026-08-04T12:53:01.248Z",
   "release": {
     "date": "2026-08-04",
     "slug": "chickenbro-generic-public-web-research"
@@ -53,7 +53,7 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 16695
+          "sizeBytes": 16810
         },
         {
           "path": "docs/README.md",
@@ -105,7 +105,7 @@
         {
           "path": "server/news_backend.py",
           "exists": true,
-          "lineCount": 16353,
+          "lineCount": 16356,
           "hotspot": true
         },
         {
@@ -392,13 +392,13 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "17 changed files currently visible to git status."
+      "detail": "14 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
       "severity": "medium",
       "status": "watch",
-      "detail": "server/websim_payload.py:28040, server/news_backend.py:16353, server/postgres_cache_store.py:9698"
+      "detail": "server/websim_payload.py:28040, server/news_backend.py:16356, server/postgres_cache_store.py:9698"
     },
     {
       "id": "localTests_missing",
@@ -428,25 +428,22 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 17,
+      "changedFileCount": 14,
       "changedFiles": [
-        " M docs/plans/README.md",
+        " M artifacts/releases/2026-08-04-chickenbro-generic-public-web-research/evidence.json",
+        " M artifacts/releases/2026-08-04-chickenbro-generic-public-web-research/manifest.json",
+        " M artifacts/releases/2026-08-04-chickenbro-generic-public-web-research/requirement.json",
+        " M docs/plans/2026-08-04-chickenbro-generic-public-web-research-tool.md",
         " M docs/roadmap.md",
         " M server/chickenbro_registry.py",
         " M server/chickenbro_research.py",
         " M server/chickenbro_tool_runtime.py",
         " M server/news_backend.py",
-        " M server/postgres_ops_store.py",
-        " M tests/chickenbro_agent_test.py",
         " M tests/chickenbro_registry_test.py",
         " M tests/chickenbro_research_test.py",
-        " M tests/postgres_ops_store_test.py",
+        " M tests/chickenbro_tool_runtime_test.py",
         " M tests/postgres_schema_test.py",
-        "?? artifacts/releases/2026-08-04-chickenbro-generic-public-web-research/",
-        "?? docs/plans/2026-08-04-chickenbro-generic-public-web-research-tool.md",
-        "?? server/chickenbro_public_web_research.py",
-        "?? server/migrations/postgres/0028_chickenbro_generic_public_web_research.sql",
-        "?? tests/chickenbro_public_web_research_test.py"
+        "?? server/migrations/postgres/0029_chickenbro_public_web_repeat_budget.sql"
       ]
     }
   },

@@ -7877,6 +7877,9 @@ def chickenbro_tool_adapter_bindings():
         "chickenbro.source.public_web_research.v1": lambda request: build_public_web_research_tool_result(
             request["intent"]
         ),
+        "chickenbro.source.public_web_research.v2": lambda request: build_public_web_research_tool_result(
+            request["intent"]
+        ),
         "chickenbro.source.current_wow_sources.v1": lambda request: build_current_wow_sources_tool_result(
             chickenbro_current_source_frame(request["intent"], request["context"]),
             article_loader=lambda: [],

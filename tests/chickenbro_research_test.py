@@ -103,7 +103,13 @@ class ChickenbroResearchTest(unittest.TestCase):
     def test_plan_allows_a_safe_https_target_only_for_the_generic_public_web_tool(self):
         module = self._module()
         target = "https://community.example/current-data"
-        catalog = [catalog_tool("source:public-web-research:v1", ["target"])]
+        catalog = [
+            catalog_tool(
+                "source:public-web-research:v1",
+                ["target"],
+                sourcePolicy={"sourceKey": "public_web_research"},
+            )
+        ]
 
         plan = module.validate_research_plan(
             plan_with("source:public-web-research:v1", {"target": target}, decision="answer"),
@@ -122,7 +128,7 @@ class ChickenbroResearchTest(unittest.TestCase):
         catalog = [catalog_tool(f"source:tool-{index}:v1") for index in range(4)]
         duplicate = plan_with("source:tool-0:v1")
         duplicate["toolCalls"].append({"toolId": "source:tool-0:v1", "arguments": {}})
-        with self.assertRaisesRegex(ValueError, "duplicate"):
+        with self.assertRaisesRegex(ValueError, "declared budget"):
             module.validate_research_plan(duplicate, catalog)
 
         oversized = plan_with("source:tool-0:v1")
@@ -132,6 +138,24 @@ class ChickenbroResearchTest(unittest.TestCase):
         ]
         with self.assertRaisesRegex(ValueError, "tool call budget"):
             module.validate_research_plan(oversized, catalog)
+
+    def test_plan_allows_manifest_declared_repeated_generic_reads_without_question_rules(self):
+        module = self._module()
+        catalog = [
+            catalog_tool(
+                "source:public-web-research:v2",
+                ["target"],
+                costBudget={"status": "bounded", "maxCallsPerTurn": 2},
+            )
+        ]
+        plan = plan_with("source:public-web-research:v2", {"target": "first public source"})
+        plan["toolCalls"].append(
+            {"toolId": "source:public-web-research:v2", "arguments": {"target": "second public source"}}
+        )
+
+        validated = module.validate_research_plan(plan, catalog)
+
+        self.assertEqual(2, len(validated["toolCalls"]))
 
     def test_plan_requires_an_answer_decision_when_no_tool_is_requested(self):
         module = self._module()

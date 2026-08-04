@@ -209,6 +209,26 @@ class ChickenbroRegistryTest(unittest.TestCase):
         self.assertEqual("chickenbro.source.public_web_research.v1", validated["implementationRef"])
         self.assertEqual(["target"], validated["inputSchema"]["required"])
 
+    def test_registry_accepts_a_generic_public_web_research_tool_with_declared_repeat_budget(self):
+        manifest = public_web_research_manifest(
+            toolId="source:public-web-research:v2",
+            version="2.0.0",
+            implementationRef="chickenbro.source.public_web_research.v2",
+            provenance={"kind": "repository_migration", "revision": "0029"},
+            costBudget={
+                "status": "bounded_live_public_web_read",
+                "maxPages": 2,
+                "maxCallsPerTurn": 2,
+                "maxRequestsPerWindow": 8,
+                "windowSeconds": 60,
+            },
+        )
+
+        validated = validate_chickenbro_tool_manifest(manifest)
+
+        self.assertEqual("source:public-web-research:v2", validated["toolId"])
+        self.assertEqual(2, validated["costBudget"]["maxCallsPerTurn"])
+
     def test_published_catalog_does_not_depend_on_question_frame(self):
         release = signed_release(
             [

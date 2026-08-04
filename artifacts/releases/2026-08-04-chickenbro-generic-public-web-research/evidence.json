@@ -36,7 +36,7 @@
   },
   "scope": [
     "generic_public_web_research_tool",
-    "candidate_registry_v4_without_active_pointer_change"
+    "candidate_registry_v5_without_active_pointer_change"
   ],
   "verification": [],
   "candidateDeployment": {

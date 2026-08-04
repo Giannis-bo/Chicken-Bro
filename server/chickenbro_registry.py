@@ -56,6 +56,7 @@ APPROVED_IMPLEMENTATIONS = {
     "source:raiderio-strength:v1": "chickenbro.source.raiderio_strength.v1",
     "source:warcraftlogs-public-rankings:v1": "chickenbro.source.warcraftlogs_public_rankings.v1",
     "source:public-web-research:v1": "chickenbro.source.public_web_research.v1",
+    "source:public-web-research:v2": "chickenbro.source.public_web_research.v2",
 }
 ALLOWED_REQUEST_KINDS = {"community_build", "personal_wcl", "current_research"}
 ALLOWED_CONTEXT_FIELDS = {"classKey", "specKey", "wclReport", "questionType", "patchVersion", "scenarioKey"}

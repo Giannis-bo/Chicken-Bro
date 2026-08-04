@@ -43,6 +43,7 @@ _TOOL_RESULT_FIELDS = {
     "limitations",
     "nextActions",
 }
+_MAX_AGENTIC_TOOL_CALLS = 3
 
 
 class RegistryUnavailable(RuntimeError):
@@ -263,6 +264,14 @@ def _adapter_result_with_timeout(adapter, request, timeout_budget_ms):
     return outcome.get("result")
 
 
+def _manifest_call_budget(manifest):
+    budget = manifest.get("costBudget") if isinstance(manifest.get("costBudget"), dict) else {}
+    value = budget.get("maxCallsPerTurn", 1)
+    if not isinstance(value, int) or isinstance(value, bool) or value < 1 or value > _MAX_AGENTIC_TOOL_CALLS:
+        raise RegistryInvalid("invalid agentic tool call budget")
+    return value
+
+
 def execute_chickenbro_selected_tools(resolution, adapter_bindings, request):
     resolution = resolution if isinstance(resolution, dict) else {}
     manifests = resolution.get("selectedManifests")
@@ -321,15 +330,17 @@ def execute_chickenbro_tool_calls(manifests, adapter_bindings, calls):
     if not isinstance(calls, list):
         raise RegistryInvalid("invalid agentic tool calls")
     results = []
-    seen = set()
+    call_counts = {}
     for call in calls:
         if not isinstance(call, dict) or set(call) != {"toolId", "arguments"}:
             raise RegistryInvalid("invalid agentic tool call")
         tool_id = str(call.get("toolId") or "")
-        if tool_id not in manifest_by_id or tool_id in seen:
-            raise RegistryInvalid("unpublished or duplicate agentic tool call")
-        seen.add(tool_id)
+        if tool_id not in manifest_by_id:
+            raise RegistryInvalid("unpublished agentic tool call")
         manifest = manifest_by_id[tool_id]
+        call_counts[tool_id] = call_counts.get(tool_id, 0) + 1
+        if call_counts[tool_id] > _manifest_call_budget(manifest):
+            raise RegistryInvalid("agentic tool call exceeds its declared budget")
         implementation_ref = str(manifest.get("implementationRef") or "")
         if APPROVED_IMPLEMENTATIONS.get(tool_id) != implementation_ref:
             raise RegistryInvalid("unapproved tool adapter")

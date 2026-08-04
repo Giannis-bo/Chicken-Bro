@@ -6,8 +6,8 @@
   "goal": "让云端 Codex 通过一个通用、只读且可引用的公开网页研究 Tool，自主选择当前玩家问题需要的公开证据，而不是由后端按职业、版本、站点或固定问答预设来源和结论。",
   "userValue": "玩家提出当前版本、PTR、职业强度或连续追问时，队长可以实际检索并归纳可引用的公开社区资料；资料不足时会说明事实缺口，而不会复读“无法获取数据”或把玩家推去手动搜索。",
   "scope": [
-    "一个 provider-neutral 的 public-web-research Tool：Codex 提供短查询或自行选择的安全 HTTPS 公开页面，Tool 返回受限文本快照、检查时间和引用。",
-    "Registry v4 只为候选服务新增通用执行能力；候选通过环境变量钉住 v4，生产继续使用 v3 active pointer。",
+    "一个 provider-neutral 的 public-web-research Tool：Codex 提供短查询或自行选择的安全 HTTPS 公开页面；每轮可按 manifest 声明调用两次，Tool 返回受限文本快照、检查时间和引用。",
+    "Registry v5 为候选服务发布通用执行能力及其声明式双调用预算；候选通过环境变量钉住 v5，生产继续使用 v3 active pointer。",
     "ResearchPlan、Tool runtime、公共回答 grounding 与 Postgres named-release loader 的最小接线。",
     "本地回归、隔离候选服务、真实 API/连续追问和 WeChat 候选包验收交接。"
   ],
@@ -35,7 +35,7 @@
       "server/chickenbro_public_web_research.py owns bounded public HTTPS reading, SSRF protection, rate/cache limits, source projection and literal partial outcomes.",
       "server/chickenbro_research.py only allows the generic Tool's target argument after the model selects the published Tool; it never maps player wording to a website.",
       "server/chickenbro_registry.py, server/chickenbro_tool_runtime.py, server/news_backend.py and server/postgres_ops_store.py publish, execute and candidate-pin the new capability without moving production state.",
-      "Registry v4 migration is append-only and must not update ops.chickenbro_tool_registry_active."
+      "Registry v4/v5 migrations are append-only and must not update ops.chickenbro_tool_registry_active."
     ],
     "mustNotChange": [
       "Existing controlled source adapters, their data contracts, collectors, refresh jobs and production v3 Registry pointer remain unchanged.",
@@ -49,7 +49,7 @@
     ],
     "evidenceRequired": [
       "Unit/regression coverage for generic URL/query execution, SSRF refusal, bounded partial, Registry validation, planner target validation, named release loading and answer grounding.",
-      "Migration inspection proving chickenbro-tools-4 has six signed manifests while the shared active pointer remains v3.",
+      "Migration inspection proving chickenbro-tools-5 has six signed manifests, a declared generic repeat budget and an unchanged shared v3 active pointer.",
       "Candidate commit/file parity, health/API smoke, source-reference answer, natural follow-up, timer-backflow check and rollback path.",
       "User acceptance of the candidate WeChat current-research answer and a natural in-session follow-up."
     ]
@@ -71,7 +71,7 @@
   "acceptanceEvidence": [
     "The Tool uses a Codex-selected generic target and returns a cited, bounded public snapshot; neither code nor registry names a community evidence provider as an answer dependency.",
     "A safe direct page and a generic search query are both accepted; private, non-HTTPS or unsupported targets produce no fetch and literal partial.",
-    "Candidate v4 runs against the immutable task commit while production stays on v3; no collector, backfill or production service starts.",
+    "Candidate v5 runs against the immutable task commit while production stays on v3; no collector, backfill or production service starts.",
     "In the candidate WeChat conversation, a current-research answer shows real cited evidence and a natural follow-up completes without retry/send blockage."
   ],
   "manualAcceptanceContract": {

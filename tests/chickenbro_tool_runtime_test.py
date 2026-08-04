@@ -84,6 +84,44 @@ class ChickenbroToolRuntimeTest(unittest.TestCase):
             "https://www.warcraftlogs.com/reports/ABC123",
             results[1]["facts"][0]["report"],
         )
+
+    def test_agentic_runtime_allows_manifest_declared_repeated_generic_reads(self):
+        from server.chickenbro_tool_runtime import execute_chickenbro_tool_calls
+        from tests.chickenbro_registry_test import public_web_research_manifest
+
+        manifest = public_web_research_manifest(
+            toolId="source:public-web-research:v2",
+            version="2.0.0",
+            implementationRef="chickenbro.source.public_web_research.v2",
+            provenance={"kind": "fixture", "revision": "repeat-budget"},
+            costBudget={"status": "bounded", "maxCallsPerTurn": 2},
+        )
+        received = []
+
+        def adapter(request):
+            target = request["intent"]["target"]
+            received.append(target)
+            return {
+                "sourceKey": "public_web_research",
+                "status": "source_reference",
+                "facts": [{"summary": target}],
+                "evidence": [{"checkedAt": datetime.now(timezone.utc).isoformat()}],
+                "evidenceRefs": [f"fixture.{target}"],
+                "limitations": [],
+                "nextActions": [],
+            }
+
+        results = execute_chickenbro_tool_calls(
+            [manifest],
+            {"chickenbro.source.public_web_research.v2": adapter},
+            [
+                {"toolId": manifest["toolId"], "arguments": {"target": "first"}},
+                {"toolId": manifest["toolId"], "arguments": {"target": "second"}},
+            ],
+        )
+
+        self.assertEqual(["first", "second"], received)
+        self.assertEqual(2, len(results))
     def test_dispatch_stops_waiting_when_the_manifest_timeout_budget_expires(self):
         from server.chickenbro_tool_runtime import execute_chickenbro_selected_tools
 
