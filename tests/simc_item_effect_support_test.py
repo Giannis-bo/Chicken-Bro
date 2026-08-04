@@ -2,6 +2,7 @@ import unittest
 import hashlib
 
 from server.simc_item_effect_support import resolve_exact_item_effect_support
+from server.simc_item_effect_support import seal_effect_record
 
 
 RUNTIME = "simc-2026.08.04"
@@ -19,12 +20,13 @@ ITEM = {
 
 
 def static_record(subject):
-    return {
-        **subject, "schemaRevision": "simc-item-effect-authority-v1",
+    return seal_effect_record({
+        **{field: subject[field] for field in ("subjectKind", "subjectKey", "subjectVariantSignature")},
+        "schemaRevision": "simc-item-effect-authority-v1",
         "hasDynamicEffect": False,
-        "supportRecordKey": "simc-item-effect-record:sha256:" + hashlib.sha256(f"{subject['subjectKind']}:{subject['subjectKey']}".encode()).hexdigest(),
+        "simcRuntimeRevision": RUNTIME,
         "verifiedAt": "2026-08-04T00:00:00Z",
-    }
+    })
 
 
 class SimcItemEffectSupportTest(unittest.TestCase):
@@ -64,20 +66,19 @@ class SimcItemEffectSupportTest(unittest.TestCase):
 
         dynamic_subject = verified["subjects"][0]
         dynamic = {**dynamic_subject, "hasDynamicEffect": True}
-        governed = {
+        governed = seal_effect_record({
             **dynamic_subject,
             "schemaRevision": "simc-item-effect-record-v1",
             "hasDynamicEffect": True,
             "status": "verified",
             "simcRuntimeRevision": RUNTIME,
-            "supportRecordKey": "simc-item-effect-record:sha256:" + ("2" * 64),
             "verifiedAt": "2026-08-04T00:00:00Z",
             "effectType": "on_use",
             "experimentSnapshotKey": "simulation-snapshot:sha256:" + ("4" * 64),
             "controlSnapshotKey": "simulation-snapshot:sha256:" + ("5" * 64),
             "expectedActionTokens": ["action"],
             "expectedBuffTokens": ["buff"],
-        }
+        })
         dynamic_verified = resolve_exact_item_effect_support(
             ITEM, runtime_revision=RUNTIME,
             support_records=[dynamic, governed, *records[1:]],
@@ -98,18 +99,23 @@ class SimcItemEffectSupportTest(unittest.TestCase):
 
         unsupported = resolve_exact_item_effect_support(
             ITEM, runtime_revision=RUNTIME,
-            support_records=[{**dynamic_subject, "schemaRevision": "simc-item-effect-record-v1", "hasDynamicEffect": True, "status": "unsupported", "simcRuntimeRevision": RUNTIME, "supportRecordKey": "simc-item-effect-record:sha256:" + ("3" * 64), "unsupportedReason": "NOT_IMPLEMENTED"}, *records[1:]],
+            support_records=[seal_effect_record({**dynamic_subject, "schemaRevision": "simc-item-effect-record-v1", "hasDynamicEffect": True, "status": "unsupported", "simcRuntimeRevision": RUNTIME, "unsupportedReason": "NOT_IMPLEMENTED", "verifiedAt": "2026-08-04T00:00:00Z"}), *records[1:]],
         )
         self.assertEqual(unsupported["status"], "unsupported")
 
     def test_gem_subject_signature_binds_id_bonus_id_and_item_level(self):
         first = resolve_exact_item_effect_support(ITEM, runtime_revision=RUNTIME, support_records=[])
-        changed = resolve_exact_item_effect_support({**ITEM, "enhancementSelection": {**ITEM["enhancementSelection"], "gemBonusIds": ["bonus-a", "bonus-b"], "gemItemLevels": [91, 90]}}, runtime_revision=RUNTIME, support_records=[])
-        self.assertNotEqual(first["subjects"][1]["subjectVariantSignature"], changed["subjects"][1]["subjectVariantSignature"])
+        for selection in (
+            {**ITEM["enhancementSelection"], "gemIds": ["gem-other", "gem-b"]},
+            {**ITEM["enhancementSelection"], "gemBonusIds": ["bonus-a", "bonus-b"]},
+            {**ITEM["enhancementSelection"], "gemItemLevels": [91, 90]},
+        ):
+            changed = resolve_exact_item_effect_support({**ITEM, "enhancementSelection": selection}, runtime_revision=RUNTIME, support_records=[])
+            self.assertNotEqual(first["subjects"][1]["subjectVariantSignature"], changed["subjects"][1]["subjectVariantSignature"])
 
     def test_runtime_mismatched_unsupported_record_is_unknown(self):
         subjects = resolve_exact_item_effect_support(ITEM, runtime_revision=RUNTIME, support_records=[])["subjects"]
-        result = resolve_exact_item_effect_support(ITEM, runtime_revision=RUNTIME, support_records=[{**subjects[0], "schemaRevision": "simc-item-effect-record-v1", "hasDynamicEffect": True, "status": "unsupported", "simcRuntimeRevision": "old", "supportRecordKey": "simc-item-effect-record:sha256:" + ("3" * 64), "unsupportedReason": "NOT_IMPLEMENTED"}, *(static_record(subject) for subject in subjects[1:])])
+        result = resolve_exact_item_effect_support(ITEM, runtime_revision=RUNTIME, support_records=[seal_effect_record({**subjects[0], "schemaRevision": "simc-item-effect-record-v1", "hasDynamicEffect": True, "status": "unsupported", "simcRuntimeRevision": "old", "unsupportedReason": "NOT_IMPLEMENTED", "verifiedAt": "2026-08-04T00:00:00Z"}), *(static_record(subject) for subject in subjects[1:])])
         self.assertEqual(result["status"], "unknown")
 
     def test_dynamic_record_requires_strict_governed_schema_and_key(self):
@@ -123,3 +129,24 @@ class SimcItemEffectSupportTest(unittest.TestCase):
         result = resolve_exact_item_effect_support(ITEM, runtime_revision=RUNTIME, support_records=[*(static_record(subject) for subject in subjects)])
         self.assertEqual(result["status"], "verified")
         self.assertEqual(len(result["supportRecordKeys"]), len(subjects))
+
+    def test_static_record_is_runtime_bound_and_content_addressed(self):
+        subjects = resolve_exact_item_effect_support(ITEM, runtime_revision=RUNTIME, support_records=[])["subjects"]
+        stale = {**static_record(subjects[0]), "simcRuntimeRevision": "old"}
+        forged = {**static_record(subjects[0]), "simcRuntimeRevision": RUNTIME, "supportRecordKey": "simc-item-effect-record:sha256:" + ("f" * 64)}
+        for record in (stale, forged):
+            result = resolve_exact_item_effect_support(ITEM, runtime_revision=RUNTIME, support_records=[record, *(static_record(subject) for subject in subjects[1:])])
+            self.assertEqual(result["status"], "unknown")
+
+    def test_dynamic_record_recomputes_content_key_and_rejects_same_key_different_content(self):
+        subjects = resolve_exact_item_effect_support(ITEM, runtime_revision=RUNTIME, support_records=[])["subjects"]
+        dynamic = {**subjects[0], "schemaRevision": "simc-item-effect-record-v1", "hasDynamicEffect": True, "status": "verified", "simcRuntimeRevision": RUNTIME, "supportRecordKey": "simc-item-effect-record:sha256:" + ("f" * 64), "verifiedAt": "2026-08-04T00:00:00Z", "effectType": "on_use", "experimentSnapshotKey": "simulation-snapshot:sha256:" + ("4" * 64), "controlSnapshotKey": "simulation-snapshot:sha256:" + ("5" * 64), "expectedActionTokens": ["action"], "expectedBuffTokens": ["buff"]}
+        altered = {**dynamic, "expectedBuffTokens": ["different"]}
+        for record in (dynamic, altered):
+            result = resolve_exact_item_effect_support(ITEM, runtime_revision=RUNTIME, support_records=[record, *(static_record(subject) for subject in subjects[1:])])
+            self.assertEqual(result["status"], "unknown")
+
+    def test_gem_signature_uses_canonical_hash_without_delimiter_collisions(self):
+        first = resolve_exact_item_effect_support({**ITEM, "enhancementSelection": {**ITEM["enhancementSelection"], "gemIds": ["a"], "gemBonusIds": ["b:c"], "gemItemLevels": ["d"]}}, runtime_revision=RUNTIME, support_records=[])
+        second = resolve_exact_item_effect_support({**ITEM, "enhancementSelection": {**ITEM["enhancementSelection"], "gemIds": ["a"], "gemBonusIds": ["b"], "gemItemLevels": ["c:d"]}}, runtime_revision=RUNTIME, support_records=[])
+        self.assertNotEqual(first["subjects"][1]["subjectVariantSignature"], second["subjects"][1]["subjectVariantSignature"])

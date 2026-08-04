@@ -1,6 +1,7 @@
 import unittest
 
 from server.simc_item_effect_probe import evaluate_effect_probe
+from server.simc_item_effect_support import resolve_exact_item_effect_support
 
 
 RUNTIME = "simc-2026.08.04"
@@ -55,3 +56,17 @@ class SimcItemEffectProbeTest(unittest.TestCase):
     def test_nonzero_exit_cannot_seal_verified_record(self):
         result = evaluate_effect_probe(MANIFEST, {**EXPERIMENT, "exitCode": 1}, CONTROL)
         self.assertEqual(result["status"], "unknown")
+
+    def test_probe_rejects_unsealable_manifest_identity_timestamp_and_tokens(self):
+        for manifest in (
+            {**MANIFEST, "experimentSnapshotKey": "experiment"},
+            {**MANIFEST, "subjectVariantSignature": "not-a-variant"},
+            {**MANIFEST, "verifiedAt": "not-a-time"},
+            {**MANIFEST, "expectedActionTokens": [123]},
+        ):
+            self.assertEqual(evaluate_effect_probe(manifest, EXPERIMENT, CONTROL)["status"], "unknown")
+
+    def test_verified_probe_record_is_immediately_accepted_by_effect_support(self):
+        record = evaluate_effect_probe(MANIFEST, EXPERIMENT, CONTROL)
+        support = resolve_exact_item_effect_support({"itemId": "1001", "exactVariantSignature": MANIFEST["subjectVariantSignature"], "enhancementSelection": {}}, runtime_revision=RUNTIME, support_records=[record])
+        self.assertEqual(support["status"], "verified")

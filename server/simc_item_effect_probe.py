@@ -5,7 +5,14 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
+from datetime import datetime
 from typing import Any, Mapping
+
+try:
+    from .simc_item_effect_support import seal_effect_record
+except ImportError:
+    from simc_item_effect_support import seal_effect_record
 
 
 _MANIFEST_KEYS = frozenset({
@@ -15,14 +22,16 @@ _MANIFEST_KEYS = frozenset({
 })
 _EFFECT_TYPES = frozenset({"on_use", "proc", "buff"})
 _SUBJECT_KINDS = frozenset({"item", "gem", "enchant", "embellishment", "crafted_effect", "set_bonus"})
+_SNAPSHOT_KEY_PATTERN = re.compile(r"^simulation-snapshot:sha256:[0-9a-f]{64}$")
+_VARIANT_PATTERN = re.compile(r"^(?:exact|[a-z_]+-variant):sha256:[0-9a-f]{64}$")
 
 
 def _text(value: Any) -> str:
-    return str(value or "").strip()
+    return value.strip() if isinstance(value, str) else ""
 
 
 def _canonical(value: Any) -> bytes:
-    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")
+    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")
 
 
 def _tokens(value: Any) -> list[str] | None:
@@ -30,6 +39,16 @@ def _tokens(value: Any) -> list[str] | None:
         return None
     values = [_text(item) for item in value]
     return values if all(values) else None
+
+
+def _timestamp(value: Any) -> bool:
+    text = _text(value)
+    if not text.endswith("Z") or "\n" in text:
+        return False
+    try:
+        return datetime.fromisoformat(text[:-1] + "+00:00").tzinfo is not None
+    except ValueError:
+        return False
 
 
 def _unknown(reason: str) -> dict[str, Any]:
@@ -46,6 +65,8 @@ def evaluate_effect_probe(manifest: Any, experiment: Any, control: Any) -> dict[
     actions, buffs = _tokens(manifest.get("expectedActionTokens")), _tokens(manifest.get("expectedBuffTokens"))
     if not actions or not buffs or not all(_text(manifest.get(field)) for field in _MANIFEST_KEYS if field not in {"expectedActionTokens", "expectedBuffTokens"}):
         return _unknown("MANIFEST_EVIDENCE_INCOMPLETE")
+    if not _VARIANT_PATTERN.fullmatch(_text(manifest.get("subjectVariantSignature"))) or not _SNAPSHOT_KEY_PATTERN.fullmatch(_text(manifest.get("experimentSnapshotKey"))) or not _SNAPSHOT_KEY_PATTERN.fullmatch(_text(manifest.get("controlSnapshotKey"))) or not _timestamp(manifest.get("verifiedAt")):
+        return _unknown("MANIFEST_SEAL_INVALID")
     if not isinstance(experiment, Mapping) or not isinstance(control, Mapping):
         return _unknown("REPORT_INVALID")
     if _text(manifest["experimentSnapshotKey"]) == _text(manifest["controlSnapshotKey"]):
@@ -79,8 +100,7 @@ def evaluate_effect_probe(manifest: Any, experiment: Any, control: Any) -> dict[
         "experimentSnapshotKey": manifest["experimentSnapshotKey"], "controlSnapshotKey": manifest["controlSnapshotKey"],
         "verifiedAt": manifest["verifiedAt"],
     }
-    record["supportRecordKey"] = "simc-item-effect-record:sha256:" + hashlib.sha256(_canonical(record)).hexdigest()
-    return record
+    return seal_effect_record(record)
 
 
 __all__ = ("evaluate_effect_probe",)

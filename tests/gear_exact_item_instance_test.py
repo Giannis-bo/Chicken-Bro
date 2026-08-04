@@ -145,6 +145,16 @@ class GearExactItemInstanceTest(unittest.TestCase):
         self.assertEqual(changed["status"], "verified")
         self.assertEqual(changed["exactItemInstanceKey"], original["exactItemInstanceKey"])
 
+    def test_v2_identity_blocks_out_of_contract_numeric_and_context_values(self):
+        for changed in (
+            exact_v2_row(declaredItemLevel=266.9),
+            exact_v2_row(declaredItemLevel=True),
+            exact_v2_row(context={"x": True}),
+            exact_v2_row(context={"x": False}),
+            exact_v2_row(gemItemLevels=[90.5, 90]),
+        ):
+            self.assertEqual(build_exact_item_identity(CURRENT_BINDING, changed)["status"], "blocked")
+
     def test_v1_catalog_wrapper_remains_byte_and_key_compatible(self):
         built = build_exact_item_instance(
             CURRENT_BINDING,

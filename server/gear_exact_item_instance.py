@@ -308,10 +308,19 @@ def build_exact_item_identity(
     del binding
     row = dict(exact_row) if isinstance(exact_row, Mapping) else {}
     problems: list[dict[str, str]] = []
+    required_fields = {
+        "itemId", "declaredItemLevel", "bonusIds", "context", "gemIds",
+        "gemBonusIds", "gemItemLevels", "enchantId", "craftedStats",
+        "embellishmentIds", "redirectedBaseStats",
+    }
+    for field in sorted(required_fields.difference(row)):
+        problems.append(_problem("EXACT_FIELD_MISSING", f"exactRow.{field}", "Every v2 Exact slot field is required."))
     item_id = _text(row.get("itemId"))
-    item_level = _positive_int(row.get("declaredItemLevel"))
+    raw_item_level = row.get("declaredItemLevel")
+    item_level = raw_item_level if isinstance(raw_item_level, int) and not isinstance(raw_item_level, bool) and raw_item_level > 0 else 0
     bonus_ids = _set_tokens(row.get("bonusIds"))
-    context = _canonical_context(row.get("context"))
+    raw_context = row.get("context")
+    context = raw_context.strip() if isinstance(raw_context, str) and "\n" not in raw_context and len(raw_context.encode("utf-8")) <= 256 else None
     redirected_base_stats = _set_tokens(row.get("redirectedBaseStats"))
     if not item_id:
         problems.append(_problem("EXACT_ITEM_ID_MISSING", "exactRow.itemId", "Exact identity requires itemId."))
@@ -321,11 +330,18 @@ def build_exact_item_identity(
         problems.append(_problem("EXACT_BONUS_IDS_MALFORMED", "exactRow.bonusIds", "bonusIds must be a bounded token sequence."))
         bonus_ids = []
     if context is None:
-        problems.append(_problem("EXACT_CONTEXT_MALFORMED", "exactRow.context", "context must be canonical data."))
+        problems.append(_problem("EXACT_CONTEXT_MALFORMED", "exactRow.context", "context must be a bounded newline-free string."))
         context = ""
     if redirected_base_stats is None:
         problems.append(_problem("EXACT_REDIRECTED_BASE_STATS_MALFORMED", "exactRow.redirectedBaseStats", "redirectedBaseStats must be a bounded token sequence."))
         redirected_base_stats = []
+    for field in ("bonusIds", "gemIds", "gemBonusIds", "gemItemLevels", "craftedStats", "embellishmentIds", "redirectedBaseStats"):
+        if field in row and not isinstance(row.get(field), list):
+            problems.append(_problem("EXACT_FIELD_TYPE_INVALID", f"exactRow.{field}", "v2 Exact token fields must be arrays."))
+    if isinstance(row.get("gemItemLevels"), list) and any(not isinstance(value, int) or isinstance(value, bool) or value <= 0 for value in row["gemItemLevels"]):
+        problems.append(_problem("EXACT_FIELD_TYPE_INVALID", "exactRow.gemItemLevels", "gemItemLevels must contain positive integers."))
+    if not isinstance(row.get("enchantId"), str):
+        problems.append(_problem("EXACT_FIELD_TYPE_INVALID", "exactRow.enchantId", "enchantId must be a string."))
     selection_input = enhancement_selection if enhancement_selection is not None else {
         "gemIds": row.get("gemIds"),
         "gemBonusIds": row.get("gemBonusIds"),
