@@ -8291,6 +8291,7 @@ _MANUAL_COMMUNITY_LOOKUP_PATTERN = re.compile(
     r"(?:自己|你).{0,18}(?:去|到).{0,8}(?:wcl|warcraft\s*logs|raider\.?io|simc).{0,10}(?:查|搜索|看)|(?:go|search|check).{0,24}(?:wcl|warcraft\s*logs|raider\.?io|simc)",
     re.IGNORECASE,
 )
+_EVIDENCE_RATIO_REFERENCE_PATTERN = re.compile(r"(?<!\d)\d{1,6}\s*/\s*\d{1,6}(?!\d)")
 
 
 def chickenbro_reject_unsupported_comparative_strength(output_text, bounded_context):
@@ -8851,6 +8852,12 @@ def update_agent_job(conn, job_id, status, result=None, error="", started_at=Non
 def chickenbro_comparative_strength_fallback(bounded_context):
     """Produce a generic, data-derived response when a model discards live evidence."""
     context = bounded_context if isinstance(bounded_context, dict) else {}
+    question_frame = context.get("questionFrame") if isinstance(context.get("questionFrame"), dict) else {}
+    is_ratio_follow_up = (
+        question_frame.get("questionType") == "current_research"
+        and "comparative_strength_signal" in (question_frame.get("evidenceNeeds") or [])
+        and bool(_EVIDENCE_RATIO_REFERENCE_PATTERN.search(str(context.get("message") or "")))
+    )
     allowed_numbers = {str(item).rstrip("%") for item in (context.get("allowedNumbers") or [])}
     for source in context.get("sourceEvidence") or []:
         if not isinstance(source, dict):
@@ -8884,6 +8891,20 @@ def chickenbro_comparative_strength_fallback(bounded_context):
         best_score = number("bestObservedScore")
         max_key_level = number("maxKeyLevel")
         sample_count = number("sampleCount")
+        if is_ratio_follow_up and placement and population:
+            answer = (
+                f"第 {placement}/{population} 表示：在本轮按相同职责筛出的 {population} 个同职责高层样本中，"
+                f"当前信号排在第 {placement} 位。它不是全职业排名，也不是 DPS、通关率或出场率排名。"
+            )
+            return {
+                "answer": answer,
+                "confidence": "medium",
+                "priorityActions": [],
+                "evidenceRefs": [refs[0]],
+                "limitations": [str(item) for item in (source.get("limitations") or []) if str(item or "").strip()],
+                "missingInputs": context.get("missingInputs") if isinstance(context.get("missingInputs"), list) else [],
+                "nextQuestion": clean_text(context.get("nextQuestion") or "", 240),
+            }
         observations = []
         if placement and population:
             observations.append(f"本轮同职责缓存样本中位于第 {placement}/{population}")

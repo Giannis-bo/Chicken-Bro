@@ -750,6 +750,45 @@ class ChickenbroAgentIntentTest(unittest.TestCase):
                 bounded_context,
             )
 
+    def test_streamed_strength_ratio_follow_up_fallback_explains_the_dynamic_ratio(self):
+        bounded_context = backend.build_chickenbro_bounded_context(
+            "解读一下2/12是啥意思？",
+            {},
+            history=[{"role": "user", "content": "元素萨现在版本大秘境强度如何？"}],
+            source_tool_results={
+                "sourceToolResults": [{
+                    "sourceKey": "raiderio_strength",
+                    "status": "source_reference",
+                    "facts": [{"summary": "Current Elemental Shaman high-key signal.", "highKeySignal": {"bestObservedScore": 4226.13, "sameRolePlacement": 2, "sameRolePopulation": 12, "maxKeyLevel": 23, "sampleCount": 24}}],
+                    "evidence": [{"id": "raiderio-strength:shaman:elemental:mythic_plus", "checkedAt": "2099-08-01T10:00:00+00:00"}],
+                    "evidenceRefs": ["raiderio-strength:shaman:elemental:mythic_plus"],
+                    "allowedNumbers": ["4226.13", "2", "12", "23", "24"],
+                    "limitations": [],
+                    "nextActions": [],
+                }],
+                "registryContext": {
+                    "status": "verified", "registryVersion": "chickenbro-tools-3", "registryReleaseHash": "sha256:" + "1" * 64,
+                    "registrySource": "postgres", "discoveredCapabilityIds": ["source:raiderio-strength:v1"], "selectedCapabilityIds": ["source:raiderio-strength:v1"],
+                },
+            },
+        )
+        payload = '{"answer":"没有数据，你自己去 Raider.IO 查。","confidence":"medium","priorityActions":[],"evidenceRefs":[],"limitations":[],"missingInputs":[],"nextQuestion":""}'
+        stream = backend.run_chickenbro_agent_stream(bounded_context, stream_runner=lambda *_args, **_kwargs: [payload])
+        events = []
+        while True:
+            try:
+                events.append(next(stream))
+            except StopIteration as stop:
+                result = stop.value
+                break
+
+        self.assertEqual("current_research", bounded_context["questionFrame"]["questionType"])
+        self.assertEqual(["comparative_strength_signal"], bounded_context["questionFrame"]["evidenceNeeds"])
+        self.assertEqual("deterministic_source_fallback", result["answer"]["answerSource"])
+        self.assertIn("第 2/12 表示", events[0]["text"])
+        self.assertIn("12 个同职责高层样本", events[0]["text"])
+        self.assertIn("不是全职业排名", events[0]["text"])
+
     def test_source_result_enriches_plain_chat_without_client_context(self):
         parameters = inspect.signature(backend.build_chickenbro_bounded_context).parameters
 
