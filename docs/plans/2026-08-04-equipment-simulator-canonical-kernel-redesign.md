@@ -1,6 +1,6 @@
 # 装备模拟 Canonical Kernel 重设计
 
-状态：`设计已确认`
+状态：`已完成（Task 2 canonical foundation；Task 1-5 independent review clean）`
 
 **目标：** 在不改变 v1 identity、generation 35、Task 1 `exact-loadout-intent-v2` 字段结构和 Exact-first/Catalog 解耦方向的前提下，替换未发布的 Task 2 内部实现，让 Exact、Progression、Effect、Probe、CLI 和 Authority Envelope 只消费同一个 canonical 语言与同一类封存对象。
 
