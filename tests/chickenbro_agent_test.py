@@ -860,10 +860,12 @@ class ChickenbroAgentIntentTest(unittest.TestCase):
 
         self.assertEqual(["comparative_strength_signal"], bounded_context["capabilityPlan"]["unmetEvidenceNeeds"])
         self.assertEqual(1, len(events))
-        self.assertEqual("deterministic_evidence_boundary", result["answer"]["answerSource"])
-        self.assertIn("不能给出全职业 DPS 排名", events[0]["text"])
+        self.assertEqual("deterministic_evidence_plan", result["answer"]["answerSource"])
+        self.assertEqual("partial", result["answer"]["evidenceOutcome"])
+        self.assertIn("跨专精", events[0]["text"])
         self.assertIn("同口径", events[0]["text"])
         self.assertNotIn("没有数据", events[0]["text"])
+        self.assertNotIn("自己去", events[0]["text"])
 
     def test_streamed_cross_spec_strength_request_does_not_reuse_a_prior_subject_source(self):
         bounded_context = backend.build_chickenbro_bounded_context(
@@ -919,8 +921,9 @@ class ChickenbroAgentIntentTest(unittest.TestCase):
 
         self.assertEqual("cross_spec", bounded_context["questionFrame"]["comparisonScope"])
         self.assertEqual(["comparative_strength_signal"], bounded_context["capabilityPlan"]["unmetEvidenceNeeds"])
-        self.assertEqual("deterministic_evidence_boundary", result["answer"]["answerSource"])
-        self.assertIn("不能给出全职业 DPS 排名", events[0]["text"])
+        self.assertEqual("deterministic_evidence_plan", result["answer"]["answerSource"])
+        self.assertEqual("partial", result["answer"]["evidenceOutcome"])
+        self.assertIn("跨专精", events[0]["text"])
         self.assertNotIn("15/27", events[0]["text"])
 
     def test_streamed_strength_ratio_follow_up_fallback_explains_the_dynamic_ratio(self):

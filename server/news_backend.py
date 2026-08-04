@@ -9017,38 +9017,45 @@ def chickenbro_source_fallback_result(bounded_context, error):
 
 
 def chickenbro_unmet_comparative_strength_result(bounded_context):
-    """Return an explicit evidence boundary when no comparable source is available."""
+    """Compose a bounded partial result when a cross-spec plan has no comparator."""
     context = bounded_context if isinstance(bounded_context, dict) else {}
     question_frame = context.get("questionFrame") if isinstance(context.get("questionFrame"), dict) else {}
-    capability_plan = context.get("capabilityPlan") if isinstance(context.get("capabilityPlan"), dict) else {}
+    evidence_plan = context.get("evidencePlan") if isinstance(context.get("evidencePlan"), dict) else {}
+    facets = evidence_plan.get("facets") if isinstance(evidence_plan.get("facets"), list) else []
+    missing_cross_spec_facet = any(
+        isinstance(facet, dict)
+        and facet.get("key") == "cross_spec_performance"
+        and facet.get("status") in {"partial", "unavailable"}
+        for facet in facets
+    )
     if (
         question_frame.get("questionType") != "current_research"
-        or "comparative_strength_signal" not in (capability_plan.get("unmetEvidenceNeeds") or [])
         or question_frame.get("comparisonScope") != "cross_spec"
+        or evidence_plan.get("outcome") != "partial"
+        or not missing_cross_spec_facet
     ):
         return None
     fallback_payload = {
         "answer": (
-            "当前受控来源没有与这次问题同口径的横向强度证据，因此不能给出全职业 DPS 排名。"
-            "已接入的 Raider.IO 强度信号只用于已命中专精和场景的同职责大秘境高层趋势；"
-            "配置的 WCL 公共页也不构成跨专精 DPS 榜。"
-            "你可以指定一个已覆盖的专精和场景，我会按可验证范围比较。"
+            "我已按这次跨专精比较重新规划证据。当前已注册来源没有同时覆盖该场景与指标的跨专精比较信号，"
+            "因此不能把已返回的单专精或同职责样本拼成全职业 DPS 排名。"
+            "这些样本仍可用于解释当前专精趋势，但不支持横向排名。"
+            "你可以继续查看当前专精趋势，或在同口径比较来源可用后再做横向判断。"
         ),
         "confidence": "high",
         "priorityActions": [],
         "evidenceRefs": [],
-        "limitations": ["comparative_strength_signal_unavailable"],
-        "missingInputs": ["comparative_strength_signal"],
+        "limitations": ["cross_spec_performance_unavailable"],
+        "missingInputs": ["cross_spec_performance"],
         "nextQuestion": "你更想比较当前大秘境的同职责趋势，还是指定团本与专精后再判断？",
     }
     validated = validate_chickenbro_model_output(fallback_payload, context)
     validated["answerLayer"] = "diagnostic"
-    validated["basisLabel"] = "当前来源范围不足"
-    validated["answerSource"] = "deterministic_evidence_boundary"
+    validated["answerSource"] = "deterministic_evidence_plan"
     return {
         "answer": validated,
         "topic": context.get("topic"),
-        "validation": {"status": "fallback", "reason": "comparative_strength_signal_unavailable"},
+        "validation": {"status": "fallback", "reason": "cross_spec_performance_unavailable"},
         "model": {"status": "not_called", "name": ""},
     }
 
