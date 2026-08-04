@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILLS: Use `superpowers:subagent-driven-development`, `superpowers:test-driven-development`, and `superpowers:verification-before-completion`. This plan forward-replaces the old implementation plan's Task 3 and later execution order after two independent readiness audits returned `NOT_READY`.
 
-状态：`正在推进（Task 3A 首轮独立实现 review 的 findings 已完成 bounded correction 与本地验证；fresh 独立 re-review 及 fresh/upgrade 两个真实 PostgreSQL candidate 尚未完成；本机缺少 psql/明确 DSN，保持 literal candidate_pending；未生成 evidence/manifest；无 runtime consumer）`
+状态：`正在推进（Task 3A bounded corrections、本地验证及两位 fresh 独立 reviewer 的最终复审均已 PASS/APPROVED、0 findings；fresh/upgrade 两个真实 PostgreSQL candidate 尚未完成；本机缺少 psql/明确 DSN，保持 literal candidate_pending；未生成 evidence/manifest；无 runtime consumer）`
 
 ## Goal
 
@@ -216,12 +216,12 @@ Read path loads exact canonical bytes, reconstructs Exact -> Static/Progression 
 - [x] Implement minimal reload/store/migration; do not add jobs or snapshot v2.
 - [x] Run focused suites, full Canonical matrix, owner gate, existing v1 store/snapshot suites, Node/Harness/JSON/pycompile/diff.
 - [x] Freeze both existing v1/v2 Exact keys.
-- [ ] Independent spec/code review must be `PASS/APPROVED`.
+- [x] Independent spec/code review is `PASS/APPROVED` with zero unresolved findings on the final Task 3A code/test state.
 - [ ] Candidate PostgreSQL evidence from both explicit DSNs is mandatory before Task 3A is `已完成`. Missing `psql` or either DSN yields literal `candidate_pending`; one database, a shared development database, skipped tests or schema-only mocks cannot be packaged as green.
 
 本地实现已覆盖双候选测试拓扑，但当前 checkout 无 `psql`，且未提供三个 Task 3A candidate 环境变量；因此真实 PostgreSQL 行保持未勾选，状态为 literal `candidate_pending`，不得生成或晋升 `evidence.json`/`manifest.json`。
 
-2026-08-05 首轮独立实现 review 返回 `CHANGES_REQUIRED`；deterministic document insertion、exact import allowlist、absent-row reverse-shared-record concurrency、精确 SQL/ACL/upgrade parity 和单行 candidate attestation 等 findings 已完成 RED/GREEN correction。本地 scoped/full/Node/Vitest/Harness 检查通过，但 fresh 独立 re-review 尚未发生，故 review checkbox 仍保持未勾选。
+2026-08-05 首轮独立实现 review 返回 `CHANGES_REQUIRED`；deterministic document insertion、exact import allowlist、absent-row reverse-shared-record concurrency、精确 SQL/ACL/upgrade parity、单行 candidate attestation 与 closed-universe static gates 等 findings 已完成 RED/GREEN correction。最终 Task 3A code/test state 经两位 fresh 独立 reviewer 复审均为 `PASS/APPROVED`、0 findings；真实双 PostgreSQL candidate 仍是唯一未关闭门禁。
 
 ---
 

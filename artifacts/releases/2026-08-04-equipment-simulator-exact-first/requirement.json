@@ -118,8 +118,8 @@
     "task3AMigration": "server/migrations/postgres/0026_websim_exact_authority_bundle.sql"
   },
   "engineeringHealth": {
-    "status": "task3a_authority_persistence_local_verified_candidate_pending",
-    "reason": "Replacement Task 3A implementation and local verification are complete: six typed reload APIs, append-only 0026 authority persistence, whole-bundle store/import gates, frozen v1/v2 identities and the scoped Python, Vitest, Node, Harness, JSON, pycompile and diff checks pass. Independent implementation review and both real run-id-bound PostgreSQL candidates remain pending because this checkout has no psql or explicit candidate DSNs. runtimeConsumers remains empty, no evidence/manifest has been promoted, original Task 3 is stopped, and completion remains literal candidate_pending."
+    "status": "task3a_authority_persistence_review_passed_candidate_pending",
+    "reason": "Replacement Task 3A implementation, local verification and two fresh independent final reviews are PASS/APPROVED with zero unresolved findings: six typed reload APIs, append-only 0026 authority persistence, whole-bundle store/import gates, frozen v1/v2 identities and the scoped Python, Vitest, Node, Harness, JSON, pycompile and diff checks pass. Both real run-id-bound PostgreSQL candidates remain pending because this checkout has no psql or explicit candidate DSNs. runtimeConsumers remains empty, no evidence/manifest has been promoted, original Task 3 is stopped, and completion remains literal candidate_pending."
   },
   "dataPrivacyBoundary": {
     "rawPluginText": "ephemeral parser input only; it must not be persisted, logged, templated, queued, included in artifact evidence, or returned in output payloads.",
@@ -197,7 +197,7 @@
     },
     {
       "date": "2026-08-05",
-      "decision": "Replacement Task 3A 的六个 typed reload、完整 authority bundle store、0026 append-only migration、双候选测试拓扑和本地验证已完成；独立实现复审与两个真实 PostgreSQL candidate 尚未执行，本机缺少 psql/明确 DSN，因此状态严格保持 local_verified/candidate_pending，不生成 evidence.json 或 manifest.json，也不激活任何 runtime consumer。"
+      "decision": "Replacement Task 3A 的六个 typed reload、完整 authority bundle store、0026 append-only migration、双候选测试拓扑、本地验证与两位 fresh 独立 reviewer 的最终复审均已 PASS/APPROVED、0 findings；两个真实 PostgreSQL candidate 尚未执行，本机缺少 psql/明确 DSN，因此状态严格保持 review_passed/candidate_pending，不生成 evidence.json 或 manifest.json，也不激活任何 runtime consumer。"
     }
   ]
 }

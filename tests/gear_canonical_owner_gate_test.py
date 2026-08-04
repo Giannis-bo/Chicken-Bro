@@ -3843,7 +3843,7 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
         )
         project_foundation = gear_domain["canonicalKernelFoundations"]
         self.assertEqual(
-            "task3a_authority_persistence_local_verified_candidate_pending",
+            "task3a_authority_persistence_review_passed_candidate_pending",
             project_foundation["status"],
         )
         self.assertEqual(
@@ -3883,7 +3883,7 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
         )
         backend_owner = kernel_hotspot["owners"][0]
         self.assertEqual(
-            "task3a_authority_persistence_local_verified_candidate_pending",
+            "task3a_authority_persistence_review_passed_candidate_pending",
             backend_owner["status"],
         )
         self.assertEqual(

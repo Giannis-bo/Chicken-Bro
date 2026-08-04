@@ -1,8 +1,8 @@
 # 装备模拟 Canonical Kernel 重设计
 
-状态：`已完成（仅 pure Canonical foundation 与 source change-control final whole-branch PASS/APPROVED；replacement Task 3A 已本地实现/验证，但独立实现复审与双真实 PG candidate 仍 pending；原 Task 3 继续停止）`
+状态：`已完成（仅 pure Canonical foundation 与 source change-control final whole-branch PASS/APPROVED；replacement Task 3A 已本地实现/验证且独立实现复审 PASS/APPROVED，仅双真实 PG candidate 仍 pending；原 Task 3 继续停止）`
 
-**当前 replacement:** [Canonical Ownership Change-Control Plan](2026-08-04-equipment-simulator-canonical-owner-change-control.md) 与 [重复 Effect Subject 语义纠偏](2026-08-04-equipment-simulator-duplicate-effect-subject-correction.md) 已完成。Task 1 的 gate 只声明 `source_change_control_only`；final whole-branch re-review 为 PASS/APPROVED、0 findings。原 Task 3 readiness 已判定 `NOT_READY`，由 [Exact-first 持久化与运行链重排计划](2026-08-04-equipment-simulator-exact-first-persistence-resequence.md) forward-replace；其独立复审通过前不得启动。
+**当前 replacement:** [Canonical Ownership Change-Control Plan](2026-08-04-equipment-simulator-canonical-owner-change-control.md) 与 [重复 Effect Subject 语义纠偏](2026-08-04-equipment-simulator-duplicate-effect-subject-correction.md) 已完成。Task 1 的 gate 只声明 `source_change_control_only`；final whole-branch re-review 为 PASS/APPROVED、0 findings。原 Task 3 readiness 已判定 `NOT_READY`，由 [Exact-first 持久化与运行链重排计划](2026-08-04-equipment-simulator-exact-first-persistence-resequence.md) forward-replace；replacement Task 3A 的独立复审已通过，但在双真实 PG candidate 前仍不得完成或启动 Task 4P+。
 
 **目标：** 在不改变 v1 identity、generation 35、Task 1 `exact-loadout-intent-v2` 字段结构和 Exact-first/Catalog 解耦方向的前提下，替换未发布的 Task 2 内部实现，让 Exact、Progression、Effect、Probe、CLI 和 Authority Envelope 只消费同一个 canonical 语言与同一类封存对象。
 
