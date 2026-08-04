@@ -190,6 +190,7 @@ TRACK_AUTHORITY_ABSOLUTE_IMPORT = (
     "resolve_exact_instance_progression",
     "resolve_exact_instance_progression",
 )
+TRACK_AUTHORITY_OWNER_NAME = "resolve_exact_instance_progression"
 FROZEN_V1_DIRECT_PRIMITIVE_EXCEPTIONS = Counter((
     ("server/gear_exact_item_instance.py", "_canonical", "DUPLICATE_JSON_OWNER", "7231941be36f1e81041b1597a91a543b42f48c410be92ac9238de06fd4dc1058"),
     ("server/gear_exact_item_instance.py", "_canonical_bytes", "DUPLICATE_JSON_OWNER", "7231941be36f1e81041b1597a91a543b42f48c410be92ac9238de06fd4dc1058"),
@@ -911,6 +912,209 @@ def _call_name(node: ast.AST) -> str:
     return ast.unparse(node)
 
 
+def _bound_target_names(node: ast.AST) -> set[str]:
+    if isinstance(node, ast.Name):
+        return {node.id}
+    if isinstance(node, ast.Starred):
+        return _bound_target_names(node.value)
+    if isinstance(node, (ast.Tuple, ast.List)):
+        return set().union(*(_bound_target_names(item) for item in node.elts))
+    return set()
+
+
+class _TrackOwnerLexicalBindings(ast.NodeVisitor):
+    """Collect only bindings that can change the sealed Track owner lookup."""
+
+    def __init__(self) -> None:
+        self.reasons: set[str] = set()
+
+    def _record_target(self, node: ast.AST, reason: str) -> None:
+        if TRACK_AUTHORITY_OWNER_NAME in _bound_target_names(node):
+            self.reasons.add(reason)
+
+    def visit_Assign(self, node: ast.Assign) -> None:
+        for target in node.targets:
+            self._record_target(target, "assign")
+        self.visit(node.value)
+
+    def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
+        self._record_target(node.target, "annassign")
+        self.visit(node.annotation)
+        if node.value is not None:
+            self.visit(node.value)
+
+    def visit_AugAssign(self, node: ast.AugAssign) -> None:
+        self._record_target(node.target, "augassign")
+        self.visit(node.value)
+
+    def visit_NamedExpr(self, node: ast.NamedExpr) -> None:
+        self._record_target(node.target, "namedexpr")
+        self.visit(node.value)
+
+    def visit_For(self, node: ast.For) -> None:
+        self._record_target(node.target, "for")
+        self.visit(node.iter)
+        for item in (*node.body, *node.orelse):
+            self.visit(item)
+
+    visit_AsyncFor = visit_For
+
+    def visit_With(self, node: ast.With) -> None:
+        for item in node.items:
+            self.visit(item.context_expr)
+            if item.optional_vars is not None:
+                self._record_target(item.optional_vars, "with")
+        for statement in node.body:
+            self.visit(statement)
+
+    visit_AsyncWith = visit_With
+
+    def visit_ExceptHandler(self, node: ast.ExceptHandler) -> None:
+        if node.name == TRACK_AUTHORITY_OWNER_NAME:
+            self.reasons.add("except")
+        if node.type is not None:
+            self.visit(node.type)
+        for statement in node.body:
+            self.visit(statement)
+
+    def visit_Delete(self, node: ast.Delete) -> None:
+        for target in node.targets:
+            self._record_target(target, "delete")
+
+    def visit_Import(self, node: ast.Import) -> None:
+        for item in node.names:
+            bound_name = item.asname or item.name.split(".", 1)[0]
+            if bound_name == TRACK_AUTHORITY_OWNER_NAME:
+                self.reasons.add("import")
+
+    def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
+        for item in node.names:
+            if (item.asname or item.name) == TRACK_AUTHORITY_OWNER_NAME:
+                self.reasons.add("import")
+
+    def visit_Global(self, node: ast.Global) -> None:
+        if TRACK_AUTHORITY_OWNER_NAME in node.names:
+            self.reasons.add("global")
+
+    def visit_Nonlocal(self, node: ast.Nonlocal) -> None:
+        if TRACK_AUTHORITY_OWNER_NAME in node.names:
+            self.reasons.add("nonlocal")
+
+    def visit_MatchAs(self, node: ast.MatchAs) -> None:
+        if node.name == TRACK_AUTHORITY_OWNER_NAME:
+            self.reasons.add("match")
+        if node.pattern is not None:
+            self.visit(node.pattern)
+
+    def visit_MatchStar(self, node: ast.MatchStar) -> None:
+        if node.name == TRACK_AUTHORITY_OWNER_NAME:
+            self.reasons.add("match")
+
+    def visit_MatchMapping(self, node: ast.MatchMapping) -> None:
+        if node.rest == TRACK_AUTHORITY_OWNER_NAME:
+            self.reasons.add("match")
+        self.generic_visit(node)
+
+    def _visit_definition_header(
+        self,
+        node: ast.FunctionDef | ast.AsyncFunctionDef,
+    ) -> None:
+        if node.name == TRACK_AUTHORITY_OWNER_NAME:
+            self.reasons.add("function")
+        for item in (*node.decorator_list, *node.args.defaults):
+            self.visit(item)
+        for item in node.args.kw_defaults:
+            if item is not None:
+                self.visit(item)
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+        self._visit_definition_header(node)
+
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+        self._visit_definition_header(node)
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> None:
+        if node.name == TRACK_AUTHORITY_OWNER_NAME:
+            self.reasons.add("class")
+        for item in (*node.decorator_list, *node.bases):
+            self.visit(item)
+        for item in node.keywords:
+            self.visit(item.value)
+
+    def visit_TypeAlias(self, node: ast.TypeAlias) -> None:
+        self._record_target(node.name, "type-alias")
+
+    def visit_Lambda(self, node: ast.Lambda) -> None:
+        for item in node.args.defaults:
+            self.visit(item)
+        for item in node.args.kw_defaults:
+            if item is not None:
+                self.visit(item)
+
+
+class _TrackOwnerCallCounter(ast.NodeVisitor):
+    """Count bare Track-owner calls in the sealed function's lexical scope."""
+
+    def __init__(self) -> None:
+        self.count = 0
+
+    def visit_Call(self, node: ast.Call) -> None:
+        if (
+            isinstance(node.func, ast.Name)
+            and node.func.id == TRACK_AUTHORITY_OWNER_NAME
+        ):
+            self.count += 1
+        self.generic_visit(node)
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+        return
+
+    visit_AsyncFunctionDef = visit_FunctionDef
+    visit_ClassDef = visit_FunctionDef
+    visit_Lambda = visit_FunctionDef
+    visit_ListComp = visit_FunctionDef
+    visit_SetComp = visit_FunctionDef
+    visit_DictComp = visit_FunctionDef
+    visit_GeneratorExp = visit_FunctionDef
+
+
+def _track_owner_scope_state(
+    progression: ast.FunctionDef | None,
+) -> tuple[int, set[str]]:
+    if progression is None:
+        return 0, set()
+
+    bindings = _TrackOwnerLexicalBindings()
+    parameters = (
+        *progression.args.posonlyargs,
+        *progression.args.args,
+        *progression.args.kwonlyargs,
+    )
+    if any(item.arg == TRACK_AUTHORITY_OWNER_NAME for item in parameters):
+        bindings.reasons.add("parameter")
+    if any(
+        item.name == TRACK_AUTHORITY_OWNER_NAME
+        for item in progression.type_params
+    ):
+        bindings.reasons.add("type-parameter")
+    if (
+        progression.args.vararg is not None
+        and progression.args.vararg.arg == TRACK_AUTHORITY_OWNER_NAME
+    ):
+        bindings.reasons.add("parameter")
+    if (
+        progression.args.kwarg is not None
+        and progression.args.kwarg.arg == TRACK_AUTHORITY_OWNER_NAME
+    ):
+        bindings.reasons.add("parameter")
+
+    calls = _TrackOwnerCallCounter()
+    for statement in progression.body:
+        bindings.visit(statement)
+        calls.visit(statement)
+    return calls.count, bindings.reasons
+
+
 def _dynamic_annotation(node: ast.AST) -> bool:
     forbidden = (
         ast.Call,
@@ -1389,9 +1593,30 @@ def _ownership_violations(
             _call_name(node.func)
             for node in ast.walk(progression) if isinstance(node, ast.Call)
         } if progression is not None else set()
-        for required in ("canonical_slot", "resolve_exact_instance_progression"):
-            if required not in calls:
-                violations.append(Violation("server/gear_exact_authority.py", "seal_exact_progression", "MISSING_PRODUCTION_OWNER_CALL", required))
+        if "canonical_slot" not in calls:
+            violations.append(Violation("server/gear_exact_authority.py", "seal_exact_progression", "MISSING_PRODUCTION_OWNER_CALL", "canonical_slot"))
+        track_call_count, track_scope_bindings = _track_owner_scope_state(progression)
+        if track_call_count != 1:
+            violations.append(Violation(
+                "server/gear_exact_authority.py",
+                "seal_exact_progression",
+                "TRACK_AUTHORITY_CALL_INVALID",
+                f"expected=1,actual={track_call_count}",
+            ))
+            if track_call_count == 0:
+                violations.append(Violation(
+                    "server/gear_exact_authority.py",
+                    "seal_exact_progression",
+                    "MISSING_PRODUCTION_OWNER_CALL",
+                    TRACK_AUTHORITY_OWNER_NAME,
+                ))
+        if track_scope_bindings:
+            violations.append(Violation(
+                "server/gear_exact_authority.py",
+                "seal_exact_progression",
+                "TRACK_AUTHORITY_SCOPE_SHADOWED",
+                ",".join(sorted(track_scope_bindings)),
+            ))
         physical = Counter(_physical_imports(authority))
         module_bindings = _module_import_bindings(
             "server/gear_exact_authority.py",
@@ -1420,7 +1645,8 @@ def _ownership_violations(
             and registered_imports[TRACK_AUTHORITY_RELATIVE_IMPORT] == 1
             and registered_imports[TRACK_AUTHORITY_ABSOLUTE_IMPORT] == 1
             and registered_pairs[expected_pair] == 1
-            and "resolve_exact_instance_progression" in calls
+            and track_call_count == 1
+            and not track_scope_bindings
         )
         if not provenance_valid:
             violations.append(Violation(
@@ -2108,6 +2334,176 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
                 )
                 self.assertIn(
                     "TRACK_AUTHORITY_PROVENANCE_INVALID",
+                    _codes(violations),
+                    _formatted(violations),
+                )
+
+    def test_track_authority_call_has_one_unshadowed_bare_name_in_owner_scope(self):
+        path = "server/gear_exact_authority.py"
+        owner_name = "resolve_exact_instance_progression"
+
+        def mutation() -> tuple[dict[str, ast.Module], dict[str, object], ast.FunctionDef]:
+            trees = copy.deepcopy(TREES)
+            registry = copy.deepcopy(REGISTRY)
+            progression = next(
+                node for node in trees[path].body
+                if isinstance(node, ast.FunctionDef)
+                and node.name == "seal_exact_progression"
+            )
+            return trees, registry, progression
+
+        scope_sources = {
+            "lambda assignment": f"{owner_name} = lambda *args: {{}}",
+            "local def": f"def {owner_name}(*args):\n    return {{}}",
+            "assign": f"{owner_name} = hidden_owner",
+            "annassign": f"{owner_name}: object",
+            "augassign": f"{owner_name} += hidden_owner",
+            "named expression": f"if ({owner_name} := hidden_owner):\n    pass",
+            "destructuring": f"({owner_name}, other) = pair",
+            "for": f"for {owner_name} in owners:\n    pass",
+            "with": f"with manager as {owner_name}:\n    pass",
+            "except": f"try:\n    pass\nexcept Exception as {owner_name}:\n    pass",
+            "match": f"match value:\n    case {{'owner': {owner_name}}}:\n        pass",
+            "local class": f"class {owner_name}:\n    pass",
+            "type alias": f"type {owner_name} = int",
+            "delete": f"del {owner_name}",
+            "global": f"global {owner_name}",
+            "nonlocal": f"nonlocal {owner_name}",
+            "comprehension named expression": (
+                f"items = [({owner_name} := value) for value in values]"
+            ),
+        }
+        for label, source in scope_sources.items():
+            with self.subTest(label=label):
+                trees, registry, progression = mutation()
+                progression.body[0:0] = ast.parse(source).body
+                violations = _ownership_violations(trees, registry)
+                self.assertIn(
+                    "TRACK_AUTHORITY_SCOPE_SHADOWED",
+                    _codes(violations),
+                    _formatted(violations),
+                )
+
+        parameter_mutations = {
+            "posonly": lambda args: args.posonlyargs.append(ast.arg(arg=owner_name)),
+            "positional": lambda args: args.args.append(ast.arg(arg=owner_name)),
+            "kwonly": lambda args: (
+                args.kwonlyargs.append(ast.arg(arg=owner_name)),
+                args.kw_defaults.append(None),
+            ),
+            "vararg": lambda args: setattr(args, "vararg", ast.arg(arg=owner_name)),
+            "kwarg": lambda args: setattr(args, "kwarg", ast.arg(arg=owner_name)),
+        }
+        for label, mutate_args in parameter_mutations.items():
+            with self.subTest(label=label):
+                trees, registry, progression = mutation()
+                mutate_args(progression.args)
+                violations = _ownership_violations(trees, registry)
+                self.assertIn(
+                    "TRACK_AUTHORITY_SCOPE_SHADOWED",
+                    _codes(violations),
+                    _formatted(violations),
+                )
+
+        for label, type_parameter in (
+            ("typevar", ast.TypeVar(name=owner_name)),
+            ("typevartuple", ast.TypeVarTuple(name=owner_name)),
+            ("paramspec", ast.ParamSpec(name=owner_name)),
+        ):
+            with self.subTest(label=label):
+                trees, registry, progression = mutation()
+                progression.type_params.append(type_parameter)
+                violations = _ownership_violations(trees, registry)
+                self.assertIn(
+                    "TRACK_AUTHORITY_SCOPE_SHADOWED",
+                    _codes(violations),
+                    _formatted(violations),
+                )
+
+        with self.subTest(label="function-local hidden import"):
+            trees, registry, progression = mutation()
+            progression.body.insert(0, ast.ImportFrom(
+                module="hidden_track_authority",
+                names=[ast.alias(name=owner_name, asname=None)],
+                level=0,
+            ))
+            _target_record(registry, path)["imports"].append({
+                "module": "hidden_track_authority",
+                "symbol": owner_name,
+                "alias": owner_name,
+            })
+            violations = _ownership_violations(trees, registry)
+            self.assertIn(
+                "TRACK_AUTHORITY_SCOPE_SHADOWED",
+                _codes(violations),
+                _formatted(violations),
+            )
+
+        for label, replacement in (
+            (
+                "attribute call",
+                ast.Attribute(
+                    value=ast.Name(id="hidden", ctx=ast.Load()),
+                    attr=owner_name,
+                    ctx=ast.Load(),
+                ),
+            ),
+            (
+                "subscript call",
+                ast.Subscript(
+                    value=ast.Name(id="owners", ctx=ast.Load()),
+                    slice=ast.Constant(value=owner_name),
+                    ctx=ast.Load(),
+                ),
+            ),
+            ("alias call", ast.Name(id="owner_alias", ctx=ast.Load())),
+        ):
+            with self.subTest(label=label):
+                trees, registry, progression = mutation()
+                call = next(
+                    node for node in ast.walk(progression)
+                    if isinstance(node, ast.Call)
+                    and isinstance(node.func, ast.Name)
+                    and node.func.id == owner_name
+                )
+                call.func = replacement
+                violations = _ownership_violations(trees, registry)
+                self.assertIn(
+                    "TRACK_AUTHORITY_CALL_INVALID",
+                    _codes(violations),
+                    _formatted(violations),
+                )
+
+        with self.subTest(label="duplicate bare call"):
+            trees, registry, progression = mutation()
+            progression.body.insert(0, ast.Expr(value=ast.Call(
+                func=ast.Name(id=owner_name, ctx=ast.Load()),
+                args=[],
+                keywords=[],
+            )))
+            violations = _ownership_violations(trees, registry)
+            self.assertIn(
+                "TRACK_AUTHORITY_CALL_INVALID",
+                _codes(violations),
+                _formatted(violations),
+            )
+
+        for label, source in (
+            (
+                "nested function parameter",
+                f"def nested({owner_name}):\n    return {owner_name}",
+            ),
+            (
+                "comprehension target",
+                f"items = [{owner_name} for {owner_name} in owners]",
+            ),
+        ):
+            with self.subTest(label=label):
+                trees, registry, progression = mutation()
+                progression.body[0:0] = ast.parse(source).body
+                violations = _ownership_violations(trees, registry)
+                self.assertNotIn(
+                    "TRACK_AUTHORITY_SCOPE_SHADOWED",
                     _codes(violations),
                     _formatted(violations),
                 )
