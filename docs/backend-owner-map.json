@@ -13,12 +13,12 @@
   "hotspotFiles": [
     {
       "path": "server/gear_canonical_kernel.py",
-      "healthStatus": "task1_5_pure_foundation_implementation_allowed",
-      "summary": "Owns replacement Task 1-5 canonical primitives, bounded deterministic JSON bytes, private sealed-document boundaries and the static ownership stop gate without runtime integration.",
+      "healthStatus": "task1_5_owner_change_control_correction",
+      "summary": "Owns replacement Task 1-5 canonical primitives, bounded deterministic JSON bytes and private sealed-document boundaries; the failed AST authority-proof gate is being forward-replaced by source change-control without runtime integration.",
       "owners": [
         {
           "id": "equipment_simulator_canonical_kernel_task1_5",
-          "status": "task1_5_pure_foundation_implementation_allowed",
+          "status": "task1_5_owner_change_control_correction",
           "factOwner": "server/gear_canonical_kernel.py",
           "slotSetOwner": "server/gear_contracts.py",
           "domainSchemaOwners": [
@@ -34,7 +34,7 @@
             "strict NFC raw-value canonical identity/report token, integer, list, mapping and slot validation",
             "byte-, depth-, node- and cycle-bounded deterministic canonical JSON with exact string object keys and SHA-256 content keys",
             "module-private sealed document construction, reload verification and verified payload copies",
-            "AST stop gate for deleted raw APIs, duplicate primitive owners, exact imported callables and sealed cross-domain parameters"
+            "the current AST gate is not accepted as authority proof after its five-round Stop Gate; the authorized replacement is source change-control for five module-load profiles, exact import/symbol ownership and sealed parameters"
           ],
           "mustNotChange": [
             "server/gear_contracts.py remains the sole owner of CANONICAL_GEAR_SLOTS.",
@@ -55,7 +55,8 @@
             "tests/simc_item_effect_probe_cli_test.py"
           ],
           "runtimeConsumers": [],
-          "capabilityBoundary": "Replacement Task 1-5 is the stable pure canonical foundation under implementation_allowed; runtimeConsumers is empty, original Task 3 is not activated, and generation 35, Catalog/pointers, persistence/worker, Resolver/API/UI, raw-text privacy and v1 identities remain unchanged."
+          "proofClaim": "none_pending_source_change_control_replacement",
+          "capabilityBoundary": "Canonical semantic fixes are locally verified, but the prior AST owner gate reached its five-round Stop Gate and is being forward-replaced by declaration-only source change-control. runtimeConsumers is empty, original Task 3 is not activated, and generation 35, Catalog/pointers, persistence/worker, Resolver/API/UI, raw-text privacy and v1 identities remain unchanged."
         }
       ]
     },

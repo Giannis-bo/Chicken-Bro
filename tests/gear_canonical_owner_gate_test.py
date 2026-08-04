@@ -2549,7 +2549,7 @@ vars(_DynamicOwner)
             for item in cli_violations
         ), _formatted(cli_violations))
 
-    def test_task5_control_plane_matches_the_implemented_pure_foundation(self):
+    def test_task5_control_plane_records_the_owner_gate_stop_boundary(self):
         requirement = json.loads((
             ROOT
             / "artifacts/releases/2026-08-04-equipment-simulator-exact-first/requirement.json"
@@ -2577,7 +2577,7 @@ vars(_DynamicOwner)
             self.assertIn(boundary, must_not_change)
         evidence = "\n".join(requirement["impactMap"]["evidenceRequired"])
         self.assertIn("Task 1-5", evidence)
-        self.assertIn("owner gate", evidence)
+        self.assertIn("source change-control", evidence)
         self.assertNotIn("candidate", evidence.lower())
         self.assertNotIn("wechat", evidence.lower())
         self.assertEqual(requirement["ownership"]["runtimeConsumers"], [])
@@ -2586,7 +2586,9 @@ vars(_DynamicOwner)
             requirement["engineeringHealth"]["status"],
             "implementation_allowed",
         )
-        self.assertIn("Task 1-5", requirement["decisionLog"][-1]["decision"])
+        latest_decision = requirement["decisionLog"][-1]["decision"]
+        self.assertIn("Stop Gate", latest_decision)
+        self.assertIn("source_change_control_only", latest_decision)
 
         project_map = json.loads(
             (ROOT / "docs/project-owner-map.json").read_text(encoding="utf-8")
@@ -2599,6 +2601,10 @@ vars(_DynamicOwner)
         project_boundary = gear_domain["canonicalKernelFoundations"][
             "activationBoundary"
         ]
+        self.assertEqual(
+            gear_domain["canonicalKernelFoundations"]["proofClaim"],
+            "none_pending_source_change_control_replacement",
+        )
         self.assertNotIn("pending controller", project_boundary.lower())
         self.assertIn("original Task 3 is not activated", project_boundary)
 
@@ -2611,6 +2617,10 @@ vars(_DynamicOwner)
             if hotspot["path"] == "server/gear_canonical_kernel.py"
         )
         kernel_owner = kernel_hotspot["owners"][0]
+        self.assertEqual(
+            kernel_owner["proofClaim"],
+            "none_pending_source_change_control_replacement",
+        )
         self.assertNotIn(
             "pending controller",
             kernel_owner["capabilityBoundary"].lower(),

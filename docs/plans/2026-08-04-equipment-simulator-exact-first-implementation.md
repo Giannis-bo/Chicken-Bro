@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-状态：`待决策（replacement whole-branch final review FAIL；4 Important 修复中，旧 Task 2 已停止，原 Task 3 未启动）`
+状态：`待决策（Canonical semantic foundation 局部通过；Task 5 owner gate 五轮 Stop Gate 后正在 schema replacement；旧 Task 2 已停止，原 Task 3 未启动）`
 
-**Task 2 replacement:** [Canonical Kernel 重设计](2026-08-04-equipment-simulator-canonical-kernel-redesign.md) 与 [replacement implementation plan](2026-08-04-equipment-simulator-canonical-kernel-implementation.md)。原 Task 2 不再执行；replacement Task 1-5 全部 review clean 后才允许进入本计划 Task 3。
+**Task 2 replacement:** [Canonical Kernel 重设计](2026-08-04-equipment-simulator-canonical-kernel-redesign.md) 与当前 [Canonical Ownership Change-Control Plan](2026-08-04-equipment-simulator-canonical-owner-change-control.md)。原 Task 2 不再执行；旧 Kernel implementation plan 的 Task 5 已在五轮 Stop Gate 后停止。新的 source change-control replacement 与 fresh whole-branch review 全部 clean 后才允许进入本计划 Task 3。
 
 **Goal:** 让完整、合法且被当前 SimC runtime 明确支持的精确装备，即使不在 Catalog 中，也能确定性保存、重载、生成不可变快照并模拟；同时把模拟器可换装 Catalog 收敛为大秘境、团本和制造三个来源内、可物化为 SimC-ready Exact 的受治理子集。
 

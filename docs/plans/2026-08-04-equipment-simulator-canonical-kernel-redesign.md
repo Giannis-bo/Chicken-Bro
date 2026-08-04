@@ -1,6 +1,8 @@
 # 装备模拟 Canonical Kernel 重设计
 
-状态：`正在纠正（whole-branch final review FAIL；4 Important；原 Task 3 不得启动）`
+状态：`正在纠正（Task 5 五轮 Stop Gate；owner gate 改为 source change-control；原 Task 3 不得启动）`
+
+**当前 replacement:** [Canonical Ownership Change-Control Plan](2026-08-04-equipment-simulator-canonical-owner-change-control.md)。Canonical 语义合同继续有效；原 AST gate 的任意 Python authority-proof 声明已停止。
 
 **目标：** 在不改变 v1 identity、generation 35、Task 1 `exact-loadout-intent-v2` 字段结构和 Exact-first/Catalog 解耦方向的前提下，替换未发布的 Task 2 内部实现，让 Exact、Progression、Effect、Probe、CLI 和 Authority Envelope 只消费同一个 canonical 语言与同一类封存对象。
 

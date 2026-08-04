@@ -3,7 +3,7 @@
   "slug": "equipment-simulator-exact-first",
   "classification": "Strict",
   "status": "implementation_allowed",
-  "goal": "完成 replacement Task 1-5 的纯 Canonical foundation：Exact v2 严格输入、唯一 Kernel、sealed schema/business derivation 与静态 owner gate；不激活原 Task 3。",
+  "goal": "完成 replacement Task 1-5 的纯 Canonical foundation：Exact v2 严格输入、唯一 Kernel、sealed schema/business derivation 与诚实的 ownership source change-control；不激活原 Task 3。",
   "userValue": "后续 Exact-first 链路获得一个不会修复、猜测或默默接受非规范输入的稳定事实边界；本轮不承诺玩家可见能力。",
   "nonGoals": [
     "不激活原 Task 3，不新增持久化、worker、Resolver、API、UI 或 SimC runtime consumer。",
@@ -18,6 +18,7 @@
       "docs/plans/2026-08-04-equipment-simulator-exact-first-implementation.md",
       "docs/plans/2026-08-04-equipment-simulator-canonical-kernel-redesign.md",
       "docs/plans/2026-08-04-equipment-simulator-canonical-kernel-implementation.md",
+      "docs/plans/2026-08-04-equipment-simulator-canonical-owner-change-control.md",
       "docs/harness.md"
     ],
     "activeMilestone": "taro_target_first_14_route_rebuild",
@@ -28,8 +29,8 @@
     {
       "id": "replacement_task_1_5_pure_canonical_foundation",
       "planHeading": "Replacement Task 1-5：纯 Canonical foundation",
-      "scope": "Exact v2 Python/TypeScript/shared corpus、bounded Kernel、sealed Exact/Progression/Effect/Probe/CLI/Envelope consumers 与静态 owner gate",
-      "gate": "strict NFC and bounded JSON fail closed; frozen identities stay byte/key stable; owner gate reports zero violations; runtimeConsumers remains empty"
+      "scope": "Exact v2 Python/TypeScript/shared corpus、bounded Kernel、sealed Exact/Progression/Effect/Probe/CLI/Envelope consumers 与 source-change-control registry",
+      "gate": "strict NFC and bounded JSON fail closed; frozen identities stay byte/key stable; five protected files satisfy registered module-load profiles; proofClaim stays source_change_control_only; runtimeConsumers remains empty"
     }
   ],
   "impactMap": {
@@ -39,7 +40,7 @@
       "tests/fixtures/gear_canonical_mutations.json shared Python/TypeScript mutation corpus",
       "server/gear_exact_item_instance.py, server/gear_exact_authority.py, server/simc_item_effect_support.py and server/simc_item_effect_probe.py sealed schema/business derivation",
       "scripts/simc-item-effect-probe.py strict local decoder adapter",
-      "tests/gear_canonical_owner_gate_test.py and project/backend owner maps for exact imported-callable and owner boundaries"
+      "tests/gear_canonical_owner_gate_test.py, tests/fixtures/gear_canonical_owner_registry.json and project/backend owner maps for exact module-load profiles, imports, exemptions and owner boundaries"
     ],
     "mustNotChange": [
       "generation 35 and accepted canonical identities remain byte/key stable",
@@ -51,7 +52,7 @@
     ],
     "evidenceRequired": [
       "Task 1-5 RED then GREEN Python and TypeScript contract suites, shared Unicode mutation corpus, hostile JSON bounds and frozen byte/key assertions",
-      "Task 1-5 owner gate self-tests for aliases, lambdas, exact imported-callable allowlists, deleted names and repository-wide zero violations",
+      "Task 1-5 source change-control tests for five target profiles, exact import/symbol registry, module-load hostile mutations, exemption digests, deleted raw APIs and zero baseline violations",
       "Task 1-5 sealed Exact, Progression, Effect, Probe, CLI and Envelope regressions plus Harness requirement and owner-map checks"
     ]
   },
@@ -69,7 +70,7 @@
   },
   "engineeringHealth": {
     "status": "implementation_allowed",
-    "reason": "Replacement Task 1-5 is a pure local foundation with strict fail-closed bounds, frozen identity regressions, an exact imported-callable owner gate, no runtime consumer, and original Task 3 inactive."
+    "reason": "Canonical semantics remain a pure local foundation with strict fail-closed bounds and frozen identity regressions. The prior AST authority-proof gate reached its five-round Stop Gate and is being forward-replaced by declaration-only source change-control; no runtime consumer exists and original Task 3 remains inactive."
   },
   "dataPrivacyBoundary": {
     "rawPluginText": "ephemeral parser input only; it must not be persisted, logged, templated, queued, included in artifact evidence, or returned in output payloads.",
@@ -83,13 +84,13 @@
   "acceptanceEvidence": [
     "Exact v2 rejects whitespace mutation, forbidden controls, invalid UTF-8 bounds and non-NFC input without normalizing it.",
     "Kernel rejects oversized, over-depth, over-node and cyclic JSON with controlled failure while escaped string structure and accepted fixture bytes/key remain stable.",
-    "Sealed consumers use only exact allowlisted Kernel/domain callables and frozen v1 identities remain byte/key stable."
+    "Five protected files satisfy exact registered module-load profiles and exemptions while sealed consumer behavior and frozen v1 identities remain byte/key stable; this is source change-control, not arbitrary Python semantics proof."
   ],
   "manualAcceptanceContract": {
     "required": false,
     "requiredItemIds": []
   },
-  "closureCondition": "Replacement Task 1-5 may close only on fresh local contract, owner-gate, frozen-identity and Harness control-plane evidence; original Task 3 stays inactive.",
+  "closureCondition": "Replacement Task 1-5 may close only on fresh local semantic-contract, source-change-control, frozen-identity and Harness evidence plus a fresh whole-branch PASS/APPROVED review; original Task 3 stays inactive.",
   "releaseTrigger": "docs_tooling_only",
   "rollback": [
     "code_rollback",
@@ -103,6 +104,10 @@
     {
       "date": "2026-08-04",
       "decision": "Replacement Task 1-5 仅完成 pure canonical foundation：严格 NFC、bounded JSON、sealed consumers 和 owner gate；generation 35、Catalog/pointers、persistence/worker、Resolver/API/UI/runtime 与原 Task 3 均不激活。"
+    },
+    {
+      "date": "2026-08-04",
+      "decision": "Task 5 AST owner gate 在五轮 fix/re-review 后仍允许 module-load imported helper 零告警执行，Stop Gate 已触发。保留 Kernel 语义修复，forward-replace 静态解释器为四个 server declaration-only profile、一个 CLI bootstrap profile 与 exact registry；proofClaim 固定 source_change_control_only，不递归证明 imported Python 语义。"
     }
   ]
 }
