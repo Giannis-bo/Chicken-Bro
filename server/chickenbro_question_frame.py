@@ -33,6 +33,9 @@ _COMPARATIVE_STRENGTH_MARKERS = ("强度", "最强", "排行", "排名", "tier",
 _CURRENT_CHANGE_MARKERS = ("改动", "调整", "buff", "nerf")
 _COMMUNITY_BUILD_MARKERS = ("天赋", "属性", "装备", "配装", "build", "talent", "哪里获取")
 _EVIDENCE_RATIO_FOLLOW_UP_PATTERN = re.compile(r"(?<!\d)\d{1,6}\s*/\s*\d{1,6}(?!\d)")
+_EVIDENCE_LEADER_FOLLOW_UP_PATTERN = re.compile(
+    r"(?:排(?:名)?\s*第?\s*一|第\s*一(?:名)?\s*(?:是|为)?\s*(?:谁|啥|什么)|(?:谁|啥|什么).*?(?:排(?:名)?\s*第?\s*一|第\s*一(?:名)?))"
+)
 _SCENARIO_MARKERS = (
     ("mythic_plus", ("大秘境", "mythic+", "mythic +", "m+")),
     ("raid", ("团本", "raid")),
@@ -186,29 +189,49 @@ def _question_type(message, history, subject, product_phase):
     has_research_marker = any(marker in normalized for marker in _CURRENT_RESEARCH_MARKERS)
     if has_research_marker or _explicit_phase(normalized) == "ptr":
         return "current_research"
-    if _strength_evidence_ratio_follow_up(normalized, history):
+    if _strength_evidence_follow_up(normalized, history):
         return "current_research"
     if any(marker in normalized for marker in _COMMUNITY_BUILD_MARKERS) or subject["resolution"] == "resolved":
         return "community_build"
     return "general"
 
 
-def _strength_evidence_ratio_follow_up(message, history):
-    """Recognize a deictic explanation of a prior comparative evidence ratio.
+def chickenbro_strength_evidence_follow_up_kind(message):
+    """Return the generic referential target of a current evidence follow-up."""
+    normalized = _normalized_text(message)
+    if _EVIDENCE_RATIO_FOLLOW_UP_PATTERN.search(normalized):
+        return "ratio"
+    if _EVIDENCE_LEADER_FOLLOW_UP_PATTERN.search(normalized):
+        return "leader"
+    return ""
 
-    A ratio alone is not a strength request. It becomes one only when the
-    current turn has no explicit build intent and the bounded prior *user*
-    turn was a current-strength question. This preserves the no-history-leak
-    boundary for questions such as "那天赋怎么点？".
+
+def _strength_evidence_follow_up(message, history):
+    """Recognize a bounded reference into an active strength-evidence thread.
+
+    A reference such as a ratio explanation or asking for the leading entry
+    is not independently a strength request. It becomes one only when there
+    is no explicit build intent and the contiguous bounded prior user turns
+    lead back to a current-strength question. A build question is a hard
+    boundary, so conversational scope cannot leak across a topic switch.
     """
     normalized = _normalized_text(message)
-    if not _EVIDENCE_RATIO_FOLLOW_UP_PATTERN.search(normalized):
+    if not chickenbro_strength_evidence_follow_up_kind(normalized):
         return False
     if any(marker in normalized for marker in _COMMUNITY_BUILD_MARKERS):
         return False
     if not isinstance(history, (list, tuple)) or not history:
         return False
-    return any(marker in _normalized_text(history[-1]) for marker in _CURRENT_RESEARCH_MARKERS)
+    for previous in reversed(history):
+        previous_text = _normalized_text(previous)
+        if any(marker in previous_text for marker in _COMMUNITY_BUILD_MARKERS):
+            return False
+        if any(marker in previous_text for marker in _CURRENT_RESEARCH_MARKERS):
+            return True
+        if chickenbro_strength_evidence_follow_up_kind(previous_text):
+            continue
+        return False
+    return False
 
 
 def _evidence_needs(question_type, product_phase="", patch_version="", message="", history=None):
@@ -227,7 +250,7 @@ def _evidence_needs(question_type, product_phase="", patch_version="", message="
             needs.append("official_current_changes")
         if (
             any(marker in normalized for marker in _COMPARATIVE_STRENGTH_MARKERS)
-            or _strength_evidence_ratio_follow_up(normalized, history)
+            or _strength_evidence_follow_up(normalized, history)
         ):
             needs.append("comparative_strength_signal")
         return needs or ["official_current_changes"]

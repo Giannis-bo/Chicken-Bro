@@ -132,6 +132,25 @@ class ChickenbroQuestionFrameTest(unittest.TestCase):
         self.assertEqual("community_build", frame["questionType"])
         self.assertEqual(["community_build_reference"], frame["evidenceNeeds"])
 
+    def test_leader_follow_up_continues_the_active_strength_thread_through_a_ratio_explanation(self):
+        frame = self._builder()(
+            "排第一的是啥呢？",
+            [
+                {"role": "user", "content": "现在版本的元素萨在大秘境DPS整体的排名如何？ 强度如何？"},
+                {"role": "assistant", "content": "元素萨在同职责样本中位于第 15/27。"},
+                {"role": "user", "content": "解读一下15/27是啥意思？"},
+                {"role": "assistant", "content": "这表示样本中的同职责位置。"},
+            ],
+        )
+
+        self.assertEqual("current_research", frame["questionType"])
+        self.assertEqual(["comparative_strength_signal"], frame["evidenceNeeds"])
+        self.assertEqual(
+            {"classKey": "shaman", "specKey": "elemental", "resolution": "resolved"},
+            frame["subject"],
+        )
+        self.assertEqual("mythic_plus", frame["scope"]["scenarioKey"])
+
     def test_generic_raid_scope_is_preserved_without_becoming_mythic_plus(self):
         frame = self._builder()("元素萨正式服团本单体强度如何？", [])
 

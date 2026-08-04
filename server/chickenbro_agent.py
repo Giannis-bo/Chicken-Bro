@@ -249,15 +249,20 @@ def build_raiderio_strength_chickenbro_tool_result(payload, intent):
             "limitations": ["Raider.IO current-strength cache has no positive bestScore for a same-role comparison."],
             "nextActions": [],
         }
-    same_role_placement = next(
-        (
-            index + 1
-            for index, item in enumerate(peers)
-            if str(item.get("classKey") or "").lower() == class_key
-            and str(item.get("specKey") or "").lower() == spec_key
-        ),
-        0,
+    same_role_placement = 1 + sum(
+        1 for item in peers
+        if (_positive_number(item.get("bestScore")) or 0) > score
     )
+    top_score = _positive_number(peers[0].get("bestScore"))
+    leaders = [
+        {
+            "classKey": str(item.get("classKey") or "").strip().lower(),
+            "specKey": str(item.get("specKey") or "").strip().lower(),
+            "fullName": str(item.get("fullName") or "").strip(),
+        }
+        for item in peers
+        if (_positive_number(item.get("bestScore")) or 0) == top_score
+    ]
     max_key_level = _positive_number(aggregate.get("maxKeyLevel"))
     sample_count = _positive_number(aggregate.get("sampleCount"))
     ranking_url = next(
@@ -277,6 +282,10 @@ def build_raiderio_strength_chickenbro_tool_result(payload, intent):
         "maxKeyLevel": int(max_key_level) if max_key_level is not None else 0,
         "sampleCount": int(sample_count) if sample_count is not None else 0,
     }
+    if len(leaders) == 1:
+        signal["sameRoleLeader"] = leaders[0]
+    else:
+        signal["sameRoleLeaders"] = leaders
     allowed_numbers = [
         value
         for value in (

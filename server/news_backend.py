@@ -289,7 +289,10 @@ try:
     )
     from .chickenbro_community_strength import build_wcl_public_rankings_tool_result
     from .chickenbro_current_sources import build_current_wow_sources_tool_result
-    from .chickenbro_question_frame import build_chickenbro_question_frame
+    from .chickenbro_question_frame import (
+        build_chickenbro_question_frame,
+        chickenbro_strength_evidence_follow_up_kind,
+    )
     from .chickenbro_observability import (
         build_chickenbro_agent_trace,
         validate_chickenbro_agent_trace,
@@ -310,7 +313,10 @@ except ImportError:
     )
     from chickenbro_community_strength import build_wcl_public_rankings_tool_result
     from chickenbro_current_sources import build_current_wow_sources_tool_result
-    from chickenbro_question_frame import build_chickenbro_question_frame
+    from chickenbro_question_frame import (
+        build_chickenbro_question_frame,
+        chickenbro_strength_evidence_follow_up_kind,
+    )
     from chickenbro_observability import (
         build_chickenbro_agent_trace,
         validate_chickenbro_agent_trace,
@@ -8858,6 +8864,7 @@ def chickenbro_comparative_strength_fallback(bounded_context):
         and "comparative_strength_signal" in (question_frame.get("evidenceNeeds") or [])
         and bool(_EVIDENCE_RATIO_REFERENCE_PATTERN.search(str(context.get("message") or "")))
     )
+    evidence_follow_up_kind = chickenbro_strength_evidence_follow_up_kind(context.get("message"))
     allowed_numbers = {str(item).rstrip("%") for item in (context.get("allowedNumbers") or [])}
     for source in context.get("sourceEvidence") or []:
         if not isinstance(source, dict):
@@ -8905,6 +8912,43 @@ def chickenbro_comparative_strength_fallback(bounded_context):
                 "missingInputs": context.get("missingInputs") if isinstance(context.get("missingInputs"), list) else [],
                 "nextQuestion": clean_text(context.get("nextQuestion") or "", 240),
             }
+        if evidence_follow_up_kind == "leader":
+            leader = signal.get("sameRoleLeader") if isinstance(signal.get("sameRoleLeader"), dict) else {}
+            leader_name = clean_text(leader.get("fullName"), 120)
+            if leader_name:
+                answer = (
+                    f"按同一份 Raider.IO 同职责高层样本，排第一的是 {leader_name}。"
+                    "这里比较的是该样本内的最高观测评分，不是全职业 Tier、DPS、通关率或出场率排名。"
+                )
+                return {
+                    "answer": answer,
+                    "confidence": "medium",
+                    "priorityActions": [],
+                    "evidenceRefs": [refs[0]],
+                    "limitations": [str(item) for item in (source.get("limitations") or []) if str(item or "").strip()],
+                    "missingInputs": context.get("missingInputs") if isinstance(context.get("missingInputs"), list) else [],
+                    "nextQuestion": clean_text(context.get("nextQuestion") or "", 240),
+                }
+            tied_leaders = signal.get("sameRoleLeaders") if isinstance(signal.get("sameRoleLeaders"), list) else []
+            tied_names = [
+                clean_text(item.get("fullName"), 120)
+                for item in tied_leaders
+                if isinstance(item, dict) and clean_text(item.get("fullName"), 120)
+            ]
+            if tied_names:
+                answer = (
+                    f"按同一份 Raider.IO 同职责高层样本，当前并列第一的是 {'、'.join(tied_names)}。"
+                    "这里比较的是该样本内的最高观测评分，不是全职业 Tier、DPS、通关率或出场率排名。"
+                )
+                return {
+                    "answer": answer,
+                    "confidence": "medium",
+                    "priorityActions": [],
+                    "evidenceRefs": [refs[0]],
+                    "limitations": [str(item) for item in (source.get("limitations") or []) if str(item or "").strip()],
+                    "missingInputs": context.get("missingInputs") if isinstance(context.get("missingInputs"), list) else [],
+                    "nextQuestion": clean_text(context.get("nextQuestion") or "", 240),
+                }
         observations = []
         if placement and population:
             observations.append(f"本轮同职责缓存样本中位于第 {placement}/{population}")

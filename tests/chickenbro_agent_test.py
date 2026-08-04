@@ -463,6 +463,10 @@ class ChickenbroAgentIntentTest(unittest.TestCase):
         signal = result["facts"][0]["highKeySignal"]
         self.assertEqual(2, signal["sameRolePopulation"])
         self.assertEqual(2, signal["sameRolePlacement"])
+        self.assertEqual(
+            {"classKey": "mage", "specKey": "frost", "fullName": "Frost Mage"},
+            signal["sameRoleLeader"],
+        )
         self.assertEqual(4226.13, signal["bestObservedScore"])
         self.assertEqual(23, signal["maxKeyLevel"])
         self.assertIn("23", result["allowedNumbers"])
@@ -489,6 +493,50 @@ class ChickenbroAgentIntentTest(unittest.TestCase):
         self.assertEqual("partial", result["status"])
         self.assertEqual([], result["evidenceRefs"])
         self.assertIn("bestScore", result["limitations"][0])
+
+    def test_raiderio_strength_projects_tied_same_role_leaders_without_inventing_a_unique_first(self):
+        result = agent.build_raiderio_strength_chickenbro_tool_result(
+            {
+                "sourceName": "Raider.IO",
+                "sourceStatus": "synced",
+                "checkedAt": "2099-08-01T10:00:00+00:00",
+                "expiresAt": "2099-08-01T16:00:00+00:00",
+                "specAggregates": [
+                    {"classKey": "shaman", "specKey": "elemental", "fullName": "Elemental Shaman", "role": "dps", "bestScore": 4200, "maxKeyLevel": 23, "sampleCount": 24},
+                    {"classKey": "mage", "specKey": "frost", "fullName": "Frost Mage", "role": "dps", "bestScore": 4300, "maxKeyLevel": 24, "sampleCount": 20},
+                    {"classKey": "deathknight", "specKey": "unholy", "fullName": "Unholy Death Knight", "role": "dps", "bestScore": 4300, "maxKeyLevel": 24, "sampleCount": 20},
+                ],
+            },
+            {"classKey": "shaman", "specKey": "elemental", "productPhase": "retail"},
+        )
+
+        signal = result["facts"][0]["highKeySignal"]
+        self.assertNotIn("sameRoleLeader", signal)
+        self.assertEqual(
+            [
+                {"classKey": "mage", "specKey": "frost", "fullName": "Frost Mage"},
+                {"classKey": "deathknight", "specKey": "unholy", "fullName": "Unholy Death Knight"},
+            ],
+            signal["sameRoleLeaders"],
+        )
+
+    def test_raiderio_strength_uses_competition_rank_for_a_tied_target_score(self):
+        result = agent.build_raiderio_strength_chickenbro_tool_result(
+            {
+                "sourceName": "Raider.IO",
+                "sourceStatus": "synced",
+                "checkedAt": "2099-08-01T10:00:00+00:00",
+                "expiresAt": "2099-08-01T16:00:00+00:00",
+                "specAggregates": [
+                    {"classKey": "mage", "specKey": "frost", "fullName": "Frost Mage", "role": "dps", "bestScore": 4300, "maxKeyLevel": 24, "sampleCount": 20},
+                    {"classKey": "shaman", "specKey": "elemental", "fullName": "Elemental Shaman", "role": "dps", "bestScore": 4300, "maxKeyLevel": 24, "sampleCount": 20},
+                    {"classKey": "deathknight", "specKey": "unholy", "fullName": "Unholy Death Knight", "role": "dps", "bestScore": 4200, "maxKeyLevel": 23, "sampleCount": 20},
+                ],
+            },
+            {"classKey": "shaman", "specKey": "elemental", "productPhase": "retail"},
+        )
+
+        self.assertEqual(1, result["facts"][0]["highKeySignal"]["sameRolePlacement"])
 
     def test_retail_strength_query_executes_registered_raiderio_and_public_wcl_sources(self):
         wcl_builder = getattr(backend, "build_wcl_public_rankings_tool_result", None)
@@ -788,6 +836,104 @@ class ChickenbroAgentIntentTest(unittest.TestCase):
         self.assertIn("第 2/12 表示", events[0]["text"])
         self.assertIn("12 个同职责高层样本", events[0]["text"])
         self.assertIn("不是全职业排名", events[0]["text"])
+
+    def test_streamed_strength_leader_follow_up_fallback_names_the_bounded_leader(self):
+        bounded_context = backend.build_chickenbro_bounded_context(
+            "排第一的是啥呢？",
+            {},
+            history=[
+                {"role": "user", "content": "元素萨现在版本大秘境强度如何？"},
+                {"role": "assistant", "content": "元素萨在同职责样本中位于第 2/12。"},
+                {"role": "user", "content": "解读一下2/12是啥意思？"},
+            ],
+            source_tool_results={
+                "sourceToolResults": [{
+                    "sourceKey": "raiderio_strength",
+                    "status": "source_reference",
+                    "facts": [{"summary": "Current Elemental Shaman high-key signal.", "highKeySignal": {
+                        "bestObservedScore": 4226.13,
+                        "sameRolePlacement": 2,
+                        "sameRolePopulation": 12,
+                        "sameRoleLeader": {"classKey": "mage", "specKey": "frost", "fullName": "Frost Mage"},
+                        "maxKeyLevel": 23,
+                        "sampleCount": 24,
+                    }}],
+                    "evidence": [{"id": "raiderio-strength:shaman:elemental:mythic_plus", "checkedAt": "2099-08-01T10:00:00+00:00"}],
+                    "evidenceRefs": ["raiderio-strength:shaman:elemental:mythic_plus"],
+                    "allowedNumbers": ["4226.13", "2", "12", "23", "24"],
+                    "limitations": [],
+                    "nextActions": [],
+                }],
+                "registryContext": {
+                    "status": "verified", "registryVersion": "chickenbro-tools-3", "registryReleaseHash": "sha256:" + "1" * 64,
+                    "registrySource": "postgres", "discoveredCapabilityIds": ["source:raiderio-strength:v1"], "selectedCapabilityIds": ["source:raiderio-strength:v1"],
+                },
+            },
+        )
+        payload = '{"answer":"没有数据，你自己去 Raider.IO 查。","confidence":"medium","priorityActions":[],"evidenceRefs":[],"limitations":[],"missingInputs":[],"nextQuestion":""}'
+        stream = backend.run_chickenbro_agent_stream(bounded_context, stream_runner=lambda *_args, **_kwargs: [payload])
+        events = []
+        while True:
+            try:
+                events.append(next(stream))
+            except StopIteration as stop:
+                result = stop.value
+                break
+
+        self.assertEqual("current_research", bounded_context["questionFrame"]["questionType"])
+        self.assertEqual(["comparative_strength_signal"], bounded_context["questionFrame"]["evidenceNeeds"])
+        self.assertEqual("deterministic_source_fallback", result["answer"]["answerSource"])
+        self.assertIn("Frost Mage", events[0]["text"])
+        self.assertIn("同职责", events[0]["text"])
+        self.assertIn("不是全职业", events[0]["text"])
+
+    def test_streamed_strength_leader_follow_up_fallback_reports_a_tied_lead(self):
+        bounded_context = backend.build_chickenbro_bounded_context(
+            "排第一的是啥呢？",
+            {},
+            history=[
+                {"role": "user", "content": "元素萨现在版本大秘境强度如何？"},
+                {"role": "user", "content": "解读一下2/12是啥意思？"},
+            ],
+            source_tool_results={
+                "sourceToolResults": [{
+                    "sourceKey": "raiderio_strength",
+                    "status": "source_reference",
+                    "facts": [{"summary": "Current Elemental Shaman high-key signal.", "highKeySignal": {
+                        "bestObservedScore": 4226.13,
+                        "sameRolePlacement": 2,
+                        "sameRolePopulation": 12,
+                        "sameRoleLeaders": [
+                            {"classKey": "mage", "specKey": "frost", "fullName": "Frost Mage"},
+                            {"classKey": "deathknight", "specKey": "unholy", "fullName": "Unholy Death Knight"},
+                        ],
+                        "maxKeyLevel": 23,
+                        "sampleCount": 24,
+                    }}],
+                    "evidence": [{"id": "raiderio-strength:shaman:elemental:mythic_plus", "checkedAt": "2099-08-01T10:00:00+00:00"}],
+                    "evidenceRefs": ["raiderio-strength:shaman:elemental:mythic_plus"],
+                    "allowedNumbers": ["4226.13", "2", "12", "23", "24"],
+                    "limitations": [],
+                    "nextActions": [],
+                }],
+                "registryContext": {
+                    "status": "verified", "registryVersion": "chickenbro-tools-3", "registryReleaseHash": "sha256:" + "1" * 64,
+                    "registrySource": "postgres", "discoveredCapabilityIds": ["source:raiderio-strength:v1"], "selectedCapabilityIds": ["source:raiderio-strength:v1"],
+                },
+            },
+        )
+        payload = '{"answer":"没有数据，你自己去 Raider.IO 查。","confidence":"medium","priorityActions":[],"evidenceRefs":[],"limitations":[],"missingInputs":[],"nextQuestion":""}'
+        stream = backend.run_chickenbro_agent_stream(bounded_context, stream_runner=lambda *_args, **_kwargs: [payload])
+        events = []
+        while True:
+            try:
+                events.append(next(stream))
+            except StopIteration:
+                break
+
+        self.assertIn("并列第一", events[0]["text"])
+        self.assertIn("Frost Mage", events[0]["text"])
+        self.assertIn("Unholy Death Knight", events[0]["text"])
 
     def test_source_result_enriches_plain_chat_without_client_context(self):
         parameters = inspect.signature(backend.build_chickenbro_bounded_context).parameters
