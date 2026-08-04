@@ -105,17 +105,73 @@ class SimcItemEffectProbeCliTest(unittest.TestCase):
         self.assertEqual(completed.stdout, b"")
         self.assertEqual(completed.stderr, b"CLI_ARGUMENT_INVALID\n")
 
+    def test_cli_rejects_duplicate_object_keys_at_every_depth(self):
+        manifest_text = json.dumps(MANIFEST, separators=(",", ":"))
+        duplicate_top_level = (
+            '{"subjectKey":"private-profile-secret\\n",'
+            + manifest_text[1:]
+        )
+        duplicate_nested = (
+            '{"shadow":{"status":"blocked","status":"verified"},'
+            + manifest_text[1:]
+        )
+        for manifest in (duplicate_top_level, duplicate_nested):
+            completed = self._run_raw_json(
+                manifest=manifest,
+                experiment=json.dumps(EXPERIMENT),
+                control=json.dumps(CONTROL),
+                runtime=RUNTIME,
+            )
+            self._assert_private_failure(completed)
+            self.assertEqual(completed.stderr, b"INPUT_JSON_INVALID\n")
+            self.assertNotIn(b"private-profile-secret", completed.stderr)
+
+    def test_cli_rejects_nonfinite_json_constants_before_evaluation(self):
+        experiment_text = json.dumps(EXPERIMENT, separators=(",", ":"))
+        for constant in ("NaN", "Infinity", "-Infinity", "1e9999"):
+            malformed = experiment_text.replace('"dps":100', f'"dps":{constant}')
+            completed = self._run_raw_json(
+                manifest=json.dumps(MANIFEST),
+                experiment=malformed,
+                control=json.dumps(CONTROL),
+                runtime=RUNTIME,
+            )
+            self._assert_private_failure(completed)
+            self.assertEqual(completed.stderr, b"INPUT_JSON_INVALID\n")
+
+    def test_cli_decoder_value_errors_are_private(self):
+        experiment_text = json.dumps(EXPERIMENT, separators=(",", ":"))
+        oversized_integer = experiment_text.replace(
+            '"dps":100', '"dps":' + ("9" * 5000),
+        )
+        completed = self._run_raw_json(
+            manifest=json.dumps(MANIFEST),
+            experiment=oversized_integer,
+            control=json.dumps(CONTROL),
+            runtime=RUNTIME,
+        )
+        self._assert_private_failure(completed)
+        self.assertEqual(completed.stderr, b"INPUT_JSON_INVALID\n")
+
     def _run_payloads(self, *, manifest, experiment, control, runtime):
+        return self._run_raw_json(
+            manifest=json.dumps(manifest),
+            experiment=json.dumps(experiment),
+            control=json.dumps(control),
+            runtime=runtime,
+        )
+
+    def _run_raw_json(self, *, manifest, experiment, control, runtime):
         root = Path(__file__).resolve().parents[1]
         with tempfile.TemporaryDirectory() as directory:
             paths = {}
-            for name, payload in (
+            for name, payload_text in (
                 ("manifest", manifest),
                 ("experiment", experiment),
                 ("control", control),
             ):
                 path = Path(directory) / f"{name}.json"
-                path.write_text(json.dumps(payload), encoding="utf-8")
+                path.write_text(payload_text, encoding="utf-8")
                 paths[name] = path
             return subprocess.run(
                 [

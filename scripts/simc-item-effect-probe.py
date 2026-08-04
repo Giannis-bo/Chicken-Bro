@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import sys
 from pathlib import Path
 
@@ -15,14 +16,44 @@ if str(ROOT) not in sys.path:
 from server.simc_item_effect_probe import evaluate_effect_probe  # noqa: E402
 
 
+class _StrictJsonError(ValueError):
+    """One local input is not in the strict JSON language."""
+
+
 class _ReasonCodeArgumentParser(argparse.ArgumentParser):
     def error(self, message: str) -> None:
         del message
         self.exit(2, "CLI_ARGUMENT_INVALID\n")
 
 
+def _reject_duplicate_pairs(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    result: dict[str, object] = {}
+    for key, value in pairs:
+        if key in result:
+            raise _StrictJsonError("JSON object keys must be unique.")
+        result[key] = value
+    return result
+
+
+def _reject_nonfinite_constant(value: str) -> object:
+    del value
+    raise _StrictJsonError("Non-finite JSON constants are forbidden.")
+
+
+def _parse_finite_float(value: str) -> float:
+    parsed = float(value)
+    if not math.isfinite(parsed):
+        raise _StrictJsonError("Non-finite JSON numbers are forbidden.")
+    return parsed
+
+
 def _read(path: str) -> object:
-    return json.loads(Path(path).read_text(encoding="utf-8"))
+    return json.loads(
+        Path(path).read_text(encoding="utf-8"),
+        object_pairs_hook=_reject_duplicate_pairs,
+        parse_constant=_reject_nonfinite_constant,
+        parse_float=_parse_finite_float,
+    )
 
 
 def _fail(reason_code: str) -> int:
@@ -41,17 +72,19 @@ def main(argv: list[str] | None = None) -> int:
         manifest = _read(args.manifest)
         experiment = _read(args.experiment_report)
         control = _read(args.control_report)
-    except Exception:
+    except (
+        OSError,
+        UnicodeError,
+        ValueError,
+        RecursionError,
+    ):
         return _fail("INPUT_JSON_INVALID")
-    try:
-        result = evaluate_effect_probe(
-            manifest,
-            experiment,
-            control,
-            runtime_revision=args.runtime_revision,
-        )
-    except Exception:
-        return _fail("PROBE_INTERNAL_ERROR")
+    result = evaluate_effect_probe(
+        manifest,
+        experiment,
+        control,
+        runtime_revision=args.runtime_revision,
+    )
     if result.status != "verified" or result.document is None:
         if result.status == "blocked" and result.issues:
             return _fail(result.issues[0].code)

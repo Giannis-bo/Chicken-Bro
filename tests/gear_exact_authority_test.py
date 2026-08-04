@@ -17,7 +17,7 @@ from server.gear_canonical_kernel import (
 from server.gear_exact_item_instance import build_exact_item_identity, seal_exact_item
 from server.simc_item_effect_support import (
     resolve_exact_item_effect_support,
-    seal_effect_record,
+    seal_legacy_effect_record,
 )
 
 
@@ -45,7 +45,7 @@ PROGRESSION_PAYLOAD = {
     },
 }
 PROGRESSION = {**PROGRESSION_PAYLOAD, "progressionBindingKey": "exact-progression:sha256:" + hashlib.sha256(__import__("json").dumps(PROGRESSION_PAYLOAD, sort_keys=True, separators=(",", ":")).encode()).hexdigest()}
-EFFECT = resolve_exact_item_effect_support(EXACT, runtime_revision=RUNTIME, support_records=[seal_effect_record({"schemaRevision": "simc-item-effect-authority-v1", "subjectKind": "item", "subjectKey": "1001", "subjectVariantSignature": EXACT["exactVariantSignature"], "hasDynamicEffect": False, "simcRuntimeRevision": RUNTIME, "verifiedAt": "2026-08-04T00:00:00Z"})])
+EFFECT = resolve_exact_item_effect_support(EXACT, runtime_revision=RUNTIME, support_records=[seal_legacy_effect_record({"schemaRevision": "simc-item-effect-authority-v1", "subjectKind": "item", "subjectKey": "1001", "subjectVariantSignature": EXACT["exactVariantSignature"], "hasDynamicEffect": False, "simcRuntimeRevision": RUNTIME, "verifiedAt": "2026-08-04T00:00:00Z"})])
 
 
 def content_key(prefix, payload):
@@ -137,7 +137,7 @@ def authority_inputs(
         "verifiedAt": "2026-08-04T00:00:00Z",
     }
     effect = resolve_exact_item_effect_support(
-        exact, runtime_revision=RUNTIME, support_records=[seal_effect_record(subject)],
+        exact, runtime_revision=RUNTIME, support_records=[seal_legacy_effect_record(subject)],
     )
     return static, exact["serializerInput"], progression, effect
 
@@ -510,7 +510,7 @@ class GearExactAuthorityTest(unittest.TestCase):
             [(subject["subjectKind"], subject["subjectKey"]) for subject in subjects],
             [("item", "1001"), ("crafted_effect", "crit")],
         )
-        item_only = seal_effect_record({
+        item_only = seal_legacy_effect_record({
             **{field: subjects[0][field] for field in (
                 "subjectKind", "subjectKey", "subjectVariantSignature",
             )},
@@ -523,7 +523,7 @@ class GearExactAuthorityTest(unittest.TestCase):
         )
         self.assertEqual(unknown["status"], "unknown")
         records = [
-            seal_effect_record({
+            seal_legacy_effect_record({
                 **{field: subject[field] for field in (
                     "subjectKind", "subjectKey", "subjectVariantSignature",
                 )},

@@ -97,7 +97,6 @@ _RECORD_KEY_PATTERN = re.compile(
 _EFFECT_TYPES = frozenset({"on_use", "proc", "buff"})
 _MAX_EFFECT_TOKENS = 32
 _MAX_EFFECT_SEQUENCE_BYTES = 4096
-_LEGACY_RUNTIME = object()
 
 
 @dataclass(frozen=True)
@@ -341,17 +340,10 @@ def _validate_effect_record_payload(
 def seal_effect_record(
     record_payload: object,
     *,
-    runtime_revision: object = _LEGACY_RUNTIME,
-) -> CanonicalResult | dict[str, object]:
-    """Seal one strict static, dynamic, or unsupported effect record.
+    runtime_revision: str,
+) -> CanonicalResult:
+    """Seal one strict static, dynamic, or unsupported effect record."""
 
-    The omitted-runtime branch preserves the unpublished pre-replacement raw
-    helper until the later consolidation slice. New authority callers must
-    always bind an explicit runtime and receive ``CanonicalResult``.
-    """
-
-    if runtime_revision is _LEGACY_RUNTIME:
-        return _legacy_seal_effect_record(record_payload)
     try:
         payload = _validate_effect_record_payload(
             record_payload, runtime_revision=runtime_revision,
@@ -820,7 +812,9 @@ def effect_record_key(record: Mapping[str, object]) -> str:
     ).content_key
 
 
-def _legacy_seal_effect_record(record_payload: object) -> dict[str, object]:
+def seal_legacy_effect_record(record_payload: object) -> dict[str, object]:
+    """Seal one pre-Task-4 raw fixture for frozen compatibility tests only."""
+
     if not isinstance(record_payload, Mapping):
         return {}
     sealed = dict(record_payload)
@@ -833,25 +827,28 @@ def _legacy_to_canonical_record(
     *,
     runtime_revision: object,
 ) -> dict[str, object] | None:
-    if not isinstance(record, Mapping):
-        return None
-    raw = dict(record)
-    support_key = raw.pop("supportRecordKey", None)
-    if type(support_key) is not str or support_key != effect_record_key(raw):
-        return None
-    if raw.get("schemaRevision") == "simc-item-effect-authority-v1":
-        canonical = {
-            **raw,
-            "schemaRevision": EFFECT_RECORD_SCHEMA_REVISION,
-            "status": "verified",
-        }
-    else:
-        canonical = raw
     try:
-        return _validate_effect_record_payload(
+        if not isinstance(record, Mapping):
+            return None
+        raw = dict(record)
+        support_key = raw.pop("supportRecordKey", None)
+        if type(support_key) is not str:
+            return None
+        if raw.get("schemaRevision") == "simc-item-effect-authority-v1":
+            canonical = {
+                **raw,
+                "schemaRevision": EFFECT_RECORD_SCHEMA_REVISION,
+                "status": "verified",
+            }
+        else:
+            canonical = raw
+        validated = _validate_effect_record_payload(
             canonical, runtime_revision=runtime_revision,
         )
-    except CanonicalValueError:
+        if support_key != effect_record_key(raw):
+            return None
+        return validated
+    except (CanonicalValueError, TypeError, ValueError, UnicodeError):
         return None
 
 
@@ -1029,6 +1026,7 @@ __all__ = (
     "resolve_exact_effect_support",
     "resolve_exact_item_effect_support",
     "seal_effect_record",
+    "seal_legacy_effect_record",
     "valid_effect_tokens",
     "valid_runtime_revision",
     "validate_effect_record",
