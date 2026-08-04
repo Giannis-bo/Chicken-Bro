@@ -383,6 +383,31 @@
         "runtimeConsumers": [],
         "activationBoundary": "Task 1 defines deterministic max-not-sum socket facts only; release materialization and runtime consumption remain outside this slice."
       },
+      "canonicalKernelFoundations": {
+        "status": "task2_primitive_bytes_seal_only",
+        "factOwner": "server/gear_canonical_kernel.py",
+        "slotSetOwner": "server/gear_contracts.py",
+        "modules": [
+          "server/gear_canonical_kernel.py",
+          "server/gear_contracts.py"
+        ],
+        "tests": [
+          "tests/gear_canonical_kernel_test.py",
+          "tests/fixtures/gear_canonical_mutations.json"
+        ],
+        "runtimeConsumers": [],
+        "owns": [
+          "Task 2 canonical primitive validation without trim, coercion, sort, dedupe or defaulting",
+          "deterministic canonical JSON bytes and SHA-256 content keys",
+          "module-private sealed canonical document construction and reload verification"
+        ],
+        "mustNotChange": [
+          "server/gear_contracts.py remains the sole canonical gear slot-set owner.",
+          "Do not migrate Exact, Progression, Effect or Envelope consumers in the Kernel slice.",
+          "Do not read database, Catalog, environment or runtime process state."
+        ],
+        "activationBoundary": "Task 2 replacement-plan Kernel only; it adds no runtime consumer, persistence, Catalog pointer, generation or v1 identity change."
+      },
       "trackAuthorityFoundations": {
         "status": "pure_contract_only_unconsumed",
         "factOwner": "server/gear_track_authority.py",
@@ -643,6 +668,7 @@
         "server/websim_payload.py",
         "server/pg_gear_template_selectors.py",
         "server/gear_contracts.py",
+        "server/gear_canonical_kernel.py",
         "server/simc_gear_import.py",
         "server/gear_result_envelope.py",
         "server/gear_rule_matrix.py",
@@ -684,6 +710,8 @@
         "packages/domain/src/gear-intent.*",
         "apps/mini-taro/src/pages/builds/detail.*",
         "tests/gear_contracts_test.py",
+        "tests/gear_canonical_kernel_test.py",
+        "tests/fixtures/gear_canonical_mutations.json",
         "tests/simc_gear_import_test.py",
         "tests/gear_result_envelope_test.py",
         "tests/gear_rule_matrix_test.py",

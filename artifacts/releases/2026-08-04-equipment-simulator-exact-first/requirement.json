@@ -15,10 +15,12 @@
       "docs/project-state.json",
       "docs/roadmap.md",
       "docs/plans/2026-08-04-equipment-simulator-exact-first-implementation.md",
+      "docs/plans/2026-08-04-equipment-simulator-canonical-kernel-redesign.md",
+      "docs/plans/2026-08-04-equipment-simulator-canonical-kernel-implementation.md",
       "docs/harness.md"
     ],
     "activeMilestone": "taro_target_first_14_route_rebuild",
-    "featureIteration": "equipment_simulator_exact_first_task1",
+    "featureIteration": "equipment_simulator_exact_first_task2r_kernel",
     "baseBranch": "main"
   },
   "releaseSlices": [
@@ -29,15 +31,16 @@
   ],
   "impactMap": {
     "mustChange": [
-      "server/simc_gear_import.py and server/gear_contracts.py pure parser/contracts",
-      "server/news_backend.py compatibility wrappers",
-      "packages/domain/src/gear-intent.ts and entities.ts client-side canonical contract",
-      "owner maps and behavior tests"
+      "server/gear_canonical_kernel.py primitive validators, canonical bytes and private sealed documents",
+      "tests/gear_canonical_kernel_test.py and tests/fixtures/gear_canonical_mutations.json shared mutation corpus",
+      "owner maps for Kernel ownership and gear_contracts.py slot-set ownership",
+      "later Exact, Progression, Effect and Envelope consumers must migrate only in their own replacement-plan slices"
     ],
     "mustNotChange": [
-      "selection-intent-v1 canonical bytes, ResolvedLoadout, SimulationSnapshot and generation 35 identities",
-      "Catalog contents/pointers, Exact authority, persistence, worker, Resolver/API and UI behavior",
-      "raw plugin text privacy boundary"
+      "v1 canonical bytes and identities, legal Task 1 v2 fixtures, selection-intent-v1, ResolvedLoadout, SimulationSnapshot and generation 35",
+      "Catalog contents and pointers, Exact authority, persistence, worker, Resolver/API and UI behavior",
+      "Task 3 and later consumers, migrations, deployment and runtime changes",
+      "raw plugin text zero-persistence, zero-logging and zero-echo privacy boundary"
     ],
     "evidenceRequired": [
       "Task 1 RED then GREEN parser/contract tests, frozen v1 bytes and key assertions, and legacy canonical SimC wrapper regression",

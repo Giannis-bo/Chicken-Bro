@@ -12,6 +12,36 @@
   },
   "hotspotFiles": [
     {
+      "path": "server/gear_canonical_kernel.py",
+      "healthStatus": "task2_primitive_bytes_seal_only",
+      "summary": "Owns the replacement-plan Task 2 canonical primitive language, deterministic JSON bytes and private sealed-document boundary without runtime integration.",
+      "owners": [
+        {
+          "id": "equipment_simulator_canonical_kernel_task2",
+          "status": "task2_primitive_bytes_seal_only",
+          "factOwner": "server/gear_canonical_kernel.py",
+          "slotSetOwner": "server/gear_contracts.py",
+          "owns": [
+            "raw-value canonical identity/report token, integer, list, mapping and slot validation",
+            "deterministic canonical JSON bytes and SHA-256 content keys",
+            "module-private sealed document construction, reload verification and verified payload copies"
+          ],
+          "mustNotChange": [
+            "server/gear_contracts.py remains the sole owner of CANONICAL_GEAR_SLOTS.",
+            "Do not read database, Catalog, environment or runtime process state.",
+            "Do not migrate Exact, Progression, Effect or Envelope consumers in this slice.",
+            "Do not persist, log or echo raw plugin text."
+          ],
+          "characterization": [
+            "tests/gear_canonical_kernel_test.py",
+            "tests/fixtures/gear_canonical_mutations.json"
+          ],
+          "runtimeConsumers": [],
+          "futureExtractionDirection": "Later replacement-plan slices may consume the Kernel only after their independent review gate; this slice has no consumer migration."
+        }
+      ]
+    },
+    {
       "path": "server/gear_catalog_migration_audit.py",
       "healthStatus": "phase3_immutable_simulation_snapshot_archived",
       "summary": "Owns the archived Phase 0/1 catalog migration contracts, Phase 2 exact registry, and production-verified Phase 3 exact-only ResolvedLoadout plus immutable SimulationSnapshot boundary; Phase 4 may now perform the single-Manifest cutover.",
