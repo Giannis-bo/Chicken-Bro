@@ -9170,6 +9170,47 @@ def find_chickenbro_user_message_by_client_id(conn, user_id, client_message_id, 
     return None
 
 
+def find_chickenbro_completed_response_by_client_id(conn, user_id, client_message_id, session_id=""):
+    """Return the first completed terminal response for one idempotency key."""
+    if not client_message_id:
+        return None
+    where = ["user_id = ?", "kind = 'chickenbro'", "status = 'succeeded'"]
+    params = [user_id]
+    if session_id:
+        where.append("session_id = ?")
+        params.append(session_id)
+    rows = conn.execute(
+        f"""
+        SELECT id, user_id, session_id, kind, status, request_json, bounded_context_json,
+               result_json, error, created_at, updated_at, started_at, finished_at
+        FROM agent_jobs
+        WHERE {' AND '.join(where)}
+        ORDER BY created_at ASC
+        """,
+        tuple(params),
+    ).fetchall()
+    for row in rows:
+        request = safe_json_loads(row[5], {}, f"chickenbro job request {row[0]}")
+        if clean_chickenbro_client_message_id(request.get("clientMessageId")) != client_message_id:
+            continue
+        assistant_row = conn.execute(
+            """
+            SELECT id, session_id, user_id, role, content, payload_json, agent_job_id, created_at
+            FROM chickenbro_messages
+            WHERE user_id = ? AND agent_job_id = ? AND role = 'assistant'
+            ORDER BY created_at ASC
+            LIMIT 1
+            """,
+            (user_id, row[0]),
+        ).fetchone()
+        if assistant_row:
+            return {
+                "job": public_chickenbro_job_from_row(row),
+                "assistantMessage": public_chickenbro_message_from_row(assistant_row),
+            }
+    return None
+
+
 def load_chickenbro_recent_history(conn, user_id, session_id, limit=6):
     rows = conn.execute(
         """
@@ -9720,6 +9761,19 @@ def send_chickenbro_message_postgres(store, user, payload, message, context, cod
             metadata,
             utc_now(),
         )
+    if existing_user_message and hasattr(store, "find_chickenbro_completed_response_by_client_id"):
+        replay = store.find_chickenbro_completed_response_by_client_id(
+            user["id"], client_message_id, session["sessionId"]
+        )
+        if replay:
+            return {
+                "mode": "chickenbro",
+                "user": user,
+                "session": session,
+                "userMessage": existing_user_message,
+                "assistantMessage": replay["assistantMessage"],
+                "job": replay["job"],
+            }
     history = compact_chickenbro_history((session_payload or {}).get("messages"))
     if existing_user_message:
         history = [
@@ -9845,12 +9899,25 @@ def send_chickenbro_message(payload, access_token="", codex_runner=None):
             message,
             context,
         )
+        replay = find_chickenbro_completed_response_by_client_id(
+            conn, user["id"], client_message_id, session["sessionId"]
+        ) if existing_user_message else None
         history = load_chickenbro_recent_history(conn, user["id"], session["sessionId"])
         if existing_user_message:
             history = [
                 item for item in history
                 if item.get("content") != existing_user_message.get("content") or item.get("role") != "user"
             ]
+    if replay:
+        return {
+            "mode": "chickenbro",
+            "user": user,
+            "session": session,
+            "userMessage": existing_user_message,
+            "assistantMessage": replay["assistantMessage"],
+            "job": replay["job"],
+        }
+    with db_connection() as conn:
         user_profile = upsert_chickenbro_user_profile(conn, user["id"], context, message)
     bounded_context = build_chickenbro_bounded_context(message, context, user_profile=user_profile, history=history)
     sanitized_request = {
@@ -9966,6 +10033,7 @@ def prepare_chickenbro_stream_message(payload, access_token=""):
     client_message_id = clean_chickenbro_client_message_id(payload.get("clientMessageId"))
     store = personal_data_store()
     session_payload = None
+    replay = None
     if store:
         existing_user_message = None
         if client_message_id and hasattr(store, "find_chickenbro_message_by_client_id"):
@@ -9982,20 +10050,42 @@ def prepare_chickenbro_stream_message(payload, access_token=""):
                 normalize_chickenbro_phase(context.get("productPhase") or context.get("phase")),
                 {"createdFrom": "message", "context": sanitize_chickenbro_request_context(context)}, utc_now(),
             )
+        if existing_user_message and hasattr(store, "find_chickenbro_completed_response_by_client_id"):
+            replay = store.find_chickenbro_completed_response_by_client_id(
+                user["id"], client_message_id, session["sessionId"]
+            )
         history = compact_chickenbro_history((session_payload or {}).get("messages"))
         if existing_user_message:
             history = [item for item in history if item.get("content") != existing_user_message.get("content") or item.get("role") != "user"]
-        user_profile = merge_chickenbro_user_profile(store.load_chickenbro_user_profile(user["id"]), context, message)
-        store.upsert_chickenbro_user_profile(user["id"], user_profile, utc_now())
+        user_profile = None
     else:
         with db_connection() as conn:
             existing_user_message = find_chickenbro_user_message_by_client_id(conn, user["id"], client_message_id, requested_session_id)
             session = find_or_create_chickenbro_session(
                 conn, user, existing_user_message["sessionId"] if existing_user_message else requested_session_id, message, context,
             )
+            if existing_user_message:
+                replay = find_chickenbro_completed_response_by_client_id(
+                    conn, user["id"], client_message_id, session["sessionId"]
+                )
             history = load_chickenbro_recent_history(conn, user["id"], session["sessionId"])
             if existing_user_message:
                 history = [item for item in history if item.get("content") != existing_user_message.get("content") or item.get("role") != "user"]
+            user_profile = None
+
+    if replay:
+        return {
+            "replay": replay,
+            "user": user,
+            "session": session,
+            "userMessage": existing_user_message,
+        }
+
+    if store:
+        user_profile = merge_chickenbro_user_profile(store.load_chickenbro_user_profile(user["id"]), context, message)
+        store.upsert_chickenbro_user_profile(user["id"], user_profile, utc_now())
+    else:
+        with db_connection() as conn:
             user_profile = upsert_chickenbro_user_profile(conn, user["id"], context, message)
 
     bounded_context = build_chickenbro_bounded_context(message, context, user_profile=user_profile, history=history)
@@ -10105,6 +10195,21 @@ def stream_chickenbro_message(payload, access_token="", stream_runner=None):
     started_clock = time.perf_counter()
     sequence = 0
     yield {"type": "started", "requestId": request_id, "sessionId": prepared["session"]["sessionId"]}
+    if prepared.get("replay"):
+        replay = prepared["replay"]
+        yield {
+            "type": "final",
+            "requestId": request_id,
+            "response": {
+                "mode": "chickenbro",
+                "user": prepared["user"],
+                "session": prepared["session"],
+                "userMessage": prepared["userMessage"],
+                "assistantMessage": replay["assistantMessage"],
+                "job": replay["job"],
+            },
+        }
+        return
     yield {"type": "status", "requestId": request_id, "stage": "generating"}
     try:
         iterator = run_chickenbro_agent_stream(prepared["boundedContext"], stream_runner=stream_runner)

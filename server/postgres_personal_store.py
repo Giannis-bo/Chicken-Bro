@@ -1009,6 +1009,47 @@ class PostgresPersonalStore:
                 row = cur.fetchone()
         return _public_chickenbro_message_from_pg_row(row)
 
+    def find_chickenbro_completed_response_by_client_id(self, user_id, client_message_id, session_id=""):
+        if not client_message_id:
+            return None
+        where = [
+            "jobs.user_id = %s",
+            "jobs.job_type = 'chickenbro'",
+            "jobs.status = 'succeeded'",
+            "jobs.request_json ->> 'clientMessageId' = %s",
+        ]
+        params = [user_id, client_message_id]
+        if session_id:
+            where.append("jobs.session_id = %s")
+            params.append(session_id)
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"""
+                    SELECT jobs.id, jobs.user_id, jobs.session_id, jobs.job_type, jobs.status,
+                           jobs.request_json, jobs.bounded_context_json, jobs.result_json,
+                           jobs.last_error, jobs.created_at, jobs.updated_at, jobs.started_at, jobs.finished_at,
+                           messages.id, messages.session_id, messages.user_id, messages.role,
+                           messages.content, messages.payload_json, messages.agent_job_id, messages.created_at
+                    FROM app.agent_jobs AS jobs
+                    JOIN app.chickenbro_messages AS messages
+                      ON messages.user_id = jobs.user_id
+                     AND messages.agent_job_id = jobs.id
+                     AND messages.role = 'assistant'
+                    WHERE {' AND '.join(where)}
+                    ORDER BY jobs.created_at ASC
+                    LIMIT 1
+                    """,
+                    tuple(params),
+                )
+                row = cur.fetchone()
+        if not row:
+            return None
+        return {
+            "job": _public_chickenbro_job_from_pg_row(row[:13]),
+            "assistantMessage": _public_chickenbro_message_from_pg_row(row[13:]),
+        }
+
     def get_chickenbro_job(self, user_id, job_id):
         with self.connection() as conn:
             with conn.cursor() as cur:
