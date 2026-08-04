@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-08-04T10:30:07.919Z",
+  "generatedAt": "2026-08-04T11:59:00.429Z",
   "release": {
     "date": "2026-08-04",
     "slug": "chickenbro-agentic-research-loop"
@@ -53,7 +53,7 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 16559
+          "sizeBytes": 16640
         },
         {
           "path": "docs/README.md",
@@ -105,7 +105,7 @@
         {
           "path": "server/news_backend.py",
           "exists": true,
-          "lineCount": 16185,
+          "lineCount": 16341,
           "hotspot": true
         },
         {
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-08-04-chickenbro-agentic-research-loop/evidence.json",
-    "sizeBytes": 4797,
+    "sizeBytes": 10938,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -390,9 +390,9 @@
       "summary"
     ],
     "missingFields": [],
-    "declaredStatus": "local_verified",
-    "highestEvidenceLevel": "local_verified",
-    "summary": "本地已验证 Codex 自主研究循环：模型只可规划已发布 read-only ToolBox，后端验证并执行每轮调用，结论需要绑定实际 observations，失败/空 observation 保持 literal partial。独立候选、实时来源 smoke、候选 WeChat 包和用户真实设备验收仍待完成；没有生产部署、合并、推送或清理声明。"
+    "declaredStatus": "runtime_verified",
+    "highestEvidenceLevel": "runtime_verified",
+    "summary": "Codex 自主研究循环已在最终隔离候选 335df674 验证：模型计划并调用已发布、只读的 ToolBox，依据真实 observations 再规划，且可验证结论仅绑定返回引用。修复了 provider 遗留 action/reason 字段穿透公共流契约、被前端拒绝后显示“重试发送”的问题；服务端现在归一化并验证，前端继续严格校验。真实来源缺口保持 literal partial，不回退到“没有抓取能力”或固定问答。候选小程序包已刷新至 DevTools，并用同一会话原问题和自然追问验证 terminal answer；真实 WeChat 验收是唯一未完成的闭环，本任务未合并、推送、生产投产或清理。"
   },
   "evidence": {
     "localTests": {
@@ -414,16 +414,10 @@
   },
   "riskMatrix": [
     {
-      "id": "dirty_worktree",
-      "severity": "medium",
-      "status": "watch",
-      "detail": "3 changed files currently visible to git status."
-    },
-    {
       "id": "hotspot_files_present",
       "severity": "medium",
       "status": "watch",
-      "detail": "server/websim_payload.py:28040, server/news_backend.py:16185, server/postgres_cache_store.py:9698"
+      "detail": "server/websim_payload.py:28040, server/news_backend.py:16341, server/postgres_cache_store.py:9698"
     },
     {
       "id": "localTests_missing",
@@ -452,13 +446,9 @@
   ],
   "repo": {
     "git": {
-      "status": "dirty",
-      "changedFileCount": 3,
-      "changedFiles": [
-        " M docs/plans/README.md",
-        " M docs/roadmap.md",
-        "?? artifacts/releases/2026-08-04-chickenbro-agentic-research-loop/"
-      ]
+      "status": "clean",
+      "changedFileCount": 0,
+      "changedFiles": []
     }
   },
   "write": {

@@ -5,12 +5,12 @@
   "status": "runtime_verified",
   "highestEvidenceLevel": "runtime_verified",
   "branch": "codex/chickenbro-agentic-research-loop",
-  "commit": "aa960130247949dff81cca37ebdac51b501f7608",
+  "commit": "335df674f425786e1046c7fffe56c0201fbbfaa8",
   "identities": {
     "runtime": {
       "status": "bound",
       "kind": "git_commit",
-      "value": "aa960130247949dff81cca37ebdac51b501f7608",
+      "value": "335df674f425786e1046c7fffe56c0201fbbfaa8",
       "fileHashes": {
         "server/chickenbro_research.py": "223f8f00b1aa761ff1de50cc4f67148c201100e9d72b80046b929e0871e70936",
         "server/chickenbro_registry.py": "54deff45ab4ef0670e5c5188e1cefadcee6512714d32dc152d6d8baa729c8b22",
@@ -18,7 +18,7 @@
         "server/chickenbro_observability.py": "741d00a397a16f5c407ef2ece1e5d9cc56a01cc3ed8e1df1bab93c2fbc46f48f",
         "server/chickenbro_eval.py": "b11978def57c4450c575c5632174d8dcc59238fbed96f7215bd2a4b511ac90ad",
         "server/chickenbro_stream.py": "7b5a6ed84903456e3e41ca79291c488e1c1b7def9437ae429675831d3388fba9",
-        "server/news_backend.py": "ef4d2613f0d8aba901c786f4031cdc4563edf423330fe27c3abf08ba0a0882e2",
+        "server/news_backend.py": "171d3fe199ba1b93e55c4141f511c80fa3f802a4a1a66abdb27de9179b4a10e1",
         "server/postgres_personal_store.py": "fda75d6a36e668e11ebc428a87c6ef4b824683b112b1e81d3bbb6095876620cf"
       }
     },
@@ -49,25 +49,25 @@
     }
   },
   "scope": [
-    "Codex-planned read-only ToolBox research loop with bounded re-plan",
+    "Codex-planned read-only ToolBox research loop with bounded re-plan and canonical public stream payloads",
     "observation-grounded claims, stream post-validation buffering, Trace v5 and deidentified Eval",
     "candidate deployment and WeChat handoff only; no production rollout or new source onboarding"
   ],
   "verification": [
     {
-      "command": "python3 -m unittest -q tests.chickenbro_stream_test tests.chickenbro_research_test tests.chickenbro_registry_test tests.chickenbro_tool_runtime_test tests.chickenbro_question_frame_test tests.chickenbro_evidence_plan_test tests.chickenbro_agent_test tests.chickenbro_observability_test tests.chickenbro_eval_test plus four targeted Chickenbro API/idempotency tests",
+      "command": "python3 -m unittest -q tests.chickenbro_stream_test tests.chickenbro_research_test tests.chickenbro_registry_test tests.chickenbro_tool_runtime_test tests.chickenbro_question_frame_test tests.chickenbro_evidence_plan_test tests.chickenbro_agent_test tests.chickenbro_observability_test tests.chickenbro_eval_test plus five targeted Chickenbro API/idempotency/stream-contract tests",
       "status": "pass",
-      "summary": "128 项 ResearchPlan、Registry/runtime、agentic re-plan、claim grounding、stream buffer/recovery、Trace v5/Eval、HTTP 与 completed clientMessageId 回放回归通过。"
+      "summary": "129 项 ResearchPlan、Registry/runtime、agentic re-plan、claim grounding、stream buffer/recovery、Trace v5/Eval、HTTP、completed clientMessageId 回放及 legacy action/reason 公共流契约归一化回归通过。"
     },
     {
-      "command": "WOW_BACKEND_API_BASE_URL=http://127.0.0.1:18802 npm run refresh:weapp",
+      "command": "WOW_BACKEND_API_BASE_URL=http://127.0.0.1:18805 npm run refresh:weapp",
       "status": "pass",
-      "summary": "候选 API 隧道下构建并原子发布 214 个 WeChat 文件，DevTools CLI 成功打开 aa960130 包；既有 CSS 顺序、包体积和 punycode warning 未造成失败。"
+      "summary": "新候选 API 隧道下构建并原子发布 214 个 WeChat 文件，DevTools CLI 成功打开 335df674 包；既有 CSS 顺序、包体积和 punycode warning 未造成失败。"
     },
     {
-      "command": "candidate POST http://127.0.0.1:18803/api/chickenbro/messages/stream: current retail Elemental Shaman Mythic+ strength",
+      "command": "candidate DevTools: 12.1 PTR Arcane Mage question followed by a natural in-session evidence follow-up",
       "status": "pass",
-      "summary": "事件严格为 started/status/delta/final，job 3bcfea37-1c82-4d28-8e9b-0efbb613bdf7 为 succeeded、answerSource=llm。两轮计划实际执行已发布 Raider.IO strength、WCL public rankings 与 Raider.IO；回答绑定三条返回引用，并对未形成官方当前事实按字面说明局限。"
+      "summary": "在同一 DevTools 会话中，原问题 job 9631f846-afb3-4767-b927-068e29e3a585 和追问 job 2308f5ea-6fe4-40cb-93c7-6e07127288e8 都为 succeeded。界面分别显示 terminal partial 回答；没有出现“重试发送”，追问完成后输入区恢复。"
     },
     {
       "command": "repeat the same candidate stream clientMessageId",
@@ -82,20 +82,20 @@
     {
       "command": "candidate SHA-256 parity, candidate /health, production service and timer inspection",
       "status": "pass",
-      "summary": "八个 agentic runtime 文件与 aa960130 本地 SHA-256 逐一相等，候选 /health=200、NRestarts=0；WOW_DEPLOY_START_ASYNC_SYNCS=0，生产 wow-backend.service 仍为 active。"
+      "summary": "八个 agentic runtime 文件与 335df674 本地 SHA-256 逐一相等，候选 /health=200、NRestarts=0；WOW_DEPLOY_START_ASYNC_SYNCS=0，生产 wow-backend.service 仍为 active，旧 aa960130 候选为 inactive。"
     }
   ],
   "candidateDeployment": {
     "status": "candidate_verified",
     "requiredBeforeMerge": true,
     "branch": "codex/chickenbro-agentic-research-loop",
-    "commit": "aa960130247949dff81cca37ebdac51b501f7608",
-    "deployedTarget": "ubuntu@124.223.51.33:/opt/wow-mini-program-candidates/chickenbro-agentic-aa960130",
-    "service": "wow-backend-chickenbro-agentic-aa960130.service (127.0.0.1:18803)",
-    "method": "从上一独立 agentic candidate 复制至新的 task-scoped root，只替换已验证的 repository-owned 文件；新 unit 固定 collectors=0、async sync=0，先健康检查新候选再停止旧候选。",
+    "commit": "335df674f425786e1046c7fffe56c0201fbbfaa8",
+    "deployedTarget": "ubuntu@124.223.51.33:/opt/wow-mini-program-candidates/chickenbro-agentic-335df674",
+    "service": "wow-backend-chickenbro-agentic-335df674.service (127.0.0.1:18804)",
+    "method": "从上一独立 agentic candidate 复制至新的 task-scoped root，只替换已验证的 repository-owned 文件；新 unit 固定 collectors=0、async sync=0，先健康检查新候选再停止带有公共流契约缺陷的 aa960130 候选。",
     "runtime": {
       "health": {"httpStatus": 200, "body": {"ok": true, "service": "wow-backend"}},
-      "fileParity": "ResearchPlan、registry/runtime、Trace/Eval、stream、news_backend 与 Postgres store 的八个 SHA-256 均与 aa960130 对应本地文件一致。"
+      "fileParity": "ResearchPlan、registry/runtime、Trace/Eval、stream、news_backend 与 Postgres store 的八个 SHA-256 均与 335df674 对应本地文件一致。"
     },
     "smoke": {
       "status": "pass",
@@ -123,16 +123,16 @@
     },
     "rollback": {
       "status": "ready",
-      "path": "停止 wow-backend-chickenbro-agentic-aa960130.service；如需回到上一候选，仅启动保留的 wow-backend-chickenbro-agentic-3550a720.service。",
+      "path": "停止 wow-backend-chickenbro-agentic-335df674.service；如需回到上一候选，仅启动保留的 wow-backend-chickenbro-agentic-3550a720.service。",
       "production": "生产 wow-backend.service 和 /opt/wow-mini-program 运行文件未被此候选部署修改。"
     }
   },
   "runtimeEvidence": [
-    {"type": "candidate_file_parity", "status": "pass", "summary": "最终候选八个运行文件 SHA-256 逐一与本地 runtime identity 相等。"},
+    {"type": "candidate_file_parity", "status": "pass", "summary": "最终候选八个运行文件 SHA-256 逐一与本地 335df674 runtime identity 相等。"},
     {"type": "live_agentic_smoke", "status": "pass", "summary": "真实零时强度问题调用可用受控 ToolBox 并产生 bounded observations；回答只绑定返回引用。"},
     {"type": "idempotent_retry", "status": "pass", "summary": "已完成的同一 clientMessageId 只回放原 terminal response，不阻断追问也不生成新的任务。"},
     {"type": "trace_privacy", "status": "pass", "summary": "Trace v5 保留研究状态、计划和 observation 状态，未保存 prompt、玩家原文、answer 或 raw output。"},
-    {"type": "frontend_candidate_package", "status": "pass", "summary": "候选 API 指向下的 WeChat package/DevTools 刷新通过；真实设备外观与交互仍待用户验收。"}
+    {"type": "frontend_candidate_package", "status": "pass", "summary": "候选 API 指向下的 WeChat package/DevTools 刷新通过；原问题及自然追问在同一会话中均展示 terminal answer、无“重试发送”。追问中的 partial 是来源边界，不是流失败。127.0.0.1 候选隧道仅在忽略的 DevTools 编译产物中临时关闭域名校验；受版本控制的 project.config.json 仍为 urlCheck=true。真实设备外观与交互仍待用户验收。"}
   ],
   "risks": [
     {
@@ -152,7 +152,7 @@
     }
   ],
   "rollback": [
-    "停止 wow-backend-chickenbro-agentic-aa960130.service；生产 wow-backend.service 保持不动。",
+    "停止 wow-backend-chickenbro-agentic-335df674.service；生产 wow-backend.service 保持不动。",
     "若需保留上一候选，启动 wow-backend-chickenbro-agentic-3550a720.service；两者均为隔离 candidate root。",
     "真实 WeChat 验收前保留最终候选、任务分支与工作树；不回滚或修改生产。"
   ],
@@ -165,5 +165,5 @@
     "docs/plans/2026-08-04-chickenbro-agentic-research-design.md",
     "docs/plans/2026-08-04-chickenbro-agentic-research-loop-implementation.md"
   ],
-  "summary": "Codex 自主研究循环已在最终隔离候选 aa960130 验证：模型计划并调用已发布、只读的 ToolBox，依据真实 observations 再规划，且可验证结论仅绑定返回引用。真实来源缺口保持 literal partial，不回退到“没有抓取能力”或固定问答。候选小程序包已刷新至 DevTools；真实 WeChat 验收是唯一未完成的闭环，本任务未合并、推送、生产投产或清理。"
+  "summary": "Codex 自主研究循环已在最终隔离候选 335df674 验证：模型计划并调用已发布、只读的 ToolBox，依据真实 observations 再规划，且可验证结论仅绑定返回引用。修复了 provider 遗留 action/reason 字段穿透公共流契约、被前端拒绝后显示“重试发送”的问题；服务端现在归一化并验证，前端继续严格校验。真实来源缺口保持 literal partial，不回退到“没有抓取能力”或固定问答。候选小程序包已刷新至 DevTools，并用同一会话原问题和自然追问验证 terminal answer；真实 WeChat 验收是唯一未完成的闭环，本任务未合并、推送、生产投产或清理。"
 }
