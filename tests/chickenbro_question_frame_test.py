@@ -119,6 +119,21 @@ class ChickenbroQuestionFrameTest(unittest.TestCase):
         self.assertEqual("retail", frame["scope"]["productPhase"])
         self.assertEqual("mythic_plus", frame["scope"]["scenarioKey"])
 
+    def test_ratio_follow_up_does_not_inherit_a_ptr_patch_across_a_retail_turn(self):
+        frame = self._builder()(
+            "解读一下15/27是啥意思？",
+            [
+                {"role": "user", "content": "NQ 在 12.1 PTR 强度如何？"},
+                {"role": "assistant", "content": "PTR 证据仍不完整。"},
+                {"role": "user", "content": "元素萨现在版本大秘境强度如何？"},
+                {"role": "assistant", "content": "元素萨同职责高层样本位于第 15/27。"},
+            ],
+        )
+
+        self.assertEqual("retail", frame["scope"]["productPhase"])
+        self.assertEqual("", frame["scope"]["patchVersion"])
+        self.assertEqual(["comparative_strength_signal"], frame["evidenceNeeds"])
+
     def test_evidence_ratio_follow_up_does_not_cross_an_intervening_user_turn(self):
         frame = self._builder()(
             "解读一下15/27是啥意思？",

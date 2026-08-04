@@ -152,6 +152,18 @@ def _first_patch_version(*texts):
     return ""
 
 
+def _inherited_patch_version(history_texts, product_phase):
+    """Carry a patch only within the same explicit product-phase thread."""
+    for historical_text in reversed(history_texts):
+        historical_phase = _explicit_phase(historical_text)
+        if historical_phase and historical_phase != product_phase:
+            break
+        patch_version = _first_patch_version(historical_text)
+        if patch_version:
+            return patch_version
+    return ""
+
+
 def _explicit_phase(text):
     normalized = _normalized_text(text)
     if not normalized:
@@ -281,7 +293,7 @@ def build_chickenbro_question_frame(message, history):
     product_phase = _phase(text, *reversed(history_texts))
     patch_version = _first_patch_version(text)
     if not patch_version and explicit_phase != "retail":
-        patch_version = _first_patch_version(*reversed(history_texts))
+        patch_version = _inherited_patch_version(history_texts, product_phase)
     scenario_key = _scenario(text, *reversed(history_texts))
     question_type = _question_type(text, history_texts, subject, product_phase)
     unresolved = []
