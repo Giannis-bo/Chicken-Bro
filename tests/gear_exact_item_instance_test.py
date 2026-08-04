@@ -2,6 +2,7 @@ import copy
 import unittest
 
 from server.gear_exact_item_instance import (
+    build_exact_item_identity,
     build_exact_item_instance,
     canonical_enhancement_selection,
 )
@@ -49,6 +50,70 @@ def exact_row(**overrides):
 
 
 class GearExactItemInstanceTest(unittest.TestCase):
+    def test_v2_identity_ignores_catalog_listing_and_changes_for_each_exact_field(self):
+        base = exact_row()
+        listed = build_exact_item_identity(
+            CURRENT_BINDING,
+            {**base, "catalogStatus": "listed", "catalogRevision": CATALOG_REVISION},
+        )
+        unlisted = build_exact_item_identity(
+            CURRENT_BINDING,
+            {
+                **base,
+                "catalogStatus": "unlisted",
+                "catalogRevision": "gear-catalog:sha256:" + ("3" * 64),
+                "owner": "never-an-identity-input",
+                "observationCount": 99,
+            },
+        )
+
+        self.assertEqual(listed["status"], "verified")
+        self.assertEqual(listed["exactItemInstanceKey"], unlisted["exactItemInstanceKey"])
+        for field, replacement in (
+            ("itemLevel", 269),
+            ("bonusIds", ["9002", "13334", "9001", "7777"]),
+            ("context", {"difficulty": "mythic"}),
+            ("gems", ["240897", "240892"]),
+            ("enchant", "9999"),
+            ("craftedStats", ["32"]),
+            ("embellishments", ["999001"]),
+            ("redirectedBaseStats", {"haste_rating": 242}),
+        ):
+            changed = exact_row()
+            if field == "context":
+                changed["context"] = replacement
+            elif field == "gems":
+                changed["simcOptions"] = {**changed["simcOptions"], "gem_id": "/".join(replacement)}
+            elif field == "enchant":
+                changed["simcOptions"] = {**changed["simcOptions"], "enchant_id": replacement}
+            elif field == "craftedStats":
+                changed["simcOptions"] = {**changed["simcOptions"], "crafted_stats": "/".join(replacement)}
+            elif field == "embellishments":
+                changed["simcOptions"] = {**changed["simcOptions"], "embellishment": "/".join(replacement)}
+            elif field == "redirectedBaseStats":
+                changed["redirectedBaseStats"] = replacement
+            else:
+                changed[field] = replacement
+                if field == "itemLevel":
+                    changed["simcOptions"] = {**changed["simcOptions"], "ilevel": str(replacement)}
+                if field == "bonusIds":
+                    changed["simcOptions"] = {**changed["simcOptions"], "bonus_id": "/".join(replacement)}
+            candidate = build_exact_item_identity(CURRENT_BINDING, changed)
+            self.assertEqual(candidate["status"], "verified", field)
+            self.assertNotEqual(listed["exactItemInstanceKey"], candidate["exactItemInstanceKey"], field)
+
+    def test_v1_catalog_wrapper_remains_byte_and_key_compatible(self):
+        built = build_exact_item_instance(
+            CURRENT_BINDING,
+            exact_row(),
+            catalog_revision=CATALOG_REVISION,
+        )
+        self.assertEqual(
+            built["exactItemInstanceKey"],
+            "exact-item-instance:sha256:38b1a60808918f4bab94bd5bc0fd9240418ce72d631369beb054ec485ab636aa",
+        )
+        self.assertEqual(built["validation"]["catalogRevision"], CATALOG_REVISION)
+
     def test_exact_identity_is_deterministic_and_excludes_provenance(self):
         first = build_exact_item_instance(
             CURRENT_BINDING,

@@ -20,6 +20,7 @@ except ImportError:
 
 
 EXACT_ITEM_INSTANCE_SCHEMA_REVISION = "gear-exact-item-instance-v1"
+EXACT_ITEM_IDENTITY_SCHEMA_REVISION = "gear-exact-item-instance-v2"
 EXACT_ITEM_VALIDATION_SCHEMA_REVISION = "gear-exact-item-validation-v1"
 ENHANCEMENT_SELECTION_SCHEMA_REVISION = "gear-enhancement-selection-v1"
 
@@ -296,6 +297,84 @@ def _serializer_input(
     return result
 
 
+def build_exact_item_identity(
+    binding: Any,
+    exact_row: Any,
+    *,
+    enhancement_selection: Any = None,
+) -> dict[str, Any]:
+    """Build a Catalog-independent v2 Exact identity.
+
+    The frozen v1 builder below remains the only Catalog/Rule validation
+    wrapper.  This helper deliberately projects only sealed instance facts;
+    listing, Catalog revisions, owners, and observations never enter the
+    canonical bytes.
+    """
+
+    # v1 already owns the source normalization and progression proof.  A
+    # syntactically valid sentinel lets this pure identity reuse that frozen
+    # normalization without reading or depending on a Catalog membership.
+    normalized = build_exact_item_instance(
+        binding,
+        exact_row,
+        catalog_revision="gear-catalog:sha256:" + ("0" * 64),
+        enhancement_selection=enhancement_selection,
+    )
+    if normalized.get("status") != "verified":
+        return {
+            "status": "blocked",
+            "schemaRevision": EXACT_ITEM_IDENTITY_SCHEMA_REVISION,
+            "problemCodes": list(normalized.get("problemCodes") or []),
+            "problems": _canonical(normalized.get("problems") or []),
+        }
+
+    row = dict(exact_row) if isinstance(exact_row, Mapping) else {}
+    redirected_base_stats = row.get("redirectedBaseStats")
+    if redirected_base_stats in (None, "", {}, []):
+        redirected_base_stats = {}
+    else:
+        redirected_base_stats = _static_facts(redirected_base_stats)
+        if redirected_base_stats is None:
+            return {
+                "status": "blocked",
+                "schemaRevision": EXACT_ITEM_IDENTITY_SCHEMA_REVISION,
+                "problemCodes": ["EXACT_REDIRECTED_BASE_STATS_MALFORMED"],
+                "problems": [_problem(
+                    "EXACT_REDIRECTED_BASE_STATS_MALFORMED",
+                    "exactRow.redirectedBaseStats",
+                    "redirectedBaseStats must be a non-empty numeric stat map.",
+                )],
+            }
+
+    variant_identity = {
+        "itemId": normalized["itemId"],
+        "bonusIds": normalized["bonusIds"],
+        "context": normalized["context"],
+        "progressionState": normalized["progressionState"],
+        "itemLevel": normalized["itemLevel"],
+        "redirectedBaseStats": redirected_base_stats,
+    }
+    instance_identity = {
+        "schemaRevision": EXACT_ITEM_IDENTITY_SCHEMA_REVISION,
+        **variant_identity,
+        "enhancementSelection": normalized["enhancementSelection"],
+    }
+    exact_variant_signature = _hash("exact-variant:sha256:", variant_identity)
+    exact_key = _hash("exact-item-instance:sha256:", instance_identity)
+    return {
+        "status": "verified",
+        "schemaRevision": EXACT_ITEM_IDENTITY_SCHEMA_REVISION,
+        "exactItemInstanceKey": exact_key,
+        "exactVariantSignature": exact_variant_signature,
+        "enhancementSelectionKey": normalized["enhancementSelectionKey"],
+        **variant_identity,
+        "enhancementSelection": normalized["enhancementSelection"],
+        "serializerInput": normalized["serializerInput"],
+        "problemCodes": [],
+        "problems": [],
+    }
+
+
 def build_exact_item_instance(
     binding: Any,
     exact_row: Any,
@@ -541,9 +620,11 @@ __all__ = (
     "ENHANCEMENT_SELECTION_KEY_PATTERN",
     "ENHANCEMENT_SELECTION_SCHEMA_REVISION",
     "EXACT_ITEM_INSTANCE_KEY_PATTERN",
+    "EXACT_ITEM_IDENTITY_SCHEMA_REVISION",
     "EXACT_ITEM_INSTANCE_SCHEMA_REVISION",
     "EXACT_ITEM_VALIDATION_SCHEMA_REVISION",
     "EXACT_VARIANT_SIGNATURE_PATTERN",
     "build_exact_item_instance",
+    "build_exact_item_identity",
     "canonical_enhancement_selection",
 )

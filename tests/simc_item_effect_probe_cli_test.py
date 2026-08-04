@@ -1,0 +1,24 @@
+import json
+import subprocess
+import tempfile
+import unittest
+from pathlib import Path
+
+from tests.simc_item_effect_probe_test import CONTROL, EXPERIMENT, MANIFEST
+
+
+class SimcItemEffectProbeCliTest(unittest.TestCase):
+    def test_cli_only_reads_local_inputs_and_prints_canonical_evaluator_result(self):
+        root = Path(__file__).resolve().parents[1]
+        with tempfile.TemporaryDirectory() as directory:
+            paths = {}
+            for name, payload in (("manifest", MANIFEST), ("experiment", EXPERIMENT), ("control", CONTROL)):
+                path = Path(directory) / f"{name}.json"
+                path.write_text(json.dumps(payload), encoding="utf-8")
+                paths[name] = path
+            completed = subprocess.run(
+                ["python3", "scripts/simc-item-effect-probe.py", "--manifest", str(paths["manifest"]), "--experiment-report", str(paths["experiment"]), "--control-report", str(paths["control"])],
+                cwd=root, capture_output=True, text=True, check=False,
+            )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertEqual(json.loads(completed.stdout)["status"], "verified")

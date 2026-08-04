@@ -456,6 +456,9 @@
       "exactItemInstanceFoundations": {
         "status": "phase2_dormant_exact_cache_implementation",
         "factOwner": "server/gear_exact_item_instance.py",
+        "exactAuthorityOwner": "server/gear_exact_authority.py",
+        "effectSupportOwner": "server/simc_item_effect_support.py",
+        "effectProbeOwner": "server/simc_item_effect_probe.py",
         "registryOwner": "server/gear_exact_item_registry.py",
         "trackAuthorityOwner": "server/gear_track_authority.py",
         "readOnlyProjectionOwner": "server/gear_catalog_audit_store.py",
@@ -464,6 +467,9 @@
         "cliOrchestrator": "scripts/gear-exact-item-instance.py",
         "modules": [
           "server/gear_exact_item_instance.py",
+          "server/gear_exact_authority.py",
+          "server/simc_item_effect_support.py",
+          "server/simc_item_effect_probe.py",
           "server/gear_exact_item_registry.py",
           "server/gear_catalog_audit_store.py",
           "server/gear_exact_item_registry_store.py",
@@ -472,6 +478,10 @@
         ],
         "tests": [
           "tests/gear_exact_item_instance_test.py",
+          "tests/gear_exact_authority_test.py",
+          "tests/simc_item_effect_support_test.py",
+          "tests/simc_item_effect_probe_test.py",
+          "tests/simc_item_effect_probe_cli_test.py",
           "tests/gear_exact_item_registry_test.py",
           "tests/gear_exact_item_registry_store_test.py",
           "tests/gear_exact_item_instance_cli_test.py",
