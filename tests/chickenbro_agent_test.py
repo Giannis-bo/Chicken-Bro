@@ -2,12 +2,18 @@ import inspect
 import json
 import os
 import unittest
+from datetime import datetime, timezone
 from unittest import mock
 
 import server.news_backend as backend
 import server.chickenbro_agent as agent
 from server.chickenbro_tool_runtime import ChickenbroRegistryRuntime
-from tests.chickenbro_registry_test import community_strength_manifest, current_sources_manifest, signed_release
+from tests.chickenbro_registry_test import (
+    community_strength_manifest,
+    current_sources_manifest,
+    public_web_research_manifest,
+    signed_release,
+)
 
 
 def agentic_plan(tool_id, arguments, decision):
@@ -421,6 +427,55 @@ class ChickenbroAgentIntentTest(unittest.TestCase):
             )
 
         self.assertEqual("partial", result["status"])
+
+    def test_agentic_research_can_choose_one_generic_public_web_tool_without_provider_routing(self):
+        release = signed_release(
+            [public_web_research_manifest()],
+            registryVersion="chickenbro-tools-generic-web",
+            provenance={"kind": "fixture", "revision": "generic-web"},
+        )
+        captured = []
+
+        def planner_runner(prompt, **_kwargs):
+            captured.append(json.loads(prompt))
+            return {
+                "status": "succeeded",
+                "content": json.dumps(
+                    agentic_plan(
+                        "source:public-web-research:v1",
+                        {"target": "current public community evidence"},
+                        "answer",
+                    )
+                ),
+            }
+
+        result = backend.run_chickenbro_research(
+            "任意当前强度问题",
+            [],
+            {},
+            registry_loader=lambda: release,
+            registry_runtime=ChickenbroRegistryRuntime(60),
+            planner_runner=planner_runner,
+            adapter_bindings={
+                "chickenbro.source.public_web_research.v1": lambda request: {
+                    "sourceKey": "public_web_research",
+                    "status": "source_reference",
+                    "facts": [{"summary": request["intent"]["target"]}],
+                    "evidence": [{"id": "fixture.public-web", "checkedAt": datetime.now(timezone.utc).isoformat()}],
+                    "evidenceRefs": ["fixture.public-web"],
+                    "limitations": [],
+                    "nextActions": [],
+                },
+            },
+        )
+
+        self.assertEqual("completed", result["status"])
+        self.assertEqual(["source:public-web-research:v1"], result["registryContext"]["selectedCapabilityIds"])
+        self.assertEqual("current public community evidence", result["observations"][0]["facts"][0]["summary"])
+        self.assertEqual(
+            ["source:public-web-research:v1"],
+            [tool["toolId"] for tool in captured[0]["toolCatalog"]],
+        )
     def test_registry_discovery_preserves_raiderio_tool_result(self):
         intent = backend.classify_chickenbro_request("protection warrior build", [])
         payload = {

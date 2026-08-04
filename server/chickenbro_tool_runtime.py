@@ -31,6 +31,7 @@ _REQUEST_INTENT_FIELDS = {
     "evidenceNeeds",
     "scenarioKey",
     "comparisonScope",
+    "target",
 }
 _REQUEST_CONTEXT_FIELDS = {"region", "productPhase", "patchVersion", "questionType", "classKey", "specKey", "scenarioKey"}
 _TOOL_RESULT_FIELDS = {

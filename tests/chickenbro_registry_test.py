@@ -150,6 +150,31 @@ def community_strength_manifest(tool_id, implementation_ref, source_key, **overr
     return signed_manifest(**values)
 
 
+def public_web_research_manifest(**overrides):
+    values = {
+        "toolId": "source:public-web-research:v1",
+        "purpose": "Search a bounded public-web research query or read one Codex-selected safe HTTPS public page.",
+        "inputSchema": {"required": ["target"]},
+        "discoveryPolicy": {
+            "requestKinds": ["current_research"],
+            "requiredContextFields": ["questionType"],
+            "productPhases": ["retail", "ptr"],
+            "regions": ["cn", "global", "us", "eu", "kr", "tw"],
+            "priority": 70,
+        },
+        "freshnessPolicy": {"maxAgeSeconds": 120, "requireCheckedAt": True, "staleBehavior": "limitation_only"},
+        "timeoutBudgetMs": 15000,
+        "costBudget": {"status": "bounded_live_public_web_read", "maxPages": 2, "maxRequestsPerWindow": 8, "windowSeconds": 60},
+        "implementationRef": "chickenbro.source.public_web_research.v1",
+        "evalRefs": ["chickenbro-eval:generic_public_web_research"],
+        "sourcePolicy": {"sourceKey": "public_web_research", "requiredStatuses": ["source_reference", "partial", "failed"]},
+        "provenance": {"kind": "repository_migration", "revision": "0028"},
+        "createdAt": "2026-08-04T00:00:00+00:00",
+    }
+    values.update(overrides)
+    return signed_manifest(**values)
+
+
 def signed_release(manifests=None, **overrides):
     manifests = list(manifests or [signed_manifest(), wcl_manifest()])
     refs = [
@@ -175,6 +200,15 @@ def signed_release(manifests=None, **overrides):
 
 
 class ChickenbroRegistryTest(unittest.TestCase):
+    def test_registry_accepts_a_generic_public_web_research_tool(self):
+        manifest = public_web_research_manifest()
+
+        validated = validate_chickenbro_tool_manifest(manifest)
+
+        self.assertEqual("source:public-web-research:v1", validated["toolId"])
+        self.assertEqual("chickenbro.source.public_web_research.v1", validated["implementationRef"])
+        self.assertEqual(["target"], validated["inputSchema"]["required"])
+
     def test_published_catalog_does_not_depend_on_question_frame(self):
         release = signed_release(
             [

@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 2,
+  "slug": "chickenbro-generic-public-web-research",
+  "requirementSlug": "chickenbro-generic-public-web-research",
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
+  "branch": "codex/chickenbro-agentic-research-loop",
+  "commit": "pending_candidate_commit",
+  "identities": {
+    "runtime": {
+      "status": "pending",
+      "reason": "The candidate runtime commit, file hashes and live candidate evidence are recorded only after the immutable task commit is deployed."
+    },
+    "verification": {
+      "status": "pending",
+      "reason": "Final verification binds after the candidate runtime evidence is captured."
+    },
+    "closure": {
+      "status": "pending",
+      "reason": "The user has not yet accepted the candidate WeChat behavior; no merge, production rollout or archive closure has occurred."
+    }
+  },
+  "manualAcceptance": {
+    "required": true,
+    "status": "pending",
+    "items": [
+      {"id": "candidate_wechat_generic_current_research", "status": "pending"},
+      {"id": "candidate_wechat_generic_natural_followup", "status": "pending"}
+    ],
+    "rollup": {
+      "total": 2,
+      "accepted": 0,
+      "notRunUserWaived": 0,
+      "pending": 2
+    }
+  },
+  "scope": [
+    "generic_public_web_research_tool",
+    "candidate_registry_v4_without_active_pointer_change"
+  ],
+  "verification": [],
+  "candidateDeployment": {
+    "status": "pending",
+    "reason": "Candidate deployment has not yet been performed."
+  },
+  "runtimeEvidence": [],
+  "risks": [
+    {
+      "id": "public_search_availability",
+      "status": "active",
+      "detail": "Public query discovery may be rate limited; each unsuccessful attempt remains a literal partial result and cannot become an invented conclusion."
+    },
+    {
+      "id": "manual_wechat_acceptance",
+      "status": "active",
+      "detail": "Candidate API and local tests do not replace user acceptance of the WeChat answer and follow-up experience."
+    }
+  ],
+  "rollback": [
+    "candidate_service_stop_disable",
+    "candidate_root_restore_or_remove",
+    "production_registry_pointer_unchanged"
+  ],
+  "cleanup": {
+    "required": true,
+    "status": "pending_user_acceptance",
+    "target": "Keep the candidate service, task branch and worktree until the user explicitly accepts or rejects the candidate behavior."
+  },
+  "archivedReferences": [
+    "docs/plans/2026-08-04-chickenbro-agentic-research-loop-implementation.md"
+  ],
+  "summary": "Local generic Tool implementation and targeted verification are in progress. This packet intentionally makes no runtime, candidate or manual-acceptance success claim yet."
+}

@@ -173,6 +173,35 @@ class PostgresOpsStoreTest(unittest.TestCase):
             PostgresOpsStore(lambda: duplicate).load_active_chickenbro_registry_release()
         self.assertTrue(duplicate.rolled_back)
 
+    def test_named_tool_registry_release_can_be_loaded_without_moving_the_active_pointer(self):
+        from server.postgres_ops_store import PostgresOpsStore
+
+        release = signed_release([signed_manifest(), wcl_manifest()], registryVersion="chickenbro-tools-4")
+        conn = FakeConnection(
+            rowsets={
+                "FROM ops.chickenbro_tool_registry_releases WHERE registry_version = %s": [
+                    (
+                        release["registryVersion"],
+                        release["manifestRefs"],
+                        release["releaseHash"],
+                        release["provenance"],
+                        release["createdAt"],
+                        release["activatedAt"],
+                    )
+                ],
+                "FROM ops.chickenbro_tool_registry_release_manifests AS membership": [
+                    (0, signed_manifest()),
+                    (1, wcl_manifest()),
+                ],
+            }
+        )
+
+        loaded = PostgresOpsStore(lambda: conn).load_chickenbro_registry_release("chickenbro-tools-4")
+
+        self.assertEqual("chickenbro-tools-4", loaded["registryVersion"])
+        self.assertEqual(("chickenbro-tools-4",), conn.cursor_instance.params[0])
+        self.assertTrue(conn.committed)
+
 
 if __name__ == "__main__":
     unittest.main()

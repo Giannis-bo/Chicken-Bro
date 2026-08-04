@@ -288,6 +288,7 @@ try:
         raiderio_payload_with_freshness,
     )
     from .chickenbro_community_strength import build_wcl_public_rankings_tool_result
+    from .chickenbro_public_web_research import build_public_web_research_tool_result
     from .chickenbro_current_sources import build_current_wow_sources_tool_result
     from .chickenbro_evidence_plan import build_chickenbro_evidence_plan
     from .chickenbro_research import (
@@ -323,6 +324,7 @@ except ImportError:
         raiderio_payload_with_freshness,
     )
     from chickenbro_community_strength import build_wcl_public_rankings_tool_result
+    from chickenbro_public_web_research import build_public_web_research_tool_result
     from chickenbro_current_sources import build_current_wow_sources_tool_result
     from chickenbro_evidence_plan import build_chickenbro_evidence_plan
     from chickenbro_research import (
@@ -7623,7 +7625,7 @@ def chickenbro_has_official_current_source(bounded_context):
 def chickenbro_has_comparative_strength_source(bounded_context):
     return any(
         isinstance(source, dict)
-        and source.get("sourceKey") == "raiderio_strength"
+        and source.get("sourceKey") in {"raiderio_strength", "public_web_research"}
         and source.get("status") in {"source_reference", "verified"}
         and source.get("evidenceRefs")
         for source in (bounded_context.get("sourceEvidence") or [])
@@ -7744,6 +7746,11 @@ def chickenbro_registry_release_loader():
     store = ops_data_store()
     if store is None or not hasattr(store, "load_active_chickenbro_registry_release"):
         raise ConnectionError("chickenbro tool registry store is unavailable")
+    candidate_version = os.environ.get("WOW_CHICKENBRO_TOOL_REGISTRY_VERSION", "").strip()
+    if candidate_version:
+        if not hasattr(store, "load_chickenbro_registry_release"):
+            raise ConnectionError("named chickenbro tool registry release loader is unavailable")
+        return store.load_chickenbro_registry_release(candidate_version)
     return store.load_active_chickenbro_registry_release()
 
 
@@ -7764,6 +7771,7 @@ _CHICKENBRO_CAPABILITY_EVIDENCE = {
     "source:current-wow-sources:v1": {"official_current_changes"},
     "source:raiderio-strength:v1": {"comparative_strength_signal"},
     "source:warcraftlogs-public-rankings:v1": set(),
+    "source:public-web-research:v1": {"comparative_strength_signal"},
 }
 _CHICKENBRO_SOURCE_EVIDENCE = {
     "raiderio": {"community_build_reference"},
@@ -7771,6 +7779,7 @@ _CHICKENBRO_SOURCE_EVIDENCE = {
     "current_wow_sources": {"official_current_changes"},
     "raiderio_strength": {"comparative_strength_signal"},
     "warcraftlogs_public_rankings": set(),
+    "public_web_research": {"comparative_strength_signal"},
 }
 
 
@@ -7863,6 +7872,9 @@ def chickenbro_tool_adapter_bindings():
             build_wcl_log_evidence({"prompt": request["intent"].get("wclReport") or ""})
         ),
         "chickenbro.source.warcraftlogs_public_rankings.v1": lambda request: build_wcl_public_rankings_tool_result(
+            request["intent"]
+        ),
+        "chickenbro.source.public_web_research.v1": lambda request: build_public_web_research_tool_result(
             request["intent"]
         ),
         "chickenbro.source.current_wow_sources.v1": lambda request: build_current_wow_sources_tool_result(

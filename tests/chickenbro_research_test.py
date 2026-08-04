@@ -100,6 +100,23 @@ class ChickenbroResearchTest(unittest.TestCase):
                 catalog,
             )
 
+    def test_plan_allows_a_safe_https_target_only_for_the_generic_public_web_tool(self):
+        module = self._module()
+        target = "https://community.example/current-data"
+        catalog = [catalog_tool("source:public-web-research:v1", ["target"])]
+
+        plan = module.validate_research_plan(
+            plan_with("source:public-web-research:v1", {"target": target}, decision="answer"),
+            catalog,
+        )
+
+        self.assertEqual(target, plan["toolCalls"][0]["arguments"]["target"])
+        with self.assertRaisesRegex(ValueError, "unsafe research argument"):
+            module.validate_research_plan(
+                plan_with("source:official:v1", {"target": target}, decision="answer"),
+                [catalog_tool("source:official:v1", ["target"])],
+            )
+
     def test_plan_rejects_duplicate_tool_or_more_than_three_calls(self):
         module = self._module()
         catalog = [catalog_tool(f"source:tool-{index}:v1") for index in range(4)]
