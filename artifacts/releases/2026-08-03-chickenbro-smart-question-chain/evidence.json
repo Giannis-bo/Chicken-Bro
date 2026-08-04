@@ -5,18 +5,20 @@
   "status": "live_verified",
   "highestEvidenceLevel": "live_verified",
   "branch": "codex/chickenbro-smart-question-chain",
-  "commit": "34a42b563207637eb14a8a19ceac1563ecd57342",
+  "commit": "30362c7557477a781c279f755a6e2cff5cef2a7b",
   "identities": {
     "runtime": {
       "status": "bound",
       "kind": "git_commit",
-      "value": "34a42b563207637eb14a8a19ceac1563ecd57342",
+      "value": "30362c7557477a781c279f755a6e2cff5cef2a7b",
       "fileHashes": {
         "server/llm_client.py": "03bb6d8041e21804d1f5d117fc4823fc71912104d1dc32b319c1a9851652c4b3",
-        "server/chickenbro_agent.py": "f44373695f83dfd5051c8f181efd6ad52d4749fa49832e01c45a3ecdd5293754",
+        "server/chickenbro_agent.py": "fc5be81bca3a5513d63730c484f0787dd07e7ce708924ae96f2e53f2e71cdc7d",
         "server/chickenbro_community_strength.py": "1a68f0de894b33fa0209b77176bf7041eb18a286466f0b052ea077a968007a6e",
-        "server/chickenbro_question_frame.py": "3a4cfd059a54a6e1e4f8970f163d497c57a3f02e37644b1aac7d87caed658a6e",
-        "server/news_backend.py": "4c21daf533a1042bf2c0957b5bbf089a5a65d1a5ad80df78d31f1a49b8f1e497",
+        "server/chickenbro_question_frame.py": "445057fde94c278442faecf878b48303018513bd485322dd960e3671bed80f0a",
+        "server/chickenbro_tool_runtime.py": "f7f57d7c1ba89f8f75ed203f4f9582601a85b9432bf797cb0f2fbee8587ddddf",
+        "server/chickenbro_registry.py": "3578e9dd91f4fa2e89f0b77f6ed5597809236d32004ad62c12442bea4d5b65f2",
+        "server/news_backend.py": "0b82650dd484ebcd5d245219d1ea4f5c9d8ae0ed586e3363cb61b5303d315dfa",
         "server/wow-backend.service": "d85fa51f0ee1ab256e3c39442de955c2c7c6ae2a43cdbb5c3ad62ebc1f27e47b"
       }
     },
@@ -56,13 +58,15 @@
     "tie-safe Raider.IO same-role leader projection and authoritative evidence-reference answers",
     "authoritative source answer for a bounded current-strength request before model invocation",
     "end-to-end stream deadline for a keepalive-only provider connection",
-    "explicit public WCL target configuration for candidate and production service units"
+    "explicit public WCL target configuration for candidate and production service units",
+    "cross-spec comparison-scope planning that prevents inherited per-spec evidence from answering a universal DPS request",
+    "immediate deterministic evidence-boundary terminal result when no same-metric cross-spec comparator is registered"
   ],
   "verification": [
     {
       "command": "python3 -m unittest tests.llm_client_test tests.chickenbro_question_frame_test tests.chickenbro_agent_test tests.chickenbro_registry_test tests.chickenbro_tool_runtime_test tests.chickenbro_community_strength_test tests.chickenbro_observability_test tests.news_backend_test -q",
       "status": "pass",
-      "summary": "378 focused QuestionFrame, source, Registry/runtime, stream fallback, Trace, LLM-client and API tests passed locally. Coverage includes bounded multi-turn ratio/leader inheritance, tie-safe leader projection, an authoritative source answer when a model invents a unique leader, and the end-to-end keepalive-stream deadline."
+      "summary": "381 focused QuestionFrame, source, Registry/runtime, stream fallback, Trace, LLM-client and API tests passed locally. Coverage includes bounded multi-turn ratio/leader inheritance, tie-safe leader projection, cross-spec scope isolation, rejection of an inherited per-spec comparator, and the end-to-end keepalive-stream deadline."
     },
     {
       "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-08-03-chickenbro-smart-question-chain --base origin/main",
@@ -85,55 +89,65 @@
       "summary": "Production session 0924db33-39b5-41a9-bbc2-c17c79366657 returned succeeded for all three turns in seconds from deterministic source evidence. The leader answer correctly stated that Devourer Demon Hunter, Augmentation Evoker and Unholy Death Knight are tied first in this bounded same-role sample."
     },
     {
+      "command": "candidate POST http://127.0.0.1:18790/api/chickenbro/messages/stream with retail Mythic+ strength -> ratio explanation -> leader follow-up -> cross-spec DPS ranking",
+      "status": "pass",
+      "summary": "Candidate session 49ae7e7c-d93e-4bc5-981b-a4bc9e4bdcde completed all four turns. The fourth turn was succeeded with answerSource deterministic_evidence_boundary and modelStatus not_called; it explicitly declined a universal DPS ranking and did not repeat the inherited 15/27 same-role signal."
+    },
+    {
+      "command": "production POST http://127.0.0.1:8787/api/chickenbro/messages/stream with retail Mythic+ strength -> ratio explanation -> leader follow-up -> cross-spec DPS ranking",
+      "status": "pass",
+      "summary": "Fresh production session 3578d845-b980-42e9-9cb6-0d9150b0aedf completed all four turns. The fourth turn was succeeded with answerSource deterministic_evidence_boundary and modelStatus not_called; no failed event, retry state, inherited 15/27 value or fabricated all-class DPS ranking was returned."
+    },
+    {
       "command": "production health, Registry identity, service/journal and chickenbro-source-refresh timer inspection",
       "status": "pass",
-      "summary": "Production /health was 200 in 0.001250s; /api/data/health was 200 in 14.934093s and reported chickenbro-tools-3, Raider.IO verified (3871 runs / 314 profiles), and WCL credentials configured but health-level partial. Direct source smoke, not this credential-only health row, proved WCL public data. wow-chickenbro-source-refresh.service remained inactive; its last start was 19:08:51 CST, before this deployment, and no new candidate/production error was logged."
+      "summary": "Production /health was 200 after the runtime restart and all five changed runtime file hashes matched source and candidate. Direct stream smoke, not a credential-only health row, proved the player journey. The independent wow-chickenbro-source-refresh timer run started at 11:35:01 CST before this deployment and was still active during final inspection; it was neither triggered nor stopped by this correction."
     }
   ],
   "candidateDeployment": {
     "status": "candidate_verified",
     "requiredBeforeMerge": true,
     "branch": "codex/chickenbro-smart-question-chain",
-    "commit": "34a42b563207637eb14a8a19ceac1563ecd57342",
+    "commit": "30362c7557477a781c279f755a6e2cff5cef2a7b",
     "gitTree": "candidate-source-files-parity",
     "deployedTarget": "/opt/wow-mini-program-candidates/chickenbro-smart-question-44fc389e",
     "service": "wow-backend-chickenbro-smart-question-44fc389e.service (127.0.0.1:18790)",
     "databaseBackup": "/var/backups/wow-backend/chickenbro-community-strength-44fc389e-20260803T122029Z/wow_test.pg_dump; SHA-256 ca301f938c6442f00e731bf1f3d218fc4a96d60b4047bb4683ea1e987ac4ea8b; pg_restore --list passed",
     "registryMigration": "0027 ran first in a rolled-back transaction (pointer returned to chickenbro-tools-2), then applied once through PostgreSQL; active pointer is chickenbro-tools-3 and migration count is 1.",
-    "fileParity": "All four current correction files are SHA-256-equal between source, candidate and production: llm_client 03bb6d80, chickenbro_agent f4437369, QuestionFrame 3a4cfd05 and news_backend 4c21daf5. The previously verified Registry v3/runtime files remain unchanged.",
+    "fileParity": "All five changed runtime files are SHA-256-equal between source, candidate and production: QuestionFrame 445057fd, chickenbro_agent fc5be81b, chickenbro_tool_runtime f7f57d7c, chickenbro_registry 3578e9dd and news_backend 0b82650d.",
     "smoke": {
       "status": "pass",
-      "summary": "A real candidate three-turn stream smoke returned final/succeeded for the current-strength request and both evidence-reference follow-ups. All three were generated directly from bounded source data, so no provider wait was needed; the leader result preserved the real three-way tie."
+      "summary": "A real candidate four-turn stream smoke returned final/succeeded for the source-backed strength request, both evidence-reference follow-ups, and a cross-spec DPS-ranking scope escalation. The final turn returned an immediate evidence boundary without a provider call and did not reuse the prior specialization signal."
     },
     "timerBackflow": {
       "status": "pass",
-      "summary": "Candidate used zero collectors and no async sync. Production source-refresh service remained inactive and its last timer activation predates this deployment."
+      "summary": "Candidate used zero collectors and no async sync. An independent production source-refresh timer invocation was already active from 11:35:01 CST before this deployment; this correction did not start, stop or modify it."
     },
     "rollback": {
       "status": "ready",
-      "path": "Restore news_backend.py.pre34a42b56 on production or candidate and restart the corresponding service to revert the latest direct-source optimization. The four *.pre8ab97a5c production backups remain available for a full correction rollback. The prior Registry and PostgreSQL rollback path remains retained for an independent source-registry rollback."
+      "path": "Restore the five files from /opt/wow-mini-program/.codex-backups/chickenbro-cross-spec-30362c75-20260804T1156CST or the equivalent candidate backup under /opt/wow-mini-program-candidates/chickenbro-smart-question-44fc389e/.codex-backups/chickenbro-cross-spec-30362c75-20260804T1153CST, then restart only the corresponding backend service. Earlier direct-source, Registry and PostgreSQL rollback paths remain retained independently."
     }
   },
   "runtimeEvidence": [
     {
       "type": "candidate_file_parity",
       "status": "pass",
-      "summary": "All four current correction files are equal across source and candidate: llm_client 03bb6d80, chickenbro_agent f4437369, QuestionFrame 3a4cfd05 and news_backend 4c21daf5."
+      "summary": "All five changed runtime files are equal across source and candidate: QuestionFrame 445057fd, chickenbro_agent fc5be81b, chickenbro_tool_runtime f7f57d7c, chickenbro_registry 3578e9dd and news_backend 0b82650d."
     },
     {
       "type": "production_file_parity",
       "status": "pass",
-      "summary": "Production and candidate matched all four current correction files; wow-backend and the retained candidate service are active on 8787 and 18790."
+      "summary": "Production and candidate matched all five changed runtime files; wow-backend and the retained candidate service are active on 8787 and 18790."
     },
     {
       "type": "smoke",
       "status": "pass",
-      "summary": "Production completed the exact three-turn player journey entirely from deterministic source evidence. The leader follow-up retained the bounded current-research plan and reported the observed tie rather than a fabricated unique rank."
+      "summary": "Production completed the exact four-turn player journey. The leader follow-up retained the bounded same-role plan, while the cross-spec DPS-ranking follow-up became an explicit evidence boundary rather than a fabricated ranking or an inherited per-spec result."
     },
     {
       "type": "timer_backflow",
       "status": "pass",
-      "summary": "No source refresh, backfill or scheduled collector was started by the correction."
+      "summary": "No source refresh, backfill or scheduled collector was started by the correction. An independent source-refresh timer run that began before deployment was observed active and left untouched."
     }
   ],
   "risks": [
@@ -154,18 +168,24 @@
     },
     {
       "id": "production_code_rollback_parity",
-      "status": "active",
-      "detail": "The verified PostgreSQL backup is exact. The retained prior candidate gives a code rollback reference, but the immediately pre-stage production code was not independently re-hashed before the runtime files were copied; do not represent it as byte-identical production rollback evidence."
+      "status": "resolved",
+      "detail": "All five immediately pre-stage production files were copied into the named production rollback directory and SHA-256-recorded before deployment; the equivalent candidate rollback directory was recorded too."
     },
     {
       "id": "local_ui_package_dependency",
       "status": "active",
       "detail": "The current full Harness is blocked only at the unrelated local UI-package build because this isolated worktree lacks the Taro CLI package. No dependency installation or download was performed without authorization; targeted backend tests and live runtime evidence remain separately recorded."
+    },
+    {
+      "id": "source_refresh_inflight",
+      "status": "observed",
+      "detail": "wow-chickenbro-source-refresh.service was independently activated by its timer at 11:35:01 CST, before this code deployment, and remained active during final inspection. Its completion/result is not claimed by this release evidence."
     }
   ],
   "rollback": [
     "restore /opt/wow-mini-program/server/news_backend.py.pre34a42b56 to its active name, then restart wow-backend.service to revert the latest direct-source optimization",
     "restore the retained candidate news_backend.py.pre34a42b56 backup and restart wow-backend-chickenbro-smart-question-44fc389e.service to revert the equivalent candidate optimization",
+    "restore chickenbro_question_frame.py, chickenbro_agent.py, chickenbro_tool_runtime.py, chickenbro_registry.py and news_backend.py from the named 30362c75 production or candidate rollback directory, then restart only that backend service",
     "for a full correction rollback, restore the four production *.pre8ab97a5c runtime-file backups and restart wow-backend.service",
     "move the active Registry pointer from chickenbro-tools-3 back to chickenbro-tools-2 using the recorded PostgreSQL rollback procedure",
     "recover database state from /var/backups/wow-backend/chickenbro-community-strength-44fc389e-20260803T122029Z/wow_test.pg_dump only when a data rollback is required"
@@ -179,5 +199,5 @@
     "docs/plans/2026-08-03-chickenbro-smart-question-chain-design.md",
     "docs/plans/2026-08-03-chickenbro-smart-question-chain-implementation.md"
   ],
-  "summary": "The source-bounded semantic chain remains general rather than fixed Q&A. A current-strength question with verified comparative evidence, and its consecutive ratio or leader references, directly answer from the same controlled source data; no model is asked to reinterpret rankings. A topic/build boundary stops the inheritance. Raider.IO leaders are tie-safe, so a tied top score is never presented as a unique first place. A provider stream has an end-to-end deadline, preventing keepalive-only sessions from running forever. Candidate and production both passed the real three-turn stream smoke in seconds with no sync/backfill start. The full Harness's unrelated UI package stage is blocked by an absent local Taro CLI and is recorded literally. Real WeChat acceptance is still required before merge, push or cleanup."
+  "summary": "The source-bounded semantic chain remains general rather than fixed Q&A. A current-strength question with verified comparative evidence, and its consecutive ratio or leader references, directly answer from the same controlled source data; no model is asked to reinterpret rankings. A topic/build boundary stops the inheritance. A cross-spec DPS, Tier or ranking request is a scope escalation: it clears inherited subject evidence from source planning and can only use a registered same-metric cross-spec comparator. Until such a comparator exists, it returns an immediate evidence boundary rather than a retry, fabricated ranking or reused per-spec value. Raider.IO leaders remain tie-safe, and provider streams retain an end-to-end deadline. Candidate and production both passed the real four-turn stream smoke. The independently scheduled source refresh run is recorded as observed, not as release success. Real WeChat acceptance is still required before merge, push or cleanup."
 }
