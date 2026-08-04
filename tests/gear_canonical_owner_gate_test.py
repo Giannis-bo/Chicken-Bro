@@ -180,12 +180,23 @@ SEALED_SIGNATURES = {
         "main",
     ): "argv: list[str] | None=None -> int",
 }
-FROZEN_V1_DIRECT_PRIMITIVE_EXCEPTIONS = frozenset({
+TRACK_AUTHORITY_RELATIVE_IMPORT = (
+    ".gear_track_authority",
+    "resolve_exact_instance_progression",
+    "resolve_exact_instance_progression",
+)
+TRACK_AUTHORITY_ABSOLUTE_IMPORT = (
+    "gear_track_authority",
+    "resolve_exact_instance_progression",
+    "resolve_exact_instance_progression",
+)
+FROZEN_V1_DIRECT_PRIMITIVE_EXCEPTIONS = Counter((
     ("server/gear_exact_item_instance.py", "_canonical", "DUPLICATE_JSON_OWNER", "7231941be36f1e81041b1597a91a543b42f48c410be92ac9238de06fd4dc1058"),
     ("server/gear_exact_item_instance.py", "_canonical_bytes", "DUPLICATE_JSON_OWNER", "7231941be36f1e81041b1597a91a543b42f48c410be92ac9238de06fd4dc1058"),
     ("server/gear_exact_item_instance.py", "_hash", "DUPLICATE_HASH_OWNER", "72e0ca3c56475eb0e591218d85a12e77c8eec5e237feaf9a46148188e9ed1f38"),
     ("server/gear_exact_item_instance.py", "_text", "IDENTITY_TRIM", "76193f035544dbf4410d97b6bb66e790ce9a81005ca9626c99a8067972771351"),
     ("server/gear_exact_item_instance.py", "_text", "IDENTITY_COERCION", "88d3520b955995521e902e02cd7ed820574701d159c015fc2852eeaab3bd2e61"),
+    ("server/gear_exact_item_instance.py", "_canonical_context", "IDENTITY_COERCION", "9fa2a35533437c0274affe76a7b1619b3e9ef75a1bdae6f73cc29c25b992a17c"),
     ("server/gear_exact_item_instance.py", "_canonical_context", "IDENTITY_COERCION", "9fa2a35533437c0274affe76a7b1619b3e9ef75a1bdae6f73cc29c25b992a17c"),
     ("server/gear_exact_item_instance.py", "_canonical_context", "IDENTITY_TRIM", "84cb1f8f503d698f97ff7b08f108f3bbc0760985a10dd861301b3548c7d38e9e"),
     ("server/gear_exact_item_instance.py", "_canonical_context", "IDENTITY_COERCION", "9172f9f6deaae82373906c7fd148ee65d7cea4f91a3f2d93745737c5673aaaed"),
@@ -199,7 +210,7 @@ FROZEN_V1_DIRECT_PRIMITIVE_EXCEPTIONS = frozenset({
     ("server/gear_exact_item_instance.py", "build_exact_item_instance", "CATALOG_DEPENDENCY", "091ab6d2bd135623aa02be6aa7328aa38f67315172d64733e6afc61be42b2af2"),
     ("server/gear_exact_item_instance.py", "build_exact_item_instance", "DUPLICATE_HASH_OWNER", "0c5a7104a2a9d846495c91bb1c36135dbfc4b1767f6bfeba6d7430a5bd7af03b"),
     ("server/gear_exact_item_instance.py", "build_exact_item_instance", "DUPLICATE_HASH_OWNER", "ea208855052b7c112adf648f7cce112720920ee9d51738f863f9978fbbda230e"),
-})
+))
 
 
 @dataclass(frozen=True, order=True)
@@ -254,6 +265,127 @@ def _registry_finding(code: str, detail: str) -> Violation:
         code,
         detail,
     )
+
+
+def _schema_finding(code: str, detail: str) -> Violation:
+    return _registry_finding(f"REGISTRY_SCHEMA_{code}", detail)
+
+
+def _registry_schema_violations(registry: object) -> list[Violation]:
+    violations: list[Violation] = []
+    root_keys = {
+        "schemaVersion",
+        "proofClaim",
+        "digestSerialization",
+        "targets",
+    }
+    if type(registry) is not dict:
+        return [_schema_finding("ROOT_INVALID", type(registry).__name__)]
+    if set(registry) != root_keys:
+        violations.append(_schema_finding("ROOT_KEYS_INVALID", ",".join(sorted(str(key) for key in set(registry).symmetric_difference(root_keys)))))
+    if type(registry.get("schemaVersion")) is not int:
+        violations.append(_schema_finding("VERSION_INVALID", type(registry.get("schemaVersion")).__name__))
+    if type(registry.get("proofClaim")) is not str:
+        violations.append(_schema_finding("PROOF_CLAIM_INVALID", type(registry.get("proofClaim")).__name__))
+    if type(registry.get("digestSerialization")) is not str:
+        violations.append(_schema_finding("DIGEST_SERIALIZATION_INVALID", type(registry.get("digestSerialization")).__name__))
+
+    targets = registry.get("targets")
+    if type(targets) is not list:
+        violations.append(_schema_finding("TARGETS_INVALID", type(targets).__name__))
+        return sorted(set(violations))
+    target_keys = {
+        "path",
+        "profile",
+        "sealedEntrypoints",
+        "publicCallables",
+        "exports",
+        "reexports",
+        "imports",
+        "importFallbackPairs",
+        "exemptions",
+    }
+    exemption_keys = {
+        "id",
+        "role",
+        "binding",
+        "nodeKind",
+        "astSha256",
+        "reason",
+        "owner",
+    }
+    for index, target in enumerate(targets):
+        location = f"targets[{index}]"
+        if type(target) is not dict:
+            violations.append(_schema_finding("TARGET_INVALID", f"{location}:{type(target).__name__}"))
+            continue
+        if set(target) != target_keys:
+            violations.append(_schema_finding("TARGET_KEYS_INVALID", f"{location}:{','.join(sorted(str(key) for key in set(target).symmetric_difference(target_keys)))}"))
+        for field in ("path", "profile"):
+            if type(target.get(field)) is not str:
+                violations.append(_schema_finding("TARGET_SCALAR_INVALID", f"{location}.{field}:{type(target.get(field)).__name__}"))
+        for field in (
+            "sealedEntrypoints",
+            "publicCallables",
+            "exports",
+            "reexports",
+            "imports",
+            "importFallbackPairs",
+            "exemptions",
+        ):
+            if type(target.get(field)) is not list:
+                violations.append(_schema_finding("TARGET_LIST_INVALID", f"{location}.{field}:{type(target.get(field)).__name__}"))
+
+        for field in ("sealedEntrypoints", "publicCallables", "exports"):
+            values = target.get(field)
+            if type(values) is list:
+                for item_index, value in enumerate(values):
+                    if type(value) is not str:
+                        violations.append(_schema_finding("NAME_INVALID", f"{location}.{field}[{item_index}]:{type(value).__name__}"))
+
+        imports = target.get("imports")
+        if type(imports) is list:
+            for item_index, record in enumerate(imports):
+                if not _valid_import_record(record):
+                    violations.append(_schema_finding("IMPORT_INVALID", f"{location}.imports[{item_index}]"))
+
+        fallbacks = target.get("importFallbackPairs")
+        if type(fallbacks) is list:
+            for item_index, pair in enumerate(fallbacks):
+                pair_location = f"{location}.importFallbackPairs[{item_index}]"
+                if type(pair) is not dict or set(pair) != {"relative", "absolute"}:
+                    violations.append(_schema_finding("FALLBACK_INVALID", pair_location))
+                    continue
+                if not _valid_import_record(pair.get("relative")) or not _valid_import_record(pair.get("absolute")):
+                    violations.append(_schema_finding("FALLBACK_IMPORT_INVALID", pair_location))
+
+        reexports = target.get("reexports")
+        if type(reexports) is list:
+            for item_index, record in enumerate(reexports):
+                item_location = f"{location}.reexports[{item_index}]"
+                if (
+                    type(record) is not dict
+                    or set(record) != {"export", "module", "symbol", "alias"}
+                    or any(type(record.get(field)) is not str for field in ("export", "module", "symbol", "alias"))
+                ):
+                    violations.append(_schema_finding("REEXPORT_INVALID", item_location))
+
+        exemptions = target.get("exemptions")
+        if type(exemptions) is list:
+            for item_index, exemption in enumerate(exemptions):
+                item_location = f"{location}.exemptions[{item_index}]"
+                if type(exemption) is not dict or set(exemption) != exemption_keys:
+                    violations.append(_schema_finding("EXEMPTION_INVALID", item_location))
+                    continue
+                if (
+                    any(type(exemption.get(field)) is not str for field in ("id", "role", "nodeKind", "astSha256", "reason", "owner"))
+                    or exemption.get("binding") is not None
+                    and type(exemption.get("binding")) is not str
+                    or len(exemption.get("astSha256", "")) != 64
+                    or any(character not in "0123456789abcdef" for character in exemption.get("astSha256", ""))
+                ):
+                    violations.append(_schema_finding("EXEMPTION_FIELD_INVALID", item_location))
+    return sorted(set(violations))
 
 
 def _ast_digest(node: ast.AST) -> str:
@@ -327,33 +459,83 @@ def _imports_from_statement(
     ]
 
 
-def _actual_fallback_pairs(
+def _fallback_pairs_and_violations(
+    path: str,
     tree: ast.Module,
-) -> list[tuple[tuple[object, object, object], tuple[object, object, object]]]:
-    pairs = []
+) -> tuple[
+    list[tuple[tuple[object, object, object], tuple[object, object, object]]],
+    list[Violation],
+]:
+    pairs: list[
+        tuple[tuple[object, object, object], tuple[object, object, object]]
+    ] = []
+    violations: list[Violation] = []
     for node in tree.body:
-        if not isinstance(node, ast.Try) or len(node.handlers) != 1:
+        if not isinstance(node, ast.Try):
+            continue
+        valid_structure = (
+            len(node.handlers) == 1
+            and isinstance(node.handlers[0].type, ast.Name)
+            and node.handlers[0].type.id == "ImportError"
+            and node.handlers[0].name is None
+            and not node.orelse
+            and not node.finalbody
+            and node.body
+            and node.handlers[0].body
+            and all(
+                isinstance(statement, (ast.Import, ast.ImportFrom))
+                for statement in [*node.body, *node.handlers[0].body]
+            )
+        )
+        if not valid_structure:
+            violations.append(Violation(
+                path,
+                "<module>",
+                "FALLBACK_STRUCTURE_INVALID",
+                "Try must contain only mirrored imports and one ImportError handler",
+            ))
             continue
         relative = [
             item
             for statement in node.body
-            if isinstance(statement, (ast.Import, ast.ImportFrom))
             for item in _imports_from_statement(statement)
         ]
         absolute = [
             item
             for statement in node.handlers[0].body
-            if isinstance(statement, (ast.Import, ast.ImportFrom))
             for item in _imports_from_statement(statement)
         ]
-        absolute_by_binding = {
-            (item[1], item[2]): item for item in absolute
-        }
-        for item in relative:
-            match = absolute_by_binding.get((item[1], item[2]))
-            if match is not None:
-                pairs.append((item, match))
-    return pairs
+        relative_counts = Counter(relative)
+        absolute_counts = Counter(absolute)
+        if any(count != 1 for count in relative_counts.values()) or any(
+            count != 1 for count in absolute_counts.values()
+        ):
+            violations.append(Violation(
+                path,
+                "<module>",
+                "FALLBACK_MIRROR_INVALID",
+                "duplicate import binding",
+            ))
+        expected_absolute = Counter()
+        valid_relative = True
+        for item, count in relative_counts.items():
+            if not str(item[0]).startswith("."):
+                valid_relative = False
+                continue
+            mirror = (str(item[0]).lstrip("."), item[1], item[2])
+            expected_absolute[mirror] += count
+            if count == 1 and absolute_counts[mirror] == 1:
+                pairs.append((item, mirror))
+        if not valid_relative or expected_absolute != absolute_counts:
+            missing = expected_absolute - absolute_counts
+            extra = absolute_counts - expected_absolute
+            violations.append(Violation(
+                path,
+                "<module>",
+                "FALLBACK_MIRROR_INVALID",
+                f"missing={sorted(map(str, missing.elements()))};extra={sorted(map(str, extra.elements()))}",
+            ))
+    return pairs, sorted(set(violations))
 
 
 def _local_public_callables(tree: ast.Module) -> set[str]:
@@ -379,6 +561,24 @@ def _local_definitions(tree: ast.Module) -> set[str]:
         elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
             definitions.add(node.target.id)
     return definitions
+
+
+def _module_import_bindings(
+    path: str,
+    tree: ast.Module,
+) -> set[tuple[object, object, object]]:
+    bindings = {
+        item
+        for node in tree.body
+        if isinstance(node, (ast.Import, ast.ImportFrom))
+        for item in _imports_from_statement(node)
+    }
+    fallback_pairs, fallback_violations = _fallback_pairs_and_violations(path, tree)
+    if not fallback_violations:
+        for relative, absolute in fallback_pairs:
+            bindings.add(relative)
+            bindings.add(absolute)
+    return bindings
 
 
 def _exports(tree: ast.Module) -> list[str] | None:
@@ -407,11 +607,11 @@ def _exports(tree: ast.Module) -> list[str] | None:
     return list(value)
 
 
-def _actual_reexports(tree: ast.Module) -> set[tuple[object, ...]]:
+def _actual_reexports(path: str, tree: ast.Module) -> set[tuple[object, ...]]:
     exports = _exports(tree) or []
     local = _local_definitions(tree)
     by_alias: dict[str, list[tuple[object, object, object]]] = {}
-    for item in _physical_imports(tree):
+    for item in _module_import_bindings(path, tree):
         by_alias.setdefault(str(item[2]), []).append(item)
     result: set[tuple[object, ...]] = set()
     for exported in exports:
@@ -465,6 +665,9 @@ def _registry_violations(
     registry: dict[str, object],
     trees: dict[str, ast.Module],
 ) -> list[Violation]:
+    schema_violations = _registry_schema_violations(registry)
+    if schema_violations:
+        return schema_violations
     violations: list[Violation] = []
     if registry.get("schemaVersion") != 1:
         violations.append(_registry_finding("SCHEMA_VERSION_INVALID", "schemaVersion"))
@@ -561,7 +764,9 @@ def _registry_violations(
                 or abs_ not in import_tuples
             ):
                 violations.append(_registry_finding("FALLBACK_PAIR_INVALID", f"{path}:{rel}:{abs_}"))
-        if Counter(declared_pairs) != Counter(_actual_fallback_pairs(tree)):
+        actual_pairs, fallback_violations = _fallback_pairs_and_violations(path, tree)
+        violations.extend(fallback_violations)
+        if Counter(declared_pairs) != Counter(actual_pairs):
             violations.append(_registry_finding("FALLBACK_PAIR_INVALID", f"{path}:coverage"))
 
         public = target.get("publicCallables")
@@ -596,6 +801,7 @@ def _registry_violations(
 
         raw_reexports = target.get("reexports")
         declared_reexports = set()
+        module_bindings = _module_import_bindings(path, tree)
         for record in raw_reexports if type(raw_reexports) is list else []:
             if type(record) is not dict or set(record) != {"export", "module", "symbol", "alias"}:
                 violations.append(_registry_finding("REEXPORT_RECORD_INVALID", str(path)))
@@ -606,8 +812,33 @@ def _registry_violations(
                 record.get("symbol"),
                 record.get("alias"),
             ))
-        if declared_reexports != _actual_reexports(tree):
+            binding = (
+                record.get("module"),
+                record.get("symbol"),
+                record.get("alias"),
+            )
+            if (
+                binding not in module_bindings
+                or record.get("export") != record.get("alias")
+            ):
+                violations.append(_registry_finding(
+                    "REEXPORT_MODULE_BINDING_REQUIRED",
+                    f"{path}:{record.get('export')}",
+                ))
+        if type(raw_reexports) is list and len(raw_reexports) != len(declared_reexports):
+            violations.append(_registry_finding("DUPLICATE_REEXPORT", str(path)))
+        actual_reexports = _actual_reexports(path, tree)
+        if declared_reexports != actual_reexports:
             violations.append(_registry_finding("REEXPORT_MISMATCH", str(path)))
+        valid_exports = _local_definitions(tree) | {
+            str(item[2]) for item in module_bindings
+        }
+        for exported in actual_exports or []:
+            if exported not in valid_exports:
+                violations.append(_registry_finding(
+                    "UNDEFINED_EXPORT",
+                    f"{path}:{exported}",
+                ))
 
         raw_exemptions = target.get("exemptions")
         exemptions = raw_exemptions if type(raw_exemptions) is list else []
@@ -789,22 +1020,11 @@ def _accepted_exemption_nodes(
 
 
 def _fallback_syntax_violations(path: str, node: ast.Try) -> list[Violation]:
-    valid_handler = (
-        len(node.handlers) == 1
-        and isinstance(node.handlers[0].type, ast.Name)
-        and node.handlers[0].type.id == "ImportError"
-        and node.handlers[0].name is None
+    _, violations = _fallback_pairs_and_violations(
+        path,
+        ast.Module(body=[node], type_ignores=[]),
     )
-    statements = [*node.body, *(node.handlers[0].body if node.handlers else [])]
-    if (
-        not valid_handler
-        or node.orelse
-        or node.finalbody
-        or not statements
-        or any(not isinstance(item, (ast.Import, ast.ImportFrom)) for item in statements)
-    ):
-        return [Violation(path, "<module>", "IMPORT_FALLBACK_FORBIDDEN", "Try")]
-    return []
+    return violations
 
 
 def _module_load_violations(
@@ -813,6 +1033,9 @@ def _module_load_violations(
     profile: str,
     registry: dict[str, object],
 ) -> list[Violation]:
+    schema_violations = _registry_schema_violations(registry)
+    if schema_violations:
+        return schema_violations
     violations: list[Violation] = []
     if profile != PROFILE_BY_PATH.get(path):
         violations.append(Violation(path, "<module>", "PROFILE_MISMATCH", profile))
@@ -988,6 +1211,7 @@ def _direct_primitive_violations(
     tree: ast.Module,
 ) -> list[Violation]:
     violations = []
+    observed: Counter[tuple[str, str, str, str]] = Counter()
     for function in [
         node
         for node in tree.body
@@ -1016,9 +1240,29 @@ def _direct_primitive_violations(
             if code is None:
                 continue
             digest = _ast_digest(call)
-            if (path, function.name, code, digest) in FROZEN_V1_DIRECT_PRIMITIVE_EXCEPTIONS:
-                continue
-            violations.append(Violation(path, function.name, code, name))
+            identity = (path, function.name, code, digest)
+            observed[identity] += 1
+            if identity not in FROZEN_V1_DIRECT_PRIMITIVE_EXCEPTIONS:
+                violations.append(Violation(path, function.name, code, name))
+    for identity, expected_count in FROZEN_V1_DIRECT_PRIMITIVE_EXCEPTIONS.items():
+        expected_path, function, code, digest = identity
+        if expected_path != path:
+            continue
+        actual_count = observed[identity]
+        if actual_count < expected_count:
+            violations.append(Violation(
+                path,
+                function,
+                "FROZEN_V1_EXCEPTION_MISSING",
+                f"{code}:{digest}:expected={expected_count}:actual={actual_count}",
+            ))
+        elif actual_count > expected_count:
+            violations.append(Violation(
+                path,
+                function,
+                "FROZEN_V1_EXCEPTION_MULTIMATCH",
+                f"{code}:{digest}:expected={expected_count}:actual={actual_count}",
+            ))
     return sorted(set(violations))
 
 
@@ -1148,7 +1392,43 @@ def _ownership_violations(
         for required in ("canonical_slot", "resolve_exact_instance_progression"):
             if required not in calls:
                 violations.append(Violation("server/gear_exact_authority.py", "seal_exact_progression", "MISSING_PRODUCTION_OWNER_CALL", required))
-    del registry
+        physical = Counter(_physical_imports(authority))
+        module_bindings = _module_import_bindings(
+            "server/gear_exact_authority.py",
+            authority,
+        )
+        target = _target_record(registry, "server/gear_exact_authority.py")
+        registered_imports = Counter(
+            _import_tuple(record) for record in target["imports"]
+        )
+        registered_pairs = Counter(
+            (
+                _import_tuple(pair["relative"]),
+                _import_tuple(pair["absolute"]),
+            )
+            for pair in target["importFallbackPairs"]
+        )
+        expected_pair = (
+            TRACK_AUTHORITY_RELATIVE_IMPORT,
+            TRACK_AUTHORITY_ABSOLUTE_IMPORT,
+        )
+        provenance_valid = (
+            physical[TRACK_AUTHORITY_RELATIVE_IMPORT] == 1
+            and physical[TRACK_AUTHORITY_ABSOLUTE_IMPORT] == 1
+            and TRACK_AUTHORITY_RELATIVE_IMPORT in module_bindings
+            and TRACK_AUTHORITY_ABSOLUTE_IMPORT in module_bindings
+            and registered_imports[TRACK_AUTHORITY_RELATIVE_IMPORT] == 1
+            and registered_imports[TRACK_AUTHORITY_ABSOLUTE_IMPORT] == 1
+            and registered_pairs[expected_pair] == 1
+            and "resolve_exact_instance_progression" in calls
+        )
+        if not provenance_valid:
+            violations.append(Violation(
+                "server/gear_exact_authority.py",
+                "seal_exact_progression",
+                "TRACK_AUTHORITY_PROVENANCE_INVALID",
+                "gear_track_authority.resolve_exact_instance_progression",
+            ))
     return sorted(set(violations))
 
 
@@ -1158,6 +1438,8 @@ def _source_change_control_violations(
     registry: dict[str, object],
 ) -> list[Violation]:
     violations = _registry_violations(registry, target_trees)
+    if any(item.code.startswith("REGISTRY_SCHEMA_") for item in violations):
+        return sorted(set(violations))
     for path in TARGETS:
         violations.extend(_module_load_violations(
             path,
@@ -1402,12 +1684,12 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
 
         changed = copy.deepcopy(REGISTRY)
         changed["targets"].append("not-a-target-record")
-        cases.append(("target record", changed, "TARGET_RECORD_INVALID"))
+        cases.append(("target record", changed, "REGISTRY_SCHEMA_TARGET_INVALID"))
 
         for field, expected in (
-            ("publicCallables", "PUBLIC_CALLABLE_MISMATCH"),
-            ("exports", "EXPORT_MISMATCH"),
-            ("sealedEntrypoints", "SEALED_ENTRYPOINT_MISMATCH"),
+            ("publicCallables", "REGISTRY_SCHEMA_NAME_INVALID"),
+            ("exports", "REGISTRY_SCHEMA_NAME_INVALID"),
+            ("sealedEntrypoints", "REGISTRY_SCHEMA_NAME_INVALID"),
         ):
             changed = copy.deepcopy(REGISTRY)
             changed["targets"][0][field].append([])
@@ -1415,12 +1697,420 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
 
         changed = copy.deepcopy(REGISTRY)
         changed["targets"][0]["imports"][0]["symbol"] = []
-        cases.append(("import symbol", changed, "IMPORT_RECORD_INVALID"))
+        cases.append(("import symbol", changed, "REGISTRY_SCHEMA_IMPORT_INVALID"))
 
         for label, registry, expected in cases:
             with self.subTest(label=label):
                 violations = _registry_violations(registry, TREES)
                 self.assertIn(expected, _codes(violations), _formatted(violations))
+
+    def test_aggregate_malformed_registry_schema_is_controlled_and_stops(self):
+        cases: list[tuple[str, dict[str, object]]] = []
+
+        changed = copy.deepcopy(REGISTRY)
+        changed.pop("schemaVersion")
+        cases.append(("root missing", changed))
+
+        changed = copy.deepcopy(REGISTRY)
+        changed["extra"] = True
+        cases.append(("root extra", changed))
+
+        changed = copy.deepcopy(REGISTRY)
+        changed["targets"][0].pop("profile")
+        cases.append(("target missing", changed))
+
+        changed = copy.deepcopy(REGISTRY)
+        changed["targets"][0]["extra"] = True
+        cases.append(("target extra", changed))
+
+        for field in (
+            "imports",
+            "importFallbackPairs",
+            "publicCallables",
+            "exports",
+            "reexports",
+            "sealedEntrypoints",
+            "exemptions",
+        ):
+            changed = copy.deepcopy(REGISTRY)
+            changed["targets"][0][field] = None
+            cases.append((f"{field}=None", changed))
+
+        changed = copy.deepcopy(REGISTRY)
+        changed["targets"][0]["imports"][0].pop("alias")
+        cases.append(("nested import missing", changed))
+
+        changed = copy.deepcopy(REGISTRY)
+        changed["targets"][0]["imports"].append(None)
+        cases.append(("nested import None", changed))
+
+        changed = copy.deepcopy(REGISTRY)
+        changed["targets"][0]["imports"][0]["extra"] = True
+        cases.append(("nested import extra", changed))
+
+        changed = copy.deepcopy(REGISTRY)
+        changed["targets"][0]["importFallbackPairs"].append(None)
+        cases.append(("nested fallback None", changed))
+
+        changed = copy.deepcopy(REGISTRY)
+        changed["targets"][0]["importFallbackPairs"][0].pop("absolute")
+        cases.append(("nested fallback missing", changed))
+
+        changed = copy.deepcopy(REGISTRY)
+        changed["targets"][0]["importFallbackPairs"][0]["extra"] = True
+        cases.append(("nested fallback extra", changed))
+
+        changed = copy.deepcopy(REGISTRY)
+        changed["targets"][0]["importFallbackPairs"][0]["relative"] = None
+        cases.append(("nested fallback import None", changed))
+
+        changed = copy.deepcopy(REGISTRY)
+        changed["targets"][0]["reexports"].append({
+            "export": "Ghost",
+            "module": "server.ghost",
+            "symbol": "Ghost",
+            "alias": "Ghost",
+            "extra": True,
+        })
+        cases.append(("nested reexport extra", changed))
+
+        changed = copy.deepcopy(REGISTRY)
+        changed["targets"][0]["reexports"].append(None)
+        cases.append(("nested reexport None", changed))
+
+        changed = copy.deepcopy(REGISTRY)
+        exemption_target = next(
+            target for target in changed["targets"] if target["exemptions"]
+        )
+        exemption_target["exemptions"].append(None)
+        cases.append(("nested exemption None", changed))
+
+        changed = copy.deepcopy(REGISTRY)
+        exemption_target = next(
+            target for target in changed["targets"] if target["exemptions"]
+        )
+        exemption_target["exemptions"][0].pop("owner")
+        cases.append(("nested exemption missing", changed))
+
+        changed = copy.deepcopy(REGISTRY)
+        exemption_target = next(
+            target for target in changed["targets"] if target["exemptions"]
+        )
+        exemption_target["exemptions"][0]["extra"] = True
+        cases.append(("nested exemption extra", changed))
+
+        changed = copy.deepcopy(REGISTRY)
+        exemption_target = next(
+            target for target in changed["targets"] if target["exemptions"]
+        )
+        exemption_target["exemptions"][0]["binding"] = []
+        cases.append(("nested exemption field type", changed))
+
+        changed = copy.deepcopy(REGISTRY)
+        changed["digestSerialization"] = None
+        cases.append(("digest serialization type", changed))
+
+        repository_trees = _repository_python_trees()
+        for label, registry in cases:
+            with self.subTest(label=label):
+                try:
+                    violations = _source_change_control_violations(
+                        TREES,
+                        repository_trees,
+                        registry,
+                    )
+                except Exception as error:  # controlled failure is the contract
+                    self.fail(f"registry schema raised {type(error).__name__}: {error}")
+                schema = [
+                    item for item in violations
+                    if item.code.startswith("REGISTRY_SCHEMA_")
+                ]
+                self.assertTrue(schema, _formatted(violations))
+                self.assertFalse(any(
+                    item.code in {
+                        "REGISTERED_IMPORT_MISSING",
+                        "REGISTRY_TARGET_MISSING",
+                    }
+                    for item in violations
+                ), _formatted(violations))
+
+    def test_fallback_requires_a_bidirectional_exact_mirror(self):
+        path = "server/gear_exact_item_instance.py"
+
+        trees = copy.deepcopy(TREES)
+        registry = copy.deepcopy(REGISTRY)
+        fallback = next(node for node in trees[path].body if isinstance(node, ast.Try))
+        fallback.body.append(ast.ImportFrom(
+            module="extra_owner",
+            names=[ast.alias(name="Extra", asname=None)],
+            level=1,
+        ))
+        _target_record(registry, path)["imports"].append({
+            "module": ".extra_owner",
+            "symbol": "Extra",
+            "alias": "Extra",
+        })
+        violations = _registry_violations(registry, trees)
+        self.assertIn(
+            "FALLBACK_MIRROR_INVALID",
+            _codes(violations),
+            _formatted(violations),
+        )
+
+        structural_cases = []
+        trees = copy.deepcopy(TREES)
+        fallback = next(node for node in trees[path].body if isinstance(node, ast.Try))
+        fallback.body.append(copy.deepcopy(fallback.body[0]))
+        structural_cases.append(("duplicate", trees, "FALLBACK_MIRROR_INVALID"))
+
+        trees = copy.deepcopy(TREES)
+        fallback = next(node for node in trees[path].body if isinstance(node, ast.Try))
+        fallback.body.append(ast.Expr(value=ast.Constant(value="not an import")))
+        structural_cases.append(("non-import", trees, "FALLBACK_STRUCTURE_INVALID"))
+
+        trees = copy.deepcopy(TREES)
+        fallback = next(node for node in trees[path].body if isinstance(node, ast.Try))
+        fallback.orelse = [ast.Pass()]
+        structural_cases.append(("else", trees, "FALLBACK_STRUCTURE_INVALID"))
+
+        trees = copy.deepcopy(TREES)
+        fallback = next(node for node in trees[path].body if isinstance(node, ast.Try))
+        fallback.finalbody = [ast.Pass()]
+        structural_cases.append(("finally", trees, "FALLBACK_STRUCTURE_INVALID"))
+
+        for label, trees, expected in structural_cases:
+            with self.subTest(label=label):
+                violations = _registry_violations(REGISTRY, trees)
+                self.assertIn(expected, _codes(violations), _formatted(violations))
+
+        trees = copy.deepcopy(TREES)
+        registry = copy.deepcopy(REGISTRY)
+        fallback = next(node for node in trees[path].body if isinstance(node, ast.Try))
+        removed = fallback.handlers[0].body[0].names.pop()
+        target = _target_record(registry, path)
+        target["imports"] = [
+            item for item in target["imports"]
+            if not (
+                item["module"] == "gear_canonical_kernel"
+                and item["symbol"] == removed.name
+                and item["alias"] == (removed.asname or removed.name)
+            )
+        ]
+        target["importFallbackPairs"] = [
+            pair for pair in target["importFallbackPairs"]
+            if pair["absolute"]["symbol"] != removed.name
+        ]
+        violations = _registry_violations(registry, trees)
+        self.assertIn(
+            "FALLBACK_MIRROR_INVALID",
+            _codes(violations),
+            _formatted(violations),
+        )
+
+    def test_reexports_require_a_real_module_binding_and_defined_exports(self):
+        path = "server/gear_exact_authority.py"
+        trees = copy.deepcopy(TREES)
+        registry = copy.deepcopy(REGISTRY)
+        tree = trees[path]
+        function = next(
+            node for node in tree.body
+            if isinstance(node, ast.FunctionDef)
+            and node.name == "_blocked_progression"
+        )
+        function.body.insert(0, ast.ImportFrom(
+            module="gear_canonical_kernel",
+            names=[ast.alias(name="CanonicalIssue", asname="Ghost")],
+            level=1,
+        ))
+        all_assignment = next(
+            node for node in tree.body
+            if isinstance(node, ast.Assign)
+            and any(
+                isinstance(target, ast.Name) and target.id == "__all__"
+                for target in node.targets
+            )
+        )
+        all_assignment.value.elts.append(ast.Constant(value="Ghost"))
+        target = _target_record(registry, path)
+        target["imports"].append({
+            "module": ".gear_canonical_kernel",
+            "symbol": "CanonicalIssue",
+            "alias": "Ghost",
+        })
+        target["exports"].append("Ghost")
+        target["reexports"].append({
+            "export": "Ghost",
+            "module": ".gear_canonical_kernel",
+            "symbol": "CanonicalIssue",
+            "alias": "Ghost",
+        })
+        violations = _source_change_control_violations(
+            trees,
+            _repository_python_trees(),
+            registry,
+        )
+        self.assertIn(
+            "REEXPORT_MODULE_BINDING_REQUIRED",
+            _codes(violations),
+            _formatted(violations),
+        )
+
+        trees = copy.deepcopy(TREES)
+        registry = copy.deepcopy(REGISTRY)
+        tree = trees[path]
+        all_assignment = next(
+            node for node in tree.body
+            if isinstance(node, ast.Assign)
+            and any(
+                isinstance(target, ast.Name) and target.id == "__all__"
+                for target in node.targets
+            )
+        )
+        all_assignment.value.elts.append(ast.Constant(value="Ghost"))
+        _target_record(registry, path)["exports"].append("Ghost")
+        violations = _registry_violations(registry, trees)
+        self.assertIn(
+            "UNDEFINED_EXPORT",
+            _codes(violations),
+            _formatted(violations),
+        )
+
+        path = "scripts/simc-item-effect-probe.py"
+        trees = copy.deepcopy(TREES)
+        registry = copy.deepcopy(REGISTRY)
+        trees[path].body.append(ast.Assign(
+            targets=[ast.Name(id="__all__", ctx=ast.Store())],
+            value=ast.Tuple(elts=[ast.Constant(value="Path")], ctx=ast.Load()),
+        ))
+        target = _target_record(registry, path)
+        target["exports"] = ["Path"]
+        target["reexports"] = [{
+            "export": "Path",
+            "module": "pathlib",
+            "symbol": "Path",
+            "alias": "Path",
+        }]
+        self.assertEqual(
+            [],
+            _registry_violations(registry, trees),
+            _formatted(_registry_violations(registry, trees)),
+        )
+
+        self.assertEqual(
+            [],
+            _registry_violations(REGISTRY, TREES),
+            "real fallback re-export must remain valid",
+        )
+
+    def test_frozen_v1_direct_primitive_exceptions_have_exact_cardinality(self):
+        path = "server/gear_exact_item_instance.py"
+        tree = copy.deepcopy(TREES[path])
+        legacy_hash = next(
+            node for node in tree.body
+            if isinstance(node, ast.FunctionDef) and node.name == "_hash"
+        )
+        sha256_call = next(
+            node for node in ast.walk(legacy_hash)
+            if isinstance(node, ast.Call)
+            and _call_name(node.func) == "hashlib.sha256"
+        )
+        legacy_hash.body.insert(0, ast.Expr(value=copy.deepcopy(sha256_call)))
+        violations = _direct_primitive_violations(path, tree)
+        self.assertIn(
+            "FROZEN_V1_EXCEPTION_MULTIMATCH",
+            _codes(violations),
+            _formatted(violations),
+        )
+
+        tree = copy.deepcopy(TREES[path])
+        canonical_bytes = next(
+            node for node in tree.body
+            if isinstance(node, ast.FunctionDef)
+            and node.name == "_canonical_bytes"
+        )
+        json_call = next(
+            node for node in ast.walk(canonical_bytes)
+            if isinstance(node, ast.Call) and _call_name(node.func) == "json.dumps"
+        )
+        json_call.func = ast.Name(id="legacy_json", ctx=ast.Load())
+        violations = _direct_primitive_violations(path, tree)
+        self.assertIn(
+            "FROZEN_V1_EXCEPTION_MISSING",
+            _codes(violations),
+            _formatted(violations),
+        )
+
+    def test_track_authority_provenance_is_hard_coded_not_registry_authorized(self):
+        path = "server/gear_exact_authority.py"
+        repository_trees = _repository_python_trees()
+        trees = copy.deepcopy(TREES)
+        registry = copy.deepcopy(REGISTRY)
+        tree = trees[path]
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ImportFrom):
+                continue
+            if node.module == "gear_track_authority":
+                node.module = "hidden_track_authority"
+        target = _target_record(registry, path)
+        for record in target["imports"]:
+            if str(record["module"]).lstrip(".") == "gear_track_authority":
+                prefix = "." if str(record["module"]).startswith(".") else ""
+                record["module"] = prefix + "hidden_track_authority"
+        for pair in target["importFallbackPairs"]:
+            if str(pair["relative"]["module"]).lstrip(".") == "gear_track_authority":
+                pair["relative"]["module"] = ".hidden_track_authority"
+                pair["absolute"]["module"] = "hidden_track_authority"
+        violations = _source_change_control_violations(
+            trees,
+            repository_trees,
+            registry,
+        )
+        self.assertIn(
+            "TRACK_AUTHORITY_PROVENANCE_INVALID",
+            _codes(violations),
+            _formatted(violations),
+        )
+
+        cases: list[tuple[str, dict[str, ast.Module], dict[str, object]]] = []
+        for label, level in (("missing relative", 1), ("missing absolute", 0)):
+            case_trees = copy.deepcopy(TREES)
+            case_registry = copy.deepcopy(REGISTRY)
+            for node in ast.walk(case_trees[path]):
+                if (
+                    isinstance(node, ast.ImportFrom)
+                    and node.module == "gear_track_authority"
+                    and node.level == level
+                ):
+                    node.names = []
+            cases.append((label, case_trees, case_registry))
+
+        case_trees = copy.deepcopy(TREES)
+        case_registry = copy.deepcopy(REGISTRY)
+        for node in ast.walk(case_trees[path]):
+            if isinstance(node, ast.ImportFrom) and node.module == "gear_track_authority":
+                node.names[0].asname = "hidden_progression"
+        case_target = _target_record(case_registry, path)
+        for record in case_target["imports"]:
+            if str(record["module"]).lstrip(".") == "gear_track_authority":
+                record["alias"] = "hidden_progression"
+        for pair in case_target["importFallbackPairs"]:
+            if str(pair["relative"]["module"]).lstrip(".") == "gear_track_authority":
+                pair["relative"]["alias"] = "hidden_progression"
+                pair["absolute"]["alias"] = "hidden_progression"
+        cases.append(("alias variation", case_trees, case_registry))
+
+        for label, case_trees, case_registry in cases:
+            with self.subTest(label=label):
+                violations = _source_change_control_violations(
+                    case_trees,
+                    repository_trees,
+                    case_registry,
+                )
+                self.assertIn(
+                    "TRACK_AUTHORITY_PROVENANCE_INVALID",
+                    _codes(violations),
+                    _formatted(violations),
+                )
 
     def test_exemption_orphan_multimatch_and_ast_change_fail_closed(self):
         path = "server/gear_exact_item_instance.py"
