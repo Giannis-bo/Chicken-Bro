@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-状态：`已完成（Task 2 canonical foundation；Task 1-5 independent review clean）`
+状态：`正在纠正（Task 5 final-review fix round 2；4 Important；原 Task 3 blocked）`
 
 **Goal:** 用唯一 Canonical Kernel 和不可变 sealed documents 替换未发布的 Task 2 内部实现，使 Exact、Progression、Effect、Probe、CLI 与 Authority Envelope 对同一输入语言给出一致、fail-closed、内容寻址的结果。
 
@@ -620,11 +620,16 @@ git commit -m "refactor(websim): compose sealed exact authority"
 
 **Files:**
 
+- Modify: `server/gear_canonical_kernel.py`
+- Modify: `server/gear_contracts.py`
 - Modify: `server/gear_exact_item_instance.py`
 - Modify: `server/gear_exact_authority.py`
 - Modify: `server/simc_item_effect_support.py`
 - Modify: `server/simc_item_effect_probe.py`
 - Modify: `scripts/simc-item-effect-probe.py`
+- Modify: `packages/domain/src/gear-intent.ts`
+- Modify: `packages/domain/src/gear-intent.test.ts`
+- Modify: `tests/fixtures/gear_canonical_mutations.json`
 - Create: `tests/gear_canonical_owner_gate_test.py`
 - Modify: `tests/gear_canonical_kernel_test.py`
 - Modify: `tests/gear_contracts_test.py`
@@ -635,6 +640,7 @@ git commit -m "refactor(websim): compose sealed exact authority"
 - Modify: `tests/simc_item_effect_probe_cli_test.py`
 - Modify: `docs/project-owner-map.json`
 - Modify: `docs/backend-owner-map.json`
+- Modify: `artifacts/releases/2026-08-04-equipment-simulator-exact-first/requirement.json`
 - Modify: `docs/plans/2026-08-04-equipment-simulator-canonical-kernel-redesign.md`
 - Modify: `docs/plans/2026-08-04-equipment-simulator-canonical-kernel-implementation.md`
 - Modify: `docs/plans/README.md`

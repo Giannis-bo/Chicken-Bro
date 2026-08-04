@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-状态：`正在推进（Task 3 可开始，尚未启动；replacement Canonical Kernel Task 1-5 review clean，旧 Task 2 已停止）`
+状态：`待决策（replacement whole-branch final review FAIL；4 Important 修复中，旧 Task 2 已停止，原 Task 3 未启动）`
 
 **Task 2 replacement:** [Canonical Kernel 重设计](2026-08-04-equipment-simulator-canonical-kernel-redesign.md) 与 [replacement implementation plan](2026-08-04-equipment-simulator-canonical-kernel-implementation.md)。原 Task 2 不再执行；replacement Task 1-5 全部 review clean 后才允许进入本计划 Task 3。
 
