@@ -432,7 +432,7 @@
       "owners": [
         {
           "id": "simc_exact_import_adapter",
-          "status": "task1_contract_only",
+          "status": "exact_v2_pure_input_adapter",
           "owns": [
             "bounded plugin text parsing",
             "Catalog-independent exact-loadout-intent-v2 projection",
@@ -450,7 +450,7 @@
           "runtimeConsumers": [
             "server/news_backend.py legacy compatibility wrappers"
           ],
-          "futureExtractionDirection": "Task 2 consumes only sanitized Exact v2 intent; Task 3 owns persistence and later tasks own authority, Resolver, API, observations and Catalog admission."
+          "capabilityBoundary": "This adapter owns sanitized Exact v2 projection only. Replacement Task 1-5 already owns the pure canonical language plus sealed Exact, Static Facts, Progression, Effect, Probe and ExactAuthorityEnvelope derivation. The original Task 3 is not activated and is limited to any future persistence/store/migration/worker/runtime activation; Resolver, API, observations and Catalog admission remain separate later scopes."
         }
       ]
     },

@@ -239,10 +239,16 @@ class _UnknownBinding:
 
 
 @dataclass(frozen=True)
+class _UnknownValue:
+    detail: str
+
+
+@dataclass(frozen=True)
 class _CallableTarget:
     node: ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda
     label: str
     closure_scopes: tuple[dict[str, list[object]], ...]
+    argument_bindings: tuple[tuple[str, tuple[object, ...]], ...] = ()
 
 
 _UNKNOWN_BINDING = _UnknownBinding()
@@ -285,7 +291,7 @@ class _ScopeBindingCollector(ast.NodeVisitor):
         return
 
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
-        self._add(node.name, _UNKNOWN_BINDING)
+        self._add(node.name, _ResolvedSymbol(node.name))
 
     def visit_Assign(self, node: ast.Assign) -> None:
         for target in node.targets:
@@ -337,11 +343,15 @@ def _resolve_expression(
     expression: object,
     scopes: tuple[dict[str, list[object]], ...],
     seen: frozenset[tuple[int, str]] = frozenset(),
-) -> list[_ResolvedSymbol | _CallableTarget]:
+) -> list[_ResolvedSymbol | _CallableTarget | _UnknownValue]:
     if isinstance(expression, _ResolvedSymbol):
         return [expression]
+    if isinstance(expression, _CallableTarget):
+        return [expression]
+    if isinstance(expression, _UnknownValue):
+        return [expression]
     if isinstance(expression, _UnknownBinding):
-        return []
+        return [_UnknownValue("dynamic parameter")]
     if isinstance(expression, (ast.FunctionDef, ast.AsyncFunctionDef)):
         return [_CallableTarget(expression, expression.name, scopes)]
     if isinstance(expression, ast.Lambda):
@@ -353,7 +363,7 @@ def _resolve_expression(
             key = (id(scope), expression.id)
             if key in seen:
                 return []
-            resolved: list[_ResolvedSymbol | _CallableTarget] = []
+            resolved: list[_ResolvedSymbol | _CallableTarget | _UnknownValue] = []
             nested_scopes = scopes[index:]
             for value in scope[expression.id]:
                 if isinstance(value, ast.Lambda):
@@ -389,6 +399,11 @@ def _resolve_expression(
         if symbols:
             return symbols
         return [_ResolvedSymbol(ast.unparse(expression))]
+    if isinstance(expression, ast.IfExp):
+        return [
+            *_resolve_expression(expression.body, scopes, seen),
+            *_resolve_expression(expression.orelse, scopes, seen),
+        ]
     return []
 
 
@@ -441,12 +456,85 @@ def _called_targets(
 ) -> list[_CallableTarget]:
     targets: list[_CallableTarget] = []
     for call in _direct_scope_usage(node).calls:
-        targets.extend(
-            item
-            for item in _resolve_expression(call.func, scopes)
-            if isinstance(item, _CallableTarget)
-        )
+        for item in _resolve_expression(call.func, scopes):
+            if isinstance(item, _CallableTarget):
+                targets.append(_bind_callable_target(item, call, scopes))
     return targets
+
+
+def _resolved_argument_values(
+    expression: ast.expr,
+    scopes: tuple[dict[str, list[object]], ...],
+) -> tuple[object, ...]:
+    resolved = tuple(_resolve_expression(expression, scopes))
+    if resolved:
+        return resolved
+    return (_UnknownValue(ast.unparse(expression)),)
+
+
+def _bind_callable_target(
+    target: _CallableTarget,
+    call: ast.Call,
+    caller_scopes: tuple[dict[str, list[object]], ...],
+) -> _CallableTarget:
+    arguments = target.node.args
+    positional = [*arguments.posonlyargs, *arguments.args]
+    keyword_capable = {
+        argument.arg
+        for argument in (*arguments.args, *arguments.kwonlyargs)
+    }
+    bindings: dict[str, tuple[object, ...]] = {}
+    for index, value in enumerate(call.args):
+        if index >= len(positional) or isinstance(value, ast.Starred):
+            continue
+        bindings[positional[index].arg] = _resolved_argument_values(
+            value,
+            caller_scopes,
+        )
+    for keyword in call.keywords:
+        if keyword.arg is None or keyword.arg not in keyword_capable:
+            continue
+        bindings[keyword.arg] = _resolved_argument_values(
+            keyword.value,
+            caller_scopes,
+        )
+
+    positional_defaults = positional[len(positional) - len(arguments.defaults):]
+    for argument, default in zip(positional_defaults, arguments.defaults):
+        if argument.arg not in bindings:
+            bindings[argument.arg] = _resolved_argument_values(
+                default,
+                target.closure_scopes,
+            )
+    for argument, default in zip(arguments.kwonlyargs, arguments.kw_defaults):
+        if default is not None and argument.arg not in bindings:
+            bindings[argument.arg] = _resolved_argument_values(
+                default,
+                target.closure_scopes,
+            )
+    return _CallableTarget(
+        target.node,
+        target.label,
+        target.closure_scopes,
+        tuple(sorted(bindings.items())),
+    )
+
+
+def _binding_identity(target: _CallableTarget) -> tuple[object, ...]:
+    identities: list[object] = []
+    for name, values in target.argument_bindings:
+        value_identities: list[object] = []
+        for value in values:
+            if isinstance(value, _ResolvedSymbol):
+                value_identities.append(
+                    ("symbol", value.qualified_name, value.imported)
+                )
+            elif isinstance(value, _CallableTarget):
+                value_identities.append(("callable", id(value.node)))
+            elif isinstance(value, _UnknownValue):
+                value_identities.append(("unknown", value.detail))
+        identities.append((name, tuple(value_identities)))
+    return tuple(identities)
 
 
 def _sealed_call_graph(
@@ -480,17 +568,27 @@ def _sealed_call_graph(
             tuple[dict[str, list[object]], ...],
         ]
     ] = []
-    seen: set[tuple[int, tuple[int, ...]]] = set()
+    seen: set[tuple[int, tuple[int, ...], tuple[object, ...]]] = set()
     while pending:
         target = pending.pop()
         key = (
             id(target.node),
             tuple(id(scope) for scope in target.closure_scopes),
+            _binding_identity(target),
         )
         if key in seen:
             continue
         seen.add(key)
         local_scope, _ = _scope_bindings(target.node)
+        for name, values in target.argument_bindings:
+            local_scope[name] = [
+                *values,
+                *(
+                    value
+                    for value in local_scope.get(name, ())
+                    if not isinstance(value, _UnknownBinding)
+                ),
+            ]
         scopes = (local_scope, *target.closure_scopes)
         reachable.append((target.label, target.node, scopes))
         pending.extend(
@@ -554,11 +652,20 @@ def _identity_primitive_violations(
                 ))
 
     for child in usage.calls:
+        resolved_callables = _resolve_expression(child.func, scopes)
         resolved_callees = {
             item
-            for item in _resolve_expression(child.func, scopes)
+            for item in resolved_callables
             if isinstance(item, _ResolvedSymbol)
         }
+        for item in resolved_callables:
+            if isinstance(item, _UnknownValue):
+                violations.append(Violation(
+                    path,
+                    function,
+                    "UNKNOWN_DYNAMIC_CALLABLE",
+                    ast.unparse(child.func),
+                ))
         callees = {item.qualified_name for item in resolved_callees}
         allowed_imported = IMPORTED_CALLABLE_ALLOWLIST[path]
         for item in resolved_callees:
@@ -1072,6 +1179,79 @@ hidden_module.helper(exact)
         }
         self.assertLessEqual(expected, observed, _formatted(violations))
 
+    def test_gate_follows_higher_order_callbacks_and_blocks_unknown_invocation(self):
+        trees = {
+            path: ast.parse((ROOT / path).read_text(encoding="utf-8"), filename=path)
+            for path in TASK2_CONSUMERS
+        }
+        item_tree = trees["server/gear_exact_item_instance.py"]
+        item_tree.body.extend(ast.parse("""
+from builtins import str as hidden_str
+from server.hidden_strip import strip as hidden_strip
+from hashlib import sha256 as hidden_hash
+from json import dumps as hidden_json
+from server.hidden_catalog import lookup as hidden_catalog
+from server.hidden_unknown import helper as hidden_unknown
+from server.hidden_conditional_a import normalize as hidden_conditional_a
+from server.hidden_conditional_b import normalize as hidden_conditional_b
+
+def _invoke(callback, value):
+    return callback(value)
+
+def _forward(callback, value):
+    return _invoke(callback, value)
+
+def _invoke_default(value, callback=hidden_json):
+    return callback(value)
+
+_callback_lambda = lambda callback, value: _forward(callback, value)
+""").body)
+        serializer = _function_definitions(item_tree)["derive_simc_serializer_input"]
+        serializer.body[:0] = ast.parse("""
+_invoke(hidden_str, exact)
+_forward(hidden_strip, exact)
+_invoke(callback=hidden_hash, value=exact)
+_invoke_default(exact)
+_callback_lambda(hidden_catalog, exact)
+_invoke(hidden_unknown, exact)
+_invoke(exact, exact)
+conditional = hidden_conditional_a if exact else hidden_conditional_b
+conditional(exact)
+""").body
+
+        violations = _consumer_violations(trees)
+        observed = {
+            (item.function, item.code, item.detail)
+            for item in violations
+            if item.path == "server/gear_exact_item_instance.py"
+        }
+        for detail in (
+            "builtins.str",
+            "server.hidden_strip.strip",
+            "hashlib.sha256",
+            "json.dumps",
+            "server.hidden_catalog.lookup",
+            "server.hidden_unknown.helper",
+            "server.hidden_conditional_a.normalize",
+            "server.hidden_conditional_b.normalize",
+        ):
+            self.assertTrue(any(
+                code == "UNAPPROVED_IMPORTED_CALLABLE" and found_detail == detail
+                for _, code, found_detail in observed
+            ), _formatted(violations))
+        for code in (
+            "IDENTITY_COERCION",
+            "IDENTITY_TRIM",
+            "DUPLICATE_HASH_OWNER",
+            "DUPLICATE_JSON_OWNER",
+            "CATALOG_DEPENDENCY",
+            "UNKNOWN_DYNAMIC_CALLABLE",
+        ):
+            self.assertTrue(any(
+                found_code == code
+                for _, found_code, _ in observed
+            ), _formatted(violations))
+
     def test_task5_control_plane_matches_the_implemented_pure_foundation(self):
         requirement = json.loads((
             ROOT
@@ -1141,6 +1321,54 @@ hidden_module.helper(exact)
         self.assertIn(
             "original Task 3 is not activated",
             kernel_owner["capabilityBoundary"],
+        )
+
+        exact_foundation = gear_domain["exactItemInstanceFoundations"]
+        catalog_hotspot = next(
+            hotspot
+            for hotspot in backend_map["hotspotFiles"]
+            if hotspot["path"] == "server/gear_catalog_migration_audit.py"
+        )
+        exact_owner = next(
+            owner
+            for owner in catalog_hotspot["owners"]
+            if owner["id"] == "equipment_simulator_exact_item_instance_phase2"
+        )
+        import_hotspot = next(
+            hotspot
+            for hotspot in backend_map["hotspotFiles"]
+            if hotspot["path"] == "server/simc_gear_import.py"
+        )
+        import_owner = import_hotspot["owners"][0]
+        current_control_plane = json.dumps(
+            [
+                requirement,
+                gear_domain["canonicalKernelFoundations"],
+                exact_foundation,
+                kernel_owner,
+                exact_owner,
+                import_owner,
+            ],
+            ensure_ascii=False,
+            sort_keys=True,
+        ).lower()
+        for stale_narrative in (
+            "task1_contract_only",
+            "task 1 only",
+            "task 1 仅",
+            "task 2 consumes only",
+            "replacement task 2",
+            "later tasks own authority",
+            "future exact authority",
+            "pending controller",
+        ):
+            self.assertNotIn(stale_narrative, current_control_plane)
+        import_boundary = import_owner["capabilityBoundary"]
+        self.assertIn("Replacement Task 1-5", import_boundary)
+        self.assertIn("original Task 3 is not activated", import_boundary)
+        self.assertIn(
+            "persistence/store/migration/worker/runtime activation",
+            import_boundary,
         )
 
 

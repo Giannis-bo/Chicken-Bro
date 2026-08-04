@@ -210,36 +210,51 @@ def canonical_json_bytes(value: object) -> bytes:
 
 
 def _validate_canonical_json_value(value: object, *, path: str) -> None:
-    pending: list[tuple[bool, object, str, int]] = [(True, value, path, 1)]
+    # One node is one object, array, object key, or scalar value. Depth is the
+    # number of enclosing object/array containers; keys and scalars do not add
+    # a level. The byte preflight below uses the same language.
+    pending: list[tuple[bool, object, str, int]] = [(True, value, path, 0)]
     active_container_ids: set[int] = set()
     node_count = 0
     while pending:
-        entering, current, current_path, depth = pending.pop()
+        entering, current, current_path, container_depth = pending.pop()
         if not entering:
             active_container_ids.remove(id(current))
             continue
         node_count += 1
         if node_count > _MAX_CANONICAL_JSON_NODES:
             raise CanonicalValueError("CANONICAL_JSON_NODE_BOUNDS", current_path)
-        if depth > _MAX_CANONICAL_JSON_DEPTH:
-            raise CanonicalValueError("CANONICAL_JSON_DEPTH_BOUNDS", current_path)
         if type(current) in {dict, list, tuple}:
+            current_depth = container_depth + 1
+            if current_depth > _MAX_CANONICAL_JSON_DEPTH:
+                raise CanonicalValueError("CANONICAL_JSON_DEPTH_BOUNDS", current_path)
             identity = id(current)
             if identity in active_container_ids:
                 raise CanonicalValueError("CANONICAL_JSON_CYCLE", current_path)
             active_container_ids.add(identity)
-            pending.append((False, current, current_path, depth))
+            pending.append((False, current, current_path, current_depth))
         if type(current) is dict:
             children: list[tuple[bool, object, str, int]] = []
             for key, nested_value in current.items():
                 if type(key) is not str:
                     raise CanonicalValueError("NON_STRING_JSON_KEY", current_path)
-                children.append((True, nested_value, f"{current_path}.{key}", depth + 1))
+                node_count += 1
+                if node_count > _MAX_CANONICAL_JSON_NODES:
+                    raise CanonicalValueError(
+                        "CANONICAL_JSON_NODE_BOUNDS",
+                        f"{current_path}.{key}",
+                    )
+                children.append((
+                    True,
+                    nested_value,
+                    f"{current_path}.{key}",
+                    current_depth,
+                ))
             pending.extend(reversed(children))
             continue
         if type(current) is list or type(current) is tuple:
             pending.extend(
-                (True, nested_value, f"{current_path}[{index}]", depth + 1)
+                (True, nested_value, f"{current_path}[{index}]", current_depth)
                 for index, nested_value in reversed(tuple(enumerate(current)))
             )
             continue
@@ -292,6 +307,9 @@ def _reject_json_constant(value: str) -> object:
 
 
 def _preflight_canonical_json_bytes(canonical_bytes: bytes) -> str:
+    # Strings count once whether they are object keys or scalar values; every
+    # object/array opening and every plain scalar token also counts once.
+    # Only object/array openings add structural depth.
     if len(canonical_bytes) > _MAX_CANONICAL_JSON_BYTES:
         raise CanonicalValueError("CANONICAL_JSON_BYTE_BOUNDS", "$")
     decoded = canonical_bytes.decode("utf-8")

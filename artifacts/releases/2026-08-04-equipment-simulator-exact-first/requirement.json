@@ -98,7 +98,7 @@
   "decisionLog": [
     {
       "date": "2026-08-04",
-      "decision": "按 Exact-first 将模拟资格与 Catalog membership 解耦；Task 1 仅冻结 v1 并引入无 Catalog 输入合同。"
+      "decision": "按 Exact-first 将模拟资格与 Catalog membership 解耦；初始输入合同冻结 v1 并引入无 Catalog 输入，当前 replacement Task 1-5 pure foundation 已补齐统一 Kernel 与 sealed authority derivation。"
     },
     {
       "date": "2026-08-04",

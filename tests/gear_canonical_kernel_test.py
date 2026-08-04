@@ -157,6 +157,81 @@ class GearCanonicalKernelTest(unittest.TestCase):
                 else:
                     self.fail("hostile canonical JSON value was accepted")
 
+    def test_json_node_limit_counts_containers_keys_and_scalar_values_once(self):
+        at_limit = {
+            "items": list(range(9_993)),
+            "meta": {"kind": "fixture"},
+        }
+        document = seal_canonical_document(
+            document_kind="fixture",
+            schema_revision="fixture-v1",
+            payload=at_limit,
+            key_prefix="fixture:sha256:",
+        )
+        self.assertTrue(verify_sealed_document(
+            document,
+            document_kind="fixture",
+            schema_revision="fixture-v1",
+            key_prefix="fixture:sha256:",
+            payload_validator=accept_payload,
+        ))
+
+        over_limit = {
+            "items": list(range(9_994)),
+            "meta": {"kind": "fixture"},
+        }
+        with self.assertRaises(CanonicalValueError) as caught:
+            seal_canonical_document(
+                document_kind="fixture",
+                schema_revision="fixture-v1",
+                payload=over_limit,
+                key_prefix="fixture:sha256:",
+            )
+        self.assertEqual(caught.exception.code, "CANONICAL_JSON_NODE_BOUNDS")
+        forged_bytes = json.dumps(
+            over_limit,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+        self.assertFalse(verify_sealed_document(
+            forged_document(forged_bytes),
+            document_kind="fixture",
+            schema_revision="fixture-v1",
+            key_prefix="fixture:sha256:",
+            payload_validator=accept_payload,
+        ))
+
+    def test_json_depth_counts_only_nested_object_and_array_containers(self):
+        at_limit: object = "leaf"
+        for _ in range(63):
+            at_limit = [at_limit]
+        document = seal_canonical_document(
+            document_kind="fixture",
+            schema_revision="fixture-v1",
+            payload={"value": at_limit},
+            key_prefix="fixture:sha256:",
+        )
+        self.assertTrue(verify_sealed_document(
+            document,
+            document_kind="fixture",
+            schema_revision="fixture-v1",
+            key_prefix="fixture:sha256:",
+            payload_validator=accept_payload,
+        ))
+
+        over_limit: object = "leaf"
+        for _ in range(64):
+            over_limit = [over_limit]
+        with self.assertRaises(CanonicalValueError) as caught:
+            seal_canonical_document(
+                document_kind="fixture",
+                schema_revision="fixture-v1",
+                payload={"value": over_limit},
+                key_prefix="fixture:sha256:",
+            )
+        self.assertEqual(caught.exception.code, "CANONICAL_JSON_DEPTH_BOUNDS")
+
     def test_canonical_json_rejects_non_string_mapping_keys_without_coercion(self):
         with self.assertRaises(CanonicalValueError):
             canonical_json_bytes({1: "integer"})
