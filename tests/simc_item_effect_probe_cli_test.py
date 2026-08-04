@@ -17,8 +17,26 @@ class SimcItemEffectProbeCliTest(unittest.TestCase):
                 path.write_text(json.dumps(payload), encoding="utf-8")
                 paths[name] = path
             completed = subprocess.run(
-                ["python3", "scripts/simc-item-effect-probe.py", "--manifest", str(paths["manifest"]), "--experiment-report", str(paths["experiment"]), "--control-report", str(paths["control"])],
+                ["python3", "scripts/simc-item-effect-probe.py", "--manifest", str(paths["manifest"]), "--experiment-report", str(paths["experiment"]), "--control-report", str(paths["control"]), "--runtime-revision", MANIFEST["simcRuntimeRevision"]],
                 cwd=root, capture_output=True, text=True, check=False,
             )
         self.assertEqual(completed.returncode, 0, completed.stderr)
         self.assertEqual(json.loads(completed.stdout)["status"], "verified")
+
+    def test_cli_unknown_emits_no_stdout_and_returns_nonzero(self):
+        self._assert_cli_failure({**EXPERIMENT, "actions": []}, RUNTIME=MANIFEST["simcRuntimeRevision"])
+
+    def test_cli_binds_manifest_and_reports_to_independent_current_runtime(self):
+        self._assert_cli_failure(EXPERIMENT, RUNTIME="other-runtime")
+
+    def _assert_cli_failure(self, experiment, *, RUNTIME):
+        root = Path(__file__).resolve().parents[1]
+        with tempfile.TemporaryDirectory() as directory:
+            paths = {}
+            for name, payload in (("manifest", MANIFEST), ("experiment", experiment), ("control", CONTROL)):
+                path = Path(directory) / f"{name}.json"
+                path.write_text(json.dumps(payload), encoding="utf-8")
+                paths[name] = path
+            completed = subprocess.run(["python3", "scripts/simc-item-effect-probe.py", "--manifest", str(paths["manifest"]), "--experiment-report", str(paths["experiment"]), "--control-report", str(paths["control"]), "--runtime-revision", RUNTIME], cwd=root, capture_output=True, text=True, check=False)
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertEqual(completed.stdout, "")

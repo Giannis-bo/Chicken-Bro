@@ -49,9 +49,27 @@ def exact_row(**overrides):
     return row
 
 
+def exact_v2_row(**overrides):
+    row = {
+        "itemId": "1001",
+        "declaredItemLevel": 266,
+        "bonusIds": ["9002", "13334", "9001"],
+        "context": "heroic",
+        "gemIds": ["240892", "240897"],
+        "gemBonusIds": ["1514", "1514"],
+        "gemItemLevels": [90, 90],
+        "enchantId": "7443",
+        "craftedStats": ["36", "32"],
+        "embellishmentIds": ["999002", "999001"],
+        "redirectedBaseStats": ["haste_rating"],
+    }
+    row.update(overrides)
+    return row
+
+
 class GearExactItemInstanceTest(unittest.TestCase):
     def test_v2_identity_ignores_catalog_listing_and_changes_for_each_exact_field(self):
-        base = exact_row()
+        base = exact_v2_row()
         listed = build_exact_item_identity(
             CURRENT_BINDING,
             {**base, "catalogStatus": "listed", "catalogRevision": CATALOG_REVISION},
@@ -72,35 +90,60 @@ class GearExactItemInstanceTest(unittest.TestCase):
         for field, replacement in (
             ("itemLevel", 269),
             ("bonusIds", ["9002", "13334", "9001", "7777"]),
-            ("context", {"difficulty": "mythic"}),
+            ("context", "mythic"),
             ("gems", ["240897", "240892"]),
             ("enchant", "9999"),
             ("craftedStats", ["32"]),
             ("embellishments", ["999001"]),
-            ("redirectedBaseStats", {"haste_rating": 242}),
+            ("redirectedBaseStats", ["crit_rating"]),
         ):
-            changed = exact_row()
+            changed = exact_v2_row()
             if field == "context":
                 changed["context"] = replacement
             elif field == "gems":
-                changed["simcOptions"] = {**changed["simcOptions"], "gem_id": "/".join(replacement)}
+                changed["gemIds"] = replacement
             elif field == "enchant":
-                changed["simcOptions"] = {**changed["simcOptions"], "enchant_id": replacement}
+                changed["enchantId"] = replacement
             elif field == "craftedStats":
-                changed["simcOptions"] = {**changed["simcOptions"], "crafted_stats": "/".join(replacement)}
+                changed["craftedStats"] = replacement
             elif field == "embellishments":
-                changed["simcOptions"] = {**changed["simcOptions"], "embellishment": "/".join(replacement)}
+                changed["embellishmentIds"] = replacement
             elif field == "redirectedBaseStats":
                 changed["redirectedBaseStats"] = replacement
             else:
                 changed[field] = replacement
                 if field == "itemLevel":
-                    changed["simcOptions"] = {**changed["simcOptions"], "ilevel": str(replacement)}
-                if field == "bonusIds":
-                    changed["simcOptions"] = {**changed["simcOptions"], "bonus_id": "/".join(replacement)}
+                    changed["declaredItemLevel"] = changed.pop("itemLevel")
             candidate = build_exact_item_identity(CURRENT_BINDING, changed)
             self.assertEqual(candidate["status"], "verified", field)
             self.assertNotEqual(listed["exactItemInstanceKey"], candidate["exactItemInstanceKey"], field)
+
+    def test_v2_identity_accepts_exact_slot_contract_without_v1_catalog_row_fields(self):
+        result = build_exact_item_identity(CURRENT_BINDING, exact_v2_row())
+        self.assertEqual(result["status"], "verified")
+
+    def test_each_direct_v2_enhancement_field_changes_exact_key(self):
+        original = build_exact_item_identity(CURRENT_BINDING, exact_v2_row())
+        for field, value in (
+            ("gemIds", ["240897", "240892"]),
+            ("gemBonusIds", ["1515", "1514"]),
+            ("gemItemLevels", [91, 90]),
+            ("enchantId", "9999"),
+            ("craftedStats", ["32"]),
+            ("embellishmentIds", ["999001"]),
+        ):
+            result = build_exact_item_identity(CURRENT_BINDING, exact_v2_row(**{field: value}))
+            self.assertEqual(result["status"], "verified", field)
+            self.assertNotEqual(result["exactItemInstanceKey"], original["exactItemInstanceKey"], field)
+
+    def test_arbitrary_variant_key_cannot_gate_or_rescue_v2_identity(self):
+        original = build_exact_item_identity(CURRENT_BINDING, exact_v2_row())
+        changed = build_exact_item_identity(
+            CURRENT_BINDING,
+            exact_v2_row(variantKey="fabricated-not-canonical", rowFamily="exact_instance", status="verified"),
+        )
+        self.assertEqual(changed["status"], "verified")
+        self.assertEqual(changed["exactItemInstanceKey"], original["exactItemInstanceKey"])
 
     def test_v1_catalog_wrapper_remains_byte_and_key_compatible(self):
         built = build_exact_item_instance(

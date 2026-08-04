@@ -48,6 +48,8 @@ def evaluate_effect_probe(manifest: Any, experiment: Any, control: Any) -> dict[
         return _unknown("MANIFEST_EVIDENCE_INCOMPLETE")
     if not isinstance(experiment, Mapping) or not isinstance(control, Mapping):
         return _unknown("REPORT_INVALID")
+    if _text(manifest["experimentSnapshotKey"]) == _text(manifest["controlSnapshotKey"]):
+        return _unknown("SNAPSHOT_CONTROL_NOT_DISTINCT")
     runtime = _text(manifest["simcRuntimeRevision"])
     if _text(experiment.get("runtimeRevision")) != runtime or _text(control.get("runtimeRevision")) != runtime:
         return _unknown("RUNTIME_MISMATCH")
@@ -55,6 +57,8 @@ def evaluate_effect_probe(manifest: Any, experiment: Any, control: Any) -> dict[
         return _unknown("SNAPSHOT_IDENTITY_MISMATCH")
     if experiment.get("timedOut") or control.get("timedOut"):
         return _unknown("PROBE_TIMEOUT")
+    if experiment.get("exitCode") != 0 or control.get("exitCode") != 0:
+        return _unknown("PROBE_EXIT_FAILED")
     if experiment.get("warnings") or control.get("warnings"):
         return _unknown("ITEM_RESOLUTION_WARNING")
     experiment_actions = set(_tokens(experiment.get("actions")) or [])

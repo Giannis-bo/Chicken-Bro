@@ -47,3 +47,11 @@ class SimcItemEffectProbeTest(unittest.TestCase):
         ):
             result = evaluate_effect_probe(manifest, experiment, control)
             self.assertEqual(result["status"], "unknown")
+
+    def test_probe_requires_distinct_experiment_and_control_snapshots(self):
+        result = evaluate_effect_probe({**MANIFEST, "controlSnapshotKey": MANIFEST["experimentSnapshotKey"]}, EXPERIMENT, {**CONTROL, "snapshotKey": MANIFEST["experimentSnapshotKey"]})
+        self.assertEqual(result["status"], "unknown")
+
+    def test_nonzero_exit_cannot_seal_verified_record(self):
+        result = evaluate_effect_probe(MANIFEST, {**EXPERIMENT, "exitCode": 1}, CONTROL)
+        self.assertEqual(result["status"], "unknown")

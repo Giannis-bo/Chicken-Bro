@@ -303,61 +303,54 @@ def build_exact_item_identity(
     *,
     enhancement_selection: Any = None,
 ) -> dict[str, Any]:
-    """Build a Catalog-independent v2 Exact identity.
+    """Build a Catalog-independent identity from one v2 Exact slot contract."""
 
-    The frozen v1 builder below remains the only Catalog/Rule validation
-    wrapper.  This helper deliberately projects only sealed instance facts;
-    listing, Catalog revisions, owners, and observations never enter the
-    canonical bytes.
-    """
-
-    # v1 already owns the source normalization and progression proof.  A
-    # syntactically valid sentinel lets this pure identity reuse that frozen
-    # normalization without reading or depending on a Catalog membership.
-    normalized = build_exact_item_instance(
-        binding,
-        exact_row,
-        catalog_revision="gear-catalog:sha256:" + ("0" * 64),
-        enhancement_selection=enhancement_selection,
-    )
-    if normalized.get("status") != "verified":
-        return {
-            "status": "blocked",
-            "schemaRevision": EXACT_ITEM_IDENTITY_SCHEMA_REVISION,
-            "problemCodes": list(normalized.get("problemCodes") or []),
-            "problems": _canonical(normalized.get("problems") or []),
-        }
-
+    del binding
     row = dict(exact_row) if isinstance(exact_row, Mapping) else {}
-    redirected_base_stats = row.get("redirectedBaseStats")
-    if redirected_base_stats in (None, "", {}, []):
-        redirected_base_stats = {}
-    else:
-        redirected_base_stats = _static_facts(redirected_base_stats)
-        if redirected_base_stats is None:
-            return {
-                "status": "blocked",
-                "schemaRevision": EXACT_ITEM_IDENTITY_SCHEMA_REVISION,
-                "problemCodes": ["EXACT_REDIRECTED_BASE_STATS_MALFORMED"],
-                "problems": [_problem(
-                    "EXACT_REDIRECTED_BASE_STATS_MALFORMED",
-                    "exactRow.redirectedBaseStats",
-                    "redirectedBaseStats must be a non-empty numeric stat map.",
-                )],
-            }
-
+    problems: list[dict[str, str]] = []
+    item_id = _text(row.get("itemId"))
+    item_level = _positive_int(row.get("declaredItemLevel"))
+    bonus_ids = _set_tokens(row.get("bonusIds"))
+    context = _canonical_context(row.get("context"))
+    redirected_base_stats = _set_tokens(row.get("redirectedBaseStats"))
+    if not item_id:
+        problems.append(_problem("EXACT_ITEM_ID_MISSING", "exactRow.itemId", "Exact identity requires itemId."))
+    if not item_level:
+        problems.append(_problem("EXACT_ILEVEL_MISSING", "exactRow.declaredItemLevel", "Exact identity requires a positive declared item level."))
+    if bonus_ids is None:
+        problems.append(_problem("EXACT_BONUS_IDS_MALFORMED", "exactRow.bonusIds", "bonusIds must be a bounded token sequence."))
+        bonus_ids = []
+    if context is None:
+        problems.append(_problem("EXACT_CONTEXT_MALFORMED", "exactRow.context", "context must be canonical data."))
+        context = ""
+    if redirected_base_stats is None:
+        problems.append(_problem("EXACT_REDIRECTED_BASE_STATS_MALFORMED", "exactRow.redirectedBaseStats", "redirectedBaseStats must be a bounded token sequence."))
+        redirected_base_stats = []
+    selection_input = enhancement_selection if enhancement_selection is not None else {
+        "gemIds": row.get("gemIds"),
+        "gemBonusIds": row.get("gemBonusIds"),
+        "gemItemLevels": row.get("gemItemLevels"),
+        "enchantId": row.get("enchantId"),
+        "craftedStats": row.get("craftedStats"),
+        "embellishmentIds": row.get("embellishmentIds"),
+    }
+    selection_result = canonical_enhancement_selection(selection_input)
+    if selection_result.get("status") != "verified":
+        problems.extend(selection_result.get("problems") or [])
+    if problems:
+        return {
+            "status": "blocked", "schemaRevision": EXACT_ITEM_IDENTITY_SCHEMA_REVISION,
+            "problemCodes": sorted({_text(problem.get("code")) for problem in problems}),
+            "problems": _canonical(problems),
+        }
+    selection = selection_result["selection"]
     variant_identity = {
-        "itemId": normalized["itemId"],
-        "bonusIds": normalized["bonusIds"],
-        "context": normalized["context"],
-        "progressionState": normalized["progressionState"],
-        "itemLevel": normalized["itemLevel"],
-        "redirectedBaseStats": redirected_base_stats,
+        "itemId": item_id, "bonusIds": bonus_ids, "context": context,
+        "itemLevel": item_level, "redirectedBaseStats": redirected_base_stats,
     }
     instance_identity = {
         "schemaRevision": EXACT_ITEM_IDENTITY_SCHEMA_REVISION,
-        **variant_identity,
-        "enhancementSelection": normalized["enhancementSelection"],
+        **variant_identity, "enhancementSelection": selection,
     }
     exact_variant_signature = _hash("exact-variant:sha256:", variant_identity)
     exact_key = _hash("exact-item-instance:sha256:", instance_identity)
@@ -366,10 +359,10 @@ def build_exact_item_identity(
         "schemaRevision": EXACT_ITEM_IDENTITY_SCHEMA_REVISION,
         "exactItemInstanceKey": exact_key,
         "exactVariantSignature": exact_variant_signature,
-        "enhancementSelectionKey": normalized["enhancementSelectionKey"],
+        "enhancementSelectionKey": selection_result["enhancementSelectionKey"],
         **variant_identity,
-        "enhancementSelection": normalized["enhancementSelection"],
-        "serializerInput": normalized["serializerInput"],
+        "enhancementSelection": selection,
+        "serializerInput": _serializer_input(item_id, item_level, bonus_ids, selection),
         "problemCodes": [],
         "problems": [],
     }

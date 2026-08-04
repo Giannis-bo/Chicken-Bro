@@ -27,3 +27,34 @@ class GearExactAuthorityTest(unittest.TestCase):
         for status in ("unknown", "unsupported"):
             result = build_exact_authority_envelope(exact_item=EXACT, static_facts=STATIC, serializer_input=SERIALIZER, progression_binding=PROGRESSION, effect_support={**EFFECT, "status": status}, resolver_revision="resolver-v2")
             self.assertEqual(result["status"], "blocked")
+
+    def test_envelope_rejects_missing_static_serializer_progression_and_effect_record_bindings(self):
+        for fields in (
+            {"static_facts": {}},
+            {"serializer_input": {}},
+            {"progression_binding": {}},
+            {"effect_support": {"status": "verified", "simcRuntimeRevision": "new", "supportRecordKeys": []}},
+        ):
+            result = build_exact_authority_envelope(
+                **{
+                    "exact_item": EXACT, "static_facts": STATIC,
+                    "serializer_input": SERIALIZER,
+                    "progression_binding": PROGRESSION,
+                    "effect_support": EFFECT,
+                    "resolver_revision": "resolver-v2", **fields,
+                },
+            )
+            self.assertEqual(result["status"], "blocked")
+
+    def test_envelope_validates_exact_and_effect_record_key_formats(self):
+        for exact, effect in (
+            ({**EXACT, "exactItemInstanceKey": "exact-item-instance:sha256:not-a-hash"}, EFFECT),
+            (EXACT, {**EFFECT, "supportRecordKeys": ["x"]}),
+        ):
+            result = build_exact_authority_envelope(exact_item=exact, static_facts=STATIC, serializer_input=SERIALIZER, progression_binding=PROGRESSION, effect_support=effect, resolver_revision="resolver-v2")
+            self.assertEqual(result["status"], "blocked")
+
+    def test_envelope_recursively_rejects_owner_catalog_observation_and_provenance_aliases(self):
+        for key in ("ownerKeyHash", "originCatalogRevision", "observation_count", "sourceUrl"):
+            result = build_exact_authority_envelope(exact_item={**EXACT, "nested": {key: "forbidden"}}, static_facts=STATIC, serializer_input=SERIALIZER, progression_binding=PROGRESSION, effect_support=EFFECT, resolver_revision="resolver-v2")
+            self.assertEqual(result["status"], "blocked", key)

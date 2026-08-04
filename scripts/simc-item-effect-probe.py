@@ -24,8 +24,19 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--manifest", required=True)
     parser.add_argument("--experiment-report", required=True)
     parser.add_argument("--control-report", required=True)
+    parser.add_argument("--runtime-revision", required=True)
     args = parser.parse_args(argv)
-    result = evaluate_effect_probe(_read(args.manifest), _read(args.experiment_report), _read(args.control_report))
+    manifest = _read(args.manifest)
+    experiment = _read(args.experiment_report)
+    control = _read(args.control_report)
+    runtime = str(args.runtime_revision or "").strip()
+    if not isinstance(manifest, dict) or not isinstance(experiment, dict) or not isinstance(control, dict):
+        return 1
+    if runtime != str(manifest.get("simcRuntimeRevision") or "").strip() or runtime != str(experiment.get("runtimeRevision") or "").strip() or runtime != str(control.get("runtimeRevision") or "").strip():
+        return 1
+    result = evaluate_effect_probe(manifest, experiment, control)
+    if result.get("status") != "verified":
+        return 1
     print(json.dumps(result, ensure_ascii=False, sort_keys=True, separators=(",", ":")))
     return 0
 
