@@ -9563,6 +9563,22 @@ def run_chickenbro_agent(bounded_context, codex_runner=None):
         raise ChickenbroGenerationUnavailable(f"chickenbro model output rejected: {error}") from error
 
 
+def chickenbro_agentic_stream_recovery(bounded_context):
+    """Recover a rejected stream with the same bounded agentic observations.
+
+    The stream provider may split or format an otherwise grounded number in a
+    way the incremental parser cannot safely release.  Re-run only the final
+    answer turn through the normal model validator; this does not re-plan,
+    execute tools, or manufacture a deterministic answer.
+    """
+    if not chickenbro_agentic_research_active(bounded_context):
+        return None
+    try:
+        return run_chickenbro_agent(bounded_context)
+    except ChickenbroGenerationUnavailable:
+        return None
+
+
 def run_chickenbro_agent_stream(bounded_context, stream_runner=None):
     agentic_active = chickenbro_agentic_research_active(bounded_context)
     authoritative = None if agentic_active else chickenbro_authoritative_strength_evidence_result(bounded_context)
@@ -9601,7 +9617,11 @@ def run_chickenbro_agent_stream(bounded_context, stream_runner=None):
             return fallback
         raise
     except (ChickenbroStreamUnavailable, ChickenbroStreamValidationError, ValueError) as error:
-        fallback = None if agentic_active else chickenbro_source_fallback_result(bounded_context, error)
+        fallback = (
+            chickenbro_agentic_stream_recovery(bounded_context)
+            if agentic_active
+            else chickenbro_source_fallback_result(bounded_context, error)
+        )
         if fallback:
             yield {"type": "delta", "text": fallback["answer"]["answer"]}
             return fallback

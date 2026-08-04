@@ -216,6 +216,46 @@ class ChickenbroAgentIntentTest(unittest.TestCase):
         with self.assertRaisesRegex(backend.ChickenbroGenerationUnavailable, "claim has no returned evidence"):
             next(stream)
 
+    def test_agentic_stream_recovers_with_a_valid_buffered_model_answer(self):
+        bounded = self.agentic_bounded_context()
+        invalid_stream_payload = json.dumps(
+            {
+                "answer": "未授权数字 999。",
+                "confidence": "medium",
+                "priorityActions": [],
+                "evidenceRefs": ["fixture.raiderio"],
+                "limitations": [],
+                "missingInputs": [],
+                "nextQuestion": "",
+                "claimRefs": [{
+                    "statement": "未授权数字 999。",
+                    "evidenceRefs": ["fixture.raiderio"],
+                }],
+            },
+            ensure_ascii=False,
+        )
+        recovered = {
+            "answer": {
+                "answer": "已基于本轮可引用观察给出结论。",
+                "answerSource": "llm",
+            },
+            "topic": {},
+            "validation": {"status": "passed"},
+            "model": {"status": "succeeded", "name": "recovery"},
+        }
+
+        with mock.patch.object(backend, "run_chickenbro_agent", return_value=recovered) as recovery:
+            events = list(
+                backend.run_chickenbro_agent_stream(
+                    bounded,
+                    stream_runner=lambda *_args, **_kwargs: iter([invalid_stream_payload]),
+                )
+            )
+
+        self.assertEqual(["delta"], [event["type"] for event in events])
+        self.assertEqual("已基于本轮可引用观察给出结论。", events[0]["text"])
+        recovery.assert_called_once_with(bounded)
+
     def test_feature_flag_uses_agentic_observations_without_legacy_dispatch(self):
         packet = {
             "status": "completed",
