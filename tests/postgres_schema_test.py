@@ -137,6 +137,15 @@ def exact_authority_schema_violations(sql, migrations):
         "cache.verify_websim_exact_authority_bundle_insert",
         "cache.reject_websim_exact_authority_mutation",
     )
+    created_function_names = tuple(re.findall(
+        r"\bCREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+([^\s(]+)\s*\(",
+        normalized,
+        flags=re.IGNORECASE,
+    ))
+    if sorted(created_function_names) != sorted(function_names):
+        violations.append(
+            f"exact function universe {created_function_names}",
+        )
     function_sections = {}
     for function_name in function_names:
         marker = f"CREATE OR REPLACE FUNCTION {function_name}()"
@@ -209,15 +218,13 @@ def exact_authority_schema_violations(sql, migrations):
         f"REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON {authority_tables} FROM wow_app;",
         f"GRANT SELECT ON {authority_tables} TO wow_app;",
     )
-    for clause in acl_contract:
-        if normalized.count(clause) != 1:
-            violations.append(f"exact authority ACL {clause.split()[0]}")
-    if normalized.count("REVOKE ALL ON") != 1:
-        violations.append("PUBLIC revoke ACL universe")
-    if normalized.count("REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON") != 1:
-        violations.append("wow_app write revoke ACL universe")
-    if normalized.count("GRANT SELECT ON") != 1:
-        violations.append("wow_app select grant ACL universe")
+    acl_statements = tuple(re.findall(
+        r"\b(?:GRANT|REVOKE)\b[^;]*;",
+        normalized,
+        flags=re.IGNORECASE,
+    ))
+    if sorted(acl_statements) != sorted(acl_contract):
+        violations.append(f"exact authority ACL universe {acl_statements}")
 
     migration_names = [name for name, _ in migrations]
     if migration_names.count("0026_websim_exact_authority_bundle.sql") != 1:
@@ -374,6 +381,20 @@ class PostgresSchemaTest(unittest.TestCase):
             shrink_acl(0),
             shrink_acl(1),
             shrink_acl(2),
+            self.websim_exact_authority_bundle_sql + """
+CREATE FUNCTION cache.unsafe_extra_authority_function()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $unsafe$
+BEGIN
+    RETURN NEW;
+END;
+$unsafe$;
+""",
+            self.websim_exact_authority_bundle_sql
+            + "\nGRANT INSERT ON cache.websim_canonical_documents TO wow_app;\n",
+            self.websim_exact_authority_bundle_sql
+            + "\nGRANT ALL ON cache.websim_canonical_documents TO PUBLIC;\n",
         )
         for mutated in mutations:
             with self.subTest(mutated=mutated[:80]):
