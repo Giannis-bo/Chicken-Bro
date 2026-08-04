@@ -1075,9 +1075,17 @@ class _TrackOwnerCallCounter(ast.NodeVisitor):
             if item is not None:
                 self.visit(item)
 
-    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
-        for item in node.decorator_list:
+    def _visit_decorators(self, decorators: list[ast.expr]) -> None:
+        for item in decorators:
+            if (
+                isinstance(item, ast.Name)
+                and item.id == TRACK_AUTHORITY_OWNER_NAME
+            ):
+                self.count += 1
             self.visit(item)
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+        self._visit_decorators(node.decorator_list)
         self._visit_defaults(node.args)
 
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
@@ -1087,9 +1095,16 @@ class _TrackOwnerCallCounter(ast.NodeVisitor):
         self._visit_defaults(node.args)
 
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
-        for item in (*node.decorator_list, *node.bases):
+        self._visit_decorators(node.decorator_list)
+        for item in node.bases:
             self.visit(item)
         for item in node.keywords:
+            if (
+                item.arg == "metaclass"
+                and isinstance(item.value, ast.Name)
+                and item.value.id == TRACK_AUTHORITY_OWNER_NAME
+            ):
+                self.count += 1
             self.visit(item.value)
         for statement in node.body:
             self.visit(statement)
@@ -2661,6 +2676,118 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
                     _codes(violations),
                     _formatted(violations),
                 )
+
+    def test_track_authority_counts_bare_definition_time_invocations(self):
+        path = "server/gear_exact_authority.py"
+        owner_name = "resolve_exact_instance_progression"
+
+        def mutation(
+            source: str,
+        ) -> tuple[
+            dict[str, ast.Module],
+            dict[str, object],
+            ast.FunctionDef,
+        ]:
+            trees = copy.deepcopy(TREES)
+            registry = copy.deepcopy(REGISTRY)
+            progression = next(
+                node for node in trees[path].body
+                if isinstance(node, ast.FunctionDef)
+                and node.name == "seal_exact_progression"
+            )
+            progression.body[0:0] = ast.parse(source).body
+            return trees, registry, progression
+
+        implicit_invocations = {
+            "nested sync function bare decorator": (
+                f"@{owner_name}\ndef nested():\n    pass",
+                2,
+            ),
+            "nested async function bare decorator": (
+                f"@{owner_name}\nasync def nested():\n    pass",
+                2,
+            ),
+            "nested class bare decorator": (
+                f"@{owner_name}\nclass Nested:\n    pass",
+                2,
+            ),
+            "class method bare decorator": (
+                f"class Nested:\n    @{owner_name}\n    def method(self):\n        pass",
+                2,
+            ),
+            "stacked bare decorators": (
+                f"@{owner_name}\n@{owner_name}\ndef nested():\n    pass",
+                3,
+            ),
+            "parenthesized bare decorator": (
+                f"@({owner_name})\ndef nested():\n    pass",
+                2,
+            ),
+            "bare metaclass": (
+                f"class Nested(metaclass={owner_name}):\n    pass",
+                2,
+            ),
+        }
+        for label, (source, expected_count) in implicit_invocations.items():
+            with self.subTest(label=label):
+                trees, registry, progression = mutation(source)
+                actual_count, _ = _track_owner_scope_state(progression)
+                self.assertEqual(expected_count, actual_count)
+                violations = _ownership_violations(trees, registry)
+                self.assertIn(
+                    Violation(
+                        path,
+                        "seal_exact_progression",
+                        "TRACK_AUTHORITY_CALL_INVALID",
+                        f"expected=1,actual={expected_count}",
+                    ),
+                    violations,
+                    _formatted(violations),
+                )
+
+        reference_only = {
+            "bare default reference": (
+                f"def nested(value={owner_name}):\n    pass"
+            ),
+            "bare class base reference": (
+                f"class Nested({owner_name}):\n    pass"
+            ),
+            "bare ordinary class keyword reference": (
+                f"class Nested(flag={owner_name}):\n    pass"
+            ),
+            "nested body not executed": (
+                f"def nested():\n    return {owner_name}()"
+            ),
+        }
+        for label, source in reference_only.items():
+            with self.subTest(label=label):
+                trees, registry, progression = mutation(source)
+                actual_count, _ = _track_owner_scope_state(progression)
+                self.assertEqual(1, actual_count)
+                violations = _ownership_violations(trees, registry)
+                self.assertNotIn(
+                    "TRACK_AUTHORITY_CALL_INVALID",
+                    _codes(violations),
+                    _formatted(violations),
+                )
+
+        with self.subTest(label="decorator factory counted only as explicit call"):
+            trees, registry, progression = mutation(
+                f"@{owner_name}()\ndef nested():\n    pass"
+            )
+            actual_count, _ = _track_owner_scope_state(progression)
+            self.assertEqual(2, actual_count)
+            violations = _ownership_violations(trees, registry)
+            self.assertIn(
+                Violation(
+                    path,
+                    "seal_exact_progression",
+                    "TRACK_AUTHORITY_CALL_INVALID",
+                    "expected=1,actual=2",
+                ),
+                violations,
+                _formatted(violations),
+            )
 
     def test_track_authority_pep695_support_is_capability_guarded(self):
         import sys
