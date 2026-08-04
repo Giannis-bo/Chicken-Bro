@@ -13,34 +13,50 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from server.simc_item_effect_probe import evaluate_effect_probe  # noqa: E402
-from server.simc_item_effect_support import valid_runtime_revision  # noqa: E402
+
+
+class _ReasonCodeArgumentParser(argparse.ArgumentParser):
+    def error(self, message: str) -> None:
+        del message
+        self.exit(2, "CLI_ARGUMENT_INVALID\n")
 
 
 def _read(path: str) -> object:
     return json.loads(Path(path).read_text(encoding="utf-8"))
 
 
+def _fail(reason_code: str) -> int:
+    sys.stderr.write(reason_code + "\n")
+    return 1
+
+
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = _ReasonCodeArgumentParser(description=__doc__)
     parser.add_argument("--manifest", required=True)
     parser.add_argument("--experiment-report", required=True)
     parser.add_argument("--control-report", required=True)
     parser.add_argument("--runtime-revision", required=True)
     args = parser.parse_args(argv)
-    manifest = _read(args.manifest)
-    experiment = _read(args.experiment_report)
-    control = _read(args.control_report)
-    runtime = args.runtime_revision
-    if not isinstance(manifest, dict) or not isinstance(experiment, dict) or not isinstance(control, dict):
-        return 1
-    if not valid_runtime_revision(runtime):
-        return 1
-    if runtime != manifest.get("simcRuntimeRevision") or runtime != experiment.get("runtimeRevision") or runtime != control.get("runtimeRevision"):
-        return 1
-    result = evaluate_effect_probe(manifest, experiment, control)
-    if result.get("status") != "verified":
-        return 1
-    print(json.dumps(result, ensure_ascii=False, sort_keys=True, separators=(",", ":")))
+    try:
+        manifest = _read(args.manifest)
+        experiment = _read(args.experiment_report)
+        control = _read(args.control_report)
+    except Exception:
+        return _fail("INPUT_JSON_INVALID")
+    try:
+        result = evaluate_effect_probe(
+            manifest,
+            experiment,
+            control,
+            runtime_revision=args.runtime_revision,
+        )
+    except Exception:
+        return _fail("PROBE_INTERNAL_ERROR")
+    if result.status != "verified" or result.document is None:
+        if result.status == "blocked" and result.issues:
+            return _fail(result.issues[0].code)
+        return _fail(f"PROBE_{result.status.upper()}")
+    sys.stdout.buffer.write(result.document.canonical_bytes)
     return 0
 
 
