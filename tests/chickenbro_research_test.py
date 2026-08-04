@@ -187,6 +187,27 @@ class ChickenbroResearchTest(unittest.TestCase):
         self.assertNotIn("rawBody", observations[0])
         self.assertNotIn("productPhase", str(observations[0].get("arguments")))
 
+    def test_research_prompt_moves_from_an_empty_query_to_model_selected_direct_pages(self):
+        module = self._module()
+        prompt = module.research_plan_prompt(
+            "当前版本强度如何",
+            [],
+            [catalog_tool("source:public-web-research:v2", ["target"])],
+            [{
+                "toolId": "source:public-web-research:v2",
+                "sourceKey": "public_web_research",
+                "status": "partial",
+                "evidenceRefs": [],
+                "scope": {},
+                "facts": [],
+                "limitations": ["search returned no result"],
+            }],
+            1,
+        )
+
+        self.assertIn("do not repeat another broad query", prompt)
+        self.assertIn("direct safe HTTPS page", prompt)
+
 
 if __name__ == "__main__":
     unittest.main()
