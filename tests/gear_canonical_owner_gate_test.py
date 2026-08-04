@@ -161,6 +161,17 @@ CALLABLE_KEYWORD_ARGUMENTS = frozenset({
     "payload_validator",
 })
 
+TRUSTED_CLASS_BASES = {
+    (
+        "scripts/simc-item-effect-probe.py",
+        "_ReasonCodeArgumentParser",
+    ): (frozenset({("argparse.ArgumentParser", True)}),),
+    (
+        "scripts/simc-item-effect-probe.py",
+        "_StrictJsonError",
+    ): (frozenset({("ValueError", False)}),),
+}
+
 LOCAL_CALLABLE_ALLOWLIST = {
     "server/gear_exact_item_instance.py": frozenset({
         ("_bounded_exact_static_facts_payload", "len"),
@@ -563,8 +574,6 @@ def _resolve_expression(
                 )
             else:
                 class_members.append(_UnknownValue(ast.unparse(expression)))
-        if class_members:
-            return class_members
         symbols = [
             _ResolvedSymbol(
                 f"{item.qualified_name}.{expression.attr}",
@@ -573,8 +582,16 @@ def _resolve_expression(
             for item in resolved
             if isinstance(item, _ResolvedSymbol)
         ]
-        if symbols:
-            return symbols
+        resolved_members: list[
+            _ResolvedSymbol | _CallableTarget | _UnknownValue
+        ] = [*class_members, *symbols]
+        if resolved_members:
+            if any(
+                not isinstance(item, (_ResolvedSymbol, _ClassTarget))
+                for item in resolved
+            ):
+                resolved_members.append(_UnknownValue(ast.unparse(expression)))
+            return resolved_members
         return [_ResolvedSymbol(ast.unparse(expression))]
     if isinstance(expression, ast.IfExp):
         return [
@@ -609,17 +626,26 @@ class _DirectScopeUsage(ast.NodeVisitor):
         self.calls: list[ast.Call] = []
         self.loaded_names: list[ast.Name] = []
         self.attributes: list[ast.Attribute] = []
+        self.attribute_mutations: list[ast.Attribute] = []
+        self.subscript_mutations: list[ast.Subscript] = []
+        self.definitions: list[
+            ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef
+        ] = []
+        self.dynamic_scope_names: list[str] = []
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+        self.definitions.append(node)
         return
 
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+        self.definitions.append(node)
         return
 
     def visit_Lambda(self, node: ast.Lambda) -> None:
         return
 
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
+        self.definitions.append(node)
         return
 
     def visit_Call(self, node: ast.Call) -> None:
@@ -632,19 +658,211 @@ class _DirectScopeUsage(ast.NodeVisitor):
 
     def visit_Attribute(self, node: ast.Attribute) -> None:
         self.attributes.append(node)
+        if isinstance(node.ctx, (ast.Store, ast.Del)):
+            self.attribute_mutations.append(node)
         self.generic_visit(node)
+
+    def visit_Subscript(self, node: ast.Subscript) -> None:
+        if isinstance(node.ctx, (ast.Store, ast.Del)):
+            self.subscript_mutations.append(node)
+        self.generic_visit(node)
+
+    def visit_Global(self, node: ast.Global) -> None:
+        self.dynamic_scope_names.extend(node.names)
+
+    def visit_Nonlocal(self, node: ast.Nonlocal) -> None:
+        self.dynamic_scope_names.extend(node.names)
 
 
 def _direct_scope_usage(
-    node: ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda,
+    node: ast.Module | ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef | ast.Lambda,
 ) -> _DirectScopeUsage:
     usage = _DirectScopeUsage()
-    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+    if isinstance(node, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
         for statement in node.body:
             usage.visit(statement)
     else:
         usage.visit(node.body)
     return usage
+
+
+def _resolved_symbols(
+    expression: ast.expr,
+    scopes: tuple[dict[str, list[object]], ...],
+) -> set[tuple[str, bool]]:
+    return {
+        (item.qualified_name.lstrip("."), item.imported)
+        for item in _resolve_expression(expression, scopes)
+        if isinstance(item, _ResolvedSymbol)
+    }
+
+
+def _exact_resolved_symbols(
+    expression: ast.expr,
+    scopes: tuple[dict[str, list[object]], ...],
+) -> frozenset[tuple[str, bool]] | None:
+    resolved = _resolve_expression(expression, scopes)
+    if not resolved or any(not isinstance(item, _ResolvedSymbol) for item in resolved):
+        return None
+    return frozenset(
+        (item.qualified_name.lstrip("."), item.imported)
+        for item in resolved
+    )
+
+
+def _dynamic_builtin_kind(
+    expression: ast.expr,
+    scopes: tuple[dict[str, list[object]], ...],
+) -> tuple[str, str] | None:
+    symbols = _resolved_symbols(expression, scopes)
+    for symbol, imported in symbols:
+        normalized = symbol.removeprefix("builtins.")
+        if normalized in {"setattr", "delattr"} and (
+            not imported or symbol.startswith("builtins.")
+        ):
+            return "DYNAMIC_ATTRIBUTE_MUTATION", normalized
+        if normalized in {"exec", "eval"} and (
+            not imported or symbol.startswith("builtins.")
+        ):
+            return "DYNAMIC_CODE_EXECUTION", normalized
+        if normalized in {"globals", "locals", "vars"} and (
+            not imported or symbol.startswith("builtins.")
+        ):
+            return "DYNAMIC_NAMESPACE_MUTATION", normalized
+        if normalized == "property" and (
+            not imported or symbol.startswith("builtins.")
+        ):
+            return "DYNAMIC_DESCRIPTOR", normalized
+        final_name = normalized.rsplit(".", 1)[-1]
+        if final_name in {"__setattr__", "__delattr__"}:
+            return "DYNAMIC_ATTRIBUTE_MUTATION", final_name
+    return None
+
+
+def _is_dynamic_namespace_expression(
+    expression: ast.expr,
+    scopes: tuple[dict[str, list[object]], ...],
+    seen: frozenset[tuple[int, str]] = frozenset(),
+) -> bool:
+    if isinstance(expression, ast.Name):
+        for index, scope in enumerate(scopes):
+            if expression.id not in scope:
+                continue
+            key = (id(scope), expression.id)
+            if key in seen:
+                return False
+            return any(
+                isinstance(value, ast.expr)
+                and _is_dynamic_namespace_expression(
+                    value,
+                    scopes[index:],
+                    seen | {key},
+                )
+                for value in scope[expression.id]
+            )
+        return False
+    if isinstance(expression, ast.Attribute):
+        return (
+            expression.attr == "__dict__"
+            or _is_dynamic_namespace_expression(expression.value, scopes, seen)
+        )
+    if isinstance(expression, ast.Call):
+        kind = _dynamic_builtin_kind(expression.func, scopes)
+        if kind is not None and kind[0] == "DYNAMIC_NAMESPACE_MUTATION":
+            return True
+        getattr_symbols = _resolved_symbols(expression.func, scopes)
+        return (
+            len(expression.args) >= 2
+            and ("getattr", False) in getattr_symbols
+            and isinstance(expression.args[1], ast.Constant)
+            and expression.args[1].value == "__dict__"
+        ) or (
+            len(expression.args) >= 2
+            and ("builtins.getattr", True) in getattr_symbols
+            and isinstance(expression.args[1], ast.Constant)
+            and expression.args[1].value == "__dict__"
+        )
+    if isinstance(expression, ast.Subscript):
+        return _is_dynamic_namespace_expression(expression.value, scopes, seen)
+    if isinstance(expression, ast.NamedExpr):
+        return _is_dynamic_namespace_expression(expression.value, scopes, seen)
+    if isinstance(expression, ast.IfExp):
+        return (
+            _is_dynamic_namespace_expression(expression.body, scopes, seen)
+            or _is_dynamic_namespace_expression(expression.orelse, scopes, seen)
+        )
+    if isinstance(expression, ast.BoolOp):
+        return any(
+            _is_dynamic_namespace_expression(value, scopes, seen)
+            for value in expression.values
+        )
+    if isinstance(expression, (ast.Tuple, ast.List, ast.Set)):
+        return any(
+            _is_dynamic_namespace_expression(value, scopes, seen)
+            for value in expression.elts
+        )
+    if isinstance(expression, ast.Dict):
+        return any(
+            _is_dynamic_namespace_expression(value, scopes, seen)
+            for value in expression.values
+        )
+    return False
+
+
+def _restricted_scope_violations(
+    path: str,
+    function: str,
+    node: ast.Module | ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef | ast.Lambda,
+    scopes: tuple[dict[str, list[object]], ...],
+) -> list[Violation]:
+    violations: list[Violation] = []
+    usage = _direct_scope_usage(node)
+    for name in usage.dynamic_scope_names:
+        violations.append(Violation(
+            path,
+            function,
+            "DYNAMIC_SCOPE_REBINDING",
+            name,
+        ))
+    for target in usage.attribute_mutations:
+        violations.append(Violation(
+            path,
+            function,
+            "ATTRIBUTE_REBINDING",
+            ast.unparse(target),
+        ))
+    for target in usage.subscript_mutations:
+        if _is_dynamic_namespace_expression(target.value, scopes):
+            violations.append(Violation(
+                path,
+                function,
+                "DYNAMIC_NAMESPACE_MUTATION",
+                ast.unparse(target),
+            ))
+    for call in usage.calls:
+        for keyword in call.keywords:
+            if keyword.arg is None:
+                violations.append(Violation(
+                    path,
+                    function,
+                    "UNREVIEWED_KWARGS_UNPACK",
+                    ast.unparse(keyword.value),
+                ))
+        dynamic = _dynamic_builtin_kind(call.func, scopes)
+        if dynamic is not None:
+            code, detail = dynamic
+            violations.append(Violation(path, function, code, detail))
+        if (
+            isinstance(call.func, ast.Attribute)
+            and _is_dynamic_namespace_expression(call.func.value, scopes)
+        ):
+            violations.append(Violation(
+                path,
+                function,
+                "DYNAMIC_NAMESPACE_MUTATION",
+                ast.unparse(call.func),
+            ))
+    return violations
 
 
 def _called_targets(
@@ -814,6 +1032,203 @@ def _sealed_call_graph(
             _called_targets(target.node, scopes)
         )
     return definitions, reachable
+
+
+def _is_trusted_structural_decorator(
+    decorator: ast.expr,
+    scopes: tuple[dict[str, list[object]], ...],
+) -> bool:
+    if not (
+        isinstance(decorator, ast.Call)
+        and isinstance(decorator.func, ast.Name)
+        and decorator.func.id == "dataclass"
+        and not decorator.args
+        and len(decorator.keywords) == 1
+        and decorator.keywords[0].arg == "frozen"
+        and isinstance(decorator.keywords[0].value, ast.Constant)
+        and decorator.keywords[0].value.value is True
+    ):
+        return False
+    return _exact_resolved_symbols(decorator.func, scopes) == frozenset({
+        ("dataclasses.dataclass", True),
+    })
+
+
+def _class_signature(node: ast.ClassDef) -> str:
+    arguments = [ast.unparse(base) for base in node.bases]
+    arguments.extend(
+        (
+            f"{keyword.arg}={ast.unparse(keyword.value)}"
+            if keyword.arg is not None
+            else f"**{ast.unparse(keyword.value)}"
+        )
+        for keyword in node.keywords
+    )
+    return f"{node.name}({', '.join(arguments)})"
+
+
+def _definition_violations(
+    path: str,
+    label: str,
+    node: ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef,
+    scopes: tuple[dict[str, list[object]], ...],
+) -> list[Violation]:
+    violations: list[Violation] = []
+    for decorator in node.decorator_list:
+        if not _is_trusted_structural_decorator(decorator, scopes):
+            violations.append(Violation(
+                path,
+                label,
+                "UNREVIEWED_DECORATOR",
+                ast.unparse(decorator),
+            ))
+    if not isinstance(node, ast.ClassDef):
+        return violations
+
+    actual_bases = tuple(
+        _exact_resolved_symbols(base, scopes)
+        for base in node.bases
+    )
+    expected_bases = TRUSTED_CLASS_BASES.get((path, label), ())
+    if node.keywords or actual_bases != expected_bases:
+        violations.append(Violation(
+            path,
+            label,
+            "UNREVIEWED_CLASS_CONSTRUCTION",
+            _class_signature(node),
+        ))
+    descriptor_methods = {"__get__", "__set__", "__delete__"}
+    dynamic_attribute_methods = {
+        "__getattr__",
+        "__getattribute__",
+        "__setattr__",
+        "__delattr__",
+    }
+    for child in node.body:
+        if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            child_label = f"{label}.{child.name}"
+            if child.name in descriptor_methods:
+                violations.append(Violation(
+                    path,
+                    child_label,
+                    "DYNAMIC_DESCRIPTOR",
+                    child_label,
+                ))
+            if child.name in dynamic_attribute_methods:
+                violations.append(Violation(
+                    path,
+                    child_label,
+                    "DYNAMIC_CLASS_ATTRIBUTE",
+                    child_label,
+                ))
+            violations.extend(
+                _definition_violations(path, child_label, child, scopes)
+            )
+        elif isinstance(child, ast.ClassDef):
+            violations.extend(_definition_violations(
+                path,
+                f"{label}.{child.name}",
+                child,
+                scopes,
+            ))
+    violations.extend(_restricted_scope_violations(
+        path,
+        label,
+        node,
+        scopes,
+    ))
+    return violations
+
+
+def _restricted_python_violations(
+    path: str,
+    tree: ast.AST,
+    reachable: list[
+        tuple[
+            str,
+            ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda,
+            tuple[dict[str, list[object]], ...],
+        ]
+    ],
+) -> list[Violation]:
+    if not isinstance(tree, ast.Module):
+        return []
+    violations: list[Violation] = []
+    module_scope, assignment_names = _scope_bindings(tree)
+    module_scopes = (module_scope,)
+    module_usage = _direct_scope_usage(tree)
+    violations.extend(_restricted_scope_violations(
+        path,
+        "<module>",
+        tree,
+        module_scopes,
+    ))
+    for entrypoint in sorted(SEALED_ENTRYPOINTS[path]):
+        bindings = module_scope.get(entrypoint, ())
+        if not (
+            len(bindings) == 1
+            and isinstance(bindings[0], (ast.FunctionDef, ast.AsyncFunctionDef))
+            and bindings[0].name == entrypoint
+        ):
+            violations.append(Violation(
+                path,
+                entrypoint,
+                "REBOUND_SEALED_ENTRYPOINT",
+                entrypoint,
+            ))
+    for name in sorted(
+        assignment_names.intersection({
+            "__dir__",
+            "__getattr__",
+            "__getattribute__",
+        })
+    ):
+        violations.append(Violation(
+            path,
+            "<module>",
+            "DYNAMIC_MODULE_ATTRIBUTE",
+            name,
+        ))
+    for definition in module_usage.definitions:
+        if (
+            isinstance(definition, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and definition.name in {"__dir__", "__getattr__", "__getattribute__"}
+        ):
+            violations.append(Violation(
+                path,
+                "<module>",
+                "DYNAMIC_MODULE_ATTRIBUTE",
+                definition.name,
+            ))
+        violations.extend(_definition_violations(
+            path,
+            definition.name,
+            definition,
+            module_scopes,
+        ))
+
+    for function, callable_node, scopes in reachable:
+        violations.extend(_restricted_scope_violations(
+            path,
+            function,
+            callable_node,
+            scopes,
+        ))
+        if isinstance(callable_node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            violations.extend(_definition_violations(
+                path,
+                function,
+                callable_node,
+                scopes,
+            ))
+        for definition in _direct_scope_usage(callable_node).definitions:
+            violations.extend(_definition_violations(
+                path,
+                f"{function}.{definition.name}",
+                definition,
+                scopes,
+            ))
+    return violations
 
 
 def _annotation_text(node: ast.arg) -> str:
@@ -1034,6 +1449,7 @@ def _consumer_violations(trees: dict[str, ast.AST]) -> list[Violation]:
             violations.append(Violation(path, "<module>", "MISSING_SCAN_TARGET", path))
             continue
         definitions, reachable = _sealed_call_graph(tree, SEALED_ENTRYPOINTS[path])
+        violations.extend(_restricted_python_violations(path, tree, reachable))
         missing = SEALED_ENTRYPOINTS[path].difference(definitions)
         for function in sorted(missing):
             violations.append(
@@ -1820,6 +2236,318 @@ canonical_ordered_list(
             and item.detail == "server.hidden_owner.normalize"
             for item in violations
         ), _formatted(violations))
+
+    def test_gate_rejects_unreviewed_kwargs_unpacking(self):
+        trees = {
+            path: ast.parse((ROOT / path).read_text(encoding="utf-8"), filename=path)
+            for path in TASK2_CONSUMERS
+        }
+        item_tree = trees["server/gear_exact_item_instance.py"]
+        item_tree.body.extend(ast.parse("""
+from server.hidden_owner import normalize as hidden_callback
+_callback_options = {"item_rule": hidden_callback}
+_nested_options = {**_callback_options}
+_merged_options = {"max_items": 1, **_nested_options}
+""").body)
+        serializer = _function_definitions(item_tree)[
+            "derive_simc_serializer_input"
+        ]
+        serializer.body[:0] = ast.parse("""
+canonical_ordered_list([], path="literal", **{"item_rule": hidden_callback})
+canonical_ordered_list([], path="alias", **_callback_options)
+canonical_ordered_list([], path="nested", **_nested_options)
+canonical_ordered_list([], path="merged", **_merged_options)
+canonical_ordered_list(
+    [],
+    path="lambda",
+    **{"item_rule": lambda value, path: hidden_callback(value)},
+)
+""").body
+
+        violations = [
+            item
+            for item in _consumer_violations(trees)
+            if item.path == "server/gear_exact_item_instance.py"
+            and item.function == "derive_simc_serializer_input"
+            and item.code == "UNREVIEWED_KWARGS_UNPACK"
+        ]
+        self.assertEqual(5, len(violations), _formatted(violations))
+
+    def test_gate_rejects_unreviewed_function_and_class_decorators(self):
+        trees = {
+            path: ast.parse((ROOT / path).read_text(encoding="utf-8"), filename=path)
+            for path in TASK2_CONSUMERS
+        }
+        item_tree = trees["server/gear_exact_item_instance.py"]
+        item_tree.body.extend(ast.parse("""
+from server.hidden_owner import decorate as hidden_decorator
+from dataclasses import dataclass
+
+def _local_decorator(value):
+    return value
+
+def _decorator_factory(value):
+    return value
+
+dataclass = lambda **options: hidden_decorator
+
+@dataclass(frozen=True)
+class _ReboundDecorator:
+    pass
+
+@hidden_decorator
+class _DecoratedOwner:
+    @_local_decorator
+    @staticmethod
+    def safe(value):
+        return value
+""").body)
+        serializer = _function_definitions(item_tree)[
+            "derive_simc_serializer_input"
+        ]
+        decorated_stub = ast.parse("""
+@hidden_decorator
+@(lambda value: value)
+@_decorator_factory(hidden_decorator)
+def decorated_stub():
+    pass
+""").body[0]
+        assert isinstance(decorated_stub, ast.FunctionDef)
+        serializer.decorator_list.extend(decorated_stub.decorator_list)
+        serializer.body.insert(0, ast.parse("_DecoratedOwner.safe(exact)").body[0])
+
+        violations = [
+            item
+            for item in _consumer_violations(trees)
+            if item.path == "server/gear_exact_item_instance.py"
+            and item.code == "UNREVIEWED_DECORATOR"
+        ]
+        details = {item.detail for item in violations}
+        self.assertLessEqual({
+            "hidden_decorator",
+            "lambda value: value",
+            "_decorator_factory(hidden_decorator)",
+            "_local_decorator",
+            "dataclass(frozen=True)",
+        }, details, _formatted(violations))
+        self.assertGreaterEqual(
+            sum(item.detail == "hidden_decorator" for item in violations),
+            2,
+            _formatted(violations),
+        )
+
+    def test_gate_rejects_attribute_and_namespace_rebinding(self):
+        trees = {
+            path: ast.parse((ROOT / path).read_text(encoding="utf-8"), filename=path)
+            for path in TASK2_CONSUMERS
+        }
+        item_tree = trees["server/gear_exact_item_instance.py"]
+        item_tree.body.extend(ast.parse("""
+import server.gear_canonical_kernel as gck
+from server.hidden_owner import normalize as hidden_callback
+
+class _MutableOwner:
+    @staticmethod
+    def safe(value):
+        return value
+
+gck.canonical_identity_token = hidden_callback
+_module_owner_alias = gck
+_module_owner_alias.canonical_report_token: object = hidden_callback
+_MutableOwner.safe += hidden_callback
+del _MutableOwner.safe
+gck.__dict__["canonical_int"] = hidden_callback
+derive_simc_serializer_input = hidden_callback
+""").body)
+        serializer = _function_definitions(item_tree)[
+            "derive_simc_serializer_input"
+        ]
+        serializer.body[:0] = ast.parse("""
+global derive_simc_serializer_input
+owner_alias = gck
+owner_alias.canonical_slot = hidden_callback
+setattr(owner_alias, "canonical_mapping", hidden_callback)
+delattr(owner_alias, "canonical_set_list")
+owner_alias.__dict__.update({"canonical_ordered_list": hidden_callback})
+vars(_MutableOwner)["safe"] = hidden_callback
+globals()["gck"] = hidden_callback
+locals().__setitem__("owner_alias", hidden_callback)
+owner_namespace = owner_alias.__dict__
+namespace_alias = owner_namespace
+namespace_alias["canonical_int"] = hidden_callback
+global_namespace = globals()
+global_namespace_alias = global_namespace
+global_namespace_alias["gck"] = hidden_callback
+getattr(owner_alias, "__dict__").update({"canonical_int": hidden_callback})
+object.__setattr__(owner_alias, "canonical_int", hidden_callback)
+namespace_tuple = (owner_alias.__dict__,)
+namespace_tuple[0]["canonical_mapping"] = hidden_callback
+namespace_map = {"owner": globals()}
+namespace_map["owner"]["gck"] = hidden_callback
+""").body
+
+        violations = [
+            item
+            for item in _consumer_violations(trees)
+            if item.path == "server/gear_exact_item_instance.py"
+        ]
+        observed = {(item.code, item.detail) for item in violations}
+        for detail in (
+            "gck.canonical_identity_token",
+            "_module_owner_alias.canonical_report_token",
+            "_MutableOwner.safe",
+            "owner_alias.canonical_slot",
+        ):
+            self.assertIn(("ATTRIBUTE_REBINDING", detail), observed, _formatted(violations))
+        for detail in ("setattr", "delattr"):
+            self.assertIn(
+                ("DYNAMIC_ATTRIBUTE_MUTATION", detail),
+                observed,
+                _formatted(violations),
+            )
+        self.assertIn(
+            ("REBOUND_SEALED_ENTRYPOINT", "derive_simc_serializer_input"),
+            observed,
+            _formatted(violations),
+        )
+        for detail in (
+            "gck.__dict__['canonical_int']",
+            "owner_alias.__dict__.update",
+            "vars(_MutableOwner)['safe']",
+            "globals()['gck']",
+            "locals().__setitem__",
+            "namespace_alias['canonical_int']",
+            "global_namespace_alias['gck']",
+            "getattr(owner_alias, '__dict__').update",
+            "namespace_tuple[0]['canonical_mapping']",
+            "namespace_map['owner']['gck']",
+        ):
+            self.assertIn(
+                ("DYNAMIC_NAMESPACE_MUTATION", detail),
+                observed,
+                _formatted(violations),
+            )
+        self.assertIn(
+            ("DYNAMIC_ATTRIBUTE_MUTATION", "__setattr__"),
+            observed,
+            _formatted(violations),
+        )
+        self.assertIn(
+            ("DYNAMIC_SCOPE_REBINDING", "derive_simc_serializer_input"),
+            observed,
+            _formatted(violations),
+        )
+
+    def test_gate_rejects_dynamic_module_and_class_semantics(self):
+        trees = {
+            path: ast.parse((ROOT / path).read_text(encoding="utf-8"), filename=path)
+            for path in TASK2_CONSUMERS
+        }
+        item_tree = trees["server/gear_exact_item_instance.py"]
+        item_tree.body.extend(ast.parse("""
+from server.hidden_owner import normalize as hidden_callback
+
+def __getattr__(name):
+    return hidden_callback
+
+__getattribute__ = hidden_callback
+
+def __dir__():
+    return ()
+
+class _Meta(type):
+    pass
+
+class _DynamicOwner(metaclass=_Meta):
+    @property
+    def safe(self):
+        return hidden_callback
+
+class _Descriptor:
+    def __get__(self, instance, owner):
+        return hidden_callback
+
+class _AssignedDescriptor:
+    safe = property(hidden_callback)
+""").body)
+        cli_tree = trees["scripts/simc-item-effect-probe.py"]
+        cli_tree.body.append(ast.parse(
+            "argparse = (lambda: object())()"
+        ).body[0])
+        serializer = _function_definitions(item_tree)[
+            "derive_simc_serializer_input"
+        ]
+        serializer.body[:0] = ast.parse("""
+exec("pass")
+eval("exact")
+globals()
+locals()
+vars(_DynamicOwner)
+""").body
+
+        violations = [
+            item
+            for item in _consumer_violations(trees)
+            if item.path == "server/gear_exact_item_instance.py"
+        ]
+        observed = {(item.code, item.detail) for item in violations}
+        self.assertIn(
+            ("DYNAMIC_MODULE_ATTRIBUTE", "__getattr__"),
+            observed,
+            _formatted(violations),
+        )
+        self.assertIn(
+            ("DYNAMIC_MODULE_ATTRIBUTE", "__dir__"),
+            observed,
+            _formatted(violations),
+        )
+        self.assertIn(
+            ("UNREVIEWED_CLASS_CONSTRUCTION", "_Meta(type)"),
+            observed,
+            _formatted(violations),
+        )
+        self.assertIn(
+            ("UNREVIEWED_CLASS_CONSTRUCTION", "_DynamicOwner(metaclass=_Meta)"),
+            observed,
+            _formatted(violations),
+        )
+        self.assertIn(
+            ("UNREVIEWED_DECORATOR", "property"),
+            observed,
+            _formatted(violations),
+        )
+        self.assertIn(
+            ("DYNAMIC_DESCRIPTOR", "_Descriptor.__get__"),
+            observed,
+            _formatted(violations),
+        )
+        self.assertIn(
+            ("DYNAMIC_DESCRIPTOR", "property"),
+            observed,
+            _formatted(violations),
+        )
+        for detail in ("exec", "eval"):
+            self.assertIn(
+                ("DYNAMIC_CODE_EXECUTION", detail),
+                observed,
+                _formatted(violations),
+            )
+        for detail in ("globals", "locals", "vars"):
+            self.assertIn(
+                ("DYNAMIC_NAMESPACE_MUTATION", detail),
+                observed,
+                _formatted(violations),
+            )
+        cli_violations = [
+            item
+            for item in _consumer_violations(trees)
+            if item.path == "scripts/simc-item-effect-probe.py"
+        ]
+        self.assertTrue(any(
+            item.function == "_ReasonCodeArgumentParser"
+            and item.code == "UNREVIEWED_CLASS_CONSTRUCTION"
+            for item in cli_violations
+        ), _formatted(cli_violations))
 
     def test_task5_control_plane_matches_the_implemented_pure_foundation(self):
         requirement = json.loads((
