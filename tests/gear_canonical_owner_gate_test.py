@@ -154,36 +154,270 @@ def _function_definitions(tree: ast.AST) -> dict[str, ast.FunctionDef | ast.Asyn
     }
 
 
-def _referenced_local_functions(
-    node: ast.AST,
-    definitions: dict[str, ast.FunctionDef | ast.AsyncFunctionDef],
-) -> set[str]:
-    return {
-        child.id
-        for child in ast.walk(node)
-        if isinstance(child, ast.Name)
-        and isinstance(child.ctx, ast.Load)
-        and child.id in definitions
+@dataclass(frozen=True)
+class _ResolvedSymbol:
+    qualified_name: str
+
+
+@dataclass(frozen=True)
+class _UnknownBinding:
+    pass
+
+
+@dataclass(frozen=True)
+class _CallableTarget:
+    node: ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda
+    label: str
+    closure_scopes: tuple[dict[str, list[object]], ...]
+
+
+_UNKNOWN_BINDING = _UnknownBinding()
+
+
+def _argument_names(node: ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda) -> set[str]:
+    arguments = node.args
+    names = {
+        argument.arg
+        for argument in (
+            *arguments.posonlyargs,
+            *arguments.args,
+            *arguments.kwonlyargs,
+        )
     }
+    if arguments.vararg is not None:
+        names.add(arguments.vararg.arg)
+    if arguments.kwarg is not None:
+        names.add(arguments.kwarg.arg)
+    return names
+
+
+class _ScopeBindingCollector(ast.NodeVisitor):
+    def __init__(self) -> None:
+        self.bindings: dict[str, list[object]] = {}
+        self.assignment_names: set[str] = set()
+
+    def _add(self, name: str, value: object, *, assignment: bool = False) -> None:
+        self.bindings.setdefault(name, []).append(value)
+        if assignment:
+            self.assignment_names.add(name)
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+        self._add(node.name, node)
+
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+        self._add(node.name, node)
+
+    def visit_Lambda(self, node: ast.Lambda) -> None:
+        return
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> None:
+        self._add(node.name, _UNKNOWN_BINDING)
+
+    def visit_Assign(self, node: ast.Assign) -> None:
+        for target in node.targets:
+            if isinstance(target, ast.Name):
+                self._add(target.id, node.value, assignment=True)
+        self.visit(node.value)
+
+    def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
+        if isinstance(node.target, ast.Name) and node.value is not None:
+            self._add(node.target.id, node.value, assignment=True)
+            self.visit(node.value)
+
+    def visit_Import(self, node: ast.Import) -> None:
+        for alias in node.names:
+            local_name = alias.asname or alias.name.split(".", 1)[0]
+            qualified_name = alias.name if alias.asname else local_name
+            self._add(local_name, _ResolvedSymbol(qualified_name))
+
+    def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
+        module = "." * node.level + (node.module or "")
+        for alias in node.names:
+            if alias.name == "*":
+                continue
+            local_name = alias.asname or alias.name
+            qualified_name = f"{module}.{alias.name}" if module else alias.name
+            self._add(local_name, _ResolvedSymbol(qualified_name))
+
+
+def _scope_bindings(
+    node: ast.Module | ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda,
+) -> tuple[dict[str, list[object]], set[str]]:
+    collector = _ScopeBindingCollector()
+    if isinstance(node, ast.Module):
+        statements = node.body
+    elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        for name in _argument_names(node):
+            collector._add(name, _UNKNOWN_BINDING)
+        statements = node.body
+    else:
+        for name in _argument_names(node):
+            collector._add(name, _UNKNOWN_BINDING)
+        statements = ()
+    for statement in statements:
+        collector.visit(statement)
+    return collector.bindings, collector.assignment_names
+
+
+def _resolve_expression(
+    expression: object,
+    scopes: tuple[dict[str, list[object]], ...],
+    seen: frozenset[tuple[int, str]] = frozenset(),
+) -> list[_ResolvedSymbol | _CallableTarget]:
+    if isinstance(expression, _ResolvedSymbol):
+        return [expression]
+    if isinstance(expression, _UnknownBinding):
+        return []
+    if isinstance(expression, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        return [_CallableTarget(expression, expression.name, scopes)]
+    if isinstance(expression, ast.Lambda):
+        return [_CallableTarget(expression, "<lambda>", scopes)]
+    if isinstance(expression, ast.Name):
+        for index, scope in enumerate(scopes):
+            if expression.id not in scope:
+                continue
+            key = (id(scope), expression.id)
+            if key in seen:
+                return []
+            resolved: list[_ResolvedSymbol | _CallableTarget] = []
+            nested_scopes = scopes[index:]
+            for value in scope[expression.id]:
+                if isinstance(value, ast.Lambda):
+                    resolved.append(_CallableTarget(
+                        value,
+                        expression.id,
+                        nested_scopes,
+                    ))
+                elif isinstance(value, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    resolved.append(_CallableTarget(
+                        value,
+                        value.name,
+                        nested_scopes,
+                    ))
+                else:
+                    resolved.extend(_resolve_expression(
+                        value,
+                        nested_scopes,
+                        seen | {key},
+                    ))
+            return resolved
+        return [_ResolvedSymbol(expression.id)]
+    if isinstance(expression, ast.Attribute):
+        resolved = _resolve_expression(expression.value, scopes, seen)
+        symbols = [
+            _ResolvedSymbol(f"{item.qualified_name}.{expression.attr}")
+            for item in resolved
+            if isinstance(item, _ResolvedSymbol)
+        ]
+        if symbols:
+            return symbols
+        return [_ResolvedSymbol(ast.unparse(expression))]
+    return []
+
+
+class _DirectScopeUsage(ast.NodeVisitor):
+    def __init__(self) -> None:
+        self.calls: list[ast.Call] = []
+        self.loaded_names: list[ast.Name] = []
+        self.attributes: list[ast.Attribute] = []
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+        return
+
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+        return
+
+    def visit_Lambda(self, node: ast.Lambda) -> None:
+        return
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> None:
+        return
+
+    def visit_Call(self, node: ast.Call) -> None:
+        self.calls.append(node)
+        self.generic_visit(node)
+
+    def visit_Name(self, node: ast.Name) -> None:
+        if isinstance(node.ctx, ast.Load):
+            self.loaded_names.append(node)
+
+    def visit_Attribute(self, node: ast.Attribute) -> None:
+        self.attributes.append(node)
+        self.generic_visit(node)
+
+
+def _direct_scope_usage(
+    node: ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda,
+) -> _DirectScopeUsage:
+    usage = _DirectScopeUsage()
+    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        for statement in node.body:
+            usage.visit(statement)
+    else:
+        usage.visit(node.body)
+    return usage
+
+
+def _called_targets(
+    node: ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda,
+    scopes: tuple[dict[str, list[object]], ...],
+) -> list[_CallableTarget]:
+    targets: list[_CallableTarget] = []
+    for call in _direct_scope_usage(node).calls:
+        targets.extend(
+            item
+            for item in _resolve_expression(call.func, scopes)
+            if isinstance(item, _CallableTarget)
+        )
+    return targets
 
 
 def _sealed_call_graph(
     tree: ast.AST,
     entrypoints: frozenset[str],
-) -> tuple[dict[str, ast.FunctionDef | ast.AsyncFunctionDef], set[str]]:
+) -> tuple[
+    dict[str, ast.FunctionDef | ast.AsyncFunctionDef],
+    list[tuple[str, ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda, tuple[dict[str, list[object]], ...]]],
+]:
     definitions = _function_definitions(tree)
     missing = set(entrypoints).difference(definitions)
     if missing:
-        return definitions, set()
-    reachable: set[str] = set()
-    pending = list(entrypoints)
-    while pending:
-        name = pending.pop()
-        if name in reachable:
-            continue
-        reachable.add(name)
+        return definitions, []
+    if not isinstance(tree, ast.Module):
+        return definitions, []
+    module_scope, _ = _scope_bindings(tree)
+    pending: list[_CallableTarget] = []
+    for entrypoint in sorted(entrypoints):
         pending.extend(
-            _referenced_local_functions(definitions[name], definitions).difference(reachable)
+            item
+            for item in _resolve_expression(
+                ast.Name(id=entrypoint, ctx=ast.Load()),
+                (module_scope,),
+            )
+            if isinstance(item, _CallableTarget)
+        )
+    reachable: list[
+        tuple[
+            str,
+            ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda,
+            tuple[dict[str, list[object]], ...],
+        ]
+    ] = []
+    seen: set[tuple[int, tuple[int, ...]]] = set()
+    while pending:
+        target = pending.pop()
+        key = (
+            id(target.node),
+            tuple(id(scope) for scope in target.closure_scopes),
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        local_scope, _ = _scope_bindings(target.node)
+        scopes = (local_scope, *target.closure_scopes)
+        reachable.append((target.label, target.node, scopes))
+        pending.extend(
+            _called_targets(target.node, scopes)
         )
     return definitions, reachable
 
@@ -206,71 +440,101 @@ def _parameters(
 def _identity_primitive_violations(
     path: str,
     function: str,
-    node: ast.AST,
+    node: ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda,
+    scopes: tuple[dict[str, list[object]], ...],
 ) -> list[Violation]:
     violations: list[Violation] = []
-    for child in ast.walk(node):
-        if (
-            isinstance(child, ast.Name)
-            and isinstance(child.ctx, ast.Load)
-            and "catalog" in child.id.lower()
-        ):
-            violations.append(Violation(
-                path,
-                function,
-                "CATALOG_DEPENDENCY",
-                child.id,
-            ))
-        if (
-            isinstance(child, ast.Attribute)
-            and "catalog" in child.attr.lower()
-        ):
-            violations.append(Violation(
-                path,
-                function,
-                "CATALOG_DEPENDENCY",
-                ast.unparse(child),
-            ))
-        if not isinstance(child, ast.Call):
-            continue
-        if isinstance(child.func, ast.Attribute) and child.func.attr == "strip":
+    usage = _direct_scope_usage(node)
+
+    for loaded in usage.loaded_names:
+        symbols = {
+            item.qualified_name
+            for item in _resolve_expression(loaded, scopes)
+            if isinstance(item, _ResolvedSymbol)
+        }
+        for symbol in symbols:
+            if "catalog" in symbol.lower():
+                violations.append(Violation(
+                    path,
+                    function,
+                    "CATALOG_DEPENDENCY",
+                    symbol,
+                ))
+
+    for attribute in usage.attributes:
+        symbols = {
+            item.qualified_name
+            for item in _resolve_expression(attribute, scopes)
+            if isinstance(item, _ResolvedSymbol)
+        }
+        for symbol in symbols:
+            if "catalog" in symbol.lower():
+                violations.append(Violation(
+                    path,
+                    function,
+                    "CATALOG_DEPENDENCY",
+                    symbol,
+                ))
+
+    for child in usage.calls:
+        callees = {
+            item.qualified_name
+            for item in _resolve_expression(child.func, scopes)
+            if isinstance(item, _ResolvedSymbol)
+        }
+        if any(symbol.rsplit(".", 1)[-1] == "strip" for symbol in callees):
             violations.append(Violation(path, function, "IDENTITY_TRIM", ".strip()"))
-        if isinstance(child.func, ast.Name) and child.func.id == "str":
+        if any(symbol.rsplit(".", 1)[-1] == "str" for symbol in callees):
             violations.append(Violation(path, function, "IDENTITY_COERCION", "str(...)"))
+
+        inner_callees: set[str] = set()
+        if child.args and isinstance(child.args[0], ast.Call):
+            inner_callees = {
+                item.qualified_name
+                for item in _resolve_expression(child.args[0].func, scopes)
+                if isinstance(item, _ResolvedSymbol)
+            }
         if (
-            isinstance(child.func, ast.Name)
-            and child.func.id == "sorted"
-            and child.args
-            and isinstance(child.args[0], ast.Call)
-            and isinstance(child.args[0].func, ast.Name)
-            and child.args[0].func.id == "set"
+            any(symbol.rsplit(".", 1)[-1] == "sorted" for symbol in callees)
+            and any(symbol.rsplit(".", 1)[-1] == "set" for symbol in inner_callees)
         ):
             violations.append(
                 Violation(path, function, "IDENTITY_SORT_DEDUPE", "sorted(set(...))")
             )
-        if (
-            isinstance(child.func, ast.Attribute)
-            and isinstance(child.func.value, ast.Name)
-            and child.func.value.id == "json"
-            and child.func.attr == "dumps"
+        if any(
+            symbol == "json.dumps" or symbol.endswith(".json.dumps")
+            for symbol in callees
         ):
             detail = "json.dumps(...)"
             if any(
                 keyword.arg == "default"
-                and isinstance(keyword.value, ast.Name)
-                and keyword.value.id == "str"
+                and any(
+                    symbol.rsplit(".", 1)[-1] == "str"
+                    for symbol in (
+                        item.qualified_name
+                        for item in _resolve_expression(keyword.value, scopes)
+                        if isinstance(item, _ResolvedSymbol)
+                    )
+                )
                 for keyword in child.keywords
             ):
                 detail = "json.dumps(..., default=str)"
             violations.append(Violation(path, function, "DUPLICATE_JSON_OWNER", detail))
-        if (
-            isinstance(child.func, ast.Attribute)
-            and isinstance(child.func.value, ast.Name)
-            and child.func.value.id == "hashlib"
-        ):
-            violations.append(
-                Violation(path, function, "DUPLICATE_HASH_OWNER", ast.unparse(child.func))
-            )
+        for symbol in callees:
+            if "hashlib" in symbol.lower().split("."):
+                violations.append(Violation(
+                    path,
+                    function,
+                    "DUPLICATE_HASH_OWNER",
+                    symbol,
+                ))
+            if "catalog" in symbol.lower():
+                violations.append(Violation(
+                    path,
+                    function,
+                    "CATALOG_DEPENDENCY",
+                    symbol,
+                ))
     return violations
 
 
@@ -306,13 +570,21 @@ def _consumer_violations(trees: dict[str, ast.AST]) -> list[Violation]:
             violations.append(
                 Violation(path, function, "MISSING_SEALED_ENTRYPOINT", function)
             )
-        for function in sorted(reachable):
+        for function, callable_node, scopes in sorted(
+            reachable,
+            key=lambda item: item[0],
+        ):
             if function in PRIMITIVE_OWNER_DEFINITIONS:
                 violations.append(
                     Violation(path, function, "DUPLICATE_PRIMITIVE_OWNER", function)
                 )
             violations.extend(
-                _identity_primitive_violations(path, function, definitions[function])
+                _identity_primitive_violations(
+                    path,
+                    function,
+                    callable_node,
+                    scopes,
+                )
             )
         forbidden = FILE_FORBIDDEN_DEFINITIONS.get(path, frozenset())
         for function in sorted(forbidden.intersection(definitions)):
@@ -330,6 +602,23 @@ def _consumer_violations(trees: dict[str, ast.AST]) -> list[Violation]:
                     "UNAPPROVED_PUBLIC_API",
                     function,
                 ))
+
+        if isinstance(tree, ast.Module):
+            module_scope, assignment_names = _scope_bindings(tree)
+            for name in sorted(assignment_names):
+                if name.startswith("_") or name in PUBLIC_FUNCTION_ALLOWLIST[path]:
+                    continue
+                resolved = _resolve_expression(
+                    ast.Name(id=name, ctx=ast.Load()),
+                    (module_scope,),
+                )
+                if any(isinstance(item, _CallableTarget) for item in resolved):
+                    violations.append(Violation(
+                        path,
+                        name,
+                        "UNAPPROVED_PUBLIC_API",
+                        name,
+                    ))
 
         for node in getattr(tree, "body", ()):
             if not isinstance(node, (ast.Assign, ast.AnnAssign)):
@@ -441,6 +730,14 @@ class _DeletedNameVisitor(ast.NodeVisitor):
     def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
         for alias in node.names:
             self._record(alias.name, "DELETED_IMPORT")
+            if alias.asname is not None:
+                self._record(alias.asname, "DELETED_IMPORT")
+
+    def visit_Import(self, node: ast.Import) -> None:
+        for alias in node.names:
+            self._record(alias.name, "DELETED_IMPORT")
+            if alias.asname is not None:
+                self._record(alias.asname, "DELETED_IMPORT")
 
     def visit_Assign(self, node: ast.Assign) -> None:
         if any(
@@ -571,6 +868,82 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
             and item.code == "DUPLICATE_SLOT_MEMBERSHIP"
             for item in violations
         ), _formatted(violations))
+
+    def test_gate_self_test_follows_callable_aliases_lambdas_and_import_asnames(self):
+        trees = {
+            path: ast.parse((ROOT / path).read_text(encoding="utf-8"), filename=path)
+            for path in TASK2_CONSUMERS
+        }
+        item_tree = trees["server/gear_exact_item_instance.py"]
+        item_tree.body.extend(ast.parse("""
+def _aliased_primitive_helper(value):
+    coerce = str
+    trim = value.strip
+    canonical_sort = sorted
+    deduplicate = set
+    encode = json.dumps
+    digest = hashlib.sha256
+    catalog_first = catalog_lookup
+    catalog_second = catalog_first
+    coerce(value)
+    trim()
+    canonical_sort(deduplicate([value]))
+    encode({"value": value}, default=coerce)
+    digest(b"value")
+    catalog_second(value)
+
+_module_alias_first = _aliased_primitive_helper
+_module_alias_second: object = _module_alias_first
+_module_lambda = lambda value: catalog_lookup(str(value))
+build_raw_lambda = lambda payload: payload
+from safe_module import safe as build_exact_item_identity
+import safe_module as valid_runtime_revision
+""").body)
+        serializer = _function_definitions(item_tree)["derive_simc_serializer_input"]
+        serializer.body[:0] = ast.parse("""
+_module_alias_second(exact)
+_module_lambda(exact)
+""").body
+
+        violations = [
+            *_consumer_violations(trees),
+            *_deleted_name_violations(trees),
+        ]
+        observed = {
+            (item.function, item.code, item.detail)
+            for item in violations
+            if item.path == "server/gear_exact_item_instance.py"
+        }
+        expected = {
+            ("_aliased_primitive_helper", "IDENTITY_COERCION", "str(...)"),
+            ("_aliased_primitive_helper", "IDENTITY_TRIM", ".strip()"),
+            (
+                "_aliased_primitive_helper",
+                "IDENTITY_SORT_DEDUPE",
+                "sorted(set(...))",
+            ),
+            (
+                "_aliased_primitive_helper",
+                "DUPLICATE_JSON_OWNER",
+                "json.dumps(..., default=str)",
+            ),
+            (
+                "_aliased_primitive_helper",
+                "DUPLICATE_HASH_OWNER",
+                "hashlib.sha256",
+            ),
+            (
+                "_aliased_primitive_helper",
+                "CATALOG_DEPENDENCY",
+                "catalog_lookup",
+            ),
+            ("_module_lambda", "IDENTITY_COERCION", "str(...)"),
+            ("_module_lambda", "CATALOG_DEPENDENCY", "catalog_lookup"),
+            ("build_raw_lambda", "UNAPPROVED_PUBLIC_API", "build_raw_lambda"),
+            ("<module>", "DELETED_IMPORT", "build_exact_item_identity"),
+            ("<module>", "DELETED_IMPORT", "valid_runtime_revision"),
+        }
+        self.assertLessEqual(expected, observed, _formatted(violations))
 
 
 if __name__ == "__main__":
