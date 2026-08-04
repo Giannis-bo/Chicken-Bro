@@ -27,6 +27,7 @@ _PLAN_KEYS = {
     "decision",
 }
 _TOOL_CALL_KEYS = {"toolId", "arguments"}
+_ARGUMENT_ENTRY_KEYS = {"name", "value"}
 _SAFE_TOOL_ID = re.compile(r"^[a-z][a-z0-9_-]{0,47}(?::[a-z][a-z0-9_-]{0,47}){1,3}$")
 _SAFE_ARGUMENT_NAME = re.compile(r"^[A-Za-z][A-Za-z0-9]{0,63}$")
 _UNSAFE_ARGUMENT_NAME = re.compile(r"^(?:url|uri|path|file|shell|command|sql|token|secret|credential|password|apiKey)$", re.IGNORECASE)
@@ -128,7 +129,18 @@ def research_plan_schema():
                     "required": ["toolId", "arguments"],
                     "properties": {
                         "toolId": {"type": "string"},
-                        "arguments": {"type": "object"},
+                        "arguments": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "additionalProperties": False,
+                                "required": ["name", "value"],
+                                "properties": {
+                                    "name": {"type": "string"},
+                                    "value": {"type": "string"},
+                                },
+                            },
+                        },
                     },
                 },
             },
@@ -154,6 +166,7 @@ def research_plan_prompt(message, history, catalog, observations, turn):
             "instructions": [
                 "Plan a bounded research step for a World of Warcraft player question.",
                 "Select only tools in toolCatalog. Do not request URLs, files, shell commands, SQL, secrets, or unlisted tools.",
+                "Represent every tool argument as an arguments array of {name, value}; include exactly the names required by that tool and use an empty array when none are required.",
                 "Use returned observations to decide whether one more tool call will materially change the answer.",
                 "Return only JSON that matches the supplied schema. Do not expose tool ids to the player.",
             ],
@@ -185,9 +198,24 @@ def parse_research_plan(model_result):
     return payload
 
 
-def _validate_arguments(value, required):
-    if not isinstance(value, dict):
+def _argument_mapping(value):
+    if isinstance(value, dict):
+        return value
+    if not isinstance(value, list):
         raise ValueError("invalid research arguments")
+    output = {}
+    for item in value:
+        if not isinstance(item, dict) or set(item) != _ARGUMENT_ENTRY_KEYS:
+            raise ValueError("invalid research argument")
+        key = item.get("name")
+        if not isinstance(key, str) or key in output:
+            raise ValueError("invalid research argument")
+        output[key] = item.get("value")
+    return output
+
+
+def _validate_arguments(value, required):
+    value = _argument_mapping(value)
     if set(value) - required:
         for key in value:
             if _UNSAFE_ARGUMENT_NAME.search(str(key)):

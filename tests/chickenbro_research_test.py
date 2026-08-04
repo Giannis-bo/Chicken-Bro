@@ -66,6 +66,28 @@ class ChickenbroResearchTest(unittest.TestCase):
             [call["toolId"] for call in plan["toolCalls"]],
         )
 
+    def test_codex_strict_schema_uses_closed_argument_entries_and_normalizes_them(self):
+        module = self._module()
+        schema = module.research_plan_schema()
+        arguments = schema["properties"]["toolCalls"]["items"]["properties"]["arguments"]
+
+        self.assertEqual("array", arguments["type"])
+        self.assertEqual(False, arguments["items"]["additionalProperties"])
+        self.assertEqual(["name", "value"], arguments["items"]["required"])
+
+        plan = module.validate_research_plan(
+            {
+                **plan_with("source:official:v1", decision="answer"),
+                "toolCalls": [{
+                    "toolId": "source:official:v1",
+                    "arguments": [{"name": "productPhase", "value": "ptr"}],
+                }],
+            },
+            [catalog_tool("source:official:v1", ["productPhase"])],
+        )
+
+        self.assertEqual({"productPhase": "ptr"}, plan["toolCalls"][0]["arguments"])
+
     def test_plan_rejects_unpublished_tool_and_unsafe_argument(self):
         module = self._module()
         catalog = [catalog_tool("source:official:v1", ["productPhase"])]
