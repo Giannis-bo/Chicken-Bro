@@ -338,6 +338,33 @@ class ChickenbroAgentIntentTest(unittest.TestCase):
         self.assertEqual("public_web_research", packet["sourceToolResults"][0]["sourceKey"])
         self.assertEqual("partial", packet["sourceToolResults"][0]["status"])
 
+    def test_bounded_context_retains_later_cited_agentic_observation(self):
+        evidence_ref = "public-web:example-current-snapshot"
+        bounded = backend.build_chickenbro_bounded_context(
+            "当前版本强度如何？",
+            {},
+            source_tool_results={
+                "sourceToolResults": [
+                    {"sourceKey": "official", "status": "partial", "facts": [], "evidence": [], "evidenceRefs": [], "limitations": [], "nextActions": []},
+                    {"sourceKey": "community_a", "status": "partial", "facts": [], "evidence": [], "evidenceRefs": [], "limitations": [], "nextActions": []},
+                    {"sourceKey": "community_b", "status": "partial", "facts": [], "evidence": [], "evidenceRefs": [], "limitations": [], "nextActions": []},
+                    {
+                        "sourceKey": "public_web_research",
+                        "status": "source_reference",
+                        "facts": [{"summary": "A bounded cited public snapshot."}],
+                        "evidence": [{"id": evidence_ref}],
+                        "evidenceRefs": [evidence_ref],
+                        "limitations": [],
+                        "nextActions": [],
+                    },
+                ],
+                "registryContext": {"selectedCapabilityIds": ["source:public-web-research:v2"]},
+            },
+        )
+
+        self.assertIn(evidence_ref, bounded["allowedEvidenceRefs"])
+        self.assertEqual(evidence_ref, bounded["sourceEvidence"][0]["evidenceRefs"][0])
+
     def test_agentic_research_replans_after_a_partial_first_observation(self):
         release = signed_release()
         planned = iter(

@@ -388,6 +388,7 @@ CHICKENBRO_SCENARIOS = {
     "mplus_fortified",
     "mplus_tyrannical",
 }
+CHICKENBRO_BOUNDED_SOURCE_EVIDENCE_LIMIT = 8
 _WEB_GEAR_BUILD_LIMITER = None
 _WEB_GEAR_BUILD_LIMITER_LIMIT = None
 _WEB_GEAR_BUILD_LIMITER_LOCK = threading.Lock()
@@ -8198,6 +8199,20 @@ def compact_chickenbro_history(messages, limit=6):
     return compact[-max(1, min(6, int(limit or 6))):]
 
 
+def compact_chickenbro_source_evidence(results, limit=CHICKENBRO_BOUNDED_SOURCE_EVIDENCE_LIMIT):
+    """Keep cited observations ahead of non-cited diagnostics in a bounded prompt."""
+    maximum = max(1, int(limit or CHICKENBRO_BOUNDED_SOURCE_EVIDENCE_LIMIT))
+    candidates = [item for item in (results or []) if isinstance(item, dict)]
+    cited = [
+        item
+        for item in candidates
+        if item.get("status") in {"source_reference", "verified"} and item.get("evidenceRefs")
+    ]
+    cited_ids = {id(item) for item in cited}
+    remainder = [item for item in candidates if id(item) not in cited_ids]
+    return (cited + remainder)[:maximum]
+
+
 def build_chickenbro_bounded_context(
     message,
     context,
@@ -8255,7 +8270,7 @@ def build_chickenbro_bounded_context(
         registry_context = loaded_sources.get("registryContext") or registry_context
         registry_limitations = loaded_sources.get("limitations") or []
         agentic_research = _agentic_research_projection(loaded_sources.get("agenticResearch"))
-    source_evidence = [item for item in (source_tool_results or []) if isinstance(item, dict)][:3]
+    source_evidence = compact_chickenbro_source_evidence(source_tool_results)
     capability_plan = chickenbro_capability_plan(
         question_frame,
         registry_context,
