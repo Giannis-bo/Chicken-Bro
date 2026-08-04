@@ -1,10 +1,81 @@
 import inspect
+import hashlib
+import json
 import unittest
 
 from server import gear_contracts, gear_socket_authority
 
 
 class GearContractsTest(unittest.TestCase):
+    def valid_exact_intent(self):
+        slots = {
+            slot: {
+                "itemId": str(225574 + index),
+                "declaredItemLevel": None,
+                "bonusIds": [], "context": "", "gemIds": [], "gemBonusIds": [],
+                "gemItemLevels": [], "enchantId": "", "craftedStats": [],
+                "embellishmentIds": [], "redirectedBaseStats": [],
+            }
+            for index, slot in enumerate(gear_contracts.EXACT_LOADOUT_CORE_SLOTS)
+        }
+        return {
+            "schemaRevision": "exact-loadout-intent-v2",
+            "authoredAgainst": {"seasonRevision": "season-r1", "gameBuild": "build-r1"},
+            "eligibilityContext": {"classKey": "warrior", "specKey": "fury", "level": 80},
+            "slots": slots,
+        }
+
+    # Catches accidentally reusing v1 Catalog fields in the independent exact
+    # contract, or changing the previously frozen v1 parser behavior.
+    def test_exact_v2_rejects_catalog_fields_while_v1_remains_byte_stable(self):
+        exact = self.valid_exact_intent()
+        parsed, issues = gear_contracts.parse_exact_loadout_intent(exact)
+        self.assertEqual(issues, [])
+        self.assertEqual(parsed, exact)
+
+        catalog_in_authored = self.valid_exact_intent()
+        catalog_in_authored["authoredAgainst"]["gearCatalogRevision"] = "catalog-r1"
+        variant_in_slot = self.valid_exact_intent()
+        variant_in_slot["slots"]["head"]["variantKey"] = "variant-head"
+        for value, path in ((catalog_in_authored, "intent.authoredAgainst.gearCatalogRevision"), (variant_in_slot, "intent.slots.head.variantKey")):
+            with self.subTest(path=path):
+                parsed, issues = gear_contracts.parse_exact_loadout_intent(value)
+                self.assertIsNone(parsed)
+                self.assertTrue(any(issue["code"] == "UNKNOWN_FIELD" and issue["path"] == path for issue in issues))
+
+        v1 = self.valid_intent()
+        parsed_v1, v1_issues = gear_contracts.parse_selection_intent(v1)
+        self.assertEqual(v1_issues, [])
+        self.assertEqual(parsed_v1, v1)
+
+    # Catches an Exact v2 change accidentally perturbing any sealed v1
+    # canonical identity used by existing loadout and snapshot records.
+    def test_v1_fixture_canonical_bytes_and_keys_remain_frozen(self):
+        from server.gear_resolved_loadout import _canonical_bytes, build_resolved_loadout
+        from server.simulation_snapshot import _canonical_bytes as snapshot_bytes, build_simulation_snapshot
+        from tests.gear_resolved_loadout_test import TEMPLATE_HASH, exact_registry, resolver_snapshot
+        from tests.simulation_snapshot_test import TALENT_KEY, TALENT_LINES, character_context, scenario
+
+        v1, issues = gear_contracts.parse_selection_intent(self.valid_intent())
+        self.assertEqual(issues, [])
+        self.assertEqual(
+            json.dumps(v1, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8"),
+            b'{"authoredAgainst":{"gearCatalogRevision":"gear-r17","seasonRevision":"season-17-active"},"eligibilityContext":{"classKey":"mage","level":90,"specKey":"arcane"},"schemaRevision":"selection-intent-v1","slots":{"head":{"catalystOptionId":"","craftedOptionId":"","embellishmentOptionId":"","enchantOptionId":"","gemOptionIds":["gem-240898-r2"],"itemId":"250060","variantKey":"variant-head-289"}}}',
+        )
+        loadout = build_resolved_loadout(
+            resolver_snapshot=resolver_snapshot(), exact_registry=exact_registry(),
+            template_scope="community", template_content_hash=TEMPLATE_HASH,
+        )
+        self.assertEqual(loadout["resolvedLoadoutKey"], "resolved-loadout:sha256:e296abc0f2dfc1ce0f2c8c260e219ce633d7a52743a534bf2ededd5424a60893")
+        self.assertEqual(hashlib.sha256(_canonical_bytes(loadout)).hexdigest(), "13e1b92e01271c7617f941c8ed4a40e20ec0f5b56cba3c91c98d8431df2d5f7d")
+        snapshot = build_simulation_snapshot(
+            resolved_loadout=loadout, talent_profile_key=TALENT_KEY, talent_lines=TALENT_LINES,
+            character_context=character_context(), scenario_options=scenario(),
+            preparation_lines=["optimal_raid=0", "override.arcane_intellect=1"],
+            compiler_revision="simc-profile-compiler-v1", simc_runtime_revision="simc-runtime-v1",
+        )
+        self.assertEqual(snapshot["simulationSnapshotKey"], "simulation-snapshot:sha256:193951caa6917b98318d2d7c4e353df771a7b39538f3e375cf79775a1385b0d2")
+        self.assertEqual(hashlib.sha256(snapshot_bytes(snapshot)).hexdigest(), "ffbd4df73ebff0cefbaeb7028d8dee01c16e36dbe5813b84e9e9cd71bbd288f9")
     def valid_intent(self):
         return {
             "schemaRevision": "selection-intent-v1",

@@ -347,6 +347,7 @@
         "status": "active_canonical_runtime",
         "modules": [
           "server/gear_contracts.py",
+          "server/simc_gear_import.py",
           "server/gear_result_envelope.py",
           "server/gear_rule_matrix.py",
           "server/gear_evidence_ledger.py",
@@ -356,6 +357,7 @@
         ],
         "tests": [
           "tests/gear_contracts_test.py",
+          "tests/simc_gear_import_test.py",
           "tests/gear_result_envelope_test.py",
           "tests/gear_rule_matrix_test.py",
           "tests/gear_evidence_ledger_test.py",
@@ -631,6 +633,7 @@
         "server/websim_payload.py",
         "server/pg_gear_template_selectors.py",
         "server/gear_contracts.py",
+        "server/simc_gear_import.py",
         "server/gear_result_envelope.py",
         "server/gear_rule_matrix.py",
         "server/gear_evidence_ledger.py",
@@ -671,6 +674,7 @@
         "packages/domain/src/gear-intent.*",
         "apps/mini-taro/src/pages/builds/detail.*",
         "tests/gear_contracts_test.py",
+        "tests/simc_gear_import_test.py",
         "tests/gear_result_envelope_test.py",
         "tests/gear_rule_matrix_test.py",
         "tests/gear_evidence_ledger_test.py",

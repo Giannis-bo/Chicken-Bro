@@ -365,6 +365,35 @@
       ]
     },
     {
+      "path": "server/simc_gear_import.py",
+      "healthStatus": "exact_v2_input_contract",
+      "summary": "Owns pure SimulationCraft plugin gear-line parsing and sanitized Exact v2 import canonicalization; it emits no raw profile text and owns neither Catalog admission nor runtime authority.",
+      "owners": [
+        {
+          "id": "simc_exact_import_adapter",
+          "status": "task1_contract_only",
+          "owns": [
+            "bounded plugin text parsing",
+            "Catalog-independent exact-loadout-intent-v2 projection",
+            "path-addressable blocked import diagnostics"
+          ],
+          "mustNotChange": [
+            "Do not persist raw plugin text, profile identity, Catalog metadata, default item levels, or inferred variants.",
+            "Do not decide Exact authority, whole-loadout legality, effect support, Catalog membership, or SimC task readiness."
+          ],
+          "characterization": [
+            "tests/simc_gear_import_test.py",
+            "tests/news_backend_test.py::NewsBackendTest.test_simcraft_template_gear_line_keeps_legacy_canonical_output",
+            "tests/gear_contracts_test.py"
+          ],
+          "runtimeConsumers": [
+            "server/news_backend.py legacy compatibility wrappers"
+          ],
+          "futureExtractionDirection": "Task 2 consumes only sanitized Exact v2 intent; Task 3 owns persistence and later tasks own authority, Resolver, API, observations and Catalog admission."
+        }
+      ]
+    },
+    {
       "path": "server/news_backend.py",
       "healthStatus": "health_watch",
       "summary": "Owns HTTP route wiring, runtime cache-store selection, health/admin composition, news content APIs, and Chickenbro/session endpoint wiring.",

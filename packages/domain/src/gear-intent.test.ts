@@ -3,12 +3,42 @@ import { describe, expect, it } from 'vitest'
 import * as gearIntentExports from './gear-intent'
 
 import {
+  canonicalExactLoadoutIntent,
   gearEnhancementsFromResolvedSnapshot,
   gearItemStaticStatsFromResolvedSnapshot,
   serializeGearSelectionIntent,
 } from './gear-intent'
 
 describe('canonical gear selection intent', () => {
+  it('accepts exactly the complete catalog-independent exact v2 identity', () => {
+    const coreSlots = [
+      'head', 'neck', 'shoulder', 'back', 'chest', 'wrist', 'hands', 'waist',
+      'legs', 'feet', 'finger1', 'finger2', 'trinket1', 'trinket2', 'main_hand',
+    ]
+    const slot = (itemId: string) => ({
+      itemId, declaredItemLevel: null, bonusIds: [], context: '', gemIds: [],
+      gemBonusIds: [], gemItemLevels: [], enchantId: '', craftedStats: [],
+      embellishmentIds: [], redirectedBaseStats: [],
+    })
+    const valid = {
+      schemaRevision: 'exact-loadout-intent-v2',
+      authoredAgainst: { seasonRevision: 'season-r1', gameBuild: 'build-r1' },
+      eligibilityContext: { classKey: 'warrior', specKey: 'fury', level: 80 },
+      slots: Object.fromEntries(coreSlots.map((name, index) => [name, slot(String(225574 + index))])),
+    }
+
+    expect(canonicalExactLoadoutIntent(valid, 'warrior', 'fury')).toEqual(valid)
+    expect([
+      { ...valid, authoredAgainst: { ...valid.authoredAgainst, gearCatalogRevision: 'catalog-r1' } },
+      { ...valid, slots: { ...valid.slots, head: { ...valid.slots.head, variantKey: 'variant-head' } } },
+      { ...valid, eligibilityContext: { ...valid.eligibilityContext, level: 80.5 } },
+      { ...valid, eligibilityContext: { ...valid.eligibilityContext, classKey: 'mage' } },
+      { ...valid, slots: { ...valid.slots, head: { ...valid.slots.head, itemId: '' } } },
+      { ...valid, slots: Object.fromEntries([...coreSlots].reverse().map((name, index) => [name, slot(String(225574 + index))])) },
+      { ...valid, slots: Object.fromEntries(coreSlots.slice(1).map((name, index) => [name, slot(String(225574 + index))])) },
+    ].every((value) => canonicalExactLoadoutIntent(value, 'warrior', 'fury') === null)).toBe(true)
+  })
+
   it('accepts only structurally canonical selection-intent-v1 storage for the current identity', () => {
     const guard = (gearIntentExports as Readonly<Record<string, unknown>>)['canonicalGearSelectionIntent'] as
       | ((value: unknown, classKey: string, specKey: string) => unknown)

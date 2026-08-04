@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 1,
+  "slug": "equipment-simulator-exact-first",
+  "classification": "Strict",
+  "status": "implementation_allowed",
+  "goal": "在不改写 generation 35 或 selection-intent-v1 的前提下，让完整 Exact 装备以 Catalog-independent 合同进入受治理的四段发布链。",
+  "userValue": "玩家导入完整且最终被当前规则与 SimC runtime 确认的精确装备时，即使其未列入公开换装目录，也能在后续链路中保存、重载、生成不可变快照并模拟。",
+  "nonGoals": [
+    "不在 Task 1 判定 Exact authority、整套合法性、effect support、Catalog membership、持久化或 SimC readiness。",
+    "不从 itemId、相似 bonus、Catalog 或默认值补充 declaredItemLevel、variant 或其他装备事实。",
+    "不将原始插件导出文本写入 artifact、日志、template、queue 或公开 payload。"
+  ],
+  "currentTruth": {
+    "sources": [
+      "docs/project-state.json",
+      "docs/roadmap.md",
+      "docs/plans/2026-08-04-equipment-simulator-exact-first-implementation.md",
+      "docs/harness.md"
+    ],
+    "activeMilestone": "taro_target_first_14_route_rebuild",
+    "featureIteration": "equipment_simulator_exact_first_task1",
+    "baseBranch": "main"
+  },
+  "releaseSlices": [
+    {"id": "task1", "scope": "冻结 v1 并引入无 Catalog Exact v2 输入合同", "gate": "v1 canonical bytes/key frozen; raw text never leaves parser"},
+    {"id": "task2", "scope": "Exact authority 与 effect-support", "gate": "authority envelope and verified support are immutable and runtime-bound"},
+    {"id": "task3", "scope": "append-only authority/store 与 v1/v2 条件持久化", "gate": "v1 rows remain valid; v2 rows require envelope identities"},
+    {"id": "task4_plus", "scope": "owner-scoped worker、Resolver/API、observations 与 Catalog admission", "gate": "candidate evidence, rollback, and user-visible state remain fail-closed"}
+  ],
+  "impactMap": {
+    "mustChange": [
+      "server/simc_gear_import.py and server/gear_contracts.py pure parser/contracts",
+      "server/news_backend.py compatibility wrappers",
+      "packages/domain/src/gear-intent.ts and entities.ts client-side canonical contract",
+      "owner maps and behavior tests"
+    ],
+    "mustNotChange": [
+      "selection-intent-v1 canonical bytes, ResolvedLoadout, SimulationSnapshot and generation 35 identities",
+      "Catalog contents/pointers, Exact authority, persistence, worker, Resolver/API and UI behavior",
+      "raw plugin text privacy boundary"
+    ],
+    "evidenceRequired": [
+      "Task 1 RED then GREEN parser/contract tests, frozen v1 bytes and key assertions, and legacy canonical SimC wrapper regression",
+      "candidate branch/commit identity, file parity, targeted backend/domain smoke, rollback path, and later real WeChat user acceptance"
+    ]
+  },
+  "ownership": {
+    "factOwner": "server/simc_gear_import.py owns only sanitized plugin-to-Exact-v2 parsing; server/gear_contracts.py and packages/domain/src/gear-intent.ts own structural canonicalization.",
+    "consumers": ["future Exact authority worker", "future owner-scoped import API", "server/news_backend.py legacy compatibility parsing"]
+  },
+  "dataPrivacyBoundary": {
+    "rawPluginText": "ephemeral parser input only; it must not be persisted, logged, templated, queued, included in artifact evidence, or returned in output payloads.",
+    "identity": "class/spec and sanitized item identifiers are contract inputs; player name, realm and raw profile metadata are not Exact v2 facts."
+  },
+  "candidateDeployment": {
+    "required": true,
+    "beforeMerge": "Deploy the candidate only after later runtime/API slices exist; record branch/commit, runtime file parity, health/API/read-model smoke, async state, and rollback path.",
+    "rollback": "Restore the previous candidate/runtime code without changing immutable v1 records, Manifest generation 35, Catalog pointer, or sealed snapshots."
+  },
+  "acceptanceEvidence": [
+    "Complete 15-core-slot plugin input with omitted ilevel produces exact-loadout-intent-v2 declaredItemLevel=null and no raw profile text.",
+    "Conflict, duplicate, unknown option/slot, misaligned gem array, oversized UTF-8 text, newline injection and missing id return path-specific blocked diagnostics.",
+    "v1 parser/output and frozen ResolvedLoadout/SimulationSnapshot identities remain byte/key stable."
+  ],
+  "manualAcceptanceContract": {
+    "required": true,
+    "requiredItemIds": ["candidate_exact_import_flow", "real_wechat_exact_import_save_simc"]
+  },
+  "closureCondition": "真实微信中完整 Exact 导入、保存和 SimC 主路径未由用户验收前，release 不得标记完成；HTTP 200、unit test、candidate or deployment smoke 均不能替代此验收。",
+  "releaseTrigger": "backend_api",
+  "rollback": ["code_rollback", "candidate_runtime_restore", "no_catalog_or_manifest_mutation"],
+  "decisionLog": [
+    {"date": "2026-08-04", "decision": "按 Exact-first 将模拟资格与 Catalog membership 解耦；Task 1 仅冻结 v1 并引入无 Catalog 输入合同。"}
+  ]
+}
