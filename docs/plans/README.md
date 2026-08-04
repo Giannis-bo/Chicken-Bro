@@ -30,6 +30,7 @@
 
 | 领域 | 状态 | 入口 |
 | --- | --- | --- |
+| 装备模拟 Exact-first 与三来源 Catalog | 下一步（设计已确认、未授权实施） | [设计](2026-08-04-equipment-simulator-exact-first-catalog-design.md) |
 | 装备模拟长期目标合同 | 已完成 | [目标架构](2026-07-28-equipment-simulator-target-architecture.md) |
 | 装备模拟 v1 基线 | 已完成 | [Phase 4 归档证据](../../artifacts/releases/2026-07-29-equipment-simulator-phase4-manifest-cutover/evidence.json) · [Track Authority 规则输入](2026-07-28-equipment-simulator-track-authority-correction.md) · [Phase 3 归档证据](../../artifacts/releases/2026-07-29-equipment-simulator-phase3-resolved-snapshot/evidence.json) · [Phase 2 归档证据](../../artifacts/releases/2026-07-29-equipment-simulator-phase2-exact-enhancement/evidence.json) · [Phase 1 归档证据](../../artifacts/releases/2026-07-29-equipment-simulator-phase1-catalog-contract/evidence.json) · [Phase 0 归档证据](../../artifacts/releases/2026-07-28-equipment-simulator-phase0-unblock/evidence.json) |
 | 炸鸡队长 Tool Registry Phase 2 基线 | 已完成 | [设计](2026-08-02-chickenbro-tool-registry-phase2-design.md) · [实施记录](2026-08-02-chickenbro-tool-registry-phase2-implementation.md) · [归档证据](../../artifacts/releases/2026-08-02-chickenbro-tool-registry-phase2/evidence.json) |
