@@ -14,7 +14,7 @@
     {
       "path": "server/gear_canonical_kernel.py",
       "healthStatus": "task3a_candidate_failed_migration_chain_blocked",
-      "summary": "Owns the completed pure Canonical foundation and source change-control; replacement Task 3A first real candidate failed in the historical 0003 migration chain before 0026. Only the authorized fail-closed 0003 semantic-idempotence correction is in scope; no runtime consumer is active.",
+      "summary": "Owns the completed pure Canonical foundation and source change-control; Task 3A is literal candidate_failed / migration_chain_blocked after t3a2608050955 failed in the historical 0003 migration chain and t3a260805111623 failed on the PostgreSQL name[] to text[] comparison before 0026. Only the authorized fail-closed 0003 semantic-idempotence/type correction is in scope; no runtime consumer is active.",
       "owners": [
         {
           "id": "equipment_simulator_canonical_kernel_task1_5",

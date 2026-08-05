@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 import re
 import unittest
@@ -617,6 +618,20 @@ $unsafe$;
         self.assertIn("0003_build_template_config_hash_unique", normalized)
 
     def test_task3a_current_truth_records_both_immutable_failed_candidates(self):
+        backend_owner_map = json.loads(
+            (ROOT / "docs" / "backend-owner-map.json").read_text(encoding="utf-8")
+        )
+        canonical_kernel_hotspot = next(
+            hotspot
+            for hotspot in backend_owner_map["hotspotFiles"]
+            if hotspot["path"] == "server/gear_canonical_kernel.py"
+        )
+        summary = canonical_kernel_hotspot["summary"]
+        self.assertIn("candidate_failed", summary)
+        self.assertIn("migration_chain_blocked", summary)
+        self.assertIn("t3a2608050955", summary)
+        self.assertIn("t3a260805111623", summary)
+
         for path in TASK_3A_CURRENT_TRUTH_FILES:
             with self.subTest(path=path):
                 current_truth = path.read_text(encoding="utf-8")
