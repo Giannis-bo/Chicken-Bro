@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-08-05T07:07:48.128Z",
+  "generatedAt": "2026-08-05T07:30:25.810Z",
   "release": {
     "date": "2026-08-04",
     "slug": "equipment-simulator-exact-first"
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-08-04-equipment-simulator-exact-first/evidence.json",
-    "sizeBytes": 46636,
+    "sizeBytes": 46434,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -417,7 +417,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "18 changed files currently visible to git status."
+      "detail": "3 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
@@ -453,26 +453,11 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 18,
+      "changedFileCount": 3,
       "changedFiles": [
         " M artifacts/releases/2026-08-04-equipment-simulator-exact-first/evidence.json",
         " M artifacts/releases/2026-08-04-equipment-simulator-exact-first/manifest.json",
-        " M artifacts/releases/2026-08-04-equipment-simulator-exact-first/requirement.json",
-        " M docs/backend-owner-map.json",
-        " M docs/plans/2026-08-04-equipment-simulator-canonical-kernel-implementation.md",
-        " M docs/plans/2026-08-04-equipment-simulator-canonical-kernel-redesign.md",
-        " M docs/plans/2026-08-04-equipment-simulator-canonical-owner-change-control.md",
-        " M docs/plans/2026-08-04-equipment-simulator-duplicate-effect-subject-correction.md",
-        " M docs/plans/2026-08-04-equipment-simulator-exact-first-implementation.md",
-        " M docs/plans/2026-08-04-equipment-simulator-exact-first-persistence-resequence.md",
-        " M docs/plans/README.md",
-        " M docs/postgres-identity-migration-runbook.md",
-        " M docs/project-owner-map.json",
-        " M docs/roadmap.md",
-        " M tests/gear_canonical_owner_gate_test.py",
-        " M tests/postgres_integration_test.py",
-        " M tests/postgres_schema_test.py",
-        " M tests/simc_gear_import_test.py"
+        " M tests/gear_canonical_owner_gate_test.py"
       ]
     }
   },

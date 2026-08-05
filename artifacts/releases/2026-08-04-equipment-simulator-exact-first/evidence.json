@@ -47,6 +47,7 @@
     {
       "command": "node scripts/verify-project.js --profile full --release-from-changes --base origin/main",
       "status": "not_run",
+      "testedHead": null,
       "summary": "Historical local verification passed at clean tested HEAD 87ba835f20bc0ca9eb762419a08b9be4ee54057a, but the later lifecycle-gate test and control-plane correction invalidates that verification identity. A new corrected-source full profile is pending."
     }
   ],
@@ -427,7 +428,7 @@
       "reason": "The fifth clean integrated 0030 candidate passed with a promotable attestation-v2, and independent evidence-promotion re-review passed with no remaining findings. This binds runtime evidence only; branch publication, CI, merge/archive closure and resource cleanup remain pending."
     },
     {
-      "status": "runtime_passed_unpromotable_evidence_lifecycle_test_regression",
+      "status": "candidate_verified",
       "requiredBeforeMerge": true,
       "branch": "codex/equipment-simulator-exact-first-implementation",
       "commit": "9f67ec2f72f59dc1def7b035fc4d9da27b8802b5",
@@ -444,12 +445,12 @@
       "freshDatabase": {
         "name": "wow_exact_first_fresh_test_t3a260805142130",
         "comment": "wow_exact_first_disposable:t3a260805142130:fresh",
-        "preservationStatus": "preserved_unpromotable_historical_evidence"
+        "preservationStatus": "preserved_pending_packet_archival_and_scoped_review"
       },
       "upgradeDatabase": {
         "name": "wow_exact_first_upgrade_test_t3a260805142130",
         "comment": "wow_exact_first_disposable:t3a260805142130:upgrade",
-        "preservationStatus": "preserved_unpromotable_historical_evidence"
+        "preservationStatus": "preserved_pending_packet_archival_and_scoped_review"
       },
       "candidateSource": {
         "remotePath": "/var/tmp/wow-task3a-candidate-t3a260805142130",
@@ -586,7 +587,7 @@
         "wow_exact_first_fresh_test_t3a260805142130",
         "wow_exact_first_upgrade_test_t3a260805142130"
       ],
-      "reason": "PostgreSQL execution and independent read-only candidate audit passed from the exact frozen sixth HEAD. That HEAD nevertheless failed the current-truth owner test because the test hard-coded implementation_allowed after the authorized local_verified transition. Correcting the lifecycle test, requirement and owner contracts is candidate-invalidating, so the sixth run is immutable historical evidence and cannot promote the corrected source."
+      "reason": "The sixth exact frozen 0030 candidate passed PostgreSQL execution and independent read-only post-audit with no candidate concern. This candidate-scoped object records the raw PASS result; evidence promotion and task closure remain separate."
     }
   ],
   "runtimeEvidence": [
