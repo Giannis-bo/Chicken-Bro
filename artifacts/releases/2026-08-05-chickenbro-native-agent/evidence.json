@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "slug": "chickenbro-native-agent",
-  "status": "candidate_self_tested_pending_user_acceptance",
+  "status": "user_accepted_pending_promotion",
   "candidate": {
     "service": "wow-backend-chickenbro-native-agent-6cb25647.service",
     "remotePort": 18822,
@@ -51,16 +51,13 @@
   ],
   "manualAcceptance": {
     "required": true,
-    "status": "partially_accepted",
+    "status": "accepted",
     "acceptedItems": [
       "WeChat current-strength answer is direct and evidence-scoped",
       "same-session and cross-question follow-up completes without retry or error",
       "sources, conclusions, and limitations read naturally instead of as a canned no-data refusal"
     ],
-    "pendingItems": [
-      "long transcript remains usable above composer"
-    ],
-    "reason": "The user explicitly confirmed on 2026-08-05 that the native Agent answers shown in WeChat met expectations for a 12.1 PTR Elemental Shaman question and a subsequent PTR tank-ranking question. Explicit final acceptance is still required before merge, push, production rollout, or candidate cleanup."
+    "reason": "The user explicitly confirmed on 2026-08-05 that the native Agent answers shown in WeChat met expectations for a 12.1 PTR Elemental Shaman question and a subsequent PTR tank-ranking question. The user then confirmed that long transcripts do not obscure the composer and explicitly authorized closure. Merge, production rollout, and candidate cleanup are now authorized but not yet recorded as complete."
   },
   "rollback": {
     "candidate": "stop wow-backend-chickenbro-native-agent-6cb25647.service",

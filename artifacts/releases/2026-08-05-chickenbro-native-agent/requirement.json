@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "slug": "chickenbro-native-agent",
-  "status": "candidate_self_tested_pending_user_acceptance",
+  "status": "user_accepted_pending_promotion",
   "userOutcome": "玩家可以直接询问当前版本强度并连续追问；云端 Codex 自主检索、比较、说明口径，而不再要求玩家自行查资料或被固定 JSON/claim 规则中断。",
   "scope": [
     "candidate-only native Codex Agent profile with gpt-5.6-luna and live web search",
@@ -10,9 +10,7 @@
     "local DevTools candidate tunnel switch only"
   ],
   "outOfScope": [
-    "production rollout",
     "new third-party source contract or collector",
-    "merge, push, candidate cleanup",
     "user acceptance substitution"
   ],
   "manualAcceptance": {
@@ -22,6 +20,9 @@
       "same-session follow-up completes without retry/error",
       "sources and limitations read naturally",
       "long transcript remains usable above the composer"
-    ]
+    ],
+    "acceptedAt": "2026-08-05",
+    "acceptedBy": "user",
+    "acceptanceNote": "User confirmed the expected answer quality and that long transcripts do not obscure the composer, then explicitly authorized closure."
   }
 }
