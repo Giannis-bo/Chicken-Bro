@@ -13,12 +13,12 @@
   "hotspotFiles": [
     {
       "path": "server/gear_canonical_kernel.py",
-      "healthStatus": "task3a_candidate_failed_migration_chain_blocked",
-      "summary": "Owns the completed pure Canonical foundation and source change-control; Task 3A is literal candidate_failed / migration_chain_blocked after t3a2608050955 failed in the historical 0003 migration chain and t3a260805111623 failed on the PostgreSQL name[] to text[] comparison before 0026. Only the authorized fail-closed 0003 semantic-idempotence/type correction is in scope; no runtime consumer is active.",
+      "healthStatus": "task3a_candidate_rerun_required_evidence_promotion_blocked",
+      "summary": "Owns the completed pure Canonical foundation and source change-control. Task 3A is literal candidate_rerun_required / evidence_promotion_blocked: t3a2608050955 and t3a260805111623 failed in historical 0003, while t3a260805113656 passed both runtime paths but cannot be promoted because the active requirement was local_verified instead of implementation_allowed and its required post-run control-plane correction invalidates that candidate. All three run pairs and six databases are immutable/non-reusable; a fourth new run-id and new database pair are mandatory. No runtime consumer is active.",
       "owners": [
         {
           "id": "equipment_simulator_canonical_kernel_task1_5",
-          "status": "task3a_candidate_failed_migration_chain_blocked",
+          "status": "task3a_candidate_rerun_required_evidence_promotion_blocked",
           "factOwner": "server/gear_canonical_kernel.py",
           "kernelSemanticOwner": "server/gear_canonical_kernel.py",
           "slotSetOwner": "server/gear_contracts.py",
@@ -77,7 +77,7 @@
             "task_5a_api_runtime",
             "task_6c_observation_catalog"
           ],
-          "capabilityBoundary": "The pure Canonical foundation and replacement Task 3A independent implementation review are final PASS/APPROVED with zero unresolved findings, but two candidates failed before 0026: t3a2608050955 because 0003 unconditionally re-added a config-hash unique already created by 0001, then t3a260805111623 because 0003 compared PostgreSQL name[] catalog attributes with a text[] literal. The permitted scope is only a fail-closed 0003 semantic-idempotence/type correction and new candidates; neither failed run is reusable. The registry remains test-only, proofClaim stays source_change_control_only, runtimeConsumers is empty, original Task 3 remains stopped, and generation 35, Catalog/pointers, worker, Resolver/API/UI, raw-text privacy and v1 identities remain unchanged."
+          "capabilityBoundary": "The pure Canonical foundation and replacement Task 3A independent implementation review are final PASS/APPROVED with zero unresolved findings. Runs t3a2608050955 and t3a260805111623 failed before 0026 on corrected historical 0003 defects. Run t3a260805113656 passed both runtime paths at commit 0e0743ca188efbd7cb818bfb8a210fd998379f4d / tree 3fce81f57dbdc851a9438ae63ea051f666bf1051 but is unpromotable because the active requirement was local_verified and the required requirement/owner correction invalidates the post-run candidate. Status is candidate_rerun_required / evidence_promotion_blocked; all three run pairs and six databases are immutable/non-reusable, and a fourth new run-id/new database pair is mandatory before evidence promotion. The registry remains test-only, proofClaim stays source_change_control_only, runtimeConsumers is empty, original Task 3 remains stopped, and generation 35, Catalog/pointers, worker, Resolver/API/UI, raw-text privacy and v1 identities remain unchanged."
         }
       ]
     },

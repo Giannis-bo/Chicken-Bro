@@ -1,6 +1,6 @@
 # 装备模拟 Canonical Kernel 重设计
 
-状态：`已完成（仅 pure Canonical foundation 与 source change-control final whole-branch PASS/APPROVED；replacement Task 3A 已本地实现/验证且独立实现复审 PASS/APPROVED，仅双真实 PG candidate 仍 pending；原 Task 3 继续停止）`
+状态：`已完成（仅 pure Canonical foundation 与 source change-control final whole-branch PASS/APPROVED；replacement Task 3A 当前 candidate_rerun_required / evidence_promotion_blocked：t3a2608050955、t3a260805111623 失败，t3a260805113656 runtime passed 但不可晋升，三对六库不可复用，必须第四次新 run-id/双库重跑；原 Task 3 继续停止）`
 
 **当前 replacement:** [Canonical Ownership Change-Control Plan](2026-08-04-equipment-simulator-canonical-owner-change-control.md) 与 [重复 Effect Subject 语义纠偏](2026-08-04-equipment-simulator-duplicate-effect-subject-correction.md) 已完成。Task 1 的 gate 只声明 `source_change_control_only`；final whole-branch re-review 为 PASS/APPROVED、0 findings。原 Task 3 readiness 已判定 `NOT_READY`，由 [Exact-first 持久化与运行链重排计划](2026-08-04-equipment-simulator-exact-first-persistence-resequence.md) forward-replace；replacement Task 3A 的独立复审已通过，但在双真实 PG candidate 前仍不得完成或启动 Task 4P+。
 

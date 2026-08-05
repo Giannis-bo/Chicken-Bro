@@ -34,7 +34,13 @@ WEBSIM_EXACT_AUTHORITY_BUNDLE = ROOT / "server" / "migrations" / "postgres" / "0
 TASK_3A_CURRENT_TRUTH_FILES = (
     ROOT / "artifacts" / "releases" / "2026-08-04-equipment-simulator-exact-first" / "requirement.json",
     ROOT / "docs" / "backend-owner-map.json",
+    ROOT / "docs" / "plans" / "2026-08-04-equipment-simulator-canonical-kernel-implementation.md",
+    ROOT / "docs" / "plans" / "2026-08-04-equipment-simulator-canonical-kernel-redesign.md",
+    ROOT / "docs" / "plans" / "2026-08-04-equipment-simulator-canonical-owner-change-control.md",
+    ROOT / "docs" / "plans" / "2026-08-04-equipment-simulator-duplicate-effect-subject-correction.md",
+    ROOT / "docs" / "plans" / "2026-08-04-equipment-simulator-exact-first-implementation.md",
     ROOT / "docs" / "plans" / "2026-08-04-equipment-simulator-exact-first-persistence-resequence.md",
+    ROOT / "docs" / "plans" / "README.md",
     ROOT / "docs" / "postgres-identity-migration-runbook.md",
     ROOT / "docs" / "project-owner-map.json",
     ROOT / "docs" / "roadmap.md",
@@ -617,7 +623,18 @@ $unsafe$;
         self.assertNotIn("duplicate_object", normalized.lower())
         self.assertIn("0003_build_template_config_hash_unique", normalized)
 
-    def test_task3a_current_truth_records_both_immutable_failed_candidates(self):
+    def test_task3a_current_truth_requires_new_candidate_after_unpromotable_runtime_pass(self):
+        requirement = json.loads(
+            (
+                ROOT
+                / "artifacts"
+                / "releases"
+                / "2026-08-04-equipment-simulator-exact-first"
+                / "requirement.json"
+            ).read_text(encoding="utf-8")
+        )
+        self.assertEqual(requirement["status"], "implementation_allowed")
+
         backend_owner_map = json.loads(
             (ROOT / "docs" / "backend-owner-map.json").read_text(encoding="utf-8")
         )
@@ -627,18 +644,20 @@ $unsafe$;
             if hotspot["path"] == "server/gear_canonical_kernel.py"
         )
         summary = canonical_kernel_hotspot["summary"]
-        self.assertIn("candidate_failed", summary)
-        self.assertIn("migration_chain_blocked", summary)
+        self.assertIn("candidate_rerun_required", summary)
+        self.assertIn("evidence_promotion_blocked", summary)
         self.assertIn("t3a2608050955", summary)
         self.assertIn("t3a260805111623", summary)
+        self.assertIn("t3a260805113656", summary)
 
         for path in TASK_3A_CURRENT_TRUTH_FILES:
             with self.subTest(path=path):
                 current_truth = path.read_text(encoding="utf-8")
-                self.assertIn("candidate_failed", current_truth)
-                self.assertIn("migration_chain_blocked", current_truth)
+                self.assertIn("candidate_rerun_required", current_truth)
+                self.assertIn("evidence_promotion_blocked", current_truth)
                 self.assertIn("t3a2608050955", current_truth)
                 self.assertIn("t3a260805111623", current_truth)
+                self.assertIn("t3a260805113656", current_truth)
 
     def test_build_template_dedupe_mutation_postcondition_and_ledger_are_one_statement(self):
         atomic_blocks = re.findall(

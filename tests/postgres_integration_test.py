@@ -21,7 +21,11 @@ ALL_MIGRATIONS = tuple(sorted(
 TASK_3A_RUN_ID = os.environ.get("WOW_PG_TEST_RUN_ID_0026", "")
 TASK_3A_FRESH_DSN = os.environ.get("WOW_PG_TEST_DSN_FRESH_0026", "")
 TASK_3A_UPGRADE_DSN = os.environ.get("WOW_PG_TEST_DSN_UPGRADE_0026", "")
-TASK_3A_FORBIDDEN_RUN_IDS = frozenset({"t3a2608050955", "t3a260805111623"})
+TASK_3A_FORBIDDEN_RUN_IDS = frozenset({
+    "t3a2608050955",
+    "t3a260805111623",
+    "t3a260805113656",
+})
 
 
 def validate_task3a_candidate_run_id(run_id):
@@ -109,7 +113,7 @@ def build_task3a_candidate_attestation(
 
 
 class Task3ACandidateAttestationTest(unittest.TestCase):
-    def test_one_run_id_validator_accepts_valid_ids_and_rejects_both_failed_runs(self):
+    def test_one_run_id_validator_accepts_valid_ids_and_rejects_all_nonreusable_runs(self):
         validator = globals().get("validate_task3a_candidate_run_id")
         self.assertIsNotNone(validator)
         if validator is None:
@@ -117,7 +121,11 @@ class Task3ACandidateAttestationTest(unittest.TestCase):
 
         self.assertEqual(
             TASK_3A_FORBIDDEN_RUN_IDS,
-            frozenset({"t3a2608050955", "t3a260805111623"}),
+            frozenset({
+                "t3a2608050955",
+                "t3a260805111623",
+                "t3a260805113656",
+            }),
         )
 
         for valid in ("run12345", "t3a2608052000", "a" * 32):
@@ -126,6 +134,7 @@ class Task3ACandidateAttestationTest(unittest.TestCase):
         for invalid in (
             "t3a2608050955",
             "t3a260805111623",
+            "t3a260805113656",
             "BAD",
             "short",
             "a" * 33,
@@ -134,8 +143,8 @@ class Task3ACandidateAttestationTest(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     validator(invalid)
 
-    def test_builder_rejects_failed_candidate_run_id_with_matching_identities(self):
-        failed_run_id = "t3a2608050955"
+    def test_builder_rejects_unpromotable_candidate_run_id_with_matching_identities(self):
+        failed_run_id = "t3a260805113656"
         with self.assertRaises(ValueError):
             build_task3a_candidate_attestation(
                 run_id=failed_run_id,
@@ -150,7 +159,7 @@ class Task3ACandidateAttestationTest(unittest.TestCase):
                 git_identity=("a" * 40, "b" * 40, "c" * 64),
             )
 
-    def test_candidate_connection_rejects_failed_run_before_psycopg_connect(self):
+    def test_candidate_connection_rejects_unpromotable_run_before_psycopg_connect(self):
         import sys
         from types import SimpleNamespace
         from unittest.mock import patch
@@ -162,7 +171,7 @@ class Task3ACandidateAttestationTest(unittest.TestCase):
         with patch.dict(sys.modules, {"psycopg": fake_psycopg}):
             with patch.dict(
                 globals(),
-                {"TASK_3A_RUN_ID": "t3a2608050955"},
+                {"TASK_3A_RUN_ID": "t3a260805113656"},
             ):
                 with self.assertRaises(ValueError):
                     PostgresExactAuthorityCandidateTest._connect("secret-dsn")

@@ -51,15 +51,30 @@ by local unit or schema tests. Two Task 3A candidates failed before `0026`:
 already creates the `(user_id, template_type, config_hash)` unique constraint and
 `0003` unconditionally attempted to add the named target constraint, then
 `t3a260805111623` because `0003` compared PostgreSQL `name[]` catalog attributes
-with a `text[]` literal. Task 3A is literal `candidate_failed /
-migration_chain_blocked` until the authorized fail-closed `0003`
-semantic-idempotence/type correction is committed and one final, clean
-runtime-affecting head passes two newly provisioned independently empty operator
-databases. Failed runs `t3a2608050955` and `t3a260805111623` and their four
-failed databases are evidence only: never reset or reuse them. The test suite never creates, drops,
-resets or reuses any candidate database.
+with a `text[]` literal. A third run, `t3a260805113656`, passed both runtime
+paths at commit `0e0743ca188efbd7cb818bfb8a210fd998379f4d` / tree
+`3fce81f57dbdc851a9438ae63ea051f666bf1051`, but its active requirement status
+was `local_verified`. Harness permits evidence promotion only when the
+requirement is `implementation_allowed`; correcting that requirement and its
+owner contracts after execution also invalidates this candidate under the
+post-candidate mutation boundary. Task 3A is therefore literal
+`candidate_rerun_required / evidence_promotion_blocked` until a fourth new run
+passes from a final clean committed head. All three run-id pairs and all six
+databases are immutable/non-reusable evidence: never reset or reuse them. The
+test suite never creates, drops, resets or reuses any candidate database.
 
-Choose one lowercase run id matching `[a-z0-9]{8,32}`. An operator with explicit
+The six forbidden database identities are:
+
+- `wow_exact_first_fresh_test_t3a2608050955` and
+  `wow_exact_first_upgrade_test_t3a2608050955`;
+- `wow_exact_first_fresh_test_t3a260805111623` and
+  `wow_exact_first_upgrade_test_t3a260805111623`;
+- `wow_exact_first_fresh_test_t3a260805113656` and
+  `wow_exact_first_upgrade_test_t3a260805113656`.
+
+Choose one new lowercase run id matching `[a-z0-9]{8,32}`; the suite rejects
+`t3a2608050955`, `t3a260805111623`, and `t3a260805113656` before importing
+`psycopg` or connecting. An operator with explicit
 authority provisions two distinct empty databases and exact database comments:
 
 - `wow_exact_first_fresh_test_<run-id>` with comment
@@ -134,9 +149,11 @@ review. After candidate execution, any change to code, tests, migration,
 requirement or owner contracts invalidates both candidates. Only an operator may
 discard the two exact database identities after archival; the suite never does.
 Missing `psql`, either DSN, or the run id is a skipped candidate and remains
-`candidate_pending`, never green evidence. Before the authorized correction
-passes a new pair, the current status remains `candidate_failed /
-migration_chain_blocked`, never `candidate_pending` or green evidence.
+`candidate_pending`, never green evidence. Until the requirement-gate correction
+is committed and a fourth new pair passes, the current status remains
+`candidate_rerun_required / evidence_promotion_blocked`, never green evidence.
+The technically successful `t3a260805113656` attestation cannot be archived as
+Task 3A evidence and cannot be used as the next candidate input.
 
 ## SQLite Source Inventory
 
