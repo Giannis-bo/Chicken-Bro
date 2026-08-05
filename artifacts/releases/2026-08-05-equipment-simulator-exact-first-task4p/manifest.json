@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-08-05T12:22:37.144Z",
+  "generatedAt": "2026-08-05T12:22:41.805Z",
   "release": {
     "date": "2026-08-05",
     "slug": "equipment-simulator-exact-first-task4p"
@@ -414,12 +414,6 @@
   },
   "riskMatrix": [
     {
-      "id": "dirty_worktree",
-      "severity": "medium",
-      "status": "watch",
-      "detail": "1 changed files currently visible to git status."
-    },
-    {
       "id": "hotspot_files_present",
       "severity": "medium",
       "status": "watch",
@@ -452,11 +446,9 @@
   ],
   "repo": {
     "git": {
-      "status": "dirty",
-      "changedFileCount": 1,
-      "changedFiles": [
-        " M artifacts/releases/2026-08-05-equipment-simulator-exact-first-task4p/evidence.json"
-      ]
+      "status": "clean",
+      "changedFileCount": 0,
+      "changedFiles": []
     }
   },
   "write": {

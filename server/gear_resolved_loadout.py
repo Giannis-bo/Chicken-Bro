@@ -723,7 +723,13 @@ def _v2_document(value: Any) -> dict[str, Any]:
             decoded = json.loads(raw)
         except (TypeError, ValueError, UnicodeDecodeError):
             return {}
-        return _canonical(decoded) if isinstance(decoded, Mapping) else {}
+        if not isinstance(decoded, Mapping):
+            return {}
+        payload = _canonical(decoded)
+        content_key = _text(getattr(value, "content_key", ""))
+        if content_key:
+            payload["content_key"] = content_key
+        return payload
     return {}
 
 
@@ -817,7 +823,7 @@ def build_resolved_loadout_v2(
         exact = bundle["exact_item"]
         progression = bundle["progression"]
         effect_support = bundle["effect_support"]
-        if _text(envelope.get("content_key") or envelope.get("contentKey")) not in {"", key} or _text(envelope.get("resolverRevision")) != resolver:
+        if _text(envelope.get("content_key") or envelope.get("contentKey")) != key or _text(envelope.get("resolverRevision")) != resolver:
             problems.append(_problem("LOADOUT_V2_ENVELOPE_INVALID", f"authorityBundles.{key}", "Envelope key or resolver revision does not match."))
         track = progression.get("trackAuthorityInput") if isinstance(progression.get("trackAuthorityInput"), Mapping) else {}
         if _text(progression.get("gearRuleRevision")) != rule or _text(track.get("slot")) != slot:
@@ -841,7 +847,7 @@ def build_resolved_loadout_v2(
         ordered_slots.append({"slot": slot, "itemId": _text(exact.get("itemId")), "exactAuthorityEnvelopeKey": key, "simcOptions": options or {}})
     if problems:
         return _v2_blocked(problems)
-    identity = {"classKey": _text(snapshot.get("eligibilityContext", {}).get("classKey")) if isinstance(snapshot.get("eligibilityContext"), Mapping) else "", "specKey": _text(snapshot.get("eligibilityContext", {}).get("specKey")) if isinstance(snapshot.get("eligibilityContext"), Mapping) else "", "exactAuthorityBySlot": pairs, "effectEvidenceByOccurrence": occurrences, "gearRuleRevision": rule, "resolverRevision": resolver, "simcRuntimeRevision": runtime}
+    identity = {"classKey": _text(snapshot.get("eligibilityContext", {}).get("classKey")) if isinstance(snapshot.get("eligibilityContext"), Mapping) else "", "specKey": _text(snapshot.get("eligibilityContext", {}).get("specKey")) if isinstance(snapshot.get("eligibilityContext"), Mapping) else "", "exactAuthorityBySlot": pairs, "orderedSlots": ordered_slots, "effectEvidenceByOccurrence": occurrences, "gearRuleRevision": rule, "resolverRevision": resolver, "simcRuntimeRevision": runtime}
     row = {"schemaRevision": RESOLVED_LOADOUT_V2_SCHEMA_REVISION, "status": "ready", "resolvedLoadoutKey": _hash("resolved-loadout-v2:sha256:", identity), "exactAuthorityBySlot": pairs, "effectEvidenceByOccurrence": occurrences, "gearRuleRevision": rule, "resolverRevision": resolver, "simcRuntimeRevision": runtime, "eligibilityContext": _canonical(snapshot.get("eligibilityContext") or {}), "orderedSlots": ordered_slots, "serializerInput": _canonical(snapshot.get("serializerInput") or {}), "problemCodes": [], "problems": []}
     if _text(origin_catalog_revision):
         row["originCatalogRevision"] = _text(origin_catalog_revision)
@@ -866,7 +872,13 @@ def verify_resolved_loadout_v2(value: Any) -> list[str]:
     if len(set(keys)) != len(keys) or any(not EXACT_AUTHORITY_ENVELOPE_KEY_PATTERN.fullmatch(key) for key in keys):
         issues.append("RESOLVED_LOADOUT_V2_ENVELOPE_BINDING_INVALID")
     evidence = row.get("effectEvidenceByOccurrence") if isinstance(row.get("effectEvidenceByOccurrence"), list) else []
-    expected_evidence = sorted(evidence, key=lambda item: (CANONICAL_GEAR_SLOTS.index(_text(item.get("slot"))) if isinstance(item, Mapping) and _text(item.get("slot")) in CANONICAL_GEAR_SLOTS else len(CANONICAL_GEAR_SLOTS), int(item.get("recordOrdinal", -1)) if isinstance(item, Mapping) else -1))
+    def occurrence_sort_key(item: Any) -> tuple[int, int]:
+        if not isinstance(item, Mapping):
+            return len(CANONICAL_GEAR_SLOTS), -1
+        slot = _text(item.get("slot"))
+        ordinal = item.get("recordOrdinal")
+        return (CANONICAL_GEAR_SLOTS.index(slot) if slot in CANONICAL_GEAR_SLOTS else len(CANONICAL_GEAR_SLOTS), ordinal if isinstance(ordinal, int) else -1)
+    expected_evidence = sorted(evidence, key=occurrence_sort_key)
     if evidence != expected_evidence:
         issues.append("RESOLVED_LOADOUT_V2_EFFECT_ORDER_INVALID")
     pair_by_slot = {pair["slot"]: pair["exactAuthorityEnvelopeKey"] for pair in pairs if isinstance(pair, Mapping) and _text(pair.get("slot")) and _text(pair.get("exactAuthorityEnvelopeKey"))}
@@ -883,7 +895,7 @@ def verify_resolved_loadout_v2(value: Any) -> list[str]:
             issues.append("RESOLVED_LOADOUT_V2_EFFECT_OCCURRENCE_INVALID")
             break
         next_ordinal[slot] = ordinal + 1
-    identity = {"classKey": _text(row.get("eligibilityContext", {}).get("classKey")) if isinstance(row.get("eligibilityContext"), Mapping) else "", "specKey": _text(row.get("eligibilityContext", {}).get("specKey")) if isinstance(row.get("eligibilityContext"), Mapping) else "", "exactAuthorityBySlot": pairs, "effectEvidenceByOccurrence": evidence, "gearRuleRevision": _text(row.get("gearRuleRevision")), "resolverRevision": _text(row.get("resolverRevision")), "simcRuntimeRevision": _text(row.get("simcRuntimeRevision"))}
+    identity = {"classKey": _text(row.get("eligibilityContext", {}).get("classKey")) if isinstance(row.get("eligibilityContext"), Mapping) else "", "specKey": _text(row.get("eligibilityContext", {}).get("specKey")) if isinstance(row.get("eligibilityContext"), Mapping) else "", "exactAuthorityBySlot": pairs, "orderedSlots": ordered_slots, "effectEvidenceByOccurrence": evidence, "gearRuleRevision": _text(row.get("gearRuleRevision")), "resolverRevision": _text(row.get("resolverRevision")), "simcRuntimeRevision": _text(row.get("simcRuntimeRevision"))}
     if _text(row.get("resolvedLoadoutKey")) != _hash("resolved-loadout-v2:sha256:", identity):
         issues.append("RESOLVED_LOADOUT_V2_IDENTITY_MISMATCH")
     expected_hash = _hash("sha256:", {key: value for key, value in row.items() if key not in {"rowHash", "originCatalogRevision"}})

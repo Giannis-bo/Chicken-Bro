@@ -3,6 +3,7 @@ import unittest
 from unittest.mock import patch
 
 import server.gear_resolved_loadout as resolved_loadout_module
+from tests.gear_exact_authority_store_test import authority_bundle
 
 from server.gear_resolved_loadout import (
     build_resolved_loadout,
@@ -582,6 +583,44 @@ class GearResolvedLoadoutTest(unittest.TestCase):
         tampered["resolvedLoadoutKey"] = resolved_loadout_module._hash("resolved-loadout-v2:sha256:", identity)
         tampered["rowHash"] = resolved_loadout_module._hash("sha256:", {key: value for key, value in tampered.items() if key not in {"rowHash", "originCatalogRevision"}})
         self.assertIn("RESOLVED_LOADOUT_V2_EFFECT_ORDER_INVALID", verify_resolved_loadout_v2(tampered))
+
+    def test_v2_binds_pair_to_genuine_sealed_envelope_and_reuses_duplicate_record_key(self):
+        """Would fail if a bundle alias or duplicate support occurrence were synthetic."""
+        snapshot = resolver_snapshot()
+        snapshot["resolvedSlots"] = {"head": {"slot": "head", "itemId": "1001", "legality": {"status": "verified"}}}
+        snapshot["profileReadiness"] = {"status": "verified", "simcReady": True, "requiredSlots": ["head"], "readySlots": ["head"]}
+        bundle = authority_bundle()
+        key = bundle.envelope.content_key
+        ready = build_resolved_loadout_v2(
+            resolver_snapshot=snapshot, exact_authority_by_slot=[{"slot": "head", "exactAuthorityEnvelopeKey": key}],
+            authority_bundles={key: bundle}, gear_rule_revision="gear-rule-matrix-v1", resolver_revision="resolver-v2", simc_runtime_revision="simc-2026.08.04",
+        )
+        self.assertEqual(ready["status"], "ready")
+        occurrences = ready["effectEvidenceByOccurrence"]
+        self.assertEqual([entry["subjectKey"] for entry in occurrences[1:4]], ["240892", "240893", "240892"])
+        self.assertEqual(occurrences[1]["supportRecordKey"], occurrences[3]["supportRecordKey"])
+
+        alias = "exact-authority:sha256:" + "f" * 64
+        blocked = build_resolved_loadout_v2(
+            resolver_snapshot=snapshot, exact_authority_by_slot=[{"slot": "head", "exactAuthorityEnvelopeKey": alias}],
+            authority_bundles={alias: bundle}, gear_rule_revision="gear-rule-matrix-v1", resolver_revision="resolver-v2", simc_runtime_revision="simc-2026.08.04",
+        )
+        self.assertEqual(blocked["status"], "blocked")
+        self.assertIn("LOADOUT_V2_ENVELOPE_INVALID", blocked["problemCodes"])
+
+    def test_v2_verifier_rejects_noninteger_effect_ordinal_without_crashing(self):
+        """Would fail if malformed ordinal reached integer coercion before validation."""
+        snapshot = resolver_snapshot()
+        snapshot["resolvedSlots"] = {"head": {"slot": "head", "itemId": "1001", "legality": {"status": "verified"}}}
+        snapshot["profileReadiness"] = {"status": "verified", "simcReady": True, "requiredSlots": ["head"], "readySlots": ["head"]}
+        key = "exact-authority:sha256:" + "7" * 64
+        ready = build_resolved_loadout_v2(
+            resolver_snapshot=snapshot, exact_authority_by_slot=[{"slot": "head", "exactAuthorityEnvelopeKey": key}],
+            authority_bundles={key: v2_bundle("head", "1001", key, ["A"])}, gear_rule_revision=RULE_REVISION,
+            resolver_revision="resolver-v2", simc_runtime_revision="simc-runtime-v2",
+        )
+        ready["effectEvidenceByOccurrence"][0]["recordOrdinal"] = "zero"
+        self.assertIn("RESOLVED_LOADOUT_V2_EFFECT_OCCURRENCE_INVALID", verify_resolved_loadout_v2(ready))
 
 
 if __name__ == "__main__":

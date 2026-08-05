@@ -303,6 +303,31 @@ class SimulationSnapshotTest(unittest.TestCase):
         tampered["rowHash"] = simulation_snapshot_module._hash("sha256:", {key: value for key, value in tampered.items() if key not in {"rowHash", "originCatalogRevision"}})
         self.assertIn("SIMULATION_V2_EXACT_AUTHORITY_INVALID", verify_simulation_snapshot_v2(tampered))
 
+    def test_v2_snapshot_verifier_rejects_duplicate_effect_and_isolated_serializer_slot(self):
+        """Would fail if mutable occurrence or slot rows could outlive loadout binding."""
+        source = resolver_snapshot()
+        source["resolvedSlots"] = {"head": {"slot": "head", "itemId": "1001", "legality": {"status": "verified"}}}
+        source["profileReadiness"] = {"status": "verified", "simcReady": True, "requiredSlots": ["head"], "readySlots": ["head"]}
+        key = "exact-authority:sha256:" + "d" * 64
+        loadout = build_resolved_loadout_v2(
+            resolver_snapshot=source, exact_authority_by_slot=[{"slot": "head", "exactAuthorityEnvelopeKey": key}],
+            authority_bundles={key: v2_bundle("head", "1001", key, ["A"])}, gear_rule_revision="gear-rule-matrix-v1",
+            resolver_revision="resolver-v2", simc_runtime_revision="simc-runtime-v2",
+        )
+        baseline = build_simulation_snapshot_v2(
+            resolved_loadout=loadout, talent_profile_key=TALENT_KEY, talent_lines=TALENT_LINES,
+            character_context=character_context(), scenario_options=scenario(), preparation_lines=["optimal_raid=0"],
+            compiler_revision="simc-profile-compiler-v2", simc_runtime_revision="simc-runtime-v2",
+        )
+        occurrence = copy.deepcopy(baseline)
+        occurrence["effectEvidenceByOccurrence"].append(copy.deepcopy(occurrence["effectEvidenceByOccurrence"][0]))
+        occurrence["rowHash"] = simulation_snapshot_module._hash("sha256:", {key: value for key, value in occurrence.items() if key not in {"rowHash", "originCatalogRevision"}})
+        self.assertIn("SIMULATION_V2_EFFECT_EVIDENCE_INVALID", verify_simulation_snapshot_v2(occurrence))
+        isolated = copy.deepcopy(baseline)
+        isolated["serializerInput"]["gearItems"][0]["slot"] = "off_hand"
+        isolated["rowHash"] = simulation_snapshot_module._hash("sha256:", {key: value for key, value in isolated.items() if key not in {"rowHash", "originCatalogRevision"}})
+        self.assertIn("SIMULATION_V2_SERIALIZER_AUTHORITY_MISMATCH", verify_simulation_snapshot_v2(isolated))
+
     def test_v2_failure_uses_v2_schema(self):
         """Would fail if v2 errors returned a v1 envelope."""
         result = build_simulation_snapshot_v2(

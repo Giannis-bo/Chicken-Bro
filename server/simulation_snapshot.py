@@ -9,6 +9,7 @@ import re
 from typing import Any, Iterable, Mapping
 
 try:
+    from .gear_contracts import CANONICAL_GEAR_SLOTS
     from .gear_resolved_loadout import (
         RESOLVED_LOADOUT_KEY_PATTERN,
         RESOLVED_LOADOUT_V2_KEY_PATTERN,
@@ -18,6 +19,7 @@ try:
     )
     from .simc_support_policy import simc_execution_support
 except ImportError:
+    from gear_contracts import CANONICAL_GEAR_SLOTS
     from gear_resolved_loadout import (
         RESOLVED_LOADOUT_KEY_PATTERN,
         RESOLVED_LOADOUT_V2_KEY_PATTERN,
@@ -624,7 +626,7 @@ def build_simulation_snapshot_v2(
     canonical_input = _v2_canonical_simc_input(character, scenario, talents, preparations or [], gear_items)
     if canonical_input is None:
         return _blocked_v2("blocked", [_problem("SIMULATION_V2_GEAR_INPUT_INVALID", "resolvedLoadout.orderedSlots", "V2 gear serializer input is invalid.")])
-    identity = {"resolvedLoadoutKey": loadout["resolvedLoadoutKey"], "talentProfileKey": provided_talent_key, "characterContext": {**character, "talentLinesHash": _hash("sha256:", {"talentLines": talents})}, "scenarioOptions": {**scenario, "preparationLines": preparations or []}, "serializerInput": {"gearItems": gear_items}, "compilerRevision": _text(compiler_revision), "simcRuntimeRevision": _text(simc_runtime_revision)}
+    identity = {"resolvedLoadoutKey": loadout["resolvedLoadoutKey"], "exactAuthorityBySlot": _canonical(loadout.get("exactAuthorityBySlot") or []), "effectEvidenceByOccurrence": _canonical(loadout.get("effectEvidenceByOccurrence") or []), "talentProfileKey": provided_talent_key, "characterContext": {**character, "talentLinesHash": _hash("sha256:", {"talentLines": talents})}, "scenarioOptions": {**scenario, "preparationLines": preparations or []}, "serializerInput": {"gearItems": gear_items}, "compilerRevision": _text(compiler_revision), "simcRuntimeRevision": _text(simc_runtime_revision)}
     row = {"schemaRevision": SIMULATION_SNAPSHOT_V2_SCHEMA_REVISION, "status": "ready", "simulationSnapshotKey": _hash("simulation-snapshot-v2:sha256:", identity), "resolvedLoadoutKey": loadout["resolvedLoadoutKey"], "exactAuthorityBySlot": _canonical(loadout.get("exactAuthorityBySlot") or []), "effectEvidenceByOccurrence": _canonical(loadout.get("effectEvidenceByOccurrence") or []), "talentProfileKey": provided_talent_key, "talentLinesHash": identity["characterContext"]["talentLinesHash"], "talentLines": talents, "characterContext": character, "scenarioOptions": scenario, "preparationLines": preparations or [], "serializerInput": {"gearItems": gear_items}, "compilerRevision": _text(compiler_revision), "simcRuntimeRevision": _text(simc_runtime_revision), "canonicalSimcInput": canonical_input, "canonicalInputHash": "simc-input:sha256:" + hashlib.sha256(canonical_input.encode("utf-8")).hexdigest(), "problemCodes": [], "problems": []}
     if _text(origin_catalog_revision):
         row["originCatalogRevision"] = _text(origin_catalog_revision)
@@ -641,7 +643,7 @@ def verify_simulation_snapshot_v2(value: Any) -> list[str]:
     issues: list[str] = []
     if not SIMULATION_SNAPSHOT_V2_KEY_PATTERN.fullmatch(_text(row.get("simulationSnapshotKey"))):
         issues.append("SIMULATION_SNAPSHOT_V2_KEY_INVALID")
-    identity = {"resolvedLoadoutKey": _text(row.get("resolvedLoadoutKey")), "talentProfileKey": _text(row.get("talentProfileKey")), "characterContext": {**_canonical(row.get("characterContext") or {}), "talentLinesHash": _text(row.get("talentLinesHash"))}, "scenarioOptions": {**_canonical(row.get("scenarioOptions") or {}), "preparationLines": _canonical(row.get("preparationLines") or [])}, "serializerInput": _canonical(row.get("serializerInput") or {}), "compilerRevision": _text(row.get("compilerRevision")), "simcRuntimeRevision": _text(row.get("simcRuntimeRevision"))}
+    identity = {"resolvedLoadoutKey": _text(row.get("resolvedLoadoutKey")), "exactAuthorityBySlot": _canonical(row.get("exactAuthorityBySlot") or []), "effectEvidenceByOccurrence": _canonical(row.get("effectEvidenceByOccurrence") or []), "talentProfileKey": _text(row.get("talentProfileKey")), "characterContext": {**_canonical(row.get("characterContext") or {}), "talentLinesHash": _text(row.get("talentLinesHash"))}, "scenarioOptions": {**_canonical(row.get("scenarioOptions") or {}), "preparationLines": _canonical(row.get("preparationLines") or [])}, "serializerInput": _canonical(row.get("serializerInput") or {}), "compilerRevision": _text(row.get("compilerRevision")), "simcRuntimeRevision": _text(row.get("simcRuntimeRevision"))}
     if _text(row.get("simulationSnapshotKey")) != _hash("simulation-snapshot-v2:sha256:", identity):
         issues.append("SIMULATION_SNAPSHOT_V2_IDENTITY_MISMATCH")
     character = _valid_character_context(row.get("characterContext"))
@@ -651,7 +653,9 @@ def verify_simulation_snapshot_v2(value: Any) -> list[str]:
     serializer = row.get("serializerInput") if isinstance(row.get("serializerInput"), Mapping) else {}
     gear_items = serializer.get("gearItems") if isinstance(serializer.get("gearItems"), list) else []
     authority_pairs = row.get("exactAuthorityBySlot") if isinstance(row.get("exactAuthorityBySlot"), list) else []
-    if (not authority_pairs or any(not isinstance(pair, Mapping) or set(pair) != {"slot", "exactAuthorityEnvelopeKey"} or _text(pair.get("slot")) not in {item.get("slot") for item in gear_items if isinstance(item, Mapping)} or not re.fullmatch(r"exact-authority:sha256:[0-9a-f]{64}", _text(pair.get("exactAuthorityEnvelopeKey"))) for pair in authority_pairs)):
+    authority_slots = [_text(pair.get("slot")) for pair in authority_pairs if isinstance(pair, Mapping)]
+    authority_keys = [_text(pair.get("exactAuthorityEnvelopeKey")) for pair in authority_pairs if isinstance(pair, Mapping)]
+    if (not authority_pairs or any(not isinstance(pair, Mapping) or set(pair) != {"slot", "exactAuthorityEnvelopeKey"} or _text(pair.get("slot")) not in CANONICAL_GEAR_SLOTS or not re.fullmatch(r"exact-authority:sha256:[0-9a-f]{64}", _text(pair.get("exactAuthorityEnvelopeKey"))) for pair in authority_pairs) or authority_slots != sorted(authority_slots, key=CANONICAL_GEAR_SLOTS.index) or len(set(authority_slots)) != len(authority_slots) or len(set(authority_keys)) != len(authority_keys)):
         issues.append("SIMULATION_V2_EXACT_AUTHORITY_INVALID")
     expected_pairs = [
         (_text(pair.get("slot")), _text(pair.get("exactAuthorityEnvelopeKey")))
@@ -663,6 +667,20 @@ def verify_simulation_snapshot_v2(value: Any) -> list[str]:
     ]
     if (len(actual_pairs) != len(gear_items) or actual_pairs != expected_pairs or any(not slot or not key for slot, key in actual_pairs)):
         issues.append("SIMULATION_V2_SERIALIZER_AUTHORITY_MISMATCH")
+    occurrences = row.get("effectEvidenceByOccurrence") if isinstance(row.get("effectEvidenceByOccurrence"), list) else []
+    pair_by_slot = dict(expected_pairs)
+    next_ordinal: dict[str, int] = {}
+    prior_order = (-1, -1)
+    for occurrence in occurrences:
+        current = dict(occurrence) if isinstance(occurrence, Mapping) else {}
+        slot = _text(current.get("slot"))
+        ordinal = current.get("recordOrdinal")
+        order = (CANONICAL_GEAR_SLOTS.index(slot) if slot in CANONICAL_GEAR_SLOTS else len(CANONICAL_GEAR_SLOTS), ordinal if isinstance(ordinal, int) else -1)
+        if (set(current) != {"scope", "slot", "exactAuthorityEnvelopeKey", "recordOrdinal", "subjectKind", "subjectKey", "subjectVariantSignature", "supportRecordKey"} or current.get("scope") != "slot" or pair_by_slot.get(slot) != _text(current.get("exactAuthorityEnvelopeKey")) or not isinstance(ordinal, int) or ordinal != next_ordinal.get(slot, 0) or order < prior_order or not _text(current.get("subjectKind")) or not _text(current.get("subjectKey")) or not _text(current.get("subjectVariantSignature")) or not re.fullmatch(r"simc-item-effect-record:sha256:[0-9a-f]{64}", _text(current.get("supportRecordKey")))):
+            issues.append("SIMULATION_V2_EFFECT_EVIDENCE_INVALID")
+            break
+        next_ordinal[slot] = ordinal + 1
+        prior_order = order
     if (not talents or _text(row.get("talentProfileKey")) != talent_profile_key(talents) or _text(row.get("talentLinesHash")) != _hash("sha256:", {"talentLines": talents})):
         issues.append("SIMULATION_V2_TALENT_IDENTITY_MISMATCH")
     expected_input = _v2_canonical_simc_input(character, scenario, talents or [], preparations or [], gear_items) if character and scenario and talents and preparations is not None else None
