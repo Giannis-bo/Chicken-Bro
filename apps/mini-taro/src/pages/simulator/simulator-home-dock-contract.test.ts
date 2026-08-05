@@ -30,4 +30,21 @@ describe('Captain root dock spacing', () => {
     expect(chatComponent).toContain('data-role="chickenbro-return-latest"')
     expect(chatComponent).toContain('scrollTop={scrollTop}')
   })
+
+  it('gives the transcript every body pixel not owned by the header or fixed dock', () => {
+    const routeStyle = readFileSync(resolve(
+      process.cwd(),
+      'apps/mini-taro/src/pages/simulator/simulator-home.module.scss',
+    ), 'utf8')
+    const pageSource = readFileSync(resolve(
+      process.cwd(),
+      'apps/mini-taro/src/pages/simulator/simulator.tsx',
+    ), 'utf8')
+
+    expect(routeStyle).toMatch(/\.pageFrame\s*\{[^}]*display:\s*flex;[^}]*height:\s*100%;[^}]*min-height:\s*0;[^}]*flex-direction:\s*column;/u)
+    expect(routeStyle).toMatch(/\.pageFrame > view\s*\{[^}]*display:\s*flex;[^}]*min-height:\s*0;[^}]*flex:\s*1\s+1\s+auto;[^}]*flex-direction:\s*column;/u)
+    expect(routeStyle).toMatch(/\.transcriptRegion\s*\{[^}]*min-height:\s*0;[^}]*flex:\s*1\s+1\s+auto;/u)
+    expect(routeStyle).not.toMatch(/\.transcriptRegion\s*\{[^}]*height:\s*calc\([^}]*--route-safe-viewport-height/u)
+    expect(pageSource).toContain('bodyScrollable={false}')
+  })
 })

@@ -168,5 +168,117 @@
       "selectedCapabilityIds": ["source:warcraftlogs:v1"],
       "registryVersion": "chickenbro-tools-1"
     }
+  },
+  {
+    "schemaRevision": "chickenbro-trace-eval-case-v1",
+    "caseId": "current_official_change_keeps_comparative_gap",
+    "input": {
+      "boundedContext": {
+        "topic": {"status": "in_scope"},
+        "requestContext": {
+          "productPhase": "ptr",
+          "region": "cn",
+          "classKey": "paladin",
+          "specKey": "holy",
+          "scenarioKey": ""
+        },
+        "sourceEvidence": [
+          {
+            "sourceKey": "current_wow_sources",
+            "status": "source_reference",
+            "evidenceRefs": ["current.blizzard-forums.holy-paladin-121"]
+          }
+        ],
+        "registryContext": {
+          "status": "verified",
+          "registryVersion": "chickenbro-tools-2",
+          "registryReleaseHash": "sha256:a25340f6fe51dfa01d956b7d944891de39771694e4fd3b33fb41b4fba2d9a102",
+          "registrySource": "postgres",
+          "discoveredCapabilityIds": ["source:current-wow-sources:v1"],
+          "selectedCapabilityIds": ["source:current-wow-sources:v1"]
+        },
+        "questionFrame": {
+          "schemaRevision": "chickenbro-question-frame-v1",
+          "questionType": "current_research",
+          "subject": {"classKey": "paladin", "specKey": "holy", "resolution": "resolved"},
+          "scope": {"productPhase": "ptr", "patchVersion": "12.1", "region": "cn", "scenarioKey": ""},
+          "evidenceNeeds": ["official_current_changes", "comparative_strength_signal"],
+          "unresolvedFields": ["scenarioKey"]
+        },
+        "capabilityPlan": {
+          "questionType": "current_research",
+          "requestedEvidenceNeeds": ["official_current_changes", "comparative_strength_signal"],
+          "selectedCapabilityIds": ["source:current-wow-sources:v1"],
+          "unmetEvidenceNeeds": ["comparative_strength_signal"]
+        }
+      },
+      "agentResult": {
+        "validation": {"status": "passed"},
+        "model": {"status": "succeeded"}
+      },
+      "errorCode": "",
+      "latencyMs": 2200
+    },
+    "expect": {
+      "answerStatus": "succeeded",
+      "requiredSignals": ["answer_succeeded", "evidence_missing"],
+      "forbiddenSignals": ["tool_failed", "explicit_correction"],
+      "selectedCapabilityIds": ["source:current-wow-sources:v1"],
+      "registryVersion": "chickenbro-tools-2"
+    }
+  },
+  {
+    "schemaRevision": "chickenbro-trace-eval-case-v1",
+    "caseId": "current_source_failed_marks_official_gap",
+    "input": {
+      "boundedContext": {
+        "topic": {"status": "in_scope"},
+        "requestContext": {
+          "productPhase": "ptr",
+          "region": "cn",
+          "classKey": "paladin",
+          "specKey": "holy",
+          "scenarioKey": ""
+        },
+        "sourceEvidence": [
+          {"sourceKey": "current_wow_sources", "status": "failed", "evidenceRefs": []}
+        ],
+        "registryContext": {
+          "status": "verified",
+          "registryVersion": "chickenbro-tools-2",
+          "registryReleaseHash": "sha256:a25340f6fe51dfa01d956b7d944891de39771694e4fd3b33fb41b4fba2d9a102",
+          "registrySource": "postgres",
+          "discoveredCapabilityIds": ["source:current-wow-sources:v1"],
+          "selectedCapabilityIds": ["source:current-wow-sources:v1"]
+        },
+        "questionFrame": {
+          "schemaRevision": "chickenbro-question-frame-v1",
+          "questionType": "current_research",
+          "subject": {"classKey": "paladin", "specKey": "holy", "resolution": "resolved"},
+          "scope": {"productPhase": "ptr", "patchVersion": "12.1", "region": "cn", "scenarioKey": ""},
+          "evidenceNeeds": ["official_current_changes", "comparative_strength_signal"],
+          "unresolvedFields": ["scenarioKey"]
+        },
+        "capabilityPlan": {
+          "questionType": "current_research",
+          "requestedEvidenceNeeds": ["official_current_changes", "comparative_strength_signal"],
+          "selectedCapabilityIds": ["source:current-wow-sources:v1"],
+          "unmetEvidenceNeeds": ["official_current_changes", "comparative_strength_signal"]
+        }
+      },
+      "agentResult": {
+        "validation": {"status": "passed"},
+        "model": {"status": "succeeded"}
+      },
+      "errorCode": "",
+      "latencyMs": 2200
+    },
+    "expect": {
+      "answerStatus": "succeeded",
+      "requiredSignals": ["answer_succeeded", "tool_failed", "evidence_missing"],
+      "forbiddenSignals": ["explicit_correction"],
+      "selectedCapabilityIds": ["source:current-wow-sources:v1"],
+      "registryVersion": "chickenbro-tools-2"
+    }
   }
 ]

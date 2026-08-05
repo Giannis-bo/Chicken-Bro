@@ -1,0 +1,179 @@
+{
+  "schemaVersion": 2,
+  "slug": "chickenbro-evidence-planner",
+  "requirementSlug": "chickenbro-evidence-planner",
+  "status": "runtime_verified",
+  "highestEvidenceLevel": "runtime_verified",
+  "branch": "codex/chickenbro-smart-question-chain",
+  "commit": "71882e895a6a48ac669d6e317ab3f0cdbbd993b1",
+  "identities": {
+    "runtime": {
+      "status": "bound",
+      "kind": "git_commit",
+      "value": "71882e895a6a48ac669d6e317ab3f0cdbbd993b1",
+      "fileHashes": {
+        "server/chickenbro_evidence_plan.py": "375f2772ff97e3d5302343c1dc9c16c1151e41cb0552fc76b30edd4bc29d9a3f",
+        "server/chickenbro_question_frame.py": "db9a022b445d6edd93d70de0a3c7b8da1f3982dcd25bc4e70a6b76d9e8a509ae",
+        "server/news_backend.py": "bde8625e1cc5bb6d15c50895430205b031cd4de8feff0b87736d09ff57e0e51f",
+        "server/chickenbro_observability.py": "13fbc333b29c4721a41503f78c938a6634ab42741e4b34445d0ec0b6bdfa2d9e"
+      }
+    },
+    "verification": {
+      "status": "bound_at_check",
+      "kind": "git_ref",
+      "value": "HEAD"
+    },
+    "closure": {
+      "status": "pending",
+      "reason": "候选运行与发布配置小程序包已验证；真实 WeChat 设备验收尚未由用户确认，因此未合并、推送或清理。"
+    }
+  },
+  "manualAcceptance": {
+    "required": true,
+    "status": "pending",
+    "items": [
+      {
+        "id": "candidate_wechat_evidence_planner",
+        "status": "pending"
+      }
+    ],
+    "rollup": {
+      "total": 1,
+      "accepted": 0,
+      "notRunUserWaived": 0,
+      "pending": 1
+    }
+  },
+  "scope": [
+    "纯 EvidencePlan、公开 evidenceOutcome、跨专精 partial 重规划、Trace v4 与状态卡片",
+    "PTR/正式服/场景边界下的补丁继承修正",
+    "隔离候选服务与发布配置 WeChat 包；未对生产服务或来源同步做写入"
+  ],
+  "verification": [
+    {
+      "command": "python3 -m unittest tests.chickenbro_evidence_plan_test tests.chickenbro_question_frame_test tests.chickenbro_agent_test tests.chickenbro_registry_test tests.chickenbro_tool_runtime_test tests.chickenbro_observability_test tests.database_adapter_test tests.news_backend_test -q",
+      "status": "pass",
+      "summary": "413 项纯计划、QuestionFrame、来源链路、payload、Trace v4/历史兼容、PostgreSQL adapter 和 API 回归通过；测试内预期的损坏 payload 与 HTTP 错误路径保持受控。"
+    },
+    {
+      "command": "npm run typecheck && npm run lint && npm run test:taro && npm run audit:ui-architecture",
+      "status": "pass",
+      "summary": "TypeScript 无输出，eslint 零 warning，54 个 Vitest 文件/434 项通过，14 路由/283 项 UI architecture audit 通过。"
+    },
+    {
+      "command": "WOW_ASSET_RUNTIME_ROOT=https://api.chickenbro.cloud/wow-assets/releases/2026-07-19-taro-full-integration WOW_RUNTIME_MEDIA_ROOT=https://api.chickenbro.cloud/wow-media/releases/2026-07-20-wow-icons-v1 WOW_BACKEND_API_BASE_URL=https://api.chickenbro.cloud WOW_WECHAT_REQUEST_DOMAIN_APPROVED=yes npm run build:weapp && npm run verify:ui-package:release",
+      "status": "pass",
+      "summary": "发布配置包构建为 145 个文件；本地与远程资产布局均通过，HTTPS API、不可变 assets/runtime-media release 与显式微信域名批准无 blocker。构建中的既有 CSS 顺序和包大小 warning 未造成失败。"
+    },
+    {
+      "command": "candidate POST http://127.0.0.1:18791/api/chickenbro/messages/stream: PTR -> retail Mythic+ -> 15/27 -> cross-spec DPS",
+      "status": "pass",
+      "summary": "同一候选会话四轮均 final/succeeded：PTR partial，正式服大秘境 answered，15/27 answered，跨专精 DPS partial 且 answerSource=deterministic_evidence_plan；无 failed/retry、无跨专精继承的 15/27 或 source key 泄露。"
+    },
+    {
+      "command": "candidate boundedContext/Trace v4 projection inspection for session ae2b563a-c56d-40b4-b8ad-23bb9ea9b858",
+      "status": "pass",
+      "summary": "15/27 turn 是 retail、空 patchVersion、high_key_trend supported/answered；跨专精 turn 是 cross_spec、cross_spec_performance unavailable/partial。Trace 只记录 allowlisted v4 keys/statuses/outcome。"
+    },
+    {
+      "command": "candidate SHA-256 parity, candidate /health, main service and chickenbro-source-refresh timer inspection",
+      "status": "pass",
+      "summary": "候选四个运行文件与 71882e89 对应 SHA-256 相等，/health=200；生产 wow-backend PID/启动时间未变，source-refresh timer 的 LastTriggerUSec 仍为部署前 11:35:01 CST，服务 inactive/dead Result=success。"
+    }
+  ],
+  "candidateDeployment": {
+    "status": "candidate_verified",
+    "requiredBeforeMerge": true,
+    "branch": "codex/chickenbro-smart-question-chain",
+    "commit": "71882e895a6a48ac669d6e317ab3f0cdbbd993b1",
+    "gitTree": "425c85257d19c22d45ecf9fcad1d01976d5e400e",
+    "deployedTarget": "ubuntu@124.223.51.33:/opt/wow-mini-program-candidates/chickenbro-evidence-planner-ef5904e0",
+    "service": "wow-backend-chickenbro-evidence-planner-ef5904e0.service (127.0.0.1:18791)",
+    "method": "从保留的既有候选复制到新隔离根目录；替换四个 repository-owned 运行文件前各自创建 timestamped 备份；unit 固定 WOW_NEWS_ENABLE_COLLECTORS=0 与 WOW_DEPLOY_START_ASYNC_SYNCS=0；只重启候选服务。",
+    "runtime": {
+      "health": {"httpStatus": 200, "body": {"ok": true, "service": "wow-backend"}},
+      "fileParity": "EvidencePlan 375f2772、QuestionFrame db9a022b、news_backend bde8625e、observability 13fbc333 均与本地 runtime identity 一致。"
+    },
+    "smoke": {
+      "status": "pass",
+      "sessionId": "ae2b563a-c56d-40b4-b8ad-23bb9ea9b858",
+      "turns": [
+        {"kind": "ptr_strength", "jobStatus": "succeeded", "evidenceOutcome": "partial"},
+        {"kind": "retail_mythic_plus_strength", "jobStatus": "succeeded", "evidenceOutcome": "answered"},
+        {"kind": "ratio_follow_up", "jobStatus": "succeeded", "evidenceOutcome": "answered"},
+        {"kind": "cross_spec_dps", "jobStatus": "succeeded", "evidenceOutcome": "partial", "answerSource": "deterministic_evidence_plan"}
+      ]
+    },
+    "timerBackflow": {
+      "status": "pass",
+      "newAsyncSyncOrBackfillStarted": false,
+      "collectorOrRefreshJobsStarted": 0,
+      "productionWowBackendChanged": false,
+      "observedTimer": "wow-chickenbro-source-refresh.timer waiting; its service inactive/dead Result=success; LastTriggerUSec remained 2026-08-04 11:35:01 CST."
+    },
+    "rollback": {
+      "status": "ready",
+      "path": "Restore candidate files from /var/backups/wow-backend/chickenbro-evidence-planner-ef5904e0-20260804T062018Z and /var/backups/wow-backend/chickenbro-evidence-planner-ef5904e0-20260804T062708Z-phase-boundary, then restart only wow-backend-chickenbro-evidence-planner-ef5904e0.service.",
+      "production": "Production wow-backend.service and /opt/wow-mini-program runtime files were not changed by this candidate deployment."
+    }
+  },
+  "runtimeEvidence": [
+    {
+      "type": "candidate_file_parity",
+      "status": "pass",
+      "summary": "候选四个运行文件 SHA-256 均与 runtime identity 对应本地文件一致。"
+    },
+    {
+      "type": "smoke",
+      "status": "pass",
+      "summary": "候选四轮连续玩家路径通过，状态与场景边界按字面保留。"
+    },
+    {
+      "type": "timer_backflow",
+      "status": "pass",
+      "summary": "候选未启动 collector、source refresh、backfill 或 async sync，生产 source-refresh timer 未被本任务触碰。"
+    },
+    {
+      "type": "frontend_candidate_package",
+      "status": "pass",
+      "summary": "发布配置 WeChat package mechanics 已通过；真实设备外观与交互仍待用户验收。"
+    }
+  ],
+  "risks": [
+    {
+      "id": "official_ptr_timeout",
+      "status": "active",
+      "detail": "候选 PTR 官方来源本轮 TimeoutError，因此 PTR 的 answerOutcome 按字面为 partial；没有把它包装成当前强度结论。"
+    },
+    {
+      "id": "cross_spec_comparator_absent",
+      "status": "active",
+      "detail": "已受控来源仍没有同口径跨专精 DPS comparator；该能力继续返回 partial，新增来源需独立 SourceContract。"
+    },
+    {
+      "id": "phase_patch_inheritance",
+      "status": "resolved",
+      "detail": "首次候选 smoke 发现 PTR patchVersion 跨显式 retail turn 继承，令 15/27 被错误降为 partial；已添加相位边界回归、重建包并在同一最终候选四轮 smoke 中验证 answered。"
+    },
+    {
+      "id": "wechat_device_acceptance",
+      "status": "active",
+      "detail": "无可复用 DevTools Automator endpoint，未启动或重载用户现有 DevTools；真实设备验收保持 pending。"
+    }
+  ],
+  "rollback": [
+    "停止并禁用 wow-backend-chickenbro-evidence-planner-ef5904e0.service，生产 wow-backend.service 保持不动。",
+    "从两个已记录候选备份目录恢复四个运行文件后，仅重启候选 unit。",
+    "若用户验收发现卡片问题，保留候选和任务分支以便按当前 runtime identity 修正；不回滚生产。"
+  ],
+  "cleanup": {
+    "required": true,
+    "status": "pending_user_acceptance",
+    "target": "candidate root、candidate unit 与 task branch 在用户明确 WeChat 验收前保留。"
+  },
+  "archivedReferences": [
+    "docs/plans/2026-08-04-chickenbro-evidence-planner-design.md",
+    "docs/plans/2026-08-04-chickenbro-evidence-planner-implementation.md"
+  ],
+  "summary": "Evidence Planner 第一切片已在隔离候选验证。它不会用固定问答覆盖数据边界：已覆盖的大秘境同职责趋势和连续 ratio 引用为 answered；PTR 官方来源失败与跨专精 comparator 缺失为 literal partial。首次候选 smoke 抓到一次 PTR patchVersion 跨 retail turn 继承，已以通用相位边界规则修正并重新完成四轮候选验证。真实 WeChat 验收仍是唯一未完成的闭环；本任务尚未合并、推送、生产投产或清理。"
+}

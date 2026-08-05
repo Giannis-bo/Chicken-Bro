@@ -119,26 +119,44 @@ class PostgresOpsStore:
         return [_diagnosis_from_row(row) for row in rows]
 
     def load_active_chickenbro_registry_release(self):
+        return self.load_chickenbro_registry_release()
+
+    def load_chickenbro_registry_release(self, registry_version=None):
         with self.connection() as conn:
             with conn.cursor() as cur:
-                cur.execute(
-                    """
-                    SELECT release.registry_version,
-                           release.manifest_refs_json,
-                           release.release_hash,
-                           release.provenance_json,
-                           release.created_at::text,
-                           active.activated_at::text
-                    FROM ops.chickenbro_tool_registry_active AS active
-                    JOIN ops.chickenbro_tool_registry_releases AS release
-                      ON release.registry_version = active.registry_version
-                    WHERE active.singleton_id = 1
-                    """
-                )
+                if registry_version:
+                    cur.execute(
+                        """
+                        SELECT registry_version, manifest_refs_json, release_hash,
+                               provenance_json, created_at::text, created_at::text
+                        FROM ops.chickenbro_tool_registry_releases
+                        WHERE registry_version = %s
+                        """,
+                        (_text(registry_version),),
+                    )
+                else:
+                    cur.execute(
+                        """
+                        SELECT release.registry_version,
+                               release.manifest_refs_json,
+                               release.release_hash,
+                               release.provenance_json,
+                               release.created_at::text,
+                               active.activated_at::text
+                        FROM ops.chickenbro_tool_registry_active AS active
+                        JOIN ops.chickenbro_tool_registry_releases AS release
+                          ON release.registry_version = active.registry_version
+                        WHERE active.singleton_id = 1
+                        """
+                    )
                 release_rows = cur.fetchall()
                 if not release_rows:
+                    if registry_version:
+                        raise KeyError("chickenbro registry release not found")
                     raise KeyError("active chickenbro registry release not found")
                 if len(release_rows) > 1:
+                    if registry_version:
+                        raise RuntimeError("multiple chickenbro registry releases")
                     raise RuntimeError("multiple active chickenbro registry releases")
                 release_row = release_rows[0]
                 cur.execute(

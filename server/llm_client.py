@@ -1,5 +1,6 @@
 import json
 import os
+import time
 from urllib.request import Request, urlopen
 
 
@@ -34,7 +35,7 @@ def chickenbro_stream_config():
     return {"enabled": bool(enabled and api_url and api_key and model), "model": model if enabled and api_url and api_key and model else ""}
 
 
-def stream_chat_completion(system_prompt, user_prompt, schema, temperature=0.3, opener=urlopen):
+def stream_chat_completion(system_prompt, user_prompt, schema, temperature=0.3, opener=urlopen, clock=time.monotonic):
     config = chickenbro_stream_config()
     if not config["enabled"]:
         raise ChickenbroStreamUnavailable("chickenbro stream provider is not configured")
@@ -63,8 +64,14 @@ def stream_chat_completion(system_prompt, user_prompt, schema, temperature=0.3, 
         },
         method="POST",
     )
-    with opener(request, timeout=int_env("WOW_CHICKENBRO_STREAM_TIMEOUT_SECONDS", 60)) as response:
+    timeout_seconds = max(1, int_env("WOW_CHICKENBRO_STREAM_TIMEOUT_SECONDS", 60))
+    deadline = clock() + timeout_seconds
+    with opener(request, timeout=timeout_seconds) as response:
         for raw_line in response:
+            if clock() >= deadline:
+                raise ChickenbroStreamUnavailable(
+                    f"chickenbro stream provider exceeded {timeout_seconds} seconds"
+                )
             line = raw_line.decode("utf-8").strip()
             if not line or line.startswith(":"):
                 continue

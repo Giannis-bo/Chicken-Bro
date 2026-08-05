@@ -7965,8 +7965,8 @@ class NewsBackendTest(unittest.TestCase):
         self.assertNotIn(message, rows[0][3])
         self.assertNotIn(result["assistantMessage"]["content"], rows[0][3])
         trace = json.loads(rows[0][3])
-        self.assertEqual("chickenbro-agent-trace-v2", trace["schemaRevision"])
-        self.assertEqual("chickenbro-registry-runtime-v1", trace["runtimeVersion"])
+        self.assertEqual("chickenbro-agent-trace-v5", trace["schemaRevision"])
+        self.assertEqual("chickenbro-agentic-research-runtime-v1", trace["runtimeVersion"])
         self.assertEqual("unavailable", trace["registryStatus"])
 
     def test_chickenbro_model_failure_persists_failure_trace_and_no_assistant_message(self):
@@ -7991,7 +7991,7 @@ class NewsBackendTest(unittest.TestCase):
             ]
 
         self.assertEqual("failed", trace["answerStatus"])
-        self.assertEqual("chickenbro-agent-trace-v2", trace["schemaRevision"])
+        self.assertEqual("chickenbro-agent-trace-v5", trace["schemaRevision"])
         self.assertEqual("unavailable", trace["registryStatus"])
         self.assertIn(
             "model_failed",
@@ -8138,7 +8138,7 @@ class NewsBackendTest(unittest.TestCase):
 
         prompt_payload = json.loads(captured["prompt"])
         self.assertIn("boundedContext", prompt_payload)
-        self.assertTrue(any("direct Codex chat" in item for item in prompt_payload["instructions"]))
+        self.assertFalse(any("先接住问题" in item for item in prompt_payload["instructions"]))
         self.assertFalse(any("只能使用 boundedContext 中的事实" in item for item in prompt_payload["instructions"]))
         self.assertIs(captured["schema"]["additionalProperties"], False)
         self.assertEqual(result["assistantMessage"]["payload"]["answerSource"], "llm")
@@ -8628,6 +8628,49 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(1, session_count)
         self.assertEqual("retry-turn-1", result["userMessage"]["payload"]["clientMessageId"])
 
+    def test_chickenbro_completed_client_message_id_replays_the_original_terminal_response(self):
+        request = {
+            "message": "frost death knight build",
+            "guestId": "completed-retry-owner",
+            "clientMessageId": "completed-turn-1",
+        }
+        calls = []
+
+        def runner(prompt, **_kwargs):
+            calls.append(prompt)
+            bounded_context = json.loads(prompt)["boundedContext"]
+            return {
+                "status": "succeeded",
+                "lastMessage": json.dumps(
+                    {
+                        "answer": "First terminal answer.",
+                        "confidence": "low",
+                        "answerLayer": bounded_context["answerLayer"],
+                        "basisLabel": bounded_context["basisLabel"],
+                        "priorityActions": [],
+                        "evidenceRefs": [],
+                        "limitations": [],
+                        "missingInputs": [],
+                        "nextQuestion": "",
+                    }
+                ),
+            }
+
+        first = self.backend.send_chickenbro_message(request, codex_runner=runner)
+        replay = self.backend.send_chickenbro_message(
+            request,
+            codex_runner=lambda *_args, **_kwargs: self.fail("completed request must not run again"),
+        )
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            jobs = conn.execute("SELECT COUNT(*) FROM agent_jobs").fetchone()[0]
+            messages = conn.execute("SELECT COUNT(*) FROM chickenbro_messages").fetchone()[0]
+
+        self.assertEqual(1, len(calls))
+        self.assertEqual(first["job"]["jobId"], replay["job"]["jobId"])
+        self.assertEqual(first["assistantMessage"]["messageId"], replay["assistantMessage"]["messageId"])
+        self.assertEqual(1, jobs)
+        self.assertEqual(2, messages)
+
     def test_chickenbro_codex_schema_is_strict_for_responses_api(self):
         self.seed_chickenbro_profile()
         captured = {}
@@ -8853,6 +8896,82 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual("".join(event.get("text", "") for event in events), answer)
         self.assertEqual(events[-1]["response"]["assistantMessage"]["content"], answer)
         self.assertEqual(rows, [("user", "冰DK大秘境先排查什么？"), ("assistant", answer)])
+
+    def test_chickenbro_stream_replays_a_completed_client_message_without_a_new_job(self):
+        bounded = self.backend.build_chickenbro_bounded_context("冰DK大秘境先排查什么？", {})
+        model_payload = {
+            "answer": "已经完成的流式回答。",
+            "confidence": "low",
+            "answerLayer": bounded["answerLayer"],
+            "basisLabel": bounded["basisLabel"],
+            "priorityActions": [],
+            "evidenceRefs": [],
+            "limitations": [],
+            "missingInputs": [],
+            "nextQuestion": "",
+        }
+        request = {
+            "guestId": "stream-completed-retry",
+            "clientMessageId": "stream-completed-turn-1",
+            "message": "冰DK大秘境先排查什么？",
+        }
+
+        first_events = list(
+            self.backend.stream_chickenbro_message(
+                request,
+                stream_runner=lambda *_args, **_kwargs: [json.dumps(model_payload, ensure_ascii=False)],
+            )
+        )
+        replay_events = list(
+            self.backend.stream_chickenbro_message(
+                request,
+                stream_runner=lambda *_args, **_kwargs: self.fail("completed stream must not run again"),
+            )
+        )
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            jobs = conn.execute("SELECT COUNT(*) FROM agent_jobs").fetchone()[0]
+            assistants = conn.execute("SELECT COUNT(*) FROM chickenbro_messages WHERE role = 'assistant'").fetchone()[0]
+
+        self.assertEqual(["started", "final"], [event["type"] for event in replay_events])
+        self.assertEqual(
+            first_events[-1]["response"]["job"]["jobId"],
+            replay_events[-1]["response"]["job"]["jobId"],
+        )
+        self.assertEqual(1, jobs)
+        self.assertEqual(1, assistants)
+
+    def test_chickenbro_stream_canonicalizes_legacy_action_fields_in_final_response(self):
+        """A provider-side action/reason object must not leak past the public stream contract."""
+        bounded = self.backend.build_chickenbro_bounded_context("冰DK大秘境先排查什么？", {})
+        model_payload = {
+            "answer": "先确认你是否把主爆发留给大波次。",
+            "confidence": "low",
+            "answerLayer": bounded["answerLayer"],
+            "basisLabel": bounded["basisLabel"],
+            "priorityActions": [
+                {
+                    "action": "先确认本轮的可引用证据。",
+                    "reason": "避免把不同场景的结论混在一起。",
+                    "evidenceRefs": [],
+                }
+            ],
+            "evidenceRefs": [],
+            "limitations": [],
+            "missingInputs": [],
+            "nextQuestion": "",
+        }
+
+        events = list(
+            self.backend.stream_chickenbro_message(
+                {"guestId": "legacy-action-stream", "message": "冰DK大秘境先排查什么？"},
+                stream_runner=lambda *_args, **_kwargs: [json.dumps(model_payload, ensure_ascii=False)],
+            )
+        )
+
+        self.assertEqual(
+            events[-1]["response"]["assistantMessage"]["payload"]["priorityActions"],
+            [{"title": "先确认本轮的可引用证据。", "evidenceRefs": []}],
+        )
 
     def test_chickenbro_stream_cancellation_discards_partial_assistant_and_marks_job_cancelled(self):
         bounded = self.backend.build_chickenbro_bounded_context("冰DK大秘境先排查什么？", {})

@@ -2,145 +2,31 @@ import re
 from datetime import datetime, timezone
 
 try:
-    from .websim_payload import CLASS_LABELS_ZH, SPEC_LABELS, SPEC_LABELS_ZH, WOW_CLASSES
+    from .chickenbro_question_frame import build_chickenbro_question_frame
 except ImportError:
-    from websim_payload import CLASS_LABELS_ZH, SPEC_LABELS, SPEC_LABELS_ZH, WOW_CLASSES
-
-
-_CLASS_SHORT_ALIASES = {
-    "deathknight": ("dk", "死骑"),
-    "demonhunter": ("dh",),
-    "druid": ("德",),
-    "evoker": ("唤魔",),
-    "hunter": ("猎",),
-    "mage": ("法",),
-    "monk": ("武僧",),
-    "paladin": ("骑",),
-    "priest": ("牧",),
-    "rogue": ("贼",),
-    "shaman": ("萨",),
-    "warlock": ("术",),
-    "warrior": ("战",),
-}
-
-_SPEC_SHORT_ALIASES = {
-    "protection": ("防",),
-    "retribution": ("惩戒",),
-    "beast_mastery": ("兽王",),
-    "marksmanship": ("射击",),
-    "brewmaster": ("酒仙",),
-    "mistweaver": ("织雾",),
-    "windwalker": ("踏风",),
-    "discipline": ("戒律",),
-    "shadow": ("暗牧",),
-    "assassination": ("刺杀",),
-    "outlaw": ("狂徒",),
-    "subtlety": ("敏锐",),
-    "affliction": ("痛苦",),
-    "demonology": ("恶魔",),
-    "destruction": ("毁灭",),
-}
-
-
-def _normalized_aliases(*values):
-    return {
-        str(value or "").strip().lower()
-        for value in values
-        if str(value or "").strip()
-    }
-
-
-def _build_spec_aliases():
-    aliases = {}
-    spec_pairs = {}
-    for klass in WOW_CLASSES:
-        class_key = str(klass.get("key") or "").strip().lower()
-        if not class_key:
-            continue
-        class_aliases = _normalized_aliases(
-            class_key,
-            klass.get("label"),
-            CLASS_LABELS_ZH.get(class_key),
-            *_CLASS_SHORT_ALIASES.get(class_key, ()),
-        )
-        for spec_key in klass.get("specs") or []:
-            spec_key = str(spec_key or "").strip().lower()
-            if not spec_key:
-                continue
-            spec_pairs.setdefault(spec_key, []).append((class_key, spec_key))
-            spec_aliases = _normalized_aliases(
-                spec_key,
-                spec_key.replace("_", " "),
-                SPEC_LABELS.get(spec_key),
-                SPEC_LABELS_ZH.get(spec_key),
-                *_SPEC_SHORT_ALIASES.get(spec_key, ()),
-            )
-            for spec_alias in spec_aliases:
-                for class_alias in class_aliases:
-                    aliases[f"{spec_alias} {class_alias}"] = (class_key, spec_key)
-                    aliases[f"{spec_alias}{class_alias}"] = (class_key, spec_key)
-    for spec_key, pairs in spec_pairs.items():
-        if len(pairs) != 1:
-            continue
-        class_key, _ = pairs[0]
-        for alias in _normalized_aliases(
-            spec_key,
-            spec_key.replace("_", " "),
-            SPEC_LABELS.get(spec_key),
-            SPEC_LABELS_ZH.get(spec_key),
-            *_SPEC_SHORT_ALIASES.get(spec_key, ()),
-        ):
-            aliases.setdefault(alias, (class_key, spec_key))
-    return dict(sorted(aliases.items(), key=lambda item: len(item[0]), reverse=True))
-
-
-_SPEC_ALIASES = _build_spec_aliases()
+    from chickenbro_question_frame import build_chickenbro_question_frame
 
 _RAIDERIO_LIMITATION = (
     "Raider.IO samples may inform Mythic+ trends, but they do not replace WCL combat-log statistics."
 )
 
 
-def _intent_from_text(text):
-    normalized = str(text or "").strip().lower()
-    for alias, pair in _SPEC_ALIASES.items():
-        if alias and alias in normalized:
-            return pair
-    return "", ""
-
-
-def _recent_user_history(history, limit=6):
-    items = []
-    for item in history if isinstance(history, (list, tuple)) else []:
-        if not isinstance(item, dict) or str(item.get("role") or "") != "user":
-            continue
-        text = str(item.get("content") or "").strip()
-        if text:
-            items.append(text)
-    return items[-max(1, int(limit or 1)):]
-
-
 def classify_chickenbro_request(message, history):
     text = str(message or "").strip()
-    normalized = text.lower()
-    history_texts = _recent_user_history(history)
-    history_normalized = "\n".join(history_texts).lower()
-    phase_text = normalized or history_normalized
-    product_phase = "ptr" if any(marker in phase_text for marker in ("ptr", "测试服", "测试版")) else "retail"
-    class_key, spec_key = _intent_from_text(text)
-    if not spec_key:
-        for historic_message in reversed(history_texts):
-            class_key, spec_key = _intent_from_text(historic_message)
-            if spec_key:
-                break
-    has_wcl_report = bool(re.search(r"(?:warcraftlogs\.com/reports/|report/[A-Za-z0-9]+)", normalized))
+    frame = build_chickenbro_question_frame(text, history)
+    subject = frame["subject"]
+    scope = frame["scope"]
+    has_wcl_report = frame["questionType"] == "personal_wcl"
     return {
-        "kind": "personal_wcl" if has_wcl_report else "community_build" if spec_key else "general",
-        "productPhase": product_phase,
-        "classKey": class_key,
-        "specKey": spec_key,
-        "scenarioKey": "",
+        "kind": frame["questionType"],
+        "productPhase": scope["productPhase"],
+        "classKey": subject["classKey"],
+        "specKey": subject["specKey"],
+        "scenarioKey": scope["scenarioKey"],
+        "comparisonScope": frame.get("comparisonScope") or "subject",
         "wclReport": "" if not has_wcl_report else text,
+        "patchVersion": scope["patchVersion"],
+        "evidenceNeeds": list(frame["evidenceNeeds"]),
     }
 
 
@@ -270,6 +156,168 @@ def build_raiderio_chickenbro_tool_result(payload, intent):
         "evidenceRefs": [evidence_ref],
         "allowedNumbers": allowed_numbers,
         "limitations": [_RAIDERIO_LIMITATION],
+        "nextActions": [],
+    }
+
+
+def _positive_number(value):
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return number if number > 0 else None
+
+
+def _compact_number(value):
+    number = _positive_number(value)
+    if number is None:
+        return ""
+    return str(int(number)) if number.is_integer() else str(number)
+
+
+def build_raiderio_strength_chickenbro_tool_result(payload, intent):
+    """Project fresh Raider.IO data into a bounded same-role high-key signal."""
+    payload = raiderio_payload_with_freshness(payload)
+    intent = intent if isinstance(intent, dict) else {}
+    class_key = str(intent.get("classKey") or "").strip().lower()
+    spec_key = str(intent.get("specKey") or "").strip().lower()
+    source_status = str(payload.get("sourceStatus") or payload.get("status") or "blocked").strip().lower()
+    source_url = str(payload.get("leaderboardUrl") or "https://raider.io/mythic-plus-rankings").strip()
+    evidence_ref = f"raiderio-strength:{class_key}:{spec_key}:mythic_plus"
+    evidence = {
+        "id": evidence_ref,
+        "sourceName": str(payload.get("sourceName") or "Raider.IO"),
+        "sourceUrl": source_url,
+        "productPhase": str(intent.get("productPhase") or "retail"),
+        "seasonSlug": str(payload.get("seasonSlug") or ""),
+        "region": str(payload.get("region") or ""),
+        "checkedAt": str(payload.get("checkedAt") or ""),
+        "expiresAt": str(payload.get("expiresAt") or ""),
+        "sourceStatus": source_status,
+    }
+    if source_status != "synced":
+        return {
+            "sourceKey": "raiderio_strength",
+            "status": "partial" if source_status == "partial" else source_status,
+            "facts": [],
+            "evidence": [evidence],
+            "evidenceRefs": [],
+            "limitations": ["Raider.IO current-strength cache is unavailable, stale, or incomplete."],
+            "nextActions": [],
+        }
+
+    aggregates = [item for item in (payload.get("specAggregates") or []) if isinstance(item, dict)]
+    aggregate = next(
+        (
+            item
+            for item in aggregates
+            if str(item.get("classKey") or "").lower() == class_key
+            and str(item.get("specKey") or "").lower() == spec_key
+        ),
+        None,
+    )
+    if not aggregate:
+        return {
+            "sourceKey": "raiderio_strength",
+            "status": "partial",
+            "facts": [],
+            "evidence": [evidence],
+            "evidenceRefs": [],
+            "limitations": ["Raider.IO has no matching specialization sample in the current cache."],
+            "nextActions": [],
+        }
+
+    role = str(aggregate.get("role") or "").strip().lower()
+    # `aggregate_runs()` intentionally compacts individual run evidence into
+    # `bestScore`/`maxKeyLevel`; it does not retain an aggregate-level
+    # `rankingEvidence` record.  Compare only those documented aggregate
+    # fields, never a field that happens to exist in a test fixture.
+    score = _positive_number(aggregate.get("bestScore"))
+    peers = [
+        item
+        for item in aggregates
+        if str(item.get("role") or "").strip().lower() == role
+        and _positive_number(item.get("bestScore")) is not None
+    ]
+    peers.sort(key=lambda item: _positive_number(item.get("bestScore")) or 0, reverse=True)
+    if score is None or not peers:
+        return {
+            "sourceKey": "raiderio_strength",
+            "status": "partial",
+            "facts": [],
+            "evidence": [evidence],
+            "evidenceRefs": [],
+            "limitations": ["Raider.IO current-strength cache has no positive bestScore for a same-role comparison."],
+            "nextActions": [],
+        }
+    same_role_placement = 1 + sum(
+        1 for item in peers
+        if (_positive_number(item.get("bestScore")) or 0) > score
+    )
+    top_score = _positive_number(peers[0].get("bestScore"))
+    leaders = [
+        {
+            "classKey": str(item.get("classKey") or "").strip().lower(),
+            "specKey": str(item.get("specKey") or "").strip().lower(),
+            "fullName": str(item.get("fullName") or "").strip(),
+        }
+        for item in peers
+        if (_positive_number(item.get("bestScore")) or 0) == top_score
+    ]
+    max_key_level = _positive_number(aggregate.get("maxKeyLevel"))
+    sample_count = _positive_number(aggregate.get("sampleCount"))
+    ranking_url = next(
+        (
+            str(item.get("sourceUrl") or "").strip()
+            for item in (aggregate.get("topRuns") or [])
+            if isinstance(item, dict) and str(item.get("sourceUrl") or "").strip()
+        ),
+        source_url,
+    )
+    evidence["sourceUrl"] = ranking_url
+    signal = {
+        "role": role,
+        "sameRolePopulation": len(peers),
+        "sameRolePlacement": same_role_placement,
+        "bestObservedScore": score,
+        "maxKeyLevel": int(max_key_level) if max_key_level is not None else 0,
+        "sampleCount": int(sample_count) if sample_count is not None else 0,
+    }
+    if len(leaders) == 1:
+        signal["sameRoleLeader"] = leaders[0]
+    else:
+        signal["sameRoleLeaders"] = leaders
+    allowed_numbers = [
+        value
+        for value in (
+            _compact_number(score),
+            _compact_number(max_key_level),
+            _compact_number(sample_count),
+            _compact_number(same_role_placement),
+            _compact_number(len(peers)),
+        )
+        if value
+    ]
+    return {
+        "sourceKey": "raiderio_strength",
+        "status": "source_reference" if source_status == "synced" else "partial",
+        "facts": [{
+            "classKey": class_key,
+            "specKey": spec_key,
+            "scenarioKey": "mythic_plus",
+            "summary": (
+                f"Raider.IO current Mythic+ high-key signal is available for "
+                f"{aggregate.get('fullName') or f'{spec_key} {class_key}'}."
+            ),
+            "highKeySignal": signal,
+        }],
+        "evidence": [evidence],
+        "evidenceRefs": [evidence_ref],
+        "allowedNumbers": list(dict.fromkeys(allowed_numbers)),
+        "limitations": [
+            "Raider.IO signal compares best observed same-role high-key samples, not representation, success rate, DPS, or a universal tier list.",
+            _RAIDERIO_LIMITATION,
+        ],
         "nextActions": [],
     }
 

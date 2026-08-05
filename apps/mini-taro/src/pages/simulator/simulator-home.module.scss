@@ -1,12 +1,22 @@
 .pageFrame {
-  min-height: var(--route-safe-viewport-height);
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
   background: linear-gradient(180deg, rgba(18, 22, 27, 0.98), rgba(7, 10, 14, 0.99));
+}
+
+.pageFrame > view {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
 }
 
 .transcriptRegion {
   display: flex;
-  height: calc(var(--route-safe-viewport-height) - 170px);
-  min-height: calc(var(--route-safe-viewport-height) - 170px);
+  min-height: 0;
+  flex: 1 1 auto;
 }
 
 .composerDock {

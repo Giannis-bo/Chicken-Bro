@@ -28,6 +28,10 @@ WEBSIM_MANIFEST_V2 = ROOT / "server" / "migrations" / "postgres" / "0022_websim_
 WEBSIM_GEAR_CATALOG_VARIANT_SHAPES = ROOT / "server" / "migrations" / "postgres" / "0023_websim_gear_catalog_variant_shapes.sql"
 CHICKENBRO_AGENT_OBSERVABILITY = ROOT / "server" / "migrations" / "postgres" / "0024_chickenbro_agent_observability.sql"
 CHICKENBRO_TOOL_REGISTRY = ROOT / "server" / "migrations" / "postgres" / "0025_chickenbro_tool_registry.sql"
+CHICKENBRO_SMART_QUESTION_CHAIN = ROOT / "server" / "migrations" / "postgres" / "0026_chickenbro_smart_question_chain.sql"
+CHICKENBRO_COMMUNITY_STRENGTH = ROOT / "server" / "migrations" / "postgres" / "0027_chickenbro_community_strength_sources.sql"
+CHICKENBRO_GENERIC_PUBLIC_WEB = ROOT / "server" / "migrations" / "postgres" / "0028_chickenbro_generic_public_web_research.sql"
+CHICKENBRO_PUBLIC_WEB_REPEAT_BUDGET = ROOT / "server" / "migrations" / "postgres" / "0029_chickenbro_public_web_repeat_budget.sql"
 
 
 class PostgresSchemaTest(unittest.TestCase):
@@ -650,3 +654,47 @@ class PostgresSchemaTest(unittest.TestCase):
             self.assertIn(f"GRANT SELECT ON {table} TO wow_app", normalized)
             self.assertIn(f"REVOKE INSERT, UPDATE, DELETE ON {table} FROM wow_app", normalized)
         self.assertIn("0025_chickenbro_tool_registry", normalized)
+
+    def test_smart_question_chain_appends_immutable_registry_v2_and_moves_only_active_pointer(self):
+        self.assertTrue(CHICKENBRO_SMART_QUESTION_CHAIN.exists(), "missing Smart Question Chain migration")
+        normalized = " ".join(CHICKENBRO_SMART_QUESTION_CHAIN.read_text(encoding="utf-8").split())
+        self.assertIn("source:current-wow-sources:v1", normalized)
+        self.assertIn("chickenbro.source.current_wow_sources.v1", normalized)
+        self.assertIn("chickenbro-tools-2", normalized)
+        self.assertIn("INSERT INTO ops.chickenbro_tool_manifests", normalized)
+        self.assertIn("INSERT INTO ops.chickenbro_tool_registry_releases", normalized)
+        self.assertIn("INSERT INTO ops.chickenbro_tool_registry_release_manifests", normalized)
+        self.assertIn("INSERT INTO ops.chickenbro_tool_registry_active", normalized)
+        self.assertIn("0026_chickenbro_smart_question_chain", normalized)
+
+    def test_community_strength_sources_append_registry_v3_without_mutating_prior_releases(self):
+        self.assertTrue(CHICKENBRO_COMMUNITY_STRENGTH.exists(), "missing Chickenbro community-strength Registry migration")
+        normalized = " ".join(CHICKENBRO_COMMUNITY_STRENGTH.read_text(encoding="utf-8").split())
+        self.assertIn("source:raiderio-strength:v1", normalized)
+        self.assertIn("source:warcraftlogs-public-rankings:v1", normalized)
+        self.assertIn("chickenbro.source.raiderio_strength.v1", normalized)
+        self.assertIn("chickenbro.source.warcraftlogs_public_rankings.v1", normalized)
+        self.assertIn("chickenbro-tools-3", normalized)
+        self.assertIn("active.registry_version = 'chickenbro-tools-2'", normalized)
+        self.assertIn("0027_chickenbro_community_strength_sources", normalized)
+
+    def test_generic_public_web_tool_appends_candidate_release_without_moving_shared_active_pointer(self):
+        self.assertTrue(CHICKENBRO_GENERIC_PUBLIC_WEB.exists(), "missing generic public-web Registry migration")
+        normalized = " ".join(CHICKENBRO_GENERIC_PUBLIC_WEB.read_text(encoding="utf-8").split())
+        self.assertIn("source:public-web-research:v1", normalized)
+        self.assertIn("chickenbro.source.public_web_research.v1", normalized)
+        self.assertIn("chickenbro-tools-4", normalized)
+        self.assertIn("0028_chickenbro_generic_public_web_research", normalized)
+        self.assertNotIn("UPDATE ops.chickenbro_tool_registry_active", normalized)
+        self.assertNotIn("INSERT INTO ops.chickenbro_tool_registry_active", normalized)
+
+    def test_generic_public_web_repeat_budget_is_declared_in_a_new_candidate_release(self):
+        self.assertTrue(CHICKENBRO_PUBLIC_WEB_REPEAT_BUDGET.exists(), "missing generic public-web repeat budget migration")
+        normalized = " ".join(CHICKENBRO_PUBLIC_WEB_REPEAT_BUDGET.read_text(encoding="utf-8").split())
+        self.assertIn("source:public-web-research:v2", normalized)
+        self.assertIn("chickenbro.source.public_web_research.v2", normalized)
+        self.assertIn("maxCallsPerTurn", normalized)
+        self.assertIn("chickenbro-tools-5", normalized)
+        self.assertIn("0029_chickenbro_public_web_repeat_budget", normalized)
+        self.assertNotIn("UPDATE ops.chickenbro_tool_registry_active", normalized)
+        self.assertNotIn("INSERT INTO ops.chickenbro_tool_registry_active", normalized)

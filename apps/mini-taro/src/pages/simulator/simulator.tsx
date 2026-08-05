@@ -218,6 +218,7 @@ export default function SimulatorHomePage() {
 
   return (
     <AppShell
+      bodyScrollable={false}
       surfaceAssetId="builds-surface-texture.default"
       surfaceMode="tile"
       surfaceSlotId="asset_slot.captain-page-frame"

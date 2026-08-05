@@ -1,0 +1,108 @@
+{
+  "schemaVersion": 1,
+  "slug": "chickenbro-evidence-planner",
+  "classification": "Strict",
+  "status": "implementation_allowed",
+  "goal": "让炸鸡队长把玩家的当前版本问题拆成可验证证据分面，在已受控来源覆盖的范围内回答，并把未覆盖部分如实表达为可继续推进的部分证据，而非固定问答、手动搜索指令或会话终点。",
+  "userValue": "玩家可连续追问版本、职业、场景和比较范围；已验证的趋势会被保留，跨专精等超出当前来源边界的问题会说明缺口与下一步，而不会复读“无法获取数据”、泄露工具内部信息或触发重试错误。",
+  "scope": [
+    "通用 EvidencePlan：从既有 QuestionFrame、Registry 选择和已返回的来源证据投影场景分面与 outcome",
+    "可选的公开 assistant payload evidenceOutcome 与客户端严格解析",
+    "跨专精比较的通用 partial 组合，不复用单专精样本作为全职业结论",
+    "Trace v4 的脱敏 comparisonScope、分面键、分面状态和 outcome",
+    "Captain 对话卡片的产品化证据状态标识及其既有可滚动布局合同",
+    "一个隔离候选服务、发布配置小程序包、候选 API 烟测和人工设备验收交接"
+  ],
+  "outOfScope": [
+    "NQ、元素萨、15/27 或任何固定问题/固定答案的 case-by-case 规则",
+    "Archon、Wowhead、Icy Veins 或新的第三方抓取器、Provider 或 Registry 版本",
+    "任意浏览器、URL、代码、Shell、SQL 或凭据访问",
+    "来源采集、回填、刷新、定时器、迁移、Registry 指针或生产服务变更",
+    "将 partial、stale 或候选 HTTP 成功包装为完整排名、生产投产或人工已验收"
+  ],
+  "nonGoals": [
+    "PTR、正式服、团本和大秘境证据边界继续隔离。",
+    "同职责大秘境样本不能变成全职业 DPS、Tier、出场率或个人表现结论。",
+    "researching 只有在真正存在可取消、可持久化的后端作业时才允许产生；本切片不产生该状态。",
+    "Trace 不记录原始问题、答案、来源正文、身份、URL、提示词或工具内部参数。"
+  ],
+  "currentTruth": {
+    "sources": [
+      "docs/project-state.json",
+      "docs/roadmap.md",
+      "docs/plans/README.md",
+      "docs/plans/2026-08-04-chickenbro-evidence-planner-design.md",
+      "docs/plans/2026-08-04-chickenbro-evidence-planner-implementation.md",
+      "docs/backend-owner-map.json",
+      "docs/project-owner-map.json",
+      "docs/harness.md",
+      "docs/verification-matrix.md"
+    ],
+    "activeMilestone": "chickenbro_smart_question_chain",
+    "featureIteration": "evidence_planner_partial_recovery",
+    "baseBranch": "main"
+  },
+  "impactMap": {
+    "mustChange": [
+      "服务端拥有 EvidencePlan 与 evidenceOutcome；客户端只显示经校验的公开状态。",
+      "跨专精追问重新规划证据，并显式保留单专精趋势的适用范围。",
+      "Trace 只投影 allowlist 分面和状态；v1-v3 历史 Trace 仍可验证与去标识化。"
+    ],
+    "mustNotChange": [
+      "既有受控官方、Raider.IO 与 WCL 来源的选择、场景资格、TTL 和读取边界不扩张。",
+      "个人 SimC/WCL 证据的既有可信标识不被当前版本 partial 状态覆盖。",
+      "生产 wow-backend 服务、生产代码和异步同步不因候选部署而修改。"
+    ],
+    "riskUnknown": [
+      "真实 WeChat 设备的状态标签与长卡片可见性仍需要用户验收；构建与静态合同不能替代。",
+      "当前来源仍不提供同口径跨专精比较；该缺口是 literal partial，不是可由模型补全的事实。"
+    ],
+    "evidenceRequired": [
+      "纯计划、后端 payload、跨专精连续追问、Trace v4/历史兼容和卡片合同测试。",
+      "干净 runtime HEAD 的完整 Harness、本地 CR 和发布配置小程序包。",
+      "候选文件哈希、服务健康、四轮 API smoke、定时器回流检查、回滚路径与人工设备验收待办。"
+    ]
+  },
+  "ownership": {
+    "factOwner": "server/chickenbro_evidence_plan.py 是纯分面投影 owner；server/news_backend.py 仍是来源编排、public payload 和 fallback owner；server/chickenbro_observability.py 只拥有脱敏 Trace；packages/design-system 只渲染后端公开状态。",
+    "consumers": [
+      "server/news_backend.py",
+      "server/chickenbro_observability.py",
+      "packages/domain/src/entities.ts",
+      "packages/api-client/src/simulator.ts",
+      "packages/design-system/src/components/ChickenbroChatComponents.tsx"
+    ]
+  },
+  "engineeringHealth": {
+    "status": "hotspot_guarded",
+    "reason": "news_backend.py 只附着纯计划和按计划组合 fallback；来源选择、数据刷新和模型权限没有移入该 HTTP hotspot。"
+  },
+  "acceptanceEvidence": [
+    "受控的正式服大秘境专精趋势与兼容 ratio 追问为 answered；PTR 或未覆盖场景为 literal partial。",
+    "跨专精 DPS 追问为 partial、无重试、无继承的 15/27 或 source key 泄露，且不调用模型编造排名。",
+    "assistant 卡片只显示产品标签；长内容继续位于独立 transcript scroll 内，未被 composer 遮挡。",
+    "候选服务与发布配置包验证通过后，用户对真实 WeChat 连续四问明确验收；此前不合并、不推送、不清理。"
+  ],
+  "manualAcceptanceContract": {
+    "required": true,
+    "requiredItemIds": [
+      "candidate_wechat_evidence_planner"
+    ]
+  },
+  "releaseTrigger": "user_visible_runtime",
+  "rollback": [
+    "candidate_service_stop",
+    "candidate_file_restore",
+    "candidate_service_restart"
+  ],
+  "decisionLog": [
+    {
+      "date": "2026-08-04",
+      "decision": "用户确认继续推进到部署后由其验证；没有授权生产投产、合并、推送或清理。"
+    },
+    {
+      "date": "2026-08-04",
+      "decision": "第一切片只复用已受控来源，把答案链路从 terminal boundary 升级为通用 EvidencePlan；新增来源契约另行评审。"
+    }
+  ]
+}
