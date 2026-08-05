@@ -225,7 +225,7 @@ Read path loads exact canonical bytes, reconstructs Exact -> Static/Progression 
 - [x] Run focused suites, full Canonical matrix, owner gate, existing v1 store/snapshot suites, Node/Harness/JSON/pycompile/diff.
 - [x] Freeze both existing v1/v2 Exact keys.
 - [x] Independent spec/code review is `PASS/APPROVED` with zero unresolved findings on the final Task 3A code/test state.
-- [ ] Candidate PostgreSQL evidence from both explicit DSNs is mandatory before Task 3A is `已完成`. Missing `psql` or either DSN yields literal `candidate_pending`; one database, a shared development database, skipped tests or schema-only mocks cannot be packaged as green.
+- [ ] Candidate PostgreSQL evidence from both explicit DSNs is mandatory before Task 3A is `已完成`. Current status is literal `candidate_failed / migration_chain_blocked` until the authorized `0003` correction passes a new fresh/upgrade pair; one database, a shared development database, skipped tests or schema-only mocks cannot be packaged as green. Only after this correction is clean may a missing `psql` or candidate DSN be described as `candidate_pending`.
 
 首次真实 candidate 已在 `0003` 前失败，当前 checkout 必须保持 literal `candidate_failed / migration_chain_blocked`，不得生成或晋升 `evidence.json`/`manifest.json`。`t3a2608050955` 与两库只保留为失败证据；新的 candidate 必须使用新 run id 和两座新建、独立、空的 operator-provisioned 数据库。新的 fresh/upgrade candidate 都必须验证恰有一个 named config-hash target constraint、`contype = 'u'`、`user_id/template_type/config_hash` 有序列、无 legacy name constraint，以及恰有一个 `0003` ledger row。
 

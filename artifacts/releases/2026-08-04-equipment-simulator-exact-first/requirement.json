@@ -10,7 +10,7 @@
     "不从 itemId、相似 bonus、Catalog 或默认值补充 declaredItemLevel、variant 或其他装备事实。",
     "不改写 generation 35、Catalog/Manifest pointer、selection-intent-v1 或既有 canonical bytes/key。",
     "不将原始插件导出文本写入数据库、artifact、日志、template、queue 或公开 payload。",
-    "不在新的 fresh/upgrade 两个真实 disposable PostgreSQL candidate 均通过的情况下声称 Task 3A 完成、release-ready 或 production-ready。",
+    "不在新的 fresh/upgrade 两个真实 disposable PostgreSQL candidate 均通过之前声称 Task 3A 完成、release-ready 或 production-ready。",
     "不重置、复用或修改失败 run t3a2608050955 的任一 candidate 数据库；不通过跳过 0003、吞掉 duplicate_object、ledger reconciliation、预删 target constraint、改写 0001、retro migration 或 0026 修复迁移链。"
   ],
   "currentTruth": {

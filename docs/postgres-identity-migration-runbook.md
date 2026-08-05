@@ -110,6 +110,14 @@ concurrency smoke starts from absent authority rows and concurrently writes two
 legal bundles that share two effect records in reverse order; both must finish
 without deadlock and independently read back.
 
+After each normal migration path has installed the correct target, the candidate
+suite executes real `0003` in a rollback-only transaction and proves that the
+target constraint OID is unchanged. In separate rollback-only transactions it
+replaces that target with a same-name wrong-type constraint and a same-name
+wrong-ordered unique constraint; real `0003` must fail through `psycopg`, then
+the rollback must restore the original correct state. These are candidate
+semantics, not parser or mock checks.
+
 After every assertion passes, the test rechecks the clean commit, Git tree,
 `0026` SHA-256 and both database names/comments, then emits exactly one compact
 JSON attestation as its final stdout line. Archive that single line verbatim for

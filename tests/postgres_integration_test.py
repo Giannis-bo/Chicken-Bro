@@ -40,6 +40,7 @@ TASK_3A_VERIFIED_CHECKS = (
     "wow_app_explicit_and_effective_select_only_acl",
     "whole_bundle_typed_readback",
     "absent_row_reverse_shared_effect_concurrency",
+    "build_template_0003_semantic_idempotence_and_ledger",
     "unique_0026_migration_ledger_identity",
 )
 
@@ -139,6 +140,7 @@ class Task3ACandidateAttestationTest(unittest.TestCase):
             "wow_app_explicit_and_effective_select_only_acl",
             "whole_bundle_typed_readback",
             "absent_row_reverse_shared_effect_concurrency",
+            "build_template_0003_semantic_idempotence_and_ledger",
             "unique_0026_migration_ledger_identity",
         ))
         self.assertEqual(len(payload["verifiedChecks"]), len(set(payload["verifiedChecks"])))
@@ -193,6 +195,29 @@ class Task3ACandidateAttestationTest(unittest.TestCase):
              for keyword in final.value.keywords],
             [("flush", True)],
         )
+
+    def test_candidate_path_exercises_0003_semantics_in_rollback_only_transactions(self):
+        import inspect
+
+        helper_method = getattr(
+            PostgresExactAuthorityCandidateTest,
+            "_assert_build_template_0003_semantics",
+            None,
+        )
+        self.assertIsNotNone(helper_method)
+        if helper_method is None:
+            return
+        helper = inspect.getsource(helper_method)
+        candidate = inspect.getsource(
+            PostgresExactAuthorityCandidateTest.
+            test_fresh_and_upgrade_candidates_are_distinct_empty_and_append_only,
+        )
+        self.assertIn("DROP CONSTRAINT build_templates_user_id_template_type_config_hash_key", helper)
+        self.assertIn("CHECK (config_hash <> '')", helper)
+        self.assertIn("UNIQUE (config_hash, template_type, user_id)", helper)
+        self.assertIn("conn.rollback()", helper)
+        self.assertIn('sqlstate, "P0001"', helper)
+        self.assertEqual(candidate.count("_assert_build_template_0003_semantics("), 2)
 
     def test_missing_effect_documents_are_binding_trigger_first_not_fk_runtime(self):
         import inspect
@@ -355,6 +380,88 @@ class PostgresExactAuthorityCandidateTest(unittest.TestCase):
                     "WHERE id = '0003_build_template_config_hash_unique'"
                 )
                 self.assertEqual(cur.fetchone()[0], 1)
+
+    def _assert_build_template_0003_semantics(self, dsn):
+        import psycopg
+
+        target_name = "build_templates_user_id_template_type_config_hash_key"
+        legacy_name = "build_templates_user_id_template_type_name_key"
+        expected_columns = ("user_id", "template_type", "config_hash")
+        migration_sql = MIGRATIONS[2].read_text(encoding="utf-8")
+
+        def constraint_state(cur):
+            cur.execute(
+                "SELECT con.oid, con.conname, con.contype, "
+                "ARRAY(SELECT attr.attname "
+                "FROM pg_catalog.unnest(con.conkey) WITH ORDINALITY "
+                "AS keyed(attnum, ordinal) "
+                "JOIN pg_catalog.pg_attribute attr "
+                "ON attr.attrelid = con.conrelid AND attr.attnum = keyed.attnum "
+                "ORDER BY keyed.ordinal) "
+                "FROM pg_catalog.pg_constraint con "
+                "JOIN pg_catalog.pg_class rel ON rel.oid = con.conrelid "
+                "JOIN pg_catalog.pg_namespace nsp ON nsp.oid = rel.relnamespace "
+                "WHERE nsp.nspname = 'app' AND rel.relname = 'build_templates' "
+                "AND con.conname = ANY(%s) ORDER BY con.conname",
+                ([target_name, legacy_name],),
+            )
+            constraints = tuple(
+                (row[0], row[1], row[2], tuple(row[3]))
+                for row in cur.fetchall()
+            )
+            cur.execute(
+                "SELECT pg_catalog.count(*) FROM ops.schema_migrations "
+                "WHERE id = '0003_build_template_config_hash_unique'"
+            )
+            return constraints, cur.fetchone()[0]
+
+        def assert_correct(state):
+            constraints, ledger_rows = state
+            self.assertEqual(len(constraints), 1)
+            self.assertEqual(constraints[0][1:], (
+                target_name,
+                "u",
+                expected_columns,
+            ))
+            self.assertEqual(ledger_rows, 1)
+
+        with self._connect(dsn) as conn:
+            with conn.cursor() as cur:
+                before = constraint_state(cur)
+                assert_correct(before)
+                cur.execute(migration_sql)
+                after = constraint_state(cur)
+                assert_correct(after)
+                self.assertEqual(after[0][0][0], before[0][0][0])
+            conn.rollback()
+            with conn.cursor() as cur:
+                self.assertEqual(constraint_state(cur), before)
+
+        def assert_drift_rejected(add_constraint_sql):
+            with self._connect(dsn) as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "ALTER TABLE app.build_templates "
+                        "DROP CONSTRAINT build_templates_user_id_template_type_config_hash_key"
+                    )
+                    cur.execute(add_constraint_sql)
+                    with self.assertRaises(psycopg.Error) as raised:
+                        cur.execute(migration_sql)
+                    self.assertEqual(raised.exception.sqlstate, "P0001")
+                conn.rollback()
+                with conn.cursor() as cur:
+                    self.assertEqual(constraint_state(cur), before)
+
+        assert_drift_rejected(
+            "ALTER TABLE app.build_templates "
+            "ADD CONSTRAINT build_templates_user_id_template_type_config_hash_key "
+            "CHECK (config_hash <> '')"
+        )
+        assert_drift_rejected(
+            "ALTER TABLE app.build_templates "
+            "ADD CONSTRAINT build_templates_user_id_template_type_config_hash_key "
+            "UNIQUE (config_hash, template_type, user_id)"
+        )
 
     def _snapshot_existing_v1_state(self, cur):
         excluded = set(self.AUTHORITY_TABLES)
@@ -781,6 +888,7 @@ class PostgresExactAuthorityCandidateTest(unittest.TestCase):
 
         self._apply(TASK_3A_FRESH_DSN, ALL_MIGRATIONS)
         self._assert_build_template_config_hash_constraint(TASK_3A_FRESH_DSN)
+        self._assert_build_template_0003_semantics(TASK_3A_FRESH_DSN)
         self._assert_grants_and_bundle_smoke(TASK_3A_FRESH_DSN)
 
         self._apply(TASK_3A_UPGRADE_DSN, ALL_MIGRATIONS[:-1])
@@ -806,6 +914,7 @@ class PostgresExactAuthorityCandidateTest(unittest.TestCase):
                 before_state = self._snapshot_existing_v1_state(cur)
         self._apply(TASK_3A_UPGRADE_DSN, ALL_MIGRATIONS[-1:])
         self._assert_build_template_config_hash_constraint(TASK_3A_UPGRADE_DSN)
+        self._assert_build_template_0003_semantics(TASK_3A_UPGRADE_DSN)
         with self._connect(TASK_3A_UPGRADE_DSN) as conn:
             with conn.cursor() as cur:
                 cur.execute(
