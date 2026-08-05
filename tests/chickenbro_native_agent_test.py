@@ -90,6 +90,19 @@ class ChickenbroNativeAgentTest(unittest.TestCase):
 
 
 class ChickenbroNativeMcpTest(unittest.TestCase):
+    def test_native_profile_forwards_the_standard_proxy_environment_to_the_read_only_toolbox(self):
+        profile_path = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)),
+            "scripts",
+            "chickenbro-native-agent",
+            "chickenbro-native.config.toml.template",
+        )
+        with open(profile_path, encoding="utf-8") as handle:
+            profile = handle.read()
+
+        for variable in ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY"):
+            self.assertIn(f'"{variable}"', profile)
+
     def test_stdio_mcp_exposes_only_the_generic_read_only_research_tool_and_records_its_result(self):
         spec = importlib.util.find_spec("server.chickenbro_native_mcp")
         self.assertIsNotNone(spec)
