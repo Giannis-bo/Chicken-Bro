@@ -53,13 +53,18 @@ class DeployLighthouseScriptTest(unittest.TestCase):
         self.assertIn("Environment=WOW_CODEX_BIN=/usr/local/bin/codex", service)
         self.assertIn("Environment=WOW_CODEX_HOME=/home/ubuntu/.codex", service)
         self.assertIn("Environment=WOW_CODEX_JOBS_DIR=/var/lib/wow-backend/codex-jobs", service)
-        self.assertIn("Environment=WOW_CODEX_SANDBOX=workspace-write", service)
+        self.assertIn("Environment=WOW_CODEX_SANDBOX=read-only", service)
         self.assertIn("/home/ubuntu/.local/bin", service)
 
-    def test_systemd_service_disables_chickenbro_codex_agent_until_cloud_route_is_ready(self):
+    def test_systemd_service_enables_the_accepted_native_chickenbro_agent(self):
         service = Path("server/wow-backend.service").read_text(encoding="utf-8")
 
-        self.assertIn("Environment=WOW_CHICKENBRO_CODEX_ENABLED=0", service)
+        self.assertIn("Environment=WOW_CHICKENBRO_CODEX_ENABLED=1", service)
+        self.assertIn("Environment=WOW_CHICKENBRO_NATIVE_AGENT_ENABLED=1", service)
+        self.assertIn("Environment=WOW_CHICKENBRO_AGENTIC_RESEARCH_ENABLED=0", service)
+        self.assertIn("Environment=WOW_CHICKENBRO_NATIVE_AGENT_PROFILE=chickenbro-native", service)
+        self.assertIn("Environment=WOW_CHICKENBRO_NATIVE_AGENT_MODEL=gpt-5.6-luna", service)
+        self.assertIn("Environment=WOW_CHICKENBRO_CODEX_TIMEOUT_SECONDS=75", service)
 
     def test_chickenbro_source_refresh_is_isolated_from_observed_build_sync(self):
         service = Path("server/wow-chickenbro-source-refresh.service").read_text(encoding="utf-8")
