@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-08-05T04:30:52.946Z",
+  "generatedAt": "2026-08-05T04:48:13.044Z",
   "release": {
     "date": "2026-08-04",
     "slug": "equipment-simulator-exact-first"
@@ -43,7 +43,7 @@
         {
           "path": "docs/project-owner-map.json",
           "exists": true,
-          "sizeBytes": 84744
+          "sizeBytes": 87139
         },
         {
           "path": "docs/verification-matrix.md",
@@ -53,7 +53,7 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 17172
+          "sizeBytes": 19511
         },
         {
           "path": "docs/README.md",
@@ -68,7 +68,7 @@
         {
           "path": "docs/backend-owner-map.json",
           "exists": true,
-          "sizeBytes": 63623
+          "sizeBytes": 65288
         }
       ],
       "historicalDocsDefaultToEvidenceOnly": true
@@ -105,7 +105,7 @@
         {
           "path": "server/news_backend.py",
           "exists": true,
-          "lineCount": 15211,
+          "lineCount": 16576,
           "hotspot": true
         },
         {
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-08-04-equipment-simulator-exact-first/evidence.json",
-    "sizeBytes": 22296,
+    "sizeBytes": 23039,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -390,9 +390,9 @@
       "summary"
     ],
     "missingFields": [],
-    "declaredStatus": "runtime_verified",
-    "highestEvidenceLevel": "runtime_verified",
-    "summary": "Task 3A is runtime_verified, not archived or release-ready. The sole promotable candidate t3a260805120026 bound clean commit 9ffd57b05ab97be880daf65425d6de9e26609e32, tree 4f4a857ed52d65e04ab6bccfc5b3ac4649c3d94e and migration 0026 SHA-256 ddbe31fc26c8ad1aafa68bc7608f083e8415e5b4353cd5145450e2791303eb8a to two new, exact-commented disposable PostgreSQL databases. Fresh and seeded-upgrade paths passed all 14 attested checks and the read-only post-audit matched ledgers, constraint shape, authority counts and SELECT-only wow_app privileges. The first two failed runs and third runtime-passed-but-unpromotable run remain literal historical evidence and all eight databases are immutable/non-reusable. No production migration, endpoint, timer, runtime consumer, Catalog/Manifest pointer, API, UI or SimC behavior changed. The manifest is Harness-bound and independent evidence-promotion review passed on packet HEAD 8257f9cd7b5845a2e76d84a7cc9fbe3bbba86ad2; branch publication, CI, merge/archive closure and retained-resource cleanup remain pending. Task 4P and later stages remain unauthorized."
+    "declaredStatus": "implementation_allowed",
+    "highestEvidenceLevel": "implementation_allowed",
+    "summary": "Task 3A is implementation_allowed / candidate_rerun_required / evidence_promotion_blocked. Fourth run t3a260805120026 genuinely passed the former 0026 chain, but origin/main later occupied migrations 0026-0029; safe integration moves Task 3A to 0030 and invalidates that run for current promotion. Its attestation-v1, commit/tree/SHA, two databases and process evidence remain immutable historical truth. All four prior run pairs and eight databases are non-reusable. Main integration and fresh local verification are pending; after those, evidence may rise only to local_verified / candidate_pending. A fifth new run-id, two new databases, fresh 0001..0030, upgrade 0001..0029-seed-to-0030, attestation-v2 and independent promotion review are mandatory before runtime_verified. No production migration, endpoint, timer, runtime consumer, Catalog/Manifest pointer, API, UI or SimC behavior changed; Task 4P+ remains unauthorized."
   },
   "evidence": {
     "localTests": {
@@ -414,10 +414,16 @@
   },
   "riskMatrix": [
     {
+      "id": "dirty_worktree",
+      "severity": "medium",
+      "status": "watch",
+      "detail": "97 changed files currently visible to git status."
+    },
+    {
       "id": "hotspot_files_present",
       "severity": "medium",
       "status": "watch",
-      "detail": "server/websim_payload.py:28040, server/news_backend.py:15211, server/postgres_cache_store.py:9698"
+      "detail": "server/websim_payload.py:28040, server/news_backend.py:16576, server/postgres_cache_store.py:9698"
     },
     {
       "id": "localTests_missing",
@@ -446,9 +452,107 @@
   ],
   "repo": {
     "git": {
-      "status": "clean",
-      "changedFileCount": 0,
-      "changedFiles": []
+      "status": "dirty",
+      "changedFileCount": 97,
+      "changedFiles": [
+        "M  apps/mini-taro/src/pages/simulator/simulator-home-dock-contract.test.ts",
+        "M  apps/mini-taro/src/pages/simulator/simulator-home.module.scss",
+        "M  apps/mini-taro/src/pages/simulator/simulator.tsx",
+        "A  artifacts/releases/2026-08-03-chickenbro-smart-question-chain/evidence.json",
+        "A  artifacts/releases/2026-08-03-chickenbro-smart-question-chain/manifest.json",
+        "A  artifacts/releases/2026-08-03-chickenbro-smart-question-chain/requirement.json",
+        "A  artifacts/releases/2026-08-04-chickenbro-agentic-research-loop/evidence.json",
+        "A  artifacts/releases/2026-08-04-chickenbro-agentic-research-loop/manifest.json",
+        "A  artifacts/releases/2026-08-04-chickenbro-agentic-research-loop/requirement.json",
+        "A  artifacts/releases/2026-08-04-chickenbro-evidence-planner/evidence.json",
+        "A  artifacts/releases/2026-08-04-chickenbro-evidence-planner/manifest.json",
+        "A  artifacts/releases/2026-08-04-chickenbro-evidence-planner/requirement.json",
+        "A  artifacts/releases/2026-08-04-chickenbro-generic-public-web-research/evidence.json",
+        "A  artifacts/releases/2026-08-04-chickenbro-generic-public-web-research/manifest.json",
+        "A  artifacts/releases/2026-08-04-chickenbro-generic-public-web-research/requirement.json",
+        " M artifacts/releases/2026-08-04-equipment-simulator-exact-first/evidence.json",
+        " M artifacts/releases/2026-08-04-equipment-simulator-exact-first/requirement.json",
+        "A  artifacts/releases/2026-08-05-chickenbro-native-agent/evidence.json",
+        "A  artifacts/releases/2026-08-05-chickenbro-native-agent/manifest.json",
+        "A  artifacts/releases/2026-08-05-chickenbro-native-agent/requirement.json",
+        "MM docs/backend-owner-map.json",
+        "A  docs/plans/2026-08-03-chickenbro-smart-question-chain-design.md",
+        "A  docs/plans/2026-08-03-chickenbro-smart-question-chain-implementation.md",
+        "A  docs/plans/2026-08-04-chickenbro-agentic-research-design.md",
+        "A  docs/plans/2026-08-04-chickenbro-agentic-research-loop-implementation.md",
+        "A  docs/plans/2026-08-04-chickenbro-evidence-planner-design.md",
+        "A  docs/plans/2026-08-04-chickenbro-evidence-planner-implementation.md",
+        "A  docs/plans/2026-08-04-chickenbro-generic-public-web-research-tool.md",
+        " M docs/plans/2026-08-04-equipment-simulator-canonical-kernel-implementation.md",
+        " M docs/plans/2026-08-04-equipment-simulator-canonical-kernel-redesign.md",
+        " M docs/plans/2026-08-04-equipment-simulator-canonical-owner-change-control.md",
+        " M docs/plans/2026-08-04-equipment-simulator-duplicate-effect-subject-correction.md",
+        " M docs/plans/2026-08-04-equipment-simulator-exact-first-implementation.md",
+        " M docs/plans/2026-08-04-equipment-simulator-exact-first-persistence-resequence.md",
+        "MM docs/plans/README.md",
+        " M docs/postgres-identity-migration-runbook.md",
+        "MM docs/project-owner-map.json",
+        "MM docs/roadmap.md",
+        "M  packages/api-client/src/simulator.test.ts",
+        "M  packages/api-client/src/simulator.ts",
+        "M  packages/design-system/src/components/ChickenbroChatComponents.module.scss",
+        "A  packages/design-system/src/components/ChickenbroChatComponents.test.ts",
+        "M  packages/design-system/src/components/ChickenbroChatComponents.tsx",
+        "M  packages/domain/src/entities.ts",
+        "A  scripts/chickenbro-candidate-tunnel/com.wow-mini-program.chickenbro-candidate-tunnel.plist",
+        "A  scripts/chickenbro-native-agent/chickenbro-native.config.toml.template",
+        "A  scripts/chickenbro-native-agent/com.wow-mini-program.chickenbro-native-agent-tunnel.plist",
+        "M  server/chickenbro_agent.py",
+        "A  server/chickenbro_community_strength.py",
+        "A  server/chickenbro_current_sources.py",
+        "M  server/chickenbro_eval.py",
+        "A  server/chickenbro_evidence_plan.py",
+        "A  server/chickenbro_native_mcp.py",
+        "M  server/chickenbro_observability.py",
+        "A  server/chickenbro_public_web_research.py",
+        "A  server/chickenbro_question_frame.py",
+        "M  server/chickenbro_registry.py",
+        "A  server/chickenbro_research.py",
+        "M  server/chickenbro_stream.py",
+        "M  server/chickenbro_tool_runtime.py",
+        "M  server/codex_worker.py",
+        "M  server/llm_client.py",
+        "A  server/migrations/postgres/0026_chickenbro_smart_question_chain.sql",
+        "A  server/migrations/postgres/0027_chickenbro_community_strength_sources.sql",
+        "A  server/migrations/postgres/0028_chickenbro_generic_public_web_research.sql",
+        "A  server/migrations/postgres/0029_chickenbro_public_web_repeat_budget.sql",
+        "R  server/migrations/postgres/0026_websim_exact_authority_bundle.sql -> server/migrations/postgres/0030_websim_exact_authority_bundle.sql",
+        "M  server/news_backend.py",
+        "M  server/postgres_ops_store.py",
+        "M  server/postgres_personal_store.py",
+        "M  server/simulator_payload.py",
+        "M  server/wow-backend-candidate.service",
+        "M  server/wow-backend.service",
+        "M  tests/chickenbro_agent_test.py",
+        "A  tests/chickenbro_community_strength_test.py",
+        "A  tests/chickenbro_current_sources_test.py",
+        "M  tests/chickenbro_eval_test.py",
+        "A  tests/chickenbro_evidence_plan_test.py",
+        "A  tests/chickenbro_native_agent_test.py",
+        "M  tests/chickenbro_observability_test.py",
+        "A  tests/chickenbro_public_web_research_test.py",
+        "A  tests/chickenbro_question_frame_test.py",
+        "M  tests/chickenbro_registry_test.py",
+        "A  tests/chickenbro_research_test.py",
+        "M  tests/chickenbro_stream_test.py",
+        "M  tests/chickenbro_tool_runtime_test.py",
+        "M  tests/codex_worker_test.py",
+        "M  tests/database_adapter_test.py",
+        "M  tests/deploy_lighthouse_test.py",
+        "M  tests/fixtures/chickenbro_trace_eval_cases.json",
+        " M tests/gear_canonical_owner_gate_test.py",
+        "M  tests/llm_client_test.py",
+        "M  tests/news_backend_test.py",
+        " M tests/postgres_integration_test.py",
+        "M  tests/postgres_ops_store_test.py",
+        "M  tests/postgres_schema_test.py",
+        "A  tests/warcraftlogs_timeout_test.py"
+      ]
     }
   },
   "write": {

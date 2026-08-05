@@ -45,8 +45,8 @@ Without a test DSN the integration suite may skip; a skip is not production evid
 
 ## Exact Authority Bundle Task 3A Candidates
 
-Migration `0026_websim_exact_authority_bundle.sql` is not production-authorized
-by local unit, schema or candidate tests. Two Task 3A candidates failed before `0026`:
+Migration `0030_websim_exact_authority_bundle.sql` is not production-authorized
+by local unit, schema or candidate tests. Two Task 3A candidates failed before the former `0026` authority migration:
 `t3a2608050955` at `f90a302040f722fec0807bd600f8e2242169801c` because `0001`
 already creates the `(user_id, template_type, config_hash)` unique constraint and
 `0003` unconditionally attempted to add the named target constraint, then
@@ -61,7 +61,7 @@ post-candidate mutation boundary. These three runs retain the literal historical
 state `candidate_rerun_required / evidence_promotion_blocked` and are never green
 Task 3A evidence.
 
-The fourth new run `t3a260805120026` passed both fresh and upgrade paths from clean
+The fourth run `t3a260805120026` genuinely passed both fresh and upgrade paths from clean
 commit `9ffd57b05ab97be880daf65425d6de9e26609e32` / tree
 `4f4a857ed52d65e04ab6bccfc5b3ac4649c3d94e` while the active requirement was
 `implementation_allowed`. Its single-line attestation binds both exact database
@@ -69,11 +69,12 @@ identities and migration `0026` SHA-256
 `ddbe31fc26c8ad1aafa68bc7608f083e8415e5b4353cd5145450e2791303eb8a` to 14
 verified checks. The read-only post-audit independently confirmed 26 ledger rows,
 one `0003`, one `0026`, one exact target constraint, expected authority counts and
-SELECT-only `wow_app` privileges in both databases. Task 3A is now
-`runtime_verified`; evidence and manifest packets are Harness-bound and independent scoped review passed,
-but branch/CI/merge closure, archival and cleanup remain pending. This is not production,
-live, release-ready, API, UI or SimC runtime evidence; runtime consumers remain
-empty and Task 4P+ is not authorized.
+SELECT-only `wow_app` privileges in both databases. That remains immutable historical evidence.
+However, origin/main subsequently occupied migration ids `0026..0029`, so safe integration
+must move Task 3A to `0030`, changing its path, ledger identity, SHA and full migration chain.
+The fourth run is therefore `runtime_passed_superseded_by_main_integration`, not current
+`runtime_verified` evidence. Current status is literal `candidate_rerun_required /
+evidence_promotion_blocked`; runtime consumers remain empty and Task 4P+ is not authorized.
 
 All four run-id pairs and all eight databases are immutable/non-reusable
 evidence: never reset or reuse them. The test suite never creates, drops, resets
@@ -90,11 +91,10 @@ The eight non-reusable database identities are:
 - `wow_exact_first_fresh_test_t3a260805120026` and
   `wow_exact_first_upgrade_test_t3a260805120026`.
 
-If a candidate-invalidating code, test, migration, requirement or owner-contract
-change occurs after `t3a260805120026`, do not reuse any prior identity. Choose one
-new lowercase run id matching `[a-z0-9]{8,32}`; the suite rejects the three
-historically forbidden ids before importing `psycopg` or connecting, and any new
-rerun must also treat `t3a260805120026` as operationally non-reusable. An operator
+Because the 0030 integration correction is candidate-invalidating, do not reuse any
+prior identity. Choose one new lowercase run id matching `[a-z0-9]{8,32}`; the suite
+rejects all four historically forbidden ids before importing `psycopg` or connecting.
+An operator
 with explicit authority provisions two distinct empty databases and exact database
 comments:
 
@@ -107,7 +107,7 @@ The cluster must already contain the repository's `wow_migrator` and `wow_app`
 roles. Historical migration `0009_runtime_reconcile_privileges.sql` executes
 `ALTER DEFAULT PRIVILEGES FOR ROLE postgres`; therefore each explicit candidate
 DSN must use an existing operator/migrator identity that already has the
-authority required by migrations `0001..0025` (commonly `postgres`, or an
+authority required by migrations `0001..0029` (commonly `postgres`, or an
 existing operator that can `SET ROLE postgres`). The suite does not create,
 alter or grant roles, and it does not change any historical migration. Do not
 add a non-superuser role gate that would contradict the frozen migration chain.
@@ -115,30 +115,32 @@ add a non-superuser role gate that would contradict the frozen migration chain.
 The safety boundary is instead exact and machine-checked: the two explicit DSNs
 must resolve to the exact run-id-bound names/comments above; both databases must
 have no project schema, table or ledger before the first write; the suite never
-creates, drops, resets or reuses a database; and migrations `0001..0026` contain
+creates, drops, resets or reuses a database; and migrations `0001..0030` contain
 no `CREATE DATABASE`, `DROP DATABASE` or `ALTER DATABASE`. Every migration DDL
 statement is therefore scoped to the current DSN database. No additional DSN or
 implicit admin connection is accepted.
 
-After the Task 3A code, tests and `0026` are committed and the tree is clean, run:
+After origin/main is integrated and the Task 3A code, tests and `0030` are committed
+on a clean final runtime-affecting tree, run:
 
 ```bash
-WOW_PG_TEST_RUN_ID_0026='<run-id>' \
-WOW_PG_TEST_DSN_FRESH_0026='<fresh-disposable-dsn>' \
-WOW_PG_TEST_DSN_UPGRADE_0026='<upgrade-disposable-dsn>' \
+WOW_PG_TEST_RUN_ID_0030='<run-id>' \
+WOW_PG_TEST_DSN_FRESH_0030='<fresh-disposable-dsn>' \
+WOW_PG_TEST_DSN_UPGRADE_0030='<upgrade-disposable-dsn>' \
 python3 -m unittest \
   tests.postgres_integration_test.PostgresExactAuthorityCandidateTest
 ```
 
-The fresh path applies `0001..0026`; it must end with exactly one
+The fresh path applies `0001..0030`; it must end with exactly 30 migration ledger
+rows, exactly one `0030_websim_exact_authority_bundle` ledger row and exactly one
 `app.build_templates` target constraint named
 `build_templates_user_id_template_type_config_hash_key`, type `u`, with ordered
 columns `user_id, template_type, config_hash`, no legacy
 `build_templates_user_id_template_type_name_key` constraint, and exactly one
 `0003_build_template_config_hash_unique` ledger row. The upgrade path independently applies
-`0001..0025`, inserts a frozen v1 row, snapshots its complete row including
+`0001..0029`, inserts a frozen v1 row, snapshots its complete row including
 `sealed_at` plus all existing project schemas, tables, columns, constraints,
-indexes, triggers, default ACLs and effective `wow_app` grants, applies `0026`,
+indexes, triggers, default ACLs and effective `wow_app` grants, applies `0030`,
 and requires every pre-existing value to remain equal. Both paths verify the
 exact six-kind/schema/prefix closed matrix, database-computed SHA-256/JSON
 projection, all seven foreign keys, complete binding predicates, all three
@@ -157,9 +159,9 @@ the rollback must restore the original correct state. These are candidate
 semantics, not parser or mock checks.
 
 After every assertion passes, the test rechecks the clean commit, Git tree,
-`0026` SHA-256 and both database names/comments, then emits exactly one compact
-JSON attestation as its final stdout line. Archive that single line verbatim for
-the later Task 3A `evidence.json`/`manifest.json` promotion review; it contains
+`0030` SHA-256 and both database names/comments, then emits exactly one compact
+`task3a-candidate-attestation-v2` JSON record as its final stdout line. Archive that
+single line verbatim for the later Task 3A `evidence.json`/`manifest.json` promotion review; it contains
 the run id, both database identities, commit/tree/migration hashes,
 `passed=true`, and the exact verified-check list, but no DSN or credential.
 Local/skipped runs emit no successful attestation and must not create or update
@@ -170,13 +172,12 @@ review. After candidate execution, any change to code, tests, migration,
 requirement or owner contracts invalidates both candidates. Only an operator may
 discard the two exact database identities after archival; the suite never does.
 Missing `psql`, either DSN, or the run id is a skipped candidate and remains
-`candidate_pending`, never green evidence. The fourth pair has passed and is the
-sole promoted `runtime_verified` candidate. Its evidence and manifest packets are Harness-bound and independent promotion review passed,
-but the pair must remain intact while archival closure is pending. The historical
-`candidate_rerun_required / evidence_promotion_blocked` status still applies to
-the first three runs; the technically successful `t3a260805113656` attestation
-cannot be archived as Task 3A evidence and cannot be used as another candidate
-input. No production migration is authorized.
+`candidate_pending`, never green evidence. The fourth pair remains intact as
+superseded attestation-v1 history and can never be reused. The historical
+`candidate_rerun_required / evidence_promotion_blocked` status applies until a fifth
+new pair passes the final integrated 0030 chain and is independently promoted.
+The technically successful `t3a260805113656` attestation also remains unpromotable.
+No production migration is authorized.
 
 ## SQLite Source Inventory
 

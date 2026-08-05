@@ -28,11 +28,16 @@ def build_codex_command(
     schema_path=None,
     sandbox=None,
     codex_bin=None,
+    profile=None,
 ):
     command = [
         codex_bin or DEFAULT_CODEX_BIN,
         "--ask-for-approval",
         "never",
+    ]
+    if profile:
+        command.extend(["--profile", str(profile)])
+    command.extend([
         "exec",
         "--json",
         "--skip-git-repo-check",
@@ -42,7 +47,7 @@ def build_codex_command(
         normalize_sandbox(sandbox),
         "--output-last-message",
         str(output_path),
-    ]
+    ])
     if schema_path:
         command.extend(["--output-schema", str(schema_path)])
     command.append("-")
@@ -70,6 +75,9 @@ def run_codex_job(
     sandbox=None,
     timeout_seconds=DEFAULT_TIMEOUT_SECONDS,
     runner=subprocess.run,
+    profile=None,
+    environment=None,
+    observation_file_name="",
 ):
     if not str(prompt or "").strip():
         raise ValueError("codex prompt is required")
@@ -82,6 +90,9 @@ def run_codex_job(
     prompt_path = job_dir / "prompt.txt"
     output_path = job_dir / "last-message.txt"
     schema_path = job_dir / "result.schema.json" if schema else None
+    observation_path = None
+    if observation_file_name:
+        observation_path = job_dir / Path(str(observation_file_name)).name
 
     prompt_text = str(prompt)
     prompt_path.write_text(prompt_text, encoding="utf-8")
@@ -94,7 +105,19 @@ def run_codex_job(
         output_path=output_path,
         schema_path=schema_path,
         sandbox=sandbox,
+        profile=profile,
     )
+    child_environment = os.environ.copy()
+    if isinstance(environment, dict):
+        child_environment.update(
+            {
+                str(key): str(value)
+                for key, value in environment.items()
+                if str(key) and value is not None
+            }
+        )
+    if observation_path is not None:
+        child_environment["CHICKENBRO_NATIVE_OBSERVATIONS_PATH"] = str(observation_path)
     try:
         completed = runner(
             command,
@@ -104,6 +127,7 @@ def run_codex_job(
             capture_output=True,
             timeout=timeout_seconds,
             check=False,
+            env=child_environment,
         )
         status = "succeeded" if completed.returncode == 0 else "failed"
         return_code = completed.returncode
@@ -126,5 +150,15 @@ def run_codex_job(
         "events": parse_jsonl_events(stdout),
         "stderr": stderr,
     }
+    if observation_path is not None and observation_path.exists():
+        observations = []
+        for line in observation_path.read_text(encoding="utf-8").splitlines():
+            try:
+                item = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(item, dict):
+                observations.append(item)
+        result["nativeToolObservations"] = observations
     (job_dir / "result.json").write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
     return result

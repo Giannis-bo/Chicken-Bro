@@ -18,13 +18,14 @@ MIGRATIONS = (
 ALL_MIGRATIONS = tuple(sorted(
     (ROOT / "server" / "migrations" / "postgres").glob("[0-9][0-9][0-9][0-9]_*.sql")
 ))
-TASK_3A_RUN_ID = os.environ.get("WOW_PG_TEST_RUN_ID_0026", "")
-TASK_3A_FRESH_DSN = os.environ.get("WOW_PG_TEST_DSN_FRESH_0026", "")
-TASK_3A_UPGRADE_DSN = os.environ.get("WOW_PG_TEST_DSN_UPGRADE_0026", "")
+TASK_3A_RUN_ID = os.environ.get("WOW_PG_TEST_RUN_ID_0030", "")
+TASK_3A_FRESH_DSN = os.environ.get("WOW_PG_TEST_DSN_FRESH_0030", "")
+TASK_3A_UPGRADE_DSN = os.environ.get("WOW_PG_TEST_DSN_UPGRADE_0030", "")
 TASK_3A_FORBIDDEN_RUN_IDS = frozenset({
     "t3a2608050955",
     "t3a260805111623",
     "t3a260805113656",
+    "t3a260805120026",
 })
 
 
@@ -48,8 +49,8 @@ TASK_3A_CANDIDATE_CONFIGURED = bool(
 )
 TASK_3A_VERIFIED_CHECKS = (
     "exact_disposable_database_identity_and_empty_preflight",
-    "fresh_migrations_0001_through_0026",
-    "upgrade_migrations_0001_through_0025_seed_then_0026",
+    "fresh_migrations_0001_through_0030",
+    "upgrade_migrations_0001_through_0029_seed_then_0030",
     "v1_full_row_schema_table_default_acl_and_grant_parity",
     "canonical_hash_and_json_projection",
     "six_kind_schema_prefix_closed_matrix",
@@ -60,7 +61,7 @@ TASK_3A_VERIFIED_CHECKS = (
     "whole_bundle_typed_readback",
     "absent_row_reverse_shared_effect_concurrency",
     "build_template_0003_semantic_idempotence_and_ledger",
-    "unique_0026_migration_ledger_identity",
+    "unique_0030_migration_ledger_identity",
 )
 
 
@@ -93,7 +94,7 @@ def build_task3a_candidate_attestation(
     import json
 
     return json.dumps({
-        "schemaVersion": "task3a-candidate-attestation-v1",
+        "schemaVersion": "task3a-candidate-attestation-v2",
         "task": "equipment-simulator-exact-first-task-3a",
         "runId": run_id,
         "passed": True,
@@ -107,7 +108,7 @@ def build_task3a_candidate_attestation(
         },
         "gitCommit": git_identity[0],
         "gitTree": git_identity[1],
-        "migration0026Sha256": git_identity[2],
+        "migration0030Sha256": git_identity[2],
         "verifiedChecks": list(TASK_3A_VERIFIED_CHECKS),
     }, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
 
@@ -125,6 +126,7 @@ class Task3ACandidateAttestationTest(unittest.TestCase):
                 "t3a2608050955",
                 "t3a260805111623",
                 "t3a260805113656",
+                "t3a260805120026",
             }),
         )
 
@@ -135,6 +137,7 @@ class Task3ACandidateAttestationTest(unittest.TestCase):
             "t3a2608050955",
             "t3a260805111623",
             "t3a260805113656",
+            "t3a260805120026",
             "BAD",
             "short",
             "a" * 33,
@@ -144,7 +147,7 @@ class Task3ACandidateAttestationTest(unittest.TestCase):
                     validator(invalid)
 
     def test_builder_rejects_unpromotable_candidate_run_id_with_matching_identities(self):
-        failed_run_id = "t3a260805113656"
+        failed_run_id = "t3a260805120026"
         with self.assertRaises(ValueError):
             build_task3a_candidate_attestation(
                 run_id=failed_run_id,
@@ -171,7 +174,7 @@ class Task3ACandidateAttestationTest(unittest.TestCase):
         with patch.dict(sys.modules, {"psycopg": fake_psycopg}):
             with patch.dict(
                 globals(),
-                {"TASK_3A_RUN_ID": "t3a260805113656"},
+                {"TASK_3A_RUN_ID": "t3a260805120026"},
             ):
                 with self.assertRaises(ValueError):
                     PostgresExactAuthorityCandidateTest._connect("secret-dsn")
@@ -200,7 +203,7 @@ class Task3ACandidateAttestationTest(unittest.TestCase):
         import json
 
         payload = json.loads(line)
-        self.assertEqual(payload["schemaVersion"], "task3a-candidate-attestation-v1")
+        self.assertEqual(payload["schemaVersion"], "task3a-candidate-attestation-v2")
         self.assertEqual(payload["task"], "equipment-simulator-exact-first-task-3a")
         self.assertEqual(payload["runId"], run_id)
         self.assertIs(payload["passed"], True)
@@ -208,11 +211,11 @@ class Task3ACandidateAttestationTest(unittest.TestCase):
         self.assertEqual(payload["upgradeDatabase"], {"name": upgrade[0], "comment": upgrade[1]})
         self.assertEqual(payload["gitCommit"], "a" * 40)
         self.assertEqual(payload["gitTree"], "b" * 40)
-        self.assertEqual(payload["migration0026Sha256"], "c" * 64)
+        self.assertEqual(payload["migration0030Sha256"], "c" * 64)
         self.assertEqual(tuple(payload["verifiedChecks"]), (
             "exact_disposable_database_identity_and_empty_preflight",
-            "fresh_migrations_0001_through_0026",
-            "upgrade_migrations_0001_through_0025_seed_then_0026",
+            "fresh_migrations_0001_through_0030",
+            "upgrade_migrations_0001_through_0029_seed_then_0030",
             "v1_full_row_schema_table_default_acl_and_grant_parity",
             "canonical_hash_and_json_projection",
             "six_kind_schema_prefix_closed_matrix",
@@ -223,7 +226,7 @@ class Task3ACandidateAttestationTest(unittest.TestCase):
             "whole_bundle_typed_readback",
             "absent_row_reverse_shared_effect_concurrency",
             "build_template_0003_semantic_idempotence_and_ledger",
-            "unique_0026_migration_ledger_identity",
+            "unique_0030_migration_ledger_identity",
         ))
         self.assertEqual(len(payload["verifiedChecks"]), len(set(payload["verifiedChecks"])))
         lowered = line.lower()
@@ -323,7 +326,7 @@ class Task3ACandidateAttestationTest(unittest.TestCase):
         self.assertNotIn('sqlstate="23503"', source)
         migration = (
             ROOT / "server" / "migrations" / "postgres"
-            / "0026_websim_exact_authority_bundle.sql"
+            / "0030_websim_exact_authority_bundle.sql"
         ).read_text(encoding="utf-8")
         normalized = " ".join(migration.split())
         self.assertIn(
@@ -689,7 +692,7 @@ class PostgresExactAuthorityCandidateTest(unittest.TestCase):
         ).stdout.strip()
         import hashlib
 
-        migration = ROOT / "server" / "migrations" / "postgres" / "0026_websim_exact_authority_bundle.sql"
+        migration = ROOT / "server" / "migrations" / "postgres" / "0030_websim_exact_authority_bundle.sql"
         return commit, tree, hashlib.sha256(migration.read_bytes()).hexdigest()
 
     def _assert_closed_document_matrix(self, dsn, bundle):
@@ -940,7 +943,7 @@ class PostgresExactAuthorityCandidateTest(unittest.TestCase):
             with conn.cursor() as cur:
                 cur.execute(
                     "SELECT pg_catalog.count(*) FROM ops.schema_migrations "
-                    "WHERE id = '0026_websim_exact_authority_bundle'"
+                    "WHERE id = '0030_websim_exact_authority_bundle'"
                 )
                 self.assertEqual(cur.fetchone()[0], 1)
         sealed = self._assert_absent_row_reverse_shared_record_concurrency(dsn)
@@ -987,7 +990,7 @@ class PostgresExactAuthorityCandidateTest(unittest.TestCase):
         self.assertRegex(commit, r"^[0-9a-f]{40}$")
         self.assertRegex(tree, r"^[0-9a-f]{40}$")
         self.assertRegex(migration_sha, r"^[0-9a-f]{64}$")
-        self.assertEqual(ALL_MIGRATIONS[-1].name, "0026_websim_exact_authority_bundle.sql")
+        self.assertEqual(ALL_MIGRATIONS[-1].name, "0030_websim_exact_authority_bundle.sql")
 
         self._apply(TASK_3A_FRESH_DSN, ALL_MIGRATIONS)
         self._assert_build_template_config_hash_constraint(TASK_3A_FRESH_DSN)

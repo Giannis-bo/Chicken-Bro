@@ -11,7 +11,7 @@
     "不改写 generation 35、Catalog/Manifest pointer、selection-intent-v1 或既有 canonical bytes/key。",
     "不将原始插件导出文本写入数据库、artifact、日志、template、queue 或公开 payload。",
     "不在新的 fresh/upgrade 两个真实 disposable PostgreSQL candidate 均通过之前声称 Task 3A 完成、release-ready 或 production-ready。",
-    "不重置、复用或修改 run t3a2608050955、t3a260805111623 或 t3a260805113656 的任一 candidate 数据库；前两次是 migration-chain failed runs，第三次虽 runtime passed 但因 requirement status 错误而不可晋升；不通过跳过 0003、吞掉 duplicate_object、ledger reconciliation、预删 target constraint、改写 0001、retro migration 或 0026 修复迁移链。"
+    "不重置、复用或修改 run t3a2608050955、t3a260805111623、t3a260805113656 或 t3a260805120026 的任一 candidate 数据库；前两次是 migration-chain failed runs，第三次因 requirement gate 错误而不可晋升，第四次当时真实通过但因 origin/main 已占用 0026-0029、Task 3A 必须顺延到 0030 而被集成漂移失效；不通过跳过 0003、吞掉 duplicate_object、ledger reconciliation、预删 target constraint、改写 0001、retro migration 或追加修复迁移绕过 0030 完整链。"
   ],
   "currentTruth": {
     "sources": [
@@ -33,7 +33,7 @@
     {
       "id": "replacement_task_3a_exact_authority_persistence",
       "planHeading": "Task 3A：完整 Canonical Authority Bundle 持久化",
-      "scope": "六个 typed canonical reload API、canonical bytes/hash/JSON projection、完整 Exact/Static/Progression/ordered Effect Records/Aggregate/Envelope closure、append-only PostgreSQL 0026 与无 runtime consumer 的 store",
+      "scope": "六个 typed canonical reload API、canonical bytes/hash/JSON projection、完整 Exact/Static/Progression/ordered Effect Records/Aggregate/Envelope closure、append-only PostgreSQL 0030 与无 runtime consumer 的 store",
       "gate": "typed reload and store fail closed; database independently binds SHA-256 and JSON projection to exact bytes; full bundle round-trip preserves order and duplicates; wow_app is read-only; source registry remains five targets with proofClaim source_change_control_only; two fresh disposable PostgreSQL candidates pass before completion"
     }
   ],
@@ -56,9 +56,9 @@
       "server/gear_canonical_kernel.py and its tests for one private exact-bytes rehydration primitive with all existing size, UTF-8, duplicate-key, NFC, canonical-byte and content-key checks",
       "server/gear_exact_item_instance.py, server/gear_exact_authority.py and server/simc_item_effect_support.py plus their tests for the six frozen typed reload APIs and parent/runtime/revision bindings",
       "server/migrations/postgres/0003_build_template_config_hash_unique.sql only for the authorized fail-closed semantic-idempotence correction: retain legacy-name drop, conditionally create only an absent target and strictly verify app.build_templates/type-u/ordered user_id-template_type-config_hash without duplicate_object swallowing",
-      "server/migrations/postgres/0026_websim_exact_authority_bundle.sql for three append-only authority tables with database-computed SHA-256, JSON projection equality, closed kind/schema/prefix matrix, full foreign-key closure and immutable grants",
+      "server/migrations/postgres/0030_websim_exact_authority_bundle.sql for three append-only authority tables with database-computed SHA-256, JSON projection equality, closed kind/schema/prefix matrix, full foreign-key closure and immutable grants",
       "server/gear_exact_authority_store.py plus store and independent import-boundary tests for transactional whole-bundle seal/reload, frozen ExactAuthorityBundle and order-preserving duplicate batch loads",
-      "tests/postgres_schema_test.py and tests/postgres_integration_test.py for static SQL plus isolated fresh and 0025-to-0026 candidate paths",
+      "tests/postgres_schema_test.py and tests/postgres_integration_test.py for static SQL plus isolated fresh 0001-to-0030 and upgrade 0001-to-0029-seed-to-0030 candidate paths",
       "tests/fixtures/gear_canonical_owner_registry.json and tests/gear_canonical_owner_gate_test.py only for exact typed reload imports while retaining exactly five targets, nine exemptions and source_change_control_only",
       "Harness packet, owner maps, roadmap, plan index, PostgreSQL runbook and active plan statuses for Task 3A implementation/candidate truth"
     ],
@@ -73,9 +73,9 @@
     "evidenceRequired": [
       "RED/GREEN tests for all six typed reload APIs, hostile bytes/key/schema/binding mutations and frozen v1/v2 keys",
       "Store tests for immutable ExactAuthorityBundle, complete closure, exact readback, idempotency/collision/rollback, missing rows, A-B-A order, repeated/non-adjacent records, ordinal gaps and concurrent same-key writes",
-      "Static SQL tests for core sha256, bytes-to-JSON equality, both aggregate foreign keys, bundle binding triggers, safe search_path, immutable triggers, wow_app read-only and unique 0026 ledger identity",
-      "Two real empty disposable PostgreSQL candidates identified by run-id/name/database comment: fresh 0001-to-0026 and upgrade 0001-to-0025 plus frozen v1 seed/snapshot to 0026; before/after v1 bytes/hash/grants remain equal",
-      "Candidate evidence binds the final runtime-affecting commit SHA, its Git tree SHA and 0026 migration file SHA-256 to both database identities and all recorded smoke results; Harness verification identity separately binds the final PR HEAD",
+      "Static SQL tests for core sha256, bytes-to-JSON equality, both aggregate foreign keys, bundle binding triggers, safe search_path, immutable triggers, wow_app read-only, globally unique migration-number prefixes and unique 0030 ledger identity",
+      "Two real empty disposable PostgreSQL candidates identified by run-id/name/database comment: fresh 0001-to-0030 and upgrade 0001-to-0029 plus frozen v1 seed/snapshot to 0030; before/after v1 bytes/hash/grants remain equal",
+      "Candidate evidence binds the final runtime-affecting commit SHA, its Git tree SHA and 0030 migration file SHA-256 to both database identities and all recorded smoke results; Harness verification identity separately binds the final PR HEAD",
       "Focused/full Canonical regressions, owner gate, existing v1 store/snapshot regressions, Node owner maps, Harness requirement, JSON, pycompile and diff checks",
       "Independent Task 3A spec and code-quality review PASS/APPROVED with zero unresolved findings"
     ]
@@ -117,11 +117,11 @@
     "originalTask3Activated": false,
     "replacementTask3AActivated": true,
     "task3AStoreOwner": "server/gear_exact_authority_store.py",
-    "task3AMigration": "server/migrations/postgres/0026_websim_exact_authority_bundle.sql"
+    "task3AMigration": "server/migrations/postgres/0030_websim_exact_authority_bundle.sql"
   },
   "engineeringHealth": {
     "status": "task3a_candidate_rerun_required_evidence_promotion_blocked",
-    "reason": "Replacement Task 3A implementation, local verification and independent final review are PASS/APPROVED with zero unresolved findings. Real candidates t3a2608050955 and t3a260805111623 failed before 0026 on the two corrected historical 0003 defects. Candidate t3a260805113656 at commit 0e0743ca188efbd7cb818bfb8a210fd998379f4d and tree 3fce81f57dbdc851a9438ae63ea051f666bf1051 then passed both runtime paths, but its active requirement status was local_verified, while Harness permits evidence promotion only from implementation_allowed. Correcting this requirement and its owner contracts occurs after that run and therefore invalidates it under the frozen post-candidate boundary. Status is literal candidate_rerun_required / evidence_promotion_blocked. All three run-id pairs and all six databases are immutable, non-reusable evidence; no evidence.json or manifest.json exists. A fourth run with a new run-id and two newly provisioned databases is mandatory. runtimeConsumers remains empty and original Task 3 stays stopped."
+    "reason": "Task 3A code passed its earlier scoped review, and fourth candidate t3a260805120026 genuinely passed the then-current 0026 chain. origin/main later occupied migration ids 0026-0029, so safe integration requires Task 3A to move atomically to 0030 and changes its migration path, ledger identity, file SHA, tests, requirement and owner contracts. The fourth candidate is therefore runtime_passed_superseded_by_main_integration, not current promotable evidence. Status is literal candidate_rerun_required / evidence_promotion_blocked; all four run-id pairs and all eight databases are immutable and non-reusable. A fifth run from the final integrated clean head with a new run-id and two new databases is mandatory. runtimeConsumers remains empty and original Task 3 stays stopped."
   },
   "dataPrivacyBoundary": {
     "rawPluginText": "ephemeral parser input only; it must not be persisted, logged, templated, queued, included in artifact evidence, or returned in output payloads.",
@@ -129,8 +129,8 @@
   },
   "candidateDeployment": {
     "required": true,
-    "beforeMerge": "Runs t3a2608050955 and t3a260805111623 failed before 0026; t3a260805113656 passed both runtime paths but is unpromotable because requirement status was local_verified and the required requirement/owner correction invalidates that candidate after execution. Their three database pairs are immutable evidence, not candidate targets: wow_exact_first_fresh_test_t3a2608050955 / wow_exact_first_upgrade_test_t3a2608050955, wow_exact_first_fresh_test_t3a260805111623 / wow_exact_first_upgrade_test_t3a260805111623, and wow_exact_first_fresh_test_t3a260805113656 / wow_exact_first_upgrade_test_t3a260805113656. At the next committed final runtime-affecting head with a clean tree and requirement status implementation_allowed, record that commit SHA, its Git tree SHA and 0026 file SHA-256; use a fourth new run-id and two newly operator-provisioned empty disposable PostgreSQL databases with exact database comments. Prove fresh 0001-to-0026 and upgrade 0001-to-0025 plus seeded frozen v1 rows to 0026; both must end with exactly one app.build_templates target constraint named build_templates_user_id_template_type_config_hash_key of type u with ordered user_id/template_type/config_hash columns, no legacy name constraint and exactly one 0003 ledger row, then run bundle/grant/concurrency smoke. After that candidate, only evidence.json, manifest.json and task-status documentation may change; any code, test, migration, requirement or owner-contract change invalidates it and requires another rerun. Harness verification identity binds the later final PR HEAD. Record endpoint smoke and timer/backflow as explicitly not_applicable because Task 3A has no service, scheduled job or runtime consumer. No production migration is authorized.",
-    "rollback": "Task code rollback plus preservation of the exact fourth candidate database pair through evidence.json/manifest.json archival and review. The six prior databases remain immutable and non-reusable. Only after archival may the operator discard explicitly identified disposable identities through the runbook; no production data, generation 35, Catalog/Manifest pointer or service state is changed."
+    "beforeMerge": "Runs t3a2608050955 and t3a260805111623 failed before the then-current 0026 authority migration; t3a260805113656 passed runtime but was unpromotable because requirement.status was local_verified. Run t3a260805120026 then genuinely passed the 0026 fresh/upgrade paths while implementation_allowed, but origin/main subsequently occupied 0026-0029, forcing the current Task 3A migration to 0030 and invalidating that run for integration. All four database pairs are immutable historical evidence, never candidate targets. At the next committed final integrated runtime-affecting head with a clean tree and requirement.status=implementation_allowed, record commit SHA, Git tree SHA and 0030 file SHA-256; use a fifth new run-id and two newly operator-provisioned empty disposable PostgreSQL databases with exact comments. Prove fresh 0001-to-0030 and upgrade 0001-to-0029 plus seeded frozen v1 rows to 0030; both must end with exactly one target config-hash constraint, one 0003 ledger row, one 0030 ledger row and 30 total ledger rows, then run bundle/grant/concurrency smoke and emit task3a-candidate-attestation-v2. After that candidate, only evidence.json, manifest.json and task-status documentation may change; any code, test, migration, requirement or owner-contract change invalidates it and requires another rerun. Harness verification identity binds the later final PR HEAD. Endpoint smoke and timer/backflow remain explicitly not_applicable. No production migration is authorized.",
+    "rollback": "Task code rollback plus preservation of all four exact historical candidate database pairs through evidence.json/manifest.json archival and review. Only after archival may the operator discard explicitly identified disposable identities through the runbook; no production data, generation 35, Catalog/Manifest pointer or service state is changed."
   },
   "acceptanceEvidence": [
     "Every stored document retains exact canonical bytes; PostgreSQL independently verifies SHA-256, key prefix and JSON projection while typed reload verifies lexical canonical form and domain bindings.",
@@ -138,14 +138,14 @@
     "Batch loads preserve input order and multiplicity exactly, including A-B-A; Exact-key latest lookup and Catalog-derived substitution do not exist.",
     "wow_app can only read the three new authority tables; it cannot insert, update, delete or truncate. No worker, job, API, UI, Resolver, service or runtime consumer is activated.",
     "Fresh and upgrade PostgreSQL candidates start from independently proven empty databases and preserve all seeded v1 bytes, keys and row hashes.",
-    "Both candidates identify the same final runtime-affecting commit, its Git tree and 0026 SHA-256; the final PR HEAD is separately bound by Harness verification identity, and service endpoint smoke plus timer/backflow are recorded as not_applicable rather than silently omitted.",
+    "Both fifth-run candidates identify the same final integrated runtime-affecting commit, its Git tree and 0030 SHA-256; the final PR HEAD is separately bound by Harness verification identity, and service endpoint smoke plus timer/backflow are recorded as not_applicable rather than silently omitted.",
     "The registry remains five targets and nine exemptions with proofClaim source_change_control_only; the independent store import gate prevents direct Kernel-private, validator, serializer or Catalog imports."
   ],
   "manualAcceptanceContract": {
     "required": false,
     "requiredItemIds": []
   },
-  "closureCondition": "Task 3A may close only after local typed-reload/store/SQL/Canonical/v1 verification, a fourth new run-id-bound empty PostgreSQL fresh/upgrade pair executed while this requirement is implementation_allowed, frozen v1/v2 identity proof, Harness evidence/manifest promotion and independent scoped PASS/APPROVED review are simultaneously present. Runs t3a2608050955, t3a260805111623 and t3a260805113656 and all six associated databases are never reusable; until the replacement pair passes and is promotable, status remains literal candidate_rerun_required / evidence_promotion_blocked. Original Task 3 and all Task 4P+ runtime stages stay inactive.",
+  "closureCondition": "Task 3A may close only after origin/main integration, 0030 migration identity correction, local typed-reload/store/SQL/Canonical/v1 verification, a fifth new run-id-bound empty PostgreSQL fresh/upgrade pair executed while this requirement is implementation_allowed, frozen v1/v2 identity proof, Harness evidence/manifest promotion and independent scoped PASS/APPROVED review are simultaneously present. Runs t3a2608050955, t3a260805111623, t3a260805113656 and t3a260805120026 and all eight associated databases are never reusable; until the fifth pair passes and is promotable, status remains literal candidate_rerun_required / evidence_promotion_blocked. Original Task 3 and all Task 4P+ runtime stages stay inactive.",
   "releaseTrigger": "pg_read_model",
   "rollback": [
     "code_rollback",
@@ -208,6 +208,14 @@
     {
       "date": "2026-08-05",
       "decision": "第三次 candidate t3a260805113656 在 commit 0e0743ca188efbd7cb818bfb8a210fd998379f4d / tree 3fce81f57dbdc851a9438ae63ea051f666bf1051 上通过 fresh 与 upgrade runtime 验证，但 active requirement.status 错为 local_verified，Harness 因 requirement_not_implementation_allowed 禁止证据晋升。修正 requirement 与 owner contracts 属于 candidate 后无效化变更，因此该 run 不可晋升也不可复用；状态改为 candidate_rerun_required / evidence_promotion_blocked。三个 run 的六库全部保持 immutable/non-reusable，不创建 evidence.json/manifest.json；必须在 requirement.status=implementation_allowed 的新 committed head 上以第四个新 run-id 和两座新库重跑。"
+    },
+    {
+      "date": "2026-08-05",
+      "decision": "第四次 candidate t3a260805120026 在 clean commit 9ffd57b05ab97be880daf65425d6de9e26609e32 / tree 4f4a857ed52d65e04ab6bccfc5b3ac4649c3d94e 上真实通过当时的 fresh/upgrade 0026 链、14 项 attestation 与只读 post-audit；该历史事实及两库永久保留。"
+    },
+    {
+      "date": "2026-08-05",
+      "decision": "origin/main 随后发布 PostgreSQL migrations 0026-0029。为避免编号碰撞并保留主线历史，Task 3A 当前 migration 原子顺延为 0030，未来预留改为 0031-0033。迁移路径、ledger、SHA、完整链、测试、requirement 与 owner contract 均发生 candidate-invalidating 变化，因此第四次 run 降为 runtime_passed_superseded_by_main_integration；必须在最终集成 clean head 上以第五个新 run-id、新双库和 attestation-v2 重跑，期间保持 candidate_rerun_required / evidence_promotion_blocked。"
     }
   ]
 }

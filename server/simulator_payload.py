@@ -6,7 +6,9 @@ import shutil
 import subprocess
 import sys
 from datetime import datetime, timezone
+from math import ceil
 from pathlib import Path
+from time import monotonic
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
@@ -1794,7 +1796,17 @@ def redact_wcl_secret(text):
     return value
 
 
-def warcraftlogs_oauth_token():
+def warcraftlogs_timeout_seconds(timeout_seconds=None):
+    configured_timeout = int_env("WOW_WARCRAFTLOGS_TIMEOUT_SECONDS", 15)
+    if timeout_seconds is not None:
+        try:
+            return min(configured_timeout, max(1, int(timeout_seconds)))
+        except (TypeError, ValueError):
+            pass
+    return configured_timeout
+
+
+def warcraftlogs_oauth_token(timeout_seconds=None):
     client_id = os.environ.get("WOW_WARCRAFTLOGS_CLIENT_ID", "").strip()
     client_secret = os.environ.get("WOW_WARCRAFTLOGS_CLIENT_SECRET", "").strip()
     if not client_id or not client_secret:
@@ -1812,7 +1824,7 @@ def warcraftlogs_oauth_token():
     raw_auth = f"{client_id}:{client_secret}".encode("utf-8")
     request.add_header("Authorization", f"Basic {base64.b64encode(raw_auth).decode('ascii')}")
     request.add_header("Content-Type", "application/x-www-form-urlencoded")
-    with urlopen(request, timeout=int_env("WOW_WARCRAFTLOGS_TIMEOUT_SECONDS", 15)) as response:
+    with urlopen(request, timeout=warcraftlogs_timeout_seconds(timeout_seconds)) as response:
         payload = json.loads(response.read().decode("utf-8"))
     token = str(payload.get("access_token") or "").strip()
     if not token:
@@ -1820,20 +1832,23 @@ def warcraftlogs_oauth_token():
     return token
 
 
-def warcraftlogs_graphql(query, variables=None, token=None):
+def warcraftlogs_graphql(query, variables=None, token=None, timeout_seconds=None):
+    request_timeout = warcraftlogs_timeout_seconds(timeout_seconds)
+    started_at = monotonic()
     graphql_url = os.environ.get("WOW_WARCRAFTLOGS_GRAPHQL_URL", "https://www.warcraftlogs.com/api/v2/client").strip()
     body = json.dumps({"query": query, "variables": variables or {}}).encode("utf-8")
     request = Request(
         graphql_url,
         data=body,
         headers={
-            "Authorization": f"Bearer {token or warcraftlogs_oauth_token()}",
+            "Authorization": f"Bearer {token or warcraftlogs_oauth_token(request_timeout)}",
             "Content-Type": "application/json",
             "User-Agent": "wow-mini-program-wcl-sync",
         },
         method="POST",
     )
-    with urlopen(request, timeout=int_env("WOW_WARCRAFTLOGS_TIMEOUT_SECONDS", 15)) as response:
+    remaining_timeout = max(1, ceil(request_timeout - (monotonic() - started_at)))
+    with urlopen(request, timeout=remaining_timeout) as response:
         payload = json.loads(response.read().decode("utf-8"))
     errors = payload.get("errors")
     if errors:

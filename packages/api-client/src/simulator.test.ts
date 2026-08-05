@@ -287,6 +287,7 @@ describe('SimulatorClient task contract', () => {
       { ...valid, assistantMessage: { ...valid.assistantMessage, content: null } },
       { ...valid, assistantMessage: { ...valid.assistantMessage, payload: { ...valid.assistantMessage.payload, evidenceRefs: 'simc://task/1' } } },
       { ...valid, assistantMessage: { ...valid.assistantMessage, payload: { ...valid.assistantMessage.payload, priorityActions: [{ title: '', evidenceRefs: [] }] } } },
+      { ...valid, assistantMessage: { ...valid.assistantMessage, payload: { ...valid.assistantMessage.payload, priorityActions: [{ action: '遗留字段', reason: '不是公共契约', evidenceRefs: [] }] } } },
     ]
     const emptyNextQuestion = {
       ...valid,
@@ -295,7 +296,21 @@ describe('SimulatorClient task contract', () => {
         payload: { ...valid.assistantMessage.payload, nextQuestion: '' },
       },
     }
-    const responses = [emptyNextQuestion, ...invalid]
+    const partialEvidenceOutcome = {
+      ...valid,
+      assistantMessage: {
+        ...valid.assistantMessage,
+        payload: { ...valid.assistantMessage.payload, evidenceOutcome: 'partial' },
+      },
+    }
+    const invalidEvidenceOutcome = {
+      ...valid,
+      assistantMessage: {
+        ...valid.assistantMessage,
+        payload: { ...valid.assistantMessage.payload, evidenceOutcome: 'stale' },
+      },
+    }
+    const responses = [emptyNextQuestion, partialEvidenceOutcome, invalidEvidenceOutcome, ...invalid]
     const results = await Promise.all(responses.map(async (payload) => {
       const requestEndpoint = async <T>(
         _endpoint: string,
@@ -309,7 +324,8 @@ describe('SimulatorClient task contract', () => {
     }))
 
     expect(results[0]?.fromFallback).toBe(false)
-    expect(results.slice(1).every((result) => result.fromFallback)).toBe(true)
+    expect(results[1]?.fromFallback).toBe(false)
+    expect(results.slice(2).every((result) => result.fromFallback)).toBe(true)
   })
 
   it('forwards a stable client message id for Chickenbro retry de-duplication', async () => {

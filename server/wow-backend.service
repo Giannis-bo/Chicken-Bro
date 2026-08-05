@@ -21,9 +21,19 @@ Environment=WOW_SIMULATION_SNAPSHOT_V1_ENABLED=1
 Environment=WOW_CODEX_BIN=/usr/local/bin/codex
 Environment=WOW_CODEX_HOME=/home/ubuntu/.codex
 Environment=WOW_CODEX_JOBS_DIR=/var/lib/wow-backend/codex-jobs
-Environment=WOW_CODEX_SANDBOX=workspace-write
-Environment=WOW_CHICKENBRO_CODEX_ENABLED=0
-Environment=WOW_CHICKENBRO_CODEX_TIMEOUT_SECONDS=45
+Environment=WOW_CODEX_SANDBOX=read-only
+Environment=WOW_CHICKENBRO_CODEX_ENABLED=1
+Environment=WOW_CHICKENBRO_NATIVE_AGENT_ENABLED=1
+Environment=WOW_CHICKENBRO_AGENTIC_RESEARCH_ENABLED=0
+Environment=WOW_CHICKENBRO_NATIVE_AGENT_PROFILE=chickenbro-native
+Environment=WOW_CHICKENBRO_NATIVE_AGENT_MODEL=gpt-5.6-luna
+Environment=WOW_CHICKENBRO_CODEX_TIMEOUT_SECONDS=75
+# Explicit, public-only WCL target for retail Mythic+ community-strength coverage.
+# This is intentionally separate from the generic WCL/template target: a change of
+# season or encounter must be an explicit deployment decision, never a heuristic.
+Environment=WOW_CHICKENBRO_WCL_PUBLIC_MPLUS_ENCOUNTER_ID=112526
+Environment=WOW_CHICKENBRO_WCL_PUBLIC_MPLUS_PARTITION=1
+Environment="WOW_CHICKENBRO_WCL_PUBLIC_MPLUS_SEASON_LABEL=Midnight Mythic+ Season 1 (WCL zone 47)"
 Environment=HTTPS_PROXY=http://127.0.0.1:7890
 Environment=HTTP_PROXY=http://127.0.0.1:7890
 Environment=ALL_PROXY=socks5h://127.0.0.1:7890

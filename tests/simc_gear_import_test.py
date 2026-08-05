@@ -201,7 +201,7 @@ class SimcGearImportTest(unittest.TestCase):
         for slice_ in requirement_payload["releaseSlices"]:
             self.assertIn(f"## {slice_['planHeading']}", plan_text)
 
-    def test_reachable_canonical_plan_summaries_require_fourth_candidate(self):
+    def test_reachable_canonical_plan_summaries_require_fifth_candidate_after_0030_shift(self):
         root = Path(__file__).resolve().parents[1]
         plan_index = (root / "docs/plans/README.md").read_text(encoding="utf-8")
         summaries = (
@@ -220,8 +220,9 @@ class SimcGearImportTest(unittest.TestCase):
                     "candidate_rerun_required / evidence_promotion_blocked",
                     top_level,
                 )
-                self.assertIn("t3a260805113656", top_level)
-                self.assertNotIn("candidate_pending", top_level)
+                self.assertIn("t3a260805120026", top_level)
+                self.assertIn("0030", top_level)
+                self.assertIn("第五次", top_level)
 
 
 if __name__ == "__main__":

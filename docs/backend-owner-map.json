@@ -14,7 +14,7 @@
     {
       "path": "server/gear_canonical_kernel.py",
       "healthStatus": "task3a_candidate_rerun_required_evidence_promotion_blocked",
-      "summary": "Owns the completed pure Canonical foundation and source change-control. Task 3A is literal candidate_rerun_required / evidence_promotion_blocked: t3a2608050955 and t3a260805111623 failed in historical 0003, while t3a260805113656 passed both runtime paths but cannot be promoted because the active requirement was local_verified instead of implementation_allowed and its required post-run control-plane correction invalidates that candidate. All three run pairs and six databases are immutable/non-reusable; a fourth new run-id and new database pair are mandatory. No runtime consumer is active.",
+      "summary": "Owns the completed pure Canonical foundation and source change-control. Task 3A is literal candidate_rerun_required / evidence_promotion_blocked: t3a2608050955 and t3a260805111623 failed in historical 0003; t3a260805113656 passed runtime but was unpromotable; t3a260805120026 genuinely passed the former 0026 chain but is superseded because origin/main occupied 0026-0029 and Task 3A must move to 0030. All four run pairs and eight databases are immutable/non-reusable; a fifth new run-id and new database pair are mandatory. No runtime consumer is active.",
       "owners": [
         {
           "id": "equipment_simulator_canonical_kernel_task1_5",
@@ -77,7 +77,7 @@
             "task_5a_api_runtime",
             "task_6c_observation_catalog"
           ],
-          "capabilityBoundary": "The pure Canonical foundation and replacement Task 3A independent implementation review are final PASS/APPROVED with zero unresolved findings. Runs t3a2608050955 and t3a260805111623 failed before 0026 on corrected historical 0003 defects. Run t3a260805113656 passed both runtime paths at commit 0e0743ca188efbd7cb818bfb8a210fd998379f4d / tree 3fce81f57dbdc851a9438ae63ea051f666bf1051 but is unpromotable because the active requirement was local_verified and the required requirement/owner correction invalidates the post-run candidate. Status is candidate_rerun_required / evidence_promotion_blocked; all three run pairs and six databases are immutable/non-reusable, and a fourth new run-id/new database pair is mandatory before evidence promotion. The registry remains test-only, proofClaim stays source_change_control_only, runtimeConsumers is empty, original Task 3 remains stopped, and generation 35, Catalog/pointers, worker, Resolver/API/UI, raw-text privacy and v1 identities remain unchanged."
+          "capabilityBoundary": "The pure Canonical foundation and replacement Task 3A earlier implementation review are PASS/APPROVED with zero unresolved findings. Runs t3a2608050955 and t3a260805111623 failed before the former 0026 authority migration; t3a260805113656 passed runtime but was unpromotable; t3a260805120026 genuinely passed the former 0026 chain but is runtime_passed_superseded_by_main_integration because origin/main occupied 0026-0029 and Task 3A must move to 0030. Status is candidate_rerun_required / evidence_promotion_blocked; all four run pairs and eight databases are immutable/non-reusable, and a fifth new run-id/new database pair is mandatory before evidence promotion. The registry remains test-only, proofClaim stays source_change_control_only, runtimeConsumers is empty, original Task 3 remains stopped, and generation 35, Catalog/pointers, worker, Resolver/API/UI, raw-text privacy and v1 identities remain unchanged."
         }
       ]
     },
@@ -553,6 +553,11 @@
           "registryRuntimeOwner": "server/chickenbro_tool_runtime.py",
           "registryReadOwner": "server/postgres_ops_store.py",
           "registryMigrationOwner": "server/migrations/postgres/0025_chickenbro_tool_registry.sql",
+          "smartQuestionFrameOwner": "server/chickenbro_question_frame.py",
+          "currentSourceAdapterOwner": "server/chickenbro_current_sources.py",
+          "smartQuestionChainMigrationOwner": "server/migrations/postgres/0026_chickenbro_smart_question_chain.sql",
+          "communityStrengthAdapterOwner": "server/chickenbro_community_strength.py",
+          "communityStrengthMigrationOwner": "server/migrations/postgres/0027_chickenbro_community_strength_sources.sql",
           "registryOrchestrator": "server/news_backend.py",
           "traceWriteOwners": [
             "server/news_backend.py",
@@ -570,7 +575,10 @@
             "bounded workbench context",
             "task/session persistence boundary",
             "owner-bound structured agent trace facts",
-            "verified Tool Registry discovery and bounded adapter dispatch"
+            "verified Tool Registry discovery and bounded adapter dispatch",
+            "de-identified QuestionFrame and evidence-needs planning",
+            "bounded official current-source facts without comparative-strength inference",
+            "scenario-scoped community strength evidence with runtime freshness, timeout and rate controls"
           ],
           "mustNotChange": [
             "Guest chat must not require WeChat login preflight.",
@@ -581,12 +589,21 @@
             "Registry manifests must not load arbitrary implementations or supply owner, credential, URL, SQL, Shell or Python execution values.",
             "Registry failure must not fall back to the former fixed Tool allowlist.",
             "Personal templates and SimC remain bounded context evidence rather than registered Tools.",
-            "CapabilityGap, Toolsmith, shadow, canary and promotion remain outside Phase 2."
+            "The current-source adapter may use only registry-published Blizzard News and Blizzard Forums identities; it cannot accept a client, model or manifest URL.",
+            "A current-source reference is not comparative strength evidence; partial, failed, stale or unmatched results must not authorise rankings, DPS, percentile, BiS or personal conclusions.",
+            "Raider.IO same-role high-key evidence is Mythic+-only; WCL public rows are supplementary coverage evidence and may not satisfy a cross-specialization strength requirement.",
+            "Public WCL reads require an explicitly owned current Mythic+ target contract, a bounded timeout, short TTL/singleflight/rate controls and a checkedAt timestamp.",
+            "CapabilityGap persistence, Toolsmith, shadow, canary and promotion remain outside the Smart Question Chain scope."
           ],
           "characterization": [
             "tests/news_backend_test.py Chickenbro API tests",
             "tests/chickenbro_registry_test.py",
             "tests/chickenbro_tool_runtime_test.py",
+            "tests/chickenbro_question_frame_test.py",
+            "tests/chickenbro_current_sources_test.py",
+            "tests/chickenbro_community_strength_test.py",
+            "tests/chickenbro_agent_test.py",
+            "tests/warcraftlogs_timeout_test.py",
             "tests/chickenbro_observability_test.py",
             "tests/chickenbro_eval_test.py",
             "tests/postgres_personal_store_test.py",

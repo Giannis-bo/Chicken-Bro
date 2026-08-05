@@ -2,25 +2,22 @@
   "schemaVersion": 2,
   "slug": "equipment-simulator-exact-first",
   "requirementSlug": "equipment-simulator-exact-first",
-  "status": "runtime_verified",
-  "highestEvidenceLevel": "runtime_verified",
+  "status": "implementation_allowed",
+  "highestEvidenceLevel": "implementation_allowed",
   "branch": "codex/equipment-simulator-exact-first-implementation",
-  "commit": "9ffd57b05ab97be880daf65425d6de9e26609e32",
+  "commit": "pending-main-integration-head",
   "identities": {
     "runtime": {
-      "status": "bound",
-      "kind": "git_commit",
-      "value": "9ffd57b05ab97be880daf65425d6de9e26609e32",
-      "gitTree": "4f4a857ed52d65e04ab6bccfc5b3ac4649c3d94e"
+      "status": "pending",
+      "reason": "The fourth 0026 candidate genuinely passed but is superseded by origin/main migration 0026-0029 and the required Task 3A move to 0030. A fifth clean integrated candidate has not run."
     },
     "verification": {
-      "status": "bound_at_check",
-      "kind": "git_ref",
-      "value": "HEAD"
+      "status": "pending",
+      "reason": "Main integration, 0030 correction and current local verification are still in progress."
     },
     "closure": {
       "status": "pending",
-      "reason": "Independent evidence-promotion review passed on packet HEAD 8257f9cd7b5845a2e76d84a7cc9fbe3bbba86ad2. Branch publication, CI, merge and archive closure remain pending."
+      "reason": "The historical fourth candidate is superseded. Current local verification, fifth candidate, promotion review, branch publication, CI, merge and archive closure remain pending."
     }
   },
   "manualAcceptance": {
@@ -37,54 +34,59 @@
   },
   "scope": [
     "Six exact-bytes typed Canonical reload boundaries",
-    "Append-only Exact Authority Bundle PostgreSQL persistence through migration 0026",
-    "Fresh 0001-to-0026 and upgrade 0001-to-0025-seed-to-0026 disposable PostgreSQL candidate proof",
+    "Append-only Exact Authority Bundle PostgreSQL persistence through current migration 0030",
+    "Pending fifth-run fresh 0001-to-0030 and upgrade 0001-to-0029-seed-to-0030 disposable PostgreSQL candidate proof",
     "No runtime consumer, service, API, UI, Catalog, Manifest pointer or production database activation"
   ],
   "verification": [
     {
+      "command": "Integrate origin/main, move Task 3A to migration 0030, run the full scoped local matrix, and bind the clean integrated HEAD",
+      "status": "not_run",
+      "summary": "In progress. Until this completes, current evidence remains implementation_allowed rather than local_verified."
+    },
+    {
       "command": "python3 -m unittest -v tests.gear_canonical_kernel_test tests.gear_canonical_owner_gate_test tests.gear_exact_item_instance_test tests.gear_exact_authority_test tests.simc_item_effect_support_test tests.simc_item_effect_probe_test tests.simc_item_effect_probe_cli_test tests.gear_exact_authority_store_test tests.gear_exact_authority_store_import_boundary_test tests.postgres_schema_test tests.postgres_integration_test tests.postgres_cache_store_test tests.simulation_snapshot_store_test tests.simc_gear_import_test",
       "status": "pass",
-      "summary": "360 tests passed; the two candidate-environment-only cases skipped without being counted as candidate evidence."
+      "summary": "Historical 0026 packet only: 360 tests passed before origin/main integration. It does not verify the current 0030 tree."
     },
     {
       "command": "node --test tests/project-harness.test.js tests/project-owner-map.test.js tests/backend-owner-map.test.js",
       "status": "pass",
-      "summary": "40 Node/Harness/owner-map tests passed."
+      "summary": "Historical 0026 packet only: 40 Node/Harness/owner-map tests passed. Current merged-main verification is pending."
     },
     {
       "command": "node scripts/project-harness.js --json --check-requirement --requirement-file artifacts/releases/2026-08-04-equipment-simulator-exact-first/requirement.json",
       "status": "pass",
-      "summary": "The frozen Strict requirement is valid and remains implementation_allowed."
+      "summary": "Historical check only. The current 0030 requirement will be checked again after integration."
     },
     {
       "command": "node -e 'const fs=require(\"fs\"); for (const f of process.argv.slice(1)) JSON.parse(fs.readFileSync(f, \"utf8\"))' docs/project-state.json docs/project-owner-map.json docs/backend-owner-map.json docs/schemas/harness-requirement.schema.json docs/schemas/harness-evidence.schema.json docs/templates/harness-requirement.json docs/templates/harness-evidence.json artifacts/releases/2026-08-04-equipment-simulator-exact-first/requirement.json artifacts/releases/2026-08-04-equipment-simulator-exact-first/evidence.json",
       "status": "pass",
-      "summary": "All scoped Harness JSON parsed successfully."
+      "summary": "Historical check only. Current JSON will be checked again after integration."
     },
     {
       "command": "node -e 'const fs=require(\"fs\"),Ajv=require(\"ajv\"); const schema=JSON.parse(fs.readFileSync(\"docs/schemas/harness-evidence.schema.json\",\"utf8\")); delete schema[\"$schema\"]; const evidence=JSON.parse(fs.readFileSync(\"artifacts/releases/2026-08-04-equipment-simulator-exact-first/evidence.json\",\"utf8\")); const validate=new Ajv({allErrors:true,schemaId:\"auto\"}).compile(schema); if(!validate(evidence)) throw new Error(JSON.stringify(validate.errors));'",
       "status": "pass",
-      "summary": "The evidence packet satisfied docs/schemas/harness-evidence.schema.json; only the draft URI was omitted at validator compile time because the repository-bundled Ajv 6 does not ship the draft-2020 meta-schema."
+      "summary": "Historical check only. The downgraded superseded packet and later fifth-run packet require fresh schema validation."
     },
     {
       "command": "python3 -m py_compile server/gear_canonical_kernel.py server/gear_exact_item_instance.py server/gear_exact_authority.py server/simc_item_effect_support.py server/gear_exact_authority_store.py tests/gear_canonical_kernel_test.py tests/gear_canonical_owner_gate_test.py tests/gear_exact_item_instance_test.py tests/gear_exact_authority_test.py tests/simc_item_effect_support_test.py tests/gear_exact_authority_store_test.py tests/gear_exact_authority_store_import_boundary_test.py tests/postgres_schema_test.py tests/postgres_integration_test.py tests/simc_gear_import_test.py",
       "status": "pass",
-      "summary": "The scoped Python source and tests compiled successfully."
+      "summary": "Historical 0026 packet only. Current 0030 sources require fresh compilation."
     },
     {
       "command": "git diff --check",
       "status": "pass",
-      "summary": "No whitespace errors were present before the evidence commit."
+      "summary": "Historical 0026 packet only. Current integrated diff requires a fresh check."
     },
     {
       "command": "WOW_PG_TEST_RUN_ID_0026=t3a260805120026 WOW_PG_TEST_DSN_FRESH_0026=<redacted> WOW_PG_TEST_DSN_UPGRADE_0026=<redacted> python3 -m unittest tests.postgres_integration_test.PostgresExactAuthorityCandidateTest",
       "status": "pass",
-      "summary": "One real PostgreSQL candidate test passed in 3.061 seconds and emitted exactly one 1271-byte compact JSON attestation line; no DSN or credential is archived."
+      "summary": "Historical attestation-v1 only: the fourth 0026 candidate genuinely passed in 3.061 seconds, but origin/main integration superseded it. No DSN or credential is archived."
     }
   ],
   "candidateDeployment": {
-    "status": "candidate_verified",
+    "status": "superseded",
     "requiredBeforeMerge": true,
     "branch": "codex/equipment-simulator-exact-first-implementation",
     "commit": "9ffd57b05ab97be880daf65425d6de9e26609e32",
@@ -250,32 +252,42 @@
     "asyncSyncStart": false,
     "publicPointerChange": false,
     "productionDatabaseWrite": false,
-    "reason": "The fourth, new run-id-bound fresh/upgrade pair passed while the frozen requirement was implementation_allowed, so Task 3A has promotable runtime candidate evidence without production activation."
+    "reason": "The fourth run genuinely passed the former 0026 chain while implementation_allowed, but origin/main subsequently occupied 0026-0029. Moving Task 3A to 0030 changes the migration path, ledger identity, SHA, complete chain, tests and owner contracts, so this candidate is historical only and cannot be promoted for the integrated tree."
+  },
+  "nextCandidate": {
+    "status": "candidate_pending",
+    "ordinal": 5,
+    "migration": "server/migrations/postgres/0030_websim_exact_authority_bundle.sql",
+    "attestationSchemaVersion": "task3a-candidate-attestation-v2",
+    "freshPath": "0001..0030",
+    "upgradePath": "0001..0029 -> frozen v1 seed/snapshot -> 0030",
+    "requiredNewRunId": true,
+    "requiredNewDatabases": 2
   },
   "runtimeEvidence": [
     {
       "id": "task3a-fourth-postgres-attestation",
       "type": "postgres_candidate_attestation",
-      "status": "pass",
-      "summary": "Run t3a260805120026 emitted the exact task3a-candidate-attestation-v1 line with passed=true, candidate commit/tree, migration 0026 SHA-256, both exact database identities and 14 unique verified checks."
+      "status": "superseded",
+      "summary": "Run t3a260805120026 emitted a valid task3a-candidate-attestation-v1 for the former 0026 chain. It is preserved as historical truth but cannot verify the current 0030 tree."
     },
     {
       "id": "task3a-fresh-migration-path",
       "type": "postgres_fresh_migration",
-      "status": "pass",
-      "summary": "The independently empty fresh database applied migrations 0001 through 0026 and ended with one exact target constraint, one 0003 ledger row, one 0026 ledger row, 20 canonical documents, 10 aggregate-record relations and three bundles."
+      "status": "superseded",
+      "summary": "Historical fourth-run fresh database applied 0001 through 0026 successfully. A new empty database must prove 0001 through 0030."
     },
     {
       "id": "task3a-upgrade-migration-path",
       "type": "postgres_upgrade_migration",
-      "status": "pass",
-      "summary": "The independently empty upgrade database applied 0001 through 0025, retained its seeded frozen v1 row and complete pre-existing schema/grant state, then applied 0026 with the same exact final constraint and authority counts."
+      "status": "superseded",
+      "summary": "Historical fourth-run upgrade database applied 0001 through 0025, retained frozen v1 state and applied 0026 successfully. A new database must prove 0001 through 0029, frozen v1 seed/snapshot, then 0030."
     },
     {
       "id": "task3a-append-only-acl-and-reload",
       "type": "postgres_authority_bundle",
-      "status": "pass",
-      "summary": "Database hash/JSON projection, six-kind closed matrix, seven foreign keys, binding triggers, three-table immutability, SELECT-only wow_app ACL, whole-bundle typed reload and reverse shared-effect concurrency all passed."
+      "status": "superseded",
+      "summary": "These authority checks passed on the fourth 0026 candidate only and must be repeated on the fifth 0030 candidate."
     },
     {
       "id": "task3a-production-non-activation",
@@ -302,8 +314,8 @@
     },
     {
       "runId": "t3a260805120026",
-      "status": "candidate_verified",
-      "detail": "The fourth fresh/upgrade pair passed from clean commit 9ffd57b05ab97be880daf65425d6de9e26609e32 while requirement.status was implementation_allowed and is the sole promoted Task 3A runtime candidate."
+      "status": "runtime_passed_superseded_by_main_integration",
+      "detail": "The fourth fresh/upgrade pair genuinely passed from clean commit 9ffd57b05ab97be880daf65425d6de9e26609e32 while requirement.status was implementation_allowed. origin/main later occupied 0026-0029, forcing Task 3A to 0030 and invalidating this run for current promotion; its attestation, resources and databases remain immutable historical evidence."
     }
   ],
   "risks": [
@@ -323,9 +335,9 @@
       "detail": "Run t3a260805113656 passed runtime but is permanently unpromotable because its requirement was not implementation_allowed and the later requirement/owner correction invalidated it. Its databases remain immutable/non-reusable."
     },
     {
-      "id": "evidence-promotion-review-and-manifest",
-      "status": "review_passed_closure_pending",
-      "detail": "The literal historical candidate_rerun_required / evidence_promotion_blocked condition is resolved only for runtime rerun. The manifest is Harness-bound and independent scoped evidence-promotion review passed; branch/CI/merge and archive closure remain pending, so Task 3A is not archived or release-ready."
+      "id": "main-integration-migration-drift",
+      "status": "candidate_rerun_required_evidence_promotion_blocked",
+      "detail": "origin/main occupied migration ids 0026-0029 after the fourth candidate. Task 3A must use globally unique 0030; current local verification and a fifth candidate are mandatory before evidence promotion."
     },
     {
       "id": "production-and-runtime-activation",
@@ -335,7 +347,7 @@
     {
       "id": "candidate-resource-retention",
       "status": "pending_cleanup_after_archival_and_review",
-      "detail": "All eight database identities plus the fourth candidate repo, logs and local/remote bundles must be preserved through packet archival and scoped review; no resource has been cleaned or reused."
+      "detail": "All eight historical database identities plus the fourth candidate repo, logs and local/remote bundles must remain preserved while the fifth-run packet is pending; no resource has been cleaned or reused."
     }
   ],
   "rollback": [
@@ -348,8 +360,8 @@
   "cleanup": {
     "required": true,
     "status": "pending",
-    "reason": "Evidence and manifest packets are Harness-bound and independent scoped review passed. Candidate resources remain intentionally retained until packet archival closure completes.",
-    "preserveThrough": "packet_archival_and_independent_scoped_review",
+    "reason": "The fourth candidate is superseded but remains immutable historical evidence. Its resources stay retained through fifth-run promotion and final packet archival.",
+    "preserveThrough": "fifth_candidate_promotion_and_final_packet_archival",
     "resources": [
       "wow_exact_first_fresh_test_t3a260805120026",
       "wow_exact_first_upgrade_test_t3a260805120026",
@@ -374,5 +386,5 @@
     "docs/plans/2026-08-04-equipment-simulator-exact-first-persistence-resequence.md",
     "docs/postgres-identity-migration-runbook.md"
   ],
-  "summary": "Task 3A is runtime_verified, not archived or release-ready. The sole promotable candidate t3a260805120026 bound clean commit 9ffd57b05ab97be880daf65425d6de9e26609e32, tree 4f4a857ed52d65e04ab6bccfc5b3ac4649c3d94e and migration 0026 SHA-256 ddbe31fc26c8ad1aafa68bc7608f083e8415e5b4353cd5145450e2791303eb8a to two new, exact-commented disposable PostgreSQL databases. Fresh and seeded-upgrade paths passed all 14 attested checks and the read-only post-audit matched ledgers, constraint shape, authority counts and SELECT-only wow_app privileges. The first two failed runs and third runtime-passed-but-unpromotable run remain literal historical evidence and all eight databases are immutable/non-reusable. No production migration, endpoint, timer, runtime consumer, Catalog/Manifest pointer, API, UI or SimC behavior changed. The manifest is Harness-bound and independent evidence-promotion review passed on packet HEAD 8257f9cd7b5845a2e76d84a7cc9fbe3bbba86ad2; branch publication, CI, merge/archive closure and retained-resource cleanup remain pending. Task 4P and later stages remain unauthorized."
+  "summary": "Task 3A is implementation_allowed / candidate_rerun_required / evidence_promotion_blocked. Fourth run t3a260805120026 genuinely passed the former 0026 chain, but origin/main later occupied migrations 0026-0029; safe integration moves Task 3A to 0030 and invalidates that run for current promotion. Its attestation-v1, commit/tree/SHA, two databases and process evidence remain immutable historical truth. All four prior run pairs and eight databases are non-reusable. Main integration and fresh local verification are pending; after those, evidence may rise only to local_verified / candidate_pending. A fifth new run-id, two new databases, fresh 0001..0030, upgrade 0001..0029-seed-to-0030, attestation-v2 and independent promotion review are mandatory before runtime_verified. No production migration, endpoint, timer, runtime consumer, Catalog/Manifest pointer, API, UI or SimC behavior changed; Task 4P+ remains unauthorized."
 }

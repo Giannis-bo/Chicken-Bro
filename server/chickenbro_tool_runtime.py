@@ -2,24 +2,38 @@
 
 import copy
 from datetime import datetime, timezone
-from threading import RLock
+from threading import Event, RLock, Thread
 
 try:
     from .chickenbro_registry import (
         APPROVED_IMPLEMENTATIONS,
         discover_chickenbro_capabilities,
+        validate_chickenbro_tool_manifest,
         validate_chickenbro_registry_release,
     )
 except ImportError:  # pragma: no cover - direct server module execution
     from chickenbro_registry import (
         APPROVED_IMPLEMENTATIONS,
         discover_chickenbro_capabilities,
+        validate_chickenbro_tool_manifest,
         validate_chickenbro_registry_release,
     )
 
 
-_REQUEST_INTENT_FIELDS = {"kind", "productPhase", "classKey", "specKey", "wclReport"}
-_REQUEST_CONTEXT_FIELDS = {"region", "productPhase", "classKey", "specKey"}
+_REQUEST_INTENT_FIELDS = {
+    "kind",
+    "questionType",
+    "productPhase",
+    "patchVersion",
+    "classKey",
+    "specKey",
+    "wclReport",
+    "evidenceNeeds",
+    "scenarioKey",
+    "comparisonScope",
+    "target",
+}
+_REQUEST_CONTEXT_FIELDS = {"region", "productPhase", "patchVersion", "questionType", "classKey", "specKey", "scenarioKey"}
 _TOOL_RESULT_FIELDS = {
     "sourceKey",
     "status",
@@ -29,6 +43,9 @@ _TOOL_RESULT_FIELDS = {
     "limitations",
     "nextActions",
 }
+# Process-wide ceiling only. Each signed manifest declares its own per-tool
+# budget, and ResearchPlan separately enforces the same total-turn ceiling.
+_MAX_AGENTIC_TOOL_CALLS = 8
 
 
 class RegistryUnavailable(RuntimeError):
@@ -109,13 +126,40 @@ class ChickenbroRegistryRuntime:
             "registryStatus": "verified",
         }
 
+    def published(self, loader, now=None):
+        """Load one verified release for agentic catalog discovery without a request."""
+        current = _utc_now(now)
+        try:
+            loaded = loader()
+        except Exception as error:
+            cached = self._cached_release(current)
+            if cached is None:
+                raise RegistryUnavailable("chickenbro tool registry unavailable") from error
+            release = cached
+            source = "verified_cache"
+        else:
+            try:
+                release = validate_chickenbro_registry_release(loaded)
+            except (TypeError, ValueError) as error:
+                self._clear_cache()
+                raise RegistryInvalid("chickenbro tool registry invalid") from error
+            self._replace_cache(release, current)
+            source = "postgres"
+        return {
+            "registryVersion": release["registryVersion"],
+            "registryReleaseHash": release["releaseHash"],
+            "registrySource": source,
+            "registryStatus": "verified",
+            "manifests": copy.deepcopy(release["manifests"]),
+            "release": copy.deepcopy(release),
+        }
+
 
 def _sanitized_request(request):
     request = request if isinstance(request, dict) else {}
     raw_intent = request.get("intent") if isinstance(request.get("intent"), dict) else {}
     raw_context = request.get("context") if isinstance(request.get("context"), dict) else {}
     return {
-        "message": str(request.get("message") or ""),
         "intent": copy.deepcopy(
             {key: raw_intent[key] for key in _REQUEST_INTENT_FIELDS if key in raw_intent}
         ),
@@ -153,6 +197,83 @@ def _validated_tool_result(result, manifest):
     return copy.deepcopy(result)
 
 
+def _failed_freshness_result(result, reason):
+    output = copy.deepcopy(result)
+    output["status"] = "stale"
+    output["facts"] = []
+    output["evidenceRefs"] = []
+    limitations = list(output.get("limitations") or [])
+    limitations.append(reason)
+    output["limitations"] = limitations
+    return output
+
+
+def _timestamp(value):
+    text = str(value or "").strip()
+    if not text:
+        return None
+    try:
+        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        return None
+    return parsed.astimezone(timezone.utc)
+
+
+def _enforce_manifest_freshness(result, manifest, now=None):
+    policy = manifest.get("freshnessPolicy") if isinstance(manifest, dict) else {}
+    if not isinstance(policy, dict) or not policy.get("requireCheckedAt"):
+        return result
+    if str(result.get("status") or "").strip().lower() not in {"source_reference", "verified"}:
+        return result
+    max_age = policy.get("maxAgeSeconds")
+    if not isinstance(max_age, int) or isinstance(max_age, bool) or max_age <= 0:
+        return _failed_freshness_result(result, "source freshness policy is invalid")
+    timestamps = [
+        _timestamp(item.get("checkedAt"))
+        for item in (result.get("evidence") or [])
+        if isinstance(item, dict)
+    ]
+    timestamps = [item for item in timestamps if item is not None]
+    if not timestamps:
+        return _failed_freshness_result(result, "source evidence has no valid checkedAt timestamp")
+    current = now or datetime.now(timezone.utc)
+    newest = max(timestamps)
+    if (current - newest).total_seconds() > max_age:
+        return _failed_freshness_result(result, "source evidence exceeded its max-age freshness policy")
+    return result
+
+
+def _adapter_result_with_timeout(adapter, request, timeout_budget_ms):
+    completed = Event()
+    outcome = {}
+
+    def invoke():
+        try:
+            outcome["result"] = adapter(copy.deepcopy(request))
+        except Exception as error:  # pragma: no cover - asserted by caller contract
+            outcome["error"] = error
+        finally:
+            completed.set()
+
+    thread = Thread(target=invoke, daemon=True)
+    thread.start()
+    if not completed.wait(max(1, int(timeout_budget_ms)) / 1000):
+        raise TimeoutError("adapter timeout budget exceeded")
+    if "error" in outcome:
+        raise outcome["error"]
+    return outcome.get("result")
+
+
+def _manifest_call_budget(manifest):
+    budget = manifest.get("costBudget") if isinstance(manifest.get("costBudget"), dict) else {}
+    value = budget.get("maxCallsPerTurn", 1)
+    if not isinstance(value, int) or isinstance(value, bool) or value < 1 or value > _MAX_AGENTIC_TOOL_CALLS:
+        raise RegistryInvalid("invalid agentic tool call budget")
+    return value
+
+
 def execute_chickenbro_selected_tools(resolution, adapter_bindings, request):
     resolution = resolution if isinstance(resolution, dict) else {}
     manifests = resolution.get("selectedManifests")
@@ -177,7 +298,8 @@ def execute_chickenbro_selected_tools(resolution, adapter_bindings, request):
     results = []
     for manifest, adapter in adapters:
         try:
-            result = adapter(copy.deepcopy(sanitized))
+            timeout_budget_ms = manifest.get("timeoutBudgetMs") or 10000
+            result = _adapter_result_with_timeout(adapter, sanitized, timeout_budget_ms)
         except Exception as error:
             results.append(
                 _failed_tool_result(
@@ -189,5 +311,69 @@ def execute_chickenbro_selected_tools(resolution, adapter_bindings, request):
         validated = _validated_tool_result(result, manifest)
         if validated is None:
             validated = _failed_tool_result(manifest, f"{manifest['toolId']} adapter returned an invalid result")
+        else:
+            validated = _enforce_manifest_freshness(validated, manifest)
+        results.append(validated)
+    return results
+
+
+def execute_chickenbro_tool_calls(manifests, adapter_bindings, calls):
+    """Run only signed manifests named by an already validated research plan."""
+    bindings = adapter_bindings if isinstance(adapter_bindings, dict) else {}
+    manifest_by_id = {}
+    for raw_manifest in manifests if isinstance(manifests, list) else []:
+        manifest = validate_chickenbro_tool_manifest(raw_manifest)
+        if manifest["status"] != "active" or manifest["riskClass"] != "read_only":
+            raise RegistryInvalid("invalid agentic tool manifest")
+        if manifest["toolId"] in manifest_by_id:
+            raise RegistryInvalid("duplicate agentic tool manifest")
+        manifest_by_id[manifest["toolId"]] = manifest
+
+    if not isinstance(calls, list):
+        raise RegistryInvalid("invalid agentic tool calls")
+    results = []
+    call_counts = {}
+    for call in calls:
+        if not isinstance(call, dict) or set(call) != {"toolId", "arguments"}:
+            raise RegistryInvalid("invalid agentic tool call")
+        tool_id = str(call.get("toolId") or "")
+        if tool_id not in manifest_by_id:
+            raise RegistryInvalid("unpublished agentic tool call")
+        manifest = manifest_by_id[tool_id]
+        call_counts[tool_id] = call_counts.get(tool_id, 0) + 1
+        if call_counts[tool_id] > _manifest_call_budget(manifest):
+            raise RegistryInvalid("agentic tool call exceeds its declared budget")
+        implementation_ref = str(manifest.get("implementationRef") or "")
+        if APPROVED_IMPLEMENTATIONS.get(tool_id) != implementation_ref:
+            raise RegistryInvalid("unapproved tool adapter")
+        adapter = bindings.get(implementation_ref)
+        if not callable(adapter):
+            raise RegistryInvalid("missing tool adapter")
+        arguments = call.get("arguments") if isinstance(call.get("arguments"), dict) else None
+        if arguments is None:
+            raise RegistryInvalid("invalid agentic tool arguments")
+        request = _sanitized_request({"intent": arguments, "context": arguments})
+        try:
+            result = _adapter_result_with_timeout(
+                adapter,
+                request,
+                manifest.get("timeoutBudgetMs") or 10000,
+            )
+        except Exception as error:
+            results.append(
+                _failed_tool_result(
+                    manifest,
+                    f"{manifest['toolId']} adapter failed: {type(error).__name__}",
+                )
+            )
+            continue
+        validated = _validated_tool_result(result, manifest)
+        if validated is None:
+            validated = _failed_tool_result(
+                manifest,
+                f"{manifest['toolId']} adapter returned an invalid result",
+            )
+        else:
+            validated = _enforce_manifest_freshness(validated, manifest)
         results.append(validated)
     return results

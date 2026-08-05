@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILLS: Use `superpowers:subagent-driven-development`, `superpowers:test-driven-development`, and `superpowers:verification-before-completion`. This plan forward-replaces the old implementation plan's Task 3 and later execution order after two independent readiness audits returned `NOT_READY`.
 
-状态：`正在推进（Task 3A runtime_verified / evidence promotion PASS：第四次 candidate t3a260805120026 已在 commit 9ffd57b05ab97be880daf65425d6de9e26609e32 / tree 4f4a857ed52d65e04ab6bccfc5b3ac4649c3d94e 通过 fresh/upgrade 真实 PostgreSQL 验证，schema-v2 evidence 与 manifest 已由 Harness 绑定，独立 evidence-promotion review 已 PASS；branch/CI/merge/archive closure 与资源清理仍 pending。历史 literal candidate_rerun_required / evidence_promotion_blocked 仅描述前三次运行：t3a2608050955、t3a260805111623 migration-chain failed，t3a260805113656 runtime passed 但 requirement gate 错误使其永久不可晋升；四个 run 的八库全部 immutable/non-reusable。无 production migration/runtime consumer，Task 4P+ 未授权）`
+状态：`正在推进（Task 3A candidate_rerun_required / evidence_promotion_blocked：第四次 candidate t3a260805120026 在 commit 9ffd57b05ab97be880daf65425d6de9e26609e32 / tree 4f4a857ed52d65e04ab6bccfc5b3ac4649c3d94e 上真实通过当时的 0026 fresh/upgrade 链；origin/main 随后占用 0026-0029，Task 3A 必须顺延到 0030，因此第四次 run 为 runtime_passed_superseded_by_main_integration，不能证明最终集成字节。四个 run 的八库全部 immutable/non-reusable；完成主线集成与本地验证后最高仅 local_verified / candidate_pending，必须在最终 clean head 上以第五个新 run-id 和两座新库重跑。无 production migration/runtime consumer，Task 4P+ 未授权）`
 
 ## Goal
 
@@ -34,13 +34,13 @@
 
 ## Revised execution order
 
-1. **Task 3A:** Canonical authority bundle rehydration + append-only persistence (`0026`)，无 runtime consumer。
+1. **Task 3A:** Canonical authority bundle rehydration + append-only persistence (`0030`)，无 runtime consumer。
 2. **Task 4P:** 提前完成纯函数 v2 Resolver、ResolvedLoadout、SimulationSnapshot（替代旧 Task 5 的 pure domain 部分），无 DB/runtime；遇到 loadout-scoped effect 先显式阻断。
 3. **Task 4L:** 单独设计并 review loadout-scoped effect subject/aggregate authority；未完成前不得把 tier/set/cross-slot effect 配置标成 ready。
-4. **Task 3B:** v1/v2 conditional loadout/snapshot persistence (`0027`)，只消费 Task 4P/4L 的 verifier。
-5. **Task 4W:** owner-scoped jobs、独立 worker DB role、lease/retention/metrics 与 worker service (`0028`)。
+4. **Task 3B:** v1/v2 conditional loadout/snapshot persistence (`0031`)，只消费 Task 4P/4L 的 verifier。
+5. **Task 4W:** owner-scoped jobs、独立 worker DB role、lease/retention/metrics 与 worker service (`0032`)。
 6. **Task 5A:** Exact import API、正式 SimC submit 接合与 UI typed contract。
-7. **Task 6C:** observation/candidate/admission 从 `0029` 开始，保持独立 candidate/release gate。
+7. **Task 6C:** observation/candidate/admission 从 `0033` 开始，保持独立 candidate/release gate。
 
 ## Execution authority and changed-file boundaries
 
@@ -48,8 +48,8 @@
 - Task 3A 的完整 allowlist 就是下方 Scope 列出的代码/测试/迁移，加 `docs/plans/README.md`、`docs/roadmap.md`、原 Exact-first 实施计划及四份 Canonical foundation/correction 计划的顶部状态、本计划、Harness `requirement.json`/`evidence.json`/`manifest.json`、两个 owner map 和 `docs/postgres-identity-migration-runbook.md` 的任务状态/候选数据库说明。2026-08-05 授权的 migration-chain correction 额外且仅允许 `server/migrations/postgres/0003_build_template_config_hash_unique.sql`，以及已经允许的两份 PostgreSQL 测试和上述状态控制面；最后这些控制面文件不得借机改变产品承诺。
 - Task 4P 只允许修改 `server/gear_resolver.py`、`server/gear_rule_matrix.py`、`server/gear_resolved_loadout.py`、`server/simulation_snapshot.py`、`server/simulation_snapshot_compat.py`、`tests/gear_resolver_test.py`、`tests/gear_rule_matrix_test.py`、`tests/gear_resolved_loadout_test.py`、`tests/simulation_snapshot_test.py`、`tests/simulation_snapshot_compat_test.py`，再加上述状态控制面文件；不得改 DB、service、deploy、API 或 UI。
 - Task 4L 在执行前必须先冻结独立 owner、canonical aggregate schema、完整性证明、文件 allowlist 和 persistence impact，并通过 plan review；当前没有实现授权。
-- Task 3B 只允许修改 `server/migrations/postgres/0027_websim_exact_snapshot_v2.sql`、`server/simulation_snapshot_store.py`、`tests/simulation_snapshot_store_test.py`、`tests/postgres_schema_test.py`、`tests/postgres_integration_test.py` 与状态控制面文件；不得引入 job/worker/runtime consumer。
-- Task 4W 只允许修改 `server/migrations/postgres/0028_websim_exact_import_jobs.sql`、`server/gear_exact_import_job_store.py`、`server/gear_exact_authority_worker.py`、`server/wow-gear-exact-authority-worker.service`、`server/deploy_lighthouse.sh`、`tests/gear_exact_import_job_store_test.py`、`tests/gear_exact_authority_worker_test.py`、`tests/postgres_schema_test.py`、`tests/postgres_integration_test.py`、数据库 runbook 与状态控制面文件。API/UI 仍不激活。
+- Task 3B 只允许修改 `server/migrations/postgres/0031_websim_exact_snapshot_v2.sql`、`server/simulation_snapshot_store.py`、`tests/simulation_snapshot_store_test.py`、`tests/postgres_schema_test.py`、`tests/postgres_integration_test.py` 与状态控制面文件；不得引入 job/worker/runtime consumer。
+- Task 4W 只允许修改 `server/migrations/postgres/0032_websim_exact_import_jobs.sql`、`server/gear_exact_import_job_store.py`、`server/gear_exact_authority_worker.py`、`server/wow-gear-exact-authority-worker.service`、`server/deploy_lighthouse.sh`、`tests/gear_exact_import_job_store_test.py`、`tests/gear_exact_authority_worker_test.py`、`tests/postgres_schema_test.py`、`tests/postgres_integration_test.py`、数据库 runbook 与状态控制面文件。API/UI 仍不激活。
 - Task 5A 和 Task 6C 在执行前必须各自补出 task-scoped allowlist、用户可见验收、candidate/rollback 和独立 review；本计划当前只给顺序和边界，不提前授权其实现。
 - 任一阶段 diff 越出 allowlist、迁移编号碰撞、当前真相改变或需要触碰 generation 35/Catalog pointers 时立即停止并更新计划，不通过临时 exemption 扩权。
 
@@ -73,7 +73,7 @@
 **Persistence**
 
 - Modify: `server/migrations/postgres/0003_build_template_config_hash_unique.sql` only for the authorized fail-closed semantic-idempotence migration-chain correction
-- Create: `server/migrations/postgres/0026_websim_exact_authority_bundle.sql`
+- Create: `server/migrations/postgres/0030_websim_exact_authority_bundle.sql`
 - Create: `server/gear_exact_authority_store.py`
 - Create: `tests/gear_exact_authority_store_test.py`
 - Create: `tests/gear_exact_authority_store_import_boundary_test.py`
@@ -101,9 +101,9 @@ Task 3A must not modify `simulation_snapshot_store.py`, `postgres_cache_store.py
 
 ### 2026-08-05 authorized migration-chain correction
 
-Two real candidates failed before `0026`: `t3a2608050955` at `f90a302040f722fec0807bd600f8e2242169801c` because `0001` already creates `UNIQUE (user_id, template_type, config_hash)` under PostgreSQL's legacy generated name while `0003` unconditionally adds `build_templates_user_id_template_type_config_hash_key`; then `t3a260805111623` because `0003` compares catalog `name[]` attributes with a `text[]` literal. A third run, `t3a260805113656`, passed both fresh and upgrade runtime paths at commit `0e0743ca188efbd7cb818bfb8a210fd998379f4d` / tree `3fce81f57dbdc851a9438ae63ea051f666bf1051`, but its active Harness requirement status was `local_verified` instead of `implementation_allowed`. Harness therefore forbids evidence promotion, and correcting the requirement plus owner contracts after execution invalidates that candidate under the post-candidate mutation boundary. Current status is literal `candidate_rerun_required / evidence_promotion_blocked`; all three run pairs and all six databases are immutable evidence and must never be reset or reused.
+Two real candidates failed before the then-current `0026` authority migration: `t3a2608050955` at `f90a302040f722fec0807bd600f8e2242169801c` because `0001` already creates `UNIQUE (user_id, template_type, config_hash)` under PostgreSQL's legacy generated name while `0003` unconditionally adds `build_templates_user_id_template_type_config_hash_key`; then `t3a260805111623` because `0003` compares catalog `name[]` attributes with a `text[]` literal. A third run, `t3a260805113656`, passed both fresh and upgrade runtime paths at commit `0e0743ca188efbd7cb818bfb8a210fd998379f4d` / tree `3fce81f57dbdc851a9438ae63ea051f666bf1051`, but its active Harness requirement status was `local_verified` instead of `implementation_allowed`. A fourth run, `t3a260805120026`, then genuinely passed both 0026 paths at commit `9ffd57b05ab97be880daf65425d6de9e26609e32`, but origin/main later occupied 0026-0029. Safe integration changes the Task 3A path, ledger, SHA and migration chain to `0030`, so the fourth run is `runtime_passed_superseded_by_main_integration`. Current status remains literal `candidate_rerun_required / evidence_promotion_blocked`; all four run pairs and all eight databases are immutable evidence and must never be reset or reused.
 
-The authorized `0003` correction is locally implemented and independently reviewed: it retains the legacy-name drop; conditionally creates the target unique constraint only when absent; then verifies with `pg_catalog.pg_constraint` and `pg_catalog.pg_attribute` that exactly one target constraint is on `app.build_templates`, has `contype = 'u'`, and ordered columns `user_id, template_type, config_hash`, otherwise raises an explicit exception. It does not swallow `duplicate_object`, drop/recreate an already-correct target, change `0001`, add a retro migration or reconcile ledger state. The mandatory fourth candidate must use a new run-id and two newly provisioned databases, reject all three prior run ids before connecting, and assert exactly one correct target constraint, no legacy-name constraint and exactly one `0003_build_template_config_hash_unique` ledger row. No evidence/manifest may be created until that new fresh and upgrade pair passes while the active requirement is `implementation_allowed`.
+The authorized `0003` correction is locally implemented and independently reviewed: it retains the legacy-name drop; conditionally creates the target unique constraint only when absent; then verifies with `pg_catalog.pg_constraint` and `pg_catalog.pg_attribute` that exactly one target constraint is on `app.build_templates`, has `contype = 'u'`, and ordered columns `user_id, template_type, config_hash`, otherwise raises an explicit exception. It does not swallow `duplicate_object`, drop/recreate an already-correct target, change `0001`, add a retro migration or reconcile ledger state. The mandatory fifth candidate must use a new run-id and two newly provisioned databases, reject all four prior run ids before connecting, and assert exactly one correct target constraint, no legacy-name constraint, exactly one `0003_build_template_config_hash_unique` ledger row and one `0030_websim_exact_authority_bundle` ledger row. Current evidence/manifest must stay explicitly superseded/pending until that new pair passes while the active requirement is `implementation_allowed`.
 
 ### Canonical reload contract
 
@@ -132,7 +132,7 @@ Each reload function receives stored canonical bytes/key, rebuilds the sealed do
 
 ### PostgreSQL schema
 
-`0026` is rechecked as free immediately before creation and creates only three append-only cache tables.
+`0030` is rechecked as free immediately before creation and creates only three append-only cache tables. The migration-number prefix is globally unique across `0001..0030`; origin/main's `0026..0029` remain unchanged.
 
 #### `cache.websim_canonical_documents`
 
@@ -174,9 +174,9 @@ Each reload function receives stored canonical bytes/key, rebuilds the sealed do
 - insert-time trigger verifies all component kinds and exact JSON key bindings, including envelope keys and projection equality;
 - no owner, Catalog membership or provenance fields.
 
-Every trigger/function in `0026` is schema-qualified, `SECURITY INVOKER`, and declares `SET search_path = pg_catalog, pg_temp` with the temporary schema last; it never resolves an unqualified table/function. Foreign keys provide committed-row existence under concurrency, while the binding triggers lock/reference the exact keyed rows in the same statement. The store inserts documents first, then ordered relations/bundle, and performs exact readback before commit; a concurrent same-key/different-value write fails the insert/readback transaction rather than winning by last-write.
+Every trigger/function in `0030` is schema-qualified, `SECURITY INVOKER`, and declares `SET search_path = pg_catalog, pg_temp` with the temporary schema last; it never resolves an unqualified table/function. Foreign keys provide committed-row existence under concurrency, while the binding triggers lock/reference the exact keyed rows in the same statement. The store inserts documents first, then ordered relations/bundle, and performs exact readback before commit; a concurrent same-key/different-value write fails the insert/readback transaction rather than winning by last-write.
 
-All three tables receive immutable triggers. Explicitly `REVOKE INSERT, UPDATE, DELETE, TRUNCATE FROM wow_app` and grant only `SELECT` in 0026. Task 3A has no runtime writer; Task 4W later grants an independent worker role. Migration/migrator and tests may write during candidate verification.
+All three tables receive immutable triggers. Explicitly `REVOKE INSERT, UPDATE, DELETE, TRUNCATE FROM wow_app` and grant only `SELECT` in 0030. Task 3A has no runtime writer; Task 4W later grants an independent worker role. Migration/migrator and tests may write during candidate verification.
 
 ### Store contract
 
@@ -214,24 +214,25 @@ Read path loads exact canonical bytes, reconstructs Exact -> Static/Progression 
 
 ### TDD and verification
 
-- [x] Preflight `0026` is absent; stop on collision.
+- [x] Preflight found origin/main occupying `0026..0029`; stop, integrate main and move Task 3A atomically to globally unique `0030`.
 - [x] RED Kernel/domain reload: exact bytes/key pass; whitespace, duplicate key, non-NFC, over-bound, wrong kind/schema/prefix/key and cross-document binding fail.
 - [x] RED store: full frozen-dataclass round-trip, `A/B/A` batch order, identical idempotency, collision, missing component, wrong runtime/rule/resolver, duplicate/gapped/extra/missing effect-record ordinal, repeated same record at two ordinals, reordered non-adjacent duplicate, concurrent same-key writes, tampered canonical bytes/hash/JSON projection, distinct `1`/`1.0`/exponent lexical bytes and partial transaction rollback.
 - [x] RED store import boundary: direct Kernel-private/domain-validator/serializer/Catalog imports fail while typed reload imports pass; registry remains five targets/nine exemptions and `source_change_control_only`.
 - [x] RED SQL/static: exact kind/schema/prefix/hash/bytes-to-JSON matrix, both aggregate FKs, component FKs/binding trigger, fixed search path, immutable triggers, wow_app SELECT-only and unique migration identity.
 - [x] RED migration-chain correction: old `0003` lacks strict `app.build_templates`/`contype = 'u'`/ordered-column verification, explicit semantic-drift failure and fail-closed handling; focused test fails against the unconditional target add.
-- [x] RED PostgreSQL integration uses two operator-provisioned empty disposable databases and never creates/drops a database. `WOW_PG_TEST_RUN_ID_0026` matching `^[a-z0-9]{8,32}$`, `WOW_PG_TEST_DSN_FRESH_0026`, and `WOW_PG_TEST_DSN_UPGRADE_0026` are mandatory. The suite rejects prior run ids `t3a2608050955`, `t3a260805111623`, and `t3a260805113656` before importing `psycopg` or connecting. The DSNs must identify distinct `wow_exact_first_fresh_test_<run-id>` and `wow_exact_first_upgrade_test_<run-id>` databases whose database comments are exactly `wow_exact_first_disposable:<run-id>:fresh` and `wow_exact_first_disposable:<run-id>:upgrade`. Before any write, the suite rejects any existing project schema (`identity|app|content|cache|knowledge|analytics|ops`), `ops.schema_migrations`, project table or mismatched/missing comment. Fresh then applies `0001..0026`. Upgrade starts from the independently proven empty DB, applies `0001..0025`, seeds frozen v1 rows and row hashes, snapshots them, then applies `0026`. Verify the before/after v1 snapshot is byte-for-byte equal plus hash/JSON/FK/trigger/grant/concurrency/bundle behavior. Both candidates bind the final runtime-affecting commit SHA, its Git tree SHA and migration file SHA-256; candidate 后只允许 evidence/manifest 与任务状态文档变化，任何代码、测试、migration、requirement 或 owner-contract 变化都使 candidate 失效并要求重跑。Harness verification identity 另行绑定最终 PR HEAD。Databases remain intact through evidence/manifest archival and review; only then may the operator discard those exact identities. Tests never reset, drop or reuse a prior run-id. `t3a260805120026` 已按此合同在 requirement.status=`implementation_allowed` 时通过，精确绑定 commit `9ffd57b05ab97be880daf65425d6de9e26609e32`、tree `4f4a857ed52d65e04ab6bccfc5b3ac4649c3d94e`、0026 SHA-256 `ddbe31fc26c8ad1aafa68bc7608f083e8415e5b4353cd5145450e2791303eb8a` 和两座新库。
+- [x] RED PostgreSQL integration uses two operator-provisioned empty disposable databases and never creates/drops a database. `WOW_PG_TEST_RUN_ID_0030` matching `^[a-z0-9]{8,32}$`, `WOW_PG_TEST_DSN_FRESH_0030`, and `WOW_PG_TEST_DSN_UPGRADE_0030` are mandatory. The suite rejects prior run ids `t3a2608050955`, `t3a260805111623`, `t3a260805113656`, and `t3a260805120026` before importing `psycopg` or connecting. The DSNs must identify distinct exact-commented empty databases. Fresh applies `0001..0030`; upgrade applies `0001..0029`, seeds and snapshots frozen v1 rows, then applies `0030`. Both candidates bind the final runtime-affecting commit, Git tree and 0030 SHA-256 and emit `task3a-candidate-attestation-v2`. Candidate 后只允许 evidence/manifest 与任务状态文档变化；任何 code/test/migration/requirement/owner-contract 变化都使 candidate 失效并要求重跑。The fourth run `t3a260805120026` remains immutable historical attestation-v1 evidence and is forbidden for reuse.
 - [x] Implement minimal reload/store/migration; do not add jobs or snapshot v2.
 - [x] Run focused suites, full Canonical matrix, owner gate, existing v1 store/snapshot suites, Node/Harness/JSON/pycompile/diff.
 - [x] Freeze both existing v1/v2 Exact keys.
 - [x] Independent spec/code review is `PASS/APPROVED` with zero unresolved findings on the final Task 3A code/test state.
-- [x] Candidate PostgreSQL evidence from both explicit DSNs is mandatory before Task 3A is `已完成`. `t3a260805120026` 是唯一可晋升的第四次 candidate，fresh/upgrade 两条路径与 post-audit 均通过；前三个 run 仍保留其 literal `candidate_rerun_required / evidence_promotion_blocked` 历史，不复用、不包装为 green。
-- [x] schema-v2 evidence 与 manifest 已创建并由 Harness 绑定；独立 evidence-promotion scoped review 为 `PASS`、0 unresolved Critical/Important findings。
+- [x] Fourth candidate `t3a260805120026` genuinely passed the former 0026 chain and remains immutable historical evidence, but is `runtime_passed_superseded_by_main_integration` and cannot close the integrated Task 3A.
+- [ ] Fifth candidate PostgreSQL evidence from explicit 0030 DSNs is mandatory before Task 3A is `已完成`; use a new run-id and two new databases, then repeat post-audit and evidence promotion.
+- [ ] schema-v2 evidence and manifest currently preserve the superseded fourth candidate but must not claim `runtime_verified`; after fifth-run promotion they must be regenerated and independently reviewed.
 - [ ] Branch publication、CI、merge/archive closure 和候选资源清理仍 pending；在这些交付门禁关闭前，Task 3A 不标记 `已完成`，也不授权 Task 4P 或任何 production/runtime 消费。
 
-`t3a2608050955` 与 `t3a260805111623` 已在 `0003` 前失败；`t3a260805113656` 在 runtime 层通过，但 active requirement gate 错误使它不可晋升，且后续 requirement/owner correction 使其失效。这三次运行保留 literal `candidate_rerun_required / evidence_promotion_blocked` 历史。第四次 `t3a260805120026` 已使用两座新建、独立、空的 operator-provisioned 数据库通过：恰有一个 named config-hash target constraint、`contype = 'u'`、`user_id/template_type/config_hash` 有序列、无 legacy name constraint，以及恰有一个 `0003` 和 `0026` ledger row。schema-v2 evidence 与 manifest 已由 Harness 绑定，独立 evidence-promotion review 已 PASS；branch/CI/merge/archive closure 与清理仍 pending。八座库——前三次六座历史库，加 `wow_exact_first_fresh_test_t3a260805120026` 与 `wow_exact_first_upgrade_test_t3a260805120026`——在 packet archival/review 前全部保持 immutable/non-reusable；无 production migration 或 runtime consumer。
+`t3a2608050955` 与 `t3a260805111623` 已在 `0003` 前失败；`t3a260805113656` runtime passed 但 requirement gate 错误使其不可晋升；第四次 `t3a260805120026` 真实通过 former 0026 chain，但 main integration 强制迁移到 0030，故为 `runtime_passed_superseded_by_main_integration`。八座库全部 immutable/non-reusable；当前最高只能在完成集成和本地验证后达到 `local_verified / candidate_pending`，必须第五次全新双库重跑才可恢复 runtime evidence。无 production migration 或 runtime consumer。
 
-2026-08-05 首轮独立实现 review 返回 `CHANGES_REQUIRED`；deterministic document insertion、exact import allowlist、absent-row reverse-shared-record concurrency、精确 SQL/ACL/upgrade parity、单行 candidate attestation 与 closed-universe static gates 等 findings 已完成 RED/GREEN correction。Task 3A code/test state、最终 `0003` semantic-idempotence/type correction 与 evidence-promotion review 均为 `PASS/APPROVED`、0 unresolved Critical/Important findings；第四次真实双 PostgreSQL candidate 与 Harness packet 已通过，当前只剩 branch/CI/merge/archive closure 与资源清理，不能复用 `t3a260805113656` 的 runtime pass，也不能把 Task 3A 扩张成 production/live/release-ready。
+2026-08-05 首轮独立实现 review 返回 `CHANGES_REQUIRED`；相关 findings 已完成 RED/GREEN correction，第四次真实双 PostgreSQL candidate 与当时 Harness packet 也确曾通过。随后 origin/main migration 漂移使 packet 失效；当前还需 0030 集成修正、本地复核、第五次 candidate 与新 promotion review，不能把历史 pass 扩张成 production/live/release-ready。
 
 ---
 
@@ -255,9 +256,9 @@ Task 4P RED cases must include main/off-hand legality, same Exact with distinct 
 
 Task 4P requires a separately reviewed implementation slice before Task 3B.
 
-## Task 3B: v1/v2 conditional snapshot persistence (`0027`)
+## Task 3B: v1/v2 conditional snapshot persistence (`0031`)
 
-Only after Task 4P and a separately reviewed Task 4L completeness contract exist; this section does not itself authorize `0027`:
+Only after Task 4P and a separately reviewed Task 4L completeness contract exist; this section does not itself authorize `0031`:
 
 - alter loadout/snapshot tables with schema-conditioned Catalog/registry/envelope-key checks;
 - add `exact_authority_by_slot_json` as the exact Task 4P slot-bound ordered pairs for v2 and exact `[]` for v1; do not store a unique key-only array that loses slot or multiplicity;
@@ -265,18 +266,18 @@ Only after Task 4P and a separately reviewed Task 4L completeness contract exist
 - keep `originCatalogRevision` in separate provenance columns/wrappers, outside stored canonical documents and row hashes;
 - reuse Task 4P verifiers in `SimulationSnapshotStore`; no duplicated v2 validator;
 - preserve every historical v1 row/key/hash and append-only trigger;
-- require fresh and 0026->0027 real PostgreSQL migration evidence.
+- require fresh and 0030->0031 real PostgreSQL migration evidence.
 
-## Task 4W: Owner-scoped jobs and worker (`0028`)
+## Task 4W: Owner-scoped jobs and worker (`0032`)
 
 Task 4W uses two principals and never grants role-management power to migrations or services:
 
-- `wow_exact_worker` is a pre-provisioned `NOLOGIN` group role. `0028` starts with a fail-closed existence/`rolcanlogin=false` assertion; it never executes `CREATE ROLE` and neither `wow_migrator`, `wow_app` nor the service receives `CREATEROLE`.
+- `wow_exact_worker` is a pre-provisioned `NOLOGIN` group role. `0032` starts with a fail-closed existence/`rolcanlogin=false` assertion; it never executes `CREATE ROLE` and neither `wow_migrator`, `wow_app` nor the service receives `CREATEROLE`.
 - an operator-created `LOGIN INHERIT` principal is granted membership in `wow_exact_worker` outside the migration, with credentials held only in `/etc/wow-exact-worker.env` as `WOW_EXACT_WORKER_DATABASE_URL`; every worker connection immediately executes `SET ROLE wow_exact_worker` and verifies `session_user` membership plus `current_user='wow_exact_worker'`. The worker refuses `WOW_DATABASE_URL`.
 - `server/wow-gear-exact-authority-worker.service` reads only the worker env file. Candidate/deploy preflight verifies the NOLOGIN group role, LOGIN membership, redacted distinct DSNs and rollback to the prior service/env; `docs/postgres-identity-migration-runbook.md` owns the provisioning/check/rollback procedure.
 - migration/runtime preflight also requires PostgreSQL core `pg_catalog.gen_random_uuid()`; absence is a hard compatibility blocker and does not authorize an implicit extension install.
 
-`0028` creates exactly:
+`0032` creates exactly:
 
 - `ops.websim_exact_import_jobs` with `job_id bigserial`, `owner_key_hash text CHECK '^sha256:[0-9a-f]{64}$'`, `request_key text CHECK '^exact-import-request:sha256:[0-9a-f]{64}$'`, `request_bytes bytea` bounded to 131,072 bytes, matching object `request_json jsonb` bounded to 131,072 bytes, `status pending|running|resolved|blocked|unsupported|failed`, `terminal_classification NULL|resolved|incomplete|illegal|runtime_gap|internal_error`, `attempt 0..3`, `locked_by text` bounded to 160 characters, DB-generated `lock_token uuid`, `lease_until`, `queued_at`, `started_at`, `heartbeat_at`, `finished_at`, `cooldown_until`, object `result_json` bounded to 131,072 bytes, object `problem_json` bounded to 16,384 bytes, `created_at`, `updated_at` and the exact row-state checks below;
 - `uq_ops_websim_exact_jobs_deterministic` as a partial unique index on `(owner_key_hash, request_key)` for `pending|running|resolved|blocked|unsupported`, `idx_ops_websim_exact_jobs_failed_cooldown` on `(owner_key_hash, request_key, cooldown_until DESC, job_id DESC)` for failed rows, `idx_ops_websim_exact_jobs_claim` on `(status, lease_until, queued_at, job_id)`, and `idx_ops_websim_exact_jobs_retention` on `(finished_at, job_id)` for terminal rows;
@@ -311,12 +312,12 @@ Before runtime activation:
 - explicitly `GRANT USAGE ON SCHEMA cache, ops` to `wow_exact_worker`; revoke all direct privileges on the three ops tables and `ops.websim_exact_import_jobs_job_id_seq` from `PUBLIC`, `wow_app` and `wow_exact_worker` before the function grants, overriding migration `0002` default privileges;
 - grant worker only SELECT/INSERT on authority documents and EXECUTE on claim/heartbeat/terminal/worker-state/bounded-prune functions;
 - app gets `EXECUTE` only on owner-scoped enqueue/read and zero table DML or full-table SELECT on the three ops tables;
-- worker gets `EXECUTE` only on claim/heartbeat/terminalize/worker-state/prune functions plus SELECT/INSERT on the three `0026` authority tables; it gets zero direct UPDATE/DELETE on authority or ops tables and no owner-scoped app function;
+- worker gets `EXECUTE` only on claim/heartbeat/terminalize/worker-state/prune functions plus SELECT/INSERT on the three `0030` authority tables; it gets zero direct UPDATE/DELETE on authority or ops tables and no owner-scoped app function;
 - every other function EXECUTE ACL, including PUBLIC defaults and cross-role app/worker calls, is absent.
 
 Job schema includes `started_at`, `finished_at`, `cooldown_until`; terminal retention is `finished_at + 7 days`, metrics retention is 90 days. All time and lease decisions use PostgreSQL `clock_timestamp()`.
 
-Real PostgreSQL permission tests use distinct `WOW_PG_TEST_DSN_MIGRATOR_0028`, `WOW_PG_TEST_DSN_APP_0028`, and actual worker-login `WOW_PG_TEST_DSN_WORKER_0028`. They additionally exercise admin-side `SET ROLE wow_app` / `SET ROLE wow_exact_worker`, but that is not a substitute for the real login DSNs. Tests prove schema usage, allowed functions, zero PUBLIC EXECUTE, cross-owner reads returning no row, table/sequence scans or DML and wrong-role functions failing, worker `SET ROLE`, expired-token CAS updating zero rows, and prune respecting requested `1..100`; static SQL assertions alone are insufficient.
+Real PostgreSQL permission tests use distinct `WOW_PG_TEST_DSN_MIGRATOR_0032`, `WOW_PG_TEST_DSN_APP_0032`, and actual worker-login `WOW_PG_TEST_DSN_WORKER_0032`. They additionally exercise admin-side `SET ROLE wow_app` / `SET ROLE wow_exact_worker`, but that is not a substitute for the real login DSNs. Tests prove schema usage, allowed functions, zero PUBLIC EXECUTE, cross-owner reads returning no row, table/sequence scans or DML and wrong-role functions failing, worker `SET ROLE`, expired-token CAS updating zero rows, and prune respecting requested `1..100`; static SQL assertions alone are insufficient.
 
 ### Lease decision table
 

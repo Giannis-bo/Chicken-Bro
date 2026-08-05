@@ -3,10 +3,13 @@ import unittest
 
 from server.chickenbro_observability import (
     PROJECTION_SCHEMA_REVISION,
+    PROJECTION_SCHEMA_REVISION_V3,
     PROJECTION_SCHEMA_REVISION_V1,
     RUNTIME_VERSION,
+    RUNTIME_VERSION_V3,
     RUNTIME_VERSION_V1,
     TRACE_SCHEMA_REVISION,
+    TRACE_SCHEMA_REVISION_V3,
     TRACE_SCHEMA_REVISION_V1,
     build_chickenbro_agent_trace,
     deidentify_chickenbro_agent_trace,
@@ -42,9 +45,10 @@ class ChickenbroObservabilityTest(unittest.TestCase):
             {
                 "raiderio": "source:raiderio:v1",
                 "warcraftlogs": "source:warcraftlogs:v1",
+                "current_wow_sources": "source:current-wow-sources:v1",
             }[row["sourceKey"]]
             for row in sources
-            if row.get("sourceKey") in {"raiderio", "warcraftlogs"}
+            if row.get("sourceKey") in {"raiderio", "warcraftlogs", "current_wow_sources"}
         ]
         return {
             "message": message,
@@ -173,6 +177,117 @@ class ChickenbroObservabilityTest(unittest.TestCase):
         self.assertNotIn("2026-08-02T00:00:00+00:00", encoded)
         self.assertNotIn("SECRET", encoded)
 
+    def test_v5_trace_keeps_only_semantic_question_plan_and_current_source_outcome(self):
+        bounded_context = self.bounded_context(
+            source_evidence=[
+                {
+                    "sourceKey": "current_wow_sources",
+                    "status": "failed",
+                    "evidenceRefs": [],
+                    "facts": [{"summary": "SECRET OFFICIAL SOURCE BODY"}],
+                }
+            ],
+            registry_context={
+                "status": "verified",
+                "registryVersion": "chickenbro-tools-2",
+                "registryReleaseHash": "sha256:a25340f6fe51dfa01d956b7d944891de39771694e4fd3b33fb41b4fba2d9a102",
+                "registrySource": "postgres",
+                "discoveredCapabilityIds": ["source:current-wow-sources:v1"],
+                "selectedCapabilityIds": ["source:current-wow-sources:v1"],
+            },
+        )
+        bounded_context["questionFrame"] = {
+            "schemaRevision": "chickenbro-question-frame-v1",
+            "questionType": "current_research",
+            "subject": {"classKey": "paladin", "specKey": "holy", "resolution": "resolved"},
+            "scope": {"productPhase": "ptr", "patchVersion": "12.1", "region": "cn", "scenarioKey": ""},
+            "evidenceNeeds": ["official_current_changes", "comparative_strength_signal"],
+            "unresolvedFields": ["scenarioKey"],
+        }
+        bounded_context["capabilityPlan"] = {
+            "questionType": "current_research",
+            "requestedEvidenceNeeds": ["official_current_changes", "comparative_strength_signal"],
+            "selectedCapabilityIds": ["source:current-wow-sources:v1"],
+            "unmetEvidenceNeeds": ["official_current_changes", "comparative_strength_signal"],
+        }
+
+        trace = self.build_trace(bounded_context=bounded_context)
+        projection = deidentify_chickenbro_agent_trace(trace)
+        encoded = json.dumps({"trace": trace, "projection": projection}, ensure_ascii=False)
+
+        self.assertEqual("chickenbro-agent-trace-v5", trace["schemaRevision"])
+        self.assertEqual("chickenbro-agentic-research-runtime-v1", trace["runtimeVersion"])
+        self.assertEqual("current_research", trace["questionType"])
+        self.assertEqual("resolved", trace["subjectResolution"])
+        self.assertEqual(["official_current_changes", "comparative_strength_signal"], trace["requestedEvidenceNeeds"])
+        self.assertEqual(["official_current_changes", "comparative_strength_signal"], trace["unmetEvidenceNeeds"])
+        self.assertIn("tool_failed", {signal["code"] for signal in trace["outcomeSignals"]})
+        self.assertEqual("chickenbro-trace-projection-v5", projection["schemaRevision"])
+        self.assertNotIn("SECRET OFFICIAL SOURCE BODY", encoded)
+
+    def test_trace_v5_keeps_only_allowlisted_evidence_plan_projection(self):
+        bounded_context = self.bounded_context(source_evidence=[])
+        bounded_context["questionFrame"] = {
+            "questionType": "current_research",
+            "subject": {"resolution": "resolved"},
+            "comparisonScope": "cross_spec",
+            "evidenceNeeds": ["comparative_strength_signal"],
+        }
+        bounded_context["capabilityPlan"] = {
+            "requestedEvidenceNeeds": ["comparative_strength_signal"],
+            "unmetEvidenceNeeds": ["comparative_strength_signal"],
+        }
+        bounded_context["evidencePlan"] = {
+            "comparisonScope": "cross_spec",
+            "facets": [{
+                "key": "cross_spec_performance",
+                "status": "unavailable",
+                "note": "全职业 DPS 横向排名",
+            }],
+            "outcome": "partial",
+        }
+
+        trace = self.build_trace(bounded_context=bounded_context)
+        projection = deidentify_chickenbro_agent_trace(trace)
+        encoded = json.dumps({"trace": trace, "projection": projection}, ensure_ascii=False)
+
+        self.assertEqual("chickenbro-agent-trace-v5", trace["schemaRevision"])
+        self.assertEqual("cross_spec", trace["comparisonScope"])
+        self.assertEqual(["cross_spec_performance"], trace["evidenceFacetKeys"])
+        self.assertEqual(["unavailable"], trace["evidenceFacetStatuses"])
+        self.assertEqual("partial", trace["evidenceOutcome"])
+        self.assertEqual("chickenbro-trace-projection-v5", projection["schemaRevision"])
+        self.assertNotIn("全职业 DPS 横向排名", encoded)
+
+    def test_trace_v5_projects_only_agentic_execution_metadata(self):
+        bounded_context = self.bounded_context(source_evidence=[])
+        bounded_context["agenticResearch"] = {
+            "status": "completed",
+            "turns": [{"turn": 0, "decision": "answer", "toolIds": ["source:raiderio:v1"]}],
+            "observations": [{
+                "toolId": "source:raiderio:v1",
+                "sourceKey": "raiderio",
+                "status": "source_reference",
+                "evidenceRefs": ["raiderio:deathknight:frost:mythic_plus"],
+                "scope": {"scenarioKey": "mythic_plus"},
+                "facts": [{"summary": "SECRET AGENTIC FACT"}],
+                "limitations": ["SECRET AGENTIC LIMITATION"],
+            }],
+        }
+
+        trace = self.build_trace(bounded_context=bounded_context)
+        projection = deidentify_chickenbro_agent_trace(trace)
+        encoded = json.dumps({"trace": trace, "projection": projection}, ensure_ascii=False)
+
+        self.assertEqual("chickenbro-agent-trace-v5", trace["schemaRevision"])
+        self.assertEqual("completed", trace["researchStatus"])
+        self.assertEqual(1, trace["researchTurnCount"])
+        self.assertEqual(["source:raiderio:v1"], trace["plannedToolIds"])
+        self.assertEqual(["source_reference"], trace["observationStatuses"])
+        self.assertEqual("chickenbro-trace-projection-v5", projection["schemaRevision"])
+        self.assertNotIn("SECRET AGENTIC FACT", encoded)
+        self.assertNotIn("SECRET AGENTIC LIMITATION", encoded)
+
     def test_literal_historical_v1_trace_still_validates_and_projects_unchanged(self):
         historical = {
             "schemaRevision": TRACE_SCHEMA_REVISION_V1,
@@ -211,6 +326,29 @@ class ChickenbroObservabilityTest(unittest.TestCase):
         self.assertEqual(historical, validated)
         self.assertEqual(PROJECTION_SCHEMA_REVISION_V1, projection["schemaRevision"])
         self.assertNotIn("registryVersion", projection)
+
+    def test_historical_v3_trace_still_validates_and_projects_unchanged(self):
+        historical = self.build_trace()
+        historical["schemaRevision"] = TRACE_SCHEMA_REVISION_V3
+        historical["runtimeVersion"] = RUNTIME_VERSION_V3
+        for key in (
+            "comparisonScope",
+            "evidenceFacetKeys",
+            "evidenceFacetStatuses",
+            "evidenceOutcome",
+            "researchStatus",
+            "researchTurnCount",
+            "plannedToolIds",
+            "observationStatuses",
+        ):
+            historical.pop(key)
+
+        validated = validate_chickenbro_agent_trace(historical)
+        projection = deidentify_chickenbro_agent_trace(historical)
+
+        self.assertEqual(historical, validated)
+        self.assertEqual(PROJECTION_SCHEMA_REVISION_V3, projection["schemaRevision"])
+        self.assertNotIn("evidenceOutcome", projection)
 
     def test_v2_rejects_unknown_registry_source_hash_and_selection_drift(self):
         trace = self.build_trace()

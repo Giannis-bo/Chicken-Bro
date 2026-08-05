@@ -309,7 +309,7 @@ TO wow_app;
 
 INSERT INTO ops.schema_migrations (id, description)
 VALUES (
-    '0026_websim_exact_authority_bundle',
+    '0030_websim_exact_authority_bundle',
     'Add exact-bytes append-only Canonical Authority Bundle persistence with no runtime writer'
 )
 ON CONFLICT (id) DO UPDATE

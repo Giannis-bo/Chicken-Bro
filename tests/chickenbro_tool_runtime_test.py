@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+from time import sleep
 import unittest
 
 from tests.chickenbro_registry_test import signed_release
@@ -19,6 +20,192 @@ CONTEXT = {
 
 
 class ChickenbroToolRuntimeTest(unittest.TestCase):
+    def test_published_runtime_loads_signed_release_without_request_discovery(self):
+        from server.chickenbro_tool_runtime import ChickenbroRegistryRuntime
+        from tests.chickenbro_registry_test import signed_release
+
+        runtime = ChickenbroRegistryRuntime(cache_ttl_seconds=60)
+        published = runtime.published(lambda: signed_release())
+
+        self.assertEqual("verified", published["registryStatus"])
+        self.assertEqual(
+            ["source:raiderio:v1", "source:warcraftlogs:v1"],
+            [manifest["toolId"] for manifest in published["manifests"]],
+        )
+
+    def test_each_validated_agentic_call_receives_its_own_arguments(self):
+        from server.chickenbro_tool_runtime import execute_chickenbro_tool_calls
+        from tests.chickenbro_registry_test import signed_manifest, wcl_manifest
+
+        manifests = [signed_manifest(), wcl_manifest()]
+
+        def raiderio_adapter(request):
+            return {
+                "sourceKey": "raiderio",
+                "status": "source_reference",
+                "facts": [{"classKey": request["intent"]["classKey"]}],
+                "evidence": [],
+                "evidenceRefs": ["fixture.raiderio"],
+                "limitations": [],
+                "nextActions": [],
+            }
+
+        def wcl_adapter(request):
+            return {
+                "sourceKey": "warcraftlogs",
+                "status": "verified",
+                "facts": [{"report": request["intent"]["wclReport"]}],
+                "evidence": [],
+                "evidenceRefs": ["fixture.wcl"],
+                "limitations": [],
+                "nextActions": [],
+            }
+
+        results = execute_chickenbro_tool_calls(
+            manifests,
+            {
+                "chickenbro.source.raiderio.v1": raiderio_adapter,
+                "chickenbro.source.warcraftlogs.v1": wcl_adapter,
+            },
+            [
+                {
+                    "toolId": "source:raiderio:v1",
+                    "arguments": {"classKey": "paladin", "specKey": "holy"},
+                },
+                {
+                    "toolId": "source:warcraftlogs:v1",
+                    "arguments": {"wclReport": "https://www.warcraftlogs.com/reports/ABC123"},
+                },
+            ],
+        )
+
+        self.assertEqual("paladin", results[0]["facts"][0]["classKey"])
+        self.assertEqual(
+            "https://www.warcraftlogs.com/reports/ABC123",
+            results[1]["facts"][0]["report"],
+        )
+
+    def test_agentic_runtime_allows_manifest_declared_repeated_generic_reads(self):
+        from server.chickenbro_tool_runtime import execute_chickenbro_tool_calls
+        from tests.chickenbro_registry_test import public_web_research_manifest
+
+        manifest = public_web_research_manifest(
+            toolId="source:public-web-research:v2",
+            version="2.0.0",
+            implementationRef="chickenbro.source.public_web_research.v2",
+            provenance={"kind": "fixture", "revision": "repeat-budget"},
+            costBudget={"status": "bounded", "maxCallsPerTurn": 2},
+        )
+        received = []
+
+        def adapter(request):
+            target = request["intent"]["target"]
+            received.append(target)
+            return {
+                "sourceKey": "public_web_research",
+                "status": "source_reference",
+                "facts": [{"summary": target}],
+                "evidence": [{"checkedAt": datetime.now(timezone.utc).isoformat()}],
+                "evidenceRefs": [f"fixture.{target}"],
+                "limitations": [],
+                "nextActions": [],
+            }
+
+        results = execute_chickenbro_tool_calls(
+            [manifest],
+            {"chickenbro.source.public_web_research.v2": adapter},
+            [
+                {"toolId": manifest["toolId"], "arguments": {"target": "first"}},
+                {"toolId": manifest["toolId"], "arguments": {"target": "second"}},
+            ],
+        )
+
+        self.assertEqual(["first", "second"], received)
+        self.assertEqual(2, len(results))
+
+    def test_agentic_runtime_accepts_the_published_eight_call_process_ceiling(self):
+        from server.chickenbro_tool_runtime import execute_chickenbro_tool_calls
+        from tests.chickenbro_registry_test import public_web_research_manifest
+
+        manifest = public_web_research_manifest(
+            toolId="source:public-web-research:v2",
+            version="2.0.0",
+            implementationRef="chickenbro.source.public_web_research.v2",
+            provenance={"kind": "fixture", "revision": "process-ceiling"},
+            costBudget={"status": "bounded", "maxCallsPerTurn": 8},
+        )
+
+        def adapter(request):
+            target = request["intent"]["target"]
+            return {
+                "sourceKey": "public_web_research",
+                "status": "source_reference",
+                "facts": [{"summary": target}],
+                "evidence": [{"checkedAt": datetime.now(timezone.utc).isoformat()}],
+                "evidenceRefs": [f"fixture.{target}"],
+                "limitations": [],
+                "nextActions": [],
+            }
+
+        results = execute_chickenbro_tool_calls(
+            [manifest],
+            {"chickenbro.source.public_web_research.v2": adapter},
+            [
+                {"toolId": manifest["toolId"], "arguments": {"target": f"source-{index}"}}
+                for index in range(8)
+            ],
+        )
+
+        self.assertEqual(8, len(results))
+        self.assertEqual("fixture.source-7", results[-1]["evidenceRefs"][0])
+    def test_dispatch_stops_waiting_when_the_manifest_timeout_budget_expires(self):
+        from server.chickenbro_tool_runtime import execute_chickenbro_selected_tools
+
+        resolution = {
+            "selectedManifests": [{
+                "toolId": "source:raiderio:v1",
+                "implementationRef": "chickenbro.source.raiderio.v1",
+                "sourcePolicy": {"sourceKey": "raiderio"},
+                "timeoutBudgetMs": 1,
+            }]
+        }
+        results = execute_chickenbro_selected_tools(
+            resolution,
+            {"chickenbro.source.raiderio.v1": lambda _request: (sleep(0.05), {})[1]},
+            {"intent": INTENT, "context": CONTEXT},
+        )
+
+        self.assertEqual("failed", results[0]["status"])
+        self.assertIn("timeout", results[0]["limitations"][0].lower())
+
+    def test_dispatch_demotes_timestamp_less_current_source_evidence_to_stale(self):
+        from server.chickenbro_tool_runtime import execute_chickenbro_selected_tools
+
+        resolution = {
+            "selectedManifests": [{
+                "toolId": "source:raiderio:v1",
+                "implementationRef": "chickenbro.source.raiderio.v1",
+                "sourcePolicy": {"sourceKey": "raiderio"},
+                "timeoutBudgetMs": 1000,
+                "freshnessPolicy": {"maxAgeSeconds": 60, "requireCheckedAt": True},
+            }]
+        }
+        results = execute_chickenbro_selected_tools(
+            resolution,
+            {"chickenbro.source.raiderio.v1": lambda _request: {
+                "sourceKey": "raiderio",
+                "status": "source_reference",
+                "facts": [{"summary": "missing timestamp"}],
+                "evidence": [{"id": "raiderio:test"}],
+                "evidenceRefs": ["raiderio:test"],
+                "limitations": [],
+                "nextActions": [],
+            }},
+            {"intent": INTENT, "context": CONTEXT},
+        )
+
+        self.assertEqual("stale", results[0]["status"])
+        self.assertEqual([], results[0]["evidenceRefs"])
     def test_verified_release_uses_postgres_then_bounded_cache(self):
         from server.chickenbro_tool_runtime import (
             ChickenbroRegistryRuntime,
@@ -146,7 +333,7 @@ class ChickenbroToolRuntimeTest(unittest.TestCase):
             },
         )
 
-        self.assertEqual({"message", "intent", "context"}, set(received[0]))
+        self.assertEqual({"intent", "context"}, set(received[0]))
         self.assertNotIn("credential", received[0]["intent"])
         self.assertNotIn("userId", received[0]["context"])
         self.assertEqual("failed", results[0]["status"])
@@ -182,6 +369,72 @@ class ChickenbroToolRuntimeTest(unittest.TestCase):
 
         self.assertEqual([expected], results)
         self.assertIsNot(expected, results[0])
+
+    def test_current_source_adapter_receives_only_frame_projection_not_raw_message_or_owner(self):
+        from server.chickenbro_tool_runtime import execute_chickenbro_selected_tools
+
+        received = []
+        resolution = {
+            "selectedManifests": [
+                {
+                    "toolId": "source:current-wow-sources:v1",
+                    "implementationRef": "chickenbro.source.current_wow_sources.v1",
+                    "sourcePolicy": {"sourceKey": "current_wow_sources"},
+                }
+            ]
+        }
+        expected = {
+            "sourceKey": "current_wow_sources",
+            "status": "partial",
+            "facts": [],
+            "evidence": [],
+            "evidenceRefs": [],
+            "limitations": ["subject_specific_official_change_missing"],
+            "nextActions": [],
+        }
+        results = execute_chickenbro_selected_tools(
+            resolution,
+            {"chickenbro.source.current_wow_sources.v1": lambda request: received.append(request) or expected},
+            {
+                "message": "NQ 12.1 PTR https://not-blizzard.example/anything",
+                "intent": {
+                    "kind": "current_research",
+                    "questionType": "current_research",
+                    "productPhase": "ptr",
+                    "patchVersion": "12.1",
+                    "classKey": "paladin",
+                    "specKey": "holy",
+                    "evidenceNeeds": ["official_current_changes", "comparative_strength_signal"],
+                    "ownerId": "must-not-pass",
+                },
+                "context": {
+                    "region": "cn",
+                    "productPhase": "ptr",
+                    "questionType": "current_research",
+                    "patchVersion": "12.1",
+                    "classKey": "paladin",
+                    "specKey": "holy",
+                    "ownerId": "must-not-pass",
+                },
+            },
+        )
+
+        self.assertEqual([expected], results)
+        self.assertEqual({"intent", "context"}, set(received[0]))
+        self.assertNotIn("ownerId", str(received[0]))
+        self.assertNotIn("not-blizzard.example", str(received[0]))
+        self.assertEqual(
+            {
+                "kind",
+                "questionType",
+                "productPhase",
+                "patchVersion",
+                "classKey",
+                "specKey",
+                "evidenceNeeds",
+            },
+            set(received[0]["intent"]),
+        )
 
 
 if __name__ == "__main__":

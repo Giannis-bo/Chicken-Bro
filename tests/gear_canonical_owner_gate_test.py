@@ -3783,9 +3783,14 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
             requirement["engineeringHealth"]["status"],
         )
         self.assertIn(
-            "t3a260805113656",
+            "t3a260805120026",
             requirement["engineeringHealth"]["reason"],
         )
+        self.assertIn(
+            "runtime_passed_superseded_by_main_integration",
+            requirement["engineeringHealth"]["reason"],
+        )
+        self.assertIn("0030", requirement["engineeringHealth"]["reason"])
         self.assertEqual(
             "source_change_control_only",
             requirement["ownership"].get("proofClaim"),
@@ -3837,7 +3842,7 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
             requirement["ownership"]["task3AStoreOwner"],
         )
         self.assertEqual(
-            "server/migrations/postgres/0026_websim_exact_authority_bundle.sql",
+            "server/migrations/postgres/0030_websim_exact_authority_bundle.sql",
             requirement["ownership"]["task3AMigration"],
         )
 

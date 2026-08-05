@@ -80,10 +80,10 @@ describe('canonical gear selection intent', () => {
     expect(canonicalExactLoadoutIntent(valid, 'warrior', 'fury')).toEqual(valid)
     expect([
       { ...valid, authoredAgainst: { ...valid.authoredAgainst, gearCatalogRevision: 'catalog-r1' } },
-      { ...valid, slots: { ...valid.slots, head: { ...valid.slots.head, variantKey: 'variant-head' } } },
+      { ...valid, slots: { ...valid.slots, head: { ...valid.slots['head'], variantKey: 'variant-head' } } },
       { ...valid, eligibilityContext: { ...valid.eligibilityContext, level: 80.5 } },
       { ...valid, eligibilityContext: { ...valid.eligibilityContext, classKey: 'mage' } },
-      { ...valid, slots: { ...valid.slots, head: { ...valid.slots.head, itemId: '' } } },
+      { ...valid, slots: { ...valid.slots, head: { ...valid.slots['head'], itemId: '' } } },
       { ...valid, slots: Object.fromEntries([...coreSlots].reverse().map((name, index) => [name, slot(String(225574 + index))])) },
       { ...valid, slots: Object.fromEntries(coreSlots.slice(1).map((name, index) => [name, slot(String(225574 + index))])) },
     ].every((value) => canonicalExactLoadoutIntent(value, 'warrior', 'fury') === null)).toBe(true)
@@ -111,15 +111,15 @@ describe('canonical gear selection intent', () => {
       { ...valid, authoredAgainst: { ...valid.authoredAgainst, gameBuild: newline } },
       { ...valid, eligibilityContext: { ...valid.eligibilityContext, classKey: newline } },
       { ...valid, eligibilityContext: { ...valid.eligibilityContext, specKey: newline } },
-      { ...valid, slots: { ...valid.slots, head: { ...valid.slots.head, itemId: newline } } },
-      { ...valid, slots: { ...valid.slots, head: { ...valid.slots.head, context: newline } } },
-      { ...valid, slots: { ...valid.slots, head: { ...valid.slots.head, enchantId: newline } } },
-      { ...valid, slots: { ...valid.slots, head: { ...valid.slots.head, bonusIds: [newline] } } },
-      { ...valid, slots: { ...valid.slots, head: { ...valid.slots.head, gemIds: [newline] } } },
-      { ...valid, slots: { ...valid.slots, head: { ...valid.slots.head, gemBonusIds: [newline] } } },
-      { ...valid, slots: { ...valid.slots, head: { ...valid.slots.head, craftedStats: [newline] } } },
-      { ...valid, slots: { ...valid.slots, head: { ...valid.slots.head, embellishmentIds: [newline] } } },
-      { ...valid, slots: { ...valid.slots, head: { ...valid.slots.head, redirectedBaseStats: [newline] } } },
+      { ...valid, slots: { ...valid.slots, head: { ...valid.slots['head'], itemId: newline } } },
+      { ...valid, slots: { ...valid.slots, head: { ...valid.slots['head'], context: newline } } },
+      { ...valid, slots: { ...valid.slots, head: { ...valid.slots['head'], enchantId: newline } } },
+      { ...valid, slots: { ...valid.slots, head: { ...valid.slots['head'], bonusIds: [newline] } } },
+      { ...valid, slots: { ...valid.slots, head: { ...valid.slots['head'], gemIds: [newline] } } },
+      { ...valid, slots: { ...valid.slots, head: { ...valid.slots['head'], gemBonusIds: [newline] } } },
+      { ...valid, slots: { ...valid.slots, head: { ...valid.slots['head'], craftedStats: [newline] } } },
+      { ...valid, slots: { ...valid.slots, head: { ...valid.slots['head'], embellishmentIds: [newline] } } },
+      { ...valid, slots: { ...valid.slots, head: { ...valid.slots['head'], redirectedBaseStats: [newline] } } },
     ]
     expect(cases.every((value) => canonicalExactLoadoutIntent(value, 'warrior', 'fury') === null)).toBe(true)
   })

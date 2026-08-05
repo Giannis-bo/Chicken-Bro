@@ -28,6 +28,18 @@ function attachmentRefs(message: ChatMessage): readonly string[] {
   return message.role === 'assistant' ? message.payload?.evidenceRefs ?? [] : []
 }
 
+function evidenceOutcomeLabel(message: ChatMessage): string {
+  if (message.role !== 'assistant') return ''
+  const labels = {
+    answered: '已完成证据判断',
+    partial: '部分证据',
+    researching: '受控检索中',
+    blocked: '当前不可执行',
+  } as const
+  const outcome = message.payload?.evidenceOutcome
+  return outcome && outcome in labels ? labels[outcome] : ''
+}
+
 export function ChickenbroTranscript({
   messages,
   state,
@@ -82,9 +94,11 @@ export function ChickenbroTranscript({
         <View className={styles['transcript'] ?? ''}>
           {messages.map((message, index) => {
             const refs = attachmentRefs(message)
+            const outcomeLabel = evidenceOutcomeLabel(message)
             return (
               <View key={messageKey(message, index)} className={styles[message.role === 'user' ? 'userMessage' : 'assistantMessage'] ?? ''} data-role={`chickenbro-message-${message.role}`}>
                 <View className={styles['messageBubble'] ?? ''}>
+                  {outcomeLabel ? <View className={styles['evidenceOutcome'] ?? ''} data-role="chickenbro-evidence-outcome"><Text>{outcomeLabel}</Text></View> : null}
                   <Text>{message.content}</Text>
                   {refs.length > 0 ? (
                     <View className={styles['attachmentList'] ?? ''} data-region="captain_attachment">

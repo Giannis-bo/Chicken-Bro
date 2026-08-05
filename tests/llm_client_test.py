@@ -74,6 +74,23 @@ class LlmClientStreamTest(unittest.TestCase):
             with self.assertRaises(ChickenbroStreamProtocolError):
                 list(stream_chat_completion("system", "user", {"type": "object"}, opener=lambda *_, **__: FakeStreamResponse(['data: nope\n'])))
 
+    def test_stops_a_keepalive_only_stream_at_the_configured_end_to_end_deadline(self):
+        from server.llm_client import ChickenbroStreamUnavailable, stream_chat_completion
+
+        clock_values = iter([0.0, 1.0, 4.0])
+        environment = {**self.stream_env(), "WOW_CHICKENBRO_STREAM_TIMEOUT_SECONDS": "3"}
+        with patch.dict(os.environ, environment, clear=True):
+            with self.assertRaisesRegex(ChickenbroStreamUnavailable, "exceeded 3 seconds"):
+                list(
+                    stream_chat_completion(
+                        "system",
+                        "user",
+                        {"type": "object"},
+                        opener=lambda *_, **__: FakeStreamResponse([": keepalive\n", ": keepalive\n"]),
+                        clock=lambda: next(clock_values),
+                    )
+                )
+
 
 if __name__ == "__main__":
     unittest.main()

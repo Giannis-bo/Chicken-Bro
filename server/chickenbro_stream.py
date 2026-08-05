@@ -16,6 +16,7 @@ _ALLOWED_RESPONSE_KEYS = {
     "limitations",
     "missingInputs",
     "nextQuestion",
+    "claimRefs",
 }
 _NUMBER_PATTERN = re.compile(r"(?<![A-Za-z0-9.])(?:\+?\d{2,}(?:\.\d+)?|\d+\.\d+)%?(?![\d.])")
 _ANSWER_KEY_PATTERN = re.compile(r'"answer"\s*:\s*"')
@@ -34,7 +35,10 @@ class ChickenbroAnswerStream:
     """
 
     def __init__(self, allowed_numbers=None, max_buffer_chars=24000, holdback_chars=64):
-        self.allowed_numbers = {str(number).rstrip("%") for number in (allowed_numbers or [])}
+        self.allowed_numbers = {
+            str(number).rstrip("%").lstrip("+")
+            for number in (allowed_numbers or [])
+        }
         self.max_buffer_chars = max_buffer_chars
         self.holdback_chars = holdback_chars
         self._raw = ""
@@ -137,12 +141,17 @@ class ChickenbroAnswerStream:
     def _numbers_are_allowed(self, answer, allow_decimal_prefix=False):
         numbers = chickenbro_text_numbers(answer)
         for index, number in enumerate(numbers):
-            if number.rstrip("%") not in self.allowed_numbers:
+            normalized_number = number.rstrip("%").lstrip("+")
+            if normalized_number not in self.allowed_numbers:
                 if (
                     allow_decimal_prefix
                     and index == len(numbers) - 1
                     and answer.endswith(number)
-                    and any(allowed.startswith(f"{number}.") for allowed in self.allowed_numbers)
+                    and any(
+                        allowed.startswith(normalized_number)
+                        and allowed != normalized_number
+                        for allowed in self.allowed_numbers
+                    )
                 ):
                     continue
                 return False

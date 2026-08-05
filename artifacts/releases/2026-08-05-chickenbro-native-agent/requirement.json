@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "slug": "chickenbro-native-agent",
+  "status": "released",
+  "userOutcome": "玩家可以直接询问当前版本强度并连续追问；云端 Codex 自主检索、比较、说明口径，而不再要求玩家自行查资料或被固定 JSON/claim 规则中断。",
+  "scope": [
+    "production native Codex Agent profile with gpt-5.6-luna and live web search",
+    "optional read-only MCP public-web and current Mythic+ snapshot helpers",
+    "same-session current-strength and follow-up smoke",
+    "post-merge DevTools preview refresh and production smoke"
+  ],
+  "outOfScope": [
+    "new third-party source contract or collector",
+    "user acceptance substitution"
+  ],
+  "manualAcceptance": {
+    "required": true,
+    "items": [
+      "WeChat current-strength answer is direct and evidence-scoped",
+      "same-session follow-up completes without retry/error",
+      "sources and limitations read naturally",
+      "long transcript remains usable above the composer"
+    ],
+    "acceptedAt": "2026-08-05",
+    "acceptedBy": "user",
+    "acceptanceNote": "User confirmed the expected answer quality and that long transcripts do not obscure the composer, then explicitly authorized closure."
+  }
+}

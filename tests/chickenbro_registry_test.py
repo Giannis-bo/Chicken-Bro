@@ -5,6 +5,7 @@ import unittest
 
 from server.chickenbro_registry import (
     discover_chickenbro_capabilities,
+    published_chickenbro_tools,
     validate_chickenbro_registry_release,
     validate_chickenbro_tool_manifest,
 )
@@ -89,6 +90,91 @@ def wcl_manifest(**overrides):
     return signed_manifest(**values)
 
 
+def current_sources_manifest(**overrides):
+    values = {
+        "toolId": "source:current-wow-sources:v1",
+        "purpose": "Load bounded official current Warcraft facts for a resolved question frame.",
+        "inputSchema": {"required": ["classKey", "specKey", "questionType", "patchVersion"]},
+        "discoveryPolicy": {
+            "requestKinds": ["current_research"],
+            "requiredContextFields": ["classKey", "specKey", "questionType", "patchVersion"],
+            "productPhases": ["retail", "ptr"],
+            "regions": ["cn", "global", "us", "eu", "kr", "tw"],
+            "evidenceNeeds": ["official_current_changes"],
+            "priority": 100,
+        },
+        "sourcePolicy": {
+            "sourceKey": "current_wow_sources",
+            "requiredStatuses": ["source_reference", "partial", "failed"],
+            "approvedSourceIds": ["blizzard", "blizzard-forums"],
+        },
+        "freshnessPolicy": {
+            "maxAgeSeconds": 900,
+            "staleBehavior": "failed",
+        },
+        "timeoutBudgetMs": 10000,
+        "costBudget": {"status": "bounded_live_official_read", "maxArticlesPerSource": 1},
+        "implementationRef": "chickenbro.source.current_wow_sources.v1",
+        "evalRefs": ["chickenbro-eval:current_official_source"],
+        "provenance": {"kind": "repository_migration", "revision": "0026"},
+        "createdAt": "2026-08-03T00:00:00+00:00",
+    }
+    values.update(overrides)
+    return signed_manifest(**values)
+
+
+def community_strength_manifest(tool_id, implementation_ref, source_key, **overrides):
+    values = {
+        "toolId": tool_id,
+        "purpose": "Load bounded public community Mythic+ strength evidence.",
+        "inputSchema": {"required": ["classKey", "specKey", "questionType"]},
+        "discoveryPolicy": {
+            "requestKinds": ["current_research"],
+            "requiredContextFields": ["classKey", "specKey", "questionType", "scenarioKey"],
+            "productPhases": ["retail"],
+            "regions": ["cn", "global", "us", "eu", "kr", "tw"],
+            "scenarioKeys": ["mythic_plus"],
+            "evidenceNeeds": ["comparative_strength_signal"],
+            "priority": 90,
+        },
+        "freshnessPolicy": {"maxAgeSeconds": 900, "staleBehavior": "limitation_only"},
+        "timeoutBudgetMs": 10000,
+        "costBudget": {"status": "bounded_live_public_read"},
+        "implementationRef": implementation_ref,
+        "evalRefs": ["chickenbro-eval:community_strength"],
+        "sourcePolicy": {"sourceKey": source_key, "requiredStatuses": ["source_reference", "partial", "failed"]},
+        "provenance": {"kind": "repository_migration", "revision": "0027"},
+        "createdAt": "2026-08-03T00:00:00+00:00",
+    }
+    values.update(overrides)
+    return signed_manifest(**values)
+
+
+def public_web_research_manifest(**overrides):
+    values = {
+        "toolId": "source:public-web-research:v1",
+        "purpose": "Search a bounded public-web research query or read one Codex-selected safe HTTPS public page.",
+        "inputSchema": {"required": ["target"]},
+        "discoveryPolicy": {
+            "requestKinds": ["current_research"],
+            "requiredContextFields": ["questionType"],
+            "productPhases": ["retail", "ptr"],
+            "regions": ["cn", "global", "us", "eu", "kr", "tw"],
+            "priority": 70,
+        },
+        "freshnessPolicy": {"maxAgeSeconds": 120, "requireCheckedAt": True, "staleBehavior": "limitation_only"},
+        "timeoutBudgetMs": 15000,
+        "costBudget": {"status": "bounded_live_public_web_read", "maxPages": 2, "maxRequestsPerWindow": 8, "windowSeconds": 60},
+        "implementationRef": "chickenbro.source.public_web_research.v1",
+        "evalRefs": ["chickenbro-eval:generic_public_web_research"],
+        "sourcePolicy": {"sourceKey": "public_web_research", "requiredStatuses": ["source_reference", "partial", "failed"]},
+        "provenance": {"kind": "repository_migration", "revision": "0028"},
+        "createdAt": "2026-08-04T00:00:00+00:00",
+    }
+    values.update(overrides)
+    return signed_manifest(**values)
+
+
 def signed_release(manifests=None, **overrides):
     manifests = list(manifests or [signed_manifest(), wcl_manifest()])
     refs = [
@@ -114,6 +200,55 @@ def signed_release(manifests=None, **overrides):
 
 
 class ChickenbroRegistryTest(unittest.TestCase):
+    def test_registry_accepts_a_generic_public_web_research_tool(self):
+        manifest = public_web_research_manifest()
+
+        validated = validate_chickenbro_tool_manifest(manifest)
+
+        self.assertEqual("source:public-web-research:v1", validated["toolId"])
+        self.assertEqual("chickenbro.source.public_web_research.v1", validated["implementationRef"])
+        self.assertEqual(["target"], validated["inputSchema"]["required"])
+
+    def test_registry_accepts_a_generic_public_web_research_tool_with_declared_repeat_budget(self):
+        manifest = public_web_research_manifest(
+            toolId="source:public-web-research:v2",
+            version="2.0.0",
+            implementationRef="chickenbro.source.public_web_research.v2",
+            provenance={"kind": "repository_migration", "revision": "0029"},
+            costBudget={
+                "status": "bounded_live_public_web_read",
+                "maxPages": 2,
+                "maxCallsPerTurn": 2,
+                "maxRequestsPerWindow": 8,
+                "windowSeconds": 60,
+            },
+        )
+
+        validated = validate_chickenbro_tool_manifest(manifest)
+
+        self.assertEqual("source:public-web-research:v2", validated["toolId"])
+        self.assertEqual(2, validated["costBudget"]["maxCallsPerTurn"])
+
+    def test_published_catalog_does_not_depend_on_question_frame(self):
+        release = signed_release(
+            [
+                current_sources_manifest(),
+                community_strength_manifest(
+                    "source:raiderio-strength:v1",
+                    "chickenbro.source.raiderio_strength.v1",
+                    "raiderio_strength",
+                ),
+            ],
+            registryVersion="chickenbro-tools-agentic",
+        )
+
+        catalog = published_chickenbro_tools(release)
+
+        self.assertEqual(
+            ["source:current-wow-sources:v1", "source:raiderio-strength:v1"],
+            [tool["toolId"] for tool in catalog],
+        )
+
     def test_manifest_rejects_unknown_code_and_hash_mutation(self):
         manifest = signed_manifest()
         validated = validate_chickenbro_tool_manifest(manifest)
@@ -191,6 +326,156 @@ class ChickenbroRegistryTest(unittest.TestCase):
                     expected_ids,
                     [item["toolId"] for item in result["selectedManifests"]],
                 )
+
+    def test_current_research_discovers_only_the_evidence_appropriate_official_tool(self):
+        release = signed_release(
+            [signed_manifest(), wcl_manifest(), current_sources_manifest()],
+            registryVersion="chickenbro-tools-2",
+            provenance={"kind": "repository_migration", "revision": "0026"},
+        )
+        intent = {
+            "kind": "current_research",
+            "questionType": "current_research",
+            "productPhase": "ptr",
+            "patchVersion": "12.1",
+            "classKey": "paladin",
+            "specKey": "holy",
+            "evidenceNeeds": ["official_current_changes", "comparative_strength_signal"],
+        }
+        context = {
+            "region": "cn",
+            "productPhase": "ptr",
+            "questionType": "current_research",
+            "patchVersion": "12.1",
+            "classKey": "paladin",
+            "specKey": "holy",
+        }
+
+        result = discover_chickenbro_capabilities(release, intent, context)
+
+        self.assertEqual(["source:current-wow-sources:v1"], result["selectedCapabilityIds"])
+        self.assertEqual([], result["missingContextFields"])
+
+    def test_retail_strength_research_discovers_registered_community_comparators(self):
+        rio = community_strength_manifest(
+            "source:raiderio-strength:v1",
+            "chickenbro.source.raiderio_strength.v1",
+            "raiderio_strength",
+        )
+        wcl = community_strength_manifest(
+            "source:warcraftlogs-public-rankings:v1",
+            "chickenbro.source.warcraftlogs_public_rankings.v1",
+            "warcraftlogs_public_rankings",
+        )
+        release = signed_release(
+            [signed_manifest(), wcl_manifest(), current_sources_manifest(), rio, wcl],
+            registryVersion="chickenbro-tools-3",
+            provenance={"kind": "repository_migration", "revision": "0027"},
+        )
+
+        try:
+            result = discover_chickenbro_capabilities(
+                release,
+                {
+                    "kind": "current_research",
+                    "questionType": "current_research",
+                    "productPhase": "retail",
+                    "classKey": "shaman",
+                    "specKey": "elemental",
+                    "scenarioKey": "mythic_plus",
+                    "evidenceNeeds": ["comparative_strength_signal"],
+                },
+                {
+                    "region": "cn",
+                    "productPhase": "retail",
+                    "classKey": "shaman",
+                    "specKey": "elemental",
+                    "questionType": "current_research",
+                    "scenarioKey": "mythic_plus",
+                },
+            )
+        except ValueError as error:
+            self.fail(f"retail strength sources must be accepted by the Registry: {error}")
+
+        self.assertEqual(
+            ["source:raiderio-strength:v1", "source:warcraftlogs-public-rankings:v1"],
+            result["selectedCapabilityIds"],
+        )
+
+    def test_cross_spec_strength_request_does_not_select_a_subject_bound_comparator(self):
+        rio = community_strength_manifest(
+            "source:raiderio-strength:v1",
+            "chickenbro.source.raiderio_strength.v1",
+            "raiderio_strength",
+        )
+        wcl = community_strength_manifest(
+            "source:warcraftlogs-public-rankings:v1",
+            "chickenbro.source.warcraftlogs_public_rankings.v1",
+            "warcraftlogs_public_rankings",
+        )
+        release = signed_release(
+            [signed_manifest(), wcl_manifest(), current_sources_manifest(), rio, wcl],
+            registryVersion="chickenbro-tools-3",
+            provenance={"kind": "repository_migration", "revision": "0027"},
+        )
+
+        result = discover_chickenbro_capabilities(
+            release,
+            {
+                "kind": "current_research",
+                "questionType": "current_research",
+                "productPhase": "retail",
+                "classKey": "shaman",
+                "specKey": "elemental",
+                "scenarioKey": "mythic_plus",
+                "comparisonScope": "cross_spec",
+                "evidenceNeeds": ["comparative_strength_signal"],
+            },
+            {
+                "region": "cn",
+                "productPhase": "retail",
+                "classKey": "shaman",
+                "specKey": "elemental",
+                "questionType": "current_research",
+                "scenarioKey": "mythic_plus",
+            },
+        )
+
+        self.assertEqual([], result["selectedCapabilityIds"])
+
+    def test_mythic_plus_sources_are_not_discovered_for_a_raid_question(self):
+        rio = community_strength_manifest(
+            "source:raiderio-strength:v1",
+            "chickenbro.source.raiderio_strength.v1",
+            "raiderio_strength",
+        )
+        release = signed_release(
+            [signed_manifest(), wcl_manifest(), current_sources_manifest(), rio],
+            registryVersion="chickenbro-tools-3",
+            provenance={"kind": "repository_migration", "revision": "0027"},
+        )
+        result = discover_chickenbro_capabilities(
+            release,
+            {
+                "kind": "current_research",
+                "questionType": "current_research",
+                "productPhase": "retail",
+                "classKey": "shaman",
+                "specKey": "elemental",
+                "scenarioKey": "raid",
+                "evidenceNeeds": ["comparative_strength_signal"],
+            },
+            {
+                "region": "cn",
+                "productPhase": "retail",
+                "classKey": "shaman",
+                "specKey": "elemental",
+                "questionType": "current_research",
+                "scenarioKey": "raid",
+            },
+        )
+
+        self.assertEqual([], result["selectedCapabilityIds"])
 
 
 if __name__ == "__main__":

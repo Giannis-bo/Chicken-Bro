@@ -37,6 +37,7 @@ DISCOVERY_POLICY_KEYS = {
     "regions",
     "priority",
 }
+DISCOVERY_POLICY_OPTIONAL_KEYS = {"evidenceNeeds", "scenarioKeys"}
 RELEASE_KEYS = {
     "registryVersion",
     "manifestRefs",
@@ -51,11 +52,32 @@ MANIFEST_REF_KEYS = {"toolId", "version", "contentHash"}
 APPROVED_IMPLEMENTATIONS = {
     "source:raiderio:v1": "chickenbro.source.raiderio.v1",
     "source:warcraftlogs:v1": "chickenbro.source.warcraftlogs.v1",
+    "source:current-wow-sources:v1": "chickenbro.source.current_wow_sources.v1",
+    "source:raiderio-strength:v1": "chickenbro.source.raiderio_strength.v1",
+    "source:warcraftlogs-public-rankings:v1": "chickenbro.source.warcraftlogs_public_rankings.v1",
+    "source:public-web-research:v1": "chickenbro.source.public_web_research.v1",
+    "source:public-web-research:v2": "chickenbro.source.public_web_research.v2",
 }
-ALLOWED_REQUEST_KINDS = {"community_build", "personal_wcl"}
-ALLOWED_CONTEXT_FIELDS = {"classKey", "specKey", "wclReport"}
+ALLOWED_REQUEST_KINDS = {"community_build", "personal_wcl", "current_research"}
+ALLOWED_CONTEXT_FIELDS = {"classKey", "specKey", "wclReport", "questionType", "patchVersion", "scenarioKey"}
+ALLOWED_EVIDENCE_NEEDS = {
+    "community_build_reference",
+    "comparative_strength_signal",
+    "official_current_changes",
+    "personal_log_evidence",
+}
 ALLOWED_PRODUCT_PHASES = {"retail", "ptr"}
 ALLOWED_REGIONS = {"cn", "global", "us", "eu", "kr", "tw"}
+ALLOWED_SCENARIO_KEYS = {
+    "mythic_plus",
+    "mplus_fortified",
+    "mplus_tyrannical",
+    "raid",
+    "raid_single",
+    "raid_cleave",
+    "raid_multi",
+    "pvp",
+}
 HASH_PATTERN = re.compile(r"^sha256:[0-9a-f]{64}$")
 VERSION_PATTERN = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+$")
 REGISTRY_VERSION_PATTERN = re.compile(r"^[a-z0-9][a-z0-9_.-]{0,95}$")
@@ -120,12 +142,20 @@ def validate_chickenbro_tool_manifest(manifest):
     if not isinstance(manifest.get("inputSchema"), dict) or not isinstance(manifest.get("outputSchema"), dict):
         raise ValueError("invalid manifest schema")
     policy = manifest.get("discoveryPolicy")
-    if not isinstance(policy, dict) or set(policy) != DISCOVERY_POLICY_KEYS:
+    if (
+        not isinstance(policy, dict)
+        or not DISCOVERY_POLICY_KEYS.issubset(policy)
+        or set(policy) - DISCOVERY_POLICY_KEYS - DISCOVERY_POLICY_OPTIONAL_KEYS
+    ):
         raise ValueError("invalid manifest discoveryPolicy")
     _string_list(policy["requestKinds"], ALLOWED_REQUEST_KINDS)
     _string_list(policy["requiredContextFields"], ALLOWED_CONTEXT_FIELDS)
     _string_list(policy["productPhases"], ALLOWED_PRODUCT_PHASES)
     _string_list(policy["regions"], ALLOWED_REGIONS)
+    if "evidenceNeeds" in policy:
+        _string_list(policy["evidenceNeeds"], ALLOWED_EVIDENCE_NEEDS)
+    if "scenarioKeys" in policy:
+        _string_list(policy["scenarioKeys"], ALLOWED_SCENARIO_KEYS)
     if not isinstance(policy["priority"], int) or isinstance(policy["priority"], bool):
         raise ValueError("invalid manifest priority")
     if manifest.get("riskClass") != "read_only" or manifest.get("sideEffects") != []:
@@ -134,6 +164,15 @@ def validate_chickenbro_tool_manifest(manifest):
         raise ValueError("invalid manifest ownerPolicy")
     if not isinstance(manifest.get("sourcePolicy"), dict) or not isinstance(manifest.get("freshnessPolicy"), dict):
         raise ValueError("invalid manifest source or freshness policy")
+    freshness_policy = manifest["freshnessPolicy"]
+    if "requireCheckedAt" in freshness_policy and not isinstance(freshness_policy["requireCheckedAt"], bool):
+        raise ValueError("invalid manifest freshness requireCheckedAt")
+    if "maxAgeSeconds" in freshness_policy and (
+        not isinstance(freshness_policy["maxAgeSeconds"], int)
+        or isinstance(freshness_policy["maxAgeSeconds"], bool)
+        or freshness_policy["maxAgeSeconds"] <= 0
+    ):
+        raise ValueError("invalid manifest freshness maxAgeSeconds")
     timeout = manifest.get("timeoutBudgetMs")
     if not isinstance(timeout, int) or isinstance(timeout, bool) or timeout <= 0:
         raise ValueError("invalid manifest timeoutBudgetMs")
@@ -205,6 +244,16 @@ def validate_chickenbro_registry_release(release):
     }
 
 
+def published_chickenbro_tools(release):
+    """Return all signed, active, read-only tools without examining a question."""
+    validated = validate_chickenbro_registry_release(release)
+    return [
+        copy.deepcopy(manifest)
+        for manifest in sorted(validated["manifests"], key=lambda item: item["toolId"])
+        if manifest["status"] == "active" and manifest["riskClass"] == "read_only"
+    ]
+
+
 def _context_value(field, intent, context):
     if field == "wclReport":
         return str(intent.get(field) or "").strip()
@@ -218,11 +267,23 @@ def discover_chickenbro_capabilities(release, request_intent, request_context):
     request_kind = str(intent.get("kind") or "").strip().lower()
     product_phase = str(intent.get("productPhase") or context.get("productPhase") or "").strip().lower()
     region = str(context.get("region") or "").strip().lower()
+    scenario_key = str(context.get("scenarioKey") or intent.get("scenarioKey") or "").strip().lower()
+    comparison_scope = str(intent.get("comparisonScope") or "subject").strip().lower()
     candidates = []
     missing_fields = []
     for manifest in validated["manifests"]:
         policy = manifest["discoveryPolicy"]
         if request_kind not in policy["requestKinds"]:
+            continue
+        required_evidence = set(policy.get("evidenceNeeds") or [])
+        supplied_evidence = {
+            str(item).strip()
+            for item in (intent.get("evidenceNeeds") or [])
+            if str(item).strip()
+        }
+        if comparison_scope == "cross_spec" and "comparative_strength_signal" in required_evidence:
+            continue
+        if required_evidence and not required_evidence.issubset(supplied_evidence):
             continue
         required_missing = [
             field
@@ -235,6 +296,8 @@ def discover_chickenbro_capabilities(release, request_intent, request_context):
         if required_missing:
             continue
         if product_phase not in policy["productPhases"] or region not in policy["regions"]:
+            continue
+        if "scenarioKeys" in policy and scenario_key not in policy["scenarioKeys"]:
             continue
         candidates.append(manifest)
     candidates.sort(key=lambda item: (-item["discoveryPolicy"]["priority"], item["toolId"]))

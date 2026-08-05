@@ -30,7 +30,11 @@ WEBSIM_MANIFEST_V2 = ROOT / "server" / "migrations" / "postgres" / "0022_websim_
 WEBSIM_GEAR_CATALOG_VARIANT_SHAPES = ROOT / "server" / "migrations" / "postgres" / "0023_websim_gear_catalog_variant_shapes.sql"
 CHICKENBRO_AGENT_OBSERVABILITY = ROOT / "server" / "migrations" / "postgres" / "0024_chickenbro_agent_observability.sql"
 CHICKENBRO_TOOL_REGISTRY = ROOT / "server" / "migrations" / "postgres" / "0025_chickenbro_tool_registry.sql"
-WEBSIM_EXACT_AUTHORITY_BUNDLE = ROOT / "server" / "migrations" / "postgres" / "0026_websim_exact_authority_bundle.sql"
+CHICKENBRO_SMART_QUESTION_CHAIN = ROOT / "server" / "migrations" / "postgres" / "0026_chickenbro_smart_question_chain.sql"
+CHICKENBRO_COMMUNITY_STRENGTH = ROOT / "server" / "migrations" / "postgres" / "0027_chickenbro_community_strength_sources.sql"
+CHICKENBRO_GENERIC_PUBLIC_WEB = ROOT / "server" / "migrations" / "postgres" / "0028_chickenbro_generic_public_web_research.sql"
+CHICKENBRO_PUBLIC_WEB_REPEAT_BUDGET = ROOT / "server" / "migrations" / "postgres" / "0029_chickenbro_public_web_repeat_budget.sql"
+WEBSIM_EXACT_AUTHORITY_BUNDLE = ROOT / "server" / "migrations" / "postgres" / "0030_websim_exact_authority_bundle.sql"
 TASK_3A_CURRENT_TRUTH_FILES = (
     ROOT / "artifacts" / "releases" / "2026-08-04-equipment-simulator-exact-first" / "requirement.json",
     ROOT / "docs" / "backend-owner-map.json",
@@ -45,7 +49,7 @@ TASK_3A_CURRENT_TRUTH_FILES = (
     ROOT / "docs" / "project-owner-map.json",
     ROOT / "docs" / "roadmap.md",
 )
-POSTGRES_MIGRATIONS_0001_0026 = tuple(sorted(
+POSTGRES_MIGRATIONS_0001_0030 = tuple(sorted(
     (ROOT / "server" / "migrations" / "postgres").glob("[0-9][0-9][0-9][0-9]_*.sql")
 ))
 
@@ -242,13 +246,13 @@ def exact_authority_schema_violations(sql, migrations):
         violations.append(f"exact authority ACL universe {acl_statements}")
 
     migration_names = [name for name, _ in migrations]
-    if migration_names.count("0026_websim_exact_authority_bundle.sql") != 1:
-        violations.append("0026 filename identity")
+    if migration_names.count("0030_websim_exact_authority_bundle.sql") != 1:
+        violations.append("0030 filename identity")
     if sum(
-        body.count("'0026_websim_exact_authority_bundle'")
+        body.count("'0030_websim_exact_authority_bundle'")
         for _, body in migrations
     ) != 1:
-        violations.append("0026 ledger identity")
+        violations.append("0030 ledger identity")
     return violations
 
 
@@ -276,7 +280,7 @@ class PostgresSchemaTest(unittest.TestCase):
         normalized = " ".join(self.websim_exact_authority_bundle_sql.split())
         migrations = tuple(
             (path.name, path.read_text(encoding="utf-8"))
-            for path in POSTGRES_MIGRATIONS_0001_0026
+            for path in POSTGRES_MIGRATIONS_0001_0030
         )
         self.assertEqual(
             exact_authority_schema_violations(
@@ -326,12 +330,12 @@ class PostgresSchemaTest(unittest.TestCase):
             normalized,
         )
         self.assertNotIn("GRANT SELECT, INSERT", normalized)
-        self.assertIn("0026_websim_exact_authority_bundle", normalized)
+        self.assertIn("0030_websim_exact_authority_bundle", normalized)
 
     def test_exact_authority_contract_mutations_fail_closed(self):
         migrations = tuple(
             (path.name, path.read_text(encoding="utf-8"))
-            for path in POSTGRES_MIGRATIONS_0001_0026
+            for path in POSTGRES_MIGRATIONS_0001_0030
         )
         self.assertEqual(
             exact_authority_schema_violations(
@@ -447,22 +451,22 @@ $unsafe$;
                     )
         duplicate_identity = migrations + ((
             "9999_duplicate.sql",
-            "SELECT '0026_websim_exact_authority_bundle';",
+            "SELECT '0030_websim_exact_authority_bundle';",
         ),)
         self.assertTrue(exact_authority_schema_violations(
             self.websim_exact_authority_bundle_sql,
             duplicate_identity,
         ))
 
-    def test_migrations_0001_through_0026_never_manage_databases(self):
+    def test_migrations_0001_through_0030_never_manage_databases(self):
         self.assertEqual(
-            POSTGRES_MIGRATIONS_0001_0026[-1].name,
-            "0026_websim_exact_authority_bundle.sql",
+            POSTGRES_MIGRATIONS_0001_0030[-1].name,
+            "0030_websim_exact_authority_bundle.sql",
         )
         database_ddl = re.compile(
             r"(?i)\b(?:CREATE|DROP|ALTER)\s+DATABASE\b",
         )
-        for migration in POSTGRES_MIGRATIONS_0001_0026:
+        for migration in POSTGRES_MIGRATIONS_0001_0030:
             with self.subTest(migration=migration.name):
                 self.assertIsNone(database_ddl.search(
                     migration.read_text(encoding="utf-8"),
@@ -649,15 +653,21 @@ $unsafe$;
         self.assertIn("t3a2608050955", summary)
         self.assertIn("t3a260805111623", summary)
         self.assertIn("t3a260805113656", summary)
+        self.assertIn("t3a260805120026", summary)
+        self.assertIn("0030", summary)
 
         for path in TASK_3A_CURRENT_TRUTH_FILES:
             with self.subTest(path=path):
                 current_truth = path.read_text(encoding="utf-8")
                 self.assertIn("candidate_rerun_required", current_truth)
                 self.assertIn("evidence_promotion_blocked", current_truth)
-                self.assertIn("t3a2608050955", current_truth)
-                self.assertIn("t3a260805111623", current_truth)
-                self.assertIn("t3a260805113656", current_truth)
+                self.assertIn("t3a260805120026", current_truth)
+                self.assertIn("0030", current_truth)
+
+    def test_migration_number_prefixes_are_globally_unique(self):
+        migrations = POSTGRES_MIGRATIONS_0001_0030
+        prefixes = [path.name.split("_", 1)[0] for path in migrations]
+        self.assertEqual(len(prefixes), len(set(prefixes)))
 
     def test_build_template_dedupe_mutation_postcondition_and_ledger_are_one_statement(self):
         atomic_blocks = re.findall(
@@ -1146,3 +1156,47 @@ $unsafe$;
             self.assertIn(f"GRANT SELECT ON {table} TO wow_app", normalized)
             self.assertIn(f"REVOKE INSERT, UPDATE, DELETE ON {table} FROM wow_app", normalized)
         self.assertIn("0025_chickenbro_tool_registry", normalized)
+
+    def test_smart_question_chain_appends_immutable_registry_v2_and_moves_only_active_pointer(self):
+        self.assertTrue(CHICKENBRO_SMART_QUESTION_CHAIN.exists(), "missing Smart Question Chain migration")
+        normalized = " ".join(CHICKENBRO_SMART_QUESTION_CHAIN.read_text(encoding="utf-8").split())
+        self.assertIn("source:current-wow-sources:v1", normalized)
+        self.assertIn("chickenbro.source.current_wow_sources.v1", normalized)
+        self.assertIn("chickenbro-tools-2", normalized)
+        self.assertIn("INSERT INTO ops.chickenbro_tool_manifests", normalized)
+        self.assertIn("INSERT INTO ops.chickenbro_tool_registry_releases", normalized)
+        self.assertIn("INSERT INTO ops.chickenbro_tool_registry_release_manifests", normalized)
+        self.assertIn("INSERT INTO ops.chickenbro_tool_registry_active", normalized)
+        self.assertIn("0026_chickenbro_smart_question_chain", normalized)
+
+    def test_community_strength_sources_append_registry_v3_without_mutating_prior_releases(self):
+        self.assertTrue(CHICKENBRO_COMMUNITY_STRENGTH.exists(), "missing Chickenbro community-strength Registry migration")
+        normalized = " ".join(CHICKENBRO_COMMUNITY_STRENGTH.read_text(encoding="utf-8").split())
+        self.assertIn("source:raiderio-strength:v1", normalized)
+        self.assertIn("source:warcraftlogs-public-rankings:v1", normalized)
+        self.assertIn("chickenbro.source.raiderio_strength.v1", normalized)
+        self.assertIn("chickenbro.source.warcraftlogs_public_rankings.v1", normalized)
+        self.assertIn("chickenbro-tools-3", normalized)
+        self.assertIn("active.registry_version = 'chickenbro-tools-2'", normalized)
+        self.assertIn("0027_chickenbro_community_strength_sources", normalized)
+
+    def test_generic_public_web_tool_appends_candidate_release_without_moving_shared_active_pointer(self):
+        self.assertTrue(CHICKENBRO_GENERIC_PUBLIC_WEB.exists(), "missing generic public-web Registry migration")
+        normalized = " ".join(CHICKENBRO_GENERIC_PUBLIC_WEB.read_text(encoding="utf-8").split())
+        self.assertIn("source:public-web-research:v1", normalized)
+        self.assertIn("chickenbro.source.public_web_research.v1", normalized)
+        self.assertIn("chickenbro-tools-4", normalized)
+        self.assertIn("0028_chickenbro_generic_public_web_research", normalized)
+        self.assertNotIn("UPDATE ops.chickenbro_tool_registry_active", normalized)
+        self.assertNotIn("INSERT INTO ops.chickenbro_tool_registry_active", normalized)
+
+    def test_generic_public_web_repeat_budget_is_declared_in_a_new_candidate_release(self):
+        self.assertTrue(CHICKENBRO_PUBLIC_WEB_REPEAT_BUDGET.exists(), "missing generic public-web repeat budget migration")
+        normalized = " ".join(CHICKENBRO_PUBLIC_WEB_REPEAT_BUDGET.read_text(encoding="utf-8").split())
+        self.assertIn("source:public-web-research:v2", normalized)
+        self.assertIn("chickenbro.source.public_web_research.v2", normalized)
+        self.assertIn("maxCallsPerTurn", normalized)
+        self.assertIn("chickenbro-tools-5", normalized)
+        self.assertIn("0029_chickenbro_public_web_repeat_budget", normalized)
+        self.assertNotIn("UPDATE ops.chickenbro_tool_registry_active", normalized)
+        self.assertNotIn("INSERT INTO ops.chickenbro_tool_registry_active", normalized)
