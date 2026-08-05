@@ -73,11 +73,12 @@ class SimulationSnapshotCompatibilityTest(unittest.TestCase):
         source = resolver_snapshot()
         source["resolvedSlots"] = {"head": {"slot": "head", "itemId": "1001", "legality": {"status": "verified"}}}
         source["profileReadiness"] = {"status": "verified", "simcReady": True, "requiredSlots": ["head"], "readySlots": ["head"]}
-        key = "exact-authority:sha256:" + "8" * 64
+        bundle = v2_bundle("head", "1001", [])
+        key = bundle.envelope.content_key
         loadout = build_resolved_loadout_v2(
             resolver_snapshot=source,
             exact_authority_by_slot=[{"slot": "head", "exactAuthorityEnvelopeKey": key}],
-            authority_bundles={key: v2_bundle("head", "1001", key, [])},
+            authority_bundles={key: bundle},
             gear_rule_revision="gear-rule-matrix-v1",
             resolver_revision="resolver-v2",
             simc_runtime_revision="simc-runtime-v2",

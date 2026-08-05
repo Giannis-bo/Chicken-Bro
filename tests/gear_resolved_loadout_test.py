@@ -1,9 +1,24 @@
 import copy
+from dataclasses import replace
 import unittest
 from unittest.mock import patch
 
 import server.gear_resolved_loadout as resolved_loadout_module
 from tests.gear_exact_authority_store_test import authority_bundle
+from server.gear_exact_authority import (
+    seal_exact_authority_envelope,
+    seal_exact_progression,
+)
+from server.gear_exact_authority_store import ExactAuthorityBundle
+from server.gear_exact_item_instance import (
+    seal_exact_item,
+    seal_exact_static_facts,
+)
+from server.simc_item_effect_support import (
+    derive_exact_effect_subjects,
+    resolve_exact_effect_support,
+    seal_effect_record,
+)
 
 from server.gear_resolved_loadout import (
     build_resolved_loadout,
@@ -221,34 +236,65 @@ def resolver_snapshot():
     }
 
 
-def v2_bundle(slot, item_id, envelope_key, subjects, *, exact_fields=None):
-    records = []
-    for ordinal, subject in enumerate(subjects):
-        token = str(ordinal + 1)
-        records.append({
-            "subjectKind": "item",
-            "subjectKey": subject,
-            "subjectVariantSignature": "exact-variant:sha256:" + token * 64,
-            "supportRecordKey": "simc-item-effect-record:sha256:" + token * 64,
-        })
-    return {
-        "envelope": {"content_key": envelope_key, "resolverRevision": "resolver-v2"},
-        "exact_item": {
-            "itemId": item_id,
-            "itemLevel": 266,
-            "bonusIds": ["9001"],
-            "gemIds": [],
-            "gemBonusIds": [],
-            "gemItemLevels": [],
-            "enchantId": "",
-            "craftedStats": [],
-            "embellishmentIds": [],
-            "redirectedBaseStats": [],
-            **(exact_fields or {}),
-        },
-        "progression": {"gearRuleRevision": RULE_REVISION, "trackAuthorityInput": {"slot": slot}},
-        "effect_support": {"status": "verified", "simcRuntimeRevision": "simc-runtime-v2", "subjects": records},
-    }
+def v2_bundle(slot, item_id, subjects, *, exact_fields=None):
+    """Create a genuine, sealed v2 bundle for pure-domain callers."""
+    subject_index = {str(subject): index for index, subject in enumerate(dict.fromkeys(subjects))}
+    gems = [str(subject) for subject in subjects]
+    exact = seal_exact_item({
+        "itemId": item_id,
+        "declaredItemLevel": 266,
+        "bonusIds": ["13334"],
+        "context": "heroic",
+        "gemIds": gems,
+        "gemBonusIds": [str(1514 + subject_index[gem]) for gem in gems],
+        "gemItemLevels": [90 + subject_index[gem] for gem in gems],
+        "enchantId": "",
+        "craftedStats": [],
+        "embellishmentIds": [],
+        "redirectedBaseStats": [],
+        **(exact_fields or {}),
+    }).document
+    static_facts = seal_exact_static_facts(exact, {"haste_rating": 241}).document
+    progression = seal_exact_progression(
+        exact,
+        season_revision="season-17-f131dd36ddf1",
+        gear_rule_revision=RULE_REVISION,
+        slot=slot,
+        has_crafted_source=False,
+    ).document
+    records = tuple(
+        seal_effect_record({
+            "schemaRevision": "simc-item-effect-record-v1",
+            "status": "verified",
+            "subjectKind": subject.kind,
+            "subjectKey": subject.key,
+            "subjectVariantSignature": subject.variant_signature,
+            "hasDynamicEffect": False,
+            "simcRuntimeRevision": "simc-runtime-v2",
+            "verifiedAt": "2026-08-05T00:00:00Z",
+        }, runtime_revision="simc-runtime-v2").document
+        for subject in derive_exact_effect_subjects(exact)
+    )
+    effect_support = resolve_exact_effect_support(
+        exact,
+        runtime_revision="simc-runtime-v2",
+        records=records,
+    ).document
+    envelope = seal_exact_authority_envelope(
+        exact=exact,
+        static_facts=static_facts,
+        progression=progression,
+        effect_support=effect_support,
+        resolver_revision="resolver-v2",
+    ).document
+    return ExactAuthorityBundle(
+        exact_item=exact,
+        static_facts=static_facts,
+        progression=progression,
+        effect_records=records,
+        effect_support=effect_support,
+        envelope=envelope,
+    )
 
 
 class GearResolvedLoadoutTest(unittest.TestCase):
@@ -485,15 +531,17 @@ class GearResolvedLoadoutTest(unittest.TestCase):
             "finger2": {"slot": "finger2", "itemId": "1001", "legality": {"status": "verified"}},
         }
         snapshot["profileReadiness"] = {"status": "verified", "simcReady": True, "requiredSlots": ["finger1", "finger2"], "readySlots": ["finger1", "finger2"]}
-        left = "exact-authority:sha256:" + "1" * 64
-        right = "exact-authority:sha256:" + "2" * 64
+        left_bundle = v2_bundle("finger1", "1001", ["A", "B", "A"])
+        right_bundle = v2_bundle("finger2", "1001", ["A"])
+        left = left_bundle.envelope.content_key
+        right = right_bundle.envelope.content_key
         first = build_resolved_loadout_v2(
             resolver_snapshot=snapshot,
             exact_authority_by_slot=[
                 {"slot": "finger2", "exactAuthorityEnvelopeKey": right},
                 {"slot": "finger1", "exactAuthorityEnvelopeKey": left},
             ],
-            authority_bundles={left: v2_bundle("finger1", "1001", left, ["A", "B", "A"]), right: v2_bundle("finger2", "1001", right, ["A"])},
+            authority_bundles={left: left_bundle, right: right_bundle},
             gear_rule_revision=RULE_REVISION,
             resolver_revision="resolver-v2",
             simc_runtime_revision="simc-runtime-v2",
@@ -502,7 +550,7 @@ class GearResolvedLoadoutTest(unittest.TestCase):
         second = build_resolved_loadout_v2(
             resolver_snapshot=snapshot,
             exact_authority_by_slot=list(reversed(first["exactAuthorityBySlot"])),
-            authority_bundles={right: v2_bundle("finger2", "1001", right, ["A"]), left: v2_bundle("finger1", "1001", left, ["A", "B", "A"])},
+            authority_bundles={right: right_bundle, left: left_bundle},
             gear_rule_revision=RULE_REVISION,
             resolver_revision="resolver-v2",
             simc_runtime_revision="simc-runtime-v2",
@@ -511,7 +559,7 @@ class GearResolvedLoadoutTest(unittest.TestCase):
         self.assertEqual(first["status"], "ready")
         self.assertEqual(first["resolvedLoadoutKey"], second["resolvedLoadoutKey"])
         self.assertEqual([row["slot"] for row in first["exactAuthorityBySlot"]], ["finger1", "finger2"])
-        self.assertEqual([row["subjectKey"] for row in first["effectEvidenceByOccurrence"]], ["A", "B", "A", "A"])
+        self.assertEqual([row["subjectKey"] for row in first["effectEvidenceByOccurrence"]], ["1001", "A", "B", "A", "1001", "A"])
         self.assertEqual(verify_resolved_loadout_v2(first), [])
 
     def test_v2_rejects_reused_envelope_and_noncanonical_payload_order(self):
@@ -522,22 +570,24 @@ class GearResolvedLoadoutTest(unittest.TestCase):
             "trinket2": {"slot": "trinket2", "itemId": "1001", "legality": {"status": "verified"}},
         }
         snapshot["profileReadiness"] = {"status": "verified", "simcReady": True, "requiredSlots": ["trinket1", "trinket2"], "readySlots": ["trinket1", "trinket2"]}
-        first_key = "exact-authority:sha256:" + "3" * 64
+        first_bundle = v2_bundle("trinket1", "1001", [])
+        first_key = first_bundle.envelope.content_key
         blocked = build_resolved_loadout_v2(
             resolver_snapshot=snapshot,
             exact_authority_by_slot=[{"slot": "trinket1", "exactAuthorityEnvelopeKey": first_key}, {"slot": "trinket2", "exactAuthorityEnvelopeKey": first_key}],
-            authority_bundles={first_key: v2_bundle("trinket1", "1001", first_key, [])},
+            authority_bundles={first_key: first_bundle},
             gear_rule_revision=RULE_REVISION,
             resolver_revision="resolver-v2",
             simc_runtime_revision="simc-runtime-v2",
         )
         self.assertEqual(blocked["status"], "blocked")
         self.assertIn("LOADOUT_EXACT_AUTHORITY_REUSED", blocked["problemCodes"])
-        second_key = "exact-authority:sha256:" + "4" * 64
+        second_bundle = v2_bundle("trinket2", "1001", [])
+        second_key = second_bundle.envelope.content_key
         ready = build_resolved_loadout_v2(
             resolver_snapshot=snapshot,
             exact_authority_by_slot=[{"slot": "trinket1", "exactAuthorityEnvelopeKey": first_key}, {"slot": "trinket2", "exactAuthorityEnvelopeKey": second_key}],
-            authority_bundles={first_key: v2_bundle("trinket1", "1001", first_key, []), second_key: v2_bundle("trinket2", "1001", second_key, [])},
+            authority_bundles={first_key: first_bundle, second_key: second_bundle},
             gear_rule_revision=RULE_REVISION,
             resolver_revision="resolver-v2",
             simc_runtime_revision="simc-runtime-v2",
@@ -555,31 +605,32 @@ class GearResolvedLoadoutTest(unittest.TestCase):
         snapshot = resolver_snapshot()
         snapshot["resolvedSlots"] = {"head": {"slot": "head", "itemId": "1001", "legality": {"status": "verified"}}}
         snapshot["profileReadiness"] = {"status": "verified", "simcReady": True, "requiredSlots": ["head"], "readySlots": ["head"]}
-        key = "exact-authority:sha256:" + "5" * 64
-        bundle = v2_bundle("head", "1001", key, ["A"])
-        bundle["effect_support"]["subjects"][0]["subjectKey"] = ""
+        bundle = v2_bundle("head", "1001", ["A"])
+        key = bundle.envelope.content_key
+        bundle = replace(bundle, effect_records=())
         result = build_resolved_loadout_v2(
             resolver_snapshot=snapshot, exact_authority_by_slot=[{"slot": "head", "exactAuthorityEnvelopeKey": key}],
             authority_bundles={key: bundle}, gear_rule_revision=RULE_REVISION,
             resolver_revision="resolver-v2", simc_runtime_revision="simc-runtime-v2",
         )
         self.assertEqual(result["status"], "blocked")
-        self.assertIn("LOADOUT_V2_EFFECT_RECORD_INVALID", result["problemCodes"])
+        self.assertIn("LOADOUT_V2_AUTHORITY_BUNDLE_INVALID", result["problemCodes"])
 
     def test_v2_verifier_rejects_reordered_effect_occurrences_even_when_rehashed(self):
         """Would fail if canonical evidence order could be replaced by a valid hash."""
         snapshot = resolver_snapshot()
         snapshot["resolvedSlots"] = {"head": {"slot": "head", "itemId": "1001", "legality": {"status": "verified"}}}
         snapshot["profileReadiness"] = {"status": "verified", "simcReady": True, "requiredSlots": ["head"], "readySlots": ["head"]}
-        key = "exact-authority:sha256:" + "6" * 64
+        bundle = v2_bundle("head", "1001", ["A", "B"])
+        key = bundle.envelope.content_key
         ready = build_resolved_loadout_v2(
             resolver_snapshot=snapshot, exact_authority_by_slot=[{"slot": "head", "exactAuthorityEnvelopeKey": key}],
-            authority_bundles={key: v2_bundle("head", "1001", key, ["A", "B"])}, gear_rule_revision=RULE_REVISION,
+            authority_bundles={key: bundle}, gear_rule_revision=RULE_REVISION,
             resolver_revision="resolver-v2", simc_runtime_revision="simc-runtime-v2",
         )
         tampered = copy.deepcopy(ready)
         tampered["effectEvidenceByOccurrence"].reverse()
-        identity = {"classKey": "mage", "specKey": "arcane", "exactAuthorityBySlot": tampered["exactAuthorityBySlot"], "effectEvidenceByOccurrence": tampered["effectEvidenceByOccurrence"], "gearRuleRevision": RULE_REVISION, "resolverRevision": "resolver-v2", "simcRuntimeRevision": "simc-runtime-v2"}
+        identity = {"classKey": "mage", "specKey": "arcane", "exactAuthorityBySlot": tampered["exactAuthorityBySlot"], "orderedSlots": tampered["orderedSlots"], "effectEvidenceByOccurrence": tampered["effectEvidenceByOccurrence"], "gearRuleRevision": RULE_REVISION, "resolverRevision": "resolver-v2", "simcRuntimeRevision": "simc-runtime-v2"}
         tampered["resolvedLoadoutKey"] = resolved_loadout_module._hash("resolved-loadout-v2:sha256:", identity)
         tampered["rowHash"] = resolved_loadout_module._hash("sha256:", {key: value for key, value in tampered.items() if key not in {"rowHash", "originCatalogRevision"}})
         self.assertIn("RESOLVED_LOADOUT_V2_EFFECT_ORDER_INVALID", verify_resolved_loadout_v2(tampered))
@@ -613,14 +664,72 @@ class GearResolvedLoadoutTest(unittest.TestCase):
         snapshot = resolver_snapshot()
         snapshot["resolvedSlots"] = {"head": {"slot": "head", "itemId": "1001", "legality": {"status": "verified"}}}
         snapshot["profileReadiness"] = {"status": "verified", "simcReady": True, "requiredSlots": ["head"], "readySlots": ["head"]}
-        key = "exact-authority:sha256:" + "7" * 64
+        bundle = v2_bundle("head", "1001", ["A"])
+        key = bundle.envelope.content_key
         ready = build_resolved_loadout_v2(
             resolver_snapshot=snapshot, exact_authority_by_slot=[{"slot": "head", "exactAuthorityEnvelopeKey": key}],
-            authority_bundles={key: v2_bundle("head", "1001", key, ["A"])}, gear_rule_revision=RULE_REVISION,
+            authority_bundles={key: bundle}, gear_rule_revision=RULE_REVISION,
             resolver_revision="resolver-v2", simc_runtime_revision="simc-runtime-v2",
         )
         ready["effectEvidenceByOccurrence"][0]["recordOrdinal"] = "zero"
         self.assertIn("RESOLVED_LOADOUT_V2_EFFECT_OCCURRENCE_INVALID", verify_resolved_loadout_v2(ready))
+
+    def test_v2_requires_one_rehydrated_bundle_dependency_closure(self):
+        """Would fail if real dependencies from another bundle could be mixed in."""
+        snapshot = resolver_snapshot()
+        snapshot["resolvedSlots"] = {"head": {"slot": "head", "itemId": "1001", "legality": {"status": "verified"}}}
+        snapshot["profileReadiness"] = {"status": "verified", "simcReady": True, "requiredSlots": ["head"], "readySlots": ["head"]}
+        bundle = authority_bundle()
+        other = authority_bundle("1001", gems=("999001", "999002", "999001"))
+        key = bundle.envelope.content_key
+        for mixed in (
+            replace(bundle, exact_item=other.exact_item),
+            replace(bundle, static_facts=other.static_facts),
+            replace(bundle, progression=other.progression),
+            replace(bundle, effect_support=other.effect_support),
+            replace(bundle, effect_records=other.effect_records),
+        ):
+            blocked = build_resolved_loadout_v2(
+                resolver_snapshot=snapshot, exact_authority_by_slot=[{"slot": "head", "exactAuthorityEnvelopeKey": key}],
+                authority_bundles={key: mixed}, gear_rule_revision="gear-rule-matrix-v1", resolver_revision="resolver-v2", simc_runtime_revision="simc-2026.08.04",
+            )
+            self.assertEqual(blocked["status"], "blocked")
+            self.assertIn("LOADOUT_V2_AUTHORITY_BUNDLE_INVALID", blocked["problemCodes"])
+
+    def test_v2_rejects_synthetic_bundle_and_rehashed_nonlist_or_boolean_evidence(self):
+        """Would fail if a v2 pair accepted a mapping or normalized hostile evidence."""
+        snapshot = resolver_snapshot()
+        snapshot["resolvedSlots"] = {"head": {"slot": "head", "itemId": "1001", "legality": {"status": "verified"}}}
+        snapshot["profileReadiness"] = {"status": "verified", "simcReady": True, "requiredSlots": ["head"], "readySlots": ["head"]}
+        key = "exact-authority:sha256:" + "8" * 64
+        synthetic = build_resolved_loadout_v2(
+            resolver_snapshot=snapshot, exact_authority_by_slot=[{"slot": "head", "exactAuthorityEnvelopeKey": key}],
+            authority_bundles={key: {"envelope": {"content_key": key}}}, gear_rule_revision=RULE_REVISION,
+            resolver_revision="resolver-v2", simc_runtime_revision="simc-runtime-v2",
+        )
+        self.assertEqual(synthetic["status"], "blocked")
+        self.assertIn("LOADOUT_V2_AUTHORITY_BUNDLE_INVALID", synthetic["problemCodes"])
+
+        bundle = authority_bundle()
+        key = bundle.envelope.content_key
+        ready = build_resolved_loadout_v2(
+            resolver_snapshot=snapshot, exact_authority_by_slot=[{"slot": "head", "exactAuthorityEnvelopeKey": key}],
+            authority_bundles={key: bundle}, gear_rule_revision="gear-rule-matrix-v1", resolver_revision="resolver-v2", simc_runtime_revision="simc-2026.08.04",
+        )
+        for hostile in ({}, None, "not-a-list"):
+            tampered = copy.deepcopy(ready)
+            tampered["effectEvidenceByOccurrence"] = hostile
+            identity = {"classKey": "mage", "specKey": "arcane", "exactAuthorityBySlot": tampered["exactAuthorityBySlot"], "orderedSlots": tampered["orderedSlots"], "effectEvidenceByOccurrence": hostile, "gearRuleRevision": "gear-rule-matrix-v1", "resolverRevision": "resolver-v2", "simcRuntimeRevision": "simc-2026.08.04"}
+            tampered["resolvedLoadoutKey"] = resolved_loadout_module._hash("resolved-loadout-v2:sha256:", identity)
+            tampered["rowHash"] = resolved_loadout_module._hash("sha256:", {field: value for field, value in tampered.items() if field not in {"rowHash", "originCatalogRevision"}})
+            self.assertIn("RESOLVED_LOADOUT_V2_EFFECT_EVIDENCE_INVALID", verify_resolved_loadout_v2(tampered))
+
+        boolean_ordinal = copy.deepcopy(ready)
+        boolean_ordinal["effectEvidenceByOccurrence"][0]["recordOrdinal"] = False
+        identity = {"classKey": "mage", "specKey": "arcane", "exactAuthorityBySlot": boolean_ordinal["exactAuthorityBySlot"], "orderedSlots": boolean_ordinal["orderedSlots"], "effectEvidenceByOccurrence": boolean_ordinal["effectEvidenceByOccurrence"], "gearRuleRevision": "gear-rule-matrix-v1", "resolverRevision": "resolver-v2", "simcRuntimeRevision": "simc-2026.08.04"}
+        boolean_ordinal["resolvedLoadoutKey"] = resolved_loadout_module._hash("resolved-loadout-v2:sha256:", identity)
+        boolean_ordinal["rowHash"] = resolved_loadout_module._hash("sha256:", {field: value for field, value in boolean_ordinal.items() if field not in {"rowHash", "originCatalogRevision"}})
+        self.assertIn("RESOLVED_LOADOUT_V2_EFFECT_OCCURRENCE_INVALID", verify_resolved_loadout_v2(boolean_ordinal))
 
 
 if __name__ == "__main__":

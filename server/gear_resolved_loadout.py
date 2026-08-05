@@ -16,8 +16,25 @@ from typing import Any, Iterable, Mapping
 
 try:
     from .gear_contracts import CANONICAL_GEAR_SLOTS
+    from .gear_exact_authority import (
+        reload_exact_authority_envelope,
+        reload_exact_progression,
+    )
+    from .gear_exact_authority_store import ExactAuthorityBundle
+    from .gear_exact_item_instance import (
+        reload_exact_item,
+        reload_exact_static_facts,
+    )
+    from .simc_item_effect_support import (
+        reload_effect_aggregate,
+        reload_effect_record,
+    )
 except ImportError:
     from gear_contracts import CANONICAL_GEAR_SLOTS
+    from gear_exact_authority import reload_exact_authority_envelope, reload_exact_progression
+    from gear_exact_authority_store import ExactAuthorityBundle
+    from gear_exact_item_instance import reload_exact_item, reload_exact_static_facts
+    from simc_item_effect_support import reload_effect_aggregate, reload_effect_record
 
 
 RESOLVED_LOADOUT_SCHEMA_REVISION = "resolved-loadout-v1"
@@ -714,9 +731,7 @@ def build_resolved_loadout_from_registry(
 
 
 def _v2_document(value: Any) -> dict[str, Any]:
-    """Return a decoded sealed document or a test/pure mapping payload."""
-    if isinstance(value, Mapping):
-        return _canonical(value)
+    """Return the decoded payload for one already rehydrated sealed document."""
     raw = getattr(value, "canonical_bytes", None)
     if isinstance(raw, bytes):
         try:
@@ -733,13 +748,62 @@ def _v2_document(value: Any) -> dict[str, Any]:
     return {}
 
 
-def _v2_bundle(value: Any) -> dict[str, dict[str, Any]]:
-    fields = ("envelope", "exact_item", "progression", "effect_support")
+def _rehydrate_v2_bundle(
+    value: Any,
+    *,
+    resolver_revision: str,
+    simc_runtime_revision: str,
+) -> dict[str, dict[str, Any]] | None:
+    """Verify one complete Exact Authority Bundle before resolving v2 facts."""
+    if type(value) is not ExactAuthorityBundle or type(value.effect_records) is not tuple or not value.effect_records:
+        return None
+    try:
+        exact = reload_exact_item(
+            value.exact_item.canonical_bytes,
+            value.exact_item.content_key,
+        )
+        static_facts = reload_exact_static_facts(
+            value.static_facts.canonical_bytes,
+            value.static_facts.content_key,
+            exact=exact,
+        )
+        progression = reload_exact_progression(
+            value.progression.canonical_bytes,
+            value.progression.content_key,
+            exact=exact,
+        )
+        records = tuple(
+            reload_effect_record(
+                record.canonical_bytes,
+                record.content_key,
+                runtime_revision=simc_runtime_revision,
+            )
+            for record in value.effect_records
+        )
+        effect_support = reload_effect_aggregate(
+            value.effect_support.canonical_bytes,
+            value.effect_support.content_key,
+            exact=exact,
+            runtime_revision=simc_runtime_revision,
+            records=records,
+        )
+        envelope = reload_exact_authority_envelope(
+            value.envelope.canonical_bytes,
+            value.envelope.content_key,
+            exact=exact,
+            static_facts=static_facts,
+            progression=progression,
+            effect_support=effect_support,
+            resolver_revision=resolver_revision,
+        )
+    except (AttributeError, TypeError, ValueError):
+        return None
     return {
-        field: _v2_document(value.get(field) if isinstance(value, Mapping) else getattr(value, field, None))
-        for field in fields
+        "envelope": _v2_document(envelope),
+        "exact_item": _v2_document(exact),
+        "progression": _v2_document(progression),
+        "effect_support": _v2_document(effect_support),
     }
-
 
 def _v2_blocked(problems: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
     normalized = _dedupe_problems(problems)
@@ -818,7 +882,14 @@ def build_resolved_loadout_v2(
     ordered_slots: list[dict[str, Any]] = []
     for pair in pairs:
         slot, key = pair["slot"], pair["exactAuthorityEnvelopeKey"]
-        bundle = _v2_bundle(bundles.get(key))
+        bundle = _rehydrate_v2_bundle(
+            bundles.get(key),
+            resolver_revision=resolver,
+            simc_runtime_revision=runtime,
+        )
+        if bundle is None:
+            problems.append(_problem("LOADOUT_V2_AUTHORITY_BUNDLE_INVALID", f"authorityBundles.{key}", "V2 requires one fully rehydrated Exact Authority Bundle."))
+            continue
         envelope = bundle["envelope"]
         exact = bundle["exact_item"]
         progression = bundle["progression"]
@@ -862,6 +933,9 @@ def verify_resolved_loadout_v2(value: Any) -> list[str]:
         return ["RESOLVED_LOADOUT_V2_SCHEMA_INVALID"]
     if row.get("status") != "ready":
         return ["RESOLVED_LOADOUT_V2_NOT_READY"]
+    raw_evidence = row.get("effectEvidenceByOccurrence")
+    if not isinstance(raw_evidence, list):
+        return ["RESOLVED_LOADOUT_V2_EFFECT_EVIDENCE_INVALID"]
     pairs = row.get("exactAuthorityBySlot") if isinstance(row.get("exactAuthorityBySlot"), list) else []
     slots = [_text(pair.get("slot")) for pair in pairs if isinstance(pair, Mapping)]
     keys = [_text(pair.get("exactAuthorityEnvelopeKey")) for pair in pairs if isinstance(pair, Mapping)]
@@ -871,13 +945,13 @@ def verify_resolved_loadout_v2(value: Any) -> list[str]:
         issues.append("RESOLVED_LOADOUT_V2_SLOT_ORDER_INVALID")
     if len(set(keys)) != len(keys) or any(not EXACT_AUTHORITY_ENVELOPE_KEY_PATTERN.fullmatch(key) for key in keys):
         issues.append("RESOLVED_LOADOUT_V2_ENVELOPE_BINDING_INVALID")
-    evidence = row.get("effectEvidenceByOccurrence") if isinstance(row.get("effectEvidenceByOccurrence"), list) else []
+    evidence = raw_evidence
     def occurrence_sort_key(item: Any) -> tuple[int, int]:
         if not isinstance(item, Mapping):
             return len(CANONICAL_GEAR_SLOTS), -1
         slot = _text(item.get("slot"))
         ordinal = item.get("recordOrdinal")
-        return (CANONICAL_GEAR_SLOTS.index(slot) if slot in CANONICAL_GEAR_SLOTS else len(CANONICAL_GEAR_SLOTS), ordinal if isinstance(ordinal, int) else -1)
+        return (CANONICAL_GEAR_SLOTS.index(slot) if slot in CANONICAL_GEAR_SLOTS else len(CANONICAL_GEAR_SLOTS), ordinal if type(ordinal) is int else -1)
     expected_evidence = sorted(evidence, key=occurrence_sort_key)
     if evidence != expected_evidence:
         issues.append("RESOLVED_LOADOUT_V2_EFFECT_ORDER_INVALID")
@@ -891,7 +965,7 @@ def verify_resolved_loadout_v2(value: Any) -> list[str]:
         slot = _text(current.get("slot"))
         key = _text(current.get("exactAuthorityEnvelopeKey"))
         ordinal = current.get("recordOrdinal")
-        if (set(current) != {"scope", "slot", "exactAuthorityEnvelopeKey", "recordOrdinal", "subjectKind", "subjectKey", "subjectVariantSignature", "supportRecordKey"} or current.get("scope") != "slot" or pair_by_slot.get(slot) != key or not isinstance(ordinal, int) or ordinal != next_ordinal.get(slot, 0) or not _text(current.get("subjectKind")) or not _text(current.get("subjectKey")) or not _text(current.get("subjectVariantSignature")) or not EFFECT_RECORD_KEY_PATTERN.fullmatch(_text(current.get("supportRecordKey")))):
+        if (set(current) != {"scope", "slot", "exactAuthorityEnvelopeKey", "recordOrdinal", "subjectKind", "subjectKey", "subjectVariantSignature", "supportRecordKey"} or current.get("scope") != "slot" or pair_by_slot.get(slot) != key or type(ordinal) is not int or ordinal != next_ordinal.get(slot, 0) or not _text(current.get("subjectKind")) or not _text(current.get("subjectKey")) or not _text(current.get("subjectVariantSignature")) or not EFFECT_RECORD_KEY_PATTERN.fullmatch(_text(current.get("supportRecordKey")))):
             issues.append("RESOLVED_LOADOUT_V2_EFFECT_OCCURRENCE_INVALID")
             break
         next_ordinal[slot] = ordinal + 1

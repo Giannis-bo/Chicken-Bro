@@ -178,11 +178,12 @@ class SimulationSnapshotTest(unittest.TestCase):
         source = resolver_snapshot()
         source["resolvedSlots"] = {"head": {"slot": "head", "itemId": "1001", "legality": {"status": "verified"}}}
         source["profileReadiness"] = {"status": "verified", "simcReady": True, "requiredSlots": ["head"], "readySlots": ["head"]}
-        key = "exact-authority:sha256:" + "9" * 64
+        bundle = v2_bundle("head", "1001", ["A"])
+        key = bundle.envelope.content_key
         loadout = build_resolved_loadout_v2(
             resolver_snapshot=source,
             exact_authority_by_slot=[{"slot": "head", "exactAuthorityEnvelopeKey": key}],
-            authority_bundles={key: v2_bundle("head", "1001", key, ["A"])},
+            authority_bundles={key: bundle},
             gear_rule_revision="gear-rule-matrix-v1",
             resolver_revision="resolver-v2",
             simc_runtime_revision="simc-runtime-v2",
@@ -208,11 +209,13 @@ class SimulationSnapshotTest(unittest.TestCase):
         source = resolver_snapshot()
         source["resolvedSlots"] = {"head": {"slot": "head", "itemId": "1001", "legality": {"status": "verified"}}}
         source["profileReadiness"] = {"status": "verified", "simcReady": True, "requiredSlots": ["head"], "readySlots": ["head"]}
-        def snapshot_for(key, bonus):
+        def snapshot_for(*bonus_ids):
+            bundle = v2_bundle("head", "1001", [], exact_fields={"bonusIds": list(bonus_ids)})
+            key = bundle.envelope.content_key
             loadout = build_resolved_loadout_v2(
                 resolver_snapshot=source,
                 exact_authority_by_slot=[{"slot": "head", "exactAuthorityEnvelopeKey": key}],
-                authority_bundles={key: v2_bundle("head", "1001", key, [], exact_fields={"bonusIds": [bonus]})},
+                authority_bundles={key: bundle},
                 gear_rule_revision="gear-rule-matrix-v1", resolver_revision="resolver-v2", simc_runtime_revision="simc-runtime-v2",
             )
             return build_simulation_snapshot_v2(
@@ -220,21 +223,22 @@ class SimulationSnapshotTest(unittest.TestCase):
                 character_context=character_context(), scenario_options=scenario(), preparation_lines=["optimal_raid=0"],
                 compiler_revision="simc-profile-compiler-v2", simc_runtime_revision="simc-runtime-v2",
             )
-        first = snapshot_for("exact-authority:sha256:" + "6" * 64, "9001")
-        second = snapshot_for("exact-authority:sha256:" + "7" * 64, "9002")
+        first = snapshot_for("13334")
+        second = snapshot_for("13334", "13335")
         self.assertEqual(first["status"], "ready")
         self.assertNotEqual(first["canonicalSimcInput"], second["canonicalSimcInput"])
-        self.assertIn("bonus_id=9001", first["canonicalSimcInput"])
+        self.assertIn("bonus_id=13334", first["canonicalSimcInput"])
 
     def test_v2_snapshot_verifier_rejects_rehashed_canonical_input_tampering(self):
         """Would fail if a recomputed row hash could bless altered SimC bytes."""
         source = resolver_snapshot()
         source["resolvedSlots"] = {"head": {"slot": "head", "itemId": "1001", "legality": {"status": "verified"}}}
         source["profileReadiness"] = {"status": "verified", "simcReady": True, "requiredSlots": ["head"], "readySlots": ["head"]}
-        key = "exact-authority:sha256:" + "a" * 64
+        bundle = v2_bundle("head", "1001", [])
+        key = bundle.envelope.content_key
         loadout = build_resolved_loadout_v2(
             resolver_snapshot=source, exact_authority_by_slot=[{"slot": "head", "exactAuthorityEnvelopeKey": key}],
-            authority_bundles={key: v2_bundle("head", "1001", key, [])}, gear_rule_revision="gear-rule-matrix-v1",
+            authority_bundles={key: bundle}, gear_rule_revision="gear-rule-matrix-v1",
             resolver_revision="resolver-v2", simc_runtime_revision="simc-runtime-v2",
         )
         snapshot = build_simulation_snapshot_v2(
@@ -242,7 +246,7 @@ class SimulationSnapshotTest(unittest.TestCase):
             character_context=character_context(), scenario_options=scenario(), preparation_lines=["optimal_raid=0"],
             compiler_revision="simc-profile-compiler-v2", simc_runtime_revision="simc-runtime-v2",
         )
-        snapshot["canonicalSimcInput"] = snapshot["canonicalSimcInput"].replace("bonus_id=9001", "bonus_id=9999")
+        snapshot["canonicalSimcInput"] = snapshot["canonicalSimcInput"].replace("bonus_id=13334", "bonus_id=9999")
         snapshot["canonicalInputHash"] = "simc-input:sha256:" + __import__("hashlib").sha256(snapshot["canonicalSimcInput"].encode("utf-8")).hexdigest()
         snapshot["rowHash"] = simulation_snapshot_module._hash("sha256:", {key: value for key, value in snapshot.items() if key not in {"rowHash", "originCatalogRevision"}})
         self.assertIn("SIMULATION_V2_CANONICAL_INPUT_INVALID", verify_simulation_snapshot_v2(snapshot))
@@ -252,10 +256,11 @@ class SimulationSnapshotTest(unittest.TestCase):
         source = resolver_snapshot()
         source["resolvedSlots"] = {"head": {"slot": "head", "itemId": "1001", "legality": {"status": "verified"}}}
         source["profileReadiness"] = {"status": "verified", "simcReady": True, "requiredSlots": ["head"], "readySlots": ["head"]}
-        key = "exact-authority:sha256:" + "b" * 64
+        bundle = v2_bundle("head", "1001", [])
+        key = bundle.envelope.content_key
         loadout = build_resolved_loadout_v2(
             resolver_snapshot=source, exact_authority_by_slot=[{"slot": "head", "exactAuthorityEnvelopeKey": key}],
-            authority_bundles={key: v2_bundle("head", "1001", key, [])}, gear_rule_revision="gear-rule-matrix-v1",
+            authority_bundles={key: bundle}, gear_rule_revision="gear-rule-matrix-v1",
             resolver_revision="resolver-v2", simc_runtime_revision="simc-runtime-v2",
         )
         baseline = build_simulation_snapshot_v2(
@@ -288,10 +293,11 @@ class SimulationSnapshotTest(unittest.TestCase):
         source = resolver_snapshot()
         source["resolvedSlots"] = {"head": {"slot": "head", "itemId": "1001", "legality": {"status": "verified"}}}
         source["profileReadiness"] = {"status": "verified", "simcReady": True, "requiredSlots": ["head"], "readySlots": ["head"]}
-        key = "exact-authority:sha256:" + "c" * 64
+        bundle = v2_bundle("head", "1001", [])
+        key = bundle.envelope.content_key
         loadout = build_resolved_loadout_v2(
             resolver_snapshot=source, exact_authority_by_slot=[{"slot": "head", "exactAuthorityEnvelopeKey": key}],
-            authority_bundles={key: v2_bundle("head", "1001", key, [])}, gear_rule_revision="gear-rule-matrix-v1",
+            authority_bundles={key: bundle}, gear_rule_revision="gear-rule-matrix-v1",
             resolver_revision="resolver-v2", simc_runtime_revision="simc-runtime-v2",
         )
         tampered = build_simulation_snapshot_v2(
@@ -308,10 +314,11 @@ class SimulationSnapshotTest(unittest.TestCase):
         source = resolver_snapshot()
         source["resolvedSlots"] = {"head": {"slot": "head", "itemId": "1001", "legality": {"status": "verified"}}}
         source["profileReadiness"] = {"status": "verified", "simcReady": True, "requiredSlots": ["head"], "readySlots": ["head"]}
-        key = "exact-authority:sha256:" + "d" * 64
+        bundle = v2_bundle("head", "1001", ["A"])
+        key = bundle.envelope.content_key
         loadout = build_resolved_loadout_v2(
             resolver_snapshot=source, exact_authority_by_slot=[{"slot": "head", "exactAuthorityEnvelopeKey": key}],
-            authority_bundles={key: v2_bundle("head", "1001", key, ["A"])}, gear_rule_revision="gear-rule-matrix-v1",
+            authority_bundles={key: bundle}, gear_rule_revision="gear-rule-matrix-v1",
             resolver_revision="resolver-v2", simc_runtime_revision="simc-runtime-v2",
         )
         baseline = build_simulation_snapshot_v2(
@@ -327,6 +334,50 @@ class SimulationSnapshotTest(unittest.TestCase):
         isolated["serializerInput"]["gearItems"][0]["slot"] = "off_hand"
         isolated["rowHash"] = simulation_snapshot_module._hash("sha256:", {key: value for key, value in isolated.items() if key not in {"rowHash", "originCatalogRevision"}})
         self.assertIn("SIMULATION_V2_SERIALIZER_AUTHORITY_MISMATCH", verify_simulation_snapshot_v2(isolated))
+
+    def test_v2_snapshot_verifier_rejects_rehashed_nonlist_and_boolean_effect_evidence(self):
+        """Would fail if snapshot verification normalized hostile occurrence types."""
+        source = resolver_snapshot()
+        source["resolvedSlots"] = {"head": {"slot": "head", "itemId": "1001", "legality": {"status": "verified"}}}
+        source["profileReadiness"] = {"status": "verified", "simcReady": True, "requiredSlots": ["head"], "readySlots": ["head"]}
+        bundle = v2_bundle("head", "1001", ["A"])
+        key = bundle.envelope.content_key
+        loadout = build_resolved_loadout_v2(
+            resolver_snapshot=source, exact_authority_by_slot=[{"slot": "head", "exactAuthorityEnvelopeKey": key}],
+            authority_bundles={key: bundle}, gear_rule_revision="gear-rule-matrix-v1",
+            resolver_revision="resolver-v2", simc_runtime_revision="simc-runtime-v2",
+        )
+        baseline = build_simulation_snapshot_v2(
+            resolved_loadout=loadout, talent_profile_key=TALENT_KEY, talent_lines=TALENT_LINES,
+            character_context=character_context(), scenario_options=scenario(), preparation_lines=["optimal_raid=0"],
+            compiler_revision="simc-profile-compiler-v2", simc_runtime_revision="simc-runtime-v2",
+        )
+
+        def rehash(snapshot):
+            identity = {
+                "resolvedLoadoutKey": snapshot["resolvedLoadoutKey"],
+                "exactAuthorityBySlot": simulation_snapshot_module._canonical(snapshot["exactAuthorityBySlot"] or []),
+                "effectEvidenceByOccurrence": simulation_snapshot_module._canonical(snapshot["effectEvidenceByOccurrence"] or []),
+                "talentProfileKey": snapshot["talentProfileKey"],
+                "characterContext": {**simulation_snapshot_module._canonical(snapshot["characterContext"] or {}), "talentLinesHash": snapshot["talentLinesHash"]},
+                "scenarioOptions": {**simulation_snapshot_module._canonical(snapshot["scenarioOptions"] or {}), "preparationLines": simulation_snapshot_module._canonical(snapshot["preparationLines"] or [])},
+                "serializerInput": simulation_snapshot_module._canonical(snapshot["serializerInput"] or {}),
+                "compilerRevision": snapshot["compilerRevision"],
+                "simcRuntimeRevision": snapshot["simcRuntimeRevision"],
+            }
+            snapshot["simulationSnapshotKey"] = simulation_snapshot_module._hash("simulation-snapshot-v2:sha256:", identity)
+            snapshot["rowHash"] = simulation_snapshot_module._hash("sha256:", {field: value for field, value in snapshot.items() if field not in {"rowHash", "originCatalogRevision"}})
+
+        for hostile in ({}, None, "not-a-list"):
+            tampered = copy.deepcopy(baseline)
+            tampered["effectEvidenceByOccurrence"] = hostile
+            rehash(tampered)
+            self.assertIn("SIMULATION_V2_EFFECT_EVIDENCE_INVALID", verify_simulation_snapshot_v2(tampered))
+
+        boolean_ordinal = copy.deepcopy(baseline)
+        boolean_ordinal["effectEvidenceByOccurrence"][0]["recordOrdinal"] = False
+        rehash(boolean_ordinal)
+        self.assertIn("SIMULATION_V2_EFFECT_EVIDENCE_INVALID", verify_simulation_snapshot_v2(boolean_ordinal))
 
     def test_v2_failure_uses_v2_schema(self):
         """Would fail if v2 errors returned a v1 envelope."""

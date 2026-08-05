@@ -640,6 +640,9 @@ def verify_simulation_snapshot_v2(value: Any) -> list[str]:
         return ["SIMULATION_SNAPSHOT_V2_SCHEMA_INVALID"]
     if row.get("status") not in {"ready", "executed"}:
         return ["SIMULATION_SNAPSHOT_V2_NOT_EXECUTABLE"]
+    raw_occurrences = row.get("effectEvidenceByOccurrence")
+    if not isinstance(raw_occurrences, list):
+        return ["SIMULATION_V2_EFFECT_EVIDENCE_INVALID"]
     issues: list[str] = []
     if not SIMULATION_SNAPSHOT_V2_KEY_PATTERN.fullmatch(_text(row.get("simulationSnapshotKey"))):
         issues.append("SIMULATION_SNAPSHOT_V2_KEY_INVALID")
@@ -667,7 +670,7 @@ def verify_simulation_snapshot_v2(value: Any) -> list[str]:
     ]
     if (len(actual_pairs) != len(gear_items) or actual_pairs != expected_pairs or any(not slot or not key for slot, key in actual_pairs)):
         issues.append("SIMULATION_V2_SERIALIZER_AUTHORITY_MISMATCH")
-    occurrences = row.get("effectEvidenceByOccurrence") if isinstance(row.get("effectEvidenceByOccurrence"), list) else []
+    occurrences = raw_occurrences
     pair_by_slot = dict(expected_pairs)
     next_ordinal: dict[str, int] = {}
     prior_order = (-1, -1)
@@ -675,8 +678,8 @@ def verify_simulation_snapshot_v2(value: Any) -> list[str]:
         current = dict(occurrence) if isinstance(occurrence, Mapping) else {}
         slot = _text(current.get("slot"))
         ordinal = current.get("recordOrdinal")
-        order = (CANONICAL_GEAR_SLOTS.index(slot) if slot in CANONICAL_GEAR_SLOTS else len(CANONICAL_GEAR_SLOTS), ordinal if isinstance(ordinal, int) else -1)
-        if (set(current) != {"scope", "slot", "exactAuthorityEnvelopeKey", "recordOrdinal", "subjectKind", "subjectKey", "subjectVariantSignature", "supportRecordKey"} or current.get("scope") != "slot" or pair_by_slot.get(slot) != _text(current.get("exactAuthorityEnvelopeKey")) or not isinstance(ordinal, int) or ordinal != next_ordinal.get(slot, 0) or order < prior_order or not _text(current.get("subjectKind")) or not _text(current.get("subjectKey")) or not _text(current.get("subjectVariantSignature")) or not re.fullmatch(r"simc-item-effect-record:sha256:[0-9a-f]{64}", _text(current.get("supportRecordKey")))):
+        order = (CANONICAL_GEAR_SLOTS.index(slot) if slot in CANONICAL_GEAR_SLOTS else len(CANONICAL_GEAR_SLOTS), ordinal if type(ordinal) is int else -1)
+        if (set(current) != {"scope", "slot", "exactAuthorityEnvelopeKey", "recordOrdinal", "subjectKind", "subjectKey", "subjectVariantSignature", "supportRecordKey"} or current.get("scope") != "slot" or pair_by_slot.get(slot) != _text(current.get("exactAuthorityEnvelopeKey")) or type(ordinal) is not int or ordinal != next_ordinal.get(slot, 0) or order < prior_order or not _text(current.get("subjectKind")) or not _text(current.get("subjectKey")) or not _text(current.get("subjectVariantSignature")) or not re.fullmatch(r"simc-item-effect-record:sha256:[0-9a-f]{64}", _text(current.get("supportRecordKey")))):
             issues.append("SIMULATION_V2_EFFECT_EVIDENCE_INVALID")
             break
         next_ordinal[slot] = ordinal + 1
