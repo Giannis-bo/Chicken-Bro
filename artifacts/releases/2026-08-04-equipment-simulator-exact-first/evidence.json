@@ -2,22 +2,24 @@
   "schemaVersion": 2,
   "slug": "equipment-simulator-exact-first",
   "requirementSlug": "equipment-simulator-exact-first",
-  "status": "implementation_allowed",
-  "highestEvidenceLevel": "implementation_allowed",
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
   "branch": "codex/equipment-simulator-exact-first-implementation",
-  "commit": "pending_final_runtime_head",
+  "commit": "7a4390c9794dd46b5e95aa142409bfcc6952bf74",
   "identities": {
     "runtime": {
       "status": "pending",
       "reason": "The sixth runtime identity is historical-only after the evidence-lifecycle owner-test correction; the seventh candidate must bind a new final runtime head."
     },
     "verification": {
-      "status": "pending",
-      "reason": "The corrected lifecycle gate and current-truth packet require a new full local profile before verification may be rebound."
+      "status": "bound_at_check",
+      "kind": "git_ref",
+      "value": "HEAD",
+      "reason": "The controller ran the exact full local profile from clean tested HEAD 7a4390c9794dd46b5e95aa142409bfcc6952bf74; this binds local verification only, not the seventh runtime candidate."
     },
     "closure": {
       "status": "pending",
-      "reason": "Task 3A remains blocked on corrected-source local verification, a seventh fresh/upgrade candidate, later evidence promotion and Harness closure."
+      "reason": "Task 3A remains blocked on a seventh fresh/upgrade candidate, later evidence promotion and Harness closure."
     }
   },
   "manualAcceptance": {
@@ -46,9 +48,9 @@
     },
     {
       "command": "node scripts/verify-project.js --profile full --release-from-changes --base origin/main",
-      "status": "not_run",
-      "testedHead": null,
-      "summary": "Historical local verification passed at clean tested HEAD 87ba835f20bc0ca9eb762419a08b9be4ee54057a, but the later lifecycle-gate test and control-plane correction invalidates that verification identity. A new corrected-source full profile is pending."
+      "status": "pass",
+      "testedHead": "7a4390c9794dd46b5e95aa142409bfcc6952bf74",
+      "summary": "Exit 0 at clean tested HEAD 7a4390c9794dd46b5e95aa142409bfcc6952bf74 / tree 606a17509aa5294cc1de8ceb129f0046bc2cd5a9: status=project_verification_passed, profile=full, release=artifacts/releases/2026-08-04-equipment-simulator-exact-first, commands=173; Node 747/747 pass; Python 2716/2716 pass with 2 expected real-PostgreSQL candidate-environment skips; Vitest 54 files/437 tests pass; compileall, typecheck, lint, UI architecture, UI asset integrity, UI package mechanics, Harness and git diff checks pass. This binds local verification only; the seventh real PostgreSQL candidate remains mandatory."
     }
   ],
   "candidateDeployment": {
@@ -689,7 +691,7 @@
     {
       "id": "evidence-promotion-and-delivery-closure",
       "status": "evidence_promotion_blocked_candidate_rerun_required",
-      "detail": "Sixth-run attestation and read-only audit are immutable historical evidence only. The lifecycle-gate correction invalidates both its runtime promotion and the prior local verification identity; corrected-source verification and a seventh new run-id-bound fresh/upgrade candidate are required before evidence promotion."
+      "detail": "Sixth-run attestation and read-only audit are immutable historical evidence only. Corrected-source local verification is now bound at clean tested HEAD 7a4390c9794dd46b5e95aa142409bfcc6952bf74; a seventh new run-id-bound fresh/upgrade candidate remains required before evidence promotion."
     },
     {
       "id": "candidate-resource-retention",
@@ -699,12 +701,12 @@
     {
       "id": "direct-server-runtime-import-regression",
       "status": "candidate_rerun_required_evidence_promotion_blocked",
-      "detail": "The corrected package-relative import fallback invalidated fifth-run promotion. The sixth run later passed PostgreSQL but is unpromotable after the owner lifecycle-test regression. Preserve all six run pairs and twelve databases; corrected-source full local verification and the seventh fresh/upgrade candidate remain mandatory."
+      "detail": "The corrected package-relative import fallback invalidated fifth-run promotion. The sixth run later passed PostgreSQL but is unpromotable after the owner lifecycle-test regression. Preserve all six run pairs and twelve databases; corrected-source full local verification is complete, but the seventh fresh/upgrade candidate remains mandatory."
     },
     {
       "id": "evidence-lifecycle-owner-test-regression",
-      "status": "candidate_rerun_required_evidence_promotion_blocked",
-      "detail": "The owner gate must validate stage semantics across implementation_allowed, local_verified and runtime_verified instead of hard-coding one transitional status. Correcting that test and its control plane invalidates the sixth frozen candidate; PostgreSQL and the independent candidate audit remain historical PASS evidence."
+      "status": "resolved_by_stage_aware_gate_and_corrected_source_local_verification",
+      "detail": "The owner gate now validates stage semantics across implementation_allowed, local_verified and runtime_verified without a redundant top-level transitional status lock. The corrected-source full profile passed at clean tested HEAD 7a4390c9794dd46b5e95aa142409bfcc6952bf74. The sixth frozen candidate remains invalidated; PostgreSQL and its independent audit remain historical PASS evidence only."
     }
   ],
   "rollback": [
@@ -761,7 +763,7 @@
     "docs/plans/2026-08-04-equipment-simulator-exact-first-persistence-resequence.md",
     "docs/postgres-identity-migration-runbook.md"
   ],
-  "summary": "Task 3A is implementation_allowed / candidate_pending. Sixth run t3a260805142130 genuinely passed PostgreSQL and independent read-only audit from exact frozen commit 9f67ec2f/tree c2a686e6, but that HEAD failed the current-truth owner test because it hard-coded implementation_allowed after the authorized local_verified transition. Its status is runtime_passed_unpromotable_evidence_lifecycle_test_regression. All six run ids and twelve databases are immutable/non-reusable; runtime, verification and closure identities are pending, and a seventh new run id plus two new databases are mandatory. candidate_rerun_required / evidence_promotion_blocked remains current engineering truth. No production migration, endpoint, timer, runtime consumer, Catalog/Manifest pointer, API, UI or SimC behavior changed; Task 4P+ remains unauthorized.",
+  "summary": "Task 3A is local_verified / candidate_pending. The exact full local profile passed at clean tested HEAD 7a4390c9794dd46b5e95aa142409bfcc6952bf74 / tree 606a17509aa5294cc1de8ceb129f0046bc2cd5a9 and binds verification only. Sixth run t3a260805142130 genuinely passed PostgreSQL and independent read-only audit from exact frozen commit 9f67ec2f/tree c2a686e6, but its status remains runtime_passed_unpromotable_evidence_lifecycle_test_regression. All six run ids and twelve databases are immutable/non-reusable; runtime and closure identities remain pending, and a seventh new run id plus two new databases are mandatory. candidate_rerun_required / evidence_promotion_blocked remains current engineering truth. No production migration, endpoint, timer, runtime consumer, Catalog/Manifest pointer, API, UI or SimC behavior changed; Task 4P+ remains unauthorized.",
   "historicalFailureEvidence": {
     "pr": "#114",
     "run": "30977816268",
@@ -788,7 +790,7 @@
     "ordinal": 7,
     "migration": "0030",
     "attestationSchema": "task3a-candidate-attestation-v2",
-    "requirement": "After corrected-source controller local verification, run a seventh candidate from the committed final runtime-affecting head with a new run id and two newly operator-provisioned empty disposable PostgreSQL databases; prove fresh 0001..0030 and upgrade 0001..0029-seed-to-0030 before evidence promotion.",
+    "requirement": "Run a seventh candidate from the locally verified committed final runtime-affecting head with a new run id and two newly operator-provisioned empty disposable PostgreSQL databases; prove fresh 0001..0030 and upgrade 0001..0029-seed-to-0030 before evidence promotion.",
     "runId": null,
     "freshDatabase": null,
     "upgradeDatabase": null

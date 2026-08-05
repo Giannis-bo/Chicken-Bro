@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILLS: Use `superpowers:subagent-driven-development`, `superpowers:test-driven-development`, and `superpowers:verification-before-completion`. This plan forward-replaces the old implementation plan's Task 3 and later execution order after two independent readiness audits returned `NOT_READY`.
 
-状态：`正在推进（Task 3A implementation_allowed / candidate_pending。第六次 t3a260805142130 从 exact frozen 9f67ec2f / tree c2a686e6 真实通过 0030 fresh/upgrade 与独立只读审计，但同一 frozen HEAD 的 owner current-truth test 硬编码 implementation_allowed、无法容纳已授权 local_verified transition，故为 runtime_passed_unpromotable_evidence_lifecycle_test_regression。runtime/verification/closure identities pending，六个 run 的十二库全部 immutable/non-reusable，必须第七次新 run-id/双库重跑。literal candidate_rerun_required / evidence_promotion_blocked 仍是当前工程真相；无 production migration/runtime consumer，Task 4P+ 未授权）`
+状态：`正在推进（Task 3A local_verified / candidate_pending。exact full local profile 已在 clean HEAD 7a4390c9794dd46b5e95aa142409bfcc6952bf74 / tree 606a17509aa5294cc1de8ceb129f0046bc2cd5a9 通过并绑定 verification。第六次 t3a260805142130 从 exact frozen 9f67ec2f / tree c2a686e6 真实通过 0030 fresh/upgrade 与独立只读审计，但仍为 runtime_passed_unpromotable_evidence_lifecycle_test_regression。runtime/closure identities pending，六个 run 的十二库全部 immutable/non-reusable，必须第七次新 run-id/双库重跑。literal candidate_rerun_required / evidence_promotion_blocked 仍是当前工程真相；无 production migration/runtime consumer，Task 4P+ 未授权）`
 
 ## Goal
 
@@ -231,14 +231,15 @@ Read path loads exact canonical bytes, reconstructs Exact -> Static/Progression 
 - [x] As of historical merge commit `1619815c`, origin/main integration, the 0030 correction, local verification and independent whole-branch CR had passed before the direct-server correction; that pre-correction packet was not current `local_verified` evidence and cannot override the later clean-HEAD promotion recorded below.
 - [x] Fifth candidate `t3a260805125812` genuinely passed from exact clean commit `a4c0fd04` / tree `aa0908eb` using two new explicit-commented databases; its attestation-v2 and post-audit are immutable historical evidence.
 - [x] PR #114 full-profile run `30977816268` / job `92215539827` identified the direct-server import regression and focused RED/GREEN correction; the Node deprecation warning is not the cause.
-- [x] Historical controller full local profile passed at clean tested HEAD `87ba835f20bc0ca9eb762419a08b9be4ee54057a`, but the later lifecycle test/control-plane correction invalidates that verification identity; current evidence is `implementation_allowed / candidate_pending`, not `local_verified`.
+- [x] Historical controller full local profile passed at clean tested HEAD `87ba835f20bc0ca9eb762419a08b9be4ee54057a`, but the later lifecycle test/control-plane correction invalidated that verification identity; it remains historical only.
 - [x] Sixth candidate `t3a260805142130` genuinely passed PostgreSQL and independent read-only audit, but the frozen HEAD owner current-truth test failed; history status is `runtime_passed_unpromotable_evidence_lifecycle_test_regression` and PostgreSQL is not the cause.
-- [x] Correct the evidence lifecycle gate, reject all historical candidate/evidence identity reuse, and complete scoped independent re-review at `d31279d19ac6ae5eedf381665678c3bf6d869377` with no unresolved Critical/Important finding.
-- [ ] Seventh candidate needs a new run-id and two new databases after corrected-source full local verification; `candidate_rerun_required / evidence_promotion_blocked` remains current engineering truth.
+- [x] Correct the evidence lifecycle gate, reject all historical candidate/evidence identity reuse, complete scoped independent re-review at `d31279d19ac6ae5eedf381665678c3bf6d869377`, and remove the redundant top-level transitional status lock at `7a4390c9794dd46b5e95aa142409bfcc6952bf74`.
+- [x] Exact full local profile passed at clean tested HEAD `7a4390c9794dd46b5e95aa142409bfcc6952bf74` / tree `606a17509aa5294cc1de8ceb129f0046bc2cd5a9`: exit 0, `status=project_verification_passed`, 173 commands, Node 747/747, Python 2716/2716 with two expected real-PG candidate-environment skips, Vitest 437/437 and all remaining checks/Harness pass; current evidence is `local_verified / candidate_pending`.
+- [ ] Seventh candidate needs a new run-id and two new databases; `candidate_rerun_required / evidence_promotion_blocked` remains current engineering truth.
 
 `t3a2608050955` 与 `t3a260805111623` 已在 `0003` 前失败；`t3a260805113656` 因 requirement gate 不可晋升；第四次 `t3a260805120026` 为 `runtime_passed_superseded_by_main_integration`；第五次 `t3a260805125812` 为 `runtime_passed_invalidated_by_direct_runtime_import_regression`；第六次 `t3a260805142130` 为 `runtime_passed_unpromotable_evidence_lifecycle_test_regression`。十二座库全部 immutable/non-reusable；第七次新 run-id/双库 mandatory，且 no production migration/runtime consumer。
 
-2026-08-05 第六次 candidate 真实通过 0030 与独立只读审计，但 frozen HEAD 的 owner lifecycle gate RED 证明其 current-truth source 不是 full-profile green。修正后的当前证据诚实回到 `implementation_allowed / candidate_pending`；runtime/verification/closure identities pending，第七次 candidate 仍 mandatory，`candidate_rerun_required / evidence_promotion_blocked` 未解除。
+2026-08-05 第六次 candidate 真实通过 0030 与独立只读审计，但 frozen HEAD 的 owner lifecycle gate RED 证明其 current-truth source 不是 full-profile green。stage-aware gate 修正后，exact full local profile 已在 clean HEAD `7a4390c9794dd46b5e95aa142409bfcc6952bf74` 通过，当前证据为 `local_verified / candidate_pending`；runtime/closure identities pending，第七次 candidate 仍 mandatory，`candidate_rerun_required / evidence_promotion_blocked` 未解除。
 
 ---
 

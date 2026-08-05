@@ -106,9 +106,12 @@ had set `local_verified`; the schema current-truth test passed. PostgreSQL was n
 the cause. Correcting the lifecycle test, requirement and owner contracts is
 candidate-invalidating, so the sixth status is exactly
 `runtime_passed_unpromotable_evidence_lifecycle_test_regression`.
-Current evidence is `implementation_allowed / candidate_pending`; engineering
-truth remains `candidate_rerun_required / evidence_promotion_blocked` until a
-seventh candidate passes. Runtime/verification/closure identities are pending.
+The exact full local profile subsequently passed at clean HEAD
+`7a4390c9794dd46b5e95aa142409bfcc6952bf74` / tree
+`606a17509aa5294cc1de8ceb129f0046bc2cd5a9`, so current evidence is
+`local_verified / candidate_pending`; engineering truth remains
+`candidate_rerun_required / evidence_promotion_blocked` until a seventh candidate
+passes. Runtime/closure identities are pending; verification is bound at check.
 Runtime consumers remain empty, production migration was not executed and Task 4P+ is not authorized.
 
 All six run-id pairs and all twelve databases are immutable/non-reusable
@@ -207,8 +210,9 @@ Local/skipped runs emit no successful attestation and must not create or update
 either evidence file.
 
 Leave the sixth pair intact as immutable historical evidence; it cannot be used for
-current promotion. The corrected source requires fresh full-local verification; the
-seventh pair must use a new run id and two new operator-provisioned databases.
+current promotion. Corrected-source full-local verification passed at clean HEAD
+`7a4390c9794dd46b5e95aa142409bfcc6952bf74`; the seventh pair must use a new run id
+and two new operator-provisioned databases.
 After candidate execution, any change to code, tests, migration,
 requirement or owner contracts invalidates both candidates. Only an operator may
 discard the two exact database identities after archival; the suite never does.
@@ -218,7 +222,9 @@ attestation-v1 history, the fifth remains
 `runtime_passed_invalidated_by_direct_runtime_import_regression`, and the sixth remains
 `runtime_passed_unpromotable_evidence_lifecycle_test_regression`; none can be reused.
 The historical `candidate_rerun_required / evidence_promotion_blocked` status is again
-current until the seventh pair passes. Runtime and verification identities remain pending.
+current until the seventh pair passes. Runtime identity remains pending; verification is
+bound_at_check to the exact successful clean local profile at HEAD
+`7a4390c9794dd46b5e95aa142409bfcc6952bf74`.
 The technically successful
 `t3a260805113656` attestation also remains unpromotable.
 No production migration is authorized.
