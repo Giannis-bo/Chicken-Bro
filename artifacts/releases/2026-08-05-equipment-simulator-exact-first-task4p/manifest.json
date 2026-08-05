@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-08-05T12:22:41.805Z",
+  "generatedAt": "2026-08-05T12:42:17.549Z",
   "release": {
     "date": "2026-08-05",
     "slug": "equipment-simulator-exact-first-task4p"
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-08-05-equipment-simulator-exact-first-task4p/evidence.json",
-    "sizeBytes": 5163,
+    "sizeBytes": 5753,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -390,9 +390,9 @@
       "summary"
     ],
     "missingFields": [],
-    "declaredStatus": "local_verified",
-    "highestEvidenceLevel": "local_verified",
-    "summary": "Task 4P is local_verified pure-domain evidence only. It adds v2 slot-bound Exact Authority, duplicate-preserving ordered effect occurrences, strict snapshot input binding and literal blocked handling for loadout-scoped effects while preserving v1 bytes/key/hash behavior. No DB, migration, worker, service, deploy, API, UI, Catalog/Manifest pointer, generation 35, runtime consumer, candidate deployment, production action or user-visible closure is claimed."
+    "declaredStatus": "implementation_allowed",
+    "highestEvidenceLevel": "implementation_allowed",
+    "summary": "Task 4P remains implementation_allowed, not local_verified. The branch contains a pure-domain v2 implementation and historical focused/Harness passes, but final independent re-review at 635239c7 reproduced load-bearing dependency-closure and occurrence-validation gaps. The code is unmerged and must not be represented as ready. No DB, migration, worker, service, deploy, API, UI, Catalog/Manifest pointer, generation 35, runtime consumer, candidate deployment, production action or user-visible closure is claimed."
   },
   "evidence": {
     "localTests": {
@@ -413,6 +413,12 @@
     }
   },
   "riskMatrix": [
+    {
+      "id": "dirty_worktree",
+      "severity": "medium",
+      "status": "watch",
+      "detail": "1 changed files currently visible to git status."
+    },
     {
       "id": "hotspot_files_present",
       "severity": "medium",
@@ -446,9 +452,11 @@
   ],
   "repo": {
     "git": {
-      "status": "clean",
-      "changedFileCount": 0,
-      "changedFiles": []
+      "status": "dirty",
+      "changedFileCount": 1,
+      "changedFiles": [
+        " M artifacts/releases/2026-08-05-equipment-simulator-exact-first-task4p/evidence.json"
+      ]
     }
   },
   "write": {
