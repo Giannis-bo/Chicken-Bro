@@ -451,12 +451,43 @@ def _registry_schema_violations(registry: object) -> list[Violation]:
 
 
 def _ast_digest(node: ast.AST) -> str:
-    serialized = ast.dump(
-        node,
-        annotate_fields=True,
-        include_attributes=False,
-    ).encode("utf-8")
+    serialized = _stable_ast_dump(node).encode("utf-8")
     return hashlib.sha256(serialized).hexdigest()
+
+
+_REQUIRED_NULL_AST_FIELDS = frozenset({
+    ("Constant", "value"),
+    ("MatchSingleton", "value"),
+})
+
+
+def _stable_ast_dump(node: ast.AST) -> str:
+    if not isinstance(node, ast.AST):
+        raise TypeError(f"expected AST, got {node.__class__.__name__!r}")
+
+    def serialize(value: object) -> str:
+        if isinstance(value, ast.AST):
+            fields: list[str] = []
+            for field_name in value._fields:
+                try:
+                    field_value = getattr(value, field_name)
+                except AttributeError:
+                    continue
+                field_key = (value.__class__.__name__, field_name)
+                if (
+                    field_value is None
+                    and field_key not in _REQUIRED_NULL_AST_FIELDS
+                ):
+                    continue
+                if field_value == []:
+                    continue
+                fields.append(f"{field_name}={serialize(field_value)}")
+            return f"{value.__class__.__name__}({', '.join(fields)})"
+        if isinstance(value, list):
+            return f"[{', '.join(serialize(item) for item in value)}]"
+        return repr(value)
+
+    return serialize(node)
 
 
 def _import_tuple(record: dict[str, object]) -> tuple[object, object, object]:
@@ -1941,6 +1972,110 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
             REGISTRY,
         )
         self.assertEqual([], violations, _formatted(violations))
+
+    def test_ast_digest_serialization_is_cross_version_stable(self):
+        call_without_keywords = ast.parse("f()\n").body[0].value
+        del call_without_keywords.keywords
+        call_with_empty_keywords = copy.deepcopy(call_without_keywords)
+        call_with_empty_keywords.keywords = []
+
+        expected_call = "Call(func=Name(id='f', ctx=Load()))"
+        self.assertEqual(expected_call, _stable_ast_dump(call_without_keywords))
+        self.assertEqual(expected_call, _stable_ast_dump(call_with_empty_keywords))
+        self.assertEqual(
+            _ast_digest(call_without_keywords),
+            _ast_digest(call_with_empty_keywords),
+        )
+
+        call_with_keyword = copy.deepcopy(call_with_empty_keywords)
+        call_with_keyword.keywords = [
+            ast.keyword(arg="x", value=ast.Constant(value=1)),
+        ]
+        self.assertEqual(
+            "Call(func=Name(id='f', ctx=Load()), "
+            "keywords=[keyword(arg='x', value=Constant(value=1))])",
+            _stable_ast_dump(call_with_keyword),
+        )
+        self.assertNotEqual(
+            _ast_digest(call_with_empty_keywords),
+            _ast_digest(call_with_keyword),
+        )
+
+        for source, expected in (
+            (
+                "def f():\n    pass\n",
+                "FunctionDef(name='f', args=arguments(), body=[Pass()])",
+            ),
+            ("class C:\n    pass\n", "ClassDef(name='C', body=[Pass()])"),
+        ):
+            with self.subTest(source=source):
+                with_empty_type_params = ast.parse(source).body[0]
+                if "type_params" not in with_empty_type_params._fields:
+                    with_empty_type_params._fields = (
+                        *with_empty_type_params._fields,
+                        "type_params",
+                    )
+                with_empty_type_params.type_params = []
+                without_type_params = copy.deepcopy(with_empty_type_params)
+                del without_type_params.type_params
+
+                self.assertEqual(expected, _stable_ast_dump(without_type_params))
+                self.assertEqual(expected, _stable_ast_dump(with_empty_type_params))
+                self.assertEqual(
+                    _ast_digest(without_type_params),
+                    _ast_digest(with_empty_type_params),
+                )
+
+                with_nonempty_type_params = copy.deepcopy(with_empty_type_params)
+                with_nonempty_type_params.type_params = [
+                    ast.Name(id="T", ctx=ast.Load()),
+                ]
+                self.assertIn(
+                    "type_params=[Name(id='T', ctx=Load())]",
+                    _stable_ast_dump(with_nonempty_type_params),
+                )
+                self.assertNotEqual(
+                    _ast_digest(with_empty_type_params),
+                    _ast_digest(with_nonempty_type_params),
+                )
+
+        self.assertEqual(
+            "Constant(value=None)",
+            _stable_ast_dump(ast.Constant(value=None)),
+        )
+        self.assertEqual(
+            "MatchSingleton(value=None)",
+            _stable_ast_dump(ast.MatchSingleton(value=None)),
+        )
+        self.assertEqual(
+            "keyword(value=Name(id='values', ctx=Load()))",
+            _stable_ast_dump(
+                ast.keyword(
+                    arg=None,
+                    value=ast.Name(id="values", ctx=ast.Load()),
+                ),
+            ),
+        )
+        self.assertEqual("Return()", _stable_ast_dump(ast.Return(value=None)))
+
+    def test_stable_ast_dump_matches_python_313_for_current_targets(self):
+        try:
+            ast.dump(ast.Pass(), show_empty=False)
+        except TypeError:
+            self.skipTest("native ast.dump(show_empty=False) requires Python 3.13")
+
+        for path, tree in TREES.items():
+            for node in ast.walk(tree):
+                with self.subTest(path=path, node=node.__class__.__name__):
+                    self.assertEqual(
+                        ast.dump(
+                            node,
+                            annotate_fields=True,
+                            include_attributes=False,
+                            show_empty=False,
+                        ),
+                        _stable_ast_dump(node),
+                    )
 
     def test_module_load_helper_is_rejected_for_every_target_with_exact_finding(self):
         for path in sorted(TARGETS):
