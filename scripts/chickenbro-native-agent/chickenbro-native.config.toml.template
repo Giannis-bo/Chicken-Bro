@@ -1,0 +1,14 @@
+# Render this file into $CODEX_HOME/chickenbro-native.config.toml for one
+# candidate only. __CHICKENBRO_CANDIDATE_ROOT__ is substituted at deploy time.
+model = "gpt-5.6-luna"
+
+[mcp_servers.chickenbro_toolbox]
+command = "/usr/bin/python3"
+args = ["__CHICKENBRO_CANDIDATE_ROOT__/server/chickenbro_native_mcp.py"]
+cwd = "__CHICKENBRO_CANDIDATE_ROOT__"
+env_vars = ["CHICKENBRO_NATIVE_OBSERVATIONS_PATH"]
+startup_timeout_sec = 10
+tool_timeout_sec = 30
+enabled = true
+required = true
+default_tools_approval_mode = "auto"

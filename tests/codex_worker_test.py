@@ -38,6 +38,27 @@ class CodexWorkerTest(unittest.TestCase):
         self.assertIn(str(schema_path), command)
         self.assertEqual(command[-1], "-")
 
+    def test_build_command_can_select_a_native_agent_profile_without_a_json_schema(self):
+        """The native Agent owns its tool loop and must not be schema-forced."""
+        from server.codex_worker import build_codex_command
+
+        with tempfile.TemporaryDirectory() as tmp:
+            job_dir = Path(tmp) / "job-native"
+            try:
+                command = build_codex_command(
+                    prompt_path=job_dir / "prompt.txt",
+                    job_dir=job_dir,
+                    output_path=job_dir / "last-message.txt",
+                    profile="chickenbro-native",
+                    sandbox="read-only",
+                )
+            except TypeError:
+                command = []
+
+        self.assertIn("--profile", command)
+        self.assertEqual("chickenbro-native", command[command.index("--profile") + 1])
+        self.assertNotIn("--output-schema", command)
+
     def test_run_codex_job_writes_prompt_and_returns_structured_result(self):
         from server.codex_worker import run_codex_job
 
@@ -94,6 +115,37 @@ class CodexWorkerTest(unittest.TestCase):
         self.assertEqual(result["returnCode"], -1)
         self.assertIn("timed out after 1 seconds", result["stderr"])
         self.assertEqual(result["events"][0]["type"], "started")
+
+    def test_run_codex_job_collects_observations_written_by_the_native_mcp_server(self):
+        from server.codex_worker import run_codex_job
+
+        def fake_runner(_command, **kwargs):
+            observation_path = Path(kwargs["env"]["CHICKENBRO_NATIVE_OBSERVATIONS_PATH"])
+            observation_path.write_text(
+                json.dumps({"tool": "research_public_web", "evidenceRefs": ["public-web:fixture"]}) + "\n",
+                encoding="utf-8",
+            )
+
+            class Completed:
+                returncode = 0
+                stdout = ""
+                stderr = ""
+
+            return Completed()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            result = run_codex_job(
+                "请直接回答",
+                jobs_dir=Path(tmp),
+                job_id="job-native-observations",
+                runner=fake_runner,
+                observation_file_name="native-tool-observations.jsonl",
+            )
+
+        self.assertEqual(
+            [{"tool": "research_public_web", "evidenceRefs": ["public-web:fixture"]}],
+            result["nativeToolObservations"],
+        )
 
     def test_run_codex_job_rejects_unsafe_job_id(self):
         from server.codex_worker import run_codex_job

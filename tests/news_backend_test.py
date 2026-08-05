@@ -7965,8 +7965,8 @@ class NewsBackendTest(unittest.TestCase):
         self.assertNotIn(message, rows[0][3])
         self.assertNotIn(result["assistantMessage"]["content"], rows[0][3])
         trace = json.loads(rows[0][3])
-        self.assertEqual("chickenbro-agent-trace-v4", trace["schemaRevision"])
-        self.assertEqual("chickenbro-evidence-planner-runtime-v1", trace["runtimeVersion"])
+        self.assertEqual("chickenbro-agent-trace-v5", trace["schemaRevision"])
+        self.assertEqual("chickenbro-agentic-research-runtime-v1", trace["runtimeVersion"])
         self.assertEqual("unavailable", trace["registryStatus"])
 
     def test_chickenbro_model_failure_persists_failure_trace_and_no_assistant_message(self):
@@ -7991,7 +7991,7 @@ class NewsBackendTest(unittest.TestCase):
             ]
 
         self.assertEqual("failed", trace["answerStatus"])
-        self.assertEqual("chickenbro-agent-trace-v4", trace["schemaRevision"])
+        self.assertEqual("chickenbro-agent-trace-v5", trace["schemaRevision"])
         self.assertEqual("unavailable", trace["registryStatus"])
         self.assertIn(
             "model_failed",
@@ -8138,7 +8138,7 @@ class NewsBackendTest(unittest.TestCase):
 
         prompt_payload = json.loads(captured["prompt"])
         self.assertIn("boundedContext", prompt_payload)
-        self.assertTrue(any("direct Codex chat" in item for item in prompt_payload["instructions"]))
+        self.assertFalse(any("先接住问题" in item for item in prompt_payload["instructions"]))
         self.assertFalse(any("只能使用 boundedContext 中的事实" in item for item in prompt_payload["instructions"]))
         self.assertIs(captured["schema"]["additionalProperties"], False)
         self.assertEqual(result["assistantMessage"]["payload"]["answerSource"], "llm")

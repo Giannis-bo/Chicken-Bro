@@ -4,20 +4,24 @@
 
 **Goal:** Make Codex, rather than a question-specific routing tree, plan and re-plan read-only Chickenbro research through the published ToolBox, then return source-grounded answers that continue naturally across follow-up questions.
 
-**Architecture:** Add a pure `ResearchPlan` contract and a two-turn, bounded orchestration loop. Codex receives only the player message, compact history and a sanitized catalog of immutable, published read-only tools; the backend validates every requested tool and argument, executes only registered adapters, returns bounded `EvidenceObservation`s, and lets Codex decide whether one further tool call is useful. Existing `QuestionFrame`/`EvidencePlan` remains a compatibility fallback when the research model or registry is unavailable, but it does not choose tools on the agentic path.
+**Architecture:** Run one native Codex Agent conversation with a candidate-only MCP profile. Codex receives the player message and compact conversation history, decides its own research goal and calls the read-only ToolBox directly in the same turn. The backend does not create a `ResearchPlan`, select a tool, execute a tool on the model's behalf, force a JSON response, or reject natural prose through a per-claim schema. It only owns the MCP tool's read-only/SSRF/rate boundaries, session persistence, timeout, and citations derived from actual MCP observations. Legacy `QuestionFrame`/`EvidencePlan` paths remain available only when the native feature flag is off.
 
-**Tech Stack:** Python standard library and `unittest`; existing PostgreSQL-backed immutable Chickenbro Tool Registry and adapter runtime; existing Codex/LLM JSON runners; TypeScript/Taro compatibility tests; Harness candidate deployment scripts.
+**Tech Stack:** Python standard library and `unittest`; a repository-owned stdio MCP server wrapping the existing generic public-web reader; Codex CLI profile layering; TypeScript/Taro compatibility tests; Harness candidate deployment scripts.
 
 ## Global Constraints
 
 - Do not encode a class, spec, patch, content type, provider, or sample question as an agentic tool-selection rule or answer template.
 - The agent may invoke only active, published, read-only Tool manifests. It cannot access arbitrary URLs, files, Shell, SQL, credentials, registries, syncs, backfills, or production configuration.
-- A player-visible number or strong comparative claim must be grounded in returned observations and their actual evidence references. Empty, stale, timed-out, partial, or single-subject observations remain literal.
+- A player-visible number or strong comparative claim must be grounded in actual MCP observations and their actual evidence references. Empty, stale, timed-out, partial, or single-subject observations remain literal, but a valid natural answer is never replaced merely because it cannot be decomposed into model-authored claim rows.
 - PTR/retail, raid/Mythic+/PvP, personal and public observations may be combined only when their returned scope fields are compatible. This is a general claim validator, not a keyword router.
-- Keep all legacy response envelopes backward compatible. `agenticResearch` is server/trace-only; clients continue to consume the existing assistant payload and optional `evidenceOutcome`.
-- Keep tool execution synchronous and bounded in this release: two planning turns, at most three distinct tool calls per turn, no background `ResearchRun`, no source refresh, and `WOW_DEPLOY_START_ASYNC_SYNCS=0` during candidate deployment.
+- Keep all legacy response envelopes backward compatible. Native-agent citations are derived from MCP observation records; clients continue to consume the existing assistant payload and optional `evidenceOutcome`.
+- Keep tool execution synchronous and bounded in this release by the generic ToolBox's own public-web limits, timeouts and rate budget. There is no hidden "two planning turns" or backend-selected source loop; no background `ResearchRun`, no source refresh, and `WOW_DEPLOY_START_ASYNC_SYNCS=0` during candidate deployment.
 - Do not add Archon or any new third-party collector in this task. Its host, access method, terms, parser fixture, freshness policy, cache, limit and rollback require their own approved `SourceContract`; existing Raider.IO, Warcraft Logs and official adapters are the first published ToolBox.
-- Candidate deployment must use a new service and port identity, preserve the prior Evidence Planner candidate, record exact Git/runtime identity, and leave production unchanged until user acceptance.
+- Candidate deployment must use a new service and port identity, render a candidate-only Codex MCP profile, record exact Git/runtime identity, and leave production unchanged until user acceptance.
+
+## Native Agent correction (authoritative for this candidate)
+
+The earlier `ResearchPlan → backend execution → final JSON + claimRefs` task steps are historical implementation context only; they are **not** this candidate's execution path. This candidate proves: Codex chooses concrete research queries and invokes `research_public_web` itself; natural Chinese answers publish without a JSON or per-claim response gate; UI citations come only from tool observations written during the same job; follow-ups carry compact conversation history and can research again; a Codex/MCP transport failure remains an honest failure rather than silently returning a legacy template.
 
 ---
 

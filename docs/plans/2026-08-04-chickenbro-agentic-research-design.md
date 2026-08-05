@@ -1,6 +1,6 @@
 # 炸鸡队长 Codex 自主研究循环设计
 
-状态：`已确认方向；待用户审阅设计；未授权实施`
+状态：`正在推进；已获用户授权实施原生 Agent 候选`
 
 确认日期：2026-08-04
 
@@ -37,20 +37,28 @@ Tool ID 或评估公式。队长应：
 | --- | --- | --- |
 | 扩大 `QuestionFrame → EvidencePlan → capability` 规则树 | 继续为每类问题添加来源和 facet，模型仍只是受限解释器 | 不采用 |
 | 让模型自由浏览、选择任意网页或执行任意命令 | 表面通用，但来源、隐私、成本、复现和 prompt injection 不可控 | 不采用 |
-| **Codex 自主研究循环 + 受控原子 ToolBox + 通用证据合同** | Codex 自主规划和迭代；ToolBox 只加速查询、比较和计算；结论仍可验证 | **采用** |
+| **Codex 原生 Agent + 受控原子 MCP ToolBox + 通用证据合同** | Codex 在同一 Agent 回合内自主研究、调用工具、继续推理并自然作答；ToolBox 只加速查询、比较和计算；结论仍可验证 | **采用** |
 
 ```mermaid
 flowchart LR
-  Q[玩家问题和会话] --> C[Codex research agent]
-  C --> P[ResearchPlan]
-  P --> D[Tool capability discovery]
-  D --> X[受控 Tool execution]
-  X --> O[EvidenceObservation]
-  O --> C
-  C --> V[Claim validation]
-  V --> A[回答和研究状态]
+  Q[玩家问题和会话] --> C[原生 Codex Agent]
+  C <--> X[受控 MCP ToolBox]
+  X --> O[有界 observations 与引用]
+  C --> A[自然回答和研究状态]
   O --> T[脱敏 Trace]
 ```
+
+### 当前实施修正：从后端编排改为原生 Agent
+
+用户已明确授权将此前的 `ResearchPlan → 后端代执行 → JSON/claim 校验` 候选替换为
+原生 Codex Agent。此前方案虽然没有按职业或站点写答案，但仍让模型先填规划表、再由后端
+替它选定执行节奏，并会因 `claimRefs` 格式校验丢弃一段本身合理的回答；这与“ToolBox
+只提高 Codex 执行效率”的目标不符。
+
+当前候选的唯一回答链是：`玩家问题与会话 → 原生 Codex Agent ↔ 只读 MCP ToolBox →
+自然回答 + 实际工具 observations 的引用`。后端保留会话、只读/SSRF/速率边界、超时和引用
+展示；不生成研究计划、不替 Agent 调 Tool、不强制 JSON、不以逐 claim 格式拦截自然语言。
+本节优先于后文保留的历史 ResearchPlan 设计内容。
 
 `QuestionFrame` 和第一切片 `EvidencePlan` 可作为迁移期的兼容输入或离线对照，但不再
 拥有“选择哪一个 Tool、能否继续研究、如何回答”的最终权力。
