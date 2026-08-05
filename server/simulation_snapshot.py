@@ -663,6 +663,8 @@ def verify_simulation_snapshot_v2(
             or row.get("exactAuthorityBySlot") != loadout.get("exactAuthorityBySlot")
         ):
             issues.append("SIMULATION_V2_RESOLVED_LOADOUT_CONTEXT_MISMATCH")
+        if _text(row.get("simcRuntimeRevision")) != _text(loadout.get("simcRuntimeRevision")):
+            issues.append("SIMULATION_V2_RUNTIME_CONTEXT_MISMATCH")
         if raw_occurrences != loadout.get("effectEvidenceByOccurrence"):
             issues.append("SIMULATION_V2_EFFECT_EVIDENCE_CONTEXT_MISMATCH")
     if not SIMULATION_SNAPSHOT_V2_KEY_PATTERN.fullmatch(_text(row.get("simulationSnapshotKey"))):

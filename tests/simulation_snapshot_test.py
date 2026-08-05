@@ -423,6 +423,40 @@ class SimulationSnapshotTest(unittest.TestCase):
         tampered["rowHash"] = simulation_snapshot_module._hash("sha256:", {field: value for field, value in tampered.items() if field not in {"rowHash", "originCatalogRevision"}})
         self.assertIn("SIMULATION_V2_EFFECT_EVIDENCE_CONTEXT_MISMATCH", verify_simulation_snapshot_v2(tampered, resolved_loadout=loadout, authority_bundles=bundles))
 
+    def test_v2_snapshot_verifier_rejects_rehashed_runtime_context_mismatch(self):
+        """Would fail if snapshot runtime could drift from verified effect authority."""
+        source = resolver_snapshot()
+        source["resolvedSlots"] = {"head": {"slot": "head", "itemId": "1001", "legality": {"status": "verified"}}}
+        source["profileReadiness"] = {"status": "verified", "simcReady": True, "requiredSlots": ["head"], "readySlots": ["head"]}
+        bundle = v2_bundle("head", "1001", ["A", "B", "A"])
+        key = bundle.envelope.content_key
+        bundles = {key: bundle}
+        loadout = build_resolved_loadout_v2(
+            resolver_snapshot=source, exact_authority_by_slot=[{"slot": "head", "exactAuthorityEnvelopeKey": key}],
+            authority_bundles=bundles, gear_rule_revision="gear-rule-matrix-v1", resolver_revision="resolver-v2", simc_runtime_revision="simc-runtime-v2",
+        )
+        snapshot = build_simulation_snapshot_v2(
+            resolved_loadout=loadout, talent_profile_key=TALENT_KEY, talent_lines=TALENT_LINES,
+            character_context=character_context(), scenario_options=scenario(), preparation_lines=["optimal_raid=0"],
+            compiler_revision="simc-profile-compiler-v2", simc_runtime_revision="simc-runtime-v2",
+            authority_bundles=bundles,
+        )
+        snapshot["simcRuntimeRevision"] = "simc-runtime-v3"
+        identity = {
+            "resolvedLoadoutKey": snapshot["resolvedLoadoutKey"],
+            "exactAuthorityBySlot": simulation_snapshot_module._canonical(snapshot["exactAuthorityBySlot"]),
+            "effectEvidenceByOccurrence": simulation_snapshot_module._canonical(snapshot["effectEvidenceByOccurrence"]),
+            "talentProfileKey": snapshot["talentProfileKey"],
+            "characterContext": {**simulation_snapshot_module._canonical(snapshot["characterContext"]), "talentLinesHash": snapshot["talentLinesHash"]},
+            "scenarioOptions": {**simulation_snapshot_module._canonical(snapshot["scenarioOptions"]), "preparationLines": simulation_snapshot_module._canonical(snapshot["preparationLines"])},
+            "serializerInput": simulation_snapshot_module._canonical(snapshot["serializerInput"]),
+            "compilerRevision": snapshot["compilerRevision"],
+            "simcRuntimeRevision": snapshot["simcRuntimeRevision"],
+        }
+        snapshot["simulationSnapshotKey"] = simulation_snapshot_module._hash("simulation-snapshot-v2:sha256:", identity)
+        snapshot["rowHash"] = simulation_snapshot_module._hash("sha256:", {field: value for field, value in snapshot.items() if field not in {"rowHash", "originCatalogRevision"}})
+        self.assertIn("SIMULATION_V2_RUNTIME_CONTEXT_MISMATCH", verify_simulation_snapshot_v2(snapshot, resolved_loadout=loadout, authority_bundles=bundles))
+
     def test_v2_failure_uses_v2_schema(self):
         """Would fail if v2 errors returned a v1 envelope."""
         result = build_simulation_snapshot_v2(
