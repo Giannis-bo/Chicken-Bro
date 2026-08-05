@@ -1,6 +1,6 @@
 # 装备模拟 Canonical Kernel 重设计
 
-状态：`已完成（仅 pure Canonical foundation 与 source change-control final whole-branch PASS/APPROVED；replacement Task 3A 当前 candidate_rerun_required / evidence_promotion_blocked：第四次 t3a260805120026 因 main migration 漂移 superseded，第五次 t3a260805125812 虽通过 0030 但因 exact source 的 direct-server runtime import 回归失效；五对十库不可复用，必须第六次新 run-id/双库重跑；原 Task 3 继续停止）`
+状态：`已完成（仅 pure Canonical foundation 与 source change-control final whole-branch PASS/APPROVED；replacement Task 3A 当前 candidate_rerun_required / evidence_promotion_blocked：第四次 t3a260805120026 因 main migration 漂移 superseded，第五次 t3a260805125812 因 direct-server runtime import 回归失效，第六次 t3a260805142130 虽通过 0030 与独立审计但 frozen HEAD 的 owner lifecycle test 回归使其为 runtime_passed_unpromotable_evidence_lifecycle_test_regression；六对十二库不可复用，必须第七次新 run-id/双库重跑；原 Task 3 继续停止）`
 
 **当前 replacement:** [Canonical Ownership Change-Control Plan](2026-08-04-equipment-simulator-canonical-owner-change-control.md) 与 [重复 Effect Subject 语义纠偏](2026-08-04-equipment-simulator-duplicate-effect-subject-correction.md) 已完成。Task 1 的 gate 只声明 `source_change_control_only`；final whole-branch re-review 为 PASS/APPROVED、0 findings。原 Task 3 readiness 已判定 `NOT_READY`，由 [Exact-first 持久化与运行链重排计划](2026-08-04-equipment-simulator-exact-first-persistence-resequence.md) forward-replace；replacement Task 3A 的独立复审已通过，但在双真实 PG candidate 前仍不得完成或启动 Task 4P+。
 

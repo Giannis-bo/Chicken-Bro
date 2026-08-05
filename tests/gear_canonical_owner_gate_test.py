@@ -12,9 +12,14 @@ from server.gear_contracts import CANONICAL_GEAR_SLOTS
 
 
 ROOT = Path(__file__).resolve().parents[1]
+FOURTH_CANDIDATE_PARENT_COMMIT = "8497feaafa2ee0570fe0e4aea252d9173a831623"
+FOURTH_CANDIDATE_CANONICAL_SHA256 = "053eb5a4b08a9def703b5e319fcd004e18a14b0681f336a5ad99a09388e62d80"
+FOURTH_ATTESTATION_SHA256 = "6f5c2a8d6c7619c4b5ff03f320bcf4be5febcc8659977f0837331f48e03962f3"
 FIFTH_CANDIDATE_PARENT_COMMIT = "f2d4bca16a8d806cfcff2a4cfdb31f6e90de4174"
 FIFTH_CANDIDATE_CANONICAL_SHA256 = "a3bf169c8bf19e4ad8e496f377248c14d39be214c64cc801fa949e2195c7408b"
 FIFTH_ATTESTATION_SHA256 = "1700b25d061f112f348addcc7d15de36eba68b8c56a6d33b55135a178744139e"
+SIXTH_CANDIDATE_REPORT_SHA256 = "bd270a780ff8935da789cbdee4522b4a7cc422135a3557eaad91af18c5bb7026"
+SIXTH_ATTESTATION_SHA256 = "17c20e3d9a8ff538b8029b907d84f2c0e44987a5ce2053be916534b664043711"
 REGISTRY_PATH = ROOT / "tests/fixtures/gear_canonical_owner_registry.json"
 TARGETS = frozenset({
     "server/gear_exact_item_instance.py",
@@ -3942,31 +3947,98 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
             / "artifacts/releases/2026-08-04-equipment-simulator-exact-first/evidence.json"
         ).read_text(encoding="utf-8"))
 
+        def assert_lifecycle_semantics(packet):
+            stage = packet["status"]
+            self.assertIn(
+                stage,
+                {"implementation_allowed", "local_verified", "runtime_verified"},
+            )
+            self.assertEqual(stage, packet["highestEvidenceLevel"])
+            identities = packet["identities"]
+            candidate = packet["candidateDeployment"]
+            self.assertEqual("pending", identities["closure"]["status"])
+
+            if stage in {"implementation_allowed", "local_verified"}:
+                self.assertEqual("pending", identities["runtime"]["status"])
+                self.assertEqual("candidate_pending", candidate["status"])
+                self.assertIsNone(candidate["runId"])
+                self.assertIsNone(candidate["freshDatabase"])
+                self.assertIsNone(candidate["upgradeDatabase"])
+                next_candidate = packet["nextCandidate"]
+                self.assertEqual("candidate_pending", next_candidate["status"])
+                self.assertEqual(candidate["ordinal"], next_candidate["ordinal"])
+                self.assertEqual(candidate["migration"], next_candidate["migration"])
+                self.assertEqual(
+                    candidate["attestationSchema"],
+                    next_candidate["attestationSchema"],
+                )
+                self.assertIsNone(next_candidate["runId"])
+                self.assertIsNone(next_candidate["freshDatabase"])
+                self.assertIsNone(next_candidate["upgradeDatabase"])
+                if stage == "implementation_allowed":
+                    self.assertEqual("pending", identities["verification"]["status"])
+                else:
+                    self.assertEqual(
+                        "bound_at_check", identities["verification"]["status"]
+                    )
+                    self.assertEqual("git_ref", identities["verification"]["kind"])
+                    self.assertEqual("HEAD", identities["verification"]["value"])
+                    self.assertRegex(packet["commit"], r"^[0-9a-f]{40}$")
+                return
+
+            self.assertEqual("candidate_verified", candidate["status"])
+            self.assertEqual("bound", identities["runtime"]["status"])
+            self.assertEqual("git_commit", identities["runtime"]["kind"])
+            self.assertEqual(candidate["commit"], identities["runtime"]["value"])
+            self.assertEqual(candidate["gitTree"], identities["runtime"]["gitTree"])
+            self.assertEqual(candidate["commit"], packet["commit"])
+            self.assertEqual("bound_at_check", identities["verification"]["status"])
+            self.assertEqual("git_ref", identities["verification"]["kind"])
+            self.assertEqual("HEAD", identities["verification"]["value"])
+            self.assertIsNone(packet["nextCandidate"])
+            attestation = candidate["attestation"]
+            self.assertTrue(attestation["passed"])
+            self.assertEqual(candidate["runId"], attestation["runId"])
+            self.assertEqual(candidate["commit"], attestation["gitCommit"])
+            self.assertEqual(candidate["gitTree"], attestation["gitTree"])
+            self.assertEqual(
+                candidate["migration0030Sha256"],
+                attestation["migration0030Sha256"],
+            )
+            self.assertEqual(
+                "task3a-candidate-attestation-v2", attestation["schemaVersion"]
+            )
+            for flavor in ("freshDatabase", "upgradeDatabase"):
+                self.assertEqual(candidate[flavor]["name"], attestation[flavor]["name"])
+                self.assertEqual(
+                    candidate[flavor]["comment"], attestation[flavor]["comment"]
+                )
+            self.assertEqual("pass", candidate["smoke"]["status"])
+            self.assertEqual("not_applicable", candidate["endpointSmoke"]["status"])
+            self.assertEqual("not_applicable", candidate["timerBackflow"]["status"])
+            self.assertEqual("not_applicable", candidate["productionMigration"]["status"])
+            self.assertEqual(
+                "not_applicable", candidate["productionRuntimeConsumer"]["status"]
+            )
+            self.assertFalse(candidate["asyncSyncStart"])
+            self.assertFalse(candidate["publicPointerChange"])
+            self.assertFalse(candidate["productionDatabaseWrite"])
+
+        assert_lifecycle_semantics(evidence)
         self.assertEqual("implementation_allowed", evidence["status"])
-        self.assertEqual("implementation_allowed", evidence["highestEvidenceLevel"])
-        self.assertEqual("pending", evidence["identities"]["runtime"]["status"])
-        self.assertEqual("pending", evidence["identities"]["verification"]["status"])
-        self.assertEqual("pending", evidence["identities"]["closure"]["status"])
-        self.assertEqual("candidate_pending", evidence["candidateDeployment"]["status"])
-        self.assertEqual(6, evidence["candidateDeployment"]["ordinal"])
+        self.assertEqual(7, evidence["candidateDeployment"]["ordinal"])
         self.assertEqual("0030", evidence["candidateDeployment"]["migration"])
         self.assertEqual(
             "task3a-candidate-attestation-v2",
             evidence["candidateDeployment"]["attestationSchema"],
         )
-        self.assertIn("t3a260805125812", evidence["candidateDeployment"]["forbiddenRunIds"])
-        self.assertIsNone(evidence["candidateDeployment"]["runId"])
-        self.assertIsNone(evidence["candidateDeployment"]["freshDatabase"])
-        self.assertIsNone(evidence["candidateDeployment"]["upgradeDatabase"])
-        self.assertIsNone(evidence["nextCandidate"]["runId"])
-        self.assertIsNone(evidence["nextCandidate"]["freshDatabase"])
-        self.assertIsNone(evidence["nextCandidate"]["upgradeDatabase"])
         expected_run_ids = [
             "t3a2608050955",
             "t3a260805111623",
             "t3a260805113656",
             "t3a260805120026",
             "t3a260805125812",
+            "t3a260805142130",
         ]
         expected_databases = [
             f"wow_exact_first_{kind}_test_{run_id}"
@@ -3987,7 +4059,41 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
             "runtime_passed_invalidated_by_direct_runtime_import_regression",
             fifth["status"],
         )
-        archived_fifth = evidence["historicalCandidateEvidence"][-1]
+        sixth = next(
+            candidate
+            for candidate in evidence["candidateHistory"]
+            if candidate["runId"] == "t3a260805142130"
+        )
+        self.assertEqual(
+            "runtime_passed_unpromotable_evidence_lifecycle_test_regression",
+            sixth["status"],
+        )
+        canonical = lambda value: json.dumps(
+            value, ensure_ascii=True, separators=(",", ":"), sort_keys=True
+        ).encode("utf-8")
+        fourth_parent = subprocess.run(
+            [
+                "git", "show",
+                f"{FOURTH_CANDIDATE_PARENT_COMMIT}:artifacts/releases/2026-08-04-equipment-simulator-exact-first/evidence.json",
+            ],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        parent_fourth = json.loads(fourth_parent.stdout)["candidateDeployment"]
+        archived_fourth = evidence["historicalCandidateEvidence"][0]
+        self.assertEqual(
+            FOURTH_CANDIDATE_CANONICAL_SHA256,
+            hashlib.sha256(canonical(parent_fourth)).hexdigest(),
+        )
+        self.assertEqual(parent_fourth, archived_fourth)
+        self.assertEqual(
+            FOURTH_ATTESTATION_SHA256,
+            hashlib.sha256(archived_fourth["attestationJsonLine"].encode("utf-8")).hexdigest(),
+        )
+
+        archived_fifth = evidence["historicalCandidateEvidence"][-2]
         self.assertEqual("t3a260805125812", archived_fifth["runId"])
         self.assertEqual(
             "wow_exact_first_fresh_test_t3a260805125812",
@@ -4012,9 +4118,6 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
             check=True,
         )
         parent_fifth = json.loads(parent.stdout)["candidateDeployment"]
-        canonical = lambda value: json.dumps(
-            value, ensure_ascii=True, separators=(",", ":"), sort_keys=True
-        ).encode("utf-8")
         self.assertEqual(
             FIFTH_CANDIDATE_CANONICAL_SHA256,
             hashlib.sha256(canonical(parent_fifth)).hexdigest(),
@@ -4029,6 +4132,117 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
             parent_fifth["attestationJsonLine"], archived_fifth["attestationJsonLine"]
         )
         self.assertEqual(parent_fifth["attestation"], archived_fifth["attestation"])
+        archived_sixth = evidence["historicalCandidateEvidence"][-1]
+        self.assertEqual("t3a260805142130", archived_sixth["runId"])
+        self.assertEqual(
+            {
+                "path": ".superpowers/sdd/2026-08-04-equipment-simulator-exact-first-persistence-resequence/task-3A-sixth-cloud-candidate-report.md",
+                "sha256": SIXTH_CANDIDATE_REPORT_SHA256,
+            },
+            archived_sixth["evidenceSource"],
+        )
+        self.assertEqual("9f67ec2f72f59dc1def7b035fc4d9da27b8802b5", archived_sixth["commit"])
+        self.assertEqual("c2a686e6ed8f7a9ff15c82f4e45996636c49d9a7", archived_sixth["gitTree"])
+        self.assertEqual(
+            "41e12fd5b12cac79ed57dde266e4b515b0b731dfcc9c9874d818ddc306f957c3",
+            archived_sixth["migration0030Sha256"],
+        )
+        self.assertEqual(
+            {
+                "remotePath": "/var/tmp/wow-task3a-t3a260805142130.bundle",
+                "localPath": "/tmp/wow-task3a-t3a260805142130.bundle",
+                "bytes": 115856692,
+                "sha256": "6d178dc1d69ad0c184387c819a813fa466d3a972d6591b3a1da3bd7303fec071",
+            },
+            archived_sixth["bundle"],
+        )
+        self.assertEqual(
+            {
+                "exitCode": 0,
+                "wallDurationMs": 3151,
+                "stdoutPath": "/var/tmp/wow-task3a-candidate-t3a260805142130.stdout",
+                "stdoutSha256": "77643e27ef5759b792321aa1edd5b14032bea4e6b2c6e3a5cd57dcfe1480fce8",
+                "stdoutLineCount": 1,
+                "stdoutBytes": 1271,
+                "stderrPath": "/var/tmp/wow-task3a-candidate-t3a260805142130.stderr",
+                "stderrSha256": "5f97d92d64258f4b6985fbaa0b9bb439b5aa9eeea58e4b4c0a80becbe4c9d829",
+                "stderrLineCount": 5,
+                "stderrBytes": 98,
+                "unittestSummary": "Ran 1 test in 3.041s; OK",
+            },
+            archived_sixth["processEvidence"],
+        )
+        self.assertEqual(
+            SIXTH_ATTESTATION_SHA256,
+            hashlib.sha256(archived_sixth["attestationJsonLine"].encode("utf-8")).hexdigest(),
+        )
+        self.assertEqual(archived_sixth["attestationJsonLine"], json.dumps(
+            archived_sixth["attestation"],
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        ))
+        self.assertEqual(14, len(archived_sixth["attestation"]["verifiedChecks"]))
+        self.assertEqual("pass", archived_sixth["postCandidateAudit"]["status"])
+        self.assertEqual("read_only", archived_sixth["postCandidateAudit"]["scope"])
+        self.assertIn(
+            "All 12 exact database identities",
+            archived_sixth["postCandidateAudit"]["databaseIdentity"],
+        )
+        for flavor, seeded_rows in (("fresh", 0), ("upgrade", 1)):
+            audit = archived_sixth["postCandidateAudit"][flavor]
+            self.assertEqual(30, audit["migrationLedger"]["total"])
+            self.assertEqual(1, audit["migrationLedger"]["migration0003Rows"])
+            self.assertEqual(1, audit["migrationLedger"]["migration0030Rows"])
+            self.assertEqual(20, audit["authorityCounts"]["canonicalDocuments"])
+            self.assertEqual(10, audit["authorityCounts"]["effectAggregateRecords"])
+            self.assertEqual(3, audit["authorityCounts"]["exactAuthorityBundles"])
+            self.assertEqual(seeded_rows, audit["authorityCounts"]["seededV1Rows"])
+            self.assertEqual(
+                {
+                    "select": True,
+                    "insert": False,
+                    "update": False,
+                    "delete": False,
+                    "truncate": False,
+                },
+                audit["wowAppPrivileges"],
+            )
+        self.assertEqual("pass", archived_sixth["smoke"]["status"])
+        self.assertFalse(archived_sixth["asyncSyncStart"])
+        self.assertFalse(archived_sixth["publicPointerChange"])
+        self.assertFalse(archived_sixth["productionDatabaseWrite"])
+
+        local_fixture = copy.deepcopy(evidence)
+        local_fixture["status"] = "local_verified"
+        local_fixture["highestEvidenceLevel"] = "local_verified"
+        local_fixture["commit"] = "9f67ec2f72f59dc1def7b035fc4d9da27b8802b5"
+        local_fixture["identities"]["verification"] = {
+            "status": "bound_at_check",
+            "kind": "git_ref",
+            "value": "HEAD",
+        }
+        assert_lifecycle_semantics(local_fixture)
+
+        runtime_fixture = copy.deepcopy(evidence)
+        runtime_fixture["status"] = "runtime_verified"
+        runtime_fixture["highestEvidenceLevel"] = "runtime_verified"
+        runtime_fixture["commit"] = archived_sixth["commit"]
+        runtime_fixture["identities"]["runtime"] = {
+            "status": "bound",
+            "kind": "git_commit",
+            "value": archived_sixth["commit"],
+            "gitTree": archived_sixth["gitTree"],
+        }
+        runtime_fixture["identities"]["verification"] = {
+            "status": "bound_at_check",
+            "kind": "git_ref",
+            "value": "HEAD",
+        }
+        runtime_fixture["candidateDeployment"] = copy.deepcopy(archived_sixth)
+        runtime_fixture["candidateDeployment"]["status"] = "candidate_verified"
+        runtime_fixture["nextCandidate"] = None
+        assert_lifecycle_semantics(runtime_fixture)
         self.assertEqual(
             {
                 "pr": "#114",
@@ -4043,7 +4257,7 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
             },
             evidence["historicalFailureEvidence"],
         )
-        self.assertEqual("candidate_pending", evidence["nextCandidate"]["status"])
+        self.assertEqual(7, evidence["nextCandidate"]["ordinal"])
 
 
 if __name__ == "__main__":

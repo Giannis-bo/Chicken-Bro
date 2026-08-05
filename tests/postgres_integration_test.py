@@ -27,6 +27,7 @@ TASK_3A_FORBIDDEN_RUN_IDS = frozenset({
     "t3a260805113656",
     "t3a260805120026",
     "t3a260805125812",
+    "t3a260805142130",
 })
 
 
@@ -129,6 +130,7 @@ class Task3ACandidateAttestationTest(unittest.TestCase):
                 "t3a260805113656",
                 "t3a260805120026",
                 "t3a260805125812",
+                "t3a260805142130",
             }),
         )
 
@@ -140,6 +142,8 @@ class Task3ACandidateAttestationTest(unittest.TestCase):
             "t3a260805111623",
             "t3a260805113656",
             "t3a260805120026",
+            "t3a260805125812",
+            "t3a260805142130",
             "BAD",
             "short",
             "a" * 33,

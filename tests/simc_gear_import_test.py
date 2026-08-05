@@ -201,7 +201,7 @@ class SimcGearImportTest(unittest.TestCase):
         for slice_ in requirement_payload["releaseSlices"]:
             self.assertIn(f"## {slice_['planHeading']}", plan_text)
 
-    def test_reachable_canonical_plan_summaries_require_sixth_candidate_after_direct_runtime_fix(self):
+    def test_reachable_canonical_plan_summaries_require_seventh_candidate_after_lifecycle_fix(self):
         root = Path(__file__).resolve().parents[1]
         plan_index = (root / "docs/plans/README.md").read_text(encoding="utf-8")
         summaries = (
@@ -222,8 +222,9 @@ class SimcGearImportTest(unittest.TestCase):
                 )
                 self.assertIn("t3a260805120026", top_level)
                 self.assertIn("t3a260805125812", top_level)
+                self.assertIn("t3a260805142130", top_level)
                 self.assertIn("0030", top_level)
-                self.assertIn("第六次", top_level)
+                self.assertIn("第七次", top_level)
 
 
 if __name__ == "__main__":

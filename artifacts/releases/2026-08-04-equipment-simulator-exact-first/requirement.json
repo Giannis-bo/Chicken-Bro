@@ -11,7 +11,7 @@
     "不改写 generation 35、Catalog/Manifest pointer、selection-intent-v1 或既有 canonical bytes/key。",
     "不将原始插件导出文本写入数据库、artifact、日志、template、queue 或公开 payload。",
     "不在新的 fresh/upgrade 两个真实 disposable PostgreSQL candidate 均通过之前声称 Task 3A 完成、release-ready 或 production-ready。",
-    "不重置、复用或修改 run t3a2608050955、t3a260805111623、t3a260805113656、t3a260805120026 或 t3a260805125812 的任一 candidate 数据库；前两次是 migration-chain failed runs，第三次因 requirement gate 错误而不可晋升，第四次因 origin/main migration 漂移失效，第五次虽通过最终 0030 PostgreSQL 链但其 exact candidate source 含 direct-server runtime import 回归并被后续代码修复失效；不通过跳过 0003、吞掉 duplicate_object、ledger reconciliation、预删 target constraint、改写 0001、retro migration 或追加修复迁移绕过 0030 完整链。"
+    "不重置、复用或修改 run t3a2608050955、t3a260805111623、t3a260805113656、t3a260805120026、t3a260805125812 或 t3a260805142130 的任一 candidate 数据库；前两次是 migration-chain failed runs，第三次因 requirement gate 错误而不可晋升，第四次因 origin/main migration 漂移失效，第五次因 direct-server runtime import 回归失效，第六次虽通过 PostgreSQL 与独立只读审计但 frozen HEAD 的 current-truth owner test 因硬编码 lifecycle status 失败，修正 test/requirement/owner 后不可晋升；不通过跳过 0003、吞掉 duplicate_object、ledger reconciliation、预删 target constraint、改写 0001、retro migration 或追加修复迁移绕过 0030 完整链。"
   ],
   "currentTruth": {
     "sources": [
@@ -78,7 +78,7 @@
       "Candidate evidence binds the final runtime-affecting commit SHA, its Git tree SHA and 0030 migration file SHA-256 to both database identities and all recorded smoke results; Harness verification identity separately binds the final PR HEAD",
       "Focused/full Canonical regressions, owner gate, existing v1 store/snapshot regressions, Node owner maps, Harness requirement, JSON, pycompile and diff checks",
       "Independent Task 3A spec and code-quality review PASS/APPROVED with zero unresolved findings",
-      "Direct-server runtime import regressions for gear_runtime and postgres_cache_store must pass before the sixth candidate source is frozen."
+      "Direct-server runtime import regressions for gear_runtime and postgres_cache_store plus the semantic implementation_allowed/local_verified/runtime_verified owner lifecycle gate must pass before the seventh candidate source is frozen."
     ]
   },
   "ownership": {
@@ -122,7 +122,7 @@
   },
   "engineeringHealth": {
     "status": "task3a_candidate_rerun_required_evidence_promotion_blocked",
-    "reason": "The fifth candidate t3a260805125812 genuinely passed the final integrated 0030 PostgreSQL chain and independent promotion review, but PR #114 full-profile CI exposed a direct-server runtime import regression in its exact candidate source: gear_canonical_kernel imported server.gear_contracts when server/ itself was the runtime working directory. Correcting that source plus the forbidden-run, requirement and owner contracts is candidate-invalidating. Evidence returns to implementation_allowed / candidate_pending and engineering truth is candidate_rerun_required / evidence_promotion_blocked. The fourth run t3a260805120026 remains runtime_passed_superseded_by_main_integration; the fifth remains runtime_passed_invalidated_by_direct_runtime_import_regression. All five run-id pairs and ten databases are immutable/non-reusable. A sixth new run-id and two new databases are mandatory; runtimeConsumers remains empty and original Task 3 stays stopped."
+    "reason": "The sixth candidate t3a260805142130 genuinely passed the final integrated 0030 PostgreSQL chain and independent read-only audit from exact frozen commit 9f67ec2f/tree c2a686e6, but that same HEAD failed the current-truth owner test because it hard-coded evidence.status=implementation_allowed after the authorized local_verified transition. PostgreSQL was not the cause. Correcting the lifecycle test plus requirement and owner contracts is candidate-invalidating. Evidence is implementation_allowed / candidate_pending and engineering truth remains candidate_rerun_required / evidence_promotion_blocked. The fourth run t3a260805120026 remains runtime_passed_superseded_by_main_integration; the fifth t3a260805125812 remains runtime_passed_invalidated_by_direct_runtime_import_regression; the sixth is runtime_passed_unpromotable_evidence_lifecycle_test_regression. All six run-id pairs and twelve databases are immutable/non-reusable. A seventh new run-id and two new databases are mandatory; runtimeConsumers remains empty and original Task 3 stays stopped."
   },
   "dataPrivacyBoundary": {
     "rawPluginText": "ephemeral parser input only; it must not be persisted, logged, templated, queued, included in artifact evidence, or returned in output payloads.",
@@ -130,8 +130,8 @@
   },
   "candidateDeployment": {
     "required": true,
-    "beforeMerge": "Runs t3a2608050955 and t3a260805111623 failed before the former 0026 authority migration; t3a260805113656 passed runtime but was unpromotable; t3a260805120026 passed the former 0026 chain but was superseded by origin/main migration 0026-0029; t3a260805125812 passed the integrated 0030 chain but its exact source later failed the direct-server runtime full-profile gate. All five database pairs are immutable historical evidence and never candidate targets. At the next committed final runtime-affecting head with a clean tree and requirement.status=implementation_allowed, record commit SHA, Git tree SHA and 0030 file SHA-256; use a sixth new run-id and two newly operator-provisioned empty disposable PostgreSQL databases with exact comments. Prove fresh 0001-to-0030 and upgrade 0001-to-0029 plus seeded frozen v1 rows to 0030; both must end with exactly one target config-hash constraint, one 0003 ledger row, one 0030 ledger row and 30 total ledger rows, then run bundle/grant/concurrency smoke and emit task3a-candidate-attestation-v2. After that candidate, only evidence.json, manifest.json and task-status documentation may change; any code, test, migration, requirement or owner-contract change invalidates it and requires another rerun. Harness verification identity binds the later final PR HEAD. Endpoint smoke and timer/backflow remain explicitly not_applicable. No production migration is authorized.",
-    "rollback": "Task code rollback plus preservation of all five exact historical candidate database pairs through evidence.json/manifest.json archival and review. Only after archival may the operator discard explicitly identified disposable identities through the runbook; no production data, generation 35, Catalog/Manifest pointer or service state is changed."
+    "beforeMerge": "Runs t3a2608050955 and t3a260805111623 failed before the former 0026 authority migration; t3a260805113656 passed runtime but was unpromotable; t3a260805120026 passed the former 0026 chain but was superseded by origin/main migration 0026-0029; t3a260805125812 passed the integrated 0030 chain but its source later failed direct-server runtime; t3a260805142130 passed PostgreSQL and independent audit but its frozen HEAD failed the owner lifecycle gate. All six database pairs are immutable historical evidence and never candidate targets. At the next committed final runtime-affecting head with a clean tree and requirement.status=implementation_allowed, record commit SHA, Git tree SHA and 0030 file SHA-256; use a seventh new run-id and two newly operator-provisioned empty disposable PostgreSQL databases with exact comments. Prove fresh 0001-to-0030 and upgrade 0001-to-0029 plus seeded frozen v1 rows to 0030; both must end with exactly one target config-hash constraint, one 0003 ledger row, one 0030 ledger row and 30 total ledger rows, then run bundle/grant/concurrency smoke and emit task3a-candidate-attestation-v2. After that candidate, only evidence.json, manifest.json and task-status documentation may change; any code, test, migration, requirement or owner-contract change invalidates it and requires another rerun. Harness verification identity binds the later final PR HEAD. Endpoint smoke and timer/backflow remain explicitly not_applicable. No production migration is authorized.",
+    "rollback": "Task code rollback plus preservation of all six exact historical candidate database pairs through evidence.json/manifest.json archival and review. Only after archival may the operator discard explicitly identified disposable identities through the runbook; no production data, generation 35, Catalog/Manifest pointer or service state is changed."
   },
   "acceptanceEvidence": [
     "Every stored document retains exact canonical bytes; PostgreSQL independently verifies SHA-256, key prefix and JSON projection while typed reload verifies lexical canonical form and domain bindings.",
@@ -139,14 +139,14 @@
     "Batch loads preserve input order and multiplicity exactly, including A-B-A; Exact-key latest lookup and Catalog-derived substitution do not exist.",
     "wow_app can only read the three new authority tables; it cannot insert, update, delete or truncate. No worker, job, API, UI, Resolver, service or runtime consumer is activated.",
     "Fresh and upgrade PostgreSQL candidates start from independently proven empty databases and preserve all seeded v1 bytes, keys and row hashes.",
-    "Both sixth-run candidates identify the same final runtime-affecting commit, its Git tree and 0030 SHA-256; the final PR HEAD is separately bound by Harness verification identity, and service endpoint smoke plus timer/backflow are recorded as not_applicable rather than silently omitted.",
+    "Both seventh-run candidates identify the same final runtime-affecting commit, its Git tree and 0030 SHA-256; the final PR HEAD is separately bound by Harness verification identity, and service endpoint smoke plus timer/backflow are recorded as not_applicable rather than silently omitted.",
     "The registry remains five targets and nine exemptions with proofClaim source_change_control_only; the independent store import gate prevents direct Kernel-private, validator, serializer or Catalog imports."
   ],
   "manualAcceptanceContract": {
     "required": false,
     "requiredItemIds": []
   },
-  "closureCondition": "Task 3A may close only after origin/main integration, 0030 migration identity correction, local typed-reload/store/SQL/Canonical/v1/direct-server-runtime verification, a sixth new run-id-bound empty PostgreSQL fresh/upgrade pair executed while this requirement is implementation_allowed, frozen v1/v2 identity proof, Harness evidence/manifest promotion and independent scoped PASS/APPROVED review are simultaneously present. Runs t3a2608050955, t3a260805111623, t3a260805113656, t3a260805120026 and t3a260805125812 and all ten associated databases are never reusable; until the sixth pair passes and is promotable, status remains literal candidate_rerun_required / evidence_promotion_blocked. Original Task 3 and all Task 4P+ runtime stages stay inactive.",
+  "closureCondition": "Task 3A may close only after origin/main integration, 0030 migration identity correction, corrected-source local typed-reload/store/SQL/Canonical/v1/direct-server-runtime/lifecycle-gate verification, a seventh new run-id-bound empty PostgreSQL fresh/upgrade pair executed while this requirement is implementation_allowed, frozen v1/v2 identity proof, Harness evidence/manifest promotion and independent scoped PASS/APPROVED review are simultaneously present. Runs t3a2608050955, t3a260805111623, t3a260805113656, t3a260805120026, t3a260805125812 and t3a260805142130 and all twelve associated databases are never reusable; until the seventh pair passes and is promotable, status remains literal candidate_rerun_required / evidence_promotion_blocked. Original Task 3 and all Task 4P+ runtime stages stay inactive.",
   "releaseTrigger": "pg_read_model",
   "rollback": [
     "code_rollback",
@@ -225,6 +225,10 @@
     {
       "date": "2026-08-05",
       "decision": "第五次 candidate t3a260805125812 在 clean commit a4c0fd04b39577838ad4fb7a0e3c54b8e0205c30 / tree aa0908eb8214d9572fc604e3399321c5d6eb3754 上真实通过最终 0030 双 PostgreSQL 链及 promotion review，但 PR #114 full profile 发现其源码在 direct server runtime 模式下以 server.gear_contracts 硬编码导入，导致 gear_runtime/postgres_cache_store 启动失败。修复 gear_canonical_kernel 导入与禁止复用第五 run-id 属于 code/test/requirement/owner candidate-invalidating 变化，因此第五次降为 runtime_passed_invalidated_by_direct_runtime_import_regression；十库全部 immutable/non-reusable，必须第六次新 run-id、新双库重跑。"
+    },
+    {
+      "date": "2026-08-05",
+      "decision": "第六次 candidate t3a260805142130 在 exact frozen commit 9f67ec2f72f59dc1def7b035fc4d9da27b8802b5 / tree c2a686e6ed8f7a9ff15c82f4e45996636c49d9a7 上真实通过最终 0030 双 PostgreSQL 链和独立只读审计，但同一 frozen HEAD 的 current-truth owner test 因硬编码 evidence.status=implementation_allowed、无法容纳已授权的 local_verified transition 而失败。PostgreSQL 不是原因。修正 test/requirement/owner 明确使第六次不可晋升，状态为 runtime_passed_unpromotable_evidence_lifecycle_test_regression；六个 run 的十二库全部 immutable/non-reusable，current evidence 为 implementation_allowed / candidate_pending，必须第七次新 run-id、新双库重跑。"
     }
   ]
 }

@@ -2,24 +2,22 @@
   "schemaVersion": 2,
   "slug": "equipment-simulator-exact-first",
   "requirementSlug": "equipment-simulator-exact-first",
-  "status": "local_verified",
-  "highestEvidenceLevel": "local_verified",
+  "status": "implementation_allowed",
+  "highestEvidenceLevel": "implementation_allowed",
   "branch": "codex/equipment-simulator-exact-first-implementation",
-  "commit": "87ba835f20bc0ca9eb762419a08b9be4ee54057a",
+  "commit": "pending_final_runtime_head",
   "identities": {
     "runtime": {
       "status": "pending",
-      "reason": "The fifth runtime identity is historical-only after the direct-server import correction; the sixth candidate must bind a new final runtime head."
+      "reason": "The sixth runtime identity is historical-only after the evidence-lifecycle owner-test correction; the seventh candidate must bind a new final runtime head."
     },
     "verification": {
-      "status": "bound_at_check",
-      "kind": "git_ref",
-      "value": "HEAD",
-      "reason": "The controller ran the exact full local profile from clean tested HEAD 87ba835f20bc0ca9eb762419a08b9be4ee54057a; this binds local verification only, not the sixth runtime candidate."
+      "status": "pending",
+      "reason": "The corrected lifecycle gate and current-truth packet require a new full local profile before verification may be rebound."
     },
     "closure": {
       "status": "pending",
-      "reason": "Task 3A remains blocked on a sixth fresh/upgrade candidate, later evidence promotion and Harness closure."
+      "reason": "Task 3A remains blocked on corrected-source local verification, a seventh fresh/upgrade candidate, later evidence promotion and Harness closure."
     }
   },
   "manualAcceptance": {
@@ -37,7 +35,7 @@
   "scope": [
     "Six exact-bytes typed Canonical reload boundaries",
     "Append-only Exact Authority Bundle PostgreSQL persistence through current migration 0030",
-    "Fifth-run PostgreSQL attestation is immutable historical evidence; a sixth fresh 0001-to-0030 and upgrade 0001-to-0029-seed-to-0030 candidate is mandatory before promotion",
+    "Sixth-run PostgreSQL attestation is immutable historical evidence; a seventh fresh 0001-to-0030 and upgrade 0001-to-0029-seed-to-0030 candidate is mandatory before promotion",
     "No runtime consumer, service, API, UI, Catalog, Manifest pointer or production database activation"
   ],
   "verification": [
@@ -48,13 +46,13 @@
     },
     {
       "command": "node scripts/verify-project.js --profile full --release-from-changes --base origin/main",
-      "status": "pass",
-      "summary": "Exit 0 at clean tested HEAD 87ba835f20bc0ca9eb762419a08b9be4ee54057a: status=project_verification_passed, profile=full, release=artifacts/releases/2026-08-04-equipment-simulator-exact-first, commands=173; Node 747/747 pass; Python 2716 OK with 2 expected real-PostgreSQL candidate-environment skips; compileall/typecheck/ESLint max-warnings=0 pass; Vitest 54 files/437 pass; UI architecture 14 routes/14 contracts/283 checks/0 findings; UI asset integrity 6 collections/69 assets/138 files/0 failures; UI package mechanics pass with production readiness intentionally partial; Harness project_harness_check_passed; git diff --check pass. The first missing-dependency attempt was local setup history only; no dependency was installed or downloaded, and the full command was rerun from the beginning through the intentional existing dependency symlinks."
+      "status": "not_run",
+      "summary": "Historical local verification passed at clean tested HEAD 87ba835f20bc0ca9eb762419a08b9be4ee54057a, but the later lifecycle-gate test and control-plane correction invalidates that verification identity. A new corrected-source full profile is pending."
     }
   ],
   "candidateDeployment": {
     "status": "candidate_pending",
-    "ordinal": 6,
+    "ordinal": 7,
     "migration": "0030",
     "attestationSchema": "task3a-candidate-attestation-v2",
     "requiredBeforeMerge": true,
@@ -68,7 +66,8 @@
       "t3a260805111623",
       "t3a260805113656",
       "t3a260805120026",
-      "t3a260805125812"
+      "t3a260805125812",
+      "t3a260805142130"
     ],
     "forbiddenDatabases": [
       "wow_exact_first_fresh_test_t3a2608050955",
@@ -80,13 +79,15 @@
       "wow_exact_first_fresh_test_t3a260805120026",
       "wow_exact_first_upgrade_test_t3a260805120026",
       "wow_exact_first_fresh_test_t3a260805125812",
-      "wow_exact_first_upgrade_test_t3a260805125812"
+      "wow_exact_first_upgrade_test_t3a260805125812",
+      "wow_exact_first_fresh_test_t3a260805142130",
+      "wow_exact_first_upgrade_test_t3a260805142130"
     ],
-    "reason": "The fifth candidate is immutable historical evidence but invalid for current promotion because its exact source failed direct-server startup. A new run id and two newly operator-provisioned empty disposable databases are mandatory; do not invent them before the sixth candidate."
+    "reason": "The sixth candidate is immutable historical evidence but unpromotable because its exact frozen HEAD failed the current-truth owner lifecycle test. A new run id and two newly operator-provisioned empty disposable databases are mandatory; do not invent them before the seventh candidate."
   },
   "historicalCandidateEvidence": [
     {
-      "status": "superseded",
+      "status": "candidate_verified",
       "requiredBeforeMerge": true,
       "branch": "codex/equipment-simulator-exact-first-implementation",
       "commit": "9ffd57b05ab97be880daf65425d6de9e26609e32",
@@ -252,10 +253,10 @@
       "asyncSyncStart": false,
       "publicPointerChange": false,
       "productionDatabaseWrite": false,
-      "reason": "The fourth run genuinely passed the former 0026 chain while implementation_allowed, but origin/main subsequently occupied 0026-0029. Moving Task 3A to 0030 changes the migration path, ledger identity, SHA, complete chain, tests and owner contracts, so this candidate is historical only and cannot be promoted for the integrated tree."
+      "reason": "The fourth, new run-id-bound fresh/upgrade pair passed while the frozen requirement was implementation_allowed, so Task 3A has promotable runtime candidate evidence without production activation."
     },
     {
-      "status": "runtime_passed_invalidated_by_direct_runtime_import_regression",
+      "status": "candidate_verified",
       "requiredBeforeMerge": true,
       "branch": "codex/equipment-simulator-exact-first-implementation",
       "commit": "a4c0fd04b39577838ad4fb7a0e3c54b8e0205c30",
@@ -423,7 +424,169 @@
       "asyncSyncStart": false,
       "publicPointerChange": false,
       "productionDatabaseWrite": false,
-      "reason": "The fifth clean integrated 0030 candidate genuinely passed with its immutable attestation-v2, but PR #114 full-profile run 30977816268/job 92215539827 later exposed the direct-server import regression in its exact source. Its full historical evidence and integrity anchors remain immutable; it cannot promote the corrected tree and requires the sixth new run-id/new-database pair."
+      "reason": "The fifth clean integrated 0030 candidate passed with a promotable attestation-v2, and independent evidence-promotion re-review passed with no remaining findings. This binds runtime evidence only; branch publication, CI, merge/archive closure and resource cleanup remain pending."
+    },
+    {
+      "status": "runtime_passed_unpromotable_evidence_lifecycle_test_regression",
+      "requiredBeforeMerge": true,
+      "branch": "codex/equipment-simulator-exact-first-implementation",
+      "commit": "9f67ec2f72f59dc1def7b035fc4d9da27b8802b5",
+      "gitTree": "c2a686e6ed8f7a9ff15c82f4e45996636c49d9a7",
+      "host": "wow-lighthouse",
+      "runtime": "postgres_only",
+      "runId": "t3a260805142130",
+      "migration": "server/migrations/postgres/0030_websim_exact_authority_bundle.sql",
+      "migration0030Sha256": "41e12fd5b12cac79ed57dde266e4b515b0b731dfcc9c9874d818ddc306f957c3",
+      "evidenceSource": {
+        "path": ".superpowers/sdd/2026-08-04-equipment-simulator-exact-first-persistence-resequence/task-3A-sixth-cloud-candidate-report.md",
+        "sha256": "bd270a780ff8935da789cbdee4522b4a7cc422135a3557eaad91af18c5bb7026"
+      },
+      "freshDatabase": {
+        "name": "wow_exact_first_fresh_test_t3a260805142130",
+        "comment": "wow_exact_first_disposable:t3a260805142130:fresh",
+        "preservationStatus": "preserved_unpromotable_historical_evidence"
+      },
+      "upgradeDatabase": {
+        "name": "wow_exact_first_upgrade_test_t3a260805142130",
+        "comment": "wow_exact_first_disposable:t3a260805142130:upgrade",
+        "preservationStatus": "preserved_unpromotable_historical_evidence"
+      },
+      "candidateSource": {
+        "remotePath": "/var/tmp/wow-task3a-candidate-t3a260805142130",
+        "gitStatus": "clean",
+        "commit": "9f67ec2f72f59dc1def7b035fc4d9da27b8802b5",
+        "gitTree": "c2a686e6ed8f7a9ff15c82f4e45996636c49d9a7"
+      },
+      "bundle": {
+        "remotePath": "/var/tmp/wow-task3a-t3a260805142130.bundle",
+        "localPath": "/tmp/wow-task3a-t3a260805142130.bundle",
+        "bytes": 115856692,
+        "sha256": "6d178dc1d69ad0c184387c819a813fa466d3a972d6591b3a1da3bd7303fec071"
+      },
+      "processEvidence": {
+        "exitCode": 0,
+        "wallDurationMs": 3151,
+        "stdoutPath": "/var/tmp/wow-task3a-candidate-t3a260805142130.stdout",
+        "stdoutSha256": "77643e27ef5759b792321aa1edd5b14032bea4e6b2c6e3a5cd57dcfe1480fce8",
+        "stdoutLineCount": 1,
+        "stdoutBytes": 1271,
+        "stderrPath": "/var/tmp/wow-task3a-candidate-t3a260805142130.stderr",
+        "stderrSha256": "5f97d92d64258f4b6985fbaa0b9bb439b5aa9eeea58e4b4c0a80becbe4c9d829",
+        "stderrLineCount": 5,
+        "stderrBytes": 98,
+        "unittestSummary": "Ran 1 test in 3.041s; OK"
+      },
+      "attestationJsonLine": "{\"freshDatabase\":{\"comment\":\"wow_exact_first_disposable:t3a260805142130:fresh\",\"name\":\"wow_exact_first_fresh_test_t3a260805142130\"},\"gitCommit\":\"9f67ec2f72f59dc1def7b035fc4d9da27b8802b5\",\"gitTree\":\"c2a686e6ed8f7a9ff15c82f4e45996636c49d9a7\",\"migration0030Sha256\":\"41e12fd5b12cac79ed57dde266e4b515b0b731dfcc9c9874d818ddc306f957c3\",\"passed\":true,\"runId\":\"t3a260805142130\",\"schemaVersion\":\"task3a-candidate-attestation-v2\",\"task\":\"equipment-simulator-exact-first-task-3a\",\"upgradeDatabase\":{\"comment\":\"wow_exact_first_disposable:t3a260805142130:upgrade\",\"name\":\"wow_exact_first_upgrade_test_t3a260805142130\"},\"verifiedChecks\":[\"exact_disposable_database_identity_and_empty_preflight\",\"fresh_migrations_0001_through_0030\",\"upgrade_migrations_0001_through_0029_seed_then_0030\",\"v1_full_row_schema_table_default_acl_and_grant_parity\",\"canonical_hash_and_json_projection\",\"six_kind_schema_prefix_closed_matrix\",\"seven_exact_foreign_keys\",\"binding_trigger_first_missing_effect_documents_and_bundle_bindings\",\"three_table_update_delete_truncate_immutability\",\"wow_app_explicit_and_effective_select_only_acl\",\"whole_bundle_typed_readback\",\"absent_row_reverse_shared_effect_concurrency\",\"build_template_0003_semantic_idempotence_and_ledger\",\"unique_0030_migration_ledger_identity\"]}",
+      "attestation": {
+        "freshDatabase": {
+          "comment": "wow_exact_first_disposable:t3a260805142130:fresh",
+          "name": "wow_exact_first_fresh_test_t3a260805142130"
+        },
+        "gitCommit": "9f67ec2f72f59dc1def7b035fc4d9da27b8802b5",
+        "gitTree": "c2a686e6ed8f7a9ff15c82f4e45996636c49d9a7",
+        "migration0030Sha256": "41e12fd5b12cac79ed57dde266e4b515b0b731dfcc9c9874d818ddc306f957c3",
+        "passed": true,
+        "runId": "t3a260805142130",
+        "schemaVersion": "task3a-candidate-attestation-v2",
+        "task": "equipment-simulator-exact-first-task-3a",
+        "upgradeDatabase": {
+          "comment": "wow_exact_first_disposable:t3a260805142130:upgrade",
+          "name": "wow_exact_first_upgrade_test_t3a260805142130"
+        },
+        "verifiedChecks": [
+          "exact_disposable_database_identity_and_empty_preflight",
+          "fresh_migrations_0001_through_0030",
+          "upgrade_migrations_0001_through_0029_seed_then_0030",
+          "v1_full_row_schema_table_default_acl_and_grant_parity",
+          "canonical_hash_and_json_projection",
+          "six_kind_schema_prefix_closed_matrix",
+          "seven_exact_foreign_keys",
+          "binding_trigger_first_missing_effect_documents_and_bundle_bindings",
+          "three_table_update_delete_truncate_immutability",
+          "wow_app_explicit_and_effective_select_only_acl",
+          "whole_bundle_typed_readback",
+          "absent_row_reverse_shared_effect_concurrency",
+          "build_template_0003_semantic_idempotence_and_ledger",
+          "unique_0030_migration_ledger_identity"
+        ]
+      },
+      "postCandidateAudit": {
+        "status": "pass",
+        "scope": "read_only",
+        "gitIdentity": "Candidate repository remained clean at exact branch codex/equipment-simulator-exact-first-implementation, commit 9f67ec2f72f59dc1def7b035fc4d9da27b8802b5 and tree c2a686e6ed8f7a9ff15c82f4e45996636c49d9a7.",
+        "databaseIdentity": "All 12 exact database identities were present and matched their exact comments.",
+        "historicalDatabaseComments": [
+          {"name": "wow_exact_first_fresh_test_t3a2608050955", "comment": "wow_exact_first_disposable:t3a2608050955:fresh"},
+          {"name": "wow_exact_first_upgrade_test_t3a2608050955", "comment": "wow_exact_first_disposable:t3a2608050955:upgrade"},
+          {"name": "wow_exact_first_fresh_test_t3a260805111623", "comment": "wow_exact_first_disposable:t3a260805111623:fresh"},
+          {"name": "wow_exact_first_upgrade_test_t3a260805111623", "comment": "wow_exact_first_disposable:t3a260805111623:upgrade"},
+          {"name": "wow_exact_first_fresh_test_t3a260805113656", "comment": "wow_exact_first_disposable:t3a260805113656:fresh"},
+          {"name": "wow_exact_first_upgrade_test_t3a260805113656", "comment": "wow_exact_first_disposable:t3a260805113656:upgrade"},
+          {"name": "wow_exact_first_fresh_test_t3a260805120026", "comment": "wow_exact_first_disposable:t3a260805120026:fresh"},
+          {"name": "wow_exact_first_upgrade_test_t3a260805120026", "comment": "wow_exact_first_disposable:t3a260805120026:upgrade"},
+          {"name": "wow_exact_first_fresh_test_t3a260805125812", "comment": "wow_exact_first_disposable:t3a260805125812:fresh"},
+          {"name": "wow_exact_first_upgrade_test_t3a260805125812", "comment": "wow_exact_first_disposable:t3a260805125812:upgrade"},
+          {"name": "wow_exact_first_fresh_test_t3a260805142130", "comment": "wow_exact_first_disposable:t3a260805142130:fresh"},
+          {"name": "wow_exact_first_upgrade_test_t3a260805142130", "comment": "wow_exact_first_disposable:t3a260805142130:upgrade"}
+        ],
+        "fresh": {
+          "migrationLedger": {"total": 30, "migration0003Rows": 1, "migration0030Rows": 1},
+          "targetConstraint": {
+            "count": 1,
+            "name": "build_templates_user_id_template_type_config_hash_key",
+            "type": "u",
+            "orderedColumns": ["user_id", "template_type", "config_hash"],
+            "legacyNameConstraintCount": 0
+          },
+          "authorityCounts": {"canonicalDocuments": 20, "effectAggregateRecords": 10, "exactAuthorityBundles": 3, "seededV1Rows": 0},
+          "wowAppPrivileges": {"select": true, "insert": false, "update": false, "delete": false, "truncate": false}
+        },
+        "upgrade": {
+          "migrationLedger": {"total": 30, "migration0003Rows": 1, "migration0030Rows": 1},
+          "targetConstraint": {
+            "count": 1,
+            "name": "build_templates_user_id_template_type_config_hash_key",
+            "type": "u",
+            "orderedColumns": ["user_id", "template_type", "config_hash"],
+            "legacyNameConstraintCount": 0
+          },
+          "authorityCounts": {"canonicalDocuments": 20, "effectAggregateRecords": 10, "exactAuthorityBundles": 3, "seededV1Rows": 1},
+          "wowAppPrivileges": {"select": true, "insert": false, "update": false, "delete": false, "truncate": false}
+        }
+      },
+      "smoke": {
+        "status": "pass",
+        "summary": "The exact frozen sixth candidate passed one real-PostgreSQL test in 3.041s: fresh 0001..0030 and upgrade 0001..0029-seed-to-0030 migration, immutable bundle, ACL, typed readback, semantic-idempotence and concurrency checks."
+      },
+      "endpointSmoke": {
+        "status": "not_applicable",
+        "reason": "Task 3A has no service, API endpoint or runtime consumer."
+      },
+      "timerBackflow": {
+        "status": "not_applicable",
+        "reason": "Task 3A adds no timer, scheduled job, service or asynchronous sync."
+      },
+      "productionMigration": {
+        "status": "not_applicable",
+        "reason": "No production database migration was authorized or executed; migration 0030 ran only in the two named disposable candidate databases."
+      },
+      "productionRuntimeConsumer": {
+        "status": "not_applicable",
+        "reason": "runtimeConsumers remains empty and Task 4P or later stages are not authorized."
+      },
+      "asyncSyncStart": false,
+      "publicPointerChange": false,
+      "productionDatabaseWrite": false,
+      "preservedResources": [
+        "/tmp/wow-task3a-t3a260805142130.bundle",
+        "/var/tmp/wow-task3a-t3a260805142130.bundle",
+        "/var/tmp/wow-task3a-candidate-t3a260805142130",
+        "/var/tmp/wow-task3a-candidate-t3a260805142130.stdout",
+        "/var/tmp/wow-task3a-candidate-t3a260805142130.stderr",
+        "wow_exact_first_fresh_test_t3a260805142130",
+        "wow_exact_first_upgrade_test_t3a260805142130"
+      ],
+      "reason": "PostgreSQL execution and independent read-only candidate audit passed from the exact frozen sixth HEAD. That HEAD nevertheless failed the current-truth owner test because the test hard-coded implementation_allowed after the authorized local_verified transition. Correcting the lifecycle test, requirement and owner contracts is candidate-invalidating, so the sixth run is immutable historical evidence and cannot promote the corrected source."
     }
   ],
   "runtimeEvidence": [
@@ -440,10 +603,22 @@
       "summary": "PR #114 run 30977816268 job 92215539827 failed the two direct-server import tests; this is the candidate-invalidating cause."
     },
     {
-      "id": "task3a-sixth-candidate",
+      "id": "task3a-sixth-postgres-attestation",
+      "type": "postgres_candidate_attestation",
+      "status": "historical_pass_unpromotable",
+      "summary": "The exact frozen sixth candidate and independent read-only post-audit passed, but that HEAD failed the current-truth owner lifecycle test. Its full attestation and resources remain immutable historical evidence only."
+    },
+    {
+      "id": "task3a-evidence-lifecycle-test-regression",
+      "type": "owner_current_truth_gate",
+      "status": "fail",
+      "summary": "Frozen candidate HEAD 9f67ec2f failed because the owner test hard-coded implementation_allowed after the authorized local_verified transition; PostgreSQL was not the cause."
+    },
+    {
+      "id": "task3a-seventh-candidate",
       "type": "postgres_candidate_attestation",
       "status": "pending",
-      "summary": "A sixth run id and two new disposable databases are mandatory; no candidate identity has been invented."
+      "summary": "A seventh run id and two new disposable databases are mandatory; no future identity has been invented."
     },
     {
       "id": "task3a-production-non-activation",
@@ -477,18 +652,23 @@
       "runId": "t3a260805125812",
       "status": "runtime_passed_invalidated_by_direct_runtime_import_regression",
       "detail": "The fifth fresh/upgrade pair genuinely passed from exact clean commit a4c0fd04b39577838ad4fb7a0e3c54b8e0205c30 / tree aa0908eb8214d9572fc604e3399321c5d6eb3754, but PR #114 full-profile run 30977816268 job 92215539827 exposed direct-server startup failures in its exact source. The candidate object, raw attestation line and parsed attestation remain immutable history; the corrected source, tests, requirement and owner contracts require a sixth new run id and database pair."
+    },
+    {
+      "runId": "t3a260805142130",
+      "status": "runtime_passed_unpromotable_evidence_lifecycle_test_regression",
+      "detail": "The sixth fresh/upgrade pair and independent read-only post-audit genuinely passed from exact frozen commit 9f67ec2f72f59dc1def7b035fc4d9da27b8802b5 / tree c2a686e6ed8f7a9ff15c82f4e45996636c49d9a7. That same frozen HEAD failed the current-truth owner test because it hard-coded evidence.status=implementation_allowed after the authorized local_verified transition. PostgreSQL and candidate review were not the cause. The corrected lifecycle test, requirement and owner contracts invalidate promotion and require a seventh new run id/database pair."
     }
   ],
   "risks": [
     {
       "id": "first-candidate-migration-chain-failure",
-      "status": "resolved_by_reviewed_0003_correction_and_fifth_candidate",
-      "detail": "Run t3a2608050955 failed before the former 0026 migration on duplicate semantic constraint creation. The corrected 0003 and fifth real fresh/upgrade 0030 run proved exact semantic idempotence; the failed databases remain historical evidence only."
+      "status": "resolved_by_reviewed_0003_correction_and_sixth_candidate",
+      "detail": "Run t3a2608050955 failed before the former 0026 migration on duplicate semantic constraint creation. The corrected 0003 and sixth real fresh/upgrade 0030 run proved exact semantic idempotence; the failed databases remain historical evidence only."
     },
     {
       "id": "second-candidate-catalog-array-type-failure",
-      "status": "resolved_by_reviewed_0003_correction_and_fifth_candidate",
-      "detail": "Run t3a260805111623 failed before the former 0026 migration on name[] versus text[] comparison. The explicit attname::text correction passed the fifth real 0030 candidate; the failed databases remain historical evidence only."
+      "status": "resolved_by_reviewed_0003_correction_and_sixth_candidate",
+      "detail": "Run t3a260805111623 failed before the former 0026 migration on name[] versus text[] comparison. The explicit attname::text correction passed the sixth real 0030 candidate; the failed databases remain historical evidence only."
     },
     {
       "id": "third-candidate-requirement-gate",
@@ -508,22 +688,27 @@
     {
       "id": "evidence-promotion-and-delivery-closure",
       "status": "evidence_promotion_blocked_candidate_rerun_required",
-      "detail": "Fifth-run attestation and review are immutable historical evidence only. The controller full local profile is now bound at clean tested HEAD 87ba835f20bc0ca9eb762419a08b9be4ee54057a, while runtime identity remains pending; a sixth new run-id-bound fresh/upgrade candidate is still required before evidence promotion."
+      "detail": "Sixth-run attestation and read-only audit are immutable historical evidence only. The lifecycle-gate correction invalidates both its runtime promotion and the prior local verification identity; corrected-source verification and a seventh new run-id-bound fresh/upgrade candidate are required before evidence promotion."
     },
     {
       "id": "candidate-resource-retention",
-      "status": "preserved_pending_sixth_candidate_and_archival",
-      "detail": "All ten database identities plus the fourth and fifth candidate repositories, logs and local/remote bundles remain preserved; no resource has been cleaned or reused."
+      "status": "preserved_pending_seventh_candidate_and_archival",
+      "detail": "All twelve database identities plus the fourth, fifth and sixth candidate repositories, logs and local/remote bundles remain preserved; no resource has been cleaned or reused."
     },
     {
       "id": "direct-server-runtime-import-regression",
       "status": "candidate_rerun_required_evidence_promotion_blocked",
-      "detail": "The corrected package-relative import fallback invalidates fifth-run promotion. Preserve all five run pairs and ten databases; controller full local verification is complete, but the sixth fresh/upgrade candidate remains mandatory."
+      "detail": "The corrected package-relative import fallback invalidated fifth-run promotion. The sixth run later passed PostgreSQL but is unpromotable after the owner lifecycle-test regression. Preserve all six run pairs and twelve databases; corrected-source full local verification and the seventh fresh/upgrade candidate remain mandatory."
+    },
+    {
+      "id": "evidence-lifecycle-owner-test-regression",
+      "status": "candidate_rerun_required_evidence_promotion_blocked",
+      "detail": "The owner gate must validate stage semantics across implementation_allowed, local_verified and runtime_verified instead of hard-coding one transitional status. Correcting that test and its control plane invalidates the sixth frozen candidate; PostgreSQL and the independent candidate audit remain historical PASS evidence."
     }
   ],
   "rollback": [
     "code_rollback",
-    "preserve_all_ten_exact_candidate_database_identities_until_packet_archival_and_scoped_review",
+    "preserve_all_twelve_exact_candidate_database_identities_until_packet_archival_and_scoped_review",
     "operator_discard_only_explicit_disposable_database_identities_after_identity_check_and_archival",
     "no_production_database_restore_required",
     "no_catalog_or_manifest_pointer_mutation"
@@ -531,8 +716,8 @@
   "cleanup": {
     "required": true,
     "status": "pending",
-    "reason": "All five candidate pairs, including the direct-runtime-invalidated fifth pair, remain immutable historical evidence through archival and review; no candidate resource is cleaned or reused.",
-    "preserveThrough": "sixth_candidate_promotion_and_final_packet_archival",
+    "reason": "All six candidate pairs, including the lifecycle-invalidated sixth pair, remain immutable historical evidence through archival and review; no candidate resource is cleaned or reused.",
+    "preserveThrough": "seventh_candidate_promotion_and_final_packet_archival",
     "resources": [
       "wow_exact_first_fresh_test_t3a260805125812",
       "wow_exact_first_upgrade_test_t3a260805125812",
@@ -545,7 +730,14 @@
       "/var/tmp/wow-task3a-candidate-t3a260805125812.stdout",
       "/var/tmp/wow-task3a-candidate-t3a260805125812.stderr",
       "/var/tmp/wow-task3a-t3a260805125812.bundle",
-      "/tmp/wow-task3a-t3a260805125812.bundle"
+      "/tmp/wow-task3a-t3a260805125812.bundle",
+      "wow_exact_first_fresh_test_t3a260805142130",
+      "wow_exact_first_upgrade_test_t3a260805142130",
+      "/var/tmp/wow-task3a-candidate-t3a260805142130",
+      "/var/tmp/wow-task3a-candidate-t3a260805142130.stdout",
+      "/var/tmp/wow-task3a-candidate-t3a260805142130.stderr",
+      "/var/tmp/wow-task3a-t3a260805142130.bundle",
+      "/tmp/wow-task3a-t3a260805142130.bundle"
     ],
     "historicalImmutableDatabases": [
       "wow_exact_first_fresh_test_t3a2608050955",
@@ -557,7 +749,9 @@
       "wow_exact_first_fresh_test_t3a260805120026",
       "wow_exact_first_upgrade_test_t3a260805120026",
       "wow_exact_first_fresh_test_t3a260805125812",
-      "wow_exact_first_upgrade_test_t3a260805125812"
+      "wow_exact_first_upgrade_test_t3a260805125812",
+      "wow_exact_first_fresh_test_t3a260805142130",
+      "wow_exact_first_upgrade_test_t3a260805142130"
     ],
     "authorization": "Only an operator may discard explicitly identified disposable databases after archival and identity verification; the candidate suite never creates, resets, drops or reuses them."
   },
@@ -566,7 +760,7 @@
     "docs/plans/2026-08-04-equipment-simulator-exact-first-persistence-resequence.md",
     "docs/postgres-identity-migration-runbook.md"
   ],
-  "summary": "Task 3A is local_verified / candidate_pending. The exact full local profile passed at clean tested HEAD 87ba835f20bc0ca9eb762419a08b9be4ee54057a and binds verification only. Fifth run t3a260805125812 remains genuine immutable historical PostgreSQL evidence but is runtime_passed_invalidated_by_direct_runtime_import_regression after PR #114 full-profile run 30977816268/job 92215539827. All five run ids and ten databases are non-reusable; runtime and closure identities remain pending, and a sixth new run id plus two new databases are mandatory. candidate_rerun_required / evidence_promotion_blocked remains current engineering truth. No production migration, endpoint, timer, runtime consumer, Catalog/Manifest pointer, API, UI or SimC behavior changed; Task 4P+ remains unauthorized.",
+  "summary": "Task 3A is implementation_allowed / candidate_pending. Sixth run t3a260805142130 genuinely passed PostgreSQL and independent read-only audit from exact frozen commit 9f67ec2f/tree c2a686e6, but that HEAD failed the current-truth owner test because it hard-coded implementation_allowed after the authorized local_verified transition. Its status is runtime_passed_unpromotable_evidence_lifecycle_test_regression. All six run ids and twelve databases are immutable/non-reusable; runtime, verification and closure identities are pending, and a seventh new run id plus two new databases are mandatory. candidate_rerun_required / evidence_promotion_blocked remains current engineering truth. No production migration, endpoint, timer, runtime consumer, Catalog/Manifest pointer, API, UI or SimC behavior changed; Task 4P+ remains unauthorized.",
   "historicalFailureEvidence": {
     "pr": "#114",
     "run": "30977816268",
@@ -578,12 +772,22 @@
     "cause": "server/gear_canonical_kernel.py used only server.gear_contracts while direct backend startup runs from server/ where the server package is unavailable.",
     "nonCause": "The Node deprecation warning is historical noise and is not the failure cause."
   },
+  "historicalLifecycleFailureEvidence": {
+    "candidateRunId": "t3a260805142130",
+    "frozenCommit": "9f67ec2f72f59dc1def7b035fc4d9da27b8802b5",
+    "frozenTree": "c2a686e6ed8f7a9ff15c82f4e45996636c49d9a7",
+    "ownerTest": "tests.gear_canonical_owner_gate_test.GearCanonicalOwnerGateTest.test_task3a_evidence_downgrades_invalidated_fifth_candidate",
+    "schemaTest": "tests.postgres_schema_test.PostgresSchemaTest.test_task3a_current_truth_requires_new_candidate_after_unpromotable_runtime_pass",
+    "result": "owner test failed at the hard-coded implementation_allowed assertion; schema test passed",
+    "cause": "The owner gate asserted one transitional evidence status instead of lifecycle semantics across implementation_allowed, local_verified and runtime_verified.",
+    "nonCause": "The sixth PostgreSQL candidate and independent read-only audit both passed."
+  },
   "nextCandidate": {
     "status": "candidate_pending",
-    "ordinal": 6,
+    "ordinal": 7,
     "migration": "0030",
     "attestationSchema": "task3a-candidate-attestation-v2",
-    "requirement": "After controller local verification, run a sixth candidate from the committed final runtime-affecting head with a new run id and two newly operator-provisioned empty disposable PostgreSQL databases; prove fresh 0001..0030 and upgrade 0001..0029-seed-to-0030 before evidence promotion.",
+    "requirement": "After corrected-source controller local verification, run a seventh candidate from the committed final runtime-affecting head with a new run id and two newly operator-provisioned empty disposable PostgreSQL databases; prove fresh 0001..0030 and upgrade 0001..0029-seed-to-0030 before evidence promotion.",
     "runId": null,
     "freshDatabase": null,
     "upgradeDatabase": null

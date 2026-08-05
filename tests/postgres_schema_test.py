@@ -655,6 +655,7 @@ $unsafe$;
         self.assertIn("t3a260805113656", summary)
         self.assertIn("t3a260805120026", summary)
         self.assertIn("t3a260805125812", summary)
+        self.assertIn("t3a260805142130", summary)
         self.assertIn("0030", summary)
 
         for path in TASK_3A_CURRENT_TRUTH_FILES:
@@ -664,6 +665,7 @@ $unsafe$;
                 self.assertIn("evidence_promotion_blocked", current_truth)
                 self.assertIn("t3a260805120026", current_truth)
                 self.assertIn("t3a260805125812", current_truth)
+                self.assertIn("t3a260805142130", current_truth)
                 self.assertIn("0030", current_truth)
 
         evidence = json.loads(
@@ -684,8 +686,9 @@ $unsafe$;
             .read_text(encoding="utf-8")
             .splitlines()[218:235]
         )
-        self.assertIn("historical clean candidate code/test state", checklist)
-        self.assertIn("implementation_allowed`, not `local_verified`", checklist)
+        self.assertIn("Sixth candidate `t3a260805142130`", checklist)
+        self.assertIn("runtime_passed_unpromotable_evidence_lifecycle_test_regression", checklist)
+        self.assertIn("current evidence is `implementation_allowed / candidate_pending`", checklist)
         self.assertNotIn("final Task 3A code/test state", checklist)
         self.assertNotIn("current evidence is `local_verified / candidate_pending`", checklist)
 
