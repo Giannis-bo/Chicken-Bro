@@ -21,8 +21,23 @@ ALL_MIGRATIONS = tuple(sorted(
 TASK_3A_RUN_ID = os.environ.get("WOW_PG_TEST_RUN_ID_0026", "")
 TASK_3A_FRESH_DSN = os.environ.get("WOW_PG_TEST_DSN_FRESH_0026", "")
 TASK_3A_UPGRADE_DSN = os.environ.get("WOW_PG_TEST_DSN_UPGRADE_0026", "")
+TASK_3A_FORBIDDEN_RUN_IDS = frozenset({"t3a2608050955"})
+
+
+def validate_task3a_candidate_run_id(run_id):
+    if (
+        type(run_id) is not str
+        or re.fullmatch(r"[a-z0-9]{8,32}", run_id) is None
+        or run_id in TASK_3A_FORBIDDEN_RUN_IDS
+    ):
+        raise ValueError("invalid or forbidden Task 3A candidate run id")
+    return run_id
+
+
+if TASK_3A_RUN_ID:
+    validate_task3a_candidate_run_id(TASK_3A_RUN_ID)
 TASK_3A_CANDIDATE_CONFIGURED = bool(
-    re.fullmatch(r"[a-z0-9]{8,32}", TASK_3A_RUN_ID)
+    TASK_3A_RUN_ID
     and TASK_3A_FRESH_DSN
     and TASK_3A_UPGRADE_DSN
     and shutil.which("psql")
@@ -52,8 +67,7 @@ def build_task3a_candidate_attestation(
     upgrade_identity,
     git_identity,
 ):
-    if type(run_id) is not str or re.fullmatch(r"[a-z0-9]{8,32}", run_id) is None:
-        raise ValueError("invalid Task 3A candidate run id")
+    validate_task3a_candidate_run_id(run_id)
     expected_fresh = (
         f"wow_exact_first_fresh_test_{run_id}",
         f"wow_exact_first_disposable:{run_id}:fresh",
@@ -95,6 +109,54 @@ def build_task3a_candidate_attestation(
 
 
 class Task3ACandidateAttestationTest(unittest.TestCase):
+    def test_one_run_id_validator_accepts_valid_ids_and_rejects_failed_run(self):
+        validator = globals().get("validate_task3a_candidate_run_id")
+        self.assertIsNotNone(validator)
+        if validator is None:
+            return
+
+        for valid in ("run12345", "t3a2608052000", "a" * 32):
+            with self.subTest(valid=valid):
+                self.assertEqual(validator(valid), valid)
+        for invalid in ("t3a2608050955", "BAD", "short", "a" * 33):
+            with self.subTest(invalid=invalid):
+                with self.assertRaises(ValueError):
+                    validator(invalid)
+
+    def test_builder_rejects_failed_candidate_run_id_with_matching_identities(self):
+        failed_run_id = "t3a2608050955"
+        with self.assertRaises(ValueError):
+            build_task3a_candidate_attestation(
+                run_id=failed_run_id,
+                fresh_identity=(
+                    f"wow_exact_first_fresh_test_{failed_run_id}",
+                    f"wow_exact_first_disposable:{failed_run_id}:fresh",
+                ),
+                upgrade_identity=(
+                    f"wow_exact_first_upgrade_test_{failed_run_id}",
+                    f"wow_exact_first_disposable:{failed_run_id}:upgrade",
+                ),
+                git_identity=("a" * 40, "b" * 40, "c" * 64),
+            )
+
+    def test_candidate_connection_rejects_failed_run_before_psycopg_connect(self):
+        import sys
+        from types import SimpleNamespace
+        from unittest.mock import patch
+
+        connect_calls = []
+        fake_psycopg = SimpleNamespace(
+            connect=lambda dsn: connect_calls.append(dsn),
+        )
+        with patch.dict(sys.modules, {"psycopg": fake_psycopg}):
+            with patch.dict(
+                globals(),
+                {"TASK_3A_RUN_ID": "t3a2608050955"},
+            ):
+                with self.assertRaises(ValueError):
+                    PostgresExactAuthorityCandidateTest._connect("secret-dsn")
+        self.assertEqual(connect_calls, [])
+
     def test_builder_emits_one_strict_single_line_without_connection_secrets(self):
         run_id = "run12345"
         fresh = (
@@ -215,6 +277,17 @@ class Task3ACandidateAttestationTest(unittest.TestCase):
         self.assertIn("DROP CONSTRAINT build_templates_user_id_template_type_config_hash_key", helper)
         self.assertIn("CHECK (config_hash <> '')", helper)
         self.assertIn("UNIQUE (config_hash, template_type, user_id)", helper)
+        self.assertIn("SAVEPOINT migration_attempt", helper)
+        self.assertIn("ROLLBACK TO SAVEPOINT migration_attempt", helper)
+        self.assertIn(
+            "ADD CONSTRAINT build_templates_user_id_template_type_name_key",
+            helper,
+        )
+        self.assertIn("wrong_before_attempt = constraint_state(cur)", helper)
+        self.assertIn(
+            "self.assertEqual(constraint_state(cur), wrong_before_attempt)",
+            helper,
+        )
         self.assertIn("conn.rollback()", helper)
         self.assertIn('sqlstate, "P0001"', helper)
         self.assertEqual(candidate.count("_assert_build_template_0003_semantics("), 2)
@@ -297,6 +370,7 @@ class PostgresExactAuthorityCandidateTest(unittest.TestCase):
 
     @staticmethod
     def _connect(dsn):
+        validate_task3a_candidate_run_id(TASK_3A_RUN_ID)
         import psycopg
 
         return psycopg.connect(dsn)
@@ -445,9 +519,18 @@ class PostgresExactAuthorityCandidateTest(unittest.TestCase):
                         "DROP CONSTRAINT build_templates_user_id_template_type_config_hash_key"
                     )
                     cur.execute(add_constraint_sql)
+                    cur.execute(
+                        "ALTER TABLE app.build_templates "
+                        "ADD CONSTRAINT build_templates_user_id_template_type_name_key "
+                        "UNIQUE (user_id, template_type, name)"
+                    )
+                    wrong_before_attempt = constraint_state(cur)
+                    cur.execute("SAVEPOINT migration_attempt")
                     with self.assertRaises(psycopg.Error) as raised:
                         cur.execute(migration_sql)
                     self.assertEqual(raised.exception.sqlstate, "P0001")
+                    cur.execute("ROLLBACK TO SAVEPOINT migration_attempt")
+                    self.assertEqual(constraint_state(cur), wrong_before_attempt)
                 conn.rollback()
                 with conn.cursor() as cur:
                     self.assertEqual(constraint_state(cur), before)

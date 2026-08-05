@@ -1,10 +1,10 @@
-ALTER TABLE app.build_templates
-DROP CONSTRAINT IF EXISTS build_templates_user_id_template_type_name_key;
-
 DO $$
 DECLARE
     target_constraint_count integer;
 BEGIN
+    ALTER TABLE app.build_templates
+    DROP CONSTRAINT IF EXISTS build_templates_user_id_template_type_name_key;
+
     SELECT pg_catalog.count(*)
     INTO target_constraint_count
     FROM pg_catalog.pg_constraint con
@@ -42,13 +42,13 @@ BEGIN
         RAISE EXCEPTION
             'build_templates config-hash unique constraint semantic drift';
     END IF;
-END $$;
 
-INSERT INTO ops.schema_migrations (id, description)
-VALUES (
-    '0003_build_template_config_hash_unique',
-    'Deduplicate PostgreSQL build templates by user, type, and config hash instead of display name'
-)
-ON CONFLICT (id) DO UPDATE
-SET description = EXCLUDED.description,
-    applied_at = now();
+    INSERT INTO ops.schema_migrations (id, description)
+    VALUES (
+        '0003_build_template_config_hash_unique',
+        'Deduplicate PostgreSQL build templates by user, type, and config hash instead of display name'
+    )
+    ON CONFLICT (id) DO UPDATE
+    SET description = EXCLUDED.description,
+        applied_at = now();
+END $$;

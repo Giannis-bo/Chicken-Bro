@@ -97,6 +97,41 @@ class SimcGearImportTest(unittest.TestCase):
                 self.assertEqual(result["status"], "blocked")
                 self.assertIn(path, [problem["path"] for problem in result["problems"]])
 
+    def test_unknown_option_key_and_value_never_echo_into_serialized_result(self):
+        from server.simc_gear_import import parse_simc_exact_import
+
+        secret = "task3a_privacy_secret_805_unique"
+        raw = self.complete_profile().replace(
+            "head=Fixture_head,id=225574",
+            f"head=Fixture_head,id=225574,{secret}={secret}",
+            1,
+        )
+        result = parse_simc_exact_import(
+            raw,
+            class_key="warrior",
+            spec_key="fury",
+            level=80,
+            season_revision="season-r1",
+            game_build="build-r1",
+        )
+
+        self.assertEqual(result["status"], "blocked")
+        unknown = [
+            problem
+            for problem in result["problems"]
+            if problem["code"] == "UNKNOWN_GEAR_OPTION"
+        ]
+        self.assertEqual(len(unknown), 1)
+        self.assertEqual(unknown[0]["path"], "profile.lines.5.options.unknown")
+        self.assertEqual(
+            unknown[0]["message"],
+            "Gear option is not supported by Exact import.",
+        )
+        self.assertNotIn(
+            secret,
+            json.dumps(result, sort_keys=True, ensure_ascii=False),
+        )
+
     # Catches a character-count bound that lets an over-limit UTF-8 import
     # enter parsing or a newline-bearing caller identity enter output.
     def test_blocks_oversized_utf8_profile_and_injected_input_identity(self):
@@ -165,6 +200,24 @@ class SimcGearImportTest(unittest.TestCase):
         plan_text = plan.read_text()
         for slice_ in requirement_payload["releaseSlices"]:
             self.assertIn(f"## {slice_['planHeading']}", plan_text)
+
+    def test_reachable_canonical_plan_summaries_use_failed_candidate_truth(self):
+        root = Path(__file__).resolve().parents[1]
+        plan_index = (root / "docs/plans/README.md").read_text(encoding="utf-8")
+        summaries = (
+            root / "docs/plans/2026-08-04-equipment-simulator-canonical-kernel-implementation.md",
+            root / "docs/plans/2026-08-04-equipment-simulator-canonical-owner-change-control.md",
+            root / "docs/plans/2026-08-04-equipment-simulator-duplicate-effect-subject-correction.md",
+        )
+
+        for summary in summaries:
+            with self.subTest(summary=summary.name):
+                self.assertIn(summary.name, plan_index)
+                top_level = "\n".join(
+                    summary.read_text(encoding="utf-8").splitlines()[:10]
+                )
+                self.assertIn("candidate_failed / migration_chain_blocked", top_level)
+                self.assertNotIn("candidate_pending", top_level)
 
 
 if __name__ == "__main__":

@@ -607,6 +607,30 @@ $unsafe$;
         self.assertNotIn("duplicate_object", normalized.lower())
         self.assertIn("0003_build_template_config_hash_unique", normalized)
 
+    def test_build_template_dedupe_mutation_postcondition_and_ledger_are_one_statement(self):
+        atomic_blocks = re.findall(
+            r"DO \$\$.*?END \$\$;",
+            self.build_template_dedupe_sql,
+            flags=re.DOTALL,
+        )
+        self.assertEqual(len(atomic_blocks), 1)
+        atomic_block = atomic_blocks[0]
+        self.assertEqual(self.build_template_dedupe_sql.strip(), atomic_block.strip())
+        self.assertIn(
+            "DROP CONSTRAINT IF EXISTS build_templates_user_id_template_type_name_key",
+            atomic_block,
+        )
+        self.assertIn(
+            "ADD CONSTRAINT build_templates_user_id_template_type_config_hash_key",
+            atomic_block,
+        )
+        self.assertIn("RAISE EXCEPTION", atomic_block)
+        self.assertIn("INSERT INTO ops.schema_migrations", atomic_block)
+        self.assertEqual(
+            atomic_block.count("0003_build_template_config_hash_unique"),
+            1,
+        )
+
     def test_chickenbro_runtime_migration_adds_message_job_and_bounded_context(self):
         normalized = " ".join(self.chickenbro_runtime_sql.split())
         self.assertIn("ADD COLUMN IF NOT EXISTS agent_job_id", normalized)

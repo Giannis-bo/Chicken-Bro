@@ -151,7 +151,7 @@ def parse_simc_exact_import(raw_profile: object, *, class_key: str, spec_key: st
                 option_key, option_separator, option_value = option.partition("=")
                 option_key, option_value = option_key.strip(), option_value.strip()
                 if not option_separator or option_key not in _KNOWN_PROFILE_OPTIONS:
-                    problems.append(_problem("UNKNOWN_GEAR_OPTION", f"profile.lines.{index}.options.{option_key or 'unknown'}", "Gear option is not supported by Exact import."))
+                    problems.append(_problem("UNKNOWN_GEAR_OPTION", f"profile.lines.{index}.options.unknown", "Gear option is not supported by Exact import."))
                     continue
                 parsed_options[option_key] = option_value
             slot_rows[slot] = {"name": value, "options": parsed_options, "line": index}
