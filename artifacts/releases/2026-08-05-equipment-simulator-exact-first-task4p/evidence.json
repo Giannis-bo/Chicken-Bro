@@ -2,18 +2,20 @@
   "schemaVersion": 2,
   "slug": "equipment-simulator-exact-first-task4p",
   "requirementSlug": "equipment-simulator-exact-first-task4p",
-  "status": "implementation_allowed",
-  "highestEvidenceLevel": "implementation_allowed",
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
   "branch": "codex/equipment-simulator-exact-first-task4p",
-  "commit": "635239c7560ec5ce6de520ed46466f48587f20a7",
+  "commit": "1564b9400458d83052769c82402540edeca4c9a7",
   "identities": {
     "runtime": {
       "status": "not_applicable",
       "reason": "Task 4P adds no DB, service, API, UI, worker, deployment or runtime consumer; its pure-domain source commit is not a runtime identity."
     },
     "verification": {
-      "status": "pending",
-      "reason": "Focused tests and Harness structure checks passed, but final independent review reproduced load-bearing v2 integrity gaps at current code HEAD 635239c7; no local_verified claim is truthful until those gaps are resolved and re-reviewed."
+      "status": "bound_at_check",
+      "kind": "git_ref",
+      "value": "HEAD",
+      "reason": "Fresh focused tests, compile, Harness and independent scoped plus whole-branch reviews passed after the final v2 integrity repairs; the Harness check binds this local verification to its exact checked HEAD."
     },
     "closure": {
       "status": "pending",
@@ -42,26 +44,26 @@
     {
       "command": "python3 -m unittest tests.gear_resolver_test tests.gear_rule_matrix_test tests.gear_resolved_loadout_test tests.simulation_snapshot_test tests.simulation_snapshot_compat_test",
       "status": "pass",
-      "testedHead": "8a902803ce25f422df518c026d758cbf22511605",
-      "summary": "Historical focused result: 101 tests passed before the final-review fix wave; it is not current local_verified evidence."
+      "testedHead": "1564b9400458d83052769c82402540edeca4c9a7",
+      "summary": "Fresh focused matrix passed: 124 tests cover v1 compatibility and the v2 sealed bundle, ordered occurrence, effect-boundary, compiler/runtime identity and compatibility contracts."
     },
     {
       "command": "python3 -m py_compile server/gear_resolver.py server/gear_rule_matrix.py server/gear_resolved_loadout.py server/simulation_snapshot.py server/simulation_snapshot_compat.py",
       "status": "pass",
-      "testedHead": "8a902803ce25f422df518c026d758cbf22511605",
-      "summary": "Historical compile result before the final-review fix wave; it is not current local_verified evidence."
+      "testedHead": "1564b9400458d83052769c82402540edeca4c9a7",
+      "summary": "Fresh compile passed for every Task 4P pure-domain module."
     },
     {
-      "command": "independent Task 4P task review, scoped re-reviews and final whole-branch review",
-      "status": "fail",
-      "testedHead": "635239c7560ec5ce6de520ed46466f48587f20a7",
-      "summary": "Final re-review reproduced two load-bearing gaps: a genuine envelope can mix components from a different genuine bundle because dependency closure is not verified, and occurrence containers/boolean ordinals can be normalized or accepted rather than failing closed."
+      "command": "independent Task 4P scoped CR and fresh whole-branch domain CR",
+      "status": "pass",
+      "testedHead": "1564b9400458d83052769c82402540edeca4c9a7",
+      "summary": "Both fresh reviews found no actionable P1/P2. They rechecked sealed bundle closure, exact resolver/effect-boundary binding, duplicate occurrence preservation, strict revisions and v1 additive isolation; noncanonical rehashed Snapshot runtime was rejected."
     },
     {
       "command": "node scripts/verify-project.js --profile harness --release artifacts/releases/2026-08-05-equipment-simulator-exact-first-task4p --base origin/main",
       "status": "pass",
-      "testedHead": "2fc8d60f068e7f56f15dfa47b188b5269eae67e3",
-      "summary": "Historical Harness control-plane pass; it validates packet structure and cannot establish the later final-review code integrity claims."
+      "testedHead": "1564b9400458d83052769c82402540edeca4c9a7",
+      "summary": "Fresh Harness profile passed all six selected control-plane commands. It is local packet evidence, not runtime, production or user-experience evidence."
     }
   ],
   "candidateDeployment": {
@@ -81,9 +83,9 @@
       "detail": "Task 4P uses new v2 schema/key branches; focused existing v1 tests run in the same matrix and no v1 builder or verifier path is edited."
     },
     {
-      "id": "final_review_v2_dependency_closure_and_occurrence_integrity",
-      "status": "blocked",
-      "detail": "Final independent re-review at 635239c7 reproduced a mixed genuine-bundle dependency closure bypass and non-list/boolean-ordinal occurrence verifier bypasses. Task 4P remains implementation_allowed until a separately reviewed correction resolves them."
+      "id": "v2_integrity_review",
+      "status": "controlled",
+      "detail": "Fresh scoped and whole-branch reviews at 1564b940 rechecked the previously reproduced bundle, occurrence, context, effect-boundary and revision bypasses; all now fail closed."
     }
   ],
   "rollback": [
@@ -100,5 +102,5 @@
     "docs/plans/README.md",
     "docs/plans/2026-08-04-equipment-simulator-exact-first-persistence-resequence.md"
   ],
-  "summary": "Task 4P remains implementation_allowed, not local_verified. The branch contains a pure-domain v2 implementation and historical focused/Harness passes, but final independent re-review at 635239c7 reproduced load-bearing dependency-closure and occurrence-validation gaps. The code is unmerged and must not be represented as ready. No DB, migration, worker, service, deploy, API, UI, Catalog/Manifest pointer, generation 35, runtime consumer, candidate deployment, production action or user-visible closure is claimed."
+  "summary": "Task 4P is local_verified at 1564b940: pure v2 Resolver, ResolvedLoadout, SimulationSnapshot and compatibility verification now pass fresh focused tests, compile, Harness and independent scoped/whole-branch CR. It remains unmerged and has no runtime identity, candidate deployment, production action or user-visible closure. No DB, migration, worker, service, deploy, API, UI, Catalog/Manifest pointer, generation 35 or runtime consumer changed."
 }

@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILLS: Use `superpowers:subagent-driven-development`, `superpowers:test-driven-development`, and `superpowers:verification-before-completion`. This plan forward-replaces the old implementation plan's Task 3 and later execution order after two independent readiness audits returned `NOT_READY`.
 
-状态：`待决策（Task 3A delivery closure 已完成：PR #114 合并、scoped Harness、main/origin parity 与严格限定的候选资源清理均已完成；其正式 packet 仍为 runtime_verified / candidate_verified 且 closure identity 为 pending，因为现行 lifecycle test 不建模 archived。Task 4P 已实现但 final scoped re-review 复现 mixed genuine-bundle dependency closure 与 occurrence container/boolean ordinal fail-closed 缺口；其 packet 已如实降至 implementation_allowed，未合并、未推送。需要新的明确修复授权后才可继续 Task 4P；4L、3B、4W、5A、6C 与任何用户可见/生产动作仍未授权）`
+状态：`正在推进（Task 3A delivery closure 已完成：PR #114 合并、scoped Harness、main/origin parity 与严格限定的候选资源清理均已完成；其正式 packet 仍为 runtime_verified / candidate_verified 且 closure identity 为 pending，因为现行 lifecycle test 不建模 archived。Task 4P 在 1564b940 达到 local_verified：124 项 focused tests、py_compile、fresh Harness 与独立 scoped/whole-branch CR 均通过；它仍未合并、无 runtime identity、无 candidate/production 或用户可见动作，等待 Harness User Acceptance Closure。4L、3B、4W、5A、6C 与任何用户可见/生产动作仍未授权）`
 
 ## Goal
 
@@ -251,7 +251,7 @@ Read path loads exact canonical bytes, reconstructs Exact -> Static/Progression 
 
 This task executes the old Task 5 pure-domain intent before any v2 store changes.
 
-**状态（2026-08-05）：待决策。** 当前分支的 final scoped re-review 在最后一次允许的修复波后仍复现两项 load-bearing P1：genuine envelope 可混入不同 genuine bundle 的 dependency documents，且 non-list occurrence container/boolean ordinal 未按字面 fail closed。Task 4P evidence 已降为 `implementation_allowed`；保留 branch/worktree 和失败证据，不得合并、推送、部署或进入 Task 4L/3B，直至用户明确授权新的修复轮次。
+**状态（2026-08-05）：正在推进（`local_verified`）。** `1564b940` 的纯函数 v2 slice 通过 124 项 focused tests、py_compile、fresh Harness 及独立 scoped/whole-branch CR；已复现的 sealed-bundle closure、occurrence、resolver effect-boundary、compiler/runtime canonical revision 与 Snapshot context bypass 均已回归 fail closed。该证据只证明本地 pure-domain 合同，分支仍未合并，且没有 runtime identity、candidate、production、API/UI/SimC 用户路径或 release 完成声明；等待 Harness User Acceptance Closure，Task 4L/3B 仍不激活。
 
 - Add v2 builders/verifiers in Resolver, ResolvedLoadout, SimulationSnapshot and compatibility modules.
 - Exact Authority Envelope and item effect records use the frozen prefixes:
