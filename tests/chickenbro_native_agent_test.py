@@ -104,6 +104,7 @@ class ChickenbroNativeMcpTest(unittest.TestCase):
 
         for variable in ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY"):
             self.assertIn(f'"{variable}"', profile)
+        self.assertIn('web_search = "live"', profile)
 
     def test_stdio_mcp_exposes_only_the_generic_read_only_research_tool_and_records_its_result(self):
         spec = importlib.util.find_spec("server.chickenbro_native_mcp")

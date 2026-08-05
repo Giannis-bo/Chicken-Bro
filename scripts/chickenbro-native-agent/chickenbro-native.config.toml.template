@@ -1,6 +1,9 @@
 # Render this file into $CODEX_HOME/chickenbro-native.config.toml for one
 # candidate only. __CHICKENBRO_CANDIDATE_ROOT__ is substituted at deploy time.
 model = "gpt-5.6-luna"
+# Native Codex research uses its own current web-search capability; the MCP
+# tools remain optional read-only helpers for service-owned snapshots and URLs.
+web_search = "live"
 
 [mcp_servers.chickenbro_toolbox]
 command = "/usr/bin/python3"
