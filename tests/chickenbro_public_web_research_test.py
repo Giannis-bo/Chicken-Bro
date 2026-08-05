@@ -1,5 +1,6 @@
 import importlib
 import unittest
+from unittest import mock
 
 
 COMMUNITY_METRICS_PAGE = """
@@ -9,6 +10,18 @@ COMMUNITY_METRICS_PAGE = """
 <p>Last updated: 19 hours ago Total Parses: 760 Based on all keys 7 and above in the last 14 days.</p>
 <p>Keystone Level +20</p>
 </body></html>
+"""
+
+
+DUCKDUCKGO_ANOMALY_PAGE = """
+<html><body><div class="anomaly-modal__box">Please complete the check.</div></body></html>
+"""
+
+
+BING_RESULTS_PAGE = """
+<html><body><ol>
+  <li class="b_algo"><h2><a href="https://community.example/current-mythic">Current M+ community sample</a></h2></li>
+</ol></body></html>
 """
 
 
@@ -39,6 +52,19 @@ class ChickenbroPublicWebResearchTest(unittest.TestCase):
         self.assertEqual("2026-08-04T12:00:00+00:00", result["evidence"][0]["checkedAt"])
         self.assertNotIn("<html>", str(result))
         self.assertNotIn("provider-specific", str(result).lower())
+
+    def test_default_search_falls_back_when_the_primary_public_search_page_is_challenged(self):
+        with mock.patch.object(
+            self.module,
+            "_read_url",
+            side_effect=[DUCKDUCKGO_ANOMALY_PAGE, BING_RESULTS_PAGE],
+        ) as reader:
+            hits = self.module._default_searcher("current game role strength")
+
+        self.assertEqual(["https://community.example/current-mythic"], [item["url"] for item in hits])
+        self.assertEqual(2, reader.call_count)
+        self.assertIn("duckduckgo.com", reader.call_args_list[0].args[0])
+        self.assertIn("bing.com", reader.call_args_list[1].args[0])
 
     def test_generic_research_refuses_private_or_non_https_search_hits_before_fetching(self):
         fetched = []

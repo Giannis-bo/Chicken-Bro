@@ -22,7 +22,14 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 
 PUBLIC_WEB_SOURCE_KEY = "public_web_research"
-PUBLIC_WEB_SEARCH_URL = "https://html.duckduckgo.com/html/?q="
+# Search providers are transport fallbacks only: the tool still returns the
+# public pages selected by their results, never provider-specific game data.
+# A challenged search page must not make every generic research question look
+# as though the public web is unavailable.
+PUBLIC_WEB_SEARCH_URLS = (
+    "https://html.duckduckgo.com/html/?q=",
+    "https://cn.bing.com/search?q=",
+)
 PUBLIC_WEB_TIMEOUT_SECONDS = 5
 PUBLIC_WEB_MAX_RESPONSE_BYTES = 750_000
 PUBLIC_WEB_MAX_QUERY_CHARS = 240
@@ -142,14 +149,19 @@ class _SearchResultParser(HTMLParser):
         super().__init__()
         self.results = []
         self._active = None
+        self._bing_result_depth = 0
 
     def handle_starttag(self, tag, attrs):
-        if tag != "a":
-            return
         attributes = dict(attrs)
         classes = _text(attributes.get("class"))
+        if tag == "li" and "b_algo" in classes:
+            self._bing_result_depth = 1
+        elif self._bing_result_depth:
+            self._bing_result_depth += 1
+        if tag != "a":
+            return
         href = _text(attributes.get("href"))
-        if "result__a" in classes and href:
+        if ("result__a" in classes or self._bing_result_depth) and href:
             self._active = {"url": href, "title": ""}
 
     def handle_data(self, data):
@@ -160,6 +172,8 @@ class _SearchResultParser(HTMLParser):
         if tag == "a" and self._active is not None:
             self.results.append(self._active)
             self._active = None
+        if self._bing_result_depth:
+            self._bing_result_depth -= 1
 
 
 def _search_target_url(value):
@@ -172,20 +186,30 @@ def _search_target_url(value):
 
 
 def _default_searcher(query, timeout_seconds=None):
-    search_page = _read_url(PUBLIC_WEB_SEARCH_URL + quote_plus(query), timeout_seconds=timeout_seconds)
-    parser = _SearchResultParser()
-    parser.feed(search_page)
-    output = []
-    seen = set()
-    for item in parser.results:
-        url = _safe_public_url(_search_target_url(item.get("url")))
-        if not url or url in seen:
+    failures = []
+    for base_url in PUBLIC_WEB_SEARCH_URLS:
+        try:
+            search_page = _read_url(base_url + quote_plus(query), timeout_seconds=timeout_seconds)
+        except Exception as error:
+            failures.append(error)
             continue
-        seen.add(url)
-        output.append({"title": _plain_text(item.get("title"))[:180], "url": url, "snippet": ""})
-        if len(output) >= PUBLIC_WEB_MAX_RESULTS * 3:
-            break
-    return output
+        parser = _SearchResultParser()
+        parser.feed(search_page)
+        output = []
+        seen = set()
+        for item in parser.results:
+            url = _safe_public_url(_search_target_url(item.get("url")))
+            if not url or url in seen:
+                continue
+            seen.add(url)
+            output.append({"title": _plain_text(item.get("title"))[:180], "url": url, "snippet": ""})
+            if len(output) >= PUBLIC_WEB_MAX_RESULTS * 3:
+                break
+        if output:
+            return output
+    if failures and len(failures) == len(PUBLIC_WEB_SEARCH_URLS):
+        raise failures[-1]
+    return []
 
 
 def reset_public_web_research_state():
