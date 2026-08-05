@@ -654,6 +654,7 @@ $unsafe$;
         self.assertIn("t3a260805111623", summary)
         self.assertIn("t3a260805113656", summary)
         self.assertIn("t3a260805120026", summary)
+        self.assertIn("t3a260805125812", summary)
         self.assertIn("0030", summary)
 
         for path in TASK_3A_CURRENT_TRUTH_FILES:
@@ -662,6 +663,7 @@ $unsafe$;
                 self.assertIn("candidate_rerun_required", current_truth)
                 self.assertIn("evidence_promotion_blocked", current_truth)
                 self.assertIn("t3a260805120026", current_truth)
+                self.assertIn("t3a260805125812", current_truth)
                 self.assertIn("0030", current_truth)
 
     def test_migration_number_prefixes_are_globally_unique(self):

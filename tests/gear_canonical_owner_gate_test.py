@@ -3790,6 +3790,11 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
             "runtime_passed_superseded_by_main_integration",
             requirement["engineeringHealth"]["reason"],
         )
+        self.assertIn("t3a260805125812", requirement["engineeringHealth"]["reason"])
+        self.assertIn(
+            "runtime_passed_invalidated_by_direct_runtime_import_regression",
+            requirement["engineeringHealth"]["reason"],
+        )
         self.assertIn("0030", requirement["engineeringHealth"]["reason"])
         self.assertEqual(
             "source_change_control_only",
@@ -3837,6 +3842,7 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
         self.assertFalse(
             requirement["executionAuthorization"]["runtimeConsumersAllowed"]
         )
+
         self.assertEqual(
             "server/gear_exact_authority_store.py",
             requirement["ownership"]["task3AStoreOwner"],
@@ -3925,6 +3931,46 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
             expected_blocked_stages,
             backend_owner["blockedReplacementStages"],
         )
+
+    def test_task3a_evidence_downgrades_invalidated_fifth_candidate(self):
+        evidence = json.loads((
+            ROOT
+            / "artifacts/releases/2026-08-04-equipment-simulator-exact-first/evidence.json"
+        ).read_text(encoding="utf-8"))
+
+        self.assertEqual("implementation_allowed", evidence["status"])
+        self.assertEqual("implementation_allowed", evidence["highestEvidenceLevel"])
+        self.assertEqual("pending", evidence["identities"]["runtime"]["status"])
+        self.assertEqual("pending", evidence["identities"]["verification"]["status"])
+        self.assertEqual("pending", evidence["identities"]["closure"]["status"])
+        self.assertEqual("candidate_pending", evidence["candidateDeployment"]["status"])
+        self.assertEqual(6, evidence["candidateDeployment"]["ordinal"])
+        self.assertEqual("0030", evidence["candidateDeployment"]["migration"])
+        self.assertEqual(
+            "task3a-candidate-attestation-v2",
+            evidence["candidateDeployment"]["attestationSchema"],
+        )
+        self.assertIn("t3a260805125812", evidence["candidateDeployment"]["forbiddenRunIds"])
+        self.assertTrue(any(
+            "t3a260805125812" in database
+            for database in evidence["candidateDeployment"]["forbiddenDatabases"]
+        ))
+        fifth = next(
+            candidate
+            for candidate in evidence["candidateHistory"]
+            if candidate["runId"] == "t3a260805125812"
+        )
+        self.assertEqual(
+            "runtime_passed_invalidated_by_direct_runtime_import_regression",
+            fifth["status"],
+        )
+        self.assertEqual("t3a260805125812", evidence["historicalCandidateEvidence"][-1]["runId"])
+        self.assertEqual(
+            "t3a260805125812",
+            evidence["historicalCandidateEvidence"][-1]["attestation"]["runId"],
+        )
+        self.assertIn("92215539827", evidence["historicalFailureEvidence"]["job"])
+        self.assertEqual("candidate_pending", evidence["nextCandidate"]["status"])
 
 
 if __name__ == "__main__":

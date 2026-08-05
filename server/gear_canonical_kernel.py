@@ -11,7 +11,10 @@ import re
 from typing import Literal, TypeVar
 import unicodedata
 
-from server.gear_contracts import CANONICAL_GEAR_SLOTS
+try:
+    from .gear_contracts import CANONICAL_GEAR_SLOTS
+except ImportError:  # pragma: no cover - direct server runtime compatibility
+    from gear_contracts import CANONICAL_GEAR_SLOTS
 
 
 T = TypeVar("T")

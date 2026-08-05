@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` to execute this plan task by task. This is a schema-boundary replacement after the previous Task 5 reached its five-round Stop Gate; it is not a sixth patch round.
 
-状态：`已完成（仅 Task 1-2 scoped 与 pure-foundation final whole-branch PASS/APPROVED；proofClaim=source_change_control_only；replacement Task 3A 当前为 candidate_rerun_required / evidence_promotion_blocked：前三次仍为失败/不可晋升历史，第四次 t3a260805120026 真实通过旧 0026 链但因 main 已占用 0026-0029、当前必须改为 0030 而 superseded；四对八库不可复用，必须第五次新 run-id/双库重跑；原 Task 3 继续停止）`
+状态：`已完成（仅 Task 1-2 scoped 与 pure-foundation final whole-branch PASS/APPROVED；proofClaim=source_change_control_only；replacement Task 3A 当前为 candidate_rerun_required / evidence_promotion_blocked：第四次 t3a260805120026 因 main migration 漂移 superseded，第五次 t3a260805125812 虽通过 0030 但因 exact source 的 direct-server runtime import 回归失效；五对十库不可复用，必须第六次新 run-id/双库重跑；原 Task 3 继续停止）`
 
 **Goal:** 保留已经通过语义测试的 Canonical Kernel、sealed documents、Exact/Progression/Effect/Probe/CLI/Envelope contracts，把失控增长的 Python AST “authority proof” 替换成诚实、可维护的 source change-control：四个 server owner 使用 declaration-only module-load profile，CLI 使用独立的受限 bootstrap profile，所有未知模块加载语法 fail closed。
 

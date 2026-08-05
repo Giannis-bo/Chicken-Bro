@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` and `superpowers:test-driven-development`. This is a bounded semantic correction after the Canonical foundation whole-branch review failed; it is not an owner-gate patch and does not relax the existing Stop Gate.
 
-状态：`已完成（仅 duplicate-subject correction 与 pure-foundation whole-branch PASS/APPROVED；replacement Task 3A 当前为 candidate_rerun_required / evidence_promotion_blocked：前三次仍为失败/不可晋升历史，第四次 t3a260805120026 真实通过旧 0026 链但因 main 已占用 0026-0029、当前必须改为 0030 而 superseded；四对八库不可复用，必须第五次新 run-id/双库重跑；原 Task 3 继续停止）`
+状态：`已完成（仅 duplicate-subject correction 与 pure-foundation whole-branch PASS/APPROVED；replacement Task 3A 当前为 candidate_rerun_required / evidence_promotion_blocked：第四次 t3a260805120026 因 main migration 漂移 superseded，第五次 t3a260805125812 虽通过 0030 但因 exact source 的 direct-server runtime import 回归失效；五对十库不可复用，必须第六次新 run-id/双库重跑；原 Task 3 继续停止）`
 
 ## Goal
 

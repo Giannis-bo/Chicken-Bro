@@ -76,7 +76,7 @@ The fourth run is therefore `runtime_passed_superseded_by_main_integration`, not
 0030 evidence. origin/main integration and the 0030 local verification matrix passed at
 merge commit `1619815c`.
 
-The fifth run `t3a260805125812` then passed fresh `0001..0030` and upgrade
+The fifth run `t3a260805125812` genuinely passed fresh `0001..0030` and upgrade
 `0001..0029` plus frozen-v1 seed/snapshot plus `0030` from exact clean commit
 `a4c0fd04b39577838ad4fb7a0e3c54b8e0205c30` / tree
 `aa0908eb8214d9572fc604e3399321c5d6eb3754`. Its single-line
@@ -84,9 +84,16 @@ The fifth run `t3a260805125812` then passed fresh `0001..0030` and upgrade
 `0030` SHA-256 `41e12fd5b12cac79ed57dde266e4b515b0b731dfcc9c9874d818ddc306f957c3`
 to 14 verified checks. The read-only post-audit confirmed 30 ledger rows, one
 `0003`, one `0030`, the exact target constraint, expected authority counts and
-SELECT-only `wow_app` privileges in both databases. Evidence is now
-`runtime_verified / promotion_review_passed / delivery_closure_pending`; runtime consumers remain empty,
-production migration was not executed and Task 4P+ is not authorized.
+SELECT-only `wow_app` privileges in both databases. That candidate object and its
+single-line attestation-v2 remain immutable historical evidence. GitHub PR #114
+full-profile run `30977816268`, job `92215539827`, then failed
+`GearRuntimeTest.test_runtime_imports_from_server_directory_for_direct_backend_startup`
+and `PgGearAuthorityLoaderTest.test_loader_imports_in_direct_server_runtime_mode`:
+its source used only `server.gear_contracts` while direct startup runs from `server/`.
+The Node deprecation warning was not the cause. The compatibility correction is
+candidate-invalidating, so current evidence is `implementation_allowed / candidate_pending`,
+engineering truth is `candidate_rerun_required / evidence_promotion_blocked`, and runtime
+consumers remain empty, production migration was not executed and Task 4P+ is not authorized.
 
 All five run-id pairs and all ten databases are immutable/non-reusable
 evidence: never reset or reuse them. The test suite never creates, drops, resets
@@ -105,9 +112,9 @@ The ten non-reusable database identities are:
 - `wow_exact_first_fresh_test_t3a260805125812` and
   `wow_exact_first_upgrade_test_t3a260805125812`.
 
-Because the 0030 integration correction was candidate-invalidating, the fifth run did
-not reuse any prior identity. It used a new lowercase run id matching
-`[a-z0-9]{8,32}`; the suite rejects all four historically forbidden ids before importing
+Because the direct-runtime correction was candidate-invalidating, a sixth run must not
+reuse any prior identity. It must use a new lowercase run id matching
+`[a-z0-9]{8,32}`; the suite rejects all five historically forbidden ids before importing
 `psycopg` or connecting. An operator
 with explicit authority provisions two distinct empty databases and exact database
 comments:
@@ -181,18 +188,20 @@ the run id, both database identities, commit/tree/migration hashes,
 Local/skipped runs emit no successful attestation and must not create or update
 either evidence file.
 
-Leave the fifth pair intact through evidence/manifest archival and scoped review.
+Leave the fifth pair intact as immutable historical evidence; it cannot be used for
+current promotion. After controller full-local verification, the sixth pair must use a
+new run id and two new operator-provisioned databases.
 After candidate execution, any change to code, tests, migration,
 requirement or owner contracts invalidates both candidates. Only an operator may
 discard the two exact database identities after archival; the suite never does.
 Missing `psql`, either DSN, or the run id is a skipped candidate and remains
 `candidate_pending`, never green evidence. The fourth pair remains intact as
-superseded attestation-v1 history and can never be reused. The historical
-`candidate_rerun_required / evidence_promotion_blocked` status was cleared only after
-the fifth new pair passed the final integrated 0030 chain; current status is
-`runtime_verified / promotion_review_passed / delivery_closure_pending`; the clean packet
-passed independent re-review, while delivery closure remains incomplete.
-The technically successful `t3a260805113656` attestation also remains unpromotable.
+superseded attestation-v1 history and the fifth as
+`runtime_passed_invalidated_by_direct_runtime_import_regression`; neither can be reused.
+The historical `candidate_rerun_required / evidence_promotion_blocked` status is again
+current until the sixth pair passes. Current runtime and verification identities are
+pending; this correction does not claim current local verification. The technically
+successful `t3a260805113656` attestation also remains unpromotable.
 No production migration is authorized.
 
 ## SQLite Source Inventory
