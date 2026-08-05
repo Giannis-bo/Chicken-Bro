@@ -55,14 +55,16 @@ try:
         analyze_simulator_request,
         build_simulator_home_payload,
         build_wcl_log_evidence,
-        clean_simc_gear_items,
         normalize_simc_race,
-        normalize_simc_slot,
         simc_version_status,
         warcraftlogs_credentials_state,
     )
     from .simc_preparation import simc_preparation_options_payload, simc_preparation_payload, simc_preparation_report
     from .simc_support_policy import simc_execution_policy_summary, simc_execution_support
+    from .simc_gear_import import (
+        parse_simcraft_template_gear_line as _parse_simcraft_template_gear_line,
+        parse_simcraft_template_gear_raw as _parse_simcraft_template_gear_raw,
+    )
     try:
         from .codex_worker import run_codex_job
     except ImportError:
@@ -182,14 +184,16 @@ except ImportError:
         analyze_simulator_request,
         build_simulator_home_payload,
         build_wcl_log_evidence,
-        clean_simc_gear_items,
         normalize_simc_race,
-        normalize_simc_slot,
         simc_version_status,
         warcraftlogs_credentials_state,
     )
     from simc_preparation import simc_preparation_options_payload, simc_preparation_payload, simc_preparation_report
     from simc_support_policy import simc_execution_policy_summary, simc_execution_support
+    from simc_gear_import import (
+        parse_simcraft_template_gear_line as _parse_simcraft_template_gear_line,
+        parse_simcraft_template_gear_raw as _parse_simcraft_template_gear_raw,
+    )
     try:
         from codex_worker import run_codex_job
     except ImportError:
@@ -4845,28 +4849,7 @@ def simcraft_template_effective_gear_raw(raw_string, metadata=None):
 
 
 def parse_simcraft_template_gear_line(line):
-    text = str(line or "").strip()
-    if not text or text.startswith("#"):
-        return None, ""
-    parts = [part.strip() for part in text.split(",") if part.strip()]
-    if not parts or "=" not in parts[0]:
-        return None, f"invalid gear line: {text[:80]}"
-    slot_key, _, name = parts[0].partition("=")
-    slot = normalize_simc_slot(slot_key)
-    if not slot:
-        return None, f"invalid gear slot: {slot_key}"
-    item = {"slot": slot, "name": name.strip()}
-    for part in parts[1:]:
-        key, separator, value = part.partition("=")
-        key = key.strip()
-        value = value.strip()
-        if not separator or not key or not value:
-            continue
-        item[key] = value
-    normalized = clean_simc_gear_items([item], limit=1)
-    if not normalized:
-        return None, f"missing item id for gear slot: {slot}"
-    return normalized[0], ""
+    return _parse_simcraft_template_gear_line(line)
 
 
 def parse_simcraft_template_gear_raw(raw_string, class_key="", spec_key="", conn=None, metadata=None):
@@ -4897,25 +4880,7 @@ def parse_simcraft_template_gear_raw(raw_string, class_key="", spec_key="", conn
             errors.append(f"missing gear slots: {', '.join(missing_slots)}")
         errors.extend([str(item) for item in (enhancement.get("blockers") or []) if str(item or "").strip()])
         return items, errors
-    errors = []
-    items = []
-    seen_slots = set()
-    for line in text.splitlines():
-        item, error = parse_simcraft_template_gear_line(line)
-        if error:
-            errors.append(error)
-            continue
-        if not item:
-            continue
-        if item["slot"] in seen_slots:
-            errors.append(f"duplicate gear slot: {item['slot']}")
-            continue
-        seen_slots.add(item["slot"])
-        items.append(item)
-    missing_slots = [slot for slot in SIMCRAFT_TEMPLATE_REQUIRED_GEAR_SLOTS if slot not in seen_slots]
-    if missing_slots:
-        errors.append(f"missing gear slots: {', '.join(missing_slots)}")
-    return items if not errors else [], errors
+    return _parse_simcraft_template_gear_raw(text, SIMCRAFT_TEMPLATE_REQUIRED_GEAR_SLOTS)
 
 
 def simcraft_template_empty_readiness(template_type, checked_at=None):

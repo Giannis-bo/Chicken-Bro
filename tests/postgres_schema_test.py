@@ -1,4 +1,6 @@
+import json
 from pathlib import Path
+import re
 import unittest
 
 
@@ -32,6 +34,232 @@ CHICKENBRO_SMART_QUESTION_CHAIN = ROOT / "server" / "migrations" / "postgres" / 
 CHICKENBRO_COMMUNITY_STRENGTH = ROOT / "server" / "migrations" / "postgres" / "0027_chickenbro_community_strength_sources.sql"
 CHICKENBRO_GENERIC_PUBLIC_WEB = ROOT / "server" / "migrations" / "postgres" / "0028_chickenbro_generic_public_web_research.sql"
 CHICKENBRO_PUBLIC_WEB_REPEAT_BUDGET = ROOT / "server" / "migrations" / "postgres" / "0029_chickenbro_public_web_repeat_budget.sql"
+WEBSIM_EXACT_AUTHORITY_BUNDLE = ROOT / "server" / "migrations" / "postgres" / "0030_websim_exact_authority_bundle.sql"
+TASK_3A_CURRENT_TRUTH_FILES = (
+    ROOT / "artifacts" / "releases" / "2026-08-04-equipment-simulator-exact-first" / "requirement.json",
+    ROOT / "docs" / "backend-owner-map.json",
+    ROOT / "docs" / "plans" / "2026-08-04-equipment-simulator-canonical-kernel-implementation.md",
+    ROOT / "docs" / "plans" / "2026-08-04-equipment-simulator-canonical-kernel-redesign.md",
+    ROOT / "docs" / "plans" / "2026-08-04-equipment-simulator-canonical-owner-change-control.md",
+    ROOT / "docs" / "plans" / "2026-08-04-equipment-simulator-duplicate-effect-subject-correction.md",
+    ROOT / "docs" / "plans" / "2026-08-04-equipment-simulator-exact-first-implementation.md",
+    ROOT / "docs" / "plans" / "2026-08-04-equipment-simulator-exact-first-persistence-resequence.md",
+    ROOT / "docs" / "plans" / "README.md",
+    ROOT / "docs" / "postgres-identity-migration-runbook.md",
+    ROOT / "docs" / "project-owner-map.json",
+    ROOT / "docs" / "roadmap.md",
+)
+TASK_3A_LIFECYCLE_STATUS_FILES = (
+    ROOT / "docs" / "plans" / "2026-08-04-equipment-simulator-exact-first-persistence-resequence.md",
+    ROOT / "docs" / "plans" / "README.md",
+    ROOT / "docs" / "postgres-identity-migration-runbook.md",
+    ROOT / "docs" / "roadmap.md",
+)
+POSTGRES_MIGRATIONS_0001_0030 = tuple(sorted(
+    (ROOT / "server" / "migrations" / "postgres").glob("[0-9][0-9][0-9][0-9]_*.sql")
+))
+
+
+def _normalized(value):
+    return " ".join(value.split())
+
+
+def _sql_section(sql, start_marker, end_marker):
+    start = sql.index(start_marker)
+    end = sql.index(end_marker, start) + len(end_marker)
+    return _normalized(sql[start:end])
+
+
+def exact_authority_schema_violations(sql, migrations):
+    violations = []
+    normalized = _normalized(sql)
+    documents = _sql_section(
+        sql,
+        "CREATE TABLE IF NOT EXISTS cache.websim_canonical_documents",
+        "\n);",
+    )
+    relations = _sql_section(
+        sql,
+        "CREATE TABLE IF NOT EXISTS cache.websim_effect_aggregate_records",
+        "\n);",
+    )
+    bundles = _sql_section(
+        sql,
+        "CREATE TABLE IF NOT EXISTS cache.websim_exact_authority_bundles",
+        "\n);",
+    )
+    matrix = (
+        ("exact_item", "gear-exact-item-instance-v2", "exact-item-instance:sha256:"),
+        ("exact_static_facts", "exact-static-facts-v1", "exact-static-facts:sha256:"),
+        ("exact_progression", "exact-progression-binding-v1", "exact-progression:sha256:"),
+        ("effect_record", "simc-item-effect-record-v1", "simc-item-effect-record:sha256:"),
+        ("effect_aggregate", "simc-item-effect-support-v1", "simc-item-effect-support:sha256:"),
+        ("exact_authority", "exact-authority-envelope-v1", "exact-authority:sha256:"),
+    )
+    if documents.count("document_kind = '") != 6:
+        violations.append("closed matrix document_kind count")
+    if documents.count("schema_revision = '") != 6:
+        violations.append("closed matrix schema_revision count")
+    if documents.count("content_key = '") != 6:
+        violations.append("closed matrix content_key count")
+    for kind, schema, prefix in matrix:
+        branch = _normalized(f"""
+            (
+                document_kind = '{kind}'
+                AND schema_revision = '{schema}'
+                AND content_key = '{prefix}' || canonical_sha256
+            )
+        """)
+        if documents.count(branch) != 1:
+            violations.append(f"closed matrix branch {kind}")
+
+    fk_contract = (
+        (relations, "effect_support_key text NOT NULL REFERENCES cache.websim_canonical_documents(content_key) ON DELETE RESTRICT"),
+        (relations, "effect_record_key text NOT NULL REFERENCES cache.websim_canonical_documents(content_key) ON DELETE RESTRICT"),
+        (bundles, "exact_authority_envelope_key text PRIMARY KEY REFERENCES cache.websim_canonical_documents(content_key) ON DELETE RESTRICT"),
+        (bundles, "exact_item_instance_key text NOT NULL REFERENCES cache.websim_canonical_documents(content_key) ON DELETE RESTRICT"),
+        (bundles, "static_facts_key text NOT NULL REFERENCES cache.websim_canonical_documents(content_key) ON DELETE RESTRICT"),
+        (bundles, "progression_binding_key text NOT NULL REFERENCES cache.websim_canonical_documents(content_key) ON DELETE RESTRICT"),
+        (bundles, "effect_support_key text NOT NULL REFERENCES cache.websim_canonical_documents(content_key) ON DELETE RESTRICT"),
+    )
+    for section, clause in fk_contract:
+        if section.count(clause) != 1:
+            violations.append(f"exact foreign key {clause.split()[0]}")
+    if normalized.count(
+        "REFERENCES cache.websim_canonical_documents(content_key) ON DELETE RESTRICT"
+    ) != 7:
+        violations.append("exact foreign key universe")
+
+    trigger_contract = (
+        ("websim_canonical_documents", "trg_websim_canonical_documents_immutable", "trg_websim_canonical_documents_truncate"),
+        ("websim_effect_aggregate_records", "trg_websim_effect_aggregate_records_immutable", "trg_websim_effect_aggregate_records_truncate"),
+        ("websim_exact_authority_bundles", "trg_websim_exact_authority_bundles_immutable", "trg_websim_exact_authority_bundles_truncate"),
+    )
+    for table, row_trigger, truncate_trigger in trigger_contract:
+        row_clause = (
+            f"CREATE TRIGGER {row_trigger} BEFORE UPDATE OR DELETE ON cache.{table} "
+            "FOR EACH ROW EXECUTE FUNCTION cache.reject_websim_exact_authority_mutation();"
+        )
+        truncate_clause = (
+            f"CREATE TRIGGER {truncate_trigger} BEFORE TRUNCATE ON cache.{table} "
+            "FOR EACH STATEMENT EXECUTE FUNCTION cache.reject_websim_exact_authority_mutation();"
+        )
+        if normalized.count(row_clause) != 1:
+            violations.append(f"immutable row trigger {table}")
+        if normalized.count(truncate_clause) != 1:
+            violations.append(f"immutable truncate trigger {table}")
+
+    binding_trigger_contract = (
+        "CREATE TRIGGER trg_websim_effect_aggregate_record_binding BEFORE INSERT ON cache.websim_effect_aggregate_records FOR EACH ROW EXECUTE FUNCTION cache.verify_websim_effect_aggregate_record_insert();",
+        "CREATE TRIGGER trg_websim_exact_authority_bundle_binding BEFORE INSERT ON cache.websim_exact_authority_bundles FOR EACH ROW EXECUTE FUNCTION cache.verify_websim_exact_authority_bundle_insert();",
+    )
+    for clause in binding_trigger_contract:
+        if normalized.count(clause) != 1:
+            violations.append(f"binding trigger {clause.split()[2]}")
+
+    function_names = (
+        "cache.verify_websim_effect_aggregate_record_insert",
+        "cache.verify_websim_exact_authority_bundle_insert",
+        "cache.reject_websim_exact_authority_mutation",
+    )
+    created_function_names = tuple(re.findall(
+        r"\bCREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+([^\s(]+)\s*\(",
+        normalized,
+        flags=re.IGNORECASE,
+    ))
+    if sorted(created_function_names) != sorted(function_names):
+        violations.append(
+            f"exact function universe {created_function_names}",
+        )
+    function_sections = {}
+    for function_name in function_names:
+        marker = f"CREATE OR REPLACE FUNCTION {function_name}()"
+        try:
+            section = _sql_section(sql, marker, "$function$;")
+        except ValueError:
+            violations.append(f"missing function {function_name}")
+            continue
+        function_sections[function_name] = section
+        declaration = _normalized(f"""
+            CREATE OR REPLACE FUNCTION {function_name}()
+            RETURNS trigger
+            LANGUAGE plpgsql
+            SECURITY INVOKER
+            SET search_path = pg_catalog, pg_temp
+            AS $function$
+        """)
+        if section.count(declaration) != 1:
+            violations.append(f"exact function declaration {function_name}")
+
+    aggregate_function = function_sections.get(
+        "cache.verify_websim_effect_aggregate_record_insert",
+        "",
+    )
+    aggregate_predicates = (
+        "aggregate_kind IS DISTINCT FROM 'effect_aggregate'",
+        "record_kind IS DISTINCT FROM 'effect_record'",
+        "pg_catalog.jsonb_typeof(aggregate_json -> 'supportRecords') IS DISTINCT FROM 'array'",
+        "NEW.ordinal >= pg_catalog.jsonb_array_length( aggregate_json -> 'supportRecords' )",
+        "aggregate_json -> 'supportRecords' -> NEW.ordinal ->> 'supportRecordKey' IS DISTINCT FROM NEW.effect_record_key",
+    )
+    for predicate in aggregate_predicates:
+        if aggregate_function.count(predicate) != 1:
+            violations.append(f"aggregate binding {predicate}")
+
+    bundle_function = function_sections.get(
+        "cache.verify_websim_exact_authority_bundle_insert",
+        "",
+    )
+    bundle_predicates = (
+        "envelope_kind IS DISTINCT FROM 'exact_authority'",
+        "exact_kind IS DISTINCT FROM 'exact_item'",
+        "static_kind IS DISTINCT FROM 'exact_static_facts'",
+        "progression_kind IS DISTINCT FROM 'exact_progression'",
+        "effect_kind IS DISTINCT FROM 'effect_aggregate'",
+        "pg_catalog.jsonb_typeof(effect_json -> 'supportRecords') IS DISTINCT FROM 'array'",
+        "effect_relation_count IS DISTINCT FROM pg_catalog.jsonb_array_length( effect_json -> 'supportRecords' )",
+        "envelope_json ->> 'exactItemInstanceKey' IS DISTINCT FROM NEW.exact_item_instance_key",
+        "envelope_json ->> 'staticFactsKey' IS DISTINCT FROM NEW.static_facts_key",
+        "envelope_json ->> 'progressionBindingKey' IS DISTINCT FROM NEW.progression_binding_key",
+        "envelope_json ->> 'effectSupportKey' IS DISTINCT FROM NEW.effect_support_key",
+        "envelope_json ->> 'resolverRevision' IS DISTINCT FROM NEW.resolver_revision",
+        "static_json ->> 'exactItemInstanceKey' IS DISTINCT FROM NEW.exact_item_instance_key",
+        "progression_json ->> 'exactItemInstanceKey' IS DISTINCT FROM NEW.exact_item_instance_key",
+        "progression_json ->> 'gearRuleRevision' IS DISTINCT FROM NEW.gear_rule_revision",
+        "effect_json ->> 'exactItemInstanceKey' IS DISTINCT FROM NEW.exact_item_instance_key",
+        "effect_json ->> 'simcRuntimeRevision' IS DISTINCT FROM NEW.simc_runtime_revision",
+    )
+    for predicate in bundle_predicates:
+        if bundle_function.count(predicate) != 1:
+            violations.append(f"bundle binding {predicate}")
+
+    authority_tables = (
+        "cache.websim_canonical_documents, "
+        "cache.websim_effect_aggregate_records, "
+        "cache.websim_exact_authority_bundles"
+    )
+    acl_contract = (
+        f"REVOKE ALL ON {authority_tables} FROM PUBLIC;",
+        f"REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON {authority_tables} FROM wow_app;",
+        f"GRANT SELECT ON {authority_tables} TO wow_app;",
+    )
+    acl_statements = tuple(re.findall(
+        r"\b(?:GRANT|REVOKE)\b[^;]*;",
+        normalized,
+        flags=re.IGNORECASE,
+    ))
+    if sorted(acl_statements) != sorted(acl_contract):
+        violations.append(f"exact authority ACL universe {acl_statements}")
+
+    migration_names = [name for name, _ in migrations]
+    if migration_names.count("0030_websim_exact_authority_bundle.sql") != 1:
+        violations.append("0030 filename identity")
+    if sum(
+        body.count("'0030_websim_exact_authority_bundle'")
+        for _, body in migrations
+    ) != 1:
+        violations.append("0030 ledger identity")
+    return violations
 
 
 class PostgresSchemaTest(unittest.TestCase):
@@ -52,6 +280,203 @@ class PostgresSchemaTest(unittest.TestCase):
         cls.websim_manifest_v2_sql = WEBSIM_MANIFEST_V2.read_text(encoding="utf-8")
         cls.websim_gear_catalog_variant_shapes_sql = WEBSIM_GEAR_CATALOG_VARIANT_SHAPES.read_text(encoding="utf-8")
         cls.chickenbro_agent_observability_sql = CHICKENBRO_AGENT_OBSERVABILITY.read_text(encoding="utf-8")
+        cls.websim_exact_authority_bundle_sql = WEBSIM_EXACT_AUTHORITY_BUNDLE.read_text(encoding="utf-8")
+
+    def test_exact_authority_bundle_migration_binds_bytes_closure_and_read_only_grants(self):
+        normalized = " ".join(self.websim_exact_authority_bundle_sql.split())
+        migrations = tuple(
+            (path.name, path.read_text(encoding="utf-8"))
+            for path in POSTGRES_MIGRATIONS_0001_0030
+        )
+        self.assertEqual(
+            exact_authority_schema_violations(
+                self.websim_exact_authority_bundle_sql,
+                migrations,
+            ),
+            [],
+        )
+        for table in (
+            "cache.websim_canonical_documents",
+            "cache.websim_effect_aggregate_records",
+            "cache.websim_exact_authority_bundles",
+        ):
+            self.assertIn(f"CREATE TABLE IF NOT EXISTS {table}", normalized)
+        self.assertIn("to_regprocedure('pg_catalog.sha256(bytea)')", normalized)
+        self.assertRegex(
+            normalized,
+            r"canonical_sha256 = pg_catalog\.encode\(\s*pg_catalog\.sha256\(canonical_bytes\), 'hex'\s*\)",
+        )
+        self.assertIn(
+            "canonical_json = pg_catalog.convert_from(canonical_bytes, 'UTF8')::jsonb",
+            normalized,
+        )
+        for kind, schema, prefix in (
+            ("exact_item", "gear-exact-item-instance-v2", "exact-item-instance:sha256:"),
+            ("exact_static_facts", "exact-static-facts-v1", "exact-static-facts:sha256:"),
+            ("exact_progression", "exact-progression-binding-v1", "exact-progression:sha256:"),
+            ("effect_record", "simc-item-effect-record-v1", "simc-item-effect-record:sha256:"),
+            ("effect_aggregate", "simc-item-effect-support-v1", "simc-item-effect-support:sha256:"),
+            ("exact_authority", "exact-authority-envelope-v1", "exact-authority:sha256:"),
+        ):
+            self.assertIn(f"document_kind = '{kind}'", normalized)
+            self.assertIn(f"schema_revision = '{schema}'", normalized)
+            self.assertIn(f"'{prefix}' || canonical_sha256", normalized)
+        self.assertIn("SECURITY INVOKER SET search_path = pg_catalog, pg_temp", normalized)
+        self.assertIn("FOR KEY SHARE", normalized)
+        self.assertIn(
+            "effect_relation_count IS DISTINCT FROM pg_catalog.jsonb_array_length( effect_json -> 'supportRecords' )",
+            normalized,
+        )
+        self.assertIn(
+            "REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON cache.websim_canonical_documents",
+            normalized,
+        )
+        self.assertIn(
+            "GRANT SELECT ON cache.websim_canonical_documents",
+            normalized,
+        )
+        self.assertNotIn("GRANT SELECT, INSERT", normalized)
+        self.assertIn("0030_websim_exact_authority_bundle", normalized)
+
+    def test_exact_authority_contract_mutations_fail_closed(self):
+        migrations = tuple(
+            (path.name, path.read_text(encoding="utf-8"))
+            for path in POSTGRES_MIGRATIONS_0001_0030
+        )
+        self.assertEqual(
+            exact_authority_schema_violations(
+                self.websim_exact_authority_bundle_sql,
+                migrations,
+            ),
+            [],
+        )
+        acl_tables = (
+            "    cache.websim_canonical_documents,\n"
+            "    cache.websim_effect_aggregate_records,\n"
+            "    cache.websim_exact_authority_bundles"
+        )
+        acl_starts = tuple(
+            match.start()
+            for match in re.finditer(
+                re.escape(acl_tables),
+                self.websim_exact_authority_bundle_sql,
+            )
+        )
+        self.assertEqual(len(acl_starts), 3)
+
+        def shrink_acl(index):
+            start = acl_starts[index]
+            return (
+                self.websim_exact_authority_bundle_sql[:start]
+                + "    cache.websim_canonical_documents"
+                + self.websim_exact_authority_bundle_sql[start + len(acl_tables):]
+            )
+
+        mutations = (
+            self.websim_exact_authority_bundle_sql.replace(
+                "effect_record_key text NOT NULL",
+                "effect_record_key text",
+                1,
+            ),
+            self.websim_exact_authority_bundle_sql.replace(
+                "CREATE TRIGGER trg_websim_exact_authority_bundles_truncate",
+                "CREATE TRIGGER trg_removed_exact_authority_bundles_truncate",
+                1,
+            ),
+            self.websim_exact_authority_bundle_sql.replace(
+                "envelope_json ->> 'resolverRevision'",
+                "envelope_json ->> 'ignoredResolverRevision'",
+                1,
+            ),
+            self.websim_exact_authority_bundle_sql.replace(
+                "document_kind = 'exact_authority'",
+                "document_kind = 'unknown_authority'",
+                1,
+            ),
+            self.websim_exact_authority_bundle_sql.replace(
+                "SET search_path = pg_catalog, pg_temp",
+                "",
+                1,
+            ),
+            self.websim_exact_authority_bundle_sql.replace(
+                "SECURITY INVOKER",
+                "",
+                1,
+            ),
+            shrink_acl(0),
+            shrink_acl(1),
+            shrink_acl(2),
+            self.websim_exact_authority_bundle_sql + """
+CREATE FUNCTION cache.unsafe_extra_authority_function()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $unsafe$
+BEGIN
+    RETURN NEW;
+END;
+$unsafe$;
+""",
+            self.websim_exact_authority_bundle_sql
+            + "\nGRANT INSERT ON cache.websim_canonical_documents TO wow_app;\n",
+            self.websim_exact_authority_bundle_sql
+            + "\nGRANT ALL ON cache.websim_canonical_documents TO PUBLIC;\n",
+        )
+        for mutated in mutations:
+            with self.subTest(mutated=mutated[:80]):
+                self.assertTrue(
+                    exact_authority_schema_violations(mutated, migrations),
+                )
+        for function_name in (
+            "cache.verify_websim_effect_aggregate_record_insert",
+            "cache.verify_websim_exact_authority_bundle_insert",
+            "cache.reject_websim_exact_authority_mutation",
+        ):
+            start = self.websim_exact_authority_bundle_sql.index(
+                f"CREATE OR REPLACE FUNCTION {function_name}()",
+            )
+            end = self.websim_exact_authority_bundle_sql.index(
+                "$function$;",
+                start,
+            )
+            function_sql = self.websim_exact_authority_bundle_sql[start:end]
+            for clause in (
+                "LANGUAGE plpgsql",
+                "SECURITY INVOKER",
+                "SET search_path = pg_catalog, pg_temp",
+            ):
+                with self.subTest(function=function_name, clause=clause):
+                    self.assertIn(clause, function_sql)
+                    mutated_function = function_sql.replace(clause, "", 1)
+                    mutated = (
+                        self.websim_exact_authority_bundle_sql[:start]
+                        + mutated_function
+                        + self.websim_exact_authority_bundle_sql[end:]
+                    )
+                    self.assertTrue(
+                        exact_authority_schema_violations(mutated, migrations),
+                    )
+        duplicate_identity = migrations + ((
+            "9999_duplicate.sql",
+            "SELECT '0030_websim_exact_authority_bundle';",
+        ),)
+        self.assertTrue(exact_authority_schema_violations(
+            self.websim_exact_authority_bundle_sql,
+            duplicate_identity,
+        ))
+
+    def test_migrations_0001_through_0030_never_manage_databases(self):
+        self.assertEqual(
+            POSTGRES_MIGRATIONS_0001_0030[-1].name,
+            "0030_websim_exact_authority_bundle.sql",
+        )
+        database_ddl = re.compile(
+            r"(?i)\b(?:CREATE|DROP|ALTER)\s+DATABASE\b",
+        )
+        for migration in POSTGRES_MIGRATIONS_0001_0030:
+            with self.subTest(migration=migration.name):
+                self.assertIsNone(database_ddl.search(
+                    migration.read_text(encoding="utf-8"),
+                ))
 
     def table_section(self, table_name):
         start = self.sql.index(f"CREATE TABLE IF NOT EXISTS {table_name}")
@@ -185,11 +610,147 @@ class PostgresSchemaTest(unittest.TestCase):
         )
         self.assertIn("0009_runtime_reconcile_privileges", normalized)
 
-    def test_build_template_dedupe_migration_replaces_name_unique_constraint(self):
+    def test_build_template_dedupe_migration_is_fail_closed_semantically_idempotent(self):
         normalized = " ".join(self.build_template_dedupe_sql.split())
         self.assertIn("DROP CONSTRAINT IF EXISTS build_templates_user_id_template_type_name_key", normalized)
-        self.assertIn("UNIQUE (user_id, template_type, config_hash)", normalized)
+        self.assertIn("DO $$", normalized)
+        self.assertIn(
+            "pg_catalog.pg_constraint con JOIN pg_catalog.pg_class rel ON rel.oid = con.conrelid JOIN pg_catalog.pg_namespace nsp ON nsp.oid = rel.relnamespace",
+            normalized,
+        )
+        self.assertIn("nsp.nspname = 'app'", normalized)
+        self.assertIn("rel.relname = 'build_templates'", normalized)
+        self.assertIn("con.conname = 'build_templates_user_id_template_type_config_hash_key'", normalized)
+        self.assertIn("con.contype = 'u'", normalized)
+        self.assertIn("pg_catalog.pg_attribute attr", normalized)
+        self.assertIn("WITH ORDINALITY", normalized)
+        self.assertIn("SELECT attr.attname::text", normalized)
+        self.assertIn("ARRAY['user_id', 'template_type', 'config_hash']", normalized)
+        self.assertIn("IF target_constraint_count = 0 THEN", normalized)
+        self.assertIn("ADD CONSTRAINT build_templates_user_id_template_type_config_hash_key UNIQUE (user_id, template_type, config_hash)", normalized)
+        self.assertIn("IF target_constraint_count <> 1 THEN", normalized)
+        self.assertIn("RAISE EXCEPTION", normalized)
+        self.assertNotIn("duplicate_object", normalized.lower())
         self.assertIn("0003_build_template_config_hash_unique", normalized)
+
+    def test_task3a_current_truth_requires_new_candidate_after_unpromotable_runtime_pass(self):
+        requirement = json.loads(
+            (
+                ROOT
+                / "artifacts"
+                / "releases"
+                / "2026-08-04-equipment-simulator-exact-first"
+                / "requirement.json"
+            ).read_text(encoding="utf-8")
+        )
+        self.assertEqual(requirement["status"], "implementation_allowed")
+
+        evidence = json.loads(
+            (ROOT / "artifacts/releases/2026-08-04-equipment-simulator-exact-first/evidence.json")
+            .read_text(encoding="utf-8")
+        )
+        stage = evidence["status"]
+        self.assertIn(
+            stage,
+            {"implementation_allowed", "local_verified", "runtime_verified"},
+        )
+        self.assertEqual(stage, evidence["highestEvidenceLevel"])
+
+        backend_owner_map = json.loads(
+            (ROOT / "docs" / "backend-owner-map.json").read_text(encoding="utf-8")
+        )
+        canonical_kernel_hotspot = next(
+            hotspot
+            for hotspot in backend_owner_map["hotspotFiles"]
+            if hotspot["path"] == "server/gear_canonical_kernel.py"
+        )
+        summary = canonical_kernel_hotspot["summary"]
+        self.assertIn("source change-control", summary)
+        self.assertIn("0030", summary)
+        self.assertNotIn("candidate_rerun_required", summary)
+        self.assertNotIn("evidence_promotion_blocked", summary)
+
+        for path in TASK_3A_CURRENT_TRUTH_FILES:
+            with self.subTest(path=path):
+                current_truth = path.read_text(encoding="utf-8")
+                self.assertIn("0030", current_truth)
+
+        for path in TASK_3A_LIFECYCLE_STATUS_FILES:
+            with self.subTest(lifecycle_status_path=path):
+                current_truth = path.read_text(encoding="utf-8")
+                self.assertIn("t3a260805160003", current_truth)
+                self.assertIn(
+                    "runtime_passed_unpromotable_current_truth_lifecycle_test_regression",
+                    current_truth,
+                )
+
+        if stage in {"implementation_allowed", "local_verified"}:
+            current_risks = {risk["id"]: risk for risk in evidence["risks"]}
+            promotion_risk = current_risks[
+                "evidence-promotion-and-delivery-closure"
+            ]
+            self.assertEqual(
+                "evidence_promotion_blocked_candidate_rerun_required",
+                promotion_risk["status"],
+            )
+            self.assertNotIn("promotion_review_passed", promotion_risk["status"])
+            self.assertNotIn("bound to the fifth", promotion_risk["detail"])
+            for path in TASK_3A_LIFECYCLE_STATUS_FILES:
+                with self.subTest(pre_runtime_path=path):
+                    current_truth = path.read_text(encoding="utf-8")
+                    self.assertIn("candidate_rerun_required", current_truth)
+                    self.assertIn("evidence_promotion_blocked", current_truth)
+        else:
+            self.assertEqual(
+                "candidate_verified", evidence["candidateDeployment"]["status"]
+            )
+            self.assertEqual(
+                "bound", evidence["identities"]["runtime"]["status"]
+            )
+
+        plan = (
+            ROOT
+            / "docs/plans/2026-08-04-equipment-simulator-exact-first-persistence-resequence.md"
+        ).read_text(encoding="utf-8")
+        self.assertIn("Seventh candidate `t3a260805160003`", plan)
+        self.assertIn(
+            "runtime_passed_unpromotable_current_truth_lifecycle_test_regression",
+            plan,
+        )
+        if stage in {"implementation_allowed", "local_verified"}:
+            self.assertIn(
+                f"current evidence is `{stage} / candidate_pending`", plan
+            )
+        self.assertNotIn("final Task 3A code/test state", plan)
+
+    def test_migration_number_prefixes_are_globally_unique(self):
+        migrations = POSTGRES_MIGRATIONS_0001_0030
+        prefixes = [path.name.split("_", 1)[0] for path in migrations]
+        self.assertEqual(len(prefixes), len(set(prefixes)))
+
+    def test_build_template_dedupe_mutation_postcondition_and_ledger_are_one_statement(self):
+        atomic_blocks = re.findall(
+            r"DO \$\$.*?END \$\$;",
+            self.build_template_dedupe_sql,
+            flags=re.DOTALL,
+        )
+        self.assertEqual(len(atomic_blocks), 1)
+        atomic_block = atomic_blocks[0]
+        self.assertEqual(self.build_template_dedupe_sql.strip(), atomic_block.strip())
+        self.assertIn(
+            "DROP CONSTRAINT IF EXISTS build_templates_user_id_template_type_name_key",
+            atomic_block,
+        )
+        self.assertIn(
+            "ADD CONSTRAINT build_templates_user_id_template_type_config_hash_key",
+            atomic_block,
+        )
+        self.assertIn("RAISE EXCEPTION", atomic_block)
+        self.assertIn("INSERT INTO ops.schema_migrations", atomic_block)
+        self.assertEqual(
+            atomic_block.count("0003_build_template_config_hash_unique"),
+            1,
+        )
 
     def test_chickenbro_runtime_migration_adds_message_job_and_bounded_context(self):
         normalized = " ".join(self.chickenbro_runtime_sql.split())

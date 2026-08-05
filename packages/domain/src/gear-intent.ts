@@ -1,4 +1,5 @@
 import type {
+  ExactLoadoutIntent,
   GearEnhancementSelection,
   GearItemReference,
   GearResolvedSnapshot,
@@ -20,6 +21,12 @@ const selectionIntentEligibilityKeys = ['classKey', 'specKey', 'level'] as const
 const selectionIntentSlotKeys = [
   'itemId', 'variantKey', 'gemOptionIds', 'enchantOptionId',
   'embellishmentOptionId', 'craftedOptionId', 'catalystOptionId',
+] as const
+const exactCoreSlots = canonicalSlots.slice(0, -1)
+const exactIntentAuthoredKeys = ['seasonRevision', 'gameBuild'] as const
+const exactIntentSlotKeys = [
+  'itemId', 'declaredItemLevel', 'bonusIds', 'context', 'gemIds', 'gemBonusIds',
+  'gemItemLevels', 'enchantId', 'craftedStats', 'embellishmentIds', 'redirectedBaseStats',
 ] as const
 
 function identifier(value: unknown): string {
@@ -89,6 +96,15 @@ function boundedIntentString(value: unknown, allowEmpty = false): value is strin
     && (allowEmpty || value.length > 0)
 }
 
+function boundedExactIntentString(value: unknown, allowEmpty = false): value is string {
+  return typeof value === 'string'
+    && value === value.trim()
+    && new TextEncoder().encode(value).byteLength <= 256
+    && (allowEmpty || value.length > 0)
+    && value.normalize('NFC') === value
+    && !/[\p{Cc}\p{Cf}\p{Cs}\p{Zl}\p{Zp}]/u.test(value)
+}
+
 /**
  * Validate only the persisted canonical Selection Intent structure and current
  * identity. Item legality and authority remain backend-owned.
@@ -132,6 +148,56 @@ export function canonicalGearSelectionIntent(
     }
   }
   return value as unknown as GearSelectionIntent
+}
+
+/**
+ * Validate the stored Exact v2 identity only. Catalog membership, weapon
+ * pairing, and other full-loadout legality remain Resolver-owned.
+ */
+export function canonicalExactLoadoutIntent(
+  value: unknown,
+  classKey: string,
+  specKey: string,
+): ExactLoadoutIntent | null {
+  if (!record(value)
+    || !exactKeys(value, selectionIntentRootKeys)
+    || value['schemaRevision'] !== 'exact-loadout-intent-v2'
+    || !record(value['authoredAgainst'])
+    || !record(value['eligibilityContext'])
+    || !record(value['slots'])) return null
+
+  const authored = value['authoredAgainst']
+  if (!exactKeys(authored, exactIntentAuthoredKeys)
+    || !exactIntentAuthoredKeys.every((key) => boundedExactIntentString(authored[key]))) return null
+
+  const eligibility = value['eligibilityContext']
+  if (!exactKeys(eligibility, selectionIntentEligibilityKeys)
+    || !boundedExactIntentString(eligibility['classKey'])
+    || !boundedExactIntentString(eligibility['specKey'])
+    || eligibility['classKey'] !== classKey
+    || eligibility['specKey'] !== specKey
+    || !Number.isInteger(eligibility['level'])
+    || Number(eligibility['level']) < 1
+    || Number(eligibility['level']) > 999) return null
+
+  const slots = value['slots']
+  const expectedSlots = [...exactCoreSlots, ...(hasOwn(slots, 'off_hand') ? ['off_hand'] : [])]
+  if (Object.keys(slots).length !== expectedSlots.length
+    || Object.keys(slots).some((slot, index) => slot !== expectedSlots[index])) return null
+
+  for (const slot of expectedSlots) {
+    const raw = slots[slot]
+    if (!record(raw)
+      || !exactKeys(raw, exactIntentSlotKeys)
+      || !boundedExactIntentString(raw['itemId'])
+      || (raw['declaredItemLevel'] !== null && (!Number.isInteger(raw['declaredItemLevel']) || Number(raw['declaredItemLevel']) < 1 || Number(raw['declaredItemLevel']) > 9999))
+      || !boundedExactIntentString(raw['context'], true)
+      || !boundedExactIntentString(raw['enchantId'], true)) return null
+    const identifierLists = ['bonusIds', 'gemIds', 'gemBonusIds', 'craftedStats', 'embellishmentIds', 'redirectedBaseStats'] as const
+    if (identifierLists.some((key) => !Array.isArray(raw[key]) || !raw[key].every((item) => boundedExactIntentString(item)))) return null
+    if (!Array.isArray(raw['gemItemLevels']) || raw['gemItemLevels'].some((item) => !Number.isInteger(item) || item < 1 || item > 9999)) return null
+  }
+  return value as unknown as ExactLoadoutIntent
 }
 
 /**

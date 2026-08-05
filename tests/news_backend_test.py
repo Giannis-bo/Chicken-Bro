@@ -74,6 +74,21 @@ SIMC_AGENT_SPEC_CASES = [
 
 
 class NewsBackendTest(unittest.TestCase):
+    # Catches the compatibility facade diverging from the extracted pure
+    # parser and changing the established legacy gear-line output.
+    def test_simcraft_template_gear_line_keeps_legacy_canonical_output(self):
+        from server import news_backend
+
+        item, problem = news_backend.parse_simcraft_template_gear_line(
+            "head=Fixture Helm,id=225574,ilevel=701,bonus_id=123/456"
+        )
+
+        self.assertEqual(problem, "")
+        self.assertEqual(item, {
+            "slot": "head", "name": "fixture_helm", "id": "225574",
+            "ilevel": "701", "bonus_id": "123/456",
+        })
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         os.environ["WOW_NEWS_DB"] = str(Path(self.tmp.name) / "news.sqlite3")

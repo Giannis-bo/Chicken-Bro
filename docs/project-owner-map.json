@@ -347,6 +347,7 @@
         "status": "active_canonical_runtime",
         "modules": [
           "server/gear_contracts.py",
+          "server/simc_gear_import.py",
           "server/gear_result_envelope.py",
           "server/gear_rule_matrix.py",
           "server/gear_evidence_ledger.py",
@@ -356,6 +357,7 @@
         ],
         "tests": [
           "tests/gear_contracts_test.py",
+          "tests/simc_gear_import_test.py",
           "tests/gear_result_envelope_test.py",
           "tests/gear_rule_matrix_test.py",
           "tests/gear_evidence_ledger_test.py",
@@ -380,6 +382,76 @@
         ],
         "runtimeConsumers": [],
         "activationBoundary": "Task 1 defines deterministic max-not-sum socket facts only; release materialization and runtime consumption remain outside this slice."
+      },
+      "canonicalKernelFoundations": {
+        "status": "source_change_control_only",
+        "factOwner": "server/gear_canonical_kernel.py",
+        "kernelSemanticOwner": "server/gear_canonical_kernel.py",
+        "slotSetOwner": "server/gear_contracts.py",
+        "domainSchemaOwners": [
+          "server/gear_contracts.py",
+          "packages/domain/src/gear-intent.ts",
+          "server/gear_exact_item_instance.py",
+          "server/gear_exact_authority.py",
+          "server/simc_item_effect_support.py",
+          "server/simc_item_effect_probe.py"
+        ],
+        "sourceChangeControlRegistry": {
+          "path": "tests/fixtures/gear_canonical_owner_registry.json",
+          "role": "test_only_source_change_control",
+          "runtimeAuthority": false,
+          "reviewDiffRequired": true
+        },
+        "modules": [
+          "server/gear_canonical_kernel.py",
+          "server/gear_contracts.py",
+          "packages/domain/src/gear-intent.ts",
+          "server/gear_exact_item_instance.py",
+          "server/gear_exact_authority.py",
+          "server/simc_item_effect_support.py",
+          "server/simc_item_effect_probe.py",
+          "scripts/simc-item-effect-probe.py"
+        ],
+        "tests": [
+          "tests/gear_canonical_kernel_test.py",
+          "tests/gear_canonical_owner_gate_test.py",
+          "tests/fixtures/gear_canonical_owner_registry.json",
+          "tests/fixtures/gear_canonical_mutations.json",
+          "packages/domain/src/gear-intent.test.ts",
+          "tests/gear_exact_item_instance_test.py",
+          "tests/gear_exact_authority_test.py",
+          "tests/simc_item_effect_support_test.py",
+          "tests/simc_item_effect_probe_test.py",
+          "tests/simc_item_effect_probe_cli_test.py"
+        ],
+        "runtimeConsumers": [],
+        "owns": [
+          "Task 1-5 strict NFC canonical primitive validation without trim, coercion, normalization, sort, dedupe or defaulting",
+          "byte-, depth-, node- and cycle-bounded deterministic canonical JSON with exact string object keys and SHA-256 content keys",
+          "module-private sealed canonical document construction and reload verification",
+          "canonical ownership source change-control for four server declaration-only profiles, one CLI bootstrap profile, exact physical imports, fixed digest-bound exemptions and public/export ownership"
+        ],
+        "mustNotChange": [
+          "server/gear_contracts.py remains the sole canonical gear slot-set owner.",
+          "Exact, Progression, Effect and Envelope modules own only their schemas and business derivation; primitive validation, bytes and seals remain Kernel-owned.",
+          "Cross-domain consumers require sealed documents; raw objects are allowed only at explicit Exact import, Static Facts, Effect record, Probe and CLI decoder boundaries that validate before sealing.",
+          "Do not read database, Catalog, environment or runtime process state."
+        ],
+        "proofClaim": "source_change_control_only",
+        "originalTask3Activated": false,
+        "replacementTask3AActivated": true,
+        "authorizedReplacementStages": [
+          "task_3a_authority_bundle_persistence"
+        ],
+        "blockedReplacementStages": [
+          "task_4p_pure_v2",
+          "task_4l_loadout_effect_authority",
+          "task_3b_snapshot_persistence",
+          "task_4w_worker_jobs",
+          "task_5a_api_runtime",
+          "task_6c_observation_catalog"
+        ],
+        "activationBoundary": "The pure Canonical foundation and replacement Task 3A migration 0030 persistence boundary are structurally owned here. The registry remains test-only, proofClaim stays source_change_control_only, runtimeConsumers is empty, original Task 3 remains stopped, and generation 35, Catalog/pointers, worker, Resolver/API/UI, raw-text privacy and v1 identities remain unchanged. Exact lifecycle stage, candidate identity and promotion status are owned exclusively by the current release evidence packet."
       },
       "trackAuthorityFoundations": {
         "status": "pure_contract_only_unconsumed",
@@ -453,7 +525,12 @@
       },
       "exactItemInstanceFoundations": {
         "status": "phase2_dormant_exact_cache_implementation",
+        "canonicalKernelOwner": "server/gear_canonical_kernel.py",
+        "canonicalOwnerGate": "tests/gear_canonical_owner_gate_test.py",
         "factOwner": "server/gear_exact_item_instance.py",
+        "exactAuthorityOwner": "server/gear_exact_authority.py",
+        "effectSupportOwner": "server/simc_item_effect_support.py",
+        "effectProbeOwner": "server/simc_item_effect_probe.py",
         "registryOwner": "server/gear_exact_item_registry.py",
         "trackAuthorityOwner": "server/gear_track_authority.py",
         "readOnlyProjectionOwner": "server/gear_catalog_audit_store.py",
@@ -462,6 +539,9 @@
         "cliOrchestrator": "scripts/gear-exact-item-instance.py",
         "modules": [
           "server/gear_exact_item_instance.py",
+          "server/gear_exact_authority.py",
+          "server/simc_item_effect_support.py",
+          "server/simc_item_effect_probe.py",
           "server/gear_exact_item_registry.py",
           "server/gear_catalog_audit_store.py",
           "server/gear_exact_item_registry_store.py",
@@ -470,6 +550,11 @@
         ],
         "tests": [
           "tests/gear_exact_item_instance_test.py",
+          "tests/gear_exact_authority_test.py",
+          "tests/gear_canonical_owner_gate_test.py",
+          "tests/simc_item_effect_support_test.py",
+          "tests/simc_item_effect_probe_test.py",
+          "tests/simc_item_effect_probe_cli_test.py",
           "tests/gear_exact_item_registry_test.py",
           "tests/gear_exact_item_registry_store_test.py",
           "tests/gear_exact_item_instance_cli_test.py",
@@ -477,7 +562,7 @@
           "tests/postgres_schema_test.py"
         ],
         "runtimeConsumers": [],
-        "activationBoundary": "Phase 2 seals only template-referenced dormant exact instances, enhancements, validations and privacy-safe references. Generation 32, public readers, Community/personal template owners, Resolver and SimC remain unchanged."
+        "activationBoundary": "Archived Phase 2 still seals only template-referenced dormant exact instances, enhancements, validations and privacy-safe references. Replacement Task 1-5 supplies only the stable pure sealed schema/business foundation; original Task 3 is not activated, generation 35 and Catalog/pointers are unchanged, and persistence/worker, Resolver/API/UI and live SimC remain outside this capability boundary."
       },
       "observedBuildRegistryFoundations": {
         "status": "dormant_shadow_core",
@@ -631,6 +716,8 @@
         "server/websim_payload.py",
         "server/pg_gear_template_selectors.py",
         "server/gear_contracts.py",
+        "server/gear_canonical_kernel.py",
+        "server/simc_gear_import.py",
         "server/gear_result_envelope.py",
         "server/gear_rule_matrix.py",
         "server/gear_evidence_ledger.py",
@@ -671,6 +758,9 @@
         "packages/domain/src/gear-intent.*",
         "apps/mini-taro/src/pages/builds/detail.*",
         "tests/gear_contracts_test.py",
+        "tests/gear_canonical_kernel_test.py",
+        "tests/fixtures/gear_canonical_mutations.json",
+        "tests/simc_gear_import_test.py",
         "tests/gear_result_envelope_test.py",
         "tests/gear_rule_matrix_test.py",
         "tests/gear_evidence_ledger_test.py",

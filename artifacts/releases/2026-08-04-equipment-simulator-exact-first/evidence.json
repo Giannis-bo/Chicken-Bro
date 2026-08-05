@@ -1,0 +1,1155 @@
+{
+  "schemaVersion": 2,
+  "slug": "equipment-simulator-exact-first",
+  "requirementSlug": "equipment-simulator-exact-first",
+  "status": "runtime_verified",
+  "highestEvidenceLevel": "runtime_verified",
+  "branch": "codex/equipment-simulator-exact-first-implementation",
+  "commit": "1714f376d40e21112b13f537572932a1f5bd38f0",
+  "identities": {
+    "runtime": {
+      "status": "bound",
+      "kind": "git_commit",
+      "value": "9f230f2e0c44a0157fb58870f10197e5525c227a",
+      "gitTree": "89e7e5e70ca16cfba20f4140df7995a463b7ce31",
+      "reason": "The eighth fresh/upgrade PostgreSQL candidate and attestation bind the exact clean runtime-affecting source commit and tree."
+    },
+    "verification": {
+      "status": "bound_at_check",
+      "kind": "git_ref",
+      "value": "HEAD",
+      "reason": "The clean cross-version owner-digest correction verification HEAD passed the unique 173-command full profile and Harness while the executable candidate-to-verification diff gate proved the runtime identity remained bound to the eighth candidate."
+    },
+    "closure": {
+      "status": "pending",
+      "reason": "Runtime evidence is promoted; PR CI, push, merge, post-merge verification, packet archival and scoped candidate-resource cleanup remain pending."
+    }
+  },
+  "manualAcceptance": {
+    "required": false,
+    "status": "not_applicable",
+    "reason": "Task 3A adds dormant append-only persistence and no user-visible runtime, API, UI, worker, scheduled job or SimC consumer.",
+    "items": [],
+    "rollup": {
+      "total": 0,
+      "accepted": 0,
+      "notRunUserWaived": 0,
+      "pending": 0
+    }
+  },
+  "requirementHistoricalBoundary": {
+    "status": "immutable_candidate_start_contract",
+    "authoritativeCurrentStatus": "evidence.status and identities",
+    "reason": "requirement.json remains at implementation_allowed because that was the mandatory state when the eighth candidate began. Its engineeringHealth narrative is historical candidate-start context, not the current promotion source; the current runtime_verified/candidate_verified state is carried only by this evidence packet."
+  },
+  "mergeScopeException": {
+    "status": "user_authorized_pending_merge",
+    "authorizedAt": "2026-08-05",
+    "authority": "explicit user merge-scope authorization after independent CR",
+    "pr": 114,
+    "base": "origin/main",
+    "reviewedImplementationHead": "32495d951f61a7ee0328030c84211dd724cc846c",
+    "scope": "Merge the already-reviewed Pure Canonical foundation/source-change-control changes and Task 3A persistence slice together from the reviewed implementation diff.",
+    "doesNotAuthorize": [
+      "new implementation outside the existing PR diff",
+      "future Task 3A or Task 4P allowlist expansion",
+      "production migration or database write",
+      "runtime consumer, API, UI, worker, service, deploy, Catalog or Manifest pointer change",
+      "generation 35 change"
+    ],
+    "candidateIdentity": {
+      "runtimeCommit": "9f230f2e0c44a0157fb58870f10197e5525c227a",
+      "runtimeTree": "89e7e5e70ca16cfba20f4140df7995a463b7ce31",
+      "preserved": true
+    }
+  },
+  "scope": [
+    "Six exact-bytes typed Canonical reload boundaries",
+    "Append-only Exact Authority Bundle PostgreSQL persistence through current migration 0030",
+    "Eighth-run PostgreSQL attestation proves fresh 0001-to-0030 and upgrade 0001-to-0029-seed-to-0030 at exact runtime commit 9f230f2e/tree 89e7e5e",
+    "No runtime consumer, service, API, UI, Catalog, Manifest pointer or production database activation"
+  ],
+  "verification": [
+    {
+      "command": "node scripts/verify-project.js --profile full --release-from-changes --base origin/main",
+      "status": "pass",
+      "testedHead": "1714f376d40e21112b13f537572932a1f5bd38f0",
+      "gitTree": "7ba9ff1863822a90ffd081d3de70c0f7af3dfbc2",
+      "summary": "Exit 0 with status=project_verification_passed and 173 commands: Node 747/747, Python 2718/2718 with two expected unconfigured real-candidate skips, Vitest 437/437, compileall, typecheck, lint, UI audits/package mechanics, Harness and diff checks all passed. Candidate commit 9f230f2e to verification HEAD 1714f376 contained exactly tests/gear_canonical_owner_gate_test.py and the active resequence plan, with no runtime-affecting path."
+    },
+    {
+      "command": "GitHub PR #114 full-profile run 30977816268, job 92215539827",
+      "status": "fail",
+      "summary": "Historical failure evidence: GearRuntimeTest.test_runtime_imports_from_server_directory_for_direct_backend_startup and PgGearAuthorityLoaderTest.test_loader_imports_in_direct_server_runtime_mode failed because direct server startup could not import server.gear_contracts. Node deprecation warning was not the cause."
+    },
+    {
+      "command": "GitHub PR #114 full-profile run 30993690037",
+      "status": "fail",
+      "summary": "Historical CI compatibility failure evidence: Python 3.11 ast.dump included empty optional AST fields that Python 3.13 omitted by default, producing 29 false owner-gate digest failures against unchanged registry and assignment SHA values. Verification HEAD 1714f376 corrects the serializer cross-version; this was not a runtime candidate or PostgreSQL failure."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "candidate_verified",
+    "ordinal": 8,
+    "migration": "0030",
+    "attestationSchema": "task3a-candidate-attestation-v2",
+    "requiredBeforeMerge": true,
+    "branch": "codex/equipment-simulator-exact-first-implementation",
+    "commit": "9f230f2e0c44a0157fb58870f10197e5525c227a",
+    "gitTree": "89e7e5e70ca16cfba20f4140df7995a463b7ce31",
+    "host": "wow-lighthouse",
+    "runtime": "postgres_only",
+    "runId": "t3a260805163536",
+    "migrationPath": "server/migrations/postgres/0030_websim_exact_authority_bundle.sql",
+    "migration0030Sha256": "41e12fd5b12cac79ed57dde266e4b515b0b731dfcc9c9874d818ddc306f957c3",
+    "evidenceSource": {
+      "path": ".superpowers/sdd/2026-08-04-equipment-simulator-exact-first-persistence-resequence/task-3A-eighth-cloud-candidate-report.md",
+      "sha256": "59f0cf876f0c80a257182cd53d9681e8b94f69b429d55b9ea4b7d20a16e36b9f",
+      "bytes": 6833,
+      "lineCount": 136
+    },
+    "freshDatabase": {
+      "name": "wow_exact_first_fresh_test_t3a260805163536",
+      "comment": "wow_exact_first_disposable:t3a260805163536:fresh",
+      "preservationStatus": "preserved_pending_packet_archival_and_scoped_review"
+    },
+    "upgradeDatabase": {
+      "name": "wow_exact_first_upgrade_test_t3a260805163536",
+      "comment": "wow_exact_first_disposable:t3a260805163536:upgrade",
+      "preservationStatus": "preserved_pending_packet_archival_and_scoped_review"
+    },
+    "candidateSource": {
+      "remotePath": "/var/tmp/wow-task3a-candidate-t3a260805163536",
+      "gitStatus": "clean",
+      "commit": "9f230f2e0c44a0157fb58870f10197e5525c227a",
+      "gitTree": "89e7e5e70ca16cfba20f4140df7995a463b7ce31"
+    },
+    "bundle": {
+      "remotePath": "/var/tmp/wow-task3a-t3a260805163536.bundle",
+      "localPath": "/tmp/wow-task3a-t3a260805163536.bundle",
+      "bytes": 115862492,
+      "sha256": "73f32f0efffa2624ceda26bad815daa762b2e70fe0828a0a43b698c0066f5a9f"
+    },
+    "processEvidence": {
+      "exitCode": 0,
+      "wallDurationMs": 3437,
+      "stdoutPath": "/var/tmp/wow-task3a-candidate-t3a260805163536.stdout",
+      "stdoutSha256": "0dca090b454c1b84400b186dc03f0a35f6c5206b0a443ca44359bd6133e5272d",
+      "stdoutLineCount": 1,
+      "stdoutBytes": 1271,
+      "stderrPath": "/var/tmp/wow-task3a-candidate-t3a260805163536.stderr",
+      "stderrSha256": "d4a8bb9c2f68aaaec1e3b9215ae3ffa5ae133f476975f6b5fc2693a2e006698f",
+      "stderrLineCount": 5,
+      "stderrBytes": 98,
+      "unittestSummary": "Ran 1 test in 3.308s; OK"
+    },
+    "attestationJsonLine": "{\"freshDatabase\":{\"comment\":\"wow_exact_first_disposable:t3a260805163536:fresh\",\"name\":\"wow_exact_first_fresh_test_t3a260805163536\"},\"gitCommit\":\"9f230f2e0c44a0157fb58870f10197e5525c227a\",\"gitTree\":\"89e7e5e70ca16cfba20f4140df7995a463b7ce31\",\"migration0030Sha256\":\"41e12fd5b12cac79ed57dde266e4b515b0b731dfcc9c9874d818ddc306f957c3\",\"passed\":true,\"runId\":\"t3a260805163536\",\"schemaVersion\":\"task3a-candidate-attestation-v2\",\"task\":\"equipment-simulator-exact-first-task-3a\",\"upgradeDatabase\":{\"comment\":\"wow_exact_first_disposable:t3a260805163536:upgrade\",\"name\":\"wow_exact_first_upgrade_test_t3a260805163536\"},\"verifiedChecks\":[\"exact_disposable_database_identity_and_empty_preflight\",\"fresh_migrations_0001_through_0030\",\"upgrade_migrations_0001_through_0029_seed_then_0030\",\"v1_full_row_schema_table_default_acl_and_grant_parity\",\"canonical_hash_and_json_projection\",\"six_kind_schema_prefix_closed_matrix\",\"seven_exact_foreign_keys\",\"binding_trigger_first_missing_effect_documents_and_bundle_bindings\",\"three_table_update_delete_truncate_immutability\",\"wow_app_explicit_and_effective_select_only_acl\",\"whole_bundle_typed_readback\",\"absent_row_reverse_shared_effect_concurrency\",\"build_template_0003_semantic_idempotence_and_ledger\",\"unique_0030_migration_ledger_identity\"]}",
+    "attestation": {
+      "freshDatabase": {"comment": "wow_exact_first_disposable:t3a260805163536:fresh", "name": "wow_exact_first_fresh_test_t3a260805163536"},
+      "gitCommit": "9f230f2e0c44a0157fb58870f10197e5525c227a",
+      "gitTree": "89e7e5e70ca16cfba20f4140df7995a463b7ce31",
+      "migration0030Sha256": "41e12fd5b12cac79ed57dde266e4b515b0b731dfcc9c9874d818ddc306f957c3",
+      "passed": true,
+      "runId": "t3a260805163536",
+      "schemaVersion": "task3a-candidate-attestation-v2",
+      "task": "equipment-simulator-exact-first-task-3a",
+      "upgradeDatabase": {"comment": "wow_exact_first_disposable:t3a260805163536:upgrade", "name": "wow_exact_first_upgrade_test_t3a260805163536"},
+      "verifiedChecks": [
+        "exact_disposable_database_identity_and_empty_preflight",
+        "fresh_migrations_0001_through_0030",
+        "upgrade_migrations_0001_through_0029_seed_then_0030",
+        "v1_full_row_schema_table_default_acl_and_grant_parity",
+        "canonical_hash_and_json_projection",
+        "six_kind_schema_prefix_closed_matrix",
+        "seven_exact_foreign_keys",
+        "binding_trigger_first_missing_effect_documents_and_bundle_bindings",
+        "three_table_update_delete_truncate_immutability",
+        "wow_app_explicit_and_effective_select_only_acl",
+        "whole_bundle_typed_readback",
+        "absent_row_reverse_shared_effect_concurrency",
+        "build_template_0003_semantic_idempotence_and_ledger",
+        "unique_0030_migration_ledger_identity"
+      ]
+    },
+    "postCandidateAudit": {
+      "status": "pass",
+      "scope": "read_only",
+      "independentReview": "pass",
+      "gitIdentity": "Candidate repository remained clean at exact branch codex/equipment-simulator-exact-first-implementation, commit 9f230f2e0c44a0157fb58870f10197e5525c227a and tree 89e7e5e70ca16cfba20f4140df7995a463b7ce31.",
+      "databaseIdentity": "All 16 historical/current database identities were present and matched their exact comments.",
+      "historicalDatabaseComments": [
+        {"name": "wow_exact_first_fresh_test_t3a2608050955", "comment": "wow_exact_first_disposable:t3a2608050955:fresh"},
+        {"name": "wow_exact_first_upgrade_test_t3a2608050955", "comment": "wow_exact_first_disposable:t3a2608050955:upgrade"},
+        {"name": "wow_exact_first_fresh_test_t3a260805111623", "comment": "wow_exact_first_disposable:t3a260805111623:fresh"},
+        {"name": "wow_exact_first_upgrade_test_t3a260805111623", "comment": "wow_exact_first_disposable:t3a260805111623:upgrade"},
+        {"name": "wow_exact_first_fresh_test_t3a260805113656", "comment": "wow_exact_first_disposable:t3a260805113656:fresh"},
+        {"name": "wow_exact_first_upgrade_test_t3a260805113656", "comment": "wow_exact_first_disposable:t3a260805113656:upgrade"},
+        {"name": "wow_exact_first_fresh_test_t3a260805120026", "comment": "wow_exact_first_disposable:t3a260805120026:fresh"},
+        {"name": "wow_exact_first_upgrade_test_t3a260805120026", "comment": "wow_exact_first_disposable:t3a260805120026:upgrade"},
+        {"name": "wow_exact_first_fresh_test_t3a260805125812", "comment": "wow_exact_first_disposable:t3a260805125812:fresh"},
+        {"name": "wow_exact_first_upgrade_test_t3a260805125812", "comment": "wow_exact_first_disposable:t3a260805125812:upgrade"},
+        {"name": "wow_exact_first_fresh_test_t3a260805142130", "comment": "wow_exact_first_disposable:t3a260805142130:fresh"},
+        {"name": "wow_exact_first_upgrade_test_t3a260805142130", "comment": "wow_exact_first_disposable:t3a260805142130:upgrade"},
+        {"name": "wow_exact_first_fresh_test_t3a260805160003", "comment": "wow_exact_first_disposable:t3a260805160003:fresh"},
+        {"name": "wow_exact_first_upgrade_test_t3a260805160003", "comment": "wow_exact_first_disposable:t3a260805160003:upgrade"},
+        {"name": "wow_exact_first_fresh_test_t3a260805163536", "comment": "wow_exact_first_disposable:t3a260805163536:fresh"},
+        {"name": "wow_exact_first_upgrade_test_t3a260805163536", "comment": "wow_exact_first_disposable:t3a260805163536:upgrade"}
+      ],
+      "fresh": {
+        "migrationLedger": {"total": 30, "migration0003Rows": 1, "migration0030Rows": 1},
+        "targetConstraint": {"count": 1, "name": "build_templates_user_id_template_type_config_hash_key", "type": "u", "orderedColumns": ["user_id", "template_type", "config_hash"], "legacyNameConstraintCount": 0},
+        "authorityCounts": {"canonicalDocuments": 20, "effectAggregateRecords": 10, "exactAuthorityBundles": 3, "seededV1Rows": 0},
+        "wowAppPrivileges": {"select": true, "insert": false, "update": false, "delete": false, "truncate": false}
+      },
+      "upgrade": {
+        "migrationLedger": {"total": 30, "migration0003Rows": 1, "migration0030Rows": 1},
+        "targetConstraint": {"count": 1, "name": "build_templates_user_id_template_type_config_hash_key", "type": "u", "orderedColumns": ["user_id", "template_type", "config_hash"], "legacyNameConstraintCount": 0},
+        "authorityCounts": {"canonicalDocuments": 20, "effectAggregateRecords": 10, "exactAuthorityBundles": 3, "seededV1Rows": 1},
+        "wowAppPrivileges": {"select": true, "insert": false, "update": false, "delete": false, "truncate": false}
+      }
+    },
+    "smoke": {"status": "pass", "summary": "The exact frozen eighth candidate passed one real-PostgreSQL test in 3.308s: fresh 0001..0030 and upgrade 0001..0029-seed-to-0030 migration, immutable bundle, ACL, typed readback, semantic-idempotence and concurrency checks."},
+    "endpointSmoke": {"status": "not_applicable", "reason": "Task 3A has no service, API endpoint or runtime consumer."},
+    "timerBackflow": {"status": "not_applicable", "reason": "Task 3A adds no timer, scheduled job, service or asynchronous sync."},
+    "productionMigration": {"status": "not_applicable", "reason": "No production database migration was authorized or executed; migration 0030 ran only in the two named disposable candidate databases."},
+    "productionRuntimeConsumer": {"status": "not_applicable", "reason": "runtimeConsumers remains empty and Task 4P or later stages are not authorized."},
+    "asyncSyncStart": false,
+    "publicPointerChange": false,
+    "productionDatabaseWrite": false,
+    "preservedResources": [
+      "/tmp/wow-task3a-t3a260805163536.bundle",
+      "/var/tmp/wow-task3a-t3a260805163536.bundle",
+      "/var/tmp/wow-task3a-candidate-t3a260805163536",
+      "/var/tmp/wow-task3a-candidate-t3a260805163536.stdout",
+      "/var/tmp/wow-task3a-candidate-t3a260805163536.stderr",
+      "wow_exact_first_fresh_test_t3a260805163536",
+      "wow_exact_first_upgrade_test_t3a260805163536"
+    ],
+    "forbiddenRunIds": [
+      "t3a2608050955",
+      "t3a260805111623",
+      "t3a260805113656",
+      "t3a260805120026",
+      "t3a260805125812",
+      "t3a260805142130",
+      "t3a260805160003"
+    ],
+    "forbiddenDatabases": [
+      "wow_exact_first_fresh_test_t3a2608050955",
+      "wow_exact_first_upgrade_test_t3a2608050955",
+      "wow_exact_first_fresh_test_t3a260805111623",
+      "wow_exact_first_upgrade_test_t3a260805111623",
+      "wow_exact_first_fresh_test_t3a260805113656",
+      "wow_exact_first_upgrade_test_t3a260805113656",
+      "wow_exact_first_fresh_test_t3a260805120026",
+      "wow_exact_first_upgrade_test_t3a260805120026",
+      "wow_exact_first_fresh_test_t3a260805125812",
+      "wow_exact_first_upgrade_test_t3a260805125812",
+      "wow_exact_first_fresh_test_t3a260805142130",
+      "wow_exact_first_upgrade_test_t3a260805142130",
+      "wow_exact_first_fresh_test_t3a260805160003",
+      "wow_exact_first_upgrade_test_t3a260805160003"
+    ],
+    "reason": "The eighth exact frozen 0030 candidate passed PostgreSQL execution, controller read-only post-audit and independent read-only review. The separately bound lifecycle-correction verification HEAD passed the full profile and exact two-path candidate-to-verification gate; this promotes runtime evidence without production activation or delivery closure."
+  },
+  "historicalCandidateEvidence": [
+    {
+      "status": "candidate_verified",
+      "requiredBeforeMerge": true,
+      "branch": "codex/equipment-simulator-exact-first-implementation",
+      "commit": "9ffd57b05ab97be880daf65425d6de9e26609e32",
+      "gitTree": "4f4a857ed52d65e04ab6bccfc5b3ac4649c3d94e",
+      "host": "wow-lighthouse",
+      "runtime": "postgres_only",
+      "runId": "t3a260805120026",
+      "migration": "server/migrations/postgres/0026_websim_exact_authority_bundle.sql",
+      "migration0026Sha256": "ddbe31fc26c8ad1aafa68bc7608f083e8415e5b4353cd5145450e2791303eb8a",
+      "freshDatabase": {
+        "name": "wow_exact_first_fresh_test_t3a260805120026",
+        "comment": "wow_exact_first_disposable:t3a260805120026:fresh",
+        "preservationStatus": "preserved_pending_packet_archival_and_scoped_review"
+      },
+      "upgradeDatabase": {
+        "name": "wow_exact_first_upgrade_test_t3a260805120026",
+        "comment": "wow_exact_first_disposable:t3a260805120026:upgrade",
+        "preservationStatus": "preserved_pending_packet_archival_and_scoped_review"
+      },
+      "candidateSource": {
+        "remotePath": "/var/tmp/wow-task3a-candidate-t3a260805120026",
+        "gitStatus": "clean",
+        "commit": "9ffd57b05ab97be880daf65425d6de9e26609e32",
+        "gitTree": "4f4a857ed52d65e04ab6bccfc5b3ac4649c3d94e"
+      },
+      "bundle": {
+        "remotePath": "/var/tmp/wow-task3a-t3a260805120026.bundle",
+        "localPath": "/tmp/wow-task3a-t3a260805120026.bundle",
+        "sha256": "a0efb3bfa707df3ee7cbba898b79762a0c3840058f9c2d836b7c47049c500fd9"
+      },
+      "processEvidence": {
+        "exitCode": 0,
+        "stdoutPath": "/var/tmp/wow-task3a-candidate-t3a260805120026.stdout",
+        "stdoutSha256": "b582b714d4a420d7d6e8358e97dc807b0d5212e9dfd2a0ea784f978b5fa2f179",
+        "stdoutLineCount": 1,
+        "stdoutBytes": 1271,
+        "stderrPath": "/var/tmp/wow-task3a-candidate-t3a260805120026.stderr",
+        "stderrSha256": "6ff36e29cf75c077c59205baf05a7a522ee3ea7d6b934a0669118ae64e18a560",
+        "stderrBytes": 98,
+        "unittestSummary": "Ran 1 test in 3.061s; OK"
+      },
+      "attestationJsonLine": "{\"freshDatabase\":{\"comment\":\"wow_exact_first_disposable:t3a260805120026:fresh\",\"name\":\"wow_exact_first_fresh_test_t3a260805120026\"},\"gitCommit\":\"9ffd57b05ab97be880daf65425d6de9e26609e32\",\"gitTree\":\"4f4a857ed52d65e04ab6bccfc5b3ac4649c3d94e\",\"migration0026Sha256\":\"ddbe31fc26c8ad1aafa68bc7608f083e8415e5b4353cd5145450e2791303eb8a\",\"passed\":true,\"runId\":\"t3a260805120026\",\"schemaVersion\":\"task3a-candidate-attestation-v1\",\"task\":\"equipment-simulator-exact-first-task-3a\",\"upgradeDatabase\":{\"comment\":\"wow_exact_first_disposable:t3a260805120026:upgrade\",\"name\":\"wow_exact_first_upgrade_test_t3a260805120026\"},\"verifiedChecks\":[\"exact_disposable_database_identity_and_empty_preflight\",\"fresh_migrations_0001_through_0026\",\"upgrade_migrations_0001_through_0025_seed_then_0026\",\"v1_full_row_schema_table_default_acl_and_grant_parity\",\"canonical_hash_and_json_projection\",\"six_kind_schema_prefix_closed_matrix\",\"seven_exact_foreign_keys\",\"binding_trigger_first_missing_effect_documents_and_bundle_bindings\",\"three_table_update_delete_truncate_immutability\",\"wow_app_explicit_and_effective_select_only_acl\",\"whole_bundle_typed_readback\",\"absent_row_reverse_shared_effect_concurrency\",\"build_template_0003_semantic_idempotence_and_ledger\",\"unique_0026_migration_ledger_identity\"]}",
+      "attestation": {
+        "schemaVersion": "task3a-candidate-attestation-v1",
+        "task": "equipment-simulator-exact-first-task-3a",
+        "runId": "t3a260805120026",
+        "passed": true,
+        "gitCommit": "9ffd57b05ab97be880daf65425d6de9e26609e32",
+        "gitTree": "4f4a857ed52d65e04ab6bccfc5b3ac4649c3d94e",
+        "migration0026Sha256": "ddbe31fc26c8ad1aafa68bc7608f083e8415e5b4353cd5145450e2791303eb8a",
+        "freshDatabase": {
+          "name": "wow_exact_first_fresh_test_t3a260805120026",
+          "comment": "wow_exact_first_disposable:t3a260805120026:fresh"
+        },
+        "upgradeDatabase": {
+          "name": "wow_exact_first_upgrade_test_t3a260805120026",
+          "comment": "wow_exact_first_disposable:t3a260805120026:upgrade"
+        },
+        "verifiedChecks": [
+          "exact_disposable_database_identity_and_empty_preflight",
+          "fresh_migrations_0001_through_0026",
+          "upgrade_migrations_0001_through_0025_seed_then_0026",
+          "v1_full_row_schema_table_default_acl_and_grant_parity",
+          "canonical_hash_and_json_projection",
+          "six_kind_schema_prefix_closed_matrix",
+          "seven_exact_foreign_keys",
+          "binding_trigger_first_missing_effect_documents_and_bundle_bindings",
+          "three_table_update_delete_truncate_immutability",
+          "wow_app_explicit_and_effective_select_only_acl",
+          "whole_bundle_typed_readback",
+          "absent_row_reverse_shared_effect_concurrency",
+          "build_template_0003_semantic_idempotence_and_ledger",
+          "unique_0026_migration_ledger_identity"
+        ]
+      },
+      "postCandidateAudit": {
+        "status": "pass",
+        "scope": "read_only",
+        "gitIdentity": "Candidate repository remained clean at the exact commit and tree.",
+        "databaseIdentity": "All eight historical/current database identities and exact comments were unchanged.",
+        "fresh": {
+          "migrationLedger": {
+            "total": 26,
+            "migration0003Rows": 1,
+            "migration0026Rows": 1
+          },
+          "targetConstraint": {
+            "count": 1,
+            "name": "build_templates_user_id_template_type_config_hash_key",
+            "type": "u",
+            "orderedColumns": [
+              "user_id",
+              "template_type",
+              "config_hash"
+            ],
+            "legacyNameConstraintCount": 0
+          },
+          "authorityCounts": {
+            "canonicalDocuments": 20,
+            "effectAggregateRecords": 10,
+            "exactAuthorityBundles": 3,
+            "seededV1Rows": 0
+          },
+          "wowAppPrivileges": {
+            "select": true,
+            "insert": false,
+            "update": false,
+            "delete": false
+          }
+        },
+        "upgrade": {
+          "migrationLedger": {
+            "total": 26,
+            "migration0003Rows": 1,
+            "migration0026Rows": 1
+          },
+          "targetConstraint": {
+            "count": 1,
+            "name": "build_templates_user_id_template_type_config_hash_key",
+            "type": "u",
+            "orderedColumns": [
+              "user_id",
+              "template_type",
+              "config_hash"
+            ],
+            "legacyNameConstraintCount": 0
+          },
+          "authorityCounts": {
+            "canonicalDocuments": 20,
+            "effectAggregateRecords": 10,
+            "exactAuthorityBundles": 3,
+            "seededV1Rows": 1
+          },
+          "wowAppPrivileges": {
+            "select": true,
+            "insert": false,
+            "update": false,
+            "delete": false
+          }
+        },
+        "diagnosticNote": "An initial formatting-only read-only constraint query hit PostgreSQL text||char ambiguity; it performed no write and was immediately rerun with con.contype::text successfully."
+      },
+      "smoke": {
+        "status": "pass",
+        "summary": "The exact clean candidate commit passed fresh and upgrade real-PostgreSQL migration, immutable bundle, ACL, typed readback, semantic-idempotence and concurrency checks."
+      },
+      "endpointSmoke": {
+        "status": "not_applicable",
+        "reason": "Task 3A has no service, API endpoint or runtime consumer."
+      },
+      "timerBackflow": {
+        "status": "not_applicable",
+        "reason": "Task 3A adds no timer, scheduled job, service or asynchronous sync."
+      },
+      "productionMigration": {
+        "status": "not_applicable",
+        "reason": "No production database migration was authorized or executed; migration 0026 ran only in the two named disposable candidate databases."
+      },
+      "productionRuntimeConsumer": {
+        "status": "not_applicable",
+        "reason": "runtimeConsumers remains empty and Task 4P or later stages are not authorized."
+      },
+      "asyncSyncStart": false,
+      "publicPointerChange": false,
+      "productionDatabaseWrite": false,
+      "reason": "The fourth, new run-id-bound fresh/upgrade pair passed while the frozen requirement was implementation_allowed, so Task 3A has promotable runtime candidate evidence without production activation."
+    },
+    {
+      "status": "candidate_verified",
+      "requiredBeforeMerge": true,
+      "branch": "codex/equipment-simulator-exact-first-implementation",
+      "commit": "a4c0fd04b39577838ad4fb7a0e3c54b8e0205c30",
+      "gitTree": "aa0908eb8214d9572fc604e3399321c5d6eb3754",
+      "host": "wow-lighthouse",
+      "runtime": "postgres_only",
+      "runId": "t3a260805125812",
+      "migration": "server/migrations/postgres/0030_websim_exact_authority_bundle.sql",
+      "migration0030Sha256": "41e12fd5b12cac79ed57dde266e4b515b0b731dfcc9c9874d818ddc306f957c3",
+      "freshDatabase": {
+        "name": "wow_exact_first_fresh_test_t3a260805125812",
+        "comment": "wow_exact_first_disposable:t3a260805125812:fresh",
+        "preservationStatus": "preserved_pending_packet_archival_and_scoped_review"
+      },
+      "upgradeDatabase": {
+        "name": "wow_exact_first_upgrade_test_t3a260805125812",
+        "comment": "wow_exact_first_disposable:t3a260805125812:upgrade",
+        "preservationStatus": "preserved_pending_packet_archival_and_scoped_review"
+      },
+      "candidateSource": {
+        "remotePath": "/var/tmp/wow-task3a-candidate-t3a260805125812",
+        "gitStatus": "clean",
+        "commit": "a4c0fd04b39577838ad4fb7a0e3c54b8e0205c30",
+        "gitTree": "aa0908eb8214d9572fc604e3399321c5d6eb3754"
+      },
+      "bundle": {
+        "remotePath": "/var/tmp/wow-task3a-t3a260805125812.bundle",
+        "localPath": "/tmp/wow-task3a-t3a260805125812.bundle",
+        "sha256": "55c97cefb3368f4272a8bb325b9c42d5a57d14392680915844e657e2a3e38bc4"
+      },
+      "processEvidence": {
+        "exitCode": 0,
+        "stdoutPath": "/var/tmp/wow-task3a-candidate-t3a260805125812.stdout",
+        "stdoutSha256": "ec805c2196b45de3822bfdcf7ec352dc3f6e9c73b196b363f8cfdc88e95b939b",
+        "stdoutLineCount": 1,
+        "stdoutBytes": 1271,
+        "stderrPath": "/var/tmp/wow-task3a-candidate-t3a260805125812.stderr",
+        "stderrSha256": "5d98a047ff9b5d8b6e7be2f2aefe760a275967c7b058574362e5d07b4b82a8f3",
+        "stderrLineCount": 5,
+        "stderrBytes": 98,
+        "unittestSummary": "Ran 1 test in 3.618s; OK"
+      },
+      "attestationJsonLine": "{\"freshDatabase\":{\"comment\":\"wow_exact_first_disposable:t3a260805125812:fresh\",\"name\":\"wow_exact_first_fresh_test_t3a260805125812\"},\"gitCommit\":\"a4c0fd04b39577838ad4fb7a0e3c54b8e0205c30\",\"gitTree\":\"aa0908eb8214d9572fc604e3399321c5d6eb3754\",\"migration0030Sha256\":\"41e12fd5b12cac79ed57dde266e4b515b0b731dfcc9c9874d818ddc306f957c3\",\"passed\":true,\"runId\":\"t3a260805125812\",\"schemaVersion\":\"task3a-candidate-attestation-v2\",\"task\":\"equipment-simulator-exact-first-task-3a\",\"upgradeDatabase\":{\"comment\":\"wow_exact_first_disposable:t3a260805125812:upgrade\",\"name\":\"wow_exact_first_upgrade_test_t3a260805125812\"},\"verifiedChecks\":[\"exact_disposable_database_identity_and_empty_preflight\",\"fresh_migrations_0001_through_0030\",\"upgrade_migrations_0001_through_0029_seed_then_0030\",\"v1_full_row_schema_table_default_acl_and_grant_parity\",\"canonical_hash_and_json_projection\",\"six_kind_schema_prefix_closed_matrix\",\"seven_exact_foreign_keys\",\"binding_trigger_first_missing_effect_documents_and_bundle_bindings\",\"three_table_update_delete_truncate_immutability\",\"wow_app_explicit_and_effective_select_only_acl\",\"whole_bundle_typed_readback\",\"absent_row_reverse_shared_effect_concurrency\",\"build_template_0003_semantic_idempotence_and_ledger\",\"unique_0030_migration_ledger_identity\"]}",
+      "attestation": {
+        "freshDatabase": {
+          "comment": "wow_exact_first_disposable:t3a260805125812:fresh",
+          "name": "wow_exact_first_fresh_test_t3a260805125812"
+        },
+        "gitCommit": "a4c0fd04b39577838ad4fb7a0e3c54b8e0205c30",
+        "gitTree": "aa0908eb8214d9572fc604e3399321c5d6eb3754",
+        "migration0030Sha256": "41e12fd5b12cac79ed57dde266e4b515b0b731dfcc9c9874d818ddc306f957c3",
+        "passed": true,
+        "runId": "t3a260805125812",
+        "schemaVersion": "task3a-candidate-attestation-v2",
+        "task": "equipment-simulator-exact-first-task-3a",
+        "upgradeDatabase": {
+          "comment": "wow_exact_first_disposable:t3a260805125812:upgrade",
+          "name": "wow_exact_first_upgrade_test_t3a260805125812"
+        },
+        "verifiedChecks": [
+          "exact_disposable_database_identity_and_empty_preflight",
+          "fresh_migrations_0001_through_0030",
+          "upgrade_migrations_0001_through_0029_seed_then_0030",
+          "v1_full_row_schema_table_default_acl_and_grant_parity",
+          "canonical_hash_and_json_projection",
+          "six_kind_schema_prefix_closed_matrix",
+          "seven_exact_foreign_keys",
+          "binding_trigger_first_missing_effect_documents_and_bundle_bindings",
+          "three_table_update_delete_truncate_immutability",
+          "wow_app_explicit_and_effective_select_only_acl",
+          "whole_bundle_typed_readback",
+          "absent_row_reverse_shared_effect_concurrency",
+          "build_template_0003_semantic_idempotence_and_ledger",
+          "unique_0030_migration_ledger_identity"
+        ]
+      },
+      "postCandidateAudit": {
+        "status": "pass",
+        "scope": "read_only",
+        "gitIdentity": "Candidate repository remained clean at the exact commit and tree.",
+        "databaseIdentity": "All ten historical/current database identities and exact comments were unchanged.",
+        "fresh": {
+          "migrationLedger": {
+            "total": 30,
+            "migration0003Rows": 1,
+            "migration0030Rows": 1
+          },
+          "targetConstraint": {
+            "count": 1,
+            "name": "build_templates_user_id_template_type_config_hash_key",
+            "type": "u",
+            "orderedColumns": [
+              "user_id",
+              "template_type",
+              "config_hash"
+            ],
+            "legacyNameConstraintCount": 0
+          },
+          "authorityCounts": {
+            "canonicalDocuments": 20,
+            "effectAggregateRecords": 10,
+            "exactAuthorityBundles": 3,
+            "seededV1Rows": 0
+          },
+          "wowAppPrivileges": {
+            "select": true,
+            "insert": false,
+            "update": false,
+            "delete": false,
+            "truncate": false
+          }
+        },
+        "upgrade": {
+          "migrationLedger": {
+            "total": 30,
+            "migration0003Rows": 1,
+            "migration0030Rows": 1
+          },
+          "targetConstraint": {
+            "count": 1,
+            "name": "build_templates_user_id_template_type_config_hash_key",
+            "type": "u",
+            "orderedColumns": [
+              "user_id",
+              "template_type",
+              "config_hash"
+            ],
+            "legacyNameConstraintCount": 0
+          },
+          "authorityCounts": {
+            "canonicalDocuments": 20,
+            "effectAggregateRecords": 10,
+            "exactAuthorityBundles": 3,
+            "seededV1Rows": 1
+          },
+          "wowAppPrivileges": {
+            "select": true,
+            "insert": false,
+            "update": false,
+            "delete": false,
+            "truncate": false
+          }
+        }
+      },
+      "smoke": {
+        "status": "pass",
+        "summary": "The exact clean integrated candidate commit passed fresh 0001..0030 and upgrade 0001..0029-seed-to-0030 real-PostgreSQL migration, immutable bundle, ACL, typed readback, semantic-idempotence and concurrency checks."
+      },
+      "endpointSmoke": {
+        "status": "not_applicable",
+        "reason": "Task 3A has no service, API endpoint or runtime consumer."
+      },
+      "timerBackflow": {
+        "status": "not_applicable",
+        "reason": "Task 3A adds no timer, scheduled job, service or asynchronous sync."
+      },
+      "productionMigration": {
+        "status": "not_applicable",
+        "reason": "No production database migration was authorized or executed; migration 0030 ran only in the two named disposable candidate databases."
+      },
+      "productionRuntimeConsumer": {
+        "status": "not_applicable",
+        "reason": "runtimeConsumers remains empty and Task 4P or later stages are not authorized."
+      },
+      "asyncSyncStart": false,
+      "publicPointerChange": false,
+      "productionDatabaseWrite": false,
+      "reason": "The fifth clean integrated 0030 candidate passed with a promotable attestation-v2, and independent evidence-promotion re-review passed with no remaining findings. This binds runtime evidence only; branch publication, CI, merge/archive closure and resource cleanup remain pending."
+    },
+    {
+      "status": "candidate_verified",
+      "requiredBeforeMerge": true,
+      "branch": "codex/equipment-simulator-exact-first-implementation",
+      "commit": "9f67ec2f72f59dc1def7b035fc4d9da27b8802b5",
+      "gitTree": "c2a686e6ed8f7a9ff15c82f4e45996636c49d9a7",
+      "host": "wow-lighthouse",
+      "runtime": "postgres_only",
+      "runId": "t3a260805142130",
+      "migration": "server/migrations/postgres/0030_websim_exact_authority_bundle.sql",
+      "migration0030Sha256": "41e12fd5b12cac79ed57dde266e4b515b0b731dfcc9c9874d818ddc306f957c3",
+      "evidenceSource": {
+        "path": ".superpowers/sdd/2026-08-04-equipment-simulator-exact-first-persistence-resequence/task-3A-sixth-cloud-candidate-report.md",
+        "sha256": "bd270a780ff8935da789cbdee4522b4a7cc422135a3557eaad91af18c5bb7026"
+      },
+      "freshDatabase": {
+        "name": "wow_exact_first_fresh_test_t3a260805142130",
+        "comment": "wow_exact_first_disposable:t3a260805142130:fresh",
+        "preservationStatus": "preserved_pending_packet_archival_and_scoped_review"
+      },
+      "upgradeDatabase": {
+        "name": "wow_exact_first_upgrade_test_t3a260805142130",
+        "comment": "wow_exact_first_disposable:t3a260805142130:upgrade",
+        "preservationStatus": "preserved_pending_packet_archival_and_scoped_review"
+      },
+      "candidateSource": {
+        "remotePath": "/var/tmp/wow-task3a-candidate-t3a260805142130",
+        "gitStatus": "clean",
+        "commit": "9f67ec2f72f59dc1def7b035fc4d9da27b8802b5",
+        "gitTree": "c2a686e6ed8f7a9ff15c82f4e45996636c49d9a7"
+      },
+      "bundle": {
+        "remotePath": "/var/tmp/wow-task3a-t3a260805142130.bundle",
+        "localPath": "/tmp/wow-task3a-t3a260805142130.bundle",
+        "bytes": 115856692,
+        "sha256": "6d178dc1d69ad0c184387c819a813fa466d3a972d6591b3a1da3bd7303fec071"
+      },
+      "processEvidence": {
+        "exitCode": 0,
+        "wallDurationMs": 3151,
+        "stdoutPath": "/var/tmp/wow-task3a-candidate-t3a260805142130.stdout",
+        "stdoutSha256": "77643e27ef5759b792321aa1edd5b14032bea4e6b2c6e3a5cd57dcfe1480fce8",
+        "stdoutLineCount": 1,
+        "stdoutBytes": 1271,
+        "stderrPath": "/var/tmp/wow-task3a-candidate-t3a260805142130.stderr",
+        "stderrSha256": "5f97d92d64258f4b6985fbaa0b9bb439b5aa9eeea58e4b4c0a80becbe4c9d829",
+        "stderrLineCount": 5,
+        "stderrBytes": 98,
+        "unittestSummary": "Ran 1 test in 3.041s; OK"
+      },
+      "attestationJsonLine": "{\"freshDatabase\":{\"comment\":\"wow_exact_first_disposable:t3a260805142130:fresh\",\"name\":\"wow_exact_first_fresh_test_t3a260805142130\"},\"gitCommit\":\"9f67ec2f72f59dc1def7b035fc4d9da27b8802b5\",\"gitTree\":\"c2a686e6ed8f7a9ff15c82f4e45996636c49d9a7\",\"migration0030Sha256\":\"41e12fd5b12cac79ed57dde266e4b515b0b731dfcc9c9874d818ddc306f957c3\",\"passed\":true,\"runId\":\"t3a260805142130\",\"schemaVersion\":\"task3a-candidate-attestation-v2\",\"task\":\"equipment-simulator-exact-first-task-3a\",\"upgradeDatabase\":{\"comment\":\"wow_exact_first_disposable:t3a260805142130:upgrade\",\"name\":\"wow_exact_first_upgrade_test_t3a260805142130\"},\"verifiedChecks\":[\"exact_disposable_database_identity_and_empty_preflight\",\"fresh_migrations_0001_through_0030\",\"upgrade_migrations_0001_through_0029_seed_then_0030\",\"v1_full_row_schema_table_default_acl_and_grant_parity\",\"canonical_hash_and_json_projection\",\"six_kind_schema_prefix_closed_matrix\",\"seven_exact_foreign_keys\",\"binding_trigger_first_missing_effect_documents_and_bundle_bindings\",\"three_table_update_delete_truncate_immutability\",\"wow_app_explicit_and_effective_select_only_acl\",\"whole_bundle_typed_readback\",\"absent_row_reverse_shared_effect_concurrency\",\"build_template_0003_semantic_idempotence_and_ledger\",\"unique_0030_migration_ledger_identity\"]}",
+      "attestation": {
+        "freshDatabase": {
+          "comment": "wow_exact_first_disposable:t3a260805142130:fresh",
+          "name": "wow_exact_first_fresh_test_t3a260805142130"
+        },
+        "gitCommit": "9f67ec2f72f59dc1def7b035fc4d9da27b8802b5",
+        "gitTree": "c2a686e6ed8f7a9ff15c82f4e45996636c49d9a7",
+        "migration0030Sha256": "41e12fd5b12cac79ed57dde266e4b515b0b731dfcc9c9874d818ddc306f957c3",
+        "passed": true,
+        "runId": "t3a260805142130",
+        "schemaVersion": "task3a-candidate-attestation-v2",
+        "task": "equipment-simulator-exact-first-task-3a",
+        "upgradeDatabase": {
+          "comment": "wow_exact_first_disposable:t3a260805142130:upgrade",
+          "name": "wow_exact_first_upgrade_test_t3a260805142130"
+        },
+        "verifiedChecks": [
+          "exact_disposable_database_identity_and_empty_preflight",
+          "fresh_migrations_0001_through_0030",
+          "upgrade_migrations_0001_through_0029_seed_then_0030",
+          "v1_full_row_schema_table_default_acl_and_grant_parity",
+          "canonical_hash_and_json_projection",
+          "six_kind_schema_prefix_closed_matrix",
+          "seven_exact_foreign_keys",
+          "binding_trigger_first_missing_effect_documents_and_bundle_bindings",
+          "three_table_update_delete_truncate_immutability",
+          "wow_app_explicit_and_effective_select_only_acl",
+          "whole_bundle_typed_readback",
+          "absent_row_reverse_shared_effect_concurrency",
+          "build_template_0003_semantic_idempotence_and_ledger",
+          "unique_0030_migration_ledger_identity"
+        ]
+      },
+      "postCandidateAudit": {
+        "status": "pass",
+        "scope": "read_only",
+        "gitIdentity": "Candidate repository remained clean at exact branch codex/equipment-simulator-exact-first-implementation, commit 9f67ec2f72f59dc1def7b035fc4d9da27b8802b5 and tree c2a686e6ed8f7a9ff15c82f4e45996636c49d9a7.",
+        "databaseIdentity": "All 12 exact database identities were present and matched their exact comments.",
+        "historicalDatabaseComments": [
+          {"name": "wow_exact_first_fresh_test_t3a2608050955", "comment": "wow_exact_first_disposable:t3a2608050955:fresh"},
+          {"name": "wow_exact_first_upgrade_test_t3a2608050955", "comment": "wow_exact_first_disposable:t3a2608050955:upgrade"},
+          {"name": "wow_exact_first_fresh_test_t3a260805111623", "comment": "wow_exact_first_disposable:t3a260805111623:fresh"},
+          {"name": "wow_exact_first_upgrade_test_t3a260805111623", "comment": "wow_exact_first_disposable:t3a260805111623:upgrade"},
+          {"name": "wow_exact_first_fresh_test_t3a260805113656", "comment": "wow_exact_first_disposable:t3a260805113656:fresh"},
+          {"name": "wow_exact_first_upgrade_test_t3a260805113656", "comment": "wow_exact_first_disposable:t3a260805113656:upgrade"},
+          {"name": "wow_exact_first_fresh_test_t3a260805120026", "comment": "wow_exact_first_disposable:t3a260805120026:fresh"},
+          {"name": "wow_exact_first_upgrade_test_t3a260805120026", "comment": "wow_exact_first_disposable:t3a260805120026:upgrade"},
+          {"name": "wow_exact_first_fresh_test_t3a260805125812", "comment": "wow_exact_first_disposable:t3a260805125812:fresh"},
+          {"name": "wow_exact_first_upgrade_test_t3a260805125812", "comment": "wow_exact_first_disposable:t3a260805125812:upgrade"},
+          {"name": "wow_exact_first_fresh_test_t3a260805142130", "comment": "wow_exact_first_disposable:t3a260805142130:fresh"},
+          {"name": "wow_exact_first_upgrade_test_t3a260805142130", "comment": "wow_exact_first_disposable:t3a260805142130:upgrade"}
+        ],
+        "fresh": {
+          "migrationLedger": {"total": 30, "migration0003Rows": 1, "migration0030Rows": 1},
+          "targetConstraint": {
+            "count": 1,
+            "name": "build_templates_user_id_template_type_config_hash_key",
+            "type": "u",
+            "orderedColumns": ["user_id", "template_type", "config_hash"],
+            "legacyNameConstraintCount": 0
+          },
+          "authorityCounts": {"canonicalDocuments": 20, "effectAggregateRecords": 10, "exactAuthorityBundles": 3, "seededV1Rows": 0},
+          "wowAppPrivileges": {"select": true, "insert": false, "update": false, "delete": false, "truncate": false}
+        },
+        "upgrade": {
+          "migrationLedger": {"total": 30, "migration0003Rows": 1, "migration0030Rows": 1},
+          "targetConstraint": {
+            "count": 1,
+            "name": "build_templates_user_id_template_type_config_hash_key",
+            "type": "u",
+            "orderedColumns": ["user_id", "template_type", "config_hash"],
+            "legacyNameConstraintCount": 0
+          },
+          "authorityCounts": {"canonicalDocuments": 20, "effectAggregateRecords": 10, "exactAuthorityBundles": 3, "seededV1Rows": 1},
+          "wowAppPrivileges": {"select": true, "insert": false, "update": false, "delete": false, "truncate": false}
+        }
+      },
+      "smoke": {
+        "status": "pass",
+        "summary": "The exact frozen sixth candidate passed one real-PostgreSQL test in 3.041s: fresh 0001..0030 and upgrade 0001..0029-seed-to-0030 migration, immutable bundle, ACL, typed readback, semantic-idempotence and concurrency checks."
+      },
+      "endpointSmoke": {
+        "status": "not_applicable",
+        "reason": "Task 3A has no service, API endpoint or runtime consumer."
+      },
+      "timerBackflow": {
+        "status": "not_applicable",
+        "reason": "Task 3A adds no timer, scheduled job, service or asynchronous sync."
+      },
+      "productionMigration": {
+        "status": "not_applicable",
+        "reason": "No production database migration was authorized or executed; migration 0030 ran only in the two named disposable candidate databases."
+      },
+      "productionRuntimeConsumer": {
+        "status": "not_applicable",
+        "reason": "runtimeConsumers remains empty and Task 4P or later stages are not authorized."
+      },
+      "asyncSyncStart": false,
+      "publicPointerChange": false,
+      "productionDatabaseWrite": false,
+      "preservedResources": [
+        "/tmp/wow-task3a-t3a260805142130.bundle",
+        "/var/tmp/wow-task3a-t3a260805142130.bundle",
+        "/var/tmp/wow-task3a-candidate-t3a260805142130",
+        "/var/tmp/wow-task3a-candidate-t3a260805142130.stdout",
+        "/var/tmp/wow-task3a-candidate-t3a260805142130.stderr",
+        "wow_exact_first_fresh_test_t3a260805142130",
+        "wow_exact_first_upgrade_test_t3a260805142130"
+      ],
+      "reason": "The sixth exact frozen 0030 candidate passed PostgreSQL execution and independent read-only post-audit with no candidate concern. This candidate-scoped object records the raw PASS result; evidence promotion and task closure remain separate."
+    },
+    {
+      "status": "candidate_verified",
+      "requiredBeforeMerge": true,
+      "branch": "codex/equipment-simulator-exact-first-implementation",
+      "commit": "8c9490cdc074001ca58c03a6e67bacf2806b33fa",
+      "gitTree": "f71aad198ab66e4ff22b6f893b004bccfd3e35b4",
+      "host": "wow-lighthouse",
+      "runtime": "postgres_only",
+      "runId": "t3a260805160003",
+      "migration": "server/migrations/postgres/0030_websim_exact_authority_bundle.sql",
+      "migration0030Sha256": "41e12fd5b12cac79ed57dde266e4b515b0b731dfcc9c9874d818ddc306f957c3",
+      "evidenceSource": {
+        "path": ".superpowers/sdd/2026-08-04-equipment-simulator-exact-first-persistence-resequence/task-3A-seventh-cloud-candidate-report.md",
+        "sha256": "25926d81fa35fc4c11f00a5c41e4f400b07e74a9ce3852fe47ea6683d1d13a88",
+        "bytes": 5899,
+        "lineCount": 118
+      },
+      "freshDatabase": {
+        "name": "wow_exact_first_fresh_test_t3a260805160003",
+        "comment": "wow_exact_first_disposable:t3a260805160003:fresh",
+        "preservationStatus": "preserved_pending_packet_archival_and_scoped_review"
+      },
+      "upgradeDatabase": {
+        "name": "wow_exact_first_upgrade_test_t3a260805160003",
+        "comment": "wow_exact_first_disposable:t3a260805160003:upgrade",
+        "preservationStatus": "preserved_pending_packet_archival_and_scoped_review"
+      },
+      "candidateSource": {
+        "remotePath": "/var/tmp/wow-task3a-candidate-t3a260805160003",
+        "gitStatus": "clean",
+        "commit": "8c9490cdc074001ca58c03a6e67bacf2806b33fa",
+        "gitTree": "f71aad198ab66e4ff22b6f893b004bccfd3e35b4"
+      },
+      "bundle": {
+        "remotePath": "/var/tmp/wow-task3a-t3a260805160003.bundle",
+        "localPath": "/tmp/wow-task3a-t3a260805160003.bundle",
+        "bytes": 116037142,
+        "sha256": "ff0394557bd85ac8c4191e5276b2fbf52f7cdb0e981a9640a06e60ba9bf3c7fd"
+      },
+      "processEvidence": {
+        "exitCode": 0,
+        "wallDurationMs": 3358,
+        "stdoutPath": "/var/tmp/wow-task3a-candidate-t3a260805160003.stdout",
+        "stdoutSha256": "d44b66a6dd13e4d76f3149b5a63d2e15260867e05012069576622b7c9dc8ec63",
+        "stdoutLineCount": 1,
+        "stdoutBytes": 1271,
+        "stderrPath": "/var/tmp/wow-task3a-candidate-t3a260805160003.stderr",
+        "stderrSha256": "49e5f2e4c779ca18c2fd4eff3b324c0c136578daa07b14bc5a2ca8b0c0d7534a",
+        "stderrLineCount": 5,
+        "stderrBytes": 98,
+        "unittestSummary": "Ran 1 test in 3.225s; OK"
+      },
+      "attestationJsonLine": "{\"freshDatabase\":{\"comment\":\"wow_exact_first_disposable:t3a260805160003:fresh\",\"name\":\"wow_exact_first_fresh_test_t3a260805160003\"},\"gitCommit\":\"8c9490cdc074001ca58c03a6e67bacf2806b33fa\",\"gitTree\":\"f71aad198ab66e4ff22b6f893b004bccfd3e35b4\",\"migration0030Sha256\":\"41e12fd5b12cac79ed57dde266e4b515b0b731dfcc9c9874d818ddc306f957c3\",\"passed\":true,\"runId\":\"t3a260805160003\",\"schemaVersion\":\"task3a-candidate-attestation-v2\",\"task\":\"equipment-simulator-exact-first-task-3a\",\"upgradeDatabase\":{\"comment\":\"wow_exact_first_disposable:t3a260805160003:upgrade\",\"name\":\"wow_exact_first_upgrade_test_t3a260805160003\"},\"verifiedChecks\":[\"exact_disposable_database_identity_and_empty_preflight\",\"fresh_migrations_0001_through_0030\",\"upgrade_migrations_0001_through_0029_seed_then_0030\",\"v1_full_row_schema_table_default_acl_and_grant_parity\",\"canonical_hash_and_json_projection\",\"six_kind_schema_prefix_closed_matrix\",\"seven_exact_foreign_keys\",\"binding_trigger_first_missing_effect_documents_and_bundle_bindings\",\"three_table_update_delete_truncate_immutability\",\"wow_app_explicit_and_effective_select_only_acl\",\"whole_bundle_typed_readback\",\"absent_row_reverse_shared_effect_concurrency\",\"build_template_0003_semantic_idempotence_and_ledger\",\"unique_0030_migration_ledger_identity\"]}",
+      "attestation": {
+        "freshDatabase": {
+          "comment": "wow_exact_first_disposable:t3a260805160003:fresh",
+          "name": "wow_exact_first_fresh_test_t3a260805160003"
+        },
+        "gitCommit": "8c9490cdc074001ca58c03a6e67bacf2806b33fa",
+        "gitTree": "f71aad198ab66e4ff22b6f893b004bccfd3e35b4",
+        "migration0030Sha256": "41e12fd5b12cac79ed57dde266e4b515b0b731dfcc9c9874d818ddc306f957c3",
+        "passed": true,
+        "runId": "t3a260805160003",
+        "schemaVersion": "task3a-candidate-attestation-v2",
+        "task": "equipment-simulator-exact-first-task-3a",
+        "upgradeDatabase": {
+          "comment": "wow_exact_first_disposable:t3a260805160003:upgrade",
+          "name": "wow_exact_first_upgrade_test_t3a260805160003"
+        },
+        "verifiedChecks": [
+          "exact_disposable_database_identity_and_empty_preflight",
+          "fresh_migrations_0001_through_0030",
+          "upgrade_migrations_0001_through_0029_seed_then_0030",
+          "v1_full_row_schema_table_default_acl_and_grant_parity",
+          "canonical_hash_and_json_projection",
+          "six_kind_schema_prefix_closed_matrix",
+          "seven_exact_foreign_keys",
+          "binding_trigger_first_missing_effect_documents_and_bundle_bindings",
+          "three_table_update_delete_truncate_immutability",
+          "wow_app_explicit_and_effective_select_only_acl",
+          "whole_bundle_typed_readback",
+          "absent_row_reverse_shared_effect_concurrency",
+          "build_template_0003_semantic_idempotence_and_ledger",
+          "unique_0030_migration_ledger_identity"
+        ]
+      },
+      "postCandidateAudit": {
+        "status": "pass",
+        "scope": "read_only",
+        "gitIdentity": "Candidate repository remained clean at exact branch codex/equipment-simulator-exact-first-implementation, commit 8c9490cdc074001ca58c03a6e67bacf2806b33fa and tree f71aad198ab66e4ff22b6f893b004bccfd3e35b4.",
+        "databaseIdentity": "All 14 historical/current database identities",
+        "historicalDatabaseComments": [
+          {"name": "wow_exact_first_fresh_test_t3a2608050955", "comment": "wow_exact_first_disposable:t3a2608050955:fresh"},
+          {"name": "wow_exact_first_upgrade_test_t3a2608050955", "comment": "wow_exact_first_disposable:t3a2608050955:upgrade"},
+          {"name": "wow_exact_first_fresh_test_t3a260805111623", "comment": "wow_exact_first_disposable:t3a260805111623:fresh"},
+          {"name": "wow_exact_first_upgrade_test_t3a260805111623", "comment": "wow_exact_first_disposable:t3a260805111623:upgrade"},
+          {"name": "wow_exact_first_fresh_test_t3a260805113656", "comment": "wow_exact_first_disposable:t3a260805113656:fresh"},
+          {"name": "wow_exact_first_upgrade_test_t3a260805113656", "comment": "wow_exact_first_disposable:t3a260805113656:upgrade"},
+          {"name": "wow_exact_first_fresh_test_t3a260805120026", "comment": "wow_exact_first_disposable:t3a260805120026:fresh"},
+          {"name": "wow_exact_first_upgrade_test_t3a260805120026", "comment": "wow_exact_first_disposable:t3a260805120026:upgrade"},
+          {"name": "wow_exact_first_fresh_test_t3a260805125812", "comment": "wow_exact_first_disposable:t3a260805125812:fresh"},
+          {"name": "wow_exact_first_upgrade_test_t3a260805125812", "comment": "wow_exact_first_disposable:t3a260805125812:upgrade"},
+          {"name": "wow_exact_first_fresh_test_t3a260805142130", "comment": "wow_exact_first_disposable:t3a260805142130:fresh"},
+          {"name": "wow_exact_first_upgrade_test_t3a260805142130", "comment": "wow_exact_first_disposable:t3a260805142130:upgrade"},
+          {"name": "wow_exact_first_fresh_test_t3a260805160003", "comment": "wow_exact_first_disposable:t3a260805160003:fresh"},
+          {"name": "wow_exact_first_upgrade_test_t3a260805160003", "comment": "wow_exact_first_disposable:t3a260805160003:upgrade"}
+        ],
+        "fresh": {
+          "migrationLedger": {"total": 30, "migration0003Rows": 1, "migration0030Rows": 1},
+          "targetConstraint": {"count": 1, "name": "build_templates_user_id_template_type_config_hash_key", "type": "u", "orderedColumns": ["user_id", "template_type", "config_hash"], "legacyNameConstraintCount": 0},
+          "authorityCounts": {"canonicalDocuments": 20, "effectAggregateRecords": 10, "exactAuthorityBundles": 3, "seededV1Rows": 0},
+          "wowAppPrivileges": {"select": true, "insert": false, "update": false, "delete": false, "truncate": false}
+        },
+        "upgrade": {
+          "migrationLedger": {"total": 30, "migration0003Rows": 1, "migration0030Rows": 1},
+          "targetConstraint": {"count": 1, "name": "build_templates_user_id_template_type_config_hash_key", "type": "u", "orderedColumns": ["user_id", "template_type", "config_hash"], "legacyNameConstraintCount": 0},
+          "authorityCounts": {"canonicalDocuments": 20, "effectAggregateRecords": 10, "exactAuthorityBundles": 3, "seededV1Rows": 1},
+          "wowAppPrivileges": {"select": true, "insert": false, "update": false, "delete": false, "truncate": false}
+        }
+      },
+      "smoke": {
+        "status": "pass",
+        "summary": "The exact frozen seventh candidate passed one real-PostgreSQL test in 3.225s: fresh 0001..0030 and upgrade 0001..0029-seed-to-0030 migration, immutable bundle, ACL, typed readback, semantic-idempotence and concurrency checks."
+      },
+      "endpointSmoke": {"status": "not_applicable", "reason": "Task 3A has no service, API endpoint or runtime consumer."},
+      "timerBackflow": {"status": "not_applicable", "reason": "Task 3A adds no timer, scheduled job, service or asynchronous sync."},
+      "productionMigration": {"status": "not_applicable", "reason": "No production database migration was authorized or executed; migration 0030 ran only in the two named disposable candidate databases."},
+      "productionRuntimeConsumer": {"status": "not_applicable", "reason": "runtimeConsumers remains empty and Task 4P or later stages are not authorized."},
+      "asyncSyncStart": false,
+      "publicPointerChange": false,
+      "productionDatabaseWrite": false,
+      "preservedResources": [
+        "/tmp/wow-task3a-t3a260805160003.bundle",
+        "/var/tmp/wow-task3a-t3a260805160003.bundle",
+        "/var/tmp/wow-task3a-candidate-t3a260805160003",
+        "/var/tmp/wow-task3a-candidate-t3a260805160003.stdout",
+        "/var/tmp/wow-task3a-candidate-t3a260805160003.stderr",
+        "wow_exact_first_fresh_test_t3a260805160003",
+        "wow_exact_first_upgrade_test_t3a260805160003"
+      ],
+      "reason": "The seventh exact frozen 0030 candidate passed PostgreSQL execution and independent read-only post-audit with no candidate-scoped concern. This raw object records that immutable PASS; the later exact-source full-profile failure blocks promotion."
+    }
+  ],
+  "runtimeEvidence": [
+    {
+      "id": "task3a-fifth-postgres-attestation",
+      "type": "postgres_candidate_attestation",
+      "status": "historical_pass_invalidated",
+      "summary": "The fifth attestation-v2 remains genuine immutable historical evidence, but its exact source failed the later direct-server runtime gate and cannot promote the corrected tree."
+    },
+    {
+      "id": "task3a-direct-server-import-regression",
+      "type": "github_full_profile",
+      "status": "fail",
+      "summary": "PR #114 run 30977816268 job 92215539827 failed the two direct-server import tests; this is the candidate-invalidating cause."
+    },
+    {
+      "id": "task3a-sixth-postgres-attestation",
+      "type": "postgres_candidate_attestation",
+      "status": "historical_pass_unpromotable",
+      "summary": "The exact frozen sixth candidate and independent read-only post-audit passed, but that HEAD failed the current-truth owner lifecycle test. Its full attestation and resources remain immutable historical evidence only."
+    },
+    {
+      "id": "task3a-evidence-lifecycle-test-regression",
+      "type": "owner_current_truth_gate",
+      "status": "fail",
+      "summary": "Frozen candidate HEAD 9f67ec2f failed because the owner test hard-coded implementation_allowed after the authorized local_verified transition; PostgreSQL was not the cause."
+    },
+    {
+      "id": "task3a-seventh-postgres-attestation",
+      "type": "postgres_candidate_attestation",
+      "status": "historical_pass_unpromotable",
+      "summary": "The exact frozen seventh candidate and independent read-only post-audit passed, but that HEAD later failed the full-profile current-truth lifecycle test. Its full attestation and resources remain immutable historical evidence only."
+    },
+    {
+      "id": "task3a-seventh-current-truth-lifecycle-test-regression",
+      "type": "full_profile_current_truth_gate",
+      "status": "fail",
+      "summary": "Frozen candidate HEAD 8c9490cd failed three current-truth assertions: plans README and roadmap omitted literal 0030, and the test hard-coded implementation_allowed despite a legitimate local_verified packet. PostgreSQL was not the cause."
+    },
+    {
+      "id": "task3a-eighth-candidate",
+      "type": "postgres_candidate_attestation",
+      "status": "pass",
+      "summary": "Run t3a260805163536 passed fresh/upgrade migration 0030, attestation-v2, controller read-only post-audit and independent read-only review at exact runtime commit 9f230f2e/tree 89e7e5e; verification HEAD 1714f376 separately passed the unique full profile and exact owner-test plus active-plan diff gate."
+    },
+    {
+      "id": "task3a-python311-ast-digest-ci-regression",
+      "type": "owner_ci_compatibility_gate",
+      "status": "historical_fail_resolved",
+      "summary": "PR CI run 30993690037 produced 29 false owner failures because Python 3.11 serialized empty optional AST fields differently from Python 3.13. Verification HEAD 1714f376 uses a cross-version stable serializer; the runtime candidate remained valid."
+    },
+    {
+      "id": "task3a-production-non-activation",
+      "type": "production_activation",
+      "status": "not_applicable",
+      "summary": "No production migration, service, endpoint, timer, worker, API, UI, Catalog/Manifest pointer or SimC runtime consumer is authorized or changed."
+    }
+  ],
+  "candidateHistory": [
+    {
+      "runId": "t3a2608050955",
+      "status": "failed_before_0026",
+      "detail": "At commit f90a302040f722fec0807bd600f8e2242169801c, historical migration 0003 unconditionally attempted to add a target constraint already semantically created by 0001. Its fresh/upgrade databases are immutable and non-reusable."
+    },
+    {
+      "runId": "t3a260805111623",
+      "status": "failed_before_0026",
+      "detail": "Historical migration 0003 compared PostgreSQL catalog name[] attributes with a text[] literal. Its fresh/upgrade databases rolled back to zero project schemas and remain immutable and non-reusable."
+    },
+    {
+      "runId": "t3a260805113656",
+      "status": "runtime_passed_unpromotable",
+      "detail": "Fresh and upgrade runtime passed at commit 0e0743ca188efbd7cb818bfb8a210fd998379f4d / tree 3fce81f57dbdc851a9438ae63ea051f666bf1051, but requirement.status was local_verified. The required post-run requirement/owner correction invalidated that candidate; it is not reused or represented as Task 3A green evidence."
+    },
+    {
+      "runId": "t3a260805120026",
+      "status": "runtime_passed_superseded_by_main_integration",
+      "detail": "The fourth fresh/upgrade pair genuinely passed from clean commit 9ffd57b05ab97be880daf65425d6de9e26609e32 while requirement.status was implementation_allowed. origin/main later occupied 0026-0029, forcing Task 3A to 0030 and invalidating this run for current promotion; its attestation, resources and databases remain immutable historical evidence."
+    },
+    {
+      "runId": "t3a260805125812",
+      "status": "runtime_passed_invalidated_by_direct_runtime_import_regression",
+      "detail": "The fifth fresh/upgrade pair genuinely passed from exact clean commit a4c0fd04b39577838ad4fb7a0e3c54b8e0205c30 / tree aa0908eb8214d9572fc604e3399321c5d6eb3754, but PR #114 full-profile run 30977816268 job 92215539827 exposed direct-server startup failures in its exact source. The candidate object, raw attestation line and parsed attestation remain immutable history; the corrected source, tests, requirement and owner contracts require a sixth new run id and database pair."
+    },
+    {
+      "runId": "t3a260805142130",
+      "status": "runtime_passed_unpromotable_evidence_lifecycle_test_regression",
+      "detail": "The sixth fresh/upgrade pair and independent read-only post-audit genuinely passed from exact frozen commit 9f67ec2f72f59dc1def7b035fc4d9da27b8802b5 / tree c2a686e6ed8f7a9ff15c82f4e45996636c49d9a7. That same frozen HEAD failed the current-truth owner test because it hard-coded evidence.status=implementation_allowed after the authorized local_verified transition. PostgreSQL and candidate review were not the cause. The corrected lifecycle test, requirement and owner contracts invalidate promotion and require a seventh new run id/database pair."
+    },
+    {
+      "runId": "t3a260805160003",
+      "status": "runtime_passed_unpromotable_current_truth_lifecycle_test_regression",
+      "detail": "The seventh fresh/upgrade pair and independent read-only post-audit genuinely passed from exact frozen commit 8c9490cdc074001ca58c03a6e67bacf2806b33fa / tree f71aad198ab66e4ff22b6f893b004bccfd3e35b4. The exact source full profile then failed three current-truth assertions: docs/plans/README.md and docs/roadmap.md omitted literal 0030, and the schema test hard-coded implementation_allowed despite the legitimate local_verified evidence stage. PostgreSQL and candidate review were not the cause. The corrected test, owner contracts and status docs invalidate promotion and require an eighth new run id/database pair."
+    }
+  ],
+  "risks": [
+    {
+      "id": "first-candidate-migration-chain-failure",
+      "status": "resolved_by_reviewed_0003_correction_and_sixth_candidate",
+      "detail": "Run t3a2608050955 failed before the former 0026 migration on duplicate semantic constraint creation. The corrected 0003 and sixth real fresh/upgrade 0030 run proved exact semantic idempotence; the failed databases remain historical evidence only."
+    },
+    {
+      "id": "second-candidate-catalog-array-type-failure",
+      "status": "resolved_by_reviewed_0003_correction_and_sixth_candidate",
+      "detail": "Run t3a260805111623 failed before the former 0026 migration on name[] versus text[] comparison. The explicit attname::text correction passed the sixth real 0030 candidate; the failed databases remain historical evidence only."
+    },
+    {
+      "id": "third-candidate-requirement-gate",
+      "status": "superseded_not_promoted",
+      "detail": "Run t3a260805113656 passed runtime but is permanently unpromotable because its requirement was not implementation_allowed and the later requirement/owner correction invalidated it. Its databases remain immutable/non-reusable."
+    },
+    {
+      "id": "main-integration-migration-drift",
+      "status": "historical_0030_integration_superseded_by_direct_runtime_regression",
+      "detail": "origin/main migration ids 0026-0029 were preserved unchanged and Task 3A moved atomically to globally unique 0030. The fifth exact clean fresh/upgrade candidate is historical-only because its source later failed the direct-server runtime gate."
+    },
+    {
+      "id": "production-and-runtime-activation",
+      "status": "not_authorized",
+      "detail": "No production migration or runtime consumer exists. This evidence does not authorize Task 4P, Task 4L, Task 3B, Task 4W, Task 5A or Task 6C and makes no API, UI, SimC, live or user-visible completion claim."
+    },
+    {
+      "id": "evidence-promotion-and-delivery-closure",
+      "status": "runtime_evidence_promoted_delivery_closure_pending",
+      "detail": "The eighth exact runtime candidate, attestation and audits passed; the separately bound lifecycle-correction verification HEAD passed the full profile, Harness and exact two-path candidate-to-verification gate. PR CI, push, merge, post-merge verification, packet archival and scoped cleanup remain pending."
+    },
+    {
+      "id": "candidate-resource-retention",
+      "status": "preserved_pending_delivery_closure_and_archival",
+      "detail": "The fourteen historical database identities remain immutable/non-reusable. The eighth pair plus its repository, logs and local/remote bundles are preserved as current candidate evidence; no resource has been cleaned or reused."
+    },
+    {
+      "id": "direct-server-runtime-import-regression",
+      "status": "resolved_for_current_candidate_runtime_identity_and_verification_head",
+      "detail": "The fifth through seventh runs remain historical-only for their distinct exact-source regressions. The eighth runtime candidate remains bound to exact commit 9f230f2e/tree 89e7e5e, while verification HEAD 1714f376 passed the unique full profile and executable two-window diff policy."
+    },
+    {
+      "id": "evidence-lifecycle-owner-test-regression",
+      "status": "resolved_by_stage_aware_gate_and_corrected_source_local_verification",
+      "detail": "The owner gate now validates stage semantics across implementation_allowed, local_verified and runtime_verified without a redundant top-level transitional status lock. The corrected-source full profile passed at clean tested HEAD 7a4390c9794dd46b5e95aa142409bfcc6952bf74. The sixth frozen candidate remains invalidated; PostgreSQL and its independent audit remain historical PASS evidence only."
+    },
+    {
+      "id": "seventh-current-truth-lifecycle-test-regression",
+      "status": "resolved_by_eighth_candidate_and_split_identity_diff_gates",
+      "detail": "The seventh exact-source full-profile failure remains immutable historical evidence. The eighth candidate used distinct runtime evidence, and the later lifecycle-only correction passed a unique full profile plus executable candidate-to-verification and verification-to-promotion path gates."
+    }
+  ],
+  "rollback": [
+    "code_rollback",
+    "preserve_all_fourteen_exact_candidate_database_identities_until_packet_archival_and_scoped_review",
+    "operator_discard_only_explicit_disposable_database_identities_after_identity_check_and_archival",
+    "no_production_database_restore_required",
+    "no_catalog_or_manifest_pointer_mutation"
+  ],
+  "cleanup": {
+    "required": true,
+    "status": "pending",
+    "reason": "The prior seven candidate pairs remain immutable historical evidence, while the eighth pair and artifacts remain preserved as current promoted runtime evidence until delivery closure, archival and scoped cleanup authorization.",
+    "preserveThrough": "delivery_closure_packet_archival_and_scoped_cleanup",
+    "resources": [
+      "wow_exact_first_fresh_test_t3a260805125812",
+      "wow_exact_first_upgrade_test_t3a260805125812",
+      "/var/tmp/wow-task3a-candidate-t3a260805120026",
+      "/var/tmp/wow-task3a-candidate-t3a260805120026.stdout",
+      "/var/tmp/wow-task3a-candidate-t3a260805120026.stderr",
+      "/var/tmp/wow-task3a-t3a260805120026.bundle",
+      "/tmp/wow-task3a-t3a260805120026.bundle",
+      "/var/tmp/wow-task3a-candidate-t3a260805125812",
+      "/var/tmp/wow-task3a-candidate-t3a260805125812.stdout",
+      "/var/tmp/wow-task3a-candidate-t3a260805125812.stderr",
+      "/var/tmp/wow-task3a-t3a260805125812.bundle",
+      "/tmp/wow-task3a-t3a260805125812.bundle",
+      "wow_exact_first_fresh_test_t3a260805142130",
+      "wow_exact_first_upgrade_test_t3a260805142130",
+      "/var/tmp/wow-task3a-candidate-t3a260805142130",
+      "/var/tmp/wow-task3a-candidate-t3a260805142130.stdout",
+      "/var/tmp/wow-task3a-candidate-t3a260805142130.stderr",
+      "/var/tmp/wow-task3a-t3a260805142130.bundle",
+      "/tmp/wow-task3a-t3a260805142130.bundle",
+      "wow_exact_first_fresh_test_t3a260805160003",
+      "wow_exact_first_upgrade_test_t3a260805160003",
+      "/var/tmp/wow-task3a-candidate-t3a260805160003",
+      "/var/tmp/wow-task3a-candidate-t3a260805160003.stdout",
+      "/var/tmp/wow-task3a-candidate-t3a260805160003.stderr",
+      "/var/tmp/wow-task3a-t3a260805160003.bundle",
+      "/tmp/wow-task3a-t3a260805160003.bundle",
+      "wow_exact_first_fresh_test_t3a260805163536",
+      "wow_exact_first_upgrade_test_t3a260805163536",
+      "/var/tmp/wow-task3a-candidate-t3a260805163536",
+      "/var/tmp/wow-task3a-candidate-t3a260805163536.stdout",
+      "/var/tmp/wow-task3a-candidate-t3a260805163536.stderr",
+      "/var/tmp/wow-task3a-t3a260805163536.bundle",
+      "/tmp/wow-task3a-t3a260805163536.bundle"
+    ],
+    "historicalImmutableDatabases": [
+      "wow_exact_first_fresh_test_t3a2608050955",
+      "wow_exact_first_upgrade_test_t3a2608050955",
+      "wow_exact_first_fresh_test_t3a260805111623",
+      "wow_exact_first_upgrade_test_t3a260805111623",
+      "wow_exact_first_fresh_test_t3a260805113656",
+      "wow_exact_first_upgrade_test_t3a260805113656",
+      "wow_exact_first_fresh_test_t3a260805120026",
+      "wow_exact_first_upgrade_test_t3a260805120026",
+      "wow_exact_first_fresh_test_t3a260805125812",
+      "wow_exact_first_upgrade_test_t3a260805125812",
+      "wow_exact_first_fresh_test_t3a260805142130",
+      "wow_exact_first_upgrade_test_t3a260805142130",
+      "wow_exact_first_fresh_test_t3a260805160003",
+      "wow_exact_first_upgrade_test_t3a260805160003"
+    ],
+    "authorization": "Only an operator may discard explicitly identified disposable databases after archival and identity verification; the candidate suite never creates, resets, drops or reuses them."
+  },
+  "archivedReferences": [
+    "artifacts/releases/2026-08-04-equipment-simulator-exact-first/requirement.json",
+    "docs/plans/2026-08-04-equipment-simulator-exact-first-persistence-resequence.md",
+    "docs/postgres-identity-migration-runbook.md"
+  ],
+  "summary": "Task 3A is runtime_verified / candidate_verified. Eighth run t3a260805163536 passed migration 0030 fresh/upgrade PostgreSQL, attestation-v2, controller read-only post-audit and independent review at exact runtime commit 9f230f2e/tree 89e7e5e. Verification packet commit 1714f376/tree 7ba9ff18 separately passed the unique 173-command full profile (Node 747, Python 2718 with two expected skips, Vitest 437) and exact owner-test plus active-plan candidate-to-verification gate. Historical PR CI run 30993690037 exposed 29 Python 3.11 AST serialization false failures, corrected at 1714f376 without invalidating the runtime candidate. Runtime and verification identities are bound; closure remains pending corrected PR CI, push, merge, post-merge verification, packet archival and scoped cleanup. The user authorized one bounded integration exception for the existing PR #114 foundation-plus-Task-3A diff; it preserves the candidate identity and does not authorize any new implementation, production migration, endpoint, timer, runtime consumer, Catalog/Manifest pointer, API, UI or SimC behavior. The prior seven run ids and fourteen databases remain immutable/non-reusable historical evidence; generation 35 is unchanged and Task 4P remains outside this Task 3A packet until its own task slice starts.",
+  "historicalFailureEvidence": {
+    "pr": "#114",
+    "run": "30977816268",
+    "job": "92215539827",
+    "tests": [
+      "GearRuntimeTest.test_runtime_imports_from_server_directory_for_direct_backend_startup",
+      "PgGearAuthorityLoaderTest.test_loader_imports_in_direct_server_runtime_mode"
+    ],
+    "cause": "server/gear_canonical_kernel.py used only server.gear_contracts while direct backend startup runs from server/ where the server package is unavailable.",
+    "nonCause": "The Node deprecation warning is historical noise and is not the failure cause."
+  },
+  "historicalLifecycleFailureEvidence": {
+    "candidateRunId": "t3a260805142130",
+    "frozenCommit": "9f67ec2f72f59dc1def7b035fc4d9da27b8802b5",
+    "frozenTree": "c2a686e6ed8f7a9ff15c82f4e45996636c49d9a7",
+    "ownerTest": "tests.gear_canonical_owner_gate_test.GearCanonicalOwnerGateTest.test_task3a_evidence_downgrades_invalidated_fifth_candidate",
+    "schemaTest": "tests.postgres_schema_test.PostgresSchemaTest.test_task3a_current_truth_requires_new_candidate_after_unpromotable_runtime_pass",
+    "result": "owner test failed at the hard-coded implementation_allowed assertion; schema test passed",
+    "cause": "The owner gate asserted one transitional evidence status instead of lifecycle semantics across implementation_allowed, local_verified and runtime_verified.",
+    "nonCause": "The sixth PostgreSQL candidate and independent read-only audit both passed."
+  },
+  "historicalCurrentTruthFailureEvidence": {
+    "candidateRunId": "t3a260805160003",
+    "frozenCommit": "8c9490cdc074001ca58c03a6e67bacf2806b33fa",
+    "frozenTree": "f71aad198ab66e4ff22b6f893b004bccfd3e35b4",
+    "schemaTest": "tests.postgres_schema_test.PostgresSchemaTest.test_task3a_current_truth_requires_new_candidate_after_unpromotable_runtime_pass",
+    "result": "The exact-source full profile failed three assertions: docs/plans/README.md and docs/roadmap.md lacked literal 0030, and the test required implementation_allowed while evidence was legitimately local_verified.",
+    "cause": "Current-truth documentation and its schema test were not lifecycle-stable across the authorized local_verified stage.",
+    "nonCause": "The seventh PostgreSQL candidate and independent read-only audit both passed."
+  },
+  "historicalCiCompatibilityFailureEvidence": {
+    "run": "30993690037",
+    "result": "Python 3.11 CI reported 29 owner-gate digest failures while the same registered AST nodes remained clean on Python 3.13.",
+    "cause": "Python 3.11 ast.dump included empty optional AST fields that Python 3.13 omits by default.",
+    "resolution": "Verification commit 1714f376d40e21112b13f537572932a1f5bd38f0 uses one cross-version stable serializer equivalent to the Python 3.13 default and preserves every registry and assignment SHA value.",
+    "nonCause": "The eighth runtime candidate, migration 0030 and PostgreSQL attestation were unchanged and did not fail."
+  },
+  "nextCandidate": null
+}

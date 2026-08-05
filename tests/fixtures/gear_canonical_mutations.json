@@ -1,0 +1,6 @@
+{
+  "invalidIdentityStrings": [" head", "head ", "heroic\rforged", "heroic\nforged", "heroic\u0085forged", "heroic\u0090forged", "heroic\u2028forged", "heroic\u2029forged", "heroic\u200dforged", "cafe\u0301"],
+  "invalidSlots": ["bogus", "HEAD", "trinket_1", "mainhand"],
+  "invalidIntegers": [true, false, 3.0, -1, 0, 10000],
+  "invalidSetLists": [["haste", "crit"], ["crit", "crit", "haste"]]
+}

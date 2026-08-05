@@ -1036,7 +1036,7 @@ class DatabaseAdapterTest(unittest.TestCase):
         encoded_trace = json.dumps(fake.trace, ensure_ascii=False)
         self.assertNotIn("Arcane opener?", encoded_trace)
         self.assertNotIn(result["assistantMessage"]["content"], encoded_trace)
-        self.assertEqual("chickenbro-agent-trace-v4", fake.trace["schemaRevision"])
+        self.assertEqual("chickenbro-agent-trace-v5", fake.trace["schemaRevision"])
         self.assertEqual("unavailable", fake.trace["registryStatus"])
         self.assertEqual("", fake.trace["registryVersion"])
         self.assertEqual("", fake.trace["registryReleaseHash"])

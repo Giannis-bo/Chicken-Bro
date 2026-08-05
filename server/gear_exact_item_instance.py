@@ -10,18 +10,58 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import re
 from typing import Any, Iterable, Mapping
 
 try:
+    from .gear_canonical_kernel import (
+        CanonicalIssue,
+        CanonicalResult,
+        CanonicalValueError,
+        SealedCanonicalDocument,
+        _rehydrate_canonical_document,
+        canonical_identity_token,
+        canonical_int,
+        canonical_json_bytes,
+        canonical_mapping,
+        canonical_ordered_list,
+        canonical_set_list,
+        seal_canonical_document,
+        verified_payload_copy,
+    )
     from .gear_track_authority import resolve_exact_instance_progression
 except ImportError:
+    from gear_canonical_kernel import (
+        CanonicalIssue,
+        CanonicalResult,
+        CanonicalValueError,
+        SealedCanonicalDocument,
+        _rehydrate_canonical_document,
+        canonical_identity_token,
+        canonical_int,
+        canonical_json_bytes,
+        canonical_mapping,
+        canonical_ordered_list,
+        canonical_set_list,
+        seal_canonical_document,
+        verified_payload_copy,
+    )
     from gear_track_authority import resolve_exact_instance_progression
 
 
 EXACT_ITEM_INSTANCE_SCHEMA_REVISION = "gear-exact-item-instance-v1"
+EXACT_ITEM_IDENTITY_SCHEMA_REVISION = "gear-exact-item-instance-v2"
 EXACT_ITEM_VALIDATION_SCHEMA_REVISION = "gear-exact-item-validation-v1"
 ENHANCEMENT_SELECTION_SCHEMA_REVISION = "gear-enhancement-selection-v1"
+EXACT_ITEM_DOCUMENT_KIND = "exact_item"
+EXACT_ITEM_KEY_PREFIX = "exact-item-instance:sha256:"
+EXACT_STATIC_FACTS_DOCUMENT_KIND = "exact_static_facts"
+EXACT_STATIC_FACTS_SCHEMA_REVISION = "exact-static-facts-v1"
+EXACT_STATIC_FACTS_KEY_PREFIX = "exact-static-facts:sha256:"
+EXACT_STATIC_FACTS_MAX_COUNT = 128
+EXACT_STATIC_FACTS_MAX_ABSOLUTE_NUMBER = (2 ** 53) - 1
+EXACT_STATIC_FACTS_MAX_CANONICAL_BYTES = 64 * 1024
 
 CATALOG_REVISION_PATTERN = re.compile(r"^gear-catalog:sha256:[0-9a-f]{64}$")
 EXACT_ITEM_INSTANCE_KEY_PATTERN = re.compile(
@@ -35,7 +75,7 @@ ENHANCEMENT_SELECTION_KEY_PATTERN = re.compile(
 )
 
 _TOKEN_PATTERN = re.compile(r"^[A-Za-z0-9_.:-]{1,256}$")
-_NON_IDENTITY_CONTEXT_KEYS = {
+_NON_IDENTITY_CONTEXT_KEYS = frozenset({
     "checkedAt",
     "createdAt",
     "displayLabel",
@@ -48,7 +88,20 @@ _NON_IDENTITY_CONTEXT_KEYS = {
     "sourceUrl",
     "updatedAt",
     "url",
-}
+})
+_EXACT_SLOT_INPUT_KEYS = frozenset({
+    "itemId", "declaredItemLevel", "bonusIds", "context", "gemIds",
+    "gemBonusIds", "gemItemLevels", "enchantId", "craftedStats",
+    "embellishmentIds", "redirectedBaseStats",
+})
+_EXACT_ITEM_PAYLOAD_KEYS = frozenset({
+    "schemaRevision", "itemId", "itemLevel", "bonusIds", "context",
+    "gemIds", "gemBonusIds", "gemItemLevels", "enchantId",
+    "craftedStats", "embellishmentIds", "redirectedBaseStats",
+})
+_EXACT_STATIC_FACTS_PAYLOAD_KEYS = frozenset({
+    "schemaRevision", "exactItemInstanceKey", "facts",
+})
 
 
 def _canonical(value: Any) -> Any:
@@ -296,6 +349,380 @@ def _serializer_input(
     return result
 
 
+def _require_exact_mapping_keys(
+    value: object,
+    *,
+    path: str,
+    exact_keys: frozenset[str],
+) -> Mapping[str, object]:
+    if type(value) is not dict:
+        raise CanonicalValueError("INVALID_MAPPING", path)
+    if any(type(key) is not str for key in value):
+        raise CanonicalValueError("NON_STRING_MAPPING_KEY", path)
+    unknown = sorted(set(value).difference(exact_keys))
+    if unknown:
+        raise CanonicalValueError("UNKNOWN_FIELD", f"{path}.{unknown[0]}")
+    missing = sorted(exact_keys.difference(value))
+    if missing:
+        raise CanonicalValueError("MISSING_FIELD", f"{path}.{missing[0]}")
+    return canonical_mapping(value, path=path, exact_keys=exact_keys)
+
+
+def _exact_identity_field(value: object, path: str) -> str:
+    return canonical_identity_token(value, path=path)
+
+
+def _exact_item_level_field(value: object, path: str) -> int:
+    return canonical_int(value, path=path, minimum=1, maximum=9999)
+
+
+def _canonical_exact_slot_payload(
+    exact_slot_payload: object,
+    *,
+    path: str = "exactSlot",
+) -> dict[str, object]:
+    raw = _require_exact_mapping_keys(
+        exact_slot_payload,
+        path=path,
+        exact_keys=_EXACT_SLOT_INPUT_KEYS,
+    )
+    item_id = canonical_identity_token(raw["itemId"], path=f"{path}.itemId")
+    item_level = canonical_int(
+        raw["declaredItemLevel"],
+        path=f"{path}.declaredItemLevel",
+        minimum=1,
+        maximum=9999,
+    )
+    bonus_ids = canonical_set_list(
+        raw["bonusIds"], path=f"{path}.bonusIds",
+        item_rule=_exact_identity_field, max_items=256,
+    )
+    context = canonical_identity_token(
+        raw["context"], path=f"{path}.context", allow_empty=True,
+    )
+    gem_ids = canonical_ordered_list(
+        raw["gemIds"], path=f"{path}.gemIds",
+        item_rule=_exact_identity_field, max_items=16,
+    )
+    gem_bonus_ids = canonical_ordered_list(
+        raw["gemBonusIds"], path=f"{path}.gemBonusIds",
+        item_rule=_exact_identity_field, max_items=16,
+    )
+    gem_item_levels = canonical_ordered_list(
+        raw["gemItemLevels"], path=f"{path}.gemItemLevels",
+        item_rule=_exact_item_level_field, max_items=16,
+    )
+    if gem_bonus_ids and len(gem_bonus_ids) != len(gem_ids):
+        raise CanonicalValueError(
+            "GEM_SEQUENCE_MISMATCH", f"{path}.gemBonusIds",
+        )
+    if gem_item_levels and len(gem_item_levels) != len(gem_ids):
+        raise CanonicalValueError(
+            "GEM_SEQUENCE_MISMATCH", f"{path}.gemItemLevels",
+        )
+    enchant_id = canonical_identity_token(
+        raw["enchantId"], path=f"{path}.enchantId", allow_empty=True,
+    )
+    crafted_stats = canonical_set_list(
+        raw["craftedStats"], path=f"{path}.craftedStats",
+        item_rule=_exact_identity_field, max_items=16,
+    )
+    embellishment_ids = canonical_set_list(
+        raw["embellishmentIds"], path=f"{path}.embellishmentIds",
+        item_rule=_exact_identity_field, max_items=16,
+    )
+    redirected_base_stats = canonical_set_list(
+        raw["redirectedBaseStats"], path=f"{path}.redirectedBaseStats",
+        item_rule=_exact_identity_field, max_items=16,
+    )
+    return {
+        "schemaRevision": EXACT_ITEM_IDENTITY_SCHEMA_REVISION,
+        "itemId": item_id,
+        "itemLevel": item_level,
+        "bonusIds": list(bonus_ids),
+        "context": context,
+        "gemIds": list(gem_ids),
+        "gemBonusIds": list(gem_bonus_ids),
+        "gemItemLevels": list(gem_item_levels),
+        "enchantId": enchant_id,
+        "craftedStats": list(crafted_stats),
+        "embellishmentIds": list(embellishment_ids),
+        "redirectedBaseStats": list(redirected_base_stats),
+    }
+
+
+def _validate_exact_item_payload(value: object) -> object:
+    raw = _require_exact_mapping_keys(
+        value,
+        path="exactItem",
+        exact_keys=_EXACT_ITEM_PAYLOAD_KEYS,
+    )
+    if raw["schemaRevision"] != EXACT_ITEM_IDENTITY_SCHEMA_REVISION:
+        raise CanonicalValueError(
+            "SCHEMA_REVISION_MISMATCH", "exactItem.schemaRevision",
+        )
+    rebuilt = _canonical_exact_slot_payload(
+        {
+            "itemId": raw["itemId"],
+            "declaredItemLevel": raw["itemLevel"],
+            "bonusIds": raw["bonusIds"],
+            "context": raw["context"],
+            "gemIds": raw["gemIds"],
+            "gemBonusIds": raw["gemBonusIds"],
+            "gemItemLevels": raw["gemItemLevels"],
+            "enchantId": raw["enchantId"],
+            "craftedStats": raw["craftedStats"],
+            "embellishmentIds": raw["embellishmentIds"],
+            "redirectedBaseStats": raw["redirectedBaseStats"],
+        },
+        path="exactItem",
+    )
+    if dict(raw) != rebuilt:
+        raise CanonicalValueError("EXACT_ITEM_PAYLOAD_MISMATCH", "exactItem")
+    return rebuilt
+
+
+def _verified_exact_payload_copy(exact: object) -> dict[str, object]:
+    return verified_payload_copy(
+        exact,
+        document_kind=EXACT_ITEM_DOCUMENT_KIND,
+        schema_revision=EXACT_ITEM_IDENTITY_SCHEMA_REVISION,
+        key_prefix=EXACT_ITEM_KEY_PREFIX,
+        payload_validator=_validate_exact_item_payload,
+    )
+
+
+def reload_exact_item(
+    canonical_bytes: bytes,
+    content_key: str,
+) -> SealedCanonicalDocument:
+    """Reload an Exact v2 document from its exact persisted bytes."""
+
+    return _rehydrate_canonical_document(
+        canonical_bytes=canonical_bytes,
+        content_key=content_key,
+        document_kind=EXACT_ITEM_DOCUMENT_KIND,
+        schema_revision=EXACT_ITEM_IDENTITY_SCHEMA_REVISION,
+        key_prefix=EXACT_ITEM_KEY_PREFIX,
+        payload_validator=_validate_exact_item_payload,
+    )
+
+
+def _canonical_exact_static_facts(
+    facts: object,
+    *,
+    path: str = "exactStaticFacts.facts",
+) -> dict[str, int | float]:
+    if type(facts) is not dict:
+        raise CanonicalValueError("INVALID_MAPPING", path)
+    if not facts:
+        raise CanonicalValueError("STATIC_FACTS_REQUIRED", path)
+    if len(facts) > EXACT_STATIC_FACTS_MAX_COUNT:
+        raise CanonicalValueError("STATIC_FACT_COUNT_BOUNDS", path)
+    result: dict[str, int | float] = {}
+    for raw_key, raw_amount in facts.items():
+        key = canonical_identity_token(raw_key, path=f"{path}.key")
+        amount_path = f"{path}.{key}"
+        if type(raw_amount) not in {int, float}:
+            raise CanonicalValueError("INVALID_STATIC_FACT_NUMBER", amount_path)
+        if type(raw_amount) is int:
+            if abs(raw_amount) > EXACT_STATIC_FACTS_MAX_ABSOLUTE_NUMBER:
+                raise CanonicalValueError("STATIC_FACT_NUMBER_BOUNDS", amount_path)
+        else:
+            if not math.isfinite(raw_amount):
+                raise CanonicalValueError("INVALID_STATIC_FACT_NUMBER", amount_path)
+            if abs(raw_amount) > EXACT_STATIC_FACTS_MAX_ABSOLUTE_NUMBER:
+                raise CanonicalValueError("STATIC_FACT_NUMBER_BOUNDS", amount_path)
+            if raw_amount.is_integer():
+                raise CanonicalValueError(
+                    "AMBIGUOUS_INTEGRAL_STATIC_FACT_FLOAT",
+                    amount_path,
+                )
+        result[key] = raw_amount
+    return result
+
+
+def _bounded_exact_static_facts_payload(value: object) -> None:
+    try:
+        encoded = canonical_json_bytes(value)
+    except (ValueError, OverflowError) as error:
+        raise CanonicalValueError(
+            "STATIC_FACTS_SERIALIZATION_INVALID",
+            "exactStaticFacts",
+        ) from error
+    if len(encoded) > EXACT_STATIC_FACTS_MAX_CANONICAL_BYTES:
+        raise CanonicalValueError(
+            "STATIC_FACTS_PAYLOAD_BOUNDS",
+            "exactStaticFacts",
+        )
+
+
+def _validate_exact_static_facts_payload(value: object) -> object:
+    if type(value) is not dict:
+        raise CanonicalValueError("INVALID_MAPPING", "exactStaticFacts")
+    canonical_facts = _canonical_exact_static_facts(value.get("facts"))
+    _bounded_exact_static_facts_payload(value)
+    raw = canonical_mapping(
+        value,
+        path="exactStaticFacts",
+        exact_keys=_EXACT_STATIC_FACTS_PAYLOAD_KEYS,
+    )
+    if raw["schemaRevision"] != EXACT_STATIC_FACTS_SCHEMA_REVISION:
+        raise CanonicalValueError(
+            "SCHEMA_REVISION_MISMATCH",
+            "exactStaticFacts.schemaRevision",
+        )
+    exact_key = canonical_identity_token(
+        raw["exactItemInstanceKey"],
+        path="exactStaticFacts.exactItemInstanceKey",
+    )
+    if EXACT_ITEM_INSTANCE_KEY_PATTERN.fullmatch(exact_key) is None:
+        raise CanonicalValueError(
+            "INVALID_EXACT_ITEM_KEY",
+            "exactStaticFacts.exactItemInstanceKey",
+        )
+    rebuilt = {
+        "schemaRevision": EXACT_STATIC_FACTS_SCHEMA_REVISION,
+        "exactItemInstanceKey": exact_key,
+        "facts": canonical_facts,
+    }
+    if dict(raw) != rebuilt:
+        raise CanonicalValueError(
+            "STATIC_FACTS_PAYLOAD_MISMATCH",
+            "exactStaticFacts",
+        )
+    return rebuilt
+
+
+def reload_exact_static_facts(
+    canonical_bytes: bytes,
+    content_key: str,
+    *,
+    exact: SealedCanonicalDocument,
+) -> SealedCanonicalDocument:
+    """Reload static facts only when they remain bound to the supplied Exact."""
+
+    _verified_exact_payload_copy(exact)
+
+    def validate(value: object) -> object:
+        payload = _validate_exact_static_facts_payload(value)
+        if payload["exactItemInstanceKey"] != exact.content_key:
+            raise CanonicalValueError(
+                "EXACT_ITEM_BINDING_MISMATCH",
+                "exactStaticFacts.exactItemInstanceKey",
+            )
+        return payload
+
+    return _rehydrate_canonical_document(
+        canonical_bytes=canonical_bytes,
+        content_key=content_key,
+        document_kind=EXACT_STATIC_FACTS_DOCUMENT_KIND,
+        schema_revision=EXACT_STATIC_FACTS_SCHEMA_REVISION,
+        key_prefix=EXACT_STATIC_FACTS_KEY_PREFIX,
+        payload_validator=validate,
+    )
+
+
+def _blocked_canonical_result(error: CanonicalValueError) -> CanonicalResult:
+    return CanonicalResult(
+        "blocked",
+        None,
+        (CanonicalIssue(
+            error.code,
+            error.path,
+            "Re-import the exact slot without normalization or extra fields.",
+        ),),
+    )
+
+
+def seal_exact_item(exact_slot_payload: object) -> CanonicalResult:
+    """Seal exactly one canonical Task 1 v2 slot without Catalog provenance."""
+
+    try:
+        payload = _canonical_exact_slot_payload(exact_slot_payload)
+        document = seal_canonical_document(
+            document_kind=EXACT_ITEM_DOCUMENT_KIND,
+            schema_revision=EXACT_ITEM_IDENTITY_SCHEMA_REVISION,
+            payload=payload,
+            key_prefix=EXACT_ITEM_KEY_PREFIX,
+        )
+        return CanonicalResult("verified", document, ())
+    except CanonicalValueError as error:
+        return _blocked_canonical_result(error)
+
+
+def seal_exact_static_facts(
+    exact: SealedCanonicalDocument,
+    facts: object,
+) -> CanonicalResult:
+    """Seal strict finite numeric facts against one re-verified Exact."""
+
+    try:
+        _verified_exact_payload_copy(exact)
+        payload = {
+            "schemaRevision": EXACT_STATIC_FACTS_SCHEMA_REVISION,
+            "exactItemInstanceKey": exact.content_key,
+            "facts": facts,
+        }
+        canonical_payload = _validate_exact_static_facts_payload(payload)
+        document = seal_canonical_document(
+            document_kind=EXACT_STATIC_FACTS_DOCUMENT_KIND,
+            schema_revision=EXACT_STATIC_FACTS_SCHEMA_REVISION,
+            payload=canonical_payload,
+            key_prefix=EXACT_STATIC_FACTS_KEY_PREFIX,
+        )
+        return CanonicalResult("verified", document, ())
+    except CanonicalValueError as error:
+        return CanonicalResult(
+            "blocked",
+            None,
+            (CanonicalIssue(
+                error.code,
+                error.path,
+                "Re-resolve finite numeric facts for the sealed Exact item.",
+            ),),
+        )
+    except (ValueError, OverflowError):
+        return CanonicalResult(
+            "blocked",
+            None,
+            (CanonicalIssue(
+                "STATIC_FACTS_SERIALIZATION_INVALID",
+                "exactStaticFacts",
+                "Re-resolve finite numeric facts for the sealed Exact item.",
+            ),),
+        )
+
+
+def derive_simc_serializer_input(
+    exact: SealedCanonicalDocument,
+) -> dict[str, str]:
+    """Derive SimC fields only from a re-verified sealed Exact document."""
+
+    payload = _verified_exact_payload_copy(exact)
+    result = {
+        "id": payload["itemId"],
+        "ilevel": f'{payload["itemLevel"]:d}',
+    }
+    for serializer_field, payload_field in (
+        ("bonus_id", "bonusIds"),
+        ("gem_id", "gemIds"),
+        ("gem_bonus_id", "gemBonusIds"),
+        ("gem_ilevel", "gemItemLevels"),
+        ("crafted_stats", "craftedStats"),
+        ("embellishment", "embellishmentIds"),
+    ):
+        values = payload[payload_field]
+        if values:
+            if payload_field == "gemItemLevels":
+                result[serializer_field] = "/".join(f"{value:d}" for value in values)
+            else:
+                result[serializer_field] = "/".join(values)
+    if payload["enchantId"]:
+        result["enchant_id"] = payload["enchantId"]
+    return result
+
+
 def build_exact_item_instance(
     binding: Any,
     exact_row: Any,
@@ -540,10 +967,24 @@ __all__ = (
     "CATALOG_REVISION_PATTERN",
     "ENHANCEMENT_SELECTION_KEY_PATTERN",
     "ENHANCEMENT_SELECTION_SCHEMA_REVISION",
+    "EXACT_ITEM_DOCUMENT_KIND",
+    "EXACT_ITEM_KEY_PREFIX",
     "EXACT_ITEM_INSTANCE_KEY_PATTERN",
+    "EXACT_ITEM_IDENTITY_SCHEMA_REVISION",
     "EXACT_ITEM_INSTANCE_SCHEMA_REVISION",
     "EXACT_ITEM_VALIDATION_SCHEMA_REVISION",
+    "EXACT_STATIC_FACTS_DOCUMENT_KIND",
+    "EXACT_STATIC_FACTS_KEY_PREFIX",
+    "EXACT_STATIC_FACTS_MAX_ABSOLUTE_NUMBER",
+    "EXACT_STATIC_FACTS_MAX_CANONICAL_BYTES",
+    "EXACT_STATIC_FACTS_MAX_COUNT",
+    "EXACT_STATIC_FACTS_SCHEMA_REVISION",
     "EXACT_VARIANT_SIGNATURE_PATTERN",
     "build_exact_item_instance",
     "canonical_enhancement_selection",
+    "derive_simc_serializer_input",
+    "reload_exact_item",
+    "reload_exact_static_facts",
+    "seal_exact_item",
+    "seal_exact_static_facts",
 )

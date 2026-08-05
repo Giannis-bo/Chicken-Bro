@@ -648,6 +648,35 @@ export interface GearSelectionIntent {
   slots: Readonly<Record<string, GearIntentSlot>>
 }
 
+export interface ExactLoadoutIntentSlot {
+  itemId: string
+  declaredItemLevel: number | null
+  bonusIds: readonly string[]
+  context: string
+  gemIds: readonly string[]
+  gemBonusIds: readonly string[]
+  gemItemLevels: readonly number[]
+  enchantId: string
+  craftedStats: readonly string[]
+  embellishmentIds: readonly string[]
+  redirectedBaseStats: readonly string[]
+}
+
+/** Catalog-independent user-authored exact equipment identity. */
+export interface ExactLoadoutIntent {
+  schemaRevision: 'exact-loadout-intent-v2'
+  authoredAgainst: {
+    seasonRevision: string
+    gameBuild: string
+  }
+  eligibilityContext: {
+    classKey: string
+    specKey: string
+    level: number
+  }
+  slots: Readonly<Record<string, ExactLoadoutIntentSlot>>
+}
+
 export interface GearProblem {
   kind?: string
   code?: string

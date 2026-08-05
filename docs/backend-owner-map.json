@@ -12,6 +12,76 @@
   },
   "hotspotFiles": [
     {
+      "path": "server/gear_canonical_kernel.py",
+      "healthStatus": "source_change_control_only",
+      "summary": "Owns the completed pure Canonical foundation and stable source change-control for migration 0030 persistence. Exact Task 3A lifecycle stage and candidate history belong to the release evidence packet; this owner map records only the structural owner boundary. No runtime consumer is active.",
+      "owners": [
+        {
+          "id": "equipment_simulator_canonical_kernel_task1_5",
+          "status": "source_change_control_only",
+          "factOwner": "server/gear_canonical_kernel.py",
+          "kernelSemanticOwner": "server/gear_canonical_kernel.py",
+          "slotSetOwner": "server/gear_contracts.py",
+          "domainSchemaOwners": [
+            "packages/domain/src/gear-intent.ts",
+            "server/gear_exact_item_instance.py",
+            "server/gear_exact_authority.py",
+            "server/simc_item_effect_support.py",
+            "server/simc_item_effect_probe.py"
+          ],
+          "adapterBoundary": "scripts/simc-item-effect-probe.py",
+          "ownerGate": "tests/gear_canonical_owner_gate_test.py",
+          "sourceChangeControlRegistry": {
+            "path": "tests/fixtures/gear_canonical_owner_registry.json",
+            "role": "test_only_source_change_control",
+            "runtimeAuthority": false,
+            "reviewDiffRequired": true
+          },
+          "owns": [
+            "strict NFC raw-value canonical identity/report token, integer, list, mapping and slot validation",
+            "byte-, depth-, node- and cycle-bounded deterministic canonical JSON with exact string object keys and SHA-256 content keys",
+            "module-private sealed document construction, reload verification and verified payload copies",
+            "canonical ownership source change-control for four server declaration-only profiles, one CLI bootstrap profile, exact physical imports, fixed digest-bound exemptions and public/export ownership"
+          ],
+          "mustNotChange": [
+            "server/gear_contracts.py remains the sole owner of CANONICAL_GEAR_SLOTS.",
+            "Do not read database, Catalog, environment or runtime process state.",
+            "Domain modules own only Exact, Static Facts, Progression, Effect, Probe and Envelope schema or business derivation; primitive validation, canonical bytes and seals remain Kernel-owned.",
+            "Do not reintroduce raw cross-domain APIs or a second serializer payload.",
+            "Do not persist, log or echo raw plugin text."
+          ],
+          "characterization": [
+            "tests/gear_canonical_kernel_test.py",
+            "tests/gear_canonical_owner_gate_test.py",
+            "tests/fixtures/gear_canonical_owner_registry.json",
+            "tests/fixtures/gear_canonical_mutations.json",
+            "packages/domain/src/gear-intent.test.ts",
+            "tests/gear_exact_item_instance_test.py",
+            "tests/gear_exact_authority_test.py",
+            "tests/simc_item_effect_support_test.py",
+            "tests/simc_item_effect_probe_test.py",
+            "tests/simc_item_effect_probe_cli_test.py"
+          ],
+          "runtimeConsumers": [],
+          "proofClaim": "source_change_control_only",
+          "originalTask3Activated": false,
+          "replacementTask3AActivated": true,
+          "authorizedReplacementStages": [
+            "task_3a_authority_bundle_persistence"
+          ],
+          "blockedReplacementStages": [
+            "task_4p_pure_v2",
+            "task_4l_loadout_effect_authority",
+            "task_3b_snapshot_persistence",
+            "task_4w_worker_jobs",
+            "task_5a_api_runtime",
+            "task_6c_observation_catalog"
+          ],
+          "capabilityBoundary": "The pure Canonical foundation and replacement Task 3A migration 0030 persistence boundary are structurally owned here. The registry remains test-only, proofClaim stays source_change_control_only, runtimeConsumers is empty, original Task 3 remains stopped, and generation 35, Catalog/pointers, worker, Resolver/API/UI, raw-text privacy and v1 identities remain unchanged. Exact lifecycle stage, candidate identity and promotion status are owned exclusively by the current release evidence packet."
+        }
+      ]
+    },
+    {
       "path": "server/gear_catalog_migration_audit.py",
       "healthStatus": "phase3_immutable_simulation_snapshot_archived",
       "summary": "Owns the archived Phase 0/1 catalog migration contracts, Phase 2 exact registry, and production-verified Phase 3 exact-only ResolvedLoadout plus immutable SimulationSnapshot boundary; Phase 4 may now perform the single-Manifest cutover.",
@@ -82,7 +152,12 @@
         {
           "id": "equipment_simulator_exact_item_instance_phase2",
           "status": "phase2_archived",
+          "canonicalKernelOwner": "server/gear_canonical_kernel.py",
+          "canonicalOwnerGate": "tests/gear_canonical_owner_gate_test.py",
           "factOwner": "server/gear_exact_item_instance.py",
+          "exactAuthorityOwner": "server/gear_exact_authority.py",
+          "effectSupportOwner": "server/simc_item_effect_support.py",
+          "effectProbeOwner": "server/simc_item_effect_probe.py",
           "registryOwner": "server/gear_exact_item_registry.py",
           "trackAuthorityOwner": "server/gear_track_authority.py",
           "readOnlyProjectionOwner": "server/gear_catalog_audit_store.py",
@@ -93,6 +168,9 @@
             "canonical EnhancementSelection identity with ordered gem semantics",
             "canonical ExactItemInstance and exact variant identity",
             "Catalog and Gear Rule bound static-fact validation",
+            "Catalog-independent Exact v2 identity and strict ExactAuthorityEnvelope",
+            "pure, runtime-bound SimC effect-support tri-state and local probe evaluation",
+            "sealed Exact, Static Facts, Progression, Effect and Envelope schema/business derivation without legacy raw cross-domain APIs",
             "privacy-safe Community and personal template content references",
             "append-only dormant exact registry seal, reload and bounded pointer-fenced shadow"
           ],
@@ -105,6 +183,11 @@
           ],
           "characterization": [
             "tests/gear_exact_item_instance_test.py",
+            "tests/gear_exact_authority_test.py",
+            "tests/gear_canonical_owner_gate_test.py",
+            "tests/simc_item_effect_support_test.py",
+            "tests/simc_item_effect_probe_test.py",
+            "tests/simc_item_effect_probe_cli_test.py",
             "tests/gear_exact_item_registry_test.py",
             "tests/gear_exact_item_registry_store_test.py",
             "tests/gear_exact_item_instance_cli_test.py",
@@ -112,7 +195,7 @@
             "tests/postgres_schema_test.py"
           ],
           "runtimeConsumers": [],
-          "futureExtractionDirection": "Phase 3 consumes only verified exact keys; partial references remain explicit blockers and sealed Phase 2 rows remain immutable."
+          "capabilityBoundary": "Archived Phase 2 remains immutable and dormant. Replacement Task 1-5 supplies only pure sealed schema/business derivation; original Task 3 is not activated, runtimeConsumers is empty, and partial references remain explicit blockers."
         },
         {
           "id": "equipment_simulator_resolved_snapshot_phase3",
@@ -361,6 +444,35 @@
             "tests/talent-simulator-core.test.js"
           ],
           "futureExtractionDirection": "Separate talent read-model helpers after gear public contract work is complete."
+        }
+      ]
+    },
+    {
+      "path": "server/simc_gear_import.py",
+      "healthStatus": "exact_v2_input_contract",
+      "summary": "Owns pure SimulationCraft plugin gear-line parsing and sanitized Exact v2 import canonicalization; it emits no raw profile text and owns neither Catalog admission nor runtime authority.",
+      "owners": [
+        {
+          "id": "simc_exact_import_adapter",
+          "status": "exact_v2_pure_input_adapter",
+          "owns": [
+            "bounded plugin text parsing",
+            "Catalog-independent exact-loadout-intent-v2 projection",
+            "path-addressable blocked import diagnostics"
+          ],
+          "mustNotChange": [
+            "Do not persist raw plugin text, profile identity, Catalog metadata, default item levels, or inferred variants.",
+            "Do not decide Exact authority, whole-loadout legality, effect support, Catalog membership, or SimC task readiness."
+          ],
+          "characterization": [
+            "tests/simc_gear_import_test.py",
+            "tests/news_backend_test.py::NewsBackendTest.test_simcraft_template_gear_line_keeps_legacy_canonical_output",
+            "tests/gear_contracts_test.py"
+          ],
+          "runtimeConsumers": [
+            "server/news_backend.py legacy compatibility wrappers"
+          ],
+          "capabilityBoundary": "This adapter owns sanitized Exact v2 projection only. Replacement Task 1-5 already owns the pure canonical language plus sealed Exact, Static Facts, Progression, Effect, Probe and ExactAuthorityEnvelope derivation. The original Task 3 is not activated and is limited to any future persistence/store/migration/worker/runtime activation; Resolver, API, observations and Catalog admission remain separate later scopes."
         }
       ]
     },
