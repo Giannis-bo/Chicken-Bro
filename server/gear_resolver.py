@@ -1065,7 +1065,11 @@ def resolve_v2(selection_intent: Any, authority_context: Any) -> dict[str, Any]:
     blocking reason until a separately reviewed authority owner exists.
     """
     result = resolve(selection_intent, authority_context)
-    subjects = loadout_effect_subjects(selection_intent, authority_context)
+    subjects = loadout_effect_subjects(
+        selection_intent,
+        authority_context,
+        effective_set_state=result.get("setState"),
+    )
     if not subjects:
         return result
     problem = gear_problem(

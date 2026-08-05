@@ -936,6 +936,7 @@ def _v2_resolver_projection(
         or _text(dependency.get("simcRuntimeRevision")) != simc_runtime_revision
         or readiness.get("status") != "verified"
         or readiness.get("simcReady") is not True
+        or _text(readiness.get("simcRuntimeRevision")) != simc_runtime_revision
         or not isinstance(required_raw, list)
         or not isinstance(ready_raw, list)
         or not isinstance(eligibility, Mapping)
@@ -1004,6 +1005,8 @@ def build_resolved_loadout_v2(
     required = [entry["slot"] for entry in resolver_projection["slots"]] if resolver_projection else []
     if not rule or not resolver or not runtime or resolver_projection is None:
         problems.append(_problem("LOADOUT_V2_RESOLVER_NOT_READY", "resolverSnapshot", "V2 requires one verified resolver snapshot and revisions."))
+    if not isinstance(authority_bundles, Mapping):
+        problems.append(_problem("LOADOUT_V2_AUTHORITY_BUNDLE_CLOSURE_INVALID", "authorityBundles", "V2 authority bundles must be one exact selected-key mapping."))
     if not isinstance(exact_authority_by_slot, list) or not exact_authority_by_slot:
         problems.append(_problem("LOADOUT_V2_EXACT_AUTHORITY_REQUIRED", "exactAuthorityBySlot", "V2 requires non-empty slot-bound exact authority."))
         pairs: list[dict[str, str]] = []
@@ -1012,9 +1015,16 @@ def build_resolved_loadout_v2(
         seen_slots: set[str] = set()
         seen_keys: set[str] = set()
         for index, raw in enumerate(exact_authority_by_slot):
-            row = dict(raw) if isinstance(raw, Mapping) else {}
-            slot = _text(row.get("slot"))
-            key = _text(row.get("exactAuthorityEnvelopeKey"))
+            if (
+                not isinstance(raw, Mapping)
+                or set(raw) != {"slot", "exactAuthorityEnvelopeKey"}
+                or not isinstance(raw.get("slot"), str)
+                or not isinstance(raw.get("exactAuthorityEnvelopeKey"), str)
+            ):
+                problems.append(_problem("LOADOUT_V2_EXACT_AUTHORITY_INVALID", f"exactAuthorityBySlot[{index}]", "Exact authority pair is invalid."))
+                continue
+            slot = raw["slot"]
+            key = raw["exactAuthorityEnvelopeKey"]
             if slot not in CANONICAL_GEAR_SLOTS or not EXACT_AUTHORITY_ENVELOPE_KEY_PATTERN.fullmatch(key):
                 problems.append(_problem("LOADOUT_V2_EXACT_AUTHORITY_INVALID", f"exactAuthorityBySlot[{index}]", "Exact authority pair is invalid."))
                 continue
@@ -1026,6 +1036,8 @@ def build_resolved_loadout_v2(
             seen_keys.add(key)
             pairs.append({"slot": slot, "exactAuthorityEnvelopeKey": key})
         pairs.sort(key=lambda pair: CANONICAL_GEAR_SLOTS.index(pair["slot"]))
+    if set(bundles) != {pair["exactAuthorityEnvelopeKey"] for pair in pairs}:
+        problems.append(_problem("LOADOUT_V2_AUTHORITY_BUNDLE_CLOSURE_INVALID", "authorityBundles", "V2 authority bundles must exactly match selected authority pairs."))
     if [pair["slot"] for pair in pairs] != required:
         problems.append(_problem("LOADOUT_V2_SLOT_BINDING_MISMATCH", "exactAuthorityBySlot", "Authority pairs must equal the occupied resolver slots."))
 
@@ -1070,7 +1082,7 @@ def build_resolved_loadout_v2(
     if problems:
         return _v2_blocked(problems)
     identity = {"classKey": _text(snapshot.get("eligibilityContext", {}).get("classKey")) if isinstance(snapshot.get("eligibilityContext"), Mapping) else "", "specKey": _text(snapshot.get("eligibilityContext", {}).get("specKey")) if isinstance(snapshot.get("eligibilityContext"), Mapping) else "", "exactAuthorityBySlot": pairs, "orderedSlots": ordered_slots, "effectEvidenceByOccurrence": occurrences, "gearRuleRevision": rule, "resolverRevision": resolver, "simcRuntimeRevision": runtime}
-    row = {"schemaRevision": RESOLVED_LOADOUT_V2_SCHEMA_REVISION, "status": "ready", "resolvedLoadoutKey": _hash("resolved-loadout-v2:sha256:", identity), "exactAuthorityBySlot": pairs, "effectEvidenceByOccurrence": occurrences, "gearRuleRevision": rule, "resolverRevision": resolver, "simcRuntimeRevision": runtime, "eligibilityContext": _canonical(snapshot.get("eligibilityContext") or {}), "orderedSlots": ordered_slots, "serializerInput": _canonical(snapshot.get("serializerInput") or {}), "problemCodes": [], "problems": []}
+    row = {"schemaRevision": RESOLVED_LOADOUT_V2_SCHEMA_REVISION, "status": "ready", "resolvedLoadoutKey": _hash("resolved-loadout-v2:sha256:", identity), "exactAuthorityBySlot": pairs, "effectEvidenceByOccurrence": occurrences, "gearRuleRevision": rule, "resolverRevision": resolver, "simcRuntimeRevision": runtime, "eligibilityContext": _canonical(snapshot.get("eligibilityContext") or {}), "orderedSlots": ordered_slots, "serializerInput": {"gearItems": _canonical(ordered_slots)}, "problemCodes": [], "problems": []}
     if _text(origin_catalog_revision):
         row["originCatalogRevision"] = _text(origin_catalog_revision)
     row["rowHash"] = _hash("sha256:", {key: value for key, value in row.items() if key not in {"rowHash", "originCatalogRevision"}})
@@ -1146,6 +1158,8 @@ def verify_resolved_loadout_v2(
         issues.append("RESOLVED_LOADOUT_V2_SLOT_BINDING_MISMATCH")
     if authority_projection is not None and ordered_slots != authority_projection["orderedSlots"]:
         issues.append("RESOLVED_LOADOUT_V2_ORDERED_SLOTS_CONTEXT_MISMATCH")
+    if row.get("serializerInput") != {"gearItems": ordered_slots}:
+        issues.append("RESOLVED_LOADOUT_V2_SERIALIZER_INPUT_CONTEXT_MISMATCH")
     resolver_slots = [
         (_text(item.get("slot")), _text(item.get("itemId")))
         for item in ordered_slots if isinstance(item, Mapping)

@@ -72,7 +72,7 @@ class SimulationSnapshotCompatibilityTest(unittest.TestCase):
         """Would fail if the v2 bridge bypassed the v2 canonical compiler."""
         source = v2_resolver_snapshot()
         source["resolvedSlots"] = {"head": {"slot": "head", "itemId": "1001", "legality": {"status": "verified"}}}
-        source["profileReadiness"] = {"status": "verified", "simcReady": True, "requiredSlots": ["head"], "readySlots": ["head"]}
+        source["profileReadiness"] = {"status": "verified", "simcReady": True, "requiredSlots": ["head"], "readySlots": ["head"], "simcRuntimeRevision": "simc-runtime-v2"}
         bundle = v2_bundle("head", "1001", [])
         key = bundle.envelope.content_key
         loadout = build_resolved_loadout_v2(

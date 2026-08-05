@@ -607,7 +607,12 @@ def evaluate_rule_matrix(selection_intent: Any, authority_context: Any) -> dict[
     }
 
 
-def loadout_effect_subjects(selection_intent: Any, authority_context: Any) -> list[dict[str, str]]:
+def loadout_effect_subjects(
+    selection_intent: Any,
+    authority_context: Any,
+    *,
+    effective_set_state: Any = None,
+) -> list[dict[str, str]]:
     """Return active loadout-scoped subjects that Task 4P must fail closed on.
 
     This is intentionally only a derivation boundary.  It does not create a
@@ -636,7 +641,34 @@ def loadout_effect_subjects(selection_intent: Any, authority_context: Any) -> li
             pieces = threshold.get("pieces")
             if effect_id and isinstance(pieces, int) and pieces > 0 and count >= pieces:
                 subjects.append({"subjectKind": "set_bonus", "subjectKey": effect_id})
-    return subjects
+    if isinstance(effective_set_state, Mapping):
+        effects = effective_set_state.get("activeDynamicEffects")
+        if isinstance(effects, list):
+            for raw_effect in effects:
+                effect = raw_effect if isinstance(raw_effect, Mapping) else {}
+                effect_id = str(effect.get("effectId") or "").strip()
+                set_id = str(effect.get("itemSetId") or "").strip()
+                pieces = effect.get("pieces")
+                if (
+                    effect_id
+                    and set_id
+                    and isinstance(pieces, int)
+                    and not isinstance(pieces, bool)
+                    and pieces > 0
+                ):
+                    subjects.append(
+                        {"subjectKind": "set_bonus", "subjectKey": effect_id}
+                    )
+    normalized = sorted(
+        {
+            (subject["subjectKind"], subject["subjectKey"])
+            for subject in subjects
+        }
+    )
+    return [
+        {"subjectKind": kind, "subjectKey": key}
+        for kind, key in normalized
+    ]
 
 
 __all__ = (

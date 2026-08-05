@@ -59,6 +59,62 @@ def scenario():
     }
 
 
+def v2_snapshot_fixture():
+    source = v2_resolver_snapshot()
+    source["resolvedSlots"] = {
+        "head": {"slot": "head", "itemId": "1001", "legality": {"status": "verified"}},
+    }
+    source["profileReadiness"] = {
+        "status": "verified",
+        "simcReady": True,
+        "requiredSlots": ["head"],
+        "readySlots": ["head"],
+        "simcRuntimeRevision": "simc-runtime-v2",
+    }
+    bundle = v2_bundle("head", "1001", ["A"])
+    key = bundle.envelope.content_key
+    bundles = {key: bundle}
+    loadout = build_resolved_loadout_v2(
+        resolver_snapshot=source,
+        exact_authority_by_slot=[{"slot": "head", "exactAuthorityEnvelopeKey": key}],
+        authority_bundles=bundles,
+        gear_rule_revision="gear-rule-matrix-v1",
+        resolver_revision="resolver-v2",
+        simc_runtime_revision="simc-runtime-v2",
+    )
+    snapshot = build_simulation_snapshot_v2(
+        resolved_loadout=loadout,
+        talent_profile_key=TALENT_KEY,
+        talent_lines=TALENT_LINES,
+        character_context=character_context(),
+        scenario_options=scenario(),
+        preparation_lines=["optimal_raid=0"],
+        compiler_revision="simc-profile-compiler-v2",
+        simc_runtime_revision="simc-runtime-v2",
+        resolver_snapshot=source,
+        authority_bundles=bundles,
+    )
+    return source, bundles, loadout, snapshot
+
+
+def rehash_v2_snapshot(snapshot):
+    character = snapshot.get("characterContext") if isinstance(snapshot.get("characterContext"), dict) else {}
+    scenario_options = snapshot.get("scenarioOptions") if isinstance(snapshot.get("scenarioOptions"), dict) else {}
+    identity = {
+        "resolvedLoadoutKey": snapshot["resolvedLoadoutKey"],
+        "exactAuthorityBySlot": simulation_snapshot_module._canonical(snapshot["exactAuthorityBySlot"] or []),
+        "effectEvidenceByOccurrence": simulation_snapshot_module._canonical(snapshot["effectEvidenceByOccurrence"] or []),
+        "talentProfileKey": snapshot["talentProfileKey"],
+        "characterContext": {**simulation_snapshot_module._canonical(character), "talentLinesHash": snapshot["talentLinesHash"]},
+        "scenarioOptions": {**simulation_snapshot_module._canonical(scenario_options), "preparationLines": simulation_snapshot_module._canonical(snapshot["preparationLines"] or [])},
+        "serializerInput": simulation_snapshot_module._canonical(snapshot["serializerInput"] or {}),
+        "compilerRevision": str(snapshot.get("compilerRevision") or "").strip(),
+        "simcRuntimeRevision": str(snapshot.get("simcRuntimeRevision") or "").strip(),
+    }
+    snapshot["simulationSnapshotKey"] = simulation_snapshot_module._hash("simulation-snapshot-v2:sha256:", identity)
+    snapshot["rowHash"] = simulation_snapshot_module._hash("sha256:", {key: value for key, value in snapshot.items() if key not in {"rowHash", "originCatalogRevision"}})
+
+
 class SimulationSnapshotTest(unittest.TestCase):
     def build(self, **overrides):
         values = {
@@ -178,7 +234,7 @@ class SimulationSnapshotTest(unittest.TestCase):
         """Would fail if provenance entered the v2 snapshot identity or v1 verifier accepted v2."""
         source = v2_resolver_snapshot()
         source["resolvedSlots"] = {"head": {"slot": "head", "itemId": "1001", "legality": {"status": "verified"}}}
-        source["profileReadiness"] = {"status": "verified", "simcReady": True, "requiredSlots": ["head"], "readySlots": ["head"]}
+        source["profileReadiness"] = {"status": "verified", "simcReady": True, "requiredSlots": ["head"], "readySlots": ["head"], "simcRuntimeRevision": "simc-runtime-v2"}
         bundle = v2_bundle("head", "1001", ["A"])
         key = bundle.envelope.content_key
         loadout = build_resolved_loadout_v2(
@@ -204,14 +260,14 @@ class SimulationSnapshotTest(unittest.TestCase):
             origin_catalog_revision="gear-catalog:sha256:" + "b" * 64,
         )
         self.assertEqual(snapshot["status"], "ready")
-        self.assertEqual(verify_simulation_snapshot_v2(snapshot, resolved_loadout=loadout, resolver_snapshot=source, authority_bundles={key: bundle}), [])
+        self.assertEqual(verify_simulation_snapshot_v2(snapshot, resolved_loadout=loadout, resolver_snapshot=source, authority_bundles={key: bundle}, compiler_revision="simc-profile-compiler-v2"), [])
         self.assertNotEqual(snapshot["simulationSnapshotKey"], self.build()["simulationSnapshotKey"])
 
     def test_v2_snapshot_keeps_exact_serializer_facts_for_same_item_id(self):
         """Would fail if two Exact instances with one itemId compiled identically."""
         source = v2_resolver_snapshot()
         source["resolvedSlots"] = {"head": {"slot": "head", "itemId": "1001", "legality": {"status": "verified"}}}
-        source["profileReadiness"] = {"status": "verified", "simcReady": True, "requiredSlots": ["head"], "readySlots": ["head"]}
+        source["profileReadiness"] = {"status": "verified", "simcReady": True, "requiredSlots": ["head"], "readySlots": ["head"], "simcRuntimeRevision": "simc-runtime-v2"}
         def snapshot_for(*bonus_ids):
             bundle = v2_bundle("head", "1001", [], exact_fields={"bonusIds": list(bonus_ids)})
             key = bundle.envelope.content_key
@@ -238,7 +294,7 @@ class SimulationSnapshotTest(unittest.TestCase):
         """Would fail if a recomputed row hash could bless altered SimC bytes."""
         source = v2_resolver_snapshot()
         source["resolvedSlots"] = {"head": {"slot": "head", "itemId": "1001", "legality": {"status": "verified"}}}
-        source["profileReadiness"] = {"status": "verified", "simcReady": True, "requiredSlots": ["head"], "readySlots": ["head"]}
+        source["profileReadiness"] = {"status": "verified", "simcReady": True, "requiredSlots": ["head"], "readySlots": ["head"], "simcRuntimeRevision": "simc-runtime-v2"}
         bundle = v2_bundle("head", "1001", [])
         key = bundle.envelope.content_key
         loadout = build_resolved_loadout_v2(
@@ -262,7 +318,7 @@ class SimulationSnapshotTest(unittest.TestCase):
         """Would fail if a v2 key ignored divergent Exact-derived compiler inputs."""
         source = v2_resolver_snapshot()
         source["resolvedSlots"] = {"head": {"slot": "head", "itemId": "1001", "legality": {"status": "verified"}}}
-        source["profileReadiness"] = {"status": "verified", "simcReady": True, "requiredSlots": ["head"], "readySlots": ["head"]}
+        source["profileReadiness"] = {"status": "verified", "simcReady": True, "requiredSlots": ["head"], "readySlots": ["head"], "simcRuntimeRevision": "simc-runtime-v2"}
         bundle = v2_bundle("head", "1001", [])
         key = bundle.envelope.content_key
         loadout = build_resolved_loadout_v2(
@@ -301,7 +357,7 @@ class SimulationSnapshotTest(unittest.TestCase):
         """Would fail if a malformed authority entry were filtered before comparison."""
         source = v2_resolver_snapshot()
         source["resolvedSlots"] = {"head": {"slot": "head", "itemId": "1001", "legality": {"status": "verified"}}}
-        source["profileReadiness"] = {"status": "verified", "simcReady": True, "requiredSlots": ["head"], "readySlots": ["head"]}
+        source["profileReadiness"] = {"status": "verified", "simcReady": True, "requiredSlots": ["head"], "readySlots": ["head"], "simcRuntimeRevision": "simc-runtime-v2"}
         bundle = v2_bundle("head", "1001", [])
         key = bundle.envelope.content_key
         loadout = build_resolved_loadout_v2(
@@ -324,7 +380,7 @@ class SimulationSnapshotTest(unittest.TestCase):
         """Would fail if mutable occurrence or slot rows could outlive loadout binding."""
         source = v2_resolver_snapshot()
         source["resolvedSlots"] = {"head": {"slot": "head", "itemId": "1001", "legality": {"status": "verified"}}}
-        source["profileReadiness"] = {"status": "verified", "simcReady": True, "requiredSlots": ["head"], "readySlots": ["head"]}
+        source["profileReadiness"] = {"status": "verified", "simcReady": True, "requiredSlots": ["head"], "readySlots": ["head"], "simcRuntimeRevision": "simc-runtime-v2"}
         bundle = v2_bundle("head", "1001", ["A"])
         key = bundle.envelope.content_key
         loadout = build_resolved_loadout_v2(
@@ -352,7 +408,7 @@ class SimulationSnapshotTest(unittest.TestCase):
         """Would fail if snapshot verification normalized hostile occurrence types."""
         source = v2_resolver_snapshot()
         source["resolvedSlots"] = {"head": {"slot": "head", "itemId": "1001", "legality": {"status": "verified"}}}
-        source["profileReadiness"] = {"status": "verified", "simcReady": True, "requiredSlots": ["head"], "readySlots": ["head"]}
+        source["profileReadiness"] = {"status": "verified", "simcReady": True, "requiredSlots": ["head"], "readySlots": ["head"], "simcRuntimeRevision": "simc-runtime-v2"}
         bundle = v2_bundle("head", "1001", ["A"])
         key = bundle.envelope.content_key
         loadout = build_resolved_loadout_v2(
@@ -398,7 +454,7 @@ class SimulationSnapshotTest(unittest.TestCase):
         """Would fail if a rehashed snapshot could truncate a sealed A/B/A list."""
         source = v2_resolver_snapshot()
         source["resolvedSlots"] = {"head": {"slot": "head", "itemId": "1001", "legality": {"status": "verified"}}}
-        source["profileReadiness"] = {"status": "verified", "simcReady": True, "requiredSlots": ["head"], "readySlots": ["head"]}
+        source["profileReadiness"] = {"status": "verified", "simcReady": True, "requiredSlots": ["head"], "readySlots": ["head"], "simcRuntimeRevision": "simc-runtime-v2"}
         bundle = v2_bundle("head", "1001", ["A", "B", "A"])
         key = bundle.envelope.content_key
         bundles = {key: bundle}
@@ -437,7 +493,7 @@ class SimulationSnapshotTest(unittest.TestCase):
         """Would fail if snapshot runtime could drift from verified effect authority."""
         source = v2_resolver_snapshot()
         source["resolvedSlots"] = {"head": {"slot": "head", "itemId": "1001", "legality": {"status": "verified"}}}
-        source["profileReadiness"] = {"status": "verified", "simcReady": True, "requiredSlots": ["head"], "readySlots": ["head"]}
+        source["profileReadiness"] = {"status": "verified", "simcReady": True, "requiredSlots": ["head"], "readySlots": ["head"], "simcRuntimeRevision": "simc-runtime-v2"}
         bundle = v2_bundle("head", "1001", ["A", "B", "A"])
         key = bundle.envelope.content_key
         bundles = {key: bundle}
@@ -523,6 +579,107 @@ class SimulationSnapshotTest(unittest.TestCase):
         spec_drift["characterContext"]["specKey"] = "fire"
         rehash(spec_drift)
         self.assertIn("SIMULATION_V2_CHARACTER_CONTEXT_MISMATCH", verify_simulation_snapshot_v2(spec_drift, resolved_loadout=loadout, resolver_snapshot=source, authority_bundles=bundles))
+
+    def test_v2_snapshot_verifier_rejects_rehashed_non_mapping_compiler_contexts(self):
+        """Would fail if malformed character/scenario containers raised or verified."""
+        source, bundles, loadout, baseline = v2_snapshot_fixture()
+        for field, hostile, code in (
+            ("characterContext", ["not", "a", "mapping"], "SIMULATION_V2_CHARACTER_CONTEXT_INVALID"),
+            ("scenarioOptions", "not-a-mapping", "SIMULATION_V2_SCENARIO_OPTIONS_INVALID"),
+        ):
+            with self.subTest(field=field):
+                tampered = copy.deepcopy(baseline)
+                tampered[field] = hostile
+                rehash_v2_snapshot(tampered)
+                try:
+                    issues = verify_simulation_snapshot_v2(
+                        tampered,
+                        resolved_loadout=loadout,
+                        resolver_snapshot=source,
+                        authority_bundles=bundles,
+                        compiler_revision="simc-profile-compiler-v2",
+                    )
+                except (AttributeError, KeyError, TypeError, ValueError) as error:
+                    self.fail(f"{field} raised instead of failing closed: {error}")
+                self.assertIn(code, issues)
+
+    def test_v2_snapshot_rejects_rehashed_noncanonical_compiler_revision(self):
+        """Would fail if compiler revision syntax or explicit context was optional."""
+        source, bundles, loadout, baseline = v2_snapshot_fixture()
+        for hostile in (None, " simc-profile-compiler-v2 "):
+            with self.subTest(compiler_revision=hostile):
+                tampered = copy.deepcopy(baseline)
+                tampered["compilerRevision"] = hostile
+                rehash_v2_snapshot(tampered)
+                self.assertIn(
+                    "SIMULATION_V2_COMPILER_REVISION_INVALID",
+                    verify_simulation_snapshot_v2(
+                        tampered,
+                        resolved_loadout=loadout,
+                        resolver_snapshot=source,
+                        authority_bundles=bundles,
+                        compiler_revision="simc-profile-compiler-v2",
+                    ),
+                )
+        future = build_simulation_snapshot_v2(
+            resolved_loadout=loadout,
+            talent_profile_key=TALENT_KEY,
+            talent_lines=TALENT_LINES,
+            character_context=character_context(),
+            scenario_options=scenario(),
+            preparation_lines=["optimal_raid=0"],
+            compiler_revision="simc-profile-compiler-v3",
+            simc_runtime_revision="simc-runtime-v2",
+            resolver_snapshot=source,
+            authority_bundles=bundles,
+        )
+        self.assertEqual(future["status"], "ready")
+        self.assertEqual(
+            verify_simulation_snapshot_v2(
+                future,
+                resolved_loadout=loadout,
+                resolver_snapshot=source,
+                authority_bundles=bundles,
+                compiler_revision="simc-profile-compiler-v3",
+            ),
+            [],
+        )
+        self.assertIn(
+            "SIMULATION_V2_COMPILER_CONTEXT_MISMATCH",
+            verify_simulation_snapshot_v2(
+                future,
+                resolved_loadout=loadout,
+                resolver_snapshot=source,
+                authority_bundles=bundles,
+                compiler_revision="simc-profile-compiler-v2",
+            ),
+        )
+
+    def test_v2_snapshot_rejects_boolean_and_nonfinite_compiler_inputs(self):
+        """Would fail if v2 normalized boolean or non-finite numbers into SimC input."""
+        source, bundles, loadout, _ = v2_snapshot_fixture()
+        cases = (
+            ({**character_context(), "level": True}, scenario()),
+            (character_context(), {**scenario(), "desiredTargets": True}),
+            (character_context(), {**scenario(), "varyCombatLength": float("nan")}),
+            (character_context(), {**scenario(), "varyCombatLength": float("inf")}),
+        )
+        for hostile_character, hostile_scenario in cases:
+            with self.subTest(character=hostile_character, scenario=hostile_scenario):
+                result = build_simulation_snapshot_v2(
+                    resolved_loadout=loadout,
+                    talent_profile_key=TALENT_KEY,
+                    talent_lines=TALENT_LINES,
+                    character_context=hostile_character,
+                    scenario_options=hostile_scenario,
+                    preparation_lines=["optimal_raid=0"],
+                    compiler_revision="simc-profile-compiler-v2",
+                    simc_runtime_revision="simc-runtime-v2",
+                    resolver_snapshot=source,
+                    authority_bundles=bundles,
+                )
+                self.assertEqual(result["status"], "blocked")
+                self.assertIn("SIMULATION_V2_COMPILER_INPUT_INVALID", result["problemCodes"])
 
     def test_v2_failure_uses_v2_schema(self):
         """Would fail if v2 errors returned a v1 envelope."""

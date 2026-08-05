@@ -1787,6 +1787,35 @@ class GearResolverTest(unittest.TestCase):
         self.assertEqual(result["status"], "blocked")
         self.assertIn("LOADOUT_EFFECT_AUTHORITY_REQUIRED", result["problemCodes"])
 
+    def test_v2_resolver_fails_closed_on_effective_set_state_without_raw_set_clues(self):
+        """Would fail if overlays could activate a set effect outside the v2 literal block."""
+        fixture = self.fixture()
+        for item_id in ("item-set-head", "item-set-chest"):
+            fixture["authorityContext"]["itemsById"][item_id]["itemSetId"] = ""
+        fixture["authorityContext"]["ruleParameters"]["setAggregationInputs"][0]["memberItemIds"] = []
+
+        effective = gear_resolver.resolve(
+            fixture["intent"], fixture["authorityContext"]
+        )
+        self.assertEqual(
+            effective["setState"]["activeDynamicEffects"],
+            [
+                {
+                    "effectId": "set:resolver:2pc",
+                    "itemSetId": "set:resolver",
+                    "pieces": 2,
+                    "sourceRefIds": ["evidence:set:resolver"],
+                }
+            ],
+        )
+
+        result = gear_resolver.resolve_v2(
+            fixture["intent"], fixture["authorityContext"]
+        )
+
+        self.assertEqual(result["status"], "blocked")
+        self.assertIn("LOADOUT_EFFECT_AUTHORITY_REQUIRED", result["problemCodes"])
+
     def test_v2_resolver_preserves_main_hand_off_hand_legality(self):
         """Would fail if the v2 entry point bypassed the shared hand rule."""
         fixture = self.fixture()
