@@ -595,13 +595,14 @@ def build_simulation_snapshot_v2(
     preparation_lines: Any,
     compiler_revision: str,
     simc_runtime_revision: str,
+    resolver_snapshot: Any = None,
     authority_bundles: Any = None,
     origin_catalog_revision: str = "",
 ) -> dict[str, Any]:
     """Build the catalog-independent immutable v2 snapshot branch."""
     loadout = dict(resolved_loadout) if isinstance(resolved_loadout, Mapping) else {}
     problems: list[dict[str, str]] = []
-    if (loadout.get("status") != "ready" or not RESOLVED_LOADOUT_V2_KEY_PATTERN.fullmatch(_text(loadout.get("resolvedLoadoutKey"))) or verify_resolved_loadout_v2(loadout, authority_bundles=authority_bundles)):
+    if (loadout.get("status") != "ready" or not RESOLVED_LOADOUT_V2_KEY_PATTERN.fullmatch(_text(loadout.get("resolvedLoadoutKey"))) or verify_resolved_loadout_v2(loadout, resolver_snapshot=resolver_snapshot, authority_bundles=authority_bundles)):
         problems.append(_problem("SIMULATION_V2_LOADOUT_NOT_READY", "resolvedLoadout", "Only a verified ready v2 loadout can be snapshotted."))
     if _text(loadout.get("simcRuntimeRevision")) != _text(simc_runtime_revision):
         problems.append(_problem("SIMULATION_V2_RUNTIME_MISMATCH", "simcRuntimeRevision", "Snapshot runtime must match every v2 authority bundle."))
@@ -639,6 +640,7 @@ def verify_simulation_snapshot_v2(
     value: Any,
     *,
     resolved_loadout: Any = None,
+    resolver_snapshot: Any = None,
     authority_bundles: Any = None,
 ) -> list[str]:
     row = dict(value) if isinstance(value, Mapping) else {}
@@ -651,13 +653,17 @@ def verify_simulation_snapshot_v2(
         return ["SIMULATION_V2_EFFECT_EVIDENCE_INVALID"]
     issues: list[str] = []
     loadout = dict(resolved_loadout) if isinstance(resolved_loadout, Mapping) else None
+    loadout_context_verified = False
     if loadout is None:
         issues.append("SIMULATION_V2_RESOLVED_LOADOUT_CONTEXT_REQUIRED")
     elif authority_bundles is None:
         issues.append("SIMULATION_V2_AUTHORITY_CONTEXT_REQUIRED")
-    elif verify_resolved_loadout_v2(loadout, authority_bundles=authority_bundles):
+    elif resolver_snapshot is None:
+        issues.append("SIMULATION_V2_RESOLVER_CONTEXT_REQUIRED")
+    elif verify_resolved_loadout_v2(loadout, resolver_snapshot=resolver_snapshot, authority_bundles=authority_bundles):
         issues.append("SIMULATION_V2_RESOLVED_LOADOUT_CONTEXT_INVALID")
     else:
+        loadout_context_verified = True
         if (
             _text(row.get("resolvedLoadoutKey")) != _text(loadout.get("resolvedLoadoutKey"))
             or row.get("exactAuthorityBySlot") != loadout.get("exactAuthorityBySlot")
@@ -678,6 +684,16 @@ def verify_simulation_snapshot_v2(
     preparations = _normalized_lines(row.get("preparationLines"), _OPTION_LINE_PATTERN)
     serializer = row.get("serializerInput") if isinstance(row.get("serializerInput"), Mapping) else {}
     gear_items = serializer.get("gearItems") if isinstance(serializer.get("gearItems"), list) else []
+    if loadout_context_verified:
+        if gear_items != loadout.get("orderedSlots"):
+            issues.append("SIMULATION_V2_SERIALIZER_CONTEXT_MISMATCH")
+        eligibility = loadout.get("eligibilityContext") if isinstance(loadout.get("eligibilityContext"), Mapping) else {}
+        if (
+            character is None
+            or _text(character.get("classKey")) != _text(eligibility.get("classKey"))
+            or _text(character.get("specKey")) != _text(eligibility.get("specKey"))
+        ):
+            issues.append("SIMULATION_V2_CHARACTER_CONTEXT_MISMATCH")
     authority_pairs = row.get("exactAuthorityBySlot") if isinstance(row.get("exactAuthorityBySlot"), list) else []
     authority_slots = [_text(pair.get("slot")) for pair in authority_pairs if isinstance(pair, Mapping)]
     authority_keys = [_text(pair.get("exactAuthorityEnvelopeKey")) for pair in authority_pairs if isinstance(pair, Mapping)]

@@ -170,6 +170,7 @@ def snapshot_from_v2_compatibility_profile(
     scenario_key: str,
     compiler_revision: str,
     simc_runtime_revision: str,
+    resolver_snapshot: Any = None,
     authority_bundles: Any = None,
 ) -> dict[str, Any]:
     """Recompile a v2 profile without relaxing the legacy compatibility parser."""
@@ -185,6 +186,7 @@ def snapshot_from_v2_compatibility_profile(
         preparation_lines=parsed["preparationLines"],
         compiler_revision=compiler_revision,
         simc_runtime_revision=simc_runtime_revision,
+        resolver_snapshot=resolver_snapshot,
         authority_bundles=authority_bundles,
     )
     if snapshot.get("status") != "ready":

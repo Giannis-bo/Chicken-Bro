@@ -806,15 +806,15 @@ def _rehydrate_v2_bundle(
     }
 
 
-def _v2_authority_occurrences(
+def _v2_authority_projection(
     pairs: Any,
     *,
     authority_bundles: Any,
     gear_rule_revision: str,
     resolver_revision: str,
     simc_runtime_revision: str,
-) -> list[dict[str, Any]] | None:
-    """Rebuild the complete v2 occurrence multiset from typed authority."""
+) -> dict[str, list[dict[str, Any]]] | None:
+    """Rebuild complete v2 execution and occurrence projections from authority."""
     if not isinstance(pairs, list) or not isinstance(authority_bundles, Mapping):
         return None
     normalized_pairs: list[tuple[str, str]] = []
@@ -829,6 +829,7 @@ def _v2_authority_occurrences(
     expected_keys = {key for _, key in normalized_pairs}
     if len(bundles) != len(expected_keys) or set(bundles) != expected_keys:
         return None
+    ordered_slots: list[dict[str, Any]] = []
     occurrences: list[dict[str, Any]] = []
     for slot, key in normalized_pairs:
         bundle = _rehydrate_v2_bundle(
@@ -839,10 +840,12 @@ def _v2_authority_occurrences(
         if bundle is None:
             return None
         envelope = bundle["envelope"]
+        exact = bundle["exact_item"]
         progression = bundle["progression"]
         effect_support = bundle["effect_support"]
         track = progression.get("trackAuthorityInput") if isinstance(progression.get("trackAuthorityInput"), Mapping) else {}
         subjects = effect_support.get("subjects") if isinstance(effect_support.get("subjects"), list) else None
+        options = _v2_simc_options(exact)
         if (
             _text(envelope.get("content_key") or envelope.get("contentKey")) != key
             or _text(envelope.get("resolverRevision")) != resolver_revision
@@ -851,8 +854,16 @@ def _v2_authority_occurrences(
             or effect_support.get("status") != "verified"
             or _text(effect_support.get("simcRuntimeRevision")) != simc_runtime_revision
             or subjects is None
+            or options is None
+            or not options.get("id")
         ):
             return None
+        ordered_slots.append({
+            "slot": slot,
+            "itemId": _text(exact.get("itemId")),
+            "exactAuthorityEnvelopeKey": key,
+            "simcOptions": options,
+        })
         for ordinal, raw in enumerate(subjects):
             subject = dict(raw) if isinstance(raw, Mapping) else {}
             record_key = _text(subject.get("supportRecordKey"))
@@ -874,7 +885,10 @@ def _v2_authority_occurrences(
                 "subjectVariantSignature": _text(subject.get("subjectVariantSignature")),
                 "supportRecordKey": record_key,
             })
-    return occurrences
+    return {
+        "orderedSlots": ordered_slots,
+        "effectEvidenceByOccurrence": occurrences,
+    }
 
 
 def _v2_blocked(problems: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
@@ -903,6 +917,57 @@ def _v2_simc_options(exact: Mapping[str, Any]) -> dict[str, str] | None:
     })
 
 
+def _v2_resolver_projection(
+    value: Any,
+    *,
+    gear_rule_revision: str,
+    simc_runtime_revision: str,
+) -> dict[str, Any] | None:
+    """Extract the canonical occupied-slot projection from a ready resolver."""
+    snapshot = dict(value) if isinstance(value, Mapping) else {}
+    dependency = snapshot.get("dependencyVector") if isinstance(snapshot.get("dependencyVector"), Mapping) else {}
+    readiness = snapshot.get("profileReadiness") if isinstance(snapshot.get("profileReadiness"), Mapping) else {}
+    eligibility = snapshot.get("eligibilityContext") if isinstance(snapshot.get("eligibilityContext"), Mapping) else None
+    required_raw = readiness.get("requiredSlots")
+    ready_raw = readiness.get("readySlots")
+    if (
+        snapshot.get("status") != "verified"
+        or _text(dependency.get("gearRuleRevision")) != gear_rule_revision
+        or _text(dependency.get("simcRuntimeRevision")) != simc_runtime_revision
+        or readiness.get("status") != "verified"
+        or readiness.get("simcReady") is not True
+        or not isinstance(required_raw, list)
+        or not isinstance(ready_raw, list)
+        or not isinstance(eligibility, Mapping)
+        or not _text(eligibility.get("classKey"))
+        or not _text(eligibility.get("specKey"))
+    ):
+        return None
+    required = [_text(slot) for slot in required_raw]
+    ready = [_text(slot) for slot in ready_raw]
+    if (
+        not required
+        or any(slot not in CANONICAL_GEAR_SLOTS for slot in required)
+        or required != sorted(required, key=CANONICAL_GEAR_SLOTS.index)
+        or len(set(required)) != len(required)
+        or ready != required
+    ):
+        return None
+    resolved_slots = snapshot.get("resolvedSlots") if isinstance(snapshot.get("resolvedSlots"), Mapping) else {}
+    slots: list[dict[str, str]] = []
+    for slot in required:
+        resolved = resolved_slots.get(slot) if isinstance(resolved_slots.get(slot), Mapping) else {}
+        legality = resolved.get("legality") if isinstance(resolved.get("legality"), Mapping) else {}
+        item_id = _text(resolved.get("itemId"))
+        if _text(resolved.get("slot")) != slot or legality.get("status") != "verified" or not item_id:
+            return None
+        slots.append({"slot": slot, "itemId": item_id})
+    return {
+        "eligibilityContext": _canonical(eligibility),
+        "slots": slots,
+    }
+
+
 def build_resolved_loadout_v2(
     *,
     resolver_snapshot: Any,
@@ -922,8 +987,13 @@ def build_resolved_loadout_v2(
     problems: list[dict[str, str]] = []
     readiness = snapshot.get("profileReadiness") if isinstance(snapshot.get("profileReadiness"), Mapping) else {}
     slots = snapshot.get("resolvedSlots") if isinstance(snapshot.get("resolvedSlots"), Mapping) else {}
-    required = [slot for slot in CANONICAL_GEAR_SLOTS if slot in set(readiness.get("requiredSlots") or [])]
-    if not rule or not resolver or not runtime or not required or readiness.get("status") != "verified" or readiness.get("simcReady") is not True:
+    resolver_projection = _v2_resolver_projection(
+        snapshot,
+        gear_rule_revision=rule,
+        simc_runtime_revision=runtime,
+    )
+    required = [entry["slot"] for entry in resolver_projection["slots"]] if resolver_projection else []
+    if not rule or not resolver or not runtime or resolver_projection is None:
         problems.append(_problem("LOADOUT_V2_RESOLVER_NOT_READY", "resolverSnapshot", "V2 requires one verified resolver snapshot and revisions."))
     if not isinstance(exact_authority_by_slot, list) or not exact_authority_by_slot:
         problems.append(_problem("LOADOUT_V2_EXACT_AUTHORITY_REQUIRED", "exactAuthorityBySlot", "V2 requires non-empty slot-bound exact authority."))
@@ -1001,6 +1071,7 @@ def build_resolved_loadout_v2(
 def verify_resolved_loadout_v2(
     value: Any,
     *,
+    resolver_snapshot: Any = None,
     authority_bundles: Any = None,
 ) -> list[str]:
     row = dict(value) if isinstance(value, Mapping) else {}
@@ -1021,19 +1092,30 @@ def verify_resolved_loadout_v2(
         issues.append("RESOLVED_LOADOUT_V2_SLOT_ORDER_INVALID")
     if len(set(keys)) != len(keys) or any(not EXACT_AUTHORITY_ENVELOPE_KEY_PATTERN.fullmatch(key) for key in keys):
         issues.append("RESOLVED_LOADOUT_V2_ENVELOPE_BINDING_INVALID")
-    authority_evidence = None
+    authority_projection = None
     if authority_bundles is None:
         issues.append("RESOLVED_LOADOUT_V2_AUTHORITY_CONTEXT_REQUIRED")
     else:
-        authority_evidence = _v2_authority_occurrences(
+        authority_projection = _v2_authority_projection(
             pairs,
             authority_bundles=authority_bundles,
             gear_rule_revision=_text(row.get("gearRuleRevision")),
             resolver_revision=_text(row.get("resolverRevision")),
             simc_runtime_revision=_text(row.get("simcRuntimeRevision")),
         )
-        if authority_evidence is None:
+        if authority_projection is None:
             issues.append("RESOLVED_LOADOUT_V2_AUTHORITY_CONTEXT_INVALID")
+    resolver_projection = None
+    if resolver_snapshot is None:
+        issues.append("RESOLVED_LOADOUT_V2_RESOLVER_CONTEXT_REQUIRED")
+    else:
+        resolver_projection = _v2_resolver_projection(
+            resolver_snapshot,
+            gear_rule_revision=_text(row.get("gearRuleRevision")),
+            simc_runtime_revision=_text(row.get("simcRuntimeRevision")),
+        )
+        if resolver_projection is None:
+            issues.append("RESOLVED_LOADOUT_V2_RESOLVER_CONTEXT_INVALID")
     evidence = raw_evidence
     def occurrence_sort_key(item: Any) -> tuple[int, int]:
         if not isinstance(item, Mapping):
@@ -1044,12 +1126,28 @@ def verify_resolved_loadout_v2(
     ordered_evidence = sorted(evidence, key=occurrence_sort_key)
     if evidence != ordered_evidence:
         issues.append("RESOLVED_LOADOUT_V2_EFFECT_ORDER_INVALID")
-    if authority_evidence is not None and evidence != authority_evidence:
+    if (
+        authority_projection is not None
+        and evidence != authority_projection["effectEvidenceByOccurrence"]
+    ):
         issues.append("RESOLVED_LOADOUT_V2_EFFECT_EVIDENCE_CONTEXT_MISMATCH")
     pair_by_slot = {pair["slot"]: pair["exactAuthorityEnvelopeKey"] for pair in pairs if isinstance(pair, Mapping) and _text(pair.get("slot")) and _text(pair.get("exactAuthorityEnvelopeKey"))}
     ordered_slots = row.get("orderedSlots") if isinstance(row.get("orderedSlots"), list) else []
     if any(not isinstance(item, Mapping) or set(item) != {"slot", "itemId", "exactAuthorityEnvelopeKey", "simcOptions"} or not isinstance(item.get("simcOptions"), Mapping) for item in ordered_slots) or [(_text(item.get("slot")), _text(item.get("exactAuthorityEnvelopeKey"))) for item in ordered_slots if isinstance(item, Mapping)] != [(slot, key) for slot, key in zip(slots, keys, strict=True)]:
         issues.append("RESOLVED_LOADOUT_V2_SLOT_BINDING_MISMATCH")
+    if authority_projection is not None and ordered_slots != authority_projection["orderedSlots"]:
+        issues.append("RESOLVED_LOADOUT_V2_ORDERED_SLOTS_CONTEXT_MISMATCH")
+    resolver_slots = [
+        (_text(item.get("slot")), _text(item.get("itemId")))
+        for item in ordered_slots if isinstance(item, Mapping)
+    ]
+    if resolver_projection is not None:
+        if (
+            row.get("eligibilityContext") != resolver_projection["eligibilityContext"]
+            or resolver_slots != [(item["slot"], item["itemId"]) for item in resolver_projection["slots"]]
+            or slots != [item["slot"] for item in resolver_projection["slots"]]
+        ):
+            issues.append("RESOLVED_LOADOUT_V2_RESOLVER_CONTEXT_MISMATCH")
     next_ordinal: dict[str, int] = {}
     for occurrence in evidence:
         current = dict(occurrence) if isinstance(occurrence, Mapping) else {}

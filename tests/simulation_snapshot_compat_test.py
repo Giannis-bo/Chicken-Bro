@@ -5,7 +5,7 @@ from server.simulation_snapshot_compat import (
     snapshot_from_v2_compatibility_profile,
 )
 from server.gear_resolved_loadout import build_resolved_loadout_v2
-from tests.gear_resolved_loadout_test import resolver_snapshot, v2_bundle
+from tests.gear_resolved_loadout_test import resolver_snapshot, v2_bundle, v2_resolver_snapshot
 from tests.simulation_snapshot_store_test import loadout
 
 
@@ -70,7 +70,7 @@ class SimulationSnapshotCompatibilityTest(unittest.TestCase):
 
     def test_v2_compatibility_rejects_legacy_profile_drift(self):
         """Would fail if the v2 bridge bypassed the v2 canonical compiler."""
-        source = resolver_snapshot()
+        source = v2_resolver_snapshot()
         source["resolvedSlots"] = {"head": {"slot": "head", "itemId": "1001", "legality": {"status": "verified"}}}
         source["profileReadiness"] = {"status": "verified", "simcReady": True, "requiredSlots": ["head"], "readySlots": ["head"]}
         bundle = v2_bundle("head", "1001", [])
@@ -85,7 +85,7 @@ class SimulationSnapshotCompatibilityTest(unittest.TestCase):
         )
         profile = PROFILE.replace("main_hand=item_1002,id=1002,ilevel=272,bonus_id=9010,enchant_id=7443\n", "")
         result = snapshot_from_v2_compatibility_profile(
-            loadout, profile, scenario_key="single", compiler_revision="simc-profile-compiler-v2", simc_runtime_revision="simc-runtime-v2", authority_bundles={key: bundle}
+            loadout, profile, scenario_key="single", compiler_revision="simc-profile-compiler-v2", simc_runtime_revision="simc-runtime-v2", resolver_snapshot=source, authority_bundles={key: bundle}
         )
         self.assertEqual(result["status"], "blocked")
         self.assertIn("SIMULATION_COMPILER_COMPATIBILITY_MISMATCH", result["problemCodes"])
