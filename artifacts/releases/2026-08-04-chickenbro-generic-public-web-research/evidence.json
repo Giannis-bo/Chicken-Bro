@@ -65,6 +65,11 @@
       "summary": "候选小程序包 214 个文件通过身份校验，gitHead=05e3e65bf7bab3f2bb57bf3970d9ec28af1ba816，sourceHash=sha256:e3c473bb624e02c244ae5eec44fbed5304bc74edee272dc5591f22f528dbb466；包内候选 API 为本机隧道 127.0.0.1:18817，DevTools CLI 已打开该隔离包。"
     },
     {
+      "command": "controlled local tunnel exit, launchd restart, then /health and chat stream OPTIONS through 127.0.0.1:18817",
+      "status": "pass",
+      "summary": "截图中的 ERR_CONNECTION_REFUSED 被复现为本机一次性 SSH 隧道已退出；远端候选 service 仍为 active、NRestarts=0、18820/health=200。受 launchd 守护后，主动终止旧 tunnel PID 90309 自动恢复为 PID 90615（runs=2），候选 /health 与 /api/chickenbro/messages/stream OPTIONS 均返回 200。"
+    },
+    {
       "command": "local CR: inspect generic Tool boundary, Registry v5 wiring, answer grounding and candidate diff",
       "status": "pass",
       "summary": "未发现职业、版本或提供方专用路由；Tool 仅支持安全公开 HTTPS、有界读取和已发布 manifest。运行时预算与 ResearchPlan 的通用上限一致，模型引用合同失败只会回退到本轮 observations 的保守回答。"
@@ -80,7 +85,8 @@
     "runtime": {
       "health": {"httpStatus": 200, "path": "/health", "nRestarts": 0},
       "fileParity": "六个运行文件 SHA-256 逐一与 05e3e65b 本地文件相等。",
-      "registry": "candidate health 返回 chickenbro-tools-5（六个 active Tool，含 source:public-web-research:v2）；共享 production active pointer 保持 chickenbro-tools-3。"
+      "registry": "candidate health 返回 chickenbro-tools-5（六个 active Tool，含 source:public-web-research:v2）；共享 production active pointer 保持 chickenbro-tools-3。",
+      "localTunnel": "候选包继续只使用 127.0.0.1:18817；本机 GUI LaunchAgent 守护 SSH 到远端回环 18820，并以 KeepAlive/RunAtLoad 在连接退出后重建。"
     },
     "smoke": {
       "status": "pass",
@@ -99,6 +105,7 @@
     "rollback": {
       "status": "ready",
       "path": "sudo systemctl stop wow-backend-chickenbro-generic-web-05e3e65b.service",
+      "localTunnel": "launchctl bootout gui/<uid>/com.wow-mini-program.chickenbro-candidate-tunnel；移除对应的用户 LaunchAgent plist。",
       "production": "生产 wow-backend.service 与 production Registry active pointer 未被候选部署修改。"
     }
   },
@@ -122,6 +129,11 @@
       "type": "candidate_wechat_package",
       "status": "pass",
       "summary": "DevTools 已打开绑定 05e3e65b 的隔离候选包；真实用户验收仍待完成。"
+    },
+    {
+      "type": "candidate_tunnel_supervision",
+      "status": "pass",
+      "summary": "原一次性本机 SSH 转发退出导致 DevTools ERR_CONNECTION_REFUSED；候选专用 launchd agent 已验证可在受控退出后自动重建，且 127.0.0.1:18817 的聊天流路由可到达后端。"
     }
   ],
   "risks": [
@@ -143,16 +155,17 @@
   ],
   "rollback": [
     "停止 wow-backend-chickenbro-generic-web-05e3e65b.service；生产服务保持不动。",
+    "卸载并移除本机候选 tunnel LaunchAgent；候选包不再有可用的本机候选端口。",
     "保留候选 root 直至用户人工验收；如撤销候选可停止 service 后移除该单独 root。",
     "production_registry_pointer_unchanged"
   ],
   "cleanup": {
     "required": true,
     "status": "pending_user_acceptance",
-    "target": "Keep the candidate service, task branch and worktree until the user explicitly accepts or rejects the candidate behavior."
+    "target": "Keep the candidate service, supervised local tunnel, task branch and worktree until the user explicitly accepts or rejects the candidate behavior."
   },
   "archivedReferences": [
     "docs/plans/2026-08-04-chickenbro-agentic-research-loop-implementation.md"
   ],
-  "summary": "候选 v5 Registry 已以 05e3e65b 部署：Codex 自主选择已发布的只读 ToolBox，通用 public-web-research Tool 只接受其选择的短查询或安全公开 HTTPS 页面，不为 Archon、Raider.IO、WCL、职业、版本或结论写固定路由。ResearchPlan 与 runtime 的通用调用上限一致；模型引用合同失败会以本轮 observations 的保守回答恢复，而不阻断追问。真实首问和自然追问均已在最终候选 API 成功；候选微信包已绑定该提交、指向本机到候选的隧道并在 DevTools 打开。生产服务与 v3 active pointer 未改。真实用户验收仍是未完成边界。"
+  "summary": "候选 v5 Registry 已以 05e3e65b 部署：Codex 自主选择已发布的只读 ToolBox，通用 public-web-research Tool 只接受其选择的短查询或安全公开 HTTPS 页面，不为 Archon、Raider.IO、WCL、职业、版本或结论写固定路由。ResearchPlan 与 runtime 的通用调用上限一致；模型引用合同失败会以本轮 observations 的保守回答恢复，而不阻断追问。真实首问和自然追问均已在最终候选 API 成功；候选微信包已绑定该提交并在 DevTools 打开。候选本机 tunnel 现由 launchd 守护，连接退出后会自动重建。生产服务与 v3 active pointer 未改。真实用户验收仍是未完成边界。"
 }

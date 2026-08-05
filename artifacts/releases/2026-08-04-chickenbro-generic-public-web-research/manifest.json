@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-08-04T13:45:55.511Z",
+  "generatedAt": "2026-08-05T01:54:45.127Z",
   "release": {
     "date": "2026-08-04",
     "slug": "chickenbro-generic-public-web-research"
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-08-04-chickenbro-generic-public-web-research/evidence.json",
-    "sizeBytes": 8273,
+    "sizeBytes": 9593,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -392,7 +392,7 @@
     "missingFields": [],
     "declaredStatus": "runtime_verified",
     "highestEvidenceLevel": "runtime_verified",
-    "summary": "候选 v5 Registry 已以 05e3e65b 部署：Codex 自主选择已发布的只读 ToolBox，通用 public-web-research Tool 只接受其选择的短查询或安全公开 HTTPS 页面，不为 Archon、Raider.IO、WCL、职业、版本或结论写固定路由。ResearchPlan 与 runtime 的通用调用上限一致；模型引用合同失败会以本轮 observations 的保守回答恢复，而不阻断追问。真实首问和自然追问均已在最终候选 API 成功；候选微信包已绑定该提交、指向本机到候选的隧道并在 DevTools 打开。生产服务与 v3 active pointer 未改。真实用户验收仍是未完成边界。"
+    "summary": "候选 v5 Registry 已以 05e3e65b 部署：Codex 自主选择已发布的只读 ToolBox，通用 public-web-research Tool 只接受其选择的短查询或安全公开 HTTPS 页面，不为 Archon、Raider.IO、WCL、职业、版本或结论写固定路由。ResearchPlan 与 runtime 的通用调用上限一致；模型引用合同失败会以本轮 observations 的保守回答恢复，而不阻断追问。真实首问和自然追问均已在最终候选 API 成功；候选微信包已绑定该提交并在 DevTools 打开。候选本机 tunnel 现由 launchd 守护，连接退出后会自动重建。生产服务与 v3 active pointer 未改。真实用户验收仍是未完成边界。"
   },
   "evidence": {
     "localTests": {
@@ -456,7 +456,7 @@
       "changedFileCount": 2,
       "changedFiles": [
         " M artifacts/releases/2026-08-04-chickenbro-generic-public-web-research/evidence.json",
-        " M artifacts/releases/2026-08-04-chickenbro-generic-public-web-research/manifest.json"
+        "?? scripts/chickenbro-candidate-tunnel/"
       ]
     }
   },
