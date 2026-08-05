@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-08-05T05:09:53.240Z",
+  "generatedAt": "2026-08-05T05:15:36.872Z",
   "release": {
     "date": "2026-08-04",
     "slug": "equipment-simulator-exact-first"
@@ -53,7 +53,7 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 19584
+          "sizeBytes": 19665
         },
         {
           "path": "docs/README.md",
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-08-04-equipment-simulator-exact-first/evidence.json",
-    "sizeBytes": 34487,
+    "sizeBytes": 34452,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -414,6 +414,12 @@
   },
   "riskMatrix": [
     {
+      "id": "dirty_worktree",
+      "severity": "medium",
+      "status": "watch",
+      "detail": "4 changed files currently visible to git status."
+    },
+    {
       "id": "hotspot_files_present",
       "severity": "medium",
       "status": "watch",
@@ -446,9 +452,14 @@
   ],
   "repo": {
     "git": {
-      "status": "clean",
-      "changedFileCount": 0,
-      "changedFiles": []
+      "status": "dirty",
+      "changedFileCount": 4,
+      "changedFiles": [
+        " M artifacts/releases/2026-08-04-equipment-simulator-exact-first/evidence.json",
+        " M docs/plans/2026-08-04-equipment-simulator-exact-first-persistence-resequence.md",
+        " M docs/plans/README.md",
+        " M docs/roadmap.md"
+      ]
     }
   },
   "write": {

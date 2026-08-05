@@ -147,11 +147,11 @@
       "stderrBytes": 98,
       "unittestSummary": "Ran 1 test in 3.618s; OK"
     },
-    "attestationJsonLine": "{\"freshDatabase\":{\"name\":\"wow_exact_first_fresh_test_t3a260805125812\",\"comment\":\"wow_exact_first_disposable:t3a260805125812:fresh\"},\"gitCommit\":\"a4c0fd04b39577838ad4fb7a0e3c54b8e0205c30\",\"gitTree\":\"aa0908eb8214d9572fc604e3399321c5d6eb3754\",\"migration0030Sha256\":\"41e12fd5b12cac79ed57dde266e4b515b0b731dfcc9c9874d818ddc306f957c3\",\"passed\":true,\"runId\":\"t3a260805125812\",\"schemaVersion\":\"task3a-candidate-attestation-v2\",\"task\":\"equipment-simulator-exact-first-task-3a\",\"upgradeDatabase\":{\"name\":\"wow_exact_first_upgrade_test_t3a260805125812\",\"comment\":\"wow_exact_first_disposable:t3a260805125812:upgrade\"},\"verifiedChecks\":[\"exact_disposable_database_identity_and_empty_preflight\",\"fresh_migrations_0001_through_0030\",\"upgrade_migrations_0001_through_0029_seed_then_0030\",\"v1_full_row_schema_table_default_acl_and_grant_parity\",\"canonical_hash_and_json_projection\",\"six_kind_schema_prefix_closed_matrix\",\"seven_exact_foreign_keys\",\"binding_trigger_first_missing_effect_documents_and_bundle_bindings\",\"three_table_update_delete_truncate_immutability\",\"wow_app_explicit_and_effective_select_only_acl\",\"whole_bundle_typed_readback\",\"absent_row_reverse_shared_effect_concurrency\",\"build_template_0003_semantic_idempotence_and_ledger\",\"unique_0030_migration_ledger_identity\"]}",
+    "attestationJsonLine": "{\"freshDatabase\":{\"comment\":\"wow_exact_first_disposable:t3a260805125812:fresh\",\"name\":\"wow_exact_first_fresh_test_t3a260805125812\"},\"gitCommit\":\"a4c0fd04b39577838ad4fb7a0e3c54b8e0205c30\",\"gitTree\":\"aa0908eb8214d9572fc604e3399321c5d6eb3754\",\"migration0030Sha256\":\"41e12fd5b12cac79ed57dde266e4b515b0b731dfcc9c9874d818ddc306f957c3\",\"passed\":true,\"runId\":\"t3a260805125812\",\"schemaVersion\":\"task3a-candidate-attestation-v2\",\"task\":\"equipment-simulator-exact-first-task-3a\",\"upgradeDatabase\":{\"comment\":\"wow_exact_first_disposable:t3a260805125812:upgrade\",\"name\":\"wow_exact_first_upgrade_test_t3a260805125812\"},\"verifiedChecks\":[\"exact_disposable_database_identity_and_empty_preflight\",\"fresh_migrations_0001_through_0030\",\"upgrade_migrations_0001_through_0029_seed_then_0030\",\"v1_full_row_schema_table_default_acl_and_grant_parity\",\"canonical_hash_and_json_projection\",\"six_kind_schema_prefix_closed_matrix\",\"seven_exact_foreign_keys\",\"binding_trigger_first_missing_effect_documents_and_bundle_bindings\",\"three_table_update_delete_truncate_immutability\",\"wow_app_explicit_and_effective_select_only_acl\",\"whole_bundle_typed_readback\",\"absent_row_reverse_shared_effect_concurrency\",\"build_template_0003_semantic_idempotence_and_ledger\",\"unique_0030_migration_ledger_identity\"]}",
     "attestation": {
       "freshDatabase": {
-        "name": "wow_exact_first_fresh_test_t3a260805125812",
-        "comment": "wow_exact_first_disposable:t3a260805125812:fresh"
+        "comment": "wow_exact_first_disposable:t3a260805125812:fresh",
+        "name": "wow_exact_first_fresh_test_t3a260805125812"
       },
       "gitCommit": "a4c0fd04b39577838ad4fb7a0e3c54b8e0205c30",
       "gitTree": "aa0908eb8214d9572fc604e3399321c5d6eb3754",
@@ -161,8 +161,8 @@
       "schemaVersion": "task3a-candidate-attestation-v2",
       "task": "equipment-simulator-exact-first-task-3a",
       "upgradeDatabase": {
-        "name": "wow_exact_first_upgrade_test_t3a260805125812",
-        "comment": "wow_exact_first_disposable:t3a260805125812:upgrade"
+        "comment": "wow_exact_first_disposable:t3a260805125812:upgrade",
+        "name": "wow_exact_first_upgrade_test_t3a260805125812"
       },
       "verifiedChecks": [
         "exact_disposable_database_identity_and_empty_preflight",
@@ -276,7 +276,7 @@
   },
   "historicalCandidateEvidence": [
     {
-      "status": "runtime_passed_superseded_by_main_integration",
+      "status": "superseded",
       "requiredBeforeMerge": true,
       "branch": "codex/equipment-simulator-exact-first-implementation",
       "commit": "9ffd57b05ab97be880daf65425d6de9e26609e32",

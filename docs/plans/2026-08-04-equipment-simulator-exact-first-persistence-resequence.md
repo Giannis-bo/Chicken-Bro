@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILLS: Use `superpowers:subagent-driven-development`, `superpowers:test-driven-development`, and `superpowers:verification-before-completion`. This plan forward-replaces the old implementation plan's Task 3 and later execution order after two independent readiness audits returned `NOT_READY`.
 
-状态：`正在推进（Task 3A runtime_verified / promotion_review_pending。第五次 t3a260805125812 已从 exact clean commit a4c0fd04 / tree aa0908eb 通过 fresh 0001..0030 与 upgrade 0001..0029-seed-to-0030，并由 attestation-v2 绑定 0030 SHA-256；只读复核再次确认 30-row ledger、唯一目标约束、authority counts 与 wow_app SELECT-only ACL。第四次 t3a260805120026 保持 superseded 历史；五个 run 的十库全部 immutable/non-reusable。独立 evidence promotion review、clean manifest、分支发布、CI、merge/archive closure 与资源清理仍 pending，因此尚未 已完成。无 production migration/runtime consumer，Task 4P+ 未授权）`
+状态：`正在推进（Task 3A runtime_verified / promotion_review_pending。第五次 t3a260805125812 已从 exact clean commit a4c0fd04 / tree aa0908eb 通过 fresh 0001..0030 与 upgrade 0001..0029-seed-to-0030，并由 attestation-v2 绑定 0030 SHA-256；只读复核再次确认 30-row ledger、唯一目标约束、authority counts 与 wow_app SELECT-only ACL。第四次 t3a260805120026 保持 superseded 历史；五个 run 的十库全部 immutable/non-reusable。clean manifest 已通过；首轮 promotion review 找到的两项 evidence-only 原文保真修正已应用，最终 re-review、分支发布、CI、merge/archive closure 与资源清理仍 pending，因此尚未 已完成。无 production migration/runtime consumer，Task 4P+ 未授权）`
 
 ## Goal
 
@@ -228,12 +228,12 @@ Read path loads exact canonical bytes, reconstructs Exact -> Static/Progression 
 - [x] Fourth candidate `t3a260805120026` genuinely passed the former 0026 chain and remains immutable historical evidence, but is `runtime_passed_superseded_by_main_integration` and cannot close the integrated Task 3A.
 - [x] origin/main integration, 0030 correction, local verification and independent whole-branch CR passed at merge commit `1619815c`; current evidence is `local_verified / candidate_pending`.
 - [x] Fifth candidate `t3a260805125812` passed from exact clean commit `a4c0fd04` / tree `aa0908eb` using two new explicit-commented databases; fresh 0001..0030, upgrade 0001..0029-seed-to-0030, attestation-v2 and post-audit all passed.
-- [ ] schema-v2 evidence now binds the fifth candidate as `runtime_verified` and preserves the superseded fourth candidate verbatim; clean manifest regeneration and independent evidence promotion review remain pending.
+- [ ] schema-v2 evidence now binds the fifth candidate as `runtime_verified` and preserves the fourth candidate verbatim; clean manifest passed, and the first promotion review's two evidence-only fidelity corrections are applied. Final re-review remains pending.
 - [ ] Branch publication、CI、merge/archive closure 和候选资源清理仍 pending；在这些交付门禁关闭前，Task 3A 不标记 `已完成`，也不授权 Task 4P 或任何 production/runtime 消费。
 
 `t3a2608050955` 与 `t3a260805111623` 已在 `0003` 前失败；`t3a260805113656` runtime passed 但 requirement gate 错误使其不可晋升；第四次 `t3a260805120026` 真实通过 former 0026 chain，但 main integration 强制迁移到 0030，故为 `runtime_passed_superseded_by_main_integration`。第五次 `t3a260805125812` 已在最终 0030 链上通过并恢复 `runtime_verified`；十座库全部 immutable/non-reusable。无 production migration 或 runtime consumer，且 promotion/delivery closure 仍 pending。
 
-2026-08-05 首轮独立实现 review 返回 `CHANGES_REQUIRED`；相关 findings 已完成 RED/GREEN correction，第四次真实双 PostgreSQL candidate 与当时 Harness packet 也确曾通过。随后 origin/main migration 漂移使 packet 失效；0030 集成修正、本地复核和第五次 candidate 现已通过，当前还需 clean packet 与独立 promotion review，不能把 `runtime_verified` 扩张成 production/live/release-ready。
+2026-08-05 首轮独立实现 review 返回 `CHANGES_REQUIRED`；相关 findings 已完成 RED/GREEN correction，第四次真实双 PostgreSQL candidate 与当时 Harness packet 也确曾通过。随后 origin/main migration 漂移使 packet 失效；0030 集成修正、本地复核和第五次 candidate 现已通过。首轮 promotion review 又发现 attestation 原始键序与第四次历史对象 status 两项 evidence-only 保真问题；修正不触及候选冻结面，当前等待最终 re-review，不能把 `runtime_verified` 扩张成 production/live/release-ready。
 
 ---
 
