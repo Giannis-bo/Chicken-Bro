@@ -51,8 +51,16 @@
   ],
   "manualAcceptance": {
     "required": true,
-    "status": "pending",
-    "reason": "User must validate the visible WeChat experience before merge, push, production rollout, or candidate cleanup."
+    "status": "partially_accepted",
+    "acceptedItems": [
+      "WeChat current-strength answer is direct and evidence-scoped",
+      "same-session and cross-question follow-up completes without retry or error",
+      "sources, conclusions, and limitations read naturally instead of as a canned no-data refusal"
+    ],
+    "pendingItems": [
+      "long transcript remains usable above composer"
+    ],
+    "reason": "The user explicitly confirmed on 2026-08-05 that the native Agent answers shown in WeChat met expectations for a 12.1 PTR Elemental Shaman question and a subsequent PTR tank-ranking question. Explicit final acceptance is still required before merge, push, production rollout, or candidate cleanup."
   },
   "rollback": {
     "candidate": "stop wow-backend-chickenbro-native-agent-6cb25647.service",
