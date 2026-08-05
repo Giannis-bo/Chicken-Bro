@@ -3777,7 +3777,15 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
             ROOT
             / "artifacts/releases/2026-08-04-equipment-simulator-exact-first/requirement.json"
         ).read_text(encoding="utf-8"))
-        self.assertEqual("local_verified", requirement["status"])
+        self.assertEqual("implementation_allowed", requirement["status"])
+        self.assertEqual(
+            "task3a_candidate_rerun_required_evidence_promotion_blocked",
+            requirement["engineeringHealth"]["status"],
+        )
+        self.assertIn(
+            "t3a260805113656",
+            requirement["engineeringHealth"]["reason"],
+        )
         self.assertEqual(
             "source_change_control_only",
             requirement["ownership"].get("proofClaim"),
@@ -3843,7 +3851,7 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
         )
         project_foundation = gear_domain["canonicalKernelFoundations"]
         self.assertEqual(
-            "task3a_candidate_failed_migration_chain_blocked",
+            "task3a_candidate_rerun_required_evidence_promotion_blocked",
             project_foundation["status"],
         )
         self.assertEqual(
@@ -3883,7 +3891,7 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
         )
         backend_owner = kernel_hotspot["owners"][0]
         self.assertEqual(
-            "task3a_candidate_failed_migration_chain_blocked",
+            "task3a_candidate_rerun_required_evidence_promotion_blocked",
             backend_owner["status"],
         )
         self.assertEqual(
