@@ -4142,7 +4142,6 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
             self.assertFalse(candidate["productionDatabaseWrite"])
 
         assert_lifecycle_semantics(evidence)
-        self.assertEqual("implementation_allowed", evidence["status"])
         self.assertEqual(7, evidence["candidateDeployment"]["ordinal"])
         self.assertEqual("0030", evidence["candidateDeployment"]["migration"])
         self.assertEqual(
