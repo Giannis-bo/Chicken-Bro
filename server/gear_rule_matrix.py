@@ -626,22 +626,23 @@ def loadout_effect_subjects(
     items = authority_context.get("itemsById")
     if not isinstance(parameters, Mapping) or not isinstance(items, Mapping):
         return []
-    selected_ids = [selection.get("itemId") for selection in intent["slots"].values() if isinstance(selection, Mapping)]
     subjects: list[dict[str, str]] = []
-    for aggregate in parameters.get("setAggregationInputs", []):
-        if not isinstance(aggregate, Mapping):
-            continue
-        members = {str(item) for item in aggregate.get("memberItemIds", [])}
-        set_id = str(aggregate.get("itemSetId") or "")
-        count = sum(1 for item_id in selected_ids if item_id in members) if members else sum(1 for item_id in selected_ids if isinstance(items.get(item_id), Mapping) and str(items[item_id].get("itemSetId") or "") == set_id)
-        for threshold in aggregate.get("thresholds", []):
-            if not isinstance(threshold, Mapping):
+    if effective_set_state is None:
+        selected_ids = [selection.get("itemId") for selection in intent["slots"].values() if isinstance(selection, Mapping)]
+        for aggregate in parameters.get("setAggregationInputs", []):
+            if not isinstance(aggregate, Mapping):
                 continue
-            effect_id = str(threshold.get("effectId") or "").strip()
-            pieces = threshold.get("pieces")
-            if effect_id and isinstance(pieces, int) and pieces > 0 and count >= pieces:
-                subjects.append({"subjectKind": "set_bonus", "subjectKey": effect_id})
-    if isinstance(effective_set_state, Mapping):
+            members = {str(item) for item in aggregate.get("memberItemIds", [])}
+            set_id = str(aggregate.get("itemSetId") or "")
+            count = sum(1 for item_id in selected_ids if item_id in members) if members else sum(1 for item_id in selected_ids if isinstance(items.get(item_id), Mapping) and str(items[item_id].get("itemSetId") or "") == set_id)
+            for threshold in aggregate.get("thresholds", []):
+                if not isinstance(threshold, Mapping):
+                    continue
+                effect_id = str(threshold.get("effectId") or "").strip()
+                pieces = threshold.get("pieces")
+                if effect_id and isinstance(pieces, int) and pieces > 0 and count >= pieces:
+                    subjects.append({"subjectKind": "set_bonus", "subjectKey": effect_id})
+    elif isinstance(effective_set_state, Mapping):
         effects = effective_set_state.get("activeDynamicEffects")
         if isinstance(effects, list):
             for raw_effect in effects:

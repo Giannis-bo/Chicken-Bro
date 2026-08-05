@@ -4,7 +4,9 @@ import unittest
 from unittest.mock import patch
 
 import server.gear_resolved_loadout as resolved_loadout_module
+from server import gear_resolver
 from tests.gear_exact_authority_store_test import authority_bundle
+from tests.gear_resolver_test import build_midnight_mage_resolver_fixture
 from server.gear_exact_authority import (
     seal_exact_authority_envelope,
     seal_exact_progression,
@@ -237,11 +239,24 @@ def resolver_snapshot():
 
 
 def v2_resolver_snapshot(simc_runtime_revision="simc-runtime-v2"):
-    """Return a resolver context whose readiness matches a v2 authority run."""
-    snapshot = resolver_snapshot()
-    snapshot["dependencyVector"]["simcRuntimeRevision"] = simc_runtime_revision
-    snapshot["profileReadiness"]["simcRuntimeRevision"] = simc_runtime_revision
-    return snapshot
+    """Return a genuine clean ``resolve_v2`` result for the v2 test surface."""
+    fixture = build_midnight_mage_resolver_fixture()
+    intent = fixture["intent"]
+    authority = fixture["authorityContext"]
+    head = copy.deepcopy(intent["slots"]["head"])
+    source_item_id = head["itemId"]
+    head["itemId"] = "1001"
+    intent["slots"] = {"head": head}
+    intent["eligibilityContext"]["specKey"] = "arcane"
+    item = authority["itemsById"].pop(source_item_id)
+    item["itemId"] = "1001"
+    item["allowedSpecKeys"] = ["arcane"]
+    authority["itemsById"]["1001"] = item
+    authority["variantsByKey"][head["variantKey"]]["itemId"] = "1001"
+    authority["ruleParameters"]["requiredSlots"] = ["head"]
+    authority["dependencyVector"]["resolverContractRevision"] = "resolver-v2"
+    authority["dependencyVector"]["simcRuntimeRevision"] = simc_runtime_revision
+    return gear_resolver.resolve_v2(intent, authority)
 
 
 def v2_bundle(slot, item_id, subjects, *, exact_fields=None):
@@ -805,6 +820,11 @@ class GearResolvedLoadoutTest(unittest.TestCase):
         poisoned = v2_resolver_snapshot()
         poisoned["profileReadiness"]["requiredSlots"] = ["head"]
         poisoned["profileReadiness"]["readySlots"] = ["head"]
+        poisoned["resolvedSlots"]["main_hand"] = {
+            **copy.deepcopy(poisoned["resolvedSlots"]["head"]),
+            "slot": "main_hand",
+            "itemId": "1002",
+        }
         valid = copy.deepcopy(poisoned)
         valid["resolvedSlots"] = {"head": copy.deepcopy(poisoned["resolvedSlots"]["head"])}
         bundle = v2_bundle("head", "1001", ["A"])
@@ -928,6 +948,143 @@ class GearResolvedLoadoutTest(unittest.TestCase):
         tampered["serializerInput"] = {"gearItems": []}
         tampered["rowHash"] = resolved_loadout_module._hash("sha256:", {field: value for field, value in tampered.items() if field not in {"rowHash", "originCatalogRevision"}})
         self.assertIn("RESOLVED_LOADOUT_V2_SERIALIZER_INPUT_CONTEXT_MISMATCH", verify_resolved_loadout_v2(tampered, resolver_snapshot=snapshot, authority_bundles={key: bundle}))
+    def test_v2_requires_clean_effect_boundary_and_canonical_revisions(self):
+        """Would fail if v1-shaped/effect-bearing contexts or normalized revisions minted v2 rows."""
+        snapshot = v2_resolver_snapshot()
+        bundle = v2_bundle("head", "1001", ["A"])
+        key = bundle.envelope.content_key
+        kwargs = {
+            "exact_authority_by_slot": [
+                {"slot": "head", "exactAuthorityEnvelopeKey": key}
+            ],
+            "authority_bundles": {key: bundle},
+            "gear_rule_revision": RULE_REVISION,
+            "resolver_revision": "resolver-v2",
+            "simc_runtime_revision": "simc-runtime-v2",
+        }
+
+        clean = build_resolved_loadout_v2(resolver_snapshot=snapshot, **kwargs)
+        self.assertEqual(clean["status"], "ready")
+        self.assertEqual(
+            verify_resolved_loadout_v2(
+                clean,
+                resolver_snapshot=snapshot,
+                authority_bundles={key: bundle},
+            ),
+            [],
+        )
+
+        unmarked = copy.deepcopy(snapshot)
+        unmarked.pop("v2EffectBoundary", None)
+        missing = build_resolved_loadout_v2(resolver_snapshot=unmarked, **kwargs)
+        self.assertEqual(missing["status"], "blocked")
+        self.assertIn("LOADOUT_EFFECT_AUTHORITY_REQUIRED", missing["problemCodes"])
+        self.assertIn(
+            "RESOLVED_LOADOUT_V2_RESOLVER_CONTEXT_INVALID",
+            verify_resolved_loadout_v2(
+                clean,
+                resolver_snapshot=unmarked,
+                authority_bundles={key: bundle},
+            ),
+        )
+
+        effect_bearing = copy.deepcopy(snapshot)
+        effect_bearing["setState"] = {
+            "itemSetCounts": {"set-a": 1},
+            "activeDynamicEffects": [
+                {
+                    "effectId": "set-a-1",
+                    "itemSetId": "set-a",
+                    "pieces": 1,
+                    "sourceRefIds": [],
+                }
+            ],
+        }
+        effect_bearing["v2EffectBoundary"] = {
+            "schemaRevision": "gear-resolver-v2-effect-boundary-v1",
+            "status": "blocked",
+            "resolvedGearSignature": effect_bearing["resolvedGearSignature"],
+            "setState": effect_bearing["setState"],
+            "subjects": [{"subjectKind": "set_bonus", "subjectKey": "set-a-1"}],
+            "gearRuleRevision": RULE_REVISION,
+            "resolverRevision": "resolver-v2",
+            "simcRuntimeRevision": "simc-runtime-v2",
+        }
+        blocked = build_resolved_loadout_v2(
+            resolver_snapshot=effect_bearing,
+            **kwargs,
+        )
+        self.assertEqual(blocked["status"], "blocked")
+        self.assertIn("LOADOUT_EFFECT_AUTHORITY_REQUIRED", blocked["problemCodes"])
+        self.assertIn(
+            "RESOLVED_LOADOUT_V2_RESOLVER_CONTEXT_INVALID",
+            verify_resolved_loadout_v2(
+                clean,
+                resolver_snapshot=effect_bearing,
+                authority_bundles={key: bundle},
+            ),
+        )
+
+        for field, invalid in (
+            ("gear_rule_revision", " gear-rule-matrix-v1 "),
+            ("resolver_revision", ["resolver-v2"]),
+            ("simc_runtime_revision", " simc-runtime-v2 "),
+        ):
+            with self.subTest(caller_field=field):
+                invalid_kwargs = dict(kwargs)
+                invalid_kwargs[field] = invalid
+                result = build_resolved_loadout_v2(
+                    resolver_snapshot=snapshot,
+                    **invalid_kwargs,
+                )
+                self.assertEqual(result["status"], "blocked")
+                self.assertIn("LOADOUT_V2_REVISION_INVALID", result["problemCodes"])
+
+        for field, invalid in (
+            ("gearRuleRevision", " gear-rule-matrix-v1 "),
+            ("resolverRevision", ["resolver-v2"]),
+            ("simcRuntimeRevision", " simc-runtime-v2 "),
+        ):
+            with self.subTest(row_field=field):
+                tampered = copy.deepcopy(clean)
+                tampered[field] = invalid
+                identity = {
+                    "classKey": "mage",
+                    "specKey": "arcane",
+                    "exactAuthorityBySlot": tampered["exactAuthorityBySlot"],
+                    "orderedSlots": tampered["orderedSlots"],
+                    "effectEvidenceByOccurrence": tampered[
+                        "effectEvidenceByOccurrence"
+                    ],
+                    "gearRuleRevision": resolved_loadout_module._text(
+                        tampered["gearRuleRevision"]
+                    ),
+                    "resolverRevision": resolved_loadout_module._text(
+                        tampered["resolverRevision"]
+                    ),
+                    "simcRuntimeRevision": resolved_loadout_module._text(
+                        tampered["simcRuntimeRevision"]
+                    ),
+                }
+                tampered["resolvedLoadoutKey"] = resolved_loadout_module._hash(
+                    "resolved-loadout-v2:sha256:", identity
+                )
+                tampered["rowHash"] = resolved_loadout_module._hash(
+                    "sha256:",
+                    {
+                        key: value
+                        for key, value in tampered.items()
+                        if key not in {"rowHash", "originCatalogRevision"}
+                    },
+                )
+                self.assertIn(
+                    "RESOLVED_LOADOUT_V2_REVISION_INVALID",
+                    verify_resolved_loadout_v2(
+                        tampered,
+                        resolver_snapshot=snapshot,
+                        authority_bundles={key: bundle},
+                    ),
+                )
 
 
 if __name__ == "__main__":

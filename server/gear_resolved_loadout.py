@@ -15,6 +15,7 @@ import re
 from typing import Any, Iterable, Mapping
 
 try:
+    from .gear_canonical_kernel import CanonicalValueError, canonical_identity_token
     from .gear_contracts import CANONICAL_GEAR_SLOTS
     from .gear_exact_authority import (
         reload_exact_authority_envelope,
@@ -25,15 +26,18 @@ try:
         reload_exact_item,
         reload_exact_static_facts,
     )
+    from .gear_resolver import V2_EFFECT_BOUNDARY_SCHEMA_REVISION
     from .simc_item_effect_support import (
         reload_effect_aggregate,
         reload_effect_record,
     )
 except ImportError:
+    from gear_canonical_kernel import CanonicalValueError, canonical_identity_token
     from gear_contracts import CANONICAL_GEAR_SLOTS
     from gear_exact_authority import reload_exact_authority_envelope, reload_exact_progression
     from gear_exact_authority_store import ExactAuthorityBundle
     from gear_exact_item_instance import reload_exact_item, reload_exact_static_facts
+    from gear_resolver import V2_EFFECT_BOUNDARY_SCHEMA_REVISION
     from simc_item_effect_support import reload_effect_aggregate, reload_effect_record
 
 
@@ -107,6 +111,14 @@ def _hash(prefix: str, value: Any) -> str:
 
 def _text(value: Any) -> str:
     return str(value or "").strip()
+
+
+def _v2_revision(value: Any) -> str | None:
+    """Return one canonical v2 revision token without legacy coercion."""
+    try:
+        return canonical_identity_token(value, path="revision")
+    except CanonicalValueError:
+        return None
 
 
 def _problem(code: str, path: str, message: str) -> dict[str, str]:
@@ -817,6 +829,11 @@ def _v2_authority_projection(
     """Rebuild complete v2 execution and occurrence projections from authority."""
     if not isinstance(pairs, list) or not isinstance(authority_bundles, Mapping):
         return None
+    rule = _v2_revision(gear_rule_revision)
+    resolver = _v2_revision(resolver_revision)
+    runtime = _v2_revision(simc_runtime_revision)
+    if rule is None or resolver is None or runtime is None:
+        return None
     normalized_pairs: list[tuple[str, str]] = []
     for raw in pairs:
         pair = dict(raw) if isinstance(raw, Mapping) else {}
@@ -834,8 +851,8 @@ def _v2_authority_projection(
     for slot, key in normalized_pairs:
         bundle = _rehydrate_v2_bundle(
             bundles.get(key),
-            resolver_revision=resolver_revision,
-            simc_runtime_revision=simc_runtime_revision,
+            resolver_revision=resolver,
+            simc_runtime_revision=runtime,
         )
         if bundle is None:
             return None
@@ -848,11 +865,11 @@ def _v2_authority_projection(
         options = _v2_simc_options(exact)
         if (
             _text(envelope.get("content_key") or envelope.get("contentKey")) != key
-            or _text(envelope.get("resolverRevision")) != resolver_revision
-            or _text(progression.get("gearRuleRevision")) != gear_rule_revision
+            or _v2_revision(envelope.get("resolverRevision")) != resolver
+            or _v2_revision(progression.get("gearRuleRevision")) != rule
             or _text(track.get("slot")) != slot
             or effect_support.get("status") != "verified"
-            or _text(effect_support.get("simcRuntimeRevision")) != simc_runtime_revision
+            or _v2_revision(effect_support.get("simcRuntimeRevision")) != runtime
             or subjects is None
             or options is None
             or not options.get("id")
@@ -921,10 +938,16 @@ def _v2_resolver_projection(
     value: Any,
     *,
     gear_rule_revision: str,
+    resolver_revision: str,
     simc_runtime_revision: str,
 ) -> dict[str, Any] | None:
     """Extract the canonical occupied-slot projection from a ready resolver."""
     snapshot = dict(value) if isinstance(value, Mapping) else {}
+    rule = _v2_revision(gear_rule_revision)
+    resolver = _v2_revision(resolver_revision)
+    runtime = _v2_revision(simc_runtime_revision)
+    if rule is None or resolver is None or runtime is None:
+        return None
     dependency = snapshot.get("dependencyVector") if isinstance(snapshot.get("dependencyVector"), Mapping) else {}
     readiness = snapshot.get("profileReadiness") if isinstance(snapshot.get("profileReadiness"), Mapping) else {}
     eligibility = snapshot.get("eligibilityContext") if isinstance(snapshot.get("eligibilityContext"), Mapping) else None
@@ -932,11 +955,18 @@ def _v2_resolver_projection(
     ready_raw = readiness.get("readySlots")
     if (
         snapshot.get("status") != "verified"
-        or _text(dependency.get("gearRuleRevision")) != gear_rule_revision
-        or _text(dependency.get("simcRuntimeRevision")) != simc_runtime_revision
+        or _v2_revision(dependency.get("gearRuleRevision")) != rule
+        or _v2_revision(dependency.get("resolverContractRevision")) != resolver
+        or _v2_revision(dependency.get("simcRuntimeRevision")) != runtime
         or readiness.get("status") != "verified"
         or readiness.get("simcReady") is not True
-        or _text(readiness.get("simcRuntimeRevision")) != simc_runtime_revision
+        or _v2_revision(readiness.get("simcRuntimeRevision")) != runtime
+        or not _v2_clean_effect_boundary(
+            snapshot,
+            gear_rule_revision=rule,
+            resolver_revision=resolver,
+            simc_runtime_revision=runtime,
+        )
         or not isinstance(required_raw, list)
         or not isinstance(ready_raw, list)
         or not isinstance(eligibility, Mapping)
@@ -978,6 +1008,49 @@ def _v2_resolver_projection(
     }
 
 
+def _v2_clean_effect_boundary(
+    snapshot: Mapping[str, Any],
+    *,
+    gear_rule_revision: str,
+    resolver_revision: str,
+    simc_runtime_revision: str,
+) -> bool:
+    """Require the clean effect boundary emitted by ``resolve_v2``."""
+    boundary = snapshot.get("v2EffectBoundary")
+    set_state = snapshot.get("setState")
+    subjects = snapshot.get("loadoutEffectSubjects")
+    if (
+        not isinstance(boundary, Mapping)
+        or set(boundary)
+        != {
+            "schemaRevision",
+            "status",
+            "resolvedGearSignature",
+            "setState",
+            "subjects",
+            "gearRuleRevision",
+            "resolverRevision",
+            "simcRuntimeRevision",
+        }
+        or boundary.get("schemaRevision") != V2_EFFECT_BOUNDARY_SCHEMA_REVISION
+        or boundary.get("status") != "verified"
+        or not isinstance(set_state, Mapping)
+        or set(set_state) != {"itemSetCounts", "activeDynamicEffects"}
+        or not isinstance(set_state.get("itemSetCounts"), Mapping)
+        or not isinstance(set_state.get("activeDynamicEffects"), list)
+        or boundary.get("setState") != set_state
+        or boundary.get("resolvedGearSignature") != snapshot.get("resolvedGearSignature")
+        or boundary.get("subjects") != []
+        or subjects != []
+        or set_state.get("activeDynamicEffects") != []
+        or _v2_revision(boundary.get("gearRuleRevision")) != gear_rule_revision
+        or _v2_revision(boundary.get("resolverRevision")) != resolver_revision
+        or _v2_revision(boundary.get("simcRuntimeRevision")) != simc_runtime_revision
+    ):
+        return False
+    return True
+
+
 def build_resolved_loadout_v2(
     *,
     resolver_snapshot: Any,
@@ -991,19 +1064,29 @@ def build_resolved_loadout_v2(
     """Build a catalog-independent v2 loadout from slot-bound authority bundles."""
     snapshot = dict(resolver_snapshot) if isinstance(resolver_snapshot, Mapping) else {}
     bundles = dict(authority_bundles) if isinstance(authority_bundles, Mapping) else {}
-    rule = _text(gear_rule_revision)
-    resolver = _text(resolver_revision)
-    runtime = _text(simc_runtime_revision)
+    rule = _v2_revision(gear_rule_revision)
+    resolver = _v2_revision(resolver_revision)
+    runtime = _v2_revision(simc_runtime_revision)
     problems: list[dict[str, str]] = []
     readiness = snapshot.get("profileReadiness") if isinstance(snapshot.get("profileReadiness"), Mapping) else {}
     slots = snapshot.get("resolvedSlots") if isinstance(snapshot.get("resolvedSlots"), Mapping) else {}
     resolver_projection = _v2_resolver_projection(
         snapshot,
-        gear_rule_revision=rule,
-        simc_runtime_revision=runtime,
+        gear_rule_revision=rule or "",
+        resolver_revision=resolver or "",
+        simc_runtime_revision=runtime or "",
     )
     required = [entry["slot"] for entry in resolver_projection["slots"]] if resolver_projection else []
-    if not rule or not resolver or not runtime or resolver_projection is None:
+    if rule is None or resolver is None or runtime is None:
+        problems.append(_problem("LOADOUT_V2_REVISION_INVALID", "revisions", "V2 revisions must be canonical identity tokens."))
+    elif not _v2_clean_effect_boundary(
+        snapshot,
+        gear_rule_revision=rule,
+        resolver_revision=resolver,
+        simc_runtime_revision=runtime,
+    ):
+        problems.append(_problem("LOADOUT_EFFECT_AUTHORITY_REQUIRED", "resolverSnapshot.v2EffectBoundary", "V2 requires a clean Resolver effect-boundary projection."))
+    elif resolver_projection is None:
         problems.append(_problem("LOADOUT_V2_RESOLVER_NOT_READY", "resolverSnapshot", "V2 requires one verified resolver snapshot and revisions."))
     if not isinstance(authority_bundles, Mapping):
         problems.append(_problem("LOADOUT_V2_AUTHORITY_BUNDLE_CLOSURE_INVALID", "authorityBundles", "V2 authority bundles must be one exact selected-key mapping."))
@@ -1047,8 +1130,8 @@ def build_resolved_loadout_v2(
         slot, key = pair["slot"], pair["exactAuthorityEnvelopeKey"]
         bundle = _rehydrate_v2_bundle(
             bundles.get(key),
-            resolver_revision=resolver,
-            simc_runtime_revision=runtime,
+            resolver_revision=resolver or "",
+            simc_runtime_revision=runtime or "",
         )
         if bundle is None:
             problems.append(_problem("LOADOUT_V2_AUTHORITY_BUNDLE_INVALID", f"authorityBundles.{key}", "V2 requires one fully rehydrated Exact Authority Bundle."))
@@ -1057,10 +1140,10 @@ def build_resolved_loadout_v2(
         exact = bundle["exact_item"]
         progression = bundle["progression"]
         effect_support = bundle["effect_support"]
-        if _text(envelope.get("content_key") or envelope.get("contentKey")) != key or _text(envelope.get("resolverRevision")) != resolver:
+        if _text(envelope.get("content_key") or envelope.get("contentKey")) != key or _v2_revision(envelope.get("resolverRevision")) != resolver:
             problems.append(_problem("LOADOUT_V2_ENVELOPE_INVALID", f"authorityBundles.{key}", "Envelope key or resolver revision does not match."))
         track = progression.get("trackAuthorityInput") if isinstance(progression.get("trackAuthorityInput"), Mapping) else {}
-        if _text(progression.get("gearRuleRevision")) != rule or _text(track.get("slot")) != slot:
+        if _v2_revision(progression.get("gearRuleRevision")) != rule or _text(track.get("slot")) != slot:
             problems.append(_problem("LOADOUT_V2_PROGRESSION_SLOT_MISMATCH", f"authorityBundles.{key}.progression", "Progression must bind this exact slot and rule revision."))
         resolved = slots.get(slot) if isinstance(slots.get(slot), Mapping) else {}
         options = _v2_simc_options(exact)
@@ -1069,7 +1152,7 @@ def build_resolved_loadout_v2(
         if options is None or not options.get("id"):
             problems.append(_problem("LOADOUT_V2_SERIALIZER_INPUT_INVALID", f"authorityBundles.{key}.exactItem", "Sealed Exact serializer fields are invalid."))
         subjects = effect_support.get("subjects") if isinstance(effect_support.get("subjects"), list) else []
-        if effect_support.get("status") != "verified" or _text(effect_support.get("simcRuntimeRevision")) != runtime:
+        if effect_support.get("status") != "verified" or _v2_revision(effect_support.get("simcRuntimeRevision")) != runtime:
             problems.append(_problem("LOADOUT_V2_EFFECT_SUPPORT_NOT_READY", f"authorityBundles.{key}.effectSupport", "Every slot effect aggregate must be verified for this runtime."))
         for ordinal, raw in enumerate(subjects):
             subject = dict(raw) if isinstance(raw, Mapping) else {}
@@ -1104,6 +1187,11 @@ def verify_resolved_loadout_v2(
     raw_evidence = row.get("effectEvidenceByOccurrence")
     if not isinstance(raw_evidence, list):
         return ["RESOLVED_LOADOUT_V2_EFFECT_EVIDENCE_INVALID"]
+    rule = _v2_revision(row.get("gearRuleRevision"))
+    resolver = _v2_revision(row.get("resolverRevision"))
+    runtime = _v2_revision(row.get("simcRuntimeRevision"))
+    if rule is None or resolver is None or runtime is None:
+        issues.append("RESOLVED_LOADOUT_V2_REVISION_INVALID")
     pairs = row.get("exactAuthorityBySlot") if isinstance(row.get("exactAuthorityBySlot"), list) else []
     slots = [_text(pair.get("slot")) for pair in pairs if isinstance(pair, Mapping)]
     keys = [_text(pair.get("exactAuthorityEnvelopeKey")) for pair in pairs if isinstance(pair, Mapping)]
@@ -1120,9 +1208,9 @@ def verify_resolved_loadout_v2(
         authority_projection = _v2_authority_projection(
             pairs,
             authority_bundles=authority_bundles,
-            gear_rule_revision=_text(row.get("gearRuleRevision")),
-            resolver_revision=_text(row.get("resolverRevision")),
-            simc_runtime_revision=_text(row.get("simcRuntimeRevision")),
+            gear_rule_revision=rule or "",
+            resolver_revision=resolver or "",
+            simc_runtime_revision=runtime or "",
         )
         if authority_projection is None:
             issues.append("RESOLVED_LOADOUT_V2_AUTHORITY_CONTEXT_INVALID")
@@ -1132,8 +1220,9 @@ def verify_resolved_loadout_v2(
     else:
         resolver_projection = _v2_resolver_projection(
             resolver_snapshot,
-            gear_rule_revision=_text(row.get("gearRuleRevision")),
-            simc_runtime_revision=_text(row.get("simcRuntimeRevision")),
+            gear_rule_revision=rule or "",
+            resolver_revision=resolver or "",
+            simc_runtime_revision=runtime or "",
         )
         if resolver_projection is None:
             issues.append("RESOLVED_LOADOUT_V2_RESOLVER_CONTEXT_INVALID")
@@ -1181,7 +1270,7 @@ def verify_resolved_loadout_v2(
             issues.append("RESOLVED_LOADOUT_V2_EFFECT_OCCURRENCE_INVALID")
             break
         next_ordinal[slot] = ordinal + 1
-    identity = {"classKey": _text(row.get("eligibilityContext", {}).get("classKey")) if isinstance(row.get("eligibilityContext"), Mapping) else "", "specKey": _text(row.get("eligibilityContext", {}).get("specKey")) if isinstance(row.get("eligibilityContext"), Mapping) else "", "exactAuthorityBySlot": pairs, "orderedSlots": ordered_slots, "effectEvidenceByOccurrence": evidence, "gearRuleRevision": _text(row.get("gearRuleRevision")), "resolverRevision": _text(row.get("resolverRevision")), "simcRuntimeRevision": _text(row.get("simcRuntimeRevision"))}
+    identity = {"classKey": _text(row.get("eligibilityContext", {}).get("classKey")) if isinstance(row.get("eligibilityContext"), Mapping) else "", "specKey": _text(row.get("eligibilityContext", {}).get("specKey")) if isinstance(row.get("eligibilityContext"), Mapping) else "", "exactAuthorityBySlot": pairs, "orderedSlots": ordered_slots, "effectEvidenceByOccurrence": evidence, "gearRuleRevision": rule or "", "resolverRevision": resolver or "", "simcRuntimeRevision": runtime or ""}
     if _text(row.get("resolvedLoadoutKey")) != _hash("resolved-loadout-v2:sha256:", identity):
         issues.append("RESOLVED_LOADOUT_V2_IDENTITY_MISMATCH")
     expected_hash = _hash("sha256:", {key: value for key, value in row.items() if key not in {"rowHash", "originCatalogRevision"}})

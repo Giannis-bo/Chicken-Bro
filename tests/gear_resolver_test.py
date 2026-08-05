@@ -1786,6 +1786,43 @@ class GearResolverTest(unittest.TestCase):
         result = gear_resolver.resolve_v2(fixture["intent"], fixture["authorityContext"])
         self.assertEqual(result["status"], "blocked")
         self.assertIn("LOADOUT_EFFECT_AUTHORITY_REQUIRED", result["problemCodes"])
+        self.assertEqual(
+            result["v2EffectBoundary"],
+            {
+                "schemaRevision": "gear-resolver-v2-effect-boundary-v1",
+                "status": "blocked",
+                "resolvedGearSignature": result["resolvedGearSignature"],
+                "setState": result["setState"],
+                "subjects": result["loadoutEffectSubjects"],
+                "gearRuleRevision": result["dependencyVector"]["gearRuleRevision"],
+                "resolverRevision": result["dependencyVector"]["resolverContractRevision"],
+                "simcRuntimeRevision": result["dependencyVector"]["simcRuntimeRevision"],
+            },
+        )
+
+    def test_v2_resolver_emits_clean_effect_boundary_from_effective_state(self):
+        """Would fail if a clean v2 result omitted the Task 4L boundary proof."""
+        fixture = self.fixture()
+        fixture["authorityContext"]["ruleParameters"]["setAggregationInputs"] = []
+
+        result = gear_resolver.resolve_v2(
+            fixture["intent"], fixture["authorityContext"]
+        )
+
+        self.assertEqual(result["status"], "verified")
+        self.assertEqual(
+            result["v2EffectBoundary"],
+            {
+                "schemaRevision": "gear-resolver-v2-effect-boundary-v1",
+                "status": "verified",
+                "resolvedGearSignature": result["resolvedGearSignature"],
+                "setState": result["setState"],
+                "subjects": [],
+                "gearRuleRevision": result["dependencyVector"]["gearRuleRevision"],
+                "resolverRevision": result["dependencyVector"]["resolverContractRevision"],
+                "simcRuntimeRevision": result["dependencyVector"]["simcRuntimeRevision"],
+            },
+        )
 
     def test_v2_resolver_fails_closed_on_effective_set_state_without_raw_set_clues(self):
         """Would fail if overlays could activate a set effect outside the v2 literal block."""
