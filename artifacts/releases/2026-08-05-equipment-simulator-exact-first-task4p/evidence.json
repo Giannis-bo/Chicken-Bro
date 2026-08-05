@@ -1,0 +1,100 @@
+{
+  "schemaVersion": 2,
+  "slug": "equipment-simulator-exact-first-task4p",
+  "requirementSlug": "equipment-simulator-exact-first-task4p",
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
+  "branch": "codex/equipment-simulator-exact-first-task4p",
+  "commit": "8a902803ce25f422df518c026d758cbf22511605",
+  "identities": {
+    "runtime": {
+      "status": "not_applicable",
+      "reason": "Task 4P adds no DB, service, API, UI, worker, deployment or runtime consumer; its pure-domain source commit is not a runtime identity."
+    },
+    "verification": {
+      "status": "bound_at_check",
+      "kind": "git_ref",
+      "value": "HEAD",
+      "reason": "The local focused matrix and Harness packet are checked only from a clean exact HEAD."
+    },
+    "closure": {
+      "status": "pending",
+      "reason": "Task 4P has not received Harness User Acceptance Closure, merge, post-merge verification or scoped cleanup."
+    }
+  },
+  "manualAcceptance": {
+    "required": false,
+    "status": "not_applicable",
+    "reason": "Task 4P is pure-domain code with no active user-visible runtime, API or UI consumer.",
+    "items": [],
+    "rollup": {
+      "total": 0,
+      "accepted": 0,
+      "notRunUserWaived": 0,
+      "pending": 0
+    }
+  },
+  "scope": [
+    "v2 slot-scoped Exact Authority Envelope bindings in ResolvedLoadout and SimulationSnapshot",
+    "ordered duplicate-preserving effectEvidenceByOccurrence verifier",
+    "literal blocked / LOADOUT_EFFECT_AUTHORITY_REQUIRED for loadout-scoped effect subjects",
+    "strict v2 snapshot compatibility without changing v1 bytes, keys, hashes or behavior"
+  ],
+  "verification": [
+    {
+      "command": "python3 -m unittest tests.gear_resolver_test tests.gear_rule_matrix_test tests.gear_resolved_loadout_test tests.simulation_snapshot_test tests.simulation_snapshot_compat_test",
+      "status": "pass",
+      "testedHead": "8a902803ce25f422df518c026d758cbf22511605",
+      "summary": "101 focused resolver, rule matrix, resolved-loadout, snapshot and compatibility tests passed, including existing v1 paths and Task 4P RED/GREEN regressions."
+    },
+    {
+      "command": "python3 -m py_compile server/gear_resolver.py server/gear_rule_matrix.py server/gear_resolved_loadout.py server/simulation_snapshot.py server/simulation_snapshot_compat.py",
+      "status": "pass",
+      "testedHead": "8a902803ce25f422df518c026d758cbf22511605",
+      "summary": "All five allowlisted pure-domain modules compiled successfully."
+    },
+    {
+      "command": "independent Task 4P spec/quality review and three scoped re-reviews",
+      "status": "pass",
+      "testedHead": "8a902803ce25f422df518c026d758cbf22511605",
+      "summary": "The independent reviewer found and verified fixes for builder/verifier agreement, canonical SimC/talent binding, v2 failure schemas, required negative coverage and strict malformed authority rejection."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile harness --release artifacts/releases/2026-08-05-equipment-simulator-exact-first-task4p --base origin/main",
+      "status": "pending",
+      "summary": "Runs only after this complete packet is committed at a clean task HEAD."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "not_applicable",
+    "reason": "No runtime surface changed; candidate deployment, production migration, service smoke and timer/backflow checks are outside Task 4P."
+  },
+  "runtimeEvidence": [],
+  "risks": [
+    {
+      "id": "loadout_effect_completeness",
+      "status": "blocked_by_design",
+      "detail": "Tier, set, cross-slot and loadout-scoped effect subjects remain literal blocked / LOADOUT_EFFECT_AUTHORITY_REQUIRED until separately authorized Task 4L supplies reviewed completeness authority."
+    },
+    {
+      "id": "v1_compatibility",
+      "status": "controlled",
+      "detail": "Task 4P uses new v2 schema/key branches; focused existing v1 tests run in the same matrix and no v1 builder or verifier path is edited."
+    }
+  ],
+  "rollback": [
+    "code_rollback"
+  ],
+  "cleanup": {
+    "required": true,
+    "status": "pending_harness_user_acceptance_closure",
+    "reason": "Keep the Task 4P branch, worktree and task-local SDD artifacts until an explicit user closure authorization, merge, post-merge verification and main parity."
+  },
+  "archivedReferences": [
+    "docs/project-state.json",
+    "docs/roadmap.md",
+    "docs/plans/README.md",
+    "docs/plans/2026-08-04-equipment-simulator-exact-first-persistence-resequence.md"
+  ],
+  "summary": "Task 4P is local_verified pure-domain evidence only. It adds v2 slot-bound Exact Authority, duplicate-preserving ordered effect occurrences, strict snapshot input binding and literal blocked handling for loadout-scoped effects while preserving v1 bytes/key/hash behavior. No DB, migration, worker, service, deploy, API, UI, Catalog/Manifest pointer, generation 35, runtime consumer, candidate deployment, production action or user-visible closure is claimed."
+}
