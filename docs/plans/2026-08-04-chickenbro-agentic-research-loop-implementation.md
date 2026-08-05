@@ -4,9 +4,9 @@
 
 **Goal:** Make Codex, rather than a question-specific routing tree, plan and re-plan read-only Chickenbro research through the published ToolBox, then return source-grounded answers that continue naturally across follow-up questions.
 
-**Architecture:** Run one native Codex Agent conversation with a candidate-only MCP profile. Codex receives the player message and compact conversation history, decides its own research goal and calls the read-only ToolBox directly in the same turn. The backend does not create a `ResearchPlan`, select a tool, execute a tool on the model's behalf, force a JSON response, or reject natural prose through a per-claim schema. It only owns the MCP tool's read-only/SSRF/rate boundaries, session persistence, timeout, and citations derived from actual MCP observations. Legacy `QuestionFrame`/`EvidencePlan` paths remain available only when the native feature flag is off.
+**Architecture:** Run one native Codex Agent conversation with a candidate-only profile. Codex receives the player message and compact conversation history, decides its own research goal, may use native live web search, and may call the read-only MCP ToolBox in the same turn. The backend does not create a `ResearchPlan`, select a tool, execute a tool on the model's behalf, force a JSON response, or reject natural prose through a per-claim schema. It only owns MCP read-only/SSRF/rate boundaries, session persistence and timeout. Legacy `QuestionFrame`/`EvidencePlan` paths remain available only when the native feature flag is off.
 
-**Tech Stack:** Python standard library and `unittest`; a repository-owned stdio MCP server wrapping the existing generic public-web reader; Codex CLI profile layering; TypeScript/Taro compatibility tests; Harness candidate deployment scripts.
+**Tech Stack:** Python standard library and `unittest`; native Codex live web search; a repository-owned stdio MCP server for bounded public URL reads and service-owned community snapshots; Codex CLI profile layering; TypeScript/Taro compatibility tests; Harness candidate deployment scripts.
 
 ## Global Constraints
 
@@ -21,7 +21,7 @@
 
 ## Native Agent correction (authoritative for this candidate)
 
-The earlier `ResearchPlan → backend execution → final JSON + claimRefs` task steps are historical implementation context only; they are **not** this candidate's execution path. This candidate proves: Codex chooses concrete research queries and invokes `research_public_web` itself; natural Chinese answers publish without a JSON or per-claim response gate; UI citations come only from tool observations written during the same job; follow-ups carry compact conversation history and can research again; a Codex/MCP transport failure remains an honest failure rather than silently returning a legacy template.
+The earlier `ResearchPlan → backend execution → final JSON + claimRefs` task steps are historical implementation context only; they are **not** this candidate's execution path. This candidate proves: Codex chooses concrete research queries and whether to use native web search, `research_public_web`, or `inspect_current_mythic_plus_snapshot`; natural Chinese answers publish without a JSON or per-claim response gate; MCP citations come only from tool observations written during the same job; follow-ups carry compact conversation history and can research again; a Codex/MCP transport failure remains an honest failure rather than silently returning a legacy template.
 
 ---
 

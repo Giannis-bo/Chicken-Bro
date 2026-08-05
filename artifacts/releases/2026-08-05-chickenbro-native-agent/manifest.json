@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "slug": "chickenbro-native-agent",
+  "status": "candidate_deployed",
+  "branch": "codex/chickenbro-agentic-research-loop",
+  "sourceHead": "7f976b0e03d83b29502f25158315a349b1a3d038",
+  "candidate": {
+    "host": "wow-lighthouse",
+    "root": "/opt/wow-mini-program-candidates/chickenbro-native-agent-6cb25647",
+    "service": "wow-backend-chickenbro-native-agent-6cb25647.service",
+    "remotePort": 18822,
+    "localCandidateTunnel": "127.0.0.1:18817 -> 127.0.0.1:18822",
+    "featureFlags": {
+      "WOW_CHICKENBRO_CODEX_ENABLED": "1",
+      "WOW_CHICKENBRO_NATIVE_AGENT_ENABLED": "1",
+      "WOW_CHICKENBRO_AGENTIC_RESEARCH_ENABLED": "0",
+      "WOW_CODEX_SANDBOX": "read-only",
+      "WOW_CHICKENBRO_CODEX_TIMEOUT_SECONDS": "75"
+    },
+    "profile": {
+      "name": "chickenbro-native",
+      "model": "gpt-5.6-luna",
+      "webSearch": "live"
+    }
+  },
+  "runtimeFileHashes": {
+    "server/codex_worker.py": "9a0cc7248f6a81b17a1fc93806aaa959afb3419969951495ec5853efc1312bed",
+    "server/chickenbro_native_mcp.py": "5b46e4d12e4543838b21b7582d64cb0818f9c275150a8dca5124583a017f559a",
+    "server/chickenbro_public_web_research.py": "f79db582da02bb167bbcc7a3d0cad7a5437ec902c7047fade8656fd3ed5562c6",
+    "server/news_backend.py": "56f0ac4f5413027fb2b4658056ea178cc1163d20ab1d797ced4efd6fe5d75fc0",
+    "scripts/chickenbro-native-agent/chickenbro-native.config.toml.template": "a7c8540619f8a3be5398103ee2c5c2cff4f24b2070896932b449e04eb363631a"
+  }
+}

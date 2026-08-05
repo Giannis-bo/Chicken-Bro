@@ -55,13 +55,19 @@ flowchart LR
 替它选定执行节奏，并会因 `claimRefs` 格式校验丢弃一段本身合理的回答；这与“ToolBox
 只提高 Codex 执行效率”的目标不符。
 
-当前候选的唯一回答链是：`玩家问题与会话 → 原生 Codex Agent ↔ 只读 MCP ToolBox →
-自然回答 + 实际工具 observations 的引用`。后端保留会话、只读/SSRF/速率边界、超时和引用
-展示；不生成研究计划、不替 Agent 调 Tool、不强制 JSON、不以逐 claim 格式拦截自然语言。
+当前候选的唯一回答链是：`玩家问题与会话 → 原生 Codex Agent（native web search + 可选只读
+MCP ToolBox）→ 自然回答 + 实际研究来源`。原生网页检索用于当前公共资料；MCP 只提供有界
+安全 URL 读取和服务已持有的同职责大秘境快照。后端保留会话、只读/SSRF/速率边界、超时和
+MCP observation 展示；不生成研究计划、不替 Agent 调 Tool、不强制 JSON、不以逐 claim 格式
+拦截自然语言。
 本节优先于后文保留的历史 ResearchPlan 设计内容。
 
 `QuestionFrame` 和第一切片 `EvidencePlan` 可作为迁移期的兼容输入或离线对照，但不再
 拥有“选择哪一个 Tool、能否继续研究、如何回答”的最终权力。
+
+2026-08-05 候选自测已确认 `gpt-5.6-luna` 的原生网页检索能自行搜索当前社区资料并完成
+同会话追问；它不是新站点 adapter，也不规定应使用 Archon、Raider.IO、WCL 或任何职业结论。
+真实 WeChat 验收仍是生产切换前的唯一用户闭环。
 
 ## Codex 研究循环
 
