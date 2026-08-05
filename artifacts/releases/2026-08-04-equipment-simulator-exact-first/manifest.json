@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-08-04-equipment-simulator-exact-first/evidence.json",
-    "sizeBytes": 73507,
+    "sizeBytes": 78418,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -392,7 +392,7 @@
     "missingFields": [],
     "declaredStatus": "runtime_verified",
     "highestEvidenceLevel": "runtime_verified",
-    "summary": "Task 3A is runtime_verified / candidate_verified. Eighth run t3a260805163536 passed migration 0030 fresh/upgrade PostgreSQL, attestation-v2, controller read-only post-audit and independent review at exact runtime commit 9f230f2e/tree 89e7e5e. Verification packet commit 1714f376/tree 7ba9ff18 separately passed the unique 173-command full profile (Node 747, Python 2718 with two expected skips, Vitest 437) and exact owner-test plus active-plan candidate-to-verification gate. Historical PR CI run 30993690037 exposed 29 Python 3.11 AST serialization false failures, corrected at 1714f376 without invalidating the runtime candidate. Runtime and verification identities are bound; closure remains pending corrected PR CI, push, merge, post-merge verification, packet archival and scoped cleanup. The prior seven run ids and fourteen databases remain immutable/non-reusable historical evidence. Migration 0030 is not production-authorized; no endpoint, timer, runtime consumer, Catalog/Manifest pointer, API, UI or SimC behavior changed; generation 35 is unchanged and Task 4P+ remains unauthorized."
+    "summary": "Task 3A remains runtime_verified / candidate_verified. Eighth run t3a260805163536 passed migration 0030 fresh/upgrade PostgreSQL, attestation-v2, controller read-only post-audit and independent review at exact runtime commit 9f230f2e/tree 89e7e5e. PR #114 merged at 97fca062; its merge result and final archive record each passed scoped Harness verification, and origin/main parity was verified before scoped cleanup. The exact eighth candidate databases were discarded; remote artifacts are recoverably quarantined and the local bundle is in Trash, while the seven historical run ids and fourteen databases were not touched. Formal evidence remains runtime_verified/candidate_verified with closure pending because the active Task 3A lifecycle contract excludes an archived stage and requires pending; no contract/test expansion was part of this closure. No production migration, runtime consumer, endpoint, timer, API, UI, SimC or generation 35 behavior is claimed. Task 4P is a separately authorized pure-domain slice."
   },
   "evidence": {
     "localTests": {

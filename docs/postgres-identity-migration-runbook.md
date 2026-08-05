@@ -138,11 +138,16 @@ Python 3.11 included empty optional AST fields that Python 3.13 omitted by
 default. The stable serializer at `1714f376` corrects that compatibility defect
 without changing or invalidating the runtime candidate. Current evidence is
 `runtime_verified / candidate_verified`; runtime and verification identities
-are separately bound, while closure remains pending corrected PR CI, push, merge,
-post-merge verification, archival and scoped cleanup. The promotion window is
-restricted to the six declared Task 3A evidence/status files. Runtime consumers
-remain empty, production migration was not executed, generation 35 is unchanged
-and Task 4P+ is not authorized.
+are separately bound. Task 3A delivery closure then completed: PR #114 merged
+as `97fca062`, the merge result and final archive record passed scoped Harness,
+and main/origin parity was confirmed before scoped cleanup. Only the exact eighth
+fresh/upgrade databases were discarded; current candidate artifacts were moved to
+recoverable quarantine/Trash and all fourteen historical databases were untouched.
+The formal closure identity remains `pending` because the active Task 3A lifecycle
+test permits no `archived` stage and explicitly requires pending; no lifecycle-contract
+change was included in this closure. Runtime consumers remain empty, production
+migration was not executed, generation 35 is unchanged, and only separate Task 4P
+pure-domain work is authorized next.
 
 All seven run-id pairs and all fourteen databases are immutable/non-reusable
 evidence: never reset or reuse them. The test suite never creates, drops, resets
@@ -259,7 +264,8 @@ attestation-v1 history, the fifth remains
 `runtime_passed_unpromotable_current_truth_lifecycle_test_regression`; none can be reused.
 The historical `candidate_rerun_required / evidence_promotion_blocked` status was cleared
 only by the independent eighth pair plus the separately bound verification HEAD. Runtime
-and verification identities are bound; closure remains pending.
+and verification identities are bound; delivery closure is recorded, while formal closure
+remains pending under the current lifecycle contract.
 The technically successful
 `t3a260805113656` attestation also remains unpromotable.
 No production migration is authorized.
