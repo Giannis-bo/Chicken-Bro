@@ -61,8 +61,9 @@
     },
     {
       "command": "node scripts/verify-project.js --profile harness --release artifacts/releases/2026-08-05-equipment-simulator-exact-first-task4p --base origin/main",
-      "status": "pending",
-      "summary": "Runs only after this complete packet is committed at a clean task HEAD."
+      "status": "pass",
+      "testedHead": "96bc8cd070d46a8fc0b04a948084c9ba661463a6",
+      "summary": "Exit 0 at the clean packet HEAD: 93 Harness control tests passed, JSON/diff checks passed, and the complete Task 4P packet bound the exact checked HEAD."
     }
   ],
   "candidateDeployment": {

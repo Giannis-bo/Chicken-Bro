@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-08-05T12:21:34.460Z",
+  "generatedAt": "2026-08-05T12:22:10.158Z",
   "release": {
     "date": "2026-08-05",
     "slug": "equipment-simulator-exact-first-task4p"
@@ -346,7 +346,9 @@
     }
   },
   "evidencePacket": {
-    "status": "not_attached",
+    "status": "ready",
+    "path": "artifacts/releases/2026-08-05-equipment-simulator-exact-first-task4p/evidence.json",
+    "sizeBytes": 5138,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -367,7 +369,30 @@
       "archivedReferences",
       "summary"
     ],
-    "note": "Attach a local evidence packet with --evidence-file when promoting a Standard or Strict requirement."
+    "fieldsPresent": [
+      "schemaVersion",
+      "slug",
+      "requirementSlug",
+      "status",
+      "highestEvidenceLevel",
+      "branch",
+      "commit",
+      "identities",
+      "manualAcceptance",
+      "scope",
+      "verification",
+      "candidateDeployment",
+      "runtimeEvidence",
+      "risks",
+      "rollback",
+      "cleanup",
+      "archivedReferences",
+      "summary"
+    ],
+    "missingFields": [],
+    "declaredStatus": "local_verified",
+    "highestEvidenceLevel": "local_verified",
+    "summary": "Task 4P is local_verified pure-domain evidence only. It adds v2 slot-bound Exact Authority, duplicate-preserving ordered effect occurrences, strict snapshot input binding and literal blocked handling for loadout-scoped effects while preserving v1 bytes/key/hash behavior. No DB, migration, worker, service, deploy, API, UI, Catalog/Manifest pointer, generation 35, runtime consumer, candidate deployment, production action or user-visible closure is claimed."
   },
   "evidence": {
     "localTests": {
@@ -430,7 +455,7 @@
       "status": "dirty",
       "changedFileCount": 1,
       "changedFiles": [
-        "?? artifacts/releases/2026-08-05-equipment-simulator-exact-first-task4p/"
+        " M artifacts/releases/2026-08-05-equipment-simulator-exact-first-task4p/evidence.json"
       ]
     }
   },
