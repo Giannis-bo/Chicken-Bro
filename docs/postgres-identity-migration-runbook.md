@@ -70,8 +70,8 @@ identities and migration `0026` SHA-256
 verified checks. The read-only post-audit independently confirmed 26 ledger rows,
 one `0003`, one `0026`, one exact target constraint, expected authority counts and
 SELECT-only `wow_app` privileges in both databases. Task 3A is now
-`runtime_verified`, but evidence/manifest archival, independent scoped review,
-branch/CI/merge closure and cleanup remain pending. This is not production,
+`runtime_verified`; evidence and manifest packets now exist and are Harness-bound,
+but independent scoped re-review, branch/CI/merge closure, archival and cleanup remain pending. This is not production,
 live, release-ready, API, UI or SimC runtime evidence; runtime consumers remain
 empty and Task 4P+ is not authorized.
 
@@ -171,8 +171,8 @@ requirement or owner contracts invalidates both candidates. Only an operator may
 discard the two exact database identities after archival; the suite never does.
 Missing `psql`, either DSN, or the run id is a skipped candidate and remains
 `candidate_pending`, never green evidence. The fourth pair has passed and is the
-sole promoted `runtime_verified` candidate, but must remain intact while
-evidence/manifest and independent promotion review are pending. The historical
+sole promoted `runtime_verified` candidate. Its evidence and manifest packets are Harness-bound,
+but the pair must remain intact while independent promotion re-review and archival closure are pending. The historical
 `candidate_rerun_required / evidence_promotion_blocked` status still applies to
 the first three runs; the technically successful `t3a260805113656` attestation
 cannot be archived as Task 3A evidence and cannot be used as another candidate
