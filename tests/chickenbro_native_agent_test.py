@@ -17,6 +17,8 @@ class ChickenbroNativeAgentTest(unittest.TestCase):
 
         self.assertEqual("gpt-5.6-luna", prompt.get("runtime", {}).get("model"))
         self.assertTrue(any("当前模型" in item for item in prompt["instructions"]))
+        self.assertTrue(any("inspect_current_mythic_plus_snapshot" in item for item in prompt["instructions"]))
+        self.assertFalse(any("优先自主调用 research_public_web" in item for item in prompt["instructions"]))
 
     def test_native_agent_keeps_a_natural_answer_and_uses_only_actual_tool_observations_for_citations(self):
         captured = {}
@@ -115,8 +117,11 @@ class ChickenbroNativeMcpTest(unittest.TestCase):
             {"jsonrpc": "2.0", "id": 1, "method": "tools/list"},
             observation_writer=observed.append,
         )
-        self.assertEqual(["research_public_web"], [item["name"] for item in listed["result"]["tools"]])
-        self.assertTrue(listed["result"]["tools"][0]["annotations"]["readOnlyHint"])
+        self.assertEqual(
+            {"research_public_web", "inspect_current_mythic_plus_snapshot"},
+            {item["name"] for item in listed["result"]["tools"]},
+        )
+        self.assertTrue(all(item["annotations"]["readOnlyHint"] for item in listed["result"]["tools"]))
 
         with mock.patch.object(module, "build_public_web_research_tool_result", return_value={
             "sourceKey": "public_web_research",
@@ -140,6 +145,36 @@ class ChickenbroNativeMcpTest(unittest.TestCase):
         self.assertFalse(called["result"].get("isError", False))
         self.assertEqual("source_reference", observed[0]["status"])
         self.assertEqual(["public-web:example-com-bear"], observed[0]["evidenceRefs"])
+
+    def test_current_mythic_plus_snapshot_is_an_optional_role_comparison_not_a_fixed_answer(self):
+        module = importlib.import_module("server.chickenbro_native_mcp")
+        payload = {
+            "sourceName": "Community cache",
+            "sourceStatus": "synced",
+            "leaderboardUrl": "https://community.example/mythic-plus",
+            "checkedAt": "2026-08-05T12:00:00+00:00",
+            "seasonSlug": "season-current",
+            "region": "global",
+            "specAggregates": [
+                {"role": "healer", "classKey": "druid", "specKey": "restoration", "fullName": "Restoration Druid", "bestScore": 3210.5, "maxKeyLevel": 25, "sampleCount": 48},
+                {"role": "healer", "classKey": "paladin", "specKey": "holy", "fullName": "Holy Paladin", "bestScore": 3190, "maxKeyLevel": 24, "sampleCount": 41},
+                {"role": "tank", "classKey": "druid", "specKey": "guardian", "fullName": "Guardian Druid", "bestScore": 3300, "maxKeyLevel": 26, "sampleCount": 51},
+            ],
+        }
+
+        result = module.build_current_mythic_plus_snapshot_tool_result(
+            {"role": "healer"},
+            payload_loader=lambda: payload,
+        )
+
+        self.assertEqual("source_reference", result["status"])
+        self.assertEqual("healer", result["facts"][0]["role"])
+        self.assertEqual(
+            ["Restoration Druid", "Holy Paladin"],
+            [row["fullName"] for row in result["facts"][0]["rankedSpecs"]],
+        )
+        self.assertEqual(1, result["facts"][0]["rankedSpecs"][0]["placement"])
+        self.assertIn("snapshot", " ".join(result["limitations"]).lower())
 
     def test_stdio_mcp_converts_a_reader_exception_into_a_literal_partial_observation(self):
         module = importlib.import_module("server.chickenbro_native_mcp")
