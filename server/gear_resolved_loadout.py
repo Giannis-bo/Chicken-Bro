@@ -805,6 +805,78 @@ def _rehydrate_v2_bundle(
         "effect_support": _v2_document(effect_support),
     }
 
+
+def _v2_authority_occurrences(
+    pairs: Any,
+    *,
+    authority_bundles: Any,
+    gear_rule_revision: str,
+    resolver_revision: str,
+    simc_runtime_revision: str,
+) -> list[dict[str, Any]] | None:
+    """Rebuild the complete v2 occurrence multiset from typed authority."""
+    if not isinstance(pairs, list) or not isinstance(authority_bundles, Mapping):
+        return None
+    normalized_pairs: list[tuple[str, str]] = []
+    for raw in pairs:
+        pair = dict(raw) if isinstance(raw, Mapping) else {}
+        slot = _text(pair.get("slot"))
+        key = _text(pair.get("exactAuthorityEnvelopeKey"))
+        if set(pair) != {"slot", "exactAuthorityEnvelopeKey"} or slot not in CANONICAL_GEAR_SLOTS or not EXACT_AUTHORITY_ENVELOPE_KEY_PATTERN.fullmatch(key):
+            return None
+        normalized_pairs.append((slot, key))
+    bundles = dict(authority_bundles)
+    expected_keys = {key for _, key in normalized_pairs}
+    if len(bundles) != len(expected_keys) or set(bundles) != expected_keys:
+        return None
+    occurrences: list[dict[str, Any]] = []
+    for slot, key in normalized_pairs:
+        bundle = _rehydrate_v2_bundle(
+            bundles.get(key),
+            resolver_revision=resolver_revision,
+            simc_runtime_revision=simc_runtime_revision,
+        )
+        if bundle is None:
+            return None
+        envelope = bundle["envelope"]
+        progression = bundle["progression"]
+        effect_support = bundle["effect_support"]
+        track = progression.get("trackAuthorityInput") if isinstance(progression.get("trackAuthorityInput"), Mapping) else {}
+        subjects = effect_support.get("subjects") if isinstance(effect_support.get("subjects"), list) else None
+        if (
+            _text(envelope.get("content_key") or envelope.get("contentKey")) != key
+            or _text(envelope.get("resolverRevision")) != resolver_revision
+            or _text(progression.get("gearRuleRevision")) != gear_rule_revision
+            or _text(track.get("slot")) != slot
+            or effect_support.get("status") != "verified"
+            or _text(effect_support.get("simcRuntimeRevision")) != simc_runtime_revision
+            or subjects is None
+        ):
+            return None
+        for ordinal, raw in enumerate(subjects):
+            subject = dict(raw) if isinstance(raw, Mapping) else {}
+            record_key = _text(subject.get("supportRecordKey"))
+            if (
+                subject.get("status") != "verified"
+                or not _text(subject.get("subjectKind"))
+                or not _text(subject.get("subjectKey"))
+                or not _text(subject.get("subjectVariantSignature"))
+                or not EFFECT_RECORD_KEY_PATTERN.fullmatch(record_key)
+            ):
+                return None
+            occurrences.append({
+                "scope": "slot",
+                "slot": slot,
+                "exactAuthorityEnvelopeKey": key,
+                "recordOrdinal": ordinal,
+                "subjectKind": _text(subject.get("subjectKind")),
+                "subjectKey": _text(subject.get("subjectKey")),
+                "subjectVariantSignature": _text(subject.get("subjectVariantSignature")),
+                "supportRecordKey": record_key,
+            })
+    return occurrences
+
+
 def _v2_blocked(problems: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
     normalized = _dedupe_problems(problems)
     return {
@@ -926,7 +998,11 @@ def build_resolved_loadout_v2(
     return row
 
 
-def verify_resolved_loadout_v2(value: Any) -> list[str]:
+def verify_resolved_loadout_v2(
+    value: Any,
+    *,
+    authority_bundles: Any = None,
+) -> list[str]:
     row = dict(value) if isinstance(value, Mapping) else {}
     issues: list[str] = []
     if row.get("schemaRevision") != RESOLVED_LOADOUT_V2_SCHEMA_REVISION:
@@ -945,6 +1021,19 @@ def verify_resolved_loadout_v2(value: Any) -> list[str]:
         issues.append("RESOLVED_LOADOUT_V2_SLOT_ORDER_INVALID")
     if len(set(keys)) != len(keys) or any(not EXACT_AUTHORITY_ENVELOPE_KEY_PATTERN.fullmatch(key) for key in keys):
         issues.append("RESOLVED_LOADOUT_V2_ENVELOPE_BINDING_INVALID")
+    authority_evidence = None
+    if authority_bundles is None:
+        issues.append("RESOLVED_LOADOUT_V2_AUTHORITY_CONTEXT_REQUIRED")
+    else:
+        authority_evidence = _v2_authority_occurrences(
+            pairs,
+            authority_bundles=authority_bundles,
+            gear_rule_revision=_text(row.get("gearRuleRevision")),
+            resolver_revision=_text(row.get("resolverRevision")),
+            simc_runtime_revision=_text(row.get("simcRuntimeRevision")),
+        )
+        if authority_evidence is None:
+            issues.append("RESOLVED_LOADOUT_V2_AUTHORITY_CONTEXT_INVALID")
     evidence = raw_evidence
     def occurrence_sort_key(item: Any) -> tuple[int, int]:
         if not isinstance(item, Mapping):
@@ -952,9 +1041,11 @@ def verify_resolved_loadout_v2(value: Any) -> list[str]:
         slot = _text(item.get("slot"))
         ordinal = item.get("recordOrdinal")
         return (CANONICAL_GEAR_SLOTS.index(slot) if slot in CANONICAL_GEAR_SLOTS else len(CANONICAL_GEAR_SLOTS), ordinal if type(ordinal) is int else -1)
-    expected_evidence = sorted(evidence, key=occurrence_sort_key)
-    if evidence != expected_evidence:
+    ordered_evidence = sorted(evidence, key=occurrence_sort_key)
+    if evidence != ordered_evidence:
         issues.append("RESOLVED_LOADOUT_V2_EFFECT_ORDER_INVALID")
+    if authority_evidence is not None and evidence != authority_evidence:
+        issues.append("RESOLVED_LOADOUT_V2_EFFECT_EVIDENCE_CONTEXT_MISMATCH")
     pair_by_slot = {pair["slot"]: pair["exactAuthorityEnvelopeKey"] for pair in pairs if isinstance(pair, Mapping) and _text(pair.get("slot")) and _text(pair.get("exactAuthorityEnvelopeKey"))}
     ordered_slots = row.get("orderedSlots") if isinstance(row.get("orderedSlots"), list) else []
     if any(not isinstance(item, Mapping) or set(item) != {"slot", "itemId", "exactAuthorityEnvelopeKey", "simcOptions"} or not isinstance(item.get("simcOptions"), Mapping) for item in ordered_slots) or [(_text(item.get("slot")), _text(item.get("exactAuthorityEnvelopeKey"))) for item in ordered_slots if isinstance(item, Mapping)] != [(slot, key) for slot, key in zip(slots, keys, strict=True)]:

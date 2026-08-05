@@ -85,7 +85,7 @@ class SimulationSnapshotCompatibilityTest(unittest.TestCase):
         )
         profile = PROFILE.replace("main_hand=item_1002,id=1002,ilevel=272,bonus_id=9010,enchant_id=7443\n", "")
         result = snapshot_from_v2_compatibility_profile(
-            loadout, profile, scenario_key="single", compiler_revision="simc-profile-compiler-v2", simc_runtime_revision="simc-runtime-v2"
+            loadout, profile, scenario_key="single", compiler_revision="simc-profile-compiler-v2", simc_runtime_revision="simc-runtime-v2", authority_bundles={key: bundle}
         )
         self.assertEqual(result["status"], "blocked")
         self.assertIn("SIMULATION_COMPILER_COMPATIBILITY_MISMATCH", result["problemCodes"])

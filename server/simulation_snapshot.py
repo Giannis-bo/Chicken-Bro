@@ -595,12 +595,13 @@ def build_simulation_snapshot_v2(
     preparation_lines: Any,
     compiler_revision: str,
     simc_runtime_revision: str,
+    authority_bundles: Any = None,
     origin_catalog_revision: str = "",
 ) -> dict[str, Any]:
     """Build the catalog-independent immutable v2 snapshot branch."""
     loadout = dict(resolved_loadout) if isinstance(resolved_loadout, Mapping) else {}
     problems: list[dict[str, str]] = []
-    if (loadout.get("status") != "ready" or not RESOLVED_LOADOUT_V2_KEY_PATTERN.fullmatch(_text(loadout.get("resolvedLoadoutKey"))) or verify_resolved_loadout_v2(loadout)):
+    if (loadout.get("status") != "ready" or not RESOLVED_LOADOUT_V2_KEY_PATTERN.fullmatch(_text(loadout.get("resolvedLoadoutKey"))) or verify_resolved_loadout_v2(loadout, authority_bundles=authority_bundles)):
         problems.append(_problem("SIMULATION_V2_LOADOUT_NOT_READY", "resolvedLoadout", "Only a verified ready v2 loadout can be snapshotted."))
     if _text(loadout.get("simcRuntimeRevision")) != _text(simc_runtime_revision):
         problems.append(_problem("SIMULATION_V2_RUNTIME_MISMATCH", "simcRuntimeRevision", "Snapshot runtime must match every v2 authority bundle."))
@@ -634,7 +635,12 @@ def build_simulation_snapshot_v2(
     return row
 
 
-def verify_simulation_snapshot_v2(value: Any) -> list[str]:
+def verify_simulation_snapshot_v2(
+    value: Any,
+    *,
+    resolved_loadout: Any = None,
+    authority_bundles: Any = None,
+) -> list[str]:
     row = dict(value) if isinstance(value, Mapping) else {}
     if row.get("schemaRevision") != SIMULATION_SNAPSHOT_V2_SCHEMA_REVISION:
         return ["SIMULATION_SNAPSHOT_V2_SCHEMA_INVALID"]
@@ -644,6 +650,21 @@ def verify_simulation_snapshot_v2(value: Any) -> list[str]:
     if not isinstance(raw_occurrences, list):
         return ["SIMULATION_V2_EFFECT_EVIDENCE_INVALID"]
     issues: list[str] = []
+    loadout = dict(resolved_loadout) if isinstance(resolved_loadout, Mapping) else None
+    if loadout is None:
+        issues.append("SIMULATION_V2_RESOLVED_LOADOUT_CONTEXT_REQUIRED")
+    elif authority_bundles is None:
+        issues.append("SIMULATION_V2_AUTHORITY_CONTEXT_REQUIRED")
+    elif verify_resolved_loadout_v2(loadout, authority_bundles=authority_bundles):
+        issues.append("SIMULATION_V2_RESOLVED_LOADOUT_CONTEXT_INVALID")
+    else:
+        if (
+            _text(row.get("resolvedLoadoutKey")) != _text(loadout.get("resolvedLoadoutKey"))
+            or row.get("exactAuthorityBySlot") != loadout.get("exactAuthorityBySlot")
+        ):
+            issues.append("SIMULATION_V2_RESOLVED_LOADOUT_CONTEXT_MISMATCH")
+        if raw_occurrences != loadout.get("effectEvidenceByOccurrence"):
+            issues.append("SIMULATION_V2_EFFECT_EVIDENCE_CONTEXT_MISMATCH")
     if not SIMULATION_SNAPSHOT_V2_KEY_PATTERN.fullmatch(_text(row.get("simulationSnapshotKey"))):
         issues.append("SIMULATION_SNAPSHOT_V2_KEY_INVALID")
     identity = {"resolvedLoadoutKey": _text(row.get("resolvedLoadoutKey")), "exactAuthorityBySlot": _canonical(row.get("exactAuthorityBySlot") or []), "effectEvidenceByOccurrence": _canonical(row.get("effectEvidenceByOccurrence") or []), "talentProfileKey": _text(row.get("talentProfileKey")), "characterContext": {**_canonical(row.get("characterContext") or {}), "talentLinesHash": _text(row.get("talentLinesHash"))}, "scenarioOptions": {**_canonical(row.get("scenarioOptions") or {}), "preparationLines": _canonical(row.get("preparationLines") or [])}, "serializerInput": _canonical(row.get("serializerInput") or {}), "compilerRevision": _text(row.get("compilerRevision")), "simcRuntimeRevision": _text(row.get("simcRuntimeRevision"))}
