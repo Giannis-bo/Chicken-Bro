@@ -3954,7 +3954,140 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
             / "artifacts/releases/2026-08-04-equipment-simulator-exact-first/evidence.json"
         ).read_text(encoding="utf-8"))
 
-        def assert_lifecycle_semantics(packet):
+        full_profile_prefix = "node scripts/verify-project.js --profile full"
+        lifecycle_verification_paths = frozenset({
+            "docs/plans/2026-08-04-equipment-simulator-exact-first-persistence-resequence.md",
+            "tests/gear_canonical_owner_gate_test.py",
+        })
+        promotion_window_paths = frozenset({
+            "artifacts/releases/2026-08-04-equipment-simulator-exact-first/evidence.json",
+            "artifacts/releases/2026-08-04-equipment-simulator-exact-first/manifest.json",
+            "docs/plans/2026-08-04-equipment-simulator-exact-first-persistence-resequence.md",
+            "docs/plans/README.md",
+            "docs/postgres-identity-migration-runbook.md",
+            "docs/roadmap.md",
+        })
+
+        def assert_lifecycle_verification_paths(changed_paths):
+            paths = list(changed_paths)
+            self.assertEqual(len(paths), len(set(paths)))
+            self.assertEqual(lifecycle_verification_paths, set(paths))
+
+        def assert_promotion_window(
+            verification_head,
+            actual_head,
+            verification_head_is_ancestor,
+            changed_paths,
+        ):
+            self.assertRegex(verification_head, r"^[0-9a-f]{40}$")
+            self.assertRegex(actual_head, r"^[0-9a-f]{40}$")
+            self.assertNotEqual(verification_head, actual_head)
+            self.assertTrue(verification_head_is_ancestor)
+            paths = list(changed_paths)
+            self.assertEqual(len(paths), len(set(paths)))
+            self.assertEqual(promotion_window_paths, set(paths))
+
+        def git_candidate_to_verification_paths(candidate_commit, verification_head):
+            result = subprocess.run(
+                [
+                    "git",
+                    "diff",
+                    "--name-only",
+                    f"{candidate_commit}..{verification_head}",
+                    "--",
+                ],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            return result.stdout.splitlines()
+
+        def current_git_head():
+            return subprocess.run(
+                ["git", "rev-parse", "HEAD"],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+                check=True,
+            ).stdout.strip()
+
+        def git_is_ancestor(ancestor, descendant):
+            result = subprocess.run(
+                ["git", "merge-base", "--is-ancestor", ancestor, descendant],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertIn(result.returncode, {0, 1})
+            return result.returncode == 0
+
+        def bind_unique_full_profile_pass(packet, tested_head):
+            packet["verification"] = [
+                item
+                for item in packet["verification"]
+                if not item["command"].startswith(full_profile_prefix)
+            ]
+            packet["verification"].append({
+                "command": (
+                    "node scripts/verify-project.js --profile full "
+                    "--release-from-changes --base origin/main"
+                ),
+                "status": "pass",
+                "testedHead": tested_head,
+            })
+            packet["commit"] = tested_head
+            packet["identities"]["verification"] = {
+                "status": "bound_at_check",
+                "kind": "git_ref",
+                "value": "HEAD",
+            }
+            self.assertEqual(
+                1,
+                sum(
+                    item["command"].startswith(full_profile_prefix)
+                    for item in packet["verification"]
+                ),
+            )
+
+        def build_pending_candidate():
+            source = evidence["candidateDeployment"]
+            return {
+                "status": "candidate_pending",
+                "ordinal": len(source["forbiddenRunIds"]) + 1,
+                "migration": source["migration"],
+                "attestationSchema": source["attestationSchema"],
+                "requiredBeforeMerge": source["requiredBeforeMerge"],
+                "runId": None,
+                "freshDatabase": None,
+                "upgradeDatabase": None,
+                "requiredNewRunId": True,
+                "requiredNewDatabases": 2,
+                "forbiddenRunIds": copy.deepcopy(source["forbiddenRunIds"]),
+                "forbiddenDatabases": copy.deepcopy(source["forbiddenDatabases"]),
+                "reason": "Test-only pre-runtime fixture has no candidate identity.",
+            }
+
+        def build_next_candidate(candidate):
+            return {
+                "status": "candidate_pending",
+                "ordinal": candidate["ordinal"],
+                "migration": candidate["migration"],
+                "attestationSchema": candidate["attestationSchema"],
+                "requirement": "Test-only pre-runtime fixture requires a future candidate.",
+                "runId": None,
+                "freshDatabase": None,
+                "upgradeDatabase": None,
+            }
+
+        def assert_lifecycle_semantics(
+            packet,
+            candidate_verification_paths=None,
+            promotion_paths=None,
+            actual_head=None,
+            verification_head_is_ancestor=None,
+        ):
             stage = packet["status"]
             self.assertIn(
                 stage,
@@ -4025,19 +4158,39 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
             self.assertEqual("git_commit", identities["runtime"]["kind"])
             self.assertEqual(candidate["commit"], identities["runtime"]["value"])
             self.assertEqual(candidate["gitTree"], identities["runtime"]["gitTree"])
-            self.assertEqual(candidate["commit"], packet["commit"])
-            full_profile = next(
+            full_profiles = [
                 item
                 for item in packet["verification"]
                 if item["command"].startswith(
                     "node scripts/verify-project.js --profile full"
                 )
-            )
+            ]
+            self.assertEqual(1, len(full_profiles))
+            full_profile = full_profiles[0]
             self.assertEqual("pass", full_profile["status"])
             self.assertEqual(packet["commit"], full_profile["testedHead"])
             self.assertEqual("bound_at_check", identities["verification"]["status"])
             self.assertEqual("git_ref", identities["verification"]["kind"])
             self.assertEqual("HEAD", identities["verification"]["value"])
+            if candidate_verification_paths is None:
+                candidate_verification_paths = git_candidate_to_verification_paths(
+                    candidate["commit"], packet["commit"]
+                )
+            assert_lifecycle_verification_paths(candidate_verification_paths)
+            if promotion_paths is None:
+                actual_head = current_git_head()
+                verification_head_is_ancestor = git_is_ancestor(
+                    packet["commit"], actual_head
+                )
+                promotion_paths = git_candidate_to_verification_paths(
+                    packet["commit"], actual_head
+                )
+            assert_promotion_window(
+                packet["commit"],
+                actual_head,
+                verification_head_is_ancestor,
+                promotion_paths,
+            )
             self.assertIsNone(packet["nextCandidate"])
             self.assertEqual("clean", candidate["candidateSource"]["gitStatus"])
             self.assertIn(candidate["runId"], candidate["candidateSource"]["remotePath"])
@@ -4203,20 +4356,19 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
             seventh["status"],
         )
 
-        future_tested_head = "7f4f6c41a67350d919d3156b1d4ecf047e0ea5cc"
+        future_verification_head = "7f4f6c41a67350d919d3156b1d4ecf047e0ea5cc"
         local_fixture = copy.deepcopy(evidence)
         local_fixture["status"] = "local_verified"
         local_fixture["highestEvidenceLevel"] = "local_verified"
-        local_fixture["commit"] = future_tested_head
-        local_fixture["verification"][-1].update({
-            "status": "pass",
-            "testedHead": future_tested_head,
-        })
-        local_fixture["identities"]["verification"] = {
-            "status": "bound_at_check",
-            "kind": "git_ref",
-            "value": "HEAD",
+        local_fixture["identities"]["runtime"] = {
+            "status": "pending",
+            "reason": "The test-only local stage has no runtime candidate identity.",
         }
+        local_fixture["candidateDeployment"] = build_pending_candidate()
+        local_fixture["nextCandidate"] = build_next_candidate(
+            local_fixture["candidateDeployment"]
+        )
+        bind_unique_full_profile_pass(local_fixture, future_verification_head)
         assert_lifecycle_semantics(local_fixture)
 
         stale_local_fixture = copy.deepcopy(local_fixture)
@@ -4543,29 +4695,22 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
         runtime_fixture = copy.deepcopy(evidence)
         runtime_fixture["status"] = "runtime_verified"
         runtime_fixture["highestEvidenceLevel"] = "runtime_verified"
-        runtime_fixture["commit"] = future_tested_head
-        runtime_fixture["verification"][-1].update({
-            "status": "pass",
-            "testedHead": future_tested_head,
-        })
+        future_runtime_head = "9f230f2e0c44a0157fb58870f10197e5525c227a"
+        future_runtime_tree = "89e7e5e70ca16cfba20f4140df7995a463b7ce31"
+        bind_unique_full_profile_pass(runtime_fixture, future_verification_head)
         runtime_fixture["identities"]["runtime"] = {
             "status": "bound",
             "kind": "git_commit",
-            "value": future_tested_head,
-            "gitTree": "8c2a686e6ed8f7a9ff15c82f4e45996636c49d98",
-        }
-        runtime_fixture["identities"]["verification"] = {
-            "status": "bound_at_check",
-            "kind": "git_ref",
-            "value": "HEAD",
+            "value": future_runtime_head,
+            "gitTree": future_runtime_tree,
         }
         runtime_candidate = copy.deepcopy(archived_seventh)
         runtime_candidate.update({
             "status": "candidate_verified",
             "ordinal": 8,
             "attestationSchema": "task3a-candidate-attestation-v2",
-            "commit": future_tested_head,
-            "gitTree": "8c2a686e6ed8f7a9ff15c82f4e45996636c49d98",
+            "commit": future_runtime_head,
+            "gitTree": future_runtime_tree,
             "runId": "t3a260806080808",
             "forbiddenRunIds": copy.deepcopy(
                 evidence["candidateDeployment"]["forbiddenRunIds"]
@@ -4592,7 +4737,7 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
         }
         runtime_candidate["candidateSource"].update({
             "remotePath": "/var/tmp/wow-task3a-candidate-t3a260806080808",
-            "commit": future_tested_head,
+            "commit": future_runtime_head,
             "gitTree": runtime_candidate["gitTree"],
         })
         runtime_candidate["bundle"].update({
@@ -4603,7 +4748,7 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
         })
         runtime_candidate["attestation"].update({
             "runId": runtime_candidate["runId"],
-            "gitCommit": future_tested_head,
+            "gitCommit": future_runtime_head,
             "gitTree": runtime_candidate["gitTree"],
             "freshDatabase": {
                 key: runtime_candidate["freshDatabase"][key]
@@ -4637,7 +4782,7 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
             "gitIdentity": (
                 "Candidate repository remained clean at exact branch "
                 "codex/equipment-simulator-exact-first-implementation, commit "
-                f"{future_tested_head} and tree {runtime_candidate['gitTree']}."
+                f"{future_runtime_head} and tree {runtime_candidate['gitTree']}."
             ),
             "databaseIdentity": (
                 "All 16 exact database identities were present and matched their "
@@ -4674,7 +4819,80 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
         ]
         runtime_fixture["candidateDeployment"] = runtime_candidate
         runtime_fixture["nextCandidate"] = None
-        assert_lifecycle_semantics(runtime_fixture)
+        self.assertNotEqual(
+            runtime_fixture["commit"], runtime_candidate["commit"]
+        )
+        self.assertEqual(
+            future_verification_head, runtime_fixture["commit"]
+        )
+        self.assertEqual(
+            future_runtime_head, runtime_fixture["identities"]["runtime"]["value"]
+        )
+        allowed_lifecycle_paths = sorted(lifecycle_verification_paths)
+        allowed_promotion_paths = sorted(promotion_window_paths)
+        synthetic_actual_head = "5d4f6c41a67350d919d3156b1d4ecf047e0ea5aa"
+        assert_lifecycle_verification_paths(allowed_lifecycle_paths)
+        with self.subTest("reject duplicate lifecycle verification path"):
+            with self.assertRaises(AssertionError):
+                assert_lifecycle_verification_paths([
+                    *allowed_lifecycle_paths,
+                    allowed_lifecycle_paths[0],
+                ])
+        forbidden_verification_paths = (
+            "server/gear_canonical_kernel.py",
+            "server/migrations/postgres/0030_websim_exact_authority_bundle.sql",
+            "tests/postgres_integration_test.py",
+            "artifacts/releases/2026-08-04-equipment-simulator-exact-first/requirement.json",
+            "docs/backend-owner-map.json",
+            "docs/project-owner-map.json",
+            "artifacts/releases/2026-08-04-equipment-simulator-exact-first/evidence.json",
+            "docs/roadmap.md",
+        )
+        for forbidden_path in forbidden_verification_paths:
+            with self.subTest(forbidden_verification_path=forbidden_path):
+                with self.assertRaises(AssertionError):
+                    assert_lifecycle_verification_paths([
+                        *allowed_lifecycle_paths,
+                        forbidden_path,
+                    ])
+        assert_promotion_window(
+            future_verification_head,
+            synthetic_actual_head,
+            True,
+            allowed_promotion_paths,
+        )
+        with self.subTest("reject non-ancestor verification head"):
+            with self.assertRaises(AssertionError):
+                assert_promotion_window(
+                    future_verification_head,
+                    synthetic_actual_head,
+                    False,
+                    allowed_promotion_paths,
+                )
+        forbidden_promotion_paths = (
+            "server/gear_canonical_kernel.py",
+            "server/migrations/postgres/0030_websim_exact_authority_bundle.sql",
+            "tests/postgres_integration_test.py",
+            "artifacts/releases/2026-08-04-equipment-simulator-exact-first/requirement.json",
+            "docs/backend-owner-map.json",
+            "docs/project-owner-map.json",
+        )
+        for forbidden_path in forbidden_promotion_paths:
+            with self.subTest(forbidden_promotion_path=forbidden_path):
+                with self.assertRaises(AssertionError):
+                    assert_promotion_window(
+                        future_verification_head,
+                        synthetic_actual_head,
+                        True,
+                        [*allowed_promotion_paths, forbidden_path],
+                    )
+        assert_lifecycle_semantics(
+            runtime_fixture,
+            candidate_verification_paths=allowed_lifecycle_paths,
+            promotion_paths=allowed_promotion_paths,
+            actual_head=synthetic_actual_head,
+            verification_head_is_ancestor=True,
+        )
         relabeled_seventh_metadata_fixture = copy.deepcopy(runtime_fixture)
         relabeled_candidate = relabeled_seventh_metadata_fixture["candidateDeployment"]
         relabeled_candidate["evidenceSource"] = copy.deepcopy(
@@ -4687,7 +4905,13 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
         ]["stderrSha256"]
         with self.subTest("reject relabeled seventh candidate-scoped metadata"):
             with self.assertRaises(AssertionError):
-                assert_lifecycle_semantics(relabeled_seventh_metadata_fixture)
+                assert_lifecycle_semantics(
+                    relabeled_seventh_metadata_fixture,
+                    candidate_verification_paths=allowed_lifecycle_paths,
+                    promotion_paths=allowed_promotion_paths,
+                    actual_head=synthetic_actual_head,
+                    verification_head_is_ancestor=True,
+                )
         for flavor, forbidden_database in (
             ("freshDatabase", evidence["candidateDeployment"]["forbiddenDatabases"][0]),
             ("upgradeDatabase", evidence["candidateDeployment"]["forbiddenDatabases"][1]),
@@ -4698,7 +4922,13 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
                     forbidden_database
                 )
                 with self.assertRaises(AssertionError):
-                    assert_lifecycle_semantics(forbidden_database_fixture)
+                    assert_lifecycle_semantics(
+                        forbidden_database_fixture,
+                        candidate_verification_paths=allowed_lifecycle_paths,
+                        promotion_paths=allowed_promotion_paths,
+                        actual_head=synthetic_actual_head,
+                        verification_head_is_ancestor=True,
+                    )
 
         self.assertEqual(
             {
@@ -4714,7 +4944,13 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
             },
             evidence["historicalFailureEvidence"],
         )
-        self.assertEqual(8, evidence["nextCandidate"]["ordinal"])
+        if evidence["status"] in {"implementation_allowed", "local_verified"}:
+            self.assertEqual(
+                evidence["candidateDeployment"]["ordinal"],
+                evidence["nextCandidate"]["ordinal"],
+            )
+        else:
+            self.assertIsNone(evidence["nextCandidate"])
 
 
 if __name__ == "__main__":
