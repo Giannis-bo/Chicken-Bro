@@ -21,7 +21,6 @@ try:
         reload_exact_authority_envelope,
         reload_exact_progression,
     )
-    from .gear_exact_authority_store import ExactAuthorityBundle
     from .gear_exact_item_instance import (
         reload_exact_item,
         reload_exact_static_facts,
@@ -35,7 +34,6 @@ except ImportError:
     from gear_canonical_kernel import CanonicalValueError, canonical_identity_token
     from gear_contracts import CANONICAL_GEAR_SLOTS
     from gear_exact_authority import reload_exact_authority_envelope, reload_exact_progression
-    from gear_exact_authority_store import ExactAuthorityBundle
     from gear_exact_item_instance import reload_exact_item, reload_exact_static_facts
     from gear_resolver import V2_EFFECT_BOUNDARY_SCHEMA_REVISION
     from simc_item_effect_support import reload_effect_aggregate, reload_effect_record
@@ -760,6 +758,18 @@ def _v2_document(value: Any) -> dict[str, Any]:
     return {}
 
 
+def _v2_authority_bundle_type() -> type[Any] | None:
+    """Load the PostgreSQL-owned bundle type only on the v2 authority path."""
+    try:
+        from .gear_exact_authority_store import ExactAuthorityBundle
+    except ImportError:
+        try:
+            from gear_exact_authority_store import ExactAuthorityBundle
+        except ImportError:
+            return None
+    return ExactAuthorityBundle
+
+
 def _rehydrate_v2_bundle(
     value: Any,
     *,
@@ -767,7 +777,13 @@ def _rehydrate_v2_bundle(
     simc_runtime_revision: str,
 ) -> dict[str, dict[str, Any]] | None:
     """Verify one complete Exact Authority Bundle before resolving v2 facts."""
-    if type(value) is not ExactAuthorityBundle or type(value.effect_records) is not tuple or not value.effect_records:
+    bundle_type = _v2_authority_bundle_type()
+    if (
+        bundle_type is None
+        or type(value) is not bundle_type
+        or type(value.effect_records) is not tuple
+        or not value.effect_records
+    ):
         return None
     try:
         exact = reload_exact_item(

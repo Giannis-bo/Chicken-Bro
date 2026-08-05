@@ -1,5 +1,8 @@
 import copy
 from dataclasses import replace
+from pathlib import Path
+import subprocess
+import sys
 import unittest
 from unittest.mock import patch
 
@@ -328,6 +331,25 @@ class GearResolvedLoadoutTest(unittest.TestCase):
             template_scope="community",
             template_content_hash=TEMPLATE_HASH,
         )
+
+    def test_module_imports_from_direct_server_runtime_without_v2_authority_store(self):
+        """Would fail if the v2-only authority store became a startup dependency."""
+        server_dir = Path(__file__).resolve().parents[1] / "server"
+
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                "import gear_resolved_loadout; print(gear_resolved_loadout.RESOLVED_LOADOUT_SCHEMA_REVISION)",
+            ],
+            cwd=server_dir,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.strip(), "resolved-loadout-v1")
 
     def test_ready_loadout_is_deterministic_and_uses_canonical_slot_order(self):
         first = self.build()
