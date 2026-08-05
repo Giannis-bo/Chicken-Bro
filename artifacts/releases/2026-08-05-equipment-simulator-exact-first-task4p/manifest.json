@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-08-05T12:22:10.158Z",
+  "generatedAt": "2026-08-05T12:22:37.144Z",
   "release": {
     "date": "2026-08-05",
     "slug": "equipment-simulator-exact-first-task4p"
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-08-05-equipment-simulator-exact-first-task4p/evidence.json",
-    "sizeBytes": 5138,
+    "sizeBytes": 5163,
     "requiredFields": [
       "schemaVersion",
       "slug",
