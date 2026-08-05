@@ -1071,8 +1071,8 @@
   ],
   "cleanup": {
     "required": true,
-    "status": "candidate_databases_discarded_artifacts_quarantined_task_worktree_branch_pending",
-    "reason": "After merge, post-merge scoped Harness verification, archival record and origin/main parity, only the exact eighth fresh/upgrade candidate databases were discarded. Its four remote artifacts were moved to the named recoverable quarantine and its local bundle to macOS Trash; original paths are absent. The prior seven candidate pairs and fourteen databases were not touched and remain immutable/non-reusable historical evidence.",
+    "status": "completed_with_candidate_databases_discarded_artifacts_quarantined_and_task_branch_removed",
+    "reason": "After merge, post-merge scoped Harness verification, archival record and origin/main parity, only the exact eighth fresh/upgrade candidate databases were discarded. Its four remote artifacts were moved to the named recoverable quarantine and its local bundle to macOS Trash; original paths are absent. The merged Task 3A implementation worktree and its local feature branch were then removed; the remote feature ref was already absent after PR merge. The prior seven candidate pairs and fourteen databases were not touched and remain immutable/non-reusable historical evidence.",
     "preserveThrough": "scoped_cleanup_completed_for_current_candidate_only",
     "executedResources": {
       "discardedDatabases": [
@@ -1081,6 +1081,13 @@
       ],
       "remoteArtifactQuarantine": "/var/tmp/task3a-closure-quarantine-t3a260805163536",
       "localBundleTrash": "/Users/boyuan/.Trash/wow-task3a-t3a260805163536.bundle",
+      "removedImplementationWorktree": "/Users/boyuan/Documents/wow_mini_program/.worktrees/codex-equipment-simulator-exact-first-implementation",
+      "deletedLocalBranch": "codex/equipment-simulator-exact-first-implementation",
+      "deletedLocalRemoteTrackingRef": "refs/remotes/origin/codex/equipment-simulator-exact-first-implementation",
+      "remoteBranch": {
+        "name": "codex/equipment-simulator-exact-first-implementation",
+        "status": "already_absent_after_pr_merge"
+      },
       "originalPathsVerifiedAbsent": [
         "/var/tmp/wow-task3a-candidate-t3a260805163536",
         "/var/tmp/wow-task3a-candidate-t3a260805163536.stdout",
@@ -1147,7 +1154,7 @@
     "docs/plans/2026-08-04-equipment-simulator-exact-first-persistence-resequence.md",
     "docs/postgres-identity-migration-runbook.md"
   ],
-  "summary": "Task 3A remains runtime_verified / candidate_verified. Eighth run t3a260805163536 passed migration 0030 fresh/upgrade PostgreSQL, attestation-v2, controller read-only post-audit and independent review at exact runtime commit 9f230f2e/tree 89e7e5e. Verification packet commit 1714f376/tree 7ba9ff18 separately passed the unique 173-command full profile (Node 747, Python 2718 with two expected skips, Vitest 437) and exact owner-test plus active-plan candidate-to-verification gate. PR #114 merged at 97fca062; its merge result and the archive record each passed scoped Harness verification, and origin/main parity was verified before scoped cleanup. The exact eighth fresh/upgrade candidate databases were then discarded; remote candidate artifacts are recoverably quarantined and the local bundle is in Trash, while the seven historical run ids and fourteen databases were not touched. Formal evidence status and closure identity intentionally remain runtime_verified/candidate_verified and pending because the active Task 3A lifecycle test excludes an archived stage and requires closure pending; no contract/test expansion was part of this closure. This does not authorize or claim production migration, runtime consumer, endpoint, timer, Catalog/Manifest pointer, API, UI, SimC or generation 35 behavior. Task 4P is a separately authorized future pure-domain slice, not part of this packet.",
+  "summary": "Task 3A remains runtime_verified / candidate_verified. Eighth run t3a260805163536 passed migration 0030 fresh/upgrade PostgreSQL, attestation-v2, controller read-only post-audit and independent review at exact runtime commit 9f230f2e/tree 89e7e5e. Verification packet commit 1714f376/tree 7ba9ff18 separately passed the unique 173-command full profile (Node 747, Python 2718 with two expected skips, Vitest 437) and exact owner-test plus active-plan candidate-to-verification gate. PR #114 merged at 97fca062; its merge result and the archive record each passed scoped Harness verification, and origin/main parity was verified before scoped cleanup. The exact eighth fresh/upgrade candidate databases were discarded; remote candidate artifacts are recoverably quarantined and the local bundle is in Trash. The merged Task 3A implementation worktree and local feature branch were removed, and the remote feature ref was already absent after PR merge; the seven historical run ids and fourteen databases were not touched. Formal evidence status and closure identity intentionally remain runtime_verified/candidate_verified and pending because the active Task 3A lifecycle test excludes an archived stage and requires closure pending; no contract/test expansion was part of this closure. This does not authorize or claim production migration, runtime consumer, endpoint, timer, Catalog/Manifest pointer, API, UI, SimC or generation 35 behavior. Task 4P is a separately authorized future pure-domain slice, not part of this packet.",
   "historicalFailureEvidence": {
     "pr": "#114",
     "run": "30977816268",

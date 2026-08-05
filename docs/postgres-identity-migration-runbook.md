@@ -143,6 +143,8 @@ as `97fca062`, the merge result and final archive record passed scoped Harness,
 and main/origin parity was confirmed before scoped cleanup. Only the exact eighth
 fresh/upgrade databases were discarded; current candidate artifacts were moved to
 recoverable quarantine/Trash and all fourteen historical databases were untouched.
+The merged Task 3A implementation worktree and its local feature branch were
+removed; the remote feature ref was already absent after PR merge.
 The formal closure identity remains `pending` because the active Task 3A lifecycle
 test permits no `archived` stage and explicitly requires pending; no lifecycle-contract
 change was included in this closure. Runtime consumers remain empty, production
