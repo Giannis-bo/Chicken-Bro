@@ -13,12 +13,12 @@
   "hotspotFiles": [
     {
       "path": "server/gear_canonical_kernel.py",
-      "healthStatus": "task3a_candidate_rerun_required_evidence_promotion_blocked",
-      "summary": "Owns the completed pure Canonical foundation and source change-control. Task 3A is literal candidate_rerun_required / evidence_promotion_blocked: t3a2608050955 and t3a260805111623 failed in historical 0003; t3a260805113656 was unpromotable; t3a260805120026 was superseded by main migration integration; t3a260805125812 was invalidated by direct-server runtime import; t3a260805142130 passed 0030 and independent audit but its frozen HEAD failed the current-truth owner lifecycle test. All six run pairs and twelve databases are immutable/non-reusable; a seventh new run-id and new database pair are mandatory. No runtime consumer is active.",
+      "healthStatus": "source_change_control_only",
+      "summary": "Owns the completed pure Canonical foundation and stable source change-control for migration 0030 persistence. Exact Task 3A lifecycle stage and candidate history belong to the release evidence packet; this owner map records only the structural owner boundary. No runtime consumer is active.",
       "owners": [
         {
           "id": "equipment_simulator_canonical_kernel_task1_5",
-          "status": "task3a_candidate_rerun_required_evidence_promotion_blocked",
+          "status": "source_change_control_only",
           "factOwner": "server/gear_canonical_kernel.py",
           "kernelSemanticOwner": "server/gear_canonical_kernel.py",
           "slotSetOwner": "server/gear_contracts.py",
@@ -77,7 +77,7 @@
             "task_5a_api_runtime",
             "task_6c_observation_catalog"
           ],
-          "capabilityBoundary": "The pure Canonical foundation and replacement Task 3A earlier implementation review are PASS/APPROVED with zero unresolved findings. Runs t3a2608050955 and t3a260805111623 failed before the former 0026 authority migration; t3a260805113656 passed runtime but was unpromotable; t3a260805120026 is runtime_passed_superseded_by_main_integration; t3a260805125812 is runtime_passed_invalidated_by_direct_runtime_import_regression; t3a260805142130 passed the integrated 0030 chain and independent audit but is runtime_passed_unpromotable_evidence_lifecycle_test_regression because its frozen HEAD failed the owner current-truth lifecycle test. Status is candidate_rerun_required / evidence_promotion_blocked; all six run pairs and twelve databases are immutable/non-reusable, and a seventh new run-id/new database pair is mandatory before evidence promotion. The registry remains test-only, proofClaim stays source_change_control_only, runtimeConsumers is empty, original Task 3 remains stopped, and generation 35, Catalog/pointers, worker, Resolver/API/UI, raw-text privacy and v1 identities remain unchanged."
+          "capabilityBoundary": "The pure Canonical foundation and replacement Task 3A migration 0030 persistence boundary are structurally owned here. The registry remains test-only, proofClaim stays source_change_control_only, runtimeConsumers is empty, original Task 3 remains stopped, and generation 35, Catalog/pointers, worker, Resolver/API/UI, raw-text privacy and v1 identities remain unchanged. Exact lifecycle stage, candidate identity and promotion status are owned exclusively by the current release evidence packet."
         }
       ]
     },

@@ -21,6 +21,9 @@ FIFTH_ATTESTATION_SHA256 = "1700b25d061f112f348addcc7d15de36eba68b8c56a6d33b5513
 SIXTH_CANDIDATE_REPORT_SHA256 = "bd270a780ff8935da789cbdee4522b4a7cc422135a3557eaad91af18c5bb7026"
 SIXTH_CANDIDATE_CANONICAL_SHA256 = "f6fa9cd2a4c17af82b52a64bc4cf99f15f71207c626ae4de13d8f7f9041a8d9d"
 SIXTH_ATTESTATION_SHA256 = "17c20e3d9a8ff538b8029b907d84f2c0e44987a5ce2053be916534b664043711"
+SEVENTH_CANDIDATE_REPORT_SHA256 = "25926d81fa35fc4c11f00a5c41e4f400b07e74a9ce3852fe47ea6683d1d13a88"
+SEVENTH_CANDIDATE_CANONICAL_SHA256 = "32e4a96376868ae5df49fe766c6bd68404183a27b8fae15de7cc4f411930af44"
+SEVENTH_ATTESTATION_SHA256 = "658325f3287469b57652b8574aab1fa301088caf758f8b9c5601e43c37bcb8af"
 REGISTRY_PATH = ROOT / "tests/fixtures/gear_canonical_owner_registry.json"
 TARGETS = frozenset({
     "server/gear_exact_item_instance.py",
@@ -3871,10 +3874,7 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
             if "canonicalKernelFoundations" in domain
         )
         project_foundation = gear_domain["canonicalKernelFoundations"]
-        self.assertEqual(
-            "task3a_candidate_rerun_required_evidence_promotion_blocked",
-            project_foundation["status"],
-        )
+        self.assertEqual("source_change_control_only", project_foundation["status"])
         self.assertEqual(
             "source_change_control_only",
             project_foundation["proofClaim"],
@@ -3911,10 +3911,8 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
             if hotspot["path"] == "server/gear_canonical_kernel.py"
         )
         backend_owner = kernel_hotspot["owners"][0]
-        self.assertEqual(
-            "task3a_candidate_rerun_required_evidence_promotion_blocked",
-            backend_owner["status"],
-        )
+        self.assertEqual("source_change_control_only", kernel_hotspot["healthStatus"])
+        self.assertEqual("source_change_control_only", backend_owner["status"])
         self.assertEqual(
             "source_change_control_only",
             backend_owner["proofClaim"],
@@ -3941,6 +3939,14 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
             expected_blocked_stages,
             backend_owner["blockedReplacementStages"],
         )
+        self.assertNotIn(
+            "candidate_rerun_required", json.dumps(project_foundation)
+        )
+        self.assertNotIn(
+            "evidence_promotion_blocked", json.dumps(project_foundation)
+        )
+        self.assertNotIn("candidate_rerun_required", json.dumps(kernel_hotspot))
+        self.assertNotIn("evidence_promotion_blocked", json.dumps(kernel_hotspot))
 
     def test_task3a_evidence_downgrades_invalidated_fifth_candidate(self):
         evidence = json.loads((
@@ -3998,7 +4004,9 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
                 return
 
             self.assertEqual("candidate_verified", candidate["status"])
-            self.assertEqual(7, candidate["ordinal"])
+            self.assertEqual(
+                len(candidate["forbiddenRunIds"]) + 1, candidate["ordinal"]
+            )
             self.assertNotIn(candidate["runId"], candidate["forbiddenRunIds"])
             for flavor in ("freshDatabase", "upgradeDatabase"):
                 self.assertNotIn(
@@ -4142,7 +4150,7 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
             self.assertFalse(candidate["productionDatabaseWrite"])
 
         assert_lifecycle_semantics(evidence)
-        self.assertEqual(7, evidence["candidateDeployment"]["ordinal"])
+        self.assertEqual(8, evidence["candidateDeployment"]["ordinal"])
         self.assertEqual("0030", evidence["candidateDeployment"]["migration"])
         self.assertEqual(
             "task3a-candidate-attestation-v2",
@@ -4155,6 +4163,7 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
             "t3a260805120026",
             "t3a260805125812",
             "t3a260805142130",
+            "t3a260805160003",
         ]
         expected_databases = [
             f"wow_exact_first_{kind}_test_{run_id}"
@@ -4183,6 +4192,15 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
         self.assertEqual(
             "runtime_passed_unpromotable_evidence_lifecycle_test_regression",
             sixth["status"],
+        )
+        seventh = next(
+            candidate
+            for candidate in evidence["candidateHistory"]
+            if candidate["runId"] == "t3a260805160003"
+        )
+        self.assertEqual(
+            "runtime_passed_unpromotable_current_truth_lifecycle_test_regression",
+            seventh["status"],
         )
 
         future_tested_head = "7f4f6c41a67350d919d3156b1d4ecf047e0ea5cc"
@@ -4235,9 +4253,13 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
             fixture["nextCandidate"] = None
             return fixture
 
+        historical_by_run_id = {
+            item["runId"]: item for item in evidence["historicalCandidateEvidence"]
+        }
         for label, archived_candidate in (
-            ("fifth", evidence["historicalCandidateEvidence"][-2]),
-            ("sixth", evidence["historicalCandidateEvidence"][-1]),
+            ("fifth", historical_by_run_id["t3a260805125812"]),
+            ("sixth", historical_by_run_id["t3a260805142130"]),
+            ("seventh", historical_by_run_id["t3a260805160003"]),
         ):
             with self.subTest(f"reject promotion of forbidden {label} candidate"):
                 fixture = promoted_historical_fixture(archived_candidate)
@@ -4277,7 +4299,7 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
             hashlib.sha256(archived_fourth["attestationJsonLine"].encode("utf-8")).hexdigest(),
         )
 
-        archived_fifth = evidence["historicalCandidateEvidence"][-2]
+        archived_fifth = historical_by_run_id["t3a260805125812"]
         self.assertEqual("t3a260805125812", archived_fifth["runId"])
         self.assertEqual(
             "wow_exact_first_fresh_test_t3a260805125812",
@@ -4316,7 +4338,7 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
             parent_fifth["attestationJsonLine"], archived_fifth["attestationJsonLine"]
         )
         self.assertEqual(parent_fifth["attestation"], archived_fifth["attestation"])
-        archived_sixth = evidence["historicalCandidateEvidence"][-1]
+        archived_sixth = historical_by_run_id["t3a260805142130"]
         self.assertEqual("t3a260805142130", archived_sixth["runId"])
         self.assertEqual("candidate_verified", archived_sixth["status"])
         self.assertEqual(
@@ -4444,6 +4466,80 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
         self.assertFalse(archived_sixth["publicPointerChange"])
         self.assertFalse(archived_sixth["productionDatabaseWrite"])
 
+        archived_seventh = historical_by_run_id["t3a260805160003"]
+        self.assertEqual("candidate_verified", archived_seventh["status"])
+        self.assertEqual(
+            SEVENTH_CANDIDATE_CANONICAL_SHA256,
+            hashlib.sha256(canonical(archived_seventh)).hexdigest(),
+        )
+        self.assertEqual(
+            {
+                "path": ".superpowers/sdd/2026-08-04-equipment-simulator-exact-first-persistence-resequence/task-3A-seventh-cloud-candidate-report.md",
+                "sha256": SEVENTH_CANDIDATE_REPORT_SHA256,
+                "bytes": 5899,
+                "lineCount": 118,
+            },
+            archived_seventh["evidenceSource"],
+        )
+        self.assertEqual(
+            "8c9490cdc074001ca58c03a6e67bacf2806b33fa",
+            archived_seventh["commit"],
+        )
+        self.assertEqual(
+            "f71aad198ab66e4ff22b6f893b004bccfd3e35b4",
+            archived_seventh["gitTree"],
+        )
+        self.assertEqual(
+            {
+                "remotePath": "/var/tmp/wow-task3a-t3a260805160003.bundle",
+                "localPath": "/tmp/wow-task3a-t3a260805160003.bundle",
+                "bytes": 116037142,
+                "sha256": "ff0394557bd85ac8c4191e5276b2fbf52f7cdb0e981a9640a06e60ba9bf3c7fd",
+            },
+            archived_seventh["bundle"],
+        )
+        self.assertEqual(
+            SEVENTH_ATTESTATION_SHA256,
+            hashlib.sha256(
+                archived_seventh["attestationJsonLine"].encode("utf-8")
+            ).hexdigest(),
+        )
+        self.assertEqual(
+            archived_seventh["attestationJsonLine"],
+            json.dumps(
+                archived_seventh["attestation"],
+                ensure_ascii=False,
+                separators=(",", ":"),
+                sort_keys=True,
+            ),
+        )
+        self.assertEqual(14, len(archived_seventh["attestation"]["verifiedChecks"]))
+        self.assertEqual(
+            "All 14 historical/current database identities",
+            archived_seventh["postCandidateAudit"]["databaseIdentity"],
+        )
+        for flavor, seeded_rows in (("fresh", 0), ("upgrade", 1)):
+            audit = archived_seventh["postCandidateAudit"][flavor]
+            self.assertEqual(30, audit["migrationLedger"]["total"])
+            self.assertEqual(1, audit["migrationLedger"]["migration0003Rows"])
+            self.assertEqual(1, audit["migrationLedger"]["migration0030Rows"])
+            self.assertEqual(20, audit["authorityCounts"]["canonicalDocuments"])
+            self.assertEqual(10, audit["authorityCounts"]["effectAggregateRecords"])
+            self.assertEqual(3, audit["authorityCounts"]["exactAuthorityBundles"])
+            self.assertEqual(seeded_rows, audit["authorityCounts"]["seededV1Rows"])
+        self.assertEqual(
+            [
+                "/tmp/wow-task3a-t3a260805160003.bundle",
+                "/var/tmp/wow-task3a-t3a260805160003.bundle",
+                "/var/tmp/wow-task3a-candidate-t3a260805160003",
+                "/var/tmp/wow-task3a-candidate-t3a260805160003.stdout",
+                "/var/tmp/wow-task3a-candidate-t3a260805160003.stderr",
+                "wow_exact_first_fresh_test_t3a260805160003",
+                "wow_exact_first_upgrade_test_t3a260805160003",
+            ],
+            archived_seventh["preservedResources"],
+        )
+
         runtime_fixture = copy.deepcopy(evidence)
         runtime_fixture["status"] = "runtime_verified"
         runtime_fixture["highestEvidenceLevel"] = "runtime_verified"
@@ -4463,14 +4559,14 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
             "kind": "git_ref",
             "value": "HEAD",
         }
-        runtime_candidate = copy.deepcopy(archived_sixth)
+        runtime_candidate = copy.deepcopy(archived_seventh)
         runtime_candidate.update({
             "status": "candidate_verified",
-            "ordinal": 7,
+            "ordinal": 8,
             "attestationSchema": "task3a-candidate-attestation-v2",
             "commit": future_tested_head,
             "gitTree": "8c2a686e6ed8f7a9ff15c82f4e45996636c49d98",
-            "runId": "t3a260806070707",
+            "runId": "t3a260806080808",
             "forbiddenRunIds": copy.deepcopy(
                 evidence["candidateDeployment"]["forbiddenRunIds"]
             ),
@@ -4479,27 +4575,29 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
             ),
         })
         runtime_candidate["evidenceSource"] = {
-            "path": ".superpowers/sdd/2026-08-04-equipment-simulator-exact-first-persistence-resequence/task-3A-seventh-cloud-candidate-t3a260806070707-report.md",
+            "path": ".superpowers/sdd/2026-08-04-equipment-simulator-exact-first-persistence-resequence/task-3A-eighth-cloud-candidate-t3a260806080808-report.md",
             "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "bytes": 6000,
+            "lineCount": 120,
         }
         runtime_candidate["freshDatabase"] = {
-            "name": "wow_exact_first_fresh_test_t3a260806070707",
-            "comment": "wow_exact_first_disposable:t3a260806070707:fresh",
+            "name": "wow_exact_first_fresh_test_t3a260806080808",
+            "comment": "wow_exact_first_disposable:t3a260806080808:fresh",
             "preservationStatus": "preserved_pending_packet_archival_and_scoped_review",
         }
         runtime_candidate["upgradeDatabase"] = {
-            "name": "wow_exact_first_upgrade_test_t3a260806070707",
-            "comment": "wow_exact_first_disposable:t3a260806070707:upgrade",
+            "name": "wow_exact_first_upgrade_test_t3a260806080808",
+            "comment": "wow_exact_first_disposable:t3a260806080808:upgrade",
             "preservationStatus": "preserved_pending_packet_archival_and_scoped_review",
         }
         runtime_candidate["candidateSource"].update({
-            "remotePath": "/var/tmp/wow-task3a-candidate-t3a260806070707",
+            "remotePath": "/var/tmp/wow-task3a-candidate-t3a260806080808",
             "commit": future_tested_head,
             "gitTree": runtime_candidate["gitTree"],
         })
         runtime_candidate["bundle"].update({
-            "remotePath": "/var/tmp/wow-task3a-t3a260806070707.bundle",
-            "localPath": "/tmp/wow-task3a-t3a260806070707.bundle",
+            "remotePath": "/var/tmp/wow-task3a-t3a260806080808.bundle",
+            "localPath": "/tmp/wow-task3a-t3a260806080808.bundle",
             "bytes": 115856793,
             "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
         })
@@ -4527,10 +4625,10 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
         )
         runtime_candidate["processEvidence"].update({
             "wallDurationMs": 3200,
-            "stdoutPath": "/var/tmp/wow-task3a-candidate-t3a260806070707.stdout",
+            "stdoutPath": "/var/tmp/wow-task3a-candidate-t3a260806080808.stdout",
             "stdoutSha256": hashlib.sha256(runtime_stdout).hexdigest(),
             "stdoutBytes": len(runtime_stdout),
-            "stderrPath": "/var/tmp/wow-task3a-candidate-t3a260806070707.stderr",
+            "stderrPath": "/var/tmp/wow-task3a-candidate-t3a260806080808.stderr",
             "stderrSha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
             "stderrBytes": 99,
             "unittestSummary": "Ran 1 test in 3.050s; OK",
@@ -4542,11 +4640,11 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
                 f"{future_tested_head} and tree {runtime_candidate['gitTree']}."
             ),
             "databaseIdentity": (
-                "All 14 exact database identities were present and matched their "
+                "All 16 exact database identities were present and matched their "
                 "exact comments."
             ),
             "historicalDatabaseComments": [
-                *archived_sixth["postCandidateAudit"]["historicalDatabaseComments"],
+                *archived_seventh["postCandidateAudit"]["historicalDatabaseComments"],
                 {
                     "name": runtime_candidate["freshDatabase"]["name"],
                     "comment": runtime_candidate["freshDatabase"]["comment"],
@@ -4558,38 +4656,38 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
             ],
         })
         runtime_candidate["smoke"]["summary"] = (
-            "The independent test-only seventh fixture passed its coherent "
+            "The independent test-only eighth fixture passed its coherent "
             "candidate-scoped PostgreSQL evidence checks."
         )
         runtime_candidate["reason"] = (
-            "The independent test-only seventh fixture carries no sixth-candidate "
+            "The independent test-only eighth fixture carries no seventh-candidate "
             "report, bundle, checkout, process, run, database or runtime identity."
         )
         runtime_candidate["preservedResources"] = [
-            "/tmp/wow-task3a-t3a260806070707.bundle",
-            "/var/tmp/wow-task3a-t3a260806070707.bundle",
-            "/var/tmp/wow-task3a-candidate-t3a260806070707",
-            "/var/tmp/wow-task3a-candidate-t3a260806070707.stdout",
-            "/var/tmp/wow-task3a-candidate-t3a260806070707.stderr",
+            "/tmp/wow-task3a-t3a260806080808.bundle",
+            "/var/tmp/wow-task3a-t3a260806080808.bundle",
+            "/var/tmp/wow-task3a-candidate-t3a260806080808",
+            "/var/tmp/wow-task3a-candidate-t3a260806080808.stdout",
+            "/var/tmp/wow-task3a-candidate-t3a260806080808.stderr",
             runtime_candidate["freshDatabase"]["name"],
             runtime_candidate["upgradeDatabase"]["name"],
         ]
         runtime_fixture["candidateDeployment"] = runtime_candidate
         runtime_fixture["nextCandidate"] = None
         assert_lifecycle_semantics(runtime_fixture)
-        relabeled_sixth_metadata_fixture = copy.deepcopy(runtime_fixture)
-        relabeled_candidate = relabeled_sixth_metadata_fixture["candidateDeployment"]
+        relabeled_seventh_metadata_fixture = copy.deepcopy(runtime_fixture)
+        relabeled_candidate = relabeled_seventh_metadata_fixture["candidateDeployment"]
         relabeled_candidate["evidenceSource"] = copy.deepcopy(
-            archived_sixth["evidenceSource"]
+            archived_seventh["evidenceSource"]
         )
         for key in ("bytes", "sha256"):
-            relabeled_candidate["bundle"][key] = archived_sixth["bundle"][key]
-        relabeled_candidate["processEvidence"]["stderrSha256"] = archived_sixth[
+            relabeled_candidate["bundle"][key] = archived_seventh["bundle"][key]
+        relabeled_candidate["processEvidence"]["stderrSha256"] = archived_seventh[
             "processEvidence"
         ]["stderrSha256"]
-        with self.subTest("reject relabeled sixth candidate-scoped metadata"):
+        with self.subTest("reject relabeled seventh candidate-scoped metadata"):
             with self.assertRaises(AssertionError):
-                assert_lifecycle_semantics(relabeled_sixth_metadata_fixture)
+                assert_lifecycle_semantics(relabeled_seventh_metadata_fixture)
         for flavor, forbidden_database in (
             ("freshDatabase", evidence["candidateDeployment"]["forbiddenDatabases"][0]),
             ("upgradeDatabase", evidence["candidateDeployment"]["forbiddenDatabases"][1]),
@@ -4616,7 +4714,7 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
             },
             evidence["historicalFailureEvidence"],
         )
-        self.assertEqual(7, evidence["nextCandidate"]["ordinal"])
+        self.assertEqual(8, evidence["nextCandidate"]["ordinal"])
 
 
 if __name__ == "__main__":

@@ -49,6 +49,12 @@ TASK_3A_CURRENT_TRUTH_FILES = (
     ROOT / "docs" / "project-owner-map.json",
     ROOT / "docs" / "roadmap.md",
 )
+TASK_3A_LIFECYCLE_STATUS_FILES = (
+    ROOT / "docs" / "plans" / "2026-08-04-equipment-simulator-exact-first-persistence-resequence.md",
+    ROOT / "docs" / "plans" / "README.md",
+    ROOT / "docs" / "postgres-identity-migration-runbook.md",
+    ROOT / "docs" / "roadmap.md",
+)
 POSTGRES_MIGRATIONS_0001_0030 = tuple(sorted(
     (ROOT / "server" / "migrations" / "postgres").glob("[0-9][0-9][0-9][0-9]_*.sql")
 ))
@@ -639,6 +645,17 @@ $unsafe$;
         )
         self.assertEqual(requirement["status"], "implementation_allowed")
 
+        evidence = json.loads(
+            (ROOT / "artifacts/releases/2026-08-04-equipment-simulator-exact-first/evidence.json")
+            .read_text(encoding="utf-8")
+        )
+        stage = evidence["status"]
+        self.assertIn(
+            stage,
+            {"implementation_allowed", "local_verified", "runtime_verified"},
+        )
+        self.assertEqual(stage, evidence["highestEvidenceLevel"])
+
         backend_owner_map = json.loads(
             (ROOT / "docs" / "backend-owner-map.json").read_text(encoding="utf-8")
         )
@@ -648,49 +665,63 @@ $unsafe$;
             if hotspot["path"] == "server/gear_canonical_kernel.py"
         )
         summary = canonical_kernel_hotspot["summary"]
-        self.assertIn("candidate_rerun_required", summary)
-        self.assertIn("evidence_promotion_blocked", summary)
-        self.assertIn("t3a2608050955", summary)
-        self.assertIn("t3a260805111623", summary)
-        self.assertIn("t3a260805113656", summary)
-        self.assertIn("t3a260805120026", summary)
-        self.assertIn("t3a260805125812", summary)
-        self.assertIn("t3a260805142130", summary)
+        self.assertIn("source change-control", summary)
         self.assertIn("0030", summary)
+        self.assertNotIn("candidate_rerun_required", summary)
+        self.assertNotIn("evidence_promotion_blocked", summary)
 
         for path in TASK_3A_CURRENT_TRUTH_FILES:
             with self.subTest(path=path):
                 current_truth = path.read_text(encoding="utf-8")
-                self.assertIn("candidate_rerun_required", current_truth)
-                self.assertIn("evidence_promotion_blocked", current_truth)
-                self.assertIn("t3a260805120026", current_truth)
-                self.assertIn("t3a260805125812", current_truth)
-                self.assertIn("t3a260805142130", current_truth)
                 self.assertIn("0030", current_truth)
 
-        evidence = json.loads(
-            (ROOT / "artifacts/releases/2026-08-04-equipment-simulator-exact-first/evidence.json")
-            .read_text(encoding="utf-8")
-        )
-        current_risks = {risk["id"]: risk for risk in evidence["risks"]}
-        promotion_risk = current_risks["evidence-promotion-and-delivery-closure"]
-        self.assertEqual(
-            "evidence_promotion_blocked_candidate_rerun_required",
-            promotion_risk["status"],
-        )
-        self.assertNotIn("promotion_review_passed", promotion_risk["status"])
-        self.assertNotIn("bound to the fifth", promotion_risk["detail"])
+        for path in TASK_3A_LIFECYCLE_STATUS_FILES:
+            with self.subTest(lifecycle_status_path=path):
+                current_truth = path.read_text(encoding="utf-8")
+                self.assertIn("t3a260805160003", current_truth)
+                self.assertIn(
+                    "runtime_passed_unpromotable_current_truth_lifecycle_test_regression",
+                    current_truth,
+                )
 
-        checklist = "\n".join(
-            (ROOT / "docs/plans/2026-08-04-equipment-simulator-exact-first-persistence-resequence.md")
-            .read_text(encoding="utf-8")
-            .splitlines()[218:235]
+        if stage in {"implementation_allowed", "local_verified"}:
+            current_risks = {risk["id"]: risk for risk in evidence["risks"]}
+            promotion_risk = current_risks[
+                "evidence-promotion-and-delivery-closure"
+            ]
+            self.assertEqual(
+                "evidence_promotion_blocked_candidate_rerun_required",
+                promotion_risk["status"],
+            )
+            self.assertNotIn("promotion_review_passed", promotion_risk["status"])
+            self.assertNotIn("bound to the fifth", promotion_risk["detail"])
+            for path in TASK_3A_LIFECYCLE_STATUS_FILES:
+                with self.subTest(pre_runtime_path=path):
+                    current_truth = path.read_text(encoding="utf-8")
+                    self.assertIn("candidate_rerun_required", current_truth)
+                    self.assertIn("evidence_promotion_blocked", current_truth)
+        else:
+            self.assertEqual(
+                "candidate_verified", evidence["candidateDeployment"]["status"]
+            )
+            self.assertEqual(
+                "bound", evidence["identities"]["runtime"]["status"]
+            )
+
+        plan = (
+            ROOT
+            / "docs/plans/2026-08-04-equipment-simulator-exact-first-persistence-resequence.md"
+        ).read_text(encoding="utf-8")
+        self.assertIn("Seventh candidate `t3a260805160003`", plan)
+        self.assertIn(
+            "runtime_passed_unpromotable_current_truth_lifecycle_test_regression",
+            plan,
         )
-        self.assertIn("Sixth candidate `t3a260805142130`", checklist)
-        self.assertIn("runtime_passed_unpromotable_evidence_lifecycle_test_regression", checklist)
-        self.assertIn("current evidence is `implementation_allowed / candidate_pending`", checklist)
-        self.assertNotIn("final Task 3A code/test state", checklist)
-        self.assertNotIn("current evidence is `local_verified / candidate_pending`", checklist)
+        if stage in {"implementation_allowed", "local_verified"}:
+            self.assertIn(
+                f"current evidence is `{stage} / candidate_pending`", plan
+            )
+        self.assertNotIn("final Task 3A code/test state", plan)
 
     def test_migration_number_prefixes_are_globally_unique(self):
         migrations = POSTGRES_MIGRATIONS_0001_0030
