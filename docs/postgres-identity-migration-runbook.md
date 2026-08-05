@@ -73,8 +73,10 @@ SELECT-only `wow_app` privileges in both databases. That remains immutable histo
 However, origin/main subsequently occupied migration ids `0026..0029`, so safe integration
 must move Task 3A to `0030`, changing its path, ledger identity, SHA and full migration chain.
 The fourth run is therefore `runtime_passed_superseded_by_main_integration`, not current
-`runtime_verified` evidence. Current status is literal `candidate_rerun_required /
-evidence_promotion_blocked`; runtime consumers remain empty and Task 4P+ is not authorized.
+`runtime_verified` evidence. origin/main integration and the 0030 local verification matrix
+passed at merge commit `1619815c`; evidence is `local_verified / candidate_pending`, while
+runtime promotion truth remains literal `candidate_rerun_required / evidence_promotion_blocked`.
+Runtime consumers remain empty and Task 4P+ is not authorized.
 
 All four run-id pairs and all eight databases are immutable/non-reusable
 evidence: never reset or reuse them. The test suite never creates, drops, resets

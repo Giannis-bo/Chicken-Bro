@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILLS: Use `superpowers:subagent-driven-development`, `superpowers:test-driven-development`, and `superpowers:verification-before-completion`. This plan forward-replaces the old implementation plan's Task 3 and later execution order after two independent readiness audits returned `NOT_READY`.
 
-状态：`正在推进（Task 3A candidate_rerun_required / evidence_promotion_blocked：第四次 candidate t3a260805120026 在 commit 9ffd57b05ab97be880daf65425d6de9e26609e32 / tree 4f4a857ed52d65e04ab6bccfc5b3ac4649c3d94e 上真实通过当时的 0026 fresh/upgrade 链；origin/main 随后占用 0026-0029，Task 3A 必须顺延到 0030，因此第四次 run 为 runtime_passed_superseded_by_main_integration，不能证明最终集成字节。四个 run 的八库全部 immutable/non-reusable；完成主线集成与本地验证后最高仅 local_verified / candidate_pending，必须在最终 clean head 上以第五个新 run-id 和两座新库重跑。无 production migration/runtime consumer，Task 4P+ 未授权）`
+状态：`正在推进（Task 3A local_verified / candidate_pending；runtime promotion truth 仍为 candidate_rerun_required / evidence_promotion_blocked。origin/main 已在 merge commit 1619815c 无历史改写集成，主线 0026-0029 原样保留，Task 3A 为唯一 0030；365 Task 3A、519 main backend、40 Node/Harness、TypeScript typecheck 与 25 Vitest 全部通过，独立 whole-branch CR 无未解决 code finding。第四次 t3a260805120026 真实通过旧 0026 链但已 runtime_passed_superseded_by_main_integration；四个 run 的八库全部 immutable/non-reusable，必须在最终 clean packet head 上以第五个新 run-id 和两座新库重跑。无 production migration/runtime consumer，Task 4P+ 未授权）`
 
 ## Goal
 
@@ -226,6 +226,7 @@ Read path loads exact canonical bytes, reconstructs Exact -> Static/Progression 
 - [x] Freeze both existing v1/v2 Exact keys.
 - [x] Independent spec/code review is `PASS/APPROVED` with zero unresolved findings on the final Task 3A code/test state.
 - [x] Fourth candidate `t3a260805120026` genuinely passed the former 0026 chain and remains immutable historical evidence, but is `runtime_passed_superseded_by_main_integration` and cannot close the integrated Task 3A.
+- [x] origin/main integration, 0030 correction, local verification and independent whole-branch CR passed at merge commit `1619815c`; current evidence is `local_verified / candidate_pending`.
 - [ ] Fifth candidate PostgreSQL evidence from explicit 0030 DSNs is mandatory before Task 3A is `已完成`; use a new run-id and two new databases, then repeat post-audit and evidence promotion.
 - [ ] schema-v2 evidence and manifest currently preserve the superseded fourth candidate but must not claim `runtime_verified`; after fifth-run promotion they must be regenerated and independently reviewed.
 - [ ] Branch publication、CI、merge/archive closure 和候选资源清理仍 pending；在这些交付门禁关闭前，Task 3A 不标记 `已完成`，也不授权 Task 4P 或任何 production/runtime 消费。

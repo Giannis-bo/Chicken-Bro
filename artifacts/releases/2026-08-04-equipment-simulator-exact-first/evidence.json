@@ -2,22 +2,23 @@
   "schemaVersion": 2,
   "slug": "equipment-simulator-exact-first",
   "requirementSlug": "equipment-simulator-exact-first",
-  "status": "implementation_allowed",
-  "highestEvidenceLevel": "implementation_allowed",
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
   "branch": "codex/equipment-simulator-exact-first-implementation",
-  "commit": "pending-main-integration-head",
+  "commit": "1619815c2c7e5182b9333d121ad300ad173b0dcd",
   "identities": {
     "runtime": {
       "status": "pending",
       "reason": "The fourth 0026 candidate genuinely passed but is superseded by origin/main migration 0026-0029 and the required Task 3A move to 0030. A fifth clean integrated candidate has not run."
     },
     "verification": {
-      "status": "pending",
-      "reason": "Main integration, 0030 correction and current local verification are still in progress."
+      "status": "bound_at_check",
+      "kind": "git_ref",
+      "value": "HEAD"
     },
     "closure": {
       "status": "pending",
-      "reason": "The historical fourth candidate is superseded. Current local verification, fifth candidate, promotion review, branch publication, CI, merge and archive closure remain pending."
+      "reason": "Main integration, 0030 correction, local verification and integrated-head review passed. Fifth candidate, promotion review, branch publication, CI, merge and archive closure remain pending."
     }
   },
   "manualAcceptance": {
@@ -40,44 +41,54 @@
   ],
   "verification": [
     {
-      "command": "Integrate origin/main, move Task 3A to migration 0030, run the full scoped local matrix, and bind the clean integrated HEAD",
-      "status": "not_run",
-      "summary": "In progress. Until this completes, current evidence remains implementation_allowed rather than local_verified."
+      "command": "git merge --no-ff origin/main; resolve Task 3A migration to 0030; bind integration commit 1619815c2c7e5182b9333d121ad300ad173b0dcd",
+      "status": "pass",
+      "summary": "origin/main c6d8d91d is the second parent of non-rewriting merge commit 1619815c; main migrations 0026-0029 remain unchanged and Task 3A is the globally unique 0030 migration."
     },
     {
       "command": "python3 -m unittest -v tests.gear_canonical_kernel_test tests.gear_canonical_owner_gate_test tests.gear_exact_item_instance_test tests.gear_exact_authority_test tests.simc_item_effect_support_test tests.simc_item_effect_probe_test tests.simc_item_effect_probe_cli_test tests.gear_exact_authority_store_test tests.gear_exact_authority_store_import_boundary_test tests.postgres_schema_test tests.postgres_integration_test tests.postgres_cache_store_test tests.simulation_snapshot_store_test tests.simc_gear_import_test",
       "status": "pass",
-      "summary": "Historical 0026 packet only: 360 tests passed before origin/main integration. It does not verify the current 0030 tree."
+      "summary": "365 Task 3A Python tests passed on the integrated 0030 tree; two candidate-environment-only cases skipped and are not counted as candidate evidence."
     },
     {
       "command": "node --test tests/project-harness.test.js tests/project-owner-map.test.js tests/backend-owner-map.test.js",
       "status": "pass",
-      "summary": "Historical 0026 packet only: 40 Node/Harness/owner-map tests passed. Current merged-main verification is pending."
+      "summary": "40 Node/Harness/owner-map tests passed on the integrated tree."
+    },
+    {
+      "command": "python3 -m unittest tests.chickenbro_agent_test tests.chickenbro_community_strength_test tests.chickenbro_current_sources_test tests.chickenbro_eval_test tests.chickenbro_evidence_plan_test tests.chickenbro_native_agent_test tests.chickenbro_observability_test tests.chickenbro_public_web_research_test tests.chickenbro_question_frame_test tests.chickenbro_registry_test tests.chickenbro_research_test tests.chickenbro_stream_test tests.chickenbro_tool_runtime_test tests.codex_worker_test tests.database_adapter_test tests.deploy_lighthouse_test tests.llm_client_test tests.news_backend_test tests.postgres_ops_store_test tests.warcraftlogs_timeout_test",
+      "status": "pass",
+      "summary": "519 origin/main Chickenbro/backend integration tests passed after correcting one stale v4 trace expectation to the current v5 schema."
+    },
+    {
+      "command": "npm run typecheck && npm run test:taro -- packages/domain/src/gear-intent.test.ts packages/api-client/src/simulator.test.ts apps/mini-taro/src/pages/simulator/simulator-home-dock-contract.test.ts",
+      "status": "pass",
+      "summary": "TypeScript typecheck passed and three affected Vitest files passed 25 tests after adopting strict index-signature access."
     },
     {
       "command": "node scripts/project-harness.js --json --check-requirement --requirement-file artifacts/releases/2026-08-04-equipment-simulator-exact-first/requirement.json",
       "status": "pass",
-      "summary": "Historical check only. The current 0030 requirement will be checked again after integration."
+      "summary": "The current Strict requirement passed and remains implementation_allowed for the fifth candidate gate."
     },
     {
       "command": "node -e 'const fs=require(\"fs\"); for (const f of process.argv.slice(1)) JSON.parse(fs.readFileSync(f, \"utf8\"))' docs/project-state.json docs/project-owner-map.json docs/backend-owner-map.json docs/schemas/harness-requirement.schema.json docs/schemas/harness-evidence.schema.json docs/templates/harness-requirement.json docs/templates/harness-evidence.json artifacts/releases/2026-08-04-equipment-simulator-exact-first/requirement.json artifacts/releases/2026-08-04-equipment-simulator-exact-first/evidence.json",
       "status": "pass",
-      "summary": "Historical check only. Current JSON will be checked again after integration."
+      "summary": "All scoped current Harness JSON parsed successfully."
     },
     {
       "command": "node -e 'const fs=require(\"fs\"),Ajv=require(\"ajv\"); const schema=JSON.parse(fs.readFileSync(\"docs/schemas/harness-evidence.schema.json\",\"utf8\")); delete schema[\"$schema\"]; const evidence=JSON.parse(fs.readFileSync(\"artifacts/releases/2026-08-04-equipment-simulator-exact-first/evidence.json\",\"utf8\")); const validate=new Ajv({allErrors:true,schemaId:\"auto\"}).compile(schema); if(!validate(evidence)) throw new Error(JSON.stringify(validate.errors));'",
       "status": "pass",
-      "summary": "Historical check only. The downgraded superseded packet and later fifth-run packet require fresh schema validation."
+      "summary": "The local_verified superseded-candidate packet satisfied docs/schemas/harness-evidence.schema.json."
     },
     {
       "command": "python3 -m py_compile server/gear_canonical_kernel.py server/gear_exact_item_instance.py server/gear_exact_authority.py server/simc_item_effect_support.py server/gear_exact_authority_store.py tests/gear_canonical_kernel_test.py tests/gear_canonical_owner_gate_test.py tests/gear_exact_item_instance_test.py tests/gear_exact_authority_test.py tests/simc_item_effect_support_test.py tests/gear_exact_authority_store_test.py tests/gear_exact_authority_store_import_boundary_test.py tests/postgres_schema_test.py tests/postgres_integration_test.py tests/simc_gear_import_test.py",
       "status": "pass",
-      "summary": "Historical 0026 packet only. Current 0030 sources require fresh compilation."
+      "summary": "The current scoped Python source and tests compiled successfully."
     },
     {
       "command": "git diff --check",
       "status": "pass",
-      "summary": "Historical 0026 packet only. Current integrated diff requires a fresh check."
+      "summary": "No whitespace errors were present in the integrated packet diff."
     },
     {
       "command": "WOW_PG_TEST_RUN_ID_0026=t3a260805120026 WOW_PG_TEST_DSN_FRESH_0026=<redacted> WOW_PG_TEST_DSN_UPGRADE_0026=<redacted> python3 -m unittest tests.postgres_integration_test.PostgresExactAuthorityCandidateTest",
@@ -386,5 +397,5 @@
     "docs/plans/2026-08-04-equipment-simulator-exact-first-persistence-resequence.md",
     "docs/postgres-identity-migration-runbook.md"
   ],
-  "summary": "Task 3A is implementation_allowed / candidate_rerun_required / evidence_promotion_blocked. Fourth run t3a260805120026 genuinely passed the former 0026 chain, but origin/main later occupied migrations 0026-0029; safe integration moves Task 3A to 0030 and invalidates that run for current promotion. Its attestation-v1, commit/tree/SHA, two databases and process evidence remain immutable historical truth. All four prior run pairs and eight databases are non-reusable. Main integration and fresh local verification are pending; after those, evidence may rise only to local_verified / candidate_pending. A fifth new run-id, two new databases, fresh 0001..0030, upgrade 0001..0029-seed-to-0030, attestation-v2 and independent promotion review are mandatory before runtime_verified. No production migration, endpoint, timer, runtime consumer, Catalog/Manifest pointer, API, UI or SimC behavior changed; Task 4P+ remains unauthorized."
+  "summary": "Task 3A is local_verified / candidate_pending, while engineering truth remains candidate_rerun_required / evidence_promotion_blocked for runtime promotion. origin/main is integrated at non-rewriting merge commit 1619815c; main migrations 0026-0029 remain unchanged and Task 3A is globally unique migration 0030. Integrated verification passed 365 Task 3A Python tests with two expected candidate skips, 519 main backend tests, 40 Node/Harness owner tests, TypeScript typecheck and 25 affected Vitest tests; independent whole-branch CR found no unresolved code finding. Fourth run t3a260805120026 genuinely passed the former 0026 chain but is runtime_passed_superseded_by_main_integration; its attestation-v1, commit/tree/SHA, two databases and process evidence remain immutable historical truth. All four prior run pairs and eight databases are non-reusable. A fifth new run-id, two new databases, fresh 0001..0030, upgrade 0001..0029-seed-to-0030, attestation-v2 and independent promotion review are mandatory before runtime_verified. No production migration, endpoint, timer, runtime consumer, Catalog/Manifest pointer, API, UI or SimC behavior changed; Task 4P+ remains unauthorized."
 }

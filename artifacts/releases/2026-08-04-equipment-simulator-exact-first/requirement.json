@@ -121,7 +121,7 @@
   },
   "engineeringHealth": {
     "status": "task3a_candidate_rerun_required_evidence_promotion_blocked",
-    "reason": "Task 3A code passed its earlier scoped review, and fourth candidate t3a260805120026 genuinely passed the then-current 0026 chain. origin/main later occupied migration ids 0026-0029, so safe integration requires Task 3A to move atomically to 0030 and changes its migration path, ledger identity, file SHA, tests, requirement and owner contracts. The fourth candidate is therefore runtime_passed_superseded_by_main_integration, not current promotable evidence. Status is literal candidate_rerun_required / evidence_promotion_blocked; all four run-id pairs and all eight databases are immutable and non-reusable. A fifth run from the final integrated clean head with a new run-id and two new databases is mandatory. runtimeConsumers remains empty and original Task 3 stays stopped."
+    "reason": "origin/main was integrated without history rewrite at merge commit 1619815c2c7e5182b9333d121ad300ad173b0dcd; its migrations 0026-0029 remain unchanged and Task 3A moved atomically to 0030. Integrated verification passed 365 Task 3A tests with two expected candidate skips, 519 main backend tests, 40 Node/Harness owner tests, TypeScript typecheck and 25 affected Vitest tests; independent whole-branch CR found no unresolved code finding. Evidence is therefore local_verified / candidate_pending, but engineering promotion truth remains literal candidate_rerun_required / evidence_promotion_blocked. Fourth candidate t3a260805120026 genuinely passed the former 0026 chain and is runtime_passed_superseded_by_main_integration, not current promotable evidence. All four run-id pairs and eight databases are immutable and non-reusable. A fifth run from the final clean packet head with a new run-id and two new databases is mandatory. runtimeConsumers remains empty and original Task 3 stays stopped."
   },
   "dataPrivacyBoundary": {
     "rawPluginText": "ephemeral parser input only; it must not be persisted, logged, templated, queued, included in artifact evidence, or returned in output payloads.",
@@ -216,6 +216,10 @@
     {
       "date": "2026-08-05",
       "decision": "origin/main 随后发布 PostgreSQL migrations 0026-0029。为避免编号碰撞并保留主线历史，Task 3A 当前 migration 原子顺延为 0030，未来预留改为 0031-0033。迁移路径、ledger、SHA、完整链、测试、requirement 与 owner contract 均发生 candidate-invalidating 变化，因此第四次 run 降为 runtime_passed_superseded_by_main_integration；必须在最终集成 clean head 上以第五个新 run-id、新双库和 attestation-v2 重跑，期间保持 candidate_rerun_required / evidence_promotion_blocked。"
+    },
+    {
+      "date": "2026-08-05",
+      "decision": "origin/main 已以非改写 merge commit 1619815c2c7e5182b9333d121ad300ad173b0dcd 集成；Task 3A 0030、主线 0026-0029、owner contracts 和双侧代码同时保留。365 Task 3A、519 main backend、40 Node/Harness、TypeScript typecheck 与 25 Vitest 全部通过，独立 whole-branch CR 无未解决代码 finding。当前 evidence 提升到 local_verified / candidate_pending；runtime identity 仍 pending，必须第五次新双库 candidate 方可晋升。"
     }
   ]
 }
