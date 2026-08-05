@@ -666,6 +666,29 @@ $unsafe$;
                 self.assertIn("t3a260805125812", current_truth)
                 self.assertIn("0030", current_truth)
 
+        evidence = json.loads(
+            (ROOT / "artifacts/releases/2026-08-04-equipment-simulator-exact-first/evidence.json")
+            .read_text(encoding="utf-8")
+        )
+        current_risks = {risk["id"]: risk for risk in evidence["risks"]}
+        promotion_risk = current_risks["evidence-promotion-and-delivery-closure"]
+        self.assertEqual(
+            "evidence_promotion_blocked_candidate_rerun_required",
+            promotion_risk["status"],
+        )
+        self.assertNotIn("promotion_review_passed", promotion_risk["status"])
+        self.assertNotIn("bound to the fifth", promotion_risk["detail"])
+
+        checklist = "\n".join(
+            (ROOT / "docs/plans/2026-08-04-equipment-simulator-exact-first-persistence-resequence.md")
+            .read_text(encoding="utf-8")
+            .splitlines()[218:235]
+        )
+        self.assertIn("historical clean candidate code/test state", checklist)
+        self.assertIn("implementation_allowed`, not `local_verified`", checklist)
+        self.assertNotIn("final Task 3A code/test state", checklist)
+        self.assertNotIn("current evidence is `local_verified / candidate_pending`", checklist)
+
     def test_migration_number_prefixes_are_globally_unique(self):
         migrations = POSTGRES_MIGRATIONS_0001_0030
         prefixes = [path.name.split("_", 1)[0] for path in migrations]

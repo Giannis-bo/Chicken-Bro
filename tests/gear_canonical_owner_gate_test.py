@@ -5,12 +5,16 @@ from dataclasses import dataclass
 import hashlib
 import json
 from pathlib import Path
+import subprocess
 import unittest
 
 from server.gear_contracts import CANONICAL_GEAR_SLOTS
 
 
 ROOT = Path(__file__).resolve().parents[1]
+FIFTH_CANDIDATE_PARENT_COMMIT = "f2d4bca16a8d806cfcff2a4cfdb31f6e90de4174"
+FIFTH_CANDIDATE_CANONICAL_SHA256 = "a3bf169c8bf19e4ad8e496f377248c14d39be214c64cc801fa949e2195c7408b"
+FIFTH_ATTESTATION_SHA256 = "1700b25d061f112f348addcc7d15de36eba68b8c56a6d33b55135a178744139e"
 REGISTRY_PATH = ROOT / "tests/fixtures/gear_canonical_owner_registry.json"
 TARGETS = frozenset({
     "server/gear_exact_item_instance.py",
@@ -3951,10 +3955,29 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
             evidence["candidateDeployment"]["attestationSchema"],
         )
         self.assertIn("t3a260805125812", evidence["candidateDeployment"]["forbiddenRunIds"])
-        self.assertTrue(any(
-            "t3a260805125812" in database
-            for database in evidence["candidateDeployment"]["forbiddenDatabases"]
-        ))
+        self.assertIsNone(evidence["candidateDeployment"]["runId"])
+        self.assertIsNone(evidence["candidateDeployment"]["freshDatabase"])
+        self.assertIsNone(evidence["candidateDeployment"]["upgradeDatabase"])
+        self.assertIsNone(evidence["nextCandidate"]["runId"])
+        self.assertIsNone(evidence["nextCandidate"]["freshDatabase"])
+        self.assertIsNone(evidence["nextCandidate"]["upgradeDatabase"])
+        expected_run_ids = [
+            "t3a2608050955",
+            "t3a260805111623",
+            "t3a260805113656",
+            "t3a260805120026",
+            "t3a260805125812",
+        ]
+        expected_databases = [
+            f"wow_exact_first_{kind}_test_{run_id}"
+            for run_id in expected_run_ids
+            for kind in ("fresh", "upgrade")
+        ]
+        self.assertEqual(expected_run_ids, evidence["candidateDeployment"]["forbiddenRunIds"])
+        self.assertEqual(expected_databases, evidence["candidateDeployment"]["forbiddenDatabases"])
+        self.assertEqual(expected_run_ids, [
+            candidate["runId"] for candidate in evidence["candidateHistory"]
+        ])
         fifth = next(
             candidate
             for candidate in evidence["candidateHistory"]
@@ -3964,12 +3987,62 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
             "runtime_passed_invalidated_by_direct_runtime_import_regression",
             fifth["status"],
         )
-        self.assertEqual("t3a260805125812", evidence["historicalCandidateEvidence"][-1]["runId"])
+        archived_fifth = evidence["historicalCandidateEvidence"][-1]
+        self.assertEqual("t3a260805125812", archived_fifth["runId"])
+        self.assertEqual(
+            "wow_exact_first_fresh_test_t3a260805125812",
+            archived_fifth["freshDatabase"]["name"],
+        )
+        self.assertEqual(
+            "wow_exact_first_upgrade_test_t3a260805125812",
+            archived_fifth["upgradeDatabase"]["name"],
+        )
         self.assertEqual(
             "t3a260805125812",
-            evidence["historicalCandidateEvidence"][-1]["attestation"]["runId"],
+            archived_fifth["attestation"]["runId"],
         )
-        self.assertIn("92215539827", evidence["historicalFailureEvidence"]["job"])
+        parent = subprocess.run(
+            [
+                "git", "show",
+                f"{FIFTH_CANDIDATE_PARENT_COMMIT}:artifacts/releases/2026-08-04-equipment-simulator-exact-first/evidence.json",
+            ],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        parent_fifth = json.loads(parent.stdout)["candidateDeployment"]
+        canonical = lambda value: json.dumps(
+            value, ensure_ascii=True, separators=(",", ":"), sort_keys=True
+        ).encode("utf-8")
+        self.assertEqual(
+            FIFTH_CANDIDATE_CANONICAL_SHA256,
+            hashlib.sha256(canonical(parent_fifth)).hexdigest(),
+        )
+        self.assertEqual(parent_fifth, archived_fifth)
+        self.assertEqual(canonical(parent_fifth), canonical(archived_fifth))
+        self.assertEqual(
+            FIFTH_ATTESTATION_SHA256,
+            hashlib.sha256(archived_fifth["attestationJsonLine"].encode("utf-8")).hexdigest(),
+        )
+        self.assertEqual(
+            parent_fifth["attestationJsonLine"], archived_fifth["attestationJsonLine"]
+        )
+        self.assertEqual(parent_fifth["attestation"], archived_fifth["attestation"])
+        self.assertEqual(
+            {
+                "pr": "#114",
+                "run": "30977816268",
+                "job": "92215539827",
+                "tests": [
+                    "GearRuntimeTest.test_runtime_imports_from_server_directory_for_direct_backend_startup",
+                    "PgGearAuthorityLoaderTest.test_loader_imports_in_direct_server_runtime_mode",
+                ],
+                "cause": "server/gear_canonical_kernel.py used only server.gear_contracts while direct backend startup runs from server/ where the server package is unavailable.",
+                "nonCause": "The Node deprecation warning is historical noise and is not the failure cause.",
+            },
+            evidence["historicalFailureEvidence"],
+        )
         self.assertEqual("candidate_pending", evidence["nextCandidate"]["status"])
 
 

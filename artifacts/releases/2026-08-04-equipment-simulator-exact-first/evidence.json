@@ -495,8 +495,8 @@
     },
     {
       "id": "main-integration-migration-drift",
-      "status": "resolved_by_0030_integration_and_fifth_candidate",
-      "detail": "origin/main migration ids 0026-0029 were preserved unchanged; Task 3A moved atomically to globally unique 0030, passed the full integrated local matrix and the fifth exact clean fresh/upgrade candidate."
+      "status": "historical_0030_integration_superseded_by_direct_runtime_regression",
+      "detail": "origin/main migration ids 0026-0029 were preserved unchanged and Task 3A moved atomically to globally unique 0030. The fifth exact clean fresh/upgrade candidate is historical-only because its source later failed the direct-server runtime gate."
     },
     {
       "id": "production-and-runtime-activation",
@@ -505,12 +505,12 @@
     },
     {
       "id": "evidence-promotion-and-delivery-closure",
-      "status": "promotion_review_passed_delivery_closure_pending",
-      "detail": "Runtime evidence is bound to the fifth candidate and independent promotion review passed. Branch publication, CI, merge and packet archival remain pending. Task 3A is not yet marked 已完成."
+      "status": "evidence_promotion_blocked_candidate_rerun_required",
+      "detail": "Fifth-run attestation and review are immutable historical evidence only. Current runtime and verification identities are pending; controller full local verification and a sixth new run-id-bound fresh/upgrade candidate are required before evidence promotion."
     },
     {
       "id": "candidate-resource-retention",
-      "status": "pending_cleanup_after_archival_and_review",
+      "status": "preserved_pending_sixth_candidate_and_archival",
       "detail": "All ten database identities plus the fourth and fifth candidate repositories, logs and local/remote bundles remain preserved; no resource has been cleaned or reused."
     },
     {
