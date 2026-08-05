@@ -91,9 +91,11 @@ full-profile run `30977816268`, job `92215539827`, then failed
 and `PgGearAuthorityLoaderTest.test_loader_imports_in_direct_server_runtime_mode`:
 its source used only `server.gear_contracts` while direct startup runs from `server/`.
 The Node deprecation warning was not the cause. The compatibility correction is
-candidate-invalidating, so current evidence is `implementation_allowed / candidate_pending`,
-engineering truth is `candidate_rerun_required / evidence_promotion_blocked`, and runtime
-consumers remain empty, production migration was not executed and Task 4P+ is not authorized.
+candidate-invalidating. The controller subsequently completed the exact full local profile
+at clean HEAD `87ba835f20bc0ca9eb762419a08b9be4ee54057a`, so current evidence is
+`local_verified / candidate_pending`; engineering truth remains
+`candidate_rerun_required / evidence_promotion_blocked` until the sixth candidate passes.
+Runtime consumers remain empty, production migration was not executed and Task 4P+ is not authorized.
 
 All five run-id pairs and all ten databases are immutable/non-reusable
 evidence: never reset or reuse them. The test suite never creates, drops, resets
@@ -189,8 +191,9 @@ Local/skipped runs emit no successful attestation and must not create or update
 either evidence file.
 
 Leave the fifth pair intact as immutable historical evidence; it cannot be used for
-current promotion. After controller full-local verification, the sixth pair must use a
-new run id and two new operator-provisioned databases.
+current promotion. The controller full-local verification has passed at clean HEAD
+`87ba835f20bc0ca9eb762419a08b9be4ee54057a`; the sixth pair must use a new run id and two new
+operator-provisioned databases.
 After candidate execution, any change to code, tests, migration,
 requirement or owner contracts invalidates both candidates. Only an operator may
 discard the two exact database identities after archival; the suite never does.
@@ -199,9 +202,10 @@ Missing `psql`, either DSN, or the run id is a skipped candidate and remains
 superseded attestation-v1 history and the fifth as
 `runtime_passed_invalidated_by_direct_runtime_import_regression`; neither can be reused.
 The historical `candidate_rerun_required / evidence_promotion_blocked` status is again
-current until the sixth pair passes. Current runtime and verification identities are
-pending; this correction does not claim current local verification. The technically
-successful `t3a260805113656` attestation also remains unpromotable.
+current until the sixth pair passes. Runtime identity remains pending; verification is
+bound_at_check to the exact successful clean local profile at HEAD
+`87ba835f20bc0ca9eb762419a08b9be4ee54057a`. The technically successful
+`t3a260805113656` attestation also remains unpromotable.
 No production migration is authorized.
 
 ## SQLite Source Inventory

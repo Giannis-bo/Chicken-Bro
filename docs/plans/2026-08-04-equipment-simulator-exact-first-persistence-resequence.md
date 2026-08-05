@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILLS: Use `superpowers:subagent-driven-development`, `superpowers:test-driven-development`, and `superpowers:verification-before-completion`. This plan forward-replaces the old implementation plan's Task 3 and later execution order after two independent readiness audits returned `NOT_READY`.
 
-状态：`正在推进（Task 3A implementation_allowed / candidate_pending。第五次 t3a260805125812 的 0030 fresh/upgrade 与原始 attestation-v2 保留为 immutable 历史，但 PR #114 full-profile run 30977816268/job 92215539827 证明其 exact source 在 direct-server startup 回归；因此为 runtime_passed_invalidated_by_direct_runtime_import_regression。当前 runtime/verification identities 均 pending，五个 run 的十库全部 immutable/non-reusable，必须第六次新 run-id/双库在 controller full local profile 后重跑。literal candidate_rerun_required / evidence_promotion_blocked 是当前工程真相；无 production migration/runtime consumer，Task 4P+ 未授权）`
+状态：`正在推进（Task 3A local_verified / candidate_pending。exact full local profile 已在 clean HEAD 87ba835f20bc0ca9eb762419a08b9be4ee54057a 通过并绑定 verification；第五次 t3a260805125812 的 0030 fresh/upgrade 与原始 attestation-v2 保留为 immutable 历史，但 PR #114 full-profile run 30977816268/job 92215539827 证明其 exact source 在 direct-server startup 回归；因此为 runtime_passed_invalidated_by_direct_runtime_import_regression。runtime/closure identities 仍 pending，五个 run 的十库全部 immutable/non-reusable，必须第六次新 run-id/双库重跑。literal candidate_rerun_required / evidence_promotion_blocked 仍是当前工程真相；无 production migration/runtime consumer，Task 4P+ 未授权）`
 
 ## Goal
 
@@ -231,12 +231,12 @@ Read path loads exact canonical bytes, reconstructs Exact -> Static/Progression 
 - [x] origin/main integration, 0030 correction, local verification and independent whole-branch CR passed at merge commit `1619815c` as historical pre-correction evidence; current evidence is not `local_verified`.
 - [x] Fifth candidate `t3a260805125812` genuinely passed from exact clean commit `a4c0fd04` / tree `aa0908eb` using two new explicit-commented databases; its attestation-v2 and post-audit are immutable historical evidence.
 - [x] PR #114 full-profile run `30977816268` / job `92215539827` identified the direct-server import regression and focused RED/GREEN correction; the Node deprecation warning is not the cause.
-- [ ] Controller full local profile remains pending; current evidence stays `implementation_allowed`, not `local_verified`.
+- [x] Controller full local profile passed at clean tested HEAD `87ba835f20bc0ca9eb762419a08b9be4ee54057a`: `node scripts/verify-project.js --profile full --release-from-changes --base origin/main` exited 0 with `status=project_verification_passed`, `commands=173`; evidence is `local_verified / candidate_pending` and verification is `bound_at_check`. Historical clean candidate code/test state required `implementation_allowed`, not `local_verified`; that historical requirement-gate failure remains immutable and is not this current local-promotion claim.
 - [ ] Sixth candidate needs a new run-id and two new databases. Fifth history status is `runtime_passed_invalidated_by_direct_runtime_import_regression`; `candidate_rerun_required / evidence_promotion_blocked` remains current engineering truth.
 
 `t3a2608050955` 与 `t3a260805111623` 已在 `0003` 前失败；`t3a260805113656` runtime passed 但 requirement gate 错误使其不可晋升；第四次 `t3a260805120026` 真实通过 former 0026 chain，但 main integration 强制迁移到 0030，故为 `runtime_passed_superseded_by_main_integration`。第五次 `t3a260805125812` 真实通过最终 0030 链，但其 exact source 被 PR #114 直接 server runtime 回归失效，故为 `runtime_passed_invalidated_by_direct_runtime_import_regression`。十座库全部 immutable/non-reusable；第六次新 run-id/双库 mandatory，且 no production migration/runtime consumer。
 
-2026-08-05 首轮独立实现 review 返回 `CHANGES_REQUIRED`；相关 findings 已完成 RED/GREEN correction，第四次真实双 PostgreSQL candidate 与当时 Harness packet 也确曾通过。随后 origin/main migration 漂移使 packet 失效；0030 集成修正与第五次 candidate 也曾通过。PR #114 后发现 direct-server import regression，故第五次不能继续作为当前验证或 promotion；当前只恢复诚实的 `implementation_allowed / candidate_pending` packet，controller 的 full local profile 与第六次 candidate 仍 pending。`implementation_allowed` 不等于 production/live/release-ready。
+2026-08-05 首轮独立实现 review 返回 `CHANGES_REQUIRED`；相关 findings 已完成 RED/GREEN correction，第四次真实双 PostgreSQL candidate 与当时 Harness packet 也确曾通过。随后 origin/main migration 漂移使 packet 失效；0030 集成修正与第五次 candidate 也曾通过。PR #114 后发现 direct-server import regression，故第五次不能继续作为当前验证或 promotion。controller 的 exact full local profile 已在 clean HEAD `87ba835f20bc0ca9eb762419a08b9be4ee54057a` 通过，故当前为诚实的 `local_verified / candidate_pending`；第六次 candidate 仍 pending，`candidate_rerun_required / evidence_promotion_blocked` 未解除。`local_verified` 不等于 production/live/release-ready。
 
 ---
 
