@@ -73,16 +73,26 @@ SELECT-only `wow_app` privileges in both databases. That remains immutable histo
 However, origin/main subsequently occupied migration ids `0026..0029`, so safe integration
 must move Task 3A to `0030`, changing its path, ledger identity, SHA and full migration chain.
 The fourth run is therefore `runtime_passed_superseded_by_main_integration`, not current
-`runtime_verified` evidence. origin/main integration and the 0030 local verification matrix
-passed at merge commit `1619815c`; evidence is `local_verified / candidate_pending`, while
-runtime promotion truth remains literal `candidate_rerun_required / evidence_promotion_blocked`.
-Runtime consumers remain empty and Task 4P+ is not authorized.
+0030 evidence. origin/main integration and the 0030 local verification matrix passed at
+merge commit `1619815c`.
 
-All four run-id pairs and all eight databases are immutable/non-reusable
+The fifth run `t3a260805125812` then passed fresh `0001..0030` and upgrade
+`0001..0029` plus frozen-v1 seed/snapshot plus `0030` from exact clean commit
+`a4c0fd04b39577838ad4fb7a0e3c54b8e0205c30` / tree
+`aa0908eb8214d9572fc604e3399321c5d6eb3754`. Its single-line
+`task3a-candidate-attestation-v2` binds both exact database identities and migration
+`0030` SHA-256 `41e12fd5b12cac79ed57dde266e4b515b0b731dfcc9c9874d818ddc306f957c3`
+to 14 verified checks. The read-only post-audit confirmed 30 ledger rows, one
+`0003`, one `0030`, the exact target constraint, expected authority counts and
+SELECT-only `wow_app` privileges in both databases. Evidence is now
+`runtime_verified / promotion_review_pending`; runtime consumers remain empty,
+production migration was not executed and Task 4P+ is not authorized.
+
+All five run-id pairs and all ten databases are immutable/non-reusable
 evidence: never reset or reuse them. The test suite never creates, drops, resets
 or reuses any candidate database.
 
-The eight non-reusable database identities are:
+The ten non-reusable database identities are:
 
 - `wow_exact_first_fresh_test_t3a2608050955` and
   `wow_exact_first_upgrade_test_t3a2608050955`;
@@ -91,12 +101,14 @@ The eight non-reusable database identities are:
 - `wow_exact_first_fresh_test_t3a260805113656` and
   `wow_exact_first_upgrade_test_t3a260805113656`;
 - `wow_exact_first_fresh_test_t3a260805120026` and
-  `wow_exact_first_upgrade_test_t3a260805120026`.
+  `wow_exact_first_upgrade_test_t3a260805120026`;
+- `wow_exact_first_fresh_test_t3a260805125812` and
+  `wow_exact_first_upgrade_test_t3a260805125812`.
 
-Because the 0030 integration correction is candidate-invalidating, do not reuse any
-prior identity. Choose one new lowercase run id matching `[a-z0-9]{8,32}`; the suite
-rejects all four historically forbidden ids before importing `psycopg` or connecting.
-An operator
+Because the 0030 integration correction was candidate-invalidating, the fifth run did
+not reuse any prior identity. It used a new lowercase run id matching
+`[a-z0-9]{8,32}`; the suite rejects all four historically forbidden ids before importing
+`psycopg` or connecting. An operator
 with explicit authority provisions two distinct empty databases and exact database
 comments:
 
@@ -169,15 +181,17 @@ the run id, both database identities, commit/tree/migration hashes,
 Local/skipped runs emit no successful attestation and must not create or update
 either evidence file.
 
-Leave both exact databases intact through evidence/manifest archival and scoped
-review. After candidate execution, any change to code, tests, migration,
+Leave the fifth pair intact through evidence/manifest archival and scoped review.
+After candidate execution, any change to code, tests, migration,
 requirement or owner contracts invalidates both candidates. Only an operator may
 discard the two exact database identities after archival; the suite never does.
 Missing `psql`, either DSN, or the run id is a skipped candidate and remains
 `candidate_pending`, never green evidence. The fourth pair remains intact as
 superseded attestation-v1 history and can never be reused. The historical
-`candidate_rerun_required / evidence_promotion_blocked` status applies until a fifth
-new pair passes the final integrated 0030 chain and is independently promoted.
+`candidate_rerun_required / evidence_promotion_blocked` status was cleared only after
+the fifth new pair passed the final integrated 0030 chain; current status is
+`runtime_verified / promotion_review_pending` until the clean packet is independently
+reviewed and delivery closure is completed.
 The technically successful `t3a260805113656` attestation also remains unpromotable.
 No production migration is authorized.
 
