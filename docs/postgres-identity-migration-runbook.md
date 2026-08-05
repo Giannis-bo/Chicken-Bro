@@ -85,7 +85,7 @@ The fifth run `t3a260805125812` then passed fresh `0001..0030` and upgrade
 to 14 verified checks. The read-only post-audit confirmed 30 ledger rows, one
 `0003`, one `0030`, the exact target constraint, expected authority counts and
 SELECT-only `wow_app` privileges in both databases. Evidence is now
-`runtime_verified / promotion_review_pending`; runtime consumers remain empty,
+`runtime_verified / promotion_review_passed / delivery_closure_pending`; runtime consumers remain empty,
 production migration was not executed and Task 4P+ is not authorized.
 
 All five run-id pairs and all ten databases are immutable/non-reusable
@@ -190,8 +190,8 @@ Missing `psql`, either DSN, or the run id is a skipped candidate and remains
 superseded attestation-v1 history and can never be reused. The historical
 `candidate_rerun_required / evidence_promotion_blocked` status was cleared only after
 the fifth new pair passed the final integrated 0030 chain; current status is
-`runtime_verified / promotion_review_pending` until the clean packet is independently
-reviewed and delivery closure is completed.
+`runtime_verified / promotion_review_passed / delivery_closure_pending`; the clean packet
+passed independent re-review, while delivery closure remains incomplete.
 The technically successful `t3a260805113656` attestation also remains unpromotable.
 No production migration is authorized.
 
