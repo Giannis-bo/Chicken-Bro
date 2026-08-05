@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILLS: Use `superpowers:subagent-driven-development`, `superpowers:test-driven-development`, and `superpowers:verification-before-completion`. This plan forward-replaces the old implementation plan's Task 3 and later execution order after two independent readiness audits returned `NOT_READY`.
 
-状态：`正在推进（Task 3A bounded corrections、本地验证及两位 fresh 独立 reviewer 的最终复审均已 PASS/APPROVED、0 findings；fresh/upgrade 两个真实 PostgreSQL candidate 尚未完成；本机缺少 psql/明确 DSN，保持 literal candidate_pending；未生成 evidence/manifest；无 runtime consumer）`
+状态：`正在推进（Task 3A 首次真实 candidate 在 0003 之前失败，当前为 candidate_failed / migration_chain_blocked；授权的最小 0003 migration-chain correction 尚未验证；failed run t3a2608050955 与两库仅保留为证据，不得重置或复用；未生成 evidence/manifest；无 runtime consumer）`
 
 ## Goal
 
@@ -45,7 +45,7 @@
 ## Execution authority and changed-file boundaries
 
 - 每一阶段开始前重新读取 `docs/project-state.json`、`docs/roadmap.md`、本计划、原实施计划顶部的 stopped/replacement 状态和 Harness requirement；只以本计划中该阶段的 allowlist 为执行权。目录存在、旧 checkbox 或 Git 历史都不授予执行权。
-- Task 3A 的完整 allowlist 就是下方 Scope 列出的代码/测试/迁移，加 `docs/plans/README.md`、`docs/roadmap.md`、原 Exact-first 实施计划及四份 Canonical foundation/correction 计划的顶部状态、本计划、Harness `requirement.json`/`evidence.json`/`manifest.json`、两个 owner map 和 `docs/postgres-identity-migration-runbook.md` 的任务状态/候选数据库说明。最后这些控制面文件不得借机改变产品承诺。
+- Task 3A 的完整 allowlist 就是下方 Scope 列出的代码/测试/迁移，加 `docs/plans/README.md`、`docs/roadmap.md`、原 Exact-first 实施计划及四份 Canonical foundation/correction 计划的顶部状态、本计划、Harness `requirement.json`/`evidence.json`/`manifest.json`、两个 owner map 和 `docs/postgres-identity-migration-runbook.md` 的任务状态/候选数据库说明。2026-08-05 授权的 migration-chain correction 额外且仅允许 `server/migrations/postgres/0003_build_template_config_hash_unique.sql`，以及已经允许的两份 PostgreSQL 测试和上述状态控制面；最后这些控制面文件不得借机改变产品承诺。
 - Task 4P 只允许修改 `server/gear_resolver.py`、`server/gear_rule_matrix.py`、`server/gear_resolved_loadout.py`、`server/simulation_snapshot.py`、`server/simulation_snapshot_compat.py`、`tests/gear_resolver_test.py`、`tests/gear_rule_matrix_test.py`、`tests/gear_resolved_loadout_test.py`、`tests/simulation_snapshot_test.py`、`tests/simulation_snapshot_compat_test.py`，再加上述状态控制面文件；不得改 DB、service、deploy、API 或 UI。
 - Task 4L 在执行前必须先冻结独立 owner、canonical aggregate schema、完整性证明、文件 allowlist 和 persistence impact，并通过 plan review；当前没有实现授权。
 - Task 3B 只允许修改 `server/migrations/postgres/0027_websim_exact_snapshot_v2.sql`、`server/simulation_snapshot_store.py`、`tests/simulation_snapshot_store_test.py`、`tests/postgres_schema_test.py`、`tests/postgres_integration_test.py` 与状态控制面文件；不得引入 job/worker/runtime consumer。
@@ -72,6 +72,7 @@
 
 **Persistence**
 
+- Modify: `server/migrations/postgres/0003_build_template_config_hash_unique.sql` only for the authorized fail-closed semantic-idempotence migration-chain correction
 - Create: `server/migrations/postgres/0026_websim_exact_authority_bundle.sql`
 - Create: `server/gear_exact_authority_store.py`
 - Create: `tests/gear_exact_authority_store_test.py`
@@ -97,6 +98,12 @@
 - Modify: this plan only for checklist/status
 
 Task 3A must not modify `simulation_snapshot_store.py`, `postgres_cache_store.py`, jobs, worker, API, Resolver, loadout/snapshot domain schemas, deployment, Catalog or runtime.
+
+### 2026-08-05 authorized migration-chain correction
+
+The first real candidate at `f90a302040f722fec0807bd600f8e2242169801c` failed before `0026`: `0001` already creates `UNIQUE (user_id, template_type, config_hash)` under PostgreSQL's legacy generated name, while `0003` unconditionally adds `build_templates_user_id_template_type_config_hash_key`. Current status is literal `candidate_failed / migration_chain_blocked`; failed run `t3a2608050955` and both failed databases are evidence only and must never be reset or reused.
+
+Before a new candidate run, tests must prove old `0003` lacks strict target table/type/ordered-column verification, fails explicit drift detection and relies on an unconditional add rather than semantic idempotence. The only permitted production SQL correction retains the legacy-name drop; conditionally creates the target unique constraint only when absent; then verifies with `pg_catalog.pg_constraint` and `pg_catalog.pg_attribute` that exactly one target constraint is on `app.build_templates`, has `contype = 'u'`, and ordered columns `user_id, template_type, config_hash`, otherwise raises an explicit exception. It must not swallow `duplicate_object`, drop/recreate an already-correct target, change `0001`, add a retro migration or reconcile ledger state. Both real candidate paths must finally assert exactly one correct target constraint, no legacy-name constraint and exactly one `0003_build_template_config_hash_unique` ledger row. No evidence/manifest may be created until a new fresh and upgrade candidate pass at the final committed head.
 
 ### Canonical reload contract
 
@@ -212,6 +219,7 @@ Read path loads exact canonical bytes, reconstructs Exact -> Static/Progression 
 - [x] RED store: full frozen-dataclass round-trip, `A/B/A` batch order, identical idempotency, collision, missing component, wrong runtime/rule/resolver, duplicate/gapped/extra/missing effect-record ordinal, repeated same record at two ordinals, reordered non-adjacent duplicate, concurrent same-key writes, tampered canonical bytes/hash/JSON projection, distinct `1`/`1.0`/exponent lexical bytes and partial transaction rollback.
 - [x] RED store import boundary: direct Kernel-private/domain-validator/serializer/Catalog imports fail while typed reload imports pass; registry remains five targets/nine exemptions and `source_change_control_only`.
 - [x] RED SQL/static: exact kind/schema/prefix/hash/bytes-to-JSON matrix, both aggregate FKs, component FKs/binding trigger, fixed search path, immutable triggers, wow_app SELECT-only and unique migration identity.
+- [x] RED migration-chain correction: old `0003` lacks strict `app.build_templates`/`contype = 'u'`/ordered-column verification, explicit semantic-drift failure and fail-closed handling; focused test fails against the unconditional target add.
 - [ ] RED PostgreSQL integration uses two operator-provisioned empty disposable databases and never creates/drops a database. `WOW_PG_TEST_RUN_ID_0026` matching `^[a-z0-9]{8,32}$`, `WOW_PG_TEST_DSN_FRESH_0026`, and `WOW_PG_TEST_DSN_UPGRADE_0026` are mandatory. The DSNs must identify distinct `wow_exact_first_fresh_test_<run-id>` and `wow_exact_first_upgrade_test_<run-id>` databases whose database comments are exactly `wow_exact_first_disposable:<run-id>:fresh` and `wow_exact_first_disposable:<run-id>:upgrade`. Before any write, the suite rejects any existing project schema (`identity|app|content|cache|knowledge|analytics|ops`), `ops.schema_migrations`, project table or mismatched/missing comment. Fresh then applies `0001..0026`. Upgrade starts from the independently proven empty DB, applies `0001..0025`, seeds frozen v1 rows and row hashes, snapshots them, then applies `0026`. Verify the before/after v1 snapshot is byte-for-byte equal plus hash/JSON/FK/trigger/grant/concurrency/bundle behavior. Both candidates bind the final runtime-affecting commit SHA, its Git tree SHA and migration file SHA-256; candidate 后只允许 evidence/manifest 与任务状态文档变化，任何代码、测试、migration、requirement 或 owner-contract 变化都使 candidate 失效并要求重跑。Harness verification identity 另行绑定最终 PR HEAD。Databases remain intact through evidence/manifest archival and review; only then may the operator discard those exact identities. Tests never reset, drop or reuse a prior run-id.
 - [x] Implement minimal reload/store/migration; do not add jobs or snapshot v2.
 - [x] Run focused suites, full Canonical matrix, owner gate, existing v1 store/snapshot suites, Node/Harness/JSON/pycompile/diff.
@@ -219,9 +227,9 @@ Read path loads exact canonical bytes, reconstructs Exact -> Static/Progression 
 - [x] Independent spec/code review is `PASS/APPROVED` with zero unresolved findings on the final Task 3A code/test state.
 - [ ] Candidate PostgreSQL evidence from both explicit DSNs is mandatory before Task 3A is `已完成`. Missing `psql` or either DSN yields literal `candidate_pending`; one database, a shared development database, skipped tests or schema-only mocks cannot be packaged as green.
 
-本地实现已覆盖双候选测试拓扑，但当前 checkout 无 `psql`，且未提供三个 Task 3A candidate 环境变量；因此真实 PostgreSQL 行保持未勾选，状态为 literal `candidate_pending`，不得生成或晋升 `evidence.json`/`manifest.json`。
+首次真实 candidate 已在 `0003` 前失败，当前 checkout 必须保持 literal `candidate_failed / migration_chain_blocked`，不得生成或晋升 `evidence.json`/`manifest.json`。`t3a2608050955` 与两库只保留为失败证据；新的 candidate 必须使用新 run id 和两座新建、独立、空的 operator-provisioned 数据库。新的 fresh/upgrade candidate 都必须验证恰有一个 named config-hash target constraint、`contype = 'u'`、`user_id/template_type/config_hash` 有序列、无 legacy name constraint，以及恰有一个 `0003` ledger row。
 
-2026-08-05 首轮独立实现 review 返回 `CHANGES_REQUIRED`；deterministic document insertion、exact import allowlist、absent-row reverse-shared-record concurrency、精确 SQL/ACL/upgrade parity、单行 candidate attestation 与 closed-universe static gates 等 findings 已完成 RED/GREEN correction。最终 Task 3A code/test state 经两位 fresh 独立 reviewer 复审均为 `PASS/APPROVED`、0 findings；真实双 PostgreSQL candidate 仍是唯一未关闭门禁。
+2026-08-05 首轮独立实现 review 返回 `CHANGES_REQUIRED`；deterministic document insertion、exact import allowlist、absent-row reverse-shared-record concurrency、精确 SQL/ACL/upgrade parity、单行 candidate attestation 与 closed-universe static gates 等 findings 已完成 RED/GREEN correction。此前 Task 3A code/test state 经两位 fresh 独立 reviewer 复审均为 `PASS/APPROVED`、0 findings；本次 failed migration-chain correction 仍需在最终状态上重新完成 scoped independent review，真实双 PostgreSQL candidate 仍是硬门禁。
 
 ---
 

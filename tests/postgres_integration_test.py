@@ -324,6 +324,38 @@ class PostgresExactAuthorityCandidateTest(unittest.TestCase):
         if sqlstate is not None:
             self.assertEqual(raised.exception.sqlstate, sqlstate)
 
+    def _assert_build_template_config_hash_constraint(self, dsn):
+        target_name = "build_templates_user_id_template_type_config_hash_key"
+        legacy_name = "build_templates_user_id_template_type_name_key"
+        expected_columns = ("user_id", "template_type", "config_hash")
+        with self._connect(dsn) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT con.conname, con.contype, "
+                    "ARRAY(SELECT attr.attname "
+                    "FROM pg_catalog.unnest(con.conkey) WITH ORDINALITY "
+                    "AS keyed(attnum, ordinal) "
+                    "JOIN pg_catalog.pg_attribute attr "
+                    "ON attr.attrelid = con.conrelid AND attr.attnum = keyed.attnum "
+                    "ORDER BY keyed.ordinal) "
+                    "FROM pg_catalog.pg_constraint con "
+                    "JOIN pg_catalog.pg_class rel ON rel.oid = con.conrelid "
+                    "JOIN pg_catalog.pg_namespace nsp ON nsp.oid = rel.relnamespace "
+                    "WHERE nsp.nspname = 'app' AND rel.relname = 'build_templates' "
+                    "AND con.conname = ANY(%s) ORDER BY con.conname",
+                    ([target_name, legacy_name],),
+                )
+                rows = cur.fetchall()
+                self.assertEqual(len(rows), 1)
+                self.assertEqual(rows[0][0], target_name)
+                self.assertEqual(rows[0][1], "u")
+                self.assertEqual(tuple(rows[0][2]), expected_columns)
+                cur.execute(
+                    "SELECT pg_catalog.count(*) FROM ops.schema_migrations "
+                    "WHERE id = '0003_build_template_config_hash_unique'"
+                )
+                self.assertEqual(cur.fetchone()[0], 1)
+
     def _snapshot_existing_v1_state(self, cur):
         excluded = set(self.AUTHORITY_TABLES)
 
@@ -748,6 +780,7 @@ class PostgresExactAuthorityCandidateTest(unittest.TestCase):
         self.assertEqual(ALL_MIGRATIONS[-1].name, "0026_websim_exact_authority_bundle.sql")
 
         self._apply(TASK_3A_FRESH_DSN, ALL_MIGRATIONS)
+        self._assert_build_template_config_hash_constraint(TASK_3A_FRESH_DSN)
         self._assert_grants_and_bundle_smoke(TASK_3A_FRESH_DSN)
 
         self._apply(TASK_3A_UPGRADE_DSN, ALL_MIGRATIONS[:-1])
@@ -772,6 +805,7 @@ class PostgresExactAuthorityCandidateTest(unittest.TestCase):
                 before_rows = cur.fetchall()
                 before_state = self._snapshot_existing_v1_state(cur)
         self._apply(TASK_3A_UPGRADE_DSN, ALL_MIGRATIONS[-1:])
+        self._assert_build_template_config_hash_constraint(TASK_3A_UPGRADE_DSN)
         with self._connect(TASK_3A_UPGRADE_DSN) as conn:
             with conn.cursor() as cur:
                 cur.execute(

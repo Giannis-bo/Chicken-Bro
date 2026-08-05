@@ -46,10 +46,16 @@ Without a test DSN the integration suite may skip; a skip is not production evid
 ## Exact Authority Bundle Task 3A Candidates
 
 Migration `0026_websim_exact_authority_bundle.sql` is not production-authorized
-by local unit or schema tests. Task 3A remains literal `candidate_pending` until
-one final committed, clean runtime-affecting head passes two independently empty,
-operator-provisioned disposable databases. The test suite never creates, drops,
-resets or reuses either database.
+by local unit or schema tests. The first Task 3A candidate at
+`f90a302040f722fec0807bd600f8e2242169801c` failed before `0026` because `0001`
+already creates the `(user_id, template_type, config_hash)` unique constraint and
+`0003` unconditionally attempted to add the named target constraint. Task 3A is
+literal `candidate_failed / migration_chain_blocked` until the authorized
+fail-closed `0003` semantic-idempotence correction is committed and one final,
+clean runtime-affecting head passes two newly provisioned independently empty
+operator databases. Failed run `t3a2608050955` and its two failed databases are
+evidence only: never reset or reuse them. The test suite never creates, drops,
+resets or reuses any candidate database.
 
 Choose one lowercase run id matching `[a-z0-9]{8,32}`. An operator with explicit
 authority provisions two distinct empty databases and exact database comments:
@@ -86,7 +92,12 @@ python3 -m unittest \
   tests.postgres_integration_test.PostgresExactAuthorityCandidateTest
 ```
 
-The fresh path applies `0001..0026`. The upgrade path independently applies
+The fresh path applies `0001..0026`; it must end with exactly one
+`app.build_templates` target constraint named
+`build_templates_user_id_template_type_config_hash_key`, type `u`, with ordered
+columns `user_id, template_type, config_hash`, no legacy
+`build_templates_user_id_template_type_name_key` constraint, and exactly one
+`0003_build_template_config_hash_unique` ledger row. The upgrade path independently applies
 `0001..0025`, inserts a frozen v1 row, snapshots its complete row including
 `sealed_at` plus all existing project schemas, tables, columns, constraints,
 indexes, triggers, default ACLs and effective `wow_app` grants, applies `0026`,
@@ -113,7 +124,9 @@ review. After candidate execution, any change to code, tests, migration,
 requirement or owner contracts invalidates both candidates. Only an operator may
 discard the two exact database identities after archival; the suite never does.
 Missing `psql`, either DSN, or the run id is a skipped candidate and remains
-`candidate_pending`, never green evidence.
+`candidate_pending`, never green evidence. Before the authorized correction
+passes a new pair, the current status remains `candidate_failed /
+migration_chain_blocked`, never `candidate_pending` or green evidence.
 
 ## SQLite Source Inventory
 

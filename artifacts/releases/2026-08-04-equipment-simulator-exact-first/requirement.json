@@ -10,7 +10,8 @@
     "不从 itemId、相似 bonus、Catalog 或默认值补充 declaredItemLevel、variant 或其他装备事实。",
     "不改写 generation 35、Catalog/Manifest pointer、selection-intent-v1 或既有 canonical bytes/key。",
     "不将原始插件导出文本写入数据库、artifact、日志、template、queue 或公开 payload。",
-    "不在缺少 fresh/upgrade 两个真实 disposable PostgreSQL candidate 的情况下声称 Task 3A 完成、release-ready 或 production-ready。"
+    "不在新的 fresh/upgrade 两个真实 disposable PostgreSQL candidate 均通过的情况下声称 Task 3A 完成、release-ready 或 production-ready。",
+    "不重置、复用或修改失败 run t3a2608050955 的任一 candidate 数据库；不通过跳过 0003、吞掉 duplicate_object、ledger reconciliation、预删 target constraint、改写 0001、retro migration 或 0026 修复迁移链。"
   ],
   "currentTruth": {
     "sources": [
@@ -54,6 +55,7 @@
     "mustChange": [
       "server/gear_canonical_kernel.py and its tests for one private exact-bytes rehydration primitive with all existing size, UTF-8, duplicate-key, NFC, canonical-byte and content-key checks",
       "server/gear_exact_item_instance.py, server/gear_exact_authority.py and server/simc_item_effect_support.py plus their tests for the six frozen typed reload APIs and parent/runtime/revision bindings",
+      "server/migrations/postgres/0003_build_template_config_hash_unique.sql only for the authorized fail-closed semantic-idempotence correction: retain legacy-name drop, conditionally create only an absent target and strictly verify app.build_templates/type-u/ordered user_id-template_type-config_hash without duplicate_object swallowing",
       "server/migrations/postgres/0026_websim_exact_authority_bundle.sql for three append-only authority tables with database-computed SHA-256, JSON projection equality, closed kind/schema/prefix matrix, full foreign-key closure and immutable grants",
       "server/gear_exact_authority_store.py plus store and independent import-boundary tests for transactional whole-bundle seal/reload, frozen ExactAuthorityBundle and order-preserving duplicate batch loads",
       "tests/postgres_schema_test.py and tests/postgres_integration_test.py for static SQL plus isolated fresh and 0025-to-0026 candidate paths",
@@ -118,8 +120,8 @@
     "task3AMigration": "server/migrations/postgres/0026_websim_exact_authority_bundle.sql"
   },
   "engineeringHealth": {
-    "status": "task3a_authority_persistence_review_passed_candidate_pending",
-    "reason": "Replacement Task 3A implementation, local verification and two fresh independent final reviews are PASS/APPROVED with zero unresolved findings: six typed reload APIs, append-only 0026 authority persistence, whole-bundle store/import gates, frozen v1/v2 identities and the scoped Python, Vitest, Node, Harness, JSON, pycompile and diff checks pass. Both real run-id-bound PostgreSQL candidates remain pending because this checkout has no psql or explicit candidate DSNs. runtimeConsumers remains empty, no evidence/manifest has been promoted, original Task 3 is stopped, and completion remains literal candidate_pending."
+    "status": "task3a_candidate_failed_migration_chain_blocked",
+    "reason": "Replacement Task 3A implementation, local verification and two fresh independent final reviews are PASS/APPROVED with zero unresolved findings, but the first real candidate at f90a302040f722fec0807bd600f8e2242169801c failed before 0026: 0001 already creates the config-hash unique constraint and 0003 unconditionally adds the named target. The only authorized recovery is a minimal fail-closed semantic-idempotence correction in 0003 plus regression/candidate assertions. Failed run t3a2608050955 and its two databases are evidence only and must never be reset or reused. runtimeConsumers remains empty, no evidence/manifest has been promoted, original Task 3 is stopped, and completion remains literal candidate_failed / migration_chain_blocked until two new candidates pass."
   },
   "dataPrivacyBoundary": {
     "rawPluginText": "ephemeral parser input only; it must not be persisted, logged, templated, queued, included in artifact evidence, or returned in output payloads.",
@@ -127,7 +129,7 @@
   },
   "candidateDeployment": {
     "required": true,
-    "beforeMerge": "At the committed final runtime-affecting head with a clean tree, record that commit SHA, its Git tree SHA and 0026 file SHA-256; use the same identities for two operator-provisioned empty disposable PostgreSQL databases with one unique run-id and exact database comments. Prove fresh 0001-to-0026 and upgrade 0001-to-0025 plus seeded frozen v1 rows to 0026, then run bundle/grant/concurrency smoke. After candidate, only evidence.json, manifest.json and task-status documentation may change; any code, test, migration, requirement or owner-contract change invalidates candidate and requires a rerun. Harness verification identity binds the later final PR HEAD. Record endpoint smoke and timer/backflow as explicitly not_applicable because Task 3A has no service, scheduled job or runtime consumer. No production migration is authorized.",
+    "beforeMerge": "The first candidate run t3a2608050955 failed before 0026 and its two databases are immutable evidence, not candidate targets. At the committed final runtime-affecting head with a clean tree, record that commit SHA, its Git tree SHA and 0026 file SHA-256; use a new run-id and two newly operator-provisioned empty disposable PostgreSQL databases with exact database comments. Prove fresh 0001-to-0026 and upgrade 0001-to-0025 plus seeded frozen v1 rows to 0026; both must end with exactly one app.build_templates target constraint named build_templates_user_id_template_type_config_hash_key of type u with ordered user_id/template_type/config_hash columns, no legacy name constraint and exactly one 0003 ledger row, then run bundle/grant/concurrency smoke. After candidate, only evidence.json, manifest.json and task-status documentation may change; any code, test, migration, requirement or owner-contract change invalidates candidate and requires a rerun. Harness verification identity binds the later final PR HEAD. Record endpoint smoke and timer/backflow as explicitly not_applicable because Task 3A has no service, scheduled job or runtime consumer. No production migration is authorized.",
     "rollback": "Task code rollback plus preservation of both exact candidate databases through evidence.json/manifest.json archival and review. Only after archival may the operator discard those explicitly identified databases through the runbook; no production data, generation 35, Catalog/Manifest pointer or service state is changed."
   },
   "acceptanceEvidence": [
@@ -143,7 +145,7 @@
     "required": false,
     "requiredItemIds": []
   },
-  "closureCondition": "Task 3A may close only after local typed-reload/store/SQL/Canonical/v1/Harness evidence, both run-id-bound empty PostgreSQL candidate paths, frozen v1/v2 identity proof and independent scoped PASS/APPROVED review are simultaneously present. Missing psql or either DSN remains literal candidate_pending. Original Task 3 and all Task 4P+ runtime stages stay inactive.",
+  "closureCondition": "Task 3A may close only after the authorized 0003 fail-closed semantic-idempotence correction, local typed-reload/store/SQL/Canonical/v1/Harness evidence, both new run-id-bound empty PostgreSQL candidate paths, frozen v1/v2 identity proof and independent scoped PASS/APPROVED review are simultaneously present. The failed t3a2608050955 pair is never reusable; before replacement candidates pass status remains literal candidate_failed / migration_chain_blocked. Original Task 3 and all Task 4P+ runtime stages stay inactive.",
   "releaseTrigger": "pg_read_model",
   "rollback": [
     "code_rollback",
@@ -198,6 +200,10 @@
     {
       "date": "2026-08-05",
       "decision": "Replacement Task 3A 的六个 typed reload、完整 authority bundle store、0026 append-only migration、双候选测试拓扑、本地验证与两位 fresh 独立 reviewer 的最终复审均已 PASS/APPROVED、0 findings；两个真实 PostgreSQL candidate 尚未执行，本机缺少 psql/明确 DSN，因此状态严格保持 review_passed/candidate_pending，不生成 evidence.json 或 manifest.json，也不激活任何 runtime consumer。"
+    },
+    {
+      "date": "2026-08-05",
+      "decision": "首次真实 candidate 在 f90a302040f722fec0807bd600f8e2242169801c 的 0003 迁移链失败：0001 已创建 config-hash unique，0003 又无条件新增同名 target constraint。状态改为 candidate_failed / migration_chain_blocked；仅授权 fail-closed 0003 semantic-idempotence correction、回归测试与新 fresh/upgrade candidate assertions。failed run t3a2608050955 及两库仅作证据，禁止重置或复用；不生成 evidence.json 或 manifest.json。"
     }
   ]
 }

@@ -384,7 +384,7 @@
         "activationBoundary": "Task 1 defines deterministic max-not-sum socket facts only; release materialization and runtime consumption remain outside this slice."
       },
       "canonicalKernelFoundations": {
-        "status": "task3a_authority_persistence_review_passed_candidate_pending",
+        "status": "task3a_candidate_failed_migration_chain_blocked",
         "factOwner": "server/gear_canonical_kernel.py",
         "kernelSemanticOwner": "server/gear_canonical_kernel.py",
         "slotSetOwner": "server/gear_contracts.py",
@@ -451,7 +451,7 @@
           "task_5a_api_runtime",
           "task_6c_observation_catalog"
         ],
-        "activationBoundary": "The pure Canonical foundation and replacement Task 3A independent implementation review are final PASS/APPROVED with zero unresolved findings. Two fresh PostgreSQL candidate paths remain mandatory before Task 3A completion. The registry remains test-only, proofClaim stays source_change_control_only, runtimeConsumers is empty, original Task 3 remains stopped, and generation 35, Catalog/pointers, worker, Resolver/API/UI, raw-text privacy and v1 identities remain unchanged."
+        "activationBoundary": "The pure Canonical foundation and replacement Task 3A independent implementation review are final PASS/APPROVED with zero unresolved findings, but the first candidate failed before 0026 because 0003 unconditionally re-added a config-hash unique already created by 0001. The permitted scope is only a fail-closed 0003 semantic-idempotence correction and new candidates; failed run t3a2608050955 is not reusable. The registry remains test-only, proofClaim stays source_change_control_only, runtimeConsumers is empty, original Task 3 remains stopped, and generation 35, Catalog/pointers, worker, Resolver/API/UI, raw-text privacy and v1 identities remain unchanged."
       },
       "trackAuthorityFoundations": {
         "status": "pure_contract_only_unconsumed",

@@ -13,12 +13,12 @@
   "hotspotFiles": [
     {
       "path": "server/gear_canonical_kernel.py",
-      "healthStatus": "task3a_authority_persistence_review_passed_candidate_pending",
-      "summary": "Owns the completed pure Canonical foundation and source change-control; replacement Task 3A append-only authority persistence is locally implemented, verified and independently approved, with no runtime consumer and two PostgreSQL candidates still required before completion.",
+      "healthStatus": "task3a_candidate_failed_migration_chain_blocked",
+      "summary": "Owns the completed pure Canonical foundation and source change-control; replacement Task 3A first real candidate failed in the historical 0003 migration chain before 0026. Only the authorized fail-closed 0003 semantic-idempotence correction is in scope; no runtime consumer is active.",
       "owners": [
         {
           "id": "equipment_simulator_canonical_kernel_task1_5",
-          "status": "task3a_authority_persistence_review_passed_candidate_pending",
+          "status": "task3a_candidate_failed_migration_chain_blocked",
           "factOwner": "server/gear_canonical_kernel.py",
           "kernelSemanticOwner": "server/gear_canonical_kernel.py",
           "slotSetOwner": "server/gear_contracts.py",
@@ -77,7 +77,7 @@
             "task_5a_api_runtime",
             "task_6c_observation_catalog"
           ],
-          "capabilityBoundary": "The pure Canonical foundation and replacement Task 3A independent implementation review are final PASS/APPROVED with zero unresolved findings. Two fresh PostgreSQL candidate paths remain mandatory before Task 3A completion. The registry remains test-only, proofClaim stays source_change_control_only, runtimeConsumers is empty, original Task 3 remains stopped, and generation 35, Catalog/pointers, worker, Resolver/API/UI, raw-text privacy and v1 identities remain unchanged."
+          "capabilityBoundary": "The pure Canonical foundation and replacement Task 3A independent implementation review are final PASS/APPROVED with zero unresolved findings, but the first candidate failed before 0026 because 0003 unconditionally re-added a config-hash unique already created by 0001. The permitted scope is only a fail-closed 0003 semantic-idempotence correction and new candidates; failed run t3a2608050955 is not reusable. The registry remains test-only, proofClaim stays source_change_control_only, runtimeConsumers is empty, original Task 3 remains stopped, and generation 35, Catalog/pointers, worker, Resolver/API/UI, raw-text privacy and v1 identities remain unchanged."
         }
       ]
     },

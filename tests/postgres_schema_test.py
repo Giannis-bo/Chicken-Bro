@@ -585,10 +585,26 @@ $unsafe$;
         )
         self.assertIn("0009_runtime_reconcile_privileges", normalized)
 
-    def test_build_template_dedupe_migration_replaces_name_unique_constraint(self):
+    def test_build_template_dedupe_migration_is_fail_closed_semantically_idempotent(self):
         normalized = " ".join(self.build_template_dedupe_sql.split())
         self.assertIn("DROP CONSTRAINT IF EXISTS build_templates_user_id_template_type_name_key", normalized)
-        self.assertIn("UNIQUE (user_id, template_type, config_hash)", normalized)
+        self.assertIn("DO $$", normalized)
+        self.assertIn(
+            "pg_catalog.pg_constraint con JOIN pg_catalog.pg_class rel ON rel.oid = con.conrelid JOIN pg_catalog.pg_namespace nsp ON nsp.oid = rel.relnamespace",
+            normalized,
+        )
+        self.assertIn("nsp.nspname = 'app'", normalized)
+        self.assertIn("rel.relname = 'build_templates'", normalized)
+        self.assertIn("con.conname = 'build_templates_user_id_template_type_config_hash_key'", normalized)
+        self.assertIn("con.contype = 'u'", normalized)
+        self.assertIn("pg_catalog.pg_attribute attr", normalized)
+        self.assertIn("WITH ORDINALITY", normalized)
+        self.assertIn("ARRAY['user_id', 'template_type', 'config_hash']", normalized)
+        self.assertIn("IF target_constraint_count = 0 THEN", normalized)
+        self.assertIn("ADD CONSTRAINT build_templates_user_id_template_type_config_hash_key UNIQUE (user_id, template_type, config_hash)", normalized)
+        self.assertIn("IF target_constraint_count <> 1 THEN", normalized)
+        self.assertIn("RAISE EXCEPTION", normalized)
+        self.assertNotIn("duplicate_object", normalized.lower())
         self.assertIn("0003_build_template_config_hash_unique", normalized)
 
     def test_chickenbro_runtime_migration_adds_message_job_and_bounded_context(self):
