@@ -1780,6 +1780,24 @@ class GearResolverTest(unittest.TestCase):
         self.assertNotIn(" dps", serialized.lower())
         self.assertNotIn('"profile":', serialized)
 
+    def test_v2_resolver_fails_closed_when_rule_matrix_derives_set_effect_subject(self):
+        """Would fail if v2 invented an incomplete loadout-level effect aggregate."""
+        fixture = self.fixture()
+        result = gear_resolver.resolve_v2(fixture["intent"], fixture["authorityContext"])
+        self.assertEqual(result["status"], "blocked")
+        self.assertIn("LOADOUT_EFFECT_AUTHORITY_REQUIRED", result["problemCodes"])
+
+    def test_v2_resolver_preserves_main_hand_off_hand_legality(self):
+        """Would fail if the v2 entry point bypassed the shared hand rule."""
+        fixture = self.fixture()
+        fixture["intent"]["slots"]["main_hand"] = {
+            "itemId": "item-twohand", "variantKey": "variant-twohand", "gemOptionIds": [],
+            "enchantOptionId": "", "embellishmentOptionId": "", "craftedOptionId": "", "catalystOptionId": "",
+        }
+        result = gear_resolver.resolve_v2(fixture["intent"], fixture["authorityContext"])
+        self.assertEqual(result["status"], "blocked")
+        self.assertTrue(any(problem["code"] == "GEAR_HAND_TWO_HAND_OFFHAND_CONFLICT" for problem in result["problems"]))
+
 
 if __name__ == "__main__":
     unittest.main()

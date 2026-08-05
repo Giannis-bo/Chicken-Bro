@@ -31,6 +31,7 @@ try:
     from .gear_rule_matrix import (
         embellishment_usage,
         evaluate_rule_matrix,
+        loadout_effect_subjects,
         ordered_rule_matrix,
     )
 except ImportError:
@@ -49,6 +50,7 @@ except ImportError:
     from gear_evidence_ledger import build_evidence_ledger, evidence_claim
     from gear_result_envelope import gear_problem
     from gear_rule_matrix import embellishment_usage, evaluate_rule_matrix, ordered_rule_matrix
+    from gear_rule_matrix import loadout_effect_subjects
 
 
 RESOLVED_SNAPSHOT_CONTRACT_REVISION = "gear-resolved-snapshot-v1"
@@ -1055,8 +1057,33 @@ def resolve(selection_intent: Any, authority_context: Any) -> dict[str, Any]:
     }
 
 
+def resolve_v2(selection_intent: Any, authority_context: Any) -> dict[str, Any]:
+    """Apply the existing complete rule matrix, then fail closed on Task 4L work.
+
+    V2 cannot manufacture a loadout-scoped effect aggregate from slot records.
+    It therefore exposes the same legality result while retaining the literal
+    blocking reason until a separately reviewed authority owner exists.
+    """
+    result = resolve(selection_intent, authority_context)
+    subjects = loadout_effect_subjects(selection_intent, authority_context)
+    if not subjects:
+        return result
+    problem = gear_problem(
+        "AUTHORITY_UNAVAILABLE",
+        "LOADOUT_EFFECT_AUTHORITY_REQUIRED",
+        "Loadout-scoped effects require the Task 4L authority aggregate.",
+        path="ruleMatrix.loadoutEffectSubjects",
+        meta={"subjects": subjects},
+    )
+    problems = _dedupe_problems(list(result.get("problems", [])) + [problem])
+    readiness = _canonical(result.get("profileReadiness") or {})
+    readiness.update({"status": "blocked", "simcReady": False, "problems": _dedupe_problems(list(readiness.get("problems", [])) + [problem])})
+    return {**result, "status": "blocked", "profileReadiness": readiness, "problems": problems, "problemCodes": sorted({problem["code"] for problem in problems if problem.get("code")}), "loadoutEffectSubjects": subjects}
+
+
 __all__ = (
     "resolve",
+    "resolve_v2",
     "resolve_base_item",
     "resolve_variant",
     "apply_verified_overlay",

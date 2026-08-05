@@ -11,15 +11,19 @@ from typing import Any, Iterable, Mapping
 try:
     from .gear_resolved_loadout import (
         RESOLVED_LOADOUT_KEY_PATTERN,
+        RESOLVED_LOADOUT_V2_KEY_PATTERN,
         SIMC_OPTION_ORDER,
         verify_resolved_loadout,
+        verify_resolved_loadout_v2,
     )
     from .simc_support_policy import simc_execution_support
 except ImportError:
     from gear_resolved_loadout import (
         RESOLVED_LOADOUT_KEY_PATTERN,
+        RESOLVED_LOADOUT_V2_KEY_PATTERN,
         SIMC_OPTION_ORDER,
         verify_resolved_loadout,
+        verify_resolved_loadout_v2,
     )
     from simc_support_policy import simc_execution_support
 
@@ -30,6 +34,10 @@ SIMULATION_SNAPSHOT_KEY_PATTERN = re.compile(
 )
 TALENT_PROFILE_KEY_PATTERN = re.compile(
     r"^talent-profile:sha256:[0-9a-f]{64}$"
+)
+SIMULATION_SNAPSHOT_V2_SCHEMA_REVISION = "simulation-snapshot-v2"
+SIMULATION_SNAPSHOT_V2_KEY_PATTERN = re.compile(
+    r"^simulation-snapshot-v2:sha256:[0-9a-f]{64}$"
 )
 
 _CHARACTER_KEYS = {
@@ -108,6 +116,22 @@ def _blocked(
         "problemCodes": sorted(
             {_text(problem.get("code")) for problem in normalized if problem.get("code")}
         ),
+        "problems": normalized,
+    }
+
+
+def _blocked_v2(
+    status: str,
+    problems: Iterable[Mapping[str, Any]],
+) -> dict[str, Any]:
+    normalized = sorted(
+        [_canonical(problem) for problem in problems],
+        key=lambda problem: json.dumps(problem, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
+    )
+    return {
+        "schemaRevision": SIMULATION_SNAPSHOT_V2_SCHEMA_REVISION,
+        "status": status,
+        "problemCodes": sorted({_text(problem.get("code")) for problem in normalized if problem.get("code")}),
         "problems": normalized,
     }
 
@@ -559,11 +583,125 @@ def verify_simulation_snapshot(value: Any) -> list[str]:
     return issues
 
 
+def build_simulation_snapshot_v2(
+    *,
+    resolved_loadout: Any,
+    talent_profile_key: str,
+    talent_lines: Any,
+    character_context: Any,
+    scenario_options: Any,
+    preparation_lines: Any,
+    compiler_revision: str,
+    simc_runtime_revision: str,
+    origin_catalog_revision: str = "",
+) -> dict[str, Any]:
+    """Build the catalog-independent immutable v2 snapshot branch."""
+    loadout = dict(resolved_loadout) if isinstance(resolved_loadout, Mapping) else {}
+    problems: list[dict[str, str]] = []
+    if (loadout.get("status") != "ready" or not RESOLVED_LOADOUT_V2_KEY_PATTERN.fullmatch(_text(loadout.get("resolvedLoadoutKey"))) or verify_resolved_loadout_v2(loadout)):
+        problems.append(_problem("SIMULATION_V2_LOADOUT_NOT_READY", "resolvedLoadout", "Only a verified ready v2 loadout can be snapshotted."))
+    if _text(loadout.get("simcRuntimeRevision")) != _text(simc_runtime_revision):
+        problems.append(_problem("SIMULATION_V2_RUNTIME_MISMATCH", "simcRuntimeRevision", "Snapshot runtime must match every v2 authority bundle."))
+    provided_talent_key = _text(talent_profile_key)
+    if provided_talent_key != talent_profile_key_for_lines(talent_lines):
+        problems.append(_problem("SIMULATION_TALENT_PROFILE_KEY_MISMATCH", "talentProfileKey", "Talent profile key must address canonical talent lines."))
+    character = _valid_character_context(character_context)
+    scenario = _valid_scenario_options(scenario_options)
+    talents = _normalized_lines(talent_lines, _TALENT_LINE_PATTERN)
+    preparations = _normalized_lines(preparation_lines, _OPTION_LINE_PATTERN)
+    if character is None or scenario is None or not talents or preparations is None or not _text(compiler_revision):
+        problems.append(_problem("SIMULATION_V2_COMPILER_INPUT_INVALID", "compilerInput", "V2 compiler input is invalid."))
+    eligibility = loadout.get("eligibilityContext") if isinstance(loadout.get("eligibilityContext"), Mapping) else {}
+    if character and (character.get("classKey") != eligibility.get("classKey") or character.get("specKey") != eligibility.get("specKey")):
+        problems.append(_problem("SIMULATION_CHARACTER_LOADOUT_MISMATCH", "characterContext", "Character class/spec must match the resolved loadout."))
+    if problems:
+        return _blocked_v2("blocked", problems)
+    gear_items = []
+    for item in loadout.get("orderedSlots", []):
+        if not isinstance(item, Mapping) or not _text(item.get("slot")) or not _text(item.get("itemId")):
+            return _blocked_v2("blocked", [_problem("SIMULATION_V2_GEAR_INPUT_INVALID", "resolvedLoadout.orderedSlots", "V2 gear input is invalid.")])
+        gear_items.append({"slot": _text(item.get("slot")), "itemId": _text(item.get("itemId")), "exactAuthorityEnvelopeKey": _text(item.get("exactAuthorityEnvelopeKey")), "simcOptions": _canonical(item.get("simcOptions") or {})})
+    canonical_input = _v2_canonical_simc_input(character, scenario, talents, preparations or [], gear_items)
+    if canonical_input is None:
+        return _blocked_v2("blocked", [_problem("SIMULATION_V2_GEAR_INPUT_INVALID", "resolvedLoadout.orderedSlots", "V2 gear serializer input is invalid.")])
+    identity = {"resolvedLoadoutKey": loadout["resolvedLoadoutKey"], "talentProfileKey": provided_talent_key, "characterContext": {**character, "talentLinesHash": _hash("sha256:", {"talentLines": talents})}, "scenarioOptions": {**scenario, "preparationLines": preparations or []}, "serializerInput": {"gearItems": gear_items}, "compilerRevision": _text(compiler_revision), "simcRuntimeRevision": _text(simc_runtime_revision)}
+    row = {"schemaRevision": SIMULATION_SNAPSHOT_V2_SCHEMA_REVISION, "status": "ready", "simulationSnapshotKey": _hash("simulation-snapshot-v2:sha256:", identity), "resolvedLoadoutKey": loadout["resolvedLoadoutKey"], "exactAuthorityBySlot": _canonical(loadout.get("exactAuthorityBySlot") or []), "effectEvidenceByOccurrence": _canonical(loadout.get("effectEvidenceByOccurrence") or []), "talentProfileKey": provided_talent_key, "talentLinesHash": identity["characterContext"]["talentLinesHash"], "talentLines": talents, "characterContext": character, "scenarioOptions": scenario, "preparationLines": preparations or [], "serializerInput": {"gearItems": gear_items}, "compilerRevision": _text(compiler_revision), "simcRuntimeRevision": _text(simc_runtime_revision), "canonicalSimcInput": canonical_input, "canonicalInputHash": "simc-input:sha256:" + hashlib.sha256(canonical_input.encode("utf-8")).hexdigest(), "problemCodes": [], "problems": []}
+    if _text(origin_catalog_revision):
+        row["originCatalogRevision"] = _text(origin_catalog_revision)
+    row["rowHash"] = _hash("sha256:", {key: value for key, value in row.items() if key not in {"rowHash", "originCatalogRevision"}})
+    return row
+
+
+def verify_simulation_snapshot_v2(value: Any) -> list[str]:
+    row = dict(value) if isinstance(value, Mapping) else {}
+    if row.get("schemaRevision") != SIMULATION_SNAPSHOT_V2_SCHEMA_REVISION:
+        return ["SIMULATION_SNAPSHOT_V2_SCHEMA_INVALID"]
+    if row.get("status") not in {"ready", "executed"}:
+        return ["SIMULATION_SNAPSHOT_V2_NOT_EXECUTABLE"]
+    issues: list[str] = []
+    if not SIMULATION_SNAPSHOT_V2_KEY_PATTERN.fullmatch(_text(row.get("simulationSnapshotKey"))):
+        issues.append("SIMULATION_SNAPSHOT_V2_KEY_INVALID")
+    identity = {"resolvedLoadoutKey": _text(row.get("resolvedLoadoutKey")), "talentProfileKey": _text(row.get("talentProfileKey")), "characterContext": {**_canonical(row.get("characterContext") or {}), "talentLinesHash": _text(row.get("talentLinesHash"))}, "scenarioOptions": {**_canonical(row.get("scenarioOptions") or {}), "preparationLines": _canonical(row.get("preparationLines") or [])}, "serializerInput": _canonical(row.get("serializerInput") or {}), "compilerRevision": _text(row.get("compilerRevision")), "simcRuntimeRevision": _text(row.get("simcRuntimeRevision"))}
+    if _text(row.get("simulationSnapshotKey")) != _hash("simulation-snapshot-v2:sha256:", identity):
+        issues.append("SIMULATION_SNAPSHOT_V2_IDENTITY_MISMATCH")
+    character = _valid_character_context(row.get("characterContext"))
+    scenario = _valid_scenario_options(row.get("scenarioOptions"))
+    talents = _normalized_lines(row.get("talentLines"), _TALENT_LINE_PATTERN)
+    preparations = _normalized_lines(row.get("preparationLines"), _OPTION_LINE_PATTERN)
+    serializer = row.get("serializerInput") if isinstance(row.get("serializerInput"), Mapping) else {}
+    gear_items = serializer.get("gearItems") if isinstance(serializer.get("gearItems"), list) else []
+    authority_pairs = row.get("exactAuthorityBySlot") if isinstance(row.get("exactAuthorityBySlot"), list) else []
+    if (not authority_pairs or any(not isinstance(pair, Mapping) or set(pair) != {"slot", "exactAuthorityEnvelopeKey"} or _text(pair.get("slot")) not in {item.get("slot") for item in gear_items if isinstance(item, Mapping)} or not re.fullmatch(r"exact-authority:sha256:[0-9a-f]{64}", _text(pair.get("exactAuthorityEnvelopeKey"))) for pair in authority_pairs)):
+        issues.append("SIMULATION_V2_EXACT_AUTHORITY_INVALID")
+    expected_pairs = [
+        (_text(pair.get("slot")), _text(pair.get("exactAuthorityEnvelopeKey")))
+        for pair in authority_pairs if isinstance(pair, Mapping)
+    ]
+    actual_pairs = [
+        (_text(item.get("slot")), _text(item.get("exactAuthorityEnvelopeKey")))
+        for item in gear_items if isinstance(item, Mapping)
+    ]
+    if (len(actual_pairs) != len(gear_items) or actual_pairs != expected_pairs or any(not slot or not key for slot, key in actual_pairs)):
+        issues.append("SIMULATION_V2_SERIALIZER_AUTHORITY_MISMATCH")
+    if (not talents or _text(row.get("talentProfileKey")) != talent_profile_key(talents) or _text(row.get("talentLinesHash")) != _hash("sha256:", {"talentLines": talents})):
+        issues.append("SIMULATION_V2_TALENT_IDENTITY_MISMATCH")
+    expected_input = _v2_canonical_simc_input(character, scenario, talents or [], preparations or [], gear_items) if character and scenario and talents and preparations is not None else None
+    if expected_input is None or row.get("canonicalSimcInput") != expected_input:
+        issues.append("SIMULATION_V2_CANONICAL_INPUT_INVALID")
+    elif _text(row.get("canonicalInputHash")) != "simc-input:sha256:" + hashlib.sha256(expected_input.encode("utf-8")).hexdigest():
+        issues.append("SIMULATION_V2_CANONICAL_INPUT_HASH_INVALID")
+    expected_hash = _hash("sha256:", {key: value for key, value in row.items() if key not in {"rowHash", "originCatalogRevision"}})
+    if _text(row.get("rowHash")) != expected_hash:
+        issues.append("SIMULATION_SNAPSHOT_V2_ROW_HASH_INVALID")
+    return issues
+
+
+def _v2_canonical_simc_input(
+    character: Mapping[str, Any] | None,
+    scenario: Mapping[str, Any] | None,
+    talents: list[str],
+    preparations: list[str],
+    gear_items: Any,
+) -> str | None:
+    if not character or not scenario or not talents or not isinstance(gear_items, list):
+        return None
+    gear_lines: list[str] = []
+    for item in gear_items:
+        line = _gear_line(item) if isinstance(item, Mapping) else None
+        if not line:
+            return None
+        gear_lines.append(line)
+    return "\n".join([f'{character["classKey"]}="{character["name"]}"', f'spec={character["specKey"]}', f'level={character["level"]}', f'race={character["race"]}', f'role={character["role"]}', f'position={character["position"]}', *talents, *gear_lines, *preparations, f'iterations={scenario["iterations"]}', f'fight_style={scenario["fightStyle"]}', f'desired_targets={scenario["desiredTargets"]}', f'max_time={scenario["maxTime"]}', f'vary_combat_length={scenario["varyCombatLength"]}', f'calculate_scale_factors={scenario["calculateScaleFactors"]}']) + "\n"
+
+
 __all__ = (
     "SIMULATION_SNAPSHOT_SCHEMA_REVISION",
+    "SIMULATION_SNAPSHOT_V2_SCHEMA_REVISION",
     "build_simulation_snapshot",
+    "build_simulation_snapshot_v2",
     "compile_canonical_simc_input",
     "talent_profile_key",
     "talent_profile_key_for_lines",
     "verify_simulation_snapshot",
+    "verify_simulation_snapshot_v2",
 )

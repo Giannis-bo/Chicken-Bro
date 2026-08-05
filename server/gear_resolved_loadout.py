@@ -30,6 +30,16 @@ EXACT_ITEM_INSTANCE_KEY_PATTERN = re.compile(
 CATALOG_REVISION_PATTERN = re.compile(
     r"^gear-catalog:sha256:[0-9a-f]{64}$"
 )
+RESOLVED_LOADOUT_V2_SCHEMA_REVISION = "resolved-loadout-v2"
+RESOLVED_LOADOUT_V2_KEY_PATTERN = re.compile(
+    r"^resolved-loadout-v2:sha256:[0-9a-f]{64}$"
+)
+EXACT_AUTHORITY_ENVELOPE_KEY_PATTERN = re.compile(
+    r"^exact-authority:sha256:[0-9a-f]{64}$"
+)
+EFFECT_RECORD_KEY_PATTERN = re.compile(
+    r"^simc-item-effect-record:sha256:[0-9a-f]{64}$"
+)
 
 SIMC_OPTION_ORDER = (
     "id",
@@ -703,6 +713,185 @@ def build_resolved_loadout_from_registry(
     )
 
 
+def _v2_document(value: Any) -> dict[str, Any]:
+    """Return a decoded sealed document or a test/pure mapping payload."""
+    if isinstance(value, Mapping):
+        return _canonical(value)
+    raw = getattr(value, "canonical_bytes", None)
+    if isinstance(raw, bytes):
+        try:
+            decoded = json.loads(raw)
+        except (TypeError, ValueError, UnicodeDecodeError):
+            return {}
+        return _canonical(decoded) if isinstance(decoded, Mapping) else {}
+    return {}
+
+
+def _v2_bundle(value: Any) -> dict[str, dict[str, Any]]:
+    fields = ("envelope", "exact_item", "progression", "effect_support")
+    return {
+        field: _v2_document(value.get(field) if isinstance(value, Mapping) else getattr(value, field, None))
+        for field in fields
+    }
+
+
+def _v2_blocked(problems: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
+    normalized = _dedupe_problems(problems)
+    return {
+        "schemaRevision": RESOLVED_LOADOUT_V2_SCHEMA_REVISION,
+        "status": "blocked",
+        "problemCodes": sorted({_text(problem.get("code")) for problem in normalized if problem.get("code")}),
+        "problems": normalized,
+    }
+
+
+def _v2_simc_options(exact: Mapping[str, Any]) -> dict[str, str] | None:
+    """Project sealed Exact fields into the fixed SimC serializer surface."""
+    return canonical_simc_options({
+        "id": _text(exact.get("itemId")),
+        "ilevel": _text(exact.get("itemLevel") or exact.get("declaredItemLevel")),
+        "bonus_id": exact.get("bonusIds") or [],
+        "gem_id": exact.get("gemIds") or [],
+        "gem_bonus_id": exact.get("gemBonusIds") or [],
+        "gem_ilevel": exact.get("gemItemLevels") or [],
+        "enchant_id": _text(exact.get("enchantId")),
+        "crafted_stats": exact.get("craftedStats") or [],
+        "embellishment": exact.get("embellishmentIds") or [],
+        "redirected_base_stats": exact.get("redirectedBaseStats") or [],
+    })
+
+
+def build_resolved_loadout_v2(
+    *,
+    resolver_snapshot: Any,
+    exact_authority_by_slot: Any,
+    authority_bundles: Any,
+    gear_rule_revision: str,
+    resolver_revision: str,
+    simc_runtime_revision: str,
+    origin_catalog_revision: str = "",
+) -> dict[str, Any]:
+    """Build a catalog-independent v2 loadout from slot-bound authority bundles."""
+    snapshot = dict(resolver_snapshot) if isinstance(resolver_snapshot, Mapping) else {}
+    bundles = dict(authority_bundles) if isinstance(authority_bundles, Mapping) else {}
+    rule = _text(gear_rule_revision)
+    resolver = _text(resolver_revision)
+    runtime = _text(simc_runtime_revision)
+    problems: list[dict[str, str]] = []
+    readiness = snapshot.get("profileReadiness") if isinstance(snapshot.get("profileReadiness"), Mapping) else {}
+    slots = snapshot.get("resolvedSlots") if isinstance(snapshot.get("resolvedSlots"), Mapping) else {}
+    required = [slot for slot in CANONICAL_GEAR_SLOTS if slot in set(readiness.get("requiredSlots") or [])]
+    if not rule or not resolver or not runtime or not required or readiness.get("status") != "verified" or readiness.get("simcReady") is not True:
+        problems.append(_problem("LOADOUT_V2_RESOLVER_NOT_READY", "resolverSnapshot", "V2 requires one verified resolver snapshot and revisions."))
+    if not isinstance(exact_authority_by_slot, list) or not exact_authority_by_slot:
+        problems.append(_problem("LOADOUT_V2_EXACT_AUTHORITY_REQUIRED", "exactAuthorityBySlot", "V2 requires non-empty slot-bound exact authority."))
+        pairs: list[dict[str, str]] = []
+    else:
+        pairs = []
+        seen_slots: set[str] = set()
+        seen_keys: set[str] = set()
+        for index, raw in enumerate(exact_authority_by_slot):
+            row = dict(raw) if isinstance(raw, Mapping) else {}
+            slot = _text(row.get("slot"))
+            key = _text(row.get("exactAuthorityEnvelopeKey"))
+            if slot not in CANONICAL_GEAR_SLOTS or not EXACT_AUTHORITY_ENVELOPE_KEY_PATTERN.fullmatch(key):
+                problems.append(_problem("LOADOUT_V2_EXACT_AUTHORITY_INVALID", f"exactAuthorityBySlot[{index}]", "Exact authority pair is invalid."))
+                continue
+            if slot in seen_slots:
+                problems.append(_problem("LOADOUT_V2_SLOT_DUPLICATE", f"exactAuthorityBySlot[{index}].slot", "A slot may occur once."))
+            if key in seen_keys:
+                problems.append(_problem("LOADOUT_EXACT_AUTHORITY_REUSED", f"exactAuthorityBySlot[{index}].exactAuthorityEnvelopeKey", "One envelope cannot bind two slots."))
+            seen_slots.add(slot)
+            seen_keys.add(key)
+            pairs.append({"slot": slot, "exactAuthorityEnvelopeKey": key})
+        pairs.sort(key=lambda pair: CANONICAL_GEAR_SLOTS.index(pair["slot"]))
+    if [pair["slot"] for pair in pairs] != required:
+        problems.append(_problem("LOADOUT_V2_SLOT_BINDING_MISMATCH", "exactAuthorityBySlot", "Authority pairs must equal the occupied resolver slots."))
+
+    occurrences: list[dict[str, Any]] = []
+    ordered_slots: list[dict[str, Any]] = []
+    for pair in pairs:
+        slot, key = pair["slot"], pair["exactAuthorityEnvelopeKey"]
+        bundle = _v2_bundle(bundles.get(key))
+        envelope = bundle["envelope"]
+        exact = bundle["exact_item"]
+        progression = bundle["progression"]
+        effect_support = bundle["effect_support"]
+        if _text(envelope.get("content_key") or envelope.get("contentKey")) not in {"", key} or _text(envelope.get("resolverRevision")) != resolver:
+            problems.append(_problem("LOADOUT_V2_ENVELOPE_INVALID", f"authorityBundles.{key}", "Envelope key or resolver revision does not match."))
+        track = progression.get("trackAuthorityInput") if isinstance(progression.get("trackAuthorityInput"), Mapping) else {}
+        if _text(progression.get("gearRuleRevision")) != rule or _text(track.get("slot")) != slot:
+            problems.append(_problem("LOADOUT_V2_PROGRESSION_SLOT_MISMATCH", f"authorityBundles.{key}.progression", "Progression must bind this exact slot and rule revision."))
+        resolved = slots.get(slot) if isinstance(slots.get(slot), Mapping) else {}
+        options = _v2_simc_options(exact)
+        if resolved.get("legality", {}).get("status") != "verified" or _text(resolved.get("itemId")) != _text(exact.get("itemId")):
+            problems.append(_problem("LOADOUT_V2_RESOLVED_SLOT_MISMATCH", f"resolverSnapshot.resolvedSlots.{slot}", "Resolver slot must match the sealed Exact item."))
+        if options is None or not options.get("id"):
+            problems.append(_problem("LOADOUT_V2_SERIALIZER_INPUT_INVALID", f"authorityBundles.{key}.exactItem", "Sealed Exact serializer fields are invalid."))
+        subjects = effect_support.get("subjects") if isinstance(effect_support.get("subjects"), list) else []
+        if effect_support.get("status") != "verified" or _text(effect_support.get("simcRuntimeRevision")) != runtime:
+            problems.append(_problem("LOADOUT_V2_EFFECT_SUPPORT_NOT_READY", f"authorityBundles.{key}.effectSupport", "Every slot effect aggregate must be verified for this runtime."))
+        for ordinal, raw in enumerate(subjects):
+            subject = dict(raw) if isinstance(raw, Mapping) else {}
+            record_key = _text(subject.get("supportRecordKey"))
+            if (subject.get("status", "verified") != "verified" or not _text(subject.get("subjectKind")) or not _text(subject.get("subjectKey")) or not _text(subject.get("subjectVariantSignature")) or not EFFECT_RECORD_KEY_PATTERN.fullmatch(record_key)):
+                problems.append(_problem("LOADOUT_V2_EFFECT_RECORD_INVALID", f"authorityBundles.{key}.effectSupport.subjects[{ordinal}]", "Effect record is not verified."))
+                continue
+            occurrences.append({"scope": "slot", "slot": slot, "exactAuthorityEnvelopeKey": key, "recordOrdinal": ordinal, "subjectKind": _text(subject.get("subjectKind")), "subjectKey": _text(subject.get("subjectKey")), "subjectVariantSignature": _text(subject.get("subjectVariantSignature")), "supportRecordKey": record_key})
+        ordered_slots.append({"slot": slot, "itemId": _text(exact.get("itemId")), "exactAuthorityEnvelopeKey": key, "simcOptions": options or {}})
+    if problems:
+        return _v2_blocked(problems)
+    identity = {"classKey": _text(snapshot.get("eligibilityContext", {}).get("classKey")) if isinstance(snapshot.get("eligibilityContext"), Mapping) else "", "specKey": _text(snapshot.get("eligibilityContext", {}).get("specKey")) if isinstance(snapshot.get("eligibilityContext"), Mapping) else "", "exactAuthorityBySlot": pairs, "effectEvidenceByOccurrence": occurrences, "gearRuleRevision": rule, "resolverRevision": resolver, "simcRuntimeRevision": runtime}
+    row = {"schemaRevision": RESOLVED_LOADOUT_V2_SCHEMA_REVISION, "status": "ready", "resolvedLoadoutKey": _hash("resolved-loadout-v2:sha256:", identity), "exactAuthorityBySlot": pairs, "effectEvidenceByOccurrence": occurrences, "gearRuleRevision": rule, "resolverRevision": resolver, "simcRuntimeRevision": runtime, "eligibilityContext": _canonical(snapshot.get("eligibilityContext") or {}), "orderedSlots": ordered_slots, "serializerInput": _canonical(snapshot.get("serializerInput") or {}), "problemCodes": [], "problems": []}
+    if _text(origin_catalog_revision):
+        row["originCatalogRevision"] = _text(origin_catalog_revision)
+    row["rowHash"] = _hash("sha256:", {key: value for key, value in row.items() if key not in {"rowHash", "originCatalogRevision"}})
+    return row
+
+
+def verify_resolved_loadout_v2(value: Any) -> list[str]:
+    row = dict(value) if isinstance(value, Mapping) else {}
+    issues: list[str] = []
+    if row.get("schemaRevision") != RESOLVED_LOADOUT_V2_SCHEMA_REVISION:
+        return ["RESOLVED_LOADOUT_V2_SCHEMA_INVALID"]
+    if row.get("status") != "ready":
+        return ["RESOLVED_LOADOUT_V2_NOT_READY"]
+    pairs = row.get("exactAuthorityBySlot") if isinstance(row.get("exactAuthorityBySlot"), list) else []
+    slots = [_text(pair.get("slot")) for pair in pairs if isinstance(pair, Mapping)]
+    keys = [_text(pair.get("exactAuthorityEnvelopeKey")) for pair in pairs if isinstance(pair, Mapping)]
+    if any(not isinstance(pair, Mapping) or set(pair) != {"slot", "exactAuthorityEnvelopeKey"} or not isinstance(pair.get("slot"), str) or pair.get("slot") not in CANONICAL_GEAR_SLOTS or not isinstance(pair.get("exactAuthorityEnvelopeKey"), str) for pair in pairs):
+        issues.append("RESOLVED_LOADOUT_V2_SLOT_BINDING_INVALID")
+    if not pairs or slots != sorted(slots, key=lambda slot: CANONICAL_GEAR_SLOTS.index(slot) if slot in CANONICAL_GEAR_SLOTS else len(CANONICAL_GEAR_SLOTS)) or len(set(slots)) != len(slots):
+        issues.append("RESOLVED_LOADOUT_V2_SLOT_ORDER_INVALID")
+    if len(set(keys)) != len(keys) or any(not EXACT_AUTHORITY_ENVELOPE_KEY_PATTERN.fullmatch(key) for key in keys):
+        issues.append("RESOLVED_LOADOUT_V2_ENVELOPE_BINDING_INVALID")
+    evidence = row.get("effectEvidenceByOccurrence") if isinstance(row.get("effectEvidenceByOccurrence"), list) else []
+    expected_evidence = sorted(evidence, key=lambda item: (CANONICAL_GEAR_SLOTS.index(_text(item.get("slot"))) if isinstance(item, Mapping) and _text(item.get("slot")) in CANONICAL_GEAR_SLOTS else len(CANONICAL_GEAR_SLOTS), int(item.get("recordOrdinal", -1)) if isinstance(item, Mapping) else -1))
+    if evidence != expected_evidence:
+        issues.append("RESOLVED_LOADOUT_V2_EFFECT_ORDER_INVALID")
+    pair_by_slot = {pair["slot"]: pair["exactAuthorityEnvelopeKey"] for pair in pairs if isinstance(pair, Mapping) and _text(pair.get("slot")) and _text(pair.get("exactAuthorityEnvelopeKey"))}
+    ordered_slots = row.get("orderedSlots") if isinstance(row.get("orderedSlots"), list) else []
+    if any(not isinstance(item, Mapping) or set(item) != {"slot", "itemId", "exactAuthorityEnvelopeKey", "simcOptions"} or not isinstance(item.get("simcOptions"), Mapping) for item in ordered_slots) or [(_text(item.get("slot")), _text(item.get("exactAuthorityEnvelopeKey"))) for item in ordered_slots if isinstance(item, Mapping)] != [(slot, key) for slot, key in zip(slots, keys, strict=True)]:
+        issues.append("RESOLVED_LOADOUT_V2_SLOT_BINDING_MISMATCH")
+    next_ordinal: dict[str, int] = {}
+    for occurrence in evidence:
+        current = dict(occurrence) if isinstance(occurrence, Mapping) else {}
+        slot = _text(current.get("slot"))
+        key = _text(current.get("exactAuthorityEnvelopeKey"))
+        ordinal = current.get("recordOrdinal")
+        if (set(current) != {"scope", "slot", "exactAuthorityEnvelopeKey", "recordOrdinal", "subjectKind", "subjectKey", "subjectVariantSignature", "supportRecordKey"} or current.get("scope") != "slot" or pair_by_slot.get(slot) != key or not isinstance(ordinal, int) or ordinal != next_ordinal.get(slot, 0) or not _text(current.get("subjectKind")) or not _text(current.get("subjectKey")) or not _text(current.get("subjectVariantSignature")) or not EFFECT_RECORD_KEY_PATTERN.fullmatch(_text(current.get("supportRecordKey")))):
+            issues.append("RESOLVED_LOADOUT_V2_EFFECT_OCCURRENCE_INVALID")
+            break
+        next_ordinal[slot] = ordinal + 1
+    identity = {"classKey": _text(row.get("eligibilityContext", {}).get("classKey")) if isinstance(row.get("eligibilityContext"), Mapping) else "", "specKey": _text(row.get("eligibilityContext", {}).get("specKey")) if isinstance(row.get("eligibilityContext"), Mapping) else "", "exactAuthorityBySlot": pairs, "effectEvidenceByOccurrence": evidence, "gearRuleRevision": _text(row.get("gearRuleRevision")), "resolverRevision": _text(row.get("resolverRevision")), "simcRuntimeRevision": _text(row.get("simcRuntimeRevision"))}
+    if _text(row.get("resolvedLoadoutKey")) != _hash("resolved-loadout-v2:sha256:", identity):
+        issues.append("RESOLVED_LOADOUT_V2_IDENTITY_MISMATCH")
+    expected_hash = _hash("sha256:", {key: value for key, value in row.items() if key not in {"rowHash", "originCatalogRevision"}})
+    if _text(row.get("rowHash")) != expected_hash:
+        issues.append("RESOLVED_LOADOUT_V2_ROW_HASH_INVALID")
+    return issues
+
+
 def verify_resolved_loadout(value: Any) -> list[str]:
     row = dict(value) if isinstance(value, Mapping) else {}
     issues: list[str] = []
@@ -767,9 +956,12 @@ def verify_resolved_loadout(value: Any) -> list[str]:
 
 __all__ = (
     "RESOLVED_LOADOUT_SCHEMA_REVISION",
+    "RESOLVED_LOADOUT_V2_SCHEMA_REVISION",
     "SIMC_OPTION_ORDER",
     "build_resolved_loadout",
+    "build_resolved_loadout_v2",
     "build_resolved_loadout_from_registry",
     "canonical_simc_options",
     "verify_resolved_loadout",
+    "verify_resolved_loadout_v2",
 )
