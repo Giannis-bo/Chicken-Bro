@@ -4039,6 +4039,44 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
             self.assertEqual(
                 candidate["gitTree"], candidate["candidateSource"]["gitTree"]
             )
+            historical_candidates = packet["historicalCandidateEvidence"]
+            evidence_source = candidate["evidenceSource"]
+            self.assertRegex(evidence_source["sha256"], r"^[0-9a-f]{64}$")
+            self.assertNotIn(
+                evidence_source["path"],
+                {
+                    item["evidenceSource"]["path"]
+                    for item in historical_candidates
+                    if "evidenceSource" in item
+                },
+            )
+            self.assertNotIn(
+                evidence_source["sha256"],
+                {
+                    item["evidenceSource"]["sha256"]
+                    for item in historical_candidates
+                    if "evidenceSource" in item
+                },
+            )
+            bundle = candidate["bundle"]
+            self.assertGreater(bundle["bytes"], 0)
+            self.assertRegex(bundle["sha256"], r"^[0-9a-f]{64}$")
+            for key in ("localPath", "remotePath"):
+                self.assertIn(candidate["runId"], bundle[key])
+                self.assertNotIn(
+                    bundle[key], {item["bundle"][key] for item in historical_candidates}
+                )
+            self.assertNotIn(
+                bundle["sha256"],
+                {item["bundle"]["sha256"] for item in historical_candidates},
+            )
+            self.assertNotIn(
+                candidate["candidateSource"]["remotePath"],
+                {
+                    item["candidateSource"]["remotePath"]
+                    for item in historical_candidates
+                },
+            )
             attestation = candidate["attestation"]
             self.assertTrue(attestation["passed"])
             self.assertEqual(candidate["runId"], attestation["runId"])
@@ -4079,6 +4117,17 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
             )
             self.assertIn(candidate["runId"], process["stdoutPath"])
             self.assertIn(candidate["runId"], process["stderrPath"])
+            for key in ("stdoutPath", "stderrPath"):
+                self.assertNotIn(
+                    process[key],
+                    {item["processEvidence"][key] for item in historical_candidates},
+                )
+            for key in ("stdoutSha256", "stderrSha256"):
+                self.assertRegex(process[key], r"^[0-9a-f]{64}$")
+                self.assertNotIn(
+                    process[key],
+                    {item["processEvidence"][key] for item in historical_candidates},
+                )
             self.assertEqual("pass", candidate["smoke"]["status"])
             self.assertEqual("pass", candidate["postCandidateAudit"]["status"])
             self.assertEqual("read_only", candidate["postCandidateAudit"]["scope"])
@@ -4430,6 +4479,10 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
                 evidence["candidateDeployment"]["forbiddenDatabases"]
             ),
         })
+        runtime_candidate["evidenceSource"] = {
+            "path": ".superpowers/sdd/2026-08-04-equipment-simulator-exact-first-persistence-resequence/task-3A-seventh-cloud-candidate-t3a260806070707-report.md",
+            "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        }
         runtime_candidate["freshDatabase"] = {
             "name": "wow_exact_first_fresh_test_t3a260806070707",
             "comment": "wow_exact_first_disposable:t3a260806070707:fresh",
@@ -4448,6 +4501,8 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
         runtime_candidate["bundle"].update({
             "remotePath": "/var/tmp/wow-task3a-t3a260806070707.bundle",
             "localPath": "/tmp/wow-task3a-t3a260806070707.bundle",
+            "bytes": 115856793,
+            "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
         })
         runtime_candidate["attestation"].update({
             "runId": runtime_candidate["runId"],
@@ -4472,11 +4527,45 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
             "utf-8"
         )
         runtime_candidate["processEvidence"].update({
+            "wallDurationMs": 3200,
             "stdoutPath": "/var/tmp/wow-task3a-candidate-t3a260806070707.stdout",
             "stdoutSha256": hashlib.sha256(runtime_stdout).hexdigest(),
             "stdoutBytes": len(runtime_stdout),
             "stderrPath": "/var/tmp/wow-task3a-candidate-t3a260806070707.stderr",
+            "stderrSha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "stderrBytes": 99,
+            "unittestSummary": "Ran 1 test in 3.050s; OK",
         })
+        runtime_candidate["postCandidateAudit"].update({
+            "gitIdentity": (
+                "Candidate repository remained clean at exact branch "
+                "codex/equipment-simulator-exact-first-implementation, commit "
+                f"{future_tested_head} and tree {runtime_candidate['gitTree']}."
+            ),
+            "databaseIdentity": (
+                "All 14 exact database identities were present and matched their "
+                "exact comments."
+            ),
+            "historicalDatabaseComments": [
+                *archived_sixth["postCandidateAudit"]["historicalDatabaseComments"],
+                {
+                    "name": runtime_candidate["freshDatabase"]["name"],
+                    "comment": runtime_candidate["freshDatabase"]["comment"],
+                },
+                {
+                    "name": runtime_candidate["upgradeDatabase"]["name"],
+                    "comment": runtime_candidate["upgradeDatabase"]["comment"],
+                },
+            ],
+        })
+        runtime_candidate["smoke"]["summary"] = (
+            "The independent test-only seventh fixture passed its coherent "
+            "candidate-scoped PostgreSQL evidence checks."
+        )
+        runtime_candidate["reason"] = (
+            "The independent test-only seventh fixture carries no sixth-candidate "
+            "report, bundle, checkout, process, run, database or runtime identity."
+        )
         runtime_candidate["preservedResources"] = [
             "/tmp/wow-task3a-t3a260806070707.bundle",
             "/var/tmp/wow-task3a-t3a260806070707.bundle",
@@ -4489,6 +4578,19 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
         runtime_fixture["candidateDeployment"] = runtime_candidate
         runtime_fixture["nextCandidate"] = None
         assert_lifecycle_semantics(runtime_fixture)
+        relabeled_sixth_metadata_fixture = copy.deepcopy(runtime_fixture)
+        relabeled_candidate = relabeled_sixth_metadata_fixture["candidateDeployment"]
+        relabeled_candidate["evidenceSource"] = copy.deepcopy(
+            archived_sixth["evidenceSource"]
+        )
+        for key in ("bytes", "sha256"):
+            relabeled_candidate["bundle"][key] = archived_sixth["bundle"][key]
+        relabeled_candidate["processEvidence"]["stderrSha256"] = archived_sixth[
+            "processEvidence"
+        ]["stderrSha256"]
+        with self.subTest("reject relabeled sixth candidate-scoped metadata"):
+            with self.assertRaises(AssertionError):
+                assert_lifecycle_semantics(relabeled_sixth_metadata_fixture)
         for flavor, forbidden_database in (
             ("freshDatabase", evidence["candidateDeployment"]["forbiddenDatabases"][0]),
             ("upgradeDatabase", evidence["candidateDeployment"]["forbiddenDatabases"][1]),
