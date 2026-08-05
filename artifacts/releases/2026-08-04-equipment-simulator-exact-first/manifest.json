@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-08-05T04:17:40.841Z",
+  "generatedAt": "2026-08-05T04:27:21.392Z",
   "release": {
     "date": "2026-08-04",
     "slug": "equipment-simulator-exact-first"
@@ -53,7 +53,7 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 17151
+          "sizeBytes": 17180
         },
         {
           "path": "docs/README.md",
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-08-04-equipment-simulator-exact-first/evidence.json",
-    "sizeBytes": 22023,
+    "sizeBytes": 22173,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -392,7 +392,7 @@
     "missingFields": [],
     "declaredStatus": "runtime_verified",
     "highestEvidenceLevel": "runtime_verified",
-    "summary": "Task 3A is runtime_verified, not complete or release-ready. The sole promotable candidate t3a260805120026 bound clean commit 9ffd57b05ab97be880daf65425d6de9e26609e32, tree 4f4a857ed52d65e04ab6bccfc5b3ac4649c3d94e and migration 0026 SHA-256 ddbe31fc26c8ad1aafa68bc7608f083e8415e5b4353cd5145450e2791303eb8a to two new, exact-commented disposable PostgreSQL databases. Fresh and seeded-upgrade paths passed all 14 attested checks and the read-only post-audit matched ledgers, constraint shape, authority counts and SELECT-only wow_app privileges. The first two failed runs and third runtime-passed-but-unpromotable run remain literal historical evidence and all eight databases are immutable/non-reusable. No production migration, endpoint, timer, runtime consumer, Catalog/Manifest pointer, API, UI or SimC behavior changed. Manifest generation, independent evidence-promotion review, branch/CI/merge closure and retained-resource cleanup remain pending; Task 4P and later stages remain unauthorized."
+    "summary": "Task 3A is runtime_verified, not complete or release-ready. The sole promotable candidate t3a260805120026 bound clean commit 9ffd57b05ab97be880daf65425d6de9e26609e32, tree 4f4a857ed52d65e04ab6bccfc5b3ac4649c3d94e and migration 0026 SHA-256 ddbe31fc26c8ad1aafa68bc7608f083e8415e5b4353cd5145450e2791303eb8a to two new, exact-commented disposable PostgreSQL databases. Fresh and seeded-upgrade paths passed all 14 attested checks and the read-only post-audit matched ledgers, constraint shape, authority counts and SELECT-only wow_app privileges. The first two failed runs and third runtime-passed-but-unpromotable run remain literal historical evidence and all eight databases are immutable/non-reusable. No production migration, endpoint, timer, runtime consumer, Catalog/Manifest pointer, API, UI or SimC behavior changed. The manifest has been generated and Harness-bound; independent evidence-promotion re-review, branch/CI/merge closure and retained-resource cleanup remain pending. Task 4P and later stages remain unauthorized."
   },
   "evidence": {
     "localTests": {
