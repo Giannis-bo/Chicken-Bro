@@ -800,6 +800,32 @@ class GearResolvedLoadoutTest(unittest.TestCase):
         rehash(options_drift)
         self.assertIn("RESOLVED_LOADOUT_V2_ORDERED_SLOTS_CONTEXT_MISMATCH", verify_resolved_loadout_v2(options_drift, resolver_snapshot=snapshot, authority_bundles={key: bundle}))
 
+    def test_v2_rejects_resolver_context_with_extra_occupied_slot(self):
+        """Would fail if head-only readiness silently filtered a verified main-hand slot."""
+        poisoned = v2_resolver_snapshot()
+        poisoned["profileReadiness"]["requiredSlots"] = ["head"]
+        poisoned["profileReadiness"]["readySlots"] = ["head"]
+        valid = copy.deepcopy(poisoned)
+        valid["resolvedSlots"] = {"head": copy.deepcopy(poisoned["resolvedSlots"]["head"])}
+        bundle = v2_bundle("head", "1001", ["A"])
+        key = bundle.envelope.content_key
+        kwargs = {
+            "exact_authority_by_slot": [{"slot": "head", "exactAuthorityEnvelopeKey": key}],
+            "authority_bundles": {key: bundle},
+            "gear_rule_revision": RULE_REVISION,
+            "resolver_revision": "resolver-v2",
+            "simc_runtime_revision": "simc-runtime-v2",
+        }
+        ready = build_resolved_loadout_v2(resolver_snapshot=valid, **kwargs)
+        poisoned_result = build_resolved_loadout_v2(resolver_snapshot=poisoned, **kwargs)
+
+        self.assertEqual(ready["status"], "ready")
+        with self.subTest("builder"):
+            self.assertEqual(poisoned_result["status"], "blocked")
+            self.assertIn("LOADOUT_V2_RESOLVER_NOT_READY", poisoned_result["problemCodes"])
+        with self.subTest("verifier"):
+            self.assertIn("RESOLVED_LOADOUT_V2_RESOLVER_CONTEXT_INVALID", verify_resolved_loadout_v2(ready, resolver_snapshot=poisoned, authority_bundles={key: bundle}))
+
 
 if __name__ == "__main__":
     unittest.main()

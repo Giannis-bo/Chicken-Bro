@@ -953,7 +953,16 @@ def _v2_resolver_projection(
         or ready != required
     ):
         return None
-    resolved_slots = snapshot.get("resolvedSlots") if isinstance(snapshot.get("resolvedSlots"), Mapping) else {}
+    resolved_slots = snapshot.get("resolvedSlots")
+    if not isinstance(resolved_slots, Mapping):
+        return None
+    resolved_slot_keys = list(resolved_slots.keys())
+    if (
+        len(set(resolved_slot_keys)) != len(resolved_slot_keys)
+        or any(type(slot) is not str or slot not in CANONICAL_GEAR_SLOTS for slot in resolved_slot_keys)
+        or set(resolved_slot_keys) != set(required)
+    ):
+        return None
     slots: list[dict[str, str]] = []
     for slot in required:
         resolved = resolved_slots.get(slot) if isinstance(resolved_slots.get(slot), Mapping) else {}
