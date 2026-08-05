@@ -30,6 +30,14 @@ WEBSIM_GEAR_CATALOG_VARIANT_SHAPES = ROOT / "server" / "migrations" / "postgres"
 CHICKENBRO_AGENT_OBSERVABILITY = ROOT / "server" / "migrations" / "postgres" / "0024_chickenbro_agent_observability.sql"
 CHICKENBRO_TOOL_REGISTRY = ROOT / "server" / "migrations" / "postgres" / "0025_chickenbro_tool_registry.sql"
 WEBSIM_EXACT_AUTHORITY_BUNDLE = ROOT / "server" / "migrations" / "postgres" / "0026_websim_exact_authority_bundle.sql"
+TASK_3A_CURRENT_TRUTH_FILES = (
+    ROOT / "artifacts" / "releases" / "2026-08-04-equipment-simulator-exact-first" / "requirement.json",
+    ROOT / "docs" / "backend-owner-map.json",
+    ROOT / "docs" / "plans" / "2026-08-04-equipment-simulator-exact-first-persistence-resequence.md",
+    ROOT / "docs" / "postgres-identity-migration-runbook.md",
+    ROOT / "docs" / "project-owner-map.json",
+    ROOT / "docs" / "roadmap.md",
+)
 POSTGRES_MIGRATIONS_0001_0026 = tuple(sorted(
     (ROOT / "server" / "migrations" / "postgres").glob("[0-9][0-9][0-9][0-9]_*.sql")
 ))
@@ -599,6 +607,7 @@ $unsafe$;
         self.assertIn("con.contype = 'u'", normalized)
         self.assertIn("pg_catalog.pg_attribute attr", normalized)
         self.assertIn("WITH ORDINALITY", normalized)
+        self.assertIn("SELECT attr.attname::text", normalized)
         self.assertIn("ARRAY['user_id', 'template_type', 'config_hash']", normalized)
         self.assertIn("IF target_constraint_count = 0 THEN", normalized)
         self.assertIn("ADD CONSTRAINT build_templates_user_id_template_type_config_hash_key UNIQUE (user_id, template_type, config_hash)", normalized)
@@ -606,6 +615,15 @@ $unsafe$;
         self.assertIn("RAISE EXCEPTION", normalized)
         self.assertNotIn("duplicate_object", normalized.lower())
         self.assertIn("0003_build_template_config_hash_unique", normalized)
+
+    def test_task3a_current_truth_records_both_immutable_failed_candidates(self):
+        for path in TASK_3A_CURRENT_TRUTH_FILES:
+            with self.subTest(path=path):
+                current_truth = path.read_text(encoding="utf-8")
+                self.assertIn("candidate_failed", current_truth)
+                self.assertIn("migration_chain_blocked", current_truth)
+                self.assertIn("t3a2608050955", current_truth)
+                self.assertIn("t3a260805111623", current_truth)
 
     def test_build_template_dedupe_mutation_postcondition_and_ledger_are_one_statement(self):
         atomic_blocks = re.findall(

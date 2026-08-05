@@ -30,7 +30,7 @@ BEGIN
       AND con.conname = 'build_templates_user_id_template_type_config_hash_key'
       AND con.contype = 'u'
       AND ARRAY(
-          SELECT attr.attname
+          SELECT attr.attname::text
           FROM pg_catalog.unnest(con.conkey) WITH ORDINALITY AS keyed(attnum, ordinal)
           JOIN pg_catalog.pg_attribute attr
             ON attr.attrelid = con.conrelid

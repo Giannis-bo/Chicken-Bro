@@ -21,7 +21,7 @@ ALL_MIGRATIONS = tuple(sorted(
 TASK_3A_RUN_ID = os.environ.get("WOW_PG_TEST_RUN_ID_0026", "")
 TASK_3A_FRESH_DSN = os.environ.get("WOW_PG_TEST_DSN_FRESH_0026", "")
 TASK_3A_UPGRADE_DSN = os.environ.get("WOW_PG_TEST_DSN_UPGRADE_0026", "")
-TASK_3A_FORBIDDEN_RUN_IDS = frozenset({"t3a2608050955"})
+TASK_3A_FORBIDDEN_RUN_IDS = frozenset({"t3a2608050955", "t3a260805111623"})
 
 
 def validate_task3a_candidate_run_id(run_id):
@@ -109,16 +109,27 @@ def build_task3a_candidate_attestation(
 
 
 class Task3ACandidateAttestationTest(unittest.TestCase):
-    def test_one_run_id_validator_accepts_valid_ids_and_rejects_failed_run(self):
+    def test_one_run_id_validator_accepts_valid_ids_and_rejects_both_failed_runs(self):
         validator = globals().get("validate_task3a_candidate_run_id")
         self.assertIsNotNone(validator)
         if validator is None:
             return
 
+        self.assertEqual(
+            TASK_3A_FORBIDDEN_RUN_IDS,
+            frozenset({"t3a2608050955", "t3a260805111623"}),
+        )
+
         for valid in ("run12345", "t3a2608052000", "a" * 32):
             with self.subTest(valid=valid):
                 self.assertEqual(validator(valid), valid)
-        for invalid in ("t3a2608050955", "BAD", "short", "a" * 33):
+        for invalid in (
+            "t3a2608050955",
+            "t3a260805111623",
+            "BAD",
+            "short",
+            "a" * 33,
+        ):
             with self.subTest(invalid=invalid):
                 with self.assertRaises(ValueError):
                     validator(invalid)

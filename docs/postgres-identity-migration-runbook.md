@@ -46,15 +46,17 @@ Without a test DSN the integration suite may skip; a skip is not production evid
 ## Exact Authority Bundle Task 3A Candidates
 
 Migration `0026_websim_exact_authority_bundle.sql` is not production-authorized
-by local unit or schema tests. The first Task 3A candidate at
-`f90a302040f722fec0807bd600f8e2242169801c` failed before `0026` because `0001`
+by local unit or schema tests. Two Task 3A candidates failed before `0026`:
+`t3a2608050955` at `f90a302040f722fec0807bd600f8e2242169801c` because `0001`
 already creates the `(user_id, template_type, config_hash)` unique constraint and
-`0003` unconditionally attempted to add the named target constraint. Task 3A is
-literal `candidate_failed / migration_chain_blocked` until the authorized
-fail-closed `0003` semantic-idempotence correction is committed and one final,
-clean runtime-affecting head passes two newly provisioned independently empty
-operator databases. Failed run `t3a2608050955` and its two failed databases are
-evidence only: never reset or reuse them. The test suite never creates, drops,
+`0003` unconditionally attempted to add the named target constraint, then
+`t3a260805111623` because `0003` compared PostgreSQL `name[]` catalog attributes
+with a `text[]` literal. Task 3A is literal `candidate_failed /
+migration_chain_blocked` until the authorized fail-closed `0003`
+semantic-idempotence/type correction is committed and one final, clean
+runtime-affecting head passes two newly provisioned independently empty operator
+databases. Failed runs `t3a2608050955` and `t3a260805111623` and their four
+failed databases are evidence only: never reset or reuse them. The test suite never creates, drops,
 resets or reuses any candidate database.
 
 Choose one lowercase run id matching `[a-z0-9]{8,32}`. An operator with explicit

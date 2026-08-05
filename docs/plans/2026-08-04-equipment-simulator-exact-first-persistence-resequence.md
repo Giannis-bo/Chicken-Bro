@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILLS: Use `superpowers:subagent-driven-development`, `superpowers:test-driven-development`, and `superpowers:verification-before-completion`. This plan forward-replaces the old implementation plan's Task 3 and later execution order after two independent readiness audits returned `NOT_READY`.
 
-状态：`正在推进（Task 3A 首次真实 candidate 在 0003 之前失败，当前为 candidate_failed / migration_chain_blocked；授权的最小 0003 migration-chain correction 尚未验证；failed run t3a2608050955 与两库仅保留为证据，不得重置或复用；未生成 evidence/manifest；无 runtime consumer）`
+状态：`正在推进（Task 3A 两次真实 candidate 均在 0003 前失败，当前为 candidate_failed / migration_chain_blocked；授权的最小 0003 migration-chain correction 尚未验证；failed run t3a2608050955 与 t3a260805111623 的四库仅保留为证据，不得重置或复用；未生成 evidence/manifest；无 runtime consumer）`
 
 ## Goal
 
@@ -101,7 +101,7 @@ Task 3A must not modify `simulation_snapshot_store.py`, `postgres_cache_store.py
 
 ### 2026-08-05 authorized migration-chain correction
 
-The first real candidate at `f90a302040f722fec0807bd600f8e2242169801c` failed before `0026`: `0001` already creates `UNIQUE (user_id, template_type, config_hash)` under PostgreSQL's legacy generated name, while `0003` unconditionally adds `build_templates_user_id_template_type_config_hash_key`. Current status is literal `candidate_failed / migration_chain_blocked`; failed run `t3a2608050955` and both failed databases are evidence only and must never be reset or reused.
+Two real candidates failed before `0026`: `t3a2608050955` at `f90a302040f722fec0807bd600f8e2242169801c` because `0001` already creates `UNIQUE (user_id, template_type, config_hash)` under PostgreSQL's legacy generated name while `0003` unconditionally adds `build_templates_user_id_template_type_config_hash_key`; then `t3a260805111623` because `0003` compares catalog `name[]` attributes with a `text[]` literal. Current status is literal `candidate_failed / migration_chain_blocked`; both failed runs and all four failed databases are evidence only and must never be reset or reused.
 
 Before a new candidate run, tests must prove old `0003` lacks strict target table/type/ordered-column verification, fails explicit drift detection and relies on an unconditional add rather than semantic idempotence. The only permitted production SQL correction retains the legacy-name drop; conditionally creates the target unique constraint only when absent; then verifies with `pg_catalog.pg_constraint` and `pg_catalog.pg_attribute` that exactly one target constraint is on `app.build_templates`, has `contype = 'u'`, and ordered columns `user_id, template_type, config_hash`, otherwise raises an explicit exception. It must not swallow `duplicate_object`, drop/recreate an already-correct target, change `0001`, add a retro migration or reconcile ledger state. Both real candidate paths must finally assert exactly one correct target constraint, no legacy-name constraint and exactly one `0003_build_template_config_hash_unique` ledger row. No evidence/manifest may be created until a new fresh and upgrade candidate pass at the final committed head.
 
@@ -227,7 +227,7 @@ Read path loads exact canonical bytes, reconstructs Exact -> Static/Progression 
 - [x] Independent spec/code review is `PASS/APPROVED` with zero unresolved findings on the final Task 3A code/test state.
 - [ ] Candidate PostgreSQL evidence from both explicit DSNs is mandatory before Task 3A is `已完成`. Current status is literal `candidate_failed / migration_chain_blocked` until the authorized `0003` correction passes a new fresh/upgrade pair; one database, a shared development database, skipped tests or schema-only mocks cannot be packaged as green. Only after this correction is clean may a missing `psql` or candidate DSN be described as `candidate_pending`.
 
-首次真实 candidate 已在 `0003` 前失败，当前 checkout 必须保持 literal `candidate_failed / migration_chain_blocked`，不得生成或晋升 `evidence.json`/`manifest.json`。`t3a2608050955` 与两库只保留为失败证据；新的 candidate 必须使用新 run id 和两座新建、独立、空的 operator-provisioned 数据库。新的 fresh/upgrade candidate 都必须验证恰有一个 named config-hash target constraint、`contype = 'u'`、`user_id/template_type/config_hash` 有序列、无 legacy name constraint，以及恰有一个 `0003` ledger row。
+两次真实 candidate 已在 `0003` 前失败，当前 checkout 必须保持 literal `candidate_failed / migration_chain_blocked`，不得生成或晋升 `evidence.json`/`manifest.json`。`t3a2608050955` 与 `t3a260805111623` 的四库只保留为失败证据；新的 candidate 必须使用新 run id 和两座新建、独立、空的 operator-provisioned 数据库。新的 fresh/upgrade candidate 都必须验证恰有一个 named config-hash target constraint、`contype = 'u'`、`user_id/template_type/config_hash` 有序列、无 legacy name constraint，以及恰有一个 `0003` ledger row。
 
 2026-08-05 首轮独立实现 review 返回 `CHANGES_REQUIRED`；deterministic document insertion、exact import allowlist、absent-row reverse-shared-record concurrency、精确 SQL/ACL/upgrade parity、单行 candidate attestation 与 closed-universe static gates 等 findings 已完成 RED/GREEN correction。此前 Task 3A code/test state 经两位 fresh 独立 reviewer 复审均为 `PASS/APPROVED`、0 findings；本次 failed migration-chain correction 仍需在最终状态上重新完成 scoped independent review，真实双 PostgreSQL candidate 仍是硬门禁。
 
