@@ -46,7 +46,7 @@ Without a test DSN the integration suite may skip; a skip is not production evid
 ## Exact Authority Bundle Task 3A Candidates
 
 Migration `0026_websim_exact_authority_bundle.sql` is not production-authorized
-by local unit or schema tests. Two Task 3A candidates failed before `0026`:
+by local unit, schema or candidate tests. Two Task 3A candidates failed before `0026`:
 `t3a2608050955` at `f90a302040f722fec0807bd600f8e2242169801c` because `0001`
 already creates the `(user_id, template_type, config_hash)` unique constraint and
 `0003` unconditionally attempted to add the named target constraint, then
@@ -57,25 +57,46 @@ paths at commit `0e0743ca188efbd7cb818bfb8a210fd998379f4d` / tree
 was `local_verified`. Harness permits evidence promotion only when the
 requirement is `implementation_allowed`; correcting that requirement and its
 owner contracts after execution also invalidates this candidate under the
-post-candidate mutation boundary. Task 3A is therefore literal
-`candidate_rerun_required / evidence_promotion_blocked` until a fourth new run
-passes from a final clean committed head. All three run-id pairs and all six
-databases are immutable/non-reusable evidence: never reset or reuse them. The
-test suite never creates, drops, resets or reuses any candidate database.
+post-candidate mutation boundary. These three runs retain the literal historical
+state `candidate_rerun_required / evidence_promotion_blocked` and are never green
+Task 3A evidence.
 
-The six forbidden database identities are:
+The fourth new run `t3a260805120026` passed both fresh and upgrade paths from clean
+commit `9ffd57b05ab97be880daf65425d6de9e26609e32` / tree
+`4f4a857ed52d65e04ab6bccfc5b3ac4649c3d94e` while the active requirement was
+`implementation_allowed`. Its single-line attestation binds both exact database
+identities and migration `0026` SHA-256
+`ddbe31fc26c8ad1aafa68bc7608f083e8415e5b4353cd5145450e2791303eb8a` to 14
+verified checks. The read-only post-audit independently confirmed 26 ledger rows,
+one `0003`, one `0026`, one exact target constraint, expected authority counts and
+SELECT-only `wow_app` privileges in both databases. Task 3A is now
+`runtime_verified`, but evidence/manifest archival, independent scoped review,
+branch/CI/merge closure and cleanup remain pending. This is not production,
+live, release-ready, API, UI or SimC runtime evidence; runtime consumers remain
+empty and Task 4P+ is not authorized.
+
+All four run-id pairs and all eight databases are immutable/non-reusable
+evidence: never reset or reuse them. The test suite never creates, drops, resets
+or reuses any candidate database.
+
+The eight non-reusable database identities are:
 
 - `wow_exact_first_fresh_test_t3a2608050955` and
   `wow_exact_first_upgrade_test_t3a2608050955`;
 - `wow_exact_first_fresh_test_t3a260805111623` and
   `wow_exact_first_upgrade_test_t3a260805111623`;
 - `wow_exact_first_fresh_test_t3a260805113656` and
-  `wow_exact_first_upgrade_test_t3a260805113656`.
+  `wow_exact_first_upgrade_test_t3a260805113656`;
+- `wow_exact_first_fresh_test_t3a260805120026` and
+  `wow_exact_first_upgrade_test_t3a260805120026`.
 
-Choose one new lowercase run id matching `[a-z0-9]{8,32}`; the suite rejects
-`t3a2608050955`, `t3a260805111623`, and `t3a260805113656` before importing
-`psycopg` or connecting. An operator with explicit
-authority provisions two distinct empty databases and exact database comments:
+If a candidate-invalidating code, test, migration, requirement or owner-contract
+change occurs after `t3a260805120026`, do not reuse any prior identity. Choose one
+new lowercase run id matching `[a-z0-9]{8,32}`; the suite rejects the three
+historically forbidden ids before importing `psycopg` or connecting, and any new
+rerun must also treat `t3a260805120026` as operationally non-reusable. An operator
+with explicit authority provisions two distinct empty databases and exact database
+comments:
 
 - `wow_exact_first_fresh_test_<run-id>` with comment
   `wow_exact_first_disposable:<run-id>:fresh`;
@@ -149,11 +170,13 @@ review. After candidate execution, any change to code, tests, migration,
 requirement or owner contracts invalidates both candidates. Only an operator may
 discard the two exact database identities after archival; the suite never does.
 Missing `psql`, either DSN, or the run id is a skipped candidate and remains
-`candidate_pending`, never green evidence. Until the requirement-gate correction
-is committed and a fourth new pair passes, the current status remains
-`candidate_rerun_required / evidence_promotion_blocked`, never green evidence.
-The technically successful `t3a260805113656` attestation cannot be archived as
-Task 3A evidence and cannot be used as the next candidate input.
+`candidate_pending`, never green evidence. The fourth pair has passed and is the
+sole promoted `runtime_verified` candidate, but must remain intact while
+evidence/manifest and independent promotion review are pending. The historical
+`candidate_rerun_required / evidence_promotion_blocked` status still applies to
+the first three runs; the technically successful `t3a260805113656` attestation
+cannot be archived as Task 3A evidence and cannot be used as another candidate
+input. No production migration is authorized.
 
 ## SQLite Source Inventory
 
