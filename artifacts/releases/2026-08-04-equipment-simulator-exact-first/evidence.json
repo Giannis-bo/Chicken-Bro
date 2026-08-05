@@ -20,7 +20,7 @@
     },
     "closure": {
       "status": "pending",
-      "reason": "The manifest has been generated and Harness-bound. Independent evidence-promotion re-review, branch publication, CI and merge closure remain pending."
+      "reason": "Independent evidence-promotion review passed on packet HEAD 8257f9cd7b5845a2e76d84a7cc9fbe3bbba86ad2. Branch publication, CI, merge and archive closure remain pending."
     }
   },
   "manualAcceptance": {
@@ -324,8 +324,8 @@
     },
     {
       "id": "evidence-promotion-review-and-manifest",
-      "status": "pending",
-      "detail": "The literal historical candidate_rerun_required / evidence_promotion_blocked condition is resolved only for runtime rerun. The manifest has been generated and Harness-bound; independent scoped evidence-promotion re-review remains pending, so Task 3A is not archived or release-ready."
+      "status": "review_passed_closure_pending",
+      "detail": "The literal historical candidate_rerun_required / evidence_promotion_blocked condition is resolved only for runtime rerun. The manifest is Harness-bound and independent scoped evidence-promotion review passed; branch/CI/merge and archive closure remain pending, so Task 3A is not archived or release-ready."
     },
     {
       "id": "production-and-runtime-activation",
@@ -348,7 +348,7 @@
   "cleanup": {
     "required": true,
     "status": "pending",
-    "reason": "Evidence and manifest packets exist and are Harness-bound. Candidate resources remain intentionally retained until independent scoped re-review and packet archival closure complete.",
+    "reason": "Evidence and manifest packets are Harness-bound and independent scoped review passed. Candidate resources remain intentionally retained until packet archival closure completes.",
     "preserveThrough": "packet_archival_and_independent_scoped_review",
     "resources": [
       "wow_exact_first_fresh_test_t3a260805120026",
@@ -374,5 +374,5 @@
     "docs/plans/2026-08-04-equipment-simulator-exact-first-persistence-resequence.md",
     "docs/postgres-identity-migration-runbook.md"
   ],
-  "summary": "Task 3A is runtime_verified, not complete or release-ready. The sole promotable candidate t3a260805120026 bound clean commit 9ffd57b05ab97be880daf65425d6de9e26609e32, tree 4f4a857ed52d65e04ab6bccfc5b3ac4649c3d94e and migration 0026 SHA-256 ddbe31fc26c8ad1aafa68bc7608f083e8415e5b4353cd5145450e2791303eb8a to two new, exact-commented disposable PostgreSQL databases. Fresh and seeded-upgrade paths passed all 14 attested checks and the read-only post-audit matched ledgers, constraint shape, authority counts and SELECT-only wow_app privileges. The first two failed runs and third runtime-passed-but-unpromotable run remain literal historical evidence and all eight databases are immutable/non-reusable. No production migration, endpoint, timer, runtime consumer, Catalog/Manifest pointer, API, UI or SimC behavior changed. The manifest has been generated and Harness-bound; independent evidence-promotion re-review, branch/CI/merge closure and retained-resource cleanup remain pending. Task 4P and later stages remain unauthorized."
+  "summary": "Task 3A is runtime_verified, not archived or release-ready. The sole promotable candidate t3a260805120026 bound clean commit 9ffd57b05ab97be880daf65425d6de9e26609e32, tree 4f4a857ed52d65e04ab6bccfc5b3ac4649c3d94e and migration 0026 SHA-256 ddbe31fc26c8ad1aafa68bc7608f083e8415e5b4353cd5145450e2791303eb8a to two new, exact-commented disposable PostgreSQL databases. Fresh and seeded-upgrade paths passed all 14 attested checks and the read-only post-audit matched ledgers, constraint shape, authority counts and SELECT-only wow_app privileges. The first two failed runs and third runtime-passed-but-unpromotable run remain literal historical evidence and all eight databases are immutable/non-reusable. No production migration, endpoint, timer, runtime consumer, Catalog/Manifest pointer, API, UI or SimC behavior changed. The manifest is Harness-bound and independent evidence-promotion review passed on packet HEAD 8257f9cd7b5845a2e76d84a7cc9fbe3bbba86ad2; branch publication, CI, merge/archive closure and retained-resource cleanup remain pending. Task 4P and later stages remain unauthorized."
 }
