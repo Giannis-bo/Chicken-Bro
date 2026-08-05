@@ -122,10 +122,22 @@ literal `0030`, and the schema current-truth test hard-coded
 `local_verified`. PostgreSQL was not the cause. Correcting the lifecycle test,
 owner contracts and status docs is candidate-invalidating, so the seventh status
 is exactly `runtime_passed_unpromotable_current_truth_lifecycle_test_regression`.
-Current evidence is `implementation_allowed / candidate_pending`; engineering
-truth remains `candidate_rerun_required / evidence_promotion_blocked` until an
-eighth candidate passes. Runtime/verification/closure identities are pending.
-Runtime consumers remain empty, production migration was not executed and Task 4P+ is not authorized.
+The eighth run `t3a260805163536` then passed fresh `0001..0030` and upgrade
+`0001..0029` plus frozen-v1 seed/snapshot plus `0030` from exact runtime commit
+`9f230f2e0c44a0157fb58870f10197e5525c227a` / tree
+`89e7e5e70ca16cfba20f4140df7995a463b7ce31`. Its attestation-v2, controller
+read-only post-audit and independent read-only review passed for all sixteen
+database identities. The lifecycle-only verification commit
+`0365cbdcd5ca7ff903057945808cad41e0cf19a1` / tree
+`326b07d215a9384f658ba39a6405fd5b1e937bda` separately passed the unique
+173-command full profile, Harness and exact two-path candidate-to-verification
+diff gate; it does not replace the runtime identity. Current evidence is
+`runtime_verified / candidate_verified`; runtime and verification identities
+are separately bound, while closure remains pending PR CI, push, merge,
+post-merge verification, archival and scoped cleanup. The promotion window is
+restricted to the six declared Task 3A evidence/status files. Runtime consumers
+remain empty, production migration was not executed, generation 35 is unchanged
+and Task 4P+ is not authorized.
 
 All seven run-id pairs and all fourteen databases are immutable/non-reusable
 evidence: never reset or reuse them. The test suite never creates, drops, resets
@@ -148,17 +160,16 @@ The fourteen non-reusable database identities are:
 - `wow_exact_first_fresh_test_t3a260805160003` and
   `wow_exact_first_upgrade_test_t3a260805160003`.
 
-Because the current-truth lifecycle correction was candidate-invalidating, an eighth run must not
-reuse any prior identity. It must use a new lowercase run id matching
-`[a-z0-9]{8,32}`; the suite rejects all seven historically forbidden ids before importing
-`psycopg` or connecting. An operator
-with explicit authority provisions two distinct empty databases and exact database
-comments:
+Because the current-truth lifecycle correction was candidate-invalidating, the eighth run did not
+reuse any prior identity. It used new lowercase run id `t3a260805163536`, matching
+`[a-z0-9]{8,32}`; the suite rejected all seven historically forbidden ids before importing
+`psycopg` or connecting. An operator with explicit authority provisioned two distinct empty
+databases and exact database comments:
 
-- `wow_exact_first_fresh_test_<run-id>` with comment
-  `wow_exact_first_disposable:<run-id>:fresh`;
-- `wow_exact_first_upgrade_test_<run-id>` with comment
-  `wow_exact_first_disposable:<run-id>:upgrade`.
+- `wow_exact_first_fresh_test_t3a260805163536` with comment
+  `wow_exact_first_disposable:t3a260805163536:fresh`;
+- `wow_exact_first_upgrade_test_t3a260805163536` with comment
+  `wow_exact_first_disposable:t3a260805163536:upgrade`.
 
 The cluster must already contain the repository's `wow_migrator` and `wow_app`
 roles. Historical migration `0009_runtime_reconcile_privileges.sql` executes
@@ -224,20 +235,25 @@ the run id, both database identities, commit/tree/migration hashes,
 Local/skipped runs emit no successful attestation and must not create or update
 either evidence file.
 
-Leave the seventh pair intact as immutable historical evidence; it cannot be used for
-current promotion. The eighth pair must use a new run id and two new
-operator-provisioned databases after corrected-source full-local verification passes.
-After candidate execution, any change to code, tests, migration,
-requirement or owner contracts invalidates the candidate. Only an operator may
-discard the two exact database identities after archival; the suite never does.
+Leave the seventh pair intact as immutable historical evidence; it was not used for
+current promotion. The eighth pair used a new run id and two new
+operator-provisioned databases. Runtime/product code, migration, PostgreSQL candidate
+integration test, requirement or owner-contract changes after candidate execution
+invalidate the candidate. The accepted lifecycle-only correction is separately bound
+to verification commit `0365cbdc`; executable Git diff gates prove candidate-to-verification
+contains only the lifecycle test and active plan, and verification-to-promotion contains
+only the six declared evidence/status files. Only an operator may discard the two exact
+eighth-candidate database identities after delivery closure, archival and identity
+verification; the suite never does.
 Missing `psql`, either DSN, or the run id is a skipped candidate and remains
 `candidate_pending`, never green evidence. The fourth pair remains superseded
 attestation-v1 history, the fifth remains
 `runtime_passed_invalidated_by_direct_runtime_import_regression`, and the sixth remains
 `runtime_passed_unpromotable_evidence_lifecycle_test_regression`; the seventh remains
 `runtime_passed_unpromotable_current_truth_lifecycle_test_regression`; none can be reused.
-The historical `candidate_rerun_required / evidence_promotion_blocked` status is again
-current until the eighth pair passes. Runtime, verification and closure identities remain pending.
+The historical `candidate_rerun_required / evidence_promotion_blocked` status was cleared
+only by the independent eighth pair plus the separately bound verification HEAD. Runtime
+and verification identities are bound; closure remains pending.
 The technically successful
 `t3a260805113656` attestation also remains unpromotable.
 No production migration is authorized.
