@@ -655,6 +655,43 @@ class SimulationSnapshotTest(unittest.TestCase):
             ),
         )
 
+    def test_v2_snapshot_requires_canonical_runtime_revision(self):
+        """Would fail if v2 trimmed runtime identity before binding it to loadout."""
+        source, bundles, loadout, baseline = v2_snapshot_fixture()
+        for hostile in (" simc-runtime-v2 ", ["simc-runtime-v2"]):
+            with self.subTest(builder_runtime=hostile):
+                result = build_simulation_snapshot_v2(
+                    resolved_loadout=loadout,
+                    talent_profile_key=TALENT_KEY,
+                    talent_lines=TALENT_LINES,
+                    character_context=character_context(),
+                    scenario_options=scenario(),
+                    preparation_lines=["optimal_raid=0"],
+                    compiler_revision="simc-profile-compiler-v2",
+                    simc_runtime_revision=hostile,
+                    resolver_snapshot=source,
+                    authority_bundles=bundles,
+                )
+                self.assertEqual(result["status"], "blocked")
+                self.assertIn(
+                    "SIMULATION_V2_RUNTIME_REVISION_INVALID",
+                    result["problemCodes"],
+                )
+
+        tampered = copy.deepcopy(baseline)
+        tampered["simcRuntimeRevision"] = " simc-runtime-v2 "
+        rehash_v2_snapshot(tampered)
+        self.assertIn(
+            "SIMULATION_V2_RUNTIME_REVISION_INVALID",
+            verify_simulation_snapshot_v2(
+                tampered,
+                resolved_loadout=loadout,
+                resolver_snapshot=source,
+                authority_bundles=bundles,
+                compiler_revision="simc-profile-compiler-v2",
+            ),
+        )
+
     def test_v2_snapshot_rejects_boolean_and_nonfinite_compiler_inputs(self):
         """Would fail if v2 normalized boolean or non-finite numbers into SimC input."""
         source, bundles, loadout, _ = v2_snapshot_fixture()

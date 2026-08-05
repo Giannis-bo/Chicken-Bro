@@ -275,6 +275,14 @@ def _valid_v2_compiler_revision(value: Any) -> str | None:
         return None
 
 
+def _valid_v2_runtime_revision(value: Any) -> str | None:
+    """Accept only one canonical identity token for a v2 SimC runtime."""
+    try:
+        return canonical_identity_token(value, path="simcRuntimeRevision")
+    except CanonicalValueError:
+        return None
+
+
 def _gear_line(item: Mapping[str, Any]) -> str | None:
     slot = _text(item.get("slot"))
     item_id = _text(item.get("itemId"))
@@ -647,7 +655,11 @@ def build_simulation_snapshot_v2(
     problems: list[dict[str, str]] = []
     if (loadout.get("status") != "ready" or not RESOLVED_LOADOUT_V2_KEY_PATTERN.fullmatch(_text(loadout.get("resolvedLoadoutKey"))) or verify_resolved_loadout_v2(loadout, resolver_snapshot=resolver_snapshot, authority_bundles=authority_bundles)):
         problems.append(_problem("SIMULATION_V2_LOADOUT_NOT_READY", "resolvedLoadout", "Only a verified ready v2 loadout can be snapshotted."))
-    if _text(loadout.get("simcRuntimeRevision")) != _text(simc_runtime_revision):
+    runtime = _valid_v2_runtime_revision(simc_runtime_revision)
+    loadout_runtime = _valid_v2_runtime_revision(loadout.get("simcRuntimeRevision"))
+    if runtime is None:
+        problems.append(_problem("SIMULATION_V2_RUNTIME_REVISION_INVALID", "simcRuntimeRevision", "V2 requires the canonical SimC runtime revision."))
+    elif loadout_runtime != runtime:
         problems.append(_problem("SIMULATION_V2_RUNTIME_MISMATCH", "simcRuntimeRevision", "Snapshot runtime must match every v2 authority bundle."))
     provided_talent_key = _text(talent_profile_key)
     if provided_talent_key != talent_profile_key_for_lines(talent_lines):
@@ -674,8 +686,8 @@ def build_simulation_snapshot_v2(
     canonical_input = _v2_canonical_simc_input(character, scenario, talents, preparations or [], gear_items)
     if canonical_input is None:
         return _blocked_v2("blocked", [_problem("SIMULATION_V2_GEAR_INPUT_INVALID", "resolvedLoadout.orderedSlots", "V2 gear serializer input is invalid.")])
-    identity = {"resolvedLoadoutKey": loadout["resolvedLoadoutKey"], "exactAuthorityBySlot": _canonical(loadout.get("exactAuthorityBySlot") or []), "effectEvidenceByOccurrence": _canonical(loadout.get("effectEvidenceByOccurrence") or []), "talentProfileKey": provided_talent_key, "characterContext": {**character, "talentLinesHash": _hash("sha256:", {"talentLines": talents})}, "scenarioOptions": {**scenario, "preparationLines": preparations or []}, "serializerInput": {"gearItems": gear_items}, "compilerRevision": compiler, "simcRuntimeRevision": _text(simc_runtime_revision)}
-    row = {"schemaRevision": SIMULATION_SNAPSHOT_V2_SCHEMA_REVISION, "status": "ready", "simulationSnapshotKey": _hash("simulation-snapshot-v2:sha256:", identity), "resolvedLoadoutKey": loadout["resolvedLoadoutKey"], "exactAuthorityBySlot": _canonical(loadout.get("exactAuthorityBySlot") or []), "effectEvidenceByOccurrence": _canonical(loadout.get("effectEvidenceByOccurrence") or []), "talentProfileKey": provided_talent_key, "talentLinesHash": identity["characterContext"]["talentLinesHash"], "talentLines": talents, "characterContext": character, "scenarioOptions": scenario, "preparationLines": preparations or [], "serializerInput": {"gearItems": gear_items}, "compilerRevision": compiler, "simcRuntimeRevision": _text(simc_runtime_revision), "canonicalSimcInput": canonical_input, "canonicalInputHash": "simc-input:sha256:" + hashlib.sha256(canonical_input.encode("utf-8")).hexdigest(), "problemCodes": [], "problems": []}
+    identity = {"resolvedLoadoutKey": loadout["resolvedLoadoutKey"], "exactAuthorityBySlot": _canonical(loadout.get("exactAuthorityBySlot") or []), "effectEvidenceByOccurrence": _canonical(loadout.get("effectEvidenceByOccurrence") or []), "talentProfileKey": provided_talent_key, "characterContext": {**character, "talentLinesHash": _hash("sha256:", {"talentLines": talents})}, "scenarioOptions": {**scenario, "preparationLines": preparations or []}, "serializerInput": {"gearItems": gear_items}, "compilerRevision": compiler, "simcRuntimeRevision": runtime}
+    row = {"schemaRevision": SIMULATION_SNAPSHOT_V2_SCHEMA_REVISION, "status": "ready", "simulationSnapshotKey": _hash("simulation-snapshot-v2:sha256:", identity), "resolvedLoadoutKey": loadout["resolvedLoadoutKey"], "exactAuthorityBySlot": _canonical(loadout.get("exactAuthorityBySlot") or []), "effectEvidenceByOccurrence": _canonical(loadout.get("effectEvidenceByOccurrence") or []), "talentProfileKey": provided_talent_key, "talentLinesHash": identity["characterContext"]["talentLinesHash"], "talentLines": talents, "characterContext": character, "scenarioOptions": scenario, "preparationLines": preparations or [], "serializerInput": {"gearItems": gear_items}, "compilerRevision": compiler, "simcRuntimeRevision": runtime, "canonicalSimcInput": canonical_input, "canonicalInputHash": "simc-input:sha256:" + hashlib.sha256(canonical_input.encode("utf-8")).hexdigest(), "problemCodes": [], "problems": []}
     if _text(origin_catalog_revision):
         row["originCatalogRevision"] = _text(origin_catalog_revision)
     row["rowHash"] = _hash("sha256:", {key: value for key, value in row.items() if key not in {"rowHash", "originCatalogRevision"}})
@@ -699,6 +711,9 @@ def verify_simulation_snapshot_v2(
     if not isinstance(raw_occurrences, list):
         return ["SIMULATION_V2_EFFECT_EVIDENCE_INVALID"]
     issues: list[str] = []
+    runtime = _valid_v2_runtime_revision(row.get("simcRuntimeRevision"))
+    if runtime is None:
+        issues.append("SIMULATION_V2_RUNTIME_REVISION_INVALID")
     loadout = dict(resolved_loadout) if isinstance(resolved_loadout, Mapping) else None
     loadout_context_verified = False
     if loadout is None:
@@ -716,7 +731,8 @@ def verify_simulation_snapshot_v2(
             or row.get("exactAuthorityBySlot") != loadout.get("exactAuthorityBySlot")
         ):
             issues.append("SIMULATION_V2_RESOLVED_LOADOUT_CONTEXT_MISMATCH")
-        if _text(row.get("simcRuntimeRevision")) != _text(loadout.get("simcRuntimeRevision")):
+        loadout_runtime = _valid_v2_runtime_revision(loadout.get("simcRuntimeRevision"))
+        if runtime is None or loadout_runtime is None or runtime != loadout_runtime:
             issues.append("SIMULATION_V2_RUNTIME_CONTEXT_MISMATCH")
         if raw_occurrences != loadout.get("effectEvidenceByOccurrence"):
             issues.append("SIMULATION_V2_EFFECT_EVIDENCE_CONTEXT_MISMATCH")
@@ -724,7 +740,7 @@ def verify_simulation_snapshot_v2(
         issues.append("SIMULATION_SNAPSHOT_V2_KEY_INVALID")
     raw_character = row.get("characterContext") if isinstance(row.get("characterContext"), Mapping) else {}
     raw_scenario = row.get("scenarioOptions") if isinstance(row.get("scenarioOptions"), Mapping) else {}
-    identity = {"resolvedLoadoutKey": _text(row.get("resolvedLoadoutKey")), "exactAuthorityBySlot": _canonical(row.get("exactAuthorityBySlot") or []), "effectEvidenceByOccurrence": _canonical(row.get("effectEvidenceByOccurrence") or []), "talentProfileKey": _text(row.get("talentProfileKey")), "characterContext": {**_canonical(raw_character), "talentLinesHash": _text(row.get("talentLinesHash"))}, "scenarioOptions": {**_canonical(raw_scenario), "preparationLines": _canonical(row.get("preparationLines") or [])}, "serializerInput": _canonical(row.get("serializerInput") or {}), "compilerRevision": _text(row.get("compilerRevision")), "simcRuntimeRevision": _text(row.get("simcRuntimeRevision"))}
+    identity = {"resolvedLoadoutKey": _text(row.get("resolvedLoadoutKey")), "exactAuthorityBySlot": _canonical(row.get("exactAuthorityBySlot") or []), "effectEvidenceByOccurrence": _canonical(row.get("effectEvidenceByOccurrence") or []), "talentProfileKey": _text(row.get("talentProfileKey")), "characterContext": {**_canonical(raw_character), "talentLinesHash": _text(row.get("talentLinesHash"))}, "scenarioOptions": {**_canonical(raw_scenario), "preparationLines": _canonical(row.get("preparationLines") or [])}, "serializerInput": _canonical(row.get("serializerInput") or {}), "compilerRevision": _valid_v2_compiler_revision(row.get("compilerRevision")) or "", "simcRuntimeRevision": runtime or ""}
     if _text(row.get("simulationSnapshotKey")) != _hash("simulation-snapshot-v2:sha256:", identity):
         issues.append("SIMULATION_SNAPSHOT_V2_IDENTITY_MISMATCH")
     character = _valid_v2_character_context(row.get("characterContext"))
