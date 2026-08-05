@@ -22,7 +22,7 @@
     },
     "closure": {
       "status": "pending",
-      "reason": "Runtime evidence is promoted; PR CI, push, merge, post-merge verification, packet archival and scoped candidate-resource cleanup remain pending."
+      "reason": "PR #114 merged at 97fca062 and the merge result passed scoped Harness verification; the pre-cleanup archival record is being written, while explicit candidate-resource cleanup and terminal archival remain pending."
     }
   },
   "manualAcceptance": {
@@ -43,12 +43,13 @@
     "reason": "requirement.json remains at implementation_allowed because that was the mandatory state when the eighth candidate began. Its engineeringHealth narrative is historical candidate-start context, not the current promotion source; the current runtime_verified/candidate_verified state is carried only by this evidence packet."
   },
   "mergeScopeException": {
-    "status": "user_authorized_pending_merge",
+    "status": "merged",
     "authorizedAt": "2026-08-05",
     "authority": "explicit user merge-scope authorization after independent CR",
     "pr": 114,
     "base": "origin/main",
     "reviewedImplementationHead": "32495d951f61a7ee0328030c84211dd724cc846c",
+    "mergeCommit": "97fca062f9cd3e0327f78a2d3c938e78ff934288",
     "scope": "Merge the already-reviewed Pure Canonical foundation/source-change-control changes and Task 3A persistence slice together from the reviewed implementation diff.",
     "doesNotAuthorize": [
       "new implementation outside the existing PR diff",
@@ -62,6 +63,18 @@
       "runtimeTree": "89e7e5e70ca16cfba20f4140df7995a463b7ce31",
       "preserved": true
     }
+  },
+  "archival": {
+    "status": "post_merge_recorded_cleanup_pending",
+    "mergeCommit": "97fca062f9cd3e0327f78a2d3c938e78ff934288",
+    "postMergeScopedVerification": {
+      "status": "pass",
+      "command": "node scripts/verify-project.js --profile harness --release artifacts/releases/2026-08-04-equipment-simulator-exact-first --base origin/main",
+      "testedHead": "97fca062f9cd3e0327f78a2d3c938e78ff934288",
+      "summary": "Exit 0: 93 Harness control tests passed, packet check passed, JSON and diff checks passed. This is a scoped post-merge control-plane verification, not a new PostgreSQL candidate, deployment, production migration, user-visible runtime, API, UI, worker, SimC or global closure claim."
+    },
+    "shaParity": "pending_push_of_this_pre_cleanup_archival_record",
+    "terminalArchive": "pending_scoped_cleanup_and_final_evidence_update"
   },
   "scope": [
     "Six exact-bytes typed Canonical reload boundaries",
@@ -1052,9 +1065,9 @@
   ],
   "cleanup": {
     "required": true,
-    "status": "pending",
-    "reason": "The prior seven candidate pairs remain immutable historical evidence, while the eighth pair and artifacts remain preserved as current promoted runtime evidence until delivery closure, archival and scoped cleanup authorization.",
-    "preserveThrough": "delivery_closure_packet_archival_and_scoped_cleanup",
+    "status": "post_merge_verified_archival_recorded_pending_execution",
+    "reason": "The pre-cleanup archival record is committed after main merge and scoped verification. Only the current eighth candidate pair, its explicitly named artifacts, this task worktree and its local/published branch are eligible for cleanup after this record reaches origin/main SHA parity. The prior seven candidate pairs remain immutable historical evidence.",
+    "preserveThrough": "origin_main_parity_then_scoped_cleanup",
     "resources": [
       "wow_exact_first_fresh_test_t3a260805125812",
       "wow_exact_first_upgrade_test_t3a260805125812",
