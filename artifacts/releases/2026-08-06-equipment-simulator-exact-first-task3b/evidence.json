@@ -2,14 +2,17 @@
   "schemaVersion": 2,
   "slug": "equipment-simulator-exact-first-task3b",
   "requirementSlug": "equipment-simulator-exact-first-task3b",
-  "status": "local_verified",
-  "highestEvidenceLevel": "local_verified",
+  "status": "runtime_verified",
+  "highestEvidenceLevel": "runtime_verified",
   "branch": "codex/equipment-simulator-exact-first-task3b",
-  "commit": "8459500bdd85cbdf154ffa1e9f0918703e484294",
+  "commit": "3979a2d2c20cea02358e3ff166c157694c21c684",
   "identities": {
     "runtime": {
-      "status": "pending",
-      "reason": "The previous t3b260806191950 candidate passed at 8459500b, but a later allowlisted SimulationSnapshotStore direct-server import correction changed the final runtime-affecting source. A new fresh/upgrade disposable PostgreSQL candidate is required before runtime evidence can bind again."
+      "status": "bound",
+      "kind": "git_commit",
+      "value": "3979a2d2c20cea02358e3ff166c157694c21c684",
+      "gitTree": "0837fec4d3595f4d9ac02167f2da795267e9f2b4",
+      "reason": "The fresh t3b260806203541 cloud-only PostgreSQL candidate passed at this exact clean source commit and tree after the direct-server import correction and capacity remediation."
     },
     "verification": {
       "status": "bound_at_check",
@@ -70,45 +73,57 @@
       "status": "pass",
       "testedHead": "8459500bdd85cbdf154ffa1e9f0918703e484294",
       "summary": "Run t3b260806191950 passed one real PostgreSQL candidate test in 7.110s against two new disposable databases: fresh applies 0001..0031; upgrade applies 0001..0030, seeds frozen v1 rows, then applies 0031. No production database, service or runtime consumer was used."
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest tests.simulation_snapshot_store_test; direct server imports of gear_runtime and postgres_cache_store; py_compile; git diff --check",
+      "status": "pass",
+      "testedHead": "3979a2d2c20cea02358e3ff166c157694c21c684",
+      "summary": "14 fake-store SimulationSnapshotStore tests passed; direct server imports printed resolve_selection_intent and AuthorityContextCache; syntax and whitespace checks passed. No local PostgreSQL server, DSN, connection or PostgreSQL integration test was used."
+    },
+    {
+      "command": "cloud-only PostgreSQL final-head candidate: nice -n 10 python3 -m unittest tests.postgres_integration_test.PostgresExactSnapshotV2CandidateTest.test_fresh_0031_and_upgrade_0030_to_0031",
+      "status": "pass",
+      "testedHead": "3979a2d2c20cea02358e3ff166c157694c21c684",
+      "summary": "Run t3b260806203541 passed one real PostgreSQL candidate test in 7.303s against two new exact-commented disposable databases: fresh applies 0001..0031; upgrade applies 0001..0030, seeds frozen v1 rows, then applies 0031. The source was clean as postgres owner; no production database, service, runtime consumer or pointer was used."
     }
   ],
   "candidateDeployment": {
-    "status": "candidate_invalidated_by_final_head_direct_import_fix",
+    "status": "candidate_verified",
     "requiredBeforeMerge": true,
     "migration": "0031",
     "branch": "codex/equipment-simulator-exact-first-task3b",
-    "commit": "8459500bdd85cbdf154ffa1e9f0918703e484294",
-    "gitTree": "3195c11346c2fed0e07f10e3c7291d524962495f",
+    "commit": "3979a2d2c20cea02358e3ff166c157694c21c684",
+    "gitTree": "0837fec4d3595f4d9ac02167f2da795267e9f2b4",
     "host": "wow-lighthouse",
     "runtime": "postgres_only_disposable_candidate",
-    "runId": "t3b260806191950",
+    "runId": "t3b260806203541",
     "migrationPath": "server/migrations/postgres/0031_websim_exact_snapshot_v2.sql",
     "migration0031Sha256": "33de4d541be2963f12d0f5f32749432d5a284edaf76fa3aaf92ba4197da51730",
     "freshDatabase": {
-      "name": "wow_exact_first_fresh_test_t3b260806191950",
-      "comment": "wow_exact_first_disposable:t3b260806191950:fresh",
+      "name": "wow_exact_first_fresh_test_t3b260806203541",
+      "comment": "wow_exact_first_disposable:t3b260806203541:fresh",
       "preservationStatus": "retained_pending_archival_identity_and_main_parity_verification"
     },
     "upgradeDatabase": {
-      "name": "wow_exact_first_upgrade_test_t3b260806191950",
-      "comment": "wow_exact_first_disposable:t3b260806191950:upgrade",
+      "name": "wow_exact_first_upgrade_test_t3b260806203541",
+      "comment": "wow_exact_first_disposable:t3b260806203541:upgrade",
       "preservationStatus": "retained_pending_archival_identity_and_main_parity_verification"
     },
     "candidateSource": {
-      "remotePath": "/var/tmp/wow-task3b-candidate-t3b260806191950/source",
+      "remotePath": "/var/tmp/wow-task3b-candidate-t3b260806203541/source",
       "gitStatus": "clean",
-      "commit": "8459500bdd85cbdf154ffa1e9f0918703e484294",
-      "gitTree": "3195c11346c2fed0e07f10e3c7291d524962495f"
+      "commit": "3979a2d2c20cea02358e3ff166c157694c21c684",
+      "gitTree": "0837fec4d3595f4d9ac02167f2da795267e9f2b4"
     },
     "bundle": {
-      "localPath": "/tmp/wow-task3b-bundle.621Rlo/task3b-8459500b.bundle",
-      "remotePath": "/var/tmp/wow-task3b-candidate-t3b260806191950/source.bundle",
-      "bytes": 115929669,
-      "sha256": "943cdc0320bfea6b63d2c62b798cad1430fea4c45408d548f9bca2c3e417dcb9"
+      "localPath": "/tmp/wow-task3b-bundle.cWsuey/task3b-3979a2d2.bundle",
+      "remotePath": "/var/tmp/wow-task3b-candidate-t3b260806203541.bundle",
+      "bytes": 116051867,
+      "sha256": "92cfed01b478f6b0f30341493fb43764717c00b0b1bcfda1fbcd18966d71c440"
     },
     "processEvidence": {
       "exitCode": 0,
-      "unittestSummary": "Ran 1 test in 7.110s; OK",
+      "unittestSummary": "Ran 1 test in 7.303s; OK",
       "warnings": "psycopg emitted ResourceWarning messages for candidate-test connections; the unittest result remained OK. This is recorded as engineering follow-up, not treated as an unobserved pass."
     },
     "postCandidateAudit": {
@@ -159,8 +174,8 @@
     "productionDatabaseWrite": false,
     "publicPointerChange": false,
     "nextCandidate": {
-      "status": "required",
-      "reason": "The final direct-server import correction changes SimulationSnapshotStore after the recorded candidate source; the prior databases remain historical and must not be reused. A t3b260806194346 preflight then stopped before migration because its required disposable database-comment identity was not exact. User-authorized capacity cleanup removed archived source/bundle staging, restoring sufficient headroom; a new final-head candidate is still required."
+      "status": "not_required_unless_runtime_affecting_source_changes",
+      "reason": "t3b260806203541 has bound the current final runtime-affecting source. Any subsequent runtime, migration, PostgreSQL-candidate-test, requirement or owner-contract change invalidates this identity and requires a distinct fresh/upgrade candidate."
     }
   },
   "runtimeEvidence": [],
@@ -168,7 +183,7 @@
     {
       "id": "candidate_test_resource_warnings",
       "status": "observed_nonblocking",
-      "detail": "The cloud candidate emitted psycopg ResourceWarning messages for test connections. Candidate assertions and exit status passed; this packet does not hide or promote the warnings into a production health claim."
+      "detail": "The historical and final t3b260806203541 cloud candidates emitted psycopg ResourceWarning messages for test connections. Candidate assertions and exit status passed; this packet does not hide or promote the warnings into a production health claim."
     },
     {
       "id": "historical_failed_candidate_resources",
@@ -178,7 +193,7 @@
     {
       "id": "cloud_candidate_capacity_gate",
       "status": "mitigated",
-      "detail": "Read-only cloud inspection after t3b260806194346 found the root filesystem at 98% used with about 1.6 GiB free. Under explicit user authorization, only archived Task 3A/3B candidate source directories, bundles and outputs in /var/tmp were removed after service/path checks; no database was dropped and wow-backend remained active at /opt/wow-mini-program. The filesystem now has about 5.6 GiB free (92% used), sufficient for one bounded new candidate but still not a substitute for it."
+      "detail": "Read-only cloud inspection after t3b260806194346 found the root filesystem at 98% used with about 1.6 GiB free. Under explicit user authorization, only archived Task 3A/3B candidate source directories, bundles and outputs in /var/tmp were removed after service/path checks; no database was dropped and wow-backend remained active at /opt/wow-mini-program. The bounded final candidate then consumed a 233 MiB source root, leaving about 5.2 GiB free (93% used); it was single-process, nice 10 and passed without service impact."
     },
     {
       "id": "exact_first_user_path",
@@ -193,8 +208,8 @@
   ],
   "cleanup": {
     "required": true,
-    "status": "historical_source_bundle_cleanup_completed_future_successful_candidate_cleanup_pending",
-    "reason": "Under explicit user authorization to restore cloud capacity, archived Task 3A/3B candidate source directories, bundles and outputs were removed only after read-only path/process checks; no candidate database or production resource was removed. A future successful Task 3B candidate remains subject to normal merge, post-merge verification, parity and evidence-archival cleanup gates."
+    "status": "historical_source_bundle_cleanup_completed_successful_candidate_cleanup_pending_closure",
+    "reason": "Under explicit user authorization to restore cloud capacity, archived Task 3A/3B candidate source directories, bundles and outputs were removed only after read-only path/process checks; no candidate database or production resource was removed. The current successful Task 3B candidate source, bundle and two databases remain held until normal PR CI, merge, post-merge verification, parity and evidence-archival cleanup gates complete."
   },
   "archivedReferences": [
     "docs/project-state.json",
@@ -204,5 +219,5 @@
     "docs/harness.md",
     "docs/verification-matrix.md"
   ],
-  "summary": "Task 3B is locally verified at the current source only. Historical source 8459500b / tree 3195c113 passed one cloud-only PostgreSQL fresh-and-upgrade 0031 candidate, but a later allowlisted direct-server import correction invalidated that runtime identity and requires a new final-head cloud candidate. A later t3b260806194346 preflight failed before migration; user-authorized cleanup removed only archived Task 3A/3B source/bundle staging and restored cloud headroom, but is not runtime evidence. No production migration, runtime consumer, API, UI, SimC execution or user-visible closure is claimed."
+  "summary": "Task 3B is runtime-verified at 3979a2d2 / tree 0837fec4: final t3b260806203541 passed the cloud-only fresh-and-upgrade 0031 candidate using two new exact-commented disposable databases after the direct-server import correction. Historical sources and t3b260806194346 remain non-reusable; user-authorized cleanup restored cloud headroom but is not itself runtime evidence. No production migration, runtime consumer, API, UI, SimC execution or user-visible closure is claimed; independent packet CR, exact-head PR CI and Harness integration closure remain pending."
 }
