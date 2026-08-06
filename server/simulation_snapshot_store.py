@@ -75,6 +75,7 @@ _FORBIDDEN_RESOLVER_REPLAY_SEMANTIC_KEYS = frozenset({
     "realm",
     "server",
     "source",
+    "sourceRefIds",
     "sourcePayload",
 })
 

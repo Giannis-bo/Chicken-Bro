@@ -522,6 +522,7 @@ class SimulationSnapshotStoreTest(unittest.TestCase):
             "realm",
             "server",
             "source",
+            "sourceRefIds",
             "sourcePayload",
         )
         for retained_path in ("itemSetCounts", "activeDynamicEffects[0]"):
