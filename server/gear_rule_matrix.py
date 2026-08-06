@@ -679,6 +679,8 @@ def loadout_effect_subjects(
                     continue
                 pieces = threshold.get("pieces")
                 if type(pieces) is int and count >= pieces:
+                    if threshold.get("subjectKind", "set_bonus") != "set_bonus":
+                        return []
                     try:
                         subjects.append(descriptor(
                             item_set_id=canonical_set_id,
@@ -691,10 +693,37 @@ def loadout_effect_subjects(
         effects = effective_set_state.get("activeDynamicEffects")
         if not isinstance(effects, list):
             return []
+        raw_inputs = parameters.get("setAggregationInputs")
+        if not isinstance(raw_inputs, list):
+            return []
+        raw_subject_kinds: dict[tuple[str, int, str], list[object]] = {}
+        for aggregate in raw_inputs:
+            if not isinstance(aggregate, Mapping):
+                continue
+            thresholds = aggregate.get("thresholds")
+            if not isinstance(thresholds, list):
+                continue
+            for threshold in thresholds:
+                if not isinstance(threshold, Mapping):
+                    continue
+                try:
+                    raw_descriptor = descriptor(
+                        item_set_id=aggregate.get("itemSetId"),
+                        pieces=threshold.get("pieces"),
+                        subject_key=threshold.get("effectId"),
+                    )
+                except CanonicalValueError:
+                    continue
+                identity = (
+                    raw_descriptor["itemSetId"],
+                    raw_descriptor["pieces"],
+                    raw_descriptor["subjectKey"],
+                )
+                raw_subject_kinds.setdefault(identity, []).append(
+                    threshold.get("subjectKind", "set_bonus")
+                )
         for raw_effect in effects:
             if not isinstance(raw_effect, Mapping):
-                return []
-            if raw_effect.get("subjectKind", "set_bonus") != "set_bonus":
                 return []
             try:
                 subjects.append(descriptor(
@@ -703,6 +732,22 @@ def loadout_effect_subjects(
                     subject_key=raw_effect.get("effectId"),
                 ))
             except CanonicalValueError:
+                return []
+        effective_counts = Counter(
+            (
+                subject["itemSetId"],
+                subject["pieces"],
+                subject["subjectKey"],
+            )
+            for subject in subjects
+        )
+        for identity, count in effective_counts.items():
+            kinds = raw_subject_kinds.get(identity)
+            if (
+                kinds is None
+                or len(kinds) != count
+                or any(kind != "set_bonus" for kind in kinds)
+            ):
                 return []
     else:
         return []

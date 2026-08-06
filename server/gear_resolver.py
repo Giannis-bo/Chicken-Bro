@@ -615,8 +615,6 @@ def _set_state(
                     "pieces": pieces,
                     "sourceRefIds": _ids(threshold.get("sourceRefIds", [])),
                 }
-                if "subjectKind" in threshold:
-                    effect["subjectKind"] = threshold["subjectKind"]
                 effects.append(effect)
     return {
         "itemSetCounts": {key: counts[key] for key in sorted(counts)},
