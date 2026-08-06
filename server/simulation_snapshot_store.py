@@ -76,6 +76,28 @@ def _canonical(value: Any) -> Any:
     )
 
 
+def _require_native_v2_json(value: Any, *, field: str) -> None:
+    """Reject lossy Python values before a v2 verifier sees canonical JSON."""
+    value_type = type(value)
+    if value_type is dict:
+        for key, nested in value.items():
+            if type(key) is not str:
+                raise SimulationSnapshotIntegrityError(
+                    f"{field} must contain only native JSON values"
+                )
+            _require_native_v2_json(nested, field=field)
+        return
+    if value_type is list:
+        for nested in value:
+            _require_native_v2_json(nested, field=field)
+        return
+    if value is None or value_type in {str, int, float, bool}:
+        return
+    raise SimulationSnapshotIntegrityError(
+        f"{field} must contain only native JSON values"
+    )
+
+
 def _json(value: Any) -> str:
     return json.dumps(
         value,
@@ -115,6 +137,12 @@ class SimulationSnapshotStore:
     ) -> dict[str, Any]:
         if not isinstance(value, Mapping):
             raise SimulationSnapshotIntegrityError("ready ResolvedLoadout is required")
+        if value.get("schemaRevision") == RESOLVED_LOADOUT_V2_SCHEMA_REVISION:
+            _require_native_v2_json(value, field="v2 ResolvedLoadout")
+            _require_native_v2_json(
+                resolver_snapshot,
+                field="v2 resolver snapshot",
+            )
         row = _canonical(value)
         if row.get("schemaRevision") == RESOLVED_LOADOUT_V2_SCHEMA_REVISION:
             if resolver_snapshot is None or authority_bundles is None:
@@ -148,6 +176,16 @@ class SimulationSnapshotStore:
         if not isinstance(value, Mapping):
             raise SimulationSnapshotIntegrityError(
                 "ready SimulationSnapshot is required"
+            )
+        if value.get("schemaRevision") == SIMULATION_SNAPSHOT_V2_SCHEMA_REVISION:
+            _require_native_v2_json(value, field="v2 SimulationSnapshot")
+            _require_native_v2_json(
+                resolved_loadout,
+                field="v2 ResolvedLoadout context",
+            )
+            _require_native_v2_json(
+                resolver_snapshot,
+                field="v2 resolver snapshot",
             )
         row = _canonical(value)
         if row.get("status") != "ready" or row.get("resultIdentity"):

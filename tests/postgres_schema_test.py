@@ -272,9 +272,10 @@ def exact_snapshot_v2_schema_violations(sql, migrations):
     required = (
         "CREATE TABLE IF NOT EXISTS cache.websim_loadout_effect_authorities",
         "CREATE TABLE IF NOT EXISTS cache.websim_loadout_effect_authority_records",
+        "effect_record_key text NOT NULL REFERENCES cache.websim_canonical_documents(content_key) ON DELETE RESTRICT DEFERRABLE INITIALLY DEFERRED",
+        "REFERENCES cache.websim_loadout_effect_authorities(loadout_effect_authority_key) ON DELETE RESTRICT DEFERRABLE INITIALLY DEFERRED",
         "schema_revision = 'loadout-effect-authority-v1'",
         "loadout_effect_authority_key = 'loadout-effect-authority:sha256:' || canonical_sha256",
-        "REFERENCES cache.websim_loadout_effect_authorities(loadout_effect_authority_key) DEFERRABLE INITIALLY DEFERRED ON DELETE RESTRICT",
         "PRIMARY KEY (loadout_effect_authority_key, ordinal)",
         "CREATE CONSTRAINT TRIGGER trg_websim_loadout_effect_authorities_complete AFTER INSERT ON cache.websim_loadout_effect_authorities DEFERRABLE INITIALLY DEFERRED FOR EACH ROW",
         "CREATE CONSTRAINT TRIGGER trg_websim_loadout_effect_authority_records_complete AFTER INSERT ON cache.websim_loadout_effect_authority_records DEFERRABLE INITIALLY DEFERRED FOR EACH ROW",
@@ -285,13 +286,24 @@ def exact_snapshot_v2_schema_violations(sql, migrations):
         "pg_catalog.octet_length(resolver_replay_context_json::text) <= 1048576",
         "DROP CONSTRAINT IF EXISTS websim_gear_resolved_loadouts_catalog_revision_fkey",
         "DROP CONSTRAINT IF EXISTS websim_simulation_snapshots_catalog_revision_fkey",
-        "loadout_json ->> 'resolvedLoadoutKey' IS NOT DISTINCT FROM resolved_loadout_key",
-        "snapshot_json ->> 'simulationSnapshotKey' IS NOT DISTINCT FROM simulation_snapshot_key",
-        "snapshot_json ->> 'resolvedLoadoutKey' IS NOT DISTINCT FROM resolved_loadout_key",
+        "exact_registry_revision IS NOT NULL",
+        "exact_registry_revision IS NOT DISTINCT FROM ( loadout_json ->> 'exactRegistryRevision' )",
+        "catalog_revision IS NOT DISTINCT FROM ( loadout_json ->> 'catalogRevision' )",
+        "gear_rule_revision IS NOT DISTINCT FROM ( snapshot_json ->> 'gearRuleRevision' )",
+        "v1 snapshot must bind its v1 ResolvedLoadout",
+        "v1 ResolvedLoadout catalog revision is unavailable",
+        "v1 SimulationSnapshot catalog revision is unavailable",
+        "CREATE TRIGGER trg_websim_resolved_loadout_v1_v2_binding",
+        "CREATE TRIGGER trg_websim_simulation_snapshot_v1_v2_binding",
         "loadout_json -> 'exactAuthorityBySlot' IS NOT DISTINCT FROM exact_authority_by_slot_json",
         "loadout_json -> 'effectEvidenceByOccurrence' IS NOT DISTINCT FROM effect_evidence_by_occurrence_json",
         "snapshot_json -> 'exactAuthorityBySlot' IS NOT DISTINCT FROM exact_authority_by_slot_json",
         "snapshot_json -> 'effectEvidenceByOccurrence' IS NOT DISTINCT FROM effect_evidence_by_occurrence_json",
+        "NOT (occurrence ?& ARRAY[ 'scope', 'loadoutEffectAuthorityKey', 'recordOrdinal', 'subjectKind', 'subjectKey', 'subjectVariantSignature', 'supportRecordKey' ])",
+        "(expected_subject ->> 'subjectKind') IS DISTINCT FROM (occurrence ->> 'subjectKind')",
+        "(expected_subject ->> 'subjectKey') IS DISTINCT FROM (occurrence ->> 'subjectKey')",
+        "(expected_subject ->> 'subjectVariantSignature') IS DISTINCT FROM (occurrence ->> 'subjectVariantSignature')",
+        "(expected_subject ->> 'supportRecordKey') IS DISTINCT FROM (occurrence ->> 'supportRecordKey')",
         "REVOKE ALL ON cache.websim_loadout_effect_authorities, cache.websim_loadout_effect_authority_records FROM PUBLIC;",
         "REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON cache.websim_loadout_effect_authorities, cache.websim_loadout_effect_authority_records FROM wow_app;",
         "GRANT SELECT ON cache.websim_loadout_effect_authorities, cache.websim_loadout_effect_authority_records TO wow_app;",
@@ -303,6 +315,22 @@ def exact_snapshot_v2_schema_violations(sql, migrations):
     for clause in required:
         if normalized.count(clause) != 1:
             violations.append(clause)
+    required_presence = (
+        "schema_revision = 'resolved-loadout-v1' AND resolved_loadout_key ~ '^resolved-loadout:sha256:[0-9a-f]{64}$'",
+        "schema_revision = 'simulation-snapshot-v1' AND simulation_snapshot_key ~ '^simulation-snapshot:sha256:[0-9a-f]{64}$'",
+        "loadout_json ->> 'resolvedLoadoutKey' IS NOT DISTINCT FROM resolved_loadout_key",
+        "snapshot_json ->> 'simulationSnapshotKey' IS NOT DISTINCT FROM simulation_snapshot_key",
+        "snapshot_json ->> 'resolvedLoadoutKey' IS NOT DISTINCT FROM resolved_loadout_key",
+    )
+    for clause in required_presence:
+        if clause not in normalized:
+            violations.append(clause)
+    if (
+        "effect_record_key text NOT NULL REFERENCES "
+        "cache.websim_canonical_documents(content_key) "
+        "DEFERRABLE INITIALLY DEFERRED ON DELETE RESTRICT"
+    ) in normalized:
+        violations.append("effect record FK clause order")
     if "UNIQUE (effect_record_key)" in normalized:
         violations.append("duplicate effect record prohibition")
     if "schema_revision = 'resolved-loadout-v2'" not in normalized:
@@ -534,6 +562,15 @@ $unsafe$;
         )
         mutations = (
             self.websim_exact_snapshot_v2_sql.replace(
+                "effect_record_key text NOT NULL\n"
+                "        REFERENCES cache.websim_canonical_documents(content_key)\n"
+                "        ON DELETE RESTRICT DEFERRABLE INITIALLY DEFERRED",
+                "effect_record_key text NOT NULL\n"
+                "        REFERENCES cache.websim_canonical_documents(content_key)\n"
+                "        DEFERRABLE INITIALLY DEFERRED ON DELETE RESTRICT",
+                1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
                 "DEFERRABLE INITIALLY DEFERRED", "", 1,
             ),
             self.websim_exact_snapshot_v2_sql.replace(
@@ -547,6 +584,21 @@ $unsafe$;
             self.websim_exact_snapshot_v2_sql.replace(
                 "loadout_json -> 'exactAuthorityBySlot'\n                IS NOT DISTINCT FROM exact_authority_by_slot_json",
                 "loadout_json -> 'exactAuthorityBySlot'\n                IS NOT DISTINCT FROM ignored_authority_json",
+                1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "expected_subject ->> 'subjectKind'",
+                "expected_subject ->> 'ignoredSubjectKind'",
+                1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "schema_revision = 'resolved-loadout-v1'",
+                "schema_revision = 'ignored-loadout-v1'",
+                1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "loadout_json ->> 'exactRegistryRevision'",
+                "loadout_json ->> 'ignoredExactRegistryRevision'",
                 1,
             ),
         )

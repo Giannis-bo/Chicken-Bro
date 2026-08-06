@@ -468,6 +468,94 @@ class SimulationSnapshotStoreTest(unittest.TestCase):
                 authority_bundles=bundles,
             )
 
+    def test_v2_rejects_lossy_python_values_before_canonicalization(self):
+        """Tuples and custom values must not become v2 lists or strings."""
+        resolver, authority, bundles, loadout_row, snapshot_row = (
+            active_v2_snapshot_fixture()
+        )
+
+        tuple_loadout = copy.deepcopy(loadout_row)
+        tuple_loadout["effectEvidenceByOccurrence"] = tuple(
+            tuple_loadout["effectEvidenceByOccurrence"]
+        )
+        with self.assertRaisesRegex(
+            SimulationSnapshotIntegrityError,
+            "native JSON values",
+        ):
+            self.store.seal_loadout(
+                tuple_loadout,
+                resolver_snapshot=resolver,
+                authority_bundles=bundles,
+                loadout_effect_authority=authority,
+            )
+
+        class CustomValue:
+            pass
+
+        custom_resolver = copy.deepcopy(resolver)
+        custom_resolver["setState"]["itemSetCounts"]["custom"] = CustomValue()
+        custom_resolver["v2EffectBoundary"]["setState"] = custom_resolver[
+            "setState"
+        ]
+        with self.assertRaisesRegex(
+            SimulationSnapshotIntegrityError,
+            "native JSON values",
+        ):
+            self.store.seal_loadout(
+                loadout_row,
+                resolver_snapshot=custom_resolver,
+                authority_bundles=bundles,
+                loadout_effect_authority=authority,
+            )
+
+        tuple_snapshot = copy.deepcopy(snapshot_row)
+        tuple_snapshot["effectEvidenceByOccurrence"] = tuple(
+            tuple_snapshot["effectEvidenceByOccurrence"]
+        )
+        with self.assertRaisesRegex(
+            SimulationSnapshotIntegrityError,
+            "native JSON values",
+        ):
+            self.store.seal_snapshot(
+                tuple_snapshot,
+                resolved_loadout=loadout_row,
+                resolver_snapshot=resolver,
+                authority_bundles=bundles,
+                compiler_revision="simc-profile-compiler-v2",
+                loadout_effect_authority=authority,
+            )
+
+    def test_v2_rejects_loadout_effect_subject_substitution(self):
+        """The saved occurrence must match the Task 4L subject at its ordinal."""
+        resolver, authority, bundles, loadout_row, _ = active_v2_snapshot_fixture()
+        seed_exact_authority_bundles(self.database, bundles)
+        seed_loadout_effect_records(self.database, authority)
+        sealed = self.store.seal_loadout(
+            loadout_row,
+            resolver_snapshot=resolver,
+            authority_bundles=bundles,
+            loadout_effect_authority=authority,
+        )
+        stored = list(self.database.v2_loadouts[sealed["resolvedLoadoutKey"]])
+        tampered = json.loads(stored[7])
+        occurrence = next(
+            item for item in tampered["effectEvidenceByOccurrence"]
+            if item["scope"] == "loadout"
+        )
+        occurrence["subjectKind"] = "substituted"
+        stored[7] = json.dumps(tampered, separators=(",", ":"), sort_keys=True)
+        stored[10] = json.dumps(
+            tampered["effectEvidenceByOccurrence"],
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+        self.database.v2_loadouts[sealed["resolvedLoadoutKey"]] = tuple(stored)
+        with self.assertRaisesRegex(
+            SimulationSnapshotIntegrityError,
+            "sealed v2 ResolvedLoadout integrity mismatch",
+        ):
+            self.store.load_loadout(sealed["resolvedLoadoutKey"])
+
 
 if __name__ == "__main__":
     unittest.main()

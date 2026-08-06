@@ -23,10 +23,11 @@ CREATE TABLE IF NOT EXISTS cache.websim_loadout_effect_authorities (
 CREATE TABLE IF NOT EXISTS cache.websim_loadout_effect_authority_records (
     loadout_effect_authority_key text NOT NULL
         REFERENCES cache.websim_loadout_effect_authorities(loadout_effect_authority_key)
-        DEFERRABLE INITIALLY DEFERRED ON DELETE RESTRICT,
+        ON DELETE RESTRICT DEFERRABLE INITIALLY DEFERRED,
     ordinal integer NOT NULL CHECK (ordinal BETWEEN 0 AND 127),
     effect_record_key text NOT NULL
-        REFERENCES cache.websim_canonical_documents(content_key) ON DELETE RESTRICT,
+        REFERENCES cache.websim_canonical_documents(content_key)
+        ON DELETE RESTRICT DEFERRABLE INITIALLY DEFERRED,
     sealed_at timestamptz NOT NULL DEFAULT pg_catalog.clock_timestamp(),
     PRIMARY KEY (loadout_effect_authority_key, ordinal)
 );
@@ -168,8 +169,31 @@ ALTER TABLE cache.websim_gear_resolved_loadouts
             AND pg_catalog.octet_length(resolver_replay_context_json::text) <= 1048576
         )
         OR (
-            schema_revision <> 'resolved-loadout-v2'
+            schema_revision = 'resolved-loadout-v1'
             AND resolved_loadout_key ~ '^resolved-loadout:sha256:[0-9a-f]{64}$'
+            AND catalog_revision IS NOT NULL
+            AND gear_rule_revision IS NOT NULL
+            AND exact_registry_revision IS NOT NULL
+            AND loadout_json ->> 'schemaRevision'
+                IS NOT DISTINCT FROM schema_revision
+            AND loadout_json ->> 'resolvedLoadoutKey'
+                IS NOT DISTINCT FROM resolved_loadout_key
+            AND catalog_revision IS NOT DISTINCT FROM (
+                loadout_json ->> 'catalogRevision'
+            )
+            AND gear_rule_revision IS NOT DISTINCT FROM (
+                loadout_json ->> 'gearRuleRevision'
+            )
+            AND exact_registry_revision IS NOT DISTINCT FROM (
+                loadout_json ->> 'exactRegistryRevision'
+            )
+            AND class_key IS NOT DISTINCT FROM (
+                loadout_json -> 'eligibilityContext' ->> 'classKey'
+            )
+            AND spec_key IS NOT DISTINCT FROM (
+                loadout_json -> 'eligibilityContext' ->> 'specKey'
+            )
+            AND loadout_json ->> 'rowHash' IS NOT DISTINCT FROM row_hash
             AND resolver_replay_context_json IS NULL
             AND exact_authority_by_slot_json = '[]'::jsonb
             AND effect_evidence_by_occurrence_json = '[]'::jsonb
@@ -214,8 +238,32 @@ ALTER TABLE cache.websim_simulation_snapshots
             AND snapshot_json ->> 'rowHash' IS NOT DISTINCT FROM row_hash
         )
         OR (
-            schema_revision <> 'simulation-snapshot-v2'
+            schema_revision = 'simulation-snapshot-v1'
             AND simulation_snapshot_key ~ '^simulation-snapshot:sha256:[0-9a-f]{64}$'
+            AND resolved_loadout_key ~ '^resolved-loadout:sha256:[0-9a-f]{64}$'
+            AND catalog_revision IS NOT NULL
+            AND gear_rule_revision IS NOT NULL
+            AND snapshot_json ->> 'schemaRevision'
+                IS NOT DISTINCT FROM schema_revision
+            AND snapshot_json ->> 'simulationSnapshotKey'
+                IS NOT DISTINCT FROM simulation_snapshot_key
+            AND snapshot_json ->> 'resolvedLoadoutKey'
+                IS NOT DISTINCT FROM resolved_loadout_key
+            AND snapshot_json ->> 'talentProfileKey'
+                IS NOT DISTINCT FROM talent_profile_key
+            AND snapshot_json ->> 'compilerRevision'
+                IS NOT DISTINCT FROM compiler_revision
+            AND snapshot_json ->> 'simcRuntimeRevision'
+                IS NOT DISTINCT FROM simc_runtime_revision
+            AND snapshot_json ->> 'canonicalInputHash'
+                IS NOT DISTINCT FROM canonical_input_hash
+            AND catalog_revision IS NOT DISTINCT FROM (
+                snapshot_json ->> 'catalogRevision'
+            )
+            AND gear_rule_revision IS NOT DISTINCT FROM (
+                snapshot_json ->> 'gearRuleRevision'
+            )
+            AND snapshot_json ->> 'rowHash' IS NOT DISTINCT FROM row_hash
             AND exact_authority_by_slot_json = '[]'::jsonb
             AND effect_evidence_by_occurrence_json = '[]'::jsonb
             AND loadout_effect_authority_key IS NULL
@@ -237,6 +285,7 @@ DECLARE
     expected_ordinal integer := 0;
     relation_key text;
     expected_key text;
+    expected_subject jsonb;
     relation_count integer;
     loadout_count integer := 0;
     saw_loadout boolean := false;
@@ -257,20 +306,42 @@ BEGIN
         SELECT value
         FROM pg_catalog.jsonb_array_elements(p_effect_evidence)
     LOOP
-        IF occurrence ->> 'scope' = 'loadout' THEN
+        IF pg_catalog.jsonb_typeof(occurrence) IS DISTINCT FROM 'object' THEN
+            RAISE EXCEPTION 'v2 effect occurrence must be an object';
+        END IF;
+        IF (occurrence ->> 'scope') = 'loadout' THEN
             saw_loadout := true;
-            IF pg_catalog.jsonb_typeof(occurrence -> 'recordOrdinal') <> 'number'
-               OR occurrence ->> 'recordOrdinal' !~ '^[0-9]+$'
+            IF NOT (occurrence ?& ARRAY[
+                    'scope',
+                    'loadoutEffectAuthorityKey',
+                    'recordOrdinal',
+                    'subjectKind',
+                    'subjectKey',
+                    'subjectVariantSignature',
+                    'supportRecordKey'
+               ])
+               OR (occurrence - ARRAY[
+                    'scope',
+                    'loadoutEffectAuthorityKey',
+                    'recordOrdinal',
+                    'subjectKind',
+                    'subjectKey',
+                    'subjectVariantSignature',
+                    'supportRecordKey'
+               ]) <> '{}'::jsonb
+               OR pg_catalog.jsonb_typeof(occurrence -> 'recordOrdinal') <> 'number'
+               OR (occurrence ->> 'recordOrdinal') !~ '^[0-9]+$'
                OR (occurrence ->> 'recordOrdinal')::integer <> expected_ordinal
-               OR occurrence ->> 'loadoutEffectAuthorityKey'
-                  <> p_loadout_effect_authority_key
+               OR (occurrence ->> 'loadoutEffectAuthorityKey')
+                  IS DISTINCT FROM p_loadout_effect_authority_key
             THEN
                 RAISE EXCEPTION 'v2 loadout effect occurrence is invalid';
             END IF;
             SELECT relation.effect_record_key,
                    authority.canonical_json -> 'supportRecords'
-                       -> expected_ordinal ->> 'supportRecordKey'
-            INTO relation_key, expected_key
+                       -> expected_ordinal ->> 'supportRecordKey',
+                   authority.canonical_json -> 'subjects' -> expected_ordinal
+            INTO relation_key, expected_key, expected_subject
             FROM cache.websim_loadout_effect_authorities authority
             JOIN cache.websim_loadout_effect_authority_records relation
                 ON relation.loadout_effect_authority_key
@@ -280,15 +351,49 @@ BEGIN
                   = p_loadout_effect_authority_key
             FOR KEY SHARE;
             IF relation_key IS NULL
-               OR relation_key <> expected_key
-               OR occurrence ->> 'supportRecordKey' <> relation_key
+               OR relation_key IS DISTINCT FROM expected_key
+               OR (occurrence ->> 'supportRecordKey') IS DISTINCT FROM relation_key
+               OR expected_subject IS NULL
+               OR (expected_subject ->> 'subjectKind')
+                  IS DISTINCT FROM (occurrence ->> 'subjectKind')
+               OR (expected_subject ->> 'subjectKey')
+                  IS DISTINCT FROM (occurrence ->> 'subjectKey')
+               OR (expected_subject ->> 'subjectVariantSignature')
+                  IS DISTINCT FROM (occurrence ->> 'subjectVariantSignature')
+               OR (expected_subject ->> 'supportRecordKey')
+                  IS DISTINCT FROM (occurrence ->> 'supportRecordKey')
             THEN
                 RAISE EXCEPTION 'v2 loadout effect relation mismatch';
             END IF;
             expected_ordinal := expected_ordinal + 1;
             loadout_count := loadout_count + 1;
-        ELSIF saw_loadout THEN
-            RAISE EXCEPTION 'v2 loadout effect occurrences must be a suffix';
+        ELSE
+            IF (occurrence ->> 'scope') IS DISTINCT FROM 'slot'
+               OR NOT (occurrence ?& ARRAY[
+                    'scope',
+                    'slot',
+                    'exactAuthorityEnvelopeKey',
+                    'recordOrdinal',
+                    'subjectKind',
+                    'subjectKey',
+                    'subjectVariantSignature',
+                    'supportRecordKey'
+               ])
+               OR (occurrence - ARRAY[
+                    'scope',
+                    'slot',
+                    'exactAuthorityEnvelopeKey',
+                    'recordOrdinal',
+                    'subjectKind',
+                    'subjectKey',
+                    'subjectVariantSignature',
+                    'supportRecordKey'
+               ]) <> '{}'::jsonb
+            THEN
+                RAISE EXCEPTION 'v2 slot effect occurrence is invalid';
+            ELSIF saw_loadout THEN
+                RAISE EXCEPTION 'v2 loadout effect occurrences must be a suffix';
+            END IF;
         END IF;
     END LOOP;
     SELECT pg_catalog.count(*)
@@ -301,7 +406,7 @@ BEGIN
 END;
 $body$;
 
-CREATE OR REPLACE FUNCTION cache.verify_websim_resolved_loadout_v2_insert()
+CREATE OR REPLACE FUNCTION cache.verify_websim_resolved_loadout_insert()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY INVOKER
@@ -314,29 +419,42 @@ BEGIN
             NEW.effect_evidence_by_occurrence_json,
             NEW.loadout_effect_authority_key
         );
+    ELSIF NEW.schema_revision = 'resolved-loadout-v1' THEN
+        PERFORM 1
+        FROM cache.websim_gear_catalog_revisions
+        WHERE catalog_revision = NEW.catalog_revision
+        FOR KEY SHARE;
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'v1 ResolvedLoadout catalog revision is unavailable';
+        END IF;
     END IF;
     RETURN NEW;
 END;
 $body$;
 
-CREATE OR REPLACE FUNCTION cache.verify_websim_simulation_snapshot_v2_insert()
+CREATE OR REPLACE FUNCTION cache.verify_websim_simulation_snapshot_insert()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY INVOKER
 SET search_path = pg_catalog, pg_temp
 AS $body$
 DECLARE
+    loadout_schema_revision text;
     loadout_effect_evidence jsonb;
     loadout_authority_key text;
 BEGIN
     IF NEW.schema_revision = 'simulation-snapshot-v2' THEN
-        SELECT effect_evidence_by_occurrence_json,
+        SELECT schema_revision,
+               effect_evidence_by_occurrence_json,
                loadout_effect_authority_key
-        INTO loadout_effect_evidence, loadout_authority_key
+        INTO loadout_schema_revision,
+             loadout_effect_evidence,
+             loadout_authority_key
         FROM cache.websim_gear_resolved_loadouts
         WHERE resolved_loadout_key = NEW.resolved_loadout_key
         FOR KEY SHARE;
-        IF loadout_effect_evidence IS NULL
+        IF loadout_schema_revision IS DISTINCT FROM 'resolved-loadout-v2'
+           OR loadout_effect_evidence IS NULL
            OR loadout_effect_evidence IS DISTINCT FROM NEW.effect_evidence_by_occurrence_json
            OR loadout_authority_key IS DISTINCT FROM NEW.loadout_effect_authority_key
         THEN
@@ -347,18 +465,34 @@ BEGIN
             NEW.effect_evidence_by_occurrence_json,
             NEW.loadout_effect_authority_key
         );
+    ELSIF NEW.schema_revision = 'simulation-snapshot-v1' THEN
+        SELECT schema_revision
+        INTO loadout_schema_revision
+        FROM cache.websim_gear_resolved_loadouts
+        WHERE resolved_loadout_key = NEW.resolved_loadout_key
+        FOR KEY SHARE;
+        IF loadout_schema_revision IS DISTINCT FROM 'resolved-loadout-v1' THEN
+            RAISE EXCEPTION 'v1 snapshot must bind its v1 ResolvedLoadout';
+        END IF;
+        PERFORM 1
+        FROM cache.websim_gear_catalog_revisions
+        WHERE catalog_revision = NEW.catalog_revision
+        FOR KEY SHARE;
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'v1 SimulationSnapshot catalog revision is unavailable';
+        END IF;
     END IF;
     RETURN NEW;
 END;
 $body$;
 
-CREATE TRIGGER trg_websim_resolved_loadout_v2_binding
+CREATE TRIGGER trg_websim_resolved_loadout_v1_v2_binding
 BEFORE INSERT ON cache.websim_gear_resolved_loadouts
-FOR EACH ROW EXECUTE FUNCTION cache.verify_websim_resolved_loadout_v2_insert();
+FOR EACH ROW EXECUTE FUNCTION cache.verify_websim_resolved_loadout_insert();
 
-CREATE TRIGGER trg_websim_simulation_snapshot_v2_binding
+CREATE TRIGGER trg_websim_simulation_snapshot_v1_v2_binding
 BEFORE INSERT ON cache.websim_simulation_snapshots
-FOR EACH ROW EXECUTE FUNCTION cache.verify_websim_simulation_snapshot_v2_insert();
+FOR EACH ROW EXECUTE FUNCTION cache.verify_websim_simulation_snapshot_insert();
 
 CREATE TRIGGER trg_websim_loadout_effect_authorities_immutable
 BEFORE UPDATE OR DELETE ON cache.websim_loadout_effect_authorities

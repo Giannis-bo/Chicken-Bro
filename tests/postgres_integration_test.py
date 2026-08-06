@@ -1,4 +1,6 @@
 import os
+import hashlib
+import json
 from pathlib import Path
 import re
 import shutil
@@ -22,6 +24,8 @@ TASK_3A_MIGRATIONS = tuple(
     migration for migration in ALL_MIGRATIONS
     if migration.name <= "0030_websim_exact_authority_bundle.sql"
 )
+TASK_3B_MIGRATIONS = ALL_MIGRATIONS
+TASK_3B_BASELINE_MIGRATIONS = ALL_MIGRATIONS[:-1]
 TASK_3A_RUN_ID = os.environ.get("WOW_PG_TEST_RUN_ID_0030", "")
 TASK_3A_FRESH_DSN = os.environ.get("WOW_PG_TEST_DSN_FRESH_0030", "")
 TASK_3A_UPGRADE_DSN = os.environ.get("WOW_PG_TEST_DSN_UPGRADE_0030", "")
@@ -34,6 +38,9 @@ TASK_3A_FORBIDDEN_RUN_IDS = frozenset({
     "t3a260805142130",
     "t3a260805160003",
 })
+TASK_3B_RUN_ID = os.environ.get("WOW_PG_TEST_RUN_ID_0031", "")
+TASK_3B_FRESH_DSN = os.environ.get("WOW_PG_TEST_DSN_FRESH_0031", "")
+TASK_3B_UPGRADE_DSN = os.environ.get("WOW_PG_TEST_DSN_UPGRADE_0031", "")
 
 
 def validate_task3a_candidate_run_id(run_id):
@@ -46,13 +53,36 @@ def validate_task3a_candidate_run_id(run_id):
     return run_id
 
 
+def validate_task3b_candidate_run_id(run_id):
+    if (
+        type(run_id) is not str
+        or re.fullmatch(r"[a-z0-9]{8,32}", run_id) is None
+        or run_id in TASK_3A_FORBIDDEN_RUN_IDS
+    ):
+        raise ValueError("invalid or reused Task 3B candidate run id")
+    return run_id
+
+
+def task3b_candidate_configured(run_id, fresh_dsn, upgrade_dsn, psql_path):
+    """Candidate DDL is opt-in; this harness never provisions databases."""
+    return bool(run_id and fresh_dsn and upgrade_dsn and psql_path)
+
+
 if TASK_3A_RUN_ID:
     validate_task3a_candidate_run_id(TASK_3A_RUN_ID)
+if TASK_3B_RUN_ID:
+    validate_task3b_candidate_run_id(TASK_3B_RUN_ID)
 TASK_3A_CANDIDATE_CONFIGURED = bool(
     TASK_3A_RUN_ID
     and TASK_3A_FRESH_DSN
     and TASK_3A_UPGRADE_DSN
     and shutil.which("psql")
+)
+TASK_3B_CANDIDATE_CONFIGURED = task3b_candidate_configured(
+    TASK_3B_RUN_ID,
+    TASK_3B_FRESH_DSN,
+    TASK_3B_UPGRADE_DSN,
+    shutil.which("psql"),
 )
 TASK_3A_VERIFIED_CHECKS = (
     "exact_disposable_database_identity_and_empty_preflight",
@@ -355,6 +385,39 @@ class Task3ACandidateAttestationTest(unittest.TestCase):
             "aggregate_and_bundle_binding_triggers",
             TASK_3A_VERIFIED_CHECKS,
         )
+
+
+class Task3BCandidateHarnessTest(unittest.TestCase):
+    def test_run_id_and_explicit_candidate_gate_fail_closed(self):
+        for valid in ("run12345", "t3b2608062000", "a" * 32):
+            with self.subTest(valid=valid):
+                self.assertEqual(validate_task3b_candidate_run_id(valid), valid)
+        for invalid in (
+            "t3a2608050955",
+            "BAD",
+            "short",
+            "a" * 33,
+        ):
+            with self.subTest(invalid=invalid):
+                with self.assertRaises(ValueError):
+                    validate_task3b_candidate_run_id(invalid)
+
+        configured = task3b_candidate_configured
+        self.assertFalse(configured("run12345", "fresh", "upgrade", None))
+        self.assertFalse(configured("run12345", "fresh", "", "/usr/bin/psql"))
+        self.assertFalse(configured("", "fresh", "upgrade", "/usr/bin/psql"))
+        self.assertTrue(configured("run12345", "fresh", "upgrade", "/usr/bin/psql"))
+
+    def test_harness_pins_fresh_and_upgrade_migration_boundaries(self):
+        self.assertEqual(
+            TASK_3B_MIGRATIONS[-1].name,
+            "0031_websim_exact_snapshot_v2.sql",
+        )
+        self.assertEqual(
+            TASK_3B_BASELINE_MIGRATIONS[-1].name,
+            "0030_websim_exact_authority_bundle.sql",
+        )
+        self.assertEqual(TASK_3B_MIGRATIONS[:-1], TASK_3B_BASELINE_MIGRATIONS)
 
 
 @unittest.skipUnless(os.environ.get("WOW_PG_TEST_DSN"), "WOW_PG_TEST_DSN is not configured")
@@ -1066,6 +1129,599 @@ class PostgresExactAuthorityCandidateTest(unittest.TestCase):
             git_identity=git_identity,
         )
         print(attestation, flush=True)
+
+
+@unittest.skipUnless(
+    TASK_3B_CANDIDATE_CONFIGURED,
+    "Task 3B requires psql plus two explicit run-id-bound disposable 0031 DSNs",
+)
+class PostgresExactSnapshotV2CandidateTest(unittest.TestCase):
+    """Explicit-only fresh/upgrade harness; it never provisions databases."""
+
+    PROJECT_SCHEMAS = (
+        "identity", "app", "content", "cache", "knowledge", "analytics", "ops",
+    )
+
+    @staticmethod
+    def _connect(dsn):
+        validate_task3b_candidate_run_id(TASK_3B_RUN_ID)
+        import psycopg
+
+        return psycopg.connect(dsn)
+
+    def _database_identity(self, dsn, flavor):
+        expected = (
+            f"wow_exact_first_{flavor}_test_{TASK_3B_RUN_ID}",
+            f"wow_exact_first_disposable:{TASK_3B_RUN_ID}:{flavor}",
+        )
+        with self._connect(dsn) as conn:
+            self.assertEqual(conn.info.dbname, expected[0])
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT pg_catalog.shobj_description(oid, 'pg_database') "
+                    "FROM pg_catalog.pg_database WHERE datname = current_database()"
+                )
+                self.assertEqual(cur.fetchone()[0], expected[1])
+        return expected
+
+    def _assert_empty_disposable(self, dsn, flavor):
+        identity = self._database_identity(dsn, flavor)
+        with self._connect(dsn) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT nspname FROM pg_catalog.pg_namespace "
+                    "WHERE nspname = ANY(%s)",
+                    (list(self.PROJECT_SCHEMAS),),
+                )
+                self.assertEqual(cur.fetchall(), [])
+        return identity
+
+    def _apply(self, dsn, migrations):
+        with self._connect(dsn) as conn:
+            with conn.cursor() as cur:
+                for migration in migrations:
+                    cur.execute(migration.read_text(encoding="utf-8"))
+
+    @staticmethod
+    def _git_identity():
+        status = subprocess.run(
+            ["git", "status", "--porcelain"],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout
+        if status:
+            raise AssertionError("Task 3B candidate requires a clean committed tree")
+        commit = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+        migration = ROOT / "server/migrations/postgres/0031_websim_exact_snapshot_v2.sql"
+        return commit, hashlib.sha256(migration.read_bytes()).hexdigest()
+
+    def _seed_v1_catalog(self, dsn, catalog_revision):
+        release_id = f"task3b-v1-release-{TASK_3B_RUN_ID}"
+        digest = "a" * 64
+        with self._connect(dsn) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO cache.websim_release_registry "
+                    "(release_id, release_kind, season_revision, schema_revision, "
+                    "content_hash, release_status) VALUES "
+                    "(%s, 'gear', 'task3b', 'task3b-v1', %s, 'validated')",
+                    (release_id, "sha256:" + digest),
+                )
+                cur.execute(
+                    "INSERT INTO cache.websim_gear_catalog_revisions "
+                    "(catalog_revision, schema_revision, builder_revision, "
+                    "season_revision, source_gear_release_id, source_content_hash, "
+                    "dependency_vector_json, source_summary_json, content_summary_json, "
+                    "catalog_json, row_hash) VALUES "
+                    "(%s, 'gear-catalog-v1', 'task3b', 'task3b', %s, %s, "
+                    "'{}'::jsonb, '{}'::jsonb, '{}'::jsonb, '{}'::jsonb, %s)",
+                    (
+                        catalog_revision,
+                        release_id,
+                        "sha256:" + digest,
+                        "sha256:" + ("b" * 64),
+                    ),
+                )
+
+    def _seal_v1_pair(self, dsn):
+        from server.simulation_snapshot_store import SimulationSnapshotStore
+        from tests.simulation_snapshot_store_test import loadout as v1_loadout
+        from tests.simulation_snapshot_store_test import snapshot as v1_snapshot
+
+        loadout = v1_loadout()
+        snapshot = v1_snapshot()
+        self._seed_v1_catalog(dsn, loadout["catalogRevision"])
+        store = SimulationSnapshotStore(lambda: self._connect(dsn))
+        sealed_loadout = store.seal_loadout(loadout)
+        sealed_snapshot = store.seal_snapshot(snapshot)
+        with self._connect(dsn) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT resolved_loadout_key, schema_revision, catalog_revision, "
+                    "gear_rule_revision, exact_registry_revision, class_key, spec_key, "
+                    "loadout_json::text, row_hash, sealed_at "
+                    "FROM cache.websim_gear_resolved_loadouts"
+                )
+                loadout_row = cur.fetchone()
+                cur.execute(
+                    "SELECT simulation_snapshot_key, schema_revision, resolved_loadout_key, "
+                    "talent_profile_key, compiler_revision, simc_runtime_revision, "
+                    "canonical_input_hash, catalog_revision, gear_rule_revision, "
+                    "snapshot_json::text, row_hash, sealed_at "
+                    "FROM cache.websim_simulation_snapshots"
+                )
+                snapshot_row = cur.fetchone()
+        return sealed_loadout, sealed_snapshot, loadout_row, snapshot_row
+
+    @staticmethod
+    def _relation_authority_fixture():
+        from server.gear_loadout_effect_authority import (
+            resolve_loadout_effect_authority,
+        )
+        from tests.gear_loadout_effect_authority_test import (
+            descriptor,
+            records_for,
+            snapshot_with_descriptors,
+        )
+
+        resolver = snapshot_with_descriptors([
+            descriptor("set-a", 2, "set-a-2pc"),
+            descriptor("set-b", 1, "set-b-1pc"),
+        ])
+        outcome = resolve_loadout_effect_authority(
+            resolver,
+            records=records_for(resolver),
+        )
+        if outcome.status != "verified" or outcome.document is None:
+            raise AssertionError(outcome.issues)
+        alternate = records_for(resolver, verified_at="2026-08-06T00:00:01Z")[0]
+        return outcome.document, tuple(records_for(resolver)), alternate
+
+    def _seed_effect_documents(self, dsn, documents):
+        with self._connect(dsn) as conn:
+            with conn.cursor() as cur:
+                for document in documents:
+                    raw = document.canonical_bytes
+                    cur.execute(
+                        "INSERT INTO cache.websim_canonical_documents "
+                        "(content_key, document_kind, schema_revision, canonical_bytes, "
+                        "canonical_json, canonical_sha256) VALUES "
+                        "(%s, %s, %s, %s, %s::jsonb, %s)",
+                        (
+                            document.content_key,
+                            document.document_kind,
+                            document.schema_revision,
+                            raw,
+                            raw.decode("utf-8"),
+                            hashlib.sha256(raw).hexdigest(),
+                        ),
+                    )
+
+    @staticmethod
+    def _insert_authority_parent(cur, authority):
+        raw = authority.canonical_bytes
+        cur.execute(
+            "INSERT INTO cache.websim_loadout_effect_authorities "
+            "(loadout_effect_authority_key, schema_revision, canonical_bytes, "
+            "canonical_json, canonical_sha256) VALUES "
+            "(%s, %s, %s, %s::jsonb, %s)",
+            (
+                authority.content_key,
+                authority.schema_revision,
+                raw,
+                raw.decode("utf-8"),
+                hashlib.sha256(raw).hexdigest(),
+            ),
+        )
+
+    @staticmethod
+    def _insert_authority_relation(cur, authority_key, ordinal, record_key):
+        cur.execute(
+            "INSERT INTO cache.websim_loadout_effect_authority_records "
+            "(loadout_effect_authority_key, ordinal, effect_record_key) "
+            "VALUES (%s, %s, %s)",
+            (authority_key, ordinal, record_key),
+        )
+
+    def _assert_relation_closure(self, dsn):
+        import psycopg
+
+        authority, records, alternate = self._relation_authority_fixture()
+        self._seed_effect_documents(dsn, (*records, alternate))
+        record_keys = [record.content_key for record in records]
+
+        def rejected(rows):
+            with self.assertRaises(psycopg.Error):
+                with self._connect(dsn) as conn:
+                    with conn.cursor() as cur:
+                        self._insert_authority_parent(cur, authority)
+                        for ordinal, key in rows:
+                            self._insert_authority_relation(
+                                cur, authority.content_key, ordinal, key,
+                            )
+
+        cases = {
+            "missing": list(enumerate(record_keys[:-1])),
+            "extra": [*enumerate(record_keys), (len(record_keys), record_keys[-1])],
+            "gap": [(0, record_keys[0]), (2, record_keys[1])],
+            "reorder": [(0, record_keys[1]), (1, record_keys[0])],
+            "substitution": [(0, alternate.content_key), (1, record_keys[1])],
+            "duplicate": [(0, record_keys[0]), (0, record_keys[1])],
+        }
+        for label, rows in cases.items():
+            with self.subTest(label=label):
+                rejected(rows)
+
+        with self._connect(dsn) as conn:
+            with conn.cursor() as cur:
+                for ordinal, key in enumerate(record_keys):
+                    self._insert_authority_relation(
+                        cur, authority.content_key, ordinal, key,
+                    )
+                self._insert_authority_parent(cur, authority)
+        return authority
+
+    def _assert_subject_substitution_rejected(self, dsn, authority):
+        import psycopg
+
+        payload = json.loads(authority.canonical_bytes)
+        evidence = [
+            {
+                "scope": "loadout",
+                "loadoutEffectAuthorityKey": authority.content_key,
+                "recordOrdinal": ordinal,
+                "subjectKind": subject["subjectKind"],
+                "subjectKey": subject["subjectKey"],
+                "subjectVariantSignature": subject["subjectVariantSignature"],
+                "supportRecordKey": record["supportRecordKey"],
+            }
+            for ordinal, (subject, record) in enumerate(zip(
+                payload["subjects"], payload["supportRecords"], strict=True,
+            ))
+        ]
+        evidence[0]["subjectKind"] = "substituted"
+        key = "resolved-loadout-v2:sha256:" + ("9" * 64)
+        row_hash = "sha256:" + ("8" * 64)
+        row = {
+            "schemaRevision": "resolved-loadout-v2",
+            "status": "ready",
+            "resolvedLoadoutKey": key,
+            "gearRuleRevision": "gear-rule-matrix-v1",
+            "eligibilityContext": {"classKey": "mage", "specKey": "arcane"},
+            "rowHash": row_hash,
+            "exactAuthorityBySlot": [],
+            "effectEvidenceByOccurrence": evidence,
+            "loadoutEffectAuthorityKey": authority.content_key,
+        }
+        with self.assertRaises(psycopg.Error):
+            with self._connect(dsn) as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "INSERT INTO cache.websim_gear_resolved_loadouts "
+                        "(resolved_loadout_key, schema_revision, catalog_revision, "
+                        "gear_rule_revision, exact_registry_revision, class_key, spec_key, "
+                        "loadout_json, row_hash, exact_authority_by_slot_json, "
+                        "effect_evidence_by_occurrence_json, loadout_effect_authority_key, "
+                        "resolver_replay_context_json) VALUES "
+                        "(%s, 'resolved-loadout-v2', NULL, 'gear-rule-matrix-v1', NULL, "
+                        "'mage', 'arcane', %s::jsonb, %s, '[]'::jsonb, %s::jsonb, %s, "
+                        "'{}'::jsonb)",
+                        (
+                            key,
+                            json.dumps(row),
+                            row_hash,
+                            json.dumps(evidence),
+                            authority.content_key,
+                        ),
+                    )
+
+    def _assert_v1_conditional_integrity_rejected(
+        self,
+        dsn,
+        v1_loadout,
+        v1_snapshot,
+    ):
+        import psycopg
+
+        def rejected_loadout(label, *, payload_field, column_field, value):
+            payload = json.loads(json.dumps(v1_loadout))
+            payload["resolvedLoadoutKey"] = (
+                "resolved-loadout:sha256:" + label * 64
+            )
+            payload["rowHash"] = "sha256:" + (label * 64)
+            payload[payload_field] = (
+                value
+                if payload_field == "catalogRevision"
+                else v1_loadout[payload_field]
+            )
+            columns = {
+                "catalogRevision": payload["catalogRevision"],
+                "gearRuleRevision": payload["gearRuleRevision"],
+                "exactRegistryRevision": payload["exactRegistryRevision"],
+            }
+            columns[column_field] = value
+            with self.assertRaises(psycopg.Error):
+                with self._connect(dsn) as conn:
+                    with conn.cursor() as cur:
+                        cur.execute(
+                            "INSERT INTO cache.websim_gear_resolved_loadouts "
+                            "(resolved_loadout_key, schema_revision, catalog_revision, "
+                            "gear_rule_revision, exact_registry_revision, class_key, spec_key, "
+                            "loadout_json, row_hash) VALUES "
+                            "(%s, 'resolved-loadout-v1', %s, %s, %s, %s, %s, %s::jsonb, %s)",
+                            (
+                                payload["resolvedLoadoutKey"],
+                                columns["catalogRevision"],
+                                columns["gearRuleRevision"],
+                                columns["exactRegistryRevision"],
+                                payload["eligibilityContext"]["classKey"],
+                                payload["eligibilityContext"]["specKey"],
+                                json.dumps(payload),
+                                payload["rowHash"],
+                            ),
+                        )
+
+        rejected_loadout(
+            "a",
+            payload_field="catalogRevision",
+            column_field="catalogRevision",
+            value="gear-catalog:sha256:" + ("0" * 64),
+        )
+        rejected_loadout(
+            "b",
+            payload_field="exactRegistryRevision",
+            column_field="exactRegistryRevision",
+            value="gear-exact-registry:sha256:" + ("1" * 64),
+        )
+        rejected_loadout(
+            "c",
+            payload_field="gearRuleRevision",
+            column_field="gearRuleRevision",
+            value="gear-rule-matrix-other",
+        )
+
+        def rejected_snapshot(label, *, payload_field, column_field, value):
+            payload = json.loads(json.dumps(v1_snapshot))
+            payload["simulationSnapshotKey"] = (
+                "simulation-snapshot:sha256:" + label * 64
+            )
+            payload["rowHash"] = "sha256:" + label * 64
+            payload[payload_field] = (
+                value
+                if payload_field == "catalogRevision"
+                else v1_snapshot[payload_field]
+            )
+            columns = {
+                "catalogRevision": payload["catalogRevision"],
+                "gearRuleRevision": payload["gearRuleRevision"],
+            }
+            columns[column_field] = value
+            with self.assertRaises(psycopg.Error):
+                with self._connect(dsn) as conn:
+                    with conn.cursor() as cur:
+                        cur.execute(
+                            "INSERT INTO cache.websim_simulation_snapshots "
+                            "(simulation_snapshot_key, schema_revision, resolved_loadout_key, "
+                            "talent_profile_key, compiler_revision, simc_runtime_revision, "
+                            "canonical_input_hash, catalog_revision, gear_rule_revision, "
+                            "snapshot_json, row_hash) VALUES "
+                            "(%s, 'simulation-snapshot-v1', %s, %s, %s, %s, %s, %s, %s, "
+                            "%s::jsonb, %s)",
+                            (
+                                payload["simulationSnapshotKey"],
+                                payload["resolvedLoadoutKey"],
+                                payload["talentProfileKey"],
+                                payload["compilerRevision"],
+                                payload["simcRuntimeRevision"],
+                                payload["canonicalInputHash"],
+                                columns["catalogRevision"],
+                                columns["gearRuleRevision"],
+                                json.dumps(payload),
+                                payload["rowHash"],
+                            ),
+                        )
+
+        rejected_snapshot(
+            "d",
+            payload_field="catalogRevision",
+            column_field="catalogRevision",
+            value="gear-catalog:sha256:" + ("0" * 64),
+        )
+        rejected_snapshot(
+            "e",
+            payload_field="gearRuleRevision",
+            column_field="gearRuleRevision",
+            value="gear-rule-matrix-other",
+        )
+
+    def _assert_cross_version_rejected(self, dsn, v1_loadout_key, catalog_revision):
+        import psycopg
+
+        v2_loadout_key = "resolved-loadout-v2:sha256:" + ("c" * 64)
+        row_hash = "sha256:" + ("d" * 64)
+        v2_loadout = {
+            "schemaRevision": "resolved-loadout-v2",
+            "status": "ready",
+            "resolvedLoadoutKey": v2_loadout_key,
+            "gearRuleRevision": "gear-rule-matrix-v1",
+            "eligibilityContext": {"classKey": "mage", "specKey": "arcane"},
+            "rowHash": row_hash,
+            "exactAuthorityBySlot": [],
+            "effectEvidenceByOccurrence": [],
+        }
+        with self._connect(dsn) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO cache.websim_gear_resolved_loadouts "
+                    "(resolved_loadout_key, schema_revision, catalog_revision, "
+                    "gear_rule_revision, exact_registry_revision, class_key, spec_key, "
+                    "loadout_json, row_hash, exact_authority_by_slot_json, "
+                    "effect_evidence_by_occurrence_json, resolver_replay_context_json) "
+                    "VALUES (%s, 'resolved-loadout-v2', NULL, 'gear-rule-matrix-v1', "
+                    "NULL, 'mage', 'arcane', %s::jsonb, %s, '[]'::jsonb, "
+                    "'[]'::jsonb, '{}'::jsonb)",
+                    (v2_loadout_key, json.dumps(v2_loadout), row_hash),
+                )
+
+        v2_snapshot_key = "simulation-snapshot-v2:sha256:" + ("e" * 64)
+        v1_snapshot_key = "simulation-snapshot:sha256:" + ("f" * 64)
+        input_hash = "simc-input:sha256:" + ("0" * 64)
+        talent_key = "talent-profile:sha256:" + ("1" * 64)
+        with self.assertRaises(psycopg.Error):
+            with self._connect(dsn) as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "INSERT INTO cache.websim_simulation_snapshots "
+                        "(simulation_snapshot_key, schema_revision, resolved_loadout_key, "
+                        "talent_profile_key, compiler_revision, simc_runtime_revision, "
+                        "canonical_input_hash, catalog_revision, gear_rule_revision, "
+                        "snapshot_json, row_hash, exact_authority_by_slot_json, "
+                        "effect_evidence_by_occurrence_json) VALUES "
+                        "(%s, 'simulation-snapshot-v2', %s, %s, 'compiler-v2', "
+                        "'simc-runtime-v2', %s, NULL, NULL, '{\"status\":\"ready\"}'::jsonb, "
+                        "%s, '[]'::jsonb, '[]'::jsonb)",
+                        (v2_snapshot_key, v1_loadout_key, talent_key, input_hash, row_hash),
+                    )
+        with self.assertRaises(psycopg.Error):
+            with self._connect(dsn) as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "INSERT INTO cache.websim_simulation_snapshots "
+                        "(simulation_snapshot_key, schema_revision, resolved_loadout_key, "
+                        "talent_profile_key, compiler_revision, simc_runtime_revision, "
+                        "canonical_input_hash, catalog_revision, gear_rule_revision, "
+                        "snapshot_json, row_hash) VALUES "
+                        "(%s, 'simulation-snapshot-v1', %s, %s, 'compiler-v1', "
+                        "'simc-runtime-v1', %s, %s, 'gear-rule-matrix-v1', "
+                        "'{\"status\":\"ready\"}'::jsonb, %s)",
+                        (
+                            v1_snapshot_key,
+                            v2_loadout_key,
+                            talent_key,
+                            input_hash,
+                            catalog_revision,
+                            row_hash,
+                        ),
+                    )
+
+    def _assert_acl(self, dsn):
+        with self._connect(dsn) as conn:
+            with conn.cursor() as cur:
+                for table in (
+                    "websim_loadout_effect_authorities",
+                    "websim_loadout_effect_authority_records",
+                ):
+                    cur.execute(
+                        "SELECT pg_catalog.has_table_privilege("
+                        "'wow_app', %s::regclass, 'SELECT'), "
+                        "pg_catalog.has_table_privilege('wow_app', %s::regclass, 'INSERT'), "
+                        "pg_catalog.has_table_privilege('wow_app', %s::regclass, 'UPDATE'), "
+                        "pg_catalog.has_table_privilege('wow_app', %s::regclass, 'DELETE'), "
+                        "pg_catalog.has_table_privilege('wow_app', %s::regclass, 'TRUNCATE')",
+                        tuple([f"cache.{table}"] * 5),
+                    )
+                    self.assertEqual(cur.fetchone(), (True, False, False, False, False))
+
+    def test_fresh_0031_and_upgrade_0030_to_0031(self):
+        self.assertEqual(
+            TASK_3B_MIGRATIONS[-1].name,
+            "0031_websim_exact_snapshot_v2.sql",
+        )
+        self.assertEqual(
+            TASK_3B_BASELINE_MIGRATIONS[-1].name,
+            "0030_websim_exact_authority_bundle.sql",
+        )
+        self.assertNotEqual(TASK_3B_FRESH_DSN, TASK_3B_UPGRADE_DSN)
+        git_identity = self._git_identity()
+        fresh_identity = self._assert_empty_disposable(TASK_3B_FRESH_DSN, "fresh")
+        upgrade_identity = self._assert_empty_disposable(TASK_3B_UPGRADE_DSN, "upgrade")
+
+        self._apply(TASK_3B_FRESH_DSN, TASK_3B_MIGRATIONS)
+        fresh_loadout, fresh_snapshot, _, _ = self._seal_v1_pair(
+            TASK_3B_FRESH_DSN,
+        )
+        authority = self._assert_relation_closure(TASK_3B_FRESH_DSN)
+        self._assert_subject_substitution_rejected(TASK_3B_FRESH_DSN, authority)
+        self._assert_v1_conditional_integrity_rejected(
+            TASK_3B_FRESH_DSN,
+            fresh_loadout,
+            fresh_snapshot,
+        )
+        self._assert_cross_version_rejected(
+            TASK_3B_FRESH_DSN,
+            fresh_loadout["resolvedLoadoutKey"],
+            fresh_loadout["catalogRevision"],
+        )
+        self._assert_acl(TASK_3B_FRESH_DSN)
+
+        self._apply(TASK_3B_UPGRADE_DSN, TASK_3B_BASELINE_MIGRATIONS)
+        upgrade_loadout, upgrade_snapshot, before_loadout, before_snapshot = (
+            self._seal_v1_pair(TASK_3B_UPGRADE_DSN)
+        )
+        self._apply(TASK_3B_UPGRADE_DSN, TASK_3B_MIGRATIONS[-1:])
+        with self._connect(TASK_3B_UPGRADE_DSN) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT resolved_loadout_key, schema_revision, catalog_revision, "
+                    "gear_rule_revision, exact_registry_revision, class_key, spec_key, "
+                    "loadout_json::text, row_hash, sealed_at "
+                    "FROM cache.websim_gear_resolved_loadouts"
+                )
+                self.assertEqual(cur.fetchone(), before_loadout)
+                cur.execute(
+                    "SELECT simulation_snapshot_key, schema_revision, resolved_loadout_key, "
+                    "talent_profile_key, compiler_revision, simc_runtime_revision, "
+                    "canonical_input_hash, catalog_revision, gear_rule_revision, "
+                    "snapshot_json::text, row_hash, sealed_at "
+                    "FROM cache.websim_simulation_snapshots"
+                )
+                self.assertEqual(cur.fetchone(), before_snapshot)
+                cur.execute(
+                    "SELECT exact_authority_by_slot_json, "
+                    "effect_evidence_by_occurrence_json, "
+                    "loadout_effect_authority_key, resolver_replay_context_json "
+                    "FROM cache.websim_gear_resolved_loadouts"
+                )
+                self.assertEqual(cur.fetchone(), ([], [], None, None))
+                cur.execute(
+                    "SELECT exact_authority_by_slot_json, "
+                    "effect_evidence_by_occurrence_json, "
+                    "loadout_effect_authority_key "
+                    "FROM cache.websim_simulation_snapshots"
+                )
+                self.assertEqual(cur.fetchone(), ([], [], None))
+                cur.execute(
+                    "SELECT count(*) FROM ops.schema_migrations "
+                    "WHERE id = '0031_websim_exact_snapshot_v2'"
+                )
+                self.assertEqual(cur.fetchone()[0], 1)
+        self._assert_cross_version_rejected(
+            TASK_3B_UPGRADE_DSN,
+            upgrade_loadout["resolvedLoadoutKey"],
+            upgrade_loadout["catalogRevision"],
+        )
+        self._assert_v1_conditional_integrity_rejected(
+            TASK_3B_UPGRADE_DSN,
+            upgrade_loadout,
+            upgrade_snapshot,
+        )
+        self._assert_acl(TASK_3B_UPGRADE_DSN)
+        self.assertEqual(
+            self._database_identity(TASK_3B_FRESH_DSN, "fresh"), fresh_identity,
+        )
+        self.assertEqual(
+            self._database_identity(TASK_3B_UPGRADE_DSN, "upgrade"), upgrade_identity,
+        )
+        self.assertEqual(upgrade_snapshot["resolvedLoadoutKey"], upgrade_loadout["resolvedLoadoutKey"])
+        self.assertEqual(self._git_identity(), git_identity)
 
 
 if __name__ == "__main__":
