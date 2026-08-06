@@ -608,7 +608,12 @@ class GearRuleMatrixTest(unittest.TestCase):
         subjects = gear_rule_matrix.loadout_effect_subjects(
             self.intent({"head": self.slot("item-head", "variant-head")}), authority
         )
-        self.assertEqual(subjects, [{"subjectKind": "set_bonus", "subjectKey": "set-a-1"}])
+        self.assertEqual(subjects, [{
+            "subjectKind": "set_bonus",
+            "itemSetId": "set-a",
+            "pieces": 1,
+            "subjectKey": "set-a-1",
+        }])
 
     def test_loadout_effect_subjects_uses_effective_active_set_state(self):
         """Would fail if v2 recounted raw fields instead of Resolver's effective set state."""
@@ -632,7 +637,49 @@ class GearRuleMatrixTest(unittest.TestCase):
             },
         )
 
-        self.assertEqual(subjects, [{"subjectKind": "set_bonus", "subjectKey": "set-a-1"}])
+        self.assertEqual(subjects, [{
+            "subjectKind": "set_bonus",
+            "itemSetId": "set-a",
+            "pieces": 1,
+            "subjectKey": "set-a-1",
+        }])
+
+    def test_loadout_effect_subjects_preserves_sorted_duplicate_set_occurrences(self):
+        """Would fail if the projection deduped or reordered active occurrences."""
+        authority = self.authority()
+
+        subjects = gear_rule_matrix.loadout_effect_subjects(
+            self.intent({"head": self.slot("item-head", "variant-head")}),
+            authority,
+            effective_set_state={
+                "activeDynamicEffects": [
+                    {"effectId": "effect-b", "itemSetId": "set-b", "pieces": 2},
+                    {"effectId": "effect-a", "itemSetId": "set-a", "pieces": 1},
+                    {"effectId": "effect-a", "itemSetId": "set-a", "pieces": 1},
+                ],
+            },
+        )
+
+        self.assertEqual(subjects, [
+            {
+                "subjectKind": "set_bonus",
+                "itemSetId": "set-a",
+                "pieces": 1,
+                "subjectKey": "effect-a",
+            },
+            {
+                "subjectKind": "set_bonus",
+                "itemSetId": "set-a",
+                "pieces": 1,
+                "subjectKey": "effect-a",
+            },
+            {
+                "subjectKind": "set_bonus",
+                "itemSetId": "set-b",
+                "pieces": 2,
+                "subjectKey": "effect-b",
+            },
+        ])
 
 
 if __name__ == "__main__":
