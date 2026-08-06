@@ -35,7 +35,7 @@ CHICKENBRO_COMMUNITY_STRENGTH = ROOT / "server" / "migrations" / "postgres" / "0
 CHICKENBRO_GENERIC_PUBLIC_WEB = ROOT / "server" / "migrations" / "postgres" / "0028_chickenbro_generic_public_web_research.sql"
 CHICKENBRO_PUBLIC_WEB_REPEAT_BUDGET = ROOT / "server" / "migrations" / "postgres" / "0029_chickenbro_public_web_repeat_budget.sql"
 WEBSIM_EXACT_AUTHORITY_BUNDLE = ROOT / "server" / "migrations" / "postgres" / "0030_websim_exact_authority_bundle.sql"
-TASK_3A_CURRENT_TRUTH_FILES = (
+TASK_3A_MIGRATION_CURRENT_TRUTH_FILES = (
     ROOT / "artifacts" / "releases" / "2026-08-04-equipment-simulator-exact-first" / "requirement.json",
     ROOT / "docs" / "backend-owner-map.json",
     ROOT / "docs" / "plans" / "2026-08-04-equipment-simulator-canonical-kernel-implementation.md",
@@ -44,16 +44,18 @@ TASK_3A_CURRENT_TRUTH_FILES = (
     ROOT / "docs" / "plans" / "2026-08-04-equipment-simulator-duplicate-effect-subject-correction.md",
     ROOT / "docs" / "plans" / "2026-08-04-equipment-simulator-exact-first-implementation.md",
     ROOT / "docs" / "plans" / "2026-08-04-equipment-simulator-exact-first-persistence-resequence.md",
-    ROOT / "docs" / "plans" / "README.md",
     ROOT / "docs" / "postgres-identity-migration-runbook.md",
     ROOT / "docs" / "project-owner-map.json",
-    ROOT / "docs" / "roadmap.md",
 )
 TASK_3A_LIFECYCLE_STATUS_FILES = (
     ROOT / "docs" / "plans" / "2026-08-04-equipment-simulator-exact-first-persistence-resequence.md",
     ROOT / "docs" / "plans" / "README.md",
     ROOT / "docs" / "postgres-identity-migration-runbook.md",
     ROOT / "docs" / "roadmap.md",
+)
+TASK_3A_HISTORICAL_LIFECYCLE_FILES = (
+    ROOT / "docs" / "plans" / "2026-08-04-equipment-simulator-exact-first-persistence-resequence.md",
+    ROOT / "docs" / "postgres-identity-migration-runbook.md",
 )
 POSTGRES_MIGRATIONS_0001_0030 = tuple(sorted(
     (ROOT / "server" / "migrations" / "postgres").glob("[0-9][0-9][0-9][0-9]_*.sql")
@@ -633,7 +635,7 @@ $unsafe$;
         self.assertNotIn("duplicate_object", normalized.lower())
         self.assertIn("0003_build_template_config_hash_unique", normalized)
 
-    def test_task3a_current_truth_requires_new_candidate_after_unpromotable_runtime_pass(self):
+    def test_task3a_current_truth_tracks_eighth_candidate_delivery_closure(self):
         requirement = json.loads(
             (
                 ROOT
@@ -670,13 +672,20 @@ $unsafe$;
         self.assertNotIn("candidate_rerun_required", summary)
         self.assertNotIn("evidence_promotion_blocked", summary)
 
-        for path in TASK_3A_CURRENT_TRUTH_FILES:
+        for path in TASK_3A_MIGRATION_CURRENT_TRUTH_FILES:
             with self.subTest(path=path):
                 current_truth = path.read_text(encoding="utf-8")
                 self.assertIn("0030", current_truth)
 
         for path in TASK_3A_LIFECYCLE_STATUS_FILES:
             with self.subTest(lifecycle_status_path=path):
+                current_truth = path.read_text(encoding="utf-8")
+                self.assertIn("t3a260805163536", current_truth)
+                self.assertIn("runtime_verified", current_truth)
+                self.assertIn("pending", current_truth)
+
+        for path in TASK_3A_HISTORICAL_LIFECYCLE_FILES:
+            with self.subTest(historical_lifecycle_path=path):
                 current_truth = path.read_text(encoding="utf-8")
                 self.assertIn("t3a260805160003", current_truth)
                 self.assertIn(
@@ -705,7 +714,22 @@ $unsafe$;
                 "candidate_verified", evidence["candidateDeployment"]["status"]
             )
             self.assertEqual(
+                "t3a260805163536", evidence["candidateDeployment"]["runId"]
+            )
+            self.assertEqual(
                 "bound", evidence["identities"]["runtime"]["status"]
+            )
+            self.assertEqual(
+                "pending", evidence["identities"]["closure"]["status"]
+            )
+            archival = evidence["archival"]
+            self.assertEqual(
+                "post_merge_scoped_cleanup_recorded_formal_lifecycle_pending",
+                archival["status"],
+            )
+            self.assertEqual("pass", archival["postMergeScopedVerification"]["status"])
+            self.assertEqual(
+                "verified_before_scoped_cleanup", archival["shaParity"]["status"]
             )
 
         plan = (
