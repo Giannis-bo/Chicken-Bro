@@ -562,6 +562,22 @@ class Task4WCandidateHarnessTest(unittest.TestCase):
             with self.subTest(required=required):
                 self.assertIn(required, source)
 
+    def test_cloud_candidate_contains_array_safe_sensitive_jsonpath_boundary(self):
+        source = inspect.getsource(PostgresExactImportJobsCandidateTest)
+        for required in (
+            "def _assert_sensitive_jsonpath_boundary",
+            "self._assert_sensitive_jsonpath_boundary()",
+            "jsonpath-array-v1",
+            "jsonpath-problem-array-v1",
+            "must-never-persist",
+            "bonusIds",
+            '{"status": "resolved", "items": []}',
+            '{"code": "INCOMPLETE", "details": []}',
+            '{"status": "idle", "events": []}',
+        ):
+            with self.subTest(required=required):
+                self.assertIn(required, source)
+
     def test_cloud_candidate_coalesce_guard_rejects_case_and_whitespace_variant(self):
         source = inspect.getsource(PostgresExactImportJobsCandidateTest)
         mutated = source.replace(
@@ -3282,6 +3298,109 @@ class PostgresExactImportJobsCandidateTest(unittest.TestCase):
                 )
                 return cur.fetchone()
 
+    def _assert_sensitive_jsonpath_boundary(self):
+        import psycopg
+
+        request = self._request("jsonpath-array-v1")
+        head = request.request_json["exactLoadoutIntent"]["slots"]["head"]
+        self.assertEqual(head["bonusIds"], [])
+
+        sensitive_request_json = json.loads(request.canonical_bytes.decode("utf-8"))
+        sensitive_request_json["exactLoadoutIntent"]["slots"]["head"]["nested"] = {
+            "safe": [{"realm": "must-never-persist"}],
+        }
+        sensitive_request_bytes = json.dumps(
+            sensitive_request_json,
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode("utf-8")
+        with self.assertRaises(psycopg.errors.InvalidParameterValue):
+            with self._connect(TASK_4W_APP_DSN) as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT * FROM ops.websim_exact_enqueue(%s, %s, %s::jsonb)",
+                        (
+                            "sha256:" + "9" * 64,
+                            sensitive_request_bytes,
+                            json.dumps(sensitive_request_json),
+                        ),
+                    )
+
+        resolved = self._enqueue("sha256:" + "7" * 64, request)
+        self.assertEqual(
+            resolved[1:],
+            (request.request_key, "pending", False, None),
+        )
+        with self._connect(TASK_4W_WORKER_DSN) as conn:
+            with conn.cursor() as cur:
+                cur.execute("SET ROLE wow_exact_worker")
+                cur.execute(
+                    "SELECT * FROM ops.websim_exact_claim(%s, %s, %s)",
+                    ("jsonpath-worker", "exact-worker-v1", "simc-runtime-v1"),
+                )
+                resolved_claim = cur.fetchone()
+                self.assertEqual(resolved_claim[1], request.request_key)
+                cur.execute(
+                    "SELECT * FROM ops.websim_exact_terminalize("
+                    "%s, %s, 'resolved', 'resolved', %s::jsonb, NULL, %s)",
+                    (
+                        resolved_claim[0],
+                        resolved_claim[4],
+                        json.dumps({"status": "resolved", "items": []}),
+                        f"jsonpath-resolved-{TASK_4W_RUN_ID}",
+                    ),
+                )
+                self.assertEqual(cur.fetchone()[1], "resolved")
+
+        problem_request = self._request("jsonpath-problem-array-v1")
+        blocked = self._enqueue("sha256:" + "8" * 64, problem_request)
+        with self._connect(TASK_4W_WORKER_DSN) as conn:
+            with conn.cursor() as cur:
+                cur.execute("SET ROLE wow_exact_worker")
+                cur.execute(
+                    "SELECT * FROM ops.websim_exact_claim(%s, %s, %s)",
+                    ("jsonpath-worker", "exact-worker-v1", "simc-runtime-v1"),
+                )
+                blocked_claim = cur.fetchone()
+                self.assertEqual(blocked_claim[0], blocked[0])
+                cur.execute(
+                    "SELECT * FROM ops.websim_exact_terminalize("
+                    "%s, %s, 'blocked', 'incomplete', NULL, %s::jsonb, %s)",
+                    (
+                        blocked_claim[0],
+                        blocked_claim[4],
+                        json.dumps({"code": "INCOMPLETE", "details": []}),
+                        f"jsonpath-blocked-{TASK_4W_RUN_ID}",
+                    ),
+                )
+                self.assertEqual(cur.fetchone()[1], "blocked")
+                cur.execute(
+                    "SELECT ops.websim_exact_update_worker_state("
+                    "%s, 'idle', %s, %s, NULL, %s::jsonb)",
+                    (
+                        "jsonpath-worker",
+                        "exact-worker-v1",
+                        "simc-runtime-v1",
+                        json.dumps({"status": "idle", "events": []}),
+                    ),
+                )
+
+        with self.assertRaises(psycopg.errors.InvalidParameterValue):
+            with self._connect(TASK_4W_WORKER_DSN) as conn:
+                with conn.cursor() as cur:
+                    cur.execute("SET ROLE wow_exact_worker")
+                    cur.execute(
+                        "SELECT ops.websim_exact_update_worker_state("
+                        "%s, 'idle', %s, %s, NULL, %s::jsonb)",
+                        (
+                            "jsonpath-worker",
+                            "exact-worker-v1",
+                            "simc-runtime-v1",
+                            json.dumps({"events": [{"realm": "must-never-persist"}]}),
+                        ),
+                    )
+
     def _assert_denied(self, dsn, statement, parameters=()):
         import psycopg
 
@@ -4226,6 +4345,7 @@ class PostgresExactImportJobsCandidateTest(unittest.TestCase):
         self._assert_role_logins()
         self._assert_real_login_acl_matrix()
         self._assert_acl_isolation()
+        self._assert_sensitive_jsonpath_boundary()
         self._assert_reverse_metric_lock_order()
         self._assert_claim_metric_post_wait_lease_window()
         self._assert_job_lifecycle()

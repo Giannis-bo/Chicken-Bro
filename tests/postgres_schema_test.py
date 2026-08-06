@@ -37,6 +37,18 @@ CHICKENBRO_PUBLIC_WEB_REPEAT_BUDGET = ROOT / "server" / "migrations" / "postgres
 WEBSIM_EXACT_AUTHORITY_BUNDLE = ROOT / "server" / "migrations" / "postgres" / "0030_websim_exact_authority_bundle.sql"
 WEBSIM_EXACT_SNAPSHOT_V2 = ROOT / "server" / "migrations" / "postgres" / "0031_websim_exact_snapshot_v2.sql"
 WEBSIM_EXACT_IMPORT_JOBS = ROOT / "server" / "migrations" / "postgres" / "0032_websim_exact_import_jobs.sql"
+TASK_4W_OBJECT_FILTERED_SENSITIVE_JSONPATH = (
+    '$.** ? (@.type() == "object").keyvalue() ? ('
+    '@.key == "rawProfile" || @.key == "rawString" || '
+    '@.key == "playerName" || @.key == "characterName" || '
+    '@.key == "realm" || @.key == "server")'
+)
+TASK_4W_UNGUARDED_SENSITIVE_JSONPATH = (
+    '$.**.keyvalue() ? ('
+    '@.key == "rawProfile" || @.key == "rawString" || '
+    '@.key == "playerName" || @.key == "characterName" || '
+    '@.key == "realm" || @.key == "server")'
+)
 TASK_3A_MIGRATION_CURRENT_TRUTH_FILES = (
     ROOT / "artifacts" / "releases" / "2026-08-04-equipment-simulator-exact-first" / "requirement.json",
     ROOT / "docs" / "backend-owner-map.json",
@@ -449,6 +461,10 @@ def exact_import_jobs_schema_violations(sql, migrations):
         flags=re.IGNORECASE,
     ):
         violations.append("SQL special COALESCE must not be schema-qualified")
+    if normalized.count(TASK_4W_OBJECT_FILTERED_SENSITIVE_JSONPATH) != 9:
+        violations.append("nine object-filtered recursive sensitive-field JSONPaths")
+    if TASK_4W_UNGUARDED_SENSITIVE_JSONPATH in normalized:
+        violations.append("unguarded recursive keyvalue JSONPath")
     required = (
         "pg_catalog.to_regprocedure('pg_catalog.gen_random_uuid()') IS NULL",
         "FROM pg_catalog.pg_roles WHERE rolname = 'wow_exact_worker'",
@@ -476,7 +492,6 @@ def exact_import_jobs_schema_violations(sql, migrations):
         "pg_catalog.pg_advisory_xact_lock",
         "FOR UPDATE SKIP LOCKED",
         "pg_catalog.gen_random_uuid()",
-        "$.**.keyvalue() ? (@.key == \"rawProfile\"",
         "lease_until = observed_at + interval '30 seconds'",
         "started_at = COALESCE(candidate.started_at, observed_at)",
         "finished_at + interval '7 days'",
@@ -1120,6 +1135,26 @@ $unsafe$;
         self.assertNotEqual(mutated, sql)
         self.assertIn(
             "SQL special COALESCE must not be schema-qualified",
+            exact_import_jobs_schema_violations(mutated, migrations),
+        )
+
+    def test_exact_import_jobs_rejects_unguarded_recursive_keyvalue_jsonpath(self):
+        sql = WEBSIM_EXACT_IMPORT_JOBS.read_text(encoding="utf-8")
+        migrations = tuple(
+            (path.name, path.read_text(encoding="utf-8"))
+            for path in POSTGRES_MIGRATIONS_0001_0032
+        )
+        self.assertEqual(
+            sql.count(TASK_4W_OBJECT_FILTERED_SENSITIVE_JSONPATH),
+            9,
+        )
+        mutated = sql.replace(
+            TASK_4W_OBJECT_FILTERED_SENSITIVE_JSONPATH,
+            TASK_4W_UNGUARDED_SENSITIVE_JSONPATH,
+            1,
+        )
+        self.assertIn(
+            "unguarded recursive keyvalue JSONPath",
             exact_import_jobs_schema_violations(mutated, migrations),
         )
 

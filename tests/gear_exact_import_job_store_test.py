@@ -121,6 +121,14 @@ class GearExactImportRequestTest(unittest.TestCase):
         self.assertNotIn(b" ", request.canonical_bytes)
         self.assertTrue(request.canonical_bytes.startswith(b'{"dependencyVector":'))
 
+    def test_array_containing_canonical_request_is_accepted_before_sealing(self):
+        request = build_exact_import_job_request(exact_intent(), dependency_vector())
+
+        head = request.request_json["exactLoadoutIntent"]["slots"]["head"]
+        self.assertEqual(head["bonusIds"], [])
+        self.assertEqual(head["gemIds"], [])
+        self.assertEqual(head["craftedStats"], [])
+
     def test_nested_sensitive_identity_and_raw_fields_are_rejected_before_sealing(self):
         for forbidden in (
             "rawProfile", "rawString", "playerName", "characterName",

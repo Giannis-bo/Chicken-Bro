@@ -61,7 +61,7 @@ CREATE TABLE ops.websim_exact_import_jobs (
                 AND pg_catalog.octet_length(result_json::text) <= 131072
                 AND NOT pg_catalog.jsonb_path_exists(
                     result_json,
-                    '$.**.keyvalue() ? (@.key == "rawProfile" || @.key == "rawString" || @.key == "playerName" || @.key == "characterName" || @.key == "realm" || @.key == "server")'::pg_catalog.jsonpath
+                    '$.** ? (@.type() == "object").keyvalue() ? (@.key == "rawProfile" || @.key == "rawString" || @.key == "playerName" || @.key == "characterName" || @.key == "realm" || @.key == "server")'::pg_catalog.jsonpath
                 )
             )
         ),
@@ -73,7 +73,7 @@ CREATE TABLE ops.websim_exact_import_jobs (
                 AND pg_catalog.octet_length(problem_json::text) <= 16384
                 AND NOT pg_catalog.jsonb_path_exists(
                     problem_json,
-                    '$.**.keyvalue() ? (@.key == "rawProfile" || @.key == "rawString" || @.key == "playerName" || @.key == "characterName" || @.key == "realm" || @.key == "server")'::pg_catalog.jsonpath
+                    '$.** ? (@.type() == "object").keyvalue() ? (@.key == "rawProfile" || @.key == "rawString" || @.key == "playerName" || @.key == "characterName" || @.key == "realm" || @.key == "server")'::pg_catalog.jsonpath
                 )
             )
         ),
@@ -110,7 +110,7 @@ CREATE TABLE ops.websim_exact_import_jobs (
     CHECK (
         NOT pg_catalog.jsonb_path_exists(
             request_json,
-            '$.**.keyvalue() ? (@.key == "rawProfile" || @.key == "rawString" || @.key == "playerName" || @.key == "characterName" || @.key == "realm" || @.key == "server")'::pg_catalog.jsonpath
+            '$.** ? (@.type() == "object").keyvalue() ? (@.key == "rawProfile" || @.key == "rawString" || @.key == "playerName" || @.key == "characterName" || @.key == "realm" || @.key == "server")'::pg_catalog.jsonpath
         )
     ),
     CHECK (
@@ -236,7 +236,7 @@ CREATE TABLE ops.websim_exact_worker_state (
                 AND pg_catalog.octet_length(last_outcome_json::text) <= 16384
                 AND NOT pg_catalog.jsonb_path_exists(
                     last_outcome_json,
-                    '$.**.keyvalue() ? (@.key == "rawProfile" || @.key == "rawString" || @.key == "playerName" || @.key == "characterName" || @.key == "realm" || @.key == "server")'::pg_catalog.jsonpath
+                    '$.** ? (@.type() == "object").keyvalue() ? (@.key == "rawProfile" || @.key == "rawString" || @.key == "playerName" || @.key == "characterName" || @.key == "realm" || @.key == "server")'::pg_catalog.jsonpath
                 )
             )
         ),
@@ -312,7 +312,7 @@ BEGIN
        ] <> '{}'::jsonb
        OR pg_catalog.jsonb_path_exists(
           p_request_json,
-          '$.**.keyvalue() ? (@.key == "rawProfile" || @.key == "rawString" || @.key == "playerName" || @.key == "characterName" || @.key == "realm" || @.key == "server")'::pg_catalog.jsonpath
+          '$.** ? (@.type() == "object").keyvalue() ? (@.key == "rawProfile" || @.key == "rawString" || @.key == "playerName" || @.key == "characterName" || @.key == "realm" || @.key == "server")'::pg_catalog.jsonpath
        )
     THEN
         RAISE EXCEPTION 'invalid exact import request'
@@ -588,7 +588,7 @@ BEGIN
        ] <> '{}'::jsonb
        OR pg_catalog.jsonb_path_exists(
           candidate.request_json,
-          '$.**.keyvalue() ? (@.key == "rawProfile" || @.key == "rawString" || @.key == "playerName" || @.key == "characterName" || @.key == "realm" || @.key == "server")'::pg_catalog.jsonpath
+          '$.** ? (@.type() == "object").keyvalue() ? (@.key == "rawProfile" || @.key == "rawString" || @.key == "playerName" || @.key == "characterName" || @.key == "realm" || @.key == "server")'::pg_catalog.jsonpath
        )
     THEN
         RAISE EXCEPTION 'claimed exact import request drift'
@@ -718,7 +718,7 @@ BEGIN
                 OR pg_catalog.octet_length(p_result_json::text) > 131072
                 OR pg_catalog.jsonb_path_exists(
                     p_result_json,
-                    '$.**.keyvalue() ? (@.key == "rawProfile" || @.key == "rawString" || @.key == "playerName" || @.key == "characterName" || @.key == "realm" || @.key == "server")'::pg_catalog.jsonpath
+                    '$.** ? (@.type() == "object").keyvalue() ? (@.key == "rawProfile" || @.key == "rawString" || @.key == "playerName" || @.key == "characterName" || @.key == "realm" || @.key == "server")'::pg_catalog.jsonpath
                 )
             )
        )
@@ -729,7 +729,7 @@ BEGIN
                 OR pg_catalog.octet_length(p_problem_json::text) > 16384
                 OR pg_catalog.jsonb_path_exists(
                     p_problem_json,
-                    '$.**.keyvalue() ? (@.key == "rawProfile" || @.key == "rawString" || @.key == "playerName" || @.key == "characterName" || @.key == "realm" || @.key == "server")'::pg_catalog.jsonpath
+                    '$.** ? (@.type() == "object").keyvalue() ? (@.key == "rawProfile" || @.key == "rawString" || @.key == "playerName" || @.key == "characterName" || @.key == "realm" || @.key == "server")'::pg_catalog.jsonpath
                 )
             )
        )
@@ -854,7 +854,7 @@ BEGIN
                 OR pg_catalog.octet_length(p_last_outcome_json::text) > 16384
                 OR pg_catalog.jsonb_path_exists(
                     p_last_outcome_json,
-                    '$.**.keyvalue() ? (@.key == "rawProfile" || @.key == "rawString" || @.key == "playerName" || @.key == "characterName" || @.key == "realm" || @.key == "server")'::pg_catalog.jsonpath
+                    '$.** ? (@.type() == "object").keyvalue() ? (@.key == "rawProfile" || @.key == "rawString" || @.key == "playerName" || @.key == "characterName" || @.key == "realm" || @.key == "server")'::pg_catalog.jsonpath
                 )
             )
        )
