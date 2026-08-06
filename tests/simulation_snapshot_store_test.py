@@ -508,6 +508,104 @@ class SimulationSnapshotStoreTest(unittest.TestCase):
                 authority_bundles=bundles,
             )
 
+    def test_v2_rejects_forbidden_semantics_nested_in_retained_set_state(self):
+        """Would fail if retained verifier state admitted arbitrary semantic keys."""
+        resolver, authority, bundles, loadout_row, _ = active_v2_snapshot_fixture()
+        forbidden = (
+            "Catalog",
+            "catalogRevision",
+            "rawProfile",
+            "rawString",
+            "player",
+            "playerName",
+            "characterName",
+            "realm",
+            "server",
+            "source",
+            "sourcePayload",
+        )
+        for retained_path in ("itemSetCounts", "activeDynamicEffects[0]"):
+            for semantic_key in forbidden:
+                with self.subTest(
+                    retained_path=retained_path,
+                    semantic_key=semantic_key,
+                ):
+                    database = FakeDatabase()
+                    store = SimulationSnapshotStore(
+                        lambda: FakeConnection(database)
+                    )
+                    seed_exact_authority_bundles(database, bundles)
+                    seed_loadout_effect_records(database, authority)
+                    poisoned = copy.deepcopy(resolver)
+                    if retained_path == "itemSetCounts":
+                        poisoned["setState"]["itemSetCounts"][semantic_key] = 1
+                    else:
+                        poisoned["setState"]["activeDynamicEffects"][0][
+                            semantic_key
+                        ] = "must-not-persist"
+                    poisoned["v2EffectBoundary"]["setState"] = copy.deepcopy(
+                        poisoned["setState"]
+                    )
+
+                    with self.assertRaisesRegex(
+                        SimulationSnapshotIntegrityError,
+                        "v2 resolver replay context is invalid",
+                    ):
+                        store.seal_loadout(
+                            loadout_row,
+                            resolver_snapshot=poisoned,
+                            authority_bundles=bundles,
+                            loadout_effect_authority=authority,
+                        )
+                    self.assertEqual(database.v2_loadouts, {})
+
+    def test_v2_retains_only_typed_set_state_values_needed_for_replay(self):
+        """Would fail if valid Task 4P/4L replay lost values or kept source data."""
+        resolver, authority, bundles, loadout_row, _ = active_v2_snapshot_fixture()
+        seed_exact_authority_bundles(self.database, bundles)
+        seed_loadout_effect_records(self.database, authority)
+
+        sealed = self.store.seal_loadout(
+            loadout_row,
+            resolver_snapshot=resolver,
+            authority_bundles=bundles,
+            loadout_effect_authority=authority,
+        )
+
+        replay = json.loads(
+            self.database.v2_loadouts[sealed["resolvedLoadoutKey"]][12]
+        )
+        expected_set_state = {
+            "itemSetCounts": {"set:resolver": 1},
+            "activeDynamicEffects": [
+                {
+                    "effectId": "set:resolver:2pc",
+                    "itemSetId": "set:resolver",
+                    "pieces": 1,
+                },
+                {
+                    "effectId": "set:resolver:2pc",
+                    "itemSetId": "set:resolver",
+                    "pieces": 1,
+                },
+                {
+                    "effectId": "set:resolver:2pc",
+                    "itemSetId": "set:resolver",
+                    "pieces": 1,
+                },
+            ],
+        }
+        self.assertEqual(replay["setState"], expected_set_state)
+        self.assertEqual(
+            replay["v2EffectBoundary"]["setState"],
+            expected_set_state,
+        )
+        self.assertNotIn("sourceRefIds", json.dumps(replay["setState"]))
+        self.assertEqual(
+            self.store.load_loadout(sealed["resolvedLoadoutKey"]),
+            loadout_row,
+        )
+
     def test_v2_active_effect_round_trip_rehydrates_duplicate_relations(self):
         """Would fail if persistence deduplicated Task 4L relation occurrences."""
         resolver, authority, bundles, loadout_row, snapshot_row = (
@@ -584,8 +682,15 @@ class SimulationSnapshotStoreTest(unittest.TestCase):
             self.store.load_loadout(sealed["resolvedLoadoutKey"])
 
         oversized = copy.deepcopy(resolver)
-        oversized["setState"]["itemSetCounts"]["padding"] = "x" * 1048576
+        oversized["setState"]["itemSetCounts"].update({
+            f"set:{index:05d}:" + ("x" * 230): 1
+            for index in range(5000)
+        })
         oversized["v2EffectBoundary"]["setState"] = oversized["setState"]
+        self.assertGreater(
+            len(json.dumps(oversized["setState"]).encode("utf-8")),
+            1048576,
+        )
         with self.assertRaisesRegex(
             SimulationSnapshotIntegrityError,
             "replay context is invalid",

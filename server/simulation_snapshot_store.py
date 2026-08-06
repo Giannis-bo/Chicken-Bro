@@ -9,6 +9,11 @@ import re
 from typing import Any, Mapping
 
 try:
+    from .gear_canonical_kernel import (
+        CanonicalValueError,
+        canonical_identity_token,
+        canonical_int,
+    )
     from .gear_exact_authority_store import (
         GearExactAuthorityStore,
         GearExactAuthorityStoreIntegrityError,
@@ -28,6 +33,11 @@ try:
         verify_simulation_snapshot_v2,
     )
 except ImportError:
+    from gear_canonical_kernel import (
+        CanonicalValueError,
+        canonical_identity_token,
+        canonical_int,
+    )
     from gear_exact_authority_store import (
         GearExactAuthorityStore,
         GearExactAuthorityStoreIntegrityError,
@@ -54,6 +64,19 @@ _LOADOUT_EFFECT_AUTHORITY_KEY_PATTERN = re.compile(
 )
 _RESOLVER_REPLAY_CONTEXT_SCHEMA_REVISION = "exact-resolver-replay-context-v1"
 _MAX_RESOLVER_REPLAY_CONTEXT_BYTES = 1048576
+_FORBIDDEN_RESOLVER_REPLAY_SEMANTIC_KEYS = frozenset({
+    "Catalog",
+    "catalogRevision",
+    "rawProfile",
+    "rawString",
+    "player",
+    "playerName",
+    "characterName",
+    "realm",
+    "server",
+    "source",
+    "sourcePayload",
+})
 
 
 class SimulationSnapshotIntegrityError(RuntimeError):
@@ -313,6 +336,87 @@ class SimulationSnapshotStore:
         return row
 
     @staticmethod
+    def _resolver_replay_set_state(value: Any) -> dict[str, Any]:
+        """Project only the typed set-state values consumed by v2 verifiers."""
+        if type(value) is not dict or set(value) != {
+            "itemSetCounts",
+            "activeDynamicEffects",
+        }:
+            raise SimulationSnapshotIntegrityError(
+                "v2 resolver replay context is invalid"
+            )
+        raw_counts = value.get("itemSetCounts")
+        raw_effects = value.get("activeDynamicEffects")
+        if type(raw_counts) is not dict or type(raw_effects) is not list:
+            raise SimulationSnapshotIntegrityError(
+                "v2 resolver replay context is invalid"
+            )
+
+        counts: dict[str, int] = {}
+        try:
+            for raw_set_id, raw_count in raw_counts.items():
+                set_id = canonical_identity_token(
+                    raw_set_id,
+                    path="resolverSnapshot.setState.itemSetCounts",
+                )
+                if set_id in _FORBIDDEN_RESOLVER_REPLAY_SEMANTIC_KEYS:
+                    raise CanonicalValueError(
+                        "FORBIDDEN_REPLAY_SEMANTIC",
+                        f"resolverSnapshot.setState.itemSetCounts.{set_id}",
+                    )
+                counts[set_id] = canonical_int(
+                    raw_count,
+                    path=f"resolverSnapshot.setState.itemSetCounts.{set_id}",
+                    minimum=1,
+                    maximum=16,
+                )
+
+            effects: list[dict[str, Any]] = []
+            for index, raw_effect in enumerate(raw_effects):
+                if type(raw_effect) is not dict or set(raw_effect) != {
+                    "effectId",
+                    "itemSetId",
+                    "pieces",
+                    "sourceRefIds",
+                }:
+                    raise CanonicalValueError(
+                        "INVALID_MAPPING",
+                        f"resolverSnapshot.setState.activeDynamicEffects[{index}]",
+                    )
+                source_refs = raw_effect.get("sourceRefIds")
+                if type(source_refs) is not list or any(
+                    type(source_ref) is not str for source_ref in source_refs
+                ):
+                    raise CanonicalValueError(
+                        "INVALID_ORDERED_LIST",
+                        f"resolverSnapshot.setState.activeDynamicEffects[{index}].sourceRefIds",
+                    )
+                effects.append({
+                    "effectId": canonical_identity_token(
+                        raw_effect.get("effectId"),
+                        path=f"resolverSnapshot.setState.activeDynamicEffects[{index}].effectId",
+                    ),
+                    "itemSetId": canonical_identity_token(
+                        raw_effect.get("itemSetId"),
+                        path=f"resolverSnapshot.setState.activeDynamicEffects[{index}].itemSetId",
+                    ),
+                    "pieces": canonical_int(
+                        raw_effect.get("pieces"),
+                        path=f"resolverSnapshot.setState.activeDynamicEffects[{index}].pieces",
+                        minimum=1,
+                        maximum=16,
+                    ),
+                })
+        except CanonicalValueError as error:
+            raise SimulationSnapshotIntegrityError(
+                "v2 resolver replay context is invalid"
+            ) from error
+        return {
+            "itemSetCounts": counts,
+            "activeDynamicEffects": effects,
+        }
+
+    @staticmethod
     def _resolver_replay_projection(value: Any) -> dict[str, Any]:
         """Persist the only resolver facts needed to re-run the typed v2 checks."""
         snapshot = dict(value) if isinstance(value, Mapping) else {}
@@ -359,6 +463,14 @@ class SimulationSnapshotStore:
             if isinstance(snapshot.get("v2EffectBoundary"), Mapping)
             else {}
         )
+        raw_set_state = snapshot.get("setState")
+        if boundary.get("setState") != raw_set_state:
+            raise SimulationSnapshotIntegrityError(
+                "v2 resolver replay context is invalid"
+            )
+        set_state = SimulationSnapshotStore._resolver_replay_set_state(
+            raw_set_state
+        )
         replay = {
             "schemaRevision": _RESOLVER_REPLAY_CONTEXT_SCHEMA_REVISION,
             "status": snapshot.get("status"),
@@ -381,7 +493,7 @@ class SimulationSnapshotStore:
                 "simcRuntimeRevision": readiness.get("simcRuntimeRevision"),
             },
             "resolvedSlots": slots,
-            "setState": snapshot.get("setState"),
+            "setState": set_state,
             "loadoutEffectSubjects": snapshot.get("loadoutEffectSubjects"),
             "v2EffectBoundary": {
                 key: boundary.get(key)
@@ -389,7 +501,6 @@ class SimulationSnapshotStore:
                     "schemaRevision",
                     "status",
                     "resolvedGearSignature",
-                    "setState",
                     "subjects",
                     "gearRuleRevision",
                     "resolverRevision",
@@ -399,6 +510,7 @@ class SimulationSnapshotStore:
                 if key in boundary
             },
         }
+        replay["v2EffectBoundary"]["setState"] = set_state
         replay = _canonical(replay)
         if (
             type(replay) is not dict
