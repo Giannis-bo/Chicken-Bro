@@ -106,8 +106,8 @@
   ],
   "cleanup": {
     "required": true,
-    "status": "post_merge_verified_pending_main_push_parity_and_owned_cleanup",
-    "reason": "The merge result passed scoped Harness. Push main, verify local/origin SHA parity, then remove only the Task 4P worktree and local/published feature branches."
+    "status": "completed_after_main_push_parity_and_owned_task_resource_cleanup",
+    "reason": "main/origin main parity at 588da734740dd63a8c162903567be76ecb619d99 was confirmed before cleanup. The Task 4P worktree and local feature branch were removed; its published feature branch was confirmed already absent after PR merge. No other worktree or branch was touched."
   },
   "archival": {
     "status": "merge_and_post_merge_scoped_verification_recorded",
@@ -118,6 +118,11 @@
       "status": "pass",
       "testedHead": "d5a1f8133fa95f4a45bf9ce7a6c32c463391a1de",
       "command": "node scripts/verify-project.js --profile harness --release artifacts/releases/2026-08-05-equipment-simulator-exact-first-task4p --base origin/main"
+    },
+    "mainParityBeforeCleanup": {
+      "status": "verified",
+      "localMain": "588da734740dd63a8c162903567be76ecb619d99",
+      "originMain": "588da734740dd63a8c162903567be76ecb619d99"
     },
     "scope": "Pure-domain archival only: no runtime identity, candidate deployment, production migration, API, UI, SimC consumer, Catalog/Manifest pointer or generation 35 action."
   },
