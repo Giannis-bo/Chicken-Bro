@@ -628,12 +628,28 @@ SECURITY DEFINER
 SET search_path = pg_catalog, pg_temp
 AS $function$
 DECLARE
-    current_time timestamptz := pg_catalog.clock_timestamp();
+    current_time timestamptz;
+    candidate record;
 BEGIN
     IF p_job_id IS NULL OR p_job_id <= 0 OR p_lock_token IS NULL THEN
         RAISE EXCEPTION 'invalid exact import heartbeat identity'
             USING ERRCODE = '22023';
     END IF;
+
+    SELECT jobs.* INTO candidate
+    FROM ops.websim_exact_import_jobs AS jobs
+    WHERE jobs.job_id = p_job_id
+      AND jobs.status = 'running'
+      AND jobs.lock_token = p_lock_token
+    FOR UPDATE;
+    IF NOT FOUND THEN
+        RETURN;
+    END IF;
+    current_time := pg_catalog.clock_timestamp();
+    IF candidate.lease_until <= current_time THEN
+        RETURN;
+    END IF;
+
     RETURN QUERY
     UPDATE ops.websim_exact_import_jobs AS jobs
     SET lease_until = current_time + interval '30 seconds',
@@ -667,7 +683,8 @@ SECURITY DEFINER
 SET search_path = pg_catalog, pg_temp
 AS $function$
 DECLARE
-    current_time timestamptz := pg_catalog.clock_timestamp();
+    current_time timestamptz;
+    candidate record;
 BEGIN
     IF p_job_id IS NULL
        OR p_job_id <= 0
@@ -719,6 +736,20 @@ BEGIN
     THEN
         RAISE EXCEPTION 'invalid exact import terminal outcome'
             USING ERRCODE = '22023';
+    END IF;
+
+    SELECT jobs.* INTO candidate
+    FROM ops.websim_exact_import_jobs AS jobs
+    WHERE jobs.job_id = p_job_id
+      AND jobs.status = 'running'
+      AND jobs.lock_token = p_lock_token
+    FOR UPDATE;
+    IF NOT FOUND THEN
+        RETURN;
+    END IF;
+    current_time := pg_catalog.clock_timestamp();
+    IF candidate.lease_until <= current_time THEN
+        RETURN;
     END IF;
 
     RETURN QUERY

@@ -547,6 +547,23 @@ class Task4WCandidateHarnessTest(unittest.TestCase):
             with self.subTest(required=required):
                 self.assertIn(required, source)
 
+    def test_cloud_candidate_contains_blocked_post_lock_expiry_cas(self):
+        source = inspect.getsource(PostgresExactImportJobsCandidateTest)
+        for required in (
+            "def _assert_post_lock_expiry_cas",
+            "self._assert_post_lock_expiry_cas()",
+            "blocked-heartbeat",
+            "blocked-terminalize",
+            "time.sleep(31)",
+            "wait_event_type = 'Lock'",
+            "ops.websim_exact_heartbeat",
+            "ops.websim_exact_terminalize",
+            "lease_until <= pg_catalog.clock_timestamp()",
+            "terminal_metric",
+        ):
+            with self.subTest(required=required):
+                self.assertIn(required, source)
+
 
 @unittest.skipUnless(os.environ.get("WOW_PG_TEST_DSN"), "WOW_PG_TEST_DSN is not configured")
 class PostgresIntegrationTest(unittest.TestCase):
@@ -3644,6 +3661,154 @@ class PostgresExactImportJobsCandidateTest(unittest.TestCase):
                 cur.execute("SELECT ops.websim_exact_prune_jobs(1)")
                 self.assertEqual(cur.fetchone()[0], 1)
 
+    def _assert_post_lock_expiry_cas(self):
+        owner = "sha256:" + "e" * 64
+        heartbeat_request = self._request("post-lock-heartbeat-v1")
+        terminal_request = self._request("post-lock-terminalize-v1")
+        self._enqueue(owner, heartbeat_request)
+        self._enqueue(owner, terminal_request)
+        wanted = {
+            heartbeat_request.request_key,
+            terminal_request.request_key,
+        }
+        claims = {}
+        for _index in range(12):
+            with self._connect(TASK_4W_WORKER_DSN) as conn:
+                with conn.cursor() as cur:
+                    cur.execute("SET ROLE wow_exact_worker")
+                    cur.execute(
+                        "SELECT * FROM ops.websim_exact_claim(%s, %s, %s)",
+                        ("post-lock-worker", "exact-worker-v1", "simc-runtime-v1"),
+                    )
+                    claim = cur.fetchone()
+            if claim is None:
+                break
+            if claim[1] in wanted:
+                claims[claim[1]] = claim
+            if set(claims) == wanted:
+                break
+        self.assertEqual(set(claims), wanted)
+        heartbeat_claim = claims[heartbeat_request.request_key]
+        terminal_claim = claims[terminal_request.request_key]
+        target_ids = [heartbeat_claim[0], terminal_claim[0]]
+        catalog_status = f"post-lock-expiry-{TASK_4W_RUN_ID}"
+
+        lock_connection = self._connect(TASK_4W_FRESH_DSN)
+        lock_cursor = lock_connection.cursor()
+        try:
+            lock_cursor.execute(
+                "SELECT job_id, lease_until > pg_catalog.clock_timestamp() "
+                "FROM ops.websim_exact_import_jobs "
+                "WHERE job_id = ANY(%s) ORDER BY job_id FOR UPDATE",
+                (target_ids,),
+            )
+            locked = lock_cursor.fetchall()
+            self.assertEqual([row[0] for row in locked], sorted(target_ids))
+            self.assertTrue(all(row[1] is True for row in locked))
+        except Exception:
+            lock_connection.rollback()
+            lock_cursor.close()
+            lock_connection.close()
+            raise
+        started = Queue()
+
+        def blocked_heartbeat():
+            with self._connect(TASK_4W_WORKER_DSN) as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT pg_catalog.set_config('application_name', %s, false)",
+                        (f"blocked-heartbeat-{TASK_4W_RUN_ID}",),
+                    )
+                    cur.execute("SET ROLE wow_exact_worker")
+                    started.put(("heartbeat", conn.info.backend_pid))
+                    cur.execute(
+                        "SELECT * FROM ops.websim_exact_heartbeat(%s, %s)",
+                        (heartbeat_claim[0], heartbeat_claim[4]),
+                    )
+                    return cur.fetchone()
+
+        def blocked_terminalize():
+            with self._connect(TASK_4W_WORKER_DSN) as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT pg_catalog.set_config('application_name', %s, false)",
+                        (f"blocked-terminalize-{TASK_4W_RUN_ID}",),
+                    )
+                    cur.execute("SET ROLE wow_exact_worker")
+                    started.put(("terminalize", conn.info.backend_pid))
+                    cur.execute(
+                        "SELECT * FROM ops.websim_exact_terminalize("
+                        "%s, %s, 'resolved', 'resolved', %s::jsonb, NULL, %s)",
+                        (
+                            terminal_claim[0],
+                            terminal_claim[4],
+                            '{"status":"resolved"}',
+                            catalog_status,
+                        ),
+                    )
+                    return cur.fetchone()
+
+        released = False
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            try:
+                heartbeat_future = pool.submit(blocked_heartbeat)
+                terminal_future = pool.submit(blocked_terminalize)
+                pids = dict(started.get(timeout=5) for _index in range(2))
+                deadline = time.monotonic() + 10
+                observed_lock_wait = False
+                while time.monotonic() < deadline:
+                    with self._connect(TASK_4W_FRESH_DSN) as observer:
+                        with observer.cursor() as cur:
+                            cur.execute(
+                                "SELECT count(*) FILTER ("
+                                "WHERE wait_event_type = 'Lock') "
+                                "FROM pg_catalog.pg_stat_activity "
+                                "WHERE pid = ANY(%s)",
+                                (list(pids.values()),),
+                            )
+                            observed_lock_wait = cur.fetchone()[0] == 2
+                    if observed_lock_wait:
+                        break
+                    if heartbeat_future.done() or terminal_future.done():
+                        break
+                    time.sleep(0.02)
+                self.assertTrue(
+                    observed_lock_wait,
+                    "heartbeat and terminalize never both waited on their job locks",
+                )
+                self.assertFalse(heartbeat_future.done())
+                self.assertFalse(terminal_future.done())
+                time.sleep(31)
+                lock_connection.rollback()
+                released = True
+                self.assertIsNone(heartbeat_future.result(timeout=10))
+                self.assertIsNone(terminal_future.result(timeout=10))
+            finally:
+                if not released:
+                    lock_connection.rollback()
+                lock_cursor.close()
+                lock_connection.close()
+
+        with self._connect(TASK_4W_FRESH_DSN) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT count(*), bool_and(status = 'running'), "
+                    "bool_and(lease_until <= pg_catalog.clock_timestamp()), "
+                    "bool_and(lock_token IS NOT NULL), "
+                    "count(*) FILTER (WHERE terminal_classification IS NOT NULL), "
+                    "count(*) FILTER (WHERE finished_at IS NOT NULL) "
+                    "FROM ops.websim_exact_import_jobs WHERE job_id = ANY(%s)",
+                    (target_ids,),
+                )
+                self.assertEqual(cur.fetchone(), (2, True, True, True, 0, 0))
+                cur.execute(
+                    "SELECT count(*) FROM ops.websim_exact_import_metrics_daily "
+                    "WHERE catalog_status = %s",
+                    (catalog_status,),
+                )
+                terminal_metric = cur.fetchone()[0]
+                self.assertEqual(terminal_metric, 0)
+
     def _assert_exhaustion_cooldown_metrics_and_bounded_prune(self):
         request = self._request("exact-worker-exhaustion-v1")
         owner = "sha256:" + "c" * 64
@@ -3749,6 +3914,7 @@ class PostgresExactImportJobsCandidateTest(unittest.TestCase):
         self._assert_reverse_metric_lock_order()
         self._assert_job_lifecycle()
         self._assert_exhaustion_cooldown_metrics_and_bounded_prune()
+        self._assert_post_lock_expiry_cas()
         self.assertEqual(self._database_identity(TASK_4W_FRESH_DSN, "fresh"), fresh_identity)
         self.assertEqual(self._database_identity(TASK_4W_UPGRADE_DSN, "upgrade"), upgrade_identity)
 

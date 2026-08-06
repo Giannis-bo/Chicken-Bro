@@ -484,6 +484,38 @@ def exact_import_jobs_schema_violations(sql, migrations):
     if "last_outcome_at = EXCLUDED.last_outcome_at" in normalized:
         violations.append("metric last_outcome_at must never regress")
 
+    cas_functions = (
+        ("ops.websim_exact_heartbeat", "ops.websim_exact_terminalize"),
+        ("ops.websim_exact_terminalize", "ops.websim_exact_update_worker_state"),
+    )
+    lock_clause = (
+        "SELECT jobs.* INTO candidate "
+        "FROM ops.websim_exact_import_jobs AS jobs "
+        "WHERE jobs.job_id = p_job_id "
+        "AND jobs.status = 'running' "
+        "AND jobs.lock_token = p_lock_token "
+        "FOR UPDATE;"
+    )
+    post_lock_clock = "current_time := pg_catalog.clock_timestamp();"
+    post_lock_expiry = "IF candidate.lease_until <= current_time THEN RETURN; END IF;"
+    for function_name, next_function_name in cas_functions:
+        start_marker = f"CREATE OR REPLACE FUNCTION {function_name}("
+        end_marker = f"CREATE OR REPLACE FUNCTION {next_function_name}("
+        if start_marker not in normalized or end_marker not in normalized:
+            violations.append(f"post-lock CAS function boundary: {function_name}")
+            continue
+        segment = normalized[
+            normalized.index(start_marker):normalized.index(end_marker)
+        ]
+        if "current_time timestamptz := pg_catalog.clock_timestamp()" in segment:
+            violations.append(f"pre-lock clock sample forbidden: {function_name}")
+        ordered = tuple(
+            segment.find(clause)
+            for clause in (lock_clause, post_lock_clock, post_lock_expiry)
+        )
+        if any(index < 0 for index in ordered) or ordered != tuple(sorted(ordered)):
+            violations.append(f"lock then clock then expiry order: {function_name}")
+
     created_tables = tuple(re.findall(
         r"\bCREATE\s+TABLE\s+([^\s(]+)\s*\(",
         normalized,
