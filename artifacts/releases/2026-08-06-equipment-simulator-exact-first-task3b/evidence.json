@@ -160,7 +160,7 @@
     "publicPointerChange": false,
     "nextCandidate": {
       "status": "required",
-      "reason": "The final direct-server import correction changes SimulationSnapshotStore after the recorded candidate source; the prior source and databases remain historical and must not be reused. A t3b260806194346 preflight then stopped before migration because its required disposable database-comment identity was not exact; cloud storage is now capacity-gated before any new run."
+      "reason": "The final direct-server import correction changes SimulationSnapshotStore after the recorded candidate source; the prior databases remain historical and must not be reused. A t3b260806194346 preflight then stopped before migration because its required disposable database-comment identity was not exact. User-authorized capacity cleanup removed archived source/bundle staging, restoring sufficient headroom; a new final-head candidate is still required."
     }
   },
   "runtimeEvidence": [],
@@ -173,12 +173,12 @@
     {
       "id": "historical_failed_candidate_resources",
       "status": "contained",
-      "detail": "Runs t3b260806175347 and t3b260806191719 failed only candidate-test assertions; t3b260806191950 passed PostgreSQL but was invalidated by a later direct-server import correction; t3b260806194346 stopped at the disposable database-comment preflight before migration. All four are permanently rejected by the pre-connection guard, and their isolated databases/source directories remain retained rather than reused."
+      "detail": "Runs t3b260806175347 and t3b260806191719 failed only candidate-test assertions; t3b260806191950 passed PostgreSQL but was invalidated by a later direct-server import correction; t3b260806194346 stopped at the disposable database-comment preflight before migration. All four are permanently rejected by the pre-connection guard. After user authorization, their archived source directories, bundles and outputs were removed in a capacity cleanup; their named isolated databases remain retained and non-reusable."
     },
     {
       "id": "cloud_candidate_capacity_gate",
-      "status": "blocked",
-      "detail": "Read-only cloud inspection after t3b260806194346 found the root filesystem at 98% used with about 1.6 GiB free; the four retained Task 3B source directories total about 1.26 GiB. CPU is idle, but no further candidate source or database may be created until a capacity-safe, explicitly authorized remedy is selected."
+      "status": "mitigated",
+      "detail": "Read-only cloud inspection after t3b260806194346 found the root filesystem at 98% used with about 1.6 GiB free. Under explicit user authorization, only archived Task 3A/3B candidate source directories, bundles and outputs in /var/tmp were removed after service/path checks; no database was dropped and wow-backend remained active at /opt/wow-mini-program. The filesystem now has about 5.6 GiB free (92% used), sufficient for one bounded new candidate but still not a substitute for it."
     },
     {
       "id": "exact_first_user_path",
@@ -188,13 +188,13 @@
   ],
   "rollback": [
     "code_rollback",
-    "discard_only_the_successful_task3b_disposable_candidate_databases_after_archival_identity_and_main_parity_verification",
+    "retain_all_historical_task3b_disposable_databases_as_non_reusable_identity_records",
     "no_production_migration_or_pointer_mutation"
   ],
   "cleanup": {
     "required": true,
-    "status": "pending_harness_user_acceptance_closure",
-    "reason": "No successful candidate source, database, bundle, worktree or branch may be removed before merge, post-merge scoped verification, main/origin SHA parity and evidence archival. Historical failed candidate resources are not cleanup targets."
+    "status": "historical_source_bundle_cleanup_completed_future_successful_candidate_cleanup_pending",
+    "reason": "Under explicit user authorization to restore cloud capacity, archived Task 3A/3B candidate source directories, bundles and outputs were removed only after read-only path/process checks; no candidate database or production resource was removed. A future successful Task 3B candidate remains subject to normal merge, post-merge verification, parity and evidence-archival cleanup gates."
   },
   "archivedReferences": [
     "docs/project-state.json",
@@ -204,5 +204,5 @@
     "docs/harness.md",
     "docs/verification-matrix.md"
   ],
-  "summary": "Task 3B is locally verified at the current source only. Historical source 8459500b / tree 3195c113 passed one cloud-only PostgreSQL fresh-and-upgrade 0031 candidate, but a later allowlisted direct-server import correction invalidated that runtime identity and requires a new final-head cloud candidate. A later t3b260806194346 preflight failed before migration and cloud storage is now capacity-gated, so no further candidate will be created without a safe remedy. No production migration, runtime consumer, API, UI, SimC execution or user-visible closure is claimed."
+  "summary": "Task 3B is locally verified at the current source only. Historical source 8459500b / tree 3195c113 passed one cloud-only PostgreSQL fresh-and-upgrade 0031 candidate, but a later allowlisted direct-server import correction invalidated that runtime identity and requires a new final-head cloud candidate. A later t3b260806194346 preflight failed before migration; user-authorized cleanup removed only archived Task 3A/3B source/bundle staging and restored cloud headroom, but is not runtime evidence. No production migration, runtime consumer, API, UI, SimC execution or user-visible closure is claimed."
 }
