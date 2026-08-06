@@ -41,7 +41,9 @@ TASK_3A_HISTORICAL_RUN_IDS = frozenset({
     "t3a260805163536",
 })
 TASK_3A_FORBIDDEN_RUN_IDS = TASK_3A_HISTORICAL_RUN_IDS
-TASK_3B_FORBIDDEN_RUN_IDS = TASK_3A_HISTORICAL_RUN_IDS
+TASK_3B_FORBIDDEN_RUN_IDS = TASK_3A_HISTORICAL_RUN_IDS | frozenset({
+    "t3b260806175347",
+})
 TASK_3B_RUN_ID = os.environ.get("WOW_PG_TEST_RUN_ID_0031", "")
 TASK_3B_FRESH_DSN = os.environ.get("WOW_PG_TEST_DSN_FRESH_0031", "")
 TASK_3B_UPGRADE_DSN = os.environ.get("WOW_PG_TEST_DSN_UPGRADE_0031", "")
@@ -401,6 +403,7 @@ class Task3BCandidateHarnessTest(unittest.TestCase):
         for invalid in (
             "t3a2608050955",
             "t3a260805163536",
+            "t3b260806175347",
             "BAD",
             "short",
             "a" * 33,
@@ -2668,8 +2671,8 @@ class PostgresExactSnapshotV2CandidateTest(unittest.TestCase):
                     ],
                 )
                 self.assertEqual(
-                    exact_relations[0][1],
-                    exact_relations[2][1],
+                    exact_relations[1][1],
+                    exact_relations[3][1],
                 )
                 self.assertNotEqual(
                     exact_relations[0][1],
