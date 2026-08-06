@@ -18,11 +18,11 @@
       "status": "bound_at_check",
       "kind": "git_ref",
       "value": "HEAD",
-      "reason": "Fresh local verification, packet verification and later PR CI must each bind the clean checked HEAD; they cannot be substituted by the invalidated historical candidate identity."
+      "reason": "Exact-head PR #117 CI run 31102912308 passed at f5216bb1, and the later merge-result scoped Harness verification is recorded separately in archival; the packet remains bound to the exact clean checked HEAD."
     },
     "closure": {
       "status": "pending",
-      "reason": "Independent final packet CR, exact-head PR CI, Harness User Acceptance Closure, merge, post-merge scoped verification, main/origin parity and owned-resource cleanup have not occurred."
+      "reason": "The authorized delivery closure completed: independent packet CR, exact-head PR CI, merge, merge-result scoped Harness verification, main/origin parity and owned-resource cleanup all occurred. Formal identity remains pending because the current Task 3B lifecycle contract does not model an archived status."
     }
   },
   "manualAcceptance": {
@@ -102,24 +102,26 @@
     "freshDatabase": {
       "name": "wow_exact_first_fresh_test_t3b260806203541",
       "comment": "wow_exact_first_disposable:t3b260806203541:fresh",
-      "preservationStatus": "retained_pending_archival_identity_and_main_parity_verification"
+      "preservationStatus": "disposed_after_merge_scoped_verification_and_main_parity"
     },
     "upgradeDatabase": {
       "name": "wow_exact_first_upgrade_test_t3b260806203541",
       "comment": "wow_exact_first_disposable:t3b260806203541:upgrade",
-      "preservationStatus": "retained_pending_archival_identity_and_main_parity_verification"
+      "preservationStatus": "disposed_after_merge_scoped_verification_and_main_parity"
     },
     "candidateSource": {
       "remotePath": "/var/tmp/wow-task3b-candidate-t3b260806203541/source",
       "gitStatus": "clean",
       "commit": "3979a2d2c20cea02358e3ff166c157694c21c684",
-      "gitTree": "0837fec4d3595f4d9ac02167f2da795267e9f2b4"
+      "gitTree": "0837fec4d3595f4d9ac02167f2da795267e9f2b4",
+      "cleanupStatus": "removed_after_merge_scoped_verification_and_main_parity"
     },
     "bundle": {
       "localPath": "/tmp/wow-task3b-bundle.cWsuey/task3b-3979a2d2.bundle",
       "remotePath": "/var/tmp/wow-task3b-candidate-t3b260806203541.bundle",
       "bytes": 116051867,
-      "sha256": "92cfed01b478f6b0f30341493fb43764717c00b0b1bcfda1fbcd18966d71c440"
+      "sha256": "92cfed01b478f6b0f30341493fb43764717c00b0b1bcfda1fbcd18966d71c440",
+      "cleanupStatus": "remote copy removed_after_merge_scoped_verification_and_main_parity; local owned copy moved_to_Trash"
     },
     "processEvidence": {
       "exitCode": 0,
@@ -193,7 +195,7 @@
     {
       "id": "cloud_candidate_capacity_gate",
       "status": "mitigated",
-      "detail": "Read-only cloud inspection after t3b260806194346 found the root filesystem at 98% used with about 1.6 GiB free. Under explicit user authorization, only archived Task 3A/3B candidate source directories, bundles and outputs in /var/tmp were removed after service/path checks; no database was dropped and wow-backend remained active at /opt/wow-mini-program. The bounded final candidate then consumed a 233 MiB source root, leaving about 5.2 GiB free (93% used); it was single-process, nice 10 and passed without service impact."
+      "detail": "Read-only cloud inspection after t3b260806194346 found the root filesystem at 98% used with about 1.6 GiB free. Under explicit user authorization, only archived Task 3A/3B candidate source directories, bundles and outputs in /var/tmp were removed after service/path checks; no database was dropped and wow-backend remained active at /opt/wow-mini-program. The bounded final candidate then consumed a 233 MiB source root, ran single-process at nice 10, and was removed only after merge, scoped verification and main parity; the filesystem returned to about 5.6 GiB free (92% used)."
     },
     {
       "id": "exact_first_user_path",
@@ -207,9 +209,32 @@
     "no_production_migration_or_pointer_mutation"
   ],
   "cleanup": {
-    "required": true,
-    "status": "historical_source_bundle_cleanup_completed_successful_candidate_cleanup_pending_closure",
-    "reason": "Under explicit user authorization to restore cloud capacity, archived Task 3A/3B candidate source directories, bundles and outputs were removed only after read-only path/process checks; no candidate database or production resource was removed. The current successful Task 3B candidate source, bundle and two databases remain held until normal PR CI, merge, post-merge verification, parity and evidence-archival cleanup gates complete."
+    "required": false,
+    "status": "owned_candidate_cleanup_completed",
+    "reason": "Under explicit user authorization to restore cloud capacity, archived Task 3A/3B candidate source directories, bundles and outputs were removed only after read-only path/process checks; no candidate database or production resource was removed. After PR #117 merge, scoped verification and main/origin parity, the current successful candidate's two disposable databases and remote source/bundle were also removed; the local owned bundle was moved to Trash."
+  },
+  "archival": {
+    "status": "post_merge_scoped_cleanup_recorded_formal_lifecycle_pending",
+    "mergeCommit": "61eddf45dc4a126f6165c3653a5c829658f41da8",
+    "pr": 117,
+    "exactHeadCi": {
+      "status": "pass",
+      "run": 31102912308,
+      "head": "f5216bb115d5efab737ab4d04a7cfa46eb86e9ca",
+      "summary": "Project Harness full profile passed in 6m39s; Node 20 deprecation notices were non-failing runner warnings."
+    },
+    "postMergeScopedVerification": {
+      "status": "pass",
+      "command": "node scripts/verify-project.js --profile harness --release artifacts/releases/2026-08-06-equipment-simulator-exact-first-task3b --base 2092f25c16738f83be2141749c88e9f353446da2",
+      "testedHead": "61eddf45dc4a126f6165c3653a5c829658f41da8",
+      "summary": "93 Harness control tests passed, packet check passed, JSON and diff checks passed. The first isolated-worktree attempt had no local miniprogram-automator resolution; without downloading or installing anything, a temporary symlink to the existing local dependency allowed the identical scoped profile to pass."
+    },
+    "shaParityBeforeScopedCleanup": {
+      "status": "verified",
+      "commit": "61eddf45dc4a126f6165c3653a5c829658f41da8",
+      "localMergeWorktree": "61eddf45dc4a126f6165c3653a5c829658f41da8",
+      "originMain": "61eddf45dc4a126f6165c3653a5c829658f41da8"
+    }
   },
   "archivedReferences": [
     "docs/project-state.json",
@@ -219,5 +244,5 @@
     "docs/harness.md",
     "docs/verification-matrix.md"
   ],
-  "summary": "Task 3B is runtime-verified at 3979a2d2 / tree 0837fec4: final t3b260806203541 passed the cloud-only fresh-and-upgrade 0031 candidate using two new exact-commented disposable databases after the direct-server import correction. Historical sources and t3b260806194346 remain non-reusable; user-authorized cleanup restored cloud headroom but is not itself runtime evidence. No production migration, runtime consumer, API, UI, SimC execution or user-visible closure is claimed; independent packet CR, exact-head PR CI and Harness integration closure remain pending."
+  "summary": "Task 3B remains runtime-verified at 3979a2d2 / tree 0837fec4: final t3b260806203541 passed the cloud-only fresh-and-upgrade 0031 candidate using two new exact-commented disposable databases after the direct-server import correction. PR #117 exact-head CI, merge 61eddf45, merge-result scoped Harness verification, main/origin parity and owned-resource cleanup have completed; formal closure identity remains pending only because the lifecycle contract has no archived status. No production migration, runtime consumer, API, UI, SimC execution or user-visible closure is claimed."
 }

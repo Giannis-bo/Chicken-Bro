@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-08-06T12:43:04.863Z",
+  "generatedAt": "2026-08-06T12:59:59.773Z",
   "release": {
     "date": "2026-08-06",
     "slug": "equipment-simulator-exact-first-task3b"
@@ -53,7 +53,7 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 19778
+          "sizeBytes": 19748
         },
         {
           "path": "docs/README.md",
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-08-06-equipment-simulator-exact-first-task3b/evidence.json",
-    "sizeBytes": 13373,
+    "sizeBytes": 15121,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -392,7 +392,7 @@
     "missingFields": [],
     "declaredStatus": "runtime_verified",
     "highestEvidenceLevel": "runtime_verified",
-    "summary": "Task 3B is runtime-verified at 3979a2d2 / tree 0837fec4: final t3b260806203541 passed the cloud-only fresh-and-upgrade 0031 candidate using two new exact-commented disposable databases after the direct-server import correction. Historical sources and t3b260806194346 remain non-reusable; user-authorized cleanup restored cloud headroom but is not itself runtime evidence. No production migration, runtime consumer, API, UI, SimC execution or user-visible closure is claimed; independent packet CR, exact-head PR CI and Harness integration closure remain pending."
+    "summary": "Task 3B remains runtime-verified at 3979a2d2 / tree 0837fec4: final t3b260806203541 passed the cloud-only fresh-and-upgrade 0031 candidate using two new exact-commented disposable databases after the direct-server import correction. PR #117 exact-head CI, merge 61eddf45, merge-result scoped Harness verification, main/origin parity and owned-resource cleanup have completed; formal closure identity remains pending only because the lifecycle contract has no archived status. No production migration, runtime consumer, API, UI, SimC execution or user-visible closure is claimed."
   },
   "evidence": {
     "localTests": {
