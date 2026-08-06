@@ -2,23 +2,20 @@
   "schemaVersion": 2,
   "slug": "equipment-simulator-exact-first-task3b",
   "requirementSlug": "equipment-simulator-exact-first-task3b",
-  "status": "runtime_verified",
-  "highestEvidenceLevel": "runtime_verified",
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
   "branch": "codex/equipment-simulator-exact-first-task3b",
   "commit": "8459500bdd85cbdf154ffa1e9f0918703e484294",
   "identities": {
     "runtime": {
-      "status": "bound",
-      "kind": "git_commit",
-      "value": "8459500bdd85cbdf154ffa1e9f0918703e484294",
-      "gitTree": "3195c11346c2fed0e07f10e3c7291d524962495f",
-      "reason": "The one successful final-head Task 3B candidate binds its disposable PostgreSQL migration result to this exact clean source commit and tree."
+      "status": "pending",
+      "reason": "The previous t3b260806191950 candidate passed at 8459500b, but a later allowlisted SimulationSnapshotStore direct-server import correction changed the final runtime-affecting source. A new fresh/upgrade disposable PostgreSQL candidate is required before runtime evidence can bind again."
     },
     "verification": {
       "status": "bound_at_check",
       "kind": "git_ref",
       "value": "HEAD",
-      "reason": "Fresh local verification, packet verification and later PR CI must each bind the clean checked HEAD; they cannot be substituted by the candidate identity."
+      "reason": "Fresh local verification, packet verification and later PR CI must each bind the clean checked HEAD; they cannot be substituted by the invalidated historical candidate identity."
     },
     "closure": {
       "status": "pending",
@@ -76,7 +73,7 @@
     }
   ],
   "candidateDeployment": {
-    "status": "candidate_verified",
+    "status": "candidate_invalidated_by_final_head_direct_import_fix",
     "requiredBeforeMerge": true,
     "migration": "0031",
     "branch": "codex/equipment-simulator-exact-first-task3b",
@@ -160,7 +157,11 @@
       "reason": "No worker, API, UI or SimC runtime consumer is activated."
     },
     "productionDatabaseWrite": false,
-    "publicPointerChange": false
+    "publicPointerChange": false,
+    "nextCandidate": {
+      "status": "required",
+      "reason": "The final direct-server import correction changes SimulationSnapshotStore after the recorded candidate source; the prior source and databases remain historical and must not be reused."
+    }
   },
   "runtimeEvidence": [],
   "risks": [
@@ -172,7 +173,7 @@
     {
       "id": "historical_failed_candidate_resources",
       "status": "contained",
-      "detail": "Runs t3b260806175347 and t3b260806191719 failed only candidate-test assertions, are permanently rejected by the pre-connection guard, and their isolated databases/source directories remain retained rather than reused."
+      "detail": "Runs t3b260806175347 and t3b260806191719 failed only candidate-test assertions; t3b260806191950 passed PostgreSQL but was invalidated by a later direct-server import correction. All three are permanently rejected by the pre-connection guard, and their isolated databases/source directories remain retained rather than reused."
     },
     {
       "id": "exact_first_user_path",
@@ -198,5 +199,5 @@
     "docs/harness.md",
     "docs/verification-matrix.md"
   ],
-  "summary": "Task 3B has candidate-level persistence evidence only: the final clean source 8459500b / tree 3195c113 passed one cloud-only PostgreSQL fresh-and-upgrade 0031 candidate using two named disposable databases. It preserves v1 rows and validates v2 typed persistence/reload with ordered duplicate effect occurrences. It has no production migration, runtime consumer, API, UI, SimC execution or user-visible closure; final CR, packet verification, exact-head PR CI and Harness integration remain pending."
+  "summary": "Task 3B is locally verified at the current source only. Historical source 8459500b / tree 3195c113 passed one cloud-only PostgreSQL fresh-and-upgrade 0031 candidate, but a later allowlisted direct-server import correction invalidated that runtime identity and requires a new final-head cloud candidate. No production migration, runtime consumer, API, UI, SimC execution or user-visible closure is claimed."
 }

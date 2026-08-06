@@ -1,5 +1,8 @@
 import copy
 import json
+from pathlib import Path
+import subprocess
+import sys
 import unittest
 
 from server.gear_resolved_loadout import build_resolved_loadout
@@ -260,6 +263,24 @@ def seed_loadout_effect_records(database, authority):
 
 
 class SimulationSnapshotStoreTest(unittest.TestCase):
+    def test_direct_server_import_defers_v2_authority_store_dependency(self):
+        server_dir = Path(__file__).resolve().parents[1] / "server"
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                "import simulation_snapshot_store; "
+                "print(simulation_snapshot_store.SimulationSnapshotStore.__name__)",
+            ],
+            cwd=server_dir,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.strip(), "SimulationSnapshotStore")
+
     def setUp(self):
         self.database = FakeDatabase()
         self.connection = FakeConnection(self.database)

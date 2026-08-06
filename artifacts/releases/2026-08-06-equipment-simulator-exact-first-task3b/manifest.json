@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-08-06T11:23:35.692Z",
+  "generatedAt": "2026-08-06T11:42:32.111Z",
   "release": {
     "date": "2026-08-06",
     "slug": "equipment-simulator-exact-first-task3b"
@@ -53,7 +53,7 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 20085
+          "sizeBytes": 19574
         },
         {
           "path": "docs/README.md",
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-08-06-equipment-simulator-exact-first-task3b/evidence.json",
-    "sizeBytes": 10496,
+    "sizeBytes": 10824,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -390,9 +390,9 @@
       "summary"
     ],
     "missingFields": [],
-    "declaredStatus": "runtime_verified",
-    "highestEvidenceLevel": "runtime_verified",
-    "summary": "Task 3B has candidate-level persistence evidence only: the final clean source 8459500b / tree 3195c113 passed one cloud-only PostgreSQL fresh-and-upgrade 0031 candidate using two named disposable databases. It preserves v1 rows and validates v2 typed persistence/reload with ordered duplicate effect occurrences. It has no production migration, runtime consumer, API, UI, SimC execution or user-visible closure; final CR, packet verification, exact-head PR CI and Harness integration remain pending."
+    "declaredStatus": "local_verified",
+    "highestEvidenceLevel": "local_verified",
+    "summary": "Task 3B is locally verified at the current source only. Historical source 8459500b / tree 3195c113 passed one cloud-only PostgreSQL fresh-and-upgrade 0031 candidate, but a later allowlisted direct-server import correction invalidated that runtime identity and requires a new final-head cloud candidate. No production migration, runtime consumer, API, UI, SimC execution or user-visible closure is claimed."
   },
   "evidence": {
     "localTests": {
@@ -417,7 +417,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "5 changed files currently visible to git status."
+      "detail": "8 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
@@ -453,13 +453,16 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 5,
+      "changedFileCount": 8,
       "changedFiles": [
+        " M artifacts/releases/2026-08-06-equipment-simulator-exact-first-task3b/evidence.json",
+        " M artifacts/releases/2026-08-06-equipment-simulator-exact-first-task3b/manifest.json",
         " M docs/plans/2026-08-04-equipment-simulator-exact-first-persistence-resequence.md",
         " M docs/plans/README.md",
         " M docs/roadmap.md",
-        "?? artifacts/releases/2026-08-06-equipment-simulator-exact-first-task3b/evidence.json",
-        "?? artifacts/releases/2026-08-06-equipment-simulator-exact-first-task3b/manifest.json"
+        " M server/simulation_snapshot_store.py",
+        " M tests/postgres_integration_test.py",
+        " M tests/simulation_snapshot_store_test.py"
       ]
     }
   },

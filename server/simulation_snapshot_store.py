@@ -14,10 +14,6 @@ try:
         canonical_identity_token,
         canonical_int,
     )
-    from .gear_exact_authority_store import (
-        GearExactAuthorityStore,
-        GearExactAuthorityStoreIntegrityError,
-    )
     from .gear_loadout_effect_authority import (
         reload_loadout_effect_authority,
     )
@@ -37,10 +33,6 @@ except ImportError:
         CanonicalValueError,
         canonical_identity_token,
         canonical_int,
-    )
-    from gear_exact_authority_store import (
-        GearExactAuthorityStore,
-        GearExactAuthorityStoreIntegrityError,
     )
     from gear_loadout_effect_authority import reload_loadout_effect_authority
     from gear_resolved_loadout import (
@@ -82,6 +74,26 @@ _FORBIDDEN_RESOLVER_REPLAY_SEMANTIC_KEYS = frozenset({
 
 class SimulationSnapshotIntegrityError(RuntimeError):
     pass
+
+
+def _exact_authority_store_types() -> tuple[type[Any], type[Exception]]:
+    """Load the v2-only Task 3A store after the v1 direct-import path."""
+    try:
+        from .gear_exact_authority_store import (
+            GearExactAuthorityStore,
+            GearExactAuthorityStoreIntegrityError,
+        )
+    except ImportError:
+        try:
+            from gear_exact_authority_store import (
+                GearExactAuthorityStore,
+                GearExactAuthorityStoreIntegrityError,
+            )
+        except ImportError as error:
+            raise SimulationSnapshotIntegrityError(
+                "v2 Exact Authority Bundle store is unavailable"
+            ) from error
+    return GearExactAuthorityStore, GearExactAuthorityStoreIntegrityError
 
 
 def _text(value: Any) -> str:
@@ -849,7 +861,8 @@ class SimulationSnapshotStore:
         pairs = row.get("exactAuthorityBySlot")
         if not isinstance(pairs, list):
             raise SimulationSnapshotIntegrityError("v2 Exact Authority pairs are invalid")
-        store = GearExactAuthorityStore(self._connection_factory)
+        store_type, store_integrity_error = _exact_authority_store_types()
+        store = store_type(self._connection_factory)
         bundles: dict[str, Any] = {}
         try:
             for pair in pairs:
@@ -865,7 +878,7 @@ class SimulationSnapshotStore:
                         "v2 Exact Authority Bundle relation is invalid"
                     )
                 bundles[key] = bundle
-        except (GearExactAuthorityStoreIntegrityError, TypeError, ValueError) as error:
+        except (store_integrity_error, TypeError, ValueError) as error:
             raise SimulationSnapshotIntegrityError(
                 "v2 Exact Authority Bundle typed reload failed"
             ) from error

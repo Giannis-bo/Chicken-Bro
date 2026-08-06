@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILLS: Use `superpowers:subagent-driven-development`, `superpowers:test-driven-development`, and `superpowers:verification-before-completion`. This plan forward-replaces the old implementation plan's Task 3 and later execution order after two independent readiness audits returned `NOT_READY`.
 
-状态：`正在推进（Task 3A delivery closure 已完成：PR #114 合并、scoped Harness、main/origin parity 与严格限定的候选资源清理均已完成；其正式 packet 仍为 runtime_verified / candidate_verified 且 closure identity 为 pending，因为现行 lifecycle test 不建模 archived。Task 4P 已在 Harness User Acceptance Closure 下完成 pure-domain 归档，合并为 d5a1f813；Task 4L 也已完成 pure-domain 归档，合并为 d4eac363。2026-08-06 用户授权持续推进；Task 3B 的 Strict requirement contract、最小 noncanonical resolver replay-context 修正、独立 scoped CR 与 final-head disposable PostgreSQL fresh/upgrade candidate 均已完成，evidence 为 runtime_verified / candidate_verified，仍待 packet CR、exact-head PR CI 和 Harness integration closure；4W、5A、6C 和任何 production/runtime/user-visible action 仍未开始。）`
+状态：`正在推进（Task 3A delivery closure 已完成：PR #114 合并、scoped Harness、main/origin parity 与严格限定的候选资源清理均已完成；其正式 packet 仍为 runtime_verified / candidate_verified 且 closure identity 为 pending，因为现行 lifecycle test 不建模 archived。Task 4P 已在 Harness User Acceptance Closure 下完成 pure-domain 归档，合并为 d5a1f813；Task 4L 也已完成 pure-domain 归档，合并为 d4eac363。2026-08-06 用户授权持续推进；Task 3B 的 Strict requirement contract、最小 noncanonical resolver replay-context 修正和 scoped CR 已完成。先前 disposable PostgreSQL candidate 因后续 direct-server import 修复失效，当前为 local_verified，必须以新资源复验 final HEAD；4W、5A、6C 和任何 production/runtime/user-visible action 仍未开始。）`
 
 ## Goal
 
