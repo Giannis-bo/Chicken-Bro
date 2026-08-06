@@ -1,6 +1,6 @@
 # Exact-first Task 4L：Loadout-scoped Effect Authority
 
-状态：`local_verified（2026-08-06：两项独立 plan-only CR、两个 implementation slice scoped CR、v1 identity extra-fix、fresh 241-test focused matrix、compile/imports、Harness packet/diff check、whole-branch source CR 与 packet re-review 均通过；exact-head PR CI 和 Harness User Acceptance Closure 尚未完成）`
+状态：`archived（2026-08-06：PR #116 exact-head full CI run 31071444226 通过，合并为 d4eac363，并完成 merge-result scoped Harness；仅 pure-domain 归档，无 runtime/candidate/production/API/UI/SimC 用户路径声明）`
 
 ## Goal
 
@@ -119,11 +119,11 @@ Do not modify `docs/project-state.json`, either historical owner map or its Task
 
 ### Task 4L.1: Freeze the owner and aggregate RED matrix
 
-- [ ] Add failing tests for a complete verified set aggregate, exact bytes/key reload, missing/extra/reordered/substituted records, repeated same-key occurrence, descriptor/signature/revision/runtime/resolved-signature drift, unsupported evidence, 128/129 occurrence boundary, and unmodelled tier/cross-slot/loadout kinds.
-- [ ] Run `python3 -m unittest tests.gear_loadout_effect_authority_test tests.gear_rule_matrix_test` and confirm the new cases fail before implementation.
-- [ ] Implement only the owner, Rule Matrix ordered occurrence projection and direct-server imports.
-- [ ] Re-run the same matrix and `python3 -m py_compile server/gear_loadout_effect_authority.py server/gear_rule_matrix.py`.
-- [ ] Obtain an independent scoped CR before moving to Task 4L.2.
+- [x] Add failing tests for a complete verified set aggregate, exact bytes/key reload, missing/extra/reordered/substituted records, repeated same-key occurrence, descriptor/signature/revision/runtime/resolved-signature drift, unsupported evidence, 128/129 occurrence boundary, and unmodelled tier/cross-slot/loadout kinds.
+- [x] Run `python3 -m unittest tests.gear_loadout_effect_authority_test tests.gear_rule_matrix_test` and confirm the new cases fail before implementation.
+- [x] Implement only the owner, Rule Matrix ordered occurrence projection and direct-server imports.
+- [x] Re-run the same matrix and `python3 -m py_compile server/gear_loadout_effect_authority.py server/gear_rule_matrix.py`.
+- [x] Obtain an independent scoped CR before moving to Task 4L.2.
 
 ### Task 4L.2: Consume authority in Resolver and v2 loadout/snapshot
 

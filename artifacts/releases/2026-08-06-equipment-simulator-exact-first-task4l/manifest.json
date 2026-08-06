@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-08-06T04:21:10.906Z",
+  "generatedAt": "2026-08-06T05:13:45.951Z",
   "release": {
     "date": "2026-08-06",
     "slug": "equipment-simulator-exact-first-task4l"
@@ -53,7 +53,7 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 19927
+          "sizeBytes": 19741
         },
         {
           "path": "docs/README.md",
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-08-06-equipment-simulator-exact-first-task4l/evidence.json",
-    "sizeBytes": 6472,
+    "sizeBytes": 8296,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -390,9 +390,9 @@
       "summary"
     ],
     "missingFields": [],
-    "declaredStatus": "local_verified",
-    "highestEvidenceLevel": "local_verified",
-    "summary": "Task 4L is local_verified at the pure-domain level: Task 4L.1 and 4L.2 each passed independent scoped review; the fresh 241-test focused matrix at source head 62391cf6, compile/imports, Harness packet and diff checks passed; and independent whole-branch source CR plus packet re-review passed. Exact final-head PR CI and Harness User Acceptance Closure remain pending. No runtime identity, candidate deployment, production action or user-visible closure is claimed."
+    "declaredStatus": "archived",
+    "highestEvidenceLevel": "archived",
+    "summary": "Task 4L is archived after Harness User Acceptance Closure: exact-head PR CI run 31071444226 passed at 6294246b, then PR #116 merged as d4eac363 and passed post-merge scoped Harness verification. It supplies only pure v2 loadout effect authority contracts; no runtime identity, candidate deployment, production action or user-visible closure is claimed. No DB, migration, worker, service, deploy, API, UI, Catalog/Manifest pointer, generation 35 or runtime consumer changed."
   },
   "evidence": {
     "localTests": {

@@ -2,10 +2,10 @@
   "schemaVersion": 2,
   "slug": "equipment-simulator-exact-first-task4l",
   "requirementSlug": "equipment-simulator-exact-first-task4l",
-  "status": "local_verified",
-  "highestEvidenceLevel": "local_verified",
-  "branch": "codex/equipment-simulator-exact-first-task4l",
-  "commit": "62391cf67ea56e6863dfa8bfa19e5246e951779d",
+  "status": "archived",
+  "highestEvidenceLevel": "archived",
+  "branch": "main",
+  "commit": "6294246b2f70d4a708e1007e1ef8b8aa48c94288",
   "identities": {
     "runtime": {
       "status": "not_applicable",
@@ -15,11 +15,13 @@
       "status": "bound_at_check",
       "kind": "git_ref",
       "value": "HEAD",
-      "reason": "Fresh Task 4L focused tests, compile, package/direct-server imports, Harness packet check and diff check are rerun at the checked clean HEAD; independent source whole-branch CR and packet re-review passed, while exact-head PR CI remains pending."
+      "reason": "Fresh focused tests, compile/imports, source whole-branch CR, packet re-review, exact-head PR CI and post-merge scoped Harness verification passed; each Harness check binds verification to its clean checked HEAD."
     },
     "closure": {
-      "status": "pending",
-      "reason": "Task 4L has not received Harness User Acceptance Closure, merge or post-merge verification."
+      "status": "bound",
+      "kind": "merge_commit",
+      "value": "d4eac363bb955df73d3b104d9841a04bc2f6d925",
+      "reason": "The user supplied Harness User Acceptance Closure after exact-head PR CI success; this merge commit closed the pure-domain Task 4L integration."
     }
   },
   "manualAcceptance": {
@@ -72,7 +74,19 @@
       "command": "independent Task 4L whole-branch source CR and scoped evidence-packet re-review",
       "status": "pass",
       "testedHead": "62391cf67ea56e6863dfa8bfa19e5246e951779d",
-      "summary": "The source whole-branch CR found no source-code P1/P2/P3. It correctly identified the stale 1d1f6b0a/232-test packet after the two repair commits; the independent scoped re-review confirmed this refreshed 62391cf6/241-test packet and synchronized manifest. Exact final-head PR CI remains pending; no runtime, candidate, production or user-visible claim is made."
+      "summary": "The source whole-branch CR found no source-code P1/P2/P3. It correctly identified the stale 1d1f6b0a/232-test packet after the two repair commits; the independent scoped re-review confirmed this refreshed 62391cf6/241-test packet and synchronized manifest. No runtime, candidate, production or user-visible claim is made."
+    },
+    {
+      "command": "GitHub Actions Project Harness run 31071444226: node scripts/verify-project.js --profile full --release-from-changes --base origin/main",
+      "status": "pass",
+      "testedHead": "6294246b2f70d4a708e1007e1ef8b8aa48c94288",
+      "summary": "Exact-head PR CI passed the full profile after the Task 3A lifecycle-anchor correction. This is control-plane verification only; it creates no runtime, candidate, production or user-visible evidence."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile harness --release artifacts/releases/2026-08-06-equipment-simulator-exact-first-task4l --base origin/main",
+      "status": "pass",
+      "testedHead": "d4eac363bb955df73d3b104d9841a04bc2f6d925",
+      "summary": "Post-merge scoped Harness profile passed all six selected control-plane commands on the merge result. The 241-test Task 4L matrix, Task 3A lifecycle regression, compile and package/direct-server imports also passed on that merge result."
     }
   ],
   "candidateDeployment": {
@@ -102,8 +116,20 @@
   ],
   "cleanup": {
     "required": true,
-    "status": "pending_harness_user_acceptance_closure",
-    "reason": "Keep only this task's branch and worktree until closure, merge, post-merge scoped verification and main SHA parity."
+    "status": "pending_main_push_parity_and_owned_task_resource_cleanup",
+    "reason": "Task 4L has merged and passed post-merge scoped verification. Keep only this task's branch and worktree until this archival control commit is pushed, main/origin parity is confirmed and its owned resources are removed."
+  },
+  "archival": {
+    "status": "merge_and_post_merge_scoped_verification_recorded",
+    "mergeCommit": "d4eac363bb955df73d3b104d9841a04bc2f6d925",
+    "pullRequest": 116,
+    "prCiRun": 31071444226,
+    "postMergeScopedVerification": {
+      "status": "pass",
+      "testedHead": "d4eac363bb955df73d3b104d9841a04bc2f6d925",
+      "command": "node scripts/verify-project.js --profile harness --release artifacts/releases/2026-08-06-equipment-simulator-exact-first-task4l --base origin/main"
+    },
+    "scope": "Pure-domain archival only: no runtime identity, candidate deployment, production migration, API, UI, SimC consumer, Catalog/Manifest pointer or generation 35 action."
   },
   "archivedReferences": [
     "docs/project-state.json",
@@ -112,5 +138,5 @@
     "docs/plans/2026-08-04-equipment-simulator-exact-first-persistence-resequence.md",
     "docs/plans/2026-08-06-equipment-simulator-exact-first-task4l-loadout-effect-authority.md"
   ],
-  "summary": "Task 4L is local_verified at the pure-domain level: Task 4L.1 and 4L.2 each passed independent scoped review; the fresh 241-test focused matrix at source head 62391cf6, compile/imports, Harness packet and diff checks passed; and independent whole-branch source CR plus packet re-review passed. Exact final-head PR CI and Harness User Acceptance Closure remain pending. No runtime identity, candidate deployment, production action or user-visible closure is claimed."
+  "summary": "Task 4L is archived after Harness User Acceptance Closure: exact-head PR CI run 31071444226 passed at 6294246b, then PR #116 merged as d4eac363 and passed post-merge scoped Harness verification. It supplies only pure v2 loadout effect authority contracts; no runtime identity, candidate deployment, production action or user-visible closure is claimed. No DB, migration, worker, service, deploy, API, UI, Catalog/Manifest pointer, generation 35 or runtime consumer changed."
 }
