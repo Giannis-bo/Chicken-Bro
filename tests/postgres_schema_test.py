@@ -293,6 +293,10 @@ def exact_snapshot_v2_schema_violations(sql, migrations):
         "v1 snapshot must bind its v1 ResolvedLoadout",
         "v1 ResolvedLoadout catalog revision is unavailable",
         "v1 SimulationSnapshot catalog revision is unavailable",
+        "v1_catalog_revision_ref text GENERATED ALWAYS AS ( CASE WHEN schema_revision = 'resolved-loadout-v1' THEN catalog_revision ELSE NULL END ) STORED",
+        "v1_catalog_revision_ref text GENERATED ALWAYS AS ( CASE WHEN schema_revision = 'simulation-snapshot-v1' THEN catalog_revision ELSE NULL END ) STORED",
+        "ADD CONSTRAINT websim_gear_resolved_loadouts_v1_catalog_revision_fkey FOREIGN KEY (v1_catalog_revision_ref) REFERENCES cache.websim_gear_catalog_revisions(catalog_revision) ON DELETE RESTRICT",
+        "ADD CONSTRAINT websim_simulation_snapshots_v1_catalog_revision_fkey FOREIGN KEY (v1_catalog_revision_ref) REFERENCES cache.websim_gear_catalog_revisions(catalog_revision) ON DELETE RESTRICT",
         "CREATE TRIGGER trg_websim_resolved_loadout_v1_v2_binding",
         "CREATE TRIGGER trg_websim_simulation_snapshot_v1_v2_binding",
         "loadout_json -> 'exactAuthorityBySlot' IS NOT DISTINCT FROM exact_authority_by_slot_json",
@@ -304,6 +308,14 @@ def exact_snapshot_v2_schema_violations(sql, migrations):
         "(expected_subject ->> 'subjectKey') IS DISTINCT FROM (occurrence ->> 'subjectKey')",
         "(expected_subject ->> 'subjectVariantSignature') IS DISTINCT FROM (occurrence ->> 'subjectVariantSignature')",
         "(expected_subject ->> 'supportRecordKey') IS DISTINCT FROM (occurrence ->> 'supportRecordKey')",
+        "pg_catalog.jsonb_typeof(expected_subject) IS DISTINCT FROM 'object'",
+        "NOT (expected_subject ?& ARRAY[ 'subjectKind', 'subjectKey', 'subjectVariantSignature', 'status', 'supportRecordKey' ])",
+        "(expected_subject - ARRAY[ 'subjectKind', 'subjectKey', 'subjectVariantSignature', 'status', 'supportRecordKey' ]) <> '{}'::jsonb",
+        "(expected_subject ->> 'status') IS DISTINCT FROM 'verified'",
+        "(expected_subject ->> 'subjectKind') IS NULL",
+        "IF (occurrence ->> 'scope') = 'slot' THEN",
+        "IF loadout_schema_revision IS DISTINCT FROM 'resolved-loadout-v2'",
+        "IF loadout_schema_revision IS DISTINCT FROM 'resolved-loadout-v1'",
         "REVOKE ALL ON cache.websim_loadout_effect_authorities, cache.websim_loadout_effect_authority_records FROM PUBLIC;",
         "REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON cache.websim_loadout_effect_authorities, cache.websim_loadout_effect_authority_records FROM wow_app;",
         "GRANT SELECT ON cache.websim_loadout_effect_authorities, cache.websim_loadout_effect_authority_records TO wow_app;",
@@ -337,6 +349,10 @@ def exact_snapshot_v2_schema_violations(sql, migrations):
         violations.append("resolved loadout v2 branch")
     if "schema_revision = 'simulation-snapshot-v2'" not in normalized:
         violations.append("snapshot v2 branch")
+    slot_validation = normalized.find("IF (occurrence ->> 'scope') = 'slot' THEN")
+    no_effect_return = normalized.find("IF p_loadout_effect_authority_key IS NULL THEN")
+    if slot_validation == -1 or no_effect_return == -1 or slot_validation > no_effect_return:
+        violations.append("slot evidence must validate before no-effect return")
     migration_names = [name for name, _ in migrations]
     if migration_names.count("0031_websim_exact_snapshot_v2.sql") != 1:
         violations.append("0031 filename identity")
@@ -599,6 +615,40 @@ $unsafe$;
             self.websim_exact_snapshot_v2_sql.replace(
                 "loadout_json ->> 'exactRegistryRevision'",
                 "loadout_json ->> 'ignoredExactRegistryRevision'",
+                1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "FOREIGN KEY (v1_catalog_revision_ref)\n"
+                "        REFERENCES cache.websim_gear_catalog_revisions(catalog_revision)\n"
+                "        ON DELETE RESTRICT",
+                "FOREIGN KEY (ignored_v1_catalog_revision_ref)\n"
+                "        REFERENCES cache.websim_gear_catalog_revisions(catalog_revision)\n"
+                "        ON DELETE RESTRICT",
+                1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "IF (occurrence ->> 'scope') = 'slot' THEN",
+                "IF false THEN",
+                1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "(expected_subject ->> 'status') IS DISTINCT FROM 'verified'",
+                "(expected_subject ->> 'status') IS DISTINCT FROM 'ignored'",
+                1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "IF loadout_schema_revision IS DISTINCT FROM 'resolved-loadout-v2'",
+                "IF false",
+                1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "IF loadout_schema_revision IS DISTINCT FROM 'resolved-loadout-v1'",
+                "IF false",
+                1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "CREATE TRIGGER trg_websim_simulation_snapshot_v1_v2_binding",
+                "CREATE TRIGGER trg_removed_simulation_snapshot_v1_v2_binding",
                 1,
             ),
         )

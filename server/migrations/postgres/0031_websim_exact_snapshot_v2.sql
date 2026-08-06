@@ -115,7 +115,19 @@ ALTER TABLE cache.websim_gear_resolved_loadouts
     ADD COLUMN IF NOT EXISTS loadout_effect_authority_key text
         REFERENCES cache.websim_loadout_effect_authorities(loadout_effect_authority_key)
         ON DELETE RESTRICT,
-    ADD COLUMN IF NOT EXISTS resolver_replay_context_json jsonb;
+    ADD COLUMN IF NOT EXISTS resolver_replay_context_json jsonb,
+    ADD COLUMN IF NOT EXISTS v1_catalog_revision_ref text
+        GENERATED ALWAYS AS (
+            CASE
+                WHEN schema_revision = 'resolved-loadout-v1'
+                THEN catalog_revision
+                ELSE NULL
+            END
+        ) STORED,
+    ADD CONSTRAINT websim_gear_resolved_loadouts_v1_catalog_revision_fkey
+        FOREIGN KEY (v1_catalog_revision_ref)
+        REFERENCES cache.websim_gear_catalog_revisions(catalog_revision)
+        ON DELETE RESTRICT;
 
 ALTER TABLE cache.websim_simulation_snapshots
     DROP CONSTRAINT IF EXISTS websim_simulation_snapshots_simulation_snapshot_key_check,
@@ -128,6 +140,18 @@ ALTER TABLE cache.websim_simulation_snapshots
     ADD COLUMN IF NOT EXISTS effect_evidence_by_occurrence_json jsonb NOT NULL DEFAULT '[]'::jsonb,
     ADD COLUMN IF NOT EXISTS loadout_effect_authority_key text
         REFERENCES cache.websim_loadout_effect_authorities(loadout_effect_authority_key)
+        ON DELETE RESTRICT,
+    ADD COLUMN IF NOT EXISTS v1_catalog_revision_ref text
+        GENERATED ALWAYS AS (
+            CASE
+                WHEN schema_revision = 'simulation-snapshot-v1'
+                THEN catalog_revision
+                ELSE NULL
+            END
+        ) STORED,
+    ADD CONSTRAINT websim_simulation_snapshots_v1_catalog_revision_fkey
+        FOREIGN KEY (v1_catalog_revision_ref)
+        REFERENCES cache.websim_gear_catalog_revisions(catalog_revision)
         ON DELETE RESTRICT;
 
 ALTER TABLE cache.websim_gear_resolved_loadouts
@@ -289,18 +313,10 @@ DECLARE
     relation_count integer;
     loadout_count integer := 0;
     saw_loadout boolean := false;
+    saw_loadout_scope boolean := false;
 BEGIN
     IF pg_catalog.jsonb_typeof(p_effect_evidence) IS DISTINCT FROM 'array' THEN
         RAISE EXCEPTION 'v2 effect evidence must be an array';
-    END IF;
-    IF p_loadout_effect_authority_key IS NULL THEN
-        IF pg_catalog.jsonb_path_exists(
-            p_effect_evidence,
-            '$[*] ? (@.scope == "loadout")'
-        ) THEN
-            RAISE EXCEPTION 'v2 no-effect rows cannot contain loadout occurrences';
-        END IF;
-        RETURN;
     END IF;
     FOR occurrence IN
         SELECT value
@@ -309,6 +325,56 @@ BEGIN
         IF pg_catalog.jsonb_typeof(occurrence) IS DISTINCT FROM 'object' THEN
             RAISE EXCEPTION 'v2 effect occurrence must be an object';
         END IF;
+        IF (occurrence ->> 'scope') = 'slot' THEN
+            IF NOT (occurrence ?& ARRAY[
+                    'scope',
+                    'slot',
+                    'exactAuthorityEnvelopeKey',
+                    'recordOrdinal',
+                    'subjectKind',
+                    'subjectKey',
+                    'subjectVariantSignature',
+                    'supportRecordKey'
+               ])
+               OR (occurrence - ARRAY[
+                    'scope',
+                    'slot',
+                    'exactAuthorityEnvelopeKey',
+                    'recordOrdinal',
+                    'subjectKind',
+                    'subjectKey',
+                    'subjectVariantSignature',
+                    'supportRecordKey'
+               ]) <> '{}'::jsonb
+               OR pg_catalog.jsonb_typeof(occurrence -> 'recordOrdinal') <> 'number'
+               OR (occurrence ->> 'recordOrdinal') !~ '^[0-9]+$'
+               OR (occurrence ->> 'slot') IS NULL
+               OR (occurrence ->> 'exactAuthorityEnvelopeKey') IS NULL
+               OR (occurrence ->> 'subjectKind') IS NULL
+               OR (occurrence ->> 'subjectKey') IS NULL
+               OR (occurrence ->> 'subjectVariantSignature') IS NULL
+               OR (occurrence ->> 'supportRecordKey') IS NULL
+            THEN
+                RAISE EXCEPTION 'v2 slot effect occurrence is invalid';
+            ELSIF saw_loadout_scope THEN
+                RAISE EXCEPTION 'v2 loadout effect occurrences must be a suffix';
+            END IF;
+        ELSIF (occurrence ->> 'scope') = 'loadout' THEN
+            saw_loadout_scope := true;
+        ELSE
+            RAISE EXCEPTION 'v2 effect occurrence scope is invalid';
+        END IF;
+    END LOOP;
+    IF p_loadout_effect_authority_key IS NULL THEN
+        IF saw_loadout_scope THEN
+            RAISE EXCEPTION 'v2 no-effect rows cannot contain loadout occurrences';
+        END IF;
+        RETURN;
+    END IF;
+    FOR occurrence IN
+        SELECT value
+        FROM pg_catalog.jsonb_array_elements(p_effect_evidence)
+    LOOP
         IF (occurrence ->> 'scope') = 'loadout' THEN
             saw_loadout := true;
             IF NOT (occurrence ?& ARRAY[
@@ -354,6 +420,26 @@ BEGIN
                OR relation_key IS DISTINCT FROM expected_key
                OR (occurrence ->> 'supportRecordKey') IS DISTINCT FROM relation_key
                OR expected_subject IS NULL
+               OR pg_catalog.jsonb_typeof(expected_subject) IS DISTINCT FROM 'object'
+               OR NOT (expected_subject ?& ARRAY[
+                    'subjectKind',
+                    'subjectKey',
+                    'subjectVariantSignature',
+                    'status',
+                    'supportRecordKey'
+               ])
+               OR (expected_subject - ARRAY[
+                    'subjectKind',
+                    'subjectKey',
+                    'subjectVariantSignature',
+                    'status',
+                    'supportRecordKey'
+               ]) <> '{}'::jsonb
+               OR (expected_subject ->> 'status') IS DISTINCT FROM 'verified'
+               OR (expected_subject ->> 'subjectKind') IS NULL
+               OR (expected_subject ->> 'subjectKey') IS NULL
+               OR (expected_subject ->> 'subjectVariantSignature') IS NULL
+               OR (expected_subject ->> 'supportRecordKey') IS NULL
                OR (expected_subject ->> 'subjectKind')
                   IS DISTINCT FROM (occurrence ->> 'subjectKind')
                OR (expected_subject ->> 'subjectKey')
@@ -367,33 +453,8 @@ BEGIN
             END IF;
             expected_ordinal := expected_ordinal + 1;
             loadout_count := loadout_count + 1;
-        ELSE
-            IF (occurrence ->> 'scope') IS DISTINCT FROM 'slot'
-               OR NOT (occurrence ?& ARRAY[
-                    'scope',
-                    'slot',
-                    'exactAuthorityEnvelopeKey',
-                    'recordOrdinal',
-                    'subjectKind',
-                    'subjectKey',
-                    'subjectVariantSignature',
-                    'supportRecordKey'
-               ])
-               OR (occurrence - ARRAY[
-                    'scope',
-                    'slot',
-                    'exactAuthorityEnvelopeKey',
-                    'recordOrdinal',
-                    'subjectKind',
-                    'subjectKey',
-                    'subjectVariantSignature',
-                    'supportRecordKey'
-               ]) <> '{}'::jsonb
-            THEN
-                RAISE EXCEPTION 'v2 slot effect occurrence is invalid';
-            ELSIF saw_loadout THEN
-                RAISE EXCEPTION 'v2 loadout effect occurrences must be a suffix';
-            END IF;
+        ELSIF saw_loadout THEN
+            RAISE EXCEPTION 'v2 loadout effect occurrences must be a suffix';
         END IF;
     END LOOP;
     SELECT pg_catalog.count(*)
