@@ -1,6 +1,6 @@
 # Exact-first Task 4L：Loadout-scoped Effect Authority
 
-状态：`implementation_allowed（2026-08-06 用户授权；两项独立 plan-only CR 均 PASS，Task 4L Harness packet 已建立；按 TDD 开始功能代码）`
+状态：`local_verified（2026-08-06：两项独立 plan-only CR、两个 implementation slice scoped CR、232-test focused matrix、compile/imports、Harness packet 与 diff check 均通过；whole-branch CR、exact-head PR CI 和 Harness User Acceptance Closure 尚未完成）`
 
 ## Goal
 

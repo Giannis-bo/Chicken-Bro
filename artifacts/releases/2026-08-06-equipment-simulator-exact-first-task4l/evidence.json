@@ -2,18 +2,20 @@
   "schemaVersion": 2,
   "slug": "equipment-simulator-exact-first-task4l",
   "requirementSlug": "equipment-simulator-exact-first-task4l",
-  "status": "implementation_allowed",
-  "highestEvidenceLevel": "implementation_allowed",
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
   "branch": "codex/equipment-simulator-exact-first-task4l",
-  "commit": "pending_task4l_implementation",
+  "commit": "1d1f6b0a9b51bd16926b12d1c5eeaa7fe016b5dd",
   "identities": {
     "runtime": {
       "status": "not_applicable",
       "reason": "Task 4L adds only pure canonical contracts and has no DB, service, API, UI, worker, deploy or runtime consumer."
     },
     "verification": {
-      "status": "pending",
-      "reason": "Fresh Task 4L functional verification has not yet run; only plan-review and historical owner-gate checks have passed."
+      "status": "bound_at_check",
+      "kind": "git_ref",
+      "value": "HEAD",
+      "reason": "Fresh Task 4L focused tests, compile, package/direct-server imports, Harness packet check and diff check are rerun at the checked clean HEAD; a whole-branch CR and exact-head PR CI remain pending."
     },
     "closure": {
       "status": "pending",
@@ -49,9 +51,27 @@
       "summary": "Historical Task 3A owner-map/gate contract remains unchanged: 30 tests passed."
     },
     {
-      "command": "Task 4L RED/GREEN focused matrix and final whole-branch review",
+      "command": "python3 -m unittest tests.gear_loadout_effect_authority_test tests.gear_rule_matrix_test tests.gear_resolver_test tests.gear_resolved_loadout_test tests.simulation_snapshot_test tests.simulation_snapshot_compat_test tests.gear_canonical_owner_gate_test",
+      "status": "pass",
+      "testedHead": "HEAD",
+      "summary": "Fresh final local matrix passed: 232 tests cover Task 4L aggregate/reload, 128 bound, Resolver fail-closed mapping, v1/no-effect identity, ordered loadout occurrence and snapshot binding, plus unchanged historical owner gate."
+    },
+    {
+      "command": "python3 -m py_compile server/gear_loadout_effect_authority.py server/gear_rule_matrix.py server/gear_resolver.py server/gear_resolved_loadout.py server/simulation_snapshot.py; package and direct-server imports",
+      "status": "pass",
+      "testedHead": "HEAD",
+      "summary": "All five allowlisted production modules compiled and imported successfully as both package modules and direct server modules."
+    },
+    {
+      "command": "node scripts/project-harness.js --check --requirement-file artifacts/releases/2026-08-06-equipment-simulator-exact-first-task4l/requirement.json --evidence-file artifacts/releases/2026-08-06-equipment-simulator-exact-first-task4l/evidence.json --manifest-file artifacts/releases/2026-08-06-equipment-simulator-exact-first-task4l/manifest.json --base origin/main; git diff --check",
+      "status": "pass",
+      "testedHead": "HEAD",
+      "summary": "Task-scoped Harness packet check and whitespace/scope integrity check passed locally."
+    },
+    {
+      "command": "independent Task 4L whole-branch CR and exact final-head PR full CI",
       "status": "not_run",
-      "summary": "Implementation has not begun; no local_verified, runtime, candidate or user-visible claim is made."
+      "summary": "Required final review and CI have not run; no runtime, candidate, production or user-visible claim is made."
     }
   ],
   "candidateDeployment": {
@@ -69,6 +89,11 @@
       "id": "task3b_persistence_shape",
       "status": "blocked_pending_later_task",
       "detail": "0031's authority document/key relation, deferred ordered record relation and v1 empty/null behavior are frozen in the parent plan but remain separately unauthorized."
+    },
+    {
+      "id": "v1_and_no_effect_identity",
+      "status": "controlled",
+      "detail": "Fresh focused tests prove all v1 paths and no-loadout-effect v2 bytes, keys, hashes and shapes ignore the new optional authority input."
     }
   ],
   "rollback": [
@@ -86,5 +111,5 @@
     "docs/plans/2026-08-04-equipment-simulator-exact-first-persistence-resequence.md",
     "docs/plans/2026-08-06-equipment-simulator-exact-first-task4l-loadout-effect-authority.md"
   ],
-  "summary": "Task 4L is implementation_allowed after two independent plan-only CRs. It has no functional implementation, fresh Task4L verification, runtime identity, candidate deployment, production action or user-visible closure yet."
+  "summary": "Task 4L is local_verified at the pure-domain level: Task 4L.1 and 4L.2 each passed independent scoped review, and the fresh 232-test focused matrix, compile/imports, Harness packet and diff checks passed. Whole-branch CR and exact final-head PR CI remain pending. No runtime identity, candidate deployment, production action or user-visible closure is claimed."
 }
