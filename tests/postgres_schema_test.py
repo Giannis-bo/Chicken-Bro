@@ -484,6 +484,52 @@ def exact_import_jobs_schema_violations(sql, migrations):
     if "last_outcome_at = EXCLUDED.last_outcome_at" in normalized:
         violations.append("metric last_outcome_at must never regress")
 
+    enqueue_start = "CREATE OR REPLACE FUNCTION ops.websim_exact_enqueue("
+    enqueue_end = "CREATE OR REPLACE FUNCTION ops.websim_exact_read("
+    enqueue_segment = normalized[
+        normalized.index(enqueue_start):normalized.index(enqueue_end)
+    ]
+    enqueue_clock = "current_time := pg_catalog.clock_timestamp();"
+    if "current_time timestamptz := pg_catalog.clock_timestamp()" in enqueue_segment:
+        violations.append("enqueue clock sample must not precede advisory lock")
+    if not re.search(
+        r"PERFORM pg_catalog\.pg_advisory_xact_lock\(.*?\);\s*"
+        r"current_time := pg_catalog\.clock_timestamp\(\);\s*"
+        r"SELECT jobs\.\* INTO existing_job",
+        enqueue_segment,
+    ):
+        violations.append("enqueue advisory lock then immediate clock sample")
+    if enqueue_segment.count(enqueue_clock) != 1:
+        violations.append("enqueue exact one post-lock clock sample")
+
+    claim_start = "CREATE OR REPLACE FUNCTION ops.websim_exact_claim("
+    claim_end = "CREATE OR REPLACE FUNCTION ops.websim_exact_heartbeat("
+    claim_segment = normalized[
+        normalized.index(claim_start):normalized.index(claim_end)
+    ]
+    claim_entry_clock = "current_time timestamptz := pg_catalog.clock_timestamp();"
+    exhausted_select = "WITH exhausted AS ( SELECT jobs.job_id"
+    exhausted_metric_end = (
+        "last_outcome_at = GREATEST("
+        "ops.websim_exact_import_metrics_daily.last_outcome_at, "
+        "EXCLUDED.last_outcome_at);"
+    )
+    claim_candidate = "SELECT jobs.* INTO candidate"
+    claim_order = tuple(
+        claim_segment.find(clause)
+        for clause in (
+            claim_entry_clock,
+            exhausted_select,
+            exhausted_metric_end,
+            enqueue_clock,
+            claim_candidate,
+        )
+    )
+    if any(index < 0 for index in claim_order) or claim_order != tuple(sorted(claim_order)):
+        violations.append("claim entry clock then exhausted metric then resample then candidate")
+    if claim_segment.count(enqueue_clock) != 1:
+        violations.append("claim exact one post-metric clock resample")
+
     cas_functions = (
         ("ops.websim_exact_heartbeat", "ops.websim_exact_terminalize"),
         ("ops.websim_exact_terminalize", "ops.websim_exact_update_worker_state"),

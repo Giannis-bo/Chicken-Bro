@@ -276,7 +276,7 @@ SECURITY DEFINER
 SET search_path = pg_catalog, pg_temp
 AS $function$
 DECLARE
-    current_time timestamptz := pg_catalog.clock_timestamp();
+    current_time timestamptz;
     computed_request_key text;
     existing_job ops.websim_exact_import_jobs%ROWTYPE;
 BEGIN
@@ -327,6 +327,7 @@ BEGIN
             0
         )
     );
+    current_time := pg_catalog.clock_timestamp();
 
     SELECT jobs.*
     INTO existing_job
@@ -544,6 +545,8 @@ BEGIN
             ops.websim_exact_import_metrics_daily.outcome_count + 1,
         first_outcome_at = LEAST(ops.websim_exact_import_metrics_daily.first_outcome_at, EXCLUDED.first_outcome_at),
         last_outcome_at = GREATEST(ops.websim_exact_import_metrics_daily.last_outcome_at, EXCLUDED.last_outcome_at);
+
+    current_time := pg_catalog.clock_timestamp();
 
     SELECT jobs.*
     INTO candidate
