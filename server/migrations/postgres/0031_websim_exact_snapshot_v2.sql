@@ -560,7 +560,7 @@ BEGIN
     LOOP
         IF set_count.key = ANY(forbidden_keys)
            OR set_count.key = ''
-           OR pg_catalog.length(set_count.key) > 128
+           OR NOT (pg_catalog.octet_length(set_count.key) <= 256)
            OR pg_catalog.jsonb_typeof(set_count.value)
               IS DISTINCT FROM 'number'
            OR set_count.value::text !~ '^[1-9][0-9]*$'

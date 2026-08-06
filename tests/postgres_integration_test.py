@@ -1513,6 +1513,50 @@ class PostgresExactSnapshotV2CandidateTest(unittest.TestCase):
                 )
                 self.assertEqual(cur.fetchone()[0], valid)
 
+        item_set_id_256_bytes = ("你" * 64) + ("a" * 64)
+        self.assertEqual(len(item_set_id_256_bytes.encode("utf-8")), 256)
+        max_item_set_id = copy.deepcopy(valid)
+        max_item_set_id["setState"]["itemSetCounts"] = {
+            item_set_id_256_bytes: 1,
+        }
+        max_item_set_id["v2EffectBoundary"]["setState"] = copy.deepcopy(
+            max_item_set_id["setState"]
+        )
+        max_key, max_hash = identity("task3b-replay-item-set-id-256-bytes")
+        with self._connect(dsn) as conn:
+            with conn.cursor() as cur:
+                self._insert_v2_loadout(
+                    cur,
+                    key=max_key,
+                    row_hash=max_hash,
+                    evidence=[],
+                    replay_context=max_item_set_id,
+                )
+
+        over_item_set_id = copy.deepcopy(max_item_set_id)
+        over_item_set_id["setState"]["itemSetCounts"] = {
+            item_set_id_256_bytes + "a": 1,
+        }
+        over_item_set_id["v2EffectBoundary"]["setState"] = copy.deepcopy(
+            over_item_set_id["setState"]
+        )
+        over_key, over_hash = identity("task3b-replay-item-set-id-257-bytes")
+        with self.assertRaises(psycopg.Error) as raised:
+            with self._connect(dsn) as conn:
+                with conn.cursor() as cur:
+                    self._insert_v2_loadout(
+                        cur,
+                        key=over_key,
+                        row_hash=over_hash,
+                        evidence=[],
+                        replay_context=over_item_set_id,
+                    )
+        self.assertEqual(raised.exception.sqlstate, "P0001")
+        self.assertEqual(
+            raised.exception.diag.message_primary,
+            "v2 resolver replay context is invalid",
+        )
+
         forbidden = (
             "Catalog",
             "catalogRevision",

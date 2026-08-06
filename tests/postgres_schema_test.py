@@ -294,6 +294,7 @@ def exact_snapshot_v2_schema_violations(sql, migrations):
         "((resolved_slot.value -> 'legality') - ARRAY['status']) <> '{}'::jsonb",
         "(p_context -> 'setState') IS DISTINCT FROM (p_context -> 'v2EffectBoundary' -> 'setState')",
         "(p_context -> 'loadoutEffectSubjects') IS DISTINCT FROM (p_context -> 'v2EffectBoundary' -> 'subjects')",
+        "pg_catalog.octet_length(set_count.key) <= 256",
         "PERFORM cache.verify_websim_resolver_replay_context( NEW.resolver_replay_context_json );",
         "NEW.resolver_replay_context_json -> 'v2EffectBoundary' ->> 'loadoutEffectAuthorityKey' IS DISTINCT FROM NEW.loadout_effect_authority_key",
         "DROP CONSTRAINT IF EXISTS websim_gear_resolved_loadouts_catalog_revision_fkey",
@@ -723,6 +724,16 @@ $unsafe$;
                 "               ->> 'loadoutEffectAuthorityKey'\n"
                 "           IS DISTINCT FROM NEW.loadout_effect_authority_key",
                 "false",
+                1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "pg_catalog.octet_length(set_count.key) <= 256",
+                "true",
+                1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "pg_catalog.octet_length(set_count.key) <= 256",
+                "pg_catalog.octet_length(set_count.key) <= 128",
                 1,
             ),
             self.websim_exact_snapshot_v2_sql.replace(
