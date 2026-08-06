@@ -602,7 +602,7 @@ BEGIN
         locked_by = p_worker_id,
         lock_token = pg_catalog.gen_random_uuid(),
         lease_until = observed_at + interval '30 seconds',
-        started_at = pg_catalog.coalesce(candidate.started_at, observed_at),
+        started_at = COALESCE(candidate.started_at, observed_at),
         heartbeat_at = observed_at,
         finished_at = NULL,
         cooldown_until = NULL,

@@ -443,6 +443,8 @@ def exact_import_jobs_schema_violations(sql, migrations):
         flags=re.IGNORECASE,
     ):
         violations.append("reserved current_time PL/pgSQL assignment target")
+    if "pg_catalog.coalesce(" in normalized:
+        violations.append("SQL special COALESCE must not be schema-qualified")
     required = (
         "pg_catalog.to_regprocedure('pg_catalog.gen_random_uuid()') IS NULL",
         "FROM pg_catalog.pg_roles WHERE rolname = 'wow_exact_worker'",
@@ -472,6 +474,7 @@ def exact_import_jobs_schema_violations(sql, migrations):
         "pg_catalog.gen_random_uuid()",
         "$.**.keyvalue() ? (@.key == \"rawProfile\"",
         "lease_until = observed_at + interval '30 seconds'",
+        "started_at = COALESCE(candidate.started_at, observed_at)",
         "finished_at + interval '7 days'",
         "metric_day < pg_catalog.clock_timestamp()::date - 90",
         "'ATTEMPT_EXHAUSTED'",

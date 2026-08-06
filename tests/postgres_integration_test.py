@@ -547,6 +547,16 @@ class Task4WCandidateHarnessTest(unittest.TestCase):
         ):
             with self.subTest(required=required):
                 self.assertIn(required, source)
+        for forbidden in (
+            "pg_catalog.coalesce(",
+        ):
+            with self.subTest(forbidden=forbidden):
+                self.assertNotIn(forbidden, source)
+        for required in (
+            "COALESCE(proc.proacl, pg_catalog.acldefault('f', proc.proowner))",
+        ):
+            with self.subTest(required=required):
+                self.assertIn(required, source)
 
     def test_cloud_candidate_contains_blocked_post_lock_expiry_cas(self):
         source = inspect.getsource(PostgresExactImportJobsCandidateTest)
@@ -3317,9 +3327,7 @@ class PostgresExactImportJobsCandidateTest(unittest.TestCase):
                 "SELECT NOT EXISTS ("
                 "SELECT 1 FROM pg_catalog.pg_proc AS proc "
                 "CROSS JOIN LATERAL pg_catalog.aclexplode("
-                "pg_catalog.coalesce("
-                "proc.proacl, pg_catalog.acldefault('f', proc.proowner)"
-                ")"
+                "COALESCE(proc.proacl, pg_catalog.acldefault('f', proc.proowner))"
                 ") AS privilege "
                 "WHERE proc.oid = pg_catalog.to_regprocedure(%s) "
                 "AND privilege.grantee = 0 "
