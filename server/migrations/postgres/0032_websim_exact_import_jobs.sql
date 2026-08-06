@@ -542,7 +542,8 @@ BEGIN
     DO UPDATE SET
         outcome_count =
             ops.websim_exact_import_metrics_daily.outcome_count + 1,
-        last_outcome_at = EXCLUDED.last_outcome_at;
+        first_outcome_at = LEAST(ops.websim_exact_import_metrics_daily.first_outcome_at, EXCLUDED.first_outcome_at),
+        last_outcome_at = GREATEST(ops.websim_exact_import_metrics_daily.last_outcome_at, EXCLUDED.last_outcome_at);
 
     SELECT jobs.*
     INTO candidate
@@ -768,7 +769,8 @@ BEGIN
         DO UPDATE SET
             outcome_count =
                 ops.websim_exact_import_metrics_daily.outcome_count + 1,
-            last_outcome_at = EXCLUDED.last_outcome_at
+            first_outcome_at = LEAST(ops.websim_exact_import_metrics_daily.first_outcome_at, EXCLUDED.first_outcome_at),
+            last_outcome_at = GREATEST(ops.websim_exact_import_metrics_daily.last_outcome_at, EXCLUDED.last_outcome_at)
         RETURNING 1
     )
     SELECT

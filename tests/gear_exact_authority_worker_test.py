@@ -55,6 +55,29 @@ class TerminalStore:
         return copy.deepcopy(self.terminal_result)
 
 
+def least_privileged_role_row(session_user="wow_exact_worker_login"):
+    return (
+        session_user,
+        "wow_exact_worker",
+        True,
+        True,
+        True,
+        False,
+        False,
+        False,
+        False,
+        False,
+        False,
+        False,
+        False,
+        False,
+        False,
+        False,
+        False,
+        False,
+    )
+
+
 class GearExactAuthorityWorkerTest(unittest.TestCase):
     def test_worker_accepts_only_the_dedicated_dsn_and_refuses_public_database_url(self):
         dedicated = "postgresql://worker-login:redacted@candidate/exact"
@@ -73,9 +96,7 @@ class GearExactAuthorityWorkerTest(unittest.TestCase):
             })
 
     def test_connection_sets_role_before_validating_login_membership_and_current_user(self):
-        connection = RoleConnection(
-            ("wow_exact_worker_login", "wow_exact_worker", True, True, False),
-        )
+        connection = RoleConnection(least_privileged_role_row())
         establish_exact_worker_role(connection)
 
         events = connection.cursor_value.events
@@ -83,19 +104,50 @@ class GearExactAuthorityWorkerTest(unittest.TestCase):
         self.assertIn("session_user", events[1][0])
         self.assertIn("current_user", events[1][0])
         self.assertIn("pg_catalog.pg_has_role", events[1][0])
-        self.assertIn("rolcanlogin AND rolinherit", events[1][0])
-        self.assertIn("NOT rolcreaterole", events[1][0])
+        for privilege in (
+            "rolcanlogin", "rolinherit", "rolsuper", "rolcreatedb",
+            "rolcreaterole", "rolreplication", "rolbypassrls",
+        ):
+            with self.subTest(privilege=privilege):
+                self.assertIn(privilege, events[1][0])
+        self.assertIn("'wow_app'", events[1][0])
+        self.assertIn("'wow_migrator'", events[1][0])
 
     def test_connection_fails_closed_for_wrong_role_membership_or_login_boundary(self):
-        invalid_rows = (
-            ("worker-login", "worker-login", True, True, False),
-            ("worker-login", "wow_exact_worker", False, True, False),
-            ("worker-login", "wow_exact_worker", True, False, False),
-            ("worker-login", "wow_exact_worker", True, True, True),
-            ("wow_exact_worker", "wow_exact_worker", True, False, False),
+        invalid_rows = []
+        for label, index, value in (
+            ("wrong-current-user", 1, "worker-login"),
+            ("not-member", 2, False),
+            ("nologin", 3, False),
+            ("noinherit", 4, False),
+            ("superuser", 5, True),
+            ("createdb", 6, True),
+            ("createrole", 7, True),
+            ("replication", 8, True),
+            ("bypassrls", 9, True),
+            ("group-login", 10, True),
+            ("group-superuser", 11, True),
+            ("group-createdb", 12, True),
+            ("group-createrole", 13, True),
+            ("group-replication", 14, True),
+            ("group-bypassrls", 15, True),
+            ("wow-app-is-member", 16, True),
+            ("wow-migrator-is-member", 17, True),
+        ):
+            row = list(least_privileged_role_row())
+            row[index] = value
+            invalid_rows.append((label, tuple(row)))
+        invalid_rows.extend(
+            (label, least_privileged_role_row(session_user))
+            for label, session_user in (
+                ("app-login", "wow_app"),
+                ("migrator-login", "wow_migrator"),
+                ("group-login", "wow_exact_worker"),
+            )
         )
-        for row in invalid_rows:
-            with self.subTest(row=row):
+
+        for label, row in invalid_rows:
+            with self.subTest(label=label):
                 connection = RoleConnection(row)
                 with self.assertRaises(WorkerRoleError):
                     establish_exact_worker_role(connection)

@@ -474,6 +474,15 @@ def exact_import_jobs_schema_violations(sql, migrations):
     for clause in required:
         if clause not in normalized:
             violations.append(f"required: {clause}")
+    monotonic_metrics = (
+        "first_outcome_at = LEAST(ops.websim_exact_import_metrics_daily.first_outcome_at, EXCLUDED.first_outcome_at)",
+        "last_outcome_at = GREATEST(ops.websim_exact_import_metrics_daily.last_outcome_at, EXCLUDED.last_outcome_at)",
+    )
+    for clause in monotonic_metrics:
+        if normalized.count(clause) != 2:
+            violations.append(f"two monotonic metric upserts: {clause}")
+    if "last_outcome_at = EXCLUDED.last_outcome_at" in normalized:
+        violations.append("metric last_outcome_at must never regress")
 
     created_tables = tuple(re.findall(
         r"\bCREATE\s+TABLE\s+([^\s(]+)\s*\(",
@@ -1021,6 +1030,12 @@ $unsafe$;
         self.assertIn("WOW_EXACT_WORKER_DATABASE_URL", deploy)
         self.assertIn("wow_exact_worker", deploy)
         self.assertIn("rolcanlogin", deploy)
+        for privilege in (
+            "rolinherit", "rolsuper", "rolcreatedb", "rolcreaterole",
+            "rolreplication", "rolbypassrls",
+        ):
+            with self.subTest(deploy_privilege=privilege):
+                self.assertIn(privilege, deploy)
         self.assertIn("pg_has_role", deploy)
         self.assertIn("redacted", deploy.lower())
         self.assertIn("rollback", deploy.lower())

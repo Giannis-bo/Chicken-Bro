@@ -1,10 +1,13 @@
 import os
 import hashlib
+import inspect
 import json
 from pathlib import Path
+from queue import Queue
 import re
 import shutil
 import subprocess
+import time
 from types import SimpleNamespace
 import unittest
 from concurrent.futures import ThreadPoolExecutor
@@ -525,6 +528,24 @@ class Task4WCandidateHarnessTest(unittest.TestCase):
             "0031_websim_exact_snapshot_v2.sql",
         )
         self.assertEqual(TASK_4W_MIGRATIONS[:-1], TASK_4W_BASELINE_MIGRATIONS)
+
+    def test_cloud_candidate_contains_reverse_metric_lock_and_real_login_acl_matrix(self):
+        source = inspect.getsource(PostgresExactImportJobsCandidateTest)
+        for required in (
+            "def _assert_reverse_metric_lock_order",
+            "wait_event_type = 'Lock'",
+            "def _assert_real_login_acl_matrix",
+            "has_schema_privilege",
+            "has_table_privilege",
+            "has_sequence_privilege",
+            "has_function_privilege",
+            "aclexplode",
+            "grantee = 0",
+            "TASK_4W_WORKER_DSN",
+            "TASK_4W_APP_DSN",
+        ):
+            with self.subTest(required=required):
+                self.assertIn(required, source)
 
 
 @unittest.skipUnless(os.environ.get("WOW_PG_TEST_DSN"), "WOW_PG_TEST_DSN is not configured")
@@ -3069,6 +3090,28 @@ class PostgresExactImportJobsCandidateTest(unittest.TestCase):
     PROJECT_SCHEMAS = (
         "identity", "app", "content", "cache", "knowledge", "analytics", "ops",
     )
+    OPS_TABLES = (
+        "ops.websim_exact_import_jobs",
+        "ops.websim_exact_worker_state",
+        "ops.websim_exact_import_metrics_daily",
+    )
+    AUTHORITY_TABLES = (
+        "cache.websim_canonical_documents",
+        "cache.websim_effect_aggregate_records",
+        "cache.websim_exact_authority_bundles",
+    )
+    FUNCTION_SIGNATURES = (
+        "ops.websim_exact_enqueue(text,bytea,jsonb)",
+        "ops.websim_exact_read(text,bigint)",
+        "ops.websim_exact_claim(text,text,text)",
+        "ops.websim_exact_heartbeat(bigint,uuid)",
+        "ops.websim_exact_terminalize(bigint,uuid,text,text,jsonb,jsonb,text)",
+        "ops.websim_exact_update_worker_state(text,text,text,text,bigint,jsonb)",
+        "ops.websim_exact_prune_jobs(integer)",
+        "ops.websim_exact_prune_metrics(integer)",
+    )
+    APP_FUNCTIONS = frozenset(FUNCTION_SIGNATURES[:2])
+    WORKER_FUNCTIONS = frozenset(FUNCTION_SIGNATURES[2:])
 
     @staticmethod
     def _connect(dsn):
@@ -3103,18 +3146,23 @@ class PostgresExactImportJobsCandidateTest(unittest.TestCase):
                 )
                 self.assertEqual(cur.fetchall(), [])
                 cur.execute(
-                    "SELECT rolname, rolcanlogin, rolcreaterole FROM pg_catalog.pg_roles "
+                    "SELECT rolname, rolcanlogin, rolinherit, rolsuper, rolcreatedb, "
+                    "rolcreaterole, rolreplication, rolbypassrls "
+                    "FROM pg_catalog.pg_roles "
                     "WHERE rolname = ANY(%s) ORDER BY rolname",
                     (["wow_app", "wow_exact_worker", "wow_migrator"],),
                 )
+                roles = {row[0]: row[1:] for row in cur.fetchall()}
                 self.assertEqual(
-                    cur.fetchall(),
-                    [
-                        ("wow_app", True, False),
-                        ("wow_exact_worker", False, False),
-                        ("wow_migrator", True, False),
-                    ],
+                    set(roles),
+                    {"wow_app", "wow_exact_worker", "wow_migrator"},
                 )
+                for login_role in ("wow_app", "wow_migrator"):
+                    self.assertIs(roles[login_role][0], True)
+                    self.assertIs(roles[login_role][4], False)
+                worker_group = roles["wow_exact_worker"]
+                self.assertIs(worker_group[0], False)
+                self.assertTrue(all(value is False for value in worker_group[2:]))
         return identity
 
     def _apply(self, dsn, migrations):
@@ -3179,6 +3227,8 @@ class PostgresExactImportJobsCandidateTest(unittest.TestCase):
                     cur.execute(statement, parameters)
 
     def _assert_role_logins(self):
+        from server.gear_exact_authority_worker import establish_exact_worker_role
+
         expected_database = f"wow_exact_first_fresh_test_{TASK_4W_RUN_ID}"
         for dsn, role in (
             (TASK_4W_MIGRATOR_DSN, "wow_migrator"),
@@ -3192,29 +3242,145 @@ class PostgresExactImportJobsCandidateTest(unittest.TestCase):
         with self._connect(TASK_4W_WORKER_DSN) as conn:
             self.assertEqual(conn.info.dbname, expected_database)
             with conn.cursor() as cur:
-                cur.execute("SET ROLE wow_exact_worker")
                 cur.execute(
-                    "SELECT session_user, current_user, "
+                    "SELECT session_user, current_user, login.rolcanlogin, "
+                    "login.rolinherit, login.rolsuper, login.rolcreatedb, "
+                    "login.rolcreaterole, login.rolreplication, login.rolbypassrls, "
                     "pg_catalog.pg_has_role(session_user, 'wow_exact_worker', 'MEMBER'), "
-                    "(SELECT rolcanlogin AND rolinherit AND NOT rolcreaterole "
-                    "FROM pg_catalog.pg_roles WHERE rolname = session_user)"
+                    "pg_catalog.pg_has_role('wow_app', 'wow_exact_worker', 'MEMBER'), "
+                    "pg_catalog.pg_has_role('wow_migrator', 'wow_exact_worker', 'MEMBER') "
+                    "FROM pg_catalog.pg_roles AS login WHERE login.rolname = session_user"
                 )
-                session, current, member, login_inherit = cur.fetchone()
-                self.assertNotEqual(session, "wow_exact_worker")
-                self.assertEqual(current, "wow_exact_worker")
-                self.assertIs(member, True)
-                self.assertIs(login_inherit, True)
+                row = cur.fetchone()
+                self.assertNotIn(row[0], {"wow_app", "wow_migrator", "wow_exact_worker"})
+                self.assertEqual(row[1], row[0])
+                self.assertEqual(
+                    row[2:],
+                    (True, True, False, False, False, False, False, True, False, False),
+                )
+            establish_exact_worker_role(conn)
+            with conn.cursor() as cur:
+                cur.execute("SELECT session_user, current_user")
+                self.assertEqual(cur.fetchone(), (row[0], "wow_exact_worker"))
+
+    def _assert_function_matrix(self, cur, principal, allowed):
+        for signature in self.FUNCTION_SIGNATURES:
+            cur.execute(
+                "SELECT pg_catalog.has_function_privilege(%s, %s, 'EXECUTE')",
+                (principal, signature),
+            )
+            self.assertIs(cur.fetchone()[0], signature in allowed)
+
+    def _assert_public_function_boundary(self, cur):
+        for signature in self.FUNCTION_SIGNATURES:
+            cur.execute(
+                "SELECT NOT EXISTS ("
+                "SELECT 1 FROM pg_catalog.pg_proc AS proc "
+                "CROSS JOIN LATERAL pg_catalog.aclexplode("
+                "pg_catalog.coalesce("
+                "proc.proacl, pg_catalog.acldefault('f', proc.proowner)"
+                ")"
+                ") AS privilege "
+                "WHERE proc.oid = pg_catalog.to_regprocedure(%s) "
+                "AND privilege.grantee = 0 "
+                "AND privilege.privilege_type = 'EXECUTE'"
+                ")",
+                (signature,),
+            )
+            self.assertIs(cur.fetchone()[0], True)
+
+    def _assert_no_direct_ops(self, cur, principal):
+        for table in self.OPS_TABLES:
+            cur.execute(
+                "SELECT "
+                "pg_catalog.has_table_privilege(%s, %s, 'SELECT'), "
+                "pg_catalog.has_table_privilege(%s, %s, 'INSERT'), "
+                "pg_catalog.has_table_privilege(%s, %s, 'UPDATE'), "
+                "pg_catalog.has_table_privilege(%s, %s, 'DELETE'), "
+                "pg_catalog.has_table_privilege(%s, %s, 'TRUNCATE')",
+                (principal, table) * 5,
+            )
+            self.assertEqual(cur.fetchone(), (False, False, False, False, False))
+        sequence = "ops.websim_exact_import_jobs_job_id_seq"
+        cur.execute(
+            "SELECT "
+            "pg_catalog.has_sequence_privilege(%s, %s, 'USAGE'), "
+            "pg_catalog.has_sequence_privilege(%s, %s, 'SELECT'), "
+            "pg_catalog.has_sequence_privilege(%s, %s, 'UPDATE')",
+            (principal, sequence) * 3,
+        )
+        self.assertEqual(cur.fetchone(), (False, False, False))
+
+    def _assert_worker_authority_bounds(self, cur, principal):
+        for schema in ("cache", "ops"):
+            cur.execute(
+                "SELECT pg_catalog.has_schema_privilege(%s, %s, 'USAGE'), "
+                "pg_catalog.has_schema_privilege(%s, %s, 'CREATE')",
+                (principal, schema, principal, schema),
+            )
+            self.assertEqual(cur.fetchone(), (True, False))
+        for table in self.AUTHORITY_TABLES:
+            cur.execute(
+                "SELECT "
+                "pg_catalog.has_table_privilege(%s, %s, 'SELECT'), "
+                "pg_catalog.has_table_privilege(%s, %s, 'INSERT'), "
+                "pg_catalog.has_table_privilege(%s, %s, 'UPDATE'), "
+                "pg_catalog.has_table_privilege(%s, %s, 'DELETE'), "
+                "pg_catalog.has_table_privilege(%s, %s, 'TRUNCATE')",
+                (principal, table) * 5,
+            )
+            self.assertEqual(cur.fetchone(), (True, True, False, False, False))
+
+    def _assert_real_login_acl_matrix(self):
+        expected_database = f"wow_exact_first_fresh_test_{TASK_4W_RUN_ID}"
+        with self._connect(TASK_4W_WORKER_DSN) as conn:
+            self.assertEqual(conn.info.dbname, expected_database)
+            with conn.cursor() as cur:
+                cur.execute("SELECT session_user, current_user")
+                session, current = cur.fetchone()
+                self.assertEqual(current, session)
+                self.assertNotIn(
+                    session,
+                    {"wow_app", "wow_migrator", "wow_exact_worker"},
+                )
+                self._assert_no_direct_ops(cur, session)
+                self._assert_worker_authority_bounds(cur, session)
+                self._assert_function_matrix(cur, session, self.WORKER_FUNCTIONS)
+
+                cur.execute("SET ROLE wow_exact_worker")
+                self.assertEqual(conn.info.dbname, expected_database)
+                self._assert_no_direct_ops(cur, "wow_exact_worker")
+                self._assert_worker_authority_bounds(cur, "wow_exact_worker")
+                self._assert_function_matrix(
+                    cur,
+                    "wow_exact_worker",
+                    self.WORKER_FUNCTIONS,
+                )
+
+        with self._connect(TASK_4W_APP_DSN) as conn:
+            self.assertEqual(conn.info.dbname, expected_database)
+            with conn.cursor() as cur:
+                cur.execute("SELECT session_user, current_user")
+                self.assertEqual(cur.fetchone(), ("wow_app", "wow_app"))
+                self._assert_no_direct_ops(cur, "wow_app")
+                self._assert_function_matrix(cur, "wow_app", self.APP_FUNCTIONS)
+
+        with self._connect(TASK_4W_FRESH_DSN) as conn:
+            with conn.cursor() as cur:
+                self._assert_public_function_boundary(cur)
+
+        for dsn in (TASK_4W_APP_DSN, TASK_4W_WORKER_DSN):
+            self._assert_denied(dsn, "SELECT * FROM ops.websim_exact_import_jobs")
+            self._assert_denied(
+                dsn,
+                "SELECT nextval('ops.websim_exact_import_jobs_job_id_seq')",
+            )
 
     def _assert_acl_isolation(self):
-        tables = (
-            "ops.websim_exact_import_jobs",
-            "ops.websim_exact_worker_state",
-            "ops.websim_exact_import_metrics_daily",
-        )
         with self._connect(TASK_4W_FRESH_DSN) as conn:
             with conn.cursor() as cur:
                 for role in ("wow_app", "wow_exact_worker"):
-                    for table in tables:
+                    for table in self.OPS_TABLES:
                         cur.execute(
                             "SELECT pg_catalog.has_table_privilege(%s, %s, 'SELECT'), "
                             "pg_catalog.has_table_privilege(%s, %s, 'INSERT,UPDATE,DELETE,TRUNCATE')",
@@ -3254,6 +3420,134 @@ class PostgresExactImportJobsCandidateTest(unittest.TestCase):
             "SELECT * FROM ops.websim_exact_enqueue(%s, %s, %s::jsonb)",
             ("sha256:" + "f" * 64, b"{}", "{}"),
         )
+
+    def _assert_reverse_metric_lock_order(self):
+        owner = "sha256:" + "d" * 64
+        first_request = self._request("metric-lock-early-v1")
+        second_request = self._request("metric-lock-late-v1")
+        self._enqueue(owner, first_request)
+        self._enqueue(owner, second_request)
+
+        claims = {}
+        for _index in range(2):
+            with self._connect(TASK_4W_WORKER_DSN) as conn:
+                with conn.cursor() as cur:
+                    cur.execute("SET ROLE wow_exact_worker")
+                    cur.execute(
+                        "SELECT * FROM ops.websim_exact_claim(%s, %s, %s)",
+                        ("metric-lock-worker", "exact-worker-v1", "simc-runtime-v1"),
+                    )
+                    claim = cur.fetchone()
+                    claims[claim[1]] = claim
+        self.assertEqual(
+            set(claims),
+            {first_request.request_key, second_request.request_key},
+        )
+        early_claim = claims[first_request.request_key]
+        late_claim = claims[second_request.request_key]
+        catalog_status = f"metric-reverse-{TASK_4W_RUN_ID}"
+
+        lock_connection = self._connect(TASK_4W_FRESH_DSN)
+        lock_cursor = lock_connection.cursor()
+        lock_cursor.execute(
+            "SELECT job_id FROM ops.websim_exact_import_jobs "
+            "WHERE job_id = %s FOR UPDATE",
+            (early_claim[0],),
+        )
+        started = Queue()
+
+        def terminalize_early():
+            with self._connect(TASK_4W_WORKER_DSN) as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT pg_catalog.set_config('application_name', %s, false)",
+                        (f"task4w-metric-early-{TASK_4W_RUN_ID}",),
+                    )
+                    cur.execute("SET ROLE wow_exact_worker")
+                    started.put(conn.info.backend_pid)
+                    cur.execute(
+                        "SELECT * FROM ops.websim_exact_terminalize("
+                        "%s, %s, 'resolved', 'resolved', %s::jsonb, NULL, %s)",
+                        (
+                            early_claim[0],
+                            early_claim[4],
+                            '{"status":"resolved"}',
+                            catalog_status,
+                        ),
+                    )
+                    return cur.fetchone()
+
+        released = False
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            future = pool.submit(terminalize_early)
+            try:
+                early_pid = started.get(timeout=5)
+                deadline = time.monotonic() + 10
+                observed_lock_wait = False
+                while time.monotonic() < deadline:
+                    with self._connect(TASK_4W_FRESH_DSN) as observer:
+                        with observer.cursor() as cur:
+                            cur.execute(
+                                "SELECT wait_event_type = 'Lock' "
+                                "FROM pg_catalog.pg_stat_activity WHERE pid = %s",
+                                (early_pid,),
+                            )
+                            observed = cur.fetchone()
+                    if observed and observed[0] is True:
+                        observed_lock_wait = True
+                        break
+                    if future.done():
+                        future.result()
+                        break
+                    time.sleep(0.02)
+                self.assertTrue(observed_lock_wait, "early terminalize never waited on job lock")
+
+                with self._connect(TASK_4W_WORKER_DSN) as conn:
+                    with conn.cursor() as cur:
+                        cur.execute("SET ROLE wow_exact_worker")
+                        cur.execute(
+                            "SELECT * FROM ops.websim_exact_terminalize("
+                            "%s, %s, 'resolved', 'resolved', %s::jsonb, NULL, %s)",
+                            (
+                                late_claim[0],
+                                late_claim[4],
+                                '{"status":"resolved"}',
+                                catalog_status,
+                            ),
+                        )
+                        late_result = cur.fetchone()
+                self.assertEqual(late_result[1], "resolved")
+                lock_connection.commit()
+                released = True
+                early_result = future.result(timeout=10)
+                self.assertEqual(early_result[1], "resolved")
+            finally:
+                if not released:
+                    lock_connection.rollback()
+                lock_cursor.close()
+                lock_connection.close()
+
+        with self._connect(TASK_4W_FRESH_DSN) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT outcome_count, first_outcome_at, last_outcome_at "
+                    "FROM ops.websim_exact_import_metrics_daily "
+                    "WHERE metric_day = CURRENT_DATE "
+                    "AND terminal_classification = 'resolved' AND catalog_status = %s",
+                    (catalog_status,),
+                )
+                metric = cur.fetchone()
+                self.assertEqual(metric[0], 2)
+                self.assertLessEqual(metric[1], metric[2])
+                cur.execute(
+                    "SELECT count(*), min(finished_at), max(finished_at) "
+                    "FROM ops.websim_exact_import_jobs "
+                    "WHERE job_id = ANY(%s) AND status = 'resolved'",
+                    ([early_claim[0], late_claim[0]],),
+                )
+                jobs = cur.fetchone()
+                self.assertEqual(jobs[0], 2)
+                self.assertEqual(metric[1:], jobs[1:])
 
     def _assert_job_lifecycle(self):
         request = self._request()
@@ -3450,7 +3744,9 @@ class PostgresExactImportJobsCandidateTest(unittest.TestCase):
                     self.assertEqual(cur.fetchone(), (32, 1))
 
         self._assert_role_logins()
+        self._assert_real_login_acl_matrix()
         self._assert_acl_isolation()
+        self._assert_reverse_metric_lock_order()
         self._assert_job_lifecycle()
         self._assert_exhaustion_cooldown_metrics_and_bounded_prune()
         self.assertEqual(self._database_identity(TASK_4W_FRESH_DSN, "fresh"), fresh_identity)

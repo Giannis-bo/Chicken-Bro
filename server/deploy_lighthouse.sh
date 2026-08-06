@@ -534,19 +534,27 @@ with psycopg.connect(worker_dsn) as worker_connection:
     establish_exact_worker_role(worker_connection)
     with worker_connection.cursor() as cursor:
         cursor.execute(
-            "SELECT rolname, rolcanlogin, rolcreaterole "
+            "SELECT rolname, rolcanlogin, rolinherit, rolsuper, rolcreatedb, "
+            "rolcreaterole, rolreplication, rolbypassrls "
             "FROM pg_catalog.pg_roles "
             "WHERE rolname = ANY(%s) ORDER BY rolname",
             (["wow_app", "wow_exact_worker", "wow_migrator"],),
         )
-        roles = cursor.fetchall()
-        expected = [
-            ("wow_app", True, False),
-            ("wow_exact_worker", False, False),
-            ("wow_migrator", True, False),
-        ]
-        if roles != expected:
-            raise SystemExit("NOLOGIN/LOGIN/NOCREATEROLE preflight failed")
+        roles = {row[0]: row[1:] for row in cursor.fetchall()}
+        if set(roles) != {"wow_app", "wow_exact_worker", "wow_migrator"}:
+            raise SystemExit("required Task 4W roles are missing")
+        for login_role in ("wow_app", "wow_migrator"):
+            attributes = roles[login_role]
+            if attributes[0] is not True or attributes[4] is not False:
+                raise SystemExit(f"{login_role} must remain LOGIN NOCREATEROLE")
+        worker_group = roles["wow_exact_worker"]
+        if worker_group[0] is not False or any(
+            value is not False for value in worker_group[2:]
+        ):
+            raise SystemExit(
+                "wow_exact_worker must remain NOLOGIN NOSUPERUSER NOCREATEDB "
+                "NOCREATEROLE NOREPLICATION NOBYPASSRLS"
+            )
 
 redacted = {
     "app": hashlib.sha256(app_dsn.encode("utf-8")).hexdigest()[:12],

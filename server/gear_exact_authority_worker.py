@@ -56,7 +56,7 @@ def worker_database_url_from_env(environ: Mapping[str, str] | None = None) -> st
 
 
 def establish_exact_worker_role(connection: Any) -> None:
-    """SET ROLE first, then prove LOGIN membership and the exact effective role."""
+    """SET ROLE first, then prove the complete least-privilege role boundary."""
 
     with connection.cursor() as cur:
         cur.execute("SET ROLE wow_exact_worker")
@@ -70,31 +70,49 @@ def establish_exact_worker_role(connection: Any) -> None:
                     'wow_exact_worker',
                     'MEMBER'
                 ),
-                (
-                    SELECT rolcanlogin AND rolinherit AND NOT rolcreaterole
-                    FROM pg_catalog.pg_roles
-                    WHERE rolname = session_user
+                login_role.rolcanlogin,
+                login_role.rolinherit,
+                login_role.rolsuper,
+                login_role.rolcreatedb,
+                login_role.rolcreaterole,
+                login_role.rolreplication,
+                login_role.rolbypassrls,
+                worker_role.rolcanlogin,
+                worker_role.rolsuper,
+                worker_role.rolcreatedb,
+                worker_role.rolcreaterole,
+                worker_role.rolreplication,
+                worker_role.rolbypassrls,
+                pg_catalog.pg_has_role(
+                    'wow_app',
+                    'wow_exact_worker',
+                    'MEMBER'
                 ),
-                (
-                    SELECT rolcanlogin OR rolcreaterole
-                    FROM pg_catalog.pg_roles
-                    WHERE rolname = 'wow_exact_worker'
+                pg_catalog.pg_has_role(
+                    'wow_migrator',
+                    'wow_exact_worker',
+                    'MEMBER'
                 )
+            FROM pg_catalog.pg_roles AS login_role
+            CROSS JOIN pg_catalog.pg_roles AS worker_role
+            WHERE login_role.rolname = session_user
+              AND worker_role.rolname = 'wow_exact_worker'
             """
         )
         row = cur.fetchone()
     if (
         not row
-        or len(row) != 5
-        or row[0] == WORKER_ROLE
+        or len(row) != 18
+        or row[0] in {WORKER_ROLE, "wow_app", "wow_migrator"}
         or row[1] != WORKER_ROLE
         or row[2] is not True
         or row[3] is not True
-        or row[4] is not False
+        or row[4] is not True
+        or any(value is not False for value in row[5:18])
     ):
         raise WorkerRoleError(
-            "worker connection must be a LOGIN INHERIT NOCREATEROLE member "
-            "with current_user wow_exact_worker and a NOLOGIN NOCREATEROLE group",
+            "worker connection must be a dedicated LOGIN INHERIT least-privilege "
+            "member with an isolated least-privilege wow_exact_worker group",
         )
 
 
