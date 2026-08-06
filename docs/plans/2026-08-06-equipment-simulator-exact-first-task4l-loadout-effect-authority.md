@@ -1,6 +1,6 @@
 # Exact-first Task 4L：Loadout-scoped Effect Authority
 
-状态：`local_verified（2026-08-06：两项独立 plan-only CR、两个 implementation slice scoped CR、232-test focused matrix、compile/imports、Harness packet 与 diff check 均通过；whole-branch CR、exact-head PR CI 和 Harness User Acceptance Closure 尚未完成）`
+状态：`local_verified（2026-08-06：两项独立 plan-only CR、两个 implementation slice scoped CR、v1 identity extra-fix、fresh 241-test focused matrix、compile/imports、Harness packet/diff check、whole-branch source CR 与 packet re-review 均通过；exact-head PR CI 和 Harness User Acceptance Closure 尚未完成）`
 
 ## Goal
 
@@ -127,11 +127,11 @@ Do not modify `docs/project-state.json`, either historical owner map or its Task
 
 ### Task 4L.2: Consume authority in Resolver and v2 loadout/snapshot
 
-- [ ] Add failing tests proving absent/malformed/mismatched/unknown authority keeps `LOADOUT_EFFECT_AUTHORITY_REQUIRED`; verified aggregate alone permits ready; unsupported aggregate is blocked; v1 plus no-loadout-effect v2 identities are stable; loadout occurrences preserve order/multiplicity and snapshot binds the same aggregate/key/sequence.
-- [ ] Run the named failing tests before implementation.
-- [ ] Implement the minimal Resolver, ResolvedLoadout and SimulationSnapshot propagation; do not alter compatibility or runtime consumers unless a failure proves an allowlisted test-only correction is sufficient.
-- [ ] Run the focused matrix below and direct-server imports.
-- [ ] Obtain an independent scoped CR before final whole-branch review.
+- [x] Add failing tests proving absent/malformed/mismatched/unknown authority keeps `LOADOUT_EFFECT_AUTHORITY_REQUIRED`; verified aggregate alone permits ready; unsupported aggregate is blocked; v1 plus no-loadout-effect v2 identities are stable; loadout occurrences preserve order/multiplicity and snapshot binds the same aggregate/key/sequence.
+- [x] Run the named failing tests before implementation.
+- [x] Implement the minimal Resolver, ResolvedLoadout and SimulationSnapshot propagation; do not alter compatibility or runtime consumers unless a failure proves an allowlisted test-only correction is sufficient.
+- [x] Run the focused matrix below and direct-server imports.
+- [x] Obtain an independent scoped CR before final whole-branch review.
 
 ## Fresh verification and evidence ceiling
 

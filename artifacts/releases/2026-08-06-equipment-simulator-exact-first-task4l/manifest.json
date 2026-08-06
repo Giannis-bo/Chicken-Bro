@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-08-06T03:30:57.682Z",
+  "generatedAt": "2026-08-06T04:21:10.906Z",
   "release": {
     "date": "2026-08-06",
     "slug": "equipment-simulator-exact-first-task4l"
@@ -53,7 +53,7 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 19875
+          "sizeBytes": 19927
         },
         {
           "path": "docs/README.md",
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-08-06-equipment-simulator-exact-first-task4l/evidence.json",
-    "sizeBytes": 5903,
+    "sizeBytes": 6472,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -392,7 +392,7 @@
     "missingFields": [],
     "declaredStatus": "local_verified",
     "highestEvidenceLevel": "local_verified",
-    "summary": "Task 4L is local_verified at the pure-domain level: Task 4L.1 and 4L.2 each passed independent scoped review, and the fresh 232-test focused matrix, compile/imports, Harness packet and diff checks passed. Whole-branch CR and exact final-head PR CI remain pending. No runtime identity, candidate deployment, production action or user-visible closure is claimed."
+    "summary": "Task 4L is local_verified at the pure-domain level: Task 4L.1 and 4L.2 each passed independent scoped review; the fresh 241-test focused matrix at source head 62391cf6, compile/imports, Harness packet and diff checks passed; and independent whole-branch source CR plus packet re-review passed. Exact final-head PR CI and Harness User Acceptance Closure remain pending. No runtime identity, candidate deployment, production action or user-visible closure is claimed."
   },
   "evidence": {
     "localTests": {
@@ -417,7 +417,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "4 changed files currently visible to git status."
+      "detail": "5 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
@@ -453,9 +453,10 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 4,
+      "changedFileCount": 5,
       "changedFiles": [
         " M artifacts/releases/2026-08-06-equipment-simulator-exact-first-task4l/evidence.json",
+        " M artifacts/releases/2026-08-06-equipment-simulator-exact-first-task4l/manifest.json",
         " M docs/plans/2026-08-06-equipment-simulator-exact-first-task4l-loadout-effect-authority.md",
         " M docs/plans/README.md",
         " M docs/roadmap.md"
