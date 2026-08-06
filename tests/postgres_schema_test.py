@@ -443,7 +443,11 @@ def exact_import_jobs_schema_violations(sql, migrations):
         flags=re.IGNORECASE,
     ):
         violations.append("reserved current_time PL/pgSQL assignment target")
-    if "pg_catalog.coalesce(" in normalized:
+    if re.search(
+        r"\bpg_catalog\s*\.\s*coalesce\s*\(",
+        normalized,
+        flags=re.IGNORECASE,
+    ):
         violations.append("SQL special COALESCE must not be schema-qualified")
     required = (
         "pg_catalog.to_regprocedure('pg_catalog.gen_random_uuid()') IS NULL",
@@ -1101,6 +1105,23 @@ $unsafe$;
             for path in POSTGRES_MIGRATIONS_0001_0032
         )
         self.assertEqual(exact_import_jobs_schema_violations(sql, migrations), [])
+
+    def test_exact_import_jobs_rejects_schema_qualified_coalesce_variants(self):
+        sql = WEBSIM_EXACT_IMPORT_JOBS.read_text(encoding="utf-8")
+        migrations = tuple(
+            (path.name, path.read_text(encoding="utf-8"))
+            for path in POSTGRES_MIGRATIONS_0001_0032
+        )
+        mutated = sql.replace(
+            "COALESCE(candidate.started_at, observed_at)",
+            "pg_catalog.COALESCE (candidate.started_at, observed_at)",
+            1,
+        )
+        self.assertNotEqual(mutated, sql)
+        self.assertIn(
+            "SQL special COALESCE must not be schema-qualified",
+            exact_import_jobs_schema_violations(mutated, migrations),
+        )
 
     def test_exact_worker_service_deploy_and_runbook_remain_dormant_and_secret_safe(self):
         service_path = ROOT / "server" / "wow-gear-exact-authority-worker.service"

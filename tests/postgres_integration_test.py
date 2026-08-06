@@ -121,6 +121,14 @@ def task4w_candidate_configured(
     )
 
 
+def task4w_candidate_has_schema_qualified_coalesce(source):
+    return re.search(
+        r"\bpg_catalog\s*\.\s*coalesce\s*\(",
+        source,
+        flags=re.IGNORECASE,
+    ) is not None
+
+
 if TASK_3A_RUN_ID:
     validate_task3a_candidate_run_id(TASK_3A_RUN_ID)
 if TASK_3B_RUN_ID:
@@ -547,16 +555,22 @@ class Task4WCandidateHarnessTest(unittest.TestCase):
         ):
             with self.subTest(required=required):
                 self.assertIn(required, source)
-        for forbidden in (
-            "pg_catalog.coalesce(",
-        ):
-            with self.subTest(forbidden=forbidden):
-                self.assertNotIn(forbidden, source)
+        self.assertFalse(task4w_candidate_has_schema_qualified_coalesce(source))
         for required in (
             "COALESCE(proc.proacl, pg_catalog.acldefault('f', proc.proowner))",
         ):
             with self.subTest(required=required):
                 self.assertIn(required, source)
+
+    def test_cloud_candidate_coalesce_guard_rejects_case_and_whitespace_variant(self):
+        source = inspect.getsource(PostgresExactImportJobsCandidateTest)
+        mutated = source.replace(
+            "COALESCE(proc.proacl, pg_catalog.acldefault('f', proc.proowner))",
+            "pg_catalog.COALESCE (proc.proacl, pg_catalog.acldefault('f', proc.proowner))",
+            1,
+        )
+        self.assertNotEqual(mutated, source)
+        self.assertTrue(task4w_candidate_has_schema_qualified_coalesce(mutated))
 
     def test_cloud_candidate_contains_blocked_post_lock_expiry_cas(self):
         source = inspect.getsource(PostgresExactImportJobsCandidateTest)
