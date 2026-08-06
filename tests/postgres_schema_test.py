@@ -437,6 +437,12 @@ def exact_import_jobs_schema_violations(sql, migrations):
     """Static 0032 contract; real role/lease behavior belongs to the cloud candidate."""
     normalized = _normalized(sql)
     violations = []
+    if re.search(
+        r"\bcurrent_time(?:\s+timestamptz)?\s*:=",
+        normalized,
+        flags=re.IGNORECASE,
+    ):
+        violations.append("reserved current_time PL/pgSQL assignment target")
     required = (
         "pg_catalog.to_regprocedure('pg_catalog.gen_random_uuid()') IS NULL",
         "FROM pg_catalog.pg_roles WHERE rolname = 'wow_exact_worker'",
@@ -465,7 +471,7 @@ def exact_import_jobs_schema_violations(sql, migrations):
         "FOR UPDATE SKIP LOCKED",
         "pg_catalog.gen_random_uuid()",
         "$.**.keyvalue() ? (@.key == \"rawProfile\"",
-        "lease_until = current_time + interval '30 seconds'",
+        "lease_until = observed_at + interval '30 seconds'",
         "finished_at + interval '7 days'",
         "metric_day < pg_catalog.clock_timestamp()::date - 90",
         "'ATTEMPT_EXHAUSTED'",
@@ -489,12 +495,12 @@ def exact_import_jobs_schema_violations(sql, migrations):
     enqueue_segment = normalized[
         normalized.index(enqueue_start):normalized.index(enqueue_end)
     ]
-    enqueue_clock = "current_time := pg_catalog.clock_timestamp();"
-    if "current_time timestamptz := pg_catalog.clock_timestamp()" in enqueue_segment:
+    enqueue_clock = "observed_at := pg_catalog.clock_timestamp();"
+    if "observed_at timestamptz := pg_catalog.clock_timestamp()" in enqueue_segment:
         violations.append("enqueue clock sample must not precede advisory lock")
     if not re.search(
         r"PERFORM pg_catalog\.pg_advisory_xact_lock\(.*?\);\s*"
-        r"current_time := pg_catalog\.clock_timestamp\(\);\s*"
+        r"observed_at := pg_catalog\.clock_timestamp\(\);\s*"
         r"SELECT jobs\.\* INTO existing_job",
         enqueue_segment,
     ):
@@ -507,7 +513,7 @@ def exact_import_jobs_schema_violations(sql, migrations):
     claim_segment = normalized[
         normalized.index(claim_start):normalized.index(claim_end)
     ]
-    claim_entry_clock = "current_time timestamptz := pg_catalog.clock_timestamp();"
+    claim_entry_clock = "observed_at timestamptz := pg_catalog.clock_timestamp();"
     exhausted_select = "WITH exhausted AS ( SELECT jobs.job_id"
     exhausted_metric_end = (
         "last_outcome_at = GREATEST("
@@ -542,8 +548,8 @@ def exact_import_jobs_schema_violations(sql, migrations):
         "AND jobs.lock_token = p_lock_token "
         "FOR UPDATE;"
     )
-    post_lock_clock = "current_time := pg_catalog.clock_timestamp();"
-    post_lock_expiry = "IF candidate.lease_until <= current_time THEN RETURN; END IF;"
+    post_lock_clock = "observed_at := pg_catalog.clock_timestamp();"
+    post_lock_expiry = "IF candidate.lease_until <= observed_at THEN RETURN; END IF;"
     for function_name, next_function_name in cas_functions:
         start_marker = f"CREATE OR REPLACE FUNCTION {function_name}("
         end_marker = f"CREATE OR REPLACE FUNCTION {next_function_name}("
@@ -553,7 +559,7 @@ def exact_import_jobs_schema_violations(sql, migrations):
         segment = normalized[
             normalized.index(start_marker):normalized.index(end_marker)
         ]
-        if "current_time timestamptz := pg_catalog.clock_timestamp()" in segment:
+        if "observed_at timestamptz := pg_catalog.clock_timestamp()" in segment:
             violations.append(f"pre-lock clock sample forbidden: {function_name}")
         ordered = tuple(
             segment.find(clause)

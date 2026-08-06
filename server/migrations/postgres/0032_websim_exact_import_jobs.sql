@@ -276,7 +276,7 @@ SECURITY DEFINER
 SET search_path = pg_catalog, pg_temp
 AS $function$
 DECLARE
-    current_time timestamptz;
+    observed_at timestamptz;
     computed_request_key text;
     existing_job ops.websim_exact_import_jobs%ROWTYPE;
 BEGIN
@@ -327,7 +327,7 @@ BEGIN
             0
         )
     );
-    current_time := pg_catalog.clock_timestamp();
+    observed_at := pg_catalog.clock_timestamp();
 
     SELECT jobs.*
     INTO existing_job
@@ -359,7 +359,7 @@ BEGIN
     WHERE jobs.owner_key_hash = p_owner_key_hash
       AND jobs.request_key = computed_request_key
       AND jobs.status = 'failed'
-      AND jobs.cooldown_until > current_time
+      AND jobs.cooldown_until > observed_at
     ORDER BY jobs.cooldown_until DESC, jobs.job_id DESC
     LIMIT 1;
     IF FOUND THEN
@@ -398,9 +398,9 @@ BEGIN
             p_request_json,
             'pending',
             0,
-            current_time,
-            current_time,
-            current_time
+            observed_at,
+            observed_at,
+            observed_at
         )
         RETURNING
             websim_exact_import_jobs.job_id,
@@ -481,7 +481,7 @@ SECURITY DEFINER
 SET search_path = pg_catalog, pg_temp
 AS $function$
 DECLARE
-    current_time timestamptz := pg_catalog.clock_timestamp();
+    observed_at timestamptz := pg_catalog.clock_timestamp();
     candidate ops.websim_exact_import_jobs%ROWTYPE;
 BEGIN
     IF p_worker_id IS NULL
@@ -501,7 +501,7 @@ BEGIN
         FROM ops.websim_exact_import_jobs AS jobs
         WHERE jobs.status = 'running'
           AND jobs.attempt = 3
-          AND jobs.lease_until <= current_time
+          AND jobs.lease_until <= observed_at
         ORDER BY jobs.lease_until, jobs.queued_at, jobs.job_id
         FOR UPDATE SKIP LOCKED
         LIMIT 1
@@ -512,13 +512,13 @@ BEGIN
             locked_by = NULL,
             lock_token = NULL,
             lease_until = NULL,
-            finished_at = current_time,
-            cooldown_until = current_time + interval '15 minutes',
+            finished_at = observed_at,
+            cooldown_until = observed_at + interval '15 minutes',
             result_json = NULL,
             problem_json = pg_catalog.jsonb_build_object(
                 'code', 'ATTEMPT_EXHAUSTED'
             ),
-            updated_at = current_time
+            updated_at = observed_at
         FROM exhausted
         WHERE jobs.job_id = exhausted.job_id
         RETURNING jobs.terminal_classification
@@ -532,12 +532,12 @@ BEGIN
         last_outcome_at
     )
     SELECT
-        current_time::date,
+        observed_at::date,
         terminal.terminal_classification,
         'unknown',
         1,
-        current_time,
-        current_time
+        observed_at,
+        observed_at
     FROM terminal
     ON CONFLICT (metric_day, terminal_classification, catalog_status)
     DO UPDATE SET
@@ -546,7 +546,7 @@ BEGIN
         first_outcome_at = LEAST(ops.websim_exact_import_metrics_daily.first_outcome_at, EXCLUDED.first_outcome_at),
         last_outcome_at = GREATEST(ops.websim_exact_import_metrics_daily.last_outcome_at, EXCLUDED.last_outcome_at);
 
-    current_time := pg_catalog.clock_timestamp();
+    observed_at := pg_catalog.clock_timestamp();
 
     SELECT jobs.*
     INTO candidate
@@ -558,7 +558,7 @@ BEGIN
        OR (
             jobs.status = 'running'
             AND jobs.attempt < 3
-            AND jobs.lease_until <= current_time
+            AND jobs.lease_until <= observed_at
         )
     ORDER BY
         CASE WHEN jobs.status = 'running' THEN 0 ELSE 1 END,
@@ -601,15 +601,15 @@ BEGIN
         attempt = candidate.attempt + 1,
         locked_by = p_worker_id,
         lock_token = pg_catalog.gen_random_uuid(),
-        lease_until = current_time + interval '30 seconds',
-        started_at = pg_catalog.coalesce(candidate.started_at, current_time),
-        heartbeat_at = current_time,
+        lease_until = observed_at + interval '30 seconds',
+        started_at = pg_catalog.coalesce(candidate.started_at, observed_at),
+        heartbeat_at = observed_at,
         finished_at = NULL,
         cooldown_until = NULL,
         terminal_classification = NULL,
         result_json = NULL,
         problem_json = NULL,
-        updated_at = current_time
+        updated_at = observed_at
     WHERE jobs.job_id = candidate.job_id
     RETURNING
         jobs.job_id,
@@ -631,7 +631,7 @@ SECURITY DEFINER
 SET search_path = pg_catalog, pg_temp
 AS $function$
 DECLARE
-    current_time timestamptz;
+    observed_at timestamptz;
     candidate record;
 BEGIN
     IF p_job_id IS NULL OR p_job_id <= 0 OR p_lock_token IS NULL THEN
@@ -648,20 +648,20 @@ BEGIN
     IF NOT FOUND THEN
         RETURN;
     END IF;
-    current_time := pg_catalog.clock_timestamp();
-    IF candidate.lease_until <= current_time THEN
+    observed_at := pg_catalog.clock_timestamp();
+    IF candidate.lease_until <= observed_at THEN
         RETURN;
     END IF;
 
     RETURN QUERY
     UPDATE ops.websim_exact_import_jobs AS jobs
-    SET lease_until = current_time + interval '30 seconds',
-        heartbeat_at = current_time,
-        updated_at = current_time
+    SET lease_until = observed_at + interval '30 seconds',
+        heartbeat_at = observed_at,
+        updated_at = observed_at
     WHERE jobs.job_id = p_job_id
       AND jobs.status = 'running'
       AND jobs.lock_token = p_lock_token
-      AND jobs.lease_until > current_time
+      AND jobs.lease_until > observed_at
     RETURNING jobs.job_id, jobs.lease_until;
 END;
 $function$;
@@ -686,7 +686,7 @@ SECURITY DEFINER
 SET search_path = pg_catalog, pg_temp
 AS $function$
 DECLARE
-    current_time timestamptz;
+    observed_at timestamptz;
     candidate record;
 BEGIN
     IF p_job_id IS NULL
@@ -750,8 +750,8 @@ BEGIN
     IF NOT FOUND THEN
         RETURN;
     END IF;
-    current_time := pg_catalog.clock_timestamp();
-    IF candidate.lease_until <= current_time THEN
+    observed_at := pg_catalog.clock_timestamp();
+    IF candidate.lease_until <= observed_at THEN
         RETURN;
     END IF;
 
@@ -763,19 +763,19 @@ BEGIN
             locked_by = NULL,
             lock_token = NULL,
             lease_until = NULL,
-            finished_at = current_time,
+            finished_at = observed_at,
             cooldown_until = CASE
                 WHEN p_terminal_status = 'failed'
-                THEN current_time + interval '15 minutes'
+                THEN observed_at + interval '15 minutes'
                 ELSE NULL
             END,
             result_json = p_result_json,
             problem_json = p_problem_json,
-            updated_at = current_time
+            updated_at = observed_at
         WHERE jobs.job_id = p_job_id
           AND jobs.status = 'running'
           AND jobs.lock_token = p_lock_token
-          AND jobs.lease_until > current_time
+          AND jobs.lease_until > observed_at
         RETURNING
             jobs.job_id,
             jobs.status,
@@ -792,12 +792,12 @@ BEGIN
             last_outcome_at
         )
         SELECT
-            current_time::date,
+            observed_at::date,
             terminal.terminal_classification,
             p_catalog_status,
             1,
-            current_time,
-            current_time
+            observed_at,
+            observed_at
         FROM terminal
         ON CONFLICT (metric_day, terminal_classification, catalog_status)
         DO UPDATE SET
@@ -831,7 +831,7 @@ SECURITY DEFINER
 SET search_path = pg_catalog, pg_temp
 AS $function$
 DECLARE
-    current_time timestamptz := pg_catalog.clock_timestamp();
+    observed_at timestamptz := pg_catalog.clock_timestamp();
 BEGIN
     IF p_worker_id IS NULL
        OR pg_catalog.octet_length(p_worker_id) NOT BETWEEN 1 AND 160
@@ -879,9 +879,9 @@ BEGIN
         p_simc_runtime_revision,
         p_current_job_id,
         p_status,
-        current_time,
+        observed_at,
         p_last_outcome_json,
-        current_time
+        observed_at
     )
     ON CONFLICT (worker_id)
     DO UPDATE SET
