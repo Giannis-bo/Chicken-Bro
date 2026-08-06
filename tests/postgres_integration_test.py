@@ -1573,6 +1573,7 @@ class PostgresExactSnapshotV2CandidateTest(unittest.TestCase):
         malformed = (
             ("missing-key", {key: value for key, value in valid.items() if key != "supportRecordKey"}),
             ("null-value", valid | {"subjectKey": None}),
+            ("wrong-type-subject", valid | {"subjectKind": True}),
             ("extra-key", valid | {"unexpected": "value"}),
         )
         for ordinal, (label, occurrence) in enumerate(malformed, start=7):
@@ -1610,22 +1611,49 @@ class PostgresExactSnapshotV2CandidateTest(unittest.TestCase):
         def extra_subject_key(subject):
             subject["unexpected"] = "value"
 
-        for ordinal, (label, mutate_subject) in enumerate((
-            ("missing-status", remove_status),
-            ("unverified-status", unverified_status),
-            ("null-subject-key", null_subject_key),
-            ("extra-subject-key", extra_subject_key),
+        def numeric_subject_key(subject):
+            subject["subjectKey"] = 123
+
+        def text_subject_key(subject):
+            subject["subjectKey"] = "123"
+
+        def occurrence_subject_key_as_text(evidence):
+            evidence[0]["subjectKey"] = "123"
+
+        def occurrence_subject_key_as_number(evidence):
+            evidence[0]["subjectKey"] = 123
+
+        for ordinal, (label, mutate_subject, mutate_occurrence, message) in enumerate((
+            ("missing-status", remove_status, None, "v2 loadout effect relation mismatch"),
+            ("unverified-status", unverified_status, None, "v2 loadout effect relation mismatch"),
+            ("null-subject-key", null_subject_key, None, "v2 loadout effect relation mismatch"),
+            ("extra-subject-key", extra_subject_key, None, "v2 loadout effect relation mismatch"),
+            (
+                "wrong-type-canonical-subject",
+                numeric_subject_key,
+                occurrence_subject_key_as_text,
+                "v2 loadout effect relation mismatch",
+            ),
+            (
+                "wrong-type-occurrence-subject",
+                text_subject_key,
+                occurrence_subject_key_as_number,
+                "v2 loadout effect occurrence is invalid",
+            ),
         ), start=2):
             with self.subTest(task4l_subject=label):
                 mutated = self._mutated_authority(authority, mutate_subject)
                 self._seed_authority_relations(dsn, mutated)
+                mutated_evidence = self._loadout_occurrences(mutated)
+                if mutate_occurrence is not None:
+                    mutate_occurrence(mutated_evidence)
                 self._assert_v2_loadout_rejected(
                     dsn,
                     key="resolved-loadout-v2:sha256:" + format(ordinal, "x") * 64,
                     row_hash="sha256:" + format(ordinal, "x") * 64,
-                    evidence=self._loadout_occurrences(mutated),
+                    evidence=mutated_evidence,
                     authority_key=mutated.content_key,
-                    message="v2 loadout effect relation mismatch",
+                    message=message,
                 )
 
     def _assert_v1_catalog_parent_references_rejected(self, dsn, catalog_revision):

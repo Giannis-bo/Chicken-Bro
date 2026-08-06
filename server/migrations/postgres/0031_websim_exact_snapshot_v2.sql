@@ -350,6 +350,12 @@ BEGIN
                OR (occurrence ->> 'recordOrdinal') !~ '^[0-9]+$'
                OR (occurrence ->> 'slot') IS NULL
                OR (occurrence ->> 'exactAuthorityEnvelopeKey') IS NULL
+               OR pg_catalog.jsonb_typeof(occurrence -> 'subjectKind')
+                  IS DISTINCT FROM 'string'
+               OR pg_catalog.jsonb_typeof(occurrence -> 'subjectKey')
+                  IS DISTINCT FROM 'string'
+               OR pg_catalog.jsonb_typeof(occurrence -> 'subjectVariantSignature')
+                  IS DISTINCT FROM 'string'
                OR (occurrence ->> 'subjectKind') IS NULL
                OR (occurrence ->> 'subjectKey') IS NULL
                OR (occurrence ->> 'subjectVariantSignature') IS NULL
@@ -400,6 +406,12 @@ BEGIN
                OR (occurrence ->> 'recordOrdinal')::integer <> expected_ordinal
                OR (occurrence ->> 'loadoutEffectAuthorityKey')
                   IS DISTINCT FROM p_loadout_effect_authority_key
+               OR pg_catalog.jsonb_typeof(occurrence -> 'subjectKind')
+                  IS DISTINCT FROM 'string'
+               OR pg_catalog.jsonb_typeof(occurrence -> 'subjectKey')
+                  IS DISTINCT FROM 'string'
+               OR pg_catalog.jsonb_typeof(occurrence -> 'subjectVariantSignature')
+                  IS DISTINCT FROM 'string'
             THEN
                 RAISE EXCEPTION 'v2 loadout effect occurrence is invalid';
             END IF;
@@ -436,6 +448,12 @@ BEGIN
                     'supportRecordKey'
                ]) <> '{}'::jsonb
                OR (expected_subject ->> 'status') IS DISTINCT FROM 'verified'
+               OR pg_catalog.jsonb_typeof(expected_subject -> 'subjectKind')
+                  IS DISTINCT FROM 'string'
+               OR pg_catalog.jsonb_typeof(expected_subject -> 'subjectKey')
+                  IS DISTINCT FROM 'string'
+               OR pg_catalog.jsonb_typeof(expected_subject -> 'subjectVariantSignature')
+                  IS DISTINCT FROM 'string'
                OR (expected_subject ->> 'subjectKind') IS NULL
                OR (expected_subject ->> 'subjectKey') IS NULL
                OR (expected_subject ->> 'subjectVariantSignature') IS NULL

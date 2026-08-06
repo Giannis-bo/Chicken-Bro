@@ -337,6 +337,25 @@ def exact_snapshot_v2_schema_violations(sql, migrations):
     for clause in required_presence:
         if clause not in normalized:
             violations.append(clause)
+    for field in (
+        "subjectKind",
+        "subjectKey",
+        "subjectVariantSignature",
+    ):
+        occurrence_check = (
+            "pg_catalog.jsonb_typeof(occurrence -> '"
+            + field
+            + "') IS DISTINCT FROM 'string'"
+        )
+        expected_subject_check = (
+            "pg_catalog.jsonb_typeof(expected_subject -> '"
+            + field
+            + "') IS DISTINCT FROM 'string'"
+        )
+        if normalized.count(occurrence_check) != 2:
+            violations.append(f"occurrence {field} string type")
+        if normalized.count(expected_subject_check) != 1:
+            violations.append(f"Task4L subject {field} string type")
     if (
         "effect_record_key text NOT NULL REFERENCES "
         "cache.websim_canonical_documents(content_key) "
@@ -649,6 +668,20 @@ $unsafe$;
             self.websim_exact_snapshot_v2_sql.replace(
                 "CREATE TRIGGER trg_websim_simulation_snapshot_v1_v2_binding",
                 "CREATE TRIGGER trg_removed_simulation_snapshot_v1_v2_binding",
+                1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "pg_catalog.jsonb_typeof(occurrence -> 'subjectKind')\n"
+                "                  "
+                "IS DISTINCT FROM 'string'",
+                "false",
+                1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "pg_catalog.jsonb_typeof(expected_subject -> 'subjectKind')\n"
+                "                  "
+                "IS DISTINCT FROM 'string'",
+                "false",
                 1,
             ),
         )
