@@ -2,28 +2,33 @@
   "schemaVersion": 2,
   "slug": "equipment-simulator-exact-first-task4w",
   "requirementSlug": "equipment-simulator-exact-first-task4w",
-  "status": "implementation_allowed",
-  "highestEvidenceLevel": "implementation_allowed",
+  "status": "runtime_verified",
+  "highestEvidenceLevel": "runtime_verified",
   "branch": "codex/equipment-simulator-exact-first-task4w",
-  "commit": "pending_task4w_implementation_head",
+  "commit": "6546db9bf98c2051facf8fb378b0e02cf9c36702",
   "identities": {
     "runtime": {
-      "status": "pending",
-      "reason": "Task 4W has no candidate yet; no runtime, production or user-visible identity is claimed."
+      "status": "bound",
+      "kind": "git_commit",
+      "value": "6546db9bf98c2051facf8fb378b0e02cf9c36702",
+      "gitTree": "d2f8a96d07684308a6cd391886d1834eb7f7c5c4",
+      "reason": "The final t4w260807000500 cloud-only PostgreSQL candidate passed at this exact clean source commit and tree after the recursive JSONPath object guard correction."
     },
     "verification": {
-      "status": "pending",
-      "reason": "Fresh verification must bind the exact clean Task 4W HEAD after implementation."
+      "status": "bound_at_check",
+      "kind": "git_ref",
+      "value": "HEAD",
+      "reason": "Fresh no-DSN focused verification, final independent CR and the final-head candidate were recorded while the runtime-affecting tree was clean at 6546db9. Subsequent evidence-only control-plane recording does not alter that runtime identity."
     },
     "closure": {
       "status": "pending",
-      "reason": "No review, candidate, CI, merge or archival closure has occurred."
+      "reason": "Candidate and independent CR are complete; exact-head CI, merge, merge-result scoped verification, main/origin parity, archival and owned-resource cleanup remain pending."
     }
   },
   "manualAcceptance": {
     "required": false,
     "status": "not_applicable",
-    "reason": "Task 4W begins with dormant worker infrastructure and no API, UI, SimC consumer or user-visible runtime path.",
+    "reason": "Task 4W adds dormant persistence and worker infrastructure only; it activates no API, UI, SimC consumer, scheduled worker or user-visible runtime path.",
     "items": [],
     "rollup": {
       "total": 0,
@@ -33,51 +38,175 @@
     }
   },
   "scope": [
-    "Task 4W Strict packet and control-plane authorization for migration 0032 owner-scoped Exact import jobs and a dedicated dormant worker boundary.",
-    "No implementation, PostgreSQL candidate, production migration, service activation, API, UI, SimC user path, Catalog/Manifest pointer or generation 35 change has occurred."
+    "Migration 0032 owner-scoped Exact import jobs, pre-provisioned NOLOGIN worker-group verification, database-owned lease/cooldown/retention/metrics and dormant worker/deploy contracts.",
+    "No production migration, active worker, API, UI, SimC user path, Catalog/Manifest pointer or generation 35 change."
   ],
   "verification": [
     {
-      "command": "Task 4W implementation and candidate verification are pending; this packet records the approved bounded contract only.",
-      "status": "not_run",
-      "summary": "No test, runtime, PostgreSQL, service, API, UI or user-visible pass is claimed at implementation_allowed."
+      "command": "env -u WOW_PG_TEST_DSN -u WOW_PG_TEST_RUN_ID_0030 -u WOW_PG_TEST_DSN_FRESH_0030 -u WOW_PG_TEST_DSN_UPGRADE_0030 -u WOW_PG_TEST_RUN_ID_0031 -u WOW_PG_TEST_DSN_FRESH_0031 -u WOW_PG_TEST_DSN_UPGRADE_0031 -u WOW_PG_TEST_RUN_ID_0032 -u WOW_PG_TEST_DSN_FRESH_0032 -u WOW_PG_TEST_DSN_UPGRADE_0032 -u WOW_PG_TEST_DSN_MIGRATOR_0032 -u WOW_PG_TEST_DSN_APP_0032 -u WOW_PG_TEST_DSN_WORKER_0032 PYTHONDONTWRITEBYTECODE=1 python3 -m unittest tests.gear_exact_import_job_store_test tests.gear_exact_authority_worker_test tests.postgres_schema_test tests.postgres_integration_test",
+      "status": "pass",
+      "testedHead": "6546db9bf98c2051facf8fb378b0e02cf9c36702",
+      "summary": "83 tests passed and four PostgreSQL candidate entrypoints were skipped because every local PostgreSQL DSN was explicitly unset; no local PostgreSQL server, connection or integration candidate was used."
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m py_compile server/gear_exact_import_job_store.py server/gear_exact_authority_worker.py tests/postgres_schema_test.py tests/postgres_integration_test.py; bash -n server/deploy_lighthouse.sh; git diff --check origin/main...HEAD",
+      "status": "pass",
+      "testedHead": "6546db9bf98c2051facf8fb378b0e02cf9c36702",
+      "summary": "Allowlisted worker/store/schema syntax, deploy shell syntax and whitespace checks passed."
+    },
+    {
+      "command": "independent whole-branch scoped CR at 6546db9",
+      "status": "pass",
+      "testedHead": "6546db9bf98c2051facf8fb378b0e02cf9c36702",
+      "summary": "No P1/P2: the 16 changed files stay within the frozen Task 4W allowlist; security-definer, ACL, owner isolation, database-clock CAS, recursive JSONPath guard and dormant worker/deploy boundaries match the task contract. The reviewer separately ran 62 no-DSN pure/schema tests without PostgreSQL."
+    },
+    {
+      "command": "cloud-only final-head candidate: nice -n 10 python3 -m unittest tests.postgres_integration_test.PostgresExactImportJobsCandidateTest",
+      "status": "pass",
+      "testedHead": "6546db9bf98c2051facf8fb378b0e02cf9c36702",
+      "summary": "Run t4w260807000500 passed one real PostgreSQL candidate test in 37.421s against two new exact-commented disposable databases. Fresh applies 0001..0032; upgrade applies 0001..0031 then 0032. It used three distinct redacted migrator/app/worker login DSNs, a clean postgres-owned source tree and a single low-priority process. No production database, migration, service activation or runtime consumer was used."
+    },
+    {
+      "command": "read-only post-candidate source, migration-ledger, role and service audit",
+      "status": "pass",
+      "testedHead": "6546db9bf98c2051facf8fb378b0e02cf9c36702",
+      "summary": "Both disposable databases recorded 32 migrations with exactly one 0032 row and both 0032 tables. The worker login was LOGIN, non-superuser, non-createdb, non-createrole and a member of pre-provisioned NOLOGIN wow_exact_worker. Candidate source commit/tree and 0032 SHA256 matched; wow-backend stayed active and wow-exact-import-worker stayed inactive."
     }
   ],
   "candidateDeployment": {
-    "status": "pending",
-    "reason": "A later final-head cloud-only disposable PostgreSQL candidate requires operator-provisioned role/DSN preflight and remains unrun."
+    "status": "candidate_verified",
+    "requiredBeforeMerge": true,
+    "migration": "0032",
+    "branch": "codex/equipment-simulator-exact-first-task4w",
+    "commit": "6546db9bf98c2051facf8fb378b0e02cf9c36702",
+    "gitTree": "d2f8a96d07684308a6cd391886d1834eb7f7c5c4",
+    "host": "wow-lighthouse",
+    "runtime": "postgres_only_disposable_candidate",
+    "runId": "t4w260807000500",
+    "migrationPath": "server/migrations/postgres/0032_websim_exact_import_jobs.sql",
+    "migration0032Sha256": "a03991f96743dcb04a0d94fd6636c2475ce0c8e897e2267114c0d1b00bd25117",
+    "freshDatabase": {
+      "name": "wow_exact_first_fresh_test_t4w260807000500",
+      "comment": "wow_exact_first_disposable:t4w260807000500:fresh",
+      "preservationStatus": "retained_until_merge_scoped_verification_main_parity_and_archival"
+    },
+    "upgradeDatabase": {
+      "name": "wow_exact_first_upgrade_test_t4w260807000500",
+      "comment": "wow_exact_first_disposable:t4w260807000500:upgrade",
+      "preservationStatus": "retained_until_merge_scoped_verification_main_parity_and_archival"
+    },
+    "workerIdentity": {
+      "groupRole": "wow_exact_worker",
+      "groupRoleContract": "pre-provisioned NOLOGIN, non-superuser, non-createdb, non-createrole, non-replication, non-bypassrls",
+      "provisioning": "operator-provisioned before candidate preflight; retained inert for the separately authorized later production-migration gate and never created or altered by 0032, service or deploy code",
+      "candidateLogin": "wow_exact_worker_login_t4w260807000500",
+      "candidateLoginAudit": "LOGIN=true, superuser=false, createdb=false, createrole=false, membership=wow_exact_worker",
+      "dsnEvidence": "migrator, app and worker DSNs were distinct and redacted; no credential values are recorded"
+    },
+    "candidateSource": {
+      "remotePath": "/var/tmp/wow-task4w-candidate-t4w260807000500/source",
+      "gitStatus": "clean",
+      "commit": "6546db9bf98c2051facf8fb378b0e02cf9c36702",
+      "gitTree": "d2f8a96d07684308a6cd391886d1834eb7f7c5c4",
+      "cleanupStatus": "pending_harness_closure"
+    },
+    "bundle": {
+      "localPath": "/tmp/wow-task4w-bundle.kP7Oi2/task4w-6546db9b.bundle",
+      "remotePath": "/var/tmp/wow-task4w-candidate-t4w260807000500/source.bundle",
+      "bytes": 116146104,
+      "sha256": "8f6d315d2f6a34ba1d6afc02c398945f5d5b33826bc07230d4db0d3a5d022544",
+      "cleanupStatus": "pending_harness_closure"
+    },
+    "processEvidence": {
+      "exitCode": 0,
+      "unittestSummary": "Ran 1 test in 37.421s; OK",
+      "resourceBoundary": "one process at nice 10; no production service activation"
+    },
+    "postCandidateAudit": {
+      "status": "pass",
+      "scope": "read_only",
+      "source": "clean exact commit/tree verified as postgres owner",
+      "fresh": {
+        "migrationLedgerRows": 32,
+        "migration0032Rows": 1,
+        "opsRelationCount": 17,
+        "task0032TableCount": 2
+      },
+      "upgrade": {
+        "migrationLedgerRows": 32,
+        "migration0032Rows": 1,
+        "opsRelationCount": 17,
+        "task0032TableCount": 2
+      },
+      "productionServices": {
+        "wowBackend": "active",
+        "wowExactImportWorker": "inactive"
+      }
+    },
+    "smoke": {
+      "status": "pass",
+      "summary": "The exact candidate proved fresh/upgrade migration, real role/ACL boundaries, owner isolation, recursive sensitive-field rejection, deterministic enqueue, lease reclaim/CAS, cooldown, terminal metrics and bounded prune in disposable PostgreSQL only."
+    },
+    "endpointSmoke": {
+      "status": "not_applicable",
+      "reason": "Task 4W introduces no endpoint or active consumer."
+    },
+    "timerBackflow": {
+      "status": "not_applicable",
+      "reason": "Task 4W installs no enabled timer, worker or asynchronous sync."
+    },
+    "productionMigration": {
+      "status": "not_applicable",
+      "reason": "Migration 0032 was applied only to the two named disposable candidate databases; no production migration was authorized or executed."
+    },
+    "productionRuntimeConsumer": {
+      "status": "not_applicable",
+      "reason": "No worker, API, UI or SimC runtime consumer is activated."
+    },
+    "productionDatabaseWrite": false,
+    "publicPointerChange": false,
+    "nextCandidate": {
+      "status": "not_required_unless_runtime_affecting_source_changes",
+      "reason": "t4w260807000500 binds the current final runtime-affecting source. Any later migration, worker/store, candidate-test, requirement or owner-contract runtime change requires a distinct fresh/upgrade candidate."
+    }
   },
   "runtimeEvidence": [],
   "risks": [
     {
-      "id": "task4w_cloud_role_preflight",
-      "status": "pending",
-      "detail": "The later candidate must prove the pre-existing NOLOGIN worker group, LOGIN membership, three distinct redacted DSNs and safe capacity before any migration or service evidence."
+      "id": "historical_failed_candidate_resources",
+      "status": "contained",
+      "detail": "Runs t4w260806231500, t4w260806234500 and t4w260806235900 were rejected respectively for a migration parse error, a qualified COALESCE error and an unguarded JSONPath keyvalue error. Their named isolated databases and candidate artifacts remain non-reusable until the Task 4W archival cleanup; none is production state."
     },
     {
-      "id": "task4w_runtime_non_activation",
-      "status": "not_applicable",
-      "detail": "No production migration, active worker, API, UI, SimC consumer, Catalog/Manifest pointer or generation 35 change is in scope."
+      "id": "cloud_candidate_capacity_gate",
+      "status": "mitigated",
+      "detail": "Final preflight had about 4.25 GiB free on the root filesystem. The candidate used one nice 10 PostgreSQL test process and completed in 37.421s; post-candidate read-only inspection still found about 4.24 GiB free. No broad cache deletion, database reset or production path change occurred."
+    },
+    {
+      "id": "exact_first_user_path",
+      "status": "blocked_pending_later_tasks",
+      "detail": "Task 5A and later separately scoped work remain necessary before any production migration, active worker, API, SimC or UI user journey exists. This persistence-and-worker candidate is not a user-experience completion claim."
     }
   ],
   "rollback": [
     "code_rollback",
     "config_disable",
+    "retain_all_task4w_disposable_candidate_databases_as_non_reusable_identity_records_until_authorized_closure_cleanup",
     "no_production_migration_or_pointer_mutation"
   ],
   "cleanup": {
     "required": true,
     "status": "pending",
-    "reason": "Only Task 4W-owned candidate databases, temporary candidate source/bundle artifacts, feature worktree and branch may be cleaned after the Harness closure sequence."
+    "reason": "Only the four Task 4W candidate database pairs, candidate-login roles, temporary candidate source/bundle artifacts, local owned bundles, feature worktree and branch may be removed after merge, merge-result verification, main/origin parity and archival identity checks. The pre-provisioned NOLOGIN group role is not a temporary candidate resource."
   },
   "archivedReferences": [
     "docs/project-state.json",
     "docs/roadmap.md",
     "docs/plans/README.md",
     "docs/plans/2026-08-04-equipment-simulator-exact-first-persistence-resequence.md",
-    "artifacts/releases/2026-08-06-equipment-simulator-exact-first-task3b/evidence.json",
+    "docs/postgres-identity-migration-runbook.md",
     "docs/harness.md",
     "docs/verification-matrix.md"
   ],
-  "summary": "Task 4W is implementation_allowed under the user's continuous Exact-first authorization. This initial packet freezes only the 0032 owner-scoped job/worker contract; no production migration, candidate, runtime consumer, service activation, API, UI, SimC user path or user-visible completion is claimed."
+  "summary": "Task 4W is runtime-verified at 6546db9 / tree d2f8a96: final t4w260807000500 passed the cloud-only fresh-and-upgrade 0032 candidate using two new exact-commented disposable databases, isolated redacted migrator/app/worker identities and one low-priority process. Independent whole-branch CR and fresh no-DSN focused verification passed. No production migration, active worker, API, UI, SimC execution, Catalog/Manifest pointer, generation 35 change or user-visible closure is claimed."
 }
