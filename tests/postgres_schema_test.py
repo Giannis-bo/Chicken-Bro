@@ -280,7 +280,7 @@ def exact_snapshot_v2_schema_violations(sql, migrations):
         "CREATE CONSTRAINT TRIGGER trg_websim_loadout_effect_authorities_complete AFTER INSERT ON cache.websim_loadout_effect_authorities DEFERRABLE INITIALLY DEFERRED FOR EACH ROW",
         "CREATE CONSTRAINT TRIGGER trg_websim_loadout_effect_authority_records_complete AFTER INSERT ON cache.websim_loadout_effect_authority_records DEFERRABLE INITIALLY DEFERRED FOR EACH ROW",
         "pg_catalog.generate_series(0, expected_count - 1)",
-        "relation.effect_record_key <> authority_json->'supportRecords'->wanted.ordinal->>'supportRecordKey'",
+        "relation.effect_record_key IS DISTINCT FROM authority_json->'supportRecords'->wanted.ordinal->>'supportRecordKey'",
         "document.document_kind <> 'effect_record'",
         "resolver_replay_context_json jsonb",
         "pg_catalog.octet_length(resolver_replay_context_json::text) <= 1048576",
@@ -314,6 +314,8 @@ def exact_snapshot_v2_schema_violations(sql, migrations):
         "(expected_subject ->> 'status') IS DISTINCT FROM 'verified'",
         "(expected_subject ->> 'subjectKind') IS NULL",
         "IF (occurrence ->> 'scope') = 'slot' THEN",
+        "IF saw_loadout_scope THEN RAISE EXCEPTION 'v2 no-effect rows cannot contain loadout occurrences';",
+        "IF NOT saw_loadout OR loadout_count <> relation_count THEN",
         "IF loadout_schema_revision IS DISTINCT FROM 'resolved-loadout-v2'",
         "IF loadout_schema_revision IS DISTINCT FROM 'resolved-loadout-v1'",
         "REVOKE ALL ON cache.websim_loadout_effect_authorities, cache.websim_loadout_effect_authority_records FROM PUBLIC;",
@@ -609,7 +611,8 @@ $unsafe$;
                 "DEFERRABLE INITIALLY DEFERRED", "", 1,
             ),
             self.websim_exact_snapshot_v2_sql.replace(
-                "relation.effect_record_key <> authority_json->'supportRecords'->wanted.ordinal->>'supportRecordKey'",
+                "relation.effect_record_key IS DISTINCT FROM\n"
+                "                  authority_json->'supportRecords'->wanted.ordinal->>'supportRecordKey'",
                 "false",
                 1,
             ),
@@ -647,6 +650,22 @@ $unsafe$;
             ),
             self.websim_exact_snapshot_v2_sql.replace(
                 "IF (occurrence ->> 'scope') = 'slot' THEN",
+                "IF false THEN",
+                1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "        IF saw_loadout_scope THEN\n"
+                "            RAISE EXCEPTION "
+                "'v2 no-effect rows cannot contain loadout occurrences';\n"
+                "        END IF;",
+                "        IF false THEN\n"
+                "            RAISE EXCEPTION "
+                "'v2 no-effect rows cannot contain loadout occurrences';\n"
+                "        END IF;",
+                1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "IF NOT saw_loadout OR loadout_count <> relation_count THEN",
                 "IF false THEN",
                 1,
             ),

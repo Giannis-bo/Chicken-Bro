@@ -1269,7 +1269,7 @@ class PostgresExactSnapshotV2CandidateTest(unittest.TestCase):
         return sealed_loadout, sealed_snapshot, loadout_row, snapshot_row
 
     @staticmethod
-    def _relation_authority_fixture():
+    def _relation_authority_fixture(*, verified_at="2026-08-06T00:00:00Z"):
         from server.gear_loadout_effect_authority import (
             resolve_loadout_effect_authority,
         )
@@ -1285,12 +1285,16 @@ class PostgresExactSnapshotV2CandidateTest(unittest.TestCase):
         ])
         outcome = resolve_loadout_effect_authority(
             resolver,
-            records=records_for(resolver),
+            records=records_for(resolver, verified_at=verified_at),
         )
         if outcome.status != "verified" or outcome.document is None:
             raise AssertionError(outcome.issues)
-        alternate = records_for(resolver, verified_at="2026-08-06T00:00:01Z")[0]
-        return outcome.document, tuple(records_for(resolver)), alternate
+        alternate = records_for(resolver, verified_at="2026-08-06T00:00:59Z")[0]
+        return (
+            outcome.document,
+            tuple(records_for(resolver, verified_at=verified_at)),
+            alternate,
+        )
 
     def _seed_effect_documents(self, dsn, documents):
         with self._connect(dsn) as conn:
@@ -1462,6 +1466,21 @@ class PostgresExactSnapshotV2CandidateTest(unittest.TestCase):
             with self.subTest(label=label):
                 rejected(rows)
 
+        parent_first, parent_first_records, _ = self._relation_authority_fixture(
+            verified_at="2026-08-06T00:00:02Z",
+        )
+        self._seed_effect_documents(dsn, parent_first_records)
+        with self._connect(dsn) as conn:
+            with conn.cursor() as cur:
+                self._insert_authority_parent(cur, parent_first)
+                for ordinal, record in enumerate(parent_first_records):
+                    self._insert_authority_relation(
+                        cur,
+                        parent_first.content_key,
+                        ordinal,
+                        record.content_key,
+                    )
+
         with self._connect(dsn) as conn:
             with conn.cursor() as cur:
                 for ordinal, key in enumerate(record_keys):
@@ -1470,6 +1489,51 @@ class PostgresExactSnapshotV2CandidateTest(unittest.TestCase):
                     )
                 self._insert_authority_parent(cur, authority)
         return authority
+
+    def _assert_null_safe_support_record_key_closure(self, dsn):
+        import psycopg
+
+        authority, records, _ = self._relation_authority_fixture(
+            verified_at="2026-08-06T00:00:03Z",
+        )
+        self._seed_effect_documents(dsn, records)
+        for label, replacement in (("missing", ...), ("null", None)):
+            with self.subTest(support_record_key=label):
+                payload = json.loads(authority.canonical_bytes)
+                if replacement is ...:
+                    payload["supportRecords"][0].pop("supportRecordKey")
+                else:
+                    payload["supportRecords"][0]["supportRecordKey"] = replacement
+                raw = json.dumps(
+                    payload,
+                    ensure_ascii=False,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ).encode("utf-8")
+                malformed = SimpleNamespace(
+                    content_key=(
+                        "loadout-effect-authority:sha256:"
+                        + hashlib.sha256(raw).hexdigest()
+                    ),
+                    schema_revision=authority.schema_revision,
+                    canonical_bytes=raw,
+                )
+                with self.assertRaises(psycopg.Error) as raised:
+                    with self._connect(dsn) as conn:
+                        with conn.cursor() as cur:
+                            self._insert_authority_parent(cur, malformed)
+                            for ordinal, record in enumerate(records):
+                                self._insert_authority_relation(
+                                    cur,
+                                    malformed.content_key,
+                                    ordinal,
+                                    record.content_key,
+                                )
+                self.assertEqual(raised.exception.sqlstate, "P0001")
+                self.assertEqual(
+                    raised.exception.diag.message_primary,
+                    "loadout effect authority relations must exactly match canonical supportRecords",
+                )
 
     def _assert_subject_substitution_rejected(self, dsn, authority):
         import psycopg
@@ -1586,6 +1650,24 @@ class PostgresExactSnapshotV2CandidateTest(unittest.TestCase):
                     authority_key=None,
                     message="v2 slot effect occurrence is invalid",
                 )
+
+    def _assert_conditional_effect_evidence_rejected(self, dsn, authority):
+        self._assert_v2_loadout_rejected(
+            dsn,
+            key="resolved-loadout-v2:sha256:" + "4" * 64,
+            row_hash="sha256:" + "4" * 64,
+            evidence=[{"scope": "loadout"}],
+            authority_key=None,
+            message="v2 no-effect rows cannot contain loadout occurrences",
+        )
+        self._assert_v2_loadout_rejected(
+            dsn,
+            key="resolved-loadout-v2:sha256:" + "5" * 64,
+            row_hash="sha256:" + "5" * 64,
+            evidence=[],
+            authority_key=authority.content_key,
+            message="v2 loadout effect occurrence count mismatch",
+        )
 
     def _assert_task4l_subject_shape_and_binding(self, dsn, authority):
         evidence = self._loadout_occurrences(authority)
@@ -1931,6 +2013,249 @@ class PostgresExactSnapshotV2CandidateTest(unittest.TestCase):
                     conn.rollback()
                     conn.close()
 
+    def _assert_v2_store_round_trips(self, dsn):
+        from server.gear_canonical_kernel import canonical_json_bytes
+        from server.gear_exact_authority_store import GearExactAuthorityStore
+        from server.gear_resolved_loadout import build_resolved_loadout_v2
+        from server.simc_item_effect_support import reload_effect_record
+        from server.simulation_snapshot import build_simulation_snapshot_v2
+        from server.simulation_snapshot_store import SimulationSnapshotStore
+        from tests.gear_resolved_loadout_test import (
+            active_v2_loadout_fixture,
+            v2_bundle,
+        )
+        from tests.simulation_snapshot_test import (
+            TALENT_KEY,
+            TALENT_LINES,
+            character_context,
+            scenario,
+            v2_snapshot_fixture,
+        )
+
+        authority_store = GearExactAuthorityStore(lambda: self._connect(dsn))
+        snapshot_store = SimulationSnapshotStore(lambda: self._connect(dsn))
+
+        no_effect_resolver, no_effect_bundles, no_effect_loadout, no_effect_snapshot = (
+            v2_snapshot_fixture()
+        )
+        no_effect_loadout["originCatalogRevision"] = "task3b-catalog-origin-a"
+        no_effect_snapshot["originCatalogRevision"] = "task3b-catalog-origin-a"
+        for bundle in no_effect_bundles.values():
+            self.assertEqual(authority_store.seal_authority_bundle(bundle), bundle)
+        self.assertEqual(
+            snapshot_store.seal_loadout(
+                no_effect_loadout,
+                resolver_snapshot=no_effect_resolver,
+                authority_bundles=no_effect_bundles,
+            ),
+            no_effect_loadout,
+        )
+        self.assertEqual(
+            snapshot_store.seal_snapshot(
+                no_effect_snapshot,
+                resolved_loadout=no_effect_loadout,
+                resolver_snapshot=no_effect_resolver,
+                authority_bundles=no_effect_bundles,
+                compiler_revision="simc-profile-compiler-v2",
+            ),
+            no_effect_snapshot,
+        )
+        self.assertEqual(
+            snapshot_store.load_loadout(no_effect_loadout["resolvedLoadoutKey"]),
+            no_effect_loadout,
+        )
+        self.assertEqual(
+            snapshot_store.load_snapshot(
+                no_effect_snapshot["simulationSnapshotKey"],
+                include_result=False,
+            ),
+            no_effect_snapshot,
+        )
+
+        active_resolver, loadout_authority, _, _ = active_v2_loadout_fixture()
+        slot = active_resolver["profileReadiness"]["requiredSlots"][0]
+        active_bundle = v2_bundle(
+            slot,
+            active_resolver["resolvedSlots"][slot]["itemId"],
+            ["A", "B", "A"],
+        )
+        active_bundles = {active_bundle.envelope.content_key: active_bundle}
+        active_loadout = build_resolved_loadout_v2(
+            resolver_snapshot=active_resolver,
+            exact_authority_by_slot=[{
+                "slot": slot,
+                "exactAuthorityEnvelopeKey": active_bundle.envelope.content_key,
+            }],
+            authority_bundles=active_bundles,
+            gear_rule_revision="gear-rule-matrix-v1",
+            resolver_revision="resolver-v2",
+            simc_runtime_revision="simc-runtime-v2",
+            loadout_effect_authority=loadout_authority,
+        )
+        active_loadout["originCatalogRevision"] = "task3b-catalog-origin-b"
+        active_snapshot = build_simulation_snapshot_v2(
+            resolved_loadout=active_loadout,
+            talent_profile_key=TALENT_KEY,
+            talent_lines=TALENT_LINES,
+            character_context=character_context(
+                active_resolver["eligibilityContext"]["classKey"],
+                active_resolver["eligibilityContext"]["specKey"],
+            ),
+            scenario_options=scenario(),
+            preparation_lines=["optimal_raid=0"],
+            compiler_revision="simc-profile-compiler-v2",
+            simc_runtime_revision="simc-runtime-v2",
+            resolver_snapshot=active_resolver,
+            authority_bundles=active_bundles,
+            loadout_effect_authority=loadout_authority,
+        )
+        active_snapshot["originCatalogRevision"] = "task3b-catalog-origin-b"
+        slot_evidence = [
+            occurrence
+            for occurrence in active_loadout["effectEvidenceByOccurrence"]
+            if occurrence["scope"] == "slot"
+            and occurrence["subjectKey"] in {"A", "B"}
+        ]
+        self.assertEqual(
+            [occurrence["subjectKey"] for occurrence in slot_evidence],
+            ["A", "B", "A"],
+        )
+        self.assertEqual(
+            slot_evidence[0]["supportRecordKey"],
+            slot_evidence[2]["supportRecordKey"],
+        )
+        self.assertNotEqual(
+            slot_evidence[0]["supportRecordKey"],
+            slot_evidence[1]["supportRecordKey"],
+        )
+
+        self.assertEqual(
+            authority_store.seal_authority_bundle(active_bundle),
+            active_bundle,
+        )
+        authority_payload = json.loads(loadout_authority.canonical_bytes)
+        loadout_effect_records = {}
+        for embedded in authority_payload["supportRecords"]:
+            record_payload = dict(embedded)
+            record_key = record_payload.pop("supportRecordKey")
+            record = reload_effect_record(
+                canonical_json_bytes(record_payload),
+                record_key,
+                runtime_revision=active_resolver["dependencyVector"][
+                    "simcRuntimeRevision"
+                ],
+            )
+            self.assertEqual(record.content_key, record_key)
+            loadout_effect_records[record.content_key] = record
+        self._seed_effect_documents(dsn, loadout_effect_records.values())
+
+        self.assertEqual(
+            snapshot_store.seal_loadout(
+                active_loadout,
+                resolver_snapshot=active_resolver,
+                authority_bundles=active_bundles,
+                loadout_effect_authority=loadout_authority,
+            ),
+            active_loadout,
+        )
+        self.assertEqual(
+            snapshot_store.seal_snapshot(
+                active_snapshot,
+                resolved_loadout=active_loadout,
+                resolver_snapshot=active_resolver,
+                authority_bundles=active_bundles,
+                compiler_revision="simc-profile-compiler-v2",
+                loadout_effect_authority=loadout_authority,
+            ),
+            active_snapshot,
+        )
+        self.assertEqual(
+            snapshot_store.load_loadout(active_loadout["resolvedLoadoutKey"]),
+            active_loadout,
+        )
+        self.assertEqual(
+            snapshot_store.load_snapshot(
+                active_snapshot["simulationSnapshotKey"],
+                include_result=False,
+            ),
+            active_snapshot,
+        )
+
+        with self._connect(dsn) as conn:
+            with conn.cursor() as cur:
+                for loadout, snapshot, origin, authority_key in (
+                    (
+                        no_effect_loadout,
+                        no_effect_snapshot,
+                        "task3b-catalog-origin-a",
+                        None,
+                    ),
+                    (
+                        active_loadout,
+                        active_snapshot,
+                        "task3b-catalog-origin-b",
+                        loadout_authority.content_key,
+                    ),
+                ):
+                    cur.execute(
+                        "SELECT catalog_revision, loadout_effect_authority_key, "
+                        "resolver_replay_context_json::text "
+                        "FROM cache.websim_gear_resolved_loadouts "
+                        "WHERE resolved_loadout_key = %s",
+                        (loadout["resolvedLoadoutKey"],),
+                    )
+                    stored_origin, stored_authority, stored_replay = cur.fetchone()
+                    self.assertEqual(stored_origin, origin)
+                    self.assertEqual(stored_authority, authority_key)
+                    self.assertEqual(
+                        json.loads(stored_replay)["schemaRevision"],
+                        "exact-resolver-replay-context-v1",
+                    )
+                    cur.execute(
+                        "SELECT catalog_revision, loadout_effect_authority_key "
+                        "FROM cache.websim_simulation_snapshots "
+                        "WHERE simulation_snapshot_key = %s",
+                        (snapshot["simulationSnapshotKey"],),
+                    )
+                    self.assertEqual(cur.fetchone(), (origin, authority_key))
+                cur.execute(
+                    "SELECT ordinal, effect_record_key "
+                    "FROM cache.websim_effect_aggregate_records "
+                    "WHERE effect_support_key = %s ORDER BY ordinal",
+                    (active_bundle.effect_support.content_key,),
+                )
+                exact_relations = cur.fetchall()
+                self.assertEqual(
+                    exact_relations,
+                    [
+                        (ordinal, record.content_key)
+                        for ordinal, record in enumerate(active_bundle.effect_records)
+                    ],
+                )
+                self.assertEqual(
+                    exact_relations[0][1],
+                    exact_relations[2][1],
+                )
+                self.assertNotEqual(
+                    exact_relations[0][1],
+                    exact_relations[1][1],
+                )
+                cur.execute(
+                    "SELECT ordinal, effect_record_key "
+                    "FROM cache.websim_loadout_effect_authority_records "
+                    "WHERE loadout_effect_authority_key = %s ORDER BY ordinal",
+                    (loadout_authority.content_key,),
+                )
+                self.assertEqual(
+                    cur.fetchall(),
+                    [
+                        (ordinal, record["supportRecordKey"])
+                        for ordinal, record in enumerate(
+                            authority_payload["supportRecords"]
+                        )
+                    ],
+                )
+
     def _assert_acl(self, dsn):
         with self._connect(dsn) as conn:
             with conn.cursor() as cur:
@@ -1968,7 +2293,12 @@ class PostgresExactSnapshotV2CandidateTest(unittest.TestCase):
             TASK_3B_FRESH_DSN,
         )
         authority = self._assert_relation_closure(TASK_3B_FRESH_DSN)
+        self._assert_null_safe_support_record_key_closure(TASK_3B_FRESH_DSN)
         self._assert_task4l_subject_shape_and_binding(
+            TASK_3B_FRESH_DSN,
+            authority,
+        )
+        self._assert_conditional_effect_evidence_rejected(
             TASK_3B_FRESH_DSN,
             authority,
         )
@@ -1988,6 +2318,7 @@ class PostgresExactSnapshotV2CandidateTest(unittest.TestCase):
             fresh_loadout["resolvedLoadoutKey"],
             fresh_loadout["catalogRevision"],
         )
+        self._assert_v2_store_round_trips(TASK_3B_FRESH_DSN)
         self._assert_acl(TASK_3B_FRESH_DSN)
 
         self._apply(TASK_3B_UPGRADE_DSN, TASK_3B_BASELINE_MIGRATIONS)
@@ -2031,6 +2362,12 @@ class PostgresExactSnapshotV2CandidateTest(unittest.TestCase):
                     "WHERE id = '0031_websim_exact_snapshot_v2'"
                 )
                 self.assertEqual(cur.fetchone()[0], 1)
+        upgrade_authority = self._assert_relation_closure(TASK_3B_UPGRADE_DSN)
+        self._assert_null_safe_support_record_key_closure(TASK_3B_UPGRADE_DSN)
+        self._assert_conditional_effect_evidence_rejected(
+            TASK_3B_UPGRADE_DSN,
+            upgrade_authority,
+        )
         self._assert_cross_version_rejected(
             TASK_3B_UPGRADE_DSN,
             upgrade_loadout["resolvedLoadoutKey"],
@@ -2045,6 +2382,7 @@ class PostgresExactSnapshotV2CandidateTest(unittest.TestCase):
             TASK_3B_UPGRADE_DSN,
             upgrade_loadout["catalogRevision"],
         )
+        self._assert_v2_store_round_trips(TASK_3B_UPGRADE_DSN)
         self._assert_acl(TASK_3B_UPGRADE_DSN)
         self.assertEqual(
             self._database_identity(TASK_3B_FRESH_DSN, "fresh"), fresh_identity,

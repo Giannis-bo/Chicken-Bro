@@ -380,6 +380,134 @@ class SimulationSnapshotStoreTest(unittest.TestCase):
         self.assertEqual(sealed_loadout, loadout_row)
         self.assertEqual(sealed_snapshot, snapshot_row)
 
+    def test_v2_provenance_changes_only_provenance_columns_and_replay_is_allowlisted(self):
+        """Would fail if Catalog/source identity leaked into v2 identity or replay."""
+        resolver, bundles, loadout_row, snapshot_row = v2_snapshot_fixture()
+        poisoned_resolver = copy.deepcopy(resolver)
+        poison = {
+            "Catalog": {"revision": "must-not-persist"},
+            "catalogRevision": "must-not-persist",
+            "rawProfile": "must-not-persist",
+            "player": "must-not-persist",
+            "realm": "must-not-persist",
+            "source": {"payload": "must-not-persist"},
+        }
+        poisoned_resolver.update(copy.deepcopy(poison))
+        poisoned_resolver["dependencyVector"].update(copy.deepcopy(poison))
+        poisoned_resolver["profileReadiness"].update(copy.deepcopy(poison))
+        poisoned_resolver["resolvedSlots"]["head"].update(copy.deepcopy(poison))
+
+        sealed_variants = []
+        stored_replays = []
+        document_closures = []
+        for origin in ("catalog-origin-a", "catalog-origin-b"):
+            database = FakeDatabase()
+            connection = FakeConnection(database)
+            store = SimulationSnapshotStore(lambda: connection)
+            seed_exact_authority_bundles(database, bundles)
+            loadout_variant = copy.deepcopy(loadout_row)
+            snapshot_variant = copy.deepcopy(snapshot_row)
+            loadout_variant["originCatalogRevision"] = origin
+            snapshot_variant["originCatalogRevision"] = origin
+
+            sealed_loadout = store.seal_loadout(
+                loadout_variant,
+                resolver_snapshot=poisoned_resolver,
+                authority_bundles=bundles,
+            )
+            sealed_snapshot = store.seal_snapshot(
+                snapshot_variant,
+                resolved_loadout=loadout_variant,
+                resolver_snapshot=poisoned_resolver,
+                authority_bundles=bundles,
+                compiler_revision="simc-profile-compiler-v2",
+            )
+
+            stored_loadout = database.v2_loadouts[
+                sealed_loadout["resolvedLoadoutKey"]
+            ]
+            stored_snapshot = database.v2_snapshots[
+                sealed_snapshot["simulationSnapshotKey"]
+            ]
+            self.assertEqual(stored_loadout[2], origin)
+            self.assertEqual(stored_snapshot[7], origin)
+            sealed_variants.append((sealed_loadout, sealed_snapshot))
+            stored_replays.append(json.loads(stored_loadout[12]))
+            document_closures.append(tuple(sorted(
+                (key, row[3]) for key, row in database.documents.items()
+            )))
+
+        first_loadout, first_snapshot = sealed_variants[0]
+        second_loadout, second_snapshot = sealed_variants[1]
+        self.assertEqual(
+            first_loadout["resolvedLoadoutKey"],
+            second_loadout["resolvedLoadoutKey"],
+        )
+        self.assertEqual(first_loadout["rowHash"], second_loadout["rowHash"])
+        self.assertEqual(
+            first_snapshot["simulationSnapshotKey"],
+            second_snapshot["simulationSnapshotKey"],
+        )
+        self.assertEqual(first_snapshot["rowHash"], second_snapshot["rowHash"])
+        self.assertEqual(document_closures[0], document_closures[1])
+        self.assertEqual(stored_replays[0], stored_replays[1])
+
+        replay = stored_replays[0]
+        self.assertEqual(set(replay), {
+            "schemaRevision", "status", "dependencyVector",
+            "resolvedGearSignature", "eligibilityContext", "profileReadiness",
+            "resolvedSlots", "setState", "loadoutEffectSubjects",
+            "v2EffectBoundary",
+        })
+        self.assertEqual(set(replay["dependencyVector"]), {
+            "gearRuleRevision", "resolverContractRevision", "simcRuntimeRevision",
+        })
+        self.assertEqual(set(replay["eligibilityContext"]), {
+            "classKey", "specKey", "level",
+        })
+        self.assertEqual(set(replay["profileReadiness"]), {
+            "status", "simcReady", "requiredSlots", "readySlots",
+            "simcRuntimeRevision",
+        })
+        self.assertEqual(set(replay["resolvedSlots"]["head"]), {
+            "slot", "itemId", "legality",
+        })
+        forbidden = {
+            "Catalog", "catalogRevision", "rawProfile", "rawString",
+            "player", "playerName", "characterName", "realm", "server",
+            "source", "sourcePayload",
+        }
+
+        def assert_no_poison(value):
+            if isinstance(value, dict):
+                self.assertTrue(forbidden.isdisjoint(value))
+                for nested in value.values():
+                    assert_no_poison(nested)
+            elif isinstance(value, list):
+                for nested in value:
+                    assert_no_poison(nested)
+
+        assert_no_poison(replay)
+
+        rejected_database = FakeDatabase()
+        rejected_store = SimulationSnapshotStore(
+            lambda: FakeConnection(rejected_database)
+        )
+        seed_exact_authority_bundles(rejected_database, bundles)
+        verifier_owned_poison = copy.deepcopy(resolver)
+        verifier_owned_poison["eligibilityContext"]["rawProfile"] = (
+            "must-not-persist"
+        )
+        with self.assertRaisesRegex(
+            SimulationSnapshotIntegrityError,
+            "RESOLVED_LOADOUT_V2_RESOLVER_CONTEXT_MISMATCH",
+        ):
+            rejected_store.seal_loadout(
+                loadout_row,
+                resolver_snapshot=verifier_owned_poison,
+                authority_bundles=bundles,
+            )
+
     def test_v2_active_effect_round_trip_rehydrates_duplicate_relations(self):
         """Would fail if persistence deduplicated Task 4L relation occurrences."""
         resolver, authority, bundles, loadout_row, snapshot_row = (

@@ -75,7 +75,8 @@ BEGIN
                 ON relation.loadout_effect_authority_key = parent_key
                 AND relation.ordinal = wanted.ordinal
             WHERE relation.ordinal IS NULL
-               OR relation.effect_record_key <> authority_json->'supportRecords'->wanted.ordinal->>'supportRecordKey'
+               OR relation.effect_record_key IS DISTINCT FROM
+                  authority_json->'supportRecords'->wanted.ordinal->>'supportRecordKey'
        )
        OR EXISTS (
             SELECT 1
