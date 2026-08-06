@@ -773,6 +773,159 @@ BEGIN
 END;
 $body$;
 
+CREATE OR REPLACE FUNCTION cache.verify_websim_v2_exact_authority_pairs(
+    p_pairs jsonb,
+    p_replay jsonb,
+    p_loadout jsonb,
+    p_effect_evidence jsonb
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = pg_catalog, pg_temp
+AS $body$
+DECLARE
+    canonical_slots CONSTANT text[] := ARRAY[
+        'head',
+        'neck',
+        'shoulder',
+        'back',
+        'chest',
+        'wrist',
+        'hands',
+        'waist',
+        'legs',
+        'feet',
+        'finger1',
+        'finger2',
+        'trinket1',
+        'trinket2',
+        'main_hand',
+        'off_hand'
+    ];
+    pair jsonb;
+    pair_ordinal integer := 0;
+    pair_slot text;
+    pair_key text;
+    pair_slot_ordinal integer;
+    previous_slot_ordinal integer := 0;
+    exact_json jsonb;
+    progression_json jsonb;
+    bundle_gear_rule_revision text;
+    bundle_resolver_revision text;
+    bundle_simc_runtime_revision text;
+BEGIN
+    IF pg_catalog.jsonb_typeof(p_pairs) IS DISTINCT FROM 'array'
+       OR pg_catalog.jsonb_array_length(p_pairs) IS DISTINCT FROM
+          pg_catalog.jsonb_array_length(
+              p_replay -> 'profileReadiness' -> 'requiredSlots'
+          )
+       OR p_loadout ->> 'gearRuleRevision' IS DISTINCT FROM
+          p_replay -> 'dependencyVector' ->> 'gearRuleRevision'
+       OR p_loadout ->> 'resolverRevision' IS DISTINCT FROM
+          p_replay -> 'dependencyVector' ->> 'resolverContractRevision'
+       OR p_loadout ->> 'simcRuntimeRevision' IS DISTINCT FROM
+          p_replay -> 'dependencyVector' ->> 'simcRuntimeRevision'
+       OR p_loadout -> 'eligibilityContext' IS DISTINCT FROM
+          p_replay -> 'eligibilityContext'
+    THEN
+        RAISE EXCEPTION 'v2 exact authority pairs are inconsistent';
+    END IF;
+
+    FOR pair IN
+        SELECT value
+        FROM pg_catalog.jsonb_array_elements(p_pairs)
+    LOOP
+        pair_slot := pair ->> 'slot';
+        pair_key := pair ->> 'exactAuthorityEnvelopeKey';
+        pair_slot_ordinal := pg_catalog.array_position(
+            canonical_slots,
+            pair_slot
+        );
+        IF pg_catalog.jsonb_typeof(pair) IS DISTINCT FROM 'object'
+           OR NOT (pair ?& ARRAY['slot', 'exactAuthorityEnvelopeKey'])
+           OR (pair - ARRAY['slot', 'exactAuthorityEnvelopeKey']) <> '{}'::jsonb
+           OR pg_catalog.jsonb_typeof(pair -> 'slot') IS DISTINCT FROM 'string'
+           OR pg_catalog.jsonb_typeof(pair -> 'exactAuthorityEnvelopeKey')
+              IS DISTINCT FROM 'string'
+           OR pair_key !~ '^exact-authority:sha256:[0-9a-f]{64}$'
+           OR pair_slot IS DISTINCT FROM (
+                p_replay -> 'profileReadiness' -> 'requiredSlots'
+                    ->> pair_ordinal
+            )
+           OR pair_slot_ordinal IS NULL
+           OR pair_slot_ordinal <= previous_slot_ordinal
+        THEN
+            RAISE EXCEPTION 'v2 exact authority pairs are inconsistent';
+        END IF;
+
+        SELECT exact_document.canonical_json,
+               progression_document.canonical_json,
+               bundle.gear_rule_revision,
+               bundle.resolver_revision,
+               bundle.simc_runtime_revision
+        INTO exact_json,
+             progression_json,
+             bundle_gear_rule_revision,
+             bundle_resolver_revision,
+             bundle_simc_runtime_revision
+        FROM cache.websim_exact_authority_bundles bundle
+        JOIN cache.websim_canonical_documents exact_document
+          ON exact_document.content_key = bundle.exact_item_instance_key
+        JOIN cache.websim_canonical_documents progression_document
+          ON progression_document.content_key = bundle.progression_binding_key
+        WHERE bundle.exact_authority_envelope_key = pair_key
+        FOR KEY SHARE OF bundle, exact_document, progression_document;
+
+        IF exact_json IS NULL
+           OR progression_json IS NULL
+           OR pg_catalog.jsonb_typeof(exact_json -> 'itemId')
+              IS DISTINCT FROM 'string'
+           OR exact_json ->> 'itemId' IS DISTINCT FROM
+              p_replay -> 'resolvedSlots' -> pair_slot ->> 'itemId'
+           OR pg_catalog.jsonb_typeof(
+                progression_json -> 'trackAuthorityInput'
+              ) IS DISTINCT FROM 'object'
+           OR pg_catalog.jsonb_typeof(
+                progression_json -> 'trackAuthorityInput' -> 'slot'
+              ) IS DISTINCT FROM 'string'
+           OR progression_json -> 'trackAuthorityInput' ->> 'slot'
+              IS DISTINCT FROM pair_slot
+           OR bundle_gear_rule_revision IS DISTINCT FROM
+              p_loadout ->> 'gearRuleRevision'
+           OR bundle_resolver_revision IS DISTINCT FROM
+              p_loadout ->> 'resolverRevision'
+           OR bundle_simc_runtime_revision IS DISTINCT FROM
+              p_loadout ->> 'simcRuntimeRevision'
+        THEN
+            RAISE EXCEPTION 'v2 exact authority pairs are inconsistent';
+        END IF;
+        previous_slot_ordinal := pair_slot_ordinal;
+        pair_ordinal := pair_ordinal + 1;
+    END LOOP;
+
+    IF EXISTS (
+        SELECT 1
+        FROM pg_catalog.jsonb_array_elements(p_effect_evidence)
+             AS slot_occurrence(occurrence)
+        WHERE occurrence ->> 'scope' = 'slot'
+          AND NOT EXISTS (
+              SELECT 1
+              FROM pg_catalog.jsonb_array_elements(p_pairs)
+                   AS stated_pair(value)
+              WHERE stated_pair.value ->> 'slot'
+                    IS NOT DISTINCT FROM occurrence ->> 'slot'
+                AND stated_pair.value ->> 'exactAuthorityEnvelopeKey'
+                    IS NOT DISTINCT FROM
+                    occurrence ->> 'exactAuthorityEnvelopeKey'
+          )
+    )
+    THEN
+        RAISE EXCEPTION 'v2 exact authority pairs are inconsistent';
+    END IF;
+END;
+$body$;
+
 CREATE OR REPLACE FUNCTION cache.verify_websim_v2_effect_evidence(
     p_schema_revision text,
     p_effect_evidence jsonb,
@@ -986,6 +1139,12 @@ BEGIN
             NEW.effect_evidence_by_occurrence_json,
             NEW.loadout_effect_authority_key
         );
+        PERFORM cache.verify_websim_v2_exact_authority_pairs(
+            NEW.exact_authority_by_slot_json,
+            NEW.resolver_replay_context_json,
+            NEW.loadout_json,
+            NEW.effect_evidence_by_occurrence_json
+        );
     ELSIF NEW.schema_revision = 'resolved-loadout-v1' THEN
         PERFORM 1
         FROM cache.websim_gear_catalog_revisions
@@ -1007,20 +1166,25 @@ SET search_path = pg_catalog, pg_temp
 AS $body$
 DECLARE
     loadout_schema_revision text;
+    loadout_exact_authority_by_slot jsonb;
     loadout_effect_evidence jsonb;
     loadout_authority_key text;
 BEGIN
     IF NEW.schema_revision = 'simulation-snapshot-v2' THEN
         SELECT schema_revision,
+               exact_authority_by_slot_json,
                effect_evidence_by_occurrence_json,
                loadout_effect_authority_key
         INTO loadout_schema_revision,
+             loadout_exact_authority_by_slot,
              loadout_effect_evidence,
              loadout_authority_key
         FROM cache.websim_gear_resolved_loadouts
         WHERE resolved_loadout_key = NEW.resolved_loadout_key
         FOR KEY SHARE;
         IF loadout_schema_revision IS DISTINCT FROM 'resolved-loadout-v2'
+           OR loadout_exact_authority_by_slot
+              IS DISTINCT FROM NEW.exact_authority_by_slot_json
            OR loadout_effect_evidence IS NULL
            OR loadout_effect_evidence IS DISTINCT FROM NEW.effect_evidence_by_occurrence_json
            OR loadout_authority_key IS DISTINCT FROM NEW.loadout_effect_authority_key
