@@ -284,6 +284,18 @@ def exact_snapshot_v2_schema_violations(sql, migrations):
         "document.document_kind <> 'effect_record'",
         "resolver_replay_context_json jsonb",
         "pg_catalog.octet_length(resolver_replay_context_json::text) <= 1048576",
+        "CREATE OR REPLACE FUNCTION cache.verify_websim_resolver_replay_context( p_context jsonb )",
+        "forbidden_keys CONSTANT text[] := ARRAY[ 'Catalog', 'catalogRevision', 'rawProfile', 'rawString', 'player', 'playerName', 'characterName', 'realm', 'server', 'source', 'sourceRefIds', 'sourcePayload' ]",
+        "(p_context - ARRAY[ 'schemaRevision', 'status', 'dependencyVector', 'resolvedGearSignature', 'eligibilityContext', 'profileReadiness', 'resolvedSlots', 'setState', 'loadoutEffectSubjects', 'v2EffectBoundary' ]) <> '{}'::jsonb",
+        "((p_context -> 'dependencyVector') - ARRAY[ 'gearRuleRevision', 'resolverContractRevision', 'simcRuntimeRevision' ]) <> '{}'::jsonb",
+        "((p_context -> 'eligibilityContext') - ARRAY[ 'classKey', 'specKey', 'level' ]) <> '{}'::jsonb",
+        "((p_context -> 'profileReadiness') - ARRAY[ 'status', 'simcReady', 'requiredSlots', 'readySlots', 'simcRuntimeRevision' ]) <> '{}'::jsonb",
+        "(resolved_slot.value - ARRAY[ 'slot', 'itemId', 'legality' ]) <> '{}'::jsonb",
+        "((resolved_slot.value -> 'legality') - ARRAY['status']) <> '{}'::jsonb",
+        "(p_context -> 'setState') IS DISTINCT FROM (p_context -> 'v2EffectBoundary' -> 'setState')",
+        "(p_context -> 'loadoutEffectSubjects') IS DISTINCT FROM (p_context -> 'v2EffectBoundary' -> 'subjects')",
+        "PERFORM cache.verify_websim_resolver_replay_context( NEW.resolver_replay_context_json );",
+        "NEW.resolver_replay_context_json -> 'v2EffectBoundary' ->> 'loadoutEffectAuthorityKey' IS DISTINCT FROM NEW.loadout_effect_authority_key",
         "DROP CONSTRAINT IF EXISTS websim_gear_resolved_loadouts_catalog_revision_fkey",
         "DROP CONSTRAINT IF EXISTS websim_simulation_snapshots_catalog_revision_fkey",
         "exact_registry_revision IS NOT NULL",
@@ -687,6 +699,38 @@ $unsafe$;
             self.websim_exact_snapshot_v2_sql.replace(
                 "CREATE TRIGGER trg_websim_simulation_snapshot_v1_v2_binding",
                 "CREATE TRIGGER trg_removed_simulation_snapshot_v1_v2_binding",
+                1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "CREATE TRIGGER trg_websim_resolved_loadout_v1_v2_binding",
+                "CREATE TRIGGER trg_removed_resolved_loadout_v1_v2_binding",
+                1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "CREATE OR REPLACE FUNCTION cache.verify_websim_resolver_replay_context",
+                "CREATE OR REPLACE FUNCTION cache.removed_websim_resolver_replay_context",
+                1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "PERFORM cache.verify_websim_resolver_replay_context(\n"
+                "            NEW.resolver_replay_context_json\n"
+                "        );",
+                "PERFORM NULL;",
+                1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "NEW.resolver_replay_context_json -> 'v2EffectBoundary'\n"
+                "               ->> 'loadoutEffectAuthorityKey'\n"
+                "           IS DISTINCT FROM NEW.loadout_effect_authority_key",
+                "false",
+                1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "        'sourceRefIds',\n"
+                "        'sourcePayload'\n"
+                "    ];",
+                "        'sourceRefIds'\n"
+                "    ];",
                 1,
             ),
             self.websim_exact_snapshot_v2_sql.replace(

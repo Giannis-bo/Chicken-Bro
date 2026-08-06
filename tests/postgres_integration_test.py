@@ -1376,8 +1376,92 @@ class PostgresExactSnapshotV2CandidateTest(unittest.TestCase):
             row["loadoutEffectAuthorityKey"] = authority_key
         return row
 
-    def _insert_v2_loadout(self, cur, *, key, row_hash, evidence, authority_key=None):
+    @staticmethod
+    def _valid_resolver_replay_context(authority_key=None):
+        signature = "sha256:" + ("a" * 64)
+        subjects = []
+        effects = []
+        counts = {}
+        if authority_key is not None:
+            subjects = [{
+                "subjectKind": "set_bonus",
+                "itemSetId": "set:direct",
+                "pieces": 1,
+                "subjectKey": "set:direct:effect",
+            }]
+            effects = [{
+                "effectId": "set:direct:effect",
+                "itemSetId": "set:direct",
+                "pieces": 1,
+            }]
+            counts = {"set:direct": 1}
+        set_state = {
+            "itemSetCounts": counts,
+            "activeDynamicEffects": effects,
+        }
+        replay = {
+            "schemaRevision": "exact-resolver-replay-context-v1",
+            "status": "verified",
+            "dependencyVector": {
+                "gearRuleRevision": "gear-rule-matrix-v1",
+                "resolverContractRevision": "resolver-v2",
+                "simcRuntimeRevision": "simc-runtime-v2",
+            },
+            "resolvedGearSignature": signature,
+            "eligibilityContext": {
+                "classKey": "mage",
+                "specKey": "arcane",
+                "level": 90,
+            },
+            "profileReadiness": {
+                "status": "verified",
+                "simcReady": True,
+                "requiredSlots": ["head"],
+                "readySlots": ["head"],
+                "simcRuntimeRevision": "simc-runtime-v2",
+            },
+            "resolvedSlots": {
+                "head": {
+                    "slot": "head",
+                    "itemId": "item-direct",
+                    "legality": {"status": "verified"},
+                },
+            },
+            "setState": set_state,
+            "loadoutEffectSubjects": subjects,
+            "v2EffectBoundary": {
+                "schemaRevision": "gear-resolver-v2-effect-boundary-v1",
+                "status": "verified",
+                "resolvedGearSignature": signature,
+                "setState": set_state,
+                "subjects": subjects,
+                "gearRuleRevision": "gear-rule-matrix-v1",
+                "resolverRevision": "resolver-v2",
+                "simcRuntimeRevision": "simc-runtime-v2",
+            },
+        }
+        if authority_key is not None:
+            replay["v2EffectBoundary"]["loadoutEffectAuthorityKey"] = (
+                authority_key
+            )
+        return replay
+
+    def _insert_v2_loadout(
+        self,
+        cur,
+        *,
+        key,
+        row_hash,
+        evidence,
+        authority_key=None,
+        replay_context=None,
+    ):
         row = self._v2_loadout_row(key, row_hash, evidence, authority_key)
+        replay = (
+            self._valid_resolver_replay_context(authority_key)
+            if replay_context is None
+            else replay_context
+        )
         cur.execute(
             "INSERT INTO cache.websim_gear_resolved_loadouts "
             "(resolved_loadout_key, schema_revision, catalog_revision, "
@@ -1387,15 +1471,148 @@ class PostgresExactSnapshotV2CandidateTest(unittest.TestCase):
             "resolver_replay_context_json) VALUES "
             "(%s, 'resolved-loadout-v2', NULL, 'gear-rule-matrix-v1', NULL, "
             "'mage', 'arcane', %s::jsonb, %s, '[]'::jsonb, %s::jsonb, %s, "
-            "'{}'::jsonb)",
+            "%s::jsonb)",
             (
                 key,
                 json.dumps(row),
                 row_hash,
                 json.dumps(evidence),
                 authority_key,
+                json.dumps(replay),
             ),
         )
+
+    def _assert_resolver_replay_context_boundary(self, dsn):
+        import copy
+        import psycopg
+
+        valid = self._valid_resolver_replay_context()
+
+        def identity(label):
+            digest = hashlib.sha256(label.encode("utf-8")).hexdigest()
+            return (
+                "resolved-loadout-v2:sha256:" + digest,
+                "sha256:" + digest,
+            )
+
+        valid_key, valid_hash = identity("task3b-valid-direct-replay")
+        with self._connect(dsn) as conn:
+            with conn.cursor() as cur:
+                self._insert_v2_loadout(
+                    cur,
+                    key=valid_key,
+                    row_hash=valid_hash,
+                    evidence=[],
+                    replay_context=valid,
+                )
+                cur.execute(
+                    "SELECT resolver_replay_context_json "
+                    "FROM cache.websim_gear_resolved_loadouts "
+                    "WHERE resolved_loadout_key = %s",
+                    (valid_key,),
+                )
+                self.assertEqual(cur.fetchone()[0], valid)
+
+        forbidden = (
+            "Catalog",
+            "catalogRevision",
+            "rawProfile",
+            "rawString",
+            "player",
+            "playerName",
+            "characterName",
+            "realm",
+            "server",
+            "source",
+            "sourceRefIds",
+            "sourcePayload",
+        )
+        poisoned = []
+        for placement in (
+            "root",
+            "profileReadiness",
+            "resolvedSlots.head",
+            "setState.itemSetCounts",
+        ):
+            for semantic_key in forbidden:
+                replay = copy.deepcopy(valid)
+                if placement == "root":
+                    replay[semantic_key] = {"poison": True}
+                elif placement == "profileReadiness":
+                    replay["profileReadiness"][semantic_key] = {"poison": True}
+                elif placement == "resolvedSlots.head":
+                    replay["resolvedSlots"]["head"][semantic_key] = {
+                        "poison": True,
+                    }
+                else:
+                    replay["setState"]["itemSetCounts"][semantic_key] = 1
+                    replay["v2EffectBoundary"]["setState"] = copy.deepcopy(
+                        replay["setState"]
+                    )
+                poisoned.append((placement, semantic_key, replay))
+
+        structural_drift = []
+        missing = copy.deepcopy(valid)
+        missing["dependencyVector"].pop("resolverContractRevision")
+        structural_drift.append(("missing", missing))
+        wrong_type = copy.deepcopy(valid)
+        wrong_type["eligibilityContext"]["level"] = "90"
+        structural_drift.append(("wrong-type", wrong_type))
+        extra_set_state = copy.deepcopy(valid)
+        extra_set_state["setState"]["unexpected"] = []
+        extra_set_state["v2EffectBoundary"]["setState"] = copy.deepcopy(
+            extra_set_state["setState"]
+        )
+        structural_drift.append(("extra-set-state", extra_set_state))
+        structural_drift.append((
+            "unexpected-active-boundary",
+            self._valid_resolver_replay_context(
+                "loadout-effect-authority:sha256:" + ("f" * 64)
+            ),
+        ))
+
+        for placement, semantic_key, replay in poisoned:
+            with self.subTest(
+                replay_placement=placement,
+                semantic_key=semantic_key,
+            ):
+                key, row_hash = identity(
+                    f"task3b-replay-{placement}-{semantic_key}"
+                )
+                with self.assertRaises(psycopg.Error) as raised:
+                    with self._connect(dsn) as conn:
+                        with conn.cursor() as cur:
+                            self._insert_v2_loadout(
+                                cur,
+                                key=key,
+                                row_hash=row_hash,
+                                evidence=[],
+                                replay_context=replay,
+                            )
+                self.assertEqual(raised.exception.sqlstate, "P0001")
+                self.assertEqual(
+                    raised.exception.diag.message_primary,
+                    "v2 resolver replay context is invalid",
+                )
+
+        for label, replay in structural_drift:
+            with self.subTest(replay_structure=label):
+                key, row_hash = identity(f"task3b-replay-{label}")
+                with self.assertRaises(psycopg.Error) as raised:
+                    with self._connect(dsn) as conn:
+                        with conn.cursor() as cur:
+                            self._insert_v2_loadout(
+                                cur,
+                                key=key,
+                                row_hash=row_hash,
+                                evidence=[],
+                                replay_context=replay,
+                            )
+                self.assertEqual(raised.exception.sqlstate, "P0001")
+                self.assertEqual(
+                    raised.exception.diag.message_primary,
+                    "v2 resolver replay context is invalid",
+                )
 
     def _assert_pg_rejected(self, cur, sql, params, *, sqlstate, message):
         import psycopg
@@ -1579,13 +1796,16 @@ class PostgresExactSnapshotV2CandidateTest(unittest.TestCase):
                         "resolver_replay_context_json) VALUES "
                         "(%s, 'resolved-loadout-v2', NULL, 'gear-rule-matrix-v1', NULL, "
                         "'mage', 'arcane', %s::jsonb, %s, '[]'::jsonb, %s::jsonb, %s, "
-                        "'{}'::jsonb)",
+                        "%s::jsonb)",
                         (
                             key,
                             json.dumps(row),
                             row_hash,
                             json.dumps(evidence),
                             authority.content_key,
+                            json.dumps(self._valid_resolver_replay_context(
+                                authority.content_key
+                            )),
                         ),
                     )
 
@@ -2259,6 +2479,12 @@ class PostgresExactSnapshotV2CandidateTest(unittest.TestCase):
     def _assert_acl(self, dsn):
         with self._connect(dsn) as conn:
             with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT pg_catalog.has_table_privilege("
+                    "'wow_app', 'cache.websim_gear_resolved_loadouts'::regclass, "
+                    "'INSERT')"
+                )
+                self.assertIs(cur.fetchone()[0], True)
                 for table in (
                     "websim_loadout_effect_authorities",
                     "websim_loadout_effect_authority_records",
@@ -2304,6 +2530,7 @@ class PostgresExactSnapshotV2CandidateTest(unittest.TestCase):
         )
         self._assert_subject_substitution_rejected(TASK_3B_FRESH_DSN, authority)
         self._assert_slot_occurrence_boundary(TASK_3B_FRESH_DSN)
+        self._assert_resolver_replay_context_boundary(TASK_3B_FRESH_DSN)
         self._assert_v1_conditional_integrity_rejected(
             TASK_3B_FRESH_DSN,
             fresh_loadout,
@@ -2368,6 +2595,7 @@ class PostgresExactSnapshotV2CandidateTest(unittest.TestCase):
             TASK_3B_UPGRADE_DSN,
             upgrade_authority,
         )
+        self._assert_resolver_replay_context_boundary(TASK_3B_UPGRADE_DSN)
         self._assert_cross_version_rejected(
             TASK_3B_UPGRADE_DSN,
             upgrade_loadout["resolvedLoadoutKey"],

@@ -295,6 +295,438 @@ ALTER TABLE cache.websim_simulation_snapshots
         )
     );
 
+CREATE OR REPLACE FUNCTION cache.verify_websim_resolver_replay_context(
+    p_context jsonb
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = pg_catalog, pg_temp
+AS $body$
+DECLARE
+    forbidden_keys CONSTANT text[] := ARRAY[
+        'Catalog',
+        'catalogRevision',
+        'rawProfile',
+        'rawString',
+        'player',
+        'playerName',
+        'characterName',
+        'realm',
+        'server',
+        'source',
+        'sourceRefIds',
+        'sourcePayload'
+    ];
+    resolved_slot record;
+    set_count record;
+    active_effect jsonb;
+    subject jsonb;
+    required_count integer;
+    subject_count integer;
+BEGIN
+    IF pg_catalog.jsonb_typeof(p_context) IS DISTINCT FROM 'object'
+       OR pg_catalog.octet_length(p_context::text) > 1048576
+       OR NOT (p_context ?& ARRAY[
+            'schemaRevision',
+            'status',
+            'dependencyVector',
+            'resolvedGearSignature',
+            'eligibilityContext',
+            'profileReadiness',
+            'resolvedSlots',
+            'setState',
+            'loadoutEffectSubjects',
+            'v2EffectBoundary'
+       ])
+       OR (p_context - ARRAY[
+            'schemaRevision',
+            'status',
+            'dependencyVector',
+            'resolvedGearSignature',
+            'eligibilityContext',
+            'profileReadiness',
+            'resolvedSlots',
+            'setState',
+            'loadoutEffectSubjects',
+            'v2EffectBoundary'
+       ]) <> '{}'::jsonb
+       OR p_context ->> 'schemaRevision'
+          IS DISTINCT FROM 'exact-resolver-replay-context-v1'
+       OR p_context ->> 'status' IS DISTINCT FROM 'verified'
+       OR pg_catalog.jsonb_typeof(p_context -> 'resolvedGearSignature')
+          IS DISTINCT FROM 'string'
+       OR (p_context ->> 'resolvedGearSignature')
+          !~ '^sha256:[0-9a-f]{64}$'
+    THEN
+        RAISE EXCEPTION 'v2 resolver replay context is invalid';
+    END IF;
+
+    IF pg_catalog.jsonb_typeof(p_context -> 'dependencyVector')
+          IS DISTINCT FROM 'object'
+       OR NOT ((p_context -> 'dependencyVector') ?& ARRAY[
+            'gearRuleRevision',
+            'resolverContractRevision',
+            'simcRuntimeRevision'
+       ])
+       OR ((p_context -> 'dependencyVector') - ARRAY[
+            'gearRuleRevision',
+            'resolverContractRevision',
+            'simcRuntimeRevision'
+       ]) <> '{}'::jsonb
+       OR EXISTS (
+            SELECT 1
+            FROM pg_catalog.jsonb_each(
+                p_context -> 'dependencyVector'
+            ) AS dependency(field, value)
+            WHERE pg_catalog.jsonb_typeof(dependency.value)
+                  IS DISTINCT FROM 'string'
+               OR dependency.value #>> '{}' = ''
+       )
+    THEN
+        RAISE EXCEPTION 'v2 resolver replay context is invalid';
+    END IF;
+
+    IF pg_catalog.jsonb_typeof(p_context -> 'eligibilityContext')
+          IS DISTINCT FROM 'object'
+       OR NOT ((p_context -> 'eligibilityContext') ?& ARRAY[
+            'classKey',
+            'specKey',
+            'level'
+       ])
+       OR ((p_context -> 'eligibilityContext') - ARRAY[
+            'classKey',
+            'specKey',
+            'level'
+       ]) <> '{}'::jsonb
+       OR pg_catalog.jsonb_typeof(
+            p_context -> 'eligibilityContext' -> 'classKey'
+       ) IS DISTINCT FROM 'string'
+       OR pg_catalog.jsonb_typeof(
+            p_context -> 'eligibilityContext' -> 'specKey'
+       ) IS DISTINCT FROM 'string'
+       OR (p_context -> 'eligibilityContext' ->> 'classKey') = ''
+       OR (p_context -> 'eligibilityContext' ->> 'specKey') = ''
+       OR pg_catalog.jsonb_typeof(
+            p_context -> 'eligibilityContext' -> 'level'
+       ) IS DISTINCT FROM 'number'
+       OR (p_context -> 'eligibilityContext' ->> 'level')
+          !~ '^[1-9][0-9]*$'
+    THEN
+        RAISE EXCEPTION 'v2 resolver replay context is invalid';
+    END IF;
+
+    IF pg_catalog.jsonb_typeof(p_context -> 'profileReadiness')
+          IS DISTINCT FROM 'object'
+       OR NOT ((p_context -> 'profileReadiness') ?& ARRAY[
+            'status',
+            'simcReady',
+            'requiredSlots',
+            'readySlots',
+            'simcRuntimeRevision'
+       ])
+       OR ((p_context -> 'profileReadiness') - ARRAY[
+            'status',
+            'simcReady',
+            'requiredSlots',
+            'readySlots',
+            'simcRuntimeRevision'
+       ]) <> '{}'::jsonb
+       OR p_context -> 'profileReadiness' ->> 'status'
+          IS DISTINCT FROM 'verified'
+       OR p_context -> 'profileReadiness' -> 'simcReady'
+          IS DISTINCT FROM 'true'::jsonb
+       OR pg_catalog.jsonb_typeof(
+            p_context -> 'profileReadiness' -> 'requiredSlots'
+       ) IS DISTINCT FROM 'array'
+       OR pg_catalog.jsonb_typeof(
+            p_context -> 'profileReadiness' -> 'readySlots'
+       ) IS DISTINCT FROM 'array'
+       OR pg_catalog.jsonb_typeof(
+            p_context -> 'profileReadiness' -> 'simcRuntimeRevision'
+       ) IS DISTINCT FROM 'string'
+       OR p_context -> 'profileReadiness' ->> 'simcRuntimeRevision' = ''
+    THEN
+        RAISE EXCEPTION 'v2 resolver replay context is invalid';
+    END IF;
+    required_count := pg_catalog.jsonb_array_length(
+        p_context -> 'profileReadiness' -> 'requiredSlots'
+    );
+    IF required_count < 1
+       OR required_count > 32
+       OR p_context -> 'profileReadiness' -> 'requiredSlots'
+          IS DISTINCT FROM p_context -> 'profileReadiness' -> 'readySlots'
+       OR EXISTS (
+            SELECT 1
+            FROM pg_catalog.jsonb_array_elements(
+                p_context -> 'profileReadiness' -> 'requiredSlots'
+            ) AS required_slot(value)
+            WHERE pg_catalog.jsonb_typeof(required_slot.value)
+                  IS DISTINCT FROM 'string'
+               OR required_slot.value #>> '{}' = ''
+       )
+       OR (
+            SELECT pg_catalog.count(DISTINCT required_slot.value)
+            FROM pg_catalog.jsonb_array_elements(
+                p_context -> 'profileReadiness' -> 'requiredSlots'
+            ) AS required_slot(value)
+       ) <> required_count
+    THEN
+        RAISE EXCEPTION 'v2 resolver replay context is invalid';
+    END IF;
+
+    IF pg_catalog.jsonb_typeof(p_context -> 'resolvedSlots')
+          IS DISTINCT FROM 'object'
+       OR (
+            SELECT pg_catalog.count(*)
+            FROM pg_catalog.jsonb_object_keys(
+                p_context -> 'resolvedSlots'
+            ) AS resolved_slot_key
+       ) <> required_count
+    THEN
+        RAISE EXCEPTION 'v2 resolver replay context is invalid';
+    END IF;
+    FOR resolved_slot IN
+        SELECT key, value
+        FROM pg_catalog.jsonb_each(p_context -> 'resolvedSlots')
+    LOOP
+        IF NOT (
+                p_context -> 'profileReadiness' -> 'requiredSlots'
+            ) ? resolved_slot.key
+           OR pg_catalog.jsonb_typeof(resolved_slot.value)
+              IS DISTINCT FROM 'object'
+           OR NOT (resolved_slot.value ?& ARRAY[
+                'slot',
+                'itemId',
+                'legality'
+           ])
+           OR (resolved_slot.value - ARRAY[
+                'slot',
+                'itemId',
+                'legality'
+           ]) <> '{}'::jsonb
+           OR pg_catalog.jsonb_typeof(resolved_slot.value -> 'slot')
+              IS DISTINCT FROM 'string'
+           OR resolved_slot.value ->> 'slot'
+              IS DISTINCT FROM resolved_slot.key
+           OR pg_catalog.jsonb_typeof(resolved_slot.value -> 'itemId')
+              IS DISTINCT FROM 'string'
+           OR resolved_slot.value ->> 'itemId' = ''
+           OR pg_catalog.jsonb_typeof(resolved_slot.value -> 'legality')
+              IS DISTINCT FROM 'object'
+           OR NOT ((resolved_slot.value -> 'legality') ? 'status')
+           OR ((resolved_slot.value -> 'legality') - ARRAY['status'])
+              <> '{}'::jsonb
+           OR resolved_slot.value -> 'legality' ->> 'status'
+              IS DISTINCT FROM 'verified'
+        THEN
+            RAISE EXCEPTION 'v2 resolver replay context is invalid';
+        END IF;
+    END LOOP;
+
+    IF pg_catalog.jsonb_typeof(p_context -> 'setState')
+          IS DISTINCT FROM 'object'
+       OR NOT ((p_context -> 'setState') ?& ARRAY[
+            'itemSetCounts',
+            'activeDynamicEffects'
+       ])
+       OR ((p_context -> 'setState') - ARRAY[
+            'itemSetCounts',
+            'activeDynamicEffects'
+       ]) <> '{}'::jsonb
+       OR pg_catalog.jsonb_typeof(
+            p_context -> 'setState' -> 'itemSetCounts'
+       ) IS DISTINCT FROM 'object'
+       OR pg_catalog.jsonb_typeof(
+            p_context -> 'setState' -> 'activeDynamicEffects'
+       ) IS DISTINCT FROM 'array'
+       OR (
+            SELECT pg_catalog.count(*)
+            FROM pg_catalog.jsonb_object_keys(
+                p_context -> 'setState' -> 'itemSetCounts'
+            ) AS item_set_key
+       ) > 128
+       OR pg_catalog.jsonb_array_length(
+            p_context -> 'setState' -> 'activeDynamicEffects'
+       ) > 128
+    THEN
+        RAISE EXCEPTION 'v2 resolver replay context is invalid';
+    END IF;
+    FOR set_count IN
+        SELECT key, value
+        FROM pg_catalog.jsonb_each(
+            p_context -> 'setState' -> 'itemSetCounts'
+        )
+    LOOP
+        IF set_count.key = ANY(forbidden_keys)
+           OR set_count.key = ''
+           OR pg_catalog.length(set_count.key) > 128
+           OR pg_catalog.jsonb_typeof(set_count.value)
+              IS DISTINCT FROM 'number'
+           OR set_count.value::text !~ '^[1-9][0-9]*$'
+           OR set_count.value::text::numeric NOT BETWEEN 1 AND 16
+        THEN
+            RAISE EXCEPTION 'v2 resolver replay context is invalid';
+        END IF;
+    END LOOP;
+    FOR active_effect IN
+        SELECT value
+        FROM pg_catalog.jsonb_array_elements(
+            p_context -> 'setState' -> 'activeDynamicEffects'
+        )
+    LOOP
+        IF pg_catalog.jsonb_typeof(active_effect) IS DISTINCT FROM 'object'
+           OR NOT (active_effect ?& ARRAY['effectId', 'itemSetId', 'pieces'])
+           OR (active_effect - ARRAY['effectId', 'itemSetId', 'pieces'])
+              <> '{}'::jsonb
+           OR pg_catalog.jsonb_typeof(active_effect -> 'effectId')
+              IS DISTINCT FROM 'string'
+           OR pg_catalog.jsonb_typeof(active_effect -> 'itemSetId')
+              IS DISTINCT FROM 'string'
+           OR active_effect ->> 'effectId' = ''
+           OR active_effect ->> 'itemSetId' = ''
+           OR pg_catalog.jsonb_typeof(active_effect -> 'pieces')
+              IS DISTINCT FROM 'number'
+           OR active_effect ->> 'pieces' !~ '^[1-9][0-9]*$'
+           OR (active_effect ->> 'pieces')::numeric NOT BETWEEN 1 AND 16
+        THEN
+            RAISE EXCEPTION 'v2 resolver replay context is invalid';
+        END IF;
+    END LOOP;
+
+    IF pg_catalog.jsonb_typeof(p_context -> 'loadoutEffectSubjects')
+          IS DISTINCT FROM 'array'
+    THEN
+        RAISE EXCEPTION 'v2 resolver replay context is invalid';
+    END IF;
+    subject_count := pg_catalog.jsonb_array_length(
+        p_context -> 'loadoutEffectSubjects'
+    );
+    IF subject_count > 128
+       OR subject_count IS DISTINCT FROM pg_catalog.jsonb_array_length(
+            p_context -> 'setState' -> 'activeDynamicEffects'
+       )
+    THEN
+        RAISE EXCEPTION 'v2 resolver replay context is invalid';
+    END IF;
+    FOR subject IN
+        SELECT value
+        FROM pg_catalog.jsonb_array_elements(
+            p_context -> 'loadoutEffectSubjects'
+        )
+    LOOP
+        IF pg_catalog.jsonb_typeof(subject) IS DISTINCT FROM 'object'
+           OR NOT (subject ?& ARRAY[
+                'subjectKind',
+                'itemSetId',
+                'pieces',
+                'subjectKey'
+           ])
+           OR (subject - ARRAY[
+                'subjectKind',
+                'itemSetId',
+                'pieces',
+                'subjectKey'
+           ]) <> '{}'::jsonb
+           OR pg_catalog.jsonb_typeof(subject -> 'subjectKind')
+              IS DISTINCT FROM 'string'
+           OR pg_catalog.jsonb_typeof(subject -> 'itemSetId')
+              IS DISTINCT FROM 'string'
+           OR pg_catalog.jsonb_typeof(subject -> 'subjectKey')
+              IS DISTINCT FROM 'string'
+           OR subject ->> 'subjectKind' = ''
+           OR subject ->> 'itemSetId' = ''
+           OR subject ->> 'subjectKey' = ''
+           OR pg_catalog.jsonb_typeof(subject -> 'pieces')
+              IS DISTINCT FROM 'number'
+           OR subject ->> 'pieces' !~ '^[1-9][0-9]*$'
+           OR (subject ->> 'pieces')::numeric NOT BETWEEN 1 AND 16
+        THEN
+            RAISE EXCEPTION 'v2 resolver replay context is invalid';
+        END IF;
+    END LOOP;
+    IF pg_catalog.jsonb_typeof(p_context -> 'v2EffectBoundary')
+          IS DISTINCT FROM 'object'
+       OR NOT ((p_context -> 'v2EffectBoundary') ?& ARRAY[
+            'schemaRevision',
+            'status',
+            'resolvedGearSignature',
+            'setState',
+            'subjects',
+            'gearRuleRevision',
+            'resolverRevision',
+            'simcRuntimeRevision'
+       ])
+       OR (
+            subject_count = 0
+            AND (
+                (p_context -> 'v2EffectBoundary') - ARRAY[
+                    'schemaRevision',
+                    'status',
+                    'resolvedGearSignature',
+                    'setState',
+                    'subjects',
+                    'gearRuleRevision',
+                    'resolverRevision',
+                    'simcRuntimeRevision'
+                ]
+            ) <> '{}'::jsonb
+       )
+       OR (
+            subject_count > 0
+            AND (
+                NOT ((p_context -> 'v2EffectBoundary')
+                     ? 'loadoutEffectAuthorityKey')
+                OR (
+                    (p_context -> 'v2EffectBoundary') - ARRAY[
+                        'schemaRevision',
+                        'status',
+                        'resolvedGearSignature',
+                        'setState',
+                        'subjects',
+                        'gearRuleRevision',
+                        'resolverRevision',
+                        'simcRuntimeRevision',
+                        'loadoutEffectAuthorityKey'
+                    ]
+                ) <> '{}'::jsonb
+                OR pg_catalog.jsonb_typeof(
+                    p_context -> 'v2EffectBoundary'
+                        -> 'loadoutEffectAuthorityKey'
+                ) IS DISTINCT FROM 'string'
+                OR p_context -> 'v2EffectBoundary'
+                       ->> 'loadoutEffectAuthorityKey'
+                   !~ '^loadout-effect-authority:sha256:[0-9a-f]{64}$'
+            )
+       )
+       OR p_context -> 'v2EffectBoundary' ->> 'schemaRevision'
+          IS DISTINCT FROM 'gear-resolver-v2-effect-boundary-v1'
+       OR p_context -> 'v2EffectBoundary' ->> 'status'
+          IS DISTINCT FROM 'verified'
+       OR p_context -> 'v2EffectBoundary' -> 'resolvedGearSignature'
+          IS DISTINCT FROM p_context -> 'resolvedGearSignature'
+       OR p_context -> 'v2EffectBoundary' -> 'gearRuleRevision'
+          IS DISTINCT FROM p_context -> 'dependencyVector'
+              -> 'gearRuleRevision'
+       OR p_context -> 'v2EffectBoundary' -> 'resolverRevision'
+          IS DISTINCT FROM p_context -> 'dependencyVector'
+              -> 'resolverContractRevision'
+       OR p_context -> 'v2EffectBoundary' -> 'simcRuntimeRevision'
+          IS DISTINCT FROM p_context -> 'dependencyVector'
+              -> 'simcRuntimeRevision'
+       OR p_context -> 'profileReadiness' -> 'simcRuntimeRevision'
+          IS DISTINCT FROM p_context -> 'dependencyVector'
+              -> 'simcRuntimeRevision'
+       OR (p_context -> 'setState')
+          IS DISTINCT FROM (p_context -> 'v2EffectBoundary' -> 'setState')
+       OR (p_context -> 'loadoutEffectSubjects')
+          IS DISTINCT FROM (p_context -> 'v2EffectBoundary' -> 'subjects')
+    THEN
+        RAISE EXCEPTION 'v2 resolver replay context is invalid';
+    END IF;
+END;
+$body$;
+
 CREATE OR REPLACE FUNCTION cache.verify_websim_v2_effect_evidence(
     p_schema_revision text,
     p_effect_evidence jsonb,
@@ -494,6 +926,15 @@ SET search_path = pg_catalog, pg_temp
 AS $body$
 BEGIN
     IF NEW.schema_revision = 'resolved-loadout-v2' THEN
+        PERFORM cache.verify_websim_resolver_replay_context(
+            NEW.resolver_replay_context_json
+        );
+        IF NEW.resolver_replay_context_json -> 'v2EffectBoundary'
+               ->> 'loadoutEffectAuthorityKey'
+           IS DISTINCT FROM NEW.loadout_effect_authority_key
+        THEN
+            RAISE EXCEPTION 'v2 resolver replay context is invalid';
+        END IF;
         PERFORM cache.verify_websim_v2_effect_evidence(
             NEW.schema_revision,
             NEW.effect_evidence_by_occurrence_json,

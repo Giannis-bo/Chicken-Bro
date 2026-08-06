@@ -418,6 +418,305 @@ class SimulationSnapshotStore:
         }
 
     @staticmethod
+    def _strict_resolver_replay_projection(value: Any) -> dict[str, Any]:
+        """Validate and rebuild the one exact persisted replay projection."""
+
+        def invalid() -> None:
+            raise SimulationSnapshotIntegrityError(
+                "v2 resolver replay context is invalid"
+            )
+
+        def exact_mapping(raw: Any, keys: set[str]) -> dict[str, Any]:
+            if type(raw) is not dict or set(raw) != keys:
+                invalid()
+            return raw
+
+        def identity(raw: Any, *, path: str) -> str:
+            if type(raw) is not str:
+                invalid()
+            try:
+                canonical = canonical_identity_token(raw, path=path)
+            except CanonicalValueError:
+                invalid()
+            if canonical != raw:
+                invalid()
+            return canonical
+
+        def integer(raw: Any, *, path: str) -> int:
+            if type(raw) is not int:
+                invalid()
+            try:
+                return canonical_int(raw, path=path, minimum=1, maximum=16)
+            except CanonicalValueError:
+                invalid()
+
+        try:
+            _require_native_v2_json(value, field="v2 resolver replay context")
+        except SimulationSnapshotIntegrityError:
+            invalid()
+        replay = _canonical(value)
+        exact_mapping(replay, {
+            "schemaRevision",
+            "status",
+            "dependencyVector",
+            "resolvedGearSignature",
+            "eligibilityContext",
+            "profileReadiness",
+            "resolvedSlots",
+            "setState",
+            "loadoutEffectSubjects",
+            "v2EffectBoundary",
+        })
+        if (
+            replay["schemaRevision"]
+            != _RESOLVER_REPLAY_CONTEXT_SCHEMA_REVISION
+            or replay["status"] != "verified"
+            or len(_json(replay).encode("utf-8"))
+            > _MAX_RESOLVER_REPLAY_CONTEXT_BYTES
+        ):
+            invalid()
+
+        dependency = exact_mapping(replay["dependencyVector"], {
+            "gearRuleRevision",
+            "resolverContractRevision",
+            "simcRuntimeRevision",
+        })
+        safe_dependency = {
+            field: identity(
+                dependency[field],
+                path=f"resolverReplay.dependencyVector.{field}",
+            )
+            for field in (
+                "gearRuleRevision",
+                "resolverContractRevision",
+                "simcRuntimeRevision",
+            )
+        }
+        resolved_signature = identity(
+            replay["resolvedGearSignature"],
+            path="resolverReplay.resolvedGearSignature",
+        )
+
+        eligibility = exact_mapping(replay["eligibilityContext"], {
+            "classKey",
+            "specKey",
+            "level",
+        })
+        if type(eligibility["level"]) is not int or eligibility["level"] < 1:
+            invalid()
+        safe_eligibility = {
+            "classKey": identity(
+                eligibility["classKey"],
+                path="resolverReplay.eligibilityContext.classKey",
+            ),
+            "specKey": identity(
+                eligibility["specKey"],
+                path="resolverReplay.eligibilityContext.specKey",
+            ),
+            "level": eligibility["level"],
+        }
+
+        readiness = exact_mapping(replay["profileReadiness"], {
+            "status",
+            "simcReady",
+            "requiredSlots",
+            "readySlots",
+            "simcRuntimeRevision",
+        })
+        if (
+            readiness["status"] != "verified"
+            or readiness["simcReady"] is not True
+            or type(readiness["requiredSlots"]) is not list
+            or type(readiness["readySlots"]) is not list
+            or not readiness["requiredSlots"]
+            or len(readiness["requiredSlots"]) > 32
+        ):
+            invalid()
+        required_slots = [
+            identity(slot, path=f"resolverReplay.profileReadiness.requiredSlots[{index}]")
+            for index, slot in enumerate(readiness["requiredSlots"])
+        ]
+        ready_slots = [
+            identity(slot, path=f"resolverReplay.profileReadiness.readySlots[{index}]")
+            for index, slot in enumerate(readiness["readySlots"])
+        ]
+        if (
+            ready_slots != required_slots
+            or len(set(required_slots)) != len(required_slots)
+        ):
+            invalid()
+        safe_readiness = {
+            "status": "verified",
+            "simcReady": True,
+            "requiredSlots": required_slots,
+            "readySlots": ready_slots,
+            "simcRuntimeRevision": identity(
+                readiness["simcRuntimeRevision"],
+                path="resolverReplay.profileReadiness.simcRuntimeRevision",
+            ),
+        }
+
+        raw_slots = replay["resolvedSlots"]
+        if type(raw_slots) is not dict or set(raw_slots) != set(required_slots):
+            invalid()
+        safe_slots: dict[str, Any] = {}
+        for slot in required_slots:
+            raw_slot = exact_mapping(raw_slots[slot], {"slot", "itemId", "legality"})
+            legality = exact_mapping(raw_slot["legality"], {"status"})
+            if raw_slot["slot"] != slot or legality["status"] != "verified":
+                invalid()
+            safe_slots[slot] = {
+                "slot": slot,
+                "itemId": identity(
+                    raw_slot["itemId"],
+                    path=f"resolverReplay.resolvedSlots.{slot}.itemId",
+                ),
+                "legality": {"status": "verified"},
+            }
+
+        raw_set_state = exact_mapping(replay["setState"], {
+            "itemSetCounts",
+            "activeDynamicEffects",
+        })
+        raw_counts = raw_set_state["itemSetCounts"]
+        raw_effects = raw_set_state["activeDynamicEffects"]
+        if (
+            type(raw_counts) is not dict
+            or type(raw_effects) is not list
+            or len(raw_counts) > 128
+            or len(raw_effects) > 128
+        ):
+            invalid()
+        safe_counts: dict[str, int] = {}
+        for raw_set_id, raw_count in raw_counts.items():
+            set_id = identity(
+                raw_set_id,
+                path="resolverReplay.setState.itemSetCounts",
+            )
+            if set_id in _FORBIDDEN_RESOLVER_REPLAY_SEMANTIC_KEYS:
+                invalid()
+            safe_counts[set_id] = integer(
+                raw_count,
+                path=f"resolverReplay.setState.itemSetCounts.{set_id}",
+            )
+        safe_effects: list[dict[str, Any]] = []
+        for index, raw_effect in enumerate(raw_effects):
+            effect = exact_mapping(raw_effect, {"effectId", "itemSetId", "pieces"})
+            safe_effects.append({
+                "effectId": identity(
+                    effect["effectId"],
+                    path=f"resolverReplay.setState.activeDynamicEffects[{index}].effectId",
+                ),
+                "itemSetId": identity(
+                    effect["itemSetId"],
+                    path=f"resolverReplay.setState.activeDynamicEffects[{index}].itemSetId",
+                ),
+                "pieces": integer(
+                    effect["pieces"],
+                    path=f"resolverReplay.setState.activeDynamicEffects[{index}].pieces",
+                ),
+            })
+        safe_set_state = {
+            "itemSetCounts": safe_counts,
+            "activeDynamicEffects": safe_effects,
+        }
+
+        raw_subjects = replay["loadoutEffectSubjects"]
+        if type(raw_subjects) is not list or len(raw_subjects) > 128:
+            invalid()
+        safe_subjects: list[dict[str, Any]] = []
+        for index, raw_subject in enumerate(raw_subjects):
+            subject = exact_mapping(
+                raw_subject,
+                {"subjectKind", "itemSetId", "pieces", "subjectKey"},
+            )
+            safe_subjects.append({
+                "subjectKind": identity(
+                    subject["subjectKind"],
+                    path=f"resolverReplay.loadoutEffectSubjects[{index}].subjectKind",
+                ),
+                "itemSetId": identity(
+                    subject["itemSetId"],
+                    path=f"resolverReplay.loadoutEffectSubjects[{index}].itemSetId",
+                ),
+                "pieces": integer(
+                    subject["pieces"],
+                    path=f"resolverReplay.loadoutEffectSubjects[{index}].pieces",
+                ),
+                "subjectKey": identity(
+                    subject["subjectKey"],
+                    path=f"resolverReplay.loadoutEffectSubjects[{index}].subjectKey",
+                ),
+            })
+        if len(safe_effects) != len(safe_subjects):
+            invalid()
+
+        raw_boundary = replay["v2EffectBoundary"]
+        boundary_keys = {
+            "schemaRevision",
+            "status",
+            "resolvedGearSignature",
+            "setState",
+            "subjects",
+            "gearRuleRevision",
+            "resolverRevision",
+            "simcRuntimeRevision",
+        }
+        if safe_subjects:
+            boundary_keys.add("loadoutEffectAuthorityKey")
+        boundary = exact_mapping(raw_boundary, boundary_keys)
+        if (
+            boundary["schemaRevision"] != "gear-resolver-v2-effect-boundary-v1"
+            or boundary["status"] != "verified"
+            or boundary["resolvedGearSignature"] != resolved_signature
+            or boundary["setState"] != safe_set_state
+            or boundary["subjects"] != safe_subjects
+            or boundary["gearRuleRevision"]
+            != safe_dependency["gearRuleRevision"]
+            or boundary["resolverRevision"]
+            != safe_dependency["resolverContractRevision"]
+            or boundary["simcRuntimeRevision"]
+            != safe_dependency["simcRuntimeRevision"]
+            or safe_readiness["simcRuntimeRevision"]
+            != safe_dependency["simcRuntimeRevision"]
+        ):
+            invalid()
+        safe_boundary = {
+            "schemaRevision": "gear-resolver-v2-effect-boundary-v1",
+            "status": "verified",
+            "resolvedGearSignature": resolved_signature,
+            "setState": safe_set_state,
+            "subjects": safe_subjects,
+            "gearRuleRevision": safe_dependency["gearRuleRevision"],
+            "resolverRevision": safe_dependency["resolverContractRevision"],
+            "simcRuntimeRevision": safe_dependency["simcRuntimeRevision"],
+        }
+        if safe_subjects:
+            authority_key = boundary["loadoutEffectAuthorityKey"]
+            if (
+                type(authority_key) is not str
+                or not _LOADOUT_EFFECT_AUTHORITY_KEY_PATTERN.fullmatch(authority_key)
+            ):
+                invalid()
+            safe_boundary["loadoutEffectAuthorityKey"] = authority_key
+
+        safe = _canonical({
+            "schemaRevision": _RESOLVER_REPLAY_CONTEXT_SCHEMA_REVISION,
+            "status": "verified",
+            "dependencyVector": safe_dependency,
+            "resolvedGearSignature": resolved_signature,
+            "eligibilityContext": safe_eligibility,
+            "profileReadiness": safe_readiness,
+            "resolvedSlots": safe_slots,
+            "setState": safe_set_state,
+            "loadoutEffectSubjects": safe_subjects,
+            "v2EffectBoundary": safe_boundary,
+        })
+        if replay != safe:
+            invalid()
+        return safe
+
+    @staticmethod
     def _resolver_replay_projection(value: Any) -> dict[str, Any]:
         """Persist the only resolver facts needed to re-run the typed v2 checks."""
         snapshot = dict(value) if isinstance(value, Mapping) else {}
@@ -512,13 +811,7 @@ class SimulationSnapshotStore:
             },
         }
         replay["v2EffectBoundary"]["setState"] = set_state
-        replay = _canonical(replay)
-        if (
-            type(replay) is not dict
-            or len(_json(replay).encode("utf-8")) > _MAX_RESOLVER_REPLAY_CONTEXT_BYTES
-        ):
-            raise SimulationSnapshotIntegrityError("v2 resolver replay context is invalid")
-        return replay
+        return SimulationSnapshotStore._strict_resolver_replay_projection(replay)
 
     @staticmethod
     def _stored_resolver_replay_context(value: Any) -> dict[str, Any]:
@@ -528,16 +821,12 @@ class SimulationSnapshotStore:
             raise SimulationSnapshotIntegrityError(
                 "stored v2 resolver replay context is invalid"
             ) from error
-        if (
-            type(replay) is not dict
-            or replay.get("schemaRevision")
-            != _RESOLVER_REPLAY_CONTEXT_SCHEMA_REVISION
-            or len(_json(replay).encode("utf-8")) > _MAX_RESOLVER_REPLAY_CONTEXT_BYTES
-        ):
+        try:
+            return SimulationSnapshotStore._strict_resolver_replay_projection(replay)
+        except SimulationSnapshotIntegrityError as error:
             raise SimulationSnapshotIntegrityError(
                 "stored v2 resolver replay context is invalid"
-            )
-        return replay
+            ) from error
 
     @staticmethod
     def _blocked_authority_replay_context(replay: Mapping[str, Any]) -> dict[str, Any]:

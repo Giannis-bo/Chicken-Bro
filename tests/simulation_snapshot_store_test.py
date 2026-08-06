@@ -702,6 +702,115 @@ class SimulationSnapshotStoreTest(unittest.TestCase):
                 authority_bundles=bundles,
             )
 
+    def test_v2_load_rejects_noncanonical_stored_replay_projection(self):
+        """Would fail if stored replay drift bypassed the strict projection gate."""
+        resolver, authority, bundles, loadout_row, snapshot_row = (
+            active_v2_snapshot_fixture()
+        )
+        seed_exact_authority_bundles(self.database, bundles)
+        seed_loadout_effect_records(self.database, authority)
+        sealed_loadout = self.store.seal_loadout(
+            loadout_row,
+            resolver_snapshot=resolver,
+            authority_bundles=bundles,
+            loadout_effect_authority=authority,
+        )
+        sealed_snapshot = self.store.seal_snapshot(
+            snapshot_row,
+            resolved_loadout=loadout_row,
+            resolver_snapshot=resolver,
+            authority_bundles=bundles,
+            compiler_revision="simc-profile-compiler-v2",
+            loadout_effect_authority=authority,
+        )
+        key = sealed_loadout["resolvedLoadoutKey"]
+        stored = list(self.database.v2_loadouts[key])
+        valid_replay = json.loads(stored[12])
+        forbidden = (
+            "Catalog",
+            "catalogRevision",
+            "rawProfile",
+            "rawString",
+            "player",
+            "playerName",
+            "characterName",
+            "realm",
+            "server",
+            "source",
+            "sourceRefIds",
+            "sourcePayload",
+        )
+
+        for placement in ("root", "profileReadiness", "resolvedSlots.head"):
+            for semantic_key in forbidden:
+                with self.subTest(
+                    placement=placement,
+                    semantic_key=semantic_key,
+                ):
+                    tampered = copy.deepcopy(valid_replay)
+                    if placement == "root":
+                        tampered[semantic_key] = {"poison": True}
+                    elif placement == "profileReadiness":
+                        tampered["profileReadiness"][semantic_key] = {
+                            "poison": True,
+                        }
+                    else:
+                        tampered["resolvedSlots"]["head"][semantic_key] = {
+                            "poison": True,
+                        }
+                    stored[12] = json.dumps(
+                        tampered,
+                        separators=(",", ":"),
+                        sort_keys=True,
+                    )
+                    self.database.v2_loadouts[key] = tuple(stored)
+                    with self.assertRaisesRegex(
+                        SimulationSnapshotIntegrityError,
+                        "stored v2 resolver replay context is invalid",
+                    ):
+                        self.store.load_loadout(key)
+
+        structural_drift = []
+        missing = copy.deepcopy(valid_replay)
+        missing["dependencyVector"].pop("resolverContractRevision")
+        structural_drift.append(("missing", missing))
+        wrong_type = copy.deepcopy(valid_replay)
+        wrong_type["eligibilityContext"]["level"] = "90"
+        structural_drift.append(("wrong-type", wrong_type))
+        extra_set_state = copy.deepcopy(valid_replay)
+        extra_set_state["setState"]["unexpected"] = []
+        structural_drift.append(("extra-set-state", extra_set_state))
+        for label, tampered in structural_drift:
+            with self.subTest(structural_drift=label):
+                stored[12] = json.dumps(
+                    tampered,
+                    separators=(",", ":"),
+                    sort_keys=True,
+                )
+                self.database.v2_loadouts[key] = tuple(stored)
+                with self.assertRaisesRegex(
+                    SimulationSnapshotIntegrityError,
+                    "stored v2 resolver replay context is invalid",
+                ):
+                    self.store.load_loadout(key)
+
+        snapshot_poison = copy.deepcopy(valid_replay)
+        snapshot_poison["rawProfile"] = "must-not-reload"
+        stored[12] = json.dumps(
+            snapshot_poison,
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+        self.database.v2_loadouts[key] = tuple(stored)
+        with self.assertRaisesRegex(
+            SimulationSnapshotIntegrityError,
+            "stored v2 resolver replay context is invalid",
+        ):
+            self.store.load_snapshot(
+                sealed_snapshot["simulationSnapshotKey"],
+                include_result=False,
+            )
+
     def test_v2_rejects_lossy_python_values_before_canonicalization(self):
         """Tuples and custom values must not become v2 lists or strings."""
         resolver, authority, bundles, loadout_row, snapshot_row = (
