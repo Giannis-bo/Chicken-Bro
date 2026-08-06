@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 2,
+  "slug": "equipment-simulator-exact-first-task4w",
+  "requirementSlug": "equipment-simulator-exact-first-task4w",
+  "status": "implementation_allowed",
+  "highestEvidenceLevel": "implementation_allowed",
+  "branch": "codex/equipment-simulator-exact-first-task4w",
+  "commit": "pending_task4w_implementation_head",
+  "identities": {
+    "runtime": {
+      "status": "pending",
+      "reason": "Task 4W has no candidate yet; no runtime, production or user-visible identity is claimed."
+    },
+    "verification": {
+      "status": "pending",
+      "reason": "Fresh verification must bind the exact clean Task 4W HEAD after implementation."
+    },
+    "closure": {
+      "status": "pending",
+      "reason": "No review, candidate, CI, merge or archival closure has occurred."
+    }
+  },
+  "manualAcceptance": {
+    "required": false,
+    "status": "not_applicable",
+    "reason": "Task 4W begins with dormant worker infrastructure and no API, UI, SimC consumer or user-visible runtime path.",
+    "items": [],
+    "rollup": {
+      "total": 0,
+      "accepted": 0,
+      "notRunUserWaived": 0,
+      "pending": 0
+    }
+  },
+  "scope": [
+    "Task 4W Strict packet and control-plane authorization for migration 0032 owner-scoped Exact import jobs and a dedicated dormant worker boundary.",
+    "No implementation, PostgreSQL candidate, production migration, service activation, API, UI, SimC user path, Catalog/Manifest pointer or generation 35 change has occurred."
+  ],
+  "verification": [
+    {
+      "command": "Task 4W implementation and candidate verification are pending; this packet records the approved bounded contract only.",
+      "status": "not_run",
+      "summary": "No test, runtime, PostgreSQL, service, API, UI or user-visible pass is claimed at implementation_allowed."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "pending",
+    "reason": "A later final-head cloud-only disposable PostgreSQL candidate requires operator-provisioned role/DSN preflight and remains unrun."
+  },
+  "runtimeEvidence": [],
+  "risks": [
+    {
+      "id": "task4w_cloud_role_preflight",
+      "status": "pending",
+      "detail": "The later candidate must prove the pre-existing NOLOGIN worker group, LOGIN membership, three distinct redacted DSNs and safe capacity before any migration or service evidence."
+    },
+    {
+      "id": "task4w_runtime_non_activation",
+      "status": "not_applicable",
+      "detail": "No production migration, active worker, API, UI, SimC consumer, Catalog/Manifest pointer or generation 35 change is in scope."
+    }
+  ],
+  "rollback": [
+    "code_rollback",
+    "config_disable",
+    "no_production_migration_or_pointer_mutation"
+  ],
+  "cleanup": {
+    "required": true,
+    "status": "pending",
+    "reason": "Only Task 4W-owned candidate databases, temporary candidate source/bundle artifacts, feature worktree and branch may be cleaned after the Harness closure sequence."
+  },
+  "archivedReferences": [
+    "docs/project-state.json",
+    "docs/roadmap.md",
+    "docs/plans/README.md",
+    "docs/plans/2026-08-04-equipment-simulator-exact-first-persistence-resequence.md",
+    "artifacts/releases/2026-08-06-equipment-simulator-exact-first-task3b/evidence.json",
+    "docs/harness.md",
+    "docs/verification-matrix.md"
+  ],
+  "summary": "Task 4W is implementation_allowed under the user's continuous Exact-first authorization. This initial packet freezes only the 0032 owner-scoped job/worker contract; no production migration, candidate, runtime consumer, service activation, API, UI, SimC user path or user-visible completion is claimed."
+}

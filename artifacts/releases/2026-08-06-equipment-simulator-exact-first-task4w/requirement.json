@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "slug": "equipment-simulator-exact-first-task4w",
+  "classification": "Strict",
+  "status": "implementation_allowed",
+  "goal": "完成 Task 4W：以 migration 0032 建立 owner-scoped Exact import jobs、独立 worker 数据库角色、数据库主导的 lease/retention/metrics 和受限 worker service；不激活 API、UI 或 SimC 用户路径。",
+  "userValue": "后续 Exact-first 导入可以由最小权限、可追溯且会在失败时明确冷却或阻断的后台链路处理，而不会让公开应用角色拥有 authority 写入或 job 管理权限。",
+  "nonGoals": [
+    "不修改任何 v1 canonical bytes、key、hash、历史行、generation 35、Catalog 或 Manifest pointer。",
+    "不修改 Task 3A、Task 4P 或 Task 4L 的 canonical owner、typed verifier 或历史 packet。",
+    "不激活 Exact import API、typed UI contract、SimC task consumer、生产 migration、用户可见 worker 路径或异步 Catalog backflow。",
+    "migration、service 或 deploy script 不创建角色、不启用 LOGIN、不授予 CREATEROLE，也不使用 WOW_DATABASE_URL 作为 worker 数据源。",
+    "不把 raw profile、角色名、服务器名、realm 或其它可识别输入写入 canonical job request、数据库、日志或证据。"
+  ],
+  "currentTruth": {
+    "sources": [
+      "docs/project-state.json",
+      "docs/roadmap.md",
+      "docs/plans/README.md",
+      "docs/plans/2026-08-04-equipment-simulator-exact-first-implementation.md",
+      "docs/plans/2026-08-04-equipment-simulator-exact-first-persistence-resequence.md",
+      "docs/plans/2026-08-06-equipment-simulator-exact-first-task4l-loadout-effect-authority.md",
+      "artifacts/releases/2026-08-04-equipment-simulator-exact-first/evidence.json",
+      "artifacts/releases/2026-08-06-equipment-simulator-exact-first-task3b/evidence.json",
+      "docs/harness.md",
+      "docs/verification-matrix.md"
+    ],
+    "activeMilestone": "taro_target_first_14_route_rebuild",
+    "featureIteration": "equipment_simulator_exact_first_task4w_worker_jobs",
+    "baseBranch": "main"
+  },
+  "releaseSlices": [
+    {
+      "id": "task_4w_owner_scoped_exact_import_worker",
+      "planHeading": "Task 4W: Owner-scoped jobs and worker (0032)",
+      "scope": "0032 owner-scoped Exact import jobs, pre-provisioned NOLOGIN worker role verification, canonical request identity, lease/reclaim/cooldown/retention functions, worker-state metrics and a worker-only service/deploy contract.",
+      "gate": "The worker must use its own login DSN then SET ROLE wow_exact_worker; wow_app remains function-only with no job-table DML; fresh and upgrade disposable PostgreSQL candidates prove ACL, owner isolation, lease CAS and bounded pruning before runtime evidence."
+    }
+  ],
+  "impactMap": {
+    "mustChange": [
+      "server/migrations/postgres/0032_websim_exact_import_jobs.sql for fail-closed role preflight, job/worker/metric tables, concrete security-definer functions, row-state constraints, fixed ACL and database-clock lease/retention decisions.",
+      "server/gear_exact_import_job_store.py and server/gear_exact_authority_worker.py for canonical request validation, explicit repository calls and worker identity verification without raw input persistence.",
+      "server/wow-gear-exact-authority-worker.service and server/deploy_lighthouse.sh only for the dedicated worker environment/service preflight and rollback contract.",
+      "tests/gear_exact_import_job_store_test.py, tests/gear_exact_authority_worker_test.py, tests/postgres_schema_test.py and tests/postgres_integration_test.py for TDD, SQL/ACL and cloud-only disposable PostgreSQL evidence.",
+      "docs/postgres-identity-migration-runbook.md and current status control-plane files for the independently provisioned role/DSN/candidate/rollback procedure and Task 4W truth."
+    ],
+    "mustNotChange": [
+      "All v1/v2 canonical identity and verifier contracts already sealed by Task 3A, Task 4P, Task 4L and Task 3B.",
+      "API, UI, typed transport, SimC task execution, production database state, Catalog/Manifest pointer state and generation 35.",
+      "Role lifecycle: 0032 must assert a pre-existing NOLOGIN group role and never create, alter or login-enable any role.",
+      "The public application database URL and any raw identity/profile text."
+    ],
+    "riskUnknown": [
+      "The cloud candidate must prove pre-provisioned worker-role membership and three redacted distinct DSNs without creating, changing or exposing credentials.",
+      "Concurrent enqueue/reclaim and terminal metrics must remain atomic under the exact security-definer ACL boundary.",
+      "The service/deploy contract must stay dormant until a later API/runtime task rather than accidentally enabling a worker on production data."
+    ],
+    "evidenceRequired": [
+      "RED/GREEN pure tests for exact request bytes/key, recursive sensitive-field rejection, owner reuse/isolation, cooldown/reclaim and worker DSN/SET ROLE failure modes.",
+      "Static SQL tests for 0032 identity, role and core-function preflight, row state, index/function signature, fixed search_path, security-definer revoke/grant boundary and no dynamic SQL.",
+      "Cloud-only fresh 0001..0032 and upgrade 0001..0031-to-0032 disposable PostgreSQL candidates with migrator/app/worker login DSNs, real ACL/owner/lease/prune checks and a resource-bounded rollback path.",
+      "Focused local fake-store tests, direct-server imports, independent scoped CR, final exact-head CI and Harness-selected fresh evidence."
+    ]
+  },
+  "ownership": {
+    "factOwner": "PostgreSQL 0032 functions own queue state, time, owner isolation, lease CAS, terminalization, retention and aggregate metrics; the worker owns only its explicit worker-role connection and typed request/result handling.",
+    "consumers": [
+      "server/gear_exact_import_job_store.py",
+      "server/gear_exact_authority_worker.py",
+      "server/wow-gear-exact-authority-worker.service",
+      "future Task 5A API consumer only after its own separate authorization"
+    ],
+    "runtimeConsumers": [],
+    "roleBoundary": "wow_exact_worker is pre-provisioned NOLOGIN; an operator-created LOGIN member is the only worker connection principal, which must SET ROLE wow_exact_worker immediately. wow_app receives only owner-scoped enqueue/read execution."
+  },
+  "engineeringHealth": {
+    "status": "preflight_pending",
+    "reason": "Task 3B persistence is archived and its final candidate was disposed. Task 4W starts with no runtime consumer; the later candidate is blocked until cloud preflight confirms the existing worker group role, login membership, three distinct redacted DSNs and bounded capacity."
+  },
+  "acceptanceEvidence": [
+    "Canonical exact-import-job-request-v1 bytes and key are rebuilt and fail closed on schema, dependency-vector or recursively sensitive-field drift.",
+    "0032 keeps wow_app table-DML-free, exposes only the declared owner/worker functions, gives PUBLIC no function execution and verifies every worker connection through its dedicated DSN plus SET ROLE.",
+    "Database time and lock tokens govern enqueue, claim, heartbeat, terminalize, failed cooldown and bounded retention; wrong or expired tokens produce no state change.",
+    "Fresh and upgrade disposable PostgreSQL candidates prove role/ACL isolation, owner isolation, concurrent deterministic enqueue, reclaim, terminal metrics and prune limits without a production migration or active user path."
+  ],
+  "manualAcceptanceContract": {
+    "required": false,
+    "requiredItemIds": []
+  },
+  "candidateDeployment": {
+    "required": true,
+    "beforeMerge": "Run one final-head cloud-only disposable PostgreSQL candidate after local RED/GREEN and independent scoped CR. It must use operator-provisioned fresh and upgrade databases plus distinct migrator/app/worker login DSNs, bounded resources and no production service activation.",
+    "rollback": "Code and dormant service-contract rollback; discard only the two explicit Task 4W disposable candidate databases after archive identity checks and main/origin parity."
+  },
+  "closureCondition": "Task 4W may advance from implementation_allowed only after scoped independent review, fresh local focused verification, one final-head cloud-only fresh/upgrade PostgreSQL candidate, exact-head CI and Harness User Acceptance Closure. It remains non-user-visible until a separately authorized API/runtime consumer task.",
+  "releaseTrigger": "pg_read_model",
+  "rollback": [
+    "code_rollback",
+    "config_disable",
+    "disposable_candidate_database_discard_only_after_identity_check",
+    "no_production_migration_or_pointer_mutation"
+  ],
+  "decisionLog": [
+    {
+      "date": "2026-08-06",
+      "decision": "After Task 3A, Task 4P, Task 4L and Task 3B closure, the user explicitly authorized continuous Exact-first progression without step-by-step reauthorization. Task 4W is selected as the next frozen allowlisted stage, bounded to 0032 and dormant worker infrastructure only."
+    },
+    {
+      "date": "2026-08-06",
+      "decision": "Task 4W will not create or activate database roles. Candidate evidence must independently prove a pre-provisioned NOLOGIN worker group, a separate LOGIN member and worker-only DSN before any migration or service claim."
+    }
+  ]
+}
