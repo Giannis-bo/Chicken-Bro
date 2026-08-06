@@ -14,6 +14,7 @@ CODEX_JOBS_DIR="${WOW_CODEX_JOBS_DIR:-/var/lib/wow-backend/codex-jobs}"
 CODEX_HOME_DIR="${WOW_CODEX_HOME:-/home/${REMOTE_USER}/.codex}"
 SKIP_BOOTSTRAP="${WOW_DEPLOY_SKIP_BOOTSTRAP:-0}"
 START_ASYNC_SYNCS="${WOW_DEPLOY_START_ASYNC_SYNCS:-0}"
+EXACT_WORKER_PREFLIGHT="${WOW_DEPLOY_EXACT_WORKER_PREFLIGHT:-0}"
 
 validate_env_value() {
   local name="$1"
@@ -43,6 +44,7 @@ validate_env_value CODEX_JOBS_DIR "${CODEX_JOBS_DIR}" '^/[A-Za-z0-9_./-]+$'
 validate_env_value CODEX_HOME_DIR "${CODEX_HOME_DIR}" '^/[A-Za-z0-9_./-]+$'
 validate_env_value SKIP_BOOTSTRAP "${SKIP_BOOTSTRAP}" '^[01]$'
 validate_env_value START_ASYNC_SYNCS "${START_ASYNC_SYNCS}" '^[01]$'
+validate_env_value EXACT_WORKER_PREFLIGHT "${EXACT_WORKER_PREFLIGHT}" '^[01]$'
 reject_path_traversal REMOTE_DIR "${REMOTE_DIR}"
 reject_path_traversal CODEX_JOBS_DIR "${CODEX_JOBS_DIR}"
 reject_path_traversal CODEX_HOME_DIR "${CODEX_HOME_DIR}"
@@ -70,7 +72,7 @@ COPYFILE_DISABLE=1 tar \
   --exclude '.DS_Store' \
   -czf - . | ssh_remote "sudo mkdir -p '${REMOTE_DIR}' && sudo tar -xzf - -C '${REMOTE_DIR}' && sudo chown -R ${REMOTE_USER}:${REMOTE_USER} '${REMOTE_DIR}'"
 
-ssh_remote "WOW_LIGHTHOUSE_DIR='${REMOTE_DIR}' SERVICE_NAME='${SERVICE_NAME}' SIMC_GITHUB_REPO='${SIMC_GITHUB_REPO}' SIMC_BRANCH='${SIMC_BRANCH}' WOW_CODEX_JOBS_DIR='${CODEX_JOBS_DIR}' WOW_CODEX_HOME='${CODEX_HOME_DIR}' WOW_DEPLOY_SKIP_BOOTSTRAP='${SKIP_BOOTSTRAP}' WOW_DEPLOY_START_ASYNC_SYNCS='${START_ASYNC_SYNCS}' bash -s" <<'REMOTE'
+ssh_remote "WOW_LIGHTHOUSE_DIR='${REMOTE_DIR}' SERVICE_NAME='${SERVICE_NAME}' SIMC_GITHUB_REPO='${SIMC_GITHUB_REPO}' SIMC_BRANCH='${SIMC_BRANCH}' WOW_CODEX_JOBS_DIR='${CODEX_JOBS_DIR}' WOW_CODEX_HOME='${CODEX_HOME_DIR}' WOW_DEPLOY_SKIP_BOOTSTRAP='${SKIP_BOOTSTRAP}' WOW_DEPLOY_START_ASYNC_SYNCS='${START_ASYNC_SYNCS}' WOW_DEPLOY_EXACT_WORKER_PREFLIGHT='${EXACT_WORKER_PREFLIGHT}' bash -s" <<'REMOTE'
 set -euo pipefail
 
 REMOTE_DIR="${WOW_LIGHTHOUSE_DIR:-/opt/wow-mini-program}"
@@ -88,6 +90,7 @@ CODEX_HOME_DIR="${WOW_CODEX_HOME:-/home/ubuntu/.codex}"
 CODEX_BIN="/usr/local/bin/codex"
 SKIP_BOOTSTRAP="${WOW_DEPLOY_SKIP_BOOTSTRAP:-0}"
 START_ASYNC_SYNCS="${WOW_DEPLOY_START_ASYNC_SYNCS:-0}"
+EXACT_WORKER_PREFLIGHT="${WOW_DEPLOY_EXACT_WORKER_PREFLIGHT:-0}"
 
 if [[ "${SKIP_BOOTSTRAP}" == "1" ]]; then
   echo "Skipping remote bootstrap because WOW_DEPLOY_SKIP_BOOTSTRAP=1; reusing remote packages, Codex, and SimulationCraft."
@@ -451,6 +454,129 @@ sudo chown -R "$(id -un):$(id -gn)" "${REMOTE_DIR}/server/data"
 sudo mkdir -p /var/www/wow-assets/releases
 sudo mkdir -p /var/www/wow-media/releases
 sudo chown -R www-data:www-data /var/www/wow-assets /var/www/wow-media
+
+# Task 4W remains dormant. This opt-in preflight installs only the unit file;
+# it never enables, starts, restarts, migrates, or provisions a role/service.
+exact_worker_change_applied=0
+exact_worker_rollback_dir=""
+rollback_exact_worker_service() {
+  if [[ "${exact_worker_change_applied}" != "1" || -z "${exact_worker_rollback_dir}" ]]; then
+    return
+  fi
+  echo "Rolling back dormant exact worker service/env from ${exact_worker_rollback_dir}" >&2
+  if [[ -f "${exact_worker_rollback_dir}/previous.service" ]]; then
+    sudo cp "${exact_worker_rollback_dir}/previous.service" \
+      /etc/systemd/system/wow-gear-exact-authority-worker.service
+  elif [[ -f "${exact_worker_rollback_dir}/service.absent" ]]; then
+    sudo rm -f /etc/systemd/system/wow-gear-exact-authority-worker.service
+  fi
+  if [[ -f "${exact_worker_rollback_dir}/previous.env" ]]; then
+    sudo cp "${exact_worker_rollback_dir}/previous.env" /etc/wow-exact-worker.env
+    sudo chmod 0600 /etc/wow-exact-worker.env
+  fi
+  sudo systemctl daemon-reload
+}
+trap rollback_exact_worker_service ERR
+
+if [[ "${EXACT_WORKER_PREFLIGHT}" == "1" ]]; then
+  sudo test -f /etc/wow-backend.env
+  sudo test -f /etc/wow-exact-worker.env
+  exact_worker_env_mode="$(sudo stat -c '%a' /etc/wow-exact-worker.env)"
+  if [[ "${exact_worker_env_mode}" != "600" ]]; then
+    echo "/etc/wow-exact-worker.env must be mode 0600" >&2
+    exit 1
+  fi
+
+  sudo env PYTHONPATH="${REMOTE_DIR}" python3 - <<'PY'
+import hashlib
+import shlex
+from pathlib import Path
+
+import psycopg
+
+from server.gear_exact_authority_worker import establish_exact_worker_role
+
+
+def read_environment(path):
+    values = {}
+    for source_line in Path(path).read_text(encoding="utf-8").splitlines():
+        line = source_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("export "):
+            line = line[7:].strip()
+        if "=" not in line:
+            raise SystemExit(f"invalid environment line in {path}")
+        key, raw = line.split("=", 1)
+        parsed = shlex.split(raw, posix=True)
+        values[key.strip()] = parsed[0] if parsed else ""
+    return values
+
+
+backend = read_environment("/etc/wow-backend.env")
+worker = read_environment("/etc/wow-exact-worker.env")
+app_dsn = backend.get("WOW_DATABASE_URL", "").strip()
+worker_dsn = worker.get("WOW_EXACT_WORKER_DATABASE_URL", "").strip()
+if worker.get("WOW_DATABASE_URL", "").strip():
+    raise SystemExit("worker env must not contain WOW_DATABASE_URL")
+if not app_dsn or not worker_dsn or app_dsn == worker_dsn:
+    raise SystemExit("app and exact-worker DSNs must be present and distinct")
+
+with psycopg.connect(app_dsn) as app_connection:
+    with app_connection.cursor() as cursor:
+        cursor.execute("SELECT session_user, current_user")
+        if cursor.fetchone() != ("wow_app", "wow_app"):
+            raise SystemExit("public DSN must use the wow_app LOGIN role")
+
+with psycopg.connect(worker_dsn) as worker_connection:
+    # This performs SET ROLE before validating session_user/current_user and
+    # pg_catalog.pg_has_role membership against the NOLOGIN group.
+    establish_exact_worker_role(worker_connection)
+    with worker_connection.cursor() as cursor:
+        cursor.execute(
+            "SELECT rolname, rolcanlogin, rolcreaterole "
+            "FROM pg_catalog.pg_roles "
+            "WHERE rolname = ANY(%s) ORDER BY rolname",
+            (["wow_app", "wow_exact_worker", "wow_migrator"],),
+        )
+        roles = cursor.fetchall()
+        expected = [
+            ("wow_app", True, False),
+            ("wow_exact_worker", False, False),
+            ("wow_migrator", True, False),
+        ]
+        if roles != expected:
+            raise SystemExit("NOLOGIN/LOGIN/NOCREATEROLE preflight failed")
+
+redacted = {
+    "app": hashlib.sha256(app_dsn.encode("utf-8")).hexdigest()[:12],
+    "worker": hashlib.sha256(worker_dsn.encode("utf-8")).hexdigest()[:12],
+}
+print(
+    "Exact worker preflight passed: "
+    f"app=<redacted:{redacted['app']}> "
+    f"worker=<redacted:{redacted['worker']}> distinct=true"
+)
+PY
+
+  exact_worker_rollback_dir="/var/lib/wow-backend/exact-worker-rollback/$(date -u +%Y%m%dT%H%M%SZ)"
+  sudo install -d -m 0700 "${exact_worker_rollback_dir}"
+  if [[ -f /etc/systemd/system/wow-gear-exact-authority-worker.service ]]; then
+    sudo cp /etc/systemd/system/wow-gear-exact-authority-worker.service \
+      "${exact_worker_rollback_dir}/previous.service"
+  else
+    sudo touch "${exact_worker_rollback_dir}/service.absent"
+  fi
+  sudo cp /etc/wow-exact-worker.env "${exact_worker_rollback_dir}/previous.env"
+  sudo chmod 0600 "${exact_worker_rollback_dir}/previous.env"
+  sudo cp "${REMOTE_DIR}/server/wow-gear-exact-authority-worker.service" \
+    /etc/systemd/system/wow-gear-exact-authority-worker.service
+  exact_worker_change_applied=1
+  echo "Dormant exact worker unit installed; activation remains a separate authorization."
+else
+  echo "Skipping dormant exact worker preflight/install because WOW_DEPLOY_EXACT_WORKER_PREFLIGHT is not 1."
+fi
+
 sudo cp "${REMOTE_DIR}/server/wow-backend.service" "/etc/systemd/system/${SERVICE_NAME}.service"
 sudo cp "${REMOTE_DIR}/server/wow-websim-sync.service" "/etc/systemd/system/wow-websim-sync.service"
 sudo cp "${REMOTE_DIR}/server/wow-websim-sync.timer" "/etc/systemd/system/wow-websim-sync.timer"

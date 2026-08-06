@@ -36,6 +36,7 @@ CHICKENBRO_GENERIC_PUBLIC_WEB = ROOT / "server" / "migrations" / "postgres" / "0
 CHICKENBRO_PUBLIC_WEB_REPEAT_BUDGET = ROOT / "server" / "migrations" / "postgres" / "0029_chickenbro_public_web_repeat_budget.sql"
 WEBSIM_EXACT_AUTHORITY_BUNDLE = ROOT / "server" / "migrations" / "postgres" / "0030_websim_exact_authority_bundle.sql"
 WEBSIM_EXACT_SNAPSHOT_V2 = ROOT / "server" / "migrations" / "postgres" / "0031_websim_exact_snapshot_v2.sql"
+WEBSIM_EXACT_IMPORT_JOBS = ROOT / "server" / "migrations" / "postgres" / "0032_websim_exact_import_jobs.sql"
 TASK_3A_MIGRATION_CURRENT_TRUTH_FILES = (
     ROOT / "artifacts" / "releases" / "2026-08-04-equipment-simulator-exact-first" / "requirement.json",
     ROOT / "docs" / "backend-owner-map.json",
@@ -59,6 +60,11 @@ TASK_3A_HISTORICAL_LIFECYCLE_FILES = (
     ROOT / "docs" / "postgres-identity-migration-runbook.md",
 )
 POSTGRES_MIGRATIONS_0001_0031 = tuple(sorted(
+    path
+    for path in (ROOT / "server" / "migrations" / "postgres").glob("[0-9][0-9][0-9][0-9]_*.sql")
+    if path.name <= "0031_websim_exact_snapshot_v2.sql"
+))
+POSTGRES_MIGRATIONS_0001_0032 = tuple(sorted(
     (ROOT / "server" / "migrations" / "postgres").glob("[0-9][0-9][0-9][0-9]_*.sql")
 ))
 
@@ -424,6 +430,117 @@ def exact_snapshot_v2_schema_violations(sql, migrations):
         violations.append("0031 filename identity")
     if sum(body.count("'0031_websim_exact_snapshot_v2'") for _, body in migrations) != 1:
         violations.append("0031 ledger identity")
+    return violations
+
+
+def exact_import_jobs_schema_violations(sql, migrations):
+    """Static 0032 contract; real role/lease behavior belongs to the cloud candidate."""
+    normalized = _normalized(sql)
+    violations = []
+    required = (
+        "pg_catalog.to_regprocedure('pg_catalog.gen_random_uuid()') IS NULL",
+        "FROM pg_catalog.pg_roles WHERE rolname = 'wow_exact_worker'",
+        "role_can_login IS DISTINCT FROM false",
+        "CREATE TABLE ops.websim_exact_import_jobs",
+        "job_id bigserial PRIMARY KEY",
+        "owner_key_hash text NOT NULL CHECK (owner_key_hash ~ '^sha256:[0-9a-f]{64}$')",
+        "request_key text NOT NULL CHECK (request_key ~ '^exact-import-request:sha256:[0-9a-f]{64}$')",
+        "pg_catalog.octet_length(request_bytes) BETWEEN 2 AND 131072",
+        "request_json = pg_catalog.convert_from(request_bytes, 'UTF8')::jsonb",
+        "request_key = 'exact-import-request:sha256:' || pg_catalog.encode(pg_catalog.sha256(request_bytes), 'hex')",
+        "status IN ('pending', 'running', 'resolved', 'blocked', 'unsupported', 'failed')",
+        "terminal_classification IN ('resolved', 'incomplete', 'illegal', 'runtime_gap', 'internal_error')",
+        "attempt BETWEEN 0 AND 3",
+        "lease_until = heartbeat_at + interval '30 seconds'",
+        "cooldown_until = finished_at + interval '15 minutes'",
+        "retryPolicyRevision=exact-import-retry-policy-v1",
+        "CREATE UNIQUE INDEX uq_ops_websim_exact_jobs_deterministic ON ops.websim_exact_import_jobs (owner_key_hash, request_key) WHERE status IN ('pending', 'running', 'resolved', 'blocked', 'unsupported')",
+        "CREATE INDEX idx_ops_websim_exact_jobs_failed_cooldown ON ops.websim_exact_import_jobs (owner_key_hash, request_key, cooldown_until DESC, job_id DESC) WHERE status = 'failed'",
+        "CREATE INDEX idx_ops_websim_exact_jobs_claim ON ops.websim_exact_import_jobs (status, lease_until, queued_at, job_id)",
+        "CREATE INDEX idx_ops_websim_exact_jobs_retention ON ops.websim_exact_import_jobs (finished_at, job_id) WHERE status IN ('resolved', 'blocked', 'unsupported', 'failed')",
+        "CREATE TABLE ops.websim_exact_worker_state",
+        "CREATE TABLE ops.websim_exact_import_metrics_daily",
+        "PRIMARY KEY (metric_day, terminal_classification, catalog_status)",
+        "pg_catalog.pg_advisory_xact_lock",
+        "FOR UPDATE SKIP LOCKED",
+        "pg_catalog.gen_random_uuid()",
+        "$.**.keyvalue() ? (@.key == \"rawProfile\"",
+        "lease_until = current_time + interval '30 seconds'",
+        "finished_at + interval '7 days'",
+        "metric_day < pg_catalog.clock_timestamp()::date - 90",
+        "'ATTEMPT_EXHAUSTED'",
+        "INSERT INTO ops.schema_migrations (id, description) VALUES ( '0032_websim_exact_import_jobs'",
+    )
+    for clause in required:
+        if clause not in normalized:
+            violations.append(f"required: {clause}")
+
+    created_tables = tuple(re.findall(
+        r"\bCREATE\s+TABLE\s+([^\s(]+)\s*\(",
+        normalized,
+        flags=re.IGNORECASE,
+    ))
+    expected_tables = (
+        "ops.websim_exact_import_jobs",
+        "ops.websim_exact_worker_state",
+        "ops.websim_exact_import_metrics_daily",
+    )
+    if sorted(created_tables) != sorted(expected_tables):
+        violations.append(f"exact three-table universe: {created_tables}")
+
+    signatures = (
+        "ops.websim_exact_enqueue(text, bytea, jsonb)",
+        "ops.websim_exact_read(text, bigint)",
+        "ops.websim_exact_claim(text, text, text)",
+        "ops.websim_exact_heartbeat(bigint, uuid)",
+        "ops.websim_exact_terminalize(bigint, uuid, text, text, jsonb, jsonb, text)",
+        "ops.websim_exact_update_worker_state(text, text, text, text, bigint, jsonb)",
+        "ops.websim_exact_prune_jobs(integer)",
+        "ops.websim_exact_prune_metrics(integer)",
+    )
+    created = tuple(re.findall(
+        r"\bCREATE\s+OR\s+REPLACE\s+FUNCTION\s+([^\s(]+)\s*\(",
+        normalized,
+        flags=re.IGNORECASE,
+    ))
+    expected_names = tuple(signature.split("(", 1)[0] for signature in signatures)
+    if sorted(created) != sorted(expected_names):
+        violations.append(f"exact eight-function universe: {created}")
+    if normalized.count("SECURITY DEFINER SET search_path = pg_catalog, pg_temp") != 8:
+        violations.append("eight SECURITY DEFINER fixed-search-path declarations")
+    for signature in signatures:
+        if normalized.count(f"ALTER FUNCTION {signature} OWNER TO wow_migrator;") != 1:
+            violations.append(f"wow_migrator function owner: {signature}")
+        if normalized.count(
+            f"REVOKE ALL ON FUNCTION {signature} FROM PUBLIC, wow_app, wow_exact_worker;"
+        ) != 1:
+            violations.append(f"signature-specific function revoke: {signature}")
+
+    acl_required = (
+        "GRANT USAGE ON SCHEMA cache, ops TO wow_exact_worker;",
+        "REVOKE ALL ON ops.websim_exact_import_jobs, ops.websim_exact_worker_state, ops.websim_exact_import_metrics_daily FROM PUBLIC, wow_app, wow_exact_worker;",
+        "REVOKE ALL ON SEQUENCE ops.websim_exact_import_jobs_job_id_seq FROM PUBLIC, wow_app, wow_exact_worker;",
+        "GRANT SELECT, INSERT ON cache.websim_canonical_documents, cache.websim_effect_aggregate_records, cache.websim_exact_authority_bundles TO wow_exact_worker;",
+        "GRANT EXECUTE ON FUNCTION ops.websim_exact_enqueue(text, bytea, jsonb), ops.websim_exact_read(text, bigint) TO wow_app;",
+        "GRANT EXECUTE ON FUNCTION ops.websim_exact_claim(text, text, text), ops.websim_exact_heartbeat(bigint, uuid), ops.websim_exact_terminalize(bigint, uuid, text, text, jsonb, jsonb, text), ops.websim_exact_update_worker_state(text, text, text, text, bigint, jsonb), ops.websim_exact_prune_jobs(integer), ops.websim_exact_prune_metrics(integer) TO wow_exact_worker;",
+    )
+    for clause in acl_required:
+        if normalized.count(clause) != 1:
+            violations.append(f"fixed ACL: {clause}")
+
+    forbidden = (
+        "CREATE ROLE", "ALTER ROLE", "CREATEROLE", "CREATE EXTENSION",
+        "EXECUTE format", "EXECUTE IMMEDIATE", "WOW_DATABASE_URL", "@.key()",
+    )
+    for clause in forbidden:
+        if clause.lower() in normalized.lower():
+            violations.append(f"forbidden SQL: {clause}")
+
+    migration_names = [name for name, _body in migrations]
+    if migration_names.count("0032_websim_exact_import_jobs.sql") != 1:
+        violations.append("0032 filename identity")
+    if sum(body.count("'0032_websim_exact_import_jobs'") for _name, body in migrations) != 1:
+        violations.append("0032 ledger identity")
     return violations
 
 
@@ -876,6 +993,69 @@ $unsafe$;
                 self.assertTrue(
                     exact_snapshot_v2_schema_violations(mutated, migrations),
                 )
+
+    def test_exact_import_jobs_migration_has_fixed_role_schema_function_and_acl_surface(self):
+        self.assertTrue(
+            WEBSIM_EXACT_IMPORT_JOBS.exists(),
+            "missing static 0032 exact import jobs migration",
+        )
+        sql = WEBSIM_EXACT_IMPORT_JOBS.read_text(encoding="utf-8")
+        migrations = tuple(
+            (path.name, path.read_text(encoding="utf-8"))
+            for path in POSTGRES_MIGRATIONS_0001_0032
+        )
+        self.assertEqual(exact_import_jobs_schema_violations(sql, migrations), [])
+
+    def test_exact_worker_service_deploy_and_runbook_remain_dormant_and_secret_safe(self):
+        service_path = ROOT / "server" / "wow-gear-exact-authority-worker.service"
+        self.assertTrue(service_path.exists(), "missing dedicated exact worker service")
+        service = _normalized(service_path.read_text(encoding="utf-8"))
+        self.assertIn("EnvironmentFile=/etc/wow-exact-worker.env", service)
+        self.assertNotIn("wow-backend.env", service)
+        self.assertIn("ExecStart=/usr/bin/python3 -m server.gear_exact_authority_worker", service)
+
+        deploy = (ROOT / "server" / "deploy_lighthouse.sh").read_text(encoding="utf-8")
+        self.assertIn("WOW_DEPLOY_EXACT_WORKER_PREFLIGHT", deploy)
+        self.assertIn("wow-gear-exact-authority-worker.service", deploy)
+        self.assertIn("/etc/wow-exact-worker.env", deploy)
+        self.assertIn("WOW_EXACT_WORKER_DATABASE_URL", deploy)
+        self.assertIn("wow_exact_worker", deploy)
+        self.assertIn("rolcanlogin", deploy)
+        self.assertIn("pg_has_role", deploy)
+        self.assertIn("redacted", deploy.lower())
+        self.assertIn("rollback", deploy.lower())
+        self.assertNotRegex(
+            deploy,
+            r"systemctl\s+(?:enable|start|restart|enable\s+--now)\s+"
+            r"wow-gear-exact-authority-worker\.service",
+        )
+
+        runbook = (ROOT / "docs" / "postgres-identity-migration-runbook.md").read_text(encoding="utf-8")
+        for value in (
+            "wow_exact_worker", "NOLOGIN", "LOGIN INHERIT",
+            "/etc/wow-exact-worker.env", "WOW_EXACT_WORKER_DATABASE_URL",
+            "WOW_PG_TEST_DSN_MIGRATOR_0032", "WOW_PG_TEST_DSN_APP_0032",
+            "WOW_PG_TEST_DSN_WORKER_0032", "SET ROLE wow_exact_worker",
+            "0032_websim_exact_import_jobs.sql", "rollback",
+        ):
+            with self.subTest(value=value):
+                self.assertIn(value, runbook)
+
+    def test_migrations_0001_through_0032_never_manage_databases_roles_or_extensions(self):
+        self.assertEqual(
+            POSTGRES_MIGRATIONS_0001_0032[-1].name,
+            "0032_websim_exact_import_jobs.sql",
+        )
+        database_ddl = re.compile(r"(?i)\b(?:CREATE|DROP|ALTER)\s+DATABASE\b")
+        role_ddl = re.compile(r"(?i)\b(?:CREATE|ALTER|DROP)\s+ROLE\b")
+        extension_ddl = re.compile(r"(?i)\bCREATE\s+EXTENSION\b")
+        for migration in POSTGRES_MIGRATIONS_0001_0032:
+            with self.subTest(migration=migration.name):
+                body = migration.read_text(encoding="utf-8")
+                self.assertIsNone(database_ddl.search(body))
+                if migration.name == "0032_websim_exact_import_jobs.sql":
+                    self.assertIsNone(role_ddl.search(body))
+                    self.assertIsNone(extension_ddl.search(body))
 
     def test_migrations_0001_through_0031_never_manage_databases(self):
         self.assertEqual(

@@ -272,6 +272,109 @@ The technically successful
 `t3a260805113656` attestation also remains unpromotable.
 No production migration is authorized.
 
+## Exact Import Jobs Task 4W Candidate and Dedicated Worker
+
+Migration `0032_websim_exact_import_jobs.sql` and the dedicated service remain
+dormant in Task 4W. Local unit/static tests do not authorize a production
+migration, service activation, API/UI producer, SimC consumer, or generation 35
+change. The real PostgreSQL candidate is cloud-only and must use disposable,
+operator-provisioned databases and roles.
+
+### Pre-provision the role boundary
+
+An authorized PostgreSQL operator, outside every application migration and
+service, creates the group and one dedicated login member. The intended
+properties are:
+
+```sql
+CREATE ROLE wow_exact_worker NOLOGIN NOCREATEROLE NOSUPERUSER NOREPLICATION;
+CREATE ROLE wow_exact_worker_login LOGIN INHERIT NOCREATEROLE NOSUPERUSER NOREPLICATION;
+GRANT wow_exact_worker TO wow_exact_worker_login;
+```
+
+These statements are an operator procedure, not migration content. Use the
+site-specific login name and credential workflow; never put its password in the
+repository, command history, report, or candidate attestation. Confirm
+`wow_migrator`, `wow_app`, `wow_exact_worker`, and the member have no
+`CREATEROLE`; confirm the group remains literal `NOLOGIN` and the member is
+literal `LOGIN INHERIT`. Migration `0032` fails closed when the group is absent
+or login-enabled. PostgreSQL core `pg_catalog.gen_random_uuid()` must already be
+available; absence is a compatibility blocker and does not authorize extension
+installation.
+
+### Dedicated secret file and deploy preflight
+
+Store only the worker credentials and worker-owned settings in root-readable
+`/etc/wow-exact-worker.env`:
+
+```ini
+WOW_EXACT_WORKER_DATABASE_URL=postgresql://<login>:<redacted>@<host>/<database>
+WOW_EXACT_WORKER_SIMC_RUNTIME_REVISION=<approved-runtime-revision>
+WOW_EXACT_WORKER_ID=<bounded-worker-id>
+```
+
+Set mode `0600`. The file must not contain `WOW_DATABASE_URL`, and
+`server/wow-gear-exact-authority-worker.service` must not read
+`/etc/wow-backend.env`. On every new connection the worker executes
+`SET ROLE wow_exact_worker`, then verifies that `session_user` is a LOGIN member
+and `current_user` is exactly `wow_exact_worker`.
+
+The existing deploy script performs the dormant install/preflight only when an
+operator explicitly supplies `WOW_DEPLOY_EXACT_WORKER_PREFLIGHT=1`. It validates
+the `NOLOGIN` group, LOGIN membership, `NOCREATEROLE` roles, mode `0600`, and
+distinct app/worker DSNs while printing only redacted DSN fingerprints. It backs
+up the prior service and env under
+`/var/lib/wow-backend/exact-worker-rollback/<timestamp>/`, installs the unit,
+and deliberately does not enable, start, or restart it.
+
+### Cloud-only disposable candidate
+
+Provision two new empty, run-id-bound databases and three real LOGIN DSNs for
+the fresh database. The migrator, app, and worker DSNs must be distinct; the
+worker DSN must authenticate as the dedicated member, not as the `NOLOGIN`
+group. Do not reuse a historical database or candidate id. Keep all values in
+the operator environment and archive only the redacted attestation:
+
+```bash
+WOW_PG_TEST_RUN_ID_0032='<new-run-id>' \
+WOW_PG_TEST_DSN_FRESH_0032='<fresh-operator-dsn>' \
+WOW_PG_TEST_DSN_UPGRADE_0032='<upgrade-operator-dsn>' \
+WOW_PG_TEST_DSN_MIGRATOR_0032='<fresh-wow_migrator-login-dsn>' \
+WOW_PG_TEST_DSN_APP_0032='<fresh-wow_app-login-dsn>' \
+WOW_PG_TEST_DSN_WORKER_0032='<fresh-dedicated-worker-login-dsn>' \
+python3 -m unittest \
+  tests.postgres_integration_test.PostgresExactImportJobsCandidateTest
+```
+
+The guard skips before importing `psycopg` or connecting unless every variable
+and `psql` exists, the fresh/upgrade DSNs differ, and the three role DSNs are
+distinct. A skip is literal `candidate_pending`, not green evidence. The fresh
+path applies `0001..0032`; the upgrade path applies `0001..0031` and then only
+`0032`. The candidate verifies exact role identities and ACL isolation,
+cross-owner empty reads, concurrent deterministic enqueue, failed cooldown,
+claim/reclaim fencing, expired/wrong token zero-row CAS, terminal metrics, and
+bounded `1..100` pruning. Direct ops table/sequence access and wrong-role
+functions must fail.
+
+### Activation and rollback boundary
+
+Task 4W does not activate the service. A later separately authorized runtime
+task must first record the committed identity, migration SHA, redacted app and
+worker DSN identities, candidate result, previous unit/env backup, health/read
+model state, and exact rollback directory. Only then may it apply a reviewed
+production migration and explicitly enable the service.
+
+If candidate migration fails, roll back the transaction or discard only the two
+named disposable candidate databases; never partially promote them. If the
+dormant unit preflight/install fails, the deploy trap restores
+`previous.service` and `previous.env` (or removes the new unit when the previous
+service was absent), resets env mode to `0600`, and reloads systemd. If a later
+authorized activation fails, stop the exact worker, preserve logs and database
+state, restore the recorded prior service/env, restore the reviewed PostgreSQL
+backup if the migration crossed its rollback boundary, reload systemd, and
+rerun owner/ACL/health checks before any retry. Do not fall back to the public
+app DSN or grant login/role-management power to the group.
+
 ## SQLite Source Inventory
 
 Use only for an approved one-shot migration or audit:
