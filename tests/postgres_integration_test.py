@@ -1,8 +1,11 @@
 import os
+import hashlib
+import json
 from pathlib import Path
 import re
 import shutil
 import subprocess
+from types import SimpleNamespace
 import unittest
 
 
@@ -18,10 +21,16 @@ MIGRATIONS = (
 ALL_MIGRATIONS = tuple(sorted(
     (ROOT / "server" / "migrations" / "postgres").glob("[0-9][0-9][0-9][0-9]_*.sql")
 ))
+TASK_3A_MIGRATIONS = tuple(
+    migration for migration in ALL_MIGRATIONS
+    if migration.name <= "0030_websim_exact_authority_bundle.sql"
+)
+TASK_3B_MIGRATIONS = ALL_MIGRATIONS
+TASK_3B_BASELINE_MIGRATIONS = ALL_MIGRATIONS[:-1]
 TASK_3A_RUN_ID = os.environ.get("WOW_PG_TEST_RUN_ID_0030", "")
 TASK_3A_FRESH_DSN = os.environ.get("WOW_PG_TEST_DSN_FRESH_0030", "")
 TASK_3A_UPGRADE_DSN = os.environ.get("WOW_PG_TEST_DSN_UPGRADE_0030", "")
-TASK_3A_FORBIDDEN_RUN_IDS = frozenset({
+TASK_3A_HISTORICAL_RUN_IDS = frozenset({
     "t3a2608050955",
     "t3a260805111623",
     "t3a260805113656",
@@ -29,7 +38,18 @@ TASK_3A_FORBIDDEN_RUN_IDS = frozenset({
     "t3a260805125812",
     "t3a260805142130",
     "t3a260805160003",
+    "t3a260805163536",
 })
+TASK_3A_FORBIDDEN_RUN_IDS = TASK_3A_HISTORICAL_RUN_IDS
+TASK_3B_FORBIDDEN_RUN_IDS = TASK_3A_HISTORICAL_RUN_IDS | frozenset({
+    "t3b260806175347",
+    "t3b260806191719",
+    "t3b260806191950",
+    "t3b260806194346",
+})
+TASK_3B_RUN_ID = os.environ.get("WOW_PG_TEST_RUN_ID_0031", "")
+TASK_3B_FRESH_DSN = os.environ.get("WOW_PG_TEST_DSN_FRESH_0031", "")
+TASK_3B_UPGRADE_DSN = os.environ.get("WOW_PG_TEST_DSN_UPGRADE_0031", "")
 
 
 def validate_task3a_candidate_run_id(run_id):
@@ -42,13 +62,36 @@ def validate_task3a_candidate_run_id(run_id):
     return run_id
 
 
+def validate_task3b_candidate_run_id(run_id):
+    if (
+        type(run_id) is not str
+        or re.fullmatch(r"[a-z0-9]{8,32}", run_id) is None
+        or run_id in TASK_3B_FORBIDDEN_RUN_IDS
+    ):
+        raise ValueError("invalid or reused Task 3B candidate run id")
+    return run_id
+
+
+def task3b_candidate_configured(run_id, fresh_dsn, upgrade_dsn, psql_path):
+    """Candidate DDL is opt-in; this harness never provisions databases."""
+    return bool(run_id and fresh_dsn and upgrade_dsn and psql_path)
+
+
 if TASK_3A_RUN_ID:
     validate_task3a_candidate_run_id(TASK_3A_RUN_ID)
+if TASK_3B_RUN_ID:
+    validate_task3b_candidate_run_id(TASK_3B_RUN_ID)
 TASK_3A_CANDIDATE_CONFIGURED = bool(
     TASK_3A_RUN_ID
     and TASK_3A_FRESH_DSN
     and TASK_3A_UPGRADE_DSN
     and shutil.which("psql")
+)
+TASK_3B_CANDIDATE_CONFIGURED = task3b_candidate_configured(
+    TASK_3B_RUN_ID,
+    TASK_3B_FRESH_DSN,
+    TASK_3B_UPGRADE_DSN,
+    shutil.which("psql"),
 )
 TASK_3A_VERIFIED_CHECKS = (
     "exact_disposable_database_identity_and_empty_preflight",
@@ -133,6 +176,7 @@ class Task3ACandidateAttestationTest(unittest.TestCase):
                 "t3a260805125812",
                 "t3a260805142130",
                 "t3a260805160003",
+                "t3a260805163536",
             }),
         )
 
@@ -147,6 +191,7 @@ class Task3ACandidateAttestationTest(unittest.TestCase):
             "t3a260805125812",
             "t3a260805142130",
             "t3a260805160003",
+            "t3a260805163536",
             "BAD",
             "short",
             "a" * 33,
@@ -351,6 +396,44 @@ class Task3ACandidateAttestationTest(unittest.TestCase):
             "aggregate_and_bundle_binding_triggers",
             TASK_3A_VERIFIED_CHECKS,
         )
+
+
+class Task3BCandidateHarnessTest(unittest.TestCase):
+    def test_run_id_and_explicit_candidate_gate_fail_closed(self):
+        for valid in ("run12345", "t3b2608062000", "a" * 32):
+            with self.subTest(valid=valid):
+                self.assertEqual(validate_task3b_candidate_run_id(valid), valid)
+        for invalid in (
+            "t3a2608050955",
+            "t3a260805163536",
+            "t3b260806175347",
+            "t3b260806191719",
+            "t3b260806191950",
+            "t3b260806194346",
+            "BAD",
+            "short",
+            "a" * 33,
+        ):
+            with self.subTest(invalid=invalid):
+                with self.assertRaises(ValueError):
+                    validate_task3b_candidate_run_id(invalid)
+
+        configured = task3b_candidate_configured
+        self.assertFalse(configured("run12345", "fresh", "upgrade", None))
+        self.assertFalse(configured("run12345", "fresh", "", "/usr/bin/psql"))
+        self.assertFalse(configured("", "fresh", "upgrade", "/usr/bin/psql"))
+        self.assertTrue(configured("run12345", "fresh", "upgrade", "/usr/bin/psql"))
+
+    def test_harness_pins_fresh_and_upgrade_migration_boundaries(self):
+        self.assertEqual(
+            TASK_3B_MIGRATIONS[-1].name,
+            "0031_websim_exact_snapshot_v2.sql",
+        )
+        self.assertEqual(
+            TASK_3B_BASELINE_MIGRATIONS[-1].name,
+            "0030_websim_exact_authority_bundle.sql",
+        )
+        self.assertEqual(TASK_3B_MIGRATIONS[:-1], TASK_3B_BASELINE_MIGRATIONS)
 
 
 @unittest.skipUnless(os.environ.get("WOW_PG_TEST_DSN"), "WOW_PG_TEST_DSN is not configured")
@@ -999,14 +1082,17 @@ class PostgresExactAuthorityCandidateTest(unittest.TestCase):
         self.assertRegex(commit, r"^[0-9a-f]{40}$")
         self.assertRegex(tree, r"^[0-9a-f]{40}$")
         self.assertRegex(migration_sha, r"^[0-9a-f]{64}$")
-        self.assertEqual(ALL_MIGRATIONS[-1].name, "0030_websim_exact_authority_bundle.sql")
+        self.assertEqual(
+            TASK_3A_MIGRATIONS[-1].name,
+            "0030_websim_exact_authority_bundle.sql",
+        )
 
-        self._apply(TASK_3A_FRESH_DSN, ALL_MIGRATIONS)
+        self._apply(TASK_3A_FRESH_DSN, TASK_3A_MIGRATIONS)
         self._assert_build_template_config_hash_constraint(TASK_3A_FRESH_DSN)
         self._assert_build_template_0003_semantics(TASK_3A_FRESH_DSN)
         self._assert_grants_and_bundle_smoke(TASK_3A_FRESH_DSN)
 
-        self._apply(TASK_3A_UPGRADE_DSN, ALL_MIGRATIONS[:-1])
+        self._apply(TASK_3A_UPGRADE_DSN, TASK_3A_MIGRATIONS[:-1])
         with self._connect(TASK_3A_UPGRADE_DSN) as conn:
             with conn.cursor() as cur:
                 cur.execute(
@@ -1027,7 +1113,7 @@ class PostgresExactAuthorityCandidateTest(unittest.TestCase):
                 )
                 before_rows = cur.fetchall()
                 before_state = self._snapshot_existing_v1_state(cur)
-        self._apply(TASK_3A_UPGRADE_DSN, ALL_MIGRATIONS[-1:])
+        self._apply(TASK_3A_UPGRADE_DSN, TASK_3A_MIGRATIONS[-1:])
         self._assert_build_template_config_hash_constraint(TASK_3A_UPGRADE_DSN)
         self._assert_build_template_0003_semantics(TASK_3A_UPGRADE_DSN)
         with self._connect(TASK_3A_UPGRADE_DSN) as conn:
@@ -1059,6 +1145,1827 @@ class PostgresExactAuthorityCandidateTest(unittest.TestCase):
             git_identity=git_identity,
         )
         print(attestation, flush=True)
+
+
+@unittest.skipUnless(
+    TASK_3B_CANDIDATE_CONFIGURED,
+    "Task 3B requires psql plus two explicit run-id-bound disposable 0031 DSNs",
+)
+class PostgresExactSnapshotV2CandidateTest(unittest.TestCase):
+    """Explicit-only fresh/upgrade harness; it never provisions databases."""
+
+    PROJECT_SCHEMAS = (
+        "identity", "app", "content", "cache", "knowledge", "analytics", "ops",
+    )
+
+    @staticmethod
+    def _connect(dsn):
+        validate_task3b_candidate_run_id(TASK_3B_RUN_ID)
+        import psycopg
+
+        return psycopg.connect(dsn)
+
+    def _database_identity(self, dsn, flavor):
+        expected = (
+            f"wow_exact_first_{flavor}_test_{TASK_3B_RUN_ID}",
+            f"wow_exact_first_disposable:{TASK_3B_RUN_ID}:{flavor}",
+        )
+        with self._connect(dsn) as conn:
+            self.assertEqual(conn.info.dbname, expected[0])
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT pg_catalog.shobj_description(oid, 'pg_database') "
+                    "FROM pg_catalog.pg_database WHERE datname = current_database()"
+                )
+                self.assertEqual(cur.fetchone()[0], expected[1])
+        return expected
+
+    def _assert_empty_disposable(self, dsn, flavor):
+        identity = self._database_identity(dsn, flavor)
+        with self._connect(dsn) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT nspname FROM pg_catalog.pg_namespace "
+                    "WHERE nspname = ANY(%s)",
+                    (list(self.PROJECT_SCHEMAS),),
+                )
+                self.assertEqual(cur.fetchall(), [])
+        return identity
+
+    def _apply(self, dsn, migrations):
+        with self._connect(dsn) as conn:
+            with conn.cursor() as cur:
+                for migration in migrations:
+                    cur.execute(migration.read_text(encoding="utf-8"))
+
+    @staticmethod
+    def _git_identity():
+        status = subprocess.run(
+            ["git", "status", "--porcelain"],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout
+        if status:
+            raise AssertionError("Task 3B candidate requires a clean committed tree")
+        commit = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+        migration = ROOT / "server/migrations/postgres/0031_websim_exact_snapshot_v2.sql"
+        return commit, hashlib.sha256(migration.read_bytes()).hexdigest()
+
+    def _seed_v1_catalog(self, dsn, catalog_revision):
+        release_id = f"task3b-v1-release-{TASK_3B_RUN_ID}"
+        digest = "a" * 64
+        with self._connect(dsn) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO cache.websim_release_registry "
+                    "(release_id, release_kind, season_revision, schema_revision, "
+                    "content_hash, release_status) VALUES "
+                    "(%s, 'gear', 'task3b', 'task3b-v1', %s, 'validated')",
+                    (release_id, "sha256:" + digest),
+                )
+                cur.execute(
+                    "INSERT INTO cache.websim_gear_catalog_revisions "
+                    "(catalog_revision, schema_revision, builder_revision, "
+                    "season_revision, source_gear_release_id, source_content_hash, "
+                    "dependency_vector_json, source_summary_json, content_summary_json, "
+                    "catalog_json, row_hash) VALUES "
+                    "(%s, 'gear-catalog-v1', 'task3b', 'task3b', %s, %s, "
+                    "'{}'::jsonb, '{}'::jsonb, '{}'::jsonb, '{}'::jsonb, %s)",
+                    (
+                        catalog_revision,
+                        release_id,
+                        "sha256:" + digest,
+                        "sha256:" + ("b" * 64),
+                    ),
+                )
+
+    def _seal_v1_pair(self, dsn):
+        from server.simulation_snapshot_store import SimulationSnapshotStore
+        from tests.simulation_snapshot_store_test import loadout as v1_loadout
+        from tests.simulation_snapshot_store_test import snapshot as v1_snapshot
+
+        loadout = v1_loadout()
+        snapshot = v1_snapshot()
+        self._seed_v1_catalog(dsn, loadout["catalogRevision"])
+        store = SimulationSnapshotStore(lambda: self._connect(dsn))
+        sealed_loadout = store.seal_loadout(loadout)
+        sealed_snapshot = store.seal_snapshot(snapshot)
+        with self._connect(dsn) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT resolved_loadout_key, schema_revision, catalog_revision, "
+                    "gear_rule_revision, exact_registry_revision, class_key, spec_key, "
+                    "loadout_json::text, row_hash, sealed_at "
+                    "FROM cache.websim_gear_resolved_loadouts"
+                )
+                loadout_row = cur.fetchone()
+                cur.execute(
+                    "SELECT simulation_snapshot_key, schema_revision, resolved_loadout_key, "
+                    "talent_profile_key, compiler_revision, simc_runtime_revision, "
+                    "canonical_input_hash, catalog_revision, gear_rule_revision, "
+                    "snapshot_json::text, row_hash, sealed_at "
+                    "FROM cache.websim_simulation_snapshots"
+                )
+                snapshot_row = cur.fetchone()
+        return sealed_loadout, sealed_snapshot, loadout_row, snapshot_row
+
+    @staticmethod
+    def _relation_authority_fixture(*, verified_at="2026-08-06T00:00:00Z"):
+        from server.gear_loadout_effect_authority import (
+            resolve_loadout_effect_authority,
+        )
+        from tests.gear_loadout_effect_authority_test import (
+            descriptor,
+            records_for,
+            snapshot_with_descriptors,
+        )
+
+        resolver = snapshot_with_descriptors([
+            descriptor("set-a", 2, "set-a-2pc"),
+            descriptor("set-b", 1, "set-b-1pc"),
+        ])
+        outcome = resolve_loadout_effect_authority(
+            resolver,
+            records=records_for(resolver, verified_at=verified_at),
+        )
+        if outcome.status != "verified" or outcome.document is None:
+            raise AssertionError(outcome.issues)
+        alternate = records_for(resolver, verified_at="2026-08-06T00:00:59Z")[0]
+        return (
+            outcome.document,
+            tuple(records_for(resolver, verified_at=verified_at)),
+            alternate,
+        )
+
+    def _seed_effect_documents(self, dsn, documents):
+        with self._connect(dsn) as conn:
+            with conn.cursor() as cur:
+                for document in documents:
+                    raw = document.canonical_bytes
+                    cur.execute(
+                        "INSERT INTO cache.websim_canonical_documents "
+                        "(content_key, document_kind, schema_revision, canonical_bytes, "
+                        "canonical_json, canonical_sha256) VALUES "
+                        "(%s, %s, %s, %s, %s::jsonb, %s)",
+                        (
+                            document.content_key,
+                            document.document_kind,
+                            document.schema_revision,
+                            raw,
+                            raw.decode("utf-8"),
+                            hashlib.sha256(raw).hexdigest(),
+                        ),
+                    )
+
+    @staticmethod
+    def _insert_authority_parent(cur, authority):
+        raw = authority.canonical_bytes
+        cur.execute(
+            "INSERT INTO cache.websim_loadout_effect_authorities "
+            "(loadout_effect_authority_key, schema_revision, canonical_bytes, "
+            "canonical_json, canonical_sha256) VALUES "
+            "(%s, %s, %s, %s::jsonb, %s)",
+            (
+                authority.content_key,
+                authority.schema_revision,
+                raw,
+                raw.decode("utf-8"),
+                hashlib.sha256(raw).hexdigest(),
+            ),
+        )
+
+    @staticmethod
+    def _insert_authority_relation(cur, authority_key, ordinal, record_key):
+        cur.execute(
+            "INSERT INTO cache.websim_loadout_effect_authority_records "
+            "(loadout_effect_authority_key, ordinal, effect_record_key) "
+            "VALUES (%s, %s, %s)",
+            (authority_key, ordinal, record_key),
+        )
+
+    @staticmethod
+    def _loadout_occurrences(authority):
+        payload = json.loads(authority.canonical_bytes)
+        return [
+            {
+                "scope": "loadout",
+                "loadoutEffectAuthorityKey": authority.content_key,
+                "recordOrdinal": ordinal,
+                "subjectKind": subject["subjectKind"],
+                "subjectKey": subject["subjectKey"],
+                "subjectVariantSignature": subject["subjectVariantSignature"],
+                "supportRecordKey": record["supportRecordKey"],
+            }
+            for ordinal, (subject, record) in enumerate(zip(
+                payload["subjects"], payload["supportRecords"], strict=True,
+            ))
+        ]
+
+    @staticmethod
+    def _v2_loadout_row(key, row_hash, evidence, authority_key=None):
+        row = {
+            "schemaRevision": "resolved-loadout-v2",
+            "status": "ready",
+            "resolvedLoadoutKey": key,
+            "gearRuleRevision": "gear-rule-matrix-v1",
+            "eligibilityContext": {"classKey": "mage", "specKey": "arcane"},
+            "rowHash": row_hash,
+            "exactAuthorityBySlot": [],
+            "effectEvidenceByOccurrence": evidence,
+        }
+        if authority_key is not None:
+            row["loadoutEffectAuthorityKey"] = authority_key
+        return row
+
+    @staticmethod
+    def _valid_resolver_replay_context(authority_key=None):
+        signature = "sha256:" + ("a" * 64)
+        subjects = []
+        effects = []
+        counts = {}
+        if authority_key is not None:
+            subjects = [{
+                "subjectKind": "set_bonus",
+                "itemSetId": "set:direct",
+                "pieces": 1,
+                "subjectKey": "set:direct:effect",
+            }]
+            effects = [{
+                "effectId": "set:direct:effect",
+                "itemSetId": "set:direct",
+                "pieces": 1,
+            }]
+            counts = {"set:direct": 1}
+        set_state = {
+            "itemSetCounts": counts,
+            "activeDynamicEffects": effects,
+        }
+        replay = {
+            "schemaRevision": "exact-resolver-replay-context-v1",
+            "status": "verified",
+            "dependencyVector": {
+                "gearRuleRevision": "gear-rule-matrix-v1",
+                "resolverContractRevision": "resolver-v2",
+                "simcRuntimeRevision": "simc-runtime-v2",
+            },
+            "resolvedGearSignature": signature,
+            "eligibilityContext": {
+                "classKey": "mage",
+                "specKey": "arcane",
+                "level": 90,
+            },
+            "profileReadiness": {
+                "status": "verified",
+                "simcReady": True,
+                "requiredSlots": ["head"],
+                "readySlots": ["head"],
+                "simcRuntimeRevision": "simc-runtime-v2",
+            },
+            "resolvedSlots": {
+                "head": {
+                    "slot": "head",
+                    "itemId": "item-direct",
+                    "legality": {"status": "verified"},
+                },
+            },
+            "setState": set_state,
+            "loadoutEffectSubjects": subjects,
+            "v2EffectBoundary": {
+                "schemaRevision": "gear-resolver-v2-effect-boundary-v1",
+                "status": "verified",
+                "resolvedGearSignature": signature,
+                "setState": set_state,
+                "subjects": subjects,
+                "gearRuleRevision": "gear-rule-matrix-v1",
+                "resolverRevision": "resolver-v2",
+                "simcRuntimeRevision": "simc-runtime-v2",
+            },
+        }
+        if authority_key is not None:
+            replay["v2EffectBoundary"]["loadoutEffectAuthorityKey"] = (
+                authority_key
+            )
+        return replay
+
+    def _insert_v2_loadout(
+        self,
+        cur,
+        *,
+        key,
+        row_hash,
+        evidence,
+        authority_key=None,
+        replay_context=None,
+    ):
+        row = self._v2_loadout_row(key, row_hash, evidence, authority_key)
+        replay = (
+            self._valid_resolver_replay_context(authority_key)
+            if replay_context is None
+            else replay_context
+        )
+        cur.execute(
+            "INSERT INTO cache.websim_gear_resolved_loadouts "
+            "(resolved_loadout_key, schema_revision, catalog_revision, "
+            "gear_rule_revision, exact_registry_revision, class_key, spec_key, "
+            "loadout_json, row_hash, exact_authority_by_slot_json, "
+            "effect_evidence_by_occurrence_json, loadout_effect_authority_key, "
+            "resolver_replay_context_json) VALUES "
+            "(%s, 'resolved-loadout-v2', NULL, 'gear-rule-matrix-v1', NULL, "
+            "'mage', 'arcane', %s::jsonb, %s, '[]'::jsonb, %s::jsonb, %s, "
+            "%s::jsonb)",
+            (
+                key,
+                json.dumps(row),
+                row_hash,
+                json.dumps(evidence),
+                authority_key,
+                json.dumps(replay),
+            ),
+        )
+
+    @staticmethod
+    def _insert_v2_loadout_representation(cur, row, replay):
+        eligibility = row["eligibilityContext"]
+        cur.execute(
+            "INSERT INTO cache.websim_gear_resolved_loadouts "
+            "(resolved_loadout_key, schema_revision, catalog_revision, "
+            "gear_rule_revision, exact_registry_revision, class_key, spec_key, "
+            "loadout_json, row_hash, exact_authority_by_slot_json, "
+            "effect_evidence_by_occurrence_json, loadout_effect_authority_key, "
+            "resolver_replay_context_json) VALUES "
+            "(%s, 'resolved-loadout-v2', %s, %s, NULL, %s, %s, %s::jsonb, %s, "
+            "%s::jsonb, %s::jsonb, %s, %s::jsonb)",
+            (
+                row["resolvedLoadoutKey"],
+                row.get("originCatalogRevision"),
+                row["gearRuleRevision"],
+                eligibility["classKey"],
+                eligibility["specKey"],
+                json.dumps(row),
+                row["rowHash"],
+                json.dumps(row["exactAuthorityBySlot"]),
+                json.dumps(row["effectEvidenceByOccurrence"]),
+                row.get("loadoutEffectAuthorityKey"),
+                json.dumps(replay),
+            ),
+        )
+
+    @staticmethod
+    def _insert_v2_snapshot_representation(cur, row):
+        cur.execute(
+            "INSERT INTO cache.websim_simulation_snapshots "
+            "(simulation_snapshot_key, schema_revision, resolved_loadout_key, "
+            "talent_profile_key, compiler_revision, simc_runtime_revision, "
+            "canonical_input_hash, catalog_revision, gear_rule_revision, "
+            "snapshot_json, row_hash, exact_authority_by_slot_json, "
+            "effect_evidence_by_occurrence_json, loadout_effect_authority_key) "
+            "VALUES (%s, 'simulation-snapshot-v2', %s, %s, %s, %s, %s, %s, "
+            "NULL, %s::jsonb, %s, %s::jsonb, %s::jsonb, %s)",
+            (
+                row["simulationSnapshotKey"],
+                row["resolvedLoadoutKey"],
+                row["talentProfileKey"],
+                row["compilerRevision"],
+                row["simcRuntimeRevision"],
+                row["canonicalInputHash"],
+                row.get("originCatalogRevision"),
+                json.dumps(row),
+                row["rowHash"],
+                json.dumps(row["exactAuthorityBySlot"]),
+                json.dumps(row["effectEvidenceByOccurrence"]),
+                row.get("loadoutEffectAuthorityKey"),
+            ),
+        )
+
+    def _assert_resolver_replay_context_boundary(self, dsn):
+        import copy
+        import psycopg
+
+        valid = self._valid_resolver_replay_context()
+
+        def identity(label):
+            digest = hashlib.sha256(label.encode("utf-8")).hexdigest()
+            return (
+                "resolved-loadout-v2:sha256:" + digest,
+                "sha256:" + digest,
+            )
+
+        with self._connect(dsn) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT cache.verify_websim_resolver_replay_context(%s::jsonb)",
+                    (json.dumps(valid),),
+                )
+                self.assertIsNotNone(cur.fetchone())
+
+        item_set_id_256_bytes = "a" * 256
+        self.assertEqual(len(item_set_id_256_bytes.encode("utf-8")), 256)
+        max_item_set_id = copy.deepcopy(valid)
+        max_item_set_id["setState"]["itemSetCounts"] = {
+            item_set_id_256_bytes: 1,
+        }
+        max_item_set_id["v2EffectBoundary"]["setState"] = copy.deepcopy(
+            max_item_set_id["setState"]
+        )
+        with self._connect(dsn) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT cache.verify_websim_resolver_replay_context(%s::jsonb)",
+                    (json.dumps(max_item_set_id),),
+                )
+                self.assertIsNotNone(cur.fetchone())
+
+        over_item_set_id = copy.deepcopy(max_item_set_id)
+        over_item_set_id["setState"]["itemSetCounts"] = {
+            item_set_id_256_bytes + "a": 1,
+        }
+        over_item_set_id["v2EffectBoundary"]["setState"] = copy.deepcopy(
+            over_item_set_id["setState"]
+        )
+        over_key, over_hash = identity("task3b-replay-item-set-id-257-bytes")
+        with self.assertRaises(psycopg.Error) as raised:
+            with self._connect(dsn) as conn:
+                with conn.cursor() as cur:
+                    self._insert_v2_loadout(
+                        cur,
+                        key=over_key,
+                        row_hash=over_hash,
+                        evidence=[],
+                        replay_context=over_item_set_id,
+                    )
+        self.assertEqual(raised.exception.sqlstate, "P0001")
+        self.assertEqual(
+            raised.exception.diag.message_primary,
+            "v2 resolver replay context is invalid",
+        )
+
+        authority_key = "loadout-effect-authority:sha256:" + ("e" * 64)
+
+        def replay_with_identity(field, value):
+            replay = self._valid_resolver_replay_context(authority_key)
+            if field.startswith("dependencyVector."):
+                dependency_field = field.split(".", 1)[1]
+                replay["dependencyVector"][dependency_field] = value
+                boundary_field = {
+                    "gearRuleRevision": "gearRuleRevision",
+                    "resolverContractRevision": "resolverRevision",
+                    "simcRuntimeRevision": "simcRuntimeRevision",
+                }[dependency_field]
+                replay["v2EffectBoundary"][boundary_field] = value
+                if dependency_field == "simcRuntimeRevision":
+                    replay["profileReadiness"]["simcRuntimeRevision"] = value
+            elif field == "resolvedGearSignature":
+                replay[field] = value
+                replay["v2EffectBoundary"][field] = value
+            elif field.startswith("eligibilityContext."):
+                replay["eligibilityContext"][field.split(".", 1)[1]] = value
+            elif field == "profileReadiness.slot":
+                replay["profileReadiness"]["requiredSlots"] = [value]
+                replay["profileReadiness"]["readySlots"] = [value]
+                slot = replay["resolvedSlots"].pop("head")
+                slot["slot"] = value
+                replay["resolvedSlots"][value] = slot
+            elif field == "resolvedSlots.itemId":
+                replay["resolvedSlots"]["head"]["itemId"] = value
+            elif field == "setState.itemSetCounts.key":
+                replay["setState"]["itemSetCounts"] = {value: 1}
+                replay["v2EffectBoundary"]["setState"] = copy.deepcopy(
+                    replay["setState"]
+                )
+            elif field.startswith("setState.activeDynamicEffects."):
+                effect_field = field.rsplit(".", 1)[1]
+                replay["setState"]["activeDynamicEffects"][0][
+                    effect_field
+                ] = value
+                replay["v2EffectBoundary"]["setState"] = copy.deepcopy(
+                    replay["setState"]
+                )
+            elif field.startswith("loadoutEffectSubjects."):
+                subject_field = field.split(".", 1)[1]
+                replay["loadoutEffectSubjects"][0][subject_field] = value
+                replay["v2EffectBoundary"]["subjects"] = copy.deepcopy(
+                    replay["loadoutEffectSubjects"]
+                )
+            else:  # pragma: no cover - test table is closed below
+                raise AssertionError(f"unknown replay identity field: {field}")
+            return replay
+
+        identity_fields = (
+            "dependencyVector.gearRuleRevision",
+            "dependencyVector.resolverContractRevision",
+            "dependencyVector.simcRuntimeRevision",
+            "resolvedGearSignature",
+            "eligibilityContext.classKey",
+            "eligibilityContext.specKey",
+            "profileReadiness.slot",
+            "resolvedSlots.itemId",
+            "setState.itemSetCounts.key",
+            "setState.activeDynamicEffects.effectId",
+            "setState.activeDynamicEffects.itemSetId",
+            "loadoutEffectSubjects.subjectKind",
+            "loadoutEffectSubjects.itemSetId",
+            "loadoutEffectSubjects.subjectKey",
+        )
+        invalid_identity_values = (
+            ("cjk", "名字"),
+            ("non-canonical-ascii", "bad token"),
+            ("257-bytes", "a" * 257),
+        )
+        with self._connect(dsn) as conn:
+            for field in identity_fields:
+                for invalid_kind, invalid_value in invalid_identity_values:
+                    with self.subTest(
+                        replay_identity_field=field,
+                        invalid_identity_kind=invalid_kind,
+                    ):
+                        replay = replay_with_identity(field, invalid_value)
+                        with self.assertRaises(psycopg.Error) as raised:
+                            with conn.transaction():
+                                conn.execute(
+                                    "SELECT cache."
+                                    "verify_websim_resolver_replay_context(%s::jsonb)",
+                                    (json.dumps(replay),),
+                                )
+                        self.assertEqual(raised.exception.sqlstate, "P0001")
+                        self.assertEqual(
+                            raised.exception.diag.message_primary,
+                            "v2 resolver replay context is invalid",
+                        )
+
+        forbidden = (
+            "Catalog",
+            "catalogRevision",
+            "rawProfile",
+            "rawString",
+            "player",
+            "playerName",
+            "characterName",
+            "realm",
+            "server",
+            "source",
+            "sourceRefIds",
+            "sourcePayload",
+        )
+        poisoned = []
+        for placement in (
+            "root",
+            "profileReadiness",
+            "resolvedSlots.head",
+            "setState.itemSetCounts",
+        ):
+            for semantic_key in forbidden:
+                replay = copy.deepcopy(valid)
+                if placement == "root":
+                    replay[semantic_key] = {"poison": True}
+                elif placement == "profileReadiness":
+                    replay["profileReadiness"][semantic_key] = {"poison": True}
+                elif placement == "resolvedSlots.head":
+                    replay["resolvedSlots"]["head"][semantic_key] = {
+                        "poison": True,
+                    }
+                else:
+                    replay["setState"]["itemSetCounts"][semantic_key] = 1
+                    replay["v2EffectBoundary"]["setState"] = copy.deepcopy(
+                        replay["setState"]
+                    )
+                poisoned.append((placement, semantic_key, replay))
+
+        structural_drift = []
+        missing = copy.deepcopy(valid)
+        missing["dependencyVector"].pop("resolverContractRevision")
+        structural_drift.append(("missing", missing))
+        wrong_type = copy.deepcopy(valid)
+        wrong_type["eligibilityContext"]["level"] = "90"
+        structural_drift.append(("wrong-type", wrong_type))
+        extra_set_state = copy.deepcopy(valid)
+        extra_set_state["setState"]["unexpected"] = []
+        extra_set_state["v2EffectBoundary"]["setState"] = copy.deepcopy(
+            extra_set_state["setState"]
+        )
+        structural_drift.append(("extra-set-state", extra_set_state))
+        structural_drift.append((
+            "unexpected-active-boundary",
+            self._valid_resolver_replay_context(
+                "loadout-effect-authority:sha256:" + ("f" * 64)
+            ),
+        ))
+
+        for placement, semantic_key, replay in poisoned:
+            with self.subTest(
+                replay_placement=placement,
+                semantic_key=semantic_key,
+            ):
+                key, row_hash = identity(
+                    f"task3b-replay-{placement}-{semantic_key}"
+                )
+                with self.assertRaises(psycopg.Error) as raised:
+                    with self._connect(dsn) as conn:
+                        with conn.cursor() as cur:
+                            self._insert_v2_loadout(
+                                cur,
+                                key=key,
+                                row_hash=row_hash,
+                                evidence=[],
+                                replay_context=replay,
+                            )
+                self.assertEqual(raised.exception.sqlstate, "P0001")
+                self.assertEqual(
+                    raised.exception.diag.message_primary,
+                    "v2 resolver replay context is invalid",
+                )
+
+        for label, replay in structural_drift:
+            with self.subTest(replay_structure=label):
+                key, row_hash = identity(f"task3b-replay-{label}")
+                with self.assertRaises(psycopg.Error) as raised:
+                    with self._connect(dsn) as conn:
+                        with conn.cursor() as cur:
+                            self._insert_v2_loadout(
+                                cur,
+                                key=key,
+                                row_hash=row_hash,
+                                evidence=[],
+                                replay_context=replay,
+                            )
+                self.assertEqual(raised.exception.sqlstate, "P0001")
+                self.assertEqual(
+                    raised.exception.diag.message_primary,
+                    "v2 resolver replay context is invalid",
+                )
+
+    def _assert_pg_rejected(self, cur, sql, params, *, sqlstate, message):
+        import psycopg
+
+        with self.assertRaises(psycopg.Error) as raised:
+            cur.execute(sql, params)
+        self.assertEqual(raised.exception.sqlstate, sqlstate)
+        self.assertEqual(raised.exception.diag.message_primary, message)
+
+    @staticmethod
+    def _mutated_authority(authority, mutate_subject):
+        payload = json.loads(authority.canonical_bytes)
+        mutate_subject(payload["subjects"][0])
+        raw = json.dumps(
+            payload,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+        return SimpleNamespace(
+            content_key=(
+                "loadout-effect-authority:sha256:"
+                + hashlib.sha256(raw).hexdigest()
+            ),
+            schema_revision=authority.schema_revision,
+            canonical_bytes=raw,
+        )
+
+    def _seed_authority_relations(self, dsn, authority):
+        payload = json.loads(authority.canonical_bytes)
+        with self._connect(dsn) as conn:
+            with conn.cursor() as cur:
+                for ordinal, record in enumerate(payload["supportRecords"]):
+                    self._insert_authority_relation(
+                        cur,
+                        authority.content_key,
+                        ordinal,
+                        record["supportRecordKey"],
+                    )
+                self._insert_authority_parent(cur, authority)
+
+    def _assert_relation_closure(self, dsn):
+        import psycopg
+
+        authority, records, alternate = self._relation_authority_fixture()
+        self._seed_effect_documents(dsn, (*records, alternate))
+        record_keys = [record.content_key for record in records]
+
+        def rejected(rows):
+            with self.assertRaises(psycopg.Error):
+                with self._connect(dsn) as conn:
+                    with conn.cursor() as cur:
+                        self._insert_authority_parent(cur, authority)
+                        for ordinal, key in rows:
+                            self._insert_authority_relation(
+                                cur, authority.content_key, ordinal, key,
+                            )
+
+        cases = {
+            "missing": list(enumerate(record_keys[:-1])),
+            "extra": [*enumerate(record_keys), (len(record_keys), record_keys[-1])],
+            "gap": [(0, record_keys[0]), (2, record_keys[1])],
+            "reorder": [(0, record_keys[1]), (1, record_keys[0])],
+            "substitution": [(0, alternate.content_key), (1, record_keys[1])],
+            "duplicate": [(0, record_keys[0]), (0, record_keys[1])],
+        }
+        for label, rows in cases.items():
+            with self.subTest(label=label):
+                rejected(rows)
+
+        parent_first, parent_first_records, _ = self._relation_authority_fixture(
+            verified_at="2026-08-06T00:00:02Z",
+        )
+        self._seed_effect_documents(dsn, parent_first_records)
+        with self._connect(dsn) as conn:
+            with conn.cursor() as cur:
+                self._insert_authority_parent(cur, parent_first)
+                for ordinal, record in enumerate(parent_first_records):
+                    self._insert_authority_relation(
+                        cur,
+                        parent_first.content_key,
+                        ordinal,
+                        record.content_key,
+                    )
+
+        with self._connect(dsn) as conn:
+            with conn.cursor() as cur:
+                for ordinal, key in enumerate(record_keys):
+                    self._insert_authority_relation(
+                        cur, authority.content_key, ordinal, key,
+                    )
+                self._insert_authority_parent(cur, authority)
+        return authority
+
+    def _assert_null_safe_support_record_key_closure(self, dsn):
+        import psycopg
+
+        authority, records, _ = self._relation_authority_fixture(
+            verified_at="2026-08-06T00:00:03Z",
+        )
+        self._seed_effect_documents(dsn, records)
+        for label, replacement in (("missing", ...), ("null", None)):
+            with self.subTest(support_record_key=label):
+                payload = json.loads(authority.canonical_bytes)
+                if replacement is ...:
+                    payload["supportRecords"][0].pop("supportRecordKey")
+                else:
+                    payload["supportRecords"][0]["supportRecordKey"] = replacement
+                raw = json.dumps(
+                    payload,
+                    ensure_ascii=False,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ).encode("utf-8")
+                malformed = SimpleNamespace(
+                    content_key=(
+                        "loadout-effect-authority:sha256:"
+                        + hashlib.sha256(raw).hexdigest()
+                    ),
+                    schema_revision=authority.schema_revision,
+                    canonical_bytes=raw,
+                )
+                with self.assertRaises(psycopg.Error) as raised:
+                    with self._connect(dsn) as conn:
+                        with conn.cursor() as cur:
+                            self._insert_authority_parent(cur, malformed)
+                            for ordinal, record in enumerate(records):
+                                self._insert_authority_relation(
+                                    cur,
+                                    malformed.content_key,
+                                    ordinal,
+                                    record.content_key,
+                                )
+                self.assertEqual(raised.exception.sqlstate, "P0001")
+                self.assertEqual(
+                    raised.exception.diag.message_primary,
+                    "loadout effect authority relations must exactly match canonical supportRecords",
+                )
+
+    def _assert_subject_substitution_rejected(self, dsn, authority):
+        import psycopg
+
+        payload = json.loads(authority.canonical_bytes)
+        evidence = [
+            {
+                "scope": "loadout",
+                "loadoutEffectAuthorityKey": authority.content_key,
+                "recordOrdinal": ordinal,
+                "subjectKind": subject["subjectKind"],
+                "subjectKey": subject["subjectKey"],
+                "subjectVariantSignature": subject["subjectVariantSignature"],
+                "supportRecordKey": record["supportRecordKey"],
+            }
+            for ordinal, (subject, record) in enumerate(zip(
+                payload["subjects"], payload["supportRecords"], strict=True,
+            ))
+        ]
+        evidence[0]["subjectKind"] = "substituted"
+        key = "resolved-loadout-v2:sha256:" + ("9" * 64)
+        row_hash = "sha256:" + ("8" * 64)
+        row = {
+            "schemaRevision": "resolved-loadout-v2",
+            "status": "ready",
+            "resolvedLoadoutKey": key,
+            "gearRuleRevision": "gear-rule-matrix-v1",
+            "eligibilityContext": {"classKey": "mage", "specKey": "arcane"},
+            "rowHash": row_hash,
+            "exactAuthorityBySlot": [],
+            "effectEvidenceByOccurrence": evidence,
+            "loadoutEffectAuthorityKey": authority.content_key,
+        }
+        with self.assertRaises(psycopg.Error):
+            with self._connect(dsn) as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "INSERT INTO cache.websim_gear_resolved_loadouts "
+                        "(resolved_loadout_key, schema_revision, catalog_revision, "
+                        "gear_rule_revision, exact_registry_revision, class_key, spec_key, "
+                        "loadout_json, row_hash, exact_authority_by_slot_json, "
+                        "effect_evidence_by_occurrence_json, loadout_effect_authority_key, "
+                        "resolver_replay_context_json) VALUES "
+                        "(%s, 'resolved-loadout-v2', NULL, 'gear-rule-matrix-v1', NULL, "
+                        "'mage', 'arcane', %s::jsonb, %s, '[]'::jsonb, %s::jsonb, %s, "
+                        "%s::jsonb)",
+                        (
+                            key,
+                            json.dumps(row),
+                            row_hash,
+                            json.dumps(evidence),
+                            authority.content_key,
+                            json.dumps(self._valid_resolver_replay_context(
+                                authority.content_key
+                            )),
+                        ),
+                    )
+
+    def _assert_v2_loadout_rejected(
+        self,
+        dsn,
+        *,
+        key,
+        row_hash,
+        evidence,
+        authority_key,
+        message,
+    ):
+        import psycopg
+
+        with self.assertRaises(psycopg.Error) as raised:
+            with self._connect(dsn) as conn:
+                with conn.cursor() as cur:
+                    self._insert_v2_loadout(
+                        cur,
+                        key=key,
+                        row_hash=row_hash,
+                        evidence=evidence,
+                        authority_key=authority_key,
+                    )
+        self.assertEqual(raised.exception.sqlstate, "P0001")
+        self.assertEqual(raised.exception.diag.message_primary, message)
+
+    def _assert_slot_occurrence_boundary(self, dsn):
+        valid = {
+            "scope": "slot",
+            "slot": "head",
+            "exactAuthorityEnvelopeKey": "exact-authority:sha256:" + "a" * 64,
+            "recordOrdinal": 0,
+            "subjectKind": "item",
+            "subjectKey": "item:123",
+            "subjectVariantSignature": "variant:head",
+            "supportRecordKey": "simc-item-effect-record:sha256:" + "b" * 64,
+        }
+        malformed = (
+            ("missing-key", {key: value for key, value in valid.items() if key != "supportRecordKey"}),
+            ("null-value", valid | {"subjectKey": None}),
+            ("wrong-type-subject", valid | {"subjectKind": True}),
+            ("extra-key", valid | {"unexpected": "value"}),
+        )
+        for ordinal, (label, occurrence) in enumerate(malformed, start=7):
+            with self.subTest(slot_occurrence=label):
+                self._assert_v2_loadout_rejected(
+                    dsn,
+                    key="resolved-loadout-v2:sha256:" + format(ordinal, "x") * 64,
+                    row_hash="sha256:" + format(ordinal, "x") * 64,
+                    evidence=[occurrence],
+                    authority_key=None,
+                    message="v2 slot effect occurrence is invalid",
+                )
+
+    def _assert_conditional_effect_evidence_rejected(self, dsn, authority):
+        self._assert_v2_loadout_rejected(
+            dsn,
+            key="resolved-loadout-v2:sha256:" + "4" * 64,
+            row_hash="sha256:" + "4" * 64,
+            evidence=[{"scope": "loadout"}],
+            authority_key=None,
+            message="v2 no-effect rows cannot contain loadout occurrences",
+        )
+        self._assert_v2_loadout_rejected(
+            dsn,
+            key="resolved-loadout-v2:sha256:" + "5" * 64,
+            row_hash="sha256:" + "5" * 64,
+            evidence=[],
+            authority_key=authority.content_key,
+            message="v2 loadout effect occurrence count mismatch",
+        )
+
+    def _assert_task4l_subject_shape_and_binding(self, dsn, authority):
+        evidence = self._loadout_occurrences(authority)
+        def remove_status(subject):
+            subject.pop("status")
+
+        def unverified_status(subject):
+            subject["status"] = "partial"
+
+        def null_subject_key(subject):
+            subject["subjectKey"] = None
+
+        def extra_subject_key(subject):
+            subject["unexpected"] = "value"
+
+        def numeric_subject_key(subject):
+            subject["subjectKey"] = 123
+
+        def text_subject_key(subject):
+            subject["subjectKey"] = "123"
+
+        def occurrence_subject_key_as_text(evidence):
+            evidence[0]["subjectKey"] = "123"
+
+        def occurrence_subject_key_as_number(evidence):
+            evidence[0]["subjectKey"] = 123
+
+        for ordinal, (label, mutate_subject, mutate_occurrence, message) in enumerate((
+            ("missing-status", remove_status, None, "v2 loadout effect relation mismatch"),
+            ("unverified-status", unverified_status, None, "v2 loadout effect relation mismatch"),
+            ("null-subject-key", null_subject_key, None, "v2 loadout effect occurrence is invalid"),
+            ("extra-subject-key", extra_subject_key, None, "v2 loadout effect relation mismatch"),
+            (
+                "wrong-type-canonical-subject",
+                numeric_subject_key,
+                occurrence_subject_key_as_text,
+                "v2 loadout effect relation mismatch",
+            ),
+            (
+                "wrong-type-occurrence-subject",
+                text_subject_key,
+                occurrence_subject_key_as_number,
+                "v2 loadout effect occurrence is invalid",
+            ),
+        ), start=2):
+            with self.subTest(task4l_subject=label):
+                mutated = self._mutated_authority(authority, mutate_subject)
+                self._seed_authority_relations(dsn, mutated)
+                mutated_evidence = self._loadout_occurrences(mutated)
+                if mutate_occurrence is not None:
+                    mutate_occurrence(mutated_evidence)
+                self._assert_v2_loadout_rejected(
+                    dsn,
+                    key="resolved-loadout-v2:sha256:" + format(ordinal, "x") * 64,
+                    row_hash="sha256:" + format(ordinal, "x") * 64,
+                    evidence=mutated_evidence,
+                    authority_key=mutated.content_key,
+                    message=message,
+                )
+
+    def _assert_v1_catalog_parent_references_rejected(self, dsn, catalog_revision):
+        import psycopg
+
+        cases = (
+            (
+                "delete",
+                "DELETE FROM cache.websim_gear_catalog_revisions "
+                "WHERE catalog_revision = %s",
+                (catalog_revision,),
+                "23503",
+            ),
+            (
+                "update",
+                "UPDATE cache.websim_gear_catalog_revisions "
+                "SET catalog_revision = %s WHERE catalog_revision = %s",
+                ("gear-catalog:sha256:" + "f" * 64, catalog_revision),
+                "23503",
+            ),
+            (
+                "truncate",
+                "TRUNCATE cache.websim_gear_catalog_revisions",
+                (),
+                "0A000",
+            ),
+        )
+        for label, statement, params, sqlstate in cases:
+            with self.subTest(catalog_parent_action=label):
+                conn = self._connect(dsn)
+                try:
+                    with conn.cursor() as cur:
+                        cur.execute(
+                            "ALTER TABLE cache.websim_gear_catalog_revisions "
+                            "DISABLE TRIGGER trg_websim_gear_catalog_revisions_immutable"
+                        )
+                        with self.assertRaises(psycopg.Error) as raised:
+                            cur.execute(statement, params)
+                        self.assertEqual(raised.exception.sqlstate, sqlstate)
+                finally:
+                    conn.rollback()
+                    conn.close()
+
+    def _assert_v1_conditional_integrity_rejected(
+        self,
+        dsn,
+        v1_loadout,
+        v1_snapshot,
+    ):
+        import psycopg
+
+        def rejected_loadout(label, *, payload_field, column_field, value):
+            payload = json.loads(json.dumps(v1_loadout))
+            payload["resolvedLoadoutKey"] = (
+                "resolved-loadout:sha256:" + label * 64
+            )
+            payload["rowHash"] = "sha256:" + (label * 64)
+            payload[payload_field] = (
+                value
+                if payload_field == "catalogRevision"
+                else v1_loadout[payload_field]
+            )
+            columns = {
+                "catalogRevision": payload["catalogRevision"],
+                "gearRuleRevision": payload["gearRuleRevision"],
+                "exactRegistryRevision": payload["exactRegistryRevision"],
+            }
+            columns[column_field] = value
+            with self.assertRaises(psycopg.Error):
+                with self._connect(dsn) as conn:
+                    with conn.cursor() as cur:
+                        cur.execute(
+                            "INSERT INTO cache.websim_gear_resolved_loadouts "
+                            "(resolved_loadout_key, schema_revision, catalog_revision, "
+                            "gear_rule_revision, exact_registry_revision, class_key, spec_key, "
+                            "loadout_json, row_hash) VALUES "
+                            "(%s, 'resolved-loadout-v1', %s, %s, %s, %s, %s, %s::jsonb, %s)",
+                            (
+                                payload["resolvedLoadoutKey"],
+                                columns["catalogRevision"],
+                                columns["gearRuleRevision"],
+                                columns["exactRegistryRevision"],
+                                payload["eligibilityContext"]["classKey"],
+                                payload["eligibilityContext"]["specKey"],
+                                json.dumps(payload),
+                                payload["rowHash"],
+                            ),
+                        )
+
+        rejected_loadout(
+            "a",
+            payload_field="catalogRevision",
+            column_field="catalogRevision",
+            value="gear-catalog:sha256:" + ("0" * 64),
+        )
+        rejected_loadout(
+            "b",
+            payload_field="exactRegistryRevision",
+            column_field="exactRegistryRevision",
+            value="gear-exact-registry:sha256:" + ("1" * 64),
+        )
+        rejected_loadout(
+            "c",
+            payload_field="gearRuleRevision",
+            column_field="gearRuleRevision",
+            value="gear-rule-matrix-other",
+        )
+
+        def rejected_snapshot(label, *, payload_field, column_field, value):
+            payload = json.loads(json.dumps(v1_snapshot))
+            payload["simulationSnapshotKey"] = (
+                "simulation-snapshot:sha256:" + label * 64
+            )
+            payload["rowHash"] = "sha256:" + label * 64
+            payload[payload_field] = (
+                value
+                if payload_field == "catalogRevision"
+                else v1_snapshot[payload_field]
+            )
+            columns = {
+                "catalogRevision": payload["catalogRevision"],
+                "gearRuleRevision": payload["gearRuleRevision"],
+            }
+            columns[column_field] = value
+            with self.assertRaises(psycopg.Error):
+                with self._connect(dsn) as conn:
+                    with conn.cursor() as cur:
+                        cur.execute(
+                            "INSERT INTO cache.websim_simulation_snapshots "
+                            "(simulation_snapshot_key, schema_revision, resolved_loadout_key, "
+                            "talent_profile_key, compiler_revision, simc_runtime_revision, "
+                            "canonical_input_hash, catalog_revision, gear_rule_revision, "
+                            "snapshot_json, row_hash) VALUES "
+                            "(%s, 'simulation-snapshot-v1', %s, %s, %s, %s, %s, %s, %s, "
+                            "%s::jsonb, %s)",
+                            (
+                                payload["simulationSnapshotKey"],
+                                payload["resolvedLoadoutKey"],
+                                payload["talentProfileKey"],
+                                payload["compilerRevision"],
+                                payload["simcRuntimeRevision"],
+                                payload["canonicalInputHash"],
+                                columns["catalogRevision"],
+                                columns["gearRuleRevision"],
+                                json.dumps(payload),
+                                payload["rowHash"],
+                            ),
+                        )
+
+        rejected_snapshot(
+            "d",
+            payload_field="catalogRevision",
+            column_field="catalogRevision",
+            value="gear-catalog:sha256:" + ("0" * 64),
+        )
+        rejected_snapshot(
+            "e",
+            payload_field="gearRuleRevision",
+            column_field="gearRuleRevision",
+            value="gear-rule-matrix-other",
+        )
+
+    def _assert_cross_version_rejected(
+        self,
+        dsn,
+        v1_loadout_key,
+        catalog_revision,
+        *,
+        v2_loadout_key,
+    ):
+        v2_snapshot_key = "simulation-snapshot-v2:sha256:" + "e" * 64
+        v2_snapshot_hash = "sha256:" + "f" * 64
+        v1_snapshot_key = "simulation-snapshot:sha256:" + "a" * 64
+        v1_snapshot_hash = "sha256:" + "b" * 64
+        input_hash = "simc-input:sha256:" + ("0" * 64)
+        talent_key = "talent-profile:sha256:" + ("1" * 64)
+        v2_snapshot = {
+            "schemaRevision": "simulation-snapshot-v2",
+            "status": "ready",
+            "simulationSnapshotKey": v2_snapshot_key,
+            "resolvedLoadoutKey": v1_loadout_key,
+            "talentProfileKey": talent_key,
+            "compilerRevision": "compiler-v2",
+            "simcRuntimeRevision": "simc-runtime-v2",
+            "canonicalInputHash": input_hash,
+            "exactAuthorityBySlot": [],
+            "effectEvidenceByOccurrence": [],
+            "rowHash": v2_snapshot_hash,
+        }
+        v1_snapshot = {
+            "schemaRevision": "simulation-snapshot-v1",
+            "status": "ready",
+            "simulationSnapshotKey": v1_snapshot_key,
+            "resolvedLoadoutKey": v2_loadout_key,
+            "talentProfileKey": talent_key,
+            "compilerRevision": "compiler-v1",
+            "simcRuntimeRevision": "simc-runtime-v1",
+            "canonicalInputHash": input_hash,
+            "catalogRevision": catalog_revision,
+            "gearRuleRevision": "gear-rule-matrix-v1",
+            "rowHash": v1_snapshot_hash,
+        }
+
+        cases = (
+            (
+                "v2-snapshot-to-v1-loadout",
+                "simulation-snapshot-v2",
+                (
+                    v2_snapshot_key,
+                    v1_loadout_key,
+                    talent_key,
+                    input_hash,
+                    json.dumps(v2_snapshot),
+                    v2_snapshot_hash,
+                ),
+                "v2 snapshot must bind its persisted ResolvedLoadout effect relation",
+            ),
+            (
+                "v1-snapshot-to-v2-loadout",
+                "simulation-snapshot-v1",
+                (
+                    v1_snapshot_key,
+                    v2_loadout_key,
+                    talent_key,
+                    input_hash,
+                    catalog_revision,
+                    json.dumps(v1_snapshot),
+                    v1_snapshot_hash,
+                ),
+                "v1 snapshot must bind its v1 ResolvedLoadout",
+            ),
+        )
+        for label, schema_revision, params, message in cases:
+            with self.subTest(cross_version=label):
+                conn = self._connect(dsn)
+                try:
+                    with conn.cursor() as cur:
+                        cur.execute(
+                            "ALTER TABLE cache.websim_simulation_snapshots "
+                            "DROP CONSTRAINT websim_simulation_snapshots_v1_v2_fields_check"
+                        )
+                        if schema_revision == "simulation-snapshot-v2":
+                            statement = (
+                                "INSERT INTO cache.websim_simulation_snapshots "
+                                "(simulation_snapshot_key, schema_revision, resolved_loadout_key, "
+                                "talent_profile_key, compiler_revision, simc_runtime_revision, "
+                                "canonical_input_hash, catalog_revision, gear_rule_revision, "
+                                "snapshot_json, row_hash, exact_authority_by_slot_json, "
+                                "effect_evidence_by_occurrence_json, loadout_effect_authority_key) "
+                                "VALUES (%s, 'simulation-snapshot-v2', %s, %s, 'compiler-v2', "
+                                "'simc-runtime-v2', %s, NULL, NULL, %s::jsonb, %s, "
+                                "'[]'::jsonb, '[]'::jsonb, NULL)"
+                            )
+                        else:
+                            statement = (
+                                "INSERT INTO cache.websim_simulation_snapshots "
+                                "(simulation_snapshot_key, schema_revision, resolved_loadout_key, "
+                                "talent_profile_key, compiler_revision, simc_runtime_revision, "
+                                "canonical_input_hash, catalog_revision, gear_rule_revision, "
+                                "snapshot_json, row_hash) VALUES "
+                                "(%s, 'simulation-snapshot-v1', %s, %s, 'compiler-v1', "
+                                "'simc-runtime-v1', %s, %s, 'gear-rule-matrix-v1', %s::jsonb, %s)"
+                            )
+                        self._assert_pg_rejected(
+                            cur,
+                            statement,
+                            params,
+                            sqlstate="P0001",
+                            message=message,
+                        )
+                finally:
+                    conn.rollback()
+                    conn.close()
+
+    def _assert_v2_store_round_trips(self, dsn):
+        from server.gear_canonical_kernel import canonical_json_bytes
+        from server.gear_exact_authority_store import GearExactAuthorityStore
+        from server.gear_resolved_loadout import build_resolved_loadout_v2
+        from server.simc_item_effect_support import reload_effect_record
+        from server.simulation_snapshot import build_simulation_snapshot_v2
+        from server.simulation_snapshot_store import SimulationSnapshotStore
+        from tests.gear_resolved_loadout_test import (
+            active_v2_loadout_fixture,
+            v2_bundle,
+            v2_resolver_snapshot,
+        )
+        from tests.simulation_snapshot_test import (
+            TALENT_KEY,
+            TALENT_LINES,
+            character_context,
+            scenario,
+        )
+
+        authority_store = GearExactAuthorityStore(lambda: self._connect(dsn))
+        snapshot_store = SimulationSnapshotStore(lambda: self._connect(dsn))
+
+        no_effect_resolver = v2_resolver_snapshot()
+        no_effect_resolver["resolvedSlots"] = {
+            "finger1": {
+                "slot": "finger1",
+                "itemId": "1001",
+                "legality": {"status": "verified"},
+            },
+            "finger2": {
+                "slot": "finger2",
+                "itemId": "1002",
+                "legality": {"status": "verified"},
+            },
+        }
+        no_effect_resolver["profileReadiness"] = {
+            "status": "verified",
+            "simcReady": True,
+            "requiredSlots": ["finger1", "finger2"],
+            "readySlots": ["finger1", "finger2"],
+            "simcRuntimeRevision": "simc-runtime-v2",
+        }
+        no_effect_left = v2_bundle("finger1", "1001", ["A"])
+        no_effect_right = v2_bundle("finger2", "1002", ["B"])
+        no_effect_bundles = {
+            no_effect_left.envelope.content_key: no_effect_left,
+            no_effect_right.envelope.content_key: no_effect_right,
+        }
+        no_effect_loadout = build_resolved_loadout_v2(
+            resolver_snapshot=no_effect_resolver,
+            exact_authority_by_slot=[
+                {
+                    "slot": "finger2",
+                    "exactAuthorityEnvelopeKey": no_effect_right.envelope.content_key,
+                },
+                {
+                    "slot": "finger1",
+                    "exactAuthorityEnvelopeKey": no_effect_left.envelope.content_key,
+                },
+            ],
+            authority_bundles=no_effect_bundles,
+            gear_rule_revision="gear-rule-matrix-v1",
+            resolver_revision="resolver-v2",
+            simc_runtime_revision="simc-runtime-v2",
+        )
+        no_effect_snapshot = build_simulation_snapshot_v2(
+            resolved_loadout=no_effect_loadout,
+            talent_profile_key=TALENT_KEY,
+            talent_lines=TALENT_LINES,
+            character_context=character_context(
+                no_effect_resolver["eligibilityContext"]["classKey"],
+                no_effect_resolver["eligibilityContext"]["specKey"],
+            ),
+            scenario_options=scenario(),
+            preparation_lines=["optimal_raid=0"],
+            compiler_revision="simc-profile-compiler-v2",
+            simc_runtime_revision="simc-runtime-v2",
+            resolver_snapshot=no_effect_resolver,
+            authority_bundles=no_effect_bundles,
+        )
+        no_effect_loadout["originCatalogRevision"] = "task3b-catalog-origin-a"
+        no_effect_snapshot["originCatalogRevision"] = "task3b-catalog-origin-a"
+        for bundle in no_effect_bundles.values():
+            self.assertEqual(authority_store.seal_authority_bundle(bundle), bundle)
+        self.assertEqual(
+            snapshot_store.seal_loadout(
+                no_effect_loadout,
+                resolver_snapshot=no_effect_resolver,
+                authority_bundles=no_effect_bundles,
+            ),
+            no_effect_loadout,
+        )
+        self.assertEqual(
+            snapshot_store.seal_snapshot(
+                no_effect_snapshot,
+                resolved_loadout=no_effect_loadout,
+                resolver_snapshot=no_effect_resolver,
+                authority_bundles=no_effect_bundles,
+                compiler_revision="simc-profile-compiler-v2",
+            ),
+            no_effect_snapshot,
+        )
+        self.assertEqual(
+            snapshot_store.load_loadout(no_effect_loadout["resolvedLoadoutKey"]),
+            no_effect_loadout,
+        )
+        self.assertEqual(
+            snapshot_store.load_snapshot(
+                no_effect_snapshot["simulationSnapshotKey"],
+                include_result=False,
+            ),
+            no_effect_snapshot,
+        )
+
+        active_resolver, loadout_authority, _, _ = active_v2_loadout_fixture()
+        slot = active_resolver["profileReadiness"]["requiredSlots"][0]
+        active_bundle = v2_bundle(
+            slot,
+            active_resolver["resolvedSlots"][slot]["itemId"],
+            ["A", "B", "A"],
+        )
+        active_bundles = {active_bundle.envelope.content_key: active_bundle}
+        active_loadout = build_resolved_loadout_v2(
+            resolver_snapshot=active_resolver,
+            exact_authority_by_slot=[{
+                "slot": slot,
+                "exactAuthorityEnvelopeKey": active_bundle.envelope.content_key,
+            }],
+            authority_bundles=active_bundles,
+            gear_rule_revision="gear-rule-matrix-v1",
+            resolver_revision="resolver-v2",
+            simc_runtime_revision="simc-runtime-v2",
+            loadout_effect_authority=loadout_authority,
+        )
+        active_loadout["originCatalogRevision"] = "task3b-catalog-origin-b"
+        active_snapshot = build_simulation_snapshot_v2(
+            resolved_loadout=active_loadout,
+            talent_profile_key=TALENT_KEY,
+            talent_lines=TALENT_LINES,
+            character_context=character_context(
+                active_resolver["eligibilityContext"]["classKey"],
+                active_resolver["eligibilityContext"]["specKey"],
+            ),
+            scenario_options=scenario(),
+            preparation_lines=["optimal_raid=0"],
+            compiler_revision="simc-profile-compiler-v2",
+            simc_runtime_revision="simc-runtime-v2",
+            resolver_snapshot=active_resolver,
+            authority_bundles=active_bundles,
+            loadout_effect_authority=loadout_authority,
+        )
+        active_snapshot["originCatalogRevision"] = "task3b-catalog-origin-b"
+        slot_evidence = [
+            occurrence
+            for occurrence in active_loadout["effectEvidenceByOccurrence"]
+            if occurrence["scope"] == "slot"
+            and occurrence["subjectKey"] in {"A", "B"}
+        ]
+        self.assertEqual(
+            [occurrence["subjectKey"] for occurrence in slot_evidence],
+            ["A", "B", "A"],
+        )
+        self.assertEqual(
+            slot_evidence[0]["supportRecordKey"],
+            slot_evidence[2]["supportRecordKey"],
+        )
+        self.assertNotEqual(
+            slot_evidence[0]["supportRecordKey"],
+            slot_evidence[1]["supportRecordKey"],
+        )
+
+        self.assertEqual(
+            authority_store.seal_authority_bundle(active_bundle),
+            active_bundle,
+        )
+        authority_payload = json.loads(loadout_authority.canonical_bytes)
+        loadout_effect_records = {}
+        for embedded in authority_payload["supportRecords"]:
+            record_payload = dict(embedded)
+            record_key = record_payload.pop("supportRecordKey")
+            record = reload_effect_record(
+                canonical_json_bytes(record_payload),
+                record_key,
+                runtime_revision=active_resolver["dependencyVector"][
+                    "simcRuntimeRevision"
+                ],
+            )
+            self.assertEqual(record.content_key, record_key)
+            loadout_effect_records[record.content_key] = record
+        self._seed_effect_documents(dsn, loadout_effect_records.values())
+
+        self.assertEqual(
+            snapshot_store.seal_loadout(
+                active_loadout,
+                resolver_snapshot=active_resolver,
+                authority_bundles=active_bundles,
+                loadout_effect_authority=loadout_authority,
+            ),
+            active_loadout,
+        )
+        self.assertEqual(
+            snapshot_store.seal_snapshot(
+                active_snapshot,
+                resolved_loadout=active_loadout,
+                resolver_snapshot=active_resolver,
+                authority_bundles=active_bundles,
+                compiler_revision="simc-profile-compiler-v2",
+                loadout_effect_authority=loadout_authority,
+            ),
+            active_snapshot,
+        )
+        self.assertEqual(
+            snapshot_store.load_loadout(active_loadout["resolvedLoadoutKey"]),
+            active_loadout,
+        )
+        self.assertEqual(
+            snapshot_store.load_snapshot(
+                active_snapshot["simulationSnapshotKey"],
+                include_result=False,
+            ),
+            active_snapshot,
+        )
+
+        stored_replays = {}
+        with self._connect(dsn) as conn:
+            with conn.cursor() as cur:
+                for loadout, snapshot, origin, authority_key in (
+                    (
+                        no_effect_loadout,
+                        no_effect_snapshot,
+                        "task3b-catalog-origin-a",
+                        None,
+                    ),
+                    (
+                        active_loadout,
+                        active_snapshot,
+                        "task3b-catalog-origin-b",
+                        loadout_authority.content_key,
+                    ),
+                ):
+                    cur.execute(
+                        "SELECT catalog_revision, loadout_effect_authority_key, "
+                        "resolver_replay_context_json::text "
+                        "FROM cache.websim_gear_resolved_loadouts "
+                        "WHERE resolved_loadout_key = %s",
+                        (loadout["resolvedLoadoutKey"],),
+                    )
+                    stored_origin, stored_authority, stored_replay = cur.fetchone()
+                    self.assertEqual(stored_origin, origin)
+                    self.assertEqual(stored_authority, authority_key)
+                    self.assertEqual(
+                        json.loads(stored_replay)["schemaRevision"],
+                        "exact-resolver-replay-context-v1",
+                    )
+                    stored_replays[loadout["resolvedLoadoutKey"]] = json.loads(
+                        stored_replay
+                    )
+                    cur.execute(
+                        "SELECT catalog_revision, loadout_effect_authority_key "
+                        "FROM cache.websim_simulation_snapshots "
+                        "WHERE simulation_snapshot_key = %s",
+                        (snapshot["simulationSnapshotKey"],),
+                    )
+                    self.assertEqual(cur.fetchone(), (origin, authority_key))
+                cur.execute(
+                    "SELECT ordinal, effect_record_key "
+                    "FROM cache.websim_effect_aggregate_records "
+                    "WHERE effect_support_key = %s ORDER BY ordinal",
+                    (active_bundle.effect_support.content_key,),
+                )
+                exact_relations = cur.fetchall()
+                self.assertEqual(
+                    exact_relations,
+                    [
+                        (ordinal, record.content_key)
+                        for ordinal, record in enumerate(active_bundle.effect_records)
+                    ],
+                )
+                self.assertEqual(
+                    exact_relations[1][1],
+                    exact_relations[3][1],
+                )
+                self.assertNotEqual(
+                    exact_relations[0][1],
+                    exact_relations[1][1],
+                )
+                cur.execute(
+                    "SELECT ordinal, effect_record_key "
+                    "FROM cache.websim_loadout_effect_authority_records "
+                    "WHERE loadout_effect_authority_key = %s ORDER BY ordinal",
+                    (loadout_authority.content_key,),
+                )
+                self.assertEqual(
+                    cur.fetchall(),
+                    [
+                        (ordinal, record["supportRecordKey"])
+                        for ordinal, record in enumerate(
+                            authority_payload["supportRecords"]
+                        )
+                    ],
+                )
+
+        return {
+            "no_effect": {
+                "resolver": no_effect_resolver,
+                "bundles": no_effect_bundles,
+                "loadout": no_effect_loadout,
+                "snapshot": no_effect_snapshot,
+                "replay": stored_replays[no_effect_loadout["resolvedLoadoutKey"]],
+            },
+            "active": {
+                "resolver": active_resolver,
+                "bundles": active_bundles,
+                "loadout": active_loadout,
+                "snapshot": active_snapshot,
+                "replay": stored_replays[active_loadout["resolvedLoadoutKey"]],
+                "loadoutEffectAuthority": loadout_authority,
+            },
+        }
+
+    def _assert_v2_pair_representation_boundary(self, dsn, fixtures):
+        import copy
+        import psycopg
+
+        base = fixtures["no_effect"]
+        original_pairs = base["loadout"]["exactAuthorityBySlot"]
+        self.assertEqual([pair["slot"] for pair in original_pairs], [
+            "finger1",
+            "finger2",
+        ])
+        self.assertIsNone(base["loadout"].get("loadoutEffectAuthorityKey"))
+
+        def loadout_identity(label):
+            digest = hashlib.sha256(
+                ("task3b-pair-" + label).encode("utf-8")
+            ).hexdigest()
+            return (
+                "resolved-loadout-v2:sha256:" + digest,
+                "sha256:" + digest,
+            )
+
+        pair_mutations = []
+        no_pairs = []
+        pair_mutations.append(("no-pairs", no_pairs, None))
+        pair_mutations.append(("missing-pair", original_pairs[:1], None))
+        pair_mutations.append((
+            "extra-pair",
+            original_pairs + [copy.deepcopy(original_pairs[0])],
+            None,
+        ))
+        pair_mutations.append(("reordered-pairs", list(reversed(original_pairs)), None))
+        substituted = copy.deepcopy(original_pairs)
+        substituted[0]["exactAuthorityEnvelopeKey"] = original_pairs[1][
+            "exactAuthorityEnvelopeKey"
+        ]
+        pair_mutations.append(("substituted-pair", substituted, None))
+        mismatched_occurrences = copy.deepcopy(
+            base["loadout"]["effectEvidenceByOccurrence"]
+        )
+        first_slot_occurrence = next(
+            occurrence
+            for occurrence in mismatched_occurrences
+            if occurrence["scope"] == "slot"
+        )
+        first_slot_occurrence["exactAuthorityEnvelopeKey"] = original_pairs[1][
+            "exactAuthorityEnvelopeKey"
+        ]
+        pair_mutations.append((
+            "substituted-slot-occurrence-pair",
+            original_pairs,
+            mismatched_occurrences,
+        ))
+
+        for label, pairs, evidence in pair_mutations:
+            with self.subTest(v2_pair_representation=label):
+                row = copy.deepcopy(base["loadout"])
+                row["resolvedLoadoutKey"], row["rowHash"] = loadout_identity(label)
+                row["exactAuthorityBySlot"] = copy.deepcopy(pairs)
+                if evidence is not None:
+                    row["effectEvidenceByOccurrence"] = evidence
+                with self.assertRaises(psycopg.Error) as raised:
+                    with self._connect(dsn) as conn:
+                        with conn.cursor() as cur:
+                            self._insert_v2_loadout_representation(
+                                cur,
+                                row,
+                                base["replay"],
+                            )
+                self.assertEqual(raised.exception.sqlstate, "P0001")
+                self.assertEqual(
+                    raised.exception.diag.message_primary,
+                    "v2 exact authority pairs are inconsistent",
+                )
+
+        snapshot = copy.deepcopy(base["snapshot"])
+        snapshot_digest = hashlib.sha256(
+            b"task3b-snapshot-loadout-pair-mismatch"
+        ).hexdigest()
+        snapshot["simulationSnapshotKey"] = (
+            "simulation-snapshot-v2:sha256:" + snapshot_digest
+        )
+        snapshot["rowHash"] = "sha256:" + snapshot_digest
+        snapshot["exactAuthorityBySlot"] = list(reversed(original_pairs))
+        with self.assertRaises(psycopg.Error) as raised:
+            with self._connect(dsn) as conn:
+                with conn.cursor() as cur:
+                    self._insert_v2_snapshot_representation(cur, snapshot)
+        self.assertEqual(raised.exception.sqlstate, "P0001")
+        self.assertEqual(
+            raised.exception.diag.message_primary,
+            "v2 snapshot must bind its persisted ResolvedLoadout effect relation",
+        )
+
+    def _assert_acl(self, dsn):
+        with self._connect(dsn) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT pg_catalog.has_table_privilege("
+                    "'wow_app', 'cache.websim_gear_resolved_loadouts'::regclass, "
+                    "'INSERT')"
+                )
+                self.assertIs(cur.fetchone()[0], True)
+                for table in (
+                    "websim_loadout_effect_authorities",
+                    "websim_loadout_effect_authority_records",
+                ):
+                    cur.execute(
+                        "SELECT pg_catalog.has_table_privilege("
+                        "'wow_app', %s::regclass, 'SELECT'), "
+                        "pg_catalog.has_table_privilege('wow_app', %s::regclass, 'INSERT'), "
+                        "pg_catalog.has_table_privilege('wow_app', %s::regclass, 'UPDATE'), "
+                        "pg_catalog.has_table_privilege('wow_app', %s::regclass, 'DELETE'), "
+                        "pg_catalog.has_table_privilege('wow_app', %s::regclass, 'TRUNCATE')",
+                        tuple([f"cache.{table}"] * 5),
+                    )
+                    self.assertEqual(cur.fetchone(), (True, False, False, False, False))
+
+    def test_fresh_0031_and_upgrade_0030_to_0031(self):
+        self.assertEqual(
+            TASK_3B_MIGRATIONS[-1].name,
+            "0031_websim_exact_snapshot_v2.sql",
+        )
+        self.assertEqual(
+            TASK_3B_BASELINE_MIGRATIONS[-1].name,
+            "0030_websim_exact_authority_bundle.sql",
+        )
+        self.assertNotEqual(TASK_3B_FRESH_DSN, TASK_3B_UPGRADE_DSN)
+        git_identity = self._git_identity()
+        fresh_identity = self._assert_empty_disposable(TASK_3B_FRESH_DSN, "fresh")
+        upgrade_identity = self._assert_empty_disposable(TASK_3B_UPGRADE_DSN, "upgrade")
+
+        self._apply(TASK_3B_FRESH_DSN, TASK_3B_MIGRATIONS)
+        fresh_loadout, fresh_snapshot, _, _ = self._seal_v1_pair(
+            TASK_3B_FRESH_DSN,
+        )
+        authority = self._assert_relation_closure(TASK_3B_FRESH_DSN)
+        fresh_v2 = self._assert_v2_store_round_trips(TASK_3B_FRESH_DSN)
+        self._assert_v2_pair_representation_boundary(TASK_3B_FRESH_DSN, fresh_v2)
+        self._assert_null_safe_support_record_key_closure(TASK_3B_FRESH_DSN)
+        self._assert_task4l_subject_shape_and_binding(
+            TASK_3B_FRESH_DSN,
+            authority,
+        )
+        self._assert_conditional_effect_evidence_rejected(
+            TASK_3B_FRESH_DSN,
+            authority,
+        )
+        self._assert_subject_substitution_rejected(TASK_3B_FRESH_DSN, authority)
+        self._assert_slot_occurrence_boundary(TASK_3B_FRESH_DSN)
+        self._assert_resolver_replay_context_boundary(TASK_3B_FRESH_DSN)
+        self._assert_v1_conditional_integrity_rejected(
+            TASK_3B_FRESH_DSN,
+            fresh_loadout,
+            fresh_snapshot,
+        )
+        self._assert_v1_catalog_parent_references_rejected(
+            TASK_3B_FRESH_DSN,
+            fresh_loadout["catalogRevision"],
+        )
+        self._assert_cross_version_rejected(
+            TASK_3B_FRESH_DSN,
+            fresh_loadout["resolvedLoadoutKey"],
+            fresh_loadout["catalogRevision"],
+            v2_loadout_key=fresh_v2["no_effect"]["loadout"][
+                "resolvedLoadoutKey"
+            ],
+        )
+        self._assert_acl(TASK_3B_FRESH_DSN)
+
+        self._apply(TASK_3B_UPGRADE_DSN, TASK_3B_BASELINE_MIGRATIONS)
+        upgrade_loadout, upgrade_snapshot, before_loadout, before_snapshot = (
+            self._seal_v1_pair(TASK_3B_UPGRADE_DSN)
+        )
+        self._apply(TASK_3B_UPGRADE_DSN, TASK_3B_MIGRATIONS[-1:])
+        with self._connect(TASK_3B_UPGRADE_DSN) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT resolved_loadout_key, schema_revision, catalog_revision, "
+                    "gear_rule_revision, exact_registry_revision, class_key, spec_key, "
+                    "loadout_json::text, row_hash, sealed_at "
+                    "FROM cache.websim_gear_resolved_loadouts"
+                )
+                self.assertEqual(cur.fetchone(), before_loadout)
+                cur.execute(
+                    "SELECT simulation_snapshot_key, schema_revision, resolved_loadout_key, "
+                    "talent_profile_key, compiler_revision, simc_runtime_revision, "
+                    "canonical_input_hash, catalog_revision, gear_rule_revision, "
+                    "snapshot_json::text, row_hash, sealed_at "
+                    "FROM cache.websim_simulation_snapshots"
+                )
+                self.assertEqual(cur.fetchone(), before_snapshot)
+                cur.execute(
+                    "SELECT exact_authority_by_slot_json, "
+                    "effect_evidence_by_occurrence_json, "
+                    "loadout_effect_authority_key, resolver_replay_context_json "
+                    "FROM cache.websim_gear_resolved_loadouts"
+                )
+                self.assertEqual(cur.fetchone(), ([], [], None, None))
+                cur.execute(
+                    "SELECT exact_authority_by_slot_json, "
+                    "effect_evidence_by_occurrence_json, "
+                    "loadout_effect_authority_key "
+                    "FROM cache.websim_simulation_snapshots"
+                )
+                self.assertEqual(cur.fetchone(), ([], [], None))
+                cur.execute(
+                    "SELECT count(*) FROM ops.schema_migrations "
+                    "WHERE id = '0031_websim_exact_snapshot_v2'"
+                )
+                self.assertEqual(cur.fetchone()[0], 1)
+        upgrade_authority = self._assert_relation_closure(TASK_3B_UPGRADE_DSN)
+        upgrade_v2 = self._assert_v2_store_round_trips(TASK_3B_UPGRADE_DSN)
+        self._assert_v2_pair_representation_boundary(
+            TASK_3B_UPGRADE_DSN,
+            upgrade_v2,
+        )
+        self._assert_null_safe_support_record_key_closure(TASK_3B_UPGRADE_DSN)
+        self._assert_conditional_effect_evidence_rejected(
+            TASK_3B_UPGRADE_DSN,
+            upgrade_authority,
+        )
+        self._assert_resolver_replay_context_boundary(TASK_3B_UPGRADE_DSN)
+        self._assert_cross_version_rejected(
+            TASK_3B_UPGRADE_DSN,
+            upgrade_loadout["resolvedLoadoutKey"],
+            upgrade_loadout["catalogRevision"],
+            v2_loadout_key=upgrade_v2["no_effect"]["loadout"][
+                "resolvedLoadoutKey"
+            ],
+        )
+        self._assert_v1_conditional_integrity_rejected(
+            TASK_3B_UPGRADE_DSN,
+            upgrade_loadout,
+            upgrade_snapshot,
+        )
+        self._assert_v1_catalog_parent_references_rejected(
+            TASK_3B_UPGRADE_DSN,
+            upgrade_loadout["catalogRevision"],
+        )
+        self._assert_acl(TASK_3B_UPGRADE_DSN)
+        self.assertEqual(
+            self._database_identity(TASK_3B_FRESH_DSN, "fresh"), fresh_identity,
+        )
+        self.assertEqual(
+            self._database_identity(TASK_3B_UPGRADE_DSN, "upgrade"), upgrade_identity,
+        )
+        self.assertEqual(upgrade_snapshot["resolvedLoadoutKey"], upgrade_loadout["resolvedLoadoutKey"])
+        self.assertEqual(self._git_identity(), git_identity)
 
 
 if __name__ == "__main__":

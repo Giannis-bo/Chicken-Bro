@@ -35,6 +35,7 @@ CHICKENBRO_COMMUNITY_STRENGTH = ROOT / "server" / "migrations" / "postgres" / "0
 CHICKENBRO_GENERIC_PUBLIC_WEB = ROOT / "server" / "migrations" / "postgres" / "0028_chickenbro_generic_public_web_research.sql"
 CHICKENBRO_PUBLIC_WEB_REPEAT_BUDGET = ROOT / "server" / "migrations" / "postgres" / "0029_chickenbro_public_web_repeat_budget.sql"
 WEBSIM_EXACT_AUTHORITY_BUNDLE = ROOT / "server" / "migrations" / "postgres" / "0030_websim_exact_authority_bundle.sql"
+WEBSIM_EXACT_SNAPSHOT_V2 = ROOT / "server" / "migrations" / "postgres" / "0031_websim_exact_snapshot_v2.sql"
 TASK_3A_MIGRATION_CURRENT_TRUTH_FILES = (
     ROOT / "artifacts" / "releases" / "2026-08-04-equipment-simulator-exact-first" / "requirement.json",
     ROOT / "docs" / "backend-owner-map.json",
@@ -57,7 +58,7 @@ TASK_3A_HISTORICAL_LIFECYCLE_FILES = (
     ROOT / "docs" / "plans" / "2026-08-04-equipment-simulator-exact-first-persistence-resequence.md",
     ROOT / "docs" / "postgres-identity-migration-runbook.md",
 )
-POSTGRES_MIGRATIONS_0001_0030 = tuple(sorted(
+POSTGRES_MIGRATIONS_0001_0031 = tuple(sorted(
     (ROOT / "server" / "migrations" / "postgres").glob("[0-9][0-9][0-9][0-9]_*.sql")
 ))
 
@@ -264,6 +265,168 @@ def exact_authority_schema_violations(sql, migrations):
     return violations
 
 
+def exact_snapshot_v2_schema_violations(sql, migrations):
+    """Static contract for 0031's deferred closure and conditional rows."""
+    normalized = _normalized(sql)
+    violations = []
+    required = (
+        "CREATE TABLE IF NOT EXISTS cache.websim_loadout_effect_authorities",
+        "CREATE TABLE IF NOT EXISTS cache.websim_loadout_effect_authority_records",
+        "effect_record_key text NOT NULL REFERENCES cache.websim_canonical_documents(content_key) ON DELETE RESTRICT DEFERRABLE INITIALLY DEFERRED",
+        "REFERENCES cache.websim_loadout_effect_authorities(loadout_effect_authority_key) ON DELETE RESTRICT DEFERRABLE INITIALLY DEFERRED",
+        "schema_revision = 'loadout-effect-authority-v1'",
+        "loadout_effect_authority_key = 'loadout-effect-authority:sha256:' || canonical_sha256",
+        "PRIMARY KEY (loadout_effect_authority_key, ordinal)",
+        "CREATE CONSTRAINT TRIGGER trg_websim_loadout_effect_authorities_complete AFTER INSERT ON cache.websim_loadout_effect_authorities DEFERRABLE INITIALLY DEFERRED FOR EACH ROW",
+        "CREATE CONSTRAINT TRIGGER trg_websim_loadout_effect_authority_records_complete AFTER INSERT ON cache.websim_loadout_effect_authority_records DEFERRABLE INITIALLY DEFERRED FOR EACH ROW",
+        "pg_catalog.generate_series(0, expected_count - 1)",
+        "relation.effect_record_key IS DISTINCT FROM authority_json->'supportRecords'->wanted.ordinal->>'supportRecordKey'",
+        "document.document_kind <> 'effect_record'",
+        "resolver_replay_context_json jsonb",
+        "pg_catalog.octet_length(resolver_replay_context_json::text) <= 1048576",
+        "CREATE OR REPLACE FUNCTION cache.verify_websim_resolver_replay_context( p_context jsonb )",
+        "forbidden_keys CONSTANT text[] := ARRAY[ 'Catalog', 'catalogRevision', 'rawProfile', 'rawString', 'player', 'playerName', 'characterName', 'realm', 'server', 'source', 'sourceRefIds', 'sourcePayload' ]",
+        "(p_context - ARRAY[ 'schemaRevision', 'status', 'dependencyVector', 'resolvedGearSignature', 'eligibilityContext', 'profileReadiness', 'resolvedSlots', 'setState', 'loadoutEffectSubjects', 'v2EffectBoundary' ]) <> '{}'::jsonb",
+        "((p_context -> 'dependencyVector') - ARRAY[ 'gearRuleRevision', 'resolverContractRevision', 'simcRuntimeRevision' ]) <> '{}'::jsonb",
+        "((p_context -> 'eligibilityContext') - ARRAY[ 'classKey', 'specKey', 'level' ]) <> '{}'::jsonb",
+        "((p_context -> 'profileReadiness') - ARRAY[ 'status', 'simcReady', 'requiredSlots', 'readySlots', 'simcRuntimeRevision' ]) <> '{}'::jsonb",
+        "(resolved_slot.value - ARRAY[ 'slot', 'itemId', 'legality' ]) <> '{}'::jsonb",
+        "((resolved_slot.value -> 'legality') - ARRAY['status']) <> '{}'::jsonb",
+        "(p_context -> 'setState') IS DISTINCT FROM (p_context -> 'v2EffectBoundary' -> 'setState')",
+        "(p_context -> 'loadoutEffectSubjects') IS DISTINCT FROM (p_context -> 'v2EffectBoundary' -> 'subjects')",
+        "identity_tokens text[] := ARRAY[]::text[]",
+        "identity_tokens := identity_tokens || ARRAY[ p_context ->> 'resolvedGearSignature' ]",
+        "identity_tokens := identity_tokens || ARRAY[ p_context -> 'dependencyVector' ->> 'gearRuleRevision', p_context -> 'dependencyVector' ->> 'resolverContractRevision', p_context -> 'dependencyVector' ->> 'simcRuntimeRevision' ]",
+        "identity_tokens := identity_tokens || ARRAY[ p_context -> 'eligibilityContext' ->> 'classKey', p_context -> 'eligibilityContext' ->> 'specKey' ]",
+        "identity_tokens := identity_tokens || ARRAY[ p_context -> 'profileReadiness' ->> 'simcRuntimeRevision' ]",
+        "identity_tokens := identity_tokens || ARRAY( SELECT required_slot.value #>> '{}' FROM pg_catalog.jsonb_array_elements( p_context -> 'profileReadiness' -> 'requiredSlots' ) AS required_slot(value) )",
+        "identity_tokens := identity_tokens || ARRAY[ resolved_slot.value ->> 'itemId' ]",
+        "identity_tokens := identity_tokens || ARRAY[set_count.key]",
+        "identity_tokens := identity_tokens || ARRAY[ active_effect ->> 'effectId', active_effect ->> 'itemSetId' ]",
+        "identity_tokens := identity_tokens || ARRAY[ subject ->> 'subjectKind', subject ->> 'itemSetId', subject ->> 'subjectKey' ]",
+        "FROM pg_catalog.unnest(identity_tokens) AS identity_token(value)",
+        "pg_catalog.octet_length(identity_token.value) NOT BETWEEN 1 AND 256",
+        "identity_token.value !~ '^[A-Za-z0-9][A-Za-z0-9._:/-]*$'",
+        "PERFORM cache.verify_websim_resolver_replay_context( NEW.resolver_replay_context_json );",
+        "NEW.resolver_replay_context_json -> 'v2EffectBoundary' ->> 'loadoutEffectAuthorityKey' IS DISTINCT FROM NEW.loadout_effect_authority_key",
+        "CREATE OR REPLACE FUNCTION cache.verify_websim_v2_exact_authority_pairs( p_pairs jsonb, p_replay jsonb, p_loadout jsonb, p_effect_evidence jsonb )",
+        "canonical_slots CONSTANT text[] := ARRAY[ 'head', 'neck', 'shoulder', 'back', 'chest', 'wrist', 'hands', 'waist', 'legs', 'feet', 'finger1', 'finger2', 'trinket1', 'trinket2', 'main_hand', 'off_hand' ]",
+        "pg_catalog.jsonb_array_length(p_pairs) IS DISTINCT FROM pg_catalog.jsonb_array_length( p_replay -> 'profileReadiness' -> 'requiredSlots' )",
+        "(pair - ARRAY['slot', 'exactAuthorityEnvelopeKey']) <> '{}'::jsonb",
+        "pair_slot IS DISTINCT FROM ( p_replay -> 'profileReadiness' -> 'requiredSlots' ->> pair_ordinal )",
+        "pair_slot_ordinal IS NULL OR pair_slot_ordinal <= previous_slot_ordinal",
+        "WHERE bundle.exact_authority_envelope_key = pair_key FOR KEY SHARE OF bundle, exact_document, progression_document",
+        "pg_catalog.jsonb_typeof(exact_json -> 'itemId') IS DISTINCT FROM 'string'",
+        "exact_json ->> 'itemId' IS DISTINCT FROM p_replay -> 'resolvedSlots' -> pair_slot ->> 'itemId'",
+        "progression_json -> 'trackAuthorityInput' ->> 'slot' IS DISTINCT FROM pair_slot",
+        "bundle_gear_rule_revision IS DISTINCT FROM p_loadout ->> 'gearRuleRevision'",
+        "bundle_resolver_revision IS DISTINCT FROM p_loadout ->> 'resolverRevision'",
+        "bundle_simc_runtime_revision IS DISTINCT FROM p_loadout ->> 'simcRuntimeRevision'",
+        "p_loadout ->> 'gearRuleRevision' IS DISTINCT FROM p_replay -> 'dependencyVector' ->> 'gearRuleRevision'",
+        "p_loadout ->> 'resolverRevision' IS DISTINCT FROM p_replay -> 'dependencyVector' ->> 'resolverContractRevision'",
+        "p_loadout ->> 'simcRuntimeRevision' IS DISTINCT FROM p_replay -> 'dependencyVector' ->> 'simcRuntimeRevision'",
+        "p_loadout -> 'eligibilityContext' IS DISTINCT FROM p_replay -> 'eligibilityContext'",
+        "WHERE occurrence ->> 'scope' = 'slot' AND NOT EXISTS ( SELECT 1 FROM pg_catalog.jsonb_array_elements(p_pairs) AS stated_pair(value) WHERE stated_pair.value ->> 'slot' IS NOT DISTINCT FROM occurrence ->> 'slot' AND stated_pair.value ->> 'exactAuthorityEnvelopeKey' IS NOT DISTINCT FROM occurrence ->> 'exactAuthorityEnvelopeKey' )",
+        "PERFORM cache.verify_websim_v2_exact_authority_pairs( NEW.exact_authority_by_slot_json, NEW.resolver_replay_context_json, NEW.loadout_json, NEW.effect_evidence_by_occurrence_json );",
+        "DROP CONSTRAINT IF EXISTS websim_gear_resolved_loadouts_catalog_revision_fkey",
+        "DROP CONSTRAINT IF EXISTS websim_simulation_snapshots_catalog_revision_fkey",
+        "exact_registry_revision IS NOT NULL",
+        "exact_registry_revision IS NOT DISTINCT FROM ( loadout_json ->> 'exactRegistryRevision' )",
+        "catalog_revision IS NOT DISTINCT FROM ( loadout_json ->> 'catalogRevision' )",
+        "gear_rule_revision IS NOT DISTINCT FROM ( snapshot_json ->> 'gearRuleRevision' )",
+        "v1 snapshot must bind its v1 ResolvedLoadout",
+        "v1 ResolvedLoadout catalog revision is unavailable",
+        "v1 SimulationSnapshot catalog revision is unavailable",
+        "v1_catalog_revision_ref text GENERATED ALWAYS AS ( CASE WHEN schema_revision = 'resolved-loadout-v1' THEN catalog_revision ELSE NULL END ) STORED",
+        "v1_catalog_revision_ref text GENERATED ALWAYS AS ( CASE WHEN schema_revision = 'simulation-snapshot-v1' THEN catalog_revision ELSE NULL END ) STORED",
+        "ADD CONSTRAINT websim_gear_resolved_loadouts_v1_catalog_revision_fkey FOREIGN KEY (v1_catalog_revision_ref) REFERENCES cache.websim_gear_catalog_revisions(catalog_revision) ON DELETE RESTRICT",
+        "ADD CONSTRAINT websim_simulation_snapshots_v1_catalog_revision_fkey FOREIGN KEY (v1_catalog_revision_ref) REFERENCES cache.websim_gear_catalog_revisions(catalog_revision) ON DELETE RESTRICT",
+        "CREATE TRIGGER trg_websim_resolved_loadout_v1_v2_binding",
+        "CREATE TRIGGER trg_websim_simulation_snapshot_v1_v2_binding",
+        "loadout_json -> 'exactAuthorityBySlot' IS NOT DISTINCT FROM exact_authority_by_slot_json",
+        "loadout_json -> 'effectEvidenceByOccurrence' IS NOT DISTINCT FROM effect_evidence_by_occurrence_json",
+        "snapshot_json -> 'exactAuthorityBySlot' IS NOT DISTINCT FROM exact_authority_by_slot_json",
+        "snapshot_json -> 'effectEvidenceByOccurrence' IS NOT DISTINCT FROM effect_evidence_by_occurrence_json",
+        "NOT (occurrence ?& ARRAY[ 'scope', 'loadoutEffectAuthorityKey', 'recordOrdinal', 'subjectKind', 'subjectKey', 'subjectVariantSignature', 'supportRecordKey' ])",
+        "(expected_subject ->> 'subjectKind') IS DISTINCT FROM (occurrence ->> 'subjectKind')",
+        "(expected_subject ->> 'subjectKey') IS DISTINCT FROM (occurrence ->> 'subjectKey')",
+        "(expected_subject ->> 'subjectVariantSignature') IS DISTINCT FROM (occurrence ->> 'subjectVariantSignature')",
+        "(expected_subject ->> 'supportRecordKey') IS DISTINCT FROM (occurrence ->> 'supportRecordKey')",
+        "pg_catalog.jsonb_typeof(expected_subject) IS DISTINCT FROM 'object'",
+        "NOT (expected_subject ?& ARRAY[ 'subjectKind', 'subjectKey', 'subjectVariantSignature', 'status', 'supportRecordKey' ])",
+        "(expected_subject - ARRAY[ 'subjectKind', 'subjectKey', 'subjectVariantSignature', 'status', 'supportRecordKey' ]) <> '{}'::jsonb",
+        "(expected_subject ->> 'status') IS DISTINCT FROM 'verified'",
+        "(expected_subject ->> 'subjectKind') IS NULL",
+        "IF (occurrence ->> 'scope') = 'slot' THEN",
+        "IF saw_loadout_scope THEN RAISE EXCEPTION 'v2 no-effect rows cannot contain loadout occurrences';",
+        "IF NOT saw_loadout OR loadout_count <> relation_count THEN",
+        "IF loadout_schema_revision IS DISTINCT FROM 'resolved-loadout-v2'",
+        "loadout_exact_authority_by_slot IS DISTINCT FROM NEW.exact_authority_by_slot_json",
+        "IF loadout_schema_revision IS DISTINCT FROM 'resolved-loadout-v1'",
+        "REVOKE ALL ON cache.websim_loadout_effect_authorities, cache.websim_loadout_effect_authority_records FROM PUBLIC;",
+        "REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON cache.websim_loadout_effect_authorities, cache.websim_loadout_effect_authority_records FROM wow_app;",
+        "GRANT SELECT ON cache.websim_loadout_effect_authorities, cache.websim_loadout_effect_authority_records TO wow_app;",
+        "CREATE TRIGGER trg_websim_loadout_effect_authorities_immutable BEFORE UPDATE OR DELETE ON cache.websim_loadout_effect_authorities FOR EACH ROW EXECUTE FUNCTION cache.reject_websim_exact_authority_mutation();",
+        "CREATE TRIGGER trg_websim_loadout_effect_authorities_truncate BEFORE TRUNCATE ON cache.websim_loadout_effect_authorities FOR EACH STATEMENT EXECUTE FUNCTION cache.reject_websim_exact_authority_mutation();",
+        "CREATE TRIGGER trg_websim_loadout_effect_authority_records_immutable BEFORE UPDATE OR DELETE ON cache.websim_loadout_effect_authority_records FOR EACH ROW EXECUTE FUNCTION cache.reject_websim_exact_authority_mutation();",
+        "CREATE TRIGGER trg_websim_loadout_effect_authority_records_truncate BEFORE TRUNCATE ON cache.websim_loadout_effect_authority_records FOR EACH STATEMENT EXECUTE FUNCTION cache.reject_websim_exact_authority_mutation();",
+    )
+    for clause in required:
+        if normalized.count(clause) != 1:
+            violations.append(clause)
+    required_presence = (
+        "schema_revision = 'resolved-loadout-v1' AND resolved_loadout_key ~ '^resolved-loadout:sha256:[0-9a-f]{64}$'",
+        "schema_revision = 'simulation-snapshot-v1' AND simulation_snapshot_key ~ '^simulation-snapshot:sha256:[0-9a-f]{64}$'",
+        "loadout_json ->> 'resolvedLoadoutKey' IS NOT DISTINCT FROM resolved_loadout_key",
+        "snapshot_json ->> 'simulationSnapshotKey' IS NOT DISTINCT FROM simulation_snapshot_key",
+        "snapshot_json ->> 'resolvedLoadoutKey' IS NOT DISTINCT FROM resolved_loadout_key",
+    )
+    for clause in required_presence:
+        if clause not in normalized:
+            violations.append(clause)
+    for field in (
+        "subjectKind",
+        "subjectKey",
+        "subjectVariantSignature",
+    ):
+        occurrence_check = (
+            "pg_catalog.jsonb_typeof(occurrence -> '"
+            + field
+            + "') IS DISTINCT FROM 'string'"
+        )
+        expected_subject_check = (
+            "pg_catalog.jsonb_typeof(expected_subject -> '"
+            + field
+            + "') IS DISTINCT FROM 'string'"
+        )
+        if normalized.count(occurrence_check) != 2:
+            violations.append(f"occurrence {field} string type")
+        if normalized.count(expected_subject_check) != 1:
+            violations.append(f"Task4L subject {field} string type")
+    if (
+        "effect_record_key text NOT NULL REFERENCES "
+        "cache.websim_canonical_documents(content_key) "
+        "DEFERRABLE INITIALLY DEFERRED ON DELETE RESTRICT"
+    ) in normalized:
+        violations.append("effect record FK clause order")
+    if "UNIQUE (effect_record_key)" in normalized:
+        violations.append("duplicate effect record prohibition")
+    if "schema_revision = 'resolved-loadout-v2'" not in normalized:
+        violations.append("resolved loadout v2 branch")
+    if "schema_revision = 'simulation-snapshot-v2'" not in normalized:
+        violations.append("snapshot v2 branch")
+    slot_validation = normalized.find("IF (occurrence ->> 'scope') = 'slot' THEN")
+    no_effect_return = normalized.find("IF p_loadout_effect_authority_key IS NULL THEN")
+    if slot_validation == -1 or no_effect_return == -1 or slot_validation > no_effect_return:
+        violations.append("slot evidence must validate before no-effect return")
+    migration_names = [name for name, _ in migrations]
+    if migration_names.count("0031_websim_exact_snapshot_v2.sql") != 1:
+        violations.append("0031 filename identity")
+    if sum(body.count("'0031_websim_exact_snapshot_v2'") for _, body in migrations) != 1:
+        violations.append("0031 ledger identity")
+    return violations
+
+
 class PostgresSchemaTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -283,12 +446,13 @@ class PostgresSchemaTest(unittest.TestCase):
         cls.websim_gear_catalog_variant_shapes_sql = WEBSIM_GEAR_CATALOG_VARIANT_SHAPES.read_text(encoding="utf-8")
         cls.chickenbro_agent_observability_sql = CHICKENBRO_AGENT_OBSERVABILITY.read_text(encoding="utf-8")
         cls.websim_exact_authority_bundle_sql = WEBSIM_EXACT_AUTHORITY_BUNDLE.read_text(encoding="utf-8")
+        cls.websim_exact_snapshot_v2_sql = WEBSIM_EXACT_SNAPSHOT_V2.read_text(encoding="utf-8")
 
     def test_exact_authority_bundle_migration_binds_bytes_closure_and_read_only_grants(self):
         normalized = " ".join(self.websim_exact_authority_bundle_sql.split())
         migrations = tuple(
             (path.name, path.read_text(encoding="utf-8"))
-            for path in POSTGRES_MIGRATIONS_0001_0030
+            for path in POSTGRES_MIGRATIONS_0001_0031
         )
         self.assertEqual(
             exact_authority_schema_violations(
@@ -343,7 +507,7 @@ class PostgresSchemaTest(unittest.TestCase):
     def test_exact_authority_contract_mutations_fail_closed(self):
         migrations = tuple(
             (path.name, path.read_text(encoding="utf-8"))
-            for path in POSTGRES_MIGRATIONS_0001_0030
+            for path in POSTGRES_MIGRATIONS_0001_0031
         )
         self.assertEqual(
             exact_authority_schema_violations(
@@ -466,15 +630,262 @@ $unsafe$;
             duplicate_identity,
         ))
 
-    def test_migrations_0001_through_0030_never_manage_databases(self):
+    def test_exact_snapshot_v2_migration_has_conditional_relations_and_read_only_boundary(self):
+        migrations = tuple(
+            (path.name, path.read_text(encoding="utf-8"))
+            for path in POSTGRES_MIGRATIONS_0001_0031
+        )
         self.assertEqual(
-            POSTGRES_MIGRATIONS_0001_0030[-1].name,
-            "0030_websim_exact_authority_bundle.sql",
+            exact_snapshot_v2_schema_violations(
+                self.websim_exact_snapshot_v2_sql,
+                migrations,
+            ),
+            [],
+        )
+        mutations = (
+            self.websim_exact_snapshot_v2_sql.replace(
+                "effect_record_key text NOT NULL\n"
+                "        REFERENCES cache.websim_canonical_documents(content_key)\n"
+                "        ON DELETE RESTRICT DEFERRABLE INITIALLY DEFERRED",
+                "effect_record_key text NOT NULL\n"
+                "        REFERENCES cache.websim_canonical_documents(content_key)\n"
+                "        DEFERRABLE INITIALLY DEFERRED ON DELETE RESTRICT",
+                1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "DEFERRABLE INITIALLY DEFERRED", "", 1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "relation.effect_record_key IS DISTINCT FROM\n"
+                "                  authority_json->'supportRecords'->wanted.ordinal->>'supportRecordKey'",
+                "false",
+                1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "REVOKE ALL ON", "REVOKE INSERT ON", 1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "loadout_json -> 'exactAuthorityBySlot'\n                IS NOT DISTINCT FROM exact_authority_by_slot_json",
+                "loadout_json -> 'exactAuthorityBySlot'\n                IS NOT DISTINCT FROM ignored_authority_json",
+                1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "expected_subject ->> 'subjectKind'",
+                "expected_subject ->> 'ignoredSubjectKind'",
+                1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "schema_revision = 'resolved-loadout-v1'",
+                "schema_revision = 'ignored-loadout-v1'",
+                1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "loadout_json ->> 'exactRegistryRevision'",
+                "loadout_json ->> 'ignoredExactRegistryRevision'",
+                1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "FOREIGN KEY (v1_catalog_revision_ref)\n"
+                "        REFERENCES cache.websim_gear_catalog_revisions(catalog_revision)\n"
+                "        ON DELETE RESTRICT",
+                "FOREIGN KEY (ignored_v1_catalog_revision_ref)\n"
+                "        REFERENCES cache.websim_gear_catalog_revisions(catalog_revision)\n"
+                "        ON DELETE RESTRICT",
+                1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "IF (occurrence ->> 'scope') = 'slot' THEN",
+                "IF false THEN",
+                1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "        IF saw_loadout_scope THEN\n"
+                "            RAISE EXCEPTION "
+                "'v2 no-effect rows cannot contain loadout occurrences';\n"
+                "        END IF;",
+                "        IF false THEN\n"
+                "            RAISE EXCEPTION "
+                "'v2 no-effect rows cannot contain loadout occurrences';\n"
+                "        END IF;",
+                1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "IF NOT saw_loadout OR loadout_count <> relation_count THEN",
+                "IF false THEN",
+                1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "(expected_subject ->> 'status') IS DISTINCT FROM 'verified'",
+                "(expected_subject ->> 'status') IS DISTINCT FROM 'ignored'",
+                1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "IF loadout_schema_revision IS DISTINCT FROM 'resolved-loadout-v2'",
+                "IF false",
+                1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "IF loadout_schema_revision IS DISTINCT FROM 'resolved-loadout-v1'",
+                "IF false",
+                1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "CREATE TRIGGER trg_websim_simulation_snapshot_v1_v2_binding",
+                "CREATE TRIGGER trg_removed_simulation_snapshot_v1_v2_binding",
+                1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "CREATE TRIGGER trg_websim_resolved_loadout_v1_v2_binding",
+                "CREATE TRIGGER trg_removed_resolved_loadout_v1_v2_binding",
+                1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "CREATE OR REPLACE FUNCTION cache.verify_websim_resolver_replay_context",
+                "CREATE OR REPLACE FUNCTION cache.removed_websim_resolver_replay_context",
+                1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "PERFORM cache.verify_websim_resolver_replay_context(\n"
+                "            NEW.resolver_replay_context_json\n"
+                "        );",
+                "PERFORM NULL;",
+                1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "NEW.resolver_replay_context_json -> 'v2EffectBoundary'\n"
+                "               ->> 'loadoutEffectAuthorityKey'\n"
+                "           IS DISTINCT FROM NEW.loadout_effect_authority_key",
+                "false",
+                1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "CREATE OR REPLACE FUNCTION cache.verify_websim_v2_exact_authority_pairs",
+                "CREATE OR REPLACE FUNCTION cache.removed_websim_v2_exact_authority_pairs",
+                1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "(pair - ARRAY['slot', 'exactAuthorityEnvelopeKey']) "
+                "<> '{}'::jsonb",
+                "false",
+                1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "pg_catalog.jsonb_array_length(p_pairs) IS DISTINCT FROM\n"
+                "          pg_catalog.jsonb_array_length(\n"
+                "              p_replay -> 'profileReadiness' -> 'requiredSlots'\n"
+                "          )",
+                "false",
+                1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "pair_slot IS DISTINCT FROM (\n"
+                "                p_replay -> 'profileReadiness' -> 'requiredSlots'\n"
+                "                    ->> pair_ordinal\n"
+                "            )",
+                "false",
+                1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "progression_json -> 'trackAuthorityInput' ->> 'slot'\n"
+                "              IS DISTINCT FROM pair_slot",
+                "false",
+                1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "exact_json ->> 'itemId' IS DISTINCT FROM\n"
+                "              p_replay -> 'resolvedSlots' -> pair_slot ->> 'itemId'",
+                "false",
+                1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "WHERE stated_pair.value ->> 'slot'\n"
+                "                    IS NOT DISTINCT FROM occurrence ->> 'slot'",
+                "WHERE false",
+                1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "PERFORM cache.verify_websim_v2_exact_authority_pairs(\n"
+                "            NEW.exact_authority_by_slot_json,\n"
+                "            NEW.resolver_replay_context_json,\n"
+                "            NEW.loadout_json,\n"
+                "            NEW.effect_evidence_by_occurrence_json\n"
+                "        );",
+                "PERFORM NULL;",
+                1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "loadout_exact_authority_by_slot\n"
+                "              IS DISTINCT FROM NEW.exact_authority_by_slot_json",
+                "false",
+                1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "pg_catalog.octet_length(identity_token.value)\n"
+                "              NOT BETWEEN 1 AND 256",
+                "false",
+                1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "identity_token.value\n"
+                "              !~ '^[A-Za-z0-9][A-Za-z0-9._:/-]*$'",
+                "false",
+                1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "        identity_tokens := identity_tokens || ARRAY[\n"
+                "            active_effect ->> 'effectId',\n"
+                "            active_effect ->> 'itemSetId'\n"
+                "        ];",
+                "",
+                1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "        identity_tokens := identity_tokens || ARRAY[\n"
+                "            subject ->> 'subjectKind',\n"
+                "            subject ->> 'itemSetId',\n"
+                "            subject ->> 'subjectKey'\n"
+                "        ];",
+                "",
+                1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "        'sourceRefIds',\n"
+                "        'sourcePayload'\n"
+                "    ];",
+                "        'sourceRefIds'\n"
+                "    ];",
+                1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "pg_catalog.jsonb_typeof(occurrence -> 'subjectKind')\n"
+                "                  "
+                "IS DISTINCT FROM 'string'",
+                "false",
+                1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "pg_catalog.jsonb_typeof(expected_subject -> 'subjectKind')\n"
+                "                  "
+                "IS DISTINCT FROM 'string'",
+                "false",
+                1,
+            ),
+        )
+        for mutated in mutations:
+            with self.subTest(mutated=mutated[:80]):
+                self.assertTrue(
+                    exact_snapshot_v2_schema_violations(mutated, migrations),
+                )
+
+    def test_migrations_0001_through_0031_never_manage_databases(self):
+        self.assertEqual(
+            POSTGRES_MIGRATIONS_0001_0031[-1].name,
+            "0031_websim_exact_snapshot_v2.sql",
         )
         database_ddl = re.compile(
             r"(?i)\b(?:CREATE|DROP|ALTER)\s+DATABASE\b",
         )
-        for migration in POSTGRES_MIGRATIONS_0001_0030:
+        for migration in POSTGRES_MIGRATIONS_0001_0031:
             with self.subTest(migration=migration.name):
                 self.assertIsNone(database_ddl.search(
                     migration.read_text(encoding="utf-8"),
@@ -748,7 +1159,7 @@ $unsafe$;
         self.assertNotIn("final Task 3A code/test state", plan)
 
     def test_migration_number_prefixes_are_globally_unique(self):
-        migrations = POSTGRES_MIGRATIONS_0001_0030
+        migrations = POSTGRES_MIGRATIONS_0001_0031
         prefixes = [path.name.split("_", 1)[0] for path in migrations]
         self.assertEqual(len(prefixes), len(set(prefixes)))
 
