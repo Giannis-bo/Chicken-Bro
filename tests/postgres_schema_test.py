@@ -35,6 +35,7 @@ CHICKENBRO_COMMUNITY_STRENGTH = ROOT / "server" / "migrations" / "postgres" / "0
 CHICKENBRO_GENERIC_PUBLIC_WEB = ROOT / "server" / "migrations" / "postgres" / "0028_chickenbro_generic_public_web_research.sql"
 CHICKENBRO_PUBLIC_WEB_REPEAT_BUDGET = ROOT / "server" / "migrations" / "postgres" / "0029_chickenbro_public_web_repeat_budget.sql"
 WEBSIM_EXACT_AUTHORITY_BUNDLE = ROOT / "server" / "migrations" / "postgres" / "0030_websim_exact_authority_bundle.sql"
+WEBSIM_EXACT_SNAPSHOT_V2 = ROOT / "server" / "migrations" / "postgres" / "0031_websim_exact_snapshot_v2.sql"
 TASK_3A_MIGRATION_CURRENT_TRUTH_FILES = (
     ROOT / "artifacts" / "releases" / "2026-08-04-equipment-simulator-exact-first" / "requirement.json",
     ROOT / "docs" / "backend-owner-map.json",
@@ -57,7 +58,7 @@ TASK_3A_HISTORICAL_LIFECYCLE_FILES = (
     ROOT / "docs" / "plans" / "2026-08-04-equipment-simulator-exact-first-persistence-resequence.md",
     ROOT / "docs" / "postgres-identity-migration-runbook.md",
 )
-POSTGRES_MIGRATIONS_0001_0030 = tuple(sorted(
+POSTGRES_MIGRATIONS_0001_0031 = tuple(sorted(
     (ROOT / "server" / "migrations" / "postgres").glob("[0-9][0-9][0-9][0-9]_*.sql")
 ))
 
@@ -264,6 +265,58 @@ def exact_authority_schema_violations(sql, migrations):
     return violations
 
 
+def exact_snapshot_v2_schema_violations(sql, migrations):
+    """Static contract for 0031's deferred closure and conditional rows."""
+    normalized = _normalized(sql)
+    violations = []
+    required = (
+        "CREATE TABLE IF NOT EXISTS cache.websim_loadout_effect_authorities",
+        "CREATE TABLE IF NOT EXISTS cache.websim_loadout_effect_authority_records",
+        "schema_revision = 'loadout-effect-authority-v1'",
+        "loadout_effect_authority_key = 'loadout-effect-authority:sha256:' || canonical_sha256",
+        "REFERENCES cache.websim_loadout_effect_authorities(loadout_effect_authority_key) DEFERRABLE INITIALLY DEFERRED ON DELETE RESTRICT",
+        "PRIMARY KEY (loadout_effect_authority_key, ordinal)",
+        "CREATE CONSTRAINT TRIGGER trg_websim_loadout_effect_authorities_complete AFTER INSERT ON cache.websim_loadout_effect_authorities DEFERRABLE INITIALLY DEFERRED FOR EACH ROW",
+        "CREATE CONSTRAINT TRIGGER trg_websim_loadout_effect_authority_records_complete AFTER INSERT ON cache.websim_loadout_effect_authority_records DEFERRABLE INITIALLY DEFERRED FOR EACH ROW",
+        "pg_catalog.generate_series(0, expected_count - 1)",
+        "relation.effect_record_key <> authority_json->'supportRecords'->wanted.ordinal->>'supportRecordKey'",
+        "document.document_kind <> 'effect_record'",
+        "resolver_replay_context_json jsonb",
+        "pg_catalog.octet_length(resolver_replay_context_json::text) <= 1048576",
+        "DROP CONSTRAINT IF EXISTS websim_gear_resolved_loadouts_catalog_revision_fkey",
+        "DROP CONSTRAINT IF EXISTS websim_simulation_snapshots_catalog_revision_fkey",
+        "loadout_json ->> 'resolvedLoadoutKey' IS NOT DISTINCT FROM resolved_loadout_key",
+        "snapshot_json ->> 'simulationSnapshotKey' IS NOT DISTINCT FROM simulation_snapshot_key",
+        "snapshot_json ->> 'resolvedLoadoutKey' IS NOT DISTINCT FROM resolved_loadout_key",
+        "loadout_json -> 'exactAuthorityBySlot' IS NOT DISTINCT FROM exact_authority_by_slot_json",
+        "loadout_json -> 'effectEvidenceByOccurrence' IS NOT DISTINCT FROM effect_evidence_by_occurrence_json",
+        "snapshot_json -> 'exactAuthorityBySlot' IS NOT DISTINCT FROM exact_authority_by_slot_json",
+        "snapshot_json -> 'effectEvidenceByOccurrence' IS NOT DISTINCT FROM effect_evidence_by_occurrence_json",
+        "REVOKE ALL ON cache.websim_loadout_effect_authorities, cache.websim_loadout_effect_authority_records FROM PUBLIC;",
+        "REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON cache.websim_loadout_effect_authorities, cache.websim_loadout_effect_authority_records FROM wow_app;",
+        "GRANT SELECT ON cache.websim_loadout_effect_authorities, cache.websim_loadout_effect_authority_records TO wow_app;",
+        "CREATE TRIGGER trg_websim_loadout_effect_authorities_immutable BEFORE UPDATE OR DELETE ON cache.websim_loadout_effect_authorities FOR EACH ROW EXECUTE FUNCTION cache.reject_websim_exact_authority_mutation();",
+        "CREATE TRIGGER trg_websim_loadout_effect_authorities_truncate BEFORE TRUNCATE ON cache.websim_loadout_effect_authorities FOR EACH STATEMENT EXECUTE FUNCTION cache.reject_websim_exact_authority_mutation();",
+        "CREATE TRIGGER trg_websim_loadout_effect_authority_records_immutable BEFORE UPDATE OR DELETE ON cache.websim_loadout_effect_authority_records FOR EACH ROW EXECUTE FUNCTION cache.reject_websim_exact_authority_mutation();",
+        "CREATE TRIGGER trg_websim_loadout_effect_authority_records_truncate BEFORE TRUNCATE ON cache.websim_loadout_effect_authority_records FOR EACH STATEMENT EXECUTE FUNCTION cache.reject_websim_exact_authority_mutation();",
+    )
+    for clause in required:
+        if normalized.count(clause) != 1:
+            violations.append(clause)
+    if "UNIQUE (effect_record_key)" in normalized:
+        violations.append("duplicate effect record prohibition")
+    if "schema_revision = 'resolved-loadout-v2'" not in normalized:
+        violations.append("resolved loadout v2 branch")
+    if "schema_revision = 'simulation-snapshot-v2'" not in normalized:
+        violations.append("snapshot v2 branch")
+    migration_names = [name for name, _ in migrations]
+    if migration_names.count("0031_websim_exact_snapshot_v2.sql") != 1:
+        violations.append("0031 filename identity")
+    if sum(body.count("'0031_websim_exact_snapshot_v2'") for _, body in migrations) != 1:
+        violations.append("0031 ledger identity")
+    return violations
+
+
 class PostgresSchemaTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -283,12 +336,13 @@ class PostgresSchemaTest(unittest.TestCase):
         cls.websim_gear_catalog_variant_shapes_sql = WEBSIM_GEAR_CATALOG_VARIANT_SHAPES.read_text(encoding="utf-8")
         cls.chickenbro_agent_observability_sql = CHICKENBRO_AGENT_OBSERVABILITY.read_text(encoding="utf-8")
         cls.websim_exact_authority_bundle_sql = WEBSIM_EXACT_AUTHORITY_BUNDLE.read_text(encoding="utf-8")
+        cls.websim_exact_snapshot_v2_sql = WEBSIM_EXACT_SNAPSHOT_V2.read_text(encoding="utf-8")
 
     def test_exact_authority_bundle_migration_binds_bytes_closure_and_read_only_grants(self):
         normalized = " ".join(self.websim_exact_authority_bundle_sql.split())
         migrations = tuple(
             (path.name, path.read_text(encoding="utf-8"))
-            for path in POSTGRES_MIGRATIONS_0001_0030
+            for path in POSTGRES_MIGRATIONS_0001_0031
         )
         self.assertEqual(
             exact_authority_schema_violations(
@@ -343,7 +397,7 @@ class PostgresSchemaTest(unittest.TestCase):
     def test_exact_authority_contract_mutations_fail_closed(self):
         migrations = tuple(
             (path.name, path.read_text(encoding="utf-8"))
-            for path in POSTGRES_MIGRATIONS_0001_0030
+            for path in POSTGRES_MIGRATIONS_0001_0031
         )
         self.assertEqual(
             exact_authority_schema_violations(
@@ -466,15 +520,51 @@ $unsafe$;
             duplicate_identity,
         ))
 
-    def test_migrations_0001_through_0030_never_manage_databases(self):
+    def test_exact_snapshot_v2_migration_has_conditional_relations_and_read_only_boundary(self):
+        migrations = tuple(
+            (path.name, path.read_text(encoding="utf-8"))
+            for path in POSTGRES_MIGRATIONS_0001_0031
+        )
         self.assertEqual(
-            POSTGRES_MIGRATIONS_0001_0030[-1].name,
-            "0030_websim_exact_authority_bundle.sql",
+            exact_snapshot_v2_schema_violations(
+                self.websim_exact_snapshot_v2_sql,
+                migrations,
+            ),
+            [],
+        )
+        mutations = (
+            self.websim_exact_snapshot_v2_sql.replace(
+                "DEFERRABLE INITIALLY DEFERRED", "", 1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "relation.effect_record_key <> authority_json->'supportRecords'->wanted.ordinal->>'supportRecordKey'",
+                "false",
+                1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "REVOKE ALL ON", "REVOKE INSERT ON", 1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "loadout_json -> 'exactAuthorityBySlot'\n                IS NOT DISTINCT FROM exact_authority_by_slot_json",
+                "loadout_json -> 'exactAuthorityBySlot'\n                IS NOT DISTINCT FROM ignored_authority_json",
+                1,
+            ),
+        )
+        for mutated in mutations:
+            with self.subTest(mutated=mutated[:80]):
+                self.assertTrue(
+                    exact_snapshot_v2_schema_violations(mutated, migrations),
+                )
+
+    def test_migrations_0001_through_0031_never_manage_databases(self):
+        self.assertEqual(
+            POSTGRES_MIGRATIONS_0001_0031[-1].name,
+            "0031_websim_exact_snapshot_v2.sql",
         )
         database_ddl = re.compile(
             r"(?i)\b(?:CREATE|DROP|ALTER)\s+DATABASE\b",
         )
-        for migration in POSTGRES_MIGRATIONS_0001_0030:
+        for migration in POSTGRES_MIGRATIONS_0001_0031:
             with self.subTest(migration=migration.name):
                 self.assertIsNone(database_ddl.search(
                     migration.read_text(encoding="utf-8"),
@@ -748,7 +838,7 @@ $unsafe$;
         self.assertNotIn("final Task 3A code/test state", plan)
 
     def test_migration_number_prefixes_are_globally_unique(self):
-        migrations = POSTGRES_MIGRATIONS_0001_0030
+        migrations = POSTGRES_MIGRATIONS_0001_0031
         prefixes = [path.name.split("_", 1)[0] for path in migrations]
         self.assertEqual(len(prefixes), len(set(prefixes)))
 

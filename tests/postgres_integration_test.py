@@ -18,6 +18,10 @@ MIGRATIONS = (
 ALL_MIGRATIONS = tuple(sorted(
     (ROOT / "server" / "migrations" / "postgres").glob("[0-9][0-9][0-9][0-9]_*.sql")
 ))
+TASK_3A_MIGRATIONS = tuple(
+    migration for migration in ALL_MIGRATIONS
+    if migration.name <= "0030_websim_exact_authority_bundle.sql"
+)
 TASK_3A_RUN_ID = os.environ.get("WOW_PG_TEST_RUN_ID_0030", "")
 TASK_3A_FRESH_DSN = os.environ.get("WOW_PG_TEST_DSN_FRESH_0030", "")
 TASK_3A_UPGRADE_DSN = os.environ.get("WOW_PG_TEST_DSN_UPGRADE_0030", "")
@@ -999,14 +1003,17 @@ class PostgresExactAuthorityCandidateTest(unittest.TestCase):
         self.assertRegex(commit, r"^[0-9a-f]{40}$")
         self.assertRegex(tree, r"^[0-9a-f]{40}$")
         self.assertRegex(migration_sha, r"^[0-9a-f]{64}$")
-        self.assertEqual(ALL_MIGRATIONS[-1].name, "0030_websim_exact_authority_bundle.sql")
+        self.assertEqual(
+            TASK_3A_MIGRATIONS[-1].name,
+            "0030_websim_exact_authority_bundle.sql",
+        )
 
-        self._apply(TASK_3A_FRESH_DSN, ALL_MIGRATIONS)
+        self._apply(TASK_3A_FRESH_DSN, TASK_3A_MIGRATIONS)
         self._assert_build_template_config_hash_constraint(TASK_3A_FRESH_DSN)
         self._assert_build_template_0003_semantics(TASK_3A_FRESH_DSN)
         self._assert_grants_and_bundle_smoke(TASK_3A_FRESH_DSN)
 
-        self._apply(TASK_3A_UPGRADE_DSN, ALL_MIGRATIONS[:-1])
+        self._apply(TASK_3A_UPGRADE_DSN, TASK_3A_MIGRATIONS[:-1])
         with self._connect(TASK_3A_UPGRADE_DSN) as conn:
             with conn.cursor() as cur:
                 cur.execute(
@@ -1027,7 +1034,7 @@ class PostgresExactAuthorityCandidateTest(unittest.TestCase):
                 )
                 before_rows = cur.fetchall()
                 before_state = self._snapshot_existing_v1_state(cur)
-        self._apply(TASK_3A_UPGRADE_DSN, ALL_MIGRATIONS[-1:])
+        self._apply(TASK_3A_UPGRADE_DSN, TASK_3A_MIGRATIONS[-1:])
         self._assert_build_template_config_hash_constraint(TASK_3A_UPGRADE_DSN)
         self._assert_build_template_0003_semantics(TASK_3A_UPGRADE_DSN)
         with self._connect(TASK_3A_UPGRADE_DSN) as conn:

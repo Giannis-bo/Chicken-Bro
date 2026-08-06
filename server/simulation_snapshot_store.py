@@ -9,14 +9,51 @@ import re
 from typing import Any, Mapping
 
 try:
-    from .gear_resolved_loadout import verify_resolved_loadout
-    from .simulation_snapshot import verify_simulation_snapshot
+    from .gear_exact_authority_store import (
+        GearExactAuthorityStore,
+        GearExactAuthorityStoreIntegrityError,
+    )
+    from .gear_loadout_effect_authority import (
+        reload_loadout_effect_authority,
+    )
+    from .gear_resolved_loadout import (
+        RESOLVED_LOADOUT_V2_SCHEMA_REVISION,
+        verify_resolved_loadout,
+        verify_resolved_loadout_v2,
+    )
+    from .simc_item_effect_support import reload_effect_record
+    from .simulation_snapshot import (
+        SIMULATION_SNAPSHOT_V2_SCHEMA_REVISION,
+        verify_simulation_snapshot,
+        verify_simulation_snapshot_v2,
+    )
 except ImportError:
-    from gear_resolved_loadout import verify_resolved_loadout
-    from simulation_snapshot import verify_simulation_snapshot
+    from gear_exact_authority_store import (
+        GearExactAuthorityStore,
+        GearExactAuthorityStoreIntegrityError,
+    )
+    from gear_loadout_effect_authority import reload_loadout_effect_authority
+    from gear_resolved_loadout import (
+        RESOLVED_LOADOUT_V2_SCHEMA_REVISION,
+        verify_resolved_loadout,
+        verify_resolved_loadout_v2,
+    )
+    from simulation_snapshot import (
+        SIMULATION_SNAPSHOT_V2_SCHEMA_REVISION,
+        verify_simulation_snapshot,
+        verify_simulation_snapshot_v2,
+    )
+    from simc_item_effect_support import reload_effect_record
 
 
 RESULT_IDENTITY_PATTERN = re.compile(r"^simc-result:sha256:[0-9a-f]{64}$")
+_LOADOUT_V2_KEY_PATTERN = re.compile(r"^resolved-loadout-v2:sha256:[0-9a-f]{64}$")
+_SNAPSHOT_V2_KEY_PATTERN = re.compile(r"^simulation-snapshot-v2:sha256:[0-9a-f]{64}$")
+_LOADOUT_EFFECT_AUTHORITY_KEY_PATTERN = re.compile(
+    r"^loadout-effect-authority:sha256:[0-9a-f]{64}$"
+)
+_RESOLVER_REPLAY_CONTEXT_SCHEMA_REVISION = "exact-resolver-replay-context-v1"
+_MAX_RESOLVER_REPLAY_CONTEXT_BYTES = 1048576
 
 
 class SimulationSnapshotIntegrityError(RuntimeError):
@@ -69,11 +106,29 @@ class SimulationSnapshotStore:
         return self._connection_factory()
 
     @staticmethod
-    def _validate_loadout(value: Any) -> dict[str, Any]:
+    def _validate_loadout(
+        value: Any,
+        *,
+        resolver_snapshot: Any = None,
+        authority_bundles: Any = None,
+        loadout_effect_authority: Any = None,
+    ) -> dict[str, Any]:
         if not isinstance(value, Mapping):
             raise SimulationSnapshotIntegrityError("ready ResolvedLoadout is required")
         row = _canonical(value)
-        issues = verify_resolved_loadout(row)
+        if row.get("schemaRevision") == RESOLVED_LOADOUT_V2_SCHEMA_REVISION:
+            if resolver_snapshot is None or authority_bundles is None:
+                raise SimulationSnapshotIntegrityError(
+                    "v2 ResolvedLoadout verifier context is required"
+                )
+            issues = verify_resolved_loadout_v2(
+                row,
+                resolver_snapshot=resolver_snapshot,
+                authority_bundles=authority_bundles,
+                loadout_effect_authority=loadout_effect_authority,
+            )
+        else:
+            issues = verify_resolved_loadout(row)
         if issues:
             raise SimulationSnapshotIntegrityError(
                 "ResolvedLoadout integrity check failed: " + ",".join(issues)
@@ -81,7 +136,15 @@ class SimulationSnapshotStore:
         return row
 
     @staticmethod
-    def _validate_snapshot(value: Any) -> dict[str, Any]:
+    def _validate_snapshot(
+        value: Any,
+        *,
+        resolved_loadout: Any = None,
+        resolver_snapshot: Any = None,
+        authority_bundles: Any = None,
+        compiler_revision: Any = None,
+        loadout_effect_authority: Any = None,
+    ) -> dict[str, Any]:
         if not isinstance(value, Mapping):
             raise SimulationSnapshotIntegrityError(
                 "ready SimulationSnapshot is required"
@@ -91,7 +154,26 @@ class SimulationSnapshotStore:
             raise SimulationSnapshotIntegrityError(
                 "only an unexecuted ready SimulationSnapshot may be sealed"
             )
-        issues = verify_simulation_snapshot(row)
+        if row.get("schemaRevision") == SIMULATION_SNAPSHOT_V2_SCHEMA_REVISION:
+            if (
+                resolved_loadout is None
+                or resolver_snapshot is None
+                or authority_bundles is None
+                or compiler_revision is None
+            ):
+                raise SimulationSnapshotIntegrityError(
+                    "v2 SimulationSnapshot verifier context is required"
+                )
+            issues = verify_simulation_snapshot_v2(
+                row,
+                resolved_loadout=resolved_loadout,
+                resolver_snapshot=resolver_snapshot,
+                authority_bundles=authority_bundles,
+                compiler_revision=compiler_revision,
+                loadout_effect_authority=loadout_effect_authority,
+            )
+        else:
+            issues = verify_simulation_snapshot(row)
         if issues:
             raise SimulationSnapshotIntegrityError(
                 "SimulationSnapshot integrity check failed: " + ",".join(issues)
@@ -100,6 +182,10 @@ class SimulationSnapshotStore:
 
     @staticmethod
     def _load_loadout_with_cursor(cur: Any, key: str) -> dict[str, Any]:
+        if _LOADOUT_V2_KEY_PATTERN.fullmatch(key):
+            raise SimulationSnapshotIntegrityError(
+                "v2 ResolvedLoadout reload requires the store instance"
+            )
         cur.execute(
             """
             /* simulation_snapshot_loadout_load */
@@ -142,6 +228,10 @@ class SimulationSnapshotStore:
 
     @staticmethod
     def _load_snapshot_with_cursor(cur: Any, key: str) -> dict[str, Any]:
+        if _SNAPSHOT_V2_KEY_PATTERN.fullmatch(key):
+            raise SimulationSnapshotIntegrityError(
+                "v2 SimulationSnapshot reload requires the store instance"
+            )
         cur.execute(
             """
             /* simulation_snapshot_load */
@@ -185,6 +275,509 @@ class SimulationSnapshotStore:
         return row
 
     @staticmethod
+    def _resolver_replay_projection(value: Any) -> dict[str, Any]:
+        """Persist the only resolver facts needed to re-run the typed v2 checks."""
+        snapshot = dict(value) if isinstance(value, Mapping) else {}
+        dependency = (
+            snapshot.get("dependencyVector")
+            if isinstance(snapshot.get("dependencyVector"), Mapping)
+            else {}
+        )
+        readiness = (
+            snapshot.get("profileReadiness")
+            if isinstance(snapshot.get("profileReadiness"), Mapping)
+            else {}
+        )
+        eligibility = (
+            snapshot.get("eligibilityContext")
+            if isinstance(snapshot.get("eligibilityContext"), Mapping)
+            else {}
+        )
+        required_slots = readiness.get("requiredSlots")
+        resolved_slots = (
+            snapshot.get("resolvedSlots")
+            if isinstance(snapshot.get("resolvedSlots"), Mapping)
+            else {}
+        )
+        slots = {}
+        for slot in required_slots if isinstance(required_slots, list) else []:
+            resolved = (
+                resolved_slots.get(slot)
+                if isinstance(resolved_slots.get(slot), Mapping)
+                else {}
+            )
+            legality = (
+                resolved.get("legality")
+                if isinstance(resolved.get("legality"), Mapping)
+                else {}
+            )
+            slots[slot] = {
+                "slot": resolved.get("slot"),
+                "itemId": resolved.get("itemId"),
+                "legality": {"status": legality.get("status")},
+            }
+        boundary = (
+            snapshot.get("v2EffectBoundary")
+            if isinstance(snapshot.get("v2EffectBoundary"), Mapping)
+            else {}
+        )
+        replay = {
+            "schemaRevision": _RESOLVER_REPLAY_CONTEXT_SCHEMA_REVISION,
+            "status": snapshot.get("status"),
+            "dependencyVector": {
+                "gearRuleRevision": dependency.get("gearRuleRevision"),
+                "resolverContractRevision": dependency.get("resolverContractRevision"),
+                "simcRuntimeRevision": dependency.get("simcRuntimeRevision"),
+            },
+            "resolvedGearSignature": snapshot.get("resolvedGearSignature"),
+            "eligibilityContext": {
+                "classKey": eligibility.get("classKey"),
+                "specKey": eligibility.get("specKey"),
+                "level": eligibility.get("level"),
+            },
+            "profileReadiness": {
+                "status": readiness.get("status"),
+                "simcReady": readiness.get("simcReady"),
+                "requiredSlots": required_slots,
+                "readySlots": readiness.get("readySlots"),
+                "simcRuntimeRevision": readiness.get("simcRuntimeRevision"),
+            },
+            "resolvedSlots": slots,
+            "setState": snapshot.get("setState"),
+            "loadoutEffectSubjects": snapshot.get("loadoutEffectSubjects"),
+            "v2EffectBoundary": {
+                key: boundary.get(key)
+                for key in (
+                    "schemaRevision",
+                    "status",
+                    "resolvedGearSignature",
+                    "setState",
+                    "subjects",
+                    "gearRuleRevision",
+                    "resolverRevision",
+                    "simcRuntimeRevision",
+                    "loadoutEffectAuthorityKey",
+                )
+                if key in boundary
+            },
+        }
+        replay = _canonical(replay)
+        if (
+            type(replay) is not dict
+            or len(_json(replay).encode("utf-8")) > _MAX_RESOLVER_REPLAY_CONTEXT_BYTES
+        ):
+            raise SimulationSnapshotIntegrityError("v2 resolver replay context is invalid")
+        return replay
+
+    @staticmethod
+    def _stored_resolver_replay_context(value: Any) -> dict[str, Any]:
+        try:
+            replay = _json_value(value)
+        except (TypeError, ValueError, json.JSONDecodeError) as error:
+            raise SimulationSnapshotIntegrityError(
+                "stored v2 resolver replay context is invalid"
+            ) from error
+        if (
+            type(replay) is not dict
+            or replay.get("schemaRevision")
+            != _RESOLVER_REPLAY_CONTEXT_SCHEMA_REVISION
+            or len(_json(replay).encode("utf-8")) > _MAX_RESOLVER_REPLAY_CONTEXT_BYTES
+        ):
+            raise SimulationSnapshotIntegrityError(
+                "stored v2 resolver replay context is invalid"
+            )
+        return replay
+
+    @staticmethod
+    def _blocked_authority_replay_context(replay: Mapping[str, Any]) -> dict[str, Any]:
+        """Adapt the saved verified projection only for Task 4L owner reload."""
+        blocked = _canonical(replay)
+        boundary = blocked.get("v2EffectBoundary")
+        if type(blocked) is not dict or type(boundary) is not dict:
+            raise SimulationSnapshotIntegrityError(
+                "stored v2 resolver replay context is invalid"
+            )
+        blocked["status"] = "blocked"
+        boundary["status"] = "blocked"
+        boundary.pop("loadoutEffectAuthorityKey", None)
+        return blocked
+
+    def _reload_exact_authority_bundles(
+        self,
+        row: Mapping[str, Any],
+    ) -> dict[str, Any]:
+        pairs = row.get("exactAuthorityBySlot")
+        if not isinstance(pairs, list):
+            raise SimulationSnapshotIntegrityError("v2 Exact Authority pairs are invalid")
+        store = GearExactAuthorityStore(self._connection_factory)
+        bundles: dict[str, Any] = {}
+        try:
+            for pair in pairs:
+                key = pair.get("exactAuthorityEnvelopeKey") if isinstance(pair, Mapping) else None
+                bundle = store.load_verified_bundle(
+                    key,
+                    gear_rule_revision=row.get("gearRuleRevision"),
+                    simc_runtime_revision=row.get("simcRuntimeRevision"),
+                    resolver_revision=row.get("resolverRevision"),
+                )
+                if bundle.envelope.content_key != key or key in bundles:
+                    raise SimulationSnapshotIntegrityError(
+                        "v2 Exact Authority Bundle relation is invalid"
+                    )
+                bundles[key] = bundle
+        except (GearExactAuthorityStoreIntegrityError, TypeError, ValueError) as error:
+            raise SimulationSnapshotIntegrityError(
+                "v2 Exact Authority Bundle typed reload failed"
+            ) from error
+        return bundles
+
+    @staticmethod
+    def _load_effect_record_with_cursor(
+        cur: Any,
+        key: str,
+        *,
+        simc_runtime_revision: str,
+    ) -> Any:
+        cur.execute(
+            """
+            /* simulation_snapshot_effect_record_load */
+            SELECT
+                content_key,
+                document_kind,
+                schema_revision,
+                canonical_bytes,
+                canonical_sha256 = pg_catalog.encode(
+                    pg_catalog.sha256(canonical_bytes), 'hex'
+                ) AND canonical_json = pg_catalog.convert_from(
+                    canonical_bytes, 'UTF8'
+                )::jsonb AS projection_valid
+            FROM cache.websim_canonical_documents
+            WHERE content_key = %s
+            """,
+            (key,),
+        )
+        stored = cur.fetchone()
+        if (
+            not stored
+            or len(stored) != 5
+            or stored[0] != key
+            or stored[1:3] != ("effect_record", "simc-item-effect-record-v1")
+            or stored[4] is not True
+        ):
+            raise SimulationSnapshotIntegrityError(
+                "loadout effect authority record is unavailable"
+            )
+        try:
+            return reload_effect_record(
+                bytes(stored[3]), stored[0],
+                runtime_revision=simc_runtime_revision,
+            )
+        except (TypeError, ValueError) as error:
+            raise SimulationSnapshotIntegrityError(
+                "loadout effect authority record typed reload failed"
+            ) from error
+
+    def _load_loadout_effect_authority_with_cursor(
+        self,
+        cur: Any,
+        key: str,
+        *,
+        replay: Mapping[str, Any],
+        simc_runtime_revision: str,
+    ) -> Any:
+        if not _LOADOUT_EFFECT_AUTHORITY_KEY_PATTERN.fullmatch(_text(key)):
+            raise SimulationSnapshotIntegrityError("loadout effect authority key is invalid")
+        cur.execute(
+            """
+            /* simulation_snapshot_loadout_effect_authority_document_load */
+            SELECT
+                loadout_effect_authority_key,
+                schema_revision,
+                canonical_bytes,
+                canonical_sha256 = pg_catalog.encode(
+                    pg_catalog.sha256(canonical_bytes), 'hex'
+                ) AND canonical_json = pg_catalog.convert_from(
+                    canonical_bytes, 'UTF8'
+                )::jsonb AS projection_valid
+            FROM cache.websim_loadout_effect_authorities
+            WHERE loadout_effect_authority_key = %s
+            """,
+            (key,),
+        )
+        stored = cur.fetchone()
+        if (
+            not stored
+            or len(stored) != 4
+            or stored[0] != key
+            or stored[1] != "loadout-effect-authority-v1"
+            or stored[3] is not True
+        ):
+            raise SimulationSnapshotIntegrityError(
+                "loadout effect authority is unavailable"
+            )
+        try:
+            authority = reload_loadout_effect_authority(
+                bytes(stored[2]), stored[0],
+                resolver_snapshot=self._blocked_authority_replay_context(replay),
+            )
+            payload = json.loads(authority.canonical_bytes)
+        except (TypeError, ValueError, json.JSONDecodeError) as error:
+            raise SimulationSnapshotIntegrityError(
+                "loadout effect authority typed reload failed"
+            ) from error
+        cur.execute(
+            """
+            /* simulation_snapshot_loadout_effect_authority_relation_load */
+            SELECT ordinal, effect_record_key
+            FROM cache.websim_loadout_effect_authority_records
+            WHERE loadout_effect_authority_key = %s
+            ORDER BY ordinal
+            """,
+            (key,),
+        )
+        relations = tuple(cur.fetchall())
+        records = payload.get("supportRecords") if isinstance(payload, Mapping) else None
+        if not isinstance(records, list) or len(relations) != len(records):
+            raise SimulationSnapshotIntegrityError(
+                "loadout effect authority relation cardinality mismatch"
+            )
+        for ordinal, (relation, expected) in enumerate(zip(relations, records, strict=True)):
+            if (
+                type(relation) not in {tuple, list}
+                or len(relation) != 2
+                or relation[0] != ordinal
+                or not isinstance(expected, Mapping)
+                or relation[1] != expected.get("supportRecordKey")
+            ):
+                raise SimulationSnapshotIntegrityError(
+                    "loadout effect authority relation order mismatch"
+                )
+            record = self._load_effect_record_with_cursor(
+                cur,
+                relation[1],
+                simc_runtime_revision=simc_runtime_revision,
+            )
+            expected_payload = dict(expected)
+            expected_payload.pop("supportRecordKey", None)
+            if json.loads(record.canonical_bytes) != expected_payload:
+                raise SimulationSnapshotIntegrityError(
+                    "loadout effect authority relation record mismatch"
+                )
+        return authority
+
+    def _seal_loadout_effect_authority_with_cursor(
+        self,
+        cur: Any,
+        authority: Any,
+        *,
+        replay: Mapping[str, Any],
+        simc_runtime_revision: str,
+    ) -> Any:
+        if authority is None:
+            return None
+        key = getattr(authority, "content_key", None)
+        canonical_bytes = getattr(authority, "canonical_bytes", None)
+        schema_revision = getattr(authority, "schema_revision", None)
+        if (
+            not _LOADOUT_EFFECT_AUTHORITY_KEY_PATTERN.fullmatch(_text(key))
+            or schema_revision != "loadout-effect-authority-v1"
+            or type(canonical_bytes) is not bytes
+        ):
+            raise SimulationSnapshotIntegrityError("loadout effect authority is invalid")
+        try:
+            verified = reload_loadout_effect_authority(
+                canonical_bytes,
+                key,
+                resolver_snapshot=self._blocked_authority_replay_context(replay),
+            )
+            payload = json.loads(verified.canonical_bytes)
+        except (TypeError, ValueError, json.JSONDecodeError) as error:
+            raise SimulationSnapshotIntegrityError(
+                "loadout effect authority typed reload failed"
+            ) from error
+        records = payload.get("supportRecords") if isinstance(payload, Mapping) else None
+        if not isinstance(records, list):
+            raise SimulationSnapshotIntegrityError("loadout effect authority records are invalid")
+        for ordinal, record in enumerate(records):
+            record_key = record.get("supportRecordKey") if isinstance(record, Mapping) else None
+            reloaded = self._load_effect_record_with_cursor(
+                cur,
+                record_key,
+                simc_runtime_revision=simc_runtime_revision,
+            )
+            expected_payload = dict(record)
+            expected_payload.pop("supportRecordKey", None)
+            if json.loads(reloaded.canonical_bytes) != expected_payload:
+                raise SimulationSnapshotIntegrityError(
+                    "loadout effect authority record mismatch"
+                )
+            cur.execute(
+                """
+                /* simulation_snapshot_loadout_effect_authority_relation_insert */
+                INSERT INTO cache.websim_loadout_effect_authority_records (
+                    loadout_effect_authority_key, ordinal, effect_record_key
+                ) VALUES (%s, %s, %s)
+                ON CONFLICT DO NOTHING
+                """,
+                (key, ordinal, record_key),
+            )
+        cur.execute(
+            """
+            /* simulation_snapshot_loadout_effect_authority_parent_insert */
+            INSERT INTO cache.websim_loadout_effect_authorities (
+                loadout_effect_authority_key,
+                schema_revision,
+                canonical_bytes,
+                canonical_json,
+                canonical_sha256
+            ) VALUES (
+                %s,
+                %s,
+                %s,
+                pg_catalog.convert_from(%s, 'UTF8')::jsonb,
+                pg_catalog.encode(pg_catalog.sha256(%s), 'hex')
+            )
+            ON CONFLICT DO NOTHING
+            """,
+            (key, schema_revision, canonical_bytes, canonical_bytes, canonical_bytes),
+        )
+        return self._load_loadout_effect_authority_with_cursor(
+            cur,
+            key,
+            replay=replay,
+            simc_runtime_revision=simc_runtime_revision,
+        )
+
+    def _rehydrate_v2_loadout_with_cursor(
+        self,
+        cur: Any,
+        key: str,
+    ) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any], Any]:
+        cur.execute(
+            """
+            /* simulation_snapshot_loadout_v2_load */
+            SELECT
+                resolved_loadout_key,
+                schema_revision,
+                catalog_revision,
+                gear_rule_revision,
+                exact_registry_revision,
+                class_key,
+                spec_key,
+                loadout_json::text,
+                row_hash,
+                exact_authority_by_slot_json::text,
+                effect_evidence_by_occurrence_json::text,
+                loadout_effect_authority_key,
+                resolver_replay_context_json::text
+            FROM cache.websim_gear_resolved_loadouts
+            WHERE resolved_loadout_key = %s
+            """,
+            (key,),
+        )
+        stored = cur.fetchone()
+        if not stored:
+            return {}, {}, {}, None
+        row = _json_value(stored[7])
+        replay = self._stored_resolver_replay_context(stored[12])
+        bundles = self._reload_exact_authority_bundles(row)
+        authority = None
+        if stored[11] is not None:
+            authority = self._load_loadout_effect_authority_with_cursor(
+                cur,
+                stored[11],
+                replay=replay,
+                simc_runtime_revision=row.get("simcRuntimeRevision"),
+            )
+        if (
+            not _LOADOUT_V2_KEY_PATTERN.fullmatch(_text(stored[0]))
+            or row.get("schemaRevision") != RESOLVED_LOADOUT_V2_SCHEMA_REVISION
+            or row.get("resolvedLoadoutKey") != stored[0]
+            or _text(row.get("originCatalogRevision")) != _text(stored[2])
+            or _text(row.get("gearRuleRevision")) != _text(stored[3])
+            or stored[4] is not None
+            or _text(row.get("eligibilityContext", {}).get("classKey")) != _text(stored[5])
+            or _text(row.get("eligibilityContext", {}).get("specKey")) != _text(stored[6])
+            or row.get("rowHash") != stored[8]
+            or row.get("exactAuthorityBySlot") != _json_value(stored[9])
+            or row.get("effectEvidenceByOccurrence") != _json_value(stored[10])
+            or row.get("loadoutEffectAuthorityKey") != stored[11]
+            or verify_resolved_loadout_v2(
+                row,
+                resolver_snapshot=replay,
+                authority_bundles=bundles,
+                loadout_effect_authority=authority,
+            )
+        ):
+            raise SimulationSnapshotIntegrityError(
+                "sealed v2 ResolvedLoadout integrity mismatch"
+            )
+        return row, replay, bundles, authority
+
+    def _load_v2_loadout_with_cursor(self, cur: Any, key: str) -> dict[str, Any]:
+        return self._rehydrate_v2_loadout_with_cursor(cur, key)[0]
+
+    def _load_v2_snapshot_with_cursor(self, cur: Any, key: str) -> dict[str, Any]:
+        cur.execute(
+            """
+            /* simulation_snapshot_v2_load */
+            SELECT
+                simulation_snapshot_key,
+                schema_revision,
+                resolved_loadout_key,
+                talent_profile_key,
+                compiler_revision,
+                simc_runtime_revision,
+                canonical_input_hash,
+                catalog_revision,
+                gear_rule_revision,
+                snapshot_json::text,
+                row_hash,
+                exact_authority_by_slot_json::text,
+                effect_evidence_by_occurrence_json::text,
+                loadout_effect_authority_key
+            FROM cache.websim_simulation_snapshots
+            WHERE simulation_snapshot_key = %s
+            """,
+            (key,),
+        )
+        stored = cur.fetchone()
+        if not stored:
+            return {}
+        row = _json_value(stored[9])
+        loadout, replay, bundles, authority = self._rehydrate_v2_loadout_with_cursor(
+            cur, stored[2]
+        )
+        if (
+            not _SNAPSHOT_V2_KEY_PATTERN.fullmatch(_text(stored[0]))
+            or row.get("schemaRevision") != SIMULATION_SNAPSHOT_V2_SCHEMA_REVISION
+            or row.get("simulationSnapshotKey") != stored[0]
+            or row.get("resolvedLoadoutKey") != stored[2]
+            or _text(row.get("talentProfileKey")) != _text(stored[3])
+            or _text(row.get("compilerRevision")) != _text(stored[4])
+            or _text(row.get("simcRuntimeRevision")) != _text(stored[5])
+            or _text(row.get("canonicalInputHash")) != _text(stored[6])
+            or _text(row.get("originCatalogRevision")) != _text(stored[7])
+            or stored[8] is not None
+            or row.get("rowHash") != stored[10]
+            or row.get("exactAuthorityBySlot") != _json_value(stored[11])
+            or row.get("effectEvidenceByOccurrence") != _json_value(stored[12])
+            or row.get("loadoutEffectAuthorityKey") != stored[13]
+            or verify_simulation_snapshot_v2(
+                row,
+                resolved_loadout=loadout,
+                resolver_snapshot=replay,
+                authority_bundles=bundles,
+                compiler_revision=row.get("compilerRevision"),
+                loadout_effect_authority=authority,
+            )
+        ):
+            raise SimulationSnapshotIntegrityError(
+                "sealed v2 SimulationSnapshot integrity mismatch"
+            )
+        return row
+
+    @staticmethod
     def _load_result_with_cursor(cur: Any, key: str) -> dict[str, Any]:
         cur.execute(
             """
@@ -223,12 +816,19 @@ class SimulationSnapshotStore:
     def load_loadout(self, key: str) -> dict[str, Any]:
         with self.connection() as connection:
             with connection.cursor() as cur:
-                return self._load_loadout_with_cursor(cur, _text(key))
+                normalized_key = _text(key)
+                if _LOADOUT_V2_KEY_PATTERN.fullmatch(normalized_key):
+                    return self._load_v2_loadout_with_cursor(cur, normalized_key)
+                return self._load_loadout_with_cursor(cur, normalized_key)
 
     def load_snapshot(self, key: str, *, include_result: bool = True) -> dict[str, Any]:
         with self.connection() as connection:
             with connection.cursor() as cur:
-                row = self._load_snapshot_with_cursor(cur, _text(key))
+                normalized_key = _text(key)
+                if _SNAPSHOT_V2_KEY_PATTERN.fullmatch(normalized_key):
+                    row = self._load_v2_snapshot_with_cursor(cur, normalized_key)
+                else:
+                    row = self._load_snapshot_with_cursor(cur, normalized_key)
                 if not row or not include_result:
                     return row
                 result = self._load_result_with_cursor(cur, _text(key))
@@ -242,8 +842,26 @@ class SimulationSnapshotStore:
                     "result": result["result"],
                 }
 
-    def seal_loadout(self, value: Any) -> dict[str, Any]:
-        row = self._validate_loadout(value)
+    def seal_loadout(
+        self,
+        value: Any,
+        *,
+        resolver_snapshot: Any = None,
+        authority_bundles: Any = None,
+        loadout_effect_authority: Any = None,
+    ) -> dict[str, Any]:
+        row = self._validate_loadout(
+            value,
+            resolver_snapshot=resolver_snapshot,
+            authority_bundles=authority_bundles,
+            loadout_effect_authority=loadout_effect_authority,
+        )
+        if row.get("schemaRevision") == RESOLVED_LOADOUT_V2_SCHEMA_REVISION:
+            return self._seal_loadout_v2(
+                row, resolver_snapshot=resolver_snapshot,
+                authority_bundles=authority_bundles,
+                loadout_effect_authority=loadout_effect_authority,
+            )
         eligibility = row["eligibilityContext"]
         params = (
             row["resolvedLoadoutKey"],
@@ -285,8 +903,105 @@ class SimulationSnapshotStore:
                     )
                 return sealed
 
-    def seal_snapshot(self, value: Any) -> dict[str, Any]:
-        row = self._validate_snapshot(value)
+    def _seal_loadout_v2(
+        self,
+        row: dict[str, Any],
+        *,
+        resolver_snapshot: Any,
+        authority_bundles: Any,
+        loadout_effect_authority: Any,
+    ) -> dict[str, Any]:
+        replay = self._resolver_replay_projection(resolver_snapshot)
+        eligibility = row["eligibilityContext"]
+        with self.connection() as connection:
+            with connection.cursor() as cur:
+                reloaded_bundles = self._reload_exact_authority_bundles(row)
+                authority = self._seal_loadout_effect_authority_with_cursor(
+                    cur,
+                    loadout_effect_authority,
+                    replay=replay,
+                    simc_runtime_revision=row["simcRuntimeRevision"],
+                )
+                if verify_resolved_loadout_v2(
+                    row,
+                    resolver_snapshot=replay,
+                    authority_bundles=reloaded_bundles,
+                    loadout_effect_authority=authority,
+                ):
+                    raise SimulationSnapshotIntegrityError(
+                        "v2 ResolvedLoadout typed replay verification failed"
+                    )
+                params = (
+                    row["resolvedLoadoutKey"],
+                    row["schemaRevision"],
+                    row.get("originCatalogRevision"),
+                    row["gearRuleRevision"],
+                    None,
+                    _text(eligibility.get("classKey")),
+                    _text(eligibility.get("specKey")),
+                    _json(row),
+                    row["rowHash"],
+                    _json(row["exactAuthorityBySlot"]),
+                    _json(row["effectEvidenceByOccurrence"]),
+                    row.get("loadoutEffectAuthorityKey"),
+                    _json(replay),
+                )
+                cur.execute(
+                    """
+                    /* simulation_snapshot_loadout_v2_insert */
+                    INSERT INTO cache.websim_gear_resolved_loadouts (
+                        resolved_loadout_key,
+                        schema_revision,
+                        catalog_revision,
+                        gear_rule_revision,
+                        exact_registry_revision,
+                        class_key,
+                        spec_key,
+                        loadout_json,
+                        row_hash,
+                        exact_authority_by_slot_json,
+                        effect_evidence_by_occurrence_json,
+                        loadout_effect_authority_key,
+                        resolver_replay_context_json
+                    ) VALUES (
+                        %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s,
+                        %s::jsonb, %s::jsonb, %s, %s::jsonb
+                    )
+                    ON CONFLICT DO NOTHING
+                    """,
+                    params,
+                )
+                sealed = self._load_v2_loadout_with_cursor(
+                    cur, row["resolvedLoadoutKey"]
+                )
+                if sealed != row:
+                    raise SimulationSnapshotIntegrityError(
+                        "sealed v2 ResolvedLoadout identity conflict"
+                    )
+                return sealed
+
+    def seal_snapshot(
+        self,
+        value: Any,
+        *,
+        resolved_loadout: Any = None,
+        resolver_snapshot: Any = None,
+        authority_bundles: Any = None,
+        compiler_revision: Any = None,
+        loadout_effect_authority: Any = None,
+    ) -> dict[str, Any]:
+        row = self._validate_snapshot(
+            value,
+            resolved_loadout=resolved_loadout,
+            resolver_snapshot=resolver_snapshot,
+            authority_bundles=authority_bundles,
+            compiler_revision=compiler_revision,
+            loadout_effect_authority=loadout_effect_authority,
+        )
+        if row.get("schemaRevision") == SIMULATION_SNAPSHOT_V2_SCHEMA_REVISION:
+            return self._seal_snapshot_v2(row, resolved_loadout=resolved_loadout,
+                resolver_snapshot=resolver_snapshot, authority_bundles=authority_bundles,
+                compiler_revision=compiler_revision, loadout_effect_authority=loadout_effect_authority)
         params = (
             row["simulationSnapshotKey"],
             row["schemaRevision"],
@@ -339,6 +1054,89 @@ class SimulationSnapshotStore:
                     )
                 return sealed
 
+    def _seal_snapshot_v2(
+        self,
+        row: dict[str, Any],
+        *,
+        resolved_loadout: Any,
+        resolver_snapshot: Any,
+        authority_bundles: Any,
+        compiler_revision: Any,
+        loadout_effect_authority: Any,
+    ) -> dict[str, Any]:
+        with self.connection() as connection:
+            with connection.cursor() as cur:
+                loadout, replay, bundles, authority = (
+                    self._rehydrate_v2_loadout_with_cursor(
+                        cur, row["resolvedLoadoutKey"]
+                    )
+                )
+                if not loadout:
+                    raise SimulationSnapshotIntegrityError(
+                        "sealed ResolvedLoadout is required before snapshot"
+                    )
+                if verify_simulation_snapshot_v2(
+                    row,
+                    resolved_loadout=loadout,
+                    resolver_snapshot=replay,
+                    authority_bundles=bundles,
+                    compiler_revision=row["compilerRevision"],
+                    loadout_effect_authority=authority,
+                ):
+                    raise SimulationSnapshotIntegrityError(
+                        "v2 SimulationSnapshot typed replay verification failed"
+                    )
+                params = (
+                    row["simulationSnapshotKey"],
+                    row["schemaRevision"],
+                    row["resolvedLoadoutKey"],
+                    row["talentProfileKey"],
+                    row["compilerRevision"],
+                    row["simcRuntimeRevision"],
+                    row["canonicalInputHash"],
+                    row.get("originCatalogRevision"),
+                    None,
+                    _json(row),
+                    row["rowHash"],
+                    _json(row["exactAuthorityBySlot"]),
+                    _json(row["effectEvidenceByOccurrence"]),
+                    row.get("loadoutEffectAuthorityKey"),
+                )
+                cur.execute(
+                    """
+                    /* simulation_snapshot_v2_insert */
+                    INSERT INTO cache.websim_simulation_snapshots (
+                        simulation_snapshot_key,
+                        schema_revision,
+                        resolved_loadout_key,
+                        talent_profile_key,
+                        compiler_revision,
+                        simc_runtime_revision,
+                        canonical_input_hash,
+                        catalog_revision,
+                        gear_rule_revision,
+                        snapshot_json,
+                        row_hash,
+                        exact_authority_by_slot_json,
+                        effect_evidence_by_occurrence_json,
+                        loadout_effect_authority_key
+                    ) VALUES (
+                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb,
+                        %s, %s::jsonb, %s::jsonb, %s
+                    )
+                    ON CONFLICT DO NOTHING
+                    """,
+                    params,
+                )
+                sealed = self._load_v2_snapshot_with_cursor(
+                    cur, row["simulationSnapshotKey"]
+                )
+                if sealed != row:
+                    raise SimulationSnapshotIntegrityError(
+                        "sealed v2 SimulationSnapshot identity conflict"
+                    )
+                return sealed
+
     def bind_result(self, snapshot_key: str, result_value: Any) -> dict[str, Any]:
         key = _text(snapshot_key)
         result = _canonical(result_value) if isinstance(result_value, Mapping) else {}
@@ -366,7 +1164,10 @@ class SimulationSnapshotStore:
         )
         with self.connection() as connection:
             with connection.cursor() as cur:
-                snapshot = self._load_snapshot_with_cursor(cur, key)
+                if _SNAPSHOT_V2_KEY_PATTERN.fullmatch(key):
+                    snapshot = self._load_v2_snapshot_with_cursor(cur, key)
+                else:
+                    snapshot = self._load_snapshot_with_cursor(cur, key)
                 if not snapshot:
                     raise SimulationSnapshotIntegrityError(
                         "sealed simulation snapshot is required before result"

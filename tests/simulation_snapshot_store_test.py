@@ -13,16 +13,33 @@ from server.simulation_snapshot_store import (
 )
 from tests.gear_resolved_loadout_test import (
     TEMPLATE_HASH,
+    active_v2_loadout_fixture,
     exact_registry,
     resolver_snapshot,
 )
+from tests.simulation_snapshot_test import (
+    TALENT_KEY,
+    TALENT_LINES,
+    character_context,
+    scenario,
+    v2_snapshot_fixture,
+)
+from server.simulation_snapshot import build_simulation_snapshot_v2
+from server.gear_canonical_kernel import canonical_json_bytes
 
 
 class FakeDatabase:
     def __init__(self):
         self.loadouts = {}
+        self.v2_loadouts = {}
         self.snapshots = {}
+        self.v2_snapshots = {}
         self.results = {}
+        self.documents = {}
+        self.exact_authority_bundles = {}
+        self.effect_aggregate_records = {}
+        self.loadout_effect_authorities = {}
+        self.loadout_effect_authority_records = {}
         self.statements = []
 
 
@@ -41,7 +58,52 @@ class FakeCursor:
         normalized = " ".join(str(sql).split())
         self.database.statements.append(normalized)
         self.rows = []
-        if "simulation_snapshot_loadout_insert" in normalized:
+        if "exact_authority_revision_projection" in normalized:
+            progression = json.loads(params[0])
+            support = json.loads(params[1])
+            envelope = json.loads(params[2])
+            self.rows = [(
+                progression["gearRuleRevision"],
+                support["simcRuntimeRevision"],
+                envelope["resolverRevision"],
+            )]
+        elif "exact_authority_document_load" in normalized:
+            row = self.database.documents.get(params[0])
+            self.rows = [row] if row else []
+        elif "simulation_snapshot_effect_record_load" in normalized:
+            row = self.database.documents.get(params[0])
+            self.rows = [row] if row else []
+        elif "exact_authority_bundle_load" in normalized:
+            row = self.database.exact_authority_bundles.get(params[0])
+            self.rows = [row] if row else []
+        elif "exact_authority_effect_relation_load" in normalized:
+            self.rows = list(self.database.effect_aggregate_records.get(params[0], ()))
+        elif "simulation_snapshot_loadout_effect_authority_document_load" in normalized:
+            row = self.database.loadout_effect_authorities.get(params[0])
+            self.rows = [
+                (row[0], row[1], row[2], True)
+            ] if row else []
+        elif "simulation_snapshot_loadout_effect_authority_relation_load" in normalized:
+            self.rows = list(
+                self.database.loadout_effect_authority_records.get(params[0], ())
+            )
+        elif "simulation_snapshot_loadout_effect_authority_parent_insert" in normalized:
+            self.database.loadout_effect_authorities.setdefault(params[0], tuple(params))
+        elif "simulation_snapshot_loadout_effect_authority_relation_insert" in normalized:
+            rows = self.database.loadout_effect_authority_records.setdefault(params[0], [])
+            if (params[1], params[2]) not in rows:
+                rows.append((params[1], params[2]))
+        elif "simulation_snapshot_loadout_v2_insert" in normalized:
+            self.database.v2_loadouts.setdefault(params[0], tuple(params))
+        elif "simulation_snapshot_loadout_v2_load" in normalized:
+            row = self.database.v2_loadouts.get(params[0])
+            self.rows = [row] if row else []
+        elif "simulation_snapshot_v2_insert" in normalized:
+            self.database.v2_snapshots.setdefault(params[0], tuple(params))
+        elif "simulation_snapshot_v2_load" in normalized:
+            row = self.database.v2_snapshots.get(params[0])
+            self.rows = [row] if row else []
+        elif "simulation_snapshot_loadout_insert" in normalized:
             self.database.loadouts.setdefault(params[0], tuple(params))
         elif "simulation_snapshot_loadout_load" in normalized:
             row = self.database.loadouts.get(params[0])
@@ -61,6 +123,11 @@ class FakeCursor:
         row = self.rows[0] if self.rows else None
         self.rows = []
         return row
+
+    def fetchall(self):
+        rows = self.rows
+        self.rows = []
+        return rows
 
 
 class FakeConnection:
@@ -120,6 +187,76 @@ def snapshot():
         compiler_revision="simc-profile-compiler-v1",
         simc_runtime_revision="simc-runtime-v1",
     )
+
+
+def active_v2_snapshot_fixture():
+    resolver, authority, bundles, loadout_row = active_v2_loadout_fixture()
+    eligibility = resolver["eligibilityContext"]
+    snapshot_row = build_simulation_snapshot_v2(
+        resolved_loadout=loadout_row,
+        talent_profile_key=TALENT_KEY,
+        talent_lines=TALENT_LINES,
+        character_context=character_context(
+            eligibility["classKey"], eligibility["specKey"],
+        ),
+        scenario_options=scenario(),
+        preparation_lines=["optimal_raid=0"],
+        compiler_revision="simc-profile-compiler-v2",
+        simc_runtime_revision="simc-runtime-v2",
+        resolver_snapshot=resolver,
+        authority_bundles=bundles,
+        loadout_effect_authority=authority,
+    )
+    return resolver, authority, bundles, loadout_row, snapshot_row
+
+
+def seed_exact_authority_bundles(database, bundles):
+    for bundle in bundles.values():
+        documents = (
+            bundle.exact_item,
+            bundle.static_facts,
+            bundle.progression,
+            *bundle.effect_records,
+            bundle.effect_support,
+            bundle.envelope,
+        )
+        for document in documents:
+            database.documents[document.content_key] = (
+                document.content_key,
+                document.document_kind,
+                document.schema_revision,
+                document.canonical_bytes,
+                True,
+            )
+        database.exact_authority_bundles[bundle.envelope.content_key] = (
+            bundle.envelope.content_key,
+            bundle.exact_item.content_key,
+            bundle.static_facts.content_key,
+            bundle.progression.content_key,
+            bundle.effect_support.content_key,
+            "gear-rule-matrix-v1",
+            "simc-runtime-v2",
+            "resolver-v2",
+        )
+        database.effect_aggregate_records[bundle.effect_support.content_key] = [
+            (ordinal, record.content_key)
+            for ordinal, record in enumerate(bundle.effect_records)
+        ]
+
+
+def seed_loadout_effect_records(database, authority):
+    payload = json.loads(authority.canonical_bytes)
+    for record in payload["supportRecords"]:
+        record_payload = dict(record)
+        record_payload.pop("supportRecordKey")
+        canonical_bytes = canonical_json_bytes(record_payload)
+        database.documents[record["supportRecordKey"]] = (
+            record["supportRecordKey"],
+            "effect_record",
+            "simc-item-effect-record-v1",
+            canonical_bytes,
+            True,
+        )
 
 
 class SimulationSnapshotStoreTest(unittest.TestCase):
@@ -221,6 +358,114 @@ class SimulationSnapshotStoreTest(unittest.TestCase):
                     "status": "completed",
                     "metrics": {"dps": 999999},
                 },
+            )
+
+    def test_v2_round_trip_requires_the_verifier_context(self):
+        resolver, bundles, loadout_row, snapshot_row = v2_snapshot_fixture()
+        seed_exact_authority_bundles(self.database, bundles)
+
+        sealed_loadout = self.store.seal_loadout(
+            loadout_row,
+            resolver_snapshot=resolver,
+            authority_bundles=bundles,
+        )
+        sealed_snapshot = self.store.seal_snapshot(
+            snapshot_row,
+            resolved_loadout=loadout_row,
+            resolver_snapshot=resolver,
+            authority_bundles=bundles,
+            compiler_revision="simc-profile-compiler-v2",
+        )
+
+        self.assertEqual(sealed_loadout, loadout_row)
+        self.assertEqual(sealed_snapshot, snapshot_row)
+
+    def test_v2_active_effect_round_trip_rehydrates_duplicate_relations(self):
+        """Would fail if persistence deduplicated Task 4L relation occurrences."""
+        resolver, authority, bundles, loadout_row, snapshot_row = (
+            active_v2_snapshot_fixture()
+        )
+        seed_exact_authority_bundles(self.database, bundles)
+        seed_loadout_effect_records(self.database, authority)
+
+        sealed_loadout = self.store.seal_loadout(
+            loadout_row,
+            resolver_snapshot=resolver,
+            authority_bundles=bundles,
+            loadout_effect_authority=authority,
+        )
+        sealed_snapshot = self.store.seal_snapshot(
+            snapshot_row,
+            resolved_loadout=loadout_row,
+            resolver_snapshot=resolver,
+            authority_bundles=bundles,
+            compiler_revision="simc-profile-compiler-v2",
+            loadout_effect_authority=authority,
+        )
+
+        relation_rows = self.database.loadout_effect_authority_records[
+            authority.content_key
+        ]
+        self.assertEqual(
+            relation_rows,
+            [(0, relation_rows[0][1]), (1, relation_rows[1][1]), (2, relation_rows[2][1])],
+        )
+        self.assertEqual(len({key for _, key in relation_rows}), 1)
+        self.assertEqual(self.store.load_loadout(sealed_loadout["resolvedLoadoutKey"]), loadout_row)
+        self.assertEqual(self.store.load_snapshot(sealed_snapshot["simulationSnapshotKey"]), snapshot_row)
+        self.assertIn(
+            "ORDER BY ordinal",
+            "\n".join(self.database.statements),
+        )
+
+        relation_rows[1] = (3, relation_rows[1][1])
+        with self.assertRaisesRegex(
+            SimulationSnapshotIntegrityError,
+            "loadout effect authority relation order mismatch",
+        ):
+            self.store.load_loadout(sealed_loadout["resolvedLoadoutKey"])
+        relation_rows[1] = (1, relation_rows[1][1])
+        self.database.loadout_effect_authority_records[authority.content_key].pop()
+        with self.assertRaisesRegex(
+            SimulationSnapshotIntegrityError,
+            "loadout effect authority",
+        ):
+            self.store.load_loadout(sealed_loadout["resolvedLoadoutKey"])
+
+    def test_v2_rejects_required_mismatched_and_oversized_replay_context(self):
+        """Would fail if v2 fell back to canonical JSON or a lossy resolver copy."""
+        resolver, bundles, loadout_row, _ = v2_snapshot_fixture()
+        seed_exact_authority_bundles(self.database, bundles)
+        with self.assertRaisesRegex(
+            SimulationSnapshotIntegrityError,
+            "verifier context is required",
+        ):
+            self.store.seal_loadout(loadout_row)
+
+        sealed = self.store.seal_loadout(
+            loadout_row,
+            resolver_snapshot=resolver,
+            authority_bundles=bundles,
+        )
+        stored = list(self.database.v2_loadouts[sealed["resolvedLoadoutKey"]])
+        replay = json.loads(stored[-1])
+        replay["resolvedSlots"]["head"]["itemId"] = "wrong-item"
+        stored[-1] = json.dumps(replay, separators=(",", ":"), sort_keys=True)
+        self.database.v2_loadouts[sealed["resolvedLoadoutKey"]] = tuple(stored)
+        with self.assertRaises(SimulationSnapshotIntegrityError):
+            self.store.load_loadout(sealed["resolvedLoadoutKey"])
+
+        oversized = copy.deepcopy(resolver)
+        oversized["setState"]["itemSetCounts"]["padding"] = "x" * 1048576
+        oversized["v2EffectBoundary"]["setState"] = oversized["setState"]
+        with self.assertRaisesRegex(
+            SimulationSnapshotIntegrityError,
+            "replay context is invalid",
+        ):
+            self.store.seal_loadout(
+                loadout_row,
+                resolver_snapshot=oversized,
+                authority_bundles=bundles,
             )
 
 
