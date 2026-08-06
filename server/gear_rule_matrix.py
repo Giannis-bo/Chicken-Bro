@@ -9,11 +9,21 @@ from typing import Any, Callable, Mapping
 
 try:
     from .gear_contracts import parse_selection_intent, validate_authority_context
+    from .gear_canonical_kernel import (
+        CanonicalValueError,
+        canonical_identity_token,
+        canonical_int,
+    )
     from .gear_enhancement_management import validated_enhancement_management_fields
     from .gear_result_envelope import gear_problem
     from .gear_socket_authority import CAPABILITY_REVISION
 except ImportError:
     from gear_contracts import parse_selection_intent, validate_authority_context
+    from gear_canonical_kernel import (
+        CanonicalValueError,
+        canonical_identity_token,
+        canonical_int,
+    )
     from gear_enhancement_management import validated_enhancement_management_fields
     from gear_result_envelope import gear_problem
     from gear_socket_authority import CAPABILITY_REVISION
@@ -612,7 +622,7 @@ def loadout_effect_subjects(
     authority_context: Any,
     *,
     effective_set_state: Any = None,
-) -> list[dict[str, str]]:
+) -> list[dict[str, Any]]:
     """Return active loadout-scoped subjects that Task 4P must fail closed on.
 
     This is intentionally only a derivation boundary.  It does not create a
@@ -626,50 +636,131 @@ def loadout_effect_subjects(
     items = authority_context.get("itemsById")
     if not isinstance(parameters, Mapping) or not isinstance(items, Mapping):
         return []
-    subjects: list[dict[str, str]] = []
+    subjects: list[dict[str, Any]] = []
+
+    def descriptor(
+        *,
+        item_set_id: object,
+        pieces: object,
+        subject_key: object,
+    ) -> dict[str, Any]:
+        return {
+            "subjectKind": "set_bonus",
+            "itemSetId": canonical_identity_token(
+                item_set_id, path="loadoutEffectSubject.itemSetId",
+            ),
+            "pieces": canonical_int(
+                pieces,
+                path="loadoutEffectSubject.pieces",
+                minimum=1,
+                maximum=16,
+            ),
+            "subjectKey": canonical_identity_token(
+                subject_key, path="loadoutEffectSubject.subjectKey",
+            ),
+        }
+
     if effective_set_state is None:
         selected_ids = [selection.get("itemId") for selection in intent["slots"].values() if isinstance(selection, Mapping)]
         for aggregate in parameters.get("setAggregationInputs", []):
             if not isinstance(aggregate, Mapping):
                 continue
             members = {str(item) for item in aggregate.get("memberItemIds", [])}
-            set_id = str(aggregate.get("itemSetId") or "")
+            set_id = aggregate.get("itemSetId")
+            try:
+                canonical_set_id = canonical_identity_token(
+                    set_id, path="loadoutEffectSubject.itemSetId",
+                )
+            except CanonicalValueError:
+                return []
             count = sum(1 for item_id in selected_ids if item_id in members) if members else sum(1 for item_id in selected_ids if isinstance(items.get(item_id), Mapping) and str(items[item_id].get("itemSetId") or "") == set_id)
             for threshold in aggregate.get("thresholds", []):
                 if not isinstance(threshold, Mapping):
                     continue
-                effect_id = str(threshold.get("effectId") or "").strip()
                 pieces = threshold.get("pieces")
-                if effect_id and isinstance(pieces, int) and pieces > 0 and count >= pieces:
-                    subjects.append({"subjectKind": "set_bonus", "subjectKey": effect_id})
+                if type(pieces) is int and count >= pieces:
+                    if threshold.get("subjectKind", "set_bonus") != "set_bonus":
+                        return []
+                    try:
+                        subjects.append(descriptor(
+                            item_set_id=canonical_set_id,
+                            pieces=pieces,
+                            subject_key=threshold.get("effectId"),
+                        ))
+                    except CanonicalValueError:
+                        return []
     elif isinstance(effective_set_state, Mapping):
         effects = effective_set_state.get("activeDynamicEffects")
-        if isinstance(effects, list):
-            for raw_effect in effects:
-                effect = raw_effect if isinstance(raw_effect, Mapping) else {}
-                effect_id = str(effect.get("effectId") or "").strip()
-                set_id = str(effect.get("itemSetId") or "").strip()
-                pieces = effect.get("pieces")
-                if (
-                    effect_id
-                    and set_id
-                    and isinstance(pieces, int)
-                    and not isinstance(pieces, bool)
-                    and pieces > 0
-                ):
-                    subjects.append(
-                        {"subjectKind": "set_bonus", "subjectKey": effect_id}
+        if not isinstance(effects, list):
+            return []
+        raw_inputs = parameters.get("setAggregationInputs")
+        if not isinstance(raw_inputs, list):
+            return []
+        raw_subject_kinds: dict[tuple[str, int, str], list[object]] = {}
+        for aggregate in raw_inputs:
+            if not isinstance(aggregate, Mapping):
+                continue
+            thresholds = aggregate.get("thresholds")
+            if not isinstance(thresholds, list):
+                continue
+            for threshold in thresholds:
+                if not isinstance(threshold, Mapping):
+                    continue
+                try:
+                    raw_descriptor = descriptor(
+                        item_set_id=aggregate.get("itemSetId"),
+                        pieces=threshold.get("pieces"),
+                        subject_key=threshold.get("effectId"),
                     )
-    normalized = sorted(
-        {
-            (subject["subjectKind"], subject["subjectKey"])
+                except CanonicalValueError:
+                    continue
+                identity = (
+                    raw_descriptor["itemSetId"],
+                    raw_descriptor["pieces"],
+                    raw_descriptor["subjectKey"],
+                )
+                raw_subject_kinds.setdefault(identity, []).append(
+                    threshold.get("subjectKind", "set_bonus")
+                )
+        for raw_effect in effects:
+            if not isinstance(raw_effect, Mapping):
+                return []
+            try:
+                subjects.append(descriptor(
+                    item_set_id=raw_effect.get("itemSetId"),
+                    pieces=raw_effect.get("pieces"),
+                    subject_key=raw_effect.get("effectId"),
+                ))
+            except CanonicalValueError:
+                return []
+        effective_counts = Counter(
+            (
+                subject["itemSetId"],
+                subject["pieces"],
+                subject["subjectKey"],
+            )
             for subject in subjects
-        }
+        )
+        for identity, count in effective_counts.items():
+            kinds = raw_subject_kinds.get(identity)
+            if (
+                kinds is None
+                or len(kinds) != count
+                or any(kind != "set_bonus" for kind in kinds)
+            ):
+                return []
+    else:
+        return []
+    normalized = sorted(
+        subjects,
+        key=lambda subject: (
+            subject["subjectKind"],
+            subject["itemSetId"],
+            subject["pieces"],
+            subject["subjectKey"],
+        ),
     )
-    return [
-        {"subjectKind": kind, "subjectKey": key}
-        for kind, key in normalized
-    ]
+    return normalized if len(normalized) <= 128 else []
 
 
 __all__ = (

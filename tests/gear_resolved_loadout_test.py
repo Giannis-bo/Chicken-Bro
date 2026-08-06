@@ -1,5 +1,6 @@
 import copy
 from dataclasses import replace
+import json
 from pathlib import Path
 import subprocess
 import sys
@@ -7,9 +8,13 @@ import unittest
 from unittest.mock import patch
 
 import server.gear_resolved_loadout as resolved_loadout_module
-from server import gear_resolver
+from server import gear_loadout_effect_authority, gear_resolver
 from tests.gear_exact_authority_store_test import authority_bundle
 from tests.gear_resolver_test import build_midnight_mage_resolver_fixture
+from tests.gear_loadout_effect_authority_test import (
+    active_resolver_authority,
+    records_for,
+)
 from server.gear_exact_authority import (
     seal_exact_authority_envelope,
     seal_exact_progression,
@@ -323,7 +328,259 @@ def v2_bundle(slot, item_id, subjects, *, exact_fields=None):
     )
 
 
+def active_v2_loadout_fixture(*, repeated_subject=True):
+    """Build a genuine active Resolver, loadout authority, and exact closure."""
+    fixture, _, outcome = active_resolver_authority(
+        repeated_subject=repeated_subject,
+    )
+    authority = outcome.document
+    source = gear_resolver.resolve_v2(
+        fixture["intent"],
+        fixture["authorityContext"],
+        loadout_effect_authority=authority,
+    )
+    pairs = []
+    bundles = {}
+    for slot in source["profileReadiness"]["requiredSlots"]:
+        bundle = v2_bundle(slot, source["resolvedSlots"][slot]["itemId"], [])
+        key = bundle.envelope.content_key
+        pairs.append({"slot": slot, "exactAuthorityEnvelopeKey": key})
+        bundles[key] = bundle
+    loadout = build_resolved_loadout_v2(
+        resolver_snapshot=source,
+        exact_authority_by_slot=pairs,
+        authority_bundles=bundles,
+        gear_rule_revision="gear-rule-matrix-v1",
+        resolver_revision="resolver-v2",
+        simc_runtime_revision="simc-runtime-v2",
+        loadout_effect_authority=authority,
+    )
+    return source, authority, bundles, loadout
+
+
+def alternate_loadout_effect_authority(source):
+    """Seal a different valid aggregate for the same active Resolver state."""
+    owner_input = copy.deepcopy(source)
+    owner_input["status"] = "blocked"
+    owner_input["v2EffectBoundary"]["status"] = "blocked"
+    owner_input["v2EffectBoundary"].pop("loadoutEffectAuthorityKey", None)
+    outcome = gear_loadout_effect_authority.resolve_loadout_effect_authority(
+        owner_input,
+        records=records_for(
+            owner_input,
+            verified_at="2026-08-06T00:00:01Z",
+        ),
+    )
+    if outcome.status != "verified":
+        raise AssertionError(outcome.issues)
+    return outcome.document
+
+
+def rehash_active_v2_loadout(value):
+    identity = {
+        "classKey": value["eligibilityContext"]["classKey"],
+        "specKey": value["eligibilityContext"]["specKey"],
+        "exactAuthorityBySlot": value["exactAuthorityBySlot"],
+        "orderedSlots": value["orderedSlots"],
+        "effectEvidenceByOccurrence": value["effectEvidenceByOccurrence"],
+        "gearRuleRevision": value["gearRuleRevision"],
+        "resolverRevision": value["resolverRevision"],
+        "simcRuntimeRevision": value["simcRuntimeRevision"],
+    }
+    if "loadoutEffectAuthorityKey" in value:
+        identity["loadoutEffectAuthorityKey"] = value[
+            "loadoutEffectAuthorityKey"
+        ]
+    value["resolvedLoadoutKey"] = resolved_loadout_module._hash(
+        "resolved-loadout-v2:sha256:", identity,
+    )
+    value["rowHash"] = resolved_loadout_module._hash(
+        "sha256:",
+        {
+            key: item
+            for key, item in value.items()
+            if key not in {"rowHash", "originCatalogRevision"}
+        },
+    )
+
+
 class GearResolvedLoadoutTest(unittest.TestCase):
+    def test_no_effect_v2_loadout_bytes_ignore_optional_loadout_authority(self):
+        """Would fail if optional Task 4L input changed a no-subject v2 loadout."""
+        source = v2_resolver_snapshot()
+        bundle = v2_bundle("head", "1001", ["A"])
+        key = bundle.envelope.content_key
+        kwargs = {
+            "resolver_snapshot": source,
+            "exact_authority_by_slot": [
+                {"slot": "head", "exactAuthorityEnvelopeKey": key},
+            ],
+            "authority_bundles": {key: bundle},
+            "gear_rule_revision": RULE_REVISION,
+            "resolver_revision": "resolver-v2",
+            "simc_runtime_revision": "simc-runtime-v2",
+        }
+
+        omitted = build_resolved_loadout_v2(**kwargs)
+        malformed = build_resolved_loadout_v2(
+            **kwargs,
+            loadout_effect_authority={"malformed": "ignored without subjects"},
+        )
+        omitted_bytes = json.dumps(
+            omitted,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+        malformed_bytes = json.dumps(
+            malformed,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+
+        self.assertEqual(omitted["status"], "ready")
+        self.assertEqual(omitted_bytes, malformed_bytes)
+        self.assertEqual(
+            omitted["resolvedLoadoutKey"], malformed["resolvedLoadoutKey"],
+        )
+        self.assertEqual(omitted["rowHash"], malformed["rowHash"])
+        self.assertEqual(
+            omitted["effectEvidenceByOccurrence"],
+            malformed["effectEvidenceByOccurrence"],
+        )
+        self.assertEqual(set(omitted), set(malformed))
+        self.assertNotIn("loadoutEffectAuthorityKey", omitted)
+        self.assertNotIn("loadoutEffectAuthorityKey", malformed)
+
+    def test_v2_active_authority_appends_ordered_loadout_occurrences_and_binds_identity(self):
+        """Would fail if loadout occurrences were deduped, interleaved, or left unhashed."""
+        source, authority, bundles, loadout = active_v2_loadout_fixture()
+        payload = json.loads(authority.canonical_bytes)
+        occurrences = loadout["effectEvidenceByOccurrence"]
+        loadout_start = next(
+            index for index, occurrence in enumerate(occurrences)
+            if occurrence["scope"] == "loadout"
+        )
+        loadout_occurrences = occurrences[loadout_start:]
+
+        self.assertEqual(loadout["status"], "ready")
+        self.assertEqual(
+            loadout["loadoutEffectAuthorityKey"], authority.content_key,
+        )
+        self.assertTrue(all(row["scope"] == "slot" for row in occurrences[:loadout_start]))
+        self.assertTrue(all(row["scope"] == "loadout" for row in loadout_occurrences))
+        self.assertEqual(
+            [row["recordOrdinal"] for row in loadout_occurrences], [0, 1, 2],
+        )
+        self.assertEqual(
+            [row["subjectKey"] for row in loadout_occurrences],
+            [row["subjectKey"] for row in payload["subjects"]],
+        )
+        self.assertEqual(
+            [row["supportRecordKey"] for row in loadout_occurrences],
+            [row["supportRecordKey"] for row in payload["subjects"]],
+        )
+        self.assertTrue(all(set(row) == {
+            "scope", "loadoutEffectAuthorityKey", "recordOrdinal",
+            "subjectKind", "subjectKey", "subjectVariantSignature",
+            "supportRecordKey",
+        } for row in loadout_occurrences))
+        self.assertEqual(
+            verify_resolved_loadout_v2(
+                loadout,
+                resolver_snapshot=source,
+                authority_bundles=bundles,
+                loadout_effect_authority=authority,
+            ),
+            [],
+        )
+
+        missing = build_resolved_loadout_v2(
+            resolver_snapshot=source,
+            exact_authority_by_slot=loadout["exactAuthorityBySlot"],
+            authority_bundles=bundles,
+            gear_rule_revision="gear-rule-matrix-v1",
+            resolver_revision="resolver-v2",
+            simc_runtime_revision="simc-runtime-v2",
+        )
+        self.assertEqual(missing["status"], "blocked")
+        self.assertIn("LOADOUT_EFFECT_AUTHORITY_REQUIRED", missing["problemCodes"])
+
+    def test_v2_rejects_valid_authority_substituted_across_resolver_boundary(self):
+        """Would fail if aggregate B could replace the Resolver-bound aggregate A."""
+        source, authority_a, bundles, loadout = active_v2_loadout_fixture()
+        authority_b = alternate_loadout_effect_authority(source)
+        self.assertNotEqual(authority_a.content_key, authority_b.content_key)
+
+        substituted = build_resolved_loadout_v2(
+            resolver_snapshot=source,
+            exact_authority_by_slot=loadout["exactAuthorityBySlot"],
+            authority_bundles=bundles,
+            gear_rule_revision="gear-rule-matrix-v1",
+            resolver_revision="resolver-v2",
+            simc_runtime_revision="simc-runtime-v2",
+            loadout_effect_authority=authority_b,
+        )
+        verification_issues = verify_resolved_loadout_v2(
+            loadout,
+            resolver_snapshot=source,
+            authority_bundles=bundles,
+            loadout_effect_authority=authority_b,
+        )
+
+        self.assertEqual(substituted["status"], "blocked")
+        self.assertIn(
+            "LOADOUT_EFFECT_AUTHORITY_REQUIRED", substituted["problemCodes"],
+        )
+        self.assertIn(
+            "RESOLVED_LOADOUT_V2_RESOLVER_CONTEXT_INVALID",
+            verification_issues,
+        )
+
+    def test_v2_verifier_rejects_rehashed_loadout_suffix_tampering(self):
+        """Would fail if a recomputed row hash could replace the sealed aggregate sequence."""
+        source, authority, bundles, loadout = active_v2_loadout_fixture()
+        start = next(
+            index for index, occurrence in enumerate(loadout["effectEvidenceByOccurrence"])
+            if occurrence["scope"] == "loadout"
+        )
+        mutations = {}
+        mutations["unknown scope"] = copy.deepcopy(loadout)
+        mutations["unknown scope"]["effectEvidenceByOccurrence"][start]["scope"] = "other"
+        mutations["mixed keys"] = copy.deepcopy(loadout)
+        mutations["mixed keys"]["effectEvidenceByOccurrence"][start]["slot"] = "head"
+        mutations["wrong authority key"] = copy.deepcopy(loadout)
+        mutations["wrong authority key"]["effectEvidenceByOccurrence"][start]["loadoutEffectAuthorityKey"] = "loadout-effect-authority:sha256:" + "f" * 64
+        mutations["missing authority key"] = copy.deepcopy(loadout)
+        mutations["missing authority key"].pop("loadoutEffectAuthorityKey")
+        mutations["noncontiguous ordinal"] = copy.deepcopy(loadout)
+        mutations["noncontiguous ordinal"]["effectEvidenceByOccurrence"][start]["recordOrdinal"] = 1
+        mutations["reordered suffix"] = copy.deepcopy(loadout)
+        mutations["reordered suffix"]["effectEvidenceByOccurrence"][start:start + 2] = reversed(
+            mutations["reordered suffix"]["effectEvidenceByOccurrence"][start:start + 2]
+        )
+        mutations["changed subject"] = copy.deepcopy(loadout)
+        mutations["changed subject"]["effectEvidenceByOccurrence"][start]["subjectKey"] = "changed"
+        mutations["changed signature"] = copy.deepcopy(loadout)
+        mutations["changed signature"]["effectEvidenceByOccurrence"][start]["subjectVariantSignature"] = "set_bonus-variant:sha256:" + "f" * 64
+        mutations["changed record"] = copy.deepcopy(loadout)
+        mutations["changed record"]["effectEvidenceByOccurrence"][start]["supportRecordKey"] = "simc-item-effect-record:sha256:" + "f" * 64
+        mutations["changed suffix"] = copy.deepcopy(loadout)
+        mutations["changed suffix"]["effectEvidenceByOccurrence"].pop()
+
+        for label, tampered in mutations.items():
+            with self.subTest(label):
+                rehash_active_v2_loadout(tampered)
+                self.assertTrue(
+                    verify_resolved_loadout_v2(
+                        tampered,
+                        resolver_snapshot=source,
+                        authority_bundles=bundles,
+                        loadout_effect_authority=authority,
+                    )
+                )
+
     def build(self, registry=None, snapshot=None):
         return build_resolved_loadout(
             resolver_snapshot=snapshot or resolver_snapshot(),

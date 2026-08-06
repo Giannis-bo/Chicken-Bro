@@ -14,7 +14,7 @@ import json
 from typing import Any, Iterable, Mapping
 
 try:
-    from . import gear_socket_authority
+    from . import gear_loadout_effect_authority, gear_socket_authority
     from .gear_enhancement_management import (
         ENHANCEMENT_SIMC_FIELDS,
         GEM_SIMC_SEQUENCE_FIELDS,
@@ -35,6 +35,7 @@ try:
         ordered_rule_matrix,
     )
 except ImportError:
+    import gear_loadout_effect_authority
     import gear_socket_authority
     from gear_enhancement_management import (
         ENHANCEMENT_SIMC_FIELDS,
@@ -608,14 +609,13 @@ def _set_state(
             pieces = threshold.get("pieces") if isinstance(threshold, dict) else None
             effect_id = threshold.get("effectId") if isinstance(threshold, dict) else None
             if isinstance(pieces, int) and pieces > 0 and effect_id and counts[set_id] >= pieces:
-                effects.append(
-                    {
-                        "effectId": effect_id,
-                        "itemSetId": set_id,
-                        "pieces": pieces,
-                        "sourceRefIds": _ids(threshold.get("sourceRefIds", [])),
-                    }
-                )
+                effect = {
+                    "effectId": effect_id,
+                    "itemSetId": set_id,
+                    "pieces": pieces,
+                    "sourceRefIds": _ids(threshold.get("sourceRefIds", [])),
+                }
+                effects.append(effect)
     return {
         "itemSetCounts": {key: counts[key] for key in sorted(counts)},
         "activeDynamicEffects": sorted(
@@ -1058,7 +1058,12 @@ def resolve(selection_intent: Any, authority_context: Any) -> dict[str, Any]:
     }
 
 
-def resolve_v2(selection_intent: Any, authority_context: Any) -> dict[str, Any]:
+def resolve_v2(
+    selection_intent: Any,
+    authority_context: Any,
+    *,
+    loadout_effect_authority: Any = None,
+) -> dict[str, Any]:
     """Apply the existing complete rule matrix, then fail closed on Task 4L work.
 
     V2 cannot manufacture a loadout-scoped effect aggregate from slot records.
@@ -1071,19 +1076,72 @@ def resolve_v2(selection_intent: Any, authority_context: Any) -> dict[str, Any]:
         authority_context,
         effective_set_state=result.get("setState"),
     )
-    if not subjects:
+    set_state = result.get("setState")
+    active_effects = (
+        set_state.get("activeDynamicEffects")
+        if isinstance(set_state, Mapping)
+        else None
+    )
+    if not subjects and active_effects == []:
         return {
             **result,
             "loadoutEffectSubjects": [],
             "v2EffectBoundary": _v2_effect_boundary(result, []),
         }
-    problem = gear_problem(
+    required_problem = gear_problem(
         "AUTHORITY_UNAVAILABLE",
         "LOADOUT_EFFECT_AUTHORITY_REQUIRED",
         "Loadout-scoped effects require the Task 4L authority aggregate.",
         path="ruleMatrix.loadoutEffectSubjects",
         meta={"subjects": subjects},
     )
+    blocked = _v2_blocked_for_effect(
+        result,
+        subjects,
+        required_problem,
+    )
+    if not subjects:
+        return blocked
+    authority_payload = _verified_loadout_effect_authority(
+        loadout_effect_authority,
+        resolver_snapshot=blocked,
+    )
+    if authority_payload is None:
+        return blocked
+    payload, authority_key = authority_payload
+    if payload.get("status") == "unsupported":
+        unsupported_problem = gear_problem(
+            "SIMC_UNAVAILABLE",
+            "LOADOUT_EFFECT_UNSUPPORTED",
+            "Loadout-scoped effects are unsupported by the governed SimC runtime.",
+            path="ruleMatrix.loadoutEffectSubjects",
+            meta={"subjects": subjects},
+        )
+        return _v2_blocked_for_effect(
+            result,
+            subjects,
+            unsupported_problem,
+        )
+    ready = {
+        **result,
+        "loadoutEffectSubjects": subjects,
+    }
+    return {
+        **ready,
+        "v2EffectBoundary": _v2_effect_boundary(
+            ready,
+            subjects,
+            loadout_effect_authority_verified=True,
+            loadout_effect_authority_key=authority_key,
+        ),
+    }
+
+
+def _v2_blocked_for_effect(
+    result: Mapping[str, Any],
+    subjects: list[dict[str, str]],
+    problem: Mapping[str, Any],
+) -> dict[str, Any]:
     problems = _dedupe_problems(list(result.get("problems", [])) + [problem])
     readiness = _canonical(result.get("profileReadiness") or {})
     readiness.update({"status": "blocked", "simcReady": False, "problems": _dedupe_problems(list(readiness.get("problems", [])) + [problem])})
@@ -1098,9 +1156,39 @@ def resolve_v2(selection_intent: Any, authority_context: Any) -> dict[str, Any]:
     return {**blocked, "v2EffectBoundary": _v2_effect_boundary(blocked, subjects)}
 
 
+def _verified_loadout_effect_authority(
+    value: Any,
+    *,
+    resolver_snapshot: Mapping[str, Any],
+) -> tuple[dict[str, Any], str] | None:
+    """Reload one owner-sealed aggregate; Resolver never builds or guesses it."""
+    try:
+        if not gear_loadout_effect_authority.verify_loadout_effect_authority(
+            value,
+            resolver_snapshot=resolver_snapshot,
+        ):
+            return None
+        reloaded = gear_loadout_effect_authority.reload_loadout_effect_authority(
+            value.canonical_bytes,
+            value.content_key,
+            resolver_snapshot=resolver_snapshot,
+        )
+        payload = json.loads(reloaded.canonical_bytes)
+    except (AttributeError, TypeError, ValueError, json.JSONDecodeError):
+        return None
+    if not isinstance(payload, dict) or payload.get("status") not in {
+        "verified", "unsupported",
+    }:
+        return None
+    return payload, reloaded.content_key
+
+
 def _v2_effect_boundary(
     result: Mapping[str, Any],
     subjects: list[dict[str, str]],
+    *,
+    loadout_effect_authority_verified: bool = False,
+    loadout_effect_authority_key: str = "",
 ) -> dict[str, Any]:
     """Bind v2 promotion to the Resolver's effective loadout effect state."""
     dependency = (
@@ -1112,10 +1200,16 @@ def _v2_effect_boundary(
     active_effects = set_state.get("activeDynamicEffects") if isinstance(set_state, Mapping) else None
     clean = (
         result.get("status") == "verified"
-        and not subjects
-        and active_effects == []
+        and (
+            (not subjects and active_effects == [])
+            or (
+                bool(subjects)
+                and loadout_effect_authority_verified
+                and bool(loadout_effect_authority_key)
+            )
+        )
     )
-    return {
+    boundary = {
         "schemaRevision": V2_EFFECT_BOUNDARY_SCHEMA_REVISION,
         "status": "verified" if clean else "blocked",
         "resolvedGearSignature": result.get("resolvedGearSignature"),
@@ -1125,6 +1219,9 @@ def _v2_effect_boundary(
         "resolverRevision": dependency.get("resolverContractRevision"),
         "simcRuntimeRevision": dependency.get("simcRuntimeRevision"),
     }
+    if clean and subjects:
+        boundary["loadoutEffectAuthorityKey"] = loadout_effect_authority_key
+    return boundary
 
 
 __all__ = (

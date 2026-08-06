@@ -15,6 +15,7 @@ import re
 from typing import Any, Iterable, Mapping
 
 try:
+    from . import gear_loadout_effect_authority
     from .gear_canonical_kernel import CanonicalValueError, canonical_identity_token
     from .gear_contracts import CANONICAL_GEAR_SLOTS
     from .gear_exact_authority import (
@@ -31,6 +32,7 @@ try:
         reload_effect_record,
     )
 except ImportError:
+    import gear_loadout_effect_authority
     from gear_canonical_kernel import CanonicalValueError, canonical_identity_token
     from gear_contracts import CANONICAL_GEAR_SLOTS
     from gear_exact_authority import reload_exact_authority_envelope, reload_exact_progression
@@ -956,6 +958,7 @@ def _v2_resolver_projection(
     gear_rule_revision: str,
     resolver_revision: str,
     simc_runtime_revision: str,
+    loadout_effect_authority: Any = None,
 ) -> dict[str, Any] | None:
     """Extract the canonical occupied-slot projection from a ready resolver."""
     snapshot = dict(value) if isinstance(value, Mapping) else {}
@@ -982,6 +985,7 @@ def _v2_resolver_projection(
             gear_rule_revision=rule,
             resolver_revision=resolver,
             simc_runtime_revision=runtime,
+            loadout_effect_authority=loadout_effect_authority,
         )
         or not isinstance(required_raw, list)
         or not isinstance(ready_raw, list)
@@ -1021,6 +1025,10 @@ def _v2_resolver_projection(
     return {
         "eligibilityContext": _canonical(eligibility),
         "slots": slots,
+        "loadoutEffectAuthority": _v2_loadout_effect_projection(
+            snapshot,
+            loadout_effect_authority,
+        ),
     }
 
 
@@ -1030,24 +1038,24 @@ def _v2_clean_effect_boundary(
     gear_rule_revision: str,
     resolver_revision: str,
     simc_runtime_revision: str,
+    loadout_effect_authority: Any = None,
 ) -> bool:
     """Require the clean effect boundary emitted by ``resolve_v2``."""
     boundary = snapshot.get("v2EffectBoundary")
     set_state = snapshot.get("setState")
     subjects = snapshot.get("loadoutEffectSubjects")
+    boundary_keys = {
+        "schemaRevision",
+        "status",
+        "resolvedGearSignature",
+        "setState",
+        "subjects",
+        "gearRuleRevision",
+        "resolverRevision",
+        "simcRuntimeRevision",
+    }
     if (
         not isinstance(boundary, Mapping)
-        or set(boundary)
-        != {
-            "schemaRevision",
-            "status",
-            "resolvedGearSignature",
-            "setState",
-            "subjects",
-            "gearRuleRevision",
-            "resolverRevision",
-            "simcRuntimeRevision",
-        }
         or boundary.get("schemaRevision") != V2_EFFECT_BOUNDARY_SCHEMA_REVISION
         or boundary.get("status") != "verified"
         or not isinstance(set_state, Mapping)
@@ -1056,15 +1064,87 @@ def _v2_clean_effect_boundary(
         or not isinstance(set_state.get("activeDynamicEffects"), list)
         or boundary.get("setState") != set_state
         or boundary.get("resolvedGearSignature") != snapshot.get("resolvedGearSignature")
-        or boundary.get("subjects") != []
-        or subjects != []
-        or set_state.get("activeDynamicEffects") != []
+        or not isinstance(subjects, list)
+        or boundary.get("subjects") != subjects
         or _v2_revision(boundary.get("gearRuleRevision")) != gear_rule_revision
         or _v2_revision(boundary.get("resolverRevision")) != resolver_revision
         or _v2_revision(boundary.get("simcRuntimeRevision")) != simc_runtime_revision
     ):
         return False
-    return True
+    if not subjects:
+        return (
+            set(boundary) == boundary_keys
+            and set_state.get("activeDynamicEffects") == []
+        )
+    if set(boundary) != boundary_keys | {"loadoutEffectAuthorityKey"}:
+        return False
+    return _v2_loadout_effect_projection(
+        snapshot,
+        loadout_effect_authority,
+    ) is not None
+
+
+def _v2_loadout_effect_projection(
+    resolver_snapshot: Mapping[str, Any],
+    authority: Any,
+) -> dict[str, Any] | None:
+    """Rebind one verified owner document to the Resolver's active boundary."""
+    subjects = resolver_snapshot.get("loadoutEffectSubjects")
+    if subjects == []:
+        return {"loadoutEffectAuthorityKey": "", "occurrences": []}
+    if not isinstance(subjects, list) or not subjects:
+        return None
+    verification_snapshot = _canonical(resolver_snapshot)
+    boundary = verification_snapshot.get("v2EffectBoundary")
+    if not isinstance(boundary, dict):
+        return None
+    boundary_key = _text(boundary.get("loadoutEffectAuthorityKey"))
+    if boundary_key != _text(getattr(authority, "content_key", "")):
+        return None
+    verification_snapshot["status"] = "blocked"
+    boundary["status"] = "blocked"
+    boundary.pop("loadoutEffectAuthorityKey", None)
+    try:
+        if not gear_loadout_effect_authority.verify_loadout_effect_authority(
+            authority,
+            resolver_snapshot=verification_snapshot,
+        ):
+            return None
+        reloaded = gear_loadout_effect_authority.reload_loadout_effect_authority(
+            authority.canonical_bytes,
+            authority.content_key,
+            resolver_snapshot=verification_snapshot,
+        )
+        payload = json.loads(reloaded.canonical_bytes)
+    except (AttributeError, TypeError, ValueError, json.JSONDecodeError):
+        return None
+    payload_subjects = payload.get("subjects") if isinstance(payload, Mapping) else None
+    if payload.get("status") != "verified" or not isinstance(payload_subjects, list):
+        return None
+    key = _text(reloaded.content_key)
+    if key != boundary_key:
+        return None
+    occurrences = [
+        {
+            "scope": "loadout",
+            "loadoutEffectAuthorityKey": key,
+            "recordOrdinal": ordinal,
+            "subjectKind": _text(subject.get("subjectKind")),
+            "subjectKey": _text(subject.get("subjectKey")),
+            "subjectVariantSignature": _text(
+                subject.get("subjectVariantSignature")
+            ),
+            "supportRecordKey": _text(subject.get("supportRecordKey")),
+        }
+        for ordinal, subject in enumerate(payload_subjects)
+        if isinstance(subject, Mapping)
+    ]
+    if len(occurrences) != len(payload_subjects):
+        return None
+    return {
+        "loadoutEffectAuthorityKey": key,
+        "occurrences": occurrences,
+    }
 
 
 def build_resolved_loadout_v2(
@@ -1076,6 +1156,7 @@ def build_resolved_loadout_v2(
     resolver_revision: str,
     simc_runtime_revision: str,
     origin_catalog_revision: str = "",
+    loadout_effect_authority: Any = None,
 ) -> dict[str, Any]:
     """Build a catalog-independent v2 loadout from slot-bound authority bundles."""
     snapshot = dict(resolver_snapshot) if isinstance(resolver_snapshot, Mapping) else {}
@@ -1091,6 +1172,7 @@ def build_resolved_loadout_v2(
         gear_rule_revision=rule or "",
         resolver_revision=resolver or "",
         simc_runtime_revision=runtime or "",
+        loadout_effect_authority=loadout_effect_authority,
     )
     required = [entry["slot"] for entry in resolver_projection["slots"]] if resolver_projection else []
     if rule is None or resolver is None or runtime is None:
@@ -1100,6 +1182,7 @@ def build_resolved_loadout_v2(
         gear_rule_revision=rule,
         resolver_revision=resolver,
         simc_runtime_revision=runtime,
+        loadout_effect_authority=loadout_effect_authority,
     ):
         problems.append(_problem("LOADOUT_EFFECT_AUTHORITY_REQUIRED", "resolverSnapshot.v2EffectBoundary", "V2 requires a clean Resolver effect-boundary projection."))
     elif resolver_projection is None:
@@ -1178,10 +1261,21 @@ def build_resolved_loadout_v2(
                 continue
             occurrences.append({"scope": "slot", "slot": slot, "exactAuthorityEnvelopeKey": key, "recordOrdinal": ordinal, "subjectKind": _text(subject.get("subjectKind")), "subjectKey": _text(subject.get("subjectKey")), "subjectVariantSignature": _text(subject.get("subjectVariantSignature")), "supportRecordKey": record_key})
         ordered_slots.append({"slot": slot, "itemId": _text(exact.get("itemId")), "exactAuthorityEnvelopeKey": key, "simcOptions": options or {}})
+    effect_projection = (
+        resolver_projection.get("loadoutEffectAuthority")
+        if resolver_projection is not None
+        else None
+    )
+    if effect_projection is not None:
+        occurrences.extend(effect_projection["occurrences"])
     if problems:
         return _v2_blocked(problems)
     identity = {"classKey": _text(snapshot.get("eligibilityContext", {}).get("classKey")) if isinstance(snapshot.get("eligibilityContext"), Mapping) else "", "specKey": _text(snapshot.get("eligibilityContext", {}).get("specKey")) if isinstance(snapshot.get("eligibilityContext"), Mapping) else "", "exactAuthorityBySlot": pairs, "orderedSlots": ordered_slots, "effectEvidenceByOccurrence": occurrences, "gearRuleRevision": rule, "resolverRevision": resolver, "simcRuntimeRevision": runtime}
+    if effect_projection and effect_projection["loadoutEffectAuthorityKey"]:
+        identity["loadoutEffectAuthorityKey"] = effect_projection["loadoutEffectAuthorityKey"]
     row = {"schemaRevision": RESOLVED_LOADOUT_V2_SCHEMA_REVISION, "status": "ready", "resolvedLoadoutKey": _hash("resolved-loadout-v2:sha256:", identity), "exactAuthorityBySlot": pairs, "effectEvidenceByOccurrence": occurrences, "gearRuleRevision": rule, "resolverRevision": resolver, "simcRuntimeRevision": runtime, "eligibilityContext": _canonical(snapshot.get("eligibilityContext") or {}), "orderedSlots": ordered_slots, "serializerInput": {"gearItems": _canonical(ordered_slots)}, "problemCodes": [], "problems": []}
+    if effect_projection and effect_projection["loadoutEffectAuthorityKey"]:
+        row["loadoutEffectAuthorityKey"] = effect_projection["loadoutEffectAuthorityKey"]
     if _text(origin_catalog_revision):
         row["originCatalogRevision"] = _text(origin_catalog_revision)
     row["rowHash"] = _hash("sha256:", {key: value for key, value in row.items() if key not in {"rowHash", "originCatalogRevision"}})
@@ -1193,6 +1287,7 @@ def verify_resolved_loadout_v2(
     *,
     resolver_snapshot: Any = None,
     authority_bundles: Any = None,
+    loadout_effect_authority: Any = None,
 ) -> list[str]:
     row = dict(value) if isinstance(value, Mapping) else {}
     issues: list[str] = []
@@ -1239,6 +1334,7 @@ def verify_resolved_loadout_v2(
             gear_rule_revision=rule or "",
             resolver_revision=resolver or "",
             simc_runtime_revision=runtime or "",
+            loadout_effect_authority=loadout_effect_authority,
         )
         if resolver_projection is None:
             issues.append("RESOLVED_LOADOUT_V2_RESOLVER_CONTEXT_INVALID")
@@ -1254,9 +1350,29 @@ def verify_resolved_loadout_v2(
         issues.append("RESOLVED_LOADOUT_V2_EFFECT_ORDER_INVALID")
     if (
         authority_projection is not None
-        and evidence != authority_projection["effectEvidenceByOccurrence"]
+        and resolver_projection is not None
+        and evidence
+        != (
+            authority_projection["effectEvidenceByOccurrence"]
+            + resolver_projection["loadoutEffectAuthority"]["occurrences"]
+        )
     ):
         issues.append("RESOLVED_LOADOUT_V2_EFFECT_EVIDENCE_CONTEXT_MISMATCH")
+    expected_loadout_key = (
+        resolver_projection["loadoutEffectAuthority"][
+            "loadoutEffectAuthorityKey"
+        ]
+        if resolver_projection is not None
+        else ""
+    )
+    if (
+        (expected_loadout_key and row.get("loadoutEffectAuthorityKey") != expected_loadout_key)
+        or (
+            not expected_loadout_key
+            and "loadoutEffectAuthorityKey" in row
+        )
+    ):
+        issues.append("RESOLVED_LOADOUT_V2_EFFECT_AUTHORITY_CONTEXT_MISMATCH")
     pair_by_slot = {pair["slot"]: pair["exactAuthorityEnvelopeKey"] for pair in pairs if isinstance(pair, Mapping) and _text(pair.get("slot")) and _text(pair.get("exactAuthorityEnvelopeKey"))}
     ordered_slots = row.get("orderedSlots") if isinstance(row.get("orderedSlots"), list) else []
     if any(not isinstance(item, Mapping) or set(item) != {"slot", "itemId", "exactAuthorityEnvelopeKey", "simcOptions"} or not isinstance(item.get("simcOptions"), Mapping) for item in ordered_slots) or [(_text(item.get("slot")), _text(item.get("exactAuthorityEnvelopeKey"))) for item in ordered_slots if isinstance(item, Mapping)] != [(slot, key) for slot, key in zip(slots, keys, strict=True)]:
@@ -1277,16 +1393,48 @@ def verify_resolved_loadout_v2(
         ):
             issues.append("RESOLVED_LOADOUT_V2_RESOLVER_CONTEXT_MISMATCH")
     next_ordinal: dict[str, int] = {}
+    next_loadout_ordinal = 0
     for occurrence in evidence:
         current = dict(occurrence) if isinstance(occurrence, Mapping) else {}
+        scope = current.get("scope")
+        ordinal = current.get("recordOrdinal")
+        if scope == "loadout":
+            if (
+                set(current)
+                != {
+                    "scope", "loadoutEffectAuthorityKey", "recordOrdinal",
+                    "subjectKind", "subjectKey", "subjectVariantSignature",
+                    "supportRecordKey",
+                }
+                or not expected_loadout_key
+                or current.get("loadoutEffectAuthorityKey") != expected_loadout_key
+                or type(ordinal) is not int
+                or ordinal != next_loadout_ordinal
+                or not _text(current.get("subjectKind"))
+                or not _text(current.get("subjectKey"))
+                or not re.fullmatch(
+                    r"set_bonus-variant:sha256:[0-9a-f]{64}",
+                    _text(current.get("subjectVariantSignature")),
+                )
+                or not EFFECT_RECORD_KEY_PATTERN.fullmatch(
+                    _text(current.get("supportRecordKey"))
+                )
+            ):
+                issues.append("RESOLVED_LOADOUT_V2_EFFECT_OCCURRENCE_INVALID")
+                break
+            next_loadout_ordinal += 1
+            continue
         slot = _text(current.get("slot"))
         key = _text(current.get("exactAuthorityEnvelopeKey"))
-        ordinal = current.get("recordOrdinal")
         if (set(current) != {"scope", "slot", "exactAuthorityEnvelopeKey", "recordOrdinal", "subjectKind", "subjectKey", "subjectVariantSignature", "supportRecordKey"} or current.get("scope") != "slot" or pair_by_slot.get(slot) != key or type(ordinal) is not int or ordinal != next_ordinal.get(slot, 0) or not _text(current.get("subjectKind")) or not _text(current.get("subjectKey")) or not _text(current.get("subjectVariantSignature")) or not EFFECT_RECORD_KEY_PATTERN.fullmatch(_text(current.get("supportRecordKey")))):
             issues.append("RESOLVED_LOADOUT_V2_EFFECT_OCCURRENCE_INVALID")
             break
         next_ordinal[slot] = ordinal + 1
     identity = {"classKey": _text(row.get("eligibilityContext", {}).get("classKey")) if isinstance(row.get("eligibilityContext"), Mapping) else "", "specKey": _text(row.get("eligibilityContext", {}).get("specKey")) if isinstance(row.get("eligibilityContext"), Mapping) else "", "exactAuthorityBySlot": pairs, "orderedSlots": ordered_slots, "effectEvidenceByOccurrence": evidence, "gearRuleRevision": rule or "", "resolverRevision": resolver or "", "simcRuntimeRevision": runtime or ""}
+    if "loadoutEffectAuthorityKey" in row:
+        identity["loadoutEffectAuthorityKey"] = _text(
+            row.get("loadoutEffectAuthorityKey")
+        )
     if _text(row.get("resolvedLoadoutKey")) != _hash("resolved-loadout-v2:sha256:", identity):
         issues.append("RESOLVED_LOADOUT_V2_IDENTITY_MISMATCH")
     expected_hash = _hash("sha256:", {key: value for key, value in row.items() if key not in {"rowHash", "originCatalogRevision"}})

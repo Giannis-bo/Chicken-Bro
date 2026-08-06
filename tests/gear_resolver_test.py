@@ -1824,6 +1824,130 @@ class GearResolverTest(unittest.TestCase):
             },
         )
 
+    def test_v1_and_no_effect_v2_bytes_ignore_optional_loadout_authority(self):
+        """Would fail if Task 4L changed v1 or no-subject v2 shape or identity."""
+        fixture = self.fixture()
+        fixture["authorityContext"]["ruleParameters"]["setAggregationInputs"] = []
+
+        v1_before = gear_resolver.resolve(
+            fixture["intent"], fixture["authorityContext"],
+        )
+        v2_before = gear_resolver.resolve_v2(
+            fixture["intent"], fixture["authorityContext"],
+        )
+        v2_after = gear_resolver.resolve_v2(
+            fixture["intent"],
+            fixture["authorityContext"],
+            loadout_effect_authority={"ignored": "because no subject is active"},
+        )
+        v1_after = gear_resolver.resolve(
+            fixture["intent"], fixture["authorityContext"],
+        )
+
+        self.assertEqual(
+            json.dumps(v1_before, sort_keys=True, separators=(",", ":")),
+            json.dumps(v1_after, sort_keys=True, separators=(",", ":")),
+        )
+        self.assertEqual(
+            json.dumps(v2_before, sort_keys=True, separators=(",", ":")),
+            json.dumps(v2_after, sort_keys=True, separators=(",", ":")),
+        )
+
+    def test_v1_set_bonus_subject_kind_is_projection_only(self):
+        """Would fail if a v2-only subject kind changed legacy v1 bytes or claims."""
+        implicit = self.fixture()
+        explicit = copy.deepcopy(implicit)
+        explicit["authorityContext"]["ruleParameters"][
+            "setAggregationInputs"
+        ][0]["thresholds"][0]["subjectKind"] = "set_bonus"
+
+        implicit_result = gear_resolver.resolve(
+            implicit["intent"], implicit["authorityContext"],
+        )
+        explicit_result = gear_resolver.resolve(
+            explicit["intent"], explicit["authorityContext"],
+        )
+
+        def canonical_bytes(value):
+            return json.dumps(
+                value,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8")
+
+        expected_effects = [
+            {
+                "effectId": "set:resolver:2pc",
+                "itemSetId": "set:resolver",
+                "pieces": 2,
+                "sourceRefIds": ["evidence:set:resolver"],
+            }
+        ]
+        self.assertEqual(
+            implicit_result["setState"]["activeDynamicEffects"],
+            expected_effects,
+        )
+        self.assertEqual(
+            explicit_result["setState"]["activeDynamicEffects"],
+            expected_effects,
+        )
+        self.assertTrue(
+            all(
+                "subjectKind" not in effect
+                for result in (implicit_result, explicit_result)
+                for effect in result["setState"]["activeDynamicEffects"]
+            )
+        )
+        self.assertEqual(
+            canonical_bytes(implicit_result), canonical_bytes(explicit_result),
+        )
+        self.assertEqual(
+            [
+                claim["claimId"]
+                for claim in implicit_result["evidenceLedger"]["claims"]
+            ],
+            [
+                claim["claimId"]
+                for claim in explicit_result["evidenceLedger"]["claims"]
+            ],
+        )
+        self.assertEqual(
+            canonical_bytes(implicit_result["evidenceLedger"]["claims"]),
+            canonical_bytes(explicit_result["evidenceLedger"]["claims"]),
+        )
+
+    def test_raw_trinket_subject_stays_legacy_v1_but_blocks_v2(self):
+        """Would fail if v1 drifted or v2 inferred set authority for a trinket."""
+        fixture = self.fixture()
+        fixture["authorityContext"]["ruleParameters"][
+            "setAggregationInputs"
+        ][0]["thresholds"][0]["subjectKind"] = "trinket"
+
+        legacy = gear_resolver.resolve(
+            fixture["intent"], fixture["authorityContext"],
+        )
+        self.assertEqual(
+            legacy["setState"]["activeDynamicEffects"],
+            [
+                {
+                    "effectId": "set:resolver:2pc",
+                    "itemSetId": "set:resolver",
+                    "pieces": 2,
+                    "sourceRefIds": ["evidence:set:resolver"],
+                }
+            ],
+        )
+
+        result = gear_resolver.resolve_v2(
+            fixture["intent"], fixture["authorityContext"],
+        )
+
+        self.assertEqual(result["status"], "blocked")
+        self.assertEqual(result["loadoutEffectSubjects"], [])
+        self.assertIn("LOADOUT_EFFECT_AUTHORITY_REQUIRED", result["problemCodes"])
+        self.assertEqual(result["v2EffectBoundary"]["status"], "blocked")
+
     def test_v2_resolver_fails_closed_on_effective_set_state_without_raw_set_clues(self):
         """Would fail if overlays could activate a set effect outside the v2 literal block."""
         fixture = self.fixture()
@@ -1852,6 +1976,53 @@ class GearResolverTest(unittest.TestCase):
 
         self.assertEqual(result["status"], "blocked")
         self.assertIn("LOADOUT_EFFECT_AUTHORITY_REQUIRED", result["problemCodes"])
+
+    def test_v2_resolver_blocks_unprojectable_active_loadout_effects(self):
+        """Would fail if invalid active effects collapsed into the no-effect path."""
+        cases = {}
+
+        malformed = self.fixture()
+        malformed["authorityContext"]["ruleParameters"][
+            "setAggregationInputs"
+        ][0]["thresholds"][0]["effectId"] = "not canonical"
+        cases["malformed"] = malformed
+
+        unmodelled = self.fixture()
+        unmodelled["authorityContext"]["ruleParameters"][
+            "setAggregationInputs"
+        ][0]["thresholds"][0]["subjectKind"] = "trinket"
+        cases["unmodelled"] = unmodelled
+
+        overflow = self.fixture()
+        threshold = overflow["authorityContext"]["ruleParameters"][
+            "setAggregationInputs"
+        ][0]["thresholds"][0]
+        overflow["authorityContext"]["ruleParameters"][
+            "setAggregationInputs"
+        ][0]["thresholds"] = [copy.deepcopy(threshold) for _ in range(129)]
+        cases["129 subjects"] = overflow
+
+        for label, fixture in cases.items():
+            with self.subTest(label):
+                result = gear_resolver.resolve_v2(
+                    fixture["intent"], fixture["authorityContext"],
+                )
+
+                self.assertEqual(result["status"], "blocked")
+                self.assertEqual(result["profileReadiness"]["status"], "blocked")
+                self.assertFalse(result["profileReadiness"]["simcReady"])
+                self.assertIn(
+                    "LOADOUT_EFFECT_AUTHORITY_REQUIRED", result["problemCodes"],
+                )
+                self.assertIn(
+                    "LOADOUT_EFFECT_AUTHORITY_REQUIRED",
+                    {
+                        problem["code"]
+                        for problem in result["profileReadiness"]["problems"]
+                    },
+                )
+                self.assertEqual(result["loadoutEffectSubjects"], [])
+                self.assertEqual(result["v2EffectBoundary"]["status"], "blocked")
 
     def test_v2_resolver_preserves_main_hand_off_hand_legality(self):
         """Would fail if the v2 entry point bypassed the shared hand rule."""

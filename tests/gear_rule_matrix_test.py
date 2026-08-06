@@ -608,13 +608,24 @@ class GearRuleMatrixTest(unittest.TestCase):
         subjects = gear_rule_matrix.loadout_effect_subjects(
             self.intent({"head": self.slot("item-head", "variant-head")}), authority
         )
-        self.assertEqual(subjects, [{"subjectKind": "set_bonus", "subjectKey": "set-a-1"}])
+        self.assertEqual(subjects, [{
+            "subjectKind": "set_bonus",
+            "itemSetId": "set-a",
+            "pieces": 1,
+            "subjectKey": "set-a-1",
+        }])
 
     def test_loadout_effect_subjects_uses_effective_active_set_state(self):
         """Would fail if v2 recounted raw fields instead of Resolver's effective set state."""
         authority = self.authority()
         authority["itemsById"]["item-head"]["itemSetId"] = ""
-        authority["ruleParameters"]["setAggregationInputs"] = []
+        authority["ruleParameters"]["setAggregationInputs"] = [{
+            "itemSetId": "set-a",
+            "memberItemIds": [],
+            "thresholds": [
+                {"pieces": 1, "effectId": "set-a-1"},
+            ],
+        }]
 
         subjects = gear_rule_matrix.loadout_effect_subjects(
             self.intent({"head": self.slot("item-head", "variant-head")}),
@@ -632,7 +643,127 @@ class GearRuleMatrixTest(unittest.TestCase):
             },
         )
 
-        self.assertEqual(subjects, [{"subjectKind": "set_bonus", "subjectKey": "set-a-1"}])
+        self.assertEqual(subjects, [{
+            "subjectKind": "set_bonus",
+            "itemSetId": "set-a",
+            "pieces": 1,
+            "subjectKey": "set-a-1",
+        }])
+
+    def test_loadout_effect_subjects_preserves_sorted_duplicate_set_occurrences(self):
+        """Would fail if the projection deduped or reordered active occurrences."""
+        authority = self.authority()
+        authority["ruleParameters"]["setAggregationInputs"] = [
+            {
+                "itemSetId": "set-a",
+                "thresholds": [
+                    {"pieces": 1, "effectId": "effect-a"},
+                    {
+                        "pieces": 1,
+                        "effectId": "effect-a",
+                        "subjectKind": "set_bonus",
+                    },
+                ],
+            },
+            {
+                "itemSetId": "set-b",
+                "thresholds": [
+                    {"pieces": 2, "effectId": "effect-b"},
+                ],
+            },
+        ]
+
+        subjects = gear_rule_matrix.loadout_effect_subjects(
+            self.intent({"head": self.slot("item-head", "variant-head")}),
+            authority,
+            effective_set_state={
+                "activeDynamicEffects": [
+                    {"effectId": "effect-b", "itemSetId": "set-b", "pieces": 2},
+                    {"effectId": "effect-a", "itemSetId": "set-a", "pieces": 1},
+                    {"effectId": "effect-a", "itemSetId": "set-a", "pieces": 1},
+                ],
+            },
+        )
+
+        self.assertEqual(subjects, [
+            {
+                "subjectKind": "set_bonus",
+                "itemSetId": "set-a",
+                "pieces": 1,
+                "subjectKey": "effect-a",
+            },
+            {
+                "subjectKind": "set_bonus",
+                "itemSetId": "set-a",
+                "pieces": 1,
+                "subjectKey": "effect-a",
+            },
+            {
+                "subjectKind": "set_bonus",
+                "itemSetId": "set-b",
+                "pieces": 2,
+                "subjectKey": "effect-b",
+            },
+        ])
+
+    def test_loadout_effect_subjects_rejects_missing_malformed_or_ambiguous_raw_match(self):
+        """Would fail if v2 inferred set_bonus from an ungoverned raw occurrence."""
+        effect = {
+            "effectId": "effect-a",
+            "itemSetId": "set-a",
+            "pieces": 1,
+            "sourceRefIds": [],
+        }
+        cases = {
+            "missing": [],
+            "malformed": [{
+                "itemSetId": "set-a",
+                "thresholds": [{
+                    "pieces": 1,
+                    "effectId": "effect-a",
+                    "subjectKind": ["set_bonus"],
+                }],
+            }],
+            "ambiguous": [{
+                "itemSetId": "set-a",
+                "thresholds": [
+                    {
+                        "pieces": 1,
+                        "effectId": "effect-a",
+                        "subjectKind": "set_bonus",
+                    },
+                    {
+                        "pieces": 1,
+                        "effectId": "effect-a",
+                        "subjectKind": "trinket",
+                    },
+                ],
+            }],
+            "non-set-bonus": [{
+                "itemSetId": "set-a",
+                "thresholds": [{
+                    "pieces": 1,
+                    "effectId": "effect-a",
+                    "subjectKind": "trinket",
+                }],
+            }],
+        }
+
+        for label, raw_inputs in cases.items():
+            with self.subTest(label):
+                authority = self.authority()
+                authority["ruleParameters"][
+                    "setAggregationInputs"
+                ] = raw_inputs
+                effects = [effect, effect] if label == "ambiguous" else [effect]
+
+                subjects = gear_rule_matrix.loadout_effect_subjects(
+                    self.intent({"head": self.slot("item-head", "variant-head")}),
+                    authority,
+                    effective_set_state={"activeDynamicEffects": effects},
+                )
+
+                self.assertEqual(subjects, [])
 
 
 if __name__ == "__main__":
