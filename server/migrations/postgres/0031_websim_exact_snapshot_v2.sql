@@ -318,6 +318,7 @@ DECLARE
         'sourceRefIds',
         'sourcePayload'
     ];
+    identity_tokens text[] := ARRAY[]::text[];
     resolved_slot record;
     set_count record;
     active_effect jsonb;
@@ -361,6 +362,9 @@ BEGIN
     THEN
         RAISE EXCEPTION 'v2 resolver replay context is invalid';
     END IF;
+    identity_tokens := identity_tokens || ARRAY[
+        p_context ->> 'resolvedGearSignature'
+    ];
 
     IF pg_catalog.jsonb_typeof(p_context -> 'dependencyVector')
           IS DISTINCT FROM 'object'
@@ -386,6 +390,11 @@ BEGIN
     THEN
         RAISE EXCEPTION 'v2 resolver replay context is invalid';
     END IF;
+    identity_tokens := identity_tokens || ARRAY[
+        p_context -> 'dependencyVector' ->> 'gearRuleRevision',
+        p_context -> 'dependencyVector' ->> 'resolverContractRevision',
+        p_context -> 'dependencyVector' ->> 'simcRuntimeRevision'
+    ];
 
     IF pg_catalog.jsonb_typeof(p_context -> 'eligibilityContext')
           IS DISTINCT FROM 'object'
@@ -415,6 +424,10 @@ BEGIN
     THEN
         RAISE EXCEPTION 'v2 resolver replay context is invalid';
     END IF;
+    identity_tokens := identity_tokens || ARRAY[
+        p_context -> 'eligibilityContext' ->> 'classKey',
+        p_context -> 'eligibilityContext' ->> 'specKey'
+    ];
 
     IF pg_catalog.jsonb_typeof(p_context -> 'profileReadiness')
           IS DISTINCT FROM 'object'
@@ -474,6 +487,15 @@ BEGIN
     THEN
         RAISE EXCEPTION 'v2 resolver replay context is invalid';
     END IF;
+    identity_tokens := identity_tokens || ARRAY[
+        p_context -> 'profileReadiness' ->> 'simcRuntimeRevision'
+    ];
+    identity_tokens := identity_tokens || ARRAY(
+        SELECT required_slot.value #>> '{}'
+        FROM pg_catalog.jsonb_array_elements(
+            p_context -> 'profileReadiness' -> 'requiredSlots'
+        ) AS required_slot(value)
+    );
 
     IF pg_catalog.jsonb_typeof(p_context -> 'resolvedSlots')
           IS DISTINCT FROM 'object'
@@ -522,6 +544,9 @@ BEGIN
         THEN
             RAISE EXCEPTION 'v2 resolver replay context is invalid';
         END IF;
+        identity_tokens := identity_tokens || ARRAY[
+            resolved_slot.value ->> 'itemId'
+        ];
     END LOOP;
 
     IF pg_catalog.jsonb_typeof(p_context -> 'setState')
@@ -560,7 +585,6 @@ BEGIN
     LOOP
         IF set_count.key = ANY(forbidden_keys)
            OR set_count.key = ''
-           OR NOT (pg_catalog.octet_length(set_count.key) <= 256)
            OR pg_catalog.jsonb_typeof(set_count.value)
               IS DISTINCT FROM 'number'
            OR set_count.value::text !~ '^[1-9][0-9]*$'
@@ -568,6 +592,7 @@ BEGIN
         THEN
             RAISE EXCEPTION 'v2 resolver replay context is invalid';
         END IF;
+        identity_tokens := identity_tokens || ARRAY[set_count.key];
     END LOOP;
     FOR active_effect IN
         SELECT value
@@ -592,6 +617,10 @@ BEGIN
         THEN
             RAISE EXCEPTION 'v2 resolver replay context is invalid';
         END IF;
+        identity_tokens := identity_tokens || ARRAY[
+            active_effect ->> 'effectId',
+            active_effect ->> 'itemSetId'
+        ];
     END LOOP;
 
     IF pg_catalog.jsonb_typeof(p_context -> 'loadoutEffectSubjects')
@@ -644,6 +673,11 @@ BEGIN
         THEN
             RAISE EXCEPTION 'v2 resolver replay context is invalid';
         END IF;
+        identity_tokens := identity_tokens || ARRAY[
+            subject ->> 'subjectKind',
+            subject ->> 'itemSetId',
+            subject ->> 'subjectKey'
+        ];
     END LOOP;
     IF pg_catalog.jsonb_typeof(p_context -> 'v2EffectBoundary')
           IS DISTINCT FROM 'object'
@@ -721,6 +755,18 @@ BEGIN
           IS DISTINCT FROM (p_context -> 'v2EffectBoundary' -> 'setState')
        OR (p_context -> 'loadoutEffectSubjects')
           IS DISTINCT FROM (p_context -> 'v2EffectBoundary' -> 'subjects')
+    THEN
+        RAISE EXCEPTION 'v2 resolver replay context is invalid';
+    END IF;
+    IF EXISTS (
+        SELECT 1
+        FROM pg_catalog.unnest(identity_tokens) AS identity_token(value)
+        WHERE identity_token.value IS NULL
+           OR pg_catalog.octet_length(identity_token.value)
+              NOT BETWEEN 1 AND 256
+           OR identity_token.value
+              !~ '^[A-Za-z0-9][A-Za-z0-9._:/-]*$'
+    )
     THEN
         RAISE EXCEPTION 'v2 resolver replay context is invalid';
     END IF;

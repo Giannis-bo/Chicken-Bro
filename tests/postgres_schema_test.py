@@ -294,7 +294,19 @@ def exact_snapshot_v2_schema_violations(sql, migrations):
         "((resolved_slot.value -> 'legality') - ARRAY['status']) <> '{}'::jsonb",
         "(p_context -> 'setState') IS DISTINCT FROM (p_context -> 'v2EffectBoundary' -> 'setState')",
         "(p_context -> 'loadoutEffectSubjects') IS DISTINCT FROM (p_context -> 'v2EffectBoundary' -> 'subjects')",
-        "pg_catalog.octet_length(set_count.key) <= 256",
+        "identity_tokens text[] := ARRAY[]::text[]",
+        "identity_tokens := identity_tokens || ARRAY[ p_context ->> 'resolvedGearSignature' ]",
+        "identity_tokens := identity_tokens || ARRAY[ p_context -> 'dependencyVector' ->> 'gearRuleRevision', p_context -> 'dependencyVector' ->> 'resolverContractRevision', p_context -> 'dependencyVector' ->> 'simcRuntimeRevision' ]",
+        "identity_tokens := identity_tokens || ARRAY[ p_context -> 'eligibilityContext' ->> 'classKey', p_context -> 'eligibilityContext' ->> 'specKey' ]",
+        "identity_tokens := identity_tokens || ARRAY[ p_context -> 'profileReadiness' ->> 'simcRuntimeRevision' ]",
+        "identity_tokens := identity_tokens || ARRAY( SELECT required_slot.value #>> '{}' FROM pg_catalog.jsonb_array_elements( p_context -> 'profileReadiness' -> 'requiredSlots' ) AS required_slot(value) )",
+        "identity_tokens := identity_tokens || ARRAY[ resolved_slot.value ->> 'itemId' ]",
+        "identity_tokens := identity_tokens || ARRAY[set_count.key]",
+        "identity_tokens := identity_tokens || ARRAY[ active_effect ->> 'effectId', active_effect ->> 'itemSetId' ]",
+        "identity_tokens := identity_tokens || ARRAY[ subject ->> 'subjectKind', subject ->> 'itemSetId', subject ->> 'subjectKey' ]",
+        "FROM pg_catalog.unnest(identity_tokens) AS identity_token(value)",
+        "pg_catalog.octet_length(identity_token.value) NOT BETWEEN 1 AND 256",
+        "identity_token.value !~ '^[A-Za-z0-9][A-Za-z0-9._:/-]*$'",
         "PERFORM cache.verify_websim_resolver_replay_context( NEW.resolver_replay_context_json );",
         "NEW.resolver_replay_context_json -> 'v2EffectBoundary' ->> 'loadoutEffectAuthorityKey' IS DISTINCT FROM NEW.loadout_effect_authority_key",
         "DROP CONSTRAINT IF EXISTS websim_gear_resolved_loadouts_catalog_revision_fkey",
@@ -727,13 +739,32 @@ $unsafe$;
                 1,
             ),
             self.websim_exact_snapshot_v2_sql.replace(
-                "pg_catalog.octet_length(set_count.key) <= 256",
-                "true",
+                "pg_catalog.octet_length(identity_token.value)\n"
+                "              NOT BETWEEN 1 AND 256",
+                "false",
                 1,
             ),
             self.websim_exact_snapshot_v2_sql.replace(
-                "pg_catalog.octet_length(set_count.key) <= 256",
-                "pg_catalog.octet_length(set_count.key) <= 128",
+                "identity_token.value\n"
+                "              !~ '^[A-Za-z0-9][A-Za-z0-9._:/-]*$'",
+                "false",
+                1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "        identity_tokens := identity_tokens || ARRAY[\n"
+                "            active_effect ->> 'effectId',\n"
+                "            active_effect ->> 'itemSetId'\n"
+                "        ];",
+                "",
+                1,
+            ),
+            self.websim_exact_snapshot_v2_sql.replace(
+                "        identity_tokens := identity_tokens || ARRAY[\n"
+                "            subject ->> 'subjectKind',\n"
+                "            subject ->> 'itemSetId',\n"
+                "            subject ->> 'subjectKey'\n"
+                "        ];",
+                "",
                 1,
             ),
             self.websim_exact_snapshot_v2_sql.replace(

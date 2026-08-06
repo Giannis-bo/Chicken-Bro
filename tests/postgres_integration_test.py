@@ -1513,7 +1513,7 @@ class PostgresExactSnapshotV2CandidateTest(unittest.TestCase):
                 )
                 self.assertEqual(cur.fetchone()[0], valid)
 
-        item_set_id_256_bytes = ("你" * 64) + ("a" * 64)
+        item_set_id_256_bytes = "a" * 256
         self.assertEqual(len(item_set_id_256_bytes.encode("utf-8")), 256)
         max_item_set_id = copy.deepcopy(valid)
         max_item_set_id["setState"]["itemSetCounts"] = {
@@ -1556,6 +1556,99 @@ class PostgresExactSnapshotV2CandidateTest(unittest.TestCase):
             raised.exception.diag.message_primary,
             "v2 resolver replay context is invalid",
         )
+
+        authority_key = "loadout-effect-authority:sha256:" + ("e" * 64)
+
+        def replay_with_identity(field, value):
+            replay = self._valid_resolver_replay_context(authority_key)
+            if field.startswith("dependencyVector."):
+                dependency_field = field.split(".", 1)[1]
+                replay["dependencyVector"][dependency_field] = value
+                boundary_field = {
+                    "gearRuleRevision": "gearRuleRevision",
+                    "resolverContractRevision": "resolverRevision",
+                    "simcRuntimeRevision": "simcRuntimeRevision",
+                }[dependency_field]
+                replay["v2EffectBoundary"][boundary_field] = value
+                if dependency_field == "simcRuntimeRevision":
+                    replay["profileReadiness"]["simcRuntimeRevision"] = value
+            elif field == "resolvedGearSignature":
+                replay[field] = value
+                replay["v2EffectBoundary"][field] = value
+            elif field.startswith("eligibilityContext."):
+                replay["eligibilityContext"][field.split(".", 1)[1]] = value
+            elif field == "profileReadiness.slot":
+                replay["profileReadiness"]["requiredSlots"] = [value]
+                replay["profileReadiness"]["readySlots"] = [value]
+                slot = replay["resolvedSlots"].pop("head")
+                slot["slot"] = value
+                replay["resolvedSlots"][value] = slot
+            elif field == "resolvedSlots.itemId":
+                replay["resolvedSlots"]["head"]["itemId"] = value
+            elif field == "setState.itemSetCounts.key":
+                replay["setState"]["itemSetCounts"] = {value: 1}
+                replay["v2EffectBoundary"]["setState"] = copy.deepcopy(
+                    replay["setState"]
+                )
+            elif field.startswith("setState.activeDynamicEffects."):
+                effect_field = field.rsplit(".", 1)[1]
+                replay["setState"]["activeDynamicEffects"][0][
+                    effect_field
+                ] = value
+                replay["v2EffectBoundary"]["setState"] = copy.deepcopy(
+                    replay["setState"]
+                )
+            elif field.startswith("loadoutEffectSubjects."):
+                subject_field = field.split(".", 1)[1]
+                replay["loadoutEffectSubjects"][0][subject_field] = value
+                replay["v2EffectBoundary"]["subjects"] = copy.deepcopy(
+                    replay["loadoutEffectSubjects"]
+                )
+            else:  # pragma: no cover - test table is closed below
+                raise AssertionError(f"unknown replay identity field: {field}")
+            return replay
+
+        identity_fields = (
+            "dependencyVector.gearRuleRevision",
+            "dependencyVector.resolverContractRevision",
+            "dependencyVector.simcRuntimeRevision",
+            "resolvedGearSignature",
+            "eligibilityContext.classKey",
+            "eligibilityContext.specKey",
+            "profileReadiness.slot",
+            "resolvedSlots.itemId",
+            "setState.itemSetCounts.key",
+            "setState.activeDynamicEffects.effectId",
+            "setState.activeDynamicEffects.itemSetId",
+            "loadoutEffectSubjects.subjectKind",
+            "loadoutEffectSubjects.itemSetId",
+            "loadoutEffectSubjects.subjectKey",
+        )
+        invalid_identity_values = (
+            ("cjk", "名字"),
+            ("non-canonical-ascii", "bad token"),
+            ("257-bytes", "a" * 257),
+        )
+        with self._connect(dsn) as conn:
+            for field in identity_fields:
+                for invalid_kind, invalid_value in invalid_identity_values:
+                    with self.subTest(
+                        replay_identity_field=field,
+                        invalid_identity_kind=invalid_kind,
+                    ):
+                        replay = replay_with_identity(field, invalid_value)
+                        with self.assertRaises(psycopg.Error) as raised:
+                            with conn.transaction():
+                                conn.execute(
+                                    "SELECT cache."
+                                    "verify_websim_resolver_replay_context(%s::jsonb)",
+                                    (json.dumps(replay),),
+                                )
+                        self.assertEqual(raised.exception.sqlstate, "P0001")
+                        self.assertEqual(
+                            raised.exception.diag.message_primary,
+                            "v2 resolver replay context is invalid",
+                        )
 
         forbidden = (
             "Catalog",
