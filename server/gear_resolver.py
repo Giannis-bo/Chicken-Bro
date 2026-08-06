@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from collections import Counter
 import json
-from typing import Any, Iterable
+from typing import Any, Iterable, Mapping
 
 try:
     from . import gear_socket_authority
@@ -31,6 +31,7 @@ try:
     from .gear_rule_matrix import (
         embellishment_usage,
         evaluate_rule_matrix,
+        loadout_effect_subjects,
         ordered_rule_matrix,
     )
 except ImportError:
@@ -49,9 +50,11 @@ except ImportError:
     from gear_evidence_ledger import build_evidence_ledger, evidence_claim
     from gear_result_envelope import gear_problem
     from gear_rule_matrix import embellishment_usage, evaluate_rule_matrix, ordered_rule_matrix
+    from gear_rule_matrix import loadout_effect_subjects
 
 
 RESOLVED_SNAPSHOT_CONTRACT_REVISION = "gear-resolved-snapshot-v1"
+V2_EFFECT_BOUNDARY_SCHEMA_REVISION = "gear-resolver-v2-effect-boundary-v1"
 _OPTION_FIELDS = (
     ("gemOptionIds", "gem"),
     ("enchantOptionId", "enchant"),
@@ -1055,8 +1058,79 @@ def resolve(selection_intent: Any, authority_context: Any) -> dict[str, Any]:
     }
 
 
+def resolve_v2(selection_intent: Any, authority_context: Any) -> dict[str, Any]:
+    """Apply the existing complete rule matrix, then fail closed on Task 4L work.
+
+    V2 cannot manufacture a loadout-scoped effect aggregate from slot records.
+    It therefore exposes the same legality result while retaining the literal
+    blocking reason until a separately reviewed authority owner exists.
+    """
+    result = resolve(selection_intent, authority_context)
+    subjects = loadout_effect_subjects(
+        selection_intent,
+        authority_context,
+        effective_set_state=result.get("setState"),
+    )
+    if not subjects:
+        return {
+            **result,
+            "loadoutEffectSubjects": [],
+            "v2EffectBoundary": _v2_effect_boundary(result, []),
+        }
+    problem = gear_problem(
+        "AUTHORITY_UNAVAILABLE",
+        "LOADOUT_EFFECT_AUTHORITY_REQUIRED",
+        "Loadout-scoped effects require the Task 4L authority aggregate.",
+        path="ruleMatrix.loadoutEffectSubjects",
+        meta={"subjects": subjects},
+    )
+    problems = _dedupe_problems(list(result.get("problems", [])) + [problem])
+    readiness = _canonical(result.get("profileReadiness") or {})
+    readiness.update({"status": "blocked", "simcReady": False, "problems": _dedupe_problems(list(readiness.get("problems", [])) + [problem])})
+    blocked = {
+        **result,
+        "status": "blocked",
+        "profileReadiness": readiness,
+        "problems": problems,
+        "problemCodes": sorted({problem["code"] for problem in problems if problem.get("code")}),
+        "loadoutEffectSubjects": subjects,
+    }
+    return {**blocked, "v2EffectBoundary": _v2_effect_boundary(blocked, subjects)}
+
+
+def _v2_effect_boundary(
+    result: Mapping[str, Any],
+    subjects: list[dict[str, str]],
+) -> dict[str, Any]:
+    """Bind v2 promotion to the Resolver's effective loadout effect state."""
+    dependency = (
+        result.get("dependencyVector")
+        if isinstance(result.get("dependencyVector"), Mapping)
+        else {}
+    )
+    set_state = result.get("setState") if isinstance(result.get("setState"), Mapping) else {}
+    active_effects = set_state.get("activeDynamicEffects") if isinstance(set_state, Mapping) else None
+    clean = (
+        result.get("status") == "verified"
+        and not subjects
+        and active_effects == []
+    )
+    return {
+        "schemaRevision": V2_EFFECT_BOUNDARY_SCHEMA_REVISION,
+        "status": "verified" if clean else "blocked",
+        "resolvedGearSignature": result.get("resolvedGearSignature"),
+        "setState": _canonical(set_state),
+        "subjects": _canonical(subjects),
+        "gearRuleRevision": dependency.get("gearRuleRevision"),
+        "resolverRevision": dependency.get("resolverContractRevision"),
+        "simcRuntimeRevision": dependency.get("simcRuntimeRevision"),
+    }
+
+
 __all__ = (
     "resolve",
+    "resolve_v2",
+    "V2_EFFECT_BOUNDARY_SCHEMA_REVISION",
     "resolve_base_item",
     "resolve_variant",
     "apply_verified_overlay",

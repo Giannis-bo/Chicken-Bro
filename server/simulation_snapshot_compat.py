@@ -10,14 +10,18 @@ try:
     from .gear_contracts import CANONICAL_GEAR_SLOTS
     from .simulation_snapshot import (
         SIMULATION_SNAPSHOT_SCHEMA_REVISION,
+        SIMULATION_SNAPSHOT_V2_SCHEMA_REVISION,
         build_simulation_snapshot,
+        build_simulation_snapshot_v2,
         talent_profile_key,
     )
 except ImportError:
     from gear_contracts import CANONICAL_GEAR_SLOTS
     from simulation_snapshot import (
         SIMULATION_SNAPSHOT_SCHEMA_REVISION,
+        SIMULATION_SNAPSHOT_V2_SCHEMA_REVISION,
         build_simulation_snapshot,
+        build_simulation_snapshot_v2,
         talent_profile_key,
     )
 
@@ -48,6 +52,15 @@ def _blocked(code: str, path: str, message: str) -> dict[str, Any]:
         "schemaRevision": SIMULATION_SNAPSHOT_SCHEMA_REVISION,
         "status": "blocked",
         "executionSupport": {},
+        "problemCodes": [code],
+        "problems": [{"code": code, "path": path, "message": message}],
+    }
+
+
+def _blocked_v2(code: str, path: str, message: str) -> dict[str, Any]:
+    return {
+        "schemaRevision": SIMULATION_SNAPSHOT_V2_SCHEMA_REVISION,
+        "status": "blocked",
         "problemCodes": [code],
         "problems": [{"code": code, "path": path, "message": message}],
     }
@@ -150,4 +163,37 @@ def snapshot_from_compatibility_profile(
     return snapshot
 
 
-__all__ = ("snapshot_from_compatibility_profile",)
+def snapshot_from_v2_compatibility_profile(
+    resolved_loadout: Any,
+    canonical_profile: Any,
+    *,
+    scenario_key: str,
+    compiler_revision: str,
+    simc_runtime_revision: str,
+    resolver_snapshot: Any = None,
+    authority_bundles: Any = None,
+) -> dict[str, Any]:
+    """Recompile a v2 profile without relaxing the legacy compatibility parser."""
+    parsed = _parse_profile(canonical_profile, scenario_key)
+    if not parsed:
+        return _blocked_v2("SIMULATION_COMPATIBILITY_PROFILE_INVALID", "canonicalProfile", "Compatibility profile contains an unknown or malformed line.")
+    snapshot = build_simulation_snapshot_v2(
+        resolved_loadout=resolved_loadout,
+        talent_profile_key=talent_profile_key(parsed["talentLines"]),
+        talent_lines=parsed["talentLines"],
+        character_context=parsed["characterContext"],
+        scenario_options=parsed["scenarioOptions"],
+        preparation_lines=parsed["preparationLines"],
+        compiler_revision=compiler_revision,
+        simc_runtime_revision=simc_runtime_revision,
+        resolver_snapshot=resolver_snapshot,
+        authority_bundles=authority_bundles,
+    )
+    if snapshot.get("status") != "ready":
+        return snapshot
+    if snapshot.get("canonicalSimcInput") != parsed["canonicalInput"]:
+        return _blocked_v2("SIMULATION_COMPILER_COMPATIBILITY_MISMATCH", "canonicalProfile", "Compiler v2 output differs from the verified compatibility profile.")
+    return snapshot
+
+
+__all__ = ("snapshot_from_compatibility_profile", "snapshot_from_v2_compatibility_profile")

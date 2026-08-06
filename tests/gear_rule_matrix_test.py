@@ -597,6 +597,43 @@ class GearRuleMatrixTest(unittest.TestCase):
         for forbidden in ("resolvedInstances", "attributes", "itemSetId", "evidenceClaims", "simcLines", "readiness"):
             self.assertNotIn(forbidden, serialized)
 
+    def test_rule_matrix_exposes_active_set_effect_subjects_in_canonical_order(self):
+        """Would fail if tier/set subjects were hidden from the v2 fail-closed boundary."""
+        authority = self.authority()
+        authority["itemsById"]["item-head"]["itemSetId"] = "set-a"
+        authority["ruleParameters"]["setAggregationInputs"] = [{
+            "itemSetId": "set-a", "memberItemIds": ["item-head"],
+            "thresholds": [{"pieces": 1, "effectId": "set-a-1"}],
+        }]
+        subjects = gear_rule_matrix.loadout_effect_subjects(
+            self.intent({"head": self.slot("item-head", "variant-head")}), authority
+        )
+        self.assertEqual(subjects, [{"subjectKind": "set_bonus", "subjectKey": "set-a-1"}])
+
+    def test_loadout_effect_subjects_uses_effective_active_set_state(self):
+        """Would fail if v2 recounted raw fields instead of Resolver's effective set state."""
+        authority = self.authority()
+        authority["itemsById"]["item-head"]["itemSetId"] = ""
+        authority["ruleParameters"]["setAggregationInputs"] = []
+
+        subjects = gear_rule_matrix.loadout_effect_subjects(
+            self.intent({"head": self.slot("item-head", "variant-head")}),
+            authority,
+            effective_set_state={
+                "itemSetCounts": {"set-a": 1},
+                "activeDynamicEffects": [
+                    {
+                        "effectId": "set-a-1",
+                        "itemSetId": "set-a",
+                        "pieces": 1,
+                        "sourceRefIds": [],
+                    }
+                ],
+            },
+        )
+
+        self.assertEqual(subjects, [{"subjectKind": "set_bonus", "subjectKey": "set-a-1"}])
+
 
 if __name__ == "__main__":
     unittest.main()

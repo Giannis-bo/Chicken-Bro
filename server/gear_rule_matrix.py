@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from collections import Counter
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any, Callable, Mapping
 
 try:
     from .gear_contracts import parse_selection_intent, validate_authority_context
@@ -607,10 +607,76 @@ def evaluate_rule_matrix(selection_intent: Any, authority_context: Any) -> dict[
     }
 
 
+def loadout_effect_subjects(
+    selection_intent: Any,
+    authority_context: Any,
+    *,
+    effective_set_state: Any = None,
+) -> list[dict[str, str]]:
+    """Return active loadout-scoped subjects that Task 4P must fail closed on.
+
+    This is intentionally only a derivation boundary.  It does not create a
+    synthetic aggregate or claim effect authority; Task 4L owns that future
+    completeness proof.
+    """
+    intent, issues = parse_selection_intent(selection_intent)
+    if issues or not isinstance(authority_context, Mapping):
+        return []
+    parameters = authority_context.get("ruleParameters")
+    items = authority_context.get("itemsById")
+    if not isinstance(parameters, Mapping) or not isinstance(items, Mapping):
+        return []
+    subjects: list[dict[str, str]] = []
+    if effective_set_state is None:
+        selected_ids = [selection.get("itemId") for selection in intent["slots"].values() if isinstance(selection, Mapping)]
+        for aggregate in parameters.get("setAggregationInputs", []):
+            if not isinstance(aggregate, Mapping):
+                continue
+            members = {str(item) for item in aggregate.get("memberItemIds", [])}
+            set_id = str(aggregate.get("itemSetId") or "")
+            count = sum(1 for item_id in selected_ids if item_id in members) if members else sum(1 for item_id in selected_ids if isinstance(items.get(item_id), Mapping) and str(items[item_id].get("itemSetId") or "") == set_id)
+            for threshold in aggregate.get("thresholds", []):
+                if not isinstance(threshold, Mapping):
+                    continue
+                effect_id = str(threshold.get("effectId") or "").strip()
+                pieces = threshold.get("pieces")
+                if effect_id and isinstance(pieces, int) and pieces > 0 and count >= pieces:
+                    subjects.append({"subjectKind": "set_bonus", "subjectKey": effect_id})
+    elif isinstance(effective_set_state, Mapping):
+        effects = effective_set_state.get("activeDynamicEffects")
+        if isinstance(effects, list):
+            for raw_effect in effects:
+                effect = raw_effect if isinstance(raw_effect, Mapping) else {}
+                effect_id = str(effect.get("effectId") or "").strip()
+                set_id = str(effect.get("itemSetId") or "").strip()
+                pieces = effect.get("pieces")
+                if (
+                    effect_id
+                    and set_id
+                    and isinstance(pieces, int)
+                    and not isinstance(pieces, bool)
+                    and pieces > 0
+                ):
+                    subjects.append(
+                        {"subjectKind": "set_bonus", "subjectKey": effect_id}
+                    )
+    normalized = sorted(
+        {
+            (subject["subjectKind"], subject["subjectKey"])
+            for subject in subjects
+        }
+    )
+    return [
+        {"subjectKind": kind, "subjectKey": key}
+        for kind, key in normalized
+    ]
+
+
 __all__ = (
     "RULE_MATRIX_REVISION",
     "RuleDefinition",
     "ordered_rule_matrix",
     "evaluate_rule_matrix",
+    "loadout_effect_subjects",
     "embellishment_usage",
 )

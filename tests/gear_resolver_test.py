@@ -1780,6 +1780,90 @@ class GearResolverTest(unittest.TestCase):
         self.assertNotIn(" dps", serialized.lower())
         self.assertNotIn('"profile":', serialized)
 
+    def test_v2_resolver_fails_closed_when_rule_matrix_derives_set_effect_subject(self):
+        """Would fail if v2 invented an incomplete loadout-level effect aggregate."""
+        fixture = self.fixture()
+        result = gear_resolver.resolve_v2(fixture["intent"], fixture["authorityContext"])
+        self.assertEqual(result["status"], "blocked")
+        self.assertIn("LOADOUT_EFFECT_AUTHORITY_REQUIRED", result["problemCodes"])
+        self.assertEqual(
+            result["v2EffectBoundary"],
+            {
+                "schemaRevision": "gear-resolver-v2-effect-boundary-v1",
+                "status": "blocked",
+                "resolvedGearSignature": result["resolvedGearSignature"],
+                "setState": result["setState"],
+                "subjects": result["loadoutEffectSubjects"],
+                "gearRuleRevision": result["dependencyVector"]["gearRuleRevision"],
+                "resolverRevision": result["dependencyVector"]["resolverContractRevision"],
+                "simcRuntimeRevision": result["dependencyVector"]["simcRuntimeRevision"],
+            },
+        )
+
+    def test_v2_resolver_emits_clean_effect_boundary_from_effective_state(self):
+        """Would fail if a clean v2 result omitted the Task 4L boundary proof."""
+        fixture = self.fixture()
+        fixture["authorityContext"]["ruleParameters"]["setAggregationInputs"] = []
+
+        result = gear_resolver.resolve_v2(
+            fixture["intent"], fixture["authorityContext"]
+        )
+
+        self.assertEqual(result["status"], "verified")
+        self.assertEqual(
+            result["v2EffectBoundary"],
+            {
+                "schemaRevision": "gear-resolver-v2-effect-boundary-v1",
+                "status": "verified",
+                "resolvedGearSignature": result["resolvedGearSignature"],
+                "setState": result["setState"],
+                "subjects": [],
+                "gearRuleRevision": result["dependencyVector"]["gearRuleRevision"],
+                "resolverRevision": result["dependencyVector"]["resolverContractRevision"],
+                "simcRuntimeRevision": result["dependencyVector"]["simcRuntimeRevision"],
+            },
+        )
+
+    def test_v2_resolver_fails_closed_on_effective_set_state_without_raw_set_clues(self):
+        """Would fail if overlays could activate a set effect outside the v2 literal block."""
+        fixture = self.fixture()
+        for item_id in ("item-set-head", "item-set-chest"):
+            fixture["authorityContext"]["itemsById"][item_id]["itemSetId"] = ""
+        fixture["authorityContext"]["ruleParameters"]["setAggregationInputs"][0]["memberItemIds"] = []
+
+        effective = gear_resolver.resolve(
+            fixture["intent"], fixture["authorityContext"]
+        )
+        self.assertEqual(
+            effective["setState"]["activeDynamicEffects"],
+            [
+                {
+                    "effectId": "set:resolver:2pc",
+                    "itemSetId": "set:resolver",
+                    "pieces": 2,
+                    "sourceRefIds": ["evidence:set:resolver"],
+                }
+            ],
+        )
+
+        result = gear_resolver.resolve_v2(
+            fixture["intent"], fixture["authorityContext"]
+        )
+
+        self.assertEqual(result["status"], "blocked")
+        self.assertIn("LOADOUT_EFFECT_AUTHORITY_REQUIRED", result["problemCodes"])
+
+    def test_v2_resolver_preserves_main_hand_off_hand_legality(self):
+        """Would fail if the v2 entry point bypassed the shared hand rule."""
+        fixture = self.fixture()
+        fixture["intent"]["slots"]["main_hand"] = {
+            "itemId": "item-twohand", "variantKey": "variant-twohand", "gemOptionIds": [],
+            "enchantOptionId": "", "embellishmentOptionId": "", "craftedOptionId": "", "catalystOptionId": "",
+        }
+        result = gear_resolver.resolve_v2(fixture["intent"], fixture["authorityContext"])
+        self.assertEqual(result["status"], "blocked")
+        self.assertTrue(any(problem["code"] == "GEAR_HAND_TWO_HAND_OFFHAND_CONFLICT" for problem in result["problems"]))
+
 
 if __name__ == "__main__":
     unittest.main()

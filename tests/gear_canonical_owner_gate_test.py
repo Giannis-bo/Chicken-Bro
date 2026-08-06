@@ -4138,15 +4138,6 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
             )
             return result.stdout.splitlines()
 
-        def current_git_head():
-            return subprocess.run(
-                ["git", "rev-parse", "HEAD"],
-                cwd=ROOT,
-                capture_output=True,
-                text=True,
-                check=True,
-            ).stdout.strip()
-
         def git_is_ancestor(ancestor, descendant):
             result = subprocess.run(
                 ["git", "merge-base", "--is-ancestor", ancestor, descendant],
@@ -4313,7 +4304,7 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
                 )
             assert_lifecycle_verification_paths(candidate_verification_paths)
             if promotion_paths is None:
-                actual_head = current_git_head()
+                actual_head = packet["archival"]["shaParity"]["commit"]
                 verification_head_is_ancestor = git_is_ancestor(
                     packet["commit"], actual_head
                 )
