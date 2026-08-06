@@ -649,11 +649,12 @@ def build_simulation_snapshot_v2(
     resolver_snapshot: Any = None,
     authority_bundles: Any = None,
     origin_catalog_revision: str = "",
+    loadout_effect_authority: Any = None,
 ) -> dict[str, Any]:
     """Build the catalog-independent immutable v2 snapshot branch."""
     loadout = dict(resolved_loadout) if isinstance(resolved_loadout, Mapping) else {}
     problems: list[dict[str, str]] = []
-    if (loadout.get("status") != "ready" or not RESOLVED_LOADOUT_V2_KEY_PATTERN.fullmatch(_text(loadout.get("resolvedLoadoutKey"))) or verify_resolved_loadout_v2(loadout, resolver_snapshot=resolver_snapshot, authority_bundles=authority_bundles)):
+    if (loadout.get("status") != "ready" or not RESOLVED_LOADOUT_V2_KEY_PATTERN.fullmatch(_text(loadout.get("resolvedLoadoutKey"))) or verify_resolved_loadout_v2(loadout, resolver_snapshot=resolver_snapshot, authority_bundles=authority_bundles, loadout_effect_authority=loadout_effect_authority)):
         problems.append(_problem("SIMULATION_V2_LOADOUT_NOT_READY", "resolvedLoadout", "Only a verified ready v2 loadout can be snapshotted."))
     runtime = _valid_v2_runtime_revision(simc_runtime_revision)
     loadout_runtime = _valid_v2_runtime_revision(loadout.get("simcRuntimeRevision"))
@@ -687,7 +688,15 @@ def build_simulation_snapshot_v2(
     if canonical_input is None:
         return _blocked_v2("blocked", [_problem("SIMULATION_V2_GEAR_INPUT_INVALID", "resolvedLoadout.orderedSlots", "V2 gear serializer input is invalid.")])
     identity = {"resolvedLoadoutKey": loadout["resolvedLoadoutKey"], "exactAuthorityBySlot": _canonical(loadout.get("exactAuthorityBySlot") or []), "effectEvidenceByOccurrence": _canonical(loadout.get("effectEvidenceByOccurrence") or []), "talentProfileKey": provided_talent_key, "characterContext": {**character, "talentLinesHash": _hash("sha256:", {"talentLines": talents})}, "scenarioOptions": {**scenario, "preparationLines": preparations or []}, "serializerInput": {"gearItems": gear_items}, "compilerRevision": compiler, "simcRuntimeRevision": runtime}
+    if "loadoutEffectAuthorityKey" in loadout:
+        identity["loadoutEffectAuthorityKey"] = _text(
+            loadout.get("loadoutEffectAuthorityKey")
+        )
     row = {"schemaRevision": SIMULATION_SNAPSHOT_V2_SCHEMA_REVISION, "status": "ready", "simulationSnapshotKey": _hash("simulation-snapshot-v2:sha256:", identity), "resolvedLoadoutKey": loadout["resolvedLoadoutKey"], "exactAuthorityBySlot": _canonical(loadout.get("exactAuthorityBySlot") or []), "effectEvidenceByOccurrence": _canonical(loadout.get("effectEvidenceByOccurrence") or []), "talentProfileKey": provided_talent_key, "talentLinesHash": identity["characterContext"]["talentLinesHash"], "talentLines": talents, "characterContext": character, "scenarioOptions": scenario, "preparationLines": preparations or [], "serializerInput": {"gearItems": gear_items}, "compilerRevision": compiler, "simcRuntimeRevision": runtime, "canonicalSimcInput": canonical_input, "canonicalInputHash": "simc-input:sha256:" + hashlib.sha256(canonical_input.encode("utf-8")).hexdigest(), "problemCodes": [], "problems": []}
+    if "loadoutEffectAuthorityKey" in loadout:
+        row["loadoutEffectAuthorityKey"] = loadout[
+            "loadoutEffectAuthorityKey"
+        ]
     if _text(origin_catalog_revision):
         row["originCatalogRevision"] = _text(origin_catalog_revision)
     row["rowHash"] = _hash("sha256:", {key: value for key, value in row.items() if key not in {"rowHash", "originCatalogRevision"}})
@@ -701,6 +710,7 @@ def verify_simulation_snapshot_v2(
     resolver_snapshot: Any = None,
     authority_bundles: Any = None,
     compiler_revision: Any = None,
+    loadout_effect_authority: Any = None,
 ) -> list[str]:
     row = dict(value) if isinstance(value, Mapping) else {}
     if row.get("schemaRevision") != SIMULATION_SNAPSHOT_V2_SCHEMA_REVISION:
@@ -722,7 +732,7 @@ def verify_simulation_snapshot_v2(
         issues.append("SIMULATION_V2_AUTHORITY_CONTEXT_REQUIRED")
     elif resolver_snapshot is None:
         issues.append("SIMULATION_V2_RESOLVER_CONTEXT_REQUIRED")
-    elif verify_resolved_loadout_v2(loadout, resolver_snapshot=resolver_snapshot, authority_bundles=authority_bundles):
+    elif verify_resolved_loadout_v2(loadout, resolver_snapshot=resolver_snapshot, authority_bundles=authority_bundles, loadout_effect_authority=loadout_effect_authority):
         issues.append("SIMULATION_V2_RESOLVED_LOADOUT_CONTEXT_INVALID")
     else:
         loadout_context_verified = True
@@ -736,11 +746,24 @@ def verify_simulation_snapshot_v2(
             issues.append("SIMULATION_V2_RUNTIME_CONTEXT_MISMATCH")
         if raw_occurrences != loadout.get("effectEvidenceByOccurrence"):
             issues.append("SIMULATION_V2_EFFECT_EVIDENCE_CONTEXT_MISMATCH")
+        if (
+            row.get("loadoutEffectAuthorityKey")
+            != loadout.get("loadoutEffectAuthorityKey")
+            or (
+                ("loadoutEffectAuthorityKey" in row)
+                != ("loadoutEffectAuthorityKey" in loadout)
+            )
+        ):
+            issues.append("SIMULATION_V2_EFFECT_AUTHORITY_CONTEXT_MISMATCH")
     if not SIMULATION_SNAPSHOT_V2_KEY_PATTERN.fullmatch(_text(row.get("simulationSnapshotKey"))):
         issues.append("SIMULATION_SNAPSHOT_V2_KEY_INVALID")
     raw_character = row.get("characterContext") if isinstance(row.get("characterContext"), Mapping) else {}
     raw_scenario = row.get("scenarioOptions") if isinstance(row.get("scenarioOptions"), Mapping) else {}
     identity = {"resolvedLoadoutKey": _text(row.get("resolvedLoadoutKey")), "exactAuthorityBySlot": _canonical(row.get("exactAuthorityBySlot") or []), "effectEvidenceByOccurrence": _canonical(row.get("effectEvidenceByOccurrence") or []), "talentProfileKey": _text(row.get("talentProfileKey")), "characterContext": {**_canonical(raw_character), "talentLinesHash": _text(row.get("talentLinesHash"))}, "scenarioOptions": {**_canonical(raw_scenario), "preparationLines": _canonical(row.get("preparationLines") or [])}, "serializerInput": _canonical(row.get("serializerInput") or {}), "compilerRevision": _valid_v2_compiler_revision(row.get("compilerRevision")) or "", "simcRuntimeRevision": runtime or ""}
+    if "loadoutEffectAuthorityKey" in row:
+        identity["loadoutEffectAuthorityKey"] = _text(
+            row.get("loadoutEffectAuthorityKey")
+        )
     if _text(row.get("simulationSnapshotKey")) != _hash("simulation-snapshot-v2:sha256:", identity):
         issues.append("SIMULATION_SNAPSHOT_V2_IDENTITY_MISMATCH")
     character = _valid_v2_character_context(row.get("characterContext"))
@@ -792,11 +815,41 @@ def verify_simulation_snapshot_v2(
     occurrences = raw_occurrences
     pair_by_slot = dict(expected_pairs)
     next_ordinal: dict[str, int] = {}
+    next_loadout_ordinal = 0
     prior_order = (-1, -1)
     for occurrence in occurrences:
         current = dict(occurrence) if isinstance(occurrence, Mapping) else {}
-        slot = _text(current.get("slot"))
+        scope = current.get("scope")
         ordinal = current.get("recordOrdinal")
+        if scope == "loadout":
+            if (
+                set(current)
+                != {
+                    "scope", "loadoutEffectAuthorityKey", "recordOrdinal",
+                    "subjectKind", "subjectKey", "subjectVariantSignature",
+                    "supportRecordKey",
+                }
+                or current.get("loadoutEffectAuthorityKey")
+                != row.get("loadoutEffectAuthorityKey")
+                or type(ordinal) is not int
+                or ordinal != next_loadout_ordinal
+                or not _text(current.get("subjectKind"))
+                or not _text(current.get("subjectKey"))
+                or not re.fullmatch(
+                    r"set_bonus-variant:sha256:[0-9a-f]{64}",
+                    _text(current.get("subjectVariantSignature")),
+                )
+                or not re.fullmatch(
+                    r"simc-item-effect-record:sha256:[0-9a-f]{64}",
+                    _text(current.get("supportRecordKey")),
+                )
+            ):
+                issues.append("SIMULATION_V2_EFFECT_EVIDENCE_INVALID")
+                break
+            next_loadout_ordinal += 1
+            prior_order = (len(CANONICAL_GEAR_SLOTS), ordinal)
+            continue
+        slot = _text(current.get("slot"))
         order = (CANONICAL_GEAR_SLOTS.index(slot) if slot in CANONICAL_GEAR_SLOTS else len(CANONICAL_GEAR_SLOTS), ordinal if type(ordinal) is int else -1)
         if (set(current) != {"scope", "slot", "exactAuthorityEnvelopeKey", "recordOrdinal", "subjectKind", "subjectKey", "subjectVariantSignature", "supportRecordKey"} or current.get("scope") != "slot" or pair_by_slot.get(slot) != _text(current.get("exactAuthorityEnvelopeKey")) or type(ordinal) is not int or ordinal != next_ordinal.get(slot, 0) or order < prior_order or not _text(current.get("subjectKind")) or not _text(current.get("subjectKey")) or not _text(current.get("subjectVariantSignature")) or not re.fullmatch(r"simc-item-effect-record:sha256:[0-9a-f]{64}", _text(current.get("supportRecordKey")))):
             issues.append("SIMULATION_V2_EFFECT_EVIDENCE_INVALID")

@@ -97,7 +97,100 @@ def records_for(snapshot, *, unsupported_at=None):
     ]
 
 
+def active_resolver_fixture(*, repeated_subject=False):
+    """Return real Resolver inputs whose v2 boundary has loadout effects."""
+    fixture = GearResolverTest().fixture()
+    dependency = fixture["authorityContext"]["dependencyVector"]
+    dependency["resolverContractRevision"] = "resolver-v2"
+    dependency["simcRuntimeRevision"] = "simc-runtime-v2"
+    fixture["intent"]["slots"] = {
+        "head": fixture["intent"]["slots"]["head"],
+    }
+    fixture["authorityContext"]["ruleParameters"]["requiredSlots"] = ["head"]
+    thresholds = fixture["authorityContext"]["ruleParameters"][
+        "setAggregationInputs"
+    ][0]["thresholds"]
+    thresholds[0]["pieces"] = 1
+    if repeated_subject:
+        thresholds.extend([copy.deepcopy(thresholds[0]), copy.deepcopy(thresholds[0])])
+    return fixture
+
+
+def active_resolver_authority(*, repeated_subject=False, unsupported_at=None):
+    """Resolve one genuine sealed authority for real active Resolver inputs."""
+    fixture = active_resolver_fixture(repeated_subject=repeated_subject)
+    blocked = gear_resolver.resolve_v2(
+        fixture["intent"], fixture["authorityContext"],
+    )
+    outcome = gear_loadout_effect_authority.resolve_loadout_effect_authority(
+        blocked,
+        records=records_for(blocked, unsupported_at=unsupported_at),
+    )
+    return fixture, blocked, outcome
+
+
 class GearLoadoutEffectAuthorityTest(unittest.TestCase):
+    def test_resolver_only_matching_verified_authority_unblocks_active_subjects(self):
+        """Would fail if malformed or context-mismatched authority could make v2 ready."""
+        fixture, blocked, verified = active_resolver_authority()
+        mismatched_snapshot = snapshot_with_descriptors([
+            descriptor("set-other", 1, "set-other-1pc"),
+        ])
+        mismatched = gear_loadout_effect_authority.resolve_loadout_effect_authority(
+            mismatched_snapshot,
+            records=records_for(mismatched_snapshot),
+        )
+        unknown = gear_loadout_effect_authority.resolve_loadout_effect_authority(
+            blocked,
+            records=[],
+        )
+
+        for label, authority in (
+            ("absent", None),
+            ("malformed", {"status": "verified"}),
+            ("mismatched", mismatched.document),
+            ("unknown", unknown),
+        ):
+            with self.subTest(label):
+                result = gear_resolver.resolve_v2(
+                    fixture["intent"],
+                    fixture["authorityContext"],
+                    loadout_effect_authority=authority,
+                )
+                self.assertEqual(result["status"], "blocked")
+                self.assertIn(
+                    "LOADOUT_EFFECT_AUTHORITY_REQUIRED", result["problemCodes"],
+                )
+                self.assertEqual(result["v2EffectBoundary"]["status"], "blocked")
+
+        ready = gear_resolver.resolve_v2(
+            fixture["intent"],
+            fixture["authorityContext"],
+            loadout_effect_authority=verified.document,
+        )
+        self.assertEqual(ready["status"], "verified")
+        self.assertTrue(ready["profileReadiness"]["simcReady"])
+        self.assertNotIn("LOADOUT_EFFECT_AUTHORITY_REQUIRED", ready.get("problemCodes", []))
+        self.assertEqual(ready["v2EffectBoundary"]["status"], "verified")
+        self.assertEqual(
+            ready["v2EffectBoundary"]["subjects"], ready["loadoutEffectSubjects"],
+        )
+
+    def test_resolver_keeps_sealed_unsupported_authority_literally_blocked(self):
+        """Would fail if sealed unsupported evidence were treated as verified or unknown."""
+        fixture, _, unsupported = active_resolver_authority(unsupported_at=0)
+
+        result = gear_resolver.resolve_v2(
+            fixture["intent"],
+            fixture["authorityContext"],
+            loadout_effect_authority=unsupported.document,
+        )
+
+        self.assertEqual(result["status"], "blocked")
+        self.assertIn("LOADOUT_EFFECT_UNSUPPORTED", result["problemCodes"])
+        self.assertNotIn("LOADOUT_EFFECT_AUTHORITY_REQUIRED", result["problemCodes"])
+        self.assertEqual(result["v2EffectBoundary"]["status"], "blocked")
+
     def test_complete_verified_aggregate_reloads_exact_bytes_and_key(self):
         snapshot = snapshot_with_descriptors([
             descriptor("set-a", 2, "set-a-2pc"),

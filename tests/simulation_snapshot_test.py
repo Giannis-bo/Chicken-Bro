@@ -1,4 +1,5 @@
 import copy
+import json
 import unittest
 
 import server.simulation_snapshot as simulation_snapshot_module
@@ -13,6 +14,7 @@ from tests.gear_resolved_loadout_test import (
     TEMPLATE_HASH,
     exact_registry,
     resolver_snapshot,
+    active_v2_loadout_fixture,
     v2_resolver_snapshot,
 )
 from server.gear_resolved_loadout import build_resolved_loadout, build_resolved_loadout_v2
@@ -111,11 +113,115 @@ def rehash_v2_snapshot(snapshot):
         "compilerRevision": str(snapshot.get("compilerRevision") or "").strip(),
         "simcRuntimeRevision": str(snapshot.get("simcRuntimeRevision") or "").strip(),
     }
+    if "loadoutEffectAuthorityKey" in snapshot:
+        identity["loadoutEffectAuthorityKey"] = snapshot[
+            "loadoutEffectAuthorityKey"
+        ]
     snapshot["simulationSnapshotKey"] = simulation_snapshot_module._hash("simulation-snapshot-v2:sha256:", identity)
     snapshot["rowHash"] = simulation_snapshot_module._hash("sha256:", {key: value for key, value in snapshot.items() if key not in {"rowHash", "originCatalogRevision"}})
 
 
 class SimulationSnapshotTest(unittest.TestCase):
+    def test_v2_snapshot_binds_same_loadout_authority_key_and_ordered_suffix(self):
+        """Would fail if snapshot identity detached the verified loadout suffix."""
+        source, authority, bundles, loadout = active_v2_loadout_fixture()
+        eligibility = source["eligibilityContext"]
+        snapshot = build_simulation_snapshot_v2(
+            resolved_loadout=loadout,
+            talent_profile_key=TALENT_KEY,
+            talent_lines=TALENT_LINES,
+            character_context=character_context(
+                eligibility["classKey"], eligibility["specKey"],
+            ),
+            scenario_options=scenario(),
+            preparation_lines=["optimal_raid=0"],
+            compiler_revision="simc-profile-compiler-v2",
+            simc_runtime_revision="simc-runtime-v2",
+            resolver_snapshot=source,
+            authority_bundles=bundles,
+            loadout_effect_authority=authority,
+        )
+
+        self.assertEqual(snapshot["status"], "ready")
+        self.assertEqual(
+            snapshot["loadoutEffectAuthorityKey"],
+            loadout["loadoutEffectAuthorityKey"],
+        )
+        self.assertEqual(
+            snapshot["effectEvidenceByOccurrence"],
+            loadout["effectEvidenceByOccurrence"],
+        )
+        self.assertEqual(
+            verify_simulation_snapshot_v2(
+                snapshot,
+                resolved_loadout=loadout,
+                resolver_snapshot=source,
+                authority_bundles=bundles,
+                compiler_revision="simc-profile-compiler-v2",
+                loadout_effect_authority=authority,
+            ),
+            [],
+        )
+
+        for label, mutate in (
+            (
+                "authority key",
+                lambda row: row.__setitem__(
+                    "loadoutEffectAuthorityKey",
+                    "loadout-effect-authority:sha256:" + "f" * 64,
+                ),
+            ),
+            (
+                "loadout sequence",
+                lambda row: row["effectEvidenceByOccurrence"].pop(),
+            ),
+            (
+                "loadout subject",
+                lambda row: next(
+                    occurrence
+                    for occurrence in row["effectEvidenceByOccurrence"]
+                    if occurrence["scope"] == "loadout"
+                ).__setitem__("subjectKey", "changed"),
+            ),
+        ):
+            with self.subTest(label):
+                tampered = copy.deepcopy(snapshot)
+                mutate(tampered)
+                rehash_v2_snapshot(tampered)
+                self.assertTrue(
+                    verify_simulation_snapshot_v2(
+                        tampered,
+                        resolved_loadout=loadout,
+                        resolver_snapshot=source,
+                        authority_bundles=bundles,
+                        compiler_revision="simc-profile-compiler-v2",
+                        loadout_effect_authority=authority,
+                    )
+                )
+
+    def test_no_effect_v2_snapshot_bytes_ignore_optional_loadout_authority(self):
+        """Would fail if Task 4L changed current no-loadout-effect v2 identity."""
+        source, bundles, loadout, baseline = v2_snapshot_fixture()
+        with_optional = build_simulation_snapshot_v2(
+            resolved_loadout=loadout,
+            talent_profile_key=TALENT_KEY,
+            talent_lines=TALENT_LINES,
+            character_context=character_context(),
+            scenario_options=scenario(),
+            preparation_lines=["optimal_raid=0"],
+            compiler_revision="simc-profile-compiler-v2",
+            simc_runtime_revision="simc-runtime-v2",
+            resolver_snapshot=source,
+            authority_bundles=bundles,
+            loadout_effect_authority={"ignored": "no active loadout subject"},
+        )
+
+        self.assertNotIn("loadoutEffectAuthorityKey", baseline)
+        self.assertEqual(
+            json.dumps(baseline, sort_keys=True, separators=(",", ":")),
+            json.dumps(with_optional, sort_keys=True, separators=(",", ":")),
+        )
+
     def build(self, **overrides):
         values = {
             "resolved_loadout": ready_loadout(),

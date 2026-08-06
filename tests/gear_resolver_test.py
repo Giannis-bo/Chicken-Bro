@@ -1824,6 +1824,35 @@ class GearResolverTest(unittest.TestCase):
             },
         )
 
+    def test_v1_and_no_effect_v2_bytes_ignore_optional_loadout_authority(self):
+        """Would fail if Task 4L changed v1 or no-subject v2 shape or identity."""
+        fixture = self.fixture()
+        fixture["authorityContext"]["ruleParameters"]["setAggregationInputs"] = []
+
+        v1_before = gear_resolver.resolve(
+            fixture["intent"], fixture["authorityContext"],
+        )
+        v2_before = gear_resolver.resolve_v2(
+            fixture["intent"], fixture["authorityContext"],
+        )
+        v2_after = gear_resolver.resolve_v2(
+            fixture["intent"],
+            fixture["authorityContext"],
+            loadout_effect_authority={"ignored": "because no subject is active"},
+        )
+        v1_after = gear_resolver.resolve(
+            fixture["intent"], fixture["authorityContext"],
+        )
+
+        self.assertEqual(
+            json.dumps(v1_before, sort_keys=True, separators=(",", ":")),
+            json.dumps(v1_after, sort_keys=True, separators=(",", ":")),
+        )
+        self.assertEqual(
+            json.dumps(v2_before, sort_keys=True, separators=(",", ":")),
+            json.dumps(v2_after, sort_keys=True, separators=(",", ":")),
+        )
+
     def test_v2_resolver_fails_closed_on_effective_set_state_without_raw_set_clues(self):
         """Would fail if overlays could activate a set effect outside the v2 literal block."""
         fixture = self.fixture()
