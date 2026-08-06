@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILLS: Use `superpowers:subagent-driven-development`, `superpowers:test-driven-development`, and `superpowers:verification-before-completion`. This plan forward-replaces the old implementation plan's Task 3 and later execution order after two independent readiness audits returned `NOT_READY`.
 
-状态：`正在推进（Task 3A delivery closure 已完成：PR #114 合并、scoped Harness、main/origin parity 与严格限定的候选资源清理均已完成；其正式 packet 仍为 runtime_verified / candidate_verified 且 closure identity 为 pending，因为现行 lifecycle test 不建模 archived。Task 4P 在 2e60fb5e 达到 local_verified：125 项 focused tests、py_compile、fresh Harness 与独立 scoped/whole-branch CR 均通过，且 direct-server import 回归已修复；它仍未合并、无 runtime identity、无 candidate/production 或用户可见动作，等待 Harness User Acceptance Closure。4L、3B、4W、5A、6C 与任何用户可见/生产动作仍未授权）`
+状态：`正在推进（Task 3A delivery closure 已完成：PR #114 合并、scoped Harness、main/origin parity 与严格限定的候选资源清理均已完成；其正式 packet 仍为 runtime_verified / candidate_verified 且 closure identity 为 pending，因为现行 lifecycle test 不建模 archived。Task 4P 已在 Harness User Acceptance Closure 下完成纯函数归档：exact-head PR CI run 31064766939 成功，合并为 d5a1f813 并通过 post-merge scoped Harness；无 runtime identity、candidate/production 或用户可见动作。4L、3B、4W、5A、6C 与任何用户可见/生产动作仍未授权）`
 
 ## Goal
 
@@ -251,7 +251,7 @@ Read path loads exact canonical bytes, reconstructs Exact -> Static/Progression 
 
 This task executes the old Task 5 pure-domain intent before any v2 store changes.
 
-**状态（2026-08-05）：正在推进（`local_verified`）。** `2e60fb5e` 的纯函数 v2 slice 通过 125 项 focused tests、py_compile、fresh Harness 及独立 scoped/whole-branch CR；direct-server import 回归已修复，已复现的 sealed-bundle closure、occurrence、resolver effect-boundary、compiler/runtime canonical revision 与 Snapshot context bypass 均已回归 fail closed。完整 profile 只余五项 Task 3A lifecycle/owner-gate 历史断言，Task 4P 未改动对应测试或 packet，故在严格 allowlist 下如实为 blocked，不能冒充 full-profile pass。该证据只证明本地 pure-domain 合同，分支仍未合并，且没有 runtime identity、candidate、production、API/UI/SimC 用户路径或 release 完成声明；等待 Harness User Acceptance Closure，Task 4L/3B 仍不激活。
+**状态（2026-08-06）：已完成纯函数归档（`archived`）。** `2e60fb5e` 的 pure-domain source 经 `238028f1` 的 Task 3A lifecycle-control reconciliation、exact-head PR CI run `31064766939` full profile 成功和独立最终 CR 后，合并为 `d5a1f813` 并通过 post-merge scoped Harness。它保持 pure-domain 合同：无 runtime identity、candidate、production、API/UI/SimC 用户路径或 release 完成声明；Task 4L/3B 仍不激活。
 
 - Add v2 builders/verifiers in Resolver, ResolvedLoadout, SimulationSnapshot and compatibility modules.
 - Exact Authority Envelope and item effect records use the frozen prefixes:

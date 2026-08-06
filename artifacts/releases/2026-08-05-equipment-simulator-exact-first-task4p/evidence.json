@@ -2,10 +2,10 @@
   "schemaVersion": 2,
   "slug": "equipment-simulator-exact-first-task4p",
   "requirementSlug": "equipment-simulator-exact-first-task4p",
-  "status": "local_verified",
-  "highestEvidenceLevel": "local_verified",
-  "branch": "codex/equipment-simulator-exact-first-task4p",
-  "commit": "2e60fb5eb18bb1dfa63287c5b20ab28dc71bd6f4",
+  "status": "archived",
+  "highestEvidenceLevel": "archived",
+  "branch": "main",
+  "commit": "238028f18e92e4b9c158b8fb8aa7d5c2b3b0dbc8",
   "identities": {
     "runtime": {
       "status": "not_applicable",
@@ -15,11 +15,13 @@
       "status": "bound_at_check",
       "kind": "git_ref",
       "value": "HEAD",
-      "reason": "Fresh focused tests, compile, Harness and independent scoped reviews passed after the final v2 integrity and direct-server import repairs; the Harness check binds this local verification to its exact checked HEAD."
+      "reason": "Fresh focused tests, compile, independent CR, exact-head PR CI and post-merge scoped Harness verification passed; each Harness check binds this archival verification to its clean checked HEAD."
     },
     "closure": {
-      "status": "pending",
-      "reason": "Task 4P has not received Harness User Acceptance Closure, merge, post-merge verification or scoped cleanup."
+      "status": "bound",
+      "kind": "merge_commit",
+      "value": "d5a1f8133fa95f4a45bf9ce7a6c32c463391a1de",
+      "reason": "The user supplied Harness User Acceptance Closure after exact-head PR CI success; this merge commit is the closed pure-domain Task 4P integration identity."
     }
   },
   "manualAcceptance": {
@@ -62,8 +64,14 @@
     {
       "command": "node scripts/verify-project.js --profile harness --release artifacts/releases/2026-08-05-equipment-simulator-exact-first-task4p --base origin/main",
       "status": "pass",
-      "testedHead": "2e60fb5eb18bb1dfa63287c5b20ab28dc71bd6f4",
-      "summary": "Fresh Harness profile passed all six selected control-plane commands. It is local packet evidence, not runtime, production or user-experience evidence."
+      "testedHead": "d5a1f8133fa95f4a45bf9ce7a6c32c463391a1de",
+      "summary": "Post-merge scoped Harness profile passed all six selected control-plane commands on the merge result. It is archival control-plane evidence, not runtime, production or user-experience evidence."
+    },
+    {
+      "command": "GitHub Actions Project Harness run 31064766939: node scripts/verify-project.js --profile full --release-from-changes --base origin/main",
+      "status": "pass",
+      "testedHead": "238028f18e92e4b9c158b8fb8aa7d5c2b3b0dbc8",
+      "summary": "Exact-head PR CI installed dependencies and passed the 173-command full profile: Python 2757 tests with 3 expected skips, Vitest 437/437, Harness and all remaining checks."
     }
   ],
   "candidateDeployment": {
@@ -89,8 +97,8 @@
     },
     {
       "id": "full_profile_control_plane",
-      "status": "blocked",
-      "detail": "The fresh full profile for 2e60fb5e ran 2757 Python tests and reported five pre-existing Task 3A lifecycle/owner-gate assertion failures. Task 4P changes neither those tests nor the Task 3A packet; correcting them would exceed this plan's allowlist. This is not full-profile pass or Task 4P lifecycle closure."
+      "status": "controlled",
+      "detail": "The narrowly authorized Task 3A lifecycle-control reconciliation at 238028f1 fixed the five stale historical assertions without changing Task 3A evidence, candidate or runtime semantics. Exact-head PR CI run 31064766939 then passed the full profile; this remains control-plane evidence, not runtime or user-experience proof."
     }
   ],
   "rollback": [
@@ -98,8 +106,20 @@
   ],
   "cleanup": {
     "required": true,
-    "status": "pending_harness_user_acceptance_closure",
-    "reason": "Keep the Task 4P branch, worktree and task-local SDD artifacts until an explicit user closure authorization, merge, post-merge verification and main parity."
+    "status": "post_merge_verified_pending_main_push_parity_and_owned_cleanup",
+    "reason": "The merge result passed scoped Harness. Push main, verify local/origin SHA parity, then remove only the Task 4P worktree and local/published feature branches."
+  },
+  "archival": {
+    "status": "merge_and_post_merge_scoped_verification_recorded",
+    "mergeCommit": "d5a1f8133fa95f4a45bf9ce7a6c32c463391a1de",
+    "pullRequest": 115,
+    "prCiRun": 31064766939,
+    "postMergeScopedVerification": {
+      "status": "pass",
+      "testedHead": "d5a1f8133fa95f4a45bf9ce7a6c32c463391a1de",
+      "command": "node scripts/verify-project.js --profile harness --release artifacts/releases/2026-08-05-equipment-simulator-exact-first-task4p --base origin/main"
+    },
+    "scope": "Pure-domain archival only: no runtime identity, candidate deployment, production migration, API, UI, SimC consumer, Catalog/Manifest pointer or generation 35 action."
   },
   "archivedReferences": [
     "docs/project-state.json",
@@ -107,5 +127,5 @@
     "docs/plans/README.md",
     "docs/plans/2026-08-04-equipment-simulator-exact-first-persistence-resequence.md"
   ],
-  "summary": "Task 4P is local_verified at 2e60fb5e: pure v2 Resolver, ResolvedLoadout, SimulationSnapshot and compatibility verification pass fresh focused tests, compile, Harness and independent scoped/whole-branch CR; the direct-server import compatibility boundary is also covered. The full profile remains blocked only by five pre-existing Task 3A lifecycle/owner-gate assertions outside this task's allowlist. Task 4P remains unmerged and has no runtime identity, candidate deployment, production action or user-visible closure. No DB, migration, worker, service, deploy, API, UI, Catalog/Manifest pointer, generation 35 or runtime consumer changed."
+  "summary": "Task 4P is archived after Harness User Acceptance Closure: final pure-domain/control head 238028f1 passed PR CI run 31064766939, then merged as d5a1f813 and passed post-merge scoped Harness. It supplies only pure v2 Resolver, ResolvedLoadout, SimulationSnapshot and compatibility contracts; no runtime identity, candidate deployment, production action or user-visible closure is claimed. No DB, migration, worker, service, deploy, API, UI, Catalog/Manifest pointer, generation 35 or runtime consumer changed."
 }
