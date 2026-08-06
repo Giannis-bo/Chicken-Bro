@@ -384,6 +384,54 @@ def rehash_active_v2_loadout(value):
 
 
 class GearResolvedLoadoutTest(unittest.TestCase):
+    def test_no_effect_v2_loadout_bytes_ignore_optional_loadout_authority(self):
+        """Would fail if optional Task 4L input changed a no-subject v2 loadout."""
+        source = v2_resolver_snapshot()
+        bundle = v2_bundle("head", "1001", ["A"])
+        key = bundle.envelope.content_key
+        kwargs = {
+            "resolver_snapshot": source,
+            "exact_authority_by_slot": [
+                {"slot": "head", "exactAuthorityEnvelopeKey": key},
+            ],
+            "authority_bundles": {key: bundle},
+            "gear_rule_revision": RULE_REVISION,
+            "resolver_revision": "resolver-v2",
+            "simc_runtime_revision": "simc-runtime-v2",
+        }
+
+        omitted = build_resolved_loadout_v2(**kwargs)
+        malformed = build_resolved_loadout_v2(
+            **kwargs,
+            loadout_effect_authority={"malformed": "ignored without subjects"},
+        )
+        omitted_bytes = json.dumps(
+            omitted,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+        malformed_bytes = json.dumps(
+            malformed,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+
+        self.assertEqual(omitted["status"], "ready")
+        self.assertEqual(omitted_bytes, malformed_bytes)
+        self.assertEqual(
+            omitted["resolvedLoadoutKey"], malformed["resolvedLoadoutKey"],
+        )
+        self.assertEqual(omitted["rowHash"], malformed["rowHash"])
+        self.assertEqual(
+            omitted["effectEvidenceByOccurrence"],
+            malformed["effectEvidenceByOccurrence"],
+        )
+        self.assertEqual(set(omitted), set(malformed))
+        self.assertNotIn("loadoutEffectAuthorityKey", omitted)
+        self.assertNotIn("loadoutEffectAuthorityKey", malformed)
+
     def test_v2_active_authority_appends_ordered_loadout_occurrences_and_binds_identity(self):
         """Would fail if loadout occurrences were deduped, interleaved, or left unhashed."""
         source, authority, bundles, loadout = active_v2_loadout_fixture()
