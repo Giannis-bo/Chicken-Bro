@@ -116,8 +116,8 @@
   ],
   "cleanup": {
     "required": true,
-    "status": "pending_main_push_parity_and_owned_task_resource_cleanup",
-    "reason": "Task 4L has merged and passed post-merge scoped verification. Keep only this task's branch and worktree until this archival control commit is pushed, main/origin parity is confirmed and its owned resources are removed."
+    "status": "completed_after_main_push_parity_and_owned_task_resource_cleanup",
+    "reason": "main/origin parity at 53d0a7fd91bfd63ed32273d26a774aece9370360 was confirmed before cleanup. The Task 4L worktree and local feature branch were removed; the published feature branch had already been deleted by PR merge, and only its confirmed-stale local tracking ref was removed. No other worktree or branch was touched."
   },
   "archival": {
     "status": "merge_and_post_merge_scoped_verification_recorded",
@@ -128,6 +128,11 @@
       "status": "pass",
       "testedHead": "d4eac363bb955df73d3b104d9841a04bc2f6d925",
       "command": "node scripts/verify-project.js --profile harness --release artifacts/releases/2026-08-06-equipment-simulator-exact-first-task4l --base origin/main"
+    },
+    "mainParityBeforeCleanup": {
+      "status": "verified",
+      "localMain": "53d0a7fd91bfd63ed32273d26a774aece9370360",
+      "originMain": "53d0a7fd91bfd63ed32273d26a774aece9370360"
     },
     "scope": "Pure-domain archival only: no runtime identity, candidate deployment, production migration, API, UI, SimC consumer, Catalog/Manifest pointer or generation 35 action."
   },

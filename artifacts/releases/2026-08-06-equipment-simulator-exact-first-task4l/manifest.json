@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-08-06T05:13:45.951Z",
+  "generatedAt": "2026-08-06T05:17:04.184Z",
   "release": {
     "date": "2026-08-06",
     "slug": "equipment-simulator-exact-first-task4l"
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-08-06-equipment-simulator-exact-first-task4l/evidence.json",
-    "sizeBytes": 8296,
+    "sizeBytes": 8601,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -417,7 +417,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "5 changed files currently visible to git status."
+      "detail": "1 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
@@ -453,13 +453,9 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 5,
+      "changedFileCount": 1,
       "changedFiles": [
-        " M artifacts/releases/2026-08-06-equipment-simulator-exact-first-task4l/evidence.json",
-        " M artifacts/releases/2026-08-06-equipment-simulator-exact-first-task4l/manifest.json",
-        " M docs/plans/2026-08-06-equipment-simulator-exact-first-task4l-loadout-effect-authority.md",
-        " M docs/plans/README.md",
-        " M docs/roadmap.md"
+        " M artifacts/releases/2026-08-06-equipment-simulator-exact-first-task4l/evidence.json"
       ]
     }
   },
