@@ -160,7 +160,7 @@
     "publicPointerChange": false,
     "nextCandidate": {
       "status": "required",
-      "reason": "The final direct-server import correction changes SimulationSnapshotStore after the recorded candidate source; the prior source and databases remain historical and must not be reused."
+      "reason": "The final direct-server import correction changes SimulationSnapshotStore after the recorded candidate source; the prior source and databases remain historical and must not be reused. A t3b260806194346 preflight then stopped before migration because its required disposable database-comment identity was not exact; cloud storage is now capacity-gated before any new run."
     }
   },
   "runtimeEvidence": [],
@@ -173,7 +173,12 @@
     {
       "id": "historical_failed_candidate_resources",
       "status": "contained",
-      "detail": "Runs t3b260806175347 and t3b260806191719 failed only candidate-test assertions; t3b260806191950 passed PostgreSQL but was invalidated by a later direct-server import correction. All three are permanently rejected by the pre-connection guard, and their isolated databases/source directories remain retained rather than reused."
+      "detail": "Runs t3b260806175347 and t3b260806191719 failed only candidate-test assertions; t3b260806191950 passed PostgreSQL but was invalidated by a later direct-server import correction; t3b260806194346 stopped at the disposable database-comment preflight before migration. All four are permanently rejected by the pre-connection guard, and their isolated databases/source directories remain retained rather than reused."
+    },
+    {
+      "id": "cloud_candidate_capacity_gate",
+      "status": "blocked",
+      "detail": "Read-only cloud inspection after t3b260806194346 found the root filesystem at 98% used with about 1.6 GiB free; the four retained Task 3B source directories total about 1.26 GiB. CPU is idle, but no further candidate source or database may be created until a capacity-safe, explicitly authorized remedy is selected."
     },
     {
       "id": "exact_first_user_path",
@@ -199,5 +204,5 @@
     "docs/harness.md",
     "docs/verification-matrix.md"
   ],
-  "summary": "Task 3B is locally verified at the current source only. Historical source 8459500b / tree 3195c113 passed one cloud-only PostgreSQL fresh-and-upgrade 0031 candidate, but a later allowlisted direct-server import correction invalidated that runtime identity and requires a new final-head cloud candidate. No production migration, runtime consumer, API, UI, SimC execution or user-visible closure is claimed."
+  "summary": "Task 3B is locally verified at the current source only. Historical source 8459500b / tree 3195c113 passed one cloud-only PostgreSQL fresh-and-upgrade 0031 candidate, but a later allowlisted direct-server import correction invalidated that runtime identity and requires a new final-head cloud candidate. A later t3b260806194346 preflight failed before migration and cloud storage is now capacity-gated, so no further candidate will be created without a safe remedy. No production migration, runtime consumer, API, UI, SimC execution or user-visible closure is claimed."
 }

@@ -45,6 +45,7 @@ TASK_3B_FORBIDDEN_RUN_IDS = TASK_3A_HISTORICAL_RUN_IDS | frozenset({
     "t3b260806175347",
     "t3b260806191719",
     "t3b260806191950",
+    "t3b260806194346",
 })
 TASK_3B_RUN_ID = os.environ.get("WOW_PG_TEST_RUN_ID_0031", "")
 TASK_3B_FRESH_DSN = os.environ.get("WOW_PG_TEST_DSN_FRESH_0031", "")
@@ -408,6 +409,7 @@ class Task3BCandidateHarnessTest(unittest.TestCase):
             "t3b260806175347",
             "t3b260806191719",
             "t3b260806191950",
+            "t3b260806194346",
             "BAD",
             "short",
             "a" * 33,

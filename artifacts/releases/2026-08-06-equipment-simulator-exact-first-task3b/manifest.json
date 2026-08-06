@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-08-06T11:42:32.111Z",
+  "generatedAt": "2026-08-06T11:46:24.371Z",
   "release": {
     "date": "2026-08-06",
     "slug": "equipment-simulator-exact-first-task3b"
@@ -53,7 +53,7 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 19574
+          "sizeBytes": 19692
         },
         {
           "path": "docs/README.md",
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-08-06-equipment-simulator-exact-first-task3b/evidence.json",
-    "sizeBytes": 10824,
+    "sizeBytes": 11678,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -392,7 +392,7 @@
     "missingFields": [],
     "declaredStatus": "local_verified",
     "highestEvidenceLevel": "local_verified",
-    "summary": "Task 3B is locally verified at the current source only. Historical source 8459500b / tree 3195c113 passed one cloud-only PostgreSQL fresh-and-upgrade 0031 candidate, but a later allowlisted direct-server import correction invalidated that runtime identity and requires a new final-head cloud candidate. No production migration, runtime consumer, API, UI, SimC execution or user-visible closure is claimed."
+    "summary": "Task 3B is locally verified at the current source only. Historical source 8459500b / tree 3195c113 passed one cloud-only PostgreSQL fresh-and-upgrade 0031 candidate, but a later allowlisted direct-server import correction invalidated that runtime identity and requires a new final-head cloud candidate. A later t3b260806194346 preflight failed before migration and cloud storage is now capacity-gated, so no further candidate will be created without a safe remedy. No production migration, runtime consumer, API, UI, SimC execution or user-visible closure is claimed."
   },
   "evidence": {
     "localTests": {
@@ -417,7 +417,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "8 changed files currently visible to git status."
+      "detail": "5 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
@@ -453,16 +453,13 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 8,
+      "changedFileCount": 5,
       "changedFiles": [
         " M artifacts/releases/2026-08-06-equipment-simulator-exact-first-task3b/evidence.json",
-        " M artifacts/releases/2026-08-06-equipment-simulator-exact-first-task3b/manifest.json",
         " M docs/plans/2026-08-04-equipment-simulator-exact-first-persistence-resequence.md",
         " M docs/plans/README.md",
         " M docs/roadmap.md",
-        " M server/simulation_snapshot_store.py",
-        " M tests/postgres_integration_test.py",
-        " M tests/simulation_snapshot_store_test.py"
+        " M tests/postgres_integration_test.py"
       ]
     }
   },
