@@ -12,6 +12,7 @@ from server.simulation_snapshot import (
 )
 from tests.gear_resolved_loadout_test import (
     TEMPLATE_HASH,
+    alternate_loadout_effect_authority,
     exact_registry,
     resolver_snapshot,
     active_v2_loadout_fixture,
@@ -198,6 +199,48 @@ class SimulationSnapshotTest(unittest.TestCase):
                         loadout_effect_authority=authority,
                     )
                 )
+
+    def test_v2_snapshot_rejects_valid_authority_substitution(self):
+        """Would fail if snapshot consumption detached Resolver authority A."""
+        source, authority_a, bundles, loadout = active_v2_loadout_fixture()
+        authority_b = alternate_loadout_effect_authority(source)
+        eligibility = source["eligibilityContext"]
+        self.assertNotEqual(authority_a.content_key, authority_b.content_key)
+        source_b = copy.deepcopy(source)
+        source_b["v2EffectBoundary"][
+            "loadoutEffectAuthorityKey"
+        ] = authority_b.content_key
+        substituted_loadout = build_resolved_loadout_v2(
+            resolver_snapshot=source_b,
+            exact_authority_by_slot=loadout["exactAuthorityBySlot"],
+            authority_bundles=bundles,
+            gear_rule_revision="gear-rule-matrix-v1",
+            resolver_revision="resolver-v2",
+            simc_runtime_revision="simc-runtime-v2",
+            loadout_effect_authority=authority_b,
+        )
+        self.assertEqual(substituted_loadout["status"], "ready")
+
+        substituted = build_simulation_snapshot_v2(
+            resolved_loadout=substituted_loadout,
+            talent_profile_key=TALENT_KEY,
+            talent_lines=TALENT_LINES,
+            character_context=character_context(
+                eligibility["classKey"], eligibility["specKey"],
+            ),
+            scenario_options=scenario(),
+            preparation_lines=["optimal_raid=0"],
+            compiler_revision="simc-profile-compiler-v2",
+            simc_runtime_revision="simc-runtime-v2",
+            resolver_snapshot=source,
+            authority_bundles=bundles,
+            loadout_effect_authority=authority_b,
+        )
+
+        self.assertEqual(substituted["status"], "blocked")
+        self.assertIn(
+            "SIMULATION_V2_LOADOUT_NOT_READY", substituted["problemCodes"],
+        )
 
     def test_no_effect_v2_snapshot_bytes_ignore_optional_loadout_authority(self):
         """Would fail if Task 4L changed current no-loadout-effect v2 identity."""

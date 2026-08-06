@@ -1044,19 +1044,18 @@ def _v2_clean_effect_boundary(
     boundary = snapshot.get("v2EffectBoundary")
     set_state = snapshot.get("setState")
     subjects = snapshot.get("loadoutEffectSubjects")
+    boundary_keys = {
+        "schemaRevision",
+        "status",
+        "resolvedGearSignature",
+        "setState",
+        "subjects",
+        "gearRuleRevision",
+        "resolverRevision",
+        "simcRuntimeRevision",
+    }
     if (
         not isinstance(boundary, Mapping)
-        or set(boundary)
-        != {
-            "schemaRevision",
-            "status",
-            "resolvedGearSignature",
-            "setState",
-            "subjects",
-            "gearRuleRevision",
-            "resolverRevision",
-            "simcRuntimeRevision",
-        }
         or boundary.get("schemaRevision") != V2_EFFECT_BOUNDARY_SCHEMA_REVISION
         or boundary.get("status") != "verified"
         or not isinstance(set_state, Mapping)
@@ -1073,7 +1072,12 @@ def _v2_clean_effect_boundary(
     ):
         return False
     if not subjects:
-        return set_state.get("activeDynamicEffects") == []
+        return (
+            set(boundary) == boundary_keys
+            and set_state.get("activeDynamicEffects") == []
+        )
+    if set(boundary) != boundary_keys | {"loadoutEffectAuthorityKey"}:
+        return False
     return _v2_loadout_effect_projection(
         snapshot,
         loadout_effect_authority,
@@ -1094,8 +1098,12 @@ def _v2_loadout_effect_projection(
     boundary = verification_snapshot.get("v2EffectBoundary")
     if not isinstance(boundary, dict):
         return None
+    boundary_key = _text(boundary.get("loadoutEffectAuthorityKey"))
+    if boundary_key != _text(getattr(authority, "content_key", "")):
+        return None
     verification_snapshot["status"] = "blocked"
     boundary["status"] = "blocked"
+    boundary.pop("loadoutEffectAuthorityKey", None)
     try:
         if not gear_loadout_effect_authority.verify_loadout_effect_authority(
             authority,
@@ -1114,6 +1122,8 @@ def _v2_loadout_effect_projection(
     if payload.get("status") != "verified" or not isinstance(payload_subjects, list):
         return None
     key = _text(reloaded.content_key)
+    if key != boundary_key:
+        return None
     occurrences = [
         {
             "scope": "loadout",

@@ -1882,6 +1882,53 @@ class GearResolverTest(unittest.TestCase):
         self.assertEqual(result["status"], "blocked")
         self.assertIn("LOADOUT_EFFECT_AUTHORITY_REQUIRED", result["problemCodes"])
 
+    def test_v2_resolver_blocks_unprojectable_active_loadout_effects(self):
+        """Would fail if invalid active effects collapsed into the no-effect path."""
+        cases = {}
+
+        malformed = self.fixture()
+        malformed["authorityContext"]["ruleParameters"][
+            "setAggregationInputs"
+        ][0]["thresholds"][0]["effectId"] = "not canonical"
+        cases["malformed"] = malformed
+
+        unmodelled = self.fixture()
+        unmodelled["authorityContext"]["ruleParameters"][
+            "setAggregationInputs"
+        ][0]["thresholds"][0]["subjectKind"] = "trinket"
+        cases["unmodelled"] = unmodelled
+
+        overflow = self.fixture()
+        threshold = overflow["authorityContext"]["ruleParameters"][
+            "setAggregationInputs"
+        ][0]["thresholds"][0]
+        overflow["authorityContext"]["ruleParameters"][
+            "setAggregationInputs"
+        ][0]["thresholds"] = [copy.deepcopy(threshold) for _ in range(129)]
+        cases["129 subjects"] = overflow
+
+        for label, fixture in cases.items():
+            with self.subTest(label):
+                result = gear_resolver.resolve_v2(
+                    fixture["intent"], fixture["authorityContext"],
+                )
+
+                self.assertEqual(result["status"], "blocked")
+                self.assertEqual(result["profileReadiness"]["status"], "blocked")
+                self.assertFalse(result["profileReadiness"]["simcReady"])
+                self.assertIn(
+                    "LOADOUT_EFFECT_AUTHORITY_REQUIRED", result["problemCodes"],
+                )
+                self.assertIn(
+                    "LOADOUT_EFFECT_AUTHORITY_REQUIRED",
+                    {
+                        problem["code"]
+                        for problem in result["profileReadiness"]["problems"]
+                    },
+                )
+                self.assertEqual(result["loadoutEffectSubjects"], [])
+                self.assertEqual(result["v2EffectBoundary"]["status"], "blocked")
+
     def test_v2_resolver_preserves_main_hand_off_hand_legality(self):
         """Would fail if the v2 entry point bypassed the shared hand rule."""
         fixture = self.fixture()

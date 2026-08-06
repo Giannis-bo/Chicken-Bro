@@ -8,10 +8,13 @@ import unittest
 from unittest.mock import patch
 
 import server.gear_resolved_loadout as resolved_loadout_module
-from server import gear_resolver
+from server import gear_loadout_effect_authority, gear_resolver
 from tests.gear_exact_authority_store_test import authority_bundle
 from tests.gear_resolver_test import build_midnight_mage_resolver_fixture
-from tests.gear_loadout_effect_authority_test import active_resolver_authority
+from tests.gear_loadout_effect_authority_test import (
+    active_resolver_authority,
+    records_for,
+)
 from server.gear_exact_authority import (
     seal_exact_authority_envelope,
     seal_exact_progression,
@@ -355,6 +358,24 @@ def active_v2_loadout_fixture(*, repeated_subject=True):
     return source, authority, bundles, loadout
 
 
+def alternate_loadout_effect_authority(source):
+    """Seal a different valid aggregate for the same active Resolver state."""
+    owner_input = copy.deepcopy(source)
+    owner_input["status"] = "blocked"
+    owner_input["v2EffectBoundary"]["status"] = "blocked"
+    owner_input["v2EffectBoundary"].pop("loadoutEffectAuthorityKey", None)
+    outcome = gear_loadout_effect_authority.resolve_loadout_effect_authority(
+        owner_input,
+        records=records_for(
+            owner_input,
+            verified_at="2026-08-06T00:00:01Z",
+        ),
+    )
+    if outcome.status != "verified":
+        raise AssertionError(outcome.issues)
+    return outcome.document
+
+
 def rehash_active_v2_loadout(value):
     identity = {
         "classKey": value["eligibilityContext"]["classKey"],
@@ -485,6 +506,37 @@ class GearResolvedLoadoutTest(unittest.TestCase):
         )
         self.assertEqual(missing["status"], "blocked")
         self.assertIn("LOADOUT_EFFECT_AUTHORITY_REQUIRED", missing["problemCodes"])
+
+    def test_v2_rejects_valid_authority_substituted_across_resolver_boundary(self):
+        """Would fail if aggregate B could replace the Resolver-bound aggregate A."""
+        source, authority_a, bundles, loadout = active_v2_loadout_fixture()
+        authority_b = alternate_loadout_effect_authority(source)
+        self.assertNotEqual(authority_a.content_key, authority_b.content_key)
+
+        substituted = build_resolved_loadout_v2(
+            resolver_snapshot=source,
+            exact_authority_by_slot=loadout["exactAuthorityBySlot"],
+            authority_bundles=bundles,
+            gear_rule_revision="gear-rule-matrix-v1",
+            resolver_revision="resolver-v2",
+            simc_runtime_revision="simc-runtime-v2",
+            loadout_effect_authority=authority_b,
+        )
+        verification_issues = verify_resolved_loadout_v2(
+            loadout,
+            resolver_snapshot=source,
+            authority_bundles=bundles,
+            loadout_effect_authority=authority_b,
+        )
+
+        self.assertEqual(substituted["status"], "blocked")
+        self.assertIn(
+            "LOADOUT_EFFECT_AUTHORITY_REQUIRED", substituted["problemCodes"],
+        )
+        self.assertIn(
+            "RESOLVED_LOADOUT_V2_RESOLVER_CONTEXT_INVALID",
+            verification_issues,
+        )
 
     def test_v2_verifier_rejects_rehashed_loadout_suffix_tampering(self):
         """Would fail if a recomputed row hash could replace the sealed aggregate sequence."""

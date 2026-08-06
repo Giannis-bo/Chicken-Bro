@@ -609,14 +609,15 @@ def _set_state(
             pieces = threshold.get("pieces") if isinstance(threshold, dict) else None
             effect_id = threshold.get("effectId") if isinstance(threshold, dict) else None
             if isinstance(pieces, int) and pieces > 0 and effect_id and counts[set_id] >= pieces:
-                effects.append(
-                    {
-                        "effectId": effect_id,
-                        "itemSetId": set_id,
-                        "pieces": pieces,
-                        "sourceRefIds": _ids(threshold.get("sourceRefIds", [])),
-                    }
-                )
+                effect = {
+                    "effectId": effect_id,
+                    "itemSetId": set_id,
+                    "pieces": pieces,
+                    "sourceRefIds": _ids(threshold.get("sourceRefIds", [])),
+                }
+                if "subjectKind" in threshold:
+                    effect["subjectKind"] = threshold["subjectKind"]
+                effects.append(effect)
     return {
         "itemSetCounts": {key: counts[key] for key in sorted(counts)},
         "activeDynamicEffects": sorted(
@@ -1077,7 +1078,13 @@ def resolve_v2(
         authority_context,
         effective_set_state=result.get("setState"),
     )
-    if not subjects:
+    set_state = result.get("setState")
+    active_effects = (
+        set_state.get("activeDynamicEffects")
+        if isinstance(set_state, Mapping)
+        else None
+    )
+    if not subjects and active_effects == []:
         return {
             **result,
             "loadoutEffectSubjects": [],
@@ -1095,13 +1102,16 @@ def resolve_v2(
         subjects,
         required_problem,
     )
+    if not subjects:
+        return blocked
     authority_payload = _verified_loadout_effect_authority(
         loadout_effect_authority,
         resolver_snapshot=blocked,
     )
     if authority_payload is None:
         return blocked
-    if authority_payload.get("status") == "unsupported":
+    payload, authority_key = authority_payload
+    if payload.get("status") == "unsupported":
         unsupported_problem = gear_problem(
             "SIMC_UNAVAILABLE",
             "LOADOUT_EFFECT_UNSUPPORTED",
@@ -1124,6 +1134,7 @@ def resolve_v2(
             ready,
             subjects,
             loadout_effect_authority_verified=True,
+            loadout_effect_authority_key=authority_key,
         ),
     }
 
@@ -1151,7 +1162,7 @@ def _verified_loadout_effect_authority(
     value: Any,
     *,
     resolver_snapshot: Mapping[str, Any],
-) -> dict[str, Any] | None:
+) -> tuple[dict[str, Any], str] | None:
     """Reload one owner-sealed aggregate; Resolver never builds or guesses it."""
     try:
         if not gear_loadout_effect_authority.verify_loadout_effect_authority(
@@ -1171,7 +1182,7 @@ def _verified_loadout_effect_authority(
         "verified", "unsupported",
     }:
         return None
-    return payload
+    return payload, reloaded.content_key
 
 
 def _v2_effect_boundary(
@@ -1179,6 +1190,7 @@ def _v2_effect_boundary(
     subjects: list[dict[str, str]],
     *,
     loadout_effect_authority_verified: bool = False,
+    loadout_effect_authority_key: str = "",
 ) -> dict[str, Any]:
     """Bind v2 promotion to the Resolver's effective loadout effect state."""
     dependency = (
@@ -1192,10 +1204,14 @@ def _v2_effect_boundary(
         result.get("status") == "verified"
         and (
             (not subjects and active_effects == [])
-            or (bool(subjects) and loadout_effect_authority_verified)
+            or (
+                bool(subjects)
+                and loadout_effect_authority_verified
+                and bool(loadout_effect_authority_key)
+            )
         )
     )
-    return {
+    boundary = {
         "schemaRevision": V2_EFFECT_BOUNDARY_SCHEMA_REVISION,
         "status": "verified" if clean else "blocked",
         "resolvedGearSignature": result.get("resolvedGearSignature"),
@@ -1205,6 +1221,9 @@ def _v2_effect_boundary(
         "resolverRevision": dependency.get("resolverContractRevision"),
         "simcRuntimeRevision": dependency.get("simcRuntimeRevision"),
     }
+    if clean and subjects:
+        boundary["loadoutEffectAuthorityKey"] = loadout_effect_authority_key
+    return boundary
 
 
 __all__ = (

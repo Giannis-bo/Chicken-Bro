@@ -70,7 +70,13 @@ def signature_for(snapshot, value):
     ).content_key
 
 
-def record_for(snapshot, value, *, unsupported=False):
+def record_for(
+    snapshot,
+    value,
+    *,
+    unsupported=False,
+    verified_at="2026-08-06T00:00:00Z",
+):
     runtime = snapshot["v2EffectBoundary"]["simcRuntimeRevision"]
     payload = {
         "schemaRevision": "simc-item-effect-record-v1",
@@ -80,7 +86,7 @@ def record_for(snapshot, value, *, unsupported=False):
         "subjectVariantSignature": signature_for(snapshot, value),
         "hasDynamicEffect": True if unsupported else False,
         "simcRuntimeRevision": runtime,
-        "verifiedAt": "2026-08-06T00:00:00Z",
+        "verifiedAt": verified_at,
     }
     if unsupported:
         payload["unsupportedReason"] = "RUNTIME_GAP"
@@ -90,9 +96,19 @@ def record_for(snapshot, value, *, unsupported=False):
     return result.document
 
 
-def records_for(snapshot, *, unsupported_at=None):
+def records_for(
+    snapshot,
+    *,
+    unsupported_at=None,
+    verified_at="2026-08-06T00:00:00Z",
+):
     return [
-        record_for(snapshot, value, unsupported=index == unsupported_at)
+        record_for(
+            snapshot,
+            value,
+            unsupported=index == unsupported_at,
+            verified_at=verified_at,
+        )
         for index, value in enumerate(snapshot["loadoutEffectSubjects"])
     ]
 
@@ -162,6 +178,9 @@ class GearLoadoutEffectAuthorityTest(unittest.TestCase):
                     "LOADOUT_EFFECT_AUTHORITY_REQUIRED", result["problemCodes"],
                 )
                 self.assertEqual(result["v2EffectBoundary"]["status"], "blocked")
+                self.assertNotIn(
+                    "loadoutEffectAuthorityKey", result["v2EffectBoundary"],
+                )
 
         ready = gear_resolver.resolve_v2(
             fixture["intent"],
@@ -172,6 +191,15 @@ class GearLoadoutEffectAuthorityTest(unittest.TestCase):
         self.assertTrue(ready["profileReadiness"]["simcReady"])
         self.assertNotIn("LOADOUT_EFFECT_AUTHORITY_REQUIRED", ready.get("problemCodes", []))
         self.assertEqual(ready["v2EffectBoundary"]["status"], "verified")
+        self.assertEqual(
+            ready["v2EffectBoundary"]["loadoutEffectAuthorityKey"],
+            verified.document.content_key,
+        )
+        self.assertEqual(set(ready["v2EffectBoundary"]), {
+            "schemaRevision", "status", "resolvedGearSignature", "setState",
+            "subjects", "gearRuleRevision", "resolverRevision",
+            "simcRuntimeRevision", "loadoutEffectAuthorityKey",
+        })
         self.assertEqual(
             ready["v2EffectBoundary"]["subjects"], ready["loadoutEffectSubjects"],
         )
@@ -190,6 +218,9 @@ class GearLoadoutEffectAuthorityTest(unittest.TestCase):
         self.assertIn("LOADOUT_EFFECT_UNSUPPORTED", result["problemCodes"])
         self.assertNotIn("LOADOUT_EFFECT_AUTHORITY_REQUIRED", result["problemCodes"])
         self.assertEqual(result["v2EffectBoundary"]["status"], "blocked")
+        self.assertNotIn(
+            "loadoutEffectAuthorityKey", result["v2EffectBoundary"],
+        )
 
     def test_complete_verified_aggregate_reloads_exact_bytes_and_key(self):
         snapshot = snapshot_with_descriptors([
