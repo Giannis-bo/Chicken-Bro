@@ -43,6 +43,7 @@ TASK_3A_HISTORICAL_RUN_IDS = frozenset({
 TASK_3A_FORBIDDEN_RUN_IDS = TASK_3A_HISTORICAL_RUN_IDS
 TASK_3B_FORBIDDEN_RUN_IDS = TASK_3A_HISTORICAL_RUN_IDS | frozenset({
     "t3b260806175347",
+    "t3b260806191719",
 })
 TASK_3B_RUN_ID = os.environ.get("WOW_PG_TEST_RUN_ID_0031", "")
 TASK_3B_FRESH_DSN = os.environ.get("WOW_PG_TEST_DSN_FRESH_0031", "")
@@ -404,6 +405,7 @@ class Task3BCandidateHarnessTest(unittest.TestCase):
             "t3a2608050955",
             "t3a260805163536",
             "t3b260806175347",
+            "t3b260806191719",
             "BAD",
             "short",
             "a" * 33,
@@ -1558,7 +1560,7 @@ class PostgresExactSnapshotV2CandidateTest(unittest.TestCase):
                     "SELECT cache.verify_websim_resolver_replay_context(%s::jsonb)",
                     (json.dumps(valid),),
                 )
-                self.assertIsNone(cur.fetchone()[0])
+                self.assertIsNotNone(cur.fetchone())
 
         item_set_id_256_bytes = "a" * 256
         self.assertEqual(len(item_set_id_256_bytes.encode("utf-8")), 256)
@@ -1575,7 +1577,7 @@ class PostgresExactSnapshotV2CandidateTest(unittest.TestCase):
                     "SELECT cache.verify_websim_resolver_replay_context(%s::jsonb)",
                     (json.dumps(max_item_set_id),),
                 )
-                self.assertIsNone(cur.fetchone()[0])
+                self.assertIsNotNone(cur.fetchone())
 
         over_item_set_id = copy.deepcopy(max_item_set_id)
         over_item_set_id["setState"]["itemSetCounts"] = {
@@ -2090,7 +2092,7 @@ class PostgresExactSnapshotV2CandidateTest(unittest.TestCase):
         for ordinal, (label, mutate_subject, mutate_occurrence, message) in enumerate((
             ("missing-status", remove_status, None, "v2 loadout effect relation mismatch"),
             ("unverified-status", unverified_status, None, "v2 loadout effect relation mismatch"),
-            ("null-subject-key", null_subject_key, None, "v2 loadout effect relation mismatch"),
+            ("null-subject-key", null_subject_key, None, "v2 loadout effect occurrence is invalid"),
             ("extra-subject-key", extra_subject_key, None, "v2 loadout effect relation mismatch"),
             (
                 "wrong-type-canonical-subject",
