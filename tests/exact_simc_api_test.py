@@ -6,12 +6,14 @@ from unittest.mock import patch
 try:
     from server.exact_simc_api import (
         AuthenticatedExactSourceMaterializer,
+        AuthenticatedExactProfileMaterializer,
         ExactSimcMaterializer,
         ExactSimcApi,
         exact_simc_job_owner_key_hash_for_user_id,
     )
 except ImportError:  # RED: the Task 5A owner does not exist yet.
     AuthenticatedExactSourceMaterializer = None
+    AuthenticatedExactProfileMaterializer = None
     ExactSimcMaterializer = None
     ExactSimcApi = None
     exact_simc_job_owner_key_hash_for_user_id = None
@@ -92,6 +94,55 @@ class VerifiedSourceReader(CapturingSourceReader):
             "slotBundles": (),
             "problemCodes": [],
             "problems": [],
+        }
+
+
+class CapturingTalentStore:
+    def __init__(self):
+        self.calls = []
+
+    def load_remote_talent_template_for_exact(self, owner_id, template_id):
+        self.calls.append((owner_id, template_id))
+        return {
+            "ownerId": owner_id,
+            "templateId": template_id,
+            "templateType": "talent",
+            "remote": True,
+            "configHash": "a" * 64,
+            "rawString": "talents=CAEAA",
+            "simcLines": ["talents=CAEAA"],
+            "classKey": "mage",
+            "specKey": "frost",
+            "heroKey": "spellslinger",
+        }
+
+
+class CapturingProfileCompiler:
+    def __init__(self):
+        self.calls = []
+
+    def __call__(self, talent_source, execution_intent, gear_source):
+        self.calls.append((talent_source, execution_intent, gear_source))
+        return {
+            "talentProfileKey": "talent-profile:sha256:" + "b" * 64,
+            "talentLines": ["talents=CAEAA"],
+            "characterContext": {
+                "classKey": "mage",
+                "specKey": "frost",
+                "race": "human",
+                "level": 90,
+                "role": "spell",
+                "position": "ranged_back",
+            },
+            "scenarioOptions": {
+                "iterations": 10000,
+                "fightStyle": "Patchwerk",
+                "desiredTargets": 1,
+                "maxTime": 300,
+                "varyCombatLength": 0.2,
+                "calculateScaleFactors": 1,
+            },
+            "preparationLines": ["potion=tempered_potion"],
         }
 
 
@@ -293,6 +344,95 @@ class ExactSimcApiTest(unittest.TestCase):
             "problems": [{"code": "EXACT_AUTHORITY_UNAVAILABLE"}],
         })
         self.assertEqual(len(reader.calls), 1)
+
+    def test_authenticated_profile_materializer_reloads_only_remote_source_and_never_returns_raw(self):
+        """Removing the owner reload or accepting client profile text must fail here."""
+
+        self.assertIsNotNone(AuthenticatedExactProfileMaterializer)
+        user_id = "12345678-1234-5678-1234-567812345678"
+        template_id = "87654321-4321-8765-4321-876543218765"
+        store = CapturingTalentStore()
+        compiler = CapturingProfileCompiler()
+        materializer = AuthenticatedExactProfileMaterializer(
+            authenticated_user_id=user_id,
+            personal_store=store,
+            profile_compiler=compiler,
+        )
+        gear_source = SimpleNamespace(selection_intent={
+            "eligibilityContext": {
+                "classKey": "mage",
+                "specKey": "frost",
+            },
+        })
+        request = {
+            "profileRef": {
+                "contractRevision": "exact-simc-profile-ref-v1",
+                "kind": "talent-template",
+                "sourceId": template_id,
+                "remote": True,
+            },
+            "executionIntent": {
+                "contractRevision": "exact-simc-execution-intent-v1",
+                "raceKey": "human",
+                "scenarioKey": "single",
+            },
+        }
+
+        profile = materializer(request, gear_source)
+
+        self.assertEqual(store.calls, [(user_id, template_id)])
+        self.assertEqual(len(compiler.calls), 1)
+        self.assertEqual(compiler.calls[0][1], request["executionIntent"])
+        self.assertEqual(compiler.calls[0][2], gear_source)
+        self.assertEqual(profile["talentProfileKey"], "talent-profile:sha256:" + "b" * 64)
+        self.assertNotIn("rawString", profile)
+        self.assertNotIn("talentSource", profile)
+
+        blocked = materializer({
+            **request,
+            "profileContext": {"talents": "client-must-not-be-used"},
+        }, gear_source)
+        self.assertEqual(blocked, {
+            "status": "blocked",
+            "problems": [{"code": "EXACT_PROFILE_AUTHORITY_REQUIRED"}],
+        })
+        self.assertEqual(store.calls, [(user_id, template_id)])
+
+    def test_authenticated_profile_materializer_blocks_talent_class_or_spec_drift_before_compile(self):
+        """A mismatched saved talent row must not be compiled for another gear source."""
+
+        user_id = "12345678-1234-5678-1234-567812345678"
+        store = CapturingTalentStore()
+        compiler = CapturingProfileCompiler()
+        materializer = AuthenticatedExactProfileMaterializer(
+            authenticated_user_id=user_id,
+            personal_store=store,
+            profile_compiler=compiler,
+        )
+        result = materializer({
+            "profileRef": {
+                "contractRevision": "exact-simc-profile-ref-v1",
+                "kind": "talent-template",
+                "sourceId": "87654321-4321-8765-4321-876543218765",
+                "remote": True,
+            },
+            "executionIntent": {
+                "contractRevision": "exact-simc-execution-intent-v1",
+                "raceKey": "human",
+                "scenarioKey": "single",
+            },
+        }, SimpleNamespace(selection_intent={
+            "eligibilityContext": {
+                "classKey": "mage",
+                "specKey": "arcane",
+            },
+        }))
+
+        self.assertEqual(result, {
+            "status": "blocked",
+            "problems": [{"code": "EXACT_PROFILE_AUTHORITY_REQUIRED"}],
+        })
+        self.assertEqual(compiler.calls, [])
 
     def test_full_materializer_derives_v2_job_input_only_from_replayed_exact_bundles(self):
         """A forged v1 request cannot alter the exact bytes that enter 0032."""

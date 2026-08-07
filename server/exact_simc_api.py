@@ -42,8 +42,11 @@ except ImportError:  # pragma: no cover - direct server runtime compatibility
 
 EXACT_SIMC_ENVELOPE_REVISION = "exact-simc-envelope-v1"
 EXACT_SIMC_SOURCE_REF_REVISION = "exact-simc-source-ref-v1"
+EXACT_SIMC_PROFILE_REF_REVISION = "exact-simc-profile-ref-v1"
+EXACT_SIMC_EXECUTION_INTENT_REVISION = "exact-simc-execution-intent-v1"
 _OWNER_KEY_HASH = re.compile(r"sha256:[0-9a-f]{64}")
 _EXACT_IMPORT_REQUEST_KEY = re.compile(r"exact-import-request:sha256:[0-9a-f]{64}")
+_EXECUTION_INTENT_KEY = re.compile(r"[a-z0-9][a-z0-9_-]{0,79}")
 _JOB_OWNER_NAMESPACE = "exact-simc-job-owner-v1:"
 _SOURCE_AUTHORITY_REVISION_KEYS = frozenset({
     "gear_exact_registry_revision",
@@ -164,6 +167,57 @@ def _source_ref(request: Any) -> dict[str, Any] | None:
         "kind": "template",
         "sourceId": source_id,
         "remote": True,
+    }
+
+
+def _profile_ref(request: Any) -> dict[str, Any] | None:
+    if not isinstance(request, Mapping) or "profileContext" in request:
+        return None
+    profile = request.get("profileRef")
+    if not isinstance(profile, Mapping) or set(profile) != {
+        "contractRevision", "kind", "sourceId", "remote",
+    }:
+        return None
+    source_id = profile.get("sourceId")
+    if (
+        profile.get("contractRevision") != EXACT_SIMC_PROFILE_REF_REVISION
+        or profile.get("kind") != "talent-template"
+        or profile.get("remote") is not True
+        or not isinstance(source_id, str)
+        or not source_id
+        or source_id != source_id.strip()
+        or len(source_id.encode("utf-8")) > 240
+    ):
+        return None
+    return {
+        "contractRevision": EXACT_SIMC_PROFILE_REF_REVISION,
+        "kind": "talent-template",
+        "sourceId": source_id,
+        "remote": True,
+    }
+
+
+def _execution_intent(request: Any) -> dict[str, Any] | None:
+    if not isinstance(request, Mapping):
+        return None
+    execution = request.get("executionIntent")
+    if not isinstance(execution, Mapping) or set(execution) != {
+        "contractRevision", "raceKey", "scenarioKey",
+    }:
+        return None
+    race_key, scenario_key = execution.get("raceKey"), execution.get("scenarioKey")
+    if (
+        execution.get("contractRevision") != EXACT_SIMC_EXECUTION_INTENT_REVISION
+        or not isinstance(race_key, str)
+        or not isinstance(scenario_key, str)
+        or _EXECUTION_INTENT_KEY.fullmatch(race_key) is None
+        or _EXECUTION_INTENT_KEY.fullmatch(scenario_key) is None
+    ):
+        return None
+    return {
+        "contractRevision": EXACT_SIMC_EXECUTION_INTENT_REVISION,
+        "raceKey": race_key,
+        "scenarioKey": scenario_key,
     }
 
 
@@ -330,6 +384,113 @@ class AuthenticatedExactSourceMaterializer:
         if not isinstance(replay, Mapping):
             return {"status": "blocked", "problems": [{"code": "EXACT_SOURCE_AUTHORITY_REQUIRED"}]}
         return dict(replay)
+
+
+def _profile_authority_required() -> dict[str, Any]:
+    return {
+        "status": "blocked",
+        "problems": [{"code": "EXACT_PROFILE_AUTHORITY_REQUIRED"}],
+    }
+
+
+class AuthenticatedExactProfileMaterializer:
+    """Reload one remote saved talent source without exposing raw profile text.
+
+    The returned mapping is only the compiler's bounded Exact profile input.
+    The saved template's raw text stays inside this request-scoped call and is
+    never returned to the API envelope, job or snapshot owner.
+    """
+
+    _SOURCE_KEYS = frozenset({
+        "ownerId", "templateId", "templateType", "remote", "configHash",
+        "rawString", "simcLines", "classKey", "specKey", "heroKey",
+    })
+    _PROFILE_KEYS = frozenset({
+        "talentProfileKey", "talentLines", "characterContext",
+        "scenarioOptions", "preparationLines",
+    })
+
+    def __init__(
+        self,
+        *,
+        authenticated_user_id: Any,
+        personal_store: Any,
+        profile_compiler: Callable[[Mapping[str, Any], Mapping[str, Any], Any], Mapping[str, Any]],
+    ) -> None:
+        if type(authenticated_user_id) is not str:
+            raise ValueError("authenticated user id must be a canonical UUID")
+        try:
+            parsed = uuid.UUID(authenticated_user_id)
+        except (AttributeError, TypeError, ValueError) as error:
+            raise ValueError("authenticated user id must be a canonical UUID") from error
+        self._authenticated_user_id = str(parsed)
+        if self._authenticated_user_id != authenticated_user_id:
+            raise ValueError("authenticated user id must be a canonical UUID")
+        self._personal_store = personal_store
+        self._profile_compiler = profile_compiler
+
+    @staticmethod
+    def _canonical_uuid(value: Any) -> str | None:
+        if type(value) is not str:
+            return None
+        try:
+            parsed = uuid.UUID(value)
+        except (AttributeError, TypeError, ValueError):
+            return None
+        normalized = str(parsed)
+        return normalized if normalized == value else None
+
+    def __call__(self, request: Mapping[str, Any], gear_source: Any) -> dict[str, Any]:
+        profile_ref = _profile_ref(request)
+        execution_intent = _execution_intent(request)
+        template_id = self._canonical_uuid(
+            profile_ref["sourceId"] if profile_ref is not None else None,
+        )
+        if profile_ref is None or execution_intent is None or template_id is None:
+            return _profile_authority_required()
+        try:
+            talent_source = self._personal_store.load_remote_talent_template_for_exact(
+                self._authenticated_user_id,
+                template_id,
+            )
+        except Exception:
+            return _profile_authority_required()
+        if (
+            not isinstance(talent_source, Mapping)
+            or set(talent_source) != self._SOURCE_KEYS
+            or talent_source.get("ownerId") != self._authenticated_user_id
+            or talent_source.get("templateId") != template_id
+            or talent_source.get("templateType") != "talent"
+            or talent_source.get("remote") is not True
+        ):
+            return _profile_authority_required()
+        selection_intent = getattr(gear_source, "selection_intent", None)
+        eligibility = (
+            selection_intent.get("eligibilityContext")
+            if isinstance(selection_intent, Mapping)
+            else None
+        )
+        if (
+            not isinstance(eligibility, Mapping)
+            or talent_source.get("classKey") != eligibility.get("classKey")
+            or talent_source.get("specKey") != eligibility.get("specKey")
+        ):
+            return _profile_authority_required()
+        try:
+            profile = self._profile_compiler(
+                dict(talent_source),
+                execution_intent,
+                gear_source,
+            )
+        except Exception:
+            return _profile_authority_required()
+        if (
+            not isinstance(profile, Mapping)
+            or set(profile) != self._PROFILE_KEYS
+            or _contains_private_result_key(profile)
+        ):
+            return _profile_authority_required()
+        return dict(profile)
 
 
 def _blocked_materialization(code: str = "EXACT_AUTHORITY_UNAVAILABLE") -> dict[str, Any]:

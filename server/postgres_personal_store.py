@@ -516,6 +516,52 @@ class PostgresPersonalStore:
             "metadata": metadata,
         }
 
+    def load_remote_talent_template_for_exact(self, user_id, template_id):
+        """Reload the private remote talent source for Exact compilation only.
+
+        This projection is deliberately separate from the public template
+        response.  The caller must still validate source ownership, compile
+        canonical talent lines in request memory, and avoid persisting raw
+        profile text in the Exact chain.
+        """
+
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT
+                        id,
+                        template_type,
+                        config_hash,
+                        payload_json->>'rawString',
+                        payload_json->'simcLines',
+                        payload_json->>'classKey',
+                        payload_json->>'specKey',
+                        payload_json->>'heroKey'
+                    FROM app.build_templates
+                    WHERE user_id = %s AND id = %s AND template_type = 'talent'
+                    """,
+                    (user_id, template_id),
+                )
+                row = cur.fetchone()
+        if not row or len(row) != 8:
+            return None
+        simc_lines = _json_value(row[4], [])
+        if not isinstance(simc_lines, list):
+            return None
+        return {
+            "ownerId": str(user_id),
+            "templateId": str(row[0]),
+            "templateType": row[1] or "",
+            "remote": True,
+            "configHash": row[2] or "",
+            "rawString": row[3] or "",
+            "simcLines": simc_lines,
+            "classKey": row[5] or "",
+            "specKey": row[6] or "",
+            "heroKey": row[7] or "",
+        }
+
     def delete_build_template(self, user_id, template_id):
         with self.connection() as conn:
             with conn.cursor() as cur:

@@ -230,6 +230,49 @@ class PostgresPersonalStoreTest(unittest.TestCase):
         self.assertEqual(source["configHash"], "a" * 64)
         self.assertNotIn("resolvedGearSignature", source)
 
+    def test_exact_talent_template_reload_is_owner_scoped_internal_projection(self):
+        """Exact profile compilation can reload only the saved remote owner row."""
+
+        from server.postgres_personal_store import PostgresPersonalStore
+
+        row = (
+            "87654321-4321-8765-4321-876543218765",
+            "talent",
+            "b" * 64,
+            "talents=CAEAA",
+            ["talents=CAEAA"],
+            "mage",
+            "frost",
+            "spellslinger",
+        )
+        conn = FakeConnection(rows=[row])
+        store = PostgresPersonalStore(lambda: conn)
+
+        source = store.load_remote_talent_template_for_exact(
+            "12345678-1234-5678-1234-567812345678",
+            "87654321-4321-8765-4321-876543218765",
+        )
+
+        sql = conn.cursor_instance.statements[0]
+        self.assertIn("FROM app.build_templates", sql)
+        self.assertIn("WHERE user_id = %s AND id = %s AND template_type = 'talent'", sql)
+        self.assertEqual(conn.cursor_instance.params[0], (
+            "12345678-1234-5678-1234-567812345678",
+            "87654321-4321-8765-4321-876543218765",
+        ))
+        self.assertEqual(source, {
+            "ownerId": "12345678-1234-5678-1234-567812345678",
+            "templateId": "87654321-4321-8765-4321-876543218765",
+            "templateType": "talent",
+            "remote": True,
+            "configHash": "b" * 64,
+            "rawString": "talents=CAEAA",
+            "simcLines": ["talents=CAEAA"],
+            "classKey": "mage",
+            "specKey": "frost",
+            "heroKey": "spellslinger",
+        })
+
     def test_simulator_task_insert_preserves_request_analysis_and_summary_jsonb(self):
         from server.postgres_personal_store import PostgresPersonalStore
 
