@@ -477,6 +477,45 @@ class PostgresPersonalStore:
                 )
                 return [_public_build_template_from_pg_row(row) for row in cur.fetchall()]
 
+    def load_remote_gear_template_for_exact(self, user_id, template_id):
+        """Reload the private saved source needed by Exact admission only.
+
+        This intentionally bypasses the public template projection: callers get
+        no derived readiness and must still canonicalize/verify the source
+        before an authority binding can exist.
+        """
+
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT
+                        id,
+                        template_type,
+                        config_hash,
+                        payload_json->>'rawString',
+                        metadata_json
+                    FROM app.build_templates
+                    WHERE user_id = %s AND id = %s AND template_type = 'gear'
+                    """,
+                    (user_id, template_id),
+                )
+                row = cur.fetchone()
+        if not row or len(row) != 5:
+            return None
+        metadata = _json_value(row[4], {})
+        if not isinstance(metadata, dict):
+            return None
+        return {
+            "ownerId": str(user_id),
+            "templateId": str(row[0]),
+            "templateType": row[1] or "",
+            "remote": True,
+            "configHash": row[2] or "",
+            "rawString": row[3] or "",
+            "metadata": metadata,
+        }
+
     def delete_build_template(self, user_id, template_id):
         with self.connection() as conn:
             with conn.cursor() as cur:

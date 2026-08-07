@@ -23,6 +23,7 @@ from server.simc_item_effect_support import (
 
 
 _ENVELOPE_KEY = re.compile(r"^exact-authority:sha256:[0-9a-f]{64}$")
+_EXACT_ITEM_KEY = re.compile(r"^exact-item-instance:sha256:[0-9a-f]{64}$")
 _RECORD_KEY = re.compile(r"^simc-item-effect-record:sha256:[0-9a-f]{64}$")
 
 
@@ -521,6 +522,83 @@ class GearExactAuthorityStore:
         except (AttributeError, TypeError, ValueError) as error:
             raise GearExactAuthorityStoreIntegrityError(
                 "Exact Authority Bundle failed typed reload",
+            ) from error
+
+    def load_verified_bundle_for_exact_item(
+        self,
+        exact_item_instance_key: str,
+        *,
+        gear_rule_revision: str,
+        simc_runtime_revision: str,
+        resolver_revision: str,
+    ) -> ExactAuthorityBundle:
+        """Read exactly one sealed current Bundle for one already-known Exact item.
+
+        This is a bounded source-admission seam.  It is deliberately not an
+        item/slot similarity lookup and must not choose a bundle when a source
+        has zero or multiple current closures.
+        """
+
+        exact_key = _exact_text(
+            exact_item_instance_key,
+            field="exact_item_instance_key",
+        )
+        if _EXACT_ITEM_KEY.fullmatch(exact_key) is None:
+            raise GearExactAuthorityStoreIntegrityError(
+                "invalid exact_item_instance_key",
+            )
+        gear_rule = _exact_text(gear_rule_revision, field="gear_rule_revision")
+        runtime = _exact_text(
+            simc_runtime_revision,
+            field="simc_runtime_revision",
+        )
+        resolver = _exact_text(resolver_revision, field="resolver_revision")
+        try:
+            with self.connection() as connection:
+                with connection.cursor() as cur:
+                    cur.execute(
+                        """
+                        /* exact_authority_bundle_find_by_exact_item */
+                        SELECT exact_authority_envelope_key
+                        FROM cache.websim_exact_authority_bundles
+                        WHERE exact_item_instance_key = %s
+                          AND gear_rule_revision = %s
+                          AND simc_runtime_revision = %s
+                          AND resolver_revision = %s
+                        ORDER BY exact_authority_envelope_key
+                        """,
+                        (exact_key, gear_rule, runtime, resolver),
+                    )
+                    rows = cur.fetchall()
+                    keys = [
+                        _exact_text(row[0], field="exact_authority_envelope_key")
+                        for row in rows
+                        if type(row) in {tuple, list} and len(row) == 1
+                    ]
+                    if len(keys) != len(rows):
+                        raise GearExactAuthorityStoreIntegrityError(
+                            "Exact Authority Bundle lookup row is invalid",
+                        )
+                    if not keys:
+                        raise GearExactAuthorityStoreIntegrityError(
+                            "Exact Authority Bundle lookup is missing",
+                        )
+                    if len(keys) != 1:
+                        raise GearExactAuthorityStoreIntegrityError(
+                            "Exact Authority Bundle lookup is not unique",
+                        )
+                    return self._load_verified_bundle_with_cursor(
+                        cur,
+                        keys[0],
+                        gear_rule_revision=gear_rule,
+                        simc_runtime_revision=runtime,
+                        resolver_revision=resolver,
+                    )
+        except GearExactAuthorityStoreIntegrityError:
+            raise
+        except (AttributeError, TypeError, ValueError) as error:
+            raise GearExactAuthorityStoreIntegrityError(
+                "Exact Authority Bundle lookup failed typed reload",
             ) from error
 
     def load_verified_bundles(

@@ -200,6 +200,36 @@ class PostgresPersonalStoreTest(unittest.TestCase):
         self.assertEqual(template["rawString"], "websim:talent-a")
         self.assertEqual(template["metadata"], {"source": "test"})
 
+    def test_exact_gear_template_reload_is_owner_scoped_internal_projection(self):
+        from server.postgres_personal_store import PostgresPersonalStore
+
+        row = (
+            "87654321-4321-8765-4321-876543218765",
+            "gear",
+            "a" * 64,
+            "server-saved-gear-template-v1",
+            {"selectionIntent": {"schemaRevision": "selection-intent-v1"}},
+        )
+        conn = FakeConnection(rows=[row])
+        store = PostgresPersonalStore(lambda: conn)
+
+        source = store.load_remote_gear_template_for_exact(
+            "12345678-1234-5678-1234-567812345678",
+            "87654321-4321-8765-4321-876543218765",
+        )
+
+        sql = conn.cursor_instance.statements[0]
+        self.assertIn("FROM app.build_templates", sql)
+        self.assertIn("WHERE user_id = %s AND id = %s AND template_type = 'gear'", sql)
+        self.assertEqual(conn.cursor_instance.params[0], (
+            "12345678-1234-5678-1234-567812345678",
+            "87654321-4321-8765-4321-876543218765",
+        ))
+        self.assertEqual(source["ownerId"], "12345678-1234-5678-1234-567812345678")
+        self.assertTrue(source["remote"])
+        self.assertEqual(source["configHash"], "a" * 64)
+        self.assertNotIn("resolvedGearSignature", source)
+
     def test_simulator_task_insert_preserves_request_analysis_and_summary_jsonb(self):
         from server.postgres_personal_store import PostgresPersonalStore
 

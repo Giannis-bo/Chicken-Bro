@@ -37,6 +37,7 @@ CHICKENBRO_PUBLIC_WEB_REPEAT_BUDGET = ROOT / "server" / "migrations" / "postgres
 WEBSIM_EXACT_AUTHORITY_BUNDLE = ROOT / "server" / "migrations" / "postgres" / "0030_websim_exact_authority_bundle.sql"
 WEBSIM_EXACT_SNAPSHOT_V2 = ROOT / "server" / "migrations" / "postgres" / "0031_websim_exact_snapshot_v2.sql"
 WEBSIM_EXACT_IMPORT_JOBS = ROOT / "server" / "migrations" / "postgres" / "0032_websim_exact_import_jobs.sql"
+WEBSIM_EXACT_TEMPLATE_AUTHORITY_BINDING = ROOT / "server" / "migrations" / "postgres" / "0033_websim_exact_template_authority_binding.sql"
 TASK_4W_OBJECT_FILTERED_SENSITIVE_JSONPATH = (
     '$.** ? (@.type() == "object").keyvalue() ? ('
     '@.key == "rawProfile" || @.key == "rawString" || '
@@ -77,7 +78,14 @@ POSTGRES_MIGRATIONS_0001_0031 = tuple(sorted(
     if path.name <= "0031_websim_exact_snapshot_v2.sql"
 ))
 POSTGRES_MIGRATIONS_0001_0032 = tuple(sorted(
-    (ROOT / "server" / "migrations" / "postgres").glob("[0-9][0-9][0-9][0-9]_*.sql")
+    path
+    for path in (ROOT / "server" / "migrations" / "postgres").glob("[0-9][0-9][0-9][0-9]_*.sql")
+    if path.name <= "0032_websim_exact_import_jobs.sql"
+))
+POSTGRES_MIGRATIONS_0001_0033 = tuple(sorted(
+    path
+    for path in (ROOT / "server" / "migrations" / "postgres").glob("[0-9][0-9][0-9][0-9]_*.sql")
+    if path.name <= "0033_websim_exact_template_authority_binding.sql"
 ))
 
 
@@ -659,6 +667,73 @@ def exact_import_jobs_schema_violations(sql, migrations):
     return violations
 
 
+def exact_template_authority_binding_schema_violations(sql, migrations):
+    """Static 0033 source-binding contract; real DB behavior is candidate-only."""
+
+    normalized = _normalized(sql)
+    violations = []
+    required = (
+        "CREATE TABLE app.websim_exact_template_authority_bindings",
+        "binding_key text PRIMARY KEY CHECK (binding_key ~ '^exact-template-authority-binding:sha256:[0-9a-f]{64}$')",
+        "user_id uuid NOT NULL REFERENCES identity.users(id) ON DELETE CASCADE",
+        "template_id uuid NOT NULL REFERENCES app.build_templates(id) ON DELETE CASCADE",
+        "template_config_hash text NOT NULL CHECK (template_config_hash ~ '^[0-9a-f]{64}$')",
+        "source_payload_hash text NOT NULL CHECK (source_payload_hash ~ '^sha256:[0-9a-f]{64}$')",
+        "selection_signature text NOT NULL CHECK (selection_signature ~ '^sha256:[0-9a-f]{64}$')",
+        "binding_json = pg_catalog.convert_from(binding_bytes, 'UTF8')::jsonb",
+        "binding_key = 'exact-template-authority-binding:sha256:' || pg_catalog.encode(pg_catalog.sha256(binding_bytes), 'hex')",
+        "CREATE TABLE app.websim_exact_template_authority_binding_slots",
+        "exact_authority_envelope_key text NOT NULL REFERENCES cache.websim_exact_authority_bundles(exact_authority_envelope_key) ON DELETE RESTRICT",
+        "PRIMARY KEY (binding_key, ordinal)",
+        "UNIQUE (binding_key, slot)",
+        "UNIQUE (binding_key, exact_authority_envelope_key)",
+        "CREATE CONSTRAINT TRIGGER trg_websim_exact_template_authority_binding_complete",
+        "CREATE CONSTRAINT TRIGGER trg_websim_exact_template_authority_binding_slots_complete",
+        "CREATE TRIGGER trg_websim_exact_template_authority_binding_delete",
+        "CREATE TRIGGER trg_websim_exact_template_authority_binding_slots_delete",
+        "direct deletion of exact template authority bindings is forbidden",
+        "CREATE OR REPLACE FUNCTION ops.websim_exact_template_binding_admit(",
+        "CREATE OR REPLACE FUNCTION ops.websim_exact_template_binding_read(",
+        "SECURITY DEFINER",
+        "SET search_path = pg_catalog, app, cache, ops, pg_temp",
+        "ALTER FUNCTION ops.websim_exact_template_binding_admit(uuid, uuid, text, text, text, bytea) OWNER TO wow_migrator",
+        "ALTER FUNCTION ops.websim_exact_template_binding_read(uuid, uuid, text, text, text, text, text, text, text) OWNER TO wow_migrator",
+        "REVOKE ALL ON app.websim_exact_template_authority_bindings, app.websim_exact_template_authority_binding_slots FROM PUBLIC, wow_app, wow_exact_worker",
+        "GRANT EXECUTE ON FUNCTION ops.websim_exact_template_binding_admit(uuid, uuid, text, text, text, bytea), ops.websim_exact_template_binding_read(uuid, uuid, text, text, text, text, text, text, text) TO wow_app",
+        "'0033_websim_exact_template_authority_binding'",
+    )
+    for clause in required:
+        if clause not in normalized:
+            violations.append(f"required: {clause}")
+    forbidden = (
+        "CREATE ROLE",
+        "ALTER ROLE",
+        "DROP ROLE",
+        "CREATE DATABASE",
+        "DROP DATABASE",
+        "ALTER DATABASE",
+        "UPDATE cache.websim_exact_authority_bundles",
+        "INSERT INTO cache.websim_exact_authority_bundles",
+        "UPDATE cache.websim_canonical_documents",
+        "INSERT INTO cache.websim_canonical_documents",
+        "rawProfile",
+        "rawString",
+        "playerName",
+        "characterName",
+        "realm",
+        "server",
+    )
+    for clause in forbidden:
+        if clause.lower() in normalized.lower():
+            violations.append(f"forbidden: {clause}")
+    migration_names = [name for name, _body in migrations]
+    if migration_names.count("0033_websim_exact_template_authority_binding.sql") != 1:
+        violations.append("0033 filename identity")
+    if sum(body.count("'0033_websim_exact_template_authority_binding'") for _name, body in migrations) != 1:
+        violations.append("0033 ledger identity")
+    return violations
+
+
 class PostgresSchemaTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -1120,6 +1195,21 @@ $unsafe$;
             for path in POSTGRES_MIGRATIONS_0001_0032
         )
         self.assertEqual(exact_import_jobs_schema_violations(sql, migrations), [])
+
+    def test_exact_template_authority_binding_migration_is_owner_scoped_append_only_and_no_registry_writer(self):
+        self.assertTrue(
+            WEBSIM_EXACT_TEMPLATE_AUTHORITY_BINDING.exists(),
+            "missing static 0033 exact template authority binding migration",
+        )
+        sql = WEBSIM_EXACT_TEMPLATE_AUTHORITY_BINDING.read_text(encoding="utf-8")
+        migrations = tuple(
+            (path.name, path.read_text(encoding="utf-8"))
+            for path in POSTGRES_MIGRATIONS_0001_0033
+        )
+        self.assertEqual(
+            exact_template_authority_binding_schema_violations(sql, migrations),
+            [],
+        )
 
     def test_exact_import_jobs_rejects_schema_qualified_coalesce_variants(self):
         sql = WEBSIM_EXACT_IMPORT_JOBS.read_text(encoding="utf-8")
