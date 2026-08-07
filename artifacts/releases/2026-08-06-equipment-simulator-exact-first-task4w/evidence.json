@@ -22,7 +22,7 @@
     },
     "closure": {
       "status": "pending",
-      "reason": "Authorized delivery closure has exact-head CI, merge, merge-result scoped verification, main/origin parity and a pre-cleanup archive. Formal identity remains pending because the lifecycle contract does not model an archived status; strictly owned cleanup is recorded separately after this archive-and-parity gate."
+      "reason": "Authorized delivery closure has exact-head CI, merge, merge-result scoped verification, main/origin parity, pre-cleanup archive and strictly owned cleanup. Formal identity remains pending because the lifecycle contract does not model an archived status."
     }
   },
   "manualAcceptance": {
@@ -88,12 +88,12 @@
     "freshDatabase": {
       "name": "wow_exact_first_fresh_test_t4w260807000500",
       "comment": "wow_exact_first_disposable:t4w260807000500:fresh",
-      "preservationStatus": "eligible_for_owned_cleanup_after_pre_cleanup_archive_and_main_parity"
+      "preservationStatus": "disposed_after_pre_cleanup_archive_and_main_parity"
     },
     "upgradeDatabase": {
       "name": "wow_exact_first_upgrade_test_t4w260807000500",
       "comment": "wow_exact_first_disposable:t4w260807000500:upgrade",
-      "preservationStatus": "eligible_for_owned_cleanup_after_pre_cleanup_archive_and_main_parity"
+      "preservationStatus": "disposed_after_pre_cleanup_archive_and_main_parity"
     },
     "workerIdentity": {
       "groupRole": "wow_exact_worker",
@@ -108,14 +108,14 @@
       "gitStatus": "clean",
       "commit": "6546db9bf98c2051facf8fb378b0e02cf9c36702",
       "gitTree": "d2f8a96d07684308a6cd391886d1834eb7f7c5c4",
-      "cleanupStatus": "eligible_for_owned_cleanup_after_pre_cleanup_archive_and_main_parity"
+      "cleanupStatus": "removed_after_pre_cleanup_archive_and_main_parity"
     },
     "bundle": {
       "localPath": "/tmp/wow-task4w-bundle.kP7Oi2/task4w-6546db9b.bundle",
       "remotePath": "/var/tmp/wow-task4w-candidate-t4w260807000500/source.bundle",
       "bytes": 116146104,
       "sha256": "8f6d315d2f6a34ba1d6afc02c398945f5d5b33826bc07230d4db0d3a5d022544",
-      "cleanupStatus": "eligible_for_owned_cleanup_after_pre_cleanup_archive_and_main_parity"
+      "cleanupStatus": "remote_copy_removed_after_pre_cleanup_archive_and_main_parity; local_owned_copy_moved_to_Trash"
     },
     "processEvidence": {
       "exitCode": 0,
@@ -196,11 +196,11 @@
   ],
   "cleanup": {
     "required": true,
-    "status": "pre_cleanup_archive_and_main_parity_verified",
-    "reason": "Only the four Task 4W candidate database pairs, Task 4W candidate-login roles, temporary candidate source/bundle artifacts, local owned bundles, feature worktree and branch are eligible. Merge, merge-result verification, pre-cleanup archive and main/origin parity have been verified before any deletion. The pre-provisioned NOLOGIN group role is not a temporary candidate resource and must remain retained."
+    "status": "owned_candidate_cleanup_completed",
+    "reason": "After merge, merge-result verification, pre-cleanup archive and main/origin parity, exactly four Task 4W disposable database pairs, four candidate-login roles and four remote candidate directories (with their bundles) were removed after identity/comment/role/process checks. The four local owned bundle directories were moved to Trash. The pre-provisioned NOLOGIN wow_exact_worker group role remains retained and the production backend remained active while the dormant worker remained inactive."
   },
   "archival": {
-    "status": "post_merge_scoped_verification_and_pre_cleanup_parity_recorded",
+    "status": "post_merge_scoped_cleanup_recorded_formal_lifecycle_pending",
     "mergeCommit": "14f47437d5e5143de243f63885e2c515144f3a34",
     "pr": 118,
     "exactHeadCi": {
@@ -220,6 +220,10 @@
       "commit": "14f47437d5e5143de243f63885e2c515144f3a34",
       "localMergeWorktree": "14f47437d5e5143de243f63885e2c515144f3a34",
       "originMain": "14f47437d5e5143de243f63885e2c515144f3a34"
+    },
+    "ownedCleanup": {
+      "status": "pass",
+      "summary": "Read-only identity preflight confirmed the eight database comments, four candidate LOGIN roles, retained NOLOGIN group, inactive worker and absent candidate processes. Deletion removed only those databases, roles and four /var/tmp task directories; post-cleanup inspection found only the retained group role, wow-backend active, worker inactive and root free space increased from about 4.2 GiB to about 5.6 GiB."
     }
   },
   "archivedReferences": [
@@ -231,5 +235,5 @@
     "docs/harness.md",
     "docs/verification-matrix.md"
   ],
-  "summary": "Task 4W remains runtime-verified at 6546db9 / tree d2f8a96: final t4w260807000500 passed the cloud-only fresh-and-upgrade 0032 candidate using two new exact-commented disposable databases, isolated redacted migrator/app/worker identities and one low-priority process. PR #118 exact-head CI, merge 14f47437, merge-result scoped Harness verification and pre-cleanup main/origin parity are archived. Only the explicitly owned cleanup remains after that archived gate. No production migration, active worker, API, UI, SimC execution, Catalog/Manifest pointer, generation 35 change or user-visible closure is claimed."
+  "summary": "Task 4W remains runtime-verified at 6546db9 / tree d2f8a96: final t4w260807000500 passed the cloud-only fresh-and-upgrade 0032 candidate using two new exact-commented disposable databases, isolated redacted migrator/app/worker identities and one low-priority process. PR #118 exact-head CI, merge 14f47437, merge-result scoped Harness verification, main/origin parity, evidence archival and strictly owned candidate cleanup have completed. Formal closure identity remains pending only because the lifecycle contract has no archived status. No production migration, active worker, API, UI, SimC execution, Catalog/Manifest pointer, generation 35 change or user-visible closure is claimed."
 }
