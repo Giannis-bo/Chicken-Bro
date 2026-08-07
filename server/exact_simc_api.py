@@ -9,21 +9,39 @@ envelopes for the Task 5A path.
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 from typing import Any, Callable, Mapping
 import uuid
 
 try:
+    from .exact_template_authority_binding import (
+        exact_template_authority_binding_payload,
+    )
     from .gear_canonical_kernel import CanonicalValueError, canonical_identity_token
-    from .gear_exact_import_job_store import DEPENDENCY_VECTOR_KEYS
+    from .gear_exact_import_job_store import (
+        DEPENDENCY_VECTOR_KEYS,
+        build_exact_import_job_request,
+    )
+    from .gear_resolved_loadout import build_resolved_loadout_v2
+    from .gear_resolver import resolve_v2
+    from .simulation_snapshot import build_simulation_snapshot_v2
 except ImportError:  # pragma: no cover - direct server runtime compatibility
+    from exact_template_authority_binding import exact_template_authority_binding_payload
     from gear_canonical_kernel import CanonicalValueError, canonical_identity_token
-    from gear_exact_import_job_store import DEPENDENCY_VECTOR_KEYS
+    from gear_exact_import_job_store import (
+        DEPENDENCY_VECTOR_KEYS,
+        build_exact_import_job_request,
+    )
+    from gear_resolved_loadout import build_resolved_loadout_v2
+    from gear_resolver import resolve_v2
+    from simulation_snapshot import build_simulation_snapshot_v2
 
 
 EXACT_SIMC_ENVELOPE_REVISION = "exact-simc-envelope-v1"
 EXACT_SIMC_SOURCE_REF_REVISION = "exact-simc-source-ref-v1"
 _OWNER_KEY_HASH = re.compile(r"sha256:[0-9a-f]{64}")
+_EXACT_IMPORT_REQUEST_KEY = re.compile(r"exact-import-request:sha256:[0-9a-f]{64}")
 _JOB_OWNER_NAMESPACE = "exact-simc-job-owner-v1:"
 _SOURCE_AUTHORITY_REVISION_KEYS = frozenset({
     "gear_exact_registry_revision",
@@ -31,6 +49,18 @@ _SOURCE_AUTHORITY_REVISION_KEYS = frozenset({
     "resolver_revision",
     "simc_runtime_revision",
 })
+_JOB_READ_STATUSES = frozenset({
+    "pending", "running", "resolved", "blocked", "unsupported", "failed",
+})
+_JOB_READ_ROW_KEYS = frozenset({
+    "jobId", "requestKey", "status", "resultJson", "problemJson",
+    "queuedAt", "startedAt", "finishedAt", "cooldownUntil",
+})
+_PRIVATE_RESULT_KEYS = frozenset({
+    "rawProfile", "rawString", "playerName", "characterName", "realm",
+    "server", "userId", "user_id", "ownerKeyHash", "owner_key_hash",
+})
+_MAX_PUBLIC_RESULT_BYTES = 131_072
 
 
 def exact_simc_job_owner_key_hash_for_user_id(user_id: Any) -> str:
@@ -151,6 +181,89 @@ def _source_authority_required(operation: str) -> dict[str, Any]:
     }
 
 
+def _contains_private_result_key(value: Any) -> bool:
+    if isinstance(value, Mapping):
+        return any(
+            key in _PRIVATE_RESULT_KEYS or _contains_private_result_key(nested)
+            for key, nested in value.items()
+        )
+    if isinstance(value, (list, tuple)):
+        return any(_contains_private_result_key(nested) for nested in value)
+    return False
+
+
+def _public_result(value: Any) -> dict[str, Any] | None:
+    """Accept only a bounded JSON object without private request identity."""
+
+    if type(value) is not dict or _contains_private_result_key(value):
+        return None
+    try:
+        canonical_bytes = json.dumps(
+            value,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+        canonical = json.loads(canonical_bytes.decode("utf-8"))
+    except (TypeError, ValueError, UnicodeDecodeError):
+        return None
+    if len(canonical_bytes) > _MAX_PUBLIC_RESULT_BYTES or canonical != value:
+        return None
+    return canonical
+
+
+def _public_problem(value: Any) -> list[dict[str, str]] | None:
+    if value is None:
+        return []
+    if not isinstance(value, Mapping) or _contains_private_result_key(value):
+        return None
+    normalized = _problems([value])
+    return normalized or None
+
+
+def _public_job_read(row: Any, requested_job_id: Any) -> tuple[str, dict[str, Any], list[dict[str, str]]] | None:
+    if not isinstance(row, Mapping) or set(row) != _JOB_READ_ROW_KEYS:
+        return None
+    job_id = row.get("jobId")
+    request_key = row.get("requestKey")
+    status = row.get("status")
+    if (
+        isinstance(job_id, bool)
+        or not isinstance(job_id, int)
+        or job_id <= 0
+        or job_id != requested_job_id
+        or not isinstance(request_key, str)
+        or _EXACT_IMPORT_REQUEST_KEY.fullmatch(request_key) is None
+        or status not in _JOB_READ_STATUSES
+        or row.get("cooldownUntil") is not None
+        and (not isinstance(row["cooldownUntil"], str) or len(row["cooldownUntil"].encode("utf-8")) > 256)
+    ):
+        return None
+    result = row.get("resultJson")
+    problems = _public_problem(row.get("problemJson"))
+    if problems is None:
+        return None
+    if status == "resolved":
+        result = _public_result(result)
+        if result is None or problems:
+            return None
+    elif status in {"pending", "running"}:
+        if result is not None or problems:
+            return None
+        result = None
+    else:
+        if result is not None or not problems:
+            return None
+        result = None
+    return status, {
+        "jobId": job_id,
+        "requestKey": request_key,
+        "jobStatus": status,
+        "result": result,
+        "cooldownUntil": row.get("cooldownUntil"),
+    }, problems
+
+
 class AuthenticatedExactSourceMaterializer:
     """Bind a route's private user scope to an opaque Exact job owner.
 
@@ -217,6 +330,253 @@ class AuthenticatedExactSourceMaterializer:
         return dict(replay)
 
 
+def _blocked_materialization(code: str = "EXACT_AUTHORITY_UNAVAILABLE") -> dict[str, Any]:
+    return {"status": "blocked", "problems": [{"code": code}]}
+
+
+def _not_ready_materialization(value: Any) -> dict[str, Any]:
+    if isinstance(value, Mapping) and value.get("status") in {"blocked", "unsupported"}:
+        return {
+            "status": value["status"],
+            "problems": _problems(value.get("problems")) or [
+                {"code": "EXACT_AUTHORITY_UNAVAILABLE"},
+            ],
+        }
+    return _blocked_materialization()
+
+
+class ExactSimcMaterializer:
+    """Materialize one source-bound v2 request with only injected authorities.
+
+    All source, resolver, profile and snapshot dependencies are explicit.  In
+    particular, this owner has no Catalog/registry lookup fallback: the only
+    item facts it may serialize come from the exact bundles already recorded by
+    the 0033 binding and reverified by ``AuthenticatedExactSourceMaterializer``.
+    """
+
+    def __init__(
+        self,
+        *,
+        source_materializer: Callable[[Mapping[str, Any], str], Mapping[str, Any]],
+        authority_provider: Callable[[Any], Mapping[str, Any]],
+        profile_materializer: Callable[[Mapping[str, Any], Any], Mapping[str, Any]],
+        snapshot_store: Any,
+    ) -> None:
+        self._source_materializer = source_materializer
+        self._authority_provider = authority_provider
+        self._profile_materializer = profile_materializer
+        self._snapshot_store = snapshot_store
+
+    @staticmethod
+    def _source_closure(replay: Any) -> tuple[Any, list[dict[str, str]], dict[str, Any]] | None:
+        if not isinstance(replay, Mapping) or replay.get("status") != "verified":
+            return None
+        source = replay.get("source")
+        if not isinstance(getattr(source, "selection_intent", None), Mapping):
+            return None
+        try:
+            payload = exact_template_authority_binding_payload(replay.get("binding"))
+        except (TypeError, ValueError):
+            return None
+        pairs = payload.get("exactAuthorityBySlot")
+        rows = replay.get("slotBundles")
+        if not isinstance(pairs, list) or not isinstance(rows, tuple):
+            return None
+        bundles: dict[str, Any] = {}
+        seen: list[dict[str, str]] = []
+        for row in rows:
+            relation = dict(row) if isinstance(row, Mapping) else {}
+            slot = relation.get("slot")
+            key = relation.get("exactAuthorityEnvelopeKey")
+            bundle = relation.get("bundle")
+            if not isinstance(slot, str) or not isinstance(key, str) or key in bundles:
+                return None
+            if getattr(getattr(bundle, "envelope", None), "content_key", None) != key:
+                return None
+            bundles[key] = bundle
+            seen.append({"slot": slot, "exactAuthorityEnvelopeKey": key})
+        if seen != pairs:
+            return None
+        return source, pairs, bundles
+
+    @staticmethod
+    def _exact_intent(
+        source: Any,
+        pairs: list[dict[str, str]],
+        bundles: Mapping[str, Any],
+        dependency_vector: Mapping[str, Any],
+    ) -> dict[str, Any] | None:
+        selection = source.selection_intent
+        eligibility = selection.get("eligibilityContext")
+        if not isinstance(eligibility, Mapping):
+            return None
+        slots: dict[str, Any] = {}
+        expected_fields = {
+            "itemId", "declaredItemLevel", "bonusIds", "context", "gemIds",
+            "gemBonusIds", "gemItemLevels", "enchantId", "craftedStats",
+            "embellishmentIds", "redirectedBaseStats",
+        }
+        for relation in pairs:
+            slot, key = relation["slot"], relation["exactAuthorityEnvelopeKey"]
+            exact = getattr(bundles.get(key), "exact_item", None)
+            raw = getattr(exact, "canonical_bytes", None)
+            try:
+                value = json.loads(raw.decode("utf-8")) if isinstance(raw, bytes) else None
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                return None
+            if not isinstance(value, Mapping) or set(value) != expected_fields:
+                return None
+            slots[slot] = dict(value)
+        return {
+            "schemaRevision": "exact-loadout-intent-v2",
+            "authoredAgainst": {
+                "seasonRevision": dependency_vector.get("seasonRevision"),
+                "gameBuild": dependency_vector.get("gameBuild"),
+            },
+            "eligibilityContext": dict(eligibility),
+            "slots": slots,
+        }
+
+    @staticmethod
+    def _profile(value: Any) -> dict[str, Any] | None:
+        if not isinstance(value, Mapping):
+            return None
+        keys = {
+            "talentProfileKey", "talentLines", "characterContext",
+            "scenarioOptions", "preparationLines",
+        }
+        if set(value) != keys:
+            return None
+        return {key: value[key] for key in keys}
+
+    def __call__(self, request: Mapping[str, Any], job_owner_key_hash: str) -> dict[str, Any]:
+        try:
+            replay = self._source_materializer(request, job_owner_key_hash)
+        except Exception:
+            return _blocked_materialization("EXACT_SOURCE_AUTHORITY_REQUIRED")
+        closure = self._source_closure(replay)
+        if closure is None:
+            return _not_ready_materialization(replay)
+        source, pairs, bundles = closure
+        try:
+            authority = self._authority_provider(source)
+        except Exception:
+            return _blocked_materialization()
+        if not isinstance(authority, Mapping):
+            return _blocked_materialization()
+        dependency_vector = authority.get("dependencyVector")
+        authority_context = authority.get("authorityContext")
+        try:
+            binding_authority = exact_template_authority_binding_payload(
+                replay["binding"],
+            )["authority"]
+        except (TypeError, ValueError, KeyError):
+            return _blocked_materialization()
+        if (
+            not isinstance(dependency_vector, Mapping)
+            or not isinstance(authority_context, Mapping)
+            or binding_authority.get("gearExactRegistryRevision")
+                != authority.get("gearExactRegistryRevision")
+            or binding_authority.get("gearRuleRevision")
+                != dependency_vector.get("gearRuleRevision")
+            or binding_authority.get("resolverRevision")
+                != dependency_vector.get("resolverRevision")
+            or binding_authority.get("simcRuntimeRevision")
+                != dependency_vector.get("simcRuntimeRevision")
+        ):
+            return _blocked_materialization()
+        resolver_snapshot = resolve_v2(
+            source.selection_intent,
+            authority_context,
+            loadout_effect_authority=authority.get("loadoutEffectAuthority"),
+        )
+        if not isinstance(resolver_snapshot, Mapping) or resolver_snapshot.get("status") != "verified":
+            return _not_ready_materialization(resolver_snapshot)
+        resolved_loadout = build_resolved_loadout_v2(
+            resolver_snapshot=resolver_snapshot,
+            exact_authority_by_slot=pairs,
+            authority_bundles=bundles,
+            gear_rule_revision=dependency_vector.get("gearRuleRevision"),
+            resolver_revision=dependency_vector.get("resolverRevision"),
+            simc_runtime_revision=dependency_vector.get("simcRuntimeRevision"),
+            loadout_effect_authority=authority.get("loadoutEffectAuthority"),
+        )
+        if not isinstance(resolved_loadout, Mapping) or resolved_loadout.get("status") != "ready":
+            return _not_ready_materialization(resolved_loadout)
+        try:
+            profile = self._profile(self._profile_materializer(request, source))
+        except Exception:
+            profile = None
+        if profile is None:
+            return _blocked_materialization()
+        snapshot = build_simulation_snapshot_v2(
+            resolved_loadout=resolved_loadout,
+            talent_profile_key=profile["talentProfileKey"],
+            talent_lines=profile["talentLines"],
+            character_context=profile["characterContext"],
+            scenario_options=profile["scenarioOptions"],
+            preparation_lines=profile["preparationLines"],
+            compiler_revision=dependency_vector.get("compilerRevision"),
+            simc_runtime_revision=dependency_vector.get("simcRuntimeRevision"),
+            resolver_snapshot=resolver_snapshot,
+            authority_bundles=bundles,
+            loadout_effect_authority=authority.get("loadoutEffectAuthority"),
+        )
+        if not isinstance(snapshot, Mapping) or snapshot.get("status") != "ready":
+            return _not_ready_materialization(snapshot)
+        try:
+            exact_intent = self._exact_intent(
+                source,
+                pairs,
+                bundles,
+                dependency_vector,
+            )
+            if exact_intent is None:
+                return _blocked_materialization()
+            job_request = build_exact_import_job_request(
+                exact_intent,
+                dict(dependency_vector),
+            )
+        except Exception:
+            return _blocked_materialization()
+        try:
+            sealed_loadout = self._snapshot_store.seal_loadout(
+                resolved_loadout,
+                resolver_snapshot=resolver_snapshot,
+                authority_bundles=bundles,
+                loadout_effect_authority=authority.get("loadoutEffectAuthority"),
+            )
+            sealed_snapshot = self._snapshot_store.seal_snapshot(
+                snapshot,
+                resolved_loadout=sealed_loadout,
+                resolver_snapshot=resolver_snapshot,
+                authority_bundles=bundles,
+                compiler_revision=dependency_vector.get("compilerRevision"),
+                loadout_effect_authority=authority.get("loadoutEffectAuthority"),
+            )
+        except Exception:
+            return _blocked_materialization()
+        if (
+            not isinstance(sealed_loadout, Mapping)
+            or not isinstance(sealed_snapshot, Mapping)
+            or sealed_loadout.get("resolvedLoadoutKey")
+                != resolved_loadout.get("resolvedLoadoutKey")
+            or sealed_snapshot.get("simulationSnapshotKey")
+                != snapshot.get("simulationSnapshotKey")
+        ):
+            return _blocked_materialization()
+        return {
+            "status": "ready",
+            "confirmation": {
+                "requestKey": job_request.request_key,
+                "resolvedLoadoutKey": sealed_loadout["resolvedLoadoutKey"],
+                "simulationSnapshotKey": sealed_snapshot["simulationSnapshotKey"],
+                "dependencyVector": dict(dependency_vector),
+            },
+            "jobRequest": job_request,
+        }
+
+
 class ExactSimcApi:
     """Keep intent materialization and task creation on distinct operations."""
 
@@ -240,7 +600,10 @@ class ExactSimcApi:
         owner = _owner_key_hash(owner_key_hash)
         if _source_ref(request) is None or owner is None:
             return _source_authority_required("confirm")
-        materialized = self._materialize(request, owner)
+        try:
+            materialized = self._materialize(request, owner)
+        except Exception:
+            materialized = _blocked_materialization()
         if not isinstance(materialized, Mapping):
             materialized = {}
         status = str(materialized.get("status") or "").strip()
@@ -283,7 +646,10 @@ class ExactSimcApi:
         owner = _owner_key_hash(owner_key_hash)
         if _source_ref(request) is None or owner is None:
             return _source_authority_required("submit")
-        materialized = self._materialize(request, owner)
+        try:
+            materialized = self._materialize(request, owner)
+        except Exception:
+            materialized = _blocked_materialization()
         if not isinstance(materialized, Mapping):
             materialized = {}
         status = str(materialized.get("status") or "").strip()
@@ -324,7 +690,10 @@ class ExactSimcApi:
                 "data": {},
                 "problems": [{"code": "EXACT_CONFIRMATION_MISMATCH"}],
             }
-        enqueued = self._job_store.enqueue(owner, job_request)
+        try:
+            enqueued = self._job_store.enqueue(owner, job_request)
+        except Exception:
+            enqueued = None
         if (
             not isinstance(enqueued, Mapping)
             or enqueued.get("requestKey") != authoritative["requestKey"]
@@ -351,11 +720,70 @@ class ExactSimcApi:
             "problems": [],
         }
 
+    def read(
+        self,
+        job_id: Any,
+        *,
+        owner_key_hash: str,
+    ) -> dict[str, Any]:
+        """Expose one owner-scoped, bounded Exact job state.
+
+        The store already enforces owner scope.  This additional projection
+        refuses malformed rows and strips timings/internal fields so a route
+        cannot accidentally publish a persistence row as its API contract.
+        """
+
+        owner = _owner_key_hash(owner_key_hash)
+        if isinstance(job_id, bool) or not isinstance(job_id, int) or job_id <= 0 or owner is None:
+            return {
+                "contractRevision": EXACT_SIMC_ENVELOPE_REVISION,
+                "operation": "read",
+                "status": "blocked",
+                "data": {},
+                "problems": [{"code": "EXACT_JOB_NOT_FOUND"}],
+            }
+        try:
+            row = self._job_store.read(owner, job_id)
+        except Exception:
+            return {
+                "contractRevision": EXACT_SIMC_ENVELOPE_REVISION,
+                "operation": "read",
+                "status": "blocked",
+                "data": {},
+                "problems": [{"code": "EXACT_JOB_READ_UNAVAILABLE"}],
+            }
+        if row is None:
+            return {
+                "contractRevision": EXACT_SIMC_ENVELOPE_REVISION,
+                "operation": "read",
+                "status": "blocked",
+                "data": {},
+                "problems": [{"code": "EXACT_JOB_NOT_FOUND"}],
+            }
+        public = _public_job_read(row, job_id)
+        if public is None:
+            return {
+                "contractRevision": EXACT_SIMC_ENVELOPE_REVISION,
+                "operation": "read",
+                "status": "blocked",
+                "data": {},
+                "problems": [{"code": "EXACT_JOB_READ_INVALID"}],
+            }
+        status, data, problems = public
+        return {
+            "contractRevision": EXACT_SIMC_ENVELOPE_REVISION,
+            "operation": "read",
+            "status": status,
+            "data": data,
+            "problems": problems,
+        }
+
 
 __all__ = (
     "EXACT_SIMC_ENVELOPE_REVISION",
     "EXACT_SIMC_SOURCE_REF_REVISION",
     "AuthenticatedExactSourceMaterializer",
     "ExactSimcApi",
+    "ExactSimcMaterializer",
     "exact_simc_job_owner_key_hash_for_user_id",
 )

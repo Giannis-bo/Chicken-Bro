@@ -1,13 +1,18 @@
+import json
+from types import SimpleNamespace
 import unittest
+from unittest.mock import patch
 
 try:
     from server.exact_simc_api import (
         AuthenticatedExactSourceMaterializer,
+        ExactSimcMaterializer,
         ExactSimcApi,
         exact_simc_job_owner_key_hash_for_user_id,
     )
 except ImportError:  # RED: the Task 5A owner does not exist yet.
     AuthenticatedExactSourceMaterializer = None
+    ExactSimcMaterializer = None
     ExactSimcApi = None
     exact_simc_job_owner_key_hash_for_user_id = None
 
@@ -49,6 +54,21 @@ class AcceptingJobStore:
         }
 
 
+class ReadingJobStore:
+    def __init__(self, rows_by_owner):
+        self.rows_by_owner = rows_by_owner
+        self.calls = []
+
+    def read(self, owner_key_hash, job_id):
+        self.calls.append((owner_key_hash, job_id))
+        return self.rows_by_owner.get(owner_key_hash, {}).get(job_id)
+
+
+class ExplodingJobStore:
+    def enqueue(self, _owner_key_hash, _request):
+        raise RuntimeError("private exact store outage")
+
+
 class CapturingSourceReader:
     def __init__(self):
         self.calls = []
@@ -73,6 +93,92 @@ class VerifiedSourceReader(CapturingSourceReader):
             "problemCodes": [],
             "problems": [],
         }
+
+
+def verified_source_replay():
+    from server.exact_template_authority_binding import (
+        canonical_remote_template_source,
+        seal_exact_template_authority_binding,
+    )
+    from tests.exact_template_authority_binding_test import (
+        admission_proof,
+        remote_source,
+    )
+
+    source = canonical_remote_template_source(remote_source())
+    proof = admission_proof()
+    binding = seal_exact_template_authority_binding(source, proof)
+    exact_slot = {
+        "itemId": "1001",
+        "declaredItemLevel": 700,
+        "bonusIds": [],
+        "context": "",
+        "gemIds": [],
+        "gemBonusIds": [],
+        "gemItemLevels": [],
+        "enchantId": "",
+        "craftedStats": [],
+        "embellishmentIds": [],
+        "redirectedBaseStats": [],
+    }
+    rows = []
+    for relation in proof["exactAuthorityBySlot"]:
+        rows.append({
+            "slot": relation["slot"],
+            "exactAuthorityEnvelopeKey": relation["exactAuthorityEnvelopeKey"],
+            "bundle": SimpleNamespace(
+                envelope=SimpleNamespace(
+                    content_key=relation["exactAuthorityEnvelopeKey"],
+                ),
+                exact_item=SimpleNamespace(
+                    canonical_bytes=json.dumps(exact_slot).encode("utf-8"),
+                ),
+            ),
+        })
+    return {
+        "status": "verified",
+        "source": source,
+        "binding": binding,
+        "slotBundles": tuple(rows),
+        "problemCodes": [],
+        "problems": [],
+    }
+
+
+def exact_materializer_dependency_vector():
+    return {
+        "seasonRevision": "season-17",
+        "gameBuild": "12.0.1.12345",
+        "gearRuleRevision": "gear-rule-v1",
+        "resolverRevision": "resolver-v2",
+        "compilerRevision": "compiler-v2",
+        "workerRevision": "worker-v1",
+        "simcRuntimeRevision": "simc-runtime-v1",
+        "effectAuthorityRevision": "effect-authority-v1",
+    }
+
+
+class ReplayMaterializer:
+    def __init__(self, replay):
+        self.replay = replay
+        self.calls = []
+
+    def __call__(self, request, owner_key_hash):
+        self.calls.append((request, owner_key_hash))
+        return self.replay
+
+
+class CapturingSnapshotStore:
+    def __init__(self):
+        self.calls = []
+
+    def seal_loadout(self, row, **kwargs):
+        self.calls.append(("loadout", row, kwargs))
+        return row
+
+    def seal_snapshot(self, row, **kwargs):
+        self.calls.append(("snapshot", row, kwargs))
+        return row
 
 
 class ExactSimcApiTest(unittest.TestCase):
@@ -188,6 +294,119 @@ class ExactSimcApiTest(unittest.TestCase):
         })
         self.assertEqual(len(reader.calls), 1)
 
+    def test_full_materializer_derives_v2_job_input_only_from_replayed_exact_bundles(self):
+        """A forged v1 request cannot alter the exact bytes that enter 0032."""
+
+        self.assertIsNotNone(ExactSimcMaterializer)
+        module = __import__("server.exact_simc_api", fromlist=["ExactSimcMaterializer"])
+        replay = verified_source_replay()
+        source_materializer = ReplayMaterializer(replay)
+        store = CapturingSnapshotStore()
+        dependencies = exact_materializer_dependency_vector()
+        authority = {
+            "authorityContext": {"server": "only"},
+            "gearExactRegistryRevision": "gear-exact-registry:sha256:" + "1" * 64,
+            "loadoutEffectAuthority": object(),
+            "dependencyVector": dependencies,
+        }
+        materializer = ExactSimcMaterializer(
+            source_materializer=source_materializer,
+            authority_provider=lambda _source: authority,
+            profile_materializer=lambda _request, _source: {
+                "talentProfileKey": "talent-profile:sha256:" + "a" * 64,
+                "talentLines": ["talents=CYQAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"],
+                "characterContext": {"classKey": "mage", "specKey": "frost", "race": "human", "level": 80, "position": "back"},
+                "scenarioOptions": {"iterations": 1000, "fightStyle": "patchwerk", "desiredTargets": 1, "durationSeconds": 300},
+                "preparationLines": [],
+            },
+            snapshot_store=store,
+        )
+        request = {
+            "selectionIntent": {"client": "forged-v1-is-not-used"},
+            "sourceRef": {"contractRevision": "exact-simc-source-ref-v1", "kind": "template", "sourceId": replay["source"].template_id, "remote": True},
+        }
+        loadout = {"status": "ready", "resolvedLoadoutKey": "resolved-loadout-v2:sha256:" + "b" * 64}
+        snapshot = {"status": "ready", "simulationSnapshotKey": "simulation-snapshot-v2:sha256:" + "c" * 64}
+
+        with patch.object(module, "resolve_v2", return_value={"status": "verified"}) as resolve, patch.object(
+            module, "build_resolved_loadout_v2", return_value=loadout
+        ) as build_loadout, patch.object(module, "build_simulation_snapshot_v2", return_value=snapshot) as build_snapshot:
+            result = materializer(request, "sha256:" + "f" * 64)
+
+        self.assertEqual(result["status"], "ready")
+        self.assertEqual(result["confirmation"]["resolvedLoadoutKey"], loadout["resolvedLoadoutKey"])
+        self.assertEqual(result["confirmation"]["simulationSnapshotKey"], snapshot["simulationSnapshotKey"])
+        self.assertEqual(result["confirmation"]["dependencyVector"], dependencies)
+        self.assertEqual(result["jobRequest"].request_json["exactLoadoutIntent"]["slots"]["head"]["itemId"], "1001")
+        self.assertEqual(result["jobRequest"].request_json["exactLoadoutIntent"]["eligibilityContext"], replay["source"].selection_intent["eligibilityContext"])
+        self.assertEqual(len(store.calls), 2)
+        self.assertEqual(resolve.call_args.args[0], replay["source"].selection_intent)
+        self.assertEqual(build_loadout.call_args.kwargs["exact_authority_by_slot"], json.loads(replay["binding"].canonical_bytes)["exactAuthorityBySlot"])
+        self.assertEqual(build_snapshot.call_args.kwargs["resolved_loadout"], loadout)
+
+    def test_full_materializer_blocks_before_snapshot_and_job_when_loadout_effect_is_missing(self):
+        self.assertIsNotNone(ExactSimcMaterializer)
+        module = __import__("server.exact_simc_api", fromlist=["ExactSimcMaterializer"])
+        replay = verified_source_replay()
+        store = CapturingSnapshotStore()
+        materializer = ExactSimcMaterializer(
+            source_materializer=ReplayMaterializer(replay),
+            authority_provider=lambda _source: {
+                "authorityContext": {"server": "only"},
+                "gearExactRegistryRevision": "gear-exact-registry:sha256:" + "1" * 64,
+                "loadoutEffectAuthority": None,
+                "dependencyVector": exact_materializer_dependency_vector(),
+            },
+            profile_materializer=lambda _request, _source: {},
+            snapshot_store=store,
+        )
+
+        with patch.object(module, "resolve_v2", return_value={
+            "status": "blocked",
+            "problems": [{"code": "LOADOUT_EFFECT_AUTHORITY_REQUIRED"}],
+        }) as resolve:
+            result = materializer({"sourceRef": {}}, "sha256:" + "f" * 64)
+
+        self.assertEqual(result["status"], "blocked")
+        self.assertEqual(result["problems"], [{"code": "LOADOUT_EFFECT_AUTHORITY_REQUIRED"}])
+        self.assertEqual(store.calls, [])
+        self.assertEqual(resolve.call_count, 1)
+
+    def test_full_materializer_validates_exact_job_input_before_persisting_snapshot(self):
+        replay = verified_source_replay()
+        replay["slotBundles"][0]["bundle"].exact_item = SimpleNamespace(
+            canonical_bytes=b"{}",
+        )
+        store = CapturingSnapshotStore()
+        materializer = ExactSimcMaterializer(
+            source_materializer=ReplayMaterializer(replay),
+            authority_provider=lambda _source: {
+                "authorityContext": {"server": "only"},
+                "gearExactRegistryRevision": "gear-exact-registry:sha256:" + "1" * 64,
+                "loadoutEffectAuthority": object(),
+                "dependencyVector": exact_materializer_dependency_vector(),
+            },
+            profile_materializer=lambda _request, _source: {
+                "talentProfileKey": "talent-profile:sha256:" + "a" * 64,
+                "talentLines": ["talents=CYQAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"],
+                "characterContext": {"classKey": "mage", "specKey": "frost", "race": "human", "level": 80, "position": "back"},
+                "scenarioOptions": {"iterations": 1000, "fightStyle": "patchwerk", "desiredTargets": 1, "durationSeconds": 300},
+                "preparationLines": [],
+            },
+            snapshot_store=store,
+        )
+        module = __import__("server.exact_simc_api", fromlist=["ExactSimcMaterializer"])
+
+        with patch.object(module, "resolve_v2", return_value={"status": "verified"}), patch.object(
+            module, "build_resolved_loadout_v2", return_value={"status": "ready", "resolvedLoadoutKey": "resolved-loadout-v2:sha256:" + "b" * 64}
+        ), patch.object(
+            module, "build_simulation_snapshot_v2", return_value={"status": "ready", "simulationSnapshotKey": "simulation-snapshot-v2:sha256:" + "c" * 64}
+        ):
+            result = materializer({"sourceRef": {}}, "sha256:" + "f" * 64)
+
+        self.assertEqual(result["status"], "blocked")
+        self.assertEqual(store.calls, [])
+
     def test_confirm_returns_literal_loadout_authority_block_without_creating_a_job(self):
         """A missing aggregate must not turn the old submit flow into a task."""
 
@@ -229,6 +448,60 @@ class ExactSimcApiTest(unittest.TestCase):
             }],
         })
         self.assertEqual(jobs.enqueued, [])
+
+    def test_confirm_and_submit_fail_closed_when_injected_dependencies_raise(self):
+        """Private dependency errors must not escape or create an Exact job."""
+
+        owner = "sha256:" + "e" * 64
+        source_ref = {
+            "contractRevision": "exact-simc-source-ref-v1",
+            "kind": "template",
+            "sourceId": "template-frost",
+            "remote": True,
+        }
+        unavailable = ExactSimcApi(
+            materialize=lambda _request, _owner: (_ for _ in ()).throw(
+                RuntimeError("private authority outage"),
+            ),
+            job_store=CapturingJobStore(),
+        )
+        self.assertEqual(unavailable.confirm({"sourceRef": source_ref}, owner_key_hash=owner), {
+            "contractRevision": "exact-simc-envelope-v1",
+            "operation": "confirm",
+            "status": "blocked",
+            "data": {},
+            "problems": [{"code": "EXACT_AUTHORITY_UNAVAILABLE"}],
+        })
+
+        from server.gear_exact_import_job_store import build_exact_import_job_request
+        from tests.gear_exact_import_job_store_test import dependency_vector, exact_intent
+
+        request = build_exact_import_job_request(exact_intent(), dependency_vector())
+        confirmation = {
+            "requestKey": request.request_key,
+            "resolvedLoadoutKey": "resolved-loadout-v2:sha256:" + "b" * 64,
+            "simulationSnapshotKey": "simulation-snapshot-v2:sha256:" + "c" * 64,
+            "dependencyVector": dependency_vector(),
+        }
+        enqueue_failure = ExactSimcApi(
+            materialize=lambda _request, _owner: {
+                "status": "ready",
+                "confirmation": confirmation,
+                "jobRequest": request,
+            },
+            job_store=ExplodingJobStore(),
+        )
+        self.assertEqual(enqueue_failure.submit(
+            {"sourceRef": source_ref},
+            confirmation=confirmation,
+            owner_key_hash=owner,
+        ), {
+            "contractRevision": "exact-simc-envelope-v1",
+            "operation": "submit",
+            "status": "blocked",
+            "data": {},
+            "problems": [{"code": "EXACT_JOB_ENQUEUE_INVALID"}],
+        })
 
     def test_confirm_returns_only_server_materialized_exact_identities_when_ready(self):
         """The page can retain confirmation identities but not Exact payload facts."""
@@ -383,6 +656,74 @@ class ExactSimcApiTest(unittest.TestCase):
             "problems": [],
         })
         self.assertEqual(jobs.enqueued, [(owner_key_hash, request)])
+
+    def test_read_exposes_only_owner_scoped_bounded_exact_job_state(self):
+        """Readback cannot reveal another owner's job or an internal row shape."""
+
+        owner_a = "sha256:" + "a" * 64
+        owner_b = "sha256:" + "b" * 64
+        request_key = "exact-import-request:sha256:" + "c" * 64
+        jobs = ReadingJobStore({
+            owner_a: {
+                41: {
+                    "jobId": 41,
+                    "requestKey": request_key,
+                    "status": "resolved",
+                    "resultJson": {
+                        "resultIdentity": "simc-result:sha256:" + "d" * 64,
+                        "status": "resolved",
+                        "dps": 123456,
+                    },
+                    "problemJson": None,
+                    "queuedAt": "2026-08-07T00:00:00+00:00",
+                    "startedAt": "2026-08-07T00:00:01+00:00",
+                    "finishedAt": "2026-08-07T00:00:02+00:00",
+                    "cooldownUntil": None,
+                },
+            },
+        })
+        api = ExactSimcApi(
+            materialize=lambda _request, _owner_key_hash: {},
+            job_store=jobs,
+        )
+
+        self.assertEqual(api.read(41, owner_key_hash=owner_b), {
+            "contractRevision": "exact-simc-envelope-v1",
+            "operation": "read",
+            "status": "blocked",
+            "data": {},
+            "problems": [{"code": "EXACT_JOB_NOT_FOUND"}],
+        })
+        self.assertEqual(api.read(41, owner_key_hash=owner_a), {
+            "contractRevision": "exact-simc-envelope-v1",
+            "operation": "read",
+            "status": "resolved",
+            "data": {
+                "jobId": 41,
+                "requestKey": request_key,
+                "jobStatus": "resolved",
+                "result": {
+                    "resultIdentity": "simc-result:sha256:" + "d" * 64,
+                    "status": "resolved",
+                    "dps": 123456,
+                },
+                "cooldownUntil": None,
+            },
+            "problems": [],
+        })
+        jobs.rows_by_owner[owner_a][42] = {
+            **jobs.rows_by_owner[owner_a][41],
+            "jobId": 42,
+            "resultJson": {"rawProfile": "must-not-escape"},
+        }
+        self.assertEqual(api.read(42, owner_key_hash=owner_a), {
+            "contractRevision": "exact-simc-envelope-v1",
+            "operation": "read",
+            "status": "blocked",
+            "data": {},
+            "problems": [{"code": "EXACT_JOB_READ_INVALID"}],
+        })
+        self.assertEqual(jobs.calls, [(owner_b, 41), (owner_a, 41), (owner_a, 42)])
 
     def test_submit_rejects_a_confirmation_whose_revisions_do_not_equal_the_typed_job_request(self):
         """A matching request key alone cannot hide a dependency-vector drift."""
