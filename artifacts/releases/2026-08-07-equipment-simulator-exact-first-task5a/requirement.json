@@ -114,7 +114,7 @@
   },
   "engineeringHealth": {
     "status": "authority_source_gap",
-    "reason": "Task 4W is archived as dormant queue/worker infrastructure. The Task 5A generic Exact confirm/submit/read boundary, 0033 server-owned source binding/admission/replay, and an injected v2 materializer foundation have local TDD coverage only; none is wired into a save route or runtime. No active server-owned authority/profile composition exists yet, so a complete runtime source-to-AuthorityBundle/effect materializer does not exist. It remains unsafe to wire a ready path, candidate, service or UI runtime change; missing source authority must remain blocked."
+    "reason": "Task 4W is archived as dormant queue/worker infrastructure. The Task 5A generic Exact confirm/submit/read boundary, 0033 server-owned source binding/admission/replay, and an injected v2 materializer foundation have local TDD coverage only; none is wired into a save route or runtime. No active server-owned authority/profile composition exists yet, so a complete runtime source-to-AuthorityBundle/effect materializer does not exist. In addition, the frozen 0032 canonical request has no SimulationSnapshotKey, profile/scenario identity, or durable unique job-to-snapshot association; the worker cannot safely reconstruct or select a snapshot, and the frozen 0033 scope cannot add one. It remains unsafe to wire a ready path, candidate, service or UI runtime change; missing source authority must remain blocked."
   },
   "acceptanceEvidence": [
     "The existing simc_submit page confirms and submits a complete server-materialized Exact loadout through the typed Exact API, and its task/result is bound to v2 resolved-loadout, snapshot and SimC runtime identities.",
