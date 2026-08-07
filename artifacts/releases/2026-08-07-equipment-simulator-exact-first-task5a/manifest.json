@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-08-07T09:39:52.148Z",
+  "generatedAt": "2026-08-07T09:40:55.621Z",
   "release": {
     "date": "2026-08-07",
     "slug": "equipment-simulator-exact-first-task5a"
@@ -346,7 +346,9 @@
     }
   },
   "evidencePacket": {
-    "status": "not_attached",
+    "status": "ready",
+    "path": "artifacts/releases/2026-08-07-equipment-simulator-exact-first-task5a/evidence.json",
+    "sizeBytes": 6705,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -367,7 +369,30 @@
       "archivedReferences",
       "summary"
     ],
-    "note": "Attach a local evidence packet with --evidence-file when promoting a Standard or Strict requirement."
+    "fieldsPresent": [
+      "schemaVersion",
+      "slug",
+      "requirementSlug",
+      "status",
+      "highestEvidenceLevel",
+      "branch",
+      "commit",
+      "identities",
+      "manualAcceptance",
+      "scope",
+      "verification",
+      "candidateDeployment",
+      "runtimeEvidence",
+      "risks",
+      "rollback",
+      "cleanup",
+      "archivedReferences",
+      "summary"
+    ],
+    "missingFields": [],
+    "declaredStatus": "local_verified",
+    "highestEvidenceLevel": "local_verified",
+    "summary": "Task 5A has local-only verification for its allowlisted backend/client/current-page binding. It remains an empty-safe, fail-closed foundation: no candidate, delivery closure, production or user-visible Exact-first completion is claimed."
   },
   "evidence": {
     "localTests": {
