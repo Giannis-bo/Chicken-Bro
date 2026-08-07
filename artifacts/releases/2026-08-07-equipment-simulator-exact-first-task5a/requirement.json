@@ -38,7 +38,8 @@
     "allowedStages": [
       "task_5a_design_and_requirement_review",
       "task_5a_api_runtime_implementation",
-      "task_5a_remote_template_authority_binding"
+      "task_5a_remote_template_authority_binding",
+      "task_5a_job_snapshot_binding"
     ],
     "blockedStages": [
       "task_5a_candidate_deployment",
@@ -46,7 +47,7 @@
       "task_6c_observation_catalog"
     ],
     "runtimeConsumersAllowed": false,
-    "promotionRule": "The frozen allowlisted plan permits local implementation only. Candidate, production 0030--0033 migration, worker activation and UI runtime cutover remain separately conditional on its named TDD, independent CR, final-head CI, Harness and user-acceptance gates."
+    "promotionRule": "The frozen allowlisted plan permits local implementation only. Candidate, production 0030--0034 migration, worker activation and UI runtime cutover remain separately conditional on its named TDD, independent CR, final-head CI, Harness and user-acceptance gates."
   },
   "releaseSlices": [
     {
@@ -56,8 +57,8 @@
     },
     {
       "id": "task_5a_exact_api_and_worker_processor",
-      "scope": "Server-owned materialization of the current UI's v1 intent into Exact authority, v2 Resolve/Snapshot, typed owner-scoped confirm/submit/read API, and the formerly unavailable 0032 worker processor.",
-      "gate": "No client-originated v2 conversion, no raw input persistence, no legacy analyze fallback, and no task creation until all Exact/loadout/runtime verifiers are ready."
+      "scope": "Server-owned materialization of the current UI's v1 intent into Exact authority, v2 Resolve/Snapshot, typed owner-scoped confirm/submit/read API, forward-only 0034 canonical v2 job-to-snapshot binding, and the formerly unavailable 0032 worker processor.",
+      "gate": "No client-originated v2 conversion, no raw input persistence, no legacy analyze fallback, no v1 job execution, and no task creation until all Exact/loadout/snapshot/runtime verifiers are ready."
     },
     {
       "id": "task_5a_current_simc_submit_binding",
@@ -66,7 +67,7 @@
     },
     {
       "id": "task_5a_candidate_and_production_activation",
-      "scope": "One final-head cloud candidate, then production 0030--0033 migration and restricted worker activation after all Harness gates and explicitly recorded rollback checks.",
+      "scope": "One final-head cloud candidate, then production 0030--0034 migration and restricted worker activation after all Harness gates and explicitly recorded rollback checks.",
       "gate": "No local PostgreSQL; candidate resource/capacity preflight; no async sync/backfill; no Catalog/Manifest/generation 35 mutation; no release claim before actual existing-page acceptance."
     }
   ],
@@ -74,10 +75,11 @@
     "mustChange": [
       "A narrow server Exact API owner and route wiring that turn existing selectionIntent-v1 into server-verified Exact authority only through the existing Resolver/materialization boundary, enqueue/read owner-scoped 0032 jobs, and return typed fail-closed envelopes.",
       "A server-owned remote gear-template admission/binding owner, an append-only 0033 relation and strictly scoped source reload/unique Authority Bundle lookup seams; bindings are constructed from server reload only and are revalidated before materialization.",
+      "A forward-only 0034 exact-import-job-request-v2 binding that places sealed resolved-loadout, simulation-snapshot and snapshot-row identities inside canonical job bytes; v1 rows remain immutable and workers execute no inferred snapshot.",
       "server/gear_exact_authority_worker.py and its focused tests so the worker replaces unavailable_processor only with a typed Exact authority -> v2 Resolve -> immutable snapshot -> pinned SimC processor and preserves the dedicated-role lease/CAS boundary.",
       "packages/api-client typed Exact API contract and the existing apps/mini-taro simc_submit call binding/state model; no visual or route-owner changes.",
       "Focused backend, PostgreSQL, typed-client and simc_submit behavioral tests; current Task 5A plan, owner maps, database runbook, roadmap, plan index and this task's Harness packet/evidence/manifest.",
-      "Candidate/deploy wiring only as required to apply reviewed 0030--0033, activate the dedicated worker after candidate success, expose explicit health/readiness and execute rollback without legacy fallback."
+      "Candidate/deploy wiring only as required to apply reviewed 0030--0034, activate the dedicated worker after candidate success, expose explicit health/readiness and execute rollback without legacy fallback."
     ],
     "mustNotChange": [
       "All sealed v1 bytes/key/hash and historical rows, Task 3A/4P/4L/3B/4W evidence identities, Catalog/Manifest pointer state and generation 35.",
@@ -93,10 +95,11 @@
     ],
     "evidenceRequired": [
       "RED/GREEN tests proving client v1 intent is never converted to v2 client-side; remote source admission only follows an owner-scoped server reload, seals/reloads canonical source-binding bytes and rejects local/handoff, missing, ambiguous, source-drift, incomplete bundle, loadout-effect, bytes/key/hash and runtime mismatches.",
-      "Worker tests proving unavailable_processor is replaced only by typed snapshot execution, owner/job isolation, lease-loss behavior, cooldown and no raw/identity persistence.",
+      "RED/GREEN v2 job tests proving sealed snapshot reference fields are canonical, included in bytes/key, cannot drift independently, and v1 build/reload bytes remain unchanged; 0034 accepts only the exact v1/v2 schemas with existing least-privilege function boundary.",
+      "Worker tests proving unavailable_processor is replaced only by typed snapshot execution, explicit v1 rejection, key/loadout/row-hash/runtime reload checks, owner/job isolation, lease-loss behavior, cooldown and no raw/identity persistence.",
       "Typed-client and existing simc_submit behavioral tests proving confirm/submit/read use Exact envelopes, map ready/pending/blocked/unsupported without legacy analyze fallback, and leave visual/route contracts unchanged.",
-      "One final-head cloud-only disposable PostgreSQL fresh 0001..0033 and upgrade 0001..0032-to-0033 candidate with redacted distinct migrator/app/worker DSNs, bounded resources, Exact ready/unlisted and fail-closed matrices, API smoke and rollback rehearsal.",
-      "Independent scoped CR, exact-head CI, Harness verification, production 0030--0033 migration/worker/API parity evidence, timer/backflow check, rollback evidence and real WeChat acceptance on the existing SimC submit path."
+      "One final-head cloud-only disposable PostgreSQL fresh 0001..0034 and upgrade 0001..0032-to-0033-to-0034 candidate with redacted distinct migrator/app/worker DSNs, bounded resources, Exact ready/unlisted and fail-closed matrices, API smoke and rollback rehearsal.",
+      "Independent scoped CR, exact-head CI, Harness verification, production 0030--0034 migration/worker/API parity evidence, timer/backflow check, rollback evidence and real WeChat acceptance on the existing SimC submit path."
     ]
   },
   "ownership": {
@@ -110,18 +113,18 @@
       "apps/mini-taro/src/pages/simulator/simc-submit-model.ts"
     ],
     "runtimeConsumers": [],
-    "privacyBoundary": "The API and worker handle canonical exact data and bounded structured problems only; the authenticated UUID remains request-memory-only for owner-scoped source reload, while the 0032 job/read owner is a domain-separated exact-simc-job-owner-v1 hash. Raw plugin input and account identity never enter 0030/0031/0032/0033 storage, logs, packets or public responses."
+    "privacyBoundary": "The API and worker handle canonical exact data and bounded structured problems only; the authenticated UUID remains request-memory-only for owner-scoped source reload, while the 0032 job/read owner is a domain-separated exact-simc-job-owner-v1 hash. Raw plugin input and account identity never enter 0030/0031/0032/0033/0034 storage, logs, packets or public responses."
   },
   "engineeringHealth": {
-    "status": "authority_source_gap",
-    "reason": "Task 4W is archived as dormant queue/worker infrastructure. The Task 5A generic Exact confirm/submit/read boundary, 0033 server-owned source binding/admission/replay, and an injected v2 materializer foundation have local TDD coverage only; none is wired into a save route or runtime. No active server-owned authority/profile composition exists yet, so a complete runtime source-to-AuthorityBundle/effect materializer does not exist. In addition, the frozen 0032 canonical request has no SimulationSnapshotKey, profile/scenario identity, or durable unique job-to-snapshot association; the worker cannot safely reconstruct or select a snapshot, and the frozen 0033 scope cannot add one. It remains unsafe to wire a ready path, candidate, service or UI runtime change; missing source authority must remain blocked."
+    "status": "snapshot_binding_local_implementation_authorized",
+    "reason": "The user approved a forward-only 0034 amendment after audit proved 0032/v1 lacks a durable job-to-snapshot relation. Local TDD may add exact-import-job-request-v2 containing sealed resolvedLoadoutKey, simulationSnapshotKey and snapshotRowHash while keeping v1 bytes/rows and 0032 role/function signatures intact. No active server-owned authority/profile composition, save-route, worker runtime, candidate, service, UI cutover or production evidence exists yet; any missing source/snapshot authority remains blocked."
   },
   "acceptanceEvidence": [
     "The existing simc_submit page confirms and submits a complete server-materialized Exact loadout through the typed Exact API, and its task/result is bound to v2 resolved-loadout, snapshot and SimC runtime identities.",
     "A ready unlisted Exact remains simulatable; Catalog membership is neither required nor placed into its canonical snapshot identity.",
     "Missing tier/set/cross-slot/loadout authority returns literal blocked / LOADOUT_EFFECT_AUTHORITY_REQUIRED before task creation; unknown or unsupported effect support returns a typed non-ready status with no DPS/result claim.",
     "Current page route, visual contract, selection controls and task-record navigation stay unchanged while client calls no legacy simulator.analyze fallback for this path.",
-    "The final-head disposable candidate and production activation prove 0030--0033 identity, app/worker least-privilege, service health, API/readback, no async backflow, rollback and real WeChat acceptance separately."
+    "The final-head disposable candidate and production activation prove 0030--0034 identity, v1 compatibility/v2 snapshot binding, app/worker least-privilege, service health, API/readback, no async backflow, rollback and real WeChat acceptance separately."
   ],
   "manualAcceptanceContract": {
     "required": true,
@@ -135,10 +138,10 @@
   "candidateDeployment": {
     "required": true,
     "beforeMerge": "After local RED/GREEN and independent scoped CR, run exactly one final-head cloud-only candidate with new disposable fresh/upgrade PostgreSQL databases and redacted distinct migrator/app/worker login DSNs. Preflight disk, CPU and memory; run as a single low-priority process; do not use local PostgreSQL or production data.",
-    "afterMerge": "Only after candidate, exact-head CI, Harness gate and user acceptance may the existing production database receive reviewed migrations 0030--0033 and the dedicated Exact worker be activated. Record runtime file/tree identity, worker role proof, API/readback smoke, no async backflow and rollback state.",
+    "afterMerge": "Only after candidate, exact-head CI, Harness gate and user acceptance may the existing production database receive reviewed migrations 0030--0034 and the dedicated Exact worker be activated. Record runtime file/tree identity, worker role proof, API/readback smoke, no async backflow and rollback state.",
     "rollback": "Disable the Exact API binding and stop the dedicated worker first, leaving the page explicitly unavailable rather than silently calling legacy analyze. Use the verified production migration backup/runbook only; discard only explicitly identified disposable candidate resources after archive identity and parity checks."
   },
-  "closureCondition": "Task 5A is implementation_allowed only for its frozen local allowlist. Delivery may close only after the authority-source gap is resolved by an owner-scoped source binding without Catalog inference, full loadout/effect materialization, final-head candidate, independent CR, exact-head CI, candidate and production parity, production 0030--0033 migration, worker activation, API/runtime smoke, rollback, and all four named existing-page WeChat acceptance items. Candidate, CI, an HTTP response, active systemd or a task row alone do not close the user journey.",
+  "closureCondition": "Task 5A is implementation_allowed only for its frozen local allowlist. Delivery may close only after the authority-source gap is resolved by an owner-scoped source binding without Catalog inference, v2 canonical job-to-snapshot binding, full loadout/effect materialization, final-head candidate, independent CR, exact-head CI, candidate and production parity, production 0030--0034 migration, worker activation, API/runtime smoke, rollback, and all four named existing-page WeChat acceptance items. Candidate, CI, an HTTP response, active systemd or a task row alone do not close the user journey.",
   "releaseTrigger": "user_visible_runtime",
   "rollback": [
     "code_rollback",
@@ -172,6 +175,10 @@
     {
       "date": "2026-08-07",
       "decision": "Task 5A separates owner domains: authenticated user UUID is request-memory-only for 0033 source reload, exact-template-owner-v1 hashes bind saved sources, and exact-simc-job-owner-v1 hashes own 0032 jobs. The domains are never interchangeable and no UUID enters API/job/binding/result payloads."
+    },
+    {
+      "date": "2026-08-07",
+      "decision": "After the Step 2 audit proved that 0032/v1 cannot identify one v2 SimulationSnapshot, the user approved a forward-only 0034 amendment. exact-import-job-request-v2 must canonicalize resolvedLoadoutKey, simulationSnapshotKey and snapshotRowHash with the existing Exact intent/dependency vector; v1 rows/bytes remain immutable and workers execute no inferred snapshot."
     }
   ]
 }
