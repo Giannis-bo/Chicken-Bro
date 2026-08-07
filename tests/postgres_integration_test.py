@@ -1,12 +1,17 @@
 import os
 import hashlib
+import inspect
 import json
 from pathlib import Path
+from queue import Queue
 import re
 import shutil
 import subprocess
+import time
 from types import SimpleNamespace
+from threading import Event
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -25,8 +30,11 @@ TASK_3A_MIGRATIONS = tuple(
     migration for migration in ALL_MIGRATIONS
     if migration.name <= "0030_websim_exact_authority_bundle.sql"
 )
-TASK_3B_MIGRATIONS = ALL_MIGRATIONS
-TASK_3B_BASELINE_MIGRATIONS = ALL_MIGRATIONS[:-1]
+TASK_3B_MIGRATIONS = tuple(
+    migration for migration in ALL_MIGRATIONS
+    if migration.name <= "0031_websim_exact_snapshot_v2.sql"
+)
+TASK_3B_BASELINE_MIGRATIONS = TASK_3B_MIGRATIONS[:-1]
 TASK_3A_RUN_ID = os.environ.get("WOW_PG_TEST_RUN_ID_0030", "")
 TASK_3A_FRESH_DSN = os.environ.get("WOW_PG_TEST_DSN_FRESH_0030", "")
 TASK_3A_UPGRADE_DSN = os.environ.get("WOW_PG_TEST_DSN_UPGRADE_0030", "")
@@ -50,6 +58,14 @@ TASK_3B_FORBIDDEN_RUN_IDS = TASK_3A_HISTORICAL_RUN_IDS | frozenset({
 TASK_3B_RUN_ID = os.environ.get("WOW_PG_TEST_RUN_ID_0031", "")
 TASK_3B_FRESH_DSN = os.environ.get("WOW_PG_TEST_DSN_FRESH_0031", "")
 TASK_3B_UPGRADE_DSN = os.environ.get("WOW_PG_TEST_DSN_UPGRADE_0031", "")
+TASK_4W_MIGRATIONS = ALL_MIGRATIONS
+TASK_4W_BASELINE_MIGRATIONS = ALL_MIGRATIONS[:-1]
+TASK_4W_RUN_ID = os.environ.get("WOW_PG_TEST_RUN_ID_0032", "")
+TASK_4W_FRESH_DSN = os.environ.get("WOW_PG_TEST_DSN_FRESH_0032", "")
+TASK_4W_UPGRADE_DSN = os.environ.get("WOW_PG_TEST_DSN_UPGRADE_0032", "")
+TASK_4W_MIGRATOR_DSN = os.environ.get("WOW_PG_TEST_DSN_MIGRATOR_0032", "")
+TASK_4W_APP_DSN = os.environ.get("WOW_PG_TEST_DSN_APP_0032", "")
+TASK_4W_WORKER_DSN = os.environ.get("WOW_PG_TEST_DSN_WORKER_0032", "")
 
 
 def validate_task3a_candidate_run_id(run_id):
@@ -77,10 +93,48 @@ def task3b_candidate_configured(run_id, fresh_dsn, upgrade_dsn, psql_path):
     return bool(run_id and fresh_dsn and upgrade_dsn and psql_path)
 
 
+def validate_task4w_candidate_run_id(run_id):
+    if type(run_id) is not str or re.fullmatch(r"[a-z0-9]{8,32}", run_id) is None:
+        raise ValueError("invalid Task 4W candidate run id")
+    return run_id
+
+
+def task4w_candidate_configured(
+    run_id,
+    fresh_dsn,
+    upgrade_dsn,
+    migrator_dsn,
+    app_dsn,
+    worker_dsn,
+    psql_path,
+):
+    """Cloud-only candidate is inert until every explicit role/path input exists."""
+    values = (
+        run_id, fresh_dsn, upgrade_dsn, migrator_dsn, app_dsn, worker_dsn,
+        psql_path,
+    )
+    if not all(values):
+        return False
+    return (
+        fresh_dsn != upgrade_dsn
+        and len({migrator_dsn, app_dsn, worker_dsn}) == 3
+    )
+
+
+def task4w_candidate_has_schema_qualified_coalesce(source):
+    return re.search(
+        r"\bpg_catalog\s*\.\s*coalesce\s*\(",
+        source,
+        flags=re.IGNORECASE,
+    ) is not None
+
+
 if TASK_3A_RUN_ID:
     validate_task3a_candidate_run_id(TASK_3A_RUN_ID)
 if TASK_3B_RUN_ID:
     validate_task3b_candidate_run_id(TASK_3B_RUN_ID)
+if TASK_4W_RUN_ID:
+    validate_task4w_candidate_run_id(TASK_4W_RUN_ID)
 TASK_3A_CANDIDATE_CONFIGURED = bool(
     TASK_3A_RUN_ID
     and TASK_3A_FRESH_DSN
@@ -91,6 +145,15 @@ TASK_3B_CANDIDATE_CONFIGURED = task3b_candidate_configured(
     TASK_3B_RUN_ID,
     TASK_3B_FRESH_DSN,
     TASK_3B_UPGRADE_DSN,
+    shutil.which("psql"),
+)
+TASK_4W_CANDIDATE_CONFIGURED = task4w_candidate_configured(
+    TASK_4W_RUN_ID,
+    TASK_4W_FRESH_DSN,
+    TASK_4W_UPGRADE_DSN,
+    TASK_4W_MIGRATOR_DSN,
+    TASK_4W_APP_DSN,
+    TASK_4W_WORKER_DSN,
     shutil.which("psql"),
 )
 TASK_3A_VERIFIED_CHECKS = (
@@ -434,6 +497,135 @@ class Task3BCandidateHarnessTest(unittest.TestCase):
             "0030_websim_exact_authority_bundle.sql",
         )
         self.assertEqual(TASK_3B_MIGRATIONS[:-1], TASK_3B_BASELINE_MIGRATIONS)
+
+
+class Task4WCandidateHarnessTest(unittest.TestCase):
+    def test_cloud_candidate_gate_requires_every_distinct_explicit_input(self):
+        self.assertEqual(validate_task4w_candidate_run_id("t4w260806210000"), "t4w260806210000")
+        for invalid in ("short", "BAD", "a" * 33, "contains-hyphen"):
+            with self.subTest(invalid=invalid):
+                with self.assertRaises(ValueError):
+                    validate_task4w_candidate_run_id(invalid)
+
+        configured = task4w_candidate_configured
+        complete = (
+            "t4w260806210000", "fresh", "upgrade", "migrator",
+            "app", "worker", "/usr/bin/psql",
+        )
+        self.assertTrue(configured(*complete))
+        for index in range(len(complete)):
+            candidate = list(complete)
+            candidate[index] = ""
+            with self.subTest(missing=index):
+                self.assertFalse(configured(*candidate))
+        self.assertFalse(configured(
+            "t4w260806210000", "same", "same", "migrator", "app", "worker",
+            "/usr/bin/psql",
+        ))
+        self.assertFalse(configured(
+            "t4w260806210000", "fresh", "upgrade", "same", "same", "worker",
+            "/usr/bin/psql",
+        ))
+
+    def test_harness_pins_fresh_and_upgrade_migration_boundaries(self):
+        self.assertEqual(
+            TASK_4W_MIGRATIONS[-1].name,
+            "0032_websim_exact_import_jobs.sql",
+        )
+        self.assertEqual(
+            TASK_4W_BASELINE_MIGRATIONS[-1].name,
+            "0031_websim_exact_snapshot_v2.sql",
+        )
+        self.assertEqual(TASK_4W_MIGRATIONS[:-1], TASK_4W_BASELINE_MIGRATIONS)
+
+    def test_cloud_candidate_contains_reverse_metric_lock_and_real_login_acl_matrix(self):
+        source = inspect.getsource(PostgresExactImportJobsCandidateTest)
+        for required in (
+            "def _assert_reverse_metric_lock_order",
+            "wait_event_type = 'Lock'",
+            "def _assert_real_login_acl_matrix",
+            "has_schema_privilege",
+            "has_table_privilege",
+            "has_sequence_privilege",
+            "has_function_privilege",
+            "aclexplode",
+            "grantee = 0",
+            "TASK_4W_WORKER_DSN",
+            "TASK_4W_APP_DSN",
+        ):
+            with self.subTest(required=required):
+                self.assertIn(required, source)
+        self.assertFalse(task4w_candidate_has_schema_qualified_coalesce(source))
+        for required in (
+            "COALESCE(proc.proacl, pg_catalog.acldefault('f', proc.proowner))",
+        ):
+            with self.subTest(required=required):
+                self.assertIn(required, source)
+
+    def test_cloud_candidate_contains_array_safe_sensitive_jsonpath_boundary(self):
+        source = inspect.getsource(PostgresExactImportJobsCandidateTest)
+        for required in (
+            "def _assert_sensitive_jsonpath_boundary",
+            "self._assert_sensitive_jsonpath_boundary()",
+            "jsonpath-array-v1",
+            "jsonpath-problem-array-v1",
+            "must-never-persist",
+            "bonusIds",
+            '{"status": "resolved", "items": []}',
+            '{"code": "INCOMPLETE", "details": []}',
+            '{"status": "idle", "events": []}',
+        ):
+            with self.subTest(required=required):
+                self.assertIn(required, source)
+
+    def test_cloud_candidate_coalesce_guard_rejects_case_and_whitespace_variant(self):
+        source = inspect.getsource(PostgresExactImportJobsCandidateTest)
+        mutated = source.replace(
+            "COALESCE(proc.proacl, pg_catalog.acldefault('f', proc.proowner))",
+            "pg_catalog.COALESCE (proc.proacl, pg_catalog.acldefault('f', proc.proowner))",
+            1,
+        )
+        self.assertNotEqual(mutated, source)
+        self.assertTrue(task4w_candidate_has_schema_qualified_coalesce(mutated))
+
+    def test_cloud_candidate_contains_blocked_post_lock_expiry_cas(self):
+        source = inspect.getsource(PostgresExactImportJobsCandidateTest)
+        for required in (
+            "def _assert_post_lock_expiry_cas",
+            "self._assert_post_lock_expiry_cas()",
+            "blocked-heartbeat",
+            "blocked-terminalize",
+            "time.sleep(31)",
+            "wait_event_type = 'Lock'",
+            "ops.websim_exact_heartbeat",
+            "ops.websim_exact_terminalize",
+            "lease_until <= pg_catalog.clock_timestamp()",
+            "terminal_metric",
+        ):
+            with self.subTest(required=required):
+                self.assertIn(required, source)
+
+    def test_cloud_candidate_contains_enqueue_and_claim_wait_time_boundaries(self):
+        source = inspect.getsource(PostgresExactImportJobsCandidateTest)
+        for required in (
+            "def _assert_enqueue_cooldown_post_wait_boundary",
+            "self._assert_enqueue_cooldown_post_wait_boundary()",
+            "blocked-enqueue-cooldown",
+            "pg_advisory_xact_lock",
+            "interval '1 second'",
+            "time.sleep(1.25)",
+            "new_pending",
+            "def _assert_claim_metric_post_wait_lease_window",
+            "self._assert_claim_metric_post_wait_lease_window()",
+            "blocked-claim-metric",
+            "terminal_classification = 'internal_error'",
+            "catalog_status = 'unknown'",
+            "time.sleep(1.1)",
+            "lease_window.total_seconds()",
+            "29.0",
+        ):
+            with self.subTest(required=required):
+                self.assertIn(required, source)
 
 
 @unittest.skipUnless(os.environ.get("WOW_PG_TEST_DSN"), "WOW_PG_TEST_DSN is not configured")
@@ -2966,6 +3158,1202 @@ class PostgresExactSnapshotV2CandidateTest(unittest.TestCase):
         )
         self.assertEqual(upgrade_snapshot["resolvedLoadoutKey"], upgrade_loadout["resolvedLoadoutKey"])
         self.assertEqual(self._git_identity(), git_identity)
+
+
+@unittest.skipUnless(
+    TASK_4W_CANDIDATE_CONFIGURED,
+    "Task 4W requires psql plus explicit fresh, upgrade, migrator, app and worker 0032 DSNs",
+)
+class PostgresExactImportJobsCandidateTest(unittest.TestCase):
+    """Cloud-only 0032 candidate; it never provisions, resets, or drops roles/databases."""
+
+    PROJECT_SCHEMAS = (
+        "identity", "app", "content", "cache", "knowledge", "analytics", "ops",
+    )
+    OPS_TABLES = (
+        "ops.websim_exact_import_jobs",
+        "ops.websim_exact_worker_state",
+        "ops.websim_exact_import_metrics_daily",
+    )
+    AUTHORITY_TABLES = (
+        "cache.websim_canonical_documents",
+        "cache.websim_effect_aggregate_records",
+        "cache.websim_exact_authority_bundles",
+    )
+    FUNCTION_SIGNATURES = (
+        "ops.websim_exact_enqueue(text,bytea,jsonb)",
+        "ops.websim_exact_read(text,bigint)",
+        "ops.websim_exact_claim(text,text,text)",
+        "ops.websim_exact_heartbeat(bigint,uuid)",
+        "ops.websim_exact_terminalize(bigint,uuid,text,text,jsonb,jsonb,text)",
+        "ops.websim_exact_update_worker_state(text,text,text,text,bigint,jsonb)",
+        "ops.websim_exact_prune_jobs(integer)",
+        "ops.websim_exact_prune_metrics(integer)",
+    )
+    APP_FUNCTIONS = frozenset(FUNCTION_SIGNATURES[:2])
+    WORKER_FUNCTIONS = frozenset(FUNCTION_SIGNATURES[2:])
+
+    @staticmethod
+    def _connect(dsn):
+        validate_task4w_candidate_run_id(TASK_4W_RUN_ID)
+        import psycopg
+
+        return psycopg.connect(dsn)
+
+    def _database_identity(self, dsn, flavor):
+        expected = (
+            f"wow_exact_first_{flavor}_test_{TASK_4W_RUN_ID}",
+            f"wow_exact_first_disposable:{TASK_4W_RUN_ID}:{flavor}",
+        )
+        with self._connect(dsn) as conn:
+            self.assertEqual(conn.info.dbname, expected[0])
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT pg_catalog.shobj_description(oid, 'pg_database') "
+                    "FROM pg_catalog.pg_database WHERE datname = current_database()"
+                )
+                self.assertEqual(cur.fetchone()[0], expected[1])
+        return expected
+
+    def _assert_empty_disposable(self, dsn, flavor):
+        identity = self._database_identity(dsn, flavor)
+        with self._connect(dsn) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT nspname FROM pg_catalog.pg_namespace "
+                    "WHERE nspname = ANY(%s)",
+                    (list(self.PROJECT_SCHEMAS),),
+                )
+                self.assertEqual(cur.fetchall(), [])
+                cur.execute(
+                    "SELECT rolname, rolcanlogin, rolinherit, rolsuper, rolcreatedb, "
+                    "rolcreaterole, rolreplication, rolbypassrls "
+                    "FROM pg_catalog.pg_roles "
+                    "WHERE rolname = ANY(%s) ORDER BY rolname",
+                    (["wow_app", "wow_exact_worker", "wow_migrator"],),
+                )
+                roles = {row[0]: row[1:] for row in cur.fetchall()}
+                self.assertEqual(
+                    set(roles),
+                    {"wow_app", "wow_exact_worker", "wow_migrator"},
+                )
+                for login_role in ("wow_app", "wow_migrator"):
+                    self.assertIs(roles[login_role][0], True)
+                    self.assertIs(roles[login_role][4], False)
+                worker_group = roles["wow_exact_worker"]
+                self.assertIs(worker_group[0], False)
+                self.assertTrue(all(value is False for value in worker_group[2:]))
+        return identity
+
+    def _apply(self, dsn, migrations):
+        with self._connect(dsn) as conn:
+            with conn.cursor() as cur:
+                for migration in migrations:
+                    cur.execute(migration.read_text(encoding="utf-8"))
+
+    @staticmethod
+    def _request(worker_revision="exact-worker-v1"):
+        from server.gear_exact_import_job_store import build_exact_import_job_request
+
+        slots = {
+            slot: {
+                "itemId": "1001", "declaredItemLevel": 700,
+                "bonusIds": [], "context": "", "gemIds": [],
+                "gemBonusIds": [], "gemItemLevels": [], "enchantId": "",
+                "craftedStats": [], "embellishmentIds": [],
+                "redirectedBaseStats": [],
+            }
+            for slot in (
+                "head", "neck", "shoulder", "back", "chest", "wrist", "hands",
+                "waist", "legs", "feet", "finger1", "finger2", "trinket1",
+                "trinket2", "main_hand",
+            )
+        }
+        return build_exact_import_job_request(
+            {
+                "schemaRevision": "exact-loadout-intent-v2",
+                "authoredAgainst": {
+                    "seasonRevision": "season-1", "gameBuild": "12.0.1.12345",
+                },
+                "eligibilityContext": {
+                    "classKey": "mage", "specKey": "frost", "level": 90,
+                },
+                "slots": slots,
+            },
+            {
+                "seasonRevision": "season-1", "gameBuild": "12.0.1.12345",
+                "gearRuleRevision": "gear-rule-v1", "resolverRevision": "resolver-v2",
+                "compilerRevision": "compiler-v2", "workerRevision": worker_revision,
+                "simcRuntimeRevision": "simc-runtime-v1",
+                "effectAuthorityRevision": "effect-authority-v1",
+            },
+        )
+
+    def _enqueue(self, owner, request):
+        with self._connect(TASK_4W_APP_DSN) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT * FROM ops.websim_exact_enqueue(%s, %s, %s::jsonb)",
+                    (owner, request.canonical_bytes, json.dumps(request.request_json)),
+                )
+                return cur.fetchone()
+
+    def _assert_sensitive_jsonpath_boundary(self):
+        import psycopg
+
+        request = self._request("jsonpath-array-v1")
+        head = request.request_json["exactLoadoutIntent"]["slots"]["head"]
+        self.assertEqual(head["bonusIds"], [])
+
+        sensitive_request_json = json.loads(request.canonical_bytes.decode("utf-8"))
+        sensitive_request_json["exactLoadoutIntent"]["slots"]["head"]["nested"] = {
+            "safe": [{"realm": "must-never-persist"}],
+        }
+        sensitive_request_bytes = json.dumps(
+            sensitive_request_json,
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode("utf-8")
+        with self.assertRaises(psycopg.errors.InvalidParameterValue):
+            with self._connect(TASK_4W_APP_DSN) as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT * FROM ops.websim_exact_enqueue(%s, %s, %s::jsonb)",
+                        (
+                            "sha256:" + "9" * 64,
+                            sensitive_request_bytes,
+                            json.dumps(sensitive_request_json),
+                        ),
+                    )
+
+        resolved = self._enqueue("sha256:" + "7" * 64, request)
+        self.assertEqual(
+            resolved[1:],
+            (request.request_key, "pending", False, None),
+        )
+        with self._connect(TASK_4W_WORKER_DSN) as conn:
+            with conn.cursor() as cur:
+                cur.execute("SET ROLE wow_exact_worker")
+                cur.execute(
+                    "SELECT * FROM ops.websim_exact_claim(%s, %s, %s)",
+                    ("jsonpath-worker", "exact-worker-v1", "simc-runtime-v1"),
+                )
+                resolved_claim = cur.fetchone()
+                self.assertEqual(resolved_claim[1], request.request_key)
+                cur.execute(
+                    "SELECT * FROM ops.websim_exact_terminalize("
+                    "%s, %s, 'resolved', 'resolved', %s::jsonb, NULL, %s)",
+                    (
+                        resolved_claim[0],
+                        resolved_claim[4],
+                        json.dumps({"status": "resolved", "items": []}),
+                        f"jsonpath-resolved-{TASK_4W_RUN_ID}",
+                    ),
+                )
+                self.assertEqual(cur.fetchone()[1], "resolved")
+
+        problem_request = self._request("jsonpath-problem-array-v1")
+        blocked = self._enqueue("sha256:" + "8" * 64, problem_request)
+        with self._connect(TASK_4W_WORKER_DSN) as conn:
+            with conn.cursor() as cur:
+                cur.execute("SET ROLE wow_exact_worker")
+                cur.execute(
+                    "SELECT * FROM ops.websim_exact_claim(%s, %s, %s)",
+                    ("jsonpath-worker", "exact-worker-v1", "simc-runtime-v1"),
+                )
+                blocked_claim = cur.fetchone()
+                self.assertEqual(blocked_claim[0], blocked[0])
+                cur.execute(
+                    "SELECT * FROM ops.websim_exact_terminalize("
+                    "%s, %s, 'blocked', 'incomplete', NULL, %s::jsonb, %s)",
+                    (
+                        blocked_claim[0],
+                        blocked_claim[4],
+                        json.dumps({"code": "INCOMPLETE", "details": []}),
+                        f"jsonpath-blocked-{TASK_4W_RUN_ID}",
+                    ),
+                )
+                self.assertEqual(cur.fetchone()[1], "blocked")
+                cur.execute(
+                    "SELECT ops.websim_exact_update_worker_state("
+                    "%s, 'idle', %s, %s, NULL, %s::jsonb)",
+                    (
+                        "jsonpath-worker",
+                        "exact-worker-v1",
+                        "simc-runtime-v1",
+                        json.dumps({"status": "idle", "events": []}),
+                    ),
+                )
+
+        with self.assertRaises(psycopg.errors.InvalidParameterValue):
+            with self._connect(TASK_4W_WORKER_DSN) as conn:
+                with conn.cursor() as cur:
+                    cur.execute("SET ROLE wow_exact_worker")
+                    cur.execute(
+                        "SELECT ops.websim_exact_update_worker_state("
+                        "%s, 'idle', %s, %s, NULL, %s::jsonb)",
+                        (
+                            "jsonpath-worker",
+                            "exact-worker-v1",
+                            "simc-runtime-v1",
+                            json.dumps({"events": [{"realm": "must-never-persist"}]}),
+                        ),
+                    )
+
+    def _assert_denied(self, dsn, statement, parameters=()):
+        import psycopg
+
+        with self.assertRaises(psycopg.errors.InsufficientPrivilege):
+            with self._connect(dsn) as conn:
+                with conn.cursor() as cur:
+                    cur.execute(statement, parameters)
+
+    def _assert_role_logins(self):
+        from server.gear_exact_authority_worker import establish_exact_worker_role
+
+        expected_database = f"wow_exact_first_fresh_test_{TASK_4W_RUN_ID}"
+        for dsn, role in (
+            (TASK_4W_MIGRATOR_DSN, "wow_migrator"),
+            (TASK_4W_APP_DSN, "wow_app"),
+        ):
+            with self._connect(dsn) as conn:
+                self.assertEqual(conn.info.dbname, expected_database)
+                with conn.cursor() as cur:
+                    cur.execute("SELECT session_user, current_user")
+                    self.assertEqual(cur.fetchone(), (role, role))
+        with self._connect(TASK_4W_WORKER_DSN) as conn:
+            self.assertEqual(conn.info.dbname, expected_database)
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT session_user, current_user, login.rolcanlogin, "
+                    "login.rolinherit, login.rolsuper, login.rolcreatedb, "
+                    "login.rolcreaterole, login.rolreplication, login.rolbypassrls, "
+                    "pg_catalog.pg_has_role(session_user, 'wow_exact_worker', 'MEMBER'), "
+                    "pg_catalog.pg_has_role('wow_app', 'wow_exact_worker', 'MEMBER'), "
+                    "pg_catalog.pg_has_role('wow_migrator', 'wow_exact_worker', 'MEMBER') "
+                    "FROM pg_catalog.pg_roles AS login WHERE login.rolname = session_user"
+                )
+                row = cur.fetchone()
+                self.assertNotIn(row[0], {"wow_app", "wow_migrator", "wow_exact_worker"})
+                self.assertEqual(row[1], row[0])
+                self.assertEqual(
+                    row[2:],
+                    (True, True, False, False, False, False, False, True, False, False),
+                )
+            establish_exact_worker_role(conn)
+            with conn.cursor() as cur:
+                cur.execute("SELECT session_user, current_user")
+                self.assertEqual(cur.fetchone(), (row[0], "wow_exact_worker"))
+
+    def _assert_function_matrix(self, cur, principal, allowed):
+        for signature in self.FUNCTION_SIGNATURES:
+            cur.execute(
+                "SELECT pg_catalog.has_function_privilege(%s, %s, 'EXECUTE')",
+                (principal, signature),
+            )
+            self.assertIs(cur.fetchone()[0], signature in allowed)
+
+    def _assert_public_function_boundary(self, cur):
+        for signature in self.FUNCTION_SIGNATURES:
+            cur.execute(
+                "SELECT NOT EXISTS ("
+                "SELECT 1 FROM pg_catalog.pg_proc AS proc "
+                "CROSS JOIN LATERAL pg_catalog.aclexplode("
+                "COALESCE(proc.proacl, pg_catalog.acldefault('f', proc.proowner))"
+                ") AS privilege "
+                "WHERE proc.oid = pg_catalog.to_regprocedure(%s) "
+                "AND privilege.grantee = 0 "
+                "AND privilege.privilege_type = 'EXECUTE'"
+                ")",
+                (signature,),
+            )
+            self.assertIs(cur.fetchone()[0], True)
+
+    def _assert_no_direct_ops(self, cur, principal):
+        for table in self.OPS_TABLES:
+            cur.execute(
+                "SELECT "
+                "pg_catalog.has_table_privilege(%s, %s, 'SELECT'), "
+                "pg_catalog.has_table_privilege(%s, %s, 'INSERT'), "
+                "pg_catalog.has_table_privilege(%s, %s, 'UPDATE'), "
+                "pg_catalog.has_table_privilege(%s, %s, 'DELETE'), "
+                "pg_catalog.has_table_privilege(%s, %s, 'TRUNCATE')",
+                (principal, table) * 5,
+            )
+            self.assertEqual(cur.fetchone(), (False, False, False, False, False))
+        sequence = "ops.websim_exact_import_jobs_job_id_seq"
+        cur.execute(
+            "SELECT "
+            "pg_catalog.has_sequence_privilege(%s, %s, 'USAGE'), "
+            "pg_catalog.has_sequence_privilege(%s, %s, 'SELECT'), "
+            "pg_catalog.has_sequence_privilege(%s, %s, 'UPDATE')",
+            (principal, sequence) * 3,
+        )
+        self.assertEqual(cur.fetchone(), (False, False, False))
+
+    def _assert_worker_authority_bounds(self, cur, principal):
+        for schema in ("cache", "ops"):
+            cur.execute(
+                "SELECT pg_catalog.has_schema_privilege(%s, %s, 'USAGE'), "
+                "pg_catalog.has_schema_privilege(%s, %s, 'CREATE')",
+                (principal, schema, principal, schema),
+            )
+            self.assertEqual(cur.fetchone(), (True, False))
+        for table in self.AUTHORITY_TABLES:
+            cur.execute(
+                "SELECT "
+                "pg_catalog.has_table_privilege(%s, %s, 'SELECT'), "
+                "pg_catalog.has_table_privilege(%s, %s, 'INSERT'), "
+                "pg_catalog.has_table_privilege(%s, %s, 'UPDATE'), "
+                "pg_catalog.has_table_privilege(%s, %s, 'DELETE'), "
+                "pg_catalog.has_table_privilege(%s, %s, 'TRUNCATE')",
+                (principal, table) * 5,
+            )
+            self.assertEqual(cur.fetchone(), (True, True, False, False, False))
+
+    def _assert_real_login_acl_matrix(self):
+        expected_database = f"wow_exact_first_fresh_test_{TASK_4W_RUN_ID}"
+        with self._connect(TASK_4W_WORKER_DSN) as conn:
+            self.assertEqual(conn.info.dbname, expected_database)
+            with conn.cursor() as cur:
+                cur.execute("SELECT session_user, current_user")
+                session, current = cur.fetchone()
+                self.assertEqual(current, session)
+                self.assertNotIn(
+                    session,
+                    {"wow_app", "wow_migrator", "wow_exact_worker"},
+                )
+                self._assert_no_direct_ops(cur, session)
+                self._assert_worker_authority_bounds(cur, session)
+                self._assert_function_matrix(cur, session, self.WORKER_FUNCTIONS)
+
+                cur.execute("SET ROLE wow_exact_worker")
+                self.assertEqual(conn.info.dbname, expected_database)
+                self._assert_no_direct_ops(cur, "wow_exact_worker")
+                self._assert_worker_authority_bounds(cur, "wow_exact_worker")
+                self._assert_function_matrix(
+                    cur,
+                    "wow_exact_worker",
+                    self.WORKER_FUNCTIONS,
+                )
+
+        with self._connect(TASK_4W_APP_DSN) as conn:
+            self.assertEqual(conn.info.dbname, expected_database)
+            with conn.cursor() as cur:
+                cur.execute("SELECT session_user, current_user")
+                self.assertEqual(cur.fetchone(), ("wow_app", "wow_app"))
+                self._assert_no_direct_ops(cur, "wow_app")
+                self._assert_function_matrix(cur, "wow_app", self.APP_FUNCTIONS)
+
+        with self._connect(TASK_4W_FRESH_DSN) as conn:
+            with conn.cursor() as cur:
+                self._assert_public_function_boundary(cur)
+
+        for dsn in (TASK_4W_APP_DSN, TASK_4W_WORKER_DSN):
+            self._assert_denied(dsn, "SELECT * FROM ops.websim_exact_import_jobs")
+            self._assert_denied(
+                dsn,
+                "SELECT nextval('ops.websim_exact_import_jobs_job_id_seq')",
+            )
+
+    def _assert_acl_isolation(self):
+        with self._connect(TASK_4W_FRESH_DSN) as conn:
+            with conn.cursor() as cur:
+                for role in ("wow_app", "wow_exact_worker"):
+                    for table in self.OPS_TABLES:
+                        cur.execute(
+                            "SELECT pg_catalog.has_table_privilege(%s, %s, 'SELECT'), "
+                            "pg_catalog.has_table_privilege(%s, %s, 'INSERT,UPDATE,DELETE,TRUNCATE')",
+                            (role, table, role, table),
+                        )
+                        self.assertEqual(cur.fetchone(), (False, False))
+                for function in (
+                    "ops.websim_exact_enqueue(text,bytea,jsonb)",
+                    "ops.websim_exact_read(text,bigint)",
+                ):
+                    cur.execute(
+                        "SELECT pg_catalog.has_function_privilege('wow_app', %s, 'EXECUTE'), "
+                        "pg_catalog.has_function_privilege('wow_exact_worker', %s, 'EXECUTE'), "
+                        "pg_catalog.has_function_privilege('public', %s, 'EXECUTE')",
+                        (function, function, function),
+                    )
+                    self.assertEqual(cur.fetchone(), (True, False, False))
+                cur.execute(
+                    "SELECT pg_catalog.has_table_privilege('wow_exact_worker', "
+                    "'cache.websim_canonical_documents', 'SELECT,INSERT'), "
+                    "pg_catalog.has_table_privilege('wow_exact_worker', "
+                    "'cache.websim_canonical_documents', 'UPDATE,DELETE')"
+                )
+                self.assertEqual(cur.fetchone(), (True, False))
+
+        self._assert_denied(TASK_4W_APP_DSN, "SELECT * FROM ops.websim_exact_import_jobs")
+        self._assert_denied(
+            TASK_4W_APP_DSN,
+            "SELECT nextval('ops.websim_exact_import_jobs_job_id_seq')",
+        )
+        self._assert_denied(
+            TASK_4W_APP_DSN,
+            "SELECT * FROM ops.websim_exact_claim('wrong-role', 'r', 's')",
+        )
+        self._assert_denied(
+            TASK_4W_WORKER_DSN,
+            "SELECT * FROM ops.websim_exact_enqueue(%s, %s, %s::jsonb)",
+            ("sha256:" + "f" * 64, b"{}", "{}"),
+        )
+
+    def _assert_reverse_metric_lock_order(self):
+        owner = "sha256:" + "d" * 64
+        first_request = self._request("metric-lock-early-v1")
+        second_request = self._request("metric-lock-late-v1")
+        self._enqueue(owner, first_request)
+        self._enqueue(owner, second_request)
+
+        claims = {}
+        for _index in range(2):
+            with self._connect(TASK_4W_WORKER_DSN) as conn:
+                with conn.cursor() as cur:
+                    cur.execute("SET ROLE wow_exact_worker")
+                    cur.execute(
+                        "SELECT * FROM ops.websim_exact_claim(%s, %s, %s)",
+                        ("metric-lock-worker", "exact-worker-v1", "simc-runtime-v1"),
+                    )
+                    claim = cur.fetchone()
+                    claims[claim[1]] = claim
+        self.assertEqual(
+            set(claims),
+            {first_request.request_key, second_request.request_key},
+        )
+        early_claim = claims[first_request.request_key]
+        late_claim = claims[second_request.request_key]
+        catalog_status = f"metric-reverse-{TASK_4W_RUN_ID}"
+
+        lock_connection = self._connect(TASK_4W_FRESH_DSN)
+        lock_cursor = lock_connection.cursor()
+        lock_cursor.execute(
+            "SELECT job_id FROM ops.websim_exact_import_jobs "
+            "WHERE job_id = %s FOR UPDATE",
+            (early_claim[0],),
+        )
+        started = Queue()
+
+        def terminalize_early():
+            with self._connect(TASK_4W_WORKER_DSN) as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT pg_catalog.set_config('application_name', %s, false)",
+                        (f"task4w-metric-early-{TASK_4W_RUN_ID}",),
+                    )
+                    cur.execute("SET ROLE wow_exact_worker")
+                    started.put(conn.info.backend_pid)
+                    cur.execute(
+                        "SELECT * FROM ops.websim_exact_terminalize("
+                        "%s, %s, 'resolved', 'resolved', %s::jsonb, NULL, %s)",
+                        (
+                            early_claim[0],
+                            early_claim[4],
+                            '{"status":"resolved"}',
+                            catalog_status,
+                        ),
+                    )
+                    return cur.fetchone()
+
+        released = False
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            future = pool.submit(terminalize_early)
+            try:
+                early_pid = started.get(timeout=5)
+                deadline = time.monotonic() + 10
+                observed_lock_wait = False
+                while time.monotonic() < deadline:
+                    with self._connect(TASK_4W_FRESH_DSN) as observer:
+                        with observer.cursor() as cur:
+                            cur.execute(
+                                "SELECT wait_event_type = 'Lock' "
+                                "FROM pg_catalog.pg_stat_activity WHERE pid = %s",
+                                (early_pid,),
+                            )
+                            observed = cur.fetchone()
+                    if observed and observed[0] is True:
+                        observed_lock_wait = True
+                        break
+                    if future.done():
+                        future.result()
+                        break
+                    time.sleep(0.02)
+                self.assertTrue(observed_lock_wait, "early terminalize never waited on job lock")
+
+                with self._connect(TASK_4W_WORKER_DSN) as conn:
+                    with conn.cursor() as cur:
+                        cur.execute("SET ROLE wow_exact_worker")
+                        cur.execute(
+                            "SELECT * FROM ops.websim_exact_terminalize("
+                            "%s, %s, 'resolved', 'resolved', %s::jsonb, NULL, %s)",
+                            (
+                                late_claim[0],
+                                late_claim[4],
+                                '{"status":"resolved"}',
+                                catalog_status,
+                            ),
+                        )
+                        late_result = cur.fetchone()
+                self.assertEqual(late_result[1], "resolved")
+                lock_connection.commit()
+                released = True
+                early_result = future.result(timeout=10)
+                self.assertEqual(early_result[1], "resolved")
+            finally:
+                if not released:
+                    lock_connection.rollback()
+                lock_cursor.close()
+                lock_connection.close()
+
+        with self._connect(TASK_4W_FRESH_DSN) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT outcome_count, first_outcome_at, last_outcome_at "
+                    "FROM ops.websim_exact_import_metrics_daily "
+                    "WHERE metric_day = CURRENT_DATE "
+                    "AND terminal_classification = 'resolved' AND catalog_status = %s",
+                    (catalog_status,),
+                )
+                metric = cur.fetchone()
+                self.assertEqual(metric[0], 2)
+                self.assertLessEqual(metric[1], metric[2])
+                cur.execute(
+                    "SELECT count(*), min(finished_at), max(finished_at) "
+                    "FROM ops.websim_exact_import_jobs "
+                    "WHERE job_id = ANY(%s) AND status = 'resolved'",
+                    ([early_claim[0], late_claim[0]],),
+                )
+                jobs = cur.fetchone()
+                self.assertEqual(jobs[0], 2)
+                self.assertEqual(metric[1:], jobs[1:])
+
+    def _assert_claim_metric_post_wait_lease_window(self):
+        owner = "sha256:" + "6" * 64
+        exhausted_request = self._request("claim-metric-exhausted-v1")
+        pending_request = self._request("claim-metric-pending-v1")
+        exhausted = self._enqueue(owner, exhausted_request)
+        pending = self._enqueue(owner, pending_request)
+        with self._connect(TASK_4W_FRESH_DSN) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE ops.websim_exact_import_jobs SET status = 'running', "
+                    "attempt = 3, locked_by = 'claim-metric-exhausted', "
+                    "lock_token = pg_catalog.gen_random_uuid(), "
+                    "lease_until = observed.at - interval '1 second', "
+                    "started_at = observed.at - interval '32 seconds', "
+                    "heartbeat_at = observed.at - interval '31 seconds', "
+                    "updated_at = observed.at "
+                    "FROM (SELECT pg_catalog.clock_timestamp() AS at) observed "
+                    "WHERE job_id = %s",
+                    (exhausted[0],),
+                )
+                cur.execute(
+                    "INSERT INTO ops.websim_exact_import_metrics_daily ("
+                    "metric_day, terminal_classification, catalog_status, "
+                    "outcome_count, first_outcome_at, last_outcome_at) "
+                    "SELECT CURRENT_DATE, 'internal_error', 'unknown', 1, "
+                    "observed.at, observed.at "
+                    "FROM (SELECT pg_catalog.clock_timestamp() AS at) observed "
+                    "ON CONFLICT (metric_day, terminal_classification, catalog_status) "
+                    "DO UPDATE SET outcome_count = 1, "
+                    "first_outcome_at = EXCLUDED.first_outcome_at, "
+                    "last_outcome_at = EXCLUDED.last_outcome_at"
+                )
+
+        started = Queue()
+
+        def blocked_claim():
+            with self._connect(TASK_4W_WORKER_DSN) as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT pg_catalog.set_config('application_name', %s, false)",
+                        (f"blocked-claim-metric-{TASK_4W_RUN_ID}",),
+                    )
+                    cur.execute("SET ROLE wow_exact_worker")
+                    started.put(conn.info.backend_pid)
+                    cur.execute(
+                        "SELECT * FROM ops.websim_exact_claim(%s, %s, %s)",
+                        ("claim-metric-worker", "exact-worker-v1", "simc-runtime-v1"),
+                    )
+                    claim = cur.fetchone()
+                    cur.execute(
+                        "SELECT %s::timestamptz - pg_catalog.clock_timestamp()",
+                        (claim[5],),
+                    )
+                    return claim, cur.fetchone()[0]
+
+        lock_connection = self._connect(TASK_4W_FRESH_DSN)
+        lock_cursor = lock_connection.cursor()
+        pool = None
+        released = False
+        try:
+            lock_cursor.execute(
+                "SELECT outcome_count FROM ops.websim_exact_import_metrics_daily "
+                "WHERE metric_day = CURRENT_DATE "
+                "AND terminal_classification = 'internal_error' "
+                "AND catalog_status = 'unknown' FOR UPDATE"
+            )
+            self.assertEqual(lock_cursor.fetchone()[0], 1)
+            pool = ThreadPoolExecutor(max_workers=1)
+            future = pool.submit(blocked_claim)
+            claim_pid = started.get(timeout=5)
+            deadline = time.monotonic() + 10
+            observed_lock_wait = False
+            while time.monotonic() < deadline:
+                with self._connect(TASK_4W_FRESH_DSN) as observer:
+                    with observer.cursor() as cur:
+                        cur.execute(
+                            "SELECT wait_event_type = 'Lock' "
+                            "FROM pg_catalog.pg_stat_activity WHERE pid = %s",
+                            (claim_pid,),
+                        )
+                        observed = cur.fetchone()
+                if observed and observed[0] is True:
+                    observed_lock_wait = True
+                    break
+                if future.done():
+                    future.result()
+                    break
+                time.sleep(0.02)
+            self.assertTrue(observed_lock_wait, "claim never waited on terminal metric row")
+            self.assertFalse(future.done())
+            time.sleep(1.1)
+            lock_connection.rollback()
+            released = True
+            claim, lease_window = future.result(timeout=10)
+        finally:
+            if not released:
+                lock_connection.rollback()
+            if pool is not None:
+                pool.shutdown(wait=True, cancel_futures=True)
+            lock_cursor.close()
+            lock_connection.close()
+
+        self.assertEqual((claim[0], claim[1]), (pending[0], pending_request.request_key))
+        self.assertGreater(lease_window.total_seconds(), 29.0)
+        with self._connect(TASK_4W_FRESH_DSN) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT status, attempt, request_key, "
+                    "lease_until = heartbeat_at + interval '30 seconds' "
+                    "FROM ops.websim_exact_import_jobs WHERE job_id = %s",
+                    (pending[0],),
+                )
+                self.assertEqual(
+                    cur.fetchone(),
+                    ("running", 1, pending_request.request_key, True),
+                )
+                cur.execute(
+                    "SELECT status, terminal_classification, problem_json->>'code' "
+                    "FROM ops.websim_exact_import_jobs WHERE job_id = %s",
+                    (exhausted[0],),
+                )
+                self.assertEqual(
+                    cur.fetchone(),
+                    ("failed", "internal_error", "ATTEMPT_EXHAUSTED"),
+                )
+                cur.execute(
+                    "SELECT outcome_count FROM ops.websim_exact_import_metrics_daily "
+                    "WHERE metric_day = CURRENT_DATE "
+                    "AND terminal_classification = 'internal_error' "
+                    "AND catalog_status = 'unknown'"
+                )
+                self.assertEqual(cur.fetchone()[0], 2)
+
+    def _assert_enqueue_cooldown_post_wait_boundary(self):
+        owner = "sha256:" + "7" * 64
+        request = self._request("enqueue-cooldown-boundary-v1")
+        failed = self._enqueue(owner, request)
+        with self._connect(TASK_4W_FRESH_DSN) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE ops.websim_exact_import_jobs SET status = 'failed', "
+                    "attempt = 1, terminal_classification = 'internal_error', "
+                    "started_at = observed.at - interval '15 minutes', "
+                    "finished_at = observed.at - interval '14 minutes', "
+                    "cooldown_until = observed.at + interval '1 minute', "
+                    "problem_json = '{\"code\":\"COOLDOWN_BOUNDARY\"}'::jsonb, "
+                    "updated_at = observed.at "
+                    "FROM (SELECT pg_catalog.clock_timestamp() AS at) observed "
+                    "WHERE job_id = %s",
+                    (failed[0],),
+                )
+
+        started = Queue()
+        invoke = Event()
+
+        def blocked_enqueue():
+            with self._connect(TASK_4W_APP_DSN) as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT pg_catalog.set_config('application_name', %s, false)",
+                        (f"blocked-enqueue-cooldown-{TASK_4W_RUN_ID}",),
+                    )
+                    started.put(conn.info.backend_pid)
+                    self.assertTrue(invoke.wait(timeout=5))
+                    cur.execute(
+                        "SELECT * FROM ops.websim_exact_enqueue(%s, %s, %s::jsonb)",
+                        (owner, request.canonical_bytes, json.dumps(request.request_json)),
+                    )
+                    return cur.fetchone()
+
+        lock_connection = self._connect(TASK_4W_FRESH_DSN)
+        lock_cursor = lock_connection.cursor()
+        pool = None
+        released = False
+        try:
+            lock_cursor.execute(
+                "SELECT pg_catalog.pg_advisory_xact_lock("
+                "pg_catalog.hashtextextended(%s, 0))",
+                (owner + ":" + request.request_key,),
+            )
+            pool = ThreadPoolExecutor(max_workers=1)
+            future = pool.submit(blocked_enqueue)
+            enqueue_pid = started.get(timeout=5)
+            with self._connect(TASK_4W_FRESH_DSN) as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "UPDATE ops.websim_exact_import_jobs SET "
+                        "started_at = boundary.finished_at - interval '1 second', "
+                        "finished_at = boundary.finished_at, "
+                        "cooldown_until = boundary.finished_at + interval '15 minutes', "
+                        "updated_at = pg_catalog.clock_timestamp() "
+                        "FROM (SELECT pg_catalog.clock_timestamp() "
+                        "- interval '15 minutes' + interval '1 second' "
+                        "AS finished_at) boundary WHERE job_id = %s "
+                        "RETURNING cooldown_until",
+                        (failed[0],),
+                    )
+                    cooldown_until = cur.fetchone()[0]
+                    cur.execute(
+                        "SELECT %s::timestamptz - pg_catalog.clock_timestamp()",
+                        (cooldown_until,),
+                    )
+                    cooldown_window = cur.fetchone()[0].total_seconds()
+                    self.assertGreater(cooldown_window, 0.5)
+                    self.assertLessEqual(cooldown_window, 1.0)
+            invoke.set()
+            deadline = time.monotonic() + 10
+            observed_lock_wait = False
+            cooldown_active_while_waiting = False
+            while time.monotonic() < deadline:
+                with self._connect(TASK_4W_FRESH_DSN) as observer:
+                    with observer.cursor() as cur:
+                        cur.execute(
+                            "SELECT wait_event_type = 'Lock' "
+                            "FROM pg_catalog.pg_stat_activity WHERE pid = %s",
+                            (enqueue_pid,),
+                        )
+                        observed = cur.fetchone()
+                        cur.execute(
+                            "SELECT cooldown_until > pg_catalog.clock_timestamp() "
+                            "FROM ops.websim_exact_import_jobs WHERE job_id = %s",
+                            (failed[0],),
+                        )
+                        cooldown_active_while_waiting = cur.fetchone()[0]
+                if observed and observed[0] is True:
+                    observed_lock_wait = True
+                    break
+                if future.done():
+                    future.result()
+                    break
+                time.sleep(0.02)
+            self.assertTrue(observed_lock_wait, "enqueue never waited on owner/request lock")
+            self.assertTrue(cooldown_active_while_waiting)
+            self.assertFalse(future.done())
+            time.sleep(1.25)
+            lock_connection.rollback()
+            released = True
+            new_pending = future.result(timeout=10)
+        finally:
+            if not released:
+                lock_connection.rollback()
+            invoke.set()
+            if pool is not None:
+                pool.shutdown(wait=True, cancel_futures=True)
+            lock_cursor.close()
+            lock_connection.close()
+
+        self.assertNotEqual(new_pending[0], failed[0])
+        self.assertEqual(
+            new_pending[1:],
+            (request.request_key, "pending", False, None),
+        )
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            concurrent = list(pool.map(lambda _index: self._enqueue(owner, request), range(2)))
+        serial = self._enqueue(owner, request)
+        for reused in concurrent + [serial]:
+            self.assertEqual(reused[0], new_pending[0])
+            self.assertEqual(reused[1], request.request_key)
+            self.assertEqual(reused[2:], ("pending", True, None))
+        with self._connect(TASK_4W_FRESH_DSN) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT count(*), count(*) FILTER (WHERE status = 'failed'), "
+                    "count(*) FILTER (WHERE status = 'pending') "
+                    "FROM ops.websim_exact_import_jobs "
+                    "WHERE owner_key_hash = %s AND request_key = %s",
+                    (owner, request.request_key),
+                )
+                self.assertEqual(cur.fetchone(), (2, 1, 1))
+
+    def _assert_job_lifecycle(self):
+        request = self._request()
+        owner = "sha256:" + "a" * 64
+        other_owner = "sha256:" + "b" * 64
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            rows = list(pool.map(lambda _index: self._enqueue(owner, request), range(2)))
+        self.assertEqual(rows[0][0], rows[1][0])
+        self.assertEqual(sorted(row[3] for row in rows), [False, True])
+        separate = self._enqueue(other_owner, request)
+        self.assertNotEqual(separate[0], rows[0][0])
+
+        with self._connect(TASK_4W_APP_DSN) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT * FROM ops.websim_exact_read(%s, %s)",
+                    (other_owner, rows[0][0]),
+                )
+                self.assertIsNone(cur.fetchone())
+
+        with self._connect(TASK_4W_WORKER_DSN) as conn:
+            with conn.cursor() as cur:
+                cur.execute("SET ROLE wow_exact_worker")
+                cur.execute(
+                    "SELECT * FROM ops.websim_exact_claim(%s, %s, %s)",
+                    ("candidate-worker", "exact-worker-v1", "simc-runtime-v1"),
+                )
+                claimed = cur.fetchone()
+        self.assertEqual(claimed[2], request.canonical_bytes)
+        old_token = claimed[4]
+        with self._connect(TASK_4W_FRESH_DSN) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE ops.websim_exact_import_jobs SET "
+                    "lease_until = observed.at - interval '1 second', "
+                    "heartbeat_at = observed.at - interval '31 seconds' "
+                    "FROM (SELECT pg_catalog.clock_timestamp() AS at) observed "
+                    "WHERE job_id = %s",
+                    (claimed[0],),
+                )
+        with self._connect(TASK_4W_WORKER_DSN) as conn:
+            with conn.cursor() as cur:
+                cur.execute("SET ROLE wow_exact_worker")
+                cur.execute(
+                    "SELECT * FROM ops.websim_exact_heartbeat(%s, %s)",
+                    (claimed[0], old_token),
+                )
+                self.assertIsNone(cur.fetchone())
+                cur.execute(
+                    "SELECT * FROM ops.websim_exact_claim(%s, %s, %s)",
+                    ("candidate-worker", "exact-worker-v1", "simc-runtime-v1"),
+                )
+                reclaimed = cur.fetchone()
+                self.assertNotEqual(reclaimed[4], old_token)
+                cur.execute(
+                    "SELECT * FROM ops.websim_exact_terminalize("
+                    "%s, %s, 'resolved', 'resolved', %s::jsonb, NULL, 'complete')",
+                    (reclaimed[0], reclaimed[4], '{"status":"resolved"}'),
+                )
+                self.assertEqual(cur.fetchone()[1], "resolved")
+                cur.execute(
+                    "SELECT * FROM ops.websim_exact_terminalize("
+                    "%s, %s, 'resolved', 'resolved', %s::jsonb, NULL, 'complete')",
+                    (reclaimed[0], old_token, '{"status":"resolved"}'),
+                )
+                self.assertIsNone(cur.fetchone())
+
+        with self._connect(TASK_4W_WORKER_DSN) as conn:
+            with conn.cursor() as cur:
+                import psycopg
+
+                cur.execute("SET ROLE wow_exact_worker")
+                with self.assertRaises(psycopg.errors.InvalidParameterValue):
+                    cur.execute("SELECT ops.websim_exact_prune_jobs(0)")
+
+        with self._connect(TASK_4W_FRESH_DSN) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT outcome_count FROM ops.websim_exact_import_metrics_daily "
+                    "WHERE metric_day = CURRENT_DATE "
+                    "AND terminal_classification = 'resolved' AND catalog_status = 'complete'"
+                )
+                self.assertEqual(cur.fetchone()[0], 1)
+                cur.execute(
+                    "UPDATE ops.websim_exact_import_jobs SET "
+                    "started_at = pg_catalog.clock_timestamp() - interval '9 days', "
+                    "finished_at = pg_catalog.clock_timestamp() - interval '8 days' "
+                    "WHERE job_id = %s",
+                    (reclaimed[0],),
+                )
+        with self._connect(TASK_4W_WORKER_DSN) as conn:
+            with conn.cursor() as cur:
+                cur.execute("SET ROLE wow_exact_worker")
+                cur.execute("SELECT ops.websim_exact_prune_jobs(1)")
+                self.assertEqual(cur.fetchone()[0], 1)
+
+    def _assert_post_lock_expiry_cas(self):
+        owner = "sha256:" + "e" * 64
+        heartbeat_request = self._request("post-lock-heartbeat-v1")
+        terminal_request = self._request("post-lock-terminalize-v1")
+        self._enqueue(owner, heartbeat_request)
+        self._enqueue(owner, terminal_request)
+        wanted = {
+            heartbeat_request.request_key,
+            terminal_request.request_key,
+        }
+        claims = {}
+        for _index in range(12):
+            with self._connect(TASK_4W_WORKER_DSN) as conn:
+                with conn.cursor() as cur:
+                    cur.execute("SET ROLE wow_exact_worker")
+                    cur.execute(
+                        "SELECT * FROM ops.websim_exact_claim(%s, %s, %s)",
+                        ("post-lock-worker", "exact-worker-v1", "simc-runtime-v1"),
+                    )
+                    claim = cur.fetchone()
+            if claim is None:
+                break
+            if claim[1] in wanted:
+                claims[claim[1]] = claim
+            if set(claims) == wanted:
+                break
+        self.assertEqual(set(claims), wanted)
+        heartbeat_claim = claims[heartbeat_request.request_key]
+        terminal_claim = claims[terminal_request.request_key]
+        target_ids = [heartbeat_claim[0], terminal_claim[0]]
+        catalog_status = f"post-lock-expiry-{TASK_4W_RUN_ID}"
+
+        lock_connection = self._connect(TASK_4W_FRESH_DSN)
+        lock_cursor = lock_connection.cursor()
+        try:
+            lock_cursor.execute(
+                "SELECT job_id, lease_until > pg_catalog.clock_timestamp() "
+                "FROM ops.websim_exact_import_jobs "
+                "WHERE job_id = ANY(%s) ORDER BY job_id FOR UPDATE",
+                (target_ids,),
+            )
+            locked = lock_cursor.fetchall()
+            self.assertEqual([row[0] for row in locked], sorted(target_ids))
+            self.assertTrue(all(row[1] is True for row in locked))
+        except Exception:
+            lock_connection.rollback()
+            lock_cursor.close()
+            lock_connection.close()
+            raise
+        started = Queue()
+
+        def blocked_heartbeat():
+            with self._connect(TASK_4W_WORKER_DSN) as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT pg_catalog.set_config('application_name', %s, false)",
+                        (f"blocked-heartbeat-{TASK_4W_RUN_ID}",),
+                    )
+                    cur.execute("SET ROLE wow_exact_worker")
+                    started.put(("heartbeat", conn.info.backend_pid))
+                    cur.execute(
+                        "SELECT * FROM ops.websim_exact_heartbeat(%s, %s)",
+                        (heartbeat_claim[0], heartbeat_claim[4]),
+                    )
+                    return cur.fetchone()
+
+        def blocked_terminalize():
+            with self._connect(TASK_4W_WORKER_DSN) as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT pg_catalog.set_config('application_name', %s, false)",
+                        (f"blocked-terminalize-{TASK_4W_RUN_ID}",),
+                    )
+                    cur.execute("SET ROLE wow_exact_worker")
+                    started.put(("terminalize", conn.info.backend_pid))
+                    cur.execute(
+                        "SELECT * FROM ops.websim_exact_terminalize("
+                        "%s, %s, 'resolved', 'resolved', %s::jsonb, NULL, %s)",
+                        (
+                            terminal_claim[0],
+                            terminal_claim[4],
+                            '{"status":"resolved"}',
+                            catalog_status,
+                        ),
+                    )
+                    return cur.fetchone()
+
+        released = False
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            try:
+                heartbeat_future = pool.submit(blocked_heartbeat)
+                terminal_future = pool.submit(blocked_terminalize)
+                pids = dict(started.get(timeout=5) for _index in range(2))
+                deadline = time.monotonic() + 10
+                observed_lock_wait = False
+                while time.monotonic() < deadline:
+                    with self._connect(TASK_4W_FRESH_DSN) as observer:
+                        with observer.cursor() as cur:
+                            cur.execute(
+                                "SELECT count(*) FILTER ("
+                                "WHERE wait_event_type = 'Lock') "
+                                "FROM pg_catalog.pg_stat_activity "
+                                "WHERE pid = ANY(%s)",
+                                (list(pids.values()),),
+                            )
+                            observed_lock_wait = cur.fetchone()[0] == 2
+                    if observed_lock_wait:
+                        break
+                    if heartbeat_future.done() or terminal_future.done():
+                        break
+                    time.sleep(0.02)
+                self.assertTrue(
+                    observed_lock_wait,
+                    "heartbeat and terminalize never both waited on their job locks",
+                )
+                self.assertFalse(heartbeat_future.done())
+                self.assertFalse(terminal_future.done())
+                time.sleep(31)
+                lock_connection.rollback()
+                released = True
+                self.assertIsNone(heartbeat_future.result(timeout=10))
+                self.assertIsNone(terminal_future.result(timeout=10))
+            finally:
+                if not released:
+                    lock_connection.rollback()
+                lock_cursor.close()
+                lock_connection.close()
+
+        with self._connect(TASK_4W_FRESH_DSN) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT count(*), bool_and(status = 'running'), "
+                    "bool_and(lease_until <= pg_catalog.clock_timestamp()), "
+                    "bool_and(lock_token IS NOT NULL), "
+                    "count(*) FILTER (WHERE terminal_classification IS NOT NULL), "
+                    "count(*) FILTER (WHERE finished_at IS NOT NULL) "
+                    "FROM ops.websim_exact_import_jobs WHERE job_id = ANY(%s)",
+                    (target_ids,),
+                )
+                self.assertEqual(cur.fetchone(), (2, True, True, True, 0, 0))
+                cur.execute(
+                    "SELECT count(*) FROM ops.websim_exact_import_metrics_daily "
+                    "WHERE catalog_status = %s",
+                    (catalog_status,),
+                )
+                terminal_metric = cur.fetchone()[0]
+                self.assertEqual(terminal_metric, 0)
+
+    def _assert_exhaustion_cooldown_metrics_and_bounded_prune(self):
+        request = self._request("exact-worker-exhaustion-v1")
+        owner = "sha256:" + "c" * 64
+        pending = self._enqueue(owner, request)
+        with self._connect(TASK_4W_FRESH_DSN) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE ops.websim_exact_import_jobs SET status = 'running', attempt = 3, "
+                    "locked_by = 'exhausted-worker', lock_token = pg_catalog.gen_random_uuid(), "
+                    "lease_until = observed.at - interval '1 second', "
+                    "started_at = observed.at - interval '32 seconds', "
+                    "heartbeat_at = observed.at - interval '31 seconds', "
+                    "updated_at = observed.at "
+                    "FROM (SELECT pg_catalog.clock_timestamp() AS at) observed "
+                    "WHERE job_id = %s",
+                    (pending[0],),
+                )
+        with self._connect(TASK_4W_WORKER_DSN) as conn:
+            with conn.cursor() as cur:
+                cur.execute("SET ROLE wow_exact_worker")
+                cur.execute(
+                    "SELECT * FROM ops.websim_exact_claim(%s, %s, %s)",
+                    ("candidate-worker", "exact-worker-v1", "simc-runtime-v1"),
+                )
+                cur.fetchone()
+        with self._connect(TASK_4W_FRESH_DSN) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT status, terminal_classification, problem_json->>'code', "
+                    "cooldown_until = finished_at + interval '15 minutes' "
+                    "FROM ops.websim_exact_import_jobs WHERE job_id = %s",
+                    (pending[0],),
+                )
+                self.assertEqual(
+                    cur.fetchone(),
+                    ("failed", "internal_error", "ATTEMPT_EXHAUSTED", True),
+                )
+        cooldown = self._enqueue(owner, request)
+        self.assertEqual((cooldown[0], cooldown[2], cooldown[3]), (pending[0], "failed", True))
+        with self._connect(TASK_4W_FRESH_DSN) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE ops.websim_exact_import_jobs SET "
+                    "started_at = observed.at - interval '17 minutes', "
+                    "finished_at = observed.at - interval '16 minutes', "
+                    "cooldown_until = observed.at - interval '1 minute', "
+                    "updated_at = observed.at "
+                    "FROM (SELECT pg_catalog.clock_timestamp() AS at) observed "
+                    "WHERE job_id = %s",
+                    (pending[0],),
+                )
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            after = list(pool.map(lambda _index: self._enqueue(owner, request), range(2)))
+        self.assertEqual(after[0][0], after[1][0])
+        self.assertNotEqual(after[0][0], pending[0])
+        self.assertEqual(sorted(row[3] for row in after), [False, True])
+
+        with self._connect(TASK_4W_FRESH_DSN) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE ops.websim_exact_import_metrics_daily SET metric_day = "
+                    "CURRENT_DATE - 91 WHERE terminal_classification = "
+                    "'internal_error' AND catalog_status = 'unknown'"
+                )
+        with self._connect(TASK_4W_WORKER_DSN) as conn:
+            with conn.cursor() as cur:
+                import psycopg
+
+                cur.execute("SET ROLE wow_exact_worker")
+                with self.assertRaises(psycopg.errors.InvalidParameterValue):
+                    cur.execute("SELECT ops.websim_exact_prune_metrics(101)")
+        with self._connect(TASK_4W_WORKER_DSN) as conn:
+            with conn.cursor() as cur:
+                cur.execute("SET ROLE wow_exact_worker")
+                cur.execute("SELECT ops.websim_exact_prune_metrics(1)")
+                self.assertEqual(cur.fetchone()[0], 1)
+
+    def test_fresh_0032_and_upgrade_0031_to_0032_with_real_roles(self):
+        self.assertEqual(TASK_4W_MIGRATIONS[-1].name, "0032_websim_exact_import_jobs.sql")
+        self.assertEqual(TASK_4W_BASELINE_MIGRATIONS[-1].name, "0031_websim_exact_snapshot_v2.sql")
+        fresh_identity = self._assert_empty_disposable(TASK_4W_FRESH_DSN, "fresh")
+        upgrade_identity = self._assert_empty_disposable(TASK_4W_UPGRADE_DSN, "upgrade")
+
+        self._apply(TASK_4W_FRESH_DSN, TASK_4W_MIGRATIONS)
+        self._apply(TASK_4W_UPGRADE_DSN, TASK_4W_BASELINE_MIGRATIONS)
+        with self._connect(TASK_4W_UPGRADE_DSN) as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT count(*) FROM ops.schema_migrations")
+                self.assertEqual(cur.fetchone()[0], 31)
+        self._apply(TASK_4W_UPGRADE_DSN, TASK_4W_MIGRATIONS[-1:])
+        for dsn in (TASK_4W_FRESH_DSN, TASK_4W_UPGRADE_DSN):
+            with self._connect(dsn) as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT count(*), count(*) FILTER (WHERE id = "
+                        "'0032_websim_exact_import_jobs') FROM ops.schema_migrations"
+                    )
+                    self.assertEqual(cur.fetchone(), (32, 1))
+
+        self._assert_role_logins()
+        self._assert_real_login_acl_matrix()
+        self._assert_acl_isolation()
+        self._assert_sensitive_jsonpath_boundary()
+        self._assert_reverse_metric_lock_order()
+        self._assert_claim_metric_post_wait_lease_window()
+        self._assert_job_lifecycle()
+        self._assert_exhaustion_cooldown_metrics_and_bounded_prune()
+        self._assert_enqueue_cooldown_post_wait_boundary()
+        self._assert_post_lock_expiry_cas()
+        self.assertEqual(self._database_identity(TASK_4W_FRESH_DSN, "fresh"), fresh_identity)
+        self.assertEqual(self._database_identity(TASK_4W_UPGRADE_DSN, "upgrade"), upgrade_identity)
 
 
 if __name__ == "__main__":

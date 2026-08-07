@@ -1,0 +1,25 @@
+[Unit]
+Description=Run the dormant dedicated-role WOW Exact Authority worker
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/opt/wow-mini-program
+EnvironmentFile=/etc/wow-exact-worker.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/usr/bin/python3 -m server.gear_exact_authority_worker
+Restart=always
+RestartSec=2
+TimeoutStopSec=30
+MemoryMax=2200M
+TasksMax=64
+Nice=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=read-only
+ProtectSystem=strict
+
+[Install]
+WantedBy=multi-user.target
