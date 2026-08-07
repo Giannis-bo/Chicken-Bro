@@ -257,6 +257,29 @@ def exact_materializer_dependency_vector():
     }
 
 
+def generic_exact_request(source_id="template-frost"):
+    return {
+        "selectionIntent": verified_source_replay()["source"].selection_intent,
+        "sourceRef": {
+            "contractRevision": "exact-simc-source-ref-v1",
+            "kind": "template",
+            "sourceId": source_id,
+            "remote": True,
+        },
+        "profileRef": {
+            "contractRevision": "exact-simc-profile-ref-v1",
+            "kind": "talent-template",
+            "sourceId": "talent-frost",
+            "remote": True,
+        },
+        "executionIntent": {
+            "contractRevision": "exact-simc-execution-intent-v1",
+            "raceKey": "human",
+            "scenarioKey": "single",
+        },
+    }
+
+
 class ReplayMaterializer:
     def __init__(self, replay):
         self.replay = replay
@@ -295,6 +318,40 @@ class ExactSimcApiTest(unittest.TestCase):
         self.assertNotEqual(owner_a, owner_b)
         with self.assertRaises(ValueError):
             exact_simc_job_owner_key_hash_for_user_id("not-a-user-id")
+
+    def test_exact_api_rejects_client_raw_profile_before_materialization(self):
+        """Every API entry point must reject a raw profile before dependencies run."""
+
+        calls = []
+        api = ExactSimcApi(
+            materialize=lambda _request, _owner: calls.append(True) or {
+                "status": "ready",
+                "confirmation": {
+                    "requestKey": "exact-import-request:sha256:" + "a" * 64,
+                    "resolvedLoadoutKey": "resolved-loadout-v2:sha256:" + "b" * 64,
+                    "simulationSnapshotKey": "simulation-snapshot-v2:sha256:" + "c" * 64,
+                    "dependencyVector": exact_dependency_vector(),
+                },
+            },
+            job_store=CapturingJobStore(),
+        )
+
+        response = api.confirm(
+            {
+                **generic_exact_request(),
+                "profileContext": {"rawString": "client-must-not-enter-exact"},
+            },
+            owner_key_hash="sha256:" + "f" * 64,
+        )
+
+        self.assertEqual(response, {
+            "contractRevision": "exact-simc-envelope-v1",
+            "operation": "confirm",
+            "status": "blocked",
+            "data": {},
+            "problems": [{"code": "EXACT_PROFILE_AUTHORITY_REQUIRED"}],
+        })
+        self.assertEqual(calls, [])
 
     def test_authenticated_source_materializer_uses_private_user_scope_and_job_hash_only(self):
         """The client source ref cannot become a cross-owner UUID lookup."""
@@ -431,15 +488,7 @@ class ExactSimcApiTest(unittest.TestCase):
         api = ExactSimcApi(materialize=materializer, job_store=CapturingJobStore())
 
         response = api.confirm(
-            {
-                "selectionIntent": replay["source"].selection_intent,
-                "sourceRef": {
-                    "contractRevision": "exact-simc-source-ref-v1",
-                    "kind": "template",
-                    "sourceId": "87654321-4321-8765-4321-876543218765",
-                    "remote": True,
-                },
-            },
+            generic_exact_request(replay["source"].template_id),
             owner_key_hash=exact_simc_job_owner_key_hash_for_user_id(user_id),
         )
 
@@ -740,16 +789,10 @@ class ExactSimcApiTest(unittest.TestCase):
             job_store=jobs,
         )
 
-        response = api.confirm({
-            "selectionIntent": {"schemaRevision": "selection-intent-v1"},
-            "profileContext": {"classKey": "mage", "specKey": "frost"},
-            "sourceRef": {
-                "contractRevision": "exact-simc-source-ref-v1",
-                "kind": "template",
-                "sourceId": "template-frost",
-                "remote": True,
-            },
-        }, owner_key_hash="sha256:" + "f" * 64)
+        response = api.confirm(
+            generic_exact_request(),
+            owner_key_hash="sha256:" + "f" * 64,
+        )
 
         self.assertEqual(response, {
             "contractRevision": "exact-simc-envelope-v1",
@@ -779,7 +822,7 @@ class ExactSimcApiTest(unittest.TestCase):
             ),
             job_store=CapturingJobStore(),
         )
-        self.assertEqual(unavailable.confirm({"sourceRef": source_ref}, owner_key_hash=owner), {
+        self.assertEqual(unavailable.confirm(generic_exact_request(), owner_key_hash=owner), {
             "contractRevision": "exact-simc-envelope-v1",
             "operation": "confirm",
             "status": "blocked",
@@ -815,7 +858,7 @@ class ExactSimcApiTest(unittest.TestCase):
             job_store=ExplodingJobStore(),
         )
         self.assertEqual(enqueue_failure.submit(
-            {"sourceRef": source_ref},
+            generic_exact_request(),
             confirmation=confirmation,
             owner_key_hash=owner,
         ), {
@@ -847,16 +890,10 @@ class ExactSimcApiTest(unittest.TestCase):
             job_store=jobs,
         )
 
-        response = api.confirm({
-            "selectionIntent": {"schemaRevision": "selection-intent-v1"},
-            "profileContext": {"classKey": "mage", "specKey": "frost"},
-            "sourceRef": {
-                "contractRevision": "exact-simc-source-ref-v1",
-                "kind": "template",
-                "sourceId": "template-frost",
-                "remote": True,
-            },
-        }, owner_key_hash="sha256:" + "f" * 64)
+        response = api.confirm(
+            generic_exact_request(),
+            owner_key_hash="sha256:" + "f" * 64,
+        )
 
         self.assertEqual(response, {
             "contractRevision": "exact-simc-envelope-v1",
@@ -900,16 +937,7 @@ class ExactSimcApiTest(unittest.TestCase):
             return
 
         response = api.submit(
-            {
-                "selectionIntent": {"schemaRevision": "selection-intent-v1"},
-                "profileContext": {"classKey": "mage", "specKey": "frost"},
-                "sourceRef": {
-                    "contractRevision": "exact-simc-source-ref-v1",
-                    "kind": "template",
-                    "sourceId": "template-frost",
-                    "remote": True,
-                },
-            },
+            generic_exact_request(),
             confirmation={
                 **confirmation,
                 "simulationSnapshotKey": "simulation-snapshot-v2:sha256:" + "d" * 64,
@@ -961,16 +989,7 @@ class ExactSimcApiTest(unittest.TestCase):
         owner_key_hash = "sha256:" + "e" * 64
 
         response = api.submit(
-            {
-                "selectionIntent": {"schemaRevision": "selection-intent-v1"},
-                "profileContext": {"classKey": "mage", "specKey": "frost"},
-                "sourceRef": {
-                    "contractRevision": "exact-simc-source-ref-v1",
-                    "kind": "template",
-                    "sourceId": "template-frost",
-                    "remote": True,
-                },
-            },
+            generic_exact_request(),
             confirmation=confirmation,
             owner_key_hash=owner_key_hash,
         )
@@ -1011,14 +1030,7 @@ class ExactSimcApiTest(unittest.TestCase):
         )
 
         response = api.submit(
-            {
-                "sourceRef": {
-                    "contractRevision": "exact-simc-source-ref-v1",
-                    "kind": "template",
-                    "sourceId": "template-frost",
-                    "remote": True,
-                },
-            },
+            generic_exact_request(),
             confirmation=confirmation,
             owner_key_hash="sha256:" + "e" * 64,
         )
@@ -1128,16 +1140,7 @@ class ExactSimcApiTest(unittest.TestCase):
         )
 
         response = api.submit(
-            {
-                "selectionIntent": {"schemaRevision": "selection-intent-v1"},
-                "profileContext": {"classKey": "mage", "specKey": "frost"},
-                "sourceRef": {
-                    "contractRevision": "exact-simc-source-ref-v1",
-                    "kind": "template",
-                    "sourceId": "template-frost",
-                    "remote": True,
-                },
-            },
+            generic_exact_request(),
             confirmation=confirmation,
             owner_key_hash="sha256:" + "e" * 64,
         )
@@ -1168,10 +1171,12 @@ class ExactSimcApiTest(unittest.TestCase):
             job_store=CapturingJobStore(),
         )
 
-        response = api.confirm({
-            "selectionIntent": {"schemaRevision": "selection-intent-v1"},
-            "profileContext": {"classKey": "mage", "specKey": "frost"},
-        }, owner_key_hash="sha256:" + "f" * 64)
+        request = generic_exact_request()
+        request.pop("sourceRef")
+        response = api.confirm(
+            request,
+            owner_key_hash="sha256:" + "f" * 64,
+        )
 
         self.assertEqual(response, {
             "contractRevision": "exact-simc-envelope-v1",
@@ -1208,16 +1213,7 @@ class ExactSimcApiTest(unittest.TestCase):
             }
 
         api = ExactSimcApi(materialize=materialize, job_store=CapturingJobStore())
-        request = {
-            "selectionIntent": {"schemaRevision": "selection-intent-v1"},
-            "profileContext": {"classKey": "mage", "specKey": "frost"},
-            "sourceRef": {
-                "contractRevision": "exact-simc-source-ref-v1",
-                "kind": "template",
-                "sourceId": "template-frost",
-                "remote": True,
-            },
-        }
+        request = generic_exact_request()
 
         self.assertEqual(
             api.confirm(request, owner_key_hash=owner_b),
@@ -1249,16 +1245,10 @@ class ExactSimcApiTest(unittest.TestCase):
             job_store=CapturingJobStore(),
         )
 
-        response = api.confirm({
-            "selectionIntent": {"schemaRevision": "selection-intent-v1"},
-            "profileContext": {"classKey": "mage", "specKey": "frost"},
-            "sourceRef": {
-                "contractRevision": "exact-simc-source-ref-v1",
-                "kind": "template",
-                "sourceId": "template-frost",
-                "remote": True,
-            },
-        }, owner_key_hash="sha256:" + "d" * 64)
+        response = api.confirm(
+            generic_exact_request(),
+            owner_key_hash="sha256:" + "d" * 64,
+        )
 
         self.assertEqual(response, {
             "contractRevision": "exact-simc-envelope-v1",

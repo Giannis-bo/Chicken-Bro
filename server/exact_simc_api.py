@@ -226,6 +226,36 @@ def _execution_intent(request: Any) -> dict[str, Any] | None:
     }
 
 
+def exact_simc_request_problem(request: Any) -> str | None:
+    """Classify a public Exact request without promoting any client facts.
+
+    Routes use this before constructing the private request-scoped owner.  The
+    complete selection is still reloaded and compared by
+    ``AuthenticatedExactSourceMaterializer``; this boundary only prevents raw
+    profile data, local references, and unbounded fields from reaching it.
+    """
+
+    if not isinstance(request, Mapping):
+        return "EXACT_SOURCE_AUTHORITY_REQUIRED"
+    if _source_ref(request) is None:
+        return "EXACT_SOURCE_AUTHORITY_REQUIRED"
+    expected = {
+        "selectionIntent", "sourceRef", "profileRef", "executionIntent",
+    }
+    if set(request) != expected:
+        if "profileContext" in request or not {
+            "profileRef", "executionIntent",
+        }.issubset(request):
+            return "EXACT_PROFILE_AUTHORITY_REQUIRED"
+        return "EXACT_SOURCE_AUTHORITY_REQUIRED"
+    selection, issues = parse_selection_intent(request.get("selectionIntent"))
+    if selection is None or issues:
+        return "EXACT_SOURCE_AUTHORITY_REQUIRED"
+    if _profile_ref(request) is None or _execution_intent(request) is None:
+        return "EXACT_PROFILE_AUTHORITY_REQUIRED"
+    return None
+
+
 def _owner_key_hash(value: Any) -> str | None:
     """Keep source lookup bound to an authenticated, opaque owner identity."""
 
@@ -855,7 +885,16 @@ class ExactSimcApi:
         """Materialize authority only; blocked outcomes never enqueue a job."""
 
         owner = _owner_key_hash(owner_key_hash)
-        if _source_ref(request) is None or owner is None:
+        request_problem = exact_simc_request_problem(request)
+        if request_problem is not None or owner is None:
+            if request_problem == "EXACT_PROFILE_AUTHORITY_REQUIRED":
+                return {
+                    "contractRevision": EXACT_SIMC_ENVELOPE_REVISION,
+                    "operation": "confirm",
+                    "status": "blocked",
+                    "data": {},
+                    "problems": [{"code": request_problem}],
+                }
             return _source_authority_required("confirm")
         try:
             materialized = self._materialize(request, owner)
@@ -901,7 +940,16 @@ class ExactSimcApi:
 
         supplied = _confirmation(confirmation)
         owner = _owner_key_hash(owner_key_hash)
-        if _source_ref(request) is None or owner is None:
+        request_problem = exact_simc_request_problem(request)
+        if request_problem is not None or owner is None:
+            if request_problem == "EXACT_PROFILE_AUTHORITY_REQUIRED":
+                return {
+                    "contractRevision": EXACT_SIMC_ENVELOPE_REVISION,
+                    "operation": "submit",
+                    "status": "blocked",
+                    "data": {},
+                    "problems": [{"code": request_problem}],
+                }
             return _source_authority_required("submit")
         try:
             materialized = self._materialize(request, owner)
@@ -1049,9 +1097,14 @@ class ExactSimcApi:
 
 __all__ = (
     "EXACT_SIMC_ENVELOPE_REVISION",
+    "EXACT_SIMC_EXECUTION_INTENT_REVISION",
+    "EXACT_SIMC_PROFILE_REF_REVISION",
     "EXACT_SIMC_SOURCE_REF_REVISION",
     "AuthenticatedExactSourceMaterializer",
+    "AuthenticatedExactProfileMaterializer",
     "ExactSimcApi",
     "ExactSimcMaterializer",
+    "ServerExactProfileCompiler",
+    "exact_simc_request_problem",
     "exact_simc_job_owner_key_hash_for_user_id",
 )
