@@ -68,6 +68,12 @@
       "status": "pass",
       "testedHead": "66ba36f8cf188813094cc984900df55cdec367d9",
       "summary": "Complete Task 5A packet passed at a clean HEAD with runtime identity pending, verification identity bound, closure pending and all four manual acceptance items pending."
+    },
+    {
+      "command": "env -u WOW_PG_TEST_DSN -u WOW_PG_TEST_RUN_ID_0030 -u WOW_PG_TEST_DSN_FRESH_0030 -u WOW_PG_TEST_DSN_UPGRADE_0030 -u WOW_PG_TEST_RUN_ID_0031 -u WOW_PG_TEST_DSN_FRESH_0031 -u WOW_PG_TEST_DSN_UPGRADE_0031 -u WOW_PG_TEST_RUN_ID_0032 -u WOW_PG_TEST_DSN_FRESH_0032 -u WOW_PG_TEST_DSN_UPGRADE_0032 -u WOW_PG_TEST_DSN_MIGRATOR_0032 -u WOW_PG_TEST_DSN_APP_0032 -u WOW_PG_TEST_DSN_WORKER_0032 PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p '*_test.py'",
+      "status": "pass",
+      "testedHead": "c286c6250afb9a3d1a2849db64e1b96ad787105c",
+      "summary": "2935 Python tests passed in 80.997s; four cloud-only PostgreSQL candidate entrypoints skipped because every local DSN was unset. Existing SQLite ResourceWarning output did not fail the suite."
     }
   ],
   "candidateDeployment": {
