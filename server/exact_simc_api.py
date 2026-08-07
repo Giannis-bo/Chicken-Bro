@@ -26,7 +26,10 @@ try:
     )
     from .gear_resolved_loadout import build_resolved_loadout_v2
     from .gear_resolver import resolve_v2
-    from .simulation_snapshot import build_simulation_snapshot_v2
+    from .simulation_snapshot import (
+        build_simulation_snapshot_v2,
+        talent_profile_key_for_lines,
+    )
 except ImportError:  # pragma: no cover - direct server runtime compatibility
     from exact_template_authority_binding import exact_template_authority_binding_payload
     from gear_canonical_kernel import CanonicalValueError, canonical_identity_token
@@ -37,7 +40,7 @@ except ImportError:  # pragma: no cover - direct server runtime compatibility
     )
     from gear_resolved_loadout import build_resolved_loadout_v2
     from gear_resolver import resolve_v2
-    from simulation_snapshot import build_simulation_snapshot_v2
+    from simulation_snapshot import build_simulation_snapshot_v2, talent_profile_key_for_lines
 
 
 EXACT_SIMC_ENVELOPE_REVISION = "exact-simc-envelope-v1"
@@ -391,6 +394,70 @@ def _profile_authority_required() -> dict[str, Any]:
         "status": "blocked",
         "problems": [{"code": "EXACT_PROFILE_AUTHORITY_REQUIRED"}],
     }
+
+
+class ServerExactProfileCompiler:
+    """Compose one Exact profile from server talent and options authorities only."""
+
+    _EXECUTION_OPTIONS_KEYS = frozenset({
+        "characterContext", "scenarioOptions", "preparationLines",
+    })
+
+    def __init__(
+        self,
+        *,
+        talent_encoder: Callable[[Mapping[str, Any]], Mapping[str, Any]],
+        execution_options_provider: Callable[[Mapping[str, Any], Any], Mapping[str, Any]],
+    ) -> None:
+        self._talent_encoder = talent_encoder
+        self._execution_options_provider = execution_options_provider
+
+    def __call__(
+        self,
+        talent_source: Mapping[str, Any],
+        execution_intent: Mapping[str, Any],
+        gear_source: Any,
+    ) -> dict[str, Any]:
+        selection_intent = getattr(gear_source, "selection_intent", None)
+        eligibility = (
+            selection_intent.get("eligibilityContext")
+            if isinstance(selection_intent, Mapping)
+            else None
+        )
+        if not isinstance(eligibility, Mapping):
+            raise ValueError("gear eligibility is required for Exact profile compilation")
+        encoded = self._talent_encoder(dict(talent_source))
+        if not isinstance(encoded, Mapping) or encoded.get("status") != "encoded":
+            raise ValueError("server talent authority did not encode the saved template")
+        if (
+            encoded.get("classKey") != eligibility.get("classKey")
+            or encoded.get("specKey") != eligibility.get("specKey")
+            or encoded.get("classKey") != talent_source.get("classKey")
+            or encoded.get("specKey") != talent_source.get("specKey")
+            or (
+                talent_source.get("heroKey")
+                and encoded.get("heroKey") != talent_source.get("heroKey")
+            )
+        ):
+            raise ValueError("server talent encoding does not match the saved source")
+        talent_lines = encoded.get("lines")
+        talent_profile_key = talent_profile_key_for_lines(talent_lines)
+        if not talent_profile_key:
+            raise ValueError("server talent encoding has no canonical lines")
+        execution = self._execution_options_provider(execution_intent, gear_source)
+        if (
+            not isinstance(execution, Mapping)
+            or set(execution) != self._EXECUTION_OPTIONS_KEYS
+            or _contains_private_result_key(execution)
+        ):
+            raise ValueError("server execution options are unavailable")
+        return {
+            "talentProfileKey": talent_profile_key,
+            "talentLines": list(talent_lines),
+            "characterContext": execution["characterContext"],
+            "scenarioOptions": execution["scenarioOptions"],
+            "preparationLines": execution["preparationLines"],
+        }
 
 
 class AuthenticatedExactProfileMaterializer:

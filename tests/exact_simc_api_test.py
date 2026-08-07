@@ -7,6 +7,7 @@ try:
     from server.exact_simc_api import (
         AuthenticatedExactSourceMaterializer,
         AuthenticatedExactProfileMaterializer,
+        ServerExactProfileCompiler,
         ExactSimcMaterializer,
         ExactSimcApi,
         exact_simc_job_owner_key_hash_for_user_id,
@@ -14,6 +15,7 @@ try:
 except ImportError:  # RED: the Task 5A owner does not exist yet.
     AuthenticatedExactSourceMaterializer = None
     AuthenticatedExactProfileMaterializer = None
+    ServerExactProfileCompiler = None
     ExactSimcMaterializer = None
     ExactSimcApi = None
     exact_simc_job_owner_key_hash_for_user_id = None
@@ -143,6 +145,52 @@ class CapturingProfileCompiler:
                 "calculateScaleFactors": 1,
             },
             "preparationLines": ["potion=tempered_potion"],
+        }
+
+
+class CapturingTalentEncoder:
+    def __init__(self):
+        self.calls = []
+
+    def __call__(self, talent_source):
+        self.calls.append(talent_source)
+        return {
+            "status": "encoded",
+            "classKey": "mage",
+            "specKey": "frost",
+            "heroKey": "spellslinger",
+            "lines": [
+                "class_talents=1:1/2:1",
+                "spec_talents=3:1",
+                "hero_talents=4:1",
+            ],
+        }
+
+
+class CapturingExecutionOptionsProvider:
+    def __init__(self):
+        self.calls = []
+
+    def __call__(self, execution_intent, gear_source):
+        self.calls.append((execution_intent, gear_source))
+        return {
+            "characterContext": {
+                "classKey": "mage",
+                "specKey": "frost",
+                "race": "human",
+                "level": 90,
+                "role": "spell",
+                "position": "ranged_back",
+            },
+            "scenarioOptions": {
+                "iterations": 10000,
+                "fightStyle": "Patchwerk",
+                "desiredTargets": 1,
+                "maxTime": 300,
+                "varyCombatLength": 0.2,
+                "calculateScaleFactors": 1,
+            },
+            "preparationLines": ["optimal_raid=0", "override.arcane_intellect=1"],
         }
 
 
@@ -433,6 +481,52 @@ class ExactSimcApiTest(unittest.TestCase):
             "problems": [{"code": "EXACT_PROFILE_AUTHORITY_REQUIRED"}],
         })
         self.assertEqual(compiler.calls, [])
+
+    def test_server_profile_compiler_uses_only_server_encoded_lines_and_options(self):
+        """Client profile lines must not be able to alter the snapshot profile key."""
+
+        self.assertIsNotNone(ServerExactProfileCompiler)
+        encoder = CapturingTalentEncoder()
+        options = CapturingExecutionOptionsProvider()
+        compiler = ServerExactProfileCompiler(
+            talent_encoder=encoder,
+            execution_options_provider=options,
+        )
+        source = {
+            "ownerId": "12345678-1234-5678-1234-567812345678",
+            "templateId": "87654321-4321-8765-4321-876543218765",
+            "templateType": "talent",
+            "remote": True,
+            "configHash": "a" * 64,
+            "rawString": "talents=client-input-is-server-reloaded-only",
+            "simcLines": ["talents=client-must-not-be-used"],
+            "classKey": "mage",
+            "specKey": "frost",
+            "heroKey": "spellslinger",
+        }
+        execution_intent = {
+            "contractRevision": "exact-simc-execution-intent-v1",
+            "raceKey": "human",
+            "scenarioKey": "single",
+        }
+        gear_source = SimpleNamespace(selection_intent={
+            "eligibilityContext": {"classKey": "mage", "specKey": "frost"},
+        })
+
+        profile = compiler(source, execution_intent, gear_source)
+
+        from server.simulation_snapshot import talent_profile_key_for_lines
+        expected_lines = [
+            "class_talents=1:1/2:1",
+            "spec_talents=3:1",
+            "hero_talents=4:1",
+        ]
+        self.assertEqual(encoder.calls, [source])
+        self.assertEqual(options.calls, [(execution_intent, gear_source)])
+        self.assertEqual(profile["talentLines"], expected_lines)
+        self.assertEqual(profile["talentProfileKey"], talent_profile_key_for_lines(expected_lines))
+        self.assertNotIn("rawString", profile)
+        self.assertNotIn("simcLines", profile)
 
     def test_full_materializer_derives_v2_job_input_only_from_replayed_exact_bundles(self):
         """A forged v1 request cannot alter the exact bytes that enter 0032."""
