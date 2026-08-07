@@ -8,8 +8,10 @@ envelopes for the Task 5A path.
 
 from __future__ import annotations
 
+import hashlib
 import re
 from typing import Any, Callable, Mapping
+import uuid
 
 try:
     from .gear_canonical_kernel import CanonicalValueError, canonical_identity_token
@@ -22,6 +24,35 @@ except ImportError:  # pragma: no cover - direct server runtime compatibility
 EXACT_SIMC_ENVELOPE_REVISION = "exact-simc-envelope-v1"
 EXACT_SIMC_SOURCE_REF_REVISION = "exact-simc-source-ref-v1"
 _OWNER_KEY_HASH = re.compile(r"sha256:[0-9a-f]{64}")
+_JOB_OWNER_NAMESPACE = "exact-simc-job-owner-v1:"
+_SOURCE_AUTHORITY_REVISION_KEYS = frozenset({
+    "gear_exact_registry_revision",
+    "gear_rule_revision",
+    "resolver_revision",
+    "simc_runtime_revision",
+})
+
+
+def exact_simc_job_owner_key_hash_for_user_id(user_id: Any) -> str:
+    """Derive the only 0032 owner identity from an authenticated UUID.
+
+    Callers keep ``user_id`` only in request memory for owner-scoped source
+    reload.  The job store, API envelope, logs and result path receive this
+    domain-separated hash instead.
+    """
+
+    if type(user_id) is not str:
+        raise ValueError("user id must be a canonical UUID")
+    try:
+        parsed = uuid.UUID(user_id)
+    except (AttributeError, TypeError, ValueError) as error:
+        raise ValueError("user id must be a canonical UUID") from error
+    normalized = str(parsed)
+    if normalized != user_id:
+        raise ValueError("user id must be a canonical UUID")
+    return "sha256:" + hashlib.sha256(
+        (_JOB_OWNER_NAMESPACE + normalized).encode("utf-8"),
+    ).hexdigest()
 
 
 def _problems(value: Any) -> list[dict[str, str]]:
@@ -118,6 +149,72 @@ def _source_authority_required(operation: str) -> dict[str, Any]:
         "data": {},
         "problems": [{"code": "EXACT_SOURCE_AUTHORITY_REQUIRED"}],
     }
+
+
+class AuthenticatedExactSourceMaterializer:
+    """Bind a route's private user scope to an opaque Exact job owner.
+
+    This is only the first, source-replay part of the full Task 5A
+    materializer.  It never discovers a template, derives v2 facts, or exposes
+    the authenticated UUID.  A later materializer consumes its reverified
+    internal closure to perform resolve/snapshot work.
+    """
+
+    def __init__(
+        self,
+        *,
+        authenticated_user_id: Any,
+        source_reader: Any,
+        authority_revisions: Mapping[str, Any],
+    ) -> None:
+        self._authenticated_user_id = self._canonical_uuid(authenticated_user_id)
+        self._expected_job_owner = exact_simc_job_owner_key_hash_for_user_id(
+            self._authenticated_user_id,
+        )
+        if not isinstance(authority_revisions, Mapping) or set(authority_revisions) != _SOURCE_AUTHORITY_REVISION_KEYS:
+            raise ValueError("source authority revisions are required")
+        try:
+            self._authority_revisions = {
+                key: canonical_identity_token(
+                    authority_revisions[key],
+                    path=f"authorityRevisions.{key}",
+                    max_bytes=256,
+                )
+                for key in sorted(_SOURCE_AUTHORITY_REVISION_KEYS)
+            }
+        except CanonicalValueError as error:
+            raise ValueError("source authority revisions are invalid") from error
+        self._source_reader = source_reader
+
+    @staticmethod
+    def _canonical_uuid(value: Any) -> str:
+        if type(value) is not str:
+            raise ValueError("authenticated user id must be a canonical UUID")
+        try:
+            parsed = uuid.UUID(value)
+        except (AttributeError, TypeError, ValueError) as error:
+            raise ValueError("authenticated user id must be a canonical UUID") from error
+        normalized = str(parsed)
+        if normalized != value:
+            raise ValueError("authenticated user id must be a canonical UUID")
+        return normalized
+
+    def __call__(self, request: Mapping[str, Any], job_owner_key_hash: str) -> dict[str, Any]:
+        source_ref = _source_ref(request)
+        if source_ref is None or job_owner_key_hash != self._expected_job_owner:
+            return {"status": "blocked", "problems": [{"code": "EXACT_SOURCE_AUTHORITY_REQUIRED"}]}
+        try:
+            template_id = self._canonical_uuid(source_ref["sourceId"])
+            replay = self._source_reader.read(
+                self._authenticated_user_id,
+                template_id,
+                **self._authority_revisions,
+            )
+        except (AttributeError, KeyError, TypeError, ValueError):
+            return {"status": "blocked", "problems": [{"code": "EXACT_SOURCE_AUTHORITY_REQUIRED"}]}
+        if not isinstance(replay, Mapping):
+            return {"status": "blocked", "problems": [{"code": "EXACT_SOURCE_AUTHORITY_REQUIRED"}]}
+        return dict(replay)
 
 
 class ExactSimcApi:
@@ -258,5 +355,7 @@ class ExactSimcApi:
 __all__ = (
     "EXACT_SIMC_ENVELOPE_REVISION",
     "EXACT_SIMC_SOURCE_REF_REVISION",
+    "AuthenticatedExactSourceMaterializer",
     "ExactSimcApi",
+    "exact_simc_job_owner_key_hash_for_user_id",
 )

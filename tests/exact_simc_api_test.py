@@ -1,9 +1,15 @@
 import unittest
 
 try:
-    from server.exact_simc_api import ExactSimcApi
+    from server.exact_simc_api import (
+        AuthenticatedExactSourceMaterializer,
+        ExactSimcApi,
+        exact_simc_job_owner_key_hash_for_user_id,
+    )
 except ImportError:  # RED: the Task 5A owner does not exist yet.
+    AuthenticatedExactSourceMaterializer = None
     ExactSimcApi = None
+    exact_simc_job_owner_key_hash_for_user_id = None
 
 
 def exact_dependency_vector():
@@ -43,7 +49,145 @@ class AcceptingJobStore:
         }
 
 
+class CapturingSourceReader:
+    def __init__(self):
+        self.calls = []
+
+    def read(self, owner_id, template_id, **revisions):
+        self.calls.append((owner_id, template_id, revisions))
+        return {
+            "status": "blocked",
+            "problemCodes": ["LOADOUT_EFFECT_AUTHORITY_REQUIRED"],
+            "problems": [{"code": "LOADOUT_EFFECT_AUTHORITY_REQUIRED"}],
+        }
+
+
+class VerifiedSourceReader(CapturingSourceReader):
+    def read(self, owner_id, template_id, **revisions):
+        self.calls.append((owner_id, template_id, revisions))
+        return {
+            "status": "verified",
+            "source": object(),
+            "binding": object(),
+            "slotBundles": (),
+            "problemCodes": [],
+            "problems": [],
+        }
+
+
 class ExactSimcApiTest(unittest.TestCase):
+    def test_job_owner_hash_is_domain_separated_from_the_authenticated_user_id(self):
+        """Routes keep the UUID in request memory; 0032 receives only this hash."""
+
+        self.assertIsNotNone(exact_simc_job_owner_key_hash_for_user_id)
+        owner_a = exact_simc_job_owner_key_hash_for_user_id(
+            "12345678-1234-5678-1234-567812345678",
+        )
+        owner_b = exact_simc_job_owner_key_hash_for_user_id(
+            "12345678-1234-5678-1234-567812345679",
+        )
+        self.assertRegex(owner_a, r"^sha256:[0-9a-f]{64}$")
+        self.assertNotEqual(owner_a, owner_b)
+        with self.assertRaises(ValueError):
+            exact_simc_job_owner_key_hash_for_user_id("not-a-user-id")
+
+    def test_authenticated_source_materializer_uses_private_user_scope_and_job_hash_only(self):
+        """The client source ref cannot become a cross-owner UUID lookup."""
+
+        self.assertIsNotNone(AuthenticatedExactSourceMaterializer)
+        user_id = "12345678-1234-5678-1234-567812345678"
+        template_id = "87654321-4321-8765-4321-876543218765"
+        revisions = {
+            "gear_exact_registry_revision": "gear-exact-registry:sha256:" + "a" * 64,
+            "gear_rule_revision": "gear-rule-v1",
+            "resolver_revision": "resolver-v2",
+            "simc_runtime_revision": "simc-runtime-v1",
+        }
+        reader = CapturingSourceReader()
+        materializer = AuthenticatedExactSourceMaterializer(
+            authenticated_user_id=user_id,
+            source_reader=reader,
+            authority_revisions=revisions,
+        )
+        request = {
+            "selectionIntent": {"client": "must-not-control-source"},
+            "sourceRef": {
+                "contractRevision": "exact-simc-source-ref-v1",
+                "kind": "template",
+                "sourceId": template_id,
+                "remote": True,
+            },
+        }
+
+        result = materializer(
+            request,
+            exact_simc_job_owner_key_hash_for_user_id(user_id),
+        )
+
+        self.assertEqual(result["status"], "blocked")
+        self.assertEqual(reader.calls, [(user_id, template_id, revisions)])
+        wrong_owner = materializer(
+            request,
+            exact_simc_job_owner_key_hash_for_user_id(
+                "12345678-1234-5678-1234-567812345679",
+            ),
+        )
+        self.assertEqual(wrong_owner["status"], "blocked")
+        self.assertEqual(wrong_owner["problems"], [{"code": "EXACT_SOURCE_AUTHORITY_REQUIRED"}])
+        self.assertEqual(len(reader.calls), 1)
+
+        bad_source = materializer(
+            {
+                "sourceRef": {
+                    "contractRevision": "exact-simc-source-ref-v1",
+                    "kind": "template",
+                    "sourceId": "not-a-template-uuid",
+                    "remote": True,
+                },
+            },
+            exact_simc_job_owner_key_hash_for_user_id(user_id),
+        )
+        self.assertEqual(bad_source["status"], "blocked")
+        self.assertEqual(len(reader.calls), 1)
+
+    def test_source_only_materializer_never_exposes_a_ready_exact_confirmation(self):
+        """A source binding is necessary but cannot bypass v2/effect/snapshot work."""
+
+        user_id = "12345678-1234-5678-1234-567812345678"
+        reader = VerifiedSourceReader()
+        materializer = AuthenticatedExactSourceMaterializer(
+            authenticated_user_id=user_id,
+            source_reader=reader,
+            authority_revisions={
+                "gear_exact_registry_revision": "gear-exact-registry:sha256:" + "a" * 64,
+                "gear_rule_revision": "gear-rule-v1",
+                "resolver_revision": "resolver-v2",
+                "simc_runtime_revision": "simc-runtime-v1",
+            },
+        )
+        api = ExactSimcApi(materialize=materializer, job_store=CapturingJobStore())
+
+        response = api.confirm(
+            {
+                "sourceRef": {
+                    "contractRevision": "exact-simc-source-ref-v1",
+                    "kind": "template",
+                    "sourceId": "87654321-4321-8765-4321-876543218765",
+                    "remote": True,
+                },
+            },
+            owner_key_hash=exact_simc_job_owner_key_hash_for_user_id(user_id),
+        )
+
+        self.assertEqual(response, {
+            "contractRevision": "exact-simc-envelope-v1",
+            "operation": "confirm",
+            "status": "blocked",
+            "data": {},
+            "problems": [{"code": "EXACT_AUTHORITY_UNAVAILABLE"}],
+        })
+        self.assertEqual(len(reader.calls), 1)
+
     def test_confirm_returns_literal_loadout_authority_block_without_creating_a_job(self):
         """A missing aggregate must not turn the old submit flow into a task."""
 

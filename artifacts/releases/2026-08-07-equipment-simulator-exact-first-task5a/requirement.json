@@ -110,7 +110,7 @@
       "apps/mini-taro/src/pages/simulator/simc-submit-model.ts"
     ],
     "runtimeConsumers": [],
-    "privacyBoundary": "The API and worker handle canonical exact data and bounded structured problems only; raw plugin input and account identity are request-memory-only and never enter 0030/0031/0032 storage, logs, packets or public responses."
+    "privacyBoundary": "The API and worker handle canonical exact data and bounded structured problems only; the authenticated UUID remains request-memory-only for owner-scoped source reload, while the 0032 job/read owner is a domain-separated exact-simc-job-owner-v1 hash. Raw plugin input and account identity never enter 0030/0031/0032/0033 storage, logs, packets or public responses."
   },
   "engineeringHealth": {
     "status": "authority_source_gap",
@@ -168,6 +168,10 @@
     {
       "date": "2026-08-07",
       "decision": "The user approved autonomous continuation and the independent owner-scoped source-binding/persistence work required for Task 5A. The plan may add 0033 only for that binding; no UI entry or visual relaxation, Catalog/Manifest mutation, generation 35 change, Task 6C, async sync/backfill, candidate or production gate is implied."
+    },
+    {
+      "date": "2026-08-07",
+      "decision": "Task 5A separates owner domains: authenticated user UUID is request-memory-only for 0033 source reload, exact-template-owner-v1 hashes bind saved sources, and exact-simc-job-owner-v1 hashes own 0032 jobs. The domains are never interchangeable and no UUID enters API/job/binding/result payloads."
     }
   ]
 }
