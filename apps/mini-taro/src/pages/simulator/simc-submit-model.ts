@@ -1,11 +1,15 @@
 import type {
+  ExactSimcExecutionIntent,
+  ExactSimcProfileRef,
+  ExactSimcSourceRef,
+} from '@wow-mini/api-client'
+import type {
   BuildTemplate,
   GearSelectionIntent,
   ReadinessState,
   SimcBuildContext,
   SimcOptionsPayload,
   SimcPreparationOption,
-  SimcProfileContext,
 } from '@wow-mini/domain'
 import { canonicalGearSelectionIntent } from '@wow-mini/domain'
 
@@ -37,6 +41,7 @@ export interface SimcGearSourceView {
   helperLabel: string
   state: 'ready' | 'partial'
   buildContext: SimcBuildContext
+  sourceRef?: ExactSimcSourceRef | undefined
 }
 
 export interface SimcOptionsView {
@@ -57,7 +62,9 @@ export interface SimcOptionsView {
 
 export interface CanonicalSimcContext {
   selectionIntent: GearSelectionIntent
-  profileContext: SimcProfileContext
+  sourceRef: ExactSimcSourceRef
+  profileRef: ExactSimcProfileRef
+  executionIntent: ExactSimcExecutionIntent
 }
 
 export interface SimcSubmissionToken {
@@ -285,6 +292,14 @@ export function simcGearSources(input: {
         selectionIntent,
         source: template.remote ? 'remote_gear_template' : 'local_gear_template',
       },
+      ...(template.remote ? {
+        sourceRef: {
+          contractRevision: 'exact-simc-source-ref-v1' as const,
+          kind: 'template' as const,
+          sourceId: template.id,
+          remote: true as const,
+        },
+      } : {}),
     })
   }
   return sources
@@ -361,6 +376,7 @@ export function deriveSimcOptionsView(
 
 export function buildCanonicalSimcContext(input: {
   buildContext: unknown
+  gearSource: SimcGearSourceView | undefined
   classKey: string
   specKey: string
   raceKey: string
@@ -370,24 +386,29 @@ export function buildCanonicalSimcContext(input: {
   const context = input.buildContext
   const template = input.talentTemplate
   const intent = canonicalSimcBuildIntent(context, input.classKey, input.specKey)
+  const sourceRef = input.gearSource?.sourceRef
   if (!intent
     || !template
+    || !sourceRef
+    || !template.remote
+    || template.classKey !== input.classKey
+    || template.specKey !== input.specKey
     || !input.raceKey
     || !input.scenarioKey) return null
-
-  const rawTalent = template.rawString.trim()
-  if (!rawTalent) return null
-  const profileContext: SimcProfileContext = {
-    classKey: input.classKey,
-    specKey: input.specKey,
-    race: input.raceKey,
-    scenarioKey: input.scenarioKey,
-    ...(template.heroKey ? { heroKey: template.heroKey } : {}),
-    talents: rawTalent,
-  }
   return {
     selectionIntent: intent,
-    profileContext,
+    sourceRef,
+    profileRef: {
+      contractRevision: 'exact-simc-profile-ref-v1',
+      kind: 'talent-template',
+      sourceId: template.id,
+      remote: true,
+    },
+    executionIntent: {
+      contractRevision: 'exact-simc-execution-intent-v1',
+      raceKey: input.raceKey,
+      scenarioKey: input.scenarioKey,
+    },
   }
 }
 

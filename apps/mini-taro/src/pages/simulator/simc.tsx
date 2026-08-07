@@ -1,7 +1,12 @@
 import Taro, { useRouter } from '@tarojs/taro'
 import { useEffect, useRef, useState } from 'react'
 
-import { taroStorage, wowApi } from '@wow-mini/api-client'
+import {
+  taroStorage,
+  wowApi,
+  type ExactSimcConfirmation,
+  type ExactSimcRequest,
+} from '@wow-mini/api-client'
 import { AppShell } from '@wow-mini/design-system/components/AppShell'
 import { PageFrame } from '@wow-mini/design-system/components/PageFrame'
 import { RouteStage } from '@wow-mini/design-system/components/RouteStage'
@@ -22,12 +27,9 @@ import {
   storageKey,
   type BuildTemplate,
   type BuildsHomePayload,
-  type GearProblem,
-  type GearStatSnapshotPayload,
   type ReadinessState,
   type SimcBuildContext,
   type SimcOptionsPayload,
-  type SimulatorAnalysisResponse,
   type SimulatorTaskRecord,
 } from '@wow-mini/domain'
 
@@ -75,9 +77,8 @@ interface SimcPagePayload {
 interface ConfirmationState {
   state: ReadinessState
   error?: string
-  request?: Readonly<Record<string, unknown>>
-  response?: SimulatorAnalysisResponse
-  stats?: GearStatSnapshotPayload
+  request?: ExactSimcRequest
+  confirmation?: ExactSimcConfirmation
 }
 
 const blockedOptionsView: SimcOptionsView = {
@@ -96,19 +97,9 @@ const blockedOptionsView: SimcOptionsView = {
   preparationRows: [],
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
 function activeTask(task: SimulatorTaskRecord): boolean {
   const status = task.status.toLowerCase()
   return status === 'queued' || status === 'running' || status === 'processing'
-}
-
-function explicitValidationPassed(response: SimulatorAnalysisResponse): boolean {
-  if (!isRecord(response.agent)) return false
-  const validation = response.agent['validation']
-  return isRecord(validation) && validation['passed'] === true
 }
 
 function compatibleTemplates(
@@ -122,7 +113,10 @@ function compatibleTemplates(
   ))
 }
 
-function envelopeMessage(problems: readonly GearProblem[], fallback: string): string {
+function envelopeMessage(
+  problems: readonly { code?: string; detail?: string; title?: string; kind?: string }[],
+  fallback: string,
+): string {
   return problems
     .map((problem) => problem.detail || problem.title || problem.code || problem.kind || '')
     .filter(Boolean)
@@ -264,6 +258,7 @@ export default function SimcSubmitPage() {
   const canonicalContext = data
     ? buildCanonicalSimcContext({
       buildContext: activeBuildContext,
+      gearSource: selectedGearSource,
       classKey: data.selection.classKey,
       specKey: data.selection.specKey,
       raceKey: optionsView.selectedRaceKey,
@@ -290,14 +285,13 @@ export default function SimcSubmitPage() {
     setSubmittedTaskId('')
   }
 
-  const buildRequest = (): Readonly<Record<string, unknown>> | null => {
+  const buildRequest = (): ExactSimcRequest | null => {
     if (!canonicalContext) return null
     return {
-      mode: 'simcraft_template',
-      confirmOnly: true,
-      saveTask: false,
       selectionIntent: canonicalContext.selectionIntent,
-      profileContext: canonicalContext.profileContext,
+      sourceRef: canonicalContext.sourceRef,
+      profileRef: canonicalContext.profileRef,
+      executionIntent: canonicalContext.executionIntent,
     }
   }
 
@@ -309,70 +303,24 @@ export default function SimcSubmitPage() {
     if (!submissionSession.current.isCurrent(token)) return
     setConfirmation({ state: 'loading' })
     try {
-      const startedAt = Date.now()
-      let pendingSignature = ''
-      for (let attempt = 0; attempt < 15 && Date.now() - startedAt < 45000; attempt += 1) {
-        if (!submissionSession.current.isCurrent(token)) return
-        const statsResult = await wowApi.websim.gearStatSnapshot({
-          selectionIntent: canonicalContext.selectionIntent,
-          profileContext: canonicalContext.profileContext,
-          timeoutMs: Math.max(1, 45000 - (Date.now() - startedAt)),
+      const result = await wowApi.simulator.exactSimcConfirm(request)
+      if (!submissionSession.current.isCurrent(token)) return
+      if (result.fromFallback) {
+        setConfirmation({ state: 'blocked', error: result.error || '组合校验请求失败，请重试。' })
+        return
+      }
+      if (result.payload.status !== 'ready') {
+        setConfirmation({
+          state: 'blocked',
+          error: envelopeMessage(result.payload.problems, '属性快照未通过后端校验'),
         })
-        if (!submissionSession.current.isCurrent(token)) return
-        if (statsResult.fromFallback) {
-          setConfirmation({ state: 'blocked', error: statsResult.error || '属性快照服务不可用' })
-          return
-        }
-        const statSignature = statsResult.payload.data.statSignature ?? ''
-        const snapshot = statsResult.payload.data.statSnapshot
-        if (statsResult.httpStatus === 200
-          && statsResult.payload.status === 'resolved'
-          && snapshot?.statStatus === 'verified') {
-          if (pendingSignature && statSignature !== pendingSignature) {
-            setConfirmation({ state: 'blocked', error: '属性快照签名在轮询期间发生变化' })
-            return
-          }
-          const confirmedRequest = { ...request, statSnapshot: snapshot }
-          if (!submissionSession.current.isCurrent(token)) return
-          const result = await wowApi.simulator.analyze(confirmedRequest)
-          if (!submissionSession.current.isCurrent(token)) return
-          if (result.fromFallback || !explicitValidationPassed(result.payload)) {
-            setConfirmation({
-              state: 'blocked',
-              error: result.error || '后端没有明确返回 validation.passed=true',
-              response: result.payload,
-              stats: snapshot,
-            })
-            return
-          }
-          if (!submissionSession.current.isCurrent(token)) return
-          setConfirmation({
-            state: 'ready',
-            request: confirmedRequest,
-            response: result.payload,
-            stats: snapshot,
-          })
-          return
-        }
-        if (statsResult.httpStatus !== 202 || statsResult.payload.status !== 'pending') {
-          setConfirmation({
-            state: 'blocked',
-            error: envelopeMessage(statsResult.payload.problems, '属性快照未通过后端校验'),
-          })
-          return
-        }
-        if (pendingSignature && statSignature !== pendingSignature) {
-          setConfirmation({ state: 'blocked', error: '属性快照签名在轮询期间发生变化' })
-          return
-        }
-        pendingSignature = statSignature
-        const delay = Math.min(5000, Math.max(250, Number(statsResult.payload.data.retryAfterMs) || 1500))
-        await new Promise((resolve) => setTimeout(resolve, delay))
-        if (!submissionSession.current.isCurrent(token)) return
+        return
       }
-      if (submissionSession.current.isCurrent(token)) {
-        setConfirmation({ state: 'blocked', error: '属性快照等待超时' })
-      }
+      setConfirmation({
+        state: 'ready',
+        request,
+        confirmation: result.payload.data,
+      })
     } catch (error) {
       if (!submissionSession.current.isCurrent(token)) return
       setConfirmation({
@@ -383,7 +331,10 @@ export default function SimcSubmitPage() {
   }
 
   const submit = async () => {
-    if (confirmation.state !== 'ready' || !confirmation.request || submittingRef.current) return
+    if (confirmation.state !== 'ready'
+      || !confirmation.request
+      || !confirmation.confirmation
+      || submittingRef.current) return
     const token = submissionSession.current.begin()
     if (!submissionSession.current.isCurrent(token)) return
     submittingRef.current = true
@@ -396,18 +347,39 @@ export default function SimcSubmitPage() {
         return
       }
       if (!submissionSession.current.isCurrent(token)) return
-      const result = await wowApi.simulator.analyze({
-        ...confirmation.request,
-        confirmOnly: false,
-        saveTask: true,
-      }, { auth: true, allowInsecureGuestRequest: true })
+      const result = await wowApi.simulator.exactSimcSubmit(
+        confirmation.request,
+        confirmation.confirmation,
+      )
       if (!submissionSession.current.isCurrent(token)) return
-      if (result.fromFallback || !result.payload.taskId) {
-        setConfirmation({ state: 'error', error: result.error || '后端没有返回 taskId' })
+      if (result.fromFallback) {
+        setConfirmation({ state: 'error', error: result.error || '提交失败，请重试。' })
+        return
+      }
+      if (result.payload.status !== 'queued') {
+        setConfirmation({
+          state: 'blocked',
+          error: envelopeMessage(result.payload.problems, '后端没有返回 taskId'),
+        })
+        return
+      }
+      const readResult = await wowApi.simulator.exactSimcRead(result.payload.data.jobId)
+      if (!submissionSession.current.isCurrent(token)) return
+      if (readResult.fromFallback) {
+        setConfirmation({ state: 'blocked', error: readResult.error || '后端没有返回 taskId' })
+        return
+      }
+      if (readResult.payload.status === 'blocked'
+        || readResult.payload.status === 'unsupported'
+        || readResult.payload.status === 'failed') {
+        setConfirmation({
+          state: 'blocked',
+          error: envelopeMessage(readResult.payload.problems, '后端没有返回 taskId'),
+        })
         return
       }
       if (!submissionSession.current.isCurrent(token)) return
-      setSubmittedTaskId(result.payload.taskId)
+      setSubmittedTaskId(String(result.payload.data.jobId))
       await Taro.showToast({ title: '任务已提交', icon: 'none' })
       if (!submissionSession.current.isCurrent(token)) return
     } catch (error) {

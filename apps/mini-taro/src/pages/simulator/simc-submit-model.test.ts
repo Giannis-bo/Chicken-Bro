@@ -6,6 +6,7 @@ import * as modelExports from './simc-submit-model'
 import {
   simcBlockerRows,
   simcConfirmationLabel,
+  simcGearSources,
   simcSummaryRows,
   simcTemplateSlot,
 } from './simc-submit-model'
@@ -74,7 +75,7 @@ describe('SimC submit truth model', () => {
     })
   })
 
-  it('keeps an HTTP or unauthenticated talent fallback local-only without staling the canonical page', () => {
+  it('keeps an HTTP or unauthenticated talent fallback local-only and out of Exact confirmation', () => {
     const routeFromFallback = (modelExports as Readonly<Record<string, unknown>>)['simcRouteFromFallback'] as
       | ((input: Readonly<Record<string, boolean>>) => boolean)
       | undefined
@@ -89,6 +90,10 @@ describe('SimC submit truth model', () => {
     }
     const canonical = modelExports.buildCanonicalSimcContext({
       buildContext: { classKey: 'mage', specKey: 'frost', selectionIntent },
+      gearSource: {
+        id: 'handoff', kind: 'handoff', label: 'handoff', helperLabel: '', state: 'partial',
+        buildContext: { classKey: 'mage', specKey: 'frost', selectionIntent },
+      },
       classKey: 'mage', specKey: 'frost', raceKey: 'human', scenarioKey: 'single',
       talentTemplate: localTemplate,
     })
@@ -103,11 +108,11 @@ describe('SimC submit truth model', () => {
       tasksFromFallback: false,
     })).toBe(false)
     expect(simcTemplateSlot('talent', [localTemplate], localTemplate.id).state).toBe('partial')
-    expect(canonical).not.toBeNull()
+    expect(canonical).toBeNull()
     expect(canPrepare({
       routeState: 'ready', optionsState: 'ready', canonicalContextAvailable: Boolean(canonical),
       activeTaskCount: 0, submitting: false,
-    })).toBe(true)
+    })).toBe(false)
   })
 
   it('invalidates async work on input revision changes and unmount', () => {
@@ -282,7 +287,7 @@ describe('SimC submit truth model', () => {
     expect(empty).toMatchObject({ state: 'empty', selectedScenarioKey: '', durationSeconds: undefined })
   })
 
-  it('builds canonical selectionIntent and profileContext from the gear handoff and talent source', () => {
+  it('builds Exact client intent only from remote saved gear and talent references', () => {
     const build = (modelExports as Readonly<Record<string, unknown>>)['buildCanonicalSimcContext'] as
       | ((...args: readonly unknown[]) => Readonly<Record<string, unknown>> | null)
       | undefined
@@ -295,20 +300,44 @@ describe('SimC submit truth model', () => {
 
     expect(build).toBeTypeOf('function')
     if (!build) return
+    const remoteGear = simcGearSources({
+      templates: [{
+        ...localTemplate,
+        id: 'gear-template-remote', type: 'gear', remote: true,
+        metadata: { selectionIntent },
+      }],
+      classKey: 'mage', specKey: 'frost', specializationLabel: '冰霜法师',
+    })[0]
+    const remoteTalent = {
+      ...localTemplate,
+      id: 'talent-template-remote',
+      remote: true,
+      rawString: 'must-not-cross-the-boundary',
+    }
+
     expect(build({
-      buildContext: { classKey: 'mage', specKey: 'frost', selectionIntent },
+      buildContext: remoteGear?.buildContext,
+      gearSource: remoteGear,
       classKey: 'mage', specKey: 'frost', raceKey: 'zandalari_troll',
-      scenarioKey: 'backend_raid', talentTemplate: { ...localTemplate, rawString: 'websim:mage:frost::root:1' },
+      scenarioKey: 'backend_raid', talentTemplate: remoteTalent,
     })).toEqual({
       selectionIntent,
-      profileContext: {
-        classKey: 'mage', specKey: 'frost',
-        race: 'zandalari_troll', scenarioKey: 'backend_raid',
-        talents: 'websim:mage:frost::root:1',
+      sourceRef: {
+        contractRevision: 'exact-simc-source-ref-v1', kind: 'template',
+        sourceId: 'gear-template-remote', remote: true,
+      },
+      profileRef: {
+        contractRevision: 'exact-simc-profile-ref-v1', kind: 'talent-template',
+        sourceId: 'talent-template-remote', remote: true,
+      },
+      executionIntent: {
+        contractRevision: 'exact-simc-execution-intent-v1',
+        raceKey: 'zandalari_troll', scenarioKey: 'backend_raid',
       },
     })
     expect(build({
       buildContext: { classKey: 'shaman', specKey: 'elemental', selectionIntent },
+      gearSource: remoteGear,
       classKey: 'mage', specKey: 'frost', raceKey: 'zandalari_troll',
       scenarioKey: 'backend_raid', talentTemplate: localTemplate,
     })).toBeNull()
@@ -317,14 +346,22 @@ describe('SimC submit truth model', () => {
         classKey: 'mage', specKey: 'frost',
         selectionIntent: { ...selectionIntent, schemaRevision: 'selection-intent-v0' },
       },
+      gearSource: remoteGear,
       classKey: 'mage', specKey: 'frost', raceKey: 'zandalari_troll',
       scenarioKey: 'backend_raid', talentTemplate: localTemplate,
     })).toBeNull()
     expect(build({
       buildContext: { classKey: 'mage', specKey: 'frost', selectionIntent },
+      gearSource: { id: 'handoff', kind: 'handoff', label: 'handoff', helperLabel: '', state: 'partial', buildContext: { classKey: 'mage', specKey: 'frost', selectionIntent } },
       classKey: 'mage', specKey: 'frost', raceKey: 'zandalari_troll',
-      scenarioKey: 'backend_raid', talentTemplate: { ...localTemplate, rawString: 'talents=CAE_CANONICAL' },
-    })).toMatchObject({ profileContext: { talents: 'talents=CAE_CANONICAL' } })
+      scenarioKey: 'backend_raid', talentTemplate: remoteTalent,
+    })).toBeNull()
+    expect(build({
+      buildContext: remoteGear?.buildContext,
+      gearSource: remoteGear,
+      classKey: 'mage', specKey: 'frost', raceKey: 'zandalari_troll',
+      scenarioKey: 'backend_raid', talentTemplate: localTemplate,
+    })).toBeNull()
   })
 
   it('offers only canonical gear handoffs or typed gear templates with a valid selection intent', () => {
@@ -357,6 +394,13 @@ describe('SimC submit truth model', () => {
     expect(sources[0]).toMatchObject({ state: 'partial', label: '冰霜法师 · 装备详情带入' })
     expect(sources[1]).toMatchObject({ state: 'ready', label: '已验证装备模板' })
     expect(sources[1]?.buildContext.selectionIntent).toEqual(canonicalSelectionIntent)
+    expect(sources[0]).not.toHaveProperty('sourceRef')
+    expect(sources[1]).toMatchObject({
+      sourceRef: {
+        contractRevision: 'exact-simc-source-ref-v1', kind: 'template',
+        sourceId: 'gear-valid', remote: true,
+      },
+    })
   })
 
   it('does not manufacture a SimC gear context from template display fields or raw JSON alone', () => {
