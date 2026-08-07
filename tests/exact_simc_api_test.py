@@ -315,7 +315,7 @@ class ExactSimcApiTest(unittest.TestCase):
             authority_revisions=revisions,
         )
         request = {
-            "selectionIntent": {"client": "must-not-control-source"},
+            "selectionIntent": verified_source_replay()["source"].selection_intent,
             "sourceRef": {
                 "contractRevision": "exact-simc-source-ref-v1",
                 "kind": "template",
@@ -343,6 +343,7 @@ class ExactSimcApiTest(unittest.TestCase):
 
         bad_source = materializer(
             {
+                "selectionIntent": verified_source_replay()["source"].selection_intent,
                 "sourceRef": {
                     "contractRevision": "exact-simc-source-ref-v1",
                     "kind": "template",
@@ -355,11 +356,68 @@ class ExactSimcApiTest(unittest.TestCase):
         self.assertEqual(bad_source["status"], "blocked")
         self.assertEqual(len(reader.calls), 1)
 
+    def test_authenticated_source_materializer_blocks_client_selection_drift(self):
+        """An opaque source ref cannot detach the request from the saved intent."""
+
+        user_id = "12345678-1234-5678-1234-567812345678"
+        replay = verified_source_replay()
+
+        class ReplayReader:
+            def __init__(self):
+                self.calls = []
+
+            def read(self, owner_id, template_id, **revisions):
+                self.calls.append((owner_id, template_id, revisions))
+                return replay
+
+        reader = ReplayReader()
+        materializer = AuthenticatedExactSourceMaterializer(
+            authenticated_user_id=user_id,
+            source_reader=reader,
+            authority_revisions={
+                "gear_exact_registry_revision": "gear-exact-registry:sha256:" + "a" * 64,
+                "gear_rule_revision": "gear-rule-v1",
+                "resolver_revision": "resolver-v2",
+                "simc_runtime_revision": "simc-runtime-v1",
+            },
+        )
+        forged_selection = json.loads(json.dumps(replay["source"].selection_intent))
+        forged_selection["slots"]["head"]["itemId"] = "forged-head"
+
+        result = materializer(
+            {
+                "selectionIntent": forged_selection,
+                "sourceRef": {
+                    "contractRevision": "exact-simc-source-ref-v1",
+                    "kind": "template",
+                    "sourceId": replay["source"].template_id,
+                    "remote": True,
+                },
+            },
+            exact_simc_job_owner_key_hash_for_user_id(user_id),
+        )
+
+        self.assertEqual(result, {
+            "status": "blocked",
+            "problems": [{"code": "EXACT_SOURCE_AUTHORITY_REQUIRED"}],
+        })
+        self.assertEqual(len(reader.calls), 1)
+
     def test_source_only_materializer_never_exposes_a_ready_exact_confirmation(self):
         """A source binding is necessary but cannot bypass v2/effect/snapshot work."""
 
         user_id = "12345678-1234-5678-1234-567812345678"
-        reader = VerifiedSourceReader()
+        replay = verified_source_replay()
+
+        class ReplayReader:
+            def __init__(self):
+                self.calls = []
+
+            def read(self, owner_id, template_id, **revisions):
+                self.calls.append((owner_id, template_id, revisions))
+                return replay
+
+        reader = ReplayReader()
         materializer = AuthenticatedExactSourceMaterializer(
             authenticated_user_id=user_id,
             source_reader=reader,
@@ -374,6 +432,7 @@ class ExactSimcApiTest(unittest.TestCase):
 
         response = api.confirm(
             {
+                "selectionIntent": replay["source"].selection_intent,
                 "sourceRef": {
                     "contractRevision": "exact-simc-source-ref-v1",
                     "kind": "template",

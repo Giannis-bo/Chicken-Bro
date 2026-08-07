@@ -24,6 +24,7 @@ try:
         REQUEST_V2_SCHEMA_REVISION,
         build_exact_import_job_request,
     )
+    from .gear_contracts import parse_selection_intent
     from .gear_resolved_loadout import build_resolved_loadout_v2
     from .gear_resolver import resolve_v2
     from .simulation_snapshot import (
@@ -38,6 +39,7 @@ except ImportError:  # pragma: no cover - direct server runtime compatibility
         REQUEST_V2_SCHEMA_REVISION,
         build_exact_import_job_request,
     )
+    from gear_contracts import parse_selection_intent
     from gear_resolved_loadout import build_resolved_loadout_v2
     from gear_resolver import resolve_v2
     from simulation_snapshot import build_simulation_snapshot_v2, talent_profile_key_for_lines
@@ -375,6 +377,11 @@ class AuthenticatedExactSourceMaterializer:
         source_ref = _source_ref(request)
         if source_ref is None or job_owner_key_hash != self._expected_job_owner:
             return {"status": "blocked", "problems": [{"code": "EXACT_SOURCE_AUTHORITY_REQUIRED"}]}
+        client_selection, selection_issues = parse_selection_intent(
+            request.get("selectionIntent") if isinstance(request, Mapping) else None,
+        )
+        if client_selection is None or selection_issues:
+            return {"status": "blocked", "problems": [{"code": "EXACT_SOURCE_AUTHORITY_REQUIRED"}]}
         try:
             template_id = self._canonical_uuid(source_ref["sourceId"])
             replay = self._source_reader.read(
@@ -385,6 +392,8 @@ class AuthenticatedExactSourceMaterializer:
         except (AttributeError, KeyError, TypeError, ValueError):
             return {"status": "blocked", "problems": [{"code": "EXACT_SOURCE_AUTHORITY_REQUIRED"}]}
         if not isinstance(replay, Mapping):
+            return {"status": "blocked", "problems": [{"code": "EXACT_SOURCE_AUTHORITY_REQUIRED"}]}
+        if getattr(replay.get("source"), "selection_intent", None) != client_selection:
             return {"status": "blocked", "problems": [{"code": "EXACT_SOURCE_AUTHORITY_REQUIRED"}]}
         return dict(replay)
 
