@@ -62,6 +62,12 @@
       "status": "pass",
       "testedHead": "4e3d797acd3d545d283e1ed65345cad43c4168a2",
       "summary": "No P1/P2 found in the Task 5A allowlist: no stylesheet changed; the page's route/UI contract tests pass; Exact methods replace the old stat-snapshot/analyze path; source/profile refs remain opaque; candidate/prod/worker states remain untouched."
+    },
+    {
+      "command": "node scripts/project-harness.js --json --check --requirement-file artifacts/releases/2026-08-07-equipment-simulator-exact-first-task5a/requirement.json --evidence-file artifacts/releases/2026-08-07-equipment-simulator-exact-first-task5a/evidence.json --manifest-file artifacts/releases/2026-08-07-equipment-simulator-exact-first-task5a/manifest.json --base origin/main",
+      "status": "pass",
+      "testedHead": "66ba36f8cf188813094cc984900df55cdec367d9",
+      "summary": "Complete Task 5A packet passed at a clean HEAD with runtime identity pending, verification identity bound, closure pending and all four manual acceptance items pending."
     }
   ],
   "candidateDeployment": {
