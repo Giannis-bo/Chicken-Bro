@@ -326,7 +326,12 @@ class ExactSimcApiTest(unittest.TestCase):
             "sourceRef": {"contractRevision": "exact-simc-source-ref-v1", "kind": "template", "sourceId": replay["source"].template_id, "remote": True},
         }
         loadout = {"status": "ready", "resolvedLoadoutKey": "resolved-loadout-v2:sha256:" + "b" * 64}
-        snapshot = {"status": "ready", "simulationSnapshotKey": "simulation-snapshot-v2:sha256:" + "c" * 64}
+        snapshot = {
+            "status": "ready",
+            "simulationSnapshotKey": "simulation-snapshot-v2:sha256:" + "c" * 64,
+            "resolvedLoadoutKey": "resolved-loadout-v2:sha256:" + "b" * 64,
+            "rowHash": "sha256:" + "d" * 64,
+        }
 
         with patch.object(module, "resolve_v2", return_value={"status": "verified"}) as resolve, patch.object(
             module, "build_resolved_loadout_v2", return_value=loadout
@@ -337,6 +342,22 @@ class ExactSimcApiTest(unittest.TestCase):
         self.assertEqual(result["confirmation"]["resolvedLoadoutKey"], loadout["resolvedLoadoutKey"])
         self.assertEqual(result["confirmation"]["simulationSnapshotKey"], snapshot["simulationSnapshotKey"])
         self.assertEqual(result["confirmation"]["dependencyVector"], dependencies)
+        self.assertEqual(
+            result["jobRequest"].request_json["schemaRevision"],
+            "exact-import-job-request-v2",
+        )
+        self.assertEqual(
+            {
+                "resolvedLoadoutKey": result["jobRequest"].request_json["resolvedLoadoutKey"],
+                "simulationSnapshotKey": result["jobRequest"].request_json["simulationSnapshotKey"],
+                "snapshotRowHash": result["jobRequest"].request_json["snapshotRowHash"],
+            },
+            {
+                "resolvedLoadoutKey": loadout["resolvedLoadoutKey"],
+                "simulationSnapshotKey": snapshot["simulationSnapshotKey"],
+                "snapshotRowHash": snapshot["rowHash"],
+            },
+        )
         self.assertEqual(result["jobRequest"].request_json["exactLoadoutIntent"]["slots"]["head"]["itemId"], "1001")
         self.assertEqual(result["jobRequest"].request_json["exactLoadoutIntent"]["eligibilityContext"], replay["source"].selection_intent["eligibilityContext"])
         self.assertEqual(len(store.calls), 2)
@@ -474,13 +495,22 @@ class ExactSimcApiTest(unittest.TestCase):
         })
 
         from server.gear_exact_import_job_store import build_exact_import_job_request
-        from tests.gear_exact_import_job_store_test import dependency_vector, exact_intent
+        from tests.gear_exact_import_job_store_test import (
+            dependency_vector,
+            exact_intent,
+            snapshot_reference,
+        )
 
-        request = build_exact_import_job_request(exact_intent(), dependency_vector())
+        reference = snapshot_reference()
+        request = build_exact_import_job_request(
+            exact_intent(),
+            dependency_vector(),
+            snapshot_reference=reference,
+        )
         confirmation = {
             "requestKey": request.request_key,
-            "resolvedLoadoutKey": "resolved-loadout-v2:sha256:" + "b" * 64,
-            "simulationSnapshotKey": "simulation-snapshot-v2:sha256:" + "c" * 64,
+            "resolvedLoadoutKey": reference["resolvedLoadoutKey"],
+            "simulationSnapshotKey": reference["simulationSnapshotKey"],
             "dependencyVector": dependency_vector(),
         }
         enqueue_failure = ExactSimcApi(
@@ -608,13 +638,22 @@ class ExactSimcApiTest(unittest.TestCase):
 
         self.assertIsNotNone(ExactSimcApi)
         from server.gear_exact_import_job_store import build_exact_import_job_request
-        from tests.gear_exact_import_job_store_test import dependency_vector, exact_intent
+        from tests.gear_exact_import_job_store_test import (
+            dependency_vector,
+            exact_intent,
+            snapshot_reference,
+        )
 
-        request = build_exact_import_job_request(exact_intent(), dependency_vector())
+        reference = snapshot_reference()
+        request = build_exact_import_job_request(
+            exact_intent(),
+            dependency_vector(),
+            snapshot_reference=reference,
+        )
         confirmation = {
             "requestKey": request.request_key,
-            "resolvedLoadoutKey": "resolved-loadout-v2:sha256:" + "b" * 64,
-            "simulationSnapshotKey": "simulation-snapshot-v2:sha256:" + "c" * 64,
+            "resolvedLoadoutKey": reference["resolvedLoadoutKey"],
+            "simulationSnapshotKey": reference["simulationSnapshotKey"],
             "dependencyVector": dependency_vector(),
         }
         jobs = AcceptingJobStore()
@@ -656,6 +695,49 @@ class ExactSimcApiTest(unittest.TestCase):
             "problems": [],
         })
         self.assertEqual(jobs.enqueued, [(owner_key_hash, request)])
+
+    def test_submit_rejects_a_v1_job_when_confirmation_names_a_v2_snapshot(self):
+        from server.gear_exact_import_job_store import build_exact_import_job_request
+        from tests.gear_exact_import_job_store_test import dependency_vector, exact_intent
+
+        request = build_exact_import_job_request(exact_intent(), dependency_vector())
+        confirmation = {
+            "requestKey": request.request_key,
+            "resolvedLoadoutKey": "resolved-loadout-v2:sha256:" + "b" * 64,
+            "simulationSnapshotKey": "simulation-snapshot-v2:sha256:" + "c" * 64,
+            "dependencyVector": dependency_vector(),
+        }
+        jobs = AcceptingJobStore()
+        api = ExactSimcApi(
+            materialize=lambda _request, _owner_key_hash: {
+                "status": "ready",
+                "confirmation": confirmation,
+                "jobRequest": request,
+            },
+            job_store=jobs,
+        )
+
+        response = api.submit(
+            {
+                "sourceRef": {
+                    "contractRevision": "exact-simc-source-ref-v1",
+                    "kind": "template",
+                    "sourceId": "template-frost",
+                    "remote": True,
+                },
+            },
+            confirmation=confirmation,
+            owner_key_hash="sha256:" + "e" * 64,
+        )
+
+        self.assertEqual(response, {
+            "contractRevision": "exact-simc-envelope-v1",
+            "operation": "submit",
+            "status": "blocked",
+            "data": {},
+            "problems": [{"code": "EXACT_CONFIRMATION_MISMATCH"}],
+        })
+        self.assertEqual(jobs.enqueued, [])
 
     def test_read_exposes_only_owner_scoped_bounded_exact_job_state(self):
         """Readback cannot reveal another owner's job or an internal row shape."""

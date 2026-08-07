@@ -3,7 +3,9 @@
 
 from __future__ import annotations
 
+import copy
 import os
+import re
 import signal
 import socket
 import threading
@@ -15,6 +17,7 @@ try:
         ExactImportJobRequest,
         GearExactImportJobStore,
         GearExactImportJobStoreIntegrityError,
+        REQUEST_V2_SCHEMA_REVISION,
     )
 except ImportError:  # pragma: no cover - direct server runtime compatibility
     from db import connect_postgres
@@ -22,11 +25,18 @@ except ImportError:  # pragma: no cover - direct server runtime compatibility
         ExactImportJobRequest,
         GearExactImportJobStore,
         GearExactImportJobStoreIntegrityError,
+        REQUEST_V2_SCHEMA_REVISION,
     )
 
 
 WORKER_REVISION = "exact-authority-worker-v1"
 WORKER_ROLE = "wow_exact_worker"
+_SIMULATION_SNAPSHOT_V2_SCHEMA_REVISION = "simulation-snapshot-v2"
+_RESULT_IDENTITY = re.compile(r"^simc-result:sha256:[0-9a-f]{64}$")
+_PRIVATE_RESULT_KEYS = frozenset({
+    "rawProfile", "rawString", "playerName", "characterName", "realm",
+    "server", "userId", "user_id", "ownerKeyHash", "owner_key_hash",
+})
 
 
 class WorkerConfigurationError(RuntimeError):
@@ -156,6 +166,146 @@ def unavailable_processor(_request: ExactImportJobRequest) -> dict[str, Any]:
         "problemJson": {"code": "EXACT_IMPORT_PROCESSOR_UNAVAILABLE"},
         "catalogStatus": "unknown",
     }
+
+
+def _snapshot_blocked_outcome(code: str) -> dict[str, Any]:
+    return {
+        "terminalStatus": "blocked",
+        "terminalClassification": "incomplete",
+        "resultJson": None,
+        "problemJson": {"code": code},
+        "catalogStatus": "unknown",
+    }
+
+
+def _snapshot_unsupported_outcome(code: str) -> dict[str, Any]:
+    return {
+        "terminalStatus": "unsupported",
+        "terminalClassification": "runtime_gap",
+        "resultJson": None,
+        "problemJson": {"code": code},
+        "catalogStatus": "unknown",
+    }
+
+
+def _snapshot_internal_error_outcome(code: str) -> dict[str, Any]:
+    return {
+        "terminalStatus": "failed",
+        "terminalClassification": "internal_error",
+        "resultJson": None,
+        "problemJson": {"code": code},
+        "catalogStatus": "unknown",
+    }
+
+
+def _contains_private_result_key(value: Any) -> bool:
+    if isinstance(value, Mapping):
+        return any(
+            key in _PRIVATE_RESULT_KEYS or _contains_private_result_key(nested)
+            for key, nested in value.items()
+        )
+    if isinstance(value, (list, tuple)):
+        return any(_contains_private_result_key(nested) for nested in value)
+    return False
+
+
+def snapshot_bound_processor(
+    *,
+    snapshot_store: Any,
+    simc_runtime_revision: str,
+    runner: Callable[[Mapping[str, Any]], Mapping[str, Any]],
+) -> Callable[[ExactImportJobRequest], dict[str, Any]]:
+    """Return the only worker processor allowed to run a sealed v2 snapshot.
+
+    The claimed request already passed the database function boundary.  This
+    processor repeats the critical identity checks against the single named
+    persisted snapshot, so no worker branch can infer a snapshot from an
+    intent, use a latest row, or replay materialization.
+    """
+
+    runtime_revision = _text(simc_runtime_revision)
+    if not runtime_revision:
+        raise WorkerConfigurationError("pinned SimC runtime revision is required")
+
+    def processor(request: ExactImportJobRequest) -> dict[str, Any]:
+        reference = request.snapshot_reference
+        if (
+            request.request_json.get("schemaRevision") != REQUEST_V2_SCHEMA_REVISION
+            or reference is None
+        ):
+            return _snapshot_unsupported_outcome(
+                "EXACT_IMPORT_REQUEST_V1_UNSUPPORTED",
+            )
+        dependency_vector = request.request_json.get("dependencyVector")
+        if (
+            not isinstance(dependency_vector, Mapping)
+            or dependency_vector.get("simcRuntimeRevision") != runtime_revision
+        ):
+            return _snapshot_unsupported_outcome("EXACT_IMPORT_RUNTIME_MISMATCH")
+        try:
+            snapshot = snapshot_store.load_snapshot(
+                reference.simulation_snapshot_key,
+                include_result=False,
+            )
+        except Exception:
+            return _snapshot_blocked_outcome("EXACT_IMPORT_SNAPSHOT_UNAVAILABLE")
+        if not isinstance(snapshot, Mapping) or not snapshot:
+            return _snapshot_blocked_outcome("EXACT_IMPORT_SNAPSHOT_UNAVAILABLE")
+        if (
+            snapshot.get("schemaRevision") != _SIMULATION_SNAPSHOT_V2_SCHEMA_REVISION
+            or snapshot.get("status") != "ready"
+            or snapshot.get("simulationSnapshotKey")
+                != reference.simulation_snapshot_key
+            or snapshot.get("resolvedLoadoutKey")
+                != reference.resolved_loadout_key
+            or snapshot.get("rowHash") != reference.snapshot_row_hash
+        ):
+            return _snapshot_blocked_outcome(
+                "EXACT_IMPORT_SNAPSHOT_REFERENCE_MISMATCH",
+            )
+        if snapshot.get("simcRuntimeRevision") != runtime_revision:
+            return _snapshot_unsupported_outcome("EXACT_IMPORT_RUNTIME_MISMATCH")
+        try:
+            runner_result = runner(copy.deepcopy(dict(snapshot)))
+        except Exception:
+            return _snapshot_internal_error_outcome("EXACT_IMPORT_RUNNER_FAILED")
+        if not isinstance(runner_result, Mapping) or _contains_private_result_key(runner_result):
+            return _snapshot_internal_error_outcome("EXACT_IMPORT_RUNNER_INVALID")
+        try:
+            bound = snapshot_store.bind_result(
+                reference.simulation_snapshot_key,
+                dict(runner_result),
+            )
+        except Exception:
+            return _snapshot_internal_error_outcome("EXACT_IMPORT_RESULT_BIND_FAILED")
+        if (
+            not isinstance(bound, Mapping)
+            or bound.get("status") != "executed"
+            or bound.get("simulationSnapshotKey")
+                != reference.simulation_snapshot_key
+            or bound.get("resolvedLoadoutKey")
+                != reference.resolved_loadout_key
+            or bound.get("snapshotRowHash") != reference.snapshot_row_hash
+            or not isinstance(bound.get("resultIdentity"), str)
+            or _RESULT_IDENTITY.fullmatch(bound["resultIdentity"]) is None
+            or not isinstance(bound.get("result"), Mapping)
+        ):
+            return _snapshot_internal_error_outcome("EXACT_IMPORT_RESULT_BIND_INVALID")
+        if bound["result"].get("status") != "completed":
+            return _snapshot_internal_error_outcome("EXACT_IMPORT_RUNNER_FAILED")
+        return {
+            "terminalStatus": "resolved",
+            "terminalClassification": "resolved",
+            "resultJson": {
+                "resultIdentity": bound["resultIdentity"],
+                "status": "resolved",
+                "simulationSnapshotKey": reference.simulation_snapshot_key,
+            },
+            "problemJson": None,
+            "catalogStatus": "unknown",
+        }
+
+    return processor
 
 
 def _validated_outcome(value: Any) -> dict[str, Any]:

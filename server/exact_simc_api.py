@@ -21,6 +21,7 @@ try:
     from .gear_canonical_kernel import CanonicalValueError, canonical_identity_token
     from .gear_exact_import_job_store import (
         DEPENDENCY_VECTOR_KEYS,
+        REQUEST_V2_SCHEMA_REVISION,
         build_exact_import_job_request,
     )
     from .gear_resolved_loadout import build_resolved_loadout_v2
@@ -31,6 +32,7 @@ except ImportError:  # pragma: no cover - direct server runtime compatibility
     from gear_canonical_kernel import CanonicalValueError, canonical_identity_token
     from gear_exact_import_job_store import (
         DEPENDENCY_VECTOR_KEYS,
+        REQUEST_V2_SCHEMA_REVISION,
         build_exact_import_job_request,
     )
     from gear_resolved_loadout import build_resolved_loadout_v2
@@ -533,7 +535,10 @@ class ExactSimcMaterializer:
             )
             if exact_intent is None:
                 return _blocked_materialization()
-            job_request = build_exact_import_job_request(
+            # Validate all former v1 job input before persistence, but do not
+            # emit that unbound representation.  The only request returned to
+            # the caller is built below from the reloaded sealed snapshot.
+            build_exact_import_job_request(
                 exact_intent,
                 dict(dependency_vector),
             )
@@ -559,11 +564,26 @@ class ExactSimcMaterializer:
         if (
             not isinstance(sealed_loadout, Mapping)
             or not isinstance(sealed_snapshot, Mapping)
+            or sealed_snapshot.get("status") != "ready"
             or sealed_loadout.get("resolvedLoadoutKey")
                 != resolved_loadout.get("resolvedLoadoutKey")
             or sealed_snapshot.get("simulationSnapshotKey")
                 != snapshot.get("simulationSnapshotKey")
+            or sealed_snapshot.get("resolvedLoadoutKey")
+                != sealed_loadout.get("resolvedLoadoutKey")
         ):
+            return _blocked_materialization()
+        try:
+            job_request = build_exact_import_job_request(
+                exact_intent,
+                dict(dependency_vector),
+                snapshot_reference={
+                    "resolvedLoadoutKey": sealed_loadout["resolvedLoadoutKey"],
+                    "simulationSnapshotKey": sealed_snapshot["simulationSnapshotKey"],
+                    "snapshotRowHash": sealed_snapshot.get("rowHash"),
+                },
+            )
+        except Exception:
             return _blocked_materialization()
         return {
             "status": "ready",
@@ -677,11 +697,22 @@ class ExactSimcApi:
             }
         job_request = materialized.get("jobRequest")
         job_payload = getattr(job_request, "request_json", None)
+        snapshot_reference = getattr(job_request, "snapshot_reference", None)
         if (
             getattr(job_request, "request_key", None) != authoritative["requestKey"]
             or type(job_payload) is not dict
+            or job_payload.get("schemaRevision") != REQUEST_V2_SCHEMA_REVISION
             or job_payload.get("dependencyVector")
             != authoritative["dependencyVector"]
+            or snapshot_reference is None
+            or getattr(snapshot_reference, "resolved_loadout_key", None)
+            != authoritative["resolvedLoadoutKey"]
+            or getattr(snapshot_reference, "simulation_snapshot_key", None)
+            != authoritative["simulationSnapshotKey"]
+            or not isinstance(
+                getattr(snapshot_reference, "snapshot_row_hash", None),
+                str,
+            )
         ):
             return {
                 "contractRevision": EXACT_SIMC_ENVELOPE_REVISION,

@@ -38,6 +38,7 @@ WEBSIM_EXACT_AUTHORITY_BUNDLE = ROOT / "server" / "migrations" / "postgres" / "0
 WEBSIM_EXACT_SNAPSHOT_V2 = ROOT / "server" / "migrations" / "postgres" / "0031_websim_exact_snapshot_v2.sql"
 WEBSIM_EXACT_IMPORT_JOBS = ROOT / "server" / "migrations" / "postgres" / "0032_websim_exact_import_jobs.sql"
 WEBSIM_EXACT_TEMPLATE_AUTHORITY_BINDING = ROOT / "server" / "migrations" / "postgres" / "0033_websim_exact_template_authority_binding.sql"
+WEBSIM_EXACT_JOB_SNAPSHOT_BINDING = ROOT / "server" / "migrations" / "postgres" / "0034_websim_exact_job_snapshot_binding.sql"
 TASK_4W_OBJECT_FILTERED_SENSITIVE_JSONPATH = (
     '$.** ? (@.type() == "object").keyvalue() ? ('
     '@.key == "rawProfile" || @.key == "rawString" || '
@@ -86,6 +87,11 @@ POSTGRES_MIGRATIONS_0001_0033 = tuple(sorted(
     path
     for path in (ROOT / "server" / "migrations" / "postgres").glob("[0-9][0-9][0-9][0-9]_*.sql")
     if path.name <= "0033_websim_exact_template_authority_binding.sql"
+))
+POSTGRES_MIGRATIONS_0001_0034 = tuple(sorted(
+    path
+    for path in (ROOT / "server" / "migrations" / "postgres").glob("[0-9][0-9][0-9][0-9]_*.sql")
+    if path.name <= "0034_websim_exact_job_snapshot_binding.sql"
 ))
 
 
@@ -734,6 +740,68 @@ def exact_template_authority_binding_schema_violations(sql, migrations):
     return violations
 
 
+def exact_job_snapshot_binding_schema_violations(sql, migrations):
+    """Static 0034 contract; database execution remains candidate-only."""
+
+    normalized = _normalized(sql)
+    violations = []
+    required = (
+        "CREATE OR REPLACE FUNCTION ops.websim_exact_import_request_is_valid(",
+        "RETURNS boolean",
+        "IMMUTABLE",
+        "SECURITY INVOKER",
+        "SET search_path = pg_catalog, pg_temp",
+        "exact-import-job-request-v1",
+        "exact-import-job-request-v2",
+        "resolvedLoadoutKey",
+        "simulationSnapshotKey",
+        "snapshotRowHash",
+        "^resolved-loadout-v2:sha256:[0-9a-f]{64}$",
+        "^simulation-snapshot-v2:sha256:[0-9a-f]{64}$",
+        "^sha256:[0-9a-f]{64}$",
+        "pg_catalog.pg_get_constraintdef",
+        "ALTER TABLE ops.websim_exact_import_jobs DROP CONSTRAINT",
+        "ADD CONSTRAINT websim_exact_import_jobs_request_schema_v1_v2_check",
+        "ops.websim_exact_import_request_is_valid(request_json)",
+        "CREATE OR REPLACE FUNCTION ops.websim_exact_enqueue(",
+        "CREATE OR REPLACE FUNCTION ops.websim_exact_claim(",
+        "NOT ops.websim_exact_import_request_is_valid(p_request_json)",
+        "NOT ops.websim_exact_import_request_is_valid(candidate.request_json)",
+        "REVOKE ALL ON FUNCTION ops.websim_exact_import_request_is_valid(jsonb) FROM PUBLIC, wow_app, wow_exact_worker;",
+        "@.key == \"rawProfile\"",
+        "@.key == \"rawString\"",
+        "@.key == \"playerName\"",
+        "@.key == \"characterName\"",
+        "@.key == \"realm\"",
+        "@.key == \"server\"",
+        "'0034_websim_exact_job_snapshot_binding'",
+    )
+    for clause in required:
+        if clause not in normalized:
+            violations.append(f"required: {clause}")
+    forbidden = (
+        "CREATE TABLE",
+        "GRANT EXECUTE ON FUNCTION ops.websim_exact_import_request_is_valid",
+        "CREATE ROLE",
+        "ALTER ROLE",
+        "CREATE DATABASE",
+        "ALTER DATABASE",
+    )
+    for clause in forbidden:
+        if clause.lower() in normalized.lower():
+            violations.append(f"forbidden: {clause}")
+    if normalized.count("CREATE OR REPLACE FUNCTION ops.websim_exact_enqueue(") != 1:
+        violations.append("one unchanged enqueue signature")
+    if normalized.count("CREATE OR REPLACE FUNCTION ops.websim_exact_claim(") != 1:
+        violations.append("one unchanged claim signature")
+    migration_names = [name for name, _body in migrations]
+    if migration_names.count("0034_websim_exact_job_snapshot_binding.sql") != 1:
+        violations.append("0034 filename identity")
+    if sum(body.count("'0034_websim_exact_job_snapshot_binding'") for _name, body in migrations) != 1:
+        violations.append("0034 ledger identity")
+    return violations
+
+
 class PostgresSchemaTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -1208,6 +1276,21 @@ $unsafe$;
         )
         self.assertEqual(
             exact_template_authority_binding_schema_violations(sql, migrations),
+            [],
+        )
+
+    def test_exact_job_snapshot_binding_preserves_v1_and_accepts_only_sealed_v2_references(self):
+        self.assertTrue(
+            WEBSIM_EXACT_JOB_SNAPSHOT_BINDING.exists(),
+            "missing static 0034 exact job-to-snapshot binding migration",
+        )
+        sql = WEBSIM_EXACT_JOB_SNAPSHOT_BINDING.read_text(encoding="utf-8")
+        migrations = tuple(
+            (path.name, path.read_text(encoding="utf-8"))
+            for path in POSTGRES_MIGRATIONS_0001_0034
+        )
+        self.assertEqual(
+            exact_job_snapshot_binding_schema_violations(sql, migrations),
             [],
         )
 
