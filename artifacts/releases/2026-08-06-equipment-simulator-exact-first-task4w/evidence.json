@@ -22,7 +22,7 @@
     },
     "closure": {
       "status": "pending",
-      "reason": "Candidate and independent CR are complete; exact-head CI, merge, merge-result scoped verification, main/origin parity, archival and owned-resource cleanup remain pending."
+      "reason": "Authorized delivery closure has exact-head CI, merge, merge-result scoped verification, main/origin parity and a pre-cleanup archive. Formal identity remains pending because the lifecycle contract does not model an archived status; strictly owned cleanup is recorded separately after this archive-and-parity gate."
     }
   },
   "manualAcceptance": {
@@ -88,12 +88,12 @@
     "freshDatabase": {
       "name": "wow_exact_first_fresh_test_t4w260807000500",
       "comment": "wow_exact_first_disposable:t4w260807000500:fresh",
-      "preservationStatus": "retained_until_merge_scoped_verification_main_parity_and_archival"
+      "preservationStatus": "eligible_for_owned_cleanup_after_pre_cleanup_archive_and_main_parity"
     },
     "upgradeDatabase": {
       "name": "wow_exact_first_upgrade_test_t4w260807000500",
       "comment": "wow_exact_first_disposable:t4w260807000500:upgrade",
-      "preservationStatus": "retained_until_merge_scoped_verification_main_parity_and_archival"
+      "preservationStatus": "eligible_for_owned_cleanup_after_pre_cleanup_archive_and_main_parity"
     },
     "workerIdentity": {
       "groupRole": "wow_exact_worker",
@@ -108,14 +108,14 @@
       "gitStatus": "clean",
       "commit": "6546db9bf98c2051facf8fb378b0e02cf9c36702",
       "gitTree": "d2f8a96d07684308a6cd391886d1834eb7f7c5c4",
-      "cleanupStatus": "pending_harness_closure"
+      "cleanupStatus": "eligible_for_owned_cleanup_after_pre_cleanup_archive_and_main_parity"
     },
     "bundle": {
       "localPath": "/tmp/wow-task4w-bundle.kP7Oi2/task4w-6546db9b.bundle",
       "remotePath": "/var/tmp/wow-task4w-candidate-t4w260807000500/source.bundle",
       "bytes": 116146104,
       "sha256": "8f6d315d2f6a34ba1d6afc02c398945f5d5b33826bc07230d4db0d3a5d022544",
-      "cleanupStatus": "pending_harness_closure"
+      "cleanupStatus": "eligible_for_owned_cleanup_after_pre_cleanup_archive_and_main_parity"
     },
     "processEvidence": {
       "exitCode": 0,
@@ -196,8 +196,31 @@
   ],
   "cleanup": {
     "required": true,
-    "status": "pending",
-    "reason": "Only the four Task 4W candidate database pairs, candidate-login roles, temporary candidate source/bundle artifacts, local owned bundles, feature worktree and branch may be removed after merge, merge-result verification, main/origin parity and archival identity checks. The pre-provisioned NOLOGIN group role is not a temporary candidate resource."
+    "status": "pre_cleanup_archive_and_main_parity_verified",
+    "reason": "Only the four Task 4W candidate database pairs, Task 4W candidate-login roles, temporary candidate source/bundle artifacts, local owned bundles, feature worktree and branch are eligible. Merge, merge-result verification, pre-cleanup archive and main/origin parity have been verified before any deletion. The pre-provisioned NOLOGIN group role is not a temporary candidate resource and must remain retained."
+  },
+  "archival": {
+    "status": "post_merge_scoped_verification_and_pre_cleanup_parity_recorded",
+    "mergeCommit": "14f47437d5e5143de243f63885e2c515144f3a34",
+    "pr": 118,
+    "exactHeadCi": {
+      "status": "pass",
+      "run": 31119305966,
+      "head": "873a98d68f214937b76e272fe597b275b4c04af9",
+      "summary": "Project Harness full profile passed after the single controlled rerun on the same cancelled-outage run; no source or runtime identity changed."
+    },
+    "postMergeScopedVerification": {
+      "status": "pass",
+      "command": "node scripts/verify-project.js --profile harness --release artifacts/releases/2026-08-06-equipment-simulator-exact-first-task4w --base 07ee458a114a28dc7b9287891ddfabff70d5b9a1 --json; no-DSN Task 4W focused unittest suite",
+      "testedHead": "14f47437d5e5143de243f63885e2c515144f3a34",
+      "summary": "93 Harness control tests, JSON/packet/syntax/diff checks and the no-local-PostgreSQL focused suite (83 passed, 4 candidate entrypoints skipped) passed from an isolated merge-result checkout."
+    },
+    "shaParityBeforeScopedCleanup": {
+      "status": "verified",
+      "commit": "14f47437d5e5143de243f63885e2c515144f3a34",
+      "localMergeWorktree": "14f47437d5e5143de243f63885e2c515144f3a34",
+      "originMain": "14f47437d5e5143de243f63885e2c515144f3a34"
+    }
   },
   "archivedReferences": [
     "docs/project-state.json",
@@ -208,5 +231,5 @@
     "docs/harness.md",
     "docs/verification-matrix.md"
   ],
-  "summary": "Task 4W is runtime-verified at 6546db9 / tree d2f8a96: final t4w260807000500 passed the cloud-only fresh-and-upgrade 0032 candidate using two new exact-commented disposable databases, isolated redacted migrator/app/worker identities and one low-priority process. Independent whole-branch CR and fresh no-DSN focused verification passed. No production migration, active worker, API, UI, SimC execution, Catalog/Manifest pointer, generation 35 change or user-visible closure is claimed."
+  "summary": "Task 4W remains runtime-verified at 6546db9 / tree d2f8a96: final t4w260807000500 passed the cloud-only fresh-and-upgrade 0032 candidate using two new exact-commented disposable databases, isolated redacted migrator/app/worker identities and one low-priority process. PR #118 exact-head CI, merge 14f47437, merge-result scoped Harness verification and pre-cleanup main/origin parity are archived. Only the explicitly owned cleanup remains after that archived gate. No production migration, active worker, API, UI, SimC execution, Catalog/Manifest pointer, generation 35 change or user-visible closure is claimed."
 }
