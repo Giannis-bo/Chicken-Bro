@@ -367,6 +367,13 @@ the store. The full local suite passes with `2965` tests and 5 expected
 cloud-only skips. This changes candidate test bytes, so a new final-head
 candidate remains mandatory and all four prior run ids stay unusable.
 
+The fifth candidate `t5c2608101221b5` reached release admission but failed when
+the v3 resolved loadout hit frozen 0031's v1/v2-only key check. Its log SHA-256
+is `8dc565aa0a027a85dacb0b93c4b40b70472fa09e264360fdf76a01e6f136c875`.
+0035 must forward-replace both historical loadout/snapshot key checks for v3;
+this failed run is identity-archived and must be discarded before another
+final-head candidate.
+
 - [ ] **Step 3: Review, CI and production only after candidate PASS**
 
 Run final CR/Harness at exact candidate head, publish one implementation PR, require exact-head CI, then apply reviewed `0030..0035` and provider/worker enablement per runbook. Record main/origin/cloud parity, no timer/backflow, API/readback and rollback. Never create a CI-only PR.

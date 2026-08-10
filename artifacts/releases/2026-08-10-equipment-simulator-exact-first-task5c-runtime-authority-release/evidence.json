@@ -117,6 +117,12 @@
       "status": "pass",
       "testedHead": "79455fa096bbf6f1c0514f7b900a2cde556cf756",
       "summary": "2965 tests passed in 78.146s with 5 expected cloud-only PostgreSQL candidate skips. The candidate runner now derives producer identity/revision through the public runtime release payload owner, requires verified/non-null sealing, and passes only that sealed occurrence to the store."
+    },
+    {
+      "command": "one cloud-only low-priority Task 5C candidate t5c2608101221b5",
+      "status": "fail",
+      "testedHead": "bf88007a07d53c1bc577c4bb92ff8a1b2e31b588",
+      "summary": "Fresh and upgrade disposable databases reached 35 migrations, release admission passed, and v3 loadout persistence then failed before attestation with CheckViolation on the frozen 0031 websim_gear_resolved_loadouts_resolved_loadout_key_check. 0035 added v3 fields and validators but did not forward-replace the historical v1/v2 key regex. Exact log SHA-256 8dc565aa0a027a85dacb0b93c4b40b70472fa09e264360fdf76a01e6f136c875, tree 9889cc9c333868149b5249828f08298d2ed59b29 and 0035 SHA-256 6aef914d618433913314711388d4093d6905c61ea9ea445d33267f2e579e7064 are archived here."
     }
   ],
   "candidateDeployment": {
@@ -172,6 +178,18 @@
         "failureLogSha256": "f0dee4fd673504b9adf3f810d06e3603a7d074b54a5a6032523cba030910df41",
         "failure": "RuntimeAuthorityReleaseIntegrityError: fixture producer identity/revision drift made seal_runtime_occurrence_index_entry return blocked with document None, so no sealed entry reached the store.",
         "resourceDisposition": "discarded_after_exact_identity_archive; never reset or reuse"
+      },
+      {
+        "runId": "t5c2608101221b5",
+        "commit": "bf88007a07d53c1bc577c4bb92ff8a1b2e31b588",
+        "gitTree": "9889cc9c333868149b5249828f08298d2ed59b29",
+        "migration0035Sha256": "6aef914d618433913314711388d4093d6905c61ea9ea445d33267f2e579e7064",
+        "freshDatabase": "wow_exact_first_fresh_test_t5c2608101221b5",
+        "upgradeDatabase": "wow_exact_first_upgrade_test_t5c2608101221b5",
+        "workerRole": "wow_exact_candidate_t5c2608101221b5",
+        "failureLogSha256": "8dc565aa0a027a85dacb0b93c4b40b70472fa09e264360fdf76a01e6f136c875",
+        "failure": "CheckViolation: 0035 did not forward-replace frozen 0031 v1/v2 resolved-loadout key regex to admit resolved-loadout-v3.",
+        "resourceDisposition": "identity_archived_cleanup_pending; never reset or reuse"
       }
     ]
   },
@@ -201,9 +219,9 @@
     "no_catalog_manifest_generation_or_async_backflow_mutation"
   ],
   "cleanup": {
-    "required": false,
-    "status": "complete",
-    "reason": "After the exact archive commit and a second identity check, only failed run t5c2608101215f4's two disposable databases, candidate worker login, remote source directory, bundle, log and 0600 connection material were discarded. Candidate database and role counts are zero, root disk is available, and production databases, existing roles, provider state and the inactive worker were not changed. Runs t5c260810033244, t5c2608101217a9 and t5c2608101210d3 remain previously discarded."
+    "required": true,
+    "status": "pending",
+    "reason": "Runs t5c260810033244, t5c2608101217a9, t5c2608101210d3 and t5c2608101215f4 are already discarded. After this archive commit, only failed run t5c2608101221b5's two exact-commented disposable databases, candidate worker login, remote source directory, bundle, log and 0600 connection material may be discarded. Production databases, existing roles, provider state and the inactive worker must not change."
   },
   "archivedReferences": [
     "docs/project-state.json",
@@ -216,5 +234,5 @@
     "docs/harness.md",
     "docs/verification-matrix.md"
   ],
-  "summary": "Task 5C is locally verified at 79455fa0 for immutable runtime release/context/index ownership, release-bound V3 execution, both forward-only 0035 repairs and the candidate harness repairs. Four cloud candidates failed before attestation: the first ambiguous binding conflict target received a named-primary-key repair, the repaired head exposed a distinct frozen binding-relation trigger privilege defect repaired through a wow_migrator-owned SECURITY DEFINER validator, and later heads exposed candidate fixture errors first losing the sealed occurrence entry and then sealing it with producer drift. All failed runs are archived and their exact disposable resources are discarded; one new final-head candidate remains mandatory. This is not a runtime, production or player-loop completion claim: the server factory remains disabled, no production database or service changed, and all user-facing gates remain pending."
+  "summary": "Task 5C is locally verified at 79455fa0 for immutable runtime release/context/index ownership, release-bound V3 execution, both forward-only 0035 repairs and the candidate harness repairs. Five cloud candidates failed before attestation; the latest exposed that 0035 had not forward-replaced 0031's frozen resolved-loadout key check for v3. The fifth failed run is archived and pending exact cleanup; a further 0035 compatibility repair and new final-head candidate remain mandatory. This is not a runtime, production or player-loop completion claim: the server factory remains disabled, no production database or service changed, and all user-facing gates remain pending."
 }
