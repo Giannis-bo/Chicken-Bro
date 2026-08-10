@@ -1,0 +1,123 @@
+{
+  "schemaVersion": 1,
+  "slug": "equipment-simulator-exact-first-production-foundation-deployment",
+  "classification": "Strict",
+  "status": "implementation_allowed",
+  "goal": "将已候选验证的 Exact-first 运行时与 0030--0035 以 provider/worker 保持禁用的方式部署到正式环境，并用有界只读 preflight 判定首个 owner-scoped source 是否存在。",
+  "userValue": "先安全推进到可承载 Exact-first 的正式基础；没有完整 authority 的模板继续如实 blocked，现有 UI 和既有用户流不被误导或降级。",
+  "nonGoals": [
+    "不启用 Exact provider 或 dedicated worker，不创建 release、binding、job 或 effect record。",
+    "不改变 apps/mini-taro 的 route、JSX、文案、SCSS、入口、导航或现有交互。",
+    "不下载外部数据，不使用本机 PostgreSQL，不改 Catalog/Manifest pointer、generation 35、timer 或 async sync/backfill。",
+    "不把 migration、HTTP 200、service active、候选 PASS 或聚合模板计数描述为用户 Exact 闭环完成。"
+  ],
+  "currentTruth": {
+    "sources": [
+      "docs/project-state.json",
+      "docs/roadmap.md",
+      "docs/plans/README.md",
+      "docs/plans/2026-08-04-equipment-simulator-exact-first-persistence-resequence.md",
+      "docs/plans/2026-08-10-equipment-simulator-exact-first-task5c-runtime-authority-release-design.md",
+      "docs/plans/2026-08-10-exact-first-production-foundation-deployment-design.md",
+      "docs/plans/2026-08-10-exact-first-production-foundation-deployment-implementation.md",
+      "docs/harness.md",
+      "docs/remote-debugging.md",
+      "docs/postgres-identity-migration-runbook.md"
+    ],
+    "activeMilestone": "taro_target_first_14_route_rebuild",
+    "featureIteration": "exact_first_production_foundation_deployment",
+    "baseBranch": "main"
+  },
+  "executionAuthorization": {
+    "allowedStages": [
+      "runtime_tree_parity_check_against_task5c_candidate",
+      "production_capacity_timer_and_database_backup_preflight",
+      "surgical_runtime_transfer",
+      "single_transaction_0030_through_0035_production_migration",
+      "wow_backend_restart_and_disabled_provider_smoke",
+      "aggregate_only_first_source_readiness_audit"
+    ],
+    "blockedStages": [
+      "provider_or_worker_activation",
+      "release_binding_or_job_admission",
+      "ui_visual_entry_or_navigation_change",
+      "catalog_manifest_generation_mutation",
+      "external_data_download_or_install",
+      "local_postgresql",
+      "timer_or_async_sync_start"
+    ],
+    "promotionRule": "Task 5C candidate runtime evidence is reusable only while f4dbb13c has no runtime-tree diff from 70e37b6f. This task may claim only deployed foundation after backup, exact migration parity, disabled-provider smoke and no-backflow proof; user-visible readiness requires a new one-source activation packet and real-WeChat acceptance."
+  },
+  "impactMap": {
+    "mustChange": [
+      "Production PostgreSQL migration ledger and append-only 0030--0035 schema.",
+      "Production backend runtime files and their file-hash identity.",
+      "Deployment evidence for backup, service health, schema parity and unchanged timers."
+    ],
+    "mustNotChange": [
+      "Exact provider/worker state, current mini-program visual and route contracts, Catalog/Manifest/generation 35, existing timers and async writers.",
+      "Historical Task 3A, 3B, 4W and 5C candidate identities and candidate cleanup."
+    ],
+    "riskUnknown": [
+      "No owner-scoped saved source may satisfy the complete bundle/effect/profile/release closure after deployment.",
+      "The remote deployment directory lacks Git metadata and therefore requires file-hash parity."
+    ],
+    "evidenceRequired": [
+      "Exact runtime-tree parity with Task 5C candidate identity before any production write.",
+      "Production backup, one ordered 0030--0035 transaction, 35-row ledger/schema/ACL check, backend-only restart, disabled-provider and no-backflow smoke.",
+      "Aggregate-only first-source gate counts and independent local CR/Harness verification."
+    ]
+  },
+  "ownership": {
+    "factOwner": "PostgreSQL migration ledger and immutable 0030--0035 owners remain the data authority; this deployment task only transports verified runtime bytes and reports owner-produced schema/readiness facts.",
+    "consumers": [
+      "server/news_backend.py",
+      "server/exact_simc_api.py",
+      "server/exact_runtime_authority_release_store.py",
+      "existing apps/mini-taro simc_submit page"
+    ],
+    "runtimeConsumers": [],
+    "roleBoundary": "wow_app remains application-only; sudo -u postgres is used only for the one reviewed schema transaction; no Exact worker login or service is activated."
+  },
+  "engineeringHealth": {
+    "status": "production_foundation_preflight_verified",
+    "reason": "Production is PostgreSQL-only at ledger 0029; resource preflight is healthy but the generic deploy script would touch unrelated timers. The allowlist therefore uses a surgical backend-only procedure and retains provider/worker disabled."
+  },
+  "acceptanceEvidence": [
+    "Runtime file hashes and 0035 bytes match the already candidate-verified Task 5C runtime identity before production write.",
+    "A validated production backup exists before the one 0030--0035 transaction, and the ledger reaches exactly 35 rows with expected release tables and ACLs.",
+    "Only wow-backend restarts; Exact worker remains inactive or absent, timer state is unchanged, no async job starts, and Exact API stays literal unavailable with no task created.",
+    "The first-source audit reports only aggregate gate counts; zero eligible sources causes zero admissions and starts no provider or worker."
+  ],
+  "manualAcceptanceContract": {
+    "required": false,
+    "requiredItemIds": []
+  },
+  "candidateDeployment": {
+    "required": false,
+    "reason": "No runtime source changed after Task 5C candidate: f4dbb13c runtime tree equals candidate runtime 70e37b6f. The task reuses only that immutable candidate evidence and performs a separately recorded production backup/parity/disabled-provider smoke."
+  },
+  "closureCondition": "This task closes only as a deployed but provider-disabled Exact foundation after the scoped production evidence and aggregate preflight. It cannot close, enable a user flow or claim player acceptance; a positive eligible source requires a new activation task.",
+  "releaseTrigger": "pg_read_model",
+  "rollback": [
+    "restore_prior_runtime_files_and_restart_wow_backend",
+    "transaction_rollback_before_migration_commit",
+    "validated_database_backup_for_explicit_schema_failure_recovery",
+    "provider_remains_disabled_without_legacy_fallback",
+    "no_timer_or_async_backflow"
+  ],
+  "decisionLog": [
+    {
+      "date": "2026-08-10",
+      "decision": "User approved advancing all achievable Exact-first work toward launch while treating unavailable authority as a bounded blocked condition rather than an endless dependency."
+    },
+    {
+      "date": "2026-08-10",
+      "decision": "Read-only production audit found migration 0029, no 0030--0035 tables and no personal saved-template rows. The task deploys only the verified foundation and leaves provider/worker disabled."
+    },
+    {
+      "date": "2026-08-10",
+      "decision": "The generic deploy script is excluded because it manages unrelated timers/services; this task uses a backend-only, no-backflow runbook without runtime source edits."
+    }
+  ]
+}
