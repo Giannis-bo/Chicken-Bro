@@ -80,6 +80,9 @@ TASK_5C_UPGRADE_DSN = os.environ.get("WOW_PG_TEST_DSN_UPGRADE_0035", "")
 TASK_5C_MIGRATOR_DSN = os.environ.get("WOW_PG_TEST_DSN_MIGRATOR_0035", "")
 TASK_5C_APP_DSN = os.environ.get("WOW_PG_TEST_DSN_APP_0035", "")
 TASK_5C_WORKER_DSN = os.environ.get("WOW_PG_TEST_DSN_WORKER_0035", "")
+TASK_5C_MIGRATOR_LOGIN = os.environ.get(
+    "WOW_PG_TEST_MIGRATOR_LOGIN_0035", "wow_migrator",
+)
 
 
 def validate_task3a_candidate_run_id(run_id):
@@ -117,6 +120,13 @@ def validate_task5c_candidate_run_id(run_id):
     if type(run_id) is not str or re.fullmatch(r"[a-z0-9]{8,32}", run_id) is None:
         raise ValueError("invalid Task 5C candidate run id")
     return run_id
+
+
+def validate_task5c_migrator_login(login):
+    """Accept only the documented existing operator or dedicated migrator login."""
+    if login not in {"postgres", "wow_migrator"}:
+        raise ValueError("invalid Task 5C migrator login")
+    return login
 
 
 def task4w_candidate_configured(
@@ -237,6 +247,7 @@ if TASK_4W_RUN_ID:
     validate_task4w_candidate_run_id(TASK_4W_RUN_ID)
 if TASK_5C_RUN_ID:
     validate_task5c_candidate_run_id(TASK_5C_RUN_ID)
+    validate_task5c_migrator_login(TASK_5C_MIGRATOR_LOGIN)
 TASK_3A_CANDIDATE_CONFIGURED = bool(
     TASK_3A_RUN_ID
     and TASK_3A_FRESH_DSN
@@ -624,6 +635,14 @@ class Task5CV3MigrationBoundaryTest(unittest.TestCase):
 
 
 class Task5CCandidateHarnessTest(unittest.TestCase):
+    def test_migrator_login_allows_only_the_documented_operator_or_role(self):
+        self.assertEqual(validate_task5c_migrator_login("wow_migrator"), "wow_migrator")
+        self.assertEqual(validate_task5c_migrator_login("postgres"), "postgres")
+        for invalid in ("", "wow_app", "wow_exact_worker", "candidate_admin"):
+            with self.subTest(invalid=invalid):
+                with self.assertRaises(ValueError):
+                    validate_task5c_migrator_login(invalid)
+
     def test_cloud_candidate_gate_requires_every_distinct_explicit_input(self):
         self.assertEqual(
             validate_task5c_candidate_run_id("t5c260810120000"),
@@ -4715,7 +4734,7 @@ class PostgresRuntimeAuthorityReleaseCandidateTest(unittest.TestCase):
     def _assert_role_logins(self):
         expected_database = f"wow_exact_first_fresh_test_{TASK_5C_RUN_ID}"
         for dsn, role in (
-            (TASK_5C_MIGRATOR_DSN, "wow_migrator"),
+            (TASK_5C_MIGRATOR_DSN, TASK_5C_MIGRATOR_LOGIN),
             (TASK_5C_APP_DSN, "wow_app"),
         ):
             with self._connect(dsn) as conn:
