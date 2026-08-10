@@ -743,6 +743,17 @@ class Task5CCandidateHarnessTest(unittest.TestCase):
                 self.assertIn(required, source)
         self.assertIn("occurrence_entries=(occurrence,)", source)
 
+    def test_candidate_runner_checks_both_migration_dsns_before_ddl(self):
+        source = inspect.getsource(PostgresRuntimeAuthorityReleaseCandidateTest)
+        for required in (
+            "def _assert_migration_connection_roles(self):",
+            "self._assert_migration_connection_roles()",
+            "for dsn in (TASK_5C_FRESH_DSN, TASK_5C_UPGRADE_DSN):",
+            'self.assertEqual(cur.fetchone(), ("postgres", "postgres"))',
+        ):
+            with self.subTest(required=required):
+                self.assertIn(required, source)
+
 class Task4WCandidateHarnessTest(unittest.TestCase):
     def test_cloud_candidate_gate_requires_every_distinct_explicit_input(self):
         self.assertEqual(validate_task4w_candidate_run_id("t4w260806210000"), "t4w260806210000")
@@ -4671,6 +4682,13 @@ class PostgresRuntimeAuthorityReleaseCandidateTest(unittest.TestCase):
                 self.assertEqual(roles["wow_exact_worker"], (False, False, False, False, False, False))
         return identity
 
+    def _assert_migration_connection_roles(self):
+        for dsn in (TASK_5C_FRESH_DSN, TASK_5C_UPGRADE_DSN):
+            with self._connect(dsn) as conn:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT session_user, current_user")
+                    self.assertEqual(cur.fetchone(), ("postgres", "postgres"))
+
     def _apply(self, dsn, migrations):
         with self._connect(dsn) as conn:
             with conn.cursor() as cur:
@@ -5017,6 +5035,7 @@ class PostgresRuntimeAuthorityReleaseCandidateTest(unittest.TestCase):
         self.assertEqual(os.environ.get("WOW_DEPLOY_START_ASYNC_SYNCS", "0"), "0")
         fresh_identity = self._assert_empty_disposable(TASK_5C_FRESH_DSN, "fresh")
         upgrade_identity = self._assert_empty_disposable(TASK_5C_UPGRADE_DSN, "upgrade")
+        self._assert_migration_connection_roles()
 
         self._apply(TASK_5C_FRESH_DSN, TASK_5C_MIGRATIONS)
         self._apply(TASK_5C_UPGRADE_DSN, TASK_5C_BASELINE_MIGRATIONS)
