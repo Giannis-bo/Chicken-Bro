@@ -2,22 +2,26 @@
   "schemaVersion": 2,
   "slug": "equipment-simulator-exact-first-production-foundation-deployment",
   "requirementSlug": "equipment-simulator-exact-first-production-foundation-deployment",
-  "status": "implementation_allowed",
-  "highestEvidenceLevel": "implementation_allowed",
-  "branch": "codex/exact-first-production-foundation-admission",
-  "commit": "pending_plan_review",
+  "status": "runtime_verified",
+  "highestEvidenceLevel": "runtime_verified",
+  "branch": "main",
+  "commit": "2d19e5740dd2f58a664840ab7d43b0f3115f7b2a",
   "identities": {
     "runtime": {
-      "status": "pending",
-      "reason": "Production foundation parity and disabled-provider smoke have not occurred."
+      "status": "bound",
+      "kind": "git_commit",
+      "value": "70e37b6fd88bee7dc0004d4cba6fec5aef820e02",
+      "reason": "Production is not a Git checkout. All 221 expected non-data server file SHA-256 values matched the merged runtime; f4dbb13c runtime tree was independently identical to this immutable Task 5C candidate."
     },
     "verification": {
-      "status": "pending",
-      "reason": "The plan packet has not yet completed its scoped Harness verification."
+      "status": "bound_at_check",
+      "kind": "git_ref",
+      "value": "HEAD",
+      "reason": "Fresh Harness checks run from the clean evidence-recording commit bind verification to its exact checked Git HEAD; the recorded production runtime remains separately bound to the Task 5C candidate commit."
     },
     "closure": {
       "status": "pending",
-      "reason": "No production foundation deployment or closure review has occurred."
+      "reason": "The production foundation is deployed, but provider/worker remain disabled and aggregate readiness found zero eligible sources. No Exact user flow or WeChat acceptance exists."
     }
   },
   "manualAcceptance": {
@@ -39,22 +43,47 @@
   ],
   "verification": [
     {
-      "command": "planned scoped Harness, production backup/migration/parity/no-backflow procedure",
-      "status": "not_run"
+      "command": "GitHub Project Harness run 31374180907 on PR #120",
+      "status": "pass",
+      "summary": "Exact-head full profile passed in 4m43s for 657d0a2a before merge 2d19e574."
+    },
+    {
+      "command": "merge-result requirement/check plus project owner-map, project-state and verify-project tests",
+      "status": "pass",
+      "summary": "The merged control-plane packet passed Harness requirement/check and 65 Node control-plane tests from an isolated checkout."
+    },
+    {
+      "command": "production backup, one psql -1 migration transaction, backend-only restart, disabled-provider smoke and aggregate readiness audit",
+      "status": "pass",
+      "summary": "A 1,034,546,559-byte full-read-validated PostgreSQL custom backup preceded the committed 0030--0035 transaction. Backend health returned 200 on 127.0.0.1:8787; worker remained inactive, import jobs remained zero, and no source was eligible."
     }
   ],
   "candidateDeployment": {
-    "status": "reused_task5c_candidate_pending_parity",
+    "status": "reused_task5c_candidate_verified",
     "commit": "70e37b6fd88bee7dc0004d4cba6fec5aef820e02",
     "gitTree": "516441faca2ac30b51190c29a416c391ce70d31d",
-    "reason": "Candidate reuse is permitted only after local runtime-tree parity from f4dbb13c to the immutable Task 5C candidate and before any production write."
+    "reason": "Local runtime-tree parity from f4dbb13c to immutable Task 5C candidate 70e37b6f passed before production write; merged control-plane commit 2d19e574 has no server/apps/packages diff from f4dbb13c."
   },
-  "runtimeEvidence": [],
+  "runtimeEvidence": [
+    {
+      "kind": "production_surgical_deployment",
+      "host": "wow-lighthouse",
+      "commit": "2d19e5740dd2f58a664840ab7d43b0f3115f7b2a",
+      "remoteEvidencePath": "/var/lib/wow-backend/exact-foundation-20260810T092755Z/deployment-evidence.json",
+      "remoteEvidenceSha256": "8a78c03b2e00cd363f09afd5993a322c9371ba1d92b1db3624e3e8edc3084583",
+      "backupSha256": "21f1f4ec41ba19cb41bff62b21cfaca5592712ffe441b954f07df6345684c44f",
+      "migrationLedger": "35:0035_websim_exact_runtime_authority_release",
+      "expectedRuntimeFileCount": 221,
+      "provider": "disabled_default_none",
+      "worker": "inactive",
+      "eligibleSourceCount": 0
+    }
+  ],
   "risks": [
     {
       "id": "no_eligible_source",
-      "status": "pending",
-      "detail": "Missing owner-scoped bundle/effect/profile/release closure must leave provider disabled and yield no user-ready source."
+      "status": "literal_blocked",
+      "detail": "Aggregate production audit found zero saved gear/talent sources and zero authority bundles, bindings, resolver contexts, releases, occurrence-index entries and import jobs. Provider remains disabled and yields no user-ready source."
     }
   ],
   "rollback": [
@@ -74,5 +103,5 @@
     "docs/plans/2026-08-10-equipment-simulator-exact-first-task5c-runtime-authority-release-design.md",
     "artifacts/releases/2026-08-10-equipment-simulator-exact-first-task5c-runtime-authority-release/evidence.json"
   ],
-  "summary": "Planned Strict production foundation deployment. It reuses only immutable Task 5C candidate evidence after runtime-tree parity, applies no provider/worker activation, and has no user-visible Exact completion claim."
+  "summary": "Strict production foundation deployment is runtime-verified at merged control-plane commit 2d19e574: a validated backup preceded the single 0030--0035 transaction, 221 expected runtime files matched, wow-backend recovered and provider/worker remained disabled. Aggregate readiness is literally blocked at zero eligible sources; this is not a user-visible Exact completion claim."
 }
