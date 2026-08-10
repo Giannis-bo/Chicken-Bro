@@ -86,11 +86,39 @@ def _read_nonnegative_int(
 
 
 def _identity_problem_codes(report_codes: list[str]) -> list[str]:
-    return [
-        code
-        for code in report_codes
-        if "MIXED_IDENTITY" in code or "IDENTITY_BLOCKED" in code
-    ]
+    return [code for code in report_codes if _is_identity_problem_code(code)]
+
+
+def _is_identity_problem_code(code: str) -> bool:
+    normalized = str(code or "").strip().upper()
+    if not normalized:
+        return False
+    if normalized.startswith("CATALOG_") and (
+        normalized.endswith("_MISMATCH")
+        or normalized.endswith("_KEY_MISMATCH")
+    ):
+        return True
+    if normalized.startswith("EXACT_") and (
+        normalized.endswith("_MISMATCH")
+        or normalized.endswith("_KEY_MISMATCH")
+        or normalized.endswith("_BINDING_INVALID")
+        or normalized.endswith("_REFERENCE_NOT_VERIFIED")
+        or normalized.endswith("_AUTHORITY_REQUIRED")
+    ):
+        return True
+    if normalized.startswith("LOADOUT_EXACT_") and normalized.endswith(
+        "_REFERENCE_NOT_VERIFIED"
+    ):
+        return True
+    if normalized.startswith("RESOLVED_LOADOUT_") and normalized.endswith(
+        "_BINDING_INVALID"
+    ):
+        return True
+    if normalized.startswith("TRACK_AUTHORITY_") and normalized.endswith(
+        "_BINDING_INVALID"
+    ):
+        return True
+    return False
 
 
 def build_candidate_gate_metrics(
@@ -261,10 +289,12 @@ def build_candidate_gate_metrics(
             )
         )
 
-    return {
+    result = {
         "status": "verified" if not problems else "blocked",
-        "metrics": safe_metrics,
         "problems": problems,
         "reportStatuses": dict(statuses),
         "reportProblemCodes": {key: list(value) for key, value in problem_codes.items()},
     }
+    result.update(safe_metrics)
+    result["metrics"] = dict(safe_metrics)
+    return result

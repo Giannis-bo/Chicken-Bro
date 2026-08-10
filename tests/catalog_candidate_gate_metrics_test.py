@@ -88,20 +88,22 @@ class CatalogCandidateGateMetricsTest(unittest.TestCase):
         )
 
         self.assertEqual(result["status"], "verified")
+        expected_metrics = {
+            "exact_derived_browse_count": 0,
+            "catalog_non_simulatable_count": 0,
+            "silent_default_fill_count": 0,
+            "type_unknown_nonportable_visible_count": 0,
+            "progression_conflict_count": 0,
+            "mixed_revision_count": 0,
+            "missing_provenance_count": 0,
+            "unique_variant_materialization_count": 4,
+            "supported_variant_simc_smoke_count": 4,
+        }
         self.assertEqual(
-            result["metrics"],
-            {
-                "exact_derived_browse_count": 0,
-                "catalog_non_simulatable_count": 0,
-                "silent_default_fill_count": 0,
-                "type_unknown_nonportable_visible_count": 0,
-                "progression_conflict_count": 0,
-                "mixed_revision_count": 0,
-                "missing_provenance_count": 0,
-                "unique_variant_materialization_count": 4,
-                "supported_variant_simc_smoke_count": 4,
-            },
+            {field: result[field] for field in REQUIRED_CANDIDATE_GATE_FIELDS},
+            expected_metrics,
         )
+        self.assertEqual(result["metrics"], expected_metrics)
         self.assertEqual(result["problems"], [])
         self.assertEqual(
             result["reportStatuses"],
@@ -161,6 +163,8 @@ class CatalogCandidateGateMetricsTest(unittest.TestCase):
                 "CANDIDATE_GATE_SIMC_COVERAGE_MISMATCH",
             },
         )
+        self.assertEqual(result["unique_variant_materialization_count"], 3)
+        self.assertEqual(result["supported_variant_simc_smoke_count"], 2)
         self.assertEqual(
             result["metrics"]["unique_variant_materialization_count"],
             3,
@@ -169,6 +173,42 @@ class CatalogCandidateGateMetricsTest(unittest.TestCase):
             result["metrics"]["supported_variant_simc_smoke_count"],
             2,
         )
+
+    def test_catalog_and_exact_identity_blockers_follow_current_repo_codes(self):
+        self.assertIsNotNone(build_candidate_gate_metrics)
+
+        result = build_candidate_gate_metrics(
+            self.catalog(
+                status="blocked",
+            ),
+            self.catalog_http_report(
+                problemCodes=[
+                    "CATALOG_HTTP_CATALOG_REVISION_MISMATCH",
+                    "LOADOUT_EFFECT_AUTHORITY_REQUIRED",
+                ]
+            ),
+            self.materialization_report(
+                problemCodes=["EXACT_PROGRESSION_CORRECTION_BINDING_INVALID"]
+            ),
+            self.simc_report(
+                problemCodes=["EXACT_TEMPLATE_REFERENCE_NOT_VERIFIED"]
+            ),
+        )
+
+        flagged_codes = {
+            problem["problemCode"]
+            for problem in result["problems"]
+            if problem["code"] == "CANDIDATE_GATE_IDENTITY_PROBLEM"
+        }
+        self.assertEqual(
+            flagged_codes,
+            {
+                "CATALOG_HTTP_CATALOG_REVISION_MISMATCH",
+                "EXACT_PROGRESSION_CORRECTION_BINDING_INVALID",
+                "EXACT_TEMPLATE_REFERENCE_NOT_VERIFIED",
+            },
+        )
+        self.assertNotIn("LOADOUT_EFFECT_AUTHORITY_REQUIRED", flagged_codes)
 
     def test_exact_registry_partial_status_and_problem_codes_are_preserved(self):
         self.assertIsNotNone(build_candidate_gate_metrics)
