@@ -46,6 +46,31 @@ class CatalogCandidateEvidenceAssemblyTest(unittest.TestCase):
         report.update(overrides)
         return report
 
+    def raw_catalog_http_report(self, **overrides):
+        identity = self.expected_identity()
+        report = {
+            "schemaRevision": "gear-catalog-http-completeness-matrix-v2",
+            "status": "pass",
+            "bindingMode": "candidate_preview",
+            "manifestRevision": identity["manifestRevision"],
+            "pointerGeneration": identity["pointerGeneration"],
+            "gearReleaseId": "gear-release:sha256:" + "5" * 64,
+            "communityReleaseId": "community-release:sha256:" + "6" * 64,
+            "catalogRevision": identity["gearCatalogRevision"],
+            "exactRegistryRevision": identity["gearExactRegistryRevision"],
+            "failureCount": 0,
+            "failureCodes": {},
+            "failureSamples": [],
+            "catalog_non_simulatable_count": 0,
+            "silent_default_fill_count": 0,
+            "type_unknown_nonportable_visible_count": 0,
+            "progression_conflict_count": 0,
+            "mixed_revision_count": 0,
+            "missing_provenance_count": 0,
+        }
+        report.update(overrides)
+        return report
+
     def catalog_gate_counts(self, **overrides):
         report = {
             "catalog_non_simulatable_count": 0,
@@ -258,6 +283,71 @@ class CatalogCandidateEvidenceAssemblyTest(unittest.TestCase):
         self.assertEqual(
             report["componentEvidence"]["catalog_http_report"]["failureCount"],
             0,
+        )
+
+    def test_raw_http_matrix_exact_registry_alias_blocks_mismatch_and_preserves_failure_codes(self):
+        self.assertIsNotNone(assemble_catalog_candidate_evidence)
+
+        raw_report = self.raw_catalog_http_report(
+            failureCodes={"CATALOG_HTTP_RAW_EVIDENCE": 1}
+        )
+        assembled = self.assemble(catalog_http_report=raw_report)
+
+        self.assertEqual(
+            assembled["componentEvidence"]["catalog_http_report"]["failureCodes"],
+            {"CATALOG_HTTP_RAW_EVIDENCE": 1},
+        )
+
+        mismatched_report = copy.deepcopy(raw_report)
+        mismatched_report["exactRegistryRevision"] = (
+            "gear-exact-registry:sha256:" + "9" * 64
+        )
+        blocked = self.assemble(catalog_http_report=mismatched_report)
+
+        self.assertEqual(blocked["status"], "blocked")
+        self.assertTrue(
+            any(
+                problem["code"] == "CANDIDATE_EVIDENCE_IDENTITY_MISMATCH"
+                and problem["component"] == "catalog_http_report"
+                and problem["field"] == "gearExactRegistryRevision"
+                and problem["actual"] == mismatched_report["exactRegistryRevision"]
+                for problem in blocked["problems"]
+            )
+        )
+
+    def test_raw_failure_codes_are_forwarded_as_deterministic_component_problem_codes(self):
+        self.assertIsNotNone(assemble_catalog_candidate_evidence)
+
+        raw_report = self.raw_catalog_http_report(
+            status="blocked",
+            failureCount=1,
+            failureCodes={
+                "CATALOG_MANIFEST_MISMATCH": 1,
+                "CATALOG_EXACT_REGISTRY_MISMATCH": 1,
+            },
+        )
+        reordered_report = copy.deepcopy(raw_report)
+        reordered_report["failureCodes"] = {
+            "CATALOG_EXACT_REGISTRY_MISMATCH": 1,
+            "CATALOG_MANIFEST_MISMATCH": 1,
+        }
+
+        report = self.assemble(catalog_http_report=raw_report)
+        reordered = self.assemble(catalog_http_report=reordered_report)
+
+        self.assertEqual(report["reportId"], reordered["reportId"])
+        self.assertIn(
+            {
+                "code": "CANDIDATE_GATE_IDENTITY_PROBLEM",
+                "message": "catalog_http_report reports an identity blocker",
+                "report": "catalog_http_report",
+                "problemCode": "CATALOG_EXACT_REGISTRY_MISMATCH",
+            },
+            report["problems"],
+        )
+        self.assertEqual(
+            report["componentEvidence"]["catalog_http_report"]["failureCodes"],
+            raw_report["failureCodes"],
         )
 
     def test_partial_exact_registry_preserves_literal_status(self):

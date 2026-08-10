@@ -27,7 +27,11 @@ _IDENTITY_ALIASES = {
     "manifestRevision": ("manifestRevision",),
     "pointerGeneration": ("pointerGeneration",),
     "gearCatalogRevision": ("gearCatalogRevision", "catalogRevision"),
-    "gearExactRegistryRevision": ("gearExactRegistryRevision", "registryRevision"),
+    "gearExactRegistryRevision": (
+        "gearExactRegistryRevision",
+        "registryRevision",
+        "exactRegistryRevision",
+    ),
     "simcRuntimeRevision": ("simcRuntimeRevision",),
 }
 _EXPLICIT_GATE_COUNT_FIELDS = (
@@ -146,15 +150,40 @@ def _normalized_http_gate_report(
 ) -> dict[str, Any]:
     source = _mapping(catalog_http_report)
     counts = _mapping(catalog_gate_counts)
-    problem_codes = source.get("problemCodes")
     normalized: dict[str, Any] = {
         "status": _normalized_http_status(source),
-        "problemCodes": list(problem_codes) if isinstance(problem_codes, list) else [],
+        "problemCodes": _normalized_problem_codes(source),
     }
     for field in _EXPLICIT_GATE_COUNT_FIELDS:
         if field in counts:
             normalized[field] = counts[field]
     return normalized
+
+
+def _normalized_problem_codes(report: Mapping[str, Any]) -> list[str]:
+    codes: set[str] = set()
+    raw_problem_codes = report.get("problemCodes")
+    if isinstance(raw_problem_codes, list):
+        codes.update(
+            code
+            for code in (_text(value) for value in raw_problem_codes)
+            if code
+        )
+
+    raw_failure_codes = report.get("failureCodes")
+    if isinstance(raw_failure_codes, Mapping):
+        codes.update(
+            code
+            for code in (_text(value) for value in raw_failure_codes.keys())
+            if code
+        )
+    elif isinstance(raw_failure_codes, list):
+        codes.update(
+            code
+            for code in (_text(value) for value in raw_failure_codes)
+            if code
+        )
+    return sorted(codes)
 
 
 def _validate_expected_identity(value: Any) -> list[dict[str, Any]]:
