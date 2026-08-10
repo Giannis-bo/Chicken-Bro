@@ -5,17 +5,17 @@
   "status": "local_verified",
   "highestEvidenceLevel": "local_verified",
   "branch": "codex/exact-first-task5a-control-plane",
-  "commit": "0ca0619be459584d1285b1276ffe6435db04cb48",
+  "commit": "a14f6c47ffe78e67426b079592cd6087631feaaa",
   "identities": {
     "runtime": {
       "status": "pending",
-      "reason": "Candidates t5c260810033244, t5c2608101217a9 and t5c2608101210d3 all failed before attestation. The first exposed frozen 0033's ambiguous binding conflict target; the repaired head exposed the binding relation trigger's direct-table privilege defect; the second repaired head exposed a candidate runner occurrence-entry fixture type error. A candidate-harness repair and one new final-head candidate are required; production 0030--0035 migration, provider enablement and worker activation remain prohibited."
+      "reason": "Candidates t5c260810033244, t5c2608101217a9 and t5c2608101210d3 all failed before attestation. The first exposed frozen 0033's ambiguous binding conflict target; the repaired head exposed the binding relation trigger's direct-table privilege defect; the second repaired head exposed a candidate runner occurrence-entry fixture type error. The candidate-harness repair is locally verified at a14f6c47ffe78e67426b079592cd6087631feaaa, but one new final-head candidate is required; production 0030--0035 migration, provider enablement and worker activation remain prohibited."
     },
     "verification": {
       "status": "bound_at_check",
       "kind": "git_ref",
       "value": "HEAD",
-      "reason": "The local packet must be checked from a clean exact HEAD; the verified implementation, candidate harness and both forward-only 0035 repairs are code-complete at commit 0ca0619be459584d1285b1276ffe6435db04cb48."
+      "reason": "The local packet must be checked from a clean exact HEAD; the verified implementation, candidate harness repair and both forward-only 0035 repairs are code-complete at commit a14f6c47ffe78e67426b079592cd6087631feaaa."
     },
     "closure": {
       "status": "pending",
@@ -99,12 +99,18 @@
       "status": "fail",
       "testedHead": "80f484f82016ff919dddda5a565445d545e08671",
       "summary": "Fresh and upgrade disposable databases reached 35 migrations including both 0035 repairs. The runner then failed before attestation with RuntimeAuthorityReleaseIntegrityError: occurrence entry must be sealed because its test fixture passed seal_runtime_occurrence_index_entry(...).document instead of the sealed entry required by RuntimeAuthorityReleaseStore. Exact log SHA-256 36129af925c05b64377498279c18d05ffc370ff58edb2d37205b48bd9b1135cf, tree ab83d4e495c25cc5f207fb4b23de0a7a7ed760f7 and 0035 SHA-256 6aef914d618433913314711388d4093d6905c61ea9ea445d33267f2e579e7064 are archived here."
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p '*_test.py' -q",
+      "status": "pass",
+      "testedHead": "a14f6c47ffe78e67426b079592cd6087631feaaa",
+      "summary": "2965 tests passed in 79.296s with 5 expected cloud-only PostgreSQL candidate skips. The candidate runner now retains the sealed occurrence entry and a dedicated harness regression guards against reintroducing the bare document."
     }
   ],
   "candidateDeployment": {
     "status": "candidate_rerun_required",
     "requiredBeforeMerge": true,
-    "reason": "Candidates t5c260810033244, t5c2608101217a9 and t5c2608101210d3 all failed before attestation. Their named fresh/upgrade databases were correctly commented, reached 35 migrations, and are non-reusable. The candidate runner fixture repair changes candidate-test bytes, so one new run-id-bound final-head candidate remains mandatory before merge.",
+    "reason": "Candidates t5c260810033244, t5c2608101217a9 and t5c2608101210d3 all failed before attestation. Their named fresh/upgrade databases were correctly commented, reached 35 migrations, and are non-reusable. The sealed-occurrence candidate runner repair changes candidate-test bytes, so one new run-id-bound final-head candidate remains mandatory before merge.",
     "failedAttempts": [
       {
         "runId": "t5c260810033244",
@@ -150,7 +156,7 @@
     {
       "id": "task5c_candidate_rerun_required",
       "status": "pending",
-      "detail": "Candidate t5c260810033244 failed on an ambiguous frozen-0033 conflict target; candidate t5c2608101217a9 then failed on a frozen-0033 binding relation trigger privilege defect; candidate t5c2608101210d3 then exposed a runner fixture passing a bare occurrence document. None reached attestation. The candidate fixture must retain the sealed entry before one new final-head disposable fresh/upgrade candidate."
+      "detail": "Candidate t5c260810033244 failed on an ambiguous frozen-0033 conflict target; candidate t5c2608101217a9 then failed on a frozen-0033 binding relation trigger privilege defect; candidate t5c2608101210d3 then exposed a runner fixture passing a bare occurrence document. None reached attestation. The sealed-entry candidate fixture repair is local-verified at a14f6c47; one new final-head disposable fresh/upgrade candidate remains required."
     },
     {
       "id": "runtime_authority_unavailable_by_default",
@@ -186,5 +192,5 @@
     "docs/harness.md",
     "docs/verification-matrix.md"
   ],
-  "summary": "Task 5C is locally verified at 0ca0619b for immutable runtime release/context/index ownership, release-bound V3 execution and both forward-only 0035 repairs. Three cloud candidates failed before attestation: the first ambiguous binding conflict target received a named-primary-key repair, the repaired head exposed a distinct frozen binding-relation trigger privilege defect repaired through a wow_migrator-owned SECURITY DEFINER validator, and the second repaired head exposed a candidate fixture that lost its sealed occurrence entry. All failed runs are archived and their exact disposable resources are discarded; a candidate-harness repair and one new final-head candidate remain mandatory. This is not a runtime, production or player-loop completion claim: the server factory remains disabled, no production database or service changed, and all user-facing gates remain pending."
+  "summary": "Task 5C is locally verified at a14f6c47 for immutable runtime release/context/index ownership, release-bound V3 execution, both forward-only 0035 repairs and the sealed-occurrence candidate harness repair. Three cloud candidates failed before attestation: the first ambiguous binding conflict target received a named-primary-key repair, the repaired head exposed a distinct frozen binding-relation trigger privilege defect repaired through a wow_migrator-owned SECURITY DEFINER validator, and the second repaired head exposed a candidate fixture that lost its sealed occurrence entry. All failed runs are archived and their exact disposable resources are discarded; one new final-head candidate remains mandatory. This is not a runtime, production or player-loop completion claim: the server factory remains disabled, no production database or service changed, and all user-facing gates remain pending."
 }

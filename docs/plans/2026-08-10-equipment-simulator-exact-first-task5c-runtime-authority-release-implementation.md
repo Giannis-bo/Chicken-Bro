@@ -341,6 +341,13 @@ this run and requires another new final-head candidate. Its exact disposable
 resources were identity-archived, discarded and rechecked absent before that
 repair; production state and the inactive worker were not changed.
 
+The candidate-harness repair `a14f6c47` follows RED/GREEN: it keeps the sealed
+occurrence entry returned by `seal_runtime_occurrence_index_entry` instead of
+unwrapping `.document`, and adds a runner-source regression assertion. It has
+no migration or UI change. The full local suite passes with `2965` tests and 5
+expected cloud-only skips, but the candidate test source changed; a brand-new
+final-head candidate remains mandatory and all three prior run ids stay unusable.
+
 - [ ] **Step 3: Review, CI and production only after candidate PASS**
 
 Run final CR/Harness at exact candidate head, publish one implementation PR, require exact-head CI, then apply reviewed `0030..0035` and provider/worker enablement per runbook. Record main/origin/cloud parity, no timer/backflow, API/readback and rollback. Never create a CI-only PR.
