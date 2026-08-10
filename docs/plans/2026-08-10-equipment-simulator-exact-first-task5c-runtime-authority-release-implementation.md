@@ -288,6 +288,19 @@ not constitute a cloud, production, provider, worker, or player-loop result.
 
 Preflight remote disk/CPU/memory. Use fresh named disposable PostgreSQL fresh `0001..0035` and upgrade `0001..0034 -> 0035` databases with distinct redacted roles. Prove release admission/reload, zero/multiple relation block, v3 job/worker, v1/v2 stability, route ready/blocked/unsupported, no async backflow and provider-disable rollback. Archive exact commit/tree before deleting only those named resources.
 
+The first candidate `t5c260810033244` on `3afb3660` / tree
+`74e70769613772e4c75e2a7e80e7593b2ea22c72` reached `0035` in both
+disposable databases but failed before attestation because frozen `0033` used
+the ambiguous `ON CONFLICT (binding_key)` inside a `RETURNS TABLE(binding_key
+...)` PL/pgSQL function. Its log SHA-256 is
+`59a2e26a52fc2a3ac3f8448b24590456d810a3c01ab068db80a2ac65cf1da20a`.
+The forward-only `0035` repair at `71a83b7c` replaces that function with the
+named primary-key conflict target while preserving `0030--0034` bytes. The
+failed databases, role and temporary remote material were identity-checked and
+discarded; they are non-reusable. This checkbox remains open: one new run-id
+on the repaired final runtime head is still required and must not treat the
+failed run as candidate evidence.
+
 - [ ] **Step 3: Review, CI and production only after candidate PASS**
 
 Run final CR/Harness at exact candidate head, publish one implementation PR, require exact-head CI, then apply reviewed `0030..0035` and provider/worker enablement per runbook. Record main/origin/cloud parity, no timer/backflow, API/readback and rollback. Never create a CI-only PR.
