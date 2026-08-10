@@ -262,6 +262,12 @@
       "status": "fail",
       "testedHead": "5decabe16429fb69206bb0133aac6722d4a3a793",
       "summary": "The single Task 5C packet resolved and Full profile ran, then two control-plane characterizations failed: the project owner-map test still froze 16 domains after this task added its seventeenth critical owner domain, and the UI architecture audit found three existing unlinked plan files in docs/plans/README.md. No Exact runtime, migration, candidate, UI page, or production assertion failed. The corrective diff adds the already-defined Task 5C domain to that fixed test and links the three existing plans with their correct current or historical authority status. A new exact-head CI remains mandatory."
+    },
+    {
+      "command": "node --test tests/project-owner-map.test.js tests/taro-gear-editor-contracts.test.js; node scripts/verify-project.js --profile full --release-from-changes --base origin/main --dry-run; Harness packet check; git diff --check",
+      "status": "pass",
+      "testedHead": "d6a7423c8e3b3601f7b45235d5b5af86c689213e",
+      "summary": "All 20 focused Node control-plane and unchanged-page contract tests passed. The owner map now intentionally characterizes 17 critical domains including the pre-existing Task 5C entry; the plan index resolves all 49 present plans with current or history-only authority labels. Dry-run selected only the Task 5C packet (173 commands), Harness passed from a clean head, and the diff has no whitespace errors. This repairs CI control-plane coverage only; candidate runtime identity, migrations, Exact server behavior, current UI source and production state remain unchanged."
     }
   ],
   "candidateDeployment": {
