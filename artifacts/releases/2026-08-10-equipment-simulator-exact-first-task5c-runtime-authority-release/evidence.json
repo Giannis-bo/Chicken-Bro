@@ -256,6 +256,12 @@
       "status": "fail",
       "testedHead": "3b6bf5481233b838ffbb0a363794ecfe1760d17a",
       "summary": "Full profile did not start verification because release-from-changes found three branch-local packet directories: Task 5A, Task 5B and Task 5C. This is a Harness fail-closed packaging error, not a test, candidate or runtime failure. The corrective diff removes only the unmerged Task 5A/5B branch-local packet files; their plan facts remain reachable and their Git history remains intact. Task 5C remains the only complete packet for the next exact-head CI."
+    },
+    {
+      "command": "GitHub Project Harness run 31356993853 on PR #119",
+      "status": "fail",
+      "testedHead": "5decabe16429fb69206bb0133aac6722d4a3a793",
+      "summary": "The single Task 5C packet resolved and Full profile ran, then two control-plane characterizations failed: the project owner-map test still froze 16 domains after this task added its seventeenth critical owner domain, and the UI architecture audit found three existing unlinked plan files in docs/plans/README.md. No Exact runtime, migration, candidate, UI page, or production assertion failed. The corrective diff adds the already-defined Task 5C domain to that fixed test and links the three existing plans with their correct current or historical authority status. A new exact-head CI remains mandatory."
     }
   ],
   "candidateDeployment": {

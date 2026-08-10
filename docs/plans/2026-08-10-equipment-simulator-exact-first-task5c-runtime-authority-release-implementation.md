@@ -241,6 +241,7 @@ git commit -m "feat(exact): execute release-bound v3 simulations"
 
 **Files:**
 - Modify: `tests/postgres_integration_test.py`
+- Modify: `tests/project-owner-map.test.js` only to characterize the Task 5C critical owner-map domain already added by this task.
 - Modify: `docs/postgres-identity-migration-runbook.md`, `docs/verification-matrix.md`, `docs/plans/README.md`, `docs/roadmap.md`, `docs/plans/2026-08-04-equipment-simulator-exact-first-persistence-resequence.md`, `docs/plans/2026-08-07-equipment-simulator-exact-first-task5a-api-runtime.md`, `docs/plans/2026-08-07-equipment-simulator-exact-first-task5b-active-authority-source.md`, this plan
 - Create/Modify: `artifacts/releases/2026-08-10-equipment-simulator-exact-first-task5c-runtime-authority-release/evidence.json`, `artifacts/releases/2026-08-10-equipment-simulator-exact-first-task5c-runtime-authority-release/manifest.json`
 
@@ -483,3 +484,13 @@ packet files are removed from the Task 5C PR diff.  This makes the Task 5C
 packet the sole CI authority and changes no runtime source, migration bytes,
 candidate identity, UI source or production state.  A new exact PR-head CI is
 still mandatory; the earlier failed run is not evidence of a passing profile.
+
+The next exact-head CI reached Full profile and exposed two independent
+control-plane assertions omitted by the local Python suite: the project owner
+map test still expected sixteen domains after this task added the seventeenth,
+and the plan index omitted three already-present files.  Their focused Node
+tests first failed and now pass after adding the existing Task 5C domain to the
+fixed map assertion and linking the existing plans with their correct current
+or history-only status.  These corrections do not alter any Taro source,
+target, route, runtime provider, migration or candidate identity; another
+exact-head CI remains required.

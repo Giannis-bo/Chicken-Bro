@@ -22,7 +22,8 @@ const CRITICAL_DOMAIN_IDS = [
   'scheduled_sync_backfill_cleanup',
   'health_admin_observability',
   'deploy_runtime_services',
-  'ui_runtime_evidence'
+  'ui_runtime_evidence',
+  'exact_first_runtime_authority_release_task5c'
 ]
 
 const BACKEND_FACT_DOMAINS = new Set([
@@ -69,7 +70,7 @@ function readOwnerMap() {
   return readJson(projectOwnerMapPath)
 }
 
-test('project owner map freezes the 16 critical domains with no unknown or blocked owners', () => {
+test('project owner map freezes the 17 critical domains with no unknown or blocked owners', () => {
   const ownerMap = readOwnerMap()
   assert.equal(ownerMap.schemaVersion, 1)
   assert.equal(ownerMap.status, 'project_owner_map_active')
