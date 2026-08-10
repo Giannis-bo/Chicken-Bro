@@ -1,4 +1,5 @@
 import copy
+import json
 import unittest
 
 from server.simc_support_policy import SIMC_SPECIALIZATION_UNSUPPORTED_CODE
@@ -43,6 +44,60 @@ class RecordingSmoke:
 
 
 class GearVariantSimcMatrixTest(unittest.TestCase):
+    def assert_report_contract(self, report, *, expected_failure_code):
+        self.assertEqual(
+            set(report),
+            {
+                "schemaRevision",
+                "status",
+                "expected_supported_variant_smoke_count",
+                "passed_supported_variant_smoke_count",
+                "supported_variant_simc_smoke_count",
+                "failureCodes",
+                "failureSamples",
+                "ledger",
+                "reportId",
+            },
+        )
+        self.assertEqual(
+            report["schemaRevision"],
+            "gear-variant-simc-matrix-v1",
+        )
+        self.assertEqual(report["status"], "blocked")
+        self.assertEqual(
+            report["failureCodes"],
+            [expected_failure_code],
+        )
+        self.assertEqual(
+            report["supported_variant_simc_smoke_count"],
+            report["passed_supported_variant_smoke_count"],
+        )
+        self.assertGreaterEqual(
+            report["expected_supported_variant_smoke_count"],
+            report["passed_supported_variant_smoke_count"],
+        )
+        self.assertEqual(
+            [sample["code"] for sample in report["failureSamples"]],
+            [expected_failure_code],
+        )
+        self.assertEqual(
+            report["failureSamples"],
+            [
+                {
+                    "code": expected_failure_code,
+                    "browseVariantKey": "browse-a",
+                    "itemId": "1001",
+                    "classKey": "mage",
+                    "specKey": "frost",
+                    "slot": "head",
+                }
+            ],
+        )
+        self.assertEqual(
+            json.loads(json.dumps(report, ensure_ascii=False, sort_keys=True)),
+            report,
+        )
+
     def materialization_entry(
         self,
         *,
@@ -387,6 +442,122 @@ class GearVariantSimcMatrixTest(unittest.TestCase):
             "GEAR_VARIANT_SIMC_IDENTITY_MISMATCH",
             report["failureCodes"],
         )
+
+    def test_smoke_callback_exception_is_deterministic_blocker_with_zero_passes(self):
+        self.assertIsNotNone(build_gear_variant_simc_matrix)
+        materialization = self.materialization_report(
+            ledger={
+                "browse-a": self.materialization_entry(
+                    item_id="1001",
+                    class_key="mage",
+                    spec_key="frost",
+                    slot="head",
+                    materialized_browse_variant_key="browse-a",
+                )
+            }
+        )
+
+        first_smoke = RecordingSmoke({"browse-a": RuntimeError("simc failed")})
+        second_smoke = RecordingSmoke({"browse-a": RuntimeError("simc failed")})
+        first = build_gear_variant_simc_matrix(materialization, first_smoke)
+        second = build_gear_variant_simc_matrix(materialization, second_smoke)
+
+        self.assertEqual(first, second)
+        self.assert_report_contract(
+            first,
+            expected_failure_code="GEAR_VARIANT_SIMC_CALLBACK_EXCEPTION",
+        )
+        self.assertEqual(first["expected_supported_variant_smoke_count"], 1)
+        self.assertEqual(first["passed_supported_variant_smoke_count"], 0)
+        self.assertEqual(first["supported_variant_simc_smoke_count"], 0)
+        self.assertEqual(first_smoke.calls, [
+            {
+                "itemId": "1001",
+                "browseVariantKey": "browse-a",
+                "classKey": "mage",
+                "specKey": "frost",
+                "slot": "head",
+            }
+        ])
+        self.assertEqual(first["ledger"]["browse-a"]["status"], "blocked")
+        self.assertEqual(
+            first["ledger"]["browse-a"]["failureCodes"],
+            ["GEAR_VARIANT_SIMC_CALLBACK_EXCEPTION"],
+        )
+
+    def test_invalid_real_run_fields_have_exact_deterministic_blockers(self):
+        self.assertIsNotNone(build_gear_variant_simc_matrix)
+        cases = [
+            (
+                "ran-false",
+                {"ran": False},
+                None,
+                "GEAR_VARIANT_SIMC_RAN_NOT_TRUE",
+            ),
+            (
+                "timed-out",
+                {"timed_out": True},
+                None,
+                "GEAR_VARIANT_SIMC_TIMED_OUT",
+            ),
+            (
+                "runtime-revision-missing",
+                {},
+                "simcRuntimeRevision",
+                "GEAR_VARIANT_SIMC_RUNTIME_REVISION_MISSING",
+            ),
+            (
+                "runtime-revision-empty",
+                {"simc_runtime_revision": ""},
+                None,
+                "GEAR_VARIANT_SIMC_RUNTIME_REVISION_MISSING",
+            ),
+        ]
+
+        for name, overrides, missing_field, expected_failure_code in cases:
+            with self.subTest(name=name):
+                smoke_report = self.smoke_report(
+                    item_id="1001",
+                    browse_variant_key="browse-a",
+                    class_key="mage",
+                    spec_key="frost",
+                    **overrides,
+                )
+                if missing_field:
+                    smoke_report.pop(missing_field)
+                materialization = self.materialization_report(
+                    ledger={
+                        "browse-a": self.materialization_entry(
+                            item_id="1001",
+                            class_key="mage",
+                            spec_key="frost",
+                            slot="head",
+                            materialized_browse_variant_key="browse-a",
+                        )
+                    }
+                )
+                first = build_gear_variant_simc_matrix(
+                    materialization,
+                    RecordingSmoke({"browse-a": smoke_report}),
+                )
+                second = build_gear_variant_simc_matrix(
+                    materialization,
+                    RecordingSmoke({"browse-a": smoke_report}),
+                )
+
+                self.assertEqual(first, second)
+                self.assert_report_contract(
+                    first,
+                    expected_failure_code=expected_failure_code,
+                )
+                self.assertEqual(first["expected_supported_variant_smoke_count"], 1)
+                self.assertEqual(first["passed_supported_variant_smoke_count"], 0)
+                self.assertEqual(first["supported_variant_simc_smoke_count"], 0)
+                self.assertEqual(
+                    first["ledger"]["browse-a"]["failureCodes"],
+                    [expected_failure_code],
+                )
+                self.assertEqual(first["ledger"]["browse-a"]["status"], "blocked")
 
     def test_partial_and_pending_smoke_statuses_stay_literal(self):
         self.assertIsNotNone(build_gear_variant_simc_matrix)
