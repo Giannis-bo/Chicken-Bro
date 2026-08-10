@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 from datetime import datetime, timezone
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -13,7 +14,7 @@ import sys
 import tempfile
 import time
 from typing import Any, Mapping
-from urllib.error import HTTPError
+from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 
@@ -21,7 +22,10 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from server.catalog_candidate_evidence_runner import run_catalog_candidate_evidence
+from server.catalog_candidate_evidence_runner import (
+    CATALOG_CANDIDATE_EVIDENCE_RUNNER_SCHEMA_REVISION,
+    run_catalog_candidate_evidence,
+)
 from server.db import connect_postgres
 from server.gear_catalog_revision_store import GearCatalogRevisionStore
 from server.gear_exact_item_registry_store import GearExactItemRegistryStore
@@ -40,11 +44,6 @@ def _text(value: Any) -> str:
 
 def _mapping(value: Any) -> Mapping[str, Any]:
     return value if isinstance(value, Mapping) else {}
-
-
-def _json_load(path_value: str) -> dict[str, Any]:
-    loaded = json.loads(Path(path_value).read_text(encoding="utf-8"))
-    return loaded if isinstance(loaded, dict) else {}
 
 
 def _atomic_json_write(path_value: str, payload: dict[str, Any]) -> None:
@@ -92,8 +91,6 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--gear-exact-registry-revision", required=True)
     parser.add_argument("--simc-runtime-revision", required=True)
     parser.add_argument("--simc-bin", required=True)
-    parser.add_argument("--catalog-report", default="")
-    parser.add_argument("--exact-report", default="")
     parser.add_argument("--output", required=True)
     parser.add_argument("--http-timeout-seconds", type=float, default=30.0)
     parser.add_argument("--simc-timeout-seconds", type=float, default=45.0)
@@ -104,24 +101,6 @@ def _parser() -> argparse.ArgumentParser:
 def _connection_factory_from_env() -> Any:
     database_url = _text(os.environ.get("WOW_DATABASE_URL"))
     return lambda: connect_postgres(database_url)
-
-
-def _extract_catalog_from_file(path_value: str) -> dict[str, Any]:
-    loaded = _json_load(path_value)
-    component = _mapping(_mapping(loaded.get("componentEvidence")).get("catalog"))
-    if component:
-        return dict(component)
-    embedded = _mapping(loaded.get("catalog"))
-    return dict(embedded) if embedded else dict(loaded)
-
-
-def _extract_exact_from_file(path_value: str) -> dict[str, Any]:
-    loaded = _json_load(path_value)
-    component = _mapping(_mapping(loaded.get("componentEvidence")).get("exact_registry_report"))
-    if component:
-        return dict(component)
-    embedded = _mapping(loaded.get("exact_registry_report"))
-    return dict(embedded) if embedded else dict(loaded)
 
 
 def _pointer_from_binding(binding: Mapping[str, Any]) -> dict[str, Any]:
@@ -164,6 +143,17 @@ def _request_json_builder(args: argparse.Namespace):
         except HTTPError as error:
             status = int(error.code)
             raw = error.read()
+        except (URLError, TimeoutError, OSError):
+            status = 0
+            raw = json.dumps(
+                {
+                    "status": "blocked",
+                    "failureCodes": ["CATALOG_CANDIDATE_EVIDENCE_NETWORK_EXCEPTION"],
+                },
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8")
         duration_ms = (time.perf_counter() - started) * 1000
         try:
             decoded = json.loads(raw.decode("utf-8"))
@@ -340,15 +330,11 @@ def _simc_executor_builder(args: argparse.Namespace):
 
 
 def _default_load_catalog(args: argparse.Namespace):
-    if args.catalog_report:
-        return _extract_catalog_from_file(args.catalog_report)
     store = GearCatalogRevisionStore(_connection_factory_from_env())
     return store.load_catalog(_text(args.gear_catalog_revision))
 
 
 def _default_load_exact_registry(args: argparse.Namespace):
-    if args.exact_report:
-        return _extract_exact_from_file(args.exact_report)
     store = GearExactItemRegistryStore(_connection_factory_from_env())
     return store.load_registry(_text(args.gear_exact_registry_revision))
 
@@ -356,6 +342,56 @@ def _default_load_exact_registry(args: argparse.Namespace):
 def _default_pointer_reader(_args: argparse.Namespace):
     binding = GearReleaseStore(_connection_factory_from_env()).load_active_manifest_binding()
     return _pointer_from_binding(binding)
+
+
+def _stable_blocked_report(
+    *,
+    expected_identity: Mapping[str, Any],
+    pointer_reader_fn: Any,
+    args: argparse.Namespace,
+    code: str,
+    error: BaseException,
+) -> dict[str, Any]:
+    try:
+        pointer = pointer_reader_fn(args)
+    except Exception:
+        pointer = {}
+    report = {
+        "schemaRevision": CATALOG_CANDIDATE_EVIDENCE_RUNNER_SCHEMA_REVISION,
+        "status": "blocked",
+        "problems": [
+            {
+                "code": code,
+                "message": "CLI orchestration raised an exception",
+                "component": "cli",
+                "exceptionType": type(error).__name__,
+            }
+        ],
+        "expectedIdentity": dict(expected_identity),
+        "pointerStable": True,
+        "pointerBefore": pointer,
+        "pointerAfter": pointer,
+        "componentStatuses": {"cli": "blocked"},
+        "componentEvidence": {
+            "cli": {
+                "status": "blocked",
+                "failureCodes": [code],
+            }
+        },
+    }
+    digest = hashlib.sha256(
+        json.dumps(
+            report,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            default=str,
+        ).encode("utf-8")
+    ).hexdigest()
+    report["reportId"] = (
+        "gear-catalog-candidate-evidence-runner:sha256:" + digest
+    )
+    return report
 
 
 def main(
@@ -383,17 +419,34 @@ def main(
         "communityReleaseId": _text(args.community_release_id),
     }
 
-    report = runner_fn(
-        load_catalog=lambda: load_catalog_fn(args),
-        load_exact_registry=lambda: load_exact_registry_fn(args),
-        request_json=request_json,
-        profile_context_factory=profile_context_factory,
-        simc_executor=simc_executor,
-        pointer_reader=lambda: pointer_reader_fn(args),
-        expected_specs=expected_spec_pairs(),
-        expected_identity=expected_identity,
-        observed_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
-    )
+    try:
+        report = runner_fn(
+            load_catalog=lambda: load_catalog_fn(args),
+            load_exact_registry=lambda: load_exact_registry_fn(args),
+            request_json=request_json,
+            profile_context_factory=profile_context_factory,
+            simc_executor=simc_executor,
+            pointer_reader=lambda: pointer_reader_fn(args),
+            expected_specs=expected_spec_pairs(),
+            expected_identity=expected_identity,
+            observed_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        )
+    except Exception as error:
+        report = _stable_blocked_report(
+            expected_identity=expected_identity,
+            pointer_reader_fn=pointer_reader_fn,
+            args=args,
+            code="CATALOG_CANDIDATE_EVIDENCE_CLI_ORCHESTRATION_EXCEPTION",
+            error=error,
+        )
+    if not isinstance(report, dict):
+        report = _stable_blocked_report(
+            expected_identity=expected_identity,
+            pointer_reader_fn=pointer_reader_fn,
+            args=args,
+            code="CATALOG_CANDIDATE_EVIDENCE_CLI_REPORT_INVALID",
+            error=TypeError("runner report must be a mapping"),
+        )
     _atomic_json_write(args.output, report)
     print(json.dumps(report, ensure_ascii=False, sort_keys=True))
     return 0 if _text(_mapping(report).get("status")) == "verified" else 2

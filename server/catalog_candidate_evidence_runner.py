@@ -51,6 +51,7 @@ _HTTP_MIXED_REVISION_CODES = {
 }
 _READY_STATUSES = {"resolved", "verified"}
 _PRESERVED_STATUSES = ("partial", "blocked", "UNVERIFIED", "pending")
+_EXPECTED_SPEC_COUNT = 40
 
 RequestJson = Callable[..., Any]
 ProfileContextFactory = Callable[..., Any]
@@ -89,6 +90,107 @@ def _int_or_none(value: Any) -> int | None:
 
 def _problem(code: str, message: str, **details: Any) -> dict[str, Any]:
     return {"code": code, "message": message, **details}
+
+
+def _exception_problem(code: str, component: str, error: BaseException) -> dict[str, Any]:
+    return _problem(
+        code,
+        f"{component} raised an exception",
+        component=component,
+        exceptionType=type(error).__name__,
+    )
+
+
+def _exception_component(code: str) -> dict[str, Any]:
+    return {
+        "status": "blocked",
+        "failureCodes": [code],
+    }
+
+
+def _safe_pointer_snapshot(
+    pointer_reader: PointerReader,
+    fallback: Any,
+) -> tuple[Any, dict[str, Any] | None]:
+    if not callable(pointer_reader):
+        return _canonical(fallback), _problem(
+            "CATALOG_CANDIDATE_EVIDENCE_POINTER_READER_MISSING",
+            "pointer_reader must be callable",
+            component="pointer",
+        )
+    try:
+        return _canonical(pointer_reader()), None
+    except Exception as error:
+        return _canonical(fallback), _exception_problem(
+            "CATALOG_CANDIDATE_EVIDENCE_POINTER_READER_EXCEPTION",
+            "pointer_reader",
+            error,
+        )
+
+
+def _canonical_expected_specs(
+    expected_specs: Iterable[tuple[str, str]],
+) -> tuple[list[tuple[str, str]], list[dict[str, Any]]]:
+    problems: list[dict[str, Any]] = []
+    canonical: list[tuple[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    try:
+        raw_specs = list(expected_specs)
+    except Exception as error:
+        return [], [
+            _exception_problem(
+                "CATALOG_CANDIDATE_EVIDENCE_EXPECTED_SPECS_EXCEPTION",
+                "expected_specs",
+                error,
+            )
+        ]
+
+    for index, raw_pair in enumerate(raw_specs):
+        if not isinstance(raw_pair, (tuple, list)) or len(raw_pair) != 2:
+            problems.append(
+                _problem(
+                    "CATALOG_CANDIDATE_EVIDENCE_EXPECTED_SPECS_PAIR_INVALID",
+                    "expected_specs must contain two-field class/spec pairs",
+                    index=index,
+                )
+            )
+            continue
+        class_key = _text(raw_pair[0])
+        spec_key = _text(raw_pair[1])
+        if not class_key or not spec_key:
+            problems.append(
+                _problem(
+                    "CATALOG_CANDIDATE_EVIDENCE_EXPECTED_SPECS_PAIR_INVALID",
+                    "expected_specs class/spec fields must be non-empty",
+                    index=index,
+                )
+            )
+            continue
+        pair = (class_key, spec_key)
+        if pair in seen:
+            problems.append(
+                _problem(
+                    "CATALOG_CANDIDATE_EVIDENCE_EXPECTED_SPECS_DUPLICATE",
+                    "expected_specs must contain unique class/spec pairs",
+                    classKey=class_key,
+                    specKey=spec_key,
+                )
+            )
+            continue
+        seen.add(pair)
+        canonical.append(pair)
+
+    canonical.sort()
+    if len(canonical) != _EXPECTED_SPEC_COUNT:
+        problems.append(
+            _problem(
+                "CATALOG_CANDIDATE_EVIDENCE_EXPECTED_SPECS_COUNT_INVALID",
+                "expected_specs must contain exactly 40 unique non-empty class/spec pairs",
+                expectedCount=_EXPECTED_SPEC_COUNT,
+                actualCount=len(canonical),
+            )
+        )
+    return canonical, problems
 
 
 def _identity_value(field: str, value: Any) -> Any:
@@ -371,6 +473,7 @@ def _extract_relation_contexts(
     variant_index = _catalog_variant_index(catalog)
     candidates: dict[str, list[tuple[tuple[str, str, str, str], dict[str, Any]]]] = {}
     problems: list[dict[str, Any]] = []
+    profile_context_exception_keys: set[tuple[str, str]] = set()
 
     for record in records:
         class_key = _text(record.get("classKey"))
@@ -402,7 +505,24 @@ def _extract_relation_contexts(
                         continue
                     if variant_index.get(browse_variant_key) != variant_item_id:
                         continue
-                    profile_context = get_profile_context(class_key, spec_key)
+                    try:
+                        profile_context = get_profile_context(class_key, spec_key)
+                    except Exception as error:
+                        exception_key = (class_key, spec_key)
+                        if exception_key not in profile_context_exception_keys:
+                            profile_context_exception_keys.add(exception_key)
+                            problems.append(
+                                _exception_problem(
+                                    "CATALOG_CANDIDATE_EVIDENCE_PROFILE_CONTEXT_FACTORY_EXCEPTION",
+                                    "profile_context_factory",
+                                    error,
+                                )
+                                | {
+                                    "classKey": class_key,
+                                    "specKey": spec_key,
+                                }
+                            )
+                        continue
                     level = _int_or_none(profile_context.get("level"))
                     if level is None or level <= 0:
                         problems.append(
@@ -565,7 +685,20 @@ def _build_variant_smoke_callback(
             "simcRuntimeRevision": "",
             "iterations": None,
             "maxTimeSeconds": None,
+            "failureCodes": [],
         }
+
+        def blocked(code: str) -> dict[str, Any]:
+            entry["status"] = "blocked"
+            entry["failureCodes"] = sorted(
+                set(
+                    _text(value)
+                    for value in list(entry.get("failureCodes") or []) + [code]
+                    if _text(value)
+                )
+            )
+            return _canonical(entry)
+
         context = _mapping(indexed.get(key))
         if (
             _text(context.get("itemId")) != _text(item_id)
@@ -573,9 +706,14 @@ def _build_variant_smoke_callback(
             or _text(context.get("specKey")) != _text(spec_key)
             or _text(context.get("slot")) != _text(slot)
         ):
-            return _canonical(entry)
+            return blocked("CATALOG_CANDIDATE_EVIDENCE_VARIANT_RELATION_CONTEXT_MISMATCH")
 
-        profile_context = get_profile_context(_text(class_key), _text(spec_key))
+        try:
+            profile_context = get_profile_context(_text(class_key), _text(spec_key))
+        except Exception:
+            return blocked(
+                "CATALOG_CANDIDATE_EVIDENCE_VARIANT_PROFILE_CONTEXT_FACTORY_EXCEPTION"
+            )
         try:
             http_status, payload, _latency = request_json(
                 "POST",
@@ -587,7 +725,7 @@ def _build_variant_smoke_callback(
                 {"Content-Type": "application/json"},
             )
         except Exception:
-            return _canonical(entry)
+            return blocked("CATALOG_CANDIDATE_EVIDENCE_VARIANT_PROFILE_REQUEST_EXCEPTION")
 
         envelope = _mapping(payload)
         data = _mapping(envelope.get("data"))
@@ -610,12 +748,12 @@ def _build_variant_smoke_callback(
             or _validate_profile_identity(release_context, expected_identity)
         ):
             entry["status"] = preserved_status if preserved_status != "blocked" else _text(status) or "blocked"
-            return _canonical(entry)
+            return blocked("CATALOG_CANDIDATE_EVIDENCE_VARIANT_PROFILE_NOT_READY")
 
         try:
             executed = _mapping(simc_executor(profile_text))
         except Exception:
-            return _canonical(entry)
+            return blocked("CATALOG_CANDIDATE_EVIDENCE_VARIANT_SIMC_EXECUTOR_EXCEPTION")
         entry.update(
             {
                 "status": _text(executed.get("status")) or "verified",
@@ -628,6 +766,16 @@ def _build_variant_smoke_callback(
                 "maxTimeSeconds": _int_or_none(executed.get("maxTimeSeconds")),
             }
         )
+        expected_runtime_revision = _text(expected_identity.get("simcRuntimeRevision"))
+        actual_runtime_revision = _text(executed.get("simcRuntimeRevision"))
+        if actual_runtime_revision != expected_runtime_revision:
+            entry["expectedSimcRuntimeRevision"] = expected_runtime_revision
+            entry["failureCodes"] = [
+                "CATALOG_CANDIDATE_EVIDENCE_VARIANT_SIMC_RUNTIME_REVISION_MISMATCH"
+            ]
+            entry["status"] = "blocked"
+        else:
+            entry["failureCodes"] = []
         return _canonical(entry)
 
     return smoke
@@ -653,19 +801,97 @@ def run_catalog_candidate_evidence(
     observed_relation_contexts: Any = None,
 ) -> dict[str, Any]:
     normalized_identity, identity_problems = _validate_expected_identity(expected_identity)
-    pointer_before = _canonical(pointer_reader()) if callable(pointer_reader) else {}
+    pointer_before, pointer_before_problem = _safe_pointer_snapshot(pointer_reader, {})
     pointer_after = _canonical(pointer_before)
-    if identity_problems:
+    if pointer_before_problem:
         return _runner_report(
             status="blocked",
             expected_identity=normalized_identity,
-            problems=identity_problems,
+            problems=[pointer_before_problem],
             pointer_before=pointer_before,
             pointer_after=pointer_after,
+            component_evidence={
+                "pointer": _exception_component(pointer_before_problem["code"]),
+            },
+            component_statuses={"pointer": "blocked"},
         )
 
-    catalog = _canonical(load_catalog())
-    exact_registry = _canonical(load_exact_registry())
+    def blocked_report(
+        problems: list[dict[str, Any]],
+        *,
+        component_evidence: Mapping[str, Any] | None = None,
+        component_statuses: Mapping[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        stable_after, pointer_after_problem = _safe_pointer_snapshot(
+            pointer_reader,
+            pointer_before,
+        )
+        all_problems = list(problems)
+        evidence = dict(component_evidence or {})
+        statuses = dict(component_statuses or {})
+        if pointer_after_problem:
+            all_problems.append(pointer_after_problem)
+            evidence["pointer"] = _exception_component(pointer_after_problem["code"])
+            statuses["pointer"] = "blocked"
+        return _runner_report(
+            status="blocked",
+            expected_identity=normalized_identity,
+            problems=all_problems,
+            pointer_before=pointer_before,
+            pointer_after=stable_after,
+            component_evidence=evidence,
+            component_statuses=statuses,
+        )
+
+    if identity_problems:
+        return blocked_report(
+            identity_problems,
+        )
+
+    canonical_expected_specs, expected_specs_problems = _canonical_expected_specs(
+        expected_specs
+    )
+    if expected_specs_problems:
+        return blocked_report(
+            expected_specs_problems,
+            component_evidence={
+                "expectedSpecs": canonical_expected_specs,
+            },
+            component_statuses={"expectedSpecs": "blocked"},
+        )
+
+    try:
+        catalog = _canonical(load_catalog())
+    except Exception as error:
+        code = "CATALOG_CANDIDATE_EVIDENCE_CATALOG_LOADER_EXCEPTION"
+        return blocked_report(
+            [_exception_problem(code, "load_catalog", error)],
+            component_evidence={
+                "catalog": _exception_component(code),
+                "exact_registry_report": {},
+            },
+            component_statuses={
+                "catalog": "blocked",
+                "exact_registry_report": "",
+            },
+        )
+
+    try:
+        exact_registry = _canonical(load_exact_registry())
+    except Exception as error:
+        code = "CATALOG_CANDIDATE_EVIDENCE_EXACT_REGISTRY_LOADER_EXCEPTION"
+        return blocked_report(
+            [_exception_problem(code, "load_exact_registry", error)],
+            component_evidence={
+                "catalog": catalog,
+                "exact_registry_report": _exception_component(code),
+            },
+            component_statuses={
+                "catalog": _text(_mapping(catalog).get("status")),
+                "exact_registry_report": "blocked",
+            },
+        )
+
     input_problems = _validate_inputs(
         catalog=catalog,
         exact_registry=exact_registry,
@@ -673,12 +899,8 @@ def run_catalog_candidate_evidence(
         expected_identity=normalized_identity,
     )
     if input_problems:
-        return _runner_report(
-            status="blocked",
-            expected_identity=normalized_identity,
-            problems=input_problems,
-            pointer_before=pointer_before,
-            pointer_after=pointer_after,
+        return blocked_report(
+            input_problems,
             component_evidence={
                 "catalog": catalog,
                 "exact_registry_report": exact_registry,
@@ -691,25 +913,59 @@ def run_catalog_candidate_evidence(
 
     get_profile_context = _build_profile_context_cache(profile_context_factory)
     recording_request_json, records = _recording_request_json(request_json)
-    catalog_http_report = _canonical(
-        run_catalog_http_matrix(
-            recording_request_json,
-            catalog=_mapping(catalog),
-            expected_specs=list(expected_specs),
-            manifest_revision=_text(normalized_identity.get("manifestRevision")),
-            pointer_generation=_int_or_none(normalized_identity.get("pointerGeneration")) or 0,
-            gear_release_id=_text(normalized_identity.get("gearReleaseId")),
-            community_release_id=_text(normalized_identity.get("communityReleaseId")),
-            catalog_revision=_text(normalized_identity.get("gearCatalogRevision")),
-            exact_registry_revision=_text(normalized_identity.get("gearExactRegistryRevision")),
-            observed_at=_text(observed_at),
+    try:
+        catalog_http_report = _canonical(
+            run_catalog_http_matrix(
+                recording_request_json,
+                catalog=_mapping(catalog),
+                expected_specs=canonical_expected_specs,
+                manifest_revision=_text(normalized_identity.get("manifestRevision")),
+                pointer_generation=_int_or_none(normalized_identity.get("pointerGeneration")) or 0,
+                gear_release_id=_text(normalized_identity.get("gearReleaseId")),
+                community_release_id=_text(normalized_identity.get("communityReleaseId")),
+                catalog_revision=_text(normalized_identity.get("gearCatalogRevision")),
+                exact_registry_revision=_text(normalized_identity.get("gearExactRegistryRevision")),
+                observed_at=_text(observed_at),
+            )
         )
-    )
+    except Exception as error:
+        code = "CATALOG_CANDIDATE_EVIDENCE_HTTP_MATRIX_EXCEPTION"
+        catalog_http_report = _exception_component(code)
+        return blocked_report(
+            [_exception_problem(code, "run_catalog_http_matrix", error)],
+            component_evidence={
+                "catalog": catalog,
+                "catalog_http_report": catalog_http_report,
+                "expectedSpecs": canonical_expected_specs,
+                "exact_registry_report": exact_registry,
+            },
+            component_statuses={
+                "catalog": _text(_mapping(catalog).get("status")),
+                "catalog_http_report": "blocked",
+                "exact_registry_report": _text(_mapping(exact_registry).get("status")),
+            },
+        )
+    if not isinstance(catalog_http_report, Mapping):
+        code = "CATALOG_CANDIDATE_EVIDENCE_HTTP_MATRIX_REPORT_INVALID"
+        catalog_http_report = _exception_component(code)
+        return blocked_report(
+            [_problem(code, "run_catalog_http_matrix must return a mapping")],
+            component_evidence={
+                "catalog": catalog,
+                "catalog_http_report": catalog_http_report,
+                "expectedSpecs": canonical_expected_specs,
+                "exact_registry_report": exact_registry,
+            },
+            component_statuses={
+                "catalog": _text(_mapping(catalog).get("status")),
+                "catalog_http_report": "blocked",
+                "exact_registry_report": _text(_mapping(exact_registry).get("status")),
+            },
+        )
     if (
         _text(_mapping(catalog_http_report).get("status")) != "pass"
         or (_int_or_none(_mapping(catalog_http_report).get("failureCount")) or 0) != 0
     ):
-        pointer_after = _canonical(pointer_reader())
         relation_contexts = _relation_contexts_from_override(observed_relation_contexts)
         counts = _catalog_gate_counts(
             catalog_http_report=_mapping(catalog_http_report),
@@ -717,10 +973,8 @@ def run_catalog_candidate_evidence(
             relation_contexts=relation_contexts,
             expected_identity=normalized_identity,
         )
-        return _runner_report(
-            status="blocked",
-            expected_identity=normalized_identity,
-            problems=[
+        return blocked_report(
+            [
                 _problem(
                     "CATALOG_CANDIDATE_EVIDENCE_HTTP_MATRIX_NOT_PASS",
                     "HTTP completeness matrix must stay pass with zero failures",
@@ -728,12 +982,11 @@ def run_catalog_candidate_evidence(
                     failureCount=_int_or_none(_mapping(catalog_http_report).get("failureCount")),
                 )
             ],
-            pointer_before=pointer_before,
-            pointer_after=pointer_after,
             component_evidence={
                 "catalog": catalog,
                 "catalog_http_report": catalog_http_report,
                 "catalog_gate_counts": counts,
+                "expectedSpecs": canonical_expected_specs,
                 "exact_registry_report": exact_registry,
             },
             component_statuses={
@@ -747,25 +1000,38 @@ def run_catalog_candidate_evidence(
         relation_contexts = _relation_contexts_from_override(observed_relation_contexts)
         relation_problems: list[dict[str, Any]] = []
     else:
-        relation_contexts, relation_problems = _extract_relation_contexts(
-            catalog=_mapping(catalog),
-            records=records,
-            get_profile_context=get_profile_context,
-        )
+        try:
+            relation_contexts, relation_problems = _extract_relation_contexts(
+                catalog=_mapping(catalog),
+                records=records,
+                get_profile_context=get_profile_context,
+            )
+        except Exception as error:
+            code = "CATALOG_CANDIDATE_EVIDENCE_PROFILE_CONTEXT_EXTRACTION_EXCEPTION"
+            return blocked_report(
+                [_exception_problem(code, "relation_context_extraction", error)],
+                component_evidence={
+                    "catalog": catalog,
+                    "catalog_http_report": catalog_http_report,
+                    "expectedSpecs": canonical_expected_specs,
+                    "exact_registry_report": exact_registry,
+                },
+                component_statuses={
+                    "catalog": _text(_mapping(catalog).get("status")),
+                    "catalog_http_report": _text(_mapping(catalog_http_report).get("status")),
+                    "exact_registry_report": _text(_mapping(exact_registry).get("status")),
+                },
+            )
     if relation_problems:
-        pointer_after = _canonical(pointer_reader())
-        return _runner_report(
-            status="blocked",
-            expected_identity=normalized_identity,
-            problems=relation_problems,
-            pointer_before=pointer_before,
-            pointer_after=pointer_after,
+        return blocked_report(
+            relation_problems,
             component_evidence={
                 "catalog": catalog,
                 "catalog_http_report": catalog_http_report,
                 "catalog_gate_counts": {
                     "relationContexts": _canonical(relation_contexts),
                 },
+                "expectedSpecs": canonical_expected_specs,
                 "exact_registry_report": exact_registry,
             },
             component_statuses={
@@ -775,45 +1041,158 @@ def run_catalog_candidate_evidence(
             },
         )
 
-    materializer = build_materialization_runner(
-        request_json=request_json,
-        profile_context_factory=lambda **kwargs: get_profile_context(
-            _text(kwargs.get("class_key")), _text(kwargs.get("spec_key"))
-        ),
-        expected_release_context={
-            field: normalized_identity[field]
-            for field in _INPUT_IDENTITY_FIELDS
-            if field in normalized_identity
-        },
-    )
-    materialization_report = _canonical(
-        build_materialization_matrix(
-            _mapping(catalog),
-            relation_contexts,
-            materializer,
+    try:
+        materializer = build_materialization_runner(
+            request_json=request_json,
+            profile_context_factory=lambda **kwargs: get_profile_context(
+                _text(kwargs.get("class_key")), _text(kwargs.get("spec_key"))
+            ),
+            expected_release_context={
+                field: normalized_identity[field]
+                for field in _INPUT_IDENTITY_FIELDS
+                if field in normalized_identity
+            },
         )
-    )
+    except Exception as error:
+        code = "CATALOG_CANDIDATE_EVIDENCE_MATERIALIZATION_RUNNER_EXCEPTION"
+        return blocked_report(
+            [_exception_problem(code, "build_materialization_runner", error)],
+            component_evidence={
+                "catalog": catalog,
+                "catalog_http_report": catalog_http_report,
+                "catalog_gate_counts": _catalog_gate_counts(
+                    catalog_http_report=_mapping(catalog_http_report),
+                    materialization_report={},
+                    relation_contexts=relation_contexts,
+                    expected_identity=normalized_identity,
+                ),
+                "materialization_report": _exception_component(code),
+                "expectedSpecs": canonical_expected_specs,
+                "exact_registry_report": exact_registry,
+            },
+            component_statuses={
+                "catalog": _text(_mapping(catalog).get("status")),
+                "catalog_http_report": _text(_mapping(catalog_http_report).get("status")),
+                "materialization_report": "blocked",
+                "exact_registry_report": _text(_mapping(exact_registry).get("status")),
+            },
+        )
+    try:
+        materialization_report = _canonical(
+            build_materialization_matrix(
+                _mapping(catalog),
+                relation_contexts,
+                materializer,
+            )
+        )
+    except Exception as error:
+        code = "CATALOG_CANDIDATE_EVIDENCE_MATERIALIZATION_MATRIX_EXCEPTION"
+        return blocked_report(
+            [_exception_problem(code, "build_materialization_matrix", error)],
+            component_evidence={
+                "catalog": catalog,
+                "catalog_http_report": catalog_http_report,
+                "catalog_gate_counts": _catalog_gate_counts(
+                    catalog_http_report=_mapping(catalog_http_report),
+                    materialization_report={},
+                    relation_contexts=relation_contexts,
+                    expected_identity=normalized_identity,
+                ),
+                "materialization_report": _exception_component(code),
+                "expectedSpecs": canonical_expected_specs,
+                "exact_registry_report": exact_registry,
+            },
+            component_statuses={
+                "catalog": _text(_mapping(catalog).get("status")),
+                "catalog_http_report": _text(_mapping(catalog_http_report).get("status")),
+                "materialization_report": "blocked",
+                "exact_registry_report": _text(_mapping(exact_registry).get("status")),
+            },
+        )
+    if not isinstance(materialization_report, Mapping):
+        code = "CATALOG_CANDIDATE_EVIDENCE_MATERIALIZATION_MATRIX_REPORT_INVALID"
+        materialization_report = _exception_component(code)
+        return blocked_report(
+            [_problem(code, "build_materialization_matrix must return a mapping")],
+            component_evidence={
+                "catalog": catalog,
+                "catalog_http_report": catalog_http_report,
+                "materialization_report": materialization_report,
+                "expectedSpecs": canonical_expected_specs,
+                "exact_registry_report": exact_registry,
+            },
+            component_statuses={
+                "catalog": _text(_mapping(catalog).get("status")),
+                "catalog_http_report": _text(_mapping(catalog_http_report).get("status")),
+                "materialization_report": "blocked",
+                "exact_registry_report": _text(_mapping(exact_registry).get("status")),
+            },
+        )
     catalog_gate_counts = _catalog_gate_counts(
         catalog_http_report=_mapping(catalog_http_report),
         materialization_report=_mapping(materialization_report),
         relation_contexts=relation_contexts,
         expected_identity=normalized_identity,
     )
-    simc_26_14_report = _canonical(
-        run_simc_execution_matrix(
-            request_json,
-            simc_executor,
-            expected_specs=list(expected_specs),
-            manifest_revision=_text(normalized_identity.get("manifestRevision")),
-            pointer_generation=_int_or_none(normalized_identity.get("pointerGeneration")) or 0,
-            gear_release_id=_text(normalized_identity.get("gearReleaseId")),
-            community_release_id=_text(normalized_identity.get("communityReleaseId")),
-            catalog_revision=_text(normalized_identity.get("gearCatalogRevision")),
-            exact_registry_revision=_text(normalized_identity.get("gearExactRegistryRevision")),
-            simc_runtime_revision=_text(normalized_identity.get("simcRuntimeRevision")),
-            observed_at=_text(observed_at),
+    try:
+        simc_26_14_report = _canonical(
+            run_simc_execution_matrix(
+                request_json,
+                simc_executor,
+                expected_specs=canonical_expected_specs,
+                manifest_revision=_text(normalized_identity.get("manifestRevision")),
+                pointer_generation=_int_or_none(normalized_identity.get("pointerGeneration")) or 0,
+                gear_release_id=_text(normalized_identity.get("gearReleaseId")),
+                community_release_id=_text(normalized_identity.get("communityReleaseId")),
+                catalog_revision=_text(normalized_identity.get("gearCatalogRevision")),
+                exact_registry_revision=_text(normalized_identity.get("gearExactRegistryRevision")),
+                simc_runtime_revision=_text(normalized_identity.get("simcRuntimeRevision")),
+                observed_at=_text(observed_at),
+            )
         )
-    )
+    except Exception as error:
+        code = "CATALOG_CANDIDATE_EVIDENCE_SIMC_EXECUTION_MATRIX_EXCEPTION"
+        return blocked_report(
+            [_exception_problem(code, "run_simc_execution_matrix", error)],
+            component_evidence={
+                "catalog": catalog,
+                "catalog_http_report": catalog_http_report,
+                "catalog_gate_counts": catalog_gate_counts,
+                "materialization_report": materialization_report,
+                "simc_execution_matrix_report": _exception_component(code),
+                "expectedSpecs": canonical_expected_specs,
+                "exact_registry_report": exact_registry,
+            },
+            component_statuses={
+                "catalog": _text(_mapping(catalog).get("status")),
+                "catalog_http_report": _text(_mapping(catalog_http_report).get("status")),
+                "materialization_report": _text(_mapping(materialization_report).get("status")),
+                "simc_execution_matrix_report": "blocked",
+                "exact_registry_report": _text(_mapping(exact_registry).get("status")),
+            },
+        )
+    if not isinstance(simc_26_14_report, Mapping):
+        code = "CATALOG_CANDIDATE_EVIDENCE_SIMC_EXECUTION_MATRIX_REPORT_INVALID"
+        simc_26_14_report = _exception_component(code)
+        return blocked_report(
+            [_problem(code, "run_simc_execution_matrix must return a mapping")],
+            component_evidence={
+                "catalog": catalog,
+                "catalog_http_report": catalog_http_report,
+                "catalog_gate_counts": catalog_gate_counts,
+                "materialization_report": materialization_report,
+                "simc_execution_matrix_report": simc_26_14_report,
+                "expectedSpecs": canonical_expected_specs,
+                "exact_registry_report": exact_registry,
+            },
+            component_statuses={
+                "catalog": _text(_mapping(catalog).get("status")),
+                "catalog_http_report": _text(_mapping(catalog_http_report).get("status")),
+                "materialization_report": _text(_mapping(materialization_report).get("status")),
+                "simc_execution_matrix_report": "blocked",
+                "exact_registry_report": _text(_mapping(exact_registry).get("status")),
+            },
+        )
     variant_smoke_callback = _build_variant_smoke_callback(
         request_json=request_json,
         simc_executor=simc_executor,
@@ -821,15 +1200,96 @@ def run_catalog_candidate_evidence(
         get_profile_context=get_profile_context,
         expected_identity=normalized_identity,
     )
-    variant_simc_report = _canonical(
-        build_variant_simc_matrix(
-            materialization_report,
-            variant_smoke_callback,
+    try:
+        variant_simc_report = _canonical(
+            build_variant_simc_matrix(
+                materialization_report,
+                variant_smoke_callback,
+            )
         )
+    except Exception as error:
+        code = "CATALOG_CANDIDATE_EVIDENCE_VARIANT_SIMC_MATRIX_EXCEPTION"
+        return blocked_report(
+            [_exception_problem(code, "build_variant_simc_matrix", error)],
+            component_evidence={
+                "catalog": catalog,
+                "catalog_http_report": catalog_http_report,
+                "catalog_gate_counts": catalog_gate_counts,
+                "materialization_report": materialization_report,
+                "variant_simc_report": _exception_component(code),
+                "simc_execution_matrix_report": simc_26_14_report,
+                "expectedSpecs": canonical_expected_specs,
+                "exact_registry_report": exact_registry,
+            },
+            component_statuses={
+                "catalog": _text(_mapping(catalog).get("status")),
+                "catalog_http_report": _text(_mapping(catalog_http_report).get("status")),
+                "materialization_report": _text(_mapping(materialization_report).get("status")),
+                "variant_simc_report": "blocked",
+                "simc_execution_matrix_report": _text(_mapping(simc_26_14_report).get("status")),
+                "exact_registry_report": _text(_mapping(exact_registry).get("status")),
+            },
+        )
+    if not isinstance(variant_simc_report, Mapping):
+        code = "CATALOG_CANDIDATE_EVIDENCE_VARIANT_SIMC_MATRIX_REPORT_INVALID"
+        variant_simc_report = _exception_component(code)
+        return blocked_report(
+            [_problem(code, "build_variant_simc_matrix must return a mapping")],
+            component_evidence={
+                "catalog": catalog,
+                "catalog_http_report": catalog_http_report,
+                "catalog_gate_counts": catalog_gate_counts,
+                "materialization_report": materialization_report,
+                "variant_simc_report": variant_simc_report,
+                "simc_execution_matrix_report": simc_26_14_report,
+                "expectedSpecs": canonical_expected_specs,
+                "exact_registry_report": exact_registry,
+            },
+            component_statuses={
+                "catalog": _text(_mapping(catalog).get("status")),
+                "catalog_http_report": _text(_mapping(catalog_http_report).get("status")),
+                "materialization_report": _text(_mapping(materialization_report).get("status")),
+                "variant_simc_report": "blocked",
+                "simc_execution_matrix_report": _text(_mapping(simc_26_14_report).get("status")),
+                "exact_registry_report": _text(_mapping(exact_registry).get("status")),
+            },
+        )
+
+    pointer_after, pointer_after_problem = _safe_pointer_snapshot(
+        pointer_reader,
+        pointer_before,
     )
-    pointer_after = _canonical(pointer_reader())
-    return _canonical(
-        assemble_evidence(
+    if pointer_after_problem:
+        return _runner_report(
+            status="blocked",
+            expected_identity=normalized_identity,
+            problems=[pointer_after_problem],
+            pointer_before=pointer_before,
+            pointer_after=pointer_after,
+            component_evidence={
+                "catalog": catalog,
+                "catalog_http_report": catalog_http_report,
+                "catalog_gate_counts": catalog_gate_counts,
+                "materialization_report": materialization_report,
+                "variant_simc_report": variant_simc_report,
+                "simc_execution_matrix_report": simc_26_14_report,
+                "expectedSpecs": canonical_expected_specs,
+                "exact_registry_report": exact_registry,
+                "pointer": _exception_component(pointer_after_problem["code"]),
+            },
+            component_statuses={
+                "catalog": _text(_mapping(catalog).get("status")),
+                "catalog_http_report": _text(_mapping(catalog_http_report).get("status")),
+                "materialization_report": _text(_mapping(materialization_report).get("status")),
+                "variant_simc_report": _text(_mapping(variant_simc_report).get("status")),
+                "simc_execution_matrix_report": _text(_mapping(simc_26_14_report).get("status")),
+                "exact_registry_report": _text(_mapping(exact_registry).get("status")),
+                "pointer": "blocked",
+            },
+        )
+
+    try:
+        assembled = assemble_evidence(
             catalog=catalog,
             catalog_http_report=catalog_http_report,
             catalog_gate_counts=catalog_gate_counts,
@@ -845,7 +1305,65 @@ def run_catalog_candidate_evidence(
             pointer_before=pointer_before,
             pointer_after=pointer_after,
         )
-    )
+    except Exception as error:
+        code = "CATALOG_CANDIDATE_EVIDENCE_ASSEMBLER_EXCEPTION"
+        return _runner_report(
+            status="blocked",
+            expected_identity=normalized_identity,
+            problems=[_exception_problem(code, "assemble_evidence", error)],
+            pointer_before=pointer_before,
+            pointer_after=pointer_after,
+            component_evidence={
+                "catalog": catalog,
+                "catalog_http_report": catalog_http_report,
+                "catalog_gate_counts": catalog_gate_counts,
+                "materialization_report": materialization_report,
+                "variant_simc_report": variant_simc_report,
+                "simc_execution_matrix_report": simc_26_14_report,
+                "expectedSpecs": canonical_expected_specs,
+                "exact_registry_report": exact_registry,
+                "assembler": _exception_component(code),
+            },
+            component_statuses={
+                "catalog": _text(_mapping(catalog).get("status")),
+                "catalog_http_report": _text(_mapping(catalog_http_report).get("status")),
+                "materialization_report": _text(_mapping(materialization_report).get("status")),
+                "variant_simc_report": _text(_mapping(variant_simc_report).get("status")),
+                "simc_execution_matrix_report": _text(_mapping(simc_26_14_report).get("status")),
+                "exact_registry_report": _text(_mapping(exact_registry).get("status")),
+                "assembler": "blocked",
+            },
+        )
+    if not isinstance(assembled, Mapping):
+        code = "CATALOG_CANDIDATE_EVIDENCE_ASSEMBLER_REPORT_INVALID"
+        return _runner_report(
+            status="blocked",
+            expected_identity=normalized_identity,
+            problems=[_problem(code, "assemble_evidence must return a mapping")],
+            pointer_before=pointer_before,
+            pointer_after=pointer_after,
+            component_evidence={
+                "catalog": catalog,
+                "catalog_http_report": catalog_http_report,
+                "catalog_gate_counts": catalog_gate_counts,
+                "materialization_report": materialization_report,
+                "variant_simc_report": variant_simc_report,
+                "simc_execution_matrix_report": simc_26_14_report,
+                "expectedSpecs": canonical_expected_specs,
+                "exact_registry_report": exact_registry,
+                "assembler": _exception_component(code),
+            },
+            component_statuses={
+                "catalog": _text(_mapping(catalog).get("status")),
+                "catalog_http_report": _text(_mapping(catalog_http_report).get("status")),
+                "materialization_report": _text(_mapping(materialization_report).get("status")),
+                "variant_simc_report": _text(_mapping(variant_simc_report).get("status")),
+                "simc_execution_matrix_report": _text(_mapping(simc_26_14_report).get("status")),
+                "exact_registry_report": _text(_mapping(exact_registry).get("status")),
+                "assembler": "blocked",
+            },
+        )
+    return _canonical(assembled)
 
 
 __all__ = [

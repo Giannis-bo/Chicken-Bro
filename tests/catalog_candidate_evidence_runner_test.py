@@ -1,9 +1,13 @@
 import copy
+import contextlib
 import importlib.util
+import io
 import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
+from urllib.error import URLError
 from urllib.parse import parse_qs, urlparse
 
 try:
@@ -11,6 +15,7 @@ try:
         assemble_catalog_candidate_evidence,
     )
     from server.catalog_candidate_evidence_runner import (
+        _build_variant_smoke_callback,
         run_catalog_candidate_evidence,
     )
     from server.gear_variant_materialization_matrix import (
@@ -23,6 +28,7 @@ except ModuleNotFoundError:
     assemble_catalog_candidate_evidence = None
     build_gear_variant_materialization_matrix = None
     build_gear_variant_simc_matrix = None
+    _build_variant_smoke_callback = None
     run_catalog_candidate_evidence = None
 
 
@@ -329,12 +335,18 @@ class CatalogCandidateEvidenceRunnerTest(unittest.TestCase):
                 "level": 80,
             }
         )
-        pointer_reader = PointerReader([self.pointer(), self.pointer()])
+        old_active_pointer = self.pointer(
+            gearCatalogRevision="gear-catalog:sha256:" + "a" * 64,
+            gearExactRegistryRevision="gear-exact-registry:sha256:" + "b" * 64,
+        )
+        pointer_reader = PointerReader([old_active_pointer, old_active_pointer])
         http_calls = []
         materializer_calls = []
+        matrix_specs = {}
 
         def run_http_matrix(recording_request_json, **kwargs):
             self.assertEqual(len(kwargs["expected_specs"]), 40)
+            matrix_specs["http"] = kwargs["expected_specs"]
             for class_key, spec_key in kwargs["expected_specs"]:
                 for slot in (
                     "head",
@@ -474,6 +486,7 @@ class CatalogCandidateEvidenceRunnerTest(unittest.TestCase):
             }
 
         def run_simc_matrix(_request_json, _simc_executor, **_kwargs):
+            matrix_specs["simc"] = _kwargs["expected_specs"]
             return self.simc_26_14_report()
 
         def build_variant_simc_matrix(materialization_report, smoke_callback):
@@ -546,8 +559,357 @@ class CatalogCandidateEvidenceRunnerTest(unittest.TestCase):
         self.assertEqual(len(http_calls), 40 * 16)
         self.assertEqual(len(materializer_calls), 2)
         self.assertEqual(pointer_reader.calls, 2)
+        self.assertEqual(report["pointerBefore"], old_active_pointer)
+        self.assertEqual(report["pointerAfter"], old_active_pointer)
         self.assertEqual(len(profile_factory.calls), 40)
+        self.assertIs(matrix_specs["http"], matrix_specs["simc"])
         self.assertNotIn("player=Candidate", json.dumps(report, ensure_ascii=False, sort_keys=True))
+
+    def test_variant_smoke_blocks_on_simc_runtime_revision_mismatch(self):
+        self.assertIsNotNone(_build_variant_smoke_callback)
+        self.assertIsNotNone(build_gear_variant_simc_matrix)
+
+        identity = self.expected_identity()
+        context = {
+            "browseVariantKey": "browse-a",
+            "itemId": "1001",
+            "classKey": "mage",
+            "specKey": "frost",
+            "slot": "head",
+            "selectionIntent": {
+                "schemaRevision": "selection-intent-v1",
+                "authoredAgainst": {
+                    "seasonRevision": "season-r1",
+                    "gearCatalogRevision": identity["gearCatalogRevision"],
+                },
+                "eligibilityContext": {
+                    "classKey": "mage",
+                    "specKey": "frost",
+                    "level": 80,
+                },
+                "slots": {
+                    "head": {
+                        "itemId": "1001",
+                        "variantKey": "browse-a",
+                    }
+                },
+            },
+        }
+        callback = _build_variant_smoke_callback(
+            request_json=RequestJson(identity),
+            simc_executor=SimcExecutor(
+                {
+                    "status": "verified",
+                    "ran": True,
+                    "timedOut": False,
+                    "hasDps": True,
+                    "executionMode": "real",
+                    "simcRuntimeRevision": "simc:wrong",
+                    "iterations": 1,
+                    "maxTimeSeconds": 5,
+                }
+            ),
+            relation_contexts=[context],
+            get_profile_context=lambda _class_key, _spec_key: {
+                "classKey": "mage",
+                "specKey": "frost",
+                "race": "human",
+                "scenarioKey": "single",
+                "talents": "TALENTS",
+                "level": 80,
+            },
+            expected_identity=identity,
+        )
+
+        smoke = callback(
+            item_id="1001",
+            browse_variant_key="browse-a",
+            class_key="mage",
+            spec_key="frost",
+            slot="head",
+        )
+        materialization = self.supported_materialization_report()
+        materialization["ledger"]["browse-a"].update(
+            {
+                "classKey": "mage",
+                "specKey": "frost",
+                "slot": "head",
+                "materializedItemId": "1001",
+                "materializedBrowseVariantKey": "browse-a",
+            }
+        )
+        variant_report = build_gear_variant_simc_matrix(materialization, callback)
+
+        self.assertEqual(smoke["status"], "blocked")
+        self.assertIn(
+            "CATALOG_CANDIDATE_EVIDENCE_VARIANT_SIMC_RUNTIME_REVISION_MISMATCH",
+            smoke["failureCodes"],
+        )
+        self.assertEqual(
+            variant_report["ledger"]["browse-a"]["simcRuntimeRevision"],
+            "simc:wrong",
+        )
+        self.assertIn(
+            "CATALOG_CANDIDATE_EVIDENCE_VARIANT_SIMC_RUNTIME_REVISION_MISMATCH",
+            variant_report["ledger"]["browse-a"]["failureCodes"],
+        )
+
+    def test_expected_specs_must_be_40_unique_non_empty_before_execution(self):
+        self.assertIsNotNone(run_catalog_candidate_evidence)
+
+        identity = self.expected_identity()
+        valid_specs = self.expected_specs_40()
+        cases = {
+            "missing": valid_specs[:-1],
+            "duplicate": valid_specs + [valid_specs[0]],
+            "empty": [("", spec_key) for _class_key, spec_key in valid_specs],
+        }
+        for name, specs in cases.items():
+            with self.subTest(name=name):
+                loader_calls = []
+                http_calls = []
+                report = run_catalog_candidate_evidence(
+                    load_catalog=lambda: loader_calls.append("catalog") or self.catalog(),
+                    load_exact_registry=lambda: loader_calls.append("exact") or self.exact_registry(),
+                    request_json=RequestJson(identity),
+                    profile_context_factory=RecordingFactory({"level": 80}),
+                    simc_executor=SimcExecutor({}),
+                    pointer_reader=PointerReader([self.pointer(), self.pointer()]),
+                    run_catalog_http_matrix=lambda *_args, **_kwargs: http_calls.append(True),
+                    build_materialization_runner=lambda **_kwargs: (_ for _ in ()).throw(
+                        AssertionError("materialization runner must not be built")
+                    ),
+                    build_materialization_matrix=lambda *_args, **_kwargs: (_ for _ in ()).throw(
+                        AssertionError("materialization matrix must not run")
+                    ),
+                    run_simc_execution_matrix=lambda *_args, **_kwargs: (_ for _ in ()).throw(
+                        AssertionError("26/14 matrix must not run")
+                    ),
+                    build_variant_simc_matrix=lambda *_args, **_kwargs: (_ for _ in ()).throw(
+                        AssertionError("variant SimC matrix must not run")
+                    ),
+                    assemble_evidence=lambda **_kwargs: (_ for _ in ()).throw(
+                        AssertionError("assembly must not run")
+                    ),
+                    expected_specs=specs,
+                    expected_identity=identity,
+                    observed_at="2026-08-10T00:00:00+00:00",
+                )
+                self.assertEqual(report["status"], "blocked")
+                self.assertEqual(loader_calls, [])
+                self.assertEqual(http_calls, [])
+                self.assertTrue(
+                    any(
+                        problem["code"].startswith(
+                            "CATALOG_CANDIDATE_EVIDENCE_EXPECTED_SPECS_"
+                        )
+                        for problem in report["problems"]
+                    )
+                )
+
+    def test_loader_exception_returns_stable_blocked_report(self):
+        self.assertIsNotNone(run_catalog_candidate_evidence)
+
+        identity = self.expected_identity()
+        pointer_reader = PointerReader([self.pointer(), self.pointer()])
+        report = run_catalog_candidate_evidence(
+            load_catalog=lambda: (_ for _ in ()).throw(OSError("database unavailable")),
+            load_exact_registry=lambda: self.exact_registry(),
+            request_json=RequestJson(identity),
+            profile_context_factory=RecordingFactory({"level": 80}),
+            simc_executor=SimcExecutor({}),
+            pointer_reader=pointer_reader,
+            expected_specs=self.expected_specs_40(),
+            expected_identity=identity,
+            observed_at="2026-08-10T00:00:00+00:00",
+        )
+
+        self.assertEqual(report["status"], "blocked")
+        self.assertEqual(
+            report["problems"][0]["code"],
+            "CATALOG_CANDIDATE_EVIDENCE_CATALOG_LOADER_EXCEPTION",
+        )
+        self.assertEqual(report["pointerBefore"], self.pointer())
+        self.assertEqual(report["pointerAfter"], self.pointer())
+        self.assertEqual(
+            report["componentEvidence"]["catalog"]["failureCodes"],
+            ["CATALOG_CANDIDATE_EVIDENCE_CATALOG_LOADER_EXCEPTION"],
+        )
+
+    def test_matrix_exception_returns_stable_blocked_report(self):
+        self.assertIsNotNone(run_catalog_candidate_evidence)
+
+        identity = self.expected_identity()
+        report = run_catalog_candidate_evidence(
+            load_catalog=lambda: self.catalog(),
+            load_exact_registry=lambda: self.exact_registry(),
+            request_json=RequestJson(identity),
+            profile_context_factory=RecordingFactory({"level": 80}),
+            simc_executor=SimcExecutor({}),
+            pointer_reader=PointerReader([self.pointer(), self.pointer()]),
+            run_catalog_http_matrix=lambda *_args, **_kwargs: (_ for _ in ()).throw(
+                OSError("candidate network unavailable")
+            ),
+            expected_specs=self.expected_specs_40(),
+            expected_identity=identity,
+            observed_at="2026-08-10T00:00:00+00:00",
+        )
+
+        self.assertEqual(report["status"], "blocked")
+        self.assertEqual(
+            report["problems"][0]["code"],
+            "CATALOG_CANDIDATE_EVIDENCE_HTTP_MATRIX_EXCEPTION",
+        )
+        self.assertEqual(report["pointerBefore"], report["pointerAfter"])
+        self.assertEqual(
+            report["componentEvidence"]["catalog_http_report"]["failureCodes"],
+            ["CATALOG_CANDIDATE_EVIDENCE_HTTP_MATRIX_EXCEPTION"],
+        )
+
+    def test_profile_context_exception_returns_stable_blocked_report(self):
+        self.assertIsNotNone(run_catalog_candidate_evidence)
+
+        identity = self.expected_identity()
+        request_json = RequestJson(
+            identity,
+            payload_builder=lambda class_key, spec_key, slot: self.slot_payload(
+                identity, class_key, spec_key, slot
+            ),
+        )
+
+        def run_http_matrix(recording_request_json, **_kwargs):
+            recording_request_json(
+                "GET",
+                "/api/websim/gear?class=mage&spec=frost&compact=1&mode=slot&slot=head",
+                None,
+                {},
+            )
+            return {
+                "schemaRevision": "gear-catalog-http-completeness-matrix-v2",
+                "status": "pass",
+                "failureCount": 0,
+                "failureCodes": {},
+            }
+
+        report = run_catalog_candidate_evidence(
+            load_catalog=lambda: self.catalog(
+                itemDefinitions=[{"itemId": "1001", "slot": "head"}],
+                browseVariants=[{"browseVariantKey": "browse-a", "itemId": "1001"}],
+            ),
+            load_exact_registry=lambda: self.exact_registry(),
+            request_json=request_json,
+            profile_context_factory=lambda **_kwargs: (_ for _ in ()).throw(
+                RuntimeError("profile context unavailable")
+            ),
+            simc_executor=SimcExecutor({}),
+            pointer_reader=PointerReader([self.pointer(), self.pointer()]),
+            run_catalog_http_matrix=run_http_matrix,
+            expected_specs=self.expected_specs_40(),
+            expected_identity=identity,
+            observed_at="2026-08-10T00:00:00+00:00",
+        )
+
+        self.assertEqual(report["status"], "blocked")
+        self.assertEqual(
+            report["problems"][0]["code"],
+            "CATALOG_CANDIDATE_EVIDENCE_PROFILE_CONTEXT_FACTORY_EXCEPTION",
+        )
+        self.assertEqual(report["pointerBefore"], report["pointerAfter"])
+
+    def test_cli_loader_exception_writes_blocked_json_without_bubbling(self):
+        module = _load_cli_module()
+        self.assertIsNotNone(module)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output = Path(tmpdir) / "report.json"
+            identity = self.expected_identity()
+            exit_code = module.main(
+                [
+                    "--base-url",
+                    "http://127.0.0.1",
+                    "--manifest-revision",
+                    identity["manifestRevision"],
+                    "--pointer-generation",
+                    str(identity["pointerGeneration"]),
+                    "--gear-release-id",
+                    identity["gearReleaseId"],
+                    "--community-release-id",
+                    identity["communityReleaseId"],
+                    "--gear-catalog-revision",
+                    identity["gearCatalogRevision"],
+                    "--gear-exact-registry-revision",
+                    identity["gearExactRegistryRevision"],
+                    "--simc-runtime-revision",
+                    identity["simcRuntimeRevision"],
+                    "--simc-bin",
+                    "/bin/true",
+                    "--output",
+                    str(output),
+                ],
+                load_catalog_fn=lambda _args: (_ for _ in ()).throw(
+                    OSError("database unavailable")
+                ),
+                load_exact_registry_fn=lambda _args: self.exact_registry(),
+                pointer_reader_fn=lambda _args: self.pointer(),
+            )
+
+            self.assertEqual(exit_code, 2)
+            written = json.loads(output.read_text(encoding="utf-8"))
+            self.assertEqual(written["status"], "blocked")
+            self.assertEqual(
+                written["problems"][0]["code"],
+                "CATALOG_CANDIDATE_EVIDENCE_CATALOG_LOADER_EXCEPTION",
+            )
+
+    def test_cli_rejects_untrusted_report_file_overrides(self):
+        module = _load_cli_module()
+        self.assertIsNotNone(module)
+
+        with contextlib.redirect_stderr(io.StringIO()):
+            with self.assertRaises(SystemExit):
+                module._parser().parse_args(["--catalog-report", "/tmp/untrusted.json"])
+
+    def test_cli_request_network_error_returns_blocked_payload_without_bubbling(self):
+        module = _load_cli_module()
+        self.assertIsNotNone(module)
+        args = module._parser().parse_args(
+            [
+                "--base-url",
+                "http://127.0.0.1",
+                "--manifest-revision",
+                "manifest:sha256:" + "1" * 64,
+                "--pointer-generation",
+                "35",
+                "--gear-release-id",
+                "gear-release:sha256:" + "5" * 64,
+                "--community-release-id",
+                "community-release:sha256:" + "6" * 64,
+                "--gear-catalog-revision",
+                "gear-catalog:sha256:" + "2" * 64,
+                "--gear-exact-registry-revision",
+                "gear-exact-registry:sha256:" + "3" * 64,
+                "--simc-runtime-revision",
+                "simc:" + "4" * 40,
+                "--simc-bin",
+                "/bin/true",
+                "--output",
+                "/tmp/candidate-evidence.json",
+            ]
+        )
+        request_json = module._request_json_builder(args)
+        with patch.object(module, "urlopen", side_effect=URLError("offline")):
+            status, payload, _duration_ms = request_json(
+                "GET",
+                "/api/websim/gear?class=mage&spec=frost",
+                None,
+                {},
+            )
+
+        self.assertEqual(status, 0)
+        self.assertEqual(
+            payload["failureCodes"],
+            ["CATALOG_CANDIDATE_EVIDENCE_NETWORK_EXCEPTION"],
+        )
 
     def test_variant_smoke_posts_exact_intent_and_uses_real_short_executor_fields(self):
         self.assertIsNotNone(run_catalog_candidate_evidence)
@@ -637,7 +999,7 @@ class CatalogCandidateEvidenceRunnerTest(unittest.TestCase):
             run_simc_execution_matrix=run_simc_matrix,
             build_variant_simc_matrix=build_gear_variant_simc_matrix,
             assemble_evidence=assemble_catalog_candidate_evidence,
-            expected_specs=[("mage", "frost")],
+            expected_specs=self.expected_specs_40(),
             observed_relation_contexts=[
                 {
                     "browseVariantKey": "browse-a",
@@ -776,7 +1138,7 @@ class CatalogCandidateEvidenceRunnerTest(unittest.TestCase):
             run_simc_execution_matrix=lambda _request_json, _simc_executor, **_kwargs: self.simc_26_14_report(),
             build_variant_simc_matrix=build_gear_variant_simc_matrix,
             assemble_evidence=assemble_catalog_candidate_evidence,
-            expected_specs=[("mage", "frost")],
+            expected_specs=self.expected_specs_40(),
             observed_relation_contexts=[
                 {
                     "browseVariantKey": "browse-a",
@@ -834,7 +1196,7 @@ class CatalogCandidateEvidenceRunnerTest(unittest.TestCase):
             run_simc_execution_matrix=lambda *_args, **_kwargs: {},
             build_variant_simc_matrix=lambda *_args, **_kwargs: {},
             assemble_evidence=lambda **_kwargs: {},
-            expected_specs=[("mage", "frost")],
+            expected_specs=self.expected_specs_40(),
             expected_identity=identity,
             observed_at="2026-08-10T00:00:00+00:00",
         )
@@ -941,7 +1303,7 @@ class CatalogCandidateEvidenceRunnerTest(unittest.TestCase):
                 "simcRuntimeRevision": identity["simcRuntimeRevision"],
             },
             assemble_evidence=assemble_catalog_candidate_evidence,
-            expected_specs=[("mage", "frost")],
+            expected_specs=self.expected_specs_40(),
             observed_relation_contexts=[
                 {
                     "browseVariantKey": "browse-a",
@@ -1067,7 +1429,7 @@ class CatalogCandidateEvidenceRunnerTest(unittest.TestCase):
             run_simc_execution_matrix=lambda _request_json, _simc_executor, **_kwargs: self.simc_26_14_report(),
             build_variant_simc_matrix=build_gear_variant_simc_matrix,
             assemble_evidence=assemble_catalog_candidate_evidence,
-            expected_specs=[("paladin", "holy")],
+            expected_specs=self.expected_specs_40(),
             observed_relation_contexts=[
                 {
                     "browseVariantKey": "browse-a",
@@ -1215,7 +1577,7 @@ class CatalogCandidateEvidenceRunnerTest(unittest.TestCase):
                 "simcRuntimeRevision": identity["simcRuntimeRevision"],
             },
             assemble_evidence=assemble_catalog_candidate_evidence,
-            expected_specs=[("mage", "frost")],
+            expected_specs=self.expected_specs_40(),
             observed_relation_contexts=[
                 {
                     "browseVariantKey": "browse-a",
@@ -1278,10 +1640,6 @@ class CatalogCandidateEvidenceRunnerTest(unittest.TestCase):
                     "simc:" + "4" * 40,
                     "--simc-bin",
                     "/bin/true",
-                    "--catalog-report",
-                    str(Path(tmpdir) / "catalog.json"),
-                    "--exact-report",
-                    str(Path(tmpdir) / "exact.json"),
                     "--output",
                     str(output),
                 ],
