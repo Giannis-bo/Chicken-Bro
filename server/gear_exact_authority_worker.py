@@ -14,24 +14,28 @@ from typing import Any, Callable, Mapping
 try:
     from .db import connect_postgres
     from .gear_exact_import_job_store import (
+        DEPENDENCY_VECTOR_KEYS,
         ExactImportJobRequest,
         GearExactImportJobStore,
         GearExactImportJobStoreIntegrityError,
         REQUEST_V2_SCHEMA_REVISION,
+        REQUEST_V3_SCHEMA_REVISION,
     )
 except ImportError:  # pragma: no cover - direct server runtime compatibility
     from db import connect_postgres
     from gear_exact_import_job_store import (
+        DEPENDENCY_VECTOR_KEYS,
         ExactImportJobRequest,
         GearExactImportJobStore,
         GearExactImportJobStoreIntegrityError,
         REQUEST_V2_SCHEMA_REVISION,
+        REQUEST_V3_SCHEMA_REVISION,
     )
 
 
 WORKER_REVISION = "exact-authority-worker-v1"
 WORKER_ROLE = "wow_exact_worker"
-_SIMULATION_SNAPSHOT_V2_SCHEMA_REVISION = "simulation-snapshot-v2"
+_SIMULATION_SNAPSHOT_V3_SCHEMA_REVISION = "simulation-snapshot-v3"
 _RESULT_IDENTITY = re.compile(r"^simc-result:sha256:[0-9a-f]{64}$")
 _PRIVATE_RESULT_KEYS = frozenset({
     "rawProfile", "rawString", "playerName", "characterName", "realm",
@@ -215,7 +219,7 @@ def snapshot_bound_processor(
     simc_runtime_revision: str,
     runner: Callable[[Mapping[str, Any]], Mapping[str, Any]],
 ) -> Callable[[ExactImportJobRequest], dict[str, Any]]:
-    """Return the only worker processor allowed to run a sealed v2 snapshot.
+    """Return the only worker processor allowed to run a sealed V3 snapshot.
 
     The claimed request already passed the database function boundary.  This
     processor repeats the critical identity checks against the single named
@@ -229,16 +233,28 @@ def snapshot_bound_processor(
 
     def processor(request: ExactImportJobRequest) -> dict[str, Any]:
         reference = request.snapshot_reference
-        if (
-            request.request_json.get("schemaRevision") != REQUEST_V2_SCHEMA_REVISION
-            or reference is None
-        ):
+        schema_revision = request.request_json.get("schemaRevision")
+        if schema_revision != REQUEST_V3_SCHEMA_REVISION:
+            code = (
+                "EXACT_IMPORT_REQUEST_V1_UNSUPPORTED"
+                if schema_revision != REQUEST_V2_SCHEMA_REVISION
+                else "EXACT_IMPORT_REQUEST_V2_UNSUPPORTED"
+            )
             return _snapshot_unsupported_outcome(
-                "EXACT_IMPORT_REQUEST_V1_UNSUPPORTED",
+                code,
+            )
+        if (
+            reference is None
+            or not reference.runtime_authority_release_key
+            or not reference.resolver_context_key
+        ):
+            return _snapshot_blocked_outcome(
+                "EXACT_IMPORT_SNAPSHOT_REFERENCE_MISMATCH",
             )
         dependency_vector = request.request_json.get("dependencyVector")
         if (
             not isinstance(dependency_vector, Mapping)
+            or set(dependency_vector) != DEPENDENCY_VECTOR_KEYS
             or dependency_vector.get("simcRuntimeRevision") != runtime_revision
         ):
             return _snapshot_unsupported_outcome("EXACT_IMPORT_RUNTIME_MISMATCH")
@@ -252,13 +268,17 @@ def snapshot_bound_processor(
         if not isinstance(snapshot, Mapping) or not snapshot:
             return _snapshot_blocked_outcome("EXACT_IMPORT_SNAPSHOT_UNAVAILABLE")
         if (
-            snapshot.get("schemaRevision") != _SIMULATION_SNAPSHOT_V2_SCHEMA_REVISION
+            snapshot.get("schemaRevision") != _SIMULATION_SNAPSHOT_V3_SCHEMA_REVISION
             or snapshot.get("status") != "ready"
             or snapshot.get("simulationSnapshotKey")
                 != reference.simulation_snapshot_key
             or snapshot.get("resolvedLoadoutKey")
                 != reference.resolved_loadout_key
             or snapshot.get("rowHash") != reference.snapshot_row_hash
+            or snapshot.get("runtimeAuthorityReleaseKey")
+                != reference.runtime_authority_release_key
+            or snapshot.get("resolverContextKey") != reference.resolver_context_key
+            or snapshot.get("dependencyVector") != dependency_vector
         ):
             return _snapshot_blocked_outcome(
                 "EXACT_IMPORT_SNAPSHOT_REFERENCE_MISMATCH",

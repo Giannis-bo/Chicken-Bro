@@ -303,6 +303,73 @@ class CapturingSnapshotStore:
         return row
 
 
+class CapturingRuntimeAuthorityStore:
+    def __init__(self, membership, *, entries=(), records=()):
+        self.membership = membership
+        self.entries = entries
+        self.records = records
+        self.calls = []
+
+    def read_unique_for_binding(self, owner_id, binding_key):
+        self.calls.append(("membership", owner_id, binding_key))
+        return self.membership
+
+    def read_occurrences(self, owner_id, binding_key, release):
+        self.calls.append(("occurrences", owner_id, binding_key, release.content_key))
+        return self.entries
+
+    def load_effect_records(self, release, entries):
+        self.calls.append(("records", release.content_key, entries))
+        return self.records
+
+
+def runtime_membership_for_vector(vector):
+    from server.exact_runtime_authority_release import (
+        seal_runtime_authority_release,
+        seal_runtime_resolver_context,
+    )
+
+    context = seal_runtime_resolver_context({
+        "schemaRevision": "exact-runtime-resolver-context-v1",
+        "producerIdentity": "task5c-materializer-test",
+        "producerRevision": "task5c-materializer-test-v1",
+        "seasonRevision": vector["seasonRevision"],
+        "gearRuleRevision": vector["gearRuleRevision"],
+        "resolverRevision": vector["resolverRevision"],
+        "simcRuntimeRevision": vector["simcRuntimeRevision"],
+        "resolverAuthorityContext": {
+            "dependencyVector": {
+                "seasonRevision": vector["seasonRevision"],
+                "gearRuleRevision": vector["gearRuleRevision"],
+                "resolverContractRevision": vector["resolverRevision"],
+                "simcRuntimeRevision": vector["simcRuntimeRevision"],
+            },
+            "ruleParameters": {},
+        },
+    }).document
+    release = seal_runtime_authority_release({
+        "schemaRevision": "exact-runtime-authority-release-v1",
+        "producerIdentity": "task5c-materializer-test",
+        "producerRevision": "task5c-materializer-test-v1",
+        "dependencyVector": vector,
+    }, resolver_context=context).document
+    return SimpleNamespace(resolver_context=context, release=release)
+
+
+def v3_snapshot_reference():
+    return {
+        "resolvedLoadoutKey": "resolved-loadout-v3:sha256:" + "b" * 64,
+        "simulationSnapshotKey": "simulation-snapshot-v3:sha256:" + "c" * 64,
+        "snapshotRowHash": "sha256:" + "d" * 64,
+        "runtimeAuthorityReleaseKey": (
+            "exact-runtime-authority-release:sha256:" + "e" * 64
+        ),
+        "resolverContextKey": (
+            "exact-runtime-resolver-context:sha256:" + "f" * 64
+        ),
+    }
+
+
 class ExactSimcApiTest(unittest.TestCase):
     def test_job_owner_hash_is_domain_separated_from_the_authenticated_user_id(self):
         """Routes keep the UUID in request memory; 0032 receives only this hash."""
@@ -636,7 +703,7 @@ class ExactSimcApiTest(unittest.TestCase):
         self.assertNotIn("rawString", profile)
         self.assertNotIn("simcLines", profile)
 
-    def test_full_materializer_derives_v2_job_input_only_from_replayed_exact_bundles(self):
+    def test_full_materializer_derives_v3_job_input_only_from_replayed_exact_bundles(self):
         """A forged v1 request cannot alter the exact bytes that enter 0032."""
 
         self.assertIsNotNone(ExactSimcMaterializer)
@@ -645,15 +712,11 @@ class ExactSimcApiTest(unittest.TestCase):
         source_materializer = ReplayMaterializer(replay)
         store = CapturingSnapshotStore()
         dependencies = exact_materializer_dependency_vector()
-        authority = {
-            "authorityContext": {"server": "only"},
-            "gearExactRegistryRevision": "gear-exact-registry:sha256:" + "1" * 64,
-            "loadoutEffectAuthority": object(),
-            "dependencyVector": dependencies,
-        }
+        membership = runtime_membership_for_vector(dependencies)
         materializer = ExactSimcMaterializer(
             source_materializer=source_materializer,
-            authority_provider=lambda _source: authority,
+            authenticated_user_id="12345678-1234-5678-1234-567812345678",
+            runtime_authority_store=CapturingRuntimeAuthorityStore(membership),
             profile_materializer=lambda _request, _source: {
                 "talentProfileKey": "talent-profile:sha256:" + "a" * 64,
                 "talentLines": ["talents=CYQAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"],
@@ -667,37 +730,51 @@ class ExactSimcApiTest(unittest.TestCase):
             "selectionIntent": {"client": "forged-v1-is-not-used"},
             "sourceRef": {"contractRevision": "exact-simc-source-ref-v1", "kind": "template", "sourceId": replay["source"].template_id, "remote": True},
         }
-        loadout = {"status": "ready", "resolvedLoadoutKey": "resolved-loadout-v2:sha256:" + "b" * 64}
+        loadout = {
+            "status": "ready",
+            "resolvedLoadoutKey": "resolved-loadout-v3:sha256:" + "b" * 64,
+            "runtimeAuthorityReleaseKey": membership.release.content_key,
+            "resolverContextKey": membership.resolver_context.content_key,
+        }
         snapshot = {
             "status": "ready",
-            "simulationSnapshotKey": "simulation-snapshot-v2:sha256:" + "c" * 64,
-            "resolvedLoadoutKey": "resolved-loadout-v2:sha256:" + "b" * 64,
+            "simulationSnapshotKey": "simulation-snapshot-v3:sha256:" + "c" * 64,
+            "resolvedLoadoutKey": "resolved-loadout-v3:sha256:" + "b" * 64,
             "rowHash": "sha256:" + "d" * 64,
+            "runtimeAuthorityReleaseKey": membership.release.content_key,
+            "resolverContextKey": membership.resolver_context.content_key,
+            "dependencyVector": dependencies,
         }
 
         with patch.object(module, "resolve_v2", return_value={"status": "verified"}) as resolve, patch.object(
-            module, "build_resolved_loadout_v2", return_value=loadout
-        ) as build_loadout, patch.object(module, "build_simulation_snapshot_v2", return_value=snapshot) as build_snapshot:
+            module, "build_resolved_loadout_v3", return_value=loadout
+        ) as build_loadout, patch.object(module, "build_simulation_snapshot_v3", return_value=snapshot) as build_snapshot:
             result = materializer(request, "sha256:" + "f" * 64)
 
         self.assertEqual(result["status"], "ready")
         self.assertEqual(result["confirmation"]["resolvedLoadoutKey"], loadout["resolvedLoadoutKey"])
         self.assertEqual(result["confirmation"]["simulationSnapshotKey"], snapshot["simulationSnapshotKey"])
         self.assertEqual(result["confirmation"]["dependencyVector"], dependencies)
+        self.assertNotIn("runtimeAuthorityReleaseKey", result["confirmation"])
+        self.assertNotIn("resolverContextKey", result["confirmation"])
         self.assertEqual(
             result["jobRequest"].request_json["schemaRevision"],
-            "exact-import-job-request-v2",
+            "exact-import-job-request-v3",
         )
         self.assertEqual(
             {
                 "resolvedLoadoutKey": result["jobRequest"].request_json["resolvedLoadoutKey"],
                 "simulationSnapshotKey": result["jobRequest"].request_json["simulationSnapshotKey"],
                 "snapshotRowHash": result["jobRequest"].request_json["snapshotRowHash"],
+                "runtimeAuthorityReleaseKey": result["jobRequest"].request_json["runtimeAuthorityReleaseKey"],
+                "resolverContextKey": result["jobRequest"].request_json["resolverContextKey"],
             },
             {
                 "resolvedLoadoutKey": loadout["resolvedLoadoutKey"],
                 "simulationSnapshotKey": snapshot["simulationSnapshotKey"],
                 "snapshotRowHash": snapshot["rowHash"],
+                "runtimeAuthorityReleaseKey": membership.release.content_key,
+                "resolverContextKey": membership.resolver_context.content_key,
             },
         )
         self.assertEqual(result["jobRequest"].request_json["exactLoadoutIntent"]["slots"]["head"]["itemId"], "1001")
@@ -707,19 +784,80 @@ class ExactSimcApiTest(unittest.TestCase):
         self.assertEqual(build_loadout.call_args.kwargs["exact_authority_by_slot"], json.loads(replay["binding"].canonical_bytes)["exactAuthorityBySlot"])
         self.assertEqual(build_snapshot.call_args.kwargs["resolved_loadout"], loadout)
 
+    def test_materializer_rejects_release_vector_context_or_occurrence_drift_before_enqueue(self):
+        """Release-scoped drift cannot reach resolution persistence or an Exact job."""
+
+        self.assertIsNotNone(ExactSimcMaterializer)
+        module = __import__("server.exact_simc_api", fromlist=["ExactSimcMaterializer"])
+        replay = verified_source_replay()
+        vector = exact_materializer_dependency_vector()
+        good_membership = runtime_membership_for_vector(vector)
+        owner_id = "12345678-1234-5678-1234-567812345678"
+
+        drifted_vector = {**vector, "gearRuleRevision": "gear-rule-drift"}
+        drifted_membership = runtime_membership_for_vector(drifted_vector)
+        context_drift_membership = SimpleNamespace(
+            resolver_context=good_membership.resolver_context,
+            release=drifted_membership.release,
+        )
+
+        for label, membership in (
+            ("release-vector", drifted_membership),
+            ("release-context", context_drift_membership),
+        ):
+            with self.subTest(label=label):
+                store = CapturingSnapshotStore()
+                authority_store = CapturingRuntimeAuthorityStore(membership)
+                materializer = ExactSimcMaterializer(
+                    source_materializer=ReplayMaterializer(replay),
+                    authenticated_user_id=owner_id,
+                    runtime_authority_store=authority_store,
+                    profile_materializer=lambda _request, _source: {},
+                    snapshot_store=store,
+                )
+                with patch.object(module, "resolve_v2", side_effect=AssertionError("release drift must block before resolution")):
+                    result = materializer({"sourceRef": {}}, "sha256:" + "f" * 64)
+                self.assertEqual(result["status"], "blocked")
+                self.assertEqual(store.calls, [])
+                self.assertEqual(authority_store.calls[0][0], "membership")
+
+        authority_store = CapturingRuntimeAuthorityStore(good_membership, entries=(object(),))
+        store = CapturingSnapshotStore()
+        materializer = ExactSimcMaterializer(
+            source_materializer=ReplayMaterializer(replay),
+            authenticated_user_id=owner_id,
+            runtime_authority_store=authority_store,
+            profile_materializer=lambda _request, _source: {},
+            snapshot_store=store,
+        )
+        first_pass = {
+            "status": "blocked",
+            "problemCodes": ["LOADOUT_EFFECT_AUTHORITY_REQUIRED"],
+            "problems": [{"code": "LOADOUT_EFFECT_AUTHORITY_REQUIRED"}],
+        }
+        with patch.object(module, "resolve_v2", return_value=first_pass), patch.object(
+            module,
+            "resolve_release_effect_records",
+            side_effect=RuntimeError("occurrence drift"),
+        ):
+            result = materializer({"sourceRef": {}}, "sha256:" + "f" * 64)
+        self.assertEqual(result["status"], "blocked")
+        self.assertEqual(store.calls, [])
+        self.assertEqual(
+            [call[0] for call in authority_store.calls],
+            ["membership", "occurrences", "records"],
+        )
+
     def test_full_materializer_blocks_before_snapshot_and_job_when_loadout_effect_is_missing(self):
         self.assertIsNotNone(ExactSimcMaterializer)
         module = __import__("server.exact_simc_api", fromlist=["ExactSimcMaterializer"])
         replay = verified_source_replay()
         store = CapturingSnapshotStore()
+        membership = runtime_membership_for_vector(exact_materializer_dependency_vector())
         materializer = ExactSimcMaterializer(
             source_materializer=ReplayMaterializer(replay),
-            authority_provider=lambda _source: {
-                "authorityContext": {"server": "only"},
-                "gearExactRegistryRevision": "gear-exact-registry:sha256:" + "1" * 64,
-                "loadoutEffectAuthority": None,
-                "dependencyVector": exact_materializer_dependency_vector(),
-            },
+            authenticated_user_id="12345678-1234-5678-1234-567812345678",
+            runtime_authority_store=CapturingRuntimeAuthorityStore(membership),
             profile_materializer=lambda _request, _source: {},
             snapshot_store=store,
         )
@@ -741,14 +879,11 @@ class ExactSimcApiTest(unittest.TestCase):
             canonical_bytes=b"{}",
         )
         store = CapturingSnapshotStore()
+        membership = runtime_membership_for_vector(exact_materializer_dependency_vector())
         materializer = ExactSimcMaterializer(
             source_materializer=ReplayMaterializer(replay),
-            authority_provider=lambda _source: {
-                "authorityContext": {"server": "only"},
-                "gearExactRegistryRevision": "gear-exact-registry:sha256:" + "1" * 64,
-                "loadoutEffectAuthority": object(),
-                "dependencyVector": exact_materializer_dependency_vector(),
-            },
+            authenticated_user_id="12345678-1234-5678-1234-567812345678",
+            runtime_authority_store=CapturingRuntimeAuthorityStore(membership),
             profile_materializer=lambda _request, _source: {
                 "talentProfileKey": "talent-profile:sha256:" + "a" * 64,
                 "talentLines": ["talents=CYQAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"],
@@ -761,9 +896,9 @@ class ExactSimcApiTest(unittest.TestCase):
         module = __import__("server.exact_simc_api", fromlist=["ExactSimcMaterializer"])
 
         with patch.object(module, "resolve_v2", return_value={"status": "verified"}), patch.object(
-            module, "build_resolved_loadout_v2", return_value={"status": "ready", "resolvedLoadoutKey": "resolved-loadout-v2:sha256:" + "b" * 64}
+            module, "build_resolved_loadout_v3", return_value={"status": "ready", "resolvedLoadoutKey": "resolved-loadout-v3:sha256:" + "b" * 64}
         ), patch.object(
-            module, "build_simulation_snapshot_v2", return_value={"status": "ready", "simulationSnapshotKey": "simulation-snapshot-v2:sha256:" + "c" * 64}
+            module, "build_simulation_snapshot_v3", return_value={"status": "ready", "simulationSnapshotKey": "simulation-snapshot-v3:sha256:" + "c" * 64}
         ):
             result = materializer({"sourceRef": {}}, "sha256:" + "f" * 64)
 
@@ -837,7 +972,7 @@ class ExactSimcApiTest(unittest.TestCase):
             snapshot_reference,
         )
 
-        reference = snapshot_reference()
+        reference = v3_snapshot_reference()
         request = build_exact_import_job_request(
             exact_intent(),
             dependency_vector(),
@@ -965,7 +1100,7 @@ class ExactSimcApiTest(unittest.TestCase):
             snapshot_reference,
         )
 
-        reference = snapshot_reference()
+        reference = v3_snapshot_reference()
         request = build_exact_import_job_request(
             exact_intent(),
             dependency_vector(),

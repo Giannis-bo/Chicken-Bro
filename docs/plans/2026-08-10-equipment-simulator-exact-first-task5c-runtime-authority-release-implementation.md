@@ -204,7 +204,7 @@ git commit -m "feat(exact): bind v3 snapshots to runtime releases"
 - Consumes: unique release reader, v3 builders, server source/profile readers and 0032 job store.
 - Produces: enabled `exact_simc_api_for_authenticated_user()` only under sealed release composition; v3-only worker execution.
 
-- [ ] **Step 1: Write failing runtime tests**
+- [x] **Step 1: Write failing runtime tests**
 
 ```python
 def test_materializer_rejects_release_vector_context_or_occurrence_drift_before_enqueue(self):
@@ -214,17 +214,17 @@ def test_worker_marks_v2_job_unsupported_and_executes_only_v3_release_bound_snap
     self.assertEqual(process(v2_claim)["classification"], "unsupported")
 ```
 
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
 
 Run: `PYTHONDONTWRITEBYTECODE=1 python3 -m unittest tests.exact_simc_api_test tests.gear_exact_authority_worker_test tests.news_backend_test`
 
 Expected: FAIL because provider composition and v3 execution do not exist.
 
-- [ ] **Step 3: Implement server-only composition**
+- [x] **Step 3: Implement server-only composition**
 
 Materializer order is source-replay → unique-release-read → first-pass resolve → release-index record reload → Task 4L aggregate → final resolve → v3 loadout/snapshot/job. Backend instantiates only explicit server stores; any unavailable component returns existing fail-closed envelope. Worker reloads v3 request release/context/snapshot, compares every key/vector, and never runs v1/v2 or arbitrary profile.
 
-- [ ] **Step 4: Run GREEN**
+- [x] **Step 4: Run GREEN**
 
 Run: `PYTHONDONTWRITEBYTECODE=1 python3 -m unittest tests.exact_simc_api_test tests.gear_exact_authority_worker_test tests.news_backend_test tests.gear_exact_import_job_store_test tests.simulation_snapshot_store_test`
 

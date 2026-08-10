@@ -9360,6 +9360,37 @@ class NewsBackendTest(unittest.TestCase):
             },
         }
 
+    def test_exact_simc_factory_enables_only_a_complete_explicit_server_composition(self):
+        user = {"id": "12345678-1234-5678-1234-567812345678"}
+        self.assertIsNone(self.backend.exact_simc_api_for_authenticated_user(user))
+        components = {
+            "authenticatedUserId": user["id"],
+            "sourceMaterializer": lambda _request, _owner: {},
+            "profileMaterializer": lambda _request, _source: {},
+            "runtimeAuthorityStore": object(),
+            "snapshotStore": object(),
+            "jobStore": object(),
+        }
+        with patch.object(
+            self.backend,
+            "_exact_simc_runtime_components_for_authenticated_user",
+            return_value=components,
+            create=True,
+        ):
+            api = self.backend.exact_simc_api_for_authenticated_user(user)
+        self.assertIsNotNone(api)
+        self.assertEqual(api.__class__.__name__, "ExactSimcApi")
+
+        incomplete = dict(components)
+        incomplete.pop("runtimeAuthorityStore")
+        with patch.object(
+            self.backend,
+            "_exact_simc_runtime_components_for_authenticated_user",
+            return_value=incomplete,
+            create=True,
+        ):
+            self.assertIsNone(self.backend.exact_simc_api_for_authenticated_user(user))
+
     def test_http_exact_confirm_authenticates_owner_and_preserves_literal_block(self):
         user = {"id": "12345678-1234-5678-1234-567812345678", "openid": "openid-exact-confirm"}
         calls = []

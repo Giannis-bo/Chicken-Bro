@@ -4194,17 +4194,61 @@ _EXACT_SIMC_PRIVATE_RESPONSE_KEYS = frozenset({
 })
 
 
-def exact_simc_api_for_authenticated_user(user):
-    """Return the enabled Task 5A owner only when its full authority exists.
+def _exact_simc_runtime_components_for_authenticated_user(user):
+    """Return explicitly provisioned server owners, never inferred defaults.
 
-    The active read model has no sealed loadout-effect aggregate owner or
-    canonical eight-field job dependency vector yet.  Returning ``None`` is a
-    deliberate fail-closed state: the HTTP facade must not synthesize either
-    from a Catalog pointer, slot evidence, or a process default.
+    Task 5C deliberately leaves the live process without this composition
+    until the candidate/production authority gates supply all six owners.
     """
 
     _ = user
     return None
+
+
+def exact_simc_api_for_authenticated_user(user):
+    """Return the Exact owner only for one complete server composition.
+
+    ``None`` remains the normal live state until an explicit server-only
+    provider supplies source/profile/release/snapshot/job stores for the
+    authenticated UUID.  The factory never discovers a release, synthesizes
+    authority from a Catalog pointer, or falls back to process defaults.
+    """
+    user_id = user.get("id") if isinstance(user, dict) else None
+    components = _exact_simc_runtime_components_for_authenticated_user(user)
+    required = {
+        "authenticatedUserId",
+        "sourceMaterializer",
+        "profileMaterializer",
+        "runtimeAuthorityStore",
+        "snapshotStore",
+        "jobStore",
+    }
+    if (
+        not isinstance(components, dict)
+        or set(components) != required
+        or components.get("authenticatedUserId") != user_id
+        or not callable(components.get("sourceMaterializer"))
+        or not callable(components.get("profileMaterializer"))
+        or any(components.get(key) is None for key in (
+            "runtimeAuthorityStore", "snapshotStore", "jobStore",
+        ))
+    ):
+        return None
+    try:
+        from .exact_simc_api import ExactSimcApi, ExactSimcMaterializer
+        materializer = ExactSimcMaterializer(
+            source_materializer=components["sourceMaterializer"],
+            authenticated_user_id=components["authenticatedUserId"],
+            runtime_authority_store=components["runtimeAuthorityStore"],
+            profile_materializer=components["profileMaterializer"],
+            snapshot_store=components["snapshotStore"],
+        )
+        return ExactSimcApi(
+            materialize=materializer,
+            job_store=components["jobStore"],
+        )
+    except Exception:
+        return None
 
 
 def _exact_simc_unavailable_envelope(operation):

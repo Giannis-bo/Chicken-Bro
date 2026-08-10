@@ -21,14 +21,20 @@ try:
     from .gear_canonical_kernel import CanonicalValueError, canonical_identity_token
     from .gear_exact_import_job_store import (
         DEPENDENCY_VECTOR_KEYS,
-        REQUEST_V2_SCHEMA_REVISION,
+        REQUEST_V3_SCHEMA_REVISION,
         build_exact_import_job_request,
     )
     from .gear_contracts import parse_selection_intent
-    from .gear_resolved_loadout import build_resolved_loadout_v2
+    from .gear_loadout_effect_authority import resolve_loadout_effect_authority
+    from .gear_resolved_loadout import build_resolved_loadout_v3
     from .gear_resolver import resolve_v2
+    from .exact_runtime_authority_release import (
+        resolve_release_effect_records,
+        runtime_authority_release_payload,
+        runtime_resolver_context_payload,
+    )
     from .simulation_snapshot import (
-        build_simulation_snapshot_v2,
+        build_simulation_snapshot_v3,
         talent_profile_key_for_lines,
     )
 except ImportError:  # pragma: no cover - direct server runtime compatibility
@@ -36,13 +42,19 @@ except ImportError:  # pragma: no cover - direct server runtime compatibility
     from gear_canonical_kernel import CanonicalValueError, canonical_identity_token
     from gear_exact_import_job_store import (
         DEPENDENCY_VECTOR_KEYS,
-        REQUEST_V2_SCHEMA_REVISION,
+        REQUEST_V3_SCHEMA_REVISION,
         build_exact_import_job_request,
     )
     from gear_contracts import parse_selection_intent
-    from gear_resolved_loadout import build_resolved_loadout_v2
+    from gear_loadout_effect_authority import resolve_loadout_effect_authority
+    from gear_resolved_loadout import build_resolved_loadout_v3
     from gear_resolver import resolve_v2
-    from simulation_snapshot import build_simulation_snapshot_v2, talent_profile_key_for_lines
+    from exact_runtime_authority_release import (
+        resolve_release_effect_records,
+        runtime_authority_release_payload,
+        runtime_resolver_context_payload,
+    )
+    from simulation_snapshot import build_simulation_snapshot_v3, talent_profile_key_for_lines
 
 
 EXACT_SIMC_ENVELOPE_REVISION = "exact-simc-envelope-v1"
@@ -615,24 +627,32 @@ def _not_ready_materialization(value: Any) -> dict[str, Any]:
 
 
 class ExactSimcMaterializer:
-    """Materialize one source-bound v2 request with only injected authorities.
+    """Materialize one source-bound V3 request from persisted authorities.
 
-    All source, resolver, profile and snapshot dependencies are explicit.  In
-    particular, this owner has no Catalog/registry lookup fallback: the only
-    item facts it may serialize come from the exact bundles already recorded by
-    the 0033 binding and reverified by ``AuthenticatedExactSourceMaterializer``.
+    This owner reads exactly one owner/binding-scoped Runtime Authority Release
+    after 0033 source replay.  It has no Catalog/registry/latest fallback: the
+    only item facts it may serialize come from the exact bundles recorded by
+    that binding and the immutable V3 release closure.
     """
 
     def __init__(
         self,
         *,
         source_materializer: Callable[[Mapping[str, Any], str], Mapping[str, Any]],
-        authority_provider: Callable[[Any], Mapping[str, Any]],
+        authenticated_user_id: str,
+        runtime_authority_store: Any,
         profile_materializer: Callable[[Mapping[str, Any], Any], Mapping[str, Any]],
         snapshot_store: Any,
     ) -> None:
+        try:
+            parsed_user_id = uuid.UUID(authenticated_user_id)
+        except (AttributeError, TypeError, ValueError) as error:
+            raise ValueError("authenticated user id must be a canonical UUID") from error
+        if str(parsed_user_id) != authenticated_user_id:
+            raise ValueError("authenticated user id must be a canonical UUID")
         self._source_materializer = source_materializer
-        self._authority_provider = authority_provider
+        self._authenticated_user_id = authenticated_user_id
+        self._runtime_authority_store = runtime_authority_store
         self._profile_materializer = profile_materializer
         self._snapshot_store = snapshot_store
 
@@ -667,6 +687,74 @@ class ExactSimcMaterializer:
         if seen != pairs:
             return None
         return source, pairs, bundles
+
+    def _runtime_closure(
+        self,
+        replay: Mapping[str, Any],
+    ) -> tuple[Any, Any, dict[str, Any], dict[str, Any]] | None:
+        """Load one exact owner/binding release and reject cross-closure drift."""
+        binding = replay.get("binding")
+        binding_key = getattr(binding, "content_key", None)
+        if not isinstance(binding_key, str):
+            return None
+        try:
+            membership = self._runtime_authority_store.read_unique_for_binding(
+                self._authenticated_user_id,
+                binding_key,
+            )
+            resolver_context = membership.resolver_context
+            runtime_authority_release = membership.release
+            context_payload = runtime_resolver_context_payload(resolver_context)
+            release_payload = runtime_authority_release_payload(
+                runtime_authority_release
+            )
+            binding_authority = exact_template_authority_binding_payload(
+                binding,
+            )["authority"]
+        except Exception:
+            return None
+        dependency_vector = release_payload.get("dependencyVector")
+        authority_context = context_payload.get("resolverAuthorityContext")
+        if (
+            not isinstance(dependency_vector, Mapping)
+            or set(dependency_vector) != DEPENDENCY_VECTOR_KEYS
+            or not isinstance(authority_context, Mapping)
+            or release_payload.get("resolverContextKey")
+            != getattr(resolver_context, "content_key", None)
+            or binding_authority.get("gearRuleRevision")
+            != dependency_vector.get("gearRuleRevision")
+            or binding_authority.get("resolverRevision")
+            != dependency_vector.get("resolverRevision")
+            or binding_authority.get("simcRuntimeRevision")
+            != dependency_vector.get("simcRuntimeRevision")
+            or context_payload.get("seasonRevision")
+            != dependency_vector.get("seasonRevision")
+            or context_payload.get("gearRuleRevision")
+            != dependency_vector.get("gearRuleRevision")
+            or context_payload.get("resolverRevision")
+            != dependency_vector.get("resolverRevision")
+            or context_payload.get("simcRuntimeRevision")
+            != dependency_vector.get("simcRuntimeRevision")
+        ):
+            return None
+        return (
+            resolver_context,
+            runtime_authority_release,
+            dict(authority_context),
+            dict(dependency_vector),
+        )
+
+    @staticmethod
+    def _requires_loadout_effect_authority(value: Any) -> bool:
+        if not isinstance(value, Mapping):
+            return False
+        codes = value.get("problemCodes")
+        if isinstance(codes, list) and "LOADOUT_EFFECT_AUTHORITY_REQUIRED" in codes:
+            return True
+        return any(
+            problem.get("code") == "LOADOUT_EFFECT_AUTHORITY_REQUIRED"
+            for problem in _problems(value.get("problems"))
+        )
 
     @staticmethod
     def _exact_intent(
@@ -727,48 +815,75 @@ class ExactSimcMaterializer:
         if closure is None:
             return _not_ready_materialization(replay)
         source, pairs, bundles = closure
-        try:
-            authority = self._authority_provider(source)
-        except Exception:
+        runtime = self._runtime_closure(replay)
+        if runtime is None:
             return _blocked_materialization()
-        if not isinstance(authority, Mapping):
-            return _blocked_materialization()
-        dependency_vector = authority.get("dependencyVector")
-        authority_context = authority.get("authorityContext")
-        try:
-            binding_authority = exact_template_authority_binding_payload(
-                replay["binding"],
-            )["authority"]
-        except (TypeError, ValueError, KeyError):
-            return _blocked_materialization()
-        if (
-            not isinstance(dependency_vector, Mapping)
-            or not isinstance(authority_context, Mapping)
-            or binding_authority.get("gearExactRegistryRevision")
-                != authority.get("gearExactRegistryRevision")
-            or binding_authority.get("gearRuleRevision")
-                != dependency_vector.get("gearRuleRevision")
-            or binding_authority.get("resolverRevision")
-                != dependency_vector.get("resolverRevision")
-            or binding_authority.get("simcRuntimeRevision")
-                != dependency_vector.get("simcRuntimeRevision")
-        ):
-            return _blocked_materialization()
+        (
+            resolver_context,
+            runtime_authority_release,
+            authority_context,
+            dependency_vector,
+        ) = runtime
         resolver_snapshot = resolve_v2(
             source.selection_intent,
             authority_context,
-            loadout_effect_authority=authority.get("loadoutEffectAuthority"),
         )
-        if not isinstance(resolver_snapshot, Mapping) or resolver_snapshot.get("status") != "verified":
+        loadout_effect_authority = None
+        if self._requires_loadout_effect_authority(resolver_snapshot):
+            try:
+                binding_key = replay["binding"].content_key
+                entries = self._runtime_authority_store.read_occurrences(
+                    self._authenticated_user_id,
+                    binding_key,
+                    runtime_authority_release,
+                )
+                loaded_records = self._runtime_authority_store.load_effect_records(
+                    runtime_authority_release,
+                    entries,
+                )
+                records_by_key = {
+                    record.content_key: record for record in loaded_records
+                }
+                release_records = resolve_release_effect_records(
+                    runtime_authority_release,
+                    resolver_snapshot=resolver_snapshot,
+                    index_entries=entries,
+                    record_loader=records_by_key.__getitem__,
+                )
+                aggregate = resolve_loadout_effect_authority(
+                    resolver_snapshot,
+                    records=release_records,
+                )
+            except Exception:
+                return _not_ready_materialization(resolver_snapshot)
+            if aggregate.status == "unsupported":
+                return {
+                    "status": "unsupported",
+                    "problems": _problems([
+                        {"code": issue.code, "path": issue.path}
+                        for issue in aggregate.issues
+                    ]) or [{"code": "LOADOUT_EFFECT_UNSUPPORTED"}],
+                }
+            if aggregate.status != "verified" or aggregate.document is None:
+                return _blocked_materialization()
+            loadout_effect_authority = aggregate.document
+            resolver_snapshot = resolve_v2(
+                source.selection_intent,
+                authority_context,
+                loadout_effect_authority=loadout_effect_authority,
+            )
+        if (
+            not isinstance(resolver_snapshot, Mapping)
+            or resolver_snapshot.get("status") != "verified"
+        ):
             return _not_ready_materialization(resolver_snapshot)
-        resolved_loadout = build_resolved_loadout_v2(
+        resolved_loadout = build_resolved_loadout_v3(
             resolver_snapshot=resolver_snapshot,
             exact_authority_by_slot=pairs,
             authority_bundles=bundles,
-            gear_rule_revision=dependency_vector.get("gearRuleRevision"),
-            resolver_revision=dependency_vector.get("resolverRevision"),
-            simc_runtime_revision=dependency_vector.get("simcRuntimeRevision"),
-            loadout_effect_authority=authority.get("loadoutEffectAuthority"),
+            resolver_context=resolver_context,
+            runtime_authority_release=runtime_authority_release,
+            loadout_effect_authority=loadout_effect_authority,
         )
         if not isinstance(resolved_loadout, Mapping) or resolved_loadout.get("status") != "ready":
             return _not_ready_materialization(resolved_loadout)
@@ -778,7 +893,7 @@ class ExactSimcMaterializer:
             profile = None
         if profile is None:
             return _blocked_materialization()
-        snapshot = build_simulation_snapshot_v2(
+        snapshot = build_simulation_snapshot_v3(
             resolved_loadout=resolved_loadout,
             talent_profile_key=profile["talentProfileKey"],
             talent_lines=profile["talentLines"],
@@ -789,34 +904,28 @@ class ExactSimcMaterializer:
             simc_runtime_revision=dependency_vector.get("simcRuntimeRevision"),
             resolver_snapshot=resolver_snapshot,
             authority_bundles=bundles,
-            loadout_effect_authority=authority.get("loadoutEffectAuthority"),
+            resolver_context=resolver_context,
+            runtime_authority_release=runtime_authority_release,
+            loadout_effect_authority=loadout_effect_authority,
         )
         if not isinstance(snapshot, Mapping) or snapshot.get("status") != "ready":
             return _not_ready_materialization(snapshot)
-        try:
-            exact_intent = self._exact_intent(
-                source,
-                pairs,
-                bundles,
-                dependency_vector,
-            )
-            if exact_intent is None:
-                return _blocked_materialization()
-            # Validate all former v1 job input before persistence, but do not
-            # emit that unbound representation.  The only request returned to
-            # the caller is built below from the reloaded sealed snapshot.
-            build_exact_import_job_request(
-                exact_intent,
-                dict(dependency_vector),
-            )
-        except Exception:
+        exact_intent = self._exact_intent(
+            source,
+            pairs,
+            bundles,
+            dependency_vector,
+        )
+        if exact_intent is None:
             return _blocked_materialization()
         try:
             sealed_loadout = self._snapshot_store.seal_loadout(
                 resolved_loadout,
                 resolver_snapshot=resolver_snapshot,
                 authority_bundles=bundles,
-                loadout_effect_authority=authority.get("loadoutEffectAuthority"),
+                resolver_context=resolver_context,
+                runtime_authority_release=runtime_authority_release,
+                loadout_effect_authority=loadout_effect_authority,
             )
             sealed_snapshot = self._snapshot_store.seal_snapshot(
                 snapshot,
@@ -824,7 +933,9 @@ class ExactSimcMaterializer:
                 resolver_snapshot=resolver_snapshot,
                 authority_bundles=bundles,
                 compiler_revision=dependency_vector.get("compilerRevision"),
-                loadout_effect_authority=authority.get("loadoutEffectAuthority"),
+                resolver_context=resolver_context,
+                runtime_authority_release=runtime_authority_release,
+                loadout_effect_authority=loadout_effect_authority,
             )
         except Exception:
             return _blocked_materialization()
@@ -838,6 +949,15 @@ class ExactSimcMaterializer:
                 != snapshot.get("simulationSnapshotKey")
             or sealed_snapshot.get("resolvedLoadoutKey")
                 != sealed_loadout.get("resolvedLoadoutKey")
+            or sealed_loadout.get("runtimeAuthorityReleaseKey")
+                != runtime_authority_release.content_key
+            or sealed_loadout.get("resolverContextKey")
+                != resolver_context.content_key
+            or sealed_snapshot.get("runtimeAuthorityReleaseKey")
+                != runtime_authority_release.content_key
+            or sealed_snapshot.get("resolverContextKey")
+                != resolver_context.content_key
+            or sealed_snapshot.get("dependencyVector") != dependency_vector
         ):
             return _blocked_materialization()
         try:
@@ -848,6 +968,8 @@ class ExactSimcMaterializer:
                     "resolvedLoadoutKey": sealed_loadout["resolvedLoadoutKey"],
                     "simulationSnapshotKey": sealed_snapshot["simulationSnapshotKey"],
                     "snapshotRowHash": sealed_snapshot.get("rowHash"),
+                    "runtimeAuthorityReleaseKey": runtime_authority_release.content_key,
+                    "resolverContextKey": resolver_context.content_key,
                 },
             )
         except Exception:
@@ -986,7 +1108,7 @@ class ExactSimcApi:
         if (
             getattr(job_request, "request_key", None) != authoritative["requestKey"]
             or type(job_payload) is not dict
-            or job_payload.get("schemaRevision") != REQUEST_V2_SCHEMA_REVISION
+            or job_payload.get("schemaRevision") != REQUEST_V3_SCHEMA_REVISION
             or job_payload.get("dependencyVector")
             != authoritative["dependencyVector"]
             or snapshot_reference is None
@@ -994,6 +1116,10 @@ class ExactSimcApi:
             != authoritative["resolvedLoadoutKey"]
             or getattr(snapshot_reference, "simulation_snapshot_key", None)
             != authoritative["simulationSnapshotKey"]
+            or getattr(snapshot_reference, "runtime_authority_release_key", None)
+            != job_payload.get("runtimeAuthorityReleaseKey")
+            or getattr(snapshot_reference, "resolver_context_key", None)
+            != job_payload.get("resolverContextKey")
             or not isinstance(
                 getattr(snapshot_reference, "snapshot_row_hash", None),
                 str,

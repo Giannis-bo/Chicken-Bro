@@ -17,6 +17,20 @@ from tests.gear_exact_import_job_store_test import (
 from server.gear_exact_import_job_store import build_exact_import_job_request
 
 
+def v3_snapshot_reference():
+    return {
+        "resolvedLoadoutKey": "resolved-loadout-v3:sha256:" + "b" * 64,
+        "simulationSnapshotKey": "simulation-snapshot-v3:sha256:" + "c" * 64,
+        "snapshotRowHash": "sha256:" + "d" * 64,
+        "runtimeAuthorityReleaseKey": (
+            "exact-runtime-authority-release:sha256:" + "e" * 64
+        ),
+        "resolverContextKey": (
+            "exact-runtime-resolver-context:sha256:" + "f" * 64
+        ),
+    }
+
+
 class RoleCursor:
     def __init__(self, role_row):
         self.role_row = role_row
@@ -244,20 +258,23 @@ class GearExactAuthorityWorkerTest(unittest.TestCase):
         self.assertNotIn("playerName", str(persisted))
         self.assertNotIn("rawProfile", str(persisted))
 
-    def test_snapshot_bound_processor_reloads_only_the_sealed_v2_snapshot_before_runner(self):
-        reference = snapshot_reference()
+    def test_snapshot_bound_processor_executes_only_the_sealed_v3_snapshot_before_runner(self):
+        reference = v3_snapshot_reference()
         request = build_exact_import_job_request(
             exact_intent(),
             dependency_vector(),
             snapshot_reference=reference,
         )
         snapshot = {
-            "schemaRevision": "simulation-snapshot-v2",
+            "schemaRevision": "simulation-snapshot-v3",
             "status": "ready",
             "simulationSnapshotKey": reference["simulationSnapshotKey"],
             "resolvedLoadoutKey": reference["resolvedLoadoutKey"],
             "rowHash": reference["snapshotRowHash"],
             "simcRuntimeRevision": dependency_vector()["simcRuntimeRevision"],
+            "runtimeAuthorityReleaseKey": reference["runtimeAuthorityReleaseKey"],
+            "resolverContextKey": reference["resolverContextKey"],
+            "dependencyVector": dependency_vector(),
         }
         bound = {
             **snapshot,
@@ -298,6 +315,32 @@ class GearExactAuthorityWorkerTest(unittest.TestCase):
         )
         self.assertEqual(seen, [snapshot])
 
+    def test_snapshot_bound_processor_marks_v2_job_unsupported_without_snapshot_discovery_or_runner(self):
+        reference = snapshot_reference()
+        request = build_exact_import_job_request(
+            exact_intent(),
+            dependency_vector(),
+            snapshot_reference=reference,
+        )
+        snapshots = SnapshotStore({}, {})
+        ran = []
+
+        outcome = snapshot_bound_processor(
+            snapshot_store=snapshots,
+            simc_runtime_revision=dependency_vector()["simcRuntimeRevision"],
+            runner=lambda snapshot: ran.append(snapshot),
+        )(request)
+
+        self.assertEqual(outcome, {
+            "terminalStatus": "unsupported",
+            "terminalClassification": "runtime_gap",
+            "resultJson": None,
+            "problemJson": {"code": "EXACT_IMPORT_REQUEST_V2_UNSUPPORTED"},
+            "catalogStatus": "unknown",
+        })
+        self.assertEqual(snapshots.calls, [])
+        self.assertEqual(ran, [])
+
     def test_snapshot_bound_processor_rejects_v1_without_snapshot_discovery_or_runner(self):
         snapshots = SnapshotStore({}, {})
         ran = []
@@ -323,7 +366,7 @@ class GearExactAuthorityWorkerTest(unittest.TestCase):
         self.assertEqual(ran, [])
 
     def test_snapshot_bound_processor_fails_closed_for_missing_identity_or_runtime_drift(self):
-        reference = snapshot_reference()
+        reference = v3_snapshot_reference()
         runtime = dependency_vector()["simcRuntimeRevision"]
         request = build_exact_import_job_request(
             exact_intent(),
@@ -331,20 +374,26 @@ class GearExactAuthorityWorkerTest(unittest.TestCase):
             snapshot_reference=reference,
         )
         base_snapshot = {
-            "schemaRevision": "simulation-snapshot-v2",
+            "schemaRevision": "simulation-snapshot-v3",
             "status": "ready",
             "simulationSnapshotKey": reference["simulationSnapshotKey"],
             "resolvedLoadoutKey": reference["resolvedLoadoutKey"],
             "rowHash": reference["snapshotRowHash"],
             "simcRuntimeRevision": runtime,
+            "runtimeAuthorityReleaseKey": reference["runtimeAuthorityReleaseKey"],
+            "resolverContextKey": reference["resolverContextKey"],
+            "dependencyVector": dependency_vector(),
         }
         cases = (
             ("missing", None, "blocked", "EXACT_IMPORT_SNAPSHOT_UNAVAILABLE"),
             ("not-ready", {"status": "blocked"}, "blocked", "EXACT_IMPORT_SNAPSHOT_REFERENCE_MISMATCH"),
-            ("key", {"simulationSnapshotKey": "simulation-snapshot-v2:sha256:" + "e" * 64}, "blocked", "EXACT_IMPORT_SNAPSHOT_REFERENCE_MISMATCH"),
-            ("loadout", {"resolvedLoadoutKey": "resolved-loadout-v2:sha256:" + "e" * 64}, "blocked", "EXACT_IMPORT_SNAPSHOT_REFERENCE_MISMATCH"),
+            ("key", {"simulationSnapshotKey": "simulation-snapshot-v3:sha256:" + "e" * 64}, "blocked", "EXACT_IMPORT_SNAPSHOT_REFERENCE_MISMATCH"),
+            ("loadout", {"resolvedLoadoutKey": "resolved-loadout-v3:sha256:" + "e" * 64}, "blocked", "EXACT_IMPORT_SNAPSHOT_REFERENCE_MISMATCH"),
             ("row-hash", {"rowHash": "sha256:" + "e" * 64}, "blocked", "EXACT_IMPORT_SNAPSHOT_REFERENCE_MISMATCH"),
             ("runtime", {"simcRuntimeRevision": "simc-runtime-other"}, "unsupported", "EXACT_IMPORT_RUNTIME_MISMATCH"),
+            ("release", {"runtimeAuthorityReleaseKey": "exact-runtime-authority-release:sha256:" + "a" * 64}, "blocked", "EXACT_IMPORT_SNAPSHOT_REFERENCE_MISMATCH"),
+            ("context", {"resolverContextKey": "exact-runtime-resolver-context:sha256:" + "a" * 64}, "blocked", "EXACT_IMPORT_SNAPSHOT_REFERENCE_MISMATCH"),
+            ("vector", {"dependencyVector": {**dependency_vector(), "workerRevision": "worker-drift"}}, "blocked", "EXACT_IMPORT_SNAPSHOT_REFERENCE_MISMATCH"),
         )
         for label, mutation, terminal_status, code in cases:
             with self.subTest(label=label):
@@ -365,7 +414,7 @@ class GearExactAuthorityWorkerTest(unittest.TestCase):
                 self.assertEqual(ran, [])
 
     def test_snapshot_bound_processor_never_reports_resolved_for_a_bound_failed_runner_result(self):
-        reference = snapshot_reference()
+        reference = v3_snapshot_reference()
         runtime = dependency_vector()["simcRuntimeRevision"]
         request = build_exact_import_job_request(
             exact_intent(),
@@ -373,12 +422,15 @@ class GearExactAuthorityWorkerTest(unittest.TestCase):
             snapshot_reference=reference,
         )
         snapshot = {
-            "schemaRevision": "simulation-snapshot-v2",
+            "schemaRevision": "simulation-snapshot-v3",
             "status": "ready",
             "simulationSnapshotKey": reference["simulationSnapshotKey"],
             "resolvedLoadoutKey": reference["resolvedLoadoutKey"],
             "rowHash": reference["snapshotRowHash"],
             "simcRuntimeRevision": runtime,
+            "runtimeAuthorityReleaseKey": reference["runtimeAuthorityReleaseKey"],
+            "resolverContextKey": reference["resolverContextKey"],
+            "dependencyVector": dependency_vector(),
         }
         failed_result = {
             "resultIdentity": "simc-result:sha256:" + "d" * 64,
