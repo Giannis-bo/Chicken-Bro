@@ -338,7 +338,8 @@ requires the sealed entry. Its log SHA-256 is
 `36129af925c05b64377498279c18d05ffc370ff58edb2d37205b48bd9b1135cf`.
 This candidate harness fixture error must be repaired with TDD; it invalidates
 this run and requires another new final-head candidate. Its exact disposable
-resources are identity-archived and must be discarded before that repair.
+resources were identity-archived, discarded and rechecked absent before that
+repair; production state and the inactive worker were not changed.
 
 - [ ] **Step 3: Review, CI and production only after candidate PASS**
 
