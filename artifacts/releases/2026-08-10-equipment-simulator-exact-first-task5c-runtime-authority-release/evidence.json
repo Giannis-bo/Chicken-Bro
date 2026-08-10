@@ -5,7 +5,7 @@
   "status": "local_verified",
   "highestEvidenceLevel": "local_verified",
   "branch": "codex/exact-first-task5a-control-plane",
-  "commit": "b3ee778cb50ad8d55e074c9e303c9aaf2671c9f8",
+  "commit": "e8d41d344c5e509b44058adc0c4f82a50d03fbe0",
   "identities": {
     "runtime": {
       "status": "pending",
@@ -15,7 +15,7 @@
       "status": "bound_at_check",
       "kind": "git_ref",
       "value": "HEAD",
-      "reason": "The local packet must be checked from a clean exact HEAD; the verified implementation and candidate-harness bytes are commit b3ee778cb50ad8d55e074c9e303c9aaf2671c9f8."
+      "reason": "The local packet must be checked from a clean exact HEAD; the verified implementation and candidate-harness bytes are commit e8d41d344c5e509b44058adc0c4f82a50d03fbe0."
     },
     "closure": {
       "status": "pending",
@@ -49,14 +49,14 @@
     {
       "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p '*_test.py'",
       "status": "pass",
-      "testedHead": "b3ee778cb50ad8d55e074c9e303c9aaf2671c9f8",
-      "summary": "2961 tests passed in 81.099s with 5 expected cloud-only PostgreSQL candidate skips. Existing negative CLI fixtures and SQLite ResourceWarning output did not fail the suite."
+      "testedHead": "e8d41d344c5e509b44058adc0c4f82a50d03fbe0",
+      "summary": "2962 tests passed in 81.592s with 5 expected cloud-only PostgreSQL candidate skips. Existing negative CLI fixtures and SQLite ResourceWarning output did not fail the suite."
     },
     {
       "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest tests.postgres_integration_test.Task5CCandidateHarnessTest tests.postgres_integration_test.Task5CV3MigrationBoundaryTest tests.postgres_integration_test.PostgresRuntimeAuthorityReleaseCandidateTest",
       "status": "pass",
-      "testedHead": "b3ee778cb50ad8d55e074c9e303c9aaf2671c9f8",
-      "summary": "The Task 5C candidate contract passed; the actual cloud-only 0035 runner was skipped because no disposable cloud DSNs were provided, so no local PostgreSQL connection or cloud deployment occurred."
+      "testedHead": "e8d41d344c5e509b44058adc0c4f82a50d03fbe0",
+      "summary": "The Task 5C candidate contract passed; the actual cloud-only 0035 runner was skipped because no disposable cloud DSNs were provided, so no local PostgreSQL connection or cloud deployment occurred. Its migrator input is limited to the documented wow_migrator login or postgres operator."
     },
     {
       "command": "python3 -m compileall -q server/exact_simc_api.py server/gear_exact_authority_worker.py server/news_backend.py; git diff --check origin/main...HEAD; node scripts/project-harness.js --check-requirement --requirement-file artifacts/releases/2026-08-10-equipment-simulator-exact-first-task5c-runtime-authority-release/requirement.json",
@@ -116,5 +116,5 @@
     "docs/harness.md",
     "docs/verification-matrix.md"
   ],
-  "summary": "Task 5C is locally verified at b3ee778c for immutable runtime release/context/index ownership, release-bound V3 execution and an opt-in final-head cloud candidate harness. This is not a runtime, candidate, production or player-loop completion claim: the server factory remains disabled, no cloud database or service changed, and the required final-head cloud candidate has not run."
+  "summary": "Task 5C is locally verified at e8d41d34 for immutable runtime release/context/index ownership, release-bound V3 execution and an opt-in final-head cloud candidate harness. This is not a runtime, candidate, production or player-loop completion claim: the server factory remains disabled, no cloud database or service changed, and the required final-head cloud candidate has not run."
 }
