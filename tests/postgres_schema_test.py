@@ -1437,6 +1437,40 @@ $unsafe$;
             normalized,
         )
 
+    def test_0035_forward_fix_runs_the_binding_relation_trigger_as_migrator(self):
+        sql = WEBSIM_EXACT_RUNTIME_AUTHORITY_RELEASE.read_text(encoding="utf-8")
+        normalized = _normalized(sql)
+        frozen = _normalized(
+            WEBSIM_EXACT_TEMPLATE_AUTHORITY_BINDING.read_text(encoding="utf-8")
+        )
+        self.assertIn(
+            "CREATE OR REPLACE FUNCTION "
+            "app.verify_websim_exact_template_authority_binding_relations()",
+            frozen,
+        )
+        self.assertIn(
+            "SET search_path = pg_catalog, app, cache, pg_temp",
+            frozen,
+        )
+        self.assertIn(
+            "ALTER FUNCTION "
+            "app.verify_websim_exact_template_authority_binding_relations() "
+            "SECURITY DEFINER;",
+            normalized,
+        )
+        self.assertIn(
+            "ALTER FUNCTION "
+            "app.verify_websim_exact_template_authority_binding_relations() "
+            "OWNER TO wow_migrator;",
+            normalized,
+        )
+        self.assertIn(
+            "REVOKE ALL ON FUNCTION "
+            "app.verify_websim_exact_template_authority_binding_relations() "
+            "FROM PUBLIC, wow_app, wow_exact_worker;",
+            normalized,
+        )
+
     def test_exact_import_jobs_rejects_schema_qualified_coalesce_variants(self):
         sql = WEBSIM_EXACT_IMPORT_JOBS.read_text(encoding="utf-8")
         migrations = tuple(

@@ -355,6 +355,18 @@ BEGIN
 END;
 $triggers$;
 
+-- 0033 deliberately keeps its relation validator as SECURITY INVOKER, but the
+-- 0033 admission function is a wow_migrator-owned SECURITY DEFINER entrypoint
+-- for wow_app. The deferred validator must therefore retain its fixed search
+-- path while running under the same least-privileged owner; otherwise a valid
+-- app admission cannot read the tables whose direct access is revoked.
+ALTER FUNCTION app.verify_websim_exact_template_authority_binding_relations()
+SECURITY DEFINER;
+ALTER FUNCTION app.verify_websim_exact_template_authority_binding_relations()
+OWNER TO wow_migrator;
+REVOKE ALL ON FUNCTION app.verify_websim_exact_template_authority_binding_relations()
+FROM PUBLIC, wow_app, wow_exact_worker;
+
 -- 0033's RETURNS TABLE output column is also named binding_key.  Preserve that
 -- frozen migration verbatim and forward-replace its function with an explicit
 -- primary-key conflict target, so PL/pgSQL never has to resolve that output
