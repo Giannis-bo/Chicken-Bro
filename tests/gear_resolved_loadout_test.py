@@ -34,7 +34,9 @@ from server.gear_resolved_loadout import (
     build_resolved_loadout,
     build_resolved_loadout_from_registry,
     build_resolved_loadout_v2,
+    build_resolved_loadout_v3,
     verify_resolved_loadout_v2,
+    verify_resolved_loadout_v3,
 )
 
 
@@ -358,6 +360,46 @@ def active_v2_loadout_fixture(*, repeated_subject=True):
     return source, authority, bundles, loadout
 
 
+def v3_runtime_authority(source, *, worker_revision="exact-worker-v1"):
+    """Seal the smallest Task 5C release that matches a v2 resolver fixture."""
+    from server.exact_runtime_authority_release import (
+        seal_runtime_authority_release,
+        seal_runtime_resolver_context,
+    )
+
+    dependency = source["dependencyVector"]
+    vector = {
+        "seasonRevision": dependency["seasonRevision"],
+        "gameBuild": "12.0.1.12345",
+        "gearRuleRevision": dependency["gearRuleRevision"],
+        "resolverRevision": dependency["resolverContractRevision"],
+        "compilerRevision": "simc-profile-compiler-v2",
+        "workerRevision": worker_revision,
+        "simcRuntimeRevision": dependency["simcRuntimeRevision"],
+        "effectAuthorityRevision": "loadout-effect-authority-v1",
+    }
+    context = seal_runtime_resolver_context({
+        "schemaRevision": "exact-runtime-resolver-context-v1",
+        "producerIdentity": "task5c-v3-test",
+        "producerRevision": "task5c-v3-test-v1",
+        "seasonRevision": vector["seasonRevision"],
+        "gearRuleRevision": vector["gearRuleRevision"],
+        "resolverRevision": vector["resolverRevision"],
+        "simcRuntimeRevision": vector["simcRuntimeRevision"],
+        "resolverAuthorityContext": {
+            "dependencyVector": copy.deepcopy(dependency),
+            "ruleParameters": {},
+        },
+    }).document
+    release = seal_runtime_authority_release({
+        "schemaRevision": "exact-runtime-authority-release-v1",
+        "producerIdentity": "task5c-v3-test",
+        "producerRevision": "task5c-v3-test-v1",
+        "dependencyVector": vector,
+    }, resolver_context=context).document
+    return context, release
+
+
 def alternate_loadout_effect_authority(source):
     """Seal a different valid aggregate for the same active Resolver state."""
     owner_input = copy.deepcopy(source)
@@ -405,6 +447,43 @@ def rehash_active_v2_loadout(value):
 
 
 class GearResolvedLoadoutTest(unittest.TestCase):
+    def test_v3_loadout_identity_changes_when_only_runtime_release_changes(self):
+        source = v2_resolver_snapshot()
+        bundle = v2_bundle("head", "1001", [])
+        key = bundle.envelope.content_key
+        context_a, release_a = v3_runtime_authority(source, worker_revision="worker-a")
+        context_b, release_b = v3_runtime_authority(source, worker_revision="worker-b")
+        kwargs = {
+            "resolver_snapshot": source,
+            "exact_authority_by_slot": [{"slot": "head", "exactAuthorityEnvelopeKey": key}],
+            "authority_bundles": {key: bundle},
+        }
+
+        first = build_resolved_loadout_v3(
+            **kwargs,
+            resolver_context=context_a,
+            runtime_authority_release=release_a,
+        )
+        second = build_resolved_loadout_v3(
+            **kwargs,
+            resolver_context=context_b,
+            runtime_authority_release=release_b,
+        )
+
+        self.assertEqual(first["schemaRevision"], "resolved-loadout-v3")
+        self.assertEqual(first["dependencyVector"], second["dependencyVector"] | {"workerRevision": "worker-a"})
+        self.assertNotEqual(first["runtimeAuthorityReleaseKey"], second["runtimeAuthorityReleaseKey"])
+        self.assertNotEqual(first["resolvedLoadoutKey"], second["resolvedLoadoutKey"])
+        self.assertEqual(
+            verify_resolved_loadout_v3(
+                first,
+                resolver_snapshot=source,
+                authority_bundles={key: bundle},
+                resolver_context=context_a,
+                runtime_authority_release=release_a,
+            ),
+            [],
+        )
     def test_no_effect_v2_loadout_bytes_ignore_optional_loadout_authority(self):
         """Would fail if optional Task 4L input changed a no-subject v2 loadout."""
         source = v2_resolver_snapshot()

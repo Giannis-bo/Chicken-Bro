@@ -7,8 +7,10 @@ import server.simulation_snapshot as simulation_snapshot_module
 from server.simulation_snapshot import (
     build_simulation_snapshot,
     build_simulation_snapshot_v2,
+    build_simulation_snapshot_v3,
     talent_profile_key,
     verify_simulation_snapshot_v2,
+    verify_simulation_snapshot_v3,
 )
 from tests.gear_resolved_loadout_test import (
     TEMPLATE_HASH,
@@ -18,8 +20,12 @@ from tests.gear_resolved_loadout_test import (
     active_v2_loadout_fixture,
     v2_resolver_snapshot,
 )
-from server.gear_resolved_loadout import build_resolved_loadout, build_resolved_loadout_v2
-from tests.gear_resolved_loadout_test import v2_bundle
+from server.gear_resolved_loadout import (
+    build_resolved_loadout,
+    build_resolved_loadout_v2,
+    build_resolved_loadout_v3,
+)
+from tests.gear_resolved_loadout_test import v2_bundle, v3_runtime_authority
 
 
 TALENT_LINES = ["talents=CYQAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"]
@@ -123,6 +129,46 @@ def rehash_v2_snapshot(snapshot):
 
 
 class SimulationSnapshotTest(unittest.TestCase):
+    def test_v3_snapshot_binds_same_runtime_release_context_and_full_vector(self):
+        source = v2_resolver_snapshot()
+        bundle = v2_bundle("head", "1001", [])
+        key = bundle.envelope.content_key
+        context, release = v3_runtime_authority(source)
+        loadout = build_resolved_loadout_v3(
+            resolver_snapshot=source,
+            exact_authority_by_slot=[{"slot": "head", "exactAuthorityEnvelopeKey": key}],
+            authority_bundles={key: bundle},
+            resolver_context=context,
+            runtime_authority_release=release,
+        )
+        snapshot = build_simulation_snapshot_v3(
+            resolved_loadout=loadout,
+            talent_profile_key=TALENT_KEY,
+            talent_lines=TALENT_LINES,
+            character_context=character_context(),
+            scenario_options=scenario(),
+            preparation_lines=["optimal_raid=0"],
+            resolver_snapshot=source,
+            authority_bundles={key: bundle},
+            resolver_context=context,
+            runtime_authority_release=release,
+        )
+
+        self.assertEqual(snapshot["schemaRevision"], "simulation-snapshot-v3")
+        self.assertEqual(snapshot["runtimeAuthorityReleaseKey"], release.content_key)
+        self.assertEqual(snapshot["resolverContextKey"], context.content_key)
+        self.assertEqual(snapshot["dependencyVector"], loadout["dependencyVector"])
+        self.assertEqual(
+            verify_simulation_snapshot_v3(
+                snapshot,
+                resolved_loadout=loadout,
+                resolver_snapshot=source,
+                authority_bundles={key: bundle},
+                resolver_context=context,
+                runtime_authority_release=release,
+            ),
+            [],
+        )
     def test_v2_snapshot_binds_same_loadout_authority_key_and_ordered_suffix(self):
         """Would fail if snapshot identity detached the verified loadout suffix."""
         source, authority, bundles, loadout = active_v2_loadout_fixture()

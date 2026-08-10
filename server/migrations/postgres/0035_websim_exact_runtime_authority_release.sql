@@ -589,6 +589,408 @@ GRANT EXECUTE ON FUNCTION
     ops.websim_exact_runtime_authority_release_occurrences_read(uuid, text, text)
 TO wow_exact_worker;
 
+-- 0035 extends the historical v1/v2 snapshot tables in place.  The prior
+-- predicates remain verbatim through their original constraints; this
+-- forward-only replacement admits v3 only when the additional constraint
+-- below closes every release/context/vector relation.
+ALTER TABLE cache.websim_gear_resolved_loadouts
+    ADD COLUMN IF NOT EXISTS runtime_authority_release_key text
+        REFERENCES ops.websim_exact_runtime_authority_releases(runtime_authority_release_key)
+        ON DELETE RESTRICT,
+    ADD COLUMN IF NOT EXISTS resolver_context_key text
+        REFERENCES ops.websim_exact_runtime_resolver_contexts(resolver_context_key)
+        ON DELETE RESTRICT,
+    ADD COLUMN IF NOT EXISTS dependency_vector_json jsonb;
+
+ALTER TABLE cache.websim_simulation_snapshots
+    ADD COLUMN IF NOT EXISTS runtime_authority_release_key text
+        REFERENCES ops.websim_exact_runtime_authority_releases(runtime_authority_release_key)
+        ON DELETE RESTRICT,
+    ADD COLUMN IF NOT EXISTS resolver_context_key text
+        REFERENCES ops.websim_exact_runtime_resolver_contexts(resolver_context_key)
+        ON DELETE RESTRICT,
+    ADD COLUMN IF NOT EXISTS dependency_vector_json jsonb;
+
+DO $v3_snapshot_constraint_upgrade$
+DECLARE
+    v_table regclass;
+    v_constraint_name name;
+    v_constraint_definition text;
+    v_expected_count integer;
+BEGIN
+    FOREACH v_table IN ARRAY ARRAY[
+        'cache.websim_gear_resolved_loadouts'::regclass,
+        'cache.websim_simulation_snapshots'::regclass
+    ]
+    LOOP
+        SELECT pg_catalog.count(*)
+        INTO v_expected_count
+        FROM pg_catalog.pg_constraint AS constraint_row
+        WHERE constraint_row.conrelid = v_table
+          AND constraint_row.contype = 'c'
+          AND constraint_row.conname IN (
+              'websim_gear_resolved_loadouts_v1_v2_fields_check',
+              'websim_simulation_snapshots_v1_v2_fields_check'
+          );
+        IF v_expected_count IS DISTINCT FROM 1 THEN
+            RAISE EXCEPTION 'expected one historical v1/v2 snapshot constraint on %, found %',
+                v_table, v_expected_count;
+        END IF;
+        SELECT constraint_row.conname, pg_catalog.pg_get_constraintdef(constraint_row.oid)
+        INTO v_constraint_name, v_constraint_definition
+        FROM pg_catalog.pg_constraint AS constraint_row
+        WHERE constraint_row.conrelid = v_table
+          AND constraint_row.contype = 'c'
+          AND constraint_row.conname IN (
+              'websim_gear_resolved_loadouts_v1_v2_fields_check',
+              'websim_simulation_snapshots_v1_v2_fields_check'
+          );
+        EXECUTE pg_catalog.format(
+            'ALTER TABLE %s DROP CONSTRAINT %I', v_table, v_constraint_name
+        );
+        IF pg_catalog.right(v_constraint_definition, 1) <> ')' THEN
+            RAISE EXCEPTION 'historical v1/v2 snapshot constraint is malformed on %',
+                v_table;
+        END IF;
+        v_constraint_definition := pg_catalog.left(
+            v_constraint_definition,
+            pg_catalog.length(v_constraint_definition) - 1
+        ) || ' OR (schema_revision = ''resolved-loadout-v3''))';
+        IF v_table = 'cache.websim_simulation_snapshots'::regclass THEN
+            v_constraint_definition := pg_catalog.regexp_replace(
+                v_constraint_definition,
+                'resolved-loadout-v3',
+                'simulation-snapshot-v3'
+            );
+        END IF;
+        EXECUTE pg_catalog.format(
+            'ALTER TABLE %s ADD CONSTRAINT %I %s',
+            v_table,
+            v_constraint_name,
+            v_constraint_definition
+        );
+    END LOOP;
+END;
+$v3_snapshot_constraint_upgrade$;
+
+ALTER TABLE cache.websim_gear_resolved_loadouts
+ADD CONSTRAINT websim_gear_resolved_loadouts_runtime_authority_v3_check CHECK (
+    (
+        schema_revision IN ('resolved-loadout-v1', 'resolved-loadout-v2')
+        AND runtime_authority_release_key IS NULL
+        AND resolver_context_key IS NULL
+        AND dependency_vector_json IS NULL
+    )
+    OR (
+        schema_revision = 'resolved-loadout-v3'
+        AND resolved_loadout_key ~ '^resolved-loadout-v3:sha256:[0-9a-f]{64}$'
+        AND catalog_revision IS NULL
+        AND exact_registry_revision IS NULL
+        AND gear_rule_revision IS NOT DISTINCT FROM (
+            loadout_json -> 'dependencyVector' ->> 'gearRuleRevision'
+        )
+        AND loadout_json ->> 'schemaRevision' IS NOT DISTINCT FROM schema_revision
+        AND loadout_json ->> 'resolvedLoadoutKey' IS NOT DISTINCT FROM resolved_loadout_key
+        AND class_key IS NOT DISTINCT FROM (
+            loadout_json -> 'eligibilityContext' ->> 'classKey'
+        )
+        AND spec_key IS NOT DISTINCT FROM (
+            loadout_json -> 'eligibilityContext' ->> 'specKey'
+        )
+        AND loadout_json ->> 'rowHash' IS NOT DISTINCT FROM row_hash
+        AND pg_catalog.jsonb_typeof(exact_authority_by_slot_json)
+            IS NOT DISTINCT FROM 'array'
+        AND pg_catalog.jsonb_typeof(effect_evidence_by_occurrence_json)
+            IS NOT DISTINCT FROM 'array'
+        AND loadout_json -> 'exactAuthorityBySlot'
+            IS NOT DISTINCT FROM exact_authority_by_slot_json
+        AND loadout_json -> 'effectEvidenceByOccurrence'
+            IS NOT DISTINCT FROM effect_evidence_by_occurrence_json
+        AND loadout_effect_authority_key IS NOT DISTINCT FROM (
+            loadout_json ->> 'loadoutEffectAuthorityKey'
+        )
+        AND resolver_replay_context_json IS NULL
+        AND runtime_authority_release_key
+            ~ '^exact-runtime-authority-release:sha256:[0-9a-f]{64}$'
+        AND resolver_context_key
+            ~ '^exact-runtime-resolver-context:sha256:[0-9a-f]{64}$'
+        AND runtime_authority_release_key IS NOT DISTINCT FROM (
+            loadout_json ->> 'runtimeAuthorityReleaseKey'
+        )
+        AND resolver_context_key IS NOT DISTINCT FROM (
+            loadout_json ->> 'resolverContextKey'
+        )
+        AND pg_catalog.jsonb_typeof(dependency_vector_json)
+            IS NOT DISTINCT FROM 'object'
+        AND dependency_vector_json ?& ARRAY[
+            'seasonRevision', 'gameBuild', 'gearRuleRevision',
+            'resolverRevision', 'compilerRevision', 'workerRevision',
+            'simcRuntimeRevision', 'effectAuthorityRevision'
+        ]
+        AND dependency_vector_json - ARRAY[
+            'seasonRevision', 'gameBuild', 'gearRuleRevision',
+            'resolverRevision', 'compilerRevision', 'workerRevision',
+            'simcRuntimeRevision', 'effectAuthorityRevision'
+        ] = '{}'::jsonb
+        AND dependency_vector_json IS NOT DISTINCT FROM (
+            loadout_json -> 'dependencyVector'
+        )
+    )
+);
+
+ALTER TABLE cache.websim_simulation_snapshots
+ADD CONSTRAINT websim_simulation_snapshots_runtime_authority_v3_check CHECK (
+    (
+        schema_revision IN ('simulation-snapshot-v1', 'simulation-snapshot-v2')
+        AND runtime_authority_release_key IS NULL
+        AND resolver_context_key IS NULL
+        AND dependency_vector_json IS NULL
+    )
+    OR (
+        schema_revision = 'simulation-snapshot-v3'
+        AND simulation_snapshot_key ~ '^simulation-snapshot-v3:sha256:[0-9a-f]{64}$'
+        AND resolved_loadout_key ~ '^resolved-loadout-v3:sha256:[0-9a-f]{64}$'
+        AND catalog_revision IS NULL
+        AND gear_rule_revision IS NOT DISTINCT FROM (
+            snapshot_json -> 'dependencyVector' ->> 'gearRuleRevision'
+        )
+        AND snapshot_json ->> 'schemaRevision' IS NOT DISTINCT FROM schema_revision
+        AND snapshot_json ->> 'simulationSnapshotKey'
+            IS NOT DISTINCT FROM simulation_snapshot_key
+        AND snapshot_json ->> 'resolvedLoadoutKey'
+            IS NOT DISTINCT FROM resolved_loadout_key
+        AND snapshot_json ->> 'talentProfileKey'
+            IS NOT DISTINCT FROM talent_profile_key
+        AND snapshot_json ->> 'compilerRevision'
+            IS NOT DISTINCT FROM compiler_revision
+        AND snapshot_json ->> 'simcRuntimeRevision'
+            IS NOT DISTINCT FROM simc_runtime_revision
+        AND snapshot_json ->> 'canonicalInputHash'
+            IS NOT DISTINCT FROM canonical_input_hash
+        AND snapshot_json ->> 'rowHash' IS NOT DISTINCT FROM row_hash
+        AND pg_catalog.jsonb_typeof(exact_authority_by_slot_json)
+            IS NOT DISTINCT FROM 'array'
+        AND pg_catalog.jsonb_typeof(effect_evidence_by_occurrence_json)
+            IS NOT DISTINCT FROM 'array'
+        AND snapshot_json -> 'exactAuthorityBySlot'
+            IS NOT DISTINCT FROM exact_authority_by_slot_json
+        AND snapshot_json -> 'effectEvidenceByOccurrence'
+            IS NOT DISTINCT FROM effect_evidence_by_occurrence_json
+        AND loadout_effect_authority_key IS NOT DISTINCT FROM (
+            snapshot_json ->> 'loadoutEffectAuthorityKey'
+        )
+        AND runtime_authority_release_key
+            ~ '^exact-runtime-authority-release:sha256:[0-9a-f]{64}$'
+        AND resolver_context_key
+            ~ '^exact-runtime-resolver-context:sha256:[0-9a-f]{64}$'
+        AND runtime_authority_release_key IS NOT DISTINCT FROM (
+            snapshot_json ->> 'runtimeAuthorityReleaseKey'
+        )
+        AND resolver_context_key IS NOT DISTINCT FROM (
+            snapshot_json ->> 'resolverContextKey'
+        )
+        AND pg_catalog.jsonb_typeof(dependency_vector_json)
+            IS NOT DISTINCT FROM 'object'
+        AND dependency_vector_json ?& ARRAY[
+            'seasonRevision', 'gameBuild', 'gearRuleRevision',
+            'resolverRevision', 'compilerRevision', 'workerRevision',
+            'simcRuntimeRevision', 'effectAuthorityRevision'
+        ]
+        AND dependency_vector_json - ARRAY[
+            'seasonRevision', 'gameBuild', 'gearRuleRevision',
+            'resolverRevision', 'compilerRevision', 'workerRevision',
+            'simcRuntimeRevision', 'effectAuthorityRevision'
+        ] = '{}'::jsonb
+        AND dependency_vector_json IS NOT DISTINCT FROM (
+            snapshot_json -> 'dependencyVector'
+        )
+    )
+);
+
+CREATE OR REPLACE FUNCTION cache.verify_websim_v3_resolved_loadout_insert()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = pg_catalog, cache, ops, pg_temp
+AS $function$
+DECLARE
+    v_release_context_key text;
+    v_release_vector jsonb;
+BEGIN
+    IF NEW.schema_revision <> 'resolved-loadout-v3' THEN
+        RETURN NEW;
+    END IF;
+    SELECT release.resolver_context_key,
+           document.canonical_json -> 'dependencyVector'
+    INTO v_release_context_key, v_release_vector
+    FROM ops.websim_exact_runtime_authority_releases AS release
+    JOIN cache.websim_canonical_documents AS document
+      ON document.content_key = release.runtime_authority_release_key
+    WHERE release.runtime_authority_release_key = NEW.runtime_authority_release_key
+    FOR KEY SHARE OF release, document;
+    IF v_release_context_key IS DISTINCT FROM NEW.resolver_context_key
+       OR v_release_vector IS DISTINCT FROM NEW.dependency_vector_json
+       OR v_release_vector IS DISTINCT FROM NEW.loadout_json -> 'dependencyVector'
+    THEN
+        RAISE EXCEPTION 'v3 ResolvedLoadout must bind one persisted Runtime Authority Release';
+    END IF;
+    RETURN NEW;
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION cache.verify_websim_v3_simulation_snapshot_insert()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = pg_catalog, cache, ops, pg_temp
+AS $function$
+DECLARE
+    v_loadout_schema_revision text;
+    v_loadout_release_key text;
+    v_loadout_context_key text;
+    v_loadout_vector jsonb;
+    v_release_context_key text;
+    v_release_vector jsonb;
+BEGIN
+    IF NEW.schema_revision <> 'simulation-snapshot-v3' THEN
+        RETURN NEW;
+    END IF;
+    SELECT schema_revision,
+           runtime_authority_release_key,
+           resolver_context_key,
+           dependency_vector_json
+    INTO v_loadout_schema_revision,
+         v_loadout_release_key,
+         v_loadout_context_key,
+         v_loadout_vector
+    FROM cache.websim_gear_resolved_loadouts
+    WHERE resolved_loadout_key = NEW.resolved_loadout_key
+    FOR KEY SHARE;
+    SELECT release.resolver_context_key,
+           document.canonical_json -> 'dependencyVector'
+    INTO v_release_context_key, v_release_vector
+    FROM ops.websim_exact_runtime_authority_releases AS release
+    JOIN cache.websim_canonical_documents AS document
+      ON document.content_key = release.runtime_authority_release_key
+    WHERE release.runtime_authority_release_key = NEW.runtime_authority_release_key
+    FOR KEY SHARE OF release, document;
+    IF v_loadout_schema_revision IS DISTINCT FROM 'resolved-loadout-v3'
+       OR v_loadout_release_key IS DISTINCT FROM NEW.runtime_authority_release_key
+       OR v_loadout_context_key IS DISTINCT FROM NEW.resolver_context_key
+       OR v_loadout_vector IS DISTINCT FROM NEW.dependency_vector_json
+       OR v_release_context_key IS DISTINCT FROM NEW.resolver_context_key
+       OR v_release_vector IS DISTINCT FROM NEW.dependency_vector_json
+       OR v_release_vector IS DISTINCT FROM NEW.snapshot_json -> 'dependencyVector'
+    THEN
+        RAISE EXCEPTION 'v3 SimulationSnapshot must bind its persisted Runtime Authority Release Loadout';
+    END IF;
+    RETURN NEW;
+END;
+$function$;
+
+DROP TRIGGER IF EXISTS trg_websim_resolved_loadout_v3_binding
+ON cache.websim_gear_resolved_loadouts;
+CREATE TRIGGER trg_websim_resolved_loadout_v3_binding
+BEFORE INSERT ON cache.websim_gear_resolved_loadouts
+FOR EACH ROW EXECUTE FUNCTION cache.verify_websim_v3_resolved_loadout_insert();
+
+DROP TRIGGER IF EXISTS trg_websim_simulation_snapshot_v3_binding
+ON cache.websim_simulation_snapshots;
+CREATE TRIGGER trg_websim_simulation_snapshot_v3_binding
+BEFORE INSERT ON cache.websim_simulation_snapshots
+FOR EACH ROW EXECUTE FUNCTION cache.verify_websim_v3_simulation_snapshot_insert();
+
+CREATE OR REPLACE FUNCTION ops.websim_exact_import_request_is_valid(
+    p_request_json jsonb
+)
+RETURNS boolean
+LANGUAGE sql
+IMMUTABLE
+SECURITY INVOKER
+SET search_path = pg_catalog, pg_temp
+AS $function$
+    SELECT
+        p_request_json IS NOT NULL
+        AND pg_catalog.jsonb_typeof(p_request_json) = 'object'
+        AND pg_catalog.jsonb_typeof(p_request_json -> 'exactLoadoutIntent') = 'object'
+        AND pg_catalog.jsonb_typeof(p_request_json -> 'dependencyVector') = 'object'
+        AND (p_request_json -> 'dependencyVector') ?& ARRAY[
+            'seasonRevision', 'gameBuild', 'gearRuleRevision',
+            'resolverRevision', 'compilerRevision', 'workerRevision',
+            'simcRuntimeRevision', 'effectAuthorityRevision'
+        ]
+        AND (p_request_json -> 'dependencyVector') - ARRAY[
+            'seasonRevision', 'gameBuild', 'gearRuleRevision',
+            'resolverRevision', 'compilerRevision', 'workerRevision',
+            'simcRuntimeRevision', 'effectAuthorityRevision'
+        ] = '{}'::jsonb
+        AND (
+            (
+                p_request_json ->> 'schemaRevision' = 'exact-import-job-request-v1'
+                AND p_request_json ?& ARRAY[
+                    'schemaRevision', 'exactLoadoutIntent', 'dependencyVector'
+                ]
+                AND p_request_json - ARRAY[
+                    'schemaRevision', 'exactLoadoutIntent', 'dependencyVector'
+                ] = '{}'::jsonb
+            )
+            OR (
+                p_request_json ->> 'schemaRevision' = 'exact-import-job-request-v2'
+                AND p_request_json ?& ARRAY[
+                    'schemaRevision', 'exactLoadoutIntent', 'dependencyVector',
+                    'resolvedLoadoutKey', 'simulationSnapshotKey', 'snapshotRowHash'
+                ]
+                AND p_request_json - ARRAY[
+                    'schemaRevision', 'exactLoadoutIntent', 'dependencyVector',
+                    'resolvedLoadoutKey', 'simulationSnapshotKey', 'snapshotRowHash'
+                ] = '{}'::jsonb
+                AND pg_catalog.jsonb_typeof(p_request_json -> 'resolvedLoadoutKey') = 'string'
+                AND p_request_json ->> 'resolvedLoadoutKey'
+                    ~ '^resolved-loadout-v2:sha256:[0-9a-f]{64}$'
+                AND pg_catalog.jsonb_typeof(p_request_json -> 'simulationSnapshotKey') = 'string'
+                AND p_request_json ->> 'simulationSnapshotKey'
+                    ~ '^simulation-snapshot-v2:sha256:[0-9a-f]{64}$'
+                AND pg_catalog.jsonb_typeof(p_request_json -> 'snapshotRowHash') = 'string'
+                AND p_request_json ->> 'snapshotRowHash'
+                    ~ '^sha256:[0-9a-f]{64}$'
+            )
+            OR (
+                p_request_json ->> 'schemaRevision' = 'exact-import-job-request-v3'
+                AND p_request_json ?& ARRAY[
+                    'schemaRevision', 'exactLoadoutIntent', 'dependencyVector',
+                    'resolvedLoadoutKey', 'simulationSnapshotKey', 'snapshotRowHash',
+                    'runtimeAuthorityReleaseKey', 'resolverContextKey'
+                ]
+                AND p_request_json - ARRAY[
+                    'schemaRevision', 'exactLoadoutIntent', 'dependencyVector',
+                    'resolvedLoadoutKey', 'simulationSnapshotKey', 'snapshotRowHash',
+                    'runtimeAuthorityReleaseKey', 'resolverContextKey'
+                ] = '{}'::jsonb
+                AND p_request_json ->> 'resolvedLoadoutKey'
+                    ~ '^resolved-loadout-v3:sha256:[0-9a-f]{64}$'
+                AND p_request_json ->> 'simulationSnapshotKey'
+                    ~ '^simulation-snapshot-v3:sha256:[0-9a-f]{64}$'
+                AND p_request_json ->> 'snapshotRowHash'
+                    ~ '^sha256:[0-9a-f]{64}$'
+                AND p_request_json ->> 'runtimeAuthorityReleaseKey'
+                    ~ '^exact-runtime-authority-release:sha256:[0-9a-f]{64}$'
+                AND p_request_json ->> 'resolverContextKey'
+                    ~ '^exact-runtime-resolver-context:sha256:[0-9a-f]{64}$'
+                AND NOT EXISTS (
+                    SELECT 1
+                    FROM pg_catalog.jsonb_each(p_request_json -> 'dependencyVector')
+                        AS vector_entry(key, value)
+                    WHERE pg_catalog.jsonb_typeof(vector_entry.value) <> 'string'
+                       OR vector_entry.value #>> '{}' = ''
+                )
+            )
+        )
+        AND NOT pg_catalog.jsonb_path_exists(
+            p_request_json,
+            '$.** ? (@.type() == "object").keyvalue() ? (@.key == "rawProfile" || @.key == "rawString" || @.key == "playerName" || @.key == "characterName" || @.key == "realm" || @.key == "server")'::pg_catalog.jsonpath
+        );
+$function$;
+
 INSERT INTO ops.schema_migrations (id, description)
 VALUES (
     '0035_websim_exact_runtime_authority_release',

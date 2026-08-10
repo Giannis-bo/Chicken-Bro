@@ -63,6 +63,11 @@ TASK_4W_MIGRATIONS = tuple(
     if migration.name <= "0032_websim_exact_import_jobs.sql"
 )
 TASK_4W_BASELINE_MIGRATIONS = TASK_4W_MIGRATIONS[:-1]
+TASK_5C_MIGRATIONS = tuple(
+    migration for migration in ALL_MIGRATIONS
+    if migration.name <= "0035_websim_exact_runtime_authority_release.sql"
+)
+TASK_5C_BASELINE_MIGRATIONS = TASK_5C_MIGRATIONS[:-1]
 TASK_4W_RUN_ID = os.environ.get("WOW_PG_TEST_RUN_ID_0032", "")
 TASK_4W_FRESH_DSN = os.environ.get("WOW_PG_TEST_DSN_FRESH_0032", "")
 TASK_4W_UPGRADE_DSN = os.environ.get("WOW_PG_TEST_DSN_UPGRADE_0032", "")
@@ -500,6 +505,19 @@ class Task3BCandidateHarnessTest(unittest.TestCase):
             "0030_websim_exact_authority_bundle.sql",
         )
         self.assertEqual(TASK_3B_MIGRATIONS[:-1], TASK_3B_BASELINE_MIGRATIONS)
+
+
+class Task5CV3MigrationBoundaryTest(unittest.TestCase):
+    def test_0035_is_the_only_forward_candidate_extension_from_0034(self):
+        self.assertEqual(
+            TASK_5C_MIGRATIONS[-1].name,
+            "0035_websim_exact_runtime_authority_release.sql",
+        )
+        self.assertEqual(
+            TASK_5C_BASELINE_MIGRATIONS[-1].name,
+            "0034_websim_exact_job_snapshot_binding.sql",
+        )
+        self.assertEqual(TASK_5C_MIGRATIONS[:-1], TASK_5C_BASELINE_MIGRATIONS)
 
 
 class Task4WCandidateHarnessTest(unittest.TestCase):

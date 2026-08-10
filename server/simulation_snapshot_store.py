@@ -19,14 +19,18 @@ try:
     )
     from .gear_resolved_loadout import (
         RESOLVED_LOADOUT_V2_SCHEMA_REVISION,
+        RESOLVED_LOADOUT_V3_SCHEMA_REVISION,
         verify_resolved_loadout,
         verify_resolved_loadout_v2,
+        verify_resolved_loadout_v3,
     )
     from .simc_item_effect_support import reload_effect_record
     from .simulation_snapshot import (
         SIMULATION_SNAPSHOT_V2_SCHEMA_REVISION,
+        SIMULATION_SNAPSHOT_V3_SCHEMA_REVISION,
         verify_simulation_snapshot,
         verify_simulation_snapshot_v2,
+        verify_simulation_snapshot_v3,
     )
 except ImportError:
     from gear_canonical_kernel import (
@@ -37,13 +41,17 @@ except ImportError:
     from gear_loadout_effect_authority import reload_loadout_effect_authority
     from gear_resolved_loadout import (
         RESOLVED_LOADOUT_V2_SCHEMA_REVISION,
+        RESOLVED_LOADOUT_V3_SCHEMA_REVISION,
         verify_resolved_loadout,
         verify_resolved_loadout_v2,
+        verify_resolved_loadout_v3,
     )
     from simulation_snapshot import (
         SIMULATION_SNAPSHOT_V2_SCHEMA_REVISION,
+        SIMULATION_SNAPSHOT_V3_SCHEMA_REVISION,
         verify_simulation_snapshot,
         verify_simulation_snapshot_v2,
+        verify_simulation_snapshot_v3,
     )
     from simc_item_effect_support import reload_effect_record
 
@@ -51,6 +59,8 @@ except ImportError:
 RESULT_IDENTITY_PATTERN = re.compile(r"^simc-result:sha256:[0-9a-f]{64}$")
 _LOADOUT_V2_KEY_PATTERN = re.compile(r"^resolved-loadout-v2:sha256:[0-9a-f]{64}$")
 _SNAPSHOT_V2_KEY_PATTERN = re.compile(r"^simulation-snapshot-v2:sha256:[0-9a-f]{64}$")
+_LOADOUT_V3_KEY_PATTERN = re.compile(r"^resolved-loadout-v3:sha256:[0-9a-f]{64}$")
+_SNAPSHOT_V3_KEY_PATTERN = re.compile(r"^simulation-snapshot-v3:sha256:[0-9a-f]{64}$")
 _LOADOUT_EFFECT_AUTHORITY_KEY_PATTERN = re.compile(
     r"^loadout-effect-authority:sha256:[0-9a-f]{64}$"
 )
@@ -169,6 +179,8 @@ class SimulationSnapshotStore:
         *,
         resolver_snapshot: Any = None,
         authority_bundles: Any = None,
+        resolver_context: Any = None,
+        runtime_authority_release: Any = None,
         loadout_effect_authority: Any = None,
     ) -> dict[str, Any]:
         if not isinstance(value, Mapping):
@@ -191,6 +203,29 @@ class SimulationSnapshotStore:
                 authority_bundles=authority_bundles,
                 loadout_effect_authority=loadout_effect_authority,
             )
+        elif row.get("schemaRevision") == RESOLVED_LOADOUT_V3_SCHEMA_REVISION:
+            _require_native_v2_json(value, field="v3 ResolvedLoadout")
+            _require_native_v2_json(
+                resolver_snapshot,
+                field="v3 resolver snapshot",
+            )
+            if (
+                resolver_snapshot is None
+                or authority_bundles is None
+                or resolver_context is None
+                or runtime_authority_release is None
+            ):
+                raise SimulationSnapshotIntegrityError(
+                    "v3 ResolvedLoadout verifier context is required"
+                )
+            issues = verify_resolved_loadout_v3(
+                row,
+                resolver_snapshot=resolver_snapshot,
+                authority_bundles=authority_bundles,
+                resolver_context=resolver_context,
+                runtime_authority_release=runtime_authority_release,
+                loadout_effect_authority=loadout_effect_authority,
+            )
         else:
             issues = verify_resolved_loadout(row)
         if issues:
@@ -207,6 +242,8 @@ class SimulationSnapshotStore:
         resolver_snapshot: Any = None,
         authority_bundles: Any = None,
         compiler_revision: Any = None,
+        resolver_context: Any = None,
+        runtime_authority_release: Any = None,
         loadout_effect_authority: Any = None,
     ) -> dict[str, Any]:
         if not isinstance(value, Mapping):
@@ -244,6 +281,35 @@ class SimulationSnapshotStore:
                 resolver_snapshot=resolver_snapshot,
                 authority_bundles=authority_bundles,
                 compiler_revision=compiler_revision,
+                loadout_effect_authority=loadout_effect_authority,
+            )
+        elif row.get("schemaRevision") == SIMULATION_SNAPSHOT_V3_SCHEMA_REVISION:
+            _require_native_v2_json(value, field="v3 SimulationSnapshot")
+            _require_native_v2_json(
+                resolved_loadout,
+                field="v3 ResolvedLoadout context",
+            )
+            _require_native_v2_json(
+                resolver_snapshot,
+                field="v3 resolver snapshot",
+            )
+            if (
+                resolved_loadout is None
+                or resolver_snapshot is None
+                or authority_bundles is None
+                or resolver_context is None
+                or runtime_authority_release is None
+            ):
+                raise SimulationSnapshotIntegrityError(
+                    "v3 SimulationSnapshot verifier context is required"
+                )
+            issues = verify_simulation_snapshot_v3(
+                row,
+                resolved_loadout=resolved_loadout,
+                resolver_snapshot=resolver_snapshot,
+                authority_bundles=authority_bundles,
+                resolver_context=resolver_context,
+                runtime_authority_release=runtime_authority_release,
                 loadout_effect_authority=loadout_effect_authority,
             )
         else:
@@ -1230,6 +1296,159 @@ class SimulationSnapshotStore:
             )
         return row
 
+    def _load_v3_loadout_with_cursor(
+        self,
+        cur: Any,
+        key: str,
+        *,
+        resolver_snapshot: Any,
+        authority_bundles: Any,
+        resolver_context: Any,
+        runtime_authority_release: Any,
+        loadout_effect_authority: Any = None,
+    ) -> dict[str, Any]:
+        cur.execute(
+            """
+            /* simulation_snapshot_loadout_v3_load */
+            SELECT
+                resolved_loadout_key,
+                schema_revision,
+                catalog_revision,
+                gear_rule_revision,
+                exact_registry_revision,
+                class_key,
+                spec_key,
+                loadout_json::text,
+                row_hash,
+                exact_authority_by_slot_json::text,
+                effect_evidence_by_occurrence_json::text,
+                loadout_effect_authority_key,
+                runtime_authority_release_key,
+                resolver_context_key,
+                dependency_vector_json::text
+            FROM cache.websim_gear_resolved_loadouts
+            WHERE resolved_loadout_key = %s
+            """,
+            (key,),
+        )
+        stored = cur.fetchone()
+        if not stored:
+            return {}
+        row = _json_value(stored[7])
+        if (
+            not _LOADOUT_V3_KEY_PATTERN.fullmatch(_text(stored[0]))
+            or row.get("schemaRevision") != RESOLVED_LOADOUT_V3_SCHEMA_REVISION
+            or row.get("resolvedLoadoutKey") != stored[0]
+            or stored[2] is not None
+            or _text(row.get("gearRuleRevision")) != _text(stored[3])
+            or stored[4] is not None
+            or _text(row.get("eligibilityContext", {}).get("classKey")) != _text(stored[5])
+            or _text(row.get("eligibilityContext", {}).get("specKey")) != _text(stored[6])
+            or row.get("rowHash") != stored[8]
+            or row.get("exactAuthorityBySlot") != _json_value(stored[9])
+            or row.get("effectEvidenceByOccurrence") != _json_value(stored[10])
+            or row.get("loadoutEffectAuthorityKey") != stored[11]
+            or row.get("runtimeAuthorityReleaseKey") != stored[12]
+            or row.get("resolverContextKey") != stored[13]
+            or row.get("dependencyVector") != _json_value(stored[14])
+            or verify_resolved_loadout_v3(
+                row,
+                resolver_snapshot=resolver_snapshot,
+                authority_bundles=authority_bundles,
+                resolver_context=resolver_context,
+                runtime_authority_release=runtime_authority_release,
+                loadout_effect_authority=loadout_effect_authority,
+            )
+        ):
+            raise SimulationSnapshotIntegrityError(
+                "sealed v3 ResolvedLoadout integrity mismatch"
+            )
+        return row
+
+    def _load_v3_snapshot_with_cursor(
+        self,
+        cur: Any,
+        key: str,
+        *,
+        resolver_snapshot: Any,
+        authority_bundles: Any,
+        resolver_context: Any,
+        runtime_authority_release: Any,
+        loadout_effect_authority: Any = None,
+    ) -> dict[str, Any]:
+        cur.execute(
+            """
+            /* simulation_snapshot_v3_load */
+            SELECT
+                simulation_snapshot_key,
+                schema_revision,
+                resolved_loadout_key,
+                talent_profile_key,
+                compiler_revision,
+                simc_runtime_revision,
+                canonical_input_hash,
+                catalog_revision,
+                gear_rule_revision,
+                snapshot_json::text,
+                row_hash,
+                exact_authority_by_slot_json::text,
+                effect_evidence_by_occurrence_json::text,
+                loadout_effect_authority_key,
+                runtime_authority_release_key,
+                resolver_context_key,
+                dependency_vector_json::text
+            FROM cache.websim_simulation_snapshots
+            WHERE simulation_snapshot_key = %s
+            """,
+            (key,),
+        )
+        stored = cur.fetchone()
+        if not stored:
+            return {}
+        row = _json_value(stored[9])
+        loadout = self._load_v3_loadout_with_cursor(
+            cur,
+            stored[2],
+            resolver_snapshot=resolver_snapshot,
+            authority_bundles=authority_bundles,
+            resolver_context=resolver_context,
+            runtime_authority_release=runtime_authority_release,
+            loadout_effect_authority=loadout_effect_authority,
+        )
+        if (
+            not _SNAPSHOT_V3_KEY_PATTERN.fullmatch(_text(stored[0]))
+            or row.get("schemaRevision") != SIMULATION_SNAPSHOT_V3_SCHEMA_REVISION
+            or row.get("simulationSnapshotKey") != stored[0]
+            or row.get("resolvedLoadoutKey") != stored[2]
+            or _text(row.get("talentProfileKey")) != _text(stored[3])
+            or _text(row.get("compilerRevision")) != _text(stored[4])
+            or _text(row.get("simcRuntimeRevision")) != _text(stored[5])
+            or _text(row.get("canonicalInputHash")) != _text(stored[6])
+            or stored[7] is not None
+            or _text(row.get("dependencyVector", {}).get("gearRuleRevision"))
+            != _text(stored[8])
+            or row.get("rowHash") != stored[10]
+            or row.get("exactAuthorityBySlot") != _json_value(stored[11])
+            or row.get("effectEvidenceByOccurrence") != _json_value(stored[12])
+            or row.get("loadoutEffectAuthorityKey") != stored[13]
+            or row.get("runtimeAuthorityReleaseKey") != stored[14]
+            or row.get("resolverContextKey") != stored[15]
+            or row.get("dependencyVector") != _json_value(stored[16])
+            or verify_simulation_snapshot_v3(
+                row,
+                resolved_loadout=loadout,
+                resolver_snapshot=resolver_snapshot,
+                authority_bundles=authority_bundles,
+                resolver_context=resolver_context,
+                runtime_authority_release=runtime_authority_release,
+                loadout_effect_authority=loadout_effect_authority,
+            )
+        ):
+            raise SimulationSnapshotIntegrityError(
+                "sealed v3 SimulationSnapshot integrity mismatch"
+            )
+        return row
+
     @staticmethod
     def _load_result_with_cursor(cur: Any, key: str) -> dict[str, Any]:
         cur.execute(
@@ -1266,20 +1485,77 @@ class SimulationSnapshotStore:
             )
         return semantics
 
-    def load_loadout(self, key: str) -> dict[str, Any]:
+    def load_loadout(
+        self,
+        key: str,
+        *,
+        resolver_snapshot: Any = None,
+        authority_bundles: Any = None,
+        resolver_context: Any = None,
+        runtime_authority_release: Any = None,
+        loadout_effect_authority: Any = None,
+    ) -> dict[str, Any]:
         with self.connection() as connection:
             with connection.cursor() as cur:
                 normalized_key = _text(key)
                 if _LOADOUT_V2_KEY_PATTERN.fullmatch(normalized_key):
                     return self._load_v2_loadout_with_cursor(cur, normalized_key)
+                if _LOADOUT_V3_KEY_PATTERN.fullmatch(normalized_key):
+                    if (
+                        resolver_snapshot is None
+                        or authority_bundles is None
+                        or resolver_context is None
+                        or runtime_authority_release is None
+                    ):
+                        raise SimulationSnapshotIntegrityError(
+                            "v3 ResolvedLoadout verifier context is required"
+                        )
+                    return self._load_v3_loadout_with_cursor(
+                        cur,
+                        normalized_key,
+                        resolver_snapshot=resolver_snapshot,
+                        authority_bundles=authority_bundles,
+                        resolver_context=resolver_context,
+                        runtime_authority_release=runtime_authority_release,
+                        loadout_effect_authority=loadout_effect_authority,
+                    )
                 return self._load_loadout_with_cursor(cur, normalized_key)
 
-    def load_snapshot(self, key: str, *, include_result: bool = True) -> dict[str, Any]:
+    def load_snapshot(
+        self,
+        key: str,
+        *,
+        include_result: bool = True,
+        resolver_snapshot: Any = None,
+        authority_bundles: Any = None,
+        resolver_context: Any = None,
+        runtime_authority_release: Any = None,
+        loadout_effect_authority: Any = None,
+    ) -> dict[str, Any]:
         with self.connection() as connection:
             with connection.cursor() as cur:
                 normalized_key = _text(key)
                 if _SNAPSHOT_V2_KEY_PATTERN.fullmatch(normalized_key):
                     row = self._load_v2_snapshot_with_cursor(cur, normalized_key)
+                elif _SNAPSHOT_V3_KEY_PATTERN.fullmatch(normalized_key):
+                    if (
+                        resolver_snapshot is None
+                        or authority_bundles is None
+                        or resolver_context is None
+                        or runtime_authority_release is None
+                    ):
+                        raise SimulationSnapshotIntegrityError(
+                            "v3 SimulationSnapshot verifier context is required"
+                        )
+                    row = self._load_v3_snapshot_with_cursor(
+                        cur,
+                        normalized_key,
+                        resolver_snapshot=resolver_snapshot,
+                        authority_bundles=authority_bundles,
+                        resolver_context=resolver_context,
+                        runtime_authority_release=runtime_authority_release,
+                        loadout_effect_authority=loadout_effect_authority,
+                    )
                 else:
                     row = self._load_snapshot_with_cursor(cur, normalized_key)
                 if not row or not include_result:
@@ -1301,18 +1577,31 @@ class SimulationSnapshotStore:
         *,
         resolver_snapshot: Any = None,
         authority_bundles: Any = None,
+        resolver_context: Any = None,
+        runtime_authority_release: Any = None,
         loadout_effect_authority: Any = None,
     ) -> dict[str, Any]:
         row = self._validate_loadout(
             value,
             resolver_snapshot=resolver_snapshot,
             authority_bundles=authority_bundles,
+            resolver_context=resolver_context,
+            runtime_authority_release=runtime_authority_release,
             loadout_effect_authority=loadout_effect_authority,
         )
         if row.get("schemaRevision") == RESOLVED_LOADOUT_V2_SCHEMA_REVISION:
             return self._seal_loadout_v2(
                 row, resolver_snapshot=resolver_snapshot,
                 authority_bundles=authority_bundles,
+                loadout_effect_authority=loadout_effect_authority,
+            )
+        if row.get("schemaRevision") == RESOLVED_LOADOUT_V3_SCHEMA_REVISION:
+            return self._seal_loadout_v3(
+                row,
+                resolver_snapshot=resolver_snapshot,
+                authority_bundles=authority_bundles,
+                resolver_context=resolver_context,
+                runtime_authority_release=runtime_authority_release,
                 loadout_effect_authority=loadout_effect_authority,
             )
         eligibility = row["eligibilityContext"]
@@ -1433,6 +1722,89 @@ class SimulationSnapshotStore:
                     )
                 return sealed
 
+    def _seal_loadout_v3(
+        self,
+        row: dict[str, Any],
+        *,
+        resolver_snapshot: Any,
+        authority_bundles: Any,
+        resolver_context: Any,
+        runtime_authority_release: Any,
+        loadout_effect_authority: Any,
+    ) -> dict[str, Any]:
+        eligibility = row["eligibilityContext"]
+        with self.connection() as connection:
+            with connection.cursor() as cur:
+                if verify_resolved_loadout_v3(
+                    row,
+                    resolver_snapshot=resolver_snapshot,
+                    authority_bundles=authority_bundles,
+                    resolver_context=resolver_context,
+                    runtime_authority_release=runtime_authority_release,
+                    loadout_effect_authority=loadout_effect_authority,
+                ):
+                    raise SimulationSnapshotIntegrityError(
+                        "v3 ResolvedLoadout typed replay verification failed"
+                    )
+                params = (
+                    row["resolvedLoadoutKey"],
+                    row["schemaRevision"],
+                    None,
+                    row["gearRuleRevision"],
+                    None,
+                    _text(eligibility.get("classKey")),
+                    _text(eligibility.get("specKey")),
+                    _json(row),
+                    row["rowHash"],
+                    _json(row["exactAuthorityBySlot"]),
+                    _json(row["effectEvidenceByOccurrence"]),
+                    row.get("loadoutEffectAuthorityKey"),
+                    row["runtimeAuthorityReleaseKey"],
+                    row["resolverContextKey"],
+                    _json(row["dependencyVector"]),
+                )
+                cur.execute(
+                    """
+                    /* simulation_snapshot_loadout_v3_insert */
+                    INSERT INTO cache.websim_gear_resolved_loadouts (
+                        resolved_loadout_key,
+                        schema_revision,
+                        catalog_revision,
+                        gear_rule_revision,
+                        exact_registry_revision,
+                        class_key,
+                        spec_key,
+                        loadout_json,
+                        row_hash,
+                        exact_authority_by_slot_json,
+                        effect_evidence_by_occurrence_json,
+                        loadout_effect_authority_key,
+                        runtime_authority_release_key,
+                        resolver_context_key,
+                        dependency_vector_json
+                    ) VALUES (
+                        %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s,
+                        %s::jsonb, %s::jsonb, %s, %s, %s, %s::jsonb
+                    )
+                    ON CONFLICT DO NOTHING
+                    """,
+                    params,
+                )
+                sealed = self._load_v3_loadout_with_cursor(
+                    cur,
+                    row["resolvedLoadoutKey"],
+                    resolver_snapshot=resolver_snapshot,
+                    authority_bundles=authority_bundles,
+                    resolver_context=resolver_context,
+                    runtime_authority_release=runtime_authority_release,
+                    loadout_effect_authority=loadout_effect_authority,
+                )
+                if sealed != row:
+                    raise SimulationSnapshotIntegrityError(
+                        "sealed v3 ResolvedLoadout identity conflict"
+                    )
+                return sealed
+
     def seal_snapshot(
         self,
         value: Any,
@@ -1441,6 +1813,8 @@ class SimulationSnapshotStore:
         resolver_snapshot: Any = None,
         authority_bundles: Any = None,
         compiler_revision: Any = None,
+        resolver_context: Any = None,
+        runtime_authority_release: Any = None,
         loadout_effect_authority: Any = None,
     ) -> dict[str, Any]:
         row = self._validate_snapshot(
@@ -1449,12 +1823,23 @@ class SimulationSnapshotStore:
             resolver_snapshot=resolver_snapshot,
             authority_bundles=authority_bundles,
             compiler_revision=compiler_revision,
+            resolver_context=resolver_context,
+            runtime_authority_release=runtime_authority_release,
             loadout_effect_authority=loadout_effect_authority,
         )
         if row.get("schemaRevision") == SIMULATION_SNAPSHOT_V2_SCHEMA_REVISION:
             return self._seal_snapshot_v2(row, resolved_loadout=resolved_loadout,
                 resolver_snapshot=resolver_snapshot, authority_bundles=authority_bundles,
                 compiler_revision=compiler_revision, loadout_effect_authority=loadout_effect_authority)
+        if row.get("schemaRevision") == SIMULATION_SNAPSHOT_V3_SCHEMA_REVISION:
+            return self._seal_snapshot_v3(
+                row,
+                resolver_snapshot=resolver_snapshot,
+                authority_bundles=authority_bundles,
+                resolver_context=resolver_context,
+                runtime_authority_release=runtime_authority_release,
+                loadout_effect_authority=loadout_effect_authority,
+            )
         params = (
             row["simulationSnapshotKey"],
             row["schemaRevision"],
@@ -1590,7 +1975,117 @@ class SimulationSnapshotStore:
                     )
                 return sealed
 
-    def bind_result(self, snapshot_key: str, result_value: Any) -> dict[str, Any]:
+    def _seal_snapshot_v3(
+        self,
+        row: dict[str, Any],
+        *,
+        resolver_snapshot: Any,
+        authority_bundles: Any,
+        resolver_context: Any,
+        runtime_authority_release: Any,
+        loadout_effect_authority: Any,
+    ) -> dict[str, Any]:
+        with self.connection() as connection:
+            with connection.cursor() as cur:
+                loadout = self._load_v3_loadout_with_cursor(
+                    cur,
+                    row["resolvedLoadoutKey"],
+                    resolver_snapshot=resolver_snapshot,
+                    authority_bundles=authority_bundles,
+                    resolver_context=resolver_context,
+                    runtime_authority_release=runtime_authority_release,
+                    loadout_effect_authority=loadout_effect_authority,
+                )
+                if not loadout:
+                    raise SimulationSnapshotIntegrityError(
+                        "sealed ResolvedLoadout is required before snapshot"
+                    )
+                if verify_simulation_snapshot_v3(
+                    row,
+                    resolved_loadout=loadout,
+                    resolver_snapshot=resolver_snapshot,
+                    authority_bundles=authority_bundles,
+                    resolver_context=resolver_context,
+                    runtime_authority_release=runtime_authority_release,
+                    loadout_effect_authority=loadout_effect_authority,
+                ):
+                    raise SimulationSnapshotIntegrityError(
+                        "v3 SimulationSnapshot typed replay verification failed"
+                    )
+                params = (
+                    row["simulationSnapshotKey"],
+                    row["schemaRevision"],
+                    row["resolvedLoadoutKey"],
+                    row["talentProfileKey"],
+                    row["compilerRevision"],
+                    row["simcRuntimeRevision"],
+                    row["canonicalInputHash"],
+                    None,
+                    row["dependencyVector"]["gearRuleRevision"],
+                    _json(row),
+                    row["rowHash"],
+                    _json(row["exactAuthorityBySlot"]),
+                    _json(row["effectEvidenceByOccurrence"]),
+                    row.get("loadoutEffectAuthorityKey"),
+                    row["runtimeAuthorityReleaseKey"],
+                    row["resolverContextKey"],
+                    _json(row["dependencyVector"]),
+                )
+                cur.execute(
+                    """
+                    /* simulation_snapshot_v3_insert */
+                    INSERT INTO cache.websim_simulation_snapshots (
+                        simulation_snapshot_key,
+                        schema_revision,
+                        resolved_loadout_key,
+                        talent_profile_key,
+                        compiler_revision,
+                        simc_runtime_revision,
+                        canonical_input_hash,
+                        catalog_revision,
+                        gear_rule_revision,
+                        snapshot_json,
+                        row_hash,
+                        exact_authority_by_slot_json,
+                        effect_evidence_by_occurrence_json,
+                        loadout_effect_authority_key,
+                        runtime_authority_release_key,
+                        resolver_context_key,
+                        dependency_vector_json
+                    ) VALUES (
+                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb,
+                        %s, %s::jsonb, %s::jsonb, %s, %s, %s, %s::jsonb
+                    )
+                    ON CONFLICT DO NOTHING
+                    """,
+                    params,
+                )
+                sealed = self._load_v3_snapshot_with_cursor(
+                    cur,
+                    row["simulationSnapshotKey"],
+                    resolver_snapshot=resolver_snapshot,
+                    authority_bundles=authority_bundles,
+                    resolver_context=resolver_context,
+                    runtime_authority_release=runtime_authority_release,
+                    loadout_effect_authority=loadout_effect_authority,
+                )
+                if sealed != row:
+                    raise SimulationSnapshotIntegrityError(
+                        "sealed v3 SimulationSnapshot identity conflict"
+                    )
+                return sealed
+
+    def bind_result(
+        self,
+        snapshot_key: str,
+        result_value: Any,
+        *,
+        resolver_snapshot: Any = None,
+        authority_bundles: Any = None,
+        resolver_context: Any = None,
+        runtime_authority_release: Any = None,
+        loadout_effect_authority: Any = None,
+    ) -> dict[str, Any]:
         key = _text(snapshot_key)
         result = _canonical(result_value) if isinstance(result_value, Mapping) else {}
         result_identity = _text(result.get("resultIdentity"))
@@ -1619,6 +2114,25 @@ class SimulationSnapshotStore:
             with connection.cursor() as cur:
                 if _SNAPSHOT_V2_KEY_PATTERN.fullmatch(key):
                     snapshot = self._load_v2_snapshot_with_cursor(cur, key)
+                elif _SNAPSHOT_V3_KEY_PATTERN.fullmatch(key):
+                    if (
+                        resolver_snapshot is None
+                        or authority_bundles is None
+                        or resolver_context is None
+                        or runtime_authority_release is None
+                    ):
+                        raise SimulationSnapshotIntegrityError(
+                            "v3 SimulationSnapshot verifier context is required"
+                        )
+                    snapshot = self._load_v3_snapshot_with_cursor(
+                        cur,
+                        key,
+                        resolver_snapshot=resolver_snapshot,
+                        authority_bundles=authority_bundles,
+                        resolver_context=resolver_context,
+                        runtime_authority_release=runtime_authority_release,
+                        loadout_effect_authority=loadout_effect_authority,
+                    )
                 else:
                     snapshot = self._load_snapshot_with_cursor(cur, key)
                 if not snapshot:

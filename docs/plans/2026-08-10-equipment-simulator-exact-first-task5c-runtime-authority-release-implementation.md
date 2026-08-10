@@ -160,7 +160,7 @@ git commit -m "feat(exact): persist runtime authority releases"
 - Consumes: Task 1 release/context and Task 4L verified aggregate.
 - Produces: `build_resolved_loadout_v3`, `verify_resolved_loadout_v3`, `build_simulation_snapshot_v3`, `verify_simulation_snapshot_v3`, `exact-import-job-request-v3` with a typed release reference.
 
-- [ ] **Step 1: Add RED identity cases**
+- [x] **Step 1: Add RED identity cases**
 
 ```python
 def test_v3_snapshot_key_changes_when_only_runtime_release_key_changes(self):
@@ -170,17 +170,17 @@ def test_v1_and_v2_request_bytes_are_unchanged_when_v3_is_added(self):
     self.assertEqual(build_v2_request(), FROZEN_V2_REQUEST)
 ```
 
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
 
 Run: `PYTHONDONTWRITEBYTECODE=1 python3 -m unittest tests.gear_resolved_loadout_test tests.simulation_snapshot_test tests.simulation_snapshot_store_test tests.gear_exact_import_job_store_test`
 
 Expected: FAIL only on missing v3 builders/schema acceptance.
 
-- [ ] **Step 3: Add v3 beside v1/v2**
+- [x] **Step 3: Add v3 beside v1/v2**
 
 V3 loadout/snapshot/request bytes and row hashes contain `runtimeAuthorityReleaseKey`, `resolverContextKey`, and exactly eight dependency vector fields. 0035 extends 0031/0034 validators forward-only for v1/v2/v3; v3 rejects v2 prefixes. Snapshot store runs v3 verifier before returning a row.
 
-- [ ] **Step 4: Run GREEN compatibility matrix**
+- [x] **Step 4: Run GREEN compatibility matrix**
 
 Run: `PYTHONDONTWRITEBYTECODE=1 python3 -m unittest tests.gear_resolved_loadout_test tests.simulation_snapshot_test tests.simulation_snapshot_compat_test tests.simulation_snapshot_store_test tests.gear_exact_import_job_store_test tests.postgres_schema_test`
 

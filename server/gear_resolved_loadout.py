@@ -55,6 +55,10 @@ RESOLVED_LOADOUT_V2_SCHEMA_REVISION = "resolved-loadout-v2"
 RESOLVED_LOADOUT_V2_KEY_PATTERN = re.compile(
     r"^resolved-loadout-v2:sha256:[0-9a-f]{64}$"
 )
+RESOLVED_LOADOUT_V3_SCHEMA_REVISION = "resolved-loadout-v3"
+RESOLVED_LOADOUT_V3_KEY_PATTERN = re.compile(
+    r"^resolved-loadout-v3:sha256:[0-9a-f]{64}$"
+)
 EXACT_AUTHORITY_ENVELOPE_KEY_PATTERN = re.compile(
     r"^exact-authority:sha256:[0-9a-f]{64}$"
 )
@@ -1441,6 +1445,169 @@ def verify_resolved_loadout_v2(
     if _text(row.get("rowHash")) != expected_hash:
         issues.append("RESOLVED_LOADOUT_V2_ROW_HASH_INVALID")
     return issues
+
+
+def _runtime_release_projection(
+    *,
+    resolver_context: Any,
+    runtime_authority_release: Any,
+) -> dict[str, Any] | None:
+    """Return one fully checked Task 5C release/context projection."""
+    try:
+        from .exact_runtime_authority_release import (
+            runtime_authority_release_payload,
+            runtime_resolver_context_payload,
+        )
+    except ImportError:  # pragma: no cover - direct server runtime compatibility
+        from exact_runtime_authority_release import (
+            runtime_authority_release_payload,
+            runtime_resolver_context_payload,
+        )
+    try:
+        context = runtime_resolver_context_payload(resolver_context)
+        release = runtime_authority_release_payload(runtime_authority_release)
+    except (TypeError, ValueError):
+        return None
+    context_key = getattr(resolver_context, "content_key", None)
+    release_key = getattr(runtime_authority_release, "content_key", None)
+    if not isinstance(context_key, str) or not isinstance(release_key, str):
+        return None
+    if release.get("resolverContextKey") != context_key:
+        return None
+    context_sha = "sha256:" + hashlib.sha256(
+        resolver_context.canonical_bytes,
+    ).hexdigest()
+    if release.get("resolverContextSha256") != context_sha:
+        return None
+    vector = release.get("dependencyVector")
+    if not isinstance(vector, dict) or len(vector) != 8:
+        return None
+    for field in (
+        "seasonRevision", "gearRuleRevision", "resolverRevision",
+        "simcRuntimeRevision",
+    ):
+        if vector.get(field) != context.get(field):
+            return None
+    return {
+        "resolverContextKey": context_key,
+        "runtimeAuthorityReleaseKey": release_key,
+        "dependencyVector": _canonical(vector),
+    }
+
+
+def _v3_identity(row: Mapping[str, Any]) -> dict[str, Any]:
+    return {
+        key: _canonical(value)
+        for key, value in row.items()
+        if key not in {
+            "schemaRevision", "status", "resolvedLoadoutKey", "rowHash",
+            "problemCodes", "problems", "originCatalogRevision",
+        }
+    }
+
+
+def _v3_blocked(problems: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
+    normalized = _dedupe_problems(problems)
+    return {
+        "schemaRevision": RESOLVED_LOADOUT_V3_SCHEMA_REVISION,
+        "status": "blocked",
+        "problemCodes": sorted({_text(problem.get("code")) for problem in normalized}),
+        "problems": normalized,
+    }
+
+
+def build_resolved_loadout_v3(
+    *,
+    resolver_snapshot: Any,
+    exact_authority_by_slot: Any,
+    authority_bundles: Any,
+    resolver_context: Any,
+    runtime_authority_release: Any,
+    loadout_effect_authority: Any = None,
+) -> dict[str, Any]:
+    """Build a forward-only release/context-bound v3 loadout identity."""
+    release = _runtime_release_projection(
+        resolver_context=resolver_context,
+        runtime_authority_release=runtime_authority_release,
+    )
+    if release is None:
+        return _v3_blocked((_problem(
+            "RUNTIME_AUTHORITY_RELEASE_REQUIRED",
+            "runtimeAuthorityRelease",
+            "V3 requires one exact release/context pair.",
+        ),))
+    vector = release["dependencyVector"]
+    v2 = build_resolved_loadout_v2(
+        resolver_snapshot=resolver_snapshot,
+        exact_authority_by_slot=exact_authority_by_slot,
+        authority_bundles=authority_bundles,
+        gear_rule_revision=vector["gearRuleRevision"],
+        resolver_revision=vector["resolverRevision"],
+        simc_runtime_revision=vector["simcRuntimeRevision"],
+        loadout_effect_authority=loadout_effect_authority,
+    )
+    if v2.get("status") != "ready":
+        return _v3_blocked(v2.get("problems") or ())
+    row = {
+        key: _canonical(value)
+        for key, value in v2.items()
+        if key not in {
+            "schemaRevision", "resolvedLoadoutKey", "rowHash",
+            "originCatalogRevision",
+        }
+    }
+    row.update({
+        "schemaRevision": RESOLVED_LOADOUT_V3_SCHEMA_REVISION,
+        "runtimeAuthorityReleaseKey": release["runtimeAuthorityReleaseKey"],
+        "resolverContextKey": release["resolverContextKey"],
+        "dependencyVector": vector,
+    })
+    row["resolvedLoadoutKey"] = _hash("resolved-loadout-v3:sha256:", _v3_identity(row))
+    row["rowHash"] = _hash(
+        "sha256:", {key: value for key, value in row.items() if key != "rowHash"},
+    )
+    return row
+
+
+def verify_resolved_loadout_v3(
+    value: Any,
+    *,
+    resolver_snapshot: Any = None,
+    authority_bundles: Any = None,
+    resolver_context: Any = None,
+    runtime_authority_release: Any = None,
+    loadout_effect_authority: Any = None,
+) -> list[str]:
+    row = dict(value) if isinstance(value, Mapping) else {}
+    if row.get("schemaRevision") != RESOLVED_LOADOUT_V3_SCHEMA_REVISION:
+        return ["RESOLVED_LOADOUT_V3_SCHEMA_INVALID"]
+    if row.get("status") != "ready":
+        return ["RESOLVED_LOADOUT_V3_NOT_READY"]
+    release = _runtime_release_projection(
+        resolver_context=resolver_context,
+        runtime_authority_release=runtime_authority_release,
+    )
+    if release is None:
+        return ["RESOLVED_LOADOUT_V3_RELEASE_CONTEXT_INVALID"]
+    if (
+        row.get("runtimeAuthorityReleaseKey") != release["runtimeAuthorityReleaseKey"]
+        or row.get("resolverContextKey") != release["resolverContextKey"]
+        or row.get("dependencyVector") != release["dependencyVector"]
+    ):
+        return ["RESOLVED_LOADOUT_V3_RELEASE_CONTEXT_MISMATCH"]
+    expected = build_resolved_loadout_v3(
+        resolver_snapshot=resolver_snapshot,
+        exact_authority_by_slot=row.get("exactAuthorityBySlot"),
+        authority_bundles=authority_bundles,
+        resolver_context=resolver_context,
+        runtime_authority_release=runtime_authority_release,
+        loadout_effect_authority=loadout_effect_authority,
+    )
+    if expected.get("status") != "ready" or row != expected:
+        return ["RESOLVED_LOADOUT_V3_IDENTITY_MISMATCH"]
+    if not RESOLVED_LOADOUT_V3_KEY_PATTERN.fullmatch(_text(row.get("resolvedLoadoutKey"))):
+        return ["RESOLVED_LOADOUT_V3_KEY_INVALID"]
+    return []
 
 
 def verify_resolved_loadout(value: Any) -> list[str]:

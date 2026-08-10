@@ -20,6 +20,7 @@ except ImportError:  # pragma: no cover - direct server runtime compatibility
 
 REQUEST_SCHEMA_REVISION = "exact-import-job-request-v1"
 REQUEST_V2_SCHEMA_REVISION = "exact-import-job-request-v2"
+REQUEST_V3_SCHEMA_REVISION = "exact-import-job-request-v3"
 RETRY_POLICY_REVISION = "exact-import-retry-policy-v1"
 REQUEST_KEY_PREFIX = "exact-import-request:sha256:"
 DEPENDENCY_VECTOR_KEYS = frozenset({
@@ -44,12 +45,19 @@ _OWNER_KEY_HASH = re.compile(r"^sha256:[0-9a-f]{64}$")
 _REQUEST_KEY = re.compile(r"^exact-import-request:sha256:[0-9a-f]{64}$")
 _RESOLVED_LOADOUT_V2_KEY = re.compile(r"^resolved-loadout-v2:sha256:[0-9a-f]{64}$")
 _SIMULATION_SNAPSHOT_V2_KEY = re.compile(r"^simulation-snapshot-v2:sha256:[0-9a-f]{64}$")
+_RESOLVED_LOADOUT_V3_KEY = re.compile(r"^resolved-loadout-v3:sha256:[0-9a-f]{64}$")
+_SIMULATION_SNAPSHOT_V3_KEY = re.compile(r"^simulation-snapshot-v3:sha256:[0-9a-f]{64}$")
+_RUNTIME_RELEASE_KEY = re.compile(r"^exact-runtime-authority-release:sha256:[0-9a-f]{64}$")
+_RESOLVER_CONTEXT_KEY = re.compile(r"^exact-runtime-resolver-context:sha256:[0-9a-f]{64}$")
 _SNAPSHOT_ROW_HASH = re.compile(r"^sha256:[0-9a-f]{64}$")
 _V1_REQUEST_FIELDS = frozenset({
     "schemaRevision", "exactLoadoutIntent", "dependencyVector",
 })
 _V2_REQUEST_FIELDS = _V1_REQUEST_FIELDS | frozenset({
     "resolvedLoadoutKey", "simulationSnapshotKey", "snapshotRowHash",
+})
+_V3_REQUEST_FIELDS = _V2_REQUEST_FIELDS | frozenset({
+    "runtimeAuthorityReleaseKey", "resolverContextKey",
 })
 _MAX_REQUEST_BYTES = 131_072
 _MAX_RESULT_BYTES = 131_072
@@ -71,6 +79,8 @@ class ExactSnapshotReference:
     resolved_loadout_key: str
     simulation_snapshot_key: str
     snapshot_row_hash: str
+    runtime_authority_release_key: str | None = None
+    resolver_context_key: str | None = None
 
 
 @dataclass(frozen=True)
@@ -136,23 +146,27 @@ def _dependency_vector(raw: Any) -> dict[str, str]:
 
 
 def _snapshot_reference(raw: Any) -> ExactSnapshotReference:
-    if type(raw) is not dict or set(raw) != {
+    if type(raw) is not dict or set(raw) not in ({
         "resolvedLoadoutKey", "simulationSnapshotKey", "snapshotRowHash",
-    }:
+    }, {
+        "resolvedLoadoutKey", "simulationSnapshotKey", "snapshotRowHash",
+        "runtimeAuthorityReleaseKey", "resolverContextKey",
+    }):
         raise ExactImportJobRequestError(
-            "snapshot reference must contain exactly the three sealed v2 identities",
+            "snapshot reference must contain one sealed v2 or v3 identity set",
         )
     resolved_loadout_key = raw["resolvedLoadoutKey"]
     simulation_snapshot_key = raw["simulationSnapshotKey"]
     snapshot_row_hash = raw["snapshotRowHash"]
+    is_v3 = "runtimeAuthorityReleaseKey" in raw
     if (
         type(resolved_loadout_key) is not str
-        or _RESOLVED_LOADOUT_V2_KEY.fullmatch(resolved_loadout_key) is None
+        or (_RESOLVED_LOADOUT_V3_KEY if is_v3 else _RESOLVED_LOADOUT_V2_KEY).fullmatch(resolved_loadout_key) is None
     ):
         raise ExactImportJobRequestError("invalid resolvedLoadoutKey")
     if (
         type(simulation_snapshot_key) is not str
-        or _SIMULATION_SNAPSHOT_V2_KEY.fullmatch(simulation_snapshot_key) is None
+        or (_SIMULATION_SNAPSHOT_V3_KEY if is_v3 else _SIMULATION_SNAPSHOT_V2_KEY).fullmatch(simulation_snapshot_key) is None
     ):
         raise ExactImportJobRequestError("invalid simulationSnapshotKey")
     if (
@@ -160,10 +174,19 @@ def _snapshot_reference(raw: Any) -> ExactSnapshotReference:
         or _SNAPSHOT_ROW_HASH.fullmatch(snapshot_row_hash) is None
     ):
         raise ExactImportJobRequestError("invalid snapshotRowHash")
+    release_key = raw.get("runtimeAuthorityReleaseKey")
+    context_key = raw.get("resolverContextKey")
+    if is_v3 and (
+        type(release_key) is not str or _RUNTIME_RELEASE_KEY.fullmatch(release_key) is None
+        or type(context_key) is not str or _RESOLVER_CONTEXT_KEY.fullmatch(context_key) is None
+    ):
+        raise ExactImportJobRequestError("invalid runtime authority reference")
     return ExactSnapshotReference(
         resolved_loadout_key=resolved_loadout_key,
         simulation_snapshot_key=simulation_snapshot_key,
         snapshot_row_hash=snapshot_row_hash,
+        runtime_authority_release_key=release_key if is_v3 else None,
+        resolver_context_key=context_key if is_v3 else None,
     )
 
 
@@ -202,11 +225,20 @@ def build_exact_import_job_request(
     if snapshot_reference is not None:
         sealed_snapshot_reference = _snapshot_reference(snapshot_reference)
         payload.update({
-            "schemaRevision": REQUEST_V2_SCHEMA_REVISION,
+            "schemaRevision": (
+                REQUEST_V3_SCHEMA_REVISION
+                if sealed_snapshot_reference.runtime_authority_release_key
+                else REQUEST_V2_SCHEMA_REVISION
+            ),
             "resolvedLoadoutKey": sealed_snapshot_reference.resolved_loadout_key,
             "simulationSnapshotKey": sealed_snapshot_reference.simulation_snapshot_key,
             "snapshotRowHash": sealed_snapshot_reference.snapshot_row_hash,
         })
+        if sealed_snapshot_reference.runtime_authority_release_key:
+            payload.update({
+                "runtimeAuthorityReleaseKey": sealed_snapshot_reference.runtime_authority_release_key,
+                "resolverContextKey": sealed_snapshot_reference.resolver_context_key,
+            })
     canonical_payload = _canonical_json(payload)
     raw = _canonical_bytes(canonical_payload)
     if not 2 <= len(raw) <= _MAX_REQUEST_BYTES:
@@ -251,6 +283,16 @@ def reload_exact_import_job_request(
                 "resolvedLoadoutKey": decoded.get("resolvedLoadoutKey"),
                 "simulationSnapshotKey": decoded.get("simulationSnapshotKey"),
                 "snapshotRowHash": decoded.get("snapshotRowHash"),
+            }
+        elif schema_revision == REQUEST_V3_SCHEMA_REVISION:
+            if set(decoded) != _V3_REQUEST_FIELDS:
+                raise GearExactImportJobStoreIntegrityError("request schema drift")
+            snapshot_reference = {
+                "resolvedLoadoutKey": decoded.get("resolvedLoadoutKey"),
+                "simulationSnapshotKey": decoded.get("simulationSnapshotKey"),
+                "snapshotRowHash": decoded.get("snapshotRowHash"),
+                "runtimeAuthorityReleaseKey": decoded.get("runtimeAuthorityReleaseKey"),
+                "resolverContextKey": decoded.get("resolverContextKey"),
             }
         else:
             raise GearExactImportJobStoreIntegrityError("request schema drift")
