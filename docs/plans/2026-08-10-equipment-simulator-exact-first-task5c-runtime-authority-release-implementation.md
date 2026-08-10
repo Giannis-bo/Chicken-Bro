@@ -313,10 +313,11 @@ directly reads the protected binding table as `wow_app`. The actual candidate
 log SHA-256 is
 `d887db68c4019f3b29fd86fbc6fa62b659878d65d58a07fdf6c1eb6ca4c64224`.
 This is a distinct forward-only compatibility defect, not a candidate success
-or retry authorization. Its two databases, candidate role, remote source,
-bundle, logs and 0600 credential material are identity-archived and must be
-discarded before any new repair or candidate. A new final-head candidate remains
-required after any forward repair; this checkbox remains open.
+or retry authorization. After this identity archive, its two databases,
+candidate role, remote source, bundle, logs and 0600 credential material were
+discarded and independently rechecked absent; the inactive worker and production
+state were not changed. A new final-head candidate remains required after any
+forward repair; this checkbox remains open.
 
 - [ ] **Step 3: Review, CI and production only after candidate PASS**
 
