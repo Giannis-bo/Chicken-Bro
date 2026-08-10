@@ -820,6 +820,18 @@ BEGIN
 END;
 $v3_snapshot_constraint_upgrade$;
 
+-- 0031's historical key checks admitted only bare v1 and explicit v2 keys.
+-- Keep both of those exact forms and extend the same forward-only checks to v3.
+ALTER TABLE cache.websim_gear_resolved_loadouts
+    DROP CONSTRAINT IF EXISTS websim_gear_resolved_loadouts_resolved_loadout_key_check,
+    ADD CONSTRAINT websim_gear_resolved_loadouts_resolved_loadout_key_check
+        CHECK (resolved_loadout_key ~ '^resolved-loadout(-v[23])?:sha256:[0-9a-f]{64}$');
+
+ALTER TABLE cache.websim_simulation_snapshots
+    DROP CONSTRAINT IF EXISTS websim_simulation_snapshots_simulation_snapshot_key_check,
+    ADD CONSTRAINT websim_simulation_snapshots_simulation_snapshot_key_check
+        CHECK (simulation_snapshot_key ~ '^simulation-snapshot(-v[23])?:sha256:[0-9a-f]{64}$');
+
 ALTER TABLE cache.websim_gear_resolved_loadouts
 ADD CONSTRAINT websim_gear_resolved_loadouts_runtime_authority_v3_check CHECK (
     (

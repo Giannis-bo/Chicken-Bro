@@ -1471,6 +1471,32 @@ $unsafe$;
             normalized,
         )
 
+    def test_0035_forward_extends_historical_snapshot_key_checks_to_v3(self):
+        normalized = _normalized(
+            WEBSIM_EXACT_RUNTIME_AUTHORITY_RELEASE.read_text(encoding="utf-8")
+        )
+        for table, constraint, key, prefix in (
+            (
+                "cache.websim_gear_resolved_loadouts",
+                "websim_gear_resolved_loadouts_resolved_loadout_key_check",
+                "resolved_loadout_key",
+                "resolved-loadout",
+            ),
+            (
+                "cache.websim_simulation_snapshots",
+                "websim_simulation_snapshots_simulation_snapshot_key_check",
+                "simulation_snapshot_key",
+                "simulation-snapshot",
+            ),
+        ):
+            with self.subTest(table=table):
+                self.assertIn(
+                    f"ALTER TABLE {table} DROP CONSTRAINT IF EXISTS {constraint}, "
+                    f"ADD CONSTRAINT {constraint} CHECK ({key} ~ "
+                    f"'^{prefix}(-v[23])?:sha256:[0-9a-f]{{64}}$');",
+                    normalized,
+                )
+
     def test_exact_import_jobs_rejects_schema_qualified_coalesce_variants(self):
         sql = WEBSIM_EXACT_IMPORT_JOBS.read_text(encoding="utf-8")
         migrations = tuple(
