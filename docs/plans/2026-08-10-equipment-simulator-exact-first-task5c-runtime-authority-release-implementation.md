@@ -319,6 +319,17 @@ discarded and independently rechecked absent; the inactive worker and production
 state were not changed. A new final-head candidate remains required after any
 forward repair; this checkbox remains open.
 
+The follow-on forward-only repair `0ca0619b` keeps `0030--0034` verbatim and
+changes only `0035`: it converts the frozen binding-relation validator to
+`SECURITY DEFINER`, explicitly assigns it to `wow_migrator`, preserves the
+frozen fixed search path, and revokes direct execution from public/app/worker
+principals. Its 0035 SHA-256 is
+`6aef914d618433913314711388d4093d6905c61ea9ea445d33267f2e579e7064`.
+The RED/GREEN schema regression, focused 58-test schema/candidate contract, and
+the full local suite (`2964` tests, `OK`, 5 expected cloud-only skips) pass.
+This proves only local repair; it changes runtime migration bytes, so one brand
+new final-head candidate remains mandatory and the prior runs remain unusable.
+
 - [ ] **Step 3: Review, CI and production only after candidate PASS**
 
 Run final CR/Harness at exact candidate head, publish one implementation PR, require exact-head CI, then apply reviewed `0030..0035` and provider/worker enablement per runbook. Record main/origin/cloud parity, no timer/backflow, API/readback and rollback. Never create a CI-only PR.
