@@ -49,7 +49,7 @@
   },
   "impactMap": {
     "mustChange": [
-      "New pure runtime release/context/index owner and PostgreSQL-only append-only store/migration 0035.",
+      "New pure runtime release/context/index owner plus one Task 4L public, pure ordered-subject-signature witness; the release owner may not import private signature helpers or recompute their algorithm.",
       "New v3 loadout/snapshot/job canonical identity that binds release/context/full vector while preserving v1/v2.",
       "Exact materializer, worker and narrow backend composition so runtime is server-owned and fail closed.",
       "Focused tests, owner/verification/runbook control plane and this task's release packet."

@@ -47,7 +47,7 @@ release key 永不进入 client source ref、公开 envelope 或页面状态。�
 
 ### 3. Dynamic occurrence relation
 
-运行时先用 sealed resolver-context 完成 first-pass `resolve_v2`。其 Task 4L subject descriptor 会产生包含完整 `resolvedGearSignature` 与 revisions 的 `subjectVariantSignature`；index 对每一个此 signature 在同一 release 内必须返回恰好一个 sealed `simc-item-effect-record`。
+运行时先用 sealed resolver-context 完成 first-pass `resolve_v2`。Task 4L 必须以一个公开、纯、只读的 ordered-signature witness 从该 snapshot 的 subject descriptor 产生包含完整 `resolvedGearSignature` 与 revisions 的 `subjectVariantSignature`；release owner 不得重写或私有导入该算法。index 对每一个此 signature 在同一 release 内必须返回恰好一个 sealed `simc-item-effect-record`。
 
 后端逐项 typed-reload record 后，按 first-pass resolver snapshot 的原始 descriptor 顺序和重复次数调用 `resolve_loadout_effect_authority(first_pass_snapshot, records=records)`。仅当 aggregate 是 `verified`，再将其注入 final `resolve_v2` 与后继 v3 ResolvedLoadout/SimulationSnapshot；同一 signature 的重复 occurrence 可以引用同一 record key，但绝不 dedupe occurrence。`unsupported` 保持 `LOADOUT_EFFECT_UNSUPPORTED`；unknown、缺项、额外项、record substitution、ordinal/order drift、不同 release 或 aggregate 重验失败都保持 `LOADOUT_EFFECT_AUTHORITY_REQUIRED`。
 
