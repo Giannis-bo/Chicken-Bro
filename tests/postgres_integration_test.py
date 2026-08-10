@@ -58,14 +58,31 @@ TASK_3B_FORBIDDEN_RUN_IDS = TASK_3A_HISTORICAL_RUN_IDS | frozenset({
 TASK_3B_RUN_ID = os.environ.get("WOW_PG_TEST_RUN_ID_0031", "")
 TASK_3B_FRESH_DSN = os.environ.get("WOW_PG_TEST_DSN_FRESH_0031", "")
 TASK_3B_UPGRADE_DSN = os.environ.get("WOW_PG_TEST_DSN_UPGRADE_0031", "")
-TASK_4W_MIGRATIONS = ALL_MIGRATIONS
-TASK_4W_BASELINE_MIGRATIONS = ALL_MIGRATIONS[:-1]
+TASK_4W_MIGRATIONS = tuple(
+    migration for migration in ALL_MIGRATIONS
+    if migration.name <= "0032_websim_exact_import_jobs.sql"
+)
+TASK_4W_BASELINE_MIGRATIONS = TASK_4W_MIGRATIONS[:-1]
+TASK_5C_MIGRATIONS = tuple(
+    migration for migration in ALL_MIGRATIONS
+    if migration.name <= "0035_websim_exact_runtime_authority_release.sql"
+)
+TASK_5C_BASELINE_MIGRATIONS = TASK_5C_MIGRATIONS[:-1]
 TASK_4W_RUN_ID = os.environ.get("WOW_PG_TEST_RUN_ID_0032", "")
 TASK_4W_FRESH_DSN = os.environ.get("WOW_PG_TEST_DSN_FRESH_0032", "")
 TASK_4W_UPGRADE_DSN = os.environ.get("WOW_PG_TEST_DSN_UPGRADE_0032", "")
 TASK_4W_MIGRATOR_DSN = os.environ.get("WOW_PG_TEST_DSN_MIGRATOR_0032", "")
 TASK_4W_APP_DSN = os.environ.get("WOW_PG_TEST_DSN_APP_0032", "")
 TASK_4W_WORKER_DSN = os.environ.get("WOW_PG_TEST_DSN_WORKER_0032", "")
+TASK_5C_RUN_ID = os.environ.get("WOW_PG_TEST_RUN_ID_0035", "")
+TASK_5C_FRESH_DSN = os.environ.get("WOW_PG_TEST_DSN_FRESH_0035", "")
+TASK_5C_UPGRADE_DSN = os.environ.get("WOW_PG_TEST_DSN_UPGRADE_0035", "")
+TASK_5C_MIGRATOR_DSN = os.environ.get("WOW_PG_TEST_DSN_MIGRATOR_0035", "")
+TASK_5C_APP_DSN = os.environ.get("WOW_PG_TEST_DSN_APP_0035", "")
+TASK_5C_WORKER_DSN = os.environ.get("WOW_PG_TEST_DSN_WORKER_0035", "")
+TASK_5C_MIGRATOR_LOGIN = os.environ.get(
+    "WOW_PG_TEST_MIGRATOR_LOGIN_0035", "wow_migrator",
+)
 
 
 def validate_task3a_candidate_run_id(run_id):
@@ -99,6 +116,19 @@ def validate_task4w_candidate_run_id(run_id):
     return run_id
 
 
+def validate_task5c_candidate_run_id(run_id):
+    if type(run_id) is not str or re.fullmatch(r"[a-z0-9]{8,32}", run_id) is None:
+        raise ValueError("invalid Task 5C candidate run id")
+    return run_id
+
+
+def validate_task5c_migrator_login(login):
+    """Accept only the documented existing operator or dedicated migrator login."""
+    if login not in {"postgres", "wow_migrator"}:
+        raise ValueError("invalid Task 5C migrator login")
+    return login
+
+
 def task4w_candidate_configured(
     run_id,
     fresh_dsn,
@@ -121,6 +151,86 @@ def task4w_candidate_configured(
     )
 
 
+def task5c_candidate_configured(
+    run_id,
+    fresh_dsn,
+    upgrade_dsn,
+    migrator_dsn,
+    app_dsn,
+    worker_dsn,
+    psql_path,
+):
+    """Task 5C stays inert until every disposable role/path input is explicit."""
+    values = (
+        run_id, fresh_dsn, upgrade_dsn, migrator_dsn, app_dsn, worker_dsn,
+        psql_path,
+    )
+    if not all(values):
+        return False
+    return (
+        fresh_dsn != upgrade_dsn
+        and len({migrator_dsn, app_dsn, worker_dsn}) == 3
+    )
+
+
+TASK_5C_VERIFIED_CHECKS = (
+    "exact_disposable_database_identity_and_empty_preflight",
+    "fresh_migrations_0001_through_0035",
+    "upgrade_migrations_0001_through_0034_then_0035",
+    "release_membership_zero_multiple_and_occurrence_fail_closed",
+    "v3_snapshot_job_and_worker_processor_contract",
+    "v1_v2_nonexecution_provider_disable_and_no_async_backflow",
+    "runtime_release_function_acl_boundary",
+)
+
+
+def build_task5c_candidate_attestation(
+    *,
+    run_id,
+    fresh_identity,
+    upgrade_identity,
+    git_identity,
+):
+    """Return the sole redacted receipt for a completed 0035 candidate."""
+    validate_task5c_candidate_run_id(run_id)
+    expected_fresh = (
+        f"wow_exact_first_fresh_test_{run_id}",
+        f"wow_exact_first_disposable:{run_id}:fresh",
+    )
+    expected_upgrade = (
+        f"wow_exact_first_upgrade_test_{run_id}",
+        f"wow_exact_first_disposable:{run_id}:upgrade",
+    )
+    if fresh_identity != expected_fresh or upgrade_identity != expected_upgrade:
+        raise ValueError("Task 5C candidate database identity drift")
+    if (
+        type(git_identity) is not tuple
+        or len(git_identity) != 3
+        or re.fullmatch(r"[0-9a-f]{40}", git_identity[0] or "") is None
+        or re.fullmatch(r"[0-9a-f]{40}", git_identity[1] or "") is None
+        or re.fullmatch(r"[0-9a-f]{64}", git_identity[2] or "") is None
+    ):
+        raise ValueError("Task 5C candidate Git identity drift")
+    return json.dumps({
+        "schemaVersion": "task5c-candidate-attestation-v1",
+        "task": "equipment-simulator-exact-first-task5c-runtime-authority-release",
+        "runId": run_id,
+        "passed": True,
+        "freshDatabase": {
+            "name": fresh_identity[0],
+            "comment": fresh_identity[1],
+        },
+        "upgradeDatabase": {
+            "name": upgrade_identity[0],
+            "comment": upgrade_identity[1],
+        },
+        "gitCommit": git_identity[0],
+        "gitTree": git_identity[1],
+        "migration0035Sha256": git_identity[2],
+        "verifiedChecks": list(TASK_5C_VERIFIED_CHECKS),
+    }, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+
+
 def task4w_candidate_has_schema_qualified_coalesce(source):
     return re.search(
         r"\bpg_catalog\s*\.\s*coalesce\s*\(",
@@ -135,6 +245,9 @@ if TASK_3B_RUN_ID:
     validate_task3b_candidate_run_id(TASK_3B_RUN_ID)
 if TASK_4W_RUN_ID:
     validate_task4w_candidate_run_id(TASK_4W_RUN_ID)
+if TASK_5C_RUN_ID:
+    validate_task5c_candidate_run_id(TASK_5C_RUN_ID)
+    validate_task5c_migrator_login(TASK_5C_MIGRATOR_LOGIN)
 TASK_3A_CANDIDATE_CONFIGURED = bool(
     TASK_3A_RUN_ID
     and TASK_3A_FRESH_DSN
@@ -154,6 +267,15 @@ TASK_4W_CANDIDATE_CONFIGURED = task4w_candidate_configured(
     TASK_4W_MIGRATOR_DSN,
     TASK_4W_APP_DSN,
     TASK_4W_WORKER_DSN,
+    shutil.which("psql"),
+)
+TASK_5C_CANDIDATE_CONFIGURED = task5c_candidate_configured(
+    TASK_5C_RUN_ID,
+    TASK_5C_FRESH_DSN,
+    TASK_5C_UPGRADE_DSN,
+    TASK_5C_MIGRATOR_DSN,
+    TASK_5C_APP_DSN,
+    TASK_5C_WORKER_DSN,
     shutil.which("psql"),
 )
 TASK_3A_VERIFIED_CHECKS = (
@@ -498,6 +620,150 @@ class Task3BCandidateHarnessTest(unittest.TestCase):
         )
         self.assertEqual(TASK_3B_MIGRATIONS[:-1], TASK_3B_BASELINE_MIGRATIONS)
 
+
+class Task5CV3MigrationBoundaryTest(unittest.TestCase):
+    def test_0035_is_the_only_forward_candidate_extension_from_0034(self):
+        self.assertEqual(
+            TASK_5C_MIGRATIONS[-1].name,
+            "0035_websim_exact_runtime_authority_release.sql",
+        )
+        self.assertEqual(
+            TASK_5C_BASELINE_MIGRATIONS[-1].name,
+            "0034_websim_exact_job_snapshot_binding.sql",
+        )
+        self.assertEqual(TASK_5C_MIGRATIONS[:-1], TASK_5C_BASELINE_MIGRATIONS)
+
+
+class Task5CCandidateHarnessTest(unittest.TestCase):
+    def test_migrator_login_allows_only_the_documented_operator_or_role(self):
+        self.assertEqual(validate_task5c_migrator_login("wow_migrator"), "wow_migrator")
+        self.assertEqual(validate_task5c_migrator_login("postgres"), "postgres")
+        for invalid in ("", "wow_app", "wow_exact_worker", "candidate_admin"):
+            with self.subTest(invalid=invalid):
+                with self.assertRaises(ValueError):
+                    validate_task5c_migrator_login(invalid)
+
+    def test_cloud_candidate_gate_requires_every_distinct_explicit_input(self):
+        self.assertEqual(
+            validate_task5c_candidate_run_id("t5c260810120000"),
+            "t5c260810120000",
+        )
+        for invalid in ("short", "BAD", "a" * 33, "contains-hyphen"):
+            with self.subTest(invalid=invalid):
+                with self.assertRaises(ValueError):
+                    validate_task5c_candidate_run_id(invalid)
+
+        configured = task5c_candidate_configured
+        complete = (
+            "t5c260810120000", "fresh", "upgrade", "migrator",
+            "app", "worker", "/usr/bin/psql",
+        )
+        self.assertTrue(configured(*complete))
+        for index in range(len(complete)):
+            candidate = list(complete)
+            candidate[index] = ""
+            with self.subTest(missing=index):
+                self.assertFalse(configured(*candidate))
+        self.assertFalse(configured(
+            "t5c260810120000", "same", "same", "migrator", "app", "worker",
+            "/usr/bin/psql",
+        ))
+        self.assertFalse(configured(
+            "t5c260810120000", "fresh", "upgrade", "same", "same", "worker",
+            "/usr/bin/psql",
+        ))
+
+    def test_candidate_attestation_is_redacted_and_bound_to_0035_identity(self):
+        run_id = "t5c260810120000"
+        line = build_task5c_candidate_attestation(
+            run_id=run_id,
+            fresh_identity=(
+                f"wow_exact_first_fresh_test_{run_id}",
+                f"wow_exact_first_disposable:{run_id}:fresh",
+            ),
+            upgrade_identity=(
+                f"wow_exact_first_upgrade_test_{run_id}",
+                f"wow_exact_first_disposable:{run_id}:upgrade",
+            ),
+            git_identity=("a" * 40, "b" * 40, "c" * 64),
+        )
+        self.assertNotIn("\n", line)
+        payload = json.loads(line)
+        self.assertEqual(payload["schemaVersion"], "task5c-candidate-attestation-v1")
+        self.assertEqual(payload["runId"], run_id)
+        self.assertEqual(payload["migration0035Sha256"], "c" * 64)
+        self.assertEqual(
+            payload["verifiedChecks"],
+            [
+                "exact_disposable_database_identity_and_empty_preflight",
+                "fresh_migrations_0001_through_0035",
+                "upgrade_migrations_0001_through_0034_then_0035",
+                "release_membership_zero_multiple_and_occurrence_fail_closed",
+                "v3_snapshot_job_and_worker_processor_contract",
+                "v1_v2_nonexecution_provider_disable_and_no_async_backflow",
+                "runtime_release_function_acl_boundary",
+            ],
+        )
+        lowered = line.lower()
+        for secret_name in ("dsn", "host", "username", "password"):
+            self.assertNotIn(secret_name, lowered)
+
+    def test_real_candidate_runner_is_opt_in_and_covers_the_release_boundary(self):
+        source = inspect.getsource(PostgresRuntimeAuthorityReleaseCandidateTest)
+        for required in (
+            "TASK_5C_CANDIDATE_CONFIGURED",
+            "TASK_5C_BASELINE_MIGRATIONS",
+            "TASK_5C_MIGRATIONS",
+            "RuntimeAuthorityReleaseStore",
+            "read_unique_for_binding",
+            "read_occurrences",
+            "snapshot_bound_processor",
+            "EXACT_IMPORT_REQUEST_V1_UNSUPPORTED",
+            "EXACT_IMPORT_REQUEST_V2_UNSUPPORTED",
+            "WOW_DEPLOY_START_ASYNC_SYNCS",
+            "build_task5c_candidate_attestation",
+        ):
+            with self.subTest(required=required):
+                self.assertIn(required, source)
+        for forbidden in ("CREATE DATABASE", "DROP DATABASE", "CREATE ROLE", "DROP ROLE"):
+            with self.subTest(forbidden=forbidden):
+                self.assertNotIn(forbidden, source)
+
+    def test_candidate_runner_derives_a_verified_sealed_occurrence_from_release(self):
+        source = inspect.getsource(PostgresRuntimeAuthorityReleaseCandidateTest)
+        for required in (
+            "runtime_authority_release_payload",
+            'producer_identity=release_payload["producerIdentity"]',
+            'producer_revision=release_payload["producerRevision"]',
+            'self.assertEqual(occurrence_result.status, "verified")',
+            "self.assertIsNotNone(occurrence_result.document)",
+            "occurrence = occurrence_result.document",
+        ):
+            with self.subTest(required=required):
+                self.assertIn(required, source)
+        self.assertIn("occurrence_entries=(occurrence,)", source)
+
+    def test_candidate_runner_checks_both_migration_dsns_before_ddl(self):
+        source = inspect.getsource(PostgresRuntimeAuthorityReleaseCandidateTest)
+        for required in (
+            "def _assert_migration_connection_roles(self):",
+            "self._assert_migration_connection_roles()",
+            "for dsn in (TASK_5C_FRESH_DSN, TASK_5C_UPGRADE_DSN):",
+            'self.assertEqual(cur.fetchone(), ("postgres", "postgres"))',
+        ):
+            with self.subTest(required=required):
+                self.assertIn(required, source)
+
+    def test_candidate_runner_checks_worker_role_before_ddl(self):
+        source = inspect.getsource(PostgresRuntimeAuthorityReleaseCandidateTest)
+        for required in (
+            "def _assert_pre_migration_worker_role(self):",
+            "self._assert_pre_migration_worker_role()",
+            "with self._worker_connection() as conn:",
+            'self.assertEqual(current_user, "wow_exact_worker")',
+        ):
+            with self.subTest(required=required):
+                self.assertIn(required, source)
 
 class Task4WCandidateHarnessTest(unittest.TestCase):
     def test_cloud_candidate_gate_requires_every_distinct_explicit_input(self):
@@ -4354,6 +4620,482 @@ class PostgresExactImportJobsCandidateTest(unittest.TestCase):
         self._assert_post_lock_expiry_cas()
         self.assertEqual(self._database_identity(TASK_4W_FRESH_DSN, "fresh"), fresh_identity)
         self.assertEqual(self._database_identity(TASK_4W_UPGRADE_DSN, "upgrade"), upgrade_identity)
+
+
+@unittest.skipUnless(
+    TASK_5C_CANDIDATE_CONFIGURED,
+    "Task 5C requires psql plus explicit fresh, upgrade, migrator, app and worker 0035 DSNs",
+)
+class PostgresRuntimeAuthorityReleaseCandidateTest(unittest.TestCase):
+    """One opt-in cloud-only 0035 candidate; it never provisions any resource."""
+
+    PROJECT_SCHEMAS = (
+        "identity", "app", "content", "cache", "knowledge", "analytics", "ops",
+    )
+    OWNER_ID = "12345678-1234-5678-1234-567812345678"
+    TEMPLATE_ID = "87654321-4321-8765-4321-876543218765"
+    EMPTY_TEMPLATE_ID = "87654321-4321-8765-4321-876543218766"
+
+    @staticmethod
+    def _connect(dsn):
+        validate_task5c_candidate_run_id(TASK_5C_RUN_ID)
+        import psycopg
+
+        return psycopg.connect(dsn)
+
+    def _worker_connection(self):
+        from server.gear_exact_authority_worker import establish_exact_worker_role
+
+        connection = self._connect(TASK_5C_WORKER_DSN)
+        try:
+            establish_exact_worker_role(connection)
+        except Exception:
+            connection.close()
+            raise
+        return connection
+
+    def _database_identity(self, dsn, flavor):
+        expected = (
+            f"wow_exact_first_{flavor}_test_{TASK_5C_RUN_ID}",
+            f"wow_exact_first_disposable:{TASK_5C_RUN_ID}:{flavor}",
+        )
+        with self._connect(dsn) as conn:
+            self.assertEqual(conn.info.dbname, expected[0])
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT pg_catalog.shobj_description(oid, 'pg_database') "
+                    "FROM pg_catalog.pg_database WHERE datname = current_database()"
+                )
+                self.assertEqual(cur.fetchone()[0], expected[1])
+        return expected
+
+    def _assert_empty_disposable(self, dsn, flavor):
+        identity = self._database_identity(dsn, flavor)
+        with self._connect(dsn) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT nspname FROM pg_catalog.pg_namespace "
+                    "WHERE nspname = ANY(%s)",
+                    (list(self.PROJECT_SCHEMAS),),
+                )
+                self.assertEqual(cur.fetchall(), [])
+                cur.execute(
+                    "SELECT rolname, rolcanlogin, rolsuper, rolcreatedb, "
+                    "rolcreaterole, rolreplication, rolbypassrls "
+                    "FROM pg_catalog.pg_roles WHERE rolname = ANY(%s) "
+                    "ORDER BY rolname",
+                    (["wow_app", "wow_exact_worker", "wow_migrator"],),
+                )
+                roles = {row[0]: row[1:] for row in cur.fetchall()}
+                self.assertEqual(set(roles), {"wow_app", "wow_exact_worker", "wow_migrator"})
+                self.assertEqual(roles["wow_app"], (True, False, False, False, False, False))
+                self.assertEqual(roles["wow_migrator"], (True, False, False, False, False, False))
+                self.assertEqual(roles["wow_exact_worker"], (False, False, False, False, False, False))
+        return identity
+
+    def _assert_migration_connection_roles(self):
+        for dsn in (TASK_5C_FRESH_DSN, TASK_5C_UPGRADE_DSN):
+            with self._connect(dsn) as conn:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT session_user, current_user")
+                    self.assertEqual(cur.fetchone(), ("postgres", "postgres"))
+
+    def _assert_pre_migration_worker_role(self):
+        with self._worker_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT session_user, current_user")
+                session_user, current_user = cur.fetchone()
+                self.assertNotIn(session_user, {"wow_app", "wow_migrator", "wow_exact_worker"})
+                self.assertEqual(current_user, "wow_exact_worker")
+
+    def _apply(self, dsn, migrations):
+        with self._connect(dsn) as conn:
+            with conn.cursor() as cur:
+                for migration in migrations:
+                    cur.execute(migration.read_text(encoding="utf-8"))
+
+    @staticmethod
+    def _git_identity():
+        status = subprocess.run(
+            ["git", "status", "--porcelain", "--untracked-files=all"],
+            cwd=ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+        ).stdout
+        if status:
+            raise AssertionError("Task 5C candidate requires a clean final head")
+        commit = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=ROOT, check=True, text=True,
+            stdout=subprocess.PIPE,
+        ).stdout.strip()
+        tree = subprocess.run(
+            ["git", "rev-parse", "HEAD^{tree}"], cwd=ROOT, check=True, text=True,
+            stdout=subprocess.PIPE,
+        ).stdout.strip()
+        migration_hash = hashlib.sha256((
+            ROOT / "server" / "migrations" / "postgres"
+            / "0035_websim_exact_runtime_authority_release.sql"
+        ).read_bytes()).hexdigest()
+        return commit, tree, migration_hash
+
+    def _assert_release_acl_boundary(self):
+        functions = (
+            "ops.websim_exact_runtime_authority_release_admit(uuid,text,bytea,bytea,bytea[])",
+            "ops.websim_exact_runtime_authority_release_read(uuid,text)",
+            "ops.websim_exact_runtime_authority_release_occurrences_read(uuid,text,text)",
+        )
+        tables = (
+            "ops.websim_exact_runtime_resolver_contexts",
+            "ops.websim_exact_runtime_authority_releases",
+            "ops.websim_exact_runtime_occurrence_index_entries",
+        )
+        with self._connect(TASK_5C_FRESH_DSN) as conn:
+            with conn.cursor() as cur:
+                for principal, allowed in (
+                    ("wow_app", (True, True, True)),
+                    ("wow_exact_worker", (False, True, True)),
+                ):
+                    for function, expected in zip(functions, allowed, strict=True):
+                        cur.execute(
+                            "SELECT pg_catalog.has_function_privilege(%s, %s, 'EXECUTE')",
+                            (principal, function),
+                        )
+                        self.assertIs(cur.fetchone()[0], expected)
+                    for table in tables:
+                        cur.execute(
+                            "SELECT pg_catalog.has_table_privilege(%s, %s, "
+                            "'SELECT,INSERT,UPDATE,DELETE,TRUNCATE')",
+                            (principal, table),
+                        )
+                        self.assertIs(cur.fetchone()[0], False)
+                for function in functions:
+                    cur.execute(
+                        "SELECT NOT EXISTS ("
+                        "SELECT 1 FROM pg_catalog.pg_proc AS proc "
+                        "CROSS JOIN LATERAL pg_catalog.aclexplode("
+                        "COALESCE(proc.proacl, pg_catalog.acldefault('f', proc.proowner))"
+                        ") AS privilege WHERE proc.oid = pg_catalog.to_regprocedure(%s) "
+                        "AND privilege.grantee = 0 AND privilege.privilege_type = 'EXECUTE'"
+                        ")",
+                        (function,),
+                    )
+                    self.assertIs(cur.fetchone()[0], True)
+
+    def _assert_role_logins(self):
+        expected_database = f"wow_exact_first_fresh_test_{TASK_5C_RUN_ID}"
+        for dsn, role in (
+            (TASK_5C_MIGRATOR_DSN, TASK_5C_MIGRATOR_LOGIN),
+            (TASK_5C_APP_DSN, "wow_app"),
+        ):
+            with self._connect(dsn) as conn:
+                self.assertEqual(conn.info.dbname, expected_database)
+                with conn.cursor() as cur:
+                    cur.execute("SELECT session_user, current_user")
+                    self.assertEqual(cur.fetchone(), (role, role))
+        with self._worker_connection() as conn:
+            self.assertEqual(conn.info.dbname, expected_database)
+            with conn.cursor() as cur:
+                cur.execute("SELECT session_user, current_user")
+                session_user, current_user = cur.fetchone()
+                self.assertNotIn(session_user, {"wow_app", "wow_migrator", "wow_exact_worker"})
+                self.assertEqual(current_user, "wow_exact_worker")
+
+    def _seed_binding(self, *, template_id, config_hash, bundles):
+        from server.exact_template_authority_binding import (
+            canonical_remote_template_source,
+            seal_exact_template_authority_binding,
+        )
+        from server.exact_template_authority_binding_store import (
+            ExactTemplateAuthorityBindingStore,
+        )
+        from tests.exact_template_authority_binding_test import remote_source
+
+        raw_source = remote_source()
+        raw_source["templateId"] = template_id
+        raw_source["configHash"] = config_hash
+        source = canonical_remote_template_source(raw_source)
+        with self._connect(TASK_5C_MIGRATOR_DSN) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO identity.users (id) VALUES (%s::uuid) "
+                    "ON CONFLICT DO NOTHING",
+                    (self.OWNER_ID,),
+                )
+                cur.execute(
+                    "INSERT INTO app.build_templates ("
+                    "id, user_id, template_type, name, payload_json, metadata_json, config_hash"
+                    ") VALUES (%s::uuid, %s::uuid, 'gear', 'Task 5C candidate', "
+                    "'{}'::jsonb, '{}'::jsonb, %s) ON CONFLICT DO NOTHING",
+                    (template_id, self.OWNER_ID, config_hash),
+                )
+        proof = {
+            "gearExactRegistryRevision": "gear-exact-registry:sha256:" + "1" * 64,
+            "gearRuleRevision": "gear-rule-matrix-v1",
+            "resolverRevision": "resolver-v2",
+            "simcRuntimeRevision": "simc-runtime-v2",
+            "templateAuthorityIdentity": "sha256:" + "2" * 64,
+            "templateContentHash": "sha256:" + "3" * 64,
+            "exactAuthorityBySlot": [
+                {
+                    "slot": slot,
+                    "exactAuthorityEnvelopeKey": bundles[slot].envelope.content_key,
+                }
+                for slot in bundles
+            ],
+        }
+        document = seal_exact_template_authority_binding(source, proof)
+        return ExactTemplateAuthorityBindingStore(
+            lambda: self._connect(TASK_5C_APP_DSN),
+        ).admit(self.OWNER_ID, source, document)
+
+    def _seed_authority_bundles(self):
+        from server.gear_contracts import EXACT_LOADOUT_CORE_SLOTS
+        from server.gear_exact_authority_store import GearExactAuthorityStore
+        from tests.gear_resolved_loadout_test import v2_bundle
+
+        store = GearExactAuthorityStore(lambda: self._connect(TASK_5C_MIGRATOR_DSN))
+        bundles = {}
+        for index, slot in enumerate(EXACT_LOADOUT_CORE_SLOTS, start=1):
+            bundle = v2_bundle(slot, str(1000 + index), [])
+            bundles[slot] = store.seal_authority_bundle(bundle)
+        return bundles
+
+    def _assert_v3_job_and_worker_contract(self, binding_key, bundles):
+        from server.exact_runtime_authority_release import (
+            runtime_authority_release_payload,
+            seal_runtime_occurrence_index_entry,
+        )
+        from server.exact_runtime_authority_release_store import (
+            RuntimeAuthorityReleaseIntegrityError,
+            RuntimeAuthorityReleaseStore,
+        )
+        from server.exact_template_authority_binding import owner_key_hash_for_user_id
+        from server.gear_exact_authority_worker import (
+            process_claimed_job,
+            snapshot_bound_processor,
+        )
+        from server.gear_exact_import_job_store import (
+            GearExactImportJobStore,
+            build_exact_import_job_request,
+        )
+        from server.simulation_snapshot_store import SimulationSnapshotStore
+        from tests.gear_exact_import_job_store_test import (
+            exact_intent,
+            snapshot_reference,
+        )
+        from tests.simulation_snapshot_store_test import v3_snapshot_fixture
+
+        (
+            resolver,
+            fixture_bundles,
+            context,
+            release,
+            loadout_row,
+            snapshot_row,
+        ) = v3_snapshot_fixture()
+        fixture_bundle = next(iter(fixture_bundles.values()))
+        self.assertEqual(
+            bundles["head"].envelope.content_key,
+            fixture_bundle.envelope.content_key,
+        )
+        record = fixture_bundle.effect_records[0]
+        signature = json.loads(record.canonical_bytes)["subjectVariantSignature"]
+        release_payload = runtime_authority_release_payload(release)
+        occurrence_result = seal_runtime_occurrence_index_entry(
+            release,
+            subject_variant_signature=signature,
+            resolved_gear_signature=resolver["resolvedGearSignature"],
+            effect_record=record,
+            producer_identity=release_payload["producerIdentity"],
+            producer_revision=release_payload["producerRevision"],
+        )
+        self.assertEqual(occurrence_result.status, "verified")
+        self.assertIsNotNone(occurrence_result.document)
+        occurrence = occurrence_result.document
+        release_store = RuntimeAuthorityReleaseStore(
+            lambda: self._connect(TASK_5C_APP_DSN),
+        )
+        admitted = release_store.admit(
+            self.OWNER_ID,
+            binding_key,
+            resolver_context=context,
+            release=release,
+            occurrence_entries=(occurrence,),
+        )
+        self.assertEqual(admitted.release.content_key, release.content_key)
+        self.assertEqual(
+            release_store.read_unique_for_binding(
+                self.OWNER_ID, binding_key,
+            ).release.content_key,
+            release.content_key,
+        )
+        entries = release_store.read_occurrences(
+            self.OWNER_ID, binding_key, release,
+        )
+        self.assertEqual(tuple(entry.content_key for entry in entries), (occurrence.content_key,))
+        self.assertEqual(
+            tuple(record.content_key for record in release_store.load_effect_records(release, entries)),
+            (record.content_key,),
+        )
+
+        empty_binding = self._seed_binding(
+            template_id=self.EMPTY_TEMPLATE_ID,
+            config_hash="b" * 64,
+            bundles=bundles,
+        )
+        with self.assertRaisesRegex(
+            RuntimeAuthorityReleaseIntegrityError,
+            "membership is missing",
+        ):
+            release_store.read_unique_for_binding(self.OWNER_ID, empty_binding.content_key)
+
+        snapshot_store = SimulationSnapshotStore(
+            lambda: self._connect(TASK_5C_MIGRATOR_DSN),
+        )
+        sealed_loadout = snapshot_store.seal_loadout(
+            loadout_row,
+            resolver_snapshot=resolver,
+            authority_bundles=fixture_bundles,
+            resolver_context=context,
+            runtime_authority_release=release,
+        )
+        sealed_snapshot = snapshot_store.seal_snapshot(
+            snapshot_row,
+            resolved_loadout=sealed_loadout,
+            resolver_snapshot=resolver,
+            authority_bundles=fixture_bundles,
+            resolver_context=context,
+            runtime_authority_release=release,
+        )
+        request = build_exact_import_job_request(
+            exact_intent(),
+            sealed_snapshot["dependencyVector"],
+            snapshot_reference={
+                "resolvedLoadoutKey": sealed_loadout["resolvedLoadoutKey"],
+                "simulationSnapshotKey": sealed_snapshot["simulationSnapshotKey"],
+                "snapshotRowHash": sealed_snapshot["rowHash"],
+                "runtimeAuthorityReleaseKey": release.content_key,
+                "resolverContextKey": context.content_key,
+            },
+        )
+        owner_key_hash = owner_key_hash_for_user_id(self.OWNER_ID)
+        app_jobs = GearExactImportJobStore(lambda: self._connect(TASK_5C_APP_DSN))
+        enqueued = app_jobs.enqueue(owner_key_hash, request)
+        worker_jobs = GearExactImportJobStore(self._worker_connection)
+        claimed = worker_jobs.claim_next(
+            "task5c-candidate-worker",
+            sealed_snapshot["dependencyVector"]["workerRevision"],
+            sealed_snapshot["dependencyVector"]["simcRuntimeRevision"],
+        )
+        self.assertIsNotNone(claimed)
+        processor = snapshot_bound_processor(
+            snapshot_store=snapshot_store,
+            simc_runtime_revision=sealed_snapshot["dependencyVector"]["simcRuntimeRevision"],
+            runner=lambda _snapshot: {
+                "resultIdentity": "simc-result:sha256:" + "4" * 64,
+                "status": "completed",
+                "metrics": {"dps": 1},
+            },
+        )
+        outcome = process_claimed_job(claimed, store=worker_jobs, processor=processor)
+        self.assertEqual(outcome, {"status": "resolved", "code": "EXACT_IMPORT_RESOLVED"})
+        self.assertEqual(app_jobs.read(owner_key_hash, enqueued["jobId"])["status"], "resolved")
+
+        class NoSnapshotStore:
+            def load_snapshot(self, *_args, **_kwargs):
+                raise AssertionError("v1/v2 must not reload a snapshot")
+
+        no_execution = snapshot_bound_processor(
+            snapshot_store=NoSnapshotStore(),
+            simc_runtime_revision=sealed_snapshot["dependencyVector"]["simcRuntimeRevision"],
+            runner=lambda _snapshot: (_ for _ in ()).throw(
+                AssertionError("v1/v2 must not run"),
+            ),
+        )
+        v1 = build_exact_import_job_request(
+            exact_intent(), sealed_snapshot["dependencyVector"],
+        )
+        v2 = build_exact_import_job_request(
+            exact_intent(), sealed_snapshot["dependencyVector"],
+            snapshot_reference=snapshot_reference(),
+        )
+        self.assertEqual(
+            no_execution(v1)["problemJson"]["code"],
+            "EXACT_IMPORT_REQUEST_V1_UNSUPPORTED",
+        )
+        self.assertEqual(
+            no_execution(v2)["problemJson"]["code"],
+            "EXACT_IMPORT_REQUEST_V2_UNSUPPORTED",
+        )
+
+        from tests.gear_resolved_loadout_test import v3_runtime_authority
+
+        alternate_context, alternate_release = v3_runtime_authority(
+            resolver,
+            worker_revision="exact-worker-candidate-ambiguous",
+        )
+        release_store.admit(
+            self.OWNER_ID,
+            binding_key,
+            resolver_context=alternate_context,
+            release=alternate_release,
+            occurrence_entries=(),
+        )
+        with self.assertRaisesRegex(
+            RuntimeAuthorityReleaseIntegrityError,
+            "membership is not unique",
+        ):
+            release_store.read_unique_for_binding(self.OWNER_ID, binding_key)
+
+    def test_fresh_0035_and_upgrade_0034_to_0035_release_candidate(self):
+        self.assertEqual(TASK_5C_MIGRATIONS[-1].name, "0035_websim_exact_runtime_authority_release.sql")
+        self.assertEqual(TASK_5C_BASELINE_MIGRATIONS[-1].name, "0034_websim_exact_job_snapshot_binding.sql")
+        self.assertEqual(os.environ.get("WOW_DEPLOY_START_ASYNC_SYNCS", "0"), "0")
+        fresh_identity = self._assert_empty_disposable(TASK_5C_FRESH_DSN, "fresh")
+        upgrade_identity = self._assert_empty_disposable(TASK_5C_UPGRADE_DSN, "upgrade")
+        self._assert_migration_connection_roles()
+        self._assert_pre_migration_worker_role()
+
+        self._apply(TASK_5C_FRESH_DSN, TASK_5C_MIGRATIONS)
+        self._apply(TASK_5C_UPGRADE_DSN, TASK_5C_BASELINE_MIGRATIONS)
+        with self._connect(TASK_5C_UPGRADE_DSN) as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT count(*) FROM ops.schema_migrations")
+                self.assertEqual(cur.fetchone()[0], 34)
+        self._apply(TASK_5C_UPGRADE_DSN, TASK_5C_MIGRATIONS[-1:])
+        for dsn in (TASK_5C_FRESH_DSN, TASK_5C_UPGRADE_DSN):
+            with self._connect(dsn) as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT count(*), count(*) FILTER (WHERE id = "
+                        "'0035_websim_exact_runtime_authority_release') "
+                        "FROM ops.schema_migrations"
+                    )
+                    self.assertEqual(cur.fetchone(), (35, 1))
+
+        self._assert_release_acl_boundary()
+        self._assert_role_logins()
+        bundles = self._seed_authority_bundles()
+        binding = self._seed_binding(
+            template_id=self.TEMPLATE_ID,
+            config_hash="a" * 64,
+            bundles=bundles,
+        )
+        self._assert_v3_job_and_worker_contract(binding.content_key, bundles)
+        from server.news_backend import exact_simc_api_for_authenticated_user
+
+        self.assertIsNone(exact_simc_api_for_authenticated_user({"id": self.OWNER_ID}))
+        self.assertEqual(self._database_identity(TASK_5C_FRESH_DSN, "fresh"), fresh_identity)
+        self.assertEqual(self._database_identity(TASK_5C_UPGRADE_DSN, "upgrade"), upgrade_identity)
+        git_identity = self._git_identity()
+        attestation = build_task5c_candidate_attestation(
+            run_id=TASK_5C_RUN_ID,
+            fresh_identity=fresh_identity,
+            upgrade_identity=upgrade_identity,
+            git_identity=git_identity,
+        )
+        print(attestation, flush=True)
 
 
 if __name__ == "__main__":

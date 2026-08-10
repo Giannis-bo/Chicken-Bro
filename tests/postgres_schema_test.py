@@ -37,6 +37,9 @@ CHICKENBRO_PUBLIC_WEB_REPEAT_BUDGET = ROOT / "server" / "migrations" / "postgres
 WEBSIM_EXACT_AUTHORITY_BUNDLE = ROOT / "server" / "migrations" / "postgres" / "0030_websim_exact_authority_bundle.sql"
 WEBSIM_EXACT_SNAPSHOT_V2 = ROOT / "server" / "migrations" / "postgres" / "0031_websim_exact_snapshot_v2.sql"
 WEBSIM_EXACT_IMPORT_JOBS = ROOT / "server" / "migrations" / "postgres" / "0032_websim_exact_import_jobs.sql"
+WEBSIM_EXACT_TEMPLATE_AUTHORITY_BINDING = ROOT / "server" / "migrations" / "postgres" / "0033_websim_exact_template_authority_binding.sql"
+WEBSIM_EXACT_JOB_SNAPSHOT_BINDING = ROOT / "server" / "migrations" / "postgres" / "0034_websim_exact_job_snapshot_binding.sql"
+WEBSIM_EXACT_RUNTIME_AUTHORITY_RELEASE = ROOT / "server" / "migrations" / "postgres" / "0035_websim_exact_runtime_authority_release.sql"
 TASK_4W_OBJECT_FILTERED_SENSITIVE_JSONPATH = (
     '$.** ? (@.type() == "object").keyvalue() ? ('
     '@.key == "rawProfile" || @.key == "rawString" || '
@@ -77,7 +80,24 @@ POSTGRES_MIGRATIONS_0001_0031 = tuple(sorted(
     if path.name <= "0031_websim_exact_snapshot_v2.sql"
 ))
 POSTGRES_MIGRATIONS_0001_0032 = tuple(sorted(
-    (ROOT / "server" / "migrations" / "postgres").glob("[0-9][0-9][0-9][0-9]_*.sql")
+    path
+    for path in (ROOT / "server" / "migrations" / "postgres").glob("[0-9][0-9][0-9][0-9]_*.sql")
+    if path.name <= "0032_websim_exact_import_jobs.sql"
+))
+POSTGRES_MIGRATIONS_0001_0033 = tuple(sorted(
+    path
+    for path in (ROOT / "server" / "migrations" / "postgres").glob("[0-9][0-9][0-9][0-9]_*.sql")
+    if path.name <= "0033_websim_exact_template_authority_binding.sql"
+))
+POSTGRES_MIGRATIONS_0001_0034 = tuple(sorted(
+    path
+    for path in (ROOT / "server" / "migrations" / "postgres").glob("[0-9][0-9][0-9][0-9]_*.sql")
+    if path.name <= "0034_websim_exact_job_snapshot_binding.sql"
+))
+POSTGRES_MIGRATIONS_0001_0035 = tuple(sorted(
+    path
+    for path in (ROOT / "server" / "migrations" / "postgres").glob("[0-9][0-9][0-9][0-9]_*.sql")
+    if path.name <= "0035_websim_exact_runtime_authority_release.sql"
 ))
 
 
@@ -659,6 +679,211 @@ def exact_import_jobs_schema_violations(sql, migrations):
     return violations
 
 
+def exact_template_authority_binding_schema_violations(sql, migrations):
+    """Static 0033 source-binding contract; real DB behavior is candidate-only."""
+
+    normalized = _normalized(sql)
+    violations = []
+    required = (
+        "CREATE TABLE app.websim_exact_template_authority_bindings",
+        "binding_key text PRIMARY KEY CHECK (binding_key ~ '^exact-template-authority-binding:sha256:[0-9a-f]{64}$')",
+        "user_id uuid NOT NULL REFERENCES identity.users(id) ON DELETE CASCADE",
+        "template_id uuid NOT NULL REFERENCES app.build_templates(id) ON DELETE CASCADE",
+        "template_config_hash text NOT NULL CHECK (template_config_hash ~ '^[0-9a-f]{64}$')",
+        "source_payload_hash text NOT NULL CHECK (source_payload_hash ~ '^sha256:[0-9a-f]{64}$')",
+        "selection_signature text NOT NULL CHECK (selection_signature ~ '^sha256:[0-9a-f]{64}$')",
+        "binding_json = pg_catalog.convert_from(binding_bytes, 'UTF8')::jsonb",
+        "binding_key = 'exact-template-authority-binding:sha256:' || pg_catalog.encode(pg_catalog.sha256(binding_bytes), 'hex')",
+        "CREATE TABLE app.websim_exact_template_authority_binding_slots",
+        "exact_authority_envelope_key text NOT NULL REFERENCES cache.websim_exact_authority_bundles(exact_authority_envelope_key) ON DELETE RESTRICT",
+        "PRIMARY KEY (binding_key, ordinal)",
+        "UNIQUE (binding_key, slot)",
+        "UNIQUE (binding_key, exact_authority_envelope_key)",
+        "CREATE CONSTRAINT TRIGGER trg_websim_exact_template_authority_binding_complete",
+        "CREATE CONSTRAINT TRIGGER trg_websim_exact_template_authority_binding_slots_complete",
+        "CREATE TRIGGER trg_websim_exact_template_authority_binding_delete",
+        "CREATE TRIGGER trg_websim_exact_template_authority_binding_slots_delete",
+        "direct deletion of exact template authority bindings is forbidden",
+        "CREATE OR REPLACE FUNCTION ops.websim_exact_template_binding_admit(",
+        "CREATE OR REPLACE FUNCTION ops.websim_exact_template_binding_read(",
+        "SECURITY DEFINER",
+        "SET search_path = pg_catalog, app, cache, ops, pg_temp",
+        "ALTER FUNCTION ops.websim_exact_template_binding_admit(uuid, uuid, text, text, text, bytea) OWNER TO wow_migrator",
+        "ALTER FUNCTION ops.websim_exact_template_binding_read(uuid, uuid, text, text, text, text, text, text, text) OWNER TO wow_migrator",
+        "REVOKE ALL ON app.websim_exact_template_authority_bindings, app.websim_exact_template_authority_binding_slots FROM PUBLIC, wow_app, wow_exact_worker",
+        "GRANT EXECUTE ON FUNCTION ops.websim_exact_template_binding_admit(uuid, uuid, text, text, text, bytea), ops.websim_exact_template_binding_read(uuid, uuid, text, text, text, text, text, text, text) TO wow_app",
+        "'0033_websim_exact_template_authority_binding'",
+    )
+    for clause in required:
+        if clause not in normalized:
+            violations.append(f"required: {clause}")
+    forbidden = (
+        "CREATE ROLE",
+        "ALTER ROLE",
+        "DROP ROLE",
+        "CREATE DATABASE",
+        "DROP DATABASE",
+        "ALTER DATABASE",
+        "UPDATE cache.websim_exact_authority_bundles",
+        "INSERT INTO cache.websim_exact_authority_bundles",
+        "UPDATE cache.websim_canonical_documents",
+        "INSERT INTO cache.websim_canonical_documents",
+        "rawProfile",
+        "rawString",
+        "playerName",
+        "characterName",
+        "realm",
+        "server",
+    )
+    for clause in forbidden:
+        if clause.lower() in normalized.lower():
+            violations.append(f"forbidden: {clause}")
+    migration_names = [name for name, _body in migrations]
+    if migration_names.count("0033_websim_exact_template_authority_binding.sql") != 1:
+        violations.append("0033 filename identity")
+    if sum(body.count("'0033_websim_exact_template_authority_binding'") for _name, body in migrations) != 1:
+        violations.append("0033 ledger identity")
+    return violations
+
+
+def exact_job_snapshot_binding_schema_violations(sql, migrations):
+    """Static 0034 contract; database execution remains candidate-only."""
+
+    normalized = _normalized(sql)
+    violations = []
+    required = (
+        "CREATE OR REPLACE FUNCTION ops.websim_exact_import_request_is_valid(",
+        "RETURNS boolean",
+        "IMMUTABLE",
+        "SECURITY INVOKER",
+        "SET search_path = pg_catalog, pg_temp",
+        "exact-import-job-request-v1",
+        "exact-import-job-request-v2",
+        "resolvedLoadoutKey",
+        "simulationSnapshotKey",
+        "snapshotRowHash",
+        "^resolved-loadout-v2:sha256:[0-9a-f]{64}$",
+        "^simulation-snapshot-v2:sha256:[0-9a-f]{64}$",
+        "^sha256:[0-9a-f]{64}$",
+        "pg_catalog.pg_get_constraintdef",
+        "ALTER TABLE ops.websim_exact_import_jobs DROP CONSTRAINT",
+        "ADD CONSTRAINT websim_exact_import_jobs_request_schema_v1_v2_check",
+        "ops.websim_exact_import_request_is_valid(request_json)",
+        "CREATE OR REPLACE FUNCTION ops.websim_exact_enqueue(",
+        "CREATE OR REPLACE FUNCTION ops.websim_exact_claim(",
+        "NOT ops.websim_exact_import_request_is_valid(p_request_json)",
+        "NOT ops.websim_exact_import_request_is_valid(candidate.request_json)",
+        "REVOKE ALL ON FUNCTION ops.websim_exact_import_request_is_valid(jsonb) FROM PUBLIC, wow_app, wow_exact_worker;",
+        "@.key == \"rawProfile\"",
+        "@.key == \"rawString\"",
+        "@.key == \"playerName\"",
+        "@.key == \"characterName\"",
+        "@.key == \"realm\"",
+        "@.key == \"server\"",
+        "'0034_websim_exact_job_snapshot_binding'",
+    )
+    for clause in required:
+        if clause not in normalized:
+            violations.append(f"required: {clause}")
+    forbidden = (
+        "CREATE TABLE",
+        "GRANT EXECUTE ON FUNCTION ops.websim_exact_import_request_is_valid",
+        "CREATE ROLE",
+        "ALTER ROLE",
+        "CREATE DATABASE",
+        "ALTER DATABASE",
+    )
+    for clause in forbidden:
+        if clause.lower() in normalized.lower():
+            violations.append(f"forbidden: {clause}")
+    if normalized.count("CREATE OR REPLACE FUNCTION ops.websim_exact_enqueue(") != 1:
+        violations.append("one unchanged enqueue signature")
+    if normalized.count("CREATE OR REPLACE FUNCTION ops.websim_exact_claim(") != 1:
+        violations.append("one unchanged claim signature")
+    migration_names = [name for name, _body in migrations]
+    if migration_names.count("0034_websim_exact_job_snapshot_binding.sql") != 1:
+        violations.append("0034 filename identity")
+    if sum(body.count("'0034_websim_exact_job_snapshot_binding'") for _name, body in migrations) != 1:
+        violations.append("0034 ledger identity")
+    return violations
+
+
+def exact_runtime_authority_release_schema_violations(sql, migrations):
+    """Static 0035 release/index contract; database execution is candidate-only."""
+
+    normalized = _normalized(sql)
+    violations = []
+    required = (
+        "CREATE TABLE ops.websim_exact_runtime_resolver_contexts",
+        "CREATE TABLE ops.websim_exact_runtime_authority_releases",
+        "CREATE TABLE ops.websim_exact_runtime_occurrence_index_entries",
+        "runtime_authority_release_key text PRIMARY KEY REFERENCES cache.websim_canonical_documents(content_key) ON DELETE RESTRICT",
+        "binding_key text NOT NULL REFERENCES app.websim_exact_template_authority_bindings(binding_key) ON DELETE RESTRICT",
+        "effect_record_key text NOT NULL REFERENCES cache.websim_canonical_documents(content_key) ON DELETE RESTRICT",
+        "CREATE OR REPLACE FUNCTION ops.websim_exact_runtime_authority_release_admit(",
+        "CREATE OR REPLACE FUNCTION ops.websim_exact_runtime_authority_release_read(",
+        "CREATE OR REPLACE FUNCTION ops.websim_exact_runtime_authority_release_occurrences_read(",
+        "SECURITY DEFINER",
+        "OWNER TO wow_migrator",
+        "ops.reject_websim_exact_runtime_authority_release_mutation()",
+        "BEFORE UPDATE OR DELETE ON ops.%I",
+        "BEFORE TRUNCATE ON ops.%I",
+        "runtime_authority_release_key text REFERENCES ops.websim_exact_runtime_authority_releases(runtime_authority_release_key) ON DELETE RESTRICT",
+        "resolver_context_key text REFERENCES ops.websim_exact_runtime_resolver_contexts(resolver_context_key) ON DELETE RESTRICT",
+        "dependency_vector_json jsonb",
+        "pg_catalog.jsonb_typeof(resolver_replay_context_json) IS NOT DISTINCT FROM 'object'",
+        "PERFORM cache.verify_websim_resolver_replay_context( NEW.resolver_replay_context_json );",
+        "NEW.resolver_replay_context_json -> 'dependencyVector' ->> 'gearRuleRevision' IS DISTINCT FROM v_release_vector ->> 'gearRuleRevision'",
+        "NEW.resolver_replay_context_json -> 'dependencyVector' ->> 'resolverContractRevision' IS DISTINCT FROM v_release_vector ->> 'resolverRevision'",
+        "NEW.resolver_replay_context_json -> 'dependencyVector' ->> 'simcRuntimeRevision' IS DISTINCT FROM v_release_vector ->> 'simcRuntimeRevision'",
+        "resolved-loadout-v3",
+        "simulation-snapshot-v3",
+        "exact-import-job-request-v3",
+        "^resolved-loadout-v3:sha256:[0-9a-f]{64}$",
+        "^simulation-snapshot-v3:sha256:[0-9a-f]{64}$",
+        "^exact-runtime-authority-release:sha256:[0-9a-f]{64}$",
+        "^exact-runtime-resolver-context:sha256:[0-9a-f]{64}$",
+        "REVOKE ALL ON ops.websim_exact_runtime_resolver_contexts, ops.websim_exact_runtime_authority_releases, ops.websim_exact_runtime_occurrence_index_entries FROM PUBLIC, wow_app, wow_exact_worker",
+        "'0035_websim_exact_runtime_authority_release'",
+    )
+    for clause in required:
+        if clause not in normalized:
+            violations.append(f"required: {clause}")
+    release_tables = (
+        "ops.websim_exact_runtime_resolver_contexts",
+        "ops.websim_exact_runtime_authority_releases",
+        "ops.websim_exact_runtime_occurrence_index_entries",
+    )
+    for grant in re.finditer(
+        r"GRANT\s+(.+?)\s+ON\s+(.+?)\s+TO\s+(\w+)\s*;",
+        normalized,
+        re.IGNORECASE,
+    ):
+        privileges, tables, role = grant.groups()
+        if role.lower() not in {"wow_app", "wow_exact_worker"}:
+            continue
+        granted = {token.strip().upper() for token in privileges.split(",")}
+        for table in release_tables:
+            if table not in tables:
+                continue
+            for verb in ("INSERT", "UPDATE", "DELETE", "TRUNCATE"):
+                if verb in granted or "ALL" in granted:
+                    violations.append(f"{role} direct {verb} on {table}")
+    forbidden = (
+        "CREATE ROLE", "ALTER ROLE", "DROP ROLE", "CREATE DATABASE", "DROP DATABASE",
+        "ORDER BY sealed_at DESC", "LIMIT 1",
+    )
+    for clause in forbidden:
+        if clause.lower() in normalized.lower():
+            violations.append(f"forbidden: {clause}")
+    migration_names = [name for name, _body in migrations]
+    if migration_names.count("0035_websim_exact_runtime_authority_release.sql") != 1:
+        violations.append("0035 filename identity")
+    if sum(body.count("'0035_websim_exact_runtime_authority_release'") for _name, body in migrations) != 1:
+        violations.append("0035 ledger identity")
+    return violations
+
+
 class PostgresSchemaTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -1120,6 +1345,172 @@ $unsafe$;
             for path in POSTGRES_MIGRATIONS_0001_0032
         )
         self.assertEqual(exact_import_jobs_schema_violations(sql, migrations), [])
+
+    def test_exact_template_authority_binding_migration_is_owner_scoped_append_only_and_no_registry_writer(self):
+        self.assertTrue(
+            WEBSIM_EXACT_TEMPLATE_AUTHORITY_BINDING.exists(),
+            "missing static 0033 exact template authority binding migration",
+        )
+        sql = WEBSIM_EXACT_TEMPLATE_AUTHORITY_BINDING.read_text(encoding="utf-8")
+        migrations = tuple(
+            (path.name, path.read_text(encoding="utf-8"))
+            for path in POSTGRES_MIGRATIONS_0001_0033
+        )
+        self.assertEqual(
+            exact_template_authority_binding_schema_violations(sql, migrations),
+            [],
+        )
+
+    def test_exact_job_snapshot_binding_preserves_v1_and_accepts_only_sealed_v2_references(self):
+        self.assertTrue(
+            WEBSIM_EXACT_JOB_SNAPSHOT_BINDING.exists(),
+            "missing static 0034 exact job-to-snapshot binding migration",
+        )
+        sql = WEBSIM_EXACT_JOB_SNAPSHOT_BINDING.read_text(encoding="utf-8")
+        migrations = tuple(
+            (path.name, path.read_text(encoding="utf-8"))
+            for path in POSTGRES_MIGRATIONS_0001_0034
+        )
+        self.assertEqual(
+            exact_job_snapshot_binding_schema_violations(sql, migrations),
+            [],
+        )
+
+    def test_exact_runtime_authority_release_migration_is_append_only_and_app_worker_have_no_direct_dml(self):
+        self.assertTrue(
+            WEBSIM_EXACT_RUNTIME_AUTHORITY_RELEASE.exists(),
+            "missing static 0035 exact runtime authority release migration",
+        )
+        sql = WEBSIM_EXACT_RUNTIME_AUTHORITY_RELEASE.read_text(encoding="utf-8")
+        migrations = tuple(
+            (path.name, path.read_text(encoding="utf-8"))
+            for path in POSTGRES_MIGRATIONS_0001_0035
+        )
+        self.assertEqual(
+            exact_runtime_authority_release_schema_violations(sql, migrations),
+            [],
+        )
+        mutations = (
+            sql.replace(
+                "BEFORE UPDATE OR DELETE ON ops.%I",
+                "BEFORE UPDATE ON ops.%I",
+                1,
+            ),
+            sql.replace(
+                "REVOKE ALL ON\n    ops.websim_exact_runtime_resolver_contexts,",
+                "REVOKE INSERT ON\n    ops.websim_exact_runtime_resolver_contexts,",
+                1,
+            ),
+            sql + "\nGRANT INSERT ON ops.websim_exact_runtime_authority_releases TO wow_app;\n",
+            sql.replace(
+                "ORDER BY release.runtime_authority_release_key;",
+                "ORDER BY release.sealed_at DESC LIMIT 1;",
+                1,
+            ),
+            sql.replace(
+                "PERFORM cache.verify_websim_resolver_replay_context(\n"
+                "        NEW.resolver_replay_context_json\n"
+                "    );",
+                "PERFORM NULL;",
+                1,
+            ),
+        )
+        for mutated in mutations:
+            with self.subTest(mutated=mutated[-100:]):
+                self.assertTrue(
+                    exact_runtime_authority_release_schema_violations(
+                        mutated,
+                        migrations,
+                    ),
+                )
+
+    def test_0035_forward_fix_disambiguates_the_frozen_binding_admit_conflict_target(self):
+        sql = WEBSIM_EXACT_RUNTIME_AUTHORITY_RELEASE.read_text(encoding="utf-8")
+        normalized = _normalized(sql)
+        self.assertIn(
+            "CREATE OR REPLACE FUNCTION ops.websim_exact_template_binding_admit(",
+            normalized,
+        )
+        self.assertIn(
+            "ON CONFLICT ON CONSTRAINT "
+            "websim_exact_template_authority_bindings_pkey DO NOTHING;",
+            normalized,
+        )
+
+    def test_0035_forward_fix_runs_the_binding_relation_trigger_as_migrator(self):
+        sql = WEBSIM_EXACT_RUNTIME_AUTHORITY_RELEASE.read_text(encoding="utf-8")
+        normalized = _normalized(sql)
+        frozen = _normalized(
+            WEBSIM_EXACT_TEMPLATE_AUTHORITY_BINDING.read_text(encoding="utf-8")
+        )
+        self.assertIn(
+            "CREATE OR REPLACE FUNCTION "
+            "app.verify_websim_exact_template_authority_binding_relations()",
+            frozen,
+        )
+        self.assertIn(
+            "SET search_path = pg_catalog, app, cache, pg_temp",
+            frozen,
+        )
+        self.assertIn(
+            "ALTER FUNCTION "
+            "app.verify_websim_exact_template_authority_binding_relations() "
+            "SECURITY DEFINER;",
+            normalized,
+        )
+        self.assertIn(
+            "ALTER FUNCTION "
+            "app.verify_websim_exact_template_authority_binding_relations() "
+            "OWNER TO wow_migrator;",
+            normalized,
+        )
+        self.assertIn(
+            "REVOKE ALL ON FUNCTION "
+            "app.verify_websim_exact_template_authority_binding_relations() "
+            "FROM PUBLIC, wow_app, wow_exact_worker;",
+            normalized,
+        )
+
+    def test_0035_forward_extends_historical_snapshot_key_checks_to_v3(self):
+        normalized = _normalized(
+            WEBSIM_EXACT_RUNTIME_AUTHORITY_RELEASE.read_text(encoding="utf-8")
+        )
+        for table, constraint, key, prefix in (
+            (
+                "cache.websim_gear_resolved_loadouts",
+                "websim_gear_resolved_loadouts_resolved_loadout_key_check",
+                "resolved_loadout_key",
+                "resolved-loadout",
+            ),
+            (
+                "cache.websim_simulation_snapshots",
+                "websim_simulation_snapshots_simulation_snapshot_key_check",
+                "simulation_snapshot_key",
+                "simulation-snapshot",
+            ),
+        ):
+            with self.subTest(table=table):
+                self.assertIn(
+                    f"ALTER TABLE {table} DROP CONSTRAINT IF EXISTS {constraint}, "
+                    f"ADD CONSTRAINT {constraint} CHECK ({key} ~ "
+                    f"'^{prefix}(-v[23])?:sha256:[0-9a-f]{{64}}$');",
+                    normalized,
+                )
+
+    def test_0035_forward_grants_v3_request_validator_only_to_enqueue_owner(self):
+        normalized = _normalized(
+            WEBSIM_EXACT_RUNTIME_AUTHORITY_RELEASE.read_text(encoding="utf-8")
+        )
+        self.assertIn(
+            "GRANT EXECUTE ON FUNCTION ops.websim_exact_import_request_is_valid(jsonb) "
+            "TO wow_migrator;",
+            normalized,
+        )
+        self.assertNotIn(
+            "GRANT EXECUTE ON FUNCTION ops.websim_exact_import_request_is_valid(jsonb) "
+            "TO wow_app, wow_exact_worker;",
+            normalized,
+        )
 
     def test_exact_import_jobs_rejects_schema_qualified_coalesce_variants(self):
         sql = WEBSIM_EXACT_IMPORT_JOBS.read_text(encoding="utf-8")

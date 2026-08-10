@@ -5,9 +5,13 @@ import subprocess
 import sys
 import unittest
 
-from server.gear_resolved_loadout import build_resolved_loadout
+from server.gear_resolved_loadout import (
+    build_resolved_loadout,
+    build_resolved_loadout_v3,
+)
 from server.simulation_snapshot import (
     build_simulation_snapshot,
+    build_simulation_snapshot_v3,
     talent_profile_key,
 )
 from server.simulation_snapshot_store import (
@@ -19,6 +23,9 @@ from tests.gear_resolved_loadout_test import (
     active_v2_loadout_fixture,
     exact_registry,
     resolver_snapshot,
+    v2_bundle,
+    v2_resolver_snapshot,
+    v3_runtime_authority,
 )
 from tests.simulation_snapshot_test import (
     TALENT_KEY,
@@ -35,14 +42,17 @@ class FakeDatabase:
     def __init__(self):
         self.loadouts = {}
         self.v2_loadouts = {}
+        self.v3_loadouts = {}
         self.snapshots = {}
         self.v2_snapshots = {}
+        self.v3_snapshots = {}
         self.results = {}
         self.documents = {}
         self.exact_authority_bundles = {}
         self.effect_aggregate_records = {}
         self.loadout_effect_authorities = {}
         self.loadout_effect_authority_records = {}
+        self.runtime_memberships = {}
         self.statements = []
 
 
@@ -96,15 +106,28 @@ class FakeCursor:
             rows = self.database.loadout_effect_authority_records.setdefault(params[0], [])
             if (params[1], params[2]) not in rows:
                 rows.append((params[1], params[2]))
+        elif "simulation_snapshot_runtime_authority_v3_load" in normalized:
+            row = self.database.runtime_memberships.get((params[0], params[1]))
+            self.rows = [row] if row else []
         elif "simulation_snapshot_loadout_v2_insert" in normalized:
             self.database.v2_loadouts.setdefault(params[0], tuple(params))
         elif "simulation_snapshot_loadout_v2_load" in normalized:
             row = self.database.v2_loadouts.get(params[0])
             self.rows = [row] if row else []
+        elif "simulation_snapshot_loadout_v3_insert" in normalized:
+            self.database.v3_loadouts.setdefault(params[0], tuple(params))
+        elif "simulation_snapshot_loadout_v3_load" in normalized:
+            row = self.database.v3_loadouts.get(params[0])
+            self.rows = [row] if row else []
         elif "simulation_snapshot_v2_insert" in normalized:
             self.database.v2_snapshots.setdefault(params[0], tuple(params))
         elif "simulation_snapshot_v2_load" in normalized:
             row = self.database.v2_snapshots.get(params[0])
+            self.rows = [row] if row else []
+        elif "simulation_snapshot_v3_insert" in normalized:
+            self.database.v3_snapshots.setdefault(params[0], tuple(params))
+        elif "simulation_snapshot_v3_load" in normalized:
+            row = self.database.v3_snapshots.get(params[0])
             self.rows = [row] if row else []
         elif "simulation_snapshot_loadout_insert" in normalized:
             self.database.loadouts.setdefault(params[0], tuple(params))
@@ -211,6 +234,47 @@ def active_v2_snapshot_fixture():
         loadout_effect_authority=authority,
     )
     return resolver, authority, bundles, loadout_row, snapshot_row
+
+
+def v3_snapshot_fixture():
+    """Return one complete v3 fixture without any Catalog fallback."""
+    resolver = v2_resolver_snapshot()
+    bundle = v2_bundle("head", "1001", [])
+    key = bundle.envelope.content_key
+    bundles = {key: bundle}
+    context, release = v3_runtime_authority(resolver)
+    loadout_row = build_resolved_loadout_v3(
+        resolver_snapshot=resolver,
+        exact_authority_by_slot=[{
+            "slot": "head",
+            "exactAuthorityEnvelopeKey": key,
+        }],
+        authority_bundles=bundles,
+        resolver_context=context,
+        runtime_authority_release=release,
+    )
+    snapshot_row = build_simulation_snapshot_v3(
+        resolved_loadout=loadout_row,
+        talent_profile_key=TALENT_KEY,
+        talent_lines=TALENT_LINES,
+        character_context=character_context(),
+        scenario_options=scenario(),
+        preparation_lines=["optimal_raid=0"],
+        resolver_snapshot=resolver,
+        authority_bundles=bundles,
+        resolver_context=context,
+        runtime_authority_release=release,
+    )
+    return resolver, bundles, context, release, loadout_row, snapshot_row
+
+
+def seed_runtime_membership(database, context, release):
+    database.runtime_memberships[(release.content_key, context.content_key)] = (
+        context.content_key,
+        context.canonical_bytes,
+        release.content_key,
+        release.canonical_bytes,
+    )
 
 
 def seed_exact_authority_bundles(database, bundles):
@@ -400,6 +464,68 @@ class SimulationSnapshotStoreTest(unittest.TestCase):
 
         self.assertEqual(sealed_loadout, loadout_row)
         self.assertEqual(sealed_snapshot, snapshot_row)
+
+    def test_v3_round_trip_rehydrates_exact_release_context_and_reverifies_readback(self):
+        resolver, bundles, context, release, loadout_row, snapshot_row = (
+            v3_snapshot_fixture()
+        )
+        seed_exact_authority_bundles(self.database, bundles)
+        seed_runtime_membership(self.database, context, release)
+
+        sealed_loadout = self.store.seal_loadout(
+            loadout_row,
+            resolver_snapshot=resolver,
+            authority_bundles=bundles,
+            resolver_context=context,
+            runtime_authority_release=release,
+        )
+        sealed_snapshot = self.store.seal_snapshot(
+            snapshot_row,
+            resolved_loadout=loadout_row,
+            resolver_snapshot=resolver,
+            authority_bundles=bundles,
+            resolver_context=context,
+            runtime_authority_release=release,
+        )
+
+        self.assertEqual(sealed_loadout, loadout_row)
+        self.assertEqual(sealed_snapshot, snapshot_row)
+        self.assertEqual(
+            self.store.load_loadout(
+                sealed_loadout["resolvedLoadoutKey"],
+            ),
+            loadout_row,
+        )
+        self.assertEqual(
+            self.store.load_snapshot(
+                sealed_snapshot["simulationSnapshotKey"],
+            ),
+            snapshot_row,
+        )
+        bound = self.store.bind_result(
+            sealed_snapshot["simulationSnapshotKey"],
+            {
+                "resultIdentity": "simc-result:sha256:" + ("c" * 64),
+                "status": "completed",
+                "metrics": {"dps": 123456},
+            },
+        )
+        self.assertEqual(bound["status"], "executed")
+
+        stored = list(self.database.v3_snapshots[
+            sealed_snapshot["simulationSnapshotKey"]
+        ])
+        stored[14] = "exact-runtime-authority-release:sha256:" + "f" * 64
+        self.database.v3_snapshots[sealed_snapshot["simulationSnapshotKey"]] = (
+            tuple(stored)
+        )
+        with self.assertRaisesRegex(
+            SimulationSnapshotIntegrityError,
+            "sealed v3 SimulationSnapshot integrity mismatch",
+        ):
+            self.store.load_snapshot(
+                sealed_snapshot["simulationSnapshotKey"],
+            )
 
     def test_v2_provenance_changes_only_provenance_columns_and_replay_is_allowlisted(self):
         """Would fail if Catalog/source identity leaked into v2 identity or replay."""

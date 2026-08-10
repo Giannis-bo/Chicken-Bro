@@ -50,6 +50,136 @@ const readySimcSpecializationPolicy = {
 }
 
 describe('SimulatorClient task contract', () => {
+  it('uses the Exact confirm, submit, and owner-scoped read envelopes without a legacy analyze request', async () => {
+    const exactRequest = {
+      selectionIntent: {
+        schemaRevision: 'selection-intent-v1',
+        authoredAgainst: { seasonRevision: 'season-1', gearCatalogRevision: 'catalog-1' },
+        eligibilityContext: { classKey: 'mage', specKey: 'frost', level: 80 },
+        slots: {},
+      },
+      sourceRef: {
+        contractRevision: 'exact-simc-source-ref-v1',
+        kind: 'template',
+        sourceId: 'gear-template-1',
+        remote: true,
+      },
+      profileRef: {
+        contractRevision: 'exact-simc-profile-ref-v1',
+        kind: 'talent-template',
+        sourceId: 'talent-template-1',
+        remote: true,
+      },
+      executionIntent: {
+        contractRevision: 'exact-simc-execution-intent-v1',
+        raceKey: 'human',
+        scenarioKey: 'single',
+      },
+    } as const
+    const confirmation = {
+      requestKey: `exact-import-request:sha256:${'a'.repeat(64)}`,
+      resolvedLoadoutKey: `resolved-loadout-v2:sha256:${'b'.repeat(64)}`,
+      simulationSnapshotKey: `simulation-snapshot-v2:sha256:${'c'.repeat(64)}`,
+      dependencyVector: {
+        seasonRevision: 'season-1',
+        gameBuild: '11.2.0',
+        gearRuleRevision: 'gear-rules-1',
+        resolverRevision: 'resolver-v2',
+        compilerRevision: 'compiler-1',
+        workerRevision: 'worker-1',
+        simcRuntimeRevision: 'simc-1',
+        effectAuthorityRevision: 'effects-1',
+      },
+    } as const
+    const request = vi.fn(async <T>(
+      path: string,
+      options: RequestOptions<T>,
+    ): Promise<ApiResult<T>> => {
+      expect(options.auth).toBe(true)
+      expect(options.responseMode).toBe('structured-problem')
+      if (path.endsWith('/confirm')) {
+        expect(options.method).toBe('POST')
+        expect(options.data).toEqual(exactRequest)
+      } else if (path.endsWith('/submit')) {
+        expect(options.method).toBe('POST')
+        expect(options.data).toEqual({ request: exactRequest, confirmation })
+      } else {
+        expect(options.method).toBe('GET')
+        expect(options.data).toBeUndefined()
+      }
+      const payload = path.endsWith('/confirm')
+        ? {
+            contractRevision: 'exact-simc-envelope-v1', operation: 'confirm', status: 'ready',
+            data: confirmation, problems: [],
+          }
+        : path.endsWith('/submit')
+          ? {
+              contractRevision: 'exact-simc-envelope-v1', operation: 'submit', status: 'queued',
+              data: { ...confirmation, jobId: 41, jobStatus: 'queued', cooldownUntil: null }, problems: [],
+            }
+          : {
+              contractRevision: 'exact-simc-envelope-v1', operation: 'read', status: 'pending',
+              data: {
+                jobId: 41, requestKey: confirmation.requestKey, jobStatus: 'pending', result: null, cooldownUntil: null,
+              }, problems: [],
+            }
+      return options.validate?.(payload)
+        ? { payload: payload as T, fromFallback: false, error: '', httpStatus: 200 }
+        : { payload: options.fallback(), fromFallback: true, error: 'invalid payload' }
+    })
+    const requestEndpoint = vi.fn()
+    const client = new SimulatorClient({ request, requestEndpoint } as unknown as ApiTransport, new MemoryStorage())
+
+    const confirmed = await client.exactSimcConfirm(exactRequest)
+    const submitted = await client.exactSimcSubmit(exactRequest, confirmation)
+    const read = await client.exactSimcRead(41)
+
+    expect(confirmed).toMatchObject({ fromFallback: false, payload: { status: 'ready', data: confirmation } })
+    expect(submitted).toMatchObject({ fromFallback: false, payload: { status: 'queued', data: { jobId: 41 } } })
+    expect(read).toMatchObject({ fromFallback: false, payload: { status: 'pending', data: { jobId: 41 } } })
+    expect(request.mock.calls.map(([path]) => path)).toEqual([
+      '/api/simulator/exact/confirm',
+      '/api/simulator/exact/submit',
+      '/api/simulator/exact/job?id=41',
+    ])
+    expect(requestEndpoint).not.toHaveBeenCalled()
+  })
+
+  it('fails closed for malformed, legacy-shaped, or private Exact responses', async () => {
+    const malformed: readonly unknown[] = [
+      { mode: 'simcraft_template', status: 'queued', recommendations: [] },
+      {
+        contractRevision: 'exact-simc-envelope-v1', operation: 'confirm', status: 'ready',
+        data: { profileContext: { rawProfile: 'forbidden' } }, problems: [],
+      },
+      {
+        contractRevision: 'exact-simc-envelope-v1', operation: 'read', status: 'resolved',
+        data: {
+          jobId: 41, requestKey: `exact-import-request:sha256:${'a'.repeat(64)}`,
+          jobStatus: 'resolved', result: { rawProfile: 'forbidden' }, cooldownUntil: null,
+        }, problems: [],
+      },
+    ]
+    for (const payload of malformed) {
+      const request = async <T>(
+        _path: string,
+        options: RequestOptions<T>,
+      ): Promise<ApiResult<T>> => options.validate?.(payload)
+        ? { payload: payload as T, fromFallback: false, error: '' }
+        : { payload: options.fallback(), fromFallback: true, error: 'invalid exact envelope' }
+      const client = new SimulatorClient({ request } as unknown as ApiTransport, new MemoryStorage())
+      const result = await client.exactSimcRead(41)
+      expect(result.fromFallback).toBe(true)
+      expect(result.payload).toMatchObject({
+        contractRevision: 'exact-simc-envelope-v1',
+        operation: 'read',
+        status: 'blocked',
+        data: {},
+        problems: [{ code: 'EXACT_AUTHORITY_UNAVAILABLE' }],
+      })
+    }
+  })
+
   it('treats a backend task:null response as a verified empty result', async () => {
     const requestEndpoint = vi.fn(async <T>(
       _endpointId: string,

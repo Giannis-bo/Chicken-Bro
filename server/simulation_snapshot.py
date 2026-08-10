@@ -15,9 +15,12 @@ try:
     from .gear_resolved_loadout import (
         RESOLVED_LOADOUT_KEY_PATTERN,
         RESOLVED_LOADOUT_V2_KEY_PATTERN,
+        RESOLVED_LOADOUT_V3_KEY_PATTERN,
         SIMC_OPTION_ORDER,
+        build_resolved_loadout_v2,
         verify_resolved_loadout,
         verify_resolved_loadout_v2,
+        verify_resolved_loadout_v3,
     )
     from .simc_support_policy import simc_execution_support
 except ImportError:
@@ -26,9 +29,12 @@ except ImportError:
     from gear_resolved_loadout import (
         RESOLVED_LOADOUT_KEY_PATTERN,
         RESOLVED_LOADOUT_V2_KEY_PATTERN,
+        RESOLVED_LOADOUT_V3_KEY_PATTERN,
         SIMC_OPTION_ORDER,
+        build_resolved_loadout_v2,
         verify_resolved_loadout,
         verify_resolved_loadout_v2,
+        verify_resolved_loadout_v3,
     )
     from simc_support_policy import simc_execution_support
 
@@ -43,6 +49,10 @@ TALENT_PROFILE_KEY_PATTERN = re.compile(
 SIMULATION_SNAPSHOT_V2_SCHEMA_REVISION = "simulation-snapshot-v2"
 SIMULATION_SNAPSHOT_V2_KEY_PATTERN = re.compile(
     r"^simulation-snapshot-v2:sha256:[0-9a-f]{64}$"
+)
+SIMULATION_SNAPSHOT_V3_SCHEMA_REVISION = "simulation-snapshot-v3"
+SIMULATION_SNAPSHOT_V3_KEY_PATTERN = re.compile(
+    r"^simulation-snapshot-v3:sha256:[0-9a-f]{64}$"
 )
 
 _CHARACTER_KEYS = {
@@ -887,14 +897,180 @@ def _v2_canonical_simc_input(
     return "\n".join([f'{character["classKey"]}="{character["name"]}"', f'spec={character["specKey"]}', f'level={character["level"]}', f'race={character["race"]}', f'role={character["role"]}', f'position={character["position"]}', *talents, *gear_lines, *preparations, f'iterations={scenario["iterations"]}', f'fight_style={scenario["fightStyle"]}', f'desired_targets={scenario["desiredTargets"]}', f'max_time={scenario["maxTime"]}', f'vary_combat_length={scenario["varyCombatLength"]}', f'calculate_scale_factors={scenario["calculateScaleFactors"]}']) + "\n"
 
 
+def _v3_release_projection(
+    *,
+    resolver_context: Any,
+    runtime_authority_release: Any,
+) -> dict[str, Any] | None:
+    try:
+        from .gear_resolved_loadout import _runtime_release_projection
+    except ImportError:  # pragma: no cover - direct server runtime compatibility
+        from gear_resolved_loadout import _runtime_release_projection
+    return _runtime_release_projection(
+        resolver_context=resolver_context,
+        runtime_authority_release=runtime_authority_release,
+    )
+
+
+def _v3_snapshot_identity(row: Mapping[str, Any]) -> dict[str, Any]:
+    return {
+        key: _canonical(value)
+        for key, value in row.items()
+        if key not in {
+            "schemaRevision", "status", "simulationSnapshotKey", "rowHash",
+            "problemCodes", "problems", "originCatalogRevision",
+        }
+    }
+
+
+def _v3_snapshot_blocked(code: str) -> dict[str, Any]:
+    return {
+        "schemaRevision": SIMULATION_SNAPSHOT_V3_SCHEMA_REVISION,
+        "status": "blocked",
+        "problemCodes": [code],
+        "problems": [_problem(code, "runtimeAuthorityRelease", "V3 requires exact release-bound inputs.")],
+    }
+
+
+def build_simulation_snapshot_v3(
+    *,
+    resolved_loadout: Any,
+    talent_profile_key: str,
+    talent_lines: Any,
+    character_context: Any,
+    scenario_options: Any,
+    preparation_lines: Any,
+    resolver_snapshot: Any,
+    authority_bundles: Any,
+    resolver_context: Any,
+    runtime_authority_release: Any,
+    loadout_effect_authority: Any = None,
+) -> dict[str, Any]:
+    """Build a v3 snapshot only from one verified release-bound v3 loadout."""
+    release = _v3_release_projection(
+        resolver_context=resolver_context,
+        runtime_authority_release=runtime_authority_release,
+    )
+    if release is None:
+        return _v3_snapshot_blocked("RUNTIME_AUTHORITY_RELEASE_REQUIRED")
+    loadout = dict(resolved_loadout) if isinstance(resolved_loadout, Mapping) else {}
+    if verify_resolved_loadout_v3(
+        loadout,
+        resolver_snapshot=resolver_snapshot,
+        authority_bundles=authority_bundles,
+        resolver_context=resolver_context,
+        runtime_authority_release=runtime_authority_release,
+        loadout_effect_authority=loadout_effect_authority,
+    ):
+        return _v3_snapshot_blocked("SIMULATION_V3_LOADOUT_NOT_READY")
+    vector = release["dependencyVector"]
+    v2_loadout = build_resolved_loadout_v2(
+        resolver_snapshot=resolver_snapshot,
+        exact_authority_by_slot=loadout.get("exactAuthorityBySlot"),
+        authority_bundles=authority_bundles,
+        gear_rule_revision=vector["gearRuleRevision"],
+        resolver_revision=vector["resolverRevision"],
+        simc_runtime_revision=vector["simcRuntimeRevision"],
+        loadout_effect_authority=loadout_effect_authority,
+    )
+    v2 = build_simulation_snapshot_v2(
+        resolved_loadout=v2_loadout,
+        talent_profile_key=talent_profile_key,
+        talent_lines=talent_lines,
+        character_context=character_context,
+        scenario_options=scenario_options,
+        preparation_lines=preparation_lines,
+        compiler_revision=vector["compilerRevision"],
+        simc_runtime_revision=vector["simcRuntimeRevision"],
+        resolver_snapshot=resolver_snapshot,
+        authority_bundles=authority_bundles,
+        loadout_effect_authority=loadout_effect_authority,
+    )
+    if v2.get("status") != "ready":
+        return _v3_snapshot_blocked("SIMULATION_V3_COMPILER_INPUT_INVALID")
+    row = {
+        key: _canonical(value)
+        for key, value in v2.items()
+        if key not in {
+            "schemaRevision", "simulationSnapshotKey", "resolvedLoadoutKey", "rowHash",
+            "originCatalogRevision",
+        }
+    }
+    row.update({
+        "schemaRevision": SIMULATION_SNAPSHOT_V3_SCHEMA_REVISION,
+        "status": "ready",
+        "resolvedLoadoutKey": loadout["resolvedLoadoutKey"],
+        "runtimeAuthorityReleaseKey": release["runtimeAuthorityReleaseKey"],
+        "resolverContextKey": release["resolverContextKey"],
+        "dependencyVector": vector,
+    })
+    row["simulationSnapshotKey"] = _hash(
+        "simulation-snapshot-v3:sha256:", _v3_snapshot_identity(row),
+    )
+    row["rowHash"] = _hash(
+        "sha256:", {key: value for key, value in row.items() if key != "rowHash"},
+    )
+    return row
+
+
+def verify_simulation_snapshot_v3(
+    value: Any,
+    *,
+    resolved_loadout: Any = None,
+    resolver_snapshot: Any = None,
+    authority_bundles: Any = None,
+    resolver_context: Any = None,
+    runtime_authority_release: Any = None,
+    loadout_effect_authority: Any = None,
+) -> list[str]:
+    row = dict(value) if isinstance(value, Mapping) else {}
+    if row.get("schemaRevision") != SIMULATION_SNAPSHOT_V3_SCHEMA_REVISION:
+        return ["SIMULATION_SNAPSHOT_V3_SCHEMA_INVALID"]
+    if row.get("status") != "ready":
+        return ["SIMULATION_SNAPSHOT_V3_NOT_READY"]
+    release = _v3_release_projection(
+        resolver_context=resolver_context,
+        runtime_authority_release=runtime_authority_release,
+    )
+    if release is None:
+        return ["SIMULATION_SNAPSHOT_V3_RELEASE_CONTEXT_INVALID"]
+    if (
+        row.get("runtimeAuthorityReleaseKey") != release["runtimeAuthorityReleaseKey"]
+        or row.get("resolverContextKey") != release["resolverContextKey"]
+        or row.get("dependencyVector") != release["dependencyVector"]
+    ):
+        return ["SIMULATION_SNAPSHOT_V3_RELEASE_CONTEXT_MISMATCH"]
+    expected = build_simulation_snapshot_v3(
+        resolved_loadout=resolved_loadout,
+        talent_profile_key=row.get("talentProfileKey"),
+        talent_lines=row.get("talentLines"),
+        character_context=row.get("characterContext"),
+        scenario_options=row.get("scenarioOptions"),
+        preparation_lines=row.get("preparationLines"),
+        resolver_snapshot=resolver_snapshot,
+        authority_bundles=authority_bundles,
+        resolver_context=resolver_context,
+        runtime_authority_release=runtime_authority_release,
+        loadout_effect_authority=loadout_effect_authority,
+    )
+    if expected.get("status") != "ready" or expected != row:
+        return ["SIMULATION_SNAPSHOT_V3_IDENTITY_MISMATCH"]
+    if not SIMULATION_SNAPSHOT_V3_KEY_PATTERN.fullmatch(_text(row.get("simulationSnapshotKey"))):
+        return ["SIMULATION_SNAPSHOT_V3_KEY_INVALID"]
+    return []
+
+
 __all__ = (
     "SIMULATION_SNAPSHOT_SCHEMA_REVISION",
     "SIMULATION_SNAPSHOT_V2_SCHEMA_REVISION",
+    "SIMULATION_SNAPSHOT_V3_SCHEMA_REVISION",
     "build_simulation_snapshot",
     "build_simulation_snapshot_v2",
+    "build_simulation_snapshot_v3",
     "compile_canonical_simc_input",
     "talent_profile_key",
     "talent_profile_key_for_lines",
     "verify_simulation_snapshot",
     "verify_simulation_snapshot_v2",
+    "verify_simulation_snapshot_v3",
 )

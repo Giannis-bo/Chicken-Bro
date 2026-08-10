@@ -4,7 +4,7 @@ import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 describe('SimC active Taro canonical contract', () => {
-  it('uses backend options, canonical build context, and canonical stat snapshots for confirm and final submit', () => {
+  it('uses backend options and Exact refs for confirm, submit, and owner-scoped read', () => {
     const source = readFileSync(resolve(
       process.cwd(),
       'apps/mini-taro/src/pages/simulator/simc.tsx',
@@ -12,11 +12,16 @@ describe('SimC active Taro canonical contract', () => {
 
     expect(source).toContain('wowApi.simulator.options()')
     expect(source).toContain("storageKey('simc.buildContext')")
-    expect(source).toContain('wowApi.websim.gearStatSnapshot')
     expect(source).toContain('selectionIntent: canonicalContext.selectionIntent')
-    expect(source).toContain('profileContext: canonicalContext.profileContext')
-    expect(source).toContain('...confirmation.request')
-    expect(source).toContain('statSnapshot: snapshot')
+    expect(source).toContain('sourceRef: canonicalContext.sourceRef')
+    expect(source).toContain('profileRef: canonicalContext.profileRef')
+    expect(source).toContain('executionIntent: canonicalContext.executionIntent')
+    expect(source).toContain('wowApi.simulator.exactSimcConfirm')
+    expect(source).toContain('wowApi.simulator.exactSimcSubmit')
+    expect(source).toContain('wowApi.simulator.exactSimcRead')
+    expect(source).not.toContain('wowApi.websim.gearStatSnapshot')
+    expect(source).not.toContain('profileContext')
+    expect(source).not.toContain('wowApi.simulator.analyze')
     expect(source).not.toContain('wowApi.websim.gearStats')
     expect(source).not.toContain("analysisType: 'simcraft'")
     expect(source).not.toContain('analysisType:')
@@ -26,7 +31,7 @@ describe('SimC active Taro canonical contract', () => {
     expect(source).not.toContain('scenarioOptions')
   })
 
-  it('keeps local talent fallback usable and fences confirm or submit against stale input', () => {
+  it('fences confirm or submit against stale input without a legacy profile or stat-snapshot loop', () => {
     const source = readFileSync(resolve(
       process.cwd(),
       'apps/mini-taro/src/pages/simulator/simc.tsx',
@@ -40,9 +45,9 @@ describe('SimC active Taro canonical contract', () => {
     expect(source).toContain('talentsFromFallback: talentsResult.fromFallback')
     expect(source).not.toContain('homeResult.error, optionsResult.error, talentsResult.error')
     expect(source).toContain('submissionSession.current.unmount()')
-    expect(source.match(/submissionSession\.current\.isCurrent\(token\)/g)?.length ?? 0).toBeGreaterThanOrEqual(8)
-    expect(source).toContain('pendingSignature')
-    expect(source).toContain('属性快照签名在轮询期间发生变化')
+    expect(source.match(/submissionSession\.current\.isCurrent\(token\)/g)?.length ?? 0).toBeGreaterThanOrEqual(7)
+    expect(source).not.toContain('pendingSignature')
+    expect(source).not.toContain('属性快照签名在轮询期间发生变化')
     expect(source.match(/disabled=\{submitting\}/g)?.length ?? 0).toBeGreaterThanOrEqual(3)
     expect(source.match(/if \(submittingRef\.current\) return/g)?.length ?? 0).toBeGreaterThanOrEqual(3)
     expect(components).toContain('disabled?: boolean | undefined')

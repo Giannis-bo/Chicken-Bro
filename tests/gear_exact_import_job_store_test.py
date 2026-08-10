@@ -63,6 +63,24 @@ def dependency_vector():
     }
 
 
+def snapshot_reference():
+    return {
+        "resolvedLoadoutKey": "resolved-loadout-v2:sha256:" + "a" * 64,
+        "simulationSnapshotKey": "simulation-snapshot-v2:sha256:" + "b" * 64,
+        "snapshotRowHash": "sha256:" + "c" * 64,
+    }
+
+
+def v3_snapshot_reference():
+    return {
+        "resolvedLoadoutKey": "resolved-loadout-v3:sha256:" + "a" * 64,
+        "simulationSnapshotKey": "simulation-snapshot-v3:sha256:" + "b" * 64,
+        "snapshotRowHash": "sha256:" + "c" * 64,
+        "runtimeAuthorityReleaseKey": "exact-runtime-authority-release:sha256:" + "d" * 64,
+        "resolverContextKey": "exact-runtime-resolver-context:sha256:" + "e" * 64,
+    }
+
+
 class FakeCursor:
     def __init__(self, rows):
         self.rows = list(rows)
@@ -96,6 +114,33 @@ class FakeConnection:
 
 
 class GearExactImportRequestTest(unittest.TestCase):
+    def test_builder_seals_v3_release_bound_snapshot_reference_without_changing_v1_v2(self):
+        reference = v3_snapshot_reference()
+        request = build_exact_import_job_request(
+            exact_intent(),
+            dependency_vector(),
+            snapshot_reference=reference,
+        )
+
+        self.assertEqual(request.request_json["schemaRevision"], "exact-import-job-request-v3")
+        self.assertEqual(
+            {key: request.request_json[key] for key in reference},
+            reference,
+        )
+        self.assertEqual(
+            reload_exact_import_job_request(
+                request.request_key,
+                request.canonical_bytes,
+                copy.deepcopy(request.request_json),
+            ),
+            request,
+        )
+        rejected = dict(reference)
+        rejected["resolvedLoadoutKey"] = "resolved-loadout-v2:sha256:" + "a" * 64
+        with self.assertRaises(ExactImportJobRequestError):
+            build_exact_import_job_request(
+                exact_intent(), dependency_vector(), snapshot_reference=rejected,
+            )
     def test_builder_emits_exact_schema_keys_canonical_bytes_and_fixed_hash(self):
         request = build_exact_import_job_request(exact_intent(), dependency_vector())
 
@@ -120,6 +165,55 @@ class GearExactImportRequestTest(unittest.TestCase):
         self.assertEqual(json.loads(request.canonical_bytes), request.request_json)
         self.assertNotIn(b" ", request.canonical_bytes)
         self.assertTrue(request.canonical_bytes.startswith(b'{"dependencyVector":'))
+
+    def test_builder_seals_v2_snapshot_reference_into_canonical_bytes_and_key(self):
+        reference = snapshot_reference()
+        request = build_exact_import_job_request(
+            exact_intent(),
+            dependency_vector(),
+            snapshot_reference=reference,
+        )
+
+        self.assertEqual(
+            request.request_json["schemaRevision"],
+            "exact-import-job-request-v2",
+        )
+        self.assertEqual(
+            set(request.request_json),
+            {
+                "schemaRevision", "exactLoadoutIntent", "dependencyVector",
+                "resolvedLoadoutKey", "simulationSnapshotKey", "snapshotRowHash",
+            },
+        )
+        self.assertEqual(
+            {
+                key: request.request_json[key]
+                for key in reference
+            },
+            reference,
+        )
+        self.assertIn(
+            b'"resolvedLoadoutKey":"resolved-loadout-v2:sha256:',
+            request.canonical_bytes,
+        )
+        self.assertEqual(
+            reload_exact_import_job_request(
+                request.request_key,
+                request.canonical_bytes,
+                copy.deepcopy(request.request_json),
+            ),
+            request,
+        )
+
+        drifted = dict(reference)
+        drifted["snapshotRowHash"] = "sha256:" + "d" * 64
+        changed = build_exact_import_job_request(
+            exact_intent(),
+            dependency_vector(),
+            snapshot_reference=drifted,
+        )
+        self.assertNotEqual(changed.request_key, request.request_key)
+        self.assertNotEqual(changed.canonical_bytes, request.canonical_bytes)
 
     def test_array_containing_canonical_request_is_accepted_before_sealing(self):
         request = build_exact_import_job_request(exact_intent(), dependency_vector())

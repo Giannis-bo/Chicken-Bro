@@ -4,6 +4,7 @@ import {
   type ChickenbroSessionDetailPayload,
   type ChickenbroSessionListPayload,
   type ChickenbroSessionSummary,
+  type GearSelectionIntent,
   type SimcOptionsPayload,
   type SimulatorAnalysisResponse,
   type SimulatorTaskRecord,
@@ -34,6 +35,125 @@ export interface SimulatorRequestOptions {
   auth?: boolean
   allowInsecureGuestRequest?: boolean
 }
+
+export interface ExactSimcSourceRef {
+  contractRevision: 'exact-simc-source-ref-v1'
+  kind: 'template'
+  sourceId: string
+  remote: true
+}
+
+export interface ExactSimcProfileRef {
+  contractRevision: 'exact-simc-profile-ref-v1'
+  kind: 'talent-template'
+  sourceId: string
+  remote: true
+}
+
+export interface ExactSimcExecutionIntent {
+  contractRevision: 'exact-simc-execution-intent-v1'
+  raceKey: string
+  scenarioKey: string
+}
+
+/** Client intent only; the server must reload all Exact facts from the refs. */
+export interface ExactSimcRequest {
+  selectionIntent: GearSelectionIntent
+  sourceRef: ExactSimcSourceRef
+  profileRef: ExactSimcProfileRef
+  executionIntent: ExactSimcExecutionIntent
+}
+
+export interface ExactSimcDependencyVector {
+  seasonRevision: string
+  gameBuild: string
+  gearRuleRevision: string
+  resolverRevision: string
+  compilerRevision: string
+  workerRevision: string
+  simcRuntimeRevision: string
+  effectAuthorityRevision: string
+}
+
+export interface ExactSimcConfirmation {
+  requestKey: string
+  resolvedLoadoutKey: string
+  simulationSnapshotKey: string
+  dependencyVector: ExactSimcDependencyVector
+}
+
+export interface ExactSimcProblem {
+  code: string
+  path?: string
+}
+
+export type ExactSimcStatus =
+  | 'ready'
+  | 'queued'
+  | 'pending'
+  | 'running'
+  | 'resolved'
+  | 'blocked'
+  | 'unsupported'
+  | 'failed'
+
+type ExactSimcEmptyData = Readonly<Record<string, never>>
+
+export interface ExactSimcJobRead {
+  jobId: number
+  requestKey: string
+  jobStatus: 'pending' | 'running' | 'resolved' | 'blocked' | 'unsupported' | 'failed'
+  result: Readonly<Record<string, unknown>> | null
+  cooldownUntil: string | null
+}
+
+export type ExactSimcConfirmEnvelope =
+  | {
+      contractRevision: 'exact-simc-envelope-v1'
+      operation: 'confirm'
+      status: 'ready'
+      data: ExactSimcConfirmation
+      problems: readonly []
+    }
+  | {
+      contractRevision: 'exact-simc-envelope-v1'
+      operation: 'confirm'
+      status: 'blocked' | 'unsupported'
+      data: ExactSimcEmptyData
+      problems: readonly ExactSimcProblem[]
+    }
+
+export type ExactSimcSubmitEnvelope =
+  | {
+      contractRevision: 'exact-simc-envelope-v1'
+      operation: 'submit'
+      status: 'queued'
+      data: ExactSimcConfirmation & { jobId: number; jobStatus: string; cooldownUntil: string | null }
+      problems: readonly []
+    }
+  | {
+      contractRevision: 'exact-simc-envelope-v1'
+      operation: 'submit'
+      status: 'blocked' | 'unsupported'
+      data: ExactSimcEmptyData
+      problems: readonly ExactSimcProblem[]
+    }
+
+export type ExactSimcReadEnvelope =
+  | {
+      contractRevision: 'exact-simc-envelope-v1'
+      operation: 'read'
+      status: 'pending' | 'running' | 'resolved'
+      data: ExactSimcJobRead
+      problems: readonly []
+    }
+  | {
+      contractRevision: 'exact-simc-envelope-v1'
+      operation: 'read'
+      status: 'blocked' | 'unsupported' | 'failed'
+      data: ExactSimcJobRead | ExactSimcEmptyData
+      problems: readonly ExactSimcProblem[]
+    }
 
 function nonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim() === value && value.length > 0
@@ -68,6 +188,151 @@ function optionalText(value: unknown): boolean {
 
 function optionalRecord(value: unknown): boolean {
   return value === undefined || isRecord(value)
+}
+
+const exactPrivateResponseKeys = new Set([
+  'rawProfile', 'rawString', 'playerName', 'characterName', 'realm', 'server',
+  'userId', 'user_id', 'ownerKeyHash', 'owner_key_hash', 'profileContext',
+])
+
+function exactKeys(value: Readonly<Record<string, unknown>>, keys: readonly string[]): boolean {
+  const actual = Object.keys(value)
+  return actual.length === keys.length && actual.every((key) => keys.includes(key))
+}
+
+function containsExactPrivateResponseKey(value: unknown): boolean {
+  if (Array.isArray(value)) return value.some(containsExactPrivateResponseKey)
+  return isRecord(value) && Object.entries(value).some(([key, nested]) => (
+    exactPrivateResponseKeys.has(key) || containsExactPrivateResponseKey(nested)
+  ))
+}
+
+function isExactProblem(value: unknown): value is ExactSimcProblem {
+  return isRecord(value)
+    && exactKeys(value, value['path'] === undefined ? ['code'] : ['code', 'path'])
+    && nonEmptyString(value['code'])
+    && (value['path'] === undefined || nonEmptyString(value['path']))
+}
+
+function isExactProblemList(value: unknown, { required }: { required: boolean }): value is readonly ExactSimcProblem[] {
+  return Array.isArray(value)
+    && (!required || value.length > 0)
+    && value.every(isExactProblem)
+}
+
+function isExactEmptyData(value: unknown): value is ExactSimcEmptyData {
+  return isRecord(value) && Object.keys(value).length === 0
+}
+
+function isExactDependencyVector(value: unknown): value is ExactSimcDependencyVector {
+  const keys = [
+    'seasonRevision', 'gameBuild', 'gearRuleRevision', 'resolverRevision',
+    'compilerRevision', 'workerRevision', 'simcRuntimeRevision', 'effectAuthorityRevision',
+  ]
+  return isRecord(value)
+    && exactKeys(value, keys)
+    && keys.every((key) => nonEmptyString(value[key]))
+}
+
+function isExactConfirmation(value: unknown): value is ExactSimcConfirmation {
+  return isRecord(value)
+    && exactKeys(value, [
+      'requestKey', 'resolvedLoadoutKey', 'simulationSnapshotKey', 'dependencyVector',
+    ])
+    && /^exact-import-request:sha256:[0-9a-f]{64}$/.test(String(value['requestKey']))
+    && /^resolved-loadout-v2:sha256:[0-9a-f]{64}$/.test(String(value['resolvedLoadoutKey']))
+    && /^simulation-snapshot-v2:sha256:[0-9a-f]{64}$/.test(String(value['simulationSnapshotKey']))
+    && isExactDependencyVector(value['dependencyVector'])
+}
+
+function isExactJobRead(value: unknown, status: ExactSimcReadEnvelope['status']): value is ExactSimcJobRead {
+  if (!isRecord(value)
+    || !exactKeys(value, ['jobId', 'requestKey', 'jobStatus', 'result', 'cooldownUntil'])
+    || !positiveInteger(value['jobId'])
+    || !/^exact-import-request:sha256:[0-9a-f]{64}$/.test(String(value['requestKey']))
+    || value['jobStatus'] !== status
+    || (value['cooldownUntil'] !== null && !nonEmptyString(value['cooldownUntil']))) return false
+  if (status === 'resolved') return isRecord(value['result']) && !containsExactPrivateResponseKey(value['result'])
+  return value['result'] === null
+}
+
+function isExactSimcConfirmEnvelope(value: unknown): value is ExactSimcConfirmEnvelope {
+  if (!isRecord(value)
+    || !exactKeys(value, ['contractRevision', 'operation', 'status', 'data', 'problems'])
+    || containsExactPrivateResponseKey(value)
+    || value['contractRevision'] !== 'exact-simc-envelope-v1'
+    || value['operation'] !== 'confirm') return false
+  if (value['status'] === 'ready') {
+    return isExactConfirmation(value['data']) && isExactProblemList(value['problems'], { required: false })
+      && value['problems'].length === 0
+  }
+  return (value['status'] === 'blocked' || value['status'] === 'unsupported')
+    && isExactEmptyData(value['data'])
+    && isExactProblemList(value['problems'], { required: true })
+}
+
+function isExactSimcSubmitEnvelope(value: unknown): value is ExactSimcSubmitEnvelope {
+  if (!isRecord(value)
+    || !exactKeys(value, ['contractRevision', 'operation', 'status', 'data', 'problems'])
+    || containsExactPrivateResponseKey(value)
+    || value['contractRevision'] !== 'exact-simc-envelope-v1'
+    || value['operation'] !== 'submit') return false
+  if (value['status'] === 'queued') {
+    const data = value['data']
+    return isRecord(data)
+      && exactKeys(data, [
+        'requestKey', 'resolvedLoadoutKey', 'simulationSnapshotKey', 'dependencyVector',
+        'jobId', 'jobStatus', 'cooldownUntil',
+      ])
+      && isExactConfirmation({
+        requestKey: data['requestKey'],
+        resolvedLoadoutKey: data['resolvedLoadoutKey'],
+        simulationSnapshotKey: data['simulationSnapshotKey'],
+        dependencyVector: data['dependencyVector'],
+      })
+      && positiveInteger(data['jobId'])
+      && nonEmptyString(data['jobStatus'])
+      && (data['cooldownUntil'] === null || nonEmptyString(data['cooldownUntil']))
+      && isExactProblemList(value['problems'], { required: false })
+      && value['problems'].length === 0
+  }
+  return (value['status'] === 'blocked' || value['status'] === 'unsupported')
+    && isExactEmptyData(value['data'])
+    && isExactProblemList(value['problems'], { required: true })
+}
+
+function isExactSimcReadEnvelope(value: unknown): value is ExactSimcReadEnvelope {
+  if (!isRecord(value)
+    || !exactKeys(value, ['contractRevision', 'operation', 'status', 'data', 'problems'])
+    || containsExactPrivateResponseKey(value)
+    || value['contractRevision'] !== 'exact-simc-envelope-v1'
+    || value['operation'] !== 'read') return false
+  const status = value['status']
+  if (status !== 'pending' && status !== 'running' && status !== 'resolved'
+    && status !== 'blocked' && status !== 'unsupported' && status !== 'failed') return false
+  if (status === 'pending' || status === 'running' || status === 'resolved') {
+    return isExactJobRead(value['data'], status)
+      && isExactProblemList(value['problems'], { required: false })
+      && value['problems'].length === 0
+  }
+  if (isExactEmptyData(value['data'])) return isExactProblemList(value['problems'], { required: true })
+  return isExactJobRead(value['data'], status)
+    && isExactProblemList(value['problems'], { required: true })
+}
+
+function exactSimcFallback(operation: 'confirm'): ExactSimcConfirmEnvelope
+function exactSimcFallback(operation: 'submit'): ExactSimcSubmitEnvelope
+function exactSimcFallback(operation: 'read'): ExactSimcReadEnvelope
+function exactSimcFallback(
+  operation: 'confirm' | 'submit' | 'read',
+): ExactSimcConfirmEnvelope | ExactSimcSubmitEnvelope | ExactSimcReadEnvelope {
+  return {
+    contractRevision: 'exact-simc-envelope-v1',
+    operation,
+    status: 'blocked',
+    data: {},
+    problems: [{ code: 'EXACT_AUTHORITY_UNAVAILABLE' }],
+  } as ExactSimcConfirmEnvelope | ExactSimcSubmitEnvelope | ExactSimcReadEnvelope
 }
 
 function isSimulatorAnalysisResponse(value: unknown): boolean {
@@ -364,6 +629,48 @@ export class SimulatorClient {
         simulation: { ran: false, available: false, error: 'backend confirmation unavailable' },
       }),
       validate: (value) => isSimulatorAnalysisForRequest(value, request),
+    })
+  }
+
+  exactSimcConfirm(request: ExactSimcRequest): Promise<ApiResult<ExactSimcConfirmEnvelope>> {
+    return this.transport.request('/api/simulator/exact/confirm', {
+      method: 'POST',
+      data: { ...request },
+      auth: true,
+      responseMode: 'structured-problem',
+      fallback: () => exactSimcFallback('confirm'),
+      validate: isExactSimcConfirmEnvelope,
+    })
+  }
+
+  exactSimcSubmit(
+    request: ExactSimcRequest,
+    confirmation: ExactSimcConfirmation,
+  ): Promise<ApiResult<ExactSimcSubmitEnvelope>> {
+    return this.transport.request('/api/simulator/exact/submit', {
+      method: 'POST',
+      data: { request, confirmation },
+      auth: true,
+      responseMode: 'structured-problem',
+      fallback: () => exactSimcFallback('submit'),
+      validate: isExactSimcSubmitEnvelope,
+    })
+  }
+
+  exactSimcRead(jobId: number): Promise<ApiResult<ExactSimcReadEnvelope>> {
+    if (!positiveInteger(jobId)) {
+      return Promise.resolve({
+        payload: exactSimcFallback('read'),
+        fromFallback: true,
+        error: 'invalid Exact SimC job id',
+      })
+    }
+    return this.transport.request(`/api/simulator/exact/job?id=${encodeURIComponent(String(jobId))}`, {
+      method: 'GET',
+      auth: true,
+      responseMode: 'structured-problem',
+      fallback: () => exactSimcFallback('read'),
+      validate: isExactSimcReadEnvelope,
     })
   }
 

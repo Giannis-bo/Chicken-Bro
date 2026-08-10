@@ -1007,6 +1007,36 @@
           "futureExtractionDirection": "Keep immutable release reads in server/gear_release_store.py and final Resolver legality in server/gear_runtime.py plus server/gear_resolver.py."
         }
       ]
+    },
+    {
+      "path": "server/exact_runtime_authority_release.py",
+      "healthStatus": "strict_local_tdd",
+      "summary": "Owns pure canonical Runtime Authority Release context, release and occurrence-index documents. It consumes only sealed effect records and Task 4L's public ordered signature witness; it cannot discover, select or activate runtime authority.",
+      "owners": [
+        {
+          "id": "exact_first_runtime_authority_release_task5c",
+          "status": "local_implementation_authorized",
+          "factOwner": "server/exact_runtime_authority_release.py",
+          "signatureWitnessOwner": "server/gear_loadout_effect_authority.py",
+          "owns": [
+            "canonical bytes/key/hash sealing and typed reload of resolver context, runtime release and occurrence index documents",
+            "exact eight-field dependency-vector validation and context/release producer binding",
+            "release-scoped occurrence-to-effect-record rehydration that preserves ordered duplicate occurrences"
+          ],
+          "mustNotChange": [
+            "Do not query a database, Catalog, Manifest, compatibility cache, latest row, environment, process default or HTTP input.",
+            "Do not import Task 4L private signature helpers or reproduce their algorithm; only loadout_effect_subject_signatures is allowed.",
+            "Do not expose release/context keys or raw profile/player/realm/server/user identity, and do not enable a worker or public API."
+          ],
+          "characterization": [
+            "tests/exact_runtime_authority_release_test.py",
+            "tests/gear_loadout_effect_authority_test.py",
+            "tests/gear_canonical_owner_gate_test.py"
+          ],
+          "runtimeConsumers": [],
+          "futureExtractionDirection": "Task 2 may add a PostgreSQL-only append-only store; Task 4 may compose it into Exact API/worker only after v3 identity, candidate and Harness gates."
+        }
+      ]
     }
   ]
 }

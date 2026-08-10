@@ -7,6 +7,7 @@ from server.simulation_snapshot_compat import (
 from server.gear_resolved_loadout import build_resolved_loadout_v2
 from tests.gear_resolved_loadout_test import resolver_snapshot, v2_bundle, v2_resolver_snapshot
 from tests.simulation_snapshot_store_test import loadout
+from tests.simulation_snapshot_test import v2_snapshot_fixture
 
 
 PROFILE = """mage="test"
@@ -27,8 +28,40 @@ max_time=300
 vary_combat_length=0.2
 calculate_scale_factors=0"""
 
+FROZEN_V2_LOADOUT_KEY = (
+    "resolved-loadout-v2:sha256:"
+    "f63aa16e245614cac8aa9ac836090673a6f3a11961b95768c532dc65e7a9ca3f"
+)
+FROZEN_V2_LOADOUT_ROW_HASH = (
+    "sha256:daf38bba00a93dfe0c6a01ddb8123bcb5c418396b06915f7ac1df6a50169765e"
+)
+FROZEN_V2_SNAPSHOT_KEY = (
+    "simulation-snapshot-v2:sha256:"
+    "c687f0169e99856e18cffb44cad37a42bf6b207ebb25d31d4765cea4d1787497"
+)
+FROZEN_V2_SNAPSHOT_ROW_HASH = (
+    "sha256:e5adfd9677648118a905ffe4cb7aef649d5a0691d7e6e33158701c2b9881b060"
+)
+
 
 class SimulationSnapshotCompatibilityTest(unittest.TestCase):
+    def test_v1_and_v2_frozen_identity_remain_unchanged_after_v3_is_added(self):
+        v1 = snapshot_from_compatibility_profile(
+            loadout(),
+            PROFILE,
+            scenario_key="single",
+            compiler_revision="simc-profile-compiler-v1",
+            simc_runtime_revision="simc-runtime-v1",
+        )
+        _resolver, _bundles, v2_loadout, v2_snapshot = v2_snapshot_fixture()
+
+        self.assertEqual(v1["schemaRevision"], "simulation-snapshot-v1")
+        self.assertEqual(v1["canonicalSimcInput"], PROFILE + "\n")
+        self.assertEqual(v2_loadout["resolvedLoadoutKey"], FROZEN_V2_LOADOUT_KEY)
+        self.assertEqual(v2_loadout["rowHash"], FROZEN_V2_LOADOUT_ROW_HASH)
+        self.assertEqual(v2_snapshot["simulationSnapshotKey"], FROZEN_V2_SNAPSHOT_KEY)
+        self.assertEqual(v2_snapshot["rowHash"], FROZEN_V2_SNAPSHOT_ROW_HASH)
+
     def test_verified_backend_profile_round_trips_to_exact_snapshot_bytes(self):
         result = snapshot_from_compatibility_profile(
             loadout(),

@@ -159,6 +159,13 @@ class FakeCursor:
         elif "exact_authority_bundle_load" in normalized:
             row = self.database.bundles.get(params[0])
             self.rows = [row] if row else []
+        elif "exact_authority_bundle_find_by_exact_item" in normalized:
+            exact_key, gear_rule, runtime, resolver = params
+            self.rows = [
+                (envelope_key,)
+                for envelope_key, row in sorted(self.database.bundles.items())
+                if row[1] == exact_key and row[5:] == (gear_rule, runtime, resolver)
+            ]
 
     def fetchone(self):
         row = self.rows[0] if self.rows else None
@@ -388,7 +395,6 @@ class GearExactAuthorityStoreTest(unittest.TestCase):
                 simc_runtime_revision=RUNTIME,
                 resolver_revision=RESOLVER,
             )
-
         self.database.documents[sealed.exact_item.content_key] = original
         self.database.documents[sealed.static_facts.content_key] = (
             *self.database.documents[sealed.static_facts.content_key][:4],
@@ -409,6 +415,43 @@ class GearExactAuthorityStoreTest(unittest.TestCase):
         with self.assertRaises(GearExactAuthorityStoreIntegrityError):
             self.store.load_verified_bundle(
                 key,
+                gear_rule_revision=RULE,
+                simc_runtime_revision=RUNTIME,
+                resolver_revision=RESOLVER,
+            )
+
+    def test_exact_item_lookup_requires_one_unique_current_bundle(self):
+        sealed = self.store.seal_authority_bundle(authority_bundle())
+
+        found = self.store.load_verified_bundle_for_exact_item(
+            sealed.exact_item.content_key,
+            gear_rule_revision=RULE,
+            simc_runtime_revision=RUNTIME,
+            resolver_revision=RESOLVER,
+        )
+        self.assertEqual(found, sealed)
+
+        duplicate_key = "exact-authority:sha256:" + "f" * 64
+        duplicate = list(self.database.bundles[sealed.envelope.content_key])
+        duplicate[0] = duplicate_key
+        self.database.bundles[duplicate_key] = tuple(duplicate)
+        with self.assertRaisesRegex(
+            GearExactAuthorityStoreIntegrityError,
+            "not unique",
+        ):
+            self.store.load_verified_bundle_for_exact_item(
+                sealed.exact_item.content_key,
+                gear_rule_revision=RULE,
+                simc_runtime_revision=RUNTIME,
+                resolver_revision=RESOLVER,
+            )
+
+        with self.assertRaisesRegex(
+            GearExactAuthorityStoreIntegrityError,
+            "missing",
+        ):
+            self.store.load_verified_bundle_for_exact_item(
+                "exact-item-instance:sha256:" + "0" * 64,
                 gear_rule_revision=RULE,
                 simc_runtime_revision=RUNTIME,
                 resolver_revision=RESOLVER,

@@ -9336,6 +9336,324 @@ class NewsBackendTest(unittest.TestCase):
             server.shutdown()
             server.server_close()
 
+    def _exact_simc_http_request(self):
+        from tests.exact_template_authority_binding_test import remote_source
+
+        return {
+            "selectionIntent": remote_source()["metadata"]["selectionIntent"],
+            "sourceRef": {
+                "contractRevision": "exact-simc-source-ref-v1",
+                "kind": "template",
+                "sourceId": "87654321-4321-8765-4321-876543218765",
+                "remote": True,
+            },
+            "profileRef": {
+                "contractRevision": "exact-simc-profile-ref-v1",
+                "kind": "talent-template",
+                "sourceId": "12345678-1234-5678-1234-567812345678",
+                "remote": True,
+            },
+            "executionIntent": {
+                "contractRevision": "exact-simc-execution-intent-v1",
+                "raceKey": "human",
+                "scenarioKey": "single",
+            },
+        }
+
+    def test_exact_simc_factory_enables_only_a_complete_explicit_server_composition(self):
+        user = {"id": "12345678-1234-5678-1234-567812345678"}
+        self.assertIsNone(self.backend.exact_simc_api_for_authenticated_user(user))
+        components = {
+            "authenticatedUserId": user["id"],
+            "sourceMaterializer": lambda _request, _owner: {},
+            "profileMaterializer": lambda _request, _source: {},
+            "runtimeAuthorityStore": object(),
+            "snapshotStore": object(),
+            "jobStore": object(),
+        }
+        with patch.object(
+            self.backend,
+            "_exact_simc_runtime_components_for_authenticated_user",
+            return_value=components,
+            create=True,
+        ):
+            api = self.backend.exact_simc_api_for_authenticated_user(user)
+        self.assertIsNotNone(api)
+        self.assertEqual(api.__class__.__name__, "ExactSimcApi")
+
+        incomplete = dict(components)
+        incomplete.pop("runtimeAuthorityStore")
+        with patch.object(
+            self.backend,
+            "_exact_simc_runtime_components_for_authenticated_user",
+            return_value=incomplete,
+            create=True,
+        ):
+            self.assertIsNone(self.backend.exact_simc_api_for_authenticated_user(user))
+
+    def test_http_exact_confirm_authenticates_owner_and_preserves_literal_block(self):
+        user = {"id": "12345678-1234-5678-1234-567812345678", "openid": "openid-exact-confirm"}
+        calls = []
+
+        class BlockingExactApi:
+            def confirm(self, request, *, owner_key_hash):
+                calls.append((request, owner_key_hash))
+                return {
+                    "contractRevision": "exact-simc-envelope-v1",
+                    "operation": "confirm",
+                    "status": "blocked",
+                    "data": {},
+                    "problems": [{"code": "LOADOUT_EFFECT_AUTHORITY_REQUIRED"}],
+                }
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            request = Request(
+                f"http://127.0.0.1:{server.server_port}/api/simulator/exact/confirm",
+                data=json.dumps(self._exact_simc_http_request()).encode("utf-8"),
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer exact-confirm-token",
+                },
+                method="POST",
+            )
+            with patch.object(self.backend, "authenticate_token", return_value=user) as authenticate, patch.object(
+                self.backend,
+                "exact_simc_api_for_authenticated_user",
+                return_value=BlockingExactApi(),
+                create=True,
+            ) as factory, self.assertRaises(HTTPError) as raised:
+                urlopen(request, timeout=5)
+            response = raised.exception
+            payload = json.loads(response.read().decode("utf-8"))
+        finally:
+            server.shutdown()
+            thread.join(timeout=2)
+            server.server_close()
+
+        self.assertEqual(response.code, 409)
+        self.assertEqual(payload["status"], "blocked")
+        self.assertEqual(payload["problems"], [{"code": "LOADOUT_EFFECT_AUTHORITY_REQUIRED"}])
+        self.assertEqual(len(calls), 1)
+        self.assertRegex(calls[0][1], r"^sha256:[0-9a-f]{64}$")
+        self.assertNotIn(user["id"], json.dumps(payload))
+        self.assertEqual(factory.call_args.args[0]["id"], user["id"])
+        self.assertEqual(authenticate.call_args.args[0], "exact-confirm-token")
+
+    def test_http_exact_confirm_rejects_raw_profile_before_materialization(self):
+        user = {"id": "12345678-1234-5678-1234-567812345678", "openid": "openid-exact-raw-profile"}
+        payload = self._exact_simc_http_request()
+        payload["profileContext"] = {"rawString": "client-must-not-enter-exact"}
+        server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            request = Request(
+                f"http://127.0.0.1:{server.server_port}/api/simulator/exact/confirm",
+                data=json.dumps(payload).encode("utf-8"),
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer exact-raw-profile-token",
+                },
+                method="POST",
+            )
+            with patch.object(self.backend, "authenticate_token", return_value=user), patch.object(
+                self.backend,
+                "exact_simc_api_for_authenticated_user",
+                side_effect=AssertionError("raw profile must not reach Exact materialization"),
+                create=True,
+            ), self.assertRaises(HTTPError) as raised:
+                urlopen(request, timeout=5)
+            response = raised.exception
+            response_payload = json.loads(response.read().decode("utf-8"))
+        finally:
+            server.shutdown()
+            thread.join(timeout=2)
+            server.server_close()
+
+        self.assertEqual(response.code, 409)
+        self.assertEqual(response_payload, {
+            "contractRevision": "exact-simc-envelope-v1",
+            "operation": "confirm",
+            "status": "blocked",
+            "data": {},
+            "problems": [{"code": "EXACT_PROFILE_AUTHORITY_REQUIRED"}],
+        })
+
+    def test_http_exact_confirm_never_forwards_private_api_payloads(self):
+        user = {"id": "12345678-1234-5678-1234-567812345678", "openid": "openid-exact-private"}
+        owner_hashes = []
+
+        class UnsafeExactApi:
+            def confirm(self, _request, *, owner_key_hash):
+                owner_hashes.append(owner_key_hash)
+                return {
+                    "contractRevision": "exact-simc-envelope-v1",
+                    "operation": "confirm",
+                    "status": "ready",
+                    "data": {"rawString": "must-not-escape"},
+                    "problems": [],
+                }
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            request = Request(
+                f"http://127.0.0.1:{server.server_port}/api/simulator/exact/confirm",
+                data=json.dumps(self._exact_simc_http_request()).encode("utf-8"),
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer exact-private-token",
+                },
+                method="POST",
+            )
+            with patch.object(self.backend, "authenticate_token", return_value=user), patch.object(
+                self.backend,
+                "exact_simc_api_for_authenticated_user",
+                return_value=UnsafeExactApi(),
+            ), self.assertRaises(HTTPError) as raised:
+                urlopen(request, timeout=5)
+            response = raised.exception
+            response_payload = json.loads(response.read().decode("utf-8"))
+        finally:
+            server.shutdown()
+            thread.join(timeout=2)
+            server.server_close()
+
+        self.assertEqual(response.code, 503)
+        self.assertEqual(response_payload, {
+            "contractRevision": "exact-simc-envelope-v1",
+            "operation": "confirm",
+            "status": "blocked",
+            "data": {},
+            "problems": [{"code": "EXACT_AUTHORITY_UNAVAILABLE"}],
+        })
+        self.assertNotIn("must-not-escape", json.dumps(response_payload))
+        self.assertEqual(len(owner_hashes), 1)
+        self.assertRegex(owner_hashes[0], r"^sha256:[0-9a-f]{64}$")
+
+    def test_http_exact_submit_and_read_are_owner_scoped(self):
+        user = {"id": "12345678-1234-5678-1234-567812345678", "openid": "openid-exact-submit"}
+        calls = []
+        confirmation = {
+            "requestKey": "exact-import-request:sha256:" + "a" * 64,
+            "resolvedLoadoutKey": "resolved-loadout-v2:sha256:" + "b" * 64,
+            "simulationSnapshotKey": "simulation-snapshot-v2:sha256:" + "c" * 64,
+            "dependencyVector": {
+                "seasonRevision": "season-1",
+                "gameBuild": "12.0.1.12345",
+                "gearRuleRevision": "gear-rule-v1",
+                "resolverRevision": "resolver-v2",
+                "compilerRevision": "compiler-v2",
+                "workerRevision": "worker-v1",
+                "simcRuntimeRevision": "simc-runtime-v1",
+                "effectAuthorityRevision": "effect-authority-v1",
+            },
+        }
+
+        class ExactApi:
+            def submit(self, request, *, confirmation, owner_key_hash):
+                calls.append(("submit", request, confirmation, owner_key_hash))
+                return {
+                    "contractRevision": "exact-simc-envelope-v1",
+                    "operation": "submit",
+                    "status": "queued",
+                    "data": {**confirmation, "jobId": 41, "jobStatus": "queued", "cooldownUntil": None},
+                    "problems": [],
+                }
+
+            def read(self, job_id, *, owner_key_hash):
+                calls.append(("read", job_id, owner_key_hash))
+                return {
+                    "contractRevision": "exact-simc-envelope-v1",
+                    "operation": "read",
+                    "status": "pending",
+                    "data": {
+                        "jobId": 41,
+                        "requestKey": confirmation["requestKey"],
+                        "jobStatus": "pending",
+                        "result": None,
+                        "cooldownUntil": None,
+                    },
+                    "problems": [],
+                }
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            submit_request = Request(
+                f"http://127.0.0.1:{server.server_port}/api/simulator/exact/submit",
+                data=json.dumps({"request": self._exact_simc_http_request(), "confirmation": confirmation}).encode("utf-8"),
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer exact-submit-token",
+                },
+                method="POST",
+            )
+            with patch.object(self.backend, "authenticate_token", return_value=user), patch.object(
+                self.backend,
+                "exact_simc_api_for_authenticated_user",
+                return_value=ExactApi(),
+                create=True,
+            ):
+                with urlopen(submit_request, timeout=5) as response:
+                    submit_payload = json.loads(response.read().decode("utf-8"))
+                with urlopen(
+                    Request(
+                        f"http://127.0.0.1:{server.server_port}/api/simulator/exact/job?id=41",
+                        headers={"Authorization": "Bearer exact-submit-token"},
+                    ),
+                    timeout=5,
+                ) as read_response:
+                    read_payload = json.loads(read_response.read().decode("utf-8"))
+        finally:
+            server.shutdown()
+            thread.join(timeout=2)
+            server.server_close()
+
+        self.assertEqual(response.status, 202)
+        self.assertEqual(submit_payload["data"]["jobId"], 41)
+        self.assertEqual(read_response.status, 202)
+        self.assertEqual(read_payload["data"]["jobStatus"], "pending")
+        self.assertEqual([call[0] for call in calls], ["submit", "read"])
+        self.assertEqual(calls[0][3], calls[1][2])
+
+    def test_http_exact_read_rejects_nonpositive_job_id_before_owner_factory(self):
+        user = {"id": "12345678-1234-5678-1234-567812345678", "openid": "openid-exact-invalid-read"}
+        server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            request = Request(
+                f"http://127.0.0.1:{server.server_port}/api/simulator/exact/job?id=0",
+                headers={"Authorization": "Bearer exact-invalid-read-token"},
+            )
+            with patch.object(self.backend, "authenticate_token", return_value=user), patch.object(
+                self.backend,
+                "exact_simc_api_for_authenticated_user",
+                side_effect=AssertionError("invalid job id must not construct an Exact owner"),
+            ), self.assertRaises(HTTPError) as raised:
+                urlopen(request, timeout=5)
+            response = raised.exception
+            response_payload = json.loads(response.read().decode("utf-8"))
+        finally:
+            server.shutdown()
+            thread.join(timeout=2)
+            server.server_close()
+
+        self.assertEqual(response.code, 404)
+        self.assertEqual(response_payload, {
+            "contractRevision": "exact-simc-envelope-v1",
+            "operation": "read",
+            "status": "blocked",
+            "data": {},
+            "problems": [{"code": "EXACT_JOB_NOT_FOUND"}],
+        })
+
     def test_http_post_simulator_analyze_route_runs_simcraft_from_prompt(self):
         simc_bin = Path(self.tmp.name) / "fake-route-simc"
         captured_profile = Path(self.tmp.name) / "captured-route-profile.txt"

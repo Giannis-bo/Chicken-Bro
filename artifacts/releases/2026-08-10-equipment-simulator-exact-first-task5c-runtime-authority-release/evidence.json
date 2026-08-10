@@ -1,0 +1,493 @@
+{
+  "schemaVersion": 2,
+  "slug": "equipment-simulator-exact-first-task5c-runtime-authority-release",
+  "requirementSlug": "equipment-simulator-exact-first-task5c-runtime-authority-release",
+  "status": "runtime_verified",
+  "highestEvidenceLevel": "runtime_verified",
+  "branch": "codex/exact-first-task5a-control-plane",
+  "commit": "70e37b6fd88bee7dc0004d4cba6fec5aef820e02",
+  "identities": {
+    "runtime": {
+      "status": "bound",
+      "kind": "git_commit",
+      "value": "70e37b6fd88bee7dc0004d4cba6fec5aef820e02"
+    },
+    "verification": {
+      "status": "bound_at_check",
+      "kind": "git_ref",
+      "value": "HEAD",
+      "reason": "The local packet must be checked from a clean exact HEAD. Candidate runtime identity is immutable at 70e37b6f; its runtime code includes 7549f921's fourth forward-only 0035 repair, and later packet edits record evidence only."
+    },
+    "closure": {
+      "status": "pending",
+      "reason": "The final runtime candidate and independent local CR are verified, but exact-head CI, production parity/rollback and all four unchanged-page real-WeChat acceptance items have not occurred."
+    }
+  },
+  "manualAcceptance": {
+    "required": true,
+    "status": "pending",
+    "items": [
+      {"id": "task5c_simc_submit_release_bound_ready", "status": "pending"},
+      {"id": "task5c_simc_submit_missing_authority_blocked", "status": "pending"},
+      {"id": "task5c_simc_submit_unsupported_blocked", "status": "pending"},
+      {"id": "task5c_simc_submit_v3_task_result", "status": "pending"}
+    ],
+    "rollup": {"total": 4, "accepted": 0, "notRunUserWaived": 0, "pending": 4}
+  },
+  "scope": [
+    "Task 5C local implementation seals and reloads one immutable runtime resolver context, runtime authority release and occurrence index, then propagates their server-only relation through V3 ResolvedLoadout, SimulationSnapshot and exact-import job identities.",
+    "The materializer reads one owner/binding-scoped release after source replay, reconstructs release-scoped occurrence authority before final resolve, and returns literal blocked or unsupported outcomes for missing, ambiguous or unsupported authority.",
+    "The worker executes only a sealed V3 request whose snapshot, release, resolver context, row hash and complete dependency vector agree; V1 and V2 are explicitly unsupported. The default HTTP factory remains disabled until all server-only owners are explicitly composed.",
+    "No current UI route, JSX hierarchy, copy, styles, entry or navigation changed in this Task 5C implementation. No local PostgreSQL, production migration, provider/worker activation, async backflow, Catalog/Manifest pointer or generation 35 action occurred. Eight disposable cloud candidate harness runs failed before attestation and one setup-only resource preparation was aborted and cleaned before Python started; the ninth isolated candidate passed then was fully cleaned. None touched any production database, service or user-visible path."
+  ],
+  "verification": [
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest tests.exact_runtime_authority_release_test tests.exact_runtime_authority_release_store_test tests.gear_resolved_loadout_test tests.simulation_snapshot_test tests.simulation_snapshot_compat_test tests.simulation_snapshot_store_test tests.gear_exact_import_job_store_test tests.exact_simc_api_test tests.gear_exact_authority_worker_test tests.news_backend_test tests.postgres_schema_test tests.postgres_integration_test",
+      "status": "pass",
+      "testedHead": "8a9f9de6d09d159c1368ad5eb6ed30b8d61b1b12",
+      "summary": "Focused release, V3 identity, store/schema, materializer, worker and HTTP suite passed. PostgreSQL candidate entrypoints remained skipped because no local PostgreSQL DSN or server was used."
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p '*_test.py'",
+      "status": "pass",
+      "testedHead": "71a83b7cb6b6fe62702c8ad3789e44f1fe729b34",
+      "summary": "2963 tests passed in 79.768s with 5 expected cloud-only PostgreSQL candidate skips. Existing negative CLI fixtures and SQLite ResourceWarning output did not fail the suite."
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest tests.postgres_integration_test.Task5CCandidateHarnessTest tests.postgres_integration_test.Task5CV3MigrationBoundaryTest tests.postgres_integration_test.PostgresRuntimeAuthorityReleaseCandidateTest",
+      "status": "pass",
+      "testedHead": "71a83b7cb6b6fe62702c8ad3789e44f1fe729b34",
+      "summary": "The Task 5C candidate contract and forward-only 0035 binding-admission regression passed locally; the cloud-only runner remained skipped because no candidate DSNs were supplied locally. Its migrator input is limited to the documented wow_migrator login or postgres operator."
+    },
+    {
+      "command": "python3 -m compileall -q server/exact_simc_api.py server/gear_exact_authority_worker.py server/news_backend.py; git diff --check origin/main...HEAD; node scripts/project-harness.js --check-requirement --requirement-file artifacts/releases/2026-08-10-equipment-simulator-exact-first-task5c-runtime-authority-release/requirement.json",
+      "status": "pass",
+      "testedHead": "71a83b7cb6b6fe62702c8ad3789e44f1fe729b34",
+      "summary": "The forward-only 0035 repair passed its RED/GREEN schema regression, changed SQL had no whitespace errors, and frozen 0030--0034 plus apps/mini-taro had no diff."
+    },
+    {
+      "command": "independent local whole-branch CR at 71a83b7c",
+      "status": "pass",
+      "testedHead": "71a83b7cb6b6fe62702c8ad3789e44f1fe729b34",
+      "summary": "No P1/P2 found: the 0035 forward function body is byte-for-byte equivalent to frozen 0033 except for the named primary-key conflict target; frozen SQL and apps/mini-taro remain untouched, V1/V2 remain non-executable, and the default server factory remains fail closed."
+    },
+    {
+      "command": "one cloud-only low-priority Task 5C candidate t5c260810033244",
+      "status": "fail",
+      "testedHead": "3afb366075b63e5969bc771756a25062d0044b3c",
+      "summary": "Fresh and upgrade disposable databases reached 35 migrations including 0035, then app.websim_exact_template_binding_admit failed before attestation with PostgreSQL AmbiguousColumn on ON CONFLICT (binding_key). Exact log SHA-256 59a2e26a52fc2a3ac3f8448b24590456d810a3c01ab068db80a2ac65cf1da20a, tree 74e70769613772e4c75e2a7e80e7593b2ea22c72 and old 0035 SHA-256 8cee1d9ad918ddc9fc2cf60dd7558abcb9e9d62c9dec48c64d595e93ba5785ae are archived here."
+    },
+    {
+      "command": "one cloud-only low-priority Task 5C candidate t5c2608101217a9",
+      "status": "fail",
+      "testedHead": "d426fbc63e75e97aacf8c5cfa628734c34f31a78",
+      "summary": "The runner's first log-open attempt was rejected before Python started; its preserved empty log SHA-256 is e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 and both commented databases were independently rechecked empty before the sole actual harness execution. Fresh and upgrade then reached 35 migrations including repaired 0035, but binding admission failed at commit with InsufficientPrivilege: 0033's verify_websim_exact_template_authority_binding_relations trigger directly SELECTs app.websim_exact_template_authority_bindings as wow_app. Exact actual log SHA-256 d887db68c4019f3b29fd86fbc6fa62b659878d65d58a07fdf6c1eb6ca4c64224, tree 5af4b178421f2295cfaaa6336d9cb2c669b40254 and 0035 SHA-256 cd81dc92299adb8e54a395f472b9bb3ca700f0d2b19b4e3291308eb3755abc6e are archived here."
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p '*_test.py' -q",
+      "status": "pass",
+      "testedHead": "0ca0619be459584d1285b1276ffe6435db04cb48",
+      "summary": "2964 tests passed in 76.099s with 5 expected cloud-only PostgreSQL candidate skips. The security-definer binding-relation forward repair and its RED/GREEN schema regression are included; known negative CLI, local HTTP and SQLite warning fixture output did not fail the suite."
+    },
+    {
+      "command": "local repair CR at 0ca0619b",
+      "status": "pass",
+      "testedHead": "0ca0619be459584d1285b1276ffe6435db04cb48",
+      "summary": "No P1/P2 found: only 0035 and its schema regression changed. The relation validator retains frozen 0033's fixed search_path, becomes SECURITY DEFINER under wow_migrator, has no direct wow_app table grant, and 0030--0034 plus apps/mini-taro remain unchanged."
+    },
+    {
+      "command": "one cloud-only low-priority Task 5C candidate t5c2608101210d3",
+      "status": "fail",
+      "testedHead": "80f484f82016ff919dddda5a565445d545e08671",
+      "summary": "Fresh and upgrade disposable databases reached 35 migrations including both 0035 repairs. The runner then failed before attestation with RuntimeAuthorityReleaseIntegrityError: occurrence entry must be sealed because its test fixture passed seal_runtime_occurrence_index_entry(...).document instead of the sealed entry required by RuntimeAuthorityReleaseStore. Exact log SHA-256 36129af925c05b64377498279c18d05ffc370ff58edb2d37205b48bd9b1135cf, tree ab83d4e495c25cc5f207fb4b23de0a7a7ed760f7 and 0035 SHA-256 6aef914d618433913314711388d4093d6905c61ea9ea445d33267f2e579e7064 are archived here."
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p '*_test.py' -q",
+      "status": "pass",
+      "testedHead": "a14f6c47ffe78e67426b079592cd6087631feaaa",
+      "summary": "2965 tests passed in 79.296s with 5 expected cloud-only PostgreSQL candidate skips. The candidate runner now retains the sealed occurrence entry and a dedicated harness regression guards against reintroducing the bare document."
+    },
+    {
+      "command": "one cloud-only low-priority Task 5C candidate t5c2608101215f4",
+      "status": "fail",
+      "testedHead": "4459a61c3cca43d78050a452fa189634d7ee0da5",
+      "summary": "Fresh and upgrade disposable databases reached 35 migrations including both 0035 repairs. The runner then failed before attestation with RuntimeAuthorityReleaseIntegrityError: occurrence entry must be sealed. Root cause: the fixture used producer identity/revision different from the sealed release, so seal_runtime_occurrence_index_entry correctly returned blocked with document None; passing either the wrapper or its document cannot satisfy RuntimeAuthorityReleaseStore. Exact log SHA-256 f0dee4fd673504b9adf3f810d06e3603a7d074b54a5a6032523cba030910df41, tree 647cb2c8900886d42eabb537c139ea9066a0d373 and 0035 SHA-256 6aef914d618433913314711388d4093d6905c61ea9ea445d33267f2e579e7064 are archived here."
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p '*_test.py' -q",
+      "status": "pass",
+      "testedHead": "79455fa096bbf6f1c0514f7b900a2cde556cf756",
+      "summary": "2965 tests passed in 78.146s with 5 expected cloud-only PostgreSQL candidate skips. The candidate runner now derives producer identity/revision through the public runtime release payload owner, requires verified/non-null sealing, and passes only that sealed occurrence to the store."
+    },
+    {
+      "command": "one cloud-only low-priority Task 5C candidate t5c2608101221b5",
+      "status": "fail",
+      "testedHead": "bf88007a07d53c1bc577c4bb92ff8a1b2e31b588",
+      "summary": "Fresh and upgrade disposable databases reached 35 migrations, release admission passed, and v3 loadout persistence then failed before attestation with CheckViolation on the frozen 0031 websim_gear_resolved_loadouts_resolved_loadout_key_check. 0035 added v3 fields and validators but did not forward-replace the historical v1/v2 key regex. Exact log SHA-256 8dc565aa0a027a85dacb0b93c4b40b70472fa09e264360fdf76a01e6f136c875, tree 9889cc9c333868149b5249828f08298d2ed59b29 and 0035 SHA-256 6aef914d618433913314711388d4093d6905c61ea9ea445d33267f2e579e7064 are archived here."
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest tests.postgres_schema_test.PostgresSchemaTest.test_0035_forward_extends_historical_snapshot_key_checks_to_v3 tests.postgres_schema_test.PostgresSchemaTest.test_0035_forward_fix_disambiguates_the_frozen_binding_admit_conflict_target tests.postgres_schema_test.PostgresSchemaTest.test_0035_forward_fix_runs_the_binding_relation_trigger_as_migrator",
+      "status": "pass",
+      "testedHead": "72332293788ae42c7c277308f6a157fa897e708f",
+      "summary": "The new v3 key-check regression first failed for both historical constraints, then passed after the minimal 0035-only forward replacement; the earlier 0035 conflict-target and SECURITY DEFINER regressions also remained green."
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest tests.postgres_schema_test tests.postgres_integration_test.Task5CCandidateHarnessTest tests.postgres_integration_test.Task5CV3MigrationBoundaryTest",
+      "status": "pass",
+      "testedHead": "72332293788ae42c7c277308f6a157fa897e708f",
+      "summary": "60 schema and Task 5C candidate-contract tests passed without a local PostgreSQL connection."
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p '*_test.py' -q",
+      "status": "pass",
+      "testedHead": "72332293788ae42c7c277308f6a157fa897e708f",
+      "summary": "The whole local suite completed successfully after the v3 key-check repair; expected negative-fixture CLI output and cloud-only candidate skips did not produce failures, and no local PostgreSQL was used."
+    },
+    {
+      "command": "local repair CR at 72332293",
+      "status": "pass",
+      "testedHead": "72332293788ae42c7c277308f6a157fa897e708f",
+      "summary": "No P1/P2 found: 0035 replaces only the two historical key constraints, preserving bare v1 and explicit v2 forms while admitting v3. The added schema regression covers both tables; uncommitted frozen 0030--0034 and apps/mini-taro diffs are absent."
+    },
+    {
+      "command": "one cloud-only low-priority Task 5C candidate t5c260810122931",
+      "status": "fail",
+      "testedHead": "f02982c86a97150cc9e4159e4cd00298ca027784",
+      "summary": "Exact source/tree/0035 identity was f02982c86a97150cc9e4159e4cd00298ca027784 / d38b888bb20d60d00bcfa1d9bb03abdb4e0e070c / a77b3686f6eb728c4e3d8d557815d34959f010064693239aaa83f3bb791e5112. The runner began but failed before any migration completed with InsufficientPrivilege because operator provisioning incorrectly supplied candidate-worker fresh/upgrade DSNs while the runner applies migrations through those DSNs. Exact redacted log SHA-256 99927b14ab374be20edabca8e81848520130adc57c99d31c93fa8ecc6ba9583b (1113 bytes) is archived; no attestation exists."
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest tests.postgres_integration_test.Task5CCandidateHarnessTest tests.postgres_integration_test.Task5CV3MigrationBoundaryTest",
+      "status": "pass",
+      "testedHead": "db128c64eb4508faa613284a9ef8538b6433bf94",
+      "summary": "The migration-role preflight regression first failed, then all 7 Task 5C candidate harness and boundary tests passed."
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest tests.postgres_schema_test tests.postgres_integration_test.Task5CCandidateHarnessTest tests.postgres_integration_test.Task5CV3MigrationBoundaryTest",
+      "status": "pass",
+      "testedHead": "db128c64eb4508faa613284a9ef8538b6433bf94",
+      "summary": "61 schema and Task 5C candidate-contract tests passed without a local PostgreSQL connection."
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p '*_test.py' -q",
+      "status": "pass",
+      "testedHead": "db128c64eb4508faa613284a9ef8538b6433bf94",
+      "summary": "The whole local suite completed successfully after the candidate migration-role guard; expected negative-fixture CLI output and cloud-only candidate skips did not produce failures, and no local PostgreSQL was used."
+    },
+    {
+      "command": "local repair CR at db128c64",
+      "status": "pass",
+      "testedHead": "db128c64eb4508faa613284a9ef8538b6433bf94",
+      "summary": "No P1/P2 found: the new candidate-only preflight checks the exact two DDL DSNs before any schema change. It neither changes migration bytes nor application/runtime behavior; apps/mini-taro and frozen 0030--0034 remain untouched."
+    },
+    {
+      "command": "one cloud-only low-priority Task 5C candidate t5c260810123358",
+      "status": "fail",
+      "testedHead": "6aa2203fbb6aeb80d760fcd51a502ce2653dcd56",
+      "summary": "Exact source/tree/0035 identity was 6aa2203fbb6aeb80d760fcd51a502ce2653dcd56 / d6060d2a187e1ed65e0b64cb2a8d7d5802097edc / a77b3686f6eb728c4e3d8d557815d34959f010064693239aaa83f3bb791e5112. Fresh and upgrade migrations both completed before the worker boundary check failed with WorkerRoleError: the disposable dedicated worker login was NOINHERIT instead of the contract-required LOGIN INHERIT member. Exact redacted log SHA-256 6d8ac9e7a89e1db86cf0a9720eb41c31597eb7eea7930b21f8dfdf4cefdefbea (1419 bytes) is archived; no attestation exists."
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest tests.postgres_integration_test.Task5CCandidateHarnessTest tests.postgres_integration_test.Task5CV3MigrationBoundaryTest tests.gear_exact_authority_worker_test",
+      "status": "pass",
+      "testedHead": "0af2a7d9ee7dd3545b57ada31aa389edff359786",
+      "summary": "The worker-role preflight regression first failed, then all 19 Task 5C candidate harness, boundary and worker-role tests passed."
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest tests.postgres_schema_test tests.postgres_integration_test.Task5CCandidateHarnessTest tests.postgres_integration_test.Task5CV3MigrationBoundaryTest tests.gear_exact_authority_worker_test",
+      "status": "pass",
+      "testedHead": "0af2a7d9ee7dd3545b57ada31aa389edff359786",
+      "summary": "73 schema, Task 5C candidate-contract and worker-role tests passed without a local PostgreSQL connection."
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p '*_test.py' -q",
+      "status": "pass",
+      "testedHead": "0af2a7d9ee7dd3545b57ada31aa389edff359786",
+      "summary": "The whole local suite completed successfully after the candidate worker-role guard; expected negative-fixture CLI output and cloud-only candidate skips did not produce failures, and no local PostgreSQL was used."
+    },
+    {
+      "command": "local repair CR at 0af2a7d9",
+      "status": "pass",
+      "testedHead": "0af2a7d9ee7dd3545b57ada31aa389edff359786",
+      "summary": "No P1/P2 found: the new candidate-only preflight uses the established worker-role validator before any DDL and checks the resulting current role. It neither changes migration bytes nor application/runtime behavior; apps/mini-taro and frozen 0030--0034 remain untouched."
+    },
+    {
+      "command": "one cloud-only low-priority Task 5C candidate t5c260810123724",
+      "status": "fail",
+      "testedHead": "3f4d4cffcbd60434614beda97b066b09be08bfcb",
+      "summary": "Exact source/tree/0035 identity was 3f4d4cffcbd60434614beda97b066b09be08bfcb / a5a76a5a01bbba8150d062e03f6601163499bb73 / a77b3686f6eb728c4e3d8d557815d34959f010064693239aaa83f3bb791e5112. Fresh/upgrade migration and worker preflights passed, but v3 enqueue failed before attestation with InsufficientPrivilege because the redefined validator lacked EXECUTE for its SECURITY DEFINER wow_migrator enqueue owner. Exact redacted log SHA-256 735e7a333b39422ed02983ad10b8394ceb079e0dbf1b2b4cbe23654d1748eb37 (1432 bytes) is archived; no attestation exists."
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest tests.postgres_schema_test.PostgresSchemaTest.test_0035_forward_grants_v3_request_validator_only_to_enqueue_owner tests.postgres_schema_test.PostgresSchemaTest.test_exact_job_snapshot_binding_preserves_v1_and_accepts_only_sealed_v2_references tests.postgres_integration_test.Task5CCandidateHarnessTest tests.postgres_integration_test.Task5CV3MigrationBoundaryTest tests.gear_exact_authority_worker_test",
+      "status": "pass",
+      "testedHead": "7549f921142bc777b88081c592761cfd760e0f7a",
+      "summary": "The validator-owner ACL regression first failed, then all 21 focused schema, candidate-boundary and worker-role tests passed."
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest tests.postgres_schema_test tests.postgres_integration_test.Task5CCandidateHarnessTest tests.postgres_integration_test.Task5CV3MigrationBoundaryTest tests.gear_exact_authority_worker_test",
+      "status": "pass",
+      "testedHead": "7549f921142bc777b88081c592761cfd760e0f7a",
+      "summary": "74 schema, Task 5C candidate-contract and worker-role tests passed without a local PostgreSQL connection."
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p '*_test.py' -q",
+      "status": "pass",
+      "testedHead": "7549f921142bc777b88081c592761cfd760e0f7a",
+      "summary": "The whole local suite completed successfully after the validator-owner ACL repair; expected negative-fixture CLI output and cloud-only candidate skips did not produce failures, and no local PostgreSQL was used."
+    },
+    {
+      "command": "local repair CR at 7549f921",
+      "status": "pass",
+      "testedHead": "7549f921142bc777b88081c592761cfd760e0f7a",
+      "summary": "No P1/P2 found: 0035 grants only wow_migrator EXECUTE on the v3 validator required by the existing SECURITY DEFINER enqueue entrypoint. Existing 0034 revocations preserve no direct app/worker execution; apps/mini-taro and frozen 0030--0034 remain untouched."
+    },
+    {
+      "command": "one cloud-only low-priority Task 5C candidate t5c260810124115",
+      "status": "pass",
+      "testedHead": "70e37b6fd88bee7dc0004d4cba6fec5aef820e02",
+      "summary": "One clean immutable source/tree 70e37b6fd88bee7dc0004d4cba6fec5aef820e02 / 516441faca2ac30b51190c29a416c391ce70d31d ran low-priority with WOW_DEPLOY_START_ASYNC_SYNCS=0. Fresh 0001..0035 and upgrade 0001..0034->0035 both reached 35 migrations; the redacted attestation verifies release membership zero/multiple/occurrence fail-closed, v3 snapshot/job/worker, v1/v2 non-execution, provider-disable/no-async-backflow and ACL boundary. Log SHA-256 b86b2f4e010c53b78338a710d30fda306debf37428e0f26d18a2f201f64dcbe9, 1101 bytes; candidate resources were subsequently deleted and rechecked absent."
+    },
+    {
+      "command": "independent local whole-branch CR at 0fb83796; git diff --check origin/main...HEAD; Harness packet check",
+      "status": "pass",
+      "testedHead": "0fb83796ec6346a7454e11ff3e41f0b5b84357a7",
+      "summary": "No P1/P2 found. The checked Task 5C code preserves the fail-closed default HTTP composition, owner/binding-only unique release read, release-scoped occurrence reload, V3-only sealed snapshot/job/worker identity, explicit V1/V2 non-execution, forward-only 0035 key and ACL repairs, and no active/latest/Catalog/Manifest/client fallback. The earlier Task 5A typed current-page binding was checked against its frozen no-visual-change contract; Task 5C itself has no apps/mini-taro diff. The optional codex review command did not produce a usable report because its local plugin output was malformed; local CR remains the primary review evidence."
+    },
+    {
+      "command": "GitHub Project Harness run 31356684750 on PR #119",
+      "status": "fail",
+      "testedHead": "3b6bf5481233b838ffbb0a363794ecfe1760d17a",
+      "summary": "Full profile did not start verification because release-from-changes found three branch-local packet directories: Task 5A, Task 5B and Task 5C. This is a Harness fail-closed packaging error, not a test, candidate or runtime failure. The corrective diff removes only the unmerged Task 5A/5B branch-local packet files; their plan facts remain reachable and their Git history remains intact. Task 5C remains the only complete packet for the next exact-head CI."
+    },
+    {
+      "command": "GitHub Project Harness run 31356993853 on PR #119",
+      "status": "fail",
+      "testedHead": "5decabe16429fb69206bb0133aac6722d4a3a793",
+      "summary": "The single Task 5C packet resolved and Full profile ran, then two control-plane characterizations failed: the project owner-map test still froze 16 domains after this task added its seventeenth critical owner domain, and the UI architecture audit found three existing unlinked plan files in docs/plans/README.md. No Exact runtime, migration, candidate, UI page, or production assertion failed. The corrective diff adds the already-defined Task 5C domain to that fixed test and links the three existing plans with their correct current or historical authority status. A new exact-head CI remains mandatory."
+    },
+    {
+      "command": "node --test tests/project-owner-map.test.js tests/taro-gear-editor-contracts.test.js; node scripts/verify-project.js --profile full --release-from-changes --base origin/main --dry-run; Harness packet check; git diff --check",
+      "status": "pass",
+      "testedHead": "d6a7423c8e3b3601f7b45235d5b5af86c689213e",
+      "summary": "All 20 focused Node control-plane and unchanged-page contract tests passed. The owner map now intentionally characterizes 17 critical domains including the pre-existing Task 5C entry; the plan index resolves all 49 present plans with current or history-only authority labels. Dry-run selected only the Task 5C packet (173 commands), Harness passed from a clean head, and the diff has no whitespace errors. This repairs CI control-plane coverage only; candidate runtime identity, migrations, Exact server behavior, current UI source and production state remain unchanged."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "candidate_verified",
+    "requiredBeforeMerge": true,
+    "reason": "The ninth, final runtime head candidate and independent local CR passed with immutable evidence. This remains candidate-only runtime evidence: production migration/provider/worker activation, exact-head CI, production parity/rollback and all player acceptance remain mandatory.",
+    "runId": "t5c260810124115",
+    "ordinal": 9,
+    "commit": "70e37b6fd88bee7dc0004d4cba6fec5aef820e02",
+    "gitTree": "516441faca2ac30b51190c29a416c391ce70d31d",
+    "migration0035Sha256": "1b994d6f342ad35c2a9cc4a58bebc67ccb1afb4ef4643df9550c2dad880ba316",
+    "freshDatabase": {
+      "name": "wow_exact_first_fresh_test_t5c260810124115",
+      "comment": "wow_exact_first_disposable:t5c260810124115:fresh"
+    },
+    "upgradeDatabase": {
+      "name": "wow_exact_first_upgrade_test_t5c260810124115",
+      "comment": "wow_exact_first_disposable:t5c260810124115:upgrade"
+    },
+    "workerRole": "wow_exact_candidate_t5c260810124115",
+    "candidateSource": {
+      "commit": "70e37b6fd88bee7dc0004d4cba6fec5aef820e02",
+      "gitTree": "516441faca2ac30b51190c29a416c391ce70d31d",
+      "gitStatus": "clean",
+      "remotePath": "/var/tmp/wow-exact-task5c-t5c260810124115-source"
+    },
+    "bundle": {
+      "localPath": "/var/tmp/wow-exact-task5c-t5c260810124115-70e37b6f.bundle",
+      "remotePath": "/var/tmp/wow-exact-task5c-t5c260810124115-70e37b6f.bundle",
+      "bytes": 116257067,
+      "sha256": "7a4cd6f31489792d736802bb9210979aa65a203e778ab997aff15a14e57d1de4"
+    },
+    "evidenceSource": {
+      "path": "/var/tmp/wow-exact-task5c-t5c260810124115.log",
+      "sha256": "b86b2f4e010c53b78338a710d30fda306debf37428e0f26d18a2f201f64dcbe9",
+      "bytes": 1101,
+      "archivedBeforeCleanup": true
+    },
+    "attestation": {
+      "schemaVersion": "task5c-candidate-attestation-v1",
+      "task": "equipment-simulator-exact-first-task5c-runtime-authority-release",
+      "runId": "t5c260810124115",
+      "passed": true,
+      "freshDatabase": {
+        "name": "wow_exact_first_fresh_test_t5c260810124115",
+        "comment": "wow_exact_first_disposable:t5c260810124115:fresh"
+      },
+      "upgradeDatabase": {
+        "name": "wow_exact_first_upgrade_test_t5c260810124115",
+        "comment": "wow_exact_first_disposable:t5c260810124115:upgrade"
+      },
+      "gitCommit": "70e37b6fd88bee7dc0004d4cba6fec5aef820e02",
+      "gitTree": "516441faca2ac30b51190c29a416c391ce70d31d",
+      "migration0035Sha256": "1b994d6f342ad35c2a9cc4a58bebc67ccb1afb4ef4643df9550c2dad880ba316",
+      "verifiedChecks": [
+        "exact_disposable_database_identity_and_empty_preflight",
+        "fresh_migrations_0001_through_0035",
+        "upgrade_migrations_0001_through_0034_then_0035",
+        "release_membership_zero_multiple_and_occurrence_fail_closed",
+        "v3_snapshot_job_and_worker_processor_contract",
+        "v1_v2_nonexecution_provider_disable_and_no_async_backflow",
+        "runtime_release_function_acl_boundary"
+      ]
+    },
+    "attestationJsonLine": "{\"freshDatabase\":{\"comment\":\"wow_exact_first_disposable:t5c260810124115:fresh\",\"name\":\"wow_exact_first_fresh_test_t5c260810124115\"},\"gitCommit\":\"70e37b6fd88bee7dc0004d4cba6fec5aef820e02\",\"gitTree\":\"516441faca2ac30b51190c29a416c391ce70d31d\",\"migration0035Sha256\":\"1b994d6f342ad35c2a9cc4a58bebc67ccb1afb4ef4643df9550c2dad880ba316\",\"passed\":true,\"runId\":\"t5c260810124115\",\"schemaVersion\":\"task5c-candidate-attestation-v1\",\"task\":\"equipment-simulator-exact-first-task5c-runtime-authority-release\",\"upgradeDatabase\":{\"comment\":\"wow_exact_first_disposable:t5c260810124115:upgrade\",\"name\":\"wow_exact_first_upgrade_test_t5c260810124115\"},\"verifiedChecks\":[\"exact_disposable_database_identity_and_empty_preflight\",\"fresh_migrations_0001_through_0035\",\"upgrade_migrations_0001_through_0034_then_0035\",\"release_membership_zero_multiple_and_occurrence_fail_closed\",\"v3_snapshot_job_and_worker_processor_contract\",\"v1_v2_nonexecution_provider_disable_and_no_async_backflow\",\"runtime_release_function_acl_boundary\"]}",
+    "smoke": {
+      "status": "pass",
+      "summary": "Isolated candidate release/index/readback, v3 enqueue/worker and provider-disable smoke passed; no production endpoint was called."
+    },
+    "timerBackflow": {
+      "status": "pass",
+      "summary": "WOW_DEPLOY_START_ASYNC_SYNCS=0 was asserted by the candidate; no async backflow was started."
+    },
+    "failedAttempts": [
+      {
+        "runId": "t5c260810033244",
+        "commit": "3afb366075b63e5969bc771756a25062d0044b3c",
+        "gitTree": "74e70769613772e4c75e2a7e80e7593b2ea22c72",
+        "migration0035Sha256": "8cee1d9ad918ddc9fc2cf60dd7558abcb9e9d62c9dec48c64d595e93ba5785ae",
+        "freshDatabase": "wow_exact_first_fresh_test_t5c260810033244",
+        "upgradeDatabase": "wow_exact_first_upgrade_test_t5c260810033244",
+        "workerRole": "wow_exact_candidate_t5c260810033244",
+        "failureLogSha256": "59a2e26a52fc2a3ac3f8448b24590456d810a3c01ab068db80a2ac65cf1da20a",
+        "failure": "AmbiguousColumn: ON CONFLICT (binding_key) conflicted with the frozen PL/pgSQL RETURNS TABLE output variable before candidate attestation.",
+        "resourceDisposition": "discarded_after_exact_identity_archive; never reset or reuse"
+      },
+      {
+        "runId": "t5c2608101217a9",
+        "commit": "d426fbc63e75e97aacf8c5cfa628734c34f31a78",
+        "gitTree": "5af4b178421f2295cfaaa6336d9cb2c669b40254",
+        "migration0035Sha256": "cd81dc92299adb8e54a395f472b9bb3ca700f0d2b19b4e3291308eb3755abc6e",
+        "freshDatabase": "wow_exact_first_fresh_test_t5c2608101217a9",
+        "upgradeDatabase": "wow_exact_first_upgrade_test_t5c2608101217a9",
+        "workerRole": "wow_exact_candidate_t5c2608101217a9",
+        "preexecutionEmptyLogSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "failureLogSha256": "d887db68c4019f3b29fd86fbc6fa62b659878d65d58a07fdf6c1eb6ca4c64224",
+        "failure": "InsufficientPrivilege: the frozen 0033 verify_websim_exact_template_authority_binding_relations trigger directly SELECTs the binding table while wow_app admits a binding, before candidate attestation.",
+        "resourceDisposition": "discarded_after_exact_identity_archive; never reset or reuse"
+      },
+      {
+        "runId": "t5c2608101210d3",
+        "commit": "80f484f82016ff919dddda5a565445d545e08671",
+        "gitTree": "ab83d4e495c25cc5f207fb4b23de0a7a7ed760f7",
+        "migration0035Sha256": "6aef914d618433913314711388d4093d6905c61ea9ea445d33267f2e579e7064",
+        "freshDatabase": "wow_exact_first_fresh_test_t5c2608101210d3",
+        "upgradeDatabase": "wow_exact_first_upgrade_test_t5c2608101210d3",
+        "workerRole": "wow_exact_candidate_t5c2608101210d3",
+        "failureLogSha256": "36129af925c05b64377498279c18d05ffc370ff58edb2d37205b48bd9b1135cf",
+        "failure": "RuntimeAuthorityReleaseIntegrityError: candidate fixture passed an occurrence entry's bare document, while the store correctly requires SealedCanonicalDocument.",
+        "resourceDisposition": "discarded_after_exact_identity_archive; never reset or reuse"
+      },
+      {
+        "runId": "t5c2608101215f4",
+        "commit": "4459a61c3cca43d78050a452fa189634d7ee0da5",
+        "gitTree": "647cb2c8900886d42eabb537c139ea9066a0d373",
+        "migration0035Sha256": "6aef914d618433913314711388d4093d6905c61ea9ea445d33267f2e579e7064",
+        "freshDatabase": "wow_exact_first_fresh_test_t5c2608101215f4",
+        "upgradeDatabase": "wow_exact_first_upgrade_test_t5c2608101215f4",
+        "workerRole": "wow_exact_candidate_t5c2608101215f4",
+        "failureLogSha256": "f0dee4fd673504b9adf3f810d06e3603a7d074b54a5a6032523cba030910df41",
+        "failure": "RuntimeAuthorityReleaseIntegrityError: fixture producer identity/revision drift made seal_runtime_occurrence_index_entry return blocked with document None, so no sealed entry reached the store.",
+        "resourceDisposition": "discarded_after_exact_identity_archive; never reset or reuse"
+      },
+      {
+        "runId": "t5c2608101221b5",
+        "commit": "bf88007a07d53c1bc577c4bb92ff8a1b2e31b588",
+        "gitTree": "9889cc9c333868149b5249828f08298d2ed59b29",
+        "migration0035Sha256": "6aef914d618433913314711388d4093d6905c61ea9ea445d33267f2e579e7064",
+        "freshDatabase": "wow_exact_first_fresh_test_t5c2608101221b5",
+        "upgradeDatabase": "wow_exact_first_upgrade_test_t5c2608101221b5",
+        "workerRole": "wow_exact_candidate_t5c2608101221b5",
+        "failureLogSha256": "8dc565aa0a027a85dacb0b93c4b40b70472fa09e264360fdf76a01e6f136c875",
+        "failure": "CheckViolation: 0035 did not forward-replace frozen 0031 v1/v2 resolved-loadout key regex to admit resolved-loadout-v3.",
+        "resourceDisposition": "discarded_after_exact_identity_archive; never reset or reuse"
+      },
+      {
+        "runId": "t5c260810122931",
+        "commit": "f02982c86a97150cc9e4159e4cd00298ca027784",
+        "gitTree": "d38b888bb20d60d00bcfa1d9bb03abdb4e0e070c",
+        "migration0035Sha256": "a77b3686f6eb728c4e3d8d557815d34959f010064693239aaa83f3bb791e5112",
+        "freshDatabase": "wow_exact_first_fresh_test_t5c260810122931",
+        "upgradeDatabase": "wow_exact_first_upgrade_test_t5c260810122931",
+        "workerRole": "wow_exact_candidate_t5c260810122931",
+        "failureLogSha256": "99927b14ab374be20edabca8e81848520130adc57c99d31c93fa8ecc6ba9583b",
+        "failure": "InsufficientPrivilege before migration completion: operator provisioning used the candidate-worker role for fresh/upgrade DSNs even though the runner uses those two DSNs for PostgreSQL DDL.",
+        "resourceDisposition": "discarded_after_exact_identity_archive; never reset or reuse"
+      },
+      {
+        "runId": "t5c260810123358",
+        "commit": "6aa2203fbb6aeb80d760fcd51a502ce2653dcd56",
+        "gitTree": "d6060d2a187e1ed65e0b64cb2a8d7d5802097edc",
+        "migration0035Sha256": "a77b3686f6eb728c4e3d8d557815d34959f010064693239aaa83f3bb791e5112",
+        "freshDatabase": "wow_exact_first_fresh_test_t5c260810123358",
+        "upgradeDatabase": "wow_exact_first_upgrade_test_t5c260810123358",
+        "workerRole": "wow_exact_candidate_t5c260810123358",
+        "failureLogSha256": "6d8ac9e7a89e1db86cf0a9720eb41c31597eb7eea7930b21f8dfdf4cefdefbea",
+        "failure": "WorkerRoleError after fresh/upgrade migration: disposable dedicated worker login was NOINHERIT, while the existing worker contract requires a LOGIN INHERIT least-privilege member of wow_exact_worker.",
+        "resourceDisposition": "discarded_after_exact_identity_archive; never reset or reuse"
+      },
+      {
+        "runId": "t5c260810123724",
+        "commit": "3f4d4cffcbd60434614beda97b066b09be08bfcb",
+        "gitTree": "a5a76a5a01bbba8150d062e03f6601163499bb73",
+        "migration0035Sha256": "a77b3686f6eb728c4e3d8d557815d34959f010064693239aaa83f3bb791e5112",
+        "freshDatabase": "wow_exact_first_fresh_test_t5c260810123724",
+        "upgradeDatabase": "wow_exact_first_upgrade_test_t5c260810123724",
+        "workerRole": "wow_exact_candidate_t5c260810123724",
+        "failureLogSha256": "735e7a333b39422ed02983ad10b8394ceb079e0dbf1b2b4cbe23654d1748eb37",
+        "failure": "InsufficientPrivilege after v3 release/readback and worker preflight: SECURITY DEFINER ops.websim_exact_enqueue's wow_migrator owner lacked EXECUTE on 0035's redefined v3 request validator.",
+        "resourceDisposition": "discarded_after_exact_identity_archive; never reset or reuse"
+      }
+    ]
+  },
+  "runtimeEvidence": [
+    {
+      "type": "cloud_disposable_candidate",
+      "status": "pass",
+      "commit": "70e37b6fd88bee7dc0004d4cba6fec5aef820e02",
+      "summary": "Candidate-only isolated runtime proof; not a production or player-visible result."
+    }
+  ],
+  "risks": [
+    {
+      "id": "task5c_candidate_verified",
+      "status": "contained",
+      "detail": "Eight earlier candidate runs were archived and discarded. Final candidate t5c260810124115 bound immutable commit/tree/0035 bytes, passed all seven attested checks and was then fully cleaned. This removes the pre-merge candidate blocker only; it does not prove production or player closure."
+    },
+    {
+      "id": "runtime_authority_unavailable_by_default",
+      "status": "contained",
+      "detail": "The normal server composition remains disabled and returns EXACT_AUTHORITY_UNAVAILABLE; it does not infer a release from Catalog, Manifest, latest rows, compatibility context or client input."
+    },
+    {
+      "id": "player_loop_closure_pending",
+      "status": "pending",
+      "detail": "Exact-head CI, production provider/worker activation, production parity/rollback and four unchanged-page real-WeChat acceptance items remain separate required gates."
+    }
+  ],
+  "rollback": [
+    "provider_disable_without_legacy_analyze_fallback",
+    "stop_dedicated_exact_worker_before_database_action",
+    "retain_immutable_release_context_occurrence_snapshot_and_job_rows",
+    "discard_only_named_candidate_resources_after_identity_archive",
+    "no_catalog_manifest_generation_or_async_backflow_mutation"
+  ],
+  "cleanup": {
+    "required": false,
+    "status": "complete",
+    "reason": "All eight failed runs, setup-only preparation t5c260810122723 and successful candidate t5c260810124115 are discarded after identity archive. For the successful run, the two exact-commented databases and candidate login rechecked absent; remote source, bundle, log and 0600 connection material were removed; root capacity was 5072632 KiB; backend remained active and the dedicated worker inactive. Production databases, existing roles and provider state were not changed."
+  },
+  "archivedReferences": [
+    "docs/project-state.json",
+    "docs/roadmap.md",
+    "docs/plans/README.md",
+    "docs/plans/2026-08-04-equipment-simulator-exact-first-persistence-resequence.md",
+    "docs/plans/2026-08-07-equipment-simulator-exact-first-task5a-api-runtime.md",
+    "docs/plans/2026-08-07-equipment-simulator-exact-first-task5b-active-authority-source.md",
+    "docs/plans/2026-08-10-equipment-simulator-exact-first-task5c-runtime-authority-release-implementation.md",
+    "docs/harness.md",
+    "docs/verification-matrix.md"
+  ],
+  "summary": "Task 5C has runtime_verified / candidate_verified evidence at immutable source 70e37b6f / tree 516441faca2ac30b51190c29a416c391ce70d31d after its ninth disposable candidate passed all attested 0035 release, occurrence, v3 job/worker, v1/v2 non-execution, ACL and no-async-backflow checks. Eight failed candidates and one setup-only preparation were archived and discarded, as was the successful candidate. This is not a production or player-loop completion claim: the normal server factory remains disabled, no production database or service changed, and exact-head CI, controlled activation/parity/rollback plus all four unchanged-page real-WeChat acceptance items remain pending."
+}

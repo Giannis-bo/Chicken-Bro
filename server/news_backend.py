@@ -4188,6 +4188,207 @@ def authenticate_token(token):
     return public_user_from_row(row)
 
 
+_EXACT_SIMC_PRIVATE_RESPONSE_KEYS = frozenset({
+    "rawProfile", "rawString", "playerName", "characterName", "realm",
+    "server", "userId", "user_id", "ownerKeyHash", "owner_key_hash",
+})
+
+
+def _exact_simc_runtime_components_for_authenticated_user(user):
+    """Return explicitly provisioned server owners, never inferred defaults.
+
+    Task 5C deliberately leaves the live process without this composition
+    until the candidate/production authority gates supply all six owners.
+    """
+
+    _ = user
+    return None
+
+
+def exact_simc_api_for_authenticated_user(user):
+    """Return the Exact owner only for one complete server composition.
+
+    ``None`` remains the normal live state until an explicit server-only
+    provider supplies source/profile/release/snapshot/job stores for the
+    authenticated UUID.  The factory never discovers a release, synthesizes
+    authority from a Catalog pointer, or falls back to process defaults.
+    """
+    user_id = user.get("id") if isinstance(user, dict) else None
+    components = _exact_simc_runtime_components_for_authenticated_user(user)
+    required = {
+        "authenticatedUserId",
+        "sourceMaterializer",
+        "profileMaterializer",
+        "runtimeAuthorityStore",
+        "snapshotStore",
+        "jobStore",
+    }
+    if (
+        not isinstance(components, dict)
+        or set(components) != required
+        or components.get("authenticatedUserId") != user_id
+        or not callable(components.get("sourceMaterializer"))
+        or not callable(components.get("profileMaterializer"))
+        or any(components.get(key) is None for key in (
+            "runtimeAuthorityStore", "snapshotStore", "jobStore",
+        ))
+    ):
+        return None
+    try:
+        from .exact_simc_api import ExactSimcApi, ExactSimcMaterializer
+        materializer = ExactSimcMaterializer(
+            source_materializer=components["sourceMaterializer"],
+            authenticated_user_id=components["authenticatedUserId"],
+            runtime_authority_store=components["runtimeAuthorityStore"],
+            profile_materializer=components["profileMaterializer"],
+            snapshot_store=components["snapshotStore"],
+        )
+        return ExactSimcApi(
+            materialize=materializer,
+            job_store=components["jobStore"],
+        )
+    except Exception:
+        return None
+
+
+def _exact_simc_unavailable_envelope(operation):
+    return {
+        "contractRevision": "exact-simc-envelope-v1",
+        "operation": operation,
+        "status": "blocked",
+        "data": {},
+        "problems": [{"code": "EXACT_AUTHORITY_UNAVAILABLE"}],
+    }
+
+
+def _exact_simc_request_problem(request):
+    try:
+        from .exact_simc_api import exact_simc_request_problem
+    except ImportError:
+        from exact_simc_api import exact_simc_request_problem
+    try:
+        return exact_simc_request_problem(request)
+    except Exception:
+        return "EXACT_AUTHORITY_UNAVAILABLE"
+
+
+def _exact_simc_owner_key_hash(user):
+    try:
+        from .exact_simc_api import exact_simc_job_owner_key_hash_for_user_id
+    except ImportError:
+        from exact_simc_api import exact_simc_job_owner_key_hash_for_user_id
+    try:
+        return exact_simc_job_owner_key_hash_for_user_id(
+            user.get("id") if isinstance(user, dict) else None,
+        )
+    except Exception:
+        return None
+
+
+def _contains_exact_simc_private_response_key(value):
+    if isinstance(value, dict):
+        return any(
+            key in _EXACT_SIMC_PRIVATE_RESPONSE_KEYS
+            or _contains_exact_simc_private_response_key(nested)
+            for key, nested in value.items()
+        )
+    if isinstance(value, list):
+        return any(_contains_exact_simc_private_response_key(nested) for nested in value)
+    return False
+
+
+def exact_simc_http_response(operation, value):
+    """Return one bounded Exact envelope and its transport status.
+
+    A route never forwards a store/API object directly: any malformed or
+    private result becomes a generic unavailable response rather than an
+    accidental source of profile or owner identity data.
+    """
+
+    expected_keys = {"contractRevision", "operation", "status", "data", "problems"}
+    payload = value if isinstance(value, dict) else {}
+    if (
+        set(payload) != expected_keys
+        or payload.get("contractRevision") != "exact-simc-envelope-v1"
+        or payload.get("operation") != operation
+        or payload.get("status") not in {
+            "ready", "queued", "pending", "running", "resolved", "blocked", "unsupported",
+        }
+        or not isinstance(payload.get("data"), dict)
+        or not isinstance(payload.get("problems"), list)
+        or any(
+            not isinstance(problem, dict)
+            or set(problem).difference({"code", "path"})
+            or not isinstance(problem.get("code"), str)
+            for problem in payload.get("problems", [])
+        )
+        or _contains_exact_simc_private_response_key(payload)
+    ):
+        payload = _exact_simc_unavailable_envelope(operation)
+        return 503, payload
+    try:
+        encoded = json.dumps(
+            payload,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    except (TypeError, ValueError):
+        return 503, _exact_simc_unavailable_envelope(operation)
+    if len(encoded) > 131_072:
+        return 503, _exact_simc_unavailable_envelope(operation)
+    codes = {
+        problem.get("code")
+        for problem in payload["problems"]
+        if isinstance(problem.get("code"), str)
+    }
+    if payload["status"] in {"queued", "pending", "running"}:
+        return 202, payload
+    if payload["status"] in {"ready", "resolved"}:
+        return 200, payload
+    if operation == "read" and "EXACT_JOB_NOT_FOUND" in codes:
+        return 404, payload
+    if "EXACT_AUTHORITY_UNAVAILABLE" in codes or "EXACT_JOB_READ_UNAVAILABLE" in codes:
+        return 503, payload
+    return 409, payload
+
+
+def exact_simc_request_http_response(operation, request, user, confirmation=None):
+    """Invoke one authenticated Exact operation without a legacy fallback."""
+
+    problem = _exact_simc_request_problem(request)
+    if problem:
+        return exact_simc_http_response(
+            operation,
+            {
+                "contractRevision": "exact-simc-envelope-v1",
+                "operation": operation,
+                "status": "blocked",
+                "data": {},
+                "problems": [{"code": problem}],
+            },
+        )
+    owner_key_hash = _exact_simc_owner_key_hash(user)
+    api = exact_simc_api_for_authenticated_user(user)
+    if owner_key_hash is None or api is None:
+        return exact_simc_http_response(
+            operation,
+            _exact_simc_unavailable_envelope(operation),
+        )
+    try:
+        if operation == "confirm":
+            envelope = api.confirm(request, owner_key_hash=owner_key_hash)
+        else:
+            envelope = api.submit(
+                request,
+                confirmation=confirmation,
+                owner_key_hash=owner_key_hash,
+            )
+    except Exception:
+        envelope = _exact_simc_unavailable_envelope(operation)
+    return exact_simc_http_response(operation, envelope)
+
+
 def guest_openid_from_id(guest_id):
     normalized = str(guest_id or "").strip()[:128]
     if not normalized:
@@ -16016,6 +16217,42 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/simulator/home":
             json_response(self, 200, build_simulator_home_payload())
             return
+        if path == "/api/simulator/exact/job":
+            user = authenticate_token(bearer_token_from_headers(self.headers))
+            if not user:
+                json_response(self, 401, {"error": "unauthorized"})
+                return
+            try:
+                job_id = int(query.get("id", [""])[0])
+            except (TypeError, ValueError):
+                job_id = 0
+            if job_id <= 0:
+                http_status, envelope = exact_simc_http_response(
+                    "read",
+                    {
+                        "contractRevision": "exact-simc-envelope-v1",
+                        "operation": "read",
+                        "status": "blocked",
+                        "data": {},
+                        "problems": [{"code": "EXACT_JOB_NOT_FOUND"}],
+                    },
+                )
+            else:
+                owner_key_hash = _exact_simc_owner_key_hash(user)
+                api = exact_simc_api_for_authenticated_user(user)
+                if owner_key_hash is None or api is None:
+                    http_status, envelope = exact_simc_http_response(
+                        "read",
+                        _exact_simc_unavailable_envelope("read"),
+                    )
+                else:
+                    try:
+                        envelope = api.read(job_id, owner_key_hash=owner_key_hash)
+                    except Exception:
+                        envelope = _exact_simc_unavailable_envelope("read")
+                    http_status, envelope = exact_simc_http_response("read", envelope)
+            json_response(self, http_status, envelope)
+            return
         if path == "/api/chickenbro/sessions":
             try:
                 session_id = query.get("id", query.get("sessionId", [""]))[0]
@@ -16368,6 +16605,44 @@ class Handler(BaseHTTPRequestHandler):
                 )
             except PermissionError:
                 json_response(self, 401, {"error": "unauthorized"})
+            return
+        if parsed.path == "/api/simulator/exact/confirm":
+            user = authenticate_token(bearer_token_from_headers(self.headers))
+            if not user:
+                json_response(self, 401, {"error": "unauthorized"})
+                return
+            http_status, envelope = exact_simc_request_http_response(
+                "confirm",
+                read_json_body(self),
+                user,
+            )
+            json_response(self, http_status, envelope)
+            return
+        if parsed.path == "/api/simulator/exact/submit":
+            user = authenticate_token(bearer_token_from_headers(self.headers))
+            if not user:
+                json_response(self, 401, {"error": "unauthorized"})
+                return
+            payload = read_json_body(self)
+            if not isinstance(payload, dict) or set(payload) != {"request", "confirmation"}:
+                http_status, envelope = exact_simc_http_response(
+                    "submit",
+                    {
+                        "contractRevision": "exact-simc-envelope-v1",
+                        "operation": "submit",
+                        "status": "blocked",
+                        "data": {},
+                        "problems": [{"code": "EXACT_CONFIRMATION_MISMATCH"}],
+                    },
+                )
+            else:
+                http_status, envelope = exact_simc_request_http_response(
+                    "submit",
+                    payload.get("request"),
+                    user,
+                    confirmation=payload.get("confirmation"),
+                )
+            json_response(self, http_status, envelope)
             return
         if parsed.path == "/api/simulator/analyze":
             json_response(
