@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-08-10T04:41:09.501Z",
+  "generatedAt": "2026-08-10T04:44:26.596Z",
   "release": {
     "date": "2026-08-10",
     "slug": "equipment-simulator-exact-first-task5c-runtime-authority-release"
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-08-10-equipment-simulator-exact-first-task5c-runtime-authority-release/evidence.json",
-    "sizeBytes": 33471,
+    "sizeBytes": 37578,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -390,9 +390,9 @@
       "summary"
     ],
     "missingFields": [],
-    "declaredStatus": "local_verified",
-    "highestEvidenceLevel": "local_verified",
-    "summary": "Task 5C is locally verified at 7549f921 for immutable runtime release/context/index ownership, release-bound V3 execution, candidate-harness producer binding, four forward-only 0035 repairs and both candidate-role preflight guards. Eight cloud candidate harness runs failed before attestation and one setup-only preparation was identity-archived and discarded; the latest missing internal ACL is covered by a minimal forward-only repair. A new final-head candidate remains mandatory. This is not a runtime, production or player-loop completion claim: the server factory remains disabled, no production database or service changed, and all user-facing gates remain pending."
+    "declaredStatus": "runtime_verified",
+    "highestEvidenceLevel": "runtime_verified",
+    "summary": "Task 5C has runtime_verified / candidate_verified evidence at immutable source 70e37b6f / tree 516441faca2ac30b51190c29a416c391ce70d31d after its ninth disposable candidate passed all attested 0035 release, occurrence, v3 job/worker, v1/v2 non-execution, ACL and no-async-backflow checks. Eight failed candidates and one setup-only preparation were archived and discarded, as was the successful candidate. This is not a production or player-loop completion claim: the normal server factory remains disabled, no production database or service changed, and exact-head CI, controlled activation/parity/rollback plus all four unchanged-page real-WeChat acceptance items remain pending."
   },
   "evidence": {
     "localTests": {

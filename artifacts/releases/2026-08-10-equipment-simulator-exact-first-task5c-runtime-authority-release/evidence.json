@@ -2,24 +2,25 @@
   "schemaVersion": 2,
   "slug": "equipment-simulator-exact-first-task5c-runtime-authority-release",
   "requirementSlug": "equipment-simulator-exact-first-task5c-runtime-authority-release",
-  "status": "local_verified",
-  "highestEvidenceLevel": "local_verified",
+  "status": "runtime_verified",
+  "highestEvidenceLevel": "runtime_verified",
   "branch": "codex/exact-first-task5a-control-plane",
-  "commit": "7549f921142bc777b88081c592761cfd760e0f7a",
+  "commit": "70e37b6fd88bee7dc0004d4cba6fec5aef820e02",
   "identities": {
     "runtime": {
-      "status": "pending",
-      "reason": "Candidates t5c260810033244, t5c2608101217a9, t5c2608101210d3, t5c2608101215f4, t5c2608101221b5, t5c260810122931, t5c260810123358 and t5c260810123724 all failed before attestation. The eighth exposed that 0035's redefined v3 request validator had not granted EXECUTE to its existing SECURITY DEFINER enqueue owner wow_migrator. Commit 7549f921 grants that internal owner only; one new final-head candidate is still required, and production 0030--0035 migration, provider enablement and worker activation remain prohibited."
+      "status": "bound",
+      "kind": "git_commit",
+      "value": "70e37b6fd88bee7dc0004d4cba6fec5aef820e02"
     },
     "verification": {
       "status": "bound_at_check",
       "kind": "git_ref",
       "value": "HEAD",
-      "reason": "The local packet must be checked from a clean exact HEAD; the verified implementation, candidate harness producer/vector repair, four forward-only 0035 repairs and both candidate-role preflight guards are code-complete at commit 7549f921142bc777b88081c592761cfd760e0f7a."
+      "reason": "The local packet must be checked from a clean exact HEAD. Candidate runtime identity is immutable at 70e37b6f; its runtime code includes 7549f921's fourth forward-only 0035 repair, and later packet edits record evidence only."
     },
     "closure": {
       "status": "pending",
-      "reason": "The final-head candidate, independent CR, exact-head CI, production parity and all four unchanged-page real-WeChat acceptance items have not occurred."
+      "reason": "The final-head candidate is verified, but independent CR, exact-head CI, production parity/rollback and all four unchanged-page real-WeChat acceptance items have not occurred."
     }
   },
   "manualAcceptance": {
@@ -37,7 +38,7 @@
     "Task 5C local implementation seals and reloads one immutable runtime resolver context, runtime authority release and occurrence index, then propagates their server-only relation through V3 ResolvedLoadout, SimulationSnapshot and exact-import job identities.",
     "The materializer reads one owner/binding-scoped release after source replay, reconstructs release-scoped occurrence authority before final resolve, and returns literal blocked or unsupported outcomes for missing, ambiguous or unsupported authority.",
     "The worker executes only a sealed V3 request whose snapshot, release, resolver context, row hash and complete dependency vector agree; V1 and V2 are explicitly unsupported. The default HTTP factory remains disabled until all server-only owners are explicitly composed.",
-    "No current UI route, JSX hierarchy, copy, styles, entry or navigation changed in this Task 5C implementation. No local PostgreSQL, production migration, provider/worker activation, async backflow, Catalog/Manifest pointer or generation 35 action occurred. Eight disposable cloud candidate harness runs failed before attestation and one setup-only resource preparation was aborted and cleaned before Python started; none touched any production database, service or user-visible path."
+    "No current UI route, JSX hierarchy, copy, styles, entry or navigation changed in this Task 5C implementation. No local PostgreSQL, production migration, provider/worker activation, async backflow, Catalog/Manifest pointer or generation 35 action occurred. Eight disposable cloud candidate harness runs failed before attestation and one setup-only resource preparation was aborted and cleaned before Python started; the ninth isolated candidate passed then was fully cleaned. None touched any production database, service or user-visible path."
   ],
   "verification": [
     {
@@ -237,12 +238,85 @@
       "status": "pass",
       "testedHead": "7549f921142bc777b88081c592761cfd760e0f7a",
       "summary": "No P1/P2 found: 0035 grants only wow_migrator EXECUTE on the v3 validator required by the existing SECURITY DEFINER enqueue entrypoint. Existing 0034 revocations preserve no direct app/worker execution; apps/mini-taro and frozen 0030--0034 remain untouched."
+    },
+    {
+      "command": "one cloud-only low-priority Task 5C candidate t5c260810124115",
+      "status": "pass",
+      "testedHead": "70e37b6fd88bee7dc0004d4cba6fec5aef820e02",
+      "summary": "One clean immutable source/tree 70e37b6fd88bee7dc0004d4cba6fec5aef820e02 / 516441faca2ac30b51190c29a416c391ce70d31d ran low-priority with WOW_DEPLOY_START_ASYNC_SYNCS=0. Fresh 0001..0035 and upgrade 0001..0034->0035 both reached 35 migrations; the redacted attestation verifies release membership zero/multiple/occurrence fail-closed, v3 snapshot/job/worker, v1/v2 non-execution, provider-disable/no-async-backflow and ACL boundary. Log SHA-256 b86b2f4e010c53b78338a710d30fda306debf37428e0f26d18a2f201f64dcbe9, 1101 bytes; candidate resources were subsequently deleted and rechecked absent."
     }
   ],
   "candidateDeployment": {
-    "status": "candidate_rerun_required",
+    "status": "candidate_verified",
     "requiredBeforeMerge": true,
-    "reason": "Eight candidates failed before attestation and their named fresh/upgrade databases are non-reusable. The fifth exposed 0035's missing forward v3 key-check compatibility; the sixth exposed incorrect operator DDL-DSN wiring; the seventh exposed an invalid NOINHERIT worker login; the eighth exposed a missing internal validator-owner grant. Commit 7549f921 grants that helper only to wow_migrator. One new run-id-bound final-head candidate remains mandatory before merge.",
+    "reason": "The ninth, final runtime head candidate passed with an immutable attestation. It is candidate-only runtime evidence: production migration/provider/worker activation, exact-head CI, independent final CR, production parity/rollback and all player acceptance remain mandatory.",
+    "runId": "t5c260810124115",
+    "ordinal": 9,
+    "commit": "70e37b6fd88bee7dc0004d4cba6fec5aef820e02",
+    "gitTree": "516441faca2ac30b51190c29a416c391ce70d31d",
+    "migration0035Sha256": "1b994d6f342ad35c2a9cc4a58bebc67ccb1afb4ef4643df9550c2dad880ba316",
+    "freshDatabase": {
+      "name": "wow_exact_first_fresh_test_t5c260810124115",
+      "comment": "wow_exact_first_disposable:t5c260810124115:fresh"
+    },
+    "upgradeDatabase": {
+      "name": "wow_exact_first_upgrade_test_t5c260810124115",
+      "comment": "wow_exact_first_disposable:t5c260810124115:upgrade"
+    },
+    "workerRole": "wow_exact_candidate_t5c260810124115",
+    "candidateSource": {
+      "commit": "70e37b6fd88bee7dc0004d4cba6fec5aef820e02",
+      "gitTree": "516441faca2ac30b51190c29a416c391ce70d31d",
+      "gitStatus": "clean",
+      "remotePath": "/var/tmp/wow-exact-task5c-t5c260810124115-source"
+    },
+    "bundle": {
+      "localPath": "/var/tmp/wow-exact-task5c-t5c260810124115-70e37b6f.bundle",
+      "remotePath": "/var/tmp/wow-exact-task5c-t5c260810124115-70e37b6f.bundle",
+      "bytes": 116257067,
+      "sha256": "7a4cd6f31489792d736802bb9210979aa65a203e778ab997aff15a14e57d1de4"
+    },
+    "evidenceSource": {
+      "path": "/var/tmp/wow-exact-task5c-t5c260810124115.log",
+      "sha256": "b86b2f4e010c53b78338a710d30fda306debf37428e0f26d18a2f201f64dcbe9",
+      "bytes": 1101,
+      "archivedBeforeCleanup": true
+    },
+    "attestation": {
+      "schemaVersion": "task5c-candidate-attestation-v1",
+      "task": "equipment-simulator-exact-first-task5c-runtime-authority-release",
+      "runId": "t5c260810124115",
+      "passed": true,
+      "freshDatabase": {
+        "name": "wow_exact_first_fresh_test_t5c260810124115",
+        "comment": "wow_exact_first_disposable:t5c260810124115:fresh"
+      },
+      "upgradeDatabase": {
+        "name": "wow_exact_first_upgrade_test_t5c260810124115",
+        "comment": "wow_exact_first_disposable:t5c260810124115:upgrade"
+      },
+      "gitCommit": "70e37b6fd88bee7dc0004d4cba6fec5aef820e02",
+      "gitTree": "516441faca2ac30b51190c29a416c391ce70d31d",
+      "migration0035Sha256": "1b994d6f342ad35c2a9cc4a58bebc67ccb1afb4ef4643df9550c2dad880ba316",
+      "verifiedChecks": [
+        "exact_disposable_database_identity_and_empty_preflight",
+        "fresh_migrations_0001_through_0035",
+        "upgrade_migrations_0001_through_0034_then_0035",
+        "release_membership_zero_multiple_and_occurrence_fail_closed",
+        "v3_snapshot_job_and_worker_processor_contract",
+        "v1_v2_nonexecution_provider_disable_and_no_async_backflow",
+        "runtime_release_function_acl_boundary"
+      ]
+    },
+    "attestationJsonLine": "{\"freshDatabase\":{\"comment\":\"wow_exact_first_disposable:t5c260810124115:fresh\",\"name\":\"wow_exact_first_fresh_test_t5c260810124115\"},\"gitCommit\":\"70e37b6fd88bee7dc0004d4cba6fec5aef820e02\",\"gitTree\":\"516441faca2ac30b51190c29a416c391ce70d31d\",\"migration0035Sha256\":\"1b994d6f342ad35c2a9cc4a58bebc67ccb1afb4ef4643df9550c2dad880ba316\",\"passed\":true,\"runId\":\"t5c260810124115\",\"schemaVersion\":\"task5c-candidate-attestation-v1\",\"task\":\"equipment-simulator-exact-first-task5c-runtime-authority-release\",\"upgradeDatabase\":{\"comment\":\"wow_exact_first_disposable:t5c260810124115:upgrade\",\"name\":\"wow_exact_first_upgrade_test_t5c260810124115\"},\"verifiedChecks\":[\"exact_disposable_database_identity_and_empty_preflight\",\"fresh_migrations_0001_through_0035\",\"upgrade_migrations_0001_through_0034_then_0035\",\"release_membership_zero_multiple_and_occurrence_fail_closed\",\"v3_snapshot_job_and_worker_processor_contract\",\"v1_v2_nonexecution_provider_disable_and_no_async_backflow\",\"runtime_release_function_acl_boundary\"]}",
+    "smoke": {
+      "status": "pass",
+      "summary": "Isolated candidate release/index/readback, v3 enqueue/worker and provider-disable smoke passed; no production endpoint was called."
+    },
+    "timerBackflow": {
+      "status": "pass",
+      "summary": "WOW_DEPLOY_START_ASYNC_SYNCS=0 was asserted by the candidate; no async backflow was started."
+    },
     "failedAttempts": [
       {
         "runId": "t5c260810033244",
@@ -343,12 +417,19 @@
       }
     ]
   },
-  "runtimeEvidence": [],
+  "runtimeEvidence": [
+    {
+      "type": "cloud_disposable_candidate",
+      "status": "pass",
+      "commit": "70e37b6fd88bee7dc0004d4cba6fec5aef820e02",
+      "summary": "Candidate-only isolated runtime proof; not a production or player-visible result."
+    }
+  ],
   "risks": [
     {
-      "id": "task5c_candidate_rerun_required",
-      "status": "pending",
-      "detail": "Candidate t5c260810033244 failed on an ambiguous frozen-0033 conflict target; candidate t5c2608101217a9 then failed on a frozen-0033 binding relation trigger privilege defect; candidates t5c2608101210d3 and t5c2608101215f4 exposed candidate fixture sealing defects; candidate t5c2608101221b5 exposed missing 0035 v3 key-check compatibility; candidate t5c260810122931 exposed incorrect migration-DSN operator wiring; candidate t5c260810123358 exposed an invalid NOINHERIT worker login; candidate t5c260810123724 exposed a missing internal validator-owner grant. None reached attestation. Commit 7549f921 locally verifies the forward-only wow_migrator grant; one new final-head disposable fresh/upgrade candidate remains required."
+      "id": "task5c_candidate_verified",
+      "status": "contained",
+      "detail": "Eight earlier candidate runs were archived and discarded. Final candidate t5c260810124115 bound immutable commit/tree/0035 bytes, passed all seven attested checks and was then fully cleaned. This removes the pre-merge candidate blocker only; it does not prove production or player closure."
     },
     {
       "id": "runtime_authority_unavailable_by_default",
@@ -358,7 +439,7 @@
     {
       "id": "player_loop_closure_pending",
       "status": "pending",
-      "detail": "Candidate, exact-head CI, production provider/worker activation, production parity/rollback and four unchanged-page real-WeChat acceptance items remain separate required gates."
+      "detail": "Exact-head CI, production provider/worker activation, production parity/rollback and four unchanged-page real-WeChat acceptance items remain separate required gates."
     }
   ],
   "rollback": [
@@ -371,7 +452,7 @@
   "cleanup": {
     "required": false,
     "status": "complete",
-    "reason": "All eight failed candidate runs and setup-only preparation t5c260810122723 are discarded. For t5c260810123724, the two exact-commented disposable databases and candidate worker login were independently rechecked absent, its remote source, bundle, log and 0600 connection material were removed, root capacity recovered to 5073440 KiB, and the dedicated worker remained inactive. Production databases, existing roles and provider state were not changed."
+    "reason": "All eight failed runs, setup-only preparation t5c260810122723 and successful candidate t5c260810124115 are discarded after identity archive. For the successful run, the two exact-commented databases and candidate login rechecked absent; remote source, bundle, log and 0600 connection material were removed; root capacity was 5072632 KiB; backend remained active and the dedicated worker inactive. Production databases, existing roles and provider state were not changed."
   },
   "archivedReferences": [
     "docs/project-state.json",
@@ -384,5 +465,5 @@
     "docs/harness.md",
     "docs/verification-matrix.md"
   ],
-  "summary": "Task 5C is locally verified at 7549f921 for immutable runtime release/context/index ownership, release-bound V3 execution, candidate-harness producer binding, four forward-only 0035 repairs and both candidate-role preflight guards. Eight cloud candidate harness runs failed before attestation and one setup-only preparation was identity-archived and discarded; the latest missing internal ACL is covered by a minimal forward-only repair. A new final-head candidate remains mandatory. This is not a runtime, production or player-loop completion claim: the server factory remains disabled, no production database or service changed, and all user-facing gates remain pending."
+  "summary": "Task 5C has runtime_verified / candidate_verified evidence at immutable source 70e37b6f / tree 516441faca2ac30b51190c29a416c391ce70d31d after its ninth disposable candidate passed all attested 0035 release, occurrence, v3 job/worker, v1/v2 non-execution, ACL and no-async-backflow checks. Eight failed candidates and one setup-only preparation were archived and discarded, as was the successful candidate. This is not a production or player-loop completion claim: the normal server factory remains disabled, no production database or service changed, and exact-head CI, controlled activation/parity/rollback plus all four unchanged-page real-WeChat acceptance items remain pending."
 }

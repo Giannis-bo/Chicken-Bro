@@ -442,6 +442,21 @@ force. The new ACL regression first failed, then passed with the 74-test
 schema/candidate/worker contract and whole local suite. A new final head and
 new disposable candidate resources are again required.
 
+The ninth and final runtime-head candidate `t5c260810124115` passed on immutable
+source `70e37b6f` / tree `516441faca2ac30b51190c29a416c391ce70d31d` with 0035
+SHA-256 `1b994d6f342ad35c2a9cc4a58bebc67ccb1afb4ef4643df9550c2dad880ba316`.
+Fresh `0001..0035` and upgrade `0001..0034 -> 0035` both reached 35 migrations;
+the one redacted attestation proves release zero/multiple/occurrence fail-closed,
+V3 snapshot/job/worker, V1/V2 non-execution, function ACLs and
+provider-disable/no-async-backflow. Its log SHA-256 is
+`b86b2f4e010c53b78338a710d30fda306debf37428e0f26d18a2f201f64dcbe9`.
+After identity archive, the two exact-commented databases, candidate role,
+remote source/bundle/log/0600 credential material and local bundle were removed
+and independently rechecked absent; backend remained active and dedicated worker
+inactive. This promotes only Task 5C candidate runtime evidence. It does not
+authorize production migration/provider/worker activation, player completion or
+reuse of any candidate resource.
+
 - [ ] **Step 3: Review, CI and production only after candidate PASS**
 
 Run final CR/Harness at exact candidate head, publish one implementation PR, require exact-head CI, then apply reviewed `0030..0035` and provider/worker enablement per runbook. Record main/origin/cloud parity, no timer/backflow, API/readback and rollback. Never create a CI-only PR.
