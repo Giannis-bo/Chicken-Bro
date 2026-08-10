@@ -729,6 +729,14 @@ class Task5CCandidateHarnessTest(unittest.TestCase):
             with self.subTest(forbidden=forbidden):
                 self.assertNotIn(forbidden, source)
 
+    def test_candidate_runner_retains_the_sealed_occurrence_entry(self):
+        source = inspect.getsource(PostgresRuntimeAuthorityReleaseCandidateTest)
+        start = source.index("occurrence = seal_runtime_occurrence_index_entry(")
+        end = source.index("release_store = RuntimeAuthorityReleaseStore(", start)
+        occurrence_setup = source[start:end]
+        self.assertNotIn(".document", occurrence_setup)
+        self.assertIn("occurrence_entries=(occurrence,)", source)
+
 class Task4WCandidateHarnessTest(unittest.TestCase):
     def test_cloud_candidate_gate_requires_every_distinct_explicit_input(self):
         self.assertEqual(validate_task4w_candidate_run_id("t4w260806210000"), "t4w260806210000")
@@ -4856,7 +4864,7 @@ class PostgresRuntimeAuthorityReleaseCandidateTest(unittest.TestCase):
             effect_record=record,
             producer_identity="task5c-candidate",
             producer_revision=TASK_5C_RUN_ID,
-        ).document
+        )
         release_store = RuntimeAuthorityReleaseStore(
             lambda: self._connect(TASK_5C_APP_DSN),
         )
