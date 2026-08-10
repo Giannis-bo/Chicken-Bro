@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-08-10T04:48:36.822Z",
+  "generatedAt": "2026-08-10T04:54:46.571Z",
   "release": {
     "date": "2026-08-10",
     "slug": "equipment-simulator-exact-first-task5c-runtime-authority-release"
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-08-10-equipment-simulator-exact-first-task5c-runtime-authority-release/evidence.json",
-    "sizeBytes": 38483,
+    "sizeBytes": 39131,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -417,7 +417,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "1 changed files currently visible to git status."
+      "detail": "10 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
@@ -453,9 +453,18 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 1,
+      "changedFileCount": 10,
       "changedFiles": [
-        " M artifacts/releases/2026-08-10-equipment-simulator-exact-first-task5c-runtime-authority-release/evidence.json"
+        " D artifacts/releases/2026-08-07-equipment-simulator-exact-first-task5a/evidence.json",
+        " D artifacts/releases/2026-08-07-equipment-simulator-exact-first-task5a/manifest.json",
+        " D artifacts/releases/2026-08-07-equipment-simulator-exact-first-task5a/requirement.json",
+        " D artifacts/releases/2026-08-07-equipment-simulator-exact-first-task5b-active-authority-source/requirement.json",
+        " M artifacts/releases/2026-08-10-equipment-simulator-exact-first-task5c-runtime-authority-release/evidence.json",
+        " M docs/plans/2026-08-04-equipment-simulator-exact-first-persistence-resequence.md",
+        " M docs/plans/2026-08-07-equipment-simulator-exact-first-task5b-active-authority-source.md",
+        " M docs/plans/2026-08-10-equipment-simulator-exact-first-task5c-runtime-authority-release-implementation.md",
+        "?? pnpm-lock.yaml",
+        "?? pnpm-workspace.yaml"
       ]
     }
   },

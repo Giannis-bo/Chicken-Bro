@@ -58,7 +58,7 @@ only after both exact owners exist
 - `docs/plans/README.md`
 - `docs/roadmap.md`
 - `docs/plans/2026-08-04-equipment-simulator-exact-first-persistence-resequence.md`
-- `artifacts/releases/2026-08-07-equipment-simulator-exact-first-task5b-active-authority-source/requirement.json`
+- this plan's Git history-only requirement challenge record; the successor Task 5C is the only current PR packet
 
 明确禁止：任何 server/client/UI source、0035+ migration、existing migration edit、Catalog/Manifest/generation 35 pointer、Task 6C observation/admission、candidate、cloud DB、production migration、worker activation/service action、CI-only evidence PR 或现有 Task 3A/3B/4W/5A packet 改写。
 

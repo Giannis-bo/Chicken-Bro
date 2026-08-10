@@ -470,3 +470,16 @@ On unchanged `simc_submit`, record complete release-bound ready/result, missing-
 - Tasks 1--2 implement immutable release/context/index and ACL; Task 3 propagates identity; Task 4 composes provider/worker/HTTP; Task 5 owns candidate/production/real-WeChat gates.
 - Every task has exact files, interfaces, RED/GREEN command and commit boundary. Candidate resources remain unnamed until final head for disposal safety.
 - `runtimeAuthorityReleaseKey`, `resolverContextKey` and the eight-field vector are the same server-only v3 relation in Tasks 1--4; public envelopes remain unchanged.
+
+## Delivery Packaging Correction
+
+The first Task 5C implementation PR exposed a Harness fail-closed error before
+the test profile: its diff still carried the unmerged Task 5A local packet and
+the Task 5B requirement alongside this task's packet.  CI selects exactly one
+task packet per PR, so that accumulated branch history is not a valid Task 5C
+delivery shape.  The Task 5A local facts and the Task 5B authority-gap decision
+remain in their whitelisted plans and in Git history; their branch-local release
+packet files are removed from the Task 5C PR diff.  This makes the Task 5C
+packet the sole CI authority and changes no runtime source, migration bytes,
+candidate identity, UI source or production state.  A new exact PR-head CI is
+still mandatory; the earlier failed run is not evidence of a passing profile.

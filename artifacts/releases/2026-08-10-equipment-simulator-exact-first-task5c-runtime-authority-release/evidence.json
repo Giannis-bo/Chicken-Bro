@@ -250,6 +250,12 @@
       "status": "pass",
       "testedHead": "0fb83796ec6346a7454e11ff3e41f0b5b84357a7",
       "summary": "No P1/P2 found. The checked Task 5C code preserves the fail-closed default HTTP composition, owner/binding-only unique release read, release-scoped occurrence reload, V3-only sealed snapshot/job/worker identity, explicit V1/V2 non-execution, forward-only 0035 key and ACL repairs, and no active/latest/Catalog/Manifest/client fallback. The earlier Task 5A typed current-page binding was checked against its frozen no-visual-change contract; Task 5C itself has no apps/mini-taro diff. The optional codex review command did not produce a usable report because its local plugin output was malformed; local CR remains the primary review evidence."
+    },
+    {
+      "command": "GitHub Project Harness run 31356684750 on PR #119",
+      "status": "fail",
+      "testedHead": "3b6bf5481233b838ffbb0a363794ecfe1760d17a",
+      "summary": "Full profile did not start verification because release-from-changes found three branch-local packet directories: Task 5A, Task 5B and Task 5C. This is a Harness fail-closed packaging error, not a test, candidate or runtime failure. The corrective diff removes only the unmerged Task 5A/5B branch-local packet files; their plan facts remain reachable and their Git history remains intact. Task 5C remains the only complete packet for the next exact-head CI."
     }
   ],
   "candidateDeployment": {
