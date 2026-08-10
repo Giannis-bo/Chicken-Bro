@@ -754,6 +754,17 @@ class Task5CCandidateHarnessTest(unittest.TestCase):
             with self.subTest(required=required):
                 self.assertIn(required, source)
 
+    def test_candidate_runner_checks_worker_role_before_ddl(self):
+        source = inspect.getsource(PostgresRuntimeAuthorityReleaseCandidateTest)
+        for required in (
+            "def _assert_pre_migration_worker_role(self):",
+            "self._assert_pre_migration_worker_role()",
+            "with self._worker_connection() as conn:",
+            'self.assertEqual(current_user, "wow_exact_worker")',
+        ):
+            with self.subTest(required=required):
+                self.assertIn(required, source)
+
 class Task4WCandidateHarnessTest(unittest.TestCase):
     def test_cloud_candidate_gate_requires_every_distinct_explicit_input(self):
         self.assertEqual(validate_task4w_candidate_run_id("t4w260806210000"), "t4w260806210000")
@@ -4689,6 +4700,14 @@ class PostgresRuntimeAuthorityReleaseCandidateTest(unittest.TestCase):
                     cur.execute("SELECT session_user, current_user")
                     self.assertEqual(cur.fetchone(), ("postgres", "postgres"))
 
+    def _assert_pre_migration_worker_role(self):
+        with self._worker_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT session_user, current_user")
+                session_user, current_user = cur.fetchone()
+                self.assertNotIn(session_user, {"wow_app", "wow_migrator", "wow_exact_worker"})
+                self.assertEqual(current_user, "wow_exact_worker")
+
     def _apply(self, dsn, migrations):
         with self._connect(dsn) as conn:
             with conn.cursor() as cur:
@@ -5036,6 +5055,7 @@ class PostgresRuntimeAuthorityReleaseCandidateTest(unittest.TestCase):
         fresh_identity = self._assert_empty_disposable(TASK_5C_FRESH_DSN, "fresh")
         upgrade_identity = self._assert_empty_disposable(TASK_5C_UPGRADE_DSN, "upgrade")
         self._assert_migration_connection_roles()
+        self._assert_pre_migration_worker_role()
 
         self._apply(TASK_5C_FRESH_DSN, TASK_5C_MIGRATIONS)
         self._apply(TASK_5C_UPGRADE_DSN, TASK_5C_BASELINE_MIGRATIONS)
