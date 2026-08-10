@@ -113,7 +113,7 @@ git commit -m "feat(exact): seal runtime authority releases"
 - Consumes: Task 1 documents, 0030 effect record rows, 0033 binding key and owner scope.
 - Produces: `RuntimeAuthorityReleaseStore.admit`, `read_unique_for_binding`, `read_occurrences`, `load_effect_records`.
 
-- [ ] **Step 1: Write failing store and schema tests**
+- [x] **Step 1: Write failing store and schema tests**
 
 ```python
 def test_read_unique_for_binding_blocks_zero_or_multiple_release_memberships(self):
@@ -124,23 +124,23 @@ def test_0035_gives_app_and_worker_no_release_table_dml(self):
     self.assert_schema_has_no_direct_dml("wow_app", "ops.websim_exact_runtime_authority_releases")
 ```
 
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
 
 Run: `PYTHONDONTWRITEBYTECODE=1 python3 -m unittest tests.exact_runtime_authority_release_store_test tests.postgres_schema_test`
 
 Expected: FAIL because 0035/store functions do not exist.
 
-- [ ] **Step 3: Implement 0035 and store**
+- [x] **Step 3: Implement 0035 and store**
 
 `0035` adds append-only release/context/index tables, FKs to 0030 records and 0033 bindings, reject-update/delete/truncate triggers, and `wow_migrator`-owned admission/read functions. Python typed-reloads all inputs before one transaction/readback; it does not query Catalog, `latest`, or compatibility context.
 
-- [ ] **Step 4: Run GREEN**
+- [x] **Step 4: Run GREEN**
 
 Run: `PYTHONDONTWRITEBYTECODE=1 python3 -m unittest tests.exact_runtime_authority_release_store_test tests.gear_exact_authority_store_test tests.postgres_schema_test tests.postgres_integration_test`
 
 Expected: PASS locally; PostgreSQL fresh/upgrade remains candidate-only.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/migrations/postgres/0035_websim_exact_runtime_authority_release.sql server/exact_runtime_authority_release_store.py server/gear_exact_authority_store.py tests/exact_runtime_authority_release_store_test.py tests/gear_exact_authority_store_test.py tests/postgres_schema_test.py tests/postgres_integration_test.py

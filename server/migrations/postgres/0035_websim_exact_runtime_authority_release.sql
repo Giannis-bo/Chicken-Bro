@@ -1,0 +1,599 @@
+DO $preflight$
+BEGIN
+    IF pg_catalog.to_regprocedure('pg_catalog.sha256(bytea)') IS NULL THEN
+        RAISE EXCEPTION 'PostgreSQL core pg_catalog.sha256(bytea) is required';
+    END IF;
+END;
+$preflight$;
+
+-- 0030 deliberately closed the canonical-document matrix.  This forward-only
+-- replacement retains all six historical branches and admits only Task 5C's
+-- three additional sealed document kinds.
+DO $canonical_document_matrix$
+DECLARE
+    v_constraint_name name;
+    v_constraint_count integer;
+BEGIN
+    SELECT pg_catalog.count(*)
+    INTO v_constraint_count
+    FROM pg_catalog.pg_constraint AS constraint_row
+    WHERE constraint_row.conrelid = 'cache.websim_canonical_documents'::pg_catalog.regclass
+      AND constraint_row.contype = 'c'
+      AND pg_catalog.pg_get_constraintdef(constraint_row.oid) LIKE
+          '%gear-exact-item-instance-v2%exact-authority-envelope-v1%';
+    IF v_constraint_count IS DISTINCT FROM 1 THEN
+        RAISE EXCEPTION 'expected exactly one 0030 canonical document matrix, found %',
+            v_constraint_count;
+    END IF;
+    SELECT constraint_row.conname
+    INTO v_constraint_name
+    FROM pg_catalog.pg_constraint AS constraint_row
+    WHERE constraint_row.conrelid = 'cache.websim_canonical_documents'::pg_catalog.regclass
+      AND constraint_row.contype = 'c'
+      AND pg_catalog.pg_get_constraintdef(constraint_row.oid) LIKE
+          '%gear-exact-item-instance-v2%exact-authority-envelope-v1%';
+    EXECUTE pg_catalog.format(
+        'ALTER TABLE cache.websim_canonical_documents DROP CONSTRAINT %I',
+        v_constraint_name
+    );
+END;
+$canonical_document_matrix$;
+
+ALTER TABLE cache.websim_canonical_documents
+ADD CONSTRAINT websim_canonical_documents_exact_matrix_v2_check
+CHECK (
+    (document_kind = 'exact_item'
+        AND schema_revision = 'gear-exact-item-instance-v2'
+        AND content_key = 'exact-item-instance:sha256:' || canonical_sha256)
+    OR (document_kind = 'exact_static_facts'
+        AND schema_revision = 'exact-static-facts-v1'
+        AND content_key = 'exact-static-facts:sha256:' || canonical_sha256)
+    OR (document_kind = 'exact_progression'
+        AND schema_revision = 'exact-progression-binding-v1'
+        AND content_key = 'exact-progression:sha256:' || canonical_sha256)
+    OR (document_kind = 'effect_record'
+        AND schema_revision = 'simc-item-effect-record-v1'
+        AND content_key = 'simc-item-effect-record:sha256:' || canonical_sha256)
+    OR (document_kind = 'effect_aggregate'
+        AND schema_revision = 'simc-item-effect-support-v1'
+        AND content_key = 'simc-item-effect-support:sha256:' || canonical_sha256)
+    OR (document_kind = 'exact_authority'
+        AND schema_revision = 'exact-authority-envelope-v1'
+        AND content_key = 'exact-authority:sha256:' || canonical_sha256)
+    OR (document_kind = 'exact_runtime_resolver_context'
+        AND schema_revision = 'exact-runtime-resolver-context-v1'
+        AND content_key = 'exact-runtime-resolver-context:sha256:' || canonical_sha256)
+    OR (document_kind = 'exact_runtime_authority_release'
+        AND schema_revision = 'exact-runtime-authority-release-v1'
+        AND content_key = 'exact-runtime-authority-release:sha256:' || canonical_sha256)
+    OR (document_kind = 'exact_runtime_occurrence_index_entry'
+        AND schema_revision = 'exact-runtime-occurrence-index-entry-v1'
+        AND content_key = 'exact-runtime-occurrence-index-entry:sha256:' || canonical_sha256)
+);
+
+CREATE TABLE ops.websim_exact_runtime_resolver_contexts (
+    resolver_context_key text PRIMARY KEY
+        REFERENCES cache.websim_canonical_documents(content_key)
+        ON DELETE RESTRICT,
+    resolver_context_sha256 text NOT NULL
+        CHECK (resolver_context_sha256 ~ '^sha256:[0-9a-f]{64}$'),
+    sealed_at timestamptz NOT NULL DEFAULT pg_catalog.clock_timestamp()
+);
+
+CREATE TABLE ops.websim_exact_runtime_authority_releases (
+    runtime_authority_release_key text PRIMARY KEY
+        REFERENCES cache.websim_canonical_documents(content_key)
+        ON DELETE RESTRICT,
+    binding_key text NOT NULL
+        REFERENCES app.websim_exact_template_authority_bindings(binding_key)
+        ON DELETE RESTRICT,
+    resolver_context_key text NOT NULL
+        REFERENCES ops.websim_exact_runtime_resolver_contexts(resolver_context_key)
+        ON DELETE RESTRICT,
+    sealed_at timestamptz NOT NULL DEFAULT pg_catalog.clock_timestamp(),
+    UNIQUE (binding_key, runtime_authority_release_key)
+);
+
+CREATE INDEX idx_ops_websim_exact_runtime_release_binding
+ON ops.websim_exact_runtime_authority_releases (
+    binding_key,
+    runtime_authority_release_key
+);
+
+CREATE TABLE ops.websim_exact_runtime_occurrence_index_entries (
+    runtime_occurrence_index_entry_key text PRIMARY KEY
+        REFERENCES cache.websim_canonical_documents(content_key)
+        ON DELETE RESTRICT,
+    runtime_authority_release_key text NOT NULL
+        REFERENCES ops.websim_exact_runtime_authority_releases(runtime_authority_release_key)
+        ON DELETE RESTRICT,
+    subject_variant_signature text NOT NULL
+        CHECK (subject_variant_signature ~ '^[a-z_]+-variant:sha256:[0-9a-f]{64}$'),
+    resolved_gear_signature text NOT NULL
+        CHECK (resolved_gear_signature ~ '^sha256:[0-9a-f]{64}$'),
+    effect_record_key text NOT NULL
+        REFERENCES cache.websim_canonical_documents(content_key)
+        ON DELETE RESTRICT,
+    effect_record_sha256 text NOT NULL
+        CHECK (effect_record_sha256 ~ '^sha256:[0-9a-f]{64}$'),
+    sealed_at timestamptz NOT NULL DEFAULT pg_catalog.clock_timestamp(),
+    UNIQUE (runtime_authority_release_key, subject_variant_signature)
+);
+
+CREATE OR REPLACE FUNCTION ops.reject_websim_exact_runtime_authority_release_mutation()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = pg_catalog, pg_temp
+AS $function$
+BEGIN
+    RAISE EXCEPTION 'exact runtime authority release rows are append-only';
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION ops.verify_websim_exact_runtime_resolver_context_insert()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = pg_catalog, ops, cache, pg_temp
+AS $function$
+DECLARE
+    v_document_kind text;
+    v_schema_revision text;
+    v_context_bytes bytea;
+    v_context_json jsonb;
+BEGIN
+    SELECT document_kind, schema_revision, canonical_bytes, canonical_json
+    INTO v_document_kind, v_schema_revision, v_context_bytes, v_context_json
+    FROM cache.websim_canonical_documents
+    WHERE content_key = NEW.resolver_context_key
+    FOR KEY SHARE;
+    IF v_document_kind IS DISTINCT FROM 'exact_runtime_resolver_context'
+       OR v_schema_revision IS DISTINCT FROM 'exact-runtime-resolver-context-v1'
+       OR NEW.resolver_context_sha256 IS DISTINCT FROM
+          'sha256:' || pg_catalog.encode(pg_catalog.sha256(v_context_bytes), 'hex')
+       OR pg_catalog.jsonb_typeof(v_context_json) IS DISTINCT FROM 'object'
+       OR v_context_json - ARRAY[
+            'schemaRevision', 'producerIdentity', 'producerRevision',
+            'seasonRevision', 'gearRuleRevision', 'resolverRevision',
+            'simcRuntimeRevision', 'resolverAuthorityContext'
+          ] <> '{}'::jsonb
+       OR v_context_json ->> 'schemaRevision'
+          IS DISTINCT FROM 'exact-runtime-resolver-context-v1'
+       OR pg_catalog.jsonb_typeof(v_context_json -> 'resolverAuthorityContext')
+          IS DISTINCT FROM 'object'
+       OR pg_catalog.jsonb_path_exists(
+            v_context_json,
+            '$.** ? (@.type() == "object").keyvalue() ? (@.key == "rawProfile" || @.key == "rawString" || @.key == "playerName" || @.key == "characterName" || @.key == "realm" || @.key == "server" || @.key == "userId" || @.key == "userUuid" || @.key == "userUUID" || @.key == "ownerId")'::pg_catalog.jsonpath
+          )
+    THEN
+        RAISE EXCEPTION 'exact runtime resolver context binding mismatch';
+    END IF;
+    RETURN NEW;
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION ops.verify_websim_exact_runtime_authority_release_insert()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = pg_catalog, ops, cache, pg_temp
+AS $function$
+DECLARE
+    v_document_kind text;
+    v_schema_revision text;
+    v_release_json jsonb;
+    v_context_bytes bytea;
+    v_context_json jsonb;
+BEGIN
+    SELECT document_kind, schema_revision, canonical_json
+    INTO v_document_kind, v_schema_revision, v_release_json
+    FROM cache.websim_canonical_documents
+    WHERE content_key = NEW.runtime_authority_release_key
+    FOR KEY SHARE;
+    SELECT document.canonical_bytes, document.canonical_json
+    INTO v_context_bytes, v_context_json
+    FROM ops.websim_exact_runtime_resolver_contexts AS context
+    JOIN cache.websim_canonical_documents AS document
+      ON document.content_key = context.resolver_context_key
+    WHERE context.resolver_context_key = NEW.resolver_context_key
+    FOR KEY SHARE OF context, document;
+    IF v_document_kind IS DISTINCT FROM 'exact_runtime_authority_release'
+       OR v_schema_revision IS DISTINCT FROM 'exact-runtime-authority-release-v1'
+       OR pg_catalog.jsonb_typeof(v_release_json) IS DISTINCT FROM 'object'
+       OR v_release_json - ARRAY[
+            'schemaRevision', 'producerIdentity', 'producerRevision',
+            'resolverContextKey', 'resolverContextSha256', 'dependencyVector'
+          ] <> '{}'::jsonb
+       OR v_release_json ->> 'schemaRevision'
+          IS DISTINCT FROM 'exact-runtime-authority-release-v1'
+       OR v_release_json ->> 'resolverContextKey'
+          IS DISTINCT FROM NEW.resolver_context_key
+       OR v_release_json ->> 'resolverContextSha256'
+          IS DISTINCT FROM 'sha256:' || pg_catalog.encode(pg_catalog.sha256(v_context_bytes), 'hex')
+       OR pg_catalog.jsonb_typeof(v_release_json -> 'dependencyVector')
+          IS DISTINCT FROM 'object'
+       OR (v_release_json -> 'dependencyVector') ?& ARRAY[
+            'seasonRevision', 'gameBuild', 'gearRuleRevision',
+            'resolverRevision', 'compilerRevision', 'workerRevision',
+            'simcRuntimeRevision', 'effectAuthorityRevision'
+          ] IS DISTINCT FROM true
+       OR (v_release_json -> 'dependencyVector') - ARRAY[
+            'seasonRevision', 'gameBuild', 'gearRuleRevision',
+            'resolverRevision', 'compilerRevision', 'workerRevision',
+            'simcRuntimeRevision', 'effectAuthorityRevision'
+          ] <> '{}'::jsonb
+       OR v_release_json -> 'dependencyVector' ->> 'seasonRevision'
+          IS DISTINCT FROM v_context_json ->> 'seasonRevision'
+       OR v_release_json -> 'dependencyVector' ->> 'gearRuleRevision'
+          IS DISTINCT FROM v_context_json ->> 'gearRuleRevision'
+       OR v_release_json -> 'dependencyVector' ->> 'resolverRevision'
+          IS DISTINCT FROM v_context_json ->> 'resolverRevision'
+       OR v_release_json -> 'dependencyVector' ->> 'simcRuntimeRevision'
+          IS DISTINCT FROM v_context_json ->> 'simcRuntimeRevision'
+    THEN
+        RAISE EXCEPTION 'exact runtime authority release binding mismatch';
+    END IF;
+    RETURN NEW;
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION ops.verify_websim_exact_runtime_occurrence_index_entry_insert()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = pg_catalog, ops, cache, pg_temp
+AS $function$
+DECLARE
+    v_document_kind text;
+    v_schema_revision text;
+    v_entry_json jsonb;
+    v_record_kind text;
+    v_record_bytes bytea;
+    v_record_json jsonb;
+    v_release_json jsonb;
+BEGIN
+    SELECT document_kind, schema_revision, canonical_json
+    INTO v_document_kind, v_schema_revision, v_entry_json
+    FROM cache.websim_canonical_documents
+    WHERE content_key = NEW.runtime_occurrence_index_entry_key
+    FOR KEY SHARE;
+    SELECT document_kind, canonical_bytes, canonical_json
+    INTO v_record_kind, v_record_bytes, v_record_json
+    FROM cache.websim_canonical_documents
+    WHERE content_key = NEW.effect_record_key
+    FOR KEY SHARE;
+    SELECT document.canonical_json
+    INTO v_release_json
+    FROM ops.websim_exact_runtime_authority_releases AS release
+    JOIN cache.websim_canonical_documents AS document
+      ON document.content_key = release.runtime_authority_release_key
+    WHERE release.runtime_authority_release_key = NEW.runtime_authority_release_key
+    FOR KEY SHARE OF release, document;
+    IF v_document_kind IS DISTINCT FROM 'exact_runtime_occurrence_index_entry'
+       OR v_schema_revision IS DISTINCT FROM 'exact-runtime-occurrence-index-entry-v1'
+       OR v_record_kind IS DISTINCT FROM 'effect_record'
+       OR pg_catalog.jsonb_typeof(v_entry_json) IS DISTINCT FROM 'object'
+       OR v_entry_json - ARRAY[
+            'schemaRevision', 'producerIdentity', 'producerRevision',
+            'runtimeAuthorityReleaseKey', 'subjectVariantSignature',
+            'resolvedGearSignature', 'effectRecordKey', 'effectRecordSha256'
+          ] <> '{}'::jsonb
+       OR v_entry_json ->> 'schemaRevision'
+          IS DISTINCT FROM 'exact-runtime-occurrence-index-entry-v1'
+       OR v_entry_json ->> 'runtimeAuthorityReleaseKey'
+          IS DISTINCT FROM NEW.runtime_authority_release_key
+       OR v_entry_json ->> 'subjectVariantSignature'
+          IS DISTINCT FROM NEW.subject_variant_signature
+       OR v_entry_json ->> 'resolvedGearSignature'
+          IS DISTINCT FROM NEW.resolved_gear_signature
+       OR v_entry_json ->> 'effectRecordKey'
+          IS DISTINCT FROM NEW.effect_record_key
+       OR v_entry_json ->> 'effectRecordSha256'
+          IS DISTINCT FROM 'sha256:' || pg_catalog.encode(pg_catalog.sha256(v_record_bytes), 'hex')
+       OR v_record_json ->> 'subjectVariantSignature'
+          IS DISTINCT FROM NEW.subject_variant_signature
+       OR v_record_json ->> 'simcRuntimeRevision'
+          IS DISTINCT FROM v_release_json -> 'dependencyVector' ->> 'simcRuntimeRevision'
+    THEN
+        RAISE EXCEPTION 'exact runtime occurrence index binding mismatch';
+    END IF;
+    RETURN NEW;
+END;
+$function$;
+
+DROP TRIGGER IF EXISTS trg_websim_exact_runtime_resolver_context_binding
+ON ops.websim_exact_runtime_resolver_contexts;
+CREATE TRIGGER trg_websim_exact_runtime_resolver_context_binding
+BEFORE INSERT ON ops.websim_exact_runtime_resolver_contexts
+FOR EACH ROW
+EXECUTE FUNCTION ops.verify_websim_exact_runtime_resolver_context_insert();
+
+DROP TRIGGER IF EXISTS trg_websim_exact_runtime_authority_release_binding
+ON ops.websim_exact_runtime_authority_releases;
+CREATE TRIGGER trg_websim_exact_runtime_authority_release_binding
+BEFORE INSERT ON ops.websim_exact_runtime_authority_releases
+FOR EACH ROW
+EXECUTE FUNCTION ops.verify_websim_exact_runtime_authority_release_insert();
+
+DROP TRIGGER IF EXISTS trg_websim_exact_runtime_occurrence_index_entry_binding
+ON ops.websim_exact_runtime_occurrence_index_entries;
+CREATE TRIGGER trg_websim_exact_runtime_occurrence_index_entry_binding
+BEFORE INSERT ON ops.websim_exact_runtime_occurrence_index_entries
+FOR EACH ROW
+EXECUTE FUNCTION ops.verify_websim_exact_runtime_occurrence_index_entry_insert();
+
+DO $triggers$
+DECLARE
+    v_table text;
+BEGIN
+    FOREACH v_table IN ARRAY ARRAY[
+        'websim_exact_runtime_resolver_contexts',
+        'websim_exact_runtime_authority_releases',
+        'websim_exact_runtime_occurrence_index_entries'
+    ]
+    LOOP
+        EXECUTE pg_catalog.format(
+            'DROP TRIGGER IF EXISTS %I ON ops.%I',
+            pg_catalog.format('trg_%s_immutable', v_table), v_table
+        );
+        EXECUTE pg_catalog.format(
+            'CREATE TRIGGER %I BEFORE UPDATE OR DELETE ON ops.%I '
+            'FOR EACH ROW EXECUTE FUNCTION ops.reject_websim_exact_runtime_authority_release_mutation()',
+            pg_catalog.format('trg_%s_immutable', v_table), v_table
+        );
+        EXECUTE pg_catalog.format(
+            'DROP TRIGGER IF EXISTS %I ON ops.%I',
+            pg_catalog.format('trg_%s_truncate', v_table), v_table
+        );
+        EXECUTE pg_catalog.format(
+            'CREATE TRIGGER %I BEFORE TRUNCATE ON ops.%I '
+            'FOR EACH STATEMENT EXECUTE FUNCTION ops.reject_websim_exact_runtime_authority_release_mutation()',
+            pg_catalog.format('trg_%s_truncate', v_table), v_table
+        );
+    END LOOP;
+END;
+$triggers$;
+
+CREATE OR REPLACE FUNCTION ops.websim_exact_runtime_authority_release_admit(
+    p_user_id uuid,
+    p_binding_key text,
+    p_resolver_context_bytes bytea,
+    p_runtime_authority_release_bytes bytea,
+    p_occurrence_index_entry_bytes bytea[]
+)
+RETURNS TABLE(
+    resolver_context_key text,
+    resolver_context_bytes bytea,
+    runtime_authority_release_key text,
+    runtime_authority_release_bytes bytea
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, app, cache, ops, identity, pg_temp
+AS $function$
+DECLARE
+    v_context_key text;
+    v_release_key text;
+    v_context_json jsonb;
+    v_release_json jsonb;
+BEGIN
+    IF p_binding_key !~ '^exact-template-authority-binding:sha256:[0-9a-f]{64}$'
+       OR pg_catalog.octet_length(p_resolver_context_bytes) NOT BETWEEN 2 AND 1048576
+       OR pg_catalog.octet_length(p_runtime_authority_release_bytes) NOT BETWEEN 2 AND 1048576
+       OR COALESCE(pg_catalog.cardinality(p_occurrence_index_entry_bytes), 0) > 128
+       OR NOT EXISTS (
+            SELECT 1
+            FROM app.websim_exact_template_authority_bindings AS binding
+            WHERE binding.binding_key = p_binding_key
+              AND binding.user_id = p_user_id
+          )
+    THEN
+        RAISE EXCEPTION 'exact runtime authority release admission source is unavailable';
+    END IF;
+    BEGIN
+        v_context_json := pg_catalog.convert_from(p_resolver_context_bytes, 'UTF8')::jsonb;
+        v_release_json := pg_catalog.convert_from(
+            p_runtime_authority_release_bytes, 'UTF8'
+        )::jsonb;
+    EXCEPTION WHEN OTHERS THEN
+        RAISE EXCEPTION 'exact runtime authority release bytes are invalid';
+    END;
+    v_context_key := 'exact-runtime-resolver-context:sha256:' ||
+        pg_catalog.encode(pg_catalog.sha256(p_resolver_context_bytes), 'hex');
+    v_release_key := 'exact-runtime-authority-release:sha256:' ||
+        pg_catalog.encode(pg_catalog.sha256(p_runtime_authority_release_bytes), 'hex');
+    INSERT INTO cache.websim_canonical_documents (
+        content_key, document_kind, schema_revision, canonical_bytes,
+        canonical_json, canonical_sha256
+    ) VALUES
+        (v_context_key, 'exact_runtime_resolver_context',
+         'exact-runtime-resolver-context-v1', p_resolver_context_bytes,
+         v_context_json,
+         pg_catalog.encode(pg_catalog.sha256(p_resolver_context_bytes), 'hex')),
+        (v_release_key, 'exact_runtime_authority_release',
+         'exact-runtime-authority-release-v1', p_runtime_authority_release_bytes,
+         v_release_json,
+         pg_catalog.encode(pg_catalog.sha256(p_runtime_authority_release_bytes), 'hex'))
+    ON CONFLICT DO NOTHING;
+    INSERT INTO ops.websim_exact_runtime_resolver_contexts (
+        resolver_context_key, resolver_context_sha256
+    ) VALUES (
+        v_context_key,
+        'sha256:' || pg_catalog.encode(pg_catalog.sha256(p_resolver_context_bytes), 'hex')
+    ) ON CONFLICT DO NOTHING;
+    INSERT INTO ops.websim_exact_runtime_authority_releases (
+        runtime_authority_release_key, binding_key, resolver_context_key
+    ) VALUES (v_release_key, p_binding_key, v_context_key)
+    ON CONFLICT DO NOTHING;
+    INSERT INTO cache.websim_canonical_documents (
+        content_key, document_kind, schema_revision, canonical_bytes,
+        canonical_json, canonical_sha256
+    )
+    SELECT
+        'exact-runtime-occurrence-index-entry:sha256:' ||
+            pg_catalog.encode(pg_catalog.sha256(entry.canonical_bytes), 'hex'),
+        'exact_runtime_occurrence_index_entry',
+        'exact-runtime-occurrence-index-entry-v1',
+        entry.canonical_bytes,
+        pg_catalog.convert_from(entry.canonical_bytes, 'UTF8')::jsonb,
+        pg_catalog.encode(pg_catalog.sha256(entry.canonical_bytes), 'hex')
+    FROM pg_catalog.unnest(p_occurrence_index_entry_bytes) AS entry(canonical_bytes)
+    ON CONFLICT DO NOTHING;
+    INSERT INTO ops.websim_exact_runtime_occurrence_index_entries (
+        runtime_occurrence_index_entry_key,
+        runtime_authority_release_key,
+        subject_variant_signature,
+        resolved_gear_signature,
+        effect_record_key,
+        effect_record_sha256
+    )
+    SELECT
+        'exact-runtime-occurrence-index-entry:sha256:' ||
+            pg_catalog.encode(pg_catalog.sha256(entry.canonical_bytes), 'hex'),
+        v_release_key,
+        entry.payload ->> 'subjectVariantSignature',
+        entry.payload ->> 'resolvedGearSignature',
+        entry.payload ->> 'effectRecordKey',
+        entry.payload ->> 'effectRecordSha256'
+    FROM (
+        SELECT
+            canonical_bytes,
+            pg_catalog.convert_from(canonical_bytes, 'UTF8')::jsonb AS payload
+        FROM pg_catalog.unnest(p_occurrence_index_entry_bytes) AS entry_source(canonical_bytes)
+    ) AS entry
+    ON CONFLICT DO NOTHING;
+    RETURN QUERY
+    SELECT
+        context.resolver_context_key,
+        context_document.canonical_bytes,
+        release.runtime_authority_release_key,
+        release_document.canonical_bytes
+    FROM ops.websim_exact_runtime_authority_releases AS release
+    JOIN ops.websim_exact_runtime_resolver_contexts AS context
+      ON context.resolver_context_key = release.resolver_context_key
+    JOIN cache.websim_canonical_documents AS context_document
+      ON context_document.content_key = context.resolver_context_key
+    JOIN cache.websim_canonical_documents AS release_document
+      ON release_document.content_key = release.runtime_authority_release_key
+    WHERE release.runtime_authority_release_key = v_release_key
+      AND release.binding_key = p_binding_key;
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION ops.websim_exact_runtime_authority_release_read(
+    p_user_id uuid,
+    p_binding_key text
+)
+RETURNS TABLE(
+    resolver_context_key text,
+    resolver_context_bytes bytea,
+    runtime_authority_release_key text,
+    runtime_authority_release_bytes bytea
+)
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = pg_catalog, app, cache, ops, identity, pg_temp
+AS $function$
+    SELECT
+        context.resolver_context_key,
+        context_document.canonical_bytes,
+        release.runtime_authority_release_key,
+        release_document.canonical_bytes
+    FROM ops.websim_exact_runtime_authority_releases AS release
+    JOIN app.websim_exact_template_authority_bindings AS binding
+      ON binding.binding_key = release.binding_key
+     AND binding.user_id = p_user_id
+    JOIN ops.websim_exact_runtime_resolver_contexts AS context
+      ON context.resolver_context_key = release.resolver_context_key
+    JOIN cache.websim_canonical_documents AS context_document
+      ON context_document.content_key = context.resolver_context_key
+    JOIN cache.websim_canonical_documents AS release_document
+      ON release_document.content_key = release.runtime_authority_release_key
+    WHERE release.binding_key = p_binding_key
+    ORDER BY release.runtime_authority_release_key;
+$function$;
+
+CREATE OR REPLACE FUNCTION ops.websim_exact_runtime_authority_release_occurrences_read(
+    p_user_id uuid,
+    p_binding_key text,
+    p_runtime_authority_release_key text
+)
+RETURNS TABLE(
+    runtime_occurrence_index_entry_key text,
+    runtime_occurrence_index_entry_bytes bytea
+)
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = pg_catalog, app, cache, ops, identity, pg_temp
+AS $function$
+    SELECT
+        entry.runtime_occurrence_index_entry_key,
+        document.canonical_bytes
+    FROM ops.websim_exact_runtime_occurrence_index_entries AS entry
+    JOIN ops.websim_exact_runtime_authority_releases AS release
+      ON release.runtime_authority_release_key = entry.runtime_authority_release_key
+    JOIN app.websim_exact_template_authority_bindings AS binding
+      ON binding.binding_key = release.binding_key
+     AND binding.user_id = p_user_id
+    JOIN cache.websim_canonical_documents AS document
+      ON document.content_key = entry.runtime_occurrence_index_entry_key
+    WHERE release.binding_key = p_binding_key
+      AND release.runtime_authority_release_key = p_runtime_authority_release_key
+    ORDER BY entry.subject_variant_signature, entry.runtime_occurrence_index_entry_key;
+$function$;
+
+ALTER FUNCTION ops.websim_exact_runtime_authority_release_admit(uuid, text, bytea, bytea, bytea[])
+OWNER TO wow_migrator;
+ALTER FUNCTION ops.websim_exact_runtime_authority_release_read(uuid, text)
+OWNER TO wow_migrator;
+ALTER FUNCTION ops.websim_exact_runtime_authority_release_occurrences_read(uuid, text, text)
+OWNER TO wow_migrator;
+
+REVOKE ALL ON FUNCTION ops.websim_exact_runtime_authority_release_admit(uuid, text, bytea, bytea, bytea[])
+FROM PUBLIC, wow_app, wow_exact_worker;
+REVOKE ALL ON FUNCTION ops.websim_exact_runtime_authority_release_read(uuid, text)
+FROM PUBLIC, wow_app, wow_exact_worker;
+REVOKE ALL ON FUNCTION ops.websim_exact_runtime_authority_release_occurrences_read(uuid, text, text)
+FROM PUBLIC, wow_app, wow_exact_worker;
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON
+    ops.websim_exact_runtime_resolver_contexts,
+    ops.websim_exact_runtime_authority_releases,
+    ops.websim_exact_runtime_occurrence_index_entries
+TO wow_migrator;
+REVOKE ALL ON
+    ops.websim_exact_runtime_resolver_contexts,
+    ops.websim_exact_runtime_authority_releases,
+    ops.websim_exact_runtime_occurrence_index_entries
+FROM PUBLIC, wow_app, wow_exact_worker;
+
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON
+    cache.websim_canonical_documents,
+    cache.websim_effect_aggregate_records,
+    cache.websim_exact_authority_bundles
+FROM wow_exact_worker;
+GRANT SELECT ON
+    cache.websim_canonical_documents,
+    cache.websim_effect_aggregate_records,
+    cache.websim_exact_authority_bundles
+TO wow_exact_worker;
+
+GRANT EXECUTE ON FUNCTION
+    ops.websim_exact_runtime_authority_release_admit(uuid, text, bytea, bytea, bytea[]),
+    ops.websim_exact_runtime_authority_release_read(uuid, text),
+    ops.websim_exact_runtime_authority_release_occurrences_read(uuid, text, text)
+TO wow_app;
+GRANT EXECUTE ON FUNCTION
+    ops.websim_exact_runtime_authority_release_read(uuid, text),
+    ops.websim_exact_runtime_authority_release_occurrences_read(uuid, text, text)
+TO wow_exact_worker;
+
+INSERT INTO ops.schema_migrations (id, description)
+VALUES (
+    '0035_websim_exact_runtime_authority_release',
+    'Add append-only owner-scoped Exact runtime authority release, resolver context and occurrence index persistence'
+)
+ON CONFLICT (id) DO UPDATE
+SET description = EXCLUDED.description,
+    applied_at = pg_catalog.clock_timestamp();
