@@ -244,6 +244,58 @@ class GearVariantMaterializationMatrixTest(unittest.TestCase):
             True,
         )
 
+    def test_callback_provenance_failure_code_drives_count_and_validates(self):
+        self.assertIsNotNone(build_gear_variant_materialization_matrix)
+        self.assertIsNotNone(validate_gear_variant_materialization_matrix_report)
+
+        reports = self.verified_materializer_reports()
+        reports["browse-a"]["failureCodes"] = [
+            "MATERIALIZATION_MATRIX_SELECTION_INTENT_PROOF_MISSING"
+        ]
+        report = build_gear_variant_materialization_matrix(
+            self.catalog(),
+            self.relation_contexts(),
+            RecordingMaterializer(reports),
+        )
+
+        self.assertEqual(report["status"], "blocked")
+        self.assertEqual(report["missing_provenance_count"], 1)
+        self.assertEqual(report["silent_default_fill_count"], 0)
+        self.assertEqual(
+            report["ledger"]["browse-a"]["failureCodes"],
+            ["MATERIALIZATION_MATRIX_SELECTION_INTENT_PROOF_MISSING"],
+        )
+        self.assertEqual(
+            validate_gear_variant_materialization_matrix_report(report),
+            [],
+        )
+
+    def test_callback_default_failure_code_drives_count_and_validates(self):
+        self.assertIsNotNone(build_gear_variant_materialization_matrix)
+        self.assertIsNotNone(validate_gear_variant_materialization_matrix_report)
+
+        reports = self.verified_materializer_reports()
+        reports["browse-b"]["failureCodes"] = [
+            "MATERIALIZATION_MATRIX_DEFAULT_FLAG_MISSING"
+        ]
+        report = build_gear_variant_materialization_matrix(
+            self.catalog(),
+            self.relation_contexts(),
+            RecordingMaterializer(reports),
+        )
+
+        self.assertEqual(report["status"], "blocked")
+        self.assertEqual(report["missing_provenance_count"], 0)
+        self.assertEqual(report["silent_default_fill_count"], 1)
+        self.assertEqual(
+            report["ledger"]["browse-b"]["failureCodes"],
+            ["MATERIALIZATION_MATRIX_DEFAULT_FLAG_MISSING"],
+        )
+        self.assertEqual(
+            validate_gear_variant_materialization_matrix_report(report),
+            [],
+        )
+
     def test_materialized_item_or_key_mismatch_is_rejected(self):
         self.assertIsNotNone(build_gear_variant_materialization_matrix)
 

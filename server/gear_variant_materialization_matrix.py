@@ -63,6 +63,16 @@ def _canonical_codes(value: Any) -> list[str]:
     return sorted(set(codes))
 
 
+def _entry_has_failure_code_in_family(
+    entry: Mapping[str, Any],
+    code_family: set[str],
+) -> bool:
+    return any(
+        code in code_family
+        for code in _canonical_codes(entry.get("failureCodes"))
+    )
+
+
 def _failure_sample(
     code: str,
     *,
@@ -252,8 +262,6 @@ def build_gear_variant_materialization_matrix(
         context = indexed_contexts.get(browse_variant_key)
         entry_failures: list[str] = []
         report_status = ""
-        entry_missing_provenance = False
-        entry_silent_default = False
         entry = {
             "status": "blocked",
             "itemId": item_id,
@@ -272,7 +280,6 @@ def build_gear_variant_materialization_matrix(
 
         if context is None:
             entry_failures.append("MATERIALIZATION_MATRIX_MISSING_RELATION_CONTEXT")
-            entry_missing_provenance = True
         else:
             class_key = _text(context.get("classKey"))
             spec_key = _text(context.get("specKey"))
@@ -284,10 +291,8 @@ def build_gear_variant_materialization_matrix(
             entry["slot"] = slot
             if context_item_id != item_id:
                 entry_failures.append("MATERIALIZATION_MATRIX_CONTEXT_ITEM_MISMATCH")
-                entry_missing_provenance = True
             if not class_key or not spec_key or not slot:
                 entry_failures.append("MATERIALIZATION_MATRIX_MISSING_RELATION_CONTEXT")
-                entry_missing_provenance = True
             safe_selection_intent = (
                 _canonical(selection_intent)
                 if isinstance(selection_intent, Mapping) and bool(selection_intent)
@@ -295,7 +300,6 @@ def build_gear_variant_materialization_matrix(
             )
             if safe_selection_intent is None:
                 entry_failures.append("MATERIALIZATION_MATRIX_MISSING_SELECTION_INTENT")
-                entry_missing_provenance = True
             if not entry_failures:
                 try:
                     raw_report = materializer(
@@ -336,23 +340,19 @@ def build_gear_variant_materialization_matrix(
                             entry_failures.append(
                                 "MATERIALIZATION_MATRIX_SELECTION_INTENT_PROOF_MISMATCH"
                             )
-                            entry_missing_provenance = True
                     else:
                         entry_failures.append(
                             "MATERIALIZATION_MATRIX_SELECTION_INTENT_PROOF_MISSING"
                         )
-                        entry_missing_provenance = True
 
                     if used_default_variant is None:
                         entry_failures.append(
                             "MATERIALIZATION_MATRIX_DEFAULT_FLAG_MISSING"
                         )
-                        entry_silent_default = True
                     elif used_default_variant is True:
                         entry_failures.append(
                             "MATERIALIZATION_MATRIX_USED_DEFAULT_VARIANT"
                         )
-                        entry_silent_default = True
 
                     if (
                         materialized_item_id != item_id
@@ -361,7 +361,6 @@ def build_gear_variant_materialization_matrix(
                         entry_failures.append(
                             "MATERIALIZATION_MATRIX_MATERIALIZED_PAIR_MISMATCH"
                         )
-                        entry_missing_provenance = True
 
                     if report_status and report_status not in _READY_STATUSES:
                         entry_failures.append(
@@ -391,9 +390,9 @@ def build_gear_variant_materialization_matrix(
 
         if entry["failureCodes"]:
             catalog_non_simulatable_count += 1
-            if entry_missing_provenance:
+            if _entry_has_failure_code_in_family(entry, _PROVENANCE_CODES):
                 missing_provenance_count += 1
-            if entry_silent_default:
+            if _entry_has_failure_code_in_family(entry, _DEFAULT_CODES):
                 silent_default_fill_count += 1
             report_failure_codes.update(entry["failureCodes"])
             for code in entry["failureCodes"]:
@@ -501,9 +500,9 @@ def validate_gear_variant_materialization_matrix_report(report: Any) -> list[str
             derived_non_simulatable += 1
         else:
             derived_materialized += 1
-        if any(code in _DEFAULT_CODES for code in entry_codes):
+        if _entry_has_failure_code_in_family(raw_entry, _DEFAULT_CODES):
             derived_silent_default += 1
-        if any(code in _PROVENANCE_CODES for code in entry_codes):
+        if _entry_has_failure_code_in_family(raw_entry, _PROVENANCE_CODES):
             derived_missing_provenance += 1
 
     if (
