@@ -1167,6 +1167,11 @@ AS $function$
         );
 $function$;
 
+-- The 0034 enqueue entrypoint remains SECURITY DEFINER under wow_migrator.
+-- Its redefined v3 validator is intentionally not callable by app or worker.
+GRANT EXECUTE ON FUNCTION ops.websim_exact_import_request_is_valid(jsonb)
+TO wow_migrator;
+
 INSERT INTO ops.schema_migrations (id, description)
 VALUES (
     '0035_websim_exact_runtime_authority_release',

@@ -1497,6 +1497,21 @@ $unsafe$;
                     normalized,
                 )
 
+    def test_0035_forward_grants_v3_request_validator_only_to_enqueue_owner(self):
+        normalized = _normalized(
+            WEBSIM_EXACT_RUNTIME_AUTHORITY_RELEASE.read_text(encoding="utf-8")
+        )
+        self.assertIn(
+            "GRANT EXECUTE ON FUNCTION ops.websim_exact_import_request_is_valid(jsonb) "
+            "TO wow_migrator;",
+            normalized,
+        )
+        self.assertNotIn(
+            "GRANT EXECUTE ON FUNCTION ops.websim_exact_import_request_is_valid(jsonb) "
+            "TO wow_app, wow_exact_worker;",
+            normalized,
+        )
+
     def test_exact_import_jobs_rejects_schema_qualified_coalesce_variants(self):
         sql = WEBSIM_EXACT_IMPORT_JOBS.read_text(encoding="utf-8")
         migrations = tuple(
