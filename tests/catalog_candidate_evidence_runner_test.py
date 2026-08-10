@@ -336,6 +336,7 @@ class CatalogCandidateEvidenceRunnerTest(unittest.TestCase):
             }
         )
         old_active_pointer = self.pointer(
+            manifestRevision="season-manifest:sha256:" + "8" * 64,
             gearCatalogRevision="gear-catalog:sha256:" + "a" * 64,
             gearExactRegistryRevision="gear-exact-registry:sha256:" + "b" * 64,
         )

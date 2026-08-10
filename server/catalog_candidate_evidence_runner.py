@@ -275,6 +275,50 @@ def _input_identity_mismatch(
     )
 
 
+def _validate_active_pointer_snapshot(
+    pointer_mapping: Mapping[str, Any],
+) -> list[dict[str, Any]]:
+    problems: list[dict[str, Any]] = []
+    for field, code in (
+        (
+            "manifestRevision",
+            "CATALOG_CANDIDATE_EVIDENCE_POINTER_ACTIVE_MANIFEST_INVALID",
+        ),
+        (
+            "gearCatalogRevision",
+            "CATALOG_CANDIDATE_EVIDENCE_POINTER_ACTIVE_CATALOG_REVISION_INVALID",
+        ),
+        (
+            "gearExactRegistryRevision",
+            "CATALOG_CANDIDATE_EVIDENCE_POINTER_ACTIVE_EXACT_REVISION_INVALID",
+        ),
+    ):
+        value = pointer_mapping.get(field)
+        if not isinstance(value, str) or not value.strip():
+            problems.append(
+                _problem(
+                    code,
+                    f"active pointer {field} must be a non-empty string",
+                    component="pointer_before",
+                    field=field,
+                )
+            )
+
+    generation_value = pointer_mapping.get("generation")
+    if generation_value is None:
+        generation_value = pointer_mapping.get("pointerGeneration")
+    if _int_or_none(generation_value) is None:
+        problems.append(
+            _problem(
+                "CATALOG_CANDIDATE_EVIDENCE_POINTER_ACTIVE_GENERATION_INVALID",
+                "active pointer generation must be an integer",
+                component="pointer_before",
+                field="generation",
+            )
+        )
+    return problems
+
+
 def _validate_inputs(
     *,
     catalog: Any,
@@ -311,6 +355,10 @@ def _validate_inputs(
     if problems:
         return problems
 
+    pointer_structure_problems = _validate_active_pointer_snapshot(pointer_mapping)
+    if pointer_structure_problems:
+        return pointer_structure_problems
+
     for field in _INPUT_IDENTITY_FIELDS:
         expected = _identity_value(field, expected_identity.get(field))
         if field == "gearCatalogRevision":
@@ -340,16 +388,11 @@ def _validate_inputs(
                     )
                 )
         elif field == "manifestRevision":
-            actual = _identity_value(field, pointer_mapping.get("manifestRevision"))
-            if actual != expected:
-                problems.append(
-                    _input_identity_mismatch(
-                        component="pointer_before",
-                        field="manifestRevision",
-                        expected=expected,
-                        actual=actual,
-                    )
-                )
+            # The active pointer is intentionally allowed to remain on the
+            # retail Manifest while candidate APIs expose a preview Manifest.
+            # Its own structure is validated above; candidate identity is
+            # checked on HTTP/Resolver/Profile component evidence instead.
+            continue
         elif field == "pointerGeneration":
             actual = _identity_value(
                 field,
