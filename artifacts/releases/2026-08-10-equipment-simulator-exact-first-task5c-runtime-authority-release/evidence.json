@@ -5,7 +5,7 @@
   "status": "local_verified",
   "highestEvidenceLevel": "local_verified",
   "branch": "codex/exact-first-task5a-control-plane",
-  "commit": "8a9f9de6d09d159c1368ad5eb6ed30b8d61b1b12",
+  "commit": "b3ee778cb50ad8d55e074c9e303c9aaf2671c9f8",
   "identities": {
     "runtime": {
       "status": "pending",
@@ -15,7 +15,7 @@
       "status": "bound_at_check",
       "kind": "git_ref",
       "value": "HEAD",
-      "reason": "The local packet must be checked from a clean exact HEAD; the verified implementation bytes are commit 8a9f9de6d09d159c1368ad5eb6ed30b8d61b1b12."
+      "reason": "The local packet must be checked from a clean exact HEAD; the verified implementation and candidate-harness bytes are commit b3ee778cb50ad8d55e074c9e303c9aaf2671c9f8."
     },
     "closure": {
       "status": "pending",
@@ -49,8 +49,14 @@
     {
       "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p '*_test.py'",
       "status": "pass",
-      "testedHead": "8a9f9de6d09d159c1368ad5eb6ed30b8d61b1b12",
-      "summary": "2957 tests passed in 81.641s with 4 expected cloud-only PostgreSQL candidate skips. Existing negative CLI fixtures and SQLite ResourceWarning output did not fail the suite."
+      "testedHead": "b3ee778cb50ad8d55e074c9e303c9aaf2671c9f8",
+      "summary": "2961 tests passed in 81.099s with 5 expected cloud-only PostgreSQL candidate skips. Existing negative CLI fixtures and SQLite ResourceWarning output did not fail the suite."
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest tests.postgres_integration_test.Task5CCandidateHarnessTest tests.postgres_integration_test.Task5CV3MigrationBoundaryTest tests.postgres_integration_test.PostgresRuntimeAuthorityReleaseCandidateTest",
+      "status": "pass",
+      "testedHead": "b3ee778cb50ad8d55e074c9e303c9aaf2671c9f8",
+      "summary": "The Task 5C candidate contract passed; the actual cloud-only 0035 runner was skipped because no disposable cloud DSNs were provided, so no local PostgreSQL connection or cloud deployment occurred."
     },
     {
       "command": "python3 -m compileall -q server/exact_simc_api.py server/gear_exact_authority_worker.py server/news_backend.py; git diff --check origin/main...HEAD; node scripts/project-harness.js --check-requirement --requirement-file artifacts/releases/2026-08-10-equipment-simulator-exact-first-task5c-runtime-authority-release/requirement.json",
@@ -68,14 +74,14 @@
   "candidateDeployment": {
     "status": "candidate_pending",
     "requiredBeforeMerge": true,
-    "reason": "Task 5C requires one final-head cloud-only disposable fresh 0001..0035 and upgrade 0001..0034-to-0035 candidate. The repository currently has only a static Task5CV3MigrationBoundaryTest and no Task 5C candidate runner for release admission/reload, occurrence index, V3 worker, endpoint, no-backflow and provider-disable rollback proof; no manual substitute has been run."
+    "reason": "Task 5C requires one final-head cloud-only disposable fresh 0001..0035 and upgrade 0001..0034-to-0035 candidate. A local opt-in runner now binds empty/commented database identity, fresh/upgrade migrations, release admission/readback, zero/multiple membership, occurrence readback, V3 snapshot/job/worker-processor checks, ACLs, provider-disable and no-async settings; it remains unexecuted until one final clean head and resource-preflighted cloud disposable environment are available."
   },
   "runtimeEvidence": [],
   "risks": [
     {
-      "id": "task5c_candidate_harness_missing",
-      "status": "blocked",
-      "detail": "No executable Task 5C cloud candidate harness exists beyond static migration-boundary coverage, so the required fresh/upgrade runtime proof cannot be truthfully collected without an active-plan-authorized candidate test/runbook implementation."
+      "id": "task5c_candidate_execution_pending",
+      "status": "pending",
+      "detail": "The executable Task 5C cloud-only candidate runner is locally verified but has not received a final clean implementation head, cloud disk/CPU/memory preflight, or disposable fresh/upgrade DSNs; no candidate evidence exists yet."
     },
     {
       "id": "runtime_authority_unavailable_by_default",
@@ -110,5 +116,5 @@
     "docs/harness.md",
     "docs/verification-matrix.md"
   ],
-  "summary": "Task 5C is locally verified at 8a9f9de6 for immutable runtime release/context/index ownership and release-bound V3 execution. This is not a runtime, candidate, production or player-loop completion claim: the server factory remains disabled, no cloud database or service changed, and the required Task 5C final-head candidate harness is not yet implemented."
+  "summary": "Task 5C is locally verified at b3ee778c for immutable runtime release/context/index ownership, release-bound V3 execution and an opt-in final-head cloud candidate harness. This is not a runtime, candidate, production or player-loop completion claim: the server factory remains disabled, no cloud database or service changed, and the required final-head cloud candidate has not run."
 }
