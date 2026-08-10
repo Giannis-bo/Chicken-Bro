@@ -355,6 +355,141 @@ BEGIN
 END;
 $triggers$;
 
+-- 0033's RETURNS TABLE output column is also named binding_key.  Preserve that
+-- frozen migration verbatim and forward-replace its function with an explicit
+-- primary-key conflict target, so PL/pgSQL never has to resolve that output
+-- variable against the insert target column.
+CREATE OR REPLACE FUNCTION ops.websim_exact_template_binding_admit(
+    p_user_id uuid,
+    p_template_id uuid,
+    p_template_config_hash text,
+    p_source_payload_hash text,
+    p_selection_signature text,
+    p_binding_bytes bytea
+)
+RETURNS TABLE(binding_key text, binding_bytes bytea)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, app, cache, ops, pg_temp
+AS $function$
+DECLARE
+    v_template_config_hash text;
+    v_binding_key text;
+    v_binding_json jsonb;
+    v_owner_key_hash text;
+BEGIN
+    IF p_template_config_hash !~ '^[0-9a-f]{64}$'
+       OR p_source_payload_hash !~ '^sha256:[0-9a-f]{64}$'
+       OR p_selection_signature !~ '^sha256:[0-9a-f]{64}$'
+       OR pg_catalog.octet_length(p_binding_bytes) NOT BETWEEN 2 AND 131072
+    THEN
+        RAISE EXCEPTION 'exact template binding input is invalid';
+    END IF;
+    SELECT config_hash
+    INTO v_template_config_hash
+    FROM app.build_templates
+    WHERE id = p_template_id
+      AND user_id = p_user_id
+      AND template_type = 'gear'
+    FOR KEY SHARE;
+    IF NOT FOUND OR v_template_config_hash IS DISTINCT FROM p_template_config_hash THEN
+        RAISE EXCEPTION 'exact template binding source is unavailable';
+    END IF;
+    BEGIN
+        v_binding_json := pg_catalog.convert_from(p_binding_bytes, 'UTF8')::jsonb;
+    EXCEPTION WHEN OTHERS THEN
+        RAISE EXCEPTION 'exact template binding bytes are invalid';
+    END;
+    v_owner_key_hash := 'sha256:' || pg_catalog.encode(
+        pg_catalog.sha256(
+            pg_catalog.convert_to(
+                'exact-template-owner-v1:' || p_user_id::text,
+                'UTF8'
+            )
+        ),
+        'hex'
+    );
+    IF pg_catalog.jsonb_typeof(v_binding_json) IS DISTINCT FROM 'object'
+       OR v_binding_json - ARRAY[
+            'schemaRevision', 'source', 'authority', 'exactAuthorityBySlot'
+       ] <> '{}'::jsonb
+       OR v_binding_json ->> 'schemaRevision'
+          IS DISTINCT FROM 'exact-template-authority-binding-v1'
+       OR pg_catalog.jsonb_typeof(v_binding_json -> 'source')
+          IS DISTINCT FROM 'object'
+       OR pg_catalog.jsonb_typeof(v_binding_json -> 'authority')
+          IS DISTINCT FROM 'object'
+       OR pg_catalog.jsonb_typeof(v_binding_json -> 'exactAuthorityBySlot')
+          IS DISTINCT FROM 'array'
+       OR pg_catalog.jsonb_array_length(v_binding_json -> 'exactAuthorityBySlot')
+          NOT BETWEEN 1 AND 16
+       OR v_binding_json #>> '{source,ownerKeyHash}'
+          IS DISTINCT FROM v_owner_key_hash
+       OR v_binding_json #>> '{source,templateId}'
+          IS DISTINCT FROM p_template_id::text
+       OR v_binding_json #>> '{source,templateConfigHash}'
+          IS DISTINCT FROM p_template_config_hash
+       OR v_binding_json #>> '{source,sourcePayloadHash}'
+          IS DISTINCT FROM p_source_payload_hash
+       OR v_binding_json #>> '{source,selectionSignature}'
+          IS DISTINCT FROM p_selection_signature
+    THEN
+        RAISE EXCEPTION 'exact template binding payload is invalid';
+    END IF;
+    v_binding_key := 'exact-template-authority-binding:sha256:' ||
+        pg_catalog.encode(pg_catalog.sha256(p_binding_bytes), 'hex');
+    INSERT INTO app.websim_exact_template_authority_bindings (
+        binding_key,
+        user_id,
+        template_id,
+        template_config_hash,
+        source_payload_hash,
+        selection_signature,
+        binding_bytes,
+        binding_json,
+        binding_sha256
+    ) VALUES (
+        v_binding_key,
+        p_user_id,
+        p_template_id,
+        p_template_config_hash,
+        p_source_payload_hash,
+        p_selection_signature,
+        p_binding_bytes,
+        v_binding_json,
+        pg_catalog.encode(pg_catalog.sha256(p_binding_bytes), 'hex')
+    )
+    ON CONFLICT ON CONSTRAINT websim_exact_template_authority_bindings_pkey
+    DO NOTHING;
+    INSERT INTO app.websim_exact_template_authority_binding_slots (
+        binding_key,
+        ordinal,
+        slot,
+        exact_authority_envelope_key
+    )
+    SELECT
+        v_binding_key,
+        (entry.ordinality - 1)::integer,
+        entry.value ->> 'slot',
+        entry.value ->> 'exactAuthorityEnvelopeKey'
+    FROM pg_catalog.jsonb_array_elements(
+        v_binding_json -> 'exactAuthorityBySlot'
+    ) WITH ORDINALITY AS entry(value, ordinality)
+    ON CONFLICT DO NOTHING;
+    RETURN QUERY
+    SELECT
+        binding.binding_key,
+        binding.binding_bytes
+    FROM app.websim_exact_template_authority_bindings AS binding
+    WHERE binding.binding_key = v_binding_key
+      AND binding.user_id = p_user_id
+      AND binding.template_id = p_template_id
+      AND binding.template_config_hash = p_template_config_hash
+      AND binding.source_payload_hash = p_source_payload_hash
+      AND binding.selection_signature = p_selection_signature;
+END;
+$function$;
+
 CREATE OR REPLACE FUNCTION ops.websim_exact_runtime_authority_release_admit(
     p_user_id uuid,
     p_binding_key text,

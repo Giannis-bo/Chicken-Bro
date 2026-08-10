@@ -1424,6 +1424,19 @@ $unsafe$;
                     ),
                 )
 
+    def test_0035_forward_fix_disambiguates_the_frozen_binding_admit_conflict_target(self):
+        sql = WEBSIM_EXACT_RUNTIME_AUTHORITY_RELEASE.read_text(encoding="utf-8")
+        normalized = _normalized(sql)
+        self.assertIn(
+            "CREATE OR REPLACE FUNCTION ops.websim_exact_template_binding_admit(",
+            normalized,
+        )
+        self.assertIn(
+            "ON CONFLICT ON CONSTRAINT "
+            "websim_exact_template_authority_bindings_pkey DO NOTHING;",
+            normalized,
+        )
+
     def test_exact_import_jobs_rejects_schema_qualified_coalesce_variants(self):
         sql = WEBSIM_EXACT_IMPORT_JOBS.read_text(encoding="utf-8")
         migrations = tuple(
