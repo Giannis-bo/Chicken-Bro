@@ -330,6 +330,16 @@ the full local suite (`2964` tests, `OK`, 5 expected cloud-only skips) pass.
 This proves only local repair; it changes runtime migration bytes, so one brand
 new final-head candidate remains mandatory and the prior runs remain unusable.
 
+The third candidate `t5c2608101210d3` bound final head `80f484f8` / tree
+`ab83d4e495c25cc5f207fb4b23de0a7a7ed760f7`, reached 35 migrations on both
+paths, and then failed before attestation because the candidate test passed
+`seal_runtime_occurrence_index_entry(...).document` to a store that correctly
+requires the sealed entry. Its log SHA-256 is
+`36129af925c05b64377498279c18d05ffc370ff58edb2d37205b48bd9b1135cf`.
+This candidate harness fixture error must be repaired with TDD; it invalidates
+this run and requires another new final-head candidate. Its exact disposable
+resources are identity-archived and must be discarded before that repair.
+
 - [ ] **Step 3: Review, CI and production only after candidate PASS**
 
 Run final CR/Harness at exact candidate head, publish one implementation PR, require exact-head CI, then apply reviewed `0030..0035` and provider/worker enablement per runbook. Record main/origin/cloud parity, no timer/backflow, API/readback and rollback. Never create a CI-only PR.

@@ -9,7 +9,7 @@
   "identities": {
     "runtime": {
       "status": "pending",
-      "reason": "Candidates t5c260810033244 and t5c2608101217a9 both failed before attestation. The first exposed frozen 0033's ambiguous binding conflict target; the repaired final head then exposed the binding relation trigger's direct-table privilege defect. The second forward-only 0035 repair is locally verified at 0ca0619be459584d1285b1276ffe6435db04cb48, but one new final-head candidate is still required; production 0030--0035 migration, provider enablement and worker activation remain prohibited."
+      "reason": "Candidates t5c260810033244, t5c2608101217a9 and t5c2608101210d3 all failed before attestation. The first exposed frozen 0033's ambiguous binding conflict target; the repaired head exposed the binding relation trigger's direct-table privilege defect; the second repaired head exposed a candidate runner occurrence-entry fixture type error. A candidate-harness repair and one new final-head candidate are required; production 0030--0035 migration, provider enablement and worker activation remain prohibited."
     },
     "verification": {
       "status": "bound_at_check",
@@ -37,7 +37,7 @@
     "Task 5C local implementation seals and reloads one immutable runtime resolver context, runtime authority release and occurrence index, then propagates their server-only relation through V3 ResolvedLoadout, SimulationSnapshot and exact-import job identities.",
     "The materializer reads one owner/binding-scoped release after source replay, reconstructs release-scoped occurrence authority before final resolve, and returns literal blocked or unsupported outcomes for missing, ambiguous or unsupported authority.",
     "The worker executes only a sealed V3 request whose snapshot, release, resolver context, row hash and complete dependency vector agree; V1 and V2 are explicitly unsupported. The default HTTP factory remains disabled until all server-only owners are explicitly composed.",
-    "No current UI route, JSX hierarchy, copy, styles, entry or navigation changed in this Task 5C implementation. No local PostgreSQL, production migration, provider/worker activation, async backflow, Catalog/Manifest pointer or generation 35 action occurred. Two disposable cloud candidates failed before attestation and are recorded below; neither touched any production database, service or user-visible path."
+    "No current UI route, JSX hierarchy, copy, styles, entry or navigation changed in this Task 5C implementation. No local PostgreSQL, production migration, provider/worker activation, async backflow, Catalog/Manifest pointer or generation 35 action occurred. Three disposable cloud candidates failed before attestation and are recorded below; none touched any production database, service or user-visible path."
   ],
   "verification": [
     {
@@ -93,12 +93,18 @@
       "status": "pass",
       "testedHead": "0ca0619be459584d1285b1276ffe6435db04cb48",
       "summary": "No P1/P2 found: only 0035 and its schema regression changed. The relation validator retains frozen 0033's fixed search_path, becomes SECURITY DEFINER under wow_migrator, has no direct wow_app table grant, and 0030--0034 plus apps/mini-taro remain unchanged."
+    },
+    {
+      "command": "one cloud-only low-priority Task 5C candidate t5c2608101210d3",
+      "status": "fail",
+      "testedHead": "80f484f82016ff919dddda5a565445d545e08671",
+      "summary": "Fresh and upgrade disposable databases reached 35 migrations including both 0035 repairs. The runner then failed before attestation with RuntimeAuthorityReleaseIntegrityError: occurrence entry must be sealed because its test fixture passed seal_runtime_occurrence_index_entry(...).document instead of the sealed entry required by RuntimeAuthorityReleaseStore. Exact log SHA-256 36129af925c05b64377498279c18d05ffc370ff58edb2d37205b48bd9b1135cf, tree ab83d4e495c25cc5f207fb4b23de0a7a7ed760f7 and 0035 SHA-256 6aef914d618433913314711388d4093d6905c61ea9ea445d33267f2e579e7064 are archived here."
     }
   ],
   "candidateDeployment": {
     "status": "candidate_rerun_required",
     "requiredBeforeMerge": true,
-    "reason": "Candidates t5c260810033244 and t5c2608101217a9 both failed before attestation. Their named fresh/upgrade databases were correctly commented, reached 35 migrations, and are non-reusable. The second 0035 forward repair changes runtime bytes, so one new run-id-bound final-head candidate remains mandatory before merge.",
+    "reason": "Candidates t5c260810033244, t5c2608101217a9 and t5c2608101210d3 all failed before attestation. Their named fresh/upgrade databases were correctly commented, reached 35 migrations, and are non-reusable. The candidate runner fixture repair changes candidate-test bytes, so one new run-id-bound final-head candidate remains mandatory before merge.",
     "failedAttempts": [
       {
         "runId": "t5c260810033244",
@@ -124,6 +130,18 @@
         "failureLogSha256": "d887db68c4019f3b29fd86fbc6fa62b659878d65d58a07fdf6c1eb6ca4c64224",
         "failure": "InsufficientPrivilege: the frozen 0033 verify_websim_exact_template_authority_binding_relations trigger directly SELECTs the binding table while wow_app admits a binding, before candidate attestation.",
         "resourceDisposition": "discarded_after_exact_identity_archive; never reset or reuse"
+      },
+      {
+        "runId": "t5c2608101210d3",
+        "commit": "80f484f82016ff919dddda5a565445d545e08671",
+        "gitTree": "ab83d4e495c25cc5f207fb4b23de0a7a7ed760f7",
+        "migration0035Sha256": "6aef914d618433913314711388d4093d6905c61ea9ea445d33267f2e579e7064",
+        "freshDatabase": "wow_exact_first_fresh_test_t5c2608101210d3",
+        "upgradeDatabase": "wow_exact_first_upgrade_test_t5c2608101210d3",
+        "workerRole": "wow_exact_candidate_t5c2608101210d3",
+        "failureLogSha256": "36129af925c05b64377498279c18d05ffc370ff58edb2d37205b48bd9b1135cf",
+        "failure": "RuntimeAuthorityReleaseIntegrityError: candidate fixture passed an occurrence entry's bare document, while the store correctly requires SealedCanonicalDocument.",
+        "resourceDisposition": "identity_archived_cleanup_pending; never reset or reuse"
       }
     ]
   },
@@ -132,7 +150,7 @@
     {
       "id": "task5c_candidate_rerun_required",
       "status": "pending",
-      "detail": "Candidate t5c260810033244 failed on an ambiguous frozen-0033 conflict target; candidate t5c2608101217a9 then failed on a frozen-0033 binding relation trigger privilege defect. Neither reached attestation. The forward-only 0035 security-definer repair is local-verified at 0ca0619b; one new final-head disposable fresh/upgrade candidate remains required."
+      "detail": "Candidate t5c260810033244 failed on an ambiguous frozen-0033 conflict target; candidate t5c2608101217a9 then failed on a frozen-0033 binding relation trigger privilege defect; candidate t5c2608101210d3 then exposed a runner fixture passing a bare occurrence document. None reached attestation. The candidate fixture must retain the sealed entry before one new final-head disposable fresh/upgrade candidate."
     },
     {
       "id": "runtime_authority_unavailable_by_default",
@@ -153,9 +171,9 @@
     "no_catalog_manifest_generation_or_async_backflow_mutation"
   ],
   "cleanup": {
-    "required": false,
-    "status": "complete",
-    "reason": "After the exact archive commit and a second identity check, only failed run t5c2608101217a9's two disposable databases, candidate worker login, remote source directory, bundle, two logs and 0600 connection material were discarded. Both candidate database and role counts are zero, root disk is available, and production databases, existing roles, provider state and the inactive worker were not changed. Run t5c260810033244 remains previously discarded."
+    "required": true,
+    "status": "pending",
+    "reason": "Runs t5c260810033244 and t5c2608101217a9 are already discarded. After this archive commit, only failed run t5c2608101210d3's two exact-commented disposable databases, candidate worker login, remote source directory, bundle, log and 0600 connection material may be discarded. Production databases, existing roles, provider state and the inactive worker must not change."
   },
   "archivedReferences": [
     "docs/project-state.json",
@@ -168,5 +186,5 @@
     "docs/harness.md",
     "docs/verification-matrix.md"
   ],
-  "summary": "Task 5C is locally verified at 0ca0619b for immutable runtime release/context/index ownership, release-bound V3 execution and both forward-only 0035 repairs. Two cloud candidates failed before attestation: the first ambiguous binding conflict target received a named-primary-key repair, and the repaired head exposed a distinct frozen binding-relation trigger privilege defect now repaired through a wow_migrator-owned SECURITY DEFINER validator. Both failed runs are archived and their exact disposable resources are discarded; one new final-head candidate remains mandatory. This is not a runtime, production or player-loop completion claim: the server factory remains disabled, no production database or service changed, and all user-facing gates remain pending."
+  "summary": "Task 5C is locally verified at 0ca0619b for immutable runtime release/context/index ownership, release-bound V3 execution and both forward-only 0035 repairs. Three cloud candidates failed before attestation: the first ambiguous binding conflict target received a named-primary-key repair, the repaired head exposed a distinct frozen binding-relation trigger privilege defect repaired through a wow_migrator-owned SECURITY DEFINER validator, and the second repaired head exposed a candidate fixture that lost its sealed occurrence entry. The third failed run is archived and pending exact cleanup; a candidate-harness repair and one new final-head candidate remain mandatory. This is not a runtime, production or player-loop completion claim: the server factory remains disabled, no production database or service changed, and all user-facing gates remain pending."
 }
