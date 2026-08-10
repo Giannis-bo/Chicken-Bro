@@ -1,6 +1,6 @@
 # Exact-first Task 5B Active Authority Source Contract
 
-状态：`requirement_challenged（2026-08-07：Task 5A 的 local foundation 已完成，但 active ready-path 缺少一个可证明、不可推断的 authority source。本 Task 冻结缺口和升级条件。2026-08-10 用户已确认后继 Task 5C 的有界 immutable Runtime Authority Release 设计；在其独立 requirement、allowlist、TDD、candidate 和 rollback 尚未建立前，仍不授权 provider、migration、candidate、生产或 UI 变更。）`
+状态：`requirement_challenged（2026-08-07：Task 5A 的 local foundation 已完成，但 active ready-path 缺少一个可证明、不可推断的 authority source。本 Task 冻结缺口和升级条件。2026-08-10 用户已确认后继 Task 5C 的有界 immutable Runtime Authority Release 设计与独立 `implementation_allowed` requirement；其 local implementation 现在获准，但 candidate、生产、UI visual/entry、Catalog/Manifest/generation 35 与 Task 6C 仍受该后继 Strict packet 的门禁。）`
 
 ## 用户目标与当前阻断
 
@@ -76,4 +76,4 @@ only after both exact owners exist
 
 ## 当前精确 blocker
 
-目前没有已实现或可引用的 active authority release/occurrence-index。用户已确认用 project-owned、只覆盖闭合模板的 immutable release 解决该缺口；设计位于 [Task 5C Runtime Authority Release](2026-08-10-equipment-simulator-exact-first-task5c-runtime-authority-release-design.md)。该确认只建立设计输入，未建立 implementation requirement 或 runtime source；在后继 Strict task 的 precise owner/ACL/migration/candidate/rollback contract 完成前，当前 ready-path 仍必须 blocked，且不得借用 Task 6C。
+目前没有已实现或可引用的 active authority release/occurrence-index。用户已确认用 project-owned、只覆盖闭合模板的 immutable release 解决该缺口；[Task 5C Runtime Authority Release](2026-08-10-equipment-simulator-exact-first-task5c-runtime-authority-release-design.md) 与其 [implementation plan](2026-08-10-equipment-simulator-exact-first-task5c-runtime-authority-release-implementation.md) 已建立 precise owner/ACL/migration/candidate/rollback boundary。它只授权 local implementation；在 release 真实 admission、candidate、production 和既有页面验收发生前，当前 ready-path 仍必须 blocked，且不得借用 Task 6C。

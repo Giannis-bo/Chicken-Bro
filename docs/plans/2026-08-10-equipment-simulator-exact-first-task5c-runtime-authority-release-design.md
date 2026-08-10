@@ -1,6 +1,6 @@
 # Exact-first Task 5C：有界 Runtime Authority Release 设计
 
-状态：`design_approved / implementation_not_authorized（2026-08-10：用户确认首期只让已有事实完整闭合的远端模板进入 ready；不等待全赛季 PVE Universe，零个、多个、漂移或未建模 relation 继续 literal blocked。本文只冻结后续 Strict task 的设计，不授权任何 provider、migration、candidate、production、worker activation、Catalog/Manifest/generation 35 或 UI 改动。）`
+状态：`design_approved / separate_requirement_implementation_allowed（2026-08-10：用户确认首期只让已有事实完整闭合的远端模板进入 ready；不等待全赛季 PVE Universe，零个、多个、漂移或未建模 relation 继续 literal blocked。随后 dependency audit 确认 v2 Snapshot/job 未绑定 release key，故后继实现必须以 forward-only v3 loadout/snapshot/job 传播 release/context/vector，v1/v2 bytes 不变。本文只冻结设计；独立 Task 5C requirement 仅授权其 precise local owner/migration/v3 implementation，不授权 runtime provider activation、candidate、production、worker activation、Catalog/Manifest/generation 35 或 UI 改动。）`
 
 ## 用户结果与范围
 
@@ -43,21 +43,33 @@ resolver-context document 内的 full authority context 是发布时唯一允许
 
 首期规则特意保守：对一个可重放的 0033 binding，membership read **必须恰有一行**。零行或多行都 `EXACT_AUTHORITY_UNAVAILABLE`。因此本 Task 不实现 release rotation、active pointer、latest selection 或自动升级；一个不同 runtime/producer/vector 的 release 必须等待新 source identity 的独立 admission 设计。此限制避免把“当前版本”偷偷降级为可变默认值。
 
-app 可把 server-generated opaque `releaseKey` 连同现有 source ref 发送回来，但它只是不可信 selector。后端必须先按 owner/template 重读 source binding，再核对该 release membership；客户端不能选择无 relation 的 release，也不能凭 key 构造 authority。若当前 UI 需要这项 opaque ref，只允许增加无视觉变化的 prepare/binding 编排，不得修改 route、JSX hierarchy、文案、SCSS、导航或公开 raw authority。
+release key 永不进入 client source ref、公开 envelope 或页面状态。后端先按 owner/template 重读 source binding，再要求唯一 membership；客户端既不能选择 release，也不能凭 key 构造 authority。这样维持既有页面的 route、JSX hierarchy、文案、SCSS 与导航不变。
 
 ### 3. Dynamic occurrence relation
 
 运行时先用 sealed resolver-context 完成 first-pass `resolve_v2`。其 Task 4L subject descriptor 会产生包含完整 `resolvedGearSignature` 与 revisions 的 `subjectVariantSignature`；index 对每一个此 signature 在同一 release 内必须返回恰好一个 sealed `simc-item-effect-record`。
 
-后端逐项 typed-reload record 后，按 first-pass descriptor 的原始顺序和重复次数调用 `resolve_loadout_effect_authority(...)`。仅当 aggregate 是 `verified`，再将其注入 final `resolve_v2`、ResolvedLoadout v2 与 SimulationSnapshot v2；同一 signature 的重复 occurrence 可以引用同一 record key，但绝不 dedupe occurrence。`unsupported` 保持 `LOADOUT_EFFECT_UNSUPPORTED`；unknown、缺项、额外项、record substitution、ordinal/order drift、不同 release 或 aggregate 重验失败都保持 `LOADOUT_EFFECT_AUTHORITY_REQUIRED`。
+后端逐项 typed-reload record 后，按 first-pass resolver snapshot 的原始 descriptor 顺序和重复次数调用 `resolve_loadout_effect_authority(first_pass_snapshot, records=records)`。仅当 aggregate 是 `verified`，再将其注入 final `resolve_v2` 与后继 v3 ResolvedLoadout/SimulationSnapshot；同一 signature 的重复 occurrence 可以引用同一 record key，但绝不 dedupe occurrence。`unsupported` 保持 `LOADOUT_EFFECT_UNSUPPORTED`；unknown、缺项、额外项、record substitution、ordinal/order drift、不同 release 或 aggregate 重验失败都保持 `LOADOUT_EFFECT_AUTHORITY_REQUIRED`。
 
 没有 loadout-scoped subject 的模板仍必须有完整 release/vector/resolver context，但不需要 occurrence index row；它不会伪造空 effect authority。
+
+### 4. Forward-only v3 identity propagation
+
+现有 `resolved-loadout-v2`、`simulation-snapshot-v2` 与 `exact-import-job-request-v2` 都没有 runtime release key。后继实现不得把该 key 放入 process memory、worker configuration 或 job side table 来规避 canonical identity；它必须新增并只新增以下 v3 documents/requests，旧 v1/v2 canonical bytes/key/hash/worker behavior 不变：
+
+| v3 identity | 必须新增且纳入 hash/row hash/request bytes 的字段 | 目的 |
+| --- | --- | --- |
+| `resolved-loadout-v3:sha256:` | `runtimeAuthorityReleaseKey`、`resolverContextKey`、full eight-field `dependencyVector`，以及既有 v2 authority/occurrence projection | 使装备 loadout 的可重放性明确指向一个 sealed release/context。 |
+| `simulation-snapshot-v3:sha256:` | 相同 `runtimeAuthorityReleaseKey`、`resolverContextKey`、full eight-field `dependencyVector`，以及 v3 loadout key、canonical SimC input 与 profile/compiler/runtime facts | 使同一个 SimC input 不能在不同 release 下共享 Snapshot identity。 |
+| `exact-import-job-request-v3` | v3 loadout/snapshot keys、snapshot row hash、`runtimeAuthorityReleaseKey`、`resolverContextKey`、full eight-field `dependencyVector` | 使 worker 只能 rehydrate request 所指定的 release/context/snapshot 三元组。 |
+
+`ExactSimcConfirmation` 继续只公开现有 request/loadout/snapshot keys 与 eight-field vector，不泄露 release/context keys。server 在 confirm 与 submit 都重新 materialize v3 identity；worker 以 job v3 key typed-reload release/context，逐项比较 request、snapshot 和 release，再执行已绑定的 canonical SimC input。任何 v1/v2 request、v3 key/vector/context drift 或缺失 relation 都是 typed non-ready，绝不向后兼容猜测。
 
 ## Publication, read and rollback protocol
 
 1. 受控 `wow_migrator` admission 接收一个完整、bounded release input：明确 producer/source revision、八项 vector、typed resolver context、已重读的 0033 binding key 和 ordered occurrence → sealed record keys。它不接受 client JSON，也不在运行时生成 release。
 2. admission 先 typed-reload every binding/bundle/record，first-pass resolve，重算 every descriptor variant，再比较整个 ordered multiset。仅在完全相等时，以一个 transaction 写入三个 canonical documents、membership 和 index relations。
-3. `wow_app` 仅通过 owner-scoped security-definer read function 读取一个 source binding 的明确 release、resolver context 和 occurrence rows；`wow_exact_worker` 仅可重读 snapshot/job 所引用的 already-sealed release facts。两者均无 release/index table direct DML；`wow_migrator` 是唯一 writer。
+3. `wow_app` 仅通过 owner-scoped security-definer read function 读取一个 source binding 的明确 release、resolver context 和 occurrence rows；`wow_exact_worker` 仅可重读 v3 snapshot/job 所引用的 already-sealed release facts。两者均无 release/index table direct DML；`wow_migrator` 是唯一 writer。
 4. `ExactSimcMaterializer` 接收明确 release reader。它不能访问 Catalog pointer、compatibility store、latest queries 或 process default；任何 read exception 均映射为现有 unavailable/blocked envelope。
 5. 回滚只禁用 provider/worker binding，使 Exact HTTP 返回 `EXACT_AUTHORITY_UNAVAILABLE`。不删除/更新 release、index、snapshot 或 job，也不回退 `/api/simulator/analyze`。
 
@@ -70,7 +82,8 @@ RED/GREEN matrix 至少覆盖：
 - canonical document bytes/key/hash reload、八项 vector exact key set、resolver-context bytes/hash drift；
 - one binding/one release 成功，零/多 membership blocked，owner isolation 与 private-field rejection；
 - dynamic descriptor 的 zero/one/multiple index row、record key/bytes/runtime drift、重复 occurrence/order preservation、unsupported/unknown cases；
-- no-loadout-effect ready path、Task 5A source/profile ref strictness、no legacy analyze fallback、v1 request bytes/key stability；
+- v3 loadout/snapshot/job 对 release/context/vector 的 identity binding，v1/v2 bytes/key stability、v1/v2 worker typed unsupported；
+- no-loadout-effect ready path、Task 5A source/profile ref strictness、no legacy analyze fallback；
 - migration freshness/upgrade、table/function ACL、app/worker least privilege、candidate rollback and no async backflow；
 - unchanged `simc_submit` route/JSX/SCSS/copy, plus the four real-WeChat acceptance items only after candidate and production gates.
 
