@@ -831,6 +831,11 @@ def exact_runtime_authority_release_schema_violations(sql, migrations):
         "runtime_authority_release_key text REFERENCES ops.websim_exact_runtime_authority_releases(runtime_authority_release_key) ON DELETE RESTRICT",
         "resolver_context_key text REFERENCES ops.websim_exact_runtime_resolver_contexts(resolver_context_key) ON DELETE RESTRICT",
         "dependency_vector_json jsonb",
+        "pg_catalog.jsonb_typeof(resolver_replay_context_json) IS NOT DISTINCT FROM 'object'",
+        "PERFORM cache.verify_websim_resolver_replay_context( NEW.resolver_replay_context_json );",
+        "NEW.resolver_replay_context_json -> 'dependencyVector' ->> 'gearRuleRevision' IS DISTINCT FROM v_release_vector ->> 'gearRuleRevision'",
+        "NEW.resolver_replay_context_json -> 'dependencyVector' ->> 'resolverContractRevision' IS DISTINCT FROM v_release_vector ->> 'resolverRevision'",
+        "NEW.resolver_replay_context_json -> 'dependencyVector' ->> 'simcRuntimeRevision' IS DISTINCT FROM v_release_vector ->> 'simcRuntimeRevision'",
         "resolved-loadout-v3",
         "simulation-snapshot-v3",
         "exact-import-job-request-v3",
@@ -1400,6 +1405,13 @@ $unsafe$;
             sql.replace(
                 "ORDER BY release.runtime_authority_release_key;",
                 "ORDER BY release.sealed_at DESC LIMIT 1;",
+                1,
+            ),
+            sql.replace(
+                "PERFORM cache.verify_websim_resolver_replay_context(\n"
+                "        NEW.resolver_replay_context_json\n"
+                "    );",
+                "PERFORM NULL;",
                 1,
             ),
         )

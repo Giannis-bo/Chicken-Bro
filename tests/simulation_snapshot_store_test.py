@@ -52,6 +52,7 @@ class FakeDatabase:
         self.effect_aggregate_records = {}
         self.loadout_effect_authorities = {}
         self.loadout_effect_authority_records = {}
+        self.runtime_memberships = {}
         self.statements = []
 
 
@@ -105,6 +106,9 @@ class FakeCursor:
             rows = self.database.loadout_effect_authority_records.setdefault(params[0], [])
             if (params[1], params[2]) not in rows:
                 rows.append((params[1], params[2]))
+        elif "simulation_snapshot_runtime_authority_v3_load" in normalized:
+            row = self.database.runtime_memberships.get((params[0], params[1]))
+            self.rows = [row] if row else []
         elif "simulation_snapshot_loadout_v2_insert" in normalized:
             self.database.v2_loadouts.setdefault(params[0], tuple(params))
         elif "simulation_snapshot_loadout_v2_load" in normalized:
@@ -262,6 +266,15 @@ def v3_snapshot_fixture():
         runtime_authority_release=release,
     )
     return resolver, bundles, context, release, loadout_row, snapshot_row
+
+
+def seed_runtime_membership(database, context, release):
+    database.runtime_memberships[(release.content_key, context.content_key)] = (
+        context.content_key,
+        context.canonical_bytes,
+        release.content_key,
+        release.canonical_bytes,
+    )
 
 
 def seed_exact_authority_bundles(database, bundles):
@@ -452,11 +465,12 @@ class SimulationSnapshotStoreTest(unittest.TestCase):
         self.assertEqual(sealed_loadout, loadout_row)
         self.assertEqual(sealed_snapshot, snapshot_row)
 
-    def test_v3_round_trip_requires_exact_release_context_and_reverifies_readback(self):
+    def test_v3_round_trip_rehydrates_exact_release_context_and_reverifies_readback(self):
         resolver, bundles, context, release, loadout_row, snapshot_row = (
             v3_snapshot_fixture()
         )
         seed_exact_authority_bundles(self.database, bundles)
+        seed_runtime_membership(self.database, context, release)
 
         sealed_loadout = self.store.seal_loadout(
             loadout_row,
@@ -479,28 +493,24 @@ class SimulationSnapshotStoreTest(unittest.TestCase):
         self.assertEqual(
             self.store.load_loadout(
                 sealed_loadout["resolvedLoadoutKey"],
-                resolver_snapshot=resolver,
-                authority_bundles=bundles,
-                resolver_context=context,
-                runtime_authority_release=release,
             ),
             loadout_row,
         )
         self.assertEqual(
             self.store.load_snapshot(
                 sealed_snapshot["simulationSnapshotKey"],
-                resolver_snapshot=resolver,
-                authority_bundles=bundles,
-                resolver_context=context,
-                runtime_authority_release=release,
             ),
             snapshot_row,
         )
-        with self.assertRaisesRegex(
-            SimulationSnapshotIntegrityError,
-            "v3 .* verifier context is required",
-        ):
-            self.store.load_snapshot(sealed_snapshot["simulationSnapshotKey"])
+        bound = self.store.bind_result(
+            sealed_snapshot["simulationSnapshotKey"],
+            {
+                "resultIdentity": "simc-result:sha256:" + ("c" * 64),
+                "status": "completed",
+                "metrics": {"dps": 123456},
+            },
+        )
+        self.assertEqual(bound["status"], "executed")
 
         stored = list(self.database.v3_snapshots[
             sealed_snapshot["simulationSnapshotKey"]
@@ -515,10 +525,6 @@ class SimulationSnapshotStoreTest(unittest.TestCase):
         ):
             self.store.load_snapshot(
                 sealed_snapshot["simulationSnapshotKey"],
-                resolver_snapshot=resolver,
-                authority_bundles=bundles,
-                resolver_context=context,
-                runtime_authority_release=release,
             )
 
     def test_v2_provenance_changes_only_provenance_columns_and_replay_is_allowlisted(self):

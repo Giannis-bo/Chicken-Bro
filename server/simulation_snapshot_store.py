@@ -17,6 +17,13 @@ try:
     from .gear_loadout_effect_authority import (
         reload_loadout_effect_authority,
     )
+    from .exact_runtime_authority_release import (
+        RuntimeAuthorityReleaseError,
+        reload_runtime_authority_release,
+        reload_runtime_resolver_context,
+        runtime_authority_release_payload,
+        runtime_resolver_context_payload,
+    )
     from .gear_resolved_loadout import (
         RESOLVED_LOADOUT_V2_SCHEMA_REVISION,
         RESOLVED_LOADOUT_V3_SCHEMA_REVISION,
@@ -39,6 +46,13 @@ except ImportError:
         canonical_int,
     )
     from gear_loadout_effect_authority import reload_loadout_effect_authority
+    from exact_runtime_authority_release import (
+        RuntimeAuthorityReleaseError,
+        reload_runtime_authority_release,
+        reload_runtime_resolver_context,
+        runtime_authority_release_payload,
+        runtime_resolver_context_payload,
+    )
     from gear_resolved_loadout import (
         RESOLVED_LOADOUT_V2_SCHEMA_REVISION,
         RESOLVED_LOADOUT_V3_SCHEMA_REVISION,
@@ -1296,17 +1310,95 @@ class SimulationSnapshotStore:
             )
         return row
 
-    def _load_v3_loadout_with_cursor(
+    @staticmethod
+    def _load_runtime_authority_v3_with_cursor(
+        cur: Any,
+        release_key: str,
+        resolver_context_key: str,
+    ) -> tuple[Any, Any]:
+        """Reload exactly the release/context named by one V3 row.
+
+        This relation is intentionally key-addressed rather than owner-scoped:
+        the owner check happened before a row could be sealed, while readback
+        must only prove the immutable keys already inside that row.  It never
+        selects an active or latest release.
+        """
+        cur.execute(
+            """
+            /* simulation_snapshot_runtime_authority_v3_load */
+            SELECT
+                context.resolver_context_key,
+                context_document.canonical_bytes,
+                release.runtime_authority_release_key,
+                release_document.canonical_bytes
+            FROM ops.websim_exact_runtime_authority_releases AS release
+            JOIN ops.websim_exact_runtime_resolver_contexts AS context
+              ON context.resolver_context_key = release.resolver_context_key
+            JOIN cache.websim_canonical_documents AS context_document
+              ON context_document.content_key = context.resolver_context_key
+            JOIN cache.websim_canonical_documents AS release_document
+              ON release_document.content_key = release.runtime_authority_release_key
+            WHERE release.runtime_authority_release_key = %s
+              AND context.resolver_context_key = %s
+            """,
+            (release_key, resolver_context_key),
+        )
+        stored = cur.fetchone()
+        if (
+            not stored
+            or type(stored) not in {tuple, list}
+            or len(stored) != 4
+            or _text(stored[0]) != resolver_context_key
+            or _text(stored[2]) != release_key
+        ):
+            raise SimulationSnapshotIntegrityError(
+                "v3 Runtime Authority Release is unavailable"
+            )
+        try:
+            resolver_context = reload_runtime_resolver_context(
+                bytes(stored[1]),
+                stored[0],
+            )
+            runtime_authority_release = reload_runtime_authority_release(
+                bytes(stored[3]),
+                stored[2],
+            )
+            context_payload = runtime_resolver_context_payload(resolver_context)
+            release_payload = runtime_authority_release_payload(
+                runtime_authority_release
+            )
+        except (RuntimeAuthorityReleaseError, TypeError, ValueError) as error:
+            raise SimulationSnapshotIntegrityError(
+                "v3 Runtime Authority Release typed reload failed"
+            ) from error
+        if (
+            release_payload.get("resolverContextKey")
+            != resolver_context.content_key
+            or release_payload.get("resolverContextSha256")
+            != "sha256:" + hashlib.sha256(
+                resolver_context.canonical_bytes
+            ).hexdigest()
+            or any(
+                release_payload["dependencyVector"].get(field)
+                != context_payload.get(field)
+                for field in (
+                    "seasonRevision",
+                    "gearRuleRevision",
+                    "resolverRevision",
+                    "simcRuntimeRevision",
+                )
+            )
+        ):
+            raise SimulationSnapshotIntegrityError(
+                "v3 Runtime Authority Release/context drift"
+            )
+        return resolver_context, runtime_authority_release
+
+    def _rehydrate_v3_loadout_with_cursor(
         self,
         cur: Any,
         key: str,
-        *,
-        resolver_snapshot: Any,
-        authority_bundles: Any,
-        resolver_context: Any,
-        runtime_authority_release: Any,
-        loadout_effect_authority: Any = None,
-    ) -> dict[str, Any]:
+    ) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any], Any, Any, Any]:
         cur.execute(
             """
             /* simulation_snapshot_loadout_v3_load */
@@ -1325,7 +1417,8 @@ class SimulationSnapshotStore:
                 loadout_effect_authority_key,
                 runtime_authority_release_key,
                 resolver_context_key,
-                dependency_vector_json::text
+                dependency_vector_json::text,
+                resolver_replay_context_json::text
             FROM cache.websim_gear_resolved_loadouts
             WHERE resolved_loadout_key = %s
             """,
@@ -1333,8 +1426,25 @@ class SimulationSnapshotStore:
         )
         stored = cur.fetchone()
         if not stored:
-            return {}
+            return {}, {}, {}, None, None, None
         row = _json_value(stored[7])
+        replay = self._stored_resolver_replay_context(stored[15])
+        bundles = self._reload_exact_authority_bundles(row)
+        authority = None
+        if stored[11] is not None:
+            authority = self._load_loadout_effect_authority_with_cursor(
+                cur,
+                stored[11],
+                replay=replay,
+                simc_runtime_revision=row.get("simcRuntimeRevision"),
+            )
+        resolver_context, runtime_authority_release = (
+            self._load_runtime_authority_v3_with_cursor(
+                cur,
+                _text(stored[12]),
+                _text(stored[13]),
+            )
+        )
         if (
             not _LOADOUT_V3_KEY_PATTERN.fullmatch(_text(stored[0]))
             or row.get("schemaRevision") != RESOLVED_LOADOUT_V3_SCHEMA_REVISION
@@ -1353,28 +1463,32 @@ class SimulationSnapshotStore:
             or row.get("dependencyVector") != _json_value(stored[14])
             or verify_resolved_loadout_v3(
                 row,
-                resolver_snapshot=resolver_snapshot,
-                authority_bundles=authority_bundles,
+                resolver_snapshot=replay,
+                authority_bundles=bundles,
                 resolver_context=resolver_context,
                 runtime_authority_release=runtime_authority_release,
-                loadout_effect_authority=loadout_effect_authority,
+                loadout_effect_authority=authority,
             )
         ):
             raise SimulationSnapshotIntegrityError(
                 "sealed v3 ResolvedLoadout integrity mismatch"
             )
-        return row
+        return (
+            row,
+            replay,
+            bundles,
+            authority,
+            resolver_context,
+            runtime_authority_release,
+        )
+
+    def _load_v3_loadout_with_cursor(self, cur: Any, key: str) -> dict[str, Any]:
+        return self._rehydrate_v3_loadout_with_cursor(cur, key)[0]
 
     def _load_v3_snapshot_with_cursor(
         self,
         cur: Any,
         key: str,
-        *,
-        resolver_snapshot: Any,
-        authority_bundles: Any,
-        resolver_context: Any,
-        runtime_authority_release: Any,
-        loadout_effect_authority: Any = None,
     ) -> dict[str, Any]:
         cur.execute(
             """
@@ -1406,14 +1520,15 @@ class SimulationSnapshotStore:
         if not stored:
             return {}
         row = _json_value(stored[9])
-        loadout = self._load_v3_loadout_with_cursor(
-            cur,
-            stored[2],
-            resolver_snapshot=resolver_snapshot,
-            authority_bundles=authority_bundles,
-            resolver_context=resolver_context,
-            runtime_authority_release=runtime_authority_release,
-            loadout_effect_authority=loadout_effect_authority,
+        (
+            loadout,
+            replay,
+            bundles,
+            authority,
+            resolver_context,
+            runtime_authority_release,
+        ) = self._rehydrate_v3_loadout_with_cursor(
+            cur, stored[2]
         )
         if (
             not _SNAPSHOT_V3_KEY_PATTERN.fullmatch(_text(stored[0]))
@@ -1437,11 +1552,11 @@ class SimulationSnapshotStore:
             or verify_simulation_snapshot_v3(
                 row,
                 resolved_loadout=loadout,
-                resolver_snapshot=resolver_snapshot,
-                authority_bundles=authority_bundles,
+                resolver_snapshot=replay,
+                authority_bundles=bundles,
                 resolver_context=resolver_context,
                 runtime_authority_release=runtime_authority_release,
-                loadout_effect_authority=loadout_effect_authority,
+                loadout_effect_authority=authority,
             )
         ):
             raise SimulationSnapshotIntegrityError(
@@ -1488,12 +1603,6 @@ class SimulationSnapshotStore:
     def load_loadout(
         self,
         key: str,
-        *,
-        resolver_snapshot: Any = None,
-        authority_bundles: Any = None,
-        resolver_context: Any = None,
-        runtime_authority_release: Any = None,
-        loadout_effect_authority: Any = None,
     ) -> dict[str, Any]:
         with self.connection() as connection:
             with connection.cursor() as cur:
@@ -1501,23 +1610,9 @@ class SimulationSnapshotStore:
                 if _LOADOUT_V2_KEY_PATTERN.fullmatch(normalized_key):
                     return self._load_v2_loadout_with_cursor(cur, normalized_key)
                 if _LOADOUT_V3_KEY_PATTERN.fullmatch(normalized_key):
-                    if (
-                        resolver_snapshot is None
-                        or authority_bundles is None
-                        or resolver_context is None
-                        or runtime_authority_release is None
-                    ):
-                        raise SimulationSnapshotIntegrityError(
-                            "v3 ResolvedLoadout verifier context is required"
-                        )
                     return self._load_v3_loadout_with_cursor(
                         cur,
                         normalized_key,
-                        resolver_snapshot=resolver_snapshot,
-                        authority_bundles=authority_bundles,
-                        resolver_context=resolver_context,
-                        runtime_authority_release=runtime_authority_release,
-                        loadout_effect_authority=loadout_effect_authority,
                     )
                 return self._load_loadout_with_cursor(cur, normalized_key)
 
@@ -1526,11 +1621,6 @@ class SimulationSnapshotStore:
         key: str,
         *,
         include_result: bool = True,
-        resolver_snapshot: Any = None,
-        authority_bundles: Any = None,
-        resolver_context: Any = None,
-        runtime_authority_release: Any = None,
-        loadout_effect_authority: Any = None,
     ) -> dict[str, Any]:
         with self.connection() as connection:
             with connection.cursor() as cur:
@@ -1538,23 +1628,9 @@ class SimulationSnapshotStore:
                 if _SNAPSHOT_V2_KEY_PATTERN.fullmatch(normalized_key):
                     row = self._load_v2_snapshot_with_cursor(cur, normalized_key)
                 elif _SNAPSHOT_V3_KEY_PATTERN.fullmatch(normalized_key):
-                    if (
-                        resolver_snapshot is None
-                        or authority_bundles is None
-                        or resolver_context is None
-                        or runtime_authority_release is None
-                    ):
-                        raise SimulationSnapshotIntegrityError(
-                            "v3 SimulationSnapshot verifier context is required"
-                        )
                     row = self._load_v3_snapshot_with_cursor(
                         cur,
                         normalized_key,
-                        resolver_snapshot=resolver_snapshot,
-                        authority_bundles=authority_bundles,
-                        resolver_context=resolver_context,
-                        runtime_authority_release=runtime_authority_release,
-                        loadout_effect_authority=loadout_effect_authority,
                     )
                 else:
                     row = self._load_snapshot_with_cursor(cur, normalized_key)
@@ -1732,16 +1808,31 @@ class SimulationSnapshotStore:
         runtime_authority_release: Any,
         loadout_effect_authority: Any,
     ) -> dict[str, Any]:
+        replay = self._resolver_replay_projection(resolver_snapshot)
         eligibility = row["eligibilityContext"]
         with self.connection() as connection:
             with connection.cursor() as cur:
+                reloaded_bundles = self._reload_exact_authority_bundles(row)
+                authority = self._seal_loadout_effect_authority_with_cursor(
+                    cur,
+                    loadout_effect_authority,
+                    replay=replay,
+                    simc_runtime_revision=row["simcRuntimeRevision"],
+                )
+                stored_context, stored_release = (
+                    self._load_runtime_authority_v3_with_cursor(
+                        cur,
+                        row["runtimeAuthorityReleaseKey"],
+                        row["resolverContextKey"],
+                    )
+                )
                 if verify_resolved_loadout_v3(
                     row,
-                    resolver_snapshot=resolver_snapshot,
-                    authority_bundles=authority_bundles,
-                    resolver_context=resolver_context,
-                    runtime_authority_release=runtime_authority_release,
-                    loadout_effect_authority=loadout_effect_authority,
+                    resolver_snapshot=replay,
+                    authority_bundles=reloaded_bundles,
+                    resolver_context=stored_context,
+                    runtime_authority_release=stored_release,
+                    loadout_effect_authority=authority,
                 ):
                     raise SimulationSnapshotIntegrityError(
                         "v3 ResolvedLoadout typed replay verification failed"
@@ -1762,6 +1853,7 @@ class SimulationSnapshotStore:
                     row["runtimeAuthorityReleaseKey"],
                     row["resolverContextKey"],
                     _json(row["dependencyVector"]),
+                    _json(replay),
                 )
                 cur.execute(
                     """
@@ -1781,10 +1873,11 @@ class SimulationSnapshotStore:
                         loadout_effect_authority_key,
                         runtime_authority_release_key,
                         resolver_context_key,
-                        dependency_vector_json
+                        dependency_vector_json,
+                        resolver_replay_context_json
                     ) VALUES (
                         %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s,
-                        %s::jsonb, %s::jsonb, %s, %s, %s, %s::jsonb
+                        %s::jsonb, %s::jsonb, %s, %s, %s, %s::jsonb, %s::jsonb
                     )
                     ON CONFLICT DO NOTHING
                     """,
@@ -1793,11 +1886,6 @@ class SimulationSnapshotStore:
                 sealed = self._load_v3_loadout_with_cursor(
                     cur,
                     row["resolvedLoadoutKey"],
-                    resolver_snapshot=resolver_snapshot,
-                    authority_bundles=authority_bundles,
-                    resolver_context=resolver_context,
-                    runtime_authority_release=runtime_authority_release,
-                    loadout_effect_authority=loadout_effect_authority,
                 )
                 if sealed != row:
                     raise SimulationSnapshotIntegrityError(
@@ -1987,14 +2075,16 @@ class SimulationSnapshotStore:
     ) -> dict[str, Any]:
         with self.connection() as connection:
             with connection.cursor() as cur:
-                loadout = self._load_v3_loadout_with_cursor(
+                (
+                    loadout,
+                    replay,
+                    bundles,
+                    authority,
+                    stored_context,
+                    stored_release,
+                ) = self._rehydrate_v3_loadout_with_cursor(
                     cur,
                     row["resolvedLoadoutKey"],
-                    resolver_snapshot=resolver_snapshot,
-                    authority_bundles=authority_bundles,
-                    resolver_context=resolver_context,
-                    runtime_authority_release=runtime_authority_release,
-                    loadout_effect_authority=loadout_effect_authority,
                 )
                 if not loadout:
                     raise SimulationSnapshotIntegrityError(
@@ -2003,11 +2093,11 @@ class SimulationSnapshotStore:
                 if verify_simulation_snapshot_v3(
                     row,
                     resolved_loadout=loadout,
-                    resolver_snapshot=resolver_snapshot,
-                    authority_bundles=authority_bundles,
-                    resolver_context=resolver_context,
-                    runtime_authority_release=runtime_authority_release,
-                    loadout_effect_authority=loadout_effect_authority,
+                    resolver_snapshot=replay,
+                    authority_bundles=bundles,
+                    resolver_context=stored_context,
+                    runtime_authority_release=stored_release,
+                    loadout_effect_authority=authority,
                 ):
                     raise SimulationSnapshotIntegrityError(
                         "v3 SimulationSnapshot typed replay verification failed"
@@ -2063,11 +2153,6 @@ class SimulationSnapshotStore:
                 sealed = self._load_v3_snapshot_with_cursor(
                     cur,
                     row["simulationSnapshotKey"],
-                    resolver_snapshot=resolver_snapshot,
-                    authority_bundles=authority_bundles,
-                    resolver_context=resolver_context,
-                    runtime_authority_release=runtime_authority_release,
-                    loadout_effect_authority=loadout_effect_authority,
                 )
                 if sealed != row:
                     raise SimulationSnapshotIntegrityError(
@@ -2079,12 +2164,6 @@ class SimulationSnapshotStore:
         self,
         snapshot_key: str,
         result_value: Any,
-        *,
-        resolver_snapshot: Any = None,
-        authority_bundles: Any = None,
-        resolver_context: Any = None,
-        runtime_authority_release: Any = None,
-        loadout_effect_authority: Any = None,
     ) -> dict[str, Any]:
         key = _text(snapshot_key)
         result = _canonical(result_value) if isinstance(result_value, Mapping) else {}
@@ -2115,23 +2194,9 @@ class SimulationSnapshotStore:
                 if _SNAPSHOT_V2_KEY_PATTERN.fullmatch(key):
                     snapshot = self._load_v2_snapshot_with_cursor(cur, key)
                 elif _SNAPSHOT_V3_KEY_PATTERN.fullmatch(key):
-                    if (
-                        resolver_snapshot is None
-                        or authority_bundles is None
-                        or resolver_context is None
-                        or runtime_authority_release is None
-                    ):
-                        raise SimulationSnapshotIntegrityError(
-                            "v3 SimulationSnapshot verifier context is required"
-                        )
                     snapshot = self._load_v3_snapshot_with_cursor(
                         cur,
                         key,
-                        resolver_snapshot=resolver_snapshot,
-                        authority_bundles=authority_bundles,
-                        resolver_context=resolver_context,
-                        runtime_authority_release=runtime_authority_release,
-                        loadout_effect_authority=loadout_effect_authority,
                     )
                 else:
                     snapshot = self._load_snapshot_with_cursor(cur, key)

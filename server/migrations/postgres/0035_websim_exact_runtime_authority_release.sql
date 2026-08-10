@@ -709,7 +709,8 @@ ADD CONSTRAINT websim_gear_resolved_loadouts_runtime_authority_v3_check CHECK (
         AND loadout_effect_authority_key IS NOT DISTINCT FROM (
             loadout_json ->> 'loadoutEffectAuthorityKey'
         )
-        AND resolver_replay_context_json IS NULL
+        AND pg_catalog.jsonb_typeof(resolver_replay_context_json)
+            IS NOT DISTINCT FROM 'object'
         AND runtime_authority_release_key
             ~ '^exact-runtime-authority-release:sha256:[0-9a-f]{64}$'
         AND resolver_context_key
@@ -820,6 +821,9 @@ BEGIN
     IF NEW.schema_revision <> 'resolved-loadout-v3' THEN
         RETURN NEW;
     END IF;
+    PERFORM cache.verify_websim_resolver_replay_context(
+        NEW.resolver_replay_context_json
+    );
     SELECT release.resolver_context_key,
            document.canonical_json -> 'dependencyVector'
     INTO v_release_context_key, v_release_vector
@@ -831,6 +835,19 @@ BEGIN
     IF v_release_context_key IS DISTINCT FROM NEW.resolver_context_key
        OR v_release_vector IS DISTINCT FROM NEW.dependency_vector_json
        OR v_release_vector IS DISTINCT FROM NEW.loadout_json -> 'dependencyVector'
+       OR NEW.resolver_replay_context_json IS NULL
+       OR NEW.resolver_replay_context_json -> 'dependencyVector'
+            ->> 'gearRuleRevision'
+          IS DISTINCT FROM v_release_vector ->> 'gearRuleRevision'
+       OR NEW.resolver_replay_context_json -> 'dependencyVector'
+            ->> 'resolverContractRevision'
+          IS DISTINCT FROM v_release_vector ->> 'resolverRevision'
+       OR NEW.resolver_replay_context_json -> 'dependencyVector'
+            ->> 'simcRuntimeRevision'
+          IS DISTINCT FROM v_release_vector ->> 'simcRuntimeRevision'
+       OR NEW.resolver_replay_context_json -> 'v2EffectBoundary'
+            ->> 'loadoutEffectAuthorityKey'
+          IS DISTINCT FROM NEW.loadout_effect_authority_key
     THEN
         RAISE EXCEPTION 'v3 ResolvedLoadout must bind one persisted Runtime Authority Release';
     END IF;
