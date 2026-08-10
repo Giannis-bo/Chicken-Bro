@@ -357,7 +357,8 @@ Its log SHA-256 is
 `f0dee4fd673504b9adf3f810d06e3603a7d074b54a5a6032523cba030910df41`.
 The runner must derive matching producer fields and explicitly require a
 verified/non-null result; this run's exact disposable resources are archived
-and must be discarded before another final-head candidate.
+and were discarded before another final-head candidate; production state and
+the inactive worker were not changed.
 
 - [ ] **Step 3: Review, CI and production only after candidate PASS**
 
