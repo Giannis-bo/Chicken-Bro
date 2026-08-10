@@ -240,6 +240,7 @@ git commit -m "feat(exact): execute release-bound v3 simulations"
 ## Task 5: Whole-branch Evidence, Candidate and Production Handoff
 
 **Files:**
+- Modify: `tests/postgres_integration_test.py`
 - Modify: `docs/postgres-identity-migration-runbook.md`, `docs/verification-matrix.md`, `docs/plans/README.md`, `docs/roadmap.md`, `docs/plans/2026-08-04-equipment-simulator-exact-first-persistence-resequence.md`, `docs/plans/2026-08-07-equipment-simulator-exact-first-task5a-api-runtime.md`, `docs/plans/2026-08-07-equipment-simulator-exact-first-task5b-active-authority-source.md`, this plan
 - Create/Modify: `artifacts/releases/2026-08-10-equipment-simulator-exact-first-task5c-runtime-authority-release/evidence.json`, `artifacts/releases/2026-08-10-equipment-simulator-exact-first-task5c-runtime-authority-release/manifest.json`
 
@@ -250,6 +251,38 @@ Run: `PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p '*_test
 Run: `node scripts/project-harness.js --check --requirement-file artifacts/releases/2026-08-10-equipment-simulator-exact-first-task5c-runtime-authority-release/requirement.json --evidence-file artifacts/releases/2026-08-10-equipment-simulator-exact-first-task5c-runtime-authority-release/evidence.json --manifest-file artifacts/releases/2026-08-10-equipment-simulator-exact-first-task5c-runtime-authority-release/manifest.json --base origin/main`
 
 Expected: local evidence cannot claim candidate/production/manual acceptance.
+
+- [x] **Step 1a: Add the cloud-only candidate harness with RED/GREEN evidence**
+
+The existing `Task5CV3MigrationBoundaryTest` is static only and cannot prove the
+candidate gate.  Add one opt-in `0035` runner in
+`tests/postgres_integration_test.py` which accepts only a new lowercase run id,
+two distinct pre-provisioned disposable fresh/upgrade DSNs and distinct
+migrator/app/worker DSNs.  It must first prove both databases are empty and
+correctly commented, apply `0001..0035` versus `0001..0034 -> 0035`, and use
+only the repository's sealed-document stores/functions to prove one release
+admission/readback, zero/multiple membership fail-closed, exact occurrence
+readback, V3 request/snapshot worker checks, v1/v2 non-execution, function ACLs,
+provider-disable rollback and no asynchronous backflow.  It must never create,
+drop or reset databases/roles, and must emit one redacted commit/tree/0035-hash
+attestation only after rechecking the clean source identity and both database
+identities.
+
+Run RED: `PYTHONDONTWRITEBYTECODE=1 python3 -m unittest tests.postgres_integration_test.Task5CCandidateHarnessTest`
+
+Expected: FAIL because the Task 5C explicit candidate configuration and real
+candidate class do not yet exist.
+
+Run GREEN: `PYTHONDONTWRITEBYTECODE=1 python3 -m unittest tests.postgres_integration_test.Task5CCandidateHarnessTest tests.postgres_integration_test.Task5CV3MigrationBoundaryTest`
+
+Expected: PASS locally with the real candidate class skipped while no Task 5C
+cloud DSNs are configured; the harness-contract test must pass and no local
+PostgreSQL connection is attempted.
+
+Completed locally: the RED path failed first on the missing Task 5C attestation
+and runner; the GREEN contract suite passes with the cloud runner skipped when
+no Task 5C DSNs are present. The runner itself remains candidate-only and does
+not constitute a cloud, production, provider, worker, or player-loop result.
 
 - [ ] **Step 2: Run one final-head cloud candidate**
 
