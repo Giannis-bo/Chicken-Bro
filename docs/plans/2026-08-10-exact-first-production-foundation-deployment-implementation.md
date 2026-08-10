@@ -41,7 +41,7 @@ Expected: exit `0`; any runtime diff stops the task and requires a new candidate
 
 Run read-only SSH checks for `df`, load, available memory, `wow-backend`, exact-worker unit state, timer list, `WOW_DATABASE_RUNTIME`, migration max/count and absence of `0035` release tables. Record only counts/statuses; never DSN or personal rows.
 
-Expected: root free space is at least the Task 5C candidate's recorded `5,072,632 KiB`, backend is active, worker inactive/absent, ledger is `0029`/29, and provider remains disabled. Any lower capacity stops before backup or transfer.
+Expected: root free space is at least the Task 5C candidate's recorded `5,072,632 KiB`, backend is active, its current `/health` returns HTTP `200` at the service's verified local listener `127.0.0.1:8787`, worker inactive/absent, ledger is `0029`/29, and provider remains disabled. Any lower capacity or failed health check stops before backup or transfer.
 
 - [ ] **Step 3: Make a recoverable database backup**
 
@@ -73,7 +73,7 @@ Expected: transaction commits only when all six files pass. Requery `ops.schema_
 
 - [ ] **Step 3: Restart only the backend and smoke the disabled boundary**
 
-Run `systemctl restart wow-backend`; do not run `enable`, `start`, `restart` or `daemon-reload` for any timer or Exact worker. Verify `/health`, existing public simulator home, PostgreSQL-only runtime mode, 35 migration rows, `wow-gear-exact-authority-worker` inactive/absent and Exact confirm unavailable/blocked with no task row.
+Run `systemctl restart wow-backend`; do not run `enable`, `start`, `restart` or `daemon-reload` for any timer or Exact worker. Verify `http://127.0.0.1:8787/health`, existing public simulator home, PostgreSQL-only runtime mode, 35 migration rows, `wow-gear-exact-authority-worker` inactive/absent and Exact confirm unavailable/blocked with no task row.
 
 Expected: backend recovers; provider remains disabled and no user-facing Exact-ready claim is emitted.
 
