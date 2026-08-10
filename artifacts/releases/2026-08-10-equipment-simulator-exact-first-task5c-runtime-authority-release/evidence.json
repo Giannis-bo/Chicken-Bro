@@ -5,17 +5,17 @@
   "status": "local_verified",
   "highestEvidenceLevel": "local_verified",
   "branch": "codex/exact-first-task5a-control-plane",
-  "commit": "e8d41d344c5e509b44058adc0c4f82a50d03fbe0",
+  "commit": "71a83b7cb6b6fe62702c8ad3789e44f1fe729b34",
   "identities": {
     "runtime": {
       "status": "pending",
-      "reason": "No Task 5C cloud-only fresh/upgrade candidate has run; production 0030--0035 migration, provider enablement and worker activation remain prohibited."
+      "reason": "Candidate t5c260810033244 failed before attestation at commit 3afb366075b63e5969bc771756a25062d0044b3c because frozen 0033 binding admission used an ambiguous conflict target. The forward-only 0035 repair is locally verified at 71a83b7cb6b6fe62702c8ad3789e44f1fe729b34, but a new final-head candidate is still required; production 0030--0035 migration, provider enablement and worker activation remain prohibited."
     },
     "verification": {
       "status": "bound_at_check",
       "kind": "git_ref",
       "value": "HEAD",
-      "reason": "The local packet must be checked from a clean exact HEAD; the verified implementation and candidate-harness bytes are commit e8d41d344c5e509b44058adc0c4f82a50d03fbe0."
+      "reason": "The local packet must be checked from a clean exact HEAD; the verified implementation, candidate harness and forward-only 0035 repair bytes are commit 71a83b7cb6b6fe62702c8ad3789e44f1fe729b34."
     },
     "closure": {
       "status": "pending",
@@ -37,7 +37,7 @@
     "Task 5C local implementation seals and reloads one immutable runtime resolver context, runtime authority release and occurrence index, then propagates their server-only relation through V3 ResolvedLoadout, SimulationSnapshot and exact-import job identities.",
     "The materializer reads one owner/binding-scoped release after source replay, reconstructs release-scoped occurrence authority before final resolve, and returns literal blocked or unsupported outcomes for missing, ambiguous or unsupported authority.",
     "The worker executes only a sealed V3 request whose snapshot, release, resolver context, row hash and complete dependency vector agree; V1 and V2 are explicitly unsupported. The default HTTP factory remains disabled until all server-only owners are explicitly composed.",
-    "No current UI route, JSX hierarchy, copy, styles, entry or navigation changed in this Task 5C implementation. No local PostgreSQL, cloud candidate, production migration, provider/worker activation, async backflow, Catalog/Manifest pointer or generation 35 action occurred."
+    "No current UI route, JSX hierarchy, copy, styles, entry or navigation changed in this Task 5C implementation. No local PostgreSQL, production migration, provider/worker activation, async backflow, Catalog/Manifest pointer or generation 35 action occurred. One disposable cloud candidate failed before attestation and is recorded below; it did not touch any production database, service or user-visible path."
   ],
   "verification": [
     {
@@ -49,39 +49,59 @@
     {
       "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p '*_test.py'",
       "status": "pass",
-      "testedHead": "e8d41d344c5e509b44058adc0c4f82a50d03fbe0",
-      "summary": "2962 tests passed in 81.592s with 5 expected cloud-only PostgreSQL candidate skips. Existing negative CLI fixtures and SQLite ResourceWarning output did not fail the suite."
+      "testedHead": "71a83b7cb6b6fe62702c8ad3789e44f1fe729b34",
+      "summary": "2963 tests passed in 79.768s with 5 expected cloud-only PostgreSQL candidate skips. Existing negative CLI fixtures and SQLite ResourceWarning output did not fail the suite."
     },
     {
       "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest tests.postgres_integration_test.Task5CCandidateHarnessTest tests.postgres_integration_test.Task5CV3MigrationBoundaryTest tests.postgres_integration_test.PostgresRuntimeAuthorityReleaseCandidateTest",
       "status": "pass",
-      "testedHead": "e8d41d344c5e509b44058adc0c4f82a50d03fbe0",
-      "summary": "The Task 5C candidate contract passed; the actual cloud-only 0035 runner was skipped because no disposable cloud DSNs were provided, so no local PostgreSQL connection or cloud deployment occurred. Its migrator input is limited to the documented wow_migrator login or postgres operator."
+      "testedHead": "71a83b7cb6b6fe62702c8ad3789e44f1fe729b34",
+      "summary": "The Task 5C candidate contract and forward-only 0035 binding-admission regression passed locally; the cloud-only runner remained skipped because no candidate DSNs were supplied locally. Its migrator input is limited to the documented wow_migrator login or postgres operator."
     },
     {
       "command": "python3 -m compileall -q server/exact_simc_api.py server/gear_exact_authority_worker.py server/news_backend.py; git diff --check origin/main...HEAD; node scripts/project-harness.js --check-requirement --requirement-file artifacts/releases/2026-08-10-equipment-simulator-exact-first-task5c-runtime-authority-release/requirement.json",
       "status": "pass",
-      "testedHead": "8a9f9de6d09d159c1368ad5eb6ed30b8d61b1b12",
-      "summary": "Changed runtime modules compiled, the branch had no whitespace errors and the Strict Task 5C requirement passed."
+      "testedHead": "71a83b7cb6b6fe62702c8ad3789e44f1fe729b34",
+      "summary": "The forward-only 0035 repair passed its RED/GREEN schema regression, changed SQL had no whitespace errors, and frozen 0030--0034 plus apps/mini-taro had no diff."
     },
     {
-      "command": "independent local whole-branch CR at 8a9f9de6",
+      "command": "independent local whole-branch CR at 71a83b7c",
       "status": "pass",
-      "testedHead": "8a9f9de6d09d159c1368ad5eb6ed30b8d61b1b12",
-      "summary": "No P1/P2 found: V3 accepts only the exact owner/binding release closure, release/context identities stay internal to the public confirmation, V1/V2 remain non-executable, and the default server factory remains fail closed."
+      "testedHead": "71a83b7cb6b6fe62702c8ad3789e44f1fe729b34",
+      "summary": "No P1/P2 found: the 0035 forward function body is byte-for-byte equivalent to frozen 0033 except for the named primary-key conflict target; frozen SQL and apps/mini-taro remain untouched, V1/V2 remain non-executable, and the default server factory remains fail closed."
+    },
+    {
+      "command": "one cloud-only low-priority Task 5C candidate t5c260810033244",
+      "status": "fail",
+      "testedHead": "3afb366075b63e5969bc771756a25062d0044b3c",
+      "summary": "Fresh and upgrade disposable databases reached 35 migrations including 0035, then app.websim_exact_template_binding_admit failed before attestation with PostgreSQL AmbiguousColumn on ON CONFLICT (binding_key). Exact log SHA-256 59a2e26a52fc2a3ac3f8448b24590456d810a3c01ab068db80a2ac65cf1da20a, tree 74e70769613772e4c75e2a7e80e7593b2ea22c72 and old 0035 SHA-256 8cee1d9ad918ddc9fc2cf60dd7558abcb9e9d62c9dec48c64d595e93ba5785ae are archived here."
     }
   ],
   "candidateDeployment": {
-    "status": "candidate_pending",
+    "status": "candidate_rerun_required",
     "requiredBeforeMerge": true,
-    "reason": "Task 5C requires one final-head cloud-only disposable fresh 0001..0035 and upgrade 0001..0034-to-0035 candidate. A local opt-in runner now binds empty/commented database identity, fresh/upgrade migrations, release admission/readback, zero/multiple membership, occurrence readback, V3 snapshot/job/worker-processor checks, ACLs, provider-disable and no-async settings; it remains unexecuted until one final clean head and resource-preflighted cloud disposable environment are available."
+    "reason": "Candidate t5c260810033244 was invalidated by its failure before attestation. Its named fresh/upgrade databases were correctly commented, reached 35 migrations, and are non-reusable. The 0035 forward repair changes runtime bytes, so one new run-id-bound final-head candidate remains mandatory before merge.",
+    "failedAttempts": [
+      {
+        "runId": "t5c260810033244",
+        "commit": "3afb366075b63e5969bc771756a25062d0044b3c",
+        "gitTree": "74e70769613772e4c75e2a7e80e7593b2ea22c72",
+        "migration0035Sha256": "8cee1d9ad918ddc9fc2cf60dd7558abcb9e9d62c9dec48c64d595e93ba5785ae",
+        "freshDatabase": "wow_exact_first_fresh_test_t5c260810033244",
+        "upgradeDatabase": "wow_exact_first_upgrade_test_t5c260810033244",
+        "workerRole": "wow_exact_candidate_t5c260810033244",
+        "failureLogSha256": "59a2e26a52fc2a3ac3f8448b24590456d810a3c01ab068db80a2ac65cf1da20a",
+        "failure": "AmbiguousColumn: ON CONFLICT (binding_key) conflicted with the frozen PL/pgSQL RETURNS TABLE output variable before candidate attestation.",
+        "resourceDisposition": "pending_exact_identity_cleanup; never reset or reuse"
+      }
+    ]
   },
   "runtimeEvidence": [],
   "risks": [
     {
-      "id": "task5c_candidate_execution_pending",
+      "id": "task5c_candidate_rerun_required",
       "status": "pending",
-      "detail": "The executable Task 5C cloud-only candidate runner is locally verified but has not received a final clean implementation head, cloud disk/CPU/memory preflight, or disposable fresh/upgrade DSNs; no candidate evidence exists yet."
+      "detail": "Candidate t5c260810033244 failed before attestation on an ambiguous frozen-0033 conflict target. The forward-only 0035 repair is local-verified, but requires one new final-head disposable fresh/upgrade candidate after the failed resources are archived and discarded."
     },
     {
       "id": "runtime_authority_unavailable_by_default",
@@ -102,8 +122,8 @@
     "no_catalog_manifest_generation_or_async_backflow_mutation"
   ],
   "cleanup": {
-    "required": false,
-    "reason": "No Task 5C cloud candidate database, role, remote source directory, bundle, provider activation or worker process was created during local verification."
+    "required": true,
+    "reason": "The failed run t5c260810033244 created only its named disposable fresh/upgrade databases, candidate worker login, remote source directory, bundle, log and 0600 connection material. It must be archived by exact identity then discarded; no provider, worker process or production state is eligible for cleanup."
   },
   "archivedReferences": [
     "docs/project-state.json",
@@ -116,5 +136,5 @@
     "docs/harness.md",
     "docs/verification-matrix.md"
   ],
-  "summary": "Task 5C is locally verified at e8d41d34 for immutable runtime release/context/index ownership, release-bound V3 execution and an opt-in final-head cloud candidate harness. This is not a runtime, candidate, production or player-loop completion claim: the server factory remains disabled, no cloud database or service changed, and the required final-head cloud candidate has not run."
+  "summary": "Task 5C is locally verified at 71a83b7c for immutable runtime release/context/index ownership, release-bound V3 execution and a forward-only repair for the failed binding-admission candidate. Candidate t5c260810033244 failed before attestation and is non-reusable; a new final-head candidate remains mandatory. This is not a runtime, production or player-loop completion claim: the server factory remains disabled, no production database or service changed, and all user-facing gates remain pending."
 }
