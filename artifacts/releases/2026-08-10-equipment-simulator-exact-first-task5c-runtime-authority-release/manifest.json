@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-08-10T04:06:54.002Z",
+  "generatedAt": "2026-08-10T04:10:43.663Z",
   "release": {
     "date": "2026-08-10",
     "slug": "equipment-simulator-exact-first-task5c-runtime-authority-release"
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-08-10-equipment-simulator-exact-first-task5c-runtime-authority-release/evidence.json",
-    "sizeBytes": 14367,
+    "sizeBytes": 16241,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -392,7 +392,7 @@
     "missingFields": [],
     "declaredStatus": "local_verified",
     "highestEvidenceLevel": "local_verified",
-    "summary": "Task 5C is locally verified at 0ca0619b for immutable runtime release/context/index ownership, release-bound V3 execution and both forward-only 0035 repairs. Two cloud candidates failed before attestation: the first ambiguous binding conflict target received a named-primary-key repair, and the repaired head exposed a distinct frozen binding-relation trigger privilege defect now repaired through a wow_migrator-owned SECURITY DEFINER validator. Both failed runs are archived and their exact disposable resources are discarded; one new final-head candidate remains mandatory. This is not a runtime, production or player-loop completion claim: the server factory remains disabled, no production database or service changed, and all user-facing gates remain pending."
+    "summary": "Task 5C is locally verified at 0ca0619b for immutable runtime release/context/index ownership, release-bound V3 execution and both forward-only 0035 repairs. Three cloud candidates failed before attestation: the first ambiguous binding conflict target received a named-primary-key repair, the repaired head exposed a distinct frozen binding-relation trigger privilege defect repaired through a wow_migrator-owned SECURITY DEFINER validator, and the second repaired head exposed a candidate fixture that lost its sealed occurrence entry. All failed runs are archived and their exact disposable resources are discarded; a candidate-harness repair and one new final-head candidate remain mandatory. This is not a runtime, production or player-loop completion claim: the server factory remains disabled, no production database or service changed, and all user-facing gates remain pending."
   },
   "evidence": {
     "localTests": {
