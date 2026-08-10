@@ -348,6 +348,17 @@ no migration or UI change. The full local suite passes with `2965` tests and 5
 expected cloud-only skips, but the candidate test source changed; a brand-new
 final-head candidate remains mandatory and all three prior run ids stay unusable.
 
+The fourth candidate `t5c2608101215f4` bound final head `4459a61c` / tree
+`647cb2c8900886d42eabb537c139ea9066a0d373`, reached 35 migrations on both
+paths, and failed before attestation with `occurrence entry must be sealed`.
+The seal helper had correctly blocked because the fixture's producer identity
+and revision did not match its sealed release, leaving `.document` as `None`.
+Its log SHA-256 is
+`f0dee4fd673504b9adf3f810d06e3603a7d074b54a5a6032523cba030910df41`.
+The runner must derive matching producer fields and explicitly require a
+verified/non-null result; this run's exact disposable resources are archived
+and must be discarded before another final-head candidate.
+
 - [ ] **Step 3: Review, CI and production only after candidate PASS**
 
 Run final CR/Harness at exact candidate head, publish one implementation PR, require exact-head CI, then apply reviewed `0030..0035` and provider/worker enablement per runbook. Record main/origin/cloud parity, no timer/backflow, API/readback and rollback. Never create a CI-only PR.
