@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-08-10T04:01:47.796Z",
+  "generatedAt": "2026-08-10T04:06:54.002Z",
   "release": {
     "date": "2026-08-10",
     "slug": "equipment-simulator-exact-first-task5c-runtime-authority-release"
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-08-10-equipment-simulator-exact-first-task5c-runtime-authority-release/evidence.json",
-    "sizeBytes": 13284,
+    "sizeBytes": 14367,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -392,7 +392,7 @@
     "missingFields": [],
     "declaredStatus": "local_verified",
     "highestEvidenceLevel": "local_verified",
-    "summary": "Task 5C is locally verified at 71a83b7c for immutable runtime release/context/index ownership and release-bound V3 execution. Two cloud candidates failed before attestation: the first ambiguous binding conflict target received a forward-only 0035 repair, and the repaired head exposed a distinct frozen binding-relation trigger privilege defect. The second failed run is archived and its exact disposable resources are discarded; a further final-head candidate will remain mandatory after a forward-only repair. This is not a runtime, production or player-loop completion claim: the server factory remains disabled, no production database or service changed, and all user-facing gates remain pending."
+    "summary": "Task 5C is locally verified at 0ca0619b for immutable runtime release/context/index ownership, release-bound V3 execution and both forward-only 0035 repairs. Two cloud candidates failed before attestation: the first ambiguous binding conflict target received a named-primary-key repair, and the repaired head exposed a distinct frozen binding-relation trigger privilege defect now repaired through a wow_migrator-owned SECURITY DEFINER validator. Both failed runs are archived and their exact disposable resources are discarded; one new final-head candidate remains mandatory. This is not a runtime, production or player-loop completion claim: the server factory remains disabled, no production database or service changed, and all user-facing gates remain pending."
   },
   "evidence": {
     "localTests": {
@@ -413,12 +413,6 @@
     }
   },
   "riskMatrix": [
-    {
-      "id": "dirty_worktree",
-      "severity": "medium",
-      "status": "watch",
-      "detail": "2 changed files currently visible to git status."
-    },
     {
       "id": "hotspot_files_present",
       "severity": "medium",
@@ -452,12 +446,9 @@
   ],
   "repo": {
     "git": {
-      "status": "dirty",
-      "changedFileCount": 2,
-      "changedFiles": [
-        " M artifacts/releases/2026-08-10-equipment-simulator-exact-first-task5c-runtime-authority-release/evidence.json",
-        " M artifacts/releases/2026-08-10-equipment-simulator-exact-first-task5c-runtime-authority-release/manifest.json"
-      ]
+      "status": "clean",
+      "changedFileCount": 0,
+      "changedFiles": []
     }
   },
   "write": {
