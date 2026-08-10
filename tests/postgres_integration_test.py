@@ -729,12 +729,18 @@ class Task5CCandidateHarnessTest(unittest.TestCase):
             with self.subTest(forbidden=forbidden):
                 self.assertNotIn(forbidden, source)
 
-    def test_candidate_runner_retains_the_sealed_occurrence_entry(self):
+    def test_candidate_runner_derives_a_verified_sealed_occurrence_from_release(self):
         source = inspect.getsource(PostgresRuntimeAuthorityReleaseCandidateTest)
-        start = source.index("occurrence = seal_runtime_occurrence_index_entry(")
-        end = source.index("release_store = RuntimeAuthorityReleaseStore(", start)
-        occurrence_setup = source[start:end]
-        self.assertNotIn(".document", occurrence_setup)
+        for required in (
+            "runtime_authority_release_payload",
+            'producer_identity=release_payload["producerIdentity"]',
+            'producer_revision=release_payload["producerRevision"]',
+            'self.assertEqual(occurrence_result.status, "verified")',
+            "self.assertIsNotNone(occurrence_result.document)",
+            "occurrence = occurrence_result.document",
+        ):
+            with self.subTest(required=required):
+                self.assertIn(required, source)
         self.assertIn("occurrence_entries=(occurrence,)", source)
 
 class Task4WCandidateHarnessTest(unittest.TestCase):
@@ -4820,6 +4826,7 @@ class PostgresRuntimeAuthorityReleaseCandidateTest(unittest.TestCase):
 
     def _assert_v3_job_and_worker_contract(self, binding_key, bundles):
         from server.exact_runtime_authority_release import (
+            runtime_authority_release_payload,
             seal_runtime_occurrence_index_entry,
         )
         from server.exact_runtime_authority_release_store import (
@@ -4857,14 +4864,18 @@ class PostgresRuntimeAuthorityReleaseCandidateTest(unittest.TestCase):
         )
         record = fixture_bundle.effect_records[0]
         signature = json.loads(record.canonical_bytes)["subjectVariantSignature"]
-        occurrence = seal_runtime_occurrence_index_entry(
+        release_payload = runtime_authority_release_payload(release)
+        occurrence_result = seal_runtime_occurrence_index_entry(
             release,
             subject_variant_signature=signature,
             resolved_gear_signature=resolver["resolvedGearSignature"],
             effect_record=record,
-            producer_identity="task5c-candidate",
-            producer_revision=TASK_5C_RUN_ID,
+            producer_identity=release_payload["producerIdentity"],
+            producer_revision=release_payload["producerRevision"],
         )
+        self.assertEqual(occurrence_result.status, "verified")
+        self.assertIsNotNone(occurrence_result.document)
+        occurrence = occurrence_result.document
         release_store = RuntimeAuthorityReleaseStore(
             lambda: self._connect(TASK_5C_APP_DSN),
         )
