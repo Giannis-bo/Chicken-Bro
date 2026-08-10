@@ -301,6 +301,23 @@ discarded; they are non-reusable. This checkbox remains open: one new run-id
 on the repaired final runtime head is still required and must not treat the
 failed run as candidate evidence.
 
+The second candidate `t5c2608101217a9` bound the repaired final head
+`d426fbc6` / tree `5af4b178421f2295cfaaa6336d9cb2c669b40254`. Its initial
+runner log-open was refused before Python started (the preserved empty log has
+SHA-256 `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`);
+both exact-commented databases were then independently proven empty before the
+sole actual candidate execution. Fresh and upgrade both reached 35 migrations,
+but the binding admission transaction failed before attestation because frozen
+`0033`'s `verify_websim_exact_template_authority_binding_relations` trigger
+directly reads the protected binding table as `wow_app`. The actual candidate
+log SHA-256 is
+`d887db68c4019f3b29fd86fbc6fa62b659878d65d58a07fdf6c1eb6ca4c64224`.
+This is a distinct forward-only compatibility defect, not a candidate success
+or retry authorization. Its two databases, candidate role, remote source,
+bundle, logs and 0600 credential material are identity-archived and must be
+discarded before any new repair or candidate. A new final-head candidate remains
+required after any forward repair; this checkbox remains open.
+
 - [ ] **Step 3: Review, CI and production only after candidate PASS**
 
 Run final CR/Harness at exact candidate head, publish one implementation PR, require exact-head CI, then apply reviewed `0030..0035` and provider/worker enablement per runbook. Record main/origin/cloud parity, no timer/backflow, API/readback and rollback. Never create a CI-only PR.
