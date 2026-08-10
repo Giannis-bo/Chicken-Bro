@@ -20,7 +20,7 @@
     },
     "closure": {
       "status": "pending",
-      "reason": "The final-head candidate is verified, but independent CR, exact-head CI, production parity/rollback and all four unchanged-page real-WeChat acceptance items have not occurred."
+      "reason": "The final runtime candidate and independent local CR are verified, but exact-head CI, production parity/rollback and all four unchanged-page real-WeChat acceptance items have not occurred."
     }
   },
   "manualAcceptance": {
@@ -244,12 +244,18 @@
       "status": "pass",
       "testedHead": "70e37b6fd88bee7dc0004d4cba6fec5aef820e02",
       "summary": "One clean immutable source/tree 70e37b6fd88bee7dc0004d4cba6fec5aef820e02 / 516441faca2ac30b51190c29a416c391ce70d31d ran low-priority with WOW_DEPLOY_START_ASYNC_SYNCS=0. Fresh 0001..0035 and upgrade 0001..0034->0035 both reached 35 migrations; the redacted attestation verifies release membership zero/multiple/occurrence fail-closed, v3 snapshot/job/worker, v1/v2 non-execution, provider-disable/no-async-backflow and ACL boundary. Log SHA-256 b86b2f4e010c53b78338a710d30fda306debf37428e0f26d18a2f201f64dcbe9, 1101 bytes; candidate resources were subsequently deleted and rechecked absent."
+    },
+    {
+      "command": "independent local whole-branch CR at 0fb83796; git diff --check origin/main...HEAD; Harness packet check",
+      "status": "pass",
+      "testedHead": "0fb83796ec6346a7454e11ff3e41f0b5b84357a7",
+      "summary": "No P1/P2 found. The checked Task 5C code preserves the fail-closed default HTTP composition, owner/binding-only unique release read, release-scoped occurrence reload, V3-only sealed snapshot/job/worker identity, explicit V1/V2 non-execution, forward-only 0035 key and ACL repairs, and no active/latest/Catalog/Manifest/client fallback. The earlier Task 5A typed current-page binding was checked against its frozen no-visual-change contract; Task 5C itself has no apps/mini-taro diff. The optional codex review command did not produce a usable report because its local plugin output was malformed; local CR remains the primary review evidence."
     }
   ],
   "candidateDeployment": {
     "status": "candidate_verified",
     "requiredBeforeMerge": true,
-    "reason": "The ninth, final runtime head candidate passed with an immutable attestation. It is candidate-only runtime evidence: production migration/provider/worker activation, exact-head CI, independent final CR, production parity/rollback and all player acceptance remain mandatory.",
+    "reason": "The ninth, final runtime head candidate and independent local CR passed with immutable evidence. This remains candidate-only runtime evidence: production migration/provider/worker activation, exact-head CI, production parity/rollback and all player acceptance remain mandatory.",
     "runId": "t5c260810124115",
     "ordinal": 9,
     "commit": "70e37b6fd88bee7dc0004d4cba6fec5aef820e02",
