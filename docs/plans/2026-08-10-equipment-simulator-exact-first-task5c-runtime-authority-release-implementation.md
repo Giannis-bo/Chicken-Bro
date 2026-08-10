@@ -374,6 +374,19 @@ is `8dc565aa0a027a85dacb0b93c4b40b70472fa09e264360fdf76a01e6f136c875`.
 this failed run is identity-archived and must be discarded before another
 final-head candidate.
 
+The exact cleanup is complete: both named candidate databases and the candidate
+worker role rechecked absent, remote source/bundle/log/0600 credential material
+removed, root capacity recovered to 5076672 KiB, and the dedicated worker
+remained inactive. The follow-on TDD repair `72332293` changes only 0035: it
+replaces the two historical key checks with forms that retain bare v1 and
+explicit v2 keys while admitting v3. Its migration SHA-256 is
+`a77b3686f6eb728c4e3d8d557815d34959f010064693239aaa83f3bb791e5112`.
+The new static regression first failed for both constraints, then passed with
+the two earlier 0035 forward-repair regressions; the 60-test schema/candidate
+contract and whole local suite also passed without local PostgreSQL. This new
+runtime-migration head requires one new candidate run id; no failed candidate
+or resource may be reused.
+
 - [ ] **Step 3: Review, CI and production only after candidate PASS**
 
 Run final CR/Harness at exact candidate head, publish one implementation PR, require exact-head CI, then apply reviewed `0030..0035` and provider/worker enablement per runbook. Record main/origin/cloud parity, no timer/backflow, API/readback and rollback. Never create a CI-only PR.

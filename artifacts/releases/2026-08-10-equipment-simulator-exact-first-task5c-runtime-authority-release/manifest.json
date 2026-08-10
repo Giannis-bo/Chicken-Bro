@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-08-10T04:19:30.938Z",
+  "generatedAt": "2026-08-10T04:26:13.628Z",
   "release": {
     "date": "2026-08-10",
     "slug": "equipment-simulator-exact-first-task5c-runtime-authority-release"
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-08-10-equipment-simulator-exact-first-task5c-runtime-authority-release/evidence.json",
-    "sizeBytes": 19319,
+    "sizeBytes": 22506,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -392,7 +392,7 @@
     "missingFields": [],
     "declaredStatus": "local_verified",
     "highestEvidenceLevel": "local_verified",
-    "summary": "Task 5C is locally verified at 79455fa0 for immutable runtime release/context/index ownership, release-bound V3 execution, both forward-only 0035 repairs and the candidate harness repairs. Four cloud candidates failed before attestation: the first ambiguous binding conflict target received a named-primary-key repair, the repaired head exposed a distinct frozen binding-relation trigger privilege defect repaired through a wow_migrator-owned SECURITY DEFINER validator, and later heads exposed candidate fixture errors first losing the sealed occurrence entry and then sealing it with producer drift. All failed runs are archived and their exact disposable resources are discarded; one new final-head candidate remains mandatory. This is not a runtime, production or player-loop completion claim: the server factory remains disabled, no production database or service changed, and all user-facing gates remain pending."
+    "summary": "Task 5C is locally verified at 72332293 for immutable runtime release/context/index ownership, release-bound V3 execution, candidate-harness producer binding and all three forward-only 0035 repairs. Five cloud candidates failed before attestation; the fifth exposed that 0035 had not forward-replaced 0031's frozen loadout/snapshot key checks for v3. Its disposable resources were identity-archived and discarded; the new minimal compatibility repair and its RED/GREEN regression are locally verified, and one new final-head candidate remains mandatory. This is not a runtime, production or player-loop completion claim: the server factory remains disabled, no production database or service changed, and all user-facing gates remain pending."
   },
   "evidence": {
     "localTests": {
@@ -413,6 +413,12 @@
     }
   },
   "riskMatrix": [
+    {
+      "id": "dirty_worktree",
+      "severity": "medium",
+      "status": "watch",
+      "detail": "2 changed files currently visible to git status."
+    },
     {
       "id": "hotspot_files_present",
       "severity": "medium",
@@ -446,9 +452,12 @@
   ],
   "repo": {
     "git": {
-      "status": "clean",
-      "changedFileCount": 0,
-      "changedFiles": []
+      "status": "dirty",
+      "changedFileCount": 2,
+      "changedFiles": [
+        " M artifacts/releases/2026-08-10-equipment-simulator-exact-first-task5c-runtime-authority-release/evidence.json",
+        " M docs/plans/2026-08-10-equipment-simulator-exact-first-task5c-runtime-authority-release-implementation.md"
+      ]
     }
   },
   "write": {
