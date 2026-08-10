@@ -243,7 +243,7 @@ git commit -m "feat(exact): execute release-bound v3 simulations"
 - Modify: `docs/postgres-identity-migration-runbook.md`, `docs/verification-matrix.md`, `docs/plans/README.md`, `docs/roadmap.md`, `docs/plans/2026-08-04-equipment-simulator-exact-first-persistence-resequence.md`, `docs/plans/2026-08-07-equipment-simulator-exact-first-task5a-api-runtime.md`, `docs/plans/2026-08-07-equipment-simulator-exact-first-task5b-active-authority-source.md`, this plan
 - Create/Modify: `artifacts/releases/2026-08-10-equipment-simulator-exact-first-task5c-runtime-authority-release/evidence.json`, `artifacts/releases/2026-08-10-equipment-simulator-exact-first-task5c-runtime-authority-release/manifest.json`
 
-- [ ] **Step 1: Run whole local verification and CR**
+- [x] **Step 1: Run whole local verification and CR**
 
 Run: `PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p '*_test.py'`
 
