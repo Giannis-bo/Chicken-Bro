@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-08-10T03:01:06.112Z",
+  "generatedAt": "2026-08-10T03:32:44.328Z",
   "release": {
     "date": "2026-08-10",
     "slug": "equipment-simulator-exact-first-task5c-runtime-authority-release"
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-08-10-equipment-simulator-exact-first-task5c-runtime-authority-release/evidence.json",
-    "sizeBytes": 7831,
+    "sizeBytes": 8649,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -392,7 +392,7 @@
     "missingFields": [],
     "declaredStatus": "local_verified",
     "highestEvidenceLevel": "local_verified",
-    "summary": "Task 5C is locally verified at 8a9f9de6 for immutable runtime release/context/index ownership and release-bound V3 execution. This is not a runtime, candidate, production or player-loop completion claim: the server factory remains disabled, no cloud database or service changed, and the required Task 5C final-head candidate harness is not yet implemented."
+    "summary": "Task 5C is locally verified at e8d41d34 for immutable runtime release/context/index ownership, release-bound V3 execution and an opt-in final-head cloud candidate harness. This is not a runtime, candidate, production or player-loop completion claim: the server factory remains disabled, no cloud database or service changed, and the required final-head cloud candidate has not run."
   },
   "evidence": {
     "localTests": {
@@ -413,12 +413,6 @@
     }
   },
   "riskMatrix": [
-    {
-      "id": "dirty_worktree",
-      "severity": "medium",
-      "status": "watch",
-      "detail": "1 changed files currently visible to git status."
-    },
     {
       "id": "hotspot_files_present",
       "severity": "medium",
@@ -452,11 +446,9 @@
   ],
   "repo": {
     "git": {
-      "status": "dirty",
-      "changedFileCount": 1,
-      "changedFiles": [
-        "?? artifacts/releases/2026-08-10-equipment-simulator-exact-first-task5c-runtime-authority-release/evidence.json"
-      ]
+      "status": "clean",
+      "changedFileCount": 0,
+      "changedFiles": []
     }
   },
   "write": {
