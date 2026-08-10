@@ -424,6 +424,24 @@ passed without local PostgreSQL. A final new head and new disposable resources
 are still mandatory; candidate provisioning must create the dedicated worker
 login with `INHERIT`, without granting it any additional authority.
 
+Candidate `t5c260810123724` used the corrected `INHERIT` worker and passed
+fresh/upgrade migration plus both early role guards. It then failed before
+attestation at V3 enqueue because 0035 redefined
+`ops.websim_exact_import_request_is_valid(jsonb)` but did not give its existing
+`SECURITY DEFINER` enqueue owner `wow_migrator` internal execute permission.
+The exact redacted log SHA-256 is
+`735e7a333b39422ed02983ad10b8394ceb079e0dbf1b2b4cbe23654d1748eb37`.
+Its named databases, role, source, bundle, log and credential material were
+identity-archived, discarded and rechecked absent; the dedicated worker
+remained inactive.
+
+The TDD repair `7549f921` adds only the forward 0035 grant of the redefined
+validator to `wow_migrator`; it grants nothing to `wow_app` or
+`wow_exact_worker`, so the frozen 0034 direct-execution revocation remains in
+force. The new ACL regression first failed, then passed with the 74-test
+schema/candidate/worker contract and whole local suite. A new final head and
+new disposable candidate resources are again required.
+
 - [ ] **Step 3: Review, CI and production only after candidate PASS**
 
 Run final CR/Harness at exact candidate head, publish one implementation PR, require exact-head CI, then apply reviewed `0030..0035` and provider/worker enablement per runbook. Record main/origin/cloud parity, no timer/backflow, API/readback and rollback. Never create a CI-only PR.

@@ -5,17 +5,17 @@
   "status": "local_verified",
   "highestEvidenceLevel": "local_verified",
   "branch": "codex/exact-first-task5a-control-plane",
-  "commit": "0af2a7d9ee7dd3545b57ada31aa389edff359786",
+  "commit": "7549f921142bc777b88081c592761cfd760e0f7a",
   "identities": {
     "runtime": {
       "status": "pending",
-      "reason": "Candidates t5c260810033244, t5c2608101217a9, t5c2608101210d3, t5c2608101215f4, t5c2608101221b5, t5c260810122931 and t5c260810123358 all failed before attestation. The seventh was a candidate-operator configuration failure: its dedicated worker login was NOINHERIT while the established worker contract requires LOGIN INHERIT membership. Commit 0af2a7d9 adds an early worker-role guard before migration; one new final-head candidate is still required, and production 0030--0035 migration, provider enablement and worker activation remain prohibited."
+      "reason": "Candidates t5c260810033244, t5c2608101217a9, t5c2608101210d3, t5c2608101215f4, t5c2608101221b5, t5c260810122931, t5c260810123358 and t5c260810123724 all failed before attestation. The eighth exposed that 0035's redefined v3 request validator had not granted EXECUTE to its existing SECURITY DEFINER enqueue owner wow_migrator. Commit 7549f921 grants that internal owner only; one new final-head candidate is still required, and production 0030--0035 migration, provider enablement and worker activation remain prohibited."
     },
     "verification": {
       "status": "bound_at_check",
       "kind": "git_ref",
       "value": "HEAD",
-      "reason": "The local packet must be checked from a clean exact HEAD; the verified implementation, candidate harness producer/vector repair, all three forward-only 0035 repairs and both candidate-role preflight guards are code-complete at commit 0af2a7d9ee7dd3545b57ada31aa389edff359786."
+      "reason": "The local packet must be checked from a clean exact HEAD; the verified implementation, candidate harness producer/vector repair, four forward-only 0035 repairs and both candidate-role preflight guards are code-complete at commit 7549f921142bc777b88081c592761cfd760e0f7a."
     },
     "closure": {
       "status": "pending",
@@ -37,7 +37,7 @@
     "Task 5C local implementation seals and reloads one immutable runtime resolver context, runtime authority release and occurrence index, then propagates their server-only relation through V3 ResolvedLoadout, SimulationSnapshot and exact-import job identities.",
     "The materializer reads one owner/binding-scoped release after source replay, reconstructs release-scoped occurrence authority before final resolve, and returns literal blocked or unsupported outcomes for missing, ambiguous or unsupported authority.",
     "The worker executes only a sealed V3 request whose snapshot, release, resolver context, row hash and complete dependency vector agree; V1 and V2 are explicitly unsupported. The default HTTP factory remains disabled until all server-only owners are explicitly composed.",
-    "No current UI route, JSX hierarchy, copy, styles, entry or navigation changed in this Task 5C implementation. No local PostgreSQL, production migration, provider/worker activation, async backflow, Catalog/Manifest pointer or generation 35 action occurred. Seven disposable cloud candidate harness runs failed before attestation and one setup-only resource preparation was aborted and cleaned before Python started; none touched any production database, service or user-visible path."
+    "No current UI route, JSX hierarchy, copy, styles, entry or navigation changed in this Task 5C implementation. No local PostgreSQL, production migration, provider/worker activation, async backflow, Catalog/Manifest pointer or generation 35 action occurred. Eight disposable cloud candidate harness runs failed before attestation and one setup-only resource preparation was aborted and cleaned before Python started; none touched any production database, service or user-visible path."
   ],
   "verification": [
     {
@@ -207,12 +207,42 @@
       "status": "pass",
       "testedHead": "0af2a7d9ee7dd3545b57ada31aa389edff359786",
       "summary": "No P1/P2 found: the new candidate-only preflight uses the established worker-role validator before any DDL and checks the resulting current role. It neither changes migration bytes nor application/runtime behavior; apps/mini-taro and frozen 0030--0034 remain untouched."
+    },
+    {
+      "command": "one cloud-only low-priority Task 5C candidate t5c260810123724",
+      "status": "fail",
+      "testedHead": "3f4d4cffcbd60434614beda97b066b09be08bfcb",
+      "summary": "Exact source/tree/0035 identity was 3f4d4cffcbd60434614beda97b066b09be08bfcb / a5a76a5a01bbba8150d062e03f6601163499bb73 / a77b3686f6eb728c4e3d8d557815d34959f010064693239aaa83f3bb791e5112. Fresh/upgrade migration and worker preflights passed, but v3 enqueue failed before attestation with InsufficientPrivilege because the redefined validator lacked EXECUTE for its SECURITY DEFINER wow_migrator enqueue owner. Exact redacted log SHA-256 735e7a333b39422ed02983ad10b8394ceb079e0dbf1b2b4cbe23654d1748eb37 (1432 bytes) is archived; no attestation exists."
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest tests.postgres_schema_test.PostgresSchemaTest.test_0035_forward_grants_v3_request_validator_only_to_enqueue_owner tests.postgres_schema_test.PostgresSchemaTest.test_exact_job_snapshot_binding_preserves_v1_and_accepts_only_sealed_v2_references tests.postgres_integration_test.Task5CCandidateHarnessTest tests.postgres_integration_test.Task5CV3MigrationBoundaryTest tests.gear_exact_authority_worker_test",
+      "status": "pass",
+      "testedHead": "7549f921142bc777b88081c592761cfd760e0f7a",
+      "summary": "The validator-owner ACL regression first failed, then all 21 focused schema, candidate-boundary and worker-role tests passed."
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest tests.postgres_schema_test tests.postgres_integration_test.Task5CCandidateHarnessTest tests.postgres_integration_test.Task5CV3MigrationBoundaryTest tests.gear_exact_authority_worker_test",
+      "status": "pass",
+      "testedHead": "7549f921142bc777b88081c592761cfd760e0f7a",
+      "summary": "74 schema, Task 5C candidate-contract and worker-role tests passed without a local PostgreSQL connection."
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p '*_test.py' -q",
+      "status": "pass",
+      "testedHead": "7549f921142bc777b88081c592761cfd760e0f7a",
+      "summary": "The whole local suite completed successfully after the validator-owner ACL repair; expected negative-fixture CLI output and cloud-only candidate skips did not produce failures, and no local PostgreSQL was used."
+    },
+    {
+      "command": "local repair CR at 7549f921",
+      "status": "pass",
+      "testedHead": "7549f921142bc777b88081c592761cfd760e0f7a",
+      "summary": "No P1/P2 found: 0035 grants only wow_migrator EXECUTE on the v3 validator required by the existing SECURITY DEFINER enqueue entrypoint. Existing 0034 revocations preserve no direct app/worker execution; apps/mini-taro and frozen 0030--0034 remain untouched."
     }
   ],
   "candidateDeployment": {
     "status": "candidate_rerun_required",
     "requiredBeforeMerge": true,
-    "reason": "Seven candidates failed before attestation and their named fresh/upgrade databases are non-reusable. The fifth exposed 0035's missing forward v3 key-check compatibility; the sixth exposed incorrect operator DDL-DSN wiring; the seventh exposed an invalid NOINHERIT worker login after migrations. Commit 0af2a7d9 adds a candidate-only worker-role preflight which rejects that role mismatch before migrations. One new run-id-bound final-head candidate remains mandatory before merge.",
+    "reason": "Eight candidates failed before attestation and their named fresh/upgrade databases are non-reusable. The fifth exposed 0035's missing forward v3 key-check compatibility; the sixth exposed incorrect operator DDL-DSN wiring; the seventh exposed an invalid NOINHERIT worker login; the eighth exposed a missing internal validator-owner grant. Commit 7549f921 grants that helper only to wow_migrator. One new run-id-bound final-head candidate remains mandatory before merge.",
     "failedAttempts": [
       {
         "runId": "t5c260810033244",
@@ -298,6 +328,18 @@
         "failureLogSha256": "6d8ac9e7a89e1db86cf0a9720eb41c31597eb7eea7930b21f8dfdf4cefdefbea",
         "failure": "WorkerRoleError after fresh/upgrade migration: disposable dedicated worker login was NOINHERIT, while the existing worker contract requires a LOGIN INHERIT least-privilege member of wow_exact_worker.",
         "resourceDisposition": "discarded_after_exact_identity_archive; never reset or reuse"
+      },
+      {
+        "runId": "t5c260810123724",
+        "commit": "3f4d4cffcbd60434614beda97b066b09be08bfcb",
+        "gitTree": "a5a76a5a01bbba8150d062e03f6601163499bb73",
+        "migration0035Sha256": "a77b3686f6eb728c4e3d8d557815d34959f010064693239aaa83f3bb791e5112",
+        "freshDatabase": "wow_exact_first_fresh_test_t5c260810123724",
+        "upgradeDatabase": "wow_exact_first_upgrade_test_t5c260810123724",
+        "workerRole": "wow_exact_candidate_t5c260810123724",
+        "failureLogSha256": "735e7a333b39422ed02983ad10b8394ceb079e0dbf1b2b4cbe23654d1748eb37",
+        "failure": "InsufficientPrivilege after v3 release/readback and worker preflight: SECURITY DEFINER ops.websim_exact_enqueue's wow_migrator owner lacked EXECUTE on 0035's redefined v3 request validator.",
+        "resourceDisposition": "discarded_after_exact_identity_archive; never reset or reuse"
       }
     ]
   },
@@ -306,7 +348,7 @@
     {
       "id": "task5c_candidate_rerun_required",
       "status": "pending",
-      "detail": "Candidate t5c260810033244 failed on an ambiguous frozen-0033 conflict target; candidate t5c2608101217a9 then failed on a frozen-0033 binding relation trigger privilege defect; candidates t5c2608101210d3 and t5c2608101215f4 exposed candidate fixture sealing defects; candidate t5c2608101221b5 exposed missing 0035 v3 key-check compatibility; candidate t5c260810122931 exposed incorrect migration-DSN operator wiring; candidate t5c260810123358 exposed an invalid NOINHERIT worker login. None reached attestation. Commit 0af2a7d9 locally verifies a pre-DDL worker-role guard; one new final-head disposable fresh/upgrade candidate remains required."
+      "detail": "Candidate t5c260810033244 failed on an ambiguous frozen-0033 conflict target; candidate t5c2608101217a9 then failed on a frozen-0033 binding relation trigger privilege defect; candidates t5c2608101210d3 and t5c2608101215f4 exposed candidate fixture sealing defects; candidate t5c2608101221b5 exposed missing 0035 v3 key-check compatibility; candidate t5c260810122931 exposed incorrect migration-DSN operator wiring; candidate t5c260810123358 exposed an invalid NOINHERIT worker login; candidate t5c260810123724 exposed a missing internal validator-owner grant. None reached attestation. Commit 7549f921 locally verifies the forward-only wow_migrator grant; one new final-head disposable fresh/upgrade candidate remains required."
     },
     {
       "id": "runtime_authority_unavailable_by_default",
@@ -329,7 +371,7 @@
   "cleanup": {
     "required": false,
     "status": "complete",
-    "reason": "All seven failed candidate runs and setup-only preparation t5c260810122723 are discarded. For t5c260810123358, the two exact-commented disposable databases and candidate worker login were independently rechecked absent, its remote source, bundle, log and 0600 connection material were removed, root capacity recovered to 5074132 KiB, and the dedicated worker remained inactive. Production databases, existing roles and provider state were not changed."
+    "reason": "All eight failed candidate runs and setup-only preparation t5c260810122723 are discarded. For t5c260810123724, the two exact-commented disposable databases and candidate worker login were independently rechecked absent, its remote source, bundle, log and 0600 connection material were removed, root capacity recovered to 5073440 KiB, and the dedicated worker remained inactive. Production databases, existing roles and provider state were not changed."
   },
   "archivedReferences": [
     "docs/project-state.json",
@@ -342,5 +384,5 @@
     "docs/harness.md",
     "docs/verification-matrix.md"
   ],
-  "summary": "Task 5C is locally verified at 0af2a7d9 for immutable runtime release/context/index ownership, release-bound V3 execution, candidate-harness producer binding, all three forward-only 0035 repairs and both candidate-role preflight guards. Seven cloud candidate harness runs failed before attestation and one setup-only preparation was identity-archived and discarded; the latest runner configuration failure is prevented before DDL by the new guard. A new final-head candidate remains mandatory. This is not a runtime, production or player-loop completion claim: the server factory remains disabled, no production database or service changed, and all user-facing gates remain pending."
+  "summary": "Task 5C is locally verified at 7549f921 for immutable runtime release/context/index ownership, release-bound V3 execution, candidate-harness producer binding, four forward-only 0035 repairs and both candidate-role preflight guards. Eight cloud candidate harness runs failed before attestation and one setup-only preparation was identity-archived and discarded; the latest missing internal ACL is covered by a minimal forward-only repair. A new final-head candidate remains mandatory. This is not a runtime, production or player-loop completion claim: the server factory remains disabled, no production database or service changed, and all user-facing gates remain pending."
 }

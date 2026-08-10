@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-08-10T04:37:17.225Z",
+  "generatedAt": "2026-08-10T04:41:09.501Z",
   "release": {
     "date": "2026-08-10",
     "slug": "equipment-simulator-exact-first-task5c-runtime-authority-release"
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-08-10-equipment-simulator-exact-first-task5c-runtime-authority-release/evidence.json",
-    "sizeBytes": 29748,
+    "sizeBytes": 33471,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -392,7 +392,7 @@
     "missingFields": [],
     "declaredStatus": "local_verified",
     "highestEvidenceLevel": "local_verified",
-    "summary": "Task 5C is locally verified at 0af2a7d9 for immutable runtime release/context/index ownership, release-bound V3 execution, candidate-harness producer binding, all three forward-only 0035 repairs and both candidate-role preflight guards. Seven cloud candidate harness runs failed before attestation and one setup-only preparation was identity-archived and discarded; the latest runner configuration failure is prevented before DDL by the new guard. A new final-head candidate remains mandatory. This is not a runtime, production or player-loop completion claim: the server factory remains disabled, no production database or service changed, and all user-facing gates remain pending."
+    "summary": "Task 5C is locally verified at 7549f921 for immutable runtime release/context/index ownership, release-bound V3 execution, candidate-harness producer binding, four forward-only 0035 repairs and both candidate-role preflight guards. Eight cloud candidate harness runs failed before attestation and one setup-only preparation was identity-archived and discarded; the latest missing internal ACL is covered by a minimal forward-only repair. A new final-head candidate remains mandatory. This is not a runtime, production or player-loop completion claim: the server factory remains disabled, no production database or service changed, and all user-facing gates remain pending."
   },
   "evidence": {
     "localTests": {
