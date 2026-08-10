@@ -360,6 +360,13 @@ verified/non-null result; this run's exact disposable resources are archived
 and were discarded before another final-head candidate; production state and
 the inactive worker were not changed.
 
+The producer/vector harness repair `79455fa0` derives producer identity and
+revision via the public runtime release payload owner, requires a verified,
+non-null sealing result, and only then passes its `SealedCanonicalDocument` to
+the store. The full local suite passes with `2965` tests and 5 expected
+cloud-only skips. This changes candidate test bytes, so a new final-head
+candidate remains mandatory and all four prior run ids stay unusable.
+
 - [ ] **Step 3: Review, CI and production only after candidate PASS**
 
 Run final CR/Harness at exact candidate head, publish one implementation PR, require exact-head CI, then apply reviewed `0030..0035` and provider/worker enablement per runbook. Record main/origin/cloud parity, no timer/backflow, API/readback and rollback. Never create a CI-only PR.
