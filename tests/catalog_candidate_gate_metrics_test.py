@@ -210,6 +210,39 @@ class CatalogCandidateGateMetricsTest(unittest.TestCase):
         )
         self.assertNotIn("LOADOUT_EFFECT_AUTHORITY_REQUIRED", flagged_codes)
 
+    def test_exact_authority_required_codes_do_not_emit_identity_problems(self):
+        self.assertIsNotNone(build_candidate_gate_metrics)
+
+        result = build_candidate_gate_metrics(
+            self.catalog(),
+            self.catalog_http_report(),
+            self.materialization_report(
+                status="blocked",
+                problemCodes=["EXACT_SOURCE_AUTHORITY_REQUIRED"],
+            ),
+            self.simc_report(
+                status="blocked",
+                problemCodes=["EXACT_PROFILE_AUTHORITY_REQUIRED"],
+            ),
+        )
+
+        flagged_codes = {
+            problem["problemCode"]
+            for problem in result["problems"]
+            if problem["code"] == "CANDIDATE_GATE_IDENTITY_PROBLEM"
+        }
+        self.assertEqual(flagged_codes, set())
+        self.assertEqual(result["status"], "blocked")
+        self.assertEqual(
+            result["reportStatuses"]["materialization_report"],
+            "blocked",
+        )
+        self.assertEqual(result["reportStatuses"]["simc_report"], "blocked")
+        self.assertIn(
+            "CANDIDATE_GATE_REPORT_STATUS_NOT_VERIFIED",
+            {problem["code"] for problem in result["problems"]},
+        )
+
     def test_exact_registry_partial_status_and_problem_codes_are_preserved(self):
         self.assertIsNotNone(build_candidate_gate_metrics)
 

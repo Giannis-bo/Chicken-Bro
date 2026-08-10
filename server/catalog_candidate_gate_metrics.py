@@ -103,7 +103,6 @@ def _is_identity_problem_code(code: str) -> bool:
         or normalized.endswith("_KEY_MISMATCH")
         or normalized.endswith("_BINDING_INVALID")
         or normalized.endswith("_REFERENCE_NOT_VERIFIED")
-        or normalized.endswith("_AUTHORITY_REQUIRED")
     ):
         return True
     if normalized.startswith("LOADOUT_EXACT_") and normalized.endswith(
