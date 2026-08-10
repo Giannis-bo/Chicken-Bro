@@ -40,7 +40,7 @@
 - Consumes: `SealedCanonicalDocument`, `reload_effect_record`, Task 4L `loadout_effect_subject_signatures` and `resolve_loadout_effect_authority`, eight-key `DEPENDENCY_VECTOR_KEYS`.
 - Produces: `seal_runtime_resolver_context`, `reload_runtime_resolver_context`, `seal_runtime_authority_release`, `reload_runtime_authority_release`, `seal_runtime_occurrence_index_entry`, `reload_runtime_occurrence_index_entry`, `resolve_release_effect_records`.
 
-- [ ] **Step 1: Write the failing pure-contract tests**
+- [x] **Step 1: Write the failing pure-contract tests**
 
 ```python
 def test_release_rejects_missing_or_extra_dependency_vector_keys(self):
@@ -58,13 +58,13 @@ def test_task4l_exports_ordered_subject_variant_signatures(self):
     )
 ```
 
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
 
 Run: `PYTHONDONTWRITEBYTECODE=1 python3 -m unittest tests.exact_runtime_authority_release_test`
 
 Expected: FAIL because the module does not exist.
 
-- [ ] **Step 3: Implement the minimal pure owner**
+- [x] **Step 3: Implement the minimal pure owner**
 
 ```python
 def resolve_release_effect_records(release, snapshot, index_rows, record_loader):
@@ -90,13 +90,13 @@ def resolve_release_effect_records(release, snapshot, index_rows, record_loader)
 
 The actual owner must also typed-reload each row/record and compare its runtime/vector fields before returning. It calls the public Task 4L ordered-signature witness rather than importing private descriptor helpers or recomputing signatures. Unknown is unsealable, duplicate ordinals remain, and release/context keys never enter public data.
 
-- [ ] **Step 4: Run GREEN and owner gate**
+- [x] **Step 4: Run GREEN and owner gate**
 
 Run: `PYTHONDONTWRITEBYTECODE=1 python3 -m unittest tests.exact_runtime_authority_release_test tests.gear_loadout_effect_authority_test tests.gear_canonical_owner_gate_test`
 
 Expected: PASS; v1/v2 owners retain original imports/bytes.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/exact_runtime_authority_release.py server/gear_loadout_effect_authority.py tests/exact_runtime_authority_release_test.py tests/gear_loadout_effect_authority_test.py docs/project-owner-map.json docs/backend-owner-map.json tests/gear_canonical_owner_gate_test.py

@@ -1931,11 +1931,65 @@
         "runtimeEvidence": [],
         "ownerMapRef": null
       }
+    },
+    {
+      "id": "exact_first_runtime_authority_release_task5c",
+      "status": "local_implementation_authorized",
+      "ownerRole": "fact_owner",
+      "factOwner": "server/exact_runtime_authority_release.py",
+      "writeBehavior": false,
+      "writeOwner": null,
+      "consumers": [],
+      "publicContracts": [
+        "Only project-owned sealed resolver-context, runtime-release and occurrence-index documents may bind a future v3 Exact SimC job.",
+        "Task 4L owns the ordered subject-variant-signature witness; the release owner consumes that public witness and never recreates or privately imports its algorithm.",
+        "No active/latest selector, Catalog/Manifest pointer, client release selector or process default may provide runtime authority."
+      ],
+      "mustNotChange": [
+        "Do not persist or expose raw profile, player, realm, server or user identity.",
+        "Do not modify v1/v2 canonical bytes, existing UI entry/visual contracts, Catalog/Manifest pointers or generation 35.",
+        "No runtime provider, worker activation, PostgreSQL write, candidate or production claim is authorized by this pure owner alone."
+      ],
+      "characterization": [
+        "tests/exact_runtime_authority_release_test.py",
+        "tests/gear_loadout_effect_authority_test.py",
+        "tests/gear_canonical_owner_gate_test.py"
+      ],
+      "runtimeSurfaces": [],
+      "runbooks": [
+        "docs/plans/2026-08-10-equipment-simulator-exact-first-task5c-runtime-authority-release-implementation.md"
+      ],
+      "rollback": [
+        "code_rollback"
+      ],
+      "verificationProfiles": [
+        "backend",
+        "full"
+      ],
+      "releaseTrigger": "user_visible_runtime",
+      "changedPathPatterns": [
+        "server/exact_runtime_authority_release.py",
+        "server/gear_loadout_effect_authority.py",
+        "tests/exact_runtime_authority_release_test.py",
+        "tests/gear_loadout_effect_authority_test.py",
+        "tests/gear_canonical_owner_gate_test.py"
+      ],
+      "criticalContract": {
+        "status": "characterized",
+        "summary": "Task 5C pure local owner seals exact canonical release/context/index identities and consumes the Task 4L public signature witness; all runtime consumers remain disabled pending later task gates.",
+        "coverage": [
+          "tests/exact_runtime_authority_release_test.py",
+          "tests/gear_loadout_effect_authority_test.py",
+          "tests/gear_canonical_owner_gate_test.py"
+        ],
+        "runtimeEvidence": [],
+        "ownerMapRef": "docs/backend-owner-map.json#server/exact_runtime_authority_release.py"
+      }
     }
   ],
   "criticalContractUnknown": 0,
   "criticalContractBlocked": 0,
-  "criticalContractCharacterized": 14,
+  "criticalContractCharacterized": 15,
   "criticalContractHealthWatch": 2,
   "criticalContractGapClosed": 0
 }

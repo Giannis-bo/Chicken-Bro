@@ -404,6 +404,13 @@ def _validate_loadout_effect_authority_payload(
     return rebuilt
 
 
+def loadout_effect_subject_signatures(resolver_snapshot: Any) -> tuple[str, ...]:
+    """Return Task 4L's exact ordered signature witness for one Resolver snapshot."""
+
+    context = _resolver_context(resolver_snapshot)
+    return tuple(_signature_for(context, descriptor) for descriptor in context.descriptors)
+
+
 def resolve_loadout_effect_authority(
     resolver_snapshot: Any,
     *,
@@ -519,6 +526,7 @@ def verify_loadout_effect_authority(
 
 __all__ = (
     "LoadoutEffectAuthorityOutcome",
+    "loadout_effect_subject_signatures",
     "resolve_loadout_effect_authority",
     "reload_loadout_effect_authority",
     "verify_loadout_effect_authority",

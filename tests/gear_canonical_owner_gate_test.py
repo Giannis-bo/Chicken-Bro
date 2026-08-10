@@ -1973,6 +1973,54 @@ class GearCanonicalOwnerGateTest(unittest.TestCase):
         )
         self.assertEqual([], violations, _formatted(violations))
 
+    def test_runtime_release_consumes_only_task4l_public_signature_witness(self):
+        """Task 5C must not copy or privately import the loadout signature algorithm."""
+        release_tree = ast.parse(
+            (ROOT / "server/exact_runtime_authority_release.py").read_text(
+                encoding="utf-8",
+            ),
+        )
+        effect_tree = ast.parse(
+            (ROOT / "server/gear_loadout_effect_authority.py").read_text(
+                encoding="utf-8",
+            ),
+        )
+        imports = set(_physical_imports(release_tree))
+
+        self.assertIn(
+            (
+                ".gear_loadout_effect_authority",
+                "loadout_effect_subject_signatures",
+                "loadout_effect_subject_signatures",
+            ),
+            imports,
+        )
+        self.assertIn(
+            (
+                "gear_loadout_effect_authority",
+                "loadout_effect_subject_signatures",
+                "loadout_effect_subject_signatures",
+            ),
+            imports,
+        )
+        self.assertNotIn(
+            (
+                ".gear_loadout_effect_authority",
+                "_signature_for",
+                "_signature_for",
+            ),
+            imports,
+        )
+        self.assertNotIn(
+            (
+                "gear_loadout_effect_authority",
+                "_signature_for",
+                "_signature_for",
+            ),
+            imports,
+        )
+        self.assertIn("loadout_effect_subject_signatures", _exports(effect_tree))
+
     def test_ast_digest_serialization_is_cross_version_stable(self):
         call_without_keywords = ast.parse("f()\n").body[0].value
         del call_without_keywords.keywords
