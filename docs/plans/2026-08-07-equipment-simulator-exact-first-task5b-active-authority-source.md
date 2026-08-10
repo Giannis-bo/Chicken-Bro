@@ -1,6 +1,6 @@
 # Exact-first Task 5B Active Authority Source Contract
 
-状态：`requirement_challenged（2026-08-07：Task 5A 的 local foundation 已完成，但 active ready-path 缺少一个可证明、不可推断的 authority source。本 Task 只冻结缺口和升级条件；不授权 provider、migration、candidate、生产或 UI 变更。）`
+状态：`requirement_challenged（2026-08-07：Task 5A 的 local foundation 已完成，但 active ready-path 缺少一个可证明、不可推断的 authority source。本 Task 冻结缺口和升级条件。2026-08-10 用户已确认后继 Task 5C 的有界 immutable Runtime Authority Release 设计；在其独立 requirement、allowlist、TDD、candidate 和 rollback 尚未建立前，仍不授权 provider、migration、candidate、生产或 UI 变更。）`
 
 ## 用户目标与当前阻断
 
@@ -76,4 +76,4 @@ only after both exact owners exist
 
 ## 当前精确 blocker
 
-目前没有可引用的 active authority release/occurrence-index contract。要继续进入实现，必须先由用户/产品明确授权一个新的 authority data-admission scope（它会与 Task 6C 的 data-source discipline 相邻，但不能借用或暗中启动 Task 6C），或者指定一个已经存在且能逐项满足本文件五项条件的 immutable source。二者在当前 control plane 都不存在。
+目前没有已实现或可引用的 active authority release/occurrence-index。用户已确认用 project-owned、只覆盖闭合模板的 immutable release 解决该缺口；设计位于 [Task 5C Runtime Authority Release](2026-08-10-equipment-simulator-exact-first-task5c-runtime-authority-release-design.md)。该确认只建立设计输入，未建立 implementation requirement 或 runtime source；在后继 Strict task 的 precise owner/ACL/migration/candidate/rollback contract 完成前，当前 ready-path 仍必须 blocked，且不得借用 Task 6C。
