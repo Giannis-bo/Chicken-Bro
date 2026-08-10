@@ -26,7 +26,7 @@
 - Consumes: candidate commit/tree and migration `0035` SHA from Task 5C evidence.
 - Produces: redacted preflight record containing capacity, backend/timer/worker states, ledger count/max, runtime file hashes and backup path.
 
-- [ ] **Step 1: Verify runtime equivalence locally**
+- [x] **Step 1: Verify runtime equivalence locally**
 
 Run:
 
@@ -37,13 +37,13 @@ git diff --quiet 70e37b6fd88bee7dc0004d4cba6fec5aef820e02 \
 
 Expected: exit `0`; any runtime diff stops the task and requires a new candidate.
 
-- [ ] **Step 2: Capture production preflight before writes**
+- [x] **Step 2: Capture production preflight before writes**
 
 Run read-only SSH checks for `df`, load, available memory, `wow-backend`, exact-worker unit state, timer list, `WOW_DATABASE_RUNTIME`, migration max/count and absence of `0035` release tables. Record only counts/statuses; never DSN or personal rows.
 
 Expected: root free space is at least the Task 5C candidate's recorded `5,072,632 KiB`, backend is active, its current `/health` returns HTTP `200` at the service's verified local listener `127.0.0.1:8787`, worker inactive/absent, ledger is `0029`/29, and provider remains disabled. Any lower capacity or failed health check stops before backup or transfer.
 
-- [ ] **Step 3: Make a recoverable database backup**
+- [x] **Step 3: Make a recoverable database backup**
 
 Derive the database name only in remote process memory from `WOW_DATABASE_URL`; invoke `sudo -u postgres pg_dump --format=custom --file <timestamped-0700-path> <database>`, validate with `pg_restore --list`, and record its SHA-256/path without credentials.
 
@@ -59,19 +59,19 @@ Expected: one non-empty validated backup before any migration. Backup failure st
 - Consumes: Task 1 backup and exact file SHA-256 inventory.
 - Produces: production ledger `0030`--`0035`, matching runtime file hashes, one restarted backend, unchanged timer/worker state.
 
-- [ ] **Step 1: Stage and verify runtime bytes**
+- [x] **Step 1: Stage and verify runtime bytes**
 
 Create a remote 0700 staging directory, transfer the merged repository source without `.git`, `server/data`, caches or credentials, and record SHA-256 for each runtime file changed between the previous deployed baseline and `f4dbb13c`. Copy prior target files to the rollback directory before replacement. Write a remote release stamp containing the immutable commit/tree only after all hashes match.
 
 Expected: source parity is proven by file hashes, not a false remote Git claim. A transfer/hash mismatch restores copied files and stops before migration.
 
-- [ ] **Step 2: Apply the exact migration chain once**
+- [x] **Step 2: Apply the exact migration chain once**
 
 Use `sudo -u postgres psql -1 -v ON_ERROR_STOP=1 -d <production-db>` with ordered files `0030_websim_exact_authority_bundle.sql`, `0031_websim_exact_snapshot_v2.sql`, `0032_websim_exact_import_jobs.sql`, `0033_websim_exact_template_authority_binding.sql`, `0034_websim_exact_job_snapshot_binding.sql`, `0035_websim_exact_runtime_authority_release.sql`.
 
 Expected: transaction commits only when all six files pass. Requery `ops.schema_migrations` for 35 rows, max `0035_websim_exact_runtime_authority_release`, exact new table/function ACLs, and no mutation of Catalog/Manifest/generation 35.
 
-- [ ] **Step 3: Restart only the backend and smoke the disabled boundary**
+- [x] **Step 3: Restart only the backend and smoke the disabled boundary**
 
 Run `systemctl restart wow-backend`; do not run `enable`, `start`, `restart` or `daemon-reload` for any timer or Exact worker. Verify `http://127.0.0.1:8787/health`, existing public simulator home, PostgreSQL-only runtime mode, 35 migration rows, `wow-gear-exact-authority-worker` inactive/absent and Exact confirm unavailable/blocked with no task row.
 
@@ -80,24 +80,26 @@ Expected: backend recovers; provider remains disabled and no user-facing Exact-r
 ### Task 3: Bounded First-source Readiness Audit
 
 **Files:**
-- Read: `cache.websim_gear_exact_*`, `cache.websim_canonical_documents`, `cache.websim_exact_authority_bundles`, `app.websim_exact_template_authority_bindings`, Runtime Authority Release relations and `app.build_templates`.
+- Read: `cache.websim_gear_exact_*`, `cache.websim_canonical_documents`, `cache.websim_exact_authority_bundles`, `app.websim_exact_template_authority_bindings`, `ops.websim_exact_runtime_resolver_contexts`, `ops.websim_exact_runtime_authority_releases`, `ops.websim_exact_runtime_occurrence_index_entries`, and `app.build_templates`.
 - Write: task evidence only after aggregate, redacted counts are independently verified.
 
 **Interfaces:**
 - Consumes: post-migration schema and owner-scoped saved source contracts.
 - Produces: `eligible_source_count` and reason-class counts; never a release, binding, job, provider or worker state change.
 
-- [ ] **Step 1: Count each gate independently**
+- [x] **Step 1: Count each gate independently**
 
-Query aggregate counts for: full verified community template groups; authenticated remote gear/talent templates; 0030 Authority Bundles; 0033 bindings; 0035 releases/memberships/occurrence rows; and any source that is exactly one-to-one across every gate. Do not select user ids, template ids, profile values, raw authority bytes or `latest` rows.
+Query aggregate counts for: full verified community template groups; authenticated remote gear/talent templates; 0030 Authority Bundles; 0033 bindings; 0035 resolver contexts/releases/occurrence-index rows; and any source that is exactly one-to-one across every gate. Do not select user ids, template ids, profile values, raw authority bytes or `latest` rows.
 
 Expected: every count is evidence only. A count of zero is a valid terminal result, not an error to repair by inference.
 
-- [ ] **Step 2: Apply the stop rule**
+- [x] **Step 2: Apply the stop rule**
 
 If `eligible_source_count=0`, preserve provider/worker disabled, create zero jobs and report the concrete missing gate classes. If the count is positive, stop this task before activation and open a separately allowlisted one-source provider/worker task with its own candidate, rollback and four existing-page manual acceptance items.
 
 Expected: no migration/deploy signal is presented as a player-ready Exact loop.
+
+Recorded result: `eligible_source_count=0`; saved gear/talent templates, authority bundles, bindings, resolver contexts, releases, occurrence-index entries and import jobs were all zero. Provider/worker remain disabled and this task starts no activation follow-up.
 
 ## Plan Self-review
 
