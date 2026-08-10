@@ -194,12 +194,26 @@ def build_gear_variant_materialization_runner(
             failure_codes.append("MATERIALIZATION_RUNNER_RESOLVED_PAIR_MISMATCH")
 
         resolve_release_context = _canonical_mapping(resolve_envelope.get("releaseContext"))
+        early_resolve_release_context_issues = _validate_release_context(
+            "resolver", resolve_release_context, expected_context
+        )
+        release_context_issues.extend(early_resolve_release_context_issues)
+        failure_codes.extend(
+            issue["code"] for issue in early_resolve_release_context_issues
+        )
 
-        if failure_codes:
+        early_resolver_release_context_codes = {
+            issue["code"] for issue in early_resolve_release_context_issues
+        }
+        if any(
+            code not in early_resolver_release_context_codes
+            for code in failure_codes
+        ):
             report["status"] = _preserved_status(
                 resolve_snapshot_status,
                 resolve_envelope_status,
             )
+            report["releaseContextIssues"] = _canonical(release_context_issues)
             report["failureCodes"] = sorted(set(failure_codes))
             return _canonical(report)
 
@@ -216,6 +230,7 @@ def build_gear_variant_materialization_runner(
                 )
             )
         except Exception:
+            report["releaseContextIssues"] = _canonical(release_context_issues)
             failure_codes.append("MATERIALIZATION_RUNNER_PROFILE_REQUEST_FAILED")
             report["failureCodes"] = sorted(set(failure_codes))
             return _canonical(report)
@@ -254,13 +269,13 @@ def build_gear_variant_materialization_runner(
             failure_codes.append("MATERIALIZATION_RUNNER_PROFILE_SIMC_NOT_READY")
 
         profile_release_context = _canonical_mapping(profile_envelope.get("releaseContext"))
-        release_context_issues.extend(
+        for issue in (
             _validate_release_context("resolver", resolve_release_context, expected_context)
-        )
-        release_context_issues.extend(
-            _validate_release_context("profile", profile_release_context, expected_context)
-        )
-        failure_codes.extend(issue["code"] for issue in release_context_issues)
+            + _validate_release_context("profile", profile_release_context, expected_context)
+        ):
+            if issue not in release_context_issues:
+                release_context_issues.append(issue)
+            failure_codes.append(issue["code"])
 
         report["releaseContextIssues"] = _canonical(release_context_issues)
         if failure_codes:

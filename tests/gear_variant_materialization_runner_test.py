@@ -242,6 +242,43 @@ class GearVariantMaterializationRunnerTest(unittest.TestCase):
         )
         self.assertEqual(len(request.calls), 1)
 
+    def test_resolver_pair_mismatch_preserves_release_context_mismatch_evidence(self):
+        self.assertIsNotNone(build_gear_variant_materialization_runner)
+        request = RecordingRequest(
+            [
+                (
+                    200,
+                    self.resolve_envelope(
+                        slot_variant_key="browse-b",
+                        release_context=self.expected_release_context(
+                            manifestRevision="manifest-r2"
+                        ),
+                    ),
+                )
+            ]
+        )
+
+        report = self.materialize(self.build_runner(request))
+
+        self.assertEqual(report["status"], "blocked")
+        self.assertIn(
+            "MATERIALIZATION_RUNNER_RESOLVER_RELEASE_CONTEXT_MISMATCH",
+            report["failureCodes"],
+        )
+        self.assertEqual(
+            report["releaseContextIssues"],
+            [
+                {
+                    "code": "MATERIALIZATION_RUNNER_RESOLVER_RELEASE_CONTEXT_MISMATCH",
+                    "stage": "resolver",
+                    "field": "manifestRevision",
+                    "expected": "manifest-r1",
+                    "actual": "manifest-r2",
+                }
+            ],
+        )
+        self.assertEqual(len(request.calls), 1)
+
     def test_profile_partial_and_not_ready_status_are_preserved(self):
         self.assertIsNotNone(build_gear_variant_materialization_runner)
         request = RecordingRequest(
