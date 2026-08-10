@@ -407,6 +407,23 @@ local PostgreSQL connection. This changes the candidate harness source, so one
 new exact-head disposable candidate remains required; no prior run id, database,
 role, source or bundle may be reused.
 
+Candidate `t5c260810123358` corrected the migration DSNs and applied fresh
+`0001..0035` plus upgrade `0001..0034 -> 0035`, but then failed before
+attestation because its candidate worker login was `NOINHERIT`. The established
+worker contract deliberately requires a dedicated `LOGIN INHERIT` member before
+it may `SET ROLE wow_exact_worker`. Its exact redacted log SHA-256 is
+`6d8ac9e7a89e1db86cf0a9720eb41c31597eb7eea7930b21f8dfdf4cefdefbea`.
+The two named databases, role, source, bundle, log and credential material were
+identity-archived, discarded and rechecked absent; the dedicated worker remained
+inactive.
+
+The TDD follow-up `0af2a7d9` invokes the existing worker-role validator before
+any DDL and asserts that its current role is `wow_exact_worker`; its static
+RED/GREEN test, 73-test schema/candidate/worker contract and whole local suite
+passed without local PostgreSQL. A final new head and new disposable resources
+are still mandatory; candidate provisioning must create the dedicated worker
+login with `INHERIT`, without granting it any additional authority.
+
 - [ ] **Step 3: Review, CI and production only after candidate PASS**
 
 Run final CR/Harness at exact candidate head, publish one implementation PR, require exact-head CI, then apply reviewed `0030..0035` and provider/worker enablement per runbook. Record main/origin/cloud parity, no timer/backflow, API/readback and rollback. Never create a CI-only PR.
