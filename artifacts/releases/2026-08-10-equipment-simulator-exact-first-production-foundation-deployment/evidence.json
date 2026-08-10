@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 2,
+  "slug": "equipment-simulator-exact-first-production-foundation-deployment",
+  "requirementSlug": "equipment-simulator-exact-first-production-foundation-deployment",
+  "status": "implementation_allowed",
+  "highestEvidenceLevel": "implementation_allowed",
+  "branch": "codex/exact-first-production-foundation-admission",
+  "commit": "pending_plan_review",
+  "identities": {
+    "runtime": {
+      "status": "pending",
+      "reason": "Production foundation parity and disabled-provider smoke have not occurred."
+    },
+    "verification": {
+      "status": "pending",
+      "reason": "The plan packet has not yet completed its scoped Harness verification."
+    },
+    "closure": {
+      "status": "pending",
+      "reason": "No production foundation deployment or closure review has occurred."
+    }
+  },
+  "manualAcceptance": {
+    "required": false,
+    "status": "not_applicable",
+    "reason": "Provider and worker remain disabled; this task has no new user-visible Exact ready path.",
+    "items": [],
+    "rollup": {
+      "total": 0,
+      "accepted": 0,
+      "notRunUserWaived": 0,
+      "pending": 0
+    }
+  },
+  "scope": [
+    "production_0030_through_0035_foundation",
+    "backend_only_disabled_provider_smoke",
+    "aggregate_first_source_preflight"
+  ],
+  "verification": [
+    {
+      "command": "planned scoped Harness, production backup/migration/parity/no-backflow procedure",
+      "status": "not_run"
+    }
+  ],
+  "candidateDeployment": {
+    "status": "reused_task5c_candidate_pending_parity",
+    "commit": "70e37b6fd88bee7dc0004d4cba6fec5aef820e02",
+    "gitTree": "516441faca2ac30b51190c29a416c391ce70d31d",
+    "reason": "Candidate reuse is permitted only after local runtime-tree parity from f4dbb13c to the immutable Task 5C candidate and before any production write."
+  },
+  "runtimeEvidence": [],
+  "risks": [
+    {
+      "id": "no_eligible_source",
+      "status": "pending",
+      "detail": "Missing owner-scoped bundle/effect/profile/release closure must leave provider disabled and yield no user-ready source."
+    }
+  ],
+  "rollback": [
+    "restore_prior_runtime_files_and_restart_wow_backend",
+    "transaction_rollback_before_migration_commit",
+    "provider_remains_disabled_without_legacy_fallback",
+    "no_timer_or_async_backflow"
+  ],
+  "cleanup": {
+    "required": false,
+    "reason": "No disposable candidate resource is created by this deployment-only task."
+  },
+  "archivedReferences": [
+    "docs/project-state.json",
+    "docs/roadmap.md",
+    "docs/plans/README.md",
+    "docs/plans/2026-08-10-equipment-simulator-exact-first-task5c-runtime-authority-release-design.md",
+    "artifacts/releases/2026-08-10-equipment-simulator-exact-first-task5c-runtime-authority-release/evidence.json"
+  ],
+  "summary": "Planned Strict production foundation deployment. It reuses only immutable Task 5C candidate evidence after runtime-tree parity, applies no provider/worker activation, and has no user-visible Exact completion claim."
+}

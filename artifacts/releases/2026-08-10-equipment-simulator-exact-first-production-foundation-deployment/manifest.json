@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "status": "project_harness_manifest_ready",
+  "release": {
+    "date": "2026-08-10",
+    "slug": "equipment-simulator-exact-first-production-foundation-deployment"
+  },
+  "harness": {
+    "version": "v0.6.4",
+    "source": "docs/harness.md"
+  },
+  "evidencePacket": {
+    "status": "ready",
+    "path": "artifacts/releases/2026-08-10-equipment-simulator-exact-first-production-foundation-deployment/evidence.json"
+  },
+  "write": {
+    "enabled": true,
+    "path": "artifacts/releases/2026-08-10-equipment-simulator-exact-first-production-foundation-deployment/manifest.json"
+  }
+}
