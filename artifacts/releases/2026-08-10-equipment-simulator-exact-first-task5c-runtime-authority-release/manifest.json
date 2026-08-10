@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-08-10T03:32:44.328Z",
+  "generatedAt": "2026-08-10T03:49:05.454Z",
   "release": {
     "date": "2026-08-10",
     "slug": "equipment-simulator-exact-first-task5c-runtime-authority-release"
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-08-10-equipment-simulator-exact-first-task5c-runtime-authority-release/evidence.json",
-    "sizeBytes": 8649,
+    "sizeBytes": 10798,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -392,7 +392,7 @@
     "missingFields": [],
     "declaredStatus": "local_verified",
     "highestEvidenceLevel": "local_verified",
-    "summary": "Task 5C is locally verified at e8d41d34 for immutable runtime release/context/index ownership, release-bound V3 execution and an opt-in final-head cloud candidate harness. This is not a runtime, candidate, production or player-loop completion claim: the server factory remains disabled, no cloud database or service changed, and the required final-head cloud candidate has not run."
+    "summary": "Task 5C is locally verified at 71a83b7c for immutable runtime release/context/index ownership, release-bound V3 execution and a forward-only repair for the failed binding-admission candidate. Candidate t5c260810033244 failed before attestation and is non-reusable; a new final-head candidate remains mandatory. This is not a runtime, production or player-loop completion claim: the server factory remains disabled, no production database or service changed, and all user-facing gates remain pending."
   },
   "evidence": {
     "localTests": {
