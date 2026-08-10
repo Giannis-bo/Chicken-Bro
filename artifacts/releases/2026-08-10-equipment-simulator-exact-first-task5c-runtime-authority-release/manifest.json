@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-08-10T04:26:13.628Z",
+  "generatedAt": "2026-08-10T04:33:44.216Z",
   "release": {
     "date": "2026-08-10",
     "slug": "equipment-simulator-exact-first-task5c-runtime-authority-release"
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-08-10-equipment-simulator-exact-first-task5c-runtime-authority-release/evidence.json",
-    "sizeBytes": 22506,
+    "sizeBytes": 26091,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -392,7 +392,7 @@
     "missingFields": [],
     "declaredStatus": "local_verified",
     "highestEvidenceLevel": "local_verified",
-    "summary": "Task 5C is locally verified at 72332293 for immutable runtime release/context/index ownership, release-bound V3 execution, candidate-harness producer binding and all three forward-only 0035 repairs. Five cloud candidates failed before attestation; the fifth exposed that 0035 had not forward-replaced 0031's frozen loadout/snapshot key checks for v3. Its disposable resources were identity-archived and discarded; the new minimal compatibility repair and its RED/GREEN regression are locally verified, and one new final-head candidate remains mandatory. This is not a runtime, production or player-loop completion claim: the server factory remains disabled, no production database or service changed, and all user-facing gates remain pending."
+    "summary": "Task 5C is locally verified at db128c64 for immutable runtime release/context/index ownership, release-bound V3 execution, candidate-harness producer binding, all three forward-only 0035 repairs and a pre-DDL migration-role guard. Six cloud candidate harness runs failed before attestation and one setup-only preparation was identity-archived and discarded; the latest runner configuration failure is prevented before DDL by the new guard. A new final-head candidate remains mandatory. This is not a runtime, production or player-loop completion claim: the server factory remains disabled, no production database or service changed, and all user-facing gates remain pending."
   },
   "evidence": {
     "localTests": {

@@ -5,17 +5,17 @@
   "status": "local_verified",
   "highestEvidenceLevel": "local_verified",
   "branch": "codex/exact-first-task5a-control-plane",
-  "commit": "72332293788ae42c7c277308f6a157fa897e708f",
+  "commit": "db128c64eb4508faa613284a9ef8538b6433bf94",
   "identities": {
     "runtime": {
       "status": "pending",
-      "reason": "Candidates t5c260810033244, t5c2608101217a9, t5c2608101210d3, t5c2608101215f4 and t5c2608101221b5 all failed before attestation. The fifth exposed that 0035 had not forward-replaced frozen 0031's v1/v2-only loadout and snapshot key checks. The forward-only key-compatibility repair is locally verified at 72332293788ae42c7c277308f6a157fa897e708f, but one new final-head candidate is still required; production 0030--0035 migration, provider enablement and worker activation remain prohibited."
+      "reason": "Candidates t5c260810033244, t5c2608101217a9, t5c2608101210d3, t5c2608101215f4, t5c2608101221b5 and t5c260810122931 all failed before attestation. The sixth was a candidate-operator configuration failure: fresh/upgrade DSNs were accidentally candidate-worker logins although the runner uses them for DDL. Commit db128c64 adds an early postgres-role guard before migration; one new final-head candidate is still required, and production 0030--0035 migration, provider enablement and worker activation remain prohibited."
     },
     "verification": {
       "status": "bound_at_check",
       "kind": "git_ref",
       "value": "HEAD",
-      "reason": "The local packet must be checked from a clean exact HEAD; the verified implementation, candidate harness producer/vector repair and all three forward-only 0035 repairs are code-complete at commit 72332293788ae42c7c277308f6a157fa897e708f."
+      "reason": "The local packet must be checked from a clean exact HEAD; the verified implementation, candidate harness producer/vector repair, all three forward-only 0035 repairs and the migration-role preflight guard are code-complete at commit db128c64eb4508faa613284a9ef8538b6433bf94."
     },
     "closure": {
       "status": "pending",
@@ -37,7 +37,7 @@
     "Task 5C local implementation seals and reloads one immutable runtime resolver context, runtime authority release and occurrence index, then propagates their server-only relation through V3 ResolvedLoadout, SimulationSnapshot and exact-import job identities.",
     "The materializer reads one owner/binding-scoped release after source replay, reconstructs release-scoped occurrence authority before final resolve, and returns literal blocked or unsupported outcomes for missing, ambiguous or unsupported authority.",
     "The worker executes only a sealed V3 request whose snapshot, release, resolver context, row hash and complete dependency vector agree; V1 and V2 are explicitly unsupported. The default HTTP factory remains disabled until all server-only owners are explicitly composed.",
-    "No current UI route, JSX hierarchy, copy, styles, entry or navigation changed in this Task 5C implementation. No local PostgreSQL, production migration, provider/worker activation, async backflow, Catalog/Manifest pointer or generation 35 action occurred. Five disposable cloud candidates failed before attestation and are recorded below; none touched any production database, service or user-visible path."
+    "No current UI route, JSX hierarchy, copy, styles, entry or navigation changed in this Task 5C implementation. No local PostgreSQL, production migration, provider/worker activation, async backflow, Catalog/Manifest pointer or generation 35 action occurred. Six disposable cloud candidate harness runs failed before attestation and one setup-only resource preparation was aborted and cleaned before Python started; none touched any production database, service or user-visible path."
   ],
   "verification": [
     {
@@ -147,12 +147,42 @@
       "status": "pass",
       "testedHead": "72332293788ae42c7c277308f6a157fa897e708f",
       "summary": "No P1/P2 found: 0035 replaces only the two historical key constraints, preserving bare v1 and explicit v2 forms while admitting v3. The added schema regression covers both tables; uncommitted frozen 0030--0034 and apps/mini-taro diffs are absent."
+    },
+    {
+      "command": "one cloud-only low-priority Task 5C candidate t5c260810122931",
+      "status": "fail",
+      "testedHead": "f02982c86a97150cc9e4159e4cd00298ca027784",
+      "summary": "Exact source/tree/0035 identity was f02982c86a97150cc9e4159e4cd00298ca027784 / d38b888bb20d60d00bcfa1d9bb03abdb4e0e070c / a77b3686f6eb728c4e3d8d557815d34959f010064693239aaa83f3bb791e5112. The runner began but failed before any migration completed with InsufficientPrivilege because operator provisioning incorrectly supplied candidate-worker fresh/upgrade DSNs while the runner applies migrations through those DSNs. Exact redacted log SHA-256 99927b14ab374be20edabca8e81848520130adc57c99d31c93fa8ecc6ba9583b (1113 bytes) is archived; no attestation exists."
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest tests.postgres_integration_test.Task5CCandidateHarnessTest tests.postgres_integration_test.Task5CV3MigrationBoundaryTest",
+      "status": "pass",
+      "testedHead": "db128c64eb4508faa613284a9ef8538b6433bf94",
+      "summary": "The migration-role preflight regression first failed, then all 7 Task 5C candidate harness and boundary tests passed."
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest tests.postgres_schema_test tests.postgres_integration_test.Task5CCandidateHarnessTest tests.postgres_integration_test.Task5CV3MigrationBoundaryTest",
+      "status": "pass",
+      "testedHead": "db128c64eb4508faa613284a9ef8538b6433bf94",
+      "summary": "61 schema and Task 5C candidate-contract tests passed without a local PostgreSQL connection."
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p '*_test.py' -q",
+      "status": "pass",
+      "testedHead": "db128c64eb4508faa613284a9ef8538b6433bf94",
+      "summary": "The whole local suite completed successfully after the candidate migration-role guard; expected negative-fixture CLI output and cloud-only candidate skips did not produce failures, and no local PostgreSQL was used."
+    },
+    {
+      "command": "local repair CR at db128c64",
+      "status": "pass",
+      "testedHead": "db128c64eb4508faa613284a9ef8538b6433bf94",
+      "summary": "No P1/P2 found: the new candidate-only preflight checks the exact two DDL DSNs before any schema change. It neither changes migration bytes nor application/runtime behavior; apps/mini-taro and frozen 0030--0034 remain untouched."
     }
   ],
   "candidateDeployment": {
     "status": "candidate_rerun_required",
     "requiredBeforeMerge": true,
-    "reason": "Five candidates failed before attestation and their named fresh/upgrade databases are non-reusable. The fifth reached release admission but exposed 0035's missing forward v3 key-check compatibility; commit 72332293 corrects only those two 0035 constraints. One new run-id-bound final-head candidate remains mandatory before merge.",
+    "reason": "Six candidates failed before attestation and their named fresh/upgrade databases are non-reusable. The fifth exposed 0035's missing forward v3 key-check compatibility; the sixth exposed incorrect operator DSN wiring before DDL. Commit db128c64 adds a candidate-only preflight which rejects that role mismatch before migrations. One new run-id-bound final-head candidate remains mandatory before merge.",
     "failedAttempts": [
       {
         "runId": "t5c260810033244",
@@ -214,6 +244,18 @@
         "failureLogSha256": "8dc565aa0a027a85dacb0b93c4b40b70472fa09e264360fdf76a01e6f136c875",
         "failure": "CheckViolation: 0035 did not forward-replace frozen 0031 v1/v2 resolved-loadout key regex to admit resolved-loadout-v3.",
         "resourceDisposition": "discarded_after_exact_identity_archive; never reset or reuse"
+      },
+      {
+        "runId": "t5c260810122931",
+        "commit": "f02982c86a97150cc9e4159e4cd00298ca027784",
+        "gitTree": "d38b888bb20d60d00bcfa1d9bb03abdb4e0e070c",
+        "migration0035Sha256": "a77b3686f6eb728c4e3d8d557815d34959f010064693239aaa83f3bb791e5112",
+        "freshDatabase": "wow_exact_first_fresh_test_t5c260810122931",
+        "upgradeDatabase": "wow_exact_first_upgrade_test_t5c260810122931",
+        "workerRole": "wow_exact_candidate_t5c260810122931",
+        "failureLogSha256": "99927b14ab374be20edabca8e81848520130adc57c99d31c93fa8ecc6ba9583b",
+        "failure": "InsufficientPrivilege before migration completion: operator provisioning used the candidate-worker role for fresh/upgrade DSNs even though the runner uses those two DSNs for PostgreSQL DDL.",
+        "resourceDisposition": "discarded_after_exact_identity_archive; never reset or reuse"
       }
     ]
   },
@@ -222,7 +264,7 @@
     {
       "id": "task5c_candidate_rerun_required",
       "status": "pending",
-      "detail": "Candidate t5c260810033244 failed on an ambiguous frozen-0033 conflict target; candidate t5c2608101217a9 then failed on a frozen-0033 binding relation trigger privilege defect; candidates t5c2608101210d3 and t5c2608101215f4 exposed candidate fixture sealing defects; candidate t5c2608101221b5 exposed missing 0035 v3 key-check compatibility. None reached attestation. Commit 72332293 locally verifies the minimal two-constraint forward repair; one new final-head disposable fresh/upgrade candidate remains required."
+      "detail": "Candidate t5c260810033244 failed on an ambiguous frozen-0033 conflict target; candidate t5c2608101217a9 then failed on a frozen-0033 binding relation trigger privilege defect; candidates t5c2608101210d3 and t5c2608101215f4 exposed candidate fixture sealing defects; candidate t5c2608101221b5 exposed missing 0035 v3 key-check compatibility; candidate t5c260810122931 exposed incorrect migration-DSN operator wiring. None reached attestation. Commit db128c64 locally verifies a pre-DDL postgres-role guard; one new final-head disposable fresh/upgrade candidate remains required."
     },
     {
       "id": "runtime_authority_unavailable_by_default",
@@ -245,7 +287,7 @@
   "cleanup": {
     "required": false,
     "status": "complete",
-    "reason": "All five failed runs are discarded. For t5c2608101221b5, the two exact-commented disposable databases and candidate worker login were independently rechecked absent, its remote source, bundle, log and 0600 connection material were removed, root capacity recovered to 5076672 KiB, and the dedicated worker remained inactive. Production databases, existing roles and provider state were not changed."
+    "reason": "All six failed candidate runs and setup-only preparation t5c260810122723 are discarded. For t5c260810122931, the two exact-commented disposable databases and candidate worker login were independently rechecked absent, its remote source, bundle, log and 0600 connection material were removed, root capacity recovered to 5074944 KiB, and the dedicated worker remained inactive. Production databases, existing roles and provider state were not changed."
   },
   "archivedReferences": [
     "docs/project-state.json",
@@ -258,5 +300,5 @@
     "docs/harness.md",
     "docs/verification-matrix.md"
   ],
-  "summary": "Task 5C is locally verified at 72332293 for immutable runtime release/context/index ownership, release-bound V3 execution, candidate-harness producer binding and all three forward-only 0035 repairs. Five cloud candidates failed before attestation; the fifth exposed that 0035 had not forward-replaced 0031's frozen loadout/snapshot key checks for v3. Its disposable resources were identity-archived and discarded; the new minimal compatibility repair and its RED/GREEN regression are locally verified, and one new final-head candidate remains mandatory. This is not a runtime, production or player-loop completion claim: the server factory remains disabled, no production database or service changed, and all user-facing gates remain pending."
+  "summary": "Task 5C is locally verified at db128c64 for immutable runtime release/context/index ownership, release-bound V3 execution, candidate-harness producer binding, all three forward-only 0035 repairs and a pre-DDL migration-role guard. Six cloud candidate harness runs failed before attestation and one setup-only preparation was identity-archived and discarded; the latest runner configuration failure is prevented before DDL by the new guard. A new final-head candidate remains mandatory. This is not a runtime, production or player-loop completion claim: the server factory remains disabled, no production database or service changed, and all user-facing gates remain pending."
 }

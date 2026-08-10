@@ -387,6 +387,26 @@ contract and whole local suite also passed without local PostgreSQL. This new
 runtime-migration head requires one new candidate run id; no failed candidate
 or resource may be reused.
 
+Candidate setup `t5c260810122723` verified the exact source identity but
+aborted before Python started because the production URL intentionally relies
+on the configured `wow_app` passfile rather than an inline password. Its two
+commented databases, candidate role, source, bundle and temporary material were
+discarded and rechecked absent; it is not candidate evidence. Candidate
+`t5c260810122931` then ran the harness on `f02982c8` /
+`d38b888bb20d60d00bcfa1d9bb03abdb4e0e070c` but failed before any migration
+completed: fresh/upgrade DSNs were mistakenly candidate-worker logins although
+the runner uses both for DDL. Its redacted log SHA-256 is
+`99927b14ab374be20edabca8e81848520130adc57c99d31c93fa8ecc6ba9583b`.
+All named resources were identity-archived, discarded and rechecked absent;
+the dedicated worker stayed inactive.
+
+The TDD follow-up `db128c64` adds a candidate-only pre-DDL assertion that both
+fresh/upgrade migration DSNs are `postgres`, with a static RED/GREEN regression.
+The 61-test schema/candidate contract and whole local suite passed without a
+local PostgreSQL connection. This changes the candidate harness source, so one
+new exact-head disposable candidate remains required; no prior run id, database,
+role, source or bundle may be reused.
+
 - [ ] **Step 3: Review, CI and production only after candidate PASS**
 
 Run final CR/Harness at exact candidate head, publish one implementation PR, require exact-head CI, then apply reviewed `0030..0035` and provider/worker enablement per runbook. Record main/origin/cloud parity, no timer/backflow, API/readback and rollback. Never create a CI-only PR.
