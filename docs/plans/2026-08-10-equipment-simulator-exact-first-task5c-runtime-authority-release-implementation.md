@@ -186,7 +186,7 @@ Run: `PYTHONDONTWRITEBYTECODE=1 python3 -m unittest tests.gear_resolved_loadout_
 
 Expected: PASS; v1/v2 fixtures retain original key/bytes.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/gear_resolved_loadout.py server/simulation_snapshot.py server/simulation_snapshot_store.py server/gear_exact_import_job_store.py server/migrations/postgres/0035_websim_exact_runtime_authority_release.sql tests/gear_resolved_loadout_test.py tests/simulation_snapshot_test.py tests/simulation_snapshot_compat_test.py tests/simulation_snapshot_store_test.py tests/gear_exact_import_job_store_test.py tests/postgres_schema_test.py tests/postgres_integration_test.py
