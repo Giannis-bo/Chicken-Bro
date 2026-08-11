@@ -2673,6 +2673,150 @@ class GearReleaseStoreTest(unittest.TestCase):
                 },
             )
 
+    def test_manifest_v2_authority_keeps_same_source_key_scoped_to_each_item(self):
+        from server.gear_release_store import GearReleaseStore
+
+        gear = self.gear_release()
+        catalog_revision = "gear-catalog:sha256:" + ("a" * 64)
+        exact_registry_revision = "gear-exact-registry:sha256:" + ("b" * 64)
+        browse_head = "browse-variant:sha256:" + ("c" * 64)
+        browse_chest = "browse-variant:sha256:" + ("d" * 64)
+        source_key = "shared-canonical-source"
+        manifest = gear_release.build_manifest(
+            season_revision="season-17",
+            gear_release=gear,
+            community_release=None,
+            talent_catalog_revision="talent-r1",
+            dependency_revisions={
+                **self.dependencies(),
+                "gearCatalogRevision": catalog_revision,
+                "gearExactRegistryRevision": exact_registry_revision,
+            },
+            catalog_revision=catalog_revision,
+            exact_registry_revision=exact_registry_revision,
+        )
+        binding = {
+            "pointerMode": "active",
+            "generation": 34,
+            "formalActiveManifest": True,
+            "manifest": manifest,
+            "gearRelease": gear,
+            "communityRelease": None,
+            "gearCatalog": {
+                "catalogRevision": catalog_revision,
+                "browseVariants": [
+                    {
+                        "browseVariantKey": browse_head,
+                        "itemId": "item-a",
+                        "sourceVariantKeys": [source_key],
+                        "canonicalSourceVariantKey": source_key,
+                        "itemLevel": 276,
+                        "bonusIds": ["100"],
+                        "staticFacts": {"intellect": 100},
+                    },
+                    {
+                        "browseVariantKey": browse_chest,
+                        "itemId": "item-b",
+                        "sourceVariantKeys": [source_key],
+                        "canonicalSourceVariantKey": source_key,
+                        "itemLevel": 276,
+                        "bonusIds": ["200"],
+                        "staticFacts": {"intellect": 120},
+                    },
+                ],
+            },
+            "gearExactRegistry": {
+                "registryRevision": exact_registry_revision,
+            },
+        }
+        runtime = {
+            "dependencyRevisions": {
+                **self.dependencies(),
+                "capabilityRevision": gear_socket_authority.CAPABILITY_REVISION,
+            },
+            "supportedCapabilityRevisions": list(
+                gear_socket_authority.SUPPORTED_CAPABILITY_REVISIONS
+            ),
+        }
+        intent = {
+            "schemaRevision": "selection-intent-v1",
+            "authoredAgainst": {
+                "seasonRevision": "season-17",
+                "gearCatalogRevision": catalog_revision,
+            },
+            "eligibilityContext": {
+                "classKey": "mage",
+                "specKey": "arcane",
+                "level": 90,
+            },
+            "slots": {
+                "head": {
+                    "itemId": "item-a",
+                    "variantKey": browse_head,
+                    "gemOptionIds": [],
+                    "enchantOptionId": "",
+                    "embellishmentOptionId": "",
+                    "craftedOptionId": "",
+                    "catalystOptionId": "",
+                },
+                "chest": {
+                    "itemId": "item-b",
+                    "variantKey": browse_chest,
+                    "gemOptionIds": [],
+                    "enchantOptionId": "",
+                    "embellishmentOptionId": "",
+                    "craftedOptionId": "",
+                    "catalystOptionId": "",
+                },
+            },
+        }
+        store = GearReleaseStore(lambda: FakeConnection())
+
+        def load_source_authority(translated, _runtime, release_id):
+            self.assertEqual(release_id, gear["releaseId"])
+            self.assertEqual(
+                {slot: selection["variantKey"] for slot, selection in translated["slots"].items()},
+                {"head": source_key, "chest": source_key},
+            )
+            return {
+                "missingFields": [],
+                "itemsById": {
+                    "item-a": {"itemId": "item-a", "variantKeys": [source_key]},
+                    "item-b": {"itemId": "item-b", "variantKeys": [source_key]},
+                },
+                # A global map cannot represent both item-scoped source rows.
+                "variantsByKey": {},
+                "variantsByItemAndKey": {
+                    "item-a": {
+                        source_key: {
+                            "itemId": "item-a",
+                            "variantKey": source_key,
+                            "serializerInput": {"id": "item-a"},
+                        }
+                    },
+                    "item-b": {
+                        source_key: {
+                            "itemId": "item-b",
+                            "variantKey": source_key,
+                            "serializerInput": {"id": "item-b"},
+                        }
+                    },
+                },
+                "optionsById": {},
+            }
+
+        store.load_candidate_authority_context = load_source_authority
+
+        context = store.load_active_authority_context(intent, runtime, binding)
+
+        self.assertEqual(context["variantsByKey"][browse_head]["itemId"], "item-a")
+        self.assertEqual(context["variantsByKey"][browse_head]["sourceVariantKey"], source_key)
+        self.assertEqual(context["variantsByKey"][browse_head]["resolvedStats"], {"intellect": 100})
+        self.assertEqual(context["variantsByKey"][browse_chest]["itemId"], "item-b")
+        self.assertEqual(context["variantsByKey"][browse_chest]["sourceVariantKey"], source_key)
+        self.assertEqual(context["variantsByKey"][browse_chest]["resolvedStats"], {"intellect": 120})
+        self.assertNotIn("variantsByItemAndKey", context)
+
     def test_manifest_catalog_snapshot_projects_canonical_browse_membership(self):
         from server.gear_release_store import _manifest_catalog_snapshot
 

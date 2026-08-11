@@ -3211,6 +3211,11 @@ class GearReleaseStore:
                 gear_release_id,
             )
         context = _canonical(context)
+        variants_by_item_and_key = (
+            context.pop("variantsByItemAndKey", None)
+            if isinstance(context.get("variantsByItemAndKey"), dict)
+            else None
+        )
         if selected_aliases:
             variants_by_key = (
                 context.get("variantsByKey")
@@ -3226,7 +3231,17 @@ class GearReleaseStore:
                 browse_key,
                 (item_id, source_key, catalog_variant),
             ) in selected_aliases.items():
-                source_variant = variants_by_key.get(source_key)
+                if isinstance(variants_by_item_and_key, dict):
+                    item_variants = variants_by_item_and_key.get(item_id)
+                    source_variant = (
+                        item_variants.get(source_key)
+                        if isinstance(item_variants, dict)
+                        else None
+                    )
+                else:
+                    # Keep compatibility with test doubles and older
+                    # candidate readers that predate the item-scoped index.
+                    source_variant = variants_by_key.get(source_key)
                 if not isinstance(source_variant, dict):
                     raise GearReleaseIntegrityError(
                         "Manifest Catalog source variant is unavailable"

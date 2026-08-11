@@ -938,6 +938,58 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
             context["variantsByKey"][requested_key]["sourceRefIds"],
         )
 
+    def test_loader_keeps_a_shared_variant_key_scoped_to_each_item(self):
+        shared_key = "shared-canonical-source"
+        first = list(self.item_row())
+        first[1] = shared_key
+        first[3]["variantKey"] = shared_key
+
+        second = copy.deepcopy(first)
+        second[0] = "item-chest"
+        second[2]["id"] = "item-chest"
+        second[2]["slot"] = "chest"
+        second[2]["payload"]["inventoryType"] = "chest"
+        second[3]["id"] = "variant-row-chest"
+        second[3]["itemId"] = "item-chest"
+        second[3]["slot"] = "chest"
+
+        intent = self.intent({
+            "head": {
+                "itemId": "item-head",
+                "variantKey": shared_key,
+                "gemOptionIds": [],
+                "enchantOptionId": "",
+                "embellishmentOptionId": "",
+                "craftedOptionId": "",
+                "catalystOptionId": "",
+            },
+            "chest": {
+                "itemId": "item-chest",
+                "variantKey": shared_key,
+                "gemOptionIds": [],
+                "enchantOptionId": "",
+                "embellishmentOptionId": "",
+                "craftedOptionId": "",
+                "catalystOptionId": "",
+            },
+        })
+
+        _cursor, context = self.load(
+            cursor=self.cursor(item_rows=[tuple(first), tuple(second)]),
+            intent=intent,
+        )
+
+        self.assertNotIn(shared_key, context["variantsByKey"])
+        self.assertIn(f"variantsByKey.{shared_key}", context["missingFields"])
+        self.assertEqual(
+            context["variantsByItemAndKey"]["item-head"][shared_key]["itemId"],
+            "item-head",
+        )
+        self.assertEqual(
+            context["variantsByItemAndKey"]["item-chest"][shared_key]["itemId"],
+            "item-chest",
+        )
+
     def test_loader_never_matches_a_normalized_alias_from_the_wrong_item(self):
         requested_key = "observed-profile-head-289-bonus_id:123ilevel:289"
         row = list(self.item_row())

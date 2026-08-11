@@ -721,28 +721,47 @@ def _extract_relation_contexts(
             continue
         relation_contexts.append(json.loads(ranked[0][1]))
 
-    one_hand_main_by_class_spec: dict[tuple[str, str], dict[str, str]] = {}
-    off_hand_by_class_spec: dict[tuple[str, str], dict[str, str]] = {}
-    for context in relation_contexts:
-        class_spec = (
-            _text(context.get("classKey")),
-            _text(context.get("specKey")),
-        )
-        candidate = {
-            "itemId": _text(context.get("itemId")),
-            "variantKey": _text(context.get("browseVariantKey")),
-        }
-        handedness = _text(context.get("handedness")).lower().replace("-", "_")
-        if (
-            _text(context.get("slot")) == "main_hand"
-            and handedness in {"one_hand", "onehand"}
-        ):
-            one_hand_main_by_class_spec.setdefault(class_spec, candidate)
-        elif (
-            _text(context.get("slot")) == "off_hand"
-            and handedness in {"off_hand", "offhand"}
-        ):
-            off_hand_by_class_spec.setdefault(class_spec, candidate)
+    one_hand_main_by_class_spec: dict[
+        tuple[str, str], tuple[tuple[str, str], dict[str, str]]
+    ] = {}
+    off_hand_by_class_spec: dict[
+        tuple[str, str], tuple[tuple[str, str], dict[str, str]]
+    ] = {}
+    for raw_candidates in candidates.values():
+        for _sort_key, context in raw_candidates:
+            class_spec = (
+                _text(context.get("classKey")),
+                _text(context.get("specKey")),
+            )
+            candidate = {
+                "itemId": _text(context.get("itemId")),
+                "variantKey": _text(context.get("browseVariantKey")),
+            }
+            candidate_rank = (
+                candidate["variantKey"],
+                candidate["itemId"],
+            )
+            handedness = _text(context.get("handedness")).lower().replace("-", "_")
+            if (
+                _text(context.get("slot")) == "main_hand"
+                and handedness in {"one_hand", "onehand"}
+            ):
+                current = one_hand_main_by_class_spec.get(class_spec)
+                if current is None or candidate_rank < current[0]:
+                    one_hand_main_by_class_spec[class_spec] = (
+                        candidate_rank,
+                        candidate,
+                    )
+            elif (
+                _text(context.get("slot")) == "off_hand"
+                and handedness in {"one_hand", "onehand", "off_hand", "offhand"}
+            ):
+                current = off_hand_by_class_spec.get(class_spec)
+                if current is None or candidate_rank < current[0]:
+                    off_hand_by_class_spec[class_spec] = (
+                        candidate_rank,
+                        candidate,
+                    )
 
     for context in relation_contexts:
         class_key = _text(context.get("classKey"))
@@ -761,9 +780,9 @@ def _extract_relation_contexts(
             and handedness in {"one_hand", "onehand"}
             and class_spec in off_hand_by_class_spec
         ):
-            hand_pair_context["off_hand"] = off_hand_by_class_spec[class_spec]
+            hand_pair_context["off_hand"] = off_hand_by_class_spec[class_spec][1]
         elif slot == "off_hand" and class_spec in one_hand_main_by_class_spec:
-            hand_pair_context["main_hand"] = one_hand_main_by_class_spec[class_spec]
+            hand_pair_context["main_hand"] = one_hand_main_by_class_spec[class_spec][1]
         try:
             context["selectionIntent"] = _selection_intent_for_relation_context(
                 season_revision=season_revision,
