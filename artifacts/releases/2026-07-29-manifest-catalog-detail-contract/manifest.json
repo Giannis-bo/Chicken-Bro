@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-29T14:35:45.545Z",
+  "generatedAt": "2026-08-11T13:36:52.555Z",
   "release": {
     "date": "2026-07-29",
     "slug": "manifest-catalog-detail-contract"
@@ -43,7 +43,7 @@
         {
           "path": "docs/project-owner-map.json",
           "exists": true,
-          "sizeBytes": 74757
+          "sizeBytes": 89328
         },
         {
           "path": "docs/verification-matrix.md",
@@ -53,7 +53,7 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 12719
+          "sizeBytes": 21229
         },
         {
           "path": "docs/README.md",
@@ -68,7 +68,7 @@
         {
           "path": "docs/backend-owner-map.json",
           "exists": true,
-          "sizeBytes": 53703
+          "sizeBytes": 66505
         }
       ],
       "historicalDocsDefaultToEvidenceOnly": true
@@ -99,19 +99,19 @@
         {
           "path": "server/websim_payload.py",
           "exists": true,
-          "lineCount": 27630,
+          "lineCount": 28040,
           "hotspot": true
         },
         {
           "path": "server/news_backend.py",
           "exists": true,
-          "lineCount": 14220,
+          "lineCount": 16851,
           "hotspot": true
         },
         {
           "path": "server/postgres_cache_store.py",
           "exists": true,
-          "lineCount": 9455,
+          "lineCount": 9698,
           "hotspot": true
         }
       ],
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-29-manifest-catalog-detail-contract/evidence.json",
-    "sizeBytes": 12742,
+    "sizeBytes": 29151,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -390,9 +390,9 @@
       "summary"
     ],
     "missingFields": [],
-    "declaredStatus": "local_verified",
-    "highestEvidenceLevel": "local_verified",
-    "summary": "The user approved a Strict Catalog repair. Both the 14078788 diagnostic candidate and the later da051891 API/WeChat candidate are superseded for current verification because runtime source advanced. Exact merged HEAD a743072f passes 685 Python tests and 60 Taro gear-detail contracts, including Manifest Catalog provenance fail-closed behavior and the exact-only import through Resolve/ResolvedLoadout/SimC. The cloud gate recovered to 79%, so the packet is local_verified; no immutable current candidate, current WeChat acceptance, official 18-source Universe membership proof, or final Harness/merge closure exists."
+    "declaredStatus": "runtime_verified",
+    "highestEvidenceLevel": "runtime_verified",
+    "summary": "The current Strict Catalog repair candidate is bound to commit 3f01df0b/tree f0872fdd and is runtime-verified in the isolated candidate service on port 18794. The immutable candidate Manifest, Catalog, Exact Registry, Community release, SimC revision, API report, Resolver/Profile materialization, 26/14 SimC matrix and 674 BrowseVariant SimC smokes all passed; the active generation-35 Manifest/Catalog/Exact pointer is unchanged. The candidate slot API exposes verified BrowseVariant static facts, while aggregate stat snapshots remain fail-closed because the dormant preview is formalActiveManifest=false; no frontend inference substitutes one for the other. The WeChat bundle is rebuilt with the same candidate identity and the live DevTools session is prepared on the matching AppID/path using only an ignored local urlCheck=false runtime override; the automation endpoint remains unavailable. A fresh community-template import now shows backend-owned static secondary facts across all 16 equipped rows, while the aggregate summary correctly remains 待校验; the head chooser exposes six Browse candidates and governed 6/6 tracks. This packet is ready for the six user acceptance items but does not claim them accepted, full current-season PVE Universe completeness or Exact-first v2, and no merge, promotion or active-pointer switch has occurred."
   },
   "evidence": {
     "localTests": {
@@ -417,13 +417,13 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "1 changed files currently visible to git status."
+      "detail": "3 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
       "severity": "medium",
       "status": "watch",
-      "detail": "server/websim_payload.py:27630, server/news_backend.py:14220, server/postgres_cache_store.py:9455"
+      "detail": "server/websim_payload.py:28040, server/news_backend.py:16851, server/postgres_cache_store.py:9698"
     },
     {
       "id": "localTests_missing",
@@ -453,9 +453,11 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 1,
+      "changedFileCount": 3,
       "changedFiles": [
-        " M artifacts/releases/2026-07-29-manifest-catalog-detail-contract/evidence.json"
+        " M artifacts/releases/2026-07-29-manifest-catalog-detail-contract/evidence.json",
+        " M artifacts/releases/2026-07-29-manifest-catalog-detail-contract/manifest.json",
+        " M docs/plans/2026-07-29-manifest-catalog-progression-display-contract.md"
       ]
     }
   },
