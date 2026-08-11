@@ -517,6 +517,7 @@ def _selection_intent_for_relation_context(
     item_id: str,
     browse_variant_key: str,
     selection_intent_factory: SelectionIntentFactory | None = None,
+    hand_pair_context: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build a full-loadout intent while replacing only one BrowseVariant.
 
@@ -579,6 +580,22 @@ def _selection_intent_for_relation_context(
         "itemId": _text(item_id),
         "variantKey": _text(browse_variant_key),
     }
+    pair_context = _mapping(hand_pair_context)
+    for raw_slot, raw_companion in pair_context.items():
+        companion_slot = _text(raw_slot)
+        if not companion_slot or companion_slot == _text(slot):
+            continue
+        if raw_companion is None:
+            slots.pop(companion_slot, None)
+            continue
+        companion = _mapping(raw_companion)
+        companion_item_id = _text(companion.get("itemId"))
+        companion_variant_key = _text(companion.get("variantKey"))
+        if companion_item_id and companion_variant_key:
+            slots[companion_slot] = {
+                "itemId": companion_item_id,
+                "variantKey": companion_variant_key,
+            }
 
     return {
         "schemaRevision": _text(base.get("schemaRevision")) or "selection-intent-v1",
@@ -669,41 +686,17 @@ def _extract_relation_contexts(
                             )
                         )
                         continue
-                    try:
-                        selection_intent = _selection_intent_for_relation_context(
-                            season_revision=season_revision,
-                            catalog_revision=catalog_revision,
-                            class_key=class_key,
-                            spec_key=spec_key,
-                            level=level,
-                            slot=slot,
-                            item_id=variant_item_id,
-                            browse_variant_key=browse_variant_key,
-                            selection_intent_factory=selection_intent_factory,
-                        )
-                    except Exception as error:
-                        exception_key = (class_key, spec_key)
-                        if exception_key not in selection_intent_exception_keys:
-                            selection_intent_exception_keys.add(exception_key)
-                            problems.append(
-                                _exception_problem(
-                                    "CATALOG_CANDIDATE_EVIDENCE_SELECTION_INTENT_FACTORY_EXCEPTION",
-                                    "selection_intent_factory",
-                                    error,
-                                )
-                                | {
-                                    "classKey": class_key,
-                                    "specKey": spec_key,
-                                }
-                            )
-                        continue
                     context = {
                         "browseVariantKey": browse_variant_key,
                         "itemId": variant_item_id,
                         "classKey": class_key,
                         "specKey": spec_key,
                         "slot": slot,
-                        "selectionIntent": selection_intent,
+                        "handedness": _text(
+                            item.get("handedness")
+                            or variant.get("handedness")
+                        ),
+                        "profileLevel": level,
                     }
                     sort_key = (class_key, spec_key, slot, variant_item_id)
                     candidates.setdefault(browse_variant_key, []).append((sort_key, context))
@@ -727,6 +720,80 @@ def _extract_relation_contexts(
         if not ranked:
             continue
         relation_contexts.append(json.loads(ranked[0][1]))
+
+    one_hand_main_by_class_spec: dict[tuple[str, str], dict[str, str]] = {}
+    off_hand_by_class_spec: dict[tuple[str, str], dict[str, str]] = {}
+    for context in relation_contexts:
+        class_spec = (
+            _text(context.get("classKey")),
+            _text(context.get("specKey")),
+        )
+        candidate = {
+            "itemId": _text(context.get("itemId")),
+            "variantKey": _text(context.get("browseVariantKey")),
+        }
+        handedness = _text(context.get("handedness")).lower().replace("-", "_")
+        if (
+            _text(context.get("slot")) == "main_hand"
+            and handedness in {"one_hand", "onehand"}
+        ):
+            one_hand_main_by_class_spec.setdefault(class_spec, candidate)
+        elif (
+            _text(context.get("slot")) == "off_hand"
+            and handedness in {"off_hand", "offhand"}
+        ):
+            off_hand_by_class_spec.setdefault(class_spec, candidate)
+
+    for context in relation_contexts:
+        class_key = _text(context.get("classKey"))
+        spec_key = _text(context.get("specKey"))
+        level = _int_or_none(context.get("profileLevel"))
+        slot = _text(context.get("slot"))
+        item_id = _text(context.get("itemId"))
+        browse_variant_key = _text(context.get("browseVariantKey"))
+        handedness = _text(context.get("handedness")).lower().replace("-", "_")
+        hand_pair_context: dict[str, Any] = {}
+        class_spec = (class_key, spec_key)
+        if slot == "main_hand" and handedness in {"two_hand", "twohand"}:
+            hand_pair_context["off_hand"] = None
+        elif (
+            slot == "main_hand"
+            and handedness in {"one_hand", "onehand"}
+            and class_spec in off_hand_by_class_spec
+        ):
+            hand_pair_context["off_hand"] = off_hand_by_class_spec[class_spec]
+        elif slot == "off_hand" and class_spec in one_hand_main_by_class_spec:
+            hand_pair_context["main_hand"] = one_hand_main_by_class_spec[class_spec]
+        try:
+            context["selectionIntent"] = _selection_intent_for_relation_context(
+                season_revision=season_revision,
+                catalog_revision=catalog_revision,
+                class_key=class_key,
+                spec_key=spec_key,
+                level=level or 0,
+                slot=slot,
+                item_id=item_id,
+                browse_variant_key=browse_variant_key,
+                selection_intent_factory=selection_intent_factory,
+                hand_pair_context=hand_pair_context,
+            )
+        except Exception as error:
+            exception_key = (class_key, spec_key)
+            if exception_key not in selection_intent_exception_keys:
+                selection_intent_exception_keys.add(exception_key)
+                problems.append(
+                    _exception_problem(
+                        "CATALOG_CANDIDATE_EVIDENCE_SELECTION_INTENT_FACTORY_EXCEPTION",
+                        "selection_intent_factory",
+                        error,
+                    )
+                    | {
+                        "classKey": class_key,
+                        "specKey": spec_key,
+                    }
+                )
+            continue
+        context.pop("profileLevel", None)
     return relation_contexts, problems
 
 
