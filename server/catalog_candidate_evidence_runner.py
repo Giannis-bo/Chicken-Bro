@@ -588,6 +588,14 @@ def _selection_intent_for_relation_context(
         if raw_companion is None:
             slots.pop(companion_slot, None)
             continue
+        # A main-hand Browse replacement must not discard an already
+        # authoritative off-hand from the imported loadout.  Only synthesize
+        # the relation when the base intent is missing that companion.  The
+        # off-hand direction remains allowed to replace an incompatible
+        # two-hand base main-hand with the raw one-hand evidence selected
+        # below.
+        if _text(slot) == "main_hand" and companion_slot in slots:
+            continue
         companion = _mapping(raw_companion)
         companion_item_id = _text(companion.get("itemId"))
         companion_variant_key = _text(companion.get("variantKey"))

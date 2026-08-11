@@ -860,6 +860,97 @@ class CatalogCandidateEvidenceRunnerTest(unittest.TestCase):
             {"itemId": "1001", "variantKey": "browse-main-one"},
         )
 
+    def test_relation_context_factory_preserves_existing_offhand_for_one_hand_main(self):
+        self.assertIsNotNone(_extract_relation_contexts)
+
+        catalog = {
+            "seasonRevision": "season-r1",
+            "catalogRevision": "gear-catalog:sha256:" + "2" * 64,
+            "browseVariants": [
+                {"browseVariantKey": "browse-main", "itemId": "1001"},
+                {"browseVariantKey": "browse-off", "itemId": "2001"},
+            ],
+        }
+        records = [
+            {
+                "classKey": "deathknight",
+                "specKey": "frost",
+                "requestedSlot": "main_hand",
+                "payload": {
+                    "replacementCandidates": [
+                        {
+                            "slot": "main_hand",
+                            "items": [
+                                {
+                                    "itemId": "1001",
+                                    "handedness": "one_hand",
+                                    "variants": [
+                                        {"variantKey": "browse-main", "itemId": "1001"},
+                                    ],
+                                },
+                            ],
+                        }
+                    ]
+                },
+            },
+            {
+                "classKey": "deathknight",
+                "specKey": "frost",
+                "requestedSlot": "off_hand",
+                "payload": {
+                    "replacementCandidates": [
+                        {
+                            "slot": "off_hand",
+                            "items": [
+                                {
+                                    "itemId": "2001",
+                                    "handedness": "one_hand",
+                                    "variants": [
+                                        {"variantKey": "browse-off", "itemId": "2001"},
+                                    ],
+                                },
+                            ],
+                        }
+                    ]
+                },
+            },
+        ]
+        base_intent = {
+            "schemaRevision": "selection-intent-v1",
+            "authoredAgainst": {
+                "seasonRevision": "season-r1",
+                "gearCatalogRevision": "gear-catalog:sha256:" + "9" * 64,
+            },
+            "eligibilityContext": {
+                "classKey": "deathknight",
+                "specKey": "frost",
+                "level": 80,
+            },
+            "slots": {
+                "head": {"itemId": "9991", "variantKey": "base-head"},
+                "main_hand": {"itemId": "9992", "variantKey": "base-main"},
+                "off_hand": {"itemId": "9993", "variantKey": "base-offhand"},
+            },
+        }
+
+        relation_contexts, problems = _extract_relation_contexts(
+            catalog=catalog,
+            records=records,
+            get_profile_context=lambda _class_key, _spec_key: {"level": 80},
+            selection_intent_factory=lambda *, class_key, spec_key: base_intent,
+        )
+
+        self.assertEqual(problems, [])
+        main_intent = next(
+            row["selectionIntent"]
+            for row in relation_contexts
+            if row["browseVariantKey"] == "browse-main"
+        )
+        self.assertEqual(
+            main_intent["slots"]["off_hand"],
+            {"itemId": "9993", "variantKey": "base-offhand"},
+        )
+
     def test_variant_smoke_blocks_on_simc_runtime_revision_mismatch(self):
         self.assertIsNotNone(_build_variant_smoke_callback)
         self.assertIsNotNone(build_gear_variant_simc_matrix)
