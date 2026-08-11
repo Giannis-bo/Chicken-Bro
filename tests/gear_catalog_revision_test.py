@@ -481,6 +481,24 @@ class GearCatalogRevisionTest(unittest.TestCase):
             3,
         )
 
+    def test_item_membership_requires_verified_release_item_status(self):
+        rows = regular_rows()
+        rows["items"][0]["sourceStatus"] = "unknown"
+
+        result = build_catalog_revision(CURRENT_BINDING, rows)
+
+        self.assertEqual(result["status"], "verified")
+        self.assertEqual(result["itemDefinitions"], [])
+        self.assertEqual(result["browseVariants"], [])
+        self.assertEqual(
+            result["contentSummary"]["itemStatusExcludedItemCount"],
+            1,
+        )
+        self.assertEqual(
+            result["contentSummary"]["itemStatusExcludedBrowseRowCount"],
+            1,
+        )
+
     def test_exact_instances_do_not_create_or_extend_browse_variants(self):
         rows = regular_rows()
         first = {
