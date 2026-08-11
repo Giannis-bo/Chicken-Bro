@@ -104,11 +104,24 @@ def _connection_factory_from_env() -> Any:
 
 
 def _pointer_from_binding(binding: Mapping[str, Any]) -> dict[str, Any]:
+    manifest = _mapping(binding.get("manifest"))
+    dependency_revisions = _mapping(
+        manifest.get("dependencyRevisions")
+        or manifest.get("dependencyVector")
+    )
     return {
         "generation": int(binding.get("generation") or 0),
         "manifestRevision": _text(binding.get("manifestRevision")),
-        "gearCatalogRevision": _text(binding.get("gearCatalogRevision")),
-        "gearExactRegistryRevision": _text(binding.get("gearExactRegistryRevision")),
+        "gearCatalogRevision": _text(
+            binding.get("gearCatalogRevision")
+            or manifest.get("gearCatalogRevision")
+            or dependency_revisions.get("gearCatalogRevision")
+        ),
+        "gearExactRegistryRevision": _text(
+            binding.get("gearExactRegistryRevision")
+            or manifest.get("gearExactRegistryRevision")
+            or dependency_revisions.get("gearExactRegistryRevision")
+        ),
     }
 
 

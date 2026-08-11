@@ -139,6 +139,29 @@ class SimcExecutor:
 class CatalogCandidateEvidenceRunnerTest(unittest.TestCase):
     maxDiff = None
 
+    def test_cli_pointer_adapter_reads_revisions_from_nested_active_manifest(self):
+        cli = _load_cli_module()
+        self.assertIsNotNone(cli)
+
+        binding = {
+            "generation": 35,
+            "manifestRevision": "season-manifest:sha256:" + "1" * 64,
+            "manifest": {
+                "gearCatalogRevision": "gear-catalog:sha256:" + "2" * 64,
+                "gearExactRegistryRevision": "gear-exact-registry:sha256:" + "3" * 64,
+            },
+        }
+
+        self.assertEqual(
+            cli._pointer_from_binding(binding),
+            {
+                "generation": 35,
+                "manifestRevision": binding["manifestRevision"],
+                "gearCatalogRevision": binding["manifest"]["gearCatalogRevision"],
+                "gearExactRegistryRevision": binding["manifest"]["gearExactRegistryRevision"],
+            },
+        )
+
     def expected_identity(self, **overrides):
         payload = {
             "manifestRevision": "manifest:sha256:" + "1" * 64,
