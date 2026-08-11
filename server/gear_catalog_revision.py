@@ -558,6 +558,22 @@ def build_catalog_revision(
         if isinstance(row, Mapping)
     ]
     del source_rows
+    browse_item_ids = {
+        _text(row.get("itemId"))
+        for row in raw_variants
+        if _text(row.get("rowFamily")) == "browse" and _text(row.get("itemId"))
+    }
+    verified_release_item_ids = {
+        _text(row.get("itemId") or row.get("id"))
+        for row in raw_items
+        if (
+            _text(row.get("itemId") or row.get("id"))
+            and _text(row.get("sourceStatus")).lower() == "verified"
+        )
+    }
+    item_status_excluded_item_ids = (
+        browse_item_ids - verified_release_item_ids
+    )
     type_excluded_item_ids = {
         _text(row.get("itemId") or row.get("id"))
         for row in raw_items
@@ -608,6 +624,7 @@ def build_catalog_revision(
     ] = {}
     legacy_browse_count = 0
     type_excluded_browse_count = 0
+    item_status_excluded_browse_count = 0
     crafted_selection_count = 0
     summarized_exact_count = _positive_int(
         variant_summary.get("exactInstanceRowCount")
@@ -634,6 +651,9 @@ def build_catalog_revision(
         if resolution.get("status") != "verified" or not progression_state:
             continue
         item_id = _text(row.get("itemId"))
+        if item_id not in verified_release_item_ids:
+            item_status_excluded_browse_count += 1
+            continue
         if item_id in type_excluded_item_ids:
             type_excluded_browse_count += 1
             continue
@@ -1057,6 +1077,8 @@ def build_catalog_revision(
             ),
         ),
         "excludedDormantItemCount": excluded_dormant_item_count,
+        "itemStatusExcludedItemCount": len(item_status_excluded_item_ids),
+        "itemStatusExcludedBrowseRowCount": item_status_excluded_browse_count,
         "typeExcludedItemCount": len(type_excluded_item_ids),
         "typeExcludedBrowseRowCount": type_excluded_browse_count,
     }

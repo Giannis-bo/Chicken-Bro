@@ -1301,6 +1301,10 @@ def build_gear_authority_context_from_rows(
     items_by_id: dict[str, dict[str, Any]] = {}
     variants_by_key: dict[str, dict[str, Any]] = {}
     variant_candidates_by_key: dict[str, list[dict[str, Any]]] = {}
+    variant_candidates_by_item_and_key: dict[
+        str,
+        dict[str, list[dict[str, Any]]],
+    ] = {}
     for row in item_rows:
         row = list(row or ())
         requested_item_id = _text(row[0] if len(row) > 0 else "")
@@ -1328,11 +1332,27 @@ def build_gear_authority_context_from_rows(
         )
         if variant is not None:
             variant_candidates_by_key.setdefault(requested_variant_key, []).append(variant)
+            variant_candidates_by_item_and_key.setdefault(
+                requested_item_id,
+                {},
+            ).setdefault(requested_variant_key, []).append(variant)
 
     for requested_variant_key, candidates in variant_candidates_by_key.items():
         merged = _merge_equivalent_variant_candidates(candidates)
         if merged is not None:
             variants_by_key[requested_variant_key] = merged
+
+    variants_by_item_and_key: dict[
+        str,
+        dict[str, dict[str, Any]],
+    ] = {}
+    for item_id, candidates_by_key in variant_candidates_by_item_and_key.items():
+        for requested_variant_key, candidates in candidates_by_key.items():
+            merged = _merge_equivalent_variant_candidates(candidates)
+            if merged is not None:
+                variants_by_item_and_key.setdefault(item_id, {})[
+                    requested_variant_key
+                ] = merged
 
     options_by_id: dict[str, dict[str, Any]] = {}
     for row in option_rows:
@@ -1372,6 +1392,17 @@ def build_gear_authority_context_from_rows(
         "dependencyVector": _canonical(dependency_vector),
         "itemsById": {key: items_by_id[key] for key in sorted(items_by_id)},
         "variantsByKey": {key: variants_by_key[key] for key in sorted(variants_by_key)},
+        # A canonical source key is globally ambiguous when multiple items
+        # share it. Keep this internal index for Manifest Catalog alias
+        # overlay while preserving the public resolver map's fail-closed
+        # equivalence semantics.
+        "variantsByItemAndKey": {
+            item_id: {
+                key: variants_by_item_and_key[item_id][key]
+                for key in sorted(variants_by_item_and_key[item_id])
+            }
+            for item_id in sorted(variants_by_item_and_key)
+        },
         "optionsById": {key: options_by_id[key] for key in sorted(options_by_id)},
         "ruleParameters": _json_value(runtime.get("ruleParameters"), {}),
         "capabilities": _json_value(runtime.get("capabilities"), {}),
