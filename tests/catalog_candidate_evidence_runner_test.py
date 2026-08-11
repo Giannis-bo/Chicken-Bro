@@ -16,6 +16,7 @@ try:
     )
     from server.catalog_candidate_evidence_runner import (
         _build_variant_smoke_callback,
+        _extract_relation_contexts,
         run_catalog_candidate_evidence,
     )
     from server.gear_variant_materialization_matrix import (
@@ -29,6 +30,7 @@ except ModuleNotFoundError:
     build_gear_variant_materialization_matrix = None
     build_gear_variant_simc_matrix = None
     _build_variant_smoke_callback = None
+    _extract_relation_contexts = None
     run_catalog_candidate_evidence = None
 
 
@@ -588,6 +590,83 @@ class CatalogCandidateEvidenceRunnerTest(unittest.TestCase):
         self.assertEqual(len(profile_factory.calls), 40)
         self.assertIs(matrix_specs["http"], matrix_specs["simc"])
         self.assertNotIn("player=Candidate", json.dumps(report, ensure_ascii=False, sort_keys=True))
+
+    def test_relation_context_factory_replaces_only_target_variant_in_full_intent(self):
+        self.assertIsNotNone(_extract_relation_contexts)
+
+        catalog = {
+            "seasonRevision": "season-r1",
+            "catalogRevision": "gear-catalog:sha256:" + "2" * 64,
+            "browseVariants": [
+                {"browseVariantKey": "browse-a", "itemId": "1001"},
+            ],
+        }
+        records = [
+            {
+                "classKey": "mage",
+                "specKey": "frost",
+                "requestedSlot": "head",
+                "payload": {
+                    "replacementCandidates": [
+                        {
+                            "slot": "head",
+                            "items": [
+                                {
+                                    "itemId": "1001",
+                                    "variants": [
+                                        {"variantKey": "browse-a", "itemId": "1001"},
+                                    ],
+                                }
+                            ],
+                        }
+                    ]
+                },
+            }
+        ]
+        base_intent = {
+            "schemaRevision": "selection-intent-v1",
+            "authoredAgainst": {
+                "seasonRevision": "season-r1",
+                "gearCatalogRevision": "gear-catalog:sha256:" + "9" * 64,
+            },
+            "eligibilityContext": {
+                "classKey": "mage",
+                "specKey": "frost",
+                "level": 80,
+            },
+            "slots": {
+                "head": {"itemId": "9991", "variantKey": "base-head"},
+                "chest": {"itemId": "9992", "variantKey": "base-chest"},
+            },
+        }
+
+        relation_contexts, problems = _extract_relation_contexts(
+            catalog=catalog,
+            records=records,
+            get_profile_context=lambda _class_key, _spec_key: {"level": 80},
+            selection_intent_factory=lambda *, class_key, spec_key: base_intent,
+        )
+
+        self.assertEqual(problems, [])
+        self.assertEqual(
+            relation_contexts[0]["selectionIntent"],
+            {
+                "schemaRevision": "selection-intent-v1",
+                "authoredAgainst": {
+                    "seasonRevision": "season-r1",
+                    "gearCatalogRevision": "gear-catalog:sha256:" + "2" * 64,
+                },
+                "eligibilityContext": {
+                    "classKey": "mage",
+                    "specKey": "frost",
+                    "level": 80,
+                },
+                "slots": {
+                    "chest": {"itemId": "9992", "variantKey": "base-chest"},
+                    "head": {"itemId": "1001", "variantKey": "browse-a"},
+                },
+            },
+        )
 
     def test_variant_smoke_blocks_on_simc_runtime_revision_mismatch(self):
         self.assertIsNotNone(_build_variant_smoke_callback)

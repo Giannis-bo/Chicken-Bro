@@ -177,8 +177,51 @@ def _request_json_builder(args: argparse.Namespace):
     return request_json
 
 
+def _selection_intent_from_snapshot(snapshot: Mapping[str, Any]) -> dict[str, Any]:
+    snapshot_value = _mapping(snapshot)
+    dependency = _mapping(snapshot_value.get("dependencyVector"))
+    eligibility = _mapping(snapshot_value.get("eligibilityContext"))
+    resolved_slots = snapshot_value.get("resolvedSlots")
+    if (
+        _text(snapshot_value.get("status")) != "verified"
+        or not _text(dependency.get("seasonRevision"))
+        or not _text(dependency.get("gearCatalogRevision"))
+        or not _text(eligibility.get("classKey"))
+        or not _text(eligibility.get("specKey"))
+        or not isinstance(resolved_slots, dict)
+        or not resolved_slots
+    ):
+        return {}
+
+    slots: dict[str, dict[str, str]] = {}
+    for slot, raw in sorted(resolved_slots.items()):
+        resolved = _mapping(raw)
+        item_id = _text(resolved.get("itemId"))
+        variant_key = _text(resolved.get("variantKey"))
+        if not _text(slot) or not item_id or not variant_key:
+            return {}
+        slots[_text(slot)] = {
+            "itemId": item_id,
+            "variantKey": variant_key,
+        }
+    return {
+        "schemaRevision": "selection-intent-v1",
+        "authoredAgainst": {
+            "seasonRevision": _text(dependency.get("seasonRevision")),
+            "gearCatalogRevision": _text(dependency.get("gearCatalogRevision")),
+        },
+        "eligibilityContext": {
+            "classKey": _text(eligibility.get("classKey")),
+            "specKey": _text(eligibility.get("specKey")),
+            "level": int(eligibility.get("level") or 0),
+        },
+        "slots": slots,
+    }
+
+
 def _build_profile_context_factory(request_json, args: argparse.Namespace):
     cache: dict[tuple[str, str], dict[str, Any]] = {}
+    selection_intent_cache: dict[tuple[str, str], dict[str, Any]] = {}
 
     def factory(*, class_key: str, spec_key: str):
         key = (_text(class_key), _text(spec_key))
@@ -263,6 +306,7 @@ def _build_profile_context_factory(request_json, args: argparse.Namespace):
                 if isinstance(imported_data.get("resolvedSnapshot"), dict)
                 else {}
             )
+            selection_intent_cache[key] = _selection_intent_from_snapshot(snapshot)
             eligibility = (
                 snapshot.get("eligibilityContext")
                 if isinstance(snapshot.get("eligibilityContext"), dict)
@@ -281,7 +325,13 @@ def _build_profile_context_factory(request_json, args: argparse.Namespace):
         cache[key] = context
         return dict(context)
 
-    return factory
+    def selection_intent_factory(*, class_key: str, spec_key: str):
+        key = (_text(class_key), _text(spec_key))
+        if key not in cache:
+            factory(class_key=key[0], spec_key=key[1])
+        return dict(selection_intent_cache.get(key) or {})
+
+    return factory, selection_intent_factory
 
 
 def _simc_executor_builder(args: argparse.Namespace):
@@ -420,7 +470,10 @@ def main(
     load_exact_registry_fn = load_exact_registry_fn or _default_load_exact_registry
     pointer_reader_fn = pointer_reader_fn or _default_pointer_reader
     request_json = _request_json_builder(args)
-    profile_context_factory = _build_profile_context_factory(request_json, args)
+    profile_context_factory, selection_intent_factory = _build_profile_context_factory(
+        request_json,
+        args,
+    )
     simc_executor = _simc_executor_builder(args)
     expected_identity = {
         "manifestRevision": _text(args.manifest_revision),
@@ -438,6 +491,7 @@ def main(
             load_exact_registry=lambda: load_exact_registry_fn(args),
             request_json=request_json,
             profile_context_factory=profile_context_factory,
+            selection_intent_factory=selection_intent_factory,
             simc_executor=simc_executor,
             pointer_reader=lambda: pointer_reader_fn(args),
             expected_specs=expected_spec_pairs(),

@@ -55,6 +55,7 @@ _EXPECTED_SPEC_COUNT = 40
 
 RequestJson = Callable[..., Any]
 ProfileContextFactory = Callable[..., Any]
+SelectionIntentFactory = Callable[..., Any]
 PointerReader = Callable[[], Any]
 
 
@@ -505,11 +506,101 @@ def _selection_intent_for_context(
     }
 
 
+def _selection_intent_for_relation_context(
+    *,
+    season_revision: str,
+    catalog_revision: str,
+    class_key: str,
+    spec_key: str,
+    level: int,
+    slot: str,
+    item_id: str,
+    browse_variant_key: str,
+    selection_intent_factory: SelectionIntentFactory | None = None,
+) -> dict[str, Any]:
+    """Build a full-loadout intent while replacing only one BrowseVariant.
+
+    Resolver/Profile readiness is intentionally loadout-scoped.  A single
+    BrowseVariant relation therefore needs a complete, same-candidate base
+    intent.  Exact enhancement selections from that base are removed so an
+    observed Exact template is never mixed with a candidate Browse choice.
+    """
+
+    if not callable(selection_intent_factory):
+        return _selection_intent_for_context(
+            season_revision=season_revision,
+            catalog_revision=catalog_revision,
+            class_key=class_key,
+            spec_key=spec_key,
+            level=level,
+            slot=slot,
+            item_id=item_id,
+            browse_variant_key=browse_variant_key,
+        )
+
+    base = _mapping(
+        selection_intent_factory(
+            class_key=_text(class_key),
+            spec_key=_text(spec_key),
+        )
+    )
+    base_slots = base.get("slots")
+    if not isinstance(base_slots, Mapping) or not base_slots:
+        raise ValueError("selection_intent_factory must return a non-empty slots mapping")
+
+    base_eligibility = _mapping(base.get("eligibilityContext"))
+    for field, expected in (
+        ("classKey", _text(class_key)),
+        ("specKey", _text(spec_key)),
+    ):
+        actual = _text(base_eligibility.get(field))
+        if actual and actual != expected:
+            raise ValueError(
+                f"selection_intent_factory eligibility {field} does not match relation context"
+            )
+
+    slots: dict[str, dict[str, str]] = {}
+    for raw_slot, raw_selection in sorted(base_slots.items()):
+        base_slot = _text(raw_slot)
+        selection = _mapping(raw_selection)
+        base_item_id = _text(selection.get("itemId"))
+        base_variant_key = _text(selection.get("variantKey"))
+        if not base_slot or not base_item_id or not base_variant_key:
+            raise ValueError(
+                "selection_intent_factory returned a slot without itemId/variantKey"
+            )
+        # Keep only identity fields.  This deliberately removes exact option
+        # IDs before the candidate BrowseVariant is sent to Resolver/Profile.
+        slots[base_slot] = {
+            "itemId": base_item_id,
+            "variantKey": base_variant_key,
+        }
+    slots[_text(slot)] = {
+        "itemId": _text(item_id),
+        "variantKey": _text(browse_variant_key),
+    }
+
+    return {
+        "schemaRevision": _text(base.get("schemaRevision")) or "selection-intent-v1",
+        "authoredAgainst": {
+            "seasonRevision": _text(season_revision),
+            "gearCatalogRevision": _text(catalog_revision),
+        },
+        "eligibilityContext": {
+            "classKey": _text(class_key),
+            "specKey": _text(spec_key),
+            "level": int(level),
+        },
+        "slots": slots,
+    }
+
+
 def _extract_relation_contexts(
     *,
     catalog: Mapping[str, Any],
     records: list[dict[str, Any]],
     get_profile_context: Callable[[str, str], dict[str, Any]],
+    selection_intent_factory: SelectionIntentFactory | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     season_revision = _text(catalog.get("seasonRevision"))
     catalog_revision = _text(catalog.get("catalogRevision"))
@@ -517,6 +608,7 @@ def _extract_relation_contexts(
     candidates: dict[str, list[tuple[tuple[str, str, str, str], dict[str, Any]]]] = {}
     problems: list[dict[str, Any]] = []
     profile_context_exception_keys: set[tuple[str, str]] = set()
+    selection_intent_exception_keys: set[tuple[str, str]] = set()
 
     for record in records:
         class_key = _text(record.get("classKey"))
@@ -577,13 +669,8 @@ def _extract_relation_contexts(
                             )
                         )
                         continue
-                    context = {
-                        "browseVariantKey": browse_variant_key,
-                        "itemId": variant_item_id,
-                        "classKey": class_key,
-                        "specKey": spec_key,
-                        "slot": slot,
-                        "selectionIntent": _selection_intent_for_context(
+                    try:
+                        selection_intent = _selection_intent_for_relation_context(
                             season_revision=season_revision,
                             catalog_revision=catalog_revision,
                             class_key=class_key,
@@ -592,7 +679,31 @@ def _extract_relation_contexts(
                             slot=slot,
                             item_id=variant_item_id,
                             browse_variant_key=browse_variant_key,
-                        ),
+                            selection_intent_factory=selection_intent_factory,
+                        )
+                    except Exception as error:
+                        exception_key = (class_key, spec_key)
+                        if exception_key not in selection_intent_exception_keys:
+                            selection_intent_exception_keys.add(exception_key)
+                            problems.append(
+                                _exception_problem(
+                                    "CATALOG_CANDIDATE_EVIDENCE_SELECTION_INTENT_FACTORY_EXCEPTION",
+                                    "selection_intent_factory",
+                                    error,
+                                )
+                                | {
+                                    "classKey": class_key,
+                                    "specKey": spec_key,
+                                }
+                            )
+                        continue
+                    context = {
+                        "browseVariantKey": browse_variant_key,
+                        "itemId": variant_item_id,
+                        "classKey": class_key,
+                        "specKey": spec_key,
+                        "slot": slot,
+                        "selectionIntent": selection_intent,
                     }
                     sort_key = (class_key, spec_key, slot, variant_item_id)
                     candidates.setdefault(browse_variant_key, []).append((sort_key, context))
@@ -830,6 +941,7 @@ def run_catalog_candidate_evidence(
     load_exact_registry: Callable[[], Any],
     request_json: RequestJson,
     profile_context_factory: ProfileContextFactory,
+    selection_intent_factory: SelectionIntentFactory | None = None,
     simc_executor: Callable[[str], Mapping[str, Any]],
     pointer_reader: PointerReader,
     expected_specs: Iterable[tuple[str, str]],
@@ -1048,6 +1160,7 @@ def run_catalog_candidate_evidence(
                 catalog=_mapping(catalog),
                 records=records,
                 get_profile_context=get_profile_context,
+                selection_intent_factory=selection_intent_factory,
             )
         except Exception as error:
             code = "CATALOG_CANDIDATE_EVIDENCE_PROFILE_CONTEXT_EXTRACTION_EXCEPTION"
