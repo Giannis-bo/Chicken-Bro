@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-08-11T13:36:52.555Z",
+  "generatedAt": "2026-08-11T13:57:45.597Z",
   "release": {
     "date": "2026-07-29",
     "slug": "manifest-catalog-detail-contract"
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-29-manifest-catalog-detail-contract/evidence.json",
-    "sizeBytes": 29151,
+    "sizeBytes": 31482,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -390,9 +390,9 @@
       "summary"
     ],
     "missingFields": [],
-    "declaredStatus": "runtime_verified",
-    "highestEvidenceLevel": "runtime_verified",
-    "summary": "The current Strict Catalog repair candidate is bound to commit 3f01df0b/tree f0872fdd and is runtime-verified in the isolated candidate service on port 18794. The immutable candidate Manifest, Catalog, Exact Registry, Community release, SimC revision, API report, Resolver/Profile materialization, 26/14 SimC matrix and 674 BrowseVariant SimC smokes all passed; the active generation-35 Manifest/Catalog/Exact pointer is unchanged. The candidate slot API exposes verified BrowseVariant static facts, while aggregate stat snapshots remain fail-closed because the dormant preview is formalActiveManifest=false; no frontend inference substitutes one for the other. The WeChat bundle is rebuilt with the same candidate identity and the live DevTools session is prepared on the matching AppID/path using only an ignored local urlCheck=false runtime override; the automation endpoint remains unavailable. A fresh community-template import now shows backend-owned static secondary facts across all 16 equipped rows, while the aggregate summary correctly remains 待校验; the head chooser exposes six Browse candidates and governed 6/6 tracks. This packet is ready for the six user acceptance items but does not claim them accepted, full current-season PVE Universe completeness or Exact-first v2, and no merge, promotion or active-pointer switch has occurred."
+    "declaredStatus": "archived",
+    "highestEvidenceLevel": "archived",
+    "summary": "The Strict Catalog repair candidate is archived after explicit user authorization on 2026-08-11. Immutable runtime 3f01df0b/tree f0872fdd passed the candidate API, Catalog/Exact shadow, 1,304 Resolver/Profile materializations, 26/14 SimC matrix and 674 BrowseVariant SimC smokes; the active generation-35 Manifest/Catalog/Exact pointer remains unchanged. The six manual acceptance items are recorded as closed by the user's OK，可以发布收尾 authorization, while automated DevTools endpoint discovery remained blocked and was not treated as user acceptance. Main merged and pushed as 90c432bdeb7f9c95a070cfa49835abc518ab47fd; post-merge full Harness passed 173/173 commands and refresh:weapp rebuilt 214 files and opened the official DevTools CLI. The owned candidate service/root was moved to recoverable retired archives. This closure publishes the verified code/evidence path but does not switch the active Manifest or claim full current-season PVE Universe or Exact-first v2."
   },
   "evidence": {
     "localTests": {
@@ -417,7 +417,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "3 changed files currently visible to git status."
+      "detail": "2 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
@@ -453,10 +453,9 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 3,
+      "changedFileCount": 2,
       "changedFiles": [
         " M artifacts/releases/2026-07-29-manifest-catalog-detail-contract/evidence.json",
-        " M artifacts/releases/2026-07-29-manifest-catalog-detail-contract/manifest.json",
         " M docs/plans/2026-07-29-manifest-catalog-progression-display-contract.md"
       ]
     }
