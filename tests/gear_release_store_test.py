@@ -2779,7 +2779,10 @@ class GearReleaseStoreTest(unittest.TestCase):
                 {"head": source_key, "chest": source_key},
             )
             return {
-                "missingFields": [f"variantsByKey.{source_key}"],
+                "missingFields": [
+                    f"itemsById.{item_id}"
+                    for item_id in ("item-a", "item-b")
+                ] + [f"variantsByKey.{source_key}"],
                 "itemsById": {
                     "item-a": {"itemId": "item-a", "variantKeys": [source_key]},
                     "item-b": {"itemId": "item-b", "variantKeys": [source_key]},

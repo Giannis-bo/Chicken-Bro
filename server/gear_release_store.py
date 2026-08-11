@@ -3218,6 +3218,7 @@ class GearReleaseStore:
         )
         if selected_aliases:
             resolved_item_scoped_source_keys: set[str] = set()
+            resolved_item_scoped_item_ids: set[str] = set()
             variants_by_key = (
                 context.get("variantsByKey")
                 if isinstance(context.get("variantsByKey"), dict)
@@ -3249,6 +3250,7 @@ class GearReleaseStore:
                     )
                 if isinstance(variants_by_item_and_key, dict):
                     resolved_item_scoped_source_keys.add(source_key)
+                    resolved_item_scoped_item_ids.add(item_id)
                 canonical_variant = _canonical(source_variant)
                 item_level = _int(
                     catalog_variant.get("itemLevel")
@@ -3296,11 +3298,17 @@ class GearReleaseStore:
             context["variantsByKey"] = variants_by_key
             context["itemsById"] = items_by_id
             missing_fields = context.get("missingFields")
-            if resolved_item_scoped_source_keys and isinstance(missing_fields, list):
+            if (
+                resolved_item_scoped_source_keys or resolved_item_scoped_item_ids
+            ) and isinstance(missing_fields, list):
                 resolved_missing_fields = {
                     f"variantsByKey.{source_key}"
                     for source_key in resolved_item_scoped_source_keys
                 }
+                resolved_missing_fields.update(
+                    f"itemsById.{item_id}"
+                    for item_id in resolved_item_scoped_item_ids
+                )
                 context["missingFields"] = [
                     path
                     for path in missing_fields
