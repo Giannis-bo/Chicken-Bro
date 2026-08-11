@@ -2779,7 +2779,7 @@ class GearReleaseStoreTest(unittest.TestCase):
                 {"head": source_key, "chest": source_key},
             )
             return {
-                "missingFields": [],
+                "missingFields": [f"variantsByKey.{source_key}"],
                 "itemsById": {
                     "item-a": {"itemId": "item-a", "variantKeys": [source_key]},
                     "item-b": {"itemId": "item-b", "variantKeys": [source_key]},
@@ -2815,6 +2815,7 @@ class GearReleaseStoreTest(unittest.TestCase):
         self.assertEqual(context["variantsByKey"][browse_chest]["itemId"], "item-b")
         self.assertEqual(context["variantsByKey"][browse_chest]["sourceVariantKey"], source_key)
         self.assertEqual(context["variantsByKey"][browse_chest]["resolvedStats"], {"intellect": 120})
+        self.assertEqual(context["missingFields"], [])
         self.assertNotIn("variantsByItemAndKey", context)
 
     def test_manifest_catalog_snapshot_projects_canonical_browse_membership(self):
