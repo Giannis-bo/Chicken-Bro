@@ -67,12 +67,17 @@
     {
       "command": "official Blizzard capture contract",
       "status": "blocked",
-      "summary": "Capture stopped before data write with OFFICIAL_CAPTURE_CONTRACT_INVALID because Blizzard API credentials are not configured."
+      "summary": "Cloud staging credentials were present, but capture stopped before data write with OFFICIAL_CAPTURE_CONTRACT_INVALID because the official item search response was capped."
     },
     {
       "command": "SimulationCraft midnight source capture",
       "status": "pass",
-      "summary": "Official midnight branch source was isolated at c567b4b27ba3d0c714d319df4f8f13044c11c093; executable/runtime remains UNVERIFIED."
+      "summary": "Cloud runtime is SimulationCraft 1210-01 for WoW 12.1.0.69214, binary hash dcb0bbcd6d1d4747a0a7ad07ab2187b8544e75fcdb6d74e860579d72a02174ec, and commit c567b4b27ba3d0c714d319df4f8f13044c11c093; one-process smoke returned 0."
+    },
+    {
+      "command": "cloud staging preflight /opt/wow-mini-program-candidates/midnight-season-2-64fc9bf4",
+      "status": "blocked",
+      "summary": "S2 tools were copied only to the candidate directory; official capture was blocked by capped item search, /api/data/health timed out after 8 seconds, and the formal deployment path was untouched."
     },
     {
       "command": "python3 scripts/build-season-2-endgame-candidate.py ...",
@@ -117,13 +122,19 @@
       "id": "official-capture",
       "type": "source_capture",
       "status": "blocked",
-      "summary": "No Blizzard payload was persisted; blocked.json records the missing credential contract and dataWritten=false."
+      "summary": "Cloud credentials were present, but no Blizzard payload was persisted because the official item search result was capped; complete pagination/range coverage is still required."
     },
     {
       "id": "simc-runtime",
       "type": "simc_runtime",
+      "status": "pass",
+      "summary": "The existing cloud SimC executable is 12.1.0.69214 Live, matches commit c567b4b27ba3d0c714d319df4f8f13044c11c093 and passed the bounded smoke; it was not switched by this task."
+    },
+    {
+      "id": "cloud-health",
+      "type": "health_admin",
       "status": "blocked",
-      "summary": "midnight source branch is present in isolated staging, but no executable or binary hash is available."
+      "summary": "wow-backend remained active, but /api/data/health did not return within 8 seconds; liveness is not promoted to business health."
     },
     {
       "id": "active-pointer",
@@ -136,12 +147,17 @@
     {
       "id": "official-source-capture",
       "status": "blocked",
-      "detail": "Blizzard API credentials are missing; all source membership, item identity, tier membership and official numeric facts remain unverified."
+      "detail": "Cloud credentials are present, but the official item search response is capped; source membership, item identity, tier membership and official numeric facts remain unverified until the capture contract handles complete coverage."
     },
     {
       "id": "simc-executable",
+      "status": "pass",
+      "detail": "The known cloud runtime is verified for 12.1.0.69214 and passed a bounded executable smoke; the local candidate has not been rebound to this runtime identity."
+    },
+    {
+      "id": "cloud-health-timeout",
       "status": "blocked",
-      "detail": "SimC source branch evidence does not prove a built runtime, item option support or real smoke execution."
+      "detail": "The backend process is active but /api/data/health timed out, so no production restart or data cutover is safe from this preflight."
     },
     {
       "id": "track-ladder",
@@ -163,6 +179,7 @@
     "artifacts/releases/2026-08-12-midnight-season-2-data-foundation/raw/blizzard/capture/blocked.json",
     "artifacts/releases/2026-08-12-midnight-season-2-data-foundation/raw/blizzard/capture-manifest.json",
     "artifacts/releases/2026-08-12-midnight-season-2-data-foundation/raw/simc/source-manifest.json",
+    "artifacts/releases/2026-08-12-midnight-season-2-data-foundation/audits/cloud-staging-preflight.json",
     "artifacts/releases/2026-08-12-midnight-season-2-data-foundation/normalized/repository-binding.json",
     "artifacts/releases/2026-08-12-midnight-season-2-data-foundation/normalized/end-game-universe.json",
     "artifacts/releases/2026-08-12-midnight-season-2-data-foundation/normalized/enhancement-option-catalog.json",
@@ -174,6 +191,6 @@
     "artifacts/releases/2026-08-12-midnight-season-2-data-foundation/candidate/candidate.json",
     "artifacts/releases/2026-08-12-midnight-season-2-data-foundation/candidate/blocked-diagnostics.json"
   ],
-  "summary": "S2 End Game 数据仓库候选已生成并绑定一个 seasonRevision；装备、宝石、附魔、美化、套装、装等轨道和 SimC 变体均不使用 S1 fallback。由于官方 Blizzard capture blocked、client build UNVERIFIED、SimC executable/runtime UNVERIFIED，候选保持 blocked，Active Pointer 未改变，未尝试 promotion。",
+  "summary": "S2 End Game 数据仓库候选已生成并绑定一个 seasonRevision；装备、宝石、附魔、美化、套装、装等轨道和 SimC 变体均不使用 S1 fallback。云端 SimC 12.1 runtime 已验证并通过 smoke，但官方 capture 因 capped item search blocked，云端 health 也超时；候选保持 blocked，Active Pointer 未改变，未尝试 promotion。",
   "updatedAt": "2026-08-12T16:20:00+08:00"
 }
