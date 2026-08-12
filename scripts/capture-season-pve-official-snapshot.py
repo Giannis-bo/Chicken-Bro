@@ -28,6 +28,7 @@ if str(ROOT) not in sys.path:
 
 from server.season_pve_official_capture import (  # noqa: E402
     OfficialCaptureContractError,
+    build_endgame_capture_config,
     bounded_capture_result,
     canonical_official_name,
     equipment_recipe_refs,
@@ -224,6 +225,103 @@ def _list(payload, *keys):
         if isinstance(value, list):
             return value
     return []
+
+
+def _read_json_file(path):
+    if not path:
+        return {}
+    source_path = Path(path).expanduser().resolve()
+    try:
+        payload = json.loads(source_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise OfficialCaptureContractError(
+            f"source policy cannot be read: {source_path}"
+        ) from error
+    if not isinstance(payload, dict):
+        raise OfficialCaptureContractError(
+            "source policy must be a JSON object"
+        )
+    return payload
+
+
+def _capture_configuration(args):
+    policy = _read_json_file(args.source_policy)
+    if args.content_scope == "end_game":
+        config = build_endgame_capture_config(
+            season_id=args.season_id,
+            source_policy=policy,
+            region=args.region,
+            locale=args.locale,
+        )
+    else:
+        config = {
+            "seasonId": args.season_id,
+            "contentScope": args.content_scope,
+            "sourcePolicyRevision": str(
+                policy.get("sourcePolicyRevision") or ""
+            ).strip(),
+            "sourceKeys": [],
+            "officialAnnouncementRefs": [],
+            "region": args.region,
+            "locale": args.locale,
+        }
+    return policy, config
+
+
+def _journal_name_allowlist(policy):
+    result = {}
+    for source in policy.get("sources") or []:
+        if not isinstance(source, dict):
+            continue
+        category = str(source.get("captureCategory") or "").strip()
+        names = source.get("journalNames")
+        if not category or not isinstance(names, list):
+            continue
+        result.setdefault(category, []).extend(
+            str(name).strip()
+            for name in names
+            if str(name or "").strip()
+        )
+    return {
+        category: sorted(set(names))
+        for category, names in result.items()
+    }
+
+
+def _class_set_names(policy, content_scope):
+    if content_scope != "end_game":
+        return list(CLASS_SET_NAMES)
+    names = policy.get("classSetNames")
+    if not isinstance(names, list) or not names:
+        raise OfficialCaptureContractError(
+            "S2 End Game policy requires classSetNames"
+        )
+    normalized = [str(name).strip() for name in names if str(name or "").strip()]
+    if len(normalized) != len(set(normalized)):
+        raise OfficialCaptureContractError(
+            "S2 End Game policy contains duplicate classSetNames"
+        )
+    return normalized
+
+
+def _mythic_dungeon_ids(mythic_season, content_scope):
+    if content_scope != "end_game":
+        return list(MYTHIC_DUNGEON_IDS)
+    rows = _list(mythic_season, "dungeons")
+    dungeon_ids = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        dungeon_id = _extract_ref_id(row)
+        if not dungeon_id and isinstance(row.get("dungeon"), dict):
+            dungeon_id = _extract_ref_id(row["dungeon"])
+        if dungeon_id:
+            dungeon_ids.append(dungeon_id)
+    if not dungeon_ids:
+        raise OfficialCaptureContractError(
+            "S2 End Game Mythic Keystone season omitted dungeon references"
+        )
+    return sorted(set(dungeon_ids), key=int)
 
 
 class CaptureWriter:
@@ -478,6 +576,12 @@ def _capture_journal_tree(client, groups):
 
 def capture(args):
     _load_environment_file(args.env_file)
+    source_policy, capture_config = _capture_configuration(args)
+    class_set_names = _class_set_names(
+        source_policy,
+        args.content_scope,
+    )
+    journal_name_allowlist = _journal_name_allowlist(source_policy)
     captured_at = _instant(args.captured_at, "captured-at")
     as_of = _instant(args.as_of, "as-of")
     if captured_at > as_of:
@@ -535,7 +639,10 @@ def capture(args):
             ),
             namespace="dynamic",
         )
-        for dungeon_id in MYTHIC_DUNGEON_IDS
+        for dungeon_id in _mythic_dungeon_ids(
+            mythic_season,
+            args.content_scope,
+        )
     ]
 
     expansion_index = client.get(
@@ -590,6 +697,7 @@ def capture(args):
         midnight_expansion=midnight_expansion,
         journal_instance_index=timewalking_index,
         timewalking_names=timewalking_rotation["dungeonNames"],
+        journal_name_allowlist=journal_name_allowlist or None,
     )
     journal_capture = _capture_journal_tree(
         client,
@@ -689,10 +797,10 @@ def capture(args):
     )
     set_matches, missing_sets = _find_by_name(
         _list(item_set_index, "item_sets"),
-        CLASS_SET_NAMES,
+        class_set_names,
     )
     captured_sets = []
-    for set_name in CLASS_SET_NAMES:
+    for set_name in class_set_names:
         set_ref = set_matches.get(canonical_official_name(set_name))
         if not set_ref:
             continue
@@ -731,6 +839,9 @@ def capture(args):
         "schemaVersion": 1,
         "schemaRevision": CAPTURE_SCHEMA_REVISION,
         "status": "blocked" if gaps else "captured",
+        "seasonId": capture_config["seasonId"],
+        "contentScope": capture_config["contentScope"],
+        "captureConfig": capture_config,
         "capturedAt": captured_at.isoformat().replace("+00:00", "Z"),
         "asOf": as_of.isoformat().replace("+00:00", "Z"),
         "region": args.region,
@@ -786,6 +897,7 @@ def capture(args):
         },
         "classSetCapture": {
             "setCount": len(captured_sets),
+            "classSetNames": class_set_names,
             "sets": captured_sets,
         },
         "currentSeasonExpansion": {
@@ -806,6 +918,9 @@ def capture(args):
         "schemaVersion": 1,
         "schemaRevision": CAPTURE_SCHEMA_REVISION,
         "status": summary["status"],
+        "seasonId": summary["seasonId"],
+        "contentScope": summary["contentScope"],
+        "captureConfig": capture_config,
         "capturedAt": summary["capturedAt"],
         "asOf": summary["asOf"],
         "requestCount": len(writer.requests),
@@ -828,7 +943,7 @@ def capture(args):
 def parse_args(argv=None):
     parser = argparse.ArgumentParser(
         description=(
-            "Capture official Blizzard current-season PVE source data into an "
+            "Capture official Blizzard PVE source data into an "
             "isolated directory without database or pointer writes."
         )
     )
@@ -836,6 +951,13 @@ def parse_args(argv=None):
     parser.add_argument("--captured-at", required=True)
     parser.add_argument("--as-of", required=True)
     parser.add_argument("--env-file")
+    parser.add_argument("--season-id", default="midnight-season-1")
+    parser.add_argument("--source-policy")
+    parser.add_argument(
+        "--content-scope",
+        choices=("current", "end_game"),
+        default="current",
+    )
     parser.add_argument("--region", default="us")
     parser.add_argument("--locale", default="en_US")
     parser.add_argument("--timeout-seconds", type=int, default=30)

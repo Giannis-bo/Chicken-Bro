@@ -170,6 +170,11 @@ def build(args) -> dict:
     policy = json.loads(
         Path(args.policy).expanduser().resolve().read_text(encoding="utf-8")
     )
+    policy_season_id = str(policy.get("seasonId") or "").strip()
+    if policy.get("scope") == "end_game" and policy_season_id != "midnight-season-2":
+        raise OfficialEvidenceError(
+            "end game evidence policy must be bound to midnight-season-2"
+        )
     capture_root = snapshot_root / args.capture_revision_dir
     capture = json.loads(
         (capture_root / "official-game-data-capture.json").read_text(
@@ -778,10 +783,20 @@ def build(args) -> dict:
         (
             source
             for source in membership["sources"]
-            if source["sourceKey"] == "crafted:midnight-season-1"
+            if source.get("sourceType") == "crafted"
+            and (
+                not policy_season_id
+                or str(source.get("sourceKey") or "").endswith(
+                    policy_season_id
+                )
+            )
         ),
         None,
     )
+    if crafted_source is None:
+        raise OfficialEvidenceError(
+            "official membership has no crafted source for the policy season"
+        )
     crafted_diff = build_crafted_allowlist_diff(
         crafted_source,
         CURRENT_PVE_CRAFTED_METADATA_ITEMS,
@@ -792,14 +807,17 @@ def build(args) -> dict:
         "official-source-membership-snapshot.json"
     )
     crafted_diff["projectAllowlistOwner"] = (
-        "server/data/"
-        "midnight-season-1-crafted-pve-membership.json"
+        str(args.client_crafted_membership or "")
+        or "server/data/"
+        f"{policy_season_id or 'current-season'}-crafted-pve-membership.json"
     )
     crafted_diff_path = snapshot_root / "crafted-membership-diff.json"
     write_json(crafted_diff_path, crafted_diff)
     result = {
         "schemaRevision": EVIDENCE_SCHEMA_REVISION,
         "status": "blocked",
+        "seasonId": policy_season_id,
+        "scope": str(policy.get("scope") or "current"),
         "authorityManifest": {
             "status": authority_manifest["status"],
             "pageCount": authority_manifest["pageCount"],

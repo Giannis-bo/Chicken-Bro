@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from typing import Any
+from typing import Any, Mapping
 
 
 class OfficialCaptureContractError(ValueError):
@@ -48,6 +48,73 @@ def canonical_official_name(value: Any) -> str:
 
 def _text(value: Any) -> str:
     return str(value or "").strip()
+
+
+def build_endgame_capture_config(
+    *,
+    season_id: str,
+    source_policy: Mapping[str, Any],
+    region: str,
+    locale: str,
+) -> dict[str, Any]:
+    """Validate and normalize the complete S2 End Game capture scope."""
+
+    policy = source_policy if isinstance(source_policy, Mapping) else {}
+    expected_season = _text(season_id)
+    policy_season = _text(policy.get("seasonId"))
+    if expected_season != "midnight-season-2" or policy_season != expected_season:
+        raise OfficialCaptureContractError(
+            "end game capture policy must be bound to midnight-season-2"
+        )
+    if _text(policy.get("scope")) != "end_game":
+        raise OfficialCaptureContractError(
+            "end game capture policy must declare scope=end_game"
+        )
+    source_policy_revision = _text(policy.get("sourcePolicyRevision"))
+    if not source_policy_revision:
+        raise OfficialCaptureContractError(
+            "end game capture policy requires sourcePolicyRevision"
+        )
+    sources = policy.get("sources")
+    if not isinstance(sources, list) or not sources:
+        raise OfficialCaptureContractError(
+            "end game capture policy requires at least one required source"
+        )
+    source_keys = []
+    for index, source in enumerate(sources):
+        if not isinstance(source, Mapping):
+            raise OfficialCaptureContractError(
+                f"end game capture source {index} must be an object"
+            )
+        source_key = _text(source.get("sourceKey"))
+        if not source_key:
+            raise OfficialCaptureContractError(
+                f"end game capture source {index} is a required source with no sourceKey"
+            )
+        if "availabilityStage" in source or "availabilityStage" in source.get(
+            "effectiveWindow", {}
+        ):
+            raise OfficialCaptureContractError(
+                "end game capture policy cannot contain availabilityStage"
+            )
+        source_keys.append(source_key)
+    if len(source_keys) != len(set(source_keys)):
+        raise OfficialCaptureContractError(
+            "end game capture policy contains duplicate source keys"
+        )
+    return {
+        "seasonId": expected_season,
+        "contentScope": "end_game",
+        "sourcePolicyRevision": source_policy_revision,
+        "sourceKeys": sorted(source_keys),
+        "officialAnnouncementRefs": sorted({
+            _text(reference)
+            for reference in policy.get("authorityRefs", [])
+            if _text(reference)
+        }),
+        "region": _text(region) or "us",
+        "locale": _text(locale) or "en_US",
+    }
 
 
 def _ref_id(value: Any) -> str:
@@ -556,6 +623,7 @@ def select_journal_targets(
     midnight_expansion: Any,
     journal_instance_index: Any,
     timewalking_names: list[str],
+    journal_name_allowlist: Mapping[str, list[str]] | None = None,
 ) -> dict[str, Any]:
     """Partition current Journal targets by source without silent omission."""
 
@@ -572,6 +640,38 @@ def select_journal_targets(
         raise OfficialCaptureContractError(
             "journal_instance_index requires instances"
         )
+
+    raw_allowlist = journal_name_allowlist or {}
+    allowlist = {
+        str(key): {
+            canonical_official_name(name)
+            for name in values
+            if _text(name)
+        }
+        for key, values in raw_allowlist.items()
+        if isinstance(values, list)
+    }
+
+    def apply_allowlist(rows, category):
+        expected = allowlist.get(category)
+        if expected is None:
+            return list(rows)
+        selected = [
+            row
+            for row in rows
+            if canonical_official_name(row.get("name")) in expected
+        ]
+        found = {
+            canonical_official_name(row.get("name"))
+            for row in selected
+        }
+        for missing_name in sorted(expected - found):
+            gaps.append({
+                "reasonCode": "OFFICIAL_ENDGAME_TARGET_NOT_FOUND",
+                "sourceCategory": category,
+                "name": missing_name,
+            })
+        return selected
 
     mythic_plus = []
     gaps = []
@@ -609,6 +709,14 @@ def select_journal_targets(
             midnight_world_boss.append(row)
         else:
             midnight_raid.append(row)
+
+    mythic_plus = apply_allowlist(mythic_plus, "mythic_plus")
+    midnight_dungeon = apply_allowlist(midnight_dungeon, "midnight_dungeon")
+    midnight_raid = apply_allowlist(midnight_raid, "midnight_raid")
+    midnight_world_boss = apply_allowlist(
+        midnight_world_boss,
+        "midnight_world_boss",
+    )
 
     journal_by_name: dict[str, list[dict[str, str]]] = {}
     for raw_row in journal_instance_index["instances"]:

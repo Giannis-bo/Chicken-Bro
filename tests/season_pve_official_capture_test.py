@@ -2,6 +2,7 @@ import unittest
 
 from server.season_pve_official_capture import (
     OfficialCaptureContractError,
+    build_endgame_capture_config,
     bounded_capture_result,
     canonical_official_name,
     equipment_recipe_refs,
@@ -18,6 +19,81 @@ from server.season_pve_event_schedule import (
 
 
 class SeasonPveOfficialCaptureTest(unittest.TestCase):
+    def test_endgame_capture_config_uses_s2_policy_and_allows_complete_pool(self):
+        policy = {
+            "seasonId": "midnight-season-2",
+            "scope": "end_game",
+            "sourcePolicyRevision": "midnight-season-2-pve-source-policy-v1",
+            "sources": [
+                {"sourceKey": "raid:venomous-abyss", "required": True},
+                {"sourceKey": "mythic_plus:midnight-season-2", "required": True},
+                {"sourceKey": "crafted:midnight-season-2", "required": True},
+                {"sourceKey": "tier_set:midnight-season-2", "required": True},
+            ],
+        }
+
+        config = build_endgame_capture_config(
+            season_id="midnight-season-2",
+            source_policy=policy,
+            region="us",
+            locale="en_US",
+        )
+
+        self.assertEqual(config["seasonId"], "midnight-season-2")
+        self.assertEqual(config["contentScope"], "end_game")
+        self.assertEqual(
+            config["sourcePolicyRevision"],
+            "midnight-season-2-pve-source-policy-v1",
+        )
+        self.assertEqual(
+            config["sourceKeys"],
+            [
+                "crafted:midnight-season-2",
+                "mythic_plus:midnight-season-2",
+                "raid:venomous-abyss",
+                "tier_set:midnight-season-2",
+            ],
+        )
+        self.assertNotIn("availabilityStage", config)
+
+    def test_endgame_capture_config_rejects_s1_policy_and_empty_required_source(self):
+        with self.assertRaisesRegex(
+            OfficialCaptureContractError,
+            "midnight-season-2",
+        ):
+            build_endgame_capture_config(
+                season_id="midnight-season-2",
+                source_policy={
+                    "seasonId": "midnight-season-1",
+                    "scope": "end_game",
+                    "sourcePolicyRevision": "s1-policy",
+                    "sources": [
+                        {"sourceKey": "raid:midnight-season-1", "required": True},
+                    ],
+                },
+                region="us",
+                locale="en_US",
+            )
+
+        with self.assertRaisesRegex(
+            OfficialCaptureContractError,
+            "required source",
+        ):
+            build_endgame_capture_config(
+                season_id="midnight-season-2",
+                source_policy={
+                    "seasonId": "midnight-season-2",
+                    "scope": "end_game",
+                    "sourcePolicyRevision": "s2-policy",
+                    "sources": [
+                        {"sourceKey": "raid:venomous-abyss", "required": True},
+                        {"sourceKey": "", "required": True},
+                    ],
+                },
+                region="us",
+                locale="en_US",
+            )
+
     def test_timewalking_rotation_is_selected_by_audit_instant(self):
         rotations = [
             {
@@ -455,6 +531,52 @@ class SeasonPveOfficialCaptureTest(unittest.TestCase):
         self.assertEqual(
             missing["gaps"][0]["reasonCode"],
             "OFFICIAL_JOURNAL_INSTANCE_NOT_FOUND",
+        )
+
+    def test_journal_targets_apply_explicit_endgame_name_allowlist(self):
+        result = select_journal_targets(
+            mythic_dungeons=[
+                {
+                    "id": 1,
+                    "name": "Altar of Fangs",
+                    "dungeon": {"id": 1001, "name": "Altar of Fangs"},
+                },
+                {
+                    "id": 2,
+                    "name": "Old Dungeon",
+                    "dungeon": {"id": 1002, "name": "Old Dungeon"},
+                },
+            ],
+            midnight_expansion={
+                "dungeons": [
+                    {"id": 1001, "name": "Altar of Fangs"},
+                    {"id": 1002, "name": "Old Dungeon"},
+                ],
+                "raids": [
+                    {"id": 2001, "name": "Venomous Abyss"},
+                    {"id": 2002, "name": "Old Raid"},
+                ],
+            },
+            journal_instance_index={"instances": []},
+            timewalking_names=[],
+            journal_name_allowlist={
+                "mythic_plus": ["Altar of Fangs"],
+                "midnight_dungeon": ["Altar of Fangs"],
+                "midnight_raid": ["Venomous Abyss"],
+            },
+        )
+
+        self.assertEqual(
+            [row["name"] for row in result["mythic_plus"]],
+            ["Altar of Fangs"],
+        )
+        self.assertEqual(
+            [row["name"] for row in result["midnight_dungeon"]],
+            ["Altar of Fangs"],
+        )
+        self.assertEqual(
+            [row["name"] for row in result["midnight_raid"]],
+            ["Venomous Abyss"],
         )
 
     def test_journal_loot_reference_preserves_relation_identity(self):
