@@ -1,0 +1,97 @@
+{
+  "schemaVersion": 1,
+  "slug": "midnight-season-2-data-foundation",
+  "classification": "Strict",
+  "status": "implementation_allowed",
+  "goal": "构建至暗之夜 S2 的完整 End Game 数据仓库候选包，统一装备库、美化、附魔、宝石、套装、装等轨道、Exact/Catalog 身份和 SimC 变体的季节修订，并在官方事实未齐时 fail closed。",
+  "userValue": "玩家最终可以在同一份 S2 End Game 数据中浏览、编辑和模拟装备；在来源、装等或 SimC 证据缺失时，产品明确阻断而不是混入 S1 或猜测数据。",
+  "nonGoals": [
+    "不做 S2 分阶段开放；仓库目标固定为 scope=end_game 的完整内容集合。",
+    "不把 S1 装备、套装、附魔、宝石、美化或装等轨道作为 S2 fallback。",
+    "不切换 Active Manifest、Catalog、Gear Release、Exact Registry 或任何生产指针。",
+    "不把 SimC midnight 源码分支存在误报为已构建、已部署或可运行的 SimC runtime。",
+    "不把候选包、静态测试、HTTP 状态或来源声明当作真实用户验收。"
+  ],
+  "currentTruth": {
+    "sources": [
+      "docs/project-state.json",
+      "docs/roadmap.md",
+      "docs/plans/README.md",
+      "docs/superpowers/specs/2026-08-12-midnight-season-2-data-repository-design.md",
+      "docs/superpowers/plans/2026-08-12-midnight-season-2-data-repository.md",
+      "server/data/midnight-season-2/source-policy.json",
+      "server/data/midnight-season-2/track-authority-input.json",
+      "https://news.blizzard.com/en-us/article/24294369/the-shadows-deepen-midnight-season-2-begins-august-18",
+      "https://github.com/simulationcraft/simc/tree/midnight"
+    ],
+    "seasonId": "midnight-season-2",
+    "scope": "end_game",
+    "availabilityMode": "end_game_no_stage_gates",
+    "candidateOnly": true,
+    "activePointerMutation": false
+  },
+  "impactMap": {
+    "mustChange": [
+      "建立一个可重算的 S2 End Game repository identity，并让装备快照、选项、套装、Track Authority、Catalog 和 Exact Registry 共享同一个 seasonRevision。",
+      "将宝石、附魔、美化按 SimC option token 归一化；source-only 美化不能进入 editor-managed 可见选项。",
+      "将套装 itemSet/member 和套装效果证据投影到装备 authority，缺失或冲突时阻断 set aggregate/loadout effect。",
+      "将 S2 装等轨道改为显式数据驱动记录，装等缺失、来源缺失、证据 pending 或 revision 混用时阻断。",
+      "生成 candidate-only Gear Release、Catalog v3、Exact Registry 和 bounded evidence，不触碰生产指针。"
+    ],
+    "mustNotChange": [
+      "现有 S1 生产数据和 Active Manifest 指针。",
+      "已有 UI 路由、视觉、文案、控制和交互语义；本任务不做前端改版。",
+      "Exact-first 的 literal blocked 边界，以及 Exact instance 与 BrowseVariant 的身份隔离。"
+    ],
+    "riskUnknown": [
+      "官方 Blizzard capture 当前因凭据合同未满足而 blocked，S2 来源成员尚未形成可发布事实。",
+      "SimC midnight 源码已隔离捕获，但本工作区没有已构建且已验证的可执行 runtime。",
+      "候选装等表中的数值仍是 candidateItemLevel，不能晋级为 itemLevel。"
+    ],
+    "evidenceRequired": [
+      "完整 End Game source policy 和 10 个 required source family 的独立 discovery/staging/Catalog 对账。",
+      "同一 seasonRevision 的 S2 option、set membership、Track Authority、Browse/Exact 变体和 item-level/stat probe。",
+      "候选包明确 candidateOnly=true、activePointerChanged=false、promotionAttempted=false，并保留阻断码。",
+      "本地 focused tests、静态检查、Harness packet 和 local CR 通过；未满足官方事实时整体仍保持 blocked。"
+    ]
+  },
+  "ownership": {
+    "factOwner": "server/season_endgame_repository.py、server/season_pve_universe.py、server/gear_enhancement_catalog.py、server/season_set_membership.py 与 server/gear_track_authority.py；candidate assembly 仅编排并验证，不创造事实。",
+    "consumers": [
+      "future S2 Gear Release/Catalog candidate",
+      "future Exact-first resolver/read model",
+      "future WebSim/SimC variant materialization",
+      "future WeChat equipment editor"
+    ]
+  },
+  "engineeringHealth": {
+    "status": "strict_candidate_blocked",
+    "reason": "任务触达后端 authority、Catalog/Exact 候选和 SimC identity，但所有写入都限定在隔离候选证据目录；官方 capture、S2 numeric tracks 和 executable runtime 未齐，因此不允许 promotion。"
+  },
+  "manualAcceptanceContract": {
+    "required": false,
+    "requiredItemIds": []
+  },
+  "acceptanceEvidence": [
+    "官方来源捕获、client build、SimC executable/runtime、S2 options、sets、tracks 和 variant matrix 在同一 identity 下 verified。",
+    "Gear Release、Catalog v3、Exact Registry 通过 identity、重复 progression、Exact/Browse 隔离和 no S1 fallback 校验。",
+    "候选构建不改变 Active Manifest 或生产数据，并能用阻断码说明每个未满足的 gate。",
+    "用户可见运行态的真实验收应在候选身份完整并部署到隔离环境后另行进行。"
+  ],
+  "releaseTrigger": "backend_api",
+  "rollback": [
+    "code_rollback",
+    "config_disable",
+    "data_restore"
+  ],
+  "decisionLog": [
+    {
+      "date": "2026-08-12",
+      "decision": "用户明确要求新增 S2 数据仓库，并明确不支持分阶段开放，直接按 End Game 完整内容准备。"
+    },
+    {
+      "date": "2026-08-12",
+      "decision": "S2 先构建候选数据基础和阻断证据；正式指针切换必须等待官方 capture、数值 Track Authority 和 SimC runtime identity 完整。"
+    }
+  ]
+}

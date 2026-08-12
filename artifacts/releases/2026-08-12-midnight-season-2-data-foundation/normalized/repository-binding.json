@@ -1,0 +1,97 @@
+{
+  "captureContext": {
+    "clientBuild": "UNVERIFIED:12.1.0.69214",
+    "seasonMetadata": {
+      "authorityRefs": [
+        "https://news.blizzard.com/en-us/article/24294369/the-shadows-deepen-midnight-season-2-begins-august-18",
+        "https://develop.battle.net/documentation/world-of-warcraft/game-data-apis",
+        "https://github.com/simulationcraft/simc/tree/midnight"
+      ],
+      "availabilityMode": "end_game_no_stage_gates",
+      "captureContext": {
+        "announcement": "https://news.blizzard.com/en-us/article/24294369/the-shadows-deepen-midnight-season-2-begins-august-18",
+        "officialCaptureBlocker": "OFFICIAL_CAPTURE_CONTRACT_INVALID",
+        "officialCaptureStatus": "blocked",
+        "simcExecutableStatus": "UNVERIFIED",
+        "simcSourceCommit": "c567b4b27ba3d0c714d319df4f8f13044c11c093",
+        "targetClientBuild": "UNVERIFIED:12.1.0.69214",
+        "targetSimcBranch": "midnight"
+      },
+      "classSetNames": [
+        "Baleful Grave-Knight's Crucible",
+        "Abyssal Doomhound's Pursuit",
+        "Bark of the Enigmatic Dreamwatcher",
+        "Echo of Calamity",
+        "Skulking Viper's Ambush",
+        "Primal Leywarden's Attire",
+        "Guile of the Monkey King",
+        "Radiance of the Consecrated Flame",
+        "Cosmic Penitent's Raiment",
+        "Chosen Bloodslayer's Hexweave",
+        "Ophidian Oracle's Prophecy",
+        "Damned Necrolyte's Shattered Restraints",
+        "Jade Warlord's Dominion"
+      ],
+      "rotation": [
+        "Altar of Fangs",
+        "Murder Row",
+        "Den of Nalorakk",
+        "The Blinding Vale",
+        "Voidscar Arena",
+        "Kings' Rest",
+        "Temple of Sethraliss",
+        "Ruby Life Pools"
+      ],
+      "schemaRevision": "midnight-season-2-season-metadata-v1",
+      "scope": "end_game",
+      "seasonId": "midnight-season-2",
+      "status": "pending"
+    },
+    "simcRuntimeRevision": "UNVERIFIED:simc-midnight:c567b4b27ba3d0c714d319df4f8f13044c11c093"
+  },
+  "captureManifest": {
+    "asOf": "2026-08-12T07:56:12Z",
+    "blockers": [
+      "OFFICIAL_CAPTURE_CONTRACT_INVALID",
+      "BLIZZARD_API_CREDENTIALS_MISSING"
+    ],
+    "captureRevision": "midnight-season-2-official-capture-blocked-20260812",
+    "capturedAt": "2026-08-12T07:56:12Z",
+    "clientBuild": "UNVERIFIED:12.1.0.69214",
+    "dataWritten": false,
+    "files": [
+      {
+        "path": "raw/blizzard/capture/blocked.json",
+        "sha256": "811dfbc57d185cfffaa5c8b202fc70db5751e76e59e975ae0a25435f79684f55"
+      }
+    ],
+    "locale": "en_US",
+    "region": "us",
+    "schemaRevision": "midnight-season-2-capture-manifest-v1",
+    "scope": "end_game",
+    "seasonId": "midnight-season-2",
+    "status": "blocked"
+  },
+  "captureRevision": "midnight-season-2-official-capture-blocked-20260812",
+  "clientBuild": "UNVERIFIED:12.1.0.69214",
+  "problems": [],
+  "schemaRevision": "season-endgame-repository-v1",
+  "scope": "end_game",
+  "seasonId": "midnight-season-2",
+  "seasonRevision": "season-midnight-season-2:5c50bd6e6dae97100b8115bb8df54a9e1c52914b3e8e8b6aeb7dfdfdddb1907e",
+  "simcRuntimeRevision": "UNVERIFIED:simc-midnight:c567b4b27ba3d0c714d319df4f8f13044c11c093",
+  "sourceKeys": [
+    "crafted:midnight-season-2",
+    "delve:midnight-season-2",
+    "dungeon:midnight-season-2-heroic-mythic0",
+    "great_vault:midnight-season-2",
+    "lair:the-tidebound-grotto",
+    "mythic_plus:midnight-season-2",
+    "prey:midnight-season-2",
+    "raid:venomous-abyss",
+    "tier_set:midnight-season-2",
+    "world_content:midnight-season-2-endgame"
+  ],
+  "sourcePolicyRevision": "midnight-season-2-pve-source-policy-v1",
+  "status": "verified"
+}

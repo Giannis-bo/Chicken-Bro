@@ -1,0 +1,229 @@
+{
+  "blockerContext": {
+    "officialCapture": "OFFICIAL_CAPTURE_CONTRACT_INVALID"
+  },
+  "gearRuleRevision": "midnight-season-2-gear-rule-pending-v1",
+  "inputRecordCount": 32,
+  "inputSchemaRevision": "midnight-season-2-track-authority-input-v1",
+  "inputStatus": "pending",
+  "problems": [
+    {
+      "code": "TRACK_AUTHORITY_BONUS_EVIDENCE_MISSING",
+      "message": "S2 upgrade records require explicit bonus evidence.",
+      "path": "records[0].bonusEvidence"
+    },
+    {
+      "code": "TRACK_AUTHORITY_BONUS_EVIDENCE_MISSING",
+      "message": "S2 upgrade records require explicit bonus evidence.",
+      "path": "records[10].bonusEvidence"
+    },
+    {
+      "code": "TRACK_AUTHORITY_BONUS_EVIDENCE_MISSING",
+      "message": "S2 upgrade records require explicit bonus evidence.",
+      "path": "records[11].bonusEvidence"
+    },
+    {
+      "code": "TRACK_AUTHORITY_BONUS_EVIDENCE_MISSING",
+      "message": "S2 upgrade records require explicit bonus evidence.",
+      "path": "records[12].bonusEvidence"
+    },
+    {
+      "code": "TRACK_AUTHORITY_BONUS_EVIDENCE_MISSING",
+      "message": "S2 upgrade records require explicit bonus evidence.",
+      "path": "records[13].bonusEvidence"
+    },
+    {
+      "code": "TRACK_AUTHORITY_BONUS_EVIDENCE_MISSING",
+      "message": "S2 upgrade records require explicit bonus evidence.",
+      "path": "records[14].bonusEvidence"
+    },
+    {
+      "code": "TRACK_AUTHORITY_BONUS_EVIDENCE_MISSING",
+      "message": "S2 upgrade records require explicit bonus evidence.",
+      "path": "records[15].bonusEvidence"
+    },
+    {
+      "code": "TRACK_AUTHORITY_BONUS_EVIDENCE_MISSING",
+      "message": "S2 upgrade records require explicit bonus evidence.",
+      "path": "records[16].bonusEvidence"
+    },
+    {
+      "code": "TRACK_AUTHORITY_BONUS_EVIDENCE_MISSING",
+      "message": "S2 upgrade records require explicit bonus evidence.",
+      "path": "records[17].bonusEvidence"
+    },
+    {
+      "code": "TRACK_AUTHORITY_BONUS_EVIDENCE_MISSING",
+      "message": "S2 upgrade records require explicit bonus evidence.",
+      "path": "records[18].bonusEvidence"
+    },
+    {
+      "code": "TRACK_AUTHORITY_BONUS_EVIDENCE_MISSING",
+      "message": "S2 upgrade records require explicit bonus evidence.",
+      "path": "records[19].bonusEvidence"
+    },
+    {
+      "code": "TRACK_AUTHORITY_BONUS_EVIDENCE_MISSING",
+      "message": "S2 upgrade records require explicit bonus evidence.",
+      "path": "records[1].bonusEvidence"
+    },
+    {
+      "code": "TRACK_AUTHORITY_BONUS_EVIDENCE_MISSING",
+      "message": "S2 upgrade records require explicit bonus evidence.",
+      "path": "records[20].bonusEvidence"
+    },
+    {
+      "code": "TRACK_AUTHORITY_BONUS_EVIDENCE_MISSING",
+      "message": "S2 upgrade records require explicit bonus evidence.",
+      "path": "records[21].bonusEvidence"
+    },
+    {
+      "code": "TRACK_AUTHORITY_BONUS_EVIDENCE_MISSING",
+      "message": "S2 upgrade records require explicit bonus evidence.",
+      "path": "records[22].bonusEvidence"
+    },
+    {
+      "code": "TRACK_AUTHORITY_BONUS_EVIDENCE_MISSING",
+      "message": "S2 upgrade records require explicit bonus evidence.",
+      "path": "records[23].bonusEvidence"
+    },
+    {
+      "code": "TRACK_AUTHORITY_BONUS_EVIDENCE_MISSING",
+      "message": "S2 upgrade records require explicit bonus evidence.",
+      "path": "records[24].bonusEvidence"
+    },
+    {
+      "code": "TRACK_AUTHORITY_BONUS_EVIDENCE_MISSING",
+      "message": "S2 upgrade records require explicit bonus evidence.",
+      "path": "records[25].bonusEvidence"
+    },
+    {
+      "code": "TRACK_AUTHORITY_BONUS_EVIDENCE_MISSING",
+      "message": "S2 upgrade records require explicit bonus evidence.",
+      "path": "records[26].bonusEvidence"
+    },
+    {
+      "code": "TRACK_AUTHORITY_BONUS_EVIDENCE_MISSING",
+      "message": "S2 upgrade records require explicit bonus evidence.",
+      "path": "records[27].bonusEvidence"
+    },
+    {
+      "code": "TRACK_AUTHORITY_BONUS_EVIDENCE_MISSING",
+      "message": "S2 upgrade records require explicit bonus evidence.",
+      "path": "records[28].bonusEvidence"
+    },
+    {
+      "code": "TRACK_AUTHORITY_BONUS_EVIDENCE_MISSING",
+      "message": "S2 upgrade records require explicit bonus evidence.",
+      "path": "records[29].bonusEvidence"
+    },
+    {
+      "code": "TRACK_AUTHORITY_BONUS_EVIDENCE_MISSING",
+      "message": "S2 upgrade records require explicit bonus evidence.",
+      "path": "records[2].bonusEvidence"
+    },
+    {
+      "code": "TRACK_AUTHORITY_BONUS_EVIDENCE_MISSING",
+      "message": "S2 upgrade records require explicit bonus evidence.",
+      "path": "records[30].bonusEvidence"
+    },
+    {
+      "code": "TRACK_AUTHORITY_BONUS_EVIDENCE_MISSING",
+      "message": "S2 upgrade records require explicit bonus evidence.",
+      "path": "records[31].bonusEvidence"
+    },
+    {
+      "code": "TRACK_AUTHORITY_BONUS_EVIDENCE_MISSING",
+      "message": "S2 upgrade records require explicit bonus evidence.",
+      "path": "records[3].bonusEvidence"
+    },
+    {
+      "code": "TRACK_AUTHORITY_BONUS_EVIDENCE_MISSING",
+      "message": "S2 upgrade records require explicit bonus evidence.",
+      "path": "records[4].bonusEvidence"
+    },
+    {
+      "code": "TRACK_AUTHORITY_BONUS_EVIDENCE_MISSING",
+      "message": "S2 upgrade records require explicit bonus evidence.",
+      "path": "records[5].bonusEvidence"
+    },
+    {
+      "code": "TRACK_AUTHORITY_BONUS_EVIDENCE_MISSING",
+      "message": "S2 upgrade records require explicit bonus evidence.",
+      "path": "records[6].bonusEvidence"
+    },
+    {
+      "code": "TRACK_AUTHORITY_BONUS_EVIDENCE_MISSING",
+      "message": "S2 upgrade records require explicit bonus evidence.",
+      "path": "records[7].bonusEvidence"
+    },
+    {
+      "code": "TRACK_AUTHORITY_BONUS_EVIDENCE_MISSING",
+      "message": "S2 upgrade records require explicit bonus evidence.",
+      "path": "records[8].bonusEvidence"
+    },
+    {
+      "code": "TRACK_AUTHORITY_BONUS_EVIDENCE_MISSING",
+      "message": "S2 upgrade records require explicit bonus evidence.",
+      "path": "records[9].bonusEvidence"
+    },
+    {
+      "code": "TRACK_AUTHORITY_GEAR_RULE_REVISION_MISMATCH",
+      "message": "S2 track record belongs to another gear-rule revision.",
+      "path": "records[0].gearRuleRevision"
+    },
+    {
+      "code": "TRACK_AUTHORITY_GEAR_RULE_REVISION_MISMATCH",
+      "message": "S2 track record belongs to another gear-rule revision.",
+      "path": "records[10].gearRuleRevision"
+    },
+    {
+      "code": "TRACK_AUTHORITY_GEAR_RULE_REVISION_MISMATCH",
+      "message": "S2 track record belongs to another gear-rule revision.",
+      "path": "records[11].gearRuleRevision"
+    },
+    {
+      "code": "TRACK_AUTHORITY_GEAR_RULE_REVISION_MISMATCH",
+      "message": "S2 track record belongs to another gear-rule revision.",
+      "path": "records[12].gearRuleRevision"
+    },
+    {
+      "code": "TRACK_AUTHORITY_GEAR_RULE_REVISION_MISMATCH",
+      "message": "S2 track record belongs to another gear-rule revision.",
+      "path": "records[13].gearRuleRevision"
+    },
+    {
+      "code": "TRACK_AUTHORITY_GEAR_RULE_REVISION_MISMATCH",
+      "message": "S2 track record belongs to another gear-rule revision.",
+      "path": "records[14].gearRuleRevision"
+    },
+    {
+      "code": "TRACK_AUTHORITY_GEAR_RULE_REVISION_MISMATCH",
+      "message": "S2 track record belongs to another gear-rule revision.",
+      "path": "records[15].gearRuleRevision"
+    },
+    {
+      "code": "TRACK_AUTHORITY_GEAR_RULE_REVISION_MISMATCH",
+      "message": "S2 track record belongs to another gear-rule revision.",
+      "path": "records[16].gearRuleRevision"
+    }
+  ],
+  "records": [],
+  "ruleRevision": "midnight-season-2-track-authority-pending-v1",
+  "schemaRevision": "gear-track-authority-v1",
+  "seasonRevision": "season-midnight-season-2:5c50bd6e6dae97100b8115bb8df54a9e1c52914b3e8e8b6aeb7dfdfdddb1907e",
+  "sourceRefs": [
+    {
+      "id": "blizzard-midnight-season-2-announcement",
+      "supports": "Season 2 raid, Mythic+, PvP, Delves, Great Vault and set scope.",
+      "url": "https://news.blizzard.com/en-us/article/24294369/the-shadows-deepen-midnight-season-2-begins-august-18"
+    },
+    {
+      "id": "simulationcraft-midnight-branch",
+      "supports": "Executable item options and runtime identity; numeric track facts remain pending client/SimC evidence.",
+      "url": "https://github.com/simulationcraft/simc/tree/midnight"
+    }
+  ],
+  "status": "blocked",
+  "trackAuthorityRevision": "midnight-season-2-track-authority-pending-v1"
+}

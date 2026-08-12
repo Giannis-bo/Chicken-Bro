@@ -1,0 +1,145 @@
+{
+  "asOf": "2026-08-12T07:56:12Z",
+  "blockerCodes": [
+    "CATALOG_REVISION_MISSING",
+    "SOURCE_DISCOVERY_MISSING",
+    "SOURCE_POLICY_NOT_APPROVED"
+  ],
+  "counts": {
+    "blocked": 12,
+    "excluded": 0,
+    "gapMembers": 0,
+    "included": 0,
+    "itemMembers": 0,
+    "sourceMembers": 10,
+    "total": 12
+  },
+  "diagnostics": {
+    "ledgerRowsEmitted": 12,
+    "ledgerRowsTotal": 12,
+    "truncated": false
+  },
+  "ledger": [
+    {
+      "memberKey": "season-pve-contract:sha256:6f92b665128bd09e5639a88017c55cfbc1a7edc6e00b43c6031e8b29441a7891",
+      "memberType": "contract",
+      "outcome": "blocked",
+      "reasonCode": "CATALOG_REVISION_MISSING"
+    },
+    {
+      "memberKey": "season-pve-contract:sha256:fd2bf2d88f47b7373c4eb0276e5c62c3e0c132c763fcf6a0b1d3f05b380dd826",
+      "memberType": "contract",
+      "outcome": "blocked",
+      "reasonCode": "SOURCE_POLICY_NOT_APPROVED"
+    },
+    {
+      "effectiveWindowState": "end_game",
+      "memberKey": "season-pve-source:crafted:midnight-season-2",
+      "memberType": "source",
+      "minimumMemberCount": 1,
+      "outcome": "blocked",
+      "reasonCode": "SOURCE_DISCOVERY_MISSING",
+      "sourceKey": "crafted:midnight-season-2",
+      "sourceType": "crafted"
+    },
+    {
+      "effectiveWindowState": "end_game",
+      "memberKey": "season-pve-source:delve:midnight-season-2",
+      "memberType": "source",
+      "minimumMemberCount": 1,
+      "outcome": "blocked",
+      "reasonCode": "SOURCE_DISCOVERY_MISSING",
+      "sourceKey": "delve:midnight-season-2",
+      "sourceType": "delve"
+    },
+    {
+      "effectiveWindowState": "end_game",
+      "memberKey": "season-pve-source:dungeon:midnight-season-2-heroic-mythic0",
+      "memberType": "source",
+      "minimumMemberCount": 1,
+      "outcome": "blocked",
+      "reasonCode": "SOURCE_DISCOVERY_MISSING",
+      "sourceKey": "dungeon:midnight-season-2-heroic-mythic0",
+      "sourceType": "dungeon"
+    },
+    {
+      "effectiveWindowState": "end_game",
+      "memberKey": "season-pve-source:great_vault:midnight-season-2",
+      "memberType": "source",
+      "minimumMemberCount": 1,
+      "outcome": "blocked",
+      "reasonCode": "SOURCE_DISCOVERY_MISSING",
+      "sourceKey": "great_vault:midnight-season-2",
+      "sourceType": "great_vault"
+    },
+    {
+      "effectiveWindowState": "end_game",
+      "memberKey": "season-pve-source:lair:the-tidebound-grotto",
+      "memberType": "source",
+      "minimumMemberCount": 1,
+      "outcome": "blocked",
+      "reasonCode": "SOURCE_DISCOVERY_MISSING",
+      "sourceKey": "lair:the-tidebound-grotto",
+      "sourceType": "lair"
+    },
+    {
+      "effectiveWindowState": "end_game",
+      "memberKey": "season-pve-source:mythic_plus:midnight-season-2",
+      "memberType": "source",
+      "minimumMemberCount": 1,
+      "outcome": "blocked",
+      "reasonCode": "SOURCE_DISCOVERY_MISSING",
+      "sourceKey": "mythic_plus:midnight-season-2",
+      "sourceType": "mythic_plus"
+    },
+    {
+      "effectiveWindowState": "end_game",
+      "memberKey": "season-pve-source:prey:midnight-season-2",
+      "memberType": "source",
+      "minimumMemberCount": 1,
+      "outcome": "blocked",
+      "reasonCode": "SOURCE_DISCOVERY_MISSING",
+      "sourceKey": "prey:midnight-season-2",
+      "sourceType": "prey"
+    },
+    {
+      "effectiveWindowState": "end_game",
+      "memberKey": "season-pve-source:raid:venomous-abyss",
+      "memberType": "source",
+      "minimumMemberCount": 1,
+      "outcome": "blocked",
+      "reasonCode": "SOURCE_DISCOVERY_MISSING",
+      "sourceKey": "raid:venomous-abyss",
+      "sourceType": "raid"
+    },
+    {
+      "effectiveWindowState": "end_game",
+      "memberKey": "season-pve-source:tier_set:midnight-season-2",
+      "memberType": "source",
+      "minimumMemberCount": 1,
+      "outcome": "blocked",
+      "reasonCode": "SOURCE_DISCOVERY_MISSING",
+      "sourceKey": "tier_set:midnight-season-2",
+      "sourceType": "tier_set"
+    },
+    {
+      "effectiveWindowState": "end_game",
+      "memberKey": "season-pve-source:world_content:midnight-season-2-endgame",
+      "memberType": "source",
+      "minimumMemberCount": 1,
+      "outcome": "blocked",
+      "reasonCode": "SOURCE_DISCOVERY_MISSING",
+      "sourceKey": "world_content:midnight-season-2-endgame",
+      "sourceType": "world_content"
+    }
+  ],
+  "mode": "end_game",
+  "schemaRevision": "season-pve-universe-v1",
+  "schemaVersion": 1,
+  "scope": "end_game",
+  "seasonRevision": "season-midnight-season-2:5c50bd6e6dae97100b8115bb8df54a9e1c52914b3e8e8b6aeb7dfdfdddb1907e",
+  "sourcePolicyRevision": "midnight-season-2-pve-source-policy-v1",
+  "sourcePolicyStatus": "pending",
+  "status": "blocked",
+  "universeRevision": "season-pve-universe:sha256:e71a34721c76c04ab6c2e55a67c99ded38fe3fbd37af238389d921ee9b46070b"
+}

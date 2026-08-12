@@ -1,0 +1,33 @@
+{
+  "communityTemplates": [],
+  "dependencyVector": {
+    "capabilityRevision": "pending:build_s2_capability",
+    "gearRuleRevision": "midnight-season-2-gear-rule-pending-v1",
+    "resolverContractRevision": "pending:build_s2_resolver_contract",
+    "selectionSchemaRevision": "pending:build_s2_selection_schema",
+    "serializerRevision": "pending:build_s2_serializer",
+    "simcRuntimeRevision": "UNVERIFIED:simc-midnight:c567b4b27ba3d0c714d319df4f8f13044c11c093",
+    "statPolicyRevision": "pending:build_s2_stat_policy"
+  },
+  "exactRows": [],
+  "items": [],
+  "options": [],
+  "personalTemplates": [],
+  "schemaRevision": "gear-snapshot-v1",
+  "scope": "end_game",
+  "seasonId": "midnight-season-2",
+  "seasonRevision": "season-midnight-season-2:5c50bd6e6dae97100b8115bb8df54a9e1c52914b3e8e8b6aeb7dfdfdddb1907e",
+  "sourceCoverage": {
+    "capturedItemCount": 0,
+    "capturedVariantCount": 0,
+    "reasonCode": "OFFICIAL_CAPTURE_CONTRACT_INVALID",
+    "status": "blocked"
+  },
+  "sources": [],
+  "status": "blocked",
+  "variantSummary": {
+    "browseVariantRowCount": 0,
+    "exactInstanceRowCount": 0
+  },
+  "variants": []
+}
