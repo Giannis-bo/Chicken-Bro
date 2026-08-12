@@ -21,6 +21,7 @@ def repository():
         "simcRuntimeRevision": SIMC_REVISION,
         "sourceKeys": ["raid:venomous-abyss"],
         "captureManifest": {
+            "status": "verified",
             "files": [{"path": "raw/s2.json", "sha256": "a" * 64}],
         },
     }

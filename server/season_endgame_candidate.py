@@ -216,6 +216,29 @@ def _validate_component_identity(
             "repository.seasonRevision",
             "Candidate requires an S2 season revision.",
         )
+    capture_manifest = repository.get("captureManifest")
+    if isinstance(capture_manifest, Mapping) and _text(capture_manifest.get("status")):
+        if _text(capture_manifest.get("status")) != "verified":
+            _append_problem(
+                problems,
+                "S2_REPOSITORY_CAPTURE_NOT_VERIFIED",
+                "repository.captureManifest.status",
+                "S2 candidate requires a verified official capture manifest.",
+            )
+    if _text(repository.get("clientBuild")).startswith("UNVERIFIED:"):
+        _append_problem(
+            problems,
+            "S2_REPOSITORY_CLIENT_BUILD_UNVERIFIED",
+            "repository.clientBuild",
+            "S2 candidate cannot bind an unverified client build.",
+        )
+    if _text(repository.get("simcRuntimeRevision")).startswith("UNVERIFIED:"):
+        _append_problem(
+            problems,
+            "S2_SIMC_RUNTIME_UNVERIFIED",
+            "repository.simcRuntimeRevision",
+            "S2 candidate cannot bind an unverified SimC runtime.",
+        )
 
     component_seasons = {
         "gear_snapshot": _text(snapshot.get("seasonRevision")),
