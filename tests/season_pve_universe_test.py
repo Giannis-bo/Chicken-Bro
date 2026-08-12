@@ -57,12 +57,13 @@ def member(
     }
 
 
-def policy(*source_keys):
+def policy(*source_keys, season_revision="season-midnight-s1-r1", scope="current"):
     return {
         "schemaVersion": 1,
-        "seasonRevision": "season-midnight-s1-r1",
+        "seasonRevision": season_revision,
         "sourcePolicyRevision": "season-pve-source-policy-v1",
         "status": "approved",
+        "scope": scope,
         "sources": [
             {
                 "sourceKey": key,
@@ -90,10 +91,10 @@ def discovery(*sources, season_revision="season-midnight-s1-r1"):
     }
 
 
-def staging(*members):
+def staging(*members, season_revision="season-midnight-s1-r1"):
     return {
         "schemaVersion": 1,
-        "seasonRevision": "season-midnight-s1-r1",
+        "seasonRevision": season_revision,
         "members": [
             {
                 **row,
@@ -105,10 +106,10 @@ def staging(*members):
     }
 
 
-def catalog(*members):
+def catalog(*members, season_revision="season-midnight-s1-r1"):
     return {
         "schemaVersion": 1,
-        "seasonRevision": "season-midnight-s1-r1",
+        "seasonRevision": season_revision,
         "catalogRevision": "gear-catalog:sha256:" + ("a" * 64),
         "members": [
             {
@@ -124,6 +125,85 @@ def catalog(*members):
 
 
 class SeasonPveUniverseTest(unittest.TestCase):
+    def test_endgame_mode_includes_complete_pool_without_effective_window(self):
+        season_revision = "season-midnight-season-2:fixture"
+        source_policy = policy(
+            "raid:venomous-abyss",
+            season_revision=season_revision,
+            scope="end_game",
+        )
+        source_policy["sources"][0].pop("effectiveWindow")
+        discovered = source(
+            "raid:venomous-abyss",
+            members=[
+                member(
+                    "2001",
+                    source_key="raid:venomous-abyss",
+                    instance_id="venomous-abyss",
+                )
+            ],
+        )
+
+        result = build_season_pve_universe(
+            source_policy,
+            discovery(
+                discovered,
+                season_revision=season_revision,
+            ),
+            staging(
+                member(
+                    "2001",
+                    source_key="raid:venomous-abyss",
+                    instance_id="venomous-abyss",
+                ),
+                season_revision=season_revision,
+            ),
+            catalog(
+                member(
+                    "2001",
+                    source_key="raid:venomous-abyss",
+                    instance_id="venomous-abyss",
+                ),
+                season_revision=season_revision,
+            ),
+            mode="end_game",
+        )
+
+        self.assertEqual(result["status"], "verified")
+        self.assertEqual(result["scope"], "end_game")
+        self.assertNotIn(
+            "SOURCE_OUTSIDE_EFFECTIVE_WINDOW",
+            result["blockerCodes"],
+        )
+
+    def test_endgame_mode_blocks_mixed_s1_revision_instead_of_comparing_seasons(self):
+        season_revision = "season-midnight-season-2:fixture"
+        source_policy = policy(
+            "raid:venomous-abyss",
+            season_revision=season_revision,
+            scope="end_game",
+        )
+        source_policy["sources"][0].pop("effectiveWindow")
+        discovered = member(
+            "2001",
+            source_key="raid:venomous-abyss",
+            instance_id="venomous-abyss",
+        )
+
+        result = build_season_pve_universe(
+            source_policy,
+            discovery(
+                source("raid:venomous-abyss", members=[discovered]),
+                season_revision=season_revision,
+            ),
+            staging(discovered),
+            catalog(discovered),
+            mode="end_game",
+        )
+
+        self.assertEqual(result["status"], "blocked")
+        self.assertIn("SEASON_REVISION_MISMATCH", result["blockerCodes"])
+
     def test_unapproved_source_policy_cannot_claim_verified_universe(self):
         source_policy = policy("raid:voidspire")
         source_policy["status"] = "draft"

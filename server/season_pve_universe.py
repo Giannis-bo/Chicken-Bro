@@ -345,11 +345,24 @@ def _source_ledger_row(
     discovered_source: dict[str, Any] | None,
     *,
     as_of: datetime,
+    apply_effective_window: bool = True,
 ) -> dict[str, Any]:
     source_key = _text(policy_source.get("sourceKey"))
-    effective_window = _source_effective_window(
-        policy_source,
-        as_of=as_of,
+    effective_window = (
+        _source_effective_window(
+            policy_source,
+            as_of=as_of,
+        )
+        if apply_effective_window
+        else {
+            "state": "end_game",
+            "reasonCode": "",
+            "startsAt": _text(
+                (policy_source.get("captureContext") or {}).get("capturedAt")
+            ),
+            "endsAt": "",
+            "endPolicy": "",
+        }
     )
     base = {
         "memberKey": _source_member_key(source_key),
@@ -689,6 +702,8 @@ def bounded_universe_report(
             "schemaVersion",
             "schemaRevision",
             "status",
+            "mode",
+            "scope",
             "universeRevision",
             "seasonRevision",
             "sourcePolicyRevision",
@@ -716,8 +731,14 @@ def build_season_pve_universe(
     catalog: dict[str, Any],
     *,
     exclusions: list[dict[str, Any]] | None = None,
+    mode: str = "current",
 ) -> dict[str, Any]:
-    """Build one fail-closed current-season PVE reconciliation report."""
+    """Build one fail-closed current or complete End Game PVE report."""
+
+    if mode not in {"current", "end_game"}:
+        raise UniverseContractError(
+            "mode must be current or end_game"
+        )
 
     for label, value in (
         ("policy", policy),
@@ -735,6 +756,7 @@ def build_season_pve_universe(
         "source policy",
     )
     source_policy_status = _text(policy.get("status")).lower()
+    scope = _text(policy.get("scope")) or "current"
     policy_sources = _validated_policy_sources(policy)
     exclusion_index = _validated_exclusions(exclusions)
     as_of = _instant(discovery.get("asOf"), "discovery asOf")
@@ -757,6 +779,16 @@ def build_season_pve_universe(
     )
 
     ledger: list[dict[str, Any]] = []
+    if mode == "end_game" and scope != "end_game":
+        ledger.append(
+            _contract_ledger_row(
+                "ENDGAME_SCOPE_MISMATCH",
+                {
+                    "owner": "source_policy",
+                    "actualScope": scope or "missing",
+                },
+            )
+        )
     if source_policy_status != "approved":
         ledger.append(
             _contract_ledger_row(
@@ -830,9 +862,13 @@ def build_season_pve_universe(
             policy_source,
             discovered_source,
             as_of=as_of,
+            apply_effective_window=mode != "end_game",
         )
         ledger.append(source_ledger_row)
-        if source_ledger_row.get("effectiveWindowState") != "active":
+        active_states = {"active"}
+        if mode == "end_game":
+            active_states.add("end_game")
+        if source_ledger_row.get("effectiveWindowState") not in active_states:
             continue
         active_policy_source_count += 1
         if discovered_source is None:
@@ -943,6 +979,8 @@ def build_season_pve_universe(
     status = "blocked" if blocker_codes else "verified"
     canonical_content = {
         "schemaRevision": UNIVERSE_SCHEMA_REVISION,
+        "mode": mode,
+        "scope": scope,
         "seasonRevision": season_revision,
         "sourcePolicyRevision": source_policy_revision,
         "sourcePolicyStatus": source_policy_status,
@@ -955,6 +993,8 @@ def build_season_pve_universe(
         "schemaVersion": 1,
         "schemaRevision": UNIVERSE_SCHEMA_REVISION,
         "status": status,
+        "mode": mode,
+        "scope": scope,
         "universeRevision": (
             f"{UNIVERSE_REVISION_PREFIX}{_content_hash(canonical_content)}"
         ),

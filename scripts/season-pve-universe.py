@@ -48,6 +48,12 @@ def parse_args(argv=None):
     parser.add_argument("--catalog", required=True, type=_json_file)
     parser.add_argument("--exclusions", type=_json_file)
     parser.add_argument(
+        "--mode",
+        choices=("current", "end_game"),
+        default="current",
+        help="Use current-season windows or the complete End Game pool.",
+    )
+    parser.add_argument(
         "--output",
         type=Path,
         help="Optional path for the exact bounded JSON report.",
@@ -75,6 +81,7 @@ def main(argv=None):
         args.staging,
         args.catalog,
         exclusions=exclusions or [],
+        mode=args.mode,
     )
     bounded = bounded_universe_report(
         report,
