@@ -378,6 +378,8 @@ def _materialize_enhancement_management(
     snapshot: dict[str, Any],
     capability_revision: str,
     *,
+    enhancement_catalog: Mapping[str, Any] | None = None,
+    season_revision: str = "",
     copy_snapshot: bool = True,
 ) -> dict[str, Any]:
     """Seal v2 field governance without treating absence as trusted source data."""
@@ -388,6 +390,96 @@ def _materialize_enhancement_management(
         for row in materialized.get("items") or []
         if isinstance(row, dict) and _text(row.get("itemId"))
     }
+
+    requested_season_revision = _text(
+        season_revision or materialized.get("seasonRevision")
+    )
+    catalog_input = enhancement_catalog
+    if catalog_input is None and isinstance(
+        materialized.get("enhancementOptionCatalog"), dict
+    ):
+        catalog_input = materialized.get("enhancementOptionCatalog")
+    if requested_season_revision.startswith("season-midnight-season-2:"):
+        if not isinstance(catalog_input, Mapping):
+            raise GearReleaseIntegrityError(
+                "S2 enhancement option catalog is required"
+            )
+        try:
+            from .gear_enhancement_catalog import validate_enhancement_option_catalog
+        except ImportError:
+            from gear_enhancement_catalog import validate_enhancement_option_catalog
+
+        catalog_problems = validate_enhancement_option_catalog(catalog_input)
+        catalog_season_revision = _text(catalog_input.get("seasonRevision"))
+        if catalog_season_revision != requested_season_revision:
+            catalog_problems.append({
+                "code": "ENHANCEMENT_SEASON_REVISION_MISMATCH",
+                "message": "S2 enhancement option catalog belongs to another season revision.",
+            })
+        if _text(catalog_input.get("status")).lower() != "verified":
+            catalog_problems.append({
+                "code": "ENHANCEMENT_CATALOG_NOT_VERIFIED",
+                "message": "S2 enhancement option catalog is not verified.",
+            })
+        if catalog_problems:
+            raise GearReleaseIntegrityError(
+                json.dumps(catalog_problems, ensure_ascii=False, sort_keys=True)
+            )
+        catalog_options = [
+            _canonical(option)
+            for option in catalog_input.get("options") or []
+            if isinstance(option, Mapping)
+            and _text(option.get("status")).lower() == "verified"
+        ]
+        catalog_option_keys = {
+            _text(option.get("optionKey"))
+            for option in catalog_options
+            if _text(option.get("optionKey"))
+        }
+        catalog_simc_keys = {
+            (
+                _text(option.get("optionType")).lower(),
+                _text(
+                    (option.get("simcOptions") or {}).get(
+                        "gem_id"
+                        if _text(option.get("optionType")).lower()
+                        in {"socket", "gem"}
+                        else "enchant_id"
+                        if _text(option.get("optionType")).lower() in {"enchant", "runeforge"}
+                        else "embellishment"
+                    )
+                ),
+            )
+            for option in catalog_options
+            if isinstance(option.get("simcOptions"), Mapping)
+        }
+        retained_options = []
+        for existing in materialized.get("options") or []:
+            if not isinstance(existing, dict):
+                continue
+            existing_key = _text(existing.get("optionKey"))
+            existing_type = _text(existing.get("optionType")).lower()
+            existing_simc = existing.get("simcOptions")
+            existing_token = ""
+            if isinstance(existing_simc, Mapping):
+                field = (
+                    "gem_id"
+                    if existing_type in {"socket", "gem"}
+                    else "enchant_id"
+                    if existing_type in {"enchant", "runeforge"}
+                    else "embellishment"
+                )
+                existing_token = _text(existing_simc.get(field))
+            if existing_key in catalog_option_keys or (
+                existing_type,
+                existing_token,
+            ) in catalog_simc_keys:
+                continue
+            retained_options.append(existing)
+        materialized["options"] = [*retained_options, *catalog_options]
+        materialized["enhancementOptionRevision"] = _text(
+            catalog_input.get("optionRevision")
+        )
 
     def canonical_simc_options(options: Any) -> dict[str, Any] | None:
         values = options if isinstance(options, dict) else {}
@@ -1784,6 +1876,7 @@ def prepare_staging_gear_release(
     socket_bonus_minimums: Mapping[str, Any],
     source_revision: str = "legacy-import-r0",
     parent_release_id: str = "",
+    enhancement_catalog: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     if not isinstance(socket_bonus_minimums, Mapping) or not socket_bonus_minimums:
         raise GearReleaseIntegrityError("socket bonus evidence must be a non-empty mapping")
@@ -1802,6 +1895,8 @@ def prepare_staging_gear_release(
             copy_snapshot=False,
         ),
         _text(dependency_revisions.get("capabilityRevision")),
+        enhancement_catalog=enhancement_catalog,
+        season_revision=season_revision,
         copy_snapshot=False,
     )
     problems = validate_gear_snapshot(snapshot)
@@ -1822,6 +1917,9 @@ def prepare_staging_gear_release(
                 "simcRuntimeRevision": _text(dependency_revisions.get("simcRuntimeRevision")),
                 "socketProbeDigest": _socket_probe_digest(normalized_bonus_minimums),
                 "materializedSocketFactDigest": _materialized_socket_fact_digest(snapshot),
+                "enhancementOptionRevision": _text(
+                    snapshot.get("enhancementOptionRevision")
+                ),
                 **exclusion_evidence,
             },
         },
@@ -1838,6 +1936,7 @@ def build_legacy_gear_release(
     dependency_revisions: dict[str, Any],
     socket_bonus_minimums: Mapping[str, Any],
     source_revision: str = "legacy-import-r0",
+    enhancement_catalog: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     prepared = prepare_staging_gear_release(
         store,
@@ -1845,6 +1944,7 @@ def build_legacy_gear_release(
         dependency_revisions=dependency_revisions,
         socket_bonus_minimums=socket_bonus_minimums,
         source_revision=source_revision,
+        enhancement_catalog=enhancement_catalog,
     )
     release = prepared["release"]
     snapshot = prepared["snapshot"]
