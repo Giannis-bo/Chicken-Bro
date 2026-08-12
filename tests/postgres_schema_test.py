@@ -55,24 +55,12 @@ TASK_4W_UNGUARDED_SENSITIVE_JSONPATH = (
 TASK_3A_MIGRATION_CURRENT_TRUTH_FILES = (
     ROOT / "artifacts" / "releases" / "2026-08-04-equipment-simulator-exact-first" / "requirement.json",
     ROOT / "docs" / "backend-owner-map.json",
-    ROOT / "docs" / "plans" / "2026-08-04-equipment-simulator-canonical-kernel-implementation.md",
-    ROOT / "docs" / "plans" / "2026-08-04-equipment-simulator-canonical-kernel-redesign.md",
-    ROOT / "docs" / "plans" / "2026-08-04-equipment-simulator-canonical-owner-change-control.md",
-    ROOT / "docs" / "plans" / "2026-08-04-equipment-simulator-duplicate-effect-subject-correction.md",
-    ROOT / "docs" / "plans" / "2026-08-04-equipment-simulator-exact-first-implementation.md",
     ROOT / "docs" / "plans" / "2026-08-04-equipment-simulator-exact-first-persistence-resequence.md",
     ROOT / "docs" / "postgres-identity-migration-runbook.md",
     ROOT / "docs" / "project-owner-map.json",
 )
 TASK_3A_LIFECYCLE_STATUS_FILES = (
     ROOT / "docs" / "plans" / "2026-08-04-equipment-simulator-exact-first-persistence-resequence.md",
-    ROOT / "docs" / "plans" / "README.md",
-    ROOT / "docs" / "postgres-identity-migration-runbook.md",
-    ROOT / "docs" / "roadmap.md",
-)
-TASK_3A_HISTORICAL_LIFECYCLE_FILES = (
-    ROOT / "docs" / "plans" / "2026-08-04-equipment-simulator-exact-first-persistence-resequence.md",
-    ROOT / "docs" / "postgres-identity-migration-runbook.md",
 )
 POSTGRES_MIGRATIONS_0001_0031 = tuple(sorted(
     path
@@ -1824,15 +1812,6 @@ $unsafe$;
                 self.assertIn("runtime_verified", current_truth)
                 self.assertIn("pending", current_truth)
 
-        for path in TASK_3A_HISTORICAL_LIFECYCLE_FILES:
-            with self.subTest(historical_lifecycle_path=path):
-                current_truth = path.read_text(encoding="utf-8")
-                self.assertIn("t3a260805160003", current_truth)
-                self.assertIn(
-                    "runtime_passed_unpromotable_current_truth_lifecycle_test_regression",
-                    current_truth,
-                )
-
         if stage in {"implementation_allowed", "local_verified"}:
             current_risks = {risk["id"]: risk for risk in evidence["risks"]}
             promotion_risk = current_risks[
@@ -1876,11 +1855,9 @@ $unsafe$;
             ROOT
             / "docs/plans/2026-08-04-equipment-simulator-exact-first-persistence-resequence.md"
         ).read_text(encoding="utf-8")
-        self.assertIn("Seventh candidate `t3a260805160003`", plan)
-        self.assertIn(
-            "runtime_passed_unpromotable_current_truth_lifecycle_test_regression",
-            plan,
-        )
+        self.assertIn("t3a260805163536", plan)
+        self.assertIn("runtime_verified", plan)
+        self.assertIn("pending", plan)
         if stage in {"implementation_allowed", "local_verified"}:
             self.assertIn(
                 f"current evidence is `{stage} / candidate_pending`", plan

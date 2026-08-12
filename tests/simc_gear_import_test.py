@@ -201,30 +201,23 @@ class SimcGearImportTest(unittest.TestCase):
         for slice_ in requirement_payload["releaseSlices"]:
             self.assertIn(f"## {slice_['planHeading']}", plan_text)
 
-    def test_reachable_canonical_plan_summaries_require_seventh_candidate_after_lifecycle_fix(self):
+    def test_current_plan_index_uses_the_replacement_task3a_contract(self):
         root = Path(__file__).resolve().parents[1]
         plan_index = (root / "docs/plans/README.md").read_text(encoding="utf-8")
-        summaries = (
-            root / "docs/plans/2026-08-04-equipment-simulator-canonical-kernel-implementation.md",
-            root / "docs/plans/2026-08-04-equipment-simulator-canonical-owner-change-control.md",
-            root / "docs/plans/2026-08-04-equipment-simulator-duplicate-effect-subject-correction.md",
-        )
+        replacement = root / "docs/plans/2026-08-04-equipment-simulator-exact-first-persistence-resequence.md"
 
-        for summary in summaries:
-            with self.subTest(summary=summary.name):
-                self.assertIn(summary.name, plan_index)
-                top_level = "\n".join(
-                    summary.read_text(encoding="utf-8").splitlines()[:10]
-                )
-                self.assertIn(
-                    "candidate_rerun_required / evidence_promotion_blocked",
-                    top_level,
-                )
-                self.assertIn("t3a260805120026", top_level)
-                self.assertIn("t3a260805125812", top_level)
-                self.assertIn("t3a260805142130", top_level)
-                self.assertIn("0030", top_level)
-                self.assertIn("第七次", top_level)
+        self.assertIn(replacement.name, plan_index)
+        top_level = "\n".join(replacement.read_text(encoding="utf-8").splitlines()[:10])
+        self.assertIn("t3a260805163536", top_level)
+        self.assertIn("runtime_verified", top_level)
+        self.assertIn("pending", top_level)
+        for obsolete_name in (
+            "2026-08-04-equipment-simulator-canonical-kernel-implementation.md",
+            "2026-08-04-equipment-simulator-canonical-owner-change-control.md",
+            "2026-08-04-equipment-simulator-duplicate-effect-subject-correction.md",
+        ):
+            with self.subTest(obsolete_name=obsolete_name):
+                self.assertNotIn(obsolete_name, plan_index)
 
 
 if __name__ == "__main__":

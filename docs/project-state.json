@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-07-29",
+  "updatedAt": "2026-08-12",
   "activeMilestone": "taro_target_first_14_route_rebuild",
   "featureIteration": "allowed_under_harness",
   "defaultLocalReleaseArtifact": "artifacts/releases/2026-07-23-observed-build-registry-cutover",
@@ -117,9 +117,26 @@
         "mappedOptionCount": 63
       },
       "notes": "Archived Phase 0 evidence remains an active factual baseline for later phases: the bounded generation-32 audit uses exact season/rule Track Authority, maps 1309/1309 canonical Browse candidates, verifies all 80 Community ExactItemInstance templates and 40 specializations, records zero unresolved callers and zero source writes, and keeps the active pointer stable. Global data health remains partial under legacy staging/refresh owners and is not represented as a green global-health result."
+    },
+    {
+      "id": "midnight_season_2_endgame_data_candidate",
+      "path": "docs/superpowers/specs/2026-08-12-midnight-season-2-data-repository-design.md",
+      "status": "candidate_blocked_official_capture",
+      "lifecycle": "active",
+      "plan": "docs/superpowers/plans/2026-08-12-midnight-season-2-data-repository.md",
+      "evidence": "artifacts/releases/2026-08-12-midnight-season-2-data-foundation/evidence.json",
+      "notes": "The complete End Game S2 repository contract and isolated candidate are implemented without a Season 1 fallback. Official capture is capped, so item/source/option/set/track authority remains blocked; no S2 runtime, active Manifest pointer or production write was changed. The retained implementation plan is a release-bound historical record, not continuing execution authority; a new task-scoped plan is required after source-capture reconsideration."
     }
   ],
   "completedBaselines": [
+    {
+      "id": "exact_first_production_foundation_20260810",
+      "domain": "equipment_simulator_exact_first_runtime_foundation",
+      "status": "runtime_verified_provider_disabled",
+      "evidence": "artifacts/releases/2026-08-10-equipment-simulator-exact-first-production-foundation-deployment/evidence.json",
+      "mergeCommit": "2d19e574",
+      "notes": "A validated backup preceded the single 0030--0035 production migration; 221 runtime files matched and wow-backend recovered. Provider and worker remain disabled, import jobs remain zero, and aggregate readiness found zero eligible sources; this is not a player Exact completion claim."
+    },
     {
       "id": "equipment_simulator_phase4_manifest_cutover_20260729",
       "domain": "equipment_simulator_target_architecture_v1_phase4",
@@ -650,6 +667,18 @@
       "status": "manifest_owner_resolved_global_partial_remains",
       "trigger": "The Manifest v2 active owner is verified at generation 35 and runtime consumer callers no longer mix staging/latest readers. Global /api/data/health remains partial because independent gear refresh, staging catalog, legality, talent, community and cutover-readiness owners still report literal blocked/partial states; do not represent that global state as green.",
       "evidence": "artifacts/releases/2026-07-29-equipment-simulator-phase4-manifest-cutover/evidence.json"
+    },
+    {
+      "id": "exact_first_ready_path_authority_source",
+      "status": "blocked_fail_closed",
+      "trigger": "The production foundation is runtime_verified, but the aggregate readiness audit found zero eligible owner-scoped sources. Provider and worker remain disabled; any activation or real-WeChat Exact acceptance requires a new task-scoped contract.",
+      "evidence": "artifacts/releases/2026-08-10-equipment-simulator-exact-first-production-foundation-deployment/evidence.json"
+    },
+    {
+      "id": "midnight_season_2_official_capture",
+      "status": "blocked_candidate_only",
+      "trigger": "The S2 End Game candidate remains isolated because the official item search was capped. Source membership, item identity, tier membership, options and Track Authority must remain unverified until complete official coverage is captured; the active Manifest pointer must not change.",
+      "evidence": "artifacts/releases/2026-08-12-midnight-season-2-data-foundation/evidence.json"
     }
   ]
 }

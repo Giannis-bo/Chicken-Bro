@@ -1010,14 +1010,23 @@ for (const review of reviewRoutes) {
 
 const currentPlanFiles = sorted(fs.readdirSync(path.join(root, 'docs/plans')).filter((name) => fs.statSync(path.join(root, 'docs/plans', name)).isFile()))
 const planIndexSource = read('docs/plans/README.md')
+const planIndexLinks = [...planIndexSource.matchAll(/\]\(([^)#?]+\.md)(?:#[^)]*)?\)/gu)].map((match) => match[1])
+const localPlanLinks = planIndexLinks.filter((link) => path.dirname(link) === '.')
+const externalPlanLinks = planIndexLinks.filter((link) => path.dirname(link) !== '.')
 const whitelistedPlanFiles = sorted(new Set([
   'README.md',
-  ...[...planIndexSource.matchAll(/\]\(([^)#?]+\.md)(?:#[^)]*)?\)/gu)].map((match) => path.basename(match[1])),
+  ...localPlanLinks.map((link) => path.basename(link)),
 ]))
 record(
   'current_plan_set_matches_plan_whitelist',
   JSON.stringify(currentPlanFiles) === JSON.stringify(whitelistedPlanFiles),
   `plans=${currentPlanFiles.join(',')}`,
+)
+const missingExternalPlanLinks = externalPlanLinks.filter((link) => !fs.existsSync(path.resolve(root, 'docs/plans', link)))
+record(
+  'external_plan_entries_resolve',
+  missingExternalPlanLinks.length === 0,
+  missingExternalPlanLinks.join(', ') || `externalPlans=${externalPlanLinks.join(',') || 'none'}`,
 )
 const uiEvidencePlanFiles = sorted(evidencePolicy.allowedPlanFiles ?? [])
 const invalidUiEvidencePlanFiles = uiEvidencePlanFiles.filter((file) => !whitelistedPlanFiles.includes(file))

@@ -43,248 +43,20 @@ WOW_PG_TEST_DSN='postgresql://wow_migrator@localhost/wow_pg_local' \
 
 Without a test DSN the integration suite may skip; a skip is not production evidence.
 
-## Exact Authority Bundle Task 3A Candidates
+## Exact-first Production Foundation
 
-Migration `0030_websim_exact_authority_bundle.sql` is not production-authorized
-by local unit, schema or candidate tests. Two Task 3A candidates failed before the former `0026` authority migration:
-`t3a2608050955` at `f90a302040f722fec0807bd600f8e2242169801c` because `0001`
-already creates the `(user_id, template_type, config_hash)` unique constraint and
-`0003` unconditionally attempted to add the named target constraint, then
-`t3a260805111623` because `0003` compared PostgreSQL `name[]` catalog attributes
-with a `text[]` literal. A third run, `t3a260805113656`, passed both runtime
-paths at commit `0e0743ca188efbd7cb818bfb8a210fd998379f4d` / tree
-`3fce81f57dbdc851a9438ae63ea051f666bf1051`, but its active requirement status
-was `local_verified`. Harness permits evidence promotion only when the
-requirement is `implementation_allowed`; correcting that requirement and its
-owner contracts after execution also invalidates this candidate under the
-post-candidate mutation boundary. These three runs retain the literal historical
-state `candidate_rerun_required / evidence_promotion_blocked` and are never green
-Task 3A evidence.
+The deployed Exact-first foundation is recorded in [the 2026-08-10 release evidence](../artifacts/releases/2026-08-10-equipment-simulator-exact-first-production-foundation-deployment/evidence.json): a validated backup preceded one `0030`--`0035` PostgreSQL transaction, and the expected runtime files were verified. This is `runtime_verified` infrastructure evidence, not a player-visible Exact completion claim.
 
-The fourth run `t3a260805120026` genuinely passed both fresh and upgrade paths from clean
-commit `9ffd57b05ab97be880daf65425d6de9e26609e32` / tree
-`4f4a857ed52d65e04ab6bccfc5b3ac4649c3d94e` while the active requirement was
-`implementation_allowed`. Its single-line attestation binds both exact database
-identities and migration `0026` SHA-256
-`ddbe31fc26c8ad1aafa68bc7608f083e8415e5b4353cd5145450e2791303eb8a` to 14
-verified checks. The read-only post-audit independently confirmed 26 ledger rows,
-one `0003`, one `0026`, one exact target constraint, expected authority counts and
-SELECT-only `wow_app` privileges in both databases. That remains immutable historical evidence.
-However, origin/main subsequently occupied migration ids `0026..0029`, so safe integration
-must move Task 3A to `0030`, changing its path, ledger identity, SHA and full migration chain.
-The fourth run is therefore `runtime_passed_superseded_by_main_integration`, not current
-0030 evidence. origin/main integration and the 0030 local verification matrix passed at
-merge commit `1619815c`.
+- `0030_websim_exact_authority_bundle.sql` through `0035_websim_exact_runtime_authority_release.sql` are append-only schema contracts. Their identities, authority bundle bytes and release references must not be rewritten to repair a later source gap.
+- The deployed provider and exact worker remain disabled, and aggregate eligible sources are zero. The ready path is literally `blocked`; no job, Active Manifest pointer, Catalog membership or user-facing readiness may be inferred from the foundation.
+- A future source admission or activation requires a new task-scoped contract with an immutable source/member/variant/track/set identity, candidate evidence, a reviewed rollback point, and real WeChat acceptance. It is not authorized by this runbook.
+- Historical candidate attempts belong in their release packets and Git history. Do not restore an old candidate diary as a current deployment procedure.
 
-The fifth run `t3a260805125812` genuinely passed fresh `0001..0030` and upgrade
-`0001..0029` plus frozen-v1 seed/snapshot plus `0030` from exact clean commit
-`a4c0fd04b39577838ad4fb7a0e3c54b8e0205c30` / tree
-`aa0908eb8214d9572fc604e3399321c5d6eb3754`. Its single-line
-`task3a-candidate-attestation-v2` binds both exact database identities and migration
-`0030` SHA-256 `41e12fd5b12cac79ed57dde266e4b515b0b731dfcc9c9874d818ddc306f957c3`
-to 14 verified checks. The read-only post-audit confirmed 30 ledger rows, one
-`0003`, one `0030`, the exact target constraint, expected authority counts and
-SELECT-only `wow_app` privileges in both databases. That candidate object and its
-single-line attestation-v2 remain immutable historical evidence. GitHub PR #114
-full-profile run `30977816268`, job `92215539827`, then failed
-`GearRuntimeTest.test_runtime_imports_from_server_directory_for_direct_backend_startup`
-and `PgGearAuthorityLoaderTest.test_loader_imports_in_direct_server_runtime_mode`:
-its source used only `server.gear_contracts` while direct startup runs from `server/`.
-The Node deprecation warning was not the cause. The compatibility correction is
-candidate-invalidating, so the fifth run remains
-`runtime_passed_invalidated_by_direct_runtime_import_regression`.
+## Exact Worker Role and Dormant Candidate Boundary
 
-The sixth run `t3a260805142130` then genuinely passed fresh `0001..0030` and
-upgrade `0001..0029` plus frozen-v1 seed/snapshot plus `0030` from exact frozen
-commit `9f67ec2f72f59dc1def7b035fc4d9da27b8802b5` / tree
-`c2a686e6ed8f7a9ff15c82f4e45996636c49d9a7`. Its raw single-line
-attestation-v2, parsed 14 checks, bundle/log hashes and independent read-only
-post-audit are immutable historical PASS evidence. The same frozen HEAD failed
-the current-truth owner test because it hard-coded
-`evidence.status == implementation_allowed` after the authorized local promotion
-had set `local_verified`; the schema current-truth test passed. PostgreSQL was not
-the cause. Correcting the lifecycle test, requirement and owner contracts is
-candidate-invalidating, so the sixth status is exactly
-`runtime_passed_unpromotable_evidence_lifecycle_test_regression`.
-The exact full local profile subsequently passed at clean HEAD
-`7a4390c9794dd46b5e95aa142409bfcc6952bf74` / tree
-`606a17509aa5294cc1de8ceb129f0046bc2cd5a9`, allowing a seventh candidate.
+`0032_websim_exact_import_jobs.sql` defines a future worker-owned queue boundary. It does not authorize a production migration, service activation, API/UI producer, SimC consumer, or data release. The service stays dormant until an explicitly authorized runtime task proves its complete source and ownership chain.
 
-The seventh run `t3a260805160003` genuinely passed fresh `0001..0030` and
-upgrade `0001..0029` plus frozen-v1 seed/snapshot plus `0030` from exact frozen
-commit `8c9490cdc074001ca58c03a6e67bacf2806b33fa` / tree
-`f71aad198ab66e4ff22b6f893b004bccfd3e35b4`. Its raw single-line
-attestation-v2, parsed 14 checks, bundle/log hashes and independent read-only
-post-audit are immutable historical PASS evidence. The same exact source then
-failed its full profile: `docs/plans/README.md` and `docs/roadmap.md` omitted
-literal `0030`, and the schema current-truth test hard-coded
-`implementation_allowed` although the evidence packet was legitimately
-`local_verified`. PostgreSQL was not the cause. Correcting the lifecycle test,
-owner contracts and status docs is candidate-invalidating, so the seventh status
-is exactly `runtime_passed_unpromotable_current_truth_lifecycle_test_regression`.
-The eighth run `t3a260805163536` then passed fresh `0001..0030` and upgrade
-`0001..0029` plus frozen-v1 seed/snapshot plus `0030` from exact runtime commit
-`9f230f2e0c44a0157fb58870f10197e5525c227a` / tree
-`89e7e5e70ca16cfba20f4140df7995a463b7ce31`. Its attestation-v2, controller
-read-only post-audit and independent read-only review passed for all sixteen
-database identities. The cross-version owner-digest correction verification
-commit `1714f376d40e21112b13f537572932a1f5bd38f0` / tree
-`7ba9ff1863822a90ffd081d3de70c0f7af3dfbc2` separately passed the unique
-173-command full profile (Node 747/747, Python 2718/2718 with two expected
-unconfigured candidate skips, Vitest 437/437), Harness and exact two-path
-candidate-to-verification diff gate; it does not replace the runtime identity.
-Historical PR CI run `30993690037` produced 29 false owner-gate failures because
-Python 3.11 included empty optional AST fields that Python 3.13 omitted by
-default. The stable serializer at `1714f376` corrects that compatibility defect
-without changing or invalidating the runtime candidate. Current evidence is
-`runtime_verified / candidate_verified`; runtime and verification identities
-are separately bound. Task 3A delivery closure then completed: PR #114 merged
-as `97fca062`, the merge result and final archive record passed scoped Harness,
-and main/origin parity was confirmed before scoped cleanup. Only the exact eighth
-fresh/upgrade databases were discarded; current candidate artifacts were moved to
-recoverable quarantine/Trash and all fourteen historical databases were untouched.
-The merged Task 3A implementation worktree and its local feature branch were
-removed; the remote feature ref was already absent after PR merge.
-The formal closure identity remains `pending` because the active Task 3A lifecycle
-test permits no `archived` stage and explicitly requires pending; no lifecycle-contract
-change was included in this closure. Runtime consumers remain empty, production
-migration was not executed, generation 35 is unchanged, and only separate Task 4P
-pure-domain work is authorized next.
-
-All seven run-id pairs and all fourteen databases are immutable/non-reusable
-evidence: never reset or reuse them. The test suite never creates, drops, resets
-or reuses any candidate database.
-
-The fourteen non-reusable database identities are:
-
-- `wow_exact_first_fresh_test_t3a2608050955` and
-  `wow_exact_first_upgrade_test_t3a2608050955`;
-- `wow_exact_first_fresh_test_t3a260805111623` and
-  `wow_exact_first_upgrade_test_t3a260805111623`;
-- `wow_exact_first_fresh_test_t3a260805113656` and
-  `wow_exact_first_upgrade_test_t3a260805113656`;
-- `wow_exact_first_fresh_test_t3a260805120026` and
-  `wow_exact_first_upgrade_test_t3a260805120026`;
-- `wow_exact_first_fresh_test_t3a260805125812` and
-  `wow_exact_first_upgrade_test_t3a260805125812`;
-- `wow_exact_first_fresh_test_t3a260805142130` and
-  `wow_exact_first_upgrade_test_t3a260805142130`;
-- `wow_exact_first_fresh_test_t3a260805160003` and
-  `wow_exact_first_upgrade_test_t3a260805160003`.
-
-Because the current-truth lifecycle correction was candidate-invalidating, the eighth run did not
-reuse any prior identity. It used new lowercase run id `t3a260805163536`, matching
-`[a-z0-9]{8,32}`; the suite rejected all seven historically forbidden ids before importing
-`psycopg` or connecting. An operator with explicit authority provisioned two distinct empty
-databases and exact database comments:
-
-- `wow_exact_first_fresh_test_t3a260805163536` with comment
-  `wow_exact_first_disposable:t3a260805163536:fresh`;
-- `wow_exact_first_upgrade_test_t3a260805163536` with comment
-  `wow_exact_first_disposable:t3a260805163536:upgrade`.
-
-The cluster must already contain the repository's `wow_migrator` and `wow_app`
-roles. Historical migration `0009_runtime_reconcile_privileges.sql` executes
-`ALTER DEFAULT PRIVILEGES FOR ROLE postgres`; therefore each explicit candidate
-DSN must use an existing operator/migrator identity that already has the
-authority required by migrations `0001..0029` (commonly `postgres`, or an
-existing operator that can `SET ROLE postgres`). The suite does not create,
-alter or grant roles, and it does not change any historical migration. Do not
-add a non-superuser role gate that would contradict the frozen migration chain.
-
-The safety boundary is instead exact and machine-checked: the two explicit DSNs
-must resolve to the exact run-id-bound names/comments above; both databases must
-have no project schema, table or ledger before the first write; the suite never
-creates, drops, resets or reuses a database; and migrations `0001..0030` contain
-no `CREATE DATABASE`, `DROP DATABASE` or `ALTER DATABASE`. Every migration DDL
-statement is therefore scoped to the current DSN database. No additional DSN or
-implicit admin connection is accepted.
-
-After origin/main is integrated and the Task 3A code, tests and `0030` are committed
-on a clean final runtime-affecting tree, run:
-
-```bash
-WOW_PG_TEST_RUN_ID_0030='<run-id>' \
-WOW_PG_TEST_DSN_FRESH_0030='<fresh-disposable-dsn>' \
-WOW_PG_TEST_DSN_UPGRADE_0030='<upgrade-disposable-dsn>' \
-python3 -m unittest \
-  tests.postgres_integration_test.PostgresExactAuthorityCandidateTest
-```
-
-The fresh path applies `0001..0030`; it must end with exactly 30 migration ledger
-rows, exactly one `0030_websim_exact_authority_bundle` ledger row and exactly one
-`app.build_templates` target constraint named
-`build_templates_user_id_template_type_config_hash_key`, type `u`, with ordered
-columns `user_id, template_type, config_hash`, no legacy
-`build_templates_user_id_template_type_name_key` constraint, and exactly one
-`0003_build_template_config_hash_unique` ledger row. The upgrade path independently applies
-`0001..0029`, inserts a frozen v1 row, snapshots its complete row including
-`sealed_at` plus all existing project schemas, tables, columns, constraints,
-indexes, triggers, default ACLs and effective `wow_app` grants, applies `0030`,
-and requires every pre-existing value to remain equal. Both paths verify the
-exact six-kind/schema/prefix closed matrix, database-computed SHA-256/JSON
-projection, all seven foreign keys, complete binding predicates, all three
-tables' UPDATE/DELETE/TRUNCATE immutability, explicit and effective `wow_app`
-SELECT-only ACLs, whole-bundle typed reload and duplicate record order. The
-concurrency smoke starts from absent authority rows and concurrently writes two
-legal bundles that share two effect records in reverse order; both must finish
-without deadlock and independently read back.
-
-After each normal migration path has installed the correct target, the candidate
-suite executes real `0003` in a rollback-only transaction and proves that the
-target constraint OID is unchanged. In separate rollback-only transactions it
-replaces that target with a same-name wrong-type constraint and a same-name
-wrong-ordered unique constraint; real `0003` must fail through `psycopg`, then
-the rollback must restore the original correct state. These are candidate
-semantics, not parser or mock checks.
-
-After every assertion passes, the test rechecks the clean commit, Git tree,
-`0030` SHA-256 and both database names/comments, then emits exactly one compact
-`task3a-candidate-attestation-v2` JSON record as its final stdout line. Archive that
-single line verbatim for the later Task 3A `evidence.json`/`manifest.json` promotion review; it contains
-the run id, both database identities, commit/tree/migration hashes,
-`passed=true`, and the exact verified-check list, but no DSN or credential.
-Local/skipped runs emit no successful attestation and must not create or update
-either evidence file.
-
-Leave the seventh pair intact as immutable historical evidence; it was not used for
-current promotion. The eighth pair used a new run id and two new
-operator-provisioned databases. Runtime/product code, migration, PostgreSQL candidate
-integration test, requirement or owner-contract changes after candidate execution
-invalidate the candidate. The accepted lifecycle and cross-version digest correction is
-separately bound to verification commit `1714f376`; executable Git diff gates prove
-candidate-to-verification contains only the owner test and active plan, and
-verification-to-promotion contains
-only the six declared evidence/status files. Only an operator may discard the two exact
-eighth-candidate database identities after delivery closure, archival and identity
-verification; the suite never does.
-Missing `psql`, either DSN, or the run id is a skipped candidate and remains
-`candidate_pending`, never green evidence. The fourth pair remains superseded
-attestation-v1 history, the fifth remains
-`runtime_passed_invalidated_by_direct_runtime_import_regression`, and the sixth remains
-`runtime_passed_unpromotable_evidence_lifecycle_test_regression`; the seventh remains
-`runtime_passed_unpromotable_current_truth_lifecycle_test_regression`; none can be reused.
-The historical `candidate_rerun_required / evidence_promotion_blocked` status was cleared
-only by the independent eighth pair plus the separately bound verification HEAD. Runtime
-and verification identities are bound; delivery closure is recorded, while formal closure
-remains pending under the current lifecycle contract.
-The technically successful
-`t3a260805113656` attestation also remains unpromotable.
-No production migration is authorized.
-
-## Exact Import Jobs Task 4W Candidate and Dedicated Worker
-
-Migration `0032_websim_exact_import_jobs.sql` and the dedicated service remain
-dormant in Task 4W. Local unit/static tests do not authorize a production
-migration, service activation, API/UI producer, SimC consumer, or generation 35
-change. The real PostgreSQL candidate is cloud-only and must use disposable,
-operator-provisioned databases and roles.
-
-### Pre-provision the role boundary
-
-An authorized PostgreSQL operator, outside every application migration and
-service, creates the group and one dedicated login member. The intended
-properties are:
+An authorized PostgreSQL operator, outside application migrations, establishes the group and a dedicated login member. The group remains `NOLOGIN`; the member is `LOGIN INHERIT` and has no role-management or superuser powers:
 
 ```sql
 CREATE ROLE wow_exact_worker NOLOGIN NOCREATEROLE NOSUPERUSER NOREPLICATION;
@@ -292,20 +64,7 @@ CREATE ROLE wow_exact_worker_login LOGIN INHERIT NOCREATEROLE NOSUPERUSER NOREPL
 GRANT wow_exact_worker TO wow_exact_worker_login;
 ```
 
-These statements are an operator procedure, not migration content. Use the
-site-specific login name and credential workflow; never put its password in the
-repository, command history, report, or candidate attestation. Confirm
-`wow_migrator`, `wow_app`, `wow_exact_worker`, and the member have no
-`CREATEROLE`; confirm the group remains literal `NOLOGIN` and the member is
-literal `LOGIN INHERIT`. Migration `0032` fails closed when the group is absent
-or login-enabled. PostgreSQL core `pg_catalog.gen_random_uuid()` must already be
-available; absence is a compatibility blocker and does not authorize extension
-installation.
-
-### Dedicated secret file and deploy preflight
-
-Store only the worker credentials and worker-owned settings in root-readable
-`/etc/wow-exact-worker.env`:
+This is an operator procedure, not migration content. Do not put credentials in the repository, command history, report or attestation. The worker file is root-readable `/etc/wow-exact-worker.env` with mode `0600` and only worker-owned values:
 
 ```ini
 WOW_EXACT_WORKER_DATABASE_URL=postgresql://<login>:<redacted>@<host>/<database>
@@ -313,27 +72,11 @@ WOW_EXACT_WORKER_SIMC_RUNTIME_REVISION=<approved-runtime-revision>
 WOW_EXACT_WORKER_ID=<bounded-worker-id>
 ```
 
-Set mode `0600`. The file must not contain `WOW_DATABASE_URL`, and
-`server/wow-gear-exact-authority-worker.service` must not read
-`/etc/wow-backend.env`. On every new connection the worker executes
-`SET ROLE wow_exact_worker`, then verifies that `session_user` is a LOGIN member
-and `current_user` is exactly `wow_exact_worker`.
+It must not contain `WOW_DATABASE_URL`, and `server/wow-gear-exact-authority-worker.service` must not read the public app environment. Every worker connection executes `SET ROLE wow_exact_worker`, then checks that the session login is a member and `current_user` is exactly `wow_exact_worker`.
 
-The existing deploy script performs the dormant install/preflight only when an
-operator explicitly supplies `WOW_DEPLOY_EXACT_WORKER_PREFLIGHT=1`. It validates
-the `NOLOGIN` group, LOGIN membership, `NOCREATEROLE` roles, mode `0600`, and
-distinct app/worker DSNs while printing only redacted DSN fingerprints. It backs
-up the prior service and env under
-`/var/lib/wow-backend/exact-worker-rollback/<timestamp>/`, installs the unit,
-and deliberately does not enable, start, or restart it.
+The deploy script may only perform its dormant install/preflight when an operator explicitly supplies `WOW_DEPLOY_EXACT_WORKER_PREFLIGHT=1`. It must validate the role boundary, file mode and distinct app/worker DSNs using redacted fingerprints; it must not enable, start or restart the worker.
 
-### Cloud-only disposable candidate
-
-Provision two new empty, run-id-bound databases and three real LOGIN DSNs for
-the fresh database. The migrator, app, and worker DSNs must be distinct; the
-worker DSN must authenticate as the dedicated member, not as the `NOLOGIN`
-group. Do not reuse a historical database or candidate id. Keep all values in
-the operator environment and archive only the redacted attestation:
+For a separately approved, cloud-only disposable candidate, keep all DSNs in the operator environment and provide new, empty, run-id-bound databases. The migrator, app and worker identities must be distinct. The intended test shape is:
 
 ```bash
 WOW_PG_TEST_RUN_ID_0032='<new-run-id>' \
@@ -346,34 +89,7 @@ python3 -m unittest \
   tests.postgres_integration_test.PostgresExactImportJobsCandidateTest
 ```
 
-The guard skips before importing `psycopg` or connecting unless every variable
-and `psql` exists, the fresh/upgrade DSNs differ, and the three role DSNs are
-distinct. A skip is literal `candidate_pending`, not green evidence. The fresh
-path applies `0001..0032`; the upgrade path applies `0001..0031` and then only
-`0032`. The candidate verifies exact role identities and ACL isolation,
-cross-owner empty reads, concurrent deterministic enqueue, failed cooldown,
-claim/reclaim fencing, expired/wrong token zero-row CAS, terminal metrics, and
-bounded `1..100` pruning. Direct ops table/sequence access and wrong-role
-functions must fail.
-
-### Activation and rollback boundary
-
-Task 4W does not activate the service. A later separately authorized runtime
-task must first record the committed identity, migration SHA, redacted app and
-worker DSN identities, candidate result, previous unit/env backup, health/read
-model state, and exact rollback directory. Only then may it apply a reviewed
-production migration and explicitly enable the service.
-
-If candidate migration fails, roll back the transaction or discard only the two
-named disposable candidate databases; never partially promote them. If the
-dormant unit preflight/install fails, the deploy trap restores
-`previous.service` and `previous.env` (or removes the new unit when the previous
-service was absent), resets env mode to `0600`, and reloads systemd. If a later
-authorized activation fails, stop the exact worker, preserve logs and database
-state, restore the recorded prior service/env, restore the reviewed PostgreSQL
-backup if the migration crossed its rollback boundary, reload systemd, and
-rerun owner/ACL/health checks before any retry. Do not fall back to the public
-app DSN or grant login/role-management power to the group.
+Missing `psql`, a DSN or a complete source bundle is `candidate_pending`/`blocked`, never green evidence. If a future authorized candidate or activation fails, roll back its transaction or discard only the named disposable candidate databases; preserve logs and restore the reviewed service/environment and PostgreSQL backup. Never fall back to the public app DSN or SQLite runtime.
 
 ## SQLite Source Inventory
 

@@ -17,6 +17,7 @@
 | 职业专精、天赋、装备、SimC | [builds-architecture.md](builds-architecture.md) | 构筑产品与前后端架构。 |
 | PostgreSQL-only 运行时 | [database-architecture.md](database-architecture.md) | schema、数据归属和运行时契约。 |
 | 装备库治理 | [gear-database-governance.md](gear-database-governance.md) | 物品、变体、强化和 health 的可信规则。 |
+| 至暗之夜 S2 End Game 候选 | [S2 数据仓库设计](superpowers/specs/2026-08-12-midnight-season-2-data-repository-design.md) | 候选已构建但官方 capture 未闭合；`blocked`，不改变活动 Manifest。 |
 | 装备属性规则证据 | [gear-attribute-rule-source-ledger.md](gear-attribute-rule-source-ledger.md) | 已验证属性上下文与公开计算启用闸门。 |
 | 装备模拟全链路 | [gear-simulation-full-chain-runbook.md](gear-simulation-full-chain-runbook.md) | resolver、release、属性快照、导入与回滚。 |
 | 装备模拟目标架构 | [plans/2026-07-28-equipment-simulator-target-architecture.md](plans/2026-07-28-equipment-simulator-target-architecture.md) | 已批准的 Catalog、精确实例、强化和 SimC 快照目标边界。 |
@@ -44,5 +45,5 @@ npm run refresh:weapp
 
 - 一次性实施、思考、审计和交接记录不进入长期文档。
 - 活跃方向进 roadmap；稳定事实进 architecture / governance / runbook；多步骤执行只进计划白名单。
-- 计划落地或被替代后删除文件并移出白名单，Git 历史即归档。
+- 计划落地或被替代后删除实施文件并移出白名单；仍被当前架构或 runbook 精确引用的稳定设计只在计划索引的“稳定参考”保留。
 - 证据保存在 release packet 或当前 UI 控制面明确登记的位置，不复制成叙事流水。

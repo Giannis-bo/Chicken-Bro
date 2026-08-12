@@ -2,6 +2,10 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+**Current state (2026-08-12):** The implementation slices in Tasks 1--7 and the isolated candidate build were completed. The candidate is `blocked`: official item search coverage is capped, so source/item/option/set/track authority and the candidate SimC identity remain unverified. The candidate did not change an Active Manifest pointer or production data. See [candidate evidence](../../../artifacts/releases/2026-08-12-midnight-season-2-data-foundation/evidence.json).
+
+**Execution authority:** This file is retained as the candidate's implementation record because the release packet binds it. Its unchecked historical checklist is not a live task board and does not authorize a rerun, source admission, promotion, runtime activation, or deployment. A new task-scoped plan is required after the source-capture approach is reconsidered.
+
 **Goal:** Build an isolated, deterministic Midnight Season 2 End Game data repository and dormant candidate Release containing equipment, tier sets, gems, enchants, embellishments, crafted data, and governed item-level tracks without changing the active Season 1 Manifest.
 
 **Architecture:** Add a data-driven S2 End Game binding and repository builder beside the existing S1-compatible contracts. Feed official Battle.net/client evidence and SimC 12.1 probes into normalized source, item, option, set, and track records; then reuse the existing Catalog v3, Exact Registry, Gear Release, shadow, and candidate evidence gates. S2 is prepared as one complete End Game pool; official unlock dates are capture evidence only and never filter Catalog membership.
@@ -502,7 +506,7 @@ git commit -m "feat: build dormant Season 2 end game candidate"
 Add this row to the current execution-plan table in `docs/plans/README.md`:
 
 ```markdown
-| 至暗之夜 S2 End Game 数据仓库候选构建 | 正在推进 | [设计](../superpowers/specs/2026-08-12-midnight-season-2-data-repository-design.md) · [实施计划](../superpowers/plans/2026-08-12-midnight-season-2-data-repository.md) |
+| 至暗之夜 S2 End Game 数据仓库候选构建 | 已构建；官方 capture `blocked`，不授予继续执行权 | [设计](../specs/2026-08-12-midnight-season-2-data-repository-design.md) · [实施记录](2026-08-12-midnight-season-2-data-repository.md) |
 ```
 
 - [ ] **Step 2: Create the isolated evidence root**

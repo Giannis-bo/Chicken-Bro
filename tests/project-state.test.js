@@ -44,7 +44,7 @@ test('project-state is the single machine-readable current truth entry', () => {
   const state = readJson(projectStatePath)
 
   assert.equal(state.schemaVersion, 1)
-  assert.equal(state.updatedAt, '2026-07-29')
+  assert.equal(state.updatedAt, '2026-08-12')
   assert.equal(state.activeMilestone, 'taro_target_first_14_route_rebuild')
   assert.equal(state.featureIteration, 'allowed_under_harness')
   assert.equal(state.activeReleaseArtifact, undefined)
@@ -106,6 +106,15 @@ test('project-state is the single machine-readable current truth entry', () => {
   assert.ok(!activeContractIds.has('equipment_simulator_phase1_catalog_contract'))
   assert.ok(!activeContractIds.has('equipment_simulator_phase3_resolved_snapshot'))
   assert.ok(!activeContractIds.has('equipment_simulator_phase2_exact_enhancement'))
+  assert.ok(activeContractIds.has('midnight_season_2_endgame_data_candidate'))
+  const s2Candidate = state.activeContracts.find(
+    (entry) => entry.id === 'midnight_season_2_endgame_data_candidate',
+  )
+  assert.equal(s2Candidate?.status, 'candidate_blocked_official_capture')
+  assert.equal(
+    s2Candidate?.evidence,
+    'artifacts/releases/2026-08-12-midnight-season-2-data-foundation/evidence.json',
+  )
   const catalogMigrationPhase0 = state.activeContracts.find(
     (entry) => entry.id === 'equipment_simulator_catalog_migration_phase0',
   )
@@ -465,7 +474,9 @@ test('current truth has one conclusion for UI, PG read-model, Harness normalizat
 
 test('roadmap stays a concise current control plane without PR-level execution history', () => {
   const roadmap = fs.readFileSync('docs/roadmap.md', 'utf8')
-  assert.match(roadmap, /主干架构接合/)
+  assert.match(roadmap, /14 路由 UI 系统重建/)
+  assert.match(roadmap, /至暗之夜 S2 End Game 数据候选/)
+  assert.match(roadmap, /重新讨论完整官方 capture 方案前不再执行/)
   assert.match(roadmap, /canonical resolver/)
   assert.doesNotMatch(roadmap, /Phase 4 第[一二三四五六七八九十]+刀/)
   assert.ok(roadmap.split('\n').length <= 150)
@@ -1053,7 +1064,7 @@ test('runtime review control plane keeps superseded evidence in Git history only
   assert.equal(runtimeFiles.length, 0)
 })
 
-test('superseded execution documents are absent from the active control plane', (t) => {
+test('superseded execution documents are absent while the blocked S2 record remains explicit', (t) => {
   const ignoredMetadata = 'docs/superpowers/.DS_Store'
   fs.mkdirSync('docs/superpowers', { recursive: true })
   fs.writeFileSync(ignoredMetadata, 'ignored metadata')
@@ -1068,8 +1079,14 @@ test('superseded execution documents are absent from the active control plane', 
 
   const trackedResult = spawnSync('git', ['ls-files', '--', 'docs/superpowers'], { encoding: 'utf8' })
   assert.equal(trackedResult.status, 0, trackedResult.stderr)
-  const supersededDocs = trackedResult.stdout.trim().split('\n').filter(Boolean)
-  assert.equal(supersededDocs.length, 0)
+  const retainedS2Docs = trackedResult.stdout.trim().split('\n').filter(Boolean).sort()
+  assert.deepEqual(retainedS2Docs, [
+    'docs/superpowers/plans/2026-08-12-midnight-season-2-data-repository.md',
+    'docs/superpowers/specs/2026-08-12-midnight-season-2-data-repository-design.md',
+  ])
+  const s2Plan = fs.readFileSync(retainedS2Docs[0], 'utf8')
+  assert.match(s2Plan, /not a live task board/)
+  assert.match(s2Plan, /does not authorize a rerun/)
   const gearRunbook = fs.readFileSync('docs/gear-simulation-full-chain-runbook.md', 'utf8')
   const uiPlan = fs.readFileSync('docs/plans/ui-reconstruction.md', 'utf8')
   assert.doesNotMatch(gearRunbook, /docs\/plans\/2026-07-11-equipment-simulator/)
@@ -1093,7 +1110,8 @@ test('current documentation follows the active Taro and Harness control plane', 
   assert.match(docsMap, /cdn-asset-publishing\.md/)
   assert.match(docsMap, /gear-attribute-rule-source-ledger\.md/)
   assert.ok(harness.indexOf('docs/project-state.json') < harness.indexOf('docs/roadmap.md'))
-  assert.match(roadmap, /\| 已完成 \| 主干架构接合 \|/)
+  assert.match(roadmap, /\| P0 \| 14 路由 UI 系统重建 \|/)
+  assert.match(roadmap, /S2 End Game 数据候选[\s\S]*`blocked`/)
   assert.match(newsArchitecture, /apps\/mini-taro/)
   assert.doesNotMatch(newsArchitecture, /接入域名、HTTPS、微信合法域名配置/)
   assert.match(buildsArchitecture, /apps\/mini-taro/)

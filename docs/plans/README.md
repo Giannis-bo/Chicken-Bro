@@ -1,7 +1,7 @@
 # 计划索引
 
 只有“当前执行计划”表中的条目拥有执行权。不要按日期扫描本目录，也不要从目录存在、Git
-历史、旧 release packet 或下方稳定参考恢复已归档阶段。
+历史或旧 release packet 恢复已归档阶段。稳定参考只解释现有实现边界，不是执行授权。
 
 ## 当前执行计划
 
@@ -12,40 +12,30 @@
 | 装备模板保存、导入、清空与天赋 winner 投影 | 正在推进 | [2026-07-22-gear-template-projection.md](2026-07-22-gear-template-projection.md) |
 | 社区装备 SimC 回填公平性与导入门禁 | 正在推进 | [2026-07-25-community-gear-backfill-fairness.md](2026-07-25-community-gear-backfill-fairness.md) |
 | Taro 装备候选与强化编辑恢复 | 正在推进 | [设计](2026-07-24-taro-gear-editor-recovery-design.md) · [实施计划](2026-07-24-taro-gear-editor-recovery-implementation.md) |
-| 装备强化资格与已确认标记对齐 | 正在推进 | [实施计划](2026-07-29-gear-enhancement-rule-alignment.md) |
 | Manifest 装备详情与 Catalog Browse 完整性修复 | 正在推进 | [实施计划](2026-07-29-manifest-catalog-progression-display-contract.md) |
-| 至暗之夜 S2 End Game 数据仓库候选构建 | 正在推进 | [设计](../superpowers/specs/2026-08-12-midnight-season-2-data-repository-design.md) · [实施计划](../superpowers/plans/2026-08-12-midnight-season-2-data-repository.md) |
-| 装备模拟端到端完整性验证 Goal | 暂缓 | [Goal 控制计划](2026-07-29-equipment-simulator-e2e-completeness-goal.md) |
-| 装备模拟 Exact-first 与三来源 Catalog | 正在推进（Task 3A delivery closure 已完成：第八次 candidate `t3a260805163536` 的正式状态仍为 `runtime_verified / candidate_verified`、closure `pending`。Task 4P/4L pure-domain、Task 3B 和 Task 4W delivery closure 已归档，后两者同样不代表用户闭环。Task 5A local source/profile/job/API/client binding 已完成，ready path 仍 literal blocked；Task 5B 已冻结 active authority source gap。Task 5C 已合入 main：最终候选运行时仍为 `runtime_verified / candidate_verified`，provider/worker 未启用。production foundation 已在正式 PostgreSQL 以 `0030`--`0035` runtime-verified 落地，provider/worker 继续禁用；首 source aggregate audit 为零，完整 source 仍 literal blocked，不启动 activation。） | [持久化与运行链重排](2026-08-04-equipment-simulator-exact-first-persistence-resequence.md) · [Task 4L public witness](2026-08-06-equipment-simulator-exact-first-task4l-loadout-effect-authority.md) · [Task 5A 设计](2026-08-07-equipment-simulator-exact-first-task5a-api-runtime.md) · [Task 5B authority-source contract](2026-08-07-equipment-simulator-exact-first-task5b-active-authority-source.md) · [Task 5C design](2026-08-10-equipment-simulator-exact-first-task5c-runtime-authority-release-design.md) · [Task 5C implementation plan](2026-08-10-equipment-simulator-exact-first-task5c-runtime-authority-release-implementation.md) · [Production foundation design](2026-08-10-exact-first-production-foundation-deployment-design.md) · [implementation plan](2026-08-10-exact-first-production-foundation-deployment-implementation.md) · [requirement](../../artifacts/releases/2026-08-10-equipment-simulator-exact-first-production-foundation-deployment/requirement.json) · [evidence](../../artifacts/releases/2026-08-10-equipment-simulator-exact-first-production-foundation-deployment/evidence.json) · [Task 5C evidence](../../artifacts/releases/2026-08-10-equipment-simulator-exact-first-task5c-runtime-authority-release/evidence.json) · [Task 3A evidence](../../artifacts/releases/2026-08-04-equipment-simulator-exact-first/evidence.json) · [Task 3B evidence](../../artifacts/releases/2026-08-06-equipment-simulator-exact-first-task3b/evidence.json) · [Task 4W evidence](../../artifacts/releases/2026-08-06-equipment-simulator-exact-first-task4w/evidence.json) |
-| 装备模拟 Canonical Kernel 重设计 | 已完成（pure foundation + source_change_control_only；不含 runtime/release） | [重设计](2026-08-04-equipment-simulator-canonical-kernel-redesign.md) · [已停止的原实施计划](2026-08-04-equipment-simulator-canonical-kernel-implementation.md) · [owner change-control](2026-08-04-equipment-simulator-canonical-owner-change-control.md) · [重复 effect subject 纠偏](2026-08-04-equipment-simulator-duplicate-effect-subject-correction.md) |
-| Exact-first Task 5C Runtime Authority Release | 已合入 / candidate verified（PR #119 merge `f4dbb13c`；正式 packet 仍为 `runtime_verified / candidate_verified`，provider/worker/生产与用户验收未发生） | [设计](2026-08-10-equipment-simulator-exact-first-task5c-runtime-authority-release-design.md) · [实施计划](2026-08-10-equipment-simulator-exact-first-task5c-runtime-authority-release-implementation.md) · [evidence](../../artifacts/releases/2026-08-10-equipment-simulator-exact-first-task5c-runtime-authority-release/evidence.json) |
-| Exact-first Production Foundation Deployment | 已完成 / runtime verified（正式 backup、`0030`--`0035`、221 runtime file hashes、backend-only smoke 与 aggregate audit 已记录；provider/worker disabled，`eligible_source_count=0`，不是用户 Exact 闭环） | [设计](2026-08-10-exact-first-production-foundation-deployment-design.md) · [实施计划](2026-08-10-exact-first-production-foundation-deployment-implementation.md) · [requirement](../../artifacts/releases/2026-08-10-equipment-simulator-exact-first-production-foundation-deployment/requirement.json) · [evidence](../../artifacts/releases/2026-08-10-equipment-simulator-exact-first-production-foundation-deployment/evidence.json) |
-| WebSim / stat-weight 定时同步日志有界化 | 已完成 | [实施计划](2026-07-29-sync-log-bounding.md) · [live evidence](../../artifacts/releases/2026-07-29-sync-log-bounding/evidence.json) |
+| 装备模拟端到端完整性验证 Goal | 暂缓 / `blocked`，等待获批 authority | [Goal 控制计划](2026-07-29-equipment-simulator-e2e-completeness-goal.md) |
+| 装备模拟 Exact-first | 正在推进；`0030`--`0035` production foundation 为 `runtime_verified`，但首 source aggregate 为零，provider/worker 保持 disabled，ready path 继续 literal `blocked` | [当前顺序与边界](2026-08-04-equipment-simulator-exact-first-persistence-resequence.md) · [Runtime Authority 设计](2026-08-10-equipment-simulator-exact-first-task5c-runtime-authority-release-design.md) · [生产基础证据](../../artifacts/releases/2026-08-10-equipment-simulator-exact-first-production-foundation-deployment/evidence.json) |
 | 当前赛季 PVE 装备 Universe 与逐项差集 | 暂缓 | [实施计划](2026-07-29-season-pve-universe-reconciliation.md) |
-| 当前赛季 PVE Journal 静默遗漏门禁 | 已完成 | [实施计划](2026-07-29-season-pve-journal-omission-guard.md) · [live evidence](../../artifacts/releases/2026-07-29-season-pve-journal-omission-guard/evidence.json) |
-| Observed Build Registry 与 80 槽 TemplateSet 重构 | 正在推进 | [设计](2026-07-23-observed-build-registry-design.md) · [核心切片实施计划](2026-07-23-observed-build-registry-core-implementation.md) · [共享玩家切换计划](2026-07-23-observed-build-registry-cutover-implementation.md) |
+| Observed Build Registry 与 80 槽 TemplateSet | 正在推进 | [设计](2026-07-23-observed-build-registry-design.md) · [核心切片](2026-07-23-observed-build-registry-core-implementation.md) · [共享玩家切换](2026-07-23-observed-build-registry-cutover-implementation.md) |
 | builds_home 职业命令卡组 | 正在推进 | [builds-home-command-deck.md](builds-home-command-deck.md) |
-| 炸鸡队长统一 ChatBot 与受控分析工具 | 正在推进（Phase 2 已归档；流式交互生产已验证；能力演化 Phase 3–5 未授权） | [后端架构](2026-07-24-chickenbro-chatbot-design.md) · [Phase 1 极简聊天表面](2026-08-01-chickenbro-chat-surface-design.md) · [聊天表面实施计划](2026-08-01-chickenbro-chat-surface-implementation.md) · [来源驱动 Agent 实施计划](2026-08-01-chickenbro-source-agent-implementation.md) · [流式体验设计](2026-08-03-chickenbro-streaming-scroll-design.md) · [流式体验实施计划](2026-08-03-chickenbro-streaming-scroll-implementation.md) · [生产证据](../../artifacts/releases/2026-08-03-chickenbro-streaming-scroll/evidence.json) · [能力演化控制面设计](2026-08-02-chickenbro-capability-evolution-design.md) · [能力演化 Phase 1 实施计划](2026-08-02-chickenbro-observability-phase1-implementation.md) |
-| 炸鸡队长 Smart Question Chain | 正在推进（补充通用公开网页研究 Tool；真实 WeChat 验收仍待办） | [设计](2026-08-03-chickenbro-smart-question-chain-design.md) · [实施计划](2026-08-03-chickenbro-smart-question-chain-implementation.md) · [Evidence Planner 设计](2026-08-04-chickenbro-evidence-planner-design.md) · [Evidence Planner 实施计划](2026-08-04-chickenbro-evidence-planner-implementation.md) · [通用网页 Tool 合同](2026-08-04-chickenbro-generic-public-web-research-tool.md) · [自主研究循环设计](2026-08-04-chickenbro-agentic-research-design.md) · [自主研究循环实施计划](2026-08-04-chickenbro-agentic-research-loop-implementation.md) |
-| 炸鸡队长 Codex 自主研究循环 | 已完成（用户验收原生 Codex Agent 的强度问答、跨问题追问与长对话输入区；main、正式部署和普通/流式 smoke 均已记录） | [设计](2026-08-04-chickenbro-agentic-research-design.md) · [实施计划](2026-08-04-chickenbro-agentic-research-loop-implementation.md) · [发布证据](../../artifacts/releases/2026-08-05-chickenbro-native-agent/evidence.json) · [通用网页 Tool 合同](2026-08-04-chickenbro-generic-public-web-research-tool.md) |
+| 炸鸡队长统一 ChatBot 与受控分析工具 | 正在推进；已交付表面、流式与已发布 Tool 的事实边界，Phase 3--5 仍未授权 | [后端架构](2026-07-24-chickenbro-chatbot-design.md) · [聊天表面设计](2026-08-01-chickenbro-chat-surface-design.md) · [聊天表面实施](2026-08-01-chickenbro-chat-surface-implementation.md) · [来源驱动 Agent](2026-08-01-chickenbro-source-agent-implementation.md) · [能力演化控制面](2026-08-02-chickenbro-capability-evolution-design.md) · [流式生产证据](../../artifacts/releases/2026-08-03-chickenbro-streaming-scroll/evidence.json) |
+| 炸鸡队长 Smart Question Chain 与 Evidence Planner | 正在推进；Evidence Planner 的真实 WeChat 验收待办 | [Question Chain 设计](2026-08-03-chickenbro-smart-question-chain-design.md) · [实施计划](2026-08-03-chickenbro-smart-question-chain-implementation.md) · [Evidence Planner 设计](2026-08-04-chickenbro-evidence-planner-design.md) · [实施计划](2026-08-04-chickenbro-evidence-planner-implementation.md) · [公开网页 Tool 合同](2026-08-04-chickenbro-generic-public-web-research-tool.md) |
 | SQLite 全面退役 | 下一步 | [退役设计](2026-08-02-sqlite-complete-retirement-design.md) |
 
-## 已确认方向（未授权实施）
+## 稳定架构与交付基线
+
+本节的链接是当前实现仍需引用的稳定设计或可复核交付证据；它们不重新打开已完成的
+实施计划。
 
 | 领域 | 状态 | 入口 |
 | --- | --- | --- |
+| 装备模拟长期目标合同 | 已完成 / 仍有效 | [目标架构](2026-07-28-equipment-simulator-target-architecture.md) |
+| 装等轨道规则输入 | 已完成 / 当前规则输入 | [Track Authority 纠偏](2026-07-28-equipment-simulator-track-authority-correction.md) |
+| 至暗之夜 S2 End Game 已构建候选 | `blocked` / 无继续执行权；等待重新讨论完整官方 capture 方案 | [设计](../superpowers/specs/2026-08-12-midnight-season-2-data-repository-design.md) · [实施记录](../superpowers/plans/2026-08-12-midnight-season-2-data-repository.md) · [候选证据](../../artifacts/releases/2026-08-12-midnight-season-2-data-foundation/evidence.json) |
+| Exact-first Runtime Authority 候选 | 已完成候选 / 未授权 activation | [Task 5C 证据](../../artifacts/releases/2026-08-10-equipment-simulator-exact-first-task5c-runtime-authority-release/evidence.json) |
+| 炸鸡队长原生 Agent 运行边界 | 已完成 / 当前架构参考 | [设计](2026-08-04-chickenbro-agentic-research-design.md) · [发布证据](../../artifacts/releases/2026-08-05-chickenbro-native-agent/evidence.json) |
+| Chickenbro Tool Registry Phase 1--2 | 已完成 / 归档证据 | [Phase 1](../../artifacts/releases/2026-08-02-chickenbro-observability-phase1/evidence.json) · [Phase 2](../../artifacts/releases/2026-08-02-chickenbro-tool-registry-phase2/evidence.json) |
 
-## 稳定目标与归档基线
-
-本节只提供长期目标和已完成基线的可达入口，不授予执行权，也不把后续缺陷纠偏或 UI
-验收包装成已归档阶段的续跑。
-
-| 领域 | 状态 | 入口 |
-| --- | --- | --- |
-| 装备模拟长期目标合同 | 已完成 | [目标架构](2026-07-28-equipment-simulator-target-architecture.md) |
-| Exact-first predecessor contracts | 已停止/仅历史参考（不授予执行权） | [Catalog 设计](2026-08-04-equipment-simulator-exact-first-catalog-design.md) · [原实施计划](2026-08-04-equipment-simulator-exact-first-implementation.md) |
-| 装备模拟 v1 基线 | 已完成 | [Phase 4 归档证据](../../artifacts/releases/2026-07-29-equipment-simulator-phase4-manifest-cutover/evidence.json) · [Track Authority 规则输入](2026-07-28-equipment-simulator-track-authority-correction.md) · [Phase 3 归档证据](../../artifacts/releases/2026-07-29-equipment-simulator-phase3-resolved-snapshot/evidence.json) · [Phase 2 归档证据](../../artifacts/releases/2026-07-29-equipment-simulator-phase2-exact-enhancement/evidence.json) · [Phase 1 归档证据](../../artifacts/releases/2026-07-29-equipment-simulator-phase1-catalog-contract/evidence.json) · [Phase 0 归档证据](../../artifacts/releases/2026-07-28-equipment-simulator-phase0-unblock/evidence.json) |
-| 炸鸡队长 Tool Registry Phase 2 基线 | 已完成 | [设计](2026-08-02-chickenbro-tool-registry-phase2-design.md) · [实施记录](2026-08-02-chickenbro-tool-registry-phase2-implementation.md) · [归档证据](../../artifacts/releases/2026-08-02-chickenbro-tool-registry-phase2/evidence.json) |
-
-新的多步骤计划必须先在“当前执行计划”登记。计划完成或被替代后，从当前执行表移除；
-稳定结论进入 architecture、runbook、roadmap 或本页明确标注为无执行权的稳定参考。
+此索引必须覆盖保留在 `docs/plans/` 的全部 Markdown 文件。新的多步骤计划先进入“当前执行计划”；
+完成、停止或被替代后，删除实施文档并把仍有现行价值的规则收敛到 architecture、runbook、roadmap
+或上述稳定参考。Git 历史与 release packet 承担过程归档。
