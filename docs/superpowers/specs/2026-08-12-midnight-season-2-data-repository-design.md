@@ -29,7 +29,7 @@ Battle.net Game Data API 和已保存的官方客户端证据负责：
 - 物品与套装的结构化关系、set identity 和 class membership；
 - 宝石物品身份和官方静态属性描述；
 - 配方、专业、工艺品输出物和可用的工艺修饰槽；
-- S2 来源的 effective window、开放阶段和官方引用。
+- S2 来源的官方引用、数据版本和公告时间证据。
 
 官方来源不能单独证明完整的当前实例属性或 SimC 可执行性。
 
@@ -48,7 +48,7 @@ SimC 不能单独决定官方掉落来源、赛季 membership、职业合法性�
 
 现有 `gear_track_authority.py`、`gear_rule_matrix.py`、`crafted_pve_membership.py` 和 release/catalog 合同继续作为治理 owner。S2 只能通过新的 season/rule binding 使用这些规则；不得在前端或请求处理时复制 S1 规则并推导 S2 结论。
 
-## 3. S2 身份与分阶段开放
+## 3. S2 身份与 End Game 数据范围
 
 固定逻辑 ID 为 `midnight-season-2`。最终 `seasonRevision` 不手写日期或版本号，而由规范化的 S2 season metadata、source policy、官方证据摘要和客户端 build 生成内容 hash，例如：
 
@@ -62,23 +62,28 @@ season-midnight-season-2:<sha256-prefix>
 {
   "seasonId": "midnight-season-2",
   "seasonRevision": "season-midnight-season-2:<hash>",
-  "effectiveWindow": {
-    "startsAt": "<official timestamp>",
-    "endPolicy": "until_officially_superseded",
-    "availabilityStage": "<stage key>"
+  "captureContext": {
+    "capturedAt": "<timestamp>",
+    "officialAnnouncementRefs": [],
+    "clientBuild": "<build>"
   },
   "dataStatus": "verified|partial|blocked|pending",
   "sourceRefs": []
 }
 ```
 
-仓库保留“已采集但尚未开放”的 S2 数据，并由发布读模型按 `effectiveWindow` 判断是否可选。至少覆盖以下阶段：
+本任务不实现 S2 分阶段开放，也不由 Catalog 按官方解锁日期过滤数据。仓库一次性准备完整的 S2 End Game 装备池，官方公告中的日期只作为 `captureContext` 和审计证据保留，不改变候选是否进入 Catalog。
 
-- `s2-preseason-week`: 新副本、轮换、Heroic/Mythic 0、Prey/Delves 的先行开放；
-- `s2-season-week`: Venomous Abyss、Mythic+、PvP S2、Great Vault S2 等正式赛季内容；
-- 后续 raid finder wing、Story Mode 或官方追加内容。
+End Game 数据范围包括：
 
-这样可以在同一份 S2 仓库中保存完整候选，同时避免把未来数据提前显示为当前可用。
+- Venomous Abyss 的所有可核验难度和 Raid Finder wing；
+- S2 Mythic+ 轮换、Mythic 0、Great Vault 奖励池及其对应装等轨道；
+- S2 Delves、Prey、Lair/World Boss 和其他当前治理范围内的高等级奖励池；
+- S2 crafted 输出、工艺质量、工艺副属性和可用美化；
+- S2 tier set membership、set bonus、宝石、附魔、美化和完整装等轨道；
+- 其他能被官方来源和 SimC 12.1 共同绑定的 End Game equipment source。
+
+外观收藏、幻化外观和房屋装饰仍不进入战斗装备 Catalog；若官方来源同时返回这些奖励，单独记录为排除证据。
 
 ## 4. 数据仓库布局
 
@@ -114,7 +119,7 @@ artifacts/releases/2026-08-12-midnight-season-2-data-foundation/
 
 ### 阶段 A：采集与封存
 
-1. 读取 S2 官方公告、Battle.net API、官方客户端/DB2 证据和 SimC 12.1 runtime identity。
+1. 读取完整 S2 End Game 范围的官方公告、Battle.net API、官方客户端/DB2 证据和 SimC 12.1 runtime identity。
 2. 将每个响应写入隔离 staging，生成 SHA-256、请求参数、来源引用和 capture manifest。
 3. 检查官方 client build、SimC runtime revision 和 API namespace 是否一致；不一致时保留证据但将候选标为 `partial/blocked`。
 4. 不从 S1 membership、S1 item variant 或旧 SimC profile 自动推导 S2 membership。
@@ -191,7 +196,7 @@ official/SimC captures
 ## 6. 用户可见状态与安全边界
 
 - verified：可浏览、可进入 Resolve；
-- pending：已纳入 S2 仓库但开放阶段未到，展示“待赛季阶段开放”，不可选择；
+- pending：数据采集或 authority 绑定尚未完成，不可选择；它不表示“未来阶段暂不可用”，而表示当前证据链尚未闭合；
 - partial：来源或属性覆盖不完整，只展示受限事实，不生成完整 SimC 结论；
 - blocked：隐藏于默认选择，并保留可解释 blocker 给数据健康/管理端；
 - stale：旧 S1/旧 capture 不得悄悄回流为 S2。
@@ -223,7 +228,7 @@ Candidate API 可以提供 S2 的 `seasonRevision` 和 readiness summary，但�
 
 ## 8. 回滚与失败策略
 
-数据采集或候选构建失败时，保留 raw evidence 和 blocked audit，停止在该阶段，不删除 S1 数据。候选 Release 未 seal 或 seal 后未 promote 都不影响线上；需要回滚时只回到 S1 last-known-good Manifest，不拼接 S1/S2 表或 option。
+数据采集或候选构建失败时，保留 raw evidence 和 blocked audit，停止在当前构建步骤，不删除 S1 数据。候选 Release 未 seal 或 seal 后未 promote 都不影响线上；需要回滚时只回到 S1 last-known-good Manifest，不拼接 S1/S2 表或 option。
 
 若 S2 某个 source、套装、强化项或轨道证据不完整，则只阻断相应 membership/option/track，不把整个仓库伪装成完整；但 candidate promotion 必须按 release gate 的要求处理整体缺口。
 
