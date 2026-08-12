@@ -5,7 +5,7 @@
   "status": "implementation_allowed",
   "highestEvidenceLevel": "implementation_allowed",
   "branch": "codex/midnight-season-2-endgame",
-  "commit": "e5dad0d6005f83e66eca064a734161553fbbd844",
+  "commit": "653cf527cd4641b1f37aab78b829cf2a7fd45b99",
   "identities": {
     "runtime": {
       "status": "pending",
@@ -13,7 +13,7 @@
     },
     "verification": {
       "status": "pending",
-      "reason": "Fresh exact-head Harness binding is pending until the evidence packet and documentation row are committed."
+      "reason": "Fresh exact-head Harness check passed for the committed candidate; this blocked, non-closure packet conservatively keeps verification identity pending rather than promoting it."
     },
     "closure": {
       "status": "not_applicable",
