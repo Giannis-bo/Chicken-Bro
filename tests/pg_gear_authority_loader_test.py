@@ -2032,6 +2032,75 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
         self.assertNotIn("item-head", context["itemsById"])
         self.assertIn("itemsById.item-head", context["missingFields"])
 
+    def test_loader_binds_verified_s2_set_membership_and_blocks_conflicted_item(self):
+        s2_revision = "season-midnight-season-2:fixture"
+        item = self.item_row(
+            item={"payload": {"itemSetId": "1983"}},
+            variant={"payload": {"itemSetId": "1983"}},
+        )
+        intent = self.intent()
+        intent["authoredAgainst"]["seasonRevision"] = s2_revision
+        runtime = self.runtime_authority()
+        context = pg_gear_authority_loader.build_gear_authority_context_from_rows(
+            intent,
+            runtime,
+            manifest={
+                "seasonRevision": s2_revision,
+                "gearCatalogReleaseId": "gear-release-s2",
+                "gearCatalogRevision": "gear-s2",
+            },
+            dependency_vector={
+                "seasonRevision": s2_revision,
+                "gearCatalogReleaseId": "gear-release-s2",
+                "gearCatalogRevision": "gear-s2",
+                **runtime["dependencyRevisions"],
+            },
+            item_rows=[item],
+            option_rows=[],
+            set_membership={
+                "schemaRevision": "season-set-membership-v1",
+                "status": "verified",
+                "seasonRevision": s2_revision,
+                "setMembershipRevision": "s2-sets:sha256:fixture",
+                "sets": [],
+                "itemsById": {
+                    "item-head": {
+                        "itemId": "item-head",
+                        "itemSetId": "1983",
+                        "seasonRevision": s2_revision,
+                        "status": "verified",
+                    }
+                },
+                "blockedItemIds": [],
+            },
+        )
+
+        self.assertEqual(context["setMembershipRevision"], "s2-sets:sha256:fixture")
+        self.assertEqual(context["itemsById"]["item-head"]["itemSetId"], "1983")
+
+        blocked = pg_gear_authority_loader.build_gear_authority_context_from_rows(
+            intent,
+            runtime,
+            manifest={"seasonRevision": s2_revision},
+            dependency_vector={
+                "seasonRevision": s2_revision,
+                **runtime["dependencyRevisions"],
+            },
+            item_rows=[item],
+            option_rows=[],
+            set_membership={
+                "schemaRevision": "season-set-membership-v1",
+                "status": "blocked",
+                "seasonRevision": s2_revision,
+                "setMembershipRevision": "s2-sets:sha256:fixture",
+                "sets": [],
+                "itemsById": {},
+                "blockedItemIds": ["item-head"],
+            },
+        )
+        self.assertIn("setMembership.status", blocked["missingFields"])
+        self.assertNotIn("item-head", blocked["itemsById"])
+
     def test_loaded_context_resolves_without_facade_or_client_authority(self):
         from server import gear_resolver
 
