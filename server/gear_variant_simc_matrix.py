@@ -14,6 +14,7 @@ from .simc_support_policy import (
 
 
 GEAR_VARIANT_SIMC_MATRIX_SCHEMA_REVISION = "gear-variant-simc-matrix-v1"
+S2_VARIANT_IDENTITY_SCHEMA_REVISION = "gear-variant-identity-v1"
 
 SmokeCallback = Callable[..., Any]
 
@@ -401,7 +402,265 @@ def build_gear_variant_simc_matrix(
     return _canonical(report)
 
 
+_S2_TERTIARY_STAT_KEYS = frozenset(
+    {
+        "avoidance",
+        "avoidance_rating",
+        "leech",
+        "leech_rating",
+        "speed",
+        "speed_rating",
+    }
+)
+
+
+def _s2_bonus_ids(row: Mapping[str, Any]) -> list[str]:
+    value: Any = row.get("bonusIds")
+    if value in (None, "", []):
+        value = row.get("bonus_id")
+    if value in (None, "", []):
+        options = _mapping(row.get("simcOptions") or row.get("simc_options"))
+        value = options.get("bonus_id")
+    if isinstance(value, str):
+        values = value.replace(",", "/").split("/")
+    elif isinstance(value, (list, tuple, set, frozenset)):
+        values = list(value)
+    else:
+        values = []
+    return sorted({_text(item) for item in values if _text(item)})
+
+
+def _s2_static_stats(row: Mapping[str, Any]) -> dict[str, int | float] | None:
+    raw = row.get("staticStats")
+    if not isinstance(raw, Mapping) or not raw:
+        return None
+    result: dict[str, int | float] = {}
+    for key, value in raw.items():
+        normalized_key = _text(key)
+        if (
+            not normalized_key
+            or isinstance(value, bool)
+            or not isinstance(value, (int, float))
+        ):
+            return None
+        result[normalized_key] = value
+    return dict(sorted(result.items()))
+
+
+def _s2_progression_key(row: Mapping[str, Any]) -> str:
+    return json.dumps(
+        _canonical(row.get("progressionState")),
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+
+
+def _s2_variant_failure(code: str, message: str) -> dict[str, str]:
+    return {"code": code, "message": message}
+
+
+def build_s2_variant_identity_report(
+    rows: Any,
+    *,
+    season_revision: str,
+    simc_runtime_revision: str,
+) -> dict[str, Any]:
+    """Normalize Browse observations by S2 identity and reject conflicts.
+
+    Tertiary-only differences are observations of the same canonical Browse
+    variant. Core differences for the same ``itemId + progressionState`` are
+    never resolved by ordering; they block the group and the report.
+    """
+
+    expected_season = _text(season_revision)
+    expected_runtime = _text(simc_runtime_revision)
+    failures: list[dict[str, str]] = []
+    if not expected_season.startswith("season-midnight-season-2:"):
+        failures.append(
+            _s2_variant_failure(
+                "GEAR_VARIANT_SEASON_REVISION_INVALID",
+                "S2 variant identity requires a season-midnight-season-2 revision.",
+            )
+        )
+    if not expected_runtime:
+        failures.append(
+            _s2_variant_failure(
+                "GEAR_VARIANT_SIMC_RUNTIME_REVISION_MISSING",
+                "S2 variants require one immutable SimC runtime revision.",
+            )
+        )
+    groups: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    input_rows = rows if isinstance(rows, list) else []
+    if not isinstance(rows, list):
+        failures.append(
+            _s2_variant_failure(
+                "GEAR_VARIANT_INPUT_MALFORMED",
+                "S2 variant observations must be a list.",
+            )
+        )
+
+    for raw in input_rows:
+        row = dict(raw) if isinstance(raw, Mapping) else {}
+        item_id = _text(row.get("itemId"))
+        variant_key = _text(row.get("variantKey"))
+        row_revision = _text(row.get("seasonRevision"))
+        row_runtime = _text(row.get("simcRuntimeRevision"))
+        progression = row.get("progressionState")
+        row_failures: list[str] = []
+        if not item_id:
+            row_failures.append("GEAR_VARIANT_ITEM_ID_MISSING")
+        if not variant_key:
+            row_failures.append("GEAR_VARIANT_KEY_MISSING")
+        if _text(row.get("rowFamily")) != "browse":
+            row_failures.append("GEAR_VARIANT_ROW_FAMILY_NOT_BROWSE")
+        if row_revision != expected_season:
+            row_failures.append("GEAR_VARIANT_IDENTITY_MIXED_REVISION")
+        if row_runtime != expected_runtime:
+            row_failures.append("GEAR_VARIANT_IDENTITY_MIXED_RUNTIME")
+        if not isinstance(progression, Mapping) or not progression:
+            row_failures.append("GEAR_VARIANT_PROGRESSION_STATE_MISSING")
+        item_level = _int_or_none(row.get("itemLevel"))
+        if item_level is None or item_level <= 0:
+            options = _mapping(row.get("simcOptions") or row.get("simc_options"))
+            item_level = _int_or_none(options.get("ilevel"))
+        if item_level is None or item_level <= 0:
+            row_failures.append("GEAR_VARIANT_ITEM_LEVEL_MISSING")
+        bonus_ids = _s2_bonus_ids(row)
+        if not bonus_ids:
+            row_failures.append("GEAR_VARIANT_BONUS_ID_MISSING")
+        static_stats = _s2_static_stats(row)
+        if not static_stats:
+            row_failures.append("GEAR_VARIANT_STATIC_STATS_MISSING")
+        if row_failures:
+            failures.extend(
+                _s2_variant_failure(code, f"S2 variant {variant_key or item_id or 'unknown'} is not promotable.")
+                for code in sorted(set(row_failures))
+            )
+            continue
+        core_stats = {
+            key: value
+            for key, value in (static_stats or {}).items()
+            if key.lower() not in _S2_TERTIARY_STAT_KEYS
+        }
+        if not core_stats:
+            failures.append(
+                _s2_variant_failure(
+                    "GEAR_VARIANT_STATIC_CORE_STATS_MISSING",
+                    f"S2 variant {variant_key} has no non-tertiary static facts.",
+                )
+            )
+            continue
+        progression_key = _s2_progression_key(row)
+        group_key = (item_id, progression_key)
+        groups.setdefault(group_key, []).append(
+            {
+                "row": row,
+                "itemId": item_id,
+                "variantKey": variant_key,
+                "progressionState": _canonical(progression),
+                "itemLevel": item_level,
+                "bonusIds": bonus_ids,
+                "staticStats": static_stats,
+                "coreFacts": {
+                    "itemLevel": item_level,
+                    "bonusIds": bonus_ids,
+                    "staticStats": core_stats,
+                },
+            }
+        )
+
+    normalized_rows: list[dict[str, Any]] = []
+    for group_key in sorted(groups):
+        observations = sorted(
+            groups[group_key],
+            key=lambda observation: _text(observation.get("variantKey")),
+        )
+        canonical_facts = observations[0]["coreFacts"]
+        if any(
+            observation["coreFacts"] != canonical_facts
+            for observation in observations[1:]
+        ):
+            failures.append(
+                _s2_variant_failure(
+                    "GEAR_VARIANT_CANONICAL_DUPLICATE",
+                    "Multiple Browse observations disagree on core facts for one item and progression state.",
+                )
+            )
+            continue
+        canonical_identity = {
+            "seasonRevision": expected_season,
+            "simcRuntimeRevision": expected_runtime,
+            "itemId": observations[0]["itemId"],
+            "progressionState": observations[0]["progressionState"],
+            "coreFacts": canonical_facts,
+        }
+        identity_bytes = json.dumps(
+            canonical_identity,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+        normalized_rows.append(
+            {
+                "seasonRevision": expected_season,
+                "simcRuntimeRevision": expected_runtime,
+                "itemId": observations[0]["itemId"],
+                "variantKey": observations[0]["variantKey"],
+                "canonicalVariantKey": "s2-browse-variant:sha256:"
+                + hashlib.sha256(identity_bytes).hexdigest(),
+                "rowFamily": "browse",
+                "progressionState": observations[0]["progressionState"],
+                "itemLevel": observations[0]["itemLevel"],
+                "bonusIds": observations[0]["bonusIds"],
+                "staticStats": observations[0]["staticStats"],
+                "observationCount": len(observations),
+                "observationVariantKeys": [
+                    observation["variantKey"] for observation in observations
+                ],
+            }
+        )
+
+    failure_codes = sorted(
+        {
+            _text(problem.get("code"))
+            for problem in failures
+            if _text(problem.get("code"))
+        }
+    )
+    if failure_codes:
+        normalized_rows = []
+    report = {
+        "schemaRevision": S2_VARIANT_IDENTITY_SCHEMA_REVISION,
+        "status": "verified" if not failure_codes else "blocked",
+        "seasonRevision": expected_season,
+        "simcRuntimeRevision": expected_runtime,
+        "inputObservationCount": len(input_rows),
+        "uniqueVariantCount": len(normalized_rows),
+        "failureCodes": failure_codes,
+        "problems": sorted(
+            (_canonical(problem) for problem in failures),
+            key=lambda problem: (
+                _text(problem.get("code")),
+                _text(problem.get("message")),
+            ),
+        )[:20],
+        "rows": normalized_rows,
+    }
+    report["reportId"] = _REPORT_ID_PREFIX + hashlib.sha256(
+        json.dumps(
+            report,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()
+    return _canonical(report)
+
+
 __all__ = [
     "GEAR_VARIANT_SIMC_MATRIX_SCHEMA_REVISION",
+    "S2_VARIANT_IDENTITY_SCHEMA_REVISION",
     "build_gear_variant_simc_matrix",
+    "build_s2_variant_identity_report",
 ]

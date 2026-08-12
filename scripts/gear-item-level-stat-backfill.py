@@ -13,6 +13,10 @@ import re
 import sys
 from typing import Any, Callable, Mapping
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
 from server.db import connect_postgres
 from server.gear_item_level_stat_backfill import (
     BACKFILL_SCHEMA_REVISION,
@@ -40,6 +44,11 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--probe-report", required=True)
     parser.add_argument("--output", required=True)
     parser.add_argument("--backup-output", required=True)
+    parser.add_argument(
+        "--season-revision",
+        default="",
+        help="Explicit season identity; S2 is candidate-only and cannot use this legacy PG backfill.",
+    )
     parser.add_argument(
         "--simc-bin",
         default=os.environ.get("WOW_SIMC_BIN", "/opt/wow-simc/current/simc"),
@@ -209,6 +218,10 @@ def main(
     backfill_runner: Callable[..., Mapping[str, Any]] = backfill_exact_rows,
 ) -> int:
     args = _parser().parse_args(argv)
+    if args.season_revision.startswith("season-midnight-season-2:"):
+        raise GearItemLevelStatBackfillError(
+            "legacy PostgreSQL item-level backfill cannot write the Season 2 candidate"
+        )
     environment = os.environ if environ is None else environ
     require_postgres_only_environment(environment)
     root = Path.cwd().resolve() if repo_root is None else Path(repo_root).resolve()

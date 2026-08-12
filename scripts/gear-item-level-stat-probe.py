@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the fixed no-write 48-pair SimC stat probe for raid instance 1305."""
+"""Run the fixed legacy probe or an identity-bound S2 item/stat probe."""
 
 from __future__ import annotations
 
@@ -12,10 +12,15 @@ from pathlib import Path
 import sys
 from typing import Any, Callable, Mapping
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
 from server.db import connect_postgres
 from server.gear_item_level_stat_probe import (
     GearItemLevelStatProbeError,
     build_probe_report,
+    build_season_item_level_stat_probe_report,
     load_instance_items,
     load_profile_presets,
     resolve_item_level_stat,
@@ -33,6 +38,16 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--instance-id", default="1305")
     parser.add_argument("--source-type", default="raid")
+    parser.add_argument(
+        "--season-revision",
+        default="",
+        help="Use the identity-bound Season 2 probe when supplied.",
+    )
+    parser.add_argument(
+        "--track-authority-input",
+        default="",
+        help="JSON input containing explicit S2 track records.",
+    )
     parser.add_argument(
         "--simc-bin",
         default=os.environ.get("WOW_SIMC_BIN", "/opt/wow-simc/current/simc"),
@@ -118,6 +133,28 @@ def _atomic_write(path: Path, report: Mapping[str, Any]) -> None:
         raise
 
 
+def _load_track_records(root: Path, value: str) -> list[dict[str, Any]]:
+    if not value:
+        raise GearItemLevelStatProbeError(
+            "S2 probe requires --track-authority-input"
+        )
+    path = Path(value)
+    path = (path if path.is_absolute() else root / path).resolve()
+    try:
+        path.relative_to(root)
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
+        raise GearItemLevelStatProbeError(
+            "S2 track authority input is unavailable or invalid"
+        ) from exc
+    records = payload.get("records") if isinstance(payload, Mapping) else None
+    if not isinstance(records, list):
+        raise GearItemLevelStatProbeError(
+            "S2 track authority input requires records"
+        )
+    return [dict(row) for row in records if isinstance(row, Mapping)]
+
+
 @contextlib.contextmanager
 def _configured_simc_binary(path: str):
     previous = os.environ.get("WOW_SIMC_BIN")
@@ -168,14 +205,31 @@ def main(
             )
         )
         with _configured_simc_binary(args.simc_bin):
-            report = build_probe_report(
-                items,
-                resolver=resolve,
-                instance_id=args.instance_id,
-                source_type=args.source_type,
-                simc_revision=simc_revision,
-                simc_binary_sha256=binary_sha,
-            )
+            if args.season_revision:
+                track_records = _load_track_records(
+                    root,
+                    args.track_authority_input,
+                )
+                report = build_season_item_level_stat_probe_report(
+                    items,
+                    resolver=lambda item, track: resolve(
+                        item,
+                        int(track.get("itemLevel") or 0),
+                        track,
+                    ),
+                    season_revision=args.season_revision,
+                    simc_runtime_revision=simc_revision,
+                    tracks=track_records,
+                )
+            else:
+                report = build_probe_report(
+                    items,
+                    resolver=resolve,
+                    instance_id=args.instance_id,
+                    source_type=args.source_type,
+                    simc_revision=simc_revision,
+                    simc_binary_sha256=binary_sha,
+                )
     finally:
         try:
             connection.rollback()

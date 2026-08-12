@@ -316,6 +316,106 @@ class GearItemLevelStatProbeTest(unittest.TestCase):
                     resolver=lambda *_args: {},
                 )
 
+    def test_s2_probe_requires_runtime_identity_and_keeps_s2_revision(self):
+        from server.gear_item_level_stat_probe import (
+            build_season_item_level_stat_probe_report,
+        )
+
+        season_revision = "season-midnight-season-2:fixture"
+        items = [
+            {
+                "itemId": "s2-1001",
+                "sourceType": "raid",
+                "sourceKey": "raid:venomous-abyss",
+            }
+        ]
+        tracks = [
+            {
+                "recordKey": "champion-1",
+                "trackKey": "champion",
+                "rank": 1,
+                "maxRank": 6,
+                "itemLevel": 285,
+                "seasonRevision": season_revision,
+                "sourceRefs": ["simc:track-table"],
+            }
+        ]
+
+        def resolver(item, track):
+            return {
+                "simcItemId": item["itemId"],
+                "simcItemLevel": track["itemLevel"],
+                "itemStats": [{"key": "stamina", "value": 100}],
+            }
+
+        report = build_season_item_level_stat_probe_report(
+            items,
+            resolver=resolver,
+            season_revision=season_revision,
+            simc_runtime_revision="simc:12.1.0.69214:fixture",
+            tracks=tracks,
+        )
+
+        self.assertEqual(report["status"], "pass")
+        self.assertEqual(report["seasonRevision"], season_revision)
+        self.assertEqual(
+            report["simcRuntimeRevision"],
+            "simc:12.1.0.69214:fixture",
+        )
+
+        blocked = build_season_item_level_stat_probe_report(
+            items,
+            resolver=resolver,
+            season_revision=season_revision,
+            simc_runtime_revision="",
+            tracks=tracks,
+        )
+
+        self.assertEqual(blocked["status"], "blocked")
+        self.assertIn(
+            "SIMC_RUNTIME_REVISION_MISSING",
+            blocked["problemCodes"],
+        )
+
+    def test_s2_probe_never_normalizes_an_s1_revision_into_s2(self):
+        from server.gear_item_level_stat_probe import (
+            build_season_item_level_stat_probe_report,
+        )
+
+        row = {
+            "itemId": "s2-1001",
+            "sourceType": "raid",
+            "sourceKey": "raid:venomous-abyss",
+            "seasonRevision": "season-midnight-season-1:legacy",
+        }
+        report = build_season_item_level_stat_probe_report(
+            [row],
+            resolver=lambda _item, track: {
+                "simcItemId": "s2-1001",
+                "simcItemLevel": track["itemLevel"],
+                "itemStats": [{"key": "stamina", "value": 100}],
+            },
+            season_revision="season-midnight-season-2:fixture",
+            simc_runtime_revision="simc:12.1.0.69214:fixture",
+            tracks=[
+                {
+                    "recordKey": "champion-1",
+                    "trackKey": "champion",
+                    "rank": 1,
+                    "maxRank": 6,
+                    "itemLevel": 285,
+                    "seasonRevision": "season-midnight-season-2:fixture",
+                    "sourceRefs": ["simc:track-table"],
+                }
+            ],
+        )
+
+        self.assertEqual(report["status"], "blocked")
+        self.assertIn("SEASON_REVISION_MISMATCH", report["problemCodes"])
+        self.assertNotEqual(
+            report.get("seasonRevision"),
+            "season-midnight-season-1:legacy",
+        )
     def test_pg_profile_loader_and_probe_profile_use_exact_cache_source(self):
         from server.gear_item_level_stat_probe import (
             build_item_level_probe_profile,

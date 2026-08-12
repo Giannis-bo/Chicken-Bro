@@ -23,6 +23,9 @@ EXPECTED_TRACKS = (
 EXPECTED_PAIR_COUNT = EXPECTED_ITEM_COUNT * len(EXPECTED_TRACKS)
 _COMMIT_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 _SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
+SEASON_PROBE_SCHEMA_REVISION = "gear-item-level-stat-probe-v3"
+SEASON_PROBE_REPORT_PREFIX = "gear-item-level-stat-probe:sha256:"
+S2_SEASON_REVISION_PREFIX = "season-midnight-season-2:"
 
 
 class GearItemLevelStatProbeError(RuntimeError):
@@ -480,6 +483,252 @@ def validate_probe_report(
     return _text(value.get("reportId")) == expected_report_id
 
 
+def _s2_problem(code: str, message: str) -> dict[str, str]:
+    return {"code": code, "message": message}
+
+
+def _s2_track_records(
+    tracks: Iterable[Mapping[str, Any]],
+    *,
+    season_revision: str,
+) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
+    normalized: list[dict[str, Any]] = []
+    problems: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for raw in tracks if isinstance(tracks, Iterable) else []:
+        if not isinstance(raw, Mapping):
+            problems.append(
+                _s2_problem(
+                    "TRACK_AUTHORITY_RECORD_MALFORMED",
+                    "S2 track authority records must be objects.",
+                )
+            )
+            continue
+        row = dict(raw)
+        record_key = _text(row.get("recordKey"))
+        track_key = _text(row.get("trackKey"))
+        item_level = _integer(row.get("itemLevel"))
+        rank = _integer(row.get("rank"))
+        row_revision = _text(row.get("seasonRevision"))
+        source_refs = sorted(
+            {
+                _text(value)
+                for value in row.get("sourceRefs") or []
+                if _text(value)
+            }
+        )
+        if not record_key or record_key in seen:
+            problems.append(
+                _s2_problem(
+                    "TRACK_AUTHORITY_RECORD_ID_INVALID",
+                    "S2 track authority recordKey must be unique and non-empty.",
+                )
+            )
+        if not track_key or not item_level or not rank:
+            problems.append(
+                _s2_problem(
+                    "TRACK_AUTHORITY_RECORD_CORE_FACTS_MISSING",
+                    "S2 track records require trackKey, rank, and itemLevel.",
+                )
+            )
+        if row_revision != season_revision:
+            problems.append(
+                _s2_problem(
+                    "SEASON_REVISION_MISMATCH",
+                    "S2 track authority record belongs to another season revision.",
+                )
+            )
+        if not source_refs:
+            problems.append(
+                _s2_problem(
+                    "TRACK_AUTHORITY_SOURCE_REFS_MISSING",
+                    "S2 track authority records require source references.",
+                )
+            )
+        if record_key:
+            seen.add(record_key)
+        normalized.append(
+            {
+                **row,
+                "recordKey": record_key,
+                "trackKey": track_key,
+                "rank": rank,
+                "itemLevel": item_level,
+                "seasonRevision": row_revision,
+                "sourceRefs": source_refs,
+            }
+        )
+    if not normalized:
+        problems.append(
+            _s2_problem(
+                "TRACK_AUTHORITY_RECORDS_MISSING",
+                "S2 item-level probes require explicit track authority records.",
+            )
+        )
+    return normalized, problems
+
+
+def build_season_item_level_stat_probe_report(
+    items: Iterable[Mapping[str, Any]],
+    *,
+    resolver: Callable[[dict[str, Any], dict[str, Any]], Mapping[str, Any]],
+    season_revision: str,
+    simc_runtime_revision: str,
+    tracks: Iterable[Mapping[str, Any]],
+) -> dict[str, Any]:
+    """Build an identity-bound S2 item/stat probe without S1 defaults."""
+
+    normalized_season = _text(season_revision)
+    normalized_runtime = _text(simc_runtime_revision)
+    problems: list[dict[str, str]] = []
+    if not normalized_season.startswith(S2_SEASON_REVISION_PREFIX):
+        problems.append(
+            _s2_problem(
+                "SEASON_REVISION_MISMATCH",
+                "S2 item probes require a season-midnight-season-2 revision.",
+            )
+        )
+    if not normalized_runtime:
+        problems.append(
+            _s2_problem(
+                "SIMC_RUNTIME_REVISION_MISSING",
+                "S2 item probes require one immutable SimC runtime revision.",
+            )
+        )
+    normalized_tracks, track_problems = _s2_track_records(
+        tracks,
+        season_revision=normalized_season,
+    )
+    problems.extend(track_problems)
+
+    rows: list[dict[str, Any]] = []
+    input_rows = [dict(row) for row in items if isinstance(row, Mapping)]
+    for item in sorted(input_rows, key=lambda row: _text(row.get("itemId"))):
+        item_id = _text(item.get("itemId"))
+        row_revision = _text(item.get("seasonRevision"))
+        if row_revision and row_revision != normalized_season:
+            problems.append(
+                _s2_problem(
+                    "SEASON_REVISION_MISMATCH",
+                    f"Item {item_id or 'unknown'} belongs to another season revision.",
+                )
+            )
+            continue
+        if not item_id:
+            problems.append(
+                _s2_problem(
+                    "S2_ITEM_ID_MISSING",
+                    "S2 item probe inputs require itemId.",
+                )
+            )
+            continue
+        item_row = {
+            "itemId": item_id,
+            "sourceType": _text(item.get("sourceType")),
+            "sourceKey": _text(item.get("sourceKey")),
+            "levels": [],
+        }
+        for track in normalized_tracks:
+            level = _integer(track.get("itemLevel"))
+            if not normalized_runtime or any(
+                problem.get("code")
+                in {
+                    "TRACK_AUTHORITY_RECORDS_MISSING",
+                    "TRACK_AUTHORITY_RECORD_MALFORMED",
+                    "TRACK_AUTHORITY_RECORD_CORE_FACTS_MISSING",
+                    "SEASON_REVISION_MISMATCH",
+                }
+                for problem in track_problems
+            ):
+                item_row["levels"].append(
+                    {
+                        "recordKey": _text(track.get("recordKey")),
+                        "itemLevel": level,
+                        "status": "blocked",
+                        "errorCode": "S2_PROBE_INPUT_NOT_VERIFIED",
+                    }
+                )
+                continue
+            try:
+                resolved = resolver(item, track)
+                payload = dict(resolved) if isinstance(resolved, Mapping) else {}
+                error_code = _probe_error_code(
+                    payload,
+                    item_id=item_id,
+                    item_level=level,
+                )
+            except Exception:
+                payload = {}
+                error_code = "SIMC_PROBE_FAILED"
+            if error_code:
+                problems.append(_s2_problem(error_code, f"S2 probe failed for {item_id}."))
+                item_row["levels"].append(
+                    {
+                        "recordKey": _text(track.get("recordKey")),
+                        "itemLevel": level,
+                        "status": "blocked",
+                        "errorCode": error_code,
+                    }
+                )
+            else:
+                item_row["levels"].append(
+                    {
+                        "recordKey": _text(track.get("recordKey")),
+                        "itemLevel": level,
+                        "status": "exact",
+                        "statKeys": sorted(
+                            {
+                                _text(stat.get("key"))
+                                for stat in payload.get("itemStats") or []
+                                if isinstance(stat, Mapping) and _text(stat.get("key"))
+                            }
+                        ),
+                    }
+                )
+        rows.append(item_row)
+
+    problem_codes = sorted(
+        {
+            _text(problem.get("code"))
+            for problem in problems
+            if _text(problem.get("code"))
+        }
+    )
+    exact_pair_count = sum(
+        row.get("status") == "exact"
+        for item in rows
+        for row in item.get("levels") or []
+    )
+    expected_pair_count = len(input_rows) * len(normalized_tracks)
+    report = {
+        "schemaRevision": SEASON_PROBE_SCHEMA_REVISION,
+        "status": "pass" if not problem_codes else "blocked",
+        "seasonRevision": normalized_season,
+        "simcRuntimeRevision": normalized_runtime,
+        "trackAuthorityRevision": "track-input:sha256:" + hashlib.sha256(
+            _canonical_bytes(normalized_tracks)
+        ).hexdigest(),
+        "sourceItemCount": len(input_rows),
+        "trackCount": len(normalized_tracks),
+        "targetPairCount": expected_pair_count,
+        "exactPairCount": exact_pair_count,
+        "failedPairCount": max(0, expected_pair_count - exact_pair_count),
+        "items": rows,
+        "problemCodes": problem_codes,
+        "problems": sorted(
+            (_canonical(problem) for problem in problems),
+            key=lambda problem: (
+                _text(problem.get("code")),
+                _text(problem.get("message")),
+            ),
+        )[:20],
+    }
+    report["reportId"] = SEASON_PROBE_REPORT_PREFIX + hashlib.sha256(
+        _canonical_bytes(report)
+    ).hexdigest()
+    return report
+
+
 __all__ = (
     "EXPECTED_EXCLUDED_ITEM_COUNT",
     "EXPECTED_ITEM_COUNT",
@@ -488,6 +737,8 @@ __all__ = (
     "EXPECTED_TRACKS",
     "GearItemLevelStatProbeError",
     "SCHEMA_REVISION",
+    "SEASON_PROBE_SCHEMA_REVISION",
+    "build_season_item_level_stat_probe_report",
     "build_item_level_probe_profile",
     "build_probe_report",
     "load_instance_items",

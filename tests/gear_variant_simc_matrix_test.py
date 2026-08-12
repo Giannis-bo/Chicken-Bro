@@ -8,10 +8,12 @@ try:
     from server.gear_variant_simc_matrix import (
         GEAR_VARIANT_SIMC_MATRIX_SCHEMA_REVISION,
         build_gear_variant_simc_matrix,
+        build_s2_variant_identity_report,
     )
 except ModuleNotFoundError:
     GEAR_VARIANT_SIMC_MATRIX_SCHEMA_REVISION = None
     build_gear_variant_simc_matrix = None
+    build_s2_variant_identity_report = None
 
 
 class RecordingSmoke:
@@ -44,6 +46,109 @@ class RecordingSmoke:
 
 
 class GearVariantSimcMatrixTest(unittest.TestCase):
+    def s2_variant(self, **overrides):
+        row = {
+            "seasonRevision": "season-midnight-season-2:fixture",
+            "simcRuntimeRevision": "simc:12.1.0.69214:fixture",
+            "itemId": "s2-1001",
+            "variantKey": "variant-a",
+            "rowFamily": "browse",
+            "progressionState": {
+                "kind": "upgrade_track",
+                "trackKey": "hero",
+                "rank": 1,
+                "maxRank": 6,
+            },
+            "itemLevel": 305,
+            "bonus_id": "21001/21002",
+            "staticStats": {
+                "stamina": 200,
+                "intellect": 100,
+                "haste_rating": 40,
+                "leech_rating": 2,
+            },
+        }
+        row.update(overrides)
+        return row
+
+    def test_s2_variant_missing_runtime_or_core_facts_is_blocked(self):
+        self.assertIsNotNone(build_s2_variant_identity_report)
+        report = build_s2_variant_identity_report(
+            [self.s2_variant(itemLevel=None)],
+            season_revision="season-midnight-season-2:fixture",
+            simc_runtime_revision="",
+        )
+
+        self.assertEqual(report["status"], "blocked")
+        self.assertIn(
+            "GEAR_VARIANT_SIMC_RUNTIME_REVISION_MISSING",
+            report["failureCodes"],
+        )
+        self.assertIn("GEAR_VARIANT_ITEM_LEVEL_MISSING", report["failureCodes"])
+
+    def test_s2_variant_rejects_s1_row_without_normalizing_it(self):
+        self.assertIsNotNone(build_s2_variant_identity_report)
+        report = build_s2_variant_identity_report(
+            [
+                self.s2_variant(
+                    seasonRevision="season-midnight-season-1:legacy"
+                )
+            ],
+            season_revision="season-midnight-season-2:fixture",
+            simc_runtime_revision="simc:12.1.0.69214:fixture",
+        )
+
+        self.assertEqual(report["status"], "blocked")
+        self.assertIn(
+            "GEAR_VARIANT_IDENTITY_MIXED_REVISION",
+            report["failureCodes"],
+        )
+        self.assertEqual(report["rows"], [])
+
+    def test_s2_variant_collapses_tertiary_only_equivalent_observations(self):
+        self.assertIsNotNone(build_s2_variant_identity_report)
+        first = self.s2_variant()
+        second = self.s2_variant(
+            variantKey="variant-b",
+            staticStats={
+                "stamina": 200,
+                "intellect": 100,
+                "haste_rating": 40,
+                "leech_rating": 9,
+            },
+        )
+
+        report = build_s2_variant_identity_report(
+            [first, second],
+            season_revision="season-midnight-season-2:fixture",
+            simc_runtime_revision="simc:12.1.0.69214:fixture",
+        )
+
+        self.assertEqual(report["status"], "verified")
+        self.assertEqual(report["uniqueVariantCount"], 1)
+        self.assertEqual(report["rows"][0]["observationCount"], 2)
+
+    def test_s2_variant_conflicting_core_facts_is_blocked_without_first_row_wins(self):
+        self.assertIsNotNone(build_s2_variant_identity_report)
+        report = build_s2_variant_identity_report(
+            [
+                self.s2_variant(),
+                self.s2_variant(
+                    variantKey="variant-b",
+                    itemLevel=308,
+                ),
+            ],
+            season_revision="season-midnight-season-2:fixture",
+            simc_runtime_revision="simc:12.1.0.69214:fixture",
+        )
+
+        self.assertEqual(report["status"], "blocked")
+        self.assertIn(
+            "GEAR_VARIANT_CANONICAL_DUPLICATE",
+            report["failureCodes"],
+        )
+        self.assertEqual(report["rows"], [])
+
     def assert_report_contract(self, report, *, expected_failure_code):
         self.assertEqual(
             set(report),
