@@ -8,7 +8,7 @@ import hashlib
 import json
 import re
 import threading
-from typing import Any, Iterable
+from typing import Any, Iterable, Mapping
 
 try:
     from . import gear_socket_authority
@@ -32,6 +32,11 @@ try:
     from .gear_contracts import parse_selection_intent, selection_signature
 except ImportError:
     from gear_contracts import parse_selection_intent, selection_signature
+
+try:
+    from .season_set_membership import validate_set_membership
+except ImportError:
+    from season_set_membership import validate_set_membership
 
 try:
     from .websim_payload import (
@@ -825,8 +830,22 @@ def _project_item(
     evidence: dict[str, dict[str, Any]],
     capability_revision: str,
     season_revision: str,
+    set_membership_item: Mapping[str, Any] | None = None,
+    blocked_set_item: bool = False,
 ) -> dict[str, Any] | None:
     if not isinstance(record, dict) or _text(record.get("sourceStatus")) != "verified":
+        return None
+    if blocked_set_item:
+        return None
+    governed_set_id = _text(
+        (set_membership_item or {}).get("itemSetId")
+        or (set_membership_item or {}).get("setId")
+    )
+    if set_membership_item is not None and (
+        _text(set_membership_item.get("status")) != "verified"
+        or not governed_set_id
+        or _text(set_membership_item.get("seasonRevision")) != season_revision
+    ):
         return None
     payload = _json_value(record.get("payload"), {})
     payload = payload if isinstance(payload, dict) else {}
@@ -848,6 +867,10 @@ def _project_item(
     )
     if len(item_set_ids) > 1:
         return None
+    if governed_set_id and item_set_ids and item_set_ids[0] != governed_set_id:
+        return None
+    if governed_set_id:
+        item_set_ids = [governed_set_id]
     source_ref_ids = []
     for source in verified_sources:
         source_id = _evidence_id("source", source.get("id"))
@@ -1283,6 +1306,7 @@ def build_gear_authority_context_from_rows(
     option_rows: Iterable[Any],
     missing_fields: Iterable[str] = (),
     link_all_applicable_options: bool = False,
+    set_membership: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Project one Authority Context from caller-owned, release-scoped rows."""
 
@@ -1297,6 +1321,38 @@ def build_gear_authority_context_from_rows(
     )
     missing = [*_runtime_missing(runtime), *(_text(value) for value in missing_fields)]
     missing = [value for value in missing if value]
+    season_revision = _text(dependency_vector.get("seasonRevision"))
+    is_s2 = season_revision.startswith("season-midnight-season-2:")
+    set_membership_row = set_membership if isinstance(set_membership, Mapping) else None
+    set_membership_items: Mapping[str, Any] = {}
+    blocked_set_items: set[str] = set()
+    if is_s2:
+        if set_membership_row is None:
+            missing.append("setMembership")
+        else:
+            structural_problems = validate_set_membership(set_membership_row)
+            if structural_problems:
+                missing.append("setMembership.validation")
+            if _text(set_membership_row.get("status")) != "verified":
+                missing.append("setMembership.status")
+            if _text(set_membership_row.get("seasonRevision")) != season_revision:
+                missing.append("setMembership.seasonRevision")
+            if (
+                not structural_problems
+                and _text(set_membership_row.get("status")) == "verified"
+                and _text(set_membership_row.get("seasonRevision")) == season_revision
+                and _text(set_membership_row.get("setMembershipRevision"))
+            ):
+                set_membership_items = (
+                    set_membership_row.get("itemsById")
+                    if isinstance(set_membership_row.get("itemsById"), Mapping)
+                    else {}
+                )
+            blocked_set_items = {
+                _text(item_id)
+                for item_id in (set_membership_row.get("blockedItemIds") or [])
+                if _text(item_id)
+            }
     evidence = _runtime_source_records(runtime)
     items_by_id: dict[str, dict[str, Any]] = {}
     variants_by_key: dict[str, dict[str, Any]] = {}
@@ -1316,7 +1372,14 @@ def build_gear_authority_context_from_rows(
             runtime,
             evidence,
             capability_revision,
-            _text(dependency_vector.get("seasonRevision")),
+            season_revision,
+            set_membership_item=(
+                set_membership_items.get(requested_item_id)
+                if is_s2 and requested_item_id in set_membership_items
+                and isinstance(set_membership_items.get(requested_item_id), Mapping)
+                else None
+            ),
+            blocked_set_item=(is_s2 and requested_item_id in blocked_set_items),
         )
         if item is not None:
             items_by_id[requested_item_id] = item
@@ -1409,6 +1472,11 @@ def build_gear_authority_context_from_rows(
         "evidenceRecordsById": {key: evidence[key] for key in sorted(evidence)},
         "missingFields": sorted(set(missing)),
     }
+    if set_membership_row is not None:
+        context["setMembership"] = _canonical(set_membership_row)
+        revision = _text(set_membership_row.get("setMembershipRevision"))
+        if revision:
+            context["setMembershipRevision"] = revision
     return _canonical(context)
 
 
@@ -1418,6 +1486,7 @@ def load_gear_authority_context(
     runtime_authority: Any,
     *,
     cache: AuthorityContextCache | None = None,
+    set_membership: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Load one canonical Authority Context within a caller-owned transaction."""
 
@@ -1478,6 +1547,7 @@ def load_gear_authority_context(
         item_rows=item_rows,
         option_rows=option_rows,
         missing_fields=[] if season_revision else ["manifest.seasonRevision"],
+        set_membership=set_membership,
     )
     if cache is not None and not context["missingFields"]:
         cache.put(cache_key, context)

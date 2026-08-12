@@ -14,12 +14,90 @@ CURRENT_BINDING = {
     "gearRuleRevision": "gear-rule-matrix-v1",
 }
 
+S2_BINDING = {
+    "seasonRevision": "season-midnight-season-2:fixture",
+    "gearRuleRevision": "midnight-season-2-gear-rule-v1",
+    "trackAuthorityRevision": "midnight-season-2-track-authority-v1",
+}
+
+S2_TRACK_RECORDS = [
+    {
+        "recordKey": "hero-6",
+        "trackKey": "hero",
+        "publicTrackKey": "hero",
+        "progressionKind": "upgrade_track",
+        "rank": 6,
+        "maxRank": 6,
+        "itemLevel": 315,
+        "eligibleSourceTypes": ["raid"],
+        "eligibleSlots": ["head"],
+        "sourceRefs": ["blizzard:s2-track", "simc:s2-track"],
+        "bonusIds": ["s2-hero-6"],
+        "evidenceStatus": "verified",
+        "seasonRevision": S2_BINDING["seasonRevision"],
+        "gearRuleRevision": S2_BINDING["gearRuleRevision"],
+    },
+]
+
 
 def _problem_codes(result):
     return [problem.get("code") for problem in result.get("problems", [])]
 
 
 class GearTrackAuthorityTest(unittest.TestCase):
+    def test_s2_uses_explicit_data_driven_track_records(self):
+        authority = track_authority_for_binding(S2_BINDING, S2_TRACK_RECORDS)
+
+        self.assertEqual(authority["status"], "verified")
+        self.assertEqual(authority["ruleRevision"], S2_BINDING["trackAuthorityRevision"])
+        self.assertEqual(authority["records"][0]["itemLevel"], 315)
+        self.assertEqual(authority["records"][0]["seasonRevision"], S2_BINDING["seasonRevision"])
+
+        resolved = resolve_legacy_browse_progression(
+            {**S2_BINDING, "trackRecords": S2_TRACK_RECORDS},
+            {
+                "trackKey": "hero",
+                "itemLevel": 315,
+                "trackRank": 6,
+                "slot": "head",
+                "sourceType": "raid",
+            },
+        )
+
+        self.assertEqual(resolved["status"], "verified")
+        self.assertEqual(resolved["progressionState"]["rank"], 6)
+        self.assertEqual(resolved["ruleRevision"], S2_BINDING["trackAuthorityRevision"])
+
+    def test_s2_without_explicit_records_does_not_fall_back_to_s1(self):
+        authority = track_authority_for_binding(S2_BINDING)
+        resolved = resolve_legacy_browse_progression(
+            S2_BINDING,
+            {"trackKey": "hero", "itemLevel": 276},
+        )
+
+        self.assertEqual(authority["status"], "blocked")
+        self.assertEqual(
+            _problem_codes(authority),
+            ["TRACK_AUTHORITY_RECORDS_MISSING"],
+        )
+        self.assertEqual(resolved["status"], "blocked")
+        self.assertEqual(
+            _problem_codes(resolved),
+            ["TRACK_AUTHORITY_RECORDS_MISSING"],
+        )
+
+    def test_s2_rejects_unverified_or_mixed_track_records(self):
+        unverified = {**S2_TRACK_RECORDS[0], "evidenceStatus": "pending"}
+        mixed = {**S2_TRACK_RECORDS[0], "seasonRevision": "season-17-f131dd36ddf1"}
+
+        unverified_result = track_authority_for_binding(S2_BINDING, [unverified])
+        mixed_result = track_authority_for_binding(S2_BINDING, [mixed])
+
+        self.assertEqual(unverified_result["status"], "blocked")
+        self.assertIn("TRACK_AUTHORITY_RECORD_NOT_VERIFIED", _problem_codes(unverified_result))
+        self.assertEqual(mixed_result["status"], "blocked")
+        self.assertIn("TRACK_AUTHORITY_SEASON_REVISION_MISMATCH", _problem_codes(mixed_result))
+
     def test_verified_exact_instance_uses_bound_level_and_source_evidence(self):
         regular = resolve_exact_instance_progression(
             CURRENT_BINDING,

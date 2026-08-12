@@ -597,6 +597,35 @@ class GearRuleMatrixTest(unittest.TestCase):
         for forbidden in ("resolvedInstances", "attributes", "itemSetId", "evidenceClaims", "simcLines", "readiness"):
             self.assertNotIn(forbidden, serialized)
 
+    def test_s2_aggregate_requires_verified_set_membership(self):
+        authority = self.authority()
+        s2_revision = "season-midnight-season-2:fixture"
+        authority["manifest"]["seasonRevision"] = s2_revision
+        authority["dependencyVector"]["seasonRevision"] = s2_revision
+        intent = self.intent()
+        intent["authoredAgainst"]["seasonRevision"] = s2_revision
+
+        missing = gear_rule_matrix.evaluate_rule_matrix(intent, authority)
+        aggregate = self.result_for(missing, "cross_slot_set_aggregate")
+        self.assertEqual(aggregate["status"], "blocked")
+        self.assertEqual(
+            aggregate["problems"][0]["code"],
+            "GEAR_AGGREGATE_SET_MEMBERSHIP_UNAVAILABLE",
+        )
+
+        authority["setMembership"] = {
+            "schemaRevision": "season-set-membership-v1",
+            "status": "verified",
+            "seasonRevision": s2_revision,
+            "setMembershipRevision": "s2-sets:sha256:fixture",
+            "itemsById": {},
+        }
+        verified = gear_rule_matrix.evaluate_rule_matrix(intent, authority)
+        self.assertEqual(
+            self.result_for(verified, "cross_slot_set_aggregate")["status"],
+            "verified",
+        )
+
     def test_rule_matrix_exposes_active_set_effect_subjects_in_canonical_order(self):
         """Would fail if tier/set subjects were hidden from the v2 fail-closed boundary."""
         authority = self.authority()

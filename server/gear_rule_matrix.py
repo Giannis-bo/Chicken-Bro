@@ -524,6 +524,43 @@ def _catalyst_tier_overlay(intent: dict[str, Any], authority: dict[str, Any]) ->
 
 def _cross_slot_set_aggregate(intent: dict[str, Any], authority: dict[str, Any]) -> list[dict[str, Any]]:
     problems: list[dict[str, Any]] = []
+    dependency_vector = authority.get("dependencyVector")
+    if isinstance(dependency_vector, Mapping):
+        season_revision = str(dependency_vector.get("seasonRevision") or "")
+        if season_revision.startswith("season-midnight-season-2:"):
+            membership = authority.get("setMembership")
+            if not isinstance(membership, Mapping) or membership.get("status") != "verified":
+                problems.append(_problem(
+                    "GEAR_AGGREGATE_",
+                    "SET_MEMBERSHIP_UNAVAILABLE",
+                    "S2 set membership authority is unavailable.",
+                    kind="AUTHORITY_UNAVAILABLE",
+                    path="setMembership.status",
+                ))
+            elif membership.get("seasonRevision") != season_revision:
+                problems.append(_problem(
+                    "GEAR_AGGREGATE_",
+                    "SET_MEMBERSHIP_REVISION_MISMATCH",
+                    "S2 set membership belongs to another season revision.",
+                    kind="REVISION_CONFLICT",
+                    path="setMembership.seasonRevision",
+                ))
+            elif not str(membership.get("setMembershipRevision") or "").startswith("s2-sets:sha256:"):
+                problems.append(_problem(
+                    "GEAR_AGGREGATE_",
+                    "SET_MEMBERSHIP_REVISION_MISSING",
+                    "S2 set membership requires a content revision.",
+                    kind="AUTHORITY_UNAVAILABLE",
+                    path="setMembership.setMembershipRevision",
+                ))
+            elif membership.get("schemaRevision") != "season-set-membership-v1":
+                problems.append(_problem(
+                    "GEAR_AGGREGATE_",
+                    "SET_MEMBERSHIP_SCHEMA_INVALID",
+                    "S2 set membership schema is not supported.",
+                    kind="AUTHORITY_UNAVAILABLE",
+                    path="setMembership.schemaRevision",
+                ))
     parameters = authority["ruleParameters"]
     selected_ids = {selection["itemId"] for selection in intent["slots"].values()}
     for blocker in parameters.get("crossSlotBlockers", []):
@@ -636,6 +673,19 @@ def loadout_effect_subjects(
     items = authority_context.get("itemsById")
     if not isinstance(parameters, Mapping) or not isinstance(items, Mapping):
         return []
+    dependency_vector = authority_context.get("dependencyVector")
+    if isinstance(dependency_vector, Mapping):
+        season_revision = str(dependency_vector.get("seasonRevision") or "")
+        if season_revision.startswith("season-midnight-season-2:"):
+            membership = authority_context.get("setMembership")
+            if (
+                not isinstance(membership, Mapping)
+                or membership.get("status") != "verified"
+                or membership.get("seasonRevision") != season_revision
+                or not str(membership.get("setMembershipRevision") or "").startswith("s2-sets:sha256:")
+                or membership.get("schemaRevision") != "season-set-membership-v1"
+            ):
+                return []
     subjects: list[dict[str, Any]] = []
 
     def descriptor(

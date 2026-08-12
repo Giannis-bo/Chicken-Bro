@@ -39,6 +39,9 @@ class _TrackRecord:
     qualityKey: str | None
     sourceRefIds: tuple[str, ...]
     evidenceStatus: str = "verified"
+    rank: int | None = None
+    bonusIds: tuple[str, ...] = ()
+    trackAuthorityRevision: str | None = None
 
 
 _SOURCE_REFS = (
@@ -208,15 +211,23 @@ def _dedicated_rank(row: Mapping[str, Any]) -> tuple[bool, int | None]:
     return True, _positive_int(raw_rank)
 
 
-def _problem(code: str, message: str) -> dict[str, str]:
-    return {"code": code, "message": message}
+def _problem(code: str, message: str, path: str = "") -> dict[str, str]:
+    result = {"code": code, "message": message}
+    if path:
+        result["path"] = path
+    return result
 
 
-def _blocked(code: str, message: str) -> dict[str, Any]:
+def _blocked(
+    code: str,
+    message: str,
+    *,
+    rule_revision: str = TRACK_AUTHORITY_RULE_REVISION,
+) -> dict[str, Any]:
     return {
         "status": "blocked",
         "schemaRevision": TRACK_AUTHORITY_SCHEMA_REVISION,
-        "ruleRevision": TRACK_AUTHORITY_RULE_REVISION,
+        "ruleRevision": rule_revision,
         "problems": [_problem(code, message)],
     }
 
@@ -228,16 +239,25 @@ def _blocked_with_progression(
     progression_state: Mapping[str, Any],
 ) -> dict[str, Any]:
     return {
-        **_blocked(code, message),
+        **_blocked(
+            code,
+            message,
+            rule_revision=record.trackAuthorityRevision or TRACK_AUTHORITY_RULE_REVISION,
+        ),
         "recordKey": record.recordKey,
         "progressionState": dict(progression_state),
     }
 
 
-def _public_record(record: _TrackRecord) -> dict[str, Any]:
+def _public_record(
+    record: _TrackRecord,
+    *,
+    season_revision: str | None = None,
+    gear_rule_revision: str | None = None,
+) -> dict[str, Any]:
     payload = asdict(record)
-    payload["seasonRevision"] = _SEASON_REVISION
-    payload["gearRuleRevision"] = _GEAR_RULE_REVISION
+    payload["seasonRevision"] = season_revision or _SEASON_REVISION
+    payload["gearRuleRevision"] = gear_rule_revision or _GEAR_RULE_REVISION
     payload["eligibleSourceTypes"] = list(record.eligibleSourceTypes)
     payload["eligibleSlots"] = list(record.eligibleSlots)
     payload["sourceRefIds"] = list(record.sourceRefIds)
@@ -247,15 +267,199 @@ def _public_record(record: _TrackRecord) -> dict[str, Any]:
         payload.pop("originKind")
     if record.qualityKey is None:
         payload.pop("qualityKey")
+    if record.rank is None:
+        payload.pop("rank")
+    if not record.bonusIds:
+        payload.pop("bonusIds")
+    if record.trackAuthorityRevision is None:
+        payload.pop("trackAuthorityRevision")
+    payload.pop("seasonRevision", None)
+    payload.pop("gearRuleRevision", None)
+    payload["seasonRevision"] = season_revision or _SEASON_REVISION
+    payload["gearRuleRevision"] = gear_rule_revision or _GEAR_RULE_REVISION
     return payload
 
 
-def track_authority_for_binding(binding: Any) -> dict[str, Any]:
-    """Return the exact verified Track Authority or a blocked binding."""
+def _binding_source_refs(binding: Mapping[str, Any]) -> list[Any]:
+    value = binding.get("sourceRefs")
+    if isinstance(value, list):
+        return [_canonical(source) for source in value if source]
+    return []
 
-    row = binding if isinstance(binding, Mapping) else {}
-    season_revision = _text(row.get("seasonRevision"))
-    gear_rule_revision = _text(row.get("gearRuleRevision"))
+
+def _canonical(value: Any) -> Any:
+    if isinstance(value, Mapping):
+        return {
+            str(key): _canonical(value[key])
+            for key in sorted(value, key=lambda item: str(item))
+        }
+    if isinstance(value, (list, tuple)):
+        return [_canonical(item) for item in value]
+    if isinstance(value, set):
+        return sorted(_canonical(item) for item in value)
+    return value
+
+
+def _text_list(value: Any) -> tuple[str, ...]:
+    if isinstance(value, str):
+        values = value.replace(",", "/").split("/")
+    elif isinstance(value, (list, tuple, set, frozenset)):
+        values = list(value)
+    else:
+        return ()
+    return tuple(sorted({_text(item) for item in values if _text(item)}))
+
+
+def _data_record(
+    raw: Any,
+    *,
+    index: int,
+    season_revision: str,
+    gear_rule_revision: str,
+    track_authority_revision: str,
+) -> tuple[_TrackRecord | None, list[dict[str, str]]]:
+    row = raw if isinstance(raw, Mapping) else {}
+    problems: list[dict[str, str]] = []
+    path = f"records[{index}]"
+    record_key = _text(row.get("recordKey"))
+    track_key = _text(row.get("publicTrackKey") or row.get("trackKey")).lower()
+    progression_kind = _text(row.get("progressionKind")).lower()
+    if not record_key:
+        problems.append(_problem("TRACK_AUTHORITY_RECORD_KEY_MISSING", "S2 track record requires recordKey."))
+    if not track_key:
+        problems.append(_problem("TRACK_AUTHORITY_TRACK_KEY_MISSING", "S2 track record requires trackKey."))
+    if progression_kind not in {"upgrade_track", "crafted_quality", "ascendant", "season_special"}:
+        problems.append(_problem("TRACK_AUTHORITY_PROGRESSION_KIND_INVALID", "S2 track progression kind is not governed."))
+
+    record_season = _text(row.get("seasonRevision"))
+    if record_season != season_revision:
+        problems.append(_problem("TRACK_AUTHORITY_SEASON_REVISION_MISMATCH", "S2 track record belongs to another season revision.", f"{path}.seasonRevision"))
+    record_rule = _text(row.get("gearRuleRevision"))
+    if record_rule != gear_rule_revision:
+        problems.append(_problem("TRACK_AUTHORITY_GEAR_RULE_REVISION_MISMATCH", "S2 track record belongs to another gear-rule revision.", f"{path}.gearRuleRevision"))
+    evidence_status = _text(row.get("evidenceStatus") or row.get("status")).lower()
+    if evidence_status != "verified":
+        problems.append(_problem("TRACK_AUTHORITY_RECORD_NOT_VERIFIED", "S2 track record evidence is not verified.", f"{path}.evidenceStatus"))
+
+    item_level = _positive_int(row.get("itemLevel"))
+    if item_level is None:
+        problems.append(_problem("TRACK_AUTHORITY_ITEM_LEVEL_MISSING", "S2 track record requires an exact itemLevel.", f"{path}.itemLevel"))
+    max_rank = _positive_int(row.get("maxRank"))
+    rank = _positive_int(row.get("rank"))
+    if progression_kind == "upgrade_track":
+        if max_rank is None:
+            problems.append(_problem("TRACK_AUTHORITY_MAX_RANK_MISSING", "Upgrade track requires maxRank.", f"{path}.maxRank"))
+        if rank is None:
+            problems.append(_problem("TRACK_AUTHORITY_RANK_MISSING", "Upgrade track requires rank.", f"{path}.rank"))
+        if max_rank is not None and rank is not None and rank > max_rank:
+            problems.append(_problem("TRACK_AUTHORITY_RANK_INVALID", "Track rank cannot exceed maxRank.", f"{path}.rank"))
+
+    source_refs = _text_list(row.get("sourceRefIds") or row.get("sourceRefs"))
+    if not source_refs:
+        problems.append(_problem("TRACK_AUTHORITY_SOURCE_REFS_MISSING", "S2 track record requires source references.", f"{path}.sourceRefs"))
+    eligible_sources = _text_list(row.get("eligibleSourceTypes"))
+    eligible_slots = _text_list(row.get("eligibleSlots"))
+    if not isinstance(row.get("eligibleSourceTypes"), (list, tuple, set, frozenset, str)):
+        problems.append(_problem("TRACK_AUTHORITY_SOURCE_ELIGIBILITY_MISSING", "S2 track record requires source eligibility.", f"{path}.eligibleSourceTypes"))
+    if not isinstance(row.get("eligibleSlots"), (list, tuple, set, frozenset, str)):
+        problems.append(_problem("TRACK_AUTHORITY_SLOT_ELIGIBILITY_MISSING", "S2 track record requires slot eligibility.", f"{path}.eligibleSlots"))
+
+    bonus_ids = _text_list(row.get("bonusIds"))
+    bonus_evidence = row.get("bonusEvidence")
+    if isinstance(bonus_evidence, list):
+        for evidence in bonus_evidence:
+            if isinstance(evidence, Mapping):
+                bonus_ids = tuple(sorted({*bonus_ids, *_text_list(evidence.get("bonusIds"))}))
+    if progression_kind in {"upgrade_track", "ascendant"} and not bonus_ids:
+        problems.append(_problem("TRACK_AUTHORITY_BONUS_EVIDENCE_MISSING", "S2 upgrade records require explicit bonus evidence.", f"{path}.bonusEvidence"))
+
+    if problems:
+        return None, problems
+    return _TrackRecord(
+        recordKey=record_key,
+        publicTrackKey=track_key,
+        progressionKind=progression_kind,
+        itemLevel=item_level,
+        maxRank=max_rank,
+        eligibleSourceTypes=eligible_sources,
+        eligibleSlots=eligible_slots,
+        originKind=_text(row.get("originKind")) or None,
+        qualityKey=_text(row.get("qualityKey")) or None,
+        sourceRefIds=source_refs,
+        evidenceStatus="verified",
+        rank=rank,
+        bonusIds=bonus_ids,
+        trackAuthorityRevision=track_authority_revision,
+    ), []
+
+
+def _build_data_driven_authority(
+    binding: Mapping[str, Any],
+    records: list[Any],
+) -> dict[str, Any]:
+    season_revision = _text(binding.get("seasonRevision"))
+    gear_rule_revision = _text(binding.get("gearRuleRevision"))
+    track_authority_revision = _text(binding.get("trackAuthorityRevision"))
+    problems: list[dict[str, str]] = []
+    if not track_authority_revision:
+        problems.append(_problem("TRACK_AUTHORITY_REVISION_MISSING", "S2 binding requires trackAuthorityRevision."))
+    if not gear_rule_revision:
+        problems.append(_problem("TRACK_AUTHORITY_GEAR_RULE_REVISION_MISSING", "S2 binding requires gearRuleRevision."))
+    normalized: list[_TrackRecord] = []
+    seen_keys: set[str] = set()
+    seen_track_ranks: set[tuple[str, int, str]] = set()
+    for index, raw in enumerate(records):
+        record, record_problems = _data_record(
+            raw,
+            index=index,
+            season_revision=season_revision,
+            gear_rule_revision=gear_rule_revision,
+            track_authority_revision=track_authority_revision,
+        )
+        problems.extend(record_problems)
+        if record is None:
+            continue
+        if record.recordKey in seen_keys:
+            problems.append(_problem("TRACK_AUTHORITY_RECORD_DUPLICATE", "S2 track recordKey is duplicated."))
+        seen_keys.add(record.recordKey)
+        if record.rank is not None:
+            identity = (record.publicTrackKey, record.rank, record.progressionKind)
+            if identity in seen_track_ranks:
+                problems.append(_problem("TRACK_AUTHORITY_RANK_DUPLICATE", "S2 track contains duplicate track/rank records."))
+            seen_track_ranks.add(identity)
+        normalized.append(record)
+    base = {
+        "schemaRevision": TRACK_AUTHORITY_SCHEMA_REVISION,
+        "ruleRevision": track_authority_revision,
+        "trackAuthorityRevision": track_authority_revision,
+        "seasonRevision": season_revision,
+        "gearRuleRevision": gear_rule_revision,
+        "sourceRefs": _binding_source_refs(binding),
+        "records": [
+            _public_record(
+                record,
+                season_revision=season_revision,
+                gear_rule_revision=gear_rule_revision,
+            )
+            for record in normalized
+        ],
+    }
+    return {
+        **base,
+        "status": "verified" if not problems and normalized else "blocked",
+        "problems": sorted(
+            (_canonical(problem) for problem in problems),
+            key=lambda problem: (
+                _text(problem.get("code")),
+                _text(problem.get("path")),
+            ),
+        )[:40],
+    }
+
+
+def _legacy_track_authority(binding: Mapping[str, Any]) -> dict[str, Any]:
+    season_revision = _text(binding.get("seasonRevision"))
+    gear_rule_revision = _text(binding.get("gearRuleRevision"))
     base = {
         "schemaRevision": TRACK_AUTHORITY_SCHEMA_REVISION,
         "ruleRevision": TRACK_AUTHORITY_RULE_REVISION,
@@ -286,14 +490,142 @@ def track_authority_for_binding(binding: Any) -> dict[str, Any]:
     }
 
 
-def _record_for_row(row: Mapping[str, Any]) -> _TrackRecord | None:
+def track_authority_for_binding(
+    binding: Any,
+    records: Any = None,
+) -> dict[str, Any]:
+    """Return exact S1 legacy or explicit data-driven S2 Track Authority."""
+
+    row = binding if isinstance(binding, Mapping) else {}
+    season_revision = _text(row.get("seasonRevision"))
+    if season_revision.startswith("season-midnight-season-2:"):
+        selected_records = records
+        if selected_records is None:
+            selected_records = row.get("trackRecords")
+        if not isinstance(selected_records, list) or not selected_records:
+            return {
+                "schemaRevision": TRACK_AUTHORITY_SCHEMA_REVISION,
+                "ruleRevision": _text(row.get("trackAuthorityRevision")),
+                "trackAuthorityRevision": _text(row.get("trackAuthorityRevision")),
+                "seasonRevision": season_revision,
+                "gearRuleRevision": _text(row.get("gearRuleRevision")),
+                "sourceRefs": _binding_source_refs(row),
+                "status": "blocked",
+                "records": [],
+                "problems": [_problem(
+                    "TRACK_AUTHORITY_RECORDS_MISSING",
+                    "S2 Track Authority requires explicit end game track records.",
+                )],
+            }
+        return _build_data_driven_authority(row, selected_records)
+    return _legacy_track_authority(row)
+
+
+def _records_from_authority(authority: Mapping[str, Any]) -> tuple[_TrackRecord, ...]:
+    records = authority.get("records")
+    if not isinstance(records, list):
+        return ()
+    result: list[_TrackRecord] = []
+    for raw in records:
+        if not isinstance(raw, Mapping):
+            continue
+        result.append(_TrackRecord(
+            recordKey=_text(raw.get("recordKey")),
+            publicTrackKey=_text(raw.get("publicTrackKey") or raw.get("trackKey")).lower(),
+            progressionKind=_text(raw.get("progressionKind")).lower(),
+            itemLevel=_positive_int(raw.get("itemLevel")) or 0,
+            maxRank=_positive_int(raw.get("maxRank")),
+            eligibleSourceTypes=_text_list(raw.get("eligibleSourceTypes")),
+            eligibleSlots=_text_list(raw.get("eligibleSlots")),
+            originKind=_text(raw.get("originKind")) or None,
+            qualityKey=_text(raw.get("qualityKey")) or None,
+            sourceRefIds=_text_list(raw.get("sourceRefIds") or raw.get("sourceRefs")),
+            evidenceStatus=_text(raw.get("evidenceStatus") or raw.get("status")) or "verified",
+            rank=_positive_int(raw.get("rank")),
+            bonusIds=_text_list(raw.get("bonusIds")),
+            trackAuthorityRevision=_text(authority.get("ruleRevision")) or None,
+        ))
+    return tuple(result)
+
+
+def _record_for_row(
+    row: Mapping[str, Any],
+    records: tuple[_TrackRecord, ...] | None = None,
+) -> _TrackRecord | None:
     track_key = _text(row.get("trackKey")).lower()
     source_type = _text(row.get("sourceType")).lower()
-    if source_type == "crafted" and track_key == "myth":
-        return _RECORDS_BY_KEY["crafted_myth"]
-    if source_type == "crafted" and track_key == "void_upgrade":
-        return _RECORDS_BY_KEY["crafted_void_upgrade"]
-    return _RECORDS_BY_KEY.get(track_key)
+    pool = records if records is not None else _RECORDS
+    candidates = [
+        record
+        for record in pool
+        if record.publicTrackKey == track_key or record.recordKey == track_key
+    ]
+    if source_type == "crafted":
+        crafted = [
+            record
+            for record in candidates
+            if record.progressionKind in {"crafted_quality", "ascendant"}
+        ]
+        if crafted:
+            candidates = crafted
+    item_level = _positive_int(row.get("itemLevel"))
+    exact_level = [record for record in candidates if record.itemLevel == item_level]
+    if exact_level:
+        candidates = exact_level
+    if records is not None:
+        eligible = [
+            record
+            for record in candidates
+            if (
+                not record.eligibleSourceTypes
+                or not source_type
+                or source_type in record.eligibleSourceTypes
+            )
+            and (
+                not record.eligibleSlots
+                or not _normalized_slot(row.get("slot"))
+                or _normalized_slot(row.get("slot")) in record.eligibleSlots
+            )
+        ]
+        if eligible:
+            candidates = eligible
+        # Browse authority exposes only the governed maximum of a normal
+        # upgrade track. Lower-rank rows remain exact-instance evidence.
+        maximum = [
+            record
+            for record in candidates
+            if record.progressionKind != "upgrade_track"
+            or record.rank is None
+            or record.maxRank is None
+            or record.rank == record.maxRank
+        ]
+        if maximum:
+            candidates = maximum
+    if not candidates:
+        return None
+    return sorted(
+        candidates,
+        key=lambda record: (
+            record.rank if record.rank is not None else (record.maxRank or 0),
+            record.recordKey,
+        ),
+        reverse=True,
+    )[0]
+
+
+def _authority_blocked_result(authority: Mapping[str, Any]) -> dict[str, Any]:
+    problems = authority.get("problems")
+    if not isinstance(problems, list) or not problems:
+        problems = [_problem(
+            "TRACK_AUTHORITY_BINDING_UNSUPPORTED",
+            "No verified Track Authority matches the exact season and gear-rule revision.",
+        )]
+    return {
+        "status": "blocked",
+        "schemaRevision": TRACK_AUTHORITY_SCHEMA_REVISION,
+        "ruleRevision": _text(authority.get("ruleRevision")) or TRACK_AUTHORITY_RULE_REVISION,
+        "problems": [_canonical(problem) for problem in problems],
+    }
 
 
 def _has_crafted_stats(row: Mapping[str, Any]) -> bool:
@@ -331,15 +663,92 @@ def _bonus_ids(row: Mapping[str, Any]) -> set[str]:
 def _verified_exact_result(
     record_key: str,
     progression_state: Mapping[str, Any],
+    *,
+    rule_revision: str = TRACK_AUTHORITY_RULE_REVISION,
 ) -> dict[str, Any]:
     return {
         "status": "verified",
         "schemaRevision": TRACK_AUTHORITY_SCHEMA_REVISION,
-        "ruleRevision": TRACK_AUTHORITY_RULE_REVISION,
+        "ruleRevision": rule_revision,
         "recordKey": record_key,
         "progressionState": dict(progression_state),
         "problems": [],
     }
+
+
+def _resolve_data_driven_exact_instance(
+    authority: Mapping[str, Any],
+    row: Mapping[str, Any],
+) -> dict[str, Any]:
+    rule_revision = _text(authority.get("ruleRevision")) or TRACK_AUTHORITY_RULE_REVISION
+    item_level = _positive_int(row.get("itemLevel"))
+    if item_level is None:
+        return _blocked(
+            "TRACK_AUTHORITY_EXACT_ILEVEL_UNSUPPORTED",
+            "S2 exact-instance progression requires an exact item level.",
+            rule_revision=rule_revision,
+        )
+    records = _records_from_authority(authority)
+    bonus_ids = _bonus_ids(row)
+    slot = _normalized_slot(row.get("slot"))
+    source_type = _text(row.get("sourceType")).lower()
+    candidates = []
+    for record in records:
+        if record.itemLevel != item_level:
+            continue
+        if record.bonusIds and not bonus_ids.intersection(record.bonusIds):
+            continue
+        if not record.bonusIds:
+            continue
+        if record.eligibleSlots and slot not in record.eligibleSlots:
+            continue
+        if record.eligibleSourceTypes and source_type and source_type not in record.eligibleSourceTypes:
+            continue
+        candidates.append(record)
+    if len(candidates) > 1:
+        return _blocked(
+            "TRACK_AUTHORITY_EXACT_TRACK_EVIDENCE_AMBIGUOUS",
+            "S2 exact-instance bonus evidence matches multiple Track Authority records.",
+            rule_revision=rule_revision,
+        )
+    if not candidates:
+        return _blocked(
+            "TRACK_AUTHORITY_EXACT_TRACK_EVIDENCE_MISSING",
+            "S2 exact-instance evidence does not identify one governed track record.",
+            rule_revision=rule_revision,
+        )
+    record = candidates[0]
+    if record.progressionKind in {"crafted_quality", "ascendant"} and _dedicated_rank(row)[0]:
+        return _blocked(
+            "TRACK_AUTHORITY_EXACT_RANK_FORBIDDEN",
+            "S2 crafted and Ascendant exact progression does not carry a rank.",
+            rule_revision=rule_revision,
+        )
+    if record.progressionKind in {"crafted_quality", "ascendant"} and record.eligibleSourceTypes:
+        if source_type == "crafted" and row.get("hasCraftedSource") is not True:
+            return _blocked(
+                "TRACK_AUTHORITY_EXACT_CRAFTED_SOURCE_MISSING",
+                "Crafted S2 exact progression requires a verified crafted source.",
+                rule_revision=rule_revision,
+            )
+    progression_state: dict[str, Any] = {
+        "kind": record.progressionKind,
+        "trackKey": record.publicTrackKey,
+    }
+    if record.progressionKind == "upgrade_track":
+        progression_state.update({
+            "rank": record.rank or record.maxRank,
+            "maxRank": record.maxRank,
+        })
+    if record.originKind:
+        progression_state["originKind"] = record.originKind
+    if record.qualityKey:
+        progression_state["qualityKey"] = record.qualityKey
+    return _verified_exact_result(
+        record.recordKey,
+        progression_state,
+        rule_revision=rule_revision,
+    )
 
 
 def resolve_legacy_browse_progression(
@@ -350,17 +759,16 @@ def resolve_legacy_browse_progression(
 
     authority = track_authority_for_binding(binding)
     if authority["status"] != "verified":
-        return _blocked(
-            "TRACK_AUTHORITY_BINDING_UNSUPPORTED",
-            "No verified Track Authority matches the exact season and gear-rule revision.",
-        )
+        return _authority_blocked_result(authority)
     if not isinstance(row, Mapping):
         return _blocked(
             "TRACK_AUTHORITY_ROW_MALFORMED",
             "Legacy Browse progression input must be an object.",
         )
 
-    record = _record_for_row(row)
+    is_s2 = _text(authority.get("seasonRevision")).startswith("season-midnight-season-2:")
+    records = _records_from_authority(authority) if is_s2 else None
+    record = _record_for_row(row, records)
     if record is None:
         return _blocked(
             "TRACK_AUTHORITY_TRACK_UNSUPPORTED",
@@ -372,6 +780,23 @@ def resolve_legacy_browse_progression(
         return _blocked(
             "TRACK_AUTHORITY_ILEVEL_MISMATCH",
             "Legacy Browse item level does not match the bound Track Authority record.",
+            rule_revision=_text(authority.get("ruleRevision")) or TRACK_AUTHORITY_RULE_REVISION,
+        )
+
+    if is_s2 and record.eligibleSourceTypes and _text(row.get("sourceType")).lower() not in record.eligibleSourceTypes:
+        return _blocked_with_progression(
+            "TRACK_AUTHORITY_SOURCE_UNSUPPORTED",
+            "Legacy Browse row source is outside the governed S2 track eligibility.",
+            record,
+            {"kind": record.progressionKind, "trackKey": record.publicTrackKey},
+        )
+    normalized_row_slot = _normalized_slot(row.get("slot"))
+    if is_s2 and record.eligibleSlots and normalized_row_slot not in record.eligibleSlots:
+        return _blocked_with_progression(
+            "TRACK_AUTHORITY_SLOT_UNSUPPORTED",
+            "Legacy Browse row slot is outside the governed S2 track eligibility.",
+            record,
+            {"kind": record.progressionKind, "trackKey": record.publicTrackKey},
         )
 
     rank_is_present, dedicated_rank = _dedicated_rank(row)
@@ -450,7 +875,7 @@ def resolve_legacy_browse_progression(
     return {
         "status": "verified",
         "schemaRevision": TRACK_AUTHORITY_SCHEMA_REVISION,
-        "ruleRevision": TRACK_AUTHORITY_RULE_REVISION,
+        "ruleRevision": _text(authority.get("ruleRevision")) or TRACK_AUTHORITY_RULE_REVISION,
         "recordKey": record.recordKey,
         "progressionState": progression_state,
         "problems": [],
@@ -465,10 +890,7 @@ def resolve_exact_instance_progression(
 
     authority = track_authority_for_binding(binding)
     if authority["status"] != "verified":
-        return _blocked(
-            "TRACK_AUTHORITY_BINDING_UNSUPPORTED",
-            "No verified Track Authority matches the exact season and gear-rule revision.",
-        )
+        return _authority_blocked_result(authority)
     if not isinstance(row, Mapping):
         return _blocked(
             "TRACK_AUTHORITY_ROW_MALFORMED",
@@ -487,6 +909,9 @@ def resolve_exact_instance_progression(
             "TRACK_AUTHORITY_EXACT_IDENTITY_MISSING",
             "Exact-instance progression requires itemId and variantKey.",
         )
+
+    if _text(authority.get("seasonRevision")).startswith("season-midnight-season-2:"):
+        return _resolve_data_driven_exact_instance(authority, row)
 
     item_level = _positive_int(row.get("itemLevel"))
     bonus_ids = _bonus_ids(row)
