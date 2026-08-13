@@ -30,8 +30,9 @@
 | 领域 | 状态 | 入口 |
 | --- | --- | --- |
 | 装备模拟长期目标合同 | 已完成 / 仍有效 | [目标架构](2026-07-28-equipment-simulator-target-architecture.md) |
+| 至暗之夜 S2 有限 List A 与社区 Exact | 对话设计已确认 / 书面待复核 / 无实现执行权 | [当前设计](2026-08-13-s2-selectable-catalog-community-exact-design.md) |
 | 装等轨道规则输入 | 已完成 / 当前规则输入 | [Track Authority 纠偏](2026-07-28-equipment-simulator-track-authority-correction.md) |
-| 至暗之夜 S2 End Game 已构建候选 | `blocked` / 无继续执行权；等待重新讨论完整官方 capture 方案 | [设计](../superpowers/specs/2026-08-12-midnight-season-2-data-repository-design.md) · [实施记录](../superpowers/plans/2026-08-12-midnight-season-2-data-repository.md) · [候选证据](../../artifacts/releases/2026-08-12-midnight-season-2-data-foundation/evidence.json) |
+| 至暗之夜 S2 End Game 已构建候选 | 历史 `blocked` / 无继续执行权；不得直接 promotion 或续跑 | [设计](../superpowers/specs/2026-08-12-midnight-season-2-data-repository-design.md) · [实施记录](../superpowers/plans/2026-08-12-midnight-season-2-data-repository.md) · [候选证据](../../artifacts/releases/2026-08-12-midnight-season-2-data-foundation/evidence.json) |
 | Exact-first Runtime Authority 候选 | 已完成候选 / 未授权 activation | [Task 5C 证据](../../artifacts/releases/2026-08-10-equipment-simulator-exact-first-task5c-runtime-authority-release/evidence.json) |
 | 炸鸡队长原生 Agent 运行边界 | 已完成 / 当前架构参考 | [设计](2026-08-04-chickenbro-agentic-research-design.md) · [发布证据](../../artifacts/releases/2026-08-05-chickenbro-native-agent/evidence.json) |
 | Chickenbro Tool Registry Phase 1--2 | 已完成 / 归档证据 | [Phase 1](../../artifacts/releases/2026-08-02-chickenbro-observability-phase1/evidence.json) · [Phase 2](../../artifacts/releases/2026-08-02-chickenbro-tool-registry-phase2/evidence.json) |

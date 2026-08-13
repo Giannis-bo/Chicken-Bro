@@ -44,7 +44,7 @@ test('project-state is the single machine-readable current truth entry', () => {
   const state = readJson(projectStatePath)
 
   assert.equal(state.schemaVersion, 1)
-  assert.equal(state.updatedAt, '2026-08-12')
+  assert.equal(state.updatedAt, '2026-08-13')
   assert.equal(state.activeMilestone, 'taro_target_first_14_route_rebuild')
   assert.equal(state.featureIteration, 'allowed_under_harness')
   assert.equal(state.activeReleaseArtifact, undefined)
@@ -476,7 +476,7 @@ test('roadmap stays a concise current control plane without PR-level execution h
   const roadmap = fs.readFileSync('docs/roadmap.md', 'utf8')
   assert.match(roadmap, /14 路由 UI 系统重建/)
   assert.match(roadmap, /至暗之夜 S2 End Game 数据候选/)
-  assert.match(roadmap, /重新讨论完整官方 capture 方案前不再执行/)
+  assert.match(roadmap, /publicSimcReadyRate=100%/)
   assert.match(roadmap, /canonical resolver/)
   assert.doesNotMatch(roadmap, /Phase 4 第[一二三四五六七八九十]+刀/)
   assert.ok(roadmap.split('\n').length <= 150)

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-08-12",
+  "updatedAt": "2026-08-13",
   "activeMilestone": "taro_target_first_14_route_rebuild",
   "featureIteration": "allowed_under_harness",
   "defaultLocalReleaseArtifact": "artifacts/releases/2026-07-23-observed-build-registry-cutover",
@@ -125,7 +125,14 @@
       "lifecycle": "active",
       "plan": "docs/superpowers/plans/2026-08-12-midnight-season-2-data-repository.md",
       "evidence": "artifacts/releases/2026-08-12-midnight-season-2-data-foundation/evidence.json",
-      "notes": "The complete End Game S2 repository contract and isolated candidate are implemented without a Season 1 fallback. Official capture is capped, so item/source/option/set/track authority remains blocked; no S2 runtime, active Manifest pointer or production write was changed. The retained implementation plan is a release-bound historical record, not continuing execution authority; a new task-scoped plan is required after source-capture reconsideration."
+      "notes": "The End Game S2 candidate remains an isolated historical blocked baseline without a Season 1 fallback. Official capture was capped, so item/source/option/set/track authority was not closed; no S2 runtime, active Manifest pointer or production write changed. It has no continuing execution or promotion authority and does not define the completion criteria of the new bounded List A plus community Exact design."
+    },
+    {
+      "id": "midnight_season_2_selectable_catalog_community_exact_design",
+      "path": "docs/plans/2026-08-13-s2-selectable-catalog-community-exact-design.md",
+      "status": "design_confirmed_written_review_pending",
+      "lifecycle": "active",
+      "notes": "The confirmed direction accepts incomplete S2 Universe coverage. A finite selectable List A must be 100 percent SimC-ready within its published scope; Raider.IO items outside List A may be imported as immutable read-only ExactItemInstances that can display, contribute attributes and simulate without extending Browse membership. The written design is pending user review and does not authorize implementation, candidate publication, runtime changes, Manifest activation or product completion claims."
     }
   ],
   "completedBaselines": [
