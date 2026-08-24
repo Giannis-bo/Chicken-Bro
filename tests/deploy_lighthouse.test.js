@@ -102,6 +102,7 @@ test('release evidence publisher remote upload script refuses overwrite and vali
   assert.match(remoteScript.stdout, /sudo mkdir "\$\{staging_dir\}"/);
   assert.match(remoteScript.stdout, /sudo tar -xf - -C "\$\{staging_dir\}"/);
   assert.match(remoteScript.stdout, /sudo mv -Tn "\$\{staging_dir\}" "\$\{release_dir\}"/);
+  assert.match(remoteScript.stdout, /if \[ -e "\$\{staging_dir\}" \]; then/);
   assert.match(remoteScript.stdout, /release-id already exists on remote host or lost create-only race/);
   assert.match(remoteScript.stdout, /sudo chown -R www-data:www-data "\$\{release_dir\}"/);
   assert.match(remoteScript.stdout, /sudo rm -rf "\$\{staging_dir\}"/);
@@ -197,4 +198,63 @@ test('release evidence publisher enforces payload cap with a focused max-bytes o
   `);
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /publisher payload exceeds 8 bytes: 10/);
+});
+
+test('release evidence publisher remote script fails on mv no-op conflict and cleans staging', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'wow-evidence-remote-exec-'));
+  const remoteRoot = path.join(tempRoot, 'remote-root');
+  const fakeBin = path.join(tempRoot, 'bin');
+  const payloadRoot = path.join(tempRoot, 'payload');
+  const releaseId = '2026-08-24-s2-evidence';
+  const releaseDir = path.join(remoteRoot, releaseId);
+  fs.mkdirSync(fakeBin, { recursive: true });
+  fs.mkdirSync(payloadRoot, { recursive: true });
+  fs.mkdirSync(releaseDir, { recursive: true });
+  fs.writeFileSync(path.join(releaseDir, 'existing.txt'), 'keep');
+  fs.writeFileSync(path.join(payloadRoot, 'payload.txt'), 'payload');
+
+  fs.writeFileSync(path.join(fakeBin, 'sudo'), '#!/usr/bin/env bash\nexec "$@"\n', { mode: 0o755 });
+  fs.writeFileSync(path.join(fakeBin, 'mv'), `#!/usr/bin/env bash
+set -euo pipefail
+if [[ "\${1:-}" == '-Tn' ]]; then
+  src="\${2:?}"
+  dest="\${3:?}"
+  if [[ -e "\${dest}" ]]; then
+    exit 0
+  fi
+  python3 - "\${src}" "\${dest}" <<'PY'
+import os
+import shutil
+import sys
+src, dest = sys.argv[1:3]
+os.replace(src, dest) if not os.path.isdir(src) else shutil.move(src, dest)
+PY
+  exit 0
+fi
+exec /bin/mv "$@"
+`, { mode: 0o755 });
+
+  const generated = runBash(`
+    set -euo pipefail
+    source ${JSON.stringify(publisherScriptPath)}
+    build_remote_publish_script ${bashLiteral(remoteRoot)} ${bashLiteral(releaseId)}
+  `);
+  assert.equal(generated.status, 0, generated.stderr);
+
+  const scriptPath = path.join(tempRoot, 'remote-script.sh');
+  fs.writeFileSync(scriptPath, generated.stdout, { mode: 0o755 });
+
+  const tarStream = spawnSync('tar', ['-C', payloadRoot, '-cf', '-', '.'], { encoding: null });
+  assert.equal(tarStream.status, 0, tarStream.stderr?.toString?.() ?? '');
+
+  const execution = spawnSync('bash', [scriptPath], {
+    encoding: 'utf8',
+    env: { ...process.env, PATH: `${fakeBin}:${process.env.PATH}` },
+    input: tarStream.stdout,
+  });
+  assert.notEqual(execution.status, 0);
+  assert.match(execution.stderr, /release-id already exists on remote host or lost create-only race/);
+  const leftovers = fs.readdirSync(remoteRoot).filter((entry) => entry.startsWith(`.${releaseId}.tmp.`));
+  assert.deepEqual(leftovers, []);
+  assert.equal(fs.readFileSync(path.join(releaseDir, 'existing.txt'), 'utf8'), 'keep');
 });

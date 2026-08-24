@@ -206,7 +206,10 @@ if ! sudo mv -Tn "\${staging_dir}" "\${release_dir}"; then
   echo "release-id already exists on remote host or lost create-only race: \${release_id}" >&2
   exit 1
 fi
-trap - EXIT
+if [ -e "\${staging_dir}" ]; then
+  echo "release-id already exists on remote host or lost create-only race: \${release_id}" >&2
+  exit 1
+fi
 sudo chown -R www-data:www-data "\${release_dir}"
 trap - EXIT
 EOF

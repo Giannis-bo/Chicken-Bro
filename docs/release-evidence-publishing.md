@@ -19,8 +19,9 @@ Each release id is immutable. The publisher refuses overwrite, and rollback is
 performed by changing the document pointer back to a previously published
 release id rather than mutating an existing release directory.
 
-The publisher only uploads the current bounded S2 evidence allowlist: the five
-current S2 capture roots, the three tracked v73 evidence files, and
+The publisher only uploads the current bounded S2 evidence allowlist: the six
+current S2 capture roots including the journal DB2 root, the three tracked v73
+evidence files, and
 `artifacts/releases/2026-08-24-s2-equipment-library-ui-closure/evidence.json`.
 It rejects missing paths, symlinks, path traversal, and total payloads above
 256 MiB.
