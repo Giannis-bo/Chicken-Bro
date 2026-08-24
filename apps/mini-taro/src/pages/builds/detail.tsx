@@ -93,6 +93,7 @@ import {
   gearItemIconUrl,
   gearItemLevel,
   gearItemName,
+  gearStatsFromResolvedSnapshot,
   hydrateCompactSlotGroup,
   hydrateImportedExactGear,
   preferredEnhancementSlot,
@@ -442,7 +443,6 @@ export default function GearDetailPage() {
     canonical.snapshot?.status === 'verified'
     && canonical.intent
     && stats.payload?.statStatus === 'verified'
-    && !dirty,
   )
   const communityTemplateOptions = communityGearTemplateOptions(data?.gear.communityTemplates ?? [])
   const savedTemplateOptions = savedGearTemplateOptions(savedTemplates, data?.selection.classKey ?? '', data?.selection.specKey ?? '')
@@ -496,8 +496,10 @@ export default function GearDetailPage() {
       requestFence.current.beginResolve()
       setWorkbenchNotice('后端未提供完整装备校验上下文')
       setCanonical({ loading: false, error: '后端未提供完整装备校验上下文' })
+      setStats({ loading: false })
       return { status: 'failed' }
     }
+    setStats({ loading: true })
     setCanonical((current) => ({
       loading: true,
       ...(current.intent ? { intent: current.intent } : {}),
@@ -511,12 +513,14 @@ export default function GearDetailPage() {
       if (!requestFence.current.isResolveCurrent(resolveToken)) return { status: 'stale' }
       setWorkbenchNotice('装备校验网络不可用，草稿已保留')
       setCanonical({ loading: false, intent, error: '装备校验网络不可用' })
+      setStats({ loading: false })
       return { status: 'failed' }
     }
     if (!requestFence.current.isResolveCurrent(resolveToken)) return { status: 'stale' }
     if (result.fromFallback) {
       setWorkbenchNotice(result.error || '装备校验服务不可用')
       setCanonical({ loading: false, intent, error: result.error || '装备校验服务不可用' })
+      setStats({ loading: false })
       return { status: 'failed' }
     }
     if (result.httpStatus === 409) {
@@ -536,6 +540,7 @@ export default function GearDetailPage() {
       slotDetailCache.current.clear()
       setCanonical({ loading: false, intent, error: '装备数据版本已更新，正在重新加载' })
       setWorkbenchNotice('装备数据已更新，请重新选择')
+      setStats({ loading: false })
       void route.load()
       return { status: 'conflict' }
     }
@@ -546,6 +551,7 @@ export default function GearDetailPage() {
       && isProfileIncompleteOnlySnapshot(snapshot)
     ) {
       setCanonical({ loading: false, intent, snapshot })
+      setStats({ loading: false })
       return { status: 'slot_resolved', intent, snapshot }
     }
     if (result.httpStatus !== 200 || result.payload.status !== 'resolved' || snapshot.status !== 'verified') {
@@ -557,9 +563,14 @@ export default function GearDetailPage() {
         snapshot,
         error,
       })
+      setStats({ loading: false })
       return { status: 'failed' }
     }
     setCanonical({ loading: false, intent, snapshot })
+    const resolvedStats = gearStatsFromResolvedSnapshot(snapshot, data.selection)
+    setStats(resolvedStats
+      ? { loading: false, payload: resolvedStats }
+      : { loading: false })
     return { status: 'resolved', intent, snapshot }
   }
 
@@ -712,7 +723,6 @@ export default function GearDetailPage() {
     if (!transition.committed) return
     setEquipped(transition.state.equipped)
     setEnhancements(transition.state.enhancements)
-    setStats({ loading: false })
     setDirty(true)
     candidateRequestId.current += 1
     setCandidateDraft(transition.state.candidateDraft)
@@ -753,7 +763,6 @@ export default function GearDetailPage() {
     }
     setEquipped(transition.state.equipped)
     setEnhancements(transition.state.enhancements)
-    setStats({ loading: false })
     setDirty(true)
     candidateRequestId.current += 1
     setCandidateDraft(transition.state.candidateDraft)
@@ -975,10 +984,16 @@ export default function GearDetailPage() {
       setEnhancementDraft(null)
       setEnhancementLoading(false)
       setEnhancements(importedEnhancements)
-      setStats({ loading: false })
       setDirty(true)
       if (importedSnapshot?.status === 'verified' && importedIntent) {
         setCanonical({ loading: false, intent: importedIntent, snapshot: importedSnapshot })
+        const importedStats = gearStatsFromResolvedSnapshot(importedSnapshot, data?.selection ?? {
+          classKey: '',
+          specKey: '',
+        })
+        setStats(importedStats
+          ? { loading: false, payload: importedStats }
+          : { loading: false })
       } else {
         void resolveSelection(imported, importedEnhancements)
       }

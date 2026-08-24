@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "status": "project_harness_manifest_ready",
+  "generatedAt": "2026-08-24T08:00:00Z",
+  "release": {
+    "date": "2026-08-24",
+    "slug": "s2-equipment-library-ui-closure"
+  },
+  "harness": {
+    "version": "v0.6.4",
+    "lastUpdated": "2026-07-20",
+    "source": "docs/harness.md"
+  },
+  "evidencePacket": {
+    "path": "artifacts/releases/2026-08-24-s2-equipment-library-ui-closure/evidence.json"
+  },
+  "write": {
+    "path": "artifacts/releases/2026-08-24-s2-equipment-library-ui-closure/manifest.json"
+  }
+}

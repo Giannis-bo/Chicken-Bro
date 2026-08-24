@@ -3,8 +3,54 @@
   "seasonId": "midnight-season-2",
   "scope": "end_game",
   "seasonRevision": "",
-  "sourcePolicyRevision": "midnight-season-2-pve-source-policy-v1",
+  "sourcePolicyRevision": "midnight-season-2-equipment-library-scope-v2",
   "status": "pending",
+  "db2Policy": {
+    "status": "authorized_bounded",
+    "allowlistRef": "db2-field-allowlist-v1.json",
+    "allowlistRevision": "s2-limited-client-db2-field-allowlist-v1",
+    "clientBuild": "12.1.0.69299",
+    "authority": "official_client_db2",
+    "transportRole": "transport_only",
+    "rawDb2Persisted": false,
+    "queryOperator": "exact",
+    "allowedTargetScope": "official_api_item_recipe_current_mythic_plus_season_explicit_official_journal_map_or_allowlisted_foreign_key",
+    "allowedPurposeKeys": [
+      "crafted_recipe_output_quality",
+      "crafted_secondary_and_embellishment_compatibility",
+      "item_static_attributes_and_variant_edges",
+      "tier_set_conversion_preservation",
+      "mythic_plus_cap_track",
+      "source_context_map_difficulty",
+      "mythic_plus_journal_item_scope",
+      "item_bonus_tree_composition_and_level_delta",
+      "enhancement_identity_and_simc_serialization"
+    ]
+  },
+  "scopeContract": {
+    "logicalSourceCount": 4,
+    "logicalSourceKeys": [
+      "raid:midnight-season-2",
+      "mythic_plus:midnight-season-2",
+      "crafted:midnight-season-2",
+      "tier_set:midnight-season-2"
+    ],
+    "raidIncludesLair": true,
+    "lairRawSourceTypePreserved": true,
+    "tierSetIsIndependentMembershipDimension": true,
+    "catalogItemScope": "combat_equipment_only",
+    "catalogItemExclusionReasonCodes": [
+      "OUT_OF_SCOPE_PROFESSION_ONLY_GEAR",
+      "OUT_OF_SCOPE_STATLESS_LEVEL_ONE_ITEM"
+    ],
+    "excludedSourceTypes": [
+      "dungeon",
+      "delve",
+      "prey",
+      "great_vault",
+      "world_content"
+    ]
+  },
   "authorityRefs": [
     "https://news.blizzard.com/en-us/article/24294369/the-shadows-deepen-midnight-season-2-begins-august-18",
     "https://develop.battle.net/documentation/world-of-warcraft/game-data-apis"
@@ -26,12 +72,18 @@
   ],
   "sources": [
     {
-      "sourceKey": "raid:venomous-abyss",
+      "sourceKey": "raid:midnight-season-2",
       "sourceType": "raid",
       "required": true,
       "membershipMode": "journal_direct_drop_with_difficulty",
       "captureCategory": "midnight_raid",
-      "journalNames": ["Venomous Abyss"],
+      "productLabel": "团本（包括巢穴）",
+      "rawSourceTypes": ["raid", "lair"],
+      "rawSourceKeys": [
+        "raid:venomous-abyss",
+        "lair:the-tidebound-grotto"
+      ],
+      "journalNames": ["Venomous Abyss", "The Tidebound Grotto"],
       "authorityRefs": [
         "https://news.blizzard.com/en-us/article/24294369/the-shadows-deepen-midnight-season-2-begins-august-18",
         "https://develop.battle.net/documentation/world-of-warcraft/game-data-apis"
@@ -53,64 +105,17 @@
         "Temple of Sethraliss",
         "Ruby Life Pools"
       ],
+      "journalItemScope": {
+        "table": "JournalEncounterItem",
+        "authority": "official_client_db2",
+        "captureRef": "artifacts/releases/2026-08-20-s2-journal-item-db2-v1/capture-manifest.json",
+        "includeWhen": "matching ItemID and JournalEncounterID row has DifficultyMask=-1",
+        "excludeWhen": "matching rows exist but all DifficultyMask values are nonnegative",
+        "unknownPolicy": "UNVERIFIED"
+      },
       "authorityRefs": [
         "https://news.blizzard.com/en-us/article/24294369/the-shadows-deepen-midnight-season-2-begins-august-18",
         "https://develop.battle.net/documentation/world-of-warcraft/game-data-apis"
-      ]
-    },
-    {
-      "sourceKey": "dungeon:midnight-season-2-heroic-mythic0",
-      "sourceType": "dungeon",
-      "required": true,
-      "membershipMode": "journal_direct_drop_with_difficulty",
-      "captureCategory": "midnight_dungeon",
-      "journalNames": [
-        "Altar of Fangs",
-        "Murder Row",
-        "Den of Nalorakk",
-        "The Blinding Vale",
-        "Voidscar Arena"
-      ],
-      "authorityRefs": [
-        "https://news.blizzard.com/en-us/article/24294369/the-shadows-deepen-midnight-season-2-begins-august-18",
-        "https://develop.battle.net/documentation/world-of-warcraft/game-data-apis"
-      ]
-    },
-    {
-      "sourceKey": "delve:midnight-season-2",
-      "sourceType": "delve",
-      "required": true,
-      "membershipMode": "activity_reward_pool",
-      "authorityRefs": [
-        "https://news.blizzard.com/en-us/article/24294369/the-shadows-deepen-midnight-season-2-begins-august-18"
-      ]
-    },
-    {
-      "sourceKey": "prey:midnight-season-2",
-      "sourceType": "prey",
-      "required": true,
-      "membershipMode": "difficulty_reward_pool",
-      "authorityRefs": [
-        "https://news.blizzard.com/en-us/article/24294369/the-shadows-deepen-midnight-season-2-begins-august-18"
-      ]
-    },
-    {
-      "sourceKey": "lair:the-tidebound-grotto",
-      "sourceType": "lair",
-      "required": true,
-      "membershipMode": "lair_reward_pool",
-      "authorityRefs": [
-        "https://news.blizzard.com/en-us/article/24294369/the-shadows-deepen-midnight-season-2-begins-august-18",
-        "https://develop.battle.net/documentation/world-of-warcraft/game-data-apis"
-      ]
-    },
-    {
-      "sourceKey": "great_vault:midnight-season-2",
-      "sourceType": "great_vault",
-      "required": true,
-      "membershipMode": "reward_pool_projection",
-      "authorityRefs": [
-        "https://news.blizzard.com/en-us/article/24294369/the-shadows-deepen-midnight-season-2-begins-august-18"
       ]
     },
     {
@@ -132,15 +137,6 @@
       "authorityRefs": [
         "https://news.blizzard.com/en-us/article/24294369/the-shadows-deepen-midnight-season-2-begins-august-18",
         "https://develop.battle.net/documentation/world-of-warcraft/game-data-apis"
-      ]
-    },
-    {
-      "sourceKey": "world_content:midnight-season-2-endgame",
-      "sourceType": "world_content",
-      "required": true,
-      "membershipMode": "world_quest_rare_event_reward_pool",
-      "authorityRefs": [
-        "https://news.blizzard.com/en-us/article/24294369/the-shadows-deepen-midnight-season-2-begins-august-18"
       ]
     }
   ]

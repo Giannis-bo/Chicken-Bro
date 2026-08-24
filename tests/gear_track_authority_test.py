@@ -86,6 +86,66 @@ class GearTrackAuthorityTest(unittest.TestCase):
             ["TRACK_AUTHORITY_RECORDS_MISSING"],
         )
 
+    def test_s2_community_observed_exact_is_explicitly_exact_only(self):
+        resolved = resolve_exact_instance_progression(
+            {**S2_BINDING, "trackRecords": S2_TRACK_RECORDS},
+            {
+                "rowFamily": "exact_instance",
+                "status": "verified",
+                "itemId": "239656",
+                "variantKey": "observed-profile-community-row",
+                "itemLevel": 285,
+                "slot": "back",
+                "sourceType": "observed_profile",
+                "payload": {
+                    "truthScope": "community_observed",
+                    "officialFactStatus": "UNVERIFIED",
+                    "membershipKind": "imported_exact",
+                    "editable": False,
+                },
+                "bonusIds": ["12214", "13667", "12497", "12066", "8793", "13622"],
+            },
+        )
+
+        self.assertEqual(resolved["status"], "verified")
+        self.assertEqual(resolved["recordKey"], "community_observed_exact")
+        self.assertEqual(
+            resolved["progressionState"],
+            {
+                "kind": "community_observed",
+                "trackKey": "community_observed_exact",
+                "sourceType": "observed_profile",
+                "truthScope": "community_observed",
+                "officialFactStatus": "UNVERIFIED",
+            },
+        )
+
+    def test_s2_community_observed_exact_requires_all_truth_markers(self):
+        resolved = resolve_exact_instance_progression(
+            {**S2_BINDING, "trackRecords": S2_TRACK_RECORDS},
+            {
+                "rowFamily": "exact_instance",
+                "status": "verified",
+                "itemId": "239656",
+                "variantKey": "observed-profile-community-row",
+                "itemLevel": 285,
+                "slot": "back",
+                "sourceType": "observed_profile",
+                "payload": {
+                    "truthScope": "community_observed",
+                    "officialFactStatus": "UNVERIFIED",
+                    "membershipKind": "imported_exact",
+                    "editable": True,
+                },
+                "bonusIds": ["12214", "13667", "12497", "12066", "8793", "13622"],
+            },
+        )
+
+        self.assertEqual(
+            _problem_codes(resolved),
+            ["TRACK_AUTHORITY_COMMUNITY_EVIDENCE_INVALID"],
+        )
+
     def test_s2_rejects_unverified_or_mixed_track_records(self):
         unverified = {**S2_TRACK_RECORDS[0], "evidenceStatus": "pending"}
         mixed = {**S2_TRACK_RECORDS[0], "seasonRevision": "season-17-f131dd36ddf1"}

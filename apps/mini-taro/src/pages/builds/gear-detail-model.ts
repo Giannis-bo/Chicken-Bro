@@ -608,6 +608,75 @@ function canonicalStatKey(value: unknown, primaryKey: PrimaryStatKey | ''): stri
   return ''
 }
 
+const resolvedPrimaryStatKeys: readonly PrimaryStatKey[] = ['strength', 'agility', 'intellect']
+
+function resolvedStaticAttributeEntries(
+  snapshot: GearResolvedSnapshot,
+): ReadonlyMap<string, number> | undefined {
+  if (snapshot.status !== 'verified') return undefined
+  const facts = snapshot['attributeStaticFacts']
+  const factRecord = facts && typeof facts === 'object' && !Array.isArray(facts)
+    ? facts as Readonly<Record<string, unknown>>
+    : undefined
+  if (factRecord?.['status'] !== 'verified') {
+    return undefined
+  }
+  const source = snapshot.staticAttributes
+  if (!source || typeof source !== 'object' || Array.isArray(source)) return undefined
+
+  const entries = Object.entries(source)
+    .map(([rawKey, rawValue]) => {
+      const key = canonicalStatKey(rawKey, '')
+      const value = finiteNumber(rawValue)
+      return key && value !== null ? { key, value } : undefined
+    })
+    .filter((entry): entry is { key: string; value: number } => Boolean(entry))
+  if (!entries.length) return undefined
+
+  const values = new Map<string, number>()
+  for (const entry of entries) {
+    if (!values.has(entry.key)) values.set(entry.key, entry.value)
+  }
+  return values
+}
+
+export function gearStatsFromResolvedSnapshot(
+  snapshot: GearResolvedSnapshot | undefined,
+  selection: { classKey: string; specKey: string },
+): GearStatsPayload | undefined {
+  if (!snapshot) return undefined
+  const values = resolvedStaticAttributeEntries(snapshot)
+  if (!values) return undefined
+  const primaryKey = resolvedPrimaryStatKeys.find((key) => values.has(key)) ?? ''
+  const statValue = (key: string, label: string): GearStatsPayload['primary'] => {
+    const value = values.get(key)
+    return value === undefined
+      ? null
+      : { key, label, value: String(value), rawValue: value }
+  }
+
+  const secondary = metricFallbacks
+    .map((metric) => metric.id)
+    .filter((key) => secondaryStatKeys.has(key))
+    .flatMap((key) => {
+      const value = statValue(key, statLabels[key] ?? key)
+      return value ? [value] : []
+    })
+
+  return {
+    classKey: selection.classKey,
+    specKey: selection.specKey,
+    statStatus: 'verified',
+    blockers: [],
+    primary: primaryKey ? statValue(primaryKey, statLabels[primaryKey] ?? primaryKey) : null,
+    stamina: statValue('stamina', statLabels['stamina'] ?? '耐力'),
+    secondary,
+    armor: statValue('armor', statLabels['armor'] ?? '护甲'),
+    weaponDps: null,
+    itemLevel: { key: 'itemLevel', label: '装备等级', value: '未提供' },
+  }
+}
+
 function itemPrimaryStatKey(item: GearItemReference): PrimaryStatKey | '' {
   return primaryStatKey(item['primaryStatKey'])
 }

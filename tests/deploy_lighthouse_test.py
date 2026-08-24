@@ -47,6 +47,15 @@ class DeployLighthouseScriptTest(unittest.TestCase):
         self.assertIn("SimulationCraft is not installed and GitHub version lookup failed.", script)
         self.assertIn("SimulationCraft source download failed", script)
 
+    def test_version_check_persists_immutable_simc_runtime_identity(self):
+        script = Path("server/deploy_lighthouse.sh").read_text(encoding="utf-8")
+
+        self.assertIn("artifact_hash = digest.hexdigest()", script)
+        self.assertIn('r"\\b([0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+)\\b"', script)
+        self.assertIn('"simcRuntimeRevision": simc_runtime_revision', script)
+        self.assertIn('"artifactHash": artifact_hash', script)
+        self.assertIn('"sourceCommit": local_commit', script)
+
     def test_systemd_service_exposes_codex_worker_environment(self):
         service = Path("server/wow-backend.service").read_text(encoding="utf-8")
 

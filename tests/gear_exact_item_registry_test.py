@@ -14,6 +14,60 @@ from tests.gear_exact_item_instance_test import (
 )
 
 
+S2_BINDING = {
+    "seasonRevision": "season-midnight-season-2:" + ("3" * 64),
+    "gearRuleRevision": "midnight-season-2-gear-rule-v1",
+    "trackAuthorityRevision": "midnight-season-2-track-authority-v1",
+    "trackRecords": [{
+        "recordKey": "hero-6",
+        "trackKey": "hero",
+        "publicTrackKey": "hero",
+        "progressionKind": "upgrade_track",
+        "rank": 6,
+        "maxRank": 6,
+        "itemLevel": 315,
+        "eligibleSourceTypes": ["raid"],
+        "eligibleSlots": ["head"],
+        "sourceRefs": ["blizzard:s2-track", "simc:s2-track"],
+        "bonusIds": ["s2-hero-6"],
+        "evidenceStatus": "verified",
+        "seasonRevision": "season-midnight-season-2:" + ("3" * 64),
+        "gearRuleRevision": "midnight-season-2-gear-rule-v1",
+    }],
+}
+
+
+def set_membership():
+    return {
+        "schemaRevision": "season-set-membership-v1",
+        "setMembershipRevision": "s2-sets:sha256:" + ("4" * 64),
+        "seasonRevision": S2_BINDING["seasonRevision"],
+        "status": "verified",
+        "sets": [{
+            "setId": "set-1",
+            "itemIds": ["1001"],
+            "sourceRefs": ["source-set-1"],
+        }],
+        "itemsById": {
+            "1001": {"itemId": "1001", "setId": "set-1"},
+        },
+    }
+
+
+def s2_exact_row():
+    row = exact_row(
+        variantKey="observed-hero-6",
+        itemLevel=315,
+        bonusIds=["s2-hero-6"],
+    )
+    row["simcOptions"] = {
+        **row["simcOptions"],
+        "ilevel": "315",
+        "bonus_id": "s2-hero-6",
+    }
+    return row
+
+
 def template(*, slot="head", item_id="1001", variant_key="observed-hero-3", **extra):
     return {
         "templateId": "source-template-should-not-be-persisted",
@@ -41,6 +95,32 @@ def template(*, slot="head", item_id="1001", variant_key="observed-hero-3", **ex
 
 
 class GearExactItemRegistryTest(unittest.TestCase):
+    def test_s2_registry_seals_set_membership_in_immutable_header_summary(self):
+        result = build_exact_item_registry(
+            S2_BINDING,
+            catalog_revision=CATALOG_REVISION,
+            exact_rows=[s2_exact_row()],
+            community_templates=[template(variant_key="observed-hero-6")],
+            personal_templates=[],
+            set_membership=set_membership(),
+        )
+
+        self.assertEqual(result["status"], "verified")
+        self.assertEqual(result["summary"]["setMembership"], set_membership())
+        self.assertEqual(verify_exact_item_registry(result), [])
+
+    def test_s2_registry_requires_set_membership_instead_of_sealing_partial_authority(self):
+        result = build_exact_item_registry(
+            S2_BINDING,
+            catalog_revision=CATALOG_REVISION,
+            exact_rows=[exact_row()],
+            community_templates=[template()],
+            personal_templates=[],
+        )
+
+        self.assertEqual(result["status"], "blocked")
+        self.assertIn("EXACT_REGISTRY_SET_MEMBERSHIP_MISSING", result["problemCodes"])
+
     def test_full_source_count_is_preserved_with_referenced_rows_only(self):
         result = build_exact_item_registry(
             CURRENT_BINDING,

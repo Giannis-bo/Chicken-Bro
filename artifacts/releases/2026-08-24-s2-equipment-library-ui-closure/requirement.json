@@ -1,0 +1,97 @@
+{
+  "schemaVersion": 1,
+  "slug": "s2-equipment-library-ui-closure",
+  "classification": "Strict",
+  "status": "implementation_allowed",
+  "goal": "Connect the verified S2 equipment library and resolver output to the existing WeChat gear-detail flow so a selected item can be applied and the attribute overview can show only verified static attributes.",
+  "userValue": "A player can see the latest equipment candidates, apply a replacement, and trust the refreshed attribute overview instead of seeing a resolver-context error or stale empty values.",
+  "nonGoals": [
+    "Do not expand the four-source S2 product scope into a full-season Universe.",
+    "Do not promote community_observed Exact instances to official Catalog facts.",
+    "Do not claim global data health is green or independently claim an authenticated save path that was not recorded in this closure turn."
+  ],
+  "currentTruth": {
+    "sources": [
+      "docs/project-state.json",
+      "docs/roadmap.md",
+      "docs/verification-matrix.md",
+      "docs/harness.md",
+      "docs/plans/2026-08-13-s2-selectable-catalog-community-exact-design.md",
+      "server/data/midnight-season-2/README.md",
+      "server/gear_release_store.py",
+      "server/news_backend.py",
+      "server/simulator_payload.py",
+      "apps/mini-taro/src/pages/builds/detail.tsx"
+    ],
+    "activeMilestone": "taro_target_first_14_route_rebuild",
+    "featureIteration": "allowed_under_harness",
+    "databaseRuntime": "postgres_only",
+    "candidateDeploymentRequiredBeforeMerge": true,
+    "candidateScope": "S2 v73 Active Manifest generation 41 plus the existing gear-detail preview consumer",
+    "retailScope": "existing generation 41 pointer remains unchanged; no new pointer mutation in this closure"
+  },
+  "impactMap": {
+    "mustChange": [
+      "Project verified resolver staticAttributes into the gear-detail summary after a successful apply or community exact resolution.",
+      "Clear stale summary values on context loss, network failure, fallback, conflict and blocked resolution.",
+      "Bind public gear context and resolver decisions to an immutable SimC runtime identity.",
+      "Retain the S2 catalog, community, Exact Registry and set-membership release evidence with executable tests."
+    ],
+    "mustNotChange": [
+      "The existing Taro route, canonical Selection Intent, Resolve endpoint and fail-closed problem states.",
+      "The four-source S2 scope, official-fact ownership and community_observed read-only boundary.",
+      "The active Manifest generation 41 pointer and its rollback target."
+    ],
+    "evidenceRequired": [
+      "Fresh Python, Node, TypeScript, lint, Vitest, UI architecture, package mechanics and WeChat preview build checks.",
+      "Public gear context and resolver smoke showing the restored resolver contract rather than context-missing fallback.",
+      "A clean exact task head checked by the Harness packet before merge."
+    ]
+  },
+  "ownership": {
+    "factOwner": "The verified Gear/Resolver release and immutable SimC runtime identity own equipment facts; the Taro gear-detail model only projects them.",
+    "consumers": [
+      "apps/mini-taro/src/pages/builds/detail.tsx",
+      "apps/mini-taro/src/pages/builds/gear-detail-model.ts",
+      "server/news_backend.py",
+      "server/gear_release_store.py",
+      "server/simulator_payload.py"
+    ]
+  },
+  "engineeringHealth": {
+    "status": "candidate_preview_verified_with_explicit_manual_waiver",
+    "reason": "The active v73 API and local WeChat preview are verified. Global data health remains partial, the follow-up timer is stopped pending runtime/manifest alignment, and two manual paths are recorded as user-waived rather than silently promoted."
+  },
+  "manualAcceptanceContract": {
+    "required": true,
+    "requiredItemIds": [
+      "equipment-library-visible",
+      "equipment-slot-apply-and-resolve",
+      "attribute-overview-after-apply",
+      "community-template-import",
+      "authenticated-template-save"
+    ]
+  },
+  "acceptanceEvidence": [
+    "The user explicitly confirmed the latest WeChat preview is OK and authorized closure.",
+    "The active v73 API smoke, resolver contract check and local WeChat build evidence are retained.",
+    "The complete manual item matrix is recorded in evidence.json as accepted or not_run_user_waived."
+  ],
+  "releaseTrigger": "frontend_user_visible",
+  "rollback": [
+    "code_rollback",
+    "feature_hide",
+    "config_disable",
+    "data_restore"
+  ],
+  "decisionLog": [
+    {
+      "date": "2026-08-24",
+      "decision": "The user confirmed the latest WeChat preview is OK and authorized closure after the equipment-apply and attribute-overview path was verified."
+    },
+    {
+      "date": "2026-08-24",
+      "decision": "Community import and authenticated template save remain explicit user-waived manual items in this packet; the waiver is not represented as an executed UI assertion."
+    }
+  ]
+}

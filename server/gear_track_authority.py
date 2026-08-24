@@ -676,6 +676,68 @@ def _verified_exact_result(
     }
 
 
+def _row_payload_value(row: Mapping[str, Any], key: str) -> Any:
+    value = row.get(key)
+    if value is not None:
+        return value
+    payload = row.get("payload")
+    if isinstance(payload, Mapping):
+        return payload.get(key)
+    return None
+
+
+def _resolve_community_observed_exact(
+    authority: Mapping[str, Any],
+    row: Mapping[str, Any],
+) -> dict[str, Any] | None:
+    """Bind an observed profile to an Exact-only, non-official progression.
+
+    Community observations do not have enough authoritative evidence to claim
+    an S2 upgrade track.  They can still be simulated when their exact
+    identity is verified, so represent that fact with an explicit progression
+    state that cannot be confused with a Browse track.
+    """
+
+    source_type = _text(_row_payload_value(row, "sourceType")).lower()
+    truth_scope = _text(_row_payload_value(row, "truthScope")).lower()
+    official_fact_status = _text(
+        _row_payload_value(row, "officialFactStatus")
+    ).upper()
+    membership_kind = _text(_row_payload_value(row, "membershipKind")).lower()
+    editable = _row_payload_value(row, "editable")
+    is_community_marked = (
+        source_type == "observed_profile"
+        or truth_scope == "community_observed"
+        or membership_kind == "imported_exact"
+    )
+    if not is_community_marked:
+        return None
+    if (
+        source_type != "observed_profile"
+        or truth_scope != "community_observed"
+        or official_fact_status != "UNVERIFIED"
+        or membership_kind != "imported_exact"
+        or editable is not False
+    ):
+        rule_revision = _text(authority.get("ruleRevision")) or TRACK_AUTHORITY_RULE_REVISION
+        return _blocked(
+            "TRACK_AUTHORITY_COMMUNITY_EVIDENCE_INVALID",
+            "Community exact progression requires an immutable observed-profile truth boundary.",
+            rule_revision=rule_revision,
+        )
+    return _verified_exact_result(
+        "community_observed_exact",
+        {
+            "kind": "community_observed",
+            "trackKey": "community_observed_exact",
+            "sourceType": "observed_profile",
+            "truthScope": "community_observed",
+            "officialFactStatus": "UNVERIFIED",
+        },
+        rule_revision=_text(authority.get("ruleRevision")) or TRACK_AUTHORITY_RULE_REVISION,
+    )
+
+
 def _resolve_data_driven_exact_instance(
     authority: Mapping[str, Any],
     row: Mapping[str, Any],
@@ -911,6 +973,9 @@ def resolve_exact_instance_progression(
         )
 
     if _text(authority.get("seasonRevision")).startswith("season-midnight-season-2:"):
+        community_result = _resolve_community_observed_exact(authority, row)
+        if community_result is not None:
+            return community_result
         return _resolve_data_driven_exact_instance(authority, row)
 
     item_level = _positive_int(row.get("itemLevel"))

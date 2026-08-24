@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   serializeGearSelectionIntent,
+  type GearResolvedSnapshot,
   type GearItemReference,
   type WebsimGearPayload,
 } from '@wow-mini/domain'
@@ -19,6 +20,7 @@ import {
   gearEnhancementOptions,
   gearItemSecondaryStatLabels,
   gearReadiness,
+  gearStatsFromResolvedSnapshot,
   gearSlots,
   templateGearItems,
 } from './gear-detail-model'
@@ -70,6 +72,41 @@ function payload(): WebsimGearPayload {
 }
 
 describe('gear detail truth model', () => {
+  it('projects verified resolver static attributes into summary stats', () => {
+    const snapshot = {
+      status: 'verified',
+      attributeStaticFacts: { status: 'verified', problems: [] },
+      staticAttributes: {
+        crit_rating: 1162,
+        haste_rating: 938,
+        intellect: 2070,
+        mastery_rating: 975,
+        stamina: 43022,
+        versatility_rating: 207,
+      },
+    } as GearResolvedSnapshot
+
+    const stats = gearStatsFromResolvedSnapshot(snapshot, {
+      classKey: 'mage',
+      specKey: 'arcane',
+    })
+
+    expect(stats).toMatchObject({
+      classKey: 'mage',
+      specKey: 'arcane',
+      statStatus: 'verified',
+      blockers: [],
+      primary: { key: 'intellect', label: '智力', value: '2070', rawValue: 2070 },
+      stamina: { key: 'stamina', label: '耐力', value: '43022', rawValue: 43022 },
+    })
+    expect(stats?.secondary.map((item) => [item.key, item.value])).toEqual([
+      ['haste', '938'],
+      ['critical_strike', '1162'],
+      ['mastery', '975'],
+      ['versatility', '207'],
+    ])
+  })
+
   it('exposes a compact slot-group hydration boundary', () => {
     expect(gearDetailModel).toHaveProperty('hydrateCompactSlotGroup')
     expect(gearDetailModel).toHaveProperty('prepareHydratedEnhancementDraft')

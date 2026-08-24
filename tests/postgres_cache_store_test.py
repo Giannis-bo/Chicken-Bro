@@ -11775,7 +11775,7 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertIsNone(active["communityRelease"])
         self.assertEqual(active["winners"], [])
 
-    def test_sealed_v2_browse_does_not_overlay_observed_build_templates(self):
+    def test_sealed_community_browse_does_not_overlay_observed_build_templates(self):
         from server import postgres_cache_store
 
         bindings = {
@@ -11813,6 +11813,23 @@ class PostgresCacheStoreTest(unittest.TestCase):
                     "schemaRevision": "community-release-v2",
                 },
             },
+            "formal_v1": {
+                "candidatePreview": False,
+                "formalActiveManifest": True,
+                "generation": 26,
+                "manifest": {
+                    "manifestRevision": "season-manifest:formal-v1",
+                    "seasonRevision": "season-17",
+                    "talentCatalogRevision": "talent-r1",
+                    "communityTemplateReleaseId": (
+                        "community-release:formal-v1"
+                    ),
+                },
+                "communityRelease": {
+                    "releaseId": "community-release:formal-v1",
+                    "schemaRevision": "community-release-v1",
+                },
+            },
         }
 
         class PreviewReleaseStore:
@@ -11833,7 +11850,7 @@ class PostgresCacheStoreTest(unittest.TestCase):
             with self.subTest(case=case):
                 store = postgres_cache_store.PostgresCacheStore(
                     lambda: self.fail(
-                        "sealed v2 browse must not query staging"
+                        "sealed community browse must not query staging"
                     ),
                     gear_release_store=PreviewReleaseStore(),
                     observed_build_store=FakeObservedBuildStore(active=True),
@@ -11892,7 +11909,7 @@ class PostgresCacheStoreTest(unittest.TestCase):
                     [{"id": "sealed-preview-template"}],
                 )
 
-    def test_sealed_v2_import_bypasses_observed_build_registry(self):
+    def test_sealed_community_import_bypasses_observed_build_registry(self):
         from server import postgres_cache_store
         from server.postgres_cache_store import CommunityTemplateImportError
 
@@ -11931,6 +11948,23 @@ class PostgresCacheStoreTest(unittest.TestCase):
                     "schemaRevision": "community-release-v2",
                 },
             },
+            "formal_v1": {
+                "candidatePreview": False,
+                "formalActiveManifest": True,
+                "generation": 26,
+                "manifest": {
+                    "manifestRevision": "season-manifest:formal-v1",
+                    "seasonRevision": "season-17",
+                    "gearCatalogReleaseId": "gear-release:formal-v1",
+                    "communityTemplateReleaseId": (
+                        "community-release:formal-v1"
+                    ),
+                },
+                "communityRelease": {
+                    "releaseId": "community-release:formal-v1",
+                    "schemaRevision": "community-release-v1",
+                },
+            },
         }
 
         class PreviewReleaseStore:
@@ -11946,7 +11980,7 @@ class PostgresCacheStoreTest(unittest.TestCase):
                 release_store = PreviewReleaseStore()
                 store = postgres_cache_store.PostgresCacheStore(
                     lambda: self.fail(
-                        "sealed v2 import must not query staging"
+                        "sealed community import must not query staging"
                     ),
                     gear_release_store=release_store,
                     observed_build_store=FakeObservedBuildStore(active=True),
@@ -11960,7 +11994,7 @@ class PostgresCacheStoreTest(unittest.TestCase):
                     store,
                     "_active_observed_build_records",
                     side_effect=AssertionError(
-                        "sealed v2 must not read Observed Build Registry"
+                        "sealed community must not read Observed Build Registry"
                     ),
                 ), self.assertRaises(CommunityTemplateImportError):
                     store.get_community_template_import_context(

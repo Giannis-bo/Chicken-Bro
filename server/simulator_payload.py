@@ -47,6 +47,8 @@ except ImportError:
 
 
 DEFAULT_SIMC_VERSION_FILE = "/var/lib/wow-backend/simc-version.json"
+SIMC_RUNTIME_IDENTITY_RE = re.compile(r"^simc:[^:]+:[0-9a-f]{40}:[0-9a-f]{64}$")
+SIMC_RUNTIME_BUILD_RE = re.compile(r"\b([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)\b")
 SIMC_AGENT_FORBIDDEN_KEYS = {"html", "json", "output", "save", "xml"}
 SIMC_AGENT_TALENT_LINE_KEYS = {"class_talents", "spec_talents", "hero_talents"}
 SIMC_AGENT_TALENT_ENTRY_RE = re.compile(r"^\d+:[1-9]\d*$")
@@ -526,6 +528,35 @@ def simc_binary():
     return shutil.which("simc") or shutil.which("simulationcraft") or ""
 
 
+def _simc_runtime_identity_from_provenance(payload, status):
+    runtime = str(status.get("simcRuntimeRevision") or "").strip().lower()
+    if SIMC_RUNTIME_IDENTITY_RE.fullmatch(runtime):
+        return runtime
+
+    source_commit = str(status.get("sourceCommit") or "").strip().lower()
+    artifact_hash = str(status.get("artifactHash") or "").strip().lower()
+    if artifact_hash.startswith("sha256:"):
+        artifact_hash = artifact_hash.removeprefix("sha256:")
+    if not re.fullmatch(r"[0-9a-f]{40}", source_commit) or not re.fullmatch(
+        r"[0-9a-f]{64}", artifact_hash
+    ):
+        return ""
+
+    build = str(
+        payload.get("simcBuild")
+        or payload.get("build")
+        or status.get("simcBuild")
+        or status.get("build")
+        or ""
+    ).strip()
+    build_match = SIMC_RUNTIME_BUILD_RE.search(build)
+    if not build_match:
+        build_match = SIMC_RUNTIME_BUILD_RE.search(str(status.get("version") or ""))
+    if not build_match:
+        return ""
+    return f"simc:{build_match.group(1)}:{source_commit}:{artifact_hash}"
+
+
 def simc_version_status():
     path = Path(os.environ.get("WOW_SIMC_VERSION_FILE", DEFAULT_SIMC_VERSION_FILE))
     status = {
@@ -536,6 +567,7 @@ def simc_version_status():
         "sourceCommit": "",
         "artifactHash": "",
         "binaryPath": "",
+        "version": "",
         "channel": "",
         "status": "",
         "updateAvailable": False,
@@ -557,8 +589,11 @@ def simc_version_status():
     if re.fullmatch(r"[0-9a-f]{40}", local_commit):
         if not str(status.get("sourceCommit") or "").strip():
             status["sourceCommit"] = local_commit
-        if not str(status.get("simcRuntimeRevision") or "").strip():
-            status["simcRuntimeRevision"] = local_commit
+    immutable_runtime = _simc_runtime_identity_from_provenance(payload, status)
+    if immutable_runtime:
+        status["simcRuntimeRevision"] = immutable_runtime
+    elif not str(status.get("simcRuntimeRevision") or "").strip() and local_commit:
+        status["simcRuntimeRevision"] = local_commit
     status["updateAvailable"] = bool(status["updateAvailable"])
     return status
 

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-08-13",
+  "updatedAt": "2026-08-24",
   "activeMilestone": "taro_target_first_14_route_rebuild",
   "featureIteration": "allowed_under_harness",
   "defaultLocalReleaseArtifact": "artifacts/releases/2026-07-23-observed-build-registry-cutover",
@@ -130,9 +130,24 @@
     {
       "id": "midnight_season_2_selectable_catalog_community_exact_design",
       "path": "docs/plans/2026-08-13-s2-selectable-catalog-community-exact-design.md",
-      "status": "design_confirmed_written_review_pending",
+      "status": "published_manifest_v73_frontend_user_accepted_closure_with_manual_waiver",
       "lifecycle": "active",
-      "notes": "The confirmed direction accepts incomplete S2 Universe coverage. A finite selectable List A must be 100 percent SimC-ready within its published scope; Raider.IO items outside List A may be imported as immutable read-only ExactItemInstances that can display, contribute attributes and simulate without extending Browse membership. The written design is pending user review and does not authorize implementation, candidate publication, runtime changes, Manifest activation or product completion claims."
+      "evidence": "artifacts/releases/2026-08-24-s2-equipment-library-ui-closure/evidence.json",
+      "notes": "The confirmed S2 scope has four logical sources: raid including lair, Mythic+, crafted, and tier_set. Candidate v73 sealed the verified Gear, Catalog, Community and Exact Registry identities, including verified set membership, and was promoted to formal Active Manifest generation 41. List A remains derived only from verified in-scope official facts; Raider.IO items outside List A remain community_observed read-only Exact instances. Backend gear browse, community import and mixed replacement Resolve are live verified. The user confirmed the latest WeChat preview is OK and authorized closure; the closure packet records equipment-apply and attribute-overview acceptance plus an explicit waiver for separately recording community import and authenticated save."
+    },
+    {
+      "id": "midnight_season_2_official_api_fact_snapshot_plan",
+      "path": "docs/plans/2026-08-13-s2-official-api-fact-snapshot-implementation.md",
+      "status": "stage_1_limited_db2_probe_partial_snapshot_blocked",
+      "lifecycle": "active",
+      "notes": "The user authorized downloading and persisting official Blizzard API responses and a bounded DB2 field expansion. The four-category scope, raw lair preservation, independent tier_set membership, current-S2/skill-tier/period filters, capture-manifest fail-closed rules, injected-reader capture adapter, limited client-DB2 allowlist and SimC-independent partial/UNVERIFIED status contract are implemented locally. Capture v8 preserved and hash-validated 1370 official raw responses, including the selected Journal graph, 13 S2 item sets, 8 Midnight skill-tiers, 793 recipes and current Mythic+ period 1076. The official source inventory records 442 observed official item identities (Mythic+ 247, raid including lair 130, tier_set 65), 377 deduplicated source-membership edges and 65 tier-set memberships; the 793 crafted recipe roots still have no API output item, so the four-source candidate denominator is null/blocked. The retained bounded DB2 probes include recipe 52446 min6 (138 exact requests across 19 allowlisted tables; verified recipe output and five quality tiers; secondary-stat and embellishment semantics remain UNVERIFIED), item 159317 plus tier-set item 271481 (227 response pages/217 unique query identities with partial bonus/conversion evidence), and current season 18 (four exact tables returned zero rows, so cap/track remains UNVERIFIED). The recipe min6 closure report binds six fixed SimC serialization probes to runtime 12.1.0.69299, but remains blocked by the 12.1.0.68914 client-build mismatch, an item-resolution warning, and unverified source compatibility; returncode=0 did not promote any option. DB2 transport is mirror-only, raw DB2 is not persisted, and the allowlist rejects full-table or unbounded queries. Stage 1 still excludes Catalog/Exact Registry changes, Manifest activation, candidates and production writes. A raw capture or partial/blocked snapshot has no Phase 2 promotion authority."
+    },
+    {
+      "id": "midnight_season_2_three_sample_release_closure_design",
+      "path": "docs/plans/2026-08-14-s2-three-sample-release-closure-design.md",
+      "status": "design_and_review_confirmed",
+      "lifecycle": "active",
+      "notes": "This bounded proof-of-release design closes only three shortest paths: one S2 Mythic-plus and one S2 raid item at the verified Champion/Hero/Myth terminal states, plus one crafted item at low/mid/myth-end quality with two verified crafted-stat choices and one verified embellishment. API remains the owner of normal-drop facts and membership; the user-approved DB2 exception is now limited to allowlisted fields missing from API and is not manufacturing-only. The current crafted probe and SimC build mismatch are explicit blockers; no candidate, runtime or production change is authorized by this design."
     }
   ],
   "completedBaselines": [
@@ -570,33 +585,35 @@
       "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase3c-workbench-cutover/evidence.json"
     },
     "gearWorkbenchState": {
-      "status": "dual_surface_canonical_api_connected_taro_runtime_unverified",
+      "status": "canonical_api_connected_weapp_build_verified_user_accepted_closure",
       "modules": [
         "pages/builds/gear-workbench-state.js",
         "packages/domain/src/gear-intent.ts",
         "packages/api-client/src/websim.ts"
       ],
       "activeConsumerCount": 2,
-      "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase3c-workbench-cutover/evidence.json"
+      "evidence": "artifacts/releases/2026-08-24-s2-equipment-library-ui-closure/evidence.json",
+      "manualAcceptance": "user_confirmed_equipment_apply_and_attribute_overview; community_import_and_authenticated_save_separately_waived"
     },
     "gearReleaseTrain": {
-      "status": "manifest_v2_phase4_live_verified",
+      "status": "s2_manifest_v2_generation_41_live_verified_frontend_user_accepted_closure_with_manual_waiver",
       "formalActiveManifest": true,
       "pointerMode": "active",
-      "pointerGeneration": 35,
-      "activeManifestRevision": "season-manifest:sha256:20453991e93a1dc1650dbacfd85bdd042e9b020737c7851bef943f1e3e68883a",
-      "rollbackManifestRevision": "season-manifest:sha256:b79e6226c7dc406c2e729cf01cf6d86f4944b760b8e8cc185dcd4347032fedb6",
-      "activeGearCatalogRevision": "gear-catalog:sha256:2ddd8fe84202d086f0f9bf08d7e1cf1b56ff613a181bf8754cbf95841be4eb40",
-      "activeGearExactRegistryRevision": "gear-exact-registry:sha256:c56221bce4070f683e3afb71b65eaa573f4b9d8dc30b26c055f5538cc1aa4523",
+      "pointerGeneration": 41,
+      "activeManifestRevision": "season-manifest:sha256:71a490dc6532783e6b286fbe88d8986f9a37f1930cfb186888088dd55b8c2ded",
+      "rollbackManifestRevision": "season-manifest:sha256:3902d0ac4414751b105b12ff0b36286fdc53a63a9ed4f64f4bfb5eec0d78cb55",
+      "activeGearCatalogRevision": "gear-catalog:sha256:63839fcadff6d01571a685d28eeb8d25fc26b11a2d21cc09c46552daea75cbb3",
+      "activeGearExactRegistryRevision": "gear-exact-registry:sha256:23ea2ac001f9d677597449ff3fe5237240d2ef4fd7b7dbc6cab5e8442948091b",
       "runbook": "docs/gear-simulation-full-chain-runbook.md",
       "purePolicyModule": "server/gear_release.py",
       "releaseRepository": "server/gear_release_store.py",
-      "activeGearReleaseId": "gear-release:sha256:9299fe1f942dc272f402e4d735d6a1bf8111a8f156464e0777cd6df78769edc7",
-      "activeCommunityReleaseId": "community-release:sha256:686708be049323a979b66bfba42cae3f2b80f7337e740d26b299fd73e0665804",
+      "activeGearReleaseId": "gear-release:sha256:3e71cbbf84163e86c90367527fe529d46040b25a372744b3656b1b551f82f190",
+      "activeCommunityReleaseId": "community-release:sha256:a232313703408ca38715d89bd13c2b945764cf7f1725b731a413582ce3f81cb1",
       "activeManifestPointerRows": 1,
-      "scheduledRefresh": "timer_enabled_previous_run_failed_health_blocked",
+      "scheduledRefresh": "timer_stopped_pending_simc_manifest_runtime_alignment",
       "globalDataHealth": "partial",
-      "evidence": "artifacts/releases/2026-07-29-equipment-simulator-phase4-manifest-cutover/evidence.json"
+      "evidence": "artifacts/releases/2026-08-24-s2-equipment-library-ui-closure/evidence.json",
+      "manualAcceptance": "user_confirmed_latest_wechat_preview_ok; authenticated_template_save_not_independently_recorded"
     },
     "gearStatSnapshot": {
       "status": "phase5_complete_live_verified",

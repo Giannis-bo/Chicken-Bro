@@ -774,7 +774,9 @@ def _release_binding_is_readable(binding):
     return value.get("formalActiveManifest") is True or value.get("candidatePreview") is True
 
 
-def _binding_uses_sealed_v2_community(binding):
+def _binding_uses_sealed_community(binding):
+    """Return whether the readable Manifest owns the community template set."""
+
     value = binding if isinstance(binding, dict) else {}
     manifest = (
         value.get("manifest")
@@ -793,7 +795,7 @@ def _binding_uses_sealed_v2_community(binding):
         _release_binding_is_readable(value)
         and community_release_id
         and str(community.get("schemaRevision") or "").strip()
-        == "community-release-v2"
+        in {"community-release-v1", "community-release-v2"}
         and str(
             manifest.get("communityTemplateReleaseId") or ""
         ).strip()
@@ -2234,7 +2236,7 @@ class PostgresCacheStore:
                 "active": {},
                 "records": [],
             }
-            if _binding_uses_sealed_v2_community(binding)
+            if _binding_uses_sealed_community(binding)
             else self._active_observed_build_records(
                 normalized_class,
                 normalized_spec,
@@ -9091,7 +9093,7 @@ class PostgresCacheStore:
             if isinstance(observed, dict)
             else self._active_observed_build_records(class_key, spec_key)
         )
-        if _binding_uses_sealed_v2_community(binding):
+        if _binding_uses_sealed_community(binding):
             observed = {
                 "state": "inactive",
                 "scope": self._observed_build_scope(),
@@ -9223,7 +9225,7 @@ class PostgresCacheStore:
                     "active": {},
                     "records": [],
                 }
-                if _binding_uses_sealed_v2_community(binding)
+                if _binding_uses_sealed_community(binding)
                 else self._active_observed_build_records(
                     class_key,
                     spec_key,

@@ -1221,6 +1221,112 @@ def validate_gear_snapshot(snapshot: Any) -> list[dict[str, str]]:
     return problems
 
 
+def normalize_gear_snapshot_for_release(snapshot: Any) -> dict[str, list[dict[str, Any]]]:
+    """Project a rich candidate snapshot onto the immutable DB release shape.
+
+    Catalog and Exact builders may carry deterministic mapping fields on items
+    and variants.  The release tables intentionally persist only the fields
+    consumed by their public read model, so the same projection must be used
+    before content hashing, sealing, and read-back integrity checks.
+    """
+
+    value = snapshot if isinstance(snapshot, Mapping) else {}
+
+    def text(row: Mapping[str, Any], key: str) -> str:
+        return _text(row.get(key))
+
+    def integer(row: Mapping[str, Any], key: str) -> int | None:
+        raw = row.get(key)
+        if raw is None or raw == "":
+            return None
+        return _int(raw)
+
+    def mapping(row: Mapping[str, Any], key: str) -> dict[str, Any]:
+        raw = row.get(key)
+        return _canonical(raw if isinstance(raw, Mapping) else {})
+
+    def sequence(row: Mapping[str, Any], key: str) -> list[Any]:
+        raw = row.get(key)
+        return _canonical(raw if isinstance(raw, list) else [])
+
+    items = []
+    for raw in value.get("items") or []:
+        if not isinstance(raw, Mapping):
+            continue
+        items.append({
+            "itemId": text(raw, "itemId"),
+            "name": text(raw, "name"),
+            "slot": text(raw, "slot"),
+            "itemLevel": integer(raw, "itemLevel"),
+            "sourceStatus": text(raw, "sourceStatus"),
+            "payload": mapping(raw, "payload"),
+            "updatedAt": text(raw, "updatedAt"),
+        })
+
+    sources = []
+    for raw in value.get("sources") or []:
+        if not isinstance(raw, Mapping):
+            continue
+        sources.append({
+            "sourceId": text(raw, "sourceId"),
+            "itemId": text(raw, "itemId"),
+            "sourceType": text(raw, "sourceType"),
+            "sourceKey": text(raw, "sourceKey"),
+            "sourceLabel": text(raw, "sourceLabel"),
+            "instanceId": text(raw, "instanceId"),
+            "encounterId": text(raw, "encounterId"),
+            "difficultyKey": text(raw, "difficultyKey"),
+            "seasonRevision": text(raw, "seasonRevision"),
+            "payload": mapping(raw, "payload"),
+            "updatedAt": text(raw, "updatedAt"),
+        })
+
+    variants = []
+    for raw in value.get("variants") or []:
+        if not isinstance(raw, Mapping):
+            continue
+        variants.append({
+            "variantId": text(raw, "variantId"),
+            "itemId": text(raw, "itemId"),
+            "variantKey": text(raw, "variantKey"),
+            "slot": text(raw, "slot"),
+            "label": text(raw, "label"),
+            "sourceType": text(raw, "sourceType"),
+            "difficultyKey": text(raw, "difficultyKey"),
+            "itemLevel": integer(raw, "itemLevel") or 0,
+            "simcOptions": mapping(raw, "simcOptions"),
+            "status": text(raw, "status"),
+            "blockers": sequence(raw, "blockers"),
+            "payload": mapping(raw, "payload"),
+            "updatedAt": text(raw, "updatedAt"),
+        })
+
+    options = []
+    for raw in value.get("options") or []:
+        if not isinstance(raw, Mapping):
+            continue
+        options.append({
+            "optionId": text(raw, "optionId"),
+            "variantId": text(raw, "variantId"),
+            "optionKey": text(raw, "optionKey"),
+            "optionType": text(raw, "optionType"),
+            "name": text(raw, "name"),
+            "applicableSlots": sequence(raw, "applicableSlots"),
+            "simcOptions": mapping(raw, "simcOptions"),
+            "status": text(raw, "status"),
+            "isVisible": raw.get("isVisible") is True,
+            "payload": mapping(raw, "payload"),
+            "updatedAt": text(raw, "updatedAt"),
+        })
+
+    return {
+        "items": items,
+        "sources": sources,
+        "variants": variants,
+        "options": options,
+    }
+
+
 def _observed_template_item_level(raw: dict[str, Any]) -> tuple[int, bool]:
     """Return the observed instance level and whether two source spellings conflict."""
 
@@ -1268,6 +1374,18 @@ def _observed_template_instance_options(raw: dict[str, Any], observed_item_level
         for key, value in options.items()
         if key in SIMC_GEAR_OPTION_KEYS
         and (normalized := normalize_option_value(value))
+    }
+
+
+def _semantic_capability_overrides(value: Any) -> dict[str, Any]:
+    """Treat default-false capability markers as equivalent to omission."""
+
+    if not isinstance(value, dict):
+        return {}
+    return {
+        _text(key): item
+        for key, item in value.items()
+        if _text(key) and item is not False and item is not None
     }
 
 
@@ -1341,6 +1459,8 @@ def _canonical_observed_template_variant(
             if key in SIMC_GEAR_OPTION_KEYS
             and (normalized := normalize_option_value(value))
         }
+        if _int(candidate.get("itemLevel")) > 0:
+            candidate_options["ilevel"] = str(_int(candidate.get("itemLevel")))
         if candidate_options != expected_options:
             continue
         payload = candidate.get("payload") if isinstance(candidate.get("payload"), dict) else {}
@@ -1350,7 +1470,9 @@ def _canonical_observed_template_variant(
             "itemLevel": _int(candidate.get("itemLevel")),
             "simcOptions": candidate_options,
             "resolvedStats": payload.get("resolvedStats") or {},
-            "capabilityOverrides": payload.get("capabilityOverrides") or {},
+            "capabilityOverrides": _semantic_capability_overrides(
+                payload.get("capabilityOverrides")
+            ),
             "enhancementManagement": payload.get("enhancementManagement") or {},
         }))
         semantic_candidates.append(semantic_candidate)
@@ -1411,28 +1533,36 @@ def _indexed_observed_template_variant(
     )
     if not scoped_candidates:
         return {}
+    def candidate_options(candidate: dict[str, Any]) -> dict[str, str]:
+        options = {
+            key: normalized
+            for key, value in (candidate.get("simcOptions") or {}).items()
+            if key in SIMC_GEAR_OPTION_KEYS
+            and (normalized := normalize_option_value(value))
+        }
+        if _int(candidate.get("itemLevel")) > 0:
+            options["ilevel"] = str(_int(candidate.get("itemLevel")))
+        return options
+
     signatures = {
         json.dumps(
             _canonical({
                 "itemId": _text(candidate.get("itemId")),
                 "slot": normalize_slot(candidate.get("slot")),
                 "itemLevel": _int(candidate.get("itemLevel")),
-                "simcOptions": {
-                    key: normalized
-                    for key, value in (candidate.get("simcOptions") or {}).items()
-                    if key in SIMC_GEAR_OPTION_KEYS
-                    and (normalized := normalize_option_value(value))
-                },
+                "simcOptions": candidate_options(candidate),
                 "resolvedStats": (
                     candidate.get("payload")
                     if isinstance(candidate.get("payload"), dict)
                     else {}
                 ).get("resolvedStats") or {},
-                "capabilityOverrides": (
-                    candidate.get("payload")
-                    if isinstance(candidate.get("payload"), dict)
-                    else {}
-                ).get("capabilityOverrides") or {},
+                "capabilityOverrides": _semantic_capability_overrides(
+                    (
+                        candidate.get("payload")
+                        if isinstance(candidate.get("payload"), dict)
+                        else {}
+                    ).get("capabilityOverrides")
+                ),
                 "enhancementManagement": (
                     candidate.get("payload")
                     if isinstance(candidate.get("payload"), dict)
@@ -1588,6 +1718,7 @@ def selection_intent_from_template(
         raw: dict[str, Any],
         slot: str,
         socket_count: int,
+        socket_capacity_known: bool,
     ) -> dict[str, str]:
         payload = template.get("payload") if isinstance(template.get("payload"), dict) else {}
         sources = [raw]
@@ -1607,9 +1738,10 @@ def selection_intent_from_template(
             if raw_gem_sequence:
                 gem_tokens = raw_gem_sequence.split("/")
                 if (
-                    socket_count <= 0
+                    socket_capacity_known
+                    and socket_count <= 0
                     or any(not token.strip() or not token.strip().isdigit() for token in gem_tokens)
-                    or len(gem_tokens) > socket_count
+                    or (socket_capacity_known and len(gem_tokens) > socket_count)
                 ):
                     raise GearReleaseIntegrityError(
                         "template gem sequence conflicts with materialized socket capacity"
@@ -1662,7 +1794,12 @@ def selection_intent_from_template(
             if isinstance(variant_payload.get("capabilityOverrides"), dict)
             else {}
         )
-        socket_count = _int(overrides.get("socketCount", base_capabilities.get("socketCount")))
+        socket_count_value = overrides.get(
+            "socketCount",
+            base_capabilities.get("socketCount"),
+        )
+        socket_capacity_known = socket_count_value is not None
+        socket_count = _int(socket_count_value)
         can_enchant = item_can_enchant_slot(item_payload, slot, item) or base_capabilities.get("canEnchant") is True
         if "canEnchant" in overrides:
             can_enchant = overrides.get("canEnchant") is True
@@ -1675,18 +1812,30 @@ def selection_intent_from_template(
             overrides.get("canEmbellish", base_capabilities.get("canEmbellish")) is True
             or management_fields.get("embellishment") == "editor_managed"
         )
-        observed = raw_enhancement_options(raw, slot, socket_count)
+        observed = raw_enhancement_options(
+            raw,
+            slot,
+            socket_count,
+            socket_capacity_known,
+        )
         selected = dict(empty)
         raw_gems = [
             token.strip()
             for token in observed.get("gem_id", "").split("/")
             if token.strip()
         ]
-        if raw_gems and (socket_count <= 0 or len(raw_gems) > socket_count):
+        if raw_gems and socket_capacity_known and (
+            socket_count <= 0 or len(raw_gems) > socket_count
+        ):
             raise GearReleaseIntegrityError(
                 "template gem sequence conflicts with materialized socket capacity"
             )
-        if raw_gems and socket_count > 0 and len(raw_gems) <= socket_count:
+        if (
+            raw_gems
+            and socket_capacity_known
+            and socket_count > 0
+            and len(raw_gems) <= socket_count
+        ):
             gem_option_ids = [
                 unique_option_key(slot, {"gem"}, "gem_id", gem_id)
                 for gem_id in raw_gems
@@ -2865,6 +3014,7 @@ def prepare_staging_community_release(
     source_revision: str = "legacy-import-r0",
     parent_release_id: str = "",
     resolver_for_spec: Callable[[str, str, dict[str, Any]], dict[str, Any]] | None = None,
+    set_membership: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     expected = sorted({
         (_text(class_key), _text(spec_key))
@@ -2954,8 +3104,26 @@ def prepare_staging_community_release(
     candidates = (
         []
         if projection_enabled
-        else [candidate_for_template(template) for template in templates]
+        else []
     )
+    preflight_rejections: list[dict[str, Any]] = []
+    if not projection_enabled:
+        skip_invalid_templates = bool(
+            getattr(store, "community_skip_invalid_public_template_evidence", False)
+        )
+        for template in templates:
+            try:
+                candidates.append(candidate_for_template(template))
+            except GearReleaseIntegrityError as error:
+                if not skip_invalid_templates:
+                    raise
+                preflight_rejections.append({
+                    "templateId": _text(template.get("templateId")),
+                    "classKey": _text(template.get("classKey")),
+                    "specKey": _text(template.get("specKey")),
+                    "code": "COMMUNITY_TEMPLATE_PUBLIC_EVIDENCE_INVALID",
+                    "detail": _text(error),
+                })
 
     def resolve_candidate(intent: dict[str, Any]) -> dict[str, Any]:
         eligibility = intent.get("eligibilityContext") or {}
@@ -2975,6 +3143,7 @@ def prepare_staging_community_release(
             runtime,
             gear_release_descriptor,
             prepared_index=prepared_authority,
+            set_membership=set_membership,
         )
         return gear_resolver.resolve(intent, authority)
 
@@ -3098,6 +3267,22 @@ def prepare_staging_community_release(
         "standbyCount": len(election.get("standbys") or []),
         "rejectedCount": len(election.get("rejected") or []),
         "missingSpecs": election.get("missingSpecs") or [],
+        "preflightRejectedCount": len(preflight_rejections),
+        "preflightRejectedTemplates": preflight_rejections[:100],
+        "rejectionSamples": [
+            {
+                "candidateId": _text(row.get("candidateId")),
+                "classKey": _text(row.get("classKey")),
+                "specKey": _text(row.get("specKey")),
+                "problems": _canonical(
+                    (row.get("problems") or [])[:8]
+                    if isinstance(row.get("problems"), list)
+                    else []
+                ),
+            }
+            for row in (election.get("rejected") or [])[:20]
+            if isinstance(row, dict)
+        ],
         **summary,
     }
     return {"release": release, "rows": rows, "election": election, "gate": gate}
@@ -3114,6 +3299,7 @@ def build_legacy_community_release(
     level: int = 90,
     source_revision: str = "legacy-import-r0",
     resolver_for_spec: Callable[[str, str, dict[str, Any]], dict[str, Any]] | None = None,
+    set_membership: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     prepared = prepare_staging_community_release(
         store,
@@ -3125,6 +3311,7 @@ def build_legacy_community_release(
         level=level,
         source_revision=source_revision,
         resolver_for_spec=resolver_for_spec,
+        set_membership=set_membership,
     )
     release = prepared["release"]
     rows = prepared["rows"]

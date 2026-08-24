@@ -668,6 +668,15 @@ def _source_is_verified(source: Any) -> bool:
         _text(source.get("status")).lower(),
         _text(source.get("sourceStatus")).lower(),
     }
+    payload = _json_value(source.get("payload"), {})
+    if isinstance(payload, dict):
+        # S2 official source rows preserve membership authority inside the
+        # immutable payload because the release-source table has no separate
+        # status column. Do not infer verification from source type or label;
+        # only accept the explicit verified marker.
+        statuses.add(_text(payload.get("sourceMembershipStatus")).lower())
+        statuses.add(_text(payload.get("status")).lower())
+        statuses.add(_text(payload.get("sourceStatus")).lower())
     return "verified" in statuses or bool(_tier_set_id_from_source(source))
 
 
@@ -680,6 +689,39 @@ def _has_verified_crafted_source(sources: Any) -> bool:
         and _text(source.get("sourceType")).lower() == "crafted"
         for source in (sources if isinstance(sources, Iterable) else [])
     )
+
+
+def _canonical_direct_inventory_type(value: Any, canonical_slot: str) -> str:
+    """Normalize Blizzard/S2 direct inventory tokens into resolver slot authority."""
+
+    raw = _text(value)
+    token = re.sub(r"[^A-Z0-9]+", "", raw.upper())
+    if not token:
+        return ""
+    if token in {"WEAPON", "WEAPONMAINHAND", "TWOHWEAPON", "RANGED", "RANGEDRIGHT", "THROWN"}:
+        return "weapon"
+    if token in {"SHIELD", "HOLDABLE", "WEAPONOFFHAND"}:
+        return "off_hand"
+    slot_tokens = {
+        "HEAD": "head",
+        "NECK": "neck",
+        "SHOULDER": "shoulder",
+        "CLOAK": "back",
+        "CHEST": "chest",
+        "ROBE": "chest",
+        "WRIST": "wrist",
+        "HAND": "hands",
+        "WAIST": "waist",
+        "LEGS": "legs",
+        "FEET": "feet",
+    }
+    if token in slot_tokens:
+        return slot_tokens[token]
+    if token == "FINGER" and canonical_slot in {"finger1", "finger2"}:
+        return canonical_slot
+    if token == "TRINKET" and canonical_slot in {"trinket1", "trinket2"}:
+        return canonical_slot
+    return raw.lower()
 
 
 def _project_base_capabilities(
@@ -888,7 +930,20 @@ def _project_item(
     canonical_slot = _text(item_slot_from_payload(payload) or record.get("slot"))
     type_metadata = item_type_metadata_from_payload(payload)
     type_metadata = type_metadata if isinstance(type_metadata, dict) else {}
-    weapon_type = _text(payload.get("weaponType") or type_metadata.get("weaponType"))
+    equipment = payload.get("equipment")
+    equipment = equipment if isinstance(equipment, dict) else {}
+    weapon_type = _text(
+        payload.get("weaponType")
+        or equipment.get("weaponType")
+        or type_metadata.get("weaponType")
+    )
+    direct_inventory_token = re.sub(
+        r"[^A-Z0-9]+",
+        "",
+        _text(payload.get("inventoryType") or equipment.get("inventoryType")).upper(),
+    )
+    if direct_inventory_token == "TWOHWEAPON" and weapon_type in {"Axe", "Mace", "Sword"}:
+        weapon_type = f"Two-Handed {weapon_type}"
     handedness = _text(payload.get("handedness"))
     if not handedness and weapon_type:
         handedness = _text(
@@ -908,7 +963,10 @@ def _project_item(
         allowed_slots = ["main_hand", "off_hand"]
     else:
         allowed_slots = _texts(EQUIVALENT_GEAR_SLOTS.get(canonical_slot, [canonical_slot]))
-    inventory_type = _text(payload.get("inventoryType"))
+    inventory_type = _canonical_direct_inventory_type(
+        payload.get("inventoryType") or equipment.get("inventoryType"),
+        canonical_slot,
+    )
     if not inventory_type:
         inventory_type = "weapon" if handedness in {"one_hand", "two_hand", "ranged"} else canonical_slot
     base_capabilities = _project_base_capabilities(

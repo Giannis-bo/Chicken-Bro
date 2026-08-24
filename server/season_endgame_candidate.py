@@ -137,7 +137,15 @@ def _snapshot_rows(snapshot: Mapping[str, Any]) -> dict[str, Any]:
     rows = copy.deepcopy(dict(snapshot))
     items = [row for row in rows.get("items") or [] if isinstance(row, dict)]
     sources = [row for row in rows.get("sources") or [] if isinstance(row, dict)]
-    variants = [row for row in rows.get("variants") or [] if isinstance(row, dict)]
+    # Exact rows are retained on the full snapshot for Gear/Exact Registry,
+    # but Catalog projection must never traverse them as legacy Browse input.
+    # Keeping them out here also prevents the Catalog builder from attempting
+    # expensive exact progression resolution for every observed profile row.
+    variants = [
+        row
+        for row in rows.get("variants") or []
+        if isinstance(row, dict) and _text(row.get("rowFamily")) != "exact_instance"
+    ]
     source_item_ids = {
         _text(row.get("itemId")) for row in sources if _text(row.get("itemId"))
     }
@@ -420,7 +428,8 @@ def build_season_endgame_candidate(
         track_authority=tracks,
         simc_runtime_revision=simc_runtime_revision,
     )
-    snapshot_problems = gear_release_tool.validate_gear_snapshot(snapshot)
+    release_snapshot = gear_release_tool.normalize_gear_snapshot_for_release(snapshot)
+    snapshot_problems = gear_release_tool.validate_gear_snapshot(release_snapshot)
     for issue in snapshot_problems:
         _append_problem(
             problems,
@@ -431,7 +440,7 @@ def build_season_endgame_candidate(
     if problems:
         return _blocked(season_revision, problems, dependency_vector=dependency)
 
-    summary = gear_release_tool.gear_snapshot_summary(snapshot)
+    summary = gear_release_tool.gear_snapshot_summary(release_snapshot)
     release = gear_release.build_release(
         release_kind="gear",
         season_revision=season_revision,
@@ -541,6 +550,7 @@ def build_season_endgame_candidate(
         ),
         community_templates=snapshot.get("communityTemplates") or [],
         personal_templates=snapshot.get("personalTemplates") or [],
+        set_membership=sets,
     )
     if exact_registry.get("status") != "verified":
         for code in exact_registry.get("problemCodes") or []:

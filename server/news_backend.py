@@ -11653,6 +11653,12 @@ def websim_gear_payload_with_template_legality(payload):
 def current_gear_simc_runtime_revision():
     simc_status = simc_version_status()
     websim_state = simc_status.get("websimState") if isinstance(simc_status.get("websimState"), dict) else {}
+    immutable_runtime = str(simc_status.get("simcRuntimeRevision") or "").strip().lower()
+    if re.fullmatch(
+        r"simc:[^:]+:[0-9a-f]{40}:[0-9a-f]{64}",
+        immutable_runtime,
+    ):
+        return immutable_runtime
     for candidate in (
         simc_status.get("sourceCommit"),
         simc_status.get("simcRuntimeRevision"),

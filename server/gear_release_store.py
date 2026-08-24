@@ -13,7 +13,7 @@ import hashlib
 import json
 import os
 import tempfile
-from typing import Any, Iterable
+from typing import Any, Iterable, Mapping
 
 try:
     from .gear_public_contract import is_public_hero_gear_projection
@@ -292,9 +292,15 @@ def _project_staging_item_media(
             if isinstance(item.get("payload"), dict)
             else {}
         )
-        if not _text(payload.get("iconUrl") or payload.get("icon")):
-            media = media_by_item.get(_text(item.get("itemId")))
-            if isinstance(media, dict):
+        media = media_by_item.get(_text(item.get("itemId")))
+        if isinstance(media, dict):
+            media_icon_url = _text(media.get("iconUrl"))
+            existing_icon_url = _text(payload.get("iconUrl"))
+            # Preserve an already materialized icon only when it agrees with
+            # the exact verified Blizzard asset.  A bare icon token (without
+            # iconUrl) is still enriched so downstream release gates retain
+            # provenance instead of treating the token as verified evidence.
+            if not existing_icon_url or existing_icon_url == media_icon_url:
                 payload.update(_canonical(media))
         item["payload"] = payload
         projected.append(item)
@@ -1237,11 +1243,18 @@ class CandidateGearAuthorityIndex:
                 or _text(row.get("sourceType")).lower() != "observed_profile"
             ):
                 continue
+            indexed_options = (
+                dict(row.get("simcOptions"))
+                if isinstance(row.get("simcOptions"), dict)
+                else {}
+            )
+            if _int(row.get("itemLevel")) > 0:
+                indexed_options["ilevel"] = str(_int(row.get("itemLevel")))
             instance_key = candidate_observed_variant_instance_key(
                 item_id,
                 row.get("slot"),
                 row.get("itemLevel"),
-                row.get("simcOptions"),
+                indexed_options,
             )
             self.observed_variants_by_instance.setdefault(
                 instance_key,
@@ -1273,6 +1286,7 @@ def build_candidate_authority_context(
     *,
     prepared_index: CandidateGearAuthorityIndex | None = None,
     include_applicable_options: bool = False,
+    set_membership: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build an inactive candidate Authority Context from an exact sealed snapshot."""
 
@@ -1433,6 +1447,7 @@ def build_candidate_authority_context(
         item_rows=item_rows,
         option_rows=option_rows,
         link_all_applicable_options=include_applicable_options,
+        set_membership=set_membership,
     )
 
 
@@ -1496,11 +1511,30 @@ def _readable_release_binding(binding: Any) -> bool:
     return value.get("formalActiveManifest") is True or value.get("candidatePreview") is True
 
 
+def _active_set_membership(binding: Any) -> dict[str, Any] | None:
+    """Recover the immutable S2 set index carried by the Exact Registry header."""
+
+    value = binding if isinstance(binding, Mapping) else {}
+    exact_registry = (
+        value.get("gearExactRegistry")
+        if isinstance(value.get("gearExactRegistry"), Mapping)
+        else {}
+    )
+    summary = (
+        exact_registry.get("summary")
+        if isinstance(exact_registry.get("summary"), Mapping)
+        else {}
+    )
+    membership = summary.get("setMembership")
+    return dict(membership) if isinstance(membership, Mapping) else None
+
+
 class GearReleaseStore:
     # The mutable Talent snapshot is now part of the source contract for new
     # Community Releases.  Kept as a capability flag so legacy test doubles
     # and explicitly historical rebuilds remain v1-compatible.
     community_hero_projection_enabled = True
+    community_skip_invalid_public_template_evidence = False
     def __init__(self, connection_factory):
         self.connection_factory = connection_factory
 
@@ -2208,6 +2242,10 @@ class GearReleaseStore:
                                'sourceProfileUrl', variant.payload_json->'sourceProfileUrl',
                                'sourceUrl', variant.payload_json->'sourceUrl',
                                'url', variant.payload_json->'url',
+                               'truthScope', variant.payload_json->'truthScope',
+                               'officialFactStatus', variant.payload_json->'officialFactStatus',
+                               'membershipKind', variant.payload_json->'membershipKind',
+                               'editable', variant.payload_json->'editable',
                                'observedProfileRefs', variant.payload_json->'observedProfileRefs',
                                'statSource', variant.payload_json->'statSource',
                                'statDisplayStatus', variant.payload_json->'statDisplayStatus',
@@ -2888,6 +2926,7 @@ class GearReleaseStore:
         gear_release_id: str,
         *,
         include_applicable_options: bool = False,
+        set_membership: Mapping[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Read selected authority facts from one exact inactive Gear Release."""
 
@@ -2996,6 +3035,7 @@ class GearReleaseStore:
             item_rows=item_rows,
             option_rows=option_rows,
             link_all_applicable_options=include_applicable_options,
+            set_membership=set_membership,
         )
 
     @staticmethod
@@ -3110,6 +3150,12 @@ class GearReleaseStore:
             manifest.get("gearCatalogRevision") or gear_release_id
         )
         dependencies = self._active_runtime_dependencies(binding, runtime_authority)
+        set_membership = _active_set_membership(binding)
+        authority_kwargs = (
+            {"set_membership": set_membership}
+            if set_membership is not None
+            else {}
+        )
         # The exact-release reader is intentionally strict for inactive shadow
         # calls.  Active Resolve must still be able to read current authority
         # for an older Intent so the pure resolver can return a truthful 409
@@ -3203,12 +3249,14 @@ class GearReleaseStore:
                 runtime_authority,
                 gear_release_id,
                 include_applicable_options=True,
+                **authority_kwargs,
             )
         else:
             context = self.load_candidate_authority_context(
                 authority_read_intent,
                 runtime_authority,
                 gear_release_id,
+                **authority_kwargs,
             )
         context = _canonical(context)
         variants_by_item_and_key = (

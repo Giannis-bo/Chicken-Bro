@@ -66,7 +66,19 @@ echo "Deploying WOW mini program backend to ${SSH_TARGET}:${REMOTE_DIR}"
 COPYFILE_DISABLE=1 tar \
   --format ustar \
   --exclude '.git' \
-  --exclude 'server/data' \
+  --exclude 'server/data/wow_news.sqlite3' \
+  --exclude 'server/data/wow_news.sqlite3*' \
+  --exclude 'node_modules' \
+  --exclude 'artifacts' \
+  --exclude 'backups' \
+  --exclude '.codex-backups' \
+  --exclude '.codex-candidate-backups' \
+  --exclude '.candidate-backups' \
+  --exclude '.candidate-staging' \
+  --exclude '.worktrees' \
+  --exclude '.agents' \
+  --exclude '.gstack' \
+  --exclude '.superpowers' \
   --exclude '__pycache__' \
   --exclude '*/__pycache__' \
   --exclude '.DS_Store' \
@@ -349,8 +361,10 @@ state_file="${state_dir}/simc-version.json"
 
 mkdir -p "${state_dir}"
 SIMC_GITHUB_REPO="${repo}" SIMC_BRANCH="${branch}" SIMC_COMMIT_FILE="${commit_file}" SIMC_BIN="${simc_bin}" STATE_FILE="${state_file}" python3 - <<'PY'
+import hashlib
 import json
 import os
+import re
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
@@ -364,6 +378,7 @@ state_file = Path(os.environ.get("STATE_FILE", "/var/lib/wow-backend/simc-versio
 local_commit = ""
 latest_commit = ""
 simc_version = ""
+artifact_hash = ""
 error = ""
 
 try:
@@ -391,12 +406,36 @@ try:
 except Exception as exc:
     error = str(exc)
 
+try:
+    digest = hashlib.sha256()
+    with Path(simc_bin).open("rb") as binary:
+        for chunk in iter(lambda: binary.read(1024 * 1024), b""):
+            digest.update(chunk)
+    artifact_hash = digest.hexdigest()
+except OSError:
+    artifact_hash = ""
+
+build_match = re.search(r"\b([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)\b", simc_version)
+simc_runtime_revision = ""
+if (
+    build_match
+    and re.fullmatch(r"[0-9a-f]{40}", local_commit.lower())
+    and re.fullmatch(r"[0-9a-f]{64}", artifact_hash.lower())
+):
+    simc_runtime_revision = (
+        f"simc:{build_match.group(1)}:{local_commit.lower()}:{artifact_hash.lower()}"
+    )
+
 status = {
     "checkedAt": datetime.now(timezone.utc).isoformat(timespec="seconds"),
     "localTag": local_commit[:12],
     "latestTag": latest_commit[:12],
     "localCommit": local_commit,
+    "sourceCommit": local_commit,
     "latestCommit": latest_commit,
+    "simcRuntimeRevision": simc_runtime_revision,
+    "artifactHash": artifact_hash,
+    "binaryPath": simc_bin,
     "updateAvailable": bool(latest_commit and local_commit and latest_commit != local_commit),
     "source": "github",
     "repo": repo,

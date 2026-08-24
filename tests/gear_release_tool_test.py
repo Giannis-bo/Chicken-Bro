@@ -625,6 +625,74 @@ class GearReleaseToolTest(unittest.TestCase):
             'observed-profile-other-observed_profile-head-292-{"bonus_id": "40", "ilevel": "292"}',
         )
 
+    def test_observed_template_matches_item_level_alias_and_ignores_default_false_capability(self):
+        from server.gear_release_store import CandidateGearAuthorityIndex, gear_snapshot_summary
+        from server.gear_release_tool import (
+            community_template_import_evidence_from_template,
+            selection_intent_from_template,
+        )
+
+        template = self.template()
+        item = template["gearItems"][0]
+        item.pop("variantKey")
+        item.pop("gem_id")
+        item.pop("enchant_id")
+        item.update({
+            "itemLevel": 292,
+            "bonus_id": "40",
+            "observedProfileRefs": [{
+                "profileUrl": "https://raider.io/characters/kr/azshara/target-player",
+            }],
+        })
+        snapshot = self.snapshot()
+        snapshot["variants"][0].update({
+            "itemLevel": 292,
+            "variantKey": "observed-target",
+            "simcOptions": {"bonus_id": "40"},
+            "sourceType": "observed_profile",
+            "payload": {"resolvedStats": {"intellect": 100}},
+        })
+        duplicate = copy.deepcopy(snapshot["variants"][0])
+        duplicate.update({
+            "variantId": "observed-target-default-false",
+            "variantKey": "observed-target-default-false",
+            "payload": {
+                "resolvedStats": {"intellect": 100},
+                "capabilityOverrides": {"requiresCraftedOption": False},
+            },
+        })
+        snapshot["variants"].append(duplicate)
+
+        evidence = community_template_import_evidence_from_template(
+            template,
+            gear_release_id="gear-release:sha256:target",
+            gear_snapshot=snapshot,
+        )
+        prepared_index = CandidateGearAuthorityIndex(
+            snapshot,
+            gear_release.build_release(
+                release_kind="gear",
+                season_revision="season-17",
+                schema_revision="gear-release-v1",
+                content=gear_snapshot_summary(snapshot),
+                dependency_revisions=self.dependencies(),
+                release_status="validated",
+                source={"sourceRevision": "test"},
+            ),
+        )
+        intent = selection_intent_from_template(
+            template,
+            gear_release_id=prepared_index.release["releaseId"],
+            season_revision="season-17",
+            level=90,
+            capability_revision="gear-capability-matrix-v2",
+            prepared_index=prepared_index,
+        )
+
+        self.assertEqual(evidence["slots"]["head"]["variantKey"], "observed-target")
+        self.assertEqual(evidence["slots"]["head"]["observedItemLevel"], 292)
+        self.assertEqual(intent["slots"]["head"]["variantKey"], "observed-target")
+
     def test_observed_template_canonicalizes_identical_target_profile_duplicates(self):
         from server.gear_release_tool import community_template_import_evidence_from_template
 
@@ -1128,6 +1196,90 @@ class GearReleaseToolTest(unittest.TestCase):
             )
 
         self.assertEqual(store.community_seals, [])
+
+    def test_single_winner_release_skips_invalid_public_template_with_gate_evidence(self):
+        from server.gear_release_store import gear_snapshot_summary
+        from server.gear_release_tool import build_legacy_community_release
+        from server.gear_socket_authority import CAPABILITY_REVISION
+
+        snapshot = self.snapshot()
+        snapshot["items"][0]["payload"] = {
+            "baseCapabilities": {
+                "socketCount": 1,
+                "canEnchant": False,
+                "canEmbellish": False,
+            }
+        }
+        snapshot["variants"][0]["simcOptions"] = {
+            "ilevel": "289",
+            "gem_id": "240892",
+        }
+        snapshot["variants"][0]["payload"] = {
+            "resolvedStats": {"intellect": 100},
+            "capabilityOverrides": {"socketCount": 1},
+            "enhancementManagement": {
+                "schemaRevision": "gear-enhancement-management-v1",
+                "authorityRevision": CAPABILITY_REVISION,
+                "fields": {"gem_id": "editor_managed"},
+            },
+        }
+        snapshot["options"] = [{
+            "optionId": "option-gem-240892",
+            "optionKey": "gem-240892",
+            "optionType": "socket",
+            "name": "Canonical gem 240892",
+            "applicableSlots": ["head"],
+            "simcOptions": {"gem_id": "240892"},
+            "status": "verified",
+            "isVisible": True,
+            "payload": {},
+        }]
+        template = self.template(template_id="observed-public")
+        template["gearItems"][0]["gem_id"] = "240892/240892"
+        dependencies = {
+            **self.dependencies(),
+            "capabilityRevision": CAPABILITY_REVISION,
+        }
+        gear = gear_release.build_release(
+            release_kind="gear",
+            season_revision="season-17",
+            schema_revision="gear-release-v1",
+            content=gear_snapshot_summary(snapshot),
+            dependency_revisions=dependencies,
+            release_status="validated",
+            source={"sourceRevision": "single-winner-preflight-test"},
+        )
+        store = FakeReleaseStore(snapshot, [template])
+        store.community_skip_invalid_public_template_evidence = True
+
+        result = build_legacy_community_release(
+            store,
+            gear_release_descriptor=gear,
+            gear_snapshot=snapshot,
+            dependency_revisions=dependencies,
+            expected_specs=[("mage", "arcane")],
+            now="2026-07-14T01:00:00+00:00",
+        )
+
+        self.assertEqual(result["gate"]["status"], "degraded")
+        self.assertEqual(
+            result["gate"]["missingSpecs"],
+            [{"classKey": "mage", "specKey": "arcane"}],
+        )
+        self.assertEqual(result["gate"]["preflightRejectedCount"], 1)
+        self.assertEqual(
+            result["gate"]["preflightRejectedTemplates"][0]["templateId"],
+            "observed-public",
+        )
+        self.assertIn(
+            "template gem sequence conflicts with materialized socket capacity",
+            result["gate"]["preflightRejectedTemplates"][0]["detail"],
+        )
+        self.assertEqual(len(store.community_seals), 1)
+        self.assertEqual(
+            store.community_seals[0][2]["gate_result"]["status"],
+            "degraded",
+        )
 
     def test_community_release_blocks_conflicting_gem_sources_when_one_exceeds_capacity(self):
         from server.gear_release_store import GearReleaseIntegrityError, gear_snapshot_summary

@@ -387,6 +387,13 @@ class GearReleaseStoreTest(unittest.TestCase):
                 ],
                 "FROM cache.websim_asset_registry asset": [
                     (
+                        "item-existing",
+                        "websim-item-metadata",
+                        existing_icon,
+                        "blizzard",
+                        "verified",
+                    ),
+                    (
                         "item-verified",
                         "websim-item-metadata",
                         verified_icon,
@@ -427,10 +434,16 @@ class GearReleaseStoreTest(unittest.TestCase):
             for row in snapshot["items"]
         }
         self.assertEqual(
-            items["item-existing"]["iconUrl"],
-            existing_icon,
+            items["item-existing"],
+            {
+                "iconUrl": existing_icon,
+                "gameAsset": {
+                    "status": "verified",
+                    "source": "blizzard",
+                    "iconUrl": existing_icon,
+                },
+            },
         )
-        self.assertNotIn("gameAsset", items["item-existing"])
         self.assertEqual(
             items["item-verified"],
             {
@@ -558,6 +571,10 @@ class GearReleaseStoreTest(unittest.TestCase):
         self.assertIn("observed_instance_keys", sql)
         self.assertIn("observed_instance_candidates", sql)
         self.assertIn("'profileUrl', variant.payload_json->'profileUrl'", sql)
+        self.assertIn("'truthScope', variant.payload_json->'truthScope'", sql)
+        self.assertIn("'officialFactStatus', variant.payload_json->'officialFactStatus'", sql)
+        self.assertIn("'membershipKind', variant.payload_json->'membershipKind'", sql)
+        self.assertIn("'editable', variant.payload_json->'editable'", sql)
         self.assertIn("'gem_bonus_id'", sql)
         self.assertIn("'gem_ilevel'", sql)
         self.assertIn("'redirected_base_stats'", sql)
@@ -642,6 +659,72 @@ class GearReleaseStoreTest(unittest.TestCase):
         self.assertEqual(context["manifest"]["gearCatalogRevision"], release["releaseId"])
         self.assertEqual(context["manifest"]["manifestType"], "candidate")
         self.assertFalse(context["manifest"]["formalActiveManifest"])
+
+    def test_candidate_authority_context_passes_s2_set_membership_to_loader(self):
+        from server import gear_release_store
+        from server.gear_release_store import build_candidate_authority_context
+        from server.websim_payload import gear_resolver_runtime_authority
+
+        snapshot = self.snapshot()
+        season_revision = "season-midnight-season-2:fixture"
+        release = gear_release.build_release(
+            release_kind="gear",
+            season_revision=season_revision,
+            schema_revision="gear-release-v1",
+            content=gear_release_store.gear_snapshot_summary(snapshot),
+            dependency_revisions={
+                **self.dependencies(),
+                "capabilityRevision": "gear-capability-matrix-v2",
+            },
+            release_status="validated",
+            source={"sourceRevision": "s2-fixture"},
+        )
+        intent = {
+            "schemaRevision": "selection-intent-v1",
+            "authoredAgainst": {
+                "seasonRevision": season_revision,
+                "gearCatalogRevision": release["releaseId"],
+            },
+            "eligibilityContext": {"classKey": "mage", "specKey": "arcane", "level": 90},
+            "slots": {
+                "head": {
+                    "itemId": "item-a",
+                    "variantKey": "variant-a",
+                    "gemOptionIds": [],
+                    "enchantOptionId": "",
+                    "embellishmentOptionId": "",
+                    "craftedOptionId": "",
+                    "catalystOptionId": "",
+                }
+            },
+        }
+        runtime = gear_resolver_runtime_authority(
+            "mage",
+            "arcane",
+            simc_runtime_revision="simc-r1",
+        )
+        set_membership = {
+            "schemaRevision": "season-set-membership-v1",
+            "status": "verified",
+            "seasonRevision": season_revision,
+            "setMembershipRevision": "s2-sets:sha256:" + "a" * 64,
+            "itemsById": {},
+            "blockedItemIds": [],
+        }
+
+        with patch(
+            "server.pg_gear_authority_loader.build_gear_authority_context_from_rows",
+            return_value={"setMembership": set_membership},
+        ) as loader:
+            build_candidate_authority_context(
+                snapshot,
+                intent,
+                runtime,
+                release,
+                set_membership=set_membership,
+            )
+
+        self.assertEqual(loader.call_args.kwargs["set_membership"], set_membership)
 
     def test_gear_snapshot_summary_streams_the_legacy_exact_hash_without_canonical_copies(self):
         from server import gear_release_store

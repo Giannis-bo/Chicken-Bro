@@ -1,4 +1,5 @@
 import gzip
+import hashlib
 import io
 import os
 import json
@@ -12304,6 +12305,24 @@ class NewsBackendTest(unittest.TestCase):
 
         self.assertEqual(revision, full_commit)
 
+    def test_current_gear_simc_runtime_revision_prefers_immutable_runtime_identity(self):
+        runtime_identity = (
+            "simc:12.1.0.69299:"
+            "f50a2121bf894570146507496f3e113bff68e445:"
+            "69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da"
+        )
+        with patch.object(
+            self.backend,
+            "simc_version_status",
+            return_value={
+                "sourceCommit": "f50a2121bf894570146507496f3e113bff68e445",
+                "simcRuntimeRevision": runtime_identity,
+            },
+        ):
+            revision = self.backend.current_gear_simc_runtime_revision()
+
+        self.assertEqual(revision, runtime_identity)
+
     def test_simc_version_status_promotes_full_local_commit_to_runtime_identity(self):
         from server import simulator_payload
 
@@ -12322,6 +12341,31 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(status["sourceCommit"], full_commit)
         self.assertEqual(status["simcRuntimeRevision"], full_commit)
         self.assertEqual(status["binaryPath"], "/opt/wow-simc/current/simc")
+
+    def test_simc_version_status_reconstructs_immutable_runtime_identity_from_binary_provenance(self):
+        from server import simulator_payload
+
+        full_commit = "f50a2121bf894570146507496f3e113bff68e445"
+        binary_bytes = b"verified-simc-binary"
+        artifact_hash = hashlib.sha256(binary_bytes).hexdigest()
+        with tempfile.TemporaryDirectory() as directory:
+            version_file = Path(directory) / "simc-version.json"
+            version_file.write_text(json.dumps({
+                "localCommit": full_commit,
+                "version": "SimulationCraft 1210-01 for World of Warcraft 12.1.0.69299 Live",
+                "artifactHash": artifact_hash,
+                "binary": "/opt/wow-simc/current/simc",
+                "source": "github",
+            }), encoding="utf-8")
+            with patch.dict(os.environ, {"WOW_SIMC_VERSION_FILE": str(version_file)}):
+                status = simulator_payload.simc_version_status()
+
+        self.assertEqual(
+            status["simcRuntimeRevision"],
+            f"simc:12.1.0.69299:{full_commit}:{artifact_hash}",
+        )
+        self.assertEqual(status["sourceCommit"], full_commit)
+        self.assertEqual(status["artifactHash"], artifact_hash)
 
     def test_runtime_websim_gear_reuses_formal_browse_binding_for_resolver_context(self):
         binding = {

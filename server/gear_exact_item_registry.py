@@ -11,9 +11,11 @@ from typing import Any, Mapping
 try:
     from .gear_contracts import community_template_authority_identity
     from .gear_exact_item_instance import build_exact_item_instance
+    from .season_set_membership import validate_set_membership
 except ImportError:
     from gear_contracts import community_template_authority_identity
     from gear_exact_item_instance import build_exact_item_instance
+    from season_set_membership import validate_set_membership
 
 
 EXACT_ITEM_REGISTRY_SCHEMA_REVISION = "gear-exact-item-registry-v1"
@@ -234,11 +236,17 @@ def _reference_row(
 
 
 def _registry_semantics(registry: Mapping[str, Any]) -> dict[str, Any]:
+    summary = registry.get("summary") if isinstance(registry.get("summary"), Mapping) else {}
     return {
         "schemaRevision": _text(registry.get("schemaRevision")),
         "catalogRevision": _text(registry.get("catalogRevision")),
         "seasonRevision": _text(registry.get("seasonRevision")),
         "gearRuleRevision": _text(registry.get("gearRuleRevision")),
+        # Set membership is stored inside the PostgreSQL summary header so
+        # the active authority loader can recover the complete immutable
+        # S2 tier-set index without a second mutable source.  It is part of
+        # the registry identity, not an incidental display field.
+        "setMembership": _canonical(summary.get("setMembership") or {}),
         "enhancementSelections": _canonical(
             registry.get("enhancementSelections") or []
         ),
@@ -260,6 +268,7 @@ def build_exact_item_registry(
     source_exact_row_count: Any = None,
     community_templates: Any,
     personal_templates: Any,
+    set_membership: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Materialize only exact instances referenced by structured templates."""
 
@@ -278,6 +287,45 @@ def build_exact_item_registry(
             source_index.setdefault(key, []).append(row)
 
     problems: list[dict[str, str]] = []
+    normalized_set_membership = (
+        _canonical(set_membership)
+        if isinstance(set_membership, Mapping)
+        else None
+    )
+    active_season_revision = _text(active.get("seasonRevision"))
+    if active_season_revision.startswith("season-midnight-season-2:"):
+        if normalized_set_membership is None:
+            problems.append(_problem(
+                "EXACT_REGISTRY_SET_MEMBERSHIP_MISSING",
+                "setMembership",
+                "S2 Exact Registry requires the verified tier-set membership index.",
+            ))
+        else:
+            membership_issues = validate_set_membership(normalized_set_membership)
+            if (
+                _text(normalized_set_membership.get("status")) != "verified"
+                or _text(normalized_set_membership.get("seasonRevision"))
+                != active_season_revision
+            ):
+                membership_issues = [
+                    *membership_issues,
+                    {"code": "SET_MEMBERSHIP_BINDING_MISMATCH"},
+                ]
+            for issue in membership_issues:
+                problems.append(_problem(
+                    "EXACT_REGISTRY_SET_MEMBERSHIP_INVALID",
+                    "setMembership",
+                    json.dumps(issue, ensure_ascii=False, sort_keys=True),
+                ))
+    elif normalized_set_membership is not None:
+        membership_issues = validate_set_membership(normalized_set_membership)
+        if membership_issues:
+            for issue in membership_issues:
+                problems.append(_problem(
+                    "EXACT_REGISTRY_SET_MEMBERSHIP_INVALID",
+                    "setMembership",
+                    json.dumps(issue, ensure_ascii=False, sort_keys=True),
+                ))
     if not community:
         problems.append(_problem(
             "EXACT_REGISTRY_COMMUNITY_MISSING",
@@ -542,6 +590,8 @@ def build_exact_item_registry(
         "exactItemInstanceCount": len(instances),
         "validationCount": len(validations),
     }
+    if normalized_set_membership is not None:
+        summary["setMembership"] = normalized_set_membership
     result = {
         "schemaRevision": EXACT_ITEM_REGISTRY_SCHEMA_REVISION,
         "status": (
@@ -552,7 +602,7 @@ def build_exact_item_registry(
             else "verified"
         ),
         "catalogRevision": _text(catalog_revision),
-        "seasonRevision": _text(active.get("seasonRevision")),
+        "seasonRevision": active_season_revision,
         "gearRuleRevision": _text(active.get("gearRuleRevision")),
         "enhancementSelections": selections,
         "exactItemInstances": instances,
@@ -602,6 +652,27 @@ def verify_exact_item_registry(registry: Any) -> list[str]:
         if _hash("sha256:", without_hash) != row.get("rowHash"):
             problems.append("EXACT_REGISTRY_ROW_HASH_MISMATCH")
     summary = registry.get("summary") or {}
+    set_membership = summary.get("setMembership")
+    if set_membership is not None:
+        membership_issues = validate_set_membership(set_membership)
+        if (
+            _text(set_membership.get("status")) != "verified"
+            and _text(registry.get("seasonRevision")).startswith("season-midnight-season-2:")
+        ):
+            membership_issues = [
+                *membership_issues,
+                {"code": "SET_MEMBERSHIP_STATUS_MISMATCH"},
+            ]
+        if (
+            _text(set_membership.get("seasonRevision"))
+            != _text(registry.get("seasonRevision"))
+        ):
+            membership_issues = [
+                *membership_issues,
+                {"code": "SET_MEMBERSHIP_SEASON_MISMATCH"},
+            ]
+        if membership_issues:
+            problems.append("EXACT_REGISTRY_SET_MEMBERSHIP_INVALID")
     expected_counts = {
         "enhancementSelectionCount": len(
             registry.get("enhancementSelections") or []
