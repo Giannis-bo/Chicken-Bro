@@ -2,8 +2,8 @@
   "schemaVersion": 2,
   "slug": "s2-equipment-library-ui-closure",
   "requirementSlug": "s2-equipment-library-ui-closure",
-  "status": "runtime_verified",
-  "highestEvidenceLevel": "runtime_verified",
+  "status": "archived",
+  "highestEvidenceLevel": "archived",
   "branch": "main",
   "commit": "bddf8716e0e15c0d0feecd54962178bd0ba83451",
   "identities": {
@@ -192,6 +192,6 @@
     "artifacts/releases/2026-08-21-s2-equipment-library-candidate-v73/candidate-final-v1.json",
     "artifacts/releases/2026-08-21-s2-equipment-library-candidate-v73/seal-report-set-membership-v1.json"
   ],
-  "summary": "S2 v73 remains the verified Active Manifest generation 41. The frontend now applies verified resolver static attributes into the gear-detail overview and clears stale values on every fail-closed path. The latest official WeChat preview was accepted for closure by the user; community import and authenticated save remain explicit user-waived manual items in this packet, while global health and SimC runtime alignment boundaries remain visible.",
+  "summary": "S2 v73 remains the verified Active Manifest generation 41 and this frontend closure packet is archived. The frontend now applies verified resolver static attributes into the gear-detail overview and clears stale values on every fail-closed path. The latest official WeChat preview was accepted for closure by the user; community import and authenticated save remain explicit user-waived manual items in this packet, while global health and SimC runtime alignment boundaries remain visible.",
   "updatedAt": "2026-08-24T15:47:00+08:00"
 }
