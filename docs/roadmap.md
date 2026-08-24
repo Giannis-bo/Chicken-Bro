@@ -64,7 +64,7 @@ AI 建议串成可复用路径：
 | 至暗之夜 S2 End Game 数据候选 | `blocked` | 只生成隔离诊断；没有 pointer mutation、promotion 或生产写入 | [S2 evidence](../artifacts/releases/2026-08-12-midnight-season-2-data-foundation/evidence.json) |
 | S2 四类范围装备库完整闭环 | 用户已确认收尾（保留手工 waiver） | v73 绑定 664 items、36,881 sources、66,685 variants、74 options；Community 40/40 winner、4 rejected、54 standby；Exact 502 referenced、624/624 verified template items、112 enhancement selections、464 exact instances/validations、65 set memberships；发布后 API smoke 与小程序应用/属性路径已验证，全局健康仍为 `partial` | [source policy](../server/data/midnight-season-2/source-policy.json) · [closure evidence](https://api.chickenbro.cloud/wow-evidence/releases/2026-08-24-s2-equipment-library-evidence/artifacts/releases/2026-08-24-s2-equipment-library-ui-closure/evidence.json) · [project-state](project-state.json) |
 | 端到端完整性 Goal | 暂缓 / `blocked` | 缺获批 authority 时，不以现有测试替代 Universe 闭包或完整微信矩阵 | [Goal](plans/2026-07-29-equipment-simulator-e2e-completeness-goal.md) |
-| `gear_detail` UI 验收 | 用户已确认收尾（保留手工 waiver） | typed API、替换/导入/保存代码路径与本地构建已验证；用户确认最新微信预览可收尾；社区导入与 authenticated save 未另行录制逐路径证据 | [状态账本](design/current-ui/runtime-review-status.json) · [closure evidence](../artifacts/releases/2026-08-24-s2-equipment-library-ui-closure/evidence.json) |
+| `gear_detail` UI 验收 | 用户已确认收尾（保留手工 waiver） | typed API、替换/导入/保存代码路径与本地构建已验证；用户确认最新微信预览可收尾；社区导入与 authenticated save 未另行录制逐路径证据 | [状态账本](design/current-ui/runtime-review-status.json) · [closure evidence](https://api.chickenbro.cloud/wow-evidence/releases/2026-08-24-s2-equipment-library-evidence/artifacts/releases/2026-08-24-s2-equipment-library-ui-closure/evidence.json) |
 
 ## 维护规则
 
