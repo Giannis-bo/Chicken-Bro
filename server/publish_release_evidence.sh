@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
-REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd -P)"
+SCRIPT_DIR="${WOW_EVIDENCE_SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)}"
+REPO_ROOT="${WOW_EVIDENCE_REPO_ROOT:-$(cd "${SCRIPT_DIR}/.." && pwd -P)}"
 readonly SCRIPT_DIR
 readonly REPO_ROOT
 
@@ -15,6 +15,7 @@ readonly PUBLISH_EVIDENCE_ALLOWLIST=(
   "artifacts/releases/2026-08-17-s2-official-api-fact-snapshot/official-api-capture-v8"
   "artifacts/releases/2026-08-19-s2-official-api-fact-snapshot/official-capture-inventory-v1"
   "artifacts/releases/2026-08-19-s2-limited-db2-field-expansion"
+  "artifacts/releases/2026-08-20-s2-journal-item-db2-v1"
   "artifacts/releases/2026-08-20-s2-official-api-fact-snapshot/official-api-capture-v11"
   "artifacts/releases/2026-08-20-s2-official-api-fact-snapshot/official-capture-inventory-v11"
   "artifacts/releases/2026-08-21-s2-equipment-library-candidate-v73/candidate-final-v1.json"
@@ -41,6 +42,10 @@ require_absolute_remote_root() {
   local remote_root="${1:-}"
   if [[ "${remote_root}" != /* ]]; then
     die "remote root must be an absolute path"
+    return 1
+  fi
+  if [[ "${remote_root}" == *".."* ]]; then
+    die "remote root must not contain path traversal"
     return 1
   fi
   printf '%s\n' "${remote_root%/}"
@@ -96,10 +101,11 @@ if os.path.isdir(absolute_path):
 PY
 }
 
-stage_allowlist() {
+stage_selected_paths() {
   local staging_root="${1:?staging root required}"
+  shift
   local relative_path absolute_path
-  for relative_path in "${PUBLISH_EVIDENCE_ALLOWLIST[@]}"; do
+  for relative_path in "$@"; do
     absolute_path="$(resolve_repo_path "${relative_path}")"
     if [[ ! -e "${absolute_path}" ]]; then
       die "allowlist path is missing: ${relative_path}"
@@ -111,11 +117,17 @@ stage_allowlist() {
   done
 }
 
+stage_allowlist() {
+  local staging_root="${1:?staging root required}"
+  stage_selected_paths "${staging_root}" "${PUBLISH_EVIDENCE_ALLOWLIST[@]}"
+}
+
 write_release_manifest() {
   local staging_root="${1:?staging root required}"
   local release_id="${2:?release id required}"
   local public_base="${3:?public base required}"
-  python3 - "${staging_root}" "${release_id}" "${public_base}" "${WOW_EVIDENCE_MAX_BYTES}" <<'PY'
+  local max_bytes="${4:-${WOW_EVIDENCE_MAX_BYTES}}"
+  python3 - "${staging_root}" "${release_id}" "${public_base}" "${max_bytes}" <<'PY'
 import hashlib
 import json
 import os
@@ -183,18 +195,19 @@ remote_root='${remote_root}'
 release_id='${release_id}'
 release_dir="\${remote_root}/\${release_id}"
 staging_dir="\${remote_root}/.\${release_id}.tmp.\$\$"
-mkdir -p "\${remote_root}"
-if [ -e "\${release_dir}" ]; then
-  echo "release-id already exists on remote host: \${release_id}" >&2
-  exit 1
-fi
+sudo mkdir -p "\${remote_root}"
 cleanup() {
-  rm -rf "\${staging_dir}"
+  sudo rm -rf "\${staging_dir}"
 }
 trap cleanup EXIT
-mkdir "\${staging_dir}"
-tar -xf - -C "\${staging_dir}"
-mv "\${staging_dir}" "\${release_dir}"
+sudo mkdir "\${staging_dir}"
+sudo tar -xf - -C "\${staging_dir}"
+if ! sudo mv -Tn "\${staging_dir}" "\${release_dir}"; then
+  echo "release-id already exists on remote host or lost create-only race: \${release_id}" >&2
+  exit 1
+fi
+trap - EXIT
+sudo chown -R www-data:www-data "\${release_dir}"
 trap - EXIT
 EOF
 }
