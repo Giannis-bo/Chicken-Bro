@@ -492,7 +492,8 @@ sudo mkdir -p "${REMOTE_DIR}/server/data"
 sudo chown -R "$(id -un):$(id -gn)" "${REMOTE_DIR}/server/data"
 sudo mkdir -p /var/www/wow-assets/releases
 sudo mkdir -p /var/www/wow-media/releases
-sudo chown -R www-data:www-data /var/www/wow-assets /var/www/wow-media
+sudo mkdir -p /var/www/wow-evidence/releases
+sudo chown -R www-data:www-data /var/www/wow-assets /var/www/wow-media /var/www/wow-evidence
 
 # Task 4W remains dormant. This opt-in preflight installs only the unit file;
 # it never enables, starts, restarts, migrates, or provisions a role/service.
@@ -673,6 +674,14 @@ server {
     }
 
     location ^~ /wow-media/releases/ {
+        root /var/www;
+        try_files $uri =404;
+        add_header Cache-Control "public, max-age=31536000, immutable" always;
+        add_header Access-Control-Allow-Origin "*" always;
+        add_header X-Content-Type-Options "nosniff" always;
+    }
+
+    location ^~ /wow-evidence/releases/ {
         root /var/www;
         try_files $uri =404;
         add_header Cache-Control "public, max-age=31536000, immutable" always;
