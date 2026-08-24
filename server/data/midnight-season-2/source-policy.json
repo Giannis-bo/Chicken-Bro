@@ -108,7 +108,7 @@
       "journalItemScope": {
         "table": "JournalEncounterItem",
         "authority": "official_client_db2",
-        "captureRef": "artifacts/releases/2026-08-20-s2-journal-item-db2-v1/capture-manifest.json",
+        "captureRef": "https://api.chickenbro.cloud/wow-evidence/releases/2026-08-24-s2-equipment-library-evidence/artifacts/releases/2026-08-20-s2-journal-item-db2-v1/capture-manifest.json",
         "includeWhen": "matching ItemID and JournalEncounterID row has DifficultyMask=-1",
         "excludeWhen": "matching rows exist but all DifficultyMask values are nonnegative",
         "unknownPolicy": "UNVERIFIED"

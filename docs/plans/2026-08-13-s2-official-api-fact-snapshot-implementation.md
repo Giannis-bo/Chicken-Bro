@@ -128,11 +128,10 @@
 
 ### 2. 原始捕获：`OfficialApiCaptureManifest`
 
-live capture 在 task-scoped 目录
-`artifacts/releases/2026-08-17-s2-official-api-fact-snapshot/official-api-capture-v8/raw/` 已写入
-1370 个原始 JSON，并生成通过 hash/bytes 校验的 `capture-manifest.json`。v3/v7 的失败侧车作为过程证据
-保留；v8 只跟随当前 S2 season、8 个 Midnight skill-tier、13 个 S2 item set 和当前 period，不扩展历史
-season/skill-tier。每个 manifest entry 固定：
+live capture 已写入 1370 个原始 JSON，并生成通过 hash/bytes 校验的
+[`official-api-capture-v8/capture-manifest.json`](https://api.chickenbro.cloud/wow-evidence/releases/2026-08-24-s2-equipment-library-evidence/artifacts/releases/2026-08-17-s2-official-api-fact-snapshot/official-api-capture-v8/capture-manifest.json)。
+v3/v7 的失败侧车作为过程证据保留；v8 只跟随当前 S2 season、8 个 Midnight skill-tier、13 个 S2 item
+set 和当前 period，不扩展历史 season/skill-tier。每个 manifest entry 固定：
 
 ```text
 requestKey = sha256(canonical(path, query, namespace, region, locale))
@@ -216,8 +215,9 @@ crafting quality、reagents、modified crafting slots 及有限 bonus-tree 图�
 静态属性，但运行时 `12.1.0.69299` 与 DB2 capture `12.1.0.68914` 不一致，且有
 item-resolution warning，因此只证明序列化技术路径，不证明合法选项或 release readiness。
 证据位于
-`artifacts/releases/2026-08-19-s2-limited-db2-field-expansion/recipe-52446-min6/`，
-汇总见 `summary.json`。
+[`recipe-52446-min6/capture-manifest.json`](https://api.chickenbro.cloud/wow-evidence/releases/2026-08-24-s2-equipment-library-evidence/artifacts/releases/2026-08-19-s2-limited-db2-field-expansion/recipe-52446-min6/capture-manifest.json)，
+汇总见
+[`summary.json`](https://api.chickenbro.cloud/wow-evidence/releases/2026-08-24-s2-equipment-library-evidence/artifacts/releases/2026-08-19-s2-limited-db2-field-expansion/summary.json)。
 
 同一 v8 capture 现已生成只读 source inventory：观察到 442 个官方 item
 identity（大秘境 247、团本含巢穴 130、tier_set 65），377 条去重后的来源
@@ -225,7 +225,7 @@ membership edge，以及 65 条 tier_set membership。制造业只能确认 793 
 recipe root，因 API 缺少 output item identity，不能把它们计入装备身份分母；
 因此 `fourSourceCandidateTotal=null`、`finalVariantVerifiedCount=0`、
 `simcReadyCount=0`，并保留 `OFFICIAL_API_RECIPE_OUTPUT_MISSING`。报告位于
-`artifacts/releases/2026-08-19-s2-official-api-fact-snapshot/official-capture-inventory-v1/inventory.json`，
+[`official-capture-inventory-v1/inventory.json`](https://api.chickenbro.cloud/wow-evidence/releases/2026-08-24-s2-equipment-library-evidence/artifacts/releases/2026-08-19-s2-official-api-fact-snapshot/official-capture-inventory-v1/inventory.json)，
 不是 Catalog、Exact、Candidate 或 release 输入。
 
 随后对官方 API 已引用的 Mythic+ item `159317` 与 S2 tier-set item `271481`
@@ -234,8 +234,14 @@ conversion bounded probe；结果为 `partial`，变体 materialization 与转�
 对官方 current Mythic+ season `18` 进行了四表 exact probe，但四张 DB2 表均返回
 零行，未推断 season-id remapping，`mythicPlusCapTrack` 继续为 `UNVERIFIED`。
 三组证据位于
-`artifacts/releases/2026-08-19-s2-limited-db2-field-expansion/`。
+[`item-159317-271481/capture-manifest.json`](https://api.chickenbro.cloud/wow-evidence/releases/2026-08-24-s2-equipment-library-evidence/artifacts/releases/2026-08-19-s2-limited-db2-field-expansion/item-159317-271481/capture-manifest.json)、
+[`recipe-52446-min6/capture-manifest.json`](https://api.chickenbro.cloud/wow-evidence/releases/2026-08-24-s2-equipment-library-evidence/artifacts/releases/2026-08-19-s2-limited-db2-field-expansion/recipe-52446-min6/capture-manifest.json) 和
+[`summary.json`](https://api.chickenbro.cloud/wow-evidence/releases/2026-08-24-s2-equipment-library-evidence/artifacts/releases/2026-08-19-s2-limited-db2-field-expansion/summary.json)。
 这些 probe 都不是 release、Catalog、Exact、Candidate 或 Active Manifest 输入。
+
+运行时与 CI/Harness 的边界保持不变：生产 runtime 读取 PostgreSQL/API 状态，永远不会去打开这些发布证据
+URL；CI/Harness 仍可在 checkout 内消费本地 task packet、`artifacts/releases/...` 输出和
+`scripts/project-harness.js` 的既有本地合同。
 
 ## 实施任务
 

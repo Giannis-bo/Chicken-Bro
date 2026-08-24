@@ -73,16 +73,19 @@ not a fifth source, and do not grant an item Catalog membership. Missing
 relations remain `UNVERIFIED`, `partial`, or `blocked`.
 
 The current official API source inventory is recorded in
-[`official-capture-inventory-v11`](../../../artifacts/releases/2026-08-20-s2-official-api-fact-snapshot/official-capture-inventory-v11/inventory.json),
-backed by the immutable [v11 raw capture](../../../artifacts/releases/2026-08-20-s2-official-api-fact-snapshot/official-api-capture-v11/capture-manifest.json).
+[`official-capture-inventory-v11`](https://api.chickenbro.cloud/wow-evidence/releases/2026-08-24-s2-equipment-library-evidence/artifacts/releases/2026-08-20-s2-official-api-fact-snapshot/official-capture-inventory-v11/inventory.json),
+backed by the immutable [v11 raw capture](https://api.chickenbro.cloud/wow-evidence/releases/2026-08-24-s2-equipment-library-evidence/artifacts/releases/2026-08-20-s2-official-api-fact-snapshot/official-api-capture-v11/capture-manifest.json).
 It observes 443 official item identities: 247 from Mythic+, 131 from raid
 including lair, and 65 tier-set members. The capture uses official `us/en_US`
 namespaces; its static namespace is `12.1.0.68914`, while the bounded DB2 and
 fixed SimC runtime are `12.1.0.69299`, so those authority identities remain
 explicitly separate.
+Published evidence is mirrored under the immutable cloud base above, but the
+runtime reads PostgreSQL/API state and never opens an evidence URL. CI/Harness
+may still consume repository-local task packets inside a checkout.
 
 The latest sealed Candidate is
-[`candidate-v73`](../../../artifacts/releases/2026-08-21-s2-equipment-library-candidate-v73/candidate-final-v1.json).
+[`candidate-v73`](https://api.chickenbro.cloud/wow-evidence/releases/2026-08-24-s2-equipment-library-evidence/artifacts/releases/2026-08-21-s2-equipment-library-candidate-v73/candidate-final-v1.json).
 Its normalized Gear payload binds 664 items, 36,881 official source rows,
 66,685 variants and 74 enhancement options. The Community gate validates
 40/40 expected winners, with 4 rejected and 54 standby templates; the Exact
@@ -90,11 +93,11 @@ Registry seals 502 referenced exact rows, 624/624 verified template items,
 112 enhancement selections, 464 exact instances and 464 validations, with 65
 set-membership items across 13 sets and zero partial/blocked validations.
 The candidate release packet is sealed by
-[`seal-report-set-membership-v1`](../../../artifacts/releases/2026-08-21-s2-equipment-library-candidate-v73/seal-report-set-membership-v1.json).
+[`seal-report-set-membership-v1`](https://api.chickenbro.cloud/wow-evidence/releases/2026-08-24-s2-equipment-library-evidence/artifacts/releases/2026-08-21-s2-equipment-library-candidate-v73/seal-report-set-membership-v1.json).
 
 The formal Active Manifest is now generation 41. Its immutable pointer and
 rollback pair are recorded in
-[`live-smoke-v1`](../../../artifacts/releases/2026-08-21-s2-equipment-library-candidate-v73/live-smoke-v1.json):
+[`live-smoke-v1`](https://api.chickenbro.cloud/wow-evidence/releases/2026-08-24-s2-equipment-library-evidence/artifacts/releases/2026-08-21-s2-equipment-library-candidate-v73/live-smoke-v1.json):
 the release API returns verified data, browse returns replacement candidates,
 community import resolves all 16 slots, and a mixed 16-slot replacement
 resolves with no problem codes. The global `/api/data/health` remains
