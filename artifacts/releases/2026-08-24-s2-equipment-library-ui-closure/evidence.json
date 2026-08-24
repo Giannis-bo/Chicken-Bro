@@ -5,11 +5,12 @@
   "status": "runtime_verified",
   "highestEvidenceLevel": "runtime_verified",
   "branch": "codex/s2-equipment-library-closure",
-  "commit": "pending_task_head",
+  "commit": "7212217686e9a3e1e769d904997ff247c1ee87a0",
   "identities": {
     "runtime": {
-      "status": "pending",
-      "reason": "The final immutable WeChat build identity is refreshed after the task-head commit; the preview path and build command are recorded in candidateDeployment."
+      "status": "bound",
+      "kind": "build_identity",
+      "value": "mini-taro-weapp:sha256:59c030fc5daf493c057e7e83ef82db04155742e5f26e18e9e2cddbd257af72c9"
     },
     "verification": {
       "status": "bound_at_check",
@@ -115,8 +116,12 @@
     "status": "preview_verified",
     "requiredBeforeMerge": true,
     "branch": "codex/s2-equipment-library-closure",
-    "commit": "pending_task_head",
-    "buildIdentity": "pending_task_head_weapp_preview",
+    "commit": "7212217686e9a3e1e769d904997ff247c1ee87a0",
+    "implementationCommit": "7212217686e9a3e1e769d904997ff247c1ee87a0",
+    "buildIdentity": "mini-taro-weapp:sha256:59c030fc5daf493c057e7e83ef82db04155742e5f26e18e9e2cddbd257af72c9",
+    "gitHead": "7212217686e9a3e1e769d904997ff247c1ee87a0",
+    "sourceHash": "sha256:59c030fc5daf493c057e7e83ef82db04155742e5f26e18e9e2cddbd257af72c9",
+    "builtAt": "2026-08-24T07:40:33.112Z",
     "host": "local-wechat-devtools",
     "path": "apps/mini-taro/dist/weapp",
     "asyncSyncStart": false,
