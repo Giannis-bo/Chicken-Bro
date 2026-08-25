@@ -10,6 +10,7 @@ const deployScript = fs.readFileSync(
   'utf8',
 );
 const publisherScriptPath = path.join(__dirname, '..', 'server', 'publish_release_evidence.sh');
+const publisherScript = fs.readFileSync(publisherScriptPath, 'utf8');
 
 function runBash(source) {
   return spawnSync('bash', ['-lc', source], { encoding: 'utf8' });
@@ -46,10 +47,15 @@ test('cloud deploy provisions immutable wow evidence hosting without changing ar
   assert.match(deployScript, /Cache-Control "public, max-age=31536000, immutable" always;/);
   assert.match(deployScript, /Access-Control-Allow-Origin "\*" always;/);
   assert.match(deployScript, /X-Content-Type-Options "nosniff" always;/);
+  assert.match(deployScript, /api\.chickenbro\.cloud/);
+  assert.match(deployScript, /HTTPS nginx site has no insertion marker/);
   assert.match(deployScript, /--exclude 'artifacts'\s/);
 });
 
 test('release evidence publisher exposes the exact bounded allowlist', () => {
+  assert.match(publisherScript, /COPYFILE_DISABLE=1 tar --no-xattrs -C "\$\{REPO_ROOT\}"/);
+  assert.match(publisherScript, /COPYFILE_DISABLE=1 tar --no-xattrs -C "\$\{staging_root\}"/);
+  assert.match(publisherScript, /WOW_EVIDENCE_STAGING_ROOT=.*mktemp/);
   const result = runBash(`
     set -euo pipefail
     source ${JSON.stringify(publisherScriptPath)}

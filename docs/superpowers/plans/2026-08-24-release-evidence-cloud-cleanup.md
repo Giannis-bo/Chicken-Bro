@@ -61,7 +61,7 @@
 - Modify: `docs/roadmap.md:50,65`
 
 **Interfaces:**
-- Cloud base constant in documentation: `https://api.chickenbro.cloud/wow-evidence/releases/2026-08-24-s2-equipment-library-evidence`.
+- Cloud base constant in documentation: `https://api.chickenbro.cloud/wow-evidence/releases/2026-08-24-s2-equipment-library-evidence-v2`.
 - Current S2 evidence links must resolve below this base; local relative links may remain only in Harness instructions that intentionally run in a checkout.
 
 - [x] **Step 1: Replace direct current-S2 evidence links**
@@ -79,22 +79,22 @@
 ### Task 3: Publish and verify the current S2 evidence release
 
 **Files:**
-- Create: the remote immutable release `2026-08-24-s2-equipment-library-evidence` under `/var/www/wow-evidence/releases/`
+- Create: the remote immutable release `2026-08-24-s2-equipment-library-evidence-v2` under `/var/www/wow-evidence/releases/`
 - Verify: the remote `release-manifest.json` and every manifest-listed file over HTTPS
 
 **Interfaces:**
 - The local source set must be secret-free, bounded below 256 MiB, and match the publisher allowlist.
 - HTTP verification must compare status, content length, SHA-256, and release id; a 200 alone is insufficient.
 
-- [ ] **Step 1: Scan the selected source set**
+- [x] **Step 1: Scan the selected source set**
 
   Check for credential/header/token patterns, symlinks, missing files, and total size before upload. Do not include v69-v72 candidate snapshots, compact JSON, SimC matrices, community staging, or v73 `prepared-final-v1.json`.
 
-- [ ] **Step 2: Publish once**
+- [x] **Step 2: Publish once**
 
   Run the publisher with the fixed release id. If the remote id already exists, stop and compare its manifest instead of overwriting it.
 
-- [ ] **Step 3: Verify every remote record**
+- [x] **Step 3: Verify every remote record**
 
   Fetch the manifest and each listed file via HTTPS, compare byte count and SHA-256, and record the resulting evidence in the working report. Verify the active S2 document URLs and the existing API health endpoint separately.
 
@@ -110,14 +110,14 @@
 - Preserve the remote release and all cloud links in the current S2 docs.
 - After cleanup, `artifacts/releases` must contain the tracked evidence only plus no untracked 97GB families.
 
-- [ ] **Step 1: Generate the deletion set**
+- [x] **Step 1: Generate the deletion set**
 
   Enumerate `git status --porcelain=v1 artifacts/releases`, classify every entry, and require that all untracked paths are either published in Task 3 or explicitly classified as obsolete intermediate output. Refuse any tracked path.
 
-- [ ] **Step 2: Delete only the approved untracked set**
+- [x] **Step 2: Delete only the approved untracked set**
 
   Use an explicit null-delimited deletion list rooted at `artifacts/releases/`; do not use broad repository cleanup. Report the before/after byte count.
 
-- [ ] **Step 3: Run final verification**
+- [x] **Step 3: Run final verification**
 
   Run `git diff --check`, the deployment/publisher tests, the S2 scope tests, the tracked reference audit, remote manifest hash verification, and `du -sh artifacts/releases`. Confirm main/origin parity is unchanged and no production source reads local artifacts.

@@ -702,6 +702,40 @@ NGINX
 
 sudo ln -sf /etc/nginx/sites-available/wow-backend /etc/nginx/sites-enabled/wow-backend
 sudo rm -f /etc/nginx/sites-enabled/default
+
+# The public API host terminates TLS in a separately managed server block. Keep
+# the immutable evidence route available there as well; otherwise HTTPS falls
+# through to the backend proxy and a published release is not publicly
+# addressable.
+if sudo test -f /etc/nginx/sites-enabled/api.chickenbro.cloud; then
+  sudo python3 - <<'PY'
+from pathlib import Path
+import os
+import stat
+
+site = Path('/etc/nginx/sites-enabled/api.chickenbro.cloud').resolve()
+text = site.read_text()
+if 'location ^~ /wow-evidence/releases/' not in text:
+    marker = '    location / {\n'
+    block = '''    location ^~ /wow-evidence/releases/ {
+        root /var/www;
+        try_files $uri =404;
+        add_header Cache-Control "public, max-age=31536000, immutable" always;
+        add_header Access-Control-Allow-Origin "*" always;
+        add_header X-Content-Type-Options "nosniff" always;
+    }
+
+'''
+    if marker not in text:
+        raise SystemExit(f'HTTPS nginx site has no insertion marker: {site}')
+    mode = stat.S_IMODE(site.stat().st_mode)
+    tmp = site.with_name(f'.{site.name}.codex-tmp')
+    tmp.write_text(text.replace(marker, block + marker, 1))
+    os.chmod(tmp, mode)
+    os.replace(tmp, site)
+PY
+fi
+
 sudo nginx -t
 
 if systemctl list-unit-files wow-news-backend.service >/dev/null 2>&1; then

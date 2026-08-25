@@ -113,7 +113,8 @@ stage_selected_paths() {
     fi
     reject_symlinks "${absolute_path}" "${relative_path}"
     mkdir -p "${staging_root}/$(dirname "${relative_path}")"
-    tar -C "${REPO_ROOT}" -cf - "${relative_path}" | tar -C "${staging_root}" -xf -
+    COPYFILE_DISABLE=1 tar --no-xattrs -C "${REPO_ROOT}" -cf - "${relative_path}" |
+      COPYFILE_DISABLE=1 tar --no-xattrs -C "${staging_root}" -xf -
   done
 }
 
@@ -220,7 +221,8 @@ publish_release() {
   local release_id="${2:?release id required}"
   local remote_root="${3:?remote root required}"
   local ssh_alias="${4:?ssh alias required}"
-  tar -C "${staging_root}" -cf - . | ssh "${ssh_alias}" "$(build_remote_publish_script "${remote_root}" "${release_id}")"
+  COPYFILE_DISABLE=1 tar --no-xattrs -C "${staging_root}" -cf - . |
+    ssh "${ssh_alias}" "$(build_remote_publish_script "${remote_root}" "${release_id}")"
 }
 
 main() {
@@ -233,13 +235,12 @@ main() {
   local public_base="${WOW_EVIDENCE_PUBLIC_BASE:-${WOW_EVIDENCE_PUBLIC_BASE_DEFAULT}}"
   local ssh_alias="${WOW_EVIDENCE_SSH_ALIAS:-${WOW_EVIDENCE_SSH_ALIAS_DEFAULT}}"
 
-  local staging_root
-  staging_root="$(mktemp -d "${TMPDIR:-/tmp}/wow-evidence-${release_id}-XXXXXX")"
-  trap 'rm -rf "${staging_root}"' EXIT
+  WOW_EVIDENCE_STAGING_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/wow-evidence-${release_id}-XXXXXX")"
+  trap 'rm -rf -- "${WOW_EVIDENCE_STAGING_ROOT}"' EXIT
 
-  stage_allowlist "${staging_root}"
-  write_release_manifest "${staging_root}" "${release_id}" "${public_base}"
-  publish_release "${staging_root}" "${release_id}" "${remote_root}" "${ssh_alias}"
+  stage_allowlist "${WOW_EVIDENCE_STAGING_ROOT}"
+  write_release_manifest "${WOW_EVIDENCE_STAGING_ROOT}" "${release_id}" "${public_base}"
+  publish_release "${WOW_EVIDENCE_STAGING_ROOT}" "${release_id}" "${remote_root}" "${ssh_alias}"
 
   echo "Published ${release_id} to ${public_base%/}/${release_id}/"
 }
