@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-08-28T09:12:07Z",
+  "remoteHost": "wow-lighthouse",
+  "candidate": {
+    "commit": "d0a492c00543d13e9072f8ccaa7ac9239275c8bb",
+    "gitTree": "80f3df08b99ae6f10ceb3877b9bc624d67a18c3b",
+    "path": "server/data_health_followup.py",
+    "sha256": "435e3d80414045603a0aa65ded958e69366a564c95402680b53093b9d29a3db1",
+    "root": "/tmp/wow-runtime-truth-candidate.NTdbOE",
+    "rootRemovedAfterSmoke": true
+  },
+  "execution": {
+    "mode": "isolated_planner_against_live_health_without_execute",
+    "executeFlagUsed": false,
+    "productionFilesChanged": false,
+    "actions": [],
+    "reportOnly": [
+      "simc_runtime_update:active_manifest_cutover_required",
+      "gear_observed_backfill:missing_input_revision",
+      "stat_weights_sync:missing_input_revision"
+    ],
+    "manualBlockers": [
+      "gear_observed_backfill_input_revision_missing",
+      "stat_weights_sync_input_revision_missing"
+    ]
+  },
+  "liveTruth": {
+    "overallStatus": "partial",
+    "activeManifestStatus": "verified",
+    "formalActiveManifest": true,
+    "pointerMode": "active",
+    "pointerGeneration": 41,
+    "manifestRevision": "season-manifest:sha256:71a490dc6532783e6b286fbe88d8986f9a37f1930cfb186888088dd55b8c2ded",
+    "simcRuntimeRevision": "simc:12.1.0.69299:f50a2121bf894570146507496f3e113bff68e445:69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da"
+  },
+  "timerBackflow": {
+    "status": "pass",
+    "wowBackendService": "active",
+    "wowDataHealthFollowupTimer": "active",
+    "wowWebsimSyncTimer": "active",
+    "wowStatWeightsSyncTimer": "active",
+    "wowCommunityTemplateSyncTimer": "active",
+    "wowSeasonRecommendedGearSyncTimer": "active",
+    "wowSimcRuntimeUpdateService": "inactive_dead_result_success",
+    "relevantRunningJobs": 0
+  },
+  "rollback": {
+    "status": "pass",
+    "result": "The exact isolated candidate directory was removed; production files, services, timers, PostgreSQL and the Active Manifest were not changed."
+  }
+}

@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "productContentScopeRevision": "s2-product-content-scope-v1",
+  "seasonKey": "midnight-season-2",
+  "logicalSourceCount": 4,
+  "logicalSourceKeys": [
+    "raid:midnight-season-2",
+    "mythic_plus:midnight-season-2",
+    "crafted:midnight-season-2",
+    "tier_set:midnight-season-2"
+  ],
+  "logicalSources": [
+    {
+      "logicalSourceKey": "raid:midnight-season-2",
+      "rawSourceTypes": ["raid", "lair"],
+      "productLabel": "团本（包括巢穴）"
+    },
+    {
+      "logicalSourceKey": "mythic_plus:midnight-season-2",
+      "rawSourceTypes": ["mythic_plus"],
+      "productLabel": "大秘境"
+    },
+    {
+      "logicalSourceKey": "crafted:midnight-season-2",
+      "rawSourceTypes": ["crafted"],
+      "productLabel": "制造业"
+    },
+    {
+      "logicalSourceKey": "tier_set:midnight-season-2",
+      "rawSourceTypes": ["tier_set"],
+      "productLabel": "套装 membership"
+    }
+  ],
+  "raidIncludesLair": true,
+  "lairRawSourceTypePreserved": true,
+  "tierSetIsIndependentMembershipDimension": true,
+  "journalInstanceSelections": {
+    "mythic_plus": [1030, 1041, 1202, 1304, 1309, 1311, 1313, 1322],
+    "lair": [
+      {
+        "journalInstanceId": 1317,
+        "journalEncounterIds": [2849]
+      }
+    ],
+    "raid": [
+      {
+        "journalInstanceId": 1320,
+        "journalEncounterSelection": "all"
+      }
+    ]
+  },
+  "craftedSelection": {
+    "kind": "official_recipe_output_relations"
+  },
+  "expectedOfficialConstraints": {
+    "mythic_plus": {
+      "journalCategory": "DUNGEON",
+      "mode": "MYTHIC_KEYSTONE"
+    },
+    "lair": {
+      "journalCategory": "RAID",
+      "mode": "MYTHIC"
+    },
+    "raid": {
+      "journalCategory": "RAID",
+      "mode": "MYTHIC"
+    }
+  }
+}

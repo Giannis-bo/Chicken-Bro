@@ -10974,6 +10974,9 @@ class PostgresCacheStoreTest(unittest.TestCase):
                 "gearCatalogReleaseId": "gear-release:active",
                 "communityTemplateReleaseId": "community-release:active",
                 "talentCatalogRevision": "talent-r1",
+                "dependencyRevisions": {
+                    "simcRuntimeRevision": "simc-r1",
+                },
             },
         }
 
@@ -11007,6 +11010,7 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertEqual(active["status"], "verified")
         self.assertEqual(active["details"]["pointerGeneration"], 3)
         self.assertEqual(active["details"]["gearCatalogReleaseId"], "gear-release:active")
+        self.assertEqual(active["details"]["simcRuntimeRevision"], "simc-r1")
         self.assertEqual(transitional["status"], "partial")
         self.assertEqual(transitional["details"]["pointerMode"], "transitional")
         self.assertTrue(transitional["blockers"])

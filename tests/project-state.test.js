@@ -44,7 +44,7 @@ test('project-state is the single machine-readable current truth entry', () => {
   const state = readJson(projectStatePath)
 
   assert.equal(state.schemaVersion, 1)
-  assert.equal(state.updatedAt, '2026-08-24')
+  assert.equal(state.updatedAt, '2026-08-28')
   assert.equal(state.activeMilestone, 'taro_target_first_14_route_rebuild')
   assert.equal(state.featureIteration, 'allowed_under_harness')
   assert.equal(state.activeReleaseArtifact, undefined)
@@ -106,26 +106,38 @@ test('project-state is the single machine-readable current truth entry', () => {
   assert.ok(!activeContractIds.has('equipment_simulator_phase1_catalog_contract'))
   assert.ok(!activeContractIds.has('equipment_simulator_phase3_resolved_snapshot'))
   assert.ok(!activeContractIds.has('equipment_simulator_phase2_exact_enhancement'))
-  assert.ok(activeContractIds.has('midnight_season_2_endgame_data_candidate'))
-  assert.ok(activeContractIds.has('midnight_season_2_official_api_fact_snapshot_plan'))
-  assert.ok(activeContractIds.has('midnight_season_2_three_sample_release_closure_design'))
-  const s2Candidate = state.activeContracts.find(
+  assert.ok(!activeContractIds.has('midnight_season_2_endgame_data_candidate'))
+  assert.ok(!activeContractIds.has('midnight_season_2_freshness_candidate'))
+  assert.ok(!activeContractIds.has('midnight_season_2_official_api_fact_snapshot_plan'))
+  assert.ok(!activeContractIds.has('midnight_season_2_three_sample_release_closure_design'))
+  const s2Candidate = state.historicalContracts.find(
     (entry) => entry.id === 'midnight_season_2_endgame_data_candidate',
   )
-  const s2OfficialFactSnapshotPlan = state.activeContracts.find(
-    (entry) => entry.id === 'midnight_season_2_official_api_fact_snapshot_plan',
+  const s2OfficialFactSnapshotPlan = state.historicalContracts.find(
+    (entry) => entry.id === 'midnight_season_2_official_api_fact_snapshot_stage_1',
   )
-  const s2ThreeSampleReleaseClosureDesign = state.activeContracts.find(
-    (entry) => entry.id === 'midnight_season_2_three_sample_release_closure_design',
+  const s2FreshnessCandidate = state.completedBaselines.find(
+    (entry) => entry.id === 'midnight_season_2_freshness_candidate',
   )
-  assert.equal(s2Candidate?.status, 'candidate_blocked_official_capture')
+  const s2ThreeSampleReleaseClosureDesign = state.completedBaselines.find(
+    (entry) => entry.id === 'midnight_season_2_three_sample_release_closure',
+  )
+  assert.equal(s2Candidate?.status, 'candidate_blocked_official_capture_no_execution_authority')
   assert.equal(
     s2Candidate?.evidence,
     'artifacts/releases/2026-08-12-midnight-season-2-data-foundation/evidence.json',
   )
   assert.equal(
+    s2FreshnessCandidate?.status,
+    'candidate_manifest_sealed_dormant_no_execution_authority',
+  )
+  assert.equal(
+    s2FreshnessCandidate?.evidence,
+    'artifacts/releases/2026-08-25-s2-freshness-rebase/evidence.json',
+  )
+  assert.equal(
     s2OfficialFactSnapshotPlan?.status,
-    'stage_1_limited_db2_probe_partial_snapshot_blocked',
+    'stage_1_stopped_partial_snapshot_blocked',
   )
   assert.equal(
     s2OfficialFactSnapshotPlan?.path,
@@ -133,7 +145,7 @@ test('project-state is the single machine-readable current truth entry', () => {
   )
   assert.equal(
     s2ThreeSampleReleaseClosureDesign?.status,
-    'design_and_review_confirmed',
+    'fulfilled_by_v73_active_generation_41',
   )
   assert.equal(
     s2ThreeSampleReleaseClosureDesign?.path,
@@ -439,11 +451,46 @@ test('project-state is the single machine-readable current truth entry', () => {
   assert.equal(gearReleaseTrain.activeGearExactRegistryRevision, 'gear-exact-registry:sha256:23ea2ac001f9d677597449ff3fe5237240d2ef4fd7b7dbc6cab5e8442948091b')
   assert.equal(gearReleaseTrain.activeGearReleaseId, 'gear-release:sha256:3e71cbbf84163e86c90367527fe529d46040b25a372744b3656b1b551f82f190')
   assert.equal(gearReleaseTrain.activeCommunityReleaseId, 'community-release:sha256:a232313703408ca38715d89bd13c2b945764cf7f1725b731a413582ce3f81cb1')
-  assert.equal(gearReleaseTrain.scheduledRefresh, 'timer_stopped_pending_simc_manifest_runtime_alignment')
+  assert.equal(gearReleaseTrain.activeSimcRuntimeCommit, 'f50a2121bf894570146507496f3e113bff68e445')
+  assert.equal(gearReleaseTrain.simcUpdateAvailable, true)
+  assert.equal(
+    gearReleaseTrain.scheduledRefresh,
+    'timers_enabled_active_manifest_runtime_difference_is_report_only_pending_explicit_cutover',
+  )
   assert.equal(
     gearReleaseTrain.evidence,
     'artifacts/releases/2026-08-24-s2-equipment-library-ui-closure/evidence.json',
   )
+
+  const freshnessCandidate = state.runtimeBaseline.s2FreshnessCandidate
+  assert.equal(freshnessCandidate.status, 'candidate_manifest_sealed_dormant_not_active')
+  assert.equal(freshnessCandidate.formalActiveManifest, false)
+  assert.equal(freshnessCandidate.candidateSimcRuntime.commit, '30555eff')
+  assert.equal(freshnessCandidate.runtimeReplay.numericReadback, '17237/17237')
+  assert.equal(freshnessCandidate.externalSourceState.aggregateSourceStatus, 'partial')
+
+  const cloudDeployment = state.runtimeBaseline.cloudDeployment
+  assert.equal(
+    cloudDeployment.status,
+    'repository_candidate_verified_production_one_runtime_file_behind',
+  )
+  assert.equal(
+    cloudDeployment.repositoryCandidateCommit,
+    'd0a492c00543d13e9072f8ccaa7ac9239275c8bb',
+  )
+  assert.equal(cloudDeployment.runtimeOverrides.length, 2)
+  assert.equal(
+    cloudDeployment.runtimeOverrides[0].state,
+    'production_previous_hotfix_differs_from_repository_candidate',
+  )
+  assert.equal(
+    cloudDeployment.runtimeOverrides[1].state,
+    'matches_repository_candidate_commit',
+  )
+  assert.equal(cloudDeployment.deployRevisionMarker.status, 'absent_removed_as_stale_unconsumed_marker')
+  assert.equal(cloudDeployment.cleanup.removedSourceTreeResidueEntries, 841)
+  assert.equal(cloudDeployment.cleanup.removedSupersededBackupEntries, 178)
+  assert.equal(cloudDeployment.cleanup.diskAfter, '75_percent_used_17G_available')
 
   const phase5Evidence = readJson(path.join(archivedPhase5Release, 'evidence.json'))
   const phase5Closure = readJson(path.join(archivedPhase5Release, 'closure-audit.json'))
@@ -1103,7 +1150,7 @@ test('superseded execution documents are absent while the blocked S2 record rema
 
   const trackedResult = spawnSync('git', ['ls-files', '--', 'docs/superpowers'], { encoding: 'utf8' })
   assert.equal(trackedResult.status, 0, trackedResult.stderr)
-  const retainedS2Docs = trackedResult.stdout.trim().split('\n').filter(Boolean).sort()
+  const retainedS2Docs = trackedResult.stdout.trim().split('\n').filter(Boolean).filter(fs.existsSync).sort()
   assert.deepEqual(retainedS2Docs, [
     'docs/superpowers/plans/2026-08-12-midnight-season-2-data-repository.md',
     'docs/superpowers/specs/2026-08-12-midnight-season-2-data-repository-design.md',

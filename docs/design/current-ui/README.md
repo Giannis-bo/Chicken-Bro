@@ -23,6 +23,33 @@
 | 如何合并并晋级全量素材槽证据 | `ASSET_SLOT_DETAIL_PATHS=<batch-a,batch-b> npm run promote:ui-asset-slots` |
 | 如何把隔离缓存晋级为不可变运行态 artifact | `npm run promote:ui-review-cache` |
 
+## 14 路由实现映射
+
+`apps/mini-taro/src/app.config.ts` 是活动路由配置；根目录 `app.json` 只承担兼容消费。两者当前 14 条
+path 完全同序。`target-registry.json` 中带 `/` 的 route id（如 `specialization_home/builds_home`、
+`profile/templates`）以及历史大小写 `SimC_submit` 是稳定设计合同 id，不是额外页面或待修正路径。
+
+| 设计合同 id | 微信 path | 活动 Taro owner |
+| --- | --- | --- |
+| `news_home` | `pages/news/news` | `apps/mini-taro/src/pages/news/news.tsx` |
+| `news_list` | `pages/news/list` | `apps/mini-taro/src/pages/news/list.tsx` |
+| `news_detail` | `pages/news/detail` | `apps/mini-taro/src/pages/news/detail.tsx` |
+| `specialization_home/builds_home` | `pages/builds/builds` | `apps/mini-taro/src/pages/builds/builds.tsx` |
+| `current_spec_workbench` | `pages/builds/workbench` | `apps/mini-taro/src/pages/builds/workbench.tsx` |
+| `build_intel` | `pages/builds/intel` | `apps/mini-taro/src/pages/builds/intel.tsx` |
+| `talent_simulator` | `pages/builds/talent-simulator` | `apps/mini-taro/src/pages/builds/talent-simulator.tsx` |
+| `gear_detail` | `pages/builds/detail?query=gear` | `apps/mini-taro/src/pages/builds/detail.tsx` |
+| `simulator_home` | `pages/simulator/simulator` | `apps/mini-taro/src/pages/simulator/simulator.tsx` |
+| `SimC_submit` | `pages/simulator/simc` | `apps/mini-taro/src/pages/simulator/simc.tsx` |
+| `chickenbro_chat` | `pages/simulator/chickenbro` | `apps/mini-taro/src/pages/simulator/chickenbro.tsx` |
+| `tasks_list` | `pages/simulator/tasks` | `apps/mini-taro/src/pages/simulator/tasks.tsx` |
+| `task_detail` | `pages/simulator/task-detail` | `apps/mini-taro/src/pages/simulator/task-detail.tsx` |
+| `profile/templates` | `pages/profile/profile` | `apps/mini-taro/src/pages/profile/profile.tsx` |
+
+活动 Taro tab 文案是“资讯、专精、队长、我的”。`app.json` 的“最新资讯、职业专精、智能分析、
+我的”是兼容文案，不拥有当前 UI 决策。源码路径一致只证明配置事实；当前视觉/交互总状态仍是
+`active_unverified`，14 条 route ledger 均保持 `UNVERIFIED`。
+
 `artifacts/ui-visual-targets/current/` 保存 canonical target 本体。目录存在、源码可编译、DOM/AX 元素存在和单元测试通过只证明对应工程事实；视觉状态由 target/runtime 微信复核决定。
 
 交付顺序、批次边界和验证节奏统一由 `docs/plans/ui-reconstruction.md` 维护，本目录不重复叙述执行流程。

@@ -6,7 +6,7 @@ Keep the simulator SimC path deterministic and evidence-bound: the mini program 
 
 ## Current Flow
 
-1. `pages/simulator/simulator` is the 智能分析 tab and the active Taro 炸鸡队长 root: it contains only conversation history, “对话存档”, “+ 新话题” and a text composer. It no longer asks the player to choose SimC / WCL / Chickenbro cards first.
+1. `pages/simulator/simulator` is the active Taro 队长 Tab and 炸鸡队长 root; “智能分析” is only the root `app.json` compatibility label. The route contains conversation history, “对话存档”, “+ 新话题” and a text composer. It no longer asks the player to choose SimC / WCL / Chickenbro cards first.
 2. `GET /api/simulator/home` remains a compatibility payload for backend smoke and older clients, but it is not the current mini-program first screen.
 3. `pages/simulator/chickenbro` is the pushed Taro 对话存档 route. It lists the current owner's recent sessions and returns to the root to restore a selected session.
 4. `pages/simulator/simc` is still the SimC submission path, but the player-facing entry is now from `pages/builds/builds` quick action `simc`, saved templates, or direct navigation during development.
@@ -28,7 +28,7 @@ Task history uses `GET /api/simulator/tasks?guest=1` and `GET /api/simulator/tas
 
 ## Legacy SimC Agent Flow
 
-`mode=simcraft_agent` remains a supported backend mode for legacy or direct SimC routes. It is no longer the 智能分析 tab's primary first screen. This mode treats the textarea as a conversation entry instead of a raw profile-only form:
+`mode=simcraft_agent` remains a supported backend mode for legacy or direct SimC routes. It is no longer the 队长 Tab's primary first screen. This mode treats the textarea as a conversation entry instead of a raw profile-only form:
 
 ```json
 {
@@ -51,7 +51,7 @@ Agent behavior:
 
 ## Builds-to-SimC Linkage
 
-The 职业专精 tab is now a first-class SimC entry point. The current `pages/builds/builds` quick action `simc` navigates to `/pages/simulator/simc?from=builds`, and `tasks` navigates to `/pages/simulator/tasks?from=builds`. Older detail-page `buildContext` imports may still fill class/spec/talent context when present, but the current player-facing stable path is saved talent + gear templates -> SimC confirmation -> queued task -> task list/detail.
+The 专精 Tab is now a first-class SimC entry point. The current `pages/builds/builds` quick action `simc` navigates to `/pages/simulator/simc?from=builds`, and `tasks` navigates to `/pages/simulator/tasks?from=builds`. Older detail-page `buildContext` imports may still fill class/spec/talent context when present, but the current player-facing stable path is saved talent + gear templates -> SimC confirmation -> queued task -> task list/detail.
 
 Backend rules:
 
@@ -172,7 +172,7 @@ Player-facing task details should lead with the simplified SimC result and run c
 
 ## WCL And Chickenbro Entries
 
-`pages/simulator/wcl` remains a WCL input surface in code, but it is not registered in `app.json` and is not part of the current 智能分析 first screen. The backend parses report URL/code/fight and blocks deterministically when the report is missing or credentials are unavailable. Without `WOW_WARCRAFTLOGS_CLIENT_ID` / `WOW_WARCRAFTLOGS_CLIENT_SECRET` or another supported WCL credential, the system must not call LLM to fabricate log conclusions.
+`pages/simulator/wcl` remains a WCL input surface in code, but it is not registered in the 14-route app configuration and is not part of the current 队长 Tab first screen. The backend parses report URL/code/fight and blocks deterministically when the report is missing or credentials are unavailable. Without `WOW_WARCRAFTLOGS_CLIENT_ID` / `WOW_WARCRAFTLOGS_CLIENT_SECRET` or another supported WCL credential, the system must not call LLM to fabricate log conclusions.
 
 `pages/simulator/simulator` is the current 炸鸡队长 chat entry. It posts to `POST /api/chickenbro/messages`, reads a selected detail from `GET /api/chickenbro/sessions?id=...`, and opens `pages/simulator/chickenbro` for the owner-isolated `GET /api/chickenbro/sessions` archive list. The archive route does not create, rename or delete sessions.
 

@@ -5,7 +5,7 @@
 [project-owner-map.json](project-owner-map.json)。
 
 状态：`active`
-更新时间：`2026-08-27`
+更新时间：`2026-08-28`
 
 ## 本文职责
 
@@ -20,8 +20,9 @@ AI 建议串成可复用路径：
 
 `理解版本 -> 选择构筑 -> 保存模板 -> 执行模拟 -> 解释结果 -> 继续优化`
 
-一级入口保持资讯、职业专精、智能分析、我的。PVE、WCL 和旧 WebSim 能力在数据授权、用户价值与
-发布门禁同时明确前不恢复为一级入口。
+活动 Taro 一级入口保持“资讯、专精、队长、我的”。根目录兼容配置仍保留“最新资讯、职业专精、
+智能分析、我的”旧文案，但 14 条路径与活动 Taro 完全同序；兼容文案不是当前产品导航权威。
+PVE、WCL 和旧 WebSim 能力在数据授权、用户价值与发布门禁同时明确前不恢复为一级入口。
 
 装备模拟坚持 Exact-first：官方 API 快照是 S2 item、variant、轨道、来源、套装、制造和强化游戏事实
 的唯一裁决源；Catalog 只能从其中已验证且在范围内的事实派生，不能由 SimC、Raider.IO、S1 或前端
@@ -37,17 +38,27 @@ AI 建议串成可复用路径：
 | 能力 | 当前判断 | 下一步边界 |
 | --- | --- | --- |
 | 职业构筑与 SimC | Manifest v2、canonical resolver、精确装备/强化、任务保存和 26/14 执行边界已验证 | 保持单一后端事实与可解释 fail-closed |
-| 至暗之夜 S2 | 正在推进；30555 current-runtime 的装备 Candidate、正式 Gear/Catalog/Community/Exact dormant pair、当前 Talent Catalog 和 Candidate Manifest v2 已在云端闭合，gen41 暂保留 | 装备库范围仍固定为团本（含巢穴）、大秘境、制造业、套装四个逻辑来源。closure v6 的 416/416 canonical item、15,572/15,572 public variants、1,665/1,665 crafted quality templates 和 74 个 enhancement options 已在 30555 上通过 533/533 矩阵、17,237/17,237 数值 readback，并生成 416 items、17,237 variants、74 options 的 verified runtime snapshot；23,348 个明确越界变体继续排除。云端 SimC 为 12.1.0.69497/30555eff，updateAvailable=false。Talent Catalog 已写入 PostgreSQL：5,227 节点、8,411 dependencies、4,947 dependencyNodes、40/40 profile specs、55 profiles，明确记录 13 个 runtime-baseline 和 MID1 退休批次；Talent revision 为 `websim-talent-catalog-v1-525bac297675`。Candidate Manifest v2 为 `season-manifest:sha256:46c76d033f6582dea26eba467d0c231245cfc8ee6f090da256f9899ff39c69e7`，绑定当前 Talent/Gear/Catalog/Community/Exact，且未切换 Active。API 读模型/校验/profile 冒烟通过 fail-closed 边界，但 spell/formula readiness 仍为 partial；Community 有效库仍为 80/80 Hero slots、40/40 specs（72 Raider.IO、8 WCL），2026-08-28 最新扫描锁定 WCL zone55/partition1 后仍为 79/80，aggregate sourceStatus=partial。官方当前季节只读探针已验证 season18，但 PostgreSQL Journal/装备明细刷新在 256 上限下发生可证明截断，1024 上限完整尝试又在 20 分钟安全边界停止，未写入半成品。生产装备读模型、stale season、gear refresh、legality authority、Catalyst、Talent spell/media 完整性和 Active Manifest promotion 仍未闭合。rebind 索引、Candidate Manifest、云端 recovery 及新外部证据已记录在 freshness evidence | [freshness evidence](../artifacts/releases/2026-08-25-s2-freshness-rebase/evidence.json) · [cloud closure index](../artifacts/releases/2026-08-25-s2-freshness-rebase/normalized/s2-equipment-library-closure-v6-cloud-index-v1.json) · [source policy](../server/data/midnight-season-2/source-policy.json) · [project-state](project-state.json) |
+| 至暗之夜 S2 | Active 与 Candidate 分层推进；生产仍是正式 Active Manifest generation 41，30555 freshness Candidate 已封存但未 promotion | Active 当前绑定 SimC 12.1.0.69299/f50a，`updateAvailable=true`，全局 `/api/data/health=partial`。Candidate 在 30555 上闭合 416/416 items、15,572/15,572 public variants、1,665/1,665 crafted templates、74/74 options、533/533 矩阵和 17,237/17,237 数值 readback，并绑定新 Talent/Gear/Catalog/Community/Exact；23,348 个越界变体继续排除。Candidate Manifest `season-manifest:sha256:46c76d...` 未切换 Active。最新扫描为 79/80，PG 有效覆盖 80/80，aggregate `sourceStatus=partial`；stale season、gear refresh、legality、Catalyst、spell/media 和生产读模型仍是独立门禁 | [freshness evidence](../artifacts/releases/2026-08-25-s2-freshness-rebase/evidence.json) · [source policy](../server/data/midnight-season-2/source-policy.json) · [project-state](project-state.json) |
 | Exact-first runtime | `0030`--`0035` foundation `runtime_verified`；provider/worker disabled、eligible source 为零 | 仅在完整 owner source 出现后另开 activation 与真实微信验收合同 |
 | 炸鸡队长 | 聊天表面、流式与原生 Agent 已有交付证据；Smart Question/Evidence Planner 仍有待验收范围 | 新来源和 Phase 3--5 必须单独授权、审阅和发布 |
 | 数据与发布 | PostgreSQL-only、Harness、验证矩阵、Taro owner 与 release packet 机制已建立 | 按 caller-proof 与新鲜验证逐项淘汰兼容面 |
+
+## 当前实际状态分层
+
+| 层 | 状态 | 当前事实 |
+| --- | --- | --- |
+| UI 源码与路由 | `active_unverified` | 活动 owner 是 `apps/mini-taro`，14 条 Taro/兼容路径完全同序；架构审计为 14 routes、14 contracts、284 checks、0 findings。视觉账本仍是 14 条 `UNVERIFIED`，历史 6 条接受和 8 条 waiver 不能改写为当前 14/14 通过。 |
+| S2 生产 | `partial` | 正式 Active Manifest generation 41 保持不变，绑定 f50a SimC；Browse、社区导入和混合 Resolve 有 live evidence，但独立数据健康门禁仍未闭合。 |
+| S2 freshness | `Candidate` | 30555 replay、dormant release pair、Talent Catalog 与 Candidate Manifest 已验证；没有 Active pointer mutation。 |
+| 云端代码身份 | `下一步` | 两个 runtime WIP 与回归测试已固化为 repository candidate `d0a492c0`；生产 `postgres_cache_store.py` 与该提交同 hash，但 `data_health_followup.py` 仍是上一版热修。临时候选已对 live health 证明正式 Active generation 41 只产生 `active_manifest_cutover_required`、不生成 action。三份曾被 `server/data/` 忽略规则漏掉的 S2 静态控制合同现已纳入 Git，隔离干净 worktree 的 Python 3295/3295（5 skipped）通过；本次仓库对齐不包含生产部署，不能声称云端等于新提交。 |
+| 云端卫生 | `已完成（限定范围）` | 2026-08-28 已清除无引用候选、旧 SimC 可重建版本、Git 已删除的部署残留及 178 份被当前 S2 恢复点替代的旧代码/数据备份；磁盘由 99% 降到 75%。正式 evidence、经 `pg_restore --list` 验证的 8 月 25/27/28 PG 恢复点、Exact-first foundation、Active/Candidate/单一 rollback 均保留。清理不等于发布或 Active promotion。 |
 
 ## 当前优先级
 
 | 优先级 | 里程碑 | 完成标准 | 权威入口 |
 | --- | --- | --- | --- |
 | P0 | 14 路由 UI 系统重建 | 共享 chrome、核心交互和全部 14 路由的真实微信运行态逐项复核；`gear_detail` 保持“候选 -> 后端合法配置 -> 显式应用 -> Resolve” | [UI 计划](plans/ui-reconstruction.md)、[current-ui](design/current-ui/README.md) |
-| P0 | 至暗之夜 S2 四类范围装备库与社区 Exact | v73 数据候选、release gate、正式 Active Manifest generation 41、后端浏览/导入/混合替换和小程序构建已验证；用户已确认最新微信预览可收尾；社区导入与登录态保存的逐路径记录按 closure packet 显式 waiver，不升级为未执行的独立证据 | [当前设计](plans/2026-08-13-s2-selectable-catalog-community-exact-design.md)、[closure evidence](https://api.chickenbro.cloud/wow-evidence/releases/2026-08-24-s2-equipment-library-evidence-v2/artifacts/releases/2026-08-24-s2-equipment-library-ui-closure/evidence.json)、[Candidate README](../server/data/midnight-season-2/README.md) |
+| P0 | 至暗之夜 S2 四类范围装备库与社区 Exact | v73 已发布为 Active generation 41；30555 freshness 结果仅作为 dormant Candidate。下一步必须先闭合 production read model、sourceStatus 与 health gates，再另行决定 promotion；既有用户 acceptance 与 waiver 边界保持不变 | [当前设计](plans/2026-08-13-s2-selectable-catalog-community-exact-design.md)、[closure evidence](https://api.chickenbro.cloud/wow-evidence/releases/2026-08-24-s2-equipment-library-evidence-v2/artifacts/releases/2026-08-24-s2-equipment-library-ui-closure/evidence.json)、[freshness evidence](../artifacts/releases/2026-08-25-s2-freshness-rebase/evidence.json) |
 | P1 | Exact-first 与四类范围 Catalog | production foundation 不等于玩家 Exact 闭环；零 eligible source 与 disabled provider/worker 必须持续如实返回 `blocked` | [当前边界](plans/2026-08-04-equipment-simulator-exact-first-persistence-resequence.md)、[生产证据](../artifacts/releases/2026-08-10-equipment-simulator-exact-first-production-foundation-deployment/evidence.json) |
 | P1 | Catalog Browse 纠偏 | 修复 Browse membership、最高 rank 与装备类型门禁；不重开 generation 35 的归档基线 | [当前计划](plans/2026-07-29-manifest-catalog-progression-display-contract.md) |
 | P1 | 炸鸡队长统一 ChatBot | 保持 owner、授权、来源、新鲜度和失败回退可验证；Evidence Planner 真实 WeChat 验收仍待办 | [ChatBot 架构](plans/2026-07-24-chickenbro-chatbot-design.md)、[Evidence Planner](plans/2026-08-04-chickenbro-evidence-planner-design.md) |
@@ -61,8 +72,8 @@ AI 建议串成可复用路径：
 | --- | --- | --- | --- |
 | 长期目标合同 | 已完成 | v1 的用户主链、40/26/14 能力边界和 fail-closed 合同持续有效；不授予新执行权 | [目标架构](plans/2026-07-28-equipment-simulator-target-architecture.md) |
 | v1 已完成基线 | 已完成 | generation 35 的 Manifest v2 已归档；全局数据健康仍为 `partial` | [project-state.json](project-state.json) |
-| 至暗之夜 S2 End Game 数据候选 | 正在推进；当前 Talent/Candidate Manifest 已封存，但生产/Active 门禁仍阻断 | 云端 PostgreSQL 已写入当前 SimC/TraitEdge Talent Catalog；Candidate Manifest v2 与 S2 Gear/Catalog/Community/Exact dormant pair 已完成绑定，未发生 pointer mutation 或 Active promotion。官方当前 season18 只读证据已刷新，但完整 Journal/装备明细同步因接口耗时边界未闭合；spell/media 完整性、stale season、装备生产读模型、Community aggregate、legality、Catalyst 和生产 preset 仍是独立门禁 | [freshness evidence](../artifacts/releases/2026-08-25-s2-freshness-rebase/evidence.json) |
-| S2 四类范围装备库完整闭环 | 正在推进生产门禁；30555 current-runtime Candidate、正式 dormant pair 与 Candidate Manifest v2 已通过，gen41 暂保留 | 官方 S2 closure v6 的四类范围仍为 416/416 canonical items、15,572/15,572 public variants、1,665/1,665 crafted quality templates、74/74 enhancement probes，30555 当前矩阵 533/533 批、数值 readback 17,237/17,237、runtime snapshot 416 items/17,237 variants/74 options 均 verified，23,348 个明确越界变体仍排除。当前 Talent Catalog 已在云端 PG 更新为 5,227 节点、55 profiles、40/40 specs，Candidate Manifest v2 已绑定当前 talent revision；其中 13 个 profile 是 runtime-baseline，不能升级为推荐模板。新外部证据已锁定 WCL zone55/partition1；官方 season18 探针 verified，但 Journal/装备明细完整刷新仍被截断/耗时门禁阻断且没有写入半成品。下一步只剩生产装备读模型/旧 profile 处置、stale season、gear refresh、Community sourceStatus、legality、Catalyst、spell/media 完整性与 Active Manifest gates；当前不切换 gen41。证据路径、报告 ID 和 SHA 已记录在 freshness evidence | [freshness evidence](../artifacts/releases/2026-08-25-s2-freshness-rebase/evidence.json) · [cloud closure index](../artifacts/releases/2026-08-25-s2-freshness-rebase/normalized/s2-equipment-library-closure-v6-cloud-index-v1.json) · [source policy](../server/data/midnight-season-2/source-policy.json) · [project-state](project-state.json) |
+| 至暗之夜 S2 End Game 数据候选 | 正在推进；Candidate 已封存，Active 门禁仍阻断 | PG 中存在新 Talent Catalog 与 dormant Gear/Catalog/Community/Exact pair；Candidate Manifest 完成绑定，但没有 pointer mutation。season18 只读探针已刷新；完整 Journal/装备明细同步、spell/media、stale season、生产装备读模型、Community aggregate、legality、Catalyst 与 preset 仍是独立门禁 | [freshness evidence](../artifacts/releases/2026-08-25-s2-freshness-rebase/evidence.json) |
+| S2 四类范围装备库完整闭环 | 正在推进生产门禁；30555 Candidate 已通过，Active generation 41 保留 | Candidate 数量与 replay 均 verified，但 30555 是证据绑定的 Candidate runtime，不是当前 Active runtime。生产继续以 generation 41/f50a 提供服务；`updateAvailable=true`、全局 health `partial`。必须先闭合生产 read model、sourceStatus、legality、Catalyst、spell/media 与 cutover gates，当前不切换 Active | [freshness evidence](../artifacts/releases/2026-08-25-s2-freshness-rebase/evidence.json) · [project-state](project-state.json) |
 | 端到端完整性 Goal | 暂缓 / `blocked` | 缺获批 authority 时，不以现有测试替代 Universe 闭包或完整微信矩阵 | [Goal](plans/2026-07-29-equipment-simulator-e2e-completeness-goal.md) |
 | `gear_detail` UI 验收 | 用户已确认收尾（保留手工 waiver） | typed API、替换/导入/保存代码路径与本地构建已验证；用户确认最新微信预览可收尾；社区导入与 authenticated save 未另行录制逐路径证据 | [状态账本](design/current-ui/runtime-review-status.json) · [closure evidence](https://api.chickenbro.cloud/wow-evidence/releases/2026-08-24-s2-equipment-library-evidence-v2/artifacts/releases/2026-08-24-s2-equipment-library-ui-closure/evidence.json) |
 

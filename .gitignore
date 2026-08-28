@@ -9,7 +9,15 @@ project.private.config.json
 # Python/runtime output
 __pycache__/
 *.py[cod]
-server/data/
+server/data/*
+!server/data/midnight-season-2/
+server/data/midnight-season-2/*
+!server/data/midnight-season-2/README.md
+!server/data/midnight-season-2/source-policy.json
+!server/data/midnight-season-2/track-authority-input.json
+!server/data/midnight-season-2/db2-field-allowlist-v1.json
+!server/data/midnight-season-2/official-fact-scope-v1.json
+!server/data/midnight-season-2/s2-product-content-scope-v1.json
 
 # Local parallel worktrees
 .worktrees/

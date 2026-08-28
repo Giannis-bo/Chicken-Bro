@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-状态：`阶段 1 raw capture 已完成并校验 1370 responses；用户授权的有限 DB2 字段扩展已完成配方、双物品变体/转换、current season 和 recipe 52446 min6 四个 bounded probe；min6 已验证 recipe output 与五档 crafting quality，并绑定固定 SimC 序列化证据，但副属性/美化语义、SimC build 对齐和来源兼容性仍未闭合；normalized snapshot 因全量 recipe output、item variant/static stats、tier conversion、Mythic+ cap/track 官方字段仍未闭合保持 blocked；候选发布和指针切换保持阻断`
+状态：`历史阶段 1 记录 / 已停止；v8 raw capture 与当时的 bounded DB2 probes 已完成，但该阶段的 normalized snapshot 保持 blocked。后续 v73 已独立发布为 Active Manifest generation 41，30555 freshness Candidate 也已独立封存且未 promotion；两者都不能反写本阶段的历史判断。本文件不再授权 rerun、联网下载、Candidate 构建或指针切换，当前事实以 docs/project-state.json 和 docs/roadmap.md 为准。`
 
 **Goal:** 先冻结用户确认的 S2 产品内容选择，再只使用暴雪 World of Warcraft Game Data API 建立一个
 可复算、可审计、有限范围的 `OfficialApiFactSnapshot`。它封存团本（包括巢穴）、大秘境、制造业和套装

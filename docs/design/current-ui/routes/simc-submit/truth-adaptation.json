@@ -57,14 +57,20 @@
       "freshH5LocalGearCount": 0,
       "rule": "Remote personal templates require an authenticated owner. Client fallback may expose locally owned templates but must not label them synced or remote."
     },
-    "candidateDeploymentGate": {
-      "probedAt": "2026-07-19T00:00:00+08:00",
-      "cloudEndpoint": "http://124.223.51.33/api/simulator/simc/options",
-      "cloudHttpStatus": 404,
-      "cloudResponse": "not_found",
+    "liveDeploymentProbe": {
+      "probedAt": "2026-08-28T16:00:00+08:00",
+      "cloudEndpoint": "https://api.chickenbro.cloud/api/simulator/simc/options",
+      "cloudHttpStatus": 200,
+      "cloudResponseStatus": "ready",
+      "contractRevision": "simc-options-v1",
+      "supportedRaceCount": 27,
+      "supportedScenarioCount": 3,
+      "preparationStatus": "ready",
+      "supportedSpecCount": 26,
+      "unsupportedSpecCount": 14,
       "branchContractTest": "tests.news_backend_test.NewsBackendTest.test_http_simc_options_exposes_only_backend_owned_supported_contract",
       "branchContractStatus": "pass",
-      "rule": "The current cloud main runtime predates the branch endpoint. Candidate deployment must expose the exact typed simc-options-v1 response before this route can be called production-ready; the frontend must not replace a missing or malformed payload with local races, scenarios, durations or preparation rules."
+      "rule": "The live backend exposes the typed simc-options-v1 contract. HTTP 200 and a ready options payload prove only endpoint availability; the frontend must still block on a missing or malformed payload, and the route remains UNVERIFIED until current WeChat visual and interaction acceptance is recorded."
     }
   },
   "trustRules": [
@@ -74,7 +80,7 @@
     "Supported races, scenarios, scenario-owned durations and preparation rules come only from the typed simulator.simcOptions payload. A missing, fallback or malformed simc-options-v1 response blocks the route and must not be replaced by app-owned defaults.",
     "Remote personal templates require an authenticated owner. A local template remains explicitly local or stale and cannot be presented as synchronized source evidence.",
     "Talent and gear empty states keep their target slots and block confirmation. Gear selection may use the canonical equipment-detail handoff or a typed personal gear template only when its metadata contains a valid canonical selectionIntent; the page must not synthesize a template or gear fact from display fields or raw JSON alone.",
-    "The target's four buff rows remain visible, but the current request contract does not accept user-managed buff overrides. They are read-only rule or unavailable rows until a typed backend contract exists.",
+    "The backend contract marks some preparation rows overrideSupported, but the current Taro surface renders backend-owned rule state and does not provide a user override control. It must not imply that displayed support is an implemented interaction.",
     "Changing specialization, race, scenario (including its backend-owned duration), talent template or gear source invalidates any prior confirmation.",
     "Confirmation first requires a parseable gear snapshot, then a non-fallback websim.gearStatSnapshots result whose statStatus is not blocked, then simulator.analyze with confirmOnly=true and explicit agent.validation.passed=true.",
     "confirmOnly validation does not execute SimC, save a task or authorize any DPS claim. No result preview, DPS, rank or completion state may be fabricated before a real task completes.",

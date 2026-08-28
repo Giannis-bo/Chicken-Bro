@@ -3122,6 +3122,11 @@ class PostgresCacheStore:
         exact_registry_revision = str(
             manifest.get("gearExactRegistryRevision") or ""
         )
+        manifest_dependencies = (
+            manifest.get("dependencyRevisions")
+            if isinstance(manifest.get("dependencyRevisions"), dict)
+            else {}
+        )
         single_authority_vector = bool(
             manifest_schema == "active-season-manifest-v2"
             and catalog_revision
@@ -3149,6 +3154,9 @@ class PostgresCacheStore:
             ),
             "communityTemplateReleaseId": str(manifest.get("communityTemplateReleaseId") or ""),
             "talentCatalogRevision": str(manifest.get("talentCatalogRevision") or ""),
+            "simcRuntimeRevision": str(
+                manifest_dependencies.get("simcRuntimeRevision") or ""
+            ),
             "updatedAt": str(binding.get("updatedAt") or ""),
         }
         if mode == "active" and formal:

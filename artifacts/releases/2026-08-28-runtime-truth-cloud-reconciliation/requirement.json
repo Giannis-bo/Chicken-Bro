@@ -1,0 +1,119 @@
+{
+  "schemaVersion": 1,
+  "slug": "runtime-truth-cloud-reconciliation",
+  "classification": "Strict",
+  "status": "implementation_allowed",
+  "goal": "Make the repository and its current documentation reproduce the reviewed runtime truth: a formal Active Manifest or an unavailable/invalid Manifest state must prevent automatic SimC runtime switching, the Active health payload must expose its bound SimC revision, and the 2026-08-28 route, S2 and cloud-cleanup state must be recorded without promoting Candidate or partial evidence.",
+  "userValue": "Players and operators are protected from a scheduled SimC runtime drifting away from the formal Active Manifest, while the repository, roadmap and deployment runbook describe the code and cloud state that actually exist.",
+  "nonGoals": [
+    "Do not switch the Active Manifest, build or promote a new SimC runtime, trigger sync jobs, change timer cadence, migrate PostgreSQL, or mutate production data.",
+    "Do not claim that HTTP 200, automated tests, route parity, cloud cleanup or a dormant Candidate makes global data health green or current UI acceptance complete.",
+    "Do not add a fifteenth route, change the active Taro navigation, deploy frontend code, or reopen historical S2 execution plans.",
+    "Do not perform additional broad cloud deletion; retain formal evidence, approved PostgreSQL recovery points, Exact-first foundation and Active/Candidate/rollback runtimes.",
+    "Do not restore the absent 2026-08-19 operational capture as current truth or weaken crafted-closure assertions merely to make a clean checkout pass."
+  ],
+  "currentTruth": {
+    "sources": [
+      "docs/project-state.json",
+      "docs/roadmap.md",
+      "docs/plans/README.md",
+      "docs/verification-matrix.md",
+      "docs/remote-debugging.md",
+      "server/data_health_followup.py",
+      "server/postgres_cache_store.py"
+    ],
+    "factOwner": "PostgresCacheStore active_manifest health owns formal pointer and dependency facts; data_health_followup may schedule only actions that remain safe under that owner state.",
+    "baseBranch": "main"
+  },
+  "impactMap": {
+    "mustChange": [
+      "Expose dependencyRevisions.simcRuntimeRevision in the active_manifest health component.",
+      "Select the SimC revision only from a component that actually reports updateAvailable=true.",
+      "Allow automatic SimC update only for an explicitly trusted inactive Manifest mode; formal, missing or invalid Manifest state must remain report-only.",
+      "Reconcile current project state, roadmap, plan index, 14-route mapping, S2 Active/Candidate boundary, database migration state and cloud-cleanup runbook.",
+      "Make the five crafted-closure tests self-contained because their original 2026-08-19 capture/probe dependency was never tracked by Git."
+    ],
+    "mustNotChange": [
+      "Active Manifest generation 41 and its f50a SimC dependency remain unchanged.",
+      "Systemd unit definitions, timer cadence, PostgreSQL rows, sync state, public route count and frontend behavior remain unchanged.",
+      "The 30555 freshness result remains dormant Candidate evidence and global data health remains literal partial.",
+      "The synthetic test capture preserves the historical 12.1.0.68914 DB2 versus 12.1.0.69299 SimC mismatch and cannot become product evidence."
+    ],
+    "riskUnknown": [
+      "A missing or invalid active_manifest component could otherwise be mistaken for permission to update SimC.",
+      "Both SimC health components may exist while only one reports an update, so selecting by component presence can bind the wrong revision.",
+      "The production directory contains non-runtime files from an older Git base even when the reviewed runtime subset matches current source.",
+      "A clean clone of origin/main fails five crafted-closure tests because they reference operational files that were never committed."
+    ],
+    "evidenceRequired": [
+      "RED/GREEN regression tests for formal, missing, invalid and trusted inactive Active Manifest states plus multi-component SimC revision selection.",
+      "Targeted data-health/PostgreSQL tests, project-state/Harness tests, UI route architecture audit, JSON/link/whitespace checks and the repository full verification profile.",
+      "One immutable PR-head candidate smoke against the live health payload without --execute, with runtime hash, service, timer/backflow and rollback evidence.",
+      "Self-contained crafted-closure fixture RED/GREEN evidence plus the complete Python regression suite from a clean checkout state.",
+      "GitHub CI and review results followed by local main/origin/main SHA parity."
+    ]
+  },
+  "ownership": {
+    "factOwner": "server/postgres_cache_store.py owns the active Manifest health projection; server/data_health_followup.py consumes that projection and owns only the bounded action plan.",
+    "consumers": [
+      "wow-data-health-followup.timer",
+      "wow-data-health-followup.service",
+      "/api/data/health",
+      "operations runbooks"
+    ]
+  },
+  "engineeringHealth": {
+    "status": "fail_closed_runtime_guard_with_hotspot_regression_coverage",
+    "reason": "The change touches scheduled action planning and the PostgreSQL read-model hotspot, but performs no write, network fetch, SimC build or runtime switch; targeted tests and candidate dry-run cover the mutation boundary."
+  },
+  "acceptanceEvidence": [
+    "Formal Active Manifest with updateAvailable=true produces no SimC action and reports active_manifest_cutover_required.",
+    "Missing or invalid Active Manifest state produces no SimC action and reports active_manifest_state_unavailable.",
+    "Trusted pre_cutover/transitional state can still use the revision from the health component that reports the update.",
+    "The active_manifest health payload includes its bound simcRuntimeRevision.",
+    "Current docs distinguish 14-route source parity from UI acceptance, generation 41 Active from 30555 Candidate, and cloud cleanup from a reproducible Git deployment identity."
+  ],
+  "manualAcceptanceContract": {
+    "required": false,
+    "requiredItemIds": []
+  },
+  "releaseTrigger": "scheduled_jobs",
+  "rollback": [
+    "code_rollback",
+    "candidate_runtime_rollback"
+  ],
+  "decisionLog": [
+    {
+      "date": "2026-08-28",
+      "decision": "The user approved reconciling the local uncommitted work with the configured project remote after the current-state and cloud-cleanup audit."
+    },
+    {
+      "date": "2026-08-28",
+      "decision": "Local CR found that missing/invalid Manifest state and multi-component revision selection were not fail closed; TDD regression coverage is required before remote submission."
+    },
+    {
+      "date": "2026-08-28",
+      "decision": "The full profile exposed five origin/main tests coupled to an untracked 2026-08-19 operational capture; replace that dependency with a minimal generated fixture while preserving the original fail-closed assertions."
+    }
+  ],
+  "harnessFindings": [
+    {
+      "id": "simc-followup-manifest-state-fail-open-20260828",
+      "status": "finding_only",
+      "whatHappened": "The initial uncommitted guard blocked automatic SimC update only when formalActiveManifest was exactly true and selected a revision from the first present component.",
+      "missedGate": "Scheduled action owner-state availability and matching update source",
+      "impact": "A missing or invalid Manifest health component could permit runtime drift, and two present components could bind the wrong update revision.",
+      "recommendedAction": "Require a trusted inactive pointer mode before scheduling and select only a component that reports updateAvailable=true.",
+      "promotion": "finding_only"
+    },
+    {
+      "id": "crafted-closure-untracked-fixture-20260828",
+      "status": "finding_only",
+      "whatHappened": "Five crafted-closure tests introduced in commit 721221768 referenced a local artifacts/releases/2026-08-19 capture and SimC probe that were never tracked by Git.",
+      "missedGate": "Clean-checkout test fixture reproducibility",
+      "impact": "The repository full profile failed 5 of 3295 Python tests on every clean checkout even though the production implementation was unchanged.",
+      "recommendedAction": "Generate the smallest projected capture and SimC probe inside each test temporary directory, preserving the historical build mismatch and UNVERIFIED semantic blockers.",
+      "promotion": "finding_only"
+    }
+  ]
+}

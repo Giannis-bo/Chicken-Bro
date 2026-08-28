@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-08-24",
+  "updatedAt": "2026-08-28",
   "activeMilestone": "taro_target_first_14_route_rebuild",
   "featureIteration": "allowed_under_harness",
   "defaultLocalReleaseArtifact": "artifacts/releases/2026-07-23-observed-build-registry-cutover",
@@ -60,7 +60,7 @@
       "path": "docs/plans/2026-07-28-equipment-simulator-target-architecture.md",
       "status": "implemented_v1",
       "lifecycle": "active",
-      "notes": "Target architecture v1 is implemented and archived through Phase 0-4. Production generation 35 serves one formal Manifest v2 dependency vector across Catalog, Exact Registry, Gear, Community, Resolver, Profile, SimulationSnapshot and task execution; legacy runtime reader callers are zero, CAS promotion/v1 rollback/v2 restore and official WeChat handoff pass. The 55 source-ambiguous references remain non-consumable and global data health remains literally partial under independent owners."
+      "notes": "Target architecture v1 is implemented and archived through Phase 0-4. Generation 35 established the single formal Manifest v2 dependency-vector contract across Catalog, Exact Registry, Gear, Community, Resolver, Profile, SimulationSnapshot and task execution; the current production pointer has since advanced to S2 generation 41 without reopening that archived phase. Legacy runtime reader callers are zero, and the 55 source-ambiguous references remain non-consumable; global data health remains literally partial under independent owners."
     },
     {
       "id": "equipment_simulator_track_authority_correction",
@@ -119,38 +119,31 @@
       "notes": "Archived Phase 0 evidence remains an active factual baseline for later phases: the bounded generation-32 audit uses exact season/rule Track Authority, maps 1309/1309 canonical Browse candidates, verifies all 80 Community ExactItemInstance templates and 40 specializations, records zero unresolved callers and zero source writes, and keeps the active pointer stable. Global data health remains partial under legacy staging/refresh owners and is not represented as a green global-health result."
     },
     {
-      "id": "midnight_season_2_endgame_data_candidate",
-      "path": "docs/superpowers/specs/2026-08-12-midnight-season-2-data-repository-design.md",
-      "status": "candidate_blocked_official_capture",
-      "lifecycle": "active",
-      "plan": "docs/superpowers/plans/2026-08-12-midnight-season-2-data-repository.md",
-      "evidence": "artifacts/releases/2026-08-12-midnight-season-2-data-foundation/evidence.json",
-      "notes": "The End Game S2 candidate remains an isolated historical blocked baseline without a Season 1 fallback. Official capture was capped, so item/source/option/set/track authority was not closed; no S2 runtime, active Manifest pointer or production write changed. It has no continuing execution or promotion authority and does not define the completion criteria of the new bounded List A plus community Exact design."
-    },
-    {
       "id": "midnight_season_2_selectable_catalog_community_exact_design",
       "path": "docs/plans/2026-08-13-s2-selectable-catalog-community-exact-design.md",
       "status": "published_manifest_v73_frontend_user_accepted_closure_with_manual_waiver",
       "lifecycle": "active",
       "evidence": "artifacts/releases/2026-08-24-s2-equipment-library-ui-closure/evidence.json",
       "notes": "The confirmed S2 scope has four logical sources: raid including lair, Mythic+, crafted, and tier_set. Candidate v73 sealed the verified Gear, Catalog, Community and Exact Registry identities, including verified set membership, and was promoted to formal Active Manifest generation 41. List A remains derived only from verified in-scope official facts; Raider.IO items outside List A remain community_observed read-only Exact instances. Backend gear browse, community import and mixed replacement Resolve are live verified. The user confirmed the latest WeChat preview is OK and authorized closure; the closure packet records equipment-apply and attribute-overview acceptance plus an explicit waiver for separately recording community import and authenticated save."
-    },
-    {
-      "id": "midnight_season_2_official_api_fact_snapshot_plan",
-      "path": "docs/plans/2026-08-13-s2-official-api-fact-snapshot-implementation.md",
-      "status": "stage_1_limited_db2_probe_partial_snapshot_blocked",
-      "lifecycle": "active",
-      "notes": "The user authorized downloading and persisting official Blizzard API responses and a bounded DB2 field expansion. The four-category scope, raw lair preservation, independent tier_set membership, current-S2/skill-tier/period filters, capture-manifest fail-closed rules, injected-reader capture adapter, limited client-DB2 allowlist and SimC-independent partial/UNVERIFIED status contract are implemented locally. Capture v8 preserved and hash-validated 1370 official raw responses, including the selected Journal graph, 13 S2 item sets, 8 Midnight skill-tiers, 793 recipes and current Mythic+ period 1076. The official source inventory records 442 observed official item identities (Mythic+ 247, raid including lair 130, tier_set 65), 377 deduplicated source-membership edges and 65 tier-set memberships; the 793 crafted recipe roots still have no API output item, so the four-source candidate denominator is null/blocked. The retained bounded DB2 probes include recipe 52446 min6 (138 exact requests across 19 allowlisted tables; verified recipe output and five quality tiers; secondary-stat and embellishment semantics remain UNVERIFIED), item 159317 plus tier-set item 271481 (227 response pages/217 unique query identities with partial bonus/conversion evidence), and current season 18 (four exact tables returned zero rows, so cap/track remains UNVERIFIED). The recipe min6 closure report binds six fixed SimC serialization probes to runtime 12.1.0.69299, but remains blocked by the 12.1.0.68914 client-build mismatch, an item-resolution warning, and unverified source compatibility; returncode=0 did not promote any option. DB2 transport is mirror-only, raw DB2 is not persisted, and the allowlist rejects full-table or unbounded queries. Stage 1 still excludes Catalog/Exact Registry changes, Manifest activation, candidates and production writes. A raw capture or partial/blocked snapshot has no Phase 2 promotion authority."
-    },
-    {
-      "id": "midnight_season_2_three_sample_release_closure_design",
-      "path": "docs/plans/2026-08-14-s2-three-sample-release-closure-design.md",
-      "status": "design_and_review_confirmed",
-      "lifecycle": "active",
-      "notes": "This bounded proof-of-release design closes only three shortest paths: one S2 Mythic-plus and one S2 raid item at the verified Champion/Hero/Myth terminal states, plus one crafted item at low/mid/myth-end quality with two verified crafted-stat choices and one verified embellishment. API remains the owner of normal-drop facts and membership; the user-approved DB2 exception is now limited to allowlisted fields missing from API and is not manufacturing-only. The current crafted probe and SimC build mismatch are explicit blockers; no candidate, runtime or production change is authorized by this design."
     }
   ],
   "completedBaselines": [
+    {
+      "id": "midnight_season_2_freshness_candidate",
+      "domain": "midnight_season_2_freshness_candidate",
+      "path": "artifacts/releases/2026-08-25-s2-freshness-rebase/evidence.json",
+      "status": "candidate_manifest_sealed_dormant_no_execution_authority",
+      "evidence": "artifacts/releases/2026-08-25-s2-freshness-rebase/evidence.json",
+      "notes": "The freshness rebase verified the immutable flat Candidate v6, its 30555 SimC replay, a dormant Gear/Catalog/Community/Exact pair, the recovered Talent Catalog and Candidate Manifest v2. It did not promote the Candidate or mutate the Active pointer and has no current execution authority. The live production truth remains formal Active Manifest generation 41; current external-source aggregation and global data health remain partial."
+    },
+    {
+      "id": "midnight_season_2_three_sample_release_closure",
+      "domain": "midnight_season_2_three_sample_release_closure",
+      "path": "docs/plans/2026-08-14-s2-three-sample-release-closure-design.md",
+      "status": "fulfilled_by_v73_active_generation_41",
+      "evidence": "artifacts/releases/2026-08-21-s2-equipment-library-candidate-v73/live-smoke-v1.json",
+      "notes": "The three shortest Mythic-plus, raid and crafted proof paths were absorbed into the v73 release packet and formal Active Manifest generation 41. The design remains a stable proof boundary, not current execution authority and not permission to expand the four-source scope."
+    },
     {
       "id": "exact_first_production_foundation_20260810",
       "domain": "equipment_simulator_exact_first_runtime_foundation",
@@ -370,6 +363,22 @@
   ],
   "historicalContracts": [
     {
+      "id": "midnight_season_2_endgame_data_candidate",
+      "path": "docs/superpowers/specs/2026-08-12-midnight-season-2-data-repository-design.md",
+      "status": "candidate_blocked_official_capture_no_execution_authority",
+      "lifecycle": "historical",
+      "plan": "docs/superpowers/plans/2026-08-12-midnight-season-2-data-repository.md",
+      "evidence": "artifacts/releases/2026-08-12-midnight-season-2-data-foundation/evidence.json",
+      "notes": "The capped End Game candidate is retained only as a blocked historical baseline. It did not change S2 runtime or an Active pointer and cannot be resumed or promoted."
+    },
+    {
+      "id": "midnight_season_2_official_api_fact_snapshot_stage_1",
+      "path": "docs/plans/2026-08-13-s2-official-api-fact-snapshot-implementation.md",
+      "status": "stage_1_stopped_partial_snapshot_blocked",
+      "lifecycle": "historical",
+      "notes": "Capture v8 and the bounded DB2 probes remain field-level historical evidence. The Stage 1 normalized snapshot stayed blocked and the plan no longer authorizes reruns, network capture, candidate construction or pointer changes. Later v73 Active and freshness Candidate records are separate identities and do not rewrite this historical result."
+    },
+    {
       "id": "talent_link_lkg_sync_guard",
       "path": "artifacts/releases/2026-07-13-talent-link-lkg-sync-guard/requirement.json",
       "status": "completed_live_verified_archived",
@@ -520,6 +529,26 @@
       "legacyCompatibilitySurface": "app.json and pages/ retain 14-route compatibility-consumer roles only",
       "ownerMap": "docs/project-owner-map.json",
       "routeCount": 14,
+      "routeConfiguration": {
+        "status": "source_verified_visual_acceptance_still_unverified",
+        "activeConfig": "apps/mini-taro/src/app.config.ts",
+        "compatibilityConfig": "app.json",
+        "pathParity": "14_of_14_same_order",
+        "canonicalMapping": "docs/design/current-ui/README.md#14-路由实现映射",
+        "activeTabLabels": [
+          "资讯",
+          "专精",
+          "队长",
+          "我的"
+        ],
+        "compatibilityTabLabels": [
+          "最新资讯",
+          "职业专精",
+          "智能分析",
+          "我的"
+        ],
+        "architectureAudit": "14 routes; 14 contracts; 284 checks; 0 findings on 2026-08-28"
+      },
       "contract": "docs/design/current-ui/runtime-review-contract.json",
       "statusLedger": "docs/design/current-ui/runtime-review-status.json",
       "targetRegistry": "docs/design/current-ui/target-registry.json",
@@ -609,11 +638,114 @@
       "releaseRepository": "server/gear_release_store.py",
       "activeGearReleaseId": "gear-release:sha256:3e71cbbf84163e86c90367527fe529d46040b25a372744b3656b1b551f82f190",
       "activeCommunityReleaseId": "community-release:sha256:a232313703408ca38715d89bd13c2b945764cf7f1725b731a413582ce3f81cb1",
+      "activeSimcRuntimeRevision": "simc:12.1.0.69299:f50a2121bf894570146507496f3e113bff68e445:69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da",
+      "activeSimcRuntimeCommit": "f50a2121bf894570146507496f3e113bff68e445",
+      "activeSimcRuntimeVersion": "12.1.0.69299",
+      "simcUpdateAvailable": true,
       "activeManifestPointerRows": 1,
-      "scheduledRefresh": "timer_stopped_pending_simc_manifest_runtime_alignment",
+      "scheduledRefresh": "timers_enabled_active_manifest_runtime_difference_is_report_only_pending_explicit_cutover",
       "globalDataHealth": "partial",
       "evidence": "artifacts/releases/2026-08-24-s2-equipment-library-ui-closure/evidence.json",
       "manualAcceptance": "user_confirmed_latest_wechat_preview_ok; authenticated_template_save_not_independently_recorded"
+    },
+    "s2FreshnessCandidate": {
+      "status": "candidate_manifest_sealed_dormant_not_active",
+      "formalActiveManifest": false,
+      "candidateManifestRevision": "season-manifest:sha256:46c76d033f6582dea26eba467d0c231245cfc8ee6f090da256f9899ff39c69e7",
+      "candidateSimcRuntime": {
+        "version": "12.1.0.69497",
+        "commit": "30555eff",
+        "binarySha256": "2bad72cd7a1ce1e471471b1ec6b2f3cd1b521907266a6a197082d26606c5b1f9"
+      },
+      "flatCandidate": {
+        "canonicalItems": "416/416",
+        "publicVariants": "15572/15572",
+        "craftedQualityTemplates": "1665/1665",
+        "enhancementOptions": "74/74",
+        "excludedOutOfScopeVariants": 23348
+      },
+      "runtimeReplay": {
+        "matrixBatches": "533/533",
+        "numericReadback": "17237/17237",
+        "snapshotItems": 416,
+        "snapshotVariants": 17237,
+        "snapshotOptions": 74
+      },
+      "talentCatalog": {
+        "revision": "websim-talent-catalog-v1-525bac297675",
+        "talents": 5227,
+        "dependencies": 8411,
+        "dependencyNodes": 4947,
+        "profileSpecs": "40/40",
+        "profiles": 55,
+        "runtimeBaselineProfiles": 13
+      },
+      "externalSourceState": {
+        "latestScanCoverage": "79/80",
+        "effectivePostgresCoverage": "80/80",
+        "aggregateSourceStatus": "partial",
+        "wclPartition": "zone_55_partition_1"
+      },
+      "productionWriteBoundary": "dormant candidate and Talent rows exist in PostgreSQL; Active Manifest generation 41 was not changed",
+      "evidence": "artifacts/releases/2026-08-25-s2-freshness-rebase/evidence.json"
+    },
+    "cloudDeployment": {
+      "auditedAt": "2026-08-28",
+      "status": "repository_candidate_verified_production_one_runtime_file_behind",
+      "projectRoot": "/opt/wow-mini-program",
+      "service": "wow-backend.service",
+      "trackedBaseCommit": "4a147045f8048acb1ebdf39754dbf0eed0139fd3",
+      "originMainCommit": "4a147045f8048acb1ebdf39754dbf0eed0139fd3",
+      "repositoryCandidateCommit": "d0a492c00543d13e9072f8ccaa7ac9239275c8bb",
+      "repositoryCandidateTree": "80f3df08b99ae6f10ceb3877b9bc624d67a18c3b",
+      "repositoryCleanCheckout": {
+        "status": "verified",
+        "verifiedAt": "2026-08-28",
+        "controlFiles": [
+          "server/data/midnight-season-2/db2-field-allowlist-v1.json",
+          "server/data/midnight-season-2/official-fact-scope-v1.json",
+          "server/data/midnight-season-2/s2-product-content-scope-v1.json"
+        ],
+        "pythonVerification": "3295 passed with 5 skips in an isolated Git worktree at 02541f14b; no ignored local data was present"
+      },
+      "deployRevisionMarker": {
+        "status": "absent_removed_as_stale_unconsumed_marker",
+        "formerValue": "4202418cc956dc6c6e127999062294b9e144a265"
+      },
+      "runtimeOverrides": [
+        {
+          "path": "server/data_health_followup.py",
+          "productionSha256": "18db14b1bdea47a395ea90c8b1e7d1b9424c748ff1cbd67b193780cdd40e995e",
+          "candidateSha256": "435e3d80414045603a0aa65ded958e69366a564c95402680b53093b9d29a3db1",
+          "state": "production_previous_hotfix_differs_from_repository_candidate"
+        },
+        {
+          "path": "server/postgres_cache_store.py",
+          "productionSha256": "aff241c77cd4c4eea48376b187300c81bc9b829b05e6871d220bd4366259e14c",
+          "candidateSha256": "aff241c77cd4c4eea48376b187300c81bc9b829b05e6871d220bd4366259e14c",
+          "state": "matches_repository_candidate_commit"
+        }
+      ],
+      "remoteTestBoundary": "the matching regression tests are committed in d0a492c00543d13e9072f8ccaa7ac9239275c8bb; tests are not deployed into the production execution path",
+      "runtimeManifestVerification": "the previously audited 926-file runtime subset had 0 missing files; after binding candidate d0a492c0, fresh production hashes show 925 matches and 1 intentional repository-ahead mismatch at server/data_health_followup.py",
+      "candidateSmoke": "artifacts/releases/2026-08-28-runtime-truth-cloud-reconciliation/candidate-smoke.json",
+      "productionDeploymentBoundary": "repository alignment does not authorize a production deploy; the new Active Manifest state guard remains candidate-only until an explicit deployment task",
+      "businessHealth": "partial",
+      "cleanup": {
+        "status": "obsolete_code_and_rebuildable_artifact_cleanup_verified",
+        "manifest": "/var/lib/wow-backend/cleanup-quarantine/20260828-project-residue-YWFN3R/manifest.tsv",
+        "manifestSha256": "34aca0030fa754516603b9e98b0a6c2c4aef00e461662c5eb6627b84434b98ac",
+        "removedSourceTreeResidueEntries": 841,
+        "removedSupersededBackupEntries": 178,
+        "reclaimedSupersededBackupBytes": 9028988690,
+        "removedCandidateAndCodeBackupRoots": 4,
+        "removedSupersededSimcReleases": 6,
+        "removedSupersededSimcSourceArchives": 7,
+        "unapprovedExtraFileCountAfterCleanup": 0,
+        "retained": "formal release evidence, PostgreSQL data, the pg_restore-validated 2026-08-25/27/28 S2 recovery points, exact-foundation-20260810T092755Z, current runtime hotfix backups, Active f50a SimC, Candidate 30555 SimC and one 3c798 rollback",
+        "diskBefore": "99_percent_used_964M_available",
+        "diskAfter": "75_percent_used_17G_available"
+      }
     },
     "gearStatSnapshot": {
       "status": "phase5_complete_live_verified",
@@ -683,13 +815,13 @@
     {
       "id": "equipment_simulator_catalog_migration_phase0_blockers",
       "status": "resolved_manifest_v2_generation_35",
-      "trigger": "Phase 0-4 are archived. Production generation 35 serves the verified Manifest v2 Catalog/Exact dependency vector, classifies all 80 templates and 40 specializations, executes 26 supported SimC profiles, blocks 14 unsupported specializations and passes official WeChat import/save/SimC handoff.",
+      "trigger": "Phase 0-4 are archived. Generation 35 established the verified Manifest v2 Catalog/Exact dependency-vector contract, 80-template and 40-specialization classification, 26/14 SimC boundary and WeChat import/save/SimC handoff; current production has since advanced to S2 generation 41.",
       "evidence": "artifacts/releases/2026-07-29-equipment-simulator-phase4-manifest-cutover/evidence.json"
     },
     {
       "id": "equipment_simulator_legacy_health_owners",
-      "status": "manifest_owner_resolved_global_partial_remains",
-      "trigger": "The Manifest v2 active owner is verified at generation 35 and runtime consumer callers no longer mix staging/latest readers. Global /api/data/health remains partial because independent gear refresh, staging catalog, legality, talent, community and cutover-readiness owners still report literal blocked/partial states; do not represent that global state as green.",
+      "status": "manifest_owner_advanced_to_generation_41_global_partial_remains",
+      "trigger": "Generation 35 evidence verified the single Manifest v2 owner and removal of mixed staging/latest readers; production has since advanced to formal Active generation 41. Global /api/data/health remains partial because independent gear refresh, stale-season WebSim, legality, talent, community and cutover-readiness owners still report literal blocked/partial states; do not represent that global state as green.",
       "evidence": "artifacts/releases/2026-07-29-equipment-simulator-phase4-manifest-cutover/evidence.json"
     },
     {
@@ -703,6 +835,17 @@
       "status": "blocked_candidate_only",
       "trigger": "The S2 End Game candidate remains isolated because the official item search was capped. Source membership, item identity, tier membership, options and Track Authority must remain unverified until complete official coverage is captured; the active Manifest pointer must not change.",
       "evidence": "artifacts/releases/2026-08-12-midnight-season-2-data-foundation/evidence.json"
+    },
+    {
+      "id": "midnight_season_2_freshness_candidate_promotion",
+      "status": "candidate_dormant_active_generation_41_retained",
+      "trigger": "The 30555 freshness replay, dormant release pair, Talent Catalog and Candidate Manifest are verified as Candidate evidence only. Production remains Active Manifest generation 41 on its bound f50a SimC runtime; external-source aggregation and global health are partial, so no Active promotion is implied.",
+      "evidence": "artifacts/releases/2026-08-25-s2-freshness-rebase/evidence.json"
+    },
+    {
+      "id": "cloud_deployment_identity_drift",
+      "status": "open_repository_candidate_not_deployed",
+      "trigger": "The runtime changes and matching tests are now bound to repository candidate d0a492c0. Production still uses tracked base 4a147045 plus the previous data-health hotfix and the candidate-matching PostgreSQL health projection; the new fail-closed Active Manifest guard is candidate-verified but not deployed. The stale unconsumed .deploy-revision marker and obsolete residue were removed, but cleanup does not create production Git parity."
     }
   ]
 }

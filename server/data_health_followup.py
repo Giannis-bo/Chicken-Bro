@@ -202,7 +202,13 @@ def followup_state_after_plan(prior_state, plan):
         if decision:
             action_state["lastDecision"] = decision
             action_state["lastDecisionAt"] = _utc_now()
-        if decision in {"baseline_recorded", "missing_input_revision", "unchanged_revision"}:
+        if decision in {
+            "active_manifest_cutover_required",
+            "active_manifest_state_unavailable",
+            "baseline_recorded",
+            "missing_input_revision",
+            "unchanged_revision",
+        }:
             action_state["lastReportOnlyReason"] = decision
         elif decision:
             action_state.pop("lastReportOnlyReason", None)
@@ -256,8 +262,18 @@ def plan_followup_actions(health, *, prior_state=None, force_actions=()):
     report_only = []
     observations = []
     state = _normalized_followup_state(prior_state)
-    simc_update_needed = any(
-        _simc_update_available(components.get(key) or {}) for key in ("template_simc_bridge", "season_cutover_readiness")
+    simc_update_components = [
+        component
+        for key in ("template_simc_bridge", "season_cutover_readiness")
+        if _simc_update_available(component := components.get(key) or {})
+    ]
+    active_manifest = components.get("active_manifest") or {}
+    active_manifest_details = _component_details(active_manifest)
+    formal_active_manifest = active_manifest_details.get("formalActiveManifest")
+    trusted_inactive_manifest = bool(
+        active_manifest.get("status") == "partial"
+        and formal_active_manifest is False
+        and active_manifest_details.get("pointerMode") in {"pre_cutover", "transitional"}
     )
 
     news = components.get("news") or {}
@@ -267,18 +283,35 @@ def plan_followup_actions(health, *, prior_state=None, force_actions=()):
     ):
         _append_action(actions, "news_refresh")
 
-    if simc_update_needed:
-        simc_component = components.get("template_simc_bridge") or components.get("season_cutover_readiness") or {}
-        _add_revision_gated_action(
-            actions,
-            report_only,
-            manual_blockers,
-            observations,
-            state,
-            "simc_runtime_update",
-            _simc_update_revision(simc_component),
-            refresh_needed=True,
-        )
+    if simc_update_components:
+        simc_component = simc_update_components[0]
+        simc_revision = _simc_update_revision(simc_component)
+        if formal_active_manifest is True:
+            report_only.append("simc_runtime_update:active_manifest_cutover_required")
+            observations.append({
+                "key": "simc_runtime_update",
+                "revision": simc_revision,
+                "decision": "active_manifest_cutover_required",
+            })
+        elif not trusted_inactive_manifest:
+            report_only.append("simc_runtime_update:active_manifest_state_unavailable")
+            manual_blockers.append("simc_runtime_update_active_manifest_state_unavailable")
+            observations.append({
+                "key": "simc_runtime_update",
+                "revision": simc_revision,
+                "decision": "active_manifest_state_unavailable",
+            })
+        else:
+            _add_revision_gated_action(
+                actions,
+                report_only,
+                manual_blockers,
+                observations,
+                state,
+                "simc_runtime_update",
+                simc_revision,
+                refresh_needed=True,
+            )
     gear = components.get("gear_catalog") or {}
     if gear.get("status") in {"partial", "stale", "blocked"}:
         _add_revision_gated_action(

@@ -7,7 +7,8 @@ request-time generated data.
 
 The repository identity is `midnight-season-2` with `scope=end_game`.
 Announcement dates are evidence metadata, not Catalog availability gates.
-S1 data and the active S1 Manifest remain separate and immutable.
+Historical S1 sealed rows remain immutable, but the current formal Active
+Manifest is S2 generation 41; retained historical rows do not own runtime reads.
 
 ## Equipment library scope
 
@@ -103,6 +104,18 @@ community import resolves all 16 slots, and a mixed 16-slot replacement
 resolves with no problem codes. The global `/api/data/health` remains
 `partial` under independent owners and must not be represented as a green
 global result.
+
+The later [S2 freshness Candidate](../../../artifacts/releases/2026-08-25-s2-freshness-rebase/evidence.json)
+is a separate dormant layer. It verifies the flat Candidate v6 against SimC
+12.1.0.69497/30555eff, seals a new Gear/Catalog/Community/Exact pair, recovers
+the Talent Catalog, and binds Candidate Manifest
+`season-manifest:sha256:46c76d033f6582dea26eba467d0c231245cfc8ee6f090da256f9899ff39c69e7`.
+It did not mutate the Active pointer. The evidence records 30555 as the cloud
+runtime at that candidate replay; the 2026-08-28 production audit instead finds
+generation 41 on its bound 12.1.0.69299/f50a runtime with
+`updateAvailable=true`. Therefore neither the evidence-time
+`updateAvailable=false` nor the dormant rows may be reported as current Active
+production truth.
 
 The v69 and matrix-v25 artifacts remain historical evidence for earlier
 candidate closure; they do not override the v73 active pointer or its

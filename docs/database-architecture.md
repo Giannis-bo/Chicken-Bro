@@ -10,6 +10,15 @@ PostgreSQL schema and privileges are defined by the ordered SQL files under [ser
 
 `server/postgres_cache_sync.py` is the PostgreSQL-native entrypoint for WebSim, stat-weight, community-template, observed-gear and crafted-gear jobs. A stage that lacks source, sample, credential, SimC output or parseable evidence records `partial` / `blocked` in PostgreSQL and stops; it does not open SQLite.
 
+当前生产 schema 审计（2026-08-28）已确认 `ops.schema_migrations` 包含：
+
+- `0036_websim_gear_catalog_season_special`：允许受治理的 S2 套装静态 Browse `season_special` progression kind；
+- `0037_websim_exact_registry_summary_capacity`：只扩大 immutable Exact registry summary 的容量上限，以容纳完整 S2 套装索引。
+
+两项 migration 是 append-only schema 能力，当前用于 dormant S2 Candidate/Talent 数据闭合；migration
+已应用不等于 Candidate 已 promotion，也不改变正式 Active Manifest generation 41。运行时仍必须按 Active
+Manifest dependency vector 读取，不能因数据库存在新行就切到 latest/staging。
+
 ## 数据域
 
 | 域 | 表 | 数据性质 | 规则 |
@@ -105,11 +114,17 @@ python -m unittest tests.news_backend_test.NewsBackendTest.test_user_build_templ
 node --test tests/build-template-storage.test.js
 ```
 
-远端变更前备份历史 SQLite 文件，作为迁移/回滚证据；如果本次会写入 PostgreSQL，也要同时备份当前 target：
+远端变更前应对实际 PostgreSQL target 创建 task-scoped backup，并放入受控的
+`/var/backups/wow-mini-program/` 或任务 evidence 约定目录；不得继续在项目根的 `backups/` 累积代码 tar、
+旧 SQLite 和多轮中间同步快照。历史 SQLite 只在明确的离线迁移源任务中另行保存，不能充当线上回滚点。
 
 ```bash
-ssh wow-lighthouse 'sudo install -d -m 700 -o ubuntu -g ubuntu /opt/wow-mini-program/backups && sudo cp /opt/wow-mini-program/server/data/wow_news.sqlite3 /opt/wow-mini-program/backups/wow_news.sqlite3.$(date -u +%Y%m%dT%H%M%SZ)'
+ssh wow-lighthouse 'sudo install -d -m 700 -o root -g root /var/backups/wow-mini-program'
+# 按 postgres-identity-migration-runbook.md 解析并脱敏核对 exact target，随后写入一个具名的 pg_dump custom archive。
 ```
+
+观察窗口关闭后只保留仍能对应当前 Active/Candidate/rollback 的恢复点；代码回滚使用 Git 和已审阅 release
+identity，不长期保存整仓代码副本。任何删除先记录 path、bytes、mtime 和保留清单。
 
 部署后 smoke：
 

@@ -2,6 +2,8 @@
 
 **状态：** `blocked`（2026-07-31 截止收口；未达到完整性和全矩阵完成门禁）
 
+**2026-08-28 当前态说明：** 本文件保留 2026-07-31 Goal 的字段级调查和阻断证据，不再把文中的“当前”“最新生产”解释为今日运行态。生产已前进到正式 Active Manifest generation 41；30555 freshness 结果仍是 dormant Candidate，完整 Universe authority 与本 Goal 的全矩阵门禁仍未闭合。恢复本 Goal 必须新建 task-scoped contract，当前事实以 `docs/project-state.json` 和 `docs/roadmap.md` 为准。
+
 **Harness 分级：** Strict，多阶段 Goal；每个会改变数据、Catalog、运行时或发布状态的切片必须使用自己的唯一 task-scoped release packet。
 **用户目标：** 玩家在真实微信小程序中浏览、导入、编辑、保存并模拟当前赛季 PVE 装备时，看到的是完整、合法、可追溯且可执行的后端事实；不能漏装备，不能把 `partial` / `blocked` 包装成通过，也不能靠视图绕过上游问题。
 

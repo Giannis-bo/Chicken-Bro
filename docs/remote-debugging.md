@@ -30,6 +30,25 @@ ssh wow-lighthouse
 - Routine SSH、备份、迁移、同步、服务重启和 smoke 遵循 `AGENTS.md` 的云端授权规则。
 - 本地下载、任意第三方下载、依赖安装、repo/branch 修改仍遵循网络审批规则。
 
+## 部署身份与目录卫生
+
+生产代码身份必须由“tracked base commit + 每个 runtime override 的路径/hash + 对应验证状态”共同描述。
+`.deploy-revision` 只是部署脚本写入的辅助标记；它可能滞后，不能单独证明 `/opt/wow-mini-program`
+等于某个 Git commit。热部署或 tar overlay 也不会自动删除 Git 中已移除的文件，因此“新文件 hash
+匹配”与“旧残留已清除”是两项独立检查。
+
+每次核对或清理至少执行以下边界：
+
+1. 本地先记录 `git status --short --branch`、HEAD、`origin/main` 和本次允许部署的 dirty file；不得覆盖无关 WIP。
+2. 云端分别核对 tracked 文件 hash、`.deploy-revision`、systemd 实际 `ExecStart`、运行中 open handle 和 `/api/data/health`；mixed tree 必须明确标为 `待收口`。
+3. 用当前 Git tracked set 计算候选残留，并显式保留 `artifacts/`、`backups/`、`.codex-backups/`、`logs/` 与 `server/data/`。`.deploy-revision` 必须单独核对 consumer 和真实性；只有确认无 consumer 且值失真时才按精确清单删除。未知 secret、PG 数据、正式 evidence、Exact-first foundation 和仍承担回滚职责的版本不得按“untracked”删除。
+4. 删除只能针对已审阅的精确文件/目录清单；先记录 path、bytes、mtime、reason，再核对没有 systemd 引用或 open handle。不要对宽泛根目录使用递归删除。
+5. 清理后重新计算残留差集，并复核磁盘、service、failed units、loopback/public health、核心 API 与 Active/Candidate/rollback SimC 指针。
+
+当前部署快照只记录在 `docs/project-state.json` 的 `runtimeBaseline.cloudDeployment`，避免本 runbook
+复制易过期的 SHA、磁盘数和健康计数。目录清理完成不代表代码已发布、测试已同步、Manifest 已切换
+或业务健康已转绿。
+
 ## 常用检查
 
 ```bash
@@ -93,7 +112,13 @@ WOW_DEPLOY_SKIP_BOOTSTRAP=1 ./server/deploy_lighthouse.sh
 - `wow-season-recommended-gear-sync.timer`
 - `wow-data-health-followup.timer`
 
-`wow-data-health-followup` 可以根据 `/api/data/health` 续跑仓库已配置的安全任务。SimC runtime 只有在配置源不变且 health 报告 `updateAvailable=true` 时，才由既有 service 构建并原子切换 `/opt/wow-simc/current`；修改 repo/branch 或引入其他下载源不在该权限内。
+`wow-data-health-followup` 可以根据 `/api/data/health` 续跑仓库已配置的安全任务。当 health 绑定正式
+Active Manifest 时，发现 `updateAvailable=true` 只能记录
+`simc_runtime_update:active_manifest_cutover_required`，不得由 follow-up 自动切换 SimC；候选构建与
+Active cutover 必须继续遵守 Manifest runtime identity 和 release gate。若 `active_manifest` 状态缺失
+或无法判定，同样以 `active_manifest_state_unavailable` fail closed，不生成自动更新 action。修改
+repo/branch 或引入其他
+下载源不在既有权限内。
 
 同步完成后检查：
 
