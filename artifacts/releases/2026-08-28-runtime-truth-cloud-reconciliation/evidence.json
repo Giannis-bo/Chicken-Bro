@@ -2,8 +2,8 @@
   "schemaVersion": 2,
   "slug": "runtime-truth-cloud-reconciliation",
   "requirementSlug": "runtime-truth-cloud-reconciliation",
-  "status": "implementation_allowed",
-  "highestEvidenceLevel": "implementation_allowed",
+  "status": "live_verified",
+  "highestEvidenceLevel": "live_verified",
   "branch": "codex/reconcile-current-state-20260828",
   "commit": "d0a492c00543d13e9072f8ccaa7ac9239275c8bb",
   "identities": {
@@ -13,8 +13,9 @@
       "value": "d0a492c00543d13e9072f8ccaa7ac9239275c8bb"
     },
     "verification": {
-      "status": "pending",
-      "reason": "The documentation and candidate evidence have not yet been committed and verified from a clean final HEAD."
+      "status": "bound_at_check",
+      "kind": "git_ref",
+      "value": "HEAD"
     },
     "closure": {
       "status": "pending",
@@ -73,8 +74,8 @@
     },
     {
       "command": "Final Harness, full verification, UI architecture, project-state tests, JSON/link and diff checks",
-      "status": "not_run",
-      "result": "Pending the updated task packet commit and final clean verification HEAD."
+      "status": "pass",
+      "result": "The clean 7593f3a1d HEAD passed the 174-command full profile: Node 758/758, Python 3295/3295 with 5 skips, Vitest 440/440, TypeScript, ESLint, compileall, 14-route/284-check architecture audit, asset integrity, package mechanics, Harness and diff checks. UI package release readiness correctly remained partial because production release environment values were not configured for this non-frontend task."
     }
   ],
   "candidateDeployment": {
@@ -152,5 +153,5 @@
     "artifacts/releases/2026-08-25-s2-freshness-rebase/evidence.json",
     "artifacts/releases/2026-08-28-runtime-truth-cloud-reconciliation/candidate-smoke.json"
   ],
-  "summary": "Runtime changes are bound to immutable commit d0a492c0 and the exact candidate planner passed an isolated live-health smoke without --execute: formal Active generation 41 produced no SimC action, existing timers were unchanged, and the temporary directory was removed. Documentation now distinguishes 14-route source parity from UI acceptance, Active generation 41 from dormant 30555 Candidate evidence, and cloud cleanup from deployment parity. The full profile also exposed five origin/main tests coupled to an untracked operational capture; generated temporary fixtures now preserve those fail-closed assertions and the complete Python suite passes 3295/3295 with 5 skips. Final clean-HEAD verification, remote review, merge and repository SHA parity remain pending; production deployment is explicitly outside this task."
+  "summary": "Live-verified candidate boundary: runtime changes are bound to immutable commit d0a492c0 and the exact candidate planner passed an isolated live-health smoke without --execute, so formal Active generation 41 produced no SimC action, existing timers were unchanged, and the temporary directory was removed. Documentation distinguishes 14-route source parity from UI acceptance, Active generation 41 from dormant 30555 Candidate evidence, and cloud cleanup from deployment parity. The full profile exposed five origin/main tests coupled to an untracked operational capture; generated temporary fixtures now preserve those fail-closed assertions, and the clean 7593f3a1d HEAD passed all 174 verification commands. Remote review, merge and repository SHA parity remain pending; production deployment is explicitly outside this task."
 }

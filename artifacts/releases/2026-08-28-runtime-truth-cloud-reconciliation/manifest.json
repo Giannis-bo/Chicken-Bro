@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-08-28T09:24:17.663Z",
+  "generatedAt": "2026-08-28T09:28:03.288Z",
   "release": {
     "date": "2026-08-28",
     "slug": "runtime-truth-cloud-reconciliation"
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-08-28-runtime-truth-cloud-reconciliation/evidence.json",
-    "sizeBytes": 8326,
+    "sizeBytes": 8569,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -390,9 +390,9 @@
       "summary"
     ],
     "missingFields": [],
-    "declaredStatus": "implementation_allowed",
-    "highestEvidenceLevel": "implementation_allowed",
-    "summary": "Runtime changes are bound to immutable commit d0a492c0 and the exact candidate planner passed an isolated live-health smoke without --execute: formal Active generation 41 produced no SimC action, existing timers were unchanged, and the temporary directory was removed. Documentation now distinguishes 14-route source parity from UI acceptance, Active generation 41 from dormant 30555 Candidate evidence, and cloud cleanup from deployment parity. The full profile also exposed five origin/main tests coupled to an untracked operational capture; generated temporary fixtures now preserve those fail-closed assertions and the complete Python suite passes 3295/3295 with 5 skips. Final clean-HEAD verification, remote review, merge and repository SHA parity remain pending; production deployment is explicitly outside this task."
+    "declaredStatus": "live_verified",
+    "highestEvidenceLevel": "live_verified",
+    "summary": "Live-verified candidate boundary: runtime changes are bound to immutable commit d0a492c0 and the exact candidate planner passed an isolated live-health smoke without --execute, so formal Active generation 41 produced no SimC action, existing timers were unchanged, and the temporary directory was removed. Documentation distinguishes 14-route source parity from UI acceptance, Active generation 41 from dormant 30555 Candidate evidence, and cloud cleanup from deployment parity. The full profile exposed five origin/main tests coupled to an untracked operational capture; generated temporary fixtures now preserve those fail-closed assertions, and the clean 7593f3a1d HEAD passed all 174 verification commands. Remote review, merge and repository SHA parity remain pending; production deployment is explicitly outside this task."
   },
   "evidence": {
     "localTests": {
@@ -417,7 +417,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "2 changed files currently visible to git status."
+      "detail": "1 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
@@ -453,10 +453,9 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 2,
+      "changedFileCount": 1,
       "changedFiles": [
-        " M artifacts/releases/2026-08-28-runtime-truth-cloud-reconciliation/evidence.json",
-        " M artifacts/releases/2026-08-28-runtime-truth-cloud-reconciliation/requirement.json"
+        " M artifacts/releases/2026-08-28-runtime-truth-cloud-reconciliation/evidence.json"
       ]
     }
   },
