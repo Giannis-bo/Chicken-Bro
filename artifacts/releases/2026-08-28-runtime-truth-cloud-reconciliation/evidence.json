@@ -36,6 +36,7 @@
   "scope": [
     "Active Manifest bound SimC health projection",
     "Fail-closed data-health follow-up planning",
+    "Clean-checkout crafted-closure test fixture reproducibility",
     "Current project, route, S2 and cloud-cleanup documentation",
     "Repository remote alignment and closure evidence"
   ],
@@ -56,9 +57,24 @@
       "result": "183 targeted scheduled-followup and PostgreSQL read-model tests passed; the argparse invalid-choice diagnostic is an intentional test path."
     },
     {
+      "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-08-28-runtime-truth-cloud-reconciliation (first clean-HEAD attempt)",
+      "status": "fail",
+      "result": "Node passed 758/758. Python exposed five deterministic FileNotFoundError failures because origin/main tests referenced an operational 2026-08-19 capture/probe that was never tracked; no product assertion failed."
+    },
+    {
+      "command": "python3 -m unittest tests.s2_crafted_closure_test tests.s2_crafted_closure_cli_test",
+      "status": "pass",
+      "result": "After replacing the absent operational dependency with a generated projected fixture, all 5/5 crafted-closure tests passed while retaining the DB2/SimC build mismatch and literal UNVERIFIED semantic blockers."
+    },
+    {
+      "command": "python3 -m unittest discover -s tests -p '*_test.py'",
+      "status": "pass",
+      "result": "3295/3295 Python tests passed with 5 skips; existing ResourceWarnings and intentional negative-path CLI/HTTP output did not produce failures."
+    },
+    {
       "command": "Final Harness, full verification, UI architecture, project-state tests, JSON/link and diff checks",
       "status": "not_run",
-      "result": "Pending the documentation/evidence commit and clean verification HEAD."
+      "result": "Pending the updated task packet commit and final clean verification HEAD."
     }
   ],
   "candidateDeployment": {
@@ -136,5 +152,5 @@
     "artifacts/releases/2026-08-25-s2-freshness-rebase/evidence.json",
     "artifacts/releases/2026-08-28-runtime-truth-cloud-reconciliation/candidate-smoke.json"
   ],
-  "summary": "Runtime changes are bound to immutable commit d0a492c0 and the exact candidate planner passed an isolated live-health smoke without --execute: formal Active generation 41 produced no SimC action, existing timers were unchanged, and the temporary directory was removed. Documentation now distinguishes 14-route source parity from UI acceptance, Active generation 41 from dormant 30555 Candidate evidence, and cloud cleanup from deployment parity. Full clean-HEAD verification, remote review, merge and repository SHA parity remain pending; production deployment is explicitly outside this task."
+  "summary": "Runtime changes are bound to immutable commit d0a492c0 and the exact candidate planner passed an isolated live-health smoke without --execute: formal Active generation 41 produced no SimC action, existing timers were unchanged, and the temporary directory was removed. Documentation now distinguishes 14-route source parity from UI acceptance, Active generation 41 from dormant 30555 Candidate evidence, and cloud cleanup from deployment parity. The full profile also exposed five origin/main tests coupled to an untracked operational capture; generated temporary fixtures now preserve those fail-closed assertions and the complete Python suite passes 3295/3295 with 5 skips. Final clean-HEAD verification, remote review, merge and repository SHA parity remain pending; production deployment is explicitly outside this task."
 }
