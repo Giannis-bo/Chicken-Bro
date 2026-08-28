@@ -1,0 +1,48 @@
+{
+  "adapterRevision": "s2-limited-db2-capture-adapter-v2",
+  "allowlistRevision": "s2-limited-client-db2-field-allowlist-v1",
+  "bodyBytes": 774,
+  "bodySha256": "c98a5358f48e6002827519010585aa6711405980ab9eb904a52fa52ed0926bbc",
+  "capturedAt": "2026-08-26T02:44:16.736059Z",
+  "fieldCoverage": {
+    "Flags": {
+      "missingRows": 0,
+      "presentRows": 1
+    },
+    "ID": {
+      "missingRows": 0,
+      "presentRows": 1
+    },
+    "InventoryTypeSlotMask": {
+      "missingRows": 0,
+      "presentRows": 1
+    }
+  },
+  "fields": [
+    "ID",
+    "Flags",
+    "InventoryTypeSlotMask"
+  ],
+  "filterField": "ID",
+  "lastPage": 1,
+  "operator": "exact",
+  "page": 1,
+  "query": {
+    "build": "12.1.0.69299",
+    "filter[ID]": "exact:6003"
+  },
+  "responsePath": "responses/000308.json",
+  "rows": [
+    {
+      "Flags": 0,
+      "ID": 6003,
+      "InventoryTypeSlotMask": 1048608
+    }
+  ],
+  "schemaRevision": "s2-limited-db2-response-v1",
+  "sourceUrl": "https://wago.tools/api/db2-find/ItemBonusTree?build=12.1.0.69299&filter%5BID%5D=exact%3A6003",
+  "table": "ItemBonusTree",
+  "targetKind": "allowlisted_foreign_key",
+  "targetValue": "6003",
+  "total": 1
+}

@@ -568,6 +568,11 @@ class GearReleaseStoreTest(unittest.TestCase):
         self.assertIn("candidate.item_id, candidate.source_type", sql)
         self.assertIn("jsonb_strip_nulls", sql)
         self.assertIn("expected_simc_options", sql)
+        self.assertIn(
+            "FROM cache.websim_gear_release_variants WHERE release_id = %s "
+            "AND item_id = ANY(%s::text[])",
+            sql,
+        )
         self.assertIn("observed_instance_keys", sql)
         self.assertIn("observed_instance_candidates", sql)
         self.assertIn("'profileUrl', variant.payload_json->'profileUrl'", sql)

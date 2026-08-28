@@ -64,11 +64,19 @@ class S2CraftedOutputTargetsTest(unittest.TestCase):
                     },
                 )
                 entries.append({"table": table, "responsePath": relative.as_posix()})
-            _write(root / "capture-manifest.json", {"status": "captured", "entries": entries})
+            _write(
+                root / "capture-manifest.json",
+                {
+                    "status": "captured",
+                    "clientBuild": "12.1.0.69497",
+                    "entries": entries,
+                },
+            )
 
             report = MODULE.derive_crafted_output_targets(root)
 
             self.assertEqual(report["status"], "partial")
+            self.assertEqual(report["sourceDb2Build"], "12.1.0.69497")
             self.assertEqual(report["craftedOutputItemCount"], 1)
             self.assertEqual(report["classifiedRecipeWithoutOutputCount"], 4)
             self.assertEqual(report["unresolvedRecipeWithoutOutputCount"], 1)

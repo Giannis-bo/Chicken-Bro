@@ -1,0 +1,52 @@
+{
+  "schemaRevision": "s2-community-talent-refresh-v2",
+  "status": "target_coverage_verified_source_partial",
+  "checkedAt": "2026-08-26T08:03:37+00:00",
+  "remoteHost": "wow-lighthouse",
+  "scanRunId": "pg-community-template-2026-08-26T080337z0000",
+  "mode": "targeted_slots",
+  "targetSlots": [
+    "mage:arcane:spellslinger",
+    "rogue:outlaw:fatebound",
+    "shaman:enhancement:totemic"
+  ],
+  "coverage": {
+    "totalHeroSlots": 80,
+    "verifiedHeroSlots": 80,
+    "pendingHeroSlots": 0,
+    "blockedHeroSlots": 0,
+    "totalSpecs": 40,
+    "verifiedSpecs": 40,
+    "pendingSpecs": 0
+  },
+  "currentFreshVerifiedRows": {
+    "total": 80,
+    "raiderio": 72,
+    "warcraftlogs": 8
+  },
+  "scanRowsPersisted": {
+    "total": 4,
+    "raiderioVerified": 2,
+    "warcraftlogsVerified": 2,
+    "details": [
+      "rogue:outlaw:fatebound via raiderio",
+      "rogue:outlaw:trickster via raiderio",
+      "mage:arcane:spellslinger via warcraftlogs",
+      "shaman:enhancement:totemic via warcraftlogs"
+    ]
+  },
+  "sourceStatus": "partial",
+  "syncStatus": "completed",
+  "syncErrors": [],
+  "activePointer": {
+    "generation": 41,
+    "manifestRevision": "season-manifest:sha256:71a490dc6532783e6b286fbe88d8986f9a37f1930cfb186888088dd55b8c2ded",
+    "rollbackManifestRevision": "season-manifest:sha256:3902d0ac4414751b105b12ff0b36286fdc53a63a9ed4f64f4bfb5eec0d78cb55",
+    "changed": false
+  },
+  "externalEvidenceUsed": true,
+  "localDownload": false,
+  "localSimcInstall": false,
+  "localSimcExecution": false,
+  "releaseBoundary": "Current target-slot coverage is complete, but aggregate sourceStatus remains partial and no Community Release was sealed or promoted."
+}

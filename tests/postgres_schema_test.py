@@ -27,6 +27,7 @@ WEBSIM_GEAR_CATALOG_REVISION = ROOT / "server" / "migrations" / "postgres" / "00
 WEBSIM_GEAR_EXACT_ITEM_INSTANCE = ROOT / "server" / "migrations" / "postgres" / "0020_websim_gear_exact_item_instance.sql"
 WEBSIM_SIMULATION_SNAPSHOT = ROOT / "server" / "migrations" / "postgres" / "0021_websim_simulation_snapshot.sql"
 WEBSIM_MANIFEST_V2 = ROOT / "server" / "migrations" / "postgres" / "0022_websim_manifest_v2.sql"
+WEBSIM_EXACT_REGISTRY_SUMMARY_CAPACITY = ROOT / "server" / "migrations" / "postgres" / "0037_websim_exact_registry_summary_capacity.sql"
 WEBSIM_GEAR_CATALOG_VARIANT_SHAPES = ROOT / "server" / "migrations" / "postgres" / "0023_websim_gear_catalog_variant_shapes.sql"
 CHICKENBRO_AGENT_OBSERVABILITY = ROOT / "server" / "migrations" / "postgres" / "0024_chickenbro_agent_observability.sql"
 CHICKENBRO_TOOL_REGISTRY = ROOT / "server" / "migrations" / "postgres" / "0025_chickenbro_tool_registry.sql"
@@ -888,6 +889,7 @@ class PostgresSchemaTest(unittest.TestCase):
         cls.websim_gear_exact_item_instance_sql = WEBSIM_GEAR_EXACT_ITEM_INSTANCE.read_text(encoding="utf-8")
         cls.websim_simulation_snapshot_sql = WEBSIM_SIMULATION_SNAPSHOT.read_text(encoding="utf-8")
         cls.websim_manifest_v2_sql = WEBSIM_MANIFEST_V2.read_text(encoding="utf-8")
+        cls.websim_exact_registry_summary_capacity_sql = WEBSIM_EXACT_REGISTRY_SUMMARY_CAPACITY.read_text(encoding="utf-8")
         cls.websim_gear_catalog_variant_shapes_sql = WEBSIM_GEAR_CATALOG_VARIANT_SHAPES.read_text(encoding="utf-8")
         cls.chickenbro_agent_observability_sql = CHICKENBRO_AGENT_OBSERVABILITY.read_text(encoding="utf-8")
         cls.websim_exact_authority_bundle_sql = WEBSIM_EXACT_AUTHORITY_BUNDLE.read_text(encoding="utf-8")
@@ -2082,6 +2084,23 @@ $unsafe$;
             "0023_websim_gear_catalog_variant_shapes",
             normalized,
         )
+
+    def test_exact_registry_summary_capacity_preserves_complete_set_membership(self):
+        normalized = " ".join(
+            self.websim_exact_registry_summary_capacity_sql.split()
+        )
+        for table in (
+            "cache.websim_gear_exact_registries",
+            "cache.websim_gear_exact_instance_template_refs",
+        ):
+            self.assertIn(table, normalized)
+        self.assertIn("FOR target_table IN", normalized)
+        self.assertIn("pg_get_constraintdef", normalized)
+        self.assertIn("DROP CONSTRAINT", normalized)
+        self.assertIn("262144", normalized)
+        self.assertIn("websim_exact_registries_summary_capacity_check", normalized)
+        self.assertIn("websim_exact_template_refs_summary_capacity_check", normalized)
+        self.assertIn("0037_websim_exact_registry_summary_capacity", normalized)
 
     def test_websim_gear_template_cache_migration_adds_pg_read_model_table(self):
         self.assertTrue(WEBSIM_GEAR_TEMPLATE_CACHE.exists(), "missing gear template PG cache migration")

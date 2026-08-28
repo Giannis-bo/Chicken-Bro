@@ -243,6 +243,9 @@ def process_claimed_job(
 def current_simc_runtime_revision() -> str:
     status = simc_version_status()
     websim_state = status.get("websimState") if isinstance(status.get("websimState"), dict) else {}
+    immutable_runtime = _text(status.get("simcRuntimeRevision")).lower()
+    if re.fullmatch(r"simc:[^:]+:[0-9a-f]{40}:[0-9a-f]{64}", immutable_runtime):
+        return immutable_runtime
     for candidate in (
         status.get("sourceCommit"),
         status.get("simcRuntimeRevision"),

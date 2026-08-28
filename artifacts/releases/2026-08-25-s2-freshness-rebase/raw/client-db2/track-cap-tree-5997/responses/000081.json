@@ -1,0 +1,42 @@
+{
+  "adapterRevision": "s2-limited-db2-capture-adapter-v2",
+  "allowlistRevision": "s2-limited-client-db2-field-allowlist-v1",
+  "bodyBytes": 734,
+  "bodySha256": "30cba45b25334ac1a643b279f0cb65ca35f1602007b630d9ad87fe3f3b29dcbc",
+  "capturedAt": "2026-08-26T02:44:16.736059Z",
+  "fieldCoverage": {
+    "Flags": {
+      "missingRows": 0,
+      "presentRows": 1
+    },
+    "ID": {
+      "missingRows": 0,
+      "presentRows": 1
+    }
+  },
+  "fields": [
+    "ID",
+    "Flags"
+  ],
+  "filterField": "ID",
+  "lastPage": 1,
+  "operator": "exact",
+  "page": 1,
+  "query": {
+    "build": "12.1.0.69299",
+    "filter[ID]": "exact:40"
+  },
+  "responsePath": "responses/000081.json",
+  "rows": [
+    {
+      "Flags": 6,
+      "ID": 40
+    }
+  ],
+  "schemaRevision": "s2-limited-db2-response-v1",
+  "sourceUrl": "https://wago.tools/api/db2-find/ItemBonusList?build=12.1.0.69299&filter%5BID%5D=exact%3A40",
+  "table": "ItemBonusList",
+  "targetKind": "allowlisted_foreign_key",
+  "targetValue": "40",
+  "total": 1
+}

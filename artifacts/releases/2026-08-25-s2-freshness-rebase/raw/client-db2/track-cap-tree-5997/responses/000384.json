@@ -1,0 +1,65 @@
+{
+  "adapterRevision": "s2-limited-db2-capture-adapter-v2",
+  "allowlistRevision": "s2-limited-client-db2-field-allowlist-v1",
+  "bodyBytes": 1619,
+  "bodySha256": "7fd184589770c81557d4f70da970c2d78202b93fd7270f83862f967714bc054a",
+  "capturedAt": "2026-08-26T02:44:16.736059Z",
+  "fieldCoverage": {
+    "CategoryID": {
+      "missingRows": 0,
+      "presentRows": 1
+    },
+    "Description_lang": {
+      "missingRows": 0,
+      "presentRows": 1
+    },
+    "ID": {
+      "missingRows": 0,
+      "presentRows": 1
+    },
+    "ItemID": {
+      "missingRows": 1,
+      "presentRows": 0
+    },
+    "Name_lang": {
+      "missingRows": 0,
+      "presentRows": 1
+    },
+    "Quality": {
+      "missingRows": 0,
+      "presentRows": 1
+    }
+  },
+  "fields": [
+    "ID",
+    "CategoryID",
+    "Name_lang",
+    "Quality",
+    "Description_lang",
+    "ItemID"
+  ],
+  "filterField": "ID",
+  "lastPage": 1,
+  "operator": "exact",
+  "page": 1,
+  "query": {
+    "build": "12.1.0.69299",
+    "filter[ID]": "exact:3443"
+  },
+  "responsePath": "responses/000384.json",
+  "rows": [
+    {
+      "CategoryID": 282,
+      "Description_lang": "Used to upgrade Veteran equipment in Midnight Season 2 up to item levels 282-295.  \r\nWhen used for crafting, sets the item level of the resulting item to 279-292 based on Quality.\r\n\r\nEarned from the following activities:\r\n- Repeatable Outdoor Events\r\n- Raid Finder The Venomous Abyss\r\n- Heroic Season Dungeons\r\n- Delves (Tiers 5 to 6)\r\n- Trovehunter's Bounty (Tiers 4 to 5)",
+      "ID": 3443,
+      "Name_lang": "Veteran Mistcrest",
+      "Quality": 4
+    }
+  ],
+  "schemaRevision": "s2-limited-db2-response-v1",
+  "sourceUrl": "https://wago.tools/api/db2-find/CurrencyTypes?build=12.1.0.69299&filter%5BID%5D=exact%3A3443",
+  "table": "CurrencyTypes",
+  "targetKind": "allowlisted_foreign_key",
+  "targetValue": "3443",
+  "total": 1
+}

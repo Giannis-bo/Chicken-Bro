@@ -1,0 +1,47 @@
+{
+  "adapterRevision": "s2-limited-db2-capture-adapter-v2",
+  "allowlistRevision": "s2-limited-client-db2-field-allowlist-v1",
+  "bodyBytes": 782,
+  "bodySha256": "d5d1b366e1a153fc907380fb7e7beef3b0da9c69188b3ea9aec8b12b03cb316d",
+  "capturedAt": "2026-08-26T02:44:16.736059Z",
+  "fieldCoverage": {
+    "Description_lang": {
+      "missingRows": 0,
+      "presentRows": 1
+    },
+    "ID": {
+      "missingRows": 0,
+      "presentRows": 1
+    },
+    "Name_lang": {
+      "missingRows": 1,
+      "presentRows": 0
+    }
+  },
+  "fields": [
+    "ID",
+    "Name_lang",
+    "Description_lang"
+  ],
+  "filterField": "ID",
+  "lastPage": 1,
+  "operator": "exact",
+  "page": 1,
+  "query": {
+    "build": "12.1.0.69299",
+    "filter[ID]": "exact:1306139"
+  },
+  "responsePath": "responses/000230.json",
+  "rows": [
+    {
+      "Description_lang": "",
+      "ID": 1306139
+    }
+  ],
+  "schemaRevision": "s2-limited-db2-response-v1",
+  "sourceUrl": "https://wago.tools/api/db2-find/Spell?build=12.1.0.69299&filter%5BID%5D=exact%3A1306139",
+  "table": "Spell",
+  "targetKind": "allowlisted_foreign_key",
+  "targetValue": "1306139",
+  "total": 1
+}

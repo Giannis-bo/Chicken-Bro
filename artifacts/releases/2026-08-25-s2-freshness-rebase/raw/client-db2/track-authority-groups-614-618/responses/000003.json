@@ -1,0 +1,66 @@
+{
+  "adapterRevision": "s2-limited-db2-capture-adapter-v2",
+  "allowlistRevision": "s2-limited-client-db2-field-allowlist-v1",
+  "bodyBytes": 879,
+  "bodySha256": "c964a642f6d420aab9fb6c14b8bac48d544c4e7ca0fd270d314268ebad9870cc",
+  "capturedAt": "2026-08-26T02:21:55.684836Z",
+  "fieldCoverage": {
+    "ID": {
+      "missingRows": 0,
+      "presentRows": 1
+    },
+    "ItemExtendedCostID": {
+      "missingRows": 0,
+      "presentRows": 1
+    },
+    "ItemGroupIlvlScalingID": {
+      "missingRows": 0,
+      "presentRows": 1
+    },
+    "ItemLogicalCostGroupID": {
+      "missingRows": 0,
+      "presentRows": 1
+    },
+    "PlayerConditionID": {
+      "missingRows": 0,
+      "presentRows": 1
+    },
+    "SequenceSpellID": {
+      "missingRows": 0,
+      "presentRows": 1
+    }
+  },
+  "fields": [
+    "ID",
+    "ItemExtendedCostID",
+    "ItemGroupIlvlScalingID",
+    "ItemLogicalCostGroupID",
+    "PlayerConditionID",
+    "SequenceSpellID"
+  ],
+  "filterField": "ID",
+  "lastPage": 1,
+  "operator": "exact",
+  "page": 1,
+  "query": {
+    "build": "12.1.0.69299",
+    "filter[ID]": "exact:615"
+  },
+  "responsePath": "responses/000003.json",
+  "rows": [
+    {
+      "ID": 615,
+      "ItemExtendedCostID": 0,
+      "ItemGroupIlvlScalingID": 12,
+      "ItemLogicalCostGroupID": 0,
+      "PlayerConditionID": 143187,
+      "SequenceSpellID": 1306138
+    }
+  ],
+  "schemaRevision": "s2-limited-db2-response-v1",
+  "sourceUrl": "https://wago.tools/api/db2-find/ItemBonusListGroup?build=12.1.0.69299&filter%5BID%5D=exact%3A615",
+  "table": "ItemBonusListGroup",
+  "targetKind": "allowlisted_foreign_key",
+  "targetValue": "615",
+  "total": 1
+}

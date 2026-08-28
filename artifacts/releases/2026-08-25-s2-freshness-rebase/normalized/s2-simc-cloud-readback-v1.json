@@ -1,0 +1,121 @@
+{
+  "schemaRevision": "s2-simc-cloud-readback-v1",
+  "status": "blocked",
+  "candidateOnly": true,
+  "notARelease": true,
+  "readOnly": true,
+  "dbWrites": 0,
+  "checkedAt": "2026-08-26",
+  "remote": {
+    "hostAlias": "wow-lighthouse",
+    "workdir": "/opt/wow-mini-program",
+    "databaseRuntime": "postgres_only",
+    "diskFreeMiBApprox": 964.4,
+    "simc": {
+      "build": "12.1.0.69465",
+      "sourceCommit": "5b0f64f5610934eb45bab3b89fd06412cf37f428",
+      "binarySha256": "a08d12ea206dbe24a60c56acc5fc0a52d2807b298828731daa1e46bb86e60091"
+    },
+    "activePointerChanged": false,
+    "activeGeneration": 41,
+    "transaction": "REPEATABLE READ + READ ONLY + statement_timeout=45000"
+  },
+  "catalogInput": {
+    "variantKey": "needs-variant",
+    "rows": 289,
+    "sourceRows": {
+      "dungeon": 283,
+      "raid": 6
+    },
+    "metadataCoverage": "289/289",
+    "logicalTrackMapping": {
+      "dungeon": {
+        "candidateLogicalSource": "mythic_plus",
+        "tracks": ["champion", "hero"],
+        "maxItemLevels": [315, 328]
+      },
+      "raid": {
+        "candidateLogicalSource": "raid",
+        "tracks": ["veteran", "champion", "hero", "myth"],
+        "maxItemLevels": [302, 315, 328, 344]
+      }
+    },
+    "rawStorageSourcePreserved": true,
+    "sourceMappingWritten": false
+  },
+  "profileReadiness": {
+    "distinctClassSpecPairs": 32,
+    "firstPresetRowsStartingOnFixedSimc": 19,
+    "firstPresetRowsBlocked": 13,
+    "blockedCategories": {
+      "node_unavailable": 7,
+      "choice_index_invalid": 6
+    }
+  },
+  "readback": {
+    "productionProbeSelection": {
+      "targetPairs": 590,
+      "exactPairs": 370,
+      "failedPairs": 220,
+      "failureCategories": {
+        "simc_execution_failed": 214,
+        "target_stats_missing": 6
+      },
+      "meaning": "The current probe's first-preset and armor-compatibility selection is not a release-ready adapter."
+    },
+    "candidateArmorCompatibleProbe": {
+      "sourceRows": 289,
+      "combatEligibleRows": 288,
+      "excludedCosmeticRows": 1,
+      "targetPairs": 586,
+      "exactPairs": 584,
+      "failedPairs": 2,
+      "failureCategories": {
+        "target_stats_missing": 2
+      },
+      "selectedProfileClassCounts": {
+        "generic:rogue:assassination": 81,
+        "cloth:priest:shadow": 52,
+        "leather:druid:balance": 41,
+        "mail:evoker:devastation": 57,
+        "plate:deathknight:blood": 48,
+        "generic:druid:balance": 6,
+        "shield:shaman:enhancement": 3
+      }
+    },
+    "effectOnlyTrinket": {
+      "itemId": "50235",
+      "name": "伊克的烂指",
+      "metadataHasStaticStat": true,
+      "metadataStatKey": "dodge_rating",
+      "metadataHasEffect": true,
+      "simcGearReadback": "dodge_rating=132",
+      "parserStatus": "blocked_dodge_rating_not_in_current_simc_stat_key_allowlist"
+    },
+    "excludedCosmetic": {
+      "itemId": "268280",
+      "name": "孢子大王的蕈菇盖",
+      "cosmeticStatless": true,
+      "reason": "out_of_combat_equipment_scope"
+    }
+  },
+  "blockers": [
+    "CURRENT_PROBE_PROFILE_SELECTION_NOT_ARMOR_SAFE",
+    "FIRST_PROFILE_ROWS_STALE_OR_INCOMPATIBLE_13_OF_32",
+    "SIMC_STAT_PARSER_DODGE_RATING_UNSUPPORTED",
+    "COSMETIC_LOOT_ROW_MUST_BE_EXCLUDED",
+    "CANDIDATE_VARIANTS_NOT_WRITTEN_OR_SEALED"
+  ],
+  "evidenceBoundary": [
+    "The 584 exact pairs are remote candidate readback only; no websim_gear_variants row was inserted or updated.",
+    "The dungeon-to-mythic_plus mapping is a candidate interpretation bound to the frozen source policy and existing S2 max-track evidence; the raw remote source_type remains dungeon and was not rewritten.",
+    "The readback does not authorize Candidate sealing, Active Manifest promotion, production release or user acceptance.",
+    "No new external download or local SimC installation was used."
+  ],
+  "nextActions": [
+    "Make the production probe choose a verified, armor-compatible profile without relying on an invalid first row.",
+    "Extend the SimC gear-stat parser for dodge_rating and retain effect evidence for effect-bearing items.",
+    "Exclude or explicitly classify cosmetic statless loot before building release variants.",
+    "Re-run the same read-only cloud matrix, then produce a reviewed Candidate variant payload before any write or promotion decision."
+  ]
+}

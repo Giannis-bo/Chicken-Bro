@@ -1,0 +1,17 @@
+{
+  "schemaRevision": "s2-crafted-option-item-targets-v1",
+  "status": "verified_target_set",
+  "seasonKey": "midnight-season-2",
+  "sourceCompatibilityReport": "crafted-compatibility-v4.json",
+  "sourceStatus": "partial",
+  "reason": "Exact official item identities required by the two remaining crafted compatibility categories.",
+  "itemCount": 2,
+  "itemIds": [
+    "248130",
+    "248136"
+  ],
+  "supersedes": "s2-crafted-option-item-targets-v1.json",
+  "candidateOnly": true,
+  "activeManifestChanged": false,
+  "productionWritten": false
+}

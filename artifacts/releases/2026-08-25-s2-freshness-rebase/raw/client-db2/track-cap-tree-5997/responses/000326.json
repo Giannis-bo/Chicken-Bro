@@ -1,0 +1,88 @@
+{
+  "adapterRevision": "s2-limited-db2-capture-adapter-v2",
+  "allowlistRevision": "s2-limited-client-db2-field-allowlist-v1",
+  "bodyBytes": 997,
+  "bodySha256": "71beb6b9d99d26e74f01ba3ca5552a2d200b3799f29b2db8da6bc601f8c63f6f",
+  "capturedAt": "2026-08-26T02:44:16.736059Z",
+  "fieldCoverage": {
+    "ID": {
+      "missingRows": 0,
+      "presentRows": 2
+    },
+    "OrderIndex": {
+      "missingRows": 0,
+      "presentRows": 2
+    },
+    "ParentItemBonusListID": {
+      "missingRows": 0,
+      "presentRows": 2
+    },
+    "Type": {
+      "missingRows": 0,
+      "presentRows": 2
+    },
+    "Value_0": {
+      "missingRows": 0,
+      "presentRows": 2
+    },
+    "Value_1": {
+      "missingRows": 0,
+      "presentRows": 2
+    },
+    "Value_2": {
+      "missingRows": 0,
+      "presentRows": 2
+    },
+    "Value_3": {
+      "missingRows": 0,
+      "presentRows": 2
+    }
+  },
+  "fields": [
+    "ID",
+    "Value_0",
+    "Value_1",
+    "Value_2",
+    "Value_3",
+    "ParentItemBonusListID",
+    "Type",
+    "OrderIndex"
+  ],
+  "filterField": "ParentItemBonusListID",
+  "lastPage": 1,
+  "operator": "exact",
+  "page": 1,
+  "query": {
+    "build": "12.1.0.69299",
+    "filter[ParentItemBonusListID]": "exact:13332"
+  },
+  "responsePath": "responses/000326.json",
+  "rows": [
+    {
+      "ID": 29211,
+      "OrderIndex": 0,
+      "ParentItemBonusListID": 13332,
+      "Type": 0,
+      "Value_0": 0,
+      "Value_1": 0,
+      "Value_2": 0,
+      "Value_3": 0
+    },
+    {
+      "ID": 29212,
+      "OrderIndex": 1,
+      "ParentItemBonusListID": 13332,
+      "Type": 4,
+      "Value_0": 1641,
+      "Value_1": 0,
+      "Value_2": 0,
+      "Value_3": 0
+    }
+  ],
+  "schemaRevision": "s2-limited-db2-response-v1",
+  "sourceUrl": "https://wago.tools/api/db2-find/ItemBonus?build=12.1.0.69299&filter%5BParentItemBonusListID%5D=exact%3A13332",
+  "table": "ItemBonus",
+  "targetKind": "allowlisted_foreign_key",
+  "targetValue": "13332",
+  "total": 2
+}

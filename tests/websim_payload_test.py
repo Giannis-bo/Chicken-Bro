@@ -1213,6 +1213,70 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(len(result["presets"]), 1)
         self.assertEqual(result["presets"][0]["profile"], profile.strip())
 
+    def test_simc_tar_extractor_skips_removed_mid1_profiles(self):
+        mid1_profile = 'mage="MID1 Mage Frost"\nspec=frost\ntalents=AAA\n'
+        mid2_profile = 'mage="MID2 Mage Frost"\nspec=frost\ntalents=BBB\n'
+        result = self.websim_payload.extract_simc_data_from_tar(
+            self.write_simc_profile_tar(
+                "profiles-mid1-removed.tar.gz",
+                [
+                    ("simc/profiles/MID1/MID1_Mage_Frost.simc", mid1_profile),
+                    ("simc/profiles/MID2/MID2_Mage_Frost.simc", mid2_profile),
+                ],
+            )
+        )
+
+        self.assertEqual([preset["name"] for preset in result["presets"]], ["MID2 Mage Frost"])
+
+    def test_simc_runtime_baseline_profile_is_talent_neutral_and_role_aware(self):
+        preset = self.websim_payload.simc_runtime_baseline_profile("druid", "restoration")
+
+        self.assertEqual(preset["classKey"], "druid")
+        self.assertEqual(preset["specKey"], "restoration")
+        self.assertEqual(preset["profileKind"], "runtime_baseline")
+        self.assertEqual(preset["source"], "simulationcraft_runtime_baseline")
+        self.assertIn('druid="WebSim_druid_restoration_Baseline"', preset["profile"])
+        self.assertIn("spec=restoration", preset["profile"])
+        self.assertIn("role=heal", preset["profile"])
+        self.assertNotIn("talents=", preset["profile"])
+
+    def test_simc_profile_matrix_fills_missing_specs_with_runtime_baselines(self):
+        data = {
+            "talents": [{"id": "talent"}],
+            "presets": [
+                {
+                    "id": "mage-frost",
+                    "classKey": "mage",
+                    "specKey": "frost",
+                    "profile": 'mage="MID2 Mage Frost"\nspec=frost',
+                }
+            ],
+            "source": "/opt/wow-simc/source-current.tar.gz",
+            "build": "12.1.0.69497",
+        }
+
+        with patch.object(
+            self.websim_payload,
+            "expected_spec_pairs",
+            return_value=["mage:frost", "druid:restoration", "warrior:fury"],
+        ):
+            result = self.websim_payload.augment_simc_profile_preset_matrix(data)
+
+        self.assertEqual(
+            sorted(f'{preset["classKey"]}:{preset["specKey"]}' for preset in result["presets"]),
+            ["druid:restoration", "mage:frost", "warrior:fury"],
+        )
+        self.assertEqual(result["profileFallbackCount"], 2)
+        self.assertEqual(result["profileFallbackSpecs"], ["druid:restoration", "warrior:fury"])
+        self.assertEqual(
+            result["profileRetirement"],
+            {
+                "schemaRevision": "simc-profile-retirement-v1",
+                "retiredBatches": ["MID1"],
+                "reason": "SimulationCraft removed MID1 after its talent hashes changed",
+            },
+        )
+
     def test_trait_edge_fetch_failure_is_reported_in_extracted_simc_data(self):
         original_trait_edge = self.websim_payload.download_wago_trait_edge_csv
         self.addCleanup(setattr, self.websim_payload, "download_wago_trait_edge_csv", original_trait_edge)
@@ -10300,6 +10364,32 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(by_slot["trinket1"]["statSummary"], "力量 or 敏捷 128")
         self.assertEqual(by_slot["waist"]["statSummary"], "力量 or 智力 101；耐力 1480")
 
+    def test_simc_json_gear_stats_by_slot_keeps_dodge_rating_from_simc(self):
+        by_slot = self.websim_payload.simc_json_gear_stats_by_slot(
+            {
+                "sim": {
+                    "players": [
+                        {
+                            "gear": {
+                                "trinket1": {
+                                    "id": 50235,
+                                    "ilevel": 315,
+                                    "dodge_rating": 132,
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        )
+
+        self.assertEqual(by_slot["trinket1"]["itemId"], "50235")
+        self.assertEqual(by_slot["trinket1"]["itemLevel"], 315)
+        self.assertEqual(
+            by_slot["trinket1"]["itemStats"],
+            [{"key": "dodge_rating", "label": "闪避", "value": 132}],
+        )
+
     def test_sync_observed_gear_variants_persists_simc_json_stats_not_raiderio_tooltip_stats(self):
         conn = sqlite3.connect(self.db_path)
         try:
@@ -11981,6 +12071,63 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(payload["details"]["readiness"]["simcReady"], False)
         self.assertEqual(payload["details"]["sourceReadiness"]["officialAuditStatus"], "pending_official_audit")
         self.assertIn("talent catalog has no local talent nodes", payload["blockers"])
+
+    def test_talent_catalog_health_does_not_promote_runtime_baseline_profiles_to_ready(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            conn.execute(
+                """
+                INSERT INTO websim_talents
+                (id, class_key, spec_key, tree_id, row_index, col_index, spell_id, name, payload_json, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "talent-health-baseline",
+                    "mage",
+                    "frost",
+                    "spec:mage:frost",
+                    1,
+                    1,
+                    12345,
+                    "Fixture Talent",
+                    '{"treeType":"spec"}',
+                    "now",
+                ),
+            )
+            conn.execute(
+                """
+                INSERT INTO websim_profile_presets
+                (id, class_key, spec_key, name, profile, payload_json, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "preset-health-baseline",
+                    "mage",
+                    "frost",
+                    "SimC runtime baseline - Frost",
+                    'mage="WebSim_mage_frost_Baseline"\nspec=frost',
+                    '{"profileKind":"runtime_baseline"}',
+                    "now",
+                ),
+            )
+            self.websim_payload.set_sync_state(
+                conn,
+                "websim_sync",
+                {"simc": {"profileFallbackCount": 2, "build": "12.1.0.69497"}},
+            )
+            conn.commit()
+            payload = self.websim_payload.talent_catalog_health_payload(conn)
+        finally:
+            conn.close()
+
+        self.assertEqual(payload["details"]["profileFallbackCount"], 2)
+        self.assertFalse(payload["details"]["readiness"]["presetReady"])
+        self.assertFalse(payload["details"]["readiness"]["simcReady"])
+        self.assertIn(
+            "runtime-baseline SimC profiles",
+            " ".join(payload["blockers"]),
+        )
 
     def test_raiderio_observed_only_catalog_stays_partial_until_item_metadata_is_verified(self):
         conn = sqlite3.connect(self.db_path)
@@ -13951,6 +14098,60 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual([row[0] for row in sources], ["50228"])
         self.assertEqual(json.loads(sources[0][1])["validationStatus"], "source_reference")
         self.assertEqual([(row[0], row[1]) for row in variants], [("50228", "needs-variant")])
+
+    def test_sync_websim_gear_catalog_excludes_statless_cosmetic_loot_before_catalog_rows(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            season = self.websim_payload.current_season_payload(
+                season_id="18",
+                season_label="season-mn-2",
+                dungeons=[
+                    {"id": "556", "dungeonId": "556", "instanceId": "278", "name": "Pit of Saron"},
+                ],
+            )
+            self.websim_payload.save_active_season_payload(conn, season)
+            conn.execute(
+                """
+                INSERT INTO websim_instances (id, name, category, payload_json, updated_at)
+                VALUES ('278', 'Pit of Saron', 'Dungeon', '{}', 'now')
+                """
+            )
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "268280",
+                {
+                    "id": 268280,
+                    "name": "Cosmetic Test Item",
+                    "inventory_type": {"type": "CLOAK", "name": "Back"},
+                    "item_class": {"id": 4, "name": "Armor"},
+                    "item_subclass": {"id": 5, "name": "Cosmetic"},
+                },
+                fallback_name="Cosmetic Test Item",
+                english_payload={"name": "Cosmetic Test Item", "inventory_type": {"name": "Back"}},
+                locale="en_US",
+            )
+            conn.execute(
+                """
+                INSERT INTO websim_loot
+                (id, instance_id, encounter_id, item_id, name, slot, quality, icon_url, payload_json, updated_at)
+                VALUES ('278:268280', '278', '', '268280', 'Cosmetic Test Item', 'back', 'Epic', '', '{}', 'now')
+                """
+            )
+            conn.commit()
+
+            self.websim_payload.sync_websim_gear_catalog(conn, season)
+            sources = conn.execute(
+                "SELECT item_id FROM websim_gear_sources WHERE item_id = '268280'"
+            ).fetchall()
+            variants = conn.execute(
+                "SELECT item_id FROM websim_gear_variants WHERE item_id = '268280'"
+            ).fetchall()
+        finally:
+            conn.close()
+
+        self.assertEqual(sources, [])
+        self.assertEqual(variants, [])
 
     def test_reused_legacy_dungeon_source_reference_item_ids_promote_current_sources(self):
         status_for = self.websim_payload.reused_legacy_dungeon_source_validation_status
@@ -20364,6 +20565,21 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertIn("talentID=117247", error)
         self.assertIn("rank=1", error)
 
+    def test_wcl_hero_selector_entry_is_detected_across_target_hero_slots(self):
+        template = {
+            "sourceKey": "warcraftlogs",
+            "classKey": "mage",
+            "specKey": "arcane",
+            "heroKey": "spellslinger",
+        }
+        with patch.object(self.websim_payload, "_WCL_HERO_SELECTOR_TRAIT_ID_CACHE", None):
+            self.assertTrue(
+                self.websim_payload.is_wcl_hero_selector_loadout_entry(
+                    template,
+                    {"talentID": 123341, "points": 1},
+                )
+            )
+
     def test_raiderio_player_template_parses_nested_loadout_entries(self):
         conn = sqlite3.connect(self.db_path)
         try:
@@ -25390,6 +25606,50 @@ class WebSimPayloadTest(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "stale Mythic\\+ dungeon"):
             self.websim_payload.resolve_current_mythic_season("token")
 
+    def test_current_mythic_season_resolver_uses_official_season_name_when_display_name_is_absent(self):
+        dungeon_names = [
+            "Magisters' Terrace",
+            "Maisara Caverns",
+            "Nexus-Point Xenas",
+            "Windrunner Spire",
+            "Algeth'ar Academy",
+            "Pit of Saron",
+            "Seat of the Triumvirate",
+            "Skyreach",
+        ]
+        payloads = {
+            "/data/wow/mythic-keystone/season/index": {
+                "current_season": {"id": 18}
+            },
+            "/data/wow/mythic-keystone/season/18": {
+                "id": 18,
+                "season_name": "史诗钥石地下城（至暗之夜 赛季 2）",
+                "dungeons": [{"id": index, "name": name} for index, name in enumerate(dungeon_names, start=100)],
+            },
+        }
+        for index, name in enumerate(dungeon_names, start=100):
+            payloads[f"/data/wow/mythic-keystone/dungeon/{index}"] = {
+                "id": index,
+                "name": name,
+                "journal_instance": {"id": index + 1000},
+            }
+
+        original = self.websim_payload.blizzard_get_localized
+        self.addCleanup(setattr, self.websim_payload, "blizzard_get_localized", original)
+
+        def fake_get(path, token, region="us", locale="zh_CN", params=None, namespace=None):
+            return payloads[path], locale
+
+        self.websim_payload.blizzard_get_localized = fake_get
+        season = self.websim_payload.resolve_current_mythic_season("token")
+
+        self.assertEqual(season["seasonLabel"], "史诗钥石地下城（至暗之夜 赛季 2）")
+        self.assertEqual(season["rawSeason"]["season_name"], "史诗钥石地下城（至暗之夜 赛季 2）")
+        self.assertEqual(
+            season["sourceRefs"][0]["url"],
+            "https://news.blizzard.com/en-us/article/24294369/the-shadows-deepen-midnight-season-2-begins-august-18",
+        )
+
     def test_localized_dungeon_dedupe_uses_instance_id_when_name_is_not_latin(self):
         rows = [
             {"dungeonId": "239", "instanceId": "945", "name": "\u6267\u653f\u56e2\u4e4b\u5ea7"},
@@ -25843,6 +26103,87 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertIn("iterations=1", profile)
         self.assertIn("max_time=1", profile)
         self.assertIn("calculate_scale_factors=0", profile)
+
+    def test_item_level_probe_resolver_retries_armor_compatible_profile_after_first_failure(self):
+        conn = sqlite3.connect(self.db_path)
+        self.websim_payload.ensure_websim_tables(conn)
+        conn.executemany(
+            """
+            INSERT INTO websim_profile_presets
+            (id, class_key, spec_key, name, profile, payload_json, updated_at)
+            VALUES (?, ?, ?, ?, ?, '{}', 'now')
+            """,
+            [
+                (
+                    "mage-frost",
+                    "mage",
+                    "frost",
+                    "Mage Frost",
+                    'mage="Mage Frost"\nspec=frost\nhead=old,id=1,ilevel=1\n',
+                ),
+                (
+                    "priest-shadow",
+                    "priest",
+                    "shadow",
+                    "Priest Shadow",
+                    'priest="Priest Shadow"\nspec=shadow\nhead=old,id=1,ilevel=1\n',
+                ),
+            ],
+        )
+        conn.commit()
+        observed_profiles = []
+
+        def run_simc(profile):
+            observed_profiles.append(profile)
+            if "spec=frost" in profile:
+                return {"ok": False, "error": "invalid frost profile"}
+            return {
+                "ok": True,
+                "payload": {
+                    "sim": {
+                        "players": [
+                            {
+                                "gear": {
+                                    "head": {
+                                        "id": 249373,
+                                        "ilevel": 289,
+                                        "stats": {"intellect": 100},
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                },
+            }
+
+        try:
+            with patch.object(
+                self.websim_payload,
+                "run_websim_profile_preset_simc_json",
+                side_effect=run_simc,
+            ):
+                result = self.websim_payload.resolve_item_level_probe_stat_payload(
+                    conn,
+                    {
+                        "itemId": "249373",
+                        "name": "Probe Helm",
+                        "slot": "head",
+                        "metadataPayload": {
+                            "item_class": {"id": 4, "name": "Armor"},
+                            "item_subclass": {"id": 1, "name": "Cloth"},
+                        },
+                    },
+                    289,
+                )
+        finally:
+            conn.close()
+
+        self.assertEqual(len(observed_profiles), 2)
+        self.assertIn("spec=frost", observed_profiles[0])
+        self.assertIn("spec=shadow", observed_profiles[1])
+        self.assertEqual(result["probeClassKey"], "priest")
+        self.assertEqual(result["probeSpecKey"], "shadow")
+        self.assertEqual(result["simcItemId"], "249373")
 
     def test_run_websim_simcraft_process_passes_blizzard_api_key_to_simc_home(self):
         observed = {}

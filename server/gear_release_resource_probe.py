@@ -18,6 +18,7 @@ from .process_resource_usage import peak_rss_bytes
 SCHEMA_REVISION = "gear-release-resource-probe-v1"
 REPORT_PREFIX = "gear-release-resource-probe:sha256:"
 BUILDER_REVISION = "community-release-exact-progression-v2"
+MAX_STATEMENT_TIMEOUT_MS = 120_000
 DEFAULT_LIMITS = {
     "elapsedMilliseconds": 300_000,
     "peakRssObservedBytes": 2_000_000_000,
@@ -158,7 +159,7 @@ class ReadOnlyConnectionFactory:
         self._connection_factory = connection_factory
         self._statement_timeout_ms = _integer(statement_timeout_ms)
         self._lock_timeout_ms = _integer(lock_timeout_ms)
-        if not 1 <= self._statement_timeout_ms <= 15_000:
+        if not 1 <= self._statement_timeout_ms <= MAX_STATEMENT_TIMEOUT_MS:
             raise ResourceProbeError("resource probe statement timeout is invalid")
         if not 1 <= self._lock_timeout_ms <= 1_000:
             raise ResourceProbeError("resource probe lock timeout is invalid")

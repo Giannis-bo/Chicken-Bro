@@ -1,0 +1,78 @@
+{
+  "adapterRevision": "s2-limited-db2-capture-adapter-v2",
+  "allowlistRevision": "s2-limited-client-db2-field-allowlist-v1",
+  "bodyBytes": 883,
+  "bodySha256": "623fddf68b10e89d1cc73e8d5bf28257bd533b1d77df7c82629aaecf34af4df2",
+  "capturedAt": "2026-08-26T02:44:16.736059Z",
+  "fieldCoverage": {
+    "ID": {
+      "missingRows": 0,
+      "presentRows": 1
+    },
+    "OrderIndex": {
+      "missingRows": 0,
+      "presentRows": 1
+    },
+    "ParentItemBonusListID": {
+      "missingRows": 0,
+      "presentRows": 1
+    },
+    "Type": {
+      "missingRows": 0,
+      "presentRows": 1
+    },
+    "Value_0": {
+      "missingRows": 0,
+      "presentRows": 1
+    },
+    "Value_1": {
+      "missingRows": 0,
+      "presentRows": 1
+    },
+    "Value_2": {
+      "missingRows": 0,
+      "presentRows": 1
+    },
+    "Value_3": {
+      "missingRows": 0,
+      "presentRows": 1
+    }
+  },
+  "fields": [
+    "ID",
+    "Value_0",
+    "Value_1",
+    "Value_2",
+    "Value_3",
+    "ParentItemBonusListID",
+    "Type",
+    "OrderIndex"
+  ],
+  "filterField": "ParentItemBonusListID",
+  "lastPage": 1,
+  "operator": "exact",
+  "page": 1,
+  "query": {
+    "build": "12.1.0.69299",
+    "filter[ParentItemBonusListID]": "exact:13439"
+  },
+  "responsePath": "responses/000221.json",
+  "rows": [
+    {
+      "ID": 29333,
+      "OrderIndex": 0,
+      "ParentItemBonusListID": 13439,
+      "Type": 4,
+      "Value_0": 13145,
+      "Value_1": 0,
+      "Value_2": 0,
+      "Value_3": 0
+    }
+  ],
+  "schemaRevision": "s2-limited-db2-response-v1",
+  "sourceUrl": "https://wago.tools/api/db2-find/ItemBonus?build=12.1.0.69299&filter%5BParentItemBonusListID%5D=exact%3A13439",
+  "table": "ItemBonus",
+  "targetKind": "allowlisted_foreign_key",
+  "targetValue": "13439",
+  "total": 1
+}

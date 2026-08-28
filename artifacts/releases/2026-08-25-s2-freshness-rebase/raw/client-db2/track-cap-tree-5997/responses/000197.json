@@ -1,0 +1,37 @@
+{
+  "adapterRevision": "s2-limited-db2-capture-adapter-v2",
+  "allowlistRevision": "s2-limited-client-db2-field-allowlist-v1",
+  "bodyBytes": 770,
+  "bodySha256": "f5f3489e9ae1e6400b0cd8dc4e113067af5aa537acf4a050247b8c601a8da50f",
+  "capturedAt": "2026-08-26T02:44:16.736059Z",
+  "fieldCoverage": {
+    "ID": {
+      "missingRows": 0,
+      "presentRows": 0
+    },
+    "ItemLevelDelta": {
+      "missingRows": 0,
+      "presentRows": 0
+    }
+  },
+  "fields": [
+    "ItemLevelDelta",
+    "ID"
+  ],
+  "filterField": "ID",
+  "lastPage": 1,
+  "operator": "exact",
+  "page": 1,
+  "query": {
+    "build": "12.1.0.69299",
+    "filter[ID]": "exact:13440"
+  },
+  "responsePath": "responses/000197.json",
+  "rows": [],
+  "schemaRevision": "s2-limited-db2-response-v1",
+  "sourceUrl": "https://wago.tools/api/db2-find/ItemBonusListLevelDelta?build=12.1.0.69299&filter%5BID%5D=exact%3A13440",
+  "table": "ItemBonusListLevelDelta",
+  "targetKind": "allowlisted_foreign_key",
+  "targetValue": "13440",
+  "total": 0
+}

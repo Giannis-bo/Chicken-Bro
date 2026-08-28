@@ -1,0 +1,65 @@
+{
+  "adapterRevision": "s2-limited-db2-capture-adapter-v2",
+  "allowlistRevision": "s2-limited-client-db2-field-allowlist-v1",
+  "bodyBytes": 1554,
+  "bodySha256": "ae1955be5cd973ad8c604c6cb9031ad669b0a5f83d118fa1b29ab48dcd823362",
+  "capturedAt": "2026-08-26T02:21:55.684836Z",
+  "fieldCoverage": {
+    "CategoryID": {
+      "missingRows": 0,
+      "presentRows": 1
+    },
+    "Description_lang": {
+      "missingRows": 0,
+      "presentRows": 1
+    },
+    "ID": {
+      "missingRows": 0,
+      "presentRows": 1
+    },
+    "ItemID": {
+      "missingRows": 1,
+      "presentRows": 0
+    },
+    "Name_lang": {
+      "missingRows": 0,
+      "presentRows": 1
+    },
+    "Quality": {
+      "missingRows": 0,
+      "presentRows": 1
+    }
+  },
+  "fields": [
+    "ID",
+    "CategoryID",
+    "Name_lang",
+    "Quality",
+    "Description_lang",
+    "ItemID"
+  ],
+  "filterField": "ID",
+  "lastPage": 1,
+  "operator": "exact",
+  "page": 1,
+  "query": {
+    "build": "12.1.0.69299",
+    "filter[ID]": "exact:3444"
+  },
+  "responsePath": "responses/000201.json",
+  "rows": [
+    {
+      "CategoryID": 282,
+      "Description_lang": "Used to upgrade Champion equipment in Midnight Season 2 up to item levels 295-308. \r\n\r\nEarned from the following activities:\r\n- Weekly Outdoor Events\r\n- Normal The Venomous Abyss\r\n- Mythic Season Dungeons\r\n- Mythic Keystone Dungeons (+2 to +3)\r\n- Delves (Tiers 7 to 10)\r\n- Trovehunter's Bounty (Tiers 6 to 7)",
+      "ID": 3444,
+      "Name_lang": "Champion Mistcrest",
+      "Quality": 4
+    }
+  ],
+  "schemaRevision": "s2-limited-db2-response-v1",
+  "sourceUrl": "https://wago.tools/api/db2-find/CurrencyTypes?build=12.1.0.69299&filter%5BID%5D=exact%3A3444",
+  "table": "CurrencyTypes",
+  "targetKind": "allowlisted_foreign_key",
+  "targetValue": "3444",
+  "total": 1
+}

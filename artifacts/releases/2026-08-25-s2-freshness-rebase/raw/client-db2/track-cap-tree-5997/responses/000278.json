@@ -1,0 +1,66 @@
+{
+  "adapterRevision": "s2-limited-db2-capture-adapter-v2",
+  "allowlistRevision": "s2-limited-client-db2-field-allowlist-v1",
+  "bodyBytes": 832,
+  "bodySha256": "65aea9f95b93118feec2b2eeac6a80acf219e74b9695226f8b55e019aab92337",
+  "capturedAt": "2026-08-26T02:44:16.736059Z",
+  "fieldCoverage": {
+    "Flags": {
+      "missingRows": 0,
+      "presentRows": 1
+    },
+    "ID": {
+      "missingRows": 0,
+      "presentRows": 1
+    },
+    "ItemLevel": {
+      "missingRows": 0,
+      "presentRows": 1
+    },
+    "ItemOffsetCurveID": {
+      "missingRows": 0,
+      "presentRows": 1
+    },
+    "ItemSquishEraID": {
+      "missingRows": 0,
+      "presentRows": 1
+    },
+    "RequiredLevel": {
+      "missingRows": 0,
+      "presentRows": 1
+    }
+  },
+  "fields": [
+    "ID",
+    "ItemOffsetCurveID",
+    "ItemLevel",
+    "RequiredLevel",
+    "ItemSquishEraID",
+    "Flags"
+  ],
+  "filterField": "ID",
+  "lastPage": 1,
+  "operator": "exact",
+  "page": 1,
+  "query": {
+    "build": "12.1.0.69299",
+    "filter[ID]": "exact:451"
+  },
+  "responsePath": "responses/000278.json",
+  "rows": [
+    {
+      "Flags": 0,
+      "ID": 451,
+      "ItemLevel": 337,
+      "ItemOffsetCurveID": 47,
+      "ItemSquishEraID": 2,
+      "RequiredLevel": 90
+    }
+  ],
+  "schemaRevision": "s2-limited-db2-response-v1",
+  "sourceUrl": "https://wago.tools/api/db2-find/ItemScalingConfig?build=12.1.0.69299&filter%5BID%5D=exact%3A451",
+  "table": "ItemScalingConfig",
+  "targetKind": "allowlisted_foreign_key",
+  "targetValue": "451",
+  "total": 1
+}

@@ -1,0 +1,65 @@
+{
+  "adapterRevision": "s2-limited-db2-capture-adapter-v2",
+  "allowlistRevision": "s2-limited-client-db2-field-allowlist-v1",
+  "bodyBytes": 1527,
+  "bodySha256": "ae5f97fde2e9bc3bca64dfe3d021eb051e07b0fb34ca7a5562e207721fa3fa21",
+  "capturedAt": "2026-08-26T02:44:16.736059Z",
+  "fieldCoverage": {
+    "CategoryID": {
+      "missingRows": 0,
+      "presentRows": 1
+    },
+    "Description_lang": {
+      "missingRows": 0,
+      "presentRows": 1
+    },
+    "ID": {
+      "missingRows": 0,
+      "presentRows": 1
+    },
+    "ItemID": {
+      "missingRows": 1,
+      "presentRows": 0
+    },
+    "Name_lang": {
+      "missingRows": 0,
+      "presentRows": 1
+    },
+    "Quality": {
+      "missingRows": 0,
+      "presentRows": 1
+    }
+  },
+  "fields": [
+    "ID",
+    "CategoryID",
+    "Name_lang",
+    "Quality",
+    "Description_lang",
+    "ItemID"
+  ],
+  "filterField": "ID",
+  "lastPage": 1,
+  "operator": "exact",
+  "page": 1,
+  "query": {
+    "build": "12.1.0.69299",
+    "filter[ID]": "exact:3446"
+  },
+  "responsePath": "responses/000383.json",
+  "rows": [
+    {
+      "CategoryID": 282,
+      "Description_lang": "Used to upgrade Myth equipment in Midnight Season 2 up to item levels 321-334.  \r\n\r\nWhen used for crafting, sets the item level of the resulting item to 318-331 based on Quality.\r\n\r\nEarned from the following activities:\r\n- Mythic The Venomous Abyss\r\n- Mythic Keystone Dungeons (+9 and up)",
+      "ID": 3446,
+      "Name_lang": "Myth Mistcrest",
+      "Quality": 4
+    }
+  ],
+  "schemaRevision": "s2-limited-db2-response-v1",
+  "sourceUrl": "https://wago.tools/api/db2-find/CurrencyTypes?build=12.1.0.69299&filter%5BID%5D=exact%3A3446",
+  "table": "CurrencyTypes",
+  "targetKind": "allowlisted_foreign_key",
+  "targetValue": "3446",
+  "total": 1
+}

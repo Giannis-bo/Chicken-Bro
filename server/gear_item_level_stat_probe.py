@@ -214,28 +214,31 @@ def load_profile_presets(connection: Any) -> list[tuple[str, str, str, str]]:
     ]
 
 
-def build_item_level_probe_profile(
+def _item_level_probe_profiles(
     item: Mapping[str, Any],
     item_level: int,
     track: Mapping[str, Any],
     profile_rows: Iterable[tuple[str, str, str, str]],
-) -> tuple[str, str, str, str]:
+) -> list[tuple[str, str, str, str]]:
     from . import websim_payload
 
     item_record = dict(item)
     candidates = websim_payload.item_level_probe_profile_candidates(item_record)
-    by_pair: dict[tuple[str, str], str] = {}
-    for class_key, spec_key, _name, profile in profile_rows:
+    by_pair: dict[tuple[str, str], list[str]] = {}
+    for row in profile_rows:
+        if len(row) < 4:
+            continue
+        class_key, spec_key, _name, profile = row
         pair = (_text(class_key), _text(spec_key))
         if pair[0] and pair[1] and str(profile or "").strip():
-            by_pair.setdefault(pair, str(profile))
+            by_pair.setdefault(pair, []).append(str(profile))
     simc_slot = websim_payload.official_item_level_probe_simc_slot(
         item_record.get("slot")
     )
     item_id = _text(item_record.get("itemId"))
     normalized_level = _integer(item_level)
     if not simc_slot or not item_id or not normalized_level:
-        return "", "", "", ""
+        return []
     safe_name = websim_payload.simc_safe_item_name(
         item_record.get("name") or f"item_{item_id}",
         item_id,
@@ -255,36 +258,42 @@ def build_item_level_probe_profile(
         "calculate_scale_factors",
         "json",
     }
+    profiles = []
     for class_key, spec_key in candidates:
-        profile = by_pair.get((class_key, spec_key))
-        if not profile:
-            continue
-        lines = []
-        for line in profile.splitlines():
-            stripped = line.strip()
-            if not stripped or "=" not in stripped:
+        for profile in by_pair.get((class_key, spec_key), []):
+            lines = []
+            for line in profile.splitlines():
+                stripped = line.strip()
+                if not stripped or "=" not in stripped:
+                    lines.append(line)
+                    continue
+                head = stripped.split("=", 1)[0].strip()
+                if head in override_keys or head in remove_slots:
+                    continue
                 lines.append(line)
-                continue
-            head = stripped.split("=", 1)[0].strip()
-            if head in override_keys or head in remove_slots:
-                continue
-            lines.append(line)
-        lines.extend(
-            [
-                "iterations=1",
-                "max_time=1",
-                "target_error=0.5",
-                "calculate_scale_factors=0",
-                item_line,
-            ]
-        )
-        return (
-            "\n".join(lines).strip() + "\n",
-            class_key,
-            spec_key,
-            item_line,
-        )
-    return "", "", "", item_line
+            lines.extend(
+                [
+                    "iterations=1",
+                    "max_time=1",
+                    "target_error=0.5",
+                    "calculate_scale_factors=0",
+                    item_line,
+                ]
+            )
+            profiles.append(
+                ("\n".join(lines).strip() + "\n", class_key, spec_key, item_line)
+            )
+    return profiles
+
+
+def build_item_level_probe_profile(
+    item: Mapping[str, Any],
+    item_level: int,
+    track: Mapping[str, Any],
+    profile_rows: Iterable[tuple[str, str, str, str]],
+) -> tuple[str, str, str, str]:
+    profiles = _item_level_probe_profiles(item, item_level, track, profile_rows)
+    return profiles[0] if profiles else ("", "", "", "")
 
 
 def resolve_item_level_stat(
@@ -297,41 +306,45 @@ def resolve_item_level_stat(
 ) -> dict[str, Any]:
     from . import websim_payload
 
-    profile, class_key, spec_key, item_line = build_item_level_probe_profile(
+    profiles = _item_level_probe_profiles(
         item,
         item_level,
         track,
         profile_rows,
     )
-    if not profile:
+    if not profiles:
         return {"error": "no compatible SimC profile preset found"}
     runner = run_simc or websim_payload.run_websim_profile_preset_simc_json
-    result = runner(profile)
-    if not isinstance(result, Mapping) or not result.get("ok"):
-        return {"error": "SimC item-level probe failed"}
-    gear_by_slot = websim_payload.simc_json_gear_stats_by_slot(
-        result.get("payload") or {}
-    )
-    stat_payload = websim_payload.simc_observed_variant_stat_payload(
-        {
-            "itemId": _text(item.get("itemId")),
-            "slot": _text(item.get("slot")),
-            "ilevel": _integer(item_level),
-        },
-        gear_by_slot,
-    )
-    if not stat_payload:
-        return {"error": "SimC JSON did not include target item stats"}
-    stat_payload.update(
-        {
-            "simcProfile": item_line,
-            "probeClassKey": class_key,
-            "probeSpecKey": spec_key,
-            "simcCheckedAt": _text(result.get("checkedAt")),
-            "simcDurationMs": _integer(result.get("durationMs")),
-        }
-    )
-    return stat_payload
+    last_error = "SimC item-level probe failed"
+    for profile, class_key, spec_key, item_line in profiles:
+        result = runner(profile)
+        if not isinstance(result, Mapping) or not result.get("ok"):
+            continue
+        gear_by_slot = websim_payload.simc_json_gear_stats_by_slot(
+            result.get("payload") or {}
+        )
+        stat_payload = websim_payload.simc_observed_variant_stat_payload(
+            {
+                "itemId": _text(item.get("itemId")),
+                "slot": _text(item.get("slot")),
+                "ilevel": _integer(item_level),
+            },
+            gear_by_slot,
+        )
+        if not stat_payload:
+            last_error = "SimC JSON did not include target item stats"
+            continue
+        stat_payload.update(
+            {
+                "simcProfile": item_line,
+                "probeClassKey": class_key,
+                "probeSpecKey": spec_key,
+                "simcCheckedAt": _text(result.get("checkedAt")),
+                "simcDurationMs": _integer(result.get("durationMs")),
+            }
+        )
+        return stat_payload
+    return {"error": last_error}
 
 
 def build_probe_report(

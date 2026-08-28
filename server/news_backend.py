@@ -3254,7 +3254,58 @@ def template_simc_bridge_health_component(conn):
     )
 
 
-def lightweight_template_evidence_audit_payload(community_state=None, community_sync_run=None):
+def effective_community_talent_coverage(cache_store, scan_coverage=None):
+    if not cache_store or not hasattr(cache_store, "community_talent_template_coverage_rows"):
+        return {}
+    try:
+        rows = cache_store.community_talent_template_coverage_rows()
+    except Exception:
+        return {}
+    verified_slots = {
+        ":".join(
+            str(row.get(key) or "").strip()
+            for key in ("classKey", "specKey", "heroKey")
+        )
+        for row in rows or []
+        if isinstance(row, dict)
+        and row.get("status") == "verified"
+        and all(str(row.get(key) or "").strip() for key in ("classKey", "specKey", "heroKey"))
+    }
+    verified_specs = {":".join(slot.split(":")[:2]) for slot in verified_slots}
+    scan_coverage = scan_coverage if isinstance(scan_coverage, dict) else {}
+    total_spec_count = max(
+        int(scan_coverage.get("totalSpecCount") or 0),
+        len(verified_specs),
+    )
+    total_hero_slot_count = max(
+        int(scan_coverage.get("totalHeroSlotCount") or 0),
+        len(verified_slots),
+    )
+    pending_hero_slot_count = int(
+        scan_coverage.get("pendingCollectionHeroSlotCount") or 0
+    )
+    return {
+        "source": "live_verified_rows",
+        "coveredSpecCount": len(verified_specs),
+        "coveredHeroSlotCount": len(verified_slots),
+        "totalSpecCount": total_spec_count,
+        "totalHeroSlotCount": total_hero_slot_count,
+        "pendingCollectionHeroSlotCount": pending_hero_slot_count,
+        "blockedHeroSlotCount": max(
+            0,
+            total_hero_slot_count - len(verified_slots) - pending_hero_slot_count,
+        ),
+        "availableVerifiedRowCount": len(
+            [row for row in rows or [] if isinstance(row, dict) and row.get("status") == "verified"]
+        ),
+    }
+
+
+def lightweight_template_evidence_audit_payload(
+    community_state=None,
+    community_sync_run=None,
+    effective_talent_coverage=None,
+):
     community_state = community_state if isinstance(community_state, dict) else {}
     community_sync_run = community_sync_run if isinstance(community_sync_run, dict) else {}
     gear = community_sync_run.get("gear") if isinstance(community_sync_run.get("gear"), dict) else {}
@@ -3265,8 +3316,20 @@ def lightweight_template_evidence_audit_payload(community_state=None, community_
     templates = community_state.get("templates") if isinstance(community_state.get("templates"), dict) else {}
     real_covered_specs = real_gear.get("coveredSpecs") if isinstance(real_gear.get("coveredSpecs"), list) else []
     fallback_talent_count = int(templates.get("verified") or 0) if isinstance(templates, dict) else 0
+    effective_talent_coverage = (
+        effective_talent_coverage
+        if isinstance(effective_talent_coverage, dict) and effective_talent_coverage
+        else {}
+    )
+    effective_scan_coverage = {**scan_coverage, **effective_talent_coverage}
+
+    def coverage_count(key, fallback=0):
+        if key in effective_scan_coverage:
+            return int(effective_scan_coverage.get(key) or 0)
+        return int(coverage_matrix.get(key) or fallback or 0)
+
     total_specs = (
-        int(scan_coverage.get("totalSpecCount") or 0)
+        int(effective_scan_coverage.get("totalSpecCount") or 0)
         or int(default_templates.get("totalSpecCount") or 0)
         or 0
     )
@@ -3280,23 +3343,18 @@ def lightweight_template_evidence_audit_payload(community_state=None, community_
             "totalSpecCount": total_specs,
             "defaultGearCoveredSpecCount": int(default_templates.get("coveredSpecCount") or 0),
             "realCommunityGearCoveredSpecCount": int(real_gear.get("coveredSpecCount") or len(real_covered_specs) or 0),
-            "realCommunityTalentCoveredSpecCount": int(scan_coverage.get("coveredSpecCount") or 0),
-            "realCommunityTalentCoveredHeroSlotCount": int(
-                scan_coverage.get("coveredHeroSlotCount") or coverage_matrix.get("verifiedHeroSlotCount") or 0
-            ),
-            "communityTalentTotalHeroSlotCount": int(
-                scan_coverage.get("totalHeroSlotCount") or coverage_matrix.get("totalHeroSlotCount") or 0
-            ),
-            "communityTalentPendingHeroSlotCount": int(
-                scan_coverage.get("pendingCollectionHeroSlotCount")
-                or coverage_matrix.get("pendingCollectionHeroSlotCount")
-                or 0
-            ),
-            "communityTalentBlockedHeroSlotCount": int(
-                scan_coverage.get("blockedHeroSlotCount") or coverage_matrix.get("blockedHeroSlotCount") or 0
-            ),
+            "realCommunityTalentCoveredSpecCount": coverage_count("coveredSpecCount"),
+            "realCommunityTalentCoveredHeroSlotCount": coverage_count("coveredHeroSlotCount", coverage_matrix.get("verifiedHeroSlotCount")),
+            "communityTalentTotalHeroSlotCount": coverage_count("totalHeroSlotCount"),
+            "communityTalentPendingHeroSlotCount": coverage_count("pendingCollectionHeroSlotCount"),
+            "communityTalentBlockedHeroSlotCount": coverage_count("blockedHeroSlotCount"),
             "fallbackTalentCoveredSpecCount": fallback_talent_count,
             "topBlockers": (default_templates.get("topBlockers") or [])[:4],
+        },
+        "latestScanCoverage": scan_coverage,
+        "effectiveCoverage": effective_talent_coverage or {
+            "source": "latest_scan",
+            **scan_coverage,
         },
     }
 
@@ -3657,9 +3715,14 @@ def build_postgres_only_data_health_payload(*, include_template_evidence_audit=T
         gear_state.get("candidateLegalityAudit") if isinstance(gear_state, dict) else {},
         (gear_catalog.get("details") or {}).get("candidateLegalityAudit") if isinstance(gear_catalog.get("details"), dict) else {},
     ]
+    effective_talent_coverage = effective_community_talent_coverage(
+        cache_store,
+        community.get("scanCoverage"),
+    )
     template_evidence_audit = lightweight_template_evidence_audit_payload(
         community_state=community,
         community_sync_run=community_sync_run,
+        effective_talent_coverage=effective_talent_coverage,
     )
     community_status = community.get("sourceStatus") or community.get("status")
     if community_import_templates.get("status") and community_import_templates.get("status") != "verified":
@@ -3969,6 +4032,10 @@ def build_data_health_payload(*, include_template_evidence_audit=True):
             if isinstance(community_gear.get("realCommunityTemplates"), dict)
             else {}
         )
+        effective_talent_coverage = effective_community_talent_coverage(
+            cache_store,
+            community.get("scanCoverage"),
+        )
         if include_template_evidence_audit:
             template_evidence_audit = template_evidence_audit_payload(
                 conn,
@@ -3979,6 +4046,7 @@ def build_data_health_payload(*, include_template_evidence_audit=True):
             template_evidence_audit = lightweight_template_evidence_audit_payload(
                 community_state=community,
                 community_sync_run=community_sync_run,
+                effective_talent_coverage=effective_talent_coverage,
             )
         community_status = community.get("sourceStatus")
         if community_import_templates.get("status") and community_import_templates.get("status") != "verified":

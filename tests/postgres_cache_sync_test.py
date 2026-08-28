@@ -1054,6 +1054,85 @@ class PostgresCacheSyncTest(unittest.TestCase):
         self.assertEqual(store.saved_states[-1][0], "websim_sync")
         self.assertEqual(store.saved_states[-1][1]["runner"], "postgres")
 
+    def test_websim_postgres_sync_rebuilds_talent_health_from_current_simc_data(self):
+        from server import postgres_cache_sync
+
+        store = FakePostgresSyncStore()
+        store.websim_sync_state = {
+            "talentRevision": "websim-talent-catalog-v1-old",
+            "talentHealth": {
+                "schemaRevision": "websim-talent-rules-v1",
+                "simcBuild": "12.0.7.68275",
+                "traitEdgeSource": "https://wago.tools/db2/TraitEdge/csv?build=12.0.7.68275&locale=enUS",
+                "officialRevision": "old-season",
+                "diffStatus": "pending_official_audit",
+                "checkedAt": "2026-07-03T03:15:38+00:00",
+            },
+        }
+        simc_data = complete_simc_candidate()
+        simc_data.update(
+            {
+                "source": "simc-source-30555",
+                "build": "12.1.0.69497",
+                "traitEdgeSource": "https://wago.tools/db2/TraitEdge/csv?build=12.1.0.69497&locale=enUS",
+            }
+        )
+
+        with patch.object(postgres_cache_sync, "extract_simc_generated_data", return_value=simc_data), patch.object(
+            postgres_cache_sync,
+            "expected_spec_pairs",
+            return_value=["mage:frost"],
+        ), patch.object(
+            postgres_cache_sync,
+            "expected_hero_tree_triplets",
+            return_value=["mage:frost:spellslinger"],
+        ):
+            payload = postgres_cache_sync.sync_websim_cache_postgres(store=store)
+
+        talent_health = payload["talentHealth"]
+        self.assertEqual(talent_health["schemaRevision"], "websim-talent-rules-v1")
+        self.assertEqual(talent_health["simcBuild"], "12.1.0.69497")
+        self.assertEqual(talent_health["traitEdgeSource"], simc_data["traitEdgeSource"])
+        self.assertEqual(talent_health["officialRevision"], "season-pg")
+        self.assertNotEqual(talent_health["checkedAt"], "2026-07-03T03:15:38+00:00")
+        self.assertTrue(payload["talentRevision"].startswith("websim-talent-catalog-v1-"))
+        self.assertNotEqual(payload["talentRevision"], "websim-talent-catalog-v1-old")
+        saved_payload = store.saved_states[-1][1]
+        self.assertEqual(saved_payload["talentHealth"], talent_health)
+        self.assertEqual(saved_payload["talentRevision"], payload["talentRevision"])
+
+    def test_websim_postgres_sync_keeps_profile_fallback_metadata_with_legacy_store_summary(self):
+        from server import postgres_cache_sync
+
+        store = FakePostgresSyncStore()
+        simc_data = complete_simc_candidate()
+        simc_data.update(
+            {
+                "profileFallbackCount": 1,
+                "profileFallbackSpecs": ["mage:frost"],
+                "profileRetirement": {
+                    "schemaRevision": "simc-profile-retirement-v1",
+                    "retiredBatches": ["MID1"],
+                    "reason": "talent hashes changed for the current season",
+                },
+            }
+        )
+
+        with patch.object(postgres_cache_sync, "extract_simc_generated_data", return_value=simc_data), patch.object(
+            postgres_cache_sync,
+            "expected_spec_pairs",
+            return_value=["mage:frost"],
+        ), patch.object(
+            postgres_cache_sync,
+            "expected_hero_tree_triplets",
+            return_value=["mage:frost:spellslinger"],
+        ):
+            payload = postgres_cache_sync.sync_websim_cache_postgres(store=store)
+
+        self.assertEqual(payload["simc"]["profileFallbackCount"], 1)
+        self.assertEqual(payload["simc"]["profileFallbackSpecs"], ["mage:frost"])
+        self.assertEqual(payload["simc"]["profileRetiredBatches"], ["MID1"])
+
     def test_websim_postgres_sync_preserves_current_talents_when_trait_edges_are_missing(self):
         from server import postgres_cache_sync
 
@@ -1348,6 +1427,106 @@ class PostgresCacheSyncTest(unittest.TestCase):
         counts = postgres_cache_sync.validate_simc_generated_data_candidate(simc_data)
 
         self.assertEqual(counts["profiles"], 50)
+
+    def test_simc_candidate_validation_accepts_declared_retired_profile_batch(self):
+        from server import postgres_cache_sync
+
+        simc_data = complete_simc_candidate()
+        simc_data["profileRetirement"] = {
+            "schemaRevision": "simc-profile-retirement-v1",
+            "retiredBatches": ["MID1"],
+            "reason": "SimulationCraft removed MID1 after its talent hashes changed",
+        }
+        previous_state = {
+            "simc": {
+                "source": "old-simc-source",
+                "profiles": 10,
+            },
+        }
+
+        with patch.object(postgres_cache_sync, "expected_spec_pairs", return_value=["mage:frost"]), patch.object(
+            postgres_cache_sync,
+            "expected_hero_tree_triplets",
+            return_value=["mage:frost:spellslinger"],
+        ):
+            counts = postgres_cache_sync.validate_simc_generated_data_candidate(simc_data, previous_state)
+
+        self.assertEqual(counts["profileRetiredBatches"], ["MID1"])
+
+    def test_simc_candidate_validation_allows_profile_content_refresh_for_retired_batch(self):
+        from server import postgres_cache_sync
+
+        simc_data = complete_simc_candidate()
+        baseline = simc_graph_baseline(simc_data)
+        simc_data["presets"][0]["profile"] += "\n# current profile content"
+        simc_data["profileRetirement"] = {
+            "schemaRevision": "simc-profile-retirement-v1",
+            "retiredBatches": ["MID1"],
+            "reason": "SimulationCraft removed MID1 after its talent hashes changed",
+        }
+
+        with patch.object(postgres_cache_sync, "expected_spec_pairs", return_value=["mage:frost"]), patch.object(
+            postgres_cache_sync,
+            "expected_hero_tree_triplets",
+            return_value=["mage:frost:spellslinger"],
+        ):
+            counts = postgres_cache_sync.validate_simc_generated_data_candidate(
+                simc_data,
+                {
+                    "simc": {"source": simc_data["source"]},
+                    "graphBaseline": baseline,
+                },
+            )
+
+        self.assertEqual(counts["profileRetiredBatches"], ["MID1"])
+
+    def test_simc_candidate_validation_rejects_retired_profile_content(self):
+        from server import postgres_cache_sync
+
+        simc_data = complete_simc_candidate()
+        simc_data["presets"][0]["name"] = "MID1 Mage Frost"
+        simc_data["profileRetirement"] = {
+            "schemaRevision": "simc-profile-retirement-v1",
+            "retiredBatches": ["MID1"],
+            "reason": "SimulationCraft removed MID1 after its talent hashes changed",
+        }
+
+        with patch.object(postgres_cache_sync, "expected_spec_pairs", return_value=["mage:frost"]), patch.object(
+            postgres_cache_sync,
+            "expected_hero_tree_triplets",
+            return_value=["mage:frost:spellslinger"],
+        ):
+            with self.assertRaisesRegex(RuntimeError, "retired profile batch"):
+                postgres_cache_sync.validate_simc_generated_data_candidate(simc_data)
+
+    def test_simc_candidate_validation_ignores_retired_batch_mentions_in_profile_comments(self):
+        from server import postgres_cache_sync
+
+        simc_data = complete_simc_candidate()
+        simc_data["presets"][0].update(
+            {
+                "name": "MID2 Mage Frost",
+                "profile": (
+                    'mage="MID2 Mage Frost"\n'
+                    "spec=frost\n"
+                    "# Use Blade Rush if using MID1 tier.\n"
+                ),
+            }
+        )
+        simc_data["profileRetirement"] = {
+            "schemaRevision": "simc-profile-retirement-v1",
+            "retiredBatches": ["MID1"],
+            "reason": "SimulationCraft removed MID1 after its talent hashes changed",
+        }
+
+        with patch.object(postgres_cache_sync, "expected_spec_pairs", return_value=["mage:frost"]), patch.object(
+            postgres_cache_sync,
+            "expected_hero_tree_triplets",
+            return_value=["mage:frost:spellslinger"],
+        ):
+            counts = postgres_cache_sync.validate_simc_generated_data_candidate(simc_data)
+
+        self.assertEqual(counts["profileRetiredBatches"], ["MID1"])
 
     def test_simc_candidate_validation_rejects_duplicate_single_spec_profiles(self):
         from server import postgres_cache_sync

@@ -3545,6 +3545,73 @@ class GearReleaseToolTest(unittest.TestCase):
             [],
         )
 
+    def test_s2_community_candidate_exact_progression_uses_bound_track_authority(self):
+        from server import gear_release_tool
+        from server.gear_release_store import CandidateGearAuthorityIndex, gear_snapshot_summary
+
+        season_revision = "season-midnight-season-2:fixture"
+        track_revision = "midnight-season-2-track-authority-v1"
+        gear_rule_revision = "midnight-season-2-gear-rule-v1"
+        snapshot = self.exact_progression_snapshot()
+        snapshot["variants"][0]["payload"].update({
+            "truthScope": "community_observed",
+            "officialFactStatus": "UNVERIFIED",
+            "membershipKind": "imported_exact",
+            "editable": False,
+        })
+        gear = gear_release.build_release(
+            release_kind="gear",
+            season_revision=season_revision,
+            schema_revision="gear-release-v1",
+            content=gear_snapshot_summary(snapshot),
+            dependency_revisions={
+                **self.dependencies(),
+                "gearRuleRevision": gear_rule_revision,
+                "trackAuthorityRevision": track_revision,
+            },
+            release_status="validated",
+            source={"sourceRevision": "s2-community-exact-progression-test"},
+        )
+        gear.update({
+            "gearRuleRevision": gear_rule_revision,
+            "trackAuthorityRevision": track_revision,
+            "trackRecords": [{
+                "recordKey": "s2_myth_1",
+                "publicTrackKey": "myth",
+                "progressionKind": "upgrade_track",
+                "rank": 1,
+                "maxRank": 8,
+                "itemLevel": 289,
+                "eligibleSourceTypes": ["observed_profile"],
+                "eligibleSlots": ["head"],
+                "sourceRefs": ["fixture:s2-track"],
+                "bonusIds": ["13335"],
+                "evidenceStatus": "verified",
+                "seasonRevision": season_revision,
+                "gearRuleRevision": gear_rule_revision,
+            }],
+        })
+        prepared = CandidateGearAuthorityIndex(snapshot, gear)
+        candidate = gear_release_tool._template_candidate(
+            self.template(),
+            gear_release_id=gear["releaseId"],
+            season_revision=season_revision,
+            level=90,
+            gear_snapshot=snapshot,
+            capability_revision=self.dependencies()["capabilityRevision"],
+            prepared_index=prepared,
+        )
+
+        self.assertEqual(
+            gear_release_tool.community_candidate_exact_progression_problems(
+                candidate,
+                gear_snapshot=snapshot,
+                gear_release_descriptor=gear,
+                prepared_index=prepared,
+            ),
+            [],
+        )
+
     def test_community_hero_projection_skips_exact_progression_rejection(self):
         from server import gear_release_tool
         from server.gear_release_store import gear_snapshot_summary

@@ -1,0 +1,130 @@
+{
+  "adapterRevision": "s2-limited-db2-capture-adapter-v2",
+  "allowlistRevision": "s2-limited-client-db2-field-allowlist-v1",
+  "bodyBytes": 1645,
+  "bodySha256": "86ccc252aff5fc453fb3c2e4e4330e140e61c2f81e38d66590ee755814a74a74",
+  "capturedAt": "2026-08-26T02:44:16.736059Z",
+  "fieldCoverage": {
+    "ChildItemBonusListGroupID": {
+      "missingRows": 0,
+      "presentRows": 3
+    },
+    "ChildItemBonusListID": {
+      "missingRows": 0,
+      "presentRows": 3
+    },
+    "ChildItemBonusTreeID": {
+      "missingRows": 0,
+      "presentRows": 3
+    },
+    "ChildItemLevelSelectorID": {
+      "missingRows": 0,
+      "presentRows": 3
+    },
+    "Flags": {
+      "missingRows": 0,
+      "presentRows": 3
+    },
+    "ID": {
+      "missingRows": 0,
+      "presentRows": 3
+    },
+    "IblGroupPointsModSetID": {
+      "missingRows": 0,
+      "presentRows": 3
+    },
+    "ItemContext": {
+      "missingRows": 0,
+      "presentRows": 3
+    },
+    "ItemCreationContextGroupID": {
+      "missingRows": 0,
+      "presentRows": 3
+    },
+    "MaxMythicPlusLevel": {
+      "missingRows": 0,
+      "presentRows": 3
+    },
+    "MinMythicPlusLevel": {
+      "missingRows": 0,
+      "presentRows": 3
+    },
+    "ParentItemBonusTreeID": {
+      "missingRows": 0,
+      "presentRows": 3
+    }
+  },
+  "fields": [
+    "ID",
+    "ItemContext",
+    "ChildItemBonusTreeID",
+    "ChildItemBonusListID",
+    "ChildItemLevelSelectorID",
+    "ChildItemBonusListGroupID",
+    "IblGroupPointsModSetID",
+    "MinMythicPlusLevel",
+    "MaxMythicPlusLevel",
+    "ItemCreationContextGroupID",
+    "Flags",
+    "ParentItemBonusTreeID"
+  ],
+  "filterField": "ParentItemBonusTreeID",
+  "lastPage": 1,
+  "operator": "exact",
+  "page": 1,
+  "query": {
+    "build": "12.1.0.69299",
+    "filter[ParentItemBonusTreeID]": "exact:6005"
+  },
+  "responsePath": "responses/000009.json",
+  "rows": [
+    {
+      "ChildItemBonusListGroupID": 0,
+      "ChildItemBonusListID": 0,
+      "ChildItemBonusTreeID": 5834,
+      "ChildItemLevelSelectorID": 0,
+      "Flags": 0,
+      "ID": 29225,
+      "IblGroupPointsModSetID": 0,
+      "ItemContext": 0,
+      "ItemCreationContextGroupID": 0,
+      "MaxMythicPlusLevel": 0,
+      "MinMythicPlusLevel": 0,
+      "ParentItemBonusTreeID": 6005
+    },
+    {
+      "ChildItemBonusListGroupID": 0,
+      "ChildItemBonusListID": 0,
+      "ChildItemBonusTreeID": 6006,
+      "ChildItemLevelSelectorID": 0,
+      "Flags": 0,
+      "ID": 29226,
+      "IblGroupPointsModSetID": 0,
+      "ItemContext": 0,
+      "ItemCreationContextGroupID": 0,
+      "MaxMythicPlusLevel": 0,
+      "MinMythicPlusLevel": 0,
+      "ParentItemBonusTreeID": 6005
+    },
+    {
+      "ChildItemBonusListGroupID": 0,
+      "ChildItemBonusListID": 0,
+      "ChildItemBonusTreeID": 5837,
+      "ChildItemLevelSelectorID": 0,
+      "Flags": 0,
+      "ID": 29227,
+      "IblGroupPointsModSetID": 0,
+      "ItemContext": 0,
+      "ItemCreationContextGroupID": 0,
+      "MaxMythicPlusLevel": 0,
+      "MinMythicPlusLevel": 0,
+      "ParentItemBonusTreeID": 6005
+    }
+  ],
+  "schemaRevision": "s2-limited-db2-response-v1",
+  "sourceUrl": "https://wago.tools/api/db2-find/ItemBonusTreeNode?build=12.1.0.69299&filter%5BParentItemBonusTreeID%5D=exact%3A6005",
+  "table": "ItemBonusTreeNode",
+  "targetKind": "allowlisted_foreign_key",
+  "targetValue": "6005",
+  "total": 3
+}

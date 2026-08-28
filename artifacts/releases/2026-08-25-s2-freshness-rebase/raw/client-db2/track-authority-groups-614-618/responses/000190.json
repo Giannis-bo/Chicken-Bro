@@ -1,0 +1,118 @@
+{
+  "adapterRevision": "s2-limited-db2-capture-adapter-v2",
+  "allowlistRevision": "s2-limited-client-db2-field-allowlist-v1",
+  "bodyBytes": 1351,
+  "bodySha256": "11fca9c63a33743d4b1a12209d3ac614a22dac409c7754cda6a5bfd7dfa0b9a3",
+  "capturedAt": "2026-08-26T02:21:55.684836Z",
+  "fieldCoverage": {
+    "ID": {
+      "missingRows": 0,
+      "presentRows": 5
+    },
+    "OrderIndex": {
+      "missingRows": 0,
+      "presentRows": 5
+    },
+    "ParentItemBonusListID": {
+      "missingRows": 0,
+      "presentRows": 5
+    },
+    "Type": {
+      "missingRows": 0,
+      "presentRows": 5
+    },
+    "Value_0": {
+      "missingRows": 0,
+      "presentRows": 5
+    },
+    "Value_1": {
+      "missingRows": 0,
+      "presentRows": 5
+    },
+    "Value_2": {
+      "missingRows": 0,
+      "presentRows": 5
+    },
+    "Value_3": {
+      "missingRows": 0,
+      "presentRows": 5
+    }
+  },
+  "fields": [
+    "ID",
+    "Value_0",
+    "Value_1",
+    "Value_2",
+    "Value_3",
+    "ParentItemBonusListID",
+    "Type",
+    "OrderIndex"
+  ],
+  "filterField": "ParentItemBonusListID",
+  "lastPage": 1,
+  "operator": "exact",
+  "page": 1,
+  "query": {
+    "build": "12.1.0.69299",
+    "filter[ParentItemBonusListID]": "exact:12842"
+  },
+  "responsePath": "responses/000190.json",
+  "rows": [
+    {
+      "ID": 27773,
+      "OrderIndex": 0,
+      "ParentItemBonusListID": 12842,
+      "Type": 34,
+      "Value_0": 617,
+      "Value_1": 974,
+      "Value_2": 0,
+      "Value_3": 0
+    },
+    {
+      "ID": 27775,
+      "OrderIndex": 1,
+      "ParentItemBonusListID": 12842,
+      "Type": 3,
+      "Value_0": 4,
+      "Value_1": 0,
+      "Value_2": 0,
+      "Value_3": 0
+    },
+    {
+      "ID": 27776,
+      "OrderIndex": 2,
+      "ParentItemBonusListID": 12842,
+      "Type": 7,
+      "Value_0": 1,
+      "Value_1": -1,
+      "Value_2": 0,
+      "Value_3": 0
+    },
+    {
+      "ID": 27777,
+      "OrderIndex": 3,
+      "ParentItemBonusListID": 12842,
+      "Type": 10,
+      "Value_0": 150,
+      "Value_1": 0,
+      "Value_2": 0,
+      "Value_3": 0
+    },
+    {
+      "ID": 30823,
+      "OrderIndex": 4,
+      "ParentItemBonusListID": 12842,
+      "Type": 49,
+      "Value_0": 315,
+      "Value_1": 0,
+      "Value_2": 0,
+      "Value_3": 0
+    }
+  ],
+  "schemaRevision": "s2-limited-db2-response-v1",
+  "sourceUrl": "https://wago.tools/api/db2-find/ItemBonus?build=12.1.0.69299&filter%5BParentItemBonusListID%5D=exact%3A12842",
+  "table": "ItemBonus",
+  "targetKind": "allowlisted_foreign_key",
+  "targetValue": "12842",
+  "total": 5
+}

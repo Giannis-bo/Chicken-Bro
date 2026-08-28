@@ -15,6 +15,7 @@ from typing import Any, Callable, Mapping
 
 from server.db import connect_postgres
 from server.gear_release_resource_probe import (
+    MAX_STATEMENT_TIMEOUT_MS,
     ReadOnlyConnectionFactory,
     ResourceProbeError,
     require_postgres_only_environment,
@@ -25,6 +26,7 @@ from server.gear_release_tool import expected_spec_pairs
 
 
 MAX_REPORT_BYTES = 256 * 1024
+DEFAULT_STATEMENT_TIMEOUT_MS = 15_000
 
 
 def _cleanup_on_signal(signum: int, _frame: Any) -> None:
@@ -52,6 +54,15 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--now", default="")
     parser.add_argument("--level", type=int, default=90)
     parser.add_argument("--temporary-root", default="")
+    parser.add_argument(
+        "--statement-timeout-ms",
+        type=int,
+        default=DEFAULT_STATEMENT_TIMEOUT_MS,
+        help=(
+            "Bound each read-only PostgreSQL statement; defaults to 15000ms "
+            f"and cannot exceed {MAX_STATEMENT_TIMEOUT_MS}ms."
+        ),
+    )
     return parser
 
 
@@ -139,11 +150,16 @@ def main(
         raise ResourceProbeError("resource probe output already exists")
     if not 1 <= args.level <= 100:
         raise ResourceProbeError("resource probe level is outside its fixed bound")
+    if not 1 <= args.statement_timeout_ms <= MAX_STATEMENT_TIMEOUT_MS:
+        raise ResourceProbeError(
+            "resource probe statement timeout is outside its fixed bound"
+        )
 
     if store_factory is None:
         database_url = str(environment.get("WOW_DATABASE_URL") or "")
         connection_factory = ReadOnlyConnectionFactory(
-            lambda: connect_postgres(database_url)
+            lambda: connect_postgres(database_url),
+            statement_timeout_ms=args.statement_timeout_ms,
         )
         store_factory = lambda: GearReleaseStore(connection_factory)
     store = store_factory()

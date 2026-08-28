@@ -1,0 +1,65 @@
+{
+  "adapterRevision": "s2-limited-db2-capture-adapter-v2",
+  "allowlistRevision": "s2-limited-client-db2-field-allowlist-v1",
+  "bodyBytes": 1590,
+  "bodySha256": "37db951b5aa2eb6c2f30a9dbe94452d1d5606648ae6946d4bb9781e5e2bb4ce9",
+  "capturedAt": "2026-08-26T02:44:16.736059Z",
+  "fieldCoverage": {
+    "CategoryID": {
+      "missingRows": 0,
+      "presentRows": 1
+    },
+    "Description_lang": {
+      "missingRows": 0,
+      "presentRows": 1
+    },
+    "ID": {
+      "missingRows": 0,
+      "presentRows": 1
+    },
+    "ItemID": {
+      "missingRows": 1,
+      "presentRows": 0
+    },
+    "Name_lang": {
+      "missingRows": 0,
+      "presentRows": 1
+    },
+    "Quality": {
+      "missingRows": 0,
+      "presentRows": 1
+    }
+  },
+  "fields": [
+    "ID",
+    "CategoryID",
+    "Name_lang",
+    "Quality",
+    "Description_lang",
+    "ItemID"
+  ],
+  "filterField": "ID",
+  "lastPage": 1,
+  "operator": "exact",
+  "page": 1,
+  "query": {
+    "build": "12.1.0.69299",
+    "filter[ID]": "exact:3445"
+  },
+  "responsePath": "responses/000385.json",
+  "rows": [
+    {
+      "CategoryID": 282,
+      "Description_lang": "Used to upgrade Hero equipment in Midnight Season 2 up to item levels 308-321.  \r\n\r\nWhen used for crafting, sets the item level of the resulting item to 305-318 based on Quality.\r\n\r\nEarned from the following activities:\r\n- Heroic The Venomous Abyss\r\n- Mythic Keystone Dungeons (+4 to +8)\r\n- Delves (Tier 11)\r\n- Trovehunter's Bounty (Tiers 8 and up)",
+      "ID": 3445,
+      "Name_lang": "Hero Mistcrest",
+      "Quality": 4
+    }
+  ],
+  "schemaRevision": "s2-limited-db2-response-v1",
+  "sourceUrl": "https://wago.tools/api/db2-find/CurrencyTypes?build=12.1.0.69299&filter%5BID%5D=exact%3A3445",
+  "table": "CurrencyTypes",
+  "targetKind": "allowlisted_foreign_key",
+  "targetValue": "3445",
+  "total": 1
+}

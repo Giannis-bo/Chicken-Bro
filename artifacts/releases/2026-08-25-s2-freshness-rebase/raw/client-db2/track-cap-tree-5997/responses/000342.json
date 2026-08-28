@@ -1,0 +1,161 @@
+{
+  "adapterRevision": "s2-limited-db2-capture-adapter-v2",
+  "allowlistRevision": "s2-limited-client-db2-field-allowlist-v1",
+  "bodyBytes": 2327,
+  "bodySha256": "043f3ceb0bd78d3e0e4dee5aebc40f44c35a1df45bf9e04de7cab1b55f0b697b",
+  "capturedAt": "2026-08-26T02:44:16.736059Z",
+  "fieldCoverage": {
+    "Flags": {
+      "missingRows": 0,
+      "presentRows": 8
+    },
+    "ID": {
+      "missingRows": 0,
+      "presentRows": 8
+    },
+    "ItemBonusListGroupID": {
+      "missingRows": 0,
+      "presentRows": 8
+    },
+    "ItemBonusListID": {
+      "missingRows": 0,
+      "presentRows": 8
+    },
+    "ItemExtendedCostID": {
+      "missingRows": 0,
+      "presentRows": 8
+    },
+    "ItemLevelSelectorID": {
+      "missingRows": 0,
+      "presentRows": 8
+    },
+    "ItemLogicalCostGroupID": {
+      "missingRows": 0,
+      "presentRows": 8
+    },
+    "PlayerConditionID": {
+      "missingRows": 0,
+      "presentRows": 8
+    },
+    "SequenceValue": {
+      "missingRows": 0,
+      "presentRows": 8
+    }
+  },
+  "fields": [
+    "ID",
+    "ItemBonusListGroupID",
+    "ItemBonusListID",
+    "ItemLevelSelectorID",
+    "SequenceValue",
+    "ItemExtendedCostID",
+    "PlayerConditionID",
+    "Flags",
+    "ItemLogicalCostGroupID"
+  ],
+  "filterField": "ItemBonusListGroupID",
+  "lastPage": 1,
+  "operator": "exact",
+  "page": 1,
+  "query": {
+    "build": "12.1.0.69299",
+    "filter[ItemBonusListGroupID]": "exact:617"
+  },
+  "responsePath": "responses/000342.json",
+  "rows": [
+    {
+      "Flags": 2,
+      "ID": 4438,
+      "ItemBonusListGroupID": 617,
+      "ItemBonusListID": 12841,
+      "ItemExtendedCostID": 0,
+      "ItemLevelSelectorID": 0,
+      "ItemLogicalCostGroupID": 0,
+      "PlayerConditionID": 0,
+      "SequenceValue": 1
+    },
+    {
+      "Flags": 2,
+      "ID": 4439,
+      "ItemBonusListGroupID": 617,
+      "ItemBonusListID": 12842,
+      "ItemExtendedCostID": 11472,
+      "ItemLevelSelectorID": 0,
+      "ItemLogicalCostGroupID": 0,
+      "PlayerConditionID": 0,
+      "SequenceValue": 2
+    },
+    {
+      "Flags": 2,
+      "ID": 4440,
+      "ItemBonusListGroupID": 617,
+      "ItemBonusListID": 12843,
+      "ItemExtendedCostID": 11473,
+      "ItemLevelSelectorID": 0,
+      "ItemLogicalCostGroupID": 0,
+      "PlayerConditionID": 0,
+      "SequenceValue": 3
+    },
+    {
+      "Flags": 0,
+      "ID": 4441,
+      "ItemBonusListGroupID": 617,
+      "ItemBonusListID": 12844,
+      "ItemExtendedCostID": 11474,
+      "ItemLevelSelectorID": 0,
+      "ItemLogicalCostGroupID": 0,
+      "PlayerConditionID": 0,
+      "SequenceValue": 4
+    },
+    {
+      "Flags": 2,
+      "ID": 4442,
+      "ItemBonusListGroupID": 617,
+      "ItemBonusListID": 12845,
+      "ItemExtendedCostID": 11475,
+      "ItemLevelSelectorID": 0,
+      "ItemLogicalCostGroupID": 0,
+      "PlayerConditionID": 0,
+      "SequenceValue": 5
+    },
+    {
+      "Flags": 2,
+      "ID": 4443,
+      "ItemBonusListGroupID": 617,
+      "ItemBonusListID": 12846,
+      "ItemExtendedCostID": 11476,
+      "ItemLevelSelectorID": 0,
+      "ItemLogicalCostGroupID": 0,
+      "PlayerConditionID": 0,
+      "SequenceValue": 6
+    },
+    {
+      "Flags": 3,
+      "ID": 4444,
+      "ItemBonusListGroupID": 617,
+      "ItemBonusListID": 12847,
+      "ItemExtendedCostID": 0,
+      "ItemLevelSelectorID": 0,
+      "ItemLogicalCostGroupID": 0,
+      "PlayerConditionID": 0,
+      "SequenceValue": 7
+    },
+    {
+      "Flags": 3,
+      "ID": 4445,
+      "ItemBonusListGroupID": 617,
+      "ItemBonusListID": 12848,
+      "ItemExtendedCostID": 0,
+      "ItemLevelSelectorID": 0,
+      "ItemLogicalCostGroupID": 0,
+      "PlayerConditionID": 0,
+      "SequenceValue": 8
+    }
+  ],
+  "schemaRevision": "s2-limited-db2-response-v1",
+  "sourceUrl": "https://wago.tools/api/db2-find/ItemBonusListGroupEntry?build=12.1.0.69299&filter%5BItemBonusListGroupID%5D=exact%3A617",
+  "table": "ItemBonusListGroupEntry",
+  "targetKind": "allowlisted_foreign_key",
+  "targetValue": "617",
+  "total": 8
+}

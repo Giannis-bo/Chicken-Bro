@@ -1,7 +1,13 @@
 import copy
 import unittest
+from unittest.mock import patch
 
-from server.gear_stat_snapshot_worker import LeaseLost, process_claimed_job, worker_identity
+from server.gear_stat_snapshot_worker import (
+    LeaseLost,
+    current_simc_runtime_revision,
+    process_claimed_job,
+    worker_identity,
+)
 
 
 SIGNATURE = "stat-snapshot:sha256:" + "a" * 64
@@ -80,6 +86,17 @@ def valid_result():
 
 
 class GearStatSnapshotWorkerTest(unittest.TestCase):
+    def test_runtime_revision_prefers_immutable_identity_over_source_commit(self):
+        runtime_identity = "simc:12.1.0.69465:" + "a" * 40 + ":" + "b" * 64
+        with patch(
+            "server.gear_stat_snapshot_worker.simc_version_status",
+            return_value={
+                "simcRuntimeRevision": runtime_identity,
+                "sourceCommit": "a" * 40,
+            },
+        ):
+            self.assertEqual(current_simc_runtime_revision(), runtime_identity)
+
     def test_worker_identity_is_stable_across_process_restarts(self):
         self.assertEqual(worker_identity(hostname="candidate-host", environ={}), "candidate-host-gear-stat-snapshot")
         self.assertEqual(

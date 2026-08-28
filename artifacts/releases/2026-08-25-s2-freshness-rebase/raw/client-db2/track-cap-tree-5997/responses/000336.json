@@ -1,0 +1,88 @@
+{
+  "adapterRevision": "s2-limited-db2-capture-adapter-v2",
+  "allowlistRevision": "s2-limited-client-db2-field-allowlist-v1",
+  "bodyBytes": 998,
+  "bodySha256": "501909b22dd4837751585bad1ce9c38b8059e71ce7405cb927d2778d39249d87",
+  "capturedAt": "2026-08-26T02:44:16.736059Z",
+  "fieldCoverage": {
+    "ID": {
+      "missingRows": 0,
+      "presentRows": 2
+    },
+    "OrderIndex": {
+      "missingRows": 0,
+      "presentRows": 2
+    },
+    "ParentItemBonusListID": {
+      "missingRows": 0,
+      "presentRows": 2
+    },
+    "Type": {
+      "missingRows": 0,
+      "presentRows": 2
+    },
+    "Value_0": {
+      "missingRows": 0,
+      "presentRows": 2
+    },
+    "Value_1": {
+      "missingRows": 0,
+      "presentRows": 2
+    },
+    "Value_2": {
+      "missingRows": 0,
+      "presentRows": 2
+    },
+    "Value_3": {
+      "missingRows": 0,
+      "presentRows": 2
+    }
+  },
+  "fields": [
+    "ID",
+    "Value_0",
+    "Value_1",
+    "Value_2",
+    "Value_3",
+    "ParentItemBonusListID",
+    "Type",
+    "OrderIndex"
+  ],
+  "filterField": "ParentItemBonusListID",
+  "lastPage": 1,
+  "operator": "exact",
+  "page": 1,
+  "query": {
+    "build": "12.1.0.69299",
+    "filter[ParentItemBonusListID]": "exact:13692"
+  },
+  "responsePath": "responses/000336.json",
+  "rows": [
+    {
+      "ID": 30776,
+      "OrderIndex": 0,
+      "ParentItemBonusListID": 13692,
+      "Type": 38,
+      "Value_0": 1,
+      "Value_1": 1,
+      "Value_2": 0,
+      "Value_3": 0
+    },
+    {
+      "ID": 30777,
+      "OrderIndex": 1,
+      "ParentItemBonusListID": 13692,
+      "Type": 38,
+      "Value_0": 18,
+      "Value_1": 18,
+      "Value_2": 0,
+      "Value_3": 0
+    }
+  ],
+  "schemaRevision": "s2-limited-db2-response-v1",
+  "sourceUrl": "https://wago.tools/api/db2-find/ItemBonus?build=12.1.0.69299&filter%5BParentItemBonusListID%5D=exact%3A13692",
+  "table": "ItemBonus",
+  "targetKind": "allowlisted_foreign_key",
+  "targetValue": "13692",
+  "total": 2
+}

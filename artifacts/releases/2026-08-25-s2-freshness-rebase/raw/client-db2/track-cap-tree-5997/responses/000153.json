@@ -1,0 +1,42 @@
+{
+  "adapterRevision": "s2-limited-db2-capture-adapter-v2",
+  "allowlistRevision": "s2-limited-client-db2-field-allowlist-v1",
+  "bodyBytes": 752,
+  "bodySha256": "1e4a71bf91071671f9fb2d44187752996b14bb99cceceaaf8b22ac2c59c3ddd6",
+  "capturedAt": "2026-08-26T02:44:16.736059Z",
+  "fieldCoverage": {
+    "ID": {
+      "missingRows": 0,
+      "presentRows": 1
+    },
+    "Name_lang": {
+      "missingRows": 0,
+      "presentRows": 1
+    }
+  },
+  "fields": [
+    "ID",
+    "Name_lang"
+  ],
+  "filterField": "ID",
+  "lastPage": 1,
+  "operator": "exact",
+  "page": 1,
+  "query": {
+    "build": "12.1.0.69299",
+    "filter[ID]": "exact:1306140"
+  },
+  "responsePath": "responses/000153.json",
+  "rows": [
+    {
+      "ID": 1306140,
+      "Name_lang": "Upgrading"
+    }
+  ],
+  "schemaRevision": "s2-limited-db2-response-v1",
+  "sourceUrl": "https://wago.tools/api/db2-find/SpellName?build=12.1.0.69299&filter%5BID%5D=exact%3A1306140",
+  "table": "SpellName",
+  "targetKind": "allowlisted_foreign_key",
+  "targetValue": "1306140",
+  "total": 1
+}

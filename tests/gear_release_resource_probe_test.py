@@ -128,6 +128,27 @@ class GearReleaseResourceProbeTest(unittest.TestCase):
         psycopg3_factory()
         self.assertTrue(psycopg3.read_only)
 
+    def test_read_only_probe_accepts_explicitly_bounded_long_snapshot_timeout(self):
+        from server.gear_release_resource_probe import (
+            ReadOnlyConnectionFactory,
+            ResourceProbeError,
+        )
+
+        raw = FakeConnection()
+        ReadOnlyConnectionFactory(
+            lambda: raw,
+            statement_timeout_ms=120_000,
+        )()
+        self.assertIn(
+            "SET statement_timeout = '120000ms'",
+            raw.cursor_instance.statements,
+        )
+        with self.assertRaisesRegex(ResourceProbeError, "statement timeout"):
+            ReadOnlyConnectionFactory(
+                lambda: FakeConnection(),
+                statement_timeout_ms=120_001,
+            )
+
     def test_probe_measures_resources_without_exposing_template_identity(self):
         from server.gear_release_resource_probe import run_resource_probe
 
@@ -387,6 +408,32 @@ class GearReleaseResourceProbeTest(unittest.TestCase):
                     store_factory=lambda: Store(),
                     run_probe_fn=lambda *_args, **_kwargs: report,
                 )
+
+    def test_cli_accepts_explicit_snapshot_statement_timeout(self):
+        script = (
+            Path(__file__).resolve().parents[1]
+            / "scripts"
+            / "gear-release-resource-probe.py"
+        )
+        spec = importlib.util.spec_from_file_location(
+            "gear_release_resource_probe_cli_timeout",
+            script,
+        )
+        module = importlib.util.module_from_spec(spec)
+        self.assertIsNotNone(spec.loader)
+        spec.loader.exec_module(module)
+
+        args = module._parser().parse_args([
+            "--gear-release-id",
+            "gear-release:exact",
+            "--simc-runtime-revision",
+            "simc-r1",
+            "--output",
+            "artifacts/resource.json",
+            "--statement-timeout-ms",
+            "120000",
+        ])
+        self.assertEqual(args.statement_timeout_ms, 120_000)
 
 
 if __name__ == "__main__":

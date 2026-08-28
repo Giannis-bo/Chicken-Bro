@@ -1,0 +1,72 @@
+{
+  "adapterRevision": "s2-limited-db2-capture-adapter-v2",
+  "allowlistRevision": "s2-limited-client-db2-field-allowlist-v1",
+  "bodyBytes": 3794,
+  "bodySha256": "7e54c1da5577181939518aaa7211f8f92493030167314d49b342f213e565e14c",
+  "capturedAt": "2026-08-26T02:21:55.684836Z",
+  "fieldCoverage": {
+    "ContentTuningID": {
+      "missingRows": 0,
+      "presentRows": 1
+    },
+    "Failure_description_lang": {
+      "missingRows": 0,
+      "presentRows": 1
+    },
+    "Flags": {
+      "missingRows": 0,
+      "presentRows": 1
+    },
+    "ID": {
+      "missingRows": 0,
+      "presentRows": 1
+    },
+    "MaxExpansionLevel": {
+      "missingRows": 0,
+      "presentRows": 1
+    },
+    "MinExpansionLevel": {
+      "missingRows": 0,
+      "presentRows": 1
+    },
+    "ModifierTreeID": {
+      "missingRows": 0,
+      "presentRows": 1
+    }
+  },
+  "fields": [
+    "ID",
+    "Failure_description_lang",
+    "ContentTuningID",
+    "ModifierTreeID",
+    "Flags",
+    "MinExpansionLevel",
+    "MaxExpansionLevel"
+  ],
+  "filterField": "ID",
+  "lastPage": 1,
+  "operator": "exact",
+  "page": 1,
+  "query": {
+    "build": "12.1.0.69299",
+    "filter[ID]": "exact:143187"
+  },
+  "responsePath": "responses/000004.json",
+  "rows": [
+    {
+      "ContentTuningID": 958,
+      "Failure_description_lang": "The season has ended. This item can no longer be upgraded.",
+      "Flags": 545,
+      "ID": 143187,
+      "MaxExpansionLevel": -1,
+      "MinExpansionLevel": -1,
+      "ModifierTreeID": 440502
+    }
+  ],
+  "schemaRevision": "s2-limited-db2-response-v1",
+  "sourceUrl": "https://wago.tools/api/db2-find/PlayerCondition?build=12.1.0.69299&filter%5BID%5D=exact%3A143187",
+  "table": "PlayerCondition",
+  "targetKind": "allowlisted_foreign_key",
+  "targetValue": "143187",
+  "total": 1
+}

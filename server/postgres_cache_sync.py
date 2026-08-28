@@ -2,6 +2,7 @@
 import hashlib
 import os
 import json
+import re
 import sqlite3
 import time
 from datetime import datetime, timezone
@@ -36,6 +37,9 @@ try:
         DEFAULT_REGION,
         GEAR_CATALOG_REVISION,
         GEAR_OBSERVED_BACKFILL_SYNC_KEY,
+        TALENT_CATALOG_REVISION,
+        TALENT_SCHEMA_REVISION,
+        SIMC_PROFILE_RETIREMENT_SCHEMA_REVISION,
         apply_gear_template_legality_gate,
         blizzard_get,
         blizzard_namespace,
@@ -100,6 +104,9 @@ except ImportError:
         DEFAULT_REGION,
         GEAR_CATALOG_REVISION,
         GEAR_OBSERVED_BACKFILL_SYNC_KEY,
+        TALENT_CATALOG_REVISION,
+        TALENT_SCHEMA_REVISION,
+        SIMC_PROFILE_RETIREMENT_SCHEMA_REVISION,
         apply_gear_template_legality_gate,
         blizzard_get,
         blizzard_namespace,
@@ -1588,6 +1595,51 @@ def validate_simc_generated_data_candidate(simc_data, previous_state=None):
             )
         )
 
+    profile_retirement = simc_data.get("profileRetirement")
+    retired_profile_batches = set()
+    if profile_retirement is not None:
+        if not isinstance(profile_retirement, dict):
+            raise RuntimeError(
+                "SimulationCraft profile retirement policy is invalid; preserving the current PostgreSQL talent tree"
+            )
+        retirement_revision = str(profile_retirement.get("schemaRevision") or "").strip()
+        retired_profile_batches = {
+            str(batch or "").strip().upper()
+            for batch in profile_retirement.get("retiredBatches") or []
+            if str(batch or "").strip()
+        }
+        retirement_reason = str(profile_retirement.get("reason") or "").strip().lower()
+        if (
+            retirement_revision != SIMC_PROFILE_RETIREMENT_SCHEMA_REVISION
+            or retired_profile_batches != {"MID1"}
+            or "talent hashes changed" not in retirement_reason
+        ):
+            raise RuntimeError(
+                "SimulationCraft profile retirement policy is not canonical; preserving the current PostgreSQL talent tree"
+            )
+
+    retired_batch_name = re.compile(r"(?:^|[\"'_ /-])MID1(?:$|[\"'_ /-])", re.IGNORECASE)
+    retired_batch_actor = re.compile(
+        r"^[A-Za-z][A-Za-z0-9_]*\s*=\s*[\"']?MID1(?:$|[\"'_ /-])",
+        re.IGNORECASE,
+    )
+
+    def profile_contains_retired_batch(preset):
+        if retired_batch_name.search(str(preset.get("name") or "")):
+            return True
+        for line in str(preset.get("profile") or "").splitlines():
+            stripped = line.strip()
+            if not stripped or stripped.startswith(("#", "//", ";")):
+                continue
+            if retired_batch_actor.search(stripped):
+                return True
+        return False
+
+    if retired_profile_batches and any(profile_contains_retired_batch(preset) for preset in presets):
+        raise RuntimeError(
+            "SimulationCraft candidate still contains a retired profile batch; preserving the current PostgreSQL talent tree"
+        )
+
     min_profile_coverage = _percent_env("WOW_WEBSIM_SIMC_MIN_PROFILE_COVERAGE_PERCENT", 80)
     min_profile_count = (len(required_specs) * min_profile_coverage + 99) // 100
     if len(profile_specs) < min_profile_count:
@@ -1614,7 +1666,7 @@ def validate_simc_generated_data_candidate(simc_data, previous_state=None):
         baseline_profile_count = int(graph_baseline.get("profiles") or 0)
     except (TypeError, ValueError):
         baseline_profile_count = 0
-    if baseline_profile_count > 0:
+    if baseline_profile_count > 0 and not retired_profile_batches:
         candidate_profile_count = len(presets)
         if same_source and candidate_profile_count < baseline_profile_count:
             raise RuntimeError(
@@ -1683,7 +1735,7 @@ def validate_simc_generated_data_candidate(simc_data, previous_state=None):
     missing_profile_content_signatures = (
         previous_profile_content_signatures - profile_content_signatures
     )
-    if same_source and missing_profile_content_signatures:
+    if same_source and missing_profile_content_signatures and not retired_profile_batches:
         raise RuntimeError(
             "SimulationCraft same-source profile content identities declined; "
             f"missing {len(missing_profile_content_signatures)} of "
@@ -1879,7 +1931,56 @@ def validate_simc_generated_data_candidate(simc_data, previous_state=None):
         "heroCoverage": len(required_heroes),
         "profiles": len(presets),
         "profileSpecCoverage": len(profile_specs),
+        "profileRetiredBatches": sorted(retired_profile_batches),
+        "profileFallbackCount": int(simc_data.get("profileFallbackCount") or 0),
+        "profileFallbackSpecs": sorted(
+            str(spec_pair or "").strip()
+            for spec_pair in (simc_data.get("profileFallbackSpecs") or [])
+            if str(spec_pair or "").strip()
+        ),
     }
+
+
+def postgres_talent_catalog_revision(simc_data, simc_counts):
+    """Return a content identity for a successfully persisted PG SimC catalog."""
+
+    simc_data = simc_data if isinstance(simc_data, dict) else {}
+    simc_counts = simc_counts if isinstance(simc_counts, dict) else {}
+    if not int(simc_counts.get("talents") or len(simc_data.get("talents") or [])):
+        return ""
+    identity = {
+        "source": simc_data.get("source") or simc_counts.get("source") or "",
+        "build": simc_data.get("build") or simc_counts.get("build") or "",
+        "talents": simc_data.get("talents") or [],
+        "presets": simc_data.get("presets") or [],
+        "spellDetails": simc_data.get("spellDetails") or [],
+        "dependencies": int(simc_counts.get("dependencies") or simc_data.get("dependencies") or 0),
+        "dependencyNodes": int(
+            simc_counts.get("dependencyNodes") or simc_data.get("dependencyNodes") or 0
+        ),
+        "profileFallbackCount": int(simc_counts.get("profileFallbackCount") or 0),
+        "profileFallbackSpecs": sorted(
+            str(spec_pair or "").strip()
+            for spec_pair in (simc_counts.get("profileFallbackSpecs") or [])
+            if str(spec_pair or "").strip()
+        ),
+        "profileRetiredBatches": sorted(
+            str(batch or "").strip().upper()
+            for batch in (simc_counts.get("profileRetiredBatches") or [])
+            if str(batch or "").strip()
+        ),
+        "traitEdgeSource": simc_data.get("traitEdgeSource") or simc_counts.get("traitEdgeSource") or "",
+    }
+    digest = hashlib.sha256(
+        json.dumps(
+            identity,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            default=str,
+        ).encode("utf-8")
+    ).hexdigest()[:12]
+    return f"{TALENT_CATALOG_REVISION}-{digest}"
 
 
 def sync_websim_cache_postgres(include_blizzard=True, stage_callback=None, store=None):
@@ -1887,6 +1988,8 @@ def sync_websim_cache_postgres(include_blizzard=True, stage_callback=None, store
     _emit(stage_callback, "websim", "start", includeBlizzard=bool(include_blizzard))
     checked_at = utc_now()
     talent_state = store.get_sync_state("websim_sync") or {}
+    simc_data = {}
+    simc_sync_ok = False
     simc_counts = {
         "talents": 0,
         "profiles": 0,
@@ -1905,6 +2008,32 @@ def sync_websim_cache_postgres(include_blizzard=True, stage_callback=None, store
         simc_data = extract_simc_generated_data()
         simc_data.update(validate_simc_generated_data_candidate(simc_data, validation_state))
         simc_counts = store.replace_simc_generated_data(simc_data)
+        simc_counts = {
+            **(simc_counts if isinstance(simc_counts, dict) else {}),
+            # Keep these quality signals in the sync state even when the cloud
+            # store is one revision behind the extractor contract.
+            "profileFallbackCount": int(simc_data.get("profileFallbackCount") or 0),
+            "profileFallbackSpecs": sorted(
+                str(spec_pair or "").strip()
+                for spec_pair in (simc_data.get("profileFallbackSpecs") or [])
+                if str(spec_pair or "").strip()
+            ),
+            "profileRetiredBatches": sorted(
+                str(batch or "").strip().upper()
+                for batch in (
+                    simc_data.get("profileRetiredBatches")
+                    or (
+                        (simc_data.get("profileRetirement") or {}).get(
+                            "retiredBatches"
+                        )
+                        if isinstance(simc_data.get("profileRetirement"), dict)
+                        else []
+                    )
+                )
+                if str(batch or "").strip()
+            ),
+        }
+        simc_sync_ok = True
         _emit(
             stage_callback,
             "simc",
@@ -1988,6 +2117,23 @@ def sync_websim_cache_postgres(include_blizzard=True, stage_callback=None, store
     if gear_status in {"partial", "blocked", "stale"}:
         blockers.extend(gear_catalog.get("blockers") or [f"gear catalog is {gear_status}"])
     blockers = unique_text_list(blockers)
+    if simc_sync_ok:
+        talent_health = {
+            "schemaRevision": TALENT_SCHEMA_REVISION,
+            "simcBuild": simc_counts.get("build") or "",
+            "traitEdgeSource": simc_counts.get("traitEdgeSource") or "",
+            "officialRevision": season.get("seasonRevision") or season.get("revision") or "",
+            "diffStatus": "pending_official_audit" if simc_counts.get("talents") else "blocked",
+            "checkedAt": checked_at,
+        }
+        talent_revision = postgres_talent_catalog_revision(simc_data, simc_counts)
+    else:
+        talent_health = (
+            talent_state.get("talentHealth")
+            if isinstance(talent_state.get("talentHealth"), dict)
+            else {}
+        )
+        talent_revision = str(talent_state.get("talentRevision") or "").strip()
     payload = {
         "ok": not blockers and data_status == "verified",
         "runner": "postgres",
@@ -2004,7 +2150,9 @@ def sync_websim_cache_postgres(include_blizzard=True, stage_callback=None, store
             "schemaRevision": GEAR_CATALOG_REVISION,
             "blockers": ["PostgreSQL gear catalog sync state is missing"],
         },
-        "talentHealth": talent_state.get("talentHealth") if isinstance(talent_state.get("talentHealth"), dict) else {},
+        "talentSchemaRevision": TALENT_SCHEMA_REVISION,
+        "talentRevision": talent_revision,
+        "talentHealth": talent_health,
         "errors": blockers,
         "stages": [
             {

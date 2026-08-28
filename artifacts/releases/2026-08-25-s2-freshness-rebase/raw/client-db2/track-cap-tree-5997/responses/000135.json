@@ -1,0 +1,98 @@
+{
+  "adapterRevision": "s2-limited-db2-capture-adapter-v2",
+  "allowlistRevision": "s2-limited-client-db2-field-allowlist-v1",
+  "bodyBytes": 1117,
+  "bodySha256": "70aebb5a23c098d31e6b639020dea22ca5689f26f666a5f78a71f8c4d999de2c",
+  "capturedAt": "2026-08-26T02:44:16.736059Z",
+  "fieldCoverage": {
+    "ID": {
+      "missingRows": 0,
+      "presentRows": 3
+    },
+    "OrderIndex": {
+      "missingRows": 0,
+      "presentRows": 3
+    },
+    "ParentItemBonusListID": {
+      "missingRows": 0,
+      "presentRows": 3
+    },
+    "Type": {
+      "missingRows": 0,
+      "presentRows": 3
+    },
+    "Value_0": {
+      "missingRows": 0,
+      "presentRows": 3
+    },
+    "Value_1": {
+      "missingRows": 0,
+      "presentRows": 3
+    },
+    "Value_2": {
+      "missingRows": 0,
+      "presentRows": 3
+    },
+    "Value_3": {
+      "missingRows": 0,
+      "presentRows": 3
+    }
+  },
+  "fields": [
+    "ID",
+    "Value_0",
+    "Value_1",
+    "Value_2",
+    "Value_3",
+    "ParentItemBonusListID",
+    "Type",
+    "OrderIndex"
+  ],
+  "filterField": "ParentItemBonusListID",
+  "lastPage": 1,
+  "operator": "exact",
+  "page": 1,
+  "query": {
+    "build": "12.1.0.69299",
+    "filter[ParentItemBonusListID]": "exact:12820"
+  },
+  "responsePath": "responses/000135.json",
+  "rows": [
+    {
+      "ID": 27684,
+      "OrderIndex": 1,
+      "ParentItemBonusListID": 12820,
+      "Type": 34,
+      "Value_0": 614,
+      "Value_1": 971,
+      "Value_2": 0,
+      "Value_3": 0
+    },
+    {
+      "ID": 27686,
+      "OrderIndex": 2,
+      "ParentItemBonusListID": 12820,
+      "Type": 3,
+      "Value_0": 3,
+      "Value_1": 0,
+      "Value_2": 0,
+      "Value_3": 0
+    },
+    {
+      "ID": 30801,
+      "OrderIndex": 0,
+      "ParentItemBonusListID": 12820,
+      "Type": 49,
+      "Value_0": 305,
+      "Value_1": 0,
+      "Value_2": 0,
+      "Value_3": 0
+    }
+  ],
+  "schemaRevision": "s2-limited-db2-response-v1",
+  "sourceUrl": "https://wago.tools/api/db2-find/ItemBonus?build=12.1.0.69299&filter%5BParentItemBonusListID%5D=exact%3A12820",
+  "table": "ItemBonus",
+  "targetKind": "allowlisted_foreign_key",
+  "targetValue": "12820",
+  "total": 3
+}

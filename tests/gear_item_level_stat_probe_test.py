@@ -540,6 +540,73 @@ class GearItemLevelStatProbeTest(unittest.TestCase):
             ["intellect", "stamina", "haste_rating"],
         )
 
+    def test_exact_resolver_retries_with_armor_compatible_profile_after_first_failure(self):
+        from server.gear_item_level_stat_probe import resolve_item_level_stat
+
+        observed_profiles = []
+
+        def run_simc(profile):
+            observed_profiles.append(profile)
+            if 'spec=frost' in profile:
+                return {"ok": False, "errors": ["invalid frost profile"]}
+            return {
+                "ok": True,
+                "checkedAt": "2026-08-26T00:00:00Z",
+                "durationMs": 17,
+                "payload": {
+                    "sim": {
+                        "players": [
+                            {
+                                "gear": {
+                                    "head": {
+                                        "id": "250001",
+                                        "ilevel": 276,
+                                        "stats": {
+                                            "intellect": 100,
+                                            "stamina": 200,
+                                        },
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                },
+            }
+
+        result = resolve_item_level_stat(
+            {
+                **self.item(1),
+                "name": "Probe Helm",
+                "slot": "head",
+                "armorType": "cloth",
+            },
+            276,
+            {"difficultyKey": "hero", "itemLevel": 276},
+            [
+                (
+                    "mage",
+                    "frost",
+                    "Frost",
+                    'mage="Frost"\nspec=frost\nhead=old,id=1\n',
+                ),
+                (
+                    "priest",
+                    "shadow",
+                    "Shadow",
+                    'priest="Shadow"\nspec=shadow\nhead=old,id=1\n',
+                ),
+            ],
+            run_simc=run_simc,
+        )
+
+        self.assertEqual(len(observed_profiles), 2)
+        self.assertIn("spec=frost", observed_profiles[0])
+        self.assertIn("spec=shadow", observed_profiles[1])
+        self.assertEqual(result["probeClassKey"], "priest")
+        self.assertEqual(result["probeSpecKey"], "shadow")
+        self.assertEqual(result["simcItemId"], "250001")
+        self.assertEqual(result["simcItemLevel"], 276)
+
 
 if __name__ == "__main__":
     unittest.main()

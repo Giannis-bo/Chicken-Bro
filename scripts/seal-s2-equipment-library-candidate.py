@@ -121,6 +121,29 @@ def _exact_binding(
     }
 
 
+def _community_release_binding(
+    release: Mapping[str, Any],
+    track_authority: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Bind Candidate Track Authority into the Community exact-check context."""
+
+    descriptor = dict(release)
+    authority = track_authority if isinstance(track_authority, Mapping) else {}
+    track_revision = _text(
+        authority.get("trackAuthorityRevision")
+        or authority.get("ruleRevision")
+    )
+    if track_revision:
+        descriptor["trackAuthorityRevision"] = track_revision
+    gear_rule_revision = _text(authority.get("gearRuleRevision"))
+    if gear_rule_revision:
+        descriptor["gearRuleRevision"] = gear_rule_revision
+    records = authority.get("records")
+    if isinstance(records, list):
+        descriptor["trackRecords"] = _canonical(records)
+    return descriptor
+
+
 def _bind_community_staging_templates(
     community_staging: Mapping[str, Any],
     templates: list[dict[str, Any]],
@@ -142,6 +165,42 @@ def _bind_community_staging_templates(
         for template in merged.get("templates") or []
         if isinstance(template, Mapping)
     ]
+
+
+def _install_candidate_community_template_readers(
+    store: Any,
+    staged_templates: list[dict[str, Any]],
+) -> None:
+    """Bind all community readers to one candidate-only template snapshot."""
+
+    def snapshot_candidate_community_templates(_expected_specs):
+        return copy.deepcopy(staged_templates)
+
+    # Hero projection uses the resolver-only builder reader, while the legacy
+    # path uses the full community reader.  A candidate staging bundle must
+    # constrain both paths to the same immutable input.
+    store.snapshot_staging_community_templates = (
+        snapshot_candidate_community_templates
+    )
+    store.snapshot_staging_community_builder_templates = (
+        snapshot_candidate_community_templates
+    )
+
+    def snapshot_candidate_community_templates_by_ids(template_ids):
+        requested = {
+            _text(template_id)
+            for template_id in template_ids or []
+            if _text(template_id)
+        }
+        return copy.deepcopy([
+            template
+            for template in staged_templates
+            if _text(template.get("templateId")) in requested
+        ])
+
+    store.snapshot_staging_community_templates_by_ids = (
+        snapshot_candidate_community_templates_by_ids
+    )
 
 
 def _require_verified_snapshot(snapshot: Mapping[str, Any], release: Mapping[str, Any]) -> None:
@@ -278,15 +337,10 @@ def main() -> int:
                 staged_templates,
             )
 
-            def snapshot_candidate_community_templates(_expected_specs):
-                return copy.deepcopy(staged_templates)
-
             # Keep the release builder and the live staging tables separate:
             # this override is process-local and only affects this dormant
             # candidate seal.
-            store.snapshot_staging_community_templates = (
-                snapshot_candidate_community_templates
-            )
+            _install_candidate_community_template_readers(store, staged_templates)
         dependencies = _mapping(release.get("dependencyRevisions"))
         if args.community_release_mode == "single-v1":
             # The v1 contract is still the supported import surface: one
@@ -297,7 +351,10 @@ def main() -> int:
             store.community_skip_invalid_public_template_evidence = True
         community = gear_release_tool.build_legacy_community_release(
             store,
-            gear_release_descriptor=dict(release),
+            gear_release_descriptor=_community_release_binding(
+                release,
+                _mapping(candidate.get("trackAuthority")),
+            ),
             # A supplied candidate staging bundle must be validated against
             # the same complete release snapshot that produced it.  The live
             # builder projection is intentionally scoped to the live staging

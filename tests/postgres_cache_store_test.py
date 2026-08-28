@@ -5981,6 +5981,8 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertIn("consecutiveFailureCount", sql)
         self.assertIn(">= 7", sql)
         self.assertIn("lastFailureReason", sql)
+        self.assertIn("'checkedAt', %s::text", sql)
+        self.assertIn("'lastFailureAt', %s::text", sql)
         self.assertIn("= ANY", sql)
         self.assertNotIn("DELETE FROM cache.websim_community_talent_templates", sql)
 
@@ -6000,6 +6002,8 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertEqual(result["updated"], 1)
         self.assertIn("lastSuccessfulSyncAt", sql)
         self.assertIn("consecutiveFailureCount', 0", sql)
+        self.assertIn("'checkedAt', %s::text", sql)
+        self.assertIn("'lastSuccessfulSyncAt', %s::text", sql)
         self.assertIn("= ANY", sql)
 
     def test_community_gear_template_live_health_summary_reads_current_rows(self):
@@ -9838,6 +9842,97 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertIn("INSERT INTO cache.websim_gear_variants", sql)
         self.assertIn("slot, label, source_type, difficulty_key, item_level, simc_options_json, status, blockers_json", sql)
         self.assertIn("INSERT INTO cache.websim_sync_state", sql)
+
+    def test_postgres_native_gear_catalog_writer_excludes_statless_cosmetic_loot(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_loot l": [
+                    (
+                        "loot-1300-9001-111",
+                        "111",
+                        "head",
+                        "Combat Hood",
+                        "1300",
+                        "Dungeon A",
+                        "Dungeon",
+                        "9001",
+                        "Boss A",
+                        {},
+                    ),
+                    (
+                        "loot-1300-9001-268280",
+                        "268280",
+                        "back",
+                        "Cosmetic Cloak",
+                        "1300",
+                        "Dungeon A",
+                        "Dungeon",
+                        "9001",
+                        "Boss A",
+                        {
+                            "item_class": {"id": 4, "name": "Armor"},
+                            "item_subclass": {"id": 5, "name": "Cosmetic"},
+                        },
+                    ),
+                ]
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        state = store.rebuild_websim_gear_catalog_from_loot(
+            {"seasonRevision": "season-pg-rev", "dataStatus": "verified"}
+        )
+
+        sql = "\n".join(conn.cursor_instance.statements)
+        self.assertEqual(state["sourceCount"], 1)
+        self.assertEqual(state["itemCount"], 1)
+        self.assertEqual(state["variantCount"], 1)
+        self.assertIn("cache.websim_items", sql)
+        self.assertNotIn("268280", " ".join(str(param) for params in conn.cursor_instance.params for param in params))
+
+    def test_postgres_observed_item_probe_keeps_alternate_rows_for_candidate_pair(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        store = PostgresCacheStore(lambda: FakeConnection())
+        profiles, item_line, errors = store._observed_item_probe_simc_profiles(
+            {
+                "itemId": "250001",
+                "name": "Probe Helm",
+                "slot": "head",
+                "itemLevel": 289,
+                "armorType": "cloth",
+            },
+            [
+                (
+                    "mage",
+                    "frost",
+                    "Frost invalid",
+                    'mage="Frost"\nspec=frost\nshoulder=first,id=1\n',
+                ),
+                (
+                    "mage",
+                    "frost",
+                    "Frost alternate",
+                    'mage="Frost"\nspec=frost\nshoulder=second,id=2\n',
+                ),
+                (
+                    "priest",
+                    "shadow",
+                    "Shadow",
+                    'priest="Shadow"\nspec=shadow\nshoulder=third,id=3\n',
+                ),
+            ],
+        )
+
+        self.assertEqual(errors, [])
+        self.assertEqual(item_line, "head=probe_helm,id=250001,ilevel=289")
+        self.assertEqual(
+            [(row[1], row[2]) for row in profiles[:3]],
+            [("mage", "frost"), ("mage", "frost"), ("priest", "shadow")],
+        )
+        self.assertIn("shoulder=second,id=2", profiles[1][0])
 
     def test_postgres_native_gear_catalog_promotes_official_loot_from_observed_variant(self):
         from server.postgres_cache_store import PostgresCacheStore

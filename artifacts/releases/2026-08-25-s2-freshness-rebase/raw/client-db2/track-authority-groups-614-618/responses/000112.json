@@ -1,0 +1,172 @@
+{
+  "adapterRevision": "s2-limited-db2-capture-adapter-v2",
+  "allowlistRevision": "s2-limited-client-db2-field-allowlist-v1",
+  "bodyBytes": 2514,
+  "bodySha256": "7f0bb004a9cef59a7f4a266a8428673ad65e91e79161cc5dafa0523aa7e187d3",
+  "capturedAt": "2026-08-26T02:21:55.684836Z",
+  "fieldCoverage": {
+    "Flags": {
+      "missingRows": 0,
+      "presentRows": 9
+    },
+    "ID": {
+      "missingRows": 0,
+      "presentRows": 9
+    },
+    "ItemBonusListGroupID": {
+      "missingRows": 0,
+      "presentRows": 9
+    },
+    "ItemBonusListID": {
+      "missingRows": 0,
+      "presentRows": 9
+    },
+    "ItemExtendedCostID": {
+      "missingRows": 0,
+      "presentRows": 9
+    },
+    "ItemLevelSelectorID": {
+      "missingRows": 0,
+      "presentRows": 9
+    },
+    "ItemLogicalCostGroupID": {
+      "missingRows": 0,
+      "presentRows": 9
+    },
+    "PlayerConditionID": {
+      "missingRows": 0,
+      "presentRows": 9
+    },
+    "SequenceValue": {
+      "missingRows": 0,
+      "presentRows": 9
+    }
+  },
+  "fields": [
+    "ID",
+    "ItemBonusListGroupID",
+    "ItemBonusListID",
+    "ItemLevelSelectorID",
+    "SequenceValue",
+    "ItemExtendedCostID",
+    "PlayerConditionID",
+    "Flags",
+    "ItemLogicalCostGroupID"
+  ],
+  "filterField": "ItemBonusListGroupID",
+  "lastPage": 1,
+  "operator": "exact",
+  "page": 1,
+  "query": {
+    "build": "12.1.0.69299",
+    "filter[ItemBonusListGroupID]": "exact:618"
+  },
+  "responsePath": "responses/000112.json",
+  "rows": [
+    {
+      "Flags": 2,
+      "ID": 4446,
+      "ItemBonusListGroupID": 618,
+      "ItemBonusListID": 12849,
+      "ItemExtendedCostID": 0,
+      "ItemLevelSelectorID": 0,
+      "ItemLogicalCostGroupID": 0,
+      "PlayerConditionID": 0,
+      "SequenceValue": 1
+    },
+    {
+      "Flags": 2,
+      "ID": 4447,
+      "ItemBonusListGroupID": 618,
+      "ItemBonusListID": 12850,
+      "ItemExtendedCostID": 11477,
+      "ItemLevelSelectorID": 0,
+      "ItemLogicalCostGroupID": 0,
+      "PlayerConditionID": 0,
+      "SequenceValue": 2
+    },
+    {
+      "Flags": 2,
+      "ID": 4448,
+      "ItemBonusListGroupID": 618,
+      "ItemBonusListID": 12851,
+      "ItemExtendedCostID": 11478,
+      "ItemLevelSelectorID": 0,
+      "ItemLogicalCostGroupID": 0,
+      "PlayerConditionID": 0,
+      "SequenceValue": 3
+    },
+    {
+      "Flags": 2,
+      "ID": 4449,
+      "ItemBonusListGroupID": 618,
+      "ItemBonusListID": 12852,
+      "ItemExtendedCostID": 11479,
+      "ItemLevelSelectorID": 0,
+      "ItemLogicalCostGroupID": 0,
+      "PlayerConditionID": 0,
+      "SequenceValue": 4
+    },
+    {
+      "Flags": 2,
+      "ID": 4450,
+      "ItemBonusListGroupID": 618,
+      "ItemBonusListID": 12853,
+      "ItemExtendedCostID": 11480,
+      "ItemLevelSelectorID": 0,
+      "ItemLogicalCostGroupID": 0,
+      "PlayerConditionID": 0,
+      "SequenceValue": 5
+    },
+    {
+      "Flags": 2,
+      "ID": 4451,
+      "ItemBonusListGroupID": 618,
+      "ItemBonusListID": 12854,
+      "ItemExtendedCostID": 11481,
+      "ItemLevelSelectorID": 0,
+      "ItemLogicalCostGroupID": 0,
+      "PlayerConditionID": 0,
+      "SequenceValue": 6
+    },
+    {
+      "Flags": 3,
+      "ID": 4452,
+      "ItemBonusListGroupID": 618,
+      "ItemBonusListID": 12855,
+      "ItemExtendedCostID": 0,
+      "ItemLevelSelectorID": 0,
+      "ItemLogicalCostGroupID": 0,
+      "PlayerConditionID": 0,
+      "SequenceValue": 7
+    },
+    {
+      "Flags": 3,
+      "ID": 4453,
+      "ItemBonusListGroupID": 618,
+      "ItemBonusListID": 12856,
+      "ItemExtendedCostID": 0,
+      "ItemLevelSelectorID": 0,
+      "ItemLogicalCostGroupID": 0,
+      "PlayerConditionID": 0,
+      "SequenceValue": 8
+    },
+    {
+      "Flags": 3,
+      "ID": 5499,
+      "ItemBonusListGroupID": 618,
+      "ItemBonusListID": 13848,
+      "ItemExtendedCostID": 0,
+      "ItemLevelSelectorID": 0,
+      "ItemLogicalCostGroupID": 0,
+      "PlayerConditionID": 0,
+      "SequenceValue": 9
+    }
+  ],
+  "schemaRevision": "s2-limited-db2-response-v1",
+  "sourceUrl": "https://wago.tools/api/db2-find/ItemBonusListGroupEntry?build=12.1.0.69299&filter%5BItemBonusListGroupID%5D=exact%3A618",
+  "table": "ItemBonusListGroupEntry",
+  "targetKind": "allowlisted_foreign_key",
+  "targetValue": "618",
+  "total": 9
+}

@@ -16,7 +16,9 @@ def _canonical(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
 
-def _load_rows(capture_root: Path) -> dict[str, list[dict[str, Any]]]:
+def _load_rows(
+    capture_root: Path,
+) -> tuple[dict[str, list[dict[str, Any]]], dict[str, Any]]:
     root = Path(capture_root).expanduser().resolve()
     manifest = json.loads((root / "capture-manifest.json").read_text(encoding="utf-8"))
     if manifest.get("status") != "captured":
@@ -37,7 +39,7 @@ def _load_rows(capture_root: Path) -> dict[str, list[dict[str, Any]]]:
         for row in table_rows:
             unique[_canonical(row)] = row
         rows[table] = list(unique.values())
-    return rows
+    return rows, manifest
 
 
 def _recipe_without_output_record(
@@ -115,7 +117,7 @@ def _recipe_without_output_record(
 
 
 def derive_crafted_output_targets(capture_root: Path) -> dict[str, Any]:
-    rows = _load_rows(capture_root)
+    rows, manifest = _load_rows(capture_root)
     spells = {
         str(row["ID"]): str(row["Spell"])
         for row in rows.get("SkillLineAbility", [])
@@ -184,7 +186,11 @@ def derive_crafted_output_targets(capture_root: Path) -> dict[str, Any]:
         "schemaRevision": "s2-crafted-output-targets-v1",
         "status": "verified" if item_ids and not unresolved_records else "partial" if item_ids else "blocked",
         "sourceCaptureRoot": str(Path(capture_root).expanduser().resolve()),
-        "sourceDb2Build": "12.1.0.68914",
+        "sourceDb2Build": str(
+            manifest.get("clientBuild")
+            or manifest.get("sourceDb2Build")
+            or ""
+        ),
         "recipeRootCount": len(spells),
         "recipeOutputEdgeCount": len(recipe_output_edges),
         "recipeWithoutOutputCount": len(recipes_without_output),

@@ -267,8 +267,8 @@ STALE_SEASON_DUNGEON_MARKERS = [
 OFFICIAL_SEASON_SOURCE_REFS = [
     {
         "name": "Blizzard News",
-        "url": "https://news.blizzard.com/en-us/article/24266321/midnight-season-1-mythic-now-available",
-        "note": "Official Midnight Season 1 Mythic+ dungeon rotation.",
+        "url": "https://news.blizzard.com/en-us/article/24294369/the-shadows-deepen-midnight-season-2-begins-august-18",
+        "note": "Official Midnight Season 2 scope and launch announcement.",
     },
     {
         "name": "Battle.net Game Data API",
@@ -1424,6 +1424,8 @@ ITEM_STAT_LABELS_ZH = {
     "armor": "护甲",
     "avoidance": "闪避",
     "avoidance_rating": "闪避",
+    "dodge": "闪避",
+    "dodge_rating": "闪避",
     "leech": "吸血",
     "leech_rating": "吸血",
     "speed": "速度",
@@ -1448,6 +1450,7 @@ SIMC_GEAR_STAT_KEYS = [
     "versatility_rating",
     "leech_rating",
     "avoidance_rating",
+    "dodge_rating",
     "speed_rating",
     "crit",
     "critical_strike",
@@ -1456,6 +1459,7 @@ SIMC_GEAR_STAT_KEYS = [
     "versatility",
     "leech",
     "avoidance",
+    "dodge",
     "speed",
 ]
 
@@ -5626,6 +5630,7 @@ def resolve_current_mythic_season(token, region=DEFAULT_REGION, locale=DEFAULT_L
     label = (
         season_detail.get("name")
         or season_ref.get("name")
+        or season_detail.get("season_name")
         or os.environ.get("WOW_WEBSIM_CURRENT_SEASON_LABEL")
         or "至暗之夜 Season 1"
     )
@@ -7727,6 +7732,11 @@ def extract_simc_data_from_tar(tar_path):
         for member in tar.getmembers():
             if len(result["presets"]) >= preset_limit:
                 break
+            # SimulationCraft removed the MID1 profile batch after its talent hashes changed.
+            # Keep the generic MID/TWW/PR import contract for synthetic or older archives, but
+            # never expose the concrete removed MID1 directory/file members.
+            if re.search(r"/profiles/MID1(?:/|_)", member.name):
+                continue
             if not re.search(r"/profiles/(MID|TWW|PR).+\.simc$", member.name):
                 continue
             extracted = tar.extractfile(member)
@@ -7774,7 +7784,7 @@ def extract_simc_generated_data():
     if tar_path:
         data = extract_simc_data_from_tar(tar_path)
         if data["talents"]:
-            return data
+            return augment_simc_profile_preset_matrix(data)
 
     trait_file = current_simc_trait_data_file()
     if trait_file:
@@ -8009,6 +8019,7 @@ def sync_simc_generated_data(conn):
     return {
         "talents": len(data["talents"]),
         "presets": len(data["presets"]),
+        "profiles": len(data["presets"]),
         "spellDetails": len(data.get("spellDetails", [])),
         "spellIcons": int(data.get("spellIcons", 0) or 0),
         "spellLocalizations": int(data.get("spellLocalizations", 0) or 0),
@@ -8020,6 +8031,17 @@ def sync_simc_generated_data(conn):
         "spellLocalizationSource": data.get("spellLocalizationSource", ""),
         "traitEdgeSource": data.get("traitEdgeSource", ""),
         "traitEdgeError": data.get("traitEdgeError", ""),
+        "profileFallbackCount": int(data.get("profileFallbackCount", 0) or 0),
+        "profileFallbackSpecs": sorted(
+            str(spec_pair or "").strip()
+            for spec_pair in (data.get("profileFallbackSpecs") or [])
+            if str(spec_pair or "").strip()
+        ),
+        "profileRetiredBatches": sorted(
+            str(batch or "").strip().upper()
+            for batch in ((data.get("profileRetirement") or {}).get("retiredBatches") or [])
+            if str(batch or "").strip()
+        ),
     }
 
 
@@ -8793,16 +8815,27 @@ def item_level_probe_profile_candidates(item):
 
     if armor_type == "cloth":
         add("mage", "frost")
+        add("priest", "shadow")
+        add("warlock", "affliction")
     elif armor_type == "leather":
         add("druid", "balance")
         add("druid", "feral")
         add("rogue", "subtlety")
+        add("monk", "windwalker")
+        add("demonhunter", "devourer")
     elif armor_type == "mail":
         add("shaman", "elemental")
         add("hunter", "beast_mastery")
+        add("evoker", "devastation")
+        add("shaman", "enhancement")
+        add("hunter", "marksmanship")
+        add("hunter", "survival")
     elif armor_type == "plate":
         add("warrior", "arms")
         add("paladin", "retribution")
+        add("deathknight", "blood")
+        add("deathknight", "frost")
+        add("deathknight", "unholy")
 
     if slot in {"trinket1", "trinket2", "finger1", "finger2", "neck"}:
         if stat_keys & {"intellect", "int", "intagi", "agiint", "strint", "stragiint"}:
@@ -8818,6 +8851,8 @@ def item_level_probe_profile_candidates(item):
     if slot == "main_hand":
         if "warglaive" in weapon_type:
             add("demonhunter", "havoc")
+            add("demonhunter", "devourer")
+            add("demonhunter", "vengeance")
         elif "staff" in weapon_type:
             if stat_keys & {"agility", "agi", "agiint", "intagi"}:
                 add("druid", "feral")
@@ -8832,22 +8867,39 @@ def item_level_probe_profile_candidates(item):
             if stat_keys & {"strength", "str"}:
                 add("warrior", "arms")
                 add("paladin", "retribution")
+                add("deathknight", "blood")
             if stat_keys & {"agility", "agi"}:
                 add("rogue", "subtlety")
             if stat_keys & {"intellect", "int"}:
                 add("shaman", "elemental")
+                add("evoker", "devastation")
         add("warrior", "arms")
         add("mage", "frost")
+        add("rogue", "assassination")
+        add("druid", "balance")
     elif slot == "off_hand":
         if "shield" in weapon_type:
             add("paladin", "protection")
             add("shaman", "elemental")
+            add("shaman", "enhancement")
         elif "held" in weapon_type:
             add("mage", "frost")
             add("shaman", "elemental")
+            add("priest", "shadow")
+            add("warlock", "affliction")
         add("mage", "frost")
 
-    for fallback in [("mage", "frost"), ("shaman", "elemental"), ("warrior", "arms"), ("druid", "balance")]:
+    for fallback in [
+        ("rogue", "assassination"),
+        ("druid", "balance"),
+        ("priest", "shadow"),
+        ("evoker", "devastation"),
+        ("deathknight", "blood"),
+        ("shaman", "enhancement"),
+        ("mage", "frost"),
+        ("shaman", "elemental"),
+        ("warrior", "arms"),
+    ]:
         add(*fallback)
     return candidates
 
@@ -8872,10 +8924,10 @@ def item_level_probe_main_hand_removes_offhand(item):
     )
 
 
-def simc_profile_with_item_level_probe(conn, item, item_level):
+def _simc_profiles_with_item_level_probe(conn, item, item_level):
     candidates = item_level_probe_profile_candidates(item)
     if not candidates:
-        return "", "", "", ""
+        return []
     rows = conn.execute(
         """
         SELECT class_key, spec_key, name, profile
@@ -8886,82 +8938,93 @@ def simc_profile_with_item_level_probe(conn, item, item_level):
     ).fetchall()
     by_pair = {}
     for class_key, spec_key, name, profile in rows:
-        by_pair.setdefault((str(class_key or ""), str(spec_key or "")), (str(name or ""), str(profile or "")))
+        pair = (str(class_key or ""), str(spec_key or ""))
+        by_pair.setdefault(pair, []).append((str(name or ""), str(profile or "")))
     simc_slot = official_item_level_probe_simc_slot(item.get("slot"))
     if not simc_slot:
-        return "", "", "", ""
+        return []
     safe_name = simc_safe_item_name(item.get("name") or f"item_{item.get('itemId')}", item.get("itemId") or "")
     item_line = f"{simc_slot}={safe_name},id={item.get('itemId')},ilevel={int(item_level or 0)}"
     remove_slots = {simc_slot}
     if simc_slot == "main_hand" and item_level_probe_main_hand_removes_offhand(item):
         remove_slots.add("off_hand")
+    probe_override_keys = {"iterations", "max_time", "target_error", "calculate_scale_factors", "json"}
+    profiles = []
     for class_key, spec_key in candidates:
-        preset = by_pair.get((class_key, spec_key))
-        if not preset:
-            continue
-        _preset_name, profile = preset
-        lines = []
-        probe_override_keys = {"iterations", "max_time", "target_error", "calculate_scale_factors", "json"}
-        for line in str(profile or "").splitlines():
-            stripped = line.strip()
-            if not stripped or "=" not in stripped:
+        for _preset_name, profile in by_pair.get((class_key, spec_key), []):
+            lines = []
+            for line in str(profile or "").splitlines():
+                stripped = line.strip()
+                if not stripped or "=" not in stripped:
+                    lines.append(line)
+                    continue
+                head = stripped.split("=", 1)[0].strip()
+                if head in probe_override_keys:
+                    continue
+                if head in remove_slots:
+                    continue
                 lines.append(line)
-                continue
-            head = stripped.split("=", 1)[0].strip()
-            if head in probe_override_keys:
-                continue
-            if head in remove_slots:
-                continue
-            lines.append(line)
-        lines.extend([
-            "iterations=1",
-            "max_time=1",
-            "target_error=0.5",
-            "calculate_scale_factors=0",
-        ])
-        lines.append(item_line)
-        return "\n".join(lines).strip() + "\n", class_key, spec_key, item_line
-    return "", "", "", ""
+            lines.extend([
+                "iterations=1",
+                "max_time=1",
+                "target_error=0.5",
+                "calculate_scale_factors=0",
+            ])
+            lines.append(item_line)
+            profiles.append(("\n".join(lines).strip() + "\n", class_key, spec_key, item_line))
+    return profiles
+
+
+def simc_profile_with_item_level_probe(conn, item, item_level):
+    profiles = _simc_profiles_with_item_level_probe(conn, item, item_level)
+    return profiles[0] if profiles else ("", "", "", "")
 
 
 def resolve_item_level_probe_stat_payload(conn, item, item_level, track=None):
-    profile, class_key, spec_key, item_line = simc_profile_with_item_level_probe(conn, item, item_level)
-    if not profile:
+    profiles = _simc_profiles_with_item_level_probe(conn, item, item_level)
+    if not profiles:
         return {"error": "no compatible SimC profile preset found"}
-    result = run_websim_profile_preset_simc_json(profile)
-    if not result.get("ok"):
-        return {
-            "error": str(result.get("error") or "SimC item-level probe failed")[:1000],
-            "simcProfile": item_line,
-            "classKey": class_key,
-            "specKey": spec_key,
-        }
-    gear_by_slot = simc_json_gear_stats_by_slot(result.get("payload") or {})
-    stat_payload = simc_observed_variant_stat_payload(
-        {
-            "itemId": item.get("itemId"),
-            "slot": item.get("slot"),
-            "ilevel": item_level,
-        },
-        gear_by_slot,
-    )
-    if not stat_payload:
-        return {
-            "error": "SimC JSON did not include target item stats",
-            "simcProfile": item_line,
-            "classKey": class_key,
-            "specKey": spec_key,
-        }
-    stat_payload.update(
-        {
-            "simcProfile": item_line,
-            "probeClassKey": class_key,
-            "probeSpecKey": spec_key,
-            "simcCheckedAt": result.get("checkedAt") or utc_now(),
-            "simcDurationMs": result.get("durationMs", 0),
-        }
-    )
-    return stat_payload
+    last_failure = None
+    for profile, class_key, spec_key, item_line in profiles:
+        result = run_websim_profile_preset_simc_json(profile)
+        if not isinstance(result, dict) or not result.get("ok"):
+            last_failure = {
+                "error": str((result or {}).get("error") or "SimC item-level probe failed")[:1000]
+                if isinstance(result, dict)
+                else "SimC item-level probe failed",
+                "simcProfile": item_line,
+                "classKey": class_key,
+                "specKey": spec_key,
+            }
+            continue
+        gear_by_slot = simc_json_gear_stats_by_slot(result.get("payload") or {})
+        stat_payload = simc_observed_variant_stat_payload(
+            {
+                "itemId": item.get("itemId"),
+                "slot": item.get("slot"),
+                "ilevel": item_level,
+            },
+            gear_by_slot,
+        )
+        if not stat_payload:
+            last_failure = {
+                "error": "SimC JSON did not include target item stats",
+                "simcProfile": item_line,
+                "classKey": class_key,
+                "specKey": spec_key,
+            }
+            continue
+        stat_payload.update(
+            {
+                "simcProfile": item_line,
+                "probeClassKey": class_key,
+                "probeSpecKey": spec_key,
+                "simcCheckedAt": result.get("checkedAt") or utc_now(),
+                "simcDurationMs": result.get("durationMs", 0),
+            }
+        )
+        return stat_payload
+    return last_failure or {"error": "SimC item-level probe failed"}
 
 
 def backfill_official_item_level_variants_for_instance(conn, instance_id, source_type="raid", stat_resolver=None):
@@ -11052,14 +11115,19 @@ def sync_websim_gear_catalog(conn, season=None):
     rows = conn.execute(
         """
         SELECT l.id, l.item_id, l.slot, l.name, l.instance_id, COALESCE(i.name, ''),
-               COALESCE(i.category, ''), l.encounter_id, COALESCE(e.name, '')
+               COALESCE(i.category, ''), l.encounter_id, COALESCE(e.name, ''),
+               COALESCE(wi.payload_json, '{}')
         FROM websim_loot l
         LEFT JOIN websim_instances i ON i.id = l.instance_id
         LEFT JOIN websim_encounters e ON e.id = l.encounter_id
+        LEFT JOIN websim_items wi ON wi.id = l.item_id
         ORDER BY i.name, e.name, l.name
         """
     ).fetchall()
     for row in rows:
+        metadata_payload = safe_json_loads(row[9], {})
+        if item_payload_is_cosmetic_statless(metadata_payload):
+            continue
         source_type = "raid" if str(row[6]).lower() == "raid" else "dungeon"
         label = " - ".join([part for part in [row[8], row[5]] if part]) or row[3] or "Official loot"
         source_payload = current_season_loot_source_payload(source_type, row[4], row[1], row[6])
@@ -12433,19 +12501,106 @@ def enrich_talent_rank_entries(conn, nodes):
     return nodes
 
 
-def fallback_presets(class_key="mage", spec_key="arcane"):
+SIMC_PROFILE_RETIREMENT_SCHEMA_REVISION = "simc-profile-retirement-v1"
+SIMC_PROFILE_RETIREMENT_POLICY = {
+    "schemaRevision": SIMC_PROFILE_RETIREMENT_SCHEMA_REVISION,
+    "retiredBatches": ["MID1"],
+    "reason": "SimulationCraft removed MID1 after its talent hashes changed",
+}
+SIMC_PROFILE_TANK_SPECS = {
+    "deathknight:blood",
+    "demonhunter:vengeance",
+    "druid:guardian",
+    "monk:brewmaster",
+    "paladin:protection",
+    "warrior:protection",
+}
+SIMC_PROFILE_HEAL_SPECS = {
+    "druid:restoration",
+    "evoker:preservation",
+    "monk:mistweaver",
+    "paladin:holy",
+    "priest:discipline",
+    "priest:holy",
+    "shaman:restoration",
+}
+SIMC_PROFILE_SPELL_SPECS = {
+    "demonhunter:devourer",
+    "druid:balance",
+    "evoker:augmentation",
+    "evoker:devastation",
+    "mage:arcane",
+    "mage:fire",
+    "mage:frost",
+    "priest:shadow",
+    "shaman:elemental",
+    "warlock:affliction",
+    "warlock:demonology",
+    "warlock:destruction",
+}
+
+
+def simc_runtime_baseline_profile(class_key="mage", spec_key="arcane"):
+    class_key = slugify(class_key, "mage")
+    spec_key = slugify(spec_key, "arcane")
+    spec_pair = f"{class_key}:{spec_key}"
+    if spec_pair in SIMC_PROFILE_TANK_SPECS:
+        role, position = "tank", "front"
+    elif spec_pair in SIMC_PROFILE_HEAL_SPECS:
+        role, position = "heal", "ranged_back"
+    elif spec_pair in SIMC_PROFILE_SPELL_SPECS:
+        role, position = "spell", "ranged_back"
+    else:
+        role, position = "attack", "back"
+    label = SPEC_LABELS.get(spec_key, spec_key.replace("_", " ").title()).replace(" ", "_")
     profile = "\n".join(
         [
-            f'{class_key}="WebSim_{SPEC_LABELS.get(spec_key, spec_key).replace(" ", "_")}"',
+            f'{class_key}="WebSim_{class_key}_{spec_key}_Baseline"',
             f"spec={spec_key}",
             "level=90",
             f"race={DEFAULT_RACE_BY_CLASS.get(class_key, 'troll')}",
-            "role=spell",
-            "position=back",
-            "talents=C4DAAAAAAAAAAAAAAAAAAAAAAYGGLzMzswMzQzMzAAAwAAgAmZmZZZmZYBAgtxMzMmtFLzMzYmxYMzMGLMzMjZAAGAAAzsAAmBADD",
+            f"role={role}",
+            f"position={position}",
         ]
     )
-    return [{"id": f"fallback-{class_key}-{spec_key}", "classKey": class_key, "specKey": spec_key, "name": "WebSim 入门构筑", "profile": profile}]
+    return {
+        "id": f"simc-runtime-baseline-{class_key}-{spec_key}",
+        "classKey": class_key,
+        "specKey": spec_key,
+        "name": f"SimC runtime baseline - {label}",
+        "profile": profile,
+        "source": "simulationcraft_runtime_baseline",
+        "profileKind": "runtime_baseline",
+        "profileQuality": "initialization_only",
+    }
+
+
+def augment_simc_profile_preset_matrix(data):
+    data = data if isinstance(data, dict) else {}
+    presets = [preset for preset in (data.get("presets") or []) if isinstance(preset, dict)]
+    existing_pairs = {
+        f'{str(preset.get("classKey") or "").strip()}:{str(preset.get("specKey") or "").strip()}'
+        for preset in presets
+        if str(preset.get("classKey") or "").strip()
+        and str(preset.get("specKey") or "").strip()
+        and str(preset.get("profile") or "").strip()
+    }
+    fallback_specs = []
+    for spec_pair in expected_spec_pairs():
+        if spec_pair in existing_pairs:
+            continue
+        class_key, spec_key = spec_pair.split(":", 1)
+        presets.append(simc_runtime_baseline_profile(class_key, spec_key))
+        fallback_specs.append(spec_pair)
+    data["presets"] = presets
+    data["profileFallbackCount"] = len(fallback_specs)
+    data["profileFallbackSpecs"] = sorted(fallback_specs)
+    data["profileRetirement"] = dict(SIMC_PROFILE_RETIREMENT_POLICY)
+    return data
+
+
+def fallback_presets(class_key="mage", spec_key="arcane"):
+    return [simc_runtime_baseline_profile(class_key, spec_key)]
 
 
 def get_websim_bootstrap(conn):
@@ -13740,6 +13895,21 @@ def wcl_hero_selector_trait_ids(class_key, spec_key, hero_key):
     }
 
 
+def wcl_hero_selector_trait_ids_for_spec(class_key, spec_key):
+    class_key = slugify(class_key, "")
+    spec_key = slugify(spec_key, "")
+    prefix = f"{class_key}:{spec_key}:"
+    selector_ids = set()
+    for key, values in load_wcl_hero_selector_trait_ids().items():
+        if str(key).startswith(prefix):
+            selector_ids.update(
+                positive_int(value)
+                for value in values or []
+                if positive_int(value)
+            )
+    return selector_ids
+
+
 def is_wcl_hero_selector_loadout_entry(template, entry):
     if not isinstance(template, dict) or not isinstance(entry, dict):
         return False
@@ -13751,8 +13921,7 @@ def is_wcl_hero_selector_loadout_entry(template, entry):
         return False
     class_key = slugify(template.get("classKey"), "")
     spec_key = slugify(template.get("specKey"), "")
-    hero_key = hero_tree_for(class_key, spec_key, slugify(template.get("heroKey"), ""))
-    return talent_id in wcl_hero_selector_trait_ids(class_key, spec_key, hero_key)
+    return talent_id in wcl_hero_selector_trait_ids_for_spec(class_key, spec_key)
 
 
 def skipped_structured_entry(entry, reason):
@@ -16721,6 +16890,7 @@ def talent_catalog_revision_from_counts(counts, sync_state=None):
                 "coveredSpellCount": (counts.get("spellDetailCoverage") or {}).get("coveredSpellCount") or 0,
                 "unresolvedDescriptionCount": (counts.get("spellDetailCoverage") or {}).get("unresolvedDescriptionCount") or 0,
                 "simcBuild": simc_state.get("build") or simc_state.get("version") or "",
+                "profileFallbackCount": int_or_zero(simc_state.get("profileFallbackCount")),
             },
             sort_keys=True,
         ).encode("utf-8")
@@ -16735,6 +16905,7 @@ def talent_catalog_health_payload(conn):
     simc_state = sync_state.get("simc") if isinstance(sync_state.get("simc"), dict) else {}
     community_state = community_talent_sync_state(conn)
     spell_coverage = counts.get("spellDetailCoverage") or {}
+    profile_fallback_count = int_or_zero(simc_state.get("profileFallbackCount"))
     blockers = []
     if not counts.get("talentCount"):
         blockers.append("talent catalog has no local talent nodes")
@@ -16755,6 +16926,11 @@ def talent_catalog_health_payload(conn):
         blockers.append(f"talent spell icons missing for {spell_coverage.get('missingIconCount')} talent spells")
     if counts.get("talentCount") and counts.get("profilePresetCount", 0) == 0:
         blockers.append("talent catalog has no SimC profile presets")
+    if profile_fallback_count:
+        blockers.append(
+            "talent catalog includes "
+            f"{profile_fallback_count} runtime-baseline SimC profiles; optimized presets are still missing"
+        )
     top_blockers = [{"reason": reason, "count": 1} for reason in blockers[:8]]
     status = "blocked" if not counts.get("talentCount") else "partial"
     checked_at = sync_state.get("checkedAt") or sync_state.get("updatedAt") or counts.get("updatedAt") or ""
@@ -16780,7 +16956,7 @@ def talent_catalog_health_payload(conn):
         and not spell_coverage.get("unresolvedDescriptionCount")
         and not spell_coverage.get("missingIconCount")
     )
-    preset_ready = counts.get("profilePresetCount", 0) > 0
+    preset_ready = counts.get("profilePresetCount", 0) > 0 and profile_fallback_count == 0
     encoding_ready = rule_ready
     rule_readiness = {
         "source": "simulationcraft" if counts.get("talentCount") else "none",
@@ -16832,6 +17008,7 @@ def talent_catalog_health_payload(conn):
             "heroTreeCount": counts.get("heroTreeCount") or 0,
             "treeTypeCounts": counts.get("treeTypeCounts") or {},
             "profilePresetCount": counts.get("profilePresetCount") or 0,
+            "profileFallbackCount": profile_fallback_count,
             "communityTemplateCount": counts.get("communityTemplateCount") or 0,
             "communityTemplateStatusCounts": counts.get("communityTemplateStatusCounts") or {},
             "communityTemplateSourceStatusCounts": counts.get("communityTemplateSourceStatusCounts") or {},

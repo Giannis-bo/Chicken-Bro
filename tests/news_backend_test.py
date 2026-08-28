@@ -6797,6 +6797,41 @@ class NewsBackendTest(unittest.TestCase):
         self.assertNotIn("rawProfile", dumped)
         self.assertNotIn("secret", dumped.lower())
 
+    def test_lightweight_template_evidence_audit_keeps_fresh_rows_after_scan_gap(self):
+        audit = self.backend.lightweight_template_evidence_audit_payload(
+            community_state={
+                "scanCoverage": {
+                    "totalSpecCount": 40,
+                    "coveredSpecCount": 39,
+                    "totalHeroSlotCount": 80,
+                    "coveredHeroSlotCount": 79,
+                    "blockedHeroSlotCount": 1,
+                },
+                "coverageMatrix": {
+                    "verifiedHeroSlotCount": 79,
+                    "totalHeroSlotCount": 80,
+                    "blockedHeroSlotCount": 1,
+                },
+                "templates": {"verified": 80},
+            },
+            community_sync_run={},
+            effective_talent_coverage={
+                "source": "live_verified_rows",
+                "coveredSpecCount": 40,
+                "coveredHeroSlotCount": 80,
+                "totalHeroSlotCount": 80,
+                "pendingCollectionHeroSlotCount": 0,
+                "blockedHeroSlotCount": 0,
+            },
+        )
+
+        summary = audit["summary"]
+        self.assertEqual(summary["realCommunityTalentCoveredSpecCount"], 40)
+        self.assertEqual(summary["realCommunityTalentCoveredHeroSlotCount"], 80)
+        self.assertEqual(summary["communityTalentBlockedHeroSlotCount"], 0)
+        self.assertEqual(audit["latestScanCoverage"]["coveredHeroSlotCount"], 79)
+        self.assertEqual(audit["effectiveCoverage"]["source"], "live_verified_rows")
+
     def test_data_health_websim_sync_uses_ok_state_without_legacy_counts(self):
         import server.websim_payload as websim_payload
 

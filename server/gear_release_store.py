@@ -2182,6 +2182,7 @@ class GearReleaseStore:
                                )) AS normalized_slot
                         FROM cache.websim_gear_release_variants
                         WHERE release_id = %s
+                          AND item_id = ANY(%s::text[])
                     ), exact_variant_ids AS MATERIALIZED (
                         SELECT DISTINCT variant.variant_id
                         FROM candidate_variants variant
@@ -2259,7 +2260,7 @@ class GearReleaseStore:
                       ON selected.variant_id = variant.variant_id
                     ORDER BY variant.variant_id
                     """,
-                    (normalized,),
+                    (normalized, reference_item_ids),
                     lambda row: {
                         "variantId": _text(row[0]),
                         "itemId": _text(row[1]),

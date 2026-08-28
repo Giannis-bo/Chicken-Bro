@@ -1,0 +1,48 @@
+{
+  "adapterRevision": "s2-limited-db2-capture-adapter-v2",
+  "allowlistRevision": "s2-limited-client-db2-field-allowlist-v1",
+  "bodyBytes": 760,
+  "bodySha256": "0c900f73fea836e3b456f6de76d17480b8fc38a72c76608128368753c597bc4c",
+  "capturedAt": "2026-08-26T02:44:16.736059Z",
+  "fieldCoverage": {
+    "CurveID": {
+      "missingRows": 0,
+      "presentRows": 1
+    },
+    "ID": {
+      "missingRows": 0,
+      "presentRows": 1
+    },
+    "Offset": {
+      "missingRows": 0,
+      "presentRows": 1
+    }
+  },
+  "fields": [
+    "ID",
+    "CurveID",
+    "Offset"
+  ],
+  "filterField": "ID",
+  "lastPage": 1,
+  "operator": "exact",
+  "page": 1,
+  "query": {
+    "build": "12.1.0.69299",
+    "filter[ID]": "exact:68"
+  },
+  "responsePath": "responses/000187.json",
+  "rows": [
+    {
+      "CurveID": 109508,
+      "ID": 68,
+      "Offset": 6
+    }
+  ],
+  "schemaRevision": "s2-limited-db2-response-v1",
+  "sourceUrl": "https://wago.tools/api/db2-find/ItemOffsetCurve?build=12.1.0.69299&filter%5BID%5D=exact%3A68",
+  "table": "ItemOffsetCurve",
+  "targetKind": "allowlisted_foreign_key",
+  "targetValue": "68",
+  "total": 1
+}

@@ -2183,15 +2183,22 @@ def community_candidate_exact_progression_problems(
         gear_snapshot,
         gear_release_descriptor,
     )
+    release_dependencies = (
+        gear_release_descriptor.get("dependencyRevisions")
+        if isinstance(gear_release_descriptor.get("dependencyRevisions"), dict)
+        else {}
+    )
     binding = {
         "seasonRevision": _text(gear_release_descriptor.get("seasonRevision")),
         "gearRuleRevision": _text(
-            (
-                gear_release_descriptor.get("dependencyRevisions")
-                if isinstance(gear_release_descriptor.get("dependencyRevisions"), dict)
-                else {}
-            ).get("gearRuleRevision")
+            gear_release_descriptor.get("gearRuleRevision")
+            or release_dependencies.get("gearRuleRevision")
         ),
+        "trackAuthorityRevision": _text(
+            gear_release_descriptor.get("trackAuthorityRevision")
+            or release_dependencies.get("trackAuthorityRevision")
+        ),
+        "trackRecords": _canonical(gear_release_descriptor.get("trackRecords") or []),
     }
 
     def problem(code: str, path: str, message: str) -> dict[str, str]:

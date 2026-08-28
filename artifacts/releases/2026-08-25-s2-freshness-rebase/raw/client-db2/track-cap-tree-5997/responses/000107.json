@@ -1,0 +1,48 @@
+{
+  "adapterRevision": "s2-limited-db2-capture-adapter-v2",
+  "allowlistRevision": "s2-limited-client-db2-field-allowlist-v1",
+  "bodyBytes": 723,
+  "bodySha256": "00ae64c9a0d5b25cce61fd06de0a36b996577ac3240e24e6de4b62aaccdc874e",
+  "capturedAt": "2026-08-26T02:44:16.736059Z",
+  "fieldCoverage": {
+    "Flags": {
+      "missingRows": 0,
+      "presentRows": 1
+    },
+    "ID": {
+      "missingRows": 0,
+      "presentRows": 1
+    },
+    "Type": {
+      "missingRows": 0,
+      "presentRows": 1
+    }
+  },
+  "fields": [
+    "ID",
+    "Type",
+    "Flags"
+  ],
+  "filterField": "ID",
+  "lastPage": 1,
+  "operator": "exact",
+  "page": 1,
+  "query": {
+    "build": "12.1.0.69299",
+    "filter[ID]": "exact:88583"
+  },
+  "responsePath": "responses/000107.json",
+  "rows": [
+    {
+      "Flags": 0,
+      "ID": 88583,
+      "Type": 0
+    }
+  ],
+  "schemaRevision": "s2-limited-db2-response-v1",
+  "sourceUrl": "https://wago.tools/api/db2-find/Curve?build=12.1.0.69299&filter%5BID%5D=exact%3A88583",
+  "table": "Curve",
+  "targetKind": "allowlisted_foreign_key",
+  "targetValue": "88583",
+  "total": 1
+}

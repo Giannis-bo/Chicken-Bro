@@ -186,6 +186,7 @@ try:
         is_active_community_observed_template,
         item_level_probe_main_hand_removes_offhand,
         item_level_probe_profile_candidates,
+        item_payload_is_cosmetic_statless,
         localized_difficulty_label,
         official_item_level_probe_simc_slot,
         item_slot_from_payload,
@@ -281,6 +282,7 @@ except ImportError:
         is_active_community_observed_template,
         item_level_probe_main_hand_removes_offhand,
         item_level_probe_profile_candidates,
+        item_payload_is_cosmetic_statless,
         localized_difficulty_label,
         official_item_level_probe_simc_slot,
         item_slot_from_payload,
@@ -3928,10 +3930,12 @@ class PostgresCacheStore:
                 cur.execute(
                     """
                     SELECT l.id, l.item_id, l.slot, l.name, l.instance_id, COALESCE(i.name, ''),
-                           COALESCE(i.category, ''), l.encounter_id, COALESCE(e.name, '')
+                           COALESCE(i.category, ''), l.encounter_id, COALESCE(e.name, ''),
+                           COALESCE(item.payload_json, '{}'::jsonb)
                     FROM cache.websim_loot l
                     LEFT JOIN cache.websim_instances i ON i.id = l.instance_id
                     LEFT JOIN cache.websim_encounters e ON e.id = l.encounter_id
+                    LEFT JOIN cache.websim_items item ON item.id = l.item_id
                     ORDER BY i.name, e.name, l.name
                     """
                 )
@@ -3948,6 +3952,9 @@ class PostgresCacheStore:
                 variant_keys = set()
                 source_count = 0
                 for row in rows:
+                    metadata_payload = _json_value(row[9] if len(row) > 9 else {}, {})
+                    if item_payload_is_cosmetic_statless(metadata_payload):
+                        continue
                     loot_id = str(row[0] or "")
                     item_id = str(row[1] or "")
                     if not loot_id or not item_id:
@@ -4446,6 +4453,17 @@ class PostgresCacheStore:
             "spellLocalizationSource": data.get("spellLocalizationSource") or "",
             "traitEdgeSource": data.get("traitEdgeSource") or "",
             "traitEdgeError": data.get("traitEdgeError") or "",
+            "profileFallbackCount": _int_value(data.get("profileFallbackCount")),
+            "profileFallbackSpecs": sorted(
+                str(spec_pair or "").strip()
+                for spec_pair in (data.get("profileFallbackSpecs") or [])
+                if str(spec_pair or "").strip()
+            ),
+            "profileRetiredBatches": sorted(
+                str(batch or "").strip().upper()
+                for batch in ((data.get("profileRetirement") or {}).get("retiredBatches") or [])
+                if str(batch or "").strip()
+            ),
         }
 
     def _status_counts(self, table_name):
@@ -5573,7 +5591,7 @@ class PostgresCacheStore:
                             '{communityTemplateFreshness}',
                             COALESCE(template.payload_json->'communityTemplateFreshness', '{}'::jsonb)
                             || jsonb_build_object(
-                                'checkedAt', %s,
+                                'checkedAt', %s::text,
                                 'lastSuccessfulSyncAt', COALESCE(
                                     NULLIF(template.payload_json->'communityTemplateFreshness'->>'lastSuccessfulSyncAt', ''),
                                     NULLIF(template.payload_json->'communityTemplateFreshness'->>'checkedAt', ''),
@@ -5596,9 +5614,9 @@ class PostgresCacheStore:
                                     THEN 'stale'
                                     ELSE 'fresh'
                                 END,
-                                'lastFailureAt', %s,
-                                'lastFailureReason', %s,
-                                'availabilityPolicy', %s
+                                'lastFailureAt', %s::text,
+                                'lastFailureReason', %s::text,
+                                'availabilityPolicy', %s::text
                             ),
                             true
                         )
@@ -5649,11 +5667,11 @@ class PostgresCacheStore:
                             '{communityTemplateFreshness}',
                             COALESCE(template.payload_json->'communityTemplateFreshness', '{}'::jsonb)
                             || jsonb_build_object(
-                                'checkedAt', %s,
-                                'lastSuccessfulSyncAt', %s,
+                                'checkedAt', %s::text,
+                                'lastSuccessfulSyncAt', %s::text,
                                 'consecutiveFailureCount', 0,
                                 'status', 'fresh',
-                                'availabilityPolicy', %s
+                                'availabilityPolicy', %s::text
                             ),
                             true
                         )
@@ -7169,8 +7187,8 @@ class PostgresCacheStore:
             if not class_key or not spec_key or not profile.strip():
                 continue
             pair = (class_key, spec_key)
-            if pair not in by_pair:
-                by_pair[pair] = profile
+            by_pair.setdefault(pair, []).append(profile)
+            if pair not in profile_order:
                 profile_order.append(pair)
         candidates = list(item_level_probe_profile_candidates(item))
         source_class = slugify(item.get("classKey"), "")
@@ -7196,29 +7214,27 @@ class PostgresCacheStore:
         probe_override_keys = {"iterations", "max_time", "target_error", "calculate_scale_factors", "json"}
         profiles = []
         for class_key, spec_key in candidates:
-            profile = by_pair.get((class_key, spec_key))
-            if not profile:
-                continue
-            lines = []
-            for line in profile.splitlines():
-                stripped = line.strip()
-                if not stripped or "=" not in stripped:
+            for profile in by_pair.get((class_key, spec_key), []):
+                lines = []
+                for line in profile.splitlines():
+                    stripped = line.strip()
+                    if not stripped or "=" not in stripped:
+                        lines.append(line)
+                        continue
+                    head = stripped.split("=", 1)[0].strip()
+                    if head in probe_override_keys or head in remove_slots:
+                        continue
                     lines.append(line)
-                    continue
-                head = stripped.split("=", 1)[0].strip()
-                if head in probe_override_keys or head in remove_slots:
-                    continue
-                lines.append(line)
-            lines.extend(
-                [
-                    "iterations=1",
-                    "max_time=1",
-                    "target_error=0.5",
-                    "calculate_scale_factors=0",
-                    item_line,
-                ]
-            )
-            profiles.append(("\n".join(lines).strip() + "\n", class_key, spec_key, item_line))
+                lines.extend(
+                    [
+                        "iterations=1",
+                        "max_time=1",
+                        "target_error=0.5",
+                        "calculate_scale_factors=0",
+                        item_line,
+                    ]
+                )
+                profiles.append(("\n".join(lines).strip() + "\n", class_key, spec_key, item_line))
         if profiles:
             return profiles, item_line, []
         return [], item_line, ["no compatible SimC profile preset found for observed item probe"]

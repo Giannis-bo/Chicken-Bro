@@ -1,0 +1,162 @@
+{
+  "adapterRevision": "s2-limited-db2-capture-adapter-v2",
+  "allowlistRevision": "s2-limited-client-db2-field-allowlist-v1",
+  "bodyBytes": 1895,
+  "bodySha256": "16c39a33f5c130999b4be91dc6adeaecdb2fca91de0851eb25290d2624565676",
+  "capturedAt": "2026-08-26T02:44:16.736059Z",
+  "fieldCoverage": {
+    "CurveID": {
+      "missingRows": 0,
+      "presentRows": 11
+    },
+    "ID": {
+      "missingRows": 0,
+      "presentRows": 11
+    },
+    "OrderIndex": {
+      "missingRows": 0,
+      "presentRows": 11
+    },
+    "PosPreSquish_0": {
+      "missingRows": 0,
+      "presentRows": 11
+    },
+    "PosPreSquish_1": {
+      "missingRows": 0,
+      "presentRows": 11
+    },
+    "Pos_0": {
+      "missingRows": 0,
+      "presentRows": 11
+    },
+    "Pos_1": {
+      "missingRows": 0,
+      "presentRows": 11
+    }
+  },
+  "fields": [
+    "ID",
+    "CurveID",
+    "OrderIndex",
+    "Pos_0",
+    "Pos_1",
+    "PosPreSquish_0",
+    "PosPreSquish_1"
+  ],
+  "filterField": "CurveID",
+  "lastPage": 1,
+  "operator": "exact",
+  "page": 1,
+  "query": {
+    "build": "12.1.0.69299",
+    "filter[CurveID]": "exact:92772"
+  },
+  "responsePath": "responses/000087.json",
+  "rows": [
+    {
+      "CurveID": 92772,
+      "ID": 277070,
+      "OrderIndex": 0,
+      "PosPreSquish_0": 0,
+      "PosPreSquish_1": 0,
+      "Pos_0": 80,
+      "Pos_1": 120
+    },
+    {
+      "CurveID": 92772,
+      "ID": 277071,
+      "OrderIndex": 1,
+      "PosPreSquish_0": 0,
+      "PosPreSquish_1": 0,
+      "Pos_0": 81,
+      "Pos_1": 133
+    },
+    {
+      "CurveID": 92772,
+      "ID": 277072,
+      "OrderIndex": 2,
+      "PosPreSquish_0": 0,
+      "PosPreSquish_1": 0,
+      "Pos_0": 82,
+      "Pos_1": 139
+    },
+    {
+      "CurveID": 92772,
+      "ID": 277073,
+      "OrderIndex": 3,
+      "PosPreSquish_0": 0,
+      "PosPreSquish_1": 0,
+      "Pos_0": 83,
+      "Pos_1": 145
+    },
+    {
+      "CurveID": 92772,
+      "ID": 277074,
+      "OrderIndex": 4,
+      "PosPreSquish_0": 0,
+      "PosPreSquish_1": 0,
+      "Pos_0": 84,
+      "Pos_1": 152
+    },
+    {
+      "CurveID": 92772,
+      "ID": 277075,
+      "OrderIndex": 5,
+      "PosPreSquish_0": 0,
+      "PosPreSquish_1": 0,
+      "Pos_0": 85,
+      "Pos_1": 159
+    },
+    {
+      "CurveID": 92772,
+      "ID": 277076,
+      "OrderIndex": 6,
+      "PosPreSquish_0": 0,
+      "PosPreSquish_1": 0,
+      "Pos_0": 86,
+      "Pos_1": 165
+    },
+    {
+      "CurveID": 92772,
+      "ID": 277077,
+      "OrderIndex": 7,
+      "PosPreSquish_0": 0,
+      "PosPreSquish_1": 0,
+      "Pos_0": 87,
+      "Pos_1": 174
+    },
+    {
+      "CurveID": 92772,
+      "ID": 277078,
+      "OrderIndex": 8,
+      "PosPreSquish_0": 0,
+      "PosPreSquish_1": 0,
+      "Pos_0": 88,
+      "Pos_1": 183
+    },
+    {
+      "CurveID": 92772,
+      "ID": 277079,
+      "OrderIndex": 9,
+      "PosPreSquish_0": 0,
+      "PosPreSquish_1": 0,
+      "Pos_0": 89,
+      "Pos_1": 192
+    },
+    {
+      "CurveID": 92772,
+      "ID": 277080,
+      "OrderIndex": 10,
+      "PosPreSquish_0": 0,
+      "PosPreSquish_1": 0,
+      "Pos_0": 90,
+      "Pos_1": 201
+    }
+  ],
+  "schemaRevision": "s2-limited-db2-response-v1",
+  "sourceUrl": "https://wago.tools/api/db2-find/CurvePoint?build=12.1.0.69299&filter%5BCurveID%5D=exact%3A92772",
+  "table": "CurvePoint",
+  "targetKind": "allowlisted_foreign_key",
+  "targetValue": "92772",
+  "total": 11
+}

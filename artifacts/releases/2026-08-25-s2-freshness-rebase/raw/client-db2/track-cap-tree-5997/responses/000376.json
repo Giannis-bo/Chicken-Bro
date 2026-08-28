@@ -1,0 +1,65 @@
+{
+  "adapterRevision": "s2-limited-db2-capture-adapter-v2",
+  "allowlistRevision": "s2-limited-client-db2-field-allowlist-v1",
+  "bodyBytes": 1511,
+  "bodySha256": "34023386a7a87c8066e3b3f07e5811566ecfa13ff63086aba23e073ef20c59a4",
+  "capturedAt": "2026-08-26T02:44:16.736059Z",
+  "fieldCoverage": {
+    "CategoryID": {
+      "missingRows": 0,
+      "presentRows": 1
+    },
+    "Description_lang": {
+      "missingRows": 0,
+      "presentRows": 1
+    },
+    "ID": {
+      "missingRows": 0,
+      "presentRows": 1
+    },
+    "ItemID": {
+      "missingRows": 1,
+      "presentRows": 0
+    },
+    "Name_lang": {
+      "missingRows": 0,
+      "presentRows": 1
+    },
+    "Quality": {
+      "missingRows": 0,
+      "presentRows": 1
+    }
+  },
+  "fields": [
+    "ID",
+    "CategoryID",
+    "Name_lang",
+    "Quality",
+    "Description_lang",
+    "ItemID"
+  ],
+  "filterField": "ID",
+  "lastPage": 1,
+  "operator": "exact",
+  "page": 1,
+  "query": {
+    "build": "12.1.0.69299",
+    "filter[ID]": "exact:3442"
+  },
+  "responsePath": "responses/000376.json",
+  "rows": [
+    {
+      "CategoryID": 282,
+      "Description_lang": "Used to upgrade Adventurer equipment in Midnight Season 2 up to item levels 269-282. \r\nWhen used for crafting, sets the item level of the resulting item to 266-279 based on Quality.\r\n\r\nEarned from the following activities:\r\n- Repeatable Outdoor Events\r\n- Tier 4 Delves",
+      "ID": 3442,
+      "Name_lang": "Adventurer Mistcrest",
+      "Quality": 3
+    }
+  ],
+  "schemaRevision": "s2-limited-db2-response-v1",
+  "sourceUrl": "https://wago.tools/api/db2-find/CurrencyTypes?build=12.1.0.69299&filter%5BID%5D=exact%3A3442",
+  "table": "CurrencyTypes",
+  "targetKind": "allowlisted_foreign_key",
+  "targetValue": "3442",
+  "total": 1
+}
