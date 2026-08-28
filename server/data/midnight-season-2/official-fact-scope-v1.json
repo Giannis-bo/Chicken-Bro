@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "scopePolicyRevision": "s2-official-fact-scope-v1",
+  "seasonKey": "midnight-season-2",
+  "authority": {
+    "kind": "blizzard_game_data_api"
+  },
+  "excludedSourceKinds": {
+    "dungeon": "OUT_OF_SCOPE_DUNGEON",
+    "delve": "OUT_OF_SCOPE_DELVE",
+    "prey": "OUT_OF_SCOPE_PREY",
+    "world_content": "OUT_OF_SCOPE_WORLD_CONTENT",
+    "world_boss": "OUT_OF_SCOPE_WORLD_BOSS"
+  },
+  "nonMembershipKinds": ["great_vault"],
+  "requiresOfficialMythicCap": true
+}
