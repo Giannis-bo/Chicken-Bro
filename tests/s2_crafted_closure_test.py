@@ -1,23 +1,21 @@
+import tempfile
 import unittest
 from pathlib import Path
 
-
-ROOT = Path(__file__).resolve().parents[1]
-CAPTURE_ROOT = (
-    ROOT
-    / "artifacts"
-    / "releases"
-    / "2026-08-19-s2-limited-db2-field-expansion"
-    / "recipe-52446-min5"
-)
+from tests.s2_crafted_closure_fixture import write_crafted_capture
 
 
 class S2CraftedClosureTest(unittest.TestCase):
+    def setUp(self):
+        self.directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.directory.cleanup)
+        self.capture_root = write_crafted_capture(Path(self.directory.name) / "capture")
+
     def test_recipe_probe_closes_output_and_quality_but_not_option_semantics(self):
         from server.s2_crafted_closure import build_crafted_closure_report
 
         report = build_crafted_closure_report(
-            CAPTURE_ROOT,
+            self.capture_root,
             recipe_id="52446",
         )
 
@@ -57,7 +55,7 @@ class S2CraftedClosureTest(unittest.TestCase):
         from server.s2_crafted_closure import build_crafted_closure_report
 
         report = build_crafted_closure_report(
-            CAPTURE_ROOT,
+            self.capture_root,
             recipe_id="52446",
         )
 
@@ -97,7 +95,7 @@ class S2CraftedClosureTest(unittest.TestCase):
         }
 
         report = build_crafted_closure_report(
-            CAPTURE_ROOT,
+            self.capture_root,
             recipe_id="52446",
             simc_probe=probe,
         )
