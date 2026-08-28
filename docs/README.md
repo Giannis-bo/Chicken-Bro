@@ -17,7 +17,8 @@
 | 职业专精、天赋、装备、SimC | [builds-architecture.md](builds-architecture.md) | 构筑产品与前后端架构。 |
 | PostgreSQL-only 运行时 | [database-architecture.md](database-architecture.md) | schema、数据归属和运行时契约。 |
 | 装备库治理 | [gear-database-governance.md](gear-database-governance.md) | 物品、变体、强化和 health 的可信规则。 |
-| 至暗之夜 S2 End Game 候选 | [S2 数据仓库设计](superpowers/specs/2026-08-12-midnight-season-2-data-repository-design.md) | 候选已构建但官方 capture 未闭合；`blocked`，不改变活动 Manifest。 |
+| 至暗之夜 S2 历史 End Game 候选 | [S2 数据仓库设计](superpowers/specs/2026-08-12-midnight-season-2-data-repository-design.md) | 2026-08-12 候选已构建但官方 capture 未闭合；`blocked`、无继续执行权，不改变 Active Manifest。 |
+| 至暗之夜 S2 当前状态 | [project-state.json](project-state.json) · [freshness evidence](../artifacts/releases/2026-08-25-s2-freshness-rebase/evidence.json) | 生产仍是 Active generation 41；30555 freshness replay、dormant release pair、Talent Catalog 与 Candidate Manifest 已验证但未 promotion。 |
 | 装备属性规则证据 | [gear-attribute-rule-source-ledger.md](gear-attribute-rule-source-ledger.md) | 已验证属性上下文与公开计算启用闸门。 |
 | 装备模拟全链路 | [gear-simulation-full-chain-runbook.md](gear-simulation-full-chain-runbook.md) | resolver、release、属性快照、导入与回滚。 |
 | 装备模拟目标架构 | [plans/2026-07-28-equipment-simulator-target-architecture.md](plans/2026-07-28-equipment-simulator-target-architecture.md) | 已批准的 Catalog、精确实例、强化和 SimC 快照目标边界。 |
@@ -25,7 +26,7 @@
 | 社区模板导入 | [community-template-import-full-chain-runbook.md](community-template-import-full-chain-runbook.md) | 来源、同步、promotion、展示和回滚。 |
 | SimC 任务链路 | [simulator-simc-end-to-end.md](simulator-simc-end-to-end.md) | 模板到任务与报告。 |
 | 资讯内容服务 | [news-architecture.md](news-architecture.md) | 来源、翻译和内容路径。 |
-| 云端运维 | [remote-debugging.md](remote-debugging.md) | 主机、服务、日志和 smoke。 |
+| 云端运维与部署身份 | [remote-debugging.md](remote-debugging.md) | 主机、服务、日志、smoke、部署树身份与残留清理边界；当前快照见 `project-state.json.runtimeBaseline.cloudDeployment`。 |
 | 14 路由 Target-First 重建 | [plans/ui-reconstruction.md](plans/ui-reconstruction.md) | 当前唯一 UI 执行计划。 |
 | 当前 UI 控制面 | [design/current-ui/README.md](design/current-ui/README.md) | Target registry、证据策略和逐路由合同。 |
 | CDN 与运行时素材发布 | [cdn-asset-publishing.md](cdn-asset-publishing.md) | 当前生产资源根、不可变发布与回滚。 |

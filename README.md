@@ -7,21 +7,23 @@
 当前小程序主流程围绕 4 个底部 tab 展开：
 
 1. **资讯追踪**：关注最新正式服以及测试服资讯，包括游戏玩法、版本变动和职业强度变化。
-2. **职业专精查询与模拟**：学习职业 / 专精入口，进入天赋模拟器、装备模拟、SimC 任务提交和任务列表。
-3. **智能分析**：直接进入“炸鸡队长”聊天，后端优先走 Codex，失败或证据不足时清晰降级。
+2. **专精**：学习职业 / 专精入口，进入天赋模拟器、装备模拟、SimC 任务提交和任务列表。
+3. **队长**：直接进入“炸鸡队长”聊天，后端优先走 Codex，失败或证据不足时清晰降级。
 4. **我的**：角色偏好、收藏职业、订阅与个人模板 / 任务资产的账号化边界。
 
 PVE 专区、WCL 深度日志复盘、完整公共知识库和复杂后台管理仍保留为后续 / 待规划能力；已有代码和接口只作为历史、后台或兼容入口，不再作为当前 tab 主流程。
 
 ## 当前界面
 
-活动运行时由 `apps/mini-taro` 中的 Taro 应用承载，使用 4 个底部 tab。根目录 `app.json` 和 `pages/` 只保留同一路由面的兼容职责，不再接收新的一级页面实现。
+活动运行时由 `apps/mini-taro` 中的 Taro 应用承载，使用“资讯 / 专精 / 队长 / 我的”4 个底部 tab。
+根目录 `app.json` 和 `pages/` 只保留同一路由面的兼容职责，其“最新资讯 / 职业专精 / 智能分析 /
+我的”旧文案不是活动 UI 权威，也不再接收新的一级页面实现。
 
 | Tab | 页面 | 说明 |
 | --- | --- | --- |
-| 最新资讯 | `pages/news/news` | 由 Lighthouse 轻量后端提供正式服、测试服、职业强度动态、完整中文详情与来源记录 |
-| 职业专精 | `pages/builds/builds` | 当前主入口为天赋构筑、装备模拟、模拟 SimC、任务列表；热门专精、属性权重和输出循环仍按证据状态保留为后续能力 |
-| 智能分析 | `pages/simulator/simulator` | 直接渲染“炸鸡队长”聊天页，支持左右气泡、底部输入、新话题和话题抽屉；`/api/simulator/home` 仅作为兼容 payload |
+| 资讯 | `pages/news/news` | 由 Lighthouse 轻量后端提供正式服、测试服、职业强度动态、完整中文详情与来源记录 |
+| 专精 | `pages/builds/builds` | 当前主入口为天赋构筑、装备模拟、模拟 SimC、任务列表；热门专精、属性权重和输出循环仍按证据状态保留为后续能力 |
+| 队长 | `pages/simulator/simulator` | 直接渲染“炸鸡队长”聊天页，支持左右气泡、底部输入、新话题和话题抽屉；`/api/simulator/home` 仅作为兼容 payload |
 | 我的 | `pages/profile/profile` | 角色偏好、收藏职业、订阅与数据源设置 |
 
 ## 目录结构
@@ -157,7 +159,7 @@ printf '%s' "$CODEX_ACCESS_TOKEN" | codex login --with-access-token
 ./server/deploy_lighthouse.sh
 ```
 
-脚本会上传当前工作区到 `/opt/wow-mini-program`，注册 `wow-backend` systemd service，并用 Nginx 将 80 端口代理到本机 `8787`。完整 bootstrap 模式会安装 Python/Node/Nginx、Codex CLI 与 SimCraft 构建依赖，从官方 `simulationcraft/simc` 仓库的 `midnight` 分支构建 CLI-only `simc`，并注册 `wow-simc-version-check.timer` 每 12 小时检测 GitHub 分支版本。
+脚本会把当前工作区 overlay 到 `/opt/wow-mini-program`，注册 `wow-backend` systemd service，并用 Nginx 将 80 端口代理到本机 `8787`。overlay 不会自动删除 Git 已退役文件，因此部署身份与残留差集必须按 [远程调试与部署 Runbook](docs/remote-debugging.md) 独立复核。完整 bootstrap 模式会安装 Python/Node/Nginx、Codex CLI 与 SimCraft 构建依赖，从官方 `simulationcraft/simc` 仓库的 `midnight` 分支构建 CLI-only `simc`，并注册 `wow-simc-version-check.timer` 每 12 小时检测 GitHub 分支版本。
 
 日常热部署优先复用远程已有依赖：
 
@@ -165,7 +167,7 @@ printf '%s' "$CODEX_ACCESS_TOKEN" | codex login --with-access-token
 WOW_DEPLOY_SKIP_BOOTSTRAP=1 ./server/deploy_lighthouse.sh
 ```
 
-部署脚本会安装并启用 PG-native 日常 timers：`wow-websim-sync.timer`、`wow-stat-weights-sync.timer`、`wow-community-template-sync.timer`、`wow-season-recommended-gear-sync.timer` 和 `wow-data-health-followup.timer`，这些 unit 不配置 `WOW_NEWS_DB`。`wow-data-health-followup.timer` 每 2 小时检查 `/api/data/health`，并续跑安全阻塞项：新闻 queue refresh、装备 observed backfill、WebSim sync、stat weights sync，以及配置好的 SimC runtime update。`wow-gear-observed-backfill.service` 会安装；部署脚本不直接启用它的 timer，通常由 health follow-up 在装备库 partial/stale/blocked 时触发。默认部署只重启后端并做轻量 smoke，不额外 no-block 启动一次同步服务；只有显式设置 `WOW_DEPLOY_START_ASYNC_SYNCS=1` 时才会在 smoke 后启动 `wow-websim-sync`、`wow-stat-weights-sync` 和 `wow-community-template-sync`。如服务器或用户变化，可通过环境变量覆盖：
+部署脚本会安装并启用 PG-native 日常 timers：`wow-websim-sync.timer`、`wow-stat-weights-sync.timer`、`wow-community-template-sync.timer`、`wow-season-recommended-gear-sync.timer` 和 `wow-data-health-followup.timer`，这些 unit 不配置 `WOW_NEWS_DB`。`wow-data-health-followup.timer` 每 2 小时检查 `/api/data/health`，并续跑允许自动处理的新闻 queue refresh、装备 observed backfill、WebSim sync 与 stat weights sync；当正式 Active Manifest 已绑定 SimC runtime 时，`updateAvailable=true` 只记录 `active_manifest_cutover_required`，不会自动切换 runtime；如果 Active Manifest 状态缺失或不可判定，同样 fail closed 为 report-only。`wow-gear-observed-backfill.service` 会安装；部署脚本不直接启用它的 timer，通常由 health follow-up 在装备库 partial/stale/blocked 时触发。默认部署只重启后端并做轻量 smoke，不额外 no-block 启动一次同步服务；只有显式设置 `WOW_DEPLOY_START_ASYNC_SYNCS=1` 时才会在 smoke 后启动 `wow-websim-sync`、`wow-stat-weights-sync` 和 `wow-community-template-sync`。如服务器或用户变化，可通过环境变量覆盖：
 
 ```bash
 WOW_LIGHTHOUSE_HOST=124.223.51.33 WOW_LIGHTHOUSE_USER=ubuntu ./server/deploy_lighthouse.sh
