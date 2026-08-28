@@ -472,12 +472,18 @@ test('project-state is the single machine-readable current truth entry', () => {
   const cloudDeployment = state.runtimeBaseline.cloudDeployment
   assert.equal(
     cloudDeployment.status,
-    'repository_candidate_verified_production_one_runtime_file_behind',
+    'repository_main_aligned_production_one_runtime_file_behind',
   )
   assert.equal(
     cloudDeployment.repositoryCandidateCommit,
     'd0a492c00543d13e9072f8ccaa7ac9239275c8bb',
   )
+  assert.equal(
+    cloudDeployment.repositoryMergeCommit,
+    '023dda614204f3938c68af17e5f3f5273dc30026',
+  )
+  assert.equal(cloudDeployment.repositoryClosure.pullRequest, 122)
+  assert.equal(cloudDeployment.repositoryClosure.taskBranch, 'removed_local_and_remote')
   assert.equal(cloudDeployment.runtimeOverrides.length, 2)
   assert.equal(
     cloudDeployment.runtimeOverrides[0].state,

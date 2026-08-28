@@ -50,7 +50,7 @@ PVE、WCL 和旧 WebSim 能力在数据授权、用户价值与发布门禁同�
 | UI 源码与路由 | `active_unverified` | 活动 owner 是 `apps/mini-taro`，14 条 Taro/兼容路径完全同序；架构审计为 14 routes、14 contracts、284 checks、0 findings。视觉账本仍是 14 条 `UNVERIFIED`，历史 6 条接受和 8 条 waiver 不能改写为当前 14/14 通过。 |
 | S2 生产 | `partial` | 正式 Active Manifest generation 41 保持不变，绑定 f50a SimC；Browse、社区导入和混合 Resolve 有 live evidence，但独立数据健康门禁仍未闭合。 |
 | S2 freshness | `Candidate` | 30555 replay、dormant release pair、Talent Catalog 与 Candidate Manifest 已验证；没有 Active pointer mutation。 |
-| 云端代码身份 | `下一步` | 两个 runtime WIP 与回归测试已固化为 repository candidate `d0a492c0`；生产 `postgres_cache_store.py` 与该提交同 hash，但 `data_health_followup.py` 仍是上一版热修。临时候选已对 live health 证明正式 Active generation 41 只产生 `active_manifest_cutover_required`、不生成 action。三份曾被 `server/data/` 忽略规则漏掉的 S2 静态控制合同现已纳入 Git，隔离干净 worktree 的 Python 3295/3295（5 skipped）通过；本次仓库对齐不包含生产部署，不能声称云端等于新提交。 |
+| 云端代码身份 | `下一步` | repository candidate `d0a492c0`、回归测试与三份 S2 静态控制合同已通过 PR #122 合入 `origin/main`（merge `023dda61`）；精确 PR head `251e93b6` 的 Project Harness 通过，任务分支已清理。生产 `postgres_cache_store.py` 与 runtime candidate 同 hash，但 `data_health_followup.py` 仍是上一版热修；临时候选对 live health 证明正式 Active generation 41 只产生 `active_manifest_cutover_required`、不生成 action。本次仓库对齐不包含生产部署，不能声称云端等于 `origin/main`。 |
 | 云端卫生 | `已完成（限定范围）` | 2026-08-28 已清除无引用候选、旧 SimC 可重建版本、Git 已删除的部署残留及 178 份被当前 S2 恢复点替代的旧代码/数据备份；磁盘由 99% 降到 75%。正式 evidence、经 `pg_restore --list` 验证的 8 月 25/27/28 PG 恢复点、Exact-first foundation、Active/Candidate/单一 rollback 均保留。清理不等于发布或 Active promotion。 |
 
 ## 当前优先级

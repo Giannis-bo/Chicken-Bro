@@ -2,8 +2,8 @@
   "schemaVersion": 2,
   "slug": "runtime-truth-cloud-reconciliation",
   "requirementSlug": "runtime-truth-cloud-reconciliation",
-  "status": "live_verified",
-  "highestEvidenceLevel": "live_verified",
+  "status": "archived",
+  "highestEvidenceLevel": "archived",
   "branch": "codex/reconcile-current-state-20260828",
   "commit": "d0a492c00543d13e9072f8ccaa7ac9239275c8bb",
   "identities": {
@@ -18,8 +18,9 @@
       "value": "HEAD"
     },
     "closure": {
-      "status": "pending",
-      "reason": "The task branch has not been reviewed and merged."
+      "status": "bound",
+      "kind": "merge_commit",
+      "value": "023dda614204f3938c68af17e5f3f5273dc30026"
     }
   },
   "manualAcceptance": {
@@ -92,6 +93,16 @@
       "command": "python3 -m unittest discover -s tests -p '*_test.py' in an isolated Git worktree at 02541f14b",
       "status": "pass",
       "result": "3295/3295 Python tests passed with 5 skips without access to any ignored local data, proving clean-checkout reproducibility before the CI rerun."
+    },
+    {
+      "command": "GitHub Actions Project Harness / verify on PR #122 at 251e93b68588fb1bfe5ec1dfd447edfc4a263a0e",
+      "status": "pass",
+      "result": "The clean GitHub checkout completed the full profile successfully after the control-contract correction."
+    },
+    {
+      "command": "Local CR, PR #122 merge and repository branch cleanup",
+      "status": "pass",
+      "result": "Local CR found no blocking issue; PR #122 merged as 023dda614204f3938c68af17e5f3f5273dc30026 after CI passed. GitHub produced no CodeRabbit comments or reviews, and the merged task branch is absent both locally and remotely."
     }
   ],
   "candidateDeployment": {
@@ -150,8 +161,8 @@
     },
     {
       "id": "coderabbit-tool-unavailable",
-      "status": "open",
-      "detail": "No local CodeRabbit CLI or callable CodeRabbit tool is installed; the published PR will be checked for a configured GitHub App review before merge."
+      "status": "closed_not_configured",
+      "detail": "No local CodeRabbit CLI or callable tool was installed, and PR #122 received no CodeRabbit comments or reviews. Per repository policy, local CR plus the passing exact-head Project Harness remained the merge gates."
     },
     {
       "id": "clean-checkout-control-contract-gap",
@@ -164,8 +175,8 @@
     "candidate_runtime_rollback"
   ],
   "cleanup": {
-    "required": true,
-    "reason": "The ephemeral candidate is already removed. Remove the published task branch after merge; retain the production deployment gap until a separately authorized deployment task closes it."
+    "required": false,
+    "reason": "The ephemeral candidate and isolated verification worktree were removed. The merged task branch is absent locally and remotely. The production deployment gap is intentionally retained for a separately authorized deployment task."
   },
   "archivedReferences": [
     "docs/project-state.json",
@@ -174,5 +185,5 @@
     "artifacts/releases/2026-08-25-s2-freshness-rebase/evidence.json",
     "artifacts/releases/2026-08-28-runtime-truth-cloud-reconciliation/candidate-smoke.json"
   ],
-  "summary": "Live-verified candidate boundary: runtime changes are bound to immutable commit d0a492c0 and the exact candidate planner passed an isolated live-health smoke without --execute, so formal Active generation 41 produced no SimC action, existing timers were unchanged, and the temporary directory was removed. Documentation distinguishes 14-route source parity from UI acceptance, Active generation 41 from dormant 30555 Candidate evidence, and cloud cleanup from deployment parity. Local and first-run CI checks exposed two clean-checkout gaps: crafted-closure tests depended on an untracked operational capture, and three required S2 control contracts were hidden by the blanket server/data ignore rule. Generated fixtures and explicitly tracked static contracts now preserve the fail-closed assertions; an isolated Git worktree passes all 3295 Python tests with 5 skips. Remote CI rerun, review, merge and repository SHA parity remain pending; production deployment is explicitly outside this task."
+  "summary": "Archived repository reconciliation: runtime changes remain bound to immutable commit d0a492c0, and the exact candidate planner passed isolated live-health smoke without --execute, so formal Active generation 41 produced no SimC action, existing timers were unchanged, and the temporary directory was removed. Documentation now distinguishes 14-route source parity from UI acceptance, Active generation 41 from dormant 30555 Candidate evidence, and repository/cloud cleanup from deployment parity. Two clean-checkout gaps were closed with generated crafted-closure fixtures and three explicitly tracked S2 control contracts; isolated Python 3295/3295 with 5 skips, local full profile 174/174 and exact-head PR CI all pass. PR #122 merged as 023dda61, task branches and disposable worktrees are removed, and local/remote repository alignment is closed. Production data_health_followup.py remains intentionally one reviewed version behind, global health remains partial, and production deployment is outside this task."
 }
