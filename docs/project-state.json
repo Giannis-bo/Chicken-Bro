@@ -698,6 +698,16 @@
       "originMainCommit": "4a147045f8048acb1ebdf39754dbf0eed0139fd3",
       "repositoryCandidateCommit": "d0a492c00543d13e9072f8ccaa7ac9239275c8bb",
       "repositoryCandidateTree": "80f3df08b99ae6f10ceb3877b9bc624d67a18c3b",
+      "repositoryCleanCheckout": {
+        "status": "verified",
+        "verifiedAt": "2026-08-28",
+        "controlFiles": [
+          "server/data/midnight-season-2/db2-field-allowlist-v1.json",
+          "server/data/midnight-season-2/official-fact-scope-v1.json",
+          "server/data/midnight-season-2/s2-product-content-scope-v1.json"
+        ],
+        "pythonVerification": "3295 passed with 5 skips in an isolated Git worktree at 02541f14b; no ignored local data was present"
+      },
       "deployRevisionMarker": {
         "status": "absent_removed_as_stale_unconsumed_marker",
         "formerValue": "4202418cc956dc6c6e127999062294b9e144a265"

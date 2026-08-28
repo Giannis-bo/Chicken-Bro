@@ -38,6 +38,7 @@
     "Active Manifest bound SimC health projection",
     "Fail-closed data-health follow-up planning",
     "Clean-checkout crafted-closure test fixture reproducibility",
+    "Clean-checkout S2 control-contract reproducibility",
     "Current project, route, S2 and cloud-cleanup documentation",
     "Repository remote alignment and closure evidence"
   ],
@@ -76,6 +77,21 @@
       "command": "Final Harness, full verification, UI architecture, project-state tests, JSON/link and diff checks",
       "status": "pass",
       "result": "The clean 7593f3a1d HEAD passed the 174-command full profile: Node 758/758, Python 3295/3295 with 5 skips, Vitest 440/440, TypeScript, ESLint, compileall, 14-route/284-check architecture audit, asset integrity, package mechanics, Harness and diff checks. UI package release readiness correctly remained partial because production release environment values were not configured for this non-frontend task."
+    },
+    {
+      "command": "GitHub Actions Project Harness / verify on PR #122 (first run)",
+      "status": "fail",
+      "result": "The clean GitHub checkout exposed 47 errors and 20 dependent failures because three repository-required S2 control contracts existed locally but were hidden by the blanket server/data ignore rule. The runtime behavior changes did not produce a failing assertion."
+    },
+    {
+      "command": "python3 -m unittest for the S2 allowlist, official scope/snapshot/capture inventory and crafted closure modules",
+      "status": "pass",
+      "result": "87/87 focused tests passed after the three static control contracts were explicitly tracked."
+    },
+    {
+      "command": "python3 -m unittest discover -s tests -p '*_test.py' in an isolated Git worktree at 02541f14b",
+      "status": "pass",
+      "result": "3295/3295 Python tests passed with 5 skips without access to any ignored local data, proving clean-checkout reproducibility before the CI rerun."
     }
   ],
   "candidateDeployment": {
@@ -136,6 +152,11 @@
       "id": "coderabbit-tool-unavailable",
       "status": "open",
       "detail": "No local CodeRabbit CLI or callable CodeRabbit tool is installed; the published PR will be checked for a configured GitHub App review before merge."
+    },
+    {
+      "id": "clean-checkout-control-contract-gap",
+      "status": "resolved",
+      "detail": "PR #122 first-run CI exposed three required S2 policy files hidden by server/data/. The files are now explicitly tracked, and an isolated Git worktree passed all 3295 Python tests with 5 skips."
     }
   ],
   "rollback": [
@@ -153,5 +174,5 @@
     "artifacts/releases/2026-08-25-s2-freshness-rebase/evidence.json",
     "artifacts/releases/2026-08-28-runtime-truth-cloud-reconciliation/candidate-smoke.json"
   ],
-  "summary": "Live-verified candidate boundary: runtime changes are bound to immutable commit d0a492c0 and the exact candidate planner passed an isolated live-health smoke without --execute, so formal Active generation 41 produced no SimC action, existing timers were unchanged, and the temporary directory was removed. Documentation distinguishes 14-route source parity from UI acceptance, Active generation 41 from dormant 30555 Candidate evidence, and cloud cleanup from deployment parity. The full profile exposed five origin/main tests coupled to an untracked operational capture; generated temporary fixtures now preserve those fail-closed assertions, and the clean 7593f3a1d HEAD passed all 174 verification commands. Remote review, merge and repository SHA parity remain pending; production deployment is explicitly outside this task."
+  "summary": "Live-verified candidate boundary: runtime changes are bound to immutable commit d0a492c0 and the exact candidate planner passed an isolated live-health smoke without --execute, so formal Active generation 41 produced no SimC action, existing timers were unchanged, and the temporary directory was removed. Documentation distinguishes 14-route source parity from UI acceptance, Active generation 41 from dormant 30555 Candidate evidence, and cloud cleanup from deployment parity. Local and first-run CI checks exposed two clean-checkout gaps: crafted-closure tests depended on an untracked operational capture, and three required S2 control contracts were hidden by the blanket server/data ignore rule. Generated fixtures and explicitly tracked static contracts now preserve the fail-closed assertions; an isolated Git worktree passes all 3295 Python tests with 5 skips. Remote CI rerun, review, merge and repository SHA parity remain pending; production deployment is explicitly outside this task."
 }

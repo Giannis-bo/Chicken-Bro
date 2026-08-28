@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-08-28T09:28:03.288Z",
+  "generatedAt": "2026-08-28T09:45:44.211Z",
   "release": {
     "date": "2026-08-28",
     "slug": "runtime-truth-cloud-reconciliation"
@@ -38,7 +38,7 @@
         {
           "path": "docs/project-state.json",
           "exists": true,
-          "sizeBytes": 54676
+          "sizeBytes": 55173
         },
         {
           "path": "docs/project-owner-map.json",
@@ -53,7 +53,7 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 10931
+          "sizeBytes": 11087
         },
         {
           "path": "docs/README.md",
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-08-28-runtime-truth-cloud-reconciliation/evidence.json",
-    "sizeBytes": 8569,
+    "sizeBytes": 10095,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -392,7 +392,7 @@
     "missingFields": [],
     "declaredStatus": "live_verified",
     "highestEvidenceLevel": "live_verified",
-    "summary": "Live-verified candidate boundary: runtime changes are bound to immutable commit d0a492c0 and the exact candidate planner passed an isolated live-health smoke without --execute, so formal Active generation 41 produced no SimC action, existing timers were unchanged, and the temporary directory was removed. Documentation distinguishes 14-route source parity from UI acceptance, Active generation 41 from dormant 30555 Candidate evidence, and cloud cleanup from deployment parity. The full profile exposed five origin/main tests coupled to an untracked operational capture; generated temporary fixtures now preserve those fail-closed assertions, and the clean 7593f3a1d HEAD passed all 174 verification commands. Remote review, merge and repository SHA parity remain pending; production deployment is explicitly outside this task."
+    "summary": "Live-verified candidate boundary: runtime changes are bound to immutable commit d0a492c0 and the exact candidate planner passed an isolated live-health smoke without --execute, so formal Active generation 41 produced no SimC action, existing timers were unchanged, and the temporary directory was removed. Documentation distinguishes 14-route source parity from UI acceptance, Active generation 41 from dormant 30555 Candidate evidence, and cloud cleanup from deployment parity. Local and first-run CI checks exposed two clean-checkout gaps: crafted-closure tests depended on an untracked operational capture, and three required S2 control contracts were hidden by the blanket server/data ignore rule. Generated fixtures and explicitly tracked static contracts now preserve the fail-closed assertions; an isolated Git worktree passes all 3295 Python tests with 5 skips. Remote CI rerun, review, merge and repository SHA parity remain pending; production deployment is explicitly outside this task."
   },
   "evidence": {
     "localTests": {
@@ -417,7 +417,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "1 changed files currently visible to git status."
+      "detail": "3 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
@@ -453,9 +453,11 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 1,
+      "changedFileCount": 3,
       "changedFiles": [
-        " M artifacts/releases/2026-08-28-runtime-truth-cloud-reconciliation/evidence.json"
+        " M artifacts/releases/2026-08-28-runtime-truth-cloud-reconciliation/evidence.json",
+        " M docs/project-state.json",
+        " M docs/roadmap.md"
       ]
     }
   },
