@@ -32,10 +32,11 @@ ssh wow-lighthouse
 
 ## 部署身份与目录卫生
 
-生产代码身份必须由“tracked base commit + 每个 runtime override 的路径/hash + 对应验证状态”共同描述。
-`.deploy-revision` 只是部署脚本写入的辅助标记；它可能滞后，不能单独证明 `/opt/wow-mini-program`
-等于某个 Git commit。热部署或 tar overlay 也不会自动删除 Git 中已移除的文件，因此“新文件 hash
-匹配”与“旧残留已清除”是两项独立检查。
+生产代码身份必须由“不可变 Git identity + deployable tracked set 的逐文件 hash + 任一 runtime override
+的路径/hash/验证状态”共同描述。若目录中存在 `.deploy-revision`，它也只能作为辅助标记；当前部署
+脚本不创建该文件，历史 marker 可能滞后，不能单独证明 `/opt/wow-mini-program` 等于某个 Git commit。
+热部署或 tar overlay 也不会自动删除 Git 中已移除的文件，因此“新文件 hash 匹配”与“旧残留已清除”
+是两项独立检查。
 
 每次核对或清理至少执行以下边界：
 
@@ -100,7 +101,9 @@ WOW_DEPLOY_SKIP_BOOTSTRAP=1 ./server/deploy_lighthouse.sh
 4. 备份将修改的 service environment。
 5. 说明是否启动异步同步任务。
 
-部署脚本不得上传本地 `server/data`。部署后检查 service、nginx、journal、health、核心 API 和实际改动对应的业务流。
+部署脚本必须保留 Git 已跟踪的 `server/data` 静态控制合同，同时排除 runtime SQLite、
+`apps/mini-taro/dist`、`apps/mini-taro/.swc`、任意 `project.private.config.json` 和其他本地开发产物。
+部署后检查 service、nginx、journal、health、核心 API、deployable tracked set hash 以及实际改动对应的业务流。
 
 ## 同步与 Timer
 

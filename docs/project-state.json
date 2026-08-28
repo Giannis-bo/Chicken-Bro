@@ -691,31 +691,32 @@
     },
     "cloudDeployment": {
       "auditedAt": "2026-08-28",
-      "status": "repository_main_aligned_production_one_runtime_file_behind",
+      "status": "repository_main_and_production_deployable_tree_aligned_data_refresh_partial",
       "projectRoot": "/opt/wow-mini-program",
       "service": "wow-backend.service",
-      "trackedBaseCommit": "4a147045f8048acb1ebdf39754dbf0eed0139fd3",
-      "repositoryMergeCommit": "023dda614204f3938c68af17e5f3f5273dc30026",
-      "repositoryCandidateCommit": "d0a492c00543d13e9072f8ccaa7ac9239275c8bb",
-      "repositoryCandidateTree": "80f3df08b99ae6f10ceb3877b9bc624d67a18c3b",
-      "repositoryCleanCheckout": {
+      "repositoryBaselineBeforeTask": {
         "status": "verified",
-        "verifiedAt": "2026-08-28",
-        "controlFiles": [
-          "server/data/midnight-season-2/db2-field-allowlist-v1.json",
-          "server/data/midnight-season-2/official-fact-scope-v1.json",
-          "server/data/midnight-season-2/s2-product-content-scope-v1.json"
-        ],
-        "pythonVerification": "3295 passed with 5 skips in an isolated Git worktree at 02541f14b; no ignored local data was present",
-        "pullRequestVerification": "PR #122 Project Harness passed at exact head 251e93b68588fb1bfe5ec1dfd447edfc4a263a0e"
+        "commit": "b141740c7a8fb17f3b92dd4191d2e98e399d5627",
+        "tree": "d3a926ac711bd735f1e605b997b197899b0ee4a0",
+        "localOriginParity": true,
+        "deployableTrackedFiles": 1565,
+        "initialProductionHashParity": "1565/1565"
       },
-      "repositoryClosure": {
-        "status": "merged_and_cleaned",
-        "pullRequest": 122,
-        "ciHeadCommit": "251e93b68588fb1bfe5ec1dfd447edfc4a263a0e",
-        "mergeCommit": "023dda614204f3938c68af17e5f3f5273dc30026",
-        "codeRabbit": "not_configured_no_comments_or_reviews",
-        "taskBranch": "removed_local_and_remote"
+      "runtimeIdentity": {
+        "kind": "deployable_tracked_manifest_sha256",
+        "valueSource": "artifacts/releases/2026-08-28-cloud-main-data-refresh/evidence.json#candidateDeployment.buildIdentity",
+        "status": "live_remote_hash_parity_verified",
+        "scope": "Git tracked files included by server/deploy_lighthouse.sh; artifacts and other explicit deployment exclusions are outside this identity"
+      },
+      "deployment": {
+        "mode": "hot_deploy_no_bootstrap_no_async_start",
+        "bootstrapSkipped": true,
+        "asyncSyncAutoStart": false,
+        "simcRuntimeUpdate": false,
+        "activeManifestPromotion": false,
+        "backendRestarted": true,
+        "nginxConfigTest": "pass",
+        "healthCheck": "pass"
       },
       "deployRevisionMarker": {
         "status": "absent_removed_as_stale_unconsumed_marker",
@@ -724,24 +725,120 @@
       "runtimeOverrides": [
         {
           "path": "server/data_health_followup.py",
-          "productionSha256": "18db14b1bdea47a395ea90c8b1e7d1b9424c748ff1cbd67b193780cdd40e995e",
-          "candidateSha256": "435e3d80414045603a0aa65ded958e69366a564c95402680b53093b9d29a3db1",
-          "state": "production_previous_hotfix_differs_from_repository_candidate"
+          "productionSha256": "435e3d80414045603a0aa65ded958e69366a564c95402680b53093b9d29a3db1",
+          "repositorySha256": "435e3d80414045603a0aa65ded958e69366a564c95402680b53093b9d29a3db1",
+          "state": "matches_deployed_repository_tree"
         },
         {
           "path": "server/postgres_cache_store.py",
           "productionSha256": "aff241c77cd4c4eea48376b187300c81bc9b829b05e6871d220bd4366259e14c",
-          "candidateSha256": "aff241c77cd4c4eea48376b187300c81bc9b829b05e6871d220bd4366259e14c",
-          "state": "matches_repository_candidate_commit"
+          "repositorySha256": "aff241c77cd4c4eea48376b187300c81bc9b829b05e6871d220bd4366259e14c",
+          "state": "matches_deployed_repository_tree"
         }
       ],
-      "remoteTestBoundary": "the matching regression tests are committed in d0a492c00543d13e9072f8ccaa7ac9239275c8bb; tests are not deployed into the production execution path",
-      "runtimeManifestVerification": "the previously audited 926-file runtime subset had 0 missing files; after binding candidate d0a492c0, fresh production hashes show 925 matches and 1 intentional repository-ahead mismatch at server/data_health_followup.py",
-      "candidateSmoke": "artifacts/releases/2026-08-28-runtime-truth-cloud-reconciliation/candidate-smoke.json",
-      "productionDeploymentBoundary": "repository alignment does not authorize a production deploy; the new Active Manifest state guard remains candidate-only until an explicit deployment task",
+      "postgresql": {
+        "runtimeMode": "postgres_only",
+        "sqliteRuntimeVariables": "unset",
+        "migrationLedger": "37/37",
+        "latestMigration": "0037_websim_exact_registry_summary_capacity",
+        "backup": {
+          "path": "/var/backups/wow-mini-program/2026-08-28-cloud-latest-main-before-b141740c.dump",
+          "bytes": 1161151684,
+          "sha256": "adc81abef739fa71044f088e2c7a53936304d64dc1efa999c45aa72dd7f19ffd",
+          "pgRestoreList": "pass"
+        }
+      },
+      "activeManifest": {
+        "status": "verified_unchanged",
+        "generation": 41,
+        "manifestRevision": "season-manifest:sha256:71a490dc6532783e6b286fbe88d8986f9a37f1930cfb186888088dd55b8c2ded",
+        "rollbackManifestRevision": "season-manifest:sha256:3902d0ac4414751b105b12ff0b36286fdc53a63a9ed4f64f4bfb5eec0d78cb55",
+        "simcRuntimeRevision": "simc:12.1.0.69299:f50a2121bf894570146507496f3e113bff68e445:69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da",
+        "latestObservedSimcTag": "e20f79717167",
+        "updateAvailable": true,
+        "updatePolicy": "report_only_active_manifest_cutover_required"
+      },
+      "dataRefresh": {
+        "overallStatus": "partial",
+        "checkedAt": "2026-08-28T12:27:08+00:00",
+        "websim": {
+          "unitResult": "success",
+          "status": "verified",
+          "checkedAt": "2026-08-28T10:18:04+00:00",
+          "seasonId": "18",
+          "seasonExpiresAt": "2026-08-29 18:18:41+08:00",
+          "raiderioRuns": 400,
+          "raiderioRankings": 400,
+          "raiderioGearSnapshots": 127,
+          "raiderioTalentSnapshots": 129,
+          "raiderioProfiles": 74
+        },
+        "gearCatalog": {
+          "status": "verified",
+          "checkedAt": "2026-08-28T11:01:03+00:00",
+          "items": 567,
+          "sources": 567,
+          "variants": 20910,
+          "verifiedVariants": 20910,
+          "partialVariants": 0,
+          "blockedVariants": 0
+        },
+        "communityTemplates": {
+          "unitResult": "failed_integrity_gate",
+          "status": "partial",
+          "checkedAt": "2026-08-28T02:38:24+00:00",
+          "lastSyncRun": "season-recommended-gear-20260827T233801Z",
+          "blocker": "Warcraft Logs v2 credentials are configured, but no combatantinfo template seed/report extraction is available for this sync run; active Gear Release is missing observed compile items",
+          "retryPolicy": "do_not_repeat_without_new_owner_input"
+        },
+        "statWeights": {
+          "unitResult": "success",
+          "status": "partial",
+          "refreshedAt": "2026-08-28T11:58:32+00:00",
+          "specs": 40,
+          "scenarios": 3,
+          "accepted": 23,
+          "blocked": 97
+        },
+        "gearReleaseRefresh": {
+          "trigger": "persistent_timer_catch_up_after_restore",
+          "unitResult": "timeout",
+          "startedAt": "2026-08-28 19:59:01+08:00",
+          "timedOutAt": "2026-08-28 20:19:01+08:00",
+          "activePointerMutation": false,
+          "retryPolicy": "do_not_repeat_or_extend_timeout_in_this_task"
+        },
+        "followupDryRun": {
+          "executed": false,
+          "actions": [],
+          "manualBlockers": [
+            "stat_weights_sync_input_revision_missing"
+          ],
+          "reportOnly": [
+            "simc_runtime_update:active_manifest_cutover_required",
+            "stat_weights_sync:missing_input_revision"
+          ]
+        }
+      },
+      "canary": {
+        "loopbackAndPublicCoreEndpoints": "8/8 each returned HTTP 200 with parsed payloads",
+        "season": "verified season 18 with 8 dungeons and 4 raids",
+        "websimBootstrap": "verified",
+        "websimAssets": "verified",
+        "mageFrostTalents": "verified 111 nodes",
+        "mageFrostGear": "verified 16 slots",
+        "backend": "active_running_zero_restarts",
+        "gearStatSnapshotWorker": "active_running_zero_restarts",
+        "simcRuntimeUpdateService": "inactive_dead_not_triggered",
+        "failedUnitsAfterEvidenceReset": 0,
+        "timers": "all seven relevant refresh, follow-up and SimC-check timers active/waiting"
+      },
+      "remoteTestBoundary": "deployment and sync tests remain outside the production execution path; production truth is service/API/PG state plus exact deployed-file hashes",
+      "runtimeManifestVerification": "the release packet binds the deployable tracked set and final remote comparison; ignored WeChat output, local SWC cache and private configs are excluded independently from tracked-file parity",
+      "productionDeploymentBoundary": "the task deployed code and ran bounded owner refreshes, but did not promote the dormant Candidate, change the formal Active pointer or update SimC",
       "businessHealth": "partial",
       "cleanup": {
-        "status": "obsolete_code_and_rebuildable_artifact_cleanup_verified",
+        "status": "obsolete_code_rebuildable_artifact_and_reintroduced_ignored_payload_cleanup_verified",
         "manifest": "/var/lib/wow-backend/cleanup-quarantine/20260828-project-residue-YWFN3R/manifest.tsv",
         "manifestSha256": "34aca0030fa754516603b9e98b0a6c2c4aef00e461662c5eb6627b84434b98ac",
         "removedSourceTreeResidueEntries": 841,
@@ -750,11 +847,20 @@
         "removedCandidateAndCodeBackupRoots": 4,
         "removedSupersededSimcReleases": 6,
         "removedSupersededSimcSourceArchives": 7,
+        "removedReintroducedIgnoredPayloads": [
+          "/opt/wow-mini-program/apps/mini-taro/dist",
+          "/opt/wow-mini-program/apps/mini-taro/.swc",
+          "/opt/wow-mini-program/apps/mini-taro/project.private.config.json",
+          "/opt/wow-mini-program/project.private.config.json"
+        ],
+        "deploymentRecurrenceGuard": "functional tar archive test and explicit deploy exclusions",
         "unapprovedExtraFileCountAfterCleanup": 0,
         "retained": "formal release evidence, PostgreSQL data, the pg_restore-validated 2026-08-25/27/28 S2 recovery points, exact-foundation-20260810T092755Z, current runtime hotfix backups, Active f50a SimC, Candidate 30555 SimC and one 3c798 rollback",
         "diskBefore": "99_percent_used_964M_available",
-        "diskAfter": "75_percent_used_17G_available"
-      }
+        "diskAfterCleanupBeforeRefresh": "75_percent_used_17G_available",
+        "diskAfterBackupAndRefresh": "77_percent_used_16G_available"
+      },
+      "evidence": "artifacts/releases/2026-08-28-cloud-main-data-refresh/evidence.json"
     },
     "gearStatSnapshot": {
       "status": "phase5_complete_live_verified",

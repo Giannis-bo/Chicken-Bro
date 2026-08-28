@@ -68,6 +68,10 @@ COPYFILE_DISABLE=1 tar \
   --exclude '.git' \
   --exclude 'server/data/wow_news.sqlite3' \
   --exclude 'server/data/wow_news.sqlite3*' \
+  --exclude 'apps/mini-taro/dist' \
+  --exclude 'apps/mini-taro/.swc' \
+  --exclude 'project.private.config.json' \
+  --exclude '*/project.private.config.json' \
   --exclude 'node_modules' \
   --exclude 'artifacts' \
   --exclude 'backups' \
