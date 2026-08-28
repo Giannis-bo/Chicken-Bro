@@ -250,6 +250,153 @@ class DataHealthFollowupTest(unittest.TestCase):
             "gearCatalogRevision:gear-r2|raiderioRevision:rio-r4|simcRuntimeRevision:simc-r3",
         )
 
+    def test_formal_active_manifest_blocks_automatic_simc_runtime_upgrade(self):
+        from server.data_health_followup import followup_state_after_plan, plan_followup_actions
+
+        health = {
+            "components": [
+                {
+                    "key": "active_manifest",
+                    "status": "verified",
+                    "details": {
+                        "formalActiveManifest": True,
+                        "simcRuntimeRevision": "simc-r1",
+                    },
+                },
+                {
+                    "key": "template_simc_bridge",
+                    "status": "partial",
+                    "details": {
+                        "simcraftVersion": {
+                            "simcRuntimeRevision": "simc-r1",
+                            "latestCommit": "simc-r2",
+                            "updateAvailable": True,
+                        }
+                    },
+                },
+            ]
+        }
+
+        plan = plan_followup_actions(health)
+
+        self.assertEqual(plan["actions"], [])
+        self.assertIn(
+            "simc_runtime_update:active_manifest_cutover_required",
+            plan["reportOnly"],
+        )
+        state = followup_state_after_plan({}, plan)
+        self.assertEqual(
+            state["actions"]["simc_runtime_update"]["lastReportOnlyReason"],
+            "active_manifest_cutover_required",
+        )
+
+    def test_missing_active_manifest_blocks_automatic_simc_runtime_upgrade(self):
+        from server.data_health_followup import plan_followup_actions
+
+        health = {
+            "components": [
+                {
+                    "key": "template_simc_bridge",
+                    "status": "partial",
+                    "details": {
+                        "simcraftVersion": {
+                            "latestCommit": "simc-r2",
+                            "updateAvailable": True,
+                        }
+                    },
+                },
+            ]
+        }
+
+        plan = plan_followup_actions(health)
+
+        self.assertEqual(plan["actions"], [])
+        self.assertIn(
+            "simc_runtime_update:active_manifest_state_unavailable",
+            plan["reportOnly"],
+        )
+        self.assertIn(
+            "simc_runtime_update_active_manifest_state_unavailable",
+            plan["manualBlockers"],
+        )
+
+    def test_invalid_active_manifest_blocks_automatic_simc_runtime_upgrade(self):
+        from server.data_health_followup import plan_followup_actions
+
+        health = {
+            "components": [
+                {
+                    "key": "active_manifest",
+                    "status": "blocked",
+                    "details": {
+                        "formalActiveManifest": False,
+                        "pointerMode": "invalid",
+                    },
+                },
+                {
+                    "key": "template_simc_bridge",
+                    "status": "partial",
+                    "details": {
+                        "simcraftVersion": {
+                            "latestCommit": "simc-r2",
+                            "updateAvailable": True,
+                        }
+                    },
+                },
+            ]
+        }
+
+        plan = plan_followup_actions(health)
+
+        self.assertEqual(plan["actions"], [])
+        self.assertIn(
+            "simc_runtime_update:active_manifest_state_unavailable",
+            plan["reportOnly"],
+        )
+
+    def test_simc_update_uses_revision_from_component_reporting_the_update(self):
+        from server.data_health_followup import plan_followup_actions
+
+        health = {
+            "components": [
+                {
+                    "key": "active_manifest",
+                    "status": "partial",
+                    "details": {
+                        "formalActiveManifest": False,
+                        "pointerMode": "pre_cutover",
+                    },
+                },
+                {
+                    "key": "template_simc_bridge",
+                    "status": "verified",
+                    "details": {
+                        "simcraftVersion": {
+                            "latestCommit": "simc-old",
+                            "updateAvailable": False,
+                        }
+                    },
+                },
+                {
+                    "key": "season_cutover_readiness",
+                    "status": "partial",
+                    "details": {
+                        "gates": {
+                            "simcRuntime": {
+                                "latestCommit": "simc-new",
+                                "updateAvailable": True,
+                            }
+                        }
+                    },
+                },
+            ]
+        }
+
+        plan = plan_followup_actions(health)
+
+        self.assertEqual([action["key"] for action in plan["actions"]], ["simc_runtime_update"])
+        self.assertEqual(plan["actions"][0]["inputRevision"], "simc-new")
+
     def test_default_health_url_uses_backend_port_not_nginx(self):
         from server.data_health_followup import DEFAULT_HEALTH_URL
 
@@ -260,6 +407,14 @@ class DataHealthFollowupTest(unittest.TestCase):
 
         health = {
             "components": [
+                {
+                    "key": "active_manifest",
+                    "status": "partial",
+                    "details": {
+                        "formalActiveManifest": False,
+                        "pointerMode": "pre_cutover",
+                    },
+                },
                 {
                     "key": "news",
                     "status": "partial",
