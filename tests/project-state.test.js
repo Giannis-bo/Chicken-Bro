@@ -472,31 +472,46 @@ test('project-state is the single machine-readable current truth entry', () => {
   const cloudDeployment = state.runtimeBaseline.cloudDeployment
   assert.equal(
     cloudDeployment.status,
-    'repository_main_aligned_production_one_runtime_file_behind',
+    'repository_main_and_production_deployable_tree_aligned_data_refresh_partial',
   )
   assert.equal(
-    cloudDeployment.repositoryCandidateCommit,
-    'd0a492c00543d13e9072f8ccaa7ac9239275c8bb',
+    cloudDeployment.repositoryBaselineBeforeTask.commit,
+    'b141740c7a8fb17f3b92dd4191d2e98e399d5627',
   )
   assert.equal(
-    cloudDeployment.repositoryMergeCommit,
-    '023dda614204f3938c68af17e5f3f5273dc30026',
+    cloudDeployment.repositoryBaselineBeforeTask.initialProductionHashParity,
+    '1565/1565',
   )
-  assert.equal(cloudDeployment.repositoryClosure.pullRequest, 122)
-  assert.equal(cloudDeployment.repositoryClosure.taskBranch, 'removed_local_and_remote')
+  assert.equal(cloudDeployment.runtimeIdentity.status, 'live_remote_hash_parity_verified')
   assert.equal(cloudDeployment.runtimeOverrides.length, 2)
   assert.equal(
     cloudDeployment.runtimeOverrides[0].state,
-    'production_previous_hotfix_differs_from_repository_candidate',
+    'matches_deployed_repository_tree',
   )
   assert.equal(
     cloudDeployment.runtimeOverrides[1].state,
-    'matches_repository_candidate_commit',
+    'matches_deployed_repository_tree',
   )
   assert.equal(cloudDeployment.deployRevisionMarker.status, 'absent_removed_as_stale_unconsumed_marker')
+  assert.equal(cloudDeployment.postgresql.runtimeMode, 'postgres_only')
+  assert.equal(cloudDeployment.postgresql.migrationLedger, '37/37')
+  assert.equal(cloudDeployment.postgresql.backup.pgRestoreList, 'pass')
+  assert.equal(cloudDeployment.activeManifest.status, 'verified_unchanged')
+  assert.equal(cloudDeployment.activeManifest.generation, 41)
+  assert.equal(cloudDeployment.activeManifest.updatePolicy, 'report_only_active_manifest_cutover_required')
+  assert.equal(cloudDeployment.dataRefresh.overallStatus, 'partial')
+  assert.equal(cloudDeployment.dataRefresh.websim.status, 'verified')
+  assert.equal(cloudDeployment.dataRefresh.gearCatalog.verifiedVariants, 20910)
+  assert.equal(cloudDeployment.dataRefresh.communityTemplates.unitResult, 'failed_integrity_gate')
+  assert.equal(cloudDeployment.dataRefresh.statWeights.accepted, 23)
+  assert.equal(cloudDeployment.dataRefresh.statWeights.blocked, 97)
+  assert.equal(cloudDeployment.dataRefresh.gearReleaseRefresh.unitResult, 'timeout')
+  assert.deepEqual(cloudDeployment.dataRefresh.followupDryRun.actions, [])
+  assert.equal(cloudDeployment.canary.failedUnitsAfterEvidenceReset, 0)
   assert.equal(cloudDeployment.cleanup.removedSourceTreeResidueEntries, 841)
   assert.equal(cloudDeployment.cleanup.removedSupersededBackupEntries, 178)
-  assert.equal(cloudDeployment.cleanup.diskAfter, '75_percent_used_17G_available')
+  assert.equal(cloudDeployment.cleanup.removedReintroducedIgnoredPayloads.length, 4)
+  assert.equal(cloudDeployment.cleanup.diskAfterBackupAndRefresh, '77_percent_used_16G_available')
 
   const phase5Evidence = readJson(path.join(archivedPhase5Release, 'evidence.json'))
   const phase5Closure = readJson(path.join(archivedPhase5Release, 'closure-audit.json'))

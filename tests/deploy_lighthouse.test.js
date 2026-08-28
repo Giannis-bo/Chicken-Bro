@@ -5,10 +5,8 @@ const os = require('node:os');
 const path = require('node:path');
 const { execFileSync, spawnSync } = require('node:child_process');
 
-const deployScript = fs.readFileSync(
-  path.join(__dirname, '..', 'server', 'deploy_lighthouse.sh'),
-  'utf8',
-);
+const deployScriptPath = path.join(__dirname, '..', 'server', 'deploy_lighthouse.sh');
+const deployScript = fs.readFileSync(deployScriptPath, 'utf8');
 const publisherScriptPath = path.join(__dirname, '..', 'server', 'publish_release_evidence.sh');
 const publisherScript = fs.readFileSync(publisherScriptPath, 'utf8');
 
@@ -33,6 +31,83 @@ test('cloud deploy does not upload local development payloads', () => {
       `expected ${artifact} to be excluded from the deployment archive`,
     );
   }
+});
+
+test('cloud deploy archive excludes ignored WeChat output, compiler cache, and private configs', (t) => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'wow-deploy-archive-'));
+  const fixtureRoot = path.join(tempRoot, 'fixture');
+  const captureRoot = path.join(tempRoot, 'capture');
+  const fakeBin = path.join(tempRoot, 'bin');
+  const sshStatePath = path.join(tempRoot, 'ssh-state');
+  t.after(() => fs.rmSync(tempRoot, { recursive: true, force: true }));
+
+  for (const directory of [
+    path.join(fixtureRoot, 'apps', 'mini-taro', 'src'),
+    path.join(fixtureRoot, 'apps', 'mini-taro', 'dist', 'weapp'),
+    path.join(fixtureRoot, 'apps', 'mini-taro', '.swc', 'plugins', 'macos-arm64'),
+    path.join(fixtureRoot, 'server', 'data'),
+    fakeBin,
+  ]) {
+    fs.mkdirSync(directory, { recursive: true });
+  }
+  fs.writeFileSync(path.join(fixtureRoot, 'apps', 'mini-taro', 'src', 'app.ts'), 'tracked source\n');
+  fs.writeFileSync(path.join(fixtureRoot, 'apps', 'mini-taro', 'dist', 'weapp', 'app.js'), 'stale build\n');
+  fs.writeFileSync(path.join(fixtureRoot, 'apps', 'mini-taro', '.swc', 'plugins', 'macos-arm64', 'plugin'), 'local compiler cache\n');
+  fs.writeFileSync(path.join(fixtureRoot, 'apps', 'mini-taro', 'project.private.config.json'), '{}\n');
+  fs.writeFileSync(path.join(fixtureRoot, 'project.private.config.json'), '{}\n');
+  fs.writeFileSync(path.join(fixtureRoot, 'server', 'data', 'control-contract.json'), '{}\n');
+  fs.writeFileSync(path.join(fixtureRoot, 'server', 'data', 'wow_news.sqlite3'), 'runtime sqlite\n');
+
+  fs.writeFileSync(path.join(fakeBin, 'ssh'), `#!/usr/bin/env bash
+set -euo pipefail
+state_path="\${WOW_TEST_SSH_STATE:?}"
+capture_root="\${WOW_TEST_CAPTURE_ROOT:?}"
+call_count=0
+if [[ -f "\${state_path}" ]]; then
+  call_count="$(<"\${state_path}")"
+fi
+call_count=$((call_count + 1))
+printf '%s' "\${call_count}" > "\${state_path}"
+if [[ "\${call_count}" -eq 1 ]]; then
+  mkdir -p "\${capture_root}"
+  tar -xzf - -C "\${capture_root}"
+  exit 0
+fi
+exit 71
+`, { mode: 0o755 });
+
+  const result = spawnSync('bash', [deployScriptPath], {
+    cwd: fixtureRoot,
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      PATH: `${fakeBin}:${process.env.PATH}`,
+      WOW_TEST_SSH_STATE: sshStatePath,
+      WOW_TEST_CAPTURE_ROOT: captureRoot,
+      WOW_LIGHTHOUSE_HOST: 'fixture.invalid',
+      WOW_LIGHTHOUSE_USER: 'fixture',
+      WOW_LIGHTHOUSE_DIR: '/tmp/wow-deploy-fixture',
+      WOW_DEPLOY_SKIP_BOOTSTRAP: '1',
+    },
+  });
+
+  assert.equal(result.status, 71, result.stderr);
+  assert.equal(
+    fs.readFileSync(path.join(captureRoot, 'apps', 'mini-taro', 'src', 'app.ts'), 'utf8'),
+    'tracked source\n',
+  );
+  assert.equal(
+    fs.readFileSync(path.join(captureRoot, 'server', 'data', 'control-contract.json'), 'utf8'),
+    '{}\n',
+  );
+  assert.equal(fs.existsSync(path.join(captureRoot, 'apps', 'mini-taro', 'dist')), false);
+  assert.equal(fs.existsSync(path.join(captureRoot, 'apps', 'mini-taro', '.swc')), false);
+  assert.equal(
+    fs.existsSync(path.join(captureRoot, 'apps', 'mini-taro', 'project.private.config.json')),
+    false,
+  );
+  assert.equal(fs.existsSync(path.join(captureRoot, 'project.private.config.json')), false);
+  assert.equal(fs.existsSync(path.join(captureRoot, 'server', 'data', 'wow_news.sqlite3')), false);
 });
 
 test('cloud deploy provisions immutable wow evidence hosting without changing artifact exclusion', () => {
