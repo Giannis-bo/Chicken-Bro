@@ -20,9 +20,10 @@
 
 `微信登录 -> 提交 Raider.IO/WCL 链接 -> 冻结角色快照 -> 执行 SimC -> 交给炸鸡队长解释`
 
-微信小程序与独立 HTTPS Web 复用一套 Taro 业务代码，通过不同微信认证会话映射到同一个内部
-`user_id`，共享对话与 SimC 任务历史。Web 使用微信开放平台扫码登录；共享的是账号数据，不是 Cookie、
-OpenID、`session_key` 或客户端 token。炸鸡队长继续由原生 Codex 负责理解和分析，服务端只保留身份、
+微信小程序与独立 HTTPS Web 复用一套 Taro 业务代码。小程序使用现有 `wx.login`/project identity；
+Web 使用“微信扫码，在炸鸡队长小程序中确认登录”的辅助登录 session，通过不同会话映射到同一个内部
+`user_id`，共享对话与 SimC 任务历史。共享的是账号数据，不是 Cookie、OpenID、`session_key` 或客户端
+token；当前 Web 登录不依赖网站应用 OAuth 或 UnionID。炸鸡队长继续由原生 Codex 负责理解和分析，服务端只保留身份、
 隐私、只读工具、预算、超时、流式和持久化边界。SimC 只接受经过独立 Adapter 解析、统一 readiness
 校验和单一 compiler 生成的 `CharacterSnapshot`。
 
@@ -55,10 +56,10 @@ Active Manifest、Gear Catalog 和旧 API 只作为迁移期 last-known-good 如
 | 优先级 | 里程碑 | 完成标准 | 权威入口 |
 | --- | --- | --- | --- |
 | 正在推进 | 双端精简架构骨架 | 建立模块化单体 `/api/v2`、独立 Worker、`identity/chat/simc/ops` 数据 owner 和依赖守卫；不改变当前生产入口 | [父级架构](superpowers/specs/2026-09-01-chickenbro-simc-dual-client-architecture-design.md) |
-| 下一步 | 微信双端 Identity | 小程序 exchange 与 Web 扫码登录使用独立会话并解析为同一内部 `user_id`；UnionID 缺失时提供显式绑定，冲突 fail-closed | [父级架构](superpowers/specs/2026-09-01-chickenbro-simc-dual-client-architecture-design.md) |
+| 下一步 | 微信双端 Identity | 小程序 exchange 与 Web 一次性扫码确认 session 使用独立会话并映射到同一内部 `user_id`；scene ticket/verifier 防重放，UnionID 仅可选，冲突 fail-closed | [父级架构](superpowers/specs/2026-09-01-chickenbro-simc-dual-client-architecture-design.md) |
 | 下一步 | Codex-only 炸鸡队长 | 抽取当前原生 Codex runner、owner-bound 会话和 SSE；Codex 不可用时明确失败，不静默切换普通 LLM 或模板回答 | [父级架构](superpowers/specs/2026-09-01-chickenbro-simc-dual-client-architecture-design.md) |
 | 下一步 | Raider.IO/WCL 到 SimC | 两个 Adapter 只输出统一 Snapshot candidate；readiness、compiler、Worker 和云端 SimC 形成单一可审计主链 | [父级架构](superpowers/specs/2026-09-01-chickenbro-simc-dual-client-architecture-design.md) |
-| 后续 | 双端切流与 legacy 删除 | 独立 Web 域名、微信扫码回调、跨端历史、候选、回滚与用户验收闭合后，删除资讯、天赋模拟、装备模拟及其 route/job/data owner | [父级架构](superpowers/specs/2026-09-01-chickenbro-simc-dual-client-architecture-design.md) |
+| 后续 | 双端切流与 legacy 删除 | 独立 Web 域名、Web login session/小程序确认、跨端历史、候选、回滚与用户验收闭合后，删除资讯、天赋模拟、装备模拟及其 route/job/data owner | [父级架构](superpowers/specs/2026-09-01-chickenbro-simc-dual-client-architecture-design.md) |
 | 暂缓 | 旧 14 路由 UI 与 S2 Catalog 扩展 | 当前线上事实、证据和回滚继续保留，但不再新增产品能力；由新双端路径验收后统一退役 | [project-state.json](project-state.json) |
 
 ## 装备模拟状态分层

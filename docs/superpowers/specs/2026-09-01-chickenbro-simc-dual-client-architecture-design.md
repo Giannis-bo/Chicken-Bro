@@ -8,7 +8,7 @@
 
 下一代产品只保留两个业务域：炸鸡队长和 SimC。资讯、天赋模拟、装备模拟、旧 WebSim 工作台及其一级入口全部退出目标产品；登录、历史记录、任务查询、运行健康和审计属于共享基础能力，不形成新的业务模块。
 
-客户端继续使用一套 Taro/React 业务代码，分别构建微信小程序和部署在独立 HTTPS 网址的 Web/H5。两端各自完成微信认证并持有独立会话，通过同一个内部 `user_id` 共享炸鸡队长会话记录和 SimC 任务记录。
+客户端继续使用一套 Taro/React 业务代码，分别构建微信小程序和部署在独立 HTTPS 网址的 Web/H5。小程序通过现有 `wx.login`/project identity 完成认证；Web 通过一次性、浏览器绑定的“小程序扫码确认登录”获得自己的会话。两端各自持有独立会话，通过同一个内部 `user_id` 共享炸鸡队长会话记录和 SimC 任务记录。
 
 后端采用模块化单体 API、独立异步 Worker、共享 PostgreSQL 和既有云端 SimulationCraft runtime。代码在一个仓库内保持清晰领域边界，不立即引入微服务、Redis、Kafka、Celery、独立数据库或通用插件平台。
 
@@ -31,6 +31,7 @@ SimC 采用两个来源 Adapter、一个统一 `CharacterSnapshot`、一个 read
 ### 2.2 用户可见完成标准
 
 - 小程序和 Web 的登录会话可以分别失效，但两端识别为同一内部用户；
+- Web 主路径明确显示“使用微信扫码，在炸鸡队长小程序中确认登录”，不冒充网站应用 OAuth；移动 Web 无法方便扫码时明确降级到 PC/另一设备扫码或直接使用小程序；
 - 两端展示相同 owner 下的会话和 SimC 任务，且不能读取其他用户数据；
 - 炸鸡队长自然对话可流式返回，失败时保留真实用户消息并提供可重试状态；
 - 合法链接、来源可访问、快照完整和 SimC-ready 是四个不同结论；
@@ -44,6 +45,7 @@ SimC 采用两个来源 Adapter、一个统一 `CharacterSnapshot`、一个 read
 本架构不包含：
 
 - 把小程序 Cookie、`session_key`、OpenID 或微信 access token直接复用到 Web；
+- 使用微信开放平台网站应用 OAuth、`snsapi_login`、独立网站 AppID/AppSecret，或把 UnionID 作为 Web 登录的必要前提；
 - 让 Codex 直接访问数据库、Shell、服务器文件、密钥或任意写操作；
 - 用 Raider.IO/WCL 覆盖、证明或恢复旧装备 Catalog；
 - 从 WCL 快照承诺复刻日志 DPS、完整战斗脚本或团队增益；
@@ -92,7 +94,9 @@ flowchart TB
 - `apps/mini-taro` 继续构建 `h5`；
 - 独立域名由 Nginx 提供静态文件和 HTTPS；
 - Web 域名将 `/api/` 与 `/auth/` 反向代理到 API，使浏览器使用同源 HttpOnly Cookie，避免在前端 JavaScript 中持久化 Web token；
-- 首版保留 hash router，减少服务器 rewrite 和 OAuth 回调耦合；页面导航细节后续独立设计。
+- Web 登录采用服务端一次性 login session：浏览器生成 verifier，服务端只保存 verifier hash；二维码只承载 opaque scene ticket，不能放 user_id、OpenID、token 或个人信息；小程序扫码后通过现有 project identity 明确确认，Web 再以同一 verifier 交换自己的 HttpOnly Secure SameSite=Lax Cookie；
+- PC Web 是主路径。移动 Web 在同一设备不便扫码时，明确引导使用 PC/另一设备扫码或转到小程序，不静默切换到另一种登录协议；
+- 首版保留 hash router，减少服务器 rewrite 和登录会话回调耦合；页面导航细节后续独立设计。
 
 ### 5.2 微信小程序
 
@@ -210,7 +214,7 @@ UI -> typed API client -> API/BFF -> application -> domain -> ports <- adapters
 
 | Schema | Owner | 核心记录 |
 | --- | --- | --- |
-| `identity` | Identity | users、user_identities、auth_sessions、oauth_states |
+| `identity` | Identity | users、user_identities、auth_sessions、web_login_sessions |
 | `chat` | Chickenbro | conversations、messages、agent_runs |
 | `simc` | Simulation | source_snapshots、simulation_jobs、simulation_results |
 | `ops` | Platform | job_leases、audit_events、usage_counters、outbox_events |
@@ -218,7 +222,7 @@ UI -> typed API client -> API/BFF -> application -> domain -> ports <- adapters
 ### 7.1 追加与不可变规则
 
 - 消息正文、已冻结 `CharacterSnapshot`、SimC profile、运行结果和终态审计只追加，不原地改写；
-- conversation 标题、归档状态、OAuth state、任务 lease 等控制字段可以更新；
+- conversation 标题、归档状态、Web login session 状态、任务 lease 等控制字段可以更新；
 - 用户补齐输入时生成新的 snapshot revision，不修改已经执行过的 revision；
 - 任务结果以 `(user_id, snapshot_id, scenario_hash, runtime_revision, compiler_revision)` 幂等；
 - “历史记录”是 `chat` 和 `simc` 的聚合读模型，不复制出第三份历史事实。
@@ -237,12 +241,12 @@ unionid
 profile_json
 ```
 
-小程序和 Web 的 OpenID 通常不同。解析顺序为：
+小程序的 OpenID 仍按当前应用上下文保存；Web 登录不依赖网站应用 OpenID，也不要求 UnionID。解析顺序为：
 
-1. 先按 `provider + app_context + OpenID` 查找精确 identity；
-2. 当 UnionID 存在时，按同一微信开放平台上下文归并到已有 `user_id`；
-3. 若 UnionID 冲突，阻断登录归并并写审计，绝不覆盖；
-4. UnionID 缺失且两端已有独立账号时，通过双方已认证的显式绑定流程归并；
+1. 小程序先按 `provider + app_context + OpenID` 查找或创建精确 identity，并映射到内部 `user_id`；
+2. Web 只能通过一个未过期、未消费、绑定浏览器 verifier 的 login session 等待小程序确认；确认动作使用当前小程序 project identity 直接写入该 session 的 `user_id`；
+3. UnionID（若未来接口返回）只是可选的关联信息；缺失不能阻断 Web 登录，冲突仍阻断归并并写审计，绝不覆盖已有 `user_id`；
+4. 任何已有独立账号的合并都必须走双方已认证的显式绑定流程，不得由 Web ticket 自动猜测或合并；
 5. 不使用昵称、头像、服务器角色名或相似 OpenID 猜测同一用户。
 
 ### 8.2 小程序登录
@@ -257,16 +261,18 @@ wx.login -> /api/v2/auth/wechat/mini/exchange
 ### 8.3 Web 扫码登录
 
 ```text
-/auth/wechat/web/start
--> 生成一次性 state
--> 微信网站应用 snsapi_login
--> /auth/wechat/web/callback
--> code exchange
--> Identity Resolver
+Web 生成 browser verifier
+-> /api/v2/auth/wechat/web/login-sessions
+-> 服务端保存 verifier hash，生成短时 scene ticket hash
+-> 展示只含 opaque scene ticket 的小程序码
+-> 用户扫码进入炸鸡队长小程序
+-> 现有 wx.login/project identity 认证 + 用户明确确认
+-> 服务端将 ticket 绑定到该内部 user_id
+-> Web 以同一 verifier 查询状态并单次 exchange
 -> HttpOnly Secure SameSite=Lax session cookie
 ```
 
-OAuth state 使用短 TTL、一次性消费和 hash 持久化。Web Cookie 与小程序 Bearer token 独立撤销；共享的是 `user_id` 和业务数据，不是登录态本身。微信开放平台、网站应用审核、UnionID 和回调域名规则在实施前重新核对官方文档。
+login session 使用短 TTL、一次性消费、hash 持久化、取消和重放保护。scene ticket 中不得放 `user_id`、OpenID、UnionID、token 或个人信息；confirm 必须由已认证小程序用户显式触发，status/exchange 必须证明同一 browser verifier。Web Cookie 与小程序 Bearer token 独立撤销；共享的是 `user_id` 和业务数据，不是登录态本身。当前账号为个人主体，标准网站应用 OAuth、`snsapi_login`、网站 AppID/AppSecret 和 UnionID 不属于当前方案；企业主体未来可作为独立升级选项。
 
 ## 9. 炸鸡队长
 
@@ -368,8 +374,11 @@ READY_FOR_SIMC
 
 ```text
 POST /api/v2/auth/wechat/mini/exchange
-GET  /auth/wechat/web/start
-GET  /auth/wechat/web/callback
+POST /api/v2/auth/wechat/web/login-sessions
+GET  /api/v2/auth/wechat/web/login-sessions/{id}
+POST /api/v2/auth/wechat/web/login-sessions/{id}/exchange
+POST /api/v2/auth/wechat/web/login-sessions/{id}/cancel
+POST /api/v2/auth/wechat/mini/web-login-confirm
 POST /api/v2/auth/logout
 GET  /api/v2/me
 
@@ -435,9 +444,10 @@ running -> cancelled
 ## 13. 安全与隐私
 
 - 只允许 `https` 且 host/path 匹配 Raider.IO/WCL allowlist 的链接，禁止重定向到非 allowlist host；
-- 第三方 API key、OAuth secret、Codex 配置和 SimC binary 路径仅在服务端；
+- 第三方 API key、未来经独立授权合同允许的第三方凭据、Codex 配置和 SimC binary 路径仅在服务端；当前 Web 登录不使用网站应用 AppID/AppSecret；
 - 原始来源 payload 与生成 profile 视为 owner-bound 个人数据；日志只保留 hash、状态和脱敏摘要；
 - Web 使用同源代理、HttpOnly Secure Cookie、CSRF/Origin 校验和严格 CORS；
+- Web login session 只保存 scene ticket/verifier 的 hash、状态、过期时间、绑定 user_id 和消费时间；scene ticket 不携带个人或身份字段，confirm、exchange、cancel 均为短时且单次操作；
 - 小程序 Bearer token 只发送给 HTTPS 正式 API；
 - 普通用户身份与 `WOW_ADMIN_TOKEN` 管理身份完全分离；
 - 不保存模型思维链；Agent trace 只保留运行版本、工具名、公开状态、耗时和引用标识；
@@ -469,7 +479,7 @@ running -> cancelled
 
 ### 阶段 B：Identity
 
-- 建立 provider-aware identity resolver、Web OAuth 和小程序 exchange；
+- 建立 provider-aware identity resolver、小程序 exchange，以及不依赖网站应用 OAuth/UnionID 的 Web login session + 小程序确认；
 - 测试数据允许重建，不进行复杂历史账号迁移；
 - 双端同一 `user_id` 通过后再允许新业务写入。
 
@@ -488,7 +498,7 @@ running -> cancelled
 ### 阶段 E：双端客户端
 
 - 新建精简 App Shell 和 feature routes；
-- Web 部署独立域名并完成微信扫码回调；
+- Web 部署独立域名并完成 login session、小程序码展示、确认状态查询和自有 Cookie exchange；
 - 小程序和 H5 对相同账号执行会话/任务交叉读取验收。
 
 ### 阶段 F：切流与删除
@@ -519,11 +529,11 @@ running -> cancelled
 
 ### 16.3 双端端到端
 
-- 小程序登录创建/解析用户，Web 扫码登录解析为同一 `user_id`；
+- 小程序登录创建/解析用户，Web 通过未过期且绑定 verifier 的小程序扫码确认 session 解析为同一 `user_id`；
 - 小程序发起会话，Web 可见并续问；反向同样成立；
 - 一端提交 SimC，另一端看到相同任务状态和结果；
-- 未登录、UnionID 缺失、来源受限、快照不完整、Worker 重启、Codex 超时和 SimC 失败均有明确恢复路径；
-- Web 正式域名、HTTPS、OAuth state、Cookie、CORS/Origin 和反向代理在 candidate 环境验证。
+- 未登录、UnionID 缺失、scene ticket 重放、verifier 不匹配、session 过期/取消、来源受限、快照不完整、Worker 重启、Codex 超时和 SimC 失败均有明确恢复路径；
+- Web 正式域名、HTTPS、login session verifier、Cookie、CORS/Origin 和反向代理在 candidate 环境验证；不验证也不实现网站应用 OAuth。
 
 ### 16.4 发布门槛
 

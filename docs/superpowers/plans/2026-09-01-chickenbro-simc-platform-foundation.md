@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - 目标产品只有炸鸡队长和 SimC；Identity、历史、health 和 Worker 是共享基础能力，不扩张为第三个业务域。
-- 本计划只实现平台骨架，不实现微信 code exchange/OAuth、Codex 对话、Raider.IO/WCL 网络解析、SimC profile 编译或 SimC 执行。
+- 本计划只实现平台骨架，不实现微信 code exchange、网站应用 OAuth/`snsapi_login`、小程序辅助 Web 登录流程、Codex 对话、Raider.IO/WCL 网络解析、SimC profile 编译或 SimC 执行。
 - 当前生产 `server/news_backend.py`、`server/wow-backend.service`、14 条 Taro 路由、Active Manifest、Gear Catalog 和 SimC runtime 均保持不变。
 - 新后端只能从 `/api/v2` 暴露；不得把新模块导入旧后端，也不得让新模块导入 legacy `news_backend.py`、`simulator_payload.py`、WebSim、Catalog、Resolver 或 Manifest owner。
 - PostgreSQL 是唯一新持久层；不得增加 SQLite、Redis、Celery、Kafka、RabbitMQ 或另一个数据库。
@@ -24,6 +24,21 @@
 - 本计划不部署、不切流、不删除旧代码、不清空生产数据，也不触发任何 async sync。
 - FastAPI、Pydantic、Uvicorn、Psycopg 和 HTTPX 当前未安装。本计划可以先提交锁定清单；创建虚拟环境和执行 `pip install` 前必须取得网络下载/依赖安装的明确批准。
 - 每个 Task 先 RED、再最小 GREEN、再定向验证和独立提交；任何测试数据只允许使用临时目录或专用 PostgreSQL candidate database。
+
+## Architecture correction: Web login under a personal WeChat主体
+
+2026-09-01 的当前微信后台证据显示账号主体为个人，无法申请微信认证。因此本计划不再把 Web 登录建模为网站应用 OAuth、`snsapi_login`、独立网站 AppID/AppSecret 或 UnionID 必选链路；这些只保留为未来企业主体的可选升级，不是当前阻塞项。
+
+本计划后续 Identity 子项目的默认合同改为：PC Web 创建短时、一次性、可取消且绑定浏览器 verifier 的 login session，二维码只承载 opaque scene ticket；用户使用现有小程序 `wx.login`/project identity 扫码后，在炸鸡队长小程序内明确确认；服务端将 ticket 绑定到该内部 `user_id`，Web 以同一 verifier 单次交换自己的 HttpOnly Secure SameSite session cookie。scene ticket 不得包含 user_id、OpenID、UnionID、token 或个人信息；移动 Web 明确降级到 PC/另一设备扫码或直接使用小程序。
+
+影响范围：
+
+| 分类 | 结论 |
+| --- | --- |
+| `must_change` | 父级架构身份/部署/API/安全/验证表述；roadmap 的 Web 登录承诺；本 requirement 的决策记录；Identity 后续的纯 Domain ticket/verifier 合同测试 |
+| `must_not_change` | 已完成 Task 0–4、6 的模块边界、PostgreSQL chat/simc/ops schema、Worker lease、旧生产入口、14 条路由、Active Manifest、生产数据库和依赖安装暂停状态 |
+| `risk_unknown` | 小程序扫码确认所需的实际小程序码生成能力、当前 project identity API 的具体复用入口、PC 与移动 Web 的最终交互细节；这些留到 Identity 子项目，不在本骨架中猜测实现 |
+| `evidence_required` | 纯 Domain 对过期/取消/错 verifier/重复 exchange 的 fail-closed 测试；后续真实小程序确认与 Web Cookie exchange 的 candidate/用户验收；不把设计文档或本地测试宣称为登录完成 |
 
 ---
 
@@ -64,7 +79,7 @@ Write this complete JSON before Task 1 changes runtime or dependency files:
   "goal": "建立不改变旧生产入口的 /api/v2 模块化单体、PostgreSQL owner schema、独立 Worker 和双端 typed platform client。",
   "userValue": "后续微信双端、炸鸡队长和角色链接 SimC 可以在同一内部账号与可审计任务底座上独立交付，不再向单个 legacy 后端大文件继续堆叠。",
   "nonGoals": [
-    "不实现微信 OAuth、Codex 对话、Raider.IO/WCL 网络解析或 SimC 执行。",
+    "不实现微信网站应用 OAuth、snsapi_login、小程序辅助 Web 登录流程、Codex 对话、Raider.IO/WCL 网络解析或 SimC 执行。",
     "不改变生产服务、旧 API、14 条路由、Active Manifest 或任何正式数据。",
     "不部署、切流、删除 legacy、安装未经批准的依赖或触发异步同步。"
   ],
@@ -109,6 +124,13 @@ Write this complete JSON before Task 1 changes runtime or dependency files:
       "future dual-client shell"
     ]
   },
+  "identityConstraint": {
+    "currentWechatSubject": "personal_unverified",
+    "websiteOAuth": "forbidden_for_current_subject",
+    "webLogin": "mini_program_qr_confirmation_with_browser_verifier",
+    "unionidRequired": false,
+    "sceneTicket": "opaque_short_lived_single_use_no_personal_fields"
+  },
   "engineeringHealth": {
     "status": "isolated_foundation",
     "reason": "The new runtime is parallel, unregistered in production and guarded against legacy imports."
@@ -117,7 +139,8 @@ Write this complete JSON before Task 1 changes runtime or dependency files:
     "The v2 API exposes only liveness/readiness and reports unimplemented adapters as unconfigured.",
     "The Worker claims each queued command once under lease and has no business handler in this slice.",
     "The TypeScript client is shared by H5/WeApp without changing a route or navigation entry.",
-    "Current production files and business data remain unchanged."
+    "Current production files and business data remain unchanged.",
+    "This foundation does not claim Web login; it only preserves the mini-program-confirmed, browser-bound identity contract for the later Identity slice."
   ],
   "manualAcceptanceContract": {
     "required": false,
@@ -133,6 +156,10 @@ Write this complete JSON before Task 1 changes runtime or dependency files:
     {
       "date": "2026-09-01",
       "decision": "The user approved the modular monolith API plus independent Worker topology and delegated technical details to Codex best practices."
+    },
+    {
+      "date": "2026-09-01",
+      "decision": "The current WeChat account is a personal主体 that cannot apply for WeChat verification; Web login therefore uses mini-program QR confirmation with a browser-bound verifier, without website OAuth, snsapi_login or a UnionID prerequisite."
     }
   ]
 }
@@ -267,6 +294,8 @@ Expected: all imports succeed. Without that approval, continue only with Tasks w
 **Interfaces:**
 - Consumes: Python standard library only.
 - Produces: `Principal`, `Conversation`, `AgentRun`, `SourceSnapshot`, `SimulationJob`, their literal enums, legal transition functions and Protocol ports used by every following Task.
+
+**Architecture correction addition:** `server/app/identity/domain.py` also owns the pure `WebLoginSession` contract: only lowercase scene-ticket/verifier SHA-256 digests are stored; mini-program confirmation must match the scene-ticket digest before binding `user_id`; exchange requires the matching verifier, expiry check and a single `confirmed -> exchanged` transition. This is a contract only; it does not implement the Web login route, QR generation or Cookie issuance.
 
 - [ ] **Step 1: Write failing domain transition tests**
 
@@ -1377,6 +1406,7 @@ Review the complete diff against the parent spec and confirm:
 - no new import from `server.news_backend`, `server.simulator_payload` or `server.websim_payload`;
 - no route/navigation/service/deploy change;
 - no dependency secret, DSN, OpenID, UnionID, chat content or profile payload in evidence;
+- no website OAuth/`snsapi_login`/UnionID prerequisite is introduced; Web login remains a later mini-program-confirmed, browser-verifier-bound Identity slice;
 - no health component claims ready without a real probe;
 - no migration or queue write has run against production.
 
@@ -1394,7 +1424,7 @@ git commit -m "docs: bind the v2 platform foundation evidence"
 - [ ] TypeScript readiness literals exactly match API output and cannot promote fallback to ready.
 - [ ] Migration `0038` is additive; no legacy schema, row, service or pointer is deleted or mutated by this slice.
 - [ ] Dependency install is the only network/download action and remains blocked until explicit approval.
-- [ ] Candidate, Web OAuth, real Codex, Raider.IO/WCL and SimC semantic smokes are not represented as completed by local foundation tests.
+- [ ] Candidate, Web QR confirmation, website OAuth, real Codex, Raider.IO/WCL and SimC semantic smokes are not represented as completed by local foundation tests.
 
 ## Completion Boundary
 

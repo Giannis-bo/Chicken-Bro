@@ -6,7 +6,7 @@
   "goal": "建立不改变旧生产入口的 /api/v2 模块化单体、PostgreSQL owner schema、独立 Worker 和双端 typed platform client。",
   "userValue": "后续微信双端、炸鸡队长和角色链接 SimC 可以在同一内部账号与可审计任务底座上独立交付，不再向单个 legacy 后端大文件继续堆叠。",
   "nonGoals": [
-    "不实现微信 OAuth、Codex 对话、Raider.IO/WCL 网络解析或 SimC 执行。",
+    "不实现微信网站应用 OAuth、snsapi_login、小程序辅助 Web 登录流程、Codex 对话、Raider.IO/WCL 网络解析或 SimC 执行。",
     "不改变生产服务、旧 API、14 条路由、Active Manifest 或任何正式数据。",
     "不部署、切流、删除 legacy、安装未经批准的依赖或触发异步同步。"
   ],
@@ -51,6 +51,13 @@
       "future dual-client shell"
     ]
   },
+  "identityConstraint": {
+    "currentWechatSubject": "personal_unverified",
+    "websiteOAuth": "forbidden_for_current_subject",
+    "webLogin": "mini_program_qr_confirmation_with_browser_verifier",
+    "unionidRequired": false,
+    "sceneTicket": "opaque_short_lived_single_use_no_personal_fields"
+  },
   "engineeringHealth": {
     "status": "isolated_foundation",
     "reason": "The new runtime is parallel, unregistered in production and guarded against legacy imports."
@@ -59,7 +66,8 @@
     "The v2 API exposes only liveness/readiness and reports unimplemented adapters as unconfigured.",
     "The Worker claims each queued command once under lease and has no business handler in this slice.",
     "The TypeScript client is shared by H5/WeApp without changing a route or navigation entry.",
-    "Current production files and business data remain unchanged."
+    "Current production files and business data remain unchanged.",
+    "This foundation does not claim Web login; it only preserves the mini-program-confirmed, browser-bound identity contract for the later Identity slice."
   ],
   "manualAcceptanceContract": {
     "required": false,
@@ -75,6 +83,10 @@
     {
       "date": "2026-09-01",
       "decision": "The user approved the modular monolith API plus independent Worker topology and delegated technical details to Codex best practices."
+    },
+    {
+      "date": "2026-09-01",
+      "decision": "The current WeChat account is a personal主体 that cannot apply for WeChat verification; Web login therefore uses mini-program QR confirmation with a browser-bound verifier, without website OAuth, snsapi_login or a UnionID prerequisite."
     }
   ]
 }
