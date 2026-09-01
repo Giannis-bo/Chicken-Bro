@@ -4,6 +4,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 MIGRATION = ROOT / "server/migrations/postgres/0038_chickenbro_simc_platform_foundation.sql"
+AUTH_MIGRATION = ROOT / "server/migrations/postgres/0039_wechat_web_login_sessions.sql"
 
 
 class AppSchemaTest(unittest.TestCase):
@@ -31,3 +32,19 @@ class AppSchemaTest(unittest.TestCase):
         sql = MIGRATION.read_text(encoding="utf-8")
         self.assertGreaterEqual(sql.count("user_id uuid NOT NULL REFERENCES identity.users(id)"), 5)
         self.assertIn("'0038_chickenbro_simc_platform_foundation'", sql)
+
+    def test_wechat_login_migration_is_additive_and_digest_scoped(self):
+        self.assertTrue(AUTH_MIGRATION.is_file(), "Web login migration is missing")
+        sql = " ".join(AUTH_MIGRATION.read_text(encoding="utf-8").split())
+        for clause in (
+            "CREATE TABLE IF NOT EXISTS identity.auth_sessions",
+            "CREATE TABLE IF NOT EXISTS identity.web_login_sessions",
+            "kind IN ('mini_bearer', 'web_cookie')",
+            "status IN ('pending', 'confirmed', 'exchanged', 'cancelled', 'expired')",
+            "scene_ticket_sha256",
+            "browser_verifier_sha256",
+            "0039_wechat_web_login_sessions",
+        ):
+            self.assertIn(clause, sql)
+        self.assertNotIn("DROP TABLE", sql.upper())
+        self.assertNotIn("identity.auth_tokens", sql)

@@ -1,5 +1,7 @@
+import hashlib
 import hmac
 import re
+import secrets
 from dataclasses import dataclass, replace
 from datetime import datetime
 from enum import Enum
@@ -29,6 +31,16 @@ class WebLoginSessionStatus(str, Enum):
 _SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 
 
+def digest(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def new_opaque_token(byte_length: int = 32) -> str:
+    if byte_length < 16:
+        raise ValueError("opaque token length must be at least 16 bytes")
+    return secrets.token_urlsafe(byte_length)
+
+
 @dataclass(frozen=True)
 class WebLoginSession:
     """One browser-bound, mini-program-confirmed web login attempt.
@@ -44,12 +56,15 @@ class WebLoginSession:
     status: WebLoginSessionStatus
     expires_at: datetime
     exchanged_at: datetime | None
+    idempotency_key_sha256: str | None = None
 
     def __post_init__(self) -> None:
         if _SHA256.fullmatch(self.scene_ticket_sha256) is None:
             raise ValueError("scene ticket must be a lowercase SHA-256 digest")
         if _SHA256.fullmatch(self.browser_verifier_sha256) is None:
             raise ValueError("browser verifier must be a lowercase SHA-256 digest")
+        if self.idempotency_key_sha256 is not None and _SHA256.fullmatch(self.idempotency_key_sha256) is None:
+            raise ValueError("idempotency key must be a lowercase SHA-256 digest")
         if self.status is WebLoginSessionStatus.CONFIRMED and self.user_id is None:
             raise ValueError("confirmed web login session requires a user")
         if self.status is WebLoginSessionStatus.EXCHANGED:
