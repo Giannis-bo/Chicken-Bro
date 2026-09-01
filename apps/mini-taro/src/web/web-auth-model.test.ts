@@ -1,0 +1,80 @@
+import { describe, expect, it } from 'vitest'
+
+import type { WebLoginCreated, WebLoginStatusResponse } from '@wow-mini/domain'
+
+import {
+  initialWebAuthState,
+  reduceWebAuthState,
+  type WebAuthStateEvent,
+} from './web-auth-model'
+
+const validCreated: WebLoginCreated = {
+  sessionId: '2d4d7f9a-3552-4f7e-8a4c-0d2b9b3a1f77',
+  expiresAt: '2026-09-01T12:00:00.000Z',
+  qrDataUrl: 'data:image/png;base64,iVBORw0KGgo=',
+}
+
+const validStatus = (status: WebLoginStatusResponse['status']): WebLoginStatusResponse => ({
+  status,
+  expiresAt: validCreated.expiresAt,
+})
+
+describe('Web auth browser state model', () => {
+  it('transitions only from a real QR response to pending', () => {
+    expect(reduceWebAuthState(initialWebAuthState, { type: 'created', payload: validCreated }))
+      .toMatchObject({
+        phase: 'pending',
+        sessionId: validCreated.sessionId,
+        qrDataUrl: validCreated.qrDataUrl,
+        polling: true,
+      })
+
+    expect(reduceWebAuthState(initialWebAuthState, {
+      type: 'created',
+      payload: { ...validCreated, qrDataUrl: 'placeholder' },
+    })).toMatchObject({ phase: 'blocked', polling: false })
+  })
+
+  it('keeps the status machine honest across confirmation and terminal states', () => {
+    const pending = reduceWebAuthState(initialWebAuthState, { type: 'created', payload: validCreated })
+    const confirmed = reduceWebAuthState(pending, { type: 'status', payload: validStatus('confirmed') })
+    expect(confirmed).toMatchObject({ phase: 'confirmed', polling: true })
+
+    const expired = reduceWebAuthState(confirmed, { type: 'status', payload: validStatus('expired') })
+    expect(expired).toMatchObject({ phase: 'expired', polling: false })
+
+    const cancelled = reduceWebAuthState(confirmed, { type: 'status', payload: validStatus('cancelled') })
+    expect(cancelled).toMatchObject({ phase: 'cancelled', polling: false })
+
+    const authenticated = reduceWebAuthState(confirmed, { type: 'authenticated' })
+    expect(authenticated).toMatchObject({ phase: 'authenticated', polling: false })
+  })
+
+  it('turns transport failures into a visible blocked state and logout into idle', () => {
+    const blocked = reduceWebAuthState(initialWebAuthState, {
+      type: 'blocked',
+      code: 'WECHAT_PROVIDER_UNAVAILABLE',
+      message: '登录服务暂不可用',
+    })
+    expect(blocked).toMatchObject({
+      phase: 'blocked',
+      errorCode: 'WECHAT_PROVIDER_UNAVAILABLE',
+      errorMessage: '登录服务暂不可用',
+      polling: false,
+    })
+
+    const reset = reduceWebAuthState(blocked, { type: 'logout' })
+    expect(reset).toEqual(initialWebAuthState)
+  })
+
+  it('keeps browser verifier storage and event types explicit', () => {
+    const eventTypes: WebAuthStateEvent['type'][] = [
+      'created',
+      'status',
+      'authenticated',
+      'blocked',
+      'logout',
+    ]
+    expect(eventTypes).toEqual(['created', 'status', 'authenticated', 'blocked', 'logout'])
+  })
+})

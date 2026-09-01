@@ -122,6 +122,10 @@ export default defineConfig<'webpack5'>({
       host: '127.0.0.1',
       port: 10086,
       proxy: {
+        '/api': {
+          target: 'http://127.0.0.1:8790',
+          changeOrigin: true,
+        },
         '/wow-api': {
           target: 'http://124.223.51.33',
           changeOrigin: true,

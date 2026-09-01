@@ -1,0 +1,110 @@
+.page {
+  display: flex;
+  min-height: 100vh;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 20px;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(217, 171, 66, 0.14), transparent 42%),
+    var(--wow-bg-void);
+  color: var(--wow-fg);
+}
+
+.panel {
+  width: min(100%, 420px);
+  padding: 28px 22px 24px;
+  border: 1px solid var(--wow-line-panel);
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(27, 30, 35, 0.98), rgba(12, 14, 18, 0.98));
+  box-shadow: var(--shadow-float), var(--inner-bevel);
+}
+
+.kicker,
+.privacyNote {
+  display: block;
+  color: var(--wow-accent-gold);
+  font-family: var(--wow-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+}
+
+.title {
+  display: block;
+  margin-top: 16px;
+  color: var(--wow-fg-strong);
+  font-family: var(--wow-font-display);
+  font-size: 28px;
+  font-weight: 600;
+}
+
+.description {
+  display: block;
+  margin-top: 12px;
+  color: var(--wow-fg-muted);
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+.statusCard,
+.successCard {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 24px;
+  padding: 14px;
+  border: 1px solid var(--wow-line-subtle);
+  border-radius: 10px;
+  color: var(--wow-fg-muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.statusDot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--wow-status-partial);
+}
+
+.statusDot[data-status='confirmed'] {
+  background: var(--wow-status-ready);
+  box-shadow: 0 0 12px rgba(134, 201, 93, 0.65);
+}
+
+.statusDot[data-status='error'] {
+  background: var(--wow-status-blocked);
+}
+
+.statusText {
+  flex: 1;
+}
+
+.confirmAction {
+  margin-top: 18px;
+}
+
+.successCard {
+  display: block;
+  border-color: rgba(134, 201, 93, 0.38);
+  color: var(--wow-status-ready);
+}
+
+.successCard > text {
+  display: block;
+}
+
+.successCard > text + text {
+  margin-top: 4px;
+}
+
+.privacyNote {
+  margin-top: 20px;
+  color: var(--wow-fg-dim);
+  font-family: var(--wow-font-body);
+  font-size: 10px;
+  letter-spacing: 0;
+  line-height: 1.7;
+  text-align: center;
+}
+
