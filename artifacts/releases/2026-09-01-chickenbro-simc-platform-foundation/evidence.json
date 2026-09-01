@@ -2,8 +2,8 @@
   "schemaVersion": 2,
   "slug": "chickenbro-simc-platform-foundation",
   "requirementSlug": "chickenbro-simc-platform-foundation",
-  "status": "implementation_allowed",
-  "highestEvidenceLevel": "implementation_allowed",
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
   "branch": "codex/chickenbro-simc-platform-foundation",
   "commit": "4b2e1143ca3ab8227b5c8aa5aaf02504a66c9183",
   "identities": {
@@ -12,8 +12,9 @@
       "reason": "This local foundation is not registered, deployed or connected to a candidate runtime."
     },
     "verification": {
-      "status": "pending",
-      "reason": "The exact-head full verification has not yet been run on the complete packet."
+      "status": "bound_at_check",
+      "kind": "git_ref",
+      "value": "HEAD"
     },
     "closure": {
       "status": "pending",
@@ -66,9 +67,9 @@
       "summary": "59 current-truth, owner-map and Harness contract tests passed."
     },
     {
-      "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-09-01-chickenbro-simc-platform-foundation --base origin/main",
-      "status": "not_run",
-      "summary": "Queued for the clean exact-head packet check with .venv-v2/bin first in PATH."
+      "command": "PATH=\"$PWD/.venv-v2/bin:$PATH\" node scripts/verify-project.js --profile full --release artifacts/releases/2026-09-01-chickenbro-simc-platform-foundation --base origin/main",
+      "status": "pass",
+      "summary": "The full profile exited 0 with 761 Node tests, 3324 Python tests (8 skipped), 443 Vitest tests, typecheck, lint, UI architecture/assets, syntax, Harness and diff checks. verify-ui-package remained the expected partial local package state because production origins and WeChat request-domain approval are not configured."
     },
     {
       "command": "git diff --check",

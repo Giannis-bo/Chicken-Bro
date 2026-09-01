@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-09-01T04:04:49.049Z",
+  "generatedAt": "2026-09-01T04:07:50.940Z",
   "release": {
     "date": "2026-09-01",
     "slug": "chickenbro-simc-platform-foundation"
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-09-01-chickenbro-simc-platform-foundation/evidence.json",
-    "sizeBytes": 5729,
+    "sizeBytes": 5943,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -390,8 +390,8 @@
       "summary"
     ],
     "missingFields": [],
-    "declaredStatus": "implementation_allowed",
-    "highestEvidenceLevel": "implementation_allowed",
+    "declaredStatus": "local_verified",
+    "highestEvidenceLevel": "local_verified",
     "summary": "The Chickenbro + SimC v2 platform foundation is ready for local exact-head verification only. It does not claim candidate, production, migration-runtime, Web login, Codex, character-source or SimC execution readiness, and legacy production surfaces remain unchanged."
   },
   "evidence": {
@@ -455,7 +455,7 @@
       "status": "dirty",
       "changedFileCount": 1,
       "changedFiles": [
-        "?? artifacts/releases/2026-09-01-chickenbro-simc-platform-foundation/evidence.json"
+        " M artifacts/releases/2026-09-01-chickenbro-simc-platform-foundation/evidence.json"
       ]
     }
   },
