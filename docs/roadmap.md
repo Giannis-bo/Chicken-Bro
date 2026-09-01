@@ -5,7 +5,7 @@
 [project-owner-map.json](project-owner-map.json)。
 
 状态：`active`
-更新时间：`2026-08-28`
+更新时间：`2026-09-01`
 
 ## 本文职责
 
@@ -15,32 +15,29 @@
 
 ## 产品方向
 
-面向 WoW 玩家构建一体化分析工作台，把资讯、职业构筑、装备、SimC、任务结果和受证据约束的
-AI 建议串成可复用路径：
+下一代产品只保留炸鸡队长与 SimC 两个业务域，把角色来源、模拟任务、结果解释和跨端历史串成
+可复用路径：
 
-`理解版本 -> 选择构筑 -> 保存模板 -> 执行模拟 -> 解释结果 -> 继续优化`
+`微信登录 -> 提交 Raider.IO/WCL 链接 -> 冻结角色快照 -> 执行 SimC -> 交给炸鸡队长解释`
 
-活动 Taro 一级入口保持“资讯、专精、队长、我的”。根目录兼容配置仍保留“最新资讯、职业专精、
-智能分析、我的”旧文案，但 14 条路径与活动 Taro 完全同序；兼容文案不是当前产品导航权威。
-PVE、WCL 和旧 WebSim 能力在数据授权、用户价值与发布门禁同时明确前不恢复为一级入口。
+微信小程序与独立 HTTPS Web 复用一套 Taro 业务代码，通过不同微信认证会话映射到同一个内部
+`user_id`，共享对话与 SimC 任务历史。Web 使用微信开放平台扫码登录；共享的是账号数据，不是 Cookie、
+OpenID、`session_key` 或客户端 token。炸鸡队长继续由原生 Codex 负责理解和分析，服务端只保留身份、
+隐私、只读工具、预算、超时、流式和持久化边界。SimC 只接受经过独立 Adapter 解析、统一 readiness
+校验和单一 compiler 生成的 `CharacterSnapshot`。
 
-装备模拟坚持 Exact-first：官方 API 快照是 S2 item、variant、轨道、来源、套装、制造和强化游戏事实
-的唯一裁决源；Catalog 只能从其中已验证且在范围内的事实派生，不能由 SimC、Raider.IO、S1 或前端
-补齐。至暗之夜 S2 装备库的范围固定为四个逻辑来源：团本（包括巢穴）、大秘境、制造业和套装；
-其中“巢穴”在产品层归入团本，但官方原始 `lair` 来源必须保留，套装是独立 membership 维度而不是
-原始掉落来源的替代。当前执行目标是闭合这四类范围内的完整装备库，不扩展为全赛季十来源集合；
-`publicSimcReadyRate=100%` 与官方范围的候选/纳入/排除指标必须分别报告。社区模板中 Catalog 外的
-真实装备只能作为 `community_observed` 的只读 Exact 实例展示、计算和模拟，不能扩张候选列表或升级
-为官方事实；缺少精确变体或运行时 identity 时必须 `partial`、`blocked` 或 `UNVERIFIED`。
+资讯、天赋模拟、装备模拟、旧 WebSim 工作台及其一级入口已经退出目标产品。当前生产 14 路由、
+Active Manifest、Gear Catalog 和旧 API 只作为迁移期 last-known-good 如实保留；在新路径完成 candidate、
+回滚和用户验收前，不把“目标删除”写成“线上已删除”，也不继续扩展旧业务能力。
 
 ## 当前能力边界
 
 | 能力 | 当前判断 | 下一步边界 |
 | --- | --- | --- |
-| 职业构筑与 SimC | Manifest v2、canonical resolver、精确装备/强化、任务保存和 26/14 执行边界已验证 | 保持单一后端事实与可解释 fail-closed |
+| 职业构筑与 SimC | Manifest v2、canonical resolver、精确装备/强化、任务保存和 26/14 执行边界已验证 | 仅作为迁移期 last-known-good；新链接输入链路不得依赖旧 Catalog、Resolver 或 Manifest owner |
 | 至暗之夜 S2 | Active 与 Candidate 分层推进；生产仍是正式 Active Manifest generation 41，30555 freshness Candidate 已封存但未 promotion | Active 当前绑定 SimC 12.1.0.69299/f50a，`updateAvailable=true`，全局 `/api/data/health=partial`。2026-08-28 刷新后 season 18、WebSim sync 与生产 Gear Catalog 已 `verified`（567 items、20,910/20,910 variants）；Stat Weights 为新鲜 `partial`（23 accepted / 97 blocked），Community Templates 仍因 WCL combatantinfo seed/report 缺口和 Active observed compile 完整性门禁保持 `partial`，gear release catch-up 超时且没有改写 Active。Candidate Manifest `season-manifest:sha256:46c76d...` 未切换 Active；legality、Catalyst、spell/media、Community 与 cutover 继续独立裁决 | [cloud refresh evidence](../artifacts/releases/2026-08-28-cloud-main-data-refresh/evidence.json) · [freshness evidence](../artifacts/releases/2026-08-25-s2-freshness-rebase/evidence.json) · [source policy](../server/data/midnight-season-2/source-policy.json) |
 | Exact-first runtime | `0030`--`0035` foundation `runtime_verified`；provider/worker disabled、eligible source 为零 | 仅在完整 owner source 出现后另开 activation 与真实微信验收合同 |
-| 炸鸡队长 | 聊天表面、流式与原生 Agent 已有交付证据；Smart Question/Evidence Planner 仍有待验收范围 | 新来源和 Phase 3--5 必须单独授权、审阅和发布 |
+| 炸鸡队长 | 聊天表面、流式与原生 Agent 已有交付证据；Smart Question/Evidence Planner 仍有待验收范围 | 抽取为 Codex-only 主链；不把旧问题分类树、普通 LLM fallback 或逐 claim 门禁带入新架构 |
 | 数据与发布 | PostgreSQL-only、Harness、验证矩阵、Taro owner 与 release packet 机制已建立 | 按 caller-proof 与新鲜验证逐项淘汰兼容面 |
 
 ## 当前实际状态分层
@@ -57,14 +54,12 @@ PVE、WCL 和旧 WebSim 能力在数据授权、用户价值与发布门禁同�
 
 | 优先级 | 里程碑 | 完成标准 | 权威入口 |
 | --- | --- | --- | --- |
-| P0 | 14 路由 UI 系统重建 | 共享 chrome、核心交互和全部 14 路由的真实微信运行态逐项复核；`gear_detail` 保持“候选 -> 后端合法配置 -> 显式应用 -> Resolve” | [UI 计划](plans/ui-reconstruction.md)、[current-ui](design/current-ui/README.md) |
-| P0 | 至暗之夜 S2 四类范围装备库与社区 Exact | v73 已发布为 Active generation 41；30555 freshness 结果仅作为 dormant Candidate。生产 season/WebSim/Gear Catalog 已刷新 verified；下一步聚焦 Community combatantinfo/observed compile 输入、Stat Weights 97 个 blocked 结果、gear release timeout、legality/Catalyst 与 cutover gates，再另行决定 promotion；既有用户 acceptance 与 waiver 边界保持不变 | [当前设计](plans/2026-08-13-s2-selectable-catalog-community-exact-design.md)、[cloud refresh evidence](../artifacts/releases/2026-08-28-cloud-main-data-refresh/evidence.json)、[closure evidence](https://api.chickenbro.cloud/wow-evidence/releases/2026-08-24-s2-equipment-library-evidence-v2/artifacts/releases/2026-08-24-s2-equipment-library-ui-closure/evidence.json) |
-| P1 | Exact-first 与四类范围 Catalog | production foundation 不等于玩家 Exact 闭环；零 eligible source 与 disabled provider/worker 必须持续如实返回 `blocked` | [当前边界](plans/2026-08-04-equipment-simulator-exact-first-persistence-resequence.md)、[生产证据](../artifacts/releases/2026-08-10-equipment-simulator-exact-first-production-foundation-deployment/evidence.json) |
-| P1 | Catalog Browse 纠偏 | 修复 Browse membership、最高 rank 与装备类型门禁；不重开 generation 35 的归档基线 | [当前计划](plans/2026-07-29-manifest-catalog-progression-display-contract.md) |
-| P1 | 炸鸡队长统一 ChatBot | 保持 owner、授权、来源、新鲜度和失败回退可验证；Evidence Planner 真实 WeChat 验收仍待办 | [ChatBot 架构](plans/2026-07-24-chickenbro-chatbot-design.md)、[Evidence Planner](plans/2026-08-04-chickenbro-evidence-planner-design.md) |
-| P1 | SQLite 全面退役 | runtime、worker、同步、CLI 与测试只保留 PostgreSQL 正式路径 | [退役设计](plans/2026-08-02-sqlite-complete-retirement-design.md) |
-| P2 | 个人化工作台 | 角色、收藏、模板与任务历史围绕微信账号 owner 组织 | `apps/mini-taro/src/pages/profile/` |
-| 待决策 | 产品命名与首页权重 | 确定一句对外定位和第一主线，并同步 README 与导航文案 | [ideas.md](roadmap/ideas.md) |
+| 正在推进 | 双端精简架构骨架 | 建立模块化单体 `/api/v2`、独立 Worker、`identity/chat/simc/ops` 数据 owner 和依赖守卫；不改变当前生产入口 | [父级架构](superpowers/specs/2026-09-01-chickenbro-simc-dual-client-architecture-design.md) |
+| 下一步 | 微信双端 Identity | 小程序 exchange 与 Web 扫码登录使用独立会话并解析为同一内部 `user_id`；UnionID 缺失时提供显式绑定，冲突 fail-closed | [父级架构](superpowers/specs/2026-09-01-chickenbro-simc-dual-client-architecture-design.md) |
+| 下一步 | Codex-only 炸鸡队长 | 抽取当前原生 Codex runner、owner-bound 会话和 SSE；Codex 不可用时明确失败，不静默切换普通 LLM 或模板回答 | [父级架构](superpowers/specs/2026-09-01-chickenbro-simc-dual-client-architecture-design.md) |
+| 下一步 | Raider.IO/WCL 到 SimC | 两个 Adapter 只输出统一 Snapshot candidate；readiness、compiler、Worker 和云端 SimC 形成单一可审计主链 | [父级架构](superpowers/specs/2026-09-01-chickenbro-simc-dual-client-architecture-design.md) |
+| 后续 | 双端切流与 legacy 删除 | 独立 Web 域名、微信扫码回调、跨端历史、候选、回滚与用户验收闭合后，删除资讯、天赋模拟、装备模拟及其 route/job/data owner | [父级架构](superpowers/specs/2026-09-01-chickenbro-simc-dual-client-architecture-design.md) |
+| 暂缓 | 旧 14 路由 UI 与 S2 Catalog 扩展 | 当前线上事实、证据和回滚继续保留，但不再新增产品能力；由新双端路径验收后统一退役 | [project-state.json](project-state.json) |
 
 ## 装备模拟状态分层
 

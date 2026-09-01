@@ -566,9 +566,12 @@ test('current truth has one conclusion for UI, PG read-model, Harness normalizat
 
 test('roadmap stays a concise current control plane without PR-level execution history', () => {
   const roadmap = fs.readFileSync('docs/roadmap.md', 'utf8')
-  assert.match(roadmap, /14 路由 UI 系统重建/)
+  assert.match(roadmap, /双端精简架构骨架/)
+  assert.match(roadmap, /旧 14 路由 UI 与 S2 Catalog 扩展/)
+  assert.match(roadmap, /当前生产 14 路由/)
+  assert.match(roadmap, /微信双端 Identity/)
+  assert.match(roadmap, /Raider\.IO\/WCL 到 SimC/)
   assert.match(roadmap, /至暗之夜 S2 End Game 数据候选/)
-  assert.match(roadmap, /publicSimcReadyRate=100%/)
   assert.match(roadmap, /canonical resolver/)
   assert.doesNotMatch(roadmap, /Phase 4 第[一二三四五六七八九十]+刀/)
   assert.ok(roadmap.split('\n').length <= 150)
@@ -1171,7 +1174,10 @@ test('superseded execution documents are absent while the blocked S2 record rema
 
   const trackedResult = spawnSync('git', ['ls-files', '--', 'docs/superpowers'], { encoding: 'utf8' })
   assert.equal(trackedResult.status, 0, trackedResult.stderr)
-  const retainedS2Docs = trackedResult.stdout.trim().split('\n').filter(Boolean).filter(fs.existsSync).sort()
+  const retainedS2Docs = trackedResult.stdout.trim().split('\n')
+    .filter((file) => file.includes('midnight-season-2-data-repository'))
+    .filter(fs.existsSync)
+    .sort()
   assert.deepEqual(retainedS2Docs, [
     'docs/superpowers/plans/2026-08-12-midnight-season-2-data-repository.md',
     'docs/superpowers/specs/2026-08-12-midnight-season-2-data-repository-design.md',
@@ -1202,7 +1208,8 @@ test('current documentation follows the active Taro and Harness control plane', 
   assert.match(docsMap, /cdn-asset-publishing\.md/)
   assert.match(docsMap, /gear-attribute-rule-source-ledger\.md/)
   assert.ok(harness.indexOf('docs/project-state.json') < harness.indexOf('docs/roadmap.md'))
-  assert.match(roadmap, /\| P0 \| 14 路由 UI 系统重建 \|/)
+  assert.match(roadmap, /\| 正在推进 \| 双端精简架构骨架 \|/)
+  assert.match(roadmap, /\| 暂缓 \| 旧 14 路由 UI 与 S2 Catalog 扩展 \|/)
   assert.match(roadmap, /S2 End Game 数据候选[\s\S]*`blocked`/)
   assert.match(newsArchitecture, /apps\/mini-taro/)
   assert.doesNotMatch(newsArchitecture, /接入域名、HTTPS、微信合法域名配置/)
