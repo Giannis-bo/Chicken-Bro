@@ -11,6 +11,7 @@ export { createWowApiClients, wowApi } from './clients'
 export type { WowApiClientConfig, WowApiClients } from './clients'
 export { createNewsClient, isNewsHomeVisuallyEmpty, isReadyNewsArticle } from './news'
 export type { NewsClient } from './news'
+export { PlatformV2Client } from './platform-v2'
 export { SimulatorClient } from './simulator'
 export type {
   ChickenbroMessageRequest,

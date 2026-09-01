@@ -2,6 +2,12 @@ export {
   fallbackTrust,
   isReadyState,
 } from './models'
+export { isPlatformReadinessEnvelope } from './platform-v2'
+export type {
+  ComponentReadiness,
+  ComponentReadinessStatus,
+  PlatformReadinessEnvelope,
+} from './platform-v2'
 export {
   canonicalGearSelectionIntent,
   completeGearResolverContext,
