@@ -113,6 +113,36 @@ describe('Taro transport parity', () => {
     }
   })
 
+  it('passes explicit Cookie credentials and resolves the v2 Web base independently of the legacy proxy', async () => {
+    taro.getEnv.mockReturnValue('WEB')
+    vi.stubGlobal('window', { location: { origin: 'https://www.chickenbro.cloud' } })
+    vi.stubGlobal('document', {})
+    try {
+      const transport = createTaroTransport({
+        storage: new MemoryStorage(),
+        resolveBaseUrl: () => 'https://www.chickenbro.cloud/wow-api',
+        resolveWebBaseUrl: () => 'https://www.chickenbro.cloud',
+      })
+      await transport.request('/api/v2/me', {
+        auth: false,
+        baseUrl: 'web-auth',
+        credentials: 'include',
+        responseMode: 'structured-problem',
+        fallback: () => ({ connected: false }),
+        validate: () => true,
+      })
+
+      const request = taro.request.mock.calls[0]?.[0] as {
+        url?: string
+        credentials?: string
+      }
+      expect(request.url).toBe('https://www.chickenbro.cloud/api/v2/me')
+      expect(request.credentials).toBe('include')
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('does not mistake mini-program DOM shims for the H5 runtime', () => {
     vi.stubGlobal('window', { location: { origin: 'https://taro.com' } })
     vi.stubGlobal('document', {})

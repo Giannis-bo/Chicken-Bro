@@ -20,10 +20,13 @@ export interface ApiResult<T> {
   httpStatus?: number
   transportError?: string
   offline?: boolean
+  problemCode?: string
 }
 
 export type RequestMethod = 'GET' | 'POST' | 'PUT' | 'DELETE'
 export type RequestData = Readonly<Record<string, unknown>> | string | ArrayBuffer
+export type RequestCredentials = 'omit' | 'same-origin' | 'include'
+export type RequestBase = 'default' | 'web-auth'
 
 export interface RequestOptions<T> {
   method?: RequestMethod
@@ -34,6 +37,8 @@ export interface RequestOptions<T> {
   allowInsecureGuestRequest?: boolean
   attachAnalyticsHeaders?: boolean
   responseMode?: 'default' | 'structured-problem'
+  credentials?: RequestCredentials
+  baseUrl?: RequestBase
   fallback: () => T
   validate?: (value: unknown) => boolean
 }
@@ -71,6 +76,7 @@ export interface TransportConfig {
   storage?: StorageAdapter
   platform?: string
   resolveBaseUrl?: () => string
+  resolveWebBaseUrl?: () => string
 }
 
 export function isInsecureHttpUrl(url: string): boolean {
@@ -147,6 +153,13 @@ export function configuredApiBaseUrl(storage: StorageAdapter = taroStorage): str
   return DEV_API_BASE_URL
 }
 
+export function configuredWebAuthBaseUrl(storage: StorageAdapter = taroStorage): string {
+  if (isWebRuntime()) return window.location.origin
+  const productionBase = productionApiBaseUrl(buildTimeApiBaseUrl())
+  if (productionBase) return productionBase
+  return configuredApiBaseUrl(storage)
+}
+
 function errorMessage(error: unknown): string {
   if (error instanceof Error && error.message) return error.message
   if (typeof error === 'object' && error !== null && 'errMsg' in error) {
@@ -194,16 +207,24 @@ export function createTaroTransport(config: TransportConfig = {}): ApiTransport 
   const analytics = new AnalyticsIdentity(storage)
   const platform = config.platform ?? (isWebRuntime() ? 'h5' : 'miniprogram')
   const resolveBaseUrl = config.resolveBaseUrl ?? (() => configuredApiBaseUrl(storage))
+  const resolveWebBaseUrl = config.resolveWebBaseUrl ?? (() => configuredWebAuthBaseUrl(storage))
 
   const request = async <T>(path: string, options: RequestOptions<T>): Promise<ApiResult<T>> => {
     const structuredProblem = options.responseMode === 'structured-problem'
-    const fallbackResult = (error: string, httpStatus = 0, offline = false): ApiResult<T> => ({
+    const fallbackResult = (
+      error: string,
+      httpStatus = 0,
+      offline = false,
+      problemCode?: string,
+    ): ApiResult<T> => ({
       payload: options.fallback(),
       fromFallback: true,
       error,
-      ...(structuredProblem ? { httpStatus, transportError: error, offline } : {}),
+      ...(structuredProblem
+        ? { httpStatus, transportError: error, offline, ...(problemCode ? { problemCode } : {}) }
+        : {}),
     })
-    const baseUrl = resolveBaseUrl()
+    const baseUrl = (options.baseUrl === 'web-auth' ? resolveWebBaseUrl : resolveBaseUrl)()
     const url = baseUrl ? `${baseUrl}${path}` : ''
     if (!url) {
       return fallbackResult('missing api base url', 0, true)
@@ -228,6 +249,7 @@ export function createTaroTransport(config: TransportConfig = {}): ApiTransport 
         data: options.data,
         header,
         timeout: options.timeoutMs ?? 6000,
+        credentials: options.credentials ?? 'omit',
       })
       const valid = options.validate?.(response.data) ?? Boolean(response.data)
       if (structuredProblem && valid) {
@@ -243,7 +265,16 @@ export function createTaroTransport(config: TransportConfig = {}): ApiTransport 
       if (response.statusCode >= 200 && response.statusCode < 300 && valid) {
         return { payload: response.data as T, fromFallback: false, error: '' }
       }
-      return fallbackResult(`HTTP ${response.statusCode}`, response.statusCode)
+      const responseProblemCode = typeof response.data === 'object'
+        && response.data !== null
+        && 'error' in response.data
+        && typeof response.data.error === 'object'
+        && response.data.error !== null
+        && 'code' in response.data.error
+        && typeof response.data.error.code === 'string'
+        ? response.data.error.code
+        : undefined
+      return fallbackResult(`HTTP ${response.statusCode}`, response.statusCode, false, responseProblemCode)
     } catch (error) {
       return fallbackResult(errorMessage(error), 0, true)
     }

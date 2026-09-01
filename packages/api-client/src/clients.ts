@@ -8,6 +8,7 @@ import { taroStorage, type StorageAdapter } from './storage'
 import { TemplateRepository } from './templates'
 import { createTaroTransport, type ApiTransport, type TransportConfig } from './transport'
 import { createWebsimClient, type WebsimClient } from './websim'
+import { createWebAuthClient, type WebAuthClient } from './web-auth'
 
 export interface WowApiClients {
   transport: ApiTransport
@@ -17,6 +18,7 @@ export interface WowApiClients {
   simulator: SimulatorClient
   templates: TemplateRepository
   auth: AuthClient
+  webAuth: WebAuthClient
   analytics: AnalyticsEventsClient
   cache: TimedCache
 }
@@ -31,6 +33,7 @@ export function createWowApiClients(config: WowApiClientConfig = {}): WowApiClie
     storage,
     ...(config.platform === undefined ? {} : { platform: config.platform }),
     ...(config.resolveBaseUrl === undefined ? {} : { resolveBaseUrl: config.resolveBaseUrl }),
+    ...(config.resolveWebBaseUrl === undefined ? {} : { resolveWebBaseUrl: config.resolveWebBaseUrl }),
   })
   return {
     transport,
@@ -40,6 +43,7 @@ export function createWowApiClients(config: WowApiClientConfig = {}): WowApiClie
     simulator: new SimulatorClient(transport, storage),
     templates: new TemplateRepository(transport, storage),
     auth: new AuthClient(transport, storage),
+    webAuth: createWebAuthClient(transport),
     analytics: new AnalyticsEventsClient(transport, storage),
     cache: new TimedCache(),
   }

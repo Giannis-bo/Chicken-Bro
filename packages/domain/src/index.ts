@@ -9,6 +9,27 @@ export type {
   PlatformReadinessEnvelope,
 } from './platform-v2'
 export {
+  isConfirmResponse,
+  isLogoutResponse,
+  isMeResponse,
+  isMiniExchangeResponse,
+  isValidBrowserVerifier,
+  isValidIdempotencyKey,
+  isWebLoginCreated,
+  isWebLoginExchangeResponse,
+  isWebLoginStatusResponse,
+} from './web-auth'
+export type {
+  ConfirmResponse,
+  LogoutResponse,
+  MeResponse,
+  MiniExchangeResponse,
+  WebLoginCreated,
+  WebLoginExchangeResponse,
+  WebLoginSessionStatus,
+  WebLoginStatusResponse,
+} from './web-auth'
+export {
   canonicalGearSelectionIntent,
   completeGearResolverContext,
   gearEnhancementsFromResolvedSnapshot,

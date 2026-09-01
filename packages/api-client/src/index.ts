@@ -3,6 +3,8 @@ export type { AnalyticsClock } from './analytics'
 export { AnalyticsEventsClient } from './analytics-events'
 export type { AnalyticsEvent } from './analytics-events'
 export { AuthClient } from './auth'
+export { createWebAuthClient } from './web-auth'
+export type { WebAuthClient } from './web-auth'
 export { createBuildsClient } from './builds'
 export type { BuildsClient } from './builds'
 export { TimedCache } from './cache'
@@ -46,6 +48,7 @@ export type {
 } from './templates'
 export {
   configuredApiBaseUrl,
+  configuredWebAuthBaseUrl,
   createTaroTransport,
   DEV_API_BASE_URL,
   isInsecureHttpUrl,
@@ -65,6 +68,8 @@ export type {
   RequestData,
   RequestMethod,
   RequestOptions,
+  RequestBase,
+  RequestCredentials,
   StreamRequestOptions,
   TransportConfig,
 } from './transport'
