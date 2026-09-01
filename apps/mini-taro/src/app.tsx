@@ -1,4 +1,5 @@
 import Taro from '@tarojs/taro'
+import { View } from '@tarojs/components'
 import type { PropsWithChildren } from 'react'
 import { configureAssetRuntimeRoot } from '@wow-mini/assets-manifest'
 import { configureRuntimeMediaRoot } from '@wow-mini/design-system/runtime-media'
@@ -20,7 +21,14 @@ function isWebRuntime(): boolean {
 }
 
 export default function App({ children }: PropsWithChildren) {
-  if (isWebRuntime()) return <WebApp />
+  if (isWebRuntime()) {
+    return (
+      <>
+        <WebApp />
+        <View className="web-page-mount">{children}</View>
+      </>
+    )
+  }
 
   return (
     <>

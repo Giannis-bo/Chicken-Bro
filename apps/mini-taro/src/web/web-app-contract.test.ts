@@ -22,6 +22,14 @@ describe('Chickenbro Web shell contract', () => {
     expect(webSource).toContain('webAuth.exchangeWebLoginSession')
   })
 
+  it('keeps the Taro H5 page mount alive behind the standalone shell', () => {
+    const appSource = read('apps/mini-taro/src/app.tsx')
+
+    expect(appSource).toContain('<WebApp />')
+    expect(appSource).toContain('web-page-mount')
+    expect(appSource).toMatch(/web-page-mount[\s\S]*\{children\}/u)
+  })
+
   it('makes the QR trust boundary and recovery states visible in the first viewport', () => {
     const webSource = read('apps/mini-taro/src/web/WebApp.tsx')
 
