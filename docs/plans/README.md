@@ -7,21 +7,22 @@
 
 | 领域 | 状态 | 入口 |
 | --- | --- | --- |
-| 14 路由 Target-First 生产重建与主干能力接入 | 正在推进 | [ui-reconstruction.md](ui-reconstruction.md) |
-| 天赋模板闭环恢复与社区 winner 新鲜度 | 正在推进 | [2026-07-20-talent-template-recovery.md](2026-07-20-talent-template-recovery.md) |
-| 装备模板保存、导入、清空与天赋 winner 投影 | 正在推进 | [2026-07-22-gear-template-projection.md](2026-07-22-gear-template-projection.md) |
-| 社区装备 SimC 回填公平性与导入门禁 | 正在推进 | [2026-07-25-community-gear-backfill-fairness.md](2026-07-25-community-gear-backfill-fairness.md) |
-| Taro 装备候选与强化编辑恢复 | 正在推进 | [设计](2026-07-24-taro-gear-editor-recovery-design.md) · [实施计划](2026-07-24-taro-gear-editor-recovery-implementation.md) |
-| Manifest 装备详情与 Catalog Browse 完整性修复 | 正在推进 | [实施计划](2026-07-29-manifest-catalog-progression-display-contract.md) |
+| 炸鸡队长与 SimC 双端精简平台骨架 | 实施计划已形成；依赖安装、candidate、部署和切流仍受独立门禁约束 | [父级架构](../superpowers/specs/2026-09-01-chickenbro-simc-dual-client-architecture-design.md) · [平台骨架实施计划](../superpowers/plans/2026-09-01-chickenbro-simc-platform-foundation.md) |
+| 14 路由 Target-First 生产重建与主干能力接入 | 暂缓；当前 14 路由仅作为迁移期 last-known-good，不再扩展 | [ui-reconstruction.md](ui-reconstruction.md) |
+| 天赋模板闭环恢复与社区 winner 新鲜度 | 暂缓；目标产品已移除天赋模拟 | [2026-07-20-talent-template-recovery.md](2026-07-20-talent-template-recovery.md) |
+| 装备模板保存、导入、清空与天赋 winner 投影 | 暂缓；目标产品已移除天赋/装备模拟 | [2026-07-22-gear-template-projection.md](2026-07-22-gear-template-projection.md) |
+| 社区装备 SimC 回填公平性与导入门禁 | 暂缓；只保留历史边界，不再新增执行 | [2026-07-25-community-gear-backfill-fairness.md](2026-07-25-community-gear-backfill-fairness.md) |
+| Taro 装备候选与强化编辑恢复 | 暂缓；只保留迁移期线上事实 | [设计](2026-07-24-taro-gear-editor-recovery-design.md) · [实施计划](2026-07-24-taro-gear-editor-recovery-implementation.md) |
+| Manifest 装备详情与 Catalog Browse 完整性修复 | 暂缓；目标产品不再扩展 Catalog Browse | [实施计划](2026-07-29-manifest-catalog-progression-display-contract.md) |
 | 装备模拟端到端完整性验证 Goal | 暂缓 / `blocked`，等待获批 authority | [Goal 控制计划](2026-07-29-equipment-simulator-e2e-completeness-goal.md) |
-| 装备模拟 Exact-first | 正在推进；`0030`--`0035` production foundation 为 `runtime_verified`，但首 source aggregate 为零，provider/worker 保持 disabled，ready path 继续 literal `blocked` | [当前顺序与边界](2026-08-04-equipment-simulator-exact-first-persistence-resequence.md) · [Runtime Authority 设计](2026-08-10-equipment-simulator-exact-first-task5c-runtime-authority-release-design.md) · [生产基础证据](../../artifacts/releases/2026-08-10-equipment-simulator-exact-first-production-foundation-deployment/evidence.json) |
+| 装备模拟 Exact-first | 暂缓；`0030`--`0035` production foundation 只保留为迁移期证据，provider/worker 继续 disabled | [当前顺序与边界](2026-08-04-equipment-simulator-exact-first-persistence-resequence.md) · [Runtime Authority 设计](2026-08-10-equipment-simulator-exact-first-task5c-runtime-authority-release-design.md) · [生产基础证据](../../artifacts/releases/2026-08-10-equipment-simulator-exact-first-production-foundation-deployment/evidence.json) |
 | 当前赛季 PVE 装备 Universe 与逐项差集 | 暂缓 | [实施计划](2026-07-29-season-pve-universe-reconciliation.md) |
-| S2 四类范围装备库完整闭环 | 生产仍是 v73 / Active Manifest generation 41；30555 freshness replay、dormant release pair、Talent Catalog 和 Candidate Manifest 已验证但未 promotion。全局 health、sourceStatus 和 cutover gates 仍未闭合；下一次写入/切换必须新建 task-scoped plan，既有用户 acceptance 与 waiver 边界保持不变 | [当前设计](2026-08-13-s2-selectable-catalog-community-exact-design.md) · [Active closure](https://api.chickenbro.cloud/wow-evidence/releases/2026-08-24-s2-equipment-library-evidence-v2/artifacts/releases/2026-08-24-s2-equipment-library-ui-closure/evidence.json) · [freshness Candidate](../../artifacts/releases/2026-08-25-s2-freshness-rebase/evidence.json) |
-| Observed Build Registry 与 80 槽 TemplateSet | 正在推进 | [设计](2026-07-23-observed-build-registry-design.md) · [核心切片](2026-07-23-observed-build-registry-core-implementation.md) · [共享玩家切换](2026-07-23-observed-build-registry-cutover-implementation.md) |
-| builds_home 职业命令卡组 | 正在推进 | [builds-home-command-deck.md](builds-home-command-deck.md) |
-| 炸鸡队长统一 ChatBot 与受控分析工具 | 正在推进；已交付表面、流式与已发布 Tool 的事实边界，Phase 3--5 仍未授权 | [后端架构](2026-07-24-chickenbro-chatbot-design.md) · [聊天表面设计](2026-08-01-chickenbro-chat-surface-design.md) · [聊天表面实施](2026-08-01-chickenbro-chat-surface-implementation.md) · [来源驱动 Agent](2026-08-01-chickenbro-source-agent-implementation.md) · [能力演化控制面](2026-08-02-chickenbro-capability-evolution-design.md) · [流式生产证据](../../artifacts/releases/2026-08-03-chickenbro-streaming-scroll/evidence.json) |
-| 炸鸡队长 Smart Question Chain 与 Evidence Planner | 正在推进；Evidence Planner 的真实 WeChat 验收待办 | [Question Chain 设计](2026-08-03-chickenbro-smart-question-chain-design.md) · [实施计划](2026-08-03-chickenbro-smart-question-chain-implementation.md) · [Evidence Planner 设计](2026-08-04-chickenbro-evidence-planner-design.md) · [实施计划](2026-08-04-chickenbro-evidence-planner-implementation.md) · [公开网页 Tool 合同](2026-08-04-chickenbro-generic-public-web-research-tool.md) |
-| SQLite 全面退役 | 下一步 | [退役设计](2026-08-02-sqlite-complete-retirement-design.md) |
+| S2 四类范围装备库完整闭环 | 暂缓；生产 v73 / Active Manifest generation 41 继续作为 last-known-good，不再 promotion 或扩展 | [当前设计](2026-08-13-s2-selectable-catalog-community-exact-design.md) · [Active closure](https://api.chickenbro.cloud/wow-evidence/releases/2026-08-24-s2-equipment-library-evidence-v2/artifacts/releases/2026-08-24-s2-equipment-library-ui-closure/evidence.json) · [freshness Candidate](../../artifacts/releases/2026-08-25-s2-freshness-rebase/evidence.json) |
+| Observed Build Registry 与 80 槽 TemplateSet | 暂缓；目标产品不再消费该模板链 | [设计](2026-07-23-observed-build-registry-design.md) · [核心切片](2026-07-23-observed-build-registry-core-implementation.md) · [共享玩家切换](2026-07-23-observed-build-registry-cutover-implementation.md) |
+| builds_home 职业命令卡组 | 暂缓；目标产品已移除构筑首页 | [builds-home-command-deck.md](builds-home-command-deck.md) |
+| 炸鸡队长统一 ChatBot 与受控分析工具 | 被新父级架构替代；旧表面、流式和原生 Agent 证据仅供抽取参考，Phase 3--5 不再执行 | [后端架构](2026-07-24-chickenbro-chatbot-design.md) · [聊天表面设计](2026-08-01-chickenbro-chat-surface-design.md) · [聊天表面实施](2026-08-01-chickenbro-chat-surface-implementation.md) · [来源驱动 Agent](2026-08-01-chickenbro-source-agent-implementation.md) · [能力演化控制面](2026-08-02-chickenbro-capability-evolution-design.md) · [流式生产证据](../../artifacts/releases/2026-08-03-chickenbro-streaming-scroll/evidence.json) |
+| 炸鸡队长 Smart Question Chain 与 Evidence Planner | 暂缓；新主链采用 Codex-only，不继续扩展规则树和逐 claim 门禁 | [Question Chain 设计](2026-08-03-chickenbro-smart-question-chain-design.md) · [实施计划](2026-08-03-chickenbro-smart-question-chain-implementation.md) · [Evidence Planner 设计](2026-08-04-chickenbro-evidence-planner-design.md) · [实施计划](2026-08-04-chickenbro-evidence-planner-implementation.md) · [公开网页 Tool 合同](2026-08-04-chickenbro-generic-public-web-research-tool.md) |
+| SQLite 全面退役 | 并入新平台骨架与最终 legacy 删除，不单独推进 | [退役设计](2026-08-02-sqlite-complete-retirement-design.md) |
 
 ## 稳定架构与交付基线
 
