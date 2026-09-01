@@ -223,6 +223,11 @@
       "summary": "The isolated script statically requires v2 service/env/site paths and does not start the legacy worker or modify the old service. The remote run stopped before mutation."
     },
     {
+      "type": "legacy_liveness_read_only",
+      "status": "pass",
+      "summary": "Read-only public checks returned HTTP 200 from https://api.chickenbro.cloud/health with service wow-backend; /api/data/health also returned HTTP 200 and retained overallStatus partial. No legacy write or cutover was performed."
+    },
+    {
       "type": "local_build_identity",
       "status": "pass",
       "summary": "Current task HEAD produced H5 and WeApp output hashes recorded in manifest.json; generated dist directories remain build artifacts, not production runtime proof."

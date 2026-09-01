@@ -429,7 +429,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-09-01-chickenbro-web-mini-login/evidence.json",
-    "sizeBytes": 13673,
+    "sizeBytes": 13999,
     "requiredFields": [
       "schemaVersion",
       "slug",
