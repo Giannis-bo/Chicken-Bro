@@ -34,6 +34,35 @@ npm run lint
 
 `WOW_PG_TEST_DSN_V2` 未配置时 PostgreSQL 集成测试只能标记为 skipped/UNVERIFIED；本地通过不代表 migration 已执行、candidate 已部署、Web 登录已实现或任何生产运行态已验证。完整 profile 若需使用 v2 Python 依赖，应将 `.venv-v2/bin` 放在 `PATH` 前端后执行 `node scripts/verify-project.js`。
 
+## Chickenbro Web + mini-program login
+
+本任务的 Web/H5 入口、微信小程序辅助确认页、v2 identity API 与隔离候选部署属于同一用户可见运行面。最小本地梯度为：
+
+```bash
+.venv-v2/bin/python -m unittest \
+  tests.app_auth_domain_test \
+  tests.app_identity_repository_test \
+  tests.app_wechat_mini_test \
+  tests.app_auth_application_test \
+  tests.app_api_test \
+  tests.app_config_test \
+  tests.app_schema_test \
+  tests.app_domain_test
+npm run typecheck
+npm run lint
+npm exec vitest run packages/domain/src packages/api-client/src apps/mini-taro/src/web apps/mini-taro/src/pages/auth apps/mini-taro/src/pages/_shared/route-contract.test.ts
+npm --workspace @wow-mini/mini-taro run build:h5
+npm --workspace @wow-mini/mini-taro run build:weapp
+node scripts/audit-ui-architecture.js
+node --test tests/deploy-web-v2.test.js tests/project-owner-map.test.js
+bash -n server/deploy_web_v2_lighthouse.sh
+git diff --check
+```
+
+H5 浏览器只能证明 Web 壳、blocked/recovery 文案和本地接口失败时的诚实降级；它不能代替真实小程序扫码。候选证据必须同时绑定 H5/WeApp 构建 identity、v2 API/Nginx/PG smoke、回滚路径和旧入口未变更证明。真实 Web 登录只有在用户实际扫码并在小程序内点击“确认登录”后才能进入 `live_verified`；缺少 v2 env、微信凭据、`www` TLS SAN、已发布小程序页或用户扫码时，分别记录为 `blocked` / `candidate_pending` / `user_acceptance_pending`，不把 HTTP 200 或静态页面可达当成登录完成。
+
+候选入口为 `server/deploy_web_v2_lighthouse.sh`，只写 `/api/v2`、`wow-v2-api`、`www` 静态站点和新增 0039 schema；旧 `wow-backend.service`、旧 API、旧 `api.chickenbro.cloud` 入口、14 条 Taro 产品路由和 Active Manifest 不属于本任务切换面。敏感值证据只记录 configured/missing、权限或长度，不记录 secret、token、OpenID、UnionID、Cookie 或完整二维码场景值。
+
 ## 选择规则
 
 - 开发中先跑最小相关测试，不在每个小改动后串行跑 `frontend`、`backend`、`full`。

@@ -1093,13 +1093,20 @@
             "tests/app_auth_application_test.py",
             "tests/app_identity_repository_test.py",
             "tests/app_wechat_mini_test.py",
-            "tests/app_api_test.py"
+            "tests/app_api_test.py",
+            "tests/deploy-web-v2.test.js"
           ],
           "runtimeConsumers": [
             "server/app/api/routes/auth.py",
             "server/app/api/dependencies.py",
             "server/app/main.py"
           ],
+          "deploymentBoundary": {
+            "candidateScript": "server/deploy_web_v2_lighthouse.sh",
+            "apiService": "server/wow-v2-api.service",
+            "webSite": "server/wow-v2-web.nginx",
+            "preflightContract": "Candidate must prove v2 env mode, WeChat configuration and www TLS SAN before backup, migration or restart."
+          },
           "futureExtractionDirection": "Keep user/session writes in the PostgreSQL repository and provider calls in the WeChat adapter; extract no browser or mini-program identity judgment into frontend code."
         }
       ]

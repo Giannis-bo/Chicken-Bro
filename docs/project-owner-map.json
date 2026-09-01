@@ -266,7 +266,10 @@
         "server/app/api/routes/auth.py",
         "server/app/api/dependencies.py",
         "packages/api-client/src/web-auth.ts",
-        "apps/mini-taro/src/app.config.ts"
+        "apps/mini-taro/src/app.config.ts",
+        "apps/mini-taro/src/app.tsx",
+        "apps/mini-taro/src/web/WebApp.tsx",
+        "apps/mini-taro/src/pages/auth/web-login-confirm.tsx"
       ],
       "publicContracts": [
         "The Web login session is a backend-owned state machine: QR creation, scan confirmation, exchange, expiry and cancellation are never inferred by the browser.",
@@ -283,7 +286,11 @@
         "tests/app_identity_repository_test.py",
         "tests/app_wechat_mini_test.py",
         "tests/app_api_test.py",
-        "packages/api-client/src/web-auth.test.ts"
+        "packages/api-client/src/web-auth.test.ts",
+        "apps/mini-taro/src/web/web-auth-model.test.ts",
+        "apps/mini-taro/src/web/web-app-contract.test.ts",
+        "apps/mini-taro/src/pages/auth/web-login-confirm.test.ts",
+        "tests/deploy-web-v2.test.js"
       ],
       "runtimeSurfaces": [
         "server/app/identity/application.py",
@@ -293,7 +300,15 @@
         "server/app/integrations/wechat_mini.py",
         "server/migrations/postgres/0039_wechat_web_login_sessions.sql",
         "packages/domain/src/web-auth.ts",
-        "packages/api-client/src/web-auth.ts"
+        "packages/api-client/src/web-auth.ts",
+        "apps/mini-taro/src/app.tsx",
+        "apps/mini-taro/src/app.scss",
+        "apps/mini-taro/src/web/WebApp.tsx",
+        "apps/mini-taro/src/web/WebApp.module.scss",
+        "apps/mini-taro/src/pages/auth/web-login-confirm.tsx",
+        "server/deploy_web_v2_lighthouse.sh",
+        "server/wow-v2-api.service",
+        "server/wow-v2-web.nginx"
       ],
       "runbooks": [
         "docs/remote-debugging.md",
@@ -325,6 +340,13 @@
         "packages/api-client/src/clients.ts",
         "apps/mini-taro/src/pages/auth/**",
         "apps/mini-taro/src/app.config.ts",
+        "apps/mini-taro/src/app.tsx",
+        "apps/mini-taro/src/app.scss",
+        "apps/mini-taro/src/web/**",
+        "server/deploy_web_v2_lighthouse.sh",
+        "server/wow-v2-api.service",
+        "server/wow-v2-web.nginx",
+        "tests/deploy-web-v2.test.js",
         "tests/app_auth_application_test.py",
         "tests/app_identity_repository_test.py",
         "tests/app_wechat_mini_test.py",
@@ -337,13 +359,17 @@
       },
       "criticalContract": {
         "status": "characterized",
-        "summary": "The local v2 Web and mini-program identity application, PostgreSQL repository, WeChat adapter, public API boundaries and typed Web transport characterize independent session kinds, exact-origin protection and fail-closed provider configuration.",
+        "summary": "The local v2 Web and mini-program identity application, PostgreSQL repository, WeChat adapter, public API boundaries, typed Web transport and Taro shell characterize independent session kinds, exact-origin protection and fail-closed provider configuration; candidate/runtime proof remains separate.",
         "coverage": [
           "tests/app_auth_application_test.py",
           "tests/app_identity_repository_test.py",
           "tests/app_wechat_mini_test.py",
           "tests/app_api_test.py",
-          "packages/api-client/src/web-auth.test.ts"
+          "packages/api-client/src/web-auth.test.ts",
+          "apps/mini-taro/src/web/web-auth-model.test.ts",
+          "apps/mini-taro/src/web/web-app-contract.test.ts",
+          "apps/mini-taro/src/pages/auth/web-login-confirm.test.ts",
+          "tests/deploy-web-v2.test.js"
         ],
         "runtimeEvidence": [],
         "ownerMapRef": {
