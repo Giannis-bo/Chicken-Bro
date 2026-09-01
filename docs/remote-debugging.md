@@ -81,6 +81,23 @@ HTTP 200 只证明请求可达；还要检查 `status`、`blockers`、`checkedAt
 
 ## 部署
 
+### Web v2 候选部署
+
+Web 登录原型使用独立的 `wow-v2-api` systemd 服务（回环 `127.0.0.1:8790`）和
+`/var/www/chickenbro-web/current` 静态根；它不替换现有业务服务，也不复用旧 API 的会话。
+候选入口会先校验 `/etc/wow-v2-api.env` 的 `0600` 权限、PostgreSQL DSN 和 `www` 证书 SAN，
+再备份 v2 文件、环境和目标数据库，最后才应用 0039 migration、安装 v2 虚拟主机并做 loopback/public smoke。
+
+```bash
+npm --workspace @wow-mini/mini-taro run build:h5
+./server/deploy_web_v2_lighthouse.sh
+```
+
+脚本只打包当前 Git tracked 的 v2 server 文件与已构建的 H5 目录，备份保存在
+`/var/backups/wow-v2/<run-id>`。如果候选失败，它只恢复命名的 v2 service/Nginx/静态 current
+指针并保留 PostgreSQL backup；不会停止或重启现有业务服务。`www.chickenbro.cloud` 必须使用覆盖
+该域名的有效证书后，才能把网页可达性写成 live evidence。
+
 完整入口：
 
 ```bash
