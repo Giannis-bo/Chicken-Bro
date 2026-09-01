@@ -6,6 +6,15 @@ import { describe, expect, it } from 'vitest'
 import { routeContracts, routePolicy } from '@wow-mini/domain'
 
 describe('Taro source route contract', () => {
+  it('registers Web login confirmation as auxiliary, not as a product route', () => {
+    const auxiliaryAuthRoute = 'pages/auth/web-login-confirm'
+    const appConfig = fs.readFileSync(path.join(process.cwd(), 'apps/mini-taro/src/app.config.ts'), 'utf8')
+
+    expect(appConfig).toContain(`'${auxiliaryAuthRoute}'`)
+    expect(routePolicy.registeredRouteCount).toBe(14)
+    expect(routeContracts.map((route) => route.targetPage)).not.toContain(auxiliaryAuthRoute)
+  })
+
   it('registers exactly the 14 current product routes', () => {
     const appConfig = fs.readFileSync(path.join(process.cwd(), 'apps/mini-taro/src/app.config.ts'), 'utf8')
     expect(routeContracts).toHaveLength(routePolicy.registeredRouteCount)

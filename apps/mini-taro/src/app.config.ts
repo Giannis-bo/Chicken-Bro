@@ -14,6 +14,7 @@ export default defineAppConfig({
     'pages/simulator/tasks',
     'pages/simulator/task-detail',
     'pages/profile/profile',
+    'pages/auth/web-login-confirm',
   ],
   window: {
     backgroundColor: '#080908',

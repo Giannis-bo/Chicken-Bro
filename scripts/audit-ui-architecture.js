@@ -44,6 +44,8 @@ const expectedAppRoutes = [
   'pages/simulator/task-detail',
   'pages/profile/profile',
 ]
+const auxiliaryAppRoutes = new Set(['pages/auth/web-login-confirm'])
+const auxiliarySourceRoot = 'apps/mini-taro/src/pages/auth/web-login-confirm'
 const expectedContractRoutes = [
   'build-intel',
   'builds-home',
@@ -94,6 +96,7 @@ function sorted(values) {
 }
 
 const routeSources = walk('apps/mini-taro/src/pages', ['.ts', '.tsx', '.scss'])
+  .filter((file) => !file.startsWith(auxiliarySourceRoot))
 const routeStyles = routeSources.filter((file) => file.endsWith('.scss'))
 const routeComponents = routeSources.filter((file) => file.endsWith('.tsx'))
 const literalRouteCssModuleReferences = routeComponents.flatMap((file) => {
@@ -571,10 +574,18 @@ record(
 const appConfig = read('apps/mini-taro/src/app.config.ts')
 const pagesBlock = appConfig.match(/pages:\s*\[([\s\S]*?)\],\s*window:/)?.[1] ?? ''
 const configuredRoutes = [...pagesBlock.matchAll(/'([^']+)'/g)].map((match) => match[1])
+const productRoutes = configuredRoutes.filter((route) => !auxiliaryAppRoutes.has(route))
+const tabBarBlock = appConfig.match(/tabBar:\s*\{([\s\S]*?)\n\s*\},\s*style:/)?.[1] ?? ''
 record(
   'app_route_manifest_is_exactly_14_routes',
-  JSON.stringify(configuredRoutes) === JSON.stringify(expectedAppRoutes),
-  `configured=${configuredRoutes.length}`,
+  JSON.stringify(productRoutes) === JSON.stringify(expectedAppRoutes),
+  `configured=${productRoutes.length}`,
+)
+record(
+  'auxiliary_auth_route_is_registered_outside_product_navigation',
+  configuredRoutes.includes('pages/auth/web-login-confirm')
+    && !tabBarBlock.includes('pages/auth/web-login-confirm'),
+  `auxiliary=${configuredRoutes.includes('pages/auth/web-login-confirm')}`,
 )
 
 const targetRegistry = JSON.parse(read('docs/design/current-ui/target-registry.json'))
@@ -2864,7 +2875,7 @@ record(
 
 const summary = {
   status: findings.length ? 'fail' : 'pass',
-  checkedRoutes: configuredRoutes.length,
+  checkedRoutes: productRoutes.length,
   checkedContracts: contractRoutes.length,
   checks: checks.length,
   reconstructionImportantCount: importantCount,

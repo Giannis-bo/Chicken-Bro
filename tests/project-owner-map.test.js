@@ -5,6 +5,8 @@ const fs = require('node:fs')
 const projectOwnerMapPath = 'docs/project-owner-map.json'
 const backendOwnerMapPath = 'docs/backend-owner-map.json'
 const appConfigPath = 'app.json'
+const taroAppConfigPath = 'apps/mini-taro/src/app.config.ts'
+const auxiliaryAuthRoute = 'pages/auth/web-login-confirm'
 
 const CRITICAL_DOMAIN_IDS = [
   'app_shell_route_runtime',
@@ -183,6 +185,21 @@ test('ui runtime evidence domain explicitly covers every app.json route', () => 
   assert.ok(uiDomain, 'ui_runtime_evidence domain should exist')
   assert.deepEqual(uiDomain.appRoutes, appConfig.pages)
   assert.equal(uiDomain.appRoutes.length, 14)
+})
+
+test('Web login confirmation is registered as auxiliary and excluded from product ownership', () => {
+  const ownerMap = readOwnerMap()
+  const taroAppConfig = fs.readFileSync(taroAppConfigPath, 'utf8')
+  const uiDomain = ownerMap.criticalDomains.find((domain) => domain.id === 'ui_runtime_evidence')
+
+  assert.match(taroAppConfig, new RegExp(`['"]${auxiliaryAuthRoute}['"]`))
+  assert.ok(uiDomain, 'ui_runtime_evidence domain should exist')
+  assert.deepEqual(uiDomain.auxiliaryRoutes, [{
+    route: auxiliaryAuthRoute,
+    role: 'auxiliary_auth',
+    owner: 'apps/mini-taro/src/pages/auth/web-login-confirm.tsx',
+  }])
+  assert.ok(!uiDomain.activeRouteOwners.some((entry) => entry.route === auxiliaryAuthRoute))
 })
 
 test('Taro and typed packages own the active frontend contract while root routes and pages remain compatibility consumers', () => {

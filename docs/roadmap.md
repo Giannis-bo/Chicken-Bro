@@ -56,7 +56,7 @@ Active Manifest、Gear Catalog 和旧 API 只作为迁移期 last-known-good 如
 | 优先级 | 里程碑 | 完成标准 | 权威入口 |
 | --- | --- | --- | --- |
 | 正在推进 | 双端精简架构骨架 | 建立模块化单体 `/api/v2`、独立 Worker、`identity/chat/simc/ops` 数据 owner 和依赖守卫；不改变当前生产入口 | [父级架构](superpowers/specs/2026-09-01-chickenbro-simc-dual-client-architecture-design.md) |
-| 下一步 | 微信双端 Identity | 小程序 exchange 与 Web 一次性扫码确认 session 使用独立会话并映射到同一内部 `user_id`；scene ticket/verifier 防重放，UnionID 仅可选，冲突 fail-closed | [父级架构](superpowers/specs/2026-09-01-chickenbro-simc-dual-client-architecture-design.md) |
+| 正在推进 | 微信双端 Identity 与公网 Web 原型 | 小程序 exchange 与 Web 一次性扫码确认 session 使用独立会话并映射到同一内部 `user_id`；scene ticket/verifier 防重放，UnionID 仅可选，冲突 fail-closed；公网 Web 原型必须经真实二维码、确认页、Cookie 会话和候选回滚门禁 | [设计](superpowers/specs/2026-09-01-chickenbro-web-mini-login-design.md) · [实施计划](superpowers/plans/2026-09-01-chickenbro-web-mini-login.md) |
 | 下一步 | Codex-only 炸鸡队长 | 抽取当前原生 Codex runner、owner-bound 会话和 SSE；Codex 不可用时明确失败，不静默切换普通 LLM 或模板回答 | [父级架构](superpowers/specs/2026-09-01-chickenbro-simc-dual-client-architecture-design.md) |
 | 下一步 | Raider.IO/WCL 到 SimC | 两个 Adapter 只输出统一 Snapshot candidate；readiness、compiler、Worker 和云端 SimC 形成单一可审计主链 | [父级架构](superpowers/specs/2026-09-01-chickenbro-simc-dual-client-architecture-design.md) |
 | 后续 | 双端切流与 legacy 删除 | 独立 Web 域名、Web login session/小程序确认、跨端历史、候选、回滚与用户验收闭合后，删除资讯、天赋模拟、装备模拟及其 route/job/data owner | [父级架构](superpowers/specs/2026-09-01-chickenbro-simc-dual-client-architecture-design.md) |

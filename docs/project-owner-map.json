@@ -1991,6 +1991,13 @@
         "pages/simulator/task-detail",
         "pages/profile/profile"
       ],
+      "auxiliaryRoutes": [
+        {
+          "route": "pages/auth/web-login-confirm",
+          "role": "auxiliary_auth",
+          "owner": "apps/mini-taro/src/pages/auth/web-login-confirm.tsx"
+        }
+      ],
       "activeRouteOwners": [
         { "route": "pages/news/news", "role": "active_taro_route_owner", "owner": "apps/mini-taro/src/pages/news/news.tsx", "legacyCompatibilityConsumer": "pages/news/news.js" },
         { "route": "pages/news/list", "role": "active_taro_route_owner", "owner": "apps/mini-taro/src/pages/news/list.tsx", "legacyCompatibilityConsumer": "pages/news/list.js" },
