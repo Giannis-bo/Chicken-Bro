@@ -70,6 +70,11 @@ def database_probe(factory: PostgresConnectionFactory) -> Callable[[], Component
 
 def default_readiness_registry(settings: AppSettings) -> ReadinessRegistry:
     database = database_probe(PostgresConnectionFactory(settings))
+    wechat = (
+        ComponentState("ready", "")
+        if settings.wechat_appid and settings.wechat_secret
+        else ComponentState("unconfigured", "WECHAT_NOT_CONFIGURED")
+    )
     return ReadinessRegistry({
         "database": database,
         "worker": lambda: ComponentState("unconfigured", "WORKER_NOT_CONFIGURED"),
@@ -77,4 +82,5 @@ def default_readiness_registry(settings: AppSettings) -> ReadinessRegistry:
         "raiderio": lambda: ComponentState("unconfigured", "RAIDERIO_NOT_CONFIGURED"),
         "warcraftlogs": lambda: ComponentState("unconfigured", "WARCRAFTLOGS_NOT_CONFIGURED"),
         "simc": lambda: ComponentState("unconfigured", "SIMC_NOT_CONFIGURED"),
+        "wechat_mini": lambda: wechat,
     })

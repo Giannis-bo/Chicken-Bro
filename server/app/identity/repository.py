@@ -185,6 +185,50 @@ class PostgresIdentityRepository:
                 row = cursor.fetchone()
         return self._web_login_session_from_row(row) if row is not None else None
 
+    def get_web_login_session_by_scene(
+        self,
+        *,
+        scene_ticket_sha256: str,
+        for_update: bool = False,
+    ) -> WebLoginSession | None:
+        lock_clause = " FOR UPDATE" if for_update else ""
+        with self._connection_factory() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    f"""
+                    SELECT id, scene_ticket_sha256, browser_verifier_sha256,
+                           idempotency_key_sha256, user_id, status, expires_at, exchanged_at
+                    FROM identity.web_login_sessions
+                    WHERE scene_ticket_sha256 = %s{lock_clause}
+                    """,
+                    (scene_ticket_sha256,),
+                )
+                row = cursor.fetchone()
+        return self._web_login_session_from_row(row) if row is not None else None
+
+    def get_web_login_session_by_idempotency(
+        self,
+        *,
+        browser_verifier_sha256: str,
+        idempotency_key_sha256: str,
+        for_update: bool = False,
+    ) -> WebLoginSession | None:
+        lock_clause = " FOR UPDATE" if for_update else ""
+        with self._connection_factory() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    f"""
+                    SELECT id, scene_ticket_sha256, browser_verifier_sha256,
+                           idempotency_key_sha256, user_id, status, expires_at, exchanged_at
+                    FROM identity.web_login_sessions
+                    WHERE browser_verifier_sha256 = %s
+                      AND idempotency_key_sha256 = %s{lock_clause}
+                    """,
+                    (browser_verifier_sha256, idempotency_key_sha256),
+                )
+                row = cursor.fetchone()
+        return self._web_login_session_from_row(row) if row is not None else None
+
     def save_web_login_session(self, session: WebLoginSession, *, now: datetime) -> None:
         with self._connection_factory() as connection:
             with connection.cursor() as cursor:

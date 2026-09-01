@@ -12,6 +12,14 @@ _CANONICAL_UUID = re.compile(
 )
 
 
+class ApiProblem(Exception):
+    def __init__(self, *, status_code: int, code: str, message: str):
+        super().__init__(message)
+        self.status_code = status_code
+        self.code = code
+        self.message = message
+
+
 def resolve_request_id(value: str | None) -> str:
     if value is not None and _CANONICAL_UUID.fullmatch(value):
         try:
@@ -64,6 +72,15 @@ async def http_exception_handler(request: Request, exception: StarletteHTTPExcep
         status_code=exception.status_code,
         code="REQUEST_REJECTED",
         message="request rejected",
+    )
+
+
+async def api_problem_handler(request: Request, exception: ApiProblem) -> JSONResponse:
+    return problem_response(
+        request=request,
+        status_code=exception.status_code,
+        code=exception.code,
+        message=exception.message,
     )
 
 

@@ -4,19 +4,26 @@ from collections.abc import Mapping
 from fastapi import FastAPI, Request
 
 from server.app.api.errors import (
+    ApiProblem,
+    api_problem_handler,
     http_exception_handler,
     resolve_request_id,
     unhandled_exception_handler,
     validation_exception_handler,
 )
 from server.app.api.routes import router as health_router
+from server.app.identity.application import WebAuthApplication
+from server.app.identity.repository import PostgresIdentityRepository
+from server.app.integrations.wechat_mini import WechatMiniClient
 from server.app.platform.config import AppSettings
 from server.app.platform.health import ReadinessRegistry, default_readiness_registry
+from server.app.platform.postgres import PostgresConnectionFactory
 
 
 def create_app(
     settings: AppSettings,
     readiness_registry: ReadinessRegistry | None = None,
+    web_auth_application: WebAuthApplication | None = None,
 ) -> FastAPI:
     production = settings.environment == "production"
     app = FastAPI(
@@ -25,6 +32,14 @@ def create_app(
         openapi_url=None if production else "/api/v2/openapi.json",
     )
     app.state.settings = settings
+    if web_auth_application is None:
+        repository = PostgresIdentityRepository(PostgresConnectionFactory(settings).connection)
+        web_auth_application = WebAuthApplication(
+            repository=repository,
+            wechat_gateway=WechatMiniClient(settings),
+            settings=settings,
+        )
+    app.state.web_auth_application = web_auth_application
     app.state.readiness_registry = (
         default_readiness_registry(settings)
         if readiness_registry is None
@@ -41,6 +56,7 @@ def create_app(
 
     app.add_exception_handler(404, http_exception_handler)
     app.add_exception_handler(422, validation_exception_handler)
+    app.add_exception_handler(ApiProblem, api_problem_handler)
     app.add_exception_handler(Exception, unhandled_exception_handler)
     app.include_router(health_router)
     return app

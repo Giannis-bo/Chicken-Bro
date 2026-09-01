@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 from server.app.main import create_app
 from server.app.platform.config import AppSettings
 from server.app.platform.health import ComponentState, ReadinessRegistry
+from server.app.platform.health import default_readiness_registry
 
 
 class AppApiTest(unittest.TestCase):
@@ -75,3 +76,11 @@ class AppApiTest(unittest.TestCase):
         self.assertIsNone(app.docs_url)
         self.assertIsNone(app.redoc_url)
         self.assertIsNone(app.openapi_url)
+
+    def test_default_readiness_reports_wechat_configuration_without_network_calls(self):
+        settings = AppSettings(
+            environment="test",
+            database_url="postgresql://redacted",
+        )
+        states = default_readiness_registry(settings).check_all()
+        self.assertEqual(states["wechat_mini"], ComponentState("unconfigured", "WECHAT_NOT_CONFIGURED"))

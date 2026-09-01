@@ -12,6 +12,7 @@ const CRITICAL_DOMAIN_IDS = [
   'app_shell_route_runtime',
   'frontend_api_auth_transport',
   'platform_v2_foundation',
+  'web_v2_auth',
   'personal_build_template_assets',
   'news_content_public_api',
   'websim_gear_public_read_model',
@@ -30,6 +31,7 @@ const CRITICAL_DOMAIN_IDS = [
 ]
 
 const BACKEND_FACT_DOMAINS = new Set([
+  'web_v2_auth',
   'news_content_public_api',
   'websim_gear_public_read_model',
   'websim_talent_public_read_model',
@@ -73,7 +75,7 @@ function readOwnerMap() {
   return readJson(projectOwnerMapPath)
 }
 
-test('project owner map freezes the 18 critical domains with no unknown or blocked owners', () => {
+test('project owner map freezes the 19 critical domains with no unknown or blocked owners', () => {
   const ownerMap = readOwnerMap()
   assert.equal(ownerMap.schemaVersion, 1)
   assert.equal(ownerMap.status, 'project_owner_map_active')

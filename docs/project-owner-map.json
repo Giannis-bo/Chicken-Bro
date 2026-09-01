@@ -256,6 +256,104 @@
       }
     },
     {
+      "id": "web_v2_auth",
+      "status": "active",
+      "ownerRole": "fact_owner",
+      "factOwner": "server/app/identity/application.py",
+      "writeBehavior": true,
+      "writeOwner": "server/app/identity/repository.py",
+      "consumers": [
+        "server/app/api/routes/auth.py",
+        "server/app/api/dependencies.py",
+        "packages/api-client/src/web-auth.ts",
+        "apps/mini-taro/src/app.config.ts"
+      ],
+      "publicContracts": [
+        "The Web login session is a backend-owned state machine: QR creation, scan confirmation, exchange, expiry and cancellation are never inferred by the browser.",
+        "Web and mini-program sessions are independent credentials. The Web browser receives only an HttpOnly cookie; the mini program receives only its own bearer token after code exchange.",
+        "A Web login mutation requires the configured exact Origin and an opaque PKCE-style browser verifier; WeChat provider credentials and raw scene values never cross the public response boundary."
+      ],
+      "mustNotChange": [
+        "Do not reuse a mini-program bearer token as a Web session or share Web cookies with the mini program.",
+        "Do not accept browser-supplied user identity, OpenID, UnionID, provider secrets or raw QR scene values as authoritative facts.",
+        "Do not mutate the legacy auth routes, server/news_backend.py, Active Manifest or the active 14-route product navigation."
+      ],
+      "characterization": [
+        "tests/app_auth_application_test.py",
+        "tests/app_identity_repository_test.py",
+        "tests/app_wechat_mini_test.py",
+        "tests/app_api_test.py",
+        "packages/api-client/src/web-auth.test.ts"
+      ],
+      "runtimeSurfaces": [
+        "server/app/identity/application.py",
+        "server/app/identity/repository.py",
+        "server/app/api/routes/auth.py",
+        "server/app/api/dependencies.py",
+        "server/app/integrations/wechat_mini.py",
+        "server/migrations/postgres/0039_wechat_web_login_sessions.sql",
+        "packages/domain/src/web-auth.ts",
+        "packages/api-client/src/web-auth.ts"
+      ],
+      "runbooks": [
+        "docs/remote-debugging.md",
+        "docs/postgres-identity-migration-runbook.md"
+      ],
+      "rollback": [
+        "code_rollback",
+        "config_disable",
+        "data_restore"
+      ],
+      "verificationProfiles": [
+        "backend",
+        "frontend",
+        "full"
+      ],
+      "releaseTrigger": "user_visible_runtime",
+      "changedPathPatterns": [
+        "server/app/identity/**",
+        "server/app/api/**",
+        "server/app/integrations/wechat_mini.py",
+        "server/app/platform/{config,cookies,origin}.*",
+        "server/app/main.py",
+        "server/app/platform/health.py",
+        "server/migrations/postgres/0039_wechat_web_login_sessions.sql",
+        "packages/domain/src/web-auth.*",
+        "packages/domain/src/index.ts",
+        "packages/api-client/src/web-auth.*",
+        "packages/api-client/src/transport.ts",
+        "packages/api-client/src/clients.ts",
+        "apps/mini-taro/src/pages/auth/**",
+        "apps/mini-taro/src/app.config.ts",
+        "tests/app_auth_application_test.py",
+        "tests/app_identity_repository_test.py",
+        "tests/app_wechat_mini_test.py",
+        "tests/app_api_test.py"
+      ],
+      "backendOwnerMapRef": {
+        "hotspotFile": "server/app/identity/application.py",
+        "ownerId": "web_v2_auth_application",
+        "factOwner": "server/app/identity/application.py"
+      },
+      "criticalContract": {
+        "status": "characterized",
+        "summary": "The local v2 Web and mini-program identity application, PostgreSQL repository, WeChat adapter, public API boundaries and typed Web transport characterize independent session kinds, exact-origin protection and fail-closed provider configuration.",
+        "coverage": [
+          "tests/app_auth_application_test.py",
+          "tests/app_identity_repository_test.py",
+          "tests/app_wechat_mini_test.py",
+          "tests/app_api_test.py",
+          "packages/api-client/src/web-auth.test.ts"
+        ],
+        "runtimeEvidence": [],
+        "ownerMapRef": {
+          "hotspotFile": "server/app/identity/application.py",
+          "ownerId": "web_v2_auth_application",
+          "factOwner": "server/app/identity/application.py"
+        }
+      }
+    },
+    {
       "id": "personal_build_template_assets",
       "status": "active",
       "ownerRole": "fact_owner",
@@ -2092,7 +2190,7 @@
   ],
   "criticalContractUnknown": 0,
   "criticalContractBlocked": 0,
-  "criticalContractCharacterized": 16,
+  "criticalContractCharacterized": 17,
   "criticalContractHealthWatch": 2,
   "criticalContractGapClosed": 0
 }

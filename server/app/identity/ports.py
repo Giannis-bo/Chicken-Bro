@@ -52,6 +52,23 @@ class IdentityRepository(Protocol):
     def get_web_login_session(self, *, session_id: UUID, for_update: bool = False) -> WebLoginSession | None:
         raise NotImplementedError
 
+    def get_web_login_session_by_scene(
+        self,
+        *,
+        scene_ticket_sha256: str,
+        for_update: bool = False,
+    ) -> WebLoginSession | None:
+        raise NotImplementedError
+
+    def get_web_login_session_by_idempotency(
+        self,
+        *,
+        browser_verifier_sha256: str,
+        idempotency_key_sha256: str,
+        for_update: bool = False,
+    ) -> WebLoginSession | None:
+        raise NotImplementedError
+
     def save_web_login_session(self, session: WebLoginSession, *, now: datetime) -> None:
         raise NotImplementedError
 
@@ -64,4 +81,12 @@ class WebLoginSessionRepository(Protocol):
         raise NotImplementedError
 
     def save(self, session: WebLoginSession) -> None:
+        raise NotImplementedError
+
+
+class WechatMiniGateway(Protocol):
+    def exchange_code(self, code: str) -> WechatIdentity:
+        raise NotImplementedError
+
+    def create_mini_code(self, *, scene: str, page: str, env_version: str) -> bytes:
         raise NotImplementedError

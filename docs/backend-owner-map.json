@@ -1067,6 +1067,42 @@
           "futureExtractionDirection": "Task 2 may add a PostgreSQL-only append-only store; Task 4 may compose it into Exact API/worker only after v3 identity, candidate and Harness gates."
         }
       ]
+    },
+    {
+      "path": "server/app/identity/application.py",
+      "healthStatus": "strict_local_tdd",
+      "summary": "Owns the v2 Web and mini-program authentication application state machine and public identity/session facts. Persistence writes remain repository-owned; provider credentials and raw WeChat scene values stay behind the adapter boundary.",
+      "owners": [
+        {
+          "id": "web_v2_auth_application",
+          "status": "local_implementation_authorized",
+          "factOwner": "server/app/identity/application.py",
+          "writeOwner": "server/app/identity/repository.py",
+          "owns": [
+            "Web QR login session lifecycle and browser-verifier binding",
+            "independent web_cookie and mini_bearer session issuance and resolution",
+            "public authentication error classification and provider fail-closed mapping",
+            "mini-program explicit Web login confirmation and exchange orchestration"
+          ],
+          "mustNotChange": [
+            "Do not reuse mini-program bearer sessions as Web cookies or accept browser identity claims as facts.",
+            "Do not log, persist in public payloads or return raw QR scene values, WeChat secrets, OpenID or UnionID.",
+            "Do not mutate legacy auth routes or server/news_backend.py; production migration and service cutover require separate candidate evidence."
+          ],
+          "characterization": [
+            "tests/app_auth_application_test.py",
+            "tests/app_identity_repository_test.py",
+            "tests/app_wechat_mini_test.py",
+            "tests/app_api_test.py"
+          ],
+          "runtimeConsumers": [
+            "server/app/api/routes/auth.py",
+            "server/app/api/dependencies.py",
+            "server/app/main.py"
+          ],
+          "futureExtractionDirection": "Keep user/session writes in the PostgreSQL repository and provider calls in the WeChat adapter; extract no browser or mini-program identity judgment into frontend code."
+        }
+      ]
     }
   ]
 }
