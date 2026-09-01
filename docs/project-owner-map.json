@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-07-28",
+  "updatedAt": "2026-09-01",
   "status": "project_owner_map_active",
   "harnessVersion": "v0.6.4",
   "activeMilestone": "taro_target_first_14_route_rebuild",
@@ -154,6 +154,102 @@
           "tests/frontend-api-client.test.js",
           "tests/profile-auth.test.js",
           "tests/analytics-instrumentation.test.js"
+        ],
+        "runtimeEvidence": [],
+        "ownerMapRef": null
+      }
+    },
+    {
+      "id": "platform_v2_foundation",
+      "status": "active",
+      "ownerRole": "consumer_orchestrator",
+      "factOwner": "server/app/main.py",
+      "writeBehavior": true,
+      "writeOwner": "server/app/worker/leases.py",
+      "consumers": [
+        "server/app/main.py",
+        "server/app/api",
+        "server/app/identity",
+        "server/app/chickenbro",
+        "server/app/simulation",
+        "server/app/platform",
+        "server/app/worker",
+        "server/migrations/postgres/0038_chickenbro_simc_platform_foundation.sql",
+        "packages/domain/src/platform-v2.ts",
+        "packages/api-client/src/platform-v2.ts"
+      ],
+      "publicContracts": [
+        "server/app/main.py owns /api/v2 composition and health routing; it is not the owner of Chickenbro, identity or SimC business facts.",
+        "server/app/identity, server/app/chickenbro and server/app/simulation own their pure domain contracts; server/app/worker owns queue lease execution; packages/api-client/src/platform-v2.ts owns the shared typed transport boundary.",
+        "This foundation is local-verified only: it does not register a production service, apply migration 0038, implement WeChat login, or claim candidate/runtime readiness."
+      ],
+      "mustNotChange": [
+        "Do not register /api/v2 in the legacy service or change server/news_backend.py, server/wow-backend.service, the 14 active Taro routes or Active Manifest.",
+        "Do not let the composition owner make source, identity, SimC readiness or product-quality judgments; those remain domain or external-authority contracts.",
+        "Do not apply the additive migration, start a worker against production, deploy or cut over from this local foundation slice."
+      ],
+      "characterization": [
+        "tests/app_api_test.py",
+        "tests/app_domain_test.py",
+        "tests/app_architecture_test.py",
+        "tests/app_schema_test.py",
+        "tests/app_config_test.py",
+        "tests/app_worker_lease_test.py",
+        "tests/app_worker_runtime_test.py",
+        "packages/domain/src/platform-v2.test.ts",
+        "packages/api-client/src/platform-v2.test.ts"
+      ],
+      "runtimeSurfaces": [
+        "server/app/main.py",
+        "server/app/api",
+        "server/app/identity",
+        "server/app/chickenbro",
+        "server/app/simulation",
+        "server/app/platform",
+        "server/app/worker",
+        "server/migrations/postgres/0038_chickenbro_simc_platform_foundation.sql",
+        "server/requirements-v2.txt",
+        "packages/domain/src/platform-v2.ts",
+        "packages/api-client/src/platform-v2.ts"
+      ],
+      "runbooks": [
+        "docs/verification-matrix.md",
+        "docs/harness.md",
+        "docs/remote-debugging.md"
+      ],
+      "rollback": [
+        "code_rollback",
+        "config_disable"
+      ],
+      "verificationProfiles": [
+        "backend",
+        "frontend",
+        "full"
+      ],
+      "releaseTrigger": "backend_api",
+      "changedPathPatterns": [
+        "server/app/**",
+        "server/migrations/postgres/0038_chickenbro_simc_platform_foundation.sql",
+        "server/requirements-v2.txt",
+        "packages/domain/src/platform-v2.*",
+        "packages/domain/src/index.ts",
+        "packages/api-client/src/platform-v2.*",
+        "packages/api-client/src/index.ts",
+        "tests/app_*.py"
+      ],
+      "criticalContract": {
+        "status": "characterized",
+        "summary": "The isolated v2 composition, domain, PostgreSQL schema, lease, Worker, health and shared typed-client contracts are characterized locally; production registration, migration application and business adapters remain outside this slice.",
+        "coverage": [
+          "tests/app_api_test.py",
+          "tests/app_domain_test.py",
+          "tests/app_architecture_test.py",
+          "tests/app_schema_test.py",
+          "tests/app_config_test.py",
+          "tests/app_worker_lease_test.py",
+          "tests/app_worker_runtime_test.py",
+          "packages/domain/src/platform-v2.test.ts",
+          "packages/api-client/src/platform-v2.test.ts"
         ],
         "runtimeEvidence": [],
         "ownerMapRef": null
@@ -1989,7 +2085,7 @@
   ],
   "criticalContractUnknown": 0,
   "criticalContractBlocked": 0,
-  "criticalContractCharacterized": 15,
+  "criticalContractCharacterized": 16,
   "criticalContractHealthWatch": 2,
   "criticalContractGapClosed": 0
 }

@@ -390,6 +390,33 @@ test('backend owner map defines the backend hotspot ownership contract', () => {
   assert.ok(pgOwners.has('sync_state_repository'))
 })
 
+test('backend owner map records the unregistered v2 composition and domain owners', () => {
+  const ownerMap = readOwnerMap()
+  const foundation = ownerMap.v2PlatformFoundation
+
+  assert.ok(foundation, 'v2PlatformFoundation should be recorded')
+  assert.equal(foundation.status, 'local_foundation_unregistered')
+  assert.equal(foundation.compositionOwner, 'server/app/main.py')
+  assert.equal(foundation.workerOwner, 'server/app/worker')
+  assert.equal(foundation.typedTransportOwner, 'packages/api-client/src/platform-v2.ts')
+  assert.deepEqual(foundation.domainOwners, [
+    'server/app/identity',
+    'server/app/chickenbro',
+    'server/app/simulation',
+  ])
+  for (const path of [
+    foundation.compositionOwner,
+    ...foundation.domainOwners,
+    foundation.workerOwner,
+    foundation.typedTransportOwner,
+    foundation.schemaOwner,
+    ...foundation.characterization,
+  ]) {
+    assert.ok(fs.existsSync(path), `${path} should exist for the v2 foundation owner contract`)
+  }
+  assert.match(foundation.runtimeClaim, /local_verified_only/)
+})
+
 test('canonical backend gear release owners delegate socket facts to the pure owner', () => {
   const ownerMap = readOwnerMap()
   const files = new Map(ownerMap.hotspotFiles.map((entry) => [entry.path, entry]))

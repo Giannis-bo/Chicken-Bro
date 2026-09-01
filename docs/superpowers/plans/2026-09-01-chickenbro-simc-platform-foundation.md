@@ -1337,7 +1337,7 @@ git commit -m "feat: add the shared v2 platform client"
 - Consumes: final implementation commit, focused test results, migration hash, dependency lock hash and current `project-state.json`.
 - Produces: one complete Strict Harness packet with `local_verified` ceiling; no candidate, deployable or live claim.
 
-- [ ] **Step 1: Revalidate and advance the existing requirement packet**
+- [ ] **Step 1: Revalidate the existing requirement packet and bind evidence promotion**
 
 Run:
 
@@ -1345,7 +1345,7 @@ Run:
 node scripts/project-harness.js --check-requirement --requirement-file artifacts/releases/2026-09-01-chickenbro-simc-platform-foundation/requirement.json
 ```
 
-Expected: the Task 0 requirement still passes after the final diff. Change its status from `implementation_allowed` to `local_verified` only after Step 3 passes; do not change any non-goal, protected surface, acceptance item or rollback entry.
+Expected: the Task 0 requirement still passes after the final diff. Keep its status at `implementation_allowed`; the current Harness requires that status while the evidence packet declares `status` and `highestEvidenceLevel` as `local_verified`. Do not change any non-goal, protected surface, acceptance item or rollback entry.
 
 - [ ] **Step 2: Update owner maps and plan whitelist**
 

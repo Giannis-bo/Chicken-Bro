@@ -13,6 +13,27 @@
 
 本地可显式传 `--release`；缺省时只读取 `docs/project-state.json.defaultLocalReleaseArtifact`。PR CI 必须使用 `--release-from-changes --base origin/main`，从 diff 解析唯一完整任务 packet，不读取本地默认值。用 `--dry-run --json` 查看确切命令，不执行。
 
+## Chickenbro + SimC platform foundation
+
+本地 v2 骨架使用仓库根目录 `.venv-v2` 的锁定 Python 运行时和现有 Node lockfile；Task 5--7 的定向验证为：
+
+```bash
+.venv-v2/bin/python -m unittest \
+  tests.app_dependency_manifest_test \
+  tests.app_domain_test \
+  tests.app_architecture_test \
+  tests.app_schema_test \
+  tests.app_config_test \
+  tests.app_worker_lease_test \
+  tests.app_api_test \
+  tests.app_worker_runtime_test -v
+npm run test:taro -- packages/domain/src/platform-v2.test.ts packages/api-client/src/platform-v2.test.ts
+npm run typecheck
+npm run lint
+```
+
+`WOW_PG_TEST_DSN_V2` 未配置时 PostgreSQL 集成测试只能标记为 skipped/UNVERIFIED；本地通过不代表 migration 已执行、candidate 已部署、Web 登录已实现或任何生产运行态已验证。完整 profile 若需使用 v2 Python 依赖，应将 `.venv-v2/bin` 放在 `PATH` 前端后执行 `node scripts/verify-project.js`。
+
 ## 选择规则
 
 - 开发中先跑最小相关测试，不在每个小改动后串行跑 `frontend`、`backend`、`full`。

@@ -10,6 +10,36 @@
     "frontendAndHealthMustConsumeAuthorityState": true,
     "scheduledJobsWriteOwnedStateOnly": true
   },
+  "v2PlatformFoundation": {
+    "status": "local_foundation_unregistered",
+    "compositionOwner": "server/app/main.py",
+    "compositionRole": "compose /api/v2 and health routes only; not a business-fact owner",
+    "domainOwners": [
+      "server/app/identity",
+      "server/app/chickenbro",
+      "server/app/simulation"
+    ],
+    "workerOwner": "server/app/worker",
+    "typedTransportOwner": "packages/api-client/src/platform-v2.ts",
+    "schemaOwner": "server/migrations/postgres/0038_chickenbro_simc_platform_foundation.sql",
+    "characterization": [
+      "tests/app_api_test.py",
+      "tests/app_domain_test.py",
+      "tests/app_schema_test.py",
+      "tests/app_worker_lease_test.py",
+      "tests/app_worker_runtime_test.py",
+      "packages/domain/src/platform-v2.test.ts",
+      "packages/api-client/src/platform-v2.test.ts"
+    ],
+    "mustNotChange": [
+      "server/news_backend.py",
+      "server/wow-backend.service",
+      "the active 14-route Taro navigation",
+      "the Active Manifest",
+      "production PostgreSQL and services"
+    ],
+    "runtimeClaim": "local_verified_only; no production registration, migration application, deployment or business adapter readiness"
+  },
   "hotspotFiles": [
     {
       "path": "server/gear_canonical_kernel.py",

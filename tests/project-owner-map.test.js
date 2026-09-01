@@ -9,6 +9,7 @@ const appConfigPath = 'app.json'
 const CRITICAL_DOMAIN_IDS = [
   'app_shell_route_runtime',
   'frontend_api_auth_transport',
+  'platform_v2_foundation',
   'personal_build_template_assets',
   'news_content_public_api',
   'websim_gear_public_read_model',
@@ -70,7 +71,7 @@ function readOwnerMap() {
   return readJson(projectOwnerMapPath)
 }
 
-test('project owner map freezes the 17 critical domains with no unknown or blocked owners', () => {
+test('project owner map freezes the 18 critical domains with no unknown or blocked owners', () => {
   const ownerMap = readOwnerMap()
   assert.equal(ownerMap.schemaVersion, 1)
   assert.equal(ownerMap.status, 'project_owner_map_active')
@@ -232,6 +233,25 @@ test('Taro and typed packages own the active frontend contract while root routes
   assert.ok(appShellDomain.consumers.includes('pages'))
   assertPathExists(uiDomain.legacyCompatibility.appConfig)
   assertPathExists(uiDomain.legacyCompatibility.pagesRoot)
+})
+
+test('v2 platform foundation separates composition from business facts and protects legacy surfaces', () => {
+  const ownerMap = readOwnerMap()
+  const domain = ownerMap.criticalDomains.find((entry) => entry.id === 'platform_v2_foundation')
+
+  assert.ok(domain, 'platform_v2_foundation should exist')
+  assert.equal(domain.ownerRole, 'consumer_orchestrator')
+  assert.equal(domain.factOwner, 'server/app/main.py')
+  assert.equal(domain.writeOwner, 'server/app/worker/leases.py')
+  assert.ok(domain.consumers.includes('server/app/identity'))
+  assert.ok(domain.consumers.includes('server/app/chickenbro'))
+  assert.ok(domain.consumers.includes('server/app/simulation'))
+  assert.ok(domain.consumers.includes('packages/api-client/src/platform-v2.ts'))
+  assert.ok(domain.mustNotChange.some((entry) => entry.includes('server/news_backend.py')))
+  assert.ok(domain.mustNotChange.some((entry) => entry.includes('Active Manifest')))
+  assert.ok(domain.changedPathPatterns.includes('server/app/**'))
+  assert.ok(domain.characterization.includes('tests/app_api_test.py'))
+  assert.ok(domain.characterization.includes('packages/api-client/src/platform-v2.test.ts'))
 })
 
 test('compatibility retirement requires caller proof for legacy routes dormant products and backend seams', () => {
