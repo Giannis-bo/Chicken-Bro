@@ -1,0 +1,140 @@
+{
+  "schemaVersion": 2,
+  "slug": "chickenbro-simc-platform-foundation",
+  "requirementSlug": "chickenbro-simc-platform-foundation",
+  "status": "implementation_allowed",
+  "highestEvidenceLevel": "implementation_allowed",
+  "branch": "codex/chickenbro-simc-platform-foundation",
+  "commit": "4b2e1143ca3ab8227b5c8aa5aaf02504a66c9183",
+  "identities": {
+    "runtime": {
+      "status": "not_applicable",
+      "reason": "This local foundation is not registered, deployed or connected to a candidate runtime."
+    },
+    "verification": {
+      "status": "pending",
+      "reason": "The exact-head full verification has not yet been run on the complete packet."
+    },
+    "closure": {
+      "status": "pending",
+      "reason": "The task branch has not been merged or archived."
+    }
+  },
+  "manualAcceptance": {
+    "required": false,
+    "status": "not_applicable",
+    "reason": "This slice changes no user-visible route or runtime; Web login and business adapters remain unimplemented.",
+    "items": [],
+    "rollup": {
+      "total": 0,
+      "accepted": 0,
+      "notRunUserWaived": 0,
+      "pending": 0
+    }
+  },
+  "scope": [
+    "isolated server/app modular v2 foundation and dependency guard",
+    "additive PostgreSQL owner-scoped chat, SimC and ops queue schema",
+    "lease-safe Worker runtime and honest liveness/readiness API",
+    "shared TypeScript platform readiness contract and client",
+    "Harness owner maps and local evidence binding"
+  ],
+  "verification": [
+    {
+      "command": ".venv-v2/bin/python -m unittest tests.app_dependency_manifest_test tests.app_domain_test tests.app_architecture_test tests.app_schema_test tests.app_config_test tests.app_worker_lease_test tests.app_api_test tests.app_worker_runtime_test -v",
+      "status": "pass",
+      "summary": "26 focused Python tests passed. Domain, schema, dependency, architecture, configuration, lease, API and Worker contracts are covered."
+    },
+    {
+      "command": "npm run test:taro -- packages/domain/src/platform-v2.test.ts packages/api-client/src/platform-v2.test.ts",
+      "status": "pass",
+      "summary": "2 Vitest files and 3 focused TypeScript client/domain tests passed."
+    },
+    {
+      "command": "npm run typecheck",
+      "status": "pass",
+      "summary": "The repository TypeScript typecheck passed."
+    },
+    {
+      "command": "npm run lint",
+      "status": "pass",
+      "summary": "The repository ESLint check passed with zero warnings."
+    },
+    {
+      "command": "node --test tests/project-state.test.js tests/backend-owner-map.test.js tests/project-owner-map.test.js",
+      "status": "pass",
+      "summary": "59 current-truth, owner-map and Harness contract tests passed."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-09-01-chickenbro-simc-platform-foundation --base origin/main",
+      "status": "not_run",
+      "summary": "Queued for the clean exact-head packet check with .venv-v2/bin first in PATH."
+    },
+    {
+      "command": "git diff --check",
+      "status": "pass",
+      "summary": "No whitespace errors were found in the source and control-plane diff."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "not_run",
+    "reason": "Candidate deployment is outside this local foundation slice."
+  },
+  "runtimeEvidence": [],
+  "risks": [
+    {
+      "id": "postgres-integration-dsn-missing",
+      "status": "unverified",
+      "detail": "WOW_PG_TEST_DSN_V2 is not configured; PostgreSQL integration tests are skipped and migration 0038 has not been applied."
+    },
+    {
+      "id": "dependency-audit-backlog",
+      "status": "open",
+      "detail": "npm ci reported 63 vulnerabilities in the existing lockfile; npm audit fix was not run because dependency remediation is outside this slice."
+    },
+    {
+      "id": "starlette-testclient-warning",
+      "status": "open_nonblocking",
+      "detail": "The locked Starlette TestClient emits its existing httpx deprecation warning; focused imports and tests pass."
+    }
+  ],
+  "rollback": [
+    "remove_unreferenced_v2_runtime",
+    "revert_migration_before_candidate_only",
+    "keep_legacy_backend_active",
+    "code_rollback",
+    "config_disable"
+  ],
+  "cleanup": {
+    "required": false,
+    "reason": "Only ignored local .venv-v2 and node_modules directories were created; no candidate or production artifacts were changed."
+  },
+  "archivedReferences": [
+    "docs/project-state.json",
+    "docs/roadmap.md",
+    "docs/plans/README.md",
+    "docs/superpowers/specs/2026-09-01-chickenbro-simc-dual-client-architecture-design.md",
+    "docs/superpowers/plans/2026-09-01-chickenbro-simc-platform-foundation.md",
+    "docs/harness.md",
+    "docs/verification-matrix.md",
+    "docs/backend-owner-map.json",
+    "docs/project-owner-map.json",
+    "server/requirements-v2.txt",
+    "server/migrations/postgres/0038_chickenbro_simc_platform_foundation.sql",
+    "tests/app_api_test.py",
+    "tests/app_worker_runtime_test.py",
+    "packages/domain/src/platform-v2.test.ts",
+    "packages/api-client/src/platform-v2.test.ts"
+  ],
+  "nonClaims": {
+    "candidateDeployment": "NOT_RUN",
+    "productionDeployment": "NOT_RUN",
+    "postgresMigrationRuntime": "UNVERIFIED",
+    "wechatLogin": "NOT_IMPLEMENTED",
+    "codexConversation": "NOT_IMPLEMENTED",
+    "characterSourceAdapters": "NOT_IMPLEMENTED",
+    "simcExecution": "NOT_IMPLEMENTED",
+    "webLogin": "NOT_IMPLEMENTED"
+  },
+  "summary": "The Chickenbro + SimC v2 platform foundation is ready for local exact-head verification only. It does not claim candidate, production, migration-runtime, Web login, Codex, character-source or SimC execution readiness, and legacy production surfaces remain unchanged."
+}
