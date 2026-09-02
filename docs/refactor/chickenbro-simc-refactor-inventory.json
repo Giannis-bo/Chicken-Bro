@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedFromCommit": "9c01ed785d7822867bae0b54e52aaff06b855a5b",
+  "generatedFromCommit": "e576e64e1c9eaeac496bc575a8614eaf442b2a56",
   "excludedSelfPath": "docs/refactor/chickenbro-simc-refactor-inventory.json",
   "sourceRulesSha256": "25049f3a03f8b5503b4f2306ef97c4d4d2259d4467eefb92cc43a5fbd784a8a8",
   "entryCount": 2856,
@@ -15293,8 +15293,8 @@
       "owner": "Dual-client identity and platform API",
       "reason": "Typed Chat, SimC, authentication, transport, and package entrypoints are direct inputs to both clients.",
       "matchedRule": "shared-target-platform-contracts",
-      "bytes": 5587,
-      "sha256": "3488eb67d992f78f7bf570c42d281767a62fa199bd5349b8284ba78ad82384ce"
+      "bytes": 7663,
+      "sha256": "231aab7c03ef5e8e1e2be75ce71816c14831ed90f0bcb9da71129435e834815f"
     },
     {
       "path": "packages/api-client/src/chat.ts",
@@ -15303,8 +15303,8 @@
       "owner": "Dual-client identity and platform API",
       "reason": "Typed Chat, SimC, authentication, transport, and package entrypoints are direct inputs to both clients.",
       "matchedRule": "shared-target-platform-contracts",
-      "bytes": 5991,
-      "sha256": "8c26d10c9aea64b62e5a35dbb5e17c3ef38b05b1af560b04bc8cc6ba0f29895c"
+      "bytes": 6381,
+      "sha256": "9bd9702b824da34aca035375e7cdb1cbc3dc3425a858c6f81df242011b3afddb"
     },
     {
       "path": "packages/api-client/src/clients.ts",
@@ -15483,8 +15483,8 @@
       "owner": "Dual-client identity and platform API",
       "reason": "Typed Chat, SimC, authentication, transport, and package entrypoints are direct inputs to both clients.",
       "matchedRule": "shared-target-platform-contracts",
-      "bytes": 14174,
-      "sha256": "6c24aeabca36d4663f9b86cee549a867d3c822f786464be216b176c49c459e49"
+      "bytes": 16831,
+      "sha256": "5a776b92d44e63043043f4d9f8fb137c58a4847f01cf9901257b2290ec234465"
     },
     {
       "path": "packages/api-client/src/transport.ts",
@@ -15493,8 +15493,8 @@
       "owner": "Dual-client identity and platform API",
       "reason": "Typed Chat, SimC, authentication, transport, and package entrypoints are direct inputs to both clients.",
       "matchedRule": "shared-target-platform-contracts",
-      "bytes": 16013,
-      "sha256": "b3c3ace166f077ea2abefc2d96993a333ea91e867f2bc2d665f949b46d46e97a"
+      "bytes": 16345,
+      "sha256": "9c48247185e95c71f1abbdb100fa8b69ab7bbe3db69541b95eea3c23f9283d6f"
     },
     {
       "path": "packages/api-client/src/web-auth.test.ts",
@@ -28597,5 +28597,5 @@
       "sha256": "4736cc276f788e5427d17e51499c110336106bb64db4c827e2d576629d8f281f"
     }
   ],
-  "inventorySha256": "71dba75e88ed1f39c5646ff52a6581c8201ce76656a14e09c266464df5846a5a"
+  "inventorySha256": "24b425ab01d3b5bf8bc9c695f8427010a28d1f363e643d31038a2af972581746"
 }
