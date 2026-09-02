@@ -3,12 +3,17 @@
 只有“当前执行计划”表中的条目拥有顺序执行权。不要按日期扫描本目录，也不要从目录存在、Git
 历史或旧 release packet 恢复已归档阶段。稳定参考只解释现有实现或迁移期回滚边界，不是执行授权。
 
+当前实现只能由 [炸鸡队长与 SimC 双端架构](../chickenbro-simc-architecture.md) 解释，生产操作只能由
+[生产迁移、切流与恢复 Runbook](../chickenbro-simc-production-runbook.md) 解锁，验证等级以
+[Verification Matrix](../verification-matrix.md) 为准。旧计划中的命令、owner、route、schema 或服务名与这三份
+权威冲突时，一律按 legacy factual baseline 处理，不得继续执行。
+
 ## 当前执行计划
 
 | 阶段 | 状态 | 入口 |
 | --- | --- | --- |
-| 1. 控制面与精确清单 | `正在推进`；只读盘点、文档和本地验证，不改业务运行时或云端状态 | [实施计划](../superpowers/plans/2026-09-02-chickenbro-simc-rebuild-01-control-plane.md) |
-| 2. 干净数据面与 Identity | `下一步`；Phase 1 闭合后执行，candidate 验证先于任何正式 DSN 变化 | [实施计划](../superpowers/plans/2026-09-02-chickenbro-simc-rebuild-02-identity-data.md) |
+| 1. 控制面与精确清单 | `正在推进`；本地/云端清单已生成，当前在收敛唯一架构、runbook、owner 与 Phase 1 packet | [实施计划](../superpowers/plans/2026-09-02-chickenbro-simc-rebuild-01-control-plane.md) |
+| 2. 干净数据面与 Identity | `下一步`；当前容量 gate 为 blocked，必须先有独立恢复副本并清理无引用旧数据或扩容；candidate 先于正式 DSN 变化 | [实施计划](../superpowers/plans/2026-09-02-chickenbro-simc-rebuild-02-identity-data.md) |
 | 3. 正式 Chat | `下一步`；Phase 2 身份/数据 owner 通过后执行 | [实施计划](../superpowers/plans/2026-09-02-chickenbro-simc-rebuild-03-chat.md) |
 | 4. 正式 SimC | `下一步`；只使用云端 SimulationCraft，candidate 语义验证先于切流 | [实施计划](../superpowers/plans/2026-09-02-chickenbro-simc-rebuild-04-simc.md) |
 | 5. 双端、迁移与切流 | `下一步`；容量、独立备份、candidate、真实双端验收和写栅栏全部通过后才可 apply | [实施计划](../superpowers/plans/2026-09-02-chickenbro-simc-rebuild-05-dual-client-migration-cutover.md) |

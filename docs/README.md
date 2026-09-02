@@ -1,50 +1,66 @@
 # 文档地图
 
-`docs/` 只保留当前契约，以及被当前架构或 runbook 精确引用的领域记录。只有本页和这些文档继续链接的文件可以进入执行上下文；Git 历史承担过程归档。
+`docs/` 的当前执行上下文只围绕炸鸡队长 + SimC 双端重构、Harness 和生产恢复。旧资讯、14 路由、构筑、装备、天赋、WebSim、S2 Catalog 与 prototype 文档只在迁移/回滚仍有精确引用时暂留，没有新实现权；Phase 6 从工作树删除，Git 历史承担归档。
 
-## 先看这里
+## 必读顺序
 
-| 需求 | 当前文档 | 说明 |
+| 顺序 | 文档 | 用途 |
 | --- | --- | --- |
-| 机器可读状态与当前发布包 | [project-state.json](project-state.json) | Standard / Strict 工作第一入口。 |
-| 产品方向、里程碑和状态 | [roadmap.md](roadmap.md) | 长期控制台。 |
-| 还没进入正式里程碑的想法 | [roadmap/ideas.md](roadmap/ideas.md) | 想法池。 |
-| 当前计划白名单 | [plans/README.md](plans/README.md) | 只有白名单中的计划拥有执行权。 |
-| 需求分级与交付门禁 | [harness.md](harness.md) | Harness 的分类、证据和关闭规则。 |
-| 关键领域 owner | [project-owner-map.json](project-owner-map.json) | 事实 owner、consumer、验证和发布触发器。 |
-| 后端热点 owner | [backend-owner-map.json](backend-owner-map.json) | 后端拆分边界与 characterization anchors。 |
-| 统一验证入口 | [verification-matrix.md](verification-matrix.md) | `harness` / `backend` / `frontend` / `full` profiles。 |
-| 职业专精、天赋、装备、SimC | [builds-architecture.md](builds-architecture.md) | 构筑产品与前后端架构。 |
-| PostgreSQL-only 运行时 | [database-architecture.md](database-architecture.md) | schema、数据归属和运行时契约。 |
-| 装备库治理 | [gear-database-governance.md](gear-database-governance.md) | 物品、变体、强化和 health 的可信规则。 |
-| 至暗之夜 S2 历史 End Game 候选 | [S2 数据仓库设计](superpowers/specs/2026-08-12-midnight-season-2-data-repository-design.md) | 2026-08-12 候选已构建但官方 capture 未闭合；`blocked`、无继续执行权，不改变 Active Manifest。 |
-| 至暗之夜 S2 当前状态 | [project-state.json](project-state.json) · [freshness evidence](../artifacts/releases/2026-08-25-s2-freshness-rebase/evidence.json) | 生产仍是 Active generation 41；30555 freshness replay、dormant release pair、Talent Catalog 与 Candidate Manifest 已验证但未 promotion。 |
-| 装备属性规则证据 | [gear-attribute-rule-source-ledger.md](gear-attribute-rule-source-ledger.md) | 已验证属性上下文与公开计算启用闸门。 |
-| 装备模拟全链路 | [gear-simulation-full-chain-runbook.md](gear-simulation-full-chain-runbook.md) | resolver、release、属性快照、导入与回滚。 |
-| 装备模拟目标架构 | [plans/2026-07-28-equipment-simulator-target-architecture.md](plans/2026-07-28-equipment-simulator-target-architecture.md) | 已批准的 Catalog、精确实例、强化和 SimC 快照目标边界。 |
-| 天赋模拟全链路 | [talent-simulation-full-chain-runbook.md](talent-simulation-full-chain-runbook.md) | 天赋规则、profile 和 simulate 运维。 |
-| 社区模板导入 | [community-template-import-full-chain-runbook.md](community-template-import-full-chain-runbook.md) | 来源、同步、promotion、展示和回滚。 |
-| SimC 任务链路 | [simulator-simc-end-to-end.md](simulator-simc-end-to-end.md) | 模板到任务与报告。 |
-| 资讯内容服务 | [news-architecture.md](news-architecture.md) | 来源、翻译和内容路径。 |
-| 云端运维与部署身份 | [remote-debugging.md](remote-debugging.md) | 主机、服务、日志、smoke、部署树身份与残留清理边界；当前快照见 `project-state.json.runtimeBaseline.cloudDeployment`。 |
-| 14 路由 Target-First 重建 | [plans/ui-reconstruction.md](plans/ui-reconstruction.md) | 当前唯一 UI 执行计划。 |
-| 当前 UI 控制面 | [design/current-ui/README.md](design/current-ui/README.md) | Target registry、证据策略和逐路由合同。 |
-| CDN 与运行时素材发布 | [cdn-asset-publishing.md](cdn-asset-publishing.md) | 当前生产资源根、不可变发布与回滚。 |
-| 稳定设计合同 | [../DESIGN.md](../DESIGN.md) | 设计语言、组件和素材边界。 |
+| 1 | [project-state.json](project-state.json) | 机器可读状态、当前 phase、授权/ready gate 和执行权威。 |
+| 2 | [roadmap.md](roadmap.md) | 用户价值、六阶段里程碑和完成标准。 |
+| 3 | [当前架构](chickenbro-simc-architecture.md) | Principal、Chat、SimC、Worker、API、数据和双端边界。 |
+| 4 | [生产 Runbook](chickenbro-simc-production-runbook.md) | 容量、独立备份、迁移、candidate、切流、回滚和清理。 |
+| 5 | [验证矩阵](verification-matrix.md) | 每阶段自动、candidate、live、用户验收和恢复证据。 |
+| 6 | [计划白名单](plans/README.md) | 六阶段唯一顺序执行入口。 |
+
+## 控制面
+
+| 文档 | 说明 |
+| --- | --- |
+| [harness.md](harness.md) | 任务分级、requirement/evidence/manifest、候选和 closure 规则。 |
+| [project-owner-map.json](project-owner-map.json) | 8 个目标产品 owner 与 legacy factual baseline。 |
+| [backend-owner-map.json](backend-owner-map.json) | 后端目标 owner；旧热点只保留 characterization/rollback 事实。 |
+| [批准规格](superpowers/specs/2026-09-02-chickenbro-simc-total-rebuild-design.md) | 用户确认的最终范围与完成定义。 |
+| [六阶段计划](plans/README.md) | Phase 1--6 的依赖、状态和门禁。 |
+
+## 清单与容量
+
+| 文档 | 当前结论 |
+| --- | --- |
+| [本地处置规则](refactor/chickenbro-simc-disposition-rules.json) | 有序 keep/migrate/delete；未知顶层 fail-closed 为 review。 |
+| [本地逐文件清单](refactor/chickenbro-simc-refactor-inventory.json) | 绑定完整 commit 和逐文件 SHA；删除仍需 caller/link graph。 |
+| [云端只读清单](refactor/chickenbro-simc-cloud-inventory.json) | 2026-09-02T13:43:05Z reachable；容量 blocked。 |
+
+本地 inventory 的 `delete` 只是候选处置，不是删除授权。云端快照也不是 apply 授权；任何写入前都必须刷新并重新验证容量、连接、服务和引用。
+
+## 当前产品边界
+
+小程序最终只有 `队长 | SimC` 两个 Tab，目标路由是：
+
+```text
+pages/chickenbro/index
+pages/simc/index
+pages/simc/tasks
+pages/simc/task-detail
+pages/auth/web-login-confirm
+```
+
+Web 与 Mini 使用不同 credential transport，但同一内部 `user_id` 和同一服务端 Chat/SimC 历史。正式客户端不得调用 `/api/v2/prototype/**` 或 legacy news/builds/gear/talent/WebSim API。
 
 ## 微信开发者工具预览
 
-活动项目始终导入仓库内的 `apps/mini-taro`，不要直接导入生成目录。微信前端变更验收并合入后，在最新 `main` 上执行：
+活动项目导入 `apps/mini-taro`，不要直接导入构建目录。前端变更通过用户验收并合入后，在最新 `main` 运行：
 
 ```bash
 npm run refresh:weapp
 ```
 
-该命令依次运行 WeChat 构建、校验 `dist/weapp` 的关键入口，再尝试通过官方 DevTools CLI 打开项目。macOS 和常见 Windows 安装路径会自动识别；其他安装位置通过 `WECHAT_DEVTOOLS_CLI` 指向官方 `cli` / `cli.bat`。CLI 不可用时构建仍保留，但必须按输出手工导入 `apps/mini-taro`，不能声称开发者工具已经刷新。
+这个命令会重建并验证 `apps/mini-taro/dist/weapp`，再尝试通过官方 DevTools CLI 打开项目。CLI 不可用时必须按输出手工导入，并明确说明仅构建通过；它不能替代真实小程序登录、扫码、跨端 Chat/SimC 或新的用户验收。
 
-## 维护规则
+## 文档维护
 
-- 一次性实施、思考、审计和交接记录不进入长期文档。
-- 活跃方向进 roadmap；稳定事实进 architecture / governance / runbook；多步骤执行只进计划白名单。
-- 计划落地或被替代后删除实施文件并移出白名单；仍被当前架构或 runbook 精确引用的稳定设计只在计划索引的“稳定参考”保留。
-- 证据保存在 release packet 或当前 UI 控制面明确登记的位置，不复制成叙事流水。
+- 活跃方向进 roadmap；稳定事实进 architecture/runbook/reference；多步骤执行只进计划白名单。
+- 新架构和 Runbook 是唯一产品/生产操作权威；旧文档不能反向改变其范围。
+- 计划完成、停止或被替代后，从工作树删除；需要长期保留的事实收敛到当前文档。
+- release packet 保存阶段证据，不把一次性时间线复制进长期文档。
+- Phase 6 删除文档前必须生成链接图，证明保留文档、代码注释、Harness 和当前 packet 无活动引用。

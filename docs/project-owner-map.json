@@ -1,9 +1,187 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-09-01",
+  "updatedAt": "2026-09-02",
   "status": "project_owner_map_active",
   "harnessVersion": "v0.6.4",
-  "activeMilestone": "taro_target_first_14_route_rebuild",
+  "activeMilestone": "chickenbro_simc_total_rebuild_phase_1",
+  "targetProductOwners": [
+    {
+      "id": "identity",
+      "status": "implementation_authorized",
+      "ownerRole": "fact_owner",
+      "factOwner": "server/app/identity",
+      "writeOwner": "server/app/identity/repository.py",
+      "consumers": [
+        "server/app/api/dependencies.py",
+        "server/app/api/routes/auth.py",
+        "apps/mini-taro/src/pages/auth/web-login-confirm.tsx",
+        "packages/api-client/src/web-auth.ts"
+      ],
+      "publicContracts": [
+        "/api/v2/auth/wechat/mini/exchange",
+        "/api/v2/auth/wechat/mini/web-login-confirm",
+        "/api/v2/auth/wechat/web/login-sessions",
+        "/api/v2/me",
+        "/api/v2/auth/logout"
+      ],
+      "verificationProfiles": [
+        "backend",
+        "frontend",
+        "full"
+      ],
+      "releaseTrigger": "user_visible_runtime"
+    },
+    {
+      "id": "chat",
+      "status": "implementation_authorized_after_identity_gate",
+      "ownerRole": "fact_owner",
+      "factOwner": "server/app/chickenbro",
+      "writeOwner": "server/app/chickenbro/repository.py",
+      "consumers": [
+        "server/app/main.py",
+        "apps/mini-taro/src/pages/simulator/chickenbro.tsx"
+      ],
+      "publicContracts": [
+        "/api/v2/chat/conversations",
+        "/api/v2/chat/conversations/{conversation_id}",
+        "/api/v2/chat/conversations/{conversation_id}/messages/stream"
+      ],
+      "verificationProfiles": [
+        "backend",
+        "frontend",
+        "full"
+      ],
+      "releaseTrigger": "backend_api"
+    },
+    {
+      "id": "simc",
+      "status": "implementation_authorized_after_chat_gate",
+      "ownerRole": "fact_owner",
+      "factOwner": "server/app/simulation",
+      "writeOwner": "server/app/simulation/repository.py",
+      "consumers": [
+        "server/app/main.py",
+        "server/app/worker/main.py",
+        "apps/mini-taro/src/pages/simulator/simc.tsx"
+      ],
+      "publicContracts": [
+        "/api/v2/simc/snapshots",
+        "/api/v2/simc/jobs",
+        "/api/v2/simc/jobs/{job_id}"
+      ],
+      "verificationProfiles": [
+        "backend",
+        "frontend",
+        "full"
+      ],
+      "releaseTrigger": "backend_api"
+    },
+    {
+      "id": "worker",
+      "status": "implementation_authorized_after_simc_gate",
+      "ownerRole": "fact_owner",
+      "factOwner": "server/app/worker",
+      "writeOwner": "server/app/worker/leases.py",
+      "consumers": [
+        "server/app/simulation/application.py",
+        "server/app/simulation/worker.py"
+      ],
+      "publicContracts": [],
+      "verificationProfiles": [
+        "backend",
+        "full"
+      ],
+      "releaseTrigger": "scheduled_jobs"
+    },
+    {
+      "id": "dual_client",
+      "status": "implementation_authorized_after_business_api_gates",
+      "ownerRole": "fact_owner",
+      "factOwner": "apps/mini-taro/src",
+      "writeOwner": null,
+      "consumers": [
+        "packages/api-client/src",
+        "packages/domain/src"
+      ],
+      "publicContracts": [
+        "pages/chickenbro/index",
+        "pages/simc/index",
+        "pages/simc/tasks",
+        "pages/simc/task-detail",
+        "pages/auth/web-login-confirm"
+      ],
+      "verificationProfiles": [
+        "frontend",
+        "full"
+      ],
+      "releaseTrigger": "frontend_user_visible"
+    },
+    {
+      "id": "migration",
+      "status": "blocked_by_capacity_and_independent_backup",
+      "ownerRole": "fact_owner",
+      "factOwner": "docs/chickenbro-simc-production-runbook.md",
+      "writeOwner": null,
+      "consumers": [
+        "docs/refactor/chickenbro-simc-cloud-inventory.json"
+      ],
+      "publicContracts": [],
+      "verificationProfiles": [
+        "backend",
+        "full"
+      ],
+      "releaseTrigger": "pg_read_model"
+    },
+    {
+      "id": "deployment",
+      "status": "candidate_and_cutover_gated",
+      "ownerRole": "consumer_orchestrator",
+      "factOwner": "docs/chickenbro-simc-production-runbook.md",
+      "writeOwner": null,
+      "consumers": [
+        "docs/chickenbro-simc-architecture.md",
+        "docs/verification-matrix.md"
+      ],
+      "publicContracts": [
+        "https://www.chickenbro.cloud",
+        "https://api.chickenbro.cloud"
+      ],
+      "verificationProfiles": [
+        "harness",
+        "backend",
+        "frontend",
+        "full"
+      ],
+      "releaseTrigger": "deploy_scripts"
+    },
+    {
+      "id": "legacy_retirement",
+      "status": "blocked_until_cutover_recovery_and_acceptance",
+      "ownerRole": "consumer_orchestrator",
+      "factOwner": "docs/refactor/chickenbro-simc-disposition-rules.json",
+      "writeOwner": null,
+      "consumers": [
+        "docs/refactor/chickenbro-simc-refactor-inventory.json",
+        "docs/refactor/chickenbro-simc-cloud-inventory.json",
+        "docs/chickenbro-simc-production-runbook.md"
+      ],
+      "publicContracts": [],
+      "verificationProfiles": [
+        "harness",
+        "full"
+      ],
+      "releaseTrigger": "deploy_scripts"
+    }
+  ],
+  "legacyRuntimeBaseline": {
+    "status": "legacy_runtime_baseline_pending_retirement",
+    "executionAuthority": false,
+    "collections": [
+      "criticalDomains"
+    ],
+    "retirementInventory": "docs/refactor/chickenbro-simc-refactor-inventory.json",
+    "notes": "The frozen criticalDomains array remains only as last-known-good characterization and rollback evidence until Phase 6."
+  },
   "compatibilityRetirementContract": "docs/compatibility-retirement.json",
   "unownedCriticalDomains": 0,
   "conflictingFactOwners": 0,
@@ -14,6 +192,8 @@
     "deployIsConsumerOrchestrator": true,
     "writeDomainsMustDeclareWriteOwner": true,
     "backendOwnerMapRemainsSecondLevelDetail": true,
+    "targetProductOwnersAreExclusive": true,
+    "legacyRuntimeBaselineHasNoNewImplementationAuthority": true,
     "taroAndTypedPackagesOwnActiveFrontendContracts": true,
     "legacyPagesRemainCompatibilityConsumers": true,
     "compatibilityDeletionRequiresCallerProof": true

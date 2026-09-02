@@ -61,8 +61,9 @@ test('project-state is the single machine-readable current truth entry', () => {
   assert.deepEqual(state.targetProduct.clients, ['wechat_mini_program', 'web'])
   assert.equal(state.targetProduct.identityOwner, 'identity.users.id')
   assert.equal(state.targetProduct.implementationAuthorized, true)
-  assert.equal(state.targetProduct.productionCutoverAuthorized, true)
-  assert.equal(state.targetProduct.destructiveCleanupAuthorized, true)
+  assert.equal(state.targetProduct.terminalGoalAuthorized, true)
+  assert.equal(state.targetProduct.productionCutoverAuthorized, false)
+  assert.equal(state.targetProduct.destructiveCleanupAuthorized, false)
   assert.equal(state.targetProduct.currentMutationGate, 'phase_1_read_only_control_plane_only')
   assert.equal(state.targetProduct.productionCutoverReady, false)
   assert.equal(state.targetProduct.destructiveCleanupReady, false)
@@ -70,11 +71,61 @@ test('project-state is the single machine-readable current truth entry', () => {
   for (const plan of state.targetProduct.implementationPlans) assertPathExists(plan)
   assert.equal(state.refactorInventory.currentRuntimeDatabase, 'wow_test')
   assert.equal(state.refactorInventory.targetRuntimeDatabase, 'chickenbro_prod')
-  assert.equal(state.refactorInventory.rootDiskUsedPercent, 88)
-  assert.equal(state.refactorInventory.rootDiskFreeApproxSize, '8.1GB')
+  assert.equal(
+    state.refactorInventory.localManifest,
+    'docs/refactor/chickenbro-simc-refactor-inventory.json',
+  )
+  assert.equal(
+    state.refactorInventory.cloudSnapshot,
+    'docs/refactor/chickenbro-simc-cloud-inventory.json',
+  )
+  assertPathExists(state.refactorInventory.localManifest)
+  assertPathExists(state.refactorInventory.cloudSnapshot)
+  assert.equal(state.refactorInventory.rootDiskUsedPercent, 84)
+  assert.equal(state.refactorInventory.rootDiskFreeApproxSize, '8.58GB')
   assert.equal(
     state.refactorInventory.capacityGate,
     'blocked_until_independent_legacy_cleanup_or_storage_expansion',
+  )
+  assert.deepEqual(state.executionAuthority, {
+    architecture: 'docs/chickenbro-simc-architecture.md',
+    productionRunbook: 'docs/chickenbro-simc-production-runbook.md',
+    verificationMatrix: 'docs/verification-matrix.md',
+    projectOwnerMap: 'docs/project-owner-map.json',
+    backendOwnerMap: 'docs/backend-owner-map.json',
+    activeProductContractIds: ['chickenbro_simc_total_rebuild'],
+    legacyPolicy: 'factual_runtime_baseline_only_no_new_implementation_authority',
+  })
+  for (const authorityPath of [
+    state.executionAuthority.architecture,
+    state.executionAuthority.productionRunbook,
+    state.executionAuthority.verificationMatrix,
+    state.executionAuthority.projectOwnerMap,
+    state.executionAuthority.backendOwnerMap,
+  ]) assertPathExists(authorityPath)
+
+  const expectedTargetOwners = [
+    'identity',
+    'chat',
+    'simc',
+    'worker',
+    'dual_client',
+    'migration',
+    'deployment',
+    'legacy_retirement',
+  ]
+  const projectOwnerMap = readJson('docs/project-owner-map.json')
+  const targetBackendOwnerMap = readJson('docs/backend-owner-map.json')
+  assert.equal(projectOwnerMap.activeMilestone, state.activeMilestone)
+  assert.deepEqual(projectOwnerMap.targetProductOwners.map((owner) => owner.id), expectedTargetOwners)
+  assert.deepEqual(targetBackendOwnerMap.targetProductOwners.map((owner) => owner.id), expectedTargetOwners)
+  assert.equal(
+    projectOwnerMap.legacyRuntimeBaseline.status,
+    'legacy_runtime_baseline_pending_retirement',
+  )
+  assert.equal(
+    targetBackendOwnerMap.legacyRuntimeBaseline.status,
+    'legacy_runtime_baseline_pending_retirement',
   )
   const productionDomain = state.runtimeBaseline.uiRuntimeEvidence.productionRequestDomain
   assert.equal(productionDomain.status, 'candidate_release_gate_passed')
@@ -1238,23 +1289,32 @@ test('current documentation follows the Chickenbro-SimC target and Harness contr
   const docsMap = fs.readFileSync('docs/README.md', 'utf8')
   const harness = fs.readFileSync('docs/harness.md', 'utf8')
   const roadmap = fs.readFileSync('docs/roadmap.md', 'utf8')
-  const newsArchitecture = fs.readFileSync('docs/news-architecture.md', 'utf8')
-  const buildsArchitecture = fs.readFileSync('docs/builds-architecture.md', 'utf8')
+  const architecture = fs.readFileSync('docs/chickenbro-simc-architecture.md', 'utf8')
+  const productionRunbook = fs.readFileSync('docs/chickenbro-simc-production-runbook.md', 'utf8')
+  const verificationMatrix = fs.readFileSync('docs/verification-matrix.md', 'utf8')
   const remoteDebugging = fs.readFileSync('docs/remote-debugging.md', 'utf8')
 
   assert.match(readme, /npm run dev:weapp/)
   assert.match(readme, /apps\/mini-taro/)
   assert.match(readme, /apps\/mini-taro\/dist\/weapp/)
-  assert.match(docsMap, /cdn-asset-publishing\.md/)
-  assert.match(docsMap, /gear-attribute-rule-source-ledger\.md/)
+  assert.match(readme, /队长 \| SimC/)
+  assert.match(readme, /chickenbro-simc-architecture\.md/)
+  assert.match(docsMap, /chickenbro-simc-production-runbook\.md/)
+  assert.match(docsMap, /chickenbro-simc-refactor-inventory\.json/)
+  assert.doesNotMatch(docsMap, /cdn-asset-publishing\.md/)
+  assert.doesNotMatch(docsMap, /gear-attribute-rule-source-ledger\.md/)
   assert.ok(harness.indexOf('docs/project-state.json') < harness.indexOf('docs/roadmap.md'))
   assert.match(roadmap, /\| 正在推进 \| 控制面与清理清单 \|/)
   assert.match(roadmap, /\| 下一步 \| 干净数据面与 Identity \|/)
   assert.match(roadmap, /legacy 生产 \| `Active \/ last-known-good`/)
   assert.match(roadmap, /Active Manifest\/S2 \| `legacy 冻结`/)
-  assert.match(newsArchitecture, /apps\/mini-taro/)
-  assert.doesNotMatch(newsArchitecture, /接入域名、HTTPS、微信合法域名配置/)
-  assert.match(buildsArchitecture, /apps\/mini-taro/)
+  assert.match(architecture, /Principal\(user_id, session_kind\)/)
+  assert.match(architecture, /pages\/auth\/web-login-confirm/)
+  assert.match(architecture, /FOR UPDATE SKIP LOCKED/)
+  assert.match(productionRunbook, /blocked_until_independent_legacy_cleanup_or_storage_expansion/)
+  assert.match(productionRunbook, /第一条新生产写入之后/)
+  assert.match(verificationMatrix, /最终 Full Profile/)
+  assert.match(verificationMatrix, /真实微信/)
   assert.match(remoteDebugging, /Public base URL：`https:\/\/api\.chickenbro\.cloud`/)
   assert.doesNotMatch(remoteDebugging, /Public base URL 当前是 HTTP/)
 })

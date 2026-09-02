@@ -1,197 +1,116 @@
-# WOW Mini Program
+# Chickenbro
 
-魔兽世界辅助小程序，面向正式服与测试服玩家，提供资讯追踪、职业专精查询、WebSim / SimC 构筑模拟，以及“炸鸡队长”智能分析聊天入口。
+炸鸡队长是一个微信小程序 + Web 双端 WoW 助手。当前重构后的产品范围只有两项：
 
-## 项目目标
+1. 炸鸡队长会话；
+2. SimC 模拟任务。
 
-当前小程序主流程围绕 4 个底部 tab 展开：
+两端不共享 Cookie 或 Bearer。小程序通过 `wx.login` 建立 Mini Session；Web 由已登录小程序扫码并明确确认后建立独立 HttpOnly Session。两种会话都解析为同一个内部 `user_id`，因此从服务端读取同一份会话、消息、SimC 快照、任务、尝试和结果。
 
-1. **资讯追踪**：关注最新正式服以及测试服资讯，包括游戏玩法、版本变动和职业强度变化。
-2. **专精**：学习职业 / 专精入口，进入天赋模拟器、装备模拟、SimC 任务提交和任务列表。
-3. **队长**：直接进入“炸鸡队长”聊天，后端优先走 Codex，失败或证据不足时清晰降级。
-4. **我的**：角色偏好、收藏职业、订阅与个人模板 / 任务资产的账号化边界。
+## 当前状态
 
-PVE 专区、WCL 深度日志复盘、完整公共知识库和复杂后台管理仍保留为后续 / 待规划能力；已有代码和接口只作为历史、后台或兼容入口，不再作为当前 tab 主流程。
+六阶段彻底重构正在执行 Phase 1 控制面。当前只允许文档、清单、测试和云端只读盘点；生产 DSN、流量、服务和数据尚未切换。
 
-## 当前界面
+最新只读快照显示根分区约余 8.58 GB，而 PostgreSQL 目录约 39.63 GB。创建干净 `chickenbro_prod` 前必须先完成独立恢复副本与恢复验证并精确清理无引用旧数据，或扩容。不能提前删除 `wow_test`、正式部署或唯一恢复点绕过容量门禁。
 
-活动运行时由 `apps/mini-taro` 中的 Taro 应用承载，使用“资讯 / 专精 / 队长 / 我的”4 个底部 tab。
-根目录 `app.json` 和 `pages/` 只保留同一路由面的兼容职责，其“最新资讯 / 职业专精 / 智能分析 /
-我的”旧文案不是活动 UI 权威，也不再接收新的一级页面实现。
+机器状态以 [docs/project-state.json](docs/project-state.json) 为准。
 
-| Tab | 页面 | 说明 |
-| --- | --- | --- |
-| 资讯 | `pages/news/news` | 由 Lighthouse 轻量后端提供正式服、测试服、职业强度动态、完整中文详情与来源记录 |
-| 专精 | `pages/builds/builds` | 当前主入口为天赋构筑、装备模拟、模拟 SimC、任务列表；热门专精、属性权重和输出循环仍按证据状态保留为后续能力 |
-| 队长 | `pages/simulator/simulator` | 直接渲染“炸鸡队长”聊天页，支持左右气泡、底部输入、新话题和话题抽屉；`/api/simulator/home` 仅作为兼容 payload |
-| 我的 | `pages/profile/profile` | 角色偏好、收藏职业、订阅与数据源设置 |
+## 目标体验
 
-## 目录结构
+小程序最终只有两个 Tab：
+
+```text
+队长 | SimC
+```
+
+目标路由只有：
+
+```text
+pages/chickenbro/index
+pages/simc/index
+pages/simc/tasks
+pages/simc/task-detail
+pages/auth/web-login-confirm
+```
+
+Web 使用相同 typed API/domain/feature model，只保留登录、队长、SimC、账号状态和退出。资讯、构筑、装备、天赋、WebSim、prototype bypass 和旧 14 路由都属于待退役 legacy。
+
+## 架构
+
+```text
+Mini Bearer -----\
+                  > API -> Principal(user_id) -> Identity
+Web Cookie ------/                           -> Chat -> Codex
+                                             -> SimC -> PostgreSQL Queue -> Worker -> cloud SimC
+```
+
+代码依赖固定为：
+
+```text
+UI -> typed API client -> API route -> application -> domain -> port <- adapter
+```
+
+详见 [当前架构](docs/chickenbro-simc-architecture.md)。
+
+## 目录
 
 ```text
 .
-├── apps/mini-taro/              # 当前活动微信小程序
-│   ├── src/pages/               # 14 路由 Taro 页面
-│   ├── project.config.json      # DevTools 公共项目配置
-│   └── dist/weapp/              # 构建产物，不提交
-├── packages/
-│   ├── api-client/src/          # 活动 typed transport/API client
-│   ├── design-system/           # 共享 UI、token 和素材合同
-│   └── domain/src/              # 跨端领域合同
-├── app.json / pages/            # 14 路由兼容 consumer，不接收新一级职责
-├── server/
-│   ├── news_backend.py          # 统一 HTTP 后端
-│   ├── websim_payload.py        # Season Data Cache / WebSim / 装备和天赋契约
-│   ├── simulator_payload.py     # SimC/WCL/LLM 报告边界
-│   ├── analytics.py             # 事件采集与管理报表
-│   └── *.service / *.timer      # 生产 systemd jobs
-├── docs/                        # 当前合同、架构、runbook 和活动计划
-└── artifacts/releases/          # Harness requirement/evidence/manifest
+├── apps/mini-taro/            # Taro Mini/H5 客户端；dist/weapp 为本地构建产物
+├── packages/api-client/       # Mini/Web 分离 transport 与 typed API
+├── packages/domain/           # 跨端领域 guard/model
+├── server/app/                # 模块化 Identity/Chat/SimC/Worker/API 核心
+├── server/migrations/         # 当前旧迁移输入；干净 product chain 在 Phase 2 建立
+├── docs/                      # 当前架构、runbook、状态、计划和验证
+└── artifacts/releases/        # Harness requirement/evidence/manifest
 ```
 
-文档入口见 [docs/README.md](docs/README.md)。当前长期方向以 [docs/roadmap.md](docs/roadmap.md) 为准；`docs/plans/README.md` 是当前计划白名单，未列入白名单的日期计划不拥有执行权，历史追溯使用 Git。
+根目录旧 `app.json`、`pages/`、`components/`、`custom-tab-bar/` 和 `websim/` 只承担迁移期 last-known-good/回滚职责，不接收新实现。
 
-## 本地开发
+## 本地开发与验证
 
-首次准备依赖使用 `npm ci`。日常开发启动持续构建：
+依赖使用仓库现有 lockfile；安装或下载缺失依赖前先取得明确授权。已有依赖时，持续构建微信小程序：
 
 ```bash
 npm run dev:weapp
 ```
 
-只构建一次则运行：
+一次构建：
 
 ```bash
 npm run build:weapp
 ```
 
-微信开发者工具导入仓库内的 `apps/mini-taro`，不要导入仓库根目录。该目录的 `project.config.json` 已将小程序根指向 `apps/mini-taro/dist/weapp`；构建完成后可直接编译、预览和真机测试。
+微信开发者工具导入 `apps/mini-taro`，不要导入仓库根或 `apps/mini-taro/dist/weapp`。后者是构建输出，由 `apps/mini-taro/project.config.json` 指向。
 
-AppID 使用 `apps/mini-taro/project.config.json` 中的公共配置。个人代理、界面和调试设置应留在不提交的 `project.private.config.json`；如果 DevTools 自动改写被跟踪的公共配置，提交前应先判断改动是团队默认值还是个人噪声。
-
-本仓库不提交 `project.private.config.json`，该文件属于本地开发者工具个人配置。
-
-## 后端服务
-
-统一后端入口为 `server/news_backend.py`，本地启动：
+Phase 1 focused verification：
 
 ```bash
-WOW_NEWS_PORT=8787 python3 server/news_backend.py
+node --test tests/chickenbro-simc-refactor-inventory.test.js
+python3 -m unittest tests.chickenbro_simc_cloud_inventory_test -v
+node --test tests/project-state.test.js
 ```
 
-当前 API 按域分组：
+后续 Identity、Chat、SimC、双端、迁移、切流和清理命令见 [验证矩阵](docs/verification-matrix.md)。缺失的阶段测试/脚本表示该阶段尚未落地，不能标为 skipped pass。
 
-- 基础与健康：`GET /health`、`GET /api/data/health`、`GET /api/game/season`
-- 资讯：`GET /api/news/home`、`GET /api/news/list`、`GET /api/news/article?id=...`、`GET /api/news/refresh-runs/latest`、`POST /api/news/refresh?mode=scheduled`
-- 职业专精 / PVE：`GET /api/builds/home`、`GET /api/builds/intel`、`GET /api/builds/detail?id=法师-冰霜`、`GET /api/builds/stat-weights/refresh-runs/latest`、`GET /api/pve/home`、`GET /api/pve/module?key=bossGuides`。PVE 接口保留兼容与后台验证，当前没有底部 tab。
-- WebSim / 天赋 / 装备：`GET /api/websim/bootstrap`、`GET /api/websim/assets`、`GET /api/websim/talents`、`GET /api/websim/talents/import`、`GET /api/talents/tree`、`GET /api/websim/gear?class=mage&spec=frost&compact=1&mode=initial`、`GET /api/websim/gear?class=mage&spec=frost&compact=1&mode=slot&slot=head`、`GET /api/websim/loot?instanceId=...`、`POST /api/websim/profile`、`POST /api/websim/gear/stats`、`POST /api/websim/simulate`、`POST /api/talents/validate`、`POST /api/talents/export`、`POST /api/talents/import`
-- 账号与模板：`POST /api/auth/wechat-login`、`POST /api/me/profile`、`GET /api/me/build-templates?type=talent`、`POST /api/me/build-templates`、`DELETE /api/me/build-templates?id=...`
-- 智能分析 / SimC：`GET /api/simulator/home`、`POST /api/simulator/analyze`、`GET /api/simulator/tasks?guest=1`、`GET /api/simulator/task?id=...&guest=1`。当前 `pages/simulator/simulator` 不再先展示模块卡片，而是直接进入 Chickenbro；SimC 页面从职业专精入口进入。
-- 炸鸡队长：`POST /api/chickenbro/messages`、`POST /api/chickenbro/sessions`、`GET /api/chickenbro/sessions?id=...`、`GET /api/chickenbro/jobs?id=...`、`GET /api/chickenbro/profiles?classKey=...&specKey=...`
-- 埋点和管理：`POST /api/analytics/events`、`GET /admin/analytics`、`GET /api/admin/analytics/*`、`POST /api/admin/analytics/rollup`、`GET /admin/gates`、`GET /api/admin/gates/*`
+## 生产操作
 
-账号写接口统一使用 Bearer token。小程序 API client 在明文 HTTP + auth 场景会拒绝发送 token 并回退到本地数据；个人模板会先写入本地 `wow_build_templates_v1`，只有 HTTPS/合法域名可用时才同步到 `/api/me/build-templates`。
+生产迁移只允许按 [生产 Runbook](docs/chickenbro-simc-production-runbook.md) 执行：
 
-活动 Taro transport 的源码开发默认值仍是 `http://124.223.51.33`，仅用于开发联调；认证请求在明文 HTTP 下会 fail closed。体验版/正式候选必须通过构建变量 `WOW_BACKEND_API_BASE_URL=https://api.chickenbro.cloud` 使用微信后台已批准的 HTTPS 合法域名，不能把开发默认值当成生产配置。
+- Candidate、切流和删除是独立门禁；
+- 独立备份必须与 PostgreSQL 数据目录处于不同设备/故障域；
+- 迁移是一遍全量 + 写栅栏后的一遍 delta，不长期双写；
+- 第一条新生产写入后，legacy 永久只读；
+- 删除只能使用带 SHA 的精确 manifest，禁止宽泛递归删除。
 
-资讯详情公共 payload 只发布同时满足 `contentStatus=ready`、`licenseStatus=approved`、`verificationStatus=official_verified`、`translationStatus=llm`、`translationFidelity=source_translation`、`sourceTier=official` 的文章：中文标题为主，保留 `originalTitle` 作为原题副标题，正文仅使用 `bodyBlocksZh` 块级渲染，tag 使用 `tagItems` 中文 chip，`sourceBadges` 与来源信息一并保留，公共 API 不返回原文正文。自动采集首版优先覆盖 Blizzard 官方文章；Wowhead / Icy Veins 等第三方来源未确认授权前只做 reference-only 发现/佐证，不进入公共 payload；正文抓取、LLM 逐块直译、授权门禁、官方校验或质检失败时记录在 refresh run 中，不发布给前端。
+## 文档入口
 
-后台门禁治理台 `/admin/gates` 面向 owner 查看新闻、天赋和装备数据从上游、规则审计、证据链、入库到前端/SimC 消费的状态。`/api/admin/gates/summary|records|queue|diagnoses` 都需要 admin Bearer token；在 `WOW_DATABASE_RUNTIME=postgres_only` 下，records / record detail / queue 走 PostgreSQL content/cache runtime store，诊断写入 `ops.admin_gate_diagnoses` 并审计到 `ops.audit_logs`。缺少 PG runtime store 时接口返回 blocked / runtimeBlockers，不回退 SQLite。左侧“新闻资讯 / 天赋树 / 装备库 / 装备模板”会按 `domain` 过滤记录；新闻按分类、状态、发布情况筛选，天赋按职业、状态、小程序可见性筛选，装备库按掉落来源、具体掉落来源、装备分类和小程序可见性筛选，装备模板按职业、小程序是否可见筛选。装备库主表对齐 `/api/websim/gear` 的小程序可展示口径：同一 `itemId + slot` 的多个变体聚合成一条主记录，优先展示 verified / SimC-ready 代表变体；`needs-variant`、`partial` 或 `observed_profile` 技术占位只作为诊断证据，不会把整件装备显示成不可见。掉落来源列展示去重后的装等轨道 chip，并隐藏重复副本名和 raw variant id。“待诊断阻断项”是独立工作台，不再作为总览页常驻右栏。治理台状态统一显示为 `english（中文）`，例如 `blocked（已阻断）`。诊断写入只记录人工判断和审计日志，不会把 `blocked` / `partial` 改成 `verified`，也不会绕过系统门禁发布内容或启动 SimC。
+- [文档地图](docs/README.md)
+- [项目状态](docs/project-state.json)
+- [产品 Roadmap](docs/roadmap.md)
+- [当前架构](docs/chickenbro-simc-architecture.md)
+- [生产 Runbook](docs/chickenbro-simc-production-runbook.md)
+- [验证矩阵](docs/verification-matrix.md)
+- [六阶段计划白名单](docs/plans/README.md)
 
-SimC 模板链路分为“确认”和“任务执行”两段：`mode=simcraft_template` 的确认阶段只做后端解析、装备属性快照校验、已知 SimC 兼容性阻断和紧凑 `simcReport`，不调用 LLM 或 Codex Worker；最终提交在校验通过后创建后台 `simulator_tasks`，由 runner 异步执行并把结果写回任务列表/详情。相同玩家同一时间最多保留 2 个 `queued/running` 模板任务，相同 fingerprint 会复用活动任务；单体、5目标 AOE、近似大秘境的 `fight_style/desired_targets/max_time/iterations=10000` 不因超时而降级。当前已知 `邪恶死亡骑士 + 天启骑士` 在 upstream SimC 会崩溃，后端会在属性快照和模板确认阶段直接返回中文 blocker，不启动 SimC。WCL 分析当前完成 report URL/code/fight 解析、v2 OAuth 凭据识别和 GraphQL 探针；缺凭据时返回 `blocked/missing_credentials`，凭据已配置但缺 report evidence / combatantinfo 抽取时仍返回 `partial` 或 evidence blocker，不会调用 LLM 伪造日志结论。
-
-炸鸡队长链路使用独立 `/api/chickenbro/*`。前端只发送短消息和有限上下文，完整 raw log、完整 SimC profile、token 和 secret 不进入小程序或 Codex prompt。后端负责 scope 判断、bounded context、Codex runner、schema 校验、数字白名单、owner/guest 隔离和 fallback。当前线上可通过 `WOW_CHICKENBRO_CODEX_ENABLED=1` 进入 direct Codex chat 体验：没有 published profile 时也可以先让 Codex 做魔兽范围内的自然对话，但不得把通用知识包装成本地证据；Codex 不可用、超时、schema 不合规或输出未经批准的数字时返回 deterministic fallback。
-
-LLM 和 SimCraft 由服务器环境控制：
-
-- `WOW_LLM_API_URL`：OpenAI-compatible chat completions endpoint。
-- `WOW_LLM_API_KEY`：LLM API key，不提交到仓库。
-- `WOW_LLM_MODEL`：默认 `deepseek-v4-flash`。
-- `WOW_NEWS_RETRY_MAX_ATTEMPTS`：新闻 discovery queue 中 retryable 条目的最大翻译/发布重试次数，默认 `3`；超过后进入 blocked/report，避免日常 follow-up 无限重试同一条失败新闻。
-- `WOW_BLIZZARD_CLIENT_ID` / `WOW_BLIZZARD_CLIENT_SECRET`：Battle.net API client credentials，仅放服务器；缺失时 WebSim 赛季、装备和天赋数据会进入 `blocked` 状态，不展示可能过期的副本池。
-- `WOW_BLIZZARD_REGION`：默认 `us`。
-- `WOW_BLIZZARD_LOCALE`：默认 `zh_CN`；`WOW_BLIZZARD_LOCALES` 默认 `zh_CN,zh_TW,en_US`，用于官方中文优先、本地化缺失时回退。
-- `WOW_WARCRAFTLOGS_CLIENT_ID` / `WOW_WARCRAFTLOGS_CLIENT_SECRET`：Warcraft Logs v2 API credentials；缺失时 WCL 分析和 data health 明确标为 `missing_credentials`。线上当前已配置 v2 OAuth，GraphQL endpoint 可访问，但社区模板和日志复盘仍需要 report evidence / combatantinfo 抽取能力才能从 `partial` 升级为 verified。
-- `WOW_WARCRAFTLOGS_API_KEY`：Warcraft Logs v1 API key；可作为 v1 REST 凭据被 health/WCL 启动层识别，但完整日志 GraphQL 抽取仍需要后续实现或 v2 OAuth 凭据。
-- `WOW_ADMIN_TOKEN`：后台门禁治理台固定 admin token；未设置时兼容回退到 `WOW_ANALYTICS_ADMIN_TOKEN`。只允许保存在服务器环境或本地安全记录中，不提交仓库，不放进小程序端。
-- `WOW_SIMC_BIN`：默认 `/opt/wow-simc/current/simc`，部署脚本会从官方源码构建 CLI。
-- `WOW_SIMC_VERSION_FILE`：默认 `/var/lib/wow-backend/simc-version.json`，由定时任务写入当前镜像 tag 与最新 tag。
-- `WOW_SIMC_TEMPLATE_TIMEOUT_SECONDS`：模板任务 SimC 进程超时的统一覆盖；未设置时按场景使用单体 `120` 秒、5目标 AOE `180` 秒、近似大秘境 `240` 秒。
-- `WOW_SIMC_TEMPLATE_STAT_WEIGHTS_TIMEOUT_SECONDS`：属性权重模板任务的专用超时覆盖；未设置时默认 `360` 秒。
-- `WOW_SIMC_TEMPLATE_ACTIVE_TASK_LIMIT`：同一玩家同时 `queued/running` 的模板任务上限，默认 `2`。
-- `WOW_WEBSIM_GEAR_STATS_TIMEOUT_SECONDS`：装备属性快照预检超时，默认 `45` 秒；该值不限制后台模板任务执行。
-- `WOW_CODEX_BIN`：默认 `/usr/local/bin/codex`，用于低频 Agent Worker。
-- `WOW_CODEX_HOME`：默认 `/home/ubuntu/.codex`，只存服务器本地 Codex 配置和认证缓存。
-- `WOW_CODEX_JOBS_DIR`：默认 `/var/lib/wow-backend/codex-jobs`，每个 Codex job 使用独立目录。
-- `WOW_CODEX_SANDBOX`：默认 `workspace-write`；后端用户任务不要使用 `danger-full-access`。
-- `WOW_CHICKENBRO_CODEX_ENABLED`：设为 `1` 时，Chickenbro 消息会在 scope 和 owner/guest 门禁通过后尝试走 Codex runner；未设置或 Codex 不可用时走 deterministic fallback。
-
-数据库运行时当前为 PostgreSQL-only：`WOW_DATABASE_RUNTIME=postgres_only`（或本地验证时 `WOW_SQLITE_RUNTIME_DISABLED=1`）会让身份、个人模板、SimC 任务、Chickenbro 会话 / job、analytics、news content、Raider.IO/stat weight cache、WebSim/cache 读模型、health 和 admin gates 都通过 PostgreSQL store。SQLite 只允许作为一次性迁移源、历史备份或离线审计输入；线上公开接口、同步任务和健康检查不能读取 SQLite 或用 SQLite fallback 掩盖 PG 数据缺口。WebSim PG cache 包含装备来源/变体/改造选项、天赋、赛季/掉落、`cache.websim_community_gear_templates`、`cache.stat_weight_cache` 和 `cache.websim_asset_registry`；装备接口在 season stale 时仍返回完整 schema 和当前 PG 状态。PG-only 同步入口走 `server/postgres_cache_sync.py`：WebSim SimC generated data 会直接写 `cache.websim_talents` / `cache.websim_profile_presets` / `cache.websim_spell_details`，Blizzard journal 子阶段会写 PG season/dungeon/instance/encounter/item/loot rows 并从 loot 派生 `gearCatalog` skeleton，stat weights、community templates、Raider.IO observed backfill 和显式 seed crafted backfill 也写入 PostgreSQL cache/sync state；缺样本、缺 seed、缺抽取或缺 SimC evidence 时必须写 PostgreSQL `blocked` / `partial` root cause，不允许回 SQLite。
-
-生产环境密钥放在服务器 `/etc/wow-backend.env`，例如：
-
-```bash
-WOW_LLM_API_URL=https://api.deepseek.com/chat/completions
-WOW_LLM_MODEL=deepseek-v4-flash
-WOW_LLM_API_KEY=...
-WOW_BLIZZARD_CLIENT_ID=...
-WOW_BLIZZARD_CLIENT_SECRET=...
-WOW_BLIZZARD_LOCALE=zh_CN
-```
-
-Codex CLI 认证也只放服务器本地。推荐两种方式：
-
-```bash
-# 方式一：API key，适合后端自动化
-printf '%s' "$OPENAI_API_KEY" | codex login --with-api-key
-
-# 方式二：ChatGPT / Codex access token，适合需要走 ChatGPT workspace 身份的私有 runner
-printf '%s' "$CODEX_ACCESS_TOKEN" | codex login --with-access-token
-```
-
-不要把 `~/.codex/auth.json`、`CODEX_ACCESS_TOKEN` 或 API key 提交到仓库或写进小程序端。
-
-## 轻量云部署
-
-服务器默认目标为腾讯轻量云 `ubuntu@124.223.51.33`：
-
-```bash
-./server/deploy_lighthouse.sh
-```
-
-脚本会把当前工作区 overlay 到 `/opt/wow-mini-program`，注册 `wow-backend` systemd service，并用 Nginx 将 80 端口代理到本机 `8787`。overlay 不会自动删除 Git 已退役文件，因此部署身份与残留差集必须按 [远程调试与部署 Runbook](docs/remote-debugging.md) 独立复核。完整 bootstrap 模式会安装 Python/Node/Nginx、Codex CLI 与 SimCraft 构建依赖，从官方 `simulationcraft/simc` 仓库的 `midnight` 分支构建 CLI-only `simc`，并注册 `wow-simc-version-check.timer` 每 12 小时检测 GitHub 分支版本。
-
-日常热部署优先复用远程已有依赖：
-
-```bash
-WOW_DEPLOY_SKIP_BOOTSTRAP=1 ./server/deploy_lighthouse.sh
-```
-
-部署脚本会安装并启用 PG-native 日常 timers：`wow-websim-sync.timer`、`wow-stat-weights-sync.timer`、`wow-community-template-sync.timer`、`wow-season-recommended-gear-sync.timer` 和 `wow-data-health-followup.timer`，这些 unit 不配置 `WOW_NEWS_DB`。`wow-data-health-followup.timer` 每 2 小时检查 `/api/data/health`，并续跑允许自动处理的新闻 queue refresh、装备 observed backfill、WebSim sync 与 stat weights sync；当正式 Active Manifest 已绑定 SimC runtime 时，`updateAvailable=true` 只记录 `active_manifest_cutover_required`，不会自动切换 runtime；如果 Active Manifest 状态缺失或不可判定，同样 fail closed 为 report-only。`wow-gear-observed-backfill.service` 会安装；部署脚本不直接启用它的 timer，通常由 health follow-up 在装备库 partial/stale/blocked 时触发。默认部署只重启后端并做轻量 smoke，不额外 no-block 启动一次同步服务；只有显式设置 `WOW_DEPLOY_START_ASYNC_SYNCS=1` 时才会在 smoke 后启动 `wow-websim-sync`、`wow-stat-weights-sync` 和 `wow-community-template-sync`。如服务器或用户变化，可通过环境变量覆盖：
-
-```bash
-WOW_LIGHTHOUSE_HOST=124.223.51.33 WOW_LIGHTHOUSE_USER=ubuntu ./server/deploy_lighthouse.sh
-```
-
-远程调试登录、常用路径和运维命令见 [docs/remote-debugging.md](docs/remote-debugging.md)。
-
-生产外网出口默认使用云服务器本机 `mihomo.service`：后端、WebSim sync、stat weights、community template sync、gear observed backfill、SimC version check 和 SimC runtime update 都在 systemd unit 中设置 `HTTP_PROXY` / `HTTPS_PROXY` / `ALL_PROXY=127.0.0.1:7890`，覆盖 Blizzard / Battle.net、Raider.IO、Warcraft Logs、Wago、GitHub、LLM 和 Codex worker 等海外调用。只访问本机 health 的 `wow-data-health-followup.service` 和只消费 PostgreSQL read model 的 `wow-season-recommended-gear-sync.service` 不需要代理。
-
-部署后在服务器上验证 Codex：
-
-```bash
-codex --version
-codex login status
-CODEX_HOME=/home/ubuntu/.codex python3 - <<'PY'
-from server.codex_worker import run_codex_job
-print(run_codex_job("只回复 OK", jobs_dir="/var/lib/wow-backend/codex-jobs", timeout_seconds=120)["status"])
-PY
-```
-
-## 后续方向
-
-- 为统一后端补充正式域名、HTTPS、微信 request 合法域名配置和刷新记录管理视图。
-- 建立职业、专精、天赋、装备和副本数据模型，详见 `docs/builds-architecture.md`。
-- 继续补齐 Season Data Cache 的 deterministic SimC 变体、宝石/附魔元数据、赛季漂移监控和告警。
-- 深化 WCL GraphQL 日志抽取、同类样本窗口、炸鸡队长证据编排和结构化报告。
-- 增加角色绑定、订阅提醒、收藏管理和跨端个人资产同步。
+旧文档和 release packet 只在当前迁移/回滚仍有精确引用时暂留；Phase 6 通过链接图、调用图和恢复门禁后从工作树删除，Git 历史承担归档。

@@ -17,8 +17,9 @@
     "crossClientContract": "Independent Mini Bearer and Web HttpOnly sessions resolve to the same internal user_id; the server owns the shared Chat and SimC history.",
     "design": "docs/superpowers/specs/2026-09-02-chickenbro-simc-total-rebuild-design.md",
     "implementationAuthorized": true,
-    "productionCutoverAuthorized": true,
-    "destructiveCleanupAuthorized": true,
+    "terminalGoalAuthorized": true,
+    "productionCutoverAuthorized": false,
+    "destructiveCleanupAuthorized": false,
     "currentMutationGate": "phase_1_read_only_control_plane_only",
     "productionCutoverReady": false,
     "destructiveCleanupReady": false,
@@ -32,19 +33,34 @@
     ]
   },
   "refactorInventory": {
-    "observedAt": "2026-09-02",
-    "status": "read_only_snapshot_refresh_required_before_mutation",
+    "observedAt": "2026-09-02T13:43:05Z",
+    "status": "read_only_snapshots_current_capacity_blocked",
+    "localManifest": "docs/refactor/chickenbro-simc-refactor-inventory.json",
+    "cloudSnapshot": "docs/refactor/chickenbro-simc-cloud-inventory.json",
+    "localManifestBaseCommit": "49d1a0b8a822c0c512d2b3b209d5a1f88687b9ac",
+    "cloudSnapshotObservedAt": "2026-09-02T13:43:05Z",
     "currentRuntimeDatabase": "wow_test",
     "targetRuntimeDatabase": "chickenbro_prod",
-    "currentRuntimeDatabaseApproxSize": "15GB",
-    "postgresqlApproxSize": "37GB",
-    "rootDiskUsedPercent": 88,
-    "rootDiskFreeApproxSize": "8.1GB",
-    "gearEvidenceDatabaseApproxSize": "21GB",
+    "currentRuntimeDatabaseApproxSize": "16.38GB",
+    "postgresqlApproxSize": "39.63GB",
+    "rootDiskUsedPercent": 84,
+    "rootDiskFreeApproxSize": "8.58GB",
+    "gearEvidenceDatabaseApproxSize": "22.53GB",
     "capacityGate": "blocked_until_independent_legacy_cleanup_or_storage_expansion",
     "legacyRuntime": "active_last_known_good_pending_candidate_and_user_acceptance",
     "migrationMode": "explicit_owner_and_integrity_whitelist_with_one_read_only_delta",
     "cleanupMode": "exact_keep_delete_migrate_manifest_after_backup_reference_and_restore_proof"
+  },
+  "executionAuthority": {
+    "architecture": "docs/chickenbro-simc-architecture.md",
+    "productionRunbook": "docs/chickenbro-simc-production-runbook.md",
+    "verificationMatrix": "docs/verification-matrix.md",
+    "projectOwnerMap": "docs/project-owner-map.json",
+    "backendOwnerMap": "docs/backend-owner-map.json",
+    "activeProductContractIds": [
+      "chickenbro_simc_total_rebuild"
+    ],
+    "legacyPolicy": "factual_runtime_baseline_only_no_new_implementation_authority"
   },
   "defaultLocalReleaseArtifact": "artifacts/releases/2026-07-23-observed-build-registry-cutover",
   "releaseResolution": {
@@ -62,6 +78,20 @@
       "status": "implementation_authorized_phase_1_in_progress",
       "lifecycle": "active_direction",
       "notes": "The only current product direction keeps Chickenbro Chat and SimC on WeChat Mini Program and Web, with independent client sessions mapped to one internal user_id. The user authorized end-to-end execution through a persistent Goal; current mutation scope remains Phase 1 read-only control-plane work, while later candidate, cutover and destructive cleanup require their recorded gates."
+    },
+    {
+      "id": "chickenbro_simc_architecture",
+      "path": "docs/chickenbro-simc-architecture.md",
+      "status": "active_execution_authority",
+      "lifecycle": "active",
+      "notes": "Reference and explanation authority for Principal, Chat, SimC, Worker, API, target routes and dependency direction."
+    },
+    {
+      "id": "chickenbro_simc_production_runbook",
+      "path": "docs/chickenbro-simc-production-runbook.md",
+      "status": "active_execution_authority_capacity_blocked",
+      "lifecycle": "active",
+      "notes": "How-to authority for capacity, independent backup, clean database, migration, candidate, cutover, rollback and exact retirement."
     },
     {
       "id": "repo_native_harness_v0_6_4",

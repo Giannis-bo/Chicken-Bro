@@ -3,12 +3,108 @@
   "status": "equipment_simulator_phase3_archived_phase4_cutover_active",
   "harnessVersion": "v0.6.4",
   "defaultEvidenceLevel": "local_verified",
+  "updatedAt": "2026-09-02",
+  "activeMilestone": "chickenbro_simc_total_rebuild_phase_1",
+  "targetProductOwners": [
+    {
+      "id": "identity",
+      "status": "implementation_authorized",
+      "factOwner": "server/app/identity",
+      "writeOwner": "server/app/identity/repository.py",
+      "characterization": [
+        "tests/app_auth_domain_test.py",
+        "tests/app_identity_repository_test.py",
+        "tests/app_auth_application_test.py",
+        "tests/app_wechat_mini_test.py"
+      ]
+    },
+    {
+      "id": "chat",
+      "status": "implementation_authorized_after_identity_gate",
+      "factOwner": "server/app/chickenbro",
+      "writeOwner": "server/app/chickenbro/repository.py",
+      "characterization": [
+        "tests/app_domain_test.py"
+      ]
+    },
+    {
+      "id": "simc",
+      "status": "implementation_authorized_after_chat_gate",
+      "factOwner": "server/app/simulation",
+      "writeOwner": "server/app/simulation/repository.py",
+      "characterization": [
+        "tests/app_domain_test.py",
+        "tests/app_worker_runtime_test.py"
+      ]
+    },
+    {
+      "id": "worker",
+      "status": "implementation_authorized_after_simc_gate",
+      "factOwner": "server/app/worker",
+      "writeOwner": "server/app/worker/leases.py",
+      "characterization": [
+        "tests/app_worker_lease_test.py",
+        "tests/app_worker_runtime_test.py"
+      ]
+    },
+    {
+      "id": "dual_client",
+      "status": "implementation_authorized_after_business_api_gates",
+      "factOwner": "apps/mini-taro/src",
+      "writeOwner": null,
+      "characterization": [
+        "packages/domain/src/platform-v2.test.ts",
+        "packages/api-client/src/platform-v2.test.ts",
+        "packages/api-client/src/web-auth.test.ts"
+      ]
+    },
+    {
+      "id": "migration",
+      "status": "blocked_by_capacity_and_independent_backup",
+      "factOwner": "docs/chickenbro-simc-production-runbook.md",
+      "writeOwner": null,
+      "characterization": [
+        "tests/chickenbro_simc_cloud_inventory_test.py"
+      ]
+    },
+    {
+      "id": "deployment",
+      "status": "candidate_and_cutover_gated",
+      "factOwner": "docs/chickenbro-simc-production-runbook.md",
+      "writeOwner": null,
+      "characterization": [
+        "tests/app_config_test.py",
+        "tests/app_api_test.py"
+      ]
+    },
+    {
+      "id": "legacy_retirement",
+      "status": "blocked_until_cutover_recovery_and_acceptance",
+      "factOwner": "docs/refactor/chickenbro-simc-disposition-rules.json",
+      "writeOwner": null,
+      "characterization": [
+        "tests/chickenbro-simc-refactor-inventory.test.js",
+        "tests/chickenbro_simc_cloud_inventory_test.py"
+      ]
+    }
+  ],
+  "legacyRuntimeBaseline": {
+    "status": "legacy_runtime_baseline_pending_retirement",
+    "executionAuthority": false,
+    "collections": [
+      "hotspotFiles",
+      "v2PlatformFoundation"
+    ],
+    "notes": "Legacy hotspot owner status strings remain for factual characterization tests only; they do not authorize new gear, talent, WebSim, news or 14-route work."
+  },
   "rules": {
     "mustHaveCharacterizationBeforeExtraction": true,
     "doNotExtractWithoutOwnerEntry": true,
     "publicEntryContractsMustStayBackendOwned": true,
     "frontendAndHealthMustConsumeAuthorityState": true,
-    "scheduledJobsWriteOwnedStateOnly": true
+    "scheduledJobsWriteOwnedStateOnly": true,
+    "targetProductOwnersAreExclusive": true,
+    "legacyRuntimeBaselineHasNoNewImplementationAuthority": true
   },
   "v2PlatformFoundation": {
     "status": "local_foundation_unregistered",

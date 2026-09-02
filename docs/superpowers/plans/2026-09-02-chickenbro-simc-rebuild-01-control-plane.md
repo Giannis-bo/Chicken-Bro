@@ -33,7 +33,7 @@
 - Create `docs/refactor/chickenbro-simc-cloud-inventory.json`: read-only cloud snapshot with observed timestamp.
 - Create `docs/chickenbro-simc-architecture.md`: single current architecture authority.
 - Create `docs/chickenbro-simc-production-runbook.md`: capacity, backup, migration, cutover, rollback, and retirement gates.
-- Modify `docs/project-state.json`, `docs/project-owner-map.json`, `docs/backend-owner-map.json`, `docs/verification-matrix.md`, `docs/plans/README.md`: point current control-plane readers at the new artifacts.
+- Modify `README.md`, `docs/README.md`, `docs/project-state.json`, `docs/project-owner-map.json`, `docs/backend-owner-map.json`, `docs/verification-matrix.md`, `docs/plans/README.md`: point current control-plane readers at the new artifacts.
 - Create `artifacts/releases/2026-09-02-chickenbro-simc-control-plane/{requirement,evidence,manifest}.json`: one Strict phase packet.
 
 ### Task 0: Open the Strict Phase 1 requirement
@@ -218,6 +218,8 @@ git commit -m "chore: add redacted rebuild cloud inventory"
 **Files:**
 - Create: `docs/chickenbro-simc-architecture.md`
 - Create: `docs/chickenbro-simc-production-runbook.md`
+- Modify: `README.md`
+- Modify: `docs/README.md`
 - Modify: `docs/project-state.json`
 - Modify: `docs/project-owner-map.json`
 - Modify: `docs/backend-owner-map.json`
@@ -229,7 +231,7 @@ git commit -m "chore: add redacted rebuild cloud inventory"
 - Consumes: the approved spec plus the two machine inventories from Tasks 1-2.
 - Produces: one active architecture, one active production runbook, and machine-readable owner/verification references with no legacy execution authority.
 
-- [ ] **Step 1: Add failing current-authority assertions**
+- [x] **Step 1: Add failing current-authority assertions**
 
 ```js
 assert.equal(state.activeMilestone, 'chickenbro_simc_total_rebuild_phase_1')
@@ -240,27 +242,28 @@ assert.equal(state.refactorInventory.localManifest, 'docs/refactor/chickenbro-si
 assert.equal(state.refactorInventory.cloudSnapshot, 'docs/refactor/chickenbro-simc-cloud-inventory.json')
 ```
 
-- [ ] **Step 2: Run the state test and observe the expected failure**
+- [x] **Step 2: Run the state test and observe the expected failure**
 
 Run: `node --test tests/project-state.test.js`
 
 Expected: FAIL on the new phase and manifest fields.
 
-- [ ] **Step 3: Write the current architecture and runbook**
+- [x] **Step 3: Write the current architecture and runbook**
 
 The architecture must define the exact dependency direction, Principal boundary, Chat/SimC owners, public API surface, worker lease semantics, and target five routes. The runbook must define preflight capacity, independent backup device verification, clean database bootstrap, full/delta migration, write fence, candidate, cutover, post-write rollback restriction, and exact retirement gates. Neither document may retain an implementation link to old S2, gear, talent, WebSim, prototype, or 14-route plans.
 
-- [ ] **Step 4: Update owner maps and verification matrix**
+- [x] **Step 4: Update owner maps and verification matrix**
 
 Set only `identity`, `chat`, `simc`, `worker`, `dual_client`, `migration`, `deployment`, and `legacy_retirement` as target product owners. Mark old owners `legacy_runtime_baseline_pending_retirement`; do not delete their factual evidence yet. Define focused commands for each phase and a final full profile that includes Python application tests, Node/Taro tests, build, candidate smoke, migration reconciliation, and remote parity.
 
-- [ ] **Step 5: Verify current authority and commit**
+- [x] **Step 5: Verify current authority and commit**
 
 ```bash
 node --test tests/project-state.test.js
 node scripts/project-harness.js --check-requirement \
   --requirement-file artifacts/releases/2026-09-02-chickenbro-simc-control-plane/requirement.json
-git add docs/chickenbro-simc-architecture.md docs/chickenbro-simc-production-runbook.md \
+git add README.md docs/README.md \
+  docs/chickenbro-simc-architecture.md docs/chickenbro-simc-production-runbook.md \
   docs/project-state.json docs/project-owner-map.json docs/backend-owner-map.json \
   docs/verification-matrix.md docs/plans/README.md tests/project-state.test.js
 git commit -m "docs: activate Chickenbro SimC rebuild control plane"

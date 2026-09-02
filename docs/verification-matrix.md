@@ -1,140 +1,211 @@
 # Project Harness Verification Matrix
 
-本文件只定义当前验证入口和证据边界。历史阶段使用过的命令由对应 release packet 与 Git 保存，不在这里累计。
+状态：当前执行权威
 
-## Profiles
+本文件只定义炸鸡队长 + SimC 双端重构的当前验证入口和证据边界。历史命令保存在 Git 与对应 release packet，不再拥有新实现权。
 
-| Profile | 覆盖范围 | 当前自动化入口 |
+## Harness Profiles
+
+| Profile | 覆盖范围 | 自动化入口 |
 | --- | --- | --- |
-| `harness` | 状态、owner map、schema、release packet、diff | `node scripts/verify-project.js --profile harness --release <task-release>` |
-| `backend` | Python 后端、PostgreSQL read model、API 和 worker | `node scripts/verify-project.js --profile backend --release <task-release>` |
-| `frontend` | 旧兼容前端、Taro typed contract、架构审计、TypeScript 和 Vitest | `node scripts/verify-project.js --profile frontend --release <task-release>` |
-| `full` | Harness、后端和适合 CI 的前端自动检查，包含 UI 架构与包体机械门禁 | `node scripts/verify-project.js --profile full --release <task-release>` |
+| `harness` | 当前状态、owner map、schema、release packet、diff | `node scripts/verify-project.js --profile harness --release <task-release>` |
+| `backend` | Python 应用、PostgreSQL、API、Worker | `node scripts/verify-project.js --profile backend --release <task-release>` |
+| `frontend` | Taro/typed client、TypeScript、Vitest、H5/WeApp 机械检查 | `node scripts/verify-project.js --profile frontend --release <task-release>` |
+| `full` | Harness + backend + frontend 的 CI 自动检查 | `node scripts/verify-project.js --profile full --release <task-release>` |
 
-本地可显式传 `--release`；缺省时只读取 `docs/project-state.json.defaultLocalReleaseArtifact`。PR CI 必须使用 `--release-from-changes --base origin/main`，从 diff 解析唯一完整任务 packet，不读取本地默认值。用 `--dry-run --json` 查看确切命令，不执行。
+本地可以显式传 `--release`。PR CI 必须使用 `--release-from-changes --base origin/main` 从 diff 解析唯一完整任务 packet，不读取本地默认值。用 `--dry-run --json` 查看命令而不执行。
 
-## Chickenbro + SimC platform foundation
+## 证据等级
 
-本地 v2 骨架使用仓库根目录 `.venv-v2` 的锁定 Python 运行时和现有 Node lockfile；Task 5--7 的定向验证为：
+| 等级 | 能证明什么 | 不能证明什么 |
+| --- | --- | --- |
+| `local_verified` | 代码/合同在当前 commit 通过本地定向测试 | 数据库已迁移、云端已部署、真实微信可用 |
+| `candidate_verified` | 隔离 candidate 的代码、DB、API/Worker 和回滚通过 | 公网生产已切流、真实用户已接受 |
+| `live_verified` | 指定生产 identity 的实际业务路径通过 | 用户已完成双端主观/行为验收 |
+| `user_accepted` | 用户明确确认真实 Mini/Web 路径 | 自动替代恢复、隔离、备份或清理证据 |
+
+`skipped`、`partial`、`blocked`、HTTP 200、systemd active、SimC return code 0、Candidate 或 preview 都不是成功等级。
+
+## 六阶段矩阵
+
+| Phase | 当前状态 | 自动验证 | 运行态/人工门禁 | 回滚/停止边界 |
+| --- | --- | --- | --- | --- |
+| 1. 控制面 | 正在推进 | inventory、云端脱敏、project-state、Harness packet | 云端只读快照 | 不改业务运行时/数据 |
+| 2. Identity/数据面 | 容量 blocked | product schema、identity repo/app/API、Origin/CSRF、provision dry-run | 独立备份、恢复、candidate DB | 不切正式 DSN |
+| 3. Chat | 等待 Phase 2 | owner/repo/app/SSE/API/typed client、第二用户隔离 | candidate Codex 与双端同 owner | 不接公网生产流量 |
+| 4. SimC | 等待 Phase 3 | snapshot/readiness/compiler/repo/queue/worker/API/client | cloud SimC 语义结果、candidate task parity | 不切公网生产流量 |
+| 5. 双端/迁移/切流 | 等待 2--4 | 精确 5 routes/2 tabs、Web Shell、migration/reconciliation、deploy/cutover dry-run | 真实扫码、跨端 Chat/SimC、写栅栏 | 首条新写入前/后采用不同回滚规则 |
+| 6. Legacy 退役 | 等待稳定窗口 | caller/link graph、cleanup manifest、dry-run、最终精简 full | 零引用/连接/open handle、恢复验证、用户接受 | 精确删除；禁止宽泛递归 |
+
+## Phase 1：控制面
+
+当前可执行命令：
 
 ```bash
-.venv-v2/bin/python -m unittest \
-  tests.app_dependency_manifest_test \
-  tests.app_domain_test \
-  tests.app_architecture_test \
-  tests.app_schema_test \
-  tests.app_config_test \
-  tests.app_worker_lease_test \
-  tests.app_api_test \
-  tests.app_worker_runtime_test -v
-npm run test:taro -- packages/domain/src/platform-v2.test.ts packages/api-client/src/platform-v2.test.ts
-npm run typecheck
-npm run lint
-```
-
-`WOW_PG_TEST_DSN_V2` 未配置时 PostgreSQL 集成测试只能标记为 skipped/UNVERIFIED；本地通过不代表 migration 已执行、candidate 已部署、Web 登录已实现或任何生产运行态已验证。完整 profile 若需使用 v2 Python 依赖，应将 `.venv-v2/bin` 放在 `PATH` 前端后执行 `node scripts/verify-project.js`。
-
-## Chickenbro Web + mini-program login
-
-本任务的 Web/H5 入口、微信小程序辅助确认页、v2 identity API 与隔离候选部署属于同一用户可见运行面。最小本地梯度为：
-
-```bash
-.venv-v2/bin/python -m unittest \
-  tests.app_auth_domain_test \
-  tests.app_identity_repository_test \
-  tests.app_wechat_mini_test \
-  tests.app_auth_application_test \
-  tests.app_api_test \
-  tests.app_config_test \
-  tests.app_schema_test \
-  tests.app_domain_test
-npm run typecheck
-npm run lint
-npm exec vitest run packages/domain/src packages/api-client/src apps/mini-taro/src/web apps/mini-taro/src/pages/auth apps/mini-taro/src/pages/_shared/route-contract.test.ts
-npm --workspace @wow-mini/mini-taro run build:h5
-npm --workspace @wow-mini/mini-taro run build:weapp
-node scripts/audit-ui-architecture.js
-node --test tests/deploy-web-v2.test.js tests/project-owner-map.test.js
-bash -n server/deploy_web_v2_lighthouse.sh
+node --test tests/chickenbro-simc-refactor-inventory.test.js
+python3 -m unittest tests.chickenbro_simc_cloud_inventory_test -v
+node --test tests/project-state.test.js
+node scripts/project-harness.js --check-requirement \
+  --requirement-file artifacts/releases/2026-09-02-chickenbro-simc-control-plane/requirement.json
 git diff --check
 ```
 
-H5 浏览器只能证明 Web 壳、blocked/recovery 文案和本地接口失败时的诚实降级；它不能代替真实小程序扫码。候选证据必须同时绑定 H5/WeApp 构建 identity、v2 API/Nginx/PG smoke、回滚路径和旧入口未变更证明。真实 Web 登录只有在用户实际扫码并在小程序内点击“确认登录”后才能进入 `live_verified`；缺少 v2 env、微信凭据、`www` TLS SAN、已发布小程序页或用户扫码时，分别记录为 `blocked` / `candidate_pending` / `user_acceptance_pending`，不把 HTTP 200 或静态页面可达当成登录完成。
+验收：本地 inventory 绑定完整 commit 和逐文件 SHA，`unresolvedCount=0`；云端快照 secret-safe 且有真实 `observedAt`；capacity gate 如实反映阻塞；architecture/runbook/owner map/verification matrix 指向同一目标。
 
-候选入口为 `server/deploy_web_v2_lighthouse.sh`，只写 `/api/v2`、`wow-v2-api`、`www` 静态站点和新增 0039 schema；旧 `wow-backend.service`、旧 API、旧 `api.chickenbro.cloud` 入口、14 条 Taro 产品路由和 Active Manifest 不属于本任务切换面。敏感值证据只记录 configured/missing、权限或长度，不记录 secret、token、OpenID、UnionID、Cookie 或完整二维码场景值。
+## Phase 2：Identity 与干净数据面
 
-## 选择规则
-
-- 开发中先跑最小相关测试，不在每个小改动后串行跑 `frontend`、`backend`、`full`。
-- 最终候选只跑一次 `full`；它已包含 Harness、Node、Python、Taro 类型/单元测试、JSON、语法和 diff 检查，但不包含 UI 架构审计。
-- `audit:ui-architecture` 只在 UI owner、共享 chrome、路由合同或设计系统边界变化时显式运行，不作为 GitHub CI 阻断项。
-- 纯文档或 owner map 变更跑 `harness`；不因此重复业务全量。
-- 自动测试证明合同和代码结构，不授予视觉、生产数据或线上运行通过。
-
-## Taro UI
-
-UI 阶段显式验证：
-
-```bash
-npm run audit:ui-architecture
-npm run typecheck
-npm run test:taro
-npm run verify:ui-baselines
-npm run verify:ui-interactions
-npm run verify:ui-package
-```
-
-`verify:ui-baselines` 只做 target/runtime 结构预检；`verify:ui-interactions` 按核心交互合同逐条记录 14 个 canonical route 的真实微信动作与断言。像素验收必须使用当前 target registry 对应的真实微信运行态。每个路由最终只保留一次视觉复核和一个核心交互结果。
-
-`verify:ui-package` 在系统临时目录分别执行本地素材与显式 HTTPS 素材根的 production 构建，关闭构建缓存，不覆盖唯一 watch 的 `dist/weapp`。它阻断远端构建复制本地素材、远端非 source-map 包超过 2 MiB，以及 `common.js` / `common.wxss` 超过当前预算；临时产物在输出证据后删除。
-
-本地微信链路保持一个 Taro watch。验证脚本默认扫描并复用 `9420-9460` 内已监听的 automation 端口，不依赖固定 `9421`，不调用 DevTools CLI，也不具备 launch 能力；每次连接必须通过 `getAccountInfoSync` 校验为当前 `wow-mini-taro` AppID。需要连接指定会话时设置 `WECHAT_AUTOMATOR_ENDPOINT`。开发者工具账户、当前项目和 automation 端口属于受保护会话状态：自动化不得点击账户区、退出登录、关闭、重启或重新打开项目。孤立出现的“游客模式”文字不能单独证明掉线；以 DevTools 登录成功状态、当前账号头像和项目属性刷新结果交叉确认。扫码登录成功后若项目窗口回到入口页，只从当前已登录入口重新打开 `apps/mini-taro`，不得另起 DevTools、CLI `auto` 或游客实例。连接异常先检查 watch、已登录开发者工具、项目路径和端口状态，不通过循环重启或要求重复扫码恢复。成功的结构预检必须输出设备、逐路由几何和 `failures`；没有输出不得视为通过。
-
-## Canonical gear
-
-装备改动至少覆盖以下分层合同：
+目标自动验证：
 
 ```bash
 python3 -m unittest \
-  tests.gear_contracts_test \
-  tests.gear_rule_matrix_test \
-  tests.gear_evidence_ledger_test \
-  tests.gear_resolver_test \
-  tests.gear_result_envelope_test \
-  tests.pg_gear_authority_loader_test \
-  tests.gear_release_test \
-  tests.gear_release_store_test \
-  tests.gear_release_shadow_test \
-  tests.gear_release_refresh_test \
-  tests.community_template_import_test \
-  tests.gear_stat_snapshot_test \
-  tests.gear_stat_snapshot_store_test \
-  tests.gear_stat_snapshot_api_test \
-  tests.gear_stat_snapshot_worker_test
-node --test tests/gear-workbench-state.test.js tests/frontend-api-client.test.js tests/builds-page.test.js
-npx vitest run packages/domain/src/gear-intent.test.ts packages/api-client/src/transport.test.ts packages/api-client/src/websim.test.ts
+  tests.product_schema_test \
+  tests.app_identity_application_test \
+  tests.app_identity_repository_test \
+  tests.app_identity_api_test \
+  tests.app_csrf_test -v
+node --test tests/provision-chickenbro-database.test.js
+node scripts/verify-project.js --profile backend \
+  --release artifacts/releases/2026-09-02-chickenbro-simc-identity-data
 ```
 
-必须核对：
+上述新测试/packet 在对应阶段落地前缺失应当失败，不能记为 skipped pass。PostgreSQL 集成测试必须运行在隔离 candidate，不能用 mock-only 代替 schema/privilege/owner 证明。
 
-- malformed intent 为 400，revision conflict 为 409，authority unavailable 为 503；结构化 problem 不得被 transport fallback 吞掉。
-- 旧 `pages/` 与活动 Taro 都只提交 identifier intent，最终事实来自同一 resolver/release authority。
-- community import 原子采用或 fail closed；不允许逐槽静默丢失。
-- stat snapshot 只接受 signature 匹配的 verified 结果，202 有界轮询，旧响应不能覆盖新选择。
-- `/api/websim/gear/stats` 只验证兼容性；活动 Taro 必须走 `/stat-snapshots`。
+必须覆盖：
 
-## Runtime evidence
+- Mini Bearer 与 Web Cookie 独立签发、过期、撤销；
+- 同一微信 identity 映射一个内部 `user_id`；
+- 多 transport、错 transport、错 verifier、过期、取消、重复消费 fail-closed；
+- Cookie 写请求 Origin/Host/CSRF；Mini 请求不携带 Cookie；
+- auth audit 不含 token/Cookie/OpenID/session_key/verifier/ticket/secret；
+- `chickenbro_prod` 只有允许 schema/table，runtime role 最小权限；
+- capacity、独立设备、备份和恢复仍 blocked 时 provisioning 不 apply。
 
-涉及 backend/API、PG、同步、timer、部署或用户可见运行态时，最终候选还需记录：
+## Phase 3：正式 Chat
 
-- 候选 commit 与实际部署 tree/hash 一致；
-- `/health`、`/api/data/health` 和受影响 API 内容 smoke；
-- PostgreSQL-only、active manifest、timer/backflow、worker 与近期日志状态；
-- 写入前备份和 rollback target；
-- 用户可见 UI 使用真实微信环境验证，不以浏览器或截图脚本代替。
+目标自动验证：
 
-远端 smoke、迁移和生产写入不由本 profile 自动触发。
+```bash
+python3 -m unittest \
+  tests.app_chat_repository_test \
+  tests.app_chat_application_test \
+  tests.app_chat_api_test \
+  tests.app_chat_cross_client_test -v
+npm run test:taro -- \
+  packages/domain/src/chat.test.ts \
+  packages/api-client/src/chat.test.ts
+```
+
+必须覆盖 owner-scoped list/get/create、第二用户 404、稳定游标、`Idempotency-Key`、`clientMessageId`、严格 SSE sequence、断线持久化回放、assistant 先持久化后 success，以及 Codex unavailable/timeout/invalid output 的真实失败。任何普通 LLM 或模板 fallback 都失败。
+
+Candidate 证据需绑定 Mini/Web 两种 session 的同 owner 证明、候选 DB/commit/API identity、Codex configured/unavailable 路径和回滚；不切公网生产。
+
+## Phase 4：正式 SimC
+
+目标自动验证：
+
+```bash
+python3 -m unittest \
+  tests.app_simc_source_adapter_test \
+  tests.app_simc_readiness_test \
+  tests.app_simc_compiler_test \
+  tests.app_simc_repository_test \
+  tests.app_simc_worker_test \
+  tests.app_simc_api_test \
+  tests.app_simc_cross_client_test -v
+npm run test:taro -- \
+  packages/domain/src/simc.test.ts \
+  packages/api-client/src/simc.test.ts
+```
+
+必须覆盖来源 URL allowlist、角色不存在/权限受限/来源不可用/缺字段的不同 blocker、不可变 snapshot revision、compiler/runtime pin、idempotent job、lease/retry/cancel/lost lease、第二用户隔离、跨端相同 job ID、有效正数 DPS/HPS、profile hash 和 provenance。return code 0 而无有效指标必须失败。
+
+只使用云端已安装 SimulationCraft。不得在本地安装或运行 SimC；Candidate smoke 记录 binary/runtime revision 与实际结果语义。
+
+## Phase 5：双端、迁移与切流
+
+目标前端自动验证：
+
+```bash
+npm run test:taro -- \
+  apps/mini-taro/src/features \
+  apps/mini-taro/src/pages/chickenbro \
+  apps/mini-taro/src/pages/simc \
+  apps/mini-taro/src/web \
+  apps/mini-taro/src/tab-bar-items.test.ts \
+  apps/mini-taro/src/tab-bar-state.test.ts
+npm run typecheck
+npm run lint
+npm --workspace @wow-mini/mini-taro run build:h5
+npm --workspace @wow-mini/mini-taro run build:weapp
+```
+
+必须断言目标路由精确为：
+
+```text
+pages/chickenbro/index
+pages/simc/index
+pages/simc/tasks
+pages/simc/task-detail
+pages/auth/web-login-confirm
+```
+
+Tab 精确为 `队长 | SimC`；Web 只有正式登录、队长、SimC、账号和退出；源码/构建不得含 prototype bypass、news、builds、gear、talent、profile 一级入口。
+
+迁移自动验证：
+
+```bash
+python3 -m unittest tests.legacy_product_migration_test -v
+node --test tests/deploy-chickenbro-candidate.test.js tests/cutover-chickenbro.test.js
+```
+
+核对必须分别证明 Identity、Chat、SimC、Ops 的 candidate/accepted/rejected 数量、owner、外键、顺序、终态、内容 hash 和 idempotent mapping；只比总行数失败。
+
+人工/运行态必须完成：真实 Mini 登录；真实小程序确认 Web 登录；Mini 创建 Chat、Web 可见并续聊；Web 创建 Chat、Mini 可见并续聊；任一端创建 SimC job，另一端看到相同 ID/状态/result；第二用户隔离；两端独立退出。用户明确确认前状态只能是 `user_acceptance_pending`。
+
+## Phase 6：Legacy 退役
+
+目标自动验证：
+
+```bash
+node --test tests/chickenbro-simc-caller-graph.test.js
+node scripts/build-chickenbro-simc-caller-graph.js \
+  --inventory docs/refactor/chickenbro-simc-refactor-inventory.json \
+  --output docs/refactor/chickenbro-simc-caller-graph.json
+node --test tests/chickenbro-simc-cleanup.test.js
+bash server/cleanup_chickenbro_legacy_lighthouse.sh \
+  --manifest docs/refactor/chickenbro-simc-cloud-cleanup-manifest.json \
+  --dry-run
+```
+
+删除前要求：调用图/文档链接图零保留引用、manifest SHA 匹配、零连接/open handle、无 systemd/Nginx/env 引用、独立 restore identity、回滚窗口状态和用户 acceptance。每次删除只接受精确文件/目录/数据库/unit 名称。
+
+## 最终 Full Profile
+
+最终完成证据至少包含：
+
+1. Python：所有 `server/app` 正式 Identity/Chat/SimC/Worker、migration/reconciliation、provision/deploy/cleanup 合同测试。
+2. Node/Taro：domain/API client、Mini/Web feature、精确 route/tab、no-prototype 和 owner map/Harness 测试。
+3. 构建：production H5 与 WeApp，记录 commit、环境边界和产物 hash；没有依赖安装/download 隐式发生。
+4. Candidate：隔离 DB/API/Worker/Nginx、真实微信登录、Codex、云端 SimC、第二用户隔离和回滚。
+5. Migration：全量 + fenced delta 的逐域 accepted/rejected/hash reconciliation。
+6. Cutover：唯一写入口、`firstNewProductionWriteAt`、post-write 回滚限制和生产 smoke。
+7. Cleanup：本地/云端精确 manifest 执行后 inventory、零旧 route/service/timer/database/directory。
+8. Parity：本地 `main`、`origin/main`、云端 deployable set、migration identity 和运行时 identity 分别一致。
+9. Recovery：独立备份与实际恢复演练。
+10. User acceptance：真实 Mini/Web 双向 Chat 与 SimC 明确通过。
+
+任何一项缺失都不能把 Goal 标为 complete。
+
+## 选择规则
+
+- 开发中只跑最小相关测试；每个阶段封包前跑一次适用 Harness profile。
+- 纯文档/owner map 跑 Phase 1 focused + `harness`，不冒充 backend/frontend/live 验证。
+- 旧 14-route、gear/talent/WebSim 测试在 legacy 仍承担回滚时可以作为回归基线，但不再是目标产品验收。
+- 自动化不触发 SSH 写入、数据库迁移、服务重启、正式切流或删除；这些操作由对应 runbook/apply gate 驱动。
+- 证据中的 secret 只记录 configured/missing、permission、length 或 hash identity，不记录值。
 
 ## CI
 
-`.github/workflows/project-harness.yml` 只运行一个 `full` profile，并从 PR diff 绑定唯一任务 release packet。任何 packet 选择/交叉绑定、immutable runtime identity、clean verification HEAD、closure identity、人工验收完整集合与汇总、测试、JSON、owner map、TypeScript、架构审计、语法或 whitespace 失败都必须返回非零；CI 不部署、不 SSH、不迁移、不触发同步。
+`.github/workflows/project-harness.yml` 继续运行一个 `full` profile，并从 PR diff 绑定唯一任务 release packet。任何 packet 选择/交叉绑定、clean verification HEAD、测试、JSON、owner map、TypeScript、语法或 whitespace 失败都必须返回非零。CI 不部署、不 SSH、不迁移、不触发同步、不删除。
+
+相关入口：[当前架构](chickenbro-simc-architecture.md) · [生产 Runbook](chickenbro-simc-production-runbook.md) · [计划白名单](plans/README.md)
