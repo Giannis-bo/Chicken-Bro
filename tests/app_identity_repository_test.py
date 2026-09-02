@@ -1,8 +1,10 @@
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
+import json
 import unittest
 
 from server.app.identity.domain import Principal, WebLoginSessionStatus
+from server.app.identity.audit import AuthAuditEvent
 from server.app.identity.repository import PostgresIdentityRepository
 
 
@@ -39,6 +41,32 @@ class FakeConnection:
 
 
 class AppIdentityRepositoryTest(unittest.TestCase):
+    def test_auth_audit_insert_uses_only_the_validated_redacted_payload(self):
+        now = datetime(2026, 9, 2, 15, 0, tzinfo=timezone.utc)
+        user_id = UUID("00000000-0000-4000-8000-000000000034")
+        event = AuthAuditEvent(
+            event_type="auth.decision",
+            request_id="00000000-0000-4000-8000-000000000035",
+            user_id=user_id,
+            session_kind="web_cookie",
+            status_code=200,
+            timestamp=now,
+            reason_code="AUTHENTICATED",
+        )
+        connection = FakeConnection()
+        repository = PostgresIdentityRepository(lambda: connection)
+
+        repository.record_auth_audit(event)
+
+        sql, params = connection.cursor_value.statements[-1]
+        self.assertIn("INSERT INTO ops.audit_events", sql)
+        self.assertIn("ON CONFLICT (event_type, subject_key) DO NOTHING", sql)
+        serialized_payload = params[4]
+        payload = json.loads(serialized_payload)
+        self.assertIn("requestId", payload)
+        for key in payload:
+            self.assertNotRegex(key, r"(?i)token|cookie|openid|session_key|verifier|ticket|secret")
+
     def test_existing_provider_identity_rejects_conflicting_union_metadata(self):
         """Catches treating optional UnionID metadata as permission to relink an owner."""
         now = datetime(2026, 9, 2, tzinfo=timezone.utc)

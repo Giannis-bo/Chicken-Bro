@@ -344,5 +344,9 @@ ON ops.schema_migrations
 TO wow_app;
 
 GRANT SELECT, INSERT, UPDATE, DELETE
-ON ops.job_queue, ops.audit_events, ops.usage_counters
+ON ops.job_queue, ops.usage_counters
+TO wow_app;
+
+GRANT SELECT, INSERT
+ON ops.audit_events
 TO wow_app;

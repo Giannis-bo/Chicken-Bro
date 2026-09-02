@@ -1,5 +1,6 @@
 from collections.abc import Callable, Mapping
 from datetime import datetime
+import json
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -10,6 +11,7 @@ from server.app.identity.domain import (
     WebLoginSession,
     WebLoginSessionStatus,
 )
+from server.app.identity.audit import AuthAuditEvent
 from server.app.identity.prototype import PrototypeSession
 from server.app.identity.ports import PublicUser
 
@@ -37,6 +39,33 @@ class PostgresIdentityRepository:
         if row is None:
             return None
         return Principal(user_id=UUID(str(_row_value(row, "id", 0))), session_kind="mini_bearer")
+
+    def record_auth_audit(self, event: AuthAuditEvent) -> None:
+        payload = json.dumps(
+            event.payload(),
+            ensure_ascii=True,
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+        with self._connection_factory() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    INSERT INTO ops.audit_events (
+                        id, user_id, event_type, subject_key, payload_json, created_at
+                    )
+                    VALUES (%s, %s, %s, %s, %s::jsonb, %s)
+                    ON CONFLICT (event_type, subject_key) DO NOTHING
+                    """,
+                    (
+                        uuid4(),
+                        event.user_id,
+                        event.event_type,
+                        event.subject_key,
+                        payload,
+                        event.timestamp,
+                    ),
+                )
 
     def upsert_wechat_mini_identity(
         self,

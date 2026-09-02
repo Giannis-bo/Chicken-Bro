@@ -21,6 +21,7 @@ from server.app.chickenbro.source_gateway import (
     ServerConfiguredSourceQuery,
 )
 from server.app.identity.application import WebAuthApplication
+from server.app.identity.audit import AuthAuditSink, NullAuthAuditSink
 from server.app.identity.prototype import PrototypeIdentityApplication
 from server.app.identity.repository import PostgresIdentityRepository
 from server.app.integrations.wechat_mini import WechatMiniClient
@@ -42,7 +43,9 @@ def create_app(
     prototype_identity_application: PrototypeIdentityApplication | None = None,
     prototype_chat_application: PrototypeChatApplication | None = None,
     prototype_simulation_application: PrototypeSimulationApplication | None = None,
+    auth_audit_sink: AuthAuditSink | None = None,
 ) -> FastAPI:
+    formal_auth_application_injected = web_auth_application is not None
     production = settings.environment == "production"
     app = FastAPI(
         docs_url=None,
@@ -96,6 +99,11 @@ def create_app(
             queue=PostgresJobQueue(postgres_factory.connection),
         )
     app.state.web_auth_application = web_auth_application
+    app.state.auth_audit_sink = (
+        repository
+        if auth_audit_sink is None and repository is not None and not formal_auth_application_injected
+        else auth_audit_sink or NullAuthAuditSink()
+    )
     app.state.prototype_identity_application = prototype_identity_application
     app.state.prototype_chat_application = prototype_chat_application
     app.state.prototype_simulation_application = prototype_simulation_application

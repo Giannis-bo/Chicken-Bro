@@ -235,7 +235,7 @@ git commit -m "feat: bind Mini and Web sessions to one formal user"
 - Produces: `require_principal(request) -> Principal`, `require_mutating_principal(request) -> Principal`, `issue_csrf_token() -> str`, and `require_web_csrf(request, settings) -> None`.
 - Cookie names: `__Host-chickenbro-session` HttpOnly and `__Host-chickenbro-csrf` JavaScript-readable; both Secure, SameSite=Lax, Path=/, no Domain.
 
-- [ ] **Step 1: Write failing mixed-credential and CSRF tests**
+- [x] **Step 1: Write failing mixed-credential and CSRF tests**
 
 ```python
 def test_bearer_and_cookie_together_are_rejected(self):
@@ -249,13 +249,13 @@ def test_cookie_write_requires_matching_origin_header_and_csrf_cookie(self):
     self.assertEqual(response.json()["error"]["code"], "CSRF_REJECTED")
 ```
 
-- [ ] **Step 2: Run focused API tests and verify failure**
+- [x] **Step 2: Run focused API tests and verify failure**
 
 Run: `python3 -m unittest tests.app_csrf_test tests.app_identity_api_test -v`
 
 Expected: FAIL because mixed-auth and CSRF dependencies do not exist.
 
-- [ ] **Step 3: Implement constant-time double-submit verification**
+- [x] **Step 3: Implement constant-time double-submit verification**
 
 ```python
 def require_web_csrf(request: Request, settings: AppSettings) -> None:
@@ -268,17 +268,19 @@ def require_web_csrf(request: Request, settings: AppSettings) -> None:
 
 `require_principal` must reject multiple credential transports, malformed Bearer syntax, a Mini token used as Cookie, and a Web token used as Bearer. `require_mutating_principal` calls CSRF only for `web_cookie` Principals.
 
-- [ ] **Step 4: Add redacted auth audit events**
+- [x] **Step 4: Add redacted auth audit events**
 
 Audit payloads contain only event type, request ID, internal user ID when already authenticated, session kind, status code, timestamp, and coarse reason code. Tests must reject keys matching `token|cookie|openid|session_key|verifier|ticket|secret`.
 
-- [ ] **Step 5: Run and commit**
+- [x] **Step 5: Run and commit**
 
 ```bash
 python3 -m unittest tests.app_csrf_test tests.app_identity_api_test tests.app_identity_application_test tests.app_identity_repository_test -v
 git add server/app/platform server/app/api server/app/main.py tests/app_csrf_test.py tests/app_identity_api_test.py
 git commit -m "feat: secure formal dual-client authentication"
 ```
+
+Local evidence runs the dependency-free credential, CSRF, cookie, redaction and repository behavior plus a source-wiring contract and `compileall`. The current host does not provide FastAPI, Pydantic, psycopg or an isolated `WOW_PG_TEST_DSN_V2`; therefore TestClient and real PostgreSQL behavior remain mandatory Task 5 candidate gates and are not represented as passing here.
 
 ### Task 4: Capacity-guarded clean database provisioning
 

@@ -110,6 +110,14 @@ class ProductSchemaStaticTest(unittest.TestCase):
         self.assertNotIn("prototype_sessions", sql)
         self.assertNotIn("auth_tokens", sql)
 
+    def test_runtime_can_append_but_not_rewrite_auth_audit_events(self):
+        """Catches granting the request role permission to alter authentication evidence."""
+        sql = _normalized_sql()
+        self.assertIn("GRANT SELECT, INSERT ON ops.audit_events TO wow_app", sql)
+        for grant in re.findall(r"GRANT .*? TO wow_app", sql, re.I):
+            if "ops.audit_events" in grant:
+                self.assertNotRegex(grant, r"\b(?:UPDATE|DELETE|TRUNCATE)\b")
+
 
 class _Result:
     def __init__(self, row=None):

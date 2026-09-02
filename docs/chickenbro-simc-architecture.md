@@ -118,7 +118,9 @@ confirmed -> cancelled | expired
 
 Phase 2 的 product schema、domain、repository 与 application 已把正式终态统一为 `consumed`；legacy `0039` 中的 `exchanged` 只作为迁移输入保留，不能进入新库或正式 API 状态。
 
-Web Cookie 必须是 HttpOnly、Secure、`__Host-` 前缀、有限 TTL 和最小 Path。Cookie 写请求还必须通过精确 Origin/Host 与 CSRF；Mini 写请求只使用 Bearer，不使用 Web Cookie/CSRF。
+Web Session Cookie 固定为 HttpOnly、Secure 的 `__Host-chickenbro-session`；双提交 CSRF Cookie 固定为 JavaScript 可读、Secure 的 `__Host-chickenbro-csrf`。两者均为 SameSite=Lax、Path=/、无 Domain。Cookie 写请求还必须通过精确 Origin/Host 与常量时间 CSRF 比对；Mini 写请求只使用 Bearer，不使用 Web Cookie/CSRF。混合 Cookie/Bearer 或跨 transport 使用 token 固定拒绝。
+
+认证决策只写脱敏、定长的 `ops.audit_events`：request ID、已认证时的内部 user ID、session kind、状态码、时间和粗粒度 reason code。运行角色只有 SELECT/INSERT 权限，不得更新或删除审计证据；token、Cookie、OpenID、session key、verifier、ticket 和 secret 不得进入审计 payload。
 
 ## 数据模型
 

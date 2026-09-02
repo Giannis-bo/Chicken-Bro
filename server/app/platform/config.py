@@ -14,7 +14,8 @@ class AppSettings:
     port: int = 8790
     worker_poll_seconds: float = 1.0
     web_origin: str = "https://www.chickenbro.cloud"
-    web_cookie_name: str = "__Host-wow_v2"
+    web_cookie_name: str = "__Host-chickenbro-session"
+    web_csrf_cookie_name: str = "__Host-chickenbro-csrf"
     web_login_ttl_seconds: int = 300
     web_session_ttl_seconds: int = 604800
     wechat_appid: str = ""
@@ -63,9 +64,19 @@ class AppSettings:
         ):
             raise ValueError("candidate and production Web origin must be HTTPS and origin-only")
 
-        web_cookie_name = env.get("WOW_WEB_COOKIE_NAME", "__Host-wow_v2").strip()
+        web_cookie_name = env.get("WOW_WEB_COOKIE_NAME", "__Host-chickenbro-session").strip()
         if not web_cookie_name.startswith("__Host-") or any(character.isspace() for character in web_cookie_name):
             raise ValueError("WOW_WEB_COOKIE_NAME must use the __Host- prefix")
+        web_csrf_cookie_name = env.get(
+            "WOW_WEB_CSRF_COOKIE_NAME",
+            "__Host-chickenbro-csrf",
+        ).strip()
+        if not web_csrf_cookie_name.startswith("__Host-") or any(
+            character.isspace() for character in web_csrf_cookie_name
+        ):
+            raise ValueError("WOW_WEB_CSRF_COOKIE_NAME must use the __Host- prefix")
+        if web_cookie_name == web_csrf_cookie_name:
+            raise ValueError("Web session and CSRF cookie names must be distinct")
 
         def bounded_int(name: str, default: str, lower: int, upper: int) -> int:
             try:
@@ -101,6 +112,7 @@ class AppSettings:
             worker_poll_seconds=poll_seconds,
             web_origin=web_origin,
             web_cookie_name=web_cookie_name,
+            web_csrf_cookie_name=web_csrf_cookie_name,
             web_login_ttl_seconds=web_login_ttl_seconds,
             web_session_ttl_seconds=web_session_ttl_seconds,
             wechat_appid=env.get("WOW_WECHAT_APPID", "").strip(),

@@ -7,8 +7,9 @@ from pydantic import BaseModel
 
 from server.app.api.dependencies import (
     require_mini_principal,
+    require_mutating_principal,
+    require_principal,
     require_web_origin_dependency,
-    require_web_principal,
     web_auth_application,
 )
 from server.app.api.errors import ApiProblem
@@ -17,7 +18,9 @@ from server.app.identity.application import (
     WebAuthApplication,
 )
 from server.app.identity.domain import Principal
-from server.app.platform.cookies import clear_web_cookie, read_web_cookie, set_web_cookie
+from server.app.identity.request_auth import credential_for_principal
+from server.app.platform.cookies import clear_web_auth_cookies, set_web_auth_cookies
+from server.app.platform.csrf import issue_csrf_token
 
 
 router = APIRouter()
@@ -46,6 +49,7 @@ def _status_for_code(code: str) -> int:
         "WEB_LOGIN_VERIFIER_MISMATCH": 403,
         "WEB_LOGIN_ALREADY_CONSUMED": 409,
         "WEB_LOGIN_NOT_CONFIRMED": 409,
+        "IDENTITY_CONFLICT": 409,
         "WECHAT_NOT_CONFIGURED": 503,
         "WECHAT_PROVIDER_UNAVAILABLE": 502,
     }.get(code, 500)
@@ -139,7 +143,12 @@ def exchange_web_login_session(
         raise
     except AuthApplicationError as error:
         _raise_application_error(error)
-    set_web_cookie(response, request.app.state.settings, issued.token)
+    set_web_auth_cookies(
+        response,
+        request.app.state.settings,
+        session_token=issued.token,
+        csrf_token=issue_csrf_token(),
+    )
     return {"authenticated": True, "requestId": _request_id(request)}
 
 
@@ -198,25 +207,29 @@ def confirm_mini_web_login(
 def logout(
     request: Request,
     response: Response,
-    _origin: None = Depends(require_web_origin_dependency),
-    principal: Principal = Depends(require_web_principal),
+    principal: Principal = Depends(require_mutating_principal),
     application: WebAuthApplication = Depends(web_auth_application),
 ) -> dict[str, object]:
     try:
         application.logout(
             principal,
-            read_web_cookie(request, request.app.state.settings),
+            credential_for_principal(
+                request,
+                principal,
+                request.app.state.settings.web_cookie_name,
+            ),
         )
     except AuthApplicationError as error:
         _raise_application_error(error)
-    clear_web_cookie(response, request.app.state.settings)
+    if principal.session_kind == "web_cookie":
+        clear_web_auth_cookies(response, request.app.state.settings)
     return {"loggedOut": True, "requestId": _request_id(request)}
 
 
 @router.get("/api/v2/me")
 def me(
     request: Request,
-    principal: Principal = Depends(require_web_principal),
+    principal: Principal = Depends(require_principal),
     application: WebAuthApplication = Depends(web_auth_application),
 ) -> dict[str, object]:
     try:
