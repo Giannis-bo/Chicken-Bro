@@ -293,7 +293,7 @@ Local evidence runs the dependency-free credential, CSRF, cookie, redaction and 
 - Consumes: exact target `chickenbro_prod`, existing management role, `WOW_REBUILD_BACKUP_ROOT`, and `docs/refactor/chickenbro-simc-cloud-inventory.json`.
 - Produces: dry-run JSON by default; mutation only with `--apply --inventory-sha <sha256> --backup-device <absolute-path>`.
 
-- [ ] **Step 1: Write failing shell-contract tests**
+- [x] **Step 1: Write failing shell-contract tests**
 
 ```js
 test('provisioning is dry-run by default and never drops wow_test', () => {
@@ -305,17 +305,17 @@ test('provisioning is dry-run by default and never drops wow_test', () => {
 })
 ```
 
-- [ ] **Step 2: Run and verify failure**
+- [x] **Step 2: Run and verify failure**
 
 Run: `node --test tests/provision-chickenbro-database.test.js`
 
 Expected: FAIL because the provisioning script does not exist.
 
-- [ ] **Step 3: Implement preflight and apply gates**
+- [x] **Step 3: Implement preflight and apply gates**
 
 The script must compare the reviewed inventory hash, check `df`/`pg_database_size` again, require the backup root to have a different device ID from PostgreSQL data, create a management-role dump and `pg_restore --list` validation, then create only `chickenbro_prod` and apply `server/migrations/product`. It must abort when the database already exists with an unexpected migration identity.
 
-- [ ] **Step 4: Run dry-run and tests**
+- [x] **Step 4: Run dry-run and tests**
 
 ```bash
 node --test tests/provision-chickenbro-database.test.js
@@ -324,13 +324,15 @@ bash server/provision_chickenbro_database_lighthouse.sh --dry-run
 
 Expected: tests PASS; dry run emits no secret and makes no remote or local PostgreSQL mutation.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/provision_chickenbro_database_lighthouse.sh \
   tests/provision-chickenbro-database.test.js docs/chickenbro-simc-production-runbook.md
 git commit -m "ops: guard clean Chickenbro database provisioning"
 ```
+
+The five shell-contract tests pass. The actual local dry-run is redacted and returns `mutationAuthorized=false` with `blocked_until_independent_legacy_cleanup_or_storage_expansion`; no apply command, PostgreSQL connection, backup write or target creation was attempted.
 
 ### Task 5: Candidate verification and Strict phase packet
 

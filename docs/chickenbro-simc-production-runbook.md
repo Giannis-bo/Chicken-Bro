@@ -124,6 +124,36 @@ runtime role: 无 CREATE SCHEMA / CREATE ROLE / DROP DATABASE 权限
 
 容量门禁或独立备份仍 blocked 时，只封存 `blocked` evidence，不尝试 `--apply`。
 
+### Provisioning 脚本与当前 dry-run
+
+仓库唯一建库入口是 `server/provision_chickenbro_database_lighthouse.sh`。它固定 source=`wow_test`、target=`chickenbro_prod`，默认只读取已审阅 inventory/project-state 并输出一行 JSON；不会在 dry-run 中检查本机 PostgreSQL 命令、访问数据库或写备份。
+
+```bash
+INVENTORY_SHA="$(python3 - <<'PY'
+from hashlib import sha256
+from pathlib import Path
+print(sha256(Path('docs/refactor/chickenbro-simc-cloud-inventory.json').read_bytes()).hexdigest())
+PY
+)"
+bash server/provision_chickenbro_database_lighthouse.sh \
+  --dry-run --inventory-sha "${INVENTORY_SHA}"
+```
+
+当前审阅文件 SHA-256 是 `1466a227e882125ddd342c9518025b583b7bbead80dabb193f29997ff41e80c6`；实际 dry-run 返回 `mutationAuthorized=false` 和 `blocked_until_independent_legacy_cleanup_or_storage_expansion`。文件刷新后必须重新计算并评审 SHA，不能继续使用这里的历史值。
+
+只有 `candidateDatabaseProvisioningAuthorized=true`、最新 inventory 为 `reachable` 且无 probe error、capacity gate 已进入 `capacity_preflight_required`、独立备份与恢复证据已通过时，才可准备以下命令；当前禁止执行：
+
+```bash
+sudo -E server/provision_chickenbro_database_lighthouse.sh \
+  --apply \
+  --inventory-sha "${INVENTORY_SHA}" \
+  --backup-device /absolute/approved-independent-device
+```
+
+apply 还要求：`WOW_REBUILD_BACKUP_ROOT` 位于上述独立设备且 mode=0700，`WOW_REBUILD_MANAGEMENT_ROLE` 是已审阅管理角色，PostgreSQL 数据与备份根的 device ID 不同，实时数据库总量与 inventory 漂移不超过 5%，PostgreSQL 与备份设备分别满足余量，runtime role 无 database/schema 创建权限。脚本先对 `wow_test` 生成 custom archive 并通过 `pg_restore --list`，再创建目标并逐个事务应用 product migrations。restore-list 不是恢复演练；候选授权仍必须引用独立的真实恢复证据。
+
+如果目标已存在，脚本只接受精确 schema/table/migration/owner/权限 identity 且零连接，否则停止。新目标创建后的迁移失败不会自动移除数据库，而会在独立备份 run 中留下 `failed_requires_operator_review`，由操作者只读检查后另行处理。
+
 ## 5. 候选全量迁移
 
 迁移器只从明确源表读取，并为每条记录产生：

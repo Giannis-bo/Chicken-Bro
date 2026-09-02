@@ -7,6 +7,8 @@ CREATE SCHEMA chat;
 CREATE SCHEMA simc;
 CREATE SCHEMA ops;
 
+REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+
 CREATE TABLE identity.users (
     id uuid PRIMARY KEY,
     display_name text NOT NULL DEFAULT '' CHECK (length(display_name) <= 256),

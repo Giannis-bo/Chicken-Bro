@@ -118,6 +118,11 @@ class ProductSchemaStaticTest(unittest.TestCase):
             if "ops.audit_events" in grant:
                 self.assertNotRegex(grant, r"\b(?:UPDATE|DELETE|TRUNCATE)\b")
 
+    def test_default_public_schema_cannot_bypass_product_schema_ownership(self):
+        """Catches leaving the runtime role able to create ungoverned public objects."""
+        sql = _normalized_sql()
+        self.assertIn("REVOKE CREATE ON SCHEMA public FROM PUBLIC", sql)
+
 
 class _Result:
     def __init__(self, row=None):
