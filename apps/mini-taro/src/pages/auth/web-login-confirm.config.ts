@@ -3,4 +3,3 @@ export default definePageConfig({
   navigationBarTitleText: '确认 Web 登录',
   navigationStyle: 'custom',
 })
-
