@@ -1,0 +1,97 @@
+{
+  "schemaVersion": 1,
+  "slug": "chickenbro-simc-control-plane",
+  "classification": "Strict",
+  "status": "implementation_allowed",
+  "goal": "建立双端 Chickenbro Chat 与 SimC 彻底重构的唯一 current truth、精确本地 keep/delete/migrate 清单、脱敏云端只读盘点、当前架构和生产恢复 runbook。",
+  "userValue": "后续身份、Chat、SimC、双端切流和 legacy 删除都从同一份可审阅、可验证、可恢复的清单推进，不会误删正在运行的数据或继续扩展旧产品。",
+  "nonGoals": [
+    "本阶段不修改 Identity、Chat、SimC、Worker 或客户端业务运行时。",
+    "本阶段不安装依赖、不构建或运行本地 SimulationCraft、不部署 candidate、不切换生产流量。",
+    "本阶段不写入或删除云端数据库、服务、timer、环境文件、部署目录、静态资源或备份。",
+    "本阶段不把只读盘点、HTTP 200、systemd active、测试通过或磁盘统计描述为整体重构完成。"
+  ],
+  "currentTruth": {
+    "sources": [
+      "docs/project-state.json",
+      "docs/roadmap.md",
+      "docs/plans/README.md",
+      "docs/harness.md",
+      "docs/verification-matrix.md",
+      "docs/superpowers/specs/2026-09-02-chickenbro-simc-total-rebuild-design.md",
+      "docs/superpowers/plans/2026-09-02-chickenbro-simc-rebuild-01-control-plane.md"
+    ],
+    "activeMilestone": "chickenbro_simc_total_rebuild_phase_1",
+    "featureIteration": "implementation_authorized_phase_1_in_progress"
+  },
+  "impactMap": {
+    "mustChange": [
+      "deterministic tracked-file disposition rules and generated local inventory",
+      "redacted read-only cloud inventory and capacity gate",
+      "single current Chickenbro-SimC architecture and production recovery runbook",
+      "project state, plan index, owner maps and verification matrix bindings",
+      "task-scoped Strict requirement, evidence and manifest"
+    ],
+    "mustNotChange": [
+      "server/app and apps/mini-taro product runtime behavior",
+      "packages/domain and packages/api-client runtime contracts",
+      "legacy and v2 production ingress, services, timers and database connections",
+      "wow_test, wow_v2_candidate, gear evidence databases and all cloud data",
+      "Active Manifest, SimulationCraft runtime pointer, Nginx/TLS and credentials"
+    ],
+    "riskUnknown": [
+      "The 2026-09-02 cloud inventory can drift and must be refreshed read-only before any later mutation.",
+      "SSH reachability may prevent a fresh cloud snapshot; unreachable must remain explicit rather than inferred from public HTTP.",
+      "The repository contains 2746 tracked files and historical evidence; classification must fail closed on unmatched or multiply matched paths."
+    ],
+    "evidenceRequired": [
+      "deterministic local inventory tests with zero unresolved entries and exact file hashes",
+      "cloud inventory redaction and capacity-gate tests plus explicit freshness or unreachable status",
+      "project-state and current-authority tests",
+      "retained plan-index and local Markdown link coverage",
+      "git diff check, local CR and one complete task-scoped Harness packet"
+    ]
+  },
+  "ownership": {
+    "factOwner": "docs/superpowers/specs/2026-09-02-chickenbro-simc-total-rebuild-design.md",
+    "inventoryOwner": "docs/refactor/chickenbro-simc-refactor-inventory.json",
+    "cloudInventoryOwner": "docs/refactor/chickenbro-simc-cloud-inventory.json",
+    "consumers": [
+      "docs/project-state.json",
+      "docs/project-owner-map.json",
+      "docs/backend-owner-map.json",
+      "docs/verification-matrix.md",
+      "docs/chickenbro-simc-architecture.md",
+      "docs/chickenbro-simc-production-runbook.md",
+      "Phase 2 through Phase 6 implementation plans"
+    ]
+  },
+  "engineeringHealth": {
+    "status": "health_safe",
+    "reason": "Phase 1 is limited to local documentation/tooling and read-only redacted inspection; runtime and cloud mutations are explicitly forbidden."
+  },
+  "acceptanceEvidence": [
+    "node --test tests/chickenbro-simc-refactor-inventory.test.js tests/project-state.test.js",
+    "python3 -m unittest tests.chickenbro_simc_cloud_inventory_test -v",
+    "node scripts/verify-project.js --profile harness --release artifacts/releases/2026-09-02-chickenbro-simc-control-plane",
+    "node scripts/project-harness.js --check --requirement-file artifacts/releases/2026-09-02-chickenbro-simc-control-plane/requirement.json --evidence-file artifacts/releases/2026-09-02-chickenbro-simc-control-plane/evidence.json --manifest-file artifacts/releases/2026-09-02-chickenbro-simc-control-plane/manifest.json --base origin/main"
+  ],
+  "manualAcceptanceContract": {
+    "required": false,
+    "requiredItemIds": []
+  },
+  "releaseTrigger": "docs_tooling_only",
+  "rollback": [
+    "code_rollback"
+  ],
+  "decisionLog": [
+    {
+      "date": "2026-09-02",
+      "decision": "用户确认书面规格并要求通过持续 Goal 推进整体完成；当前按阶段门禁只执行 Phase 1 控制面。"
+    },
+    {
+      "date": "2026-09-02",
+      "decision": "当前容量快照为根盘约 8.1GB 可用、小于现用数据库约 15GB；后续建库前必须独立清理或扩容，本阶段不做容量 mutation。"
+    }
+  ]
+}

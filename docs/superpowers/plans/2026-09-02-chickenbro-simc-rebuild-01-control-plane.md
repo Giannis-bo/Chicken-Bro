@@ -36,6 +36,38 @@
 - Modify `docs/project-state.json`, `docs/project-owner-map.json`, `docs/backend-owner-map.json`, `docs/verification-matrix.md`, `docs/plans/README.md`: point current control-plane readers at the new artifacts.
 - Create `artifacts/releases/2026-09-02-chickenbro-simc-control-plane/{requirement,evidence,manifest}.json`: one Strict phase packet.
 
+### Task 0: Open the Strict Phase 1 requirement
+
+**Files:**
+- Create: `artifacts/releases/2026-09-02-chickenbro-simc-control-plane/requirement.json`
+
+**Interfaces:**
+- Consumes: approved design, six implementation plans, current state, roadmap, and Harness schema.
+- Produces: one `implementation_allowed` Strict requirement that permits only Phase 1 read-only/local control-plane work.
+
+- [ ] **Step 1: Write the exact requirement before implementation**
+
+Set `manualAcceptanceContract.required` to `false`, `releaseTrigger` to `docs_tooling_only`, rollback to `code_rollback`, and protected surfaces to application runtime, production ingress, database state, services/timers, credentials, and Active Manifest. Evidence requirements are deterministic inventory, redacted read-only cloud audit, current-authority tests, link/plan coverage, and local CR.
+
+- [ ] **Step 2: Validate the requirement**
+
+Run:
+
+```bash
+node scripts/project-harness.js --check-requirement \
+  --requirement-file artifacts/releases/2026-09-02-chickenbro-simc-control-plane/requirement.json
+```
+
+Expected: exit 0 and a valid Strict requirement.
+
+- [ ] **Step 3: Commit the requirement before Task 1**
+
+```bash
+git add artifacts/releases/2026-09-02-chickenbro-simc-control-plane/requirement.json \
+  docs/superpowers/plans/2026-09-02-chickenbro-simc-rebuild-01-control-plane.md
+git commit -m "chore: open rebuild control plane requirement"
+```
+
 ### Task 1: Deterministic local keep/delete/migrate inventory
 
 **Files:**
@@ -233,9 +265,9 @@ git commit -m "docs: activate Chickenbro SimC rebuild control plane"
 - Consumes: committed inventory, documentation, tests, and exact Git identities from Tasks 1-3.
 - Produces: one complete Harness packet whose evidence status is no stronger than local verification and read-only cloud reachability.
 
-- [ ] **Step 1: Create the Strict requirement before implementation commits continue**
+- [ ] **Step 1: Revalidate the already-open Strict requirement**
 
-Set `classification` to `Strict`, manual acceptance to `false`, rollback to `code_rollback`, and required evidence to local inventory determinism, cloud audit redaction, current-state tests, link integrity, and local CR. Do not include deployment, cutover, or cleanup claims.
+Confirm it still permits only Phase 1 control-plane work and does not include deployment, cutover, migration, or cleanup claims.
 
 - [ ] **Step 2: Run the full phase verification**
 
