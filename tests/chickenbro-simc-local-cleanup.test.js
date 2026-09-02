@@ -210,6 +210,30 @@ test('plain prose and cleanup-control fixtures are not treated as runtime caller
   assert.deepEqual(result.deletable.map((item) => item.path), ['app.js', 'server/legacy.py'])
 })
 
+test('immutable current-rebuild evidence records do not act as live callers', () => {
+  const { verifyCleanup } = loadCleanup()
+  const legacy = entry('server/legacy.py', 'delete', 'old\n')
+  const evidence = {
+    ...entry(
+      'artifacts/releases/current/manifest.json',
+      'keep',
+      '{"observedPath":"server/legacy.py"}\n',
+      'current-release-evidence',
+    ),
+    matchedRule: 'current-rebuild-release-packet',
+  }
+  const result = verifyCleanup(
+    inventoryFor([legacy, evidence]),
+    memoryRepository({
+      'server/legacy.py': 'old\n',
+      'artifacts/releases/current/manifest.json': '{"observedPath":"server/legacy.py"}\n',
+    }),
+  )
+
+  assert.deepEqual(result.blocked, [])
+  assert.deepEqual(result.deletable.map((item) => item.path), ['server/legacy.py'])
+})
+
 test('unclassified tracked files and inventory identity drift are review blockers', () => {
   const { verifyCleanup } = loadCleanup()
   const keep = entry('README.md', 'keep', 'current\n')
@@ -291,7 +315,7 @@ test('apply is atomic, exact, and requires Phase 5 accepted production evidence'
   assert.equal(readyRepository.has('current/keep.js'), true)
 })
 
-test('CLI defaults to dry-run and current repository cannot cross the Phase 5 gate', () => {
+test('CLI may prove a clean manifest but cannot cross the Phase 5 acceptance gate', () => {
   const result = spawnSync(process.execPath, [
     cleanupPath,
     '--inventory',
@@ -305,7 +329,9 @@ test('CLI defaults to dry-run and current repository cannot cross the Phase 5 ga
   const payload = JSON.parse(result.stdout)
   assert.equal(payload.mode, 'dry-run')
   assert.equal(payload.mutationAuthorized, false)
-  assert.ok(payload.counts.review > 0 || payload.counts.blocked > 0)
+  assert.equal(payload.counts.review, 0)
+  assert.equal(payload.counts.blocked, 0)
+  assert.ok(payload.counts.deletable > 0)
 
   const apply = spawnSync(process.execPath, [
     cleanupPath,

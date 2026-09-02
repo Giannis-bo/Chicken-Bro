@@ -181,6 +181,10 @@ function findRetainedCallers(deletePaths, retainedEntries, repository) {
   const callers = new Map([...deletePaths].map((target) => [target, new Set()]))
   for (const entry of retainedEntries) {
     if (entry.matchedRule === 'rebuild-inventory-owner') continue
+    if (
+      entry.matchedRule === 'current-rebuild-release-packet'
+      && entry.category === 'current-release-evidence'
+    ) continue
     if (!repository.isRegularFile(entry.path)) continue
     const bytes = repository.readFile(entry.path)
     if (!isText(bytes)) continue

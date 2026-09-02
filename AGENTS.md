@@ -1,111 +1,72 @@
 # Repository Agent Guidelines
 
-This repository maintains a project roadmap as shared context for all agents and development environments. Every agent working in this repo should follow these rules before planning or changing product direction.
+This repository is being rebuilt around one product: Chickenbro Chat and SimulationCraft tasks shared by the WeChat Mini Program and Web client.
 
-## Current State First
+## Current Truth
 
-- Read [docs/project-state.json](docs/project-state.json) before [docs/roadmap.md](docs/roadmap.md) for Standard / Strict work. `project-state.json` is the machine-readable current status index: active milestone, feature freeze, task-scoped release resolution policy, local default release packet, accepted baselines, and historical contracts. PR CI selects the unique complete task packet from the branch diff; `defaultLocalReleaseArtifact` is only a local fallback and never owns CI evidence selection.
-- Read [docs/roadmap.md](docs/roadmap.md) after `project-state.json` before making product, UX, data, backend, simulator, WebSim, deployment, or prioritization decisions.
-- For frontend work, read [docs/plans/ui-reconstruction.md](docs/plans/ui-reconstruction.md), [DESIGN.md](DESIGN.md), and [docs/design/current-ui/README.md](docs/design/current-ui/README.md) after the roadmap. These are the only active UI execution authorities.
-- Do not scan `docs/plans/` by date or treat directory presence as authority. [docs/plans/README.md](docs/plans/README.md) is the explicit plan whitelist; a domain plan may be read only when a current architecture or runbook links to that exact file.
-- Only files reachable from the current roadmap, plan whitelist, design contract, current UI control plane, or a stable architecture/runbook may influence implementation. Git history and unlinked files are not execution context.
-- Keep the existing Taro workspace, typed data/API layers, route behavior, build tooling, and the 14 files listed in `docs/design/current-ui/target-registry.json`. Source components and runtime utility assets are implementation inputs, not visual evidence.
-- Target geometry must come from an isolated target-only measurement. Runtime output, existing CSS, old review reports, component dimensions, and prior redlines may not write or adjust target bounds.
-- Pass `news_home` first, then the other two baselines and the remaining eleven routes. Fix shared rendering contracts in shared owners and do not add route-private visual patches for shared defects.
-- Use [docs/roadmap/ideas.md](docs/roadmap/ideas.md) as the intake pool for loose ideas, local discussion outcomes, and directions that are not yet committed to a milestone.
-- Delete superseded frontend execution documents and evidence from the working tree. Git history is the archive.
-- Do not append execution timelines to `docs/roadmap.md`. Keep it short enough to be read as control context; attach current evidence through stable architecture/runbook/source links.
+- Read [docs/project-state.json](docs/project-state.json), then [docs/roadmap.md](docs/roadmap.md), before Standard or Strict work.
+- Use [docs/chickenbro-simc-architecture.md](docs/chickenbro-simc-architecture.md) for ownership and dependency direction, and [docs/chickenbro-simc-production-runbook.md](docs/chickenbro-simc-production-runbook.md) for migration, deployment, rollback, recovery and retirement.
+- [docs/plans/README.md](docs/plans/README.md) is the only implementation-plan whitelist. Directory presence and Git history are not execution authority.
+- [docs/verification-matrix.md](docs/verification-matrix.md), [docs/project-owner-map.json](docs/project-owner-map.json) and [docs/backend-owner-map.json](docs/backend-owner-map.json) define the current verification and owner control plane.
+- Keep `docs/roadmap.md` concise. Put unconfirmed ideas in [docs/roadmap/ideas.md](docs/roadmap/ideas.md); do not revive deleted product domains through an incidental note or historical artifact.
 
-## Superpowers Method-Layer Integration
+## Product Boundary
 
-- At the start of work, inspect the skills exposed in the current Codex session. If a relevant `superpowers:*` skill is present, load it through Codex's native skill system; if it is not exposed, report that fact and continue with the safe Harness fallback. Do not use the removed legacy bootstrap entrypoint under `~/.codex/superpowers/.codex/`.
-- Harness is the project control plane. It alone determines task classification, current-truth sources, verification profile, candidate deployment, evidence promotion, approval boundary, execution topology, and closure. Superpowers is a method layer and must not relax, duplicate, or replace those decisions.
-- Light Fast Lane defaults to the smallest applicable method set. Do not require design/plan, worktree, parallel-agent, or branch-finish skills merely because they are installed; retain the Fast Lane's targeted verification and one local CR. Use a debugging or test-first method only when it addresses a concrete behavior or regression risk.
-- For Standard and Strict work, select planning, debugging, TDD, review, and verification skills only when they reduce a concrete delivery risk. Their output belongs in the existing Harness contract, plan, evidence packet, or review; do not create a parallel process artifact solely for the skill.
-- The agent chooses whether isolation is beneficial. A worktree skill may detect or create isolation after that decision, but may not prompt the user to choose topology, auto-install dependencies, or replace the repository's targeted-baseline rule. Parallel-agent skills are reserved for genuinely independent tasks and do not introduce a lane registry or resource-lease process.
-- Harness User Acceptance Closure controls integration. Do not present a branch-finish menu after the user has supplied the explicit closure authorization required by Harness. Before any completion claim, use fresh evidence chosen by the Harness verification matrix.
+- The only user-facing business functions are Chickenbro conversations and SimC jobs.
+- The Mini Program has Chat, SimC submit/list/detail and the Web-login confirmation page. Web exposes the same Chat and SimC data after login.
+- Mini Bearer sessions and Web HttpOnly sessions remain independent transports. Both resolve through server-owned identity mapping to the same opaque internal `user_id`.
+- Shared history lives on the server and is owner-scoped. Never synchronize cookies, OpenID, access tokens or client-local history between clients.
+- Web login uses an opaque, short-lived, single-use Mini confirmation ticket. Never place `user_id`, OpenID, tokens or personal data in the scene.
+- Out-of-scope news, gear, talent, profile, old simulator, WebSim and prototype APIs may be used only as fenced migration or rollback inputs until retirement; they cannot gain new product behavior.
 
-## Capturing Confirmed Ideas
+## User Experience and Acceptance
 
-- When the user clearly confirms an idea with “OK”, “认可”, “就按这个”, or an equivalent approval, update the roadmap system in the same turn whenever practical.
-- If the idea is still exploratory, add it to `docs/roadmap/ideas.md` with source, problem, benefit, risk/question, suggested milestone, and status.
-- If the idea is already decision-ready and belongs to an active direction, update `docs/roadmap.md` with the milestone, user value, key actions, completion criteria, and evidence links.
-- If it is not practical to edit docs in the current turn, explicitly remind the user that the idea should be captured in the roadmap.
+- Lead product discussions with the user scenario, visible friction, proposed normal and exception paths, observable acceptance, then implementation details.
+- Cross-client acceptance requires: Mini login; Mini-confirmed Web login; Chat created and continued from both directions; one SimC job visible with the same status/result from both clients; second-user isolation; independent logout.
+- A prototype bypass, HTTP 200, running service, dry-run, successful process exit, Candidate label or SimC return code 0 is not user acceptance.
+- Keep verified facts, inference and unresolved assumptions separate. Technical constraints become primary when they affect privacy, data truth, availability, recovery or rollback.
 
-## Experience-First Product Discussions
+## Engineering Boundaries
 
-- For every feature, bug, or requirement discussion, lead with the user's perspective before implementation details: who is in which scenario, what they are trying to accomplish, where the current journey fails, and what observable result would feel complete.
-- Default discussion order is: user goal and scenario; current friction or harm; proposed experience and main/exception paths; user-visible acceptance and trust boundary; then technical options, constraints, risks, and implementation plan.
-- For bugs, state the user-visible symptom, impact, and expected recovery before naming the suspected file, API, or root cause. Read-only investigation may start immediately, but a proposed fix must be framed in the user journey.
-- Keep verified facts, product hypotheses, and technical assumptions explicitly separate. Do not turn an implementation convenience, an incomplete data source, or internal evidence into a user-facing promise.
-- Technical details remain mandatory when they alter user trust, data truth, privacy, latency, availability, rollback, or the feasible experience. They are the second layer by default, and become the primary layer when the user explicitly asks for technical design or implementation.
-- A discussion is ready to enter implementation only when it includes both user-visible acceptance criteria and the appropriate Harness evidence/rollback criteria. Do not replace either with the other.
+- Preserve the Taro workspace, typed domain/API layers and explicit `mini`, `web` or `public` transport context.
+- Server applications own identity, Chat, SimC and worker behavior; route modules adapt HTTP only. Clients never select ownership or trust identities supplied in request bodies.
+- Chat sends and SimC submissions are idempotent. Queue claims use leases and ownership checks; semantic SimC results require positive domain metrics and provenance.
+- Keep the SimC runtime on the cloud server. Do not install or run SimulationCraft locally.
+- Protect dirty worktrees and unrelated user changes. Never reset, clean, force-push, rewrite history or overwrite work in place.
 
-## Status Discipline
+## Superpowers and Harness
 
-- Use the roadmap status labels consistently: `已完成`, `正在推进`, `下一步`, `后续`, `暂缓`, `待决策`.
-- Do not invent undocumented historical decisions. If an idea cannot be verified from the repo, current conversation, or user confirmation, mark it as `待补录` or `待确认` in `docs/roadmap/ideas.md`.
-- When work completes, update status and evidence links instead of rewriting old plan documents.
+- If a relevant `superpowers:*` skill is exposed, use it as a method layer. Harness remains the repository control plane for scope, evidence, release and closure.
+- Choose planning, debugging, TDD, review, worktree or parallel methods only when they reduce a concrete delivery risk; do not create a second authority document for a method.
+- Use the smallest applicable verification for a bounded Light change. Standard and Strict work must follow the current phase plan and verification matrix.
 
-## Review Workflow
+## Verification Discipline
 
-- Use local CR as the primary pre-merge review path. Inspect the diff directly, read relevant project docs/context, run targeted verification with local tests, smoke checks, or runtime logs as appropriate, and report findings with file/line references.
-- Before commit, push, deployment, or handoff, review the diff against the roadmap and current plan boundaries, fix technically valid findings, and re-run the relevant verification.
-- Review only against the current roadmap, active plan, route contracts, source diff, tests, and fresh evidence.
-- `codex review` is optional second-opinion review only. Do not treat it as a required gate. If it is unavailable, slow, times out, hangs, or fails due to CLI argument/config/auth/environment issues, record that fact briefly and continue with local CR plus targeted tests.
-- When reviewing uncommitted work, use `codex review --uncommitted` only. When reviewing committed branch changes against a base branch, use `codex review --base <base>` only. Do not combine `--uncommitted` with `--base`.
-- Do not block commit, deploy, or handoff solely because `codex review` failed or did not return. Blocking decisions should come from local CR findings, failing tests, unsafe diff state, or unresolved user/product requirements.
+- Use local code review as the primary pre-merge review. Review the source diff against current owners, plans and contracts, then run fresh targeted tests.
+- `codex review` is optional second-opinion evidence and never the sole gate.
+- Treat local, Candidate, live, user-accepted and recovery-verified evidence as separate levels. Never promote partial, skipped, blocked or stale evidence.
+- Missing dependencies may be reported as an environment limitation; do not install or download them without the required explicit authorization.
+- Before a completion claim, run the fresh checks selected by the verification matrix and verify the exact commit/build/runtime identities involved.
 
-## Imagegen Asset Handling Guard
+## Candidate, Cutover and Cleanup
 
-- Imagegen and image-based design work are allowed. The guard prevents large image payloads from entering the long-lived main project session; it does not replace visual review with text-only guessing.
-- Do not load generated/reference PNG payloads into the main session with `view_image`, raw reads, base64, data URLs, Markdown embeds, or serialized image-tool/thread outputs.
-- Never inspect an imagegen task with thread/history readers such as `read_thread`, even with output inclusion disabled: completed image-generation records may still serialize the full PNG payload. Observe completion only through agent status plus filesystem path, mtime, byte-size, and hash metadata.
-- Run generation and visual review in disposable isolated contexts. Review one route target, or one target/runtime pair, at a time and return only whitelisted paths, metadata, structured differences, and status.
-- Target and runtime metadata may be checked by filesystem tools, but visual payloads remain confined to disposable contexts.
-- Image generation alone never proves design lock, component fidelity, runtime acceptance, or release readiness.
+- Runtime/API/data/client changes should pass an isolated Candidate before production cutover when feasible. Record commit/build identity, database identity, smoke results and rollback.
+- Keep async backfill/sync disabled unless the task explicitly requires it.
+- Production cutover and destructive retirement are distinct gates. A successful Candidate never authorizes deletion.
+- Local cleanup must use the commit-bound, per-file SHA inventory and must have zero `review` and zero retained callers.
+- Cloud cleanup must use an exact manifest, protect the new database/services/current SimC runtime, and prove zero connections plus zero live configuration references for every retired database or service.
+- No destructive cleanup may run before independent restore verification, capacity readiness, real Mini/Web acceptance, first-new-write reconciliation and a stable production-health window.
+- Git history is the archive for deleted legacy code and documents; recovery-critical production data requires an independent restore-verified backup.
 
-## Candidate Deployment Before Merge
+## Remote Operations
 
-- For backend/API, PG read model, public payload, health/admin, scheduled jobs, deploy scripts, or user-visible runtime changes, use the PR branch or equivalent candidate build for deployment/preview smoke before merging when feasible.
-- Candidate smoke must record the branch or commit identity, runtime file parity or build identity, the relevant health/API/read-model/UI smoke results, timer/sync/backflow state, and rollback path.
-- For the known cloud deployment path, routine SSH inspection, hot deploy, service restart, logs, and HTTP/API smoke remain covered once the user asks for deployment, sync, smoke, or remote verification work. Keep async sync/backfill off by default with `WOW_DEPLOY_START_ASYNC_SYNCS=0` unless the task explicitly requires triggering it.
-- If pre-merge candidate deployment is impossible, mark it as an exception/correction, merge only with a clear reason, then immediately run post-merge live smoke and record evidence. Do not treat post-merge-only validation as the normal path for runtime changes.
-- This rule does not authorize dependency installs, third-party downloads, remote changes, force pushes, arbitrary production operations, or destructive history rewrites.
+- Routine project-remote synchronization and known-server inspection/deployment operations follow the repository's existing approval boundaries. Inspect local status first and preserve unrelated changes.
+- Stop for force pushes, history rewrites, new dependencies, arbitrary third-party downloads, remote conflicts, changed providers/repos, or any operation outside the current authorization.
+- Keep secrets out of logs, files and evidence. Inspect only whether required credentials are configured; never print their values.
 
-## Cloud Deployment Approval
+## Roadmap and Closure
 
-- For this repository, routine operations on the known cloud server do not require an extra approval prompt once the user asks for deployment, sync, smoke, or remote verification work.
-- Covered operations include SSH inspection, remote backups, applying repository-owned database migrations, copying changed project files to the existing deployment directory, restarting existing services, checking logs, and HTTP smoke tests.
-- Server-side SimulationCraft runtime updates on the known cloud server are also covered once the user asks for SimC update, SimC sync, WebSim/SimC readiness repair, deployment, cutover-readiness work, or authorizes the health follow-up automation for SimC. Covered SimC operations include downloading the configured SimulationCraft source archive from the configured repo/branch, building it under `/opt/wow-simc`, atomically switching `/opt/wow-simc/current`, updating `/opt/wow-simc/.commit` and version state, restarting or triggering existing project services, and running SimC/API smoke checks. `wow-data-health-followup.timer` may automatically trigger the configured `wow-simc-runtime-update.service` when `/api/data/health` reports the configured SimC runtime has `updateAvailable=true`.
-- This does not turn local downloads, arbitrary third-party downloads, dependency installation, repository cloning/pulling, remote git push/pull, or changing `SIMC_GITHUB_REPO` / `SIMC_BRANCH` into implicit actions; those still follow the Network / Download Approval rule unless the user explicitly includes them in the current request.
-
-## Repository Remote Sync Approval
-
-- For this repository, routine synchronization between this working copy and the configured project remote does not require an extra approval prompt.
-- Covered operations include `git fetch`, `git pull --ff-only`, `git push`, publishing project branches, creating or updating pull requests, reading PR or commit status, and merging approved project pull requests.
-- Before local sync, inspect `git status --short --branch`. Preserve unrelated local changes and prefer fast-forward-only updates for `main`.
-- If sync is non-fast-forward, conflicts with local work, needs a force push, rewrites history, changes remotes, clones another repository, updates submodules, installs dependencies, or downloads third-party assets/data, stop and get explicit user confirmation unless the current user request already includes that operation.
-
-## Execution Topology and User-Accepted Closure
-
-- Agent independently chooses whether a task benefits from subagents, a worktree, a normal feature branch, or inline execution. Do not ask the user to select these internal mechanics; only report the selected approach when it affects a real risk or blocker.
-- An explicit, bounded Light change with no API, data, owner, runtime, deployment, or user-promise semantic change uses the Harness Light Fast Lane: give one concise scope/risk/verification summary, ask only one clarification when user-visible behavior is genuinely ambiguous, then implement and run targeted verification. Do not create design/plan artifacts or add confirmation gates merely to satisfy process.
-- If the task needs user manual verification, treat only an explicit post-test acceptance such as “我已测试通过”“可以收尾”或“合入吧” as closure authorization. A mid-flow “OK” means only that the current discussion or step may continue.
-- After that acceptance, automatically run final local CR, commit the task branch, sync and merge `main` without history rewrite, re-run scoped verification on the merge result, push `main`, verify local/`origin/main` SHA parity, and remove the task worktree/local branch plus an existing published task branch. Do not show a delivery-options menu.
-- If the accepted task changed the active WeChat frontend, after `main` parity is verified run `npm run refresh:weapp` from the latest main checkout before cleanup. This command must rebuild and verify `apps/mini-taro/dist/weapp`, then open `apps/mini-taro` through the official DevTools CLI when available. If CLI discovery or the DevTools service port is unavailable, report the manual handoff and `WECHAT_DEVTOOLS_CLI` override explicitly; do not present a verified build as completed DevTools refresh or new manual acceptance.
-- Stop that sequence for a local/remote conflict, failed verification, scope expansion, destructive history change, or any action outside the repository's existing approvals.
-
-## Autonomous Progression
-
-- Once the user approves a plan, says to continue, or authorizes direct execution, continue through the next in-scope implementation, verification, sync, PR, and handoff steps without asking for approval at every routine step.
-- Keep interim updates concise and focused on meaningful state changes, verification results, or newly discovered risk. Do not interrupt just to ask whether to run the next obvious command.
-- Stop and ask only when there is a clear blocker, failed verification that needs a tradeoff, unresolved product or technical decision, scope expansion, destructive or irreversible operation, local/remote conflict, or an action outside the repository's existing approval boundaries.
-- If no blocker or decision point exists, move to the next planned step and record the resulting evidence in the current roadmap, runbook, plan, PR, or artifact as appropriate.
-
-## Scope Boundaries
-
-- The roadmap is the long-lived product and engineering control plane. It does not replace detailed task plans.
-- Concrete implementation plans may still live in `docs/plans/`.
-- Product direction, data trust rules, SimC/WebSim contracts, release readiness, and personal-workspace ideas should all be routed through the roadmap system.
-- For implemented features, current code and live verification take precedence over documentation wording. Retain a domain plan only while a current architecture document or runbook links to it.
+- Use status labels consistently: `已完成`, `正在推进`, `下一步`, `后续`, `暂缓`, `待决策`.
+- When the user confirms a product decision, update the roadmap system in the same turn whenever practical.
+- A mid-flow “OK” authorizes continuation, not manual acceptance. Closure requires an explicit post-test acceptance such as “我已测试通过”, “可以收尾” or “合入吧”.
+- After accepted closure, run final review and verification, integrate without history rewrite, push `main`, verify local/remote/deployed parity, refresh the WeChat preview when applicable, and remove the finished task worktree/branch only after safety checks.
