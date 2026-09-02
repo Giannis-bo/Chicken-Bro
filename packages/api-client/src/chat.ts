@@ -165,6 +165,7 @@ export function createChatClient(transport: ApiTransport): ChatClient {
         return { abort() {} }
       }
       let rejected = false
+      let terminalSeen = false
       return requestSse(
         apiV2Path(`/chat/conversations/${encodeURIComponent(id)}/messages/stream`),
         {
@@ -183,13 +184,21 @@ export function createChatClient(transport: ApiTransport): ChatClient {
             if (!isChatEventEnvelope(event)) {
               rejected = true
               options.onFailure('invalid chat stream event')
-              return
+              throw new Error('invalid chat stream event')
             }
+            terminalSeen = event.type === 'completed' || event.type === 'failed'
+              ? true
+              : terminalSeen
             options.onEvent(event)
           },
           onFailure: (error) => {
             if (rejected) return
             options.onFailure(streamFailureCode(error))
+          },
+          onEnd: () => {
+            if (rejected || terminalSeen) return
+            rejected = true
+            options.onFailure('chat stream ended before a terminal event')
           },
         },
       )

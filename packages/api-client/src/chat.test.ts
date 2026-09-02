@@ -153,16 +153,80 @@ describe('formal Chat client', () => {
       runId: 'run-one',
       sequence: 1,
     })
-    stream?.options.onEvent({
+    expect(() => stream?.options.onEvent({
       type: 'delta',
       requestId: 'request-one',
       conversationId: 'conversation-one',
       runId: 'run-one',
       sequence: 0,
       text: 'bad',
-    })
+    })).toThrow('invalid chat stream event')
 
     expect(events).toHaveLength(1)
     expect(failures).toEqual(['invalid chat stream event'])
   })
+
+  it('fails closed when a successful transport ends before a Chat terminal event', () => {
+    const transport = new RecordingTransport()
+    const client = createChatClient(transport)
+    const failures: string[] = []
+
+    client.streamMessage(
+      'conversation-one',
+      { content: '问题', clientMessageId: 'client-one' },
+      {
+        auth: { kind: 'mini', accessToken: 'mini-token' },
+        idempotencyKey: 'request-one',
+        onEvent: () => {},
+        onFailure: (error) => failures.push(error),
+      },
+    )
+    const stream = transport.streams[0]
+    stream?.options.onEvent({
+      type: 'started',
+      requestId: 'request-one',
+      conversationId: 'conversation-one',
+      runId: 'run-one',
+      sequence: 1,
+    })
+    stream?.options.onEnd?.()
+
+    expect(failures).toEqual(['chat stream ended before a terminal event'])
+  })
+
+  it.each(['completed', 'failed'] as const)(
+    'accepts a natural transport end after a %s Chat event',
+    (terminalType) => {
+      const transport = new RecordingTransport()
+      const client = createChatClient(transport)
+      const events: unknown[] = []
+      const failures: string[] = []
+
+      client.streamMessage(
+        'conversation-one',
+        { content: '问题', clientMessageId: 'client-one' },
+        {
+          auth: { kind: 'web', csrfToken: 'web-csrf' },
+          idempotencyKey: 'request-one',
+          onEvent: (event) => events.push(event),
+          onFailure: (error) => failures.push(error),
+        },
+      )
+      const stream = transport.streams[0]
+      const base = {
+        type: terminalType,
+        requestId: 'request-one',
+        conversationId: 'conversation-one',
+        runId: 'run-one',
+        sequence: 1,
+      }
+      stream?.options.onEvent(terminalType === 'completed'
+        ? { ...base, text: '回答' }
+        : { ...base, errorCode: 'CODEX_EXECUTION_FAILED', retryable: true })
+      stream?.options.onEnd?.()
+
+      expect(events).toHaveLength(1)
+      expect(failures).toEqual([])
+    },
+  )
 })

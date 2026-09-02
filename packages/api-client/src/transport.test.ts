@@ -311,6 +311,7 @@ describe('formal Taro transport', () => {
     taro.request.mockReturnValue(requestTask)
     const events: unknown[] = []
     const failures: string[] = []
+    const onEnd = vi.fn()
     const transport = createTaroTransport({
       storage: new MemoryStorage(),
       resolveBaseUrl: () => 'https://api.chickenbro.cloud',
@@ -323,6 +324,7 @@ describe('formal Taro transport', () => {
       header: { 'Idempotency-Key': 'stream-one' },
       onEvent: (event) => events.push(event),
       onFailure: (error) => failures.push(error),
+      onEnd,
     })
     receive?.({ data: encoded('data: {"type":"started","sequence":1}\n\n') })
     await requestTask
@@ -342,6 +344,7 @@ describe('formal Taro transport', () => {
     })
     expect(events).toEqual([{ type: 'started', sequence: 1 }])
     expect(failures).toEqual([])
+    expect(onEnd).toHaveBeenCalledTimes(1)
   })
 
   it('uses same-origin Web Cookie and CSRF credentials for browser SSE', async () => {
@@ -364,6 +367,7 @@ describe('formal Taro transport', () => {
     vi.stubGlobal('fetch', fetchMock)
     const events: unknown[] = []
     const failures: string[] = []
+    const onEnd = vi.fn()
     try {
       const transport = createTaroTransport({
         storage: new MemoryStorage(),
@@ -375,6 +379,7 @@ describe('formal Taro transport', () => {
         data: { content: 'hello' },
         onEvent: (event) => events.push(event),
         onFailure: (error) => failures.push(error),
+        onEnd,
       })
       await new Promise((resolve) => setTimeout(resolve, 0))
 
@@ -393,8 +398,81 @@ describe('formal Taro transport', () => {
       )
       expect(events).toEqual([{ type: 'completed' }])
       expect(failures).toEqual([])
+      expect(onEnd).toHaveBeenCalledTimes(1)
     } finally {
       vi.unstubAllGlobals()
     }
+  })
+
+  it('does not report a natural end after the caller aborts a Mini stream', async () => {
+    let resolveRequest: ((value: { statusCode: number }) => void) | undefined
+    const requestPromise = new Promise<{ statusCode: number }>((resolve) => {
+      resolveRequest = resolve
+    })
+    const abort = vi.fn()
+    const requestTask = Object.assign(requestPromise, {
+      abort,
+      onChunkReceived: vi.fn(),
+    })
+    taro.request.mockReturnValue(requestTask)
+    const failures: string[] = []
+    const onEnd = vi.fn()
+    const transport = createTaroTransport({
+      storage: new MemoryStorage(),
+      resolveBaseUrl: () => 'https://api.chickenbro.cloud',
+    })
+
+    const stream = transport.requestSse?.('/api/v2/chat/conversations/id/messages/stream', {
+      method: 'POST',
+      auth: { kind: 'mini', accessToken: 'mini-token' },
+      data: { content: 'hello' },
+      onEvent: () => {},
+      onFailure: (error) => failures.push(error),
+      onEnd,
+    })
+    stream?.abort()
+    resolveRequest?.({ statusCode: 200 })
+    await requestPromise
+    await Promise.resolve()
+
+    expect(abort).toHaveBeenCalledTimes(1)
+    expect(failures).toEqual([])
+    expect(onEnd).not.toHaveBeenCalled()
+  })
+
+  it('aborts and fails once when a Mini stream consumer rejects an event', async () => {
+    let receive: ((value: { data: ArrayBuffer }) => void) | undefined
+    const abort = vi.fn()
+    const requestTask = Object.assign(Promise.resolve({ statusCode: 200 }), {
+      abort,
+      onChunkReceived: vi.fn((listener: (value: { data: ArrayBuffer }) => void) => {
+        receive = listener
+      }),
+    })
+    taro.request.mockReturnValue(requestTask)
+    const failures: string[] = []
+    const onEnd = vi.fn()
+    const transport = createTaroTransport({
+      storage: new MemoryStorage(),
+      resolveBaseUrl: () => 'https://api.chickenbro.cloud',
+    })
+
+    transport.requestSse?.('/api/v2/chat/conversations/id/messages/stream', {
+      method: 'POST',
+      auth: { kind: 'mini', accessToken: 'mini-token' },
+      data: { content: 'hello' },
+      onEvent: () => {
+        throw new Error('consumer rejected event')
+      },
+      onFailure: (error) => failures.push(error),
+      onEnd,
+    })
+    receive?.({ data: encoded('data: {"type":"started","sequence":1}\n\n') })
+    await requestTask
+    await Promise.resolve()
+
+    expect(abort).toHaveBeenCalledTimes(1)
+    expect(failures).toEqual(['invalid stream event'])
+    expect(onEnd).not.toHaveBeenCalled()
   })
 })

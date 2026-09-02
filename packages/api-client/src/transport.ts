@@ -50,6 +50,7 @@ export interface SseStreamRequestOptions<T> {
   auth: ClientAuthContext
   onEvent: (event: T) => void
   onFailure: (error: string) => void
+  onEnd?: () => void
 }
 
 export interface ApiTransport {
@@ -324,10 +325,17 @@ export function createTaroTransport(config: TransportConfig = {}): ApiTransport 
     options: SseStreamRequestOptions<T>,
   ): ApiStreamTask => {
     let failed = false
+    let aborted = false
+    let ended = false
     const fail = (message: string) => {
-      if (failed) return
+      if (failed || aborted || ended) return
       failed = true
       options.onFailure(message)
+    }
+    const end = () => {
+      if (failed || aborted || ended) return
+      ended = true
+      options.onEnd?.()
     }
     if (hasExplicitCredentialHeader(options.header)) {
       fail('auth context cannot be combined with explicit credential headers')
@@ -361,18 +369,17 @@ export function createTaroTransport(config: TransportConfig = {}): ApiTransport 
       ...authRequest.header,
     }
     const emit = (event: unknown, abort: () => void) => {
-      if (failed) return
+      if (failed || aborted || ended) return
       try {
         options.onEvent(event as T)
       } catch {
-        abort()
         fail('invalid stream event')
+        abort()
       }
     }
 
     if (isWebRuntime() && typeof fetch === 'function') {
       const controller = new AbortController()
-      let aborted = false
       let timeoutHandle: ReturnType<typeof setTimeout> | undefined
       const clearRequestTimeout = () => {
         if (timeoutHandle !== undefined) {
@@ -437,6 +444,7 @@ export function createTaroTransport(config: TransportConfig = {}): ApiTransport 
             decoder.push(buffer).forEach((event) => emit(event, abort))
           }
           decoder.finish().forEach((event) => emit(event, abort))
+          end()
         } catch (error) {
           if (!aborted) fail(errorMessage(error))
         } finally {
@@ -462,34 +470,40 @@ export function createTaroTransport(config: TransportConfig = {}): ApiTransport 
       abort?: () => void
       onChunkReceived?: (callback: (payload: { data: ArrayBuffer }) => void) => void
     }
-    const abort = () => task.abort?.()
+    const abort = () => {
+      aborted = true
+      task.abort?.()
+    }
     if (typeof task.onChunkReceived !== 'function') {
-      abort()
       fail('chunked response is unavailable')
+      abort()
     } else {
       task.onChunkReceived(({ data }) => {
-        if (failed) return
+        if (failed || aborted || ended) return
         try {
           decoder.push(data).forEach((event) => emit(event, abort))
         } catch {
-          abort()
           fail('malformed SSE payload')
+          abort()
         }
       })
     }
     void task.then((response) => {
-      if (failed) return
+      if (failed || aborted || ended) return
       if (response.statusCode < 200 || response.statusCode >= 300) {
         fail(`HTTP ${response.statusCode}`)
         return
       }
       try {
         decoder.finish().forEach((event) => emit(event, abort))
+        end()
       } catch {
-        abort()
         fail('malformed SSE payload')
+        abort()
       }
-    }).catch((error) => fail(errorMessage(error)))
+    }).catch((error) => {
+      if (!aborted) fail(errorMessage(error))
+    })
     return { abort }
   }
 
