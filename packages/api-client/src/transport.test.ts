@@ -143,6 +143,95 @@ describe('Taro transport parity', () => {
     }
   })
 
+  it('derives Mini Bearer transport without browser credentials or CSRF', async () => {
+    const transport = createTaroTransport({
+      storage: new MemoryStorage(),
+      resolveBaseUrl: () => 'https://api.chickenbro.cloud',
+    })
+
+    await transport.request('/api/v2/chat/conversations', {
+      auth: { kind: 'mini', accessToken: 'mini-token' },
+      fallback: () => ({ items: [] }),
+      validate: () => true,
+    })
+
+    const request = taro.request.mock.calls[0]?.[0] as {
+      credentials?: string
+      header?: Record<string, string>
+    }
+    expect(request.credentials).toBe('omit')
+    expect(request.header?.['Authorization']).toBe('Bearer mini-token')
+    expect(request.header?.['X-CSRF-Token']).toBeUndefined()
+  })
+
+  it('never lets a guest-development override send a structured Mini bearer over HTTP', async () => {
+    const transport = createTaroTransport({
+      storage: new MemoryStorage(),
+      resolveBaseUrl: () => 'http://example.test',
+    })
+
+    const result = await transport.request('/api/v2/chat/conversations', {
+      auth: { kind: 'mini', accessToken: 'mini-token' },
+      allowInsecureGuestRequest: true,
+      fallback: () => ({ items: [] }),
+    })
+
+    expect(result.fromFallback).toBe(true)
+    expect(result.error).toContain('insecure')
+    expect(taro.request).not.toHaveBeenCalled()
+  })
+
+  it('derives Web Cookie and CSRF transport without Authorization', async () => {
+    const transport = createTaroTransport({
+      storage: new MemoryStorage(),
+      resolveWebBaseUrl: () => 'https://www.chickenbro.cloud',
+    })
+
+    await transport.request('/api/v2/chat/conversations', {
+      method: 'POST',
+      auth: { kind: 'web', csrfToken: 'web-csrf' },
+      fallback: () => ({ id: '' }),
+      validate: () => true,
+    })
+
+    const request = taro.request.mock.calls[0]?.[0] as {
+      credentials?: string
+      header?: Record<string, string>
+      url?: string
+    }
+    expect(request.url).toBe('https://www.chickenbro.cloud/api/v2/chat/conversations')
+    expect(request.credentials).toBe('include')
+    expect(request.header?.['X-CSRF-Token']).toBe('web-csrf')
+    expect(request.header?.['Authorization']).toBeUndefined()
+  })
+
+  it('allows public auth context only on readiness and formal auth routes', async () => {
+    const transport = createTaroTransport({
+      storage: new MemoryStorage(),
+      resolveWebBaseUrl: () => 'https://www.chickenbro.cloud',
+    })
+
+    const rejected = await transport.request('/api/v2/chat/conversations', {
+      auth: { kind: 'public' },
+      baseUrl: 'web-auth',
+      responseMode: 'structured-problem',
+      fallback: () => ({ items: [] }),
+    })
+    const accepted = await transport.request('/api/v2/auth/wechat/web/login-sessions', {
+      method: 'POST',
+      auth: { kind: 'public' },
+      baseUrl: 'web-auth',
+      credentials: 'include',
+      fallback: () => ({ sessionId: '' }),
+      validate: () => true,
+    })
+
+    expect(rejected.fromFallback).toBe(true)
+    expect(rejected.error).toContain('public auth context')
+    expect(accepted.fromFallback).toBe(false)
+    expect(taro.request).toHaveBeenCalledOnce()
+  })
+
   it('does not mistake mini-program DOM shims for the H5 runtime', () => {
     vi.stubGlobal('window', { location: { origin: 'https://taro.com' } })
     vi.stubGlobal('document', {})

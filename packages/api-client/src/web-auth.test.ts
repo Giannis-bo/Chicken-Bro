@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { createWebAuthClient } from './web-auth'
+import { createWebAuthClient, readWebCsrfCookie } from './web-auth'
 import type { ApiResult, ApiTransport, RequestOptions } from './transport'
 import type { EndpointId } from '@wow-mini/domain'
 
@@ -36,11 +36,17 @@ describe('WebAuthClient', () => {
     await client.statusWebLoginSession('00000000-0000-4000-8000-000000000000', 'A'.repeat(43))
     await client.exchangeWebLoginSession('00000000-0000-4000-8000-000000000000', 'A'.repeat(43))
     await client.cancelWebLoginSession('00000000-0000-4000-8000-000000000000', 'A'.repeat(43))
+    vi.stubGlobal('document', { cookie: '__Host-chickenbro-csrf=web-csrf' })
     await client.logout()
+    vi.unstubAllGlobals()
 
     expect(transport.calls).toHaveLength(6)
     for (const call of transport.calls) {
-      expect(call.options.auth).toBe(false)
+      expect(call.options.auth).toEqual(
+        call.path === '/api/v2/auth/logout'
+          ? { kind: 'web', csrfToken: 'web-csrf' }
+          : { kind: 'public' },
+      )
       expect(call.options.credentials).toBe('include')
       expect(call.options.header?.['Authorization']).toBeUndefined()
       expect(call.options.baseUrl).toBe('web-auth')
@@ -58,10 +64,34 @@ describe('WebAuthClient', () => {
     expect(call).toBeDefined()
     if (!call) throw new Error('expected a recorded request')
     expect(call.path).toBe('/api/v2/auth/wechat/mini/web-login-confirm')
-    expect(call.options.auth).toBe(false)
+    expect(call.options.auth).toEqual({ kind: 'mini', accessToken: 'mini-token' })
     expect(call.options.credentials).toBe('omit')
-    expect(call.options.header?.['Authorization']).toBe('Bearer mini-token')
-    expect(call.options.baseUrl).toBe('web-auth')
+    expect(call.options.header?.['Authorization']).toBeUndefined()
+    expect(call.options.baseUrl).toBe('default')
+  })
+
+  it('revokes a Mini bearer independently of the Web cookie session', async () => {
+    const transport = new RecordingTransport()
+    const client = createWebAuthClient(transport)
+
+    await client.logout({ kind: 'mini', accessToken: 'mini-token' })
+
+    expect(transport.calls[0]?.path).toBe('/api/v2/auth/logout')
+    expect(transport.calls[0]?.options.auth).toEqual({
+      kind: 'mini',
+      accessToken: 'mini-token',
+    })
+    expect(transport.calls[0]?.options.credentials).toBe('omit')
+  })
+
+  it('reads only the exact Web CSRF cookie and rejects ambiguity', () => {
+    expect(readWebCsrfCookie(
+      'other=value; __Host-chickenbro-csrf=web-csrf-token; suffix__Host-chickenbro-csrf=ignored',
+    )).toBe('web-csrf-token')
+    expect(() => readWebCsrfCookie('other=value')).toThrow('WEB_CSRF_COOKIE_MISSING')
+    expect(() => readWebCsrfCookie(
+      '__Host-chickenbro-csrf=first; __Host-chickenbro-csrf=second',
+    )).toThrow('WEB_CSRF_COOKIE_INVALID')
   })
 
   it('uses the configured candidate API prefix for the Web auth surface', async () => {

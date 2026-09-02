@@ -7,6 +7,7 @@ import {
 } from '@wow-mini/domain'
 
 import { AnalyticsIdentity } from './analytics'
+import { clientAuthRequest, type ClientAuthContext } from './auth-context'
 import { taroStorage, type StorageAdapter } from './storage'
 
 declare const __WOW_BACKEND_API_BASE_URL__: string
@@ -27,13 +28,14 @@ export type RequestMethod = 'GET' | 'POST' | 'PUT' | 'DELETE'
 export type RequestData = Readonly<Record<string, unknown>> | string | ArrayBuffer
 export type RequestCredentials = 'omit' | 'same-origin' | 'include'
 export type RequestBase = 'default' | 'web-auth'
+export type TransportAuthContext = ClientAuthContext | { kind: 'public' }
 
 export interface RequestOptions<T> {
   method?: RequestMethod
   data?: RequestData
   header?: Readonly<Record<string, string>>
   timeoutMs?: number
-  auth?: boolean
+  auth?: boolean | TransportAuthContext
   allowInsecureGuestRequest?: boolean
   attachAnalyticsHeaders?: boolean
   responseMode?: 'default' | 'structured-problem'
@@ -89,6 +91,25 @@ export interface TransportConfig {
   platform?: string
   resolveBaseUrl?: () => string
   resolveWebBaseUrl?: () => string
+}
+
+function publicAuthPath(path: string): boolean {
+  const pathname = path.split(/[?#]/u, 1)[0] ?? ''
+  const prefix = String.raw`\/api\/v2(?:-candidate)?`
+  return new RegExp(String.raw`^${prefix}\/health\/readiness$`, 'u').test(pathname)
+    || new RegExp(String.raw`^${prefix}\/me$`, 'u').test(pathname)
+    || new RegExp(String.raw`^${prefix}\/auth\/wechat\/mini\/exchange$`, 'u').test(pathname)
+    || new RegExp(
+      String.raw`^${prefix}\/auth\/wechat\/web\/login-sessions(?:\/[^/]+(?:\/(?:exchange|cancel))?)?$`,
+      'u',
+    ).test(pathname)
+}
+
+function hasExplicitCredentialHeader(header: Readonly<Record<string, string>> | undefined): boolean {
+  return Object.keys(header ?? {}).some((key) => {
+    const normalized = key.toLowerCase()
+    return normalized === 'authorization' || normalized === 'x-csrf-token'
+  })
 }
 
 export function isInsecureHttpUrl(url: string): boolean {
@@ -280,20 +301,62 @@ export function createTaroTransport(config: TransportConfig = {}): ApiTransport 
         ? { httpStatus, transportError: error, offline, ...(problemCode ? { problemCode } : {}) }
         : {}),
     })
-    const baseUrl = (options.baseUrl === 'web-auth' ? resolveWebBaseUrl : resolveBaseUrl)()
+    const authContext = typeof options.auth === 'object' && options.auth !== null
+      ? options.auth
+      : null
+    let effectiveBase = options.baseUrl ?? 'default'
+    let effectiveCredentials = options.credentials ?? 'omit'
+    let explicitAuthHeader: Readonly<Record<string, string>> = {}
+    let requiresSecureTransport = options.auth === true
+    if (authContext !== null) {
+      if (hasExplicitCredentialHeader(options.header)) {
+        return fallbackResult('auth context cannot be combined with explicit credential headers')
+      }
+      if (authContext.kind === 'public') {
+        if (!publicAuthPath(path)) {
+          return fallbackResult('public auth context is not allowed for this path')
+        }
+        requiresSecureTransport = !/\/health\/readiness(?:[?#]|$)/u.test(path)
+      } else if (authContext.kind === 'mini' || authContext.kind === 'web') {
+        try {
+          const derived = clientAuthRequest(authContext, {
+            mutating: (options.method ?? 'GET') !== 'GET',
+          })
+          if (options.baseUrl !== undefined && options.baseUrl !== derived.baseUrl) {
+            return fallbackResult('auth context conflicts with request base')
+          }
+          if (options.credentials !== undefined && options.credentials !== derived.credentials) {
+            return fallbackResult('auth context conflicts with request credentials')
+          }
+          effectiveBase = derived.baseUrl
+          effectiveCredentials = derived.credentials
+          explicitAuthHeader = derived.header
+          requiresSecureTransport = true
+        } catch (error) {
+          return fallbackResult(errorMessage(error))
+        }
+      } else {
+        return fallbackResult('unknown auth context')
+      }
+    }
+
+    const baseUrl = (effectiveBase === 'web-auth' ? resolveWebBaseUrl : resolveBaseUrl)()
     const url = baseUrl ? `${baseUrl}${path}` : ''
     if (!url) {
       return fallbackResult('missing api base url', 0, true)
     }
-    if (options.auth && isInsecureHttpUrl(url) && !options.allowInsecureGuestRequest) {
+    const allowsLegacyInsecureGuest = authContext === null
+      && options.allowInsecureGuestRequest === true
+    if (requiresSecureTransport && isInsecureHttpUrl(url) && !allowsLegacyInsecureGuest) {
       return fallbackResult('insecure api base url for authenticated request')
     }
 
     const header: Record<string, string> = {
-      ...(options.attachAnalyticsHeaders === false ? {} : analytics.headers(platform)),
+      ...(options.attachAnalyticsHeaders === false || authContext !== null ? {} : analytics.headers(platform)),
       ...options.header,
+      ...explicitAuthHeader,
     }
-    if (options.auth && !isInsecureHttpUrl(url)) {
+    if (options.auth === true && !isInsecureHttpUrl(url)) {
       const token = storage.get<string>(storageKey('auth.token'))
       if (token) header['Authorization'] = `Bearer ${token}`
     }
@@ -305,7 +368,7 @@ export function createTaroTransport(config: TransportConfig = {}): ApiTransport 
         data: options.data,
         header,
         timeout: options.timeoutMs ?? 6000,
-        credentials: options.credentials ?? 'omit',
+        credentials: effectiveCredentials,
       })
       const valid = options.validate?.(response.data) ?? Boolean(response.data)
       if (structuredProblem && valid) {

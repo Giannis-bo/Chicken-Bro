@@ -24,7 +24,7 @@ export type {
   SimulationScenarioRequest,
   SourceSnapshotCreateRequest,
 } from './simc'
-export { createWebAuthClient } from './web-auth'
+export { createWebAuthClient, readWebCsrfCookie } from './web-auth'
 export type { WebAuthClient } from './web-auth'
 export { createBuildsClient } from './builds'
 export type { BuildsClient } from './builds'
@@ -93,6 +93,7 @@ export type {
   RequestOptions,
   RequestBase,
   RequestCredentials,
+  TransportAuthContext,
   StreamRequestOptions,
   SseStreamRequestOptions,
   TransportConfig,
