@@ -32,12 +32,34 @@
       "reason": "Deterministic disposition rules, generator, and focused verification.",
       "paths": [
         "docs/refactor/chickenbro-simc-disposition-rules.json",
+        "docs/refactor/chickenbro-simc-refactor-inventory.json",
         "scripts/apply-chickenbro-simc-local-cleanup.js",
         "scripts/build-chickenbro-simc-refactor-inventory.js",
         "tests/app_chickenbro_native_mcp_test.py",
         "tests/chickenbro-simc-local-cleanup.test.js",
         "tests/chickenbro-simc-refactor-inventory.test.js",
         "tests/prototype-retirement.test.js"
+      ]
+    },
+    {
+      "id": "retained-product-documentation",
+      "disposition": "keep",
+      "category": "current-documentation",
+      "owner": "Chickenbro Chat and SimC product",
+      "reason": "These are the bounded architecture, operations, ownership, verification, and cleanup authorities for the rebuilt product.",
+      "paths": [
+        "docs/README.md",
+        "docs/backend-owner-map.json",
+        "docs/chickenbro-simc-architecture.md",
+        "docs/chickenbro-simc-production-runbook.md",
+        "docs/project-owner-map.json",
+        "docs/refactor/chickenbro-simc-capacity-cleanup-manifest.json",
+        "docs/refactor/chickenbro-simc-cloud-cleanup-manifest.json",
+        "docs/refactor/chickenbro-simc-cloud-inventory.json",
+        "docs/refactor/chickenbro-simc-recovery-inventory.json",
+        "docs/templates/harness-evidence.json",
+        "docs/templates/harness-requirement.json",
+        "docs/verification-matrix.md"
       ]
     },
     {
@@ -140,11 +162,41 @@
       ]
     },
     {
-      "id": "mini-client-shell-migration",
-      "disposition": "migrate",
-      "category": "target-client-migration",
+      "id": "mini-client-shell",
+      "disposition": "keep",
+      "category": "target-client-code",
       "owner": "Shared Taro dual-client shell",
-      "reason": "Shared routing, tab, transport, and Web shell must be reduced to the two-capability contract.",
+      "reason": "The reduced application shell, two-tab navigation, platform adapters, and build configuration are direct runtime inputs.",
+      "paths": [
+        "apps/mini-taro/babel.config.cjs",
+        "apps/mini-taro/config/index.ts",
+        "apps/mini-taro/config/postcss-weapp-compatible.cjs",
+        "apps/mini-taro/package.json",
+        "apps/mini-taro/project.config.json",
+        "apps/mini-taro/src/app.config.ts",
+        "apps/mini-taro/src/app.scss",
+        "apps/mini-taro/src/app.tsx",
+        "apps/mini-taro/src/env.d.ts",
+        "apps/mini-taro/src/index.html",
+        "apps/mini-taro/src/tab-bar-items.test.ts",
+        "apps/mini-taro/src/tab-bar-items.ts",
+        "apps/mini-taro/src/tab-bar-state.test.ts",
+        "apps/mini-taro/src/tab-bar-state.ts",
+        "apps/mini-taro/src/use-tab-root-identity.ts",
+        "apps/mini-taro/tsconfig.json"
+      ],
+      "prefixes": [
+        "apps/mini-taro/src/components/",
+        "apps/mini-taro/src/custom-tab-bar/",
+        "apps/mini-taro/src/platform/"
+      ]
+    },
+    {
+      "id": "remaining-client-code",
+      "disposition": "delete",
+      "category": "legacy-client-code",
+      "owner": "Two-capability client boundary",
+      "reason": "Every remaining client file is outside the retained Chat, SimC, authentication, and reduced shell graph.",
       "prefixes": [
         "apps/"
       ]
@@ -187,10 +239,10 @@
     },
     {
       "id": "server-target-api-shell",
-      "disposition": "migrate",
-      "category": "target-server-migration",
+      "disposition": "keep",
+      "category": "target-server-code",
       "owner": "Modular v2 API",
-      "reason": "The API shell must be completed and restricted to identity, conversation, SimC, health, and operations.",
+      "reason": "The API shell is restricted to identity, conversation, SimC, health, and stable error handling.",
       "prefixes": [
         "server/app/api/"
       ],
@@ -201,10 +253,10 @@
     },
     {
       "id": "identity-and-platform-migration-inputs",
-      "disposition": "migrate",
-      "category": "database-migration-input",
-      "owner": "Canonical PostgreSQL v2 schema",
-      "reason": "Foundation and real Web-login schema are inputs to the new clean migration chain.",
+      "disposition": "delete",
+      "category": "legacy-database-code",
+      "owner": "Clean product schema",
+      "reason": "The historical v2 foundation and shadow migration inputs are superseded by the clean product schema and allowlisted copier.",
       "paths": [
         "server/migrations/postgres/0038_chickenbro_simc_platform_foundation.sql",
         "server/migrations/postgres/0039_wechat_web_login_sessions.sql",
@@ -290,9 +342,13 @@
         "server/chickenbro_native_mcp.py",
         "server/chickenbro_public_web_research.py",
         "server/chickenbro_simc_cloud_inventory.py",
+        "server/__init__.py",
+        "server/codex_worker.py",
         "server/cutover_chickenbro_lighthouse.sh",
         "server/deploy_chickenbro_candidate_lighthouse.sh",
+        "server/migrations/__init__.py",
         "server/provision_chickenbro_database_lighthouse.sh",
+        "server/retire_chickenbro_legacy_lighthouse.sh",
         "scripts/chickenbro-native-agent/chickenbro-native.config.toml.template"
       ]
     },
@@ -316,10 +372,10 @@
     },
     {
       "id": "remaining-server-migration-inputs",
-      "disposition": "migrate",
-      "category": "server-dependency-review",
-      "owner": "Target caller-graph review",
-      "reason": "Potential Chickenbro, SimC, data, deployment, or dependency inputs require caller proof before keep or delete.",
+      "disposition": "delete",
+      "category": "legacy-server-code",
+      "owner": "Two-capability server boundary",
+      "reason": "Every remaining server file is outside the retained modular Identity, Chat, SimC, Worker, clean migration, and isolated deployment graph.",
       "prefixes": [
         "server/"
       ]
@@ -342,37 +398,42 @@
       "disposition": "keep",
       "category": "target-shared-code",
       "owner": "Dual-client identity and platform API",
-      "reason": "Typed platform and Web-auth contracts are direct inputs to the canonical dual-client API.",
+      "reason": "Typed Chat, SimC, authentication, transport, and package entrypoints are direct inputs to both clients.",
       "paths": [
+        "packages/api-client/package.json",
         "packages/api-client/src/api-v2-prefix.ts",
         "packages/api-client/src/auth-context.test.ts",
         "packages/api-client/src/auth-context.ts",
         "packages/api-client/src/chat.test.ts",
         "packages/api-client/src/chat.ts",
-        "packages/api-client/src/platform-v2.test.ts",
-        "packages/api-client/src/platform-v2.ts",
+        "packages/api-client/src/clients.ts",
+        "packages/api-client/src/index.ts",
         "packages/api-client/src/simc.test.ts",
         "packages/api-client/src/simc.ts",
+        "packages/api-client/src/storage.ts",
         "packages/api-client/src/transport.test.ts",
         "packages/api-client/src/transport.ts",
         "packages/api-client/src/web-auth.test.ts",
         "packages/api-client/src/web-auth.ts",
+        "packages/api-client/tsconfig.json",
+        "packages/domain/package.json",
         "packages/domain/src/chat.test.ts",
         "packages/domain/src/chat.ts",
-        "packages/domain/src/platform-v2.test.ts",
-        "packages/domain/src/platform-v2.ts",
+        "packages/domain/src/index.ts",
         "packages/domain/src/simc.test.ts",
         "packages/domain/src/simc.ts",
         "packages/domain/src/web-auth.test.ts",
-        "packages/domain/src/web-auth.ts"
+        "packages/domain/src/web-auth.ts",
+        "packages/domain/tsconfig.json",
+        "packages/types/babel-core.d.ts"
       ]
     },
     {
-      "id": "shared-package-migration",
-      "disposition": "migrate",
-      "category": "shared-dependency-review",
-      "owner": "Dual-client shared packages",
-      "reason": "Shared API, domain, design, assets, and type code must be reduced using target caller proof.",
+      "id": "remaining-shared-packages",
+      "disposition": "delete",
+      "category": "legacy-shared-code",
+      "owner": "Two-capability package boundary",
+      "reason": "Every remaining package file belongs to retired product APIs, domain models, assets, or the former design system.",
       "prefixes": [
         "packages/"
       ]
@@ -411,10 +472,10 @@
     },
     {
       "id": "target-ui-design-inputs",
-      "disposition": "migrate",
-      "category": "target-design-migration",
-      "owner": "Two-capability dual-client UX",
-      "reason": "Existing Chickenbro and SimC interaction evidence may be migrated into the new two-capability design authority.",
+      "disposition": "delete",
+      "category": "legacy-documentation",
+      "owner": "UI evidence retirement",
+      "reason": "The former 14-route visual-reconstruction evidence is not runtime authority for the rebuilt Chat and SimC clients.",
       "prefixes": [
         "docs/design/current-ui/routes/chickenbro-chat/",
         "docs/design/current-ui/routes/simc-submit/",
@@ -449,11 +510,11 @@
       ]
     },
     {
-      "id": "remaining-documentation-migration",
-      "disposition": "migrate",
-      "category": "documentation-review",
-      "owner": "Rebuild documentation",
-      "reason": "Stable architecture and operations material must be rewritten or retired against the new product boundary.",
+      "id": "remaining-documentation",
+      "disposition": "delete",
+      "category": "legacy-documentation",
+      "owner": "Documentation retirement",
+      "reason": "Every remaining document is superseded history or describes a removed product, process, evidence set, or deployment owner.",
       "prefixes": [
         "docs/"
       ]
@@ -469,56 +530,136 @@
       ]
     },
     {
-      "id": "current-and-migration-tests",
-      "disposition": "migrate",
-      "category": "test-dependency-review",
-      "owner": "Target verification suite",
-      "reason": "Tests are retained until caller and behavior mapping proves which target contracts remain.",
+      "id": "retained-target-tests",
+      "disposition": "keep",
+      "category": "target-verification",
+      "owner": "Chat and SimC verification suite",
+      "reason": "These tests cover the retained backend, clients, clean migration, build, candidate, cutover, cleanup, and control-plane contracts.",
+      "paths": [
+        "tests/app_api_test.py",
+        "tests/app_architecture_test.py",
+        "tests/app_chat_api_test.py",
+        "tests/app_chat_cross_client_test.py",
+        "tests/app_chickenbro_application_test.py",
+        "tests/app_chickenbro_codex_adapter_test.py",
+        "tests/app_chickenbro_owner_isolation_test.py",
+        "tests/app_chickenbro_source_gateway_test.py",
+        "tests/app_chickenbro_stream_test.py",
+        "tests/app_chickenbro_wcl_source_test.py",
+        "tests/app_config_test.py",
+        "tests/app_csrf_test.py",
+        "tests/app_identity_api_test.py",
+        "tests/app_identity_application_test.py",
+        "tests/app_identity_repository_test.py",
+        "tests/app_simc_api_test.py",
+        "tests/app_simc_cross_client_test.py",
+        "tests/app_simc_result_semantics_test.py",
+        "tests/app_simulation_application_test.py",
+        "tests/app_simulation_compiler_test.py",
+        "tests/app_simulation_readiness_test.py",
+        "tests/app_simulation_sources_test.py",
+        "tests/app_simulation_worker_test.py",
+        "tests/app_wechat_mini_test.py",
+        "tests/app_worker_lease_test.py",
+        "tests/app_worker_runtime_test.py",
+        "tests/backend-owner-map.test.js",
+        "tests/build-weapp-safely.test.js",
+        "tests/candidate_acceptance_test.py",
+        "tests/chickenbro_simc_capacity_cleanup_manifest_test.py",
+        "tests/chickenbro_simc_cloud_inventory_test.py",
+        "tests/chickenbro_simc_recovery_inventory_test.py",
+        "tests/cutover-chickenbro.test.js",
+        "tests/deploy-chickenbro-candidate.test.js",
+        "tests/finalize-weapp-build.test.js",
+        "tests/legacy_product_migration_test.py",
+        "tests/postgres_legacy_migration_test.py",
+        "tests/product_schema_test.py",
+        "tests/project-harness.test.js",
+        "tests/project-owner-map.test.js",
+        "tests/project-state.test.js",
+        "tests/provision-chickenbro-database.test.js",
+        "tests/refresh-weapp-preview.test.js",
+        "tests/retained-client-boundary.test.js",
+        "tests/retire-chickenbro-legacy.test.js",
+        "tests/fixtures/character_sources/raiderio_ready.json",
+        "tests/fixtures/character_sources/wcl_incomplete.json",
+        "tests/fixtures/legacy_product_migration.json"
+      ]
+    },
+    {
+      "id": "remaining-tests",
+      "disposition": "delete",
+      "category": "legacy-test-code",
+      "owner": "Two-capability verification boundary",
+      "reason": "Every remaining test verifies a removed product, prototype, historical migration chain, asset corpus, or superseded deployment owner.",
       "prefixes": [
         "tests/"
       ]
     },
     {
-      "id": "current-and-migration-scripts",
-      "disposition": "migrate",
-      "category": "tooling-dependency-review",
-      "owner": "Harness and target operations",
-      "reason": "Harness and operational scripts are retained until target callers and deployment owners are proven.",
+      "id": "retained-target-scripts",
+      "disposition": "keep",
+      "category": "target-tooling",
+      "owner": "Harness and reduced-client build",
+      "reason": "These standalone scripts own the retained Harness, exact cleanup, and Mini Program build/refresh workflows.",
+      "paths": [
+        "scripts/build-weapp-safely.js",
+        "scripts/finalize-weapp-build.js",
+        "scripts/project-harness.js",
+        "scripts/refresh-weapp-preview.js",
+        "scripts/weapp-build-identity.js"
+      ]
+    },
+    {
+      "id": "remaining-scripts",
+      "disposition": "delete",
+      "category": "legacy-tooling",
+      "owner": "Two-capability tooling boundary",
+      "reason": "Every remaining script operates a removed product, old UI evidence flow, historical data pipeline, or superseded release process.",
       "prefixes": [
         "scripts/"
       ]
     },
     {
       "id": "github-workflows",
-      "disposition": "migrate",
+      "disposition": "keep",
       "category": "repository-tooling",
       "owner": "Target CI",
-      "reason": "CI must be reduced to the new target verification and release packet.",
+      "reason": "The single workflow is the retained CI entrypoint and is reduced to the target verification suite.",
       "prefixes": [
         ".github/"
       ]
     },
     {
       "id": "repository-scaffold",
-      "disposition": "migrate",
+      "disposition": "keep",
       "category": "repository-tooling",
       "owner": "Target workspace",
-      "reason": "Repository policy, package, TypeScript, lint, and build configuration must be reconciled with the reduced product.",
+      "reason": "Repository policy, package, TypeScript, lint, and build configuration directly support the reduced product.",
       "paths": [
-        ".eslintrc.js",
         ".gitattributes",
         ".gitignore",
         "AGENTS.md",
-        "Agent.md",
-        "DESIGN.md",
         "README.md",
         "eslint.config.mjs",
         "package-lock.json",
         "package.json",
-        "project.config.json",
         "tsconfig.base.json",
         "tsconfig.json",
         "vitest.config.ts"
+      ]
+    },
+    {
+      "id": "legacy-repository-scaffold",
+      "disposition": "delete",
+      "category": "legacy-repository-tooling",
+      "owner": "Two-capability workspace",
+      "reason": "Legacy root Mini Program, old UI design, and superseded lint configuration are no longer workspace authorities.",
+      "paths": [
+        ".eslintrc.js",
+        "Agent.md",
+        "DESIGN.md",
+        "project.config.json"
       ]
     }
   ]

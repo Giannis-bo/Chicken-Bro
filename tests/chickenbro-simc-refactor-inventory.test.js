@@ -27,8 +27,16 @@ test('target owners are kept while prototype and legacy product surfaces are ret
   assert.equal(classifyPath('server/news_backend.py', rules).disposition, 'delete')
   assert.equal(
     classifyPath('server/migrations/postgres/0038_chickenbro_simc_platform_foundation.sql', rules).disposition,
-    'migrate',
+    'delete',
   )
+  assert.equal(classifyPath('server/app/main.py', rules).disposition, 'keep')
+  assert.equal(classifyPath('apps/mini-taro/src/components/CoreTabBar.tsx', rules).disposition, 'keep')
+  assert.equal(classifyPath('packages/api-client/src/transport.ts', rules).disposition, 'keep')
+  assert.equal(classifyPath('packages/api-client/src/platform-v2.ts', rules).disposition, 'delete')
+  assert.equal(classifyPath('packages/design-system/src/index.ts', rules).disposition, 'delete')
+  assert.equal(classifyPath('scripts/verify-project.js', rules).disposition, 'delete')
+  assert.equal(classifyPath('tests/news_backend_test.py', rules).disposition, 'delete')
+  assert.equal(classifyPath('README.md', rules).disposition, 'keep')
 })
 
 test('specific rules win before broader known-tree rules', () => {
@@ -140,6 +148,24 @@ test('every current repository path is classified and the inventory excludes onl
     .filter(({ result }) => result.disposition === 'review')
 
   assert.deepEqual(unresolved, [])
+})
+
+test('the current repository has a final keep-or-delete disposition with no migration limbo', () => {
+  const rules = loadRules(rulesPath)
+  const paths = execFileSync('git', ['ls-files', '-co', '--exclude-standard', '-z'], {
+    cwd: repositoryRoot,
+    encoding: 'utf8',
+  })
+    .split('\0')
+    .filter(Boolean)
+    .filter((relativePath) => relativePath !== generatedInventoryPath)
+
+  const migrating = paths
+    .map((relativePath) => ({ relativePath, result: classifyPath(relativePath, rules) }))
+    .filter(({ result }) => result.disposition === 'migrate')
+    .map(({ relativePath }) => relativePath)
+
+  assert.deepEqual(migrating, [])
 })
 
 test('CLI may replace only its output file while rejecting every other tracked change', (t) => {
