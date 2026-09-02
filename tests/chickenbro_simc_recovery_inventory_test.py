@@ -34,9 +34,29 @@ class ChickenbroSimcRecoveryInventoryTest(unittest.TestCase):
         self.assertEqual(cloud_disks["unattachedCount"], 0)
         self.assertFalse(cloud_disks["reusableIndependentDiskPresent"])
 
+        object_storage = inventory["providerObjectStorage"]
+        self.assertEqual(object_storage["visibleBucketCount"], 37)
+        self.assertEqual(object_storage["pageCount"], 4)
+        self.assertEqual(object_storage["firstPageSampleCount"], 10)
+        self.assertEqual(object_storage["firstPageMainlandPrivateBucketCount"], 7)
+        self.assertTrue(object_storage["existingMainlandPrivateTargetPresent"])
+        self.assertEqual(object_storage["candidateStatus"], "potential_only")
+        self.assertFalse(object_storage["usableForCurrentCleanup"])
+        self.assertTrue(
+            all(
+                package["remainingCapacity"] == "unproven"
+                for package in object_storage["capacityPackages"]
+            )
+        )
+
         channels = inventory["serverBackupChannels"]
         self.assertFalse(channels["independentMountPresent"])
         self.assertFalse(channels["objectStorageClientConfigured"])
+        self.assertFalse(channels["instanceCamRoleBound"])
+        self.assertEqual(
+            channels["reviewedObjectStorageCredentialNameMatchCount"],
+            0,
+        )
         self.assertEqual(channels["availableClientTools"], [])
         pg_basebackup = channels["pgBasebackupTemplate"]
         self.assertTrue(pg_basebackup["present"])

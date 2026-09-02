@@ -117,11 +117,11 @@ test('project-state is the single machine-readable current truth entry', () => {
   assertPathExists(state.refactorInventory.recoveryInventory)
   assert.equal(
     state.refactorInventory.recoveryInventoryObservedAt,
-    '2026-09-02T16:55:57Z',
+    '2026-09-02T17:01:22Z',
   )
   assert.equal(
     state.refactorInventory.recoveryInventoryStatus,
-    'one_stale_system_snapshot_no_restore_zero_unattached_cloud_disks_no_independent_mount_or_object_storage_client',
+    'one_stale_system_snapshot_no_restore_zero_unattached_cloud_disks_existing_cos_potential_only_no_server_client_role_or_credentials',
   )
   assert.equal(state.refactorInventory.rootDiskUsedPercent, 84)
   assert.equal(state.refactorInventory.rootDiskFreeApproxSize, '8.58GB')

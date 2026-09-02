@@ -31,7 +31,7 @@
 | [本地逐文件清单](refactor/chickenbro-simc-refactor-inventory.json) | 绑定完整 commit 和逐文件 SHA；删除仍需 caller/link graph。 |
 | [云端只读清单](refactor/chickenbro-simc-cloud-inventory.json) | 2026-09-02T13:43:05Z reachable；容量 blocked。 |
 | [容量清理候选清单](refactor/chickenbro-simc-capacity-cleanup-manifest.json) | 四个精确数据库共 22.53GB；零当前连接/配置引用，但独立恢复缺失，全部仅为 candidate。 |
-| [恢复通道只读清单](refactor/chickenbro-simc-recovery-inventory.json) | 控制台唯一系统盘快照早于当前数据且未做 restore；广州地域待挂载云硬盘为 0，且无独立挂载或已配置对象存储客户端，恢复 gate 仍 blocked。 |
+| [恢复通道只读清单](refactor/chickenbro-simc-recovery-inventory.json) | 唯一系统盘快照陈旧且未做 restore，广州地域待挂载云硬盘为 0；账号已有 COS 桶与额度，但实例无客户端、CAM 角色或已审阅凭据，容量和恢复仍未验证，恢复 gate 继续 blocked。 |
 
 本地 inventory 的 `delete` 和容量清单的 `candidate_only` 都不是删除授权。只读云端 inventory 与陈旧 provider snapshot 也不是 apply 授权；任何写入前都必须刷新并重新验证容量、连接、服务、引用、独立 archive 和 restore identity。
 

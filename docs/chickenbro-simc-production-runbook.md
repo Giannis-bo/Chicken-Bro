@@ -20,9 +20,11 @@
 | 容量门禁 | `blocked_until_independent_legacy_cleanup_or_storage_expansion` |
 | provider snapshot | 仅 1 个，创建于 2026-03-17；早于当前数据且 restore 未运行 |
 | 广州地域待挂载云硬盘 | 0 |
-| 独立挂载/对象存储备份客户端 | 均未发现 |
+| COS 账号资源 | 37 个桶；首页样本有 7 个中国大陆私有桶，未打开桶内容 |
+| COS 展示额度 | 全地域免费 50GB（昨日抵扣 4.29GB）；中国大陆 200GB 套餐至 2026-09-05；精确剩余容量未验证 |
+| 独立挂载/COS 服务器访问链 | 无独立挂载、客户端、CAM 角色或 59 个已审阅配置文件中的凭据变量 |
 
-这些数字只说明盘点时刻的资源状态。执行任何写入前必须刷新；旧 provider snapshot、HTTP 200 或单个服务 active 不能解锁后续步骤。
+这些数字只说明盘点时刻的资源状态。已有桶和展示额度只构成潜在独立介质，不等于服务器已获得访问权、空间足够或可恢复。执行任何写入前必须刷新；旧 provider snapshot、HTTP 200、单个服务 active 或 COS 桶存在都不能解锁后续步骤。
 
 ## 绝对安全边界
 
@@ -91,6 +93,8 @@ ssh wow-lighthouse \
 容量前置清理必须有独立 cleanup manifest，逐个记录数据库/目录名称、bytes、最后连接、systemd/env/Nginx 引用、备份 identity、restore identity 和保留理由。默认 `--dry-run`；当前 Phase 2 不存在 cleanup apply 授权。
 
 当前只读清理清单是 [chickenbro-simc-capacity-cleanup-manifest.json](refactor/chickenbro-simc-capacity-cleanup-manifest.json)：四个 `wow_gear_evidence_*` 数据库共 22,533,484,636 bytes，当前连接与已扫描配置引用均为 0，但服务器只有单一 `vda` 根盘，且没有独立 archive/restore identity。因此四项都只是 `candidate_only`，不得据此删除。
+
+当前账号已有私有中国大陆 COS 桶和额度套餐，可以作为优先评估的潜在独立故障域，但不得直接复用任意已有前缀。启用这条路径仍需明确授权：创建专用私有目标或专用前缀、配置最小权限临时凭据/客户端、确认实际可用容量与生命周期、上传后在隔离位置执行真实恢复，并记录对象 version/hash、权限和恢复 identity。当前实例没有 CAM 角色或已配置凭据；仓库也不会为了绕过授权自行安装客户端、读取控制台密钥或把备份放入公有读写桶。
 
 ## 3. 建立可恢复备份
 

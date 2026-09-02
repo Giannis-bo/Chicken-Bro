@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-09-02T16:57:28.231Z",
+  "generatedAt": "2026-09-02T17:05:03.212Z",
   "release": {
     "date": "2026-09-02",
     "slug": "chickenbro-simc-identity-data"
@@ -38,7 +38,7 @@
         {
           "path": "docs/project-state.json",
           "exists": true,
-          "sizeBytes": 66437
+          "sizeBytes": 66456
         },
         {
           "path": "docs/project-owner-map.json",
@@ -53,12 +53,12 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 5815
+          "sizeBytes": 5949
         },
         {
           "path": "docs/README.md",
           "exists": true,
-          "sizeBytes": 4423
+          "sizeBytes": 4468
         },
         {
           "path": "docs/harness.md",
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-09-02-chickenbro-simc-identity-data/evidence.json",
-    "sizeBytes": 13718,
+    "sizeBytes": 14057,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -417,7 +417,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "9 changed files currently visible to git status."
+      "detail": "10 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
@@ -453,10 +453,11 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 9,
+      "changedFileCount": 10,
       "changedFiles": [
         " M README.md",
         " M artifacts/releases/2026-09-02-chickenbro-simc-identity-data/evidence.json",
+        " M artifacts/releases/2026-09-02-chickenbro-simc-identity-data/manifest.json",
         " M docs/README.md",
         " M docs/chickenbro-simc-production-runbook.md",
         " M docs/project-state.json",

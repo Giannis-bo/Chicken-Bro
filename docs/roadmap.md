@@ -1,7 +1,7 @@
 # WOW Mini Program Roadmap
 
 状态：`active`
-更新时间：`2026-09-02`
+更新时间：`2026-09-03`
 
 ## 本文职责
 
@@ -47,7 +47,7 @@ last-known-good 存在，不再获得新功能或数据扩展。
 | Web 小程序确认登录 | `partial` | 正式 ticket/verifier/Cookie 代码与候选已存在；真实已发布小程序确认页、扫码、Cookie、`/api/v2/me` 和跨端历史尚无完整用户验收 |
 | Web prototype bypass | `待退役` | prototype 可访问只证明隔离 demo 可用；prototype owner 和数据不迁移到正式历史 |
 | 数据面 | `本地已验证 / Candidate 阻塞` | product-only schema、同 owner 双会话、Origin/CSRF、provisioning dry-run 与云端隔离 backend profile（3,451 ran / 3,441 passed / 10 explicit skips / compileall / Harness）已通过；legacy 正式运行库 `wow_test` 约 16.38GB，独立 `chickenbro_prod` 尚未创建，不能宣称 Phase 2 完成 |
-| 云端空间 | `容量阻塞 apply` | 服务器只有单一 `vda` 根盘；四个 gear evidence DB 合计约 22.53GB、当前连接与配置引用均为 0；控制台唯一系统盘快照创建于 2026-03-17，早于当前数据且未做 restore，广州地域待挂载云硬盘为 0，服务器也没有独立挂载或已配置对象存储客户端，因此仍缺独立 archive/restore identity，只能保持 candidate；另一条路径是新建并挂载独立介质 |
+| 云端空间 | `容量阻塞 apply` | 服务器只有单一 `vda` 根盘；四个 gear evidence DB 合计约 22.53GB、当前连接与配置引用均为 0；控制台唯一系统盘快照创建于 2026-03-17，早于当前数据且未做 restore，广州地域待挂载云硬盘为 0。账号已有 37 个 COS 桶和额度套餐，但只证明潜在介质：实例无 COS 客户端、CAM 角色或已审阅凭据，桶级可用空间与 restore identity 也未验证，因此只能保持 candidate；下一安全动作是经授权配置专用私有 COS 备份/恢复链，或新建并挂载独立介质 |
 | Active Manifest/S2 | `legacy 冻结` | 当前 generation 41 与旧 Catalog 只承担迁移期回滚，不再 promotion 或扩展；新 SimC 主链不依赖这些 owner |
 
 ## 当前优先级

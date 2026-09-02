@@ -1,12 +1,16 @@
 {
   "schemaVersion": 1,
   "status": "read_only_insufficient_for_cleanup_or_candidate",
-  "observedAt": "2026-09-02T16:55:57Z",
+  "observedAt": "2026-09-02T17:01:22Z",
   "source": {
     "kind": "tencent_cloud_console_and_server_read_only_probe",
     "instanceId": "lhins-dr6tkl63",
     "region": "广州三区",
-    "consolePath": "/lighthouse/instance/detail?rid=1&id=lhins-dr6tkl63&tab=snapshot"
+    "consoleSurfaces": [
+      "instance_snapshot",
+      "regional_cloud_disk_list",
+      "lighthouse_object_storage"
+    ]
   },
   "mutationPerformed": false,
   "providerSnapshots": {
@@ -33,9 +37,46 @@
     "unattachedCount": 0,
     "reusableIndependentDiskPresent": false
   },
+  "providerObjectStorage": {
+    "visibleBucketCount": 37,
+    "pageCount": 4,
+    "reviewScope": "Account summary plus the first bucket-list page only; no bucket contents were opened.",
+    "firstPageSampleCount": 10,
+    "firstPagePrivateBucketCount": 9,
+    "firstPageMainlandPrivateBucketCount": 7,
+    "existingMainlandPrivateTargetPresent": true,
+    "capacityPackages": [
+      {
+        "kind": "all_region_general_free",
+        "storageQuota": "50GB",
+        "validUntil": "2026-11-18T23:59:59+08:00",
+        "yesterdayDiscountedUsage": "4.29GB",
+        "remainingCapacity": "unproven"
+      },
+      {
+        "kind": "mainland_general",
+        "storageQuota": "200GB",
+        "validUntil": "2026-09-05T23:59:59+08:00",
+        "renewalMode": "manual",
+        "yesterdayDiscountedUsage": "0GB",
+        "remainingCapacity": "unproven"
+      }
+    ],
+    "candidateStatus": "potential_only",
+    "usableForCurrentCleanup": false,
+    "reason": "Existing buckets and displayed quota packages do not prove per-bucket free headroom, a server-side authenticated upload path or a completed backup/restore identity. The instance has no configured COS client, CAM role or reviewed Tencent/COS credential variable."
+  },
   "serverBackupChannels": {
     "independentMountPresent": false,
     "objectStorageClientConfigured": false,
+    "instanceCamRoleBound": false,
+    "reviewedConfigFileCountForObjectStorageCredentials": 59,
+    "reviewedObjectStorageCredentialNameMatchCount": 0,
+    "builtinTransferPrimitives": [
+      "curl",
+      "openssl",
+      "python3"
+    ],
     "availableClientTools": [],
     "checkedClientTools": [
       "restic",
@@ -64,6 +105,6 @@
     "successfulRestoreIdentity": false,
     "candidateDatabaseProvisioningAuthorized": false,
     "legacyDatabaseDeletionAuthorized": false,
-    "nextDecision": "Create and verify a fresh independent recovery target, or create and attach a separate data disk; the existing stale snapshot, zero unattached cloud-disk inventory and same-device backup path do not satisfy the Phase 2 apply contract."
+    "nextDecision": "Authorize and configure a least-privilege upload/restore path to a dedicated private mainland COS target, or create and attach a separate data disk. Existing buckets are potential-only because authenticated server access, exact free headroom and restore evidence are absent; the stale snapshot, zero unattached cloud-disk inventory and same-device backup path also do not satisfy the Phase 2 apply contract."
   }
 }

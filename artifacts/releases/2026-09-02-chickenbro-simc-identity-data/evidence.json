@@ -123,9 +123,9 @@
     {
       "type": "cloud_recovery_channel_inventory",
       "status": "blocked",
-      "observedAt": "2026-09-02T16:55:57Z",
+      "observedAt": "2026-09-02T17:01:22Z",
       "snapshot": "docs/refactor/chickenbro-simc-recovery-inventory.json",
-      "detail": "The Tencent Cloud console exposes one normal system-disk snapshot from 2026-03-17, but it predates the current database inventory and has no restore verification. The Guangzhou cloud-disk inventory has 135 visible disks and zero in the unattached state. The server has no independent mount, configured object-storage client or enabled pg_basebackup instance; the packaged pg_basebackup template targets /var/backups on the same device as PostgreSQL. No snapshot, disk or backup was created."
+      "detail": "The Tencent Cloud console exposes one normal system-disk snapshot from 2026-03-17, but it predates the current database inventory and has no restore verification. The Guangzhou cloud-disk inventory has 135 visible disks and zero in the unattached state. The account has 37 COS buckets and displayed storage packages, including private mainland targets, but the server has no independent mount, configured object-storage client, CAM role or Tencent/COS credential variable in 59 reviewed configuration files. Exact COS headroom and a backup/restore identity remain unproven. No bucket contents were opened and no snapshot, disk, bucket, object or backup was created."
     },
     {
       "type": "capacity_cleanup_manifest",
@@ -151,7 +151,7 @@
     {
       "id": "candidate-capacity-and-recovery",
       "status": "blocked",
-      "detail": "chickenbro_prod cannot be provisioned until storage is expanded or independently recoverable legacy cleanup is completed, followed by a refreshed inventory and real restore evidence. The only visible provider snapshot is stale and untested, so it does not satisfy this gate."
+      "detail": "chickenbro_prod cannot be provisioned until storage is expanded or independently recoverable legacy cleanup is completed, followed by a refreshed inventory and real restore evidence. The only visible provider snapshot is stale and untested. Existing COS buckets are potential-only until a least-privilege server upload path, exact capacity and isolated restore are explicitly authorized and verified, so they do not yet satisfy this gate."
     },
     {
       "id": "real-postgresql-candidate-verification",
