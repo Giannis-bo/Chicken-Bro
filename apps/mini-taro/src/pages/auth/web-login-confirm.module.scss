@@ -81,7 +81,18 @@
 }
 
 .confirmAction {
+  width: 100%;
   margin-top: 18px;
+  border: 1px solid var(--wow-line-brass);
+  border-radius: 8px;
+  background: linear-gradient(180deg, #d9ab42, #91630b);
+  color: #111317;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.confirmAction::after {
+  border: 0;
 }
 
 .successCard {

@@ -1,7 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import type { EndpointId } from '@wow-mini/domain'
-
 import { createChatClient } from './chat'
 import type {
   ApiResult,
@@ -24,14 +22,6 @@ class RecordingTransport implements ApiTransport {
       error: '',
       httpStatus: 200,
     }
-  }
-
-  requestEndpoint<T>(
-    _endpointId: EndpointId,
-    path: string,
-    options: Omit<RequestOptions<T>, 'method'>,
-  ): Promise<ApiResult<T>> {
-    return this.request(path, options)
   }
 
   requestSse<T>(path: string, options: SseStreamRequestOptions<T>): ApiStreamTask {
@@ -61,7 +51,7 @@ describe('formal Chat client', () => {
     }
   })
 
-  it('uses only formal paths and an explicit Mini Bearer transport', async () => {
+  it('uses only formal paths and delegates Mini credentials to the transport', async () => {
     const transport = new RecordingTransport()
     const client = createChatClient(transport)
     const auth = { kind: 'mini' as const, accessToken: 'mini-token' }
@@ -77,14 +67,14 @@ describe('formal Chat client', () => {
     ])
     for (const call of transport.requests) {
       expect(call.path).not.toContain('/prototype/')
-      expect(call.options.auth).toBe(false)
-      expect(call.options.credentials).toBe('omit')
-      expect(call.options.baseUrl).toBe('default')
-      expect(call.options.header?.['Authorization']).toBe('Bearer mini-token')
+      expect(call.options.auth).toEqual(auth)
+      expect(call.options.credentials).toBeUndefined()
+      expect(call.options.baseUrl).toBeUndefined()
+      expect(call.options.header?.['Authorization']).toBeUndefined()
     }
   })
 
-  it('uses Web Cookie credentials and CSRF only on writes', async () => {
+  it('delegates Web Cookie and CSRF credentials to the transport', async () => {
     const transport = new RecordingTransport()
     const client = createChatClient(transport)
     const auth = { kind: 'web' as const, csrfToken: 'web-csrf' }
@@ -93,17 +83,17 @@ describe('formal Chat client', () => {
     await client.get('conversation-one', { auth })
     await client.create({ title: 'Web 跨端' }, { auth })
 
-    expect(transport.requests[0]?.options.credentials).toBe('include')
-    expect(transport.requests[0]?.options.header).toEqual({})
-    expect(transport.requests[1]?.options.header).toEqual({})
-    expect(transport.requests[2]?.options.header).toEqual({ 'X-CSRF-Token': 'web-csrf' })
     for (const call of transport.requests) {
-      expect(call.options.baseUrl).toBe('web-auth')
+      expect(call.options.auth).toEqual(auth)
+      expect(call.options.credentials).toBeUndefined()
+      expect(call.options.baseUrl).toBeUndefined()
+      expect(call.options.header).toBeUndefined()
       expect(call.options.header?.['Authorization']).toBeUndefined()
+      expect(call.options.header?.['X-CSRF-Token']).toBeUndefined()
     }
   })
 
-  it('streams formal SSE with transport-specific credentials and validates events', () => {
+  it('streams formal SSE with auth context and validates events', () => {
     const transport = new RecordingTransport()
     const client = createChatClient(transport)
     const failures: string[] = []
@@ -124,10 +114,8 @@ describe('formal Chat client', () => {
     expect(stream?.options).toMatchObject({
       method: 'POST',
       data: { content: '问题', clientMessageId: 'client-one' },
-      baseUrl: 'web-auth',
-      credentials: 'include',
+      auth: { kind: 'web', csrfToken: 'web-csrf' },
       header: {
-        'X-CSRF-Token': 'web-csrf',
         'Idempotency-Key': 'request-one',
       },
       timeoutMs: 180000,
@@ -153,10 +141,8 @@ describe('formal Chat client', () => {
     )
     const stream = transport.streams[0]
     expect(stream?.options).toMatchObject({
-      baseUrl: 'default',
-      credentials: 'omit',
+      auth: { kind: 'mini', accessToken: 'mini-token' },
       header: {
-        Authorization: 'Bearer mini-token',
         'Idempotency-Key': 'request-one',
       },
     })

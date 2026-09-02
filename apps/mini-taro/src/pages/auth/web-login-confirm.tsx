@@ -1,9 +1,8 @@
 import Taro, { useLoad } from '@tarojs/taro'
-import { Text, View } from '@tarojs/components'
+import { Button, Text, View } from '@tarojs/components'
 import { useRef, useState } from 'react'
 
 import { wowApi } from '@wow-mini/api-client'
-import { ActionButton } from '@wow-mini/design-system/components/ActionButton'
 
 import styles from './web-login-confirm.module.scss'
 
@@ -113,16 +112,14 @@ export default function WebLoginConfirmPage() {
         </View>
 
         {state.phase === 'ready' || state.phase === 'confirming' ? (
-          <ActionButton
-            block
+          <Button
             className={styles['confirmAction'] ?? ''}
             disabled={isBusy}
             loading={state.phase === 'confirming'}
-            variant="primaryGold"
             onClick={() => void confirmLogin()}
           >
             确认登录
-          </ActionButton>
+          </Button>
         ) : null}
 
         {state.phase === 'confirmed' ? (
@@ -133,9 +130,9 @@ export default function WebLoginConfirmPage() {
         ) : null}
 
         {state.phase === 'error' ? (
-          <ActionButton block className={styles['confirmAction'] ?? ''} variant="secondaryMetal" onClick={retry}>
+          <Button className={styles['confirmAction'] ?? ''} onClick={retry}>
             重新尝试
-          </ActionButton>
+          </Button>
         ) : null}
 
         <Text className={styles['privacyNote'] ?? ''}>本页不会展示账户凭据，也不会自动替你确认登录。</Text>

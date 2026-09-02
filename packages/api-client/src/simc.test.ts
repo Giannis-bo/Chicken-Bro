@@ -1,7 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import type { EndpointId } from '@wow-mini/domain'
-
 import { createSimcClient } from './simc'
 import type { ApiResult, ApiTransport, RequestOptions } from './transport'
 
@@ -19,13 +17,6 @@ class RecordingTransport implements ApiTransport {
     }
   }
 
-  requestEndpoint<T>(
-    _endpointId: EndpointId,
-    path: string,
-    options: Omit<RequestOptions<T>, 'method'>,
-  ): Promise<ApiResult<T>> {
-    return this.request(path, options)
-  }
 }
 
 
@@ -45,7 +36,7 @@ describe('formal SimC client', () => {
     }
   })
 
-  it('uses only formal paths and explicit Mini Bearer credentials', async () => {
+  it('uses only formal paths and delegates Mini credentials to the transport', async () => {
     const transport = new RecordingTransport()
     const client = createSimcClient(transport)
     const auth = { kind: 'mini' as const, accessToken: 'mini-token' }
@@ -74,15 +65,15 @@ describe('formal SimC client', () => {
     ])
     for (const call of transport.requests) {
       expect(call.path).not.toContain('/prototype/')
-      expect(call.options.auth).toBe(false)
-      expect(call.options.credentials).toBe('omit')
-      expect(call.options.baseUrl).toBe('default')
-      expect(call.options.header?.['Authorization']).toBe('Bearer mini-token')
+      expect(call.options.auth).toEqual(auth)
+      expect(call.options.credentials).toBeUndefined()
+      expect(call.options.baseUrl).toBeUndefined()
+      expect(call.options.header?.['Authorization']).toBeUndefined()
     }
     expect(transport.requests[3]?.options.header?.['Idempotency-Key']).toBe('simc-request-one')
   })
 
-  it('uses Web Cookie credentials and CSRF only on writes', async () => {
+  it('delegates Web Cookie and CSRF credentials to the transport', async () => {
     const transport = new RecordingTransport()
     const client = createSimcClient(transport)
     const auth = { kind: 'web' as const, csrfToken: 'web-csrf' }
@@ -99,16 +90,16 @@ describe('formal SimC client', () => {
       { auth, idempotencyKey: 'web-simc-one' },
     )
 
-    expect(transport.requests.slice(0, 3).map((call) => call.options.header)).toEqual([{}, {}, {}])
-    expect(transport.requests[3]?.options.header).toEqual({ 'X-CSRF-Token': 'web-csrf' })
+    expect(transport.requests.slice(0, 4).map((call) => call.options.header)).toEqual([{}, {}, {}, {}])
     expect(transport.requests[4]?.options.header).toEqual({
-      'X-CSRF-Token': 'web-csrf',
       'Idempotency-Key': 'web-simc-one',
     })
     for (const call of transport.requests) {
-      expect(call.options.credentials).toBe('include')
-      expect(call.options.baseUrl).toBe('web-auth')
+      expect(call.options.auth).toEqual(auth)
+      expect(call.options.credentials).toBeUndefined()
+      expect(call.options.baseUrl).toBeUndefined()
       expect(call.options.header?.['Authorization']).toBeUndefined()
+      expect(call.options.header?.['X-CSRF-Token']).toBeUndefined()
     }
   })
 })

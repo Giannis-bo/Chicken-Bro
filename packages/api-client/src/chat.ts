@@ -10,10 +10,7 @@ import {
   type ConversationSummary,
 } from '@wow-mini/domain'
 
-import {
-  clientAuthRequest,
-  type ClientAuthContext,
-} from './auth-context'
+import type { ClientAuthContext } from './auth-context'
 import type { ApiResult, ApiStreamTask, ApiTransport, RequestData } from './transport'
 import { apiV2Path } from './api-v2-prefix'
 
@@ -92,15 +89,10 @@ export function createChatClient(transport: ApiTransport): ChatClient {
       validate: (value: unknown) => boolean
     },
   ): Promise<ApiResult<T>> => {
-    const auth = clientAuthRequest(options.auth, { mutating: config.mutating })
     return transport.request(path, {
       ...(config.method === undefined ? {} : { method: config.method }),
       ...(data === undefined ? {} : { data }),
-      header: auth.header,
-      credentials: auth.credentials,
-      baseUrl: auth.baseUrl,
-      auth: false,
-      attachAnalyticsHeaders: false,
+      auth: options.auth,
       responseMode: 'structured-problem',
       fallback: config.fallback,
       validate: config.validate,
@@ -172,7 +164,6 @@ export function createChatClient(transport: ApiTransport): ChatClient {
         options.onFailure(error instanceof Error ? error.message : 'invalid Chat request')
         return { abort() {} }
       }
-      const auth = clientAuthRequest(options.auth, { mutating: true })
       let rejected = false
       return requestSse(
         apiV2Path(`/chat/conversations/${encodeURIComponent(id)}/messages/stream`),
@@ -182,10 +173,8 @@ export function createChatClient(transport: ApiTransport): ChatClient {
             content: message.content,
             ...(clientMessageId === undefined ? {} : { clientMessageId }),
           },
-          baseUrl: auth.baseUrl,
-          credentials: auth.credentials,
+          auth: options.auth,
           header: {
-            ...auth.header,
             'Idempotency-Key': options.idempotencyKey,
           },
           timeoutMs: CHAT_STREAM_TIMEOUT_MS,

@@ -15,7 +15,8 @@ const {
 const repositoryRoot = path.resolve(__dirname, '..')
 const appRoot = path.join(repositoryRoot, 'apps/mini-taro')
 const liveOutputRoot = path.join(appRoot, 'dist/weapp')
-const taroCliEntry = path.join(repositoryRoot, 'node_modules', '@tarojs', 'cli', 'bin', 'taro')
+const taroCliPackage = require.resolve('@tarojs/cli/package.json', { paths: [repositoryRoot] })
+const taroCliEntry = path.join(path.dirname(taroCliPackage), 'bin', 'taro')
 const maximumBuildFiles = 4096
 const requiredEntries = ['app.json', 'app.js', 'app.wxss']
 const requiredPageExtensions = ['js', 'json', 'wxml', 'wxss']

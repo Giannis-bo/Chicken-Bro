@@ -1,18 +1,13 @@
 import Taro from '@tarojs/taro'
 
-import {
-  endpointContract,
-  storageKey,
-  type EndpointId,
-} from '@wow-mini/domain'
-
-import { AnalyticsIdentity } from './analytics'
 import { clientAuthRequest, type ClientAuthContext } from './auth-context'
 import { taroStorage, type StorageAdapter } from './storage'
 
 declare const __WOW_BACKEND_API_BASE_URL__: string
 
-export const DEV_API_BASE_URL = 'http://124.223.51.33'
+const API_BASE_STORAGE_KEY = 'wow_backend_api_base_url'
+
+export const DEV_API_BASE_URL = 'https://api.chickenbro.cloud'
 
 export interface ApiResult<T> {
   payload: T
@@ -35,25 +30,12 @@ export interface RequestOptions<T> {
   data?: RequestData
   header?: Readonly<Record<string, string>>
   timeoutMs?: number
-  auth?: boolean | TransportAuthContext
-  allowInsecureGuestRequest?: boolean
-  attachAnalyticsHeaders?: boolean
+  auth: TransportAuthContext
   responseMode?: 'default' | 'structured-problem'
   credentials?: RequestCredentials
   baseUrl?: RequestBase
   fallback: () => T
   validate?: (value: unknown) => boolean
-}
-
-export interface StreamRequestOptions<T> {
-  data: RequestData
-  header?: Readonly<Record<string, string>>
-  timeoutMs?: number
-  auth?: boolean
-  allowInsecureGuestRequest?: boolean
-  attachAnalyticsHeaders?: boolean
-  onEvent: (event: T) => void
-  onFailure: (error: string) => void
 }
 
 export interface ApiStreamTask {
@@ -65,30 +47,18 @@ export interface SseStreamRequestOptions<T> {
   data?: RequestData
   header?: Readonly<Record<string, string>>
   timeoutMs?: number
-  baseUrl?: RequestBase
-  credentials?: RequestCredentials
+  auth: ClientAuthContext
   onEvent: (event: T) => void
   onFailure: (error: string) => void
 }
 
 export interface ApiTransport {
   request<T>(path: string, options: RequestOptions<T>): Promise<ApiResult<T>>
-  requestEndpoint<T>(
-    endpointId: EndpointId,
-    path: string,
-    options: Omit<RequestOptions<T>, 'method'>,
-  ): Promise<ApiResult<T>>
-  requestStreamEndpoint?<T>(
-    endpointId: EndpointId,
-    path: string,
-    options: Omit<StreamRequestOptions<T>, 'method'>,
-  ): ApiStreamTask
   requestSse?<T>(path: string, options: SseStreamRequestOptions<T>): ApiStreamTask
 }
 
 export interface TransportConfig {
   storage?: StorageAdapter
-  platform?: string
   resolveBaseUrl?: () => string
   resolveWebBaseUrl?: () => string
 }
@@ -113,7 +83,11 @@ function hasExplicitCredentialHeader(header: Readonly<Record<string, string>> | 
 }
 
 export function isInsecureHttpUrl(url: string): boolean {
-  return /^http:\/\//i.test(url)
+  try {
+    return new URL(url).protocol !== 'https:'
+  } catch {
+    return true
+  }
 }
 
 function isWebRuntime(): boolean {
@@ -148,13 +122,13 @@ function buildTimeApiBaseUrl(): string {
 
 function h5ApiBaseUrl(): string {
   if (!isWebRuntime()) return ''
-  return `${window.location.origin}/wow-api`
+  return window.location.origin
 }
 
 function productionApiBaseUrl(value: string): string {
   try {
     const parsed = new URL(value)
-    const isIpv4 = /^(?:\d{1,3}\.){3}\d{1,3}$/.test(parsed.hostname)
+    const isIpv4 = /^(?:\d{1,3}\.){3}\d{1,3}$/u.test(parsed.hostname)
     const isIpv6 = parsed.hostname.includes(':')
     const isNamedHost = parsed.hostname.includes('.') && !isIpv4 && !isIpv6
     const isOriginOnly = parsed.pathname === '/' && !parsed.search && !parsed.hash
@@ -169,28 +143,19 @@ function productionApiBaseUrl(value: string): string {
 
 export function configuredApiBaseUrl(storage: StorageAdapter = taroStorage): string {
   if (isWebRuntime()) {
-    const stored = storage.get<string>(storageKey('api.base'))
-      ?? storage.get<string>(storageKey('api.newsBaseCompat'))
-    return stored || buildTimeApiBaseUrl() || h5ApiBaseUrl()
+    return storage.get<string>(API_BASE_STORAGE_KEY) || buildTimeApiBaseUrl() || h5ApiBaseUrl()
   }
   const envVersion = miniProgramEnvVersion()
   if (envVersion === 'unknown') return ''
   if (envVersion === 'release' || envVersion === 'trial') {
     return productionApiBaseUrl(buildTimeApiBaseUrl())
   }
-  const stored = storage.get<string>(storageKey('api.base'))
-    ?? storage.get<string>(storageKey('api.newsBaseCompat'))
-  if (stored) return stored
-  const envBase = buildTimeApiBaseUrl()
-  if (envBase) return envBase
-  return DEV_API_BASE_URL
+  return storage.get<string>(API_BASE_STORAGE_KEY) || buildTimeApiBaseUrl() || DEV_API_BASE_URL
 }
 
 export function configuredWebAuthBaseUrl(storage: StorageAdapter = taroStorage): string {
   if (isWebRuntime()) return window.location.origin
-  const productionBase = productionApiBaseUrl(buildTimeApiBaseUrl())
-  if (productionBase) return productionBase
-  return configuredApiBaseUrl(storage)
+  return productionApiBaseUrl(buildTimeApiBaseUrl()) || configuredApiBaseUrl(storage)
 }
 
 function errorMessage(error: unknown): string {
@@ -202,37 +167,19 @@ function errorMessage(error: unknown): string {
   return 'request failed'
 }
 
-export class NdjsonDecoder {
-  private readonly decoder = new TextDecoder('utf-8')
-  private buffered = ''
-
-  push(data: ArrayBuffer): unknown[] {
-    this.buffered += this.decoder.decode(new Uint8Array(data), { stream: true })
-    return this.takeCompleteLines()
+function responseProblemCode(value: unknown): string | undefined {
+  if (
+    typeof value === 'object'
+    && value !== null
+    && 'error' in value
+    && typeof value.error === 'object'
+    && value.error !== null
+    && 'code' in value.error
+    && typeof value.error.code === 'string'
+  ) {
+    return value.error.code
   }
-
-  finish(): unknown[] {
-    this.buffered += this.decoder.decode()
-    const events = this.takeCompleteLines()
-    if (this.buffered.trim()) throw new Error('incomplete NDJSON payload')
-    return events
-  }
-
-  private takeCompleteLines(): unknown[] {
-    const lines = this.buffered.split('\n')
-    this.buffered = lines.pop() ?? ''
-    const events: unknown[] = []
-    for (const line of lines) {
-      const text = line.endsWith('\r') ? line.slice(0, -1) : line
-      if (!text) continue
-      try {
-        events.push(JSON.parse(text))
-      } catch {
-        throw new Error('malformed stream payload')
-      }
-    }
-    return events
-  }
+  return undefined
 }
 
 export class SseDecoder {
@@ -248,9 +195,8 @@ export class SseDecoder {
     this.buffered += this.decoder.decode()
     const events = this.takeCompleteFrames()
     if (this.buffered.trim()) {
-      const event = this.parseFrame(this.buffered)
+      events.push(this.parseFrame(this.buffered))
       this.buffered = ''
-      events.push(event)
     }
     return events
   }
@@ -281,8 +227,6 @@ export class SseDecoder {
 
 export function createTaroTransport(config: TransportConfig = {}): ApiTransport {
   const storage = config.storage ?? taroStorage
-  const analytics = new AnalyticsIdentity(storage)
-  const platform = config.platform ?? (isWebRuntime() ? 'h5' : 'miniprogram')
   const resolveBaseUrl = config.resolveBaseUrl ?? (() => configuredApiBaseUrl(storage))
   const resolveWebBaseUrl = config.resolveWebBaseUrl ?? (() => configuredWebAuthBaseUrl(storage))
 
@@ -301,64 +245,47 @@ export function createTaroTransport(config: TransportConfig = {}): ApiTransport 
         ? { httpStatus, transportError: error, offline, ...(problemCode ? { problemCode } : {}) }
         : {}),
     })
-    const authContext = typeof options.auth === 'object' && options.auth !== null
-      ? options.auth
-      : null
+
     let effectiveBase = options.baseUrl ?? 'default'
     let effectiveCredentials = options.credentials ?? 'omit'
-    let explicitAuthHeader: Readonly<Record<string, string>> = {}
-    let requiresSecureTransport = options.auth === true
-    if (authContext !== null) {
-      if (hasExplicitCredentialHeader(options.header)) {
-        return fallbackResult('auth context cannot be combined with explicit credential headers')
+    let credentialHeader: Readonly<Record<string, string>> = {}
+    let requiresSecureTransport = false
+    if (options.auth === undefined) {
+      return fallbackResult('auth context is required')
+    }
+    if (hasExplicitCredentialHeader(options.header)) {
+      return fallbackResult('auth context cannot be combined with explicit credential headers')
+    }
+    if (options.auth.kind === 'public') {
+      if (!publicAuthPath(path)) {
+        return fallbackResult('public auth context is not allowed for this path')
       }
-      if (authContext.kind === 'public') {
-        if (!publicAuthPath(path)) {
-          return fallbackResult('public auth context is not allowed for this path')
+      requiresSecureTransport = !/\/health\/readiness(?:[?#]|$)/u.test(path)
+    } else {
+      try {
+        const derived = clientAuthRequest(options.auth, {
+          mutating: (options.method ?? 'GET') !== 'GET',
+        })
+        if (options.baseUrl !== undefined && options.baseUrl !== derived.baseUrl) {
+          return fallbackResult('auth context conflicts with request base')
         }
-        requiresSecureTransport = !/\/health\/readiness(?:[?#]|$)/u.test(path)
-      } else if (authContext.kind === 'mini' || authContext.kind === 'web') {
-        try {
-          const derived = clientAuthRequest(authContext, {
-            mutating: (options.method ?? 'GET') !== 'GET',
-          })
-          if (options.baseUrl !== undefined && options.baseUrl !== derived.baseUrl) {
-            return fallbackResult('auth context conflicts with request base')
-          }
-          if (options.credentials !== undefined && options.credentials !== derived.credentials) {
-            return fallbackResult('auth context conflicts with request credentials')
-          }
-          effectiveBase = derived.baseUrl
-          effectiveCredentials = derived.credentials
-          explicitAuthHeader = derived.header
-          requiresSecureTransport = true
-        } catch (error) {
-          return fallbackResult(errorMessage(error))
+        if (options.credentials !== undefined && options.credentials !== derived.credentials) {
+          return fallbackResult('auth context conflicts with request credentials')
         }
-      } else {
-        return fallbackResult('unknown auth context')
+        effectiveBase = derived.baseUrl
+        effectiveCredentials = derived.credentials
+        credentialHeader = derived.header
+        requiresSecureTransport = true
+      } catch (error) {
+        return fallbackResult(errorMessage(error))
       }
     }
 
     const baseUrl = (effectiveBase === 'web-auth' ? resolveWebBaseUrl : resolveBaseUrl)()
     const url = baseUrl ? `${baseUrl}${path}` : ''
-    if (!url) {
-      return fallbackResult('missing api base url', 0, true)
-    }
-    const allowsLegacyInsecureGuest = authContext === null
-      && options.allowInsecureGuestRequest === true
-    if (requiresSecureTransport && isInsecureHttpUrl(url) && !allowsLegacyInsecureGuest) {
+    if (!url) return fallbackResult('missing api base url', 0, true)
+    if (requiresSecureTransport && isInsecureHttpUrl(url)) {
       return fallbackResult('insecure api base url for authenticated request')
-    }
-
-    const header: Record<string, string> = {
-      ...(options.attachAnalyticsHeaders === false || authContext !== null ? {} : analytics.headers(platform)),
-      ...options.header,
-      ...explicitAuthHeader,
-    }
-    if (options.auth === true && !isInsecureHttpUrl(url)) {
-      const token = storage.get<string>(storageKey('auth.token'))
-      if (token) header['Authorization'] = `Bearer ${token}`
     }
 
     try {
@@ -366,96 +293,74 @@ export function createTaroTransport(config: TransportConfig = {}): ApiTransport 
         url,
         method: options.method ?? 'GET',
         data: options.data,
-        header,
+        header: { ...options.header, ...credentialHeader },
         timeout: options.timeoutMs ?? 6000,
         credentials: effectiveCredentials,
       })
       const valid = options.validate?.(response.data) ?? Boolean(response.data)
-      if (structuredProblem && valid) {
+      if (response.statusCode >= 200 && response.statusCode < 300 && valid) {
         return {
           payload: response.data as T,
           fromFallback: false,
           error: '',
-          httpStatus: response.statusCode,
-          transportError: '',
-          offline: false,
+          ...(structuredProblem
+            ? { httpStatus: response.statusCode, transportError: '', offline: false }
+            : {}),
         }
       }
-      if (response.statusCode >= 200 && response.statusCode < 300 && valid) {
-        return { payload: response.data as T, fromFallback: false, error: '' }
-      }
-      const responseProblemCode = typeof response.data === 'object'
-        && response.data !== null
-        && 'error' in response.data
-        && typeof response.data.error === 'object'
-        && response.data.error !== null
-        && 'code' in response.data.error
-        && typeof response.data.error.code === 'string'
-        ? response.data.error.code
-        : undefined
-      return fallbackResult(`HTTP ${response.statusCode}`, response.statusCode, false, responseProblemCode)
+      return fallbackResult(
+        `HTTP ${response.statusCode}`,
+        response.statusCode,
+        false,
+        responseProblemCode(response.data),
+      )
     } catch (error) {
       return fallbackResult(errorMessage(error), 0, true)
     }
   }
 
-  const requestStreamEndpoint = <T>(
-    endpointId: EndpointId,
+  const requestSse = <T>(
     path: string,
-    options: Omit<StreamRequestOptions<T>, 'method'>,
+    options: SseStreamRequestOptions<T>,
   ): ApiStreamTask => {
-    const endpoint = endpointContract(endpointId)
-    const endpointAllowsInsecureGuest = 'allowInsecureGuestRequest' in endpoint
-      && endpoint.allowInsecureGuestRequest === true
-    const allowInsecureGuestRequest = endpointAllowsInsecureGuest
-      && options.allowInsecureGuestRequest === true
-    const auth = endpoint.auth === 'optional_by_call'
-      ? options.auth === true
-      : endpoint.auth !== 'none'
-    const timeoutMs = options.timeoutMs
-      ?? ('timeoutMs' in endpoint ? endpoint.timeoutMs : undefined)
-    const baseUrl = resolveBaseUrl()
-    const url = baseUrl ? `${baseUrl}${path}` : ''
     let failed = false
     const fail = (message: string) => {
       if (failed) return
       failed = true
       options.onFailure(message)
     }
+    if (hasExplicitCredentialHeader(options.header)) {
+      fail('auth context cannot be combined with explicit credential headers')
+      return { abort() {} }
+    }
+
+    let authRequest
+    try {
+      authRequest = clientAuthRequest(options.auth, {
+        mutating: (options.method ?? 'POST') !== 'GET',
+      })
+    } catch (error) {
+      fail(errorMessage(error))
+      return { abort() {} }
+    }
+    const baseUrl = (authRequest.baseUrl === 'web-auth' ? resolveWebBaseUrl : resolveBaseUrl)()
+    const url = baseUrl ? `${baseUrl}${path}` : ''
     if (!url) {
       fail('missing api base url')
       return { abort() {} }
     }
-    if (auth && isInsecureHttpUrl(url) && !allowInsecureGuestRequest) {
+    if (isInsecureHttpUrl(url)) {
       fail('insecure api base url for authenticated request')
       return { abort() {} }
     }
-    const header: Record<string, string> = {
-      ...((options.attachAnalyticsHeaders ?? !(
-        'transport' in endpoint && endpoint.transport === 'direct_request_without_analytics_headers'
-      )) ? analytics.headers(platform) : {}),
-      ...options.header,
-    }
-    if (auth && !isInsecureHttpUrl(url)) {
-      const token = storage.get<string>(storageKey('auth.token'))
-      if (token) header['Authorization'] = `Bearer ${token}`
-    }
 
-    const decoder = new NdjsonDecoder()
-    const task = Taro.request<unknown>({
-      url,
-      method: endpoint.method,
-      data: options.data,
-      header,
-      timeout: timeoutMs ?? 6000,
-      enableChunked: true,
-      responseType: 'arraybuffer',
-    }) as unknown as Promise<{ statusCode: number }> & {
-      abort?: () => void
-      onChunkReceived?: (callback: (payload: { data: ArrayBuffer }) => void) => void
+    const decoder = new SseDecoder()
+    const header: Record<string, string> = {
+      Accept: 'text/event-stream',
+      ...options.header,
+      ...authRequest.header,
     }
-    const abort = () => task.abort?.()
-    const emit = (event: unknown) => {
+    const emit = (event: unknown, abort: () => void) => {
       if (failed) return
       try {
         options.onEvent(event as T)
@@ -464,53 +369,7 @@ export function createTaroTransport(config: TransportConfig = {}): ApiTransport 
         fail('invalid stream event')
       }
     }
-    if (typeof task.onChunkReceived !== 'function') {
-      abort()
-      fail('chunked response is unavailable')
-    } else {
-      task.onChunkReceived(({ data }) => {
-        if (failed) return
-        try {
-          decoder.push(data).forEach(emit)
-        } catch {
-          abort()
-          fail('malformed stream payload')
-        }
-      })
-    }
-    void task.then((response) => {
-      if (failed) return
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        fail(`HTTP ${response.statusCode}`)
-        return
-      }
-      try {
-        decoder.finish().forEach(emit)
-      } catch {
-        abort()
-        fail('malformed stream payload')
-      }
-    }).catch((error) => fail(errorMessage(error)))
-    return { abort }
-  }
 
-  const requestSse = <T>(
-    path: string,
-    options: SseStreamRequestOptions<T>,
-  ): ApiStreamTask => {
-    const baseUrl = (options.baseUrl === 'web-auth' ? resolveWebBaseUrl : resolveBaseUrl)()
-    const url = baseUrl ? `${baseUrl}${path}` : ''
-    let failed = false
-    const fail = (message: string) => {
-      if (failed) return
-      failed = true
-      options.onFailure(message)
-    }
-    if (!url) {
-      fail('missing api base url')
-      return { abort() {} }
-    }
-    const decoder = new SseDecoder()
     if (isWebRuntime() && typeof fetch === 'function') {
       const controller = new AbortController()
       let aborted = false
@@ -533,32 +392,23 @@ export function createTaroTransport(config: TransportConfig = {}): ApiTransport 
           abort()
         }, options.timeoutMs)
       }
-      const fetchHeader: Record<string, string> = {
-        Accept: 'text/event-stream',
-        ...options.header,
-      }
       const body = options.data === undefined
         ? undefined
         : typeof options.data === 'string' || options.data instanceof ArrayBuffer
           ? options.data
           : JSON.stringify(options.data)
-      if (body && typeof options.data === 'object' && !(options.data instanceof ArrayBuffer)
-        && !Object.keys(fetchHeader).some((key) => key.toLowerCase() === 'content-type')) {
-        fetchHeader['Content-Type'] = 'application/json'
-      }
-      const emit = (event: unknown) => {
-        if (failed || aborted) return
-        try {
-          options.onEvent(event as T)
-        } catch {
-          abort()
-          fail('invalid stream event')
-        }
+      if (
+        body
+        && typeof options.data === 'object'
+        && !(options.data instanceof ArrayBuffer)
+        && !Object.keys(header).some((key) => key.toLowerCase() === 'content-type')
+      ) {
+        header['Content-Type'] = 'application/json'
       }
       const fetchOptions: RequestInit = {
         method: options.method ?? 'POST',
-        headers: fetchHeader,
-        credentials: options.credentials ?? 'omit',
+        headers: header,
+        credentials: authRequest.credentials,
         signal: controller.signal,
       }
       if (body !== undefined) fetchOptions.body = body
@@ -584,9 +434,9 @@ export function createTaroTransport(config: TransportConfig = {}): ApiTransport 
               value.byteOffset,
               value.byteOffset + value.byteLength,
             ) as ArrayBuffer
-            decoder.push(buffer).forEach(emit)
+            decoder.push(buffer).forEach((event) => emit(event, abort))
           }
-          decoder.finish().forEach(emit)
+          decoder.finish().forEach((event) => emit(event, abort))
         } catch (error) {
           if (!aborted) fail(errorMessage(error))
         } finally {
@@ -598,16 +448,14 @@ export function createTaroTransport(config: TransportConfig = {}): ApiTransport 
       })
       return { abort }
     }
-    const header: Record<string, string> = {
-      ...(options.header ?? {}),
-    }
+
     const task = Taro.request<unknown>({
       url,
       method: options.method ?? 'POST',
       data: options.data,
       header,
       timeout: options.timeoutMs ?? 90000,
-      credentials: options.credentials ?? 'omit',
+      credentials: authRequest.credentials,
       enableChunked: true,
       responseType: 'arraybuffer',
     }) as unknown as Promise<{ statusCode: number }> & {
@@ -615,15 +463,6 @@ export function createTaroTransport(config: TransportConfig = {}): ApiTransport 
       onChunkReceived?: (callback: (payload: { data: ArrayBuffer }) => void) => void
     }
     const abort = () => task.abort?.()
-    const emit = (event: unknown) => {
-      if (failed) return
-      try {
-        options.onEvent(event as T)
-      } catch {
-        abort()
-        fail('invalid stream event')
-      }
-    }
     if (typeof task.onChunkReceived !== 'function') {
       abort()
       fail('chunked response is unavailable')
@@ -631,10 +470,10 @@ export function createTaroTransport(config: TransportConfig = {}): ApiTransport 
       task.onChunkReceived(({ data }) => {
         if (failed) return
         try {
-          decoder.push(data).forEach(emit)
+          decoder.push(data).forEach((event) => emit(event, abort))
         } catch {
           abort()
-          fail('malformed stream payload')
+          fail('malformed SSE payload')
         }
       })
     }
@@ -645,45 +484,14 @@ export function createTaroTransport(config: TransportConfig = {}): ApiTransport 
         return
       }
       try {
-        decoder.finish().forEach(emit)
+        decoder.finish().forEach((event) => emit(event, abort))
       } catch {
         abort()
-        fail('malformed stream payload')
+        fail('malformed SSE payload')
       }
     }).catch((error) => fail(errorMessage(error)))
     return { abort }
   }
 
-  return {
-    request,
-    requestEndpoint<T>(
-      endpointId: EndpointId,
-      path: string,
-      options: Omit<RequestOptions<T>, 'method'>,
-    ): Promise<ApiResult<T>> {
-      const endpoint = endpointContract(endpointId)
-      const endpointAllowsInsecureGuest = 'allowInsecureGuestRequest' in endpoint
-        && endpoint.allowInsecureGuestRequest === true
-      const allowInsecureGuestRequest = endpointAllowsInsecureGuest
-        && options.allowInsecureGuestRequest === true
-      const auth = endpoint.auth === 'optional_by_call'
-        ? options.auth === true
-        : endpoint.auth !== 'none'
-      const timeoutMs = options.timeoutMs
-        ?? ('timeoutMs' in endpoint ? endpoint.timeoutMs : undefined)
-      return request(path, {
-        ...options,
-        method: endpoint.method,
-        ...(timeoutMs === undefined ? {} : { timeoutMs }),
-        auth,
-        allowInsecureGuestRequest,
-        attachAnalyticsHeaders: !(
-          'transport' in endpoint
-          && endpoint.transport === 'direct_request_without_analytics_headers'
-        ),
-      })
-    },
-    requestStreamEndpoint,
-    requestSse,
-  }
+  return { request, requestSse }
 }

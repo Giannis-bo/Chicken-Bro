@@ -1,8 +1,3 @@
-export { AnalyticsIdentity } from './analytics'
-export type { AnalyticsClock } from './analytics'
-export { AnalyticsEventsClient } from './analytics-events'
-export type { AnalyticsEvent } from './analytics-events'
-export { AuthClient } from './auth'
 export { clientAuthRequest } from './auth-context'
 export type { ClientAuthContext, ClientAuthRequest } from './auth-context'
 export { createChatClient, CHAT_STREAM_TIMEOUT_MS } from './chat'
@@ -10,10 +5,12 @@ export type {
   ChatClient,
   ChatCreateRequest,
   ChatListRequest,
-  ChatMessageRequest as FormalChatMessageRequest,
+  ChatMessageRequest,
   ChatRequestOptions,
   ChatStreamOptions,
 } from './chat'
+export { createWowApiClients, wowApi } from './clients'
+export type { WowApiClientConfig, WowApiClients } from './clients'
 export { createSimcClient } from './simc'
 export type {
   SimcClient,
@@ -24,75 +21,28 @@ export type {
   SimulationScenarioRequest,
   SourceSnapshotCreateRequest,
 } from './simc'
-export { createWebAuthClient, readWebCsrfCookie } from './web-auth'
-export type { WebAuthClient } from './web-auth'
-export { createBuildsClient } from './builds'
-export type { BuildsClient } from './builds'
-export { TimedCache } from './cache'
-export type { CacheClock, CacheEntry, CacheLookup } from './cache'
-export { createWowApiClients, wowApi } from './clients'
-export type { WowApiClientConfig, WowApiClients } from './clients'
-export { createNewsClient, isNewsHomeVisuallyEmpty, isReadyNewsArticle } from './news'
-export type { NewsClient } from './news'
-export { PlatformV2Client } from './platform-v2'
-export { SimulatorClient } from './simulator'
-export type {
-  ChickenbroMessageRequest,
-  ChickenbroStreamEvent,
-  ChickenbroStreamHandlers,
-  ChickenbroSessionListRequest,
-  ExactSimcConfirmation,
-  ExactSimcConfirmEnvelope,
-  ExactSimcDependencyVector,
-  ExactSimcExecutionIntent,
-  ExactSimcJobRead,
-  ExactSimcProblem,
-  ExactSimcProfileRef,
-  ExactSimcReadEnvelope,
-  ExactSimcRequest,
-  ExactSimcSourceRef,
-  ExactSimcStatus,
-  ExactSimcSubmitEnvelope,
-  SimulatorRequestOptions,
-  TaskDetailPayload,
-  TaskListPayload,
-} from './simulator'
 export { taroStorage } from './storage'
 export type { StorageAdapter } from './storage'
-export { TemplateRepository } from './templates'
-export type {
-  BuildTemplateInput,
-  TemplateClock,
-  TemplateDeletePayload,
-  TemplateListPayload,
-  TemplateMutationPayload,
-} from './templates'
 export {
   configuredApiBaseUrl,
   configuredWebAuthBaseUrl,
   createTaroTransport,
   DEV_API_BASE_URL,
   isInsecureHttpUrl,
-  NdjsonDecoder,
+  SseDecoder,
 } from './transport'
-export { canonicalGearSlots, createWebsimClient } from './websim'
-export type {
-  CommunityTemplateImportRequest,
-  GearRequest,
-  GearStatSnapshotRequest,
-  WebsimClient,
-} from './websim'
 export type {
   ApiResult,
   ApiStreamTask,
   ApiTransport,
+  RequestBase,
+  RequestCredentials,
   RequestData,
   RequestMethod,
   RequestOptions,
-  RequestBase,
-  RequestCredentials,
-  TransportAuthContext,
-  StreamRequestOptions,
   SseStreamRequestOptions,
+  TransportAuthContext,
   TransportConfig,
 } from './transport'
+export { createWebAuthClient, readWebCsrfCookie } from './web-auth'
+export type { WebAuthClient } from './web-auth'

@@ -80,7 +80,6 @@ function webRequest<T>(transport: ApiTransport, path: string, options: {
   return transport.request(path, {
     ...options,
     baseUrl: options.baseUrl ?? 'web-auth',
-    attachAnalyticsHeaders: false,
     responseMode: 'structured-problem',
   })
 }

@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { createWebAuthClient, readWebCsrfCookie } from './web-auth'
 import type { ApiResult, ApiTransport, RequestOptions } from './transport'
-import type { EndpointId } from '@wow-mini/domain'
 
 class RecordingTransport implements ApiTransport {
   readonly calls: Array<{ path: string; options: RequestOptions<unknown> }> = []
@@ -17,13 +16,6 @@ class RecordingTransport implements ApiTransport {
     }
   }
 
-  requestEndpoint<T>(
-    _endpointId: EndpointId,
-    path: string,
-    options: Omit<RequestOptions<T>, 'method'>,
-  ): Promise<ApiResult<T>> {
-    return this.request(path, options)
-  }
 }
 
 describe('WebAuthClient', () => {

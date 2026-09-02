@@ -8,7 +8,7 @@ import {
   type SourceSnapshotView,
 } from '@wow-mini/domain'
 
-import { clientAuthRequest, type ClientAuthContext } from './auth-context'
+import type { ClientAuthContext } from './auth-context'
 import type { ApiResult, ApiTransport, RequestData } from './transport'
 import { apiV2Path } from './api-v2-prefix'
 
@@ -149,20 +149,15 @@ export function createSimcClient(transport: ApiTransport): SimcClient {
       validate: (value: unknown) => boolean
     },
   ): Promise<ApiResult<T>> => {
-    const auth = clientAuthRequest(options.auth, { mutating: config.mutating })
     return transport.request(path, {
       ...(config.method === undefined ? {} : { method: config.method }),
       ...(data === undefined ? {} : { data }),
       header: {
-        ...auth.header,
         ...(config.idempotencyKey === undefined
           ? {}
           : { 'Idempotency-Key': config.idempotencyKey }),
       },
-      credentials: auth.credentials,
-      baseUrl: auth.baseUrl,
-      auth: false,
-      attachAnalyticsHeaders: false,
+      auth: options.auth,
       responseMode: 'structured-problem',
       fallback: config.fallback,
       validate: config.validate,

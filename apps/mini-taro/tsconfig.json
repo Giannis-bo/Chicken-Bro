@@ -4,5 +4,30 @@
     "noEmit": true,
     "types": ["@tarojs/taro", "@types/webpack-env"]
   },
-  "include": ["../../packages/types/**/*.d.ts", "config/**/*.ts", "src/**/*.ts", "src/**/*.tsx"]
+  "include": [
+    "../../packages/types/**/*.d.ts",
+    "config/index.ts",
+    "src/app.config.ts",
+    "src/app.tsx",
+    "src/env.d.ts",
+    "src/components/**/*.ts",
+    "src/components/**/*.tsx",
+    "src/custom-tab-bar/**/*.ts",
+    "src/custom-tab-bar/**/*.tsx",
+    "src/features/**/*.ts",
+    "src/features/**/*.tsx",
+    "src/pages/auth/**/*.ts",
+    "src/pages/auth/**/*.tsx",
+    "src/pages/chickenbro/**/*.ts",
+    "src/pages/chickenbro/**/*.tsx",
+    "src/pages/simc/**/*.ts",
+    "src/pages/simc/**/*.tsx",
+    "src/platform/**/*.ts",
+    "src/platform/**/*.tsx",
+    "src/web/**/*.ts",
+    "src/web/**/*.tsx",
+    "src/tab-bar-items*.ts",
+    "src/tab-bar-state*.ts",
+    "src/use-tab-root-identity.ts"
+  ]
 }

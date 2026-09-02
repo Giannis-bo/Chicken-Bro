@@ -1,8 +1,7 @@
 import Taro from '@tarojs/taro'
 import { useEffect, useState } from 'react'
 
-import { TabBar } from '@wow-mini/design-system/components/TabBar'
-
+import { CoreTabBar } from '../components/CoreTabBar'
 import { isTabRoute, normalizeTabRoute, tabBarItems } from '../tab-bar-items'
 
 function currentHashRoute(): string {
@@ -29,5 +28,5 @@ export function AppTabBar() {
     void Taro.switchTab({ url: `/${pagePath}` })
   }
 
-  return <TabBar currentPath={currentPath} items={tabBarItems} onSelect={handleSelect} />
+  return <CoreTabBar currentPath={currentPath} items={tabBarItems} onSelect={handleSelect} />
 }

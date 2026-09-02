@@ -1,21 +1,19 @@
-import type { TabBarItem } from '@wow-mini/design-system/components/TabBar'
+export interface CoreTabItem {
+  pagePath: string
+  label: string
+  glyph: string
+}
 
-export const tabBarItems: readonly TabBarItem[] = [
+export const tabBarItems: readonly CoreTabItem[] = [
   {
     pagePath: 'pages/chickenbro/index',
     label: '队长',
-    glyphAssetId: 'product-tab-glyph.captain',
-    glyphSlotId: 'asset_slot.product-tab-glyphs',
-    fallbackGlyphAssetId: 'product-tab-simulator-icon.default',
-    fallbackGlyphSlotId: 'asset_slot.product-tab-simulator-icon',
+    glyph: '聊',
   },
   {
     pagePath: 'pages/simc/index',
     label: 'SimC',
-    glyphAssetId: 'product-tab-glyph.spec',
-    glyphSlotId: 'asset_slot.product-tab-glyphs',
-    fallbackGlyphAssetId: 'product-tab-builds-icon.default',
-    fallbackGlyphSlotId: 'asset_slot.product-tab-builds-icon',
+    glyph: 'S',
   },
 ]
 

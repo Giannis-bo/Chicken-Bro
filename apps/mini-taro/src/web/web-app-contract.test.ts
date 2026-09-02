@@ -73,11 +73,13 @@ describe('Chickenbro Web shell contract', () => {
     expect(webStyle).toMatch(/\.qrImage\s*>\s*img\s*\{[\s\S]*position:\s*absolute[\s\S]*top:\s*0[\s\S]*right:\s*0[\s\S]*bottom:\s*0[\s\S]*left:\s*0[\s\S]*object-fit:\s*contain/u)
   })
 
-  it('uses the independent /api H5 development proxy while retaining /wow-api', () => {
+  it('uses only the formal same-origin /api development proxy', () => {
     const configSource = read('apps/mini-taro/config/index.ts')
     expect(configSource).toContain("'/api'")
     expect(configSource).toContain('http://127.0.0.1:8790')
-    expect(configSource).toContain("'/wow-api'")
+    expect(configSource).not.toContain("'/wow-api'")
+    expect(configSource).not.toContain('WOW_NEWS_API_BASE_URL')
+    expect(configSource).not.toContain('124.223.51.33')
   })
 
   it('exposes only the two shared server-backed business views after login', () => {

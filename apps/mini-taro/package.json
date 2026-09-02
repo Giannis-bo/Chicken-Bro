@@ -16,8 +16,6 @@
     "@tarojs/shared": "4.2.0",
     "@tarojs/taro": "4.2.0",
     "@wow-mini/api-client": "*",
-    "@wow-mini/assets-manifest": "*",
-    "@wow-mini/design-system": "*",
     "@wow-mini/domain": "*",
     "react": "18.3.1",
     "react-dom": "18.3.1"

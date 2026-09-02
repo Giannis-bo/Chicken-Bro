@@ -1,57 +1,24 @@
-import { AnalyticsEventsClient } from './analytics-events'
-import { AuthClient } from './auth'
-import { createBuildsClient, type BuildsClient } from './builds'
-import { TimedCache } from './cache'
 import { createChatClient, type ChatClient } from './chat'
-import { createNewsClient, type NewsClient } from './news'
-import { SimulatorClient } from './simulator'
 import { createSimcClient, type SimcClient } from './simc'
-import { taroStorage, type StorageAdapter } from './storage'
-import { TemplateRepository } from './templates'
 import { createTaroTransport, type ApiTransport, type TransportConfig } from './transport'
-import { createWebsimClient, type WebsimClient } from './websim'
 import { createWebAuthClient, type WebAuthClient } from './web-auth'
 
 export interface WowApiClients {
   transport: ApiTransport
-  news: NewsClient
-  builds: BuildsClient
   chat: ChatClient
   simc: SimcClient
-  websim: WebsimClient
-  simulator: SimulatorClient
-  templates: TemplateRepository
-  auth: AuthClient
   webAuth: WebAuthClient
-  analytics: AnalyticsEventsClient
-  cache: TimedCache
 }
 
-export interface WowApiClientConfig extends TransportConfig {
-  storage?: StorageAdapter
-}
+export type WowApiClientConfig = TransportConfig
 
 export function createWowApiClients(config: WowApiClientConfig = {}): WowApiClients {
-  const storage = config.storage ?? taroStorage
-  const transport = createTaroTransport({
-    storage,
-    ...(config.platform === undefined ? {} : { platform: config.platform }),
-    ...(config.resolveBaseUrl === undefined ? {} : { resolveBaseUrl: config.resolveBaseUrl }),
-    ...(config.resolveWebBaseUrl === undefined ? {} : { resolveWebBaseUrl: config.resolveWebBaseUrl }),
-  })
+  const transport = createTaroTransport(config)
   return {
     transport,
-    news: createNewsClient(transport, storage),
-    builds: createBuildsClient(transport),
     chat: createChatClient(transport),
     simc: createSimcClient(transport),
-    websim: createWebsimClient(transport),
-    simulator: new SimulatorClient(transport, storage),
-    templates: new TemplateRepository(transport, storage),
-    auth: new AuthClient(transport, storage),
     webAuth: createWebAuthClient(transport),
-    analytics: new AnalyticsEventsClient(transport, storage),
-    cache: new TimedCache(),
   }
 }
 

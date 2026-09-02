@@ -1,4 +1,26 @@
-@use "../../../packages/design-system/src/tokens.scss";
+:root,
+page {
+  color-scheme: dark;
+  --wow-bg-void: #060709;
+  --wow-bg-app: #0a0c0f;
+  --wow-fg-strong: #f6efdf;
+  --wow-fg: #e4dccb;
+  --wow-fg-muted: #aa9e87;
+  --wow-fg-dim: #766f61;
+  --wow-line-subtle: #30353d;
+  --wow-line-panel: #574c3d;
+  --wow-line-brass: #a77c32;
+  --wow-accent-gold: #d9ab42;
+  --wow-status-ready: #86c95d;
+  --wow-status-partial: #e7b93d;
+  --wow-status-blocked: #ff665c;
+  --wow-status-error: #ff665c;
+  --wow-font-display: "Songti SC", "Noto Serif CJK SC", "STSong", serif;
+  --wow-font-body: "PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
+  --wow-font-mono: "SF Mono", "JetBrains Mono", "IBM Plex Mono", ui-monospace, monospace;
+  --shadow-float: 0 18px 44px rgba(0, 0, 0, 0.44);
+  --inner-bevel: inset 0 1px 0 rgba(255, 255, 255, 0.06), inset 0 -1px 0 rgba(0, 0, 0, 0.42);
+}
 
 html,
 body,

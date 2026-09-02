@@ -1,8 +1,7 @@
 import Taro from '@tarojs/taro'
 import { useEffect, useState } from 'react'
 
-import { TabBar } from '@wow-mini/design-system/components/TabBar'
-
+import { CoreTabBar } from '../components/CoreTabBar'
 import {
   resolveActiveTabRoute,
   tabBarItems,
@@ -35,7 +34,7 @@ export default function CustomTabBar() {
   }
 
   return (
-    <TabBar
+    <CoreTabBar
       currentPath={currentPath}
       items={tabBarItems}
       onSelect={handleSelect}

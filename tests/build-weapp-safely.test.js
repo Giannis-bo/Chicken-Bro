@@ -177,6 +177,7 @@ test('safe build launches the Taro JavaScript entry with the current Node runtim
   const command = taroBuildCommand()
   assert.equal(command.executable, process.execPath)
   assert.match(command.args[0], /node_modules[\\/]@tarojs[\\/]cli[\\/]bin[\\/]taro$/u)
+  assert.equal(fs.existsSync(command.args[0]), true, 'resolved Taro CLI entry must exist')
   assert.deepEqual(command.args.slice(1), ['build', '--type', 'weapp'])
 })
 
