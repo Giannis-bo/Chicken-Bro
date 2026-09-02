@@ -410,6 +410,9 @@ PY
 install_marked_nginx_locations "${NGINX_SITE}" "${STAGE_DIR}/server/wow-v2-candidate.locations.nginx" www-static
 install_marked_nginx_locations "${API_NGINX_SITE}" "${STAGE_DIR}/server/wow-v2-candidate-api.locations.nginx" api-proxy
 
+install -o root -g root -m 0644 \
+  "${STAGE_DIR}/server/wow-v2-api-candidate.service" \
+  "/etc/systemd/system/${CANDIDATE_SERVICE}.service"
 nginx -t
 systemctl daemon-reload
 systemctl enable "${CANDIDATE_SERVICE}"
