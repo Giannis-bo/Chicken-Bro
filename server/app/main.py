@@ -12,7 +12,7 @@ from server.app.api.errors import (
     validation_exception_handler,
 )
 from server.app.api.routes import router as health_router
-from server.app.chickenbro.application import PrototypeChatApplication
+from server.app.chickenbro.application import ChatApplication, PrototypeChatApplication
 from server.app.chickenbro.codex_adapter import NativeCodexChatAdapter
 from server.app.chickenbro.repository import PostgresChatRepository
 from server.app.chickenbro.source_gateway import (
@@ -40,6 +40,7 @@ def create_app(
     settings: AppSettings,
     readiness_registry: ReadinessRegistry | None = None,
     web_auth_application: WebAuthApplication | None = None,
+    chat_application: ChatApplication | None = None,
     prototype_identity_application: PrototypeIdentityApplication | None = None,
     prototype_chat_application: PrototypeChatApplication | None = None,
     prototype_simulation_application: PrototypeSimulationApplication | None = None,
@@ -55,10 +56,11 @@ def create_app(
     app.state.settings = settings
     source_gateway = ChickenbroSourceGateway(query_service=ServerConfiguredSourceQuery())
     repository = None
+    postgres_factory = None
     if (
         web_auth_application is None
         or prototype_identity_application is None
-        or prototype_chat_application is None
+        or (chat_application is None and prototype_chat_application is None)
         or prototype_simulation_application is None
     ):
         postgres_factory = PostgresConnectionFactory(settings)
@@ -80,14 +82,21 @@ def create_app(
             repository=repository,
             ttl=timedelta(seconds=settings.prototype_ttl_seconds),
         )
+    if chat_application is None:
+        if prototype_chat_application is not None:
+            chat_application = prototype_chat_application
+        elif postgres_factory is not None:
+            chat_application = ChatApplication(
+                repository=PostgresChatRepository(postgres_factory.connection),
+                codex=NativeCodexChatAdapter(
+                    source_gateway=source_gateway,
+                    source_gateway_url=f"http://127.0.0.1:{settings.port}/api/v2/internal/chickenbro/source-query",
+                ),
+            )
+        else:
+            raise RuntimeError("Chat application was not constructed")
     if prototype_chat_application is None:
-        prototype_chat_application = PrototypeChatApplication(
-            repository=PostgresChatRepository(postgres_factory.connection),
-            codex=NativeCodexChatAdapter(
-                source_gateway=source_gateway,
-                source_gateway_url=f"http://127.0.0.1:{settings.port}/api/v2/internal/chickenbro/source-query",
-            ),
-        )
+        prototype_chat_application = chat_application
     if prototype_simulation_application is None:
         runtime_capabilities = SimcRuntimeCapabilities.from_env()
         prototype_simulation_application = PrototypeSimulationApplication(
@@ -104,6 +113,7 @@ def create_app(
         if auth_audit_sink is None and repository is not None and not formal_auth_application_injected
         else auth_audit_sink or NullAuthAuditSink()
     )
+    app.state.chat_application = chat_application
     app.state.prototype_identity_application = prototype_identity_application
     app.state.prototype_chat_application = prototype_chat_application
     app.state.prototype_simulation_application = prototype_simulation_application
