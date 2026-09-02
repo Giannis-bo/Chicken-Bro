@@ -5,9 +5,9 @@ const path = require('node:path')
 const { spawnSync } = require('node:child_process')
 
 const DEFAULT_HOTSPOT_FILES = [
-  'server/websim_payload.py',
-  'server/news_backend.py',
-  'server/postgres_cache_store.py'
+  'server/app/main.py',
+  'server/app/chickenbro/application.py',
+  'server/app/simulation/application.py'
 ]
 
 const CURRENT_TRUTH_SOURCES = [

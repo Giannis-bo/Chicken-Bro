@@ -264,7 +264,7 @@ test('project harness emits the current repo-native harness manifest as read-onl
   assert.ok(manifest.gates.currentTruth.sources.some((source) => source.path === 'docs/project-owner-map.json' && source.exists))
   assert.ok(manifest.gates.currentTruth.sources.some((source) => source.path === 'docs/roadmap.md' && source.exists))
   assert.ok(manifest.gates.currentTruth.sources.some((source) => source.path === 'docs/backend-owner-map.json' && source.exists))
-  assert.ok(manifest.gates.engineeringHealth.hotspotFiles.some((file) => file.path === 'server/websim_payload.py' && file.exists))
+  assert.ok(manifest.gates.engineeringHealth.hotspotFiles.some((file) => file.path === 'server/app/main.py' && file.exists))
   assert.equal(manifest.gates.repositoryRemoteSync.preapprovedForConfiguredProjectRemote, true)
   assert.equal(manifest.gates.autonomousProgression.continueWithoutStepByStepApproval, true)
   assert.deepEqual(manifest.gates.lightFixFastLane, {
@@ -951,13 +951,13 @@ test('project harness check never executes commands listed in packets', () => {
 test('project harness check fails when a critical changed file has no owner map hit', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'wow-project-harness-owner-gap-'))
   writeHarnessFixture(root)
-  writeFile(path.join(root, 'server/websim_payload.py'), 'before = True\n')
+  writeFile(path.join(root, 'server/app/main.py'), 'before = True\n')
   spawnSync('git', ['init'], { cwd: root, encoding: 'utf8' })
   spawnSync('git', ['config', 'user.email', 'codex@example.com'], { cwd: root, encoding: 'utf8' })
   spawnSync('git', ['config', 'user.name', 'Codex'], { cwd: root, encoding: 'utf8' })
   spawnSync('git', ['add', '.'], { cwd: root, encoding: 'utf8' })
   spawnSync('git', ['commit', '-m', 'base'], { cwd: root, encoding: 'utf8' })
-  writeFile(path.join(root, 'server/websim_payload.py'), 'after = True\n')
+  writeFile(path.join(root, 'server/app/main.py'), 'after = True\n')
 
   const result = runHarnessCheck(root, ['--base', 'HEAD'])
 
@@ -969,26 +969,26 @@ test('project harness check fails when a critical changed file has no owner map 
 test('project harness check fails when a changed project owner domain has no valid fact owner', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'wow-project-harness-project-owner-gap-'))
   writeHarnessFixture(root)
-  writeFile(path.join(root, 'pages/news/news.js'), 'before = true\n')
+  writeFile(path.join(root, 'apps/mini-taro/src/app.tsx'), 'before = true\n')
   writeJson(path.join(root, 'docs/project-owner-map.json'), {
     schemaVersion: 1,
     criticalDomains: [
       {
-        id: 'news_content_public_api',
+        id: 'dual_client',
         status: 'active',
         factOwner: 'unknown',
-        changedPathPatterns: ['pages/news/**'],
-        characterization: ['tests/news-api-client.test.js']
+        changedPathPatterns: ['apps/mini-taro/**'],
+        characterization: ['tests/retained-client-boundary.test.js']
       }
     ]
   })
-  writeFile(path.join(root, 'tests/news-api-client.test.js'), 'test fixture\n')
+  writeFile(path.join(root, 'tests/retained-client-boundary.test.js'), 'test fixture\n')
   spawnSync('git', ['init'], { cwd: root, encoding: 'utf8' })
   spawnSync('git', ['config', 'user.email', 'codex@example.com'], { cwd: root, encoding: 'utf8' })
   spawnSync('git', ['config', 'user.name', 'Codex'], { cwd: root, encoding: 'utf8' })
   spawnSync('git', ['add', '.'], { cwd: root, encoding: 'utf8' })
   spawnSync('git', ['commit', '-m', 'base'], { cwd: root, encoding: 'utf8' })
-  writeFile(path.join(root, 'pages/news/news.js'), 'after = true\n')
+  writeFile(path.join(root, 'apps/mini-taro/src/app.tsx'), 'after = true\n')
 
   const result = runHarnessCheck(root, ['--base', 'HEAD'])
 

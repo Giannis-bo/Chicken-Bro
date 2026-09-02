@@ -348,6 +348,7 @@
         "server/deploy_chickenbro_candidate_lighthouse.sh",
         "server/migrations/__init__.py",
         "server/provision_chickenbro_database_lighthouse.sh",
+        "server/requirements.txt",
         "server/retire_chickenbro_legacy_lighthouse.sh",
         "scripts/chickenbro-native-agent/chickenbro-native.config.toml.template"
       ]
@@ -548,6 +549,7 @@
         "tests/app_chickenbro_wcl_source_test.py",
         "tests/app_config_test.py",
         "tests/app_csrf_test.py",
+        "tests/app_dependency_manifest_test.py",
         "tests/app_identity_api_test.py",
         "tests/app_identity_application_test.py",
         "tests/app_identity_repository_test.py",

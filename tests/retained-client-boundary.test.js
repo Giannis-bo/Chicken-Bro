@@ -88,3 +88,35 @@ test('the public domain barrel exposes only Chat, SimC and real Web identity', (
   assert.match(index, /from '.\/web-auth'/)
   assert.doesNotMatch(index, /models|entities|route-contract|gear-intent|platform-v2|state/)
 })
+
+test('the root workspace and CI expose only retained product workflows', () => {
+  const workspace = JSON.parse(read('package.json'))
+  assert.deepEqual(Object.keys(workspace.scripts), [
+    'build:h5',
+    'build:weapp',
+    'dev:h5',
+    'dev:weapp',
+    'refresh:weapp',
+    'typecheck',
+    'lint',
+    'test:taro',
+    'test:backend',
+    'test:migration',
+    'test:control',
+    'test:ops',
+    'harness',
+  ])
+  for (const removedTool of ['@babel/parser', '@babel/traverse', 'miniprogram-automator', 'playwright-core']) {
+    assert.equal(workspace.devDependencies[removedTool], undefined)
+  }
+
+  const lockfile = JSON.parse(read('package-lock.json'))
+  assert.deepEqual(lockfile.packages[''].devDependencies, workspace.devDependencies)
+  assert.equal(Object.keys(lockfile.packages).some((key) => /(?:assets-manifest|design-system)$/.test(key)), false)
+
+  const workflow = read('.github/workflows/project-harness.yml')
+  assert.doesNotMatch(workflow, /verify-project/)
+  for (const command of ['npm run test:control', 'npm run test:backend', 'npm run test:taro', 'npm run build:weapp']) {
+    assert.match(workflow, new RegExp(command.replaceAll(':', '\\:')))
+  }
+})

@@ -54,19 +54,12 @@ class AppConfigTest(unittest.TestCase):
                 "WOW_WECHAT_CHECK_PATH": "maybe",
             })
 
-    def test_prototype_settings_are_explicitly_bounded(self):
+    def test_removed_prototype_environment_has_no_runtime_owner(self):
         settings = AppSettings.from_env({
             "WOW_APP_ENV": "candidate",
             "WOW_DATABASE_URL": "postgresql://user@db.example/wow",
             "WOW_WEB_PROTOTYPE_ENABLED": "1",
             "WOW_WEB_PROTOTYPE_TTL_SECONDS": "1800",
         })
-        self.assertTrue(settings.prototype_enabled)
-        self.assertEqual(settings.prototype_ttl_seconds, 1800)
-
-        with self.assertRaisesRegex(ValueError, "PROTOTYPE_TTL"):
-            AppSettings.from_env({
-                "WOW_APP_ENV": "candidate",
-                "WOW_DATABASE_URL": "postgresql://user@db.example/wow",
-                "WOW_WEB_PROTOTYPE_TTL_SECONDS": "30",
-            })
+        self.assertFalse(hasattr(settings, "prototype_enabled"))
+        self.assertFalse(hasattr(settings, "prototype_ttl_seconds"))

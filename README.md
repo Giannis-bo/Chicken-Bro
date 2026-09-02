@@ -1,29 +1,18 @@
 # Chickenbro
 
-炸鸡队长是一个微信小程序 + Web 双端 WoW 助手。当前重构后的产品范围只有两项：
+Chickenbro 是一个微信小程序 + Web 双端 WoW 助手。产品只保留两项核心能力：炸鸡队长会话和 SimC 模拟任务。
 
-1. 炸鸡队长会话；
-2. SimC 模拟任务。
-
-两端不共享 Cookie 或 Bearer。小程序通过 `wx.login` 建立 Mini Session；Web 由已登录小程序扫码并明确确认后建立独立 HttpOnly Session。两种会话都解析为同一个内部 `user_id`，因此从服务端读取同一份会话、消息、SimC 快照、任务、尝试和结果。
+小程序通过 `wx.login` 建立 Mini Bearer Session；Web 生成一次性确认票据，用户必须在已登录小程序中明确确认，随后浏览器获得独立的 HttpOnly Cookie Session。两个 Session 都由服务端解析为同一个内部 `user_id`，所以两端读取同一份 Chat 与 SimC 历史；Cookie、Bearer、OpenID、`session_key` 和微信 access token 不在端间共享。
 
 ## 当前状态
 
-六阶段彻底重构的 Phase 1 控制面已在 clean HEAD 封存；当前执行 Phase 2 干净数据面与 Identity。本地实现、provisioning dry-run 以及云端隔离的 dependency-loaded backend profile 已通过，后者在提交 `913654d887ac` 上运行 3,451 项测试（3,441 通过、10 项明确跳过），compileall 与 Harness 通过。真实 PostgreSQL candidate、生产 DSN、流量、服务和数据尚未切换，云端建库仍受容量与独立恢复 gate 阻塞。
+Phase 1--4 以及 Phase 5 的本地代码、构建、迁移和切流控制已经验证。真实 candidate 数据库、真实微信扫码、生产切流、第一条新写入和云端清理尚未完成。当前云主机容量与独立恢复链不满足 apply 条件，因此生产旧服务和数据仍保持不变。
 
-最新只读快照显示根分区约余 8.58 GB，而 PostgreSQL 目录约 39.63 GB。控制台现有的唯一系统盘快照创建于 2026-03-17，早于当前数据库状态且没有恢复验证；广州地域也没有待挂载云硬盘。账号虽然已有 37 个 COS 桶和额度套餐，但实例没有 COS 客户端、CAM 角色或已审阅凭据，桶级余量与真实 restore 也没有验证，所以它目前只是潜在介质。创建干净 `chickenbro_prod` 前必须先经授权建立专用私有 COS 或独立磁盘恢复链，完成恢复验证并精确清理无引用旧数据，或扩容。不能提前删除 `wow_test`、正式部署或唯一恢复点绕过容量门禁。
+机器可读事实以 [项目状态](docs/project-state.json) 为准。任何 candidate、HTTP 200、测试通过、systemd active 或 SimC return code 0 都不能替代真实双端验收。
 
-机器状态以 [docs/project-state.json](docs/project-state.json) 为准。
+## 产品路由
 
-## 目标体验
-
-小程序最终只有两个 Tab：
-
-```text
-队长 | SimC
-```
-
-目标路由只有：
+小程序只发布五个页面，其中两个是 Tab：
 
 ```text
 pages/chickenbro/index
@@ -33,85 +22,53 @@ pages/simc/task-detail
 pages/auth/web-login-confirm
 ```
 
-Web 使用相同 typed API/domain/feature model，只保留登录、队长、SimC、账号状态和退出。资讯、构筑、装备、天赋、WebSim、prototype bypass 和旧 14 路由都属于待退役 legacy。
+Web 只保留登录、Chat、SimC、账号状态和退出。所有正式客户端都通过 typed API client 访问服务端 owner-scoped 数据。
 
-## 架构
-
-```text
-Mini Bearer -----\
-                  > API -> Principal(user_id) -> Identity
-Web Cookie ------/                           -> Chat -> Codex
-                                             -> SimC -> PostgreSQL Queue -> Worker -> cloud SimC
-```
-
-代码依赖固定为：
+## 代码结构
 
 ```text
-UI -> typed API client -> API route -> application -> domain -> port <- adapter
+apps/mini-taro/          Taro 小程序与 H5/Web
+packages/api-client/     Mini/Web 分离认证传输和 typed API
+packages/domain/         Chat、SimC、Web 登录领域合同
+server/app/              Identity、Chat、SimC、Worker 与 API
+server/migrations/product/ 干净 schema 和白名单迁移
+scripts/                 Harness、构建和精确清理工具
+docs/                    当前架构、状态、Runbook 与计划
 ```
 
-详见 [当前架构](docs/chickenbro-simc-architecture.md)。
+## 本地命令
 
-## 目录
-
-```text
-.
-├── apps/mini-taro/            # Taro Mini/H5 客户端；dist/weapp 为本地构建产物
-├── packages/api-client/       # Mini/Web 分离 transport 与 typed API
-├── packages/domain/           # 跨端领域 guard/model
-├── server/app/                # 模块化 Identity/Chat/SimC/Worker/API 核心
-├── server/migrations/         # 当前旧迁移输入；干净 product chain 在 Phase 2 建立
-├── docs/                      # 当前架构、runbook、状态、计划和验证
-└── artifacts/releases/        # Harness requirement/evidence/manifest
-```
-
-根目录旧 `app.json`、`pages/`、`components/`、`custom-tab-bar/` 和 `websim/` 只承担迁移期 last-known-good/回滚职责，不接收新实现。
-
-## 本地开发与验证
-
-依赖使用仓库现有 lockfile；安装或下载缺失依赖前先取得明确授权。已有依赖时，持续构建微信小程序：
+依赖使用仓库现有 lockfile；在本机下载或安装缺失依赖前需要明确授权。
 
 ```bash
-npm run dev:weapp
-```
-
-一次构建：
-
-```bash
+npm run test:taro
+npm run typecheck
+npm run lint
 npm run build:weapp
+npm run build:h5
+npm run test:control
+npm run test:backend
 ```
 
-微信开发者工具导入 `apps/mini-taro`，不要导入仓库根或 `apps/mini-taro/dist/weapp`。后者是构建输出，由 `apps/mini-taro/project.config.json` 指向。
-
-控制面与容量清理候选验证：
+微信开发者工具导入 `apps/mini-taro`。合入并需要刷新预览时运行：
 
 ```bash
-node --test tests/chickenbro-simc-refactor-inventory.test.js
-python3 -m unittest tests.chickenbro_simc_cloud_inventory_test -v
-python3 -m unittest tests.chickenbro_simc_capacity_cleanup_manifest_test -v
-node --test tests/project-state.test.js
+npm run refresh:weapp
 ```
 
-后续 Identity、Chat、SimC、双端、迁移、切流和清理命令见 [验证矩阵](docs/verification-matrix.md)。缺失的阶段测试/脚本表示该阶段尚未落地，不能标为 skipped pass。
+## 安全边界
 
-## 生产操作
+- 新路径通过 candidate、恢复验证和真实双端验收前，不删除现有生产入口。
+- 历史迁移只复制白名单内有效 Chat/SimC 业务数据，不复制旧 Session、token、trace 或 prototype 数据。
+- 第一条新生产写入后，旧库永久只读，不建立长期双写或反向同步。
+- 文件、服务、数据库与目录只按绑定 SHA 的精确清单清理；禁止通配符和宽泛递归目标。
+- 云端 apply 还要求独立、恢复验证过的备份以及零连接、零引用证明。
 
-生产迁移只允许按 [生产 Runbook](docs/chickenbro-simc-production-runbook.md) 执行：
-
-- Candidate、切流和删除是独立门禁；
-- 独立备份必须与 PostgreSQL 数据目录处于不同设备/故障域；
-- 迁移是一遍全量 + 写栅栏后的一遍 delta，不长期双写；
-- 第一条新生产写入后，legacy 永久只读；
-- 删除只能使用带 SHA 的精确 manifest，禁止宽泛递归删除。
-
-## 文档入口
+## 文档
 
 - [文档地图](docs/README.md)
-- [项目状态](docs/project-state.json)
-- [产品 Roadmap](docs/roadmap.md)
+- [Roadmap](docs/roadmap.md)
 - [当前架构](docs/chickenbro-simc-architecture.md)
 - [生产 Runbook](docs/chickenbro-simc-production-runbook.md)
 - [验证矩阵](docs/verification-matrix.md)
-- [六阶段计划白名单](docs/plans/README.md)
-
-旧文档和 release packet 只在当前迁移/回滚仍有精确引用时暂留；Phase 6 通过链接图、调用图和恢复门禁后从工作树删除，Git 历史承担归档。
+- [六阶段计划](docs/plans/README.md)

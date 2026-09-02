@@ -1,0 +1,1 @@
+"""Chickenbro database migrations."""

@@ -3,12 +3,12 @@ import unittest
 
 
 ROOT = Path(__file__).resolve().parents[1]
-LOCK = ROOT / "server" / "requirements-v2.txt"
+LOCK = ROOT / "server" / "requirements.txt"
 
 
 class AppDependencyManifestTest(unittest.TestCase):
-    def test_v2_dependencies_are_exact_and_do_not_add_a_broker(self):
-        self.assertTrue(LOCK.is_file(), "v2 dependency lock is missing")
+    def test_product_dependencies_are_exact_and_do_not_add_a_broker(self):
+        self.assertTrue(LOCK.is_file(), "product dependency lock is missing")
         lines = [
             line.strip()
             for line in LOCK.read_text(encoding="utf-8").splitlines()
