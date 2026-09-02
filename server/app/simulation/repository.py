@@ -1,5 +1,5 @@
 import json
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from datetime import datetime
 from typing import Any
 from uuid import UUID, uuid4
@@ -152,6 +152,43 @@ class PostgresSimulationRepository:
                 )
                 row = cursor.fetchone()
         return self._job_from_row(row) if row is not None else None
+
+    def list_jobs(
+        self,
+        user_id: UUID,
+        boundary: tuple[datetime, UUID] | None,
+        limit: int,
+    ) -> Sequence[SimulationJob]:
+        with self._connection_factory() as connection:
+            with connection.cursor() as cursor:
+                if boundary is None:
+                    cursor.execute(
+                        """
+                        SELECT id, user_id, snapshot_id, scenario_hash, compiler_revision,
+                               runtime_revision, idempotency_key, status, public_error_code,
+                               created_at, updated_at
+                        FROM simc.simulation_jobs
+                        WHERE user_id = %s
+                        ORDER BY updated_at DESC, id DESC LIMIT %s
+                        """,
+                        (user_id, limit),
+                    )
+                else:
+                    updated_at, job_id = boundary
+                    cursor.execute(
+                        """
+                        SELECT id, user_id, snapshot_id, scenario_hash, compiler_revision,
+                               runtime_revision, idempotency_key, status, public_error_code,
+                               created_at, updated_at
+                        FROM simc.simulation_jobs
+                        WHERE user_id = %s
+                          AND (updated_at, id) < (%s, %s)
+                        ORDER BY updated_at DESC, id DESC LIMIT %s
+                        """,
+                        (user_id, updated_at, job_id, limit),
+                    )
+                rows = cursor.fetchall()
+        return [self._job_from_row(row) for row in rows]
 
     def get_job_by_id(self, job_id: UUID) -> SimulationJob | None:
         with self._connection_factory() as connection:

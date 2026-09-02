@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from datetime import datetime
 from typing import Mapping, Protocol
 from uuid import UUID
 
@@ -30,6 +31,14 @@ class SimulationJobRepository(Protocol):
         raise NotImplementedError
 
     def get_for_user(self, user_id: UUID, job_id: UUID) -> SimulationJob | None:
+        raise NotImplementedError
+
+    def list_jobs(
+        self,
+        user_id: UUID,
+        boundary: tuple[datetime, UUID] | None,
+        limit: int,
+    ) -> Sequence[SimulationJob]:
         raise NotImplementedError
 
 

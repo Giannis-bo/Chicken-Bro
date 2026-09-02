@@ -1,13 +1,15 @@
+import base64
+import json
 from collections.abc import Callable
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
-from typing import Mapping
+from typing import Any, Mapping
 from uuid import UUID, uuid4
 
-from server.app.identity.prototype import PrototypePrincipal
-from server.app.simulation.compiler import SimcCompileError, SimcProfileCompiler
+from server.app.identity.domain import Principal
+from server.app.simulation.compiler import SimcCompileError, SimcProfileCompiler, scenario_hash
 from server.app.simulation.domain import SimulationJob, SimulationJobStatus, SimulationResult, SourceSnapshot
-from server.app.simulation.readiness import ReadinessReport, SimcReadinessValidator, SimcRuntimeCapabilities
+from server.app.simulation.readiness import SimcReadinessValidator, SimcRuntimeCapabilities
 from server.app.simulation.sources import CharacterSourceRouter, InvalidSourceLink
 
 
@@ -25,12 +27,60 @@ class SimulationJobView:
     result: SimulationResult | None = None
 
 
+@dataclass(frozen=True)
+class SimulationJobPage:
+    items: tuple[SimulationJobView, ...]
+    next_cursor: str | None
+
+
+def _value(row: Any, key: str, default: Any = None) -> Any:
+    if isinstance(row, dict):
+        return row.get(key, default)
+    return getattr(row, key, default)
+
+
 def _utc(clock: Callable[[], datetime]) -> datetime:
     value = clock()
     return value if value.tzinfo is not None else value.replace(tzinfo=timezone.utc)
 
 
-class PrototypeSimulationApplication:
+def _encode_job_cursor(row: Any) -> str:
+    updated_at = _value(row, "updated_at")
+    if not isinstance(updated_at, datetime):
+        raise SimulationApplicationError("INVALID_CURSOR", "job cursor cannot be encoded")
+    if updated_at.tzinfo is None:
+        updated_at = updated_at.replace(tzinfo=timezone.utc)
+    payload = {
+        "updatedAt": updated_at.astimezone(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "id": str(UUID(str(_value(row, "id")))),
+    }
+    encoded = base64.urlsafe_b64encode(
+        json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    )
+    return encoded.rstrip(b"=").decode("ascii")
+
+
+def _decode_job_cursor(cursor: str) -> tuple[datetime, UUID]:
+    try:
+        if not isinstance(cursor, str) or not cursor or len(cursor) > 1024:
+            raise ValueError("invalid cursor envelope")
+        padding = "=" * (-len(cursor) % 4)
+        raw = base64.b64decode(cursor + padding, altchars=b"-_", validate=True)
+        payload = json.loads(raw.decode("utf-8"))
+        if not isinstance(payload, dict) or set(payload) != {"updatedAt", "id"}:
+            raise ValueError("invalid cursor payload")
+        raw_updated_at = payload["updatedAt"]
+        if not isinstance(raw_updated_at, str):
+            raise ValueError("invalid cursor timestamp")
+        updated_at = datetime.fromisoformat(raw_updated_at.replace("Z", "+00:00"))
+        if updated_at.tzinfo is None:
+            raise ValueError("cursor timestamp must be timezone-aware")
+        return updated_at.astimezone(timezone.utc), UUID(str(payload["id"]))
+    except (UnicodeError, ValueError, TypeError) as error:
+        raise SimulationApplicationError("INVALID_CURSOR", "job cursor is invalid") from error
+
+
+class SimulationApplication:
     def __init__(
         self,
         *,
@@ -50,7 +100,7 @@ class PrototypeSimulationApplication:
         self._queue = queue
         self._clock = clock or (lambda: datetime.now(timezone.utc))
 
-    def resolve_source(self, principal: PrototypePrincipal, source_url: str) -> SourceSnapshot:
+    def resolve_source(self, principal: Principal, source_url: str) -> SourceSnapshot:
         try:
             candidate = self._source_router.resolve(source_url)
         except InvalidSourceLink as error:
@@ -72,14 +122,23 @@ class PrototypeSimulationApplication:
 
     def submit(
         self,
-        principal: PrototypePrincipal,
+        principal: Principal,
         snapshot_id: UUID,
         scenario: Mapping[str, object],
         idempotency_key: str,
     ) -> SimulationJob:
         key = self._bounded_key(idempotency_key)
+        try:
+            requested_scenario_hash = scenario_hash(scenario)
+        except SimcCompileError as error:
+            raise SimulationApplicationError(error.code, str(error)) from error
         existing = self._repository.get_job_by_idempotency(principal.user_id, key)
         if existing is not None:
+            if existing.snapshot_id != snapshot_id or existing.scenario_hash != requested_scenario_hash:
+                raise SimulationApplicationError(
+                    "IDEMPOTENCY_CONFLICT",
+                    "idempotency key belongs to a different simulation request",
+                )
             return existing
         snapshot = self._repository.get_snapshot(principal.user_id, snapshot_id)
         if snapshot is None:
@@ -128,13 +187,41 @@ class PrototypeSimulationApplication:
         )
         return job
 
-    def read_snapshot(self, principal: PrototypePrincipal, snapshot_id: UUID) -> SourceSnapshot:
+    def read_snapshot(self, principal: Principal, snapshot_id: UUID) -> SourceSnapshot:
         snapshot = self._repository.get_snapshot(principal.user_id, snapshot_id)
         if snapshot is None:
             raise SimulationApplicationError("SNAPSHOT_NOT_FOUND", "snapshot not found")
         return snapshot
 
-    def read_job(self, principal: PrototypePrincipal, job_id: UUID) -> SimulationJobView:
+    def list_jobs(
+        self,
+        principal: Principal,
+        cursor: str | None = None,
+        limit: int = 20,
+    ) -> SimulationJobPage:
+        boundary = _decode_job_cursor(cursor) if cursor else None
+        bounded_limit = min(max(int(limit), 1), 50)
+        rows = self._repository.list_jobs(
+            principal.user_id,
+            boundary,
+            bounded_limit + 1,
+        )
+        page_rows = rows[:bounded_limit]
+        items = tuple(
+            SimulationJobView(
+                job=job,
+                result=self._repository.get_result(principal.user_id, job.id),
+            )
+            for job in page_rows
+        )
+        next_cursor = (
+            _encode_job_cursor(page_rows[-1])
+            if len(rows) > bounded_limit and page_rows
+            else None
+        )
+        return SimulationJobPage(items=items, next_cursor=next_cursor)
+
+    def read_job(self, principal: Principal, job_id: UUID) -> SimulationJobView:
         job = self._repository.get_job(principal.user_id, job_id)
         if job is None:
             raise SimulationApplicationError("SIMULATION_NOT_FOUND", "simulation not found")
@@ -148,9 +235,18 @@ class PrototypeSimulationApplication:
         key = value.strip()
         if not key:
             raise SimulationApplicationError("IDEMPOTENCY_KEY_REQUIRED", "idempotency key is required")
-        if len(key) > 200 or any(character.isspace() for character in key):
+        if len(key) > 128 or any(character.isspace() for character in key):
             raise SimulationApplicationError("IDEMPOTENCY_KEY_INVALID", "idempotency key is invalid")
         return key
 
 
-__all__ = ("PrototypeSimulationApplication", "SimulationApplicationError", "SimulationJobView")
+PrototypeSimulationApplication = SimulationApplication
+
+
+__all__ = (
+    "PrototypeSimulationApplication",
+    "SimulationApplication",
+    "SimulationApplicationError",
+    "SimulationJobPage",
+    "SimulationJobView",
+)

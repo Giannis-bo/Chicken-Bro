@@ -48,6 +48,34 @@ _GEAR_SLOTS = (
 )
 
 
+def normalize_scenario(scenario: Mapping[str, object]) -> dict[str, object]:
+    if not isinstance(scenario, Mapping):
+        raise SimcCompileError("SCENARIO_INVALID")
+    allowed = {"fightStyle", "desiredTargets", "iterations"}
+    if any(key not in allowed for key in scenario):
+        raise SimcCompileError("SCENARIO_INVALID")
+    fight_style = str(scenario.get("fightStyle", "Patchwerk"))
+    if _SAFE_SCENARIO_TEXT.fullmatch(fight_style) is None:
+        raise SimcCompileError("SCENARIO_INVALID")
+    try:
+        desired_targets = int(scenario.get("desiredTargets", 1))
+        iterations = int(scenario.get("iterations", 300))
+    except (TypeError, ValueError):
+        raise SimcCompileError("SCENARIO_INVALID") from None
+    if not 1 <= desired_targets <= 20 or not 1 <= iterations <= 10000:
+        raise SimcCompileError("SCENARIO_INVALID")
+    return {
+        "fightStyle": fight_style,
+        "desiredTargets": desired_targets,
+        "iterations": iterations,
+    }
+
+
+def scenario_hash(scenario: Mapping[str, object]) -> str:
+    normalized = normalize_scenario(scenario)
+    return hashlib.sha256(canonical_json(normalized).encode("utf-8")).hexdigest()
+
+
 class SimcProfileCompiler:
     def __init__(self, *, capabilities: SimcRuntimeCapabilities):
         self._capabilities = capabilities
@@ -58,9 +86,7 @@ class SimcProfileCompiler:
             readiness = SourceReadiness(str(readiness))
         if readiness is not SourceReadiness.READY_FOR_SIMC:
             raise SimcCompileError("SNAPSHOT_NOT_READY")
-        if not isinstance(scenario, Mapping):
-            raise SimcCompileError("SCENARIO_INVALID")
-        normalized_scenario = self._normalize_scenario(scenario)
+        normalized_scenario = normalize_scenario(scenario)
         raw_snapshot = snapshot.snapshot if isinstance(snapshot.snapshot, Mapping) else {}
         character = raw_snapshot.get("character") if isinstance(raw_snapshot.get("character"), Mapping) else {}
         gear = raw_snapshot.get("gear") if isinstance(raw_snapshot.get("gear"), Mapping) else {}
@@ -123,7 +149,7 @@ class SimcProfileCompiler:
         profile = "\n".join(lines) + "\n"
         if len(profile) > 24000:
             raise SimcCompileError("PROFILE_TOO_LARGE")
-        scenario_hash = hashlib.sha256(canonical_json(normalized_scenario).encode("utf-8")).hexdigest()
+        compiled_scenario_hash = scenario_hash(normalized_scenario)
         profile_sha256 = hashlib.sha256(profile.encode("utf-8")).hexdigest()
         provenance = {
             "provider": snapshot.provider.value,
@@ -137,32 +163,11 @@ class SimcProfileCompiler:
             profile=profile,
             profile_sha256=profile_sha256,
             scenario=normalized_scenario,
-            scenario_hash=scenario_hash,
+            scenario_hash=compiled_scenario_hash,
             compiler_revision=self._capabilities.compiler_revision,
             runtime_revision=self._capabilities.runtime_revision,
             provenance=provenance,
         )
-
-    @staticmethod
-    def _normalize_scenario(scenario: Mapping[str, object]) -> dict[str, object]:
-        allowed = {"fightStyle", "desiredTargets", "iterations"}
-        if any(key not in allowed for key in scenario):
-            raise SimcCompileError("SCENARIO_INVALID")
-        fight_style = str(scenario.get("fightStyle", "Patchwerk"))
-        if _SAFE_SCENARIO_TEXT.fullmatch(fight_style) is None:
-            raise SimcCompileError("SCENARIO_INVALID")
-        try:
-            desired_targets = int(scenario.get("desiredTargets", 1))
-            iterations = int(scenario.get("iterations", 300))
-        except (TypeError, ValueError):
-            raise SimcCompileError("SCENARIO_INVALID") from None
-        if not 1 <= desired_targets <= 20 or not 1 <= iterations <= 10000:
-            raise SimcCompileError("SCENARIO_INVALID")
-        return {
-            "fightStyle": fight_style,
-            "desiredTargets": desired_targets,
-            "iterations": iterations,
-        }
 
     @staticmethod
     def _token(value: object, field: str) -> str:
@@ -194,4 +199,10 @@ class SimcProfileCompiler:
         return [item for item in value if isinstance(item, int) and item > 0][:32]
 
 
-__all__ = ("CompiledSimcInput", "SimcCompileError", "SimcProfileCompiler")
+__all__ = (
+    "CompiledSimcInput",
+    "SimcCompileError",
+    "SimcProfileCompiler",
+    "normalize_scenario",
+    "scenario_hash",
+)
