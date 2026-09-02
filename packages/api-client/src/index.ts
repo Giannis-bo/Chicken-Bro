@@ -14,6 +14,16 @@ export type {
   ChatRequestOptions,
   ChatStreamOptions,
 } from './chat'
+export { createSimcClient } from './simc'
+export type {
+  SimcClient,
+  SimcJobMutationOptions,
+  SimcRequestOptions,
+  SimulationJobCreateRequest,
+  SimulationJobListRequest,
+  SimulationScenarioRequest,
+  SourceSnapshotCreateRequest,
+} from './simc'
 export { createWebAuthClient } from './web-auth'
 export type { WebAuthClient } from './web-auth'
 export { createBuildsClient } from './builds'

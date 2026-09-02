@@ -6,6 +6,7 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from server.app.simulation.domain import (
+    SimulationAttempt,
     SimulationJob,
     SimulationJobStatus,
     SimulationResult,
@@ -191,6 +192,24 @@ class PostgresSimulationRepository:
                     )
                 rows = cursor.fetchall()
         return [self._job_from_row(row) for row in rows]
+
+    def list_attempts(self, job_id: UUID, limit: int = 20) -> Sequence[SimulationAttempt]:
+        bounded_limit = min(max(int(limit), 1), 20)
+        with self._connection_factory() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT id, job_id, user_id, attempt_number, worker_id,
+                           started_at, finished_at, exit_code, diagnostic
+                    FROM simc.simulation_attempts
+                    WHERE job_id = %s
+                    ORDER BY attempt_number ASC, id ASC
+                    LIMIT %s
+                    """,
+                    (job_id, bounded_limit),
+                )
+                rows = cursor.fetchall()
+        return [self._attempt_from_row(row) for row in rows]
 
     def get_job_by_id(self, job_id: UUID) -> SimulationJob | None:
         with self._connection_factory() as connection:
@@ -464,6 +483,24 @@ class PostgresSimulationRepository:
             public_error_code=str(_row_value(row, "public_error_code", 8) or ""),
             created_at=_row_value(row, "created_at", 9),
             updated_at=_row_value(row, "updated_at", 10),
+        )
+
+    @staticmethod
+    def _attempt_from_row(row: Any) -> SimulationAttempt:
+        return SimulationAttempt(
+            id=UUID(str(_row_value(row, "id", 0))),
+            job_id=UUID(str(_row_value(row, "job_id", 1))),
+            user_id=UUID(str(_row_value(row, "user_id", 2))),
+            attempt_number=int(_row_value(row, "attempt_number", 3)),
+            worker_id=str(_row_value(row, "worker_id", 4)),
+            started_at=_row_value(row, "started_at", 5),
+            finished_at=_row_value(row, "finished_at", 6),
+            exit_code=(
+                None
+                if _row_value(row, "exit_code", 7) is None
+                else int(_row_value(row, "exit_code", 7))
+            ),
+            diagnostic=str(_row_value(row, "diagnostic", 8) or ""),
         )
 
     @staticmethod

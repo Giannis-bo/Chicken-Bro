@@ -17,6 +17,26 @@ export type {
   ConversationStatus,
   ConversationSummary,
 } from './chat'
+export {
+  isSimulationJobDetail,
+  isSimulationJobPage,
+  isSimulationJobSummary,
+  isSourceSnapshotView,
+} from './simc'
+export type {
+  SimulationAttemptView,
+  SimulationJobDetail,
+  SimulationJobPage,
+  SimulationJobStatus,
+  SimulationJobSummary,
+  SimulationMetricName,
+  SimulationResultProvenance,
+  SimulationResultView,
+  SourceProvider,
+  SourceReadiness,
+  SourceSnapshotProvenance,
+  SourceSnapshotView,
+} from './simc'
 export { isPlatformReadinessEnvelope } from './platform-v2'
 export type {
   ComponentReadiness,

@@ -26,6 +26,7 @@ class MemorySimulationRepository:
         self.snapshots = {}
         self.jobs = {}
         self.results = {}
+        self.attempts = {}
         self.list_job_calls = []
 
     def next_snapshot_revision(self, user_id, provider, source_key):
@@ -67,6 +68,9 @@ class MemorySimulationRepository:
 
     def get_result(self, user_id, job_id):
         return self.results.get((user_id, job_id))
+
+    def list_attempts(self, job_id, limit=20):
+        return list(self.attempts.get(job_id, ()))[:limit]
 
 
 class MemoryQueue:

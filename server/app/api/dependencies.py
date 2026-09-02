@@ -5,7 +5,7 @@ from fastapi import Request
 from server.app.api.errors import ApiProblem
 from server.app.chickenbro.application import ChatApplication, PrototypeChatApplication
 from server.app.chickenbro.source_gateway import ChickenbroSourceGateway
-from server.app.simulation.application import PrototypeSimulationApplication
+from server.app.simulation.application import SimulationApplication
 from server.app.identity.application import WebAuthApplication
 from server.app.identity.audit import AuthAuditEvent
 from server.app.identity.domain import Principal
@@ -35,7 +35,11 @@ def chat_application(request: Request) -> ChatApplication:
     return request.app.state.chat_application
 
 
-def prototype_simulation_application(request: Request) -> PrototypeSimulationApplication:
+def simulation_application(request: Request) -> SimulationApplication:
+    return request.app.state.simulation_application
+
+
+def prototype_simulation_application(request: Request) -> SimulationApplication:
     return request.app.state.prototype_simulation_application
 
 

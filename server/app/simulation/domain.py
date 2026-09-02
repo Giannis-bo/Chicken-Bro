@@ -58,6 +58,19 @@ class SimulationJob:
 
 
 @dataclass(frozen=True)
+class SimulationAttempt:
+    id: UUID
+    job_id: UUID
+    user_id: UUID
+    attempt_number: int
+    worker_id: str
+    started_at: datetime
+    finished_at: datetime | None
+    exit_code: int | None
+    diagnostic: str
+
+
+@dataclass(frozen=True)
 class SimulationResult:
     id: UUID
     job_id: UUID

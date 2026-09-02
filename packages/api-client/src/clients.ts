@@ -5,6 +5,7 @@ import { TimedCache } from './cache'
 import { createChatClient, type ChatClient } from './chat'
 import { createNewsClient, type NewsClient } from './news'
 import { SimulatorClient } from './simulator'
+import { createSimcClient, type SimcClient } from './simc'
 import { taroStorage, type StorageAdapter } from './storage'
 import { TemplateRepository } from './templates'
 import { createTaroTransport, type ApiTransport, type TransportConfig } from './transport'
@@ -17,6 +18,7 @@ export interface WowApiClients {
   news: NewsClient
   builds: BuildsClient
   chat: ChatClient
+  simc: SimcClient
   websim: WebsimClient
   simulator: SimulatorClient
   templates: TemplateRepository
@@ -44,6 +46,7 @@ export function createWowApiClients(config: WowApiClientConfig = {}): WowApiClie
     news: createNewsClient(transport, storage),
     builds: createBuildsClient(transport),
     chat: createChatClient(transport),
+    simc: createSimcClient(transport),
     websim: createWebsimClient(transport),
     simulator: new SimulatorClient(transport, storage),
     templates: new TemplateRepository(transport, storage),

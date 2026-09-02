@@ -8,7 +8,13 @@ from uuid import UUID, uuid4
 
 from server.app.identity.domain import Principal
 from server.app.simulation.compiler import SimcCompileError, SimcProfileCompiler, scenario_hash
-from server.app.simulation.domain import SimulationJob, SimulationJobStatus, SimulationResult, SourceSnapshot
+from server.app.simulation.domain import (
+    SimulationAttempt,
+    SimulationJob,
+    SimulationJobStatus,
+    SimulationResult,
+    SourceSnapshot,
+)
 from server.app.simulation.readiness import SimcReadinessValidator, SimcRuntimeCapabilities
 from server.app.simulation.sources import CharacterSourceRouter, InvalidSourceLink
 
@@ -25,6 +31,7 @@ class SimulationApplicationError(ValueError):
 class SimulationJobView:
     job: SimulationJob
     result: SimulationResult | None = None
+    attempts: tuple[SimulationAttempt, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -226,7 +233,8 @@ class SimulationApplication:
         if job is None:
             raise SimulationApplicationError("SIMULATION_NOT_FOUND", "simulation not found")
         result = self._repository.get_result(principal.user_id, job.id)
-        return SimulationJobView(job=job, result=result)
+        attempts = tuple(self._repository.list_attempts(job.id, 20))
+        return SimulationJobView(job=job, result=result, attempts=attempts)
 
     @staticmethod
     def _bounded_key(value: str) -> str:
