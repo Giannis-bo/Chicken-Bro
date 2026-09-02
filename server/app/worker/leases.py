@@ -24,6 +24,24 @@ class JobLease:
 _ERROR_CODE = re.compile(r"[A-Z][A-Z0-9_]{2,63}\Z")
 
 
+def require_current_lease(cursor: Any, job_id: UUID, worker_id: str) -> None:
+    cursor.execute(
+        """
+        SELECT id
+        FROM ops.job_queue
+        WHERE id = %s
+          AND status = 'running'
+          AND lease_owner = %s
+          AND NOT cancel_requested
+          AND lease_expires_at > now()
+        FOR UPDATE
+        """,
+        (job_id, worker_id),
+    )
+    if cursor.fetchone() is None:
+        raise LostLeaseError("job lease is no longer owned by this worker")
+
+
 _CLAIM_SQL = """
 WITH candidate AS (
     SELECT id

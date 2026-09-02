@@ -1,5 +1,6 @@
 import json
 from collections.abc import Callable, Mapping, Sequence
+from dataclasses import replace
 from datetime import datetime
 from typing import Any
 from uuid import UUID, uuid4
@@ -12,6 +13,7 @@ from server.app.simulation.domain import (
     SourceReadiness,
     SourceSnapshot,
 )
+from server.app.worker.leases import LostLeaseError, require_current_lease
 
 
 def _row_value(row: Any, key: str, index: int) -> Any:
@@ -206,90 +208,168 @@ class PostgresSimulationRepository:
                 row = cursor.fetchone()
         return self._job_from_row(row) if row is not None else None
 
-    def update_job(
-        self,
-        user_id: UUID,
-        job_id: UUID,
-        status: SimulationJobStatus,
-        public_error_code: str = "",
-    ) -> None:
-        status_value = status.value if isinstance(status, SimulationJobStatus) else str(status)
-        with self._connection_factory() as connection:
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    """
-                    UPDATE simc.simulation_jobs
-                    SET status = %s, public_error_code = %s, updated_at = now()
-                    WHERE user_id = %s AND id = %s
-                    """,
-                    (status_value, public_error_code[:160], user_id, job_id),
-                )
-
-    def save_result(self, result: SimulationResult) -> None:
-        with self._connection_factory() as connection:
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    """
-                    INSERT INTO simc.simulation_results (
-                        id, job_id, user_id, profile_sha256, result_json,
-                        primary_metric_name, primary_metric_value, compiler_revision,
-                        runtime_revision, provenance_json, created_at
-                    ) VALUES (%s, %s, %s, %s, %s::jsonb, %s, %s, %s, %s, %s::jsonb, %s)
-                    """,
-                    (
-                        result.id,
-                        result.job_id,
-                        result.user_id,
-                        result.profile_sha256,
-                        _json_value(result.result),
-                        result.primary_metric_name,
-                        result.primary_metric_value,
-                        result.compiler_revision,
-                        result.runtime_revision,
-                        _json_value({"source": "simc-worker", **dict(result.result.get("provenance", {}))}),
-                        result.created_at,
-                    ),
-                )
-
-    def start_attempt(
+    def begin_job_attempt(
         self,
         job_id: UUID,
-        user_id: UUID,
+        *,
         worker_id: str,
         attempt_number: int,
         now: datetime,
-    ) -> UUID:
-        attempt_id = uuid4()
+    ) -> tuple[SimulationJob, UUID | None] | None:
+        """Claim one domain attempt while the matching queue lease is still owned."""
         with self._connection_factory() as connection:
             with connection.cursor() as cursor:
+                require_current_lease(cursor, job_id, worker_id)
+                cursor.execute(
+                    """
+                    SELECT id, user_id, snapshot_id, scenario_hash, compiler_revision,
+                           runtime_revision, idempotency_key, status, public_error_code,
+                           created_at, updated_at
+                    FROM simc.simulation_jobs
+                    WHERE id = %s
+                    FOR UPDATE
+                    """,
+                    (job_id,),
+                )
+                row = cursor.fetchone()
+                if row is None:
+                    return None
+                job = self._job_from_row(row)
+                terminal = job.status in {
+                    SimulationJobStatus.SUCCEEDED,
+                    SimulationJobStatus.FAILED,
+                    SimulationJobStatus.CANCELLED,
+                }
                 cursor.execute(
                     """
                     INSERT INTO simc.simulation_attempts (
                         id, job_id, user_id, attempt_number, worker_id, started_at
                     ) VALUES (%s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (job_id, attempt_number) DO NOTHING
+                    RETURNING id
                     """,
-                    (attempt_id, job_id, user_id, attempt_number, worker_id[:64], now),
+                    (uuid4(), job.id, job.user_id, attempt_number, worker_id[:64], now),
                 )
-        return attempt_id
+                attempt_row = cursor.fetchone()
+                if attempt_row is None:
+                    raise LostLeaseError("simulation attempt was already started")
+                attempt_id = UUID(str(_row_value(attempt_row, "id", 0)))
+                if terminal:
+                    cursor.execute(
+                        """
+                        UPDATE simc.simulation_attempts
+                        SET diagnostic = 'ALREADY_TERMINAL', finished_at = %s
+                        WHERE id = %s AND finished_at IS NULL
+                        """,
+                        (now, attempt_id),
+                    )
+                    return job, None
+                cursor.execute(
+                    """
+                    UPDATE simc.simulation_jobs
+                    SET status = 'running', public_error_code = '', updated_at = %s
+                    WHERE id = %s AND user_id = %s
+                    """,
+                    (now, job.id, job.user_id),
+                )
+                return replace(
+                    job,
+                    status=SimulationJobStatus.RUNNING,
+                    public_error_code="",
+                    updated_at=now,
+                ), attempt_id
 
-    def finish_attempt(
+    def complete_job_success(
         self,
+        job: SimulationJob,
         attempt_id: UUID,
+        result: SimulationResult,
         *,
-        return_code: int | None,
-        diagnostic: str,
+        worker_id: str,
+        return_code: int,
         finished_at: datetime,
-    ) -> None:
+    ) -> SimulationJobStatus:
         with self._connection_factory() as connection:
             with connection.cursor() as cursor:
+                require_current_lease(cursor, job.id, worker_id)
+                current = self._lock_job(cursor, job.id)
+                if current is None:
+                    raise ValueError("simulation job disappeared")
+                if current.status in {
+                    SimulationJobStatus.SUCCEEDED,
+                    SimulationJobStatus.FAILED,
+                    SimulationJobStatus.CANCELLED,
+                }:
+                    return current.status
+                self._insert_result(cursor, result)
+                cursor.execute(
+                    """
+                    UPDATE simc.simulation_attempts
+                    SET exit_code = %s, diagnostic = 'succeeded', finished_at = %s
+                    WHERE id = %s AND job_id = %s AND finished_at IS NULL
+                    """,
+                    (return_code, finished_at, attempt_id, job.id),
+                )
+                if cursor.rowcount != 1:
+                    raise LostLeaseError("simulation attempt is no longer active")
+                cursor.execute(
+                    """
+                    UPDATE simc.simulation_jobs
+                    SET status = 'succeeded', public_error_code = '', updated_at = %s
+                    WHERE id = %s AND user_id = %s AND status = 'running'
+                    """,
+                    (finished_at, job.id, job.user_id),
+                )
+                if cursor.rowcount != 1:
+                    raise LostLeaseError("simulation job is no longer running")
+        return SimulationJobStatus.SUCCEEDED
+
+    def complete_job_failure(
+        self,
+        job: SimulationJob,
+        attempt_id: UUID,
+        *,
+        worker_id: str,
+        status: SimulationJobStatus,
+        error_code: str,
+        return_code: int | None,
+        finished_at: datetime,
+    ) -> SimulationJobStatus:
+        if status not in {SimulationJobStatus.QUEUED, SimulationJobStatus.FAILED}:
+            raise ValueError("simulation failure status must be queued or failed")
+        with self._connection_factory() as connection:
+            with connection.cursor() as cursor:
+                require_current_lease(cursor, job.id, worker_id)
+                current = self._lock_job(cursor, job.id)
+                if current is None:
+                    raise ValueError("simulation job disappeared")
+                if current.status in {
+                    SimulationJobStatus.SUCCEEDED,
+                    SimulationJobStatus.FAILED,
+                    SimulationJobStatus.CANCELLED,
+                }:
+                    return current.status
                 cursor.execute(
                     """
                     UPDATE simc.simulation_attempts
                     SET exit_code = %s, diagnostic = %s, finished_at = %s
-                    WHERE id = %s
+                    WHERE id = %s AND job_id = %s AND finished_at IS NULL
                     """,
-                    (return_code, diagnostic[:4096], finished_at, attempt_id),
+                    (return_code, error_code[:128], finished_at, attempt_id, job.id),
                 )
+                if cursor.rowcount != 1:
+                    raise LostLeaseError("simulation attempt is no longer active")
+                cursor.execute(
+                    """
+                    UPDATE simc.simulation_jobs
+                    SET status = %s, public_error_code = %s, updated_at = %s
+                    WHERE id = %s AND user_id = %s AND status = 'running'
+                    """,
+                    (status.value, error_code[:128], finished_at, job.id, job.user_id),
+                )
+                if cursor.rowcount != 1:
+                    raise LostLeaseError("simulation job is no longer running")
+        return status
 
     def get_result(self, user_id: UUID, job_id: UUID) -> SimulationResult | None:
         with self._connection_factory() as connection:
@@ -306,6 +386,47 @@ class PostgresSimulationRepository:
                 )
                 row = cursor.fetchone()
         return self._result_from_row(row) if row is not None else None
+
+    @classmethod
+    def _lock_job(cls, cursor: Any, job_id: UUID) -> SimulationJob | None:
+        cursor.execute(
+            """
+            SELECT id, user_id, snapshot_id, scenario_hash, compiler_revision,
+                   runtime_revision, idempotency_key, status, public_error_code,
+                   created_at, updated_at
+            FROM simc.simulation_jobs
+            WHERE id = %s
+            FOR UPDATE
+            """,
+            (job_id,),
+        )
+        row = cursor.fetchone()
+        return cls._job_from_row(row) if row is not None else None
+
+    @staticmethod
+    def _insert_result(cursor: Any, result: SimulationResult) -> None:
+        cursor.execute(
+            """
+            INSERT INTO simc.simulation_results (
+                id, job_id, user_id, profile_sha256, result_json,
+                primary_metric_name, primary_metric_value, compiler_revision,
+                runtime_revision, provenance_json, created_at
+            ) VALUES (%s, %s, %s, %s, %s::jsonb, %s, %s, %s, %s, %s::jsonb, %s)
+            """,
+            (
+                result.id,
+                result.job_id,
+                result.user_id,
+                result.profile_sha256,
+                _json_value(result.result),
+                result.primary_metric_name,
+                result.primary_metric_value,
+                result.compiler_revision,
+                result.runtime_revision,
+                _json_value({"source": "simc-worker", **dict(result.result.get("provenance", {}))}),
+                result.created_at,
+            ),
+        )
 
     @staticmethod
     def _snapshot_from_row(row: Any) -> SourceSnapshot:

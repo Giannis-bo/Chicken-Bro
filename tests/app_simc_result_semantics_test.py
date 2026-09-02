@@ -1,0 +1,66 @@
+import unittest
+
+from server.app.simulation.worker import (
+    RawSimulationExecution,
+    SimulationResultParser,
+    SimulationWorkerError,
+)
+
+
+class SimcResultSemanticsTest(unittest.TestCase):
+    def setUp(self):
+        self.parser = SimulationResultParser()
+
+    def test_metric_without_one_valid_actor_is_rejected(self):
+        for stdout in (
+            "DPS=12345\n",
+            "Player: none\nDPS=12345\n",
+            "Player: Stormsample race=none\nDPS=12345\n",
+            "Player: AnotherCharacter\nDPS=12345\n",
+            "Player: First\nPlayer: Second\nDPS=12345\n",
+        ):
+            with self.subTest(stdout=stdout):
+                with self.assertRaises(SimulationWorkerError) as context:
+                    self.parser.parse(
+                        RawSimulationExecution(
+                            return_code=0,
+                            stdout=stdout,
+                            stderr="",
+                            runtime_revision="simc:current:abc",
+                        ),
+                        expected_actor="Stormsample",
+                    )
+                self.assertEqual(context.exception.code, "SIMC_ACTOR_INVALID")
+
+    def test_fatal_diagnostic_rejects_an_otherwise_valid_metric(self):
+        with self.assertRaises(SimulationWorkerError) as context:
+            self.parser.parse(
+                RawSimulationExecution(
+                    return_code=0,
+                    stdout="Player: Stormsample\nDPS=12345\n",
+                    stderr="Fatal error: actor profile could not be initialized",
+                    runtime_revision="simc:current:abc",
+                ),
+                expected_actor="Stormsample",
+            )
+
+        self.assertEqual(context.exception.code, "SIMC_FATAL_DIAGNOSTIC")
+
+    def test_non_finite_or_non_positive_metric_is_rejected(self):
+        for raw_value in ("NaN", "Infinity", "-1", "0", "1e309"):
+            with self.subTest(raw_value=raw_value):
+                with self.assertRaises(SimulationWorkerError) as context:
+                    self.parser.parse(
+                        RawSimulationExecution(
+                            return_code=0,
+                            stdout=f"Player: Stormsample\nDPS={raw_value}\n",
+                            stderr="",
+                            runtime_revision="simc:current:abc",
+                        ),
+                        expected_actor="Stormsample",
+                    )
+                self.assertEqual(context.exception.code, "SIMC_METRIC_INVALID")
+
+
+if __name__ == "__main__":
+    unittest.main()

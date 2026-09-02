@@ -18,6 +18,10 @@ class SimcCompileError(ValueError):
 @dataclass(frozen=True)
 class CompiledSimcInput:
     snapshot_id: UUID
+    actor_name: str
+    class_key: str
+    spec_key: str
+    race_key: str
     profile: str
     profile_sha256: str
     scenario: Mapping[str, object]
@@ -197,6 +201,10 @@ class SimcProfileCompiler:
         }
         return CompiledSimcInput(
             snapshot_id=snapshot.id,
+            actor_name=name,
+            class_key=class_key,
+            spec_key=spec_key,
+            race_key=race_key,
             profile=profile,
             profile_sha256=profile_sha256,
             scenario=normalized_scenario,

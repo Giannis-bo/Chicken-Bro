@@ -1,8 +1,9 @@
 import unittest
+from threading import Event
 from uuid import UUID
 
 from server.app.worker.handlers import HandlerRegistry, UnknownJobHandler
-from server.app.worker.leases import JobLease
+from server.app.worker.leases import JobLease, LostLeaseError
 from server.app.worker.main import Worker
 
 
@@ -22,6 +23,7 @@ class FakeQueue:
         self.claimed = claimed
         self.succeeded = []
         self.failed = []
+        self.heartbeats = []
 
     def claim(self, *, worker_id, lease_seconds):
         return self.claimed
@@ -31,6 +33,9 @@ class FakeQueue:
 
     def fail(self, job_id, *, worker_id, error_code, retryable):
         self.failed.append((job_id, worker_id, error_code, retryable))
+
+    def heartbeat(self, job_id, *, worker_id, lease_seconds):
+        self.heartbeats.append((job_id, worker_id, lease_seconds))
 
 
 class AppWorkerRuntimeTest(unittest.TestCase):
@@ -59,3 +64,50 @@ class AppWorkerRuntimeTest(unittest.TestCase):
             registry.register("simc", "snapshot.resolve", lambda lease: None)
         with self.assertRaises(UnknownJobHandler):
             registry.resolve("chat", "conversation.run")
+
+    def test_long_handler_renews_its_lease_until_domain_commit_finishes(self):
+        release = Event()
+        registry = HandlerRegistry()
+        registry.register("simc", "snapshot.resolve", lambda _lease: release.wait(1))
+        queue = FakeQueue(claimed=LEASE)
+        original_heartbeat = queue.heartbeat
+
+        def heartbeat(*args, **kwargs):
+            original_heartbeat(*args, **kwargs)
+            release.set()
+
+        queue.heartbeat = heartbeat
+        worker = Worker(
+            queue=queue,
+            handlers=registry,
+            worker_id="worker-a",
+            heartbeat_interval_seconds=0.01,
+        )
+
+        self.assertTrue(worker.run_once())
+
+        self.assertEqual(queue.heartbeats, [(LEASE.id, "worker-a", 30)])
+        self.assertEqual(queue.succeeded, [(LEASE.id, "worker-a")])
+
+    def test_lost_heartbeat_never_acknowledges_the_stale_lease(self):
+        release = Event()
+        registry = HandlerRegistry()
+        registry.register("simc", "snapshot.resolve", lambda _lease: release.wait(1))
+        queue = FakeQueue(claimed=LEASE)
+
+        def lose_lease(*_args, **_kwargs):
+            release.set()
+            raise LostLeaseError("lease lost")
+
+        queue.heartbeat = lose_lease
+        worker = Worker(
+            queue=queue,
+            handlers=registry,
+            worker_id="worker-a",
+            heartbeat_interval_seconds=0.01,
+        )
+
+        self.assertTrue(worker.run_once())
+
+        self.assertEqual(queue.succeeded, [])
+        self.assertEqual(queue.failed, [])

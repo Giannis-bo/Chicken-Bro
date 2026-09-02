@@ -4,6 +4,7 @@ import os
 import re
 import time
 from collections.abc import Callable
+from threading import Event, Thread
 
 from server.app.platform.config import AppSettings
 from server.app.platform.postgres import PostgresConnectionFactory
@@ -12,7 +13,7 @@ from server.app.simulation.readiness import SimcReadinessValidator, SimcRuntimeC
 from server.app.simulation.repository import PostgresSimulationRepository
 from server.app.simulation.worker import LocalSimulationCraftPort, SimulationResultParser, SimulationWorker
 from server.app.worker.handlers import HandlerRegistry, RetryableJobError, UnknownJobHandler
-from server.app.worker.leases import JobLease, PostgresJobQueue
+from server.app.worker.leases import JobLease, LostLeaseError, PostgresJobQueue
 
 
 LOGGER = logging.getLogger(__name__)
@@ -28,6 +29,7 @@ class Worker:
         worker_id: str,
         lease_seconds: int = 30,
         poll_seconds: float = 1.0,
+        heartbeat_interval_seconds: float | None = None,
         sleep: Callable[[float], None] = time.sleep,
     ):
         if _WORKER_ID.fullmatch(worker_id) is None:
@@ -36,11 +38,19 @@ class Worker:
             raise ValueError("lease_seconds must be between 1 and 3600")
         if not 0.1 <= poll_seconds <= 30:
             raise ValueError("poll_seconds must be between 0.1 and 30")
+        heartbeat_interval = (
+            min(10.0, max(0.1, lease_seconds / 3))
+            if heartbeat_interval_seconds is None
+            else float(heartbeat_interval_seconds)
+        )
+        if heartbeat_interval <= 0 or heartbeat_interval >= lease_seconds:
+            raise ValueError("heartbeat interval must be positive and shorter than the lease")
         self.queue = queue
         self.handlers = handlers
         self.worker_id = worker_id
         self.lease_seconds = lease_seconds
         self.poll_seconds = poll_seconds
+        self.heartbeat_interval_seconds = heartbeat_interval
         self.sleep = sleep
 
     def run_once(self) -> bool:
@@ -49,39 +59,90 @@ class Worker:
             return False
         try:
             handler = self.handlers.resolve(lease.domain, lease.command_type)
-            handler(lease)
         except UnknownJobHandler:
-            self.queue.fail(
-                lease.id,
-                worker_id=self.worker_id,
-                error_code="UNKNOWN_JOB_HANDLER",
-                retryable=False,
+            self._fail_lease(lease, error_code="UNKNOWN_JOB_HANDLER", retryable=False)
+            return True
+
+        handler_error, heartbeat_error = self._run_handler_with_heartbeat(handler, lease)
+        if heartbeat_error is not None:
+            LOGGER.warning(
+                "v2 worker lost or could not renew its lease",
+                extra={
+                    "jobId": str(lease.id),
+                    "workerId": self.worker_id,
+                    "exceptionClass": heartbeat_error.__class__.__name__,
+                },
             )
-        except RetryableJobError as error:
-            self.queue.fail(
-                lease.id,
-                worker_id=self.worker_id,
-                error_code=error.code,
-                retryable=True,
-            )
-        except Exception as error:
+            return True
+
+        if handler_error is None:
+            try:
+                self.queue.succeed(lease.id, worker_id=self.worker_id)
+            except LostLeaseError:
+                pass
+        elif isinstance(handler_error, RetryableJobError):
+            self._fail_lease(lease, error_code=handler_error.code, retryable=True)
+        elif isinstance(handler_error, Exception):
             LOGGER.warning(
                 "v2 worker handler failed",
                 extra={
                     "jobId": str(lease.id),
                     "workerId": self.worker_id,
-                    "exceptionClass": error.__class__.__name__,
+                    "exceptionClass": handler_error.__class__.__name__,
                 },
             )
+            self._fail_lease(lease, error_code="JOB_HANDLER_FAILED", retryable=False)
+        else:
+            raise handler_error
+        return True
+
+    def _run_handler_with_heartbeat(
+        self,
+        handler: Callable[[JobLease], object],
+        lease: JobLease,
+    ) -> tuple[BaseException | None, BaseException | None]:
+        done = Event()
+        handler_errors: list[BaseException] = []
+
+        def run_handler() -> None:
+            try:
+                handler(lease)
+            except BaseException as error:
+                handler_errors.append(error)
+            finally:
+                done.set()
+
+        thread = Thread(
+            target=run_handler,
+            name=f"job-{lease.id}",
+            daemon=True,
+        )
+        thread.start()
+        heartbeat_error: BaseException | None = None
+        while not done.wait(self.heartbeat_interval_seconds):
+            try:
+                self.queue.heartbeat(
+                    lease.id,
+                    worker_id=self.worker_id,
+                    lease_seconds=self.lease_seconds,
+                )
+            except BaseException as error:
+                heartbeat_error = error
+                break
+        done.wait()
+        thread.join()
+        return (handler_errors[0] if handler_errors else None), heartbeat_error
+
+    def _fail_lease(self, lease: JobLease, *, error_code: str, retryable: bool) -> None:
+        try:
             self.queue.fail(
                 lease.id,
                 worker_id=self.worker_id,
-                error_code="JOB_HANDLER_FAILED",
-                retryable=False,
+                error_code=error_code,
+                retryable=retryable,
             )
-        else:
-            self.queue.succeed(lease.id, worker_id=self.worker_id)
-        return True
+        except LostLeaseError:
+            pass
 
     def run_forever(self, stop_requested: Callable[[], bool]) -> None:
         while not stop_requested():

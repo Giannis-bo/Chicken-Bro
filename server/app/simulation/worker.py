@@ -5,15 +5,14 @@ import shutil
 import subprocess
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any, Callable, Mapping, Protocol
 from uuid import UUID, uuid4
 
 from server.app.simulation.compiler import SimcCompileError, SimcProfileCompiler
 from server.app.simulation.domain import SimulationJobStatus, SimulationResult
-from server.app.simulation.readiness import ReadinessReport, SimcReadinessValidator, SimcRuntimeCapabilities
-from server.app.worker.leases import JobLease
+from server.app.simulation.readiness import SimcReadinessValidator, SimcRuntimeCapabilities
 from server.app.worker.handlers import RetryableJobError
+from server.app.worker.leases import JobLease, LostLeaseError
 
 
 class SimulationWorkerError(RuntimeError):
@@ -91,13 +90,47 @@ class SemanticSimulationMetric:
 
 
 class SimulationResultParser:
-    _METRIC_PATTERN = re.compile(r"\b(DPS|HPS)\s*(?:=|:)\s*([0-9]+(?:\.[0-9]+)?)\b", re.IGNORECASE)
+    _METRIC_PATTERN = re.compile(
+        r"\b(DPS|HPS)\s*(?:=|:)\s*"
+        r"([+-]?(?:(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?|nan|inf(?:inity)?))\b",
+        re.IGNORECASE,
+    )
+    _ACTOR_PATTERN = re.compile(r"^\s*Player:\s*(.+?)\s*$", re.IGNORECASE | re.MULTILINE)
+    _PLACEHOLDER_ACTOR = re.compile(
+        r"^(?:none|null|unknown|unnamed)\b|\b(?:actor|race|class|spec)\s*=\s*(?:none|null|unknown|0)\b",
+        re.IGNORECASE,
+    )
+    _FATAL_DIAGNOSTIC = re.compile(
+        r"\bfatal(?:\s+error)?\b|\b(?:unable|failed)\s+to\s+(?:initialize|create|parse)\b",
+        re.IGNORECASE,
+    )
 
-    def parse(self, execution: RawSimulationExecution) -> SemanticSimulationMetric:
+    def parse(
+        self,
+        execution: RawSimulationExecution,
+        *,
+        expected_actor: str,
+    ) -> SemanticSimulationMetric:
         if execution.timed_out:
             raise SimulationWorkerError("SIMC_TIMEOUT", retryable=True)
         if execution.return_code != 0:
             raise SimulationWorkerError("SIMC_EXECUTION_FAILED")
+        combined_diagnostics = "\n".join((execution.stdout or "", execution.stderr or ""))
+        if self._FATAL_DIAGNOSTIC.search(combined_diagnostics):
+            raise SimulationWorkerError("SIMC_FATAL_DIAGNOSTIC")
+        actors = [match.group(1).strip() for match in self._ACTOR_PATTERN.finditer(execution.stdout or "")]
+        normalized_expected_actor = str(expected_actor or "").strip().casefold()
+        normalized_actor = actors[0].casefold() if len(actors) == 1 else ""
+        if (
+            not normalized_expected_actor
+            or len(actors) != 1
+            or self._PLACEHOLDER_ACTOR.search(actors[0])
+            or not (
+                normalized_actor == normalized_expected_actor
+                or normalized_actor.startswith(normalized_expected_actor + " ")
+            )
+        ):
+            raise SimulationWorkerError("SIMC_ACTOR_INVALID")
         matches = list(self._METRIC_PATTERN.finditer(execution.stdout or ""))
         if not matches:
             raise SimulationWorkerError("SIMC_METRIC_MISSING")
@@ -133,66 +166,108 @@ class SimulationWorker:
     def handle(self, lease: JobLease) -> SimulationJobStatus:
         if lease.domain != "simc" or lease.command_type != "run_simulation" or lease.aggregate_id not in {None, lease.id}:
             raise SimulationWorkerError("JOB_PAYLOAD_INVALID")
-        job = self._repository.get_job_by_id(lease.id)
-        if job is None or job.id != lease.id:
+        try:
+            started = self._repository.begin_job_attempt(
+                lease.id,
+                worker_id=self._worker_id,
+                attempt_number=lease.attempt,
+                now=self._utc_now(),
+            )
+        except LostLeaseError as error:
+            raise RetryableJobError("LEASE_LOST") from error
+        except Exception as error:
+            raise RetryableJobError("SIMC_PERSISTENCE_FAILED") from error
+        if started is None:
             raise SimulationWorkerError("SIMULATION_NOT_FOUND")
-        if lease.aggregate_id is not None and lease.aggregate_id != job.id:
-            raise SimulationWorkerError("JOB_PAYLOAD_INVALID")
-        self._repository.update_job(job.user_id, job.id, SimulationJobStatus.RUNNING, "")
-        attempt_id = self._repository.start_attempt(
-            job.id,
-            job.user_id,
-            self._worker_id,
-            lease.attempt,
-            self._utc_now(),
-        )
+        job, attempt_id = started
+        if attempt_id is None:
+            if job.status not in {
+                SimulationJobStatus.SUCCEEDED,
+                SimulationJobStatus.FAILED,
+                SimulationJobStatus.CANCELLED,
+            }:
+                raise RetryableJobError("SIMC_PERSISTENCE_FAILED")
+            return job.status
+        execution: RawSimulationExecution | None = None
         try:
             compiled = self._compile_for_job(job, lease.payload)
             execution = self._simc.run(compiled, job.runtime_revision)
             if execution.runtime_revision != job.runtime_revision:
                 raise SimulationWorkerError("SIMC_RUNTIME_REVISION_STALE")
-            metric = self._result_parser.parse(execution)
-            result = SimulationResult(
-                id=uuid4(),
-                job_id=job.id,
-                user_id=job.user_id,
-                profile_sha256=compiled.profile_sha256,
-                result={
-                    "metricName": metric.name,
-                    "metricValue": metric.value,
-                    "provenance": {
-                        "snapshotId": str(job.snapshot_id),
-                        "sourceUrl": str(compiled.provenance.get("sourceUrl", "")),
-                        "sourceRevision": str(compiled.provenance.get("sourceRevision", "")),
-                        "sourceRawSha256": str(compiled.provenance.get("sourceRawSha256", "")),
-                        "profileSha256": compiled.profile_sha256,
-                        "compilerRevision": compiled.compiler_revision,
-                        "runtimeRevision": compiled.runtime_revision,
-                    },
-                },
-                primary_metric_name=metric.name,
-                primary_metric_value=metric.value,
-                compiler_revision=compiled.compiler_revision,
-                runtime_revision=compiled.runtime_revision,
-                created_at=self._utc_now(),
-            )
-            self._repository.save_result(result)
-            self._repository.finish_attempt(
+            metric = self._result_parser.parse(execution, expected_actor=compiled.actor_name)
+        except SimulationWorkerError as error:
+            return self._record_failure(
+                job,
+                lease,
                 attempt_id,
+                error,
+                return_code=execution.return_code if execution is not None else None,
+            )
+        except SimcCompileError as error:
+            return self._record_failure(
+                job,
+                lease,
+                attempt_id,
+                SimulationWorkerError(error.code),
+                return_code=None,
+            )
+        except Exception:
+            return self._record_failure(
+                job,
+                lease,
+                attempt_id,
+                SimulationWorkerError("SIMC_EXECUTION_FAILED"),
+                return_code=execution.return_code if execution is not None else None,
+            )
+
+        result = SimulationResult(
+            id=uuid4(),
+            job_id=job.id,
+            user_id=job.user_id,
+            profile_sha256=compiled.profile_sha256,
+            result={
+                "metricName": metric.name,
+                "metricValue": metric.value,
+                "provenance": {
+                    "snapshotId": str(job.snapshot_id),
+                    "sourceUrl": str(compiled.provenance.get("sourceUrl", "")),
+                    "sourceRevision": str(compiled.provenance.get("sourceRevision", "")),
+                    "sourceRawSha256": str(compiled.provenance.get("sourceRawSha256", "")),
+                    "profileSha256": compiled.profile_sha256,
+                    "compilerRevision": compiled.compiler_revision,
+                    "runtimeRevision": compiled.runtime_revision,
+                    "scenarioHash": compiled.scenario_hash,
+                },
+            },
+            primary_metric_name=metric.name,
+            primary_metric_value=metric.value,
+            compiler_revision=compiled.compiler_revision,
+            runtime_revision=compiled.runtime_revision,
+            created_at=self._utc_now(),
+        )
+        try:
+            return self._repository.complete_job_success(
+                job,
+                attempt_id,
+                result,
+                worker_id=self._worker_id,
                 return_code=execution.return_code,
-                diagnostic="succeeded",
                 finished_at=self._utc_now(),
             )
-            self._repository.update_job(job.user_id, job.id, SimulationJobStatus.SUCCEEDED, "")
-            return SimulationJobStatus.SUCCEEDED
-        except SimulationWorkerError as error:
-            return self._record_failure(job, lease, attempt_id, error)
-        except SimcCompileError as error:
-            return self._record_failure(job, lease, attempt_id, SimulationWorkerError(error.code))
-        except Exception:
-            return self._record_failure(job, lease, attempt_id, SimulationWorkerError("SIMC_EXECUTION_FAILED"))
+        except LostLeaseError as error:
+            raise RetryableJobError("LEASE_LOST") from error
+        except Exception as error:
+            raise RetryableJobError("SIMC_PERSISTENCE_FAILED") from error
 
     def _compile_for_job(self, job: Any, payload: Mapping[str, object]) -> Any:
+        if set(payload) != {
+            "snapshotId",
+            "scenario",
+            "scenarioHash",
+            "compilerRevision",
+            "runtimeRevision",
+        }:
+            raise SimulationWorkerError("JOB_PAYLOAD_INVALID")
         snapshot_id = payload.get("snapshotId")
         try:
             parsed_snapshot_id = snapshot_id if isinstance(snapshot_id, UUID) else UUID(str(snapshot_id))
@@ -207,11 +282,21 @@ class SimulationWorker:
         if not report.ready:
             raise SimulationWorkerError("SNAPSHOT_NOT_READY")
         scenario = payload.get("scenario")
-        compiled = self._compiler.compile(snapshot, scenario if isinstance(scenario, Mapping) else {})
+        if not isinstance(scenario, Mapping):
+            raise SimulationWorkerError("JOB_PAYLOAD_INVALID")
+        expected_scenario_hash = str(payload.get("scenarioHash") or "")
+        expected_compiler_revision = str(payload.get("compilerRevision") or "")
+        expected_runtime_revision = str(payload.get("runtimeRevision") or "")
+        if (
+            expected_scenario_hash != job.scenario_hash
+            or expected_compiler_revision != job.compiler_revision
+            or expected_runtime_revision != job.runtime_revision
+        ):
+            raise SimulationWorkerError("JOB_PAYLOAD_INVALID")
+        compiled = self._compiler.compile(snapshot, scenario)
         if compiled.compiler_revision != job.compiler_revision or compiled.runtime_revision != job.runtime_revision:
             raise SimulationWorkerError("SIMC_RUNTIME_REVISION_STALE")
-        expected_scenario_hash = str(payload.get("scenarioHash") or "")
-        if expected_scenario_hash and expected_scenario_hash != compiled.scenario_hash:
+        if expected_scenario_hash != compiled.scenario_hash:
             raise SimulationWorkerError("JOB_PAYLOAD_INVALID")
         return compiled
 
@@ -221,19 +306,28 @@ class SimulationWorker:
         lease: JobLease,
         attempt_id: UUID,
         error: SimulationWorkerError,
+        *,
+        return_code: int | None,
     ) -> SimulationJobStatus:
         terminal = not error.retryable or lease.attempt >= lease.max_attempts
         status = SimulationJobStatus.FAILED if terminal else SimulationJobStatus.QUEUED
-        self._repository.finish_attempt(
-            attempt_id,
-            return_code=None,
-            diagnostic=error.code,
-            finished_at=self._utc_now(),
-        )
-        self._repository.update_job(job.user_id, job.id, status, error.code)
-        if error.retryable and not terminal:
+        try:
+            committed_status = self._repository.complete_job_failure(
+                job,
+                attempt_id,
+                worker_id=self._worker_id,
+                status=status,
+                error_code=error.code,
+                return_code=return_code,
+                finished_at=self._utc_now(),
+            )
+        except LostLeaseError as lease_error:
+            raise RetryableJobError("LEASE_LOST") from lease_error
+        except Exception as persistence_error:
+            raise RetryableJobError("SIMC_PERSISTENCE_FAILED") from persistence_error
+        if committed_status is SimulationJobStatus.QUEUED and error.retryable and not terminal:
             raise RetryableJobError(error.code)
-        return status
+        return committed_status
 
     def _utc_now(self) -> datetime:
         value = self._clock()
