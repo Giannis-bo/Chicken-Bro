@@ -26,11 +26,19 @@ class CodexPort(Protocol):
         raise NotImplementedError
 
 
-class PrototypeChatRepository(Protocol):
+class ChatRepository(Protocol):
     def create_conversation(self, user_id: UUID, title: str, now: datetime) -> Any:
         raise NotImplementedError
 
     def get_conversation(self, user_id: UUID, conversation_id: UUID) -> Any | None:
+        raise NotImplementedError
+
+    def list_conversations(
+        self,
+        user_id: UUID,
+        boundary: tuple[datetime, UUID] | None,
+        limit: int,
+    ) -> Sequence[Any]:
         raise NotImplementedError
 
     def list_messages(self, user_id: UUID, conversation_id: UUID) -> Sequence[Any]:
@@ -68,3 +76,6 @@ class PrototypeChatRepository(Protocol):
         finished_at: datetime,
     ) -> None:
         raise NotImplementedError
+
+
+PrototypeChatRepository = ChatRepository

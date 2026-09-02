@@ -1,10 +1,10 @@
 import unittest
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from uuid import UUID, uuid4
 
-from server.app.chickenbro.application import ChatApplicationError, PrototypeChatApplication
+from server.app.chickenbro.application import ChatApplication, ChatApplicationError
 from server.app.chickenbro.domain import AgentRunStatus, ConversationStatus, MessageRole
-from server.app.identity.prototype import PrototypePrincipal
+from server.app.identity.domain import Principal
 
 
 class MemoryChatRepository:
@@ -12,6 +12,8 @@ class MemoryChatRepository:
         self.conversations = {}
         self.messages = []
         self.runs = {}
+        self.list_conversations_calls = 0
+        self.list_conversation_limits = []
 
     def create_conversation(self, user_id, title, now):
         conversation = {
@@ -27,6 +29,21 @@ class MemoryChatRepository:
 
     def get_conversation(self, user_id, conversation_id):
         return self.conversations.get((user_id, conversation_id))
+
+    def list_conversations(self, user_id, boundary, limit):
+        self.list_conversations_calls += 1
+        self.list_conversation_limits.append(limit)
+        rows = [
+            row for row in self.conversations.values()
+            if row["user_id"] == user_id
+        ]
+        rows.sort(key=lambda row: (row["updated_at"], row["id"]), reverse=True)
+        if boundary is not None:
+            rows = [
+                row for row in rows
+                if (row["updated_at"], row["id"]) < boundary
+            ]
+        return rows[:limit]
 
     def list_messages(self, user_id, conversation_id):
         return [
@@ -112,20 +129,20 @@ class CapturingCodex(FakeCodex):
         yield from super().stream(prompt=prompt, timeout_seconds=timeout_seconds)
 
 
-class PrototypeChatApplicationTest(unittest.TestCase):
+class ChatApplicationTest(unittest.TestCase):
     def setUp(self):
         self.now = datetime(2026, 9, 1, 12, 0, tzinfo=timezone.utc)
         self.user_id = UUID("00000000-0000-0000-0000-000000000011")
-        self.principal = PrototypePrincipal(
+        self.principal = Principal(
             user_id=self.user_id,
-            session_id=UUID("00000000-0000-4000-8000-000000000012"),
+            session_kind="mini_bearer",
         )
         self.repository = MemoryChatRepository()
         conversation = self.repository.create_conversation(self.user_id, "测试会话", self.now)
         self.conversation_id = conversation["id"]
 
     def test_completed_codex_stream_persists_assistant_only_after_completion(self):
-        application = PrototypeChatApplication(
+        application = ChatApplication(
             repository=self.repository,
             codex=FakeCodex([
                 {"type": "delta", "text": "先给结论"},
@@ -149,7 +166,7 @@ class PrototypeChatApplicationTest(unittest.TestCase):
 
     def test_native_codex_prompt_bounds_public_research_and_uses_aligned_timeout(self):
         codex = CapturingCodex(events=[{"type": "completed", "text": "已给出结论"}])
-        application = PrototypeChatApplication(
+        application = ChatApplication(
             repository=self.repository,
             codex=codex,
             clock=lambda: self.now,
@@ -171,7 +188,7 @@ class PrototypeChatApplicationTest(unittest.TestCase):
 
     def test_native_codex_prompt_routes_wcl_and_raiderio_links_to_server_source_api_tools(self):
         codex = CapturingCodex(events=[{"type": "completed", "text": "已给出结论"}])
-        application = PrototypeChatApplication(
+        application = ChatApplication(
             repository=self.repository,
             codex=codex,
             clock=lambda: self.now,
@@ -193,7 +210,7 @@ class PrototypeChatApplicationTest(unittest.TestCase):
     def test_codex_failure_never_persists_assistant_or_fallback_model(self):
         from server.app.chickenbro.codex_adapter import CodexUnavailable
 
-        application = PrototypeChatApplication(
+        application = ChatApplication(
             repository=self.repository,
             codex=FakeCodex(error=CodexUnavailable("Codex is not configured")),
             clock=lambda: self.now,
@@ -221,7 +238,7 @@ class PrototypeChatApplicationTest(unittest.TestCase):
             return original_list_messages(user_id, conversation_id)
 
         self.repository.list_messages = fail_history
-        application = PrototypeChatApplication(
+        application = ChatApplication(
             repository=self.repository,
             codex=FakeCodex([
                 {"type": "completed", "text": "不应执行"},
@@ -242,11 +259,11 @@ class PrototypeChatApplicationTest(unittest.TestCase):
         self.assertEqual([item["role"] for item in self.repository.messages], [MessageRole.USER])
 
     def test_other_owner_cannot_read_or_write_conversation(self):
-        other = PrototypePrincipal(
+        other = Principal(
             user_id=UUID("00000000-0000-0000-0000-000000000013"),
-            session_id=UUID("00000000-0000-4000-8000-000000000014"),
+            session_kind="web_cookie",
         )
-        application = PrototypeChatApplication(
+        application = ChatApplication(
             repository=self.repository,
             codex=FakeCodex(),
             clock=lambda: self.now,
@@ -261,6 +278,103 @@ class PrototypeChatApplicationTest(unittest.TestCase):
                 idempotency_key="request-3",
             ))
         self.assertEqual(self.repository.messages, [])
+
+
+class FormalChatPaginationTest(unittest.TestCase):
+    def setUp(self):
+        self.now = datetime(2026, 9, 3, 10, 0, tzinfo=timezone.utc)
+        self.owner_a = Principal(
+            user_id=UUID("00000000-0000-0000-0000-000000000031"),
+            session_kind="mini_bearer",
+        )
+        self.owner_b = Principal(
+            user_id=UUID("00000000-0000-0000-0000-000000000032"),
+            session_kind="web_cookie",
+        )
+        self.repository = MemoryChatRepository()
+
+    def _seed_conversation(self, *, owner, conversation_id, updated_at):
+        conversation = {
+            "id": UUID(conversation_id),
+            "user_id": owner.user_id,
+            "title": conversation_id[-4:],
+            "status": ConversationStatus.ACTIVE,
+            "created_at": updated_at,
+            "updated_at": updated_at,
+        }
+        self.repository.conversations[(owner.user_id, conversation["id"])] = conversation
+        return conversation
+
+    def _application(self):
+        return ChatApplication(
+            repository=self.repository,
+            codex=FakeCodex(),
+            clock=lambda: self.now,
+        )
+
+    def test_conversation_page_is_stable_and_owner_scoped(self):
+        expected = [
+            self._seed_conversation(
+                owner=self.owner_a,
+                conversation_id="00000000-0000-4000-8000-000000000101",
+                updated_at=self.now + timedelta(minutes=3),
+            ),
+            self._seed_conversation(
+                owner=self.owner_a,
+                conversation_id="00000000-0000-4000-8000-000000000102",
+                updated_at=self.now + timedelta(minutes=2),
+            ),
+            self._seed_conversation(
+                owner=self.owner_a,
+                conversation_id="00000000-0000-4000-8000-000000000103",
+                updated_at=self.now + timedelta(minutes=1),
+            ),
+        ]
+        foreign = self._seed_conversation(
+            owner=self.owner_b,
+            conversation_id="00000000-0000-4000-8000-000000000201",
+            updated_at=self.now + timedelta(minutes=4),
+        )
+
+        application = self._application()
+        first = application.list_conversations(self.owner_a, cursor=None, limit=2)
+        second = application.list_conversations(
+            self.owner_a,
+            cursor=first.next_cursor,
+            limit=2,
+        )
+
+        page_ids = [row["id"] for row in first.items + second.items]
+        self.assertEqual(page_ids, [row["id"] for row in expected])
+        self.assertNotIn(foreign["id"], page_ids)
+        self.assertIsNotNone(first.next_cursor)
+        self.assertIsNone(second.next_cursor)
+
+    def test_invalid_cursor_fails_without_querying_repository(self):
+        application = self._application()
+
+        with self.assertRaisesRegex(ChatApplicationError, "INVALID_CURSOR"):
+            application.list_conversations(
+                self.owner_a,
+                cursor="not-a-cursor",
+                limit=20,
+            )
+
+        self.assertEqual(self.repository.list_conversations_calls, 0)
+
+    def test_conversation_page_caps_limit_at_fifty_plus_lookahead(self):
+        application = self._application()
+
+        application.list_conversations(self.owner_a, cursor=None, limit=500)
+
+        self.assertEqual(self.repository.list_conversation_limits, [51])
+
+    def test_conversation_page_raises_zero_limit_to_one_plus_lookahead(self):
+        application = self._application()
+
+        application.list_conversations(self.owner_a, cursor=None, limit=0)
+
+        self.assertEqual(self.repository.list_conversation_limits, [2])
 
 
 if __name__ == "__main__":

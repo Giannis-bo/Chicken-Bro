@@ -59,14 +59,40 @@ class PostgresChatRepository:
                 row = cursor.fetchone()
         if row is None:
             return None
-        return Conversation(
-            id=UUID(str(_row_value(row, "id", 0))),
-            user_id=UUID(str(_row_value(row, "user_id", 1))),
-            title=str(_row_value(row, "title", 2) or ""),
-            status=ConversationStatus(str(_row_value(row, "status", 3))),
-            created_at=_row_value(row, "created_at", 4),
-            updated_at=_row_value(row, "updated_at", 5),
-        )
+        return self._conversation_from_row(row)
+
+    def list_conversations(
+        self,
+        user_id: UUID,
+        boundary: tuple[datetime, UUID] | None,
+        limit: int,
+    ) -> Sequence[Conversation]:
+        with self._connection_factory() as connection:
+            with connection.cursor() as cursor:
+                if boundary is None:
+                    cursor.execute(
+                        """
+                        SELECT id, user_id, title, status, created_at, updated_at
+                        FROM chat.conversations
+                        WHERE user_id = %s
+                        ORDER BY updated_at DESC, id DESC LIMIT %s
+                        """,
+                        (user_id, limit),
+                    )
+                else:
+                    updated_at, conversation_id = boundary
+                    cursor.execute(
+                        """
+                        SELECT id, user_id, title, status, created_at, updated_at
+                        FROM chat.conversations
+                        WHERE user_id = %s
+                          AND (updated_at, id) < (%s, %s)
+                        ORDER BY updated_at DESC, id DESC LIMIT %s
+                        """,
+                        (user_id, updated_at, conversation_id, limit),
+                    )
+                rows = cursor.fetchall()
+        return [self._conversation_from_row(row) for row in rows]
 
     def list_messages(self, user_id: UUID, conversation_id: UUID) -> Sequence[Message]:
         with self._connection_factory() as connection:
@@ -196,6 +222,17 @@ class PostgresChatRepository:
             content=str(_row_value(row, "content", 4) or ""),
             client_message_id=_row_value(row, "client_message_id", 5),
             created_at=_row_value(row, "created_at", 6),
+        )
+
+    @staticmethod
+    def _conversation_from_row(row: Any) -> Conversation:
+        return Conversation(
+            id=UUID(str(_row_value(row, "id", 0))),
+            user_id=UUID(str(_row_value(row, "user_id", 1))),
+            title=str(_row_value(row, "title", 2) or ""),
+            status=ConversationStatus(str(_row_value(row, "status", 3))),
+            created_at=_row_value(row, "created_at", 4),
+            updated_at=_row_value(row, "updated_at", 5),
         )
 
 

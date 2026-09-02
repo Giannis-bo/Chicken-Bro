@@ -1,12 +1,15 @@
+import base64
+import json
 from collections.abc import Callable, Iterator, Sequence
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID, uuid4
 
 from server.app.chickenbro.codex_adapter import CodexChatPort, CodexTimeout, CodexUnavailable
-from server.app.chickenbro.domain import AgentRunStatus, ConversationStatus, MessageRole
+from server.app.chickenbro.domain import AgentRunStatus, Conversation, ConversationStatus, MessageRole
 from server.app.chickenbro.stream import ChatEvent, CodexStreamError
-from server.app.identity.prototype import PrototypePrincipal
+from server.app.identity.domain import Principal
 
 
 class ChatApplicationError(ValueError):
@@ -16,7 +19,14 @@ class ChatApplicationError(ValueError):
         super().__init__(f"{code}: {message}")
 
 
-PROTOTYPE_CHAT_TIMEOUT_SECONDS = 180
+CHAT_TIMEOUT_SECONDS = 180
+PROTOTYPE_CHAT_TIMEOUT_SECONDS = CHAT_TIMEOUT_SECONDS
+
+
+@dataclass(frozen=True)
+class ConversationPage:
+    items: tuple[Conversation, ...]
+    next_cursor: str | None
 
 
 def _value(row: Any, key: str, default: Any = None) -> Any:
@@ -34,14 +44,54 @@ def _utc(clock: Callable[[], datetime]) -> datetime:
     return value if value.tzinfo is not None else value.replace(tzinfo=timezone.utc)
 
 
-class PrototypeChatApplication:
+def _encode_conversation_cursor(row: Any) -> str:
+    updated_at = _value(row, "updated_at")
+    if not isinstance(updated_at, datetime):
+        raise ChatApplicationError("INVALID_CURSOR", "conversation cursor cannot be encoded")
+    if updated_at.tzinfo is None:
+        updated_at = updated_at.replace(tzinfo=timezone.utc)
+    payload = {
+        "updatedAt": updated_at.astimezone(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "id": str(_as_uuid(_value(row, "id"))),
+    }
+    encoded = base64.urlsafe_b64encode(
+        json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    )
+    return encoded.rstrip(b"=").decode("ascii")
+
+
+def _decode_conversation_cursor(cursor: str) -> tuple[datetime, UUID]:
+    try:
+        if not isinstance(cursor, str) or not cursor or len(cursor) > 1024:
+            raise ValueError("invalid cursor envelope")
+        padding = "=" * (-len(cursor) % 4)
+        raw = base64.b64decode(
+            cursor + padding,
+            altchars=b"-_",
+            validate=True,
+        )
+        payload = json.loads(raw.decode("utf-8"))
+        if not isinstance(payload, dict) or set(payload) != {"updatedAt", "id"}:
+            raise ValueError("invalid cursor payload")
+        raw_updated_at = payload["updatedAt"]
+        if not isinstance(raw_updated_at, str):
+            raise ValueError("invalid cursor timestamp")
+        updated_at = datetime.fromisoformat(raw_updated_at.replace("Z", "+00:00"))
+        if updated_at.tzinfo is None:
+            raise ValueError("cursor timestamp must be timezone-aware")
+        return updated_at.astimezone(timezone.utc), UUID(str(payload["id"]))
+    except (UnicodeError, ValueError, TypeError) as error:
+        raise ChatApplicationError("INVALID_CURSOR", "conversation cursor is invalid") from error
+
+
+class ChatApplication:
     def __init__(
         self,
         *,
         repository: Any,
         codex: CodexChatPort,
         clock: Callable[[], datetime] | None = None,
-        timeout_seconds: int = PROTOTYPE_CHAT_TIMEOUT_SECONDS,
+        timeout_seconds: int = CHAT_TIMEOUT_SECONDS,
         max_message_chars: int = 4000,
         max_output_chars: int = 8000,
     ):
@@ -52,11 +102,32 @@ class PrototypeChatApplication:
         self._max_message_chars = max(1, max_message_chars)
         self._max_output_chars = max(1, max_output_chars)
 
-    def create_conversation(self, principal: PrototypePrincipal, title: str = "炸鸡队长对话") -> Any:
+    def create_conversation(self, principal: Principal, title: str = "炸鸡队长对话") -> Any:
         bounded_title = str(title or "炸鸡队长对话").strip()[:80] or "炸鸡队长对话"
         return self._repository.create_conversation(principal.user_id, bounded_title, _utc(self._clock))
 
-    def load_conversation(self, principal: PrototypePrincipal, conversation_id: UUID) -> Any:
+    def list_conversations(
+        self,
+        principal: Principal,
+        cursor: str | None = None,
+        limit: int = 20,
+    ) -> ConversationPage:
+        bounded_limit = min(max(int(limit), 1), 50)
+        boundary = _decode_conversation_cursor(cursor) if cursor else None
+        rows = self._repository.list_conversations(
+            principal.user_id,
+            boundary,
+            bounded_limit + 1,
+        )
+        items = tuple(rows[:bounded_limit])
+        next_cursor = (
+            _encode_conversation_cursor(items[-1])
+            if len(rows) > bounded_limit and items
+            else None
+        )
+        return ConversationPage(items=items, next_cursor=next_cursor)
+
+    def load_conversation(self, principal: Principal, conversation_id: UUID) -> Any:
         conversation = self._repository.get_conversation(principal.user_id, conversation_id)
         if conversation is None:
             raise ChatApplicationError("CONVERSATION_NOT_FOUND", "conversation not found")
@@ -67,7 +138,7 @@ class PrototypeChatApplication:
 
     def stream_message(
         self,
-        principal: PrototypePrincipal,
+        principal: Principal,
         conversation_id: UUID,
         content: str,
         *,
@@ -193,7 +264,7 @@ class PrototypeChatApplication:
 
     def _fail_run(
         self,
-        principal: PrototypePrincipal,
+        principal: Principal,
         run: Any,
         request_id: str,
         conversation_id: UUID,
@@ -238,4 +309,12 @@ class PrototypeChatApplication:
         )
 
 
-__all__ = ("ChatApplicationError", "PrototypeChatApplication")
+PrototypeChatApplication = ChatApplication
+
+
+__all__ = (
+    "ChatApplication",
+    "ChatApplicationError",
+    "ConversationPage",
+    "PrototypeChatApplication",
+)
