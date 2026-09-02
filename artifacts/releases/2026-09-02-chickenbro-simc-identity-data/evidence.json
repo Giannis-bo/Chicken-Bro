@@ -61,6 +61,11 @@
       "summary": "5 provisioning contract tests passed: fixed target, no destructive legacy operation, fail-closed apply gates, exact inventory SHA, mutation-free redacted dry-run and valid Bash syntax."
     },
     {
+      "command": "python3 -m unittest tests.chickenbro_simc_capacity_cleanup_manifest_test -v",
+      "status": "pass",
+      "summary": "The exact fail-closed cleanup manifest test passed for four named PostgreSQL candidates totaling 22,533,484,636 bytes. Every item remains candidate_only with deletionAuthorized=false and blocked pending independent archive plus restore proof."
+    },
+    {
       "command": "bash server/provision_chickenbro_database_lighthouse.sh --dry-run",
       "status": "pass",
       "summary": "The script read only repository state and emitted mutationAuthorized=false with blocked_until_independent_legacy_cleanup_or_storage_expansion, 8,583,778,304 root-free bytes and inventory SHA 1466a227e882125ddd342c9518025b583b7bbead80dabb193f29997ff41e80c6. It opened no PostgreSQL connection and wrote no backup or database."
@@ -111,6 +116,13 @@
       "detail": "lsblk/findmnt over the authorized SSH path found one 75,161,927,680-byte vda disk with /dev/vda2 mounted at / and no second block device or independent data/backup mount. No cloud state was changed."
     },
     {
+      "type": "capacity_cleanup_manifest",
+      "status": "blocked",
+      "observedAt": "2026-09-02T16:04:02Z",
+      "snapshot": "docs/refactor/chickenbro-simc-capacity-cleanup-manifest.json",
+      "detail": "Four exact gear evidence databases have zero current connections and zero references across the reviewed configuration/deployment roots, but no independent archive or completed restore identity exists. All remain candidate_only and no delete command ran."
+    },
+    {
       "type": "provisioning_dry_run",
       "status": "pass",
       "detail": "The fixed-target script remained local and mutation-free and returned the literal capacity blocker."
@@ -155,6 +167,7 @@
     "docs/chickenbro-simc-production-runbook.md",
     "docs/verification-matrix.md",
     "docs/refactor/chickenbro-simc-cloud-inventory.json",
+    "docs/refactor/chickenbro-simc-capacity-cleanup-manifest.json",
     "docs/superpowers/specs/2026-09-02-chickenbro-simc-total-rebuild-design.md",
     "docs/superpowers/plans/2026-09-02-chickenbro-simc-rebuild-02-identity-data.md",
     "artifacts/releases/2026-09-02-chickenbro-simc-control-plane/evidence.json",

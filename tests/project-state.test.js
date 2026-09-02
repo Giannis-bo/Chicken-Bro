@@ -44,7 +44,7 @@ test('project-state is the single machine-readable current truth entry', () => {
   const state = readJson(projectStatePath)
 
   assert.equal(state.schemaVersion, 1)
-  assert.equal(state.updatedAt, '2026-09-02')
+  assert.equal(state.updatedAt, '2026-09-03')
   assert.equal(state.activeMilestone, 'chickenbro_simc_total_rebuild_phase_2')
   assert.equal(state.featureIteration, 'phase_2_local_verified_candidate_capacity_and_recovery_blocked')
   assert.equal(state.activeReleaseArtifact, undefined)

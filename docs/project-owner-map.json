@@ -123,7 +123,8 @@
       "factOwner": "docs/chickenbro-simc-production-runbook.md",
       "writeOwner": null,
       "consumers": [
-        "docs/refactor/chickenbro-simc-cloud-inventory.json"
+        "docs/refactor/chickenbro-simc-cloud-inventory.json",
+        "docs/refactor/chickenbro-simc-capacity-cleanup-manifest.json"
       ],
       "publicContracts": [],
       "verificationProfiles": [
@@ -163,6 +164,7 @@
       "consumers": [
         "docs/refactor/chickenbro-simc-refactor-inventory.json",
         "docs/refactor/chickenbro-simc-cloud-inventory.json",
+        "docs/refactor/chickenbro-simc-capacity-cleanup-manifest.json",
         "docs/chickenbro-simc-production-runbook.md"
       ],
       "publicContracts": [],

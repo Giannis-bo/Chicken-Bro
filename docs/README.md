@@ -30,8 +30,9 @@
 | [本地处置规则](refactor/chickenbro-simc-disposition-rules.json) | 有序 keep/migrate/delete；未知顶层 fail-closed 为 review。 |
 | [本地逐文件清单](refactor/chickenbro-simc-refactor-inventory.json) | 绑定完整 commit 和逐文件 SHA；删除仍需 caller/link graph。 |
 | [云端只读清单](refactor/chickenbro-simc-cloud-inventory.json) | 2026-09-02T13:43:05Z reachable；容量 blocked。 |
+| [容量清理候选清单](refactor/chickenbro-simc-capacity-cleanup-manifest.json) | 四个精确数据库共 22.53GB；零当前连接/配置引用，但独立恢复缺失，全部仅为 candidate。 |
 
-本地 inventory 的 `delete` 只是候选处置，不是删除授权。云端快照也不是 apply 授权；任何写入前都必须刷新并重新验证容量、连接、服务和引用。
+本地 inventory 的 `delete` 和容量清单的 `candidate_only` 都不是删除授权。云端快照也不是 apply 授权；任何写入前都必须刷新并重新验证容量、连接、服务、引用、独立 archive 和 restore identity。
 
 ## 当前产品边界
 

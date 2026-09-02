@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-09-02T15:59:42.338Z",
+  "generatedAt": "2026-09-02T16:07:59.736Z",
   "release": {
     "date": "2026-09-02",
     "slug": "chickenbro-simc-identity-data"
@@ -38,12 +38,12 @@
         {
           "path": "docs/project-state.json",
           "exists": true,
-          "sizeBytes": 65292
+          "sizeBytes": 65691
         },
         {
           "path": "docs/project-owner-map.json",
           "exists": true,
-          "sizeBytes": 107701
+          "sizeBytes": 107845
         },
         {
           "path": "docs/verification-matrix.md",
@@ -53,12 +53,12 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 5533
+          "sizeBytes": 5600
         },
         {
           "path": "docs/README.md",
           "exists": true,
-          "sizeBytes": 3852
+          "sizeBytes": 4114
         },
         {
           "path": "docs/harness.md",
@@ -68,7 +68,7 @@
         {
           "path": "docs/backend-owner-map.json",
           "exists": true,
-          "sizeBytes": 79597
+          "sizeBytes": 79664
         }
       ],
       "historicalDocsDefaultToEvidenceOnly": true
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-09-02-chickenbro-simc-identity-data/evidence.json",
-    "sizeBytes": 10105,
+    "sizeBytes": 11050,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -417,7 +417,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "1 changed files currently visible to git status."
+      "detail": "11 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
@@ -453,9 +453,19 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 1,
+      "changedFileCount": 11,
       "changedFiles": [
-        " M artifacts/releases/2026-09-02-chickenbro-simc-identity-data/evidence.json"
+        " M README.md",
+        " M artifacts/releases/2026-09-02-chickenbro-simc-identity-data/evidence.json",
+        " M docs/README.md",
+        " M docs/backend-owner-map.json",
+        " M docs/chickenbro-simc-production-runbook.md",
+        " M docs/project-owner-map.json",
+        " M docs/project-state.json",
+        " M docs/roadmap.md",
+        " M tests/project-state.test.js",
+        "?? docs/refactor/chickenbro-simc-capacity-cleanup-manifest.json",
+        "?? tests/chickenbro_simc_capacity_cleanup_manifest_test.py"
       ]
     }
   },

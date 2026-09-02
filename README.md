@@ -83,11 +83,12 @@ npm run build:weapp
 
 微信开发者工具导入 `apps/mini-taro`，不要导入仓库根或 `apps/mini-taro/dist/weapp`。后者是构建输出，由 `apps/mini-taro/project.config.json` 指向。
 
-Phase 1 控制面基线验证：
+控制面与容量清理候选验证：
 
 ```bash
 node --test tests/chickenbro-simc-refactor-inventory.test.js
 python3 -m unittest tests.chickenbro_simc_cloud_inventory_test -v
+python3 -m unittest tests.chickenbro_simc_capacity_cleanup_manifest_test -v
 node --test tests/project-state.test.js
 ```
 

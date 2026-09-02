@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-09-02",
+  "updatedAt": "2026-09-03",
   "activeMilestone": "chickenbro_simc_total_rebuild_phase_2",
   "featureIteration": "phase_2_local_verified_candidate_capacity_and_recovery_blocked",
   "targetProduct": {
@@ -54,6 +54,10 @@
     "rootDiskFreeApproxSize": "8.58GB",
     "gearEvidenceDatabaseApproxSize": "22.53GB",
     "capacityGate": "blocked_until_independent_legacy_cleanup_or_storage_expansion",
+    "capacityCleanupManifest": "docs/refactor/chickenbro-simc-capacity-cleanup-manifest.json",
+    "capacityCleanupManifestObservedAt": "2026-09-02T16:04:02Z",
+    "capacityCleanupStatus": "four_exact_candidates_zero_current_connections_and_zero_configuration_references_but_apply_blocked_pending_independent_backup_restore",
+    "independentBlockDeviceStatus": "missing_single_vda_root_disk_only",
     "legacyRuntime": "active_last_known_good_pending_candidate_and_user_acceptance",
     "migrationMode": "explicit_owner_and_integrity_whitelist_with_one_read_only_delta",
     "cleanupMode": "exact_keep_delete_migrate_manifest_after_backup_reference_and_restore_proof"

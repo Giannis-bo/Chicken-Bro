@@ -85,7 +85,9 @@ ssh wow-lighthouse \
 
 两个设备 ID 相同时，该路径不能作为独立介质证明。不同设备 ID 仍需记录容量、挂载来源、加密/权限和恢复验证结果。
 
-容量前置清理必须有独立 cleanup manifest，逐个记录数据库/目录名称、bytes、最后连接、systemd/env/Nginx 引用、备份 identity、restore identity 和保留理由。默认 `--dry-run`；当前 Phase 1 不存在 apply 授权。
+容量前置清理必须有独立 cleanup manifest，逐个记录数据库/目录名称、bytes、最后连接、systemd/env/Nginx 引用、备份 identity、restore identity 和保留理由。默认 `--dry-run`；当前 Phase 2 不存在 cleanup apply 授权。
+
+当前只读清理清单是 [chickenbro-simc-capacity-cleanup-manifest.json](refactor/chickenbro-simc-capacity-cleanup-manifest.json)：四个 `wow_gear_evidence_*` 数据库共 22,533,484,636 bytes，当前连接与已扫描配置引用均为 0，但服务器只有单一 `vda` 根盘，且没有独立 archive/restore identity。因此四项都只是 `candidate_only`，不得据此删除。
 
 ## 3. 建立可恢复备份
 

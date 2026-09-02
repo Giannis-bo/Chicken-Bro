@@ -47,7 +47,7 @@ last-known-good 存在，不再获得新功能或数据扩展。
 | Web 小程序确认登录 | `partial` | 正式 ticket/verifier/Cookie 代码与候选已存在；真实已发布小程序确认页、扫码、Cookie、`/api/v2/me` 和跨端历史尚无完整用户验收 |
 | Web prototype bypass | `待退役` | prototype 可访问只证明隔离 demo 可用；prototype owner 和数据不迁移到正式历史 |
 | 数据面 | `本地已验证 / Candidate 阻塞` | product-only schema、同 owner 双会话、Origin/CSRF 与 provisioning dry-run 已通过本地验证；legacy 正式运行库 `wow_test` 约 16.38GB，独立 `chickenbro_prod` 尚未创建，不能宣称 Phase 2 完成 |
-| 云端空间 | `容量阻塞 apply` | 2026-09-02T13:43:05Z 只读盘点为根盘约 84% 已用、仅约 8.58GB 可用，PostgreSQL 目录约 39.63GB；四个无连接 gear evidence DB 合计约 22.53GB，但只能在独立恢复与零引用证明后精确退役，否则必须先扩容 |
+| 云端空间 | `容量阻塞 apply` | 2026-09-02 只读审计确认服务器只有单一 `vda` 根盘；精确 cleanup manifest 中四个 gear evidence DB 合计约 22.53GB、当前连接与配置引用均为 0，但独立 archive/restore identity 仍缺失，因此只能保持 candidate，不能删除；另一条路径是先扩容/挂载独立介质 |
 | Active Manifest/S2 | `legacy 冻结` | 当前 generation 41 与旧 Catalog 只承担迁移期回滚，不再 promotion 或扩展；新 SimC 主链不依赖这些 owner |
 
 ## 当前优先级

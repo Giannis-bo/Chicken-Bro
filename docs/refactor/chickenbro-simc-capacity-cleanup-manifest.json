@@ -1,0 +1,168 @@
+{
+  "schemaVersion": 1,
+  "mode": "dry-run",
+  "observedAt": "2026-09-02T16:04:02Z",
+  "deletionAuthorized": false,
+  "purpose": "Exact capacity-remediation candidates for an isolated chickenbro_prod database",
+  "totalCandidateBytes": 22533484636,
+  "independentRecovery": {
+    "status": "missing",
+    "reason": "The Lighthouse host has one 75161927680-byte vda disk and only /dev/vda2 mounted at root. No independent archive plus completed restore identity exists."
+  },
+  "evidence": {
+    "capacityInventory": "docs/refactor/chickenbro-simc-cloud-inventory.json",
+    "capacityInventorySha256": "1466a227e882125ddd342c9518025b583b7bbead80dabb193f29997ff41e80c6",
+    "liveProbeTransport": "authorized read-only SSH",
+    "blockDevices": [
+      {
+        "name": "vda",
+        "sizeBytes": 75161927680,
+        "partitions": [
+          {
+            "name": "vda2",
+            "sizeBytes": 75159813632,
+            "filesystem": "ext4",
+            "mountpoint": "/"
+          }
+        ]
+      }
+    ],
+    "configurationScanRoots": [
+      "/etc/systemd/system",
+      "/etc/nginx",
+      "/opt/wow-mini-program",
+      "/opt/wow-v2-staging",
+      "/var/www"
+    ],
+    "sameRootArchiveScanRoot": "/var/backups"
+  },
+  "candidates": [
+    {
+      "name": "wow_gear_evidence_01adf184_r14",
+      "kind": "postgres_database",
+      "sizeBytes": 5237750807,
+      "owner": "postgres",
+      "allowsConnections": true,
+      "connectionLimit": -1,
+      "currentConnections": 0,
+      "observedCommittedTransactions": 490,
+      "observedRolledBackTransactions": 0,
+      "historicalLastConnection": "unavailable_current_zero_only",
+      "schemaNames": [
+        "analytics",
+        "app",
+        "cache",
+        "content",
+        "identity",
+        "knowledge",
+        "ops",
+        "public"
+      ],
+      "tableCount": 71,
+      "approximateRows": 2115416,
+      "configurationReferences": [],
+      "sameRootBackupMatches": [],
+      "decision": "candidate_only",
+      "applyStatus": "blocked_pending_independent_backup_restore"
+    },
+    {
+      "name": "wow_gear_evidence_0be65754_r24",
+      "kind": "postgres_database",
+      "sizeBytes": 5517827095,
+      "owner": "postgres",
+      "allowsConnections": true,
+      "connectionLimit": -1,
+      "currentConnections": 0,
+      "observedCommittedTransactions": 488,
+      "observedRolledBackTransactions": 0,
+      "historicalLastConnection": "unavailable_current_zero_only",
+      "schemaNames": [
+        "analytics",
+        "app",
+        "cache",
+        "content",
+        "identity",
+        "knowledge",
+        "ops",
+        "public"
+      ],
+      "tableCount": 71,
+      "approximateRows": 2375154,
+      "configurationReferences": [],
+      "sameRootBackupMatches": [],
+      "decision": "candidate_only",
+      "applyStatus": "blocked_pending_independent_backup_restore"
+    },
+    {
+      "name": "wow_gear_evidence_145dee16_r22",
+      "kind": "postgres_database",
+      "sizeBytes": 5964094487,
+      "owner": "wow_app",
+      "allowsConnections": true,
+      "connectionLimit": -1,
+      "currentConnections": 0,
+      "observedCommittedTransactions": 488,
+      "observedRolledBackTransactions": 0,
+      "historicalLastConnection": "unavailable_current_zero_only",
+      "schemaNames": [
+        "analytics",
+        "app",
+        "cache",
+        "content",
+        "identity",
+        "knowledge",
+        "ops",
+        "public"
+      ],
+      "tableCount": 71,
+      "approximateRows": 2767097,
+      "configurationReferences": [],
+      "sameRootBackupMatches": [],
+      "decision": "candidate_only",
+      "applyStatus": "blocked_pending_independent_backup_restore"
+    },
+    {
+      "name": "wow_gear_evidence_15f514d5_r23",
+      "kind": "postgres_database",
+      "sizeBytes": 5813812247,
+      "owner": "postgres",
+      "allowsConnections": true,
+      "connectionLimit": -1,
+      "currentConnections": 0,
+      "observedCommittedTransactions": 490,
+      "observedRolledBackTransactions": 0,
+      "historicalLastConnection": "unavailable_current_zero_only",
+      "schemaNames": [
+        "analytics",
+        "app",
+        "cache",
+        "content",
+        "identity",
+        "knowledge",
+        "ops",
+        "public"
+      ],
+      "tableCount": 71,
+      "approximateRows": 2632122,
+      "configurationReferences": [],
+      "sameRootBackupMatches": [],
+      "decision": "candidate_only",
+      "applyStatus": "blocked_pending_independent_backup_restore"
+    }
+  ],
+  "requiredBeforeApply": [
+    "independent archive for every exact database name",
+    "archive SHA-256 and byte count",
+    "completed isolated restore with exit status zero",
+    "schema, table, row and sampled hash reconciliation",
+    "fresh zero-connection and zero-reference probe",
+    "reviewed apply authorization bound to this manifest SHA"
+  ],
+  "nonClaims": {
+    "unusedForever": false,
+    "independentArchiveExists": false,
+    "restoreVerified": false,
+    "safeToDelete": false,
+    "capacityGateCleared": false
+  }
+}
