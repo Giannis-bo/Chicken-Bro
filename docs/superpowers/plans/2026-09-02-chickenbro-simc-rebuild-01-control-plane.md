@@ -77,10 +77,11 @@ git commit -m "chore: open rebuild control plane requirement"
 - Generate: `docs/refactor/chickenbro-simc-refactor-inventory.json`
 
 **Interfaces:**
-- Consumes: `git ls-files -z`, the repository root, and ordered rules from `chickenbro-simc-disposition-rules.json`.
+- Consumes: `git ls-files -z` from a clean tracked `HEAD`, the repository root, and ordered rules from `chickenbro-simc-disposition-rules.json`.
 - Produces: `classifyPath(relativePath, rules) -> { disposition, category, owner, reason, matchedRule }` and `buildInventory({ root, commit, paths, rules }) -> RefactorInventory`.
+- Self-reference rule: the generated inventory file records `excludedSelfPath` and is not included in its own entry list because a file cannot contain its own stable content hash.
 
-- [ ] **Step 1: Write failing classifier and determinism tests**
+- [x] **Step 1: Write failing classifier and determinism tests**
 
 ```js
 test('target owners are kept while prototype and legacy product surfaces are deleted', () => {
@@ -92,57 +93,68 @@ test('target owners are kept while prototype and legacy product surfaces are del
 })
 
 test('inventory ordering and sha256 are deterministic', () => {
-  const first = buildInventory({ root, commit: 'abc', paths: ['b', 'a'], rules })
-  const second = buildInventory({ root, commit: 'abc', paths: ['a', 'b'], rules })
+  const first = buildInventory({ root, commit: 'a'.repeat(40), paths: ['b', 'a'], rules })
+  const second = buildInventory({ root, commit: 'a'.repeat(40), paths: ['a', 'b'], rules })
   assert.deepEqual(first, second)
   assert.match(first.inventorySha256, /^[0-9a-f]{64}$/)
 })
 ```
 
-- [ ] **Step 2: Run the focused test and verify the missing module failure**
+- [x] **Step 2: Run the focused test and verify the missing module failure**
 
 Run: `node --test tests/chickenbro-simc-refactor-inventory.test.js`
 
 Expected: FAIL because `scripts/build-chickenbro-simc-refactor-inventory.js` does not exist.
 
-- [ ] **Step 3: Implement ordered, fail-closed classification**
+- [x] **Step 3: Implement ordered, fail-closed classification**
 
 ```js
-export function classifyPath(relativePath, rules) {
-  const matches = rules.rules.filter((rule) =>
+function classifyPath(relativePath, rules) {
+  const match = rules.rules.find((rule) =>
     rule.paths?.includes(relativePath) || rule.prefixes?.some((prefix) => relativePath.startsWith(prefix)),
   )
-  if (matches.length !== 1) {
-    return { disposition: 'review', category: 'unresolved', owner: '', reason: 'RULE_MATCH_COUNT_' + matches.length, matchedRule: '' }
+  if (!match) {
+    return { disposition: 'review', category: 'unresolved', owner: '', reason: 'NO_RULE_MATCH', matchedRule: '' }
   }
-  const rule = matches[0]
-  return { disposition: rule.disposition, category: rule.category, owner: rule.owner, reason: rule.reason, matchedRule: rule.id }
+  return { disposition: match.disposition, category: match.category, owner: match.owner, reason: match.reason, matchedRule: match.id }
 }
 ```
 
-The rules file must explicitly keep the new spec, Harness, `server/app/{identity,chickenbro,simulation,worker,platform,integrations}`, the target client owners, and tests for those owners; it must mark prototype, news, builds, gear, talent, WebSim, legacy 14-route, legacy migrations, deployment units, and historical docs as `delete` or `migrate`. A catch-all rule is forbidden because it would hide new callers.
+Rules are evaluated from most-specific exception to broader known-tree disposition. The rules file must explicitly keep the new spec, Harness, `server/app/{identity,chickenbro,simulation,worker,platform,integrations}`, the target client owners, and tests for those owners; it must mark prototype, news, builds, gear, talent, WebSim, legacy 14-route, legacy migrations, deployment units, and historical docs as `delete` or `migrate`. A repository-wide catch-all is forbidden: an unknown top-level path must resolve to `review`, so a newly introduced product tree cannot silently inherit a deletion decision.
 
-- [ ] **Step 4: Generate and validate the exact inventory**
+- [x] **Step 4: Run focused tests and commit the inventory owner**
+
+Run: `node --test tests/chickenbro-simc-refactor-inventory.test.js`
+
+Expected: PASS.
+
+```bash
+git add docs/refactor/chickenbro-simc-disposition-rules.json \
+  scripts/build-chickenbro-simc-refactor-inventory.js \
+  tests/chickenbro-simc-refactor-inventory.test.js \
+  docs/superpowers/plans/2026-09-02-chickenbro-simc-rebuild-01-control-plane.md
+git commit -m "chore: define Chickenbro SimC inventory owners"
+```
+
+- [ ] **Step 5: Generate and validate the exact inventory from clean HEAD**
 
 Run:
 
 ```bash
+test -z "$(git status --short --untracked-files=no)"
 node scripts/build-chickenbro-simc-refactor-inventory.js \
   --rules docs/refactor/chickenbro-simc-disposition-rules.json \
   --output docs/refactor/chickenbro-simc-refactor-inventory.json
 node --test tests/chickenbro-simc-refactor-inventory.test.js
 ```
 
-Expected: tests PASS; the generated JSON has `unresolvedCount: 0`, a full 40-character `generatedFromCommit`, per-entry SHA-256 for files, and stable sorted entries.
+Expected: tests PASS; the generated JSON has `unresolvedCount: 0`, a full 40-character `generatedFromCommit`, per-entry SHA-256 for files, stable sorted entries, and `excludedSelfPath: "docs/refactor/chickenbro-simc-refactor-inventory.json"`.
 
-- [ ] **Step 5: Commit the local inventory owner**
+- [ ] **Step 6: Commit the generated inventory**
 
 ```bash
-git add docs/refactor/chickenbro-simc-disposition-rules.json \
-  docs/refactor/chickenbro-simc-refactor-inventory.json \
-  scripts/build-chickenbro-simc-refactor-inventory.js \
-  tests/chickenbro-simc-refactor-inventory.test.js
-git commit -m "chore: inventory Chickenbro SimC rebuild owners"
+git add docs/refactor/chickenbro-simc-refactor-inventory.json
+git commit -m "chore: inventory Chickenbro SimC rebuild files"
 ```
 
 ### Task 2: Redacted cloud inventory and capacity gate

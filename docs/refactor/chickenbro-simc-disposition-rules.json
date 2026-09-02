@@ -1,0 +1,459 @@
+{
+  "schemaVersion": 1,
+  "rules": [
+    {
+      "id": "rebuild-control-plane",
+      "disposition": "keep",
+      "category": "current-control-plane",
+      "owner": "Harness and rebuild roadmap",
+      "reason": "Current approved product direction, executable phase plans, and machine-readable state.",
+      "paths": [
+        "docs/harness.md",
+        "docs/plans/README.md",
+        "docs/project-state.json",
+        "docs/roadmap.md",
+        "docs/roadmap/ideas.md",
+        "docs/schemas/harness-evidence.schema.json",
+        "docs/schemas/harness-requirement.schema.json",
+        "docs/superpowers/plans/2026-09-02-chickenbro-simc-rebuild-01-control-plane.md",
+        "docs/superpowers/plans/2026-09-02-chickenbro-simc-rebuild-02-identity-data.md",
+        "docs/superpowers/plans/2026-09-02-chickenbro-simc-rebuild-03-chat.md",
+        "docs/superpowers/plans/2026-09-02-chickenbro-simc-rebuild-04-simc.md",
+        "docs/superpowers/plans/2026-09-02-chickenbro-simc-rebuild-05-dual-client-migration-cutover.md",
+        "docs/superpowers/plans/2026-09-02-chickenbro-simc-rebuild-06-legacy-retirement.md",
+        "docs/superpowers/specs/2026-09-02-chickenbro-simc-total-rebuild-design.md"
+      ]
+    },
+    {
+      "id": "rebuild-inventory-owner",
+      "disposition": "keep",
+      "category": "current-control-plane",
+      "owner": "Refactor inventory",
+      "reason": "Deterministic disposition rules, generator, and focused verification.",
+      "paths": [
+        "docs/refactor/chickenbro-simc-disposition-rules.json",
+        "scripts/build-chickenbro-simc-refactor-inventory.js",
+        "tests/chickenbro-simc-refactor-inventory.test.js"
+      ]
+    },
+    {
+      "id": "current-rebuild-release-packet",
+      "disposition": "keep",
+      "category": "current-release-evidence",
+      "owner": "Harness release packet",
+      "reason": "Evidence and requirements for the currently executing rebuild.",
+      "prefixes": [
+        "artifacts/releases/2026-09-02-chickenbro-simc-control-plane/"
+      ]
+    },
+    {
+      "id": "mini-client-legacy-builds",
+      "disposition": "delete",
+      "category": "legacy-client-code",
+      "owner": "Mini Program retirement",
+      "reason": "Builds, gear, and talent surfaces are outside the approved two-capability product.",
+      "prefixes": [
+        "apps/mini-taro/src/pages/builds/"
+      ]
+    },
+    {
+      "id": "mini-client-legacy-news",
+      "disposition": "delete",
+      "category": "legacy-client-code",
+      "owner": "Mini Program retirement",
+      "reason": "News is outside the approved two-capability product.",
+      "prefixes": [
+        "apps/mini-taro/src/pages/news/"
+      ]
+    },
+    {
+      "id": "mini-client-legacy-profile",
+      "disposition": "delete",
+      "category": "legacy-client-code",
+      "owner": "Mini Program retirement",
+      "reason": "The legacy profile/template surface is outside the approved product.",
+      "prefixes": [
+        "apps/mini-taro/src/pages/profile/"
+      ]
+    },
+    {
+      "id": "mini-client-legacy-build-context",
+      "disposition": "delete",
+      "category": "legacy-client-code",
+      "owner": "Mini Program retirement",
+      "reason": "Build-context state belongs to retired builds and gear journeys.",
+      "paths": [
+        "apps/mini-taro/src/pages/_shared/build-context-storage.ts",
+        "apps/mini-taro/src/pages/_shared/build-context.test.ts",
+        "apps/mini-taro/src/pages/_shared/build-context.ts"
+      ]
+    },
+    {
+      "id": "web-prototype-panel",
+      "disposition": "delete",
+      "category": "prototype-client-code",
+      "owner": "Web prototype retirement",
+      "reason": "Visible prototype bypass and panel are not an accepted login or product surface.",
+      "paths": [
+        "apps/mini-taro/src/web/PrototypePanel.module.scss",
+        "apps/mini-taro/src/web/PrototypePanel.tsx"
+      ]
+    },
+    {
+      "id": "mini-client-auth-owner",
+      "disposition": "keep",
+      "category": "target-client-code",
+      "owner": "Mini-assisted Web login",
+      "reason": "Mini Program confirmation is the trust root for Web sessions.",
+      "prefixes": [
+        "apps/mini-taro/src/pages/auth/"
+      ]
+    },
+    {
+      "id": "mini-client-core-capabilities",
+      "disposition": "keep",
+      "category": "target-client-code",
+      "owner": "Chickenbro and SimC Mini Program",
+      "reason": "Conversation, SimC submission, task list, and task detail are the approved product capabilities.",
+      "prefixes": [
+        "apps/mini-taro/src/pages/simulator/"
+      ]
+    },
+    {
+      "id": "mini-client-shell-migration",
+      "disposition": "migrate",
+      "category": "target-client-migration",
+      "owner": "Shared Taro dual-client shell",
+      "reason": "Shared routing, tab, transport, and Web shell must be reduced to the two-capability contract.",
+      "prefixes": [
+        "apps/"
+      ]
+    },
+    {
+      "id": "server-prototype-route",
+      "disposition": "delete",
+      "category": "prototype-server-code",
+      "owner": "Prototype retirement",
+      "reason": "Prototype bypass sessions and routes are not part of real Mini-assisted Web authentication.",
+      "paths": [
+        "server/app/api/routes/prototype.py"
+      ]
+    },
+    {
+      "id": "server-target-domain-owners",
+      "disposition": "keep",
+      "category": "target-server-code",
+      "owner": "Modular v2 application",
+      "reason": "Identity, Chickenbro, SimC, worker, platform, and integration owners form the new server core.",
+      "prefixes": [
+        "server/app/chickenbro/",
+        "server/app/identity/",
+        "server/app/integrations/",
+        "server/app/platform/",
+        "server/app/simulation/",
+        "server/app/worker/"
+      ]
+    },
+    {
+      "id": "server-target-api-shell",
+      "disposition": "migrate",
+      "category": "target-server-migration",
+      "owner": "Modular v2 API",
+      "reason": "The API shell must be completed and restricted to identity, conversation, SimC, health, and operations.",
+      "prefixes": [
+        "server/app/api/"
+      ],
+      "paths": [
+        "server/app/__init__.py",
+        "server/app/main.py"
+      ]
+    },
+    {
+      "id": "identity-and-platform-migration-inputs",
+      "disposition": "migrate",
+      "category": "database-migration-input",
+      "owner": "Canonical PostgreSQL v2 schema",
+      "reason": "Foundation and real Web-login schema are inputs to the new clean migration chain.",
+      "paths": [
+        "server/migrations/postgres/0038_chickenbro_simc_platform_foundation.sql",
+        "server/migrations/postgres/0039_wechat_web_login_sessions.sql",
+        "server/migrations/postgres/data_copy_plan.py",
+        "server/migrations/postgres/identity_shadow_plan.py",
+        "server/migrations/postgres/shadow_migrate.py"
+      ]
+    },
+    {
+      "id": "prototype-database-migration",
+      "disposition": "delete",
+      "category": "prototype-database-code",
+      "owner": "Prototype retirement",
+      "reason": "Prototype sessions must not survive into the clean migration chain.",
+      "paths": [
+        "server/migrations/postgres/0040_web_prototype_sessions.sql"
+      ]
+    },
+    {
+      "id": "legacy-database-migrations",
+      "disposition": "delete",
+      "category": "legacy-database-code",
+      "owner": "Clean-schema rebuild",
+      "reason": "The historical migration chain is replaced by a clean canonical schema after data migration proof.",
+      "prefixes": [
+        "server/migrations/postgres/"
+      ]
+    },
+    {
+      "id": "legacy-news-server",
+      "disposition": "delete",
+      "category": "legacy-server-code",
+      "owner": "News retirement",
+      "reason": "News collection, translation, payloads, and storage are outside the approved product.",
+      "prefixes": [
+        "server/news/",
+        "server/news_sources/"
+      ],
+      "paths": [
+        "server/news_backend.py",
+        "server/news_collector.py",
+        "server/news_translator.py"
+      ]
+    },
+    {
+      "id": "legacy-build-payload-server",
+      "disposition": "delete",
+      "category": "legacy-server-code",
+      "owner": "Builds retirement",
+      "reason": "Legacy builds and PvE home payload surfaces are outside the approved product.",
+      "prefixes": [
+        "server/builds/",
+        "server/pve/"
+      ]
+    },
+    {
+      "id": "legacy-websim-server",
+      "disposition": "delete",
+      "category": "legacy-server-code",
+      "owner": "WebSim retirement",
+      "reason": "WebSim synchronization and payload contracts are superseded by canonical SimC jobs.",
+      "paths": [
+        "server/websim_journal_contract.py",
+        "server/websim_payload.py",
+        "server/websim_sync.py",
+        "server/wow-websim-sync.service",
+        "server/wow-websim-sync.timer"
+      ]
+    },
+    {
+      "id": "target-v2-deployment-inputs",
+      "disposition": "migrate",
+      "category": "target-deployment-migration",
+      "owner": "Chickenbro and SimC runtime",
+      "reason": "Existing v2 service and Nginx definitions are migration inputs, not yet final deployment authority.",
+      "paths": [
+        "server/deploy_web_v2_candidate_lighthouse.sh",
+        "server/deploy_web_v2_lighthouse.sh",
+        "server/requirements-v2.txt",
+        "server/wow-v2-api-candidate.service",
+        "server/wow-v2-api.service",
+        "server/wow-v2-candidate-api.locations.nginx",
+        "server/wow-v2-candidate.locations.nginx",
+        "server/wow-v2-web.nginx",
+        "server/wow-v2-worker.service"
+      ]
+    },
+    {
+      "id": "remaining-server-migration-inputs",
+      "disposition": "migrate",
+      "category": "server-dependency-review",
+      "owner": "Target caller-graph review",
+      "reason": "Potential Chickenbro, SimC, data, deployment, or dependency inputs require caller proof before keep or delete.",
+      "prefixes": [
+        "server/"
+      ]
+    },
+    {
+      "id": "api-client-prototype",
+      "disposition": "delete",
+      "category": "prototype-shared-code",
+      "owner": "Prototype retirement",
+      "reason": "Prototype client contracts are removed with the bypass surface.",
+      "paths": [
+        "packages/api-client/src/prototype-client.test.ts",
+        "packages/api-client/src/prototype-client.ts",
+        "packages/domain/src/prototype.test.ts",
+        "packages/domain/src/prototype.ts"
+      ]
+    },
+    {
+      "id": "shared-target-platform-contracts",
+      "disposition": "keep",
+      "category": "target-shared-code",
+      "owner": "Dual-client identity and platform API",
+      "reason": "Typed platform and Web-auth contracts are direct inputs to the canonical dual-client API.",
+      "paths": [
+        "packages/api-client/src/platform-v2.test.ts",
+        "packages/api-client/src/platform-v2.ts",
+        "packages/api-client/src/web-auth.test.ts",
+        "packages/api-client/src/web-auth.ts",
+        "packages/domain/src/platform-v2.test.ts",
+        "packages/domain/src/platform-v2.ts",
+        "packages/domain/src/web-auth.test.ts",
+        "packages/domain/src/web-auth.ts"
+      ]
+    },
+    {
+      "id": "shared-package-migration",
+      "disposition": "migrate",
+      "category": "shared-dependency-review",
+      "owner": "Dual-client shared packages",
+      "reason": "Shared API, domain, design, assets, and type code must be reduced using target caller proof.",
+      "prefixes": [
+        "packages/"
+      ]
+    },
+    {
+      "id": "legacy-root-mini-program",
+      "disposition": "delete",
+      "category": "legacy-client-code",
+      "owner": "Legacy 14-route retirement",
+      "reason": "Root WeChat pages, components, tab bar, assets, and app shell are superseded by the Taro dual-client application.",
+      "prefixes": [
+        "assets/",
+        "components/",
+        "custom-tab-bar/",
+        "pages/",
+        "websim/"
+      ],
+      "paths": [
+        "app.js",
+        "app.json",
+        "app.wxss",
+        "sitemap.json"
+      ]
+    },
+    {
+      "id": "legacy-product-plans",
+      "disposition": "delete",
+      "category": "legacy-documentation",
+      "owner": "Documentation retirement",
+      "reason": "Superseded dated execution plans are removed; Git history remains the archive.",
+      "prefixes": [
+        "docs/plans/",
+        "docs/superpowers/plans/",
+        "docs/superpowers/specs/"
+      ]
+    },
+    {
+      "id": "target-ui-design-inputs",
+      "disposition": "migrate",
+      "category": "target-design-migration",
+      "owner": "Two-capability dual-client UX",
+      "reason": "Existing Chickenbro and SimC interaction evidence may be migrated into the new two-capability design authority.",
+      "prefixes": [
+        "docs/design/current-ui/routes/chickenbro-chat/",
+        "docs/design/current-ui/routes/simc-submit/",
+        "docs/design/current-ui/routes/simulator-home/",
+        "docs/design/current-ui/routes/task-detail/",
+        "docs/design/current-ui/routes/tasks-list/"
+      ]
+    },
+    {
+      "id": "legacy-ui-design-evidence",
+      "disposition": "delete",
+      "category": "legacy-documentation",
+      "owner": "UI evidence retirement",
+      "reason": "The 14-route reconstruction control plane is superseded by the two-capability product.",
+      "prefixes": [
+        "docs/design/current-ui/"
+      ]
+    },
+    {
+      "id": "legacy-product-documentation",
+      "disposition": "delete",
+      "category": "legacy-documentation",
+      "owner": "Documentation retirement",
+      "reason": "News, builds, gear, template, and old UI runbooks are outside the approved product.",
+      "paths": [
+        "docs/builds-architecture.md",
+        "docs/community-template-import-full-chain-runbook.md",
+        "docs/gear-attribute-rule-source-ledger.md",
+        "docs/gear-database-governance.md",
+        "docs/gear-simulation-full-chain-runbook.md",
+        "docs/news-architecture.md"
+      ]
+    },
+    {
+      "id": "remaining-documentation-migration",
+      "disposition": "migrate",
+      "category": "documentation-review",
+      "owner": "Rebuild documentation",
+      "reason": "Stable architecture and operations material must be rewritten or retired against the new product boundary.",
+      "prefixes": [
+        "docs/"
+      ]
+    },
+    {
+      "id": "historical-release-artifacts",
+      "disposition": "delete",
+      "category": "historical-evidence",
+      "owner": "Artifact retirement",
+      "reason": "Historical release packets are removed from the working tree; Git history remains the archive.",
+      "prefixes": [
+        "artifacts/"
+      ]
+    },
+    {
+      "id": "current-and-migration-tests",
+      "disposition": "migrate",
+      "category": "test-dependency-review",
+      "owner": "Target verification suite",
+      "reason": "Tests are retained until caller and behavior mapping proves which target contracts remain.",
+      "prefixes": [
+        "tests/"
+      ]
+    },
+    {
+      "id": "current-and-migration-scripts",
+      "disposition": "migrate",
+      "category": "tooling-dependency-review",
+      "owner": "Harness and target operations",
+      "reason": "Harness and operational scripts are retained until target callers and deployment owners are proven.",
+      "prefixes": [
+        "scripts/"
+      ]
+    },
+    {
+      "id": "github-workflows",
+      "disposition": "migrate",
+      "category": "repository-tooling",
+      "owner": "Target CI",
+      "reason": "CI must be reduced to the new target verification and release packet.",
+      "prefixes": [
+        ".github/"
+      ]
+    },
+    {
+      "id": "repository-scaffold",
+      "disposition": "migrate",
+      "category": "repository-tooling",
+      "owner": "Target workspace",
+      "reason": "Repository policy, package, TypeScript, lint, and build configuration must be reconciled with the reduced product.",
+      "paths": [
+        ".eslintrc.js",
+        ".gitattributes",
+        ".gitignore",
+        "AGENTS.md",
+        "Agent.md",
+        "DESIGN.md",
+        "README.md",
+        "eslint.config.mjs",
+        "package-lock.json",
+        "package.json",
+        "project.config.json",
+        "tsconfig.base.json",
+        "tsconfig.json",
+        "vitest.config.ts"
+      ]
+    }
+  ]
+}
