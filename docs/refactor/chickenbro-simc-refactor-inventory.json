@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedFromCommit": "15f10d30a089d55a3b520df99d71bd83728b2d10",
+  "generatedFromCommit": "c1851ff6e3d8bb4a9b0ca312ac1726d8b4851103",
   "excludedSelfPath": "docs/refactor/chickenbro-simc-refactor-inventory.json",
   "sourceRulesSha256": "25049f3a03f8b5503b4f2306ef97c4d4d2259d4467eefb92cc43a5fbd784a8a8",
   "entryCount": 2856,
@@ -14824,7 +14824,7 @@
       "reason": "Current approved product direction, executable phase plans, and machine-readable state.",
       "matchedRule": "rebuild-control-plane",
       "bytes": 3979,
-      "sha256": "e939ec42867952eb439df28a230a0a021bcc6ff73ec1edfe393b13781e40e6fe"
+      "sha256": "7becd3d41a98004ba79a38efaf9cb968e4816a028731a99081dd8868516ce452"
     },
     {
       "path": "docs/refactor/chickenbro-simc-capacity-cleanup-manifest.json",
@@ -27744,7 +27744,7 @@
       "reason": "These tests cover the retained backend, clients, clean migration, build, candidate, cutover, cleanup, and control-plane contracts.",
       "matchedRule": "retained-target-tests",
       "bytes": 5233,
-      "sha256": "a8ced7dcea5a5d08111bbddf875db4e2d9ec1dd78b4c67b99b6d13ae7494b14c"
+      "sha256": "4971760d2dca3770de7f65d333b3954ecf613291cefe4aec0c6d7574af03c1e3"
     },
     {
       "path": "tests/promote-ui-asset-slot-review.test.js",
@@ -28597,5 +28597,5 @@
       "sha256": "4736cc276f788e5427d17e51499c110336106bb64db4c827e2d576629d8f281f"
     }
   ],
-  "inventorySha256": "36e376d6ba4e3f228bfec762b5775f7d14613290ff12c683a0b91d6445a8a63d"
+  "inventorySha256": "03cbddfe546777a9cc8c14833d4f0ab5956cf6fb4b9a4c4a3ecefc25d0fce5c0"
 }
