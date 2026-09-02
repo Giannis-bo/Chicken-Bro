@@ -36,6 +36,8 @@
     "implementationAuthorized": true,
     "terminalGoalAuthorized": true,
     "cleanupIntentAuthorized": true,
+    "phase5Evidence": "artifacts/releases/2026-09-02-chickenbro-simc-dual-client-cutover/evidence.json",
+    "productionCutoverAuthorized": false,
     "productionCutoverReady": false,
     "destructiveCleanupReady": false,
     "finalUserAcceptance": "not_run",

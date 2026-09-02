@@ -332,8 +332,10 @@ function readPhase5Accepted(repositoryRoot) {
   if (!fs.existsSync(statePath)) return false
   const state = JSON.parse(fs.readFileSync(statePath, 'utf8'))
   const target = state.targetProduct || {}
-  const evidencePath = target.phase5Evidence
-    ? path.join(repositoryRoot, ...target.phase5Evidence.split('/'))
+  const gates = state.gates || target
+  const phase5Evidence = gates.phase5Evidence || target.phase5Evidence
+  const evidencePath = phase5Evidence
+    ? path.join(repositoryRoot, ...phase5Evidence.split('/'))
     : null
   if (!evidencePath || !fs.existsSync(evidencePath)) return false
   const evidence = JSON.parse(fs.readFileSync(evidencePath, 'utf8'))
@@ -342,8 +344,8 @@ function readPhase5Accepted(repositoryRoot) {
       && item.type === 'production_cutover'
       && item.state === 'accepted_write'
       && item.postCutoverRealUserAcceptance === 'passed')
-  return target.productionCutoverAuthorized === true
-    && target.productionCutoverReady === true
+  return gates.productionCutoverAuthorized === true
+    && gates.productionCutoverReady === true
     && evidence.highestEvidenceLevel === 'live_verified'
     && evidence.manualAcceptance?.status === 'complete'
     && acceptedRuntime

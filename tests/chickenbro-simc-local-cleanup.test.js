@@ -315,6 +315,39 @@ test('apply is atomic, exact, and requires Phase 5 accepted production evidence'
   assert.equal(readyRepository.has('current/keep.js'), true)
 })
 
+test('Phase 5 acceptance reads the current project-state gate contract', (t) => {
+  const { readPhase5Accepted } = loadCleanup()
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'chickenbro-phase5-gate-'))
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }))
+  const evidenceRelative = 'artifacts/releases/phase5/evidence.json'
+  fs.mkdirSync(path.join(root, 'docs'), { recursive: true })
+  fs.mkdirSync(path.join(root, 'artifacts/releases/phase5'), { recursive: true })
+  fs.writeFileSync(path.join(root, 'docs/project-state.json'), `${JSON.stringify({
+    schemaVersion: 2,
+    gates: {
+      phase5Evidence: evidenceRelative,
+      productionCutoverAuthorized: true,
+      productionCutoverReady: true,
+    },
+  })}\n`)
+  fs.writeFileSync(path.join(root, evidenceRelative), `${JSON.stringify({
+    highestEvidenceLevel: 'live_verified',
+    manualAcceptance: { status: 'complete' },
+    runtimeEvidence: [{
+      type: 'production_cutover',
+      state: 'accepted_write',
+      postCutoverRealUserAcceptance: 'passed',
+    }],
+  })}\n`)
+
+  assert.equal(readPhase5Accepted(root), true)
+
+  const evidence = JSON.parse(fs.readFileSync(path.join(root, evidenceRelative), 'utf8'))
+  evidence.manualAcceptance.status = 'pending'
+  fs.writeFileSync(path.join(root, evidenceRelative), `${JSON.stringify(evidence)}\n`)
+  assert.equal(readPhase5Accepted(root), false)
+})
+
 test('CLI may prove a clean manifest but cannot cross the Phase 5 acceptance gate', () => {
   const result = spawnSync(process.execPath, [
     cleanupPath,
