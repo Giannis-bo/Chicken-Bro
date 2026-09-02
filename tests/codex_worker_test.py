@@ -25,6 +25,7 @@ class CodexWorkerTest(unittest.TestCase):
 
         self.assertEqual(command[:4], ["codex", "--ask-for-approval", "never", "exec"])
         self.assertIn("--json", command)
+        self.assertIn("--ephemeral", command)
         self.assertIn("--skip-git-repo-check", command)
         self.assertIn("--ask-for-approval", command)
         self.assertIn("never", command)

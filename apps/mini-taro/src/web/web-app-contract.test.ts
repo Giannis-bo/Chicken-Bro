@@ -57,6 +57,8 @@ describe('Chickenbro Web shell contract', () => {
       expect(webSource).toContain(copy)
     }
     expect(webSource).toContain('credentials')
+    expect(webSource).toContain('WEB_LOGIN_ALREADY_CONSUMED')
+    expect(webSource).not.toContain('WEB_LOGIN_ALREADY_EXCHANGED')
     expect(webSource).toContain('WebShell')
     expect(webSource).not.toContain('wowApi.auth')
     expect(webSource).not.toContain('/api/auth/wechat-login')

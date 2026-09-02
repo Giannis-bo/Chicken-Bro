@@ -10,6 +10,7 @@ import {
 
 import { clientAuthRequest, type ClientAuthContext } from './auth-context'
 import type { ApiResult, ApiTransport, RequestData } from './transport'
+import { apiV2Path } from './api-v2-prefix'
 
 
 export interface SimcRequestOptions {
@@ -171,7 +172,7 @@ export function createSimcClient(transport: ApiTransport): SimcClient {
   return {
     createSnapshot(createRequest, options) {
       return request(
-        '/api/v2/simc/snapshots',
+        apiV2Path('/simc/snapshots'),
         { sourceUrl: sourceUrl(createRequest.sourceUrl) },
         options,
         {
@@ -186,7 +187,7 @@ export function createSimcClient(transport: ApiTransport): SimcClient {
     getSnapshot(snapshotId, options) {
       const id = boundedIdentifier(snapshotId, 'snapshot id')
       return request(
-        `/api/v2/simc/snapshots/${encodeURIComponent(id)}`,
+        apiV2Path(`/simc/snapshots/${encodeURIComponent(id)}`),
         undefined,
         options,
         {
@@ -203,7 +204,7 @@ export function createSimcClient(transport: ApiTransport): SimcClient {
       if (listRequest.limit !== undefined) query.set('limit', String(listRequest.limit))
       const encoded = query.toString()
       return request(
-        `/api/v2/simc/jobs${encoded ? `?${encoded}` : ''}`,
+        apiV2Path(`/simc/jobs${encoded ? `?${encoded}` : ''}`),
         undefined,
         options,
         {
@@ -220,7 +221,7 @@ export function createSimcClient(transport: ApiTransport): SimcClient {
         throw new TypeError('idempotency key is invalid')
       }
       return request(
-        '/api/v2/simc/jobs',
+        apiV2Path('/simc/jobs'),
         { snapshotId, scenario: scenario(createRequest.scenario) },
         options,
         {
@@ -236,7 +237,7 @@ export function createSimcClient(transport: ApiTransport): SimcClient {
     getJob(jobId, options) {
       const id = boundedIdentifier(jobId, 'job id')
       return request(
-        `/api/v2/simc/jobs/${encodeURIComponent(id)}`,
+        apiV2Path(`/simc/jobs/${encodeURIComponent(id)}`),
         undefined,
         options,
         {

@@ -1,0 +1,28 @@
+[Unit]
+Description=Chickenbro SimC queue worker
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/opt
+EnvironmentFile=-/etc/chickenbro-worker.env
+Environment=WOW_DATABASE_RUNTIME=postgres_only
+Environment=WOW_WEB_PROTOTYPE_ENABLED=0
+Environment=WOW_SIMC_SUPPORTED_SPECS=shaman:elemental
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+ExecStart=/opt/chickenbro-runtime/bin/python -m server.app.worker.main --worker-id chickenbro-simc-worker
+Restart=always
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/chickenbro
+ReadOnlyPaths=/opt/chickenbro /opt/chickenbro-candidate /opt/chickenbro-runtime /opt/wow-simc
+
+[Install]
+WantedBy=multi-user.target

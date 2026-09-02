@@ -26,7 +26,7 @@ const errorCopy: Record<string, string> = {
   AUTH_REQUIRED: '小程序登录已失效，请重新打开此确认页。',
   WEB_LOGIN_EXPIRED: '二维码已过期，请回到 Web 页面重新生成。',
   WEB_LOGIN_CANCELLED: '这次登录已取消，请回到 Web 页面重新生成。',
-  WEB_LOGIN_ALREADY_EXCHANGED: '这次登录已完成，请回到 Web 页面查看结果。',
+  WEB_LOGIN_ALREADY_CONSUMED: '这次登录已完成，请回到 Web 页面查看结果。',
   WEB_LOGIN_NOT_FOUND: '登录场景不存在，请回到 Web 页面重新生成。',
   WECHAT_PROVIDER_UNAVAILABLE: '微信服务暂不可用，请稍后重试。',
   WECHAT_NOT_CONFIGURED: '登录服务尚未配置完成，请联系管理员。',

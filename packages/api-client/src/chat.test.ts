@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import type { EndpointId } from '@wow-mini/domain'
 
@@ -42,6 +42,25 @@ class RecordingTransport implements ApiTransport {
 
 
 describe('formal Chat client', () => {
+  it('uses the isolated candidate prefix for every formal Chat route', async () => {
+    vi.stubGlobal('__WOW_API_V2_PREFIX__', '/api/v2-candidate')
+    try {
+      const transport = new RecordingTransport()
+      const client = createChatClient(transport)
+      const auth = { kind: 'mini' as const, accessToken: 'mini-token' }
+
+      await client.list({}, { auth })
+      await client.create({}, { auth })
+
+      expect(transport.requests.map((call) => call.path)).toEqual([
+        '/api/v2-candidate/chat/conversations',
+        '/api/v2-candidate/chat/conversations',
+      ])
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('uses only formal paths and an explicit Mini Bearer transport', async () => {
     const transport = new RecordingTransport()
     const client = createChatClient(transport)

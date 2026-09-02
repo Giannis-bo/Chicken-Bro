@@ -34,7 +34,7 @@ const problemCopy: Record<string, string> = {
   WEB_LOGIN_EXPIRED: '二维码已过期，请重新生成',
   WEB_LOGIN_CANCELLED: '小程序已取消这次登录，请重新生成',
   WEB_LOGIN_VERIFIER_MISMATCH: '当前浏览器标签页已变化，请重新生成二维码',
-  WEB_LOGIN_ALREADY_EXCHANGED: '这次二维码已经使用过，请重新生成',
+  WEB_LOGIN_ALREADY_CONSUMED: '这次二维码已经使用过，请重新生成',
   WEB_LOGIN_NOT_CONFIRMED: '请先在小程序中确认登录',
   WECHAT_NOT_CONFIGURED: '登录服务尚未配置完成，请联系管理员',
   WECHAT_PROVIDER_UNAVAILABLE: '微信服务暂不可用，请稍后重试',

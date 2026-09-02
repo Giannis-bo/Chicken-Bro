@@ -1,6 +1,6 @@
 # 炸鸡队长与 SimC 生产迁移、切流与恢复 Runbook
 
-状态：当前生产操作权威；Phase 2 本地实现与云端 code-only dependency profile 已验证，真实 PostgreSQL candidate apply 仍由容量与独立恢复 gate 阻塞
+状态：当前生产操作权威；Phase 5 候选部署、PostgreSQL 白名单迁移适配器与自动化双端验收已完成本地实现和验证，真实 PostgreSQL candidate apply 仍由容量与独立恢复 gate 阻塞
 
 本 Runbook 规定如何从 legacy `wow_test` 和旧运行单元迁移到干净 `chickenbro_prod`，如何验证双端数据一致，何时可以切流，以及何时仍然禁止删除。执行者必须同时阅读 [当前架构](chickenbro-simc-architecture.md)、[project-state.json](project-state.json) 和对应阶段的 Harness requirement。
 
@@ -110,6 +110,8 @@ Phase 2 的受控备份必须覆盖：
 
 备份完成不等于可恢复。必须在隔离位置实际执行 restore/list/校验，记录：备份 SHA、字节数、创建时间、设备 ID、加密状态、恢复目标、恢复命令退出状态、schema/row/hash 抽样和操作者。未完成恢复验证时，所有 destructive gate 保持 false。
 
+候选部署只接受 `chickenbro-independent-backup-v1` 清单：清单本身必须是独立挂载下的 0600 普通文件，归档和恢复证据必须位于同一独立根、为非符号链接普通文件，实际 bytes/SHA/device identity 与清单一致。清单必须声明 `encrypted=true`、`sensitiveConfigurationEncrypted=true`，加密方案只能是 `age|gpg|kms-envelope` 且只记录 key reference hash；恢复目标必须是隔离的 `chickenbro_restore_verify_*`，command exit code 为 0，schema/row/hash 三项核对均为 true，并绑定恢复证据文件 SHA。缺少任一字段、使用 live 库作恢复目标或归档/证据发生漂移时，apply 直接拒绝。
+
 ## 4. 建立干净 `chickenbro_prod`
 
 只有 Phase 2 提供并验证 `server/provision_chickenbro_database_lighthouse.sh` 后才能 apply。脚本契约：
@@ -191,7 +193,7 @@ candidate -> accepted | rejected(reason_code)
 
 ### 白名单迁移器契约
 
-当前唯一转换规则位于 `server/migrations/product/migrate_legacy.py`，核对规则位于 `server/migrations/product/reconcile_legacy.py`。它们是候选迁移的纯规则层，不自行读取 DSN、env 或凭据，也不提供绕过容量/备份门禁的生产 apply 入口。Task 5 的候选部署必须在一个目标事务中向它们提供只读 source iterator 和 candidate-only target adapter；事务失败时不得留下部分迁移。
+当前唯一转换规则位于 `server/migrations/product/migrate_legacy.py`，核对规则位于 `server/migrations/product/reconcile_legacy.py`。它们是候选迁移的纯规则层，不自行读取 DSN、env 或凭据，也不提供绕过容量/备份门禁的生产 apply 入口。`server/migrations/product/postgres_legacy.py` 是唯一 PostgreSQL adapter：source 使用 `REPEATABLE READ READ ONLY` 快照，target 固定为候选库并在一个事务内完成写入与核对；事务失败时不得留下部分迁移。full/delta 的 through watermark 只能在该只读快照事务内由数据库时间捕获，CLI 不接受外部 `captured-watermark` 覆盖；delta 只接受上一次已封存报告的 `from-watermark`。source/target DSN 均固定为 `wow_app@127.0.0.1:5432/<精确库名>`、URL 内无密码/query/fragment，并只通过 0600 PGPASSFILE 认证；同名远端库、漂移 role/port 或 URL userinfo 一律拒绝。公开报告不包含凭据、provider subject 或原始主键。
 
 每条 source record 的内部输入 envelope 固定为：
 
@@ -223,7 +225,9 @@ payload 只能包含 migration revision、哈希、目标表、目标 UUID 和�
 本地规则验证：
 
 ```bash
-python3 -m unittest tests.legacy_product_migration_test -v
+python3 -m unittest \
+  tests.legacy_product_migration_test \
+  tests.postgres_legacy_migration_test -v
 ```
 
 fixture 同时覆盖正式 direct Chat/SimC、owner-bound legacy Chat、可发布 legacy SimC、prototype/auth/无关域拒绝、显式 pk、重复 identity 拒绝、会话顺序/归属、真实 worker/exit code、READY source、semantic result、UUIDv5 幂等、同时间戳 `updated_at/pk` delta 和报告脱敏。fixture 通过不是生产迁移证据；真实候选仍需事务、数据库约束和逐域核对。
@@ -258,6 +262,60 @@ Candidate 必须隔离数据库、API port、systemd unit、Nginx path 和 Web r
 - H5/WeApp 构建 identity、候选入口和回滚路径。
 
 静态页面、QR 图片、Cookie 存在或候选 API 200 不能代替真实扫码。真实用户必须在小程序确认 Web 登录，并在两端交叉创建/查看/继续 Chat 与 SimC。
+
+### 候选部署入口
+
+仓库唯一候选入口是 `server/deploy_chickenbro_candidate_lighthouse.sh`。默认 `--dry-run` 只读取本地 commit 与当前 inventory，不访问云端、不构建、不写入：
+
+```bash
+bash server/deploy_chickenbro_candidate_lighthouse.sh --dry-run
+```
+
+只有最新 inventory 为 `reachable`、无 probe error、`capacityGate=capacity_preflight_required`，且操作者已审阅独立设备上的 restore-verified manifest 后，才可准备 apply：
+
+```bash
+bash server/deploy_chickenbro_candidate_lighthouse.sh \
+  --apply \
+  --expected-commit "${CANDIDATE_COMMIT}" \
+  --inventory-sha "${INVENTORY_SHA}" \
+  --backup-manifest-sha "${RESTORE_VERIFIED_BACKUP_MANIFEST_SHA}"
+```
+
+脚本拒绝 dirty worktree、宽松 commit、同设备“备份”、不匹配的 manifest SHA、legacy async sync、容量不足和非精确 Nginx owner。它只创建/替换以下隔离面：
+
+- `/opt/chickenbro-candidate`、`chickenbro_candidate`、loopback `8791`、`chickenbro-api-candidate.service`；
+- `chickenbro-worker-candidate.service` 与 `/etc/chickenbro-worker-candidate.env`，不停止、不改写正式 `chickenbro-worker.service` 或 `/etc/chickenbro-worker.env`；
+- `/var/www/chickenbro-candidate/releases/<manifest-sha>` 和 `/web-candidate/`；
+- 两个现有 server block 内带 marker 的 `/api/v2-candidate/` 路由。
+
+H5 和 WeApp 必须从同一 clean commit 重新构建，使用统一候选前缀 `/api/v2-candidate`、公共 API origin `https://api.chickenbro.cloud` 和候选专用 CSRF Cookie 名。两个完整目录 identity、WeApp `wow-build.json`、source archive、逐文件 manifest、部署后 manifest、systemd/Nginx/Codex/SimC identity 都写入 root-only 候选证据；只对 `index.html` 哈希不合格。
+
+部署中的自动化验收由 `server/accept_chickenbro_candidate.py` 执行，输出 `automated-acceptance.json`。它在候选库中签发短期测试 Bearer 与已确认的单次 Web ticket，通过真实公网候选路径验证：
+
+- 同一正式迁移 owner 的 Mini Bearer 与 Web Cookie/CSRF；
+- Mini 创建、Web 查看/续聊，以及 Web 创建、Mini 查看/续聊；
+- 两个方向的 SimC 创建、历史可见、Worker 终态和正数 DPS/HPS 语义结果；每个 job/result 必须逐字段绑定提交的 snapshot/scenario hash、正式 compiler revision、runtime revision、profile SHA 和 source provenance，最终 attempt 必须为 `exitCode=0`/`SUCCEEDED`；
+- Chat 幂等重放、ticket replay 拒绝、Web logout 不撤销 Mini session；
+- 第二个隔离 owner 的列表和直接对象读取都不可越权。
+
+自动化验收只证明正式 API、两种 credential transport 和 owner-scoped 数据链路，明确保留 `realWechatQrAcceptance=pending` 与 `realDeviceAcceptance=pending`。它不调用 `wx.login`，也没有在真实小程序中扫描或确认 QR，因此不得写成真实双端验收通过。
+
+Chat SSE 的每个事件都必须有从 1 开始连续递增的整数 `sequence`，首尾必须是 `started`/`completed` 且不得夹带 `failed`；缺 sequence 的“成功文本”不能形成验收证据。SimC 仅凭 job id、`succeeded`、正指标和 return code 0 同样不合格，缺失上述 provenance 绑定时自动化验收必须失败关闭。
+
+部署脚本必须解析 loopback、`www` 和 `api` 三份 readiness JSON，要求语义一致、`database` 与 `wechat_mini` 为 `ready`，且任何组件都不能是 `blocked`。如果总状态仍是 `partial`，证据必须记为 `partial_not_promotable`：可以保留候选环境供诊断，但不得称为 ready、验收成功或允许切流。顶层候选状态始终是 `candidate_deployed_user_acceptance_pending`，直到真实双端用户验收和后续切流门禁全部单独通过。
+
+### 真实用户验收
+
+必须使用 apply 证据中相同的 commit、H5 identity 和 WeApp identity，并确认测试版确实包含 `pages/auth/web-login-confirm`。真实流程固定为：
+
+1. 小程序通过 `wx.login` 获得正式 Mini session；
+2. Web 创建 QR，用户在小程序确认，Web 成功建立独立 HttpOnly Cookie；
+3. Mini 创建会话并发送消息，Web 重载后可见且可继续；Web 新建另一会话后 Mini 重载可见且可继续；
+4. Mini 与 Web 分别提交一个 SimC，另一端可见相同任务、状态、attempt 与 semantic result；
+5. Web 退出后 Mini 仍登录；不同微信 owner 不能看到上述对象；
+6. 记录用户明确确认、UTC 时间、route 名、commit、双端 build identity 和对象脱敏 hash，不记录 OpenID、内部 user id、Cookie、Bearer、ticket 或 verifier。
+
+真实扫码、双设备交叉验证或用户明确确认缺一项时，状态只能是 `user_acceptance_pending`。当前容量/独立恢复门禁尚未关闭，因此候选尚未 apply，自动化公网验收和真实用户验收也尚未发生。
 
 ## 8. 写栅栏、delta 与切流
 

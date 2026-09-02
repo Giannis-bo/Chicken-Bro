@@ -107,4 +107,15 @@ describe('WebAuthClient', () => {
       vi.unstubAllGlobals()
     }
   })
+
+  it('reads only the configured candidate CSRF cookie', () => {
+    vi.stubGlobal('__WOW_WEB_CSRF_COOKIE_NAME__', '__Host-chickenbro-candidate-csrf')
+    try {
+      expect(readWebCsrfCookie(
+        '__Host-chickenbro-csrf=production; __Host-chickenbro-candidate-csrf=candidate-token',
+      )).toBe('candidate-token')
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
 })

@@ -18,23 +18,9 @@ import {
 import type { ApiResult, ApiTransport } from './transport'
 import type { ClientAuthContext } from './auth-context'
 import type { TransportAuthContext } from './transport'
+import { apiV2Path } from './api-v2-prefix'
 
-declare const __WOW_WEB_AUTH_API_PREFIX__: string
-
-const DEFAULT_WEB_AUTH_API_PREFIX = '/api/v2'
-
-function webAuthApiPrefix(): string {
-  const configured = typeof __WOW_WEB_AUTH_API_PREFIX__ === 'string'
-    ? __WOW_WEB_AUTH_API_PREFIX__.trim()
-    : ''
-  return /^\/[A-Za-z0-9][A-Za-z0-9/_-]*$/u.test(configured)
-    ? configured.replace(/\/+$/u, '')
-    : DEFAULT_WEB_AUTH_API_PREFIX
-}
-
-function webAuthPath(path: string): string {
-  return `${webAuthApiPrefix()}${path}`
-}
+declare const __WOW_WEB_CSRF_COOKIE_NAME__: string
 
 export interface WebAuthClient {
   createWebLoginSession(browserVerifier: string, idempotencyKey: string): Promise<ApiResult<WebLoginCreated>>
@@ -47,18 +33,28 @@ export interface WebAuthClient {
   logout(auth?: ClientAuthContext): Promise<ApiResult<LogoutResponse>>
 }
 
-const WEB_CSRF_COOKIE = '__Host-chickenbro-csrf'
+const DEFAULT_WEB_CSRF_COOKIE = '__Host-chickenbro-csrf'
+
+function webCsrfCookieName(): string {
+  const configured = typeof __WOW_WEB_CSRF_COOKIE_NAME__ === 'string'
+    ? __WOW_WEB_CSRF_COOKIE_NAME__.trim()
+    : ''
+  return configured.startsWith('__Host-') && !/\s/u.test(configured)
+    ? configured
+    : DEFAULT_WEB_CSRF_COOKIE
+}
 
 export function readWebCsrfCookie(cookieHeader: string = (
   typeof document === 'undefined' ? '' : document.cookie
 )): string {
+  const cookieName = webCsrfCookieName()
   const matches = cookieHeader
     .split(';')
     .map((part) => part.trim())
-    .filter((part) => part.startsWith(`${WEB_CSRF_COOKIE}=`))
+    .filter((part) => part.startsWith(`${cookieName}=`))
   if (matches.length === 0) throw new Error('WEB_CSRF_COOKIE_MISSING')
   if (matches.length !== 1) throw new Error('WEB_CSRF_COOKIE_INVALID')
-  const encoded = matches[0]?.slice(WEB_CSRF_COOKIE.length + 1) ?? ''
+  const encoded = matches[0]?.slice(cookieName.length + 1) ?? ''
   let value = ''
   try {
     value = decodeURIComponent(encoded)
@@ -92,7 +88,7 @@ function webRequest<T>(transport: ApiTransport, path: string, options: {
 export function createWebAuthClient(transport: ApiTransport): WebAuthClient {
   return {
     createWebLoginSession(browserVerifier, idempotencyKey) {
-      return webRequest(transport, webAuthPath('/auth/wechat/web/login-sessions'), {
+      return webRequest(transport, apiV2Path('/auth/wechat/web/login-sessions'), {
         method: 'POST',
         data: { browserVerifier },
         header: { 'Idempotency-Key': idempotencyKey },
@@ -103,7 +99,7 @@ export function createWebAuthClient(transport: ApiTransport): WebAuthClient {
       })
     },
     statusWebLoginSession(sessionId, browserVerifier) {
-      return webRequest(transport, webAuthPath(`/auth/wechat/web/login-sessions/${encodeURIComponent(sessionId)}`), {
+      return webRequest(transport, apiV2Path(`/auth/wechat/web/login-sessions/${encodeURIComponent(sessionId)}`), {
         header: { 'X-Web-Login-Verifier': browserVerifier },
         credentials: 'include',
         auth: { kind: 'public' },
@@ -112,7 +108,7 @@ export function createWebAuthClient(transport: ApiTransport): WebAuthClient {
       })
     },
     exchangeWebLoginSession(sessionId, browserVerifier) {
-      return webRequest(transport, webAuthPath(`/auth/wechat/web/login-sessions/${encodeURIComponent(sessionId)}/exchange`), {
+      return webRequest(transport, apiV2Path(`/auth/wechat/web/login-sessions/${encodeURIComponent(sessionId)}/exchange`), {
         method: 'POST',
         header: { 'X-Web-Login-Verifier': browserVerifier },
         credentials: 'include',
@@ -122,7 +118,7 @@ export function createWebAuthClient(transport: ApiTransport): WebAuthClient {
       })
     },
     cancelWebLoginSession(sessionId, browserVerifier) {
-      return webRequest(transport, webAuthPath(`/auth/wechat/web/login-sessions/${encodeURIComponent(sessionId)}/cancel`), {
+      return webRequest(transport, apiV2Path(`/auth/wechat/web/login-sessions/${encodeURIComponent(sessionId)}/cancel`), {
         method: 'POST',
         header: { 'X-Web-Login-Verifier': browserVerifier },
         credentials: 'include',
@@ -132,7 +128,7 @@ export function createWebAuthClient(transport: ApiTransport): WebAuthClient {
       })
     },
     exchangeMiniCode(code) {
-      return webRequest(transport, webAuthPath('/auth/wechat/mini/exchange'), {
+      return webRequest(transport, apiV2Path('/auth/wechat/mini/exchange'), {
         method: 'POST',
         data: { code },
         credentials: 'omit',
@@ -143,7 +139,7 @@ export function createWebAuthClient(transport: ApiTransport): WebAuthClient {
       })
     },
     confirmMiniWebLogin(sceneTicket, accessToken) {
-      return webRequest(transport, webAuthPath('/auth/wechat/mini/web-login-confirm'), {
+      return webRequest(transport, apiV2Path('/auth/wechat/mini/web-login-confirm'), {
         method: 'POST',
         data: { sceneTicket },
         credentials: 'omit',
@@ -154,7 +150,7 @@ export function createWebAuthClient(transport: ApiTransport): WebAuthClient {
       })
     },
     me() {
-      return webRequest(transport, webAuthPath('/me'), {
+      return webRequest(transport, apiV2Path('/me'), {
         credentials: 'include',
         auth: { kind: 'public' },
         fallback: () => ({ connected: true, displayName: '' }),
@@ -163,7 +159,7 @@ export function createWebAuthClient(transport: ApiTransport): WebAuthClient {
     },
     logout(auth = { kind: 'web', csrfToken: readWebCsrfCookie() }) {
       const credentials = auth.kind === 'web' ? 'include' : 'omit'
-      return webRequest(transport, webAuthPath('/auth/logout'), {
+      return webRequest(transport, apiV2Path('/auth/logout'), {
         method: 'POST',
         credentials,
         auth,

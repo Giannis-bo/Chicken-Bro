@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import type { EndpointId } from '@wow-mini/domain'
 
@@ -30,6 +30,21 @@ class RecordingTransport implements ApiTransport {
 
 
 describe('formal SimC client', () => {
+  it('uses the isolated candidate prefix for every formal SimC route', async () => {
+    vi.stubGlobal('__WOW_API_V2_PREFIX__', '/api/v2-candidate')
+    try {
+      const transport = new RecordingTransport()
+      const client = createSimcClient(transport)
+      const auth = { kind: 'mini' as const, accessToken: 'mini-token' }
+
+      await client.listJobs({}, { auth })
+
+      expect(transport.requests[0]?.path).toBe('/api/v2-candidate/simc/jobs')
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('uses only formal paths and explicit Mini Bearer credentials', async () => {
     const transport = new RecordingTransport()
     const client = createSimcClient(transport)

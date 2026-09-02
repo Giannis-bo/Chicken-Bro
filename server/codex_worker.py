@@ -39,6 +39,7 @@ def build_codex_command(
         command.extend(["--profile", str(profile)])
     command.extend([
         "exec",
+        "--ephemeral",
         "--json",
         "--skip-git-repo-check",
         "--cd",

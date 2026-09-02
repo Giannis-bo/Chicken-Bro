@@ -1,0 +1,51 @@
+[Unit]
+Description=Chickenbro Chat and SimC isolated candidate API
+After=network-online.target mihomo.service
+Wants=network-online.target mihomo.service
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/opt/chickenbro-candidate
+EnvironmentFile=-/etc/chickenbro-source-candidate.env
+EnvironmentFile=-/etc/chickenbro-api-candidate.env
+Environment=PYTHONPATH=/opt/chickenbro-candidate
+Environment=WOW_APP_ENV=candidate
+Environment=WOW_DATABASE_RUNTIME=postgres_only
+Environment=WOW_API_V2_HOST=127.0.0.1
+Environment=WOW_API_V2_PORT=8791
+Environment=WOW_WEB_ORIGIN=https://www.chickenbro.cloud
+Environment=WOW_WEB_COOKIE_NAME=__Host-chickenbro-candidate-session
+Environment=WOW_WEB_CSRF_COOKIE_NAME=__Host-chickenbro-candidate-csrf
+Environment=WOW_WEB_PROTOTYPE_ENABLED=0
+Environment=WOW_WECHAT_PAGE=pages/auth/web-login-confirm
+Environment=WOW_WECHAT_ENV_VERSION=trial
+Environment=WOW_WECHAT_CHECK_PATH=1
+Environment=HOME=/home/ubuntu
+Environment=CODEX_HOME=/home/ubuntu/.codex
+Environment=WOW_CODEX_BIN=/usr/local/bin/codex
+Environment=WOW_CODEX_HOME=/home/ubuntu/.codex
+Environment=WOW_CODEX_JOBS_DIR=/var/lib/chickenbro/candidate-codex-jobs
+Environment=WOW_CODEX_SANDBOX=read-only
+Environment=WOW_CODEX_PROFILE=chickenbro-native
+Environment=WOW_CHICKENBRO_CODEX_ENABLED=1
+Environment=WOW_SIMC_SUPPORTED_SPECS=shaman:elemental
+Environment=HTTPS_PROXY=http://127.0.0.1:7890
+Environment=HTTP_PROXY=http://127.0.0.1:7890
+Environment=ALL_PROXY=http://127.0.0.1:7890
+Environment=NO_PROXY=127.0.0.1,localhost,::1,169.254.169.254
+Environment=PATH=/home/ubuntu/.local/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/opt/chickenbro-runtime/bin/python -m uvicorn server.app.main:app --host 127.0.0.1 --port 8791
+Restart=always
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/var/lib/chickenbro
+ReadOnlyPaths=/opt/chickenbro-candidate /opt/chickenbro-runtime /opt/wow-simc /home/ubuntu/.codex
+
+[Install]
+WantedBy=multi-user.target

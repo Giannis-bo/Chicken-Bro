@@ -16,9 +16,24 @@ const configuredBackendApiBaseUrl = (
   ?? process.env['WOW_NEWS_API_BASE_URL']
   ?? ''
 ).trim()
-const configuredWebAuthApiPrefix = (process.env['WOW_WEB_AUTH_API_PREFIX']?.trim() || '/api/v2').replace(/\/+$/u, '')
+const configuredApiV2Prefix = (
+  process.env['WOW_API_V2_PREFIX']?.trim()
+  || process.env['WOW_WEB_AUTH_API_PREFIX']?.trim()
+  || '/api/v2'
+).replace(/\/+$/u, '')
+const configuredWebAuthApiPrefix = (
+  process.env['WOW_WEB_AUTH_API_PREFIX']?.trim()
+  || configuredApiV2Prefix
+).replace(/\/+$/u, '')
+if (configuredApiV2Prefix !== configuredWebAuthApiPrefix) {
+  throw new Error('WOW_API_V2_PREFIX and WOW_WEB_AUTH_API_PREFIX must match')
+}
 if (!/^\/[A-Za-z0-9][A-Za-z0-9/_-]*$/u.test(configuredWebAuthApiPrefix)) {
   throw new Error('WOW_WEB_AUTH_API_PREFIX must be a slash-prefixed path')
+}
+const configuredWebCsrfCookieName = process.env['WOW_WEB_CSRF_COOKIE_NAME']?.trim() || '__Host-chickenbro-csrf'
+if (!configuredWebCsrfCookieName.startsWith('__Host-') || /\s/u.test(configuredWebCsrfCookieName)) {
+  throw new Error('WOW_WEB_CSRF_COOKIE_NAME must use the __Host- prefix')
 }
 const configuredH5PublicPath = process.env['WOW_H5_PUBLIC_PATH']?.trim() || '/'
 if (!/^\/[A-Za-z0-9._/-]*\/?$/u.test(configuredH5PublicPath) || configuredH5PublicPath.includes('//')) {
@@ -95,7 +110,9 @@ export default defineConfig<'webpack5'>({
     __WOW_ASSET_RUNTIME_ROOT__: JSON.stringify(configuredAssetRuntimeRoot || '/assets/ui-v2'),
     __WOW_RUNTIME_MEDIA_ROOT__: JSON.stringify(configuredRuntimeMediaRoot),
     __WOW_BACKEND_API_BASE_URL__: JSON.stringify(configuredBackendApiBaseUrl),
+    __WOW_API_V2_PREFIX__: JSON.stringify(configuredApiV2Prefix),
     __WOW_WEB_AUTH_API_PREFIX__: JSON.stringify(configuredWebAuthApiPrefix),
+    __WOW_WEB_CSRF_COOKIE_NAME__: JSON.stringify(configuredWebCsrfCookieName),
     __WOW_WEAPP_RUNTIME_GIT_HEAD__: JSON.stringify(runtimeGitHead),
     __WOW_WEAPP_RUNTIME_SOURCE_HASH__: JSON.stringify(runtimeSourceHash),
   },

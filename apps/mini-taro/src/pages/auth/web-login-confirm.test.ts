@@ -14,6 +14,8 @@ describe('mini-program Web login confirmation page', () => {
     expect(source).toContain('exchangeMiniCode')
     expect(source).toContain('confirmMiniWebLogin')
     expect(source).toContain('确认登录')
+    expect(source).toContain('WEB_LOGIN_ALREADY_CONSUMED')
+    expect(source).not.toContain('WEB_LOGIN_ALREADY_EXCHANGED')
     expect(source).not.toContain('wx.getStorage')
     expect(source).not.toContain('WOW_WECHAT_SECRET')
     expect(source).not.toContain('openid')

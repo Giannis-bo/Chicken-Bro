@@ -1,0 +1,632 @@
+#!/usr/bin/env python3
+"""Transactional PostgreSQL adapter for the whitelist legacy migration.
+
+DSNs and the approved Mini Program app context are read only from named
+environment variables. Reports contain redacted migration/reconciliation
+summaries and never serialize credentials or provider subjects.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import uuid
+from collections import defaultdict
+from copy import deepcopy
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Iterable, Mapping, MutableMapping, Sequence
+from urllib.parse import unquote, urlsplit
+
+from server.migrations.product.migrate_legacy import (
+    MIGRATION_REVISION,
+    TARGET_NAMESPACE,
+    MigrationDecision,
+    MigrationError,
+    MigrationReport,
+    MigrationTarget,
+    MigrationWatermark,
+    canonical_json,
+    content_hash,
+    migrate_delta,
+    migrate_full,
+)
+from server.migrations.product.reconcile_legacy import ReconciliationReport, reconcile
+
+
+SAFE_CODE = re.compile(r"[A-Za-z0-9_.:-]{1,160}\Z")
+DATABASE_NAME = re.compile(r"[a-z_][a-z0-9_]{0,62}\Z")
+
+SOURCE_TABLES = (
+    "identity.users",
+    "identity.user_identities",
+    "identity.auth_tokens",
+    "identity.auth_sessions",
+    "identity.web_login_sessions",
+    "identity.prototype_sessions",
+    "chat.conversations",
+    "chat.messages",
+    "chat.agent_runs",
+    "simc.source_snapshots",
+    "simc.simulation_jobs",
+    "simc.simulation_attempts",
+    "simc.simulation_results",
+    "app.chickenbro_sessions",
+    "app.chickenbro_messages",
+    "app.agent_jobs",
+    "app.simulator_tasks",
+)
+AUXILIARY_TABLES = ("app.chickenbro_agent_traces",)
+
+PRIMARY_KEYS: Mapping[str, tuple[str, ...]] = {
+    **{table: ("id",) for table in SOURCE_TABLES if table not in {
+        "identity.auth_tokens",
+        "identity.auth_sessions",
+    }},
+    "identity.auth_tokens": ("token_hash",),
+    "identity.auth_sessions": ("token_hash",),
+}
+
+TARGET_COLUMNS: Mapping[str, tuple[str, ...]] = {
+    "identity.users": ("id", "display_name", "status", "created_at", "updated_at"),
+    "identity.user_identities": (
+        "id", "user_id", "provider", "app_context", "provider_subject", "union_id",
+        "profile_json", "created_at", "updated_at",
+    ),
+    "chat.conversations": ("id", "user_id", "title", "status", "created_at", "updated_at"),
+    "chat.messages": (
+        "id", "conversation_id", "user_id", "role", "content", "client_message_id", "created_at",
+    ),
+    "chat.agent_runs": (
+        "id", "user_id", "conversation_id", "user_message_id", "assistant_message_id", "status",
+        "runtime_revision", "public_error_code", "started_at", "finished_at", "idempotency_key",
+    ),
+    "simc.source_snapshots": (
+        "id", "user_id", "provider", "source_url", "source_key", "revision", "readiness",
+        "snapshot_json", "provenance_json", "raw_sha256", "fetched_at", "created_at",
+    ),
+    "simc.simulation_jobs": (
+        "id", "user_id", "snapshot_id", "scenario_hash", "compiler_revision", "runtime_revision",
+        "idempotency_key", "status", "public_error_code", "created_at", "updated_at",
+    ),
+    "simc.simulation_attempts": (
+        "id", "job_id", "user_id", "attempt_number", "worker_id", "started_at", "finished_at",
+        "exit_code", "diagnostic",
+    ),
+    "simc.simulation_results": (
+        "id", "job_id", "user_id", "profile_sha256", "result_json", "primary_metric_name",
+        "primary_metric_value", "compiler_revision", "runtime_revision", "provenance_json", "created_at",
+    ),
+}
+
+JSON_COLUMNS = frozenset({"profile_json", "snapshot_json", "provenance_json", "result_json"})
+MUTABLE_COLUMNS: Mapping[str, tuple[str, ...]] = {
+    "identity.users": ("display_name", "status", "created_at", "updated_at"),
+    "identity.user_identities": ("union_id", "profile_json", "created_at", "updated_at"),
+    "chat.conversations": ("title", "status", "created_at", "updated_at"),
+}
+IMMUTABLE_OWNER_COLUMNS: Mapping[str, tuple[str, ...]] = {
+    "identity.user_identities": ("user_id", "provider", "app_context", "provider_subject"),
+    "chat.conversations": ("user_id",),
+}
+
+
+def _pick(row: Mapping[str, Any], keys: Sequence[str]) -> dict[str, Any]:
+    return {key: deepcopy(row[key]) for key in keys if key in row}
+
+
+def _mapping(value: Any) -> Mapping[str, Any]:
+    return value if isinstance(value, Mapping) else {}
+
+
+def _safe_code(value: Any, fallback: str = "") -> str:
+    candidate = str(value or "")
+    return candidate if SAFE_CODE.fullmatch(candidate) else fallback
+
+
+def _source_timestamp(row: Mapping[str, Any]) -> Any:
+    for key in (
+        "updated_at", "created_at", "finished_at", "fetched_at", "queued_at", "issued_at", "expires_at",
+    ):
+        if row.get(key) is not None:
+            return row[key]
+    raise ValueError("source row has no deterministic timestamp")
+
+
+def _source_pk(table: str, row: Mapping[str, Any]) -> dict[str, Any]:
+    fields = PRIMARY_KEYS.get(table, ("id",))
+    primary_key = {field: row[field] for field in fields if row.get(field) is not None}
+    if len(primary_key) != len(fields):
+        raise ValueError(f"source row is missing the primary key for {table}")
+    return primary_key
+
+
+def _normalize_identity(row: Mapping[str, Any], approved_app_context: str) -> dict[str, Any]:
+    normalized = _pick(
+        row,
+        (
+            "id", "user_id", "provider", "app_context", "provider_subject", "union_id",
+            "profile_json", "created_at", "updated_at",
+        ),
+    )
+    if normalized.get("provider") == "wechat_openid":
+        normalized["provider"] = "wechat_mini"
+        normalized["app_context"] = approved_app_context
+        normalized.setdefault("union_id", None)
+    elif normalized.get("provider") == "wechat_mini":
+        if normalized.get("app_context") != approved_app_context:
+            normalized["app_context"] = ""
+    return normalized
+
+
+def _normalize_message(row: Mapping[str, Any], *, direct: bool) -> dict[str, Any]:
+    parent_key = "conversation_id" if direct else "session_id"
+    normalized = _pick(
+        row,
+        ("id", parent_key, "user_id", "role", "content", "client_message_id", "created_at"),
+    )
+    if not direct and "client_message_id" not in normalized:
+        client_message_id = _mapping(row.get("payload_json")).get("clientMessageId")
+        if isinstance(client_message_id, str) and client_message_id:
+            normalized["client_message_id"] = client_message_id
+    return normalized
+
+
+def _normalize_legacy_agent_jobs(
+    jobs: Iterable[Mapping[str, Any]],
+    traces: Iterable[Mapping[str, Any]],
+    messages: Iterable[Mapping[str, Any]],
+) -> list[dict[str, Any]]:
+    traces_by_job: MutableMapping[str, list[Mapping[str, Any]]] = defaultdict(list)
+    assistants_by_job: MutableMapping[str, list[Mapping[str, Any]]] = defaultdict(list)
+    for trace in traces:
+        traces_by_job[str(trace.get("agent_job_id") or "")].append(trace)
+    for message in messages:
+        if message.get("role") == "assistant" and message.get("agent_job_id"):
+            assistants_by_job[str(message["agent_job_id"])].append(message)
+
+    output: list[dict[str, Any]] = []
+    for row in jobs:
+        normalized = _pick(
+            row,
+            (
+                "id", "user_id", "session_id", "status", "started_at", "finished_at",
+                "created_at", "updated_at",
+            ),
+        )
+        if row.get("job_type") != "chickenbro":
+            normalized["status"] = "not_migrated"
+            normalized["public_error_code"] = ""
+            output.append(normalized)
+            continue
+        job_id = str(row.get("id") or "")
+        matching_traces = traces_by_job.get(job_id, [])
+        matching_assistants = assistants_by_job.get(job_id, [])
+        if len(matching_traces) == 1:
+            normalized["user_message_id"] = matching_traces[0].get("user_message_id")
+            normalized["runtime_revision"] = matching_traces[0].get("runtime_version")
+        if len(matching_assistants) == 1:
+            normalized["assistant_message_id"] = matching_assistants[0].get("id")
+        request = _mapping(row.get("request_json"))
+        idempotency_key = request.get("clientMessageId")
+        if isinstance(idempotency_key, str) and idempotency_key:
+            normalized["idempotency_key"] = idempotency_key
+        normalized["public_error_code"] = (
+            "LEGACY_CHAT_FAILED" if row.get("status") == "failed" else ""
+        )
+        output.append(normalized)
+    return output
+
+
+def _normalize_simulator_task(row: Mapping[str, Any]) -> dict[str, Any]:
+    normalized = _pick(
+        row,
+        (
+            "id", "user_id", "mode", "status", "request_json", "summary_json", "queued_at",
+            "started_at", "finished_at", "attempt", "locked_by", "created_at", "updated_at",
+        ),
+    )
+    explicit_exit = row.get("exit_code")
+    if not isinstance(explicit_exit, int) or isinstance(explicit_exit, bool):
+        explicit_exit = _mapping(row.get("analysis_json")).get("exitCode")
+    if isinstance(explicit_exit, int) and not isinstance(explicit_exit, bool):
+        normalized["exit_code"] = explicit_exit
+    return normalized
+
+
+def _normalize_direct_row(table: str, row: Mapping[str, Any]) -> dict[str, Any]:
+    if table == "identity.users":
+        return _pick(
+            row,
+            ("id", "display_name", "status", "account_kind", "created_at", "updated_at"),
+        )
+    if table == "chat.conversations":
+        return _pick(row, ("id", "user_id", "title", "status", "created_at", "updated_at"))
+    if table == "chat.messages":
+        return _normalize_message(row, direct=True)
+    if table == "chat.agent_runs":
+        normalized = _pick(
+            row,
+            (
+                "id", "user_id", "conversation_id", "user_message_id", "assistant_message_id", "status",
+                "runtime_revision", "public_error_code", "started_at", "finished_at", "idempotency_key",
+                "created_at", "updated_at",
+            ),
+        )
+        normalized["public_error_code"] = _safe_code(
+            normalized.get("public_error_code"),
+            "LEGACY_CHAT_FAILED" if row.get("status") == "failed" else "",
+        )
+        return normalized
+    if table == "simc.source_snapshots":
+        return _pick(row, TARGET_COLUMNS[table])
+    if table == "simc.simulation_jobs":
+        normalized = _pick(row, TARGET_COLUMNS[table])
+        normalized["public_error_code"] = _safe_code(
+            normalized.get("public_error_code"),
+            "SIMC_FAILED" if row.get("status") == "failed" else "",
+        )
+        return normalized
+    if table == "simc.simulation_attempts":
+        normalized = _pick(row, TARGET_COLUMNS[table])
+        normalized["diagnostic"] = _safe_code(
+            normalized.get("diagnostic"),
+            "SIMC_DIAGNOSTIC_REDACTED" if normalized.get("diagnostic") else "",
+        )
+        return normalized
+    if table == "simc.simulation_results":
+        return _pick(row, TARGET_COLUMNS[table])
+    if table in {
+        "identity.auth_tokens",
+        "identity.auth_sessions",
+        "identity.web_login_sessions",
+        "identity.prototype_sessions",
+    }:
+        return _pick(row, ("id", "user_id", "kind", "status", "created_at", "updated_at", "issued_at"))
+    return deepcopy(dict(row))
+
+
+def normalize_legacy_rows(
+    rows_by_table: Mapping[str, Sequence[Mapping[str, Any]]],
+    *,
+    approved_app_context: str,
+) -> list[dict[str, Any]]:
+    """Create the minimal deterministic source envelopes used by the rule layer."""
+
+    if (
+        not isinstance(approved_app_context, str)
+        or not 1 <= len(approved_app_context) <= 128
+        or any(character.isspace() for character in approved_app_context)
+    ):
+        raise ValueError("approved_app_context must be a non-empty reviewed Mini Program AppID")
+
+    legacy_messages = list(rows_by_table.get("app.chickenbro_messages", ()))
+    derived_jobs = _normalize_legacy_agent_jobs(
+        rows_by_table.get("app.agent_jobs", ()),
+        rows_by_table.get("app.chickenbro_agent_traces", ()),
+        legacy_messages,
+    )
+    derived_jobs_by_id = {str(row.get("id") or ""): row for row in derived_jobs}
+    records: list[dict[str, Any]] = []
+    for table in SOURCE_TABLES:
+        for raw_row in rows_by_table.get(table, ()):
+            row = deepcopy(dict(raw_row))
+            if table == "identity.user_identities":
+                normalized = _normalize_identity(row, approved_app_context)
+            elif table == "app.chickenbro_sessions":
+                normalized = _pick(row, ("id", "user_id", "title", "status", "created_at", "updated_at"))
+            elif table == "app.chickenbro_messages":
+                normalized = _normalize_message(row, direct=False)
+            elif table == "app.agent_jobs":
+                normalized = derived_jobs_by_id.get(str(row.get("id") or ""), {})
+            elif table == "app.simulator_tasks":
+                normalized = _normalize_simulator_task(row)
+            else:
+                normalized = _normalize_direct_row(table, row)
+            records.append({
+                "table": table,
+                "pk": _source_pk(table, row),
+                "updated_at": _source_timestamp(row),
+                "row": normalized,
+            })
+    return records
+
+
+def read_source_rows(connection: Any) -> dict[str, list[Mapping[str, Any]]]:
+    output: dict[str, list[Mapping[str, Any]]] = {}
+    for table in (*SOURCE_TABLES, *AUXILIARY_TABLES):
+        exists = connection.execute("SELECT pg_catalog.to_regclass(%s)", (table,)).fetchone()
+        if not exists or exists[0] is None:
+            continue
+        if table not in SOURCE_TABLES and table not in AUXILIARY_TABLES:
+            raise AssertionError("unreviewed source table")
+        cursor = connection.execute(f"SELECT to_jsonb(source_row) FROM {table} AS source_row")
+        rows: list[Mapping[str, Any]] = []
+        for item in cursor.fetchall():
+            value = item[0]
+            if isinstance(value, str):
+                value = json.loads(value)
+            if not isinstance(value, Mapping):
+                raise ValueError(f"source table {table} returned a non-object row")
+            rows.append(value)
+        output[table] = rows
+    return output
+
+
+def _cursor_row(cursor: Any) -> dict[str, Any] | None:
+    row = cursor.fetchone()
+    if row is None:
+        return None
+    names = [column.name if hasattr(column, "name") else column[0] for column in cursor.description]
+    return dict(zip(names, row, strict=True))
+
+
+class PostgresMigrationTarget(MigrationTarget):
+    def __init__(self, connection: Any):
+        self.connection = connection
+
+    def get(self, table: str, target_id: str) -> Mapping[str, Any] | None:
+        columns = TARGET_COLUMNS.get(table)
+        if columns is None:
+            raise MigrationError(f"TARGET_TABLE_NOT_ALLOWED:{table}")
+        cursor = self.connection.execute(
+            f"SELECT {', '.join(columns)} FROM {table} WHERE id = %s",
+            (target_id,),
+        )
+        return _cursor_row(cursor)
+
+    def has(self, table: str, target_id: str) -> bool:
+        return self.get(table, target_id) is not None
+
+    def rows(self, table: str) -> list[dict[str, Any]]:
+        columns = TARGET_COLUMNS.get(table)
+        if columns is None:
+            if table != "ops.audit_events":
+                raise MigrationError(f"TARGET_TABLE_NOT_ALLOWED:{table}")
+            columns = ("id", "user_id", "event_type", "subject_key", "payload_json", "created_at")
+        cursor = self.connection.execute(f"SELECT {', '.join(columns)} FROM {table} ORDER BY id")
+        names = [column.name if hasattr(column, "name") else column[0] for column in cursor.description]
+        return [dict(zip(names, row, strict=True)) for row in cursor.fetchall()]
+
+    def upsert(self, table: str, row: Mapping[str, Any], *, mutable: bool) -> None:
+        columns = TARGET_COLUMNS.get(table)
+        if columns is None or set(row) != set(columns):
+            raise MigrationError(f"TARGET_SHAPE_INVALID:{table}")
+        existing = self.get(table, str(row["id"]))
+        for key in IMMUTABLE_OWNER_COLUMNS.get(table, ()):
+            if existing is not None and existing.get(key) != row.get(key):
+                raise MigrationError(f"TARGET_OWNER_CONFLICT:{table}")
+
+        placeholders = ["%s::jsonb" if column in JSON_COLUMNS else "%s" for column in columns]
+        values = [canonical_json(row[column]) if column in JSON_COLUMNS else row[column] for column in columns]
+        if mutable:
+            updates = MUTABLE_COLUMNS.get(table)
+            if updates is None:
+                raise MigrationError(f"TARGET_MUTABILITY_INVALID:{table}")
+            conflict = "DO UPDATE SET " + ", ".join(
+                f"{column} = EXCLUDED.{column}" for column in updates
+            )
+        else:
+            conflict = "DO NOTHING"
+        self.connection.execute(
+            f"INSERT INTO {table} ({', '.join(columns)}) VALUES ({', '.join(placeholders)}) "
+            f"ON CONFLICT (id) {conflict}",
+            tuple(values),
+        )
+        actual = self.get(table, str(row["id"]))
+        if actual is None or content_hash(actual) != content_hash(row):
+            raise MigrationError(f"TARGET_CONTENT_CONFLICT:{table}")
+
+    def record_mapping(self, decision: MigrationDecision) -> None:
+        if decision.status != "accepted" or not decision.target_id or not decision.target_table:
+            raise MigrationError("ONLY_ACCEPTED_MAPPINGS_ARE_STORED")
+        audit_id = str(uuid.uuid5(TARGET_NAMESPACE, f"audit:{decision.subject_key}"))
+        payload = {
+            "migrationRevision": MIGRATION_REVISION,
+            "sourceTable": decision.source_table,
+            "sourcePrimaryKeyHash": decision.source_primary_key_hash,
+            "targetTable": decision.target_table,
+            "targetId": decision.target_id,
+            "generatedTargets": [
+                {"table": table, "id": target_id}
+                for table, target_id in decision.generated_targets
+            ],
+        }
+        self.connection.execute(
+            """
+            INSERT INTO ops.audit_events (
+                id, user_id, event_type, subject_key, payload_json
+            ) VALUES (%s, NULL, 'legacy_migration.accepted', %s, %s::jsonb)
+            ON CONFLICT (event_type, subject_key) DO NOTHING
+            """,
+            (audit_id, decision.subject_key, canonical_json(payload)),
+        )
+        cursor = self.connection.execute(
+            """
+            SELECT payload_json
+            FROM ops.audit_events
+            WHERE event_type = 'legacy_migration.accepted' AND subject_key = %s
+            """,
+            (decision.subject_key,),
+        )
+        stored = cursor.fetchone()
+        stored_payload = stored[0] if stored else None
+        if isinstance(stored_payload, str):
+            stored_payload = json.loads(stored_payload)
+        if stored_payload != payload:
+            raise MigrationError("MIGRATION_MAPPING_CONFLICT")
+
+    def has_mapping(self, subject_key: str) -> bool:
+        row = self.connection.execute(
+            """
+            SELECT 1 FROM ops.audit_events
+            WHERE event_type = 'legacy_migration.accepted' AND subject_key = %s
+            """,
+            (subject_key,),
+        ).fetchone()
+        return row is not None
+
+
+def validate_local_app_dsn(dsn: str, expected_database: str) -> str:
+    """Require the reviewed local wow_app/PGPASS transport identity."""
+
+    if not isinstance(dsn, str) or any(character.isspace() for character in dsn):
+        raise ValueError("database DSN is not the reviewed local wow_app identity")
+    try:
+        parsed = urlsplit(dsn)
+        port = parsed.port
+    except ValueError as error:
+        raise ValueError("database DSN is not the reviewed local wow_app identity") from error
+    name = unquote(parsed.path.lstrip("/"))
+    if (
+        parsed.scheme not in {"postgres", "postgresql"}
+        or parsed.username != "wow_app"
+        or parsed.password is not None
+        or parsed.hostname != "127.0.0.1"
+        or port != 5432
+        or parsed.query
+        or parsed.fragment
+        or name != expected_database
+        or DATABASE_NAME.fullmatch(name) is None
+    ):
+        raise ValueError("database DSN is not the reviewed local wow_app identity")
+    return name
+
+
+def _timestamp_text(value: Any) -> str:
+    if isinstance(value, datetime):
+        parsed = value
+    else:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def _write_report(path: Path, payload: Mapping[str, Any]) -> None:
+    report_path = Path(path)
+    if not report_path.is_absolute() or report_path.exists() or report_path.is_symlink():
+        raise ValueError("report path must be a new absolute file")
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    descriptor = os.open(report_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(descriptor, "w", encoding="utf-8") as output:
+        json.dump(payload, output, ensure_ascii=True, sort_keys=True, separators=(",", ":"))
+        output.write("\n")
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Run the redacted PostgreSQL legacy product migration")
+    parser.add_argument("--mode", choices=("full", "delta"), required=True)
+    parser.add_argument("--source-dsn-env", default="CHICKENBRO_LEGACY_SOURCE_DATABASE_URL")
+    parser.add_argument("--target-dsn-env", default="WOW_DATABASE_URL")
+    parser.add_argument("--approved-app-context-env", default="WOW_MIGRATION_WECHAT_APP_CONTEXT")
+    parser.add_argument("--expected-source-database", default="wow_test")
+    parser.add_argument("--expected-target-database", required=True)
+    parser.add_argument("--from-watermark")
+    parser.add_argument("--report-path", type=Path, required=True)
+    return parser
+
+
+def _migration_payload(
+    report: MigrationReport,
+    reconciliation: ReconciliationReport,
+    *,
+    captured_watermark: str,
+    source_database: str,
+    target_database: str,
+) -> dict[str, Any]:
+    return {
+        "capturedWatermark": captured_watermark,
+        "sourceDatabase": source_database,
+        "sourceMode": "repeatable_read_read_only",
+        "targetDatabase": target_database,
+        "migration": report.to_public_dict(),
+        "reconciliation": reconciliation.to_public_dict(),
+    }
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
+    if not DATABASE_NAME.fullmatch(args.expected_source_database):
+        raise SystemExit("expected source database name is invalid")
+    if not DATABASE_NAME.fullmatch(args.expected_target_database):
+        raise SystemExit("expected target database name is invalid")
+    source_dsn = os.environ.get(args.source_dsn_env, "")
+    target_dsn = os.environ.get(args.target_dsn_env, "")
+    approved_app_context = os.environ.get(args.approved_app_context_env, "")
+    if not source_dsn or not target_dsn or not approved_app_context:
+        raise SystemExit("migration DSN/app-context environment is incomplete")
+    try:
+        validate_local_app_dsn(source_dsn, args.expected_source_database)
+        validate_local_app_dsn(target_dsn, args.expected_target_database)
+    except ValueError as error:
+        raise SystemExit(str(error)) from error
+    if source_dsn == target_dsn:
+        raise SystemExit("source and target DSNs must be distinct")
+
+    try:
+        import psycopg
+    except ImportError as error:  # pragma: no cover - exercised on the managed host
+        raise SystemExit("psycopg is required in the managed Chickenbro runtime") from error
+
+    with (
+        psycopg.connect(source_dsn, autocommit=True) as source,
+        psycopg.connect(target_dsn, autocommit=True) as target_connection,
+        source.transaction(),
+    ):
+        source.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
+        source_identity = source.execute(
+            "SELECT current_database(), current_setting('transaction_read_only')",
+        ).fetchone()
+        if source_identity != (args.expected_source_database, "on"):
+            raise MigrationError("SOURCE_READ_ONLY_IDENTITY_MISMATCH")
+        target_database = target_connection.execute("SELECT current_database()").fetchone()
+        if not target_database or target_database[0] != args.expected_target_database:
+            raise MigrationError("TARGET_DATABASE_IDENTITY_MISMATCH")
+        captured = source.execute("SELECT transaction_timestamp()").fetchone()[0]
+        captured_text = _timestamp_text(captured)
+        raw_rows = read_source_rows(source)
+        records = normalize_legacy_rows(raw_rows, approved_app_context=approved_app_context)
+        target = PostgresMigrationTarget(target_connection)
+        through = MigrationWatermark.through(captured_text)
+        with target_connection.transaction():
+            if args.mode == "full":
+                report = migrate_full(records, target, through)
+            else:
+                if not args.from_watermark:
+                    raise MigrationError("FROM_WATERMARK_REQUIRED")
+                report = migrate_delta(
+                    records,
+                    target,
+                    MigrationWatermark.through(args.from_watermark),
+                    through,
+                )
+            reconciliation = reconcile(records, target, report)
+            if reconciliation.status != "matched":
+                raise MigrationError("MIGRATION_RECONCILIATION_DIVERGED")
+
+    _write_report(
+        args.report_path,
+        _migration_payload(
+            report,
+            reconciliation,
+            captured_watermark=captured_text,
+            source_database=args.expected_source_database,
+            target_database=args.expected_target_database,
+        ),
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+
+
+__all__ = [
+    "PostgresMigrationTarget",
+    "normalize_legacy_rows",
+    "read_source_rows",
+    "validate_local_app_dsn",
+]

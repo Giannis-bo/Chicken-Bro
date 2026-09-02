@@ -15,6 +15,7 @@ import {
   type ClientAuthContext,
 } from './auth-context'
 import type { ApiResult, ApiStreamTask, ApiTransport, RequestData } from './transport'
+import { apiV2Path } from './api-v2-prefix'
 
 
 export const CHAT_STREAM_TIMEOUT_MS = 180000
@@ -113,7 +114,7 @@ export function createChatClient(transport: ApiTransport): ChatClient {
       if (listRequest.limit !== undefined) query.set('limit', String(listRequest.limit))
       const encoded = query.toString()
       return request(
-        `/api/v2/chat/conversations${encoded ? `?${encoded}` : ''}`,
+        apiV2Path(`/chat/conversations${encoded ? `?${encoded}` : ''}`),
         undefined,
         options,
         {
@@ -126,7 +127,7 @@ export function createChatClient(transport: ApiTransport): ChatClient {
 
     create(createRequest, options) {
       const data = createRequest.title === undefined ? {} : { title: createRequest.title }
-      return request('/api/v2/chat/conversations', data, options, {
+      return request(apiV2Path('/chat/conversations'), data, options, {
         method: 'POST',
         mutating: true,
         fallback: emptyConversation,
@@ -137,7 +138,7 @@ export function createChatClient(transport: ApiTransport): ChatClient {
     get(conversationId, options) {
       const id = boundedIdentifier(conversationId, 'conversation id')
       return request(
-        `/api/v2/chat/conversations/${encodeURIComponent(id)}`,
+        apiV2Path(`/chat/conversations/${encodeURIComponent(id)}`),
         undefined,
         options,
         {
@@ -174,7 +175,7 @@ export function createChatClient(transport: ApiTransport): ChatClient {
       const auth = clientAuthRequest(options.auth, { mutating: true })
       let rejected = false
       return requestSse(
-        `/api/v2/chat/conversations/${encodeURIComponent(id)}/messages/stream`,
+        apiV2Path(`/chat/conversations/${encodeURIComponent(id)}/messages/stream`),
         {
           method: 'POST',
           data: {
