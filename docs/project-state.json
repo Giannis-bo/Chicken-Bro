@@ -1,8 +1,40 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-08-28",
-  "activeMilestone": "taro_target_first_14_route_rebuild",
-  "featureIteration": "allowed_under_harness",
+  "updatedAt": "2026-09-02",
+  "activeMilestone": "chickenbro_simc_total_rebuild",
+  "featureIteration": "design_approved_written_spec_review_pending",
+  "targetProduct": {
+    "status": "design_approved_written_spec_review_pending",
+    "businessDomains": [
+      "chickenbro_chat",
+      "simc"
+    ],
+    "clients": [
+      "wechat_mini_program",
+      "web"
+    ],
+    "identityOwner": "identity.users.id",
+    "crossClientContract": "Independent Mini Bearer and Web HttpOnly sessions resolve to the same internal user_id; the server owns the shared Chat and SimC history.",
+    "design": "docs/superpowers/specs/2026-09-02-chickenbro-simc-total-rebuild-design.md",
+    "implementationAuthorized": false,
+    "productionCutoverAuthorized": false,
+    "destructiveCleanupAuthorized": false
+  },
+  "refactorInventory": {
+    "observedAt": "2026-09-02",
+    "status": "read_only_snapshot_refresh_required_before_mutation",
+    "currentRuntimeDatabase": "wow_test",
+    "targetRuntimeDatabase": "chickenbro_prod",
+    "currentRuntimeDatabaseApproxSize": "15GB",
+    "postgresqlApproxSize": "37GB",
+    "rootDiskUsedPercent": 88,
+    "rootDiskFreeApproxSize": "8.1GB",
+    "gearEvidenceDatabaseApproxSize": "21GB",
+    "capacityGate": "blocked_until_independent_legacy_cleanup_or_storage_expansion",
+    "legacyRuntime": "active_last_known_good_pending_candidate_and_user_acceptance",
+    "migrationMode": "explicit_owner_and_integrity_whitelist_with_one_read_only_delta",
+    "cleanupMode": "exact_keep_delete_migrate_manifest_after_backup_reference_and_restore_proof"
+  },
   "defaultLocalReleaseArtifact": "artifacts/releases/2026-07-23-observed-build-registry-cutover",
   "releaseResolution": {
     "ci": "task_scoped_pr_diff",
@@ -13,6 +45,13 @@
     "rejectsZeroOrMultipleTaskPackets": true
   },
   "activeContracts": [
+    {
+      "id": "chickenbro_simc_total_rebuild",
+      "path": "docs/superpowers/specs/2026-09-02-chickenbro-simc-total-rebuild-design.md",
+      "status": "design_approved_written_spec_review_pending",
+      "lifecycle": "active_direction",
+      "notes": "The only current product direction keeps Chickenbro Chat and SimC on WeChat Mini Program and Web, with independent client sessions mapped to one internal user_id. It does not yet authorize implementation, deployment, migration, cutover or destructive cleanup."
+    },
     {
       "id": "repo_native_harness_v0_6_4",
       "path": "docs/harness.md",
@@ -44,9 +83,9 @@
     {
       "id": "taro_target_first_14_route_rebuild",
       "path": "docs/plans/ui-reconstruction.md",
-      "status": "active",
-      "lifecycle": "active",
-      "notes": "Active Taro UI contract, including canonical gear API parity and fresh real WeChat acceptance."
+      "status": "legacy_last_known_good_pending_retirement",
+      "lifecycle": "active_runtime_baseline",
+      "notes": "The 14-route Taro UI is only a migration-time production and rollback baseline. It has no new implementation authority and will be removed after the two-tab client passes candidate, rollback and real cross-client acceptance."
     },
     {
       "id": "observed_build_registry_cutover",
@@ -487,8 +526,8 @@
   "controlPlaneConclusions": [
     {
       "domain": "ui_delivery",
-      "status": "active_unverified",
-      "activeContract": "docs/plans/ui-reconstruction.md",
+      "status": "legacy_runtime_active_target_two_tab_design_pending_implementation",
+      "activeContract": "docs/superpowers/specs/2026-09-02-chickenbro-simc-total-rebuild-design.md",
       "evidence": "docs/design/current-ui/runtime-review-status.json"
     },
     {

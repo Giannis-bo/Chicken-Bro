@@ -44,9 +44,9 @@ test('project-state is the single machine-readable current truth entry', () => {
   const state = readJson(projectStatePath)
 
   assert.equal(state.schemaVersion, 1)
-  assert.equal(state.updatedAt, '2026-08-28')
-  assert.equal(state.activeMilestone, 'taro_target_first_14_route_rebuild')
-  assert.equal(state.featureIteration, 'allowed_under_harness')
+  assert.equal(state.updatedAt, '2026-09-02')
+  assert.equal(state.activeMilestone, 'chickenbro_simc_total_rebuild')
+  assert.equal(state.featureIteration, 'design_approved_written_spec_review_pending')
   assert.equal(state.activeReleaseArtifact, undefined)
   assert.equal(state.defaultLocalReleaseArtifact, observedBuildRegistryRelease)
   assert.deepEqual(state.releaseResolution, {
@@ -57,6 +57,20 @@ test('project-state is the single machine-readable current truth entry', () => {
     requiresCleanVerificationHead: true,
     rejectsZeroOrMultipleTaskPackets: true,
   })
+  assert.deepEqual(state.targetProduct.businessDomains, ['chickenbro_chat', 'simc'])
+  assert.deepEqual(state.targetProduct.clients, ['wechat_mini_program', 'web'])
+  assert.equal(state.targetProduct.identityOwner, 'identity.users.id')
+  assert.equal(state.targetProduct.implementationAuthorized, false)
+  assert.equal(state.targetProduct.productionCutoverAuthorized, false)
+  assert.equal(state.targetProduct.destructiveCleanupAuthorized, false)
+  assert.equal(state.refactorInventory.currentRuntimeDatabase, 'wow_test')
+  assert.equal(state.refactorInventory.targetRuntimeDatabase, 'chickenbro_prod')
+  assert.equal(state.refactorInventory.rootDiskUsedPercent, 88)
+  assert.equal(state.refactorInventory.rootDiskFreeApproxSize, '8.1GB')
+  assert.equal(
+    state.refactorInventory.capacityGate,
+    'blocked_until_independent_legacy_cleanup_or_storage_expansion',
+  )
   const productionDomain = state.runtimeBaseline.uiRuntimeEvidence.productionRequestDomain
   assert.equal(productionDomain.status, 'candidate_release_gate_passed')
   assert.equal(productionDomain.candidateBackendOrigin, 'https://api.chickenbro.cloud')
@@ -95,6 +109,7 @@ test('project-state is the single machine-readable current truth entry', () => {
   assertUniqueById(state.historicalContracts, 'historicalContracts')
 
   const activeContractIds = new Set(state.activeContracts.map((entry) => entry.id))
+  assert.ok(activeContractIds.has('chickenbro_simc_total_rebuild'))
   assert.ok(activeContractIds.has('repo_native_harness_v0_6_4'))
   assert.ok(!activeContractIds.has('harness_v0_6_2_control_plane_cleanup'))
   assert.ok(activeContractIds.has('taro_target_first_14_route_rebuild'))
@@ -110,6 +125,20 @@ test('project-state is the single machine-readable current truth entry', () => {
   assert.ok(!activeContractIds.has('midnight_season_2_freshness_candidate'))
   assert.ok(!activeContractIds.has('midnight_season_2_official_api_fact_snapshot_plan'))
   assert.ok(!activeContractIds.has('midnight_season_2_three_sample_release_closure_design'))
+  const totalRebuild = state.activeContracts.find(
+    (entry) => entry.id === 'chickenbro_simc_total_rebuild',
+  )
+  const legacyTaroRuntime = state.activeContracts.find(
+    (entry) => entry.id === 'taro_target_first_14_route_rebuild',
+  )
+  assert.equal(totalRebuild?.status, 'design_approved_written_spec_review_pending')
+  assert.equal(
+    totalRebuild?.path,
+    'docs/superpowers/specs/2026-09-02-chickenbro-simc-total-rebuild-design.md',
+  )
+  assert.equal(totalRebuild?.lifecycle, 'active_direction')
+  assert.equal(legacyTaroRuntime?.status, 'legacy_last_known_good_pending_retirement')
+  assert.equal(legacyTaroRuntime?.lifecycle, 'active_runtime_baseline')
   const s2Candidate = state.historicalContracts.find(
     (entry) => entry.id === 'midnight_season_2_endgame_data_candidate',
   )
@@ -545,7 +574,7 @@ test('project-state is the single machine-readable current truth entry', () => {
   assert.match(simulatorContract, /Profile readiness and stat execution outcome are separate contracts/)
 })
 
-test('current truth has one conclusion for UI, PG read-model, Harness normalization and equipment simulator Phase 0-5', () => {
+test('current truth has one conclusion for target UI, PG read-model, Harness normalization and equipment simulator Phase 0-5', () => {
   const state = readJson(projectStatePath)
   const conclusions = state.controlPlaneConclusions
   const domains = conclusions.map((entry) => entry.domain)
@@ -553,12 +582,18 @@ test('current truth has one conclusion for UI, PG read-model, Harness normalizat
   assert.equal(new Set(domains).size, domains.length, 'control-plane conclusion domains should be unique')
 
   const byDomain = new Map(conclusions.map((entry) => [entry.domain, entry]))
-  assert.equal(byDomain.get('ui_delivery').status, 'active_unverified')
+  assert.equal(
+    byDomain.get('ui_delivery').status,
+    'legacy_runtime_active_target_two_tab_design_pending_implementation',
+  )
   assert.equal(byDomain.get('pg_read_model_phase4').status, 'completed')
   assert.equal(byDomain.get('project_harness_normalization').status, 'completed')
   assert.equal(byDomain.get('equipment_simulator_phase0_5').status, 'completed_live_verified')
 
-  assert.equal(byDomain.get('ui_delivery').activeContract, 'docs/plans/ui-reconstruction.md')
+  assert.equal(
+    byDomain.get('ui_delivery').activeContract,
+    'docs/superpowers/specs/2026-09-02-chickenbro-simc-total-rebuild-design.md',
+  )
   assert.equal(byDomain.get('pg_read_model_phase4').activeContract, null)
   assert.equal(byDomain.get('project_harness_normalization').activeContract, null)
   assert.equal(byDomain.get('equipment_simulator_phase0_5').activeContract, null)
@@ -566,15 +601,15 @@ test('current truth has one conclusion for UI, PG read-model, Harness normalizat
 
 test('roadmap stays a concise current control plane without PR-level execution history', () => {
   const roadmap = fs.readFileSync('docs/roadmap.md', 'utf8')
-  assert.match(roadmap, /双端精简架构骨架/)
-  assert.match(roadmap, /旧 14 路由 UI 与 S2 Catalog 扩展/)
-  assert.match(roadmap, /当前生产 14 路由/)
-  assert.match(roadmap, /微信双端 Identity/)
-  assert.match(roadmap, /Raider\.IO\/WCL 到 SimC/)
-  assert.match(roadmap, /至暗之夜 S2 End Game 数据候选/)
-  assert.match(roadmap, /canonical resolver/)
+  assert.match(roadmap, /双端彻底重构设计/)
+  assert.match(roadmap, /项目只保留两个业务域/)
+  assert.match(roadmap, /共享全部有效会话、消息、SimC 快照、任务和结果/)
+  assert.match(roadmap, /旧 14 路由、prototype bypass、旧数据刷新链/)
+  assert.match(roadmap, /Web 小程序确认登录/)
+  assert.match(roadmap, /chickenbro_prod/)
+  assert.match(roadmap, /Legacy 彻底退役/)
   assert.doesNotMatch(roadmap, /Phase 4 第[一二三四五六七八九十]+刀/)
-  assert.ok(roadmap.split('\n').length <= 150)
+  assert.ok(roadmap.split('\n').length <= 100)
 })
 
 test('real WeChat interaction verification cannot wait forever inside one route', () => {
@@ -1193,7 +1228,7 @@ test('superseded execution documents are absent while the blocked S2 record rema
   assert.doesNotMatch(uiPlan, /historical commit|历史 commit|候选 `taro-|PR #91 协调收口/)
 })
 
-test('current documentation follows the active Taro and Harness control plane', () => {
+test('current documentation follows the Chickenbro-SimC target and Harness control plane', () => {
   const readme = fs.readFileSync('README.md', 'utf8')
   const docsMap = fs.readFileSync('docs/README.md', 'utf8')
   const harness = fs.readFileSync('docs/harness.md', 'utf8')
@@ -1208,9 +1243,10 @@ test('current documentation follows the active Taro and Harness control plane', 
   assert.match(docsMap, /cdn-asset-publishing\.md/)
   assert.match(docsMap, /gear-attribute-rule-source-ledger\.md/)
   assert.ok(harness.indexOf('docs/project-state.json') < harness.indexOf('docs/roadmap.md'))
-  assert.match(roadmap, /\| 正在推进 \| 双端精简架构骨架 \|/)
-  assert.match(roadmap, /\| 暂缓 \| 旧 14 路由 UI 与 S2 Catalog 扩展 \|/)
-  assert.match(roadmap, /S2 End Game 数据候选[\s\S]*`blocked`/)
+  assert.match(roadmap, /\| 正在推进 \| 控制面与清理清单 \|/)
+  assert.match(roadmap, /\| 下一步 \| 干净数据面与 Identity \|/)
+  assert.match(roadmap, /legacy 生产 \| `Active \/ last-known-good`/)
+  assert.match(roadmap, /Active Manifest\/S2 \| `legacy 冻结`/)
   assert.match(newsArchitecture, /apps\/mini-taro/)
   assert.doesNotMatch(newsArchitecture, /接入域名、HTTPS、微信合法域名配置/)
   assert.match(buildsArchitecture, /apps\/mini-taro/)
