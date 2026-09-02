@@ -27,7 +27,7 @@ Environment=WOW_CODEX_BIN=/usr/local/bin/codex
 Environment=WOW_CODEX_HOME=/home/ubuntu/.codex
 Environment=WOW_CODEX_JOBS_DIR=/var/lib/chickenbro/candidate-codex-jobs
 Environment=WOW_CODEX_SANDBOX=read-only
-Environment=WOW_CODEX_PROFILE=chickenbro-native
+Environment=WOW_CODEX_PROFILE=chickenbro-candidate
 Environment=WOW_CHICKENBRO_CODEX_ENABLED=1
 Environment=WOW_SIMC_SUPPORTED_SPECS=shaman:elemental
 Environment=HTTPS_PROXY=http://127.0.0.1:7890

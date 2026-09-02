@@ -128,6 +128,7 @@ test('formal production and candidate services have separate roots, ports and se
   assert.match(productionApi, /WOW_APP_ENV=production/)
   assert.match(productionApi, /WOW_API_V2_HOST=127\.0\.0\.1/)
   assert.match(productionApi, /WOW_API_V2_PORT=8790/)
+  assert.match(productionApi, /WOW_CODEX_PROFILE=chickenbro-production/)
   assert.doesNotMatch(productionApi, /WOW_WEB_PROTOTYPE/)
   assert.match(productionApi, /pages\/auth\/web-login-confirm/)
 
@@ -141,6 +142,7 @@ test('formal production and candidate services have separate roots, ports and se
   assert.match(candidateApi, /WOW_APP_ENV=candidate/)
   assert.match(candidateApi, /WOW_API_V2_HOST=127\.0\.0\.1/)
   assert.match(candidateApi, /WOW_API_V2_PORT=8791/)
+  assert.match(candidateApi, /WOW_CODEX_PROFILE=chickenbro-candidate/)
   assert.match(candidateApi, /WOW_WEB_COOKIE_NAME=__Host-chickenbro-candidate-session/)
   assert.match(candidateApi, /WOW_WEB_CSRF_COOKIE_NAME=__Host-chickenbro-candidate-csrf/)
   assert.doesNotMatch(candidateApi, /WOW_WEB_PROTOTYPE/)
@@ -203,6 +205,10 @@ test('candidate deploy is content-addressed, candidate-only, reversible and exac
   assert.match(script, /WOW_WEB_AUTH_API_PREFIX="\$\{CANDIDATE_PREFIX\}"/)
   assert.match(script, /WOW_WEB_CSRF_COOKIE_NAME="__Host-chickenbro-candidate-csrf"/)
   assert.match(script, /CANDIDATE_PGPASSFILE="\/etc\/chickenbro-api-candidate\.pgpass"/)
+  assert.match(script, /CANDIDATE_CODEX_PROFILE="\/home\/\$\{REMOTE_USER\}\/\.codex\/chickenbro-candidate\.config\.toml"/)
+  assert.match(script, /candidate-codex-profile/)
+  assert.match(script, /CODEX_PROFILE_IDENTITY/)
+  assert.match(script, /__CHICKENBRO_RUNTIME_ROOT__/)
   assert.match(script, /WOW_DEPLOY_START_ASYNC_SYNCS="0"/)
   assert.match(script, /WOW_DEPLOY_START_ASYNC_SYNCS.*must remain 0/)
 

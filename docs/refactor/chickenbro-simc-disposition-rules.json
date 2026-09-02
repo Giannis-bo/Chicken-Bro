@@ -34,8 +34,10 @@
         "docs/refactor/chickenbro-simc-disposition-rules.json",
         "scripts/apply-chickenbro-simc-local-cleanup.js",
         "scripts/build-chickenbro-simc-refactor-inventory.js",
+        "tests/app_chickenbro_native_mcp_test.py",
         "tests/chickenbro-simc-local-cleanup.test.js",
-        "tests/chickenbro-simc-refactor-inventory.test.js"
+        "tests/chickenbro-simc-refactor-inventory.test.js",
+        "tests/prototype-retirement.test.js"
       ]
     },
     {
@@ -285,10 +287,13 @@
         "server/chickenbro-web.nginx",
         "server/chickenbro-worker-candidate.service",
         "server/chickenbro-worker.service",
+        "server/chickenbro_native_mcp.py",
+        "server/chickenbro_public_web_research.py",
         "server/chickenbro_simc_cloud_inventory.py",
         "server/cutover_chickenbro_lighthouse.sh",
         "server/deploy_chickenbro_candidate_lighthouse.sh",
-        "server/provision_chickenbro_database_lighthouse.sh"
+        "server/provision_chickenbro_database_lighthouse.sh",
+        "scripts/chickenbro-native-agent/chickenbro-native.config.toml.template"
       ]
     },
     {

@@ -128,7 +128,6 @@ class ChickenbroNativeMcpTest(unittest.TestCase):
         self.assertEqual(
             {
                 "research_public_web",
-                "inspect_current_mythic_plus_snapshot",
                 "query_warcraftlogs_report",
                 "query_raiderio_character",
             },
@@ -193,36 +192,6 @@ class ChickenbroNativeMcpTest(unittest.TestCase):
         self.assertFalse(response["result"].get("isError", False))
         self.assertEqual("verified", observed[0]["status"])
         self.assertEqual(["wcl.report"], observed[0]["evidenceRefs"])
-
-    def test_current_mythic_plus_snapshot_is_an_optional_role_comparison_not_a_fixed_answer(self):
-        module = importlib.import_module("server.chickenbro_native_mcp")
-        payload = {
-            "sourceName": "Community cache",
-            "sourceStatus": "synced",
-            "leaderboardUrl": "https://community.example/mythic-plus",
-            "checkedAt": "2026-08-05T12:00:00+00:00",
-            "seasonSlug": "season-current",
-            "region": "global",
-            "specAggregates": [
-                {"role": "healer", "classKey": "druid", "specKey": "restoration", "fullName": "Restoration Druid", "bestScore": 3210.5, "maxKeyLevel": 25, "sampleCount": 48},
-                {"role": "healer", "classKey": "paladin", "specKey": "holy", "fullName": "Holy Paladin", "bestScore": 3190, "maxKeyLevel": 24, "sampleCount": 41},
-                {"role": "tank", "classKey": "druid", "specKey": "guardian", "fullName": "Guardian Druid", "bestScore": 3300, "maxKeyLevel": 26, "sampleCount": 51},
-            ],
-        }
-
-        result = module.build_current_mythic_plus_snapshot_tool_result(
-            {"role": "healer"},
-            payload_loader=lambda: payload,
-        )
-
-        self.assertEqual("source_reference", result["status"])
-        self.assertEqual("healer", result["facts"][0]["role"])
-        self.assertEqual(
-            ["Restoration Druid", "Holy Paladin"],
-            [row["fullName"] for row in result["facts"][0]["rankedSpecs"]],
-        )
-        self.assertEqual(1, result["facts"][0]["rankedSpecs"][0]["placement"])
-        self.assertIn("snapshot", " ".join(result["limitations"]).lower())
 
     def test_stdio_mcp_converts_a_reader_exception_into_a_literal_partial_observation(self):
         module = importlib.import_module("server.chickenbro_native_mcp")

@@ -313,6 +313,17 @@ test('public activation and accepted-write sealing are separate monotonic gates'
   assert.doesNotMatch(script.slice(applyStart), /advance_state accepted_write/)
 })
 
+test('production cutover owns an isolated native Codex profile with rollback evidence', () => {
+  const script = readScript()
+
+  assert.match(script, /PRODUCTION_CODEX_PROFILE="\/home\/\$\{REMOTE_USER\}\/\.codex\/chickenbro-production\.config\.toml"/)
+  assert.match(script, /production-codex-profile/)
+  assert.match(script, /CODEX_PROFILE_IDENTITY/)
+  assert.match(script, /__CHICKENBRO_RUNTIME_ROOT__/)
+  assert.match(script, /server\/chickenbro_native_mcp\.py/)
+  assert.match(script, /server\/chickenbro_public_web_research\.py/)
+})
+
 test('accepted-write seal requires exact post-cutover real-user evidence', () => {
   const valid = runSealValidator()
   assert.equal(valid.status, 0, valid.stderr)

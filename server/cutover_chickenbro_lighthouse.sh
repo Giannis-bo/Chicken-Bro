@@ -37,6 +37,7 @@ PRODUCTION_API_ENV="/etc/chickenbro-api.env"
 PRODUCTION_SOURCE_ENV="/etc/chickenbro-source.env"
 PRODUCTION_WORKER_ENV="/etc/chickenbro-worker.env"
 PRODUCTION_PGPASSFILE="/etc/chickenbro-api.pgpass"
+PRODUCTION_CODEX_PROFILE="/home/${REMOTE_USER}/.codex/chickenbro-production.config.toml"
 LEGACY_API_ENV="/etc/wow-v2-api.env"
 LEGACY_SOURCE_ENV="/etc/wow-v2-source.env"
 WWW_NGINX_SITE="/etc/nginx/sites-available/wow-v2-web"
@@ -196,7 +197,10 @@ done
 
 validate_value REMOTE_HOST "${REMOTE_HOST}" '^[A-Za-z0-9_.:-]+$'
 validate_value REMOTE_USER "${REMOTE_USER}" '^[A-Za-z_][A-Za-z0-9_.-]*$'
+validate_value PRODUCTION_CODEX_PROFILE "${PRODUCTION_CODEX_PROFILE}" '^/home/[A-Za-z_][A-Za-z0-9_.-]*/\.codex/chickenbro-production\.config\.toml$'
 validate_value REMOTE_BACKUP_MANIFEST "${REMOTE_BACKUP_MANIFEST}" '^/[A-Za-z0-9_./-]+$'
+[[ "${PRODUCTION_CODEX_PROFILE}" == "/home/${REMOTE_USER}/.codex/chickenbro-production.config.toml" ]] \
+  || die "production Codex profile must belong to the remote service user"
 [[ "${REMOTE_BACKUP_MANIFEST}" == /* && "${REMOTE_BACKUP_MANIFEST}" != *".."* ]] \
   || die "invalid REMOTE_BACKUP_MANIFEST"
 [[ "${REMOTE_BACKUP_MANIFEST}" != /var/* && "${REMOTE_BACKUP_MANIFEST}" != /opt/* ]] \
@@ -309,8 +313,11 @@ for required in \
   server/migrations/product/0001_chickenbro_simc_core.sql \
   server/migrations/product/0002_chat_idempotent_replay.sql \
   server/migrations/product/postgres_legacy.py \
+  server/chickenbro_native_mcp.py \
+  server/chickenbro_public_web_research.py \
   server/chickenbro-api.service \
-  server/chickenbro-worker.service; do
+  server/chickenbro-worker.service \
+  scripts/chickenbro-native-agent/chickenbro-native.config.toml.template; do
   [[ -e "${REPO_ROOT}/${required}" ]] || die "missing production input: ${required}"
 done
 
@@ -647,10 +654,13 @@ git -C "${REPO_ROOT}" archive "${CANDIDATE_COMMIT}" -- \
   server/__init__.py \
   server/app \
   server/codex_worker.py \
+  server/chickenbro_native_mcp.py \
+  server/chickenbro_public_web_research.py \
   server/migrations/__init__.py \
   server/migrations/product \
   server/chickenbro-api.service \
-  server/chickenbro-worker.service | tar -xf - -C "${LOCAL_STAGE}"
+  server/chickenbro-worker.service \
+  scripts/chickenbro-native-agent/chickenbro-native.config.toml.template | tar -xf - -C "${LOCAL_STAGE}"
 mkdir -p "${LOCAL_STAGE}/apps/mini-taro/dist"
 cp -R "${REPO_ROOT}/apps/mini-taro/dist/h5" "${LOCAL_STAGE}/apps/mini-taro/dist/h5"
 cp -R "${REPO_ROOT}/apps/mini-taro/dist/weapp" "${LOCAL_STAGE}/apps/mini-taro/dist/weapp"
@@ -716,6 +726,7 @@ REMOTE_ENV=(
   "PRODUCTION_SOURCE_ENV=${PRODUCTION_SOURCE_ENV}"
   "PRODUCTION_WORKER_ENV=${PRODUCTION_WORKER_ENV}"
   "PRODUCTION_PGPASSFILE=${PRODUCTION_PGPASSFILE}"
+  "PRODUCTION_CODEX_PROFILE=${PRODUCTION_CODEX_PROFILE}"
   "LEGACY_API_ENV=${LEGACY_API_ENV}"
   "LEGACY_SOURCE_ENV=${LEGACY_SOURCE_ENV}"
   "WWW_NGINX_SITE=${WWW_NGINX_SITE}"
@@ -815,11 +826,14 @@ restore_file() {
   local target="$1"
   local label="$2"
   local mode="0600"
+  local owner="root"
+  local group="root"
   case "${label}" in
     *.service) mode="0644" ;;
+    production-codex-profile) owner="${REMOTE_USER}"; group="${REMOTE_USER}" ;;
   esac
   if [[ "$(<"${RUN_DIR}/${label}.state")" == "present" ]]; then
-    install --preserve-timestamps -o root -g root -m "${mode}" \
+    install --preserve-timestamps -o "${owner}" -g "${group}" -m "${mode}" \
       "${RUN_DIR}/${label}" "${target}"
   else
     rm -f -- "${target}"
@@ -881,6 +895,7 @@ pre_write_rollback() {
   restore_file "${PRODUCTION_SOURCE_ENV}" production-source.env
   restore_file "${PRODUCTION_WORKER_ENV}" production-worker.env
   restore_file "${PRODUCTION_PGPASSFILE}" production.pgpass
+  restore_file "${PRODUCTION_CODEX_PROFILE}" production-codex-profile
   install -o root -g root -m 0644 "${RUN_DIR}/www.nginx" "${WWW_NGINX_OWNER}"
   install -o root -g root -m 0644 "${RUN_DIR}/api.nginx" "${API_NGINX_OWNER}"
   if [[ -d "${PRODUCTION_ROOT}" ]]; then
@@ -952,7 +967,8 @@ handle_failure() {
   fi
   rm -f -- "${REMOTE_ARCHIVE}"
   rm -f -- "${PRODUCTION_PGPASSFILE}.new" "${PRODUCTION_API_ENV}.new" \
-    "${PRODUCTION_WORKER_ENV}.new" "${WEB_CURRENT_LINK}.new"
+    "${PRODUCTION_WORKER_ENV}.new" "${PRODUCTION_CODEX_PROFILE}.new-${RUN_ID}" \
+    "${WEB_CURRENT_LINK}.new"
   rm -f -- "${WWW_NGINX_OWNER:-/nonexistent}.cutover" "${API_NGINX_OWNER:-/nonexistent}.cutover"
   rm -rf -- "${STAGE_DIR}" "${CODE_NEW_DIR}"
   exit "${exit_code}"
@@ -1293,7 +1309,8 @@ for pair in \
   "${PRODUCTION_API_ENV}:production-api.env" \
   "${PRODUCTION_SOURCE_ENV}:production-source.env" \
   "${PRODUCTION_WORKER_ENV}:production-worker.env" \
-  "${PRODUCTION_PGPASSFILE}:production.pgpass"; do
+  "${PRODUCTION_PGPASSFILE}:production.pgpass" \
+  "${PRODUCTION_CODEX_PROFILE}:production-codex-profile"; do
   source_path="${pair%%:*}"
   backup_label="${pair#*:}"
   if [[ -f "${source_path}" ]]; then
@@ -1479,6 +1496,35 @@ install -o root -g root -m 0600 "${PRODUCTION_PGPASSFILE}.new" "${PRODUCTION_PGP
 install -o root -g root -m 0600 "${LEGACY_SOURCE_ENV}" "${PRODUCTION_SOURCE_ENV}"
 rm -f "${PRODUCTION_API_ENV}.new" "${PRODUCTION_WORKER_ENV}.new" "${PRODUCTION_PGPASSFILE}.new"
 export PGPASSFILE="${PRODUCTION_PGPASSFILE}"
+CODEX_PROFILE_TEMPLATE="${PRODUCTION_ROOT}/scripts/chickenbro-native-agent/chickenbro-native.config.toml.template"
+CODEX_PROFILE_NEW="${PRODUCTION_CODEX_PROFILE}.new-${RUN_ID}"
+[[ -f "${CODEX_PROFILE_TEMPLATE}" ]] || die_remote "production Codex profile template is missing"
+install -d -o "${REMOTE_USER}" -g "${REMOTE_USER}" -m 0700 "$(dirname -- "${PRODUCTION_CODEX_PROFILE}")"
+python3 - "${CODEX_PROFILE_TEMPLATE}" "${PRODUCTION_ROOT}" "${CODEX_PROFILE_NEW}" <<'PY'
+import os
+import sys
+from pathlib import Path
+
+template_path, runtime_root, output_path = map(Path, sys.argv[1:])
+source = template_path.read_text(encoding="utf-8")
+placeholder = "__CHICKENBRO_RUNTIME_ROOT__"
+if source.count(placeholder) != 2:
+    raise SystemExit("production Codex profile template placeholder count is invalid")
+rendered = source.replace(placeholder, runtime_root.as_posix())
+expected_script = f"{runtime_root.as_posix()}/server/chickenbro_native_mcp.py"
+if (
+    f'args = ["{expected_script}"]' not in rendered
+    or f'cwd = "{runtime_root.as_posix()}"' not in rendered
+    or placeholder in rendered
+):
+    raise SystemExit("production Codex profile ownership is invalid")
+descriptor = os.open(output_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+with os.fdopen(descriptor, "w", encoding="utf-8") as output:
+    output.write(rendered)
+PY
+install -o "${REMOTE_USER}" -g "${REMOTE_USER}" -m 0600 "${CODEX_PROFILE_NEW}" "${PRODUCTION_CODEX_PROFILE}"
+rm -f "${CODEX_PROFILE_NEW}"
+CODEX_PROFILE_IDENTITY="$(sha256sum "${PRODUCTION_CODEX_PROFILE}" | awk '{print $1}')"
 install -o root -g root -m 0644 "${PRODUCTION_ROOT}/server/chickenbro-api.service" \
   "/etc/systemd/system/${PRODUCTION_API_SERVICE}.service"
 install -o root -g root -m 0644 "${PRODUCTION_ROOT}/server/chickenbro-worker.service" \
@@ -1651,7 +1697,7 @@ DEPLOYED_MANIFEST_IDENTITY="$(sha256sum "${PRODUCTION_ROOT}/deploy-manifest.sha2
 export RUN_ID WRITE_FENCE_AT FULL_WATERMARK DELTA_WATERMARK WRITE_AUTHORITY_BOUNDARY_AT
 export FULL_MIGRATION_REPORT_SHA256 DELTA_MIGRATION_REPORT_SHA256
 export API_SERVICE_IDENTITY WORKER_SERVICE_IDENTITY WWW_NGINX_IDENTITY API_NGINX_IDENTITY
-export DEPLOYED_MANIFEST_IDENTITY SOURCE_DATABASE_READ_ONLY MIGRATION_IDS CUTOVER_EVIDENCE
+export DEPLOYED_MANIFEST_IDENTITY CODEX_PROFILE_IDENTITY SOURCE_DATABASE_READ_ONLY MIGRATION_IDS CUTOVER_EVIDENCE
 export CANDIDATE_EVIDENCE_SHA REAL_ACCEPTANCE_SHA REVIEWED_INVENTORY_SHA REVIEWED_BACKUP_MANIFEST_SHA
 export CANDIDATE_COMMIT PRODUCTION_WEB_BUILD_IDENTITY PRODUCTION_WEAPP_BUILD_IDENTITY
 python3 - <<'PY'
@@ -1684,6 +1730,7 @@ payload = {
     "deployedManifestSha256": os.environ["DEPLOYED_MANIFEST_IDENTITY"],
     "apiServiceIdentity": os.environ["API_SERVICE_IDENTITY"],
     "workerServiceIdentity": os.environ["WORKER_SERVICE_IDENTITY"],
+    "codexProfileIdentity": os.environ["CODEX_PROFILE_IDENTITY"],
     "webBuildIdentity": os.environ["PRODUCTION_WEB_BUILD_IDENTITY"],
     "weappBuildIdentity": os.environ["PRODUCTION_WEAPP_BUILD_IDENTITY"],
     "wwwNginxIdentity": os.environ["WWW_NGINX_IDENTITY"],

@@ -23,6 +23,7 @@ CANDIDATE_API_ENV="/etc/chickenbro-api-candidate.env"
 CANDIDATE_SOURCE_ENV="/etc/chickenbro-source-candidate.env"
 CANDIDATE_PGPASSFILE="/etc/chickenbro-api-candidate.pgpass"
 CANDIDATE_WORKER_ENV="/etc/chickenbro-worker-candidate.env"
+CANDIDATE_CODEX_PROFILE="/home/${REMOTE_USER}/.codex/chickenbro-candidate.config.toml"
 RUNTIME_ROOT="/opt/chickenbro-runtime"
 EXISTING_RUNTIME_PYTHON="/opt/wow-mini-program/.venv-v2/bin/python"
 WWW_NGINX_SITE="/etc/nginx/sites-available/wow-v2-web"
@@ -133,9 +134,13 @@ validate_value REMOTE_USER "${REMOTE_USER}" '^[A-Za-z_][A-Za-z0-9_.-]*$'
 validate_value CANDIDATE_ROOT "${CANDIDATE_ROOT}" '^/[A-Za-z0-9_./-]+$'
 validate_value CANDIDATE_DATABASE "${CANDIDATE_DATABASE}" '^chickenbro_candidate$'
 validate_value CANDIDATE_PORT "${CANDIDATE_PORT}" '^[0-9]+$'
+validate_value CANDIDATE_CODEX_PROFILE "${CANDIDATE_CODEX_PROFILE}" '^/home/[A-Za-z_][A-Za-z0-9_.-]*/\.codex/chickenbro-candidate\.config\.toml$'
 validate_value REMOTE_BACKUP_MANIFEST "${REMOTE_BACKUP_MANIFEST}" '^/[A-Za-z0-9_./-]+$'
 reject_path_traversal CANDIDATE_ROOT "${CANDIDATE_ROOT}"
+reject_path_traversal CANDIDATE_CODEX_PROFILE "${CANDIDATE_CODEX_PROFILE}"
 reject_path_traversal REMOTE_BACKUP_MANIFEST "${REMOTE_BACKUP_MANIFEST}"
+[[ "${CANDIDATE_CODEX_PROFILE}" == "/home/${REMOTE_USER}/.codex/chickenbro-candidate.config.toml" ]] \
+  || die "candidate Codex profile must belong to the remote service user"
 [[ "${REMOTE_BACKUP_MANIFEST}" != /var/* && "${REMOTE_BACKUP_MANIFEST}" != /opt/* ]] \
   || die "backup manifest must be on the reviewed independent backup mount"
 
@@ -215,10 +220,13 @@ for required in \
   server/migrations/product/0002_chat_idempotent_replay.sql \
   server/migrations/product/postgres_legacy.py \
   server/accept_chickenbro_candidate.py \
+  server/chickenbro_native_mcp.py \
+  server/chickenbro_public_web_research.py \
   server/chickenbro-api.service \
   server/chickenbro-api-candidate.service \
   server/chickenbro-worker.service \
   server/chickenbro-worker-candidate.service \
+  scripts/chickenbro-native-agent/chickenbro-native.config.toml.template \
   server/chickenbro-web.nginx; do
   [[ -e "${REPO_ROOT}/${required}" ]] || die "missing candidate input: ${required}"
 done
@@ -262,6 +270,7 @@ REMOTE_ENV=(
   "CANDIDATE_SOURCE_ENV=${CANDIDATE_SOURCE_ENV}"
   "CANDIDATE_PGPASSFILE=${CANDIDATE_PGPASSFILE}"
   "CANDIDATE_WORKER_ENV=${CANDIDATE_WORKER_ENV}"
+  "CANDIDATE_CODEX_PROFILE=${CANDIDATE_CODEX_PROFILE}"
   "RUNTIME_ROOT=${RUNTIME_ROOT}"
   "EXISTING_RUNTIME_PYTHON=${EXISTING_RUNTIME_PYTHON}"
   "WWW_NGINX_SITE=${WWW_NGINX_SITE}"
@@ -556,12 +565,15 @@ git -C "${REPO_ROOT}" archive "${EXPECTED_COMMIT}" -- \
   server/app \
   server/codex_worker.py \
   server/accept_chickenbro_candidate.py \
+  server/chickenbro_native_mcp.py \
+  server/chickenbro_public_web_research.py \
   server/migrations/__init__.py \
   server/migrations/product \
   server/chickenbro-api.service \
   server/chickenbro-api-candidate.service \
   server/chickenbro-worker.service \
   server/chickenbro-worker-candidate.service \
+  scripts/chickenbro-native-agent/chickenbro-native.config.toml.template \
   server/chickenbro-web.nginx | tar -xf - -C "${LOCAL_STAGE}"
 mkdir -p "${LOCAL_STAGE}/apps/mini-taro/dist"
 cp -R "${REPO_ROOT}/apps/mini-taro/dist/h5" "${LOCAL_STAGE}/apps/mini-taro/dist/h5"
@@ -675,6 +687,7 @@ rollback_candidate() {
     restore_file "${BACKUP_DIR}/candidate-source.env" "${BACKUP_DIR}/candidate-source.env.state" "${CANDIDATE_SOURCE_ENV}"
     restore_file "${BACKUP_DIR}/candidate.pgpass" "${BACKUP_DIR}/candidate.pgpass.state" "${CANDIDATE_PGPASSFILE}"
     restore_file "${BACKUP_DIR}/worker.env" "${BACKUP_DIR}/worker.env.state" "${CANDIDATE_WORKER_ENV}"
+    restore_file "${BACKUP_DIR}/candidate-codex-profile" "${BACKUP_DIR}/candidate-codex-profile.state" "${CANDIDATE_CODEX_PROFILE}"
     cp --preserve=mode,ownership "${BACKUP_DIR}/www.nginx" "${WWW_NGINX_OWNER}"
     cp --preserve=mode,ownership "${BACKUP_DIR}/api.nginx" "${API_NGINX_OWNER}"
     if [[ "$(<"${BACKUP_DIR}/web-current.state")" == "present" ]]; then
@@ -727,6 +740,7 @@ rollback_candidate() {
     printf '%s\n' 'rollback_attempted_requires_operator_verification' > "${BACKUP_DIR}/ROLLBACK_STATE"
   fi
   rm -f "${MIGRATION_REPORT_TMP}" "${AUTOMATED_ACCEPTANCE_TMP}"
+  rm -f "${CANDIDATE_CODEX_PROFILE}.new-${RUN_ID}"
   rm -f "${REMOTE_ARCHIVE}"
   rm -rf "${STAGE_DIR}" "${CODE_NEW_DIR}"
   exit "${exit_code}"
@@ -757,7 +771,8 @@ for pair in \
   "${CANDIDATE_API_ENV}:candidate-api.env" \
   "${CANDIDATE_SOURCE_ENV}:candidate-source.env" \
   "${CANDIDATE_PGPASSFILE}:candidate.pgpass" \
-  "${CANDIDATE_WORKER_ENV}:worker.env"; do
+  "${CANDIDATE_WORKER_ENV}:worker.env" \
+  "${CANDIDATE_CODEX_PROFILE}:candidate-codex-profile"; do
   source_path="${pair%%:*}"
   backup_name="${pair#*:}"
   if [[ -f "${source_path}" ]]; then
@@ -966,6 +981,36 @@ payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
 if payload.get("reconciliation", {}).get("status") != "matched":  # reconciliation must be matched
     raise SystemExit("candidate migration reconciliation is not matched")
 PY
+
+CODEX_PROFILE_TEMPLATE="${CANDIDATE_ROOT}/scripts/chickenbro-native-agent/chickenbro-native.config.toml.template"
+CODEX_PROFILE_NEW="${CANDIDATE_CODEX_PROFILE}.new-${RUN_ID}"
+[[ -f "${CODEX_PROFILE_TEMPLATE}" ]] || die_remote "candidate Codex profile template is missing"
+install -d -o "${REMOTE_USER}" -g "${REMOTE_USER}" -m 0700 "$(dirname -- "${CANDIDATE_CODEX_PROFILE}")"
+python3 - "${CODEX_PROFILE_TEMPLATE}" "${CANDIDATE_ROOT}" "${CODEX_PROFILE_NEW}" <<'PY'
+import os
+import sys
+from pathlib import Path
+
+template_path, runtime_root, output_path = map(Path, sys.argv[1:])
+source = template_path.read_text(encoding="utf-8")
+placeholder = "__CHICKENBRO_RUNTIME_ROOT__"
+if source.count(placeholder) != 2:
+    raise SystemExit("candidate Codex profile template placeholder count is invalid")
+rendered = source.replace(placeholder, runtime_root.as_posix())
+expected_script = f"{runtime_root.as_posix()}/server/chickenbro_native_mcp.py"
+if (
+    f'args = ["{expected_script}"]' not in rendered
+    or f'cwd = "{runtime_root.as_posix()}"' not in rendered
+    or placeholder in rendered
+):
+    raise SystemExit("candidate Codex profile ownership is invalid")
+descriptor = os.open(output_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+with os.fdopen(descriptor, "w", encoding="utf-8") as output:
+    output.write(rendered)
+PY
+install -o "${REMOTE_USER}" -g "${REMOTE_USER}" -m 0600 "${CODEX_PROFILE_NEW}" "${CANDIDATE_CODEX_PROFILE}"
+rm -f "${CODEX_PROFILE_NEW}"
+CODEX_PROFILE_IDENTITY="$(sha256sum "${CANDIDATE_CODEX_PROFILE}" | awk '{print $1}')"
 
 install -o root -g root -m 0644 "${CANDIDATE_ROOT}/server/chickenbro-api-candidate.service" \
   "/etc/systemd/system/${CANDIDATE_API_SERVICE}.service"
@@ -1231,7 +1276,7 @@ ROLLBACK_MANIFEST_SHA256="$(sha256sum "${ROLLBACK_MANIFEST}" | awk '{print $1}')
 
 export EXPECTED_COMMIT SOURCE_ARCHIVE_SHA256 SOURCE_MANIFEST_SHA256 DEPLOYED_MANIFEST_SHA256
 export REVIEWED_INVENTORY_SHA REVIEWED_BACKUP_MANIFEST_SHA
-export DATABASE_MIGRATION_IDS API_SERVICE_IDENTITY CANDIDATE_WORKER_SERVICE_IDENTITY CODEX_RUNTIME_IDENTITY SIMC_RUNTIME_IDENTITY
+export DATABASE_MIGRATION_IDS API_SERVICE_IDENTITY CANDIDATE_WORKER_SERVICE_IDENTITY CODEX_RUNTIME_IDENTITY CODEX_PROFILE_IDENTITY SIMC_RUNTIME_IDENTITY
 export WEB_BUILD_IDENTITY WEAPP_BUILD_IDENTITY WWW_NGINX_IDENTITY API_NGINX_IDENTITY
 export AUTOMATED_ACCEPTANCE_REPORT AUTOMATED_ACCEPTANCE_SHA256
 export READINESS_SUMMARY READINESS_SUMMARY_SHA256 READINESS_OVERALL_STATUS
@@ -1261,6 +1306,7 @@ payload = {
     "candidateWorkerServiceIdentity": os.environ["CANDIDATE_WORKER_SERVICE_IDENTITY"],
     "legacyCandidateServiceRetired": True,
     "codexRuntimeIdentity": os.environ["CODEX_RUNTIME_IDENTITY"],
+    "codexProfileIdentity": os.environ["CODEX_PROFILE_IDENTITY"],
     "simcRuntimeIdentity": os.environ["SIMC_RUNTIME_IDENTITY"],
     "webBuildIdentity": os.environ["WEB_BUILD_IDENTITY"],
     "weappBuildIdentity": os.environ["WEAPP_BUILD_IDENTITY"],
