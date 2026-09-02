@@ -105,6 +105,12 @@
       "detail": "The snapshot is reachable and probe-error free, but it does not prove sufficient coexistence capacity or independent recovery."
     },
     {
+      "type": "cloud_read_only_block_device_probe",
+      "status": "blocked",
+      "observedAt": "2026-09-02T15:59:02Z",
+      "detail": "lsblk/findmnt over the authorized SSH path found one 75,161,927,680-byte vda disk with /dev/vda2 mounted at / and no second block device or independent data/backup mount. No cloud state was changed."
+    },
+    {
       "type": "provisioning_dry_run",
       "status": "pass",
       "detail": "The fixed-target script remained local and mutation-free and returned the literal capacity blocker."

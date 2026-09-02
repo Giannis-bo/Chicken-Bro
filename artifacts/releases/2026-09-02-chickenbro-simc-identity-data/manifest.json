@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-09-02T15:55:59.875Z",
+  "generatedAt": "2026-09-02T15:59:42.338Z",
   "release": {
     "date": "2026-09-02",
     "slug": "chickenbro-simc-identity-data"
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-09-02-chickenbro-simc-identity-data/evidence.json",
-    "sizeBytes": 9752,
+    "sizeBytes": 10105,
     "requiredFields": [
       "schemaVersion",
       "slug",
