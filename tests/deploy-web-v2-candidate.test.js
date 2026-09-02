@@ -32,6 +32,7 @@ test('candidate deployment has a separate API service, database and source tree'
   assert.match(script, /chmod 0600 "\$\{BACKUP_DIR\}\/candidate-database\.dump"/)
   assert.match(script, /wow-v2-candidate\.locations\.nginx" www-static/)
   assert.match(script, /wow-v2-candidate-api\.locations\.nginx" api-proxy/)
+  assert.match(script, /PGPASSFILE=%s.*CANDIDATE_PGPASSFILE/)
   assert.ok(
     script.indexOf('wow-v2-api-candidate.service" \\\n  "/etc/systemd/system/${CANDIDATE_SERVICE}.service') < script.indexOf('systemctl enable "${CANDIDATE_SERVICE}"'),
     'candidate unit must be installed before systemd enable',

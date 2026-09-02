@@ -357,7 +357,7 @@ cp -a "${STAGE_DIR}/apps/mini-taro/dist/h5/." "${WEB_RELEASE_DIR}/"
 ln -sfn "${WEB_RELEASE_DIR}" "${WEB_CURRENT_LINK}"
 
 ENV_TMP="$(mktemp)"
-printf 'PGPASSFILE=%s\n' "${PGPASSFILE:-}" > "${ENV_TMP}"
+printf 'PGPASSFILE=%s\n' "${CANDIDATE_PGPASSFILE}" > "${ENV_TMP}"
 printf 'WOW_DATABASE_URL=%s\n' "${CANDIDATE_DSN}" >> "${ENV_TMP}"
 printf 'WOW_WECHAT_APPID=%s\n' "${WOW_WECHAT_APPID}" >> "${ENV_TMP}"
 printf 'WOW_WECHAT_SECRET=%s\n' "${WOW_WECHAT_SECRET}" >> "${ENV_TMP}"
