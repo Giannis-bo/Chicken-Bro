@@ -136,7 +136,7 @@ git add docs/refactor/chickenbro-simc-disposition-rules.json \
 git commit -m "chore: define Chickenbro SimC inventory owners"
 ```
 
-- [ ] **Step 5: Generate and validate the exact inventory from clean HEAD**
+- [x] **Step 5: Generate and validate the exact inventory from clean HEAD**
 
 Run:
 
@@ -150,7 +150,7 @@ node --test tests/chickenbro-simc-refactor-inventory.test.js
 
 Expected: tests PASS; the generated JSON has `unresolvedCount: 0`, a full 40-character `generatedFromCommit`, per-entry SHA-256 for files, stable sorted entries, and `excludedSelfPath: "docs/refactor/chickenbro-simc-refactor-inventory.json"`.
 
-- [ ] **Step 6: Commit the generated inventory**
+- [x] **Step 6: Commit the generated inventory**
 
 ```bash
 git add docs/refactor/chickenbro-simc-refactor-inventory.json
