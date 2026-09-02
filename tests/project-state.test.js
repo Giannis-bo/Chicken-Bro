@@ -110,6 +110,19 @@ test('project-state is the single machine-readable current truth entry', () => {
   )
   assertPathExists(state.refactorInventory.localManifest)
   assertPathExists(state.refactorInventory.cloudSnapshot)
+  assert.equal(
+    state.refactorInventory.recoveryInventory,
+    'docs/refactor/chickenbro-simc-recovery-inventory.json',
+  )
+  assertPathExists(state.refactorInventory.recoveryInventory)
+  assert.equal(
+    state.refactorInventory.recoveryInventoryObservedAt,
+    '2026-09-02T16:49:55Z',
+  )
+  assert.equal(
+    state.refactorInventory.recoveryInventoryStatus,
+    'one_stale_system_snapshot_no_restore_no_independent_mount_or_object_storage_client',
+  )
   assert.equal(state.refactorInventory.rootDiskUsedPercent, 84)
   assert.equal(state.refactorInventory.rootDiskFreeApproxSize, '8.58GB')
   assert.equal(

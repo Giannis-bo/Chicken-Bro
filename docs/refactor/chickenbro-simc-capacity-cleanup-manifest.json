@@ -7,11 +7,12 @@
   "totalCandidateBytes": 22533484636,
   "independentRecovery": {
     "status": "missing",
-    "reason": "The Lighthouse host has one 75161927680-byte vda disk and only /dev/vda2 mounted at root. No independent archive plus completed restore identity exists."
+    "reason": "The Lighthouse host has one 75161927680-byte vda disk and only /dev/vda2 mounted at root. The only visible provider snapshot predates the current database inventory and has no restore verification; no independent archive plus completed restore identity exists."
   },
   "evidence": {
     "capacityInventory": "docs/refactor/chickenbro-simc-cloud-inventory.json",
     "capacityInventorySha256": "1466a227e882125ddd342c9518025b583b7bbead80dabb193f29997ff41e80c6",
+    "recoveryInventory": "docs/refactor/chickenbro-simc-recovery-inventory.json",
     "liveProbeTransport": "authorized read-only SSH",
     "blockDevices": [
       {

@@ -6,7 +6,7 @@
 
 ## 当前事实
 
-最新脱敏快照：[chickenbro-simc-cloud-inventory.json](refactor/chickenbro-simc-cloud-inventory.json)
+最新脱敏快照：[chickenbro-simc-cloud-inventory.json](refactor/chickenbro-simc-cloud-inventory.json)；恢复通道只读清单：[chickenbro-simc-recovery-inventory.json](refactor/chickenbro-simc-recovery-inventory.json)
 
 | 项目 | 2026-09-02T13:43:05Z 只读结果 |
 | --- | ---: |
@@ -18,8 +18,10 @@
 | 数据库数量 | 31 |
 | `wow-*` unit 数量 | 32 |
 | 容量门禁 | `blocked_until_independent_legacy_cleanup_or_storage_expansion` |
+| provider snapshot | 仅 1 个，创建于 2026-03-17；早于当前数据且 restore 未运行 |
+| 独立挂载/对象存储备份客户端 | 均未发现 |
 
-这些数字只说明快照时刻的资源状态。执行任何写入前必须刷新；旧快照、HTTP 200 或单个服务 active 不能解锁后续步骤。
+这些数字只说明盘点时刻的资源状态。执行任何写入前必须刷新；旧 provider snapshot、HTTP 200 或单个服务 active 不能解锁后续步骤。
 
 ## 绝对安全边界
 

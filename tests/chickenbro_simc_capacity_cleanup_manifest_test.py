@@ -22,6 +22,8 @@ class ChickenbroSimcCapacityCleanupManifestTest(unittest.TestCase):
         self.assertEqual(payload["mode"], "dry-run")
         self.assertFalse(payload["deletionAuthorized"])
         self.assertEqual(payload["independentRecovery"]["status"], "missing")
+        recovery_inventory = ROOT / payload["evidence"]["recoveryInventory"]
+        self.assertTrue(recovery_inventory.is_file())
         self.assertEqual(payload["totalCandidateBytes"], sum(EXPECTED_DATABASES.values()))
 
         candidates = {item["name"]: item for item in payload["candidates"]}

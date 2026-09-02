@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "status": "read_only_insufficient_for_cleanup_or_candidate",
+  "observedAt": "2026-09-02T16:49:55Z",
+  "source": {
+    "kind": "tencent_cloud_console_and_server_read_only_probe",
+    "instanceId": "lhins-dr6tkl63",
+    "region": "广州三区",
+    "consolePath": "/lighthouse/instance/detail?rid=1&id=lhins-dr6tkl63&tab=snapshot"
+  },
+  "mutationPerformed": false,
+  "providerSnapshots": {
+    "visibleCount": 1,
+    "pageStatement": "Snapshots back up the server system disk; the displayed free regional quota is twice the created instance count, capped at 20.",
+    "items": [
+      {
+        "id": "lhsnap-onimztpp",
+        "name": "Snapshot-20260317111222",
+        "status": "normal",
+        "diskAttribute": "system_disk",
+        "createdAt": "2026-03-17T11:12:24+08:00",
+        "containsCurrentDatabaseState": "unproven",
+        "restoreVerification": "not_run",
+        "usableForCurrentCleanup": false,
+        "reason": "The snapshot predates the current PostgreSQL inventory and no restore identity or restored database verification exists."
+      }
+    ]
+  },
+  "serverBackupChannels": {
+    "independentMountPresent": false,
+    "objectStorageClientConfigured": false,
+    "availableClientTools": [],
+    "checkedClientTools": [
+      "restic",
+      "rclone",
+      "coscmd",
+      "tccli",
+      "aws",
+      "mc",
+      "duplicity",
+      "borg",
+      "pgbackrest",
+      "wal-g"
+    ],
+    "pgBasebackupTemplate": {
+      "present": true,
+      "enabledInstanceCount": 0,
+      "requiredPath": "/var/backups/postgresql",
+      "requiredPathPresent": false,
+      "postgresDataDeviceId": 64770,
+      "backupParentDeviceId": 64770,
+      "independent": false
+    }
+  },
+  "conclusions": {
+    "currentIndependentBackup": false,
+    "successfulRestoreIdentity": false,
+    "candidateDatabaseProvisioningAuthorized": false,
+    "legacyDatabaseDeletionAuthorized": false,
+    "nextDecision": "Create and verify a fresh independent recovery target, or attach a separate data disk; the existing stale snapshot and same-device backup path do not satisfy the Phase 2 apply contract."
+  }
+}
