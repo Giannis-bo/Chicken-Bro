@@ -1,0 +1,158 @@
+{
+  "schemaVersion": 2,
+  "slug": "chickenbro-simc-identity-data",
+  "requirementSlug": "chickenbro-simc-identity-data",
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
+  "branch": "codex/chickenbro-simc-total-rebuild-design",
+  "commit": "63013000809bd46860d4d7ee5c8e97257afeaba5",
+  "identities": {
+    "runtime": {
+      "status": "pending",
+      "reason": "No isolated chickenbro_prod candidate exists. Capacity, independent backup and successful restore evidence still block candidate provisioning."
+    },
+    "verification": {
+      "status": "bound_at_check",
+      "kind": "git_ref",
+      "value": "HEAD"
+    },
+    "closure": {
+      "status": "pending",
+      "reason": "Phase 2 and the overall six-phase rebuild remain open until isolated candidate verification and all later phases complete."
+    }
+  },
+  "manualAcceptance": {
+    "required": false,
+    "status": "not_applicable",
+    "reason": "This packet records local schema, identity and security behavior only; real Mini/Web user acceptance belongs to the later candidate and cutover phases.",
+    "items": [],
+    "rollup": {
+      "total": 0,
+      "accepted": 0,
+      "notRunUserWaived": 0,
+      "pending": 0
+    }
+  },
+  "scope": [
+    "product-only PostgreSQL lineage with identity, chat, simc and ops owners",
+    "formal WeChat provider identity keyed by provider, app_context and provider_subject",
+    "independent Mini Bearer and Web Cookie sessions resolving to one internal user",
+    "unambiguous credential transport, exact Origin/Host and Web double-submit CSRF",
+    "redacted append-only authentication audit events",
+    "fixed-target capacity and independent-recovery guarded chickenbro_prod provisioning dry-run",
+    "Strict Phase 2 local evidence and literal candidate blocker"
+  ],
+  "verification": [
+    {
+      "command": "python3 -m unittest tests.product_schema_test tests.app_identity_application_test tests.app_identity_repository_test tests.app_identity_api_test tests.app_csrf_test -v",
+      "status": "pass",
+      "summary": "29 tests ran: 28 passed and the dedicated PostgreSQL integration test was explicitly skipped because WOW_PG_TEST_DSN_V2 is not configured. Static schema, migration runner, same-user session, cross-app isolation, conflict, revocation, mixed-auth, cookie, Origin/Host, CSRF and audit tests passed."
+    },
+    {
+      "command": "tests.product_schema_test.ProductSchemaIntegrationTest with WOW_PG_TEST_DSN_V2",
+      "status": "blocked",
+      "summary": "No isolated PostgreSQL target or psycopg-enabled approved test environment exists. This is a candidate gate, not a passing test."
+    },
+    {
+      "command": "node --test tests/provision-chickenbro-database.test.js",
+      "status": "pass",
+      "summary": "5 provisioning contract tests passed: fixed target, no destructive legacy operation, fail-closed apply gates, exact inventory SHA, mutation-free redacted dry-run and valid Bash syntax."
+    },
+    {
+      "command": "bash server/provision_chickenbro_database_lighthouse.sh --dry-run",
+      "status": "pass",
+      "summary": "The script read only repository state and emitted mutationAuthorized=false with blocked_until_independent_legacy_cleanup_or_storage_expansion, 8,583,778,304 root-free bytes and inventory SHA 1466a227e882125ddd342c9518025b583b7bbead80dabb193f29997ff41e80c6. It opened no PostgreSQL connection and wrote no backup or database."
+    },
+    {
+      "command": "python3 -m compileall -q server/app",
+      "status": "pass",
+      "summary": "The formal identity, audit, credential transport, CSRF, API wiring and application packages compile without syntax errors."
+    },
+    {
+      "command": "FastAPI TestClient and real PostgreSQL API integration",
+      "status": "blocked",
+      "summary": "The current host lacks FastAPI, Pydantic, httpx and psycopg, and dependency installation is outside the current approval. Dependency-free behavior tests and source wiring pass, but runtime integration remains unverified."
+    },
+    {
+      "command": "node scripts/project-harness.js --check-requirement --requirement-file artifacts/releases/2026-09-02-chickenbro-simc-identity-data/requirement.json",
+      "status": "pass",
+      "summary": "The Strict requirement remains implementation_allowed and preserves the capacity, independent recovery, production and destructive-cleanup boundaries."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "blocked",
+    "reason": "The reviewed cloud snapshot has only about 8.58 GB free, candidateDatabaseProvisioningAuthorized is false, and no independent backup device plus successful restore identity is recorded. The apply path was not invoked."
+  },
+  "runtimeEvidence": [
+    {
+      "type": "cloud_read_only_capacity_snapshot",
+      "status": "blocked",
+      "observedAt": "2026-09-02T13:43:05Z",
+      "snapshot": "docs/refactor/chickenbro-simc-cloud-inventory.json",
+      "snapshotFileSha256": "1466a227e882125ddd342c9518025b583b7bbead80dabb193f29997ff41e80c6",
+      "detail": "The snapshot is reachable and probe-error free, but it does not prove sufficient coexistence capacity or independent recovery."
+    },
+    {
+      "type": "provisioning_dry_run",
+      "status": "pass",
+      "detail": "The fixed-target script remained local and mutation-free and returned the literal capacity blocker."
+    }
+  ],
+  "risks": [
+    {
+      "id": "candidate-capacity-and-recovery",
+      "status": "blocked",
+      "detail": "chickenbro_prod cannot be provisioned until storage is expanded or independently recoverable legacy cleanup is completed, followed by a refreshed inventory and real restore evidence."
+    },
+    {
+      "id": "runtime-dependency-verification",
+      "status": "blocked",
+      "detail": "FastAPI and psycopg runtime behavior has not run on this dependency-free host; candidate verification must execute it in the approved runtime."
+    },
+    {
+      "id": "legacy-schema-compatibility",
+      "status": "expected",
+      "detail": "Legacy prototype methods and migration terminology remain physically present for the still-active rollback runtime and are not part of the clean product schema."
+    },
+    {
+      "id": "cloud-inventory-drift",
+      "status": "open",
+      "detail": "Any later apply requires a new inventory no more than six hours old and an exact reviewed SHA."
+    }
+  ],
+  "rollback": [
+    "code_rollback",
+    "data_restore",
+    "config_disable"
+  ],
+  "cleanup": {
+    "required": false,
+    "reason": "No candidate database, backup run, deployment, service or cloud path was created by this local phase. Legacy cleanup remains separately unauthorized."
+  },
+  "archivedReferences": [
+    "docs/project-state.json",
+    "docs/roadmap.md",
+    "docs/plans/README.md",
+    "docs/chickenbro-simc-architecture.md",
+    "docs/chickenbro-simc-production-runbook.md",
+    "docs/verification-matrix.md",
+    "docs/refactor/chickenbro-simc-cloud-inventory.json",
+    "docs/superpowers/specs/2026-09-02-chickenbro-simc-total-rebuild-design.md",
+    "docs/superpowers/plans/2026-09-02-chickenbro-simc-rebuild-02-identity-data.md",
+    "artifacts/releases/2026-09-02-chickenbro-simc-control-plane/evidence.json",
+    "artifacts/releases/2026-09-02-chickenbro-simc-identity-data/requirement.json"
+  ],
+  "nonClaims": {
+    "candidateDatabase": "NOT_CREATED",
+    "candidateDeployment": "BLOCKED",
+    "productionDeployment": "NOT_RUN",
+    "productionDsnCutover": "NOT_AUTHORIZED",
+    "realWechatLogin": "NOT_ACCEPTED",
+    "crossClientChat": "NOT_IMPLEMENTED",
+    "crossClientSimc": "NOT_IMPLEMENTED",
+    "legacyCleanup": "NOT_AUTHORIZED",
+    "phase2Completion": "BLOCKED_PENDING_ISOLATED_CANDIDATE",
+    "overallGoal": "IN_PROGRESS"
+  },
+  "summary": "Phase 2 local implementation is verified for the product-only schema, same-user dual sessions, credential isolation, Web CSRF and guarded provisioning dry-run. The isolated candidate, runtime dependency tests and real PostgreSQL schema identity are still blocked by capacity and independent recovery, so Phase 2 and the overall rebuild are not complete and no remote mutation occurred."
+}

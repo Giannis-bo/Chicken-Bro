@@ -46,7 +46,7 @@ last-known-good 存在，不再获得新功能或数据扩展。
 | v2 平台核心 | `Candidate 已实现` | `server/app`、`identity/chat/simc/ops` schema、v2 API、Worker、Codex/来源和 SimC 原型路径已有代码与候选证据；不能等同于正式双端切流 |
 | Web 小程序确认登录 | `partial` | 正式 ticket/verifier/Cookie 代码与候选已存在；真实已发布小程序确认页、扫码、Cookie、`/api/v2/me` 和跨端历史尚无完整用户验收 |
 | Web prototype bypass | `待退役` | prototype 可访问只证明隔离 demo 可用；prototype owner 和数据不迁移到正式历史 |
-| 数据面 | `正在重建（本地）` | legacy 正式运行库 `wow_test` 约 16.38GB；Phase 2 正在建立独立 product-only migration，目标是白名单迁移到干净 `chickenbro_prod`，不是原地删表 |
+| 数据面 | `本地已验证 / Candidate 阻塞` | product-only schema、同 owner 双会话、Origin/CSRF 与 provisioning dry-run 已通过本地验证；legacy 正式运行库 `wow_test` 约 16.38GB，独立 `chickenbro_prod` 尚未创建，不能宣称 Phase 2 完成 |
 | 云端空间 | `容量阻塞 apply` | 2026-09-02T13:43:05Z 只读盘点为根盘约 84% 已用、仅约 8.58GB 可用，PostgreSQL 目录约 39.63GB；四个无连接 gear evidence DB 合计约 22.53GB，但只能在独立恢复与零引用证明后精确退役，否则必须先扩容 |
 | Active Manifest/S2 | `legacy 冻结` | 当前 generation 41 与旧 Catalog 只承担迁移期回滚，不再 promotion 或扩展；新 SimC 主链不依赖这些 owner |
 
@@ -55,7 +55,7 @@ last-known-good 存在，不再获得新功能或数据扩展。
 | 优先级 | 子项目 | 完成标准 |
 | --- | --- | --- |
 | 已完成 | 控制面与清理清单 | 新规格、current truth、逐文件 keep/migrate/delete、脱敏云端清单、当前架构、Runbook 与 Strict packet 已封存；删除仍未授权 |
-| 正在推进 | 干净数据面与 Identity | 本地实现 product-only schema、正式同 owner 双会话、Origin/CSRF 与 provisioning dry-run；云端建库继续受容量和独立恢复 gate 阻塞 |
+| 正在推进 | 干净数据面与 Identity | 本地 product-only schema、正式同 owner 双会话、Origin/CSRF 与 provisioning dry-run 已验证；云端建库和真实 PG/API 验证继续受容量、独立恢复与运行依赖 gate 阻塞 |
 | 下一步 | Chat 正式路径 | 正式 owner API、完整历史、SSE、幂等与 Codex-only 跨端验收完成 |
 | 下一步 | SimC 正式路径 | Snapshot/readiness/compiler/Worker/result 单一主链和跨端任务验收完成 |
 | 下一步 | 双端精简客户端与迁移切流 | 两个 Tab、五条目标路由、历史白名单迁移、candidate、回滚和真实用户验收完成 |

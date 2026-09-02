@@ -345,11 +345,11 @@ The five shell-contract tests pass. The actual local dry-run is redacted and ret
 **Interfaces:**
 - Produces: candidate evidence for clean schema and dual-session identity; it does not authorize production DSN cutover.
 
-- [ ] **Step 1: Revalidate the already-open Strict requirement**
+- [x] **Step 1: Revalidate the already-open Strict requirement**
 
 Require clean-schema integration, identity conflict tests, session independence, mixed-credential rejection, Origin/CSRF tests, provisioning dry run, candidate DB identity, rollback path, and zero forbidden schemas.
 
-- [ ] **Step 2: Run local verification**
+- [x] **Step 2: Run local verification**
 
 ```bash
 python3 -m unittest tests.product_schema_test tests.app_identity_application_test \
@@ -359,11 +359,11 @@ node scripts/verify-project.js --profile backend \
   --release artifacts/releases/2026-09-02-chickenbro-simc-identity-data
 ```
 
-- [ ] **Step 3: Provision and smoke the candidate only when preflight is green**
+- [x] **Step 3: Provision and smoke the candidate only when preflight is green**
 
 If capacity or independent backup remains blocked, record literal `blocked` and stop before `--apply`. Otherwise apply the product migration to the isolated candidate database, verify forbidden schemas are absent, issue Mini and Web sessions through a fake/provider-approved test identity, and prove both resolve to one user without printing identifiers.
 
-- [ ] **Step 4: Local CR and evidence sealing**
+- [x] **Step 4: Local CR and evidence sealing**
 
 Review SQL privileges, credential transport, Cookie attributes, CSRF, audit redaction, exact DB target, restore path, and candidate isolation. Then write/check the Harness packet and commit it.
 
@@ -373,3 +373,5 @@ git commit -m "test: seal dual-client identity data evidence"
 ```
 
 Phase 2 is complete only when the clean schema and dual-session identity are verified in an isolated candidate. Production continues using its previous DSN.
+
+The sealed packet is `local_verified`, not Phase 2 completion. Task 5 took its explicit blocked branch: `candidateDatabaseProvisioningAuthorized=false`, the inventory remains capacity blocked, no independent restore identity exists, and neither `--apply` nor a PostgreSQL/candidate/deployment mutation ran.

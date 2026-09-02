@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "updatedAt": "2026-09-02",
   "activeMilestone": "chickenbro_simc_total_rebuild_phase_2",
-  "featureIteration": "phase_2_local_implementation_in_progress_capacity_blocked",
+  "featureIteration": "phase_2_local_verified_candidate_capacity_and_recovery_blocked",
   "targetProduct": {
-    "status": "implementation_authorized_phase_2_local_in_progress_capacity_blocked",
+    "status": "local_verified_phase_2_candidate_capacity_and_recovery_blocked",
     "businessDomains": [
       "chickenbro_chat",
       "simc"
@@ -20,6 +20,8 @@
     "phase1Status": "local_verified_read_only_control_plane_sealed",
     "phase1Evidence": "artifacts/releases/2026-09-02-chickenbro-simc-control-plane/evidence.json",
     "phase2Requirement": "artifacts/releases/2026-09-02-chickenbro-simc-identity-data/requirement.json",
+    "phase2Status": "local_verified_candidate_blocked",
+    "phase2Evidence": "artifacts/releases/2026-09-02-chickenbro-simc-identity-data/evidence.json",
     "implementationAuthorized": true,
     "terminalGoalAuthorized": true,
     "productionCutoverAuthorized": false,
@@ -80,9 +82,9 @@
     {
       "id": "chickenbro_simc_total_rebuild",
       "path": "docs/superpowers/specs/2026-09-02-chickenbro-simc-total-rebuild-design.md",
-      "status": "implementation_authorized_phase_2_local_in_progress_capacity_blocked",
+      "status": "local_verified_phase_2_candidate_capacity_and_recovery_blocked",
       "lifecycle": "active_direction",
-      "notes": "The only current product direction keeps Chickenbro Chat and SimC on WeChat Mini Program and Web, with independent client sessions mapped to one internal user_id. Phase 1 is sealed at local_verified. Phase 2 local schema, Identity, API security and provisioning dry-run work is active; candidate apply remains blocked by capacity and independent recovery, while production cutover and destructive cleanup require later recorded gates."
+      "notes": "The only current product direction keeps Chickenbro Chat and SimC on WeChat Mini Program and Web, with independent client sessions mapped to one internal user_id. Phase 1 is sealed. Phase 2 schema, Identity, API security and provisioning dry-run are local_verified; isolated candidate apply remains blocked by capacity and independent recovery, while production cutover and destructive cleanup require later recorded gates."
     },
     {
       "id": "chickenbro_simc_architecture",

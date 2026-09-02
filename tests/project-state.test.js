@@ -46,7 +46,7 @@ test('project-state is the single machine-readable current truth entry', () => {
   assert.equal(state.schemaVersion, 1)
   assert.equal(state.updatedAt, '2026-09-02')
   assert.equal(state.activeMilestone, 'chickenbro_simc_total_rebuild_phase_2')
-  assert.equal(state.featureIteration, 'phase_2_local_implementation_in_progress_capacity_blocked')
+  assert.equal(state.featureIteration, 'phase_2_local_verified_candidate_capacity_and_recovery_blocked')
   assert.equal(state.activeReleaseArtifact, undefined)
   assert.equal(state.defaultLocalReleaseArtifact, observedBuildRegistryRelease)
   assert.deepEqual(state.releaseResolution, {
@@ -62,7 +62,7 @@ test('project-state is the single machine-readable current truth entry', () => {
   assert.equal(state.targetProduct.identityOwner, 'identity.users.id')
   assert.equal(
     state.targetProduct.status,
-    'implementation_authorized_phase_2_local_in_progress_capacity_blocked',
+    'local_verified_phase_2_candidate_capacity_and_recovery_blocked',
   )
   assert.equal(state.targetProduct.currentPhase, 2)
   assert.equal(
@@ -79,6 +79,12 @@ test('project-state is the single machine-readable current truth entry', () => {
     'artifacts/releases/2026-09-02-chickenbro-simc-identity-data/requirement.json',
   )
   assertPathExists(state.targetProduct.phase2Requirement)
+  assert.equal(state.targetProduct.phase2Status, 'local_verified_candidate_blocked')
+  assert.equal(
+    state.targetProduct.phase2Evidence,
+    'artifacts/releases/2026-09-02-chickenbro-simc-identity-data/evidence.json',
+  )
+  assertPathExists(state.targetProduct.phase2Evidence)
   assert.equal(state.targetProduct.implementationAuthorized, true)
   assert.equal(state.targetProduct.terminalGoalAuthorized, true)
   assert.equal(state.targetProduct.productionCutoverAuthorized, false)
@@ -212,7 +218,7 @@ test('project-state is the single machine-readable current truth entry', () => {
   )
   assert.equal(
     totalRebuild?.status,
-    'implementation_authorized_phase_2_local_in_progress_capacity_blocked',
+    'local_verified_phase_2_candidate_capacity_and_recovery_blocked',
   )
   assert.equal(
     totalRebuild?.path,
