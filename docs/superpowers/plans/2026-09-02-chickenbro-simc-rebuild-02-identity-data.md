@@ -85,7 +85,7 @@ git commit -m "chore: open dual-client identity data requirement"
 - Consumes: a management DSN and runtime role name `wow_app`.
 - Produces: `apply_product_migrations(connection, migration_dir) -> tuple[str, ...]` and exactly the target tables named in the approved spec.
 
-- [ ] **Step 1: Write a failing exact-owner schema test**
+- [x] **Step 1: Write a failing exact-owner schema test**
 
 ```python
 EXPECTED = {
@@ -105,13 +105,13 @@ def test_clean_product_sql_declares_only_target_owners(self):
         self.assertNotIn(f"CREATE SCHEMA {schema}", sql)
 ```
 
-- [ ] **Step 2: Run the test and verify the missing migration failure**
+- [x] **Step 2: Run the test and verify the missing migration failure**
 
 Run: `python3 -m unittest tests.product_schema_test -v`
 
 Expected: FAIL because the product migration does not exist.
 
-- [ ] **Step 3: Write the clean schema with explicit identity uniqueness**
+- [x] **Step 3: Write the clean schema with explicit identity uniqueness**
 
 ```sql
 CREATE TABLE identity.user_identities (
@@ -130,7 +130,7 @@ CREATE TABLE identity.user_identities (
 
 Copy the already verified Chat, SimC result immutability, and job-lease constraints from migrations `0038` and `0039`, then add bounded `ops.audit_events` and `ops.usage_counters`. `ops.audit_events` must include `event_type`, `subject_key`, bounded `payload_json`, `created_at`, and `UNIQUE (event_type, subject_key)` so Phase 5 can record idempotent migration mappings without another permanent table. Do not copy `0040`, `account_kind`, `prototype_sessions`, or any legacy schema.
 
-- [ ] **Step 4: Implement ordered transactional application**
+- [x] **Step 4: Implement ordered transactional application**
 
 ```python
 def apply_product_migrations(connection, migration_dir: Path) -> tuple[str, ...]:
@@ -146,7 +146,7 @@ def apply_product_migrations(connection, migration_dir: Path) -> tuple[str, ...]
     return tuple(applied)
 ```
 
-- [ ] **Step 5: Verify SQL text and optional isolated PostgreSQL integration**
+- [x] **Step 5: Verify SQL text and optional isolated PostgreSQL integration**
 
 Run:
 
@@ -157,7 +157,7 @@ WOW_PG_TEST_DSN_V2="$WOW_PG_TEST_DSN_V2" python3 -m unittest tests.product_schem
 
 Expected: static tests PASS; integration runs only when the dedicated test DSN is already configured, otherwise reports SKIP rather than success.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add server/migrations/product tests/product_schema_test.py
