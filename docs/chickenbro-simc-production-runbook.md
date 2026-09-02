@@ -189,6 +189,45 @@ candidate -> accepted | rejected(reason_code)
 
 迁移保存不可变 source table/source primary key -> target UUID 映射。重复执行必须得到相同 accepted/rejected hash，不得复制记录。
 
+### 白名单迁移器契约
+
+当前唯一转换规则位于 `server/migrations/product/migrate_legacy.py`，核对规则位于 `server/migrations/product/reconcile_legacy.py`。它们是候选迁移的纯规则层，不自行读取 DSN、env 或凭据，也不提供绕过容量/备份门禁的生产 apply 入口。Task 5 的候选部署必须在一个目标事务中向它们提供只读 source iterator 和 candidate-only target adapter；事务失败时不得留下部分迁移。
+
+每条 source record 的内部输入 envelope 固定为：
+
+```text
+table + pk + updated_at + row
+```
+
+- `pk` 必须由 source adapter 显式提供且非空，只用于计算 `source_primary_key_hash` 与 UUIDv5，绝不以 row.id 猜测、也绝不进入公开报告；
+- `updated_at/pk` 组成全序 watermark。full 使用 `<= through`，delta 使用 `(from, through]`；
+- watermark 必须从同一只读快照捕获。写栅栏之后只运行一次最终 delta；
+- Identity source 必须已经规范化为 `provider=wechat_mini + app_context + provider_subject`。如果 legacy 只保存了 `wechat_openid`，source adapter 只有在操作者提供且校验了当前正式小程序 app context 后才可做这一步规范化；缺失或不一致时固定拒绝，不能按昵称、UnionID 或“只有一个 AppID”猜合并；
+- 同一个 `provider + app_context + provider_subject` 在快照中出现多条 identity 时，相关 identity 全部按 `AMBIGUOUS_IDENTITY_MAPPING` 拒绝；不得挑第一条、按时间覆盖或把两个内部用户合并；
+- target UUID 由固定 namespace、source table、canonical pk 和必要的子记录 suffix 生成；
+- `app.simulator_tasks` 只有在 owner、`READY_FOR_SIMC` 正式 source、scenario/profile/source hash、compiler/runtime、真实 worker/exit code、终态和正数 DPS/HPS 全部存在时，才展开为 snapshot/job/attempt/result；迁移器不补写 `legacy-worker` 或猜测 exit code；
+- `app.chickenbro_sessions/messages` 只有在正式 owner、parent、role、时间和内容均可验证时才转换；assistant 不能早于尚未配对的 user message，AgentRun 的 user/assistant message 必须都属于该 run 的 conversation；
+- formal `chat.*`/`simc.*` 仍重新验证 owner、复合父键、终态和 result provenance，不因表名新就直接信任；`succeeded` SimC job 必须在同一稳定快照中存在且仅存在一条 owner、runtime/compiler、scenario、source 与 metric 全部匹配的 semantic result；
+- `identity.auth_tokens`、`identity.auth_sessions`、`identity.web_login_sessions`、`identity.prototype_sessions` 只产生稳定拒绝原因，不写目标表。
+
+每条接受记录写入一条 `ops.audit_events`：
+
+```text
+event_type = legacy_migration.accepted
+subject_key = <source_table>:<source_primary_key_hash>
+UNIQUE(event_type, subject_key)
+```
+
+payload 只能包含 migration revision、哈希、目标表、目标 UUID 和展开后的目标引用。不得包含 OpenID、UnionID、旧主键、token hash、source URL userinfo 或原始第三方 payload。重复 full/delta 必须保持映射唯一；identity 既有 `provider/app_context/provider_subject` 不得被重绑；任一正式 unique key 冲突或不可变 message/result 内容冲突都必须使目标事务整批停止，不能挑一条、覆盖或留下部分数据。
+
+本地规则验证：
+
+```bash
+python3 -m unittest tests.legacy_product_migration_test -v
+```
+
+fixture 同时覆盖正式 direct Chat/SimC、owner-bound legacy Chat、可发布 legacy SimC、prototype/auth/无关域拒绝、显式 pk、重复 identity 拒绝、会话顺序/归属、真实 worker/exit code、READY source、semantic result、UUIDv5 幂等、同时间戳 `updated_at/pk` delta 和报告脱敏。fixture 通过不是生产迁移证据；真实候选仍需事务、数据库约束和逐域核对。
+
 ## 6. 逐域核对
 
 全量和 delta 都必须分别核对：
@@ -201,6 +240,8 @@ candidate -> accepted | rejected(reason_code)
 | Ops | migration mapping、queue 空闲/终态、audit redaction |
 
 只比较数据库总行数不合格。核对报告必须包含 candidate/accepted/rejected 数量和稳定拒绝原因，且不能包含 provider subject 或 credential 明文。
+
+`reconcile(...)` 的 `matched` 只在以下计数全部为零时成立：source drift、accepted target count/hash mismatch、mapping missing、owner/FK violation、message order/content hash mismatch、SimC snapshot/job/attempt/result semantic mismatch。任一项非零都输出 `diverged` 和稳定 `violationHash`；不得把部分相符、总行数相同或重复运行无异常写成核对通过。
 
 ## 7. Candidate 部署与双端验证
 

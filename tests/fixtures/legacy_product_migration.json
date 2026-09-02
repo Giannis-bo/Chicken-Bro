@@ -1,0 +1,183 @@
+{
+  "records": [
+    {
+      "table": "identity.users",
+      "pk": {"id": "legacy-user-a"},
+      "updated_at": "2026-09-03T00:00:00Z",
+      "row": {
+        "id": "legacy-user-a",
+        "display_name": "Captain A",
+        "status": "active",
+        "account_kind": "formal",
+        "created_at": "2026-09-01T00:00:00Z",
+        "updated_at": "2026-09-03T00:00:00Z"
+      }
+    },
+    {
+      "table": "identity.user_identities",
+      "pk": {"id": "legacy-identity-a"},
+      "updated_at": "2026-09-03T00:00:01Z",
+      "row": {
+        "id": "legacy-identity-a",
+        "user_id": "legacy-user-a",
+        "provider": "wechat_mini",
+        "app_context": "wx-approved-mini",
+        "provider_subject": "fixture-openid-a",
+        "union_id": null,
+        "profile_json": {"nickname": "Captain A"},
+        "created_at": "2026-09-01T00:00:00Z",
+        "updated_at": "2026-09-03T00:00:01Z"
+      }
+    },
+    {
+      "table": "app.chickenbro_sessions",
+      "pk": {"id": "legacy-chat-a"},
+      "updated_at": "2026-09-03T00:01:00Z",
+      "row": {
+        "id": "legacy-chat-a",
+        "user_id": "legacy-user-a",
+        "title": "My first analysis",
+        "status": "active",
+        "created_at": "2026-09-03T00:01:00Z",
+        "updated_at": "2026-09-03T00:03:00Z"
+      }
+    },
+    {
+      "table": "app.chickenbro_messages",
+      "pk": {"id": "legacy-message-a1"},
+      "updated_at": "2026-09-03T00:02:00Z",
+      "row": {
+        "id": "legacy-message-a1",
+        "session_id": "legacy-chat-a",
+        "user_id": "legacy-user-a",
+        "role": "user",
+        "content": "Compare the two trinkets.",
+        "created_at": "2026-09-03T00:02:00Z"
+      }
+    },
+    {
+      "table": "app.chickenbro_messages",
+      "pk": {"id": "legacy-message-a2"},
+      "updated_at": "2026-09-03T00:03:00Z",
+      "row": {
+        "id": "legacy-message-a2",
+        "session_id": "legacy-chat-a",
+        "user_id": "legacy-user-a",
+        "role": "assistant",
+        "content": "The first trinket is stronger in this fixed scenario.",
+        "created_at": "2026-09-03T00:03:00Z"
+      }
+    },
+    {
+      "table": "app.simulator_tasks",
+      "pk": {"id": "legacy-simc-a"},
+      "updated_at": "2026-09-03T00:04:00Z",
+      "row": {
+        "id": "legacy-simc-a",
+        "user_id": "legacy-user-a",
+        "mode": "simc",
+        "status": "succeeded",
+        "request_json": {
+          "source": {
+            "provider": "raiderio",
+            "sourceUrl": "https://raider.io/characters/us/illidan/captain-a",
+            "sourceKey": "us:illidan:captain-a",
+            "revision": 1,
+            "readiness": "READY_FOR_SIMC",
+            "snapshot": {"character": "captain-a", "realm": "illidan"},
+            "rawSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "sourceRevision": "raiderio:fixture-1",
+            "fetchedAt": "2026-09-03T00:03:10Z"
+          },
+          "scenario": {"fightStyle": "Patchwerk", "desiredTargets": 1, "iterations": 300},
+          "scenarioHash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "profileSha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "compilerRevision": "compiler:fixture-1",
+          "runtimeRevision": "simc:fixture-1",
+          "idempotencyKey": "legacy-simc-a"
+        },
+        "analysis_json": {},
+        "summary_json": {
+          "metricName": "dps",
+          "metricValue": 12345.67,
+          "resultJson": {"dps": 12345.67}
+        },
+        "queued_at": "2026-09-03T00:03:20Z",
+        "started_at": "2026-09-03T00:03:30Z",
+        "finished_at": "2026-09-03T00:04:00Z",
+        "exit_code": 0,
+        "attempt": 1,
+        "locked_by": "legacy-worker",
+        "last_error": "",
+        "created_at": "2026-09-03T00:03:20Z",
+        "updated_at": "2026-09-03T00:04:00Z"
+      }
+    },
+    {
+      "table": "app.simulator_tasks",
+      "pk": {"id": "legacy-simc-running"},
+      "updated_at": "2026-09-03T00:05:00Z",
+      "row": {
+        "id": "legacy-simc-running",
+        "user_id": "legacy-user-a",
+        "mode": "simc",
+        "status": "running",
+        "request_json": {},
+        "analysis_json": {},
+        "summary_json": {},
+        "queued_at": "2026-09-03T00:05:00Z",
+        "started_at": "2026-09-03T00:05:00Z",
+        "finished_at": null,
+        "attempt": 1,
+        "created_at": "2026-09-03T00:05:00Z",
+        "updated_at": "2026-09-03T00:05:00Z"
+      }
+    },
+    {
+      "table": "identity.auth_sessions",
+      "pk": {"token_hash": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"},
+      "updated_at": "2026-09-03T00:00:02Z",
+      "row": {"user_id": "legacy-user-a", "kind": "web_cookie"}
+    },
+    {
+      "table": "identity.prototype_sessions",
+      "pk": {"id": "prototype-session-a"},
+      "updated_at": "2026-09-03T00:00:03Z",
+      "row": {"user_id": "prototype-user-a"}
+    },
+    {
+      "table": "content.articles",
+      "pk": {"id": "article-a"},
+      "updated_at": "2026-09-03T00:00:04Z",
+      "row": {"title": "Not part of the new product"}
+    },
+    {
+      "table": "identity.users",
+      "pk": {"id": "prototype-user-a"},
+      "updated_at": "2026-09-03T00:00:05Z",
+      "row": {
+        "id": "prototype-user-a",
+        "display_name": "Demo",
+        "status": "active",
+        "account_kind": "prototype",
+        "created_at": "2026-09-03T00:00:05Z",
+        "updated_at": "2026-09-03T00:00:05Z"
+      }
+    },
+    {
+      "table": "identity.user_identities",
+      "pk": {"id": "prototype-identity-a"},
+      "updated_at": "2026-09-03T00:00:06Z",
+      "row": {
+        "id": "prototype-identity-a",
+        "user_id": "prototype-user-a",
+        "provider": "wechat_mini",
+        "app_context": "wx-approved-mini",
+        "provider_subject": "fixture-prototype-openid",
+        "profile_json": {},
+        "created_at": "2026-09-03T00:00:06Z",
+        "updated_at": "2026-09-03T00:00:06Z"
+      }
+    }
+  ]
+}
