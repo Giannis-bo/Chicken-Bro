@@ -137,9 +137,17 @@ function extractReferenceCandidates(sourcePath, text) {
   const markdown = /\]\(([^)\s]+)(?:\s+["'][^"']*["'])?\)/g
   const moduleSpecifier = /(?:\bfrom\s+|\brequire\s*\(\s*|\bimport\s*\(\s*|\bimport\s+|\bexport[^;\r\n]*?\sfrom\s+)["'`]([^"'`\r\n]{1,512})["'`]/g
   const pythonImport = /\b(?:from|import)\s+([A-Za-z_][A-Za-z0-9_.]*)/g
-  const addMatches = (expression) => {
+  const looksLikePath = (value) => {
+    const normalized = String(value || '').trim().split('#', 1)[0].split('?', 1)[0]
+    return normalized.startsWith('.')
+      || normalized.startsWith('/')
+      || normalized.includes('/')
+      || /\.(?:c?js|mjs|tsx?|json|py|md|scss|css|html|sh|service|timer|nginx|sql|toml|ya?ml)$/i.test(normalized)
+  }
+  const addMatches = (expression, predicate = () => true) => {
     let match
     while ((match = expression.exec(text)) !== null) {
+      if (!predicate(match[1])) continue
       for (const candidate of normalizeReference(sourcePath, match[1])) candidates.add(candidate)
     }
   }
@@ -157,7 +165,7 @@ function extractReferenceCandidates(sourcePath, text) {
   if (extension === '.json' || isConfigSource || (!isTestSource && [
     '.html', '.sh', '.service', '.timer', '.nginx', '.toml', '.yaml', '.yml',
   ].includes(extension))) {
-    addMatches(quoted)
+    addMatches(quoted, looksLikePath)
   }
 
   let match

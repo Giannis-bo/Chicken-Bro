@@ -170,7 +170,12 @@ test('references from another exact delete target do not block an atomic cleanup
 test('plain prose and cleanup-control fixtures are not treated as runtime callers', () => {
   const { verifyCleanup } = loadCleanup()
   const entries = [
+    entry('app.js', 'delete', 'legacy app\n'),
     entry('server/legacy.py', 'delete', 'old\n'),
+    {
+      ...entry('apps/current/index.html', 'keep', '<div id="app"></div>\n'),
+      matchedRule: 'current-client',
+    },
     {
       ...entry('docs/notes.md', 'keep', 'Retired server/legacy.py after cutover.\n'),
       matchedRule: 'current-docs',
@@ -189,16 +194,20 @@ test('plain prose and cleanup-control fixtures are not treated as runtime caller
     inventoryFor(entries),
     memoryRepository(Object.fromEntries(entries.map((item) => [
       item.path,
-      item.path === 'server/legacy.py'
-        ? 'old\n'
+      item.path === 'app.js'
+        ? 'legacy app\n'
+        : item.path === 'server/legacy.py'
+          ? 'old\n'
         : item.path === 'docs/notes.md'
           ? 'Retired server/legacy.py after cutover.\n'
+          : item.path === 'apps/current/index.html'
+            ? '<div id="app"></div>\n'
           : "assert.equal(validateTarget('server/legacy.py'), 'server/legacy.py')\n",
     ]))),
   )
 
   assert.deepEqual(result.blocked, [])
-  assert.deepEqual(result.deletable.map((item) => item.path), ['server/legacy.py'])
+  assert.deepEqual(result.deletable.map((item) => item.path), ['app.js', 'server/legacy.py'])
 })
 
 test('unclassified tracked files and inventory identity drift are review blockers', () => {
