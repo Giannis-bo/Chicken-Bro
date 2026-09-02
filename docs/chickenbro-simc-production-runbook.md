@@ -366,7 +366,22 @@ Chat SSE 的每个事件都必须有从 1 开始连续递增的整数 `sequence`
 - manifest SHA 与 apply 参数一致；
 - 回滚包保留窗口有书面状态。
 
-退役顺序：停止并禁用 legacy unit/timer；移除 candidate/prototype；精确删除无引用数据库；删除旧部署/静态/数据目录；删除本地旧代码/文档/测试；刷新本地/云端清单和 parity。不得对 `/opt`、`/var/lib`、数据库前缀或仓库根做宽泛递归删除。
+当前云端精确控制文件是 [chickenbro-simc-cloud-cleanup-manifest.json](refactor/chickenbro-simc-cloud-cleanup-manifest.json)。它覆盖只读清单里的全部 32 个 `wow-*` unit 和全部 `wow_*` 数据库，并显式列出已知旧 env、pgpass、Nginx、部署、备份、状态与候选目录。未能从脱敏清单确定的 legacy runtime PGPASSFILE 以及尚未创建的 Chickenbro candidate 资源被列入 `unresolvedRequiredTargets`，不能因未知而省略。
+
+本地评审入口默认只解析清单，不连接云端、不停服务、不删数据：
+
+```bash
+npm run test:ops
+bash server/retire_chickenbro_legacy_lighthouse.sh \
+  --manifest docs/refactor/chickenbro-simc-cloud-cleanup-manifest.json \
+  --dry-run
+```
+
+当前清单固定 `deletionAuthorized=false`，所有资源均为 `blocked`。apply 除了精确 manifest SHA 和 restore-verified backup manifest SHA，还要求：最新 inventory 标记为 fresh、真实生产验收/首条新写入核对/稳定窗口通过、所有未知目标已解析、每个资源 gate 为 ready、删除时间已到、数据库实时零连接/零配置引用、文件和目录 identity 未漂移。任一项不满足时，在 SSH 或 mutation 前停止。
+
+apply 只接受精确名称。unit 会先检查反向依赖再停止、禁用并移动 unit 文件；旧文件/目录先核对 SHA/realpath，再移动到独立挂载的 `/mnt/chickenbro-backups/quarantine/<manifest-sha>`；数据库再次检查 `pg_stat_activity` 和当前配置引用后，以引用安全的精确 identifier 执行删除。目录隔离只是可恢复退役，不是永久清除；永久删除仍要等 Task 5 的回滚窗口到期。
+
+退役顺序：停止并禁用 legacy unit/timer；移除 candidate/prototype；精确删除无引用数据库；隔离旧部署/静态/数据目录；执行绑定 SHA 的本地旧代码/文档/测试清理；刷新本地/云端清单和 parity。不得对 `/opt`、`/var/lib`、数据库前缀或仓库根做宽泛递归删除。
 
 ## 11. 最终验证与完成
 
@@ -403,4 +418,5 @@ Chat SSE 的每个事件都必须有从 1 开始连续递增的整数 `sequence`
 - [项目状态](project-state.json)
 - [本地处置清单](refactor/chickenbro-simc-refactor-inventory.json)
 - [云端只读清单](refactor/chickenbro-simc-cloud-inventory.json)
+- [云端退役清单](refactor/chickenbro-simc-cloud-cleanup-manifest.json)
 - [当前六阶段计划](plans/README.md)

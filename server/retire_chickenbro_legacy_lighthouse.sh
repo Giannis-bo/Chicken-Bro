@@ -1,0 +1,561 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+MODE="dry-run"
+MANIFEST_FILE=""
+REVIEWED_MANIFEST_SHA=""
+REVIEWED_BACKUP_MANIFEST_SHA=""
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
+REMOTE_HOST="${WOW_LIGHTHOUSE_HOST:-124.223.51.33}"
+REMOTE_USER="${WOW_LIGHTHOUSE_USER:-ubuntu}"
+REMOTE_BACKUP_MANIFEST="${WOW_CHICKENBRO_REMOTE_BACKUP_MANIFEST:-/mnt/chickenbro-backups/restore-verified.json}"
+SSH_TARGET="${REMOTE_USER}@${REMOTE_HOST}"
+SSH_OPTS=(-o StrictHostKeyChecking=yes -o ConnectTimeout=15)
+
+die() {
+  printf 'retire_chickenbro_legacy: %s\n' "$*" >&2
+  return 1
+}
+
+usage() {
+  printf '%s\n' \
+    'Usage:' \
+    '  server/retire_chickenbro_legacy_lighthouse.sh --manifest <json> --dry-run' \
+    '  server/retire_chickenbro_legacy_lighthouse.sh --manifest <json> --apply --manifest-sha <sha256> --backup-manifest-sha <sha256>' >&2
+}
+
+sha256_file() {
+  local target="$1"
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum -- "${target}" | awk '{print $1}'
+  else
+    shasum -a 256 -- "${target}" | awk '{print $1}'
+  fi
+}
+
+validate_deletion_target() {
+  local kind="${1:-}"
+  local target="${2:-}"
+
+  case "${kind}:${target}" in
+    postgres_database:chickenbro_prod|postgres_database:postgres|postgres_database:template0|postgres_database:template1|\
+    systemd_unit:chickenbro-api.service|systemd_unit:chickenbro-worker.service|\
+    directory:/opt/chickenbro|directory:/opt/chickenbro-runtime|directory:/opt/wow-simc|\
+    directory:/opt/wow-simc/current|directory:/var/lib/postgresql|directory:/var/www/chickenbro-web|\
+    directory:/etc/nginx/ssl|directory:/mnt/chickenbro-backups|\
+    file:/etc/chickenbro-api.env|file:/etc/chickenbro-worker.env|file:/etc/chickenbro-source.env|\
+    file:/etc/chickenbro-api.pgpass|file:/etc/nginx/sites-available/wow-v2-web|\
+    file:/etc/nginx/sites-enabled/api.chickenbro.cloud)
+      die "protected target: ${kind}:${target}"
+      ;;
+  esac
+
+  if [[ -z "${kind}" || -z "${target}" || "${target}" == *'$'* || "${target}" == *'\\'* \
+    || "${target}" == *'*'* || "${target}" == *'?'* || "${target}" == *'['* \
+    || "${target}" == *']'* || "${target}" == *'{'* || "${target}" == *'}'* \
+    || "${target}" == *'..'* || "${target}" == *$'\n'* || "${target}" == *$'\r'* ]]; then
+    die "exact target required: ${kind}:${target}"
+  fi
+
+  case "${kind}" in
+    postgres_database)
+      [[ "${target}" =~ ^[a-z][a-z0-9_]{0,62}$ ]] \
+        || die "exact target required: ${kind}:${target}"
+      [[ "${target}" == wow_* || "${target}" == "chickenbro_candidate" ]] \
+        || die "exact target required: ${kind}:${target}"
+      ;;
+    systemd_unit)
+      [[ "${target}" =~ ^[a-z0-9][a-z0-9@_.-]+\.(service|timer)$ ]] \
+        || die "exact target required: ${kind}:${target}"
+      [[ "${target}" == wow-* || "${target}" == "chickenbro-api-candidate.service" \
+        || "${target}" == "chickenbro-worker-candidate.service" ]] \
+        || die "exact target required: ${kind}:${target}"
+      ;;
+    file)
+      [[ "${target}" =~ ^/[A-Za-z0-9_.@+/-]+$ && "${target}" != */ && "${target}" != *//* ]] \
+        || die "exact target required: ${kind}:${target}"
+      [[ "${target}" == /etc/wow-* || "${target}" == /etc/nginx/sites-available/wow-* \
+        || "${target}" == /etc/nginx/sites-enabled/wow-* ]] \
+        || die "exact target required: ${kind}:${target}"
+      ;;
+    directory)
+      [[ "${target}" =~ ^/[A-Za-z0-9_.@+/-]+$ && "${target}" != */ && "${target}" != *//* ]] \
+        || die "exact target required: ${kind}:${target}"
+      case "${target}" in
+        /|/opt|/var|/var/lib|/var/www|/var/backups|/etc|/etc/systemd|/etc/systemd/system|~)
+          die "exact target required: ${kind}:${target}"
+          ;;
+      esac
+      [[ "${target}" == /opt/wow-* || "${target}" == /var/backups/wow-* \
+        || "${target}" == /var/lib/wow-* || "${target}" == /var/www/chickenbro-*-candidate \
+        || "${target}" == /etc/systemd/system/wow-*.service.d \
+        || "${target}" == "/opt/chickenbro-candidate" || "${target}" == "/var/www/chickenbro-candidate" ]] \
+        || die "exact target required: ${kind}:${target}"
+      ;;
+    *)
+      die "exact target required: ${kind}:${target}"
+      ;;
+  esac
+}
+
+validate_manifest_schema() {
+  python3 - "${MANIFEST_FILE}" "${REPO_ROOT}" <<'PY'
+import hashlib
+import json
+import re
+import sys
+from pathlib import Path
+
+manifest_path = Path(sys.argv[1]).resolve(strict=True)
+root = Path(sys.argv[2]).resolve(strict=True)
+payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+if payload.get("schemaVersion") != 1 or payload.get("mode") != "dry-run":
+    raise SystemExit("invalid cloud cleanup manifest schema")
+resources = payload.get("resources")
+protected = payload.get("protectedResources")
+unresolved = payload.get("unresolvedRequiredTargets")
+if not isinstance(resources, list) or not resources:
+    raise SystemExit("cloud cleanup manifest resources are required")
+if not isinstance(protected, list) or not isinstance(unresolved, list):
+    raise SystemExit("cloud cleanup manifest protection and blocker lists are required")
+inventory = payload.get("sourceInventory") or {}
+inventory_rel = inventory.get("path")
+if not isinstance(inventory_rel, str) or inventory_rel.startswith("/") or ".." in Path(inventory_rel).parts:
+    raise SystemExit("invalid source inventory path")
+inventory_path = (root / inventory_rel).resolve(strict=True)
+if root not in inventory_path.parents:
+    raise SystemExit("source inventory escapes repository")
+actual_inventory_sha = hashlib.sha256(inventory_path.read_bytes()).hexdigest()
+if actual_inventory_sha != inventory.get("sha256"):
+    raise SystemExit("source inventory SHA-256 mismatch")
+
+ids = set()
+targets = set()
+allowed_kinds = {"systemd_unit", "postgres_database", "file", "directory"}
+for index, item in enumerate(resources):
+    if not isinstance(item, dict):
+        raise SystemExit(f"resource {index} must be an object")
+    resource_id = item.get("id")
+    kind = item.get("kind")
+    target = item.get("target")
+    if not isinstance(resource_id, str) or not re.fullmatch(r"[a-z0-9][a-z0-9-]*", resource_id):
+        raise SystemExit(f"resource {index} has invalid id")
+    if resource_id in ids:
+        raise SystemExit(f"duplicate resource id: {resource_id}")
+    ids.add(resource_id)
+    if kind not in allowed_kinds or not isinstance(target, str):
+        raise SystemExit(f"resource {resource_id} has invalid target")
+    identity = (kind, target)
+    if identity in targets:
+        raise SystemExit(f"duplicate cleanup target: {kind}:{target}")
+    targets.add(identity)
+    if item.get("gateStatus") not in {"blocked", "ready"}:
+        raise SystemExit(f"resource {resource_id} has invalid gate status")
+    if item.get("restoreCheck") not in {"not_run", "passed"}:
+        raise SystemExit(f"resource {resource_id} has invalid restore status")
+    if "currentReferences" not in item or "activeConnections" not in item:
+        raise SystemExit(f"resource {resource_id} lacks current reference or connection state")
+    if "backupIdentity" not in item or "deleteAfter" not in item or "replacement" not in item:
+        raise SystemExit(f"resource {resource_id} lacks recovery, replacement or time boundary")
+    if item.get("gateStatus") == "blocked" and not item.get("blockedReasons"):
+        raise SystemExit(f"blocked resource {resource_id} lacks reasons")
+    if item.get("gateStatus") == "ready":
+        if item.get("currentReferences") != [] or item.get("restoreCheck") != "passed":
+            raise SystemExit(f"ready resource {resource_id} lacks zero-reference or restore proof")
+        if kind == "postgres_database" and item.get("activeConnections") != 0:
+            raise SystemExit(f"ready database {resource_id} lacks zero-connection proof")
+        if kind != "postgres_database" and not re.fullmatch(r"[0-9a-f]{64}", str(item.get("contentSha256") or "")):
+            raise SystemExit(f"ready filesystem resource {resource_id} lacks content identity")
+        if not isinstance(item.get("deleteAfter"), str):
+            raise SystemExit(f"ready resource {resource_id} lacks delete-after boundary")
+protected_targets = {(item.get("kind"), item.get("target")) for item in protected if isinstance(item, dict)}
+collision = targets & protected_targets
+if collision:
+    raise SystemExit(f"cleanup manifest targets protected resources: {sorted(collision)}")
+PY
+}
+
+validate_manifest_targets() {
+  while IFS=$'\t' read -r kind target; do
+    validate_deletion_target "${kind}" "${target}"
+  done < <(python3 - "${MANIFEST_FILE}" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+for item in payload["resources"]:
+    print(f"{item['kind']}\t{item['target']}")
+PY
+  )
+}
+
+print_dry_run() {
+  python3 - "${MANIFEST_FILE}" <<'PY'
+import hashlib
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+payload = json.loads(path.read_text(encoding="utf-8"))
+results = []
+for item in payload["resources"]:
+    status = "ready" if item["gateStatus"] == "ready" else "blocked"
+    results.append({
+        "id": item["id"],
+        "kind": item["kind"],
+        "target": item["target"],
+        "status": status,
+        "blockedReasons": item.get("blockedReasons", []) if status == "blocked" else [],
+    })
+ready = sum(item["status"] == "ready" for item in results)
+blocked = len(results) - ready
+print(json.dumps({
+    "mode": "dry-run",
+    "mutationAuthorized": False,
+    "manifestFileSha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+    "sourceInventory": payload["sourceInventory"],
+    "productionAcceptance": payload["productionAcceptance"]["status"],
+    "independentRecovery": payload["independentRecovery"]["status"],
+    "counts": {"total": len(results), "ready": ready, "blocked": blocked},
+    "unresolvedBlockerCount": len(payload["unresolvedRequiredTargets"]),
+    "results": results,
+}, separators=(",", ":")))
+PY
+}
+
+assert_apply_ready() {
+  python3 - "${MANIFEST_FILE}" "${REVIEWED_BACKUP_MANIFEST_SHA}" <<'PY'
+import json
+import re
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+backup_sha = sys.argv[2]
+if payload.get("deletionAuthorized") is not True:
+    raise SystemExit("deletionAuthorized=true is required for a blocked cleanup manifest")
+if payload.get("unresolvedRequiredTargets"):
+    raise SystemExit("blocked cleanup manifest has unresolved required targets")
+acceptance = payload.get("productionAcceptance") or {}
+if acceptance.get("status") != "passed" or acceptance.get("firstNewWriteReconciled") is not True or acceptance.get("stableHealthWindowCompleted") is not True:
+    raise SystemExit("blocked cleanup manifest lacks accepted production evidence")
+recovery = payload.get("independentRecovery") or {}
+if recovery.get("status") != "restore_verified" or recovery.get("manifestSha256") != backup_sha:
+    raise SystemExit("blocked cleanup manifest lacks matching independent restore evidence")
+if payload.get("sourceInventory", {}).get("freshness") != "fresh":
+    raise SystemExit("blocked cleanup manifest uses a stale cloud inventory")
+now = datetime.now(timezone.utc)
+for item in payload["resources"]:
+    if item.get("gateStatus") != "ready":
+        raise SystemExit(f"blocked cleanup manifest resource: {item.get('id')}")
+    value = item.get("deleteAfter")
+    try:
+        boundary = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except (AttributeError, ValueError):
+        raise SystemExit(f"invalid delete-after boundary: {item.get('id')}")
+    if boundary > now:
+        raise SystemExit(f"delete-after boundary has not elapsed: {item.get('id')}")
+if not re.fullmatch(r"[0-9a-f]{64}", backup_sha):
+    raise SystemExit("invalid backup manifest SHA-256")
+PY
+}
+
+run_remote_apply() {
+  local manifest_base64
+  manifest_base64="$(base64 < "${MANIFEST_FILE}" | tr -d '\n')"
+
+  ssh "${SSH_OPTS[@]}" "${SSH_TARGET}" \
+    "MANIFEST_BASE64=${manifest_base64}" \
+    "REVIEWED_REMOTE_MANIFEST_SHA=${REVIEWED_MANIFEST_SHA}" \
+    "REVIEWED_REMOTE_BACKUP_SHA=${REVIEWED_BACKUP_MANIFEST_SHA}" \
+    "REMOTE_BACKUP_MANIFEST_PATH=${REMOTE_BACKUP_MANIFEST}" \
+    bash -s <<'REMOTE'
+set -euo pipefail
+
+die_remote() {
+  printf 'retire_chickenbro_legacy_remote: %s\n' "$*" >&2
+  exit 1
+}
+
+MANIFEST_TMP="$(mktemp)"
+RESULTS_TMP="$(mktemp)"
+trap 'rm -f -- "${MANIFEST_TMP}" "${RESULTS_TMP}"' EXIT
+printf '%s' "${MANIFEST_BASE64}" | base64 --decode > "${MANIFEST_TMP}"
+[[ "$(sha256sum -- "${MANIFEST_TMP}" | awk '{print $1}')" == "${REVIEWED_REMOTE_MANIFEST_SHA}" ]] \
+  || die_remote "manifest SHA-256 changed in transit"
+[[ -f "${REMOTE_BACKUP_MANIFEST_PATH}" ]] || die_remote "restore-verified backup manifest is missing"
+[[ "$(sha256sum -- "${REMOTE_BACKUP_MANIFEST_PATH}" | awk '{print $1}')" == "${REVIEWED_REMOTE_BACKUP_SHA}" ]] \
+  || die_remote "backup manifest SHA-256 mismatch"
+
+python3 - "${REMOTE_BACKUP_MANIFEST_PATH}" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+if payload.get("status") != "restore_verified" or payload.get("isolatedRestore", {}).get("status") != "passed":
+    raise SystemExit("backup manifest has no completed isolated restore")
+PY
+
+QUARANTINE_ROOT="$(python3 - "${MANIFEST_TMP}" <<'PY'
+import json
+import sys
+from pathlib import Path
+print(json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))["quarantine"]["root"])
+PY
+)"
+[[ "${QUARANTINE_ROOT}" == /mnt/chickenbro-backups/quarantine ]] \
+  || die_remote "unexpected quarantine root"
+[[ -d /mnt/chickenbro-backups ]] || die_remote "independent backup mount is missing"
+[[ "$(findmnt -n -o TARGET --target /mnt/chickenbro-backups)" == "/mnt/chickenbro-backups" ]] \
+  || die_remote "backup path is not an independent mount"
+RUN_ROOT="${QUARANTINE_ROOT}/${REVIEWED_REMOTE_MANIFEST_SHA}"
+install -d -o root -g root -m 0700 -- "${RUN_ROOT}"
+nginx -t
+systemctl is-active --quiet chickenbro-api.service || die_remote "protected production API is not active"
+systemctl is-active --quiet chickenbro-worker.service || die_remote "protected production worker is not active"
+[[ -e /opt/wow-simc/current ]] || die_remote "protected SimC runtime is missing"
+protected_database_exists="$(sudo -n -u postgres psql -d postgres -At --command="SELECT count(*) FROM pg_database WHERE datname = 'chickenbro_prod'")"
+[[ "${protected_database_exists}" == "1" ]] || die_remote "protected production database is missing"
+
+python3 - "${MANIFEST_TMP}" <<'PY' > "${RUN_ROOT}/retirement-plan.tsv"
+import json
+import sys
+from pathlib import Path
+
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+order = {"systemd_unit": 0, "file": 1, "postgres_database": 2, "directory": 3}
+def resource_order(row):
+    enabled_link_first = 0 if row["kind"] == "file" and "/sites-enabled/" in row["target"] else 1
+    return (order[row["kind"]], enabled_link_first, row["target"])
+
+for item in sorted(payload["resources"], key=resource_order):
+    print("\t".join([
+        item["id"], item["kind"], item["target"], item.get("contentSha256") or "-",
+    ]))
+PY
+awk -F '\t' '$2 == "systemd_unit" { print $3 }' "${RUN_ROOT}/retirement-plan.tsv" \
+  > "${RUN_ROOT}/retiring-units.txt"
+
+record_result() {
+  local resource_id="$1"
+  local kind="$2"
+  local target="$3"
+  local status="$4"
+  RESOURCE_ID="${resource_id}" RESOURCE_KIND="${kind}" RESOURCE_TARGET="${target}" RESOURCE_STATUS="${status}" \
+    python3 - <<'PY' >> "${RESULTS_TMP}"
+import json
+import os
+print(json.dumps({
+    "id": os.environ["RESOURCE_ID"],
+    "kind": os.environ["RESOURCE_KIND"],
+    "target": os.environ["RESOURCE_TARGET"],
+    "status": os.environ["RESOURCE_STATUS"],
+}, separators=(",", ":")))
+PY
+}
+
+tree_sha256() {
+  python3 - "$1" <<'PY'
+import hashlib
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1]).resolve(strict=True)
+digest = hashlib.sha256()
+items = sorted(root.rglob("*"))
+for path in items:
+    if path.is_symlink():
+        raise SystemExit("tree identity refuses symbolic links")
+    if not path.is_file():
+        continue
+    digest.update(path.relative_to(root).as_posix().encode())
+    digest.update(b"\0")
+    digest.update(path.read_bytes())
+    digest.update(b"\0")
+print(digest.hexdigest())
+PY
+}
+
+while IFS=$'\t' read -r resource_id kind target content_sha; do
+  quarantine_target="${RUN_ROOT}/${resource_id}"
+  case "${kind}" in
+    systemd_unit)
+      unit_path="/etc/systemd/system/${target}"
+      if ! systemctl cat "${target}" >/dev/null 2>&1; then
+        record_result "${resource_id}" "${kind}" "${target}" "skipped"
+        continue
+      fi
+      [[ -f "${unit_path}" && ! -L "${unit_path}" ]] || die_remote "unit owner is not an exact regular file: ${target}"
+      [[ "$(sha256sum -- "${unit_path}" | awk '{print $1}')" == "${content_sha}" ]] \
+        || die_remote "unit identity changed: ${target}"
+      reverse_dependencies="$(
+        systemctl list-dependencies --reverse --plain --no-legend "${target}" 2>/dev/null \
+          | sed -E 's/^[^[:alnum:]]*//' \
+          | grep -vFx "${target}" \
+          | grep -Ev '\.target$' \
+          | while IFS= read -r dependent; do
+              grep -Fxq -- "${dependent}" "${RUN_ROOT}/retiring-units.txt" || printf '%s\n' "${dependent}"
+            done \
+          || true
+      )"
+      [[ -z "${reverse_dependencies}" ]] || die_remote "unit still has reverse dependencies: ${target}"
+      systemctl stop "${target}" >/dev/null 2>&1 || true
+      systemctl disable "${target}" >/dev/null 2>&1 || true
+      mv -- "${unit_path}" "${quarantine_target}"
+      record_result "${resource_id}" "${kind}" "${target}" "deleted"
+      ;;
+    file)
+      if [[ ! -e "${target}" && ! -L "${target}" ]]; then
+        record_result "${resource_id}" "${kind}" "${target}" "skipped"
+        continue
+      fi
+      [[ -f "${target}" || -L "${target}" ]] || die_remote "file target changed type: ${target}"
+      file_references="$(grep -RFl --exclude="$(basename -- "${target}")" -- "${target}" /etc/systemd/system /etc/nginx /opt/chickenbro 2>/dev/null || true)"
+      [[ -z "${file_references}" ]] || die_remote "file still has configuration references: ${target}"
+      if [[ -L "${target}" ]]; then
+        actual_file_sha="$(readlink -- "${target}" | sha256sum | awk '{print $1}')"
+      else
+        actual_file_sha="$(sha256sum -- "${target}" | awk '{print $1}')"
+      fi
+      [[ "${actual_file_sha}" == "${content_sha}" ]] \
+        || die_remote "file identity changed: ${target}"
+      mv -- "${target}" "${quarantine_target}"
+      record_result "${resource_id}" "${kind}" "${target}" "deleted"
+      ;;
+    postgres_database)
+      exists="$(sudo -n -u postgres psql -d postgres -At --set=target="${target}" --command="SELECT count(*) FROM pg_database WHERE datname = :'target'")"
+      if [[ "${exists}" == "0" ]]; then
+        record_result "${resource_id}" "${kind}" "${target}" "skipped"
+        continue
+      fi
+      connections="$(sudo -n -u postgres psql -d postgres -At --set=target="${target}" --command="SELECT count(*) FROM pg_stat_activity WHERE datname = :'target' AND pid <> pg_backend_pid()")"
+      [[ "${connections}" == "0" ]] || die_remote "database gained active connections: ${target}"
+      references="$(grep -RFl --exclude='restore-verified.json' -- "${target}" /etc/systemd/system /etc/nginx /opt/chickenbro 2>/dev/null || true)"
+      [[ -z "${references}" ]] || die_remote "database still has configuration references: ${target}"
+      sudo -n -u postgres psql -d postgres --set=ON_ERROR_STOP=1 --set=target="${target}" \
+        --command="REVOKE CONNECT ON DATABASE :\"target\" FROM PUBLIC" >/dev/null
+      sudo -n -u postgres psql -d postgres --set=ON_ERROR_STOP=1 --set=target="${target}" \
+        --command="SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = :'target' AND pid <> pg_backend_pid()" >/dev/null
+      drop_statement="$(sudo -n -u postgres psql -d postgres -At --set=ON_ERROR_STOP=1 --set=target="${target}" \
+        --command="SELECT format('DROP DATABASE %I', :'target')")"
+      [[ "${drop_statement}" == DROP\ DATABASE\ * ]] || die_remote "database drop statement was not generated safely"
+      sudo -n -u postgres psql -d postgres --set=ON_ERROR_STOP=1 --command="${drop_statement}" >/dev/null
+      record_result "${resource_id}" "${kind}" "${target}" "deleted"
+      ;;
+    directory)
+      if [[ ! -e "${target}" ]]; then
+        record_result "${resource_id}" "${kind}" "${target}" "skipped"
+        continue
+      fi
+      [[ -d "${target}" && ! -L "${target}" ]] || die_remote "directory target changed type: ${target}"
+      [[ "$(readlink -f -- "${target}")" == "${target}" ]] || die_remote "directory realpath changed: ${target}"
+      references="$(grep -RFl -- "${target}" /etc/systemd/system /etc/nginx /opt/chickenbro 2>/dev/null || true)"
+      [[ -z "${references}" ]] || die_remote "directory still has configuration references: ${target}"
+      [[ "$(tree_sha256 "${target}")" == "${content_sha}" ]] || die_remote "directory identity changed: ${target}"
+      mv -- "${target}" "${quarantine_target}"
+      record_result "${resource_id}" "${kind}" "${target}" "deleted"
+      ;;
+    *)
+      die_remote "unsupported resource kind"
+      ;;
+  esac
+done < "${RUN_ROOT}/retirement-plan.tsv"
+
+systemctl daemon-reload
+nginx -t
+systemctl is-active --quiet chickenbro-api.service || die_remote "protected production API stopped during retirement"
+systemctl is-active --quiet chickenbro-worker.service || die_remote "protected production worker stopped during retirement"
+[[ -e /opt/wow-simc/current ]] || die_remote "protected SimC runtime changed during retirement"
+protected_database_exists="$(sudo -n -u postgres psql -d postgres -At --command="SELECT count(*) FROM pg_database WHERE datname = 'chickenbro_prod'")"
+[[ "${protected_database_exists}" == "1" ]] || die_remote "protected production database changed during retirement"
+RESULTS_TMP="${RESULTS_TMP}" MANIFEST_SHA="${REVIEWED_REMOTE_MANIFEST_SHA}" BACKUP_SHA="${REVIEWED_REMOTE_BACKUP_SHA}" \
+  python3 - <<'PY' | tee "${RUN_ROOT}/result.json"
+import json
+import os
+from datetime import datetime, timezone
+from pathlib import Path
+
+results = [json.loads(line) for line in Path(os.environ["RESULTS_TMP"]).read_text(encoding="utf-8").splitlines()]
+print(json.dumps({
+    "status": "applied",
+    "manifestSha256": os.environ["MANIFEST_SHA"],
+    "backupManifestSha256": os.environ["BACKUP_SHA"],
+    "completedAt": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
+    "results": results,
+}, separators=(",", ":")))
+PY
+REMOTE
+}
+
+main() {
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --manifest)
+        [[ $# -ge 2 ]] || die "--manifest requires a value"
+        MANIFEST_FILE="$2"
+        shift 2
+        ;;
+      --dry-run)
+        MODE="dry-run"
+        shift
+        ;;
+      --apply)
+        MODE="apply"
+        shift
+        ;;
+      --manifest-sha)
+        [[ $# -ge 2 ]] || die "--manifest-sha requires a value"
+        REVIEWED_MANIFEST_SHA="$2"
+        shift 2
+        ;;
+      --backup-manifest-sha)
+        [[ $# -ge 2 ]] || die "--backup-manifest-sha requires a value"
+        REVIEWED_BACKUP_MANIFEST_SHA="$2"
+        shift 2
+        ;;
+      --help|-h)
+        usage
+        return 0
+        ;;
+      *)
+        usage
+        die "unknown argument: $1"
+        ;;
+    esac
+  done
+
+  [[ -n "${MANIFEST_FILE}" && -f "${MANIFEST_FILE}" ]] || die "--manifest must name an existing JSON file"
+  validate_manifest_schema
+  validate_manifest_targets
+
+  if [[ "${MODE}" == "dry-run" ]]; then
+    print_dry_run
+    return 0
+  fi
+
+  if [[ -z "${REVIEWED_MANIFEST_SHA}" || -z "${REVIEWED_BACKUP_MANIFEST_SHA}" ]]; then
+    die "--apply requires --manifest-sha and --backup-manifest-sha"
+  fi
+  [[ "${REVIEWED_MANIFEST_SHA}" =~ ^[0-9a-f]{64}$ \
+    && "${REVIEWED_BACKUP_MANIFEST_SHA}" =~ ^[0-9a-f]{64}$ ]] \
+    || die "--apply requires valid SHA-256 identities"
+  [[ "${REMOTE_HOST}" =~ ^[A-Za-z0-9.-]+$ && "${REMOTE_USER}" =~ ^[a-z_][a-z0-9_-]*$ ]] \
+    || die "invalid remote host or user"
+  [[ "${REMOTE_BACKUP_MANIFEST}" =~ ^/[A-Za-z0-9_./-]+$ \
+    && "${REMOTE_BACKUP_MANIFEST}" != *".."* ]] \
+    || die "invalid remote backup manifest path"
+  [[ "$(sha256_file "${MANIFEST_FILE}")" == "${REVIEWED_MANIFEST_SHA}" ]] \
+    || die "reviewed manifest SHA-256 mismatch"
+  assert_apply_ready
+  run_remote_apply
+}
+
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  main "$@"
+fi

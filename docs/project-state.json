@@ -51,6 +51,7 @@
     "localInventory": "docs/refactor/chickenbro-simc-refactor-inventory.json",
     "dispositionRules": "docs/refactor/chickenbro-simc-disposition-rules.json",
     "cloudInventory": "docs/refactor/chickenbro-simc-cloud-inventory.json",
+    "cloudCleanupManifest": "docs/refactor/chickenbro-simc-cloud-cleanup-manifest.json",
     "capacityCleanupManifest": "docs/refactor/chickenbro-simc-capacity-cleanup-manifest.json",
     "recoveryInventory": "docs/refactor/chickenbro-simc-recovery-inventory.json",
     "capacityGate": "blocked_until_independent_recovery_or_storage_expansion",

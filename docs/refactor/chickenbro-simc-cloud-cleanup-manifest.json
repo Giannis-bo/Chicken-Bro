@@ -1,0 +1,2208 @@
+{
+  "schemaVersion": 1,
+  "mode": "dry-run",
+  "generatedAt": "2026-09-02T23:04:01Z",
+  "deletionAuthorized": false,
+  "status": "blocked_pending_phase5_acceptance_independent_restore_and_fresh_remote_probes",
+  "sourceInventory": {
+    "path": "docs/refactor/chickenbro-simc-cloud-inventory.json",
+    "sha256": "1466a227e882125ddd342c9518025b583b7bbead80dabb193f29997ff41e80c6",
+    "observedAt": "2026-09-02T13:43:05Z",
+    "freshness": "stale_requires_refresh_before_apply"
+  },
+  "productionAcceptance": {
+    "status": "not_run",
+    "evidencePath": null,
+    "evidenceSha256": null,
+    "firstNewWriteReconciled": false,
+    "stableHealthWindowCompleted": false
+  },
+  "independentRecovery": {
+    "status": "missing",
+    "manifestPath": "/mnt/chickenbro-backups/restore-verified.json",
+    "manifestSha256": null,
+    "isolatedRestoreIdentity": null
+  },
+  "quarantine": {
+    "root": "/mnt/chickenbro-backups/quarantine",
+    "independentDeviceRequired": true,
+    "permanentDeletionAuthorized": false
+  },
+  "protectedResources": [
+    {
+      "kind": "postgres_database",
+      "target": "chickenbro_prod",
+      "reason": "new production database"
+    },
+    {
+      "kind": "systemd_unit",
+      "target": "chickenbro-api.service",
+      "reason": "new production API"
+    },
+    {
+      "kind": "systemd_unit",
+      "target": "chickenbro-worker.service",
+      "reason": "new production worker"
+    },
+    {
+      "kind": "directory",
+      "target": "/opt/chickenbro",
+      "reason": "new production code"
+    },
+    {
+      "kind": "directory",
+      "target": "/opt/chickenbro-runtime",
+      "reason": "new shared runtime"
+    },
+    {
+      "kind": "directory",
+      "target": "/opt/wow-simc",
+      "reason": "current SimulationCraft installation"
+    },
+    {
+      "kind": "directory",
+      "target": "/opt/wow-simc/current",
+      "reason": "current SimulationCraft runtime pointer"
+    },
+    {
+      "kind": "directory",
+      "target": "/var/lib/postgresql",
+      "reason": "PostgreSQL data root"
+    },
+    {
+      "kind": "directory",
+      "target": "/var/www/chickenbro-web",
+      "reason": "new production Web root"
+    },
+    {
+      "kind": "file",
+      "target": "/etc/chickenbro-api.env",
+      "reason": "new production API environment"
+    },
+    {
+      "kind": "file",
+      "target": "/etc/chickenbro-worker.env",
+      "reason": "new production worker environment"
+    },
+    {
+      "kind": "file",
+      "target": "/etc/chickenbro-source.env",
+      "reason": "new production source environment"
+    },
+    {
+      "kind": "file",
+      "target": "/etc/chickenbro-api.pgpass",
+      "reason": "new production database password file"
+    },
+    {
+      "kind": "file",
+      "target": "/etc/nginx/sites-available/wow-v2-web",
+      "reason": "current www.chickenbro.cloud Nginx owner reused by cutover"
+    },
+    {
+      "kind": "file",
+      "target": "/etc/nginx/sites-enabled/api.chickenbro.cloud",
+      "reason": "current api.chickenbro.cloud Nginx owner"
+    },
+    {
+      "kind": "directory",
+      "target": "/etc/nginx/ssl",
+      "reason": "TLS material"
+    },
+    {
+      "kind": "directory",
+      "target": "/mnt/chickenbro-backups",
+      "reason": "independent recovery and quarantine root"
+    },
+    {
+      "kind": "postgres_database",
+      "target": "chickenbro_candidate",
+      "reason": "bounded candidate database before rollback expiry"
+    },
+    {
+      "kind": "systemd_unit",
+      "target": "chickenbro-api-candidate.service",
+      "reason": "bounded candidate API before rollback expiry"
+    },
+    {
+      "kind": "systemd_unit",
+      "target": "chickenbro-worker-candidate.service",
+      "reason": "bounded candidate worker before rollback expiry"
+    },
+    {
+      "kind": "directory",
+      "target": "/opt/chickenbro-candidate",
+      "reason": "bounded candidate code before rollback expiry"
+    },
+    {
+      "kind": "directory",
+      "target": "/var/www/chickenbro-candidate",
+      "reason": "bounded candidate Web root before rollback expiry"
+    }
+  ],
+  "unresolvedRequiredTargets": [
+    {
+      "id": "legacy-runtime-pgpass-path",
+      "sourceFiles": [
+        "/etc/wow-backend.env",
+        "/etc/wow-v2-api.env"
+      ],
+      "requiredFact": "exact legacy PGPASSFILE path without exposing its value",
+      "status": "blocked"
+    },
+    {
+      "id": "post-cutover-candidate-retirement-refresh",
+      "sourceFiles": [
+        "/etc/systemd/system",
+        "/opt/chickenbro-candidate",
+        "/var/www/chickenbro-candidate"
+      ],
+      "requiredFact": "exact post-cutover candidate resources and content identities",
+      "status": "blocked"
+    }
+  ],
+  "resources": [
+    {
+      "id": "unit-wow-attribute-rule-audit-service",
+      "kind": "systemd_unit",
+      "target": "wow-attribute-rule-audit.service",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "loadState": "loaded",
+        "activeState": "inactive",
+        "unitFileState": "static"
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": null,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_reference_probe_required",
+        "unit_file_identity_missing",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "unit-wow-backend-service",
+      "kind": "systemd_unit",
+      "target": "wow-backend.service",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "loadState": "loaded",
+        "activeState": "active",
+        "unitFileState": "enabled"
+      },
+      "replacement": "chickenbro-api.service",
+      "activeConnections": null,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_reference_probe_required",
+        "unit_file_identity_missing",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "unit-wow-chickenbro-source-refresh-service",
+      "kind": "systemd_unit",
+      "target": "wow-chickenbro-source-refresh.service",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "loadState": "loaded",
+        "activeState": "inactive",
+        "unitFileState": "static"
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": null,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_reference_probe_required",
+        "unit_file_identity_missing",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "unit-wow-chickenbro-source-refresh-timer",
+      "kind": "systemd_unit",
+      "target": "wow-chickenbro-source-refresh.timer",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "loadState": "loaded",
+        "activeState": "active",
+        "unitFileState": "enabled"
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": null,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_reference_probe_required",
+        "unit_file_identity_missing",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "unit-wow-community-best-guard-sync-service",
+      "kind": "systemd_unit",
+      "target": "wow-community-best-guard-sync.service",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "loadState": "loaded",
+        "activeState": "inactive",
+        "unitFileState": "static"
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": null,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_reference_probe_required",
+        "unit_file_identity_missing",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "unit-wow-community-best-guard-sync-timer",
+      "kind": "systemd_unit",
+      "target": "wow-community-best-guard-sync.timer",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "loadState": "loaded",
+        "activeState": "active",
+        "unitFileState": "enabled"
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": null,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_reference_probe_required",
+        "unit_file_identity_missing",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "unit-wow-community-template-sync-service",
+      "kind": "systemd_unit",
+      "target": "wow-community-template-sync.service",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "loadState": "loaded",
+        "activeState": "failed",
+        "unitFileState": "static"
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": null,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_reference_probe_required",
+        "unit_file_identity_missing",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "unit-wow-community-template-sync-timer",
+      "kind": "systemd_unit",
+      "target": "wow-community-template-sync.timer",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "loadState": "loaded",
+        "activeState": "active",
+        "unitFileState": "enabled"
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": null,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_reference_probe_required",
+        "unit_file_identity_missing",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "unit-wow-data-health-followup-service",
+      "kind": "systemd_unit",
+      "target": "wow-data-health-followup.service",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "loadState": "loaded",
+        "activeState": "inactive",
+        "unitFileState": "static"
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": null,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_reference_probe_required",
+        "unit_file_identity_missing",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "unit-wow-data-health-followup-timer",
+      "kind": "systemd_unit",
+      "target": "wow-data-health-followup.timer",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "loadState": "loaded",
+        "activeState": "active",
+        "unitFileState": "enabled"
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": null,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_reference_probe_required",
+        "unit_file_identity_missing",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "unit-wow-gear-observed-backfill-service",
+      "kind": "systemd_unit",
+      "target": "wow-gear-observed-backfill.service",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "loadState": "loaded",
+        "activeState": "inactive",
+        "unitFileState": "static"
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": null,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_reference_probe_required",
+        "unit_file_identity_missing",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "unit-wow-gear-observed-backfill-timer",
+      "kind": "systemd_unit",
+      "target": "wow-gear-observed-backfill.timer",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "loadState": "loaded",
+        "activeState": "inactive",
+        "unitFileState": "enabled"
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": null,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_reference_probe_required",
+        "unit_file_identity_missing",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "unit-wow-gear-release-refresh-service",
+      "kind": "systemd_unit",
+      "target": "wow-gear-release-refresh.service",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "loadState": "loaded",
+        "activeState": "failed",
+        "unitFileState": "static"
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": null,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_reference_probe_required",
+        "unit_file_identity_missing",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "unit-wow-gear-release-refresh-timer",
+      "kind": "systemd_unit",
+      "target": "wow-gear-release-refresh.timer",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "loadState": "loaded",
+        "activeState": "active",
+        "unitFileState": "enabled"
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": null,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_reference_probe_required",
+        "unit_file_identity_missing",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "unit-wow-gear-stat-snapshot-worker-service",
+      "kind": "systemd_unit",
+      "target": "wow-gear-stat-snapshot-worker.service",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "loadState": "loaded",
+        "activeState": "active",
+        "unitFileState": "enabled"
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": null,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_reference_probe_required",
+        "unit_file_identity_missing",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "unit-wow-news-backend-service",
+      "kind": "systemd_unit",
+      "target": "wow-news-backend.service",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "loadState": "masked",
+        "activeState": "inactive",
+        "unitFileState": "masked"
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": null,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_reference_probe_required",
+        "unit_file_identity_missing",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "unit-wow-recommended-bis-guard-sync-service",
+      "kind": "systemd_unit",
+      "target": "wow-recommended-bis-guard-sync.service",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "loadState": "loaded",
+        "activeState": "inactive",
+        "unitFileState": "static"
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": null,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_reference_probe_required",
+        "unit_file_identity_missing",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "unit-wow-recommended-bis-guard-sync-timer",
+      "kind": "systemd_unit",
+      "target": "wow-recommended-bis-guard-sync.timer",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "loadState": "loaded",
+        "activeState": "active",
+        "unitFileState": "enabled"
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": null,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_reference_probe_required",
+        "unit_file_identity_missing",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "unit-wow-recommended-bis-prototype-sync-service",
+      "kind": "systemd_unit",
+      "target": "wow-recommended-bis-prototype-sync.service",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "loadState": "loaded",
+        "activeState": "inactive",
+        "unitFileState": "static"
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": null,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_reference_probe_required",
+        "unit_file_identity_missing",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "unit-wow-season-recommended-gear-sync-service",
+      "kind": "systemd_unit",
+      "target": "wow-season-recommended-gear-sync.service",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "loadState": "loaded",
+        "activeState": "inactive",
+        "unitFileState": "static"
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": null,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_reference_probe_required",
+        "unit_file_identity_missing",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "unit-wow-season-recommended-gear-sync-timer",
+      "kind": "systemd_unit",
+      "target": "wow-season-recommended-gear-sync.timer",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "loadState": "loaded",
+        "activeState": "active",
+        "unitFileState": "enabled"
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": null,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_reference_probe_required",
+        "unit_file_identity_missing",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "unit-wow-simc-runtime-update-service",
+      "kind": "systemd_unit",
+      "target": "wow-simc-runtime-update.service",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "loadState": "loaded",
+        "activeState": "inactive",
+        "unitFileState": "static"
+      },
+      "replacement": "manual SimC runtime procedure retaining /opt/wow-simc/current",
+      "activeConnections": null,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_reference_probe_required",
+        "unit_file_identity_missing",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "unit-wow-simc-version-check-service",
+      "kind": "systemd_unit",
+      "target": "wow-simc-version-check.service",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "loadState": "loaded",
+        "activeState": "inactive",
+        "unitFileState": "static"
+      },
+      "replacement": "manual SimC runtime procedure retaining /opt/wow-simc/current",
+      "activeConnections": null,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_reference_probe_required",
+        "unit_file_identity_missing",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "unit-wow-simc-version-check-timer",
+      "kind": "systemd_unit",
+      "target": "wow-simc-version-check.timer",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "loadState": "loaded",
+        "activeState": "active",
+        "unitFileState": "enabled"
+      },
+      "replacement": "manual SimC runtime procedure retaining /opt/wow-simc/current",
+      "activeConnections": null,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_reference_probe_required",
+        "unit_file_identity_missing",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "unit-wow-stat-weights-sync-service",
+      "kind": "systemd_unit",
+      "target": "wow-stat-weights-sync.service",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "loadState": "loaded",
+        "activeState": "inactive",
+        "unitFileState": "static"
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": null,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_reference_probe_required",
+        "unit_file_identity_missing",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "unit-wow-stat-weights-sync-timer",
+      "kind": "systemd_unit",
+      "target": "wow-stat-weights-sync.timer",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "loadState": "loaded",
+        "activeState": "active",
+        "unitFileState": "enabled"
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": null,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_reference_probe_required",
+        "unit_file_identity_missing",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "unit-wow-talent-graph-recovery-service",
+      "kind": "systemd_unit",
+      "target": "wow-talent-graph-recovery.service",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "loadState": "loaded",
+        "activeState": "inactive",
+        "unitFileState": "static"
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": null,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_reference_probe_required",
+        "unit_file_identity_missing",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "unit-wow-v2-api-candidate-service",
+      "kind": "systemd_unit",
+      "target": "wow-v2-api-candidate.service",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "loadState": "loaded",
+        "activeState": "active",
+        "unitFileState": "enabled"
+      },
+      "replacement": "chickenbro-api-candidate.service",
+      "activeConnections": null,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_reference_probe_required",
+        "unit_file_identity_missing",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "unit-wow-v2-api-service",
+      "kind": "systemd_unit",
+      "target": "wow-v2-api.service",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "loadState": "loaded",
+        "activeState": "active",
+        "unitFileState": "enabled"
+      },
+      "replacement": "chickenbro-api.service",
+      "activeConnections": null,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_reference_probe_required",
+        "unit_file_identity_missing",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "unit-wow-v2-worker-service",
+      "kind": "systemd_unit",
+      "target": "wow-v2-worker.service",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "loadState": "loaded",
+        "activeState": "active",
+        "unitFileState": "enabled"
+      },
+      "replacement": "chickenbro-worker.service",
+      "activeConnections": null,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_reference_probe_required",
+        "unit_file_identity_missing",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "unit-wow-websim-sync-service",
+      "kind": "systemd_unit",
+      "target": "wow-websim-sync.service",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "loadState": "loaded",
+        "activeState": "inactive",
+        "unitFileState": "static"
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": null,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_reference_probe_required",
+        "unit_file_identity_missing",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "unit-wow-websim-sync-timer",
+      "kind": "systemd_unit",
+      "target": "wow-websim-sync.timer",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "loadState": "loaded",
+        "activeState": "active",
+        "unitFileState": "enabled"
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": null,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_reference_probe_required",
+        "unit_file_identity_missing",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "database-wow-dev",
+      "kind": "postgres_database",
+      "target": "wow_dev",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "sizeBytes": 9501719,
+        "connections": 0
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": 0,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_zero_connection_probe_required",
+        "fresh_configuration_reference_probe_required",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "database-wow-exact-first-fresh-test-t3a2608050955",
+      "kind": "postgres_database",
+      "target": "wow_exact_first_fresh_test_t3a2608050955",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "sizeBytes": 8002583,
+        "connections": 0
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": 0,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_zero_connection_probe_required",
+        "fresh_configuration_reference_probe_required",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "database-wow-exact-first-fresh-test-t3a260805111623",
+      "kind": "postgres_database",
+      "target": "wow_exact_first_fresh_test_t3a260805111623",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "sizeBytes": 8002583,
+        "connections": 0
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": 0,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_zero_connection_probe_required",
+        "fresh_configuration_reference_probe_required",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "database-wow-exact-first-fresh-test-t3a260805113656",
+      "kind": "postgres_database",
+      "target": "wow_exact_first_fresh_test_t3a260805113656",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "sizeBytes": 11959319,
+        "connections": 0
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": 0,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_zero_connection_probe_required",
+        "fresh_configuration_reference_probe_required",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "database-wow-exact-first-fresh-test-t3a260805120026",
+      "kind": "postgres_database",
+      "target": "wow_exact_first_fresh_test_t3a260805120026",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "sizeBytes": 11975703,
+        "connections": 0
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": 0,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_zero_connection_probe_required",
+        "fresh_configuration_reference_probe_required",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "database-wow-exact-first-fresh-test-t3a260805125812",
+      "kind": "postgres_database",
+      "target": "wow_exact_first_fresh_test_t3a260805125812",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "sizeBytes": 12008471,
+        "connections": 0
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": 0,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_zero_connection_probe_required",
+        "fresh_configuration_reference_probe_required",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "database-wow-exact-first-fresh-test-t3a260805142130",
+      "kind": "postgres_database",
+      "target": "wow_exact_first_fresh_test_t3a260805142130",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "sizeBytes": 12008471,
+        "connections": 0
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": 0,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_zero_connection_probe_required",
+        "fresh_configuration_reference_probe_required",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "database-wow-exact-first-fresh-test-t3a260805160003",
+      "kind": "postgres_database",
+      "target": "wow_exact_first_fresh_test_t3a260805160003",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "sizeBytes": 12016663,
+        "connections": 0
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": 0,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_zero_connection_probe_required",
+        "fresh_configuration_reference_probe_required",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "database-wow-exact-first-fresh-test-t3b260806175347",
+      "kind": "postgres_database",
+      "target": "wow_exact_first_fresh_test_t3b260806175347",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "sizeBytes": 12385303,
+        "connections": 0
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": 0,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_zero_connection_probe_required",
+        "fresh_configuration_reference_probe_required",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "database-wow-exact-first-fresh-test-t3b260806191719",
+      "kind": "postgres_database",
+      "target": "wow_exact_first_fresh_test_t3b260806191719",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "sizeBytes": 12442647,
+        "connections": 0
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": 0,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_zero_connection_probe_required",
+        "fresh_configuration_reference_probe_required",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "database-wow-exact-first-fresh-test-t3b260806191950",
+      "kind": "postgres_database",
+      "target": "wow_exact_first_fresh_test_t3b260806191950",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "sizeBytes": 12442647,
+        "connections": 0
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": 0,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_zero_connection_probe_required",
+        "fresh_configuration_reference_probe_required",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "database-wow-exact-first-fresh-test-t3b260806194346",
+      "kind": "postgres_database",
+      "target": "wow_exact_first_fresh_test_t3b260806194346",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "sizeBytes": 7748631,
+        "connections": 0
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": 0,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_zero_connection_probe_required",
+        "fresh_configuration_reference_probe_required",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "database-wow-exact-first-upgrade-test-t3a2608050955",
+      "kind": "postgres_database",
+      "target": "wow_exact_first_upgrade_test_t3a2608050955",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "sizeBytes": 7691287,
+        "connections": 0
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": 0,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_zero_connection_probe_required",
+        "fresh_configuration_reference_probe_required",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "database-wow-exact-first-upgrade-test-t3a260805111623",
+      "kind": "postgres_database",
+      "target": "wow_exact_first_upgrade_test_t3a260805111623",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "sizeBytes": 7691287,
+        "connections": 0
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": 0,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_zero_connection_probe_required",
+        "fresh_configuration_reference_probe_required",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "database-wow-exact-first-upgrade-test-t3a260805113656",
+      "kind": "postgres_database",
+      "target": "wow_exact_first_upgrade_test_t3a260805113656",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "sizeBytes": 11959319,
+        "connections": 0
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": 0,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_zero_connection_probe_required",
+        "fresh_configuration_reference_probe_required",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "database-wow-exact-first-upgrade-test-t3a260805120026",
+      "kind": "postgres_database",
+      "target": "wow_exact_first_upgrade_test_t3a260805120026",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "sizeBytes": 11983895,
+        "connections": 0
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": 0,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_zero_connection_probe_required",
+        "fresh_configuration_reference_probe_required",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "database-wow-exact-first-upgrade-test-t3a260805125812",
+      "kind": "postgres_database",
+      "target": "wow_exact_first_upgrade_test_t3a260805125812",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "sizeBytes": 12008471,
+        "connections": 0
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": 0,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_zero_connection_probe_required",
+        "fresh_configuration_reference_probe_required",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "database-wow-exact-first-upgrade-test-t3a260805142130",
+      "kind": "postgres_database",
+      "target": "wow_exact_first_upgrade_test_t3a260805142130",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "sizeBytes": 12016663,
+        "connections": 0
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": 0,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_zero_connection_probe_required",
+        "fresh_configuration_reference_probe_required",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "database-wow-exact-first-upgrade-test-t3a260805160003",
+      "kind": "postgres_database",
+      "target": "wow_exact_first_upgrade_test_t3a260805160003",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "sizeBytes": 12008471,
+        "connections": 0
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": 0,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_zero_connection_probe_required",
+        "fresh_configuration_reference_probe_required",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "database-wow-exact-first-upgrade-test-t3b260806175347",
+      "kind": "postgres_database",
+      "target": "wow_exact_first_upgrade_test_t3b260806175347",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "sizeBytes": 7748631,
+        "connections": 0
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": 0,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_zero_connection_probe_required",
+        "fresh_configuration_reference_probe_required",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "database-wow-exact-first-upgrade-test-t3b260806191719",
+      "kind": "postgres_database",
+      "target": "wow_exact_first_upgrade_test_t3b260806191719",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "sizeBytes": 7748631,
+        "connections": 0
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": 0,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_zero_connection_probe_required",
+        "fresh_configuration_reference_probe_required",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "database-wow-exact-first-upgrade-test-t3b260806191950",
+      "kind": "postgres_database",
+      "target": "wow_exact_first_upgrade_test_t3b260806191950",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "sizeBytes": 12393495,
+        "connections": 0
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": 0,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_zero_connection_probe_required",
+        "fresh_configuration_reference_probe_required",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "database-wow-exact-first-upgrade-test-t3b260806194346",
+      "kind": "postgres_database",
+      "target": "wow_exact_first_upgrade_test_t3b260806194346",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "sizeBytes": 7748631,
+        "connections": 0
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": 0,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_zero_connection_probe_required",
+        "fresh_configuration_reference_probe_required",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "database-wow-gear-evidence-01adf184-r14",
+      "kind": "postgres_database",
+      "target": "wow_gear_evidence_01adf184_r14",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "sizeBytes": 5237750807,
+        "connections": 0
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": 0,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_zero_connection_probe_required",
+        "fresh_configuration_reference_probe_required",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "database-wow-gear-evidence-0be65754-r24",
+      "kind": "postgres_database",
+      "target": "wow_gear_evidence_0be65754_r24",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "sizeBytes": 5517827095,
+        "connections": 0
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": 0,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_zero_connection_probe_required",
+        "fresh_configuration_reference_probe_required",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "database-wow-gear-evidence-145dee16-r22",
+      "kind": "postgres_database",
+      "target": "wow_gear_evidence_145dee16_r22",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "sizeBytes": 5964094487,
+        "connections": 0
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": 0,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_zero_connection_probe_required",
+        "fresh_configuration_reference_probe_required",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "database-wow-gear-evidence-15f514d5-r23",
+      "kind": "postgres_database",
+      "target": "wow_gear_evidence_15f514d5_r23",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "sizeBytes": 5813812247,
+        "connections": 0
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": 0,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_zero_connection_probe_required",
+        "fresh_configuration_reference_probe_required",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "database-wow-prod",
+      "kind": "postgres_database",
+      "target": "wow_prod",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "sizeBytes": 100326423,
+        "connections": 0
+      },
+      "replacement": "chickenbro_prod",
+      "activeConnections": 0,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_zero_connection_probe_required",
+        "fresh_configuration_reference_probe_required",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "database-wow-test",
+      "kind": "postgres_database",
+      "target": "wow_test",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "sizeBytes": 16384261143,
+        "connections": 0
+      },
+      "replacement": "chickenbro_prod",
+      "activeConnections": 0,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_zero_connection_probe_required",
+        "fresh_configuration_reference_probe_required",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "database-wow-v2-candidate",
+      "kind": "postgres_database",
+      "target": "wow_v2_candidate",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "sizeBytes": 10222615,
+        "connections": 0
+      },
+      "replacement": "chickenbro_candidate until candidate retirement",
+      "activeConnections": 0,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_zero_connection_probe_required",
+        "fresh_configuration_reference_probe_required",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "file-etc-wow-backend-env",
+      "kind": "file",
+      "target": "/etc/wow-backend.env",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "status": "not_inventoried_exactly"
+      },
+      "replacement": "environment previously owned by legacy wow-backend",
+      "activeConnections": null,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "fresh_reference_probe_required",
+        "exact_content_identity_missing",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "file-etc-wow-exact-worker-env",
+      "kind": "file",
+      "target": "/etc/wow-exact-worker.env",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "status": "not_inventoried_exactly"
+      },
+      "replacement": "environment previously owned by legacy exact worker",
+      "activeConnections": null,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "fresh_reference_probe_required",
+        "exact_content_identity_missing",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "file-etc-wow-v2-api-env",
+      "kind": "file",
+      "target": "/etc/wow-v2-api.env",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "status": "not_inventoried_exactly"
+      },
+      "replacement": "environment previously owned by legacy v2 API",
+      "activeConnections": null,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "fresh_reference_probe_required",
+        "exact_content_identity_missing",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "file-etc-wow-v2-source-env",
+      "kind": "file",
+      "target": "/etc/wow-v2-source.env",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "status": "not_inventoried_exactly"
+      },
+      "replacement": "environment previously owned by legacy v2 source gateway",
+      "activeConnections": null,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "fresh_reference_probe_required",
+        "exact_content_identity_missing",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "file-etc-wow-v2-api-candidate-env",
+      "kind": "file",
+      "target": "/etc/wow-v2-api-candidate.env",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "status": "not_inventoried_exactly"
+      },
+      "replacement": "environment previously owned by legacy v2 candidate",
+      "activeConnections": null,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "fresh_reference_probe_required",
+        "exact_content_identity_missing",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "file-etc-wow-v2-api-candidate-pgpass",
+      "kind": "file",
+      "target": "/etc/wow-v2-api-candidate.pgpass",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "status": "not_inventoried_exactly"
+      },
+      "replacement": "database password file previously owned by legacy v2 candidate",
+      "activeConnections": null,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "fresh_reference_probe_required",
+        "exact_content_identity_missing",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "file-etc-nginx-sites-available-wow-backend",
+      "kind": "file",
+      "target": "/etc/nginx/sites-available/wow-backend",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "status": "not_inventoried_exactly"
+      },
+      "replacement": "legacy backend Nginx owner",
+      "activeConnections": null,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "fresh_reference_probe_required",
+        "exact_content_identity_missing",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "file-etc-nginx-sites-enabled-wow-backend",
+      "kind": "file",
+      "target": "/etc/nginx/sites-enabled/wow-backend",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "status": "not_inventoried_exactly"
+      },
+      "replacement": "legacy backend Nginx enablement link",
+      "activeConnections": null,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "fresh_reference_probe_required",
+        "exact_content_identity_missing",
+        "independent_restore_missing"
+      ]
+    },
+    {
+      "id": "directory-opt-wow-mini-program",
+      "kind": "directory",
+      "target": "/opt/wow-mini-program",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "status": "present",
+        "sizeBytes": 2436709811
+      },
+      "replacement": "/opt/chickenbro",
+      "activeConnections": null,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_reference_probe_required",
+        "exact_tree_identity_missing",
+        "independent_restore_missing",
+        "quarantine_expiry_not_set"
+      ]
+    },
+    {
+      "id": "directory-opt-wow-mini-program-candidate",
+      "kind": "directory",
+      "target": "/opt/wow-mini-program-candidate",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "status": "not_in_inventory"
+      },
+      "replacement": "/opt/chickenbro-candidate",
+      "activeConnections": null,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_reference_probe_required",
+        "exact_tree_identity_missing",
+        "independent_restore_missing",
+        "quarantine_expiry_not_set"
+      ]
+    },
+    {
+      "id": "directory-opt-wow-mini-program-candidates",
+      "kind": "directory",
+      "target": "/opt/wow-mini-program-candidates",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "status": "not_in_inventory"
+      },
+      "replacement": "/opt/chickenbro",
+      "activeConnections": null,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_reference_probe_required",
+        "exact_tree_identity_missing",
+        "independent_restore_missing",
+        "quarantine_expiry_not_set"
+      ]
+    },
+    {
+      "id": "directory-opt-wow-v2-staging",
+      "kind": "directory",
+      "target": "/opt/wow-v2-staging",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "status": "present",
+        "sizeBytes": 158096190
+      },
+      "replacement": "/opt/chickenbro-runtime",
+      "activeConnections": null,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_reference_probe_required",
+        "exact_tree_identity_missing",
+        "independent_restore_missing",
+        "quarantine_expiry_not_set"
+      ]
+    },
+    {
+      "id": "directory-var-backups-wow-mini-program",
+      "kind": "directory",
+      "target": "/var/backups/wow-mini-program",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "status": "present",
+        "sizeBytes": 1161916185
+      },
+      "replacement": "/mnt/chickenbro-backups",
+      "activeConnections": null,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_reference_probe_required",
+        "exact_tree_identity_missing",
+        "independent_restore_missing",
+        "quarantine_expiry_not_set"
+      ]
+    },
+    {
+      "id": "directory-var-backups-wow-v2",
+      "kind": "directory",
+      "target": "/var/backups/wow-v2",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "status": "present",
+        "sizeBytes": 7627618945
+      },
+      "replacement": "/mnt/chickenbro-backups",
+      "activeConnections": null,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_reference_probe_required",
+        "exact_tree_identity_missing",
+        "independent_restore_missing",
+        "quarantine_expiry_not_set"
+      ]
+    },
+    {
+      "id": "directory-var-backups-wow-v2-candidate",
+      "kind": "directory",
+      "target": "/var/backups/wow-v2-candidate",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "status": "not_in_inventory"
+      },
+      "replacement": "/mnt/chickenbro-backups",
+      "activeConnections": null,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_reference_probe_required",
+        "exact_tree_identity_missing",
+        "independent_restore_missing",
+        "quarantine_expiry_not_set"
+      ]
+    },
+    {
+      "id": "directory-var-lib-wow-backend",
+      "kind": "directory",
+      "target": "/var/lib/wow-backend",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "status": "present",
+        "sizeBytes": 1127088626
+      },
+      "replacement": "server-owned Chickenbro PostgreSQL and isolated runtime state",
+      "activeConnections": null,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_reference_probe_required",
+        "exact_tree_identity_missing",
+        "independent_restore_missing",
+        "quarantine_expiry_not_set"
+      ]
+    },
+    {
+      "id": "directory-var-www-chickenbro-web-candidate",
+      "kind": "directory",
+      "target": "/var/www/chickenbro-web-candidate",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "status": "present",
+        "sizeBytes": 11922719
+      },
+      "replacement": "/var/www/chickenbro-web",
+      "activeConnections": null,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_reference_probe_required",
+        "exact_tree_identity_missing",
+        "independent_restore_missing",
+        "quarantine_expiry_not_set"
+      ]
+    },
+    {
+      "id": "directory-etc-systemd-system-wow-news-backend-service-d",
+      "kind": "directory",
+      "target": "/etc/systemd/system/wow-news-backend.service.d",
+      "observed": {
+        "at": "2026-09-02T13:43:05Z",
+        "status": "not_in_inventory"
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": null,
+      "contentSha256": null,
+      "currentReferences": null,
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "phase5_not_accepted",
+        "stable_production_health_not_proven",
+        "fresh_reference_probe_required",
+        "exact_tree_identity_missing",
+        "independent_restore_missing",
+        "quarantine_expiry_not_set"
+      ]
+    }
+  ],
+  "requiredBeforeApply": [
+    "refresh the cloud inventory on the target host",
+    "record real Mini and Web production acceptance plus first-new-write reconciliation",
+    "complete a stable production-health window",
+    "bind an independent backup manifest and completed isolated restore identity",
+    "resolve every required exact target",
+    "record fresh zero-reference probes for every resource",
+    "record fresh zero-connection probes for every database",
+    "record exact unit, file and directory content identities",
+    "set and pass every delete-after boundary",
+    "review this exact manifest file SHA-256"
+  ],
+  "nonClaims": {
+    "phase5Accepted": false,
+    "independentBackupExists": false,
+    "restoreVerified": false,
+    "cloudInventoryFresh": false,
+    "safeToDelete": false,
+    "cleanupComplete": false
+  }
+}

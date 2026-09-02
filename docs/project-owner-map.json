@@ -143,13 +143,15 @@
       "runtimeSurfaces": [
         "scripts/project-harness.js",
         "scripts/build-chickenbro-simc-refactor-inventory.js",
-        "scripts/apply-chickenbro-simc-local-cleanup.js"
+        "scripts/apply-chickenbro-simc-local-cleanup.js",
+        "server/retire_chickenbro_legacy_lighthouse.sh"
       ],
       "characterization": [
         "tests/project-state.test.js",
         "tests/project-harness.test.js",
         "tests/chickenbro-simc-refactor-inventory.test.js",
-        "tests/chickenbro-simc-local-cleanup.test.js"
+        "tests/chickenbro-simc-local-cleanup.test.js",
+        "tests/retire-chickenbro-legacy.test.js"
       ],
       "changedPathPatterns": [
         "docs/**",

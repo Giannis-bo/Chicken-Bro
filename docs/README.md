@@ -23,6 +23,7 @@
 - [本地处置规则](refactor/chickenbro-simc-disposition-rules.json)：最终只有 `keep` 或 `delete`，未知路径 fail closed。
 - [逐文件清单](refactor/chickenbro-simc-refactor-inventory.json)：绑定 Git commit、文件 SHA 和 caller/link 证明。
 - [云端只读清单](refactor/chickenbro-simc-cloud-inventory.json)：当前服务、数据库、目录和容量事实。
+- [云端退役清单](refactor/chickenbro-simc-cloud-cleanup-manifest.json)：逐个旧 unit、数据库、配置与目录的当前门禁；默认只读。
 - [容量候选清单](refactor/chickenbro-simc-capacity-cleanup-manifest.json)：仅列精确候选，不授予删除。
 - [恢复通道清单](refactor/chickenbro-simc-recovery-inventory.json)：独立介质与 restore 证明状态。
 
