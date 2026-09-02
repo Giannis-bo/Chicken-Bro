@@ -32,7 +32,9 @@
       "reason": "Deterministic disposition rules, generator, and focused verification.",
       "paths": [
         "docs/refactor/chickenbro-simc-disposition-rules.json",
+        "scripts/apply-chickenbro-simc-local-cleanup.js",
         "scripts/build-chickenbro-simc-refactor-inventory.js",
+        "tests/chickenbro-simc-local-cleanup.test.js",
         "tests/chickenbro-simc-refactor-inventory.test.js"
       ]
     },
@@ -43,7 +45,20 @@
       "owner": "Harness release packet",
       "reason": "Evidence and requirements for the currently executing rebuild.",
       "prefixes": [
-        "artifacts/releases/2026-09-02-chickenbro-simc-control-plane/"
+        "artifacts/releases/2026-09-02-chickenbro-simc-control-plane/",
+        "artifacts/releases/2026-09-02-chickenbro-simc-dual-client-cutover/",
+        "artifacts/releases/2026-09-02-chickenbro-simc-identity-data/",
+        "artifacts/releases/2026-09-02-chickenbro-simc-legacy-retirement/"
+      ]
+    },
+    {
+      "id": "mini-client-legacy-simulator-routes",
+      "disposition": "delete",
+      "category": "legacy-client-code",
+      "owner": "Mini Program retirement",
+      "reason": "The superseded simulator route family is replaced by the formal Chickenbro and SimC pages.",
+      "prefixes": [
+        "apps/mini-taro/src/pages/simulator/"
       ]
     },
     {
@@ -116,7 +131,10 @@
       "owner": "Chickenbro and SimC Mini Program",
       "reason": "Conversation, SimC submission, task list, and task detail are the approved product capabilities.",
       "prefixes": [
-        "apps/mini-taro/src/pages/simulator/"
+        "apps/mini-taro/src/features/",
+        "apps/mini-taro/src/pages/chickenbro/",
+        "apps/mini-taro/src/pages/simc/",
+        "apps/mini-taro/src/web/"
       ]
     },
     {
@@ -136,7 +154,18 @@
       "owner": "Prototype retirement",
       "reason": "Prototype bypass sessions and routes are not part of real Mini-assisted Web authentication.",
       "paths": [
-        "server/app/api/routes/prototype.py"
+        "server/app/api/routes/prototype.py",
+        "server/app/identity/prototype.py"
+      ]
+    },
+    {
+      "id": "target-product-schema-and-migration",
+      "disposition": "keep",
+      "category": "target-database-code",
+      "owner": "Canonical Chickenbro PostgreSQL schema",
+      "reason": "The clean schema, allowlisted legacy copier, and reconciliation owners are the current migration authority.",
+      "prefixes": [
+        "server/migrations/product/"
       ]
     },
     {
@@ -244,11 +273,30 @@
       ]
     },
     {
-      "id": "target-v2-deployment-inputs",
-      "disposition": "migrate",
-      "category": "target-deployment-migration",
+      "id": "target-chickenbro-deployment",
+      "disposition": "keep",
+      "category": "target-deployment-code",
       "owner": "Chickenbro and SimC runtime",
-      "reason": "Existing v2 service and Nginx definitions are migration inputs, not yet final deployment authority.",
+      "reason": "The isolated Chickenbro services, Nginx owner, candidate acceptance, deploy, provision, and cutover tooling are the current runtime authority.",
+      "paths": [
+        "server/accept_chickenbro_candidate.py",
+        "server/chickenbro-api-candidate.service",
+        "server/chickenbro-api.service",
+        "server/chickenbro-web.nginx",
+        "server/chickenbro-worker-candidate.service",
+        "server/chickenbro-worker.service",
+        "server/chickenbro_simc_cloud_inventory.py",
+        "server/cutover_chickenbro_lighthouse.sh",
+        "server/deploy_chickenbro_candidate_lighthouse.sh",
+        "server/provision_chickenbro_database_lighthouse.sh"
+      ]
+    },
+    {
+      "id": "superseded-v2-deployment-inputs",
+      "disposition": "delete",
+      "category": "legacy-deployment-code",
+      "owner": "Legacy v2 runtime retirement",
+      "reason": "The generic v2 candidate and production owners are superseded by the isolated Chickenbro runtime.",
       "paths": [
         "server/deploy_web_v2_candidate_lighthouse.sh",
         "server/deploy_web_v2_lighthouse.sh",
@@ -291,12 +339,25 @@
       "owner": "Dual-client identity and platform API",
       "reason": "Typed platform and Web-auth contracts are direct inputs to the canonical dual-client API.",
       "paths": [
+        "packages/api-client/src/api-v2-prefix.ts",
+        "packages/api-client/src/auth-context.test.ts",
+        "packages/api-client/src/auth-context.ts",
+        "packages/api-client/src/chat.test.ts",
+        "packages/api-client/src/chat.ts",
         "packages/api-client/src/platform-v2.test.ts",
         "packages/api-client/src/platform-v2.ts",
+        "packages/api-client/src/simc.test.ts",
+        "packages/api-client/src/simc.ts",
+        "packages/api-client/src/transport.test.ts",
+        "packages/api-client/src/transport.ts",
         "packages/api-client/src/web-auth.test.ts",
         "packages/api-client/src/web-auth.ts",
+        "packages/domain/src/chat.test.ts",
+        "packages/domain/src/chat.ts",
         "packages/domain/src/platform-v2.test.ts",
         "packages/domain/src/platform-v2.ts",
+        "packages/domain/src/simc.test.ts",
+        "packages/domain/src/simc.ts",
         "packages/domain/src/web-auth.test.ts",
         "packages/domain/src/web-auth.ts"
       ]
