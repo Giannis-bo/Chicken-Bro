@@ -35,8 +35,6 @@ export type { WowApiClientConfig, WowApiClients } from './clients'
 export { createNewsClient, isNewsHomeVisuallyEmpty, isReadyNewsArticle } from './news'
 export type { NewsClient } from './news'
 export { PlatformV2Client } from './platform-v2'
-export { createPrototypeWebClient, PROTOTYPE_SESSION_STORAGE_KEY } from './prototype-client'
-export type { PrototypeWebClient } from './prototype-client'
 export { SimulatorClient } from './simulator'
 export type {
   ChickenbroMessageRequest,

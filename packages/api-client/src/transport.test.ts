@@ -397,18 +397,18 @@ describe('Taro transport parity', () => {
       const task = transport.requestSse
       expect(task).toBeTypeOf('function')
       if (!task) throw new Error('SSE transport must be present')
-      task('/api/v2/prototype/stream', {
+      task('/api/v2/chat/conversations/conversation/messages/stream', {
         method: 'POST',
         baseUrl: 'web-auth',
         data: { content: 'hello' },
-        header: { 'X-Prototype-Session': 'a'.repeat(64) },
+        header: { Authorization: `Bearer ${'a'.repeat(64)}` },
         onEvent: (event) => events.push(event),
         onFailure: (error) => failures.push(error),
       })
       await new Promise((resolve) => setTimeout(resolve, 0))
 
       expect(fetchMock).toHaveBeenCalledWith(
-        'https://www.chickenbro.cloud/api/v2/prototype/stream',
+        'https://www.chickenbro.cloud/api/v2/chat/conversations/conversation/messages/stream',
         expect.objectContaining({
           method: 'POST',
           credentials: 'omit',

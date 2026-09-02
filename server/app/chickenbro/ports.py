@@ -132,6 +132,3 @@ class ChatRepository(Protocol):
         finished_at: datetime,
     ) -> None:
         raise NotImplementedError
-
-
-PrototypeChatRepository = ChatRepository

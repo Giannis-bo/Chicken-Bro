@@ -12,7 +12,6 @@ from server.app.identity.domain import (
     WebLoginSessionStatus,
 )
 from server.app.identity.audit import AuthAuditEvent
-from server.app.identity.prototype import PrototypeSession
 from server.app.identity.ports import PublicUser
 
 
@@ -260,97 +259,6 @@ class PostgresIdentityRepository:
                     (now, token_hash, kind),
                 )
 
-    def create_prototype_user(self, *, user_id: UUID, now: datetime) -> None:
-        with self._connection_factory() as connection:
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    """
-                    INSERT INTO identity.users (
-                        id, display_name, status, account_kind, created_at, updated_at
-                    )
-                    VALUES (%s, '', 'active', 'prototype', %s, %s)
-                    """,
-                    (user_id, now, now),
-                )
-
-    def insert_prototype_session(self, session: PrototypeSession, *, now: datetime) -> None:
-        with self._connection_factory() as connection:
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    """
-                    INSERT INTO identity.prototype_sessions (
-                        id, user_id, token_sha256, expires_at, revoked_at, created_at
-                    )
-                    VALUES (%s, %s, %s, %s, %s, %s)
-                    """,
-                    (
-                        session.id,
-                        session.user_id,
-                        session.token_sha256,
-                        session.expires_at,
-                        session.revoked_at,
-                        now,
-                    ),
-                )
-
-    def get_prototype_session_by_token_hash(
-        self,
-        *,
-        token_sha256: str,
-        for_update: bool = False,
-    ) -> PrototypeSession | None:
-        lock_clause = " FOR UPDATE" if for_update else ""
-        with self._connection_factory() as connection:
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    f"""
-                    SELECT ps.id, ps.user_id, ps.token_sha256, ps.expires_at, ps.revoked_at
-                    FROM identity.prototype_sessions AS ps
-                    JOIN identity.users AS u ON u.id = ps.user_id
-                    WHERE ps.token_sha256 = %s
-                      AND u.account_kind = 'prototype'
-                      AND u.status = 'active'{lock_clause}
-                    """,
-                    (token_sha256,),
-                )
-                row = cursor.fetchone()
-        return self._prototype_session_from_row(row) if row is not None else None
-
-    def get_prototype_session(
-        self,
-        *,
-        session_id: UUID,
-        for_update: bool = False,
-    ) -> PrototypeSession | None:
-        lock_clause = " FOR UPDATE" if for_update else ""
-        with self._connection_factory() as connection:
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    f"""
-                    SELECT ps.id, ps.user_id, ps.token_sha256, ps.expires_at, ps.revoked_at
-                    FROM identity.prototype_sessions AS ps
-                    JOIN identity.users AS u ON u.id = ps.user_id
-                    WHERE ps.id = %s
-                      AND u.account_kind = 'prototype'
-                      AND u.status = 'active'{lock_clause}
-                    """,
-                    (session_id,),
-                )
-                row = cursor.fetchone()
-        return self._prototype_session_from_row(row) if row is not None else None
-
-    def save_prototype_session(self, session: PrototypeSession, *, now: datetime) -> None:
-        with self._connection_factory() as connection:
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    """
-                    UPDATE identity.prototype_sessions
-                    SET revoked_at = %s
-                    WHERE id = %s AND user_id = %s
-                    """,
-                    (session.revoked_at, session.id, session.user_id),
-                )
-
     def insert_web_login_session(self, session: WebLoginSession, *, now: datetime) -> None:
         with self._connection_factory() as connection:
             with connection.cursor() as cursor:
@@ -538,14 +446,4 @@ class PostgresIdentityRepository:
             status=WebLoginSessionStatus(str(_row_value(row, "status", 5))),
             expires_at=_row_value(row, "expires_at", 6),
             consumed_at=_row_value(row, "consumed_at", 7),
-        )
-
-    @staticmethod
-    def _prototype_session_from_row(row: Any) -> PrototypeSession:
-        return PrototypeSession(
-            id=UUID(str(_row_value(row, "id", 0))),
-            user_id=UUID(str(_row_value(row, "user_id", 1))),
-            token_sha256=str(_row_value(row, "token_sha256", 2)),
-            expires_at=_row_value(row, "expires_at", 3),
-            revoked_at=_row_value(row, "revoked_at", 4),
         )

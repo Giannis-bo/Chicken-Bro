@@ -59,7 +59,7 @@ class HttpxSourceGateway:
             with httpx.Client(
                 timeout=self._timeout_seconds,
                 follow_redirects=False,
-                headers={"User-Agent": "chickenbro-web-prototype/1", **dict(headers or {})},
+                headers={"User-Agent": "chickenbro-simc/1", **dict(headers or {})},
             ) as client:
                 response = client.request(method, url, json=json_body)
                 if 300 <= response.status_code < 400:

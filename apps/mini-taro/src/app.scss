@@ -20,7 +20,7 @@ body {
 }
 
 /* Taro's H5 tabbar shell locks the document to one viewport. The standalone
- * Web prototype is rendered inside that shell, so release only the Web runtime
+ * Web client is rendered inside that shell, so release only the Web runtime
  * from the lock while leaving mini-program route scrolling unchanged. */
 html.web-runtime-scroll {
   height: auto !important;

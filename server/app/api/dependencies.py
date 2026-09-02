@@ -3,13 +3,12 @@ from datetime import datetime, timezone
 from fastapi import Request
 
 from server.app.api.errors import ApiProblem
-from server.app.chickenbro.application import ChatApplication, PrototypeChatApplication
+from server.app.chickenbro.application import ChatApplication
 from server.app.chickenbro.source_gateway import ChickenbroSourceGateway
 from server.app.simulation.application import SimulationApplication
 from server.app.identity.application import WebAuthApplication
 from server.app.identity.audit import AuthAuditEvent
 from server.app.identity.domain import Principal
-from server.app.identity.prototype import PrototypeIdentityApplication, PrototypePrincipal
 from server.app.identity.request_auth import (
     CredentialTransportError,
     resolve_mutating_request_principal,
@@ -23,24 +22,12 @@ def web_auth_application(request: Request) -> WebAuthApplication:
     return request.app.state.web_auth_application
 
 
-def prototype_identity_application(request: Request) -> PrototypeIdentityApplication:
-    return request.app.state.prototype_identity_application
-
-
-def prototype_chat_application(request: Request) -> PrototypeChatApplication:
-    return request.app.state.prototype_chat_application
-
-
 def chat_application(request: Request) -> ChatApplication:
     return request.app.state.chat_application
 
 
 def simulation_application(request: Request) -> SimulationApplication:
     return request.app.state.simulation_application
-
-
-def prototype_simulation_application(request: Request) -> SimulationApplication:
-    return request.app.state.prototype_simulation_application
 
 
 def chickenbro_source_gateway(request: Request) -> ChickenbroSourceGateway:
@@ -196,23 +183,3 @@ def require_web_origin_dependency(request: Request) -> None:
         status_code=200,
         reason_code="ORIGIN_ACCEPTED",
     )
-
-
-def require_prototype_principal(request: Request) -> PrototypePrincipal:
-    if not request.app.state.settings.prototype_enabled:
-        raise ApiProblem(status_code=503, code="PROTOTYPE_DISABLED", message="Web prototype is not enabled")
-    credential = request.headers.get("X-Prototype-Session", "")
-    if not credential or any(character.isspace() for character in credential):
-        raise ApiProblem(
-            status_code=401,
-            code="PROTOTYPE_SESSION_REQUIRED",
-            message="prototype session is required",
-        )
-    principal = prototype_identity_application(request).resolve(credential)
-    if principal is None:
-        raise ApiProblem(
-            status_code=401,
-            code="PROTOTYPE_SESSION_REQUIRED",
-            message="prototype session is required",
-        )
-    return principal

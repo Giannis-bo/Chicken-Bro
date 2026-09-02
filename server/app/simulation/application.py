@@ -248,11 +248,7 @@ class SimulationApplication:
         return key
 
 
-PrototypeSimulationApplication = SimulationApplication
-
-
 __all__ = (
-    "PrototypeSimulationApplication",
     "SimulationApplication",
     "SimulationApplicationError",
     "SimulationJobPage",

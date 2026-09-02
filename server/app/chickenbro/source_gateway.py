@@ -218,7 +218,7 @@ class ServerConfiguredSourceQuery:
             "evidenceRefs": [source_evidence["id"]],
             "limitations": [
                 "This is a Raider.IO character snapshot, not a Warcraft Logs combat record or a personal DPS verdict.",
-                "The Web prototype applies its max-level policy when the profile is later used for SimC.",
+                "The SimC application applies its max-level policy when the profile is used for simulation.",
             ],
             "nextActions": [],
         }

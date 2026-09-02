@@ -20,7 +20,6 @@ class ChatApplicationError(ValueError):
 
 
 CHAT_TIMEOUT_SECONDS = 180
-PROTOTYPE_CHAT_TIMEOUT_SECONDS = CHAT_TIMEOUT_SECONDS
 
 
 @dataclass(frozen=True)
@@ -492,12 +491,8 @@ class ChatApplication:
         )
 
 
-PrototypeChatApplication = ChatApplication
-
-
 __all__ = (
     "ChatApplication",
     "ChatApplicationError",
     "ConversationPage",
-    "PrototypeChatApplication",
 )

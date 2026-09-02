@@ -44,24 +44,6 @@ export type {
   PlatformReadinessEnvelope,
 } from './platform-v2'
 export {
-  isPrototypeChatStreamEvent,
-  isPrototypeConversationResponse,
-  isPrototypeSimulationResponse,
-  isPrototypeSessionResponse,
-  isPrototypeSnapshotResponse,
-} from './prototype'
-export type {
-  PrototypeChatStreamEvent,
-  PrototypeConversationResponse,
-  PrototypeMessage,
-  PrototypeReadiness,
-  PrototypeSimulationMetric,
-  PrototypeSimulationResponse,
-  PrototypeSimulationResult,
-  PrototypeSessionResponse,
-  PrototypeSnapshotResponse,
-} from './prototype'
-export {
   isConfirmResponse,
   isLogoutResponse,
   isMeResponse,

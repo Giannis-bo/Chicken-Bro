@@ -18,7 +18,6 @@ Environment=WOW_API_V2_PORT=8791
 Environment=WOW_WEB_ORIGIN=https://www.chickenbro.cloud
 Environment=WOW_WEB_COOKIE_NAME=__Host-chickenbro-candidate-session
 Environment=WOW_WEB_CSRF_COOKIE_NAME=__Host-chickenbro-candidate-csrf
-Environment=WOW_WEB_PROTOTYPE_ENABLED=0
 Environment=WOW_WECHAT_PAGE=pages/auth/web-login-confirm
 Environment=WOW_WECHAT_ENV_VERSION=trial
 Environment=WOW_WECHAT_CHECK_PATH=1

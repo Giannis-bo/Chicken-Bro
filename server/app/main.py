@@ -12,7 +12,7 @@ from server.app.api.errors import (
     validation_exception_handler,
 )
 from server.app.api.routes import router as health_router
-from server.app.chickenbro.application import ChatApplication, PrototypeChatApplication
+from server.app.chickenbro.application import ChatApplication
 from server.app.chickenbro.codex_adapter import NativeCodexChatAdapter
 from server.app.chickenbro.repository import PostgresChatRepository
 from server.app.chickenbro.source_gateway import (
@@ -22,7 +22,6 @@ from server.app.chickenbro.source_gateway import (
 )
 from server.app.identity.application import WebAuthApplication
 from server.app.identity.audit import AuthAuditSink, NullAuthAuditSink
-from server.app.identity.prototype import PrototypeIdentityApplication
 from server.app.identity.repository import PostgresIdentityRepository
 from server.app.integrations.wechat_mini import WechatMiniClient
 from server.app.platform.config import AppSettings
@@ -42,9 +41,6 @@ def create_app(
     web_auth_application: WebAuthApplication | None = None,
     chat_application: ChatApplication | None = None,
     simulation_application: SimulationApplication | None = None,
-    prototype_identity_application: PrototypeIdentityApplication | None = None,
-    prototype_chat_application: PrototypeChatApplication | None = None,
-    prototype_simulation_application: SimulationApplication | None = None,
     auth_audit_sink: AuthAuditSink | None = None,
 ) -> FastAPI:
     formal_auth_application_injected = web_auth_application is not None
@@ -58,12 +54,7 @@ def create_app(
     source_gateway = ChickenbroSourceGateway(query_service=ServerConfiguredSourceQuery())
     repository = None
     postgres_factory = None
-    if (
-        web_auth_application is None
-        or prototype_identity_application is None
-        or (chat_application is None and prototype_chat_application is None)
-        or (simulation_application is None and prototype_simulation_application is None)
-    ):
+    if web_auth_application is None or chat_application is None or simulation_application is None:
         postgres_factory = PostgresConnectionFactory(settings)
         repository = PostgresIdentityRepository(postgres_factory.connection)
     if web_auth_application is None:
@@ -74,32 +65,16 @@ def create_app(
             wechat_gateway=WechatMiniClient(settings),
             settings=settings,
         )
-    if prototype_identity_application is None:
-        if repository is None:
-            raise RuntimeError("identity repository was not constructed")
-        from datetime import timedelta
-
-        prototype_identity_application = PrototypeIdentityApplication(
-            repository=repository,
-            ttl=timedelta(seconds=settings.prototype_ttl_seconds),
-        )
     if chat_application is None:
-        if prototype_chat_application is not None:
-            chat_application = prototype_chat_application
-        elif postgres_factory is not None:
-            chat_application = ChatApplication(
-                repository=PostgresChatRepository(postgres_factory.connection),
-                codex=NativeCodexChatAdapter(
-                    source_gateway=source_gateway,
-                    source_gateway_url=f"http://127.0.0.1:{settings.port}/api/v2/internal/chickenbro/source-query",
-                ),
-            )
-        else:
+        if postgres_factory is None:
             raise RuntimeError("Chat application was not constructed")
-    if prototype_chat_application is None:
-        prototype_chat_application = chat_application
-    if simulation_application is None and prototype_simulation_application is not None:
-        simulation_application = prototype_simulation_application
+        chat_application = ChatApplication(
+            repository=PostgresChatRepository(postgres_factory.connection),
+            codex=NativeCodexChatAdapter(
+                source_gateway=source_gateway,
+                source_gateway_url=f"http://127.0.0.1:{settings.port}/api/v2/internal/chickenbro/source-query",
+            ),
+        )
     if simulation_application is None:
         if postgres_factory is None:
             postgres_factory = PostgresConnectionFactory(settings)
@@ -112,8 +87,6 @@ def create_app(
             runtime_capabilities=runtime_capabilities,
             queue=PostgresJobQueue(postgres_factory.connection),
         )
-    if prototype_simulation_application is None:
-        prototype_simulation_application = simulation_application
     app.state.web_auth_application = web_auth_application
     app.state.auth_audit_sink = (
         repository
@@ -121,10 +94,7 @@ def create_app(
         else auth_audit_sink or NullAuthAuditSink()
     )
     app.state.chat_application = chat_application
-    app.state.prototype_identity_application = prototype_identity_application
-    app.state.prototype_chat_application = prototype_chat_application
     app.state.simulation_application = simulation_application
-    app.state.prototype_simulation_application = prototype_simulation_application
     app.state.chickenbro_source_gateway = source_gateway
     app.state.chickenbro_source_gateway_url = DEFAULT_SOURCE_GATEWAY_URL.replace(
         ":8790", f":{settings.port}", 1

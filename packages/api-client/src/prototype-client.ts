@@ -9,7 +9,7 @@ import {
   type PrototypeSimulationResponse,
   type PrototypeSessionResponse,
   type PrototypeSnapshotResponse,
-} from '@wow-mini/domain'
+} from '../../domain/src/prototype'
 
 import type { ApiResult, ApiStreamTask, ApiTransport } from './transport'
 

@@ -128,7 +128,7 @@ test('formal production and candidate services have separate roots, ports and se
   assert.match(productionApi, /WOW_APP_ENV=production/)
   assert.match(productionApi, /WOW_API_V2_HOST=127\.0\.0\.1/)
   assert.match(productionApi, /WOW_API_V2_PORT=8790/)
-  assert.match(productionApi, /WOW_WEB_PROTOTYPE_ENABLED=0/)
+  assert.doesNotMatch(productionApi, /WOW_WEB_PROTOTYPE/)
   assert.match(productionApi, /pages\/auth\/web-login-confirm/)
 
   assert.match(candidateApi, /WorkingDirectory=\/opt\/chickenbro-candidate/)
@@ -143,7 +143,7 @@ test('formal production and candidate services have separate roots, ports and se
   assert.match(candidateApi, /WOW_API_V2_PORT=8791/)
   assert.match(candidateApi, /WOW_WEB_COOKIE_NAME=__Host-chickenbro-candidate-session/)
   assert.match(candidateApi, /WOW_WEB_CSRF_COOKIE_NAME=__Host-chickenbro-candidate-csrf/)
-  assert.match(candidateApi, /WOW_WEB_PROTOTYPE_ENABLED=0/)
+  assert.doesNotMatch(candidateApi, /WOW_WEB_PROTOTYPE/)
   assert.match(candidateApi, /WOW_WECHAT_ENV_VERSION=trial/)
   assert.match(candidateApi, /WOW_WECHAT_CHECK_PATH=1/)
 
@@ -159,7 +159,7 @@ test('formal production and candidate services have separate roots, ports and se
   assert.match(candidateWorker, /worker-id chickenbro-simc-candidate-worker/)
 
   for (const service of [productionApi, candidateApi, worker, candidateWorker]) {
-    assert.doesNotMatch(service, /WOW_WEB_PROTOTYPE_ENABLED=1/)
+    assert.doesNotMatch(service, /WOW_WEB_PROTOTYPE/)
     assert.doesNotMatch(service, /wow-v2|wow-mini-program-candidate|\/opt\/wow-mini-program/)
   }
 })
