@@ -150,7 +150,7 @@ sudo -E server/provision_chickenbro_database_lighthouse.sh \
   --backup-device /absolute/approved-independent-device
 ```
 
-apply 还要求：`WOW_REBUILD_BACKUP_ROOT` 位于上述独立设备且 mode=0700，`WOW_REBUILD_MANAGEMENT_ROLE` 是已审阅管理角色，PostgreSQL 数据与备份根的 device ID 不同，实时数据库总量与 inventory 漂移不超过 5%，PostgreSQL 与备份设备分别满足余量，runtime role 无 database/schema 创建权限。脚本先对 `wow_test` 生成 custom archive 并通过 `pg_restore --list`，再创建目标并逐个事务应用 product migrations。restore-list 不是恢复演练；候选授权仍必须引用独立的真实恢复证据。
+apply 还要求：`WOW_REBUILD_BACKUP_ROOT` 位于上述独立设备且 mode=0700，`WOW_REBUILD_MANAGEMENT_ROLE` 是已审阅管理角色，PostgreSQL 数据与备份根的 device ID 不同，实时数据库总量与 inventory 漂移不超过 5%，PostgreSQL 与备份设备分别满足余量，runtime role 无 database/schema 创建权限，也无 Identity/Chat/SimC/job queue/usage counter 的 DELETE 权限。脚本先对 `wow_test` 生成 custom archive 并通过 `pg_restore --list`，再创建目标并逐个事务应用 product migrations。restore-list 不是恢复演练；候选授权仍必须引用独立的真实恢复证据。
 
 如果目标已存在，脚本只接受精确 schema/table/migration/owner/权限 identity 且零连接，否则停止。新目标创建后的迁移失败不会自动移除数据库，而会在独立备份 run 中留下 `failed_requires_operator_review`，由操作者只读检查后另行处理。
 

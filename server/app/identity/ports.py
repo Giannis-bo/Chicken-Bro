@@ -59,6 +59,19 @@ class IdentityRepository(Protocol):
     ) -> None:
         raise NotImplementedError
 
+    def consume_web_login_session_and_issue_auth_session(
+        self,
+        *,
+        session_id: UUID,
+        browser_verifier_sha256: str,
+        expected_user_id: UUID,
+        token_hash: str,
+        now: datetime,
+        expires_at: datetime,
+    ) -> UUID | None:
+        """Atomically consume one confirmed login and issue its Web credential."""
+        raise NotImplementedError
+
     def resolve_auth_session(self, *, token_hash: str, kind: SessionKind, now: datetime) -> Principal | None:
         raise NotImplementedError
 
@@ -68,14 +81,37 @@ class IdentityRepository(Protocol):
     def insert_web_login_session(self, session: WebLoginSession, *, now: datetime) -> None:
         raise NotImplementedError
 
-    def get_web_login_session(self, *, session_id: UUID, for_update: bool = False) -> WebLoginSession | None:
+    def confirm_web_login_session(
+        self,
+        *,
+        scene_ticket_sha256: str,
+        user_id: UUID,
+        now: datetime,
+    ) -> bool:
+        """Claim a live pending QR ticket exactly once."""
+        raise NotImplementedError
+
+    def cancel_web_login_session(
+        self,
+        *,
+        session_id: UUID,
+        browser_verifier_sha256: str,
+        now: datetime,
+    ) -> bool:
+        """Cancel a verifier-bound live ticket without overwriting terminal state."""
+        raise NotImplementedError
+
+    def expire_web_login_session(self, *, session_id: UUID, now: datetime) -> bool:
+        """Advance an overdue live ticket without overwriting terminal state."""
+        raise NotImplementedError
+
+    def get_web_login_session(self, *, session_id: UUID) -> WebLoginSession | None:
         raise NotImplementedError
 
     def get_web_login_session_by_scene(
         self,
         *,
         scene_ticket_sha256: str,
-        for_update: bool = False,
     ) -> WebLoginSession | None:
         raise NotImplementedError
 
@@ -84,11 +120,7 @@ class IdentityRepository(Protocol):
         *,
         browser_verifier_sha256: str,
         idempotency_key_sha256: str,
-        for_update: bool = False,
     ) -> WebLoginSession | None:
-        raise NotImplementedError
-
-    def save_web_login_session(self, session: WebLoginSession, *, now: datetime) -> None:
         raise NotImplementedError
 
     def get_public_user(self, user_id: UUID) -> PublicUser | None:

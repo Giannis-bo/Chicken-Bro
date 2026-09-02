@@ -54,6 +54,7 @@ test('apply path is fail-closed on reviewed state, capacity, independent backup 
     'server/migrations/product',
     'ops.schema_migrations',
     'UNEXPECTED_SCHEMA_COUNT',
+    'runtime_business_delete',
     'public',
     'content',
     'cache',

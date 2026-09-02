@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import datetime, timezone
 from uuid import uuid4
 import unittest
@@ -21,6 +22,10 @@ class InMemoryIdentityRepository:
         self.auth_sessions = {}
         self.web_login_sessions = {}
         self.revocations = []
+        self.atomic_web_exchanges = 0
+        self.atomic_web_confirmations = 0
+        self.atomic_web_cancellations = 0
+        self.atomic_web_expirations = 0
 
     def get_user(self, user_id):
         return Principal(user_id=user_id, session_kind="mini_bearer") if user_id in self.users else None
@@ -42,6 +47,37 @@ class InMemoryIdentityRepository:
             "revoked_at": None,
         }
 
+    def consume_web_login_session_and_issue_auth_session(
+        self,
+        *,
+        session_id,
+        browser_verifier_sha256,
+        expected_user_id,
+        token_hash,
+        now,
+        expires_at,
+    ):
+        session = self.web_login_sessions.get(session_id)
+        if session is None or session.user_id != expected_user_id:
+            return None
+        try:
+            consumed = identity_domain.consume_web_login_session(
+                session,
+                verifier_sha256=browser_verifier_sha256,
+                now=now,
+            )
+        except ValueError:
+            return None
+        self.web_login_sessions[session_id] = consumed
+        self.issue_auth_session(
+            token_hash=token_hash,
+            user_id=expected_user_id,
+            kind="web_cookie",
+            expires_at=expires_at,
+        )
+        self.atomic_web_exchanges += 1
+        return expected_user_id
+
     def resolve_auth_session(self, *, token_hash, kind, now):
         record = self.auth_sessions.get(token_hash)
         if (
@@ -62,10 +98,63 @@ class InMemoryIdentityRepository:
     def insert_web_login_session(self, session, *, now):
         self.web_login_sessions[session.id] = session
 
-    def get_web_login_session(self, *, session_id, for_update=False):
+    def confirm_web_login_session(self, *, scene_ticket_sha256, user_id, now):
+        session = next(
+            (
+                candidate
+                for candidate in self.web_login_sessions.values()
+                if candidate.scene_ticket_sha256 == scene_ticket_sha256
+            ),
+            None,
+        )
+        if session is None:
+            return False
+        try:
+            confirmed = identity_domain.confirm_web_login_session(
+                session,
+                scene_ticket_sha256=scene_ticket_sha256,
+                user_id=user_id,
+                now=now,
+            )
+        except ValueError:
+            return False
+        self.web_login_sessions[session.id] = confirmed
+        self.atomic_web_confirmations += 1
+        return True
+
+    def cancel_web_login_session(self, *, session_id, browser_verifier_sha256, now):
+        session = self.web_login_sessions.get(session_id)
+        if session is None or session.browser_verifier_sha256 != browser_verifier_sha256:
+            return False
+        try:
+            cancelled = identity_domain.cancel_web_login_session(session, now=now)
+        except ValueError:
+            return False
+        if cancelled.status is WebLoginSessionStatus.EXPIRED:
+            return False
+        self.web_login_sessions[session.id] = cancelled
+        self.atomic_web_cancellations += 1
+        return True
+
+    def expire_web_login_session(self, *, session_id, now):
+        session = self.web_login_sessions.get(session_id)
+        if (
+            session is None
+            or session.status not in {WebLoginSessionStatus.PENDING, WebLoginSessionStatus.CONFIRMED}
+            or now < session.expires_at
+        ):
+            return False
+        self.web_login_sessions[session.id] = replace(
+            session,
+            status=WebLoginSessionStatus.EXPIRED,
+        )
+        self.atomic_web_expirations += 1
+        return True
+
+    def get_web_login_session(self, *, session_id):
         return self.web_login_sessions.get(session_id)
 
-    def get_web_login_session_by_scene(self, *, scene_ticket_sha256, for_update=False):
+    def get_web_login_session_by_scene(self, *, scene_ticket_sha256):
         return next(
             (
                 session
@@ -80,7 +169,6 @@ class InMemoryIdentityRepository:
         *,
         browser_verifier_sha256,
         idempotency_key_sha256,
-        for_update=False,
     ):
         return next(
             (
@@ -91,9 +179,6 @@ class InMemoryIdentityRepository:
             ),
             None,
         )
-
-    def save_web_login_session(self, session, *, now):
-        self.web_login_sessions[session.id] = session
 
     def get_public_user(self, user_id):
         return self.users.get(user_id)
@@ -154,6 +239,75 @@ class AppIdentityApplicationTest(unittest.TestCase):
             repository.web_login_sessions[created.session.id].status,
             WebLoginSessionStatus.CONSUMED,
         )
+
+    def test_expired_idempotent_create_returns_the_original_result_without_reinserting(self):
+        """Catches a unique-key failure when a client retries its original create request."""
+        repository = InMemoryIdentityRepository()
+        gateway = FixedWechatGateway()
+        application = self._application(repository, gateway)
+        created = application.create_web_login("V" * 43, idempotency_key="stable-create")
+        repository.web_login_sessions[created.session.id] = replace(
+            created.session,
+            expires_at=NOW,
+        )
+
+        retried = application.create_web_login("V" * 43, idempotency_key="stable-create")
+
+        self.assertEqual(retried.session.id, created.session.id)
+        self.assertEqual(len(repository.web_login_sessions), 1)
+        self.assertEqual(len(gateway.scenes), 1)
+
+    def test_web_exchange_uses_atomic_consume_and_session_issue_port(self):
+        """Catches consuming a ticket and issuing its Web credential in separate commits."""
+        repository = InMemoryIdentityRepository()
+        gateway = FixedWechatGateway()
+        application = self._application(repository, gateway)
+        created = application.create_web_login("Z" * 43, idempotency_key="atomic-login")
+        mini = application.exchange_mini_code("wx-code")
+        application.confirm_mini_web_login(gateway.scenes[0], mini.principal)
+
+        application.exchange_web_login(created.session.id, "Z" * 43)
+
+        self.assertEqual(repository.atomic_web_exchanges, 1)
+
+    def test_mini_confirmation_claims_the_web_ticket_atomically(self):
+        """Catches two Mini users overwriting one QR login owner after a stale read."""
+        repository = InMemoryIdentityRepository()
+        gateway = FixedWechatGateway()
+        application = self._application(repository, gateway)
+        application.create_web_login("Y" * 43, idempotency_key="atomic-confirm")
+        mini = application.exchange_mini_code("wx-code")
+
+        application.confirm_mini_web_login(gateway.scenes[0], mini.principal)
+
+        self.assertEqual(repository.atomic_web_confirmations, 1)
+
+    def test_web_cancel_uses_a_conditional_verifier_bound_transition(self):
+        """Catches a stale cancellation overwriting a terminal login state."""
+        repository = InMemoryIdentityRepository()
+        gateway = FixedWechatGateway()
+        application = self._application(repository, gateway)
+        created = application.create_web_login("X" * 43, idempotency_key="atomic-cancel")
+
+        application.cancel_web_login(created.session.id, "X" * 43)
+
+        self.assertEqual(repository.atomic_web_cancellations, 1)
+
+    def test_status_expiry_uses_a_conditional_terminal_state_transition(self):
+        """Catches an expiry write overwriting a concurrently consumed login."""
+        repository = InMemoryIdentityRepository()
+        gateway = FixedWechatGateway()
+        application = self._application(repository, gateway)
+        created = application.create_web_login("W" * 43, idempotency_key="atomic-expiry")
+        repository.web_login_sessions[created.session.id] = replace(
+            created.session,
+            expires_at=NOW,
+        )
+
+        status = application.get_web_login_status(created.session.id, "W" * 43)
+
+        self.assertEqual(status.status, WebLoginSessionStatus.EXPIRED)
+        self.assertEqual(repository.atomic_web_expirations, 1)
 
     def test_same_provider_subject_in_different_app_contexts_is_not_guessed_as_one_user(self):
         """Catches merging identical OpenID strings issued under different Mini Program AppIDs."""

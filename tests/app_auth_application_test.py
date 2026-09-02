@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from uuid import UUID, uuid4
 import unittest
@@ -5,7 +6,13 @@ import unittest
 from fastapi.testclient import TestClient
 
 from server.app.identity.application import WebAuthApplication
-from server.app.identity.domain import Principal, WebLoginSessionStatus
+from server.app.identity.domain import (
+    Principal,
+    WebLoginSessionStatus,
+    cancel_web_login_session,
+    confirm_web_login_session,
+    consume_web_login_session,
+)
 from server.app.identity.ports import PublicUser, WechatIdentity
 from server.app.main import create_app
 from server.app.platform.config import AppSettings
@@ -50,16 +57,89 @@ class FakeIdentityRepository:
     def insert_web_login_session(self, session, *, now):
         self.sessions[session.id] = session
 
-    def get_web_login_session(self, *, session_id, for_update=False):
+    def confirm_web_login_session(self, *, scene_ticket_sha256, user_id, now):
+        session = next(
+            (candidate for candidate in self.sessions.values() if candidate.scene_ticket_sha256 == scene_ticket_sha256),
+            None,
+        )
+        if session is None:
+            return False
+        try:
+            confirmed = confirm_web_login_session(
+                session,
+                scene_ticket_sha256=scene_ticket_sha256,
+                user_id=user_id,
+                now=now,
+            )
+        except ValueError:
+            return False
+        self.sessions[session.id] = confirmed
+        return True
+
+    def cancel_web_login_session(self, *, session_id, browser_verifier_sha256, now):
+        session = self.sessions.get(session_id)
+        if session is None or session.browser_verifier_sha256 != browser_verifier_sha256:
+            return False
+        try:
+            cancelled = cancel_web_login_session(session, now=now)
+        except ValueError:
+            return False
+        if cancelled.status is WebLoginSessionStatus.EXPIRED:
+            return False
+        self.sessions[session.id] = cancelled
+        return True
+
+    def expire_web_login_session(self, *, session_id, now):
+        session = self.sessions.get(session_id)
+        if (
+            session is None
+            or session.status not in {WebLoginSessionStatus.PENDING, WebLoginSessionStatus.CONFIRMED}
+            or now < session.expires_at
+        ):
+            return False
+        self.sessions[session.id] = replace(session, status=WebLoginSessionStatus.EXPIRED)
+        return True
+
+    def consume_web_login_session_and_issue_auth_session(
+        self,
+        *,
+        session_id,
+        browser_verifier_sha256,
+        expected_user_id,
+        token_hash,
+        now,
+        expires_at,
+    ):
+        session = self.sessions.get(session_id)
+        if session is None or session.user_id != expected_user_id:
+            return None
+        try:
+            consumed = consume_web_login_session(
+                session,
+                verifier_sha256=browser_verifier_sha256,
+                now=now,
+            )
+        except ValueError:
+            return None
+        self.sessions[session.id] = consumed
+        self.issue_auth_session(
+            token_hash=token_hash,
+            user_id=expected_user_id,
+            kind="web_cookie",
+            expires_at=expires_at,
+        )
+        return expected_user_id
+
+    def get_web_login_session(self, *, session_id):
         return self.sessions.get(session_id)
 
-    def get_web_login_session_by_scene(self, *, scene_ticket_sha256, for_update=False):
+    def get_web_login_session_by_scene(self, *, scene_ticket_sha256):
         return next(
             (session for session in self.sessions.values() if session.scene_ticket_sha256 == scene_ticket_sha256),
             None,
         )
 
-    def get_web_login_session_by_idempotency(self, *, browser_verifier_sha256, idempotency_key_sha256, for_update=False):
+    def get_web_login_session_by_idempotency(self, *, browser_verifier_sha256, idempotency_key_sha256):
         return next(
             (
                 session for session in self.sessions.values()
@@ -68,9 +148,6 @@ class FakeIdentityRepository:
             ),
             None,
         )
-
-    def save_web_login_session(self, session, *, now):
-        self.sessions[session.id] = session
 
     def get_public_user(self, user_id):
         return self.users.get(user_id)

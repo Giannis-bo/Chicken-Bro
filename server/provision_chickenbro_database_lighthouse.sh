@@ -298,7 +298,7 @@ TARGET_DATABASE_EXISTS="$(pg_query "SELECT count(*) FROM pg_database WHERE datna
 TARGET_CONNECTIONS="0"
 
 verify_target_identity() {
-  local schemas tables migrations forbidden owner runtime_schema_create runtime_database_create migration_registry public_object_count
+  local schemas tables migrations forbidden owner runtime_schema_create runtime_database_create runtime_business_delete migration_registry public_object_count
   schemas="$(target_query "SELECT string_agg(schema_name, ',' ORDER BY schema_name) FROM information_schema.schemata WHERE schema_name IN ('identity','chat','simc','ops')")"
   tables="$(target_query "SELECT string_agg(table_schema || '.' || table_name, ',' ORDER BY table_schema, table_name) FROM information_schema.tables WHERE table_type = 'BASE TABLE' AND table_schema IN ('identity','chat','simc','ops')")"
   migration_registry="$(target_query "SELECT COALESCE(pg_catalog.to_regclass('ops.schema_migrations')::text, '')")"
@@ -310,6 +310,7 @@ verify_target_identity() {
   owner="$(pg_query "SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname = '${TARGET_DATABASE}'")"
   runtime_schema_create="$(target_query "SELECT count(*) FROM unnest(ARRAY['public','identity','chat','simc','ops']) AS item(schema_name) WHERE has_schema_privilege('${RUNTIME_ROLE}', schema_name, 'CREATE')")"
   runtime_database_create="$(target_query "SELECT CASE WHEN has_database_privilege('${RUNTIME_ROLE}', current_database(), 'CREATE') THEN 1 ELSE 0 END")"
+  runtime_business_delete="$(target_query "SELECT count(*) FROM unnest(ARRAY['identity.users','identity.user_identities','identity.auth_sessions','identity.web_login_sessions','chat.conversations','chat.messages','chat.agent_runs','simc.source_snapshots','simc.simulation_jobs','simc.simulation_attempts','simc.simulation_results','ops.job_queue','ops.usage_counters']) AS item(table_name) WHERE has_table_privilege('${RUNTIME_ROLE}', table_name, 'DELETE')")"
 
   [[ "${schemas}" == "chat,identity,ops,simc" ]] || die "target schema identity is unexpected"
   [[ "${tables}" == "chat.agent_runs,chat.conversations,chat.messages,identity.auth_sessions,identity.user_identities,identity.users,identity.web_login_sessions,ops.audit_events,ops.job_queue,ops.schema_migrations,ops.usage_counters,simc.simulation_attempts,simc.simulation_jobs,simc.simulation_results,simc.source_snapshots" ]] || die "target table identity is unexpected"
@@ -319,6 +320,7 @@ verify_target_identity() {
   [[ "${public_object_count}" == "0" ]] || die "target public schema contains unreviewed objects"
   [[ "${owner}" == "${MANAGEMENT_ROLE}" ]] || die "target database owner is unexpected"
   [[ "${runtime_schema_create}" == "0" && "${runtime_database_create}" == "0" ]] || die "runtime role has schema or database creation power"
+  [[ "${runtime_business_delete}" == "0" ]] || die "runtime role has destructive business-table privileges"
 }
 
 if [[ "${TARGET_DATABASE_EXISTS}" == "1" ]]; then

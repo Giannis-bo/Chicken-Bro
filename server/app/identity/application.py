@@ -90,9 +90,8 @@ class WebAuthApplication:
         existing = self._repository.get_web_login_session_by_idempotency(
             browser_verifier_sha256=verifier_hash,
             idempotency_key_sha256=idempotency_hash,
-            for_update=False,
         )
-        if existing is not None and now < existing.expires_at:
+        if existing is not None:
             qr_data_url = self._qr_cache.get(existing.id)
             if qr_data_url is None:
                 raise AuthApplicationError("WECHAT_PROVIDER_UNAVAILABLE", "login QR is temporarily unavailable")
@@ -137,7 +136,7 @@ class WebAuthApplication:
 
     def get_web_login_status(self, session_id: UUID, browser_verifier: str) -> WebLoginStatusView:
         self._validate_browser_verifier(browser_verifier)
-        session = self._load_session(session_id, for_update=True)
+        session = self._load_session(session_id)
         self._verify_browser_verifier(session, browser_verifier)
         session = self._expire_if_needed(session)
         return WebLoginStatusView(status=session.status, expires_at=session.expires_at)
@@ -147,31 +146,39 @@ class WebAuthApplication:
             raise AuthApplicationError("AUTH_REQUIRED", "mini-program authentication is required")
         if not isinstance(scene_ticket, str) or not 1 <= len(scene_ticket) <= 32 or any(character.isspace() for character in scene_ticket):
             raise AuthApplicationError("VALIDATION_ERROR", "login scene is invalid")
+        now = self._now()
+        scene_ticket_sha256 = digest(scene_ticket)
+        if self._repository.confirm_web_login_session(
+            scene_ticket_sha256=scene_ticket_sha256,
+            user_id=principal.user_id,
+            now=now,
+        ):
+            return
         session = self._repository.get_web_login_session_by_scene(
-            scene_ticket_sha256=digest(scene_ticket),
-            for_update=True,
+            scene_ticket_sha256=scene_ticket_sha256,
         )
         if session is None:
             raise AuthApplicationError("WEB_LOGIN_NOT_FOUND", "login session not found")
-        session = self._expire_if_needed(session)
+        session = self._expire_if_needed(session, now=now)
         if session.status is WebLoginSessionStatus.EXPIRED:
             raise AuthApplicationError("WEB_LOGIN_EXPIRED", "login session expired")
         try:
-            confirmed = confirm_web_login_session(
+            confirm_web_login_session(
                 session,
-                scene_ticket_sha256=digest(scene_ticket),
+                scene_ticket_sha256=scene_ticket_sha256,
                 user_id=principal.user_id,
-                now=self._now(),
+                now=now,
             )
         except ValueError as error:
             raise self._map_domain_error(error, confirm=True) from error
-        self._repository.save_web_login_session(confirmed, now=self._now())
+        raise AuthApplicationError("INTERNAL_ERROR", "login session transition failed")
 
     def exchange_web_login(self, session_id: UUID, browser_verifier: str) -> IssuedSession:
         self._validate_browser_verifier(browser_verifier)
-        session = self._load_session(session_id, for_update=True)
+        now = self._now()
+        session = self._load_session(session_id)
         self._verify_browser_verifier(session, browser_verifier)
-        session = self._expire_if_needed(session)
+        session = self._expire_if_needed(session, now=now)
         if session.status is WebLoginSessionStatus.CONSUMED:
             raise AuthApplicationError("WEB_LOGIN_ALREADY_CONSUMED", "login session already consumed")
         if session.status is WebLoginSessionStatus.EXPIRED:
@@ -184,39 +191,68 @@ class WebAuthApplication:
             consumed = consume_web_login_session(
                 session,
                 verifier_sha256=digest(browser_verifier),
-                now=self._now(),
+                now=now,
             )
         except ValueError as error:
             raise self._map_domain_error(error) from error
         token = new_opaque_token()
-        expires_at = self._now() + timedelta(seconds=self._settings.web_session_ttl_seconds)
-        self._repository.save_web_login_session(consumed, now=self._now())
-        self._repository.issue_auth_session(
+        expires_at = now + timedelta(seconds=self._settings.web_session_ttl_seconds)
+        resolved_user_id = self._repository.consume_web_login_session_and_issue_auth_session(
+            session_id=consumed.id,
+            browser_verifier_sha256=consumed.browser_verifier_sha256,
+            expected_user_id=consumed.user_id,
             token_hash=digest(token),
-            user_id=consumed.user_id,
-            kind="web_cookie",
+            now=now,
             expires_at=expires_at,
         )
+        if resolved_user_id is None:
+            latest = self._load_session(session_id)
+            latest = self._expire_if_needed(latest, now=now)
+            if latest.status is WebLoginSessionStatus.CONSUMED:
+                raise AuthApplicationError("WEB_LOGIN_ALREADY_CONSUMED", "login session already consumed")
+            if latest.status is WebLoginSessionStatus.EXPIRED:
+                raise AuthApplicationError("WEB_LOGIN_EXPIRED", "login session expired")
+            if latest.status is WebLoginSessionStatus.CANCELLED:
+                raise AuthApplicationError("WEB_LOGIN_CANCELLED", "login session cancelled")
+            if latest.status is not WebLoginSessionStatus.CONFIRMED:
+                raise AuthApplicationError("WEB_LOGIN_NOT_CONFIRMED", "login confirmation is required")
+            raise AuthApplicationError("INTERNAL_ERROR", "login session transition failed")
         return IssuedSession(
             token=token,
             expires_at=expires_at,
-            principal=Principal(user_id=consumed.user_id, session_kind="web_cookie"),
+            principal=Principal(user_id=resolved_user_id, session_kind="web_cookie"),
         )
 
     def cancel_web_login(self, session_id: UUID, browser_verifier: str) -> WebLoginStatusView:
         self._validate_browser_verifier(browser_verifier)
-        session = self._load_session(session_id, for_update=True)
+        now = self._now()
+        session = self._load_session(session_id)
         self._verify_browser_verifier(session, browser_verifier)
-        session = self._expire_if_needed(session)
+        session = self._expire_if_needed(session, now=now)
         if session.status is WebLoginSessionStatus.CONSUMED:
             raise AuthApplicationError("WEB_LOGIN_ALREADY_CONSUMED", "login session already consumed")
         if session.status is WebLoginSessionStatus.CANCELLED:
             raise AuthApplicationError("WEB_LOGIN_CANCELLED", "login session cancelled")
+        if session.status is WebLoginSessionStatus.EXPIRED:
+            raise AuthApplicationError("WEB_LOGIN_EXPIRED", "login session expired")
         try:
-            cancelled = cancel_web_login_session(session, now=self._now())
+            cancelled = cancel_web_login_session(session, now=now)
         except ValueError as error:
             raise self._map_domain_error(error) from error
-        self._repository.save_web_login_session(cancelled, now=self._now())
+        if not self._repository.cancel_web_login_session(
+            session_id=session.id,
+            browser_verifier_sha256=session.browser_verifier_sha256,
+            now=now,
+        ):
+            latest = self._load_session(session_id)
+            latest = self._expire_if_needed(latest, now=now)
+            if latest.status is WebLoginSessionStatus.CONSUMED:
+                raise AuthApplicationError("WEB_LOGIN_ALREADY_CONSUMED", "login session already consumed")
+            if latest.status is WebLoginSessionStatus.CANCELLED:
+                raise AuthApplicationError("WEB_LOGIN_CANCELLED", "login session cancelled")
+            if latest.status is WebLoginSessionStatus.EXPIRED:
+                raise AuthApplicationError("WEB_LOGIN_EXPIRED", "login session expired")
+            raise AuthApplicationError("INTERNAL_ERROR", "login session transition failed")
         return WebLoginStatusView(status=cancelled.status, expires_at=cancelled.expires_at)
 
     def exchange_mini_code(self, code: str) -> IssuedSession:
@@ -277,14 +313,15 @@ class WebAuthApplication:
                 now=self._now(),
             )
 
-    def _load_session(self, session_id: UUID, *, for_update: bool) -> WebLoginSession:
-        session = self._repository.get_web_login_session(session_id=session_id, for_update=for_update)
+    def _load_session(self, session_id: UUID) -> WebLoginSession:
+        session = self._repository.get_web_login_session(session_id=session_id)
         if session is None:
             raise AuthApplicationError("WEB_LOGIN_NOT_FOUND", "login session not found")
         return session
 
-    def _expire_if_needed(self, session: WebLoginSession) -> WebLoginSession:
-        if session.status in {WebLoginSessionStatus.PENDING, WebLoginSessionStatus.CONFIRMED} and self._now() >= session.expires_at:
+    def _expire_if_needed(self, session: WebLoginSession, *, now: datetime | None = None) -> WebLoginSession:
+        effective_now = now or self._now()
+        if session.status in {WebLoginSessionStatus.PENDING, WebLoginSessionStatus.CONFIRMED} and effective_now >= session.expires_at:
             expired = WebLoginSession(
                 id=session.id,
                 scene_ticket_sha256=session.scene_ticket_sha256,
@@ -295,8 +332,12 @@ class WebAuthApplication:
                 consumed_at=session.consumed_at,
                 idempotency_key_sha256=session.idempotency_key_sha256,
             )
-            self._repository.save_web_login_session(expired, now=self._now())
-            return expired
+            if self._repository.expire_web_login_session(
+                session_id=session.id,
+                now=effective_now,
+            ):
+                return expired
+            return self._load_session(session.id)
         return session
 
     @staticmethod

@@ -325,15 +325,15 @@ CREATE TABLE ops.usage_counters (
 
 GRANT USAGE ON SCHEMA identity, chat, simc, ops TO wow_app;
 
-GRANT SELECT, INSERT, UPDATE, DELETE
+GRANT SELECT, INSERT, UPDATE
 ON identity.users, identity.user_identities, identity.auth_sessions, identity.web_login_sessions
 TO wow_app;
 
-GRANT SELECT, INSERT, UPDATE, DELETE
+GRANT SELECT, INSERT, UPDATE
 ON chat.conversations, chat.messages, chat.agent_runs
 TO wow_app;
 
-GRANT SELECT, INSERT, UPDATE, DELETE
+GRANT SELECT, INSERT, UPDATE
 ON simc.source_snapshots, simc.simulation_jobs, simc.simulation_attempts
 TO wow_app;
 
@@ -345,8 +345,12 @@ GRANT SELECT
 ON ops.schema_migrations
 TO wow_app;
 
-GRANT SELECT, INSERT, UPDATE, DELETE
-ON ops.job_queue, ops.usage_counters
+GRANT SELECT, INSERT, UPDATE
+ON ops.job_queue
+TO wow_app;
+
+GRANT SELECT, INSERT, UPDATE
+ON ops.usage_counters
 TO wow_app;
 
 GRANT SELECT, INSERT

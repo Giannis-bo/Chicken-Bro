@@ -131,10 +131,6 @@ class PostgresIdentityRepository:
                         union_id, profile_json, created_at, updated_at
                     )
                     VALUES (%s, %s, %s, %s, %s, %s, '{}'::jsonb, %s, %s)
-                    ON CONFLICT (provider, app_context, provider_subject)
-                    DO UPDATE SET
-                        union_id = COALESCE(identity.user_identities.union_id, EXCLUDED.union_id),
-                        updated_at = EXCLUDED.updated_at
                     RETURNING user_id, union_id
                     """,
                     (
@@ -154,16 +150,7 @@ class PostgresIdentityRepository:
                 resolved_user_id = UUID(str(_row_value(row, "user_id", 0)))
                 resolved_union_id = _row_value(row, "union_id", 1)
                 if resolved_union_id is not None and union_id is not None and resolved_union_id != union_id:
-                    cursor.execute(
-                        "DELETE FROM identity.users WHERE id = %s AND id <> %s",
-                        (user_id, resolved_user_id),
-                    )
                     raise IdentityConflictError("identity conflict")
-                if resolved_user_id != user_id:
-                    cursor.execute(
-                        "DELETE FROM identity.users WHERE id = %s AND id <> %s",
-                        (user_id, resolved_user_id),
-                    )
                 return resolved_user_id
 
     def issue_auth_session(
@@ -186,17 +173,70 @@ class PostgresIdentityRepository:
                     (token_hash, user_id, kind, expires_at),
                 )
 
+    def consume_web_login_session_and_issue_auth_session(
+        self,
+        *,
+        session_id: UUID,
+        browser_verifier_sha256: str,
+        expected_user_id: UUID,
+        token_hash: str,
+        now: datetime,
+        expires_at: datetime,
+    ) -> UUID | None:
+        with self._connection_factory() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    WITH consumed AS (
+                        UPDATE identity.web_login_sessions
+                        SET status = 'consumed',
+                            consumed_at = %s,
+                            updated_at = %s
+                        WHERE id = %s
+                          AND status = 'confirmed'
+                          AND browser_verifier_sha256 = %s
+                          AND user_id = %s
+                          AND consumed_at IS NULL
+                          AND expires_at > %s
+                        RETURNING user_id
+                    )
+                    INSERT INTO identity.auth_sessions (
+                        token_hash, user_id, kind, issued_at, expires_at, metadata_json
+                    )
+                    SELECT %s, user_id, 'web_cookie', %s, %s, '{}'::jsonb
+                    FROM consumed
+                    RETURNING user_id
+                    """,
+                    (
+                        now,
+                        now,
+                        session_id,
+                        browser_verifier_sha256,
+                        expected_user_id,
+                        now,
+                        token_hash,
+                        now,
+                        expires_at,
+                    ),
+                )
+                row = cursor.fetchone()
+        if row is None:
+            return None
+        return UUID(str(_row_value(row, "user_id", 0)))
+
     def resolve_auth_session(self, *, token_hash: str, kind: SessionKind, now: datetime) -> Principal | None:
         with self._connection_factory() as connection:
             with connection.cursor() as cursor:
                 cursor.execute(
                     """
-                    SELECT user_id
-                    FROM identity.auth_sessions
-                    WHERE token_hash = %s
-                      AND kind = %s
-                      AND revoked_at IS NULL
-                      AND expires_at > %s
+                    SELECT sessions.user_id
+                    FROM identity.auth_sessions AS sessions
+                    JOIN identity.users AS users ON users.id = sessions.user_id
+                    WHERE sessions.token_hash = %s
+                      AND sessions.kind = %s
+                      AND sessions.revoked_at IS NULL
+                      AND sessions.expires_at > %s
+                      AND users.status = 'active'
                     """,
                     (token_hash, kind, now),
                 )
@@ -337,16 +377,87 @@ class PostgresIdentityRepository:
                     ),
                 )
 
-    def get_web_login_session(self, *, session_id: UUID, for_update: bool = False) -> WebLoginSession | None:
-        lock_clause = " FOR UPDATE" if for_update else ""
+    def confirm_web_login_session(
+        self,
+        *,
+        scene_ticket_sha256: str,
+        user_id: UUID,
+        now: datetime,
+    ) -> bool:
         with self._connection_factory() as connection:
             with connection.cursor() as cursor:
                 cursor.execute(
-                    f"""
+                    """
+                    UPDATE identity.web_login_sessions
+                    SET user_id = %s,
+                        status = 'confirmed',
+                        updated_at = %s
+                    WHERE scene_ticket_sha256 = %s
+                      AND status = 'pending'
+                      AND user_id IS NULL
+                      AND consumed_at IS NULL
+                      AND expires_at > %s
+                    RETURNING id
+                    """,
+                    (user_id, now, scene_ticket_sha256, now),
+                )
+                row = cursor.fetchone()
+        return row is not None
+
+    def cancel_web_login_session(
+        self,
+        *,
+        session_id: UUID,
+        browser_verifier_sha256: str,
+        now: datetime,
+    ) -> bool:
+        with self._connection_factory() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    UPDATE identity.web_login_sessions
+                    SET status = 'cancelled',
+                        updated_at = %s
+                    WHERE id = %s
+                      AND browser_verifier_sha256 = %s
+                      AND status IN ('pending', 'confirmed')
+                      AND consumed_at IS NULL
+                      AND expires_at > %s
+                    RETURNING id
+                    """,
+                    (now, session_id, browser_verifier_sha256, now),
+                )
+                row = cursor.fetchone()
+        return row is not None
+
+    def expire_web_login_session(self, *, session_id: UUID, now: datetime) -> bool:
+        with self._connection_factory() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    UPDATE identity.web_login_sessions
+                    SET status = 'expired',
+                        updated_at = %s
+                    WHERE id = %s
+                      AND status IN ('pending', 'confirmed')
+                      AND consumed_at IS NULL
+                      AND expires_at <= %s
+                    RETURNING id
+                    """,
+                    (now, session_id, now),
+                )
+                row = cursor.fetchone()
+        return row is not None
+
+    def get_web_login_session(self, *, session_id: UUID) -> WebLoginSession | None:
+        with self._connection_factory() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
                     SELECT id, scene_ticket_sha256, browser_verifier_sha256,
                            idempotency_key_sha256, user_id, status, expires_at, consumed_at
                     FROM identity.web_login_sessions
-                    WHERE id = %s{lock_clause}
+                    WHERE id = %s
                     """,
                     (session_id,),
                 )
@@ -357,17 +468,15 @@ class PostgresIdentityRepository:
         self,
         *,
         scene_ticket_sha256: str,
-        for_update: bool = False,
     ) -> WebLoginSession | None:
-        lock_clause = " FOR UPDATE" if for_update else ""
         with self._connection_factory() as connection:
             with connection.cursor() as cursor:
                 cursor.execute(
-                    f"""
+                    """
                     SELECT id, scene_ticket_sha256, browser_verifier_sha256,
                            idempotency_key_sha256, user_id, status, expires_at, consumed_at
                     FROM identity.web_login_sessions
-                    WHERE scene_ticket_sha256 = %s{lock_clause}
+                    WHERE scene_ticket_sha256 = %s
                     """,
                     (scene_ticket_sha256,),
                 )
@@ -379,44 +488,21 @@ class PostgresIdentityRepository:
         *,
         browser_verifier_sha256: str,
         idempotency_key_sha256: str,
-        for_update: bool = False,
     ) -> WebLoginSession | None:
-        lock_clause = " FOR UPDATE" if for_update else ""
         with self._connection_factory() as connection:
             with connection.cursor() as cursor:
                 cursor.execute(
-                    f"""
+                    """
                     SELECT id, scene_ticket_sha256, browser_verifier_sha256,
                            idempotency_key_sha256, user_id, status, expires_at, consumed_at
                     FROM identity.web_login_sessions
                     WHERE browser_verifier_sha256 = %s
-                      AND idempotency_key_sha256 = %s{lock_clause}
+                      AND idempotency_key_sha256 = %s
                     """,
                     (browser_verifier_sha256, idempotency_key_sha256),
                 )
                 row = cursor.fetchone()
         return self._web_login_session_from_row(row) if row is not None else None
-
-    def save_web_login_session(self, session: WebLoginSession, *, now: datetime) -> None:
-        with self._connection_factory() as connection:
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    """
-                    UPDATE identity.web_login_sessions
-                    SET user_id = %s,
-                        status = %s,
-                        consumed_at = %s,
-                        updated_at = %s
-                    WHERE id = %s
-                    """,
-                    (
-                        session.user_id,
-                        session.status.value,
-                        session.consumed_at,
-                        now,
-                        session.id,
-                    ),
-                )
 
     def get_public_user(self, user_id: UUID) -> PublicUser | None:
         with self._connection_factory() as connection:

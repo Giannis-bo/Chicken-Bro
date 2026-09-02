@@ -33,6 +33,11 @@ class FakeHttpClient:
         return self.responses.pop(0)
 
 
+class FailingHttpClient:
+    def get(self, url, **kwargs):
+        raise RuntimeError("transport included secret-must-not-leak")
+
+
 def configured_settings():
     return AppSettings(
         environment="test",
@@ -45,6 +50,16 @@ def configured_settings():
 
 
 class AppWechatMiniTest(unittest.TestCase):
+    def test_transport_exception_context_is_suppressed_before_crossing_the_adapter(self):
+        adapter = WechatMiniClient(configured_settings(), http_client=FailingHttpClient())
+
+        with self.assertRaises(WechatProviderError) as caught:
+            adapter.exchange_code("short-lived-code")
+
+        self.assertNotIn("secret-must-not-leak", str(caught.exception))
+        self.assertIsNone(caught.exception.__cause__)
+        self.assertTrue(caught.exception.__suppress_context__)
+
     def test_code_exchange_returns_internal_adapter_identity_without_secret_in_repr(self):
         client = FakeHttpClient([FakeResponse(payload={
             "openid": "openid-main",

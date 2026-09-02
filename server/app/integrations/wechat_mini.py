@@ -2,8 +2,6 @@ from collections.abc import Callable, Mapping
 import time
 from typing import Any
 
-import httpx
-
 from server.app.identity.ports import (
     WechatAdapterError,
     WechatIdentity,
@@ -28,7 +26,13 @@ class WechatMiniClient:
         clock: Callable[[], float] = time.monotonic,
     ):
         self._settings = settings
-        self._http_client = http_client or httpx.Client(timeout=8.0)
+        if http_client is None:
+            try:
+                import httpx
+            except ModuleNotFoundError as error:
+                raise RuntimeError("httpx is required for the WeChat provider client") from error
+            http_client = httpx.Client(timeout=8.0)
+        self._http_client = http_client
         self._clock = clock
         self._access_token: tuple[str, float] | None = None
 
@@ -49,8 +53,8 @@ class WechatMiniClient:
             payload = self._json_payload(response)
         except WechatAdapterError:
             raise
-        except Exception as error:
-            raise WechatProviderError("WeChat provider unavailable") from error
+        except Exception:
+            raise WechatProviderError("WeChat provider unavailable") from None
 
         openid = payload.get("openid")
         if not isinstance(openid, str) or not openid or len(openid) > 256:
@@ -82,8 +86,8 @@ class WechatMiniClient:
                     "check_path": self._settings.wechat_check_path,
                 },
             )
-        except Exception as error:
-            raise WechatProviderError("WeChat provider unavailable") from error
+        except Exception:
+            raise WechatProviderError("WeChat provider unavailable") from None
 
         content = getattr(response, "content", b"")
         content_type = str(getattr(response, "headers", {}).get("content-type", "")).split(";", 1)[0].lower()
@@ -115,8 +119,8 @@ class WechatMiniClient:
             payload = self._json_payload(response)
         except WechatAdapterError:
             raise
-        except Exception as error:
-            raise WechatProviderError("WeChat provider unavailable") from error
+        except Exception:
+            raise WechatProviderError("WeChat provider unavailable") from None
         token = payload.get("access_token")
         expires_in = payload.get("expires_in")
         if not isinstance(token, str) or not token or not isinstance(expires_in, (int, float)):
@@ -131,8 +135,8 @@ class WechatMiniClient:
             raise WechatProviderError("WeChat provider unavailable")
         try:
             payload = response.json()
-        except Exception as error:
-            raise WechatProviderError("WeChat provider returned malformed JSON") from error
+        except Exception:
+            raise WechatProviderError("WeChat provider returned malformed JSON") from None
         if not isinstance(payload, Mapping):
             raise WechatProviderError("WeChat provider returned malformed JSON")
         error_code = payload.get("errcode")

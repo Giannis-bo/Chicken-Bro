@@ -31,6 +31,24 @@ def _normalized_sql() -> str:
 
 
 class ProductSchemaStaticTest(unittest.TestCase):
+    def test_runtime_role_has_no_destructive_business_table_privileges(self):
+        """Catches granting the request runtime direct deletion of user history."""
+        sql = _normalized_sql()
+
+        self.assertNotRegex(
+            sql,
+            re.compile(r"GRANT [^;]*\bDELETE\b[^;]* ON (?:identity|chat|simc)\.", re.I),
+        )
+        self.assertNotRegex(
+            sql,
+            re.compile(r"GRANT [^;]*\bDELETE\b[^;]* ON ops\.(?:job_queue|usage_counters)", re.I),
+        )
+        self.assertIn(
+            "GRANT SELECT, INSERT, UPDATE ON identity.users, identity.user_identities, "
+            "identity.auth_sessions, identity.web_login_sessions TO wow_app",
+            sql,
+        )
+
     def test_clean_migration_creates_exactly_the_product_schema_and_table_owners(self):
         """Catches adding a legacy owner or omitting a formal product table."""
         sql = _normalized_sql()

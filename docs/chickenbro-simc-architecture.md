@@ -120,6 +120,8 @@ Phase 2 的 product schema、domain、repository 与 application 已把正式终
 
 Web Session Cookie 固定为 HttpOnly、Secure 的 `__Host-chickenbro-session`；双提交 CSRF Cookie 固定为 JavaScript 可读、Secure 的 `__Host-chickenbro-csrf`。两者均为 SameSite=Lax、Path=/、无 Domain。Cookie 写请求还必须通过精确 Origin/Host 与常量时间 CSRF 比对；Mini 写请求只使用 Bearer，不使用 Web Cookie/CSRF。混合 Cookie/Bearer 或跨 transport 使用 token 固定拒绝。
 
+二维码确认、取消和过期必须使用带当前状态、verifier 与 deadline 条件的原子 UPDATE；`confirmed -> consumed` 与 Web Session 签发必须在同一个 PostgreSQL 语句/事务中完成。读取后关闭连接的 `FOR UPDATE` 不构成状态锁，禁止作为防重放依据。会话解析还必须联查 `identity.users.status='active'`，禁用账号不能继续使用旧 token。
+
 认证决策只写脱敏、定长的 `ops.audit_events`：request ID、已认证时的内部 user ID、session kind、状态码、时间和粗粒度 reason code。运行角色只有 SELECT/INSERT 权限，不得更新或删除审计证据；token、Cookie、OpenID、session key、verifier、ticket 和 secret 不得进入审计 payload。
 
 ## 数据模型
@@ -145,6 +147,8 @@ Web Session Cookie 固定为 HttpOnly、Secure 的 `__Host-chickenbro-session`�
 | `ops` | `usage_counters` | 有界用量计数，不承载产品事实 |
 
 禁止在新库创建 `content`、`cache`、`knowledge`、`analytics`、旧 `app`、WebSim、gear 或 talent schema/table。
+
+`wow_app` 只获得业务运行所需的 SELECT/INSERT/UPDATE；Identity、Chat、SimC、job queue 与 usage counters 均无直接 DELETE，schema/database CREATE 也保持关闭。账号或历史删除只能由后续受控清理或管理角色路径完成。
 
 ## Chat 语义
 
