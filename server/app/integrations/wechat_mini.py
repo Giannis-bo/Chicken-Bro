@@ -20,6 +20,10 @@ class WechatProviderError(WechatAdapterError):
     pass
 
 
+_PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+_JPEG_SIGNATURE = b"\xff\xd8\xff"
+
+
 class WechatMiniClient:
     """Small, secret-free-in-output adapter for the WeChat mini-program APIs."""
 
@@ -82,7 +86,7 @@ class WechatMiniClient:
                     "scene": scene,
                     "page": page,
                     "env_version": env_version,
-                    "check_path": True,
+                    "check_path": self._settings.wechat_check_path,
                 },
             )
         except Exception as error:
@@ -90,8 +94,16 @@ class WechatMiniClient:
 
         content = getattr(response, "content", b"")
         content_type = str(getattr(response, "headers", {}).get("content-type", "")).split(";", 1)[0].lower()
-        if not isinstance(content, bytes) or not content.startswith(b"\x89PNG\r\n\x1a\n") or content_type not in {"", "image/png"}:
-            raise WechatProviderError("WeChat provider did not return a PNG")
+        if not isinstance(content, bytes):
+            raise WechatProviderError("WeChat provider did not return an image")
+        if content.startswith(_PNG_SIGNATURE):
+            expected_content_type = "image/png"
+        elif content.startswith(_JPEG_SIGNATURE):
+            expected_content_type = "image/jpeg"
+        else:
+            raise WechatProviderError("WeChat provider did not return a supported image")
+        if content_type not in {"", expected_content_type}:
+            raise WechatProviderError("WeChat provider returned an image with an invalid MIME type")
         return content
 
     def _get_access_token(self) -> str:

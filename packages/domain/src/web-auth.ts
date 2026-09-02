@@ -46,7 +46,7 @@ export interface LogoutResponse {
 }
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu
-const PNG_DATA_URL_PATTERN = /^data:image\/png;base64,[A-Za-z0-9+/]+={0,2}$/u
+const QR_DATA_URL_PATTERN = /^data:image\/(?:png|jpeg);base64,[A-Za-z0-9+/]+={0,2}$/u
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
@@ -75,7 +75,7 @@ export function isWebLoginCreated(value: unknown): value is WebLoginCreated {
   return UUID_PATTERN.test(String(value['sessionId'] ?? ''))
     && isIsoDate(value['expiresAt'])
     && typeof qrDataUrl === 'string'
-    && PNG_DATA_URL_PATTERN.test(qrDataUrl)
+    && QR_DATA_URL_PATTERN.test(qrDataUrl)
     && !qrDataUrl.toLowerCase().includes('placeholder')
     && isRequestId(value['requestId'])
 }

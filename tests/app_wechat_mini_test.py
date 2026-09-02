@@ -59,7 +59,7 @@ class AppWechatMiniTest(unittest.TestCase):
         self.assertNotIn("secret-must-not-leak", repr(adapter))
         self.assertNotIn("secret-must-not-leak", str(identity))
 
-    def test_mini_code_rejects_json_provider_errors_and_accepts_png_only(self):
+    def test_mini_code_rejects_json_provider_errors_and_accepts_png(self):
         json_error_client = FakeHttpClient([
             FakeResponse(payload={"access_token": "access-token", "expires_in": 7200}),
             FakeResponse(payload={"errcode": 40001, "errmsg": "bad token"}),
@@ -82,6 +82,28 @@ class AppWechatMiniTest(unittest.TestCase):
             page="pages/auth/web-login-confirm",
             env_version="trial",
         ).startswith(b"\x89PNG"))
+
+    def test_candidate_can_disable_path_check_and_accepts_real_jpeg(self):
+        settings = AppSettings(
+            **{
+                **configured_settings().__dict__,
+                "wechat_check_path": False,
+            },
+        )
+        client = FakeHttpClient([
+            FakeResponse(payload={"access_token": "access-token", "expires_in": 7200}),
+            FakeResponse(content=b"\xff\xd8\xffreal", content_type="image/jpeg"),
+        ])
+        adapter = WechatMiniClient(settings, http_client=client)
+
+        image = adapter.create_mini_code(
+            scene="opaque-scene",
+            page="pages/auth/web-login-confirm",
+            env_version="trial",
+        )
+
+        self.assertTrue(image.startswith(b"\xff\xd8\xff"))
+        self.assertFalse(client.calls[1][2]["json"]["check_path"])
 
     def test_missing_wechat_config_fails_closed(self):
         settings = AppSettings(environment="test", database_url="postgresql://redacted")

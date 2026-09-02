@@ -21,6 +21,7 @@ class AppSettings:
     wechat_secret: str = field(default="", repr=False)
     wechat_page: str = "pages/auth/web-login-confirm"
     wechat_env_version: str = "release"
+    wechat_check_path: bool = True
     prototype_enabled: bool = False
     prototype_ttl_seconds: int = 3600
 
@@ -83,6 +84,9 @@ class AppSettings:
         wechat_env_version = env.get("WOW_WECHAT_ENV_VERSION", "release").strip()
         if wechat_env_version not in {"develop", "trial", "release"}:
             raise ValueError("WOW_WECHAT_ENV_VERSION must be develop, trial or release")
+        wechat_check_path_raw = env.get("WOW_WECHAT_CHECK_PATH", "1").strip()
+        if wechat_check_path_raw not in {"0", "1"}:
+            raise ValueError("WOW_WECHAT_CHECK_PATH must be 0 or 1")
 
         prototype_enabled_raw = env.get("WOW_WEB_PROTOTYPE_ENABLED", "0").strip()
         if prototype_enabled_raw not in {"0", "1"}:
@@ -103,6 +107,7 @@ class AppSettings:
             wechat_secret=env.get("WOW_WECHAT_SECRET", "").strip(),
             wechat_page=wechat_page,
             wechat_env_version=wechat_env_version,
+            wechat_check_path=wechat_check_path_raw == "1",
             prototype_enabled=prototype_enabled_raw == "1",
             prototype_ttl_seconds=prototype_ttl_seconds,
         )

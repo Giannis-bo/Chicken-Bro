@@ -14,6 +14,7 @@ from server.app.platform.health import ComponentState, ReadinessRegistry
 
 NOW = datetime(2026, 9, 1, 12, 0, tzinfo=timezone.utc)
 PNG = b"\x89PNG\r\n\x1a\nreal"
+JPEG = b"\xff\xd8\xffreal"
 
 
 class FakeIdentityRepository:
@@ -93,6 +94,12 @@ class FakeWechatGateway:
         return PNG
 
 
+class FakeJpegWechatGateway(FakeWechatGateway):
+    def create_mini_code(self, *, scene, page, env_version):
+        self.codes.append((scene, page, env_version))
+        return JPEG
+
+
 def settings():
     return AppSettings(
         environment="test",
@@ -145,6 +152,19 @@ class WebAuthApplicationTest(unittest.TestCase):
         self.assertEqual(first.session.id, second.session.id)
         self.assertFalse(hasattr(first, "scene_ticket"))
         self.assertNotIn("scene-ticket", repr(first))
+
+    def test_web_login_preserves_a_real_jpeg_qr_response(self):
+        gateway = FakeJpegWechatGateway()
+        application = WebAuthApplication(
+            repository=self.repository,
+            wechat_gateway=gateway,
+            settings=settings(),
+            clock=lambda: NOW,
+        )
+
+        created = application.create_web_login("D" * 43, idempotency_key="request-key")
+
+        self.assertTrue(created.qr_data_url.startswith("data:image/jpeg;base64,"))
 
     def test_api_enforces_origin_cookie_and_public_error_boundaries(self):
         registry = ReadinessRegistry({"database": lambda: ComponentState("ready", "")})

@@ -56,6 +56,8 @@ class MeView:
 
 _BROWSER_VERIFIER = re.compile(r"[A-Za-z0-9_-]{43,128}\Z")
 _IDEMPOTENCY_KEY = re.compile(r"[A-Za-z0-9._~-]{8,128}\Z")
+_PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+_JPEG_SIGNATURE = b"\xff\xd8\xff"
 
 
 class WebAuthApplication:
@@ -104,7 +106,13 @@ class WebAuthApplication:
             raise AuthApplicationError("WECHAT_PROVIDER_UNAVAILABLE", "WeChat login provider is unavailable") from None
         except Exception as error:
             raise AuthApplicationError("WECHAT_PROVIDER_UNAVAILABLE", "WeChat login provider is unavailable") from error
-        if not isinstance(png, bytes) or not png.startswith(b"\x89PNG\r\n\x1a\n"):
+        if not isinstance(png, bytes):
+            raise AuthApplicationError("WECHAT_PROVIDER_UNAVAILABLE", "WeChat login provider returned invalid QR data")
+        if png.startswith(_PNG_SIGNATURE):
+            qr_mime = "image/png"
+        elif png.startswith(_JPEG_SIGNATURE):
+            qr_mime = "image/jpeg"
+        else:
             raise AuthApplicationError("WECHAT_PROVIDER_UNAVAILABLE", "WeChat login provider returned invalid QR data")
 
         session = WebLoginSession(
@@ -118,7 +126,7 @@ class WebAuthApplication:
             idempotency_key_sha256=idempotency_hash,
         )
         self._repository.insert_web_login_session(session, now=now)
-        qr_data_url = "data:image/png;base64," + base64.b64encode(png).decode("ascii")
+        qr_data_url = f"data:{qr_mime};base64," + base64.b64encode(png).decode("ascii")
         self._qr_cache[session.id] = qr_data_url
         return WebLoginCreated(session=session, qr_data_url=qr_data_url)
 

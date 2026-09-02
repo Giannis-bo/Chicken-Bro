@@ -81,23 +81,64 @@ HTTP 200 只证明请求可达；还要检查 `status`、`blockers`、`checkedAt
 
 ## 部署
 
-### Web v2 候选部署
+### Web v2 现有运行时
 
-Web 登录原型使用独立的 `wow-v2-api` systemd 服务（回环 `127.0.0.1:8790`）、独立的
-`wow-v2-worker` SimC Worker 和 `/var/www/chickenbro-web/current` 静态根；它不替换现有业务服务，也不复用旧 API 的会话。
-候选入口会先校验 `/etc/wow-v2-api.env` 的 `0600` 权限、PostgreSQL DSN、显式
-`WOW_WEB_PROTOTYPE_ENABLED=1` 和 `www` 证书 SAN，再备份 v2 文件、环境和目标数据库，最后才按
-0038/0039/0040 顺序应用幂等 migration、安装 v2 API/Worker 与虚拟主机并做 loopback/public smoke。
+当前公网 `/api/v2/` 使用 `wow-v2-api`（回环 `127.0.0.1:8790`）和 `wow_test`；
+`/var/www/chickenbro-web/current` 是现有 Web 静态根。任何登录候选联调都不得使用会替换该运行时的旧脚本，
+也不得复用其会话或数据库。
+
+### Web v2 登录隔离候选部署
+
+真实扫码联调使用现有 `www.chickenbro.cloud` 与已批准 request 域名 `api.chickenbro.cloud` 下的增量路径，不新建域名：
+浏览器使用 `www.chickenbro.cloud/web-candidate/` 和 `www.chickenbro.cloud/api/v2-candidate/`，
+体验版小程序使用 `api.chickenbro.cloud/api/v2-candidate/`。候选 API 独立运行在 `wow-v2-api-candidate` / `127.0.0.1:8791`，
+候选库为从空 `wow_dev` 克隆的 `wow_v2_candidate`，候选静态根为
+`/var/www/chickenbro-web-candidate/current`；候选不启动 Worker，不读写 `wow_test`。
+候选环境显式使用体验版 `WOW_WECHAT_ENV_VERSION=trial` 和仅候选开启的
+`WOW_WECHAT_CHECK_PATH=0`，正式环境默认仍为 `1`。
+
+先在候选工作树构建 H5（远端资源根必须使用已核验的不可变发布路径），再运行：
 
 ```bash
+NODE_ENV=production TARO_ENV=h5 WOW_TARO_ISOLATED_BUILD=1 \
+WOW_H5_PUBLIC_PATH=/web-candidate/ \
+WOW_WEB_AUTH_API_PREFIX=/api/v2-candidate \
+WOW_BACKEND_API_BASE_URL=https://www.chickenbro.cloud \
+WOW_ASSET_RUNTIME_ROOT=https://api.chickenbro.cloud/wow-assets/releases/2026-07-19-taro-full-integration \
+WOW_RUNTIME_MEDIA_ROOT=https://api.chickenbro.cloud/wow-media/releases/2026-07-20-wow-icons-v1 \
 npm --workspace @wow-mini/mini-taro run build:h5
-./server/deploy_web_v2_lighthouse.sh
+./server/deploy_web_v2_candidate_lighthouse.sh
 ```
 
-脚本打包当前 Git tracked 或工作树新增的 v2 server 文件与已构建的 H5 目录，备份保存在
-`/var/backups/wow-v2/<run-id>`。如果候选失败，它只恢复命名的 v2 service/Nginx/静态 current
-指针并保留 PostgreSQL backup；API 与 Worker 一起回滚，不会停止或重启现有业务服务。`www.chickenbro.cloud` 必须使用覆盖
-该域名的有效证书后，才能把网页可达性写成 live evidence。
+小程序包要把 API base 编译为已批准的 `api.chickenbro.cloud`，并复用同一组不可变资源根：
+
+```bash
+NODE_ENV=production WOW_TARO_ISOLATED_BUILD=1 \
+WOW_WEB_AUTH_API_PREFIX=/api/v2-candidate \
+WOW_BACKEND_API_BASE_URL=https://api.chickenbro.cloud \
+WOW_ASSET_RUNTIME_ROOT=https://api.chickenbro.cloud/wow-assets/releases/2026-07-19-taro-full-integration \
+WOW_RUNTIME_MEDIA_ROOT=https://api.chickenbro.cloud/wow-media/releases/2026-07-20-wow-icons-v1 \
+npm run build:weapp
+```
+
+候选脚本会先在 `/var/backups/wow-v2-candidate/<run-id>` 完成服务、环境、Nginx、静态指针和候选数据库备份，
+再应用 0038/0039/0040、安装独立 source tree、写入权限为 `0600` 的候选环境文件，并只重启候选 service、
+只 reload Nginx。失败时只恢复候选标记块和候选资源，保留数据库备份；不会停止、重启或改写
+`wow-v2-api`、`wow-v2-worker`、`wow-backend` 或 `/api/v2/`。
+
+候选部署后的最小检查：
+
+```bash
+curl -fsS https://www.chickenbro.cloud/web-candidate/
+curl -fsS https://www.chickenbro.cloud/api/v2-candidate/health/readiness
+curl -fsS https://api.chickenbro.cloud/api/v2-candidate/health/readiness
+curl -i https://www.chickenbro.cloud/api/v2-candidate/me  # 预期 401 AUTH_REQUIRED
+curl -i https://api.chickenbro.cloud/api/v2-candidate/me    # 预期 401 AUTH_REQUIRED
+curl -i https://www.chickenbro.cloud/api/v2/me             # 既有运行时对照
+```
+
+`deploy_web_v2_lighthouse.sh` 是旧的单运行时部署入口，不是本候选的执行入口；
+只有候选 loopback/public smoke、旧路径对照和体验版扫码确认全部通过后，才能把登录写成已完成。
 
 完整入口：
 

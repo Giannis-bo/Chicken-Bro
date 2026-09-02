@@ -16,6 +16,14 @@ const configuredBackendApiBaseUrl = (
   ?? process.env['WOW_NEWS_API_BASE_URL']
   ?? ''
 ).trim()
+const configuredWebAuthApiPrefix = (process.env['WOW_WEB_AUTH_API_PREFIX']?.trim() || '/api/v2').replace(/\/+$/u, '')
+if (!/^\/[A-Za-z0-9][A-Za-z0-9/_-]*$/u.test(configuredWebAuthApiPrefix)) {
+  throw new Error('WOW_WEB_AUTH_API_PREFIX must be a slash-prefixed path')
+}
+const configuredH5PublicPath = process.env['WOW_H5_PUBLIC_PATH']?.trim() || '/'
+if (!/^\/[A-Za-z0-9._/-]*\/?$/u.test(configuredH5PublicPath) || configuredH5PublicPath.includes('//')) {
+  throw new Error('WOW_H5_PUBLIC_PATH must be a safe slash-prefixed path')
+}
 const configuredAssetRuntimeRoot = process.env['WOW_ASSET_RUNTIME_ROOT']?.trim() ?? ''
 if (configuredAssetRuntimeRoot && !isImmutableRemoteAssetRoot(configuredAssetRuntimeRoot)) {
   throw new Error('WOW_ASSET_RUNTIME_ROOT must be an immutable HTTPS path ending in /releases/<release-id>')
@@ -87,6 +95,7 @@ export default defineConfig<'webpack5'>({
     __WOW_ASSET_RUNTIME_ROOT__: JSON.stringify(configuredAssetRuntimeRoot || '/assets/ui-v2'),
     __WOW_RUNTIME_MEDIA_ROOT__: JSON.stringify(configuredRuntimeMediaRoot),
     __WOW_BACKEND_API_BASE_URL__: JSON.stringify(configuredBackendApiBaseUrl),
+    __WOW_WEB_AUTH_API_PREFIX__: JSON.stringify(configuredWebAuthApiPrefix),
     __WOW_WEAPP_RUNTIME_GIT_HEAD__: JSON.stringify(runtimeGitHead),
     __WOW_WEAPP_RUNTIME_SOURCE_HASH__: JSON.stringify(runtimeSourceHash),
   },
@@ -113,7 +122,7 @@ export default defineConfig<'webpack5'>({
     '@wow-mini/assets-manifest': path.join(repositoryRoot, 'packages/assets-manifest/src'),
   },
   h5: {
-    publicPath: '/',
+    publicPath: configuredH5PublicPath.endsWith('/') ? configuredH5PublicPath : `${configuredH5PublicPath}/`,
     staticDirectory: 'static',
     router: {
       mode: 'hash',

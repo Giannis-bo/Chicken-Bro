@@ -7,7 +7,7 @@ import {
 } from './web-auth'
 
 describe('web auth domain contracts', () => {
-  it('accepts only a bounded verifier and a non-placeholder PNG response', () => {
+  it('accepts only a bounded verifier and a non-placeholder PNG or JPEG response', () => {
     expect(isValidBrowserVerifier('A'.repeat(43))).toBe(true)
     expect(isValidBrowserVerifier('too-short')).toBe(false)
     expect(isValidBrowserVerifier('contains+slash/'.repeat(4))).toBe(false)
@@ -16,6 +16,11 @@ describe('web auth domain contracts', () => {
       sessionId: '00000000-0000-4000-8000-000000000000',
       expiresAt: '2026-09-01T10:00:00.000Z',
       qrDataUrl: 'data:image/png;base64,AA==',
+    })).toBe(true)
+    expect(isWebLoginCreated({
+      sessionId: '00000000-0000-4000-8000-000000000000',
+      expiresAt: '2026-09-01T10:00:00.000Z',
+      qrDataUrl: 'data:image/jpeg;base64,/9j/AA==',
     })).toBe(true)
     expect(isWebLoginCreated({
       sessionId: '00000000-0000-4000-8000-000000000000',

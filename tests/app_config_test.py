@@ -38,12 +38,21 @@ class AppConfigTest(unittest.TestCase):
             "WOW_WECHAT_SECRET": "secret-value",
             "WOW_WECHAT_PAGE": "pages/auth/web-login-confirm",
             "WOW_WECHAT_ENV_VERSION": "trial",
+            "WOW_WECHAT_CHECK_PATH": "0",
         })
         self.assertEqual(settings.web_origin, "https://www.chickenbro.cloud")
         self.assertEqual(settings.web_login_ttl_seconds, 300)
         self.assertEqual(settings.web_session_ttl_seconds, 604800)
         self.assertEqual(settings.wechat_appid, "wx-test")
+        self.assertFalse(settings.wechat_check_path)
         self.assertNotIn("secret-value", repr(settings))
+
+        with self.assertRaisesRegex(ValueError, "WOW_WECHAT_CHECK_PATH"):
+            AppSettings.from_env({
+                "WOW_APP_ENV": "candidate",
+                "WOW_DATABASE_URL": "postgresql://user@db.example/wow",
+                "WOW_WECHAT_CHECK_PATH": "maybe",
+            })
 
     def test_prototype_settings_are_explicitly_bounded(self):
         settings = AppSettings.from_env({

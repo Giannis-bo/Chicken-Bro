@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { createWebAuthClient } from './web-auth'
 import type { ApiResult, ApiTransport, RequestOptions } from './transport'
@@ -62,5 +62,19 @@ describe('WebAuthClient', () => {
     expect(call.options.credentials).toBe('omit')
     expect(call.options.header?.['Authorization']).toBe('Bearer mini-token')
     expect(call.options.baseUrl).toBe('web-auth')
+  })
+
+  it('uses the configured candidate API prefix for the Web auth surface', async () => {
+    vi.stubGlobal('__WOW_WEB_AUTH_API_PREFIX__', '/api/v2-candidate')
+    try {
+      const transport = new RecordingTransport()
+      const client = createWebAuthClient(transport)
+
+      await client.me()
+
+      expect(transport.calls[0]?.path).toBe('/api/v2-candidate/me')
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
 })
