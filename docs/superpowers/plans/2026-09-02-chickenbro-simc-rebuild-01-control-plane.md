@@ -168,7 +168,7 @@ git commit -m "chore: inventory Chickenbro SimC rebuild files"
 - Consumes: tab-separated rows from read-only `psql`, `systemctl`, `ss`, `du`, and `df` probes; no environment values or command lines containing secrets.
 - Produces: `build_inventory(snapshot: Mapping[str, object]) -> dict`, `capacity_gate(inventory) -> str`, and a JSON document with exact resource names and `observedAt`.
 
-- [ ] **Step 1: Write failing redaction and capacity tests**
+- [x] **Step 1: Write failing redaction and capacity tests**
 
 ```python
 def test_capacity_is_blocked_when_free_space_is_smaller_than_current_database():
@@ -180,13 +180,13 @@ def test_output_rejects_secret_shaped_fields(self):
         build_inventory({"databaseUrl": "postgresql://user:password@host/db"})
 ```
 
-- [ ] **Step 2: Run the focused test and verify it fails**
+- [x] **Step 2: Run the focused test and verify it fails**
 
 Run: `python3 -m unittest tests.chickenbro_simc_cloud_inventory_test -v`
 
 Expected: FAIL because `server.chickenbro_simc_cloud_inventory` does not exist.
 
-- [ ] **Step 3: Implement a strict redacted schema**
+- [x] **Step 3: Implement a strict redacted schema**
 
 ```python
 SECRET_KEYS = frozenset({"password", "secret", "token", "databaseUrl", "pgpass", "cookie"})
@@ -199,11 +199,11 @@ def capacity_gate(inventory: Mapping[str, object]) -> str:
 
 The live command builder may emit only database name/size/connection count, unit name/load/active/enabled state, listening address/port/process name, directory path/size, filesystem size/used/free, and SHA/version identities. It must never print `Environment=`, DSNs, PGPASS contents, WeChat credentials, Codex configuration, or source-provider credentials.
 
-- [ ] **Step 4: Refresh the read-only cloud snapshot**
+- [x] **Step 4: Refresh the read-only cloud snapshot**
 
 Run the script through the existing authorized SSH path with `--read-only --output -`, review stdout for the allowed schema, then write the reviewed JSON to `docs/refactor/chickenbro-simc-cloud-inventory.json`. If SSH is unavailable, record `status: unreachable` and retain the 2026-09-02 observation; do not fabricate freshness.
 
-- [ ] **Step 5: Run tests and commit**
+- [x] **Step 5: Run tests and commit**
 
 ```bash
 python3 -m unittest tests.chickenbro_simc_cloud_inventory_test -v

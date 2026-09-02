@@ -1,0 +1,489 @@
+{
+  "schemaVersion": 1,
+  "status": "reachable",
+  "observedAt": "2026-09-02T13:43:05Z",
+  "host": "VM-4-8-ubuntu",
+  "rootFilesystem": {
+    "path": "/",
+    "sizeBytes": 73859022848,
+    "usedBytes": 62145011712,
+    "freeBytes": 8583778304
+  },
+  "rootFreeBytes": 8583778304,
+  "currentDatabaseBytes": 39277479625,
+  "databases": [
+    {
+      "name": "postgres",
+      "sizeBytes": 7691287,
+      "connections": 1
+    },
+    {
+      "name": "wow_dev",
+      "sizeBytes": 9501719,
+      "connections": 0
+    },
+    {
+      "name": "wow_exact_first_fresh_test_t3a2608050955",
+      "sizeBytes": 8002583,
+      "connections": 0
+    },
+    {
+      "name": "wow_exact_first_fresh_test_t3a260805111623",
+      "sizeBytes": 8002583,
+      "connections": 0
+    },
+    {
+      "name": "wow_exact_first_fresh_test_t3a260805113656",
+      "sizeBytes": 11959319,
+      "connections": 0
+    },
+    {
+      "name": "wow_exact_first_fresh_test_t3a260805120026",
+      "sizeBytes": 11975703,
+      "connections": 0
+    },
+    {
+      "name": "wow_exact_first_fresh_test_t3a260805125812",
+      "sizeBytes": 12008471,
+      "connections": 0
+    },
+    {
+      "name": "wow_exact_first_fresh_test_t3a260805142130",
+      "sizeBytes": 12008471,
+      "connections": 0
+    },
+    {
+      "name": "wow_exact_first_fresh_test_t3a260805160003",
+      "sizeBytes": 12016663,
+      "connections": 0
+    },
+    {
+      "name": "wow_exact_first_fresh_test_t3b260806175347",
+      "sizeBytes": 12385303,
+      "connections": 0
+    },
+    {
+      "name": "wow_exact_first_fresh_test_t3b260806191719",
+      "sizeBytes": 12442647,
+      "connections": 0
+    },
+    {
+      "name": "wow_exact_first_fresh_test_t3b260806191950",
+      "sizeBytes": 12442647,
+      "connections": 0
+    },
+    {
+      "name": "wow_exact_first_fresh_test_t3b260806194346",
+      "sizeBytes": 7748631,
+      "connections": 0
+    },
+    {
+      "name": "wow_exact_first_upgrade_test_t3a2608050955",
+      "sizeBytes": 7691287,
+      "connections": 0
+    },
+    {
+      "name": "wow_exact_first_upgrade_test_t3a260805111623",
+      "sizeBytes": 7691287,
+      "connections": 0
+    },
+    {
+      "name": "wow_exact_first_upgrade_test_t3a260805113656",
+      "sizeBytes": 11959319,
+      "connections": 0
+    },
+    {
+      "name": "wow_exact_first_upgrade_test_t3a260805120026",
+      "sizeBytes": 11983895,
+      "connections": 0
+    },
+    {
+      "name": "wow_exact_first_upgrade_test_t3a260805125812",
+      "sizeBytes": 12008471,
+      "connections": 0
+    },
+    {
+      "name": "wow_exact_first_upgrade_test_t3a260805142130",
+      "sizeBytes": 12016663,
+      "connections": 0
+    },
+    {
+      "name": "wow_exact_first_upgrade_test_t3a260805160003",
+      "sizeBytes": 12008471,
+      "connections": 0
+    },
+    {
+      "name": "wow_exact_first_upgrade_test_t3b260806175347",
+      "sizeBytes": 7748631,
+      "connections": 0
+    },
+    {
+      "name": "wow_exact_first_upgrade_test_t3b260806191719",
+      "sizeBytes": 7748631,
+      "connections": 0
+    },
+    {
+      "name": "wow_exact_first_upgrade_test_t3b260806191950",
+      "sizeBytes": 12393495,
+      "connections": 0
+    },
+    {
+      "name": "wow_exact_first_upgrade_test_t3b260806194346",
+      "sizeBytes": 7748631,
+      "connections": 0
+    },
+    {
+      "name": "wow_gear_evidence_01adf184_r14",
+      "sizeBytes": 5237750807,
+      "connections": 0
+    },
+    {
+      "name": "wow_gear_evidence_0be65754_r24",
+      "sizeBytes": 5517827095,
+      "connections": 0
+    },
+    {
+      "name": "wow_gear_evidence_145dee16_r22",
+      "sizeBytes": 5964094487,
+      "connections": 0
+    },
+    {
+      "name": "wow_gear_evidence_15f514d5_r23",
+      "sizeBytes": 5813812247,
+      "connections": 0
+    },
+    {
+      "name": "wow_prod",
+      "sizeBytes": 100326423,
+      "connections": 0
+    },
+    {
+      "name": "wow_test",
+      "sizeBytes": 16384261143,
+      "connections": 0
+    },
+    {
+      "name": "wow_v2_candidate",
+      "sizeBytes": 10222615,
+      "connections": 0
+    }
+  ],
+  "units": [
+    {
+      "name": "wow-attribute-rule-audit.service",
+      "loadState": "loaded",
+      "activeState": "inactive",
+      "unitFileState": "static"
+    },
+    {
+      "name": "wow-backend.service",
+      "loadState": "loaded",
+      "activeState": "active",
+      "unitFileState": "enabled"
+    },
+    {
+      "name": "wow-chickenbro-source-refresh.service",
+      "loadState": "loaded",
+      "activeState": "inactive",
+      "unitFileState": "static"
+    },
+    {
+      "name": "wow-chickenbro-source-refresh.timer",
+      "loadState": "loaded",
+      "activeState": "active",
+      "unitFileState": "enabled"
+    },
+    {
+      "name": "wow-community-best-guard-sync.service",
+      "loadState": "loaded",
+      "activeState": "inactive",
+      "unitFileState": "static"
+    },
+    {
+      "name": "wow-community-best-guard-sync.timer",
+      "loadState": "loaded",
+      "activeState": "active",
+      "unitFileState": "enabled"
+    },
+    {
+      "name": "wow-community-template-sync.service",
+      "loadState": "loaded",
+      "activeState": "failed",
+      "unitFileState": "static"
+    },
+    {
+      "name": "wow-community-template-sync.timer",
+      "loadState": "loaded",
+      "activeState": "active",
+      "unitFileState": "enabled"
+    },
+    {
+      "name": "wow-data-health-followup.service",
+      "loadState": "loaded",
+      "activeState": "inactive",
+      "unitFileState": "static"
+    },
+    {
+      "name": "wow-data-health-followup.timer",
+      "loadState": "loaded",
+      "activeState": "active",
+      "unitFileState": "enabled"
+    },
+    {
+      "name": "wow-gear-observed-backfill.service",
+      "loadState": "loaded",
+      "activeState": "inactive",
+      "unitFileState": "static"
+    },
+    {
+      "name": "wow-gear-observed-backfill.timer",
+      "loadState": "loaded",
+      "activeState": "inactive",
+      "unitFileState": "enabled"
+    },
+    {
+      "name": "wow-gear-release-refresh.service",
+      "loadState": "loaded",
+      "activeState": "failed",
+      "unitFileState": "static"
+    },
+    {
+      "name": "wow-gear-release-refresh.timer",
+      "loadState": "loaded",
+      "activeState": "active",
+      "unitFileState": "enabled"
+    },
+    {
+      "name": "wow-gear-stat-snapshot-worker.service",
+      "loadState": "loaded",
+      "activeState": "active",
+      "unitFileState": "enabled"
+    },
+    {
+      "name": "wow-news-backend.service",
+      "loadState": "masked",
+      "activeState": "inactive",
+      "unitFileState": "masked"
+    },
+    {
+      "name": "wow-recommended-bis-guard-sync.service",
+      "loadState": "loaded",
+      "activeState": "inactive",
+      "unitFileState": "static"
+    },
+    {
+      "name": "wow-recommended-bis-guard-sync.timer",
+      "loadState": "loaded",
+      "activeState": "active",
+      "unitFileState": "enabled"
+    },
+    {
+      "name": "wow-recommended-bis-prototype-sync.service",
+      "loadState": "loaded",
+      "activeState": "inactive",
+      "unitFileState": "static"
+    },
+    {
+      "name": "wow-season-recommended-gear-sync.service",
+      "loadState": "loaded",
+      "activeState": "inactive",
+      "unitFileState": "static"
+    },
+    {
+      "name": "wow-season-recommended-gear-sync.timer",
+      "loadState": "loaded",
+      "activeState": "active",
+      "unitFileState": "enabled"
+    },
+    {
+      "name": "wow-simc-runtime-update.service",
+      "loadState": "loaded",
+      "activeState": "inactive",
+      "unitFileState": "static"
+    },
+    {
+      "name": "wow-simc-version-check.service",
+      "loadState": "loaded",
+      "activeState": "inactive",
+      "unitFileState": "static"
+    },
+    {
+      "name": "wow-simc-version-check.timer",
+      "loadState": "loaded",
+      "activeState": "active",
+      "unitFileState": "enabled"
+    },
+    {
+      "name": "wow-stat-weights-sync.service",
+      "loadState": "loaded",
+      "activeState": "inactive",
+      "unitFileState": "static"
+    },
+    {
+      "name": "wow-stat-weights-sync.timer",
+      "loadState": "loaded",
+      "activeState": "active",
+      "unitFileState": "enabled"
+    },
+    {
+      "name": "wow-talent-graph-recovery.service",
+      "loadState": "loaded",
+      "activeState": "inactive",
+      "unitFileState": "static"
+    },
+    {
+      "name": "wow-v2-api-candidate.service",
+      "loadState": "loaded",
+      "activeState": "active",
+      "unitFileState": "enabled"
+    },
+    {
+      "name": "wow-v2-api.service",
+      "loadState": "loaded",
+      "activeState": "active",
+      "unitFileState": "enabled"
+    },
+    {
+      "name": "wow-v2-worker.service",
+      "loadState": "loaded",
+      "activeState": "active",
+      "unitFileState": "enabled"
+    },
+    {
+      "name": "wow-websim-sync.service",
+      "loadState": "loaded",
+      "activeState": "inactive",
+      "unitFileState": "static"
+    },
+    {
+      "name": "wow-websim-sync.timer",
+      "loadState": "loaded",
+      "activeState": "active",
+      "unitFileState": "enabled"
+    }
+  ],
+  "listeners": [
+    {
+      "address": "0.0.0.0",
+      "port": 22,
+      "processName": "unknown"
+    },
+    {
+      "address": "::",
+      "port": 22,
+      "processName": "unknown"
+    },
+    {
+      "address": "127.0.0.53%lo",
+      "port": 53,
+      "processName": "unknown"
+    },
+    {
+      "address": "127.0.0.54",
+      "port": 53,
+      "processName": "unknown"
+    },
+    {
+      "address": "0.0.0.0",
+      "port": 80,
+      "processName": "unknown"
+    },
+    {
+      "address": "::",
+      "port": 80,
+      "processName": "unknown"
+    },
+    {
+      "address": "0.0.0.0",
+      "port": 443,
+      "processName": "unknown"
+    },
+    {
+      "address": "::",
+      "port": 443,
+      "processName": "unknown"
+    },
+    {
+      "address": "127.0.0.1",
+      "port": 5432,
+      "processName": "unknown"
+    },
+    {
+      "address": "127.0.0.1",
+      "port": 7890,
+      "processName": "unknown"
+    },
+    {
+      "address": "127.0.0.1",
+      "port": 8787,
+      "processName": "unknown"
+    },
+    {
+      "address": "127.0.0.1",
+      "port": 8790,
+      "processName": "unknown"
+    },
+    {
+      "address": "127.0.0.1",
+      "port": 8791,
+      "processName": "unknown"
+    },
+    {
+      "address": "127.0.0.1",
+      "port": 9090,
+      "processName": "unknown"
+    },
+    {
+      "address": "127.0.0.1",
+      "port": 37619,
+      "processName": "unknown"
+    }
+  ],
+  "directories": [
+    {
+      "path": "/opt/wow-mini-program",
+      "sizeBytes": 2436709811
+    },
+    {
+      "path": "/opt/wow-simc",
+      "sizeBytes": 569453746
+    },
+    {
+      "path": "/opt/wow-v2-staging",
+      "sizeBytes": 158096190
+    },
+    {
+      "path": "/var/backups/wow-mini-program",
+      "sizeBytes": 1161916185
+    },
+    {
+      "path": "/var/backups/wow-v2",
+      "sizeBytes": 7627618945
+    },
+    {
+      "path": "/var/lib/postgresql",
+      "sizeBytes": 39630380619
+    },
+    {
+      "path": "/var/lib/wow-backend",
+      "sizeBytes": 1127088626
+    },
+    {
+      "path": "/var/www/chickenbro-web",
+      "sizeBytes": 116049979
+    },
+    {
+      "path": "/var/www/chickenbro-web-candidate",
+      "sizeBytes": 11922719
+    }
+  ],
+  "identities": [
+    {
+      "name": "simcCommit",
+      "value": "f50a2121bf894570146507496f3e113bff68e445"
+    }
+  ],
+  "probeErrors": [],
+  "capacityGate": "blocked_until_independent_legacy_cleanup_or_storage_expansion"
+}
+
