@@ -175,9 +175,12 @@ else
 fi
 if [[ "${DB_EXISTS}" == '1' ]]; then
   printf '%s\n' 'existing' > "${BACKUP_DIR}/candidate-database-state"
-  install -d -o postgres -g postgres -m 0700 "${BACKUP_DIR}/postgresql"
-  sudo -n -u postgres pg_dump --format=custom --file="${BACKUP_DIR}/postgresql/candidate-database.dump" --dbname="${CANDIDATE_DB}" >/dev/null
-  printf '%s\n' "${BACKUP_DIR}/postgresql/candidate-database.dump" > "${BACKUP_DIR}/candidate-database-dump-path"
+  # The remote preflight already runs as root. Let the postgres process stream
+  # the dump, while the root shell creates the file inside the root-only run
+  # directory; otherwise postgres cannot traverse BACKUP_DIR (0700 root:root).
+  sudo -n -u postgres pg_dump --format=custom --dbname="${CANDIDATE_DB}" > "${BACKUP_DIR}/candidate-database.dump"
+  chmod 0600 "${BACKUP_DIR}/candidate-database.dump"
+  printf '%s\n' "${BACKUP_DIR}/candidate-database.dump" > "${BACKUP_DIR}/candidate-database-dump-path"
 else
   printf '%s\n' 'new_from_wow_dev' > "${BACKUP_DIR}/candidate-database-state"
 fi
