@@ -7,6 +7,7 @@ import re
 from uuid import UUID, uuid4
 
 from server.app.identity.domain import (
+    IdentityConflictError,
     Principal,
     SessionKind,
     WebLoginSession,
@@ -14,11 +15,15 @@ from server.app.identity.domain import (
     cancel_web_login_session,
     confirm_web_login_session,
     digest,
-    exchange_web_login_session,
+    consume_web_login_session,
     new_opaque_token,
 )
-from server.app.identity.ports import IdentityRepository, WechatMiniGateway
-from server.app.integrations.wechat_mini import WechatAdapterError, WechatNotConfiguredError
+from server.app.identity.ports import (
+    IdentityRepository,
+    WechatAdapterError,
+    WechatMiniGateway,
+    WechatNotConfiguredError,
+)
 from server.app.platform.config import AppSettings
 
 
@@ -122,7 +127,7 @@ class WebAuthApplication:
             user_id=None,
             status=WebLoginSessionStatus.PENDING,
             expires_at=now + timedelta(seconds=self._settings.web_login_ttl_seconds),
-            exchanged_at=None,
+            consumed_at=None,
             idempotency_key_sha256=idempotency_hash,
         )
         self._repository.insert_web_login_session(session, now=now)
@@ -167,8 +172,8 @@ class WebAuthApplication:
         session = self._load_session(session_id, for_update=True)
         self._verify_browser_verifier(session, browser_verifier)
         session = self._expire_if_needed(session)
-        if session.status is WebLoginSessionStatus.EXCHANGED:
-            raise AuthApplicationError("WEB_LOGIN_ALREADY_EXCHANGED", "login session already exchanged")
+        if session.status is WebLoginSessionStatus.CONSUMED:
+            raise AuthApplicationError("WEB_LOGIN_ALREADY_CONSUMED", "login session already consumed")
         if session.status is WebLoginSessionStatus.EXPIRED:
             raise AuthApplicationError("WEB_LOGIN_EXPIRED", "login session expired")
         if session.status is WebLoginSessionStatus.CANCELLED:
@@ -176,7 +181,7 @@ class WebAuthApplication:
         if session.status is not WebLoginSessionStatus.CONFIRMED or session.user_id is None:
             raise AuthApplicationError("WEB_LOGIN_NOT_CONFIRMED", "login confirmation is required")
         try:
-            exchanged = exchange_web_login_session(
+            consumed = consume_web_login_session(
                 session,
                 verifier_sha256=digest(browser_verifier),
                 now=self._now(),
@@ -185,17 +190,17 @@ class WebAuthApplication:
             raise self._map_domain_error(error) from error
         token = new_opaque_token()
         expires_at = self._now() + timedelta(seconds=self._settings.web_session_ttl_seconds)
-        self._repository.save_web_login_session(exchanged, now=self._now())
+        self._repository.save_web_login_session(consumed, now=self._now())
         self._repository.issue_auth_session(
             token_hash=digest(token),
-            user_id=exchanged.user_id,
+            user_id=consumed.user_id,
             kind="web_cookie",
             expires_at=expires_at,
         )
         return IssuedSession(
             token=token,
             expires_at=expires_at,
-            principal=Principal(user_id=exchanged.user_id, session_kind="web_cookie"),
+            principal=Principal(user_id=consumed.user_id, session_kind="web_cookie"),
         )
 
     def cancel_web_login(self, session_id: UUID, browser_verifier: str) -> WebLoginStatusView:
@@ -203,8 +208,8 @@ class WebAuthApplication:
         session = self._load_session(session_id, for_update=True)
         self._verify_browser_verifier(session, browser_verifier)
         session = self._expire_if_needed(session)
-        if session.status is WebLoginSessionStatus.EXCHANGED:
-            raise AuthApplicationError("WEB_LOGIN_ALREADY_EXCHANGED", "login session already exchanged")
+        if session.status is WebLoginSessionStatus.CONSUMED:
+            raise AuthApplicationError("WEB_LOGIN_ALREADY_CONSUMED", "login session already consumed")
         if session.status is WebLoginSessionStatus.CANCELLED:
             raise AuthApplicationError("WEB_LOGIN_CANCELLED", "login session cancelled")
         try:
@@ -223,10 +228,15 @@ class WebAuthApplication:
             raise AuthApplicationError("WECHAT_PROVIDER_UNAVAILABLE", "WeChat login provider is unavailable") from None
         except Exception as error:
             raise AuthApplicationError("WECHAT_PROVIDER_UNAVAILABLE", "WeChat login provider is unavailable") from error
-        user_id = self._repository.upsert_wechat_mini_identity(
-            provider_subject=identity.openid,
-            now=self._now(),
-        )
+        try:
+            user_id = self._repository.upsert_wechat_mini_identity(
+                app_context=self._settings.wechat_appid,
+                provider_subject=identity.openid,
+                union_id=identity.unionid,
+                now=self._now(),
+            )
+        except IdentityConflictError as error:
+            raise AuthApplicationError("IDENTITY_CONFLICT", "WeChat identity ownership conflicts") from error
         token = new_opaque_token()
         expires_at = self._now() + timedelta(seconds=min(self._settings.web_session_ttl_seconds, 86400))
         self._repository.issue_auth_session(
@@ -259,13 +269,11 @@ class WebAuthApplication:
             display_name=user.display_name or "已连接微信账号",
         )
 
-    def logout(self, principal: Principal, raw_cookie: str | None) -> None:
-        if principal.session_kind != "web_cookie":
-            raise AuthApplicationError("AUTH_REQUIRED", "Web authentication is required")
-        if raw_cookie:
+    def logout(self, principal: Principal, raw_credential: str | None) -> None:
+        if raw_credential:
             self._repository.revoke_auth_session(
-                token_hash=digest(raw_cookie),
-                kind="web_cookie",
+                token_hash=digest(raw_credential),
+                kind=principal.session_kind,
                 now=self._now(),
             )
 
@@ -284,7 +292,7 @@ class WebAuthApplication:
                 user_id=session.user_id,
                 status=WebLoginSessionStatus.EXPIRED,
                 expires_at=session.expires_at,
-                exchanged_at=session.exchanged_at,
+                consumed_at=session.consumed_at,
                 idempotency_key_sha256=session.idempotency_key_sha256,
             )
             self._repository.save_web_login_session(expired, now=self._now())
@@ -304,8 +312,8 @@ class WebAuthApplication:
     @staticmethod
     def _map_domain_error(error: ValueError, *, confirm: bool = False) -> AuthApplicationError:
         message = str(error)
-        if "already exchanged" in message:
-            return AuthApplicationError("WEB_LOGIN_ALREADY_EXCHANGED", "login session already exchanged")
+        if "already consumed" in message:
+            return AuthApplicationError("WEB_LOGIN_ALREADY_CONSUMED", "login session already consumed")
         if "expired" in message:
             return AuthApplicationError("WEB_LOGIN_EXPIRED", "login session expired")
         if "cancel" in message:

@@ -4,6 +4,7 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from server.app.identity.domain import (
+    IdentityConflictError,
     Principal,
     SessionKind,
     WebLoginSession,
@@ -37,26 +38,53 @@ class PostgresIdentityRepository:
             return None
         return Principal(user_id=UUID(str(_row_value(row, "id", 0))), session_kind="mini_bearer")
 
-    def upsert_wechat_mini_identity(self, *, provider_subject: str, now: datetime) -> UUID:
+    def upsert_wechat_mini_identity(
+        self,
+        *,
+        app_context: str,
+        provider_subject: str,
+        union_id: str | None,
+        now: datetime,
+    ) -> UUID:
+        if not app_context or len(app_context) > 128:
+            raise ValueError("app context is invalid")
         if not provider_subject or len(provider_subject) > 256:
             raise ValueError("provider subject is invalid")
+        if union_id is not None and (not union_id or len(union_id) > 256):
+            raise ValueError("union id is invalid")
         with self._connection_factory() as connection:
             with connection.cursor() as cursor:
                 cursor.execute(
                     "SELECT pg_advisory_xact_lock(hashtext(%s))",
-                    (provider_subject,),
+                    (f"wechat_mini:{app_context}:{provider_subject}",),
                 )
                 cursor.execute(
                     """
-                    SELECT user_id
+                    SELECT user_id, union_id
                     FROM identity.user_identities
-                    WHERE provider = %s AND provider_subject = %s
+                    WHERE provider = %s
+                      AND app_context = %s
+                      AND provider_subject = %s
                     FOR UPDATE
                     """,
-                    ("wechat_openid", provider_subject),
+                    ("wechat_mini", app_context, provider_subject),
                 )
                 row = cursor.fetchone()
                 if row is not None:
+                    existing_union_id = _row_value(row, "union_id", 1)
+                    if existing_union_id is not None and union_id is not None and existing_union_id != union_id:
+                        raise IdentityConflictError("identity conflict")
+                    cursor.execute(
+                        """
+                        UPDATE identity.user_identities
+                        SET union_id = COALESCE(union_id, %s),
+                            updated_at = %s
+                        WHERE provider = %s
+                          AND app_context = %s
+                          AND provider_subject = %s
+                        """,
+                        (union_id, now, "wechat_mini", app_context, provider_subject),
+                    )
                     return UUID(str(_row_value(row, "user_id", 0)))
 
                 user_id = uuid4()
@@ -70,25 +98,44 @@ class PostgresIdentityRepository:
                 cursor.execute(
                     """
                     INSERT INTO identity.user_identities (
-                        id, user_id, provider, provider_subject, profile_json, created_at, updated_at
+                        id, user_id, provider, app_context, provider_subject,
+                        union_id, profile_json, created_at, updated_at
                     )
-                    VALUES (%s, %s, %s, %s, '{}'::jsonb, %s, %s)
-                    ON CONFLICT (provider, provider_subject) DO NOTHING
+                    VALUES (%s, %s, %s, %s, %s, %s, '{}'::jsonb, %s, %s)
+                    ON CONFLICT (provider, app_context, provider_subject)
+                    DO UPDATE SET
+                        union_id = COALESCE(identity.user_identities.union_id, EXCLUDED.union_id),
+                        updated_at = EXCLUDED.updated_at
+                    RETURNING user_id, union_id
                     """,
-                    (uuid4(), user_id, "wechat_openid", provider_subject, now, now),
-                )
-                cursor.execute(
-                    """
-                    SELECT user_id
-                    FROM identity.user_identities
-                    WHERE provider = %s AND provider_subject = %s
-                    """,
-                    ("wechat_openid", provider_subject),
+                    (
+                        uuid4(),
+                        user_id,
+                        "wechat_mini",
+                        app_context,
+                        provider_subject,
+                        union_id,
+                        now,
+                        now,
+                    ),
                 )
                 row = cursor.fetchone()
                 if row is None:
                     raise RuntimeError("wechat identity upsert did not return an owner")
-                return UUID(str(_row_value(row, "user_id", 0)))
+                resolved_user_id = UUID(str(_row_value(row, "user_id", 0)))
+                resolved_union_id = _row_value(row, "union_id", 1)
+                if resolved_union_id is not None and union_id is not None and resolved_union_id != union_id:
+                    cursor.execute(
+                        "DELETE FROM identity.users WHERE id = %s AND id <> %s",
+                        (user_id, resolved_user_id),
+                    )
+                    raise IdentityConflictError("identity conflict")
+                if resolved_user_id != user_id:
+                    cursor.execute(
+                        "DELETE FROM identity.users WHERE id = %s AND id <> %s",
+                        (user_id, resolved_user_id),
+                    )
+                return resolved_user_id
 
     def issue_auth_session(
         self,
@@ -243,7 +290,7 @@ class PostgresIdentityRepository:
                     INSERT INTO identity.web_login_sessions (
                         id, scene_ticket_sha256, browser_verifier_sha256,
                         idempotency_key_sha256, user_id, status, expires_at,
-                        exchanged_at, created_at, updated_at
+                        consumed_at, created_at, updated_at
                     )
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """,
@@ -255,7 +302,7 @@ class PostgresIdentityRepository:
                         session.user_id,
                         session.status.value,
                         session.expires_at,
-                        session.exchanged_at,
+                        session.consumed_at,
                         now,
                         now,
                     ),
@@ -268,7 +315,7 @@ class PostgresIdentityRepository:
                 cursor.execute(
                     f"""
                     SELECT id, scene_ticket_sha256, browser_verifier_sha256,
-                           idempotency_key_sha256, user_id, status, expires_at, exchanged_at
+                           idempotency_key_sha256, user_id, status, expires_at, consumed_at
                     FROM identity.web_login_sessions
                     WHERE id = %s{lock_clause}
                     """,
@@ -289,7 +336,7 @@ class PostgresIdentityRepository:
                 cursor.execute(
                     f"""
                     SELECT id, scene_ticket_sha256, browser_verifier_sha256,
-                           idempotency_key_sha256, user_id, status, expires_at, exchanged_at
+                           idempotency_key_sha256, user_id, status, expires_at, consumed_at
                     FROM identity.web_login_sessions
                     WHERE scene_ticket_sha256 = %s{lock_clause}
                     """,
@@ -311,7 +358,7 @@ class PostgresIdentityRepository:
                 cursor.execute(
                     f"""
                     SELECT id, scene_ticket_sha256, browser_verifier_sha256,
-                           idempotency_key_sha256, user_id, status, expires_at, exchanged_at
+                           idempotency_key_sha256, user_id, status, expires_at, consumed_at
                     FROM identity.web_login_sessions
                     WHERE browser_verifier_sha256 = %s
                       AND idempotency_key_sha256 = %s{lock_clause}
@@ -329,14 +376,14 @@ class PostgresIdentityRepository:
                     UPDATE identity.web_login_sessions
                     SET user_id = %s,
                         status = %s,
-                        exchanged_at = %s,
+                        consumed_at = %s,
                         updated_at = %s
                     WHERE id = %s
                     """,
                     (
                         session.user_id,
                         session.status.value,
-                        session.exchanged_at,
+                        session.consumed_at,
                         now,
                         session.id,
                     ),
@@ -375,7 +422,7 @@ class PostgresIdentityRepository:
             ),
             status=WebLoginSessionStatus(str(_row_value(row, "status", 5))),
             expires_at=_row_value(row, "expires_at", 6),
-            exchanged_at=_row_value(row, "exchanged_at", 7),
+            consumed_at=_row_value(row, "consumed_at", 7),
         )
 
     @staticmethod

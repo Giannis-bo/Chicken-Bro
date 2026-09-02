@@ -27,7 +27,7 @@ class AppAuthDomainTest(unittest.TestCase):
             user_id=None,
             status=WebLoginSessionStatus.PENDING,
             expires_at=now + timedelta(minutes=5),
-            exchanged_at=None,
+            consumed_at=None,
         )
         self.assertEqual(session.idempotency_key_sha256, "c" * 64)
         self.assertFalse(hasattr(session, "scene_ticket"))

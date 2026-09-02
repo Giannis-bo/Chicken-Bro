@@ -39,6 +39,73 @@ class FakeConnection:
 
 
 class AppIdentityRepositoryTest(unittest.TestCase):
+    def test_existing_provider_identity_rejects_conflicting_union_metadata(self):
+        """Catches treating optional UnionID metadata as permission to relink an owner."""
+        now = datetime(2026, 9, 2, tzinfo=timezone.utc)
+        user_id = UUID("00000000-0000-4000-8000-000000000032")
+        connection = FakeConnection(rows=[(user_id, "union-first")])
+        repository = PostgresIdentityRepository(lambda: connection)
+
+        with self.assertRaisesRegex(ValueError, "identity conflict"):
+            repository.upsert_wechat_mini_identity(
+                app_context="wx-app-a",
+                provider_subject="provider-subject",
+                union_id="union-second",
+                now=now,
+            )
+
+    def test_upsert_race_rejects_conflicting_union_metadata_and_discards_new_owner(self):
+        """Catches a concurrent conflict preserving contradictory metadata after owner creation."""
+        now = datetime(2026, 9, 2, tzinfo=timezone.utc)
+        existing_user_id = UUID("00000000-0000-4000-8000-000000000033")
+        connection = FakeConnection(rows=[None, (existing_user_id, "union-first")])
+        repository = PostgresIdentityRepository(lambda: connection)
+
+        with self.assertRaisesRegex(ValueError, "identity conflict"):
+            repository.upsert_wechat_mini_identity(
+                app_context="wx-app-a",
+                provider_subject="provider-subject",
+                union_id="union-second",
+                now=now,
+            )
+
+        cleanup_sql, cleanup_params = connection.cursor_value.statements[-1]
+        self.assertIn("DELETE FROM identity.users", cleanup_sql)
+        self.assertEqual(cleanup_params[1], existing_user_id)
+
+    def test_wechat_identity_lookup_and_upsert_use_the_exact_app_context_key(self):
+        """Catches reverting to provider-subject-only lookup or ignoring UnionID metadata."""
+        now = datetime(2026, 9, 2, tzinfo=timezone.utc)
+        user_id = UUID("00000000-0000-4000-8000-000000000031")
+        connection = FakeConnection(rows=[None, (user_id, "optional-union")])
+        repository = PostgresIdentityRepository(lambda: connection)
+
+        resolved = repository.upsert_wechat_mini_identity(
+            app_context="wx-app-a",
+            provider_subject="provider-subject",
+            union_id="optional-union",
+            now=now,
+        )
+
+        self.assertEqual(resolved, user_id)
+        statements = connection.cursor_value.statements
+        lookup_sql, lookup_params = statements[1]
+        self.assertIn("provider = %s", lookup_sql)
+        self.assertIn("app_context = %s", lookup_sql)
+        self.assertIn("provider_subject = %s", lookup_sql)
+        self.assertEqual(lookup_params, ("wechat_mini", "wx-app-a", "provider-subject"))
+        upsert_sql, upsert_params = next(
+            (sql, params)
+            for sql, params in statements
+            if "INSERT INTO identity.user_identities" in sql
+        )
+        self.assertIn("app_context", upsert_sql)
+        self.assertIn("union_id", upsert_sql)
+        self.assertIn("ON CONFLICT (provider, app_context, provider_subject)", upsert_sql)
+        self.assertIn("RETURNING user_id", upsert_sql)
+        self.assertIn("wx-app-a", upsert_params)
+        self.assertIn("optional-union", upsert_params)
+
     def test_locked_web_session_maps_only_digest_columns_and_owner_identity(self):
         now = datetime(2026, 9, 1, tzinfo=timezone.utc)
         session_id = UUID("00000000-0000-4000-8000-000000000021")
@@ -51,7 +118,7 @@ class AppIdentityRepositoryTest(unittest.TestCase):
             "user_id": user_id,
             "status": "pending",
             "expires_at": now + timedelta(minutes=5),
-            "exchanged_at": None,
+            "consumed_at": None,
         }])
         repository = PostgresIdentityRepository(lambda: connection)
 

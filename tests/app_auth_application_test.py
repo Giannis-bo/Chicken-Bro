@@ -27,12 +27,13 @@ class FakeIdentityRepository:
     def get_user(self, user_id):
         return Principal(user_id=user_id, session_kind="mini_bearer") if user_id in self.users else None
 
-    def upsert_wechat_mini_identity(self, *, provider_subject, now):
-        if provider_subject not in self.openids:
+    def upsert_wechat_mini_identity(self, *, app_context, provider_subject, union_id, now):
+        identity_key = (app_context, provider_subject)
+        if identity_key not in self.openids:
             user_id = uuid4()
-            self.openids[provider_subject] = user_id
+            self.openids[identity_key] = user_id
             self.users[user_id] = PublicUser(user_id=user_id, display_name="")
-        return self.openids[provider_subject]
+        return self.openids[identity_key]
 
     def issue_auth_session(self, *, token_hash, user_id, kind, expires_at):
         self.auth_sessions[token_hash] = (user_id, kind, expires_at)
@@ -140,9 +141,9 @@ class WebAuthApplicationTest(unittest.TestCase):
         self.assertNotEqual(exchanged.token, mini_session.token)
         self.assertEqual(
             self.repository.sessions[created.session.id].status,
-            WebLoginSessionStatus.EXCHANGED,
+            WebLoginSessionStatus.CONSUMED,
         )
-        with self.assertRaisesRegex(ValueError, "already exchanged"):
+        with self.assertRaisesRegex(ValueError, "already consumed"):
             self.application.exchange_web_login(created.session.id, "A" * 43)
 
     def test_repeated_create_with_the_same_key_is_idempotent_without_exposing_scene(self):
@@ -242,7 +243,7 @@ class WebAuthApplicationTest(unittest.TestCase):
             },
         )
         self.assertEqual(replay.status_code, 409)
-        self.assertEqual(replay.json()["error"]["code"], "WEB_LOGIN_ALREADY_EXCHANGED")
+        self.assertEqual(replay.json()["error"]["code"], "WEB_LOGIN_ALREADY_CONSUMED")
 
     def test_unconfigured_wechat_is_publicly_blocked(self):
         blocked_gateway = FakeWechatGateway(configured=False)

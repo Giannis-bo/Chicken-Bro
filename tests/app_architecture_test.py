@@ -7,6 +7,7 @@ ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / "server" / "app"
 DOMAIN_FORBIDDEN = ("fastapi", "pydantic", "psycopg", "server.news_backend", "server.simulator_payload")
 LEGACY_FORBIDDEN = ("server.news_backend", "server.simulator_payload", "server.websim_payload")
+APPLICATION_FORBIDDEN = ("server.app.integrations",)
 
 
 def imported_modules(path: Path) -> set[str]:
@@ -32,3 +33,13 @@ class AppArchitectureTest(unittest.TestCase):
             imports = imported_modules(path)
             for forbidden in LEGACY_FORBIDDEN:
                 self.assertFalse(any(name == forbidden or name.startswith(f"{forbidden}.") for name in imports), path)
+
+    def test_application_layer_depends_on_ports_instead_of_provider_adapters(self):
+        """Catches making unit-level application behavior require HTTP/provider packages."""
+        for path in APP.glob("*/application.py"):
+            imports = imported_modules(path)
+            for forbidden in APPLICATION_FORBIDDEN:
+                self.assertFalse(
+                    any(name == forbidden or name.startswith(f"{forbidden}.") for name in imports),
+                    path,
+                )

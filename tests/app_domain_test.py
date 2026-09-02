@@ -9,7 +9,7 @@ from server.app.identity.domain import (
     WebLoginSessionStatus,
     cancel_web_login_session,
     confirm_web_login_session,
-    exchange_web_login_session,
+    consume_web_login_session,
 )
 from server.app.simulation.domain import (
     SimulationJobStatus,
@@ -55,7 +55,7 @@ class AppDomainTest(unittest.TestCase):
             user_id=None,
             status=WebLoginSessionStatus.PENDING,
             expires_at=now + timedelta(minutes=2),
-            exchanged_at=None,
+            consumed_at=None,
         )
         self.assertFalse(hasattr(session, "scene_ticket"))
         self.assertFalse(hasattr(session, "browser_verifier"))
@@ -73,10 +73,10 @@ class AppDomainTest(unittest.TestCase):
             now=now,
         )
         self.assertEqual(confirmed.status, WebLoginSessionStatus.CONFIRMED)
-        exchanged = exchange_web_login_session(confirmed, verifier_sha256="a" * 64, now=now)
-        self.assertEqual(exchanged.status, WebLoginSessionStatus.EXCHANGED)
-        with self.assertRaisesRegex(ValueError, "already exchanged"):
-            exchange_web_login_session(exchanged, verifier_sha256="a" * 64, now=now)
+        consumed = consume_web_login_session(confirmed, verifier_sha256="a" * 64, now=now)
+        self.assertEqual(consumed.status, WebLoginSessionStatus.CONSUMED)
+        with self.assertRaisesRegex(ValueError, "already consumed"):
+            consume_web_login_session(consumed, verifier_sha256="a" * 64, now=now)
 
     def test_web_qr_login_rejects_wrong_verifier_and_expired_confirmation(self):
         now = datetime(2026, 9, 1, tzinfo=timezone.utc)
@@ -87,10 +87,10 @@ class AppDomainTest(unittest.TestCase):
             user_id=UUID("00000000-0000-0000-0000-000000000005"),
             status=WebLoginSessionStatus.CONFIRMED,
             expires_at=now + timedelta(minutes=2),
-            exchanged_at=None,
+            consumed_at=None,
         )
         with self.assertRaisesRegex(ValueError, "verifier"):
-            exchange_web_login_session(session, verifier_sha256="e" * 64, now=now)
+            consume_web_login_session(session, verifier_sha256="e" * 64, now=now)
         cancelled = cancel_web_login_session(session, now=now)
         self.assertEqual(cancelled.status, WebLoginSessionStatus.CANCELLED)
         with self.assertRaisesRegex(ValueError, "cannot be cancelled"):
@@ -103,7 +103,7 @@ class AppDomainTest(unittest.TestCase):
             user_id=None,
             status=WebLoginSessionStatus.PENDING,
             expires_at=now - timedelta(seconds=1),
-            exchanged_at=None,
+            consumed_at=None,
         )
         with self.assertRaisesRegex(ValueError, "expired"):
             confirm_web_login_session(

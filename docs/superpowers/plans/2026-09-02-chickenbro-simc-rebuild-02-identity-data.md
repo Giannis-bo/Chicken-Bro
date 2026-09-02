@@ -178,7 +178,7 @@ git commit -m "feat: add clean Chickenbro SimC schema"
 - Consumes: `WechatIdentity(openid, unionid)` and `AppSettings.wechat_app_id` as `app_context`.
 - Produces: `upsert_wechat_mini_identity(app_context: str, provider_subject: str, union_id: str | None, now: datetime) -> UUID`; `resolve_principal(credential, kind) -> Principal | None`.
 
-- [ ] **Step 1: Write failing same-user and conflict tests**
+- [x] **Step 1: Write failing same-user and conflict tests**
 
 ```python
 def test_mini_exchange_and_confirmed_web_exchange_share_one_user(self):
@@ -196,21 +196,21 @@ def test_same_openid_in_different_app_contexts_is_not_guessed_as_one_user(self):
     self.assertNotEqual(first, second)
 ```
 
-- [ ] **Step 2: Run focused identity tests and verify failure**
+- [x] **Step 2: Run focused identity tests and verify failure**
 
 Run: `python3 -m unittest tests.app_identity_application_test tests.app_identity_repository_test -v`
 
 Expected: FAIL on the new `app_context` signature and same-user flow.
 
-- [ ] **Step 3: Implement exact identity upsert and conflict handling**
+- [x] **Step 3: Implement exact identity upsert and conflict handling**
 
 Use `INSERT ... ON CONFLICT (provider, app_context, provider_subject) DO UPDATE SET updated_at = EXCLUDED.updated_at RETURNING user_id`. If one provider identity is already attached to a different user, raise `IDENTITY_CONFLICT`; never merge on display name or UnionID. Continue storing only auth/session token hashes.
 
-- [ ] **Step 4: Verify independent revocation**
+- [x] **Step 4: Verify independent revocation**
 
 Add tests proving Web logout revokes only `web_cookie`, Mini logout revokes only the presented `mini_bearer`, and either logout leaves Chat/SimC owner rows untouched.
 
-- [ ] **Step 5: Run and commit**
+- [x] **Step 5: Run and commit**
 
 ```bash
 python3 -m unittest tests.app_identity_application_test tests.app_identity_repository_test -v

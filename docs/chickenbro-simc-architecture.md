@@ -116,7 +116,7 @@ pending -> cancelled | expired
 confirmed -> cancelled | expired
 ```
 
-当前代码把最终态命名为 `exchanged`；Phase 2 必须在 schema、domain、API 和迁移报告中统一最终术语，不能同时保留两个含义不同的终态。
+Phase 2 的 product schema、domain、repository 与 application 已把正式终态统一为 `consumed`；legacy `0039` 中的 `exchanged` 只作为迁移输入保留，不能进入新库或正式 API 状态。
 
 Web Cookie 必须是 HttpOnly、Secure、`__Host-` 前缀、有限 TTL 和最小 Path。Cookie 写请求还必须通过精确 Origin/Host 与 CSRF；Mini 写请求只使用 Bearer，不使用 Web Cookie/CSRF。
 

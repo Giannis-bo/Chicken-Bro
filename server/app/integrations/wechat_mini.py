@@ -4,20 +4,13 @@ from typing import Any
 
 import httpx
 
-from server.app.identity.ports import WechatIdentity
+from server.app.identity.ports import (
+    WechatAdapterError,
+    WechatIdentity,
+    WechatNotConfiguredError,
+    WechatProviderError,
+)
 from server.app.platform.config import AppSettings
-
-
-class WechatAdapterError(RuntimeError):
-    """Base class for provider failures that can be mapped to public errors."""
-
-
-class WechatNotConfiguredError(WechatAdapterError):
-    pass
-
-
-class WechatProviderError(WechatAdapterError):
-    pass
 
 
 _PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"

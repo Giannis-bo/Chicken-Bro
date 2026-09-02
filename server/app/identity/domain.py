@@ -23,7 +23,7 @@ class Principal:
 class WebLoginSessionStatus(str, Enum):
     PENDING = "pending"
     CONFIRMED = "confirmed"
-    EXCHANGED = "exchanged"
+    CONSUMED = "consumed"
     CANCELLED = "cancelled"
     EXPIRED = "expired"
 
@@ -55,7 +55,7 @@ class WebLoginSession:
     user_id: UUID | None
     status: WebLoginSessionStatus
     expires_at: datetime
-    exchanged_at: datetime | None
+    consumed_at: datetime | None
     idempotency_key_sha256: str | None = None
 
     def __post_init__(self) -> None:
@@ -67,11 +67,15 @@ class WebLoginSession:
             raise ValueError("idempotency key must be a lowercase SHA-256 digest")
         if self.status is WebLoginSessionStatus.CONFIRMED and self.user_id is None:
             raise ValueError("confirmed web login session requires a user")
-        if self.status is WebLoginSessionStatus.EXCHANGED:
+        if self.status is WebLoginSessionStatus.CONSUMED:
             if self.user_id is None:
-                raise ValueError("exchanged web login session requires a user")
-            if self.exchanged_at is None:
-                raise ValueError("exchanged web login session requires exchange time")
+                raise ValueError("consumed web login session requires a user")
+            if self.consumed_at is None:
+                raise ValueError("consumed web login session requires consumption time")
+
+
+class IdentityConflictError(ValueError):
+    """A formal provider identity has contradictory immutable ownership metadata."""
 
 
 def confirm_web_login_session(
@@ -94,14 +98,14 @@ def confirm_web_login_session(
     )
 
 
-def exchange_web_login_session(
+def consume_web_login_session(
     session: WebLoginSession,
     *,
     verifier_sha256: str,
     now: datetime,
 ) -> WebLoginSession:
-    if session.status is WebLoginSessionStatus.EXCHANGED:
-        raise ValueError("web login session already exchanged")
+    if session.status is WebLoginSessionStatus.CONSUMED:
+        raise ValueError("web login session already consumed")
     if session.status is not WebLoginSessionStatus.CONFIRMED:
         raise ValueError("web login session is not confirmed")
     if now >= session.expires_at:
@@ -110,8 +114,8 @@ def exchange_web_login_session(
         raise ValueError("browser verifier does not match")
     return replace(
         session,
-        status=WebLoginSessionStatus.EXCHANGED,
-        exchanged_at=now,
+        status=WebLoginSessionStatus.CONSUMED,
+        consumed_at=now,
     )
 
 

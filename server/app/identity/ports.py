@@ -18,6 +18,18 @@ class WechatIdentity:
     unionid: str | None = None
 
 
+class WechatAdapterError(RuntimeError):
+    """Provider-port failure that the application can map without importing an adapter."""
+
+
+class WechatNotConfiguredError(WechatAdapterError):
+    pass
+
+
+class WechatProviderError(WechatAdapterError):
+    pass
+
+
 class PrincipalResolver(Protocol):
     def resolve(self, credential: str) -> Principal | None:
         raise NotImplementedError
@@ -27,7 +39,14 @@ class IdentityRepository(Protocol):
     def get_user(self, user_id: UUID) -> Principal | None:
         raise NotImplementedError
 
-    def upsert_wechat_mini_identity(self, *, provider_subject: str, now: datetime) -> UUID:
+    def upsert_wechat_mini_identity(
+        self,
+        *,
+        app_context: str,
+        provider_subject: str,
+        union_id: str | None,
+        now: datetime,
+    ) -> UUID:
         raise NotImplementedError
 
     def issue_auth_session(
