@@ -45,8 +45,8 @@ test('project-state is the single machine-readable current truth entry', () => {
 
   assert.equal(state.schemaVersion, 1)
   assert.equal(state.updatedAt, '2026-09-03')
-  assert.equal(state.activeMilestone, 'chickenbro_simc_total_rebuild_phase_2')
-  assert.equal(state.featureIteration, 'phase_2_local_verified_candidate_capacity_and_recovery_blocked')
+  assert.equal(state.activeMilestone, 'chickenbro_simc_total_rebuild_phase_5')
+  assert.equal(state.featureIteration, 'phase_5_local_verified_candidate_capacity_recovery_and_acceptance_blocked')
   assert.equal(state.activeReleaseArtifact, undefined)
   assert.equal(state.defaultLocalReleaseArtifact, observedBuildRegistryRelease)
   assert.deepEqual(state.releaseResolution, {
@@ -62,9 +62,9 @@ test('project-state is the single machine-readable current truth entry', () => {
   assert.equal(state.targetProduct.identityOwner, 'identity.users.id')
   assert.equal(
     state.targetProduct.status,
-    'local_verified_phase_2_candidate_capacity_and_recovery_blocked',
+    'local_verified_phase_5_candidate_capacity_recovery_and_acceptance_blocked',
   )
-  assert.equal(state.targetProduct.currentPhase, 2)
+  assert.equal(state.targetProduct.currentPhase, 5)
   assert.equal(
     state.targetProduct.phase1Status,
     'local_verified_read_only_control_plane_sealed',
@@ -85,6 +85,22 @@ test('project-state is the single machine-readable current truth entry', () => {
     'artifacts/releases/2026-09-02-chickenbro-simc-identity-data/evidence.json',
   )
   assertPathExists(state.targetProduct.phase2Evidence)
+  assert.equal(state.targetProduct.phase3Status, 'local_verified_formal_chat_candidate_blocked')
+  assert.equal(state.targetProduct.phase4Status, 'local_verified_formal_simc_candidate_blocked')
+  assert.equal(
+    state.targetProduct.phase5Requirement,
+    'artifacts/releases/2026-09-02-chickenbro-simc-dual-client-cutover/requirement.json',
+  )
+  assertPathExists(state.targetProduct.phase5Requirement)
+  assert.equal(
+    state.targetProduct.phase5Status,
+    'local_verified_cutover_control_candidate_capacity_recovery_and_acceptance_blocked',
+  )
+  assert.equal(
+    state.targetProduct.phase5Evidence,
+    'artifacts/releases/2026-09-02-chickenbro-simc-dual-client-cutover/evidence.json',
+  )
+  assertPathExists(state.targetProduct.phase5Evidence)
   assert.equal(state.targetProduct.implementationAuthorized, true)
   assert.equal(state.targetProduct.terminalGoalAuthorized, true)
   assert.equal(state.targetProduct.productionCutoverAuthorized, false)
@@ -92,7 +108,7 @@ test('project-state is the single machine-readable current truth entry', () => {
   assert.equal(state.targetProduct.candidateDatabaseProvisioningAuthorized, false)
   assert.equal(
     state.targetProduct.currentMutationGate,
-    'phase_2_code_and_dependency_profile_verified_capacity_and_recovery_block_candidate_apply',
+    'phase_5_local_cutover_control_verified_candidate_apply_blocked_by_capacity_recovery_and_real_acceptance',
   )
   assert.equal(state.targetProduct.productionCutoverReady, false)
   assert.equal(state.targetProduct.destructiveCleanupReady, false)
@@ -251,7 +267,7 @@ test('project-state is the single machine-readable current truth entry', () => {
   )
   assert.equal(
     totalRebuild?.status,
-    'local_verified_phase_2_candidate_capacity_and_recovery_blocked',
+    'local_verified_phase_5_candidate_capacity_recovery_and_acceptance_blocked',
   )
   assert.equal(
     totalRebuild?.path,
@@ -705,7 +721,7 @@ test('current truth has one conclusion for target UI, PG read-model, Harness nor
   const byDomain = new Map(conclusions.map((entry) => [entry.domain, entry]))
   assert.equal(
     byDomain.get('ui_delivery').status,
-    'legacy_runtime_active_target_two_tab_design_pending_implementation',
+    'target_two_tab_local_verified_candidate_and_user_acceptance_blocked',
   )
   assert.equal(byDomain.get('pg_read_model_phase4').status, 'completed')
   assert.equal(byDomain.get('project_harness_normalization').status, 'completed')
@@ -1370,7 +1386,8 @@ test('current documentation follows the Chickenbro-SimC target and Harness contr
   assert.doesNotMatch(docsMap, /gear-attribute-rule-source-ledger\.md/)
   assert.ok(harness.indexOf('docs/project-state.json') < harness.indexOf('docs/roadmap.md'))
   assert.match(roadmap, /\| 已完成 \| 控制面与清理清单 \|/)
-  assert.match(roadmap, /\| 正在推进 \| 干净数据面与 Identity \|/)
+  assert.match(roadmap, /\| 本地已验证 \| 干净数据面与 Identity \|/)
+  assert.match(roadmap, /\| 正在推进 \| 双端精简客户端与迁移切流 \|/)
   assert.match(roadmap, /legacy 生产 \| `Active \/ last-known-good`/)
   assert.match(roadmap, /Active Manifest\/S2 \| `legacy 冻结`/)
   assert.match(architecture, /Principal\(user_id, session_kind\)/)

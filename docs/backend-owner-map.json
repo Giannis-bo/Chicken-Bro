@@ -3,12 +3,12 @@
   "status": "equipment_simulator_phase3_archived_phase4_cutover_active",
   "harnessVersion": "v0.6.4",
   "defaultEvidenceLevel": "local_verified",
-  "updatedAt": "2026-09-02",
-  "activeMilestone": "chickenbro_simc_total_rebuild_phase_2",
+  "updatedAt": "2026-09-03",
+  "activeMilestone": "chickenbro_simc_total_rebuild_phase_5",
   "targetProductOwners": [
     {
       "id": "identity",
-      "status": "implementation_authorized",
+      "status": "local_verified_candidate_blocked",
       "factOwner": "server/app/identity",
       "writeOwner": "server/app/identity/repository.py",
       "characterization": [
@@ -20,7 +20,7 @@
     },
     {
       "id": "chat",
-      "status": "implementation_authorized_after_identity_gate",
+      "status": "local_verified_candidate_blocked",
       "factOwner": "server/app/chickenbro",
       "writeOwner": "server/app/chickenbro/repository.py",
       "characterization": [
@@ -29,7 +29,7 @@
     },
     {
       "id": "simc",
-      "status": "implementation_authorized_after_chat_gate",
+      "status": "local_verified_candidate_blocked",
       "factOwner": "server/app/simulation",
       "writeOwner": "server/app/simulation/repository.py",
       "characterization": [
@@ -39,7 +39,7 @@
     },
     {
       "id": "worker",
-      "status": "implementation_authorized_after_simc_gate",
+      "status": "local_verified_candidate_blocked",
       "factOwner": "server/app/worker",
       "writeOwner": "server/app/worker/leases.py",
       "characterization": [
@@ -49,7 +49,7 @@
     },
     {
       "id": "dual_client",
-      "status": "implementation_authorized_after_business_api_gates",
+      "status": "local_verified_candidate_and_real_acceptance_blocked",
       "factOwner": "apps/mini-taro/src",
       "writeOwner": null,
       "characterization": [
@@ -60,7 +60,7 @@
     },
     {
       "id": "migration",
-      "status": "blocked_by_capacity_and_independent_backup",
+      "status": "local_verified_apply_blocked_by_capacity_and_independent_backup",
       "factOwner": "docs/chickenbro-simc-production-runbook.md",
       "writeOwner": null,
       "characterization": [
@@ -69,7 +69,7 @@
     },
     {
       "id": "deployment",
-      "status": "candidate_and_cutover_gated",
+      "status": "local_verified_candidate_and_cutover_apply_gated",
       "factOwner": "docs/chickenbro-simc-production-runbook.md",
       "writeOwner": null,
       "characterization": [

@@ -46,7 +46,7 @@ last-known-good 存在，不再获得新功能或数据扩展。
 | v2 平台核心 | `Candidate 已实现` | `server/app`、`identity/chat/simc/ops` schema、v2 API、Worker、Codex/来源和 SimC 原型路径已有代码与候选证据；不能等同于正式双端切流 |
 | Web 小程序确认登录 | `partial` | 正式 ticket/verifier/Cookie 代码与候选已存在；真实已发布小程序确认页、扫码、Cookie、`/api/v2/me` 和跨端历史尚无完整用户验收 |
 | Web prototype bypass | `待退役` | prototype 可访问只证明隔离 demo 可用；prototype owner 和数据不迁移到正式历史 |
-| 数据面 | `本地已验证 / Candidate 阻塞` | product-only schema、同 owner 双会话、Origin/CSRF、provisioning dry-run 与云端隔离 backend profile（3,451 ran / 3,441 passed / 10 explicit skips / compileall / Harness）已通过；legacy 正式运行库 `wow_test` 约 16.38GB，独立 `chickenbro_prod` 尚未创建，不能宣称 Phase 2 完成 |
+| 新双端产品 | `Phase 5 本地已验证 / Candidate 阻塞` | product-only Identity、正式 Chat、正式 SimC、两 Tab/五路由 Mini、无 prototype Web、白名单迁移、候选部署与写栅栏切流控制已完成本地验证；legacy 正式运行库 `wow_test` 约 16.38GB，独立 `chickenbro_prod` 尚未创建，真实双端验收未发生，不能宣称 Phase 5 完成 |
 | 云端空间 | `容量阻塞 apply` | 服务器只有单一 `vda` 根盘；四个 gear evidence DB 合计约 22.53GB、当前连接与配置引用均为 0；控制台唯一系统盘快照创建于 2026-03-17，早于当前数据且未做 restore，广州地域待挂载云硬盘为 0。账号已有 37 个 COS 桶和额度套餐，但只证明潜在介质：实例无 COS 客户端、CAM 角色或已审阅凭据，桶级可用空间与 restore identity 也未验证，因此只能保持 candidate；下一安全动作是经授权配置专用私有 COS 备份/恢复链，或新建并挂载独立介质 |
 | Active Manifest/S2 | `legacy 冻结` | 当前 generation 41 与旧 Catalog 只承担迁移期回滚，不再 promotion 或扩展；新 SimC 主链不依赖这些 owner |
 
@@ -55,10 +55,10 @@ last-known-good 存在，不再获得新功能或数据扩展。
 | 优先级 | 子项目 | 完成标准 |
 | --- | --- | --- |
 | 已完成 | 控制面与清理清单 | 新规格、current truth、逐文件 keep/migrate/delete、脱敏云端清单、当前架构、Runbook 与 Strict packet 已封存；删除仍未授权 |
-| 正在推进 | 干净数据面与 Identity | product-only schema、正式同 owner 双会话、Origin/CSRF、provisioning dry-run 与 dependency-loaded backend profile 已验证；真实 PG candidate/API 集成继续受容量与独立恢复 gate 阻塞 |
-| 下一步 | Chat 正式路径 | 正式 owner API、完整历史、SSE、幂等与 Codex-only 跨端验收完成 |
-| 下一步 | SimC 正式路径 | Snapshot/readiness/compiler/Worker/result 单一主链和跨端任务验收完成 |
-| 下一步 | 双端精简客户端与迁移切流 | 两个 Tab、五条目标路由、历史白名单迁移、candidate、回滚和真实用户验收完成 |
+| 本地已验证 | 干净数据面与 Identity | product-only schema、正式同 owner 双会话、Origin/CSRF、provisioning dry-run 与 dependency-loaded backend profile 已验证；真实 PG candidate/API 集成继续受容量与独立恢复 gate 阻塞 |
+| 本地已验证 | Chat 正式路径 | 正式 owner API、完整历史、连续 SSE、幂等重放与 Codex-only 失败语义已验证；跨端真实用户验收待 candidate |
+| 本地已验证 | SimC 正式路径 | Snapshot/readiness/compiler/Worker/result 单一主链、来源真实性和语义结果已验证；跨端真实任务验收待 candidate |
+| 正在推进 | 双端精简客户端与迁移切流 | 两个 Tab、五条目标路由、无 prototype Web、历史白名单迁移、候选/切流脚本已本地验证；candidate、真实微信验收、生产 `switched` 与 `accepted_write` 尚受容量、独立恢复和用户验收 gate 阻塞 |
 | 后续 | Legacy 彻底退役 | 旧文档、代码、route、service、timer、database、env、目录和短期回滚包按 manifest 删除并验证 |
 
 ## 执行规则

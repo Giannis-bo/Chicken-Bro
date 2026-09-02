@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "updatedAt": "2026-09-03",
-  "activeMilestone": "chickenbro_simc_total_rebuild_phase_2",
-  "featureIteration": "phase_2_local_verified_candidate_capacity_and_recovery_blocked",
+  "activeMilestone": "chickenbro_simc_total_rebuild_phase_5",
+  "featureIteration": "phase_5_local_verified_candidate_capacity_recovery_and_acceptance_blocked",
   "targetProduct": {
-    "status": "local_verified_phase_2_candidate_capacity_and_recovery_blocked",
+    "status": "local_verified_phase_5_candidate_capacity_recovery_and_acceptance_blocked",
     "businessDomains": [
       "chickenbro_chat",
       "simc"
@@ -16,18 +16,25 @@
     "identityOwner": "identity.users.id",
     "crossClientContract": "Independent Mini Bearer and Web HttpOnly sessions resolve to the same internal user_id; the server owns the shared Chat and SimC history.",
     "design": "docs/superpowers/specs/2026-09-02-chickenbro-simc-total-rebuild-design.md",
-    "currentPhase": 2,
+    "currentPhase": 5,
     "phase1Status": "local_verified_read_only_control_plane_sealed",
     "phase1Evidence": "artifacts/releases/2026-09-02-chickenbro-simc-control-plane/evidence.json",
     "phase2Requirement": "artifacts/releases/2026-09-02-chickenbro-simc-identity-data/requirement.json",
     "phase2Status": "local_verified_candidate_blocked",
     "phase2Evidence": "artifacts/releases/2026-09-02-chickenbro-simc-identity-data/evidence.json",
+    "phase3Status": "local_verified_formal_chat_candidate_blocked",
+    "phase3CodeHead": "bade320dbecc282d4d54e9544773907d80f31d7b",
+    "phase4Status": "local_verified_formal_simc_candidate_blocked",
+    "phase4CodeHead": "467ca17cecd14cb79705a2a9071d4c7892347d8c",
+    "phase5Requirement": "artifacts/releases/2026-09-02-chickenbro-simc-dual-client-cutover/requirement.json",
+    "phase5Status": "local_verified_cutover_control_candidate_capacity_recovery_and_acceptance_blocked",
+    "phase5Evidence": "artifacts/releases/2026-09-02-chickenbro-simc-dual-client-cutover/evidence.json",
     "implementationAuthorized": true,
     "terminalGoalAuthorized": true,
     "productionCutoverAuthorized": false,
     "destructiveCleanupAuthorized": false,
     "candidateDatabaseProvisioningAuthorized": false,
-    "currentMutationGate": "phase_2_code_and_dependency_profile_verified_capacity_and_recovery_block_candidate_apply",
+    "currentMutationGate": "phase_5_local_cutover_control_verified_candidate_apply_blocked_by_capacity_recovery_and_real_acceptance",
     "productionCutoverReady": false,
     "destructiveCleanupReady": false,
     "implementationPlans": [
@@ -94,9 +101,9 @@
     {
       "id": "chickenbro_simc_total_rebuild",
       "path": "docs/superpowers/specs/2026-09-02-chickenbro-simc-total-rebuild-design.md",
-      "status": "local_verified_phase_2_candidate_capacity_and_recovery_blocked",
+      "status": "local_verified_phase_5_candidate_capacity_recovery_and_acceptance_blocked",
       "lifecycle": "active_direction",
-      "notes": "The only current product direction keeps Chickenbro Chat and SimC on WeChat Mini Program and Web, with independent client sessions mapped to one internal user_id. Phase 1 is sealed. Phase 2 schema, Identity, API security, provisioning dry-run and the dependency-loaded backend profile are verified; real PostgreSQL candidate apply remains blocked by capacity and independent recovery, while production cutover and destructive cleanup require later recorded gates."
+      "notes": "The only current product direction keeps Chickenbro Chat and SimC on WeChat Mini Program and Web, with independent client sessions mapped to one internal user_id. Phases 1-4 and the Phase 5 clients, whitelist migration, candidate controls and fenced cutover state machine are locally verified. Real PostgreSQL candidate apply remains blocked by capacity and independent recovery; real WeChat candidate acceptance, production switched/accepted_write evidence and all Phase 6 destructive cleanup still require separate recorded gates."
     },
     {
       "id": "chickenbro_simc_architecture",
@@ -108,9 +115,9 @@
     {
       "id": "chickenbro_simc_production_runbook",
       "path": "docs/chickenbro-simc-production-runbook.md",
-      "status": "active_execution_authority_capacity_blocked",
+      "status": "active_execution_authority_phase_5_local_verified_capacity_recovery_and_acceptance_blocked",
       "lifecycle": "active",
-      "notes": "How-to authority for capacity, independent backup, clean database, migration, candidate, cutover, rollback and exact retirement."
+      "notes": "How-to authority for capacity, independent backup, clean database, migration, candidate, the separate switched/accepted_write cutover gates, rollback and exact retirement."
     },
     {
       "id": "repo_native_harness_v0_6_4",
@@ -586,7 +593,7 @@
   "controlPlaneConclusions": [
     {
       "domain": "ui_delivery",
-      "status": "legacy_runtime_active_target_two_tab_design_pending_implementation",
+      "status": "target_two_tab_local_verified_candidate_and_user_acceptance_blocked",
       "activeContract": "docs/superpowers/specs/2026-09-02-chickenbro-simc-total-rebuild-design.md",
       "evidence": "docs/design/current-ui/runtime-review-status.json"
     },

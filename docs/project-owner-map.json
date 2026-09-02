@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-09-02",
+  "updatedAt": "2026-09-03",
   "status": "project_owner_map_active",
   "harnessVersion": "v0.6.4",
-  "activeMilestone": "chickenbro_simc_total_rebuild_phase_2",
+  "activeMilestone": "chickenbro_simc_total_rebuild_phase_5",
   "targetProductOwners": [
     {
       "id": "identity",
-      "status": "implementation_authorized",
+      "status": "local_verified_candidate_blocked",
       "ownerRole": "fact_owner",
       "factOwner": "server/app/identity",
       "writeOwner": "server/app/identity/repository.py",
@@ -33,13 +33,13 @@
     },
     {
       "id": "chat",
-      "status": "implementation_authorized_after_identity_gate",
+      "status": "local_verified_candidate_blocked",
       "ownerRole": "fact_owner",
       "factOwner": "server/app/chickenbro",
       "writeOwner": "server/app/chickenbro/repository.py",
       "consumers": [
         "server/app/main.py",
-        "apps/mini-taro/src/pages/simulator/chickenbro.tsx"
+        "apps/mini-taro/src/pages/chickenbro/index.tsx"
       ],
       "publicContracts": [
         "/api/v2/chat/conversations",
@@ -55,14 +55,16 @@
     },
     {
       "id": "simc",
-      "status": "implementation_authorized_after_chat_gate",
+      "status": "local_verified_candidate_blocked",
       "ownerRole": "fact_owner",
       "factOwner": "server/app/simulation",
       "writeOwner": "server/app/simulation/repository.py",
       "consumers": [
         "server/app/main.py",
         "server/app/worker/main.py",
-        "apps/mini-taro/src/pages/simulator/simc.tsx"
+        "apps/mini-taro/src/pages/simc/index.tsx",
+        "apps/mini-taro/src/pages/simc/tasks.tsx",
+        "apps/mini-taro/src/pages/simc/task-detail.tsx"
       ],
       "publicContracts": [
         "/api/v2/simc/snapshots",
@@ -78,7 +80,7 @@
     },
     {
       "id": "worker",
-      "status": "implementation_authorized_after_simc_gate",
+      "status": "local_verified_candidate_blocked",
       "ownerRole": "fact_owner",
       "factOwner": "server/app/worker",
       "writeOwner": "server/app/worker/leases.py",
@@ -95,7 +97,7 @@
     },
     {
       "id": "dual_client",
-      "status": "implementation_authorized_after_business_api_gates",
+      "status": "local_verified_candidate_and_real_acceptance_blocked",
       "ownerRole": "fact_owner",
       "factOwner": "apps/mini-taro/src",
       "writeOwner": null,
@@ -118,7 +120,7 @@
     },
     {
       "id": "migration",
-      "status": "blocked_by_capacity_and_independent_backup",
+      "status": "local_verified_apply_blocked_by_capacity_and_independent_backup",
       "ownerRole": "fact_owner",
       "factOwner": "docs/chickenbro-simc-production-runbook.md",
       "writeOwner": null,
@@ -135,7 +137,7 @@
     },
     {
       "id": "deployment",
-      "status": "candidate_and_cutover_gated",
+      "status": "local_verified_candidate_and_cutover_apply_gated",
       "ownerRole": "consumer_orchestrator",
       "factOwner": "docs/chickenbro-simc-production-runbook.md",
       "writeOwner": null,
@@ -276,7 +278,7 @@
       "writeOwner": null,
       "consumers": [
         "apps/mini-taro/src/pages",
-        "apps/mini-taro/src/web/PrototypePanel.tsx",
+        "apps/mini-taro/src/web/WebApp.tsx",
         "pages/common/api-client.js",
         "pages/common/auth-client.js",
         "pages/common/analytics-client.js",
@@ -307,7 +309,7 @@
       "runtimeSurfaces": [
         "packages/api-client/src",
         "apps/mini-taro/src/pages",
-        "apps/mini-taro/src/web/PrototypePanel.tsx",
+        "apps/mini-taro/src/web/WebApp.tsx",
         "pages/common/api-client.js",
         "pages/common/auth-client.js",
         "pages/news/news-api.js",
@@ -338,7 +340,7 @@
         "pages/simulator/simulator-api.js",
         "packages/domain/src/prototype.*",
         "packages/api-client/src/prototype-client.*",
-        "apps/mini-taro/src/web/PrototypePanel.*",
+        "apps/mini-taro/src/web/Web*.{ts,tsx}",
         "apps/mini-taro/src/web/web-app-contract.test.ts"
       ],
       "criticalContract": {
@@ -420,7 +422,7 @@
         "packages/domain/src/prototype.ts",
         "packages/api-client/src/platform-v2.ts",
         "packages/api-client/src/prototype-client.ts",
-        "apps/mini-taro/src/web/PrototypePanel.tsx"
+        "apps/mini-taro/src/web/WebApp.tsx"
       ],
       "runbooks": [
         "docs/verification-matrix.md",
@@ -448,7 +450,7 @@
         "packages/api-client/src/platform-v2.*",
         "packages/api-client/src/prototype-client.*",
         "packages/api-client/src/index.ts",
-        "apps/mini-taro/src/web/PrototypePanel.*",
+        "apps/mini-taro/src/web/Web*.{ts,tsx}",
         "tests/app_*.py"
       ],
       "criticalContract": {
@@ -2278,7 +2280,7 @@
       "writeOwner": null,
       "consumers": [
         "apps/mini-taro/src/app.config.ts",
-        "apps/mini-taro/src/web/PrototypePanel.tsx",
+        "apps/mini-taro/src/web/WebApp.tsx",
         "apps/mini-taro/src/pages",
         "packages/design-system/src",
         "packages/assets-manifest/src",
@@ -2287,7 +2289,7 @@
       ],
       "publicContracts": [
         "The current UI contract covers the same 14 routes in Taro app config and target registry.",
-        "The H5 prototype is an auxiliary Web root surface and does not add or rename an app.json product route.",
+        "The formal H5 Chat/SimC shell is a Web root surface and does not add or rename an app.json Mini Program route.",
         "Visual acceptance remains unverified until fresh real WeChat target/runtime evidence is explicitly promoted."
       ],
       "mustNotChange": [
@@ -2303,8 +2305,8 @@
       ],
       "runtimeSurfaces": [
         "apps/mini-taro/src/app.config.ts",
-        "apps/mini-taro/src/web/PrototypePanel.tsx",
-        "apps/mini-taro/src/web/PrototypePanel.module.scss",
+        "apps/mini-taro/src/web/WebApp.tsx",
+        "apps/mini-taro/src/web/WebApp.module.scss",
         "apps/mini-taro/src/web/WebApp.tsx",
         "apps/mini-taro/src/pages",
         "packages/design-system/src",
