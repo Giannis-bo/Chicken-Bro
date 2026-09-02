@@ -11,6 +11,7 @@ CANDIDATE_DB="${WOW_V2_CANDIDATE_DB:-wow_v2_candidate}"
 CANDIDATE_SERVICE="wow-v2-api-candidate"
 CANDIDATE_PORT="8791"
 CANDIDATE_ENV_FILE="/etc/wow-v2-api-candidate.env"
+CANDIDATE_PGPASSFILE="/etc/wow-v2-api-candidate.pgpass"
 LEGACY_V2_ENV_FILE="/etc/wow-v2-api.env"
 NGINX_SITE="/etc/nginx/sites-available/wow-v2-web"
 API_NGINX_SITE="/etc/nginx/sites-enabled/api.chickenbro.cloud"
@@ -90,6 +91,7 @@ REMOTE_ENV=(
   "CANDIDATE_SERVICE=${CANDIDATE_SERVICE}"
   "CANDIDATE_PORT=${CANDIDATE_PORT}"
   "CANDIDATE_ENV_FILE=${CANDIDATE_ENV_FILE}"
+  "CANDIDATE_PGPASSFILE=${CANDIDATE_PGPASSFILE}"
   "LEGACY_V2_ENV_FILE=${LEGACY_V2_ENV_FILE}"
   "NGINX_SITE=${NGINX_SITE}"
   "API_NGINX_SITE=${API_NGINX_SITE}"
@@ -136,6 +138,8 @@ set +a
 set -u
 [[ -n "${WOW_DATABASE_URL:-}" ]] || die_remote 'legacy v2 env has no database URL'
 [[ -n "${WOW_WECHAT_APPID:-}" && -n "${WOW_WECHAT_SECRET:-}" ]] || die_remote 'legacy v2 env has no WeChat credentials'
+[[ -n "${PGPASSFILE:-}" && -r "${PGPASSFILE}" ]] || die_remote 'legacy v2 PGPASSFILE is missing or unreadable'
+grep -Eq '^127\.0\.0\.1:5432:wow_test:wow_app:' "${PGPASSFILE}" || die_remote 'legacy v2 PGPASSFILE has no wow_test application entry'
 CURRENT_DATABASE="$(psql --dbname="${WOW_DATABASE_URL}" --tuples-only --no-align --command='select current_database()' | tr -d '[:space:]')"
 [[ "${CURRENT_DATABASE}" == 'wow_test' ]] || die_remote "refusing unexpected v2 database: ${CURRENT_DATABASE}"
 DEV_DATABASE_EXISTS="$(sudo -n -u postgres psql -Atc "select 1 from pg_database where datname = 'wow_dev'")"
@@ -158,6 +162,12 @@ if [[ -f "${CANDIDATE_ENV_FILE}" ]]; then
   printf '%s\n' 'present' > "${BACKUP_DIR}/candidate-env-state"
 else
   printf '%s\n' 'absent' > "${BACKUP_DIR}/candidate-env-state"
+fi
+if [[ -f "${CANDIDATE_PGPASSFILE}" ]]; then
+  cp --preserve=mode,ownership "${CANDIDATE_PGPASSFILE}" "${BACKUP_DIR}/candidate.pgpass"
+  printf '%s\n' 'present' > "${BACKUP_DIR}/candidate-pgpass-state"
+else
+  printf '%s\n' 'absent' > "${BACKUP_DIR}/candidate-pgpass-state"
 fi
 if [[ -d "${CANDIDATE_REMOTE_DIR}" ]]; then
   tar --format=posix -czf "${BACKUP_DIR}/candidate-source.tgz" -C "$(dirname "${CANDIDATE_REMOTE_DIR}")" "$(basename "${CANDIDATE_REMOTE_DIR}")"
@@ -245,6 +255,11 @@ rollback_candidate() {
   else
     rm -f "${CANDIDATE_ENV_FILE}"
   fi
+  if [[ -f "${BACKUP_DIR}/candidate.pgpass" ]]; then
+    install -o "${REMOTE_USER}" -g "${REMOTE_USER}" -m 0600 "${BACKUP_DIR}/candidate.pgpass" "${CANDIDATE_PGPASSFILE}"
+  else
+    rm -f "${CANDIDATE_PGPASSFILE}"
+  fi
   if [[ -f "${BACKUP_DIR}/wow-v2-web.nginx" ]]; then
     install -m 0644 "${BACKUP_DIR}/wow-v2-web.nginx" "${NGINX_SITE}"
   fi
@@ -294,6 +309,13 @@ set -a
 . "${LEGACY_V2_ENV_FILE}"
 set +a
 set -u
+PGPASS_TMP="$(mktemp)"
+if ! awk -F: -v candidate_database="${CANDIDATE_DB}" 'BEGIN { OFS = FS } $1 == "127.0.0.1" && $2 == "5432" && $3 == "wow_test" && $4 == "wow_app" { $3 = candidate_database; print; found = 1 } END { exit found ? 0 : 1 }' "${PGPASSFILE}" > "${PGPASS_TMP}"; then
+  rm -f "${PGPASS_TMP}"
+  die_remote 'legacy v2 PGPASSFILE has no usable wow_test application entry'
+fi
+install -o "${REMOTE_USER}" -g "${REMOTE_USER}" -m 0600 "${PGPASS_TMP}" "${CANDIDATE_PGPASSFILE}"
+rm -f "${PGPASS_TMP}"
 CANDIDATE_DSN="$(SOURCE_DSN="${WOW_DATABASE_URL}" CANDIDATE_DATABASE="${CANDIDATE_DB}" python3 - <<'PY'
 import os
 from urllib.parse import urlsplit, urlunsplit

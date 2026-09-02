@@ -67,6 +67,8 @@ test('candidate nginx locations are additive and path-isolated', () => {
   assert.match(snippet, /127\.0\.0\.1:8791\/api\/v2\//)
   assert.match(snippet, /\/web-candidate\//)
   assert.match(snippet, /chickenbro-web-candidate/)
+  assert.match(snippet, /index index\.html/)
+  assert.doesNotMatch(snippet, /location = \/web-candidate\//)
   assert.doesNotMatch(snippet, /server_name\s+www\.chickenbro\.cloud/)
   assert.doesNotMatch(snippet, /location\s+\^~\s+\/api\/v2\//)
 })

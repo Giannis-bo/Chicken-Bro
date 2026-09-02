@@ -3,13 +3,9 @@ location = /web-candidate {
     return 301 /web-candidate/;
 }
 
-location = /web-candidate/ {
-    alias /var/www/chickenbro-web-candidate/current/index.html;
-    expires -1;
-}
-
 location ^~ /web-candidate/ {
     alias /var/www/chickenbro-web-candidate/current/;
+    index index.html;
     expires -1;
 }
 
