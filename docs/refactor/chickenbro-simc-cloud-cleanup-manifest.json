@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "mode": "dry-run",
-  "generatedAt": "2026-09-02T23:04:01Z",
+  "generatedAt": "2026-09-02T23:32:52Z",
   "deletionAuthorized": false,
   "status": "blocked_pending_phase5_acceptance_independent_restore_and_fresh_remote_probes",
   "sourceInventory": {
@@ -43,6 +43,11 @@
       "kind": "systemd_unit",
       "target": "chickenbro-worker.service",
       "reason": "new production worker"
+    },
+    {
+      "kind": "systemd_unit",
+      "target": "chickenbro-simc-runtime-update.service",
+      "reason": "manual content-addressed SimulationCraft runtime updater"
     },
     {
       "kind": "directory",
@@ -718,7 +723,7 @@
         "activeState": "inactive",
         "unitFileState": "static"
       },
-      "replacement": "manual SimC runtime procedure retaining /opt/wow-simc/current",
+      "replacement": "chickenbro-simc-runtime-update.service (manual, content-addressed)",
       "activeConnections": null,
       "contentSha256": null,
       "currentReferences": null,
@@ -744,7 +749,7 @@
         "activeState": "inactive",
         "unitFileState": "static"
       },
-      "replacement": "manual SimC runtime procedure retaining /opt/wow-simc/current",
+      "replacement": "chickenbro-simc-runtime-update.service (manual, content-addressed)",
       "activeConnections": null,
       "contentSha256": null,
       "currentReferences": null,
@@ -770,7 +775,7 @@
         "activeState": "active",
         "unitFileState": "enabled"
       },
-      "replacement": "manual SimC runtime procedure retaining /opt/wow-simc/current",
+      "replacement": "chickenbro-simc-runtime-update.service (manual, content-addressed)",
       "activeConnections": null,
       "contentSha256": null,
       "currentReferences": null,

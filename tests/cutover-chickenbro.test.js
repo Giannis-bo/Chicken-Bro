@@ -475,6 +475,9 @@ test('the fence stops an exact reviewed writer set and makes wow_test read only'
     'wow-gear-stat-snapshot-worker.service',
     'wow-recommended-bis-guard-sync.timer',
     'wow-season-recommended-gear-sync.timer',
+    'wow-simc-runtime-update.service',
+    'wow-simc-version-check.service',
+    'wow-simc-version-check.timer',
     'wow-stat-weights-sync.timer',
     'wow-websim-sync.timer',
   ]) {

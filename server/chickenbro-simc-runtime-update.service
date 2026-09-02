@@ -1,0 +1,28 @@
+[Unit]
+Description=Chickenbro content-addressed SimulationCraft runtime update
+After=network-online.target mihomo.service
+Wants=network-online.target mihomo.service
+[Service]
+Type=oneshot
+User=ubuntu
+WorkingDirectory=/opt/chickenbro
+EnvironmentFile=/run/lock/chickenbro-simc-runtime-update.env
+Environment=HTTPS_PROXY=http://127.0.0.1:7890
+Environment=HTTP_PROXY=http://127.0.0.1:7890
+Environment=ALL_PROXY=socks5h://127.0.0.1:7890
+Environment=NO_PROXY=127.0.0.1,localhost,::1,169.254.169.254
+Environment=https_proxy=http://127.0.0.1:7890
+Environment=http_proxy=http://127.0.0.1:7890
+Environment=all_proxy=socks5h://127.0.0.1:7890
+Environment=no_proxy=127.0.0.1,localhost,::1,169.254.169.254
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/opt/wow-simc /run/lock
+RestrictSUIDSGID=true
+LockPersonality=true
+TimeoutStartSec=480min
+ExecStart=/opt/chickenbro/server/chickenbro_simc_runtime_update.sh --apply --target-commit ${SIMC_TARGET_COMMIT} --expected-current-commit ${SIMC_EXPECTED_CURRENT_COMMIT}
+ExecStartPost=/usr/bin/rm -f -- /run/lock/chickenbro-simc-runtime-update.env

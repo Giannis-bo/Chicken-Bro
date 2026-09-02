@@ -42,6 +42,7 @@ validate_deletion_target() {
   case "${kind}:${target}" in
     postgres_database:chickenbro_prod|postgres_database:postgres|postgres_database:template0|postgres_database:template1|\
     systemd_unit:chickenbro-api.service|systemd_unit:chickenbro-worker.service|\
+    systemd_unit:chickenbro-simc-runtime-update.service|\
     directory:/opt/chickenbro|directory:/opt/chickenbro-runtime|directory:/opt/wow-simc|\
     directory:/opt/wow-simc/current|directory:/var/lib/postgresql|directory:/var/www/chickenbro-web|\
     directory:/etc/nginx/ssl|directory:/mnt/chickenbro-backups|\
@@ -319,6 +320,10 @@ install -d -o root -g root -m 0700 -- "${RUN_ROOT}"
 nginx -t
 systemctl is-active --quiet chickenbro-api.service || die_remote "protected production API is not active"
 systemctl is-active --quiet chickenbro-worker.service || die_remote "protected production worker is not active"
+[[ "$(systemctl show chickenbro-simc-runtime-update.service --property=LoadState --value)" == "loaded" ]] \
+  || die_remote "protected SimulationCraft updater is not loaded"
+[[ -x /opt/chickenbro/server/chickenbro_simc_runtime_update.sh ]] \
+  || die_remote "protected SimulationCraft updater script is missing"
 [[ -e /opt/wow-simc/current ]] || die_remote "protected SimC runtime is missing"
 protected_database_exists="$(sudo -n -u postgres psql -d postgres -At --command="SELECT count(*) FROM pg_database WHERE datname = 'chickenbro_prod'")"
 [[ "${protected_database_exists}" == "1" ]] || die_remote "protected production database is missing"
@@ -471,6 +476,10 @@ systemctl daemon-reload
 nginx -t
 systemctl is-active --quiet chickenbro-api.service || die_remote "protected production API stopped during retirement"
 systemctl is-active --quiet chickenbro-worker.service || die_remote "protected production worker stopped during retirement"
+[[ "$(systemctl show chickenbro-simc-runtime-update.service --property=LoadState --value)" == "loaded" ]] \
+  || die_remote "protected SimulationCraft updater changed during retirement"
+[[ -x /opt/chickenbro/server/chickenbro_simc_runtime_update.sh ]] \
+  || die_remote "protected SimulationCraft updater script changed during retirement"
 [[ -e /opt/wow-simc/current ]] || die_remote "protected SimC runtime changed during retirement"
 protected_database_exists="$(sudo -n -u postgres psql -d postgres -At --command="SELECT count(*) FROM pg_database WHERE datname = 'chickenbro_prod'")"
 [[ "${protected_database_exists}" == "1" ]] || die_remote "protected production database changed during retirement"

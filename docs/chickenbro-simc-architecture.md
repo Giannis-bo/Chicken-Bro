@@ -16,15 +16,15 @@
 
 | 能力 | 当前仓库基础 | 正式目标 | 解锁阶段 |
 | --- | --- | --- | --- |
-| Principal | Mini Bearer 与 Web Cookie 已能解析为内部 `user_id` | 单一、无歧义、带 Origin/CSRF 的正式 Principal | Phase 2 |
-| Web 小程序确认 | 已有 browser verifier、opaque scene、一次性交换和 HttpOnly Cookie | 去除 prototype，补齐审计、CSRF、重放与多凭据拒绝 | Phase 2 |
-| Chat | `server/app/chickenbro` 已有 owner-scoped 表、Codex-only 和 SSE 组件，但应用仍以 prototype principal 为入口 | 正式 `/api/v2/chat/**`，双端历史、游标、幂等和持久化回放 | Phase 3 |
-| SimC | 已有不可变快照、readiness、compiler、PostgreSQL queue、Worker 和语义结果解析，但正式路由未注册 | 正式 `/api/v2/simc/**`，双端任务历史和 owner 隔离 | Phase 4 |
-| 客户端 | 当前仍有 14 路由、4 Tab 和 prototype Web 面板 | 5 条目标路由、2 Tab、正式 Web Shell | Phase 5 |
-| 数据面 | 生产仍依赖 legacy `wow_test`；干净库尚未创建 | 仅含 Identity、Chat、SimC、Ops 的 `chickenbro_prod` | Phase 2/5 |
-| 旧系统 | 仍承担生产与回滚职责 | 精确清单退役，Git 历史承担归档 | Phase 6 |
+| Principal | 正式 Mini Bearer、Web Cookie、Origin/CSRF 与混合凭据拒绝已在本地候选实现 | 真实微信凭据、候选与生产验收 | Phase 2 已实现；Phase 5 验收待执行 |
+| Web 小程序确认 | browser verifier、opaque scene、原子单次交换、HttpOnly Cookie、审计与重放拒绝已实现 | 真实二维码确认和独立 Web Session 验收 | Phase 2 已实现；Phase 5 验收待执行 |
+| Chat | 正式 `/api/v2/chat/**`、owner-scoped 历史、稳定游标、幂等发送与持久化回放已实现 | 候选/生产双端真实数据验收 | Phase 3 已实现；Phase 5 验收待执行 |
+| SimC | 正式 `/api/v2/simc/**`、快照/readiness/compiler、PostgreSQL queue、Worker 与语义结果已实现 | 云端真实 runtime、任务终态和跨端结果验收 | Phase 4 已实现；Phase 5 验收待执行 |
+| 客户端 | 活跃 Taro shell 已收敛为 5 条路由、2 Tab 与正式 Web Shell；旧文件仅作为待清理目标留存 | 候选构建、真实设备与登录验收 | Phase 5 本地实现完成；外部验收待执行 |
+| 数据面 | 干净 schema、白名单迁移和核对代码已实现；生产仍依赖 legacy `wow_test` | 创建、迁移并切换只含 Identity、Chat、SimC、Ops 的 `chickenbro_prod` | Phase 2 本地实现完成；Phase 5 云端执行待门禁 |
+| 旧系统 | 精确本地/云端清单和 fail-closed apply 已实现；旧系统仍承担生产与回滚职责 | 门禁通过后精确退役，Git 历史承担归档 | Phase 6 实现完成；apply 待 Phase 5 与恢复验证 |
 
-当前 `/api/v2/prototype/**` 只是待退役实现，不属于正式 API。HTTP 200、systemd active、候选首页可达或本地测试通过都不能把表中“目标”提升为生产完成。
+旧 prototype 文件仍在本地精确删除清单中，但已经从正式 application composition 和客户端调用图断开；`/api/v2/prototype/**` 不属于正式 API。HTTP 200、systemd active、候选首页可达或本地测试通过都不能把表中“目标”提升为生产完成。
 
 ## 运行拓扑
 
@@ -62,14 +62,14 @@ UI -> typed API client -> API route -> application -> domain -> port <- adapter
 | --- | --- | --- |
 | `identity` | 内部用户、微信身份映射、独立客户端会话、Web 登录票据 | `server/app/identity` |
 | `chat` | 会话、消息、AgentRun、Codex 流终态 | `server/app/chickenbro` |
-| `simc` | 来源快照、任务、尝试、结果与 runtime identity | `server/app/simulation` |
+| `simc` | 来源快照、任务、尝试、结果、runtime identity 与受管 runtime 更新 | `server/app/simulation`、`server/chickenbro_simc_runtime_update.sh` |
 | `worker` | `ops.job_queue` lease、重试、取消和 handler dispatch | `server/app/worker` |
 | `dual_client` | Mini/Web 路由、认证 transport、共享 view model | `apps/mini-taro/src`、`packages/api-client/src`、`packages/domain/src` |
 | `migration` | 白名单、source-to-target 映射、全量/delta 和核对报告 | [生产 Runbook](chickenbro-simc-production-runbook.md) |
 | `deployment` | Candidate、切流、Nginx/systemd/DSN identity 和回滚 | [生产 Runbook](chickenbro-simc-production-runbook.md) |
 | `legacy_retirement` | 精确 keep/migrate/delete、调用图、清理与恢复证据 | [处置规则](refactor/chickenbro-simc-disposition-rules.json) |
 
-旧 owner map 和后端热点表只保存 last-known-good 事实，统一状态为 `legacy_runtime_baseline_pending_retirement`。它们没有新实现、promotion 或范围扩张权。
+[project-owner-map.json](project-owner-map.json) 与 [backend-owner-map.json](backend-owner-map.json) 是当前代码 owner 与验证入口；不在这两个 map、当前路线图或 Runbook 可达图中的旧 owner 记录没有新实现、promotion 或范围扩张权。
 
 ## 身份与会话
 
@@ -175,6 +175,12 @@ SimC 的服务端事实流是：
 
 正式主链不重新接入旧 Gear Catalog、Talent Catalog、Resolver、Manifest 或 WebSim profile。来源数据不完整、权限受限、角色不存在和 provider 不可用必须保持不同 blocker。
 
+### SimC 运行时维护
+
+`/opt/wow-simc/current` 仍是唯一受管 SimC runtime 指针，但旧 `wow-simc-runtime-update` 与版本检查 timer 不再拥有它。新 owner 是 `server/chickenbro_simc_runtime_update.sh` 和静态、手工触发的 `chickenbro-simc-runtime-update.service`。
+
+更新器不解析“最新分支”，只接受操作者明确给出的 40 位 commit 和当前 commit 乐观锁。默认 dry-run 不联网、不下载、不构建、不切换；apply 才允许从固定 `simulationcraft/simc` commit 下载源码，在同一文件系统的临时目录构建与校验，并原子切换 `current`。新建 release 保存 commit、source archive SHA 和 binary SHA；首次接管的旧 release 若找不到原始 archive，会明确记录 `legacy-unavailable`，但仍绑定实际 binary SHA。旧 release 不删除，更新器也不启停 API/Worker。由任务结果绑定 runtime revision，而不是把 service 成功或 binary return code 当成业务成功。
+
 ## Worker Lease
 
 `ops.job_queue` 使用 PostgreSQL `FOR UPDATE SKIP LOCKED` 认领：
@@ -190,7 +196,7 @@ Worker active 只证明进程活着。业务成功还需要 job/result/attempt �
 
 ## 正式 API 参考
 
-### 已有并将在 Phase 2 收敛的身份 API
+### 正式身份 API
 
 | Method | Path | Credential | 用途 |
 | --- | --- | --- | --- |
@@ -203,7 +209,7 @@ Worker active 只证明进程活着。业务成功还需要 job/result/attempt �
 | GET | `/api/v2/me` | Mini Bearer 或 Web Cookie | 读取当前内部账号摘要 |
 | POST | `/api/v2/auth/logout` | 当前客户端会话 | 只撤销当前会话 |
 
-### Phase 3 正式 Chat API
+### 正式 Chat API
 
 | Method | Path | 语义 |
 | --- | --- | --- |
@@ -212,7 +218,7 @@ Worker active 只证明进程活着。业务成功还需要 job/result/attempt �
 | GET | `/api/v2/chat/conversations/{conversation_id}` | 会话与持久化消息 |
 | POST | `/api/v2/chat/conversations/{conversation_id}/messages/stream` | 幂等消息 + 严格 SSE |
 
-### Phase 4 正式 SimC API
+### 正式 SimC API
 
 | Method | Path | 语义 |
 | --- | --- | --- |

@@ -50,11 +50,14 @@
       "path": "server/deploy_chickenbro_candidate_lighthouse.sh",
       "relatedOwners": [
         "server/cutover_chickenbro_lighthouse.sh",
-        "server/retire_chickenbro_legacy_lighthouse.sh"
+        "server/retire_chickenbro_legacy_lighthouse.sh",
+        "server/chickenbro_simc_runtime_update.sh",
+        "server/chickenbro-simc-runtime-update.service"
       ],
       "characterization": [
         "tests/deploy-chickenbro-candidate.test.js",
         "tests/cutover-chickenbro.test.js",
+        "tests/chickenbro-simc-runtime-update.test.js",
         "tests/retire-chickenbro-legacy.test.js"
       ]
     }

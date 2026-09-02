@@ -31,6 +31,7 @@ SOURCE_DATABASE="wow_test"
 PRODUCTION_PORT="8790"
 PRODUCTION_API_SERVICE="chickenbro-api"
 PRODUCTION_WORKER_SERVICE="chickenbro-worker"
+SIMC_UPDATE_SERVICE="chickenbro-simc-runtime-update"
 CANDIDATE_API_SERVICE="chickenbro-api-candidate"
 CANDIDATE_WORKER_SERVICE="chickenbro-worker-candidate"
 PRODUCTION_API_ENV="/etc/chickenbro-api.env"
@@ -315,6 +316,8 @@ for required in \
   server/migrations/product/postgres_legacy.py \
   server/chickenbro_native_mcp.py \
   server/chickenbro_public_web_research.py \
+  server/chickenbro_simc_runtime_update.sh \
+  server/chickenbro-simc-runtime-update.service \
   server/chickenbro-api.service \
   server/chickenbro-worker.service \
   scripts/chickenbro-native-agent/chickenbro-native.config.toml.template; do
@@ -656,6 +659,8 @@ git -C "${REPO_ROOT}" archive "${CANDIDATE_COMMIT}" -- \
   server/codex_worker.py \
   server/chickenbro_native_mcp.py \
   server/chickenbro_public_web_research.py \
+  server/chickenbro_simc_runtime_update.sh \
+  server/chickenbro-simc-runtime-update.service \
   server/migrations/__init__.py \
   server/migrations/product \
   server/chickenbro-api.service \
@@ -720,6 +725,7 @@ REMOTE_ENV=(
   "PRODUCTION_PORT=${PRODUCTION_PORT}"
   "PRODUCTION_API_SERVICE=${PRODUCTION_API_SERVICE}"
   "PRODUCTION_WORKER_SERVICE=${PRODUCTION_WORKER_SERVICE}"
+  "SIMC_UPDATE_SERVICE=${SIMC_UPDATE_SERVICE}"
   "CANDIDATE_API_SERVICE=${CANDIDATE_API_SERVICE}"
   "CANDIDATE_WORKER_SERVICE=${CANDIDATE_WORKER_SERVICE}"
   "PRODUCTION_API_ENV=${PRODUCTION_API_ENV}"
@@ -773,6 +779,9 @@ LEGACY_WRITER_UNITS=(
   wow-recommended-bis-prototype-sync.service
   wow-season-recommended-gear-sync.service
   wow-season-recommended-gear-sync.timer
+  wow-simc-runtime-update.service
+  wow-simc-version-check.service
+  wow-simc-version-check.timer
   wow-stat-weights-sync.service
   wow-stat-weights-sync.timer
   wow-talent-graph-recovery.service
@@ -891,6 +900,7 @@ pre_write_rollback() {
   systemctl stop "${PRODUCTION_API_SERVICE}" "${PRODUCTION_WORKER_SERVICE}" >/dev/null 2>&1 || true
   restore_file "/etc/systemd/system/${PRODUCTION_API_SERVICE}.service" production-api.service
   restore_file "/etc/systemd/system/${PRODUCTION_WORKER_SERVICE}.service" production-worker.service
+  restore_file "/etc/systemd/system/${SIMC_UPDATE_SERVICE}.service" simc-runtime-update.service
   restore_file "${PRODUCTION_API_ENV}" production-api.env
   restore_file "${PRODUCTION_SOURCE_ENV}" production-source.env
   restore_file "${PRODUCTION_WORKER_ENV}" production-worker.env
@@ -1306,6 +1316,7 @@ TARGET_ROLE_DEFAULT="$(sudo -n -u postgres psql -At --dbname=postgres \
 for pair in \
   "/etc/systemd/system/${PRODUCTION_API_SERVICE}.service:production-api.service" \
   "/etc/systemd/system/${PRODUCTION_WORKER_SERVICE}.service:production-worker.service" \
+  "/etc/systemd/system/${SIMC_UPDATE_SERVICE}.service:simc-runtime-update.service" \
   "${PRODUCTION_API_ENV}:production-api.env" \
   "${PRODUCTION_SOURCE_ENV}:production-source.env" \
   "${PRODUCTION_WORKER_ENV}:production-worker.env" \
@@ -1529,6 +1540,9 @@ install -o root -g root -m 0644 "${PRODUCTION_ROOT}/server/chickenbro-api.servic
   "/etc/systemd/system/${PRODUCTION_API_SERVICE}.service"
 install -o root -g root -m 0644 "${PRODUCTION_ROOT}/server/chickenbro-worker.service" \
   "/etc/systemd/system/${PRODUCTION_WORKER_SERVICE}.service"
+install -o root -g root -m 0644 "${PRODUCTION_ROOT}/server/chickenbro-simc-runtime-update.service" \
+  "/etc/systemd/system/${SIMC_UPDATE_SERVICE}.service"
+chmod 0755 "${PRODUCTION_ROOT}/server/chickenbro_simc_runtime_update.sh"
 
 install -d -o root -g root -m 0755 "${PRODUCTION_WEB_ROOT}/releases"
 if [[ ! -e "${WEB_RELEASE_DIR}" ]]; then
@@ -1690,13 +1704,14 @@ done
 
 API_SERVICE_IDENTITY="$(sha256sum "/etc/systemd/system/${PRODUCTION_API_SERVICE}.service" | awk '{print $1}')"
 WORKER_SERVICE_IDENTITY="$(sha256sum "/etc/systemd/system/${PRODUCTION_WORKER_SERVICE}.service" | awk '{print $1}')"
+SIMC_UPDATE_SERVICE_IDENTITY="$(sha256sum "/etc/systemd/system/${SIMC_UPDATE_SERVICE}.service" | awk '{print $1}')"
 WWW_NGINX_IDENTITY="$(sha256sum "${WWW_NGINX_OWNER}" | awk '{print $1}')"
 API_NGINX_IDENTITY="$(sha256sum "${API_NGINX_OWNER}" | awk '{print $1}')"
 DEPLOYED_MANIFEST_IDENTITY="$(sha256sum "${PRODUCTION_ROOT}/deploy-manifest.sha256" | awk '{print $1}')"
 
 export RUN_ID WRITE_FENCE_AT FULL_WATERMARK DELTA_WATERMARK WRITE_AUTHORITY_BOUNDARY_AT
 export FULL_MIGRATION_REPORT_SHA256 DELTA_MIGRATION_REPORT_SHA256
-export API_SERVICE_IDENTITY WORKER_SERVICE_IDENTITY WWW_NGINX_IDENTITY API_NGINX_IDENTITY
+export API_SERVICE_IDENTITY WORKER_SERVICE_IDENTITY SIMC_UPDATE_SERVICE_IDENTITY WWW_NGINX_IDENTITY API_NGINX_IDENTITY
 export DEPLOYED_MANIFEST_IDENTITY CODEX_PROFILE_IDENTITY SOURCE_DATABASE_READ_ONLY MIGRATION_IDS CUTOVER_EVIDENCE
 export CANDIDATE_EVIDENCE_SHA REAL_ACCEPTANCE_SHA REVIEWED_INVENTORY_SHA REVIEWED_BACKUP_MANIFEST_SHA
 export CANDIDATE_COMMIT PRODUCTION_WEB_BUILD_IDENTITY PRODUCTION_WEAPP_BUILD_IDENTITY
@@ -1730,6 +1745,7 @@ payload = {
     "deployedManifestSha256": os.environ["DEPLOYED_MANIFEST_IDENTITY"],
     "apiServiceIdentity": os.environ["API_SERVICE_IDENTITY"],
     "workerServiceIdentity": os.environ["WORKER_SERVICE_IDENTITY"],
+    "simcUpdateServiceIdentity": os.environ["SIMC_UPDATE_SERVICE_IDENTITY"],
     "codexProfileIdentity": os.environ["CODEX_PROFILE_IDENTITY"],
     "webBuildIdentity": os.environ["PRODUCTION_WEB_BUILD_IDENTITY"],
     "weappBuildIdentity": os.environ["PRODUCTION_WEAPP_BUILD_IDENTITY"],

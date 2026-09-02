@@ -222,6 +222,8 @@ for required in \
   server/accept_chickenbro_candidate.py \
   server/chickenbro_native_mcp.py \
   server/chickenbro_public_web_research.py \
+  server/chickenbro_simc_runtime_update.sh \
+  server/chickenbro-simc-runtime-update.service \
   server/chickenbro-api.service \
   server/chickenbro-api-candidate.service \
   server/chickenbro-worker.service \
@@ -567,6 +569,8 @@ git -C "${REPO_ROOT}" archive "${EXPECTED_COMMIT}" -- \
   server/accept_chickenbro_candidate.py \
   server/chickenbro_native_mcp.py \
   server/chickenbro_public_web_research.py \
+  server/chickenbro_simc_runtime_update.sh \
+  server/chickenbro-simc-runtime-update.service \
   server/migrations/__init__.py \
   server/migrations/product \
   server/chickenbro-api.service \

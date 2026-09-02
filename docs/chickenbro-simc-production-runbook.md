@@ -317,6 +317,33 @@ Chat SSE 的每个事件都必须有从 1 开始连续递增的整数 `sequence`
 
 真实扫码、双设备交叉验证或用户明确确认缺一项时，状态只能是 `user_acceptance_pending`。当前容量/独立恢复门禁尚未关闭，因此候选尚未 apply，自动化公网验收和真实用户验收也尚未发生。
 
+### SimC runtime 更新
+
+生产切流会停止、禁用并运行时屏蔽旧 updater/version-check unit，再安装 `chickenbro-simc-runtime-update.service`；SimC 二进制和当前指针保持可用。新 unit 不会被 enable、start，也不会创建定时器。没有 `/run/lock/chickenbro-simc-runtime-update.env` 时该静态 unit 失败关闭；旧 unit 文件只有在新 unit 已安装、当前 runtime identity 已备份且 Phase 6 全部门禁满足后才能退役。切流在不可逆边界前失败时，会恢复旧 unit 文件与原有 active/enabled 状态。
+
+默认预检只读取当前 commit，不访问网络：
+
+```bash
+/opt/chickenbro/server/chickenbro_simc_runtime_update.sh \
+  --dry-run \
+  --target-commit "${REVIEWED_TARGET_COMMIT}"
+```
+
+真正更新必须先从外部权威确认目标 commit，并记录当前 `/opt/wow-simc/current/.commit` 或兼容 `.commit`。只有目标 commit、预期当前 commit、至少 12 GiB 空闲空间和下载/构建授权都已审阅时，才创建一次性、非 secret 的 trigger：
+
+```bash
+sudo -u ubuntu sh -c '
+  umask 077
+  printf "SIMC_TARGET_COMMIT=%s\nSIMC_EXPECTED_CURRENT_COMMIT=%s\n" "$1" "$2" \
+    > /run/lock/chickenbro-simc-runtime-update.env
+' _ "${REVIEWED_TARGET_COMMIT}" "${REVIEWED_CURRENT_COMMIT}"
+sudo systemctl start chickenbro-simc-runtime-update.service
+```
+
+unit 只接受固定 `simulationcraft/simc` 的精确 commit，不查询或跟随 branch。成功后会删除 trigger，保留旧 release，不重启 API/Worker，并输出 previous/target commit、source archive SHA 或旧 release 的 `legacy-unavailable` 状态、binary SHA 和 `servicesRestarted=false`。必须另行核对 `readlink -f /opt/wow-simc/current`、release metadata、binary hash、API readiness，并提交真实 SimC smoke；systemd 成功不代表模拟业务成功。
+
+如果新 runtime 的语义 smoke 失败，使用同一入口把 target 指回已验证的旧 release，并把 expected-current 固定为失败的新 commit。已有 release 的回切不下载、不重建，也不受构建空间门禁影响；禁止删除失败 release 或唯一可恢复 release来“修复”问题。
+
 ## 8. 写栅栏、delta 与切流
 
 切流窗口固定顺序：

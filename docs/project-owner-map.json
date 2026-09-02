@@ -76,19 +76,24 @@
       "runtimeSurfaces": [
         "server/app/simulation/application.py",
         "server/app/simulation/worker.py",
-        "server/app/api/routes/simc.py"
+        "server/app/api/routes/simc.py",
+        "server/chickenbro_simc_runtime_update.sh",
+        "server/chickenbro-simc-runtime-update.service"
       ],
       "characterization": [
         "tests/app_simulation_application_test.py",
         "tests/app_simulation_worker_test.py",
         "tests/app_simc_api_test.py",
         "tests/app_simc_cross_client_test.py",
+        "tests/chickenbro-simc-runtime-update.test.js",
         "packages/api-client/src/simc.test.ts",
         "packages/domain/src/simc.test.ts"
       ],
       "changedPathPatterns": [
         "server/app/simulation/**",
         "server/app/api/routes/simc.py",
+        "server/chickenbro_simc_runtime_update.sh",
+        "server/chickenbro-simc-runtime-update.service",
         "packages/api-client/src/simc*.ts",
         "packages/domain/src/simc*.ts"
       ]
