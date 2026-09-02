@@ -46,7 +46,7 @@ test('project state preserves the live safety boundary instead of claiming compl
   assert.equal(state.delivery.phase6, 'local_and_cloud_cleanup_controls_verified_apply_blocked')
   assert.deepEqual(state.refactorEvidence.localCleanupDryRun, {
     deletable: 2588,
-    retained: 265,
+    retained: 268,
     blocked: 0,
     review: 0,
     phase5Accepted: false,
