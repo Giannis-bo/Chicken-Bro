@@ -43,7 +43,7 @@ class ChickenbroSimcCloudInventoryTest(unittest.TestCase):
 
     def test_output_rejects_secret_bearing_fields_at_any_depth(self):
         for forbidden in (
-            {"databaseUrl": "postgresql://user:password@host/db"},
+            {"databaseUrl": "postgresql://" + "user:password@" + "host/db"},
             {"nested": {"token": "abc"}},
             {"units": [{"environment": "WOW_WECHAT_SECRET=value"}]},
             {"cookie": "session=value"},

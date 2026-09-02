@@ -73,8 +73,13 @@
     },
     {
       "command": "node scripts/verify-project.js --profile harness --release artifacts/releases/2026-09-02-chickenbro-simc-control-plane",
-      "status": "not_run",
-      "summary": "Pending the first committed complete packet so exact-head verification can run from a clean worktree."
+      "status": "pass",
+      "summary": "The clean committed packet passed 96 Harness/control-plane tests plus JSON parsing, JavaScript syntax, packet identity binding against origin/main and whitespace verification; all 6 selected commands exited 0."
+    },
+    {
+      "command": "Local CR of git diff origin/main...HEAD against the approved specification",
+      "status": "pass",
+      "summary": "The 28-path branch diff contains only approved plans, current documentation, inventories, read-only tooling, tests and the task packet. No product runtime, cloud mutation, cutover, broad deletion, credential value or legacy promotion was introduced. Secret scanning found only exact filesystem/database byte counts misidentified as phone-like data; the inspected values are non-PII capacity metrics."
     },
     {
       "command": "git diff --check origin/main...HEAD",

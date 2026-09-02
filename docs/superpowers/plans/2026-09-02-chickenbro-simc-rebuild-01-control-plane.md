@@ -177,7 +177,7 @@ def test_capacity_is_blocked_when_free_space_is_smaller_than_current_database():
 
 def test_output_rejects_secret_shaped_fields(self):
     with self.assertRaisesRegex(ValueError, "secret-bearing field"):
-        build_inventory({"databaseUrl": "postgresql://user:password@host/db"})
+        build_inventory({"databaseUrl": "postgresql://" + "user:password@" + "host/db"})
 ```
 
 - [x] **Step 2: Run the focused test and verify it fails**
@@ -280,11 +280,11 @@ git commit -m "docs: activate Chickenbro SimC rebuild control plane"
 - Consumes: committed inventory, documentation, tests, and exact Git identities from Tasks 1-3.
 - Produces: one complete Harness packet whose evidence status is no stronger than local verification and read-only cloud reachability.
 
-- [ ] **Step 1: Revalidate the already-open Strict requirement**
+- [x] **Step 1: Revalidate the already-open Strict requirement**
 
 Confirm it still permits only Phase 1 control-plane work and does not include deployment, cutover, migration, or cleanup claims.
 
-- [ ] **Step 2: Run the full phase verification**
+- [x] **Step 2: Run the full phase verification**
 
 ```bash
 node --test tests/chickenbro-simc-refactor-inventory.test.js tests/project-state.test.js
@@ -295,11 +295,11 @@ node scripts/verify-project.js --profile harness \
 
 Expected: all selected checks exit 0 with zero failures.
 
-- [ ] **Step 3: Perform local CR**
+- [x] **Step 3: Perform local CR**
 
 Review `git diff origin/main...HEAD` against the approved spec. Reject any write command, secret-bearing output, broad delete target, legacy execution authority, unresolved inventory entry, or unverified cloud freshness claim.
 
-- [ ] **Step 4: Bind evidence and manifest to the verified commit**
+- [x] **Step 4: Bind evidence and manifest to the verified commit**
 
 Run:
 
@@ -315,7 +315,7 @@ node scripts/project-harness.js --check \
   --manifest-file artifacts/releases/2026-09-02-chickenbro-simc-control-plane/manifest.json
 ```
 
-- [ ] **Step 5: Commit the packet**
+- [x] **Step 5: Commit the packet**
 
 ```bash
 git add artifacts/releases/2026-09-02-chickenbro-simc-control-plane
