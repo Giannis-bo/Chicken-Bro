@@ -1,0 +1,155 @@
+{
+  "schemaVersion": 2,
+  "slug": "chickenbro-simc-control-plane",
+  "requirementSlug": "chickenbro-simc-control-plane",
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
+  "branch": "codex/chickenbro-simc-total-rebuild-design",
+  "commit": "cd21d868d42c8d4b4c55b9f0dbc3e14e0bc292dd",
+  "identities": {
+    "runtime": {
+      "status": "not_applicable",
+      "reason": "Phase 1 changed only documentation, deterministic inventory tooling, tests and a redacted read-only cloud snapshot; no candidate or production runtime was changed."
+    },
+    "verification": {
+      "status": "bound_at_check",
+      "kind": "git_ref",
+      "value": "HEAD"
+    },
+    "closure": {
+      "status": "pending",
+      "reason": "This packet closes only Phase 1 of the six-phase rebuild; the overall goal, merge and legacy retirement remain pending."
+    }
+  },
+  "manualAcceptance": {
+    "required": false,
+    "status": "not_applicable",
+    "reason": "Phase 1 has no user-visible runtime change and explicitly does not claim real Mini/Web acceptance.",
+    "items": [],
+    "rollup": {
+      "total": 0,
+      "accepted": 0,
+      "notRunUserWaived": 0,
+      "pending": 0
+    }
+  },
+  "scope": [
+    "approved six-phase Chickenbro Chat and SimC dual-client rebuild specification and plan chain",
+    "deterministic tracked-file keep/migrate/delete inventory with fail-closed classification",
+    "secret-safe read-only cloud database, service, listener, directory and capacity snapshot",
+    "single current architecture, production runbook, target owner maps and verification matrix",
+    "Strict Phase 1 Harness requirement, evidence and manifest"
+  ],
+  "verification": [
+    {
+      "command": "node --test tests/chickenbro-simc-refactor-inventory.test.js tests/project-state.test.js",
+      "status": "pass",
+      "summary": "46 Node tests passed. The current 2750-entry tracked-file universe is classified with zero unresolved entries; current state, execution authority and documentation contracts passed."
+    },
+    {
+      "command": "python3 -m unittest tests.chickenbro_simc_cloud_inventory_test -v",
+      "status": "pass",
+      "summary": "5 Python tests passed for secret rejection, schema restriction, deterministic sorting, unreachable behavior and capacity gating."
+    },
+    {
+      "command": "node --test tests/project-owner-map.test.js tests/backend-owner-map.test.js",
+      "status": "pass",
+      "summary": "19 owner-map tests passed while legacy runtime owners remain factual baselines without new execution authority."
+    },
+    {
+      "command": "Markdown local-link validation for README.md and the five current control-plane documents",
+      "status": "pass",
+      "summary": "All relative Markdown links in the selected current documents resolved to existing repository paths."
+    },
+    {
+      "command": "gstack-redact --repo-visibility unknown --json over staged added lines",
+      "status": "pass",
+      "summary": "The staged current-authority documentation diff reported zero HIGH, MEDIUM, LOW or WARN findings."
+    },
+    {
+      "command": "node scripts/project-harness.js --check-requirement --requirement-file artifacts/releases/2026-09-02-chickenbro-simc-control-plane/requirement.json",
+      "status": "pass",
+      "summary": "The Strict requirement remained implementation_allowed and limited to Phase 1 read-only/local control-plane work."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile harness --release artifacts/releases/2026-09-02-chickenbro-simc-control-plane",
+      "status": "not_run",
+      "summary": "Pending the first committed complete packet so exact-head verification can run from a clean worktree."
+    },
+    {
+      "command": "git diff --check origin/main...HEAD",
+      "status": "pass",
+      "summary": "The branch diff has no whitespace errors after normalizing the cloud inventory final newline."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "not_run",
+    "reason": "Candidate deployment, database provisioning, migration, cutover and runtime changes are outside Phase 1."
+  },
+  "runtimeEvidence": [
+    {
+      "type": "cloud_read_only_inventory",
+      "status": "pass",
+      "observedAt": "2026-09-02T13:43:05Z",
+      "snapshot": "docs/refactor/chickenbro-simc-cloud-inventory.json",
+      "snapshotFileSha256": "1466a227e882125ddd342c9518025b583b7bbead80dabb193f29997ff41e80c6",
+      "detail": "The authorized secret-safe SSH probe was reachable with no probe errors. It observed about 8.58 GB free at the root versus about 39.28 GB across non-template databases and therefore retained the blocked capacity gate."
+    }
+  ],
+  "risks": [
+    {
+      "id": "clean-database-capacity-blocked",
+      "status": "blocked",
+      "detail": "The current root filesystem cannot safely hold the clean database, migration working space, rollback window and recovery margin. Phase 2 apply requires independent cleanup with tested recovery or storage expansion."
+    },
+    {
+      "id": "cloud-snapshot-drift",
+      "status": "open",
+      "detail": "The read-only cloud snapshot becomes stale after any remote change and must be refreshed before every later mutation."
+    },
+    {
+      "id": "legacy-production-still-active",
+      "status": "expected",
+      "detail": "Legacy code, data and runtime units remain last-known-good production and rollback inputs; this phase authorizes no deletion."
+    }
+  ],
+  "rollback": [
+    "code_rollback"
+  ],
+  "cleanup": {
+    "required": false,
+    "reason": "Phase 1 intentionally creates no candidate or production resource and performs no destructive cleanup. Legacy cleanup remains a separately gated Phase 6 operation."
+  },
+  "archivedReferences": [
+    "docs/project-state.json",
+    "docs/roadmap.md",
+    "docs/plans/README.md",
+    "docs/chickenbro-simc-architecture.md",
+    "docs/chickenbro-simc-production-runbook.md",
+    "docs/verification-matrix.md",
+    "docs/refactor/chickenbro-simc-disposition-rules.json",
+    "docs/refactor/chickenbro-simc-refactor-inventory.json",
+    "docs/refactor/chickenbro-simc-cloud-inventory.json",
+    "docs/superpowers/specs/2026-09-02-chickenbro-simc-total-rebuild-design.md",
+    "docs/superpowers/plans/2026-09-02-chickenbro-simc-rebuild-01-control-plane.md"
+  ],
+  "inventory": {
+    "generatedFromCommit": "49d1a0b8a822c0c512d2b3b209d5a1f88687b9ac",
+    "entryCount": 2750,
+    "unresolvedCount": 0,
+    "inventorySha256": "febbd76823efa98429bcc37a43b122b386a8fd2de91bea8dc16c77ab220768d4",
+    "fileSha256": "ae01cc9174db232857aaab43b4c927f34766c860057483044c5458b64bb69d15"
+  },
+  "nonClaims": {
+    "candidateDeployment": "NOT_RUN",
+    "productionDeployment": "NOT_RUN",
+    "databaseProvisioning": "BLOCKED_BY_CAPACITY_AND_RECOVERY_GATE",
+    "migration": "NOT_RUN",
+    "wechatLogin": "NOT_ACCEPTED",
+    "crossClientChat": "NOT_ACCEPTED",
+    "crossClientSimc": "NOT_ACCEPTED",
+    "legacyCleanup": "NOT_AUTHORIZED",
+    "overallGoal": "IN_PROGRESS"
+  },
+  "summary": "Phase 1 is locally verified and the cloud is reachable for a redacted read-only inventory. The rebuild now has one execution architecture, one production runbook, exact target owners and a deterministic local inventory with zero unresolved paths. The cloud capacity gate remains blocked; no runtime, database, service, traffic or legacy resource was changed, and the six-phase goal is not complete."
+}
