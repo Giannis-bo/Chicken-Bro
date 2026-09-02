@@ -1,0 +1,48 @@
+.page {
+  box-sizing: border-box;
+  min-height: 100vh;
+  padding: calc(env(safe-area-inset-top) + 32rpx) 28rpx calc(env(safe-area-inset-bottom) + 150rpx);
+  color: #eef3ef;
+  background: radial-gradient(circle at 12% 0%, #17372f 0, #101512 38%, #080a09 100%);
+}
+
+.header,
+.fieldRow,
+.errorCard {
+  display: flex;
+  align-items: center;
+}
+
+.header { justify-content: space-between; margin-bottom: 26rpx; }
+.eyebrow,
+.title,
+.cardTitle,
+.hint,
+.meta,
+.blocker,
+.label { display: block; }
+.eyebrow { color: #73c7a9; font-size: 20rpx; letter-spacing: 5rpx; }
+.title { margin-top: 8rpx; font-size: 44rpx; font-weight: 800; }
+.card { margin-bottom: 20rpx; padding: 26rpx; background: rgba(18, 25, 22, .92); border: 1rpx solid #2f4b41; border-radius: 22rpx; }
+.card[data-readiness='READY_FOR_SIMC'] { border-color: #4f957b; box-shadow: inset 0 0 0 1rpx rgba(103, 201, 164, .15); }
+.cardTitle { margin-bottom: 12rpx; color: #f5fbf8; font-size: 30rpx; font-weight: 700; }
+.hint,
+.meta { margin-bottom: 12rpx; color: #9fb0a9; font-size: 23rpx; line-height: 1.5; }
+.blocker { margin-top: 8rpx; color: #ffbd9f; font-size: 23rpx; }
+.input { box-sizing: border-box; width: 100%; min-height: 78rpx; margin: 14rpx 0; padding: 16rpx 18rpx; color: #eef3ef; background: #0b0f0d; border: 1rpx solid #34483f; border-radius: 14rpx; font-size: 25rpx; }
+.fieldRow { gap: 18rpx; }
+.field { flex: 1; min-width: 0; }
+.label { color: #b9c6c1; font-size: 23rpx; }
+
+.primaryButton,
+.secondaryButton {
+  margin: 0;
+  padding: 20rpx 26rpx;
+  border-radius: 15rpx;
+  font-size: 25rpx;
+  line-height: 1.2;
+}
+.primaryButton { width: 100%; color: #07110d; background: #77d0ad; border: 1rpx solid #a7e5ce; font-weight: 700; }
+.primaryButton[disabled] { color: #69756f; background: #27312d; border-color: #35423d; }
+.secondaryButton { color: #e5eee9; background: #18221e; border: 1rpx solid #3c574d; }
+.errorCard { justify-content: space-between; gap: 20rpx; padding: 20rpx; color: #ffd7c9; background: #351d17; border: 1rpx solid #774738; border-radius: 16rpx; font-size: 24rpx; }

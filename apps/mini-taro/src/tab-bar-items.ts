@@ -2,23 +2,7 @@ import type { TabBarItem } from '@wow-mini/design-system/components/TabBar'
 
 export const tabBarItems: readonly TabBarItem[] = [
   {
-    pagePath: 'pages/news/news',
-    label: '资讯',
-    glyphAssetId: 'product-tab-glyph.news',
-    glyphSlotId: 'asset_slot.product-tab-glyphs',
-    fallbackGlyphAssetId: 'product-tab-news-icon.default',
-    fallbackGlyphSlotId: 'asset_slot.product-tab-news-icon',
-  },
-  {
-    pagePath: 'pages/builds/builds',
-    label: '专精',
-    glyphAssetId: 'product-tab-glyph.spec',
-    glyphSlotId: 'asset_slot.product-tab-glyphs',
-    fallbackGlyphAssetId: 'product-tab-builds-icon.default',
-    fallbackGlyphSlotId: 'asset_slot.product-tab-builds-icon',
-  },
-  {
-    pagePath: 'pages/simulator/simulator',
+    pagePath: 'pages/chickenbro/index',
     label: '队长',
     glyphAssetId: 'product-tab-glyph.captain',
     glyphSlotId: 'asset_slot.product-tab-glyphs',
@@ -26,12 +10,12 @@ export const tabBarItems: readonly TabBarItem[] = [
     fallbackGlyphSlotId: 'asset_slot.product-tab-simulator-icon',
   },
   {
-    pagePath: 'pages/profile/profile',
-    label: '我的',
-    glyphAssetId: 'product-tab-glyph.profile',
+    pagePath: 'pages/simc/index',
+    label: 'SimC',
+    glyphAssetId: 'product-tab-glyph.spec',
     glyphSlotId: 'asset_slot.product-tab-glyphs',
-    fallbackGlyphAssetId: 'product-tab-profile-icon.default',
-    fallbackGlyphSlotId: 'asset_slot.product-tab-profile-icon',
+    fallbackGlyphAssetId: 'product-tab-builds-icon.default',
+    fallbackGlyphSlotId: 'asset_slot.product-tab-builds-icon',
   },
 ]
 
@@ -46,7 +30,7 @@ export function isTabRoute(path: string): boolean {
 
 export function resolveActiveTabRoute(
   candidates: readonly (string | null | undefined)[],
-  fallback = tabBarItems[0]?.pagePath ?? 'pages/news/news',
+  fallback = tabBarItems[0]?.pagePath ?? 'pages/chickenbro/index',
 ): string {
   for (const candidate of candidates) {
     if (!candidate) continue

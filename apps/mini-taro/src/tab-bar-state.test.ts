@@ -8,9 +8,9 @@ describe('active tab route store', () => {
     const listener = vi.fn()
     store.subscribe(listener)
 
-    expect(store.set('/pages/builds/builds?from=news')).toBe(true)
-    expect(store.get()).toBe('pages/builds/builds')
-    expect(listener).toHaveBeenCalledWith('pages/builds/builds')
+    expect(store.set('/pages/simc/index?from=chat')).toBe(true)
+    expect(store.get()).toBe('pages/simc/index')
+    expect(listener).toHaveBeenCalledWith('pages/simc/index')
   })
 
   it('ignores non-tab routes and stops notifying after unsubscribe', () => {
@@ -18,10 +18,10 @@ describe('active tab route store', () => {
     const listener = vi.fn()
     const unsubscribe = store.subscribe(listener)
 
-    expect(store.set('pages/news/list')).toBe(false)
+    expect(store.set('pages/simc/tasks')).toBe(false)
     expect(store.get()).toBeNull()
     unsubscribe()
-    expect(store.set('pages/news/news')).toBe(true)
+    expect(store.set('pages/chickenbro/index')).toBe(true)
     expect(listener).not.toHaveBeenCalled()
   })
 })
