@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-09-02T16:54:02.491Z",
+  "generatedAt": "2026-09-02T16:57:28.231Z",
   "release": {
     "date": "2026-09-02",
     "slug": "chickenbro-simc-identity-data"
@@ -38,7 +38,7 @@
         {
           "path": "docs/project-state.json",
           "exists": true,
-          "sizeBytes": 66409
+          "sizeBytes": 66437
         },
         {
           "path": "docs/project-owner-map.json",
@@ -53,12 +53,12 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 5778
+          "sizeBytes": 5815
         },
         {
           "path": "docs/README.md",
           "exists": true,
-          "sizeBytes": 4391
+          "sizeBytes": 4423
         },
         {
           "path": "docs/harness.md",
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-09-02-chickenbro-simc-identity-data/evidence.json",
-    "sizeBytes": 13621,
+    "sizeBytes": 13718,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -417,7 +417,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "12 changed files currently visible to git status."
+      "detail": "9 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
@@ -453,20 +453,17 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 12,
+      "changedFileCount": 9,
       "changedFiles": [
         " M README.md",
         " M artifacts/releases/2026-09-02-chickenbro-simc-identity-data/evidence.json",
-        " M artifacts/releases/2026-09-02-chickenbro-simc-identity-data/manifest.json",
         " M docs/README.md",
         " M docs/chickenbro-simc-production-runbook.md",
         " M docs/project-state.json",
-        " M docs/refactor/chickenbro-simc-capacity-cleanup-manifest.json",
+        " M docs/refactor/chickenbro-simc-recovery-inventory.json",
         " M docs/roadmap.md",
-        " M tests/chickenbro_simc_capacity_cleanup_manifest_test.py",
-        " M tests/project-state.test.js",
-        "?? docs/refactor/chickenbro-simc-recovery-inventory.json",
-        "?? tests/chickenbro_simc_recovery_inventory_test.py"
+        " M tests/chickenbro_simc_recovery_inventory_test.py",
+        " M tests/project-state.test.js"
       ]
     }
   },

@@ -19,6 +19,7 @@
 | `wow-*` unit 数量 | 32 |
 | 容量门禁 | `blocked_until_independent_legacy_cleanup_or_storage_expansion` |
 | provider snapshot | 仅 1 个，创建于 2026-03-17；早于当前数据且 restore 未运行 |
+| 广州地域待挂载云硬盘 | 0 |
 | 独立挂载/对象存储备份客户端 | 均未发现 |
 
 这些数字只说明盘点时刻的资源状态。执行任何写入前必须刷新；旧 provider snapshot、HTTP 200 或单个服务 active 不能解锁后续步骤。

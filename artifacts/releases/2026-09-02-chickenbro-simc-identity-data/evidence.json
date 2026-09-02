@@ -123,9 +123,9 @@
     {
       "type": "cloud_recovery_channel_inventory",
       "status": "blocked",
-      "observedAt": "2026-09-02T16:49:55Z",
+      "observedAt": "2026-09-02T16:55:57Z",
       "snapshot": "docs/refactor/chickenbro-simc-recovery-inventory.json",
-      "detail": "The Tencent Cloud console exposes one normal system-disk snapshot from 2026-03-17, but it predates the current database inventory and has no restore verification. The server has no independent mount, configured object-storage client or enabled pg_basebackup instance; the packaged pg_basebackup template targets /var/backups on the same device as PostgreSQL. No snapshot or backup was created."
+      "detail": "The Tencent Cloud console exposes one normal system-disk snapshot from 2026-03-17, but it predates the current database inventory and has no restore verification. The Guangzhou cloud-disk inventory has 135 visible disks and zero in the unattached state. The server has no independent mount, configured object-storage client or enabled pg_basebackup instance; the packaged pg_basebackup template targets /var/backups on the same device as PostgreSQL. No snapshot, disk or backup was created."
     },
     {
       "type": "capacity_cleanup_manifest",

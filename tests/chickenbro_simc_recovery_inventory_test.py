@@ -28,6 +28,12 @@ class ChickenbroSimcRecoveryInventoryTest(unittest.TestCase):
         self.assertEqual(snapshot["containsCurrentDatabaseState"], "unproven")
         self.assertFalse(snapshot["usableForCurrentCleanup"])
 
+        cloud_disks = inventory["providerCloudDisks"]
+        self.assertEqual(cloud_disks["observedRegion"], "广州")
+        self.assertEqual(cloud_disks["visibleCount"], 135)
+        self.assertEqual(cloud_disks["unattachedCount"], 0)
+        self.assertFalse(cloud_disks["reusableIndependentDiskPresent"])
+
         channels = inventory["serverBackupChannels"]
         self.assertFalse(channels["independentMountPresent"])
         self.assertFalse(channels["objectStorageClientConfigured"])

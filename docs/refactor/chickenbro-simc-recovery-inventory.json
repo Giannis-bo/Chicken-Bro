@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "read_only_insufficient_for_cleanup_or_candidate",
-  "observedAt": "2026-09-02T16:49:55Z",
+  "observedAt": "2026-09-02T16:55:57Z",
   "source": {
     "kind": "tencent_cloud_console_and_server_read_only_probe",
     "instanceId": "lhins-dr6tkl63",
@@ -25,6 +25,13 @@
         "reason": "The snapshot predates the current PostgreSQL inventory and no restore identity or restored database verification exists."
       }
     ]
+  },
+  "providerCloudDisks": {
+    "observedRegion": "广州",
+    "visibleCount": 135,
+    "unattachedFilter": "DiskState=UNATTACHED",
+    "unattachedCount": 0,
+    "reusableIndependentDiskPresent": false
   },
   "serverBackupChannels": {
     "independentMountPresent": false,
@@ -57,6 +64,6 @@
     "successfulRestoreIdentity": false,
     "candidateDatabaseProvisioningAuthorized": false,
     "legacyDatabaseDeletionAuthorized": false,
-    "nextDecision": "Create and verify a fresh independent recovery target, or attach a separate data disk; the existing stale snapshot and same-device backup path do not satisfy the Phase 2 apply contract."
+    "nextDecision": "Create and verify a fresh independent recovery target, or create and attach a separate data disk; the existing stale snapshot, zero unattached cloud-disk inventory and same-device backup path do not satisfy the Phase 2 apply contract."
   }
 }
