@@ -2,8 +2,8 @@
   "schemaVersion": 2,
   "slug": "chickenbro-web-prototype",
   "requirementSlug": "chickenbro-web-prototype",
-  "status": "implementation_allowed",
-  "highestEvidenceLevel": "implementation_allowed",
+  "status": "archived",
+  "highestEvidenceLevel": "archived",
   "deliveryState": {
     "local": "local_verified",
     "candidate": "candidate_verified",
@@ -11,68 +11,72 @@
     "prototypeApi": "public_smoke_verified",
     "nativeCodexRuntime": "candidate_verified_public_smoke",
     "simcSemanticResult": "candidate_verified_semantic_smoke",
-    "manualAcceptance": "pending",
-    "closure": "pending_user_acceptance_and_clean_head"
+    "manualAcceptance": "complete",
+    "closure": "merged_main_and_origin_parity"
   },
-  "branch": "codex/chickenbro-simc-web",
-  "commit": "pending_task_branch_head",
+  "branch": "main",
+  "commit": "4865b0bf2854b2ddab11851210f0d42c42a818e2",
   "identities": {
     "runtime": {
       "status": "bound",
       "kind": "build_identity",
       "value": "chickenbro-source-api-20260902-03",
-      "reason": "The deployed final candidate release binds the isolated public runtime after adding server-configured WCL/Raider.IO source API tools, a v2-owned WCL OAuth/GraphQL reader, short-lived gateway capability isolation, native Codex tool observations, bounded research instructions, aligned 180-second client/server timeout with 210-second Nginx read allowance, current Raider.IO field normalization, explicit prototype max-level policy, display-realm normalization, optional unequipped offhand handling, explicit blocker copy and the verified shaman:elemental runtime capability; the source commit remains pending until the task branch is accepted and committed."
+      "reason": "The deployed final candidate release binds the isolated public runtime after adding server-configured WCL/Raider.IO source API tools, a v2-owned WCL OAuth/GraphQL reader, short-lived gateway capability isolation, native Codex tool observations, bounded research instructions, aligned 180-second client/server timeout with 210-second Nginx read allowance, current Raider.IO field normalization, explicit prototype max-level policy, display-realm normalization, optional unequipped offhand handling, explicit blocker copy and the verified shaman:elemental runtime capability; the accepted source is now preserved at merged main commit 4865b0bf2854b2ddab11851210f0d42c42a818e2, with no production cutover claimed."
     },
     "verification": {
-      "status": "pending",
-      "reason": "Local verification is fresh, but the task worktree intentionally remains dirty while waiting for explicit post-test user acceptance; Harness HEAD binding will be refreshed before commit."
+      "status": "bound_at_check",
+      "kind": "git_ref",
+      "value": "HEAD",
+      "reason": "The final full Harness verification ran on the clean merged candidate at 4865b0bf2854b2ddab11851210f0d42c42a818e2 before the identical commit was pushed to main and origin/main."
     },
     "closure": {
-      "status": "pending",
-      "reason": "Merge, origin/main parity and archive closure have not occurred."
+      "status": "bound",
+      "kind": "merge_commit",
+      "value": "4865b0bf2854b2ddab11851210f0d42c42a818e2",
+      "reason": "The accepted Prototype candidate was merged, pushed to main, and verified at local/origin parity."
     }
   },
   "manualAcceptance": {
     "required": true,
-    "status": "pending",
-    "reason": "Automated shell/safety, native Codex and browser-visible smoke checks passed, but the user has not yet accepted the live prototype flow after testing.",
+    "status": "complete",
+    "reason": "The user explicitly replied on 2026-09-02: “没问题，已测试通过。” This confirms the five Prototype acceptance items listed below.",
     "items": [
       {
         "id": "web_prototype_shell",
-        "status": "pending",
+        "status": "accepted",
         "scope": "https://www.chickenbro.cloud first viewport",
-        "evidence": "In-app browser saw the prototype banner, bypass explanation, reset action, secondary formal-login action, chat/source composers, and after a downward scroll the chat textbox and send button remained visible."
+        "evidence": "The user explicitly confirmed on 2026-09-02 that the Prototype acceptance checklist passed; this item covers the https://www.chickenbro.cloud first viewport and visible Web shell controls."
       },
       {
         "id": "prototype_session_reset",
-        "status": "pending",
+        "status": "accepted",
         "scope": "Reset demo session and verify old capability is not reused",
-        "evidence": "Reset control is visible; no browser reset click was performed because it revokes a remote prototype session and needs user acceptance at action time."
+        "evidence": "The user explicitly confirmed on 2026-09-02 that the Prototype acceptance checklist passed; this item covers reset and capability invalidation behavior."
       },
       {
         "id": "codex_chat_stream",
-        "status": "pending",
+        "status": "accepted",
         "scope": "Native Codex conversation and explicit failure recovery",
-        "evidence": "Native Codex-only stream, persistence and failure contracts pass locally; the prompt now bounds public research, the client/server/Nginx timeout boundaries are aligned, the candidate waits for turn completion instead of treating intermediate commentary as the final answer, and the final public SSE smoke completed with a non-empty answer in 21.8 seconds. Browser/user acceptance remains pending."
+        "evidence": "The user explicitly confirmed on 2026-09-02 that the Prototype acceptance checklist passed; this item covers native Codex streaming and explicit failure recovery."
       },
       {
         "id": "character_snapshot_simc",
-        "status": "pending",
+        "status": "accepted",
         "scope": "Real Raider.IO/WCL source, readiness blocker and SimC result boundary",
-        "evidence": "The original localized Raider.IO URL was accepted live as RAIDERIO and resolved to Giannis · elemental · Silver Hand; current API fields are normalized and the Web prototype applies effective level 90 with levelSource prototype_max_level. Readiness is READY_FOR_SIMC, a real Patchwerk SimC job succeeded with semantic DPS and runtime/compiler provenance, and the left chat now separately queries server-configured WCL/Raider.IO APIs; user acceptance remains pending."
+        "evidence": "The user explicitly confirmed on 2026-09-02 that the Prototype acceptance checklist passed; this item covers source-backed CharacterSnapshot readiness, SimC result boundaries and blocked states."
       },
       {
         "id": "legacy_boundary",
-        "status": "pending",
+        "status": "accepted",
         "scope": "Legacy API, health, 14-route ownership and Active Manifest boundary",
-        "evidence": "Independent legacy health and data-health checks passed at the transport level; user acceptance of the unchanged legacy surface is pending."
+        "evidence": "The user explicitly confirmed on 2026-09-02 that the Prototype acceptance checklist passed; this item covers the unchanged legacy API, health, 14-route ownership and Active Manifest boundary."
       }
     ],
     "rollup": {
       "total": 5,
-      "accepted": 0,
+      "accepted": 5,
       "notRunUserWaived": 0,
-      "pending": 5
+      "pending": 0
     }
   },
   "scope": [
