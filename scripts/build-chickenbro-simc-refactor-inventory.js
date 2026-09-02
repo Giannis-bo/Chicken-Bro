@@ -240,19 +240,29 @@ function main(argv = process.argv.slice(2)) {
   const repositoryRoot = execFileSync('git', ['rev-parse', '--show-toplevel'], {
     encoding: 'utf8',
   }).trim()
+  const args = parseArguments(argv)
+  const rulesPath = path.resolve(repositoryRoot, args.rules)
+  const outputPath = path.resolve(repositoryRoot, args.output)
+  const outputRelativePath = normalizeRepositoryPath(
+    path.relative(repositoryRoot, outputPath).split(path.sep).join('/'),
+    'output path',
+  )
   const trackedStatus = execFileSync(
     'git',
-    ['status', '--porcelain', '--untracked-files=no'],
+    [
+      'status',
+      '--porcelain',
+      '--untracked-files=no',
+      '--',
+      '.',
+      `:(exclude)${outputRelativePath}`,
+    ],
     { cwd: repositoryRoot, encoding: 'utf8' },
   ).trim()
   if (trackedStatus) {
     throw new Error('tracked worktree must be clean before generating the commit-bound inventory')
   }
 
-  const args = parseArguments(argv)
-  const rulesPath = path.resolve(repositoryRoot, args.rules)
-  const outputPath = path.resolve(repositoryRoot, args.output)
-  const outputRelativePath = path.relative(repositoryRoot, outputPath).split(path.sep).join('/')
   const rules = loadRules(rulesPath)
   const commit = execFileSync('git', ['rev-parse', 'HEAD'], {
     cwd: repositoryRoot,

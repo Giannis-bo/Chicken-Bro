@@ -135,13 +135,31 @@ function extractReferenceCandidates(sourcePath, text) {
   const candidates = new Set()
   const quoted = /["'`]([^"'`\r\n]{1,512})["'`]/g
   const markdown = /\]\(([^)\s]+)(?:\s+["'][^"']*["'])?\)/g
+  const moduleSpecifier = /(?:\bfrom\s+|\brequire\s*\(\s*|\bimport\s*\(\s*|\bimport\s+|\bexport[^;\r\n]*?\sfrom\s+)["'`]([^"'`\r\n]{1,512})["'`]/g
   const pythonImport = /\b(?:from|import)\s+([A-Za-z_][A-Za-z0-9_.]*)/g
-  for (const expression of [quoted, markdown]) {
+  const addMatches = (expression) => {
     let match
     while ((match = expression.exec(text)) !== null) {
       for (const candidate of normalizeReference(sourcePath, match[1])) candidates.add(candidate)
     }
   }
+  const lowerPath = sourcePath.toLowerCase()
+  const extension = path.posix.extname(lowerPath)
+  const isTestSource = /(?:^|\/)[^/]+\.(?:test|spec)\.[^.]+$/.test(lowerPath)
+  const isConfigSource = /(?:^|\/)[^/]*(?:config|manifest|registry|owner-map|project-state)[^/]*\.(?:js|cjs|mjs|ts|tsx|json)$/.test(lowerPath)
+
+  if (extension === '.md') {
+    addMatches(markdown)
+    return candidates
+  }
+
+  addMatches(moduleSpecifier)
+  if (extension === '.json' || isConfigSource || (!isTestSource && [
+    '.html', '.sh', '.service', '.timer', '.nginx', '.toml', '.yaml', '.yml',
+  ].includes(extension))) {
+    addMatches(quoted)
+  }
+
   let match
   while ((match = pythonImport.exec(text)) !== null) {
     const modulePath = match[1].replaceAll('.', '/')
@@ -154,13 +172,14 @@ function extractReferenceCandidates(sourcePath, text) {
 function findRetainedCallers(deletePaths, retainedEntries, repository) {
   const callers = new Map([...deletePaths].map((target) => [target, new Set()]))
   for (const entry of retainedEntries) {
+    if (entry.matchedRule === 'rebuild-inventory-owner') continue
     if (!repository.isRegularFile(entry.path)) continue
     const bytes = repository.readFile(entry.path)
     if (!isText(bytes)) continue
     const text = bytes.toString('utf8')
     const candidates = extractReferenceCandidates(entry.path, text)
-    for (const target of deletePaths) {
-      if (text.includes(target) || candidates.has(target)) callers.get(target).add(entry.path)
+    for (const target of candidates) {
+      if (deletePaths.has(target)) callers.get(target).add(entry.path)
     }
   }
   return callers

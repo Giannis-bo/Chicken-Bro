@@ -3,7 +3,7 @@ const fs = require('node:fs')
 const os = require('node:os')
 const path = require('node:path')
 const test = require('node:test')
-const { execFileSync } = require('node:child_process')
+const { execFileSync, spawnSync } = require('node:child_process')
 
 const {
   buildInventory,
@@ -16,6 +16,7 @@ const {
 const repositoryRoot = path.resolve(__dirname, '..')
 const rulesPath = path.join(repositoryRoot, 'docs/refactor/chickenbro-simc-disposition-rules.json')
 const generatedInventoryPath = 'docs/refactor/chickenbro-simc-refactor-inventory.json'
+const builderPath = path.join(repositoryRoot, 'scripts/build-chickenbro-simc-refactor-inventory.js')
 
 test('target owners are kept while prototype and legacy product surfaces are retired', () => {
   const rules = loadRules(rulesPath)
@@ -139,4 +140,50 @@ test('every current repository path is classified and the inventory excludes onl
     .filter(({ result }) => result.disposition === 'review')
 
   assert.deepEqual(unresolved, [])
+})
+
+test('CLI may replace only its output file while rejecting every other tracked change', (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'chickenbro-simc-inventory-cli-'))
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }))
+  fs.mkdirSync(path.join(root, 'known'), { recursive: true })
+  fs.writeFileSync(path.join(root, 'known/a.txt'), 'alpha\n')
+  fs.writeFileSync(path.join(root, 'inventory.json'), '{}\n')
+  fs.writeFileSync(path.join(root, 'rules.json'), `${JSON.stringify({
+    schemaVersion: 1,
+    rules: [{
+      id: 'fixture',
+      disposition: 'keep',
+      category: 'fixture',
+      owner: 'test',
+      reason: 'Fixture files.',
+      paths: ['rules.json'],
+      prefixes: ['known/'],
+    }],
+  })}\n`)
+  execFileSync('git', ['init', '-q'], { cwd: root })
+  execFileSync('git', ['config', 'user.name', 'Inventory Test'], { cwd: root })
+  execFileSync('git', ['config', 'user.email', 'inventory@example.invalid'], { cwd: root })
+  execFileSync('git', ['add', '.'], { cwd: root })
+  execFileSync('git', ['commit', '-qm', 'fixture'], { cwd: root })
+
+  fs.writeFileSync(path.join(root, 'inventory.json'), '{"stale":true}\n')
+  const outputOnly = spawnSync(process.execPath, [
+    builderPath,
+    '--rules',
+    'rules.json',
+    '--output',
+    'inventory.json',
+  ], { cwd: root, encoding: 'utf8' })
+  assert.equal(outputOnly.status, 0, outputOnly.stderr)
+
+  fs.writeFileSync(path.join(root, 'known/a.txt'), 'changed\n')
+  const codeDrift = spawnSync(process.execPath, [
+    builderPath,
+    '--rules',
+    'rules.json',
+    '--output',
+    'inventory.json',
+  ], { cwd: root, encoding: 'utf8' })
+  assert.notEqual(codeDrift.status, 0)
+  assert.match(codeDrift.stderr, /tracked worktree must be clean/i)
 })

@@ -167,6 +167,40 @@ test('references from another exact delete target do not block an atomic cleanup
   ])
 })
 
+test('plain prose and cleanup-control fixtures are not treated as runtime callers', () => {
+  const { verifyCleanup } = loadCleanup()
+  const entries = [
+    entry('server/legacy.py', 'delete', 'old\n'),
+    {
+      ...entry('docs/notes.md', 'keep', 'Retired server/legacy.py after cutover.\n'),
+      matchedRule: 'current-docs',
+    },
+    {
+      ...entry(
+        'tests/cleanup-policy.test.js',
+        'keep',
+        "assert.equal(validateTarget('server/legacy.py'), 'server/legacy.py')\n",
+        'current-control-plane',
+      ),
+      matchedRule: 'rebuild-inventory-owner',
+    },
+  ]
+  const result = verifyCleanup(
+    inventoryFor(entries),
+    memoryRepository(Object.fromEntries(entries.map((item) => [
+      item.path,
+      item.path === 'server/legacy.py'
+        ? 'old\n'
+        : item.path === 'docs/notes.md'
+          ? 'Retired server/legacy.py after cutover.\n'
+          : "assert.equal(validateTarget('server/legacy.py'), 'server/legacy.py')\n",
+    ]))),
+  )
+
+  assert.deepEqual(result.blocked, [])
+  assert.deepEqual(result.deletable.map((item) => item.path), ['server/legacy.py'])
+})
+
 test('unclassified tracked files and inventory identity drift are review blockers', () => {
   const { verifyCleanup } = loadCleanup()
   const keep = entry('README.md', 'keep', 'current\n')
