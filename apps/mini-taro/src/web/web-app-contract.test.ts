@@ -62,6 +62,12 @@ describe('Chickenbro Web shell contract', () => {
     expect(webSource).not.toContain('browserVerifier=')
   })
 
+  it('pins the H5 QR image content to the full QR frame', () => {
+    const webStyle = read('apps/mini-taro/src/web/WebApp.module.scss')
+
+    expect(webStyle).toMatch(/\.qrImage\s*>\s*img\s*\{[\s\S]*position:\s*absolute[\s\S]*top:\s*0[\s\S]*right:\s*0[\s\S]*bottom:\s*0[\s\S]*left:\s*0[\s\S]*object-fit:\s*contain/u)
+  })
+
   it('uses the independent /api H5 development proxy while retaining /wow-api', () => {
     const configSource = read('apps/mini-taro/config/index.ts')
     expect(configSource).toContain("'/api'")
