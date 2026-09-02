@@ -1,18 +1,18 @@
 {
   "schemaVersion": 1,
-  "generatedFromCommit": "339cca06fd1bd442dabe4c2ae0f87c72d9e7ecef",
+  "generatedFromCommit": "5b654ce067fd206c8c66eeed140d7a980ef9d396",
   "excludedSelfPath": "docs/refactor/chickenbro-simc-refactor-inventory.json",
   "sourceRulesSha256": "db56cd143abf01d31e0f6f54b44a985a73394834308e56a2c6150bd43e5f18ff",
-  "entryCount": 2850,
+  "entryCount": 2853,
   "unresolvedCount": 0,
   "dispositionCounts": {
     "delete": 2588,
-    "keep": 262
+    "keep": 265
   },
   "categoryCounts": {
     "current-control-plane": 21,
     "current-documentation": 12,
-    "current-release-evidence": 9,
+    "current-release-evidence": 12,
     "historical-evidence": 1051,
     "legacy-client-code": 308,
     "legacy-database-code": 42,
@@ -12037,6 +12037,36 @@
       "sha256": "79c6bacc4fd0d9715c959c27e32ae2e4e6cf9ada54f8242de8685b52907b5b5f"
     },
     {
+      "path": "artifacts/releases/2026-09-02-chickenbro-simc-legacy-retirement/evidence.json",
+      "disposition": "keep",
+      "category": "current-release-evidence",
+      "owner": "Harness release packet",
+      "reason": "Evidence and requirements for the currently executing rebuild.",
+      "matchedRule": "current-rebuild-release-packet",
+      "bytes": 7449,
+      "sha256": "a0701b3377a19f3b6a25f4755f2684d54f761feab3f8e24823e1a982d274be1e"
+    },
+    {
+      "path": "artifacts/releases/2026-09-02-chickenbro-simc-legacy-retirement/manifest.json",
+      "disposition": "keep",
+      "category": "current-release-evidence",
+      "owner": "Harness release packet",
+      "reason": "Evidence and requirements for the currently executing rebuild.",
+      "matchedRule": "current-rebuild-release-packet",
+      "bytes": 14047,
+      "sha256": "25e067a5ab8068ba3aba749aa9f9a0e9636bf9a5ef0ef2e2d49e32918b8336d1"
+    },
+    {
+      "path": "artifacts/releases/2026-09-02-chickenbro-simc-legacy-retirement/requirement.json",
+      "disposition": "keep",
+      "category": "current-release-evidence",
+      "owner": "Harness release packet",
+      "reason": "Evidence and requirements for the currently executing rebuild.",
+      "matchedRule": "current-rebuild-release-packet",
+      "bytes": 7543,
+      "sha256": "00159bad17967a1fba9640024f86dd9e82cf9a4b728da27eea07d4d46ee1cdbf"
+    },
+    {
       "path": "artifacts/ui-runtime-reviews/.gitkeep",
       "disposition": "delete",
       "category": "historical-evidence",
@@ -14743,8 +14773,8 @@
       "owner": "Harness and rebuild roadmap",
       "reason": "Current approved product direction, executable phase plans, and machine-readable state.",
       "matchedRule": "rebuild-control-plane",
-      "bytes": 1565,
-      "sha256": "562e15afb8298f8e34029d21a82afc3f7d0f247981c932b1b5b446c7267b1fe5"
+      "bytes": 1581,
+      "sha256": "a33bd4355cf4b3548a84251bca864e052098e49e632e63c7efe639647d2505f3"
     },
     {
       "path": "docs/plans/builds-home-command-deck.md",
@@ -14793,8 +14823,8 @@
       "owner": "Harness and rebuild roadmap",
       "reason": "Current approved product direction, executable phase plans, and machine-readable state.",
       "matchedRule": "rebuild-control-plane",
-      "bytes": 3676,
-      "sha256": "5f1e4bdf5ef8b0c3a22dd893cc81a88814b343ffcd04e352ced37d841020af71"
+      "bytes": 3979,
+      "sha256": "e939ec42867952eb439df28a230a0a021bcc6ff73ec1edfe393b13781e40e6fe"
     },
     {
       "path": "docs/refactor/chickenbro-simc-capacity-cleanup-manifest.json",
@@ -14873,8 +14903,8 @@
       "owner": "Harness and rebuild roadmap",
       "reason": "Current approved product direction, executable phase plans, and machine-readable state.",
       "matchedRule": "rebuild-control-plane",
-      "bytes": 2220,
-      "sha256": "45f1350fab91f948a82f97e4e86432847ad7b737ff380b08dc730c7997e4705e"
+      "bytes": 2307,
+      "sha256": "16e73df130c534ea66b9f2aa718e9a4af91a948788f8e64bae547163e6e486bb"
     },
     {
       "path": "docs/roadmap/ideas.md",
@@ -15113,8 +15143,8 @@
       "owner": "Chickenbro Chat and SimC product",
       "reason": "These are the bounded architecture, operations, ownership, verification, and cleanup authorities for the rebuilt product.",
       "matchedRule": "retained-product-documentation",
-      "bytes": 4518,
-      "sha256": "cd9447cb33beda4dac79bc2910921fdf4bcd4b0ffd41bb0d6863c6cbd126078e"
+      "bytes": 4564,
+      "sha256": "c7d58c80e6e717af1b86c4f65910e28abec132007fd5079e0163788523e29069"
     },
     {
       "path": "eslint.config.mjs",
@@ -27683,8 +27713,8 @@
       "owner": "Chat and SimC verification suite",
       "reason": "These tests cover the retained backend, clients, clean migration, build, candidate, cutover, cleanup, and control-plane contracts.",
       "matchedRule": "retained-target-tests",
-      "bytes": 4896,
-      "sha256": "1f73340a65bf66ee246bad39cfb550d4da47621ba7ce369ea95cb7741416a238"
+      "bytes": 5233,
+      "sha256": "a8ced7dcea5a5d08111bbddf875db4e2d9ec1dd78b4c67b99b6d13ae7494b14c"
     },
     {
       "path": "tests/promote-ui-asset-slot-review.test.js",
@@ -28537,5 +28567,5 @@
       "sha256": "4736cc276f788e5427d17e51499c110336106bb64db4c827e2d576629d8f281f"
     }
   ],
-  "inventorySha256": "6eeffb152cdeab747124dfa1a4ae33f4e24ab4c5bdf7b26dce116d8c19b292ae"
+  "inventorySha256": "cb51b6283e6297ef30967cfad7e366a1dee47403c66bea5eecbff80b9283e43f"
 }
