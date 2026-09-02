@@ -45,8 +45,8 @@ test('project-state is the single machine-readable current truth entry', () => {
 
   assert.equal(state.schemaVersion, 1)
   assert.equal(state.updatedAt, '2026-09-02')
-  assert.equal(state.activeMilestone, 'chickenbro_simc_total_rebuild')
-  assert.equal(state.featureIteration, 'design_approved_written_spec_review_pending')
+  assert.equal(state.activeMilestone, 'chickenbro_simc_total_rebuild_phase_1')
+  assert.equal(state.featureIteration, 'implementation_authorized_phase_1_in_progress')
   assert.equal(state.activeReleaseArtifact, undefined)
   assert.equal(state.defaultLocalReleaseArtifact, observedBuildRegistryRelease)
   assert.deepEqual(state.releaseResolution, {
@@ -60,9 +60,14 @@ test('project-state is the single machine-readable current truth entry', () => {
   assert.deepEqual(state.targetProduct.businessDomains, ['chickenbro_chat', 'simc'])
   assert.deepEqual(state.targetProduct.clients, ['wechat_mini_program', 'web'])
   assert.equal(state.targetProduct.identityOwner, 'identity.users.id')
-  assert.equal(state.targetProduct.implementationAuthorized, false)
-  assert.equal(state.targetProduct.productionCutoverAuthorized, false)
-  assert.equal(state.targetProduct.destructiveCleanupAuthorized, false)
+  assert.equal(state.targetProduct.implementationAuthorized, true)
+  assert.equal(state.targetProduct.productionCutoverAuthorized, true)
+  assert.equal(state.targetProduct.destructiveCleanupAuthorized, true)
+  assert.equal(state.targetProduct.currentMutationGate, 'phase_1_read_only_control_plane_only')
+  assert.equal(state.targetProduct.productionCutoverReady, false)
+  assert.equal(state.targetProduct.destructiveCleanupReady, false)
+  assert.equal(state.targetProduct.implementationPlans.length, 6)
+  for (const plan of state.targetProduct.implementationPlans) assertPathExists(plan)
   assert.equal(state.refactorInventory.currentRuntimeDatabase, 'wow_test')
   assert.equal(state.refactorInventory.targetRuntimeDatabase, 'chickenbro_prod')
   assert.equal(state.refactorInventory.rootDiskUsedPercent, 88)
@@ -131,7 +136,7 @@ test('project-state is the single machine-readable current truth entry', () => {
   const legacyTaroRuntime = state.activeContracts.find(
     (entry) => entry.id === 'taro_target_first_14_route_rebuild',
   )
-  assert.equal(totalRebuild?.status, 'design_approved_written_spec_review_pending')
+  assert.equal(totalRebuild?.status, 'implementation_authorized_phase_1_in_progress')
   assert.equal(
     totalRebuild?.path,
     'docs/superpowers/specs/2026-09-02-chickenbro-simc-total-rebuild-design.md',

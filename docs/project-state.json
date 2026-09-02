@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "updatedAt": "2026-09-02",
-  "activeMilestone": "chickenbro_simc_total_rebuild",
-  "featureIteration": "design_approved_written_spec_review_pending",
+  "activeMilestone": "chickenbro_simc_total_rebuild_phase_1",
+  "featureIteration": "implementation_authorized_phase_1_in_progress",
   "targetProduct": {
-    "status": "design_approved_written_spec_review_pending",
+    "status": "implementation_authorized_phase_1_in_progress",
     "businessDomains": [
       "chickenbro_chat",
       "simc"
@@ -16,9 +16,20 @@
     "identityOwner": "identity.users.id",
     "crossClientContract": "Independent Mini Bearer and Web HttpOnly sessions resolve to the same internal user_id; the server owns the shared Chat and SimC history.",
     "design": "docs/superpowers/specs/2026-09-02-chickenbro-simc-total-rebuild-design.md",
-    "implementationAuthorized": false,
-    "productionCutoverAuthorized": false,
-    "destructiveCleanupAuthorized": false
+    "implementationAuthorized": true,
+    "productionCutoverAuthorized": true,
+    "destructiveCleanupAuthorized": true,
+    "currentMutationGate": "phase_1_read_only_control_plane_only",
+    "productionCutoverReady": false,
+    "destructiveCleanupReady": false,
+    "implementationPlans": [
+      "docs/superpowers/plans/2026-09-02-chickenbro-simc-rebuild-01-control-plane.md",
+      "docs/superpowers/plans/2026-09-02-chickenbro-simc-rebuild-02-identity-data.md",
+      "docs/superpowers/plans/2026-09-02-chickenbro-simc-rebuild-03-chat.md",
+      "docs/superpowers/plans/2026-09-02-chickenbro-simc-rebuild-04-simc.md",
+      "docs/superpowers/plans/2026-09-02-chickenbro-simc-rebuild-05-dual-client-migration-cutover.md",
+      "docs/superpowers/plans/2026-09-02-chickenbro-simc-rebuild-06-legacy-retirement.md"
+    ]
   },
   "refactorInventory": {
     "observedAt": "2026-09-02",
@@ -48,9 +59,9 @@
     {
       "id": "chickenbro_simc_total_rebuild",
       "path": "docs/superpowers/specs/2026-09-02-chickenbro-simc-total-rebuild-design.md",
-      "status": "design_approved_written_spec_review_pending",
+      "status": "implementation_authorized_phase_1_in_progress",
       "lifecycle": "active_direction",
-      "notes": "The only current product direction keeps Chickenbro Chat and SimC on WeChat Mini Program and Web, with independent client sessions mapped to one internal user_id. It does not yet authorize implementation, deployment, migration, cutover or destructive cleanup."
+      "notes": "The only current product direction keeps Chickenbro Chat and SimC on WeChat Mini Program and Web, with independent client sessions mapped to one internal user_id. The user authorized end-to-end execution through a persistent Goal; current mutation scope remains Phase 1 read-only control-plane work, while later candidate, cutover and destructive cleanup require their recorded gates."
     },
     {
       "id": "repo_native_harness_v0_6_4",

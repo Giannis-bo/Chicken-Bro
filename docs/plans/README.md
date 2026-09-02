@@ -1,16 +1,22 @@
 # 计划索引
 
-只有“当前方向”表中的条目能够影响下一份实施计划。不要按日期扫描本目录，也不要从目录存在、Git
+只有“当前执行计划”表中的条目拥有顺序执行权。不要按日期扫描本目录，也不要从目录存在、Git
 历史或旧 release packet 恢复已归档阶段。稳定参考只解释现有实现或迁移期回滚边界，不是执行授权。
 
-## 当前方向（尚未授予实施权）
+## 当前执行计划
 
-| 领域 | 状态 | 入口 |
+| 阶段 | 状态 | 入口 |
 | --- | --- | --- |
-| 炸鸡队长与 SimC 双端彻底重构 | 架构方向已由用户确认，书面规格待复核；尚未形成实施计划，不授予代码修改、部署、切流、迁移或删除权 | [当前设计](../superpowers/specs/2026-09-02-chickenbro-simc-total-rebuild-design.md) |
+| 1. 控制面与精确清单 | `正在推进`；只读盘点、文档和本地验证，不改业务运行时或云端状态 | [实施计划](../superpowers/plans/2026-09-02-chickenbro-simc-rebuild-01-control-plane.md) |
+| 2. 干净数据面与 Identity | `下一步`；Phase 1 闭合后执行，candidate 验证先于任何正式 DSN 变化 | [实施计划](../superpowers/plans/2026-09-02-chickenbro-simc-rebuild-02-identity-data.md) |
+| 3. 正式 Chat | `下一步`；Phase 2 身份/数据 owner 通过后执行 | [实施计划](../superpowers/plans/2026-09-02-chickenbro-simc-rebuild-03-chat.md) |
+| 4. 正式 SimC | `下一步`；只使用云端 SimulationCraft，candidate 语义验证先于切流 | [实施计划](../superpowers/plans/2026-09-02-chickenbro-simc-rebuild-04-simc.md) |
+| 5. 双端、迁移与切流 | `下一步`；容量、独立备份、candidate、真实双端验收和写栅栏全部通过后才可 apply | [实施计划](../superpowers/plans/2026-09-02-chickenbro-simc-rebuild-05-dual-client-migration-cutover.md) |
+| 6. Legacy 退役 | `后续`；切流稳定、恢复验证和清理 manifest 无 blocker 后才可精确删除 | [实施计划](../superpowers/plans/2026-09-02-chickenbro-simc-rebuild-06-legacy-retirement.md) |
 
-书面规格复核通过后，才可以依据它编写六个 Strict 子项目的实施计划。用户对架构方向的确认不等于
-授权提前执行代码清理、生产切流、数据库迁移或云端删除。
+用户已确认书面规格并要求以持续 Goal 推进整体完成。该授权覆盖六个阶段，但不绕过阶段依赖：当前只有
+Phase 1 可以执行；后续代码、candidate、切流和删除分别由各自 requirement、容量、备份、回滚、真实验收
+和精确 manifest 解锁，不能提前 apply。
 
 ## 待退役文档索引（全部无当前执行权）
 
@@ -56,7 +62,6 @@
 | 炸鸡队长原生 Agent 运行边界 | 已完成 / 当前架构参考 | [设计](2026-08-04-chickenbro-agentic-research-design.md) · [发布证据](../../artifacts/releases/2026-08-05-chickenbro-native-agent/evidence.json) |
 | Chickenbro Tool Registry Phase 1--2 | 已完成 / 归档证据 | [Phase 1](../../artifacts/releases/2026-08-02-chickenbro-observability-phase1/evidence.json) · [Phase 2](../../artifacts/releases/2026-08-02-chickenbro-tool-registry-phase2/evidence.json) |
 
-此索引必须覆盖保留在 `docs/plans/` 的全部 Markdown 文件。书面规格通过复核后，新的多步骤计划才会取代
-当前方向并逐项登记为“当前执行计划”；标为“待用户明确启动”的条目只拥有计划复核权，不能据此开始实现、联网、发布、切换、
-迁移或删除。完成、停止或被替代后，删除实施文档并把仍有现行价值的规则收敛到 architecture、runbook、
+此索引必须覆盖保留在 `docs/plans/` 的全部 Markdown 文件。当前六份计划按阶段顺序执行；后续阶段在前置
+门禁未闭合时只有计划权，不能据此提前发布、切换、迁移或删除。完成、停止或被替代后，删除实施文档并把仍有现行价值的规则收敛到 architecture、runbook、
 roadmap 或上述稳定参考。Git 历史与 release packet 承担过程归档。
