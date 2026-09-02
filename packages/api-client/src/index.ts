@@ -3,6 +3,17 @@ export type { AnalyticsClock } from './analytics'
 export { AnalyticsEventsClient } from './analytics-events'
 export type { AnalyticsEvent } from './analytics-events'
 export { AuthClient } from './auth'
+export { clientAuthRequest } from './auth-context'
+export type { ClientAuthContext, ClientAuthRequest } from './auth-context'
+export { createChatClient, CHAT_STREAM_TIMEOUT_MS } from './chat'
+export type {
+  ChatClient,
+  ChatCreateRequest,
+  ChatListRequest,
+  ChatMessageRequest as FormalChatMessageRequest,
+  ChatRequestOptions,
+  ChatStreamOptions,
+} from './chat'
 export { createWebAuthClient } from './web-auth'
 export type { WebAuthClient } from './web-auth'
 export { createBuildsClient } from './builds'

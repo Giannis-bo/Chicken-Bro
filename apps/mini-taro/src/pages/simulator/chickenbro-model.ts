@@ -1,4 +1,4 @@
-import type { ChatMessage } from '@wow-mini/domain'
+import type { LegacyChatMessage as ChatMessage } from '@wow-mini/domain'
 
 export type ChickenbroInputState = 'idle' | 'loading' | 'ready' | 'error'
 

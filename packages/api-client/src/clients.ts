@@ -2,6 +2,7 @@ import { AnalyticsEventsClient } from './analytics-events'
 import { AuthClient } from './auth'
 import { createBuildsClient, type BuildsClient } from './builds'
 import { TimedCache } from './cache'
+import { createChatClient, type ChatClient } from './chat'
 import { createNewsClient, type NewsClient } from './news'
 import { SimulatorClient } from './simulator'
 import { taroStorage, type StorageAdapter } from './storage'
@@ -15,6 +16,7 @@ export interface WowApiClients {
   transport: ApiTransport
   news: NewsClient
   builds: BuildsClient
+  chat: ChatClient
   websim: WebsimClient
   simulator: SimulatorClient
   templates: TemplateRepository
@@ -41,6 +43,7 @@ export function createWowApiClients(config: WowApiClientConfig = {}): WowApiClie
     transport,
     news: createNewsClient(transport, storage),
     builds: createBuildsClient(transport),
+    chat: createChatClient(transport),
     websim: createWebsimClient(transport),
     simulator: new SimulatorClient(transport, storage),
     templates: new TemplateRepository(transport, storage),

@@ -332,4 +332,42 @@ describe('Taro transport parity', () => {
       vi.unstubAllGlobals()
     }
   })
+
+  it('includes the formal Web Cookie on SSE only when explicitly requested', async () => {
+    taro.getEnv.mockReturnValue('WEB')
+    vi.stubGlobal('window', { location: { origin: 'https://www.chickenbro.cloud' } })
+    vi.stubGlobal('document', {})
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      body: { getReader: () => ({ read: vi.fn().mockResolvedValue({ done: true }) }) },
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    try {
+      const transport = createTaroTransport({
+        storage: new MemoryStorage(),
+        resolveWebBaseUrl: () => 'https://www.chickenbro.cloud',
+      })
+      const requestSse = transport.requestSse
+      expect(requestSse).toBeTypeOf('function')
+      if (!requestSse) throw new Error('SSE transport must be present')
+
+      requestSse('/api/v2/chat/conversations/id/messages/stream', {
+        method: 'POST',
+        baseUrl: 'web-auth',
+        credentials: 'include',
+        data: { content: 'hello' },
+        onEvent: () => {},
+        onFailure: () => {},
+      })
+      await new Promise((resolve) => setTimeout(resolve, 0))
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        'https://www.chickenbro.cloud/api/v2/chat/conversations/id/messages/stream',
+        expect.objectContaining({ credentials: 'include' }),
+      )
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
 })

@@ -64,6 +64,7 @@ export interface SseStreamRequestOptions<T> {
   header?: Readonly<Record<string, string>>
   timeoutMs?: number
   baseUrl?: RequestBase
+  credentials?: RequestCredentials
   onEvent: (event: T) => void
   onFailure: (error: string) => void
 }
@@ -494,7 +495,7 @@ export function createTaroTransport(config: TransportConfig = {}): ApiTransport 
       const fetchOptions: RequestInit = {
         method: options.method ?? 'POST',
         headers: fetchHeader,
-        credentials: 'omit',
+        credentials: options.credentials ?? 'omit',
         signal: controller.signal,
       }
       if (body !== undefined) fetchOptions.body = body
@@ -543,6 +544,7 @@ export function createTaroTransport(config: TransportConfig = {}): ApiTransport 
       data: options.data,
       header,
       timeout: options.timeoutMs ?? 90000,
+      credentials: options.credentials ?? 'omit',
       enableChunked: true,
       responseType: 'arraybuffer',
     }) as unknown as Promise<{ statusCode: number }> & {

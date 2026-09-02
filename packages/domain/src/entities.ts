@@ -968,7 +968,7 @@ export interface AssistantPayload {
   nextQuestion?: string
 }
 
-export interface ChatMessage {
+export interface LegacyChatMessage {
   messageId?: string
   role: 'user' | 'assistant' | 'system'
   content: string
@@ -991,15 +991,15 @@ export interface ChickenbroSessionListPayload {
 
 export interface ChickenbroSessionDetailPayload {
   session: ChickenbroSessionSummary | null
-  messages: readonly ChatMessage[]
+  messages: readonly LegacyChatMessage[]
 }
 
 export interface ChickenbroResponse {
   mode: 'chickenbro'
   session: { sessionId: string; title?: string }
   job?: { jobId: string; status: string }
-  userMessage: ChatMessage
-  assistantMessage: ChatMessage
+  userMessage: LegacyChatMessage
+  assistantMessage: LegacyChatMessage
 }
 
 export interface SimulatorAnalysisResponse {

@@ -8,7 +8,7 @@ import { ChickenbroComposer, ChickenbroTranscript } from '@wow-mini/design-syste
 import { PageFrame } from '@wow-mini/design-system/components/PageFrame'
 import { RouteRegion } from '@wow-mini/design-system/components/RouteFlow'
 import { RouteStage } from '@wow-mini/design-system/components/RouteStage'
-import { storageKey, type ChatMessage } from '@wow-mini/domain'
+import { storageKey, type LegacyChatMessage as ChatMessage } from '@wow-mini/domain'
 
 import { useTabRootIdentity } from '../../use-tab-root-identity'
 import { navigateTo } from '../_shared/route-runtime'

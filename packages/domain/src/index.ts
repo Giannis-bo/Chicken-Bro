@@ -2,6 +2,21 @@ export {
   fallbackTrust,
   isReadyState,
 } from './models'
+export {
+  isChatEventEnvelope,
+  isConversationDetail,
+  isConversationPage,
+  isConversationSummary,
+} from './chat'
+export type {
+  ChatEventEnvelope,
+  ChatMessage,
+  ChatMessageRole,
+  ConversationDetail,
+  ConversationPage,
+  ConversationStatus,
+  ConversationSummary,
+} from './chat'
 export { isPlatformReadinessEnvelope } from './platform-v2'
 export type {
   ComponentReadiness,
@@ -94,7 +109,7 @@ export type {
   BuildsIntelPayload,
   BuildTemplate,
   BuildTemplateType,
-  ChatMessage,
+  LegacyChatMessage,
   ChickenbroResponse,
   ChickenbroSessionDetailPayload,
   ChickenbroSessionListPayload,

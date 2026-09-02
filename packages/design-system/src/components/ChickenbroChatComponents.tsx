@@ -2,7 +2,10 @@ import Taro from '@tarojs/taro'
 import { ScrollView, Text, Textarea, View } from '@tarojs/components'
 import { useEffect, useState } from 'react'
 
-import type { ChatMessage, ChickenbroSessionSummary } from '@wow-mini/domain'
+import type {
+  ChickenbroSessionSummary,
+  LegacyChatMessage as ChatMessage,
+} from '@wow-mini/domain'
 
 import { ControlButton } from './ControlButton'
 import { SystemGlyph } from './SystemGlyph'

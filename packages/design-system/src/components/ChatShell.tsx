@@ -1,7 +1,7 @@
 import { ScrollView, Text, Textarea, View } from '@tarojs/components'
 import type { ReactNode } from 'react'
 
-import type { ChatMessage, ReadinessState } from '@wow-mini/domain'
+import type { LegacyChatMessage as ChatMessage, ReadinessState } from '@wow-mini/domain'
 
 import { ActionButton } from './ActionButton'
 import { StatusVisual } from './StatusVisual'
