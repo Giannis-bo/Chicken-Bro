@@ -350,7 +350,8 @@ rm -f "${ENV_TMP}"
 install_marked_nginx_locations() {
   local site="$1"
   local snippet_path="$2"
-  python3 - "${site}" "${snippet_path}" <<'PY'
+  local location_role="$3"
+  python3 - "${site}" "${snippet_path}" "${location_role}" <<'PY'
 from pathlib import Path
 import os
 import re
@@ -360,6 +361,7 @@ import tempfile
 
 site = Path(sys.argv[1])
 snippet_path = Path(sys.argv[2])
+location_role = sys.argv[3]
 text = site.read_text(encoding="utf-8")
 snippet = snippet_path.read_text(encoding="utf-8").strip()
 begin = "# BEGIN CHICKENBRO V2 CANDIDATE"
@@ -375,9 +377,15 @@ if begin in text or end in text:
         flags=re.DOTALL,
     )
 else:
-    needle = "    location / {\n        try_files $uri $uri/ /index.html;\n    }"
+    needles = {
+        "www-static": "    location / {\n        try_files $uri $uri/ /index.html;\n    }",
+        "api-proxy": "    location / {\n        proxy_pass http://127.0.0.1:8787;\n        proxy_http_version 1.1;\n        proxy_set_header Host $host;\n        proxy_set_header X-Real-IP $remote_addr;\n        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n        proxy_set_header X-Forwarded-Proto $scheme;\n        proxy_connect_timeout 5s;\n        proxy_read_timeout 60s;\n    }",
+    }
+    if location_role not in needles:
+        raise SystemExit(f"unknown existing nginx location role: {location_role}")
+    needle = needles[location_role]
     if text.count(needle) != 1:
-        raise SystemExit("expected exact existing v2 static location was not found")
+        raise SystemExit(f"expected exact existing {location_role} location was not found")
     text = text.replace(needle, f"{snippet}\n\n{needle}", 1)
 mode = stat.S_IMODE(site.stat().st_mode)
 file_descriptor, temporary_name = tempfile.mkstemp(
@@ -399,8 +407,8 @@ except BaseException:
 PY
 }
 
-install_marked_nginx_locations "${NGINX_SITE}" "${STAGE_DIR}/server/wow-v2-candidate.locations.nginx"
-install_marked_nginx_locations "${API_NGINX_SITE}" "${STAGE_DIR}/server/wow-v2-candidate-api.locations.nginx"
+install_marked_nginx_locations "${NGINX_SITE}" "${STAGE_DIR}/server/wow-v2-candidate.locations.nginx" www-static
+install_marked_nginx_locations "${API_NGINX_SITE}" "${STAGE_DIR}/server/wow-v2-candidate-api.locations.nginx" api-proxy
 
 nginx -t
 systemctl daemon-reload

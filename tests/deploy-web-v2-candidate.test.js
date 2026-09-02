@@ -30,6 +30,8 @@ test('candidate deployment has a separate API service, database and source tree'
   assert.match(script, /install -d -m 0755 "\$\{STAGE_DIR\}"/)
   assert.match(script, /sudo -n -u postgres pg_dump[\s\S]*> "\$\{BACKUP_DIR\}\/candidate-database\.dump"/)
   assert.match(script, /chmod 0600 "\$\{BACKUP_DIR\}\/candidate-database\.dump"/)
+  assert.match(script, /wow-v2-candidate\.locations\.nginx" www-static/)
+  assert.match(script, /wow-v2-candidate-api\.locations\.nginx" api-proxy/)
   assert.ok(
     script.indexOf('backup_complete') < script.indexOf('scp_remote "${PACKAGE_PATH}"'),
     'candidate backup must precede package transfer',
