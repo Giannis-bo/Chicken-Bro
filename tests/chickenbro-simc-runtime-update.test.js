@@ -77,6 +77,8 @@ test('runtime updater preserves old releases and atomically switches the fixed c
   assert.match(source, /flock/)
   assert.match(source, /ln -s/)
   assert.match(source, /mv -Tf/)
+  assert.match(source, /mv -T --no-clobber -- "\$\{staged_release\}" "\$\{release_dir\}"/)
+  assert.match(source, /target release appeared before atomic publication/)
   assert.match(source, /releases\/\$\{TARGET_COMMIT\}/)
 
   assert.doesNotMatch(source, /rm\s+-rf|rm\s+-fr/)
@@ -87,6 +89,30 @@ test('runtime updater preserves old releases and atomically switches the fixed c
   const capacityGate = source.indexOf('available_bytes=')
   const rollbackAdoption = source.indexOf('adopt_current_release "${CURRENT_COMMIT}"')
   assert.ok(capacityGate >= 0 && rollbackAdoption > capacityGate, 'capacity must fail before rollback metadata mutation')
+
+  const adoptionStart = source.indexOf('adopt_current_release()')
+  const adoptionSmoke = source.indexOf('smoke_simc_binary "${current_release}/simc"', adoptionStart)
+  const adoptionMetadata = source.indexOf('write_release_metadata_once "${current_release}/.commit"', adoptionStart)
+  assert.ok(
+    adoptionSmoke > adoptionStart && adoptionMetadata > adoptionSmoke,
+    'the current rollback target must pass semantic smoke before adoption metadata is written',
+  )
+
+  const lockAcquired = source.indexOf('flock -w 30')
+  const alreadyCurrent = source.indexOf('if [[ "${TARGET_COMMIT}" == "${CURRENT_COMMIT}" ]]')
+  assert.ok(lockAcquired >= 0 && alreadyCurrent > lockAcquired, 'already-current validation must run under the update lock')
+  assert.match(source, /verify_release "\$\{current_release\}" "\$\{CURRENT_COMMIT\}"/)
+  assert.match(source, /smoke_simc_binary "\$\{current_release\}\/simc"/)
+  assert.match(source, /for command in[^\n]*mktemp/)
+})
+
+test('runtime updater cleans its exact work directory before reporting success', () => {
+  const source = fs.readFileSync(scriptPath, 'utf8')
+  const finalCleanup = source.lastIndexOf('remove_work_directory')
+  const successPayload = source.indexOf('python3 - "${EXPECTED_CURRENT_COMMIT}"')
+
+  assert.match(source, /if ! remove_work_directory; then\s+exit_code=1/)
+  assert.ok(finalCleanup >= 0 && successPayload > finalCleanup, 'success JSON must follow successful cleanup')
 })
 
 test('manual systemd unit needs an ephemeral reviewed trigger and is never enabled automatically', () => {

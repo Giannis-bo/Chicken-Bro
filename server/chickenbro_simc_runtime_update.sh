@@ -78,20 +78,50 @@ print(json.dumps({
 PY
 }
 
+remove_work_directory() {
+  if [[ -z "${WORK_DIR}" ]]; then
+    return 0
+  fi
+  case "${WORK_DIR}" in
+    "${WORK_ROOT}/update-${TARGET_COMMIT}."*)
+      ;;
+    *)
+      printf 'refusing to remove unexpected work directory: %s\n' "${WORK_DIR}" >&2
+      return 1
+      ;;
+  esac
+  if [[ -L "${WORK_DIR}" ]]; then
+    printf 'refusing to remove symbolic-link work directory: %s\n' "${WORK_DIR}" >&2
+    return 1
+  fi
+  if [[ ! -e "${WORK_DIR}" ]]; then
+    WORK_DIR=""
+    return 0
+  fi
+  if [[ ! -d "${WORK_DIR}" ]]; then
+    printf 'refusing to remove non-directory work path: %s\n' "${WORK_DIR}" >&2
+    return 1
+  fi
+  if ! rm -r -- "${WORK_DIR}"; then
+    printf 'failed to remove exact work directory: %s\n' "${WORK_DIR}" >&2
+    return 1
+  fi
+  WORK_DIR=""
+}
+
 cleanup_work() {
   local exit_code=$?
   trap - EXIT
-  if [[ -n "${WORK_DIR}" && -d "${WORK_DIR}" && ! -L "${WORK_DIR}" ]]; then
-    case "${WORK_DIR}" in
-      "${WORK_ROOT}/update-${TARGET_COMMIT}."*)
-        rm -r -- "${WORK_DIR}" || printf 'failed to remove exact work directory: %s\n' "${WORK_DIR}" >&2
-        ;;
-      *)
-        printf 'refusing to remove unexpected work directory: %s\n' "${WORK_DIR}" >&2
-        ;;
-    esac
+  if ! remove_work_directory; then
+    exit_code=1
   fi
   exit "${exit_code}"
+}
+
+smoke_simc_binary() {
+  local binary="$1"
+  [[ -x "${binary}" ]] || return 1
+  timeout 60 "${binary}" "spell_query=spell.name=Bloodlust" >/dev/null
 }
 
 verify_release() {
@@ -146,6 +176,8 @@ adopt_current_release() {
     || die "current runtime does not resolve to the expected content-addressed release"
   [[ -d "${current_release}" && ! -L "${current_release}" && -x "${current_release}/simc" ]] \
     || die "current content-addressed release is invalid"
+  smoke_simc_binary "${current_release}/simc" \
+    || die "current rollback release failed the semantic smoke test"
   binary_sha="$(sha256_file "${current_release}/simc")"
   if [[ -f "${legacy_archive}" && ! -L "${legacy_archive}" ]] \
     && tar -tzf "${legacy_archive}" >/dev/null 2>&1; then
@@ -237,7 +269,26 @@ fi
 [[ -L "${CURRENT_LINK}" && -x "${CURRENT_LINK}/simc" ]] \
   || die "managed current SimulationCraft runtime is missing or not a symbolic link"
 
+for command in flock sha256sum timeout python3 readlink awk; do
+  command -v "${command}" >/dev/null 2>&1 || die "required command is missing: ${command}"
+done
+
+exec 9>"${LOCK_FILE}"
+flock -w 30 9 || die "another Chickenbro SimC runtime update holds the lock"
+CURRENT_COMMIT="$(read_current_commit)"
+[[ "${CURRENT_COMMIT}" == "${EXPECTED_CURRENT_COMMIT}" ]] \
+  || die "current runtime changed before the update lock was acquired"
+[[ -L "${CURRENT_LINK}" && -x "${CURRENT_LINK}/simc" ]] \
+  || die "managed current SimulationCraft runtime is missing or not a symbolic link"
+
 if [[ "${TARGET_COMMIT}" == "${CURRENT_COMMIT}" ]]; then
+  current_release="$(readlink -f -- "${CURRENT_LINK}")"
+  [[ "${current_release}" == "${RELEASE_ROOT}/${CURRENT_COMMIT}" ]] \
+    || die "already-current runtime is not the expected content-addressed release"
+  verify_release "${current_release}" "${CURRENT_COMMIT}" \
+    || die "already-current release failed identity validation"
+  smoke_simc_binary "${current_release}/simc" \
+    || die "already-current release failed the semantic smoke test"
   python3 - "${CURRENT_COMMIT}" <<'PY'
 import json
 import sys
@@ -253,15 +304,9 @@ PY
   exit 0
 fi
 
-for command in flock curl tar cmake sha256sum timeout python3 readlink df awk find install chmod mv ln rm date stat; do
+for command in curl tar cmake df find install chmod mv ln rm date stat mktemp; do
   command -v "${command}" >/dev/null 2>&1 || die "required command is missing: ${command}"
 done
-
-exec 9>"${LOCK_FILE}"
-flock -w 30 9 || die "another Chickenbro SimC runtime update holds the lock"
-CURRENT_COMMIT="$(read_current_commit)"
-[[ "${CURRENT_COMMIT}" == "${EXPECTED_CURRENT_COMMIT}" ]] \
-  || die "current runtime changed before the update lock was acquired"
 
 release_dir="${RELEASE_ROOT}/${TARGET_COMMIT}"
 if [[ ! -e "${release_dir}" && ! -L "${release_dir}" ]]; then
@@ -276,6 +321,8 @@ adopt_current_release "${CURRENT_COMMIT}"
 if [[ -e "${release_dir}" || -L "${release_dir}" ]]; then
   verify_release "${release_dir}" "${TARGET_COMMIT}" \
     || die "existing target release failed identity validation"
+  smoke_simc_binary "${release_dir}/simc" \
+    || die "existing target release failed the semantic smoke test"
   switch_current_release "${release_dir}" "${EXPECTED_CURRENT_COMMIT}"
   binary_sha="$(sha256_file "${release_dir}/simc")"
   source_archive_sha="$(<"${release_dir}/source-archive.sha256")"
@@ -332,7 +379,8 @@ PY
 
   built_simc="$(find "${build_dir}" -type f -name simc -perm -111 -print -quit)"
   [[ -n "${built_simc}" ]] || die "failed to locate the built SimulationCraft binary"
-  timeout 60 "${built_simc}" "spell_query=spell.name=Bloodlust" >/dev/null
+  smoke_simc_binary "${built_simc}" \
+    || die "newly built SimulationCraft binary failed the semantic smoke test"
 
   install -m 0755 -- "${built_simc}" "${staged_release}/simc"
   binary_sha="$(sha256_file "${staged_release}/simc")"
@@ -343,10 +391,18 @@ PY
   chmod 0644 "${staged_release}/.commit" "${staged_release}/binary.sha256" \
     "${staged_release}/source-archive.sha256" "${staged_release}/built-at"
 
-  mv -- "${staged_release}" "${release_dir}"
+  mv -T --no-clobber -- "${staged_release}" "${release_dir}" \
+    || die "failed to atomically publish the target release"
+  [[ ! -e "${staged_release}" && ! -L "${staged_release}" ]] \
+    || die "target release appeared before atomic publication"
   verify_release "${release_dir}" "${TARGET_COMMIT}" \
     || die "new target release failed identity validation"
   switch_current_release "${release_dir}" "${EXPECTED_CURRENT_COMMIT}"
+fi
+
+if [[ -n "${WORK_DIR}" ]]; then
+  remove_work_directory || die "failed to clean the exact build workspace"
+  trap - EXIT
 fi
 
 python3 - "${EXPECTED_CURRENT_COMMIT}" "${TARGET_COMMIT}" "${binary_sha}" "${source_archive_sha}" <<'PY'
