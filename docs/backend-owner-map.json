@@ -1110,6 +1110,128 @@
           "futureExtractionDirection": "Keep user/session writes in the PostgreSQL repository and provider calls in the WeChat adapter; extract no browser or mini-program identity judgment into frontend code."
         }
       ]
+    },
+    {
+      "path": "server/app/identity/prototype.py",
+      "healthStatus": "strict_local_tdd",
+      "summary": "Owns the reversible Web prototype capability lifecycle and its isolated prototype owner mapping; it never promotes a prototype session into formal Web or mini-program identity.",
+      "owners": [
+        {
+          "id": "web_prototype_identity",
+          "status": "local_implementation_authorized",
+          "factOwner": "server/app/identity/prototype.py",
+          "writeOwner": "server/app/identity/repository.py",
+          "owns": [
+            "server-issued opaque prototype token lifecycle with hash-only persistence",
+            "prototype user/session kind and expiry/revocation boundaries",
+            "owner-scoped prototype request principal construction"
+          ],
+          "mustNotChange": [
+            "Do not reuse formal Web cookies or mini-program bearer tokens for prototype requests.",
+            "Do not accept browser-supplied user IDs or return raw tokens, internal owner IDs or formal identity claims.",
+            "Do not make prototype capability a substitute for formal QR login or change legacy auth routes."
+          ],
+          "characterization": [
+            "tests/app_prototype_identity_domain_test.py",
+            "tests/app_prototype_identity_application_test.py",
+            "tests/app_prototype_identity_repository_test.py",
+            "tests/app_prototype_api_test.py"
+          ],
+          "runtimeConsumers": [
+            "server/app/api/routes/prototype.py",
+            "server/app/api/dependencies.py",
+            "server/app/main.py"
+          ],
+          "deploymentBoundary": {
+            "candidateScript": "server/deploy_web_v2_lighthouse.sh",
+            "migration": "server/migrations/postgres/0040_web_prototype_sessions.sql",
+            "featureFlag": "WOW_WEB_PROTOTYPE_ENABLED"
+          },
+          "futureExtractionDirection": "Keep prototype capability independent until formal account binding and user acceptance are explicitly designed."
+        }
+      ]
+    },
+    {
+      "path": "server/app/chickenbro/application.py",
+      "healthStatus": "strict_local_tdd",
+      "summary": "Owns the prototype Chickenbro conversation lifecycle, owner-scoped persistence and Codex-only stream semantics.",
+      "owners": [
+        {
+          "id": "web_prototype_chickenbro",
+          "status": "local_implementation_authorized",
+          "factOwner": "server/app/chickenbro/application.py",
+          "writeOwner": "server/app/chickenbro/repository.py",
+          "owns": [
+            "owner-bound conversation/message/run lifecycle",
+            "idempotent user message writes and assistant persistence after completed Codex output",
+            "public started/delta/completed/failed stream state"
+          ],
+          "mustNotChange": [
+            "Do not call server/news_backend.py, ordinary LLM fallback, template answer or hidden model fallback.",
+            "Do not expose prompts, raw Codex diagnostics, credentials, owner IDs or cross-owner conversation existence.",
+            "A Codex failure must remain an explicit failed run with no assistant success message."
+          ],
+          "characterization": [
+            "tests/app_chickenbro_domain_test.py",
+            "tests/app_chickenbro_application_test.py",
+            "tests/app_chickenbro_codex_adapter_test.py",
+            "tests/app_chickenbro_owner_isolation_test.py",
+            "tests/app_chickenbro_stream_test.py"
+          ],
+          "runtimeConsumers": [
+            "server/app/api/routes/prototype.py",
+            "server/app/main.py"
+          ],
+          "deploymentBoundary": {
+            "candidateScript": "server/deploy_web_v2_lighthouse.sh",
+            "featureFlag": "WOW_CHICKENBRO_CODEX_ENABLED",
+            "runtime": "native Codex CLI"
+          },
+          "futureExtractionDirection": "Keep the public stream allowlist and persistence owner boundary stable while the Web prototype is evaluated."
+        }
+      ]
+    },
+    {
+      "path": "server/app/simulation/application.py",
+      "healthStatus": "strict_local_tdd",
+      "summary": "Owns the prototype source-link to immutable CharacterSnapshot candidate, readiness and queue submission boundary; it never accepts a client-generated SimC profile.",
+      "owners": [
+        {
+          "id": "web_prototype_simulation",
+          "status": "local_implementation_authorized",
+          "factOwner": "server/app/simulation/application.py",
+          "writeOwner": "server/app/simulation/repository.py",
+          "owns": [
+            "Raider.IO and Warcraft Logs source routing into backend-owned snapshots",
+            "readiness classification from real source provenance, complete fields and runtime capability",
+            "owner-bound idempotent simulation submission carrying snapshot/scenario/hash references only"
+          ],
+          "mustNotChange": [
+            "Do not accept or execute a profile supplied by the browser.",
+            "Do not treat generated/preview/Candidate/HTTP 200/exit code 0 as a semantic SimC success.",
+            "Do not expose raw source payloads, access tokens, private combat data or cross-owner jobs."
+          ],
+          "characterization": [
+            "tests/app_simulation_sources_test.py",
+            "tests/app_simulation_readiness_test.py",
+            "tests/app_simulation_compiler_test.py",
+            "tests/app_simulation_application_test.py",
+            "tests/app_simulation_worker_test.py"
+          ],
+          "runtimeConsumers": [
+            "server/app/api/routes/prototype.py",
+            "server/app/worker/main.py",
+            "server/app/main.py"
+          ],
+          "deploymentBoundary": {
+            "candidateScript": "server/deploy_web_v2_lighthouse.sh",
+            "migration": "server/migrations/postgres/0038_chickenbro_simc_platform_foundation.sql",
+            "runtime": "configured SimulationCraft worker",
+            "workerService": "server/wow-v2-worker.service"
+          },
+          "futureExtractionDirection": "Add live provider credentials and runtime promotion only through a separate evidence packet; local readiness remains fail-closed."
+        }
+      ]
     }
   ]
 }

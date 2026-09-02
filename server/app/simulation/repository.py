@@ -1,0 +1,330 @@
+import json
+from collections.abc import Callable, Mapping
+from datetime import datetime
+from typing import Any
+from uuid import UUID, uuid4
+
+from server.app.simulation.domain import (
+    SimulationJob,
+    SimulationJobStatus,
+    SimulationResult,
+    SourceProvider,
+    SourceReadiness,
+    SourceSnapshot,
+)
+
+
+def _row_value(row: Any, key: str, index: int) -> Any:
+    if isinstance(row, Mapping):
+        return row[key]
+    return row[index]
+
+
+def _json_value(value: object) -> object:
+    if isinstance(value, str):
+        return value
+    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
+class PostgresSimulationRepository:
+    """Owner-scoped persistence for immutable source snapshots and SimC jobs."""
+
+    def __init__(self, connection_factory: Callable[[], Any]):
+        self._connection_factory = connection_factory
+
+    def next_snapshot_revision(
+        self,
+        user_id: UUID,
+        provider: SourceProvider,
+        source_key: str,
+    ) -> int:
+        provider_value = provider.value if isinstance(provider, SourceProvider) else str(provider)
+        with self._connection_factory() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT COALESCE(MAX(revision), 0) + 1
+                    FROM simc.source_snapshots
+                    WHERE user_id = %s AND provider = %s AND source_key = %s
+                    """,
+                    (user_id, provider_value, source_key),
+                )
+                row = cursor.fetchone()
+        return int(row[0] if isinstance(row, (tuple, list)) else row)
+
+    def save_snapshot(self, snapshot: SourceSnapshot) -> None:
+        with self._connection_factory() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    INSERT INTO simc.source_snapshots (
+                        id, user_id, provider, source_url, source_key, revision,
+                        readiness, snapshot_json, provenance_json, raw_sha256, fetched_at
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s::jsonb, %s, %s)
+                    """,
+                    (
+                        snapshot.id,
+                        snapshot.user_id,
+                        snapshot.provider.value,
+                        snapshot.source_url,
+                        snapshot.source_key,
+                        snapshot.revision,
+                        snapshot.readiness.value,
+                        _json_value(snapshot.snapshot),
+                        _json_value(snapshot.provenance),
+                        snapshot.raw_sha256,
+                        snapshot.fetched_at,
+                    ),
+                )
+
+    def get_snapshot(self, user_id: UUID, snapshot_id: UUID) -> SourceSnapshot | None:
+        with self._connection_factory() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT id, user_id, provider, source_url, source_key, revision,
+                           readiness, snapshot_json, provenance_json, raw_sha256, fetched_at
+                    FROM simc.source_snapshots
+                    WHERE user_id = %s AND id = %s
+                    """,
+                    (user_id, snapshot_id),
+                )
+                row = cursor.fetchone()
+        return self._snapshot_from_row(row) if row is not None else None
+
+    def get_snapshot_for_job(self, user_id: UUID, snapshot_id: UUID) -> SourceSnapshot | None:
+        return self.get_snapshot(user_id, snapshot_id)
+
+    def save_job(self, job: SimulationJob) -> None:
+        with self._connection_factory() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    INSERT INTO simc.simulation_jobs (
+                        id, user_id, snapshot_id, scenario_hash, compiler_revision,
+                        runtime_revision, idempotency_key, status, public_error_code,
+                        created_at, updated_at
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    """,
+                    (
+                        job.id,
+                        job.user_id,
+                        job.snapshot_id,
+                        job.scenario_hash,
+                        job.compiler_revision,
+                        job.runtime_revision,
+                        job.idempotency_key,
+                        job.status.value,
+                        job.public_error_code,
+                        job.created_at,
+                        job.updated_at,
+                    ),
+                )
+
+    def get_job_by_idempotency(self, user_id: UUID, idempotency_key: str) -> SimulationJob | None:
+        with self._connection_factory() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT id, user_id, snapshot_id, scenario_hash, compiler_revision,
+                           runtime_revision, idempotency_key, status, public_error_code,
+                           created_at, updated_at
+                    FROM simc.simulation_jobs
+                    WHERE user_id = %s AND idempotency_key = %s
+                    """,
+                    (user_id, idempotency_key),
+                )
+                row = cursor.fetchone()
+        return self._job_from_row(row) if row is not None else None
+
+    def get_job(self, user_id: UUID, job_id: UUID) -> SimulationJob | None:
+        with self._connection_factory() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT id, user_id, snapshot_id, scenario_hash, compiler_revision,
+                           runtime_revision, idempotency_key, status, public_error_code,
+                           created_at, updated_at
+                    FROM simc.simulation_jobs
+                    WHERE user_id = %s AND id = %s
+                    """,
+                    (user_id, job_id),
+                )
+                row = cursor.fetchone()
+        return self._job_from_row(row) if row is not None else None
+
+    def get_job_by_id(self, job_id: UUID) -> SimulationJob | None:
+        with self._connection_factory() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT id, user_id, snapshot_id, scenario_hash, compiler_revision,
+                           runtime_revision, idempotency_key, status, public_error_code,
+                           created_at, updated_at
+                    FROM simc.simulation_jobs
+                    WHERE id = %s
+                    """,
+                    (job_id,),
+                )
+                row = cursor.fetchone()
+        return self._job_from_row(row) if row is not None else None
+
+    def update_job(
+        self,
+        user_id: UUID,
+        job_id: UUID,
+        status: SimulationJobStatus,
+        public_error_code: str = "",
+    ) -> None:
+        status_value = status.value if isinstance(status, SimulationJobStatus) else str(status)
+        with self._connection_factory() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    UPDATE simc.simulation_jobs
+                    SET status = %s, public_error_code = %s, updated_at = now()
+                    WHERE user_id = %s AND id = %s
+                    """,
+                    (status_value, public_error_code[:160], user_id, job_id),
+                )
+
+    def save_result(self, result: SimulationResult) -> None:
+        with self._connection_factory() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    INSERT INTO simc.simulation_results (
+                        id, job_id, user_id, profile_sha256, result_json,
+                        primary_metric_name, primary_metric_value, compiler_revision,
+                        runtime_revision, provenance_json, created_at
+                    ) VALUES (%s, %s, %s, %s, %s::jsonb, %s, %s, %s, %s, %s::jsonb, %s)
+                    """,
+                    (
+                        result.id,
+                        result.job_id,
+                        result.user_id,
+                        result.profile_sha256,
+                        _json_value(result.result),
+                        result.primary_metric_name,
+                        result.primary_metric_value,
+                        result.compiler_revision,
+                        result.runtime_revision,
+                        _json_value({"source": "simc-worker", **dict(result.result.get("provenance", {}))}),
+                        result.created_at,
+                    ),
+                )
+
+    def start_attempt(
+        self,
+        job_id: UUID,
+        user_id: UUID,
+        worker_id: str,
+        attempt_number: int,
+        now: datetime,
+    ) -> UUID:
+        attempt_id = uuid4()
+        with self._connection_factory() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    INSERT INTO simc.simulation_attempts (
+                        id, job_id, user_id, attempt_number, worker_id, started_at
+                    ) VALUES (%s, %s, %s, %s, %s, %s)
+                    """,
+                    (attempt_id, job_id, user_id, attempt_number, worker_id[:64], now),
+                )
+        return attempt_id
+
+    def finish_attempt(
+        self,
+        attempt_id: UUID,
+        *,
+        return_code: int | None,
+        diagnostic: str,
+        finished_at: datetime,
+    ) -> None:
+        with self._connection_factory() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    UPDATE simc.simulation_attempts
+                    SET exit_code = %s, diagnostic = %s, finished_at = %s
+                    WHERE id = %s
+                    """,
+                    (return_code, diagnostic[:4096], finished_at, attempt_id),
+                )
+
+    def get_result(self, user_id: UUID, job_id: UUID) -> SimulationResult | None:
+        with self._connection_factory() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT id, job_id, user_id, profile_sha256, result_json,
+                           primary_metric_name, primary_metric_value, compiler_revision,
+                           runtime_revision, created_at
+                    FROM simc.simulation_results
+                    WHERE user_id = %s AND job_id = %s
+                    """,
+                    (user_id, job_id),
+                )
+                row = cursor.fetchone()
+        return self._result_from_row(row) if row is not None else None
+
+    @staticmethod
+    def _snapshot_from_row(row: Any) -> SourceSnapshot:
+        snapshot_json = _row_value(row, "snapshot_json", 7)
+        provenance_json = _row_value(row, "provenance_json", 8)
+        if isinstance(snapshot_json, str):
+            snapshot_json = json.loads(snapshot_json)
+        if isinstance(provenance_json, str):
+            provenance_json = json.loads(provenance_json)
+        return SourceSnapshot(
+            id=UUID(str(_row_value(row, "id", 0))),
+            user_id=UUID(str(_row_value(row, "user_id", 1))),
+            provider=SourceProvider(str(_row_value(row, "provider", 2))),
+            source_url=str(_row_value(row, "source_url", 3)),
+            source_key=str(_row_value(row, "source_key", 4)),
+            revision=int(_row_value(row, "revision", 5)),
+            readiness=SourceReadiness(str(_row_value(row, "readiness", 6))),
+            snapshot=snapshot_json if isinstance(snapshot_json, Mapping) else {},
+            provenance=provenance_json if isinstance(provenance_json, Mapping) else {},
+            raw_sha256=str(_row_value(row, "raw_sha256", 9)),
+            fetched_at=_row_value(row, "fetched_at", 10),
+        )
+
+    @staticmethod
+    def _job_from_row(row: Any) -> SimulationJob:
+        return SimulationJob(
+            id=UUID(str(_row_value(row, "id", 0))),
+            user_id=UUID(str(_row_value(row, "user_id", 1))),
+            snapshot_id=UUID(str(_row_value(row, "snapshot_id", 2))),
+            scenario_hash=str(_row_value(row, "scenario_hash", 3)),
+            compiler_revision=str(_row_value(row, "compiler_revision", 4)),
+            runtime_revision=str(_row_value(row, "runtime_revision", 5)),
+            idempotency_key=str(_row_value(row, "idempotency_key", 6)),
+            status=SimulationJobStatus(str(_row_value(row, "status", 7))),
+            public_error_code=str(_row_value(row, "public_error_code", 8) or ""),
+            created_at=_row_value(row, "created_at", 9),
+            updated_at=_row_value(row, "updated_at", 10),
+        )
+
+    @staticmethod
+    def _result_from_row(row: Any) -> SimulationResult:
+        result_json = _row_value(row, "result_json", 4)
+        if isinstance(result_json, str):
+            result_json = json.loads(result_json)
+        return SimulationResult(
+            id=UUID(str(_row_value(row, "id", 0))),
+            job_id=UUID(str(_row_value(row, "job_id", 1))),
+            user_id=UUID(str(_row_value(row, "user_id", 2))),
+            profile_sha256=str(_row_value(row, "profile_sha256", 3)),
+            result=result_json if isinstance(result_json, Mapping) else {},
+            primary_metric_name=str(_row_value(row, "primary_metric_name", 5)),
+            primary_metric_value=float(_row_value(row, "primary_metric_value", 6)),
+            compiler_revision=str(_row_value(row, "compiler_revision", 7)),
+            runtime_revision=str(_row_value(row, "runtime_revision", 8)),
+            created_at=_row_value(row, "created_at", 9),
+        )
+
+
+__all__ = ("PostgresSimulationRepository",)

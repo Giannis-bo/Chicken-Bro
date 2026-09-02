@@ -1,7 +1,7 @@
 import { Image, Text, View } from '@tarojs/components'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
-import type { ApiResult, WebAuthClient } from '@wow-mini/api-client'
+import type { ApiResult, PrototypeWebClient, WebAuthClient } from '@wow-mini/api-client'
 import { wowApi } from '@wow-mini/api-client'
 import {
   isMeResponse,
@@ -18,10 +18,12 @@ import {
   type WebAuthState,
   type WebAuthStateEvent,
 } from './web-auth-model'
+import PrototypePanel from './PrototypePanel'
 import styles from './WebApp.module.scss'
 
 export interface WebAppProps {
   authClient?: WebAuthClient
+  prototypeClient?: PrototypeWebClient
 }
 
 const problemCopy: Record<string, string> = {
@@ -76,7 +78,7 @@ function remainingSeconds(expiresAt: string, now: number): number {
   return Math.max(0, Math.ceil((Date.parse(expiresAt) - now) / 1000))
 }
 
-export default function WebApp({ authClient = wowApi.webAuth }: WebAppProps) {
+export default function WebApp({ authClient = wowApi.webAuth, prototypeClient = wowApi.prototype }: WebAppProps) {
   const webAuth = authClient
   const [state, setState] = useState<WebAuthState>(initialWebAuthState)
   const stateRef = useRef(state)
@@ -84,6 +86,7 @@ export default function WebApp({ authClient = wowApi.webAuth }: WebAppProps) {
   const exchangeStartedRef = useRef(false)
   const [account, setAccount] = useState<MeResponse | null>(null)
   const [now, setNow] = useState(() => Date.now())
+  const [formalLoginVisible, setFormalLoginVisible] = useState(false)
 
   stateRef.current = state
 
@@ -105,13 +108,14 @@ export default function WebApp({ authClient = wowApi.webAuth }: WebAppProps) {
   }
 
   useEffect(() => {
+    if (!formalLoginVisible) return
     void loadAccount()
-    // The initial account check is intentionally independent of QR creation.
-    // A 401 is the normal signed-out state; other failures stay visible.
-  }, [webAuth])
+    // Formal auth is opt-in from the prototype; the prototype never probes the
+    // formal HttpOnly Cookie or renders a signed-out account state.
+  }, [formalLoginVisible, webAuth])
 
   useEffect(() => {
-    if (state.phase !== 'pending' && state.phase !== 'confirmed') return undefined
+    if (!formalLoginVisible || state.phase !== 'pending' && state.phase !== 'confirmed') return undefined
     const timer = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(timer)
   }, [state.phase])
@@ -136,10 +140,10 @@ export default function WebApp({ authClient = wowApi.webAuth }: WebAppProps) {
       active = false
       clearInterval(timer)
     }
-  }, [webAuth, state.phase, state.sessionId])
+  }, [formalLoginVisible, webAuth, state.phase, state.sessionId])
 
   useEffect(() => {
-    if (state.phase !== 'confirmed' || !state.sessionId || !verifierRef.current || exchangeStartedRef.current) return
+    if (!formalLoginVisible || state.phase !== 'confirmed' || !state.sessionId || !verifierRef.current || exchangeStartedRef.current) return
     exchangeStartedRef.current = true
     const exchange = async () => {
       const result = await webAuth.exchangeWebLoginSession(state.sessionId, verifierRef.current)
@@ -153,7 +157,7 @@ export default function WebApp({ authClient = wowApi.webAuth }: WebAppProps) {
     }
     void exchange()
     // The session id and client identify this one exchange attempt.
-  }, [webAuth, state.phase, state.sessionId])
+  }, [formalLoginVisible, webAuth, state.phase, state.sessionId])
 
   const remaining = useMemo(() => remainingSeconds(state.expiresAt, now), [now, state.expiresAt])
 
@@ -207,16 +211,34 @@ export default function WebApp({ authClient = wowApi.webAuth }: WebAppProps) {
   const activeQr = phase === 'pending' || phase === 'confirmed'
   const terminalAction = phase === 'expired' || phase === 'cancelled' || phase === 'blocked'
 
+  if (!formalLoginVisible) {
+    return (
+      <PrototypePanel
+        client={prototypeClient}
+        onOpenFormalLogin={() => setFormalLoginVisible(true)}
+      />
+    )
+  }
+
   return (
     <View className={styles['page'] ?? ''} data-auth-phase={phase} data-auth-transport="credentials-include">
       <View className={styles['backdrop'] ?? ''} />
       <View className={styles['shell'] ?? ''}>
-        <View className={styles['brandRow'] ?? ''}>
-          <View className={styles['brandMark'] ?? ''}>CB</View>
-          <View>
-            <Text className={styles['brandName'] ?? ''}>CHICKENBRO</Text>
-            <Text className={styles['brandMeta'] ?? ''}>WEB ACCESS · PRIVATE BUILD DESK</Text>
+        <View className={styles['topbar'] ?? ''}>
+          <View className={styles['brandRow'] ?? ''}>
+            <View className={styles['brandMark'] ?? ''}>CB</View>
+            <View>
+              <Text className={styles['brandName'] ?? ''}>CHICKENBRO</Text>
+              <Text className={styles['brandMeta'] ?? ''}>WEB ACCESS · PRIVATE BUILD DESK</Text>
+            </View>
           </View>
+          <ActionButton
+            className={styles['secondaryAction'] ?? ''}
+            variant="secondaryMetal"
+            onClick={() => setFormalLoginVisible(false)}
+          >
+            返回 Web 原型
+          </ActionButton>
         </View>
 
         <View className={styles['content'] ?? ''}>

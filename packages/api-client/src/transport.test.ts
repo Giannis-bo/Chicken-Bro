@@ -277,4 +277,59 @@ describe('Taro transport parity', () => {
     expect(abort).toHaveBeenCalledOnce()
     expect(failures).toEqual(['malformed stream payload'])
   })
+
+  it('uses browser fetch streaming for H5 SSE and keeps it same-origin', async () => {
+    taro.getEnv.mockReturnValue('WEB')
+    vi.stubGlobal('window', { location: { origin: 'https://www.chickenbro.cloud' } })
+    vi.stubGlobal('document', {})
+    const reader = {
+      read: vi.fn()
+        .mockResolvedValueOnce({
+          done: false,
+          value: new TextEncoder().encode('data: {"type":"started","sequence":1}\n\n'),
+        })
+        .mockResolvedValueOnce({ done: true, value: undefined }),
+      cancel: vi.fn(),
+    }
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      body: { getReader: () => reader },
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    try {
+      const transport = createTaroTransport({
+        storage: new MemoryStorage(),
+        resolveBaseUrl: () => 'https://www.chickenbro.cloud/wow-api',
+        resolveWebBaseUrl: () => 'https://www.chickenbro.cloud',
+      })
+      const events: unknown[] = []
+      const failures: string[] = []
+      const task = transport.requestSse
+      expect(task).toBeTypeOf('function')
+      if (!task) throw new Error('SSE transport must be present')
+      task('/api/v2/prototype/stream', {
+        method: 'POST',
+        baseUrl: 'web-auth',
+        data: { content: 'hello' },
+        header: { 'X-Prototype-Session': 'a'.repeat(64) },
+        onEvent: (event) => events.push(event),
+        onFailure: (error) => failures.push(error),
+      })
+      await new Promise((resolve) => setTimeout(resolve, 0))
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        'https://www.chickenbro.cloud/api/v2/prototype/stream',
+        expect.objectContaining({
+          method: 'POST',
+          credentials: 'omit',
+          body: JSON.stringify({ content: 'hello' }),
+        }),
+      )
+      expect(events).toEqual([{ type: 'started', sequence: 1 }])
+      expect(failures).toEqual([])
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
 })

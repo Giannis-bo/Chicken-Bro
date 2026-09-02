@@ -564,7 +564,8 @@ CREATE TABLE IF NOT EXISTS chat.messages (
     content text NOT NULL CHECK (length(content) > 0),
     client_message_id text,
     created_at timestamptz NOT NULL DEFAULT now(),
-    UNIQUE (user_id, client_message_id)
+    UNIQUE (user_id, client_message_id),
+    UNIQUE (id, user_id)
 );
 
 CREATE TABLE IF NOT EXISTS chat.agent_runs (

@@ -92,7 +92,7 @@ class ChickenbroNativeAgentTest(unittest.TestCase):
 
 
 class ChickenbroNativeMcpTest(unittest.TestCase):
-    def test_native_profile_forwards_the_standard_proxy_environment_to_the_read_only_toolbox(self):
+    def test_native_profile_forwards_the_standard_proxy_and_source_gateway_environment(self):
         profile_path = os.path.join(
             os.path.dirname(os.path.dirname(__file__)),
             "scripts",
@@ -102,11 +102,18 @@ class ChickenbroNativeMcpTest(unittest.TestCase):
         with open(profile_path, encoding="utf-8") as handle:
             profile = handle.read()
 
-        for variable in ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY"):
+        for variable in (
+            "HTTP_PROXY",
+            "HTTPS_PROXY",
+            "ALL_PROXY",
+            "NO_PROXY",
+            "CHICKENBRO_SOURCE_GATEWAY_URL",
+            "CHICKENBRO_SOURCE_GATEWAY_TOKEN",
+        ):
             self.assertIn(f'"{variable}"', profile)
         self.assertIn('web_search = "live"', profile)
 
-    def test_stdio_mcp_exposes_only_the_generic_read_only_research_tool_and_records_its_result(self):
+    def test_stdio_mcp_exposes_read_only_public_and_server_source_tools(self):
         spec = importlib.util.find_spec("server.chickenbro_native_mcp")
         self.assertIsNotNone(spec)
         if spec is None:
@@ -119,7 +126,12 @@ class ChickenbroNativeMcpTest(unittest.TestCase):
             observation_writer=observed.append,
         )
         self.assertEqual(
-            {"research_public_web", "inspect_current_mythic_plus_snapshot"},
+            {
+                "research_public_web",
+                "inspect_current_mythic_plus_snapshot",
+                "query_warcraftlogs_report",
+                "query_raiderio_character",
+            },
             {item["name"] for item in listed["result"]["tools"]},
         )
         self.assertTrue(all(item["annotations"]["readOnlyHint"] for item in listed["result"]["tools"]))
@@ -146,6 +158,41 @@ class ChickenbroNativeMcpTest(unittest.TestCase):
         self.assertFalse(called["result"].get("isError", False))
         self.assertEqual("source_reference", observed[0]["status"])
         self.assertEqual(["public-web:example-com-bear"], observed[0]["evidenceRefs"])
+
+    def test_stdio_mcp_routes_wcl_and_raiderio_tools_to_the_server_source_gateway(self):
+        module = importlib.import_module("server.chickenbro_native_mcp")
+        observed = []
+        with mock.patch.object(module, "query_source_gateway", return_value={
+            "sourceKey": "warcraftlogs",
+            "status": "verified",
+            "facts": [{"reportCode": "KfVp6AQ8GMHYFN42"}],
+            "evidence": [{"id": "wcl:KfVp6AQ8GMHYFN42:1"}],
+            "evidenceRefs": ["wcl.report"],
+            "limitations": [],
+            "nextActions": [],
+        }) as gateway:
+            response = module.handle_rpc_request(
+                {
+                    "jsonrpc": "2.0",
+                    "id": 4,
+                    "method": "tools/call",
+                    "params": {
+                        "name": "query_warcraftlogs_report",
+                        "arguments": {
+                            "target": "https://www.warcraftlogs.com/reports/KfVp6AQ8GMHYFN42?fight=1",
+                        },
+                    },
+                },
+                observation_writer=observed.append,
+            )
+
+        gateway.assert_called_once_with(
+            "warcraftlogs",
+            "https://www.warcraftlogs.com/reports/KfVp6AQ8GMHYFN42?fight=1",
+        )
+        self.assertFalse(response["result"].get("isError", False))
+        self.assertEqual("verified", observed[0]["status"])
+        self.assertEqual(["wcl.report"], observed[0]["evidenceRefs"])
 
     def test_current_mythic_plus_snapshot_is_an_optional_role_comparison_not_a_fixed_answer(self):
         module = importlib.import_module("server.chickenbro_native_mcp")

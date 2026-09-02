@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS chat.messages (
     client_message_id text,
     created_at timestamptz NOT NULL DEFAULT now(),
     UNIQUE (user_id, client_message_id),
+    UNIQUE (id, user_id),
     FOREIGN KEY (conversation_id, user_id)
         REFERENCES chat.conversations(id, user_id) ON DELETE CASCADE
 );

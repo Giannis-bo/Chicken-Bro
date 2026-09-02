@@ -1,0 +1,38 @@
+{
+  "name": "Stormsample",
+  "realm": "Area-52",
+  "region": "us",
+  "level": 80,
+  "class": {"name": "Shaman", "slug": "shaman"},
+  "active_spec_name": "Elemental",
+  "race": {"name": "Tauren", "slug": "tauren"},
+  "profileRevision": "rio-profile-2026-09-01",
+  "gear": {
+    "items": {
+      "head": {"item_id": 1001, "name": "Storm Helm", "item_level": 730, "bonus_id": [1, 2], "gems": [], "enchant": ""},
+      "neck": {"item_id": 1002, "name": "Storm Amulet", "item_level": 730, "bonus_id": [1], "gems": [2001], "enchant": ""},
+      "shoulder": {"item_id": 1003, "name": "Storm Shoulders", "item_level": 730, "bonus_id": [1], "gems": [], "enchant": ""},
+      "back": {"item_id": 1004, "name": "Storm Cloak", "item_level": 730, "bonus_id": [1], "gems": [], "enchant": "5001"},
+      "chest": {"item_id": 1005, "name": "Storm Robe", "item_level": 730, "bonus_id": [1, 2], "gems": [], "enchant": ""},
+      "wrist": {"item_id": 1006, "name": "Storm Bracers", "item_level": 730, "bonus_id": [1], "gems": [], "enchant": "5002"},
+      "hands": {"item_id": 1007, "name": "Storm Gloves", "item_level": 730, "bonus_id": [1], "gems": [], "enchant": ""},
+      "waist": {"item_id": 1008, "name": "Storm Belt", "item_level": 730, "bonus_id": [1], "gems": [], "enchant": ""},
+      "legs": {"item_id": 1009, "name": "Storm Leggings", "item_level": 730, "bonus_id": [1], "gems": [], "enchant": "5003"},
+      "feet": {"item_id": 1010, "name": "Storm Boots", "item_level": 730, "bonus_id": [1], "gems": [], "enchant": "5004"},
+      "finger1": {"item_id": 1011, "name": "Storm Ring One", "item_level": 730, "bonus_id": [1], "gems": [2002], "enchant": "5005"},
+      "finger2": {"item_id": 1012, "name": "Storm Ring Two", "item_level": 730, "bonus_id": [1], "gems": [2003], "enchant": "5005"},
+      "trinket1": {"item_id": 1013, "name": "Storm Trinket One", "item_level": 730, "bonus_id": [1], "gems": [], "enchant": ""},
+      "trinket2": {"item_id": 1014, "name": "Storm Trinket Two", "item_level": 730, "bonus_id": [1], "gems": [], "enchant": ""},
+      "main_hand": {"item_id": 1015, "name": "Storm Staff", "item_level": 730, "bonus_id": [1, 2], "gems": [], "enchant": "5006"},
+      "off_hand": {"item_id": 1016, "name": "Storm Totem", "item_level": 730, "bonus_id": [1], "gems": [], "enchant": ""}
+    }
+  },
+  "talents": {
+    "loadout": [
+      {"id": 10001, "rank": 1},
+      {"id": 10002, "rank": 1},
+      {"id": 10003, "rank": 1}
+    ],
+    "string": "BUQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+  }
+}

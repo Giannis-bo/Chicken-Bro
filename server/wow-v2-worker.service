@@ -1,0 +1,21 @@
+[Unit]
+Description=Chickenbro v2 SimC Worker
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/opt/wow-mini-program
+EnvironmentFile=-/etc/wow-v2-api.env
+Environment=WOW_APP_ENV=production
+Environment=WOW_DATABASE_RUNTIME=postgres_only
+Environment=WOW_SIMC_SUPPORTED_SPECS=shaman:elemental
+ExecStart=/opt/wow-mini-program/.venv-v2/bin/python -m server.app.worker.main --worker-id v2-simc-worker
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

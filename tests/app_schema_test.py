@@ -5,6 +5,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 MIGRATION = ROOT / "server/migrations/postgres/0038_chickenbro_simc_platform_foundation.sql"
 AUTH_MIGRATION = ROOT / "server/migrations/postgres/0039_wechat_web_login_sessions.sql"
+PROTOTYPE_MIGRATION = ROOT / "server/migrations/postgres/0040_web_prototype_sessions.sql"
 
 
 class AppSchemaTest(unittest.TestCase):
@@ -26,6 +27,10 @@ class AppSchemaTest(unittest.TestCase):
             self.assertIn(clause, sql)
         self.assertNotIn("CREATE SCHEMA IF NOT EXISTS news", sql)
         self.assertNotIn("CREATE SCHEMA IF NOT EXISTS websim", sql)
+        message_section = sql.split("CREATE TABLE IF NOT EXISTS chat.messages", 1)[1].split(
+            "CREATE INDEX", 1
+        )[0]
+        self.assertIn("UNIQUE (id, user_id)", message_section)
 
     def test_every_business_table_is_owner_scoped(self):
         self.assertTrue(MIGRATION.is_file(), "v2 platform migration is missing")
@@ -48,3 +53,18 @@ class AppSchemaTest(unittest.TestCase):
             self.assertIn(clause, sql)
         self.assertNotIn("DROP TABLE", sql.upper())
         self.assertNotIn("identity.auth_tokens", sql)
+
+    def test_web_prototype_migration_is_additive_and_owner_scoped(self):
+        self.assertTrue(PROTOTYPE_MIGRATION.is_file(), "Web prototype migration is missing")
+        sql = " ".join(PROTOTYPE_MIGRATION.read_text(encoding="utf-8").split())
+        for clause in (
+            "account_kind",
+            "'formal', 'prototype'",
+            "CREATE TABLE IF NOT EXISTS identity.prototype_sessions",
+            "token_sha256",
+            "user_id uuid NOT NULL REFERENCES identity.users(id)",
+            "0040_web_prototype_sessions",
+        ):
+            self.assertIn(clause, sql)
+        self.assertNotIn("DROP TABLE", sql.upper())
+        self.assertNotIn("TRUNCATE", sql.upper())

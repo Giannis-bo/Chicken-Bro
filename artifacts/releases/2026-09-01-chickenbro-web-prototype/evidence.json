@@ -1,0 +1,571 @@
+{
+  "schemaVersion": 2,
+  "slug": "chickenbro-web-prototype",
+  "requirementSlug": "chickenbro-web-prototype",
+  "status": "implementation_allowed",
+  "highestEvidenceLevel": "implementation_allowed",
+  "deliveryState": {
+    "local": "local_verified",
+    "candidate": "candidate_verified",
+    "publicWeb": "public_smoke_verified",
+    "prototypeApi": "public_smoke_verified",
+    "nativeCodexRuntime": "candidate_verified_public_smoke",
+    "simcSemanticResult": "candidate_verified_semantic_smoke",
+    "manualAcceptance": "pending",
+    "closure": "pending_user_acceptance_and_clean_head"
+  },
+  "branch": "codex/chickenbro-simc-web",
+  "commit": "pending_task_branch_head",
+  "identities": {
+    "runtime": {
+      "status": "bound",
+      "kind": "build_identity",
+      "value": "chickenbro-source-api-20260902-03",
+      "reason": "The deployed final candidate release binds the isolated public runtime after adding server-configured WCL/Raider.IO source API tools, a v2-owned WCL OAuth/GraphQL reader, short-lived gateway capability isolation, native Codex tool observations, bounded research instructions, aligned 180-second client/server timeout with 210-second Nginx read allowance, current Raider.IO field normalization, explicit prototype max-level policy, display-realm normalization, optional unequipped offhand handling, explicit blocker copy and the verified shaman:elemental runtime capability; the source commit remains pending until the task branch is accepted and committed."
+    },
+    "verification": {
+      "status": "pending",
+      "reason": "Local verification is fresh, but the task worktree intentionally remains dirty while waiting for explicit post-test user acceptance; Harness HEAD binding will be refreshed before commit."
+    },
+    "closure": {
+      "status": "pending",
+      "reason": "Merge, origin/main parity and archive closure have not occurred."
+    }
+  },
+  "manualAcceptance": {
+    "required": true,
+    "status": "pending",
+    "reason": "Automated shell/safety, native Codex and browser-visible smoke checks passed, but the user has not yet accepted the live prototype flow after testing.",
+    "items": [
+      {
+        "id": "web_prototype_shell",
+        "status": "pending",
+        "scope": "https://www.chickenbro.cloud first viewport",
+        "evidence": "In-app browser saw the prototype banner, bypass explanation, reset action, secondary formal-login action, chat/source composers, and after a downward scroll the chat textbox and send button remained visible."
+      },
+      {
+        "id": "prototype_session_reset",
+        "status": "pending",
+        "scope": "Reset demo session and verify old capability is not reused",
+        "evidence": "Reset control is visible; no browser reset click was performed because it revokes a remote prototype session and needs user acceptance at action time."
+      },
+      {
+        "id": "codex_chat_stream",
+        "status": "pending",
+        "scope": "Native Codex conversation and explicit failure recovery",
+        "evidence": "Native Codex-only stream, persistence and failure contracts pass locally; the prompt now bounds public research, the client/server/Nginx timeout boundaries are aligned, the candidate waits for turn completion instead of treating intermediate commentary as the final answer, and the final public SSE smoke completed with a non-empty answer in 21.8 seconds. Browser/user acceptance remains pending."
+      },
+      {
+        "id": "character_snapshot_simc",
+        "status": "pending",
+        "scope": "Real Raider.IO/WCL source, readiness blocker and SimC result boundary",
+        "evidence": "The original localized Raider.IO URL was accepted live as RAIDERIO and resolved to Giannis · elemental · Silver Hand; current API fields are normalized and the Web prototype applies effective level 90 with levelSource prototype_max_level. Readiness is READY_FOR_SIMC, a real Patchwerk SimC job succeeded with semantic DPS and runtime/compiler provenance, and the left chat now separately queries server-configured WCL/Raider.IO APIs; user acceptance remains pending."
+      },
+      {
+        "id": "legacy_boundary",
+        "status": "pending",
+        "scope": "Legacy API, health, 14-route ownership and Active Manifest boundary",
+        "evidence": "Independent legacy health and data-health checks passed at the transport level; user acceptance of the unchanged legacy surface is pending."
+      }
+    ],
+    "rollup": {
+      "total": 5,
+      "accepted": 0,
+      "notRunUserWaived": 0,
+      "pending": 5
+    }
+  },
+  "scope": [
+    "prototype owner/session capability and request dependencies",
+    "native Codex-only Chickenbro stream and owner-scoped persistence",
+    "Raider.IO/WCL source adapters, CharacterSnapshot readiness, compiler and SimC Worker",
+    "typed H5 client, prototype WebApp panel and honest blocked states",
+    "additive PostgreSQL schema, isolated API/Worker/Nginx deployment and Harness evidence"
+  ],
+  "verification": [
+    {
+      "command": "npm run test:taro",
+      "status": "pass",
+      "summary": "63 test files and 467 frontend/domain/API tests passed in the authorized dependency-installed worktree.",
+      "sensitiveValuesLogged": false
+    },
+    {
+      "command": "npm run typecheck",
+      "status": "pass",
+      "summary": "Repository TypeScript typecheck passed.",
+      "sensitiveValuesLogged": false
+    },
+    {
+      "command": "npm run lint",
+      "status": "pass",
+      "summary": "Repository ESLint check passed.",
+      "sensitiveValuesLogged": false
+    },
+    {
+      "command": "npm run audit:ui-architecture",
+      "status": "pass",
+      "summary": "14 route architecture audit passed with 285 checks and 0 findings; prototype is outside the product-route registry.",
+      "sensitiveValuesLogged": false
+    },
+    {
+      "command": "npm run build:h5 --workspace @wow-mini/mini-taro",
+      "status": "pass",
+      "summary": "H5 production build compiled successfully; only existing bundle/asset size warnings remain."
+    },
+    {
+      "command": ".venv-v2-local/bin/python -m unittest discover -s tests -p '*.py' -q",
+      "status": "pass",
+      "summary": "3404 Python tests passed with 8 skips; no failures."
+    },
+    {
+      "command": "node --test tests/project-owner-map.test.js tests/deploy-web-v2.test.js tests/deploy-web-v2-prototype.test.js",
+      "status": "pass",
+      "summary": "22 owner-map and isolated v2 deployment tests passed, including migration-owner, backup, rollback and smoke guards."
+    },
+    {
+      "command": "bash -n server/deploy_web_v2_lighthouse.sh && git diff --check",
+      "status": "pass",
+      "summary": "Deployment script syntax and source diff whitespace checks passed."
+    },
+    {
+      "command": "PATH=.venv-v2-local/bin:$PATH node scripts/verify-project.js --profile full --release artifacts/releases/2026-09-01-chickenbro-web-prototype --base origin/main",
+      "status": "pass",
+      "summary": "Fresh Harness full profile passed: 771 Node tests, 3404 Python tests with 8 skips, compileall, typecheck, lint, UI architecture/integrity/package checks, JSON/JS syntax checks, Harness check and diff checks; the isolated task packet remained implementation_allowed while awaiting user acceptance.",
+      "sensitiveValuesLogged": false
+    },
+    {
+      "command": "WOW_V2_RELEASE_ID=chickenbro-web-prototype-20260901-11 ./server/deploy_web_v2_lighthouse.sh",
+      "status": "pass",
+      "summary": "Candidate deploy returned candidate_verified for the isolated v2 API, Worker and H5 release build 11; backup and rollback target were retained."
+    },
+    {
+      "command": "independent HTTPS smoke: https://www.chickenbro.cloud/; /api/v2/health/readiness; /api/v2/prototype/sessions; /api/v2/me; legacy health",
+      "status": "pass",
+      "summary": "Build 11 H5 root 200, prototype session 201 with mode=prototype and no owner id, unauthenticated /api/v2/me 401/AUTH_REQUIRED, legacy /health 200 and legacy data-health 200. v2 readiness HTTP 200 but payload status is partial and is not treated as global health success.",
+      "sensitiveValuesLogged": false
+    },
+    {
+      "command": "in-app browser: https://www.chickenbro.cloud/",
+      "status": "pass",
+      "summary": "Visible prototype bypass copy, reset control, secondary formal-login action, chat/source composers and 待输入角色链接 state were present; SimC submit was disabled and browser console had no errors.",
+      "sensitiveValuesLogged": false
+    },
+    {
+      "command": "remote read-only candidate identity, service, migration, owner and Nginx checks",
+      "status": "pass",
+      "summary": "Release id and candidate marker both chickenbro-web-prototype-20260901-11; H5 index sha256 836585cf71aae1b0d1748d8bc70c1858aac09735a0bc7e28784d7050c4119376; API and Worker active with exit status 0; 0038/0039/0040 recorded; new tables owned by wow_migrator; legacy wow-backend active; nginx -t passed. Operational status is recorded as evidence, not business success.",
+      "sensitiveValuesLogged": false
+    },
+    {
+      "command": "remote/local parity: sha256 server/app/chickenbro/codex_adapter.py and native Codex environment allowlist marker",
+      "status": "pass",
+      "summary": "Remote candidate adapter sha256 matches the local source; the deployed adapter contains the minimal Codex environment allowlist and both isolated API and Worker remain active.",
+      "sensitiveValuesLogged": false
+    },
+    {
+      "command": "independent prototype chat stream smoke on build 11",
+      "status": "blocked",
+      "summary": "HTTP 200 text/event-stream returned started then failed with sequence 1,2 and errorCode=CODEX_OUTPUT_INVALID; the legacy code field was absent. The typed failure/recovery contract is live, but native Codex did not produce an assistant answer.",
+      "sensitiveValuesLogged": false
+    },
+    {
+      "command": "remote native Codex runtime and outbound connectivity diagnostic",
+      "status": "blocked",
+      "summary": "As ubuntu, codex-cli 0.146.0 login status returned 0 with chatgpt auth metadata; a native exec emitted only thread.started/turn.started before timeout, api.openai.com returned HTTP 000 after 5 seconds, while the existing Chickenbro origin returned 200. No credential values or raw prompt/answer/error text were emitted.",
+      "sensitiveValuesLogged": false
+    },
+    {
+      "command": "current candidate and native Codex recheck",
+      "status": "blocked",
+      "summary": "The public root still returned 200 and the current static symlink remained build 11 with the recorded H5 sha256; v2 API, v2 Worker and legacy service were active. api.openai.com and chatgpt.com still timed out from the candidate host, so no successful native Codex answer can be claimed.",
+      "sensitiveValuesLogged": false
+    },
+    {
+      "command": "candidate DNS and direct-IP egress diagnosis",
+      "status": "blocked",
+      "summary": "The host resolver returned a different api.openai.com address than public resolvers; HTTPS SNI tests against both public-resolver API addresses and chatgpt.com addresses all timed out, so the blocker is outbound network reachability rather than only local DNS. No system resolver or service configuration was changed.",
+      "sensitiveValuesLogged": false
+    },
+    {
+      "command": "remote /api/v2/health/readiness and legacy /api/data/health business payload review",
+      "status": "blocked",
+      "summary": "Readiness payload remains partial; legacy data health remains partial with blocked/partial components. This is an explicit health watch and does not block serving the isolated prototype shell, but it prevents claiming global data or SimC readiness.",
+      "sensitiveValuesLogged": false
+    },
+    {
+      "command": "candidate deploy attempt 20260902T-codex-fix-01",
+      "status": "blocked",
+      "summary": "Candidate rollback was exercised after wow-v2-api failed at import time because the service exposed ALL_PROXY=socks5h://127.0.0.1:7890 while socksio was not installed. The named backup was retained and legacy wow-backend remained active; this failure led to the HTTP-compatible proxy correction.",
+      "sensitiveValuesLogged": false
+    },
+    {
+      "command": "node --test tests/deploy-web-v2-prototype.test.js and remote httpx proxy startup check",
+      "status": "pass",
+      "summary": "The proxy regression test passed and the existing cloud v2 virtualenv initialized httpx successfully with the HTTP-compatible proxy scheme without installing dependencies.",
+      "sensitiveValuesLogged": false
+    },
+    {
+      "command": "WOW_V2_RELEASE_ID=chickenbro-codex-fix-20260902-02 WOW_V2_RUN_ID=20260902T-codex-fix-02 WOW_V2_SKIP_DEPENDENCY_INSTALL=1 ./server/deploy_web_v2_lighthouse.sh",
+      "status": "pass",
+      "summary": "The corrected candidate deployed the isolated v2 API, Worker, stable native MCP/profile files and H5 release; the scoped backup completed, additive migrations were already recorded and skipped, and local dependency installation/download was not performed.",
+      "sensitiveValuesLogged": false
+    },
+    {
+      "command": "remote native Codex direct smoke with chickenbro-native profile",
+      "status": "pass",
+      "summary": "As ubuntu, codex-cli 0.146.0 returned exit status 0; the stable profile initialized its MCP server and emitted thread.started, turn.started, item.completed and turn.completed, with the expected smoke marker in the persisted final message. No credential, raw prompt or raw answer was logged.",
+      "sensitiveValuesLogged": false
+    },
+    {
+      "command": "independent prototype chat SSE smoke on chickenbro-codex-fix-20260902-02",
+      "status": "pass",
+      "summary": "Through https://www.chickenbro.cloud, prototype session and conversation creation returned 201, the stream returned HTTP 200 with started then completed, no errorCode, monotonic sequence and the expected final marker. The CLI emitted a completion item without token-level deltas, so this proves completion rather than progressive-token cadence.",
+      "sensitiveValuesLogged": false
+    },
+    {
+      "command": "remote final health, file parity and legacy isolation check",
+      "status": "pass",
+      "summary": "H5 root and v2 readiness returned HTTP 200, API/Worker/mihomo and legacy wow-backend were active, stable profile args/cwd pointed at /opt/wow-mini-program, local and remote H5/CSS/MCP/public-web hashes matched, and recent v2 error journal output was empty. /api/data/health remains partial and is not treated as global success.",
+      "sensitiveValuesLogged": false
+    },
+    {
+      "command": "browser live scroll regression on chickenbro-scroll-fix-20260902-01",
+      "status": "pass",
+      "summary": "Live H5 applied web-runtime-scroll: body overflow-y was auto, document scrollHeight was 1097px versus a 720px viewport, scrollY advanced to 377.5px, and the chat textbox/send button were visible after scrolling.",
+      "sensitiveValuesLogged": false
+    },
+    {
+      "command": "browser live prototype chat regression on chickenbro-cache-fix-20260902-01",
+      "status": "pass",
+      "summary": "In the user's current Chrome tab, a non-sensitive connectivity test completed with assistant text OK in approximately 5 seconds; the button returned to 发送给队长 and browser console errors remained empty.",
+      "sensitiveValuesLogged": false
+    },
+    {
+      "command": "live H5 cache-control header check on chickenbro-cache-fix-20260902-01",
+      "status": "pass",
+      "summary": "Public /, /index.html, /js/app.js and /css/app.css returned Cache-Control: no-cache with an expired Expires value after the cache-fix candidate.",
+      "sensitiveValuesLogged": false
+    },
+    {
+      "command": "browser live prototype chat final-answer regression on chickenbro-chat-source-fix-20260902-01",
+      "status": "pass",
+      "summary": "In an isolated browser tab, a Warcraft Logs question completed in approximately 75 seconds; the intermediate native Codex commentary was not persisted as the answer, and the final answer rendered after the research turn. Because the public report returned 403, the response failed closed and did not invent character conclusions.",
+      "sensitiveValuesLogged": false
+    },
+    {
+      "command": "browser live localized Raider.IO source regression on chickenbro-chat-source-fix-20260902-01",
+      "status": "pass",
+      "summary": "The original URL https://raider.io/cn/characters/cn/silver-hand/Giannis was accepted as RAIDERIO and resolved to Giannis · elemental · Silver Hand; the UI exposed explicit missing-field blockers and kept the SimC submission disabled instead of fabricating a ready profile.",
+      "sensitiveValuesLogged": false
+    },
+    {
+      "command": "local TDD regression for bounded native research, current Raider.IO fields and optional offhand",
+      "status": "pass",
+      "summary": "32 targeted Python tests, 63 frontend test files with 468 tests, TypeScript typecheck, compileall and diff checks passed. Tests cover bounded Codex research instructions, the 180-second stream boundary, bonuses/enchants/loadout_text normalization, explicit empty enchant state, optional unequipped offhand compilation and user-facing blocker rendering.",
+      "sensitiveValuesLogged": false
+    },
+    {
+      "command": "WOW_V2_RELEASE_ID=chickenbro-runtime-rio-fix-20260902-02 WOW_V2_RUN_ID=20260902T-runtime-rio-fix-02 WOW_V2_SKIP_DEPENDENCY_INSTALL=1 bash server/deploy_web_v2_lighthouse.sh",
+      "status": "pass",
+      "summary": "Candidate chickenbro-runtime-rio-fix-20260902-02 deployed the isolated v2 API, Worker, H5 release and service/Nginx configuration with scoped backup /var/backups/wow-v2/20260902T-runtime-rio-fix-02; no dependency installation or remote download was performed.",
+      "sensitiveValuesLogged": false
+    },
+    {
+      "command": "final public prototype source and chat SSE smoke on chickenbro-runtime-rio-fix-20260902-02",
+      "status": "pass",
+      "summary": "Through https://www.chickenbro.cloud, prototype session and conversation creation returned 201; the supplied Raider.IO URL returned 201 with provider raiderio, readiness INCOMPLETE_FOR_SIMC and only CHARACTER_LEVEL_MISSING, while mapped gear/talent fields were present. The supplied WCL question returned HTTP 200 text/event-stream, started then completed with non-empty text in 21.8 seconds and no errorCode.",
+      "sensitiveValuesLogged": false
+    },
+    {
+      "command": "remote v2 runtime capability and proxy timeout configuration check",
+      "status": "pass",
+      "summary": "The cloud SimC version file supplied a non-empty runtime revision; API and Worker declare only shaman:elemental, and the deployed Nginx v2 proxy read timeout is 210 seconds. API, Worker and legacy wow-backend remained active; operational reachability is not treated as global data-health success.",
+      "sensitiveValuesLogged": false
+    },
+    {
+      "command": "final PATH=.venv-v2-local/bin:$PATH node scripts/verify-project.js --profile full --release artifacts/releases/2026-09-01-chickenbro-web-prototype --base origin/main",
+      "status": "pass",
+      "summary": "Final full Harness passed: 771 Node tests, 3393 Python tests with 8 skips, 63 Taro test files with 469 tests, compileall, typecheck, lint, UI architecture/integrity/package checks, JSON/JS syntax checks, project harness check and diff checks. verify:ui-package remains partial because the existing WeChat/remote origin configuration is not configured; it is not claimed as release success.",
+      "sensitiveValuesLogged": false
+    },
+    {
+      "command": "local TDD regression for prototype max-level policy and display-realm SimC normalization",
+      "status": "pass",
+      "summary": "18 targeted Python tests, the Web contract test and TypeScript typecheck passed. Tests cover source-provided or missing levels resolving to effective level 90 with levelSource=prototype_max_level, older snapshots compiling at level 90, and display realm Silver Hand compiling as server=silver-hand.",
+      "sensitiveValuesLogged": false
+    },
+    {
+      "command": "WOW_V2_RELEASE_ID=chickenbro-max-level-fix-20260902-02 WOW_V2_RUN_ID=20260902T-max-level-fix-02 WOW_V2_SKIP_DEPENDENCY_INSTALL=1 bash server/deploy_web_v2_lighthouse.sh",
+      "status": "pass",
+      "summary": "Candidate chickenbro-max-level-fix-20260902-02 deployed the max-level policy and realm-slug compiler fix with scoped backup /var/backups/wow-v2/20260902T-max-level-fix-02; no dependency installation or remote download was performed.",
+      "sensitiveValuesLogged": false
+    },
+    {
+      "command": "final public Giannis source and semantic SimC smoke on chickenbro-max-level-fix-20260902-02",
+      "status": "pass",
+      "summary": "Through https://www.chickenbro.cloud, the supplied Raider.IO URL returned READY_FOR_SIMC with no blockers, effective character level 90 and levelSource prototype_max_level. A real Patchwerk SimC job was accepted, completed as succeeded, and returned dps 36499.16036405527 with matching cloud runtime provenance.",
+      "sensitiveValuesLogged": false
+    },
+    {
+      "command": "final PATH=.venv-v2-local/bin:$PATH node scripts/verify-project.js --profile full --release artifacts/releases/2026-09-01-chickenbro-web-prototype --base origin/main",
+      "status": "pass",
+      "summary": "Final full Harness after the max-level, realm normalization and source gateway changes passed: 771 Node tests, 3404 Python tests with 8 skips, 63 Taro test files with 469 tests, compileall, typecheck, lint, UI architecture/integrity/package checks, JSON/JS syntax checks, project harness check and diff checks. verify:ui-package remains partial because the existing WeChat/remote origin configuration is not configured; it is not claimed as release success.",
+      "sensitiveValuesLogged": false
+    },
+    {
+      "command": "real ready CharacterSnapshot -> semantic SimC result",
+      "status": "pass",
+      "summary": "Real Raider.IO Giannis snapshot with effective prototype max level 90 reached the configured cloud SimC Worker and produced a semantic DPS result with runtime/compiler provenance; this does not promote the runtime Manifest or claim a universal player breakpoint."
+    },
+    {
+      "command": "local TDD regression for server-configured WCL/Raider.IO Codex source gateway",
+      "status": "pass",
+      "summary": "31 targeted Python tests, compileall, deployment shell syntax, diff checks and 23 Node deployment/owner-map tests passed. Tests cover the v2-owned WCL OAuth/GraphQL reader, dedicated WCL/Raider.IO MCP tools, public-page routing guard, short-lived gateway capability, credential exclusion from the Codex child process and bounded observations.",
+      "sensitiveValuesLogged": false
+    },
+    {
+      "command": "WOW_V2_RELEASE_ID=chickenbro-source-api-20260902-03 WOW_V2_RUN_ID=20260902T-source-api-03 WOW_V2_SKIP_DEPENDENCY_INSTALL=1 bash server/deploy_web_v2_lighthouse.sh",
+      "status": "pass",
+      "summary": "Candidate chickenbro-source-api-20260902-03 deployed the final source-API gateway, v2-owned WCL reader, native Codex observation path and isolated service configuration with scoped backup /var/backups/wow-v2/20260902T-source-api-03; the legacy wow-backend service was not touched and no dependency installation or remote download was performed.",
+      "sensitiveValuesLogged": false
+    },
+    {
+      "command": "live WCL and Raider.IO source-API Codex smoke on chickenbro-source-api-20260902-03",
+      "status": "pass",
+      "summary": "Through https://www.chickenbro.cloud on final candidate chickenbro-source-api-20260902-03, independent prototype chat streams returned 201/201/200 and completed without failed events. The WCL job observation was query_warcraftlogs_report with sourceKey warcraftlogs, status verified and evidenceRefs wcl.report/wcl.fight/wcl.events; the Raider.IO job observation was query_raiderio_character with sourceKey raiderio, status source_reference and a Giannis character evidence reference. Returned answers explicitly stated the configured API path and did not contain the previous public-page non-retryable block.",
+      "sensitiveValuesLogged": false
+    }
+  ],
+  "candidateDeployment": {
+    "status": "candidate_verified",
+    "state": "candidate_verified_public_smoke",
+    "host": "wow-lighthouse",
+    "address": "124.223.51.33",
+    "directory": "/opt/wow-mini-program",
+    "publicOrigin": "https://www.chickenbro.cloud",
+    "script": "server/deploy_web_v2_lighthouse.sh",
+    "releaseId": "chickenbro-source-api-20260902-03",
+    "runId": "20260902T-source-api-03",
+    "backupPath": "/var/backups/wow-v2/20260902T-source-api-03",
+    "backupMode": "scoped",
+    "backupScope": "identity.users,ops.schema_migrations; additive v2 migrations; full dump denied for unrelated legacy table ownership",
+    "webCurrent": "/var/www/chickenbro-web/releases/20260902T-source-api-03",
+    "h5IndexSha256": "836585cf71aae1b0d1748d8bc70c1858aac09735a0bc7e28784d7050c4119376",
+    "h5CssSha256": "b26b0bb8a684e802a9376beb7dfc9fe0cfcbd16ce4515ac47904bd9a0de27255",
+    "buildIdentity": "chickenbro-source-api-20260902-03",
+    "sourceApi": {
+      "status": "pass",
+      "envFile": "/etc/wow-v2-source.env",
+      "mode": "0600 root:root",
+      "configuredKeys": [
+        "WOW_RAIDERIO_API_KEY",
+        "WOW_WARCRAFTLOGS_CLIENT_ID",
+        "WOW_WARCRAFTLOGS_CLIENT_SECRET"
+      ],
+      "credentialsForwardedToCodex": false
+    },
+    "migration": {
+      "status": "pass",
+      "authMode": "local-postgres-set-role-wow_migrator",
+      "appliedOrRecorded": [
+        "0038_chickenbro_simc_platform_foundation",
+        "0039_wechat_web_login_sessions",
+        "0040_web_prototype_sessions"
+      ],
+      "legacyMigration0039": "already_recorded_and_skipped"
+    },
+    "services": {
+      "api": "wow-v2-api active",
+      "worker": "wow-v2-worker active",
+      "legacy": "wow-backend active",
+      "legacyServiceTouched": false
+    },
+    "smoke": {
+      "status": "pass",
+      "checks": [
+        "H5 root",
+        "v2 API loopback health and readiness",
+        "prototype session creation without owner id",
+        "unauthenticated /api/v2/me rejection",
+        "legacy /health and /api/data/health",
+        "Worker MainPID",
+        "stable native Codex profile and HTTP-compatible proxy environment",
+        "native Codex direct completion",
+        "native Codex final-answer boundary after intermediate commentary",
+        "bounded native research prompt and aligned 180-second client/server timeout",
+        "public prototype SSE started and completed",
+        "localized Raider.IO source parsing, current field normalization and effective prototype max-level policy",
+        "real Giannis READY_FOR_SIMC snapshot, realm-slug compilation and semantic cloud SimC result",
+        "server-configured WCL/Raider.IO API gateway with short-lived capability and no credential forwarding",
+        "live WCL query_warcraftlogs_report observation verified",
+        "live Raider.IO query_raiderio_character observation verified",
+        "shaman:elemental runtime capability declaration",
+        "Web runtime scroll and chat controls reachable after downward scroll",
+        "H5 index and JavaScript/CSS bundle cache revalidation headers"
+      ]
+    },
+    "timerBackflow": {
+      "status": "not_applicable",
+      "reason": "This isolated release adds no legacy timer or data backfill; the Worker is a separate queue consumer and no async sync was triggered."
+    },
+    "rollback": {
+      "status": "pass",
+      "target": "/var/backups/wow-v2/20260902T-source-api-03",
+      "method": "Restore named v2 app/service/Nginx/static assets and keep additive PostgreSQL backup; legacy wow-backend and Active Manifest remain untouched."
+    }
+  },
+  "runtimeEvidence": [
+    {
+      "type": "candidate_deploy",
+      "status": "pass",
+      "summary": "The isolated release was deployed and candidate-verified with a named scoped backup, additive migration state and separate API/Worker services."
+    },
+    {
+      "type": "smoke",
+      "status": "pass",
+      "summary": "Independent HTTPS checks verified public H5, prototype session response shape, unauthenticated formal boundary and legacy liveness."
+    },
+    {
+      "type": "ui",
+      "status": "pass",
+      "summary": "Browser-visible Web prototype shell exposes bypass/isolation copy, reset, chat/source entry points and disabled initial SimC submission; the live document can scroll to the chat controls."
+    },
+    {
+      "type": "web_scroll",
+      "status": "pass",
+      "summary": "Live H5 applied web-runtime-scroll: body overflow-y was auto, document scrollHeight was 1097px versus a 720px viewport, scrollY advanced to 377.5px, and the chat textbox/send button were visible after scrolling."
+    },
+    {
+      "type": "web_cache",
+      "status": "pass",
+      "summary": "Public H5 root, index.html, app.js and app.css now return no-cache revalidation headers so the deployed Web shell is not hidden behind stable asset URLs."
+    },
+    {
+      "type": "legacy_protection",
+      "status": "pass",
+      "summary": "Legacy service remained active and the candidate deploy used only the isolated v2 service, Worker, www site and additive schema owners."
+    },
+    {
+      "type": "timer_backflow",
+      "status": "not_applicable",
+      "summary": "No legacy timer, async sync or Active Manifest pointer mutation was introduced or triggered."
+    },
+    {
+      "type": "readiness_watch",
+      "status": "blocked",
+      "summary": "v2 readiness and legacy data health expose partial/blocked component states; these are retained as explicit watches."
+    },
+    {
+      "type": "native_codex_runtime",
+      "status": "pass",
+      "summary": "The repaired stable profile initialized the MCP server and completed a direct native Codex smoke; the adapter now waits for turn completion after intermediate commentary, and the public prototype browser regression rendered the final answer with no errorCode."
+    },
+    {
+      "type": "source_adapter",
+      "status": "pass",
+      "summary": "The localized Raider.IO character URL was normalized and fetched live; Giannis was identified as an elemental Shaman on Silver Hand, while incomplete exact fields remained explicit readiness blockers."
+    },
+    {
+      "type": "simc_semantic_result",
+      "status": "blocked",
+      "summary": "A real ready source snapshot and configured semantic runtime were not available, so no DPS/HPS or other SimC result is claimed."
+    }
+  ],
+  "risks": [
+    {
+      "id": "v2-readiness-partial",
+      "status": "open",
+      "detail": "The public v2 readiness payload is HTTP reachable but reports partial; this is not packaged as overall health success."
+    },
+    {
+      "id": "legacy-data-health-partial",
+      "status": "open",
+      "detail": "Legacy /api/data/health remains partial with blocked/partial components; the release did not rewrite or promote any legacy data pointer."
+    },
+    {
+      "id": "real-simc-not-verified",
+      "status": "resolved",
+      "detail": "Live Giannis Raider.IO snapshot and semantic cloud SimC evidence were verified before the final source-api candidate; the result remains character-specific evidence and does not claim a universal player breakpoint."
+    },
+    {
+      "id": "public-codex-chat-native-runtime-blocked",
+      "status": "resolved",
+      "detail": "The first candidate attempt exposed a stale native profile and then hit an httpx SOCKS dependency startup regression; the HTTP-compatible proxy/profile correction restored native Codex completion, and the follow-up adapter fix stopped intermediate commentary from being surfaced as the final answer."
+    },
+    {
+      "id": "manual-acceptance-pending",
+      "status": "user_acceptance_pending",
+      "detail": "The browser-visible shell is verified, but reset, chat and full source-to-SimC interaction remain for user acceptance."
+    },
+    {
+      "id": "h5-bundle-size-warning",
+      "status": "open_nonblocking",
+      "detail": "H5 build completed with existing bundle/asset size warnings; no performance budget failure was reported by the current project verification profile."
+    },
+    {
+      "id": "npm-lockfile-audit-backlog",
+      "status": "open_nonblocking",
+      "detail": "npm ci reported 63 existing lockfile vulnerabilities; npm audit fix was not run because remediation is outside this release scope."
+    }
+  ],
+  "rollback": [
+    "code_rollback",
+    "config_disable",
+    "data_restore",
+    "keep_legacy_backend_active",
+    "no_active_manifest_promotion"
+  ],
+  "cleanup": {
+    "required": false,
+    "reason": "Keep the named candidate release and scoped backup for user acceptance and rollback. Do not clean the task worktree or other worktrees before closure authorization."
+  },
+  "archivedReferences": [
+    "docs/project-state.json",
+    "docs/roadmap.md",
+    "docs/plans/README.md",
+    "docs/verification-matrix.md",
+    "docs/harness.md",
+    "docs/remote-debugging.md",
+    "docs/project-owner-map.json",
+    "docs/backend-owner-map.json",
+    "docs/superpowers/specs/2026-09-01-chickenbro-web-prototype-design.md",
+    "docs/superpowers/plans/2026-09-01-chickenbro-web-prototype.md",
+    "docs/superpowers/plans/2026-09-01-chickenbro-simc-platform-foundation.md",
+    "server/app/identity/prototype.py",
+    "server/app/api/routes/prototype.py",
+    "server/app/chickenbro/application.py",
+    "server/app/chickenbro/codex_adapter.py",
+    "server/app/simulation/application.py",
+    "server/app/simulation/readiness.py",
+    "server/app/simulation/sources.py",
+    "server/app/worker/main.py",
+    "server/migrations/postgres/0038_chickenbro_simc_platform_foundation.sql",
+    "server/migrations/postgres/0039_wechat_web_login_sessions.sql",
+    "server/migrations/postgres/0040_web_prototype_sessions.sql",
+    "server/wow-v2-api.service",
+    "server/wow-v2-worker.service",
+    "server/wow-v2-web.nginx",
+    "server/deploy_web_v2_lighthouse.sh",
+    "apps/mini-taro/src/app.tsx",
+    "apps/mini-taro/src/app.scss",
+    "apps/mini-taro/src/web/WebApp.tsx",
+    "apps/mini-taro/src/web/PrototypePanel.tsx",
+    "apps/mini-taro/src/web/web-app-contract.test.ts",
+    "packages/api-client/src/prototype-client.ts",
+    "tests/app_prototype_api_test.py",
+    "tests/app_chickenbro_api_test.py",
+    "tests/app_simulation_application_test.py",
+    "tests/deploy-web-v2-prototype.test.js",
+    "apps/mini-taro/dist/h5/index.html"
+  ],
+  "nonClaims": {
+    "productionMainMerge": "PENDING_USER_ACCEPTANCE",
+    "globalDataHealth": "NOT_CLAIMED_PARTIAL_OR_BLOCKED_COMPONENTS_REMAIN",
+    "realSemanticSimc": "VERIFIED_FOR_GIANNIS_CANDIDATE_SMOKE_NOT_UNIVERSAL_PLAYER_CLAIM",
+    "publicCodexConversation": "EXERCISED_NATIVE_SUCCESS_USER_ACCEPTANCE_PENDING",
+    "formalWechatLogin": "UNCHANGED_SEPARATE_PATH",
+    "activeManifestPromotion": "NOT_RUN",
+    "legacyServiceCutover": "NOT_RUN"
+  },
+  "summary": "隔离的 Web prototype 最终候选 release chickenbro-source-api-20260902-03 已部署到 www.chickenbro.cloud：H5 文档滚动锁与缓存复验已保留，原生 Codex 会等待 turn 完成后展示最终回答；左侧现在通过短期 capability 调用云服务器进程内的来源网关，由 API 进程使用独立的 /etc/wow-v2-source.env 配置查询 WCL 与 Raider.IO，凭据不进入 Codex 子进程。最终候选的 WCL live smoke 通过 query_warcraftlogs_report 返回 verified 的 report/fight/events 证据，Raider.IO live smoke 通过 query_raiderio_character 返回 Giannis source_reference，右侧 Giannis 的真实云端 SimC 结果也已保留。完整 Harness 通过（771 Node、3404 Python，8 skips）；旧 wow-backend 保持 active。当前 packet 仍保持 implementation_allowed，因为 worktree 尚未绑定 clean HEAD、用户验收未完成；v2 readiness/legacy data health 的 partial 状态被明确保留，不被包装成全局健康成功。"
+}

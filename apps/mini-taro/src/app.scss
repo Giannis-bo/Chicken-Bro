@@ -19,6 +19,38 @@ body {
   overflow-x: hidden;
 }
 
+/* Taro's H5 tabbar shell locks the document to one viewport. The standalone
+ * Web prototype is rendered inside that shell, so release only the Web runtime
+ * from the lock while leaving mini-program route scrolling unchanged. */
+html.web-runtime-scroll {
+  height: auto !important;
+  min-height: 100%;
+  overflow-y: auto !important;
+}
+
+body.web-runtime-scroll {
+  height: auto !important;
+  min-height: 100% !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+}
+
+body.web-runtime-scroll #app,
+body.web-runtime-scroll #app > .taro-tabbar__container,
+body.web-runtime-scroll #app .taro-tabbar__panel {
+  height: auto !important;
+  min-height: 100vh !important;
+}
+
+body.web-runtime-scroll #app > .taro-tabbar__container,
+body.web-runtime-scroll #app .taro-tabbar__panel {
+  overflow: visible !important;
+}
+
+body.web-runtime-scroll #app .taro-tabbar__panel > .taro_page.taro_tabbar_page {
+  max-height: none !important;
+}
+
 .web-page-mount {
   display: none !important;
 }

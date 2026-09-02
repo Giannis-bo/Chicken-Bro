@@ -1,6 +1,6 @@
 import Taro from '@tarojs/taro'
 import { View } from '@tarojs/components'
-import type { PropsWithChildren } from 'react'
+import { useEffect, type PropsWithChildren } from 'react'
 import { configureAssetRuntimeRoot } from '@wow-mini/assets-manifest'
 import { configureRuntimeMediaRoot } from '@wow-mini/design-system/runtime-media'
 
@@ -21,7 +21,20 @@ function isWebRuntime(): boolean {
 }
 
 export default function App({ children }: PropsWithChildren) {
-  if (isWebRuntime()) {
+  const webRuntime = isWebRuntime()
+
+  useEffect(() => {
+    if (!webRuntime || typeof document === 'undefined' || !document.body) return undefined
+
+    document.documentElement.classList.add('web-runtime-scroll')
+    document.body.classList.add('web-runtime-scroll')
+    return () => {
+      document.documentElement.classList.remove('web-runtime-scroll')
+      document.body.classList.remove('web-runtime-scroll')
+    }
+  }, [webRuntime])
+
+  if (webRuntime) {
     return (
       <>
         <WebApp />

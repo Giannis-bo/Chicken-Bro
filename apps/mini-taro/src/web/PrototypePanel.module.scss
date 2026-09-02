@@ -1,0 +1,174 @@
+.page {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+  background: var(--wow-bg-void);
+  color: var(--wow-fg);
+}
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 84% 10%, rgba(217, 171, 66, 0.15), transparent 28%),
+    radial-gradient(circle at 4% 76%, rgba(77, 152, 235, 0.1), transparent 29%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.025), transparent 36%);
+}
+
+.shell {
+  position: relative;
+  z-index: 1;
+  width: min(1240px, calc(100% - 48px));
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 28px 0 24px;
+}
+
+.topbar,
+.brandRow,
+.topActions,
+.notice,
+.signalRow,
+.cardHeader,
+.sourceRow,
+.composer {
+  display: flex;
+  align-items: center;
+}
+
+.topbar {
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.brandRow { gap: 12px; }
+.brandMark {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border: 1px solid var(--wow-line-brass);
+  border-radius: 11px;
+  color: var(--wow-accent-gold);
+  font-family: var(--wow-font-mono);
+  font-size: 13px;
+  letter-spacing: .12em;
+  box-shadow: var(--inner-bevel);
+}
+
+.brandName,
+.brandMeta,
+.eyebrow,
+.cardKicker,
+.cardState,
+.sessionBadge,
+.provenance,
+.messageRole,
+.jobStatus {
+  display: block;
+  font-family: var(--wow-font-mono);
+}
+
+.brandName { color: var(--wow-fg-strong); font-size: 13px; letter-spacing: .16em; }
+.brandMeta { margin-top: 5px; color: var(--wow-fg-dim); font-size: 9px; letter-spacing: .11em; }
+.topActions { justify-content: flex-end; gap: 9px; flex-wrap: wrap; }
+.sessionBadge { color: var(--wow-status-ready); font-size: 9px; letter-spacing: .08em; }
+.ghostAction { margin-top: 0; }
+
+.notice {
+  gap: 9px;
+  margin-top: 24px;
+  padding: 10px 13px;
+  border: 1px solid rgba(134, 201, 93, .24);
+  border-radius: 8px;
+  color: var(--wow-fg-muted);
+  font-family: var(--wow-font-mono);
+  font-size: 10px;
+  line-height: 1.6;
+  background: rgba(75, 121, 63, .08);
+}
+
+.noticeDot,
+.signal { width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%; }
+.noticeDot, .signal[data-tone='ready'] { background: var(--wow-status-ready); box-shadow: 0 0 12px rgba(134, 201, 93, .6); }
+.signal[data-tone='gold'] { background: var(--wow-accent-gold); }
+.signal[data-tone='blue'] { background: #70b9ff; }
+
+.content { padding-top: 44px; }
+.hero { max-width: 720px; }
+.eyebrow, .cardKicker { color: var(--wow-accent-gold); font-size: 10px; letter-spacing: .13em; }
+.title {
+  display: block;
+  margin-top: 15px;
+  color: var(--wow-fg-strong);
+  font-family: var(--wow-font-display);
+  font-size: clamp(36px, 5.2vw, 68px);
+  font-weight: 600;
+  line-height: 1.06;
+  letter-spacing: -.045em;
+}
+.lede { display: block; max-width: 700px; margin-top: 20px; color: var(--wow-fg-muted); font-size: 15px; line-height: 1.8; }
+.signalRow { gap: 7px; margin-top: 20px; color: var(--wow-fg-dim); font-family: var(--wow-font-mono); font-size: 9px; }
+.signalRow .signal:not(:first-child) { margin-left: 10px; }
+
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(360px, .92fr);
+  gap: 18px;
+  margin-top: 38px;
+}
+.card {
+  min-height: 540px;
+  padding: 20px;
+  border: 1px solid var(--wow-line-panel);
+  border-radius: 15px;
+  background: linear-gradient(180deg, rgba(28, 31, 36, .96), rgba(12, 14, 18, .98));
+  box-shadow: var(--shadow-float), var(--inner-bevel);
+}
+.cardHeader { align-items: flex-start; justify-content: space-between; gap: 12px; padding-bottom: 15px; border-bottom: 1px solid rgba(167, 124, 50, .33); }
+.cardTitle { display: block; margin-top: 7px; color: var(--wow-fg-strong); font-family: var(--wow-font-display); font-size: 23px; font-weight: 600; }
+.cardState { flex: 0 0 auto; color: var(--wow-fg-dim); font-size: 9px; letter-spacing: .08em; }
+.cardDescription { display: block; margin-top: 17px; color: var(--wow-fg-muted); font-size: 12px; line-height: 1.75; }
+.messageList { display: flex; min-height: 265px; max-height: 345px; flex-direction: column; gap: 10px; overflow-y: auto; padding: 18px 2px 6px; }
+.empty, .muted { color: var(--wow-fg-dim); font-size: 11px; line-height: 1.7; }
+.message { max-width: 86%; padding: 10px 12px; border: 1px solid var(--wow-line-subtle); border-radius: 10px; }
+.userMessage { align-self: flex-end; border-color: rgba(217, 171, 66, .28); background: rgba(104, 78, 29, .13); }
+.assistantMessage { align-self: flex-start; background: rgba(255, 255, 255, .035); }
+.messageRole { margin-bottom: 5px; color: var(--wow-accent-gold); font-size: 9px; letter-spacing: .06em; }
+.messageText { display: block; white-space: pre-wrap; color: var(--wow-fg-muted); font-size: 12px; line-height: 1.7; }
+.composer { align-items: stretch; gap: 10px; margin-top: 12px; }
+.textarea { min-height: 76px; flex: 1; padding: 10px; border: 1px solid var(--wow-line-subtle); border-radius: 8px; color: var(--wow-fg); font-size: 12px; background: rgba(0, 0, 0, .2); }
+.primaryAction { margin-top: 12px; }
+.composer .primaryAction { align-self: flex-end; flex: 0 0 auto; margin-top: 0; }
+.error { display: block; margin-top: 10px; color: var(--wow-status-blocked); font-size: 11px; line-height: 1.6; }
+
+.sourceRow { align-items: stretch; gap: 9px; margin-top: 18px; }
+.sourceInput { min-width: 0; flex: 1; padding: 0 10px; border: 1px solid var(--wow-line-subtle); border-radius: 8px; color: var(--wow-fg); font-family: var(--wow-font-mono); font-size: 10px; background: rgba(0, 0, 0, .2); }
+.secondaryAction { margin-top: 0; flex: 0 0 auto; }
+.readinessPanel { min-height: 185px; margin-top: 16px; padding: 14px; border: 1px solid var(--wow-line-subtle); border-radius: 10px; background: rgba(0, 0, 0, .15); }
+.readinessPanel[data-readiness='READY_FOR_SIMC'] { border-color: rgba(134, 201, 93, .42); background: rgba(75, 121, 63, .11); }
+.readinessLabel { display: block; color: var(--wow-fg-strong); font-family: var(--wow-font-display); font-size: 17px; }
+.blockerList { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+.blocker { padding: 4px 7px; border: 1px solid rgba(218, 118, 95, .34); border-radius: 5px; color: var(--wow-status-blocked); font-family: var(--wow-font-mono); font-size: 9px; }
+.provenance { margin-top: 16px; color: var(--wow-fg-dim); font-size: 9px; line-height: 1.6; }
+.jobPanel { margin-top: 16px; padding-top: 13px; border-top: 1px solid var(--wow-line-subtle); }
+.jobStatus { color: var(--wow-accent-gold); font-size: 10px; letter-spacing: .06em; }
+.resultPanel { margin-top: 12px; }
+.resultNumber { display: block; color: var(--wow-status-ready); font-family: var(--wow-font-display); font-size: 38px; font-weight: 600; letter-spacing: -.04em; }
+.blockedState { max-width: 580px; margin: 110px auto; padding: 38px; border: 1px solid var(--wow-line-panel); border-radius: 14px; text-align: center; background: rgba(20, 23, 27, .92); }
+.blockedTitle { display: block; color: var(--wow-fg-strong); font-family: var(--wow-font-display); font-size: 26px; }
+.blockedState .muted { display: block; margin-top: 12px; }
+.blockedState .primaryAction { display: inline-flex; }
+.footer { display: flex; justify-content: space-between; gap: 16px; margin-top: 24px; color: var(--wow-fg-dim); font-size: 10px; line-height: 1.7; }
+
+@media (max-width: 840px) {
+  .shell { width: min(100% - 30px, 620px); padding-top: 20px; }
+  .topbar { align-items: flex-start; flex-direction: column; }
+  .topActions { justify-content: flex-start; }
+  .content { padding-top: 40px; }
+  .grid { display: block; }
+  .card + .card { margin-top: 16px; }
+  .footer { display: block; }
+  .footer > text { display: block; margin-top: 7px; }
+}

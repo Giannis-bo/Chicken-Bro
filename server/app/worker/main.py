@@ -7,6 +7,10 @@ from collections.abc import Callable
 
 from server.app.platform.config import AppSettings
 from server.app.platform.postgres import PostgresConnectionFactory
+from server.app.simulation.compiler import SimcProfileCompiler
+from server.app.simulation.readiness import SimcReadinessValidator, SimcRuntimeCapabilities
+from server.app.simulation.repository import PostgresSimulationRepository
+from server.app.simulation.worker import LocalSimulationCraftPort, SimulationResultParser, SimulationWorker
 from server.app.worker.handlers import HandlerRegistry, RetryableJobError, UnknownJobHandler
 from server.app.worker.leases import JobLease, PostgresJobQueue
 
@@ -87,10 +91,23 @@ class Worker:
 
 def build_worker(*, worker_id: str, lease_seconds: int) -> Worker:
     settings = AppSettings.from_env(os.environ)
-    queue = PostgresJobQueue(PostgresConnectionFactory(settings).connection)
+    connection_factory = PostgresConnectionFactory(settings).connection
+    queue = PostgresJobQueue(connection_factory)
+    runtime_capabilities = SimcRuntimeCapabilities.from_env()
+    simulation_worker = SimulationWorker(
+        repository=PostgresSimulationRepository(connection_factory),
+        simc=LocalSimulationCraftPort(runtime_revision=runtime_capabilities.runtime_revision),
+        worker_id=worker_id,
+        compiler=SimcProfileCompiler(capabilities=runtime_capabilities),
+        readiness_validator=SimcReadinessValidator(),
+        runtime_capabilities=runtime_capabilities,
+        result_parser=SimulationResultParser(),
+    )
+    handlers = HandlerRegistry()
+    handlers.register("simc", "run_simulation", simulation_worker.handle)
     return Worker(
         queue=queue,
-        handlers=HandlerRegistry(),
+        handlers=handlers,
         worker_id=worker_id,
         lease_seconds=lease_seconds,
         poll_seconds=settings.worker_poll_seconds,

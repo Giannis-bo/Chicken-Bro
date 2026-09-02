@@ -1,0 +1,26 @@
+{
+  "data": {
+    "reportData": {
+      "report": {
+        "code": "AbCdEf123",
+        "revision": 7,
+        "fights": [{"id": 16, "name": "Defiled Golem"}],
+        "playerDetails": {
+          "data": {
+            "playerDetails": [
+              {
+                "id": 82,
+                "name": "Logsample",
+                "guid": 990082,
+                "type": "Shaman",
+                "specs": [{"spec": "Elemental", "role": "DPS"}],
+                "gear": [{"id": 1001, "slot": "head"}],
+                "talents": [{"id": 10001, "name": "Sample Talent"}]
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}

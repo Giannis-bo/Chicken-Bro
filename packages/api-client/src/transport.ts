@@ -58,6 +58,16 @@ export interface ApiStreamTask {
   abort(): void
 }
 
+export interface SseStreamRequestOptions<T> {
+  method?: RequestMethod
+  data?: RequestData
+  header?: Readonly<Record<string, string>>
+  timeoutMs?: number
+  baseUrl?: RequestBase
+  onEvent: (event: T) => void
+  onFailure: (error: string) => void
+}
+
 export interface ApiTransport {
   request<T>(path: string, options: RequestOptions<T>): Promise<ApiResult<T>>
   requestEndpoint<T>(
@@ -70,6 +80,7 @@ export interface ApiTransport {
     path: string,
     options: Omit<StreamRequestOptions<T>, 'method'>,
   ): ApiStreamTask
+  requestSse?<T>(path: string, options: SseStreamRequestOptions<T>): ApiStreamTask
 }
 
 export interface TransportConfig {
@@ -199,6 +210,50 @@ export class NdjsonDecoder {
       }
     }
     return events
+  }
+}
+
+export class SseDecoder {
+  private readonly decoder = new TextDecoder('utf-8')
+  private buffered = ''
+
+  push(data: ArrayBuffer): unknown[] {
+    this.buffered += this.decoder.decode(new Uint8Array(data), { stream: true })
+    return this.takeCompleteFrames()
+  }
+
+  finish(): unknown[] {
+    this.buffered += this.decoder.decode()
+    const events = this.takeCompleteFrames()
+    if (this.buffered.trim()) {
+      const event = this.parseFrame(this.buffered)
+      this.buffered = ''
+      events.push(event)
+    }
+    return events
+  }
+
+  private takeCompleteFrames(): unknown[] {
+    const events: unknown[] = []
+    const frames = this.buffered.split(/\r?\n\r?\n/u)
+    this.buffered = frames.pop() ?? ''
+    for (const frame of frames) {
+      if (frame.trim()) events.push(this.parseFrame(frame))
+    }
+    return events
+  }
+
+  private parseFrame(frame: string): unknown {
+    const data = frame.split(/\r?\n/u)
+      .filter((line) => line.startsWith('data:'))
+      .map((line) => line.slice(5).replace(/^ /u, ''))
+      .join('\n')
+    if (!data) throw new Error('malformed SSE payload')
+    try {
+      return JSON.parse(data)
+    } catch {
+      throw new Error('malformed SSE payload')
+    }
   }
 }
 
@@ -375,6 +430,165 @@ export function createTaroTransport(config: TransportConfig = {}): ApiTransport 
     return { abort }
   }
 
+  const requestSse = <T>(
+    path: string,
+    options: SseStreamRequestOptions<T>,
+  ): ApiStreamTask => {
+    const baseUrl = (options.baseUrl === 'web-auth' ? resolveWebBaseUrl : resolveBaseUrl)()
+    const url = baseUrl ? `${baseUrl}${path}` : ''
+    let failed = false
+    const fail = (message: string) => {
+      if (failed) return
+      failed = true
+      options.onFailure(message)
+    }
+    if (!url) {
+      fail('missing api base url')
+      return { abort() {} }
+    }
+    const decoder = new SseDecoder()
+    if (isWebRuntime() && typeof fetch === 'function') {
+      const controller = new AbortController()
+      let aborted = false
+      let timeoutHandle: ReturnType<typeof setTimeout> | undefined
+      const clearRequestTimeout = () => {
+        if (timeoutHandle !== undefined) {
+          clearTimeout(timeoutHandle)
+          timeoutHandle = undefined
+        }
+      }
+      const abort = () => {
+        aborted = true
+        clearRequestTimeout()
+        controller.abort()
+      }
+      if (options.timeoutMs !== undefined && options.timeoutMs > 0) {
+        timeoutHandle = setTimeout(() => {
+          if (failed || aborted) return
+          fail('request timed out')
+          abort()
+        }, options.timeoutMs)
+      }
+      const fetchHeader: Record<string, string> = {
+        Accept: 'text/event-stream',
+        ...options.header,
+      }
+      const body = options.data === undefined
+        ? undefined
+        : typeof options.data === 'string' || options.data instanceof ArrayBuffer
+          ? options.data
+          : JSON.stringify(options.data)
+      if (body && typeof options.data === 'object' && !(options.data instanceof ArrayBuffer)
+        && !Object.keys(fetchHeader).some((key) => key.toLowerCase() === 'content-type')) {
+        fetchHeader['Content-Type'] = 'application/json'
+      }
+      const emit = (event: unknown) => {
+        if (failed || aborted) return
+        try {
+          options.onEvent(event as T)
+        } catch {
+          abort()
+          fail('invalid stream event')
+        }
+      }
+      const fetchOptions: RequestInit = {
+        method: options.method ?? 'POST',
+        headers: fetchHeader,
+        credentials: 'omit',
+        signal: controller.signal,
+      }
+      if (body !== undefined) fetchOptions.body = body
+      void fetch(url, fetchOptions).then(async (response) => {
+        if (failed || aborted) return
+        if (!response.ok) {
+          clearRequestTimeout()
+          fail(`HTTP ${response.status}`)
+          return
+        }
+        const reader = response.body?.getReader()
+        if (!reader) {
+          clearRequestTimeout()
+          fail('streaming response is unavailable')
+          return
+        }
+        try {
+          while (true) {
+            const chunk = await reader.read()
+            if (chunk.done) break
+            const value = chunk.value
+            const buffer = value.buffer.slice(
+              value.byteOffset,
+              value.byteOffset + value.byteLength,
+            ) as ArrayBuffer
+            decoder.push(buffer).forEach(emit)
+          }
+          decoder.finish().forEach(emit)
+        } catch (error) {
+          if (!aborted) fail(errorMessage(error))
+        } finally {
+          clearRequestTimeout()
+        }
+      }).catch((error) => {
+        clearRequestTimeout()
+        if (!aborted) fail(errorMessage(error))
+      })
+      return { abort }
+    }
+    const header: Record<string, string> = {
+      ...(options.header ?? {}),
+    }
+    const task = Taro.request<unknown>({
+      url,
+      method: options.method ?? 'POST',
+      data: options.data,
+      header,
+      timeout: options.timeoutMs ?? 90000,
+      enableChunked: true,
+      responseType: 'arraybuffer',
+    }) as unknown as Promise<{ statusCode: number }> & {
+      abort?: () => void
+      onChunkReceived?: (callback: (payload: { data: ArrayBuffer }) => void) => void
+    }
+    const abort = () => task.abort?.()
+    const emit = (event: unknown) => {
+      if (failed) return
+      try {
+        options.onEvent(event as T)
+      } catch {
+        abort()
+        fail('invalid stream event')
+      }
+    }
+    if (typeof task.onChunkReceived !== 'function') {
+      abort()
+      fail('chunked response is unavailable')
+    } else {
+      task.onChunkReceived(({ data }) => {
+        if (failed) return
+        try {
+          decoder.push(data).forEach(emit)
+        } catch {
+          abort()
+          fail('malformed stream payload')
+        }
+      })
+    }
+    void task.then((response) => {
+      if (failed) return
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        fail(`HTTP ${response.statusCode}`)
+        return
+      }
+      try {
+        decoder.finish().forEach(emit)
+      } catch {
+        abort()
+        fail('malformed stream payload')
+      }
+    }).catch((error) => fail(errorMessage(error)))
+    return { abort }
+  }
+
   return {
     request,
     requestEndpoint<T>(
@@ -405,5 +619,6 @@ export function createTaroTransport(config: TransportConfig = {}): ApiTransport 
       })
     },
     requestStreamEndpoint,
+    requestSse,
   }
 }

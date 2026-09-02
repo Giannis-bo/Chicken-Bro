@@ -9,6 +9,7 @@ import { TemplateRepository } from './templates'
 import { createTaroTransport, type ApiTransport, type TransportConfig } from './transport'
 import { createWebsimClient, type WebsimClient } from './websim'
 import { createWebAuthClient, type WebAuthClient } from './web-auth'
+import { createPrototypeWebClient, type PrototypeWebClient } from './prototype-client'
 
 export interface WowApiClients {
   transport: ApiTransport
@@ -19,6 +20,7 @@ export interface WowApiClients {
   templates: TemplateRepository
   auth: AuthClient
   webAuth: WebAuthClient
+  prototype: PrototypeWebClient
   analytics: AnalyticsEventsClient
   cache: TimedCache
 }
@@ -44,6 +46,7 @@ export function createWowApiClients(config: WowApiClientConfig = {}): WowApiClie
     templates: new TemplateRepository(transport, storage),
     auth: new AuthClient(transport, storage),
     webAuth: createWebAuthClient(transport),
+    prototype: createPrototypeWebClient(transport),
     analytics: new AnalyticsEventsClient(transport, storage),
     cache: new TimedCache(),
   }

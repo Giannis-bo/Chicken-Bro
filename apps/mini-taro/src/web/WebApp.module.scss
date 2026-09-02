@@ -32,6 +32,17 @@
   min-height: 42px;
 }
 
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.topbar .secondaryAction {
+  margin-top: 0;
+}
+
 .brandMark {
   display: grid;
   width: 38px;
@@ -337,4 +348,3 @@
     margin-top: 8px;
   }
 }
-

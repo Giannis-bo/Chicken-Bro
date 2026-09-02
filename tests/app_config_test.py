@@ -44,3 +44,20 @@ class AppConfigTest(unittest.TestCase):
         self.assertEqual(settings.web_session_ttl_seconds, 604800)
         self.assertEqual(settings.wechat_appid, "wx-test")
         self.assertNotIn("secret-value", repr(settings))
+
+    def test_prototype_settings_are_explicitly_bounded(self):
+        settings = AppSettings.from_env({
+            "WOW_APP_ENV": "candidate",
+            "WOW_DATABASE_URL": "postgresql://user@db.example/wow",
+            "WOW_WEB_PROTOTYPE_ENABLED": "1",
+            "WOW_WEB_PROTOTYPE_TTL_SECONDS": "1800",
+        })
+        self.assertTrue(settings.prototype_enabled)
+        self.assertEqual(settings.prototype_ttl_seconds, 1800)
+
+        with self.assertRaisesRegex(ValueError, "PROTOTYPE_TTL"):
+            AppSettings.from_env({
+                "WOW_APP_ENV": "candidate",
+                "WOW_DATABASE_URL": "postgresql://user@db.example/wow",
+                "WOW_WEB_PROTOTYPE_TTL_SECONDS": "30",
+            })

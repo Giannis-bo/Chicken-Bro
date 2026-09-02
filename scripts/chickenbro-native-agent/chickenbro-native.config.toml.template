@@ -1,5 +1,6 @@
-# Render this file into $CODEX_HOME/chickenbro-native.config.toml for one
-# candidate only. __CHICKENBRO_CANDIDATE_ROOT__ is substituted at deploy time.
+# Render this file into $CODEX_HOME/chickenbro-native.config.toml for the
+# active candidate/runtime root. __CHICKENBRO_CANDIDATE_ROOT__ is substituted
+# at deploy time and must never remain bound to a retired candidate directory.
 model = "gpt-5.6-luna"
 # Native Codex research uses its own current web-search capability; the MCP
 # tools remain optional read-only helpers for service-owned snapshots and URLs.
@@ -10,10 +11,12 @@ command = "/usr/bin/python3"
 args = ["__CHICKENBRO_CANDIDATE_ROOT__/server/chickenbro_native_mcp.py"]
 cwd = "__CHICKENBRO_CANDIDATE_ROOT__"
 # MCP subprocesses receive an allowlist rather than the parent environment.
-# Forward the normal proxy contract so the generic, read-only public-web tool
-# can reach the same public network as the candidate service.
+# Forward the normal proxy contract and the short-lived, non-secret gateway
+# capability. Source credentials remain inside the API process.
 env_vars = [
   "CHICKENBRO_NATIVE_OBSERVATIONS_PATH",
+  "CHICKENBRO_SOURCE_GATEWAY_URL",
+  "CHICKENBRO_SOURCE_GATEWAY_TOKEN",
   "HTTP_PROXY",
   "HTTPS_PROXY",
   "ALL_PROXY",

@@ -5,7 +5,7 @@
 [project-owner-map.json](project-owner-map.json)。
 
 状态：`active`
-更新时间：`2026-09-01`
+更新时间：`2026-09-02`
 
 ## 本文职责
 
@@ -22,10 +22,12 @@
 
 微信小程序与独立 HTTPS Web 复用一套 Taro 业务代码。小程序使用现有 `wx.login`/project identity；
 Web 使用“微信扫码，在炸鸡队长小程序中确认登录”的辅助登录 session，通过不同会话映射到同一个内部
-`user_id`，共享对话与 SimC 任务历史。共享的是账号数据，不是 Cookie、OpenID、`session_key` 或客户端
-token；当前 Web 登录不依赖网站应用 OAuth 或 UnionID。炸鸡队长继续由原生 Codex 负责理解和分析，服务端只保留身份、
-隐私、只读工具、预算、超时、流式和持久化边界。SimC 只接受经过独立 Adapter 解析、统一 readiness
-校验和单一 compiler 生成的 `CharacterSnapshot`。
+`user_id`，共享对话与 SimC 任务历史。当前 Web 原型先使用显式、可逆的 prototype bypass：不强制
+`/api/v2/me` 或 Web Cookie，服务端生成隔离的 demo owner，prototype 数据不进入正式用户历史；正式二维码登录接口
+仍保留为后续连接账号的独立路径。共享的是账号数据，不是 Cookie、OpenID、`session_key` 或客户端 token；正式 Web
+登录不依赖网站应用 OAuth 或 UnionID。炸鸡队长继续由原生 Codex 负责理解和分析，服务端只保留身份、隐私、只读工具、
+预算、超时、流式和持久化边界。SimC 只接受经过独立 Adapter 解析、统一 readiness 校验和单一 compiler 生成的
+`CharacterSnapshot`。
 
 资讯、天赋模拟、装备模拟、旧 WebSim 工作台及其一级入口已经退出目标产品。当前生产 14 路由、
 Active Manifest、Gear Catalog 和旧 API 只作为迁移期 last-known-good 如实保留；在新路径完成 candidate、
@@ -49,6 +51,7 @@ Active Manifest、Gear Catalog 和旧 API 只作为迁移期 last-known-good 如
 | S2 生产 | `partial` | 正式 Active Manifest generation 41 保持不变并继续绑定 f50a SimC；season 18、WebSim sync、Gear Catalog 已新鲜 `verified`，Stat Weights 新鲜 `partial`，Community Templates、gear release refresh 与 cutover readiness 仍未闭合。 |
 | S2 freshness | `Candidate` | 30555 replay、dormant release pair、Talent Catalog 与 Candidate Manifest 已验证；没有 Active pointer mutation。 |
 | 云端代码身份 | `已完成` | 仓库最新树已用 no-bootstrap、no-async hot deploy 发布；deployable tracked set 逐文件 hash 与云端一致，`data_health_followup.py` 和 `postgres_cache_store.py` 均回到仓库 owner。部署脚本新增真实 tar 归档回归测试，忽略的微信产物与私有配置不再进入 backend archive。代码一致不提升业务数据状态；全局 health 仍为 `partial`。 |
+| Web Codex 来源查询 | `Candidate 已验证` | 当消息包含 WCL 或 Raider.IO 链接时，原生 Codex 通过短期 capability 调用云端 API 进程内的只读来源网关；WCL live smoke 返回 `verified` 的 report/fight/events 证据，Raider.IO live smoke 返回 Giannis 的 `source_reference`。凭据保留在 `/etc/wow-v2-source.env`（`0600 root:root`），不进入 Codex 子进程；正式用户验收仍未闭合。 |
 | 云端卫生 | `已完成（限定范围）` | 2026-08-28 已清除无引用候选、旧 SimC 可重建版本、Git 已删除的部署残留、178 份被当前 S2 恢复点替代的旧代码/数据备份，以及本次 tar overlay 重新带入的 `apps/mini-taro/dist`、`.swc` macOS 编译缓存与两份 `project.private.config.json`；部署排除已补测试防复发。正式 evidence、PG 数据与经 `pg_restore --list` 验证的最新 1.16 GB 恢复点、Exact-first foundation、Active/Candidate/单一 rollback 均保留。备份与数据刷新后磁盘为 77% 使用、16G 可用；清理不等于 Active promotion。 |
 
 ## 当前优先级
@@ -57,8 +60,9 @@ Active Manifest、Gear Catalog 和旧 API 只作为迁移期 last-known-good 如
 | --- | --- | --- | --- |
 | 正在推进 | 双端精简架构骨架 | 建立模块化单体 `/api/v2`、独立 Worker、`identity/chat/simc/ops` 数据 owner 和依赖守卫；不改变当前生产入口 | [父级架构](superpowers/specs/2026-09-01-chickenbro-simc-dual-client-architecture-design.md) |
 | 正在推进 | 微信双端 Identity 与公网 Web 原型 | 小程序 exchange 与 Web 一次性扫码确认 session 使用独立会话并映射到同一内部 `user_id`；scene ticket/verifier 防重放，UnionID 仅可选，冲突 fail-closed；公网 Web 原型必须经真实二维码、确认页、Cookie 会话和候选回滚门禁 | [设计](superpowers/specs/2026-09-01-chickenbro-web-mini-login-design.md) · [实施计划](superpowers/plans/2026-09-01-chickenbro-web-mini-login.md) |
-| 下一步 | Codex-only 炸鸡队长 | 抽取当前原生 Codex runner、owner-bound 会话和 SSE；Codex 不可用时明确失败，不静默切换普通 LLM 或模板回答 | [父级架构](superpowers/specs/2026-09-01-chickenbro-simc-dual-client-architecture-design.md) |
+| 正在推进 | Codex-only 炸鸡队长与来源 API | 抽取当前原生 Codex runner、owner-bound 会话和 SSE；收到 WCL/Raider.IO 链接时必须调用云端已配置的来源 API 工具，禁止打开来源公网页面；Codex 或来源 API 不可用时明确失败，不静默切换普通 LLM 或模板回答 | [父级架构](superpowers/specs/2026-09-01-chickenbro-simc-dual-client-architecture-design.md) · [Web prototype evidence](../artifacts/releases/2026-09-01-chickenbro-web-prototype/evidence.json) |
 | 下一步 | Raider.IO/WCL 到 SimC | 两个 Adapter 只输出统一 Snapshot candidate；readiness、compiler、Worker 和云端 SimC 形成单一可审计主链 | [父级架构](superpowers/specs/2026-09-01-chickenbro-simc-dual-client-architecture-design.md) |
+| 正在推进 | Web prototype bypass 纵向交付 | Web 可直接进入隔离 demo owner；Chickenbro、真实角色快照和 SimC 只在各自 readiness/semantic gate 通过后可用；角色等级按原型默认满级 90 处理，其他来源字段仍需真实校验；候选和公网 smoke 保留回滚证据 | [设计](superpowers/specs/2026-09-01-chickenbro-web-prototype-design.md) · [实施计划](superpowers/plans/2026-09-01-chickenbro-web-prototype.md) |
 | 后续 | 双端切流与 legacy 删除 | 独立 Web 域名、Web login session/小程序确认、跨端历史、候选、回滚与用户验收闭合后，删除资讯、天赋模拟、装备模拟及其 route/job/data owner | [父级架构](superpowers/specs/2026-09-01-chickenbro-simc-dual-client-architecture-design.md) |
 | 暂缓 | 旧 14 路由 UI 与 S2 Catalog 扩展 | 当前线上事实、证据和回滚继续保留，但不再新增产品能力；由新双端路径验收后统一退役 | [project-state.json](project-state.json) |
 

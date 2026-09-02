@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from typing import Protocol
+from typing import Mapping, Protocol
 from uuid import UUID
 
 from server.app.simulation.domain import (
@@ -7,6 +7,9 @@ from server.app.simulation.domain import (
     SimulationResult,
     SourceSnapshot,
 )
+from server.app.simulation.compiler import CompiledSimcInput
+from server.app.simulation.readiness import ReadinessReport, SimcRuntimeCapabilities
+from server.app.simulation.worker import RawSimulationExecution
 
 
 class CharacterSourcePort(Protocol):
@@ -36,5 +39,15 @@ class SimulationReadPort(Protocol):
 
 
 class SimcCompilerPort(Protocol):
-    def compile(self, snapshot: SourceSnapshot, scenario_hash: str) -> tuple[str, str]:
+    def compile(self, snapshot: SourceSnapshot, scenario: Mapping[str, object]) -> CompiledSimcInput:
+        raise NotImplementedError
+
+
+class SimcReadinessPort(Protocol):
+    def validate(self, snapshot: SourceSnapshot, runtime_capabilities: SimcRuntimeCapabilities) -> ReadinessReport:
+        raise NotImplementedError
+
+
+class SimulationCraftPort(Protocol):
+    def run(self, compiled_input: CompiledSimcInput, runtime_revision: str) -> RawSimulationExecution:
         raise NotImplementedError

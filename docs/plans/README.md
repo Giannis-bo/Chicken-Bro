@@ -9,6 +9,7 @@
 | --- | --- | --- |
 | 炸鸡队长与 SimC 双端精简平台骨架 | 本地骨架实现已进入 Harness 验证；candidate、部署、迁移和切流仍受独立门禁约束 | [父级架构](../superpowers/specs/2026-09-01-chickenbro-simc-dual-client-architecture-design.md) · [平台骨架实施计划](../superpowers/plans/2026-09-01-chickenbro-simc-platform-foundation.md) |
 | 炸鸡队长公网 Web 与小程序确认登录 | 正在推进；实现、候选部署、真实扫码和用户验收仍未闭合 | [设计](../superpowers/specs/2026-09-01-chickenbro-web-mini-login-design.md) · [实施计划](../superpowers/plans/2026-09-01-chickenbro-web-mini-login.md) |
+| 炸鸡队长 Web prototype、Codex 对话与角色 SimC | 正在推进；bypass、对话、角色快照、Worker、候选部署和公网 smoke 仍未闭合 | [设计](../superpowers/specs/2026-09-01-chickenbro-web-prototype-design.md) · [实施计划](../superpowers/plans/2026-09-01-chickenbro-web-prototype.md) |
 | 14 路由 Target-First 生产重建与主干能力接入 | 暂缓；当前 14 路由仅作为迁移期 last-known-good，不再扩展 | [ui-reconstruction.md](ui-reconstruction.md) |
 | 天赋模板闭环恢复与社区 winner 新鲜度 | 暂缓；目标产品已移除天赋模拟 | [2026-07-20-talent-template-recovery.md](2026-07-20-talent-template-recovery.md) |
 | 装备模板保存、导入、清空与天赋 winner 投影 | 暂缓；目标产品已移除天赋/装备模拟 | [2026-07-22-gear-template-projection.md](2026-07-22-gear-template-projection.md) |

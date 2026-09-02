@@ -94,36 +94,44 @@
       "writeOwner": null,
       "consumers": [
         "apps/mini-taro/src/pages",
+        "apps/mini-taro/src/web/PrototypePanel.tsx",
         "pages/common/api-client.js",
         "pages/common/auth-client.js",
         "pages/common/analytics-client.js",
         "pages/builds/builds-api.js",
         "pages/builds/websim-api.js",
         "pages/simulator/simulator-api.js",
-        "pages/news/news-api.js"
+        "pages/news/news-api.js",
+        "packages/api-client/src/prototype-client.ts"
       ],
       "publicContracts": [
         "packages/api-client/src is the active typed frontend transport owner and preserves auth token boundaries without sending Bearer tokens on insecure HTTP.",
         "pages/common/api-client.js and legacy route clients consume the active typed transport contract for compatibility only.",
-        "API clients forward backend-owned facts instead of reclassifying source/status/verified state."
+        "API clients forward backend-owned facts instead of reclassifying source/status/verified state.",
+        "The prototype client stores only its opaque session in a dedicated sessionStorage key, omits formal credentials and validates every prototype response before rendering it."
       ],
       "mustNotChange": [
         "Do not make frontend pages the owner of backend source, status or verified judgments.",
         "Do not bypass auth-client or api-client for user asset writes."
       ],
       "characterization": [
-        "tests/frontend-api-client.test.js",
-        "tests/profile-auth.test.js",
-        "tests/analytics-instrumentation.test.js"
+          "tests/frontend-api-client.test.js",
+          "tests/profile-auth.test.js",
+          "tests/analytics-instrumentation.test.js",
+          "packages/domain/src/prototype.test.ts",
+          "packages/api-client/src/prototype-client.test.ts",
+          "apps/mini-taro/src/web/web-app-contract.test.ts"
       ],
       "runtimeSurfaces": [
         "packages/api-client/src",
         "apps/mini-taro/src/pages",
+        "apps/mini-taro/src/web/PrototypePanel.tsx",
         "pages/common/api-client.js",
         "pages/common/auth-client.js",
         "pages/news/news-api.js",
         "pages/builds/websim-api.js",
-        "pages/simulator/simulator-api.js"
+        "pages/simulator/simulator-api.js",
+        "packages/domain/src/prototype.ts"
       ],
       "runbooks": [
         "docs/builds-architecture.md",
@@ -145,15 +153,22 @@
         "pages/**/**/*-api.js",
         "pages/news/news-api.js",
         "pages/builds/websim-api.js",
-        "pages/simulator/simulator-api.js"
+        "pages/simulator/simulator-api.js",
+        "packages/domain/src/prototype.*",
+        "packages/api-client/src/prototype-client.*",
+        "apps/mini-taro/src/web/PrototypePanel.*",
+        "apps/mini-taro/src/web/web-app-contract.test.ts"
       ],
       "criticalContract": {
         "status": "characterized",
         "summary": "The typed API package is the active frontend transport owner; legacy API clients remain compatibility consumers, with existing tests characterizing base URL, bearer safety and empty/error transport behavior.",
         "coverage": [
-          "tests/frontend-api-client.test.js",
-          "tests/profile-auth.test.js",
-          "tests/analytics-instrumentation.test.js"
+        "tests/frontend-api-client.test.js",
+        "tests/profile-auth.test.js",
+        "tests/analytics-instrumentation.test.js",
+        "packages/domain/src/prototype.test.ts",
+        "packages/api-client/src/prototype-client.test.ts",
+        "apps/mini-taro/src/web/web-app-contract.test.ts"
         ],
         "runtimeEvidence": [],
         "ownerMapRef": null
@@ -175,18 +190,21 @@
         "server/app/platform",
         "server/app/worker",
         "server/migrations/postgres/0038_chickenbro_simc_platform_foundation.sql",
+        "server/migrations/postgres/0040_web_prototype_sessions.sql",
         "packages/domain/src/platform-v2.ts",
-        "packages/api-client/src/platform-v2.ts"
+        "packages/domain/src/prototype.ts",
+        "packages/api-client/src/platform-v2.ts",
+        "packages/api-client/src/prototype-client.ts"
       ],
       "publicContracts": [
         "server/app/main.py owns /api/v2 composition and health routing; it is not the owner of Chickenbro, identity or SimC business facts.",
         "server/app/identity, server/app/chickenbro and server/app/simulation own their pure domain contracts; server/app/worker owns queue lease execution; packages/api-client/src/platform-v2.ts owns the shared typed transport boundary.",
-        "This foundation is local-verified only: it does not register a production service, apply migration 0038, implement WeChat login, or claim candidate/runtime readiness."
+        "The v2 foundation and prototype vertical slice remain isolated from legacy routes; candidate/runtime readiness is claimed only by fresh deployment evidence, never by local tests alone."
       ],
       "mustNotChange": [
         "Do not register /api/v2 in the legacy service or change server/news_backend.py, server/wow-backend.service, the 14 active Taro routes or Active Manifest.",
         "Do not let the composition owner make source, identity, SimC readiness or product-quality judgments; those remain domain or external-authority contracts.",
-        "Do not apply the additive migration, start a worker against production, deploy or cut over from this local foundation slice."
+        "Do not change server/news_backend.py, the 14 active Taro routes, the Active Manifest or legacy services; candidate deployment must retain rollback and explicit feature-flag boundaries."
       ],
       "characterization": [
         "tests/app_api_test.py",
@@ -197,7 +215,13 @@
         "tests/app_worker_lease_test.py",
         "tests/app_worker_runtime_test.py",
         "packages/domain/src/platform-v2.test.ts",
-        "packages/api-client/src/platform-v2.test.ts"
+        "packages/api-client/src/platform-v2.test.ts",
+        "tests/app_prototype_identity_domain_test.py",
+        "tests/app_chickenbro_application_test.py",
+        "tests/app_simulation_application_test.py",
+        "packages/domain/src/prototype.test.ts",
+        "packages/api-client/src/prototype-client.test.ts",
+        "apps/mini-taro/src/web/web-app-contract.test.ts"
       ],
       "runtimeSurfaces": [
         "server/app/main.py",
@@ -208,9 +232,13 @@
         "server/app/platform",
         "server/app/worker",
         "server/migrations/postgres/0038_chickenbro_simc_platform_foundation.sql",
+        "server/migrations/postgres/0040_web_prototype_sessions.sql",
         "server/requirements-v2.txt",
         "packages/domain/src/platform-v2.ts",
-        "packages/api-client/src/platform-v2.ts"
+        "packages/domain/src/prototype.ts",
+        "packages/api-client/src/platform-v2.ts",
+        "packages/api-client/src/prototype-client.ts",
+        "apps/mini-taro/src/web/PrototypePanel.tsx"
       ],
       "runbooks": [
         "docs/verification-matrix.md",
@@ -230,16 +258,20 @@
       "changedPathPatterns": [
         "server/app/**",
         "server/migrations/postgres/0038_chickenbro_simc_platform_foundation.sql",
+        "server/migrations/postgres/0040_web_prototype_sessions.sql",
         "server/requirements-v2.txt",
         "packages/domain/src/platform-v2.*",
+        "packages/domain/src/prototype.*",
         "packages/domain/src/index.ts",
         "packages/api-client/src/platform-v2.*",
+        "packages/api-client/src/prototype-client.*",
         "packages/api-client/src/index.ts",
+        "apps/mini-taro/src/web/PrototypePanel.*",
         "tests/app_*.py"
       ],
       "criticalContract": {
         "status": "characterized",
-        "summary": "The isolated v2 composition, domain, PostgreSQL schema, lease, Worker, health and shared typed-client contracts are characterized locally; production registration, migration application and business adapters remain outside this slice.",
+        "summary": "The isolated v2 composition, domain, PostgreSQL schema, lease, Worker, prototype identity, Codex chat, source snapshot and typed-client contracts are characterized locally; candidate/runtime proof remains a separate deployment gate.",
         "coverage": [
           "tests/app_api_test.py",
           "tests/app_domain_test.py",
@@ -249,7 +281,13 @@
           "tests/app_worker_lease_test.py",
           "tests/app_worker_runtime_test.py",
           "packages/domain/src/platform-v2.test.ts",
-          "packages/api-client/src/platform-v2.test.ts"
+          "packages/api-client/src/platform-v2.test.ts",
+          "tests/app_prototype_identity_domain_test.py",
+          "tests/app_chickenbro_application_test.py",
+          "tests/app_simulation_application_test.py",
+          "packages/domain/src/prototype.test.ts",
+          "packages/api-client/src/prototype-client.test.ts",
+          "apps/mini-taro/src/web/web-app-contract.test.ts"
         ],
         "runtimeEvidence": [],
         "ownerMapRef": null
@@ -1987,7 +2025,10 @@
         "server/wow-gear-release-refresh.timer",
         "server/wow-data-health-followup.service",
         "server/wow-talent-graph-recovery.service",
-        "server/wow-simc-runtime-update.service"
+        "server/wow-simc-runtime-update.service",
+        "server/wow-v2-api.service",
+        "server/wow-v2-worker.service",
+        "server/wow-v2-web.nginx"
       ],
       "publicContracts": [
         "Deploy scripts orchestrate release mechanics and do not create product judgment.",
@@ -2009,7 +2050,10 @@
         "server/wow-gear-release-refresh.timer",
         "server/wow-data-health-followup.service",
         "server/wow-talent-graph-recovery.service",
-        "server/wow-simc-runtime-update.service"
+        "server/wow-simc-runtime-update.service",
+        "server/wow-v2-api.service",
+        "server/wow-v2-worker.service",
+        "server/wow-v2-web.nginx"
       ],
       "runbooks": [
         "docs/remote-debugging.md",
@@ -2052,6 +2096,7 @@
       "writeOwner": null,
       "consumers": [
         "apps/mini-taro/src/app.config.ts",
+        "apps/mini-taro/src/web/PrototypePanel.tsx",
         "apps/mini-taro/src/pages",
         "packages/design-system/src",
         "packages/assets-manifest/src",
@@ -2060,6 +2105,7 @@
       ],
       "publicContracts": [
         "The current UI contract covers the same 14 routes in Taro app config and target registry.",
+        "The H5 prototype is an auxiliary Web root surface and does not add or rename an app.json product route.",
         "Visual acceptance remains unverified until fresh real WeChat target/runtime evidence is explicitly promoted."
       ],
       "mustNotChange": [
@@ -2070,10 +2116,14 @@
         "scripts/audit-ui-architecture.js",
         "scripts/verify-ui-baselines.js",
         "packages/design-system/src/components/PageFrame.test.ts",
-        "apps/mini-taro/src/pages/_shared/route-contract.test.ts"
+        "apps/mini-taro/src/pages/_shared/route-contract.test.ts",
+        "apps/mini-taro/src/web/web-app-contract.test.ts"
       ],
       "runtimeSurfaces": [
         "apps/mini-taro/src/app.config.ts",
+        "apps/mini-taro/src/web/PrototypePanel.tsx",
+        "apps/mini-taro/src/web/PrototypePanel.module.scss",
+        "apps/mini-taro/src/web/WebApp.tsx",
         "apps/mini-taro/src/pages",
         "packages/design-system/src",
         "docs/design/current-ui/runtime-review-contract.json",
