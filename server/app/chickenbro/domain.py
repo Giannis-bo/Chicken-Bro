@@ -53,6 +53,7 @@ class AgentRun:
     public_error_code: str
     started_at: datetime
     finished_at: datetime | None
+    idempotency_key: str = ""
 
 
 def transition_agent_run(

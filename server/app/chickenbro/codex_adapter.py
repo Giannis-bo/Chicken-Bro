@@ -64,6 +64,8 @@ class CodexExecutionFailed(CodexStreamError):
 
 
 class CodexChatPort(Protocol):
+    runtime_revision: str
+
     def stream(self, *, prompt: str, timeout_seconds: int) -> Iterator[dict[str, Any]]:
         raise NotImplementedError
 
@@ -81,12 +83,21 @@ class NativeCodexChatAdapter:
         enabled: bool | None = None,
         source_gateway: Any | None = None,
         source_gateway_url: str | None = None,
+        runtime_revision: str | None = None,
         popen: Callable[..., Any] = subprocess.Popen,
     ):
         self._jobs_dir = Path(jobs_dir or os.environ.get("WOW_CODEX_JOBS_DIR", DEFAULT_JOBS_DIR))
         self._codex_bin = codex_bin or os.environ.get("WOW_CODEX_BIN", DEFAULT_CODEX_BIN)
         self._sandbox = sandbox or os.environ.get("WOW_CODEX_SANDBOX", DEFAULT_SANDBOX)
         self._profile = profile if profile is not None else os.environ.get("WOW_CODEX_PROFILE") or None
+        configured_runtime_revision = str(
+            runtime_revision
+            if runtime_revision is not None
+            else os.environ.get("WOW_CODEX_RUNTIME_REVISION", "codex:native:unversioned")
+        ).strip()
+        if not 1 <= len(configured_runtime_revision) <= 160:
+            raise ValueError("Codex runtime revision must be between 1 and 160 characters")
+        self.runtime_revision = configured_runtime_revision
         self._enabled = (
             enabled
             if enabled is not None

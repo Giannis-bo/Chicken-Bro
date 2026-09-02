@@ -7,7 +7,7 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from server.app.chickenbro.codex_adapter import CodexChatPort, CodexTimeout, CodexUnavailable
-from server.app.chickenbro.domain import AgentRunStatus, Conversation, ConversationStatus, MessageRole
+from server.app.chickenbro.domain import AgentRunStatus, Conversation, ConversationStatus
 from server.app.chickenbro.stream import ChatEvent, CodexStreamError
 from server.app.identity.domain import Principal
 
@@ -136,6 +136,79 @@ class ChatApplication:
             "messages": self._repository.list_messages(principal.user_id, conversation_id),
         }
 
+    def replay_run(
+        self,
+        principal: Principal,
+        run_id: UUID,
+    ) -> Iterator[ChatEvent]:
+        run = self._repository.get_agent_run(principal.user_id, run_id)
+        if run is None:
+            raise ChatApplicationError("CHAT_RUN_NOT_FOUND", "chat run not found")
+        yield from self._replay_agent_run(principal, run)
+
+    def _find_idempotent_run(
+        self,
+        principal: Principal,
+        conversation_id: UUID,
+        message: str,
+        client_message_id: str | None,
+        idempotency_key: str,
+    ) -> Any | None:
+        existing_message = None
+        if client_message_id:
+            existing_message = self._repository.get_message_by_client_id(
+                principal.user_id,
+                client_message_id,
+            )
+        existing_run = self._repository.get_run_by_idempotency(
+            principal.user_id,
+            idempotency_key,
+        )
+        if existing_message is None and existing_run is None:
+            return None
+
+        run = existing_run
+        if run is None and existing_message is not None:
+            run = self._repository.get_run_for_user_message(
+                principal.user_id,
+                _as_uuid(_value(existing_message, "id")),
+            )
+        if run is None:
+            raise ChatApplicationError(
+                "CHAT_PERSISTENCE_FAILED",
+                "persisted message has no agent run",
+            )
+
+        persisted_message = existing_message
+        if persisted_message is None:
+            persisted_message = next(
+                (
+                    item
+                    for item in self._repository.list_messages(
+                        principal.user_id,
+                        _as_uuid(_value(run, "conversation_id")),
+                    )
+                    if _as_uuid(_value(item, "id"))
+                    == _as_uuid(_value(run, "user_message_id"))
+                ),
+                None,
+            )
+        if (
+            persisted_message is None
+            or _as_uuid(_value(run, "user_message_id"))
+            != _as_uuid(_value(persisted_message, "id"))
+            or _as_uuid(_value(persisted_message, "conversation_id")) != conversation_id
+            or str(_value(persisted_message, "content", "")) != message
+            or str(_value(persisted_message, "client_message_id", "") or "")
+            != str(client_message_id or "")
+            or str(_value(run, "idempotency_key", "")) != idempotency_key
+        ):
+            raise ChatApplicationError(
+                "IDEMPOTENCY_CONFLICT",
+                "idempotency identity belongs to a different request",
+            )
+        return run
+
     def stream_message(
         self,
         principal: Principal,
@@ -156,39 +229,72 @@ class ChatApplication:
         if not isinstance(idempotency_key, str) or not idempotency_key.strip():
             raise ChatApplicationError("IDEMPOTENCY_KEY_REQUIRED", "idempotency key is required")
         idempotency_key = idempotency_key.strip()
-        if len(idempotency_key) > 200:
+        if len(idempotency_key) > 128:
             raise ChatApplicationError("IDEMPOTENCY_KEY_INVALID", "idempotency key is invalid")
 
-        if client_message_id:
+        if client_message_id is not None:
             client_message_id = str(client_message_id).strip()
-            if not client_message_id or len(client_message_id) > 200:
+            if not client_message_id or len(client_message_id) > 128:
                 raise ChatApplicationError("CLIENT_MESSAGE_ID_INVALID", "client message id is invalid")
-            existing = self._repository.find_message_by_client_id(
-                principal.user_id,
-                conversation_id,
-                client_message_id,
-            )
-            if existing is not None:
-                raise ChatApplicationError("MESSAGE_ALREADY_EXISTS", "message already exists")
-
-        now = _utc(self._clock)
-        user_message = self._repository.insert_message(
-            principal.user_id,
+        existing_run = self._find_idempotent_run(
+            principal,
             conversation_id,
-            MessageRole.USER,
             message,
             client_message_id,
-            now,
+            idempotency_key,
         )
-        run = self._repository.start_agent_run(
-            principal.user_id,
-            conversation_id,
-            _as_uuid(_value(user_message, "id")),
-            now,
-        )
+        if existing_run is not None:
+            run = existing_run
+            yield from self._replay_agent_run(principal, run)
+            return
+
+        now = _utc(self._clock)
+        runtime_revision = str(getattr(self._codex, "runtime_revision", "") or "").strip()
+        if not 1 <= len(runtime_revision) <= 160:
+            raise ChatApplicationError(
+                "CODEX_UNAVAILABLE",
+                "Codex runtime revision is not configured",
+            )
+        try:
+            _user_message, run = self._repository.start_message_run(
+                principal.user_id,
+                conversation_id,
+                message,
+                client_message_id,
+                idempotency_key,
+                now,
+                runtime_revision=runtime_revision,
+            )
+        except Exception as error:
+            try:
+                raced_run = self._find_idempotent_run(
+                    principal,
+                    conversation_id,
+                    message,
+                    client_message_id,
+                    idempotency_key,
+                )
+            except ChatApplicationError:
+                raise
+            except Exception:
+                raced_run = None
+            if raced_run is not None:
+                yield from self._replay_agent_run(principal, raced_run)
+                return
+            raise ChatApplicationError(
+                "CHAT_PERSISTENCE_FAILED",
+                "user message and agent run could not be persisted",
+            ) from error
         request_id = str(uuid4())
+        run_id = str(_as_uuid(_value(run, "id")))
         sequence = 1
-        yield ChatEvent("started", request_id, str(conversation_id), sequence)
+        yield ChatEvent(
+            "started",
+            request_id,
+            str(conversation_id),
+            sequence,
+            run_id=run_id,
+        )
 
         answer_parts: list[str] = []
         completed = False
@@ -205,7 +311,14 @@ class ChatApplication:
                         raise CodexStreamError("CODEX_OUTPUT_INVALID")
                     answer_parts.append(delta)
                     sequence += 1
-                    yield ChatEvent("delta", request_id, str(conversation_id), sequence, text=delta)
+                    yield ChatEvent(
+                        "delta",
+                        request_id,
+                        str(conversation_id),
+                        sequence,
+                        run_id=run_id,
+                        text=delta,
+                    )
                 elif event_type in {"completed", "item.completed", "turn.completed"}:
                     completed = True
                     final_text = str(_value(raw_event, "text", "") or "").strip()
@@ -219,24 +332,33 @@ class ChatApplication:
             if not completed or not "".join(answer_parts).strip():
                 raise CodexStreamError("CODEX_OUTPUT_INVALID")
             answer = "".join(answer_parts).strip()
-            assistant = self._repository.insert_message(
-                principal.user_id,
-                conversation_id,
-                MessageRole.ASSISTANT,
-                answer,
-                None,
-                _utc(self._clock),
-            )
-            self._repository.finish_agent_run(
-                principal.user_id,
-                _as_uuid(_value(run, "id")),
-                AgentRunStatus.SUCCEEDED,
-                _as_uuid(_value(assistant, "id")),
-                "",
-                _utc(self._clock),
-            )
+            try:
+                self._repository.complete_run_with_assistant(
+                    principal.user_id,
+                    conversation_id,
+                    _as_uuid(_value(run, "id")),
+                    answer,
+                    _utc(self._clock),
+                )
+            except Exception:
+                yield from self._fail_run(
+                    principal,
+                    run,
+                    request_id,
+                    conversation_id,
+                    sequence,
+                    CodexStreamError("CHAT_PERSISTENCE_FAILED"),
+                )
+                return
             sequence += 1
-            yield ChatEvent("completed", request_id, str(conversation_id), sequence, text=answer)
+            yield ChatEvent(
+                "completed",
+                request_id,
+                str(conversation_id),
+                sequence,
+                run_id=run_id,
+                text=answer,
+            )
         except CodexUnavailable as error:
             yield from self._fail_run(principal, run, request_id, conversation_id, sequence, error)
         except CodexTimeout as error:
@@ -284,8 +406,69 @@ class ChatApplication:
             request_id,
             str(conversation_id),
             sequence + 1,
+            run_id=str(_as_uuid(_value(run, "id"))),
             error_code=error.code,
             retryable=error.code in {"CODEX_UNAVAILABLE", "CODEX_TIMEOUT", "CODEX_EXECUTION_FAILED"},
+        )
+
+    def _replay_agent_run(
+        self,
+        principal: Principal,
+        run: Any,
+    ) -> Iterator[ChatEvent]:
+        run_id = str(_as_uuid(_value(run, "id")))
+        conversation_id = str(_as_uuid(_value(run, "conversation_id")))
+        status = _value(run, "status")
+        status_value = status.value if isinstance(status, AgentRunStatus) else str(status)
+        if status_value == AgentRunStatus.STREAMING.value:
+            raise ChatApplicationError("CHAT_RUN_IN_PROGRESS", "chat run is still in progress")
+        request_id = str(uuid4())
+        yield ChatEvent(
+            "started",
+            request_id,
+            conversation_id,
+            1,
+            run_id=run_id,
+        )
+        if status_value == AgentRunStatus.FAILED.value:
+            error_code = str(_value(run, "public_error_code", "") or "CODEX_OUTPUT_INVALID")
+            yield ChatEvent(
+                "failed",
+                request_id,
+                conversation_id,
+                2,
+                run_id=run_id,
+                error_code=error_code,
+                retryable=error_code in {"CODEX_UNAVAILABLE", "CODEX_TIMEOUT", "CODEX_EXECUTION_FAILED"},
+            )
+            return
+        if status_value != AgentRunStatus.SUCCEEDED.value:
+            raise ChatApplicationError("CHAT_RUN_NOT_REPLAYABLE", "chat run cannot be replayed")
+        assistant_message_id = _value(run, "assistant_message_id")
+        messages = self._repository.list_messages(
+            principal.user_id,
+            _as_uuid(_value(run, "conversation_id")),
+        )
+        assistant = next(
+            (
+                item for item in messages
+                if assistant_message_id is not None
+                and _as_uuid(_value(item, "id")) == _as_uuid(assistant_message_id)
+            ),
+            None,
+        )
+        if assistant is None:
+            raise ChatApplicationError(
+                "CHAT_PERSISTENCE_FAILED",
+                "completed run has no persisted assistant message",
+            )
+        yield ChatEvent(
+            "completed",
+            request_id,
+            conversation_id,
+            2,
+            run_id=run_id,
+            text=str(_value(assistant, "content", "")),
         )
 
     @staticmethod

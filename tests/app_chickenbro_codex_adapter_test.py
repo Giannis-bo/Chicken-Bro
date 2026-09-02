@@ -39,6 +39,19 @@ class TrackingStdin(io.StringIO):
 
 
 class ChickenbroCodexAdapterTest(unittest.TestCase):
+    def test_adapter_exposes_configured_runtime_revision(self):
+        with tempfile.TemporaryDirectory() as directory:
+            try:
+                adapter = NativeCodexChatAdapter(
+                    jobs_dir=directory,
+                    enabled=False,
+                    runtime_revision="codex:native:0.99.1",
+                )
+            except TypeError as error:
+                self.fail(f"adapter rejected runtime revision: {error}")
+
+        self.assertEqual(adapter.runtime_revision, "codex:native:0.99.1")
+
     def test_disabled_adapter_fails_closed_without_starting_a_process(self):
         started = []
         with tempfile.TemporaryDirectory() as directory:

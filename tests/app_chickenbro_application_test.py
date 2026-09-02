@@ -14,6 +14,10 @@ class MemoryChatRepository:
         self.runs = {}
         self.list_conversations_calls = 0
         self.list_conversation_limits = []
+        self.fail_assistant_insert = False
+        self.fail_run_start = False
+        self.fail_success_finish_once = False
+        self.race_existing_on_start = False
 
     def create_conversation(self, user_id, title, now):
         conversation = {
@@ -62,7 +66,43 @@ class MemoryChatRepository:
             None,
         )
 
+    def get_message_by_client_id(self, user_id, client_message_id):
+        return next(
+            (
+                item for item in self.messages
+                if item["user_id"] == user_id
+                and item["client_message_id"] == client_message_id
+            ),
+            None,
+        )
+
+    def get_run_for_user_message(self, user_id, user_message_id):
+        return next(
+            (
+                run for run in self.runs.values()
+                if run["user_id"] == user_id
+                and run["user_message_id"] == user_message_id
+            ),
+            None,
+        )
+
+    def get_run_by_idempotency(self, user_id, idempotency_key):
+        return next(
+            (
+                run for run in self.runs.values()
+                if run["user_id"] == user_id
+                and run["idempotency_key"] == idempotency_key
+            ),
+            None,
+        )
+
+    def get_agent_run(self, user_id, run_id):
+        run = self.runs.get(run_id)
+        return run if run is not None and run["user_id"] == user_id else None
+
     def insert_message(self, user_id, conversation_id, role, content, client_message_id, now):
+        if role is MessageRole.ASSISTANT and self.fail_assistant_insert:
+            raise RuntimeError("assistant persistence failed")
         message = {
             "id": uuid4(),
             "user_id": user_id,
@@ -75,7 +115,17 @@ class MemoryChatRepository:
         self.messages.append(message)
         return message
 
-    def start_agent_run(self, user_id, conversation_id, user_message_id, now):
+    def start_agent_run(
+        self,
+        user_id,
+        conversation_id,
+        user_message_id,
+        now,
+        idempotency_key="",
+        runtime_revision="",
+    ):
+        if self.fail_run_start:
+            raise RuntimeError("agent run start failed")
         run = {
             "id": uuid4(),
             "user_id": user_id,
@@ -84,13 +134,103 @@ class MemoryChatRepository:
             "assistant_message_id": None,
             "status": AgentRunStatus.STREAMING,
             "public_error_code": "",
+            "idempotency_key": idempotency_key,
+            "runtime_revision": runtime_revision,
             "started_at": now,
             "finished_at": None,
         }
         self.runs[run["id"]] = run
         return run
 
+    def start_message_run(
+        self,
+        user_id,
+        conversation_id,
+        content,
+        client_message_id,
+        idempotency_key,
+        now,
+        runtime_revision="",
+    ):
+        if self.race_existing_on_start:
+            self.race_existing_on_start = False
+            message = self.insert_message(
+                user_id,
+                conversation_id,
+                MessageRole.USER,
+                content,
+                client_message_id,
+                now,
+            )
+            run = self.start_agent_run(
+                user_id,
+                conversation_id,
+                message["id"],
+                now,
+                idempotency_key=idempotency_key,
+                runtime_revision=runtime_revision,
+            )
+            self.complete_run_with_assistant(
+                user_id,
+                conversation_id,
+                run["id"],
+                "竞态中的已持久化回答",
+                now,
+            )
+            raise RuntimeError("simulated unique constraint race")
+        if self.fail_run_start:
+            raise RuntimeError("agent run start failed")
+        message = self.insert_message(
+            user_id,
+            conversation_id,
+            MessageRole.USER,
+            content,
+            client_message_id,
+            now,
+        )
+        run = self.start_agent_run(
+            user_id,
+            conversation_id,
+            message["id"],
+            now,
+            idempotency_key=idempotency_key,
+            runtime_revision=runtime_revision,
+        )
+        return message, run
+
+    def complete_run_with_assistant(
+        self,
+        user_id,
+        conversation_id,
+        run_id,
+        content,
+        now,
+    ):
+        if self.fail_success_finish_once:
+            self.fail_success_finish_once = False
+            raise RuntimeError("success terminal update failed")
+        assistant = self.insert_message(
+            user_id,
+            conversation_id,
+            MessageRole.ASSISTANT,
+            content,
+            None,
+            now,
+        )
+        self.finish_agent_run(
+            user_id,
+            run_id,
+            AgentRunStatus.SUCCEEDED,
+            assistant["id"],
+            "",
+            now,
+        )
+        return assistant
+
     def finish_agent_run(self, user_id, run_id, status, assistant_message_id, public_error_code, finished_at):
+        if status is AgentRunStatus.SUCCEEDED and self.fail_success_finish_once:
+            self.fail_success_finish_once = False
+            raise RuntimeError("success terminal update failed")
         run = self.runs[run_id]
         self.assert_owner(run, user_id)
         run.update({
@@ -107,11 +247,14 @@ class MemoryChatRepository:
 
 
 class FakeCodex:
-    def __init__(self, events=None, error=None):
+    def __init__(self, events=None, error=None, runtime_revision="codex:test:1"):
         self.events = events or []
         self.error = error
+        self.calls = 0
+        self.runtime_revision = runtime_revision
 
     def stream(self, *, prompt, timeout_seconds):
+        self.calls += 1
         if self.error:
             raise self.error
         yield from self.events
@@ -278,6 +421,478 @@ class ChatApplicationTest(unittest.TestCase):
                 idempotency_key="request-3",
             ))
         self.assertEqual(self.repository.messages, [])
+
+    def test_same_client_message_and_idempotency_key_invokes_codex_once(self):
+        codex = FakeCodex([
+            {"type": "delta", "text": "同一回答"},
+            {"type": "completed", "text": "同一回答"},
+        ])
+        application = ChatApplication(
+            repository=self.repository,
+            codex=codex,
+            clock=lambda: self.now,
+        )
+
+        first = list(application.stream_message(
+            self.principal,
+            self.conversation_id,
+            "同一问题",
+            client_message_id="client-idempotent",
+            idempotency_key="request-idempotent",
+        ))
+        try:
+            second = list(application.stream_message(
+                self.principal,
+                self.conversation_id,
+                "同一问题",
+                client_message_id="client-idempotent",
+                idempotency_key="request-idempotent",
+            ))
+        except ChatApplicationError as error:
+            self.fail(f"idempotent retry failed with {error.code}")
+
+        self.assertEqual(codex.calls, 1)
+        self.assertTrue(all(hasattr(event, "run_id") for event in first + second))
+        self.assertEqual(second[-1].run_id, first[-1].run_id)
+        self.assertEqual(
+            [event.event_type for event in second],
+            ["started", "completed"],
+        )
+
+    def test_reused_client_message_with_different_content_is_an_idempotency_conflict(self):
+        codex = FakeCodex([{"type": "completed", "text": "原回答"}])
+        application = ChatApplication(
+            repository=self.repository,
+            codex=codex,
+            clock=lambda: self.now,
+        )
+        list(application.stream_message(
+            self.principal,
+            self.conversation_id,
+            "原问题",
+            client_message_id="client-conflict-content",
+            idempotency_key="request-conflict-content",
+        ))
+
+        with self.assertRaisesRegex(ChatApplicationError, "IDEMPOTENCY_CONFLICT"):
+            list(application.stream_message(
+                self.principal,
+                self.conversation_id,
+                "被篡改的问题",
+                client_message_id="client-conflict-content",
+                idempotency_key="request-conflict-content",
+            ))
+
+        self.assertEqual(codex.calls, 1)
+
+    def test_reused_client_message_with_different_idempotency_key_is_a_conflict(self):
+        codex = FakeCodex([{"type": "completed", "text": "原回答"}])
+        application = ChatApplication(
+            repository=self.repository,
+            codex=codex,
+            clock=lambda: self.now,
+        )
+        list(application.stream_message(
+            self.principal,
+            self.conversation_id,
+            "同一问题",
+            client_message_id="client-conflict-key",
+            idempotency_key="request-original-key",
+        ))
+
+        with self.assertRaisesRegex(ChatApplicationError, "IDEMPOTENCY_CONFLICT"):
+            list(application.stream_message(
+                self.principal,
+                self.conversation_id,
+                "同一问题",
+                client_message_id="client-conflict-key",
+                idempotency_key="request-different-key",
+            ))
+
+        self.assertEqual(codex.calls, 1)
+
+    def test_reused_idempotency_key_with_different_client_message_is_a_conflict(self):
+        codex = FakeCodex([{"type": "completed", "text": "原回答"}])
+        application = ChatApplication(
+            repository=self.repository,
+            codex=codex,
+            clock=lambda: self.now,
+        )
+        list(application.stream_message(
+            self.principal,
+            self.conversation_id,
+            "同一问题",
+            client_message_id="client-original-key",
+            idempotency_key="request-reused-key",
+        ))
+
+        with self.assertRaisesRegex(ChatApplicationError, "IDEMPOTENCY_CONFLICT"):
+            list(application.stream_message(
+                self.principal,
+                self.conversation_id,
+                "同一问题",
+                client_message_id="client-different-key",
+                idempotency_key="request-reused-key",
+            ))
+
+        self.assertEqual(codex.calls, 1)
+
+    def test_client_message_and_idempotency_key_must_reference_the_same_run(self):
+        codex = FakeCodex([
+            {"type": "completed", "text": "第一个回答"},
+            {"type": "completed", "text": "第二个回答"},
+        ])
+        application = ChatApplication(
+            repository=self.repository,
+            codex=codex,
+            clock=lambda: self.now,
+        )
+        list(application.stream_message(
+            self.principal,
+            self.conversation_id,
+            "相同正文",
+            client_message_id="client-pair-a",
+            idempotency_key="request-pair-a",
+        ))
+        list(application.stream_message(
+            self.principal,
+            self.conversation_id,
+            "相同正文",
+            client_message_id="client-pair-b",
+            idempotency_key="request-pair-b",
+        ))
+
+        with self.assertRaisesRegex(ChatApplicationError, "IDEMPOTENCY_CONFLICT"):
+            list(application.stream_message(
+                self.principal,
+                self.conversation_id,
+                "相同正文",
+                client_message_id="client-pair-a",
+                idempotency_key="request-pair-b",
+            ))
+
+        self.assertEqual(codex.calls, 2)
+
+    def test_idempotency_key_longer_than_database_bound_is_rejected(self):
+        application = ChatApplication(
+            repository=self.repository,
+            codex=FakeCodex(),
+            clock=lambda: self.now,
+        )
+
+        with self.assertRaisesRegex(ChatApplicationError, "IDEMPOTENCY_KEY_INVALID"):
+            list(application.stream_message(
+                self.principal,
+                self.conversation_id,
+                "有界请求",
+                client_message_id="client-bounded-key",
+                idempotency_key="k" * 129,
+            ))
+
+        self.assertEqual(self.repository.messages, [])
+
+    def test_client_message_id_longer_than_database_bound_is_rejected(self):
+        application = ChatApplication(
+            repository=self.repository,
+            codex=FakeCodex(),
+            clock=lambda: self.now,
+        )
+
+        with self.assertRaisesRegex(ChatApplicationError, "CLIENT_MESSAGE_ID_INVALID"):
+            list(application.stream_message(
+                self.principal,
+                self.conversation_id,
+                "有界消息",
+                client_message_id="m" * 129,
+                idempotency_key="request-bounded-message",
+            ))
+
+        self.assertEqual(self.repository.messages, [])
+
+    def test_present_but_empty_client_message_id_is_rejected_before_persistence(self):
+        application = ChatApplication(
+            repository=self.repository,
+            codex=FakeCodex(),
+            clock=lambda: self.now,
+        )
+
+        with self.assertRaisesRegex(ChatApplicationError, "CLIENT_MESSAGE_ID_INVALID"):
+            list(application.stream_message(
+                self.principal,
+                self.conversation_id,
+                "有界消息",
+                client_message_id="",
+                idempotency_key="request-empty-client-message",
+            ))
+
+        self.assertEqual(self.repository.messages, [])
+
+    def test_assistant_persistence_failure_never_marks_run_succeeded(self):
+        self.repository.fail_assistant_insert = True
+        application = ChatApplication(
+            repository=self.repository,
+            codex=FakeCodex([
+                {"type": "completed", "text": "不能伪装成功"},
+            ]),
+            clock=lambda: self.now,
+        )
+
+        events = list(application.stream_message(
+            self.principal,
+            self.conversation_id,
+            "必须先持久化",
+            client_message_id="client-persistence-failure",
+            idempotency_key="request-persistence-failure",
+        ))
+
+        self.assertEqual(events[-1].event_type, "failed")
+        self.assertEqual(events[-1].error_code, "CHAT_PERSISTENCE_FAILED")
+        self.assertEqual(
+            next(iter(self.repository.runs.values()))["status"],
+            AgentRunStatus.FAILED,
+        )
+        self.assertEqual(
+            [item["role"] for item in self.repository.messages],
+            [MessageRole.USER],
+        )
+
+    def test_success_terminal_failure_does_not_leave_an_orphan_assistant(self):
+        self.repository.fail_success_finish_once = True
+        application = ChatApplication(
+            repository=self.repository,
+            codex=FakeCodex([
+                {"type": "completed", "text": "不得成为孤儿"},
+            ]),
+            clock=lambda: self.now,
+        )
+
+        events = list(application.stream_message(
+            self.principal,
+            self.conversation_id,
+            "终态也要原子",
+            client_message_id="client-terminal-atomic",
+            idempotency_key="request-terminal-atomic",
+        ))
+
+        self.assertEqual(events[-1].event_type, "failed")
+        self.assertEqual(events[-1].error_code, "CHAT_PERSISTENCE_FAILED")
+        self.assertEqual(
+            [item["role"] for item in self.repository.messages],
+            [MessageRole.USER],
+        )
+        self.assertEqual(
+            next(iter(self.repository.runs.values()))["status"],
+            AgentRunStatus.FAILED,
+        )
+
+    def test_run_start_failure_does_not_leave_an_orphan_user_message(self):
+        self.repository.fail_run_start = True
+        codex = FakeCodex([{"type": "completed", "text": "不应调用"}])
+        application = ChatApplication(
+            repository=self.repository,
+            codex=codex,
+            clock=lambda: self.now,
+        )
+
+        try:
+            list(application.stream_message(
+                self.principal,
+                self.conversation_id,
+                "原子写入",
+                client_message_id="client-atomic-start",
+                idempotency_key="request-atomic-start",
+            ))
+        except ChatApplicationError as error:
+            self.assertEqual(error.code, "CHAT_PERSISTENCE_FAILED")
+        except RuntimeError as error:
+            self.fail(f"repository failure leaked from application: {error}")
+        else:
+            self.fail("run-start persistence failure was not reported")
+
+        self.assertEqual(self.repository.messages, [])
+        self.assertEqual(self.repository.runs, {})
+        self.assertEqual(codex.calls, 0)
+
+    def test_concurrent_duplicate_start_replays_the_committed_run(self):
+        self.repository.race_existing_on_start = True
+        codex = FakeCodex(error=AssertionError("Codex must not run for a committed duplicate"))
+        application = ChatApplication(
+            repository=self.repository,
+            codex=codex,
+            clock=lambda: self.now,
+        )
+
+        try:
+            events = list(application.stream_message(
+                self.principal,
+                self.conversation_id,
+                "并发相同请求",
+                client_message_id="client-concurrent-retry",
+                idempotency_key="request-concurrent-retry",
+            ))
+        except ChatApplicationError as error:
+            self.fail(f"concurrent idempotent replay failed with {error.code}")
+
+        self.assertEqual(codex.calls, 0)
+        self.assertEqual(
+            [event.event_type for event in events],
+            ["started", "completed"],
+        )
+        self.assertEqual(events[-1].text, "竞态中的已持久化回答")
+        self.assertEqual(len(self.repository.runs), 1)
+
+    def test_agent_run_persists_the_codex_runtime_revision(self):
+        codex = FakeCodex(
+            [{"type": "completed", "text": "版本明确"}],
+            runtime_revision="codex:native:test-revision",
+        )
+        application = ChatApplication(
+            repository=self.repository,
+            codex=codex,
+            clock=lambda: self.now,
+        )
+
+        list(application.stream_message(
+            self.principal,
+            self.conversation_id,
+            "记录运行版本",
+            client_message_id="client-runtime-revision",
+            idempotency_key="request-runtime-revision",
+        ))
+
+        run = next(iter(self.repository.runs.values()))
+        self.assertEqual(run.get("runtime_revision"), "codex:native:test-revision")
+
+    def test_missing_codex_runtime_revision_fails_before_persistence(self):
+        codex = FakeCodex(
+            [{"type": "completed", "text": "不应执行"}],
+            runtime_revision="",
+        )
+        application = ChatApplication(
+            repository=self.repository,
+            codex=codex,
+            clock=lambda: self.now,
+        )
+
+        with self.assertRaisesRegex(ChatApplicationError, "CODEX_UNAVAILABLE"):
+            list(application.stream_message(
+                self.principal,
+                self.conversation_id,
+                "缺少运行版本",
+                client_message_id="client-missing-runtime",
+                idempotency_key="request-missing-runtime",
+            ))
+
+        self.assertEqual(self.repository.messages, [])
+        self.assertEqual(self.repository.runs, {})
+        self.assertEqual(codex.calls, 0)
+
+    def test_replay_succeeded_run_uses_persisted_assistant_without_codex(self):
+        application = ChatApplication(
+            repository=self.repository,
+            codex=FakeCodex([
+                {"type": "completed", "text": "持久化回答"},
+            ]),
+            clock=lambda: self.now,
+        )
+        completed = list(application.stream_message(
+            self.principal,
+            self.conversation_id,
+            "断线前的问题",
+            client_message_id="client-replay-success",
+            idempotency_key="request-replay-success",
+        ))
+        replay_codex = FakeCodex(error=AssertionError("Codex must not run during replay"))
+        replay_application = ChatApplication(
+            repository=self.repository,
+            codex=replay_codex,
+            clock=lambda: self.now,
+        )
+        self.assertTrue(
+            hasattr(replay_application, "replay_run"),
+            "public persisted-run replay is missing",
+        )
+
+        replayed = list(replay_application.replay_run(
+            self.principal,
+            UUID(completed[-1].run_id),
+        ))
+
+        self.assertEqual(replay_codex.calls, 0)
+        self.assertEqual(
+            [event.event_type for event in replayed],
+            ["started", "completed"],
+        )
+        self.assertEqual([event.sequence for event in replayed], [1, 2])
+        self.assertEqual(replayed[-1].text, "持久化回答")
+        self.assertEqual(replayed[-1].run_id, completed[-1].run_id)
+
+    def test_replay_failed_run_uses_persisted_public_error_without_codex(self):
+        from server.app.chickenbro.codex_adapter import CodexUnavailable
+
+        application = ChatApplication(
+            repository=self.repository,
+            codex=FakeCodex(error=CodexUnavailable()),
+            clock=lambda: self.now,
+        )
+        failed = list(application.stream_message(
+            self.principal,
+            self.conversation_id,
+            "失败也要重放",
+            client_message_id="client-replay-failed",
+            idempotency_key="request-replay-failed",
+        ))
+        replay_codex = FakeCodex(error=AssertionError("Codex must not run during replay"))
+        replay_application = ChatApplication(
+            repository=self.repository,
+            codex=replay_codex,
+            clock=lambda: self.now,
+        )
+
+        try:
+            replayed = list(replay_application.replay_run(
+                self.principal,
+                UUID(failed[-1].run_id),
+            ))
+        except ChatApplicationError as error:
+            self.fail(f"failed run replay returned {error.code}")
+
+        self.assertEqual(replay_codex.calls, 0)
+        self.assertEqual(
+            [event.event_type for event in replayed],
+            ["started", "failed"],
+        )
+        self.assertEqual([event.sequence for event in replayed], [1, 2])
+        self.assertEqual(replayed[-1].error_code, "CODEX_UNAVAILABLE")
+        self.assertEqual(replayed[-1].run_id, failed[-1].run_id)
+
+    def test_replay_streaming_run_fails_before_emitting_an_event(self):
+        user_message = self.repository.insert_message(
+            self.user_id,
+            self.conversation_id,
+            MessageRole.USER,
+            "仍在运行",
+            "client-still-running",
+            self.now,
+        )
+        run = self.repository.start_agent_run(
+            self.user_id,
+            self.conversation_id,
+            user_message["id"],
+            self.now,
+        )
+        replay_codex = FakeCodex(error=AssertionError("Codex must not run during replay"))
+        replay_application = ChatApplication(
+            repository=self.repository,
+            codex=replay_codex,
+            clock=lambda: self.now,
+        )
+        replay = replay_application.replay_run(self.principal, run["id"])
+
+        with self.assertRaisesRegex(ChatApplicationError, "CHAT_RUN_IN_PROGRESS"):
+            next(replay)
+
+        self.assertEqual(replay_codex.calls, 0)
 
 
 class FormalChatPaginationTest(unittest.TestCase):

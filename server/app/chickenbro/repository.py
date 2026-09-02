@@ -113,7 +113,7 @@ class PostgresChatRepository:
         self,
         user_id: UUID,
         conversation_id: UUID,
-        client_message_id: str,
+        client_message_id: str | None,
     ) -> Message | None:
         if not client_message_id:
             return None
@@ -129,6 +129,85 @@ class PostgresChatRepository:
                 )
                 row = cursor.fetchone()
         return self._message_from_row(row) if row is not None else None
+
+    def get_message_by_client_id(
+        self,
+        user_id: UUID,
+        client_message_id: str,
+    ) -> Message | None:
+        if not client_message_id:
+            return None
+        with self._connection_factory() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT id, conversation_id, user_id, role, content, client_message_id, created_at
+                    FROM chat.messages
+                    WHERE user_id = %s AND client_message_id = %s
+                    """,
+                    (user_id, client_message_id),
+                )
+                row = cursor.fetchone()
+        return self._message_from_row(row) if row is not None else None
+
+    def get_run_for_user_message(
+        self,
+        user_id: UUID,
+        user_message_id: UUID,
+    ) -> AgentRun | None:
+        with self._connection_factory() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT id, user_id, conversation_id, user_message_id,
+                           assistant_message_id, status, runtime_revision,
+                           public_error_code, started_at, finished_at,
+                           idempotency_key
+                    FROM chat.agent_runs
+                    WHERE user_id = %s AND user_message_id = %s
+                    """,
+                    (user_id, user_message_id),
+                )
+                row = cursor.fetchone()
+        return self._agent_run_from_row(row) if row is not None else None
+
+    def get_run_by_idempotency(
+        self,
+        user_id: UUID,
+        idempotency_key: str,
+    ) -> AgentRun | None:
+        with self._connection_factory() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT id, user_id, conversation_id, user_message_id,
+                           assistant_message_id, status, runtime_revision,
+                           public_error_code, started_at, finished_at,
+                           idempotency_key
+                    FROM chat.agent_runs
+                    WHERE user_id = %s AND idempotency_key = %s
+                    """,
+                    (user_id, idempotency_key),
+                )
+                row = cursor.fetchone()
+        return self._agent_run_from_row(row) if row is not None else None
+
+    def get_agent_run(self, user_id: UUID, run_id: UUID) -> AgentRun | None:
+        with self._connection_factory() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT id, user_id, conversation_id, user_message_id,
+                           assistant_message_id, status, runtime_revision,
+                           public_error_code, started_at, finished_at,
+                           idempotency_key
+                    FROM chat.agent_runs
+                    WHERE user_id = %s AND id = %s
+                    """,
+                    (user_id, run_id),
+                )
+                row = cursor.fetchone()
+        return self._agent_run_from_row(row) if row is not None else None
 
     def insert_message(
         self,
@@ -162,18 +241,149 @@ class PostgresChatRepository:
             created_at=now,
         )
 
-    def start_agent_run(self, user_id: UUID, conversation_id: UUID, user_message_id: UUID, now: datetime) -> AgentRun:
+    def start_message_run(
+        self,
+        user_id: UUID,
+        conversation_id: UUID,
+        content: str,
+        client_message_id: str | None,
+        idempotency_key: str,
+        now: datetime,
+        *,
+        runtime_revision: str,
+    ) -> tuple[Message, AgentRun]:
+        message_id = uuid4()
+        run_id = uuid4()
+        with self._connection_factory() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    INSERT INTO chat.messages (
+                        id, conversation_id, user_id, role, content, client_message_id, created_at
+                    )
+                    VALUES (%s, %s, %s, 'user', %s, %s, %s)
+                    """,
+                    (message_id, conversation_id, user_id, content, client_message_id, now),
+                )
+                cursor.execute(
+                    """
+                    INSERT INTO chat.agent_runs (
+                        id, user_id, conversation_id, user_message_id, status,
+                        runtime_revision, started_at, idempotency_key
+                    )
+                    VALUES (%s, %s, %s, %s, 'streaming', %s, %s, %s)
+                    """,
+                    (
+                        run_id,
+                        user_id,
+                        conversation_id,
+                        message_id,
+                        runtime_revision,
+                        now,
+                        idempotency_key,
+                    ),
+                )
+        return (
+            Message(
+                id=message_id,
+                conversation_id=conversation_id,
+                user_id=user_id,
+                role=MessageRole.USER,
+                content=content,
+                client_message_id=client_message_id,
+                created_at=now,
+            ),
+            AgentRun(
+                id=run_id,
+                user_id=user_id,
+                conversation_id=conversation_id,
+                user_message_id=message_id,
+                assistant_message_id=None,
+                status=AgentRunStatus.STREAMING,
+                runtime_revision=runtime_revision,
+                public_error_code="",
+                started_at=now,
+                finished_at=None,
+                idempotency_key=idempotency_key,
+            ),
+        )
+
+    def complete_run_with_assistant(
+        self,
+        user_id: UUID,
+        conversation_id: UUID,
+        run_id: UUID,
+        content: str,
+        now: datetime,
+    ) -> Message:
+        assistant_id = uuid4()
+        with self._connection_factory() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    INSERT INTO chat.messages (
+                        id, conversation_id, user_id, role, content, client_message_id, created_at
+                    )
+                    VALUES (%s, %s, %s, 'assistant', %s, NULL, %s)
+                    """,
+                    (assistant_id, conversation_id, user_id, content, now),
+                )
+                cursor.execute(
+                    """
+                    UPDATE chat.agent_runs
+                    SET status = 'succeeded',
+                        assistant_message_id = %s,
+                        public_error_code = '',
+                        finished_at = %s
+                    WHERE id = %s
+                      AND user_id = %s
+                      AND conversation_id = %s
+                      AND status = 'streaming'
+                    """,
+                    (assistant_id, now, run_id, user_id, conversation_id),
+                )
+                if cursor.rowcount != 1:
+                    raise RuntimeError("agent run was not streaming for completion")
+        return Message(
+            id=assistant_id,
+            conversation_id=conversation_id,
+            user_id=user_id,
+            role=MessageRole.ASSISTANT,
+            content=content,
+            client_message_id=None,
+            created_at=now,
+        )
+
+    def start_agent_run(
+        self,
+        user_id: UUID,
+        conversation_id: UUID,
+        user_message_id: UUID,
+        now: datetime,
+        *,
+        idempotency_key: str,
+        runtime_revision: str = "codex:native:unversioned",
+    ) -> AgentRun:
         run_id = uuid4()
         with self._connection_factory() as connection:
             with connection.cursor() as cursor:
                 cursor.execute(
                     """
                     INSERT INTO chat.agent_runs (
-                        id, user_id, conversation_id, user_message_id, status, started_at
+                        id, user_id, conversation_id, user_message_id, status,
+                        runtime_revision, started_at, idempotency_key
                     )
-                    VALUES (%s, %s, %s, %s, 'streaming', %s)
+                    VALUES (%s, %s, %s, %s, 'streaming', %s, %s, %s)
                     """,
-                    (run_id, user_id, conversation_id, user_message_id, now),
+                    (
+                        run_id,
+                        user_id,
+                        conversation_id,
+                        user_message_id,
+                        runtime_revision,
+                        now,
+                        idempotency_key,
+                    ),
                 )
         return AgentRun(
             id=run_id,
@@ -182,10 +392,11 @@ class PostgresChatRepository:
             user_message_id=user_message_id,
             assistant_message_id=None,
             status=AgentRunStatus.STREAMING,
-            runtime_revision="",
+            runtime_revision=runtime_revision,
             public_error_code="",
             started_at=now,
             finished_at=None,
+            idempotency_key=idempotency_key,
         )
 
     def finish_agent_run(
@@ -233,6 +444,28 @@ class PostgresChatRepository:
             status=ConversationStatus(str(_row_value(row, "status", 3))),
             created_at=_row_value(row, "created_at", 4),
             updated_at=_row_value(row, "updated_at", 5),
+        )
+
+    @staticmethod
+    def _agent_run_from_row(row: Any) -> AgentRun:
+        assistant_message_id = _row_value(row, "assistant_message_id", 4)
+        finished_at = _row_value(row, "finished_at", 9)
+        return AgentRun(
+            id=UUID(str(_row_value(row, "id", 0))),
+            user_id=UUID(str(_row_value(row, "user_id", 1))),
+            conversation_id=UUID(str(_row_value(row, "conversation_id", 2))),
+            user_message_id=UUID(str(_row_value(row, "user_message_id", 3))),
+            assistant_message_id=(
+                UUID(str(assistant_message_id))
+                if assistant_message_id is not None
+                else None
+            ),
+            status=AgentRunStatus(str(_row_value(row, "status", 5))),
+            runtime_revision=str(_row_value(row, "runtime_revision", 6) or ""),
+            public_error_code=str(_row_value(row, "public_error_code", 7) or ""),
+            started_at=_row_value(row, "started_at", 8),
+            finished_at=finished_at,
+            idempotency_key=str(_row_value(row, "idempotency_key", 10) or ""),
         )
 
 

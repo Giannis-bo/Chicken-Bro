@@ -33,6 +33,7 @@ class ChickenbroStreamTest(unittest.TestCase):
             request_id="00000000-0000-4000-8000-000000000003",
             conversation_id="00000000-0000-4000-8000-000000000004",
             sequence=2,
+            run_id="00000000-0000-4000-8000-000000000007",
             text="hello",
         )
 
@@ -44,6 +45,7 @@ class ChickenbroStreamTest(unittest.TestCase):
             "requestId": "00000000-0000-4000-8000-000000000003",
             "conversationId": "00000000-0000-4000-8000-000000000004",
             "sequence": 2,
+            "runId": "00000000-0000-4000-8000-000000000007",
             "text": "hello",
         })
         self.assertNotIn("thread", frame)

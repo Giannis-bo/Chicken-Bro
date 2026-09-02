@@ -16,6 +16,7 @@ class ChatEvent:
     request_id: str
     conversation_id: str
     sequence: int
+    run_id: str = ""
     text: str = ""
     error_code: str = ""
     retryable: bool = False
@@ -27,6 +28,8 @@ class ChatEvent:
             "conversationId": self.conversation_id,
             "sequence": self.sequence,
         }
+        if self.run_id:
+            payload["runId"] = self.run_id
         if self.text:
             payload["text"] = self.text
         if self.error_code:

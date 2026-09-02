@@ -48,8 +48,32 @@ class ChatRepository(Protocol):
         self,
         user_id: UUID,
         conversation_id: UUID,
+        client_message_id: str | None,
+    ) -> Any | None:
+        raise NotImplementedError
+
+    def get_message_by_client_id(
+        self,
+        user_id: UUID,
         client_message_id: str,
     ) -> Any | None:
+        raise NotImplementedError
+
+    def get_run_for_user_message(
+        self,
+        user_id: UUID,
+        user_message_id: UUID,
+    ) -> Any | None:
+        raise NotImplementedError
+
+    def get_run_by_idempotency(
+        self,
+        user_id: UUID,
+        idempotency_key: str,
+    ) -> Any | None:
+        raise NotImplementedError
+
+    def get_agent_run(self, user_id: UUID, run_id: UUID) -> Any | None:
         raise NotImplementedError
 
     def insert_message(
@@ -63,7 +87,39 @@ class ChatRepository(Protocol):
     ) -> Any:
         raise NotImplementedError
 
-    def start_agent_run(self, user_id: UUID, conversation_id: UUID, user_message_id: UUID, now: datetime) -> Any:
+    def start_message_run(
+        self,
+        user_id: UUID,
+        conversation_id: UUID,
+        content: str,
+        client_message_id: str | None,
+        idempotency_key: str,
+        now: datetime,
+        *,
+        runtime_revision: str,
+    ) -> tuple[Any, Any]:
+        raise NotImplementedError
+
+    def complete_run_with_assistant(
+        self,
+        user_id: UUID,
+        conversation_id: UUID,
+        run_id: UUID,
+        content: str,
+        now: datetime,
+    ) -> Any:
+        raise NotImplementedError
+
+    def start_agent_run(
+        self,
+        user_id: UUID,
+        conversation_id: UUID,
+        user_message_id: UUID,
+        now: datetime,
+        *,
+        idempotency_key: str,
+        runtime_revision: str = "codex:native:unversioned",
+    ) -> Any:
         raise NotImplementedError
 
     def finish_agent_run(

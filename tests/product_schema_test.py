@@ -9,6 +9,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 MIGRATION = ROOT / "server/migrations/product/0001_chickenbro_simc_core.sql"
+CHAT_REPLAY_MIGRATION = ROOT / "server/migrations/product/0002_chat_idempotent_replay.sql"
 
 EXPECTED_TABLES = {
     "identity": {"users", "user_identities", "auth_sessions", "web_login_sessions"},
@@ -31,6 +32,23 @@ def _normalized_sql() -> str:
 
 
 class ProductSchemaStaticTest(unittest.TestCase):
+    def test_chat_replay_migration_persists_both_idempotency_identities(self):
+        """Catches replay keys that exist only in process memory or permit duplicate runs."""
+        self.assertTrue(
+            CHAT_REPLAY_MIGRATION.is_file(),
+            "formal Chat idempotency migration is missing",
+        )
+        sql = " ".join(CHAT_REPLAY_MIGRATION.read_text(encoding="utf-8").split())
+
+        self.assertIn(
+            "ALTER TABLE chat.agent_runs ADD COLUMN idempotency_key text",
+            sql,
+        )
+        self.assertIn("ALTER COLUMN idempotency_key SET NOT NULL", sql)
+        self.assertIn("CHECK (length(idempotency_key) BETWEEN 1 AND 128)", sql)
+        self.assertIn("UNIQUE (user_id, idempotency_key)", sql)
+        self.assertIn("UNIQUE (user_id, user_message_id)", sql)
+
     def test_runtime_role_has_no_destructive_business_table_privileges(self):
         """Catches granting the request runtime direct deletion of user history."""
         sql = _normalized_sql()
@@ -270,7 +288,13 @@ class ProductSchemaIntegrationTest(unittest.TestCase):
                 connection,
                 ROOT / "server/migrations/product",
             )
-            self.assertEqual(applied, ("0001_chickenbro_simc_core",))
+            self.assertEqual(
+                applied,
+                (
+                    "0001_chickenbro_simc_core",
+                    "0002_chat_idempotent_replay",
+                ),
+            )
             actual = connection.execute(
                 "SELECT table_schema, table_name FROM information_schema.tables "
                 "WHERE table_schema = ANY(%s)",
