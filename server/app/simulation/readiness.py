@@ -6,9 +6,11 @@ from pathlib import Path
 from typing import Mapping
 
 from server.app.simulation.domain import SourceReadiness, SourceSnapshot
-
-
-PROTOTYPE_MAX_CHARACTER_LEVEL = 90
+from server.app.simulation.snapshots import (
+    REQUIRED_CHARACTER_PATHS,
+    REQUIRED_GEAR_SLOTS,
+    missing_snapshot_fields,
+)
 
 
 @dataclass(frozen=True)
@@ -62,26 +64,6 @@ class ReadinessReport:
 
 
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
-_REQUIRED_GEAR_SLOTS = (
-    "head",
-    "neck",
-    "shoulder",
-    "back",
-    "chest",
-    "wrist",
-    "hands",
-    "waist",
-    "legs",
-    "feet",
-    "finger1",
-    "finger2",
-    "trinket1",
-    "trinket2",
-    "main_hand",
-    "off_hand",
-)
-
-
 class SimcReadinessValidator:
     def validate(
         self,
@@ -100,8 +82,18 @@ class SimcReadinessValidator:
         character = character if isinstance(character, Mapping) else {}
         gear = raw_snapshot.get("gear") if isinstance(raw_snapshot, Mapping) else {}
         gear = gear if isinstance(gear, Mapping) else {}
-        talents = raw_snapshot.get("talents") if isinstance(raw_snapshot, Mapping) else {}
-        talents = talents if isinstance(talents, Mapping) else {}
+        missing_fields = set(
+            missing_snapshot_fields(raw_snapshot)
+            if isinstance(raw_snapshot, Mapping)
+            else REQUIRED_CHARACTER_PATHS
+        )
+        gear_state = raw_snapshot.get("gearState") if isinstance(raw_snapshot, Mapping) else {}
+        gear_state = gear_state if isinstance(gear_state, Mapping) else {}
+        unequipped_slots = {
+            str(slot)
+            for slot in gear_state.get("unequippedSlots", ())
+            if isinstance(slot, str)
+        }
 
         checks: dict[str, bool] = {}
         blockers: list[str] = []
@@ -111,46 +103,44 @@ class SimcReadinessValidator:
             if not condition:
                 blockers.append(blocker)
 
-        require("identity", bool(str(character.get("name") or "").strip()), "CHARACTER_IDENTITY_MISSING")
-        require("class", bool(str(character.get("classKey") or "").strip()), "CHARACTER_CLASS_MISSING")
-        require("spec", bool(str(character.get("specKey") or "").strip()), "CHARACTER_SPEC_MISSING")
-        require("race", bool(str(character.get("raceKey") or "").strip()), "CHARACTER_RACE_MISSING")
-        level = character.get("level")
-        # The Web prototype intentionally simulates max-level characters. A
-        # missing level in an older persisted snapshot is therefore acceptable;
-        # the compiler applies PROTOTYPE_MAX_CHARACTER_LEVEL below.
-        require(
-            "level",
-            level is None or (isinstance(level, int) and level > 0),
-            "CHARACTER_LEVEL_MISSING",
-        )
+        character_requirements = {
+            "character.name": ("identity", "CHARACTER_IDENTITY_MISSING"),
+            "character.region": ("region", "CHARACTER_REGION_MISSING"),
+            "character.realm": ("realm", "CHARACTER_REALM_MISSING"),
+            "character.level": ("level", "CHARACTER_LEVEL_MISSING"),
+            "character.classKey": ("class", "CHARACTER_CLASS_MISSING"),
+            "character.specKey": ("spec", "CHARACTER_SPEC_MISSING"),
+            "character.raceKey": ("race", "CHARACTER_RACE_MISSING"),
+        }
+        for path in REQUIRED_CHARACTER_PATHS:
+            check_name, blocker = character_requirements[path]
+            require(check_name, path not in missing_fields, blocker)
 
-        for slot in _REQUIRED_GEAR_SLOTS:
+        for slot in REQUIRED_GEAR_SLOTS:
             item = gear.get(slot)
-            if slot == "off_hand" and item is None:
-                # Raider.IO omits this slot when the character has no equipped
-                # offhand (for example, a two-handed caster weapon). The
-                # absence is a valid observed state, not a missing item to
-                # synthesize.
+            if slot == "off_hand" and item is None and slot in unequipped_slots:
                 checks[f"gear.{slot}"] = True
                 continue
-            valid_item = isinstance(item, Mapping) and isinstance(item.get("itemId"), int) and item.get("itemId", 0) > 0
+            valid_item = (
+                isinstance(item, Mapping)
+                and f"gear.{slot}" not in missing_fields
+                and f"gear.{slot}.itemId" not in missing_fields
+            )
             require(f"gear.{slot}", valid_item, f"GEAR_{slot.upper()}_MISSING")
             if valid_item:
                 require(
                     f"gear.{slot}.itemLevel",
-                    isinstance(item.get("itemLevel"), int) and item.get("itemLevel", 0) > 0,
+                    f"gear.{slot}.itemLevel" not in missing_fields,
                     f"GEAR_{slot.upper()}_ITEMLEVEL_MISSING",
                 )
                 for semantic in ("bonusIds", "gems", "enchant"):
                     require(
                         f"gear.{slot}.{semantic}",
-                        semantic in item,
+                        f"gear.{slot}.{semantic}" not in missing_fields,
                         f"GEAR_{slot.upper()}_{semantic.upper()}_MISSING",
                     )
 
-        has_talents = bool(talents.get("loadout")) or bool(str(talents.get("string") or "").strip())
-        require("talents", has_talents, "TALENTS_MISSING")
+        require("talents", "talents.loadout" not in missing_fields, "TALENTS_MISSING")
         require(
             "provenance",
             isinstance(raw_provenance, Mapping)
@@ -192,7 +182,6 @@ class SimcReadinessValidator:
 
 
 __all__ = (
-    "PROTOTYPE_MAX_CHARACTER_LEVEL",
     "ReadinessReport",
     "SimcReadinessValidator",
     "SimcRuntimeCapabilities",

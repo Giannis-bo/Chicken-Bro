@@ -5,8 +5,8 @@ from typing import Mapping
 from uuid import UUID
 
 from server.app.simulation.domain import SourceReadiness, SourceSnapshot
-from server.app.simulation.readiness import PROTOTYPE_MAX_CHARACTER_LEVEL, SimcRuntimeCapabilities
-from server.app.simulation.snapshots import canonical_json
+from server.app.simulation.readiness import SimcRuntimeCapabilities
+from server.app.simulation.snapshots import REQUIRED_GEAR_SLOTS, canonical_json
 
 
 class SimcCompileError(ValueError):
@@ -28,24 +28,6 @@ class CompiledSimcInput:
 
 
 _SAFE_SCENARIO_TEXT = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 _-]{0,63}$")
-_GEAR_SLOTS = (
-    "head",
-    "neck",
-    "shoulder",
-    "back",
-    "chest",
-    "wrist",
-    "hands",
-    "waist",
-    "legs",
-    "feet",
-    "finger1",
-    "finger2",
-    "trinket1",
-    "trinket2",
-    "main_hand",
-    "off_hand",
-)
 
 
 def normalize_scenario(scenario: Mapping[str, object]) -> dict[str, object]:
@@ -90,16 +72,32 @@ class SimcProfileCompiler:
         raw_snapshot = snapshot.snapshot if isinstance(snapshot.snapshot, Mapping) else {}
         character = raw_snapshot.get("character") if isinstance(raw_snapshot.get("character"), Mapping) else {}
         gear = raw_snapshot.get("gear") if isinstance(raw_snapshot.get("gear"), Mapping) else {}
+        gear_state = raw_snapshot.get("gearState") if isinstance(raw_snapshot.get("gearState"), Mapping) else {}
         talents = raw_snapshot.get("talents") if isinstance(raw_snapshot.get("talents"), Mapping) else {}
+        profile_source = str(raw_snapshot.get("profileSource") or "").strip().lower()
+        if profile_source != snapshot.provider.value:
+            raise SimcCompileError("PROFILE_NOT_REAL_SOURCE")
 
         name = self._profile_name(character.get("name"))
+        level = character.get("level")
+        if not isinstance(level, int) or isinstance(level, bool) or level <= 0:
+            raise SimcCompileError("MISSING_LEVEL", "character level is missing")
+        class_key = self._token(character.get("classKey"), "class", "MISSING_CLASS")
+        spec_key = self._token(character.get("specKey"), "spec", "MISSING_SPEC")
+        race_key = self._token(character.get("raceKey"), "race", "MISSING_RACE")
+        region = self._token(character.get("region"), "region", "MISSING_REGION")
+        realm = self._server_token(character.get("realm"))
+        if self._capabilities.compiler_revision != "chickenbro-simc-compiler-v1":
+            raise SimcCompileError("COMPILER_UNAVAILABLE")
+        if not self._capabilities.runtime_revision or not self._capabilities.supports(class_key, spec_key):
+            raise SimcCompileError("RUNTIME_UNAVAILABLE")
         lines = [
-            f'{character.get("classKey")}="{name}"',
-            f"level={PROTOTYPE_MAX_CHARACTER_LEVEL}",
-            f'race={self._token(character.get("raceKey"), "race")}',
-            f'region={self._token(character.get("region"), "region")}',
-            f"server={self._server_token(character.get('realm'))}",
-            f'spec={self._token(character.get("specKey"), "spec")}',
+            f'{class_key}="{name}"',
+            f"level={level}",
+            f"race={race_key}",
+            f"region={region}",
+            f"server={realm}",
+            f"spec={spec_key}",
         ]
         talent_string = str(talents.get("string") or "").strip()
         if talent_string and re.fullmatch(r"[A-Za-z0-9+/=_-]{4,512}", talent_string):
@@ -111,22 +109,61 @@ class SimcProfileCompiler:
                 if not isinstance(entry, Mapping):
                     continue
                 talent_id = entry.get("id") or entry.get("talentId")
-                rank = entry.get("rank") or entry.get("points") or 1
-                if isinstance(talent_id, int) and talent_id > 0 and isinstance(rank, int) and rank > 0:
+                rank = entry.get("rank") or entry.get("points")
+                if (
+                    isinstance(talent_id, int)
+                    and not isinstance(talent_id, bool)
+                    and talent_id > 0
+                    and isinstance(rank, int)
+                    and not isinstance(rank, bool)
+                    and rank > 0
+                ):
                     normalized_loadout.append(f"{talent_id}:{rank}")
             if not normalized_loadout:
+                raise SimcCompileError("MISSING_TALENTS")
+            if len(normalized_loadout) != len(loadout):
                 raise SimcCompileError("TALENTS_INVALID")
             lines.append("talents=" + ",".join(normalized_loadout))
 
-        for slot in _GEAR_SLOTS:
+        unequipped_slots = {
+            str(slot)
+            for slot in gear_state.get("unequippedSlots", ())
+            if isinstance(slot, str)
+        }
+        for slot in REQUIRED_GEAR_SLOTS:
             item = gear.get(slot)
-            if slot == "off_hand" and item is None:
+            if slot == "off_hand" and item is None and slot in unequipped_slots:
                 continue
             if not isinstance(item, Mapping):
-                raise SimcCompileError("SNAPSHOT_NOT_READY")
+                raise SimcCompileError(f"MISSING_GEAR_{slot.upper()}")
             item_id = item.get("itemId")
-            if not isinstance(item_id, int) or item_id <= 0:
-                raise SimcCompileError("SNAPSHOT_NOT_READY")
+            if not isinstance(item_id, int) or isinstance(item_id, bool) or item_id <= 0:
+                raise SimcCompileError(f"MISSING_GEAR_{slot.upper()}")
+            item_level = item.get("itemLevel")
+            if not isinstance(item_level, int) or isinstance(item_level, bool) or item_level <= 0:
+                raise SimcCompileError(f"MISSING_GEAR_{slot.upper()}_ITEMLEVEL")
+            for semantic in ("bonusIds", "gems", "enchant"):
+                if semantic not in item:
+                    raise SimcCompileError(f"MISSING_GEAR_{slot.upper()}_{semantic.upper()}")
+            for semantic in ("bonusIds", "gems"):
+                raw_values = item.get(semantic)
+                if (
+                    not isinstance(raw_values, (list, tuple))
+                    or len(raw_values) > 32
+                    or any(
+                        not isinstance(value, int) or isinstance(value, bool) or value <= 0
+                        for value in raw_values
+                    )
+                ):
+                    raise SimcCompileError(f"INVALID_GEAR_{slot.upper()}_{semantic.upper()}")
+            enchant = item.get("enchant")
+            if not (
+                enchant is None
+                or enchant == ""
+                or (isinstance(enchant, int) and not isinstance(enchant, bool) and enchant > 0)
+                or (isinstance(enchant, str) and enchant.isdigit() and int(enchant) > 0)
+            ):
+                raise SimcCompileError(f"INVALID_GEAR_{slot.upper()}_ENCHANT")
             line = f"{slot}=,id={item_id}"
             bonus_ids = self._positive_ints(item.get("bonusIds"))
             gems = self._positive_ints(item.get("gems"))
@@ -170,10 +207,10 @@ class SimcProfileCompiler:
         )
 
     @staticmethod
-    def _token(value: object, field: str) -> str:
+    def _token(value: object, field: str, error_code: str = "SNAPSHOT_NOT_READY") -> str:
         token = str(value or "").strip()
         if not token or re.fullmatch(r"[A-Za-z0-9_-]{1,80}", token) is None:
-            raise SimcCompileError("SNAPSHOT_NOT_READY", f"{field} is invalid")
+            raise SimcCompileError(error_code, f"{field} is invalid")
         return token
 
     @staticmethod
@@ -181,7 +218,7 @@ class SimcProfileCompiler:
         token = re.sub(r"\s+", "-", str(value or "").strip().lower())
         token = re.sub(r"[^a-z0-9_-]", "", token)
         if not token or len(token) > 80:
-            raise SimcCompileError("SNAPSHOT_NOT_READY", "server is invalid")
+            raise SimcCompileError("MISSING_REALM", "server is invalid")
         return token
 
     @staticmethod
@@ -189,7 +226,7 @@ class SimcProfileCompiler:
         name = str(value or "").strip().replace("\\", "\\\\").replace('"', '\\"')
         name = "".join(character for character in name if ord(character) >= 0x20)
         if not name or len(name) > 80:
-            raise SimcCompileError("SNAPSHOT_NOT_READY")
+            raise SimcCompileError("MISSING_CHARACTER_NAME")
         return name
 
     @staticmethod

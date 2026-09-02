@@ -41,7 +41,7 @@ class SimulationReadinessTest(unittest.TestCase):
         self.assertEqual(report.readiness, SourceReadiness.READY_FOR_SIMC)
         self.assertEqual(report.blockers, ())
 
-    def test_source_without_an_offhand_is_ready_when_provider_reports_no_offhand(self):
+    def test_missing_offhand_without_source_evidence_is_incomplete(self):
         candidate = candidate_from_fixture()
         snapshot = dict(candidate.snapshot)
         gear = dict(snapshot["gear"])
@@ -51,10 +51,24 @@ class SimulationReadinessTest(unittest.TestCase):
 
         report = SimcReadinessValidator().validate(changed, self.capabilities)
 
+        self.assertEqual(report.readiness, SourceReadiness.INCOMPLETE_FOR_SIMC)
+        self.assertIn("GEAR_OFF_HAND_MISSING", report.blockers)
+
+    def test_source_observed_unequipped_offhand_is_ready(self):
+        candidate = candidate_from_fixture()
+        snapshot = dict(candidate.snapshot)
+        gear = dict(snapshot["gear"])
+        gear.pop("off_hand")
+        snapshot["gear"] = gear
+        snapshot["gearState"] = {"unequippedSlots": ["off_hand"]}
+        changed = candidate.__class__(**{**candidate.__dict__, "snapshot": snapshot})
+
+        report = SimcReadinessValidator().validate(changed, self.capabilities)
+
         self.assertEqual(report.readiness, SourceReadiness.READY_FOR_SIMC)
         self.assertNotIn("GEAR_OFF_HAND_MISSING", report.blockers)
 
-    def test_missing_character_level_uses_the_prototype_max_level_policy(self):
+    def test_missing_character_level_is_incomplete(self):
         candidate = candidate_from_fixture()
         snapshot = dict(candidate.snapshot)
         character = dict(snapshot["character"])
@@ -64,8 +78,8 @@ class SimulationReadinessTest(unittest.TestCase):
 
         report = SimcReadinessValidator().validate(changed, self.capabilities)
 
-        self.assertEqual(report.readiness, SourceReadiness.READY_FOR_SIMC)
-        self.assertNotIn("CHARACTER_LEVEL_MISSING", report.blockers)
+        self.assertEqual(report.readiness, SourceReadiness.INCOMPLETE_FOR_SIMC)
+        self.assertIn("CHARACTER_LEVEL_MISSING", report.blockers)
 
     def test_missing_required_gear_and_runtime_support_is_incomplete(self):
         candidate = candidate_from_fixture()
@@ -99,6 +113,22 @@ class SimulationReadinessTest(unittest.TestCase):
 
         self.assertEqual(report.readiness, SourceReadiness.INCOMPLETE_FOR_SIMC)
         self.assertIn("PROFILE_NOT_REAL_SOURCE", report.blockers)
+
+    def test_talent_loadout_without_explicit_rank_is_incomplete(self):
+        candidate = candidate_from_fixture()
+        snapshot = dict(candidate.snapshot)
+        snapshot["talents"] = {
+            "loadout": [
+                {"id": 10001, "rank": 1},
+                {"id": 10002},
+            ]
+        }
+        changed = candidate.__class__(**{**candidate.__dict__, "snapshot": snapshot})
+
+        report = SimcReadinessValidator().validate(changed, self.capabilities)
+
+        self.assertEqual(report.readiness, SourceReadiness.INCOMPLETE_FOR_SIMC)
+        self.assertIn("TALENTS_MISSING", report.blockers)
 
 
 if __name__ == "__main__":

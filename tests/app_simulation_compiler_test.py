@@ -40,7 +40,7 @@ class SimulationCompilerTest(unittest.TestCase):
         )
 
         self.assertIn('shaman="Stormsample"', compiled.profile)
-        self.assertIn("level=90", compiled.profile)
+        self.assertIn("level=80", compiled.profile)
         self.assertIn("head=,id=1001", compiled.profile)
         self.assertEqual(len(compiled.profile_sha256), 64)
         self.assertEqual(compiled.runtime_revision, "simc:current:abc")
@@ -60,11 +60,25 @@ class SimulationCompilerTest(unittest.TestCase):
             compiler.compile(self.snapshot, {"fightStyle": "Patchwerk\njson=1"})
         self.assertEqual(scenario_error.exception.code, "SCENARIO_INVALID")
 
+    def test_compiler_rejects_generated_profile_even_if_readiness_is_forged(self):
+        snapshot_payload = dict(self.snapshot.snapshot)
+        snapshot_payload["profileSource"] = "generated"
+        snapshot = self.snapshot.__class__(**{**self.snapshot.__dict__, "snapshot": snapshot_payload})
+
+        with self.assertRaises(SimcCompileError) as error:
+            SimcProfileCompiler(capabilities=self.capabilities).compile(
+                snapshot,
+                {"fightStyle": "Patchwerk", "desiredTargets": 1, "iterations": 100},
+            )
+
+        self.assertEqual(error.exception.code, "PROFILE_NOT_REAL_SOURCE")
+
     def test_compiler_omits_an_unequipped_offhand_from_a_ready_snapshot(self):
         snapshot_payload = dict(self.snapshot.snapshot)
         gear = dict(snapshot_payload["gear"])
         gear.pop("off_hand")
         snapshot_payload["gear"] = gear
+        snapshot_payload["gearState"] = {"unequippedSlots": ["off_hand"]}
         snapshot = self.snapshot.__class__(
             **{**self.snapshot.__dict__, "snapshot": snapshot_payload}
         )
@@ -76,19 +90,53 @@ class SimulationCompilerTest(unittest.TestCase):
 
         self.assertNotIn("off_hand=", compiled.profile)
 
-    def test_compiler_uses_prototype_max_level_for_an_older_snapshot_without_level(self):
+    def test_compiler_rejects_a_ready_snapshot_without_source_level(self):
         snapshot_payload = dict(self.snapshot.snapshot)
         character = dict(snapshot_payload["character"])
         character["level"] = None
         snapshot_payload["character"] = character
         snapshot = self.snapshot.__class__(**{**self.snapshot.__dict__, "snapshot": snapshot_payload})
 
-        compiled = SimcProfileCompiler(capabilities=self.capabilities).compile(
-            snapshot,
-            {"fightStyle": "Patchwerk", "desiredTargets": 1, "iterations": 100},
-        )
+        with self.assertRaises(SimcCompileError) as error:
+            SimcProfileCompiler(capabilities=self.capabilities).compile(
+                snapshot,
+                {"fightStyle": "Patchwerk", "desiredTargets": 1, "iterations": 100},
+            )
 
-        self.assertIn("level=90", compiled.profile)
+        self.assertEqual(error.exception.code, "MISSING_LEVEL")
+
+    def test_compiler_rejects_a_ready_snapshot_without_source_race(self):
+        snapshot_payload = dict(self.snapshot.snapshot)
+        character = dict(snapshot_payload["character"])
+        character.pop("raceKey")
+        snapshot_payload["character"] = character
+        snapshot = self.snapshot.__class__(**{**self.snapshot.__dict__, "snapshot": snapshot_payload})
+
+        with self.assertRaises(SimcCompileError) as error:
+            SimcProfileCompiler(capabilities=self.capabilities).compile(
+                snapshot,
+                {"fightStyle": "Patchwerk", "desiredTargets": 1, "iterations": 100},
+            )
+
+        self.assertEqual(error.exception.code, "MISSING_RACE")
+
+    def test_compiler_rejects_a_partial_talent_loadout_instead_of_guessing_rank(self):
+        snapshot_payload = dict(self.snapshot.snapshot)
+        snapshot_payload["talents"] = {
+            "loadout": [
+                {"id": 10001, "rank": 1},
+                {"id": 10002},
+            ]
+        }
+        snapshot = self.snapshot.__class__(**{**self.snapshot.__dict__, "snapshot": snapshot_payload})
+
+        with self.assertRaises(SimcCompileError) as error:
+            SimcProfileCompiler(capabilities=self.capabilities).compile(
+                snapshot,
+                {"fightStyle": "Patchwerk", "desiredTargets": 1, "iterations": 100},
+            )
+
+        self.assertEqual(error.exception.code, "TALENTS_INVALID")
 
     def test_compiler_normalizes_a_display_realm_name_for_simc(self):
         snapshot_payload = dict(self.snapshot.snapshot)

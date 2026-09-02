@@ -6,8 +6,11 @@ from typing import Any, Callable, Mapping, Protocol
 from urllib.parse import parse_qs, quote, unquote, urlencode, urlparse
 
 from server.app.simulation.domain import SourceProvider, SourceReadiness
-from server.app.simulation.readiness import PROTOTYPE_MAX_CHARACTER_LEVEL
-from server.app.simulation.snapshots import CharacterSnapshotCandidate, sha256_json
+from server.app.simulation.snapshots import (
+    CharacterSnapshotCandidate,
+    missing_snapshot_fields,
+    sha256_json,
+)
 
 
 class InvalidSourceLink(ValueError):
@@ -200,11 +203,15 @@ def _text(value: object) -> str:
 
 
 def _key(value: object) -> str:
+    if isinstance(value, Mapping):
+        return ""
     text = _text(value).lower().replace(" ", "_").replace("-", "_")
     return re.sub(r"[^a-z0-9_]+", "", text)
 
 
 def _positive_int(value: object) -> int | None:
+    if isinstance(value, bool):
+        return None
     try:
         parsed = int(value)
     except (TypeError, ValueError):
@@ -212,15 +219,29 @@ def _positive_int(value: object) -> int | None:
     return parsed if parsed > 0 else None
 
 
-def _prototype_character_level(raw_level: object) -> dict[str, object]:
-    source_level = _positive_int(raw_level)
-    result: dict[str, object] = {
-        "level": PROTOTYPE_MAX_CHARACTER_LEVEL,
-        "levelSource": "prototype_max_level",
-    }
-    if source_level is not None:
-        result["sourceLevel"] = source_level
+def _character_fields(**values: object) -> dict[str, object]:
+    result: dict[str, object] = {}
+    for field, value in values.items():
+        if field == "level":
+            level = _positive_int(value)
+            if level is not None:
+                result[field] = level
+            continue
+        text = _text(value)
+        if text:
+            result[field] = text
     return result
+
+
+def _gear_state(raw_gear: object, normalized_gear: Mapping[str, object]) -> dict[str, object]:
+    raw_items = raw_gear.get("items") if isinstance(raw_gear, Mapping) else raw_gear
+    if (
+        isinstance(raw_items, (Mapping, list))
+        and "main_hand" in normalized_gear
+        and "off_hand" not in normalized_gear
+    ):
+        return {"unequippedSlots": ["off_hand"]}
+    return {"unequippedSlots": []}
 
 
 def _source_error_code(error: object) -> SourceReadiness:
@@ -282,24 +303,27 @@ def _normalize_item(item: object, slot: str) -> dict[str, object] | None:
     return result
 
 
+def _normalize_slot(raw_slot: object) -> str:
+    slot = _key(raw_slot)
+    return {
+        "shoulders": "shoulder",
+        "finger_1": "finger1",
+        "finger_2": "finger2",
+        "ring1": "finger1",
+        "ring2": "finger2",
+        "trinket_1": "trinket1",
+        "trinket_2": "trinket2",
+        "mainhand": "main_hand",
+        "offhand": "off_hand",
+    }.get(slot, slot)
+
+
 def _normalize_gear(raw_gear: object) -> dict[str, object]:
     items = raw_gear.get("items") if isinstance(raw_gear, Mapping) else raw_gear
     result: dict[str, object] = {}
     if isinstance(items, Mapping):
         for raw_slot, item in items.items():
-            slot = _key(raw_slot)
-            normalized_slot = {
-                "shoulders": "shoulder",
-                "hands": "hands",
-                "finger_1": "finger1",
-                "finger_2": "finger2",
-                "ring1": "finger1",
-                "ring2": "finger2",
-                "trinket_1": "trinket1",
-                "trinket_2": "trinket2",
-                "mainhand": "main_hand",
-                "offhand": "off_hand",
-            }.get(slot, slot)
+            normalized_slot = _normalize_slot(raw_slot)
             normalized = _normalize_item(item, normalized_slot)
             if normalized is not None:
                 result[normalized_slot] = normalized
@@ -307,7 +331,7 @@ def _normalize_gear(raw_gear: object) -> dict[str, object]:
         for item in items:
             if not isinstance(item, Mapping):
                 continue
-            slot = _key(item.get("slot") or item.get("slotName"))
+            slot = _normalize_slot(item.get("slot") or item.get("slotName"))
             normalized = _normalize_item(item, slot)
             if slot and normalized is not None:
                 result[slot] = normalized
@@ -356,18 +380,30 @@ class RaiderIOCharacterAdapter:
 
         raw_class = raw.get("class") if isinstance(raw.get("class"), Mapping) else {}
         raw_race = raw.get("race") if isinstance(raw.get("race"), Mapping) else {}
-        character = {
-            "name": _text(raw.get("name")),
-            "realm": _text(raw.get("realm") or parsed_url.realm),
-            "region": _key(raw.get("region") or parsed_url.region),
-            "classKey": _key(raw.get("classSlug") or raw_class.get("slug") or raw.get("class")),
-            "specKey": _key(raw.get("activeSpecSlug") or raw.get("active_spec_name") or raw.get("spec")),
-            "raceKey": _key(raw.get("raceSlug") or raw_race.get("slug") or raw.get("race")),
-            **_prototype_character_level(raw.get("level")),
-        }
+        character = _character_fields(
+            name=raw.get("name"),
+            realm=raw.get("realm"),
+            region=_key(raw.get("region")),
+            classKey=_key(
+                raw.get("classSlug")
+                or raw_class.get("slug")
+                or raw_class.get("name")
+                or raw.get("class")
+            ),
+            specKey=_key(raw.get("activeSpecSlug") or raw.get("active_spec_name") or raw.get("spec")),
+            raceKey=_key(
+                raw.get("raceSlug")
+                or raw_race.get("slug")
+                or raw_race.get("name")
+                or raw.get("race")
+            ),
+            level=raw.get("level"),
+        )
+        normalized_gear = _normalize_gear(raw.get("gear"))
         snapshot = {
             "character": character,
-            "gear": _normalize_gear(raw.get("gear")),
+            "gear": normalized_gear,
+            "gearState": _gear_state(raw.get("gear"), normalized_gear),
             "talents": _normalize_talents(raw.get("talents") or raw.get("talentLoadout")),
             "profileSource": "raiderio",
         }
@@ -376,16 +412,15 @@ class RaiderIOCharacterAdapter:
             or raw.get("profile_revision")
             or raw.get("lastUpdated")
             or raw.get("last_updated")
-            or "raiderio-profile-v1"
         )
         provenance = {
             "provider": SourceProvider.RAIDERIO.value,
             "sourceUrl": parsed_url.url,
-            "sourceRevision": source_revision,
             "fetchedAt": fetched_at.isoformat(),
             "endpoint": "raiderio-character-profile",
-            "levelPolicy": "prototype_max_level",
         }
+        if source_revision:
+            provenance["sourceRevision"] = source_revision
         return CharacterSnapshotCandidate(
             provider=SourceProvider.RAIDERIO,
             source_url=parsed_url.url,
@@ -394,6 +429,7 @@ class RaiderIOCharacterAdapter:
             provenance=provenance,
             raw_sha256=sha256_json(raw),
             fetched_at=fetched_at,
+            missing_fields=missing_snapshot_fields(snapshot),
         )
 
 
@@ -460,15 +496,15 @@ class WclCharacterAdapter:
 
         spec_entries = player.get("specs") if isinstance(player.get("specs"), list) else []
         first_spec = spec_entries[0] if spec_entries and isinstance(spec_entries[0], Mapping) else {}
-        character = {
-            "name": _text(player.get("name")),
-            "realm": _text(player.get("realm") or player.get("server")),
-            "region": _key(player.get("region")),
-            "classKey": _key(player.get("classKey") or player.get("class") or player.get("type")),
-            "specKey": _key(player.get("specKey") or player.get("spec") or first_spec.get("spec")),
-            "raceKey": _key(player.get("raceKey") or player.get("race")),
-            **_prototype_character_level(player.get("level")),
-        }
+        character = _character_fields(
+            name=player.get("name"),
+            realm=player.get("realm") or player.get("server"),
+            region=_key(player.get("region")),
+            classKey=_key(player.get("classKey") or player.get("class") or player.get("type")),
+            specKey=_key(player.get("specKey") or player.get("spec") or first_spec.get("spec")),
+            raceKey=_key(player.get("raceKey") or player.get("race")),
+            level=player.get("level"),
+        )
         fight_id = parsed_url.fight_id
         if fight_id is None:
             fights = report.get("fights") if isinstance(report.get("fights"), list) else []
@@ -476,9 +512,11 @@ class WclCharacterAdapter:
             fight_id = _positive_int(first_fight.get("id"))
         actor_id = parsed_url.actor_id or _positive_int(player.get("id") or player.get("actorId"))
         guid = _positive_int(player.get("guid") or player.get("gameGuid"))
+        normalized_gear = _normalize_gear(player.get("gear"))
         snapshot = {
             "character": character,
-            "gear": _normalize_gear(player.get("gear")),
+            "gear": normalized_gear,
+            "gearState": _gear_state(player.get("gear"), normalized_gear),
             "talents": _normalize_talents(player.get("talents") or player.get("talentLoadout")),
             "combat": {
                 "reportCode": parsed_url.report_code,
@@ -488,18 +526,19 @@ class WclCharacterAdapter:
             },
             "profileSource": "warcraftlogs",
         }
+        source_revision = _text(report.get("revision"))
         provenance = {
             "provider": SourceProvider.WARCRAFTLOGS.value,
             "sourceUrl": parsed_url.url,
-            "sourceRevision": _text(report.get("revision") or "wcl-report-v1"),
             "reportCode": parsed_url.report_code,
             "fightId": fight_id,
             "actorId": actor_id,
             "guid": guid,
             "fetchedAt": fetched_at.isoformat(),
             "endpoint": "warcraftlogs-report-player-details",
-            "levelPolicy": "prototype_max_level",
         }
+        if source_revision:
+            provenance["sourceRevision"] = source_revision
         return CharacterSnapshotCandidate(
             provider=SourceProvider.WARCRAFTLOGS,
             source_url=parsed_url.url,
@@ -508,6 +547,7 @@ class WclCharacterAdapter:
             provenance=provenance,
             raw_sha256=sha256_json(raw),
             fetched_at=fetched_at,
+            missing_fields=missing_snapshot_fields(snapshot),
         )
 
     @staticmethod

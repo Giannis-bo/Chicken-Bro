@@ -7,6 +7,7 @@ from server.app.simulation.sources import (
     CharacterSourceRouter,
     InvalidSourceLink,
     RaiderIOCharacterAdapter,
+    SourceHttpError,
     WclCharacterAdapter,
     parse_character_source_url,
 )
@@ -23,6 +24,14 @@ class FakeGateway:
     def fetch_json(self, url, *, headers=None):
         self.urls.append((url, headers or {}))
         return self.payload
+
+
+class FailingGateway:
+    def __init__(self, status_code):
+        self.status_code = status_code
+
+    def fetch_json(self, url, *, headers=None):
+        raise SourceHttpError(self.status_code)
 
 
 class SimulationSourcesTest(unittest.TestCase):
@@ -49,8 +58,9 @@ class SimulationSourcesTest(unittest.TestCase):
         self.assertEqual(candidate.provider, SourceProvider.RAIDERIO)
         self.assertEqual(candidate.readiness, SourceReadiness.INCOMPLETE_FOR_SIMC)
         self.assertEqual(candidate.snapshot["character"]["specKey"], "elemental")
-        self.assertEqual(candidate.snapshot["character"]["level"], 90)
-        self.assertEqual(candidate.snapshot["character"]["levelSource"], "prototype_max_level")
+        self.assertEqual(candidate.snapshot["character"]["level"], 80)
+        self.assertNotIn("levelSource", candidate.snapshot["character"])
+        self.assertEqual(candidate.missing_fields, ())
         self.assertEqual(candidate.snapshot["gear"]["head"]["itemId"], 1001)
         self.assertEqual(len(candidate.raw_sha256), 64)
         self.assertEqual(candidate.provenance["sourceUrl"], parsed.url)
@@ -71,7 +81,7 @@ class SimulationSourcesTest(unittest.TestCase):
             "https://raider.io/characters/cn/silver-hand/Giannis",
         )
 
-    def test_raiderio_adapter_maps_current_api_fields_with_prototype_max_level_policy(self):
+    def test_raiderio_adapter_maps_only_source_present_fields(self):
         payload = {
             "name": "LiveShape",
             "realm": "Silver Hand",
@@ -108,8 +118,9 @@ class SimulationSourcesTest(unittest.TestCase):
 
         candidate = RaiderIOCharacterAdapter(FakeGateway(payload)).resolve(parsed)
 
-        self.assertEqual(candidate.snapshot["character"]["level"], 90)
-        self.assertEqual(candidate.snapshot["character"]["levelSource"], "prototype_max_level")
+        self.assertNotIn("level", candidate.snapshot["character"])
+        self.assertNotIn("levelSource", candidate.snapshot["character"])
+        self.assertIn("character.level", candidate.missing_fields)
         self.assertEqual(candidate.snapshot["gear"]["head"]["itemLevel"], 730)
         self.assertEqual(candidate.snapshot["gear"]["head"]["bonusIds"], [101, 102])
         self.assertEqual(candidate.snapshot["gear"]["head"]["enchant"], 501)
@@ -131,8 +142,25 @@ class SimulationSourcesTest(unittest.TestCase):
         self.assertEqual(candidate.provenance["fightId"], 16)
         self.assertEqual(candidate.provenance["actorId"], 82)
         self.assertNotIn("secret-token", candidate.provenance)
-        self.assertEqual(candidate.snapshot["character"]["level"], 90)
-        self.assertEqual(candidate.snapshot["character"]["levelSource"], "prototype_max_level")
+        self.assertNotIn("level", candidate.snapshot["character"])
+        self.assertNotIn("levelSource", candidate.snapshot["character"])
+        self.assertIn("character.level", candidate.missing_fields)
+        self.assertIn("character.raceKey", candidate.missing_fields)
+
+    def test_source_failures_keep_public_readiness_distinctions(self):
+        parsed = parse_character_source_url(
+            "https://raider.io/characters/us/area-52/Stormsample"
+        )
+
+        expected_by_status = {
+            404: SourceReadiness.CHARACTER_NOT_FOUND,
+            403: SourceReadiness.ACCESS_RESTRICTED,
+            502: SourceReadiness.SNAPSHOT_UNAVAILABLE,
+        }
+        for status, expected in expected_by_status.items():
+            with self.subTest(status=status):
+                candidate = RaiderIOCharacterAdapter(FailingGateway(status)).resolve(parsed)
+                self.assertEqual(candidate.readiness, expected)
 
 
 if __name__ == "__main__":
