@@ -1,6 +1,6 @@
 # 炸鸡队长与 SimC 生产迁移、切流与恢复 Runbook
 
-状态：当前生产操作权威；Phase 2 只允许本地实现、测试、云端只读刷新和 provisioning dry-run，candidate apply 仍 blocked
+状态：当前生产操作权威；Phase 2 本地实现与云端 code-only dependency profile 已验证，真实 PostgreSQL candidate apply 仍由容量与独立恢复 gate 阻塞
 
 本 Runbook 规定如何从 legacy `wow_test` 和旧运行单元迁移到干净 `chickenbro_prod`，如何验证双端数据一致，何时可以切流，以及何时仍然禁止删除。执行者必须同时阅读 [当前架构](chickenbro-simc-architecture.md)、[project-state.json](project-state.json) 和对应阶段的 Harness requirement。
 

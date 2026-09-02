@@ -92,7 +92,7 @@ test('project-state is the single machine-readable current truth entry', () => {
   assert.equal(state.targetProduct.candidateDatabaseProvisioningAuthorized, false)
   assert.equal(
     state.targetProduct.currentMutationGate,
-    'phase_2_local_code_and_dry_run_only_capacity_and_recovery_block_apply',
+    'phase_2_code_and_dependency_profile_verified_capacity_and_recovery_block_candidate_apply',
   )
   assert.equal(state.targetProduct.productionCutoverReady, false)
   assert.equal(state.targetProduct.destructiveCleanupReady, false)
@@ -115,6 +115,26 @@ test('project-state is the single machine-readable current truth entry', () => {
   assert.equal(
     state.refactorInventory.capacityGate,
     'blocked_until_independent_legacy_cleanup_or_storage_expansion',
+  )
+  assert.equal(
+    state.refactorInventory.phase2DependencyProfileStatus,
+    'passed_code_only_cloud_replay',
+  )
+  assert.equal(
+    state.refactorInventory.phase2DependencyProfileObservedAt,
+    '2026-09-03T00:33:07Z',
+  )
+  assert.equal(
+    state.refactorInventory.phase2DependencyProfileTestedHead,
+    '913654d887ac9fc3c143b9b3d921010d9a8c2a9d',
+  )
+  assert.equal(
+    state.refactorInventory.phase2DependencyProfileResult,
+    '3451_ran_3441_passed_10_explicit_skips_compileall_and_harness_passed',
+  )
+  assert.equal(
+    state.refactorInventory.phase2DependencyProfileCleanup,
+    'temporary_162mb_replay_removed',
   )
   assert.deepEqual(state.executionAuthority, {
     architecture: 'docs/chickenbro-simc-architecture.md',

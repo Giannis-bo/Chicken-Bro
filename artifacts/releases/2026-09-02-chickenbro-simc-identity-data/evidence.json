@@ -77,13 +77,18 @@
     },
     {
       "command": "node scripts/verify-project.js --profile backend --release artifacts/releases/2026-09-02-chickenbro-simc-identity-data",
-      "status": "blocked",
-      "summary": "The profile exited 1 after running 3,435 tests: four test modules failed only at import because FastAPI is unavailable, and nine tests were explicitly skipped. The injected WeChat adapter tests now run without importing httpx. This is a literal dependency blocker, not a passing backend profile and not candidate runtime evidence."
+      "status": "pass",
+      "summary": "On the authorized cloud host, an isolated code-only replay of tested HEAD 913654d887ac9fc3c143b9b3d921010d9a8c2a9d used the existing Python 3.12.3 virtual environment with FastAPI, Pydantic, httpx, psycopg and uvicorn. With WOW_SIMC_ROOT isolated from the live runtime and the exact Git identity bound, the command exited 0: 3,451 tests ran, 3,441 passed, 10 were explicitly skipped, compileall passed and the release Harness passed. This proves the dependency-loaded backend profile only; it does not prove a PostgreSQL candidate or production runtime."
     },
     {
-      "command": "FastAPI TestClient and real PostgreSQL API integration",
+      "command": "FastAPI TestClient and dependency-loaded HTTP behavior",
+      "status": "pass",
+      "summary": "The complete dependency-loaded backend profile exercised the FastAPI TestClient and default HTTP dependency paths without an import or behavior failure. The existing Starlette httpx deprecation warning remains informational and did not fail the profile."
+    },
+    {
+      "command": "real PostgreSQL API integration with WOW_PG_TEST_DSN_V2",
       "status": "blocked",
-      "summary": "The current host dependency probe reports FastAPI, Pydantic, httpx and psycopg unavailable, and dependency installation is outside the current approval. Injected provider and dependency-free behavior tests pass, but the real default HTTP client, FastAPI TestClient and PostgreSQL runtime integration remain unverified."
+      "summary": "psycopg is available in the verified cloud environment, but no isolated chickenbro_prod candidate DSN exists. The PostgreSQL integration remains explicitly skipped until capacity and independent restore evidence permit candidate provisioning."
     },
     {
       "command": "node scripts/project-harness.js --check-requirement --requirement-file artifacts/releases/2026-09-02-chickenbro-simc-identity-data/requirement.json",
@@ -123,6 +128,13 @@
       "detail": "Four exact gear evidence databases have zero current connections and zero references across the reviewed configuration/deployment roots, but no independent archive or completed restore identity exists. All remain candidate_only and no delete command ran."
     },
     {
+      "type": "cloud_isolated_dependency_profile",
+      "status": "pass",
+      "observedAt": "2026-09-03T00:33:07Z",
+      "testedHead": "913654d887ac9fc3c143b9b3d921010d9a8c2a9d",
+      "detail": "An exact git-archive replay in /opt/wow-v2-staging/codex-phase2-913654d887ac used the existing Python 3.12.3 virtual environment and an isolated WOW_SIMC_ROOT. The complete backend profile exited 0 after 3,451 tests ran: 3,441 passed and 10 were explicitly skipped; compileall and Harness passed. The 162 MB temporary replay directory was removed afterward; no service, DSN or database was changed."
+    },
+    {
       "type": "provisioning_dry_run",
       "status": "pass",
       "detail": "The fixed-target script remained local and mutation-free and returned the literal capacity blocker."
@@ -135,9 +147,9 @@
       "detail": "chickenbro_prod cannot be provisioned until storage is expanded or independently recoverable legacy cleanup is completed, followed by a refreshed inventory and real restore evidence."
     },
     {
-      "id": "runtime-dependency-verification",
+      "id": "real-postgresql-candidate-verification",
       "status": "blocked",
-      "detail": "FastAPI/Pydantic, real httpx client and psycopg runtime behavior has not run on this dependency-free host; candidate verification must execute it in the approved runtime."
+      "detail": "The dependency-loaded backend profile now passes on the existing cloud virtual environment, but the real PostgreSQL integration remains skipped because no independently recoverable isolated candidate database can yet be provisioned."
     },
     {
       "id": "legacy-schema-compatibility",
@@ -157,7 +169,7 @@
   ],
   "cleanup": {
     "required": false,
-    "reason": "No candidate database, backup run, deployment, service or cloud path was created by this local phase. Legacy cleanup remains separately unauthorized."
+    "reason": "The code-only verification created one isolated cloud replay directory and removed it after the profile passed, recovering about 162 MB. No candidate database, backup run, deployment or service was created. Legacy cleanup remains separately unauthorized."
   },
   "archivedReferences": [
     "docs/project-state.json",
@@ -185,5 +197,5 @@
     "phase2Completion": "BLOCKED_PENDING_ISOLATED_CANDIDATE",
     "overallGoal": "IN_PROGRESS"
   },
-  "summary": "Phase 2 local implementation is verified for the product-only schema, same-user dual sessions, atomic single-use login transitions, active-account enforcement, least-privilege runtime grants, credential isolation, Web CSRF, injected WeChat behavior and guarded provisioning dry-run. The full backend profile remains literally blocked at four FastAPI imports, while the isolated candidate and real PostgreSQL identity remain blocked by capacity and independent recovery. Phase 2 and the overall rebuild are not complete, and no remote mutation occurred."
+  "summary": "Phase 2 implementation is locally verified for the product-only schema, same-user dual sessions, atomic single-use login transitions, active-account enforcement, least-privilege runtime grants, credential isolation, Web CSRF, WeChat behavior and guarded provisioning. A dependency-loaded isolated cloud replay at tested HEAD 913654d887ac9fc3c143b9b3d921010d9a8c2a9d passed the complete backend profile: 3,451 tests ran, 3,441 passed, 10 were explicitly skipped, and compileall plus Harness passed. The real PostgreSQL candidate, restore proof and runtime identity remain blocked by capacity and independent recovery, so Phase 2 and the overall rebuild are not complete. The temporary 162 MB code-only replay directory was removed after verification; no service or database was changed."
 }

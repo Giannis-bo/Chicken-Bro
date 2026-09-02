@@ -27,7 +27,7 @@
     "productionCutoverAuthorized": false,
     "destructiveCleanupAuthorized": false,
     "candidateDatabaseProvisioningAuthorized": false,
-    "currentMutationGate": "phase_2_local_code_and_dry_run_only_capacity_and_recovery_block_apply",
+    "currentMutationGate": "phase_2_code_and_dependency_profile_verified_capacity_and_recovery_block_candidate_apply",
     "productionCutoverReady": false,
     "destructiveCleanupReady": false,
     "implementationPlans": [
@@ -58,6 +58,11 @@
     "capacityCleanupManifestObservedAt": "2026-09-02T16:04:02Z",
     "capacityCleanupStatus": "four_exact_candidates_zero_current_connections_and_zero_configuration_references_but_apply_blocked_pending_independent_backup_restore",
     "independentBlockDeviceStatus": "missing_single_vda_root_disk_only",
+    "phase2DependencyProfileStatus": "passed_code_only_cloud_replay",
+    "phase2DependencyProfileObservedAt": "2026-09-03T00:33:07Z",
+    "phase2DependencyProfileTestedHead": "913654d887ac9fc3c143b9b3d921010d9a8c2a9d",
+    "phase2DependencyProfileResult": "3451_ran_3441_passed_10_explicit_skips_compileall_and_harness_passed",
+    "phase2DependencyProfileCleanup": "temporary_162mb_replay_removed",
     "legacyRuntime": "active_last_known_good_pending_candidate_and_user_acceptance",
     "migrationMode": "explicit_owner_and_integrity_whitelist_with_one_read_only_delta",
     "cleanupMode": "exact_keep_delete_migrate_manifest_after_backup_reference_and_restore_proof"
@@ -88,7 +93,7 @@
       "path": "docs/superpowers/specs/2026-09-02-chickenbro-simc-total-rebuild-design.md",
       "status": "local_verified_phase_2_candidate_capacity_and_recovery_blocked",
       "lifecycle": "active_direction",
-      "notes": "The only current product direction keeps Chickenbro Chat and SimC on WeChat Mini Program and Web, with independent client sessions mapped to one internal user_id. Phase 1 is sealed. Phase 2 schema, Identity, API security and provisioning dry-run are local_verified; isolated candidate apply remains blocked by capacity and independent recovery, while production cutover and destructive cleanup require later recorded gates."
+      "notes": "The only current product direction keeps Chickenbro Chat and SimC on WeChat Mini Program and Web, with independent client sessions mapped to one internal user_id. Phase 1 is sealed. Phase 2 schema, Identity, API security, provisioning dry-run and the dependency-loaded backend profile are verified; real PostgreSQL candidate apply remains blocked by capacity and independent recovery, while production cutover and destructive cleanup require later recorded gates."
     },
     {
       "id": "chickenbro_simc_architecture",

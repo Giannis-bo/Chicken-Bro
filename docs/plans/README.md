@@ -13,14 +13,14 @@
 | 阶段 | 状态 | 入口 |
 | --- | --- | --- |
 | 1. 控制面与精确清单 | `已完成`；逐文件清单、脱敏云端盘点、唯一架构/Runbook/owner 与 Phase 1 packet 已在 clean HEAD 通过 | [实施计划](../superpowers/plans/2026-09-02-chickenbro-simc-rebuild-01-control-plane.md) |
-| 2. 干净数据面与 Identity | `本地已验证 / Candidate 阻塞`；本地 schema/Identity/API security/dry-run 已封存，当前容量、独立恢复和运行依赖 gate 继续阻止 candidate apply 与 Phase 2 完成 | [实施计划](../superpowers/plans/2026-09-02-chickenbro-simc-rebuild-02-identity-data.md) |
+| 2. 干净数据面与 Identity | `本地已验证 / Candidate 阻塞`；schema/Identity/API security/dry-run 与云端隔离 dependency-loaded backend profile 已通过，真实 PG candidate 仍由容量和独立恢复 gate 阻止 apply 与 Phase 2 完成 | [实施计划](../superpowers/plans/2026-09-02-chickenbro-simc-rebuild-02-identity-data.md) |
 | 3. 正式 Chat | `下一步`；Phase 2 身份/数据 owner 通过后执行 | [实施计划](../superpowers/plans/2026-09-02-chickenbro-simc-rebuild-03-chat.md) |
 | 4. 正式 SimC | `下一步`；只使用云端 SimulationCraft，candidate 语义验证先于切流 | [实施计划](../superpowers/plans/2026-09-02-chickenbro-simc-rebuild-04-simc.md) |
 | 5. 双端、迁移与切流 | `下一步`；容量、独立备份、candidate、真实双端验收和写栅栏全部通过后才可 apply | [实施计划](../superpowers/plans/2026-09-02-chickenbro-simc-rebuild-05-dual-client-migration-cutover.md) |
 | 6. Legacy 退役 | `后续`；切流稳定、恢复验证和清理 manifest 无 blocker 后才可精确删除 | [实施计划](../superpowers/plans/2026-09-02-chickenbro-simc-rebuild-06-legacy-retirement.md) |
 
 用户已确认书面规格并要求以持续 Goal 推进整体完成。该授权覆盖六个阶段，但不绕过阶段依赖：当前只有
-Phase 2 本地实现和 dry-run 已验证；candidate、切流和删除分别由各自 requirement、容量、备份、回滚、真实验收
+Phase 2 本地实现、dry-run 和云端隔离 dependency-loaded backend profile 已验证；真实 PG candidate、切流和删除分别由各自 requirement、容量、备份、回滚、真实验收
 和精确 manifest 解锁，不能提前 apply。
 
 ## 待退役文档索引（全部无当前执行权）

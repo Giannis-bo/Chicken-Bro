@@ -9,7 +9,7 @@
 
 ## 当前状态
 
-六阶段彻底重构的 Phase 1 控制面已在 clean HEAD 封存；当前执行 Phase 2 干净数据面与 Identity 的本地实现、测试和 provisioning dry-run。生产 DSN、流量、服务和数据尚未切换，云端建库仍未授权。
+六阶段彻底重构的 Phase 1 控制面已在 clean HEAD 封存；当前执行 Phase 2 干净数据面与 Identity。本地实现、provisioning dry-run 以及云端隔离的 dependency-loaded backend profile 已通过，后者在提交 `913654d887ac` 上运行 3,451 项测试（3,441 通过、10 项明确跳过），compileall 与 Harness 通过。真实 PostgreSQL candidate、生产 DSN、流量、服务和数据尚未切换，云端建库仍受容量与独立恢复 gate 阻塞。
 
 最新只读快照显示根分区约余 8.58 GB，而 PostgreSQL 目录约 39.63 GB。创建干净 `chickenbro_prod` 前必须先完成独立恢复副本与恢复验证并精确清理无引用旧数据，或扩容。不能提前删除 `wow_test`、正式部署或唯一恢复点绕过容量门禁。
 

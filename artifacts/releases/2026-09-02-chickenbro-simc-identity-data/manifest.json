@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-09-02T16:07:59.736Z",
+  "generatedAt": "2026-09-02T16:43:09.946Z",
   "release": {
     "date": "2026-09-02",
     "slug": "chickenbro-simc-identity-data"
@@ -38,7 +38,7 @@
         {
           "path": "docs/project-state.json",
           "exists": true,
-          "sizeBytes": 65691
+          "sizeBytes": 66151
         },
         {
           "path": "docs/project-owner-map.json",
@@ -48,12 +48,12 @@
         {
           "path": "docs/verification-matrix.md",
           "exists": true,
-          "sizeBytes": 11336
+          "sizeBytes": 11364
         },
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 5600
+          "sizeBytes": 5699
         },
         {
           "path": "docs/README.md",
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-09-02-chickenbro-simc-identity-data/evidence.json",
-    "sizeBytes": 11050,
+    "sizeBytes": 12600,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -392,7 +392,7 @@
     "missingFields": [],
     "declaredStatus": "local_verified",
     "highestEvidenceLevel": "local_verified",
-    "summary": "Phase 2 local implementation is verified for the product-only schema, same-user dual sessions, atomic single-use login transitions, active-account enforcement, least-privilege runtime grants, credential isolation, Web CSRF, injected WeChat behavior and guarded provisioning dry-run. The full backend profile remains literally blocked at four FastAPI imports, while the isolated candidate and real PostgreSQL identity remain blocked by capacity and independent recovery. Phase 2 and the overall rebuild are not complete, and no remote mutation occurred."
+    "summary": "Phase 2 implementation is locally verified for the product-only schema, same-user dual sessions, atomic single-use login transitions, active-account enforcement, least-privilege runtime grants, credential isolation, Web CSRF, WeChat behavior and guarded provisioning. A dependency-loaded isolated cloud replay at tested HEAD 913654d887ac9fc3c143b9b3d921010d9a8c2a9d passed the complete backend profile: 3,451 tests ran, 3,441 passed, 10 were explicitly skipped, and compileall plus Harness passed. The real PostgreSQL candidate, restore proof and runtime identity remain blocked by capacity and independent recovery, so Phase 2 and the overall rebuild are not complete. The temporary 162 MB code-only replay directory was removed after verification; no service or database was changed."
   },
   "evidence": {
     "localTests": {
@@ -417,7 +417,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "11 changed files currently visible to git status."
+      "detail": "10 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
@@ -453,19 +453,18 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 11,
+      "changedFileCount": 10,
       "changedFiles": [
         " M README.md",
         " M artifacts/releases/2026-09-02-chickenbro-simc-identity-data/evidence.json",
-        " M docs/README.md",
-        " M docs/backend-owner-map.json",
+        " M artifacts/releases/2026-09-02-chickenbro-simc-identity-data/manifest.json",
         " M docs/chickenbro-simc-production-runbook.md",
-        " M docs/project-owner-map.json",
+        " M docs/plans/README.md",
         " M docs/project-state.json",
         " M docs/roadmap.md",
-        " M tests/project-state.test.js",
-        "?? docs/refactor/chickenbro-simc-capacity-cleanup-manifest.json",
-        "?? tests/chickenbro_simc_capacity_cleanup_manifest_test.py"
+        " M docs/superpowers/plans/2026-09-02-chickenbro-simc-rebuild-02-identity-data.md",
+        " M docs/verification-matrix.md",
+        " M tests/project-state.test.js"
       ]
     }
   },

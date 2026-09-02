@@ -280,7 +280,7 @@ git add server/app/platform server/app/api server/app/main.py tests/app_csrf_tes
 git commit -m "feat: secure formal dual-client authentication"
 ```
 
-Local evidence runs the dependency-free credential, CSRF, cookie, redaction and repository behavior plus a source-wiring contract and `compileall`. The current host does not provide FastAPI, Pydantic, psycopg or an isolated `WOW_PG_TEST_DSN_V2`; therefore TestClient and real PostgreSQL behavior remain mandatory Task 5 candidate gates and are not represented as passing here.
+Local evidence runs the dependency-free credential, CSRF, cookie, redaction and repository behavior plus a source-wiring contract and `compileall`. The local host still does not provide FastAPI, Pydantic, psycopg or an isolated `WOW_PG_TEST_DSN_V2`. A later code-only replay on the authorized cloud host used the existing Python 3.12.3 environment and passed the complete dependency-loaded backend profile at `913654d887ac` (3,451 ran, 3,441 passed, 10 explicit skips, compileall and Harness passed). Only the real PostgreSQL integration remains a mandatory Task 5 candidate gate; the temporary replay directory was removed and did not create a runtime candidate.
 
 ### Task 4: Capacity-guarded clean database provisioning
 
