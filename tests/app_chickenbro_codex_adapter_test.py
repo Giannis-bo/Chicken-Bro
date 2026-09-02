@@ -22,8 +22,10 @@ class FakeProcess:
         self.returncode = returncode
         self.wait_error = wait_error
         self.killed = False
+        self.wait_calls = 0
 
     def wait(self, timeout=None):
+        self.wait_calls += 1
         if self.wait_error is not None:
             raise self.wait_error
         return self.returncode
@@ -239,6 +241,84 @@ class ChickenbroCodexAdapterTest(unittest.TestCase):
         self.assertEqual("one-job-capability", gateway.revoked)
         self.assertNotIn("WOW_WARCRAFTLOGS_CLIENT_SECRET", child_environment)
         self.assertNotIn("WOW_RAIDERIO_API_KEY", child_environment)
+
+    def test_terminal_event_waits_for_process_exit_and_revokes_capability_before_exposure(self):
+        class Gateway:
+            revoked = None
+
+            def issue_capability(self):
+                return "terminal-capability"
+
+            def revoke(self, token):
+                self.revoked = token
+
+        gateway = Gateway()
+        process = FakeProcess(json.dumps({"type": "turn.completed", "text": "最终回答"}))
+
+        with tempfile.TemporaryDirectory() as directory:
+            adapter = NativeCodexChatAdapter(
+                jobs_dir=directory,
+                enabled=True,
+                source_gateway=gateway,
+                popen=lambda *args, **kwargs: process,
+            )
+            stream = adapter.stream(prompt="hello", timeout_seconds=10)
+            event = next(stream)
+
+            self.assertEqual({"type": "completed", "text": "最终回答"}, event)
+            self.assertEqual(1, process.wait_calls)
+            self.assertEqual("terminal-capability", gateway.revoked)
+            stream.close()
+            self.assertFalse(process.killed)
+
+    def test_closing_a_partial_stream_kills_process_and_revokes_capability(self):
+        class Gateway:
+            revoked = None
+
+            def issue_capability(self):
+                return "partial-capability"
+
+            def revoke(self, token):
+                self.revoked = token
+
+        gateway = Gateway()
+        process = FakeProcess("\n".join([
+            json.dumps({"type": "item.delta", "delta": "尚未完成"}),
+            json.dumps({"type": "turn.completed", "text": "不应继续"}),
+        ]))
+
+        with tempfile.TemporaryDirectory() as directory:
+            adapter = NativeCodexChatAdapter(
+                jobs_dir=directory,
+                enabled=True,
+                source_gateway=gateway,
+                popen=lambda *args, **kwargs: process,
+            )
+            stream = adapter.stream(prompt="hello", timeout_seconds=10)
+            self.assertEqual({"type": "delta", "text": "尚未完成"}, next(stream))
+            stream.close()
+
+        self.assertTrue(process.killed)
+        self.assertEqual("partial-capability", gateway.revoked)
+
+    def test_nonzero_exit_after_terminal_event_never_exposes_completion(self):
+        process = FakeProcess(
+            json.dumps({"type": "turn.completed", "text": "不得暴露"}),
+            returncode=17,
+        )
+
+        with tempfile.TemporaryDirectory() as directory:
+            adapter = NativeCodexChatAdapter(
+                jobs_dir=directory,
+                enabled=True,
+                popen=lambda *args, **kwargs: process,
+            )
+            stream = adapter.stream(prompt="hello", timeout_seconds=10)
+            with self.assertRaises(CodexStreamError) as context:
+                next(stream)
+
+        self.assertEqual("CODEX_EXECUTION_FAILED", context.exception.code)
+        self.assertEqual(1, process.wait_calls)
 
     def test_nonzero_exit_never_exposes_provider_stderr(self):
         def popen(*args, **kwargs):

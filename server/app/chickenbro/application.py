@@ -287,47 +287,64 @@ class ChatApplication:
         request_id = str(uuid4())
         run_id = str(_as_uuid(_value(run, "id")))
         sequence = 1
-        yield ChatEvent(
-            "started",
-            request_id,
-            str(conversation_id),
-            sequence,
-            run_id=run_id,
-        )
+        try:
+            yield ChatEvent(
+                "started",
+                request_id,
+                str(conversation_id),
+                sequence,
+                run_id=run_id,
+            )
+        except GeneratorExit:
+            self._cancel_run(principal, run)
+            raise
 
         answer_parts: list[str] = []
         completed = False
+        terminal_persisted = False
         try:
             history = self._repository.list_messages(principal.user_id, conversation_id)
             prompt = self._prompt(history, message)
-            for raw_event in self._codex.stream(prompt=prompt, timeout_seconds=self._timeout_seconds):
-                event_type = str(_value(raw_event, "type", "")).strip().lower()
-                if event_type in {"delta", "item.delta", "message.delta"}:
-                    delta = str(_value(raw_event, "text", "") or _value(raw_event, "delta", ""))
-                    if not delta:
-                        continue
-                    if sum(len(part) for part in answer_parts) + len(delta) > self._max_output_chars:
-                        raise CodexStreamError("CODEX_OUTPUT_INVALID")
-                    answer_parts.append(delta)
-                    sequence += 1
-                    yield ChatEvent(
-                        "delta",
-                        request_id,
-                        str(conversation_id),
-                        sequence,
-                        run_id=run_id,
-                        text=delta,
-                    )
-                elif event_type in {"completed", "item.completed", "turn.completed"}:
-                    completed = True
-                    final_text = str(_value(raw_event, "text", "") or "").strip()
-                    if final_text and not answer_parts:
-                        if len(final_text) > self._max_output_chars:
+            codex_events = self._codex.stream(
+                prompt=prompt,
+                timeout_seconds=self._timeout_seconds,
+            )
+            try:
+                for raw_event in codex_events:
+                    event_type = str(_value(raw_event, "type", "")).strip().lower()
+                    if event_type in {"delta", "item.delta", "message.delta"}:
+                        delta = str(_value(raw_event, "text", "") or _value(raw_event, "delta", ""))
+                        if not delta:
+                            continue
+                        if sum(len(part) for part in answer_parts) + len(delta) > self._max_output_chars:
                             raise CodexStreamError("CODEX_OUTPUT_INVALID")
-                        answer_parts.append(final_text)
-                    break
-                elif event_type in {"failed", "turn.failed", "error"}:
-                    raise CodexStreamError("CODEX_OUTPUT_INVALID")
+                        answer_parts.append(delta)
+                        sequence += 1
+                        yield ChatEvent(
+                            "delta",
+                            request_id,
+                            str(conversation_id),
+                            sequence,
+                            run_id=run_id,
+                            text=delta,
+                        )
+                    elif event_type in {"completed", "item.completed", "turn.completed"}:
+                        completed = True
+                        final_text = str(_value(raw_event, "text", "") or "").strip()
+                        if final_text and not answer_parts:
+                            if len(final_text) > self._max_output_chars:
+                                raise CodexStreamError("CODEX_OUTPUT_INVALID")
+                            answer_parts.append(final_text)
+                        break
+                    elif event_type in {"failed", "turn.failed", "error"}:
+                        raise CodexStreamError("CODEX_OUTPUT_INVALID")
+            finally:
+                close = getattr(codex_events, "close", None)
+                if callable(close):
+                    try:
+                        close()
+                    except Exception:
+                        pass
             if not completed or not "".join(answer_parts).strip():
                 raise CodexStreamError("CODEX_OUTPUT_INVALID")
             answer = "".join(answer_parts).strip()
@@ -349,6 +366,7 @@ class ChatApplication:
                     CodexStreamError("CHAT_PERSISTENCE_FAILED"),
                 )
                 return
+            terminal_persisted = True
             sequence += 1
             yield ChatEvent(
                 "completed",
@@ -358,6 +376,10 @@ class ChatApplication:
                 run_id=run_id,
                 text=answer,
             )
+        except GeneratorExit:
+            if not terminal_persisted:
+                self._cancel_run(principal, run)
+            raise
         except CodexUnavailable as error:
             yield from self._fail_run(principal, run, request_id, conversation_id, sequence, error)
         except CodexTimeout as error:
@@ -382,6 +404,19 @@ class ChatApplication:
                 sequence,
                 CodexStreamError("CODEX_EXECUTION_FAILED"),
             )
+
+    def _cancel_run(self, principal: Principal, run: Any) -> None:
+        try:
+            self._repository.finish_agent_run(
+                principal.user_id,
+                _as_uuid(_value(run, "id")),
+                AgentRunStatus.FAILED,
+                None,
+                "CODEX_EXECUTION_FAILED",
+                _utc(self._clock),
+            )
+        except Exception:
+            return
 
     def _fail_run(
         self,

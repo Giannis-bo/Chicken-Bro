@@ -173,67 +173,60 @@ class NativeCodexChatAdapter:
             self._revoke_source_capability(source_gateway_token)
             raise CodexUnavailable() from None
 
+        process_finished = False
         try:
             self._send_prompt(process, prompt)
-        except CodexStreamError:
-            self._revoke_source_capability(source_gateway_token)
-            raise
-        deadline = time.monotonic() + max(1, int(timeout_seconds))
-        emitted_text = False
-        completion_seen = False
-        last_item_text = ""
-        terminal_text = ""
-        try:
-            for line in self._read_lines(process, deadline):
-                event = self._parse_line(line)
-                normalized = self._normalize_event(event)
-                if normalized is None:
-                    continue
-                if normalized["type"] == "delta":
-                    emitted_text = True
-                    yield normalized
-                elif normalized["type"] == "item_completed":
-                    last_item_text = self._text_from(normalized.get("text")) or last_item_text
-                elif normalized["type"] == "completed":
-                    completion_seen = True
-                    terminal_text = self._text_from(normalized.get("text"))
-                    if terminal_text:
+            deadline = time.monotonic() + max(1, int(timeout_seconds))
+            emitted_text = False
+            completion_seen = False
+            last_item_text = ""
+            terminal_text = ""
+            try:
+                for line in self._read_lines(process, deadline):
+                    event = self._parse_line(line)
+                    normalized = self._normalize_event(event)
+                    if normalized is None:
+                        continue
+                    if normalized["type"] == "delta":
                         emitted_text = True
                         yield normalized
-            return_code = self._wait(process, deadline)
-        except CodexStreamError:
-            self._terminate(process)
-            self._revoke_source_capability(source_gateway_token)
-            raise
-        except subprocess.TimeoutExpired:
-            self._terminate(process)
-            self._revoke_source_capability(source_gateway_token)
-            raise CodexTimeout() from None
-        except (OSError, ValueError, TypeError, json.JSONDecodeError):
-            self._terminate(process)
-            self._revoke_source_capability(source_gateway_token)
-            raise CodexStreamError("CODEX_OUTPUT_INVALID") from None
+                    elif normalized["type"] == "item_completed":
+                        last_item_text = self._text_from(normalized.get("text")) or last_item_text
+                    elif normalized["type"] == "completed":
+                        completion_seen = True
+                        terminal_text = self._text_from(normalized.get("text")) or terminal_text
+                return_code = self._wait(process, deadline)
+                process_finished = True
+            except CodexStreamError:
+                raise
+            except subprocess.TimeoutExpired:
+                raise CodexTimeout() from None
+            except (OSError, ValueError, TypeError, json.JSONDecodeError):
+                raise CodexStreamError("CODEX_OUTPUT_INVALID") from None
 
-        if return_code != 0:
-            self._revoke_source_capability(source_gateway_token)
-            raise CodexExecutionFailed()
+            if return_code != 0:
+                raise CodexExecutionFailed()
 
-        self._revoke_source_capability(source_gateway_token)
-        final_text = self._read_final_message(output_path)
-        if completion_seen:
-            if terminal_text:
-                return
-            if final_text:
-                yield {"type": "completed", "text": final_text}
-            elif emitted_text:
-                yield {"type": "completed", "text": ""}
+            self._revoke_source_capability(source_gateway_token)
+            source_gateway_token = ""
+            final_text = self._read_final_message(output_path)
+            if completion_seen:
+                completed_text = terminal_text or final_text
+                if completed_text:
+                    yield {"type": "completed", "text": completed_text}
+                elif emitted_text:
+                    yield {"type": "completed", "text": ""}
+                else:
+                    raise CodexStreamError("CODEX_OUTPUT_INVALID")
             else:
-                raise CodexStreamError("CODEX_OUTPUT_INVALID")
-        else:
-            fallback_text = final_text or last_item_text
-            if not fallback_text and not emitted_text:
-                raise CodexStreamError("CODEX_OUTPUT_INVALID")
-            yield {"type": "completed", "text": fallback_text}
+                fallback_text = final_text or last_item_text
+                if not fallback_text and not emitted_text:
+                    raise CodexStreamError("CODEX_OUTPUT_INVALID")
+                yield {"type": "completed", "text": fallback_text}
+        finally:
+            if not process_finished:
+                self._terminate(process)
+            self._revoke_source_capability(source_gateway_token)
 
     def _revoke_source_capability(self, token: str) -> None:
         if not token or self._source_gateway is None:

@@ -272,6 +272,19 @@ class CapturingCodex(FakeCodex):
         yield from super().stream(prompt=prompt, timeout_seconds=timeout_seconds)
 
 
+class ClosingCodex(FakeCodex):
+    def __init__(self, events=None):
+        super().__init__(events=events)
+        self.closed = False
+
+    def stream(self, *, prompt, timeout_seconds):
+        self.calls += 1
+        try:
+            yield from self.events
+        finally:
+            self.closed = True
+
+
 class ChatApplicationTest(unittest.TestCase):
     def setUp(self):
         self.now = datetime(2026, 9, 1, 12, 0, tzinfo=timezone.utc)
@@ -306,6 +319,86 @@ class ChatApplicationTest(unittest.TestCase):
         self.assertEqual([event.sequence for event in events], [1, 2, 3])
         self.assertEqual([item["role"] for item in self.repository.messages], [MessageRole.USER, MessageRole.ASSISTANT])
         self.assertEqual(next(iter(self.repository.runs.values()))["status"], AgentRunStatus.SUCCEEDED)
+
+    def test_closing_after_started_marks_the_persisted_run_failed(self):
+        codex = ClosingCodex([{"type": "completed", "text": "不应执行"}])
+        application = ChatApplication(
+            repository=self.repository,
+            codex=codex,
+            clock=lambda: self.now,
+        )
+        stream = application.stream_message(
+            self.principal,
+            self.conversation_id,
+            "客户端随即断开",
+            client_message_id="client-close-started",
+            idempotency_key="request-close-started",
+        )
+
+        self.assertEqual("started", next(stream).event_type)
+        stream.close()
+
+        run = next(iter(self.repository.runs.values()))
+        self.assertEqual(AgentRunStatus.FAILED, run["status"])
+        self.assertEqual("CODEX_EXECUTION_FAILED", run["public_error_code"])
+        self.assertEqual(0, codex.calls)
+
+    def test_closing_during_delta_closes_codex_and_marks_run_failed(self):
+        codex = ClosingCodex([
+            {"type": "delta", "text": "部分回答"},
+            {"type": "completed", "text": "部分回答"},
+        ])
+        application = ChatApplication(
+            repository=self.repository,
+            codex=codex,
+            clock=lambda: self.now,
+        )
+        stream = application.stream_message(
+            self.principal,
+            self.conversation_id,
+            "中途断开",
+            client_message_id="client-close-delta",
+            idempotency_key="request-close-delta",
+        )
+
+        self.assertEqual("started", next(stream).event_type)
+        self.assertEqual("delta", next(stream).event_type)
+        stream.close()
+
+        run = next(iter(self.repository.runs.values()))
+        self.assertTrue(codex.closed)
+        self.assertEqual(AgentRunStatus.FAILED, run["status"])
+        self.assertEqual("CODEX_EXECUTION_FAILED", run["public_error_code"])
+
+    def test_closing_after_completed_event_keeps_the_succeeded_terminal_state(self):
+        codex = ClosingCodex([
+            {"type": "delta", "text": "完整回答"},
+            {"type": "completed", "text": "完整回答"},
+        ])
+        application = ChatApplication(
+            repository=self.repository,
+            codex=codex,
+            clock=lambda: self.now,
+        )
+        stream = application.stream_message(
+            self.principal,
+            self.conversation_id,
+            "正常完成",
+            client_message_id="client-close-completed",
+            idempotency_key="request-close-completed",
+        )
+
+        self.assertEqual(["started", "delta", "completed"], [
+            next(stream).event_type,
+            next(stream).event_type,
+            next(stream).event_type,
+        ])
+        stream.close()
+
+        run = next(iter(self.repository.runs.values()))
+        self.assertTrue(codex.closed)
+        self.assertEqual(AgentRunStatus.SUCCEEDED, run["status"])
+        self.assertEqual("", run["public_error_code"])
 
     def test_native_codex_prompt_bounds_public_research_and_uses_aligned_timeout(self):
         codex = CapturingCodex(events=[{"type": "completed", "text": "已给出结论"}])

@@ -6,6 +6,7 @@ from server.app.chickenbro.stream import (
     CodexStreamError,
     ChatEvent,
     iter_codex_deltas,
+    iter_sse_frames,
     serialize_sse_event,
 )
 
@@ -71,6 +72,30 @@ class ChickenbroStreamTest(unittest.TestCase):
             "retryable": True,
         })
         self.assertNotIn("\"code\"", json.dumps(payload))
+
+    def test_closing_http_frames_closes_the_application_event_stream(self):
+        closed = []
+
+        class RemainingEvents:
+            def __iter__(self):
+                return self
+
+            def __next__(self):
+                return ChatEvent("delta", "request", "conversation", 2, text="partial")
+
+            def close(self):
+                closed.append(True)
+
+        events = RemainingEvents()
+        frames = iter_sse_frames(
+            ChatEvent("started", "request", "conversation", 1),
+            events,
+        )
+
+        self.assertTrue(next(frames).startswith("event: started"))
+        frames.close()
+
+        self.assertEqual([True], closed)
 
 
 if __name__ == "__main__":

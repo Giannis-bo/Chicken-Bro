@@ -1,6 +1,6 @@
 import json
 from dataclasses import dataclass
-from typing import Any, Iterable
+from typing import Any, Iterable, Iterator
 
 
 class CodexStreamError(ValueError):
@@ -79,9 +79,21 @@ def serialize_sse_event(event: ChatEvent) -> str:
     return f"event: {event.event_type}\ndata: {payload}\n\n"
 
 
+def iter_sse_frames(first: ChatEvent, events: Iterator[ChatEvent]) -> Iterator[str]:
+    try:
+        yield serialize_sse_event(first)
+        for event in events:
+            yield serialize_sse_event(event)
+    finally:
+        close = getattr(events, "close", None)
+        if callable(close):
+            close()
+
+
 __all__ = (
     "ChatEvent",
     "CodexStreamError",
     "iter_codex_deltas",
+    "iter_sse_frames",
     "serialize_sse_event",
 )

@@ -12,7 +12,7 @@ from server.app.api.dependencies import (
 )
 from server.app.api.errors import ApiProblem
 from server.app.chickenbro.application import ChatApplication, ChatApplicationError
-from server.app.chickenbro.stream import ChatEvent, serialize_sse_event
+from server.app.chickenbro.stream import ChatEvent, iter_sse_frames
 from server.app.identity.domain import Principal
 
 
@@ -199,13 +199,8 @@ def stream_message(
             message="stream did not start",
         ) from None
 
-    def frames() -> Iterator[str]:
-        yield serialize_sse_event(first)
-        for event in events:
-            yield serialize_sse_event(event)
-
     return StreamingResponse(
-        frames(),
+        iter_sse_frames(first, events),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-store",
