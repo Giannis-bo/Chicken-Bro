@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-09-02T15:17:40.792Z",
+  "generatedAt": "2026-09-02T15:55:59.875Z",
   "release": {
     "date": "2026-09-02",
     "slug": "chickenbro-simc-identity-data"
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-09-02-chickenbro-simc-identity-data/evidence.json",
-    "sizeBytes": 8135,
+    "sizeBytes": 9752,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -392,7 +392,7 @@
     "missingFields": [],
     "declaredStatus": "local_verified",
     "highestEvidenceLevel": "local_verified",
-    "summary": "Phase 2 local implementation is verified for the product-only schema, same-user dual sessions, credential isolation, Web CSRF and guarded provisioning dry-run. The isolated candidate, runtime dependency tests and real PostgreSQL schema identity are still blocked by capacity and independent recovery, so Phase 2 and the overall rebuild are not complete and no remote mutation occurred."
+    "summary": "Phase 2 local implementation is verified for the product-only schema, same-user dual sessions, atomic single-use login transitions, active-account enforcement, least-privilege runtime grants, credential isolation, Web CSRF, injected WeChat behavior and guarded provisioning dry-run. The full backend profile remains literally blocked at four FastAPI imports, while the isolated candidate and real PostgreSQL identity remain blocked by capacity and independent recovery. Phase 2 and the overall rebuild are not complete, and no remote mutation occurred."
   },
   "evidence": {
     "localTests": {
@@ -417,7 +417,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "7 changed files currently visible to git status."
+      "detail": "1 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
@@ -453,15 +453,9 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 7,
+      "changedFileCount": 1,
       "changedFiles": [
-        " M docs/plans/README.md",
-        " M docs/project-state.json",
-        " M docs/roadmap.md",
-        " M docs/superpowers/plans/2026-09-02-chickenbro-simc-rebuild-02-identity-data.md",
-        " M docs/verification-matrix.md",
-        " M tests/project-state.test.js",
-        "?? artifacts/releases/2026-09-02-chickenbro-simc-identity-data/evidence.json"
+        " M artifacts/releases/2026-09-02-chickenbro-simc-identity-data/evidence.json"
       ]
     }
   },

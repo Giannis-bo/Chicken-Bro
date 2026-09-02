@@ -5,7 +5,7 @@
   "status": "local_verified",
   "highestEvidenceLevel": "local_verified",
   "branch": "codex/chickenbro-simc-total-rebuild-design",
-  "commit": "63013000809bd46860d4d7ee5c8e97257afeaba5",
+  "commit": "14de950c484c23346a960a1d3bf0ad00489893a2",
   "identities": {
     "runtime": {
       "status": "pending",
@@ -37,6 +37,8 @@
     "product-only PostgreSQL lineage with identity, chat, simc and ops owners",
     "formal WeChat provider identity keyed by provider, app_context and provider_subject",
     "independent Mini Bearer and Web Cookie sessions resolving to one internal user",
+    "conditional single-use QR transitions with atomic consume plus Web-session issuance",
+    "active-account session resolution and non-destructive runtime table privileges",
     "unambiguous credential transport, exact Origin/Host and Web double-submit CSRF",
     "redacted append-only authentication audit events",
     "fixed-target capacity and independent-recovery guarded chickenbro_prod provisioning dry-run",
@@ -44,9 +46,9 @@
   ],
   "verification": [
     {
-      "command": "python3 -m unittest tests.product_schema_test tests.app_identity_application_test tests.app_identity_repository_test tests.app_identity_api_test tests.app_csrf_test -v",
+      "command": "python3 -m unittest tests.product_schema_test tests.app_identity_application_test tests.app_identity_repository_test tests.app_identity_api_test tests.app_csrf_test tests.app_wechat_mini_test -v",
       "status": "pass",
-      "summary": "29 tests ran: 28 passed and the dedicated PostgreSQL integration test was explicitly skipped because WOW_PG_TEST_DSN_V2 is not configured. Static schema, migration runner, same-user session, cross-app isolation, conflict, revocation, mixed-auth, cookie, Origin/Host, CSRF and audit tests passed."
+      "summary": "44 tests ran: 43 passed and the dedicated PostgreSQL integration test was explicitly skipped because WOW_PG_TEST_DSN_V2 is not configured. Static schema, migration runner, same-user sessions, atomic QR transitions, expired idempotent retry, active-account resolution, least-privilege grants, cross-app isolation, revocation, mixed-auth, Cookie, Origin/Host, CSRF, audit and injected WeChat-provider tests passed."
     },
     {
       "command": "tests.product_schema_test.ProductSchemaIntegrationTest with WOW_PG_TEST_DSN_V2",
@@ -69,14 +71,24 @@
       "summary": "The formal identity, audit, credential transport, CSRF, API wiring and application packages compile without syntax errors."
     },
     {
+      "command": "node scripts/verify-project.js --profile backend --release artifacts/releases/2026-09-02-chickenbro-simc-identity-data",
+      "status": "blocked",
+      "summary": "The profile exited 1 after running 3,435 tests: four test modules failed only at import because FastAPI is unavailable, and nine tests were explicitly skipped. The injected WeChat adapter tests now run without importing httpx. This is a literal dependency blocker, not a passing backend profile and not candidate runtime evidence."
+    },
+    {
       "command": "FastAPI TestClient and real PostgreSQL API integration",
       "status": "blocked",
-      "summary": "The current host lacks FastAPI, Pydantic, httpx and psycopg, and dependency installation is outside the current approval. Dependency-free behavior tests and source wiring pass, but runtime integration remains unverified."
+      "summary": "The current host dependency probe reports FastAPI, Pydantic, httpx and psycopg unavailable, and dependency installation is outside the current approval. Injected provider and dependency-free behavior tests pass, but the real default HTTP client, FastAPI TestClient and PostgreSQL runtime integration remain unverified."
     },
     {
       "command": "node scripts/project-harness.js --check-requirement --requirement-file artifacts/releases/2026-09-02-chickenbro-simc-identity-data/requirement.json",
       "status": "pass",
       "summary": "The Strict requirement remains implementation_allowed and preserves the capacity, independent recovery, production and destructive-cleanup boundaries."
+    },
+    {
+      "command": "local CR over 990ea5c57..14de950c4; git diff --check; staged secret scan",
+      "status": "pass",
+      "summary": "Local review fixed stale FOR UPDATE transitions, split consume/session commits, disabled-account session reuse, expired idempotency reinsertion, destructive runtime grants and provider exception chaining. The reviewed diff has no whitespace errors or detected credential material; no unresolved Phase 2 code finding remains."
     }
   ],
   "candidateDeployment": {
@@ -107,7 +119,7 @@
     {
       "id": "runtime-dependency-verification",
       "status": "blocked",
-      "detail": "FastAPI and psycopg runtime behavior has not run on this dependency-free host; candidate verification must execute it in the approved runtime."
+      "detail": "FastAPI/Pydantic, real httpx client and psycopg runtime behavior has not run on this dependency-free host; candidate verification must execute it in the approved runtime."
     },
     {
       "id": "legacy-schema-compatibility",
@@ -154,5 +166,5 @@
     "phase2Completion": "BLOCKED_PENDING_ISOLATED_CANDIDATE",
     "overallGoal": "IN_PROGRESS"
   },
-  "summary": "Phase 2 local implementation is verified for the product-only schema, same-user dual sessions, credential isolation, Web CSRF and guarded provisioning dry-run. The isolated candidate, runtime dependency tests and real PostgreSQL schema identity are still blocked by capacity and independent recovery, so Phase 2 and the overall rebuild are not complete and no remote mutation occurred."
+  "summary": "Phase 2 local implementation is verified for the product-only schema, same-user dual sessions, atomic single-use login transitions, active-account enforcement, least-privilege runtime grants, credential isolation, Web CSRF, injected WeChat behavior and guarded provisioning dry-run. The full backend profile remains literally blocked at four FastAPI imports, while the isolated candidate and real PostgreSQL identity remain blocked by capacity and independent recovery. Phase 2 and the overall rebuild are not complete, and no remote mutation occurred."
 }
