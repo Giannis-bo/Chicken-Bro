@@ -328,8 +328,9 @@ Chat SSE 的每个事件都必须有从 1 开始连续递增的整数 `sequence`
 5. 重新运行逐域核对，要求无未解释差异。
 6. 原子切换 API/Worker DSN、systemd 和 Nginx 到新部署 identity。
 7. 验证只有新路径可写，legacy 仍只读。
-8. 写入一条受控正式记录，记录 `firstNewProductionWriteAt`。
-9. 执行生产双端 Chat/SimC、owner 隔离、退出和恢复 smoke。
+8. 在公开新写入口前落盘 `WRITE_AUTHORITY_BOUNDARY`；从此即使尚未观测到第一条写入，恢复策略也保守地禁止重新开放 legacy 写入。
+9. 使用真实 Mini/Web 完成生产双端 Chat/SimC、owner 隔离、退出和重启恢复验收；验收文件必须绑定 `switched` 证据 SHA、同一 commit 和双端 build identity，并记录真实 `firstAcceptedWriteAt`。
+10. 仅在上述生产验收及用户明确确认都通过后，以 `--seal-accepted-write` 把状态从 `switched` 单向推进到 `accepted_write`。开放写入口的边界时间不能冒充实际首条写入时间。
 
 任何步骤失败都停止推进，不跳到删除。
 
@@ -349,6 +350,8 @@ Chat SSE 的每个事件都必须有从 1 开始连续递增的整数 `sequence`
 4. 从新主数据面的恢复点恢复。
 
 这条边界避免双主、覆盖和跨端历史分叉。
+
+实际操作分成两个不可混淆的状态：`--apply` 最多产出 `switched` 和 `production_acceptance_pending`；随后使用精确的 `production-cutover.json`、`production-user-acceptance.json` 及二者 SHA 执行 `--seal-accepted-write`。seal 会再次确认 legacy 只读、新库可写、正式 API/Worker active、readiness、真实微信扫码、跨端 Chat/SimC、owner 隔离、独立退出、服务重启恢复和用户明确确认。任一证据字段、时间顺序、route、build identity 或 secret-redaction 不满足时失败关闭。
 
 ## 10. Legacy 退役
 

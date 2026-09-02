@@ -18,6 +18,7 @@ CANDIDATE_PORT="8791"
 CANDIDATE_PREFIX="/api/v2-candidate"
 CANDIDATE_API_SERVICE="chickenbro-api-candidate"
 CANDIDATE_WORKER_SERVICE="chickenbro-worker-candidate"
+LEGACY_CANDIDATE_SERVICE="wow-v2-api-candidate"
 CANDIDATE_API_ENV="/etc/chickenbro-api-candidate.env"
 CANDIDATE_SOURCE_ENV="/etc/chickenbro-source-candidate.env"
 CANDIDATE_PGPASSFILE="/etc/chickenbro-api-candidate.pgpass"
@@ -256,6 +257,7 @@ REMOTE_ENV=(
   "CANDIDATE_PREFIX=${CANDIDATE_PREFIX}"
   "CANDIDATE_API_SERVICE=${CANDIDATE_API_SERVICE}"
   "CANDIDATE_WORKER_SERVICE=${CANDIDATE_WORKER_SERVICE}"
+  "LEGACY_CANDIDATE_SERVICE=${LEGACY_CANDIDATE_SERVICE}"
   "CANDIDATE_API_ENV=${CANDIDATE_API_ENV}"
   "CANDIDATE_SOURCE_ENV=${CANDIDATE_SOURCE_ENV}"
   "CANDIDATE_PGPASSFILE=${CANDIDATE_PGPASSFILE}"
@@ -703,12 +705,24 @@ rollback_candidate() {
     else
       systemctl disable "${CANDIDATE_WORKER_SERVICE}" >/dev/null 2>&1 || true
     fi
+    if [[ "$(<"${BACKUP_DIR}/legacy-candidate.present")" == "present" ]]; then
+      systemctl unmask --runtime "${LEGACY_CANDIDATE_SERVICE}" >/dev/null 2>&1 || true
+      if [[ "$(<"${BACKUP_DIR}/legacy-candidate.enabled")" == "enabled" ]]; then
+        systemctl enable "${LEGACY_CANDIDATE_SERVICE}" >/dev/null 2>&1 || true
+      else
+        systemctl disable "${LEGACY_CANDIDATE_SERVICE}" >/dev/null 2>&1 || true
+      fi
+    fi
     nginx -t >/dev/null && systemctl reload nginx >/dev/null 2>&1
     if [[ "$(<"${BACKUP_DIR}/candidate-api.active")" == "active" ]]; then
       systemctl start "${CANDIDATE_API_SERVICE}" >/dev/null 2>&1
     fi
     if [[ "$(<"${BACKUP_DIR}/worker.active")" == "active" ]]; then
       systemctl start "${CANDIDATE_WORKER_SERVICE}" >/dev/null 2>&1
+    fi
+    if [[ "$(<"${BACKUP_DIR}/legacy-candidate.present")" == "present" \
+      && "$(<"${BACKUP_DIR}/legacy-candidate.active")" == "active" ]]; then
+      systemctl start "${LEGACY_CANDIDATE_SERVICE}" >/dev/null 2>&1
     fi
     printf '%s\n' 'rollback_attempted_requires_operator_verification' > "${BACKUP_DIR}/ROLLBACK_STATE"
   fi
@@ -759,6 +773,15 @@ service_state "${CANDIDATE_API_SERVICE}" > "${BACKUP_DIR}/candidate-api.active"
 service_state "${CANDIDATE_WORKER_SERVICE}" > "${BACKUP_DIR}/worker.active"
 enable_state "${CANDIDATE_API_SERVICE}" > "${BACKUP_DIR}/candidate-api.enabled"
 enable_state "${CANDIDATE_WORKER_SERVICE}" > "${BACKUP_DIR}/worker.enabled"
+if [[ "$(systemctl show "${LEGACY_CANDIDATE_SERVICE}" --property=LoadState --value)" == "not-found" ]]; then
+  printf '%s\n' absent > "${BACKUP_DIR}/legacy-candidate.present"
+  printf '%s\n' inactive > "${BACKUP_DIR}/legacy-candidate.active"
+  printf '%s\n' disabled > "${BACKUP_DIR}/legacy-candidate.enabled"
+else
+  printf '%s\n' present > "${BACKUP_DIR}/legacy-candidate.present"
+  service_state "${LEGACY_CANDIDATE_SERVICE}" > "${BACKUP_DIR}/legacy-candidate.active"
+  enable_state "${LEGACY_CANDIDATE_SERVICE}" > "${BACKUP_DIR}/legacy-candidate.enabled"
+fi
 if [[ -d "${CANDIDATE_ROOT}" ]]; then
   tar --format=posix -czf "${BACKUP_DIR}/candidate-root.tar.gz" -C "${CANDIDATE_ROOT}" .
 else
@@ -794,6 +817,11 @@ printf '%s\n' "${PREVIOUS_DATABASE}" > "${BACKUP_DIR}/candidate-database.state"
 printf '%s\n' backup_complete > "${BACKUP_DIR}/READY"
 MUTATION_STARTED="1"
 
+if [[ "$(<"${BACKUP_DIR}/legacy-candidate.present")" == "present" ]]; then
+  systemctl stop "${LEGACY_CANDIDATE_SERVICE}" >/dev/null 2>&1 || true
+  systemctl disable "${LEGACY_CANDIDATE_SERVICE}" >/dev/null 2>&1 || true
+  systemctl mask --runtime "${LEGACY_CANDIDATE_SERVICE}" >/dev/null
+fi
 systemctl stop "${CANDIDATE_API_SERVICE}" "${CANDIDATE_WORKER_SERVICE}" >/dev/null 2>&1 || true
 install -d -o root -g root -m 0755 "$(dirname "${CODE_NEW_DIR}")"
 cp -a "${STAGE_DIR}" "${CODE_NEW_DIR}"
@@ -1231,6 +1259,7 @@ payload = {
     "migrationReportSha256": migration_sha,
     "apiServiceIdentity": os.environ["API_SERVICE_IDENTITY"],
     "candidateWorkerServiceIdentity": os.environ["CANDIDATE_WORKER_SERVICE_IDENTITY"],
+    "legacyCandidateServiceRetired": True,
     "codexRuntimeIdentity": os.environ["CODEX_RUNTIME_IDENTITY"],
     "simcRuntimeIdentity": os.environ["SIMC_RUNTIME_IDENTITY"],
     "webBuildIdentity": os.environ["WEB_BUILD_IDENTITY"],
