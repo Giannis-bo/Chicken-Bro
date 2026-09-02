@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedFromCommit": "3bf2c4079bb2165c2ebe681c8d056d9d0f618882",
+  "generatedFromCommit": "339cca06fd1bd442dabe4c2ae0f87c72d9e7ecef",
   "excludedSelfPath": "docs/refactor/chickenbro-simc-refactor-inventory.json",
   "sourceRulesSha256": "db56cd143abf01d31e0f6f54b44a985a73394834308e56a2c6150bd43e5f18ff",
   "entryCount": 2850,
@@ -14793,8 +14793,8 @@
       "owner": "Harness and rebuild roadmap",
       "reason": "Current approved product direction, executable phase plans, and machine-readable state.",
       "matchedRule": "rebuild-control-plane",
-      "bytes": 3529,
-      "sha256": "ada813e90a43f2d3c22b6a4e3f93eec12096a867f6c2889a5d525abca8dd6cd6"
+      "bytes": 3676,
+      "sha256": "5f1e4bdf5ef8b0c3a22dd893cc81a88814b343ffcd04e352ced37d841020af71"
     },
     {
       "path": "docs/refactor/chickenbro-simc-capacity-cleanup-manifest.json",
@@ -21013,8 +21013,8 @@
       "owner": "Refactor inventory",
       "reason": "Deterministic disposition rules, generator, and focused verification.",
       "matchedRule": "rebuild-inventory-owner",
-      "bytes": 18920,
-      "sha256": "21e9f4094038f4a05803d08a48f482056a8f96cc8b98547a99aa2f283119b933"
+      "bytes": 19013,
+      "sha256": "e7601c2d0327148cf3062f07af9f58da9d81727f1ce4391fd0722f10a3cc9667"
     },
     {
       "path": "scripts/audit-dbcache-tact-key-corpus.py",
@@ -26023,8 +26023,8 @@
       "owner": "Refactor inventory",
       "reason": "Deterministic disposition rules, generator, and focused verification.",
       "matchedRule": "rebuild-inventory-owner",
-      "bytes": 12420,
-      "sha256": "66e43f9a20a9508a30a3a11011d22e6febc40a866b0db3932890dc60b622c089"
+      "bytes": 13803,
+      "sha256": "6b895cd112f76ed78f574219ff1764b1eb25c863891193d1cd3c603113b2cf17"
     },
     {
       "path": "tests/chickenbro-simc-refactor-inventory.test.js",
@@ -28537,5 +28537,5 @@
       "sha256": "4736cc276f788e5427d17e51499c110336106bb64db4c827e2d576629d8f281f"
     }
   ],
-  "inventorySha256": "b10a37433209eb90422d45b380bf3f202c834b9a60d1cefb61a1c14e7819733a"
+  "inventorySha256": "6eeffb152cdeab747124dfa1a4ae33f4e24ab4c5bdf7b26dce116d8c19b292ae"
 }
