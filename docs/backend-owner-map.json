@@ -4,7 +4,7 @@
   "harnessVersion": "v0.6.4",
   "defaultEvidenceLevel": "local_verified",
   "updatedAt": "2026-09-02",
-  "activeMilestone": "chickenbro_simc_total_rebuild_phase_1",
+  "activeMilestone": "chickenbro_simc_total_rebuild_phase_2",
   "targetProductOwners": [
     {
       "id": "identity",

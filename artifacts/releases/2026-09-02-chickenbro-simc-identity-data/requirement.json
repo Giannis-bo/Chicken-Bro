@@ -1,0 +1,113 @@
+{
+  "schemaVersion": 1,
+  "slug": "chickenbro-simc-identity-data",
+  "classification": "Strict",
+  "status": "implementation_allowed",
+  "goal": "建立只含 identity、chat、simc、ops 的干净产品迁移链，并让 Mini Bearer 与 Web HttpOnly Session 安全解析到同一正式内部 user_id。",
+  "userValue": "同一微信用户可在小程序和 Web 使用独立登录会话访问同一个账号和同一份 Chat/SimC 历史，同时不同用户、不同微信应用上下文和不同 credential transport 不会被误合并。",
+  "nonGoals": [
+    "本阶段不实现正式 Chat 或 SimC 业务 API，也不精简双端路由。",
+    "本阶段不迁移 legacy Chat/SimC 数据，不切换生产 DSN、Nginx、systemd 或公网流量。",
+    "当前容量和独立恢复 gate 未通过时，不创建云端 chickenbro_prod、不写入 PostgreSQL、不停止服务、不删除数据库或目录。",
+    "本阶段不迁移旧 auth session、prototype owner、OpenID 明文、Cookie、Bearer、ticket、verifier、session_key 或第三方凭据。",
+    "本阶段不把静态 SQL 测试、mock、dry-run、HTTP 200、进程 active 或 blocked candidate 描述为 Phase 2 完成。"
+  ],
+  "currentTruth": {
+    "sources": [
+      "docs/project-state.json",
+      "docs/roadmap.md",
+      "docs/plans/README.md",
+      "docs/chickenbro-simc-architecture.md",
+      "docs/chickenbro-simc-production-runbook.md",
+      "docs/verification-matrix.md",
+      "docs/superpowers/specs/2026-09-02-chickenbro-simc-total-rebuild-design.md",
+      "docs/superpowers/plans/2026-09-02-chickenbro-simc-rebuild-02-identity-data.md",
+      "artifacts/releases/2026-09-02-chickenbro-simc-control-plane/evidence.json"
+    ],
+    "activeMilestone": "chickenbro_simc_total_rebuild_phase_2",
+    "featureIteration": "phase_2_local_implementation_in_progress_capacity_blocked"
+  },
+  "impactMap": {
+    "mustChange": [
+      "product-only PostgreSQL migration lineage with exactly identity, chat, simc and ops owners",
+      "formal WeChat identity uniqueness by provider, app_context and provider_subject",
+      "independent Mini Bearer and Web Cookie session issue, resolution and revocation",
+      "unambiguous Principal resolution with exact Origin and Web double-submit CSRF protection",
+      "redacted auth audit events with no provider subject or credential material",
+      "capacity and independent-recovery guarded chickenbro_prod provisioning dry run",
+      "task-scoped Strict requirement, evidence and manifest"
+    ],
+    "mustNotChange": [
+      "legacy wow_test contents, connections, schema or write availability",
+      "production and candidate Nginx, systemd, timers, ports, DSNs or traffic",
+      "current Mini/Web production routes and prototype compatibility runtime",
+      "Chat, SimC and Worker formal business behavior reserved for Phases 3 and 4",
+      "Active Manifest, cloud SimulationCraft runtime pointer, TLS or credentials",
+      "any database, deployment, service or directory selected for later legacy cleanup"
+    ],
+    "riskUnknown": [
+      "The cloud inventory is point-in-time and must be refreshed before any candidate mutation.",
+      "The current root has about 8.58 GB free while non-template databases total about 39.28 GB; safe candidate coexistence is not established.",
+      "No independent backup device and successful restore identity has been verified for this phase.",
+      "The existing identity foundation uses provider_subject without app_context and contains prototype compatibility methods that must not leak into the clean product schema."
+    ],
+    "evidenceRequired": [
+      "test-first exact schema and forbidden-owner checks plus optional isolated PostgreSQL integration",
+      "same-user cross-session, cross-app non-merge, conflict and independent revocation tests",
+      "mixed credential, wrong transport, exact Origin, CSRF and redacted audit tests",
+      "provisioning behavior tests and mutation-free dry-run output",
+      "candidate database identity, zero forbidden schemas and rollback only after capacity plus independent recovery gates are green",
+      "local CR, secret scan and one complete task-scoped Harness packet"
+    ]
+  },
+  "ownership": {
+    "factOwner": "docs/chickenbro-simc-architecture.md",
+    "schemaOwner": "server/migrations/product/0001_chickenbro_simc_core.sql",
+    "identityOwner": "server/app/identity",
+    "securityOwner": "server/app/platform",
+    "provisioningOwner": "server/provision_chickenbro_database_lighthouse.sh",
+    "consumers": [
+      "server/app/api/dependencies.py",
+      "server/app/api/routes/auth.py",
+      "server/app/main.py",
+      "Phase 3 formal Chat",
+      "Phase 4 formal SimC",
+      "Phase 5 migration and cutover"
+    ]
+  },
+  "engineeringHealth": {
+    "status": "health_watch",
+    "reason": "Identity, schema and provisioning are high-trust surfaces. Local implementation is authorized, while candidate apply remains fail-closed behind fresh capacity, independent backup and restore proof."
+  },
+  "acceptanceEvidence": [
+    "python3 -m unittest tests.product_schema_test tests.app_identity_application_test tests.app_identity_repository_test tests.app_identity_api_test tests.app_csrf_test -v",
+    "node --test tests/provision-chickenbro-database.test.js",
+    "bash server/provision_chickenbro_database_lighthouse.sh --dry-run",
+    "node scripts/verify-project.js --profile backend --release artifacts/releases/2026-09-02-chickenbro-simc-identity-data",
+    "node scripts/project-harness.js --check --requirement-file artifacts/releases/2026-09-02-chickenbro-simc-identity-data/requirement.json --evidence-file artifacts/releases/2026-09-02-chickenbro-simc-identity-data/evidence.json --manifest-file artifacts/releases/2026-09-02-chickenbro-simc-identity-data/manifest.json --base origin/main"
+  ],
+  "manualAcceptanceContract": {
+    "required": false,
+    "requiredItemIds": []
+  },
+  "releaseTrigger": "backend_api",
+  "rollback": [
+    "code_rollback",
+    "data_restore",
+    "config_disable"
+  ],
+  "decisionLog": [
+    {
+      "date": "2026-09-02",
+      "decision": "Phase 1 control plane is sealed at local_verified with a reachable read-only cloud snapshot and zero runtime mutation; Phase 2 local implementation can begin."
+    },
+    {
+      "date": "2026-09-02",
+      "decision": "candidateDatabaseProvisioningAuthorized remains false until a refreshed inventory, sufficient capacity, an independent backup device and a successful restore identity are all recorded."
+    },
+    {
+      "date": "2026-09-02",
+      "decision": "Production cutover and destructive cleanup remain separately unauthorized regardless of local or candidate Phase 2 results."
+    }
+  ]
+}

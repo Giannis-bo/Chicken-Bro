@@ -9,7 +9,7 @@
 
 ## 当前状态
 
-六阶段彻底重构正在执行 Phase 1 控制面。当前只允许文档、清单、测试和云端只读盘点；生产 DSN、流量、服务和数据尚未切换。
+六阶段彻底重构的 Phase 1 控制面已在 clean HEAD 封存；当前执行 Phase 2 干净数据面与 Identity 的本地实现、测试和 provisioning dry-run。生产 DSN、流量、服务和数据尚未切换，云端建库仍未授权。
 
 最新只读快照显示根分区约余 8.58 GB，而 PostgreSQL 目录约 39.63 GB。创建干净 `chickenbro_prod` 前必须先完成独立恢复副本与恢复验证并精确清理无引用旧数据，或扩容。不能提前删除 `wow_test`、正式部署或唯一恢复点绕过容量门禁。
 
@@ -83,7 +83,7 @@ npm run build:weapp
 
 微信开发者工具导入 `apps/mini-taro`，不要导入仓库根或 `apps/mini-taro/dist/weapp`。后者是构建输出，由 `apps/mini-taro/project.config.json` 指向。
 
-Phase 1 focused verification：
+Phase 1 控制面基线验证：
 
 ```bash
 node --test tests/chickenbro-simc-refactor-inventory.test.js

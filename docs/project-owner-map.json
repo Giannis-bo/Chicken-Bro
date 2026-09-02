@@ -3,7 +3,7 @@
   "updatedAt": "2026-09-02",
   "status": "project_owner_map_active",
   "harnessVersion": "v0.6.4",
-  "activeMilestone": "chickenbro_simc_total_rebuild_phase_1",
+  "activeMilestone": "chickenbro_simc_total_rebuild_phase_2",
   "targetProductOwners": [
     {
       "id": "identity",

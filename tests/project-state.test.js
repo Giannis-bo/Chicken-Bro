@@ -45,8 +45,8 @@ test('project-state is the single machine-readable current truth entry', () => {
 
   assert.equal(state.schemaVersion, 1)
   assert.equal(state.updatedAt, '2026-09-02')
-  assert.equal(state.activeMilestone, 'chickenbro_simc_total_rebuild_phase_1')
-  assert.equal(state.featureIteration, 'implementation_authorized_phase_1_in_progress')
+  assert.equal(state.activeMilestone, 'chickenbro_simc_total_rebuild_phase_2')
+  assert.equal(state.featureIteration, 'phase_2_local_implementation_in_progress_capacity_blocked')
   assert.equal(state.activeReleaseArtifact, undefined)
   assert.equal(state.defaultLocalReleaseArtifact, observedBuildRegistryRelease)
   assert.deepEqual(state.releaseResolution, {
@@ -60,11 +60,34 @@ test('project-state is the single machine-readable current truth entry', () => {
   assert.deepEqual(state.targetProduct.businessDomains, ['chickenbro_chat', 'simc'])
   assert.deepEqual(state.targetProduct.clients, ['wechat_mini_program', 'web'])
   assert.equal(state.targetProduct.identityOwner, 'identity.users.id')
+  assert.equal(
+    state.targetProduct.status,
+    'implementation_authorized_phase_2_local_in_progress_capacity_blocked',
+  )
+  assert.equal(state.targetProduct.currentPhase, 2)
+  assert.equal(
+    state.targetProduct.phase1Status,
+    'local_verified_read_only_control_plane_sealed',
+  )
+  assert.equal(
+    state.targetProduct.phase1Evidence,
+    'artifacts/releases/2026-09-02-chickenbro-simc-control-plane/evidence.json',
+  )
+  assertPathExists(state.targetProduct.phase1Evidence)
+  assert.equal(
+    state.targetProduct.phase2Requirement,
+    'artifacts/releases/2026-09-02-chickenbro-simc-identity-data/requirement.json',
+  )
+  assertPathExists(state.targetProduct.phase2Requirement)
   assert.equal(state.targetProduct.implementationAuthorized, true)
   assert.equal(state.targetProduct.terminalGoalAuthorized, true)
   assert.equal(state.targetProduct.productionCutoverAuthorized, false)
   assert.equal(state.targetProduct.destructiveCleanupAuthorized, false)
-  assert.equal(state.targetProduct.currentMutationGate, 'phase_1_read_only_control_plane_only')
+  assert.equal(state.targetProduct.candidateDatabaseProvisioningAuthorized, false)
+  assert.equal(
+    state.targetProduct.currentMutationGate,
+    'phase_2_local_code_and_dry_run_only_capacity_and_recovery_block_apply',
+  )
   assert.equal(state.targetProduct.productionCutoverReady, false)
   assert.equal(state.targetProduct.destructiveCleanupReady, false)
   assert.equal(state.targetProduct.implementationPlans.length, 6)
@@ -187,7 +210,10 @@ test('project-state is the single machine-readable current truth entry', () => {
   const legacyTaroRuntime = state.activeContracts.find(
     (entry) => entry.id === 'taro_target_first_14_route_rebuild',
   )
-  assert.equal(totalRebuild?.status, 'implementation_authorized_phase_1_in_progress')
+  assert.equal(
+    totalRebuild?.status,
+    'implementation_authorized_phase_2_local_in_progress_capacity_blocked',
+  )
   assert.equal(
     totalRebuild?.path,
     'docs/superpowers/specs/2026-09-02-chickenbro-simc-total-rebuild-design.md',
@@ -1304,8 +1330,8 @@ test('current documentation follows the Chickenbro-SimC target and Harness contr
   assert.doesNotMatch(docsMap, /cdn-asset-publishing\.md/)
   assert.doesNotMatch(docsMap, /gear-attribute-rule-source-ledger\.md/)
   assert.ok(harness.indexOf('docs/project-state.json') < harness.indexOf('docs/roadmap.md'))
-  assert.match(roadmap, /\| 正在推进 \| 控制面与清理清单 \|/)
-  assert.match(roadmap, /\| 下一步 \| 干净数据面与 Identity \|/)
+  assert.match(roadmap, /\| 已完成 \| 控制面与清理清单 \|/)
+  assert.match(roadmap, /\| 正在推进 \| 干净数据面与 Identity \|/)
   assert.match(roadmap, /legacy 生产 \| `Active \/ last-known-good`/)
   assert.match(roadmap, /Active Manifest\/S2 \| `legacy 冻结`/)
   assert.match(architecture, /Principal\(user_id, session_kind\)/)

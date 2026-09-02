@@ -30,8 +30,8 @@
 
 | Phase | 当前状态 | 自动验证 | 运行态/人工门禁 | 回滚/停止边界 |
 | --- | --- | --- | --- | --- |
-| 1. 控制面 | 正在推进 | inventory、云端脱敏、project-state、Harness packet | 云端只读快照 | 不改业务运行时/数据 |
-| 2. Identity/数据面 | 容量 blocked | product schema、identity repo/app/API、Origin/CSRF、provision dry-run | 独立备份、恢复、candidate DB | 不切正式 DSN |
+| 1. 控制面 | 已完成 / `local_verified` | inventory、云端脱敏、project-state、Harness packet | 云端只读快照 | 未改业务运行时/数据 |
+| 2. Identity/数据面 | 正在推进；candidate apply 容量 blocked | product schema、identity repo/app/API、Origin/CSRF、provision dry-run | 独立备份、恢复、candidate DB | 不切正式 DSN |
 | 3. Chat | 等待 Phase 2 | owner/repo/app/SSE/API/typed client、第二用户隔离 | candidate Codex 与双端同 owner | 不接公网生产流量 |
 | 4. SimC | 等待 Phase 3 | snapshot/readiness/compiler/repo/queue/worker/API/client | cloud SimC 语义结果、candidate task parity | 不切公网生产流量 |
 | 5. 双端/迁移/切流 | 等待 2--4 | 精确 5 routes/2 tabs、Web Shell、migration/reconciliation、deploy/cutover dry-run | 真实扫码、跨端 Chat/SimC、写栅栏 | 首条新写入前/后采用不同回滚规则 |

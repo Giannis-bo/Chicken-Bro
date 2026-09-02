@@ -37,6 +37,43 @@
 - Create `tests/provision-chickenbro-database.test.js`: dry-run and fail-closed shell contract tests.
 - Create `artifacts/releases/2026-09-02-chickenbro-simc-identity-data/{requirement,evidence,manifest}.json`.
 
+### Task 0: Open the Strict Phase 2 requirement
+
+**Files:**
+- Create: `artifacts/releases/2026-09-02-chickenbro-simc-identity-data/requirement.json`
+- Modify: `README.md`
+- Modify: `docs/project-state.json`
+- Modify: `docs/project-owner-map.json`
+- Modify: `docs/backend-owner-map.json`
+- Modify: `docs/roadmap.md`
+- Modify: `docs/plans/README.md`
+- Modify: `docs/verification-matrix.md`
+- Modify: `docs/chickenbro-simc-production-runbook.md`
+- Modify: `tests/project-state.test.js`
+
+**Interfaces:**
+- Consumes: sealed Phase 1 evidence, current capacity blocker and the approved Phase 2 plan.
+- Produces: one `implementation_allowed` Strict requirement for local schema/Identity/API-security/dry-run work; candidate mutation remains separately false until capacity and independent recovery are proven.
+
+- [x] **Step 1: Write a failing Phase 2 current-state test**
+
+Assert Phase 1 evidence is sealed, Phase 2 is active, the task-scoped requirement exists, and `candidateDatabaseProvisioningAuthorized` remains false.
+
+- [x] **Step 2: Update the control plane and write the requirement**
+
+Mark Phase 1 `已完成`, Phase 2 `正在推进`, bind the requirement and retain the literal capacity/recovery blocker in state, roadmap, owner maps and verification matrix.
+
+- [x] **Step 3: Verify and commit before product implementation**
+
+```bash
+node --test tests/project-state.test.js tests/project-owner-map.test.js tests/backend-owner-map.test.js
+node scripts/project-harness.js --check-requirement \
+  --requirement-file artifacts/releases/2026-09-02-chickenbro-simc-identity-data/requirement.json
+git add artifacts/releases/2026-09-02-chickenbro-simc-identity-data/requirement.json \
+  README.md docs tests/project-state.test.js
+git commit -m "chore: open dual-client identity data requirement"
+```
+
 ### Task 1: Product-only PostgreSQL migration lineage
 
 **Files:**
@@ -304,7 +341,7 @@ git commit -m "ops: guard clean Chickenbro database provisioning"
 **Interfaces:**
 - Produces: candidate evidence for clean schema and dual-session identity; it does not authorize production DSN cutover.
 
-- [ ] **Step 1: Create the Strict requirement**
+- [ ] **Step 1: Revalidate the already-open Strict requirement**
 
 Require clean-schema integration, identity conflict tests, session independence, mixed-credential rejection, Origin/CSRF tests, provisioning dry run, candidate DB identity, rollback path, and zero forbidden schemas.
 
