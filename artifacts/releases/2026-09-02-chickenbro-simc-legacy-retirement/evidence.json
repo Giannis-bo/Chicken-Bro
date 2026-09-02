@@ -1,0 +1,168 @@
+{
+  "schemaVersion": 2,
+  "slug": "chickenbro-simc-legacy-retirement",
+  "requirementSlug": "chickenbro-simc-legacy-retirement",
+  "status": "implementation_allowed",
+  "highestEvidenceLevel": "implementation_allowed",
+  "branch": "codex/chickenbro-simc-total-rebuild-design",
+  "commit": "pending_final_head",
+  "identities": {
+    "runtime": {
+      "status": "pending",
+      "reason": "No accepted Chickenbro production runtime or post-cleanup runtime identity exists."
+    },
+    "verification": {
+      "status": "pending",
+      "reason": "The Strict packet is being assembled while Phase 6 implementation is still changing."
+    },
+    "closure": {
+      "status": "pending",
+      "reason": "Runtime acceptance, cleanup apply, rollback-window expiry, merge and final parity are incomplete."
+    }
+  },
+  "manualAcceptance": {
+    "required": true,
+    "status": "pending",
+    "reason": "No post-cleanup real Mini/Web acceptance has run.",
+    "items": [
+      {
+        "id": "post_cleanup_mini_login",
+        "status": "pending",
+        "evidence": "Requires a real official Mini login after cloud and local retirement."
+      },
+      {
+        "id": "post_cleanup_web_qr_login",
+        "status": "pending",
+        "evidence": "Requires a real Web ticket, explicit Mini confirmation and independent Web session after cleanup."
+      },
+      {
+        "id": "post_cleanup_cross_client_chat",
+        "status": "pending",
+        "evidence": "Requires Chat creation, visibility and continuation in both Mini-to-Web and Web-to-Mini directions after cleanup."
+      },
+      {
+        "id": "post_cleanup_cross_client_simc",
+        "status": "pending",
+        "evidence": "Requires the same SimC jobs, attempts and semantic results to be visible from both clients after cleanup."
+      },
+      {
+        "id": "post_cleanup_owner_isolation",
+        "status": "pending",
+        "evidence": "Requires a second real owner to receive no list or direct-object access after cleanup."
+      },
+      {
+        "id": "post_cleanup_independent_logout",
+        "status": "pending",
+        "evidence": "Requires Web logout not to revoke Mini and Mini logout not to impersonate or reuse Web state."
+      },
+      {
+        "id": "post_cleanup_old_surfaces_absent",
+        "status": "pending",
+        "evidence": "Requires old routes, products, services and data owners to be absent without breaking Chat or SimC."
+      },
+      {
+        "id": "final_user_confirmation",
+        "status": "pending",
+        "evidence": "Requires explicit user confirmation after the complete post-cleanup flow."
+      }
+    ],
+    "rollup": {
+      "total": 8,
+      "accepted": 0,
+      "notRunUserWaived": 0,
+      "pending": 8
+    }
+  },
+  "scope": [
+    "exact local legacy file retirement",
+    "exact cloud unit database configuration and directory retirement",
+    "independent recovery drill",
+    "post-cleanup dual-client acceptance and parity"
+  ],
+  "verification": [
+    {
+      "command": "npm run test:control",
+      "status": "pass",
+      "summary": "Current control suite passes with exact local keep/delete classification and a Phase 5-gated executor."
+    },
+    {
+      "command": "npm run test:ops",
+      "status": "pass",
+      "summary": "Current operations suite passes, including protected cloud targets, exact resource coverage and dry-run refusal."
+    },
+    {
+      "command": "node scripts/apply-chickenbro-simc-local-cleanup.js --inventory docs/refactor/chickenbro-simc-refactor-inventory.json --dry-run",
+      "status": "pass",
+      "summary": "Dry-run reports zero review and zero retained callers while phase5Accepted remains false and mutationAuthorized remains false."
+    },
+    {
+      "command": "bash server/retire_chickenbro_legacy_lighthouse.sh --manifest docs/refactor/chickenbro-simc-cloud-cleanup-manifest.json --dry-run",
+      "status": "pass",
+      "summary": "Dry-run reports all 80 exact cloud resources blocked, two unresolved discovery items and no mutation authorization."
+    },
+    {
+      "command": "npm run test:backend",
+      "status": "blocked",
+      "summary": "System Python lacks FastAPI; no dependency was installed without explicit authorization. Non-API backend modules exercised in the attempted run passed."
+    },
+    {
+      "command": "candidate migration cutover cleanup recovery and real-user acceptance",
+      "status": "not_run",
+      "summary": "Capacity, independent recovery and Phase 5 acceptance gates have not opened."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "blocked",
+    "reason": "The committed cloud snapshot has insufficient root capacity and no independent restore-verified backup; no Chickenbro candidate or production cleanup mutation has run."
+  },
+  "runtimeEvidence": [
+    {
+      "type": "local_cleanup_dry_run",
+      "status": "pass",
+      "detail": "The commit-bound inventory contains only keep/delete dispositions and the executor reports zero blocked callers without authorizing deletion."
+    },
+    {
+      "type": "cloud_cleanup_dry_run",
+      "status": "pass",
+      "detail": "The exact cloud retirement manifest is complete for the committed inventory but every resource remains blocked by live prerequisites."
+    },
+    {
+      "type": "cloud_inventory",
+      "status": "blocked",
+      "snapshot": "docs/refactor/chickenbro-simc-cloud-inventory.json",
+      "detail": "The committed snapshot is point-in-time and capacity-blocked; it must be refreshed and persisted through an authorized evidence update before apply."
+    },
+    {
+      "type": "independent_recovery",
+      "status": "blocked",
+      "snapshot": "docs/refactor/chickenbro-simc-recovery-inventory.json",
+      "detail": "No independent archive and completed isolated restore identity is recorded."
+    }
+  ],
+  "risks": [
+    "Deleting wow_test before accepted_write and verified recovery would destroy the only current legacy business data plane.",
+    "An unrefreshed zero-connection or zero-reference observation can become false before apply.",
+    "Moving large directories to a non-independent path would reclaim no failure-domain safety.",
+    "Post-write rollback must stay on chickenbro_prod and must never reopen legacy writes."
+  ],
+  "rollback": [
+    "restore exact quarantined units files and directories before permanent expiry",
+    "restore databases only from the bound independent restore-verified archive",
+    "rollback new application code while retaining chickenbro_prod after the first accepted write",
+    "retain the bounded rollback package until the reviewed delete-after boundary"
+  ],
+  "cleanup": {
+    "required": true,
+    "status": "manifest_ready_apply_blocked",
+    "reason": "Local and cloud exact manifests exist, but Phase 5 acceptance, independent restore, freshness, stable health and delete-after gates remain false."
+  },
+  "archivedReferences": [
+    "docs/project-state.json",
+    "docs/chickenbro-simc-production-runbook.md",
+    "docs/refactor/chickenbro-simc-refactor-inventory.json",
+    "docs/refactor/chickenbro-simc-cloud-cleanup-manifest.json",
+    "docs/refactor/chickenbro-simc-cloud-inventory.json",
+    "docs/refactor/chickenbro-simc-recovery-inventory.json"
+  ],
+  "summary": "Phase 6 exact local and cloud cleanup controls are implemented and locally dry-run verified. No destructive apply, candidate, production cutover, independent restore or post-cleanup user acceptance has occurred."
+}

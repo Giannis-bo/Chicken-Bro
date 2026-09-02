@@ -30,7 +30,7 @@
     "phase3": "local_verified",
     "phase4": "local_verified",
     "phase5": "local_verified_live_acceptance_blocked",
-    "phase6": "local_cleanup_manifest_in_progress"
+    "phase6": "local_and_cloud_cleanup_controls_verified_apply_blocked"
   },
   "gates": {
     "implementationAuthorized": true,
@@ -59,6 +59,19 @@
     "capacityGate": "blocked_until_independent_recovery_or_storage_expansion",
     "observedRootFreeBytes": 8580000000,
     "observedLegacyDatabaseBytes": 16380000000,
+    "localCleanupDryRun": {
+      "deletable": 2588,
+      "retained": 262,
+      "blocked": 0,
+      "review": 0,
+      "phase5Accepted": false
+    },
+    "cloudCleanupDryRun": {
+      "total": 80,
+      "ready": 0,
+      "blocked": 80,
+      "unresolvedRequiredTargets": 2
+    },
     "localCleanupApplyAllowed": false,
     "cloudCleanupApplyAllowed": false
   },

@@ -1,0 +1,132 @@
+{
+  "schemaVersion": 1,
+  "slug": "chickenbro-simc-legacy-retirement",
+  "classification": "Strict",
+  "status": "implementation_allowed",
+  "goal": "在新 Chat/SimC 双端生产路径通过真实验收、首条新写入核对、稳定窗口和独立恢复验证后，按精确 manifest 退役本地旧文件及云端旧 unit、数据库、配置和目录，并完成清理后恢复与真实双端验收。",
+  "userValue": "最终工作树和云端只剩可解释、可恢复的 Chickenbro Chat/SimC 运行面，用户的同一份会话与模拟历史不因清理丢失、串号或再次分叉。",
+  "nonGoals": [
+    "本阶段不会把 dry-run、磁盘回收量、零连接快照、HTTP 200、systemd active 或脚本退出码当作整体完成。",
+    "在 Phase 5 accepted_write、真实 Mini/Web 验收、独立恢复演练和稳定窗口完成前，不执行任何本地或云端 destructive apply。",
+    "不删除 chickenbro_prod、chickenbro-api.service、chickenbro-worker.service、当前 Web root、Nginx/TLS、/opt/wow-simc/current 或未到期的回滚包。",
+    "不使用通配符、数据库前缀、宽泛目录、未解析变量或猜测出来的 env/PGPASS 路径作为清理目标。",
+    "不把 Git 历史当作云端业务数据的恢复副本，也不把同一根盘备份当作独立恢复。"
+  ],
+  "currentTruth": {
+    "sources": [
+      "docs/project-state.json",
+      "docs/roadmap.md",
+      "docs/chickenbro-simc-architecture.md",
+      "docs/chickenbro-simc-production-runbook.md",
+      "docs/verification-matrix.md",
+      "docs/refactor/chickenbro-simc-refactor-inventory.json",
+      "docs/refactor/chickenbro-simc-cloud-cleanup-manifest.json",
+      "docs/refactor/chickenbro-simc-cloud-inventory.json",
+      "docs/refactor/chickenbro-simc-recovery-inventory.json",
+      "docs/superpowers/plans/2026-09-02-chickenbro-simc-rebuild-06-legacy-retirement.md"
+    ],
+    "activeMilestone": "chickenbro_simc_total_rebuild_phase_6",
+    "featureIteration": "local_and_cloud_cleanup_manifests_verified_apply_blocked"
+  },
+  "impactMap": {
+    "mustChange": [
+      "commit-bound local keep/delete inventory and exact-file cleanup executor",
+      "exact cloud unit/database/file/directory retirement manifest and dry-run-first executor",
+      "retained project documentation, owner maps and verification entrypoints",
+      "post-cleanup recovery, parity and real Mini/Web acceptance evidence",
+      "legacy repository files and cloud resources only after every recorded gate passes"
+    ],
+    "mustNotChange": [
+      "legacy production availability before accepted Chickenbro production is stable",
+      "new Chickenbro database, API, Worker, Web, Mini identity, Nginx/TLS and SimC runtime",
+      "valid owner-scoped Chat and SimC records selected by the whitelist migration",
+      "independent restore-verified recovery package before its reviewed expiry",
+      "manual acceptance status without explicit real-device user evidence"
+    ],
+    "riskUnknown": [
+      "The committed cloud inventory is point-in-time and must be refreshed before any apply.",
+      "The server still lacks a recorded independent backup plus successful isolated restore identity.",
+      "The root disk still cannot safely host the clean candidate, migration and rollback set together.",
+      "The exact legacy runtime PGPASSFILE path remains intentionally undiscovered in committed evidence.",
+      "No real candidate, production accepted_write or post-cleanup Mini/Web acceptance has occurred."
+    ],
+    "evidenceRequired": [
+      "local inventory with zero review and zero retained callers, bound to exact commit and per-file SHA",
+      "cloud manifest covering every observed wow unit/database and every exact known legacy path",
+      "fresh zero-reference, zero-connection, content identity and delete-after probes",
+      "independent encrypted backup and successful isolated restore identity",
+      "real Phase 5 Mini/Web acceptance, accepted first production write and stable health window",
+      "retained backend/frontend/build verification after local cleanup",
+      "production API/Worker/SimC/Nginx/TLS/database parity after cloud retirement",
+      "post-cleanup real Mini/Web Chat/SimC, second-owner isolation and independent logout",
+      "final local main, origin/main, deployed code/build and migration identity parity"
+    ]
+  },
+  "ownership": {
+    "factOwner": "docs/project-state.json",
+    "dispositionOwner": "docs/refactor/chickenbro-simc-disposition-rules.json",
+    "localCleanupOwner": "scripts/apply-chickenbro-simc-local-cleanup.js",
+    "cloudCleanupOwner": "server/retire_chickenbro_legacy_lighthouse.sh",
+    "recoveryOwner": "docs/chickenbro-simc-production-runbook.md",
+    "consumers": [
+      "repository maintainers",
+      "known Chickenbro Lighthouse runtime",
+      "official WeChat Mini Program",
+      "https://www.chickenbro.cloud",
+      "https://api.chickenbro.cloud"
+    ]
+  },
+  "engineeringHealth": {
+    "status": "health_watch",
+    "reason": "The exact local and cloud dry-run controls are locally verified, but destructive execution affects the sole legacy rollback data plane and is intentionally blocked by capacity, independent recovery, runtime acceptance and freshness gates."
+  },
+  "acceptanceEvidence": [
+    "npm run test:control",
+    "npm run test:ops",
+    "npm run test:backend",
+    "npm run test:migration",
+    "npm run test:taro",
+    "npm run typecheck",
+    "npm run lint",
+    "npm run build:weapp",
+    "npm run build:h5",
+    "node scripts/apply-chickenbro-simc-local-cleanup.js --inventory docs/refactor/chickenbro-simc-refactor-inventory.json --dry-run",
+    "bash server/retire_chickenbro_legacy_lighthouse.sh --manifest docs/refactor/chickenbro-simc-cloud-cleanup-manifest.json --dry-run",
+    "fresh candidate, production cutover, independent restore and post-cleanup dual-client acceptance evidence",
+    "node scripts/project-harness.js --check --requirement-file artifacts/releases/2026-09-02-chickenbro-simc-legacy-retirement/requirement.json --evidence-file artifacts/releases/2026-09-02-chickenbro-simc-legacy-retirement/evidence.json --manifest-file artifacts/releases/2026-09-02-chickenbro-simc-legacy-retirement/manifest.json --base origin/main"
+  ],
+  "manualAcceptanceContract": {
+    "required": true,
+    "requiredItemIds": [
+      "post_cleanup_mini_login",
+      "post_cleanup_web_qr_login",
+      "post_cleanup_cross_client_chat",
+      "post_cleanup_cross_client_simc",
+      "post_cleanup_owner_isolation",
+      "post_cleanup_independent_logout",
+      "post_cleanup_old_surfaces_absent",
+      "final_user_confirmation"
+    ]
+  },
+  "releaseTrigger": "deploy_scripts",
+  "rollback": [
+    "restore_quarantined_exact_files_and_units",
+    "restore_database_from_independent_verified_archive",
+    "new_data_plane_code_rollback_without_reopening_legacy_writes",
+    "retain_bounded_rollback_package_until_expiry"
+  ],
+  "decisionLog": [
+    {
+      "date": "2026-09-02",
+      "decision": "The user authorized the complete two-client rebuild and eventual cleanup of old documents, code, cloud services and data."
+    },
+    {
+      "date": "2026-09-03",
+      "decision": "Local and cloud cleanup must be exact, hash-bound and dry-run-first; real deletion remains separate from implementation authorization."
+    },
+    {
+      "date": "2026-09-03",
+      "decision": "Overall completion requires independent restore proof and real Mini/Web acceptance after cleanup, not only before it."
+    }
+  ]
+}

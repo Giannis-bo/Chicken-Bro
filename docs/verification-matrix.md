@@ -42,7 +42,7 @@ git diff --check
 | 3. Chat | `local_verified` | owner scope、SSE、幂等重放、API/client、Codex 失败语义 | Candidate Codex、同 owner 双端历史 |
 | 4. SimC | `local_verified` | Snapshot、readiness、compiler、queue/lease、Worker、API/client、结果语义 | 云端 SimC 正数指标和 provenance |
 | 5. 双端与切流 | `local_verified_live_acceptance_blocked` | 5 pages/2 tabs、Web 登录、白名单迁移、candidate/cutover dry-run | 真实扫码、双向 Chat/SimC、第二用户隔离、写栅栏和首条新写入 |
-| 6. Legacy 退役 | `local_cleanup_manifest_in_progress` | caller/link graph、精确 SHA 清单、dry-run | Phase 5 完成、零引用/连接、restore、稳定窗口、清理后再次验收 |
+| 6. Legacy 退役 | `local_and_cloud_cleanup_controls_verified_apply_blocked` | caller/link graph、逐文件 SHA、本地与云端 exact-target dry-run | Phase 5 完成、零引用/连接、restore、稳定窗口、清理后再次验收 |
 
 ## Candidate 与切流
 

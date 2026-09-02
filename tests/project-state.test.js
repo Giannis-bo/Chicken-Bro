@@ -43,7 +43,20 @@ test('project state preserves the live safety boundary instead of claiming compl
   assert.equal(state.delivery.phase3, 'local_verified')
   assert.equal(state.delivery.phase4, 'local_verified')
   assert.equal(state.delivery.phase5, 'local_verified_live_acceptance_blocked')
-  assert.equal(state.delivery.phase6, 'local_cleanup_manifest_in_progress')
+  assert.equal(state.delivery.phase6, 'local_and_cloud_cleanup_controls_verified_apply_blocked')
+  assert.deepEqual(state.refactorEvidence.localCleanupDryRun, {
+    deletable: 2588,
+    retained: 262,
+    blocked: 0,
+    review: 0,
+    phase5Accepted: false,
+  })
+  assert.deepEqual(state.refactorEvidence.cloudCleanupDryRun, {
+    total: 80,
+    ready: 0,
+    blocked: 80,
+    unresolvedRequiredTargets: 2,
+  })
   assert.equal(state.gates.productionCutoverReady, false)
   assert.equal(state.gates.destructiveCleanupReady, false)
   assert.equal(state.gates.finalUserAcceptance, 'not_run')
