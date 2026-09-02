@@ -27,6 +27,7 @@ test('candidate deployment has a separate API service, database and source tree'
   assert.match(script, /candidate login component is not ready/)
   assert.match(script, /candidate readiness is blocked/)
   assert.match(script, /WEB_RELEASE_DIR/)
+  assert.match(script, /install -d -m 0755 "\$\{STAGE_DIR\}"/)
   assert.ok(
     script.indexOf('backup_complete') < script.indexOf('scp_remote "${PACKAGE_PATH}"'),
     'candidate backup must precede package transfer',

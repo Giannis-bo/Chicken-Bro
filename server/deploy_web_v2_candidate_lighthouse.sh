@@ -275,7 +275,7 @@ trap rollback_candidate EXIT
 
 [[ "$(sha256sum "${PACKAGE_PATH}" | awk '{print $1}')" == "${PACKAGE_SHA256}" ]] || die_remote 'candidate package checksum mismatch'
 [[ ! -e "${STAGE_DIR}" ]] || die_remote "candidate staging run already exists: ${RUN_ID}"
-install -d -m 0750 "${STAGE_DIR}"
+install -d -m 0755 "${STAGE_DIR}"
 tar -xzf "${PACKAGE_PATH}" -C "${STAGE_DIR}"
 
 DB_EXISTS="$(sudo -n -u postgres psql -Atc "select 1 from pg_database where datname = '${CANDIDATE_DB}'")"
