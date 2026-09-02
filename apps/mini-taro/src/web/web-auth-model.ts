@@ -8,13 +8,12 @@ import {
 export const BROWSER_VERIFIER_STORAGE_KEY = 'chickenbro.web.login.verifier'
 
 export type WebAuthPhase =
-  | 'idle'
-  | 'pending'
-  | 'confirmed'
+  | 'checking'
+  | 'signed_out'
+  | 'qr_pending'
+  | 'qr_confirmed'
   | 'authenticated'
   | 'blocked'
-  | 'expired'
-  | 'cancelled'
 
 export interface WebAuthState {
   phase: WebAuthPhase
@@ -30,11 +29,12 @@ export type WebAuthStateEvent =
   | { type: 'created'; payload: WebLoginCreated }
   | { type: 'status'; payload: WebLoginStatusResponse }
   | { type: 'authenticated' }
+  | { type: 'signed_out'; code?: string; message?: string }
   | { type: 'blocked'; code?: string; message?: string }
   | { type: 'logout' }
 
 export const initialWebAuthState: WebAuthState = {
-  phase: 'idle',
+  phase: 'checking',
   sessionId: '',
   qrDataUrl: '',
   expiresAt: '',
@@ -43,31 +43,19 @@ export const initialWebAuthState: WebAuthState = {
   errorMessage: '',
 }
 
-const statusPhase = (status: WebLoginStatusResponse['status']): WebAuthPhase => {
-  if (status === 'confirmed') return 'confirmed'
-  if (status === 'expired') return 'expired'
-  if (status === 'cancelled') return 'cancelled'
-  if (status === 'exchanged') return 'authenticated'
-  return 'pending'
-}
-
-function terminalState(
-  state: WebAuthState,
-  phase: Extract<WebAuthPhase, 'authenticated' | 'expired' | 'cancelled'>,
-  expiresAt = state.expiresAt,
-): WebAuthState {
+function signedOutState(code = '', message = ''): WebAuthState {
   return {
-    ...state,
-    phase,
-    expiresAt,
+    ...initialWebAuthState,
+    phase: 'signed_out',
     polling: false,
-    errorCode: '',
-    errorMessage: '',
+    errorCode: code,
+    errorMessage: message,
   }
 }
 
 export function reduceWebAuthState(state: WebAuthState, event: WebAuthStateEvent): WebAuthState {
-  if (event.type === 'logout') return initialWebAuthState
+  if (event.type === 'logout') return signedOutState()
+  if (event.type === 'signed_out') return signedOutState(event.code, event.message)
 
   if (event.type === 'created') {
     if (!isWebLoginCreated(event.payload)) {
@@ -80,7 +68,7 @@ export function reduceWebAuthState(state: WebAuthState, event: WebAuthStateEvent
     }
     return {
       ...initialWebAuthState,
-      phase: 'pending',
+      phase: 'qr_pending',
       sessionId: event.payload.sessionId,
       qrDataUrl: event.payload.qrDataUrl,
       expiresAt: event.payload.expiresAt,
@@ -89,9 +77,22 @@ export function reduceWebAuthState(state: WebAuthState, event: WebAuthStateEvent
   }
 
   if (event.type === 'status') {
-    const phase = statusPhase(event.payload.status)
-    if (phase === 'authenticated') return terminalState(state, phase, event.payload.expiresAt)
-    if (phase === 'expired' || phase === 'cancelled') return terminalState(state, phase, event.payload.expiresAt)
+    if (event.payload.status === 'expired') {
+      return signedOutState('WEB_LOGIN_EXPIRED', '二维码已过期，请重新生成')
+    }
+    if (event.payload.status === 'cancelled') {
+      return signedOutState('WEB_LOGIN_CANCELLED', '登录已取消，请重新生成')
+    }
+    if (event.payload.status === 'exchanged') {
+      return {
+        ...initialWebAuthState,
+        phase: 'checking',
+        expiresAt: event.payload.expiresAt,
+      }
+    }
+    const phase = event.payload.status === 'confirmed' || state.phase === 'qr_confirmed'
+      ? 'qr_confirmed'
+      : 'qr_pending'
     return {
       ...state,
       phase,
@@ -102,7 +103,13 @@ export function reduceWebAuthState(state: WebAuthState, event: WebAuthStateEvent
     }
   }
 
-  if (event.type === 'authenticated') return terminalState(state, 'authenticated')
+  if (event.type === 'authenticated') {
+    return {
+      ...initialWebAuthState,
+      phase: 'authenticated',
+      polling: false,
+    }
+  }
 
   return {
     ...state,

@@ -20,6 +20,9 @@ describe('Chickenbro Web shell contract', () => {
     expect(webSource).toContain('webAuth.createWebLoginSession')
     expect(webSource).toContain('webAuth.statusWebLoginSession')
     expect(webSource).toContain('webAuth.exchangeWebLoginSession')
+    expect(webSource).toContain('WebShell')
+    expect(webSource).toContain('readWebCsrfCookie')
+    expect(webSource).toContain('createSession(true)')
   })
 
   it('keeps the Taro H5 page mount alive behind the standalone shell', () => {
@@ -42,7 +45,7 @@ describe('Chickenbro Web shell contract', () => {
     expect(appStyle).toContain('max-height: none !important')
   })
 
-  it('makes the QR trust boundary and recovery states visible in the first viewport', () => {
+  it('makes formal QR login the only Web entry and keeps credentials separated', () => {
     const webSource = read('apps/mini-taro/src/web/WebApp.tsx')
 
     for (const copy of [
@@ -50,16 +53,16 @@ describe('Chickenbro Web shell contract', () => {
       '请使用电脑或另一台设备展示二维码',
       '使用小程序确认',
       '登录已确认，正在建立 Web 会话',
-      '队长',
-      'SimC',
     ]) {
       expect(webSource).toContain(copy)
     }
     expect(webSource).toContain('credentials')
+    expect(webSource).toContain('WebShell')
     expect(webSource).not.toContain('wowApi.auth')
     expect(webSource).not.toContain('/api/auth/wechat-login')
     expect(webSource).not.toContain('localStorage')
     expect(webSource).not.toContain('browserVerifier=')
+    expect(webSource).not.toMatch(/PrototypePanel|prototypeClient|formalLoginVisible|返回 Web 原型|demo owner/iu)
   })
 
   it('pins the H5 QR image content to the full QR frame', () => {
@@ -75,24 +78,19 @@ describe('Chickenbro Web shell contract', () => {
     expect(configSource).toContain("'/wow-api'")
   })
 
-  it('lands on the isolated prototype and keeps formal QR auth opt-in', () => {
-    const webSource = read('apps/mini-taro/src/web/WebApp.tsx')
-    const prototypeSource = read('apps/mini-taro/src/web/PrototypePanel.tsx')
+  it('exposes only the two shared server-backed business views after login', () => {
+    const shellSource = read('apps/mini-taro/src/web/WebShell.tsx')
+    const chatSource = read('apps/mini-taro/src/web/WebChatView.tsx')
+    const simcSource = read('apps/mini-taro/src/web/WebSimcView.tsx')
 
-    expect(webSource).toContain('PrototypePanel')
-    expect(webSource).toContain('formalLoginVisible')
-    expect(webSource).toContain('prototypeClient')
-    expect(prototypeSource).toContain('data-prototype-auth-storage="sessionStorage-only"')
-    expect(prototypeSource).toContain('原生 Codex')
-    expect(prototypeSource).toContain('没有切换到其他模型')
-  })
-
-  it('explains source blockers instead of hiding the reason behind raw codes', () => {
-    const prototypeSource = read('apps/mini-taro/src/web/PrototypePanel.tsx')
-
-    expect(prototypeSource).toContain('CHARACTER_LEVEL_MISSING')
-    expect(prototypeSource).toContain('prototype_max_level')
-    expect(prototypeSource).toContain('按满级')
-    expect(prototypeSource).not.toContain('snapshot.blockers.slice(0, 5)')
+    expect(shellSource).toContain('WebChatView')
+    expect(shellSource).toContain('WebSimcView')
+    expect(shellSource).toContain('队长')
+    expect(shellSource).toContain('SimC')
+    expect(chatSource).toContain('ChatModel')
+    expect(simcSource).toContain('SimcModel')
+    expect(`${shellSource}\n${chatSource}\n${simcSource}`).not.toMatch(
+      /news|builds|gear resolver|talent catalog|prototype/iu,
+    )
   })
 })
