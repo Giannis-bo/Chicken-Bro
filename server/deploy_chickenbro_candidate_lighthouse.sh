@@ -25,7 +25,8 @@ CANDIDATE_PGPASSFILE="/etc/chickenbro-api-candidate.pgpass"
 CANDIDATE_WORKER_ENV="/etc/chickenbro-worker-candidate.env"
 CANDIDATE_CODEX_PROFILE="/home/${REMOTE_USER}/.codex/chickenbro-candidate.config.toml"
 RUNTIME_ROOT="/opt/chickenbro-runtime"
-EXISTING_RUNTIME_PYTHON="/opt/wow-mini-program/.venv-v2/bin/python"
+EXISTING_RUNTIME_ROOT="/opt/wow-mini-program/.venv-v2"
+EXISTING_RUNTIME_PYTHON="${EXISTING_RUNTIME_ROOT}/bin/python"
 WWW_NGINX_SITE="/etc/nginx/sites-available/wow-v2-web"
 API_NGINX_SITE="/etc/nginx/sites-enabled/api.chickenbro.cloud"
 WEB_ROOT="/var/www/chickenbro-candidate"
@@ -272,6 +273,7 @@ REMOTE_ENV=(
   "CANDIDATE_WORKER_ENV=${CANDIDATE_WORKER_ENV}"
   "CANDIDATE_CODEX_PROFILE=${CANDIDATE_CODEX_PROFILE}"
   "RUNTIME_ROOT=${RUNTIME_ROOT}"
+  "EXISTING_RUNTIME_ROOT=${EXISTING_RUNTIME_ROOT}"
   "EXISTING_RUNTIME_PYTHON=${EXISTING_RUNTIME_PYTHON}"
   "WWW_NGINX_SITE=${WWW_NGINX_SITE}"
   "API_NGINX_SITE=${API_NGINX_SITE}"
@@ -455,10 +457,18 @@ PY
   || die_remote "legacy API secret source is missing or not mode 0600"
 [[ -f "${LEGACY_SOURCE_ENV}" && "$(stat -c '%a' "${LEGACY_SOURCE_ENV}")" == "600" ]] \
   || die_remote "legacy source credential file is missing or not mode 0600"
-[[ -x "${EXISTING_RUNTIME_PYTHON}" ]] || die_remote "managed Python runtime is missing"
-sudo -n -u "${REMOTE_USER}" "${EXISTING_RUNTIME_PYTHON}" -c \
-  'import fastapi, httpx, psycopg, uvicorn' \
+[[ -d "${EXISTING_RUNTIME_ROOT}" && ! -L "${EXISTING_RUNTIME_ROOT}" \
+  && -x "${EXISTING_RUNTIME_PYTHON}" ]] || die_remote "managed Python runtime is missing"
+sudo -n -u "${REMOTE_USER}" "${EXISTING_RUNTIME_PYTHON}" - "${EXISTING_RUNTIME_ROOT}" <<'PY' \
   || die_remote "managed Python runtime dependencies are incomplete"
+import sys
+from pathlib import Path
+
+import fastapi, httpx, psycopg, uvicorn
+
+if Path(sys.prefix).resolve() != Path(sys.argv[1]).resolve():
+    raise SystemExit("managed Python runtime prefix mismatch")
+PY
 [[ -x /opt/wow-simc/current/simc ]] || die_remote "managed SimulationCraft runtime is missing"
 [[ -x /usr/local/bin/codex ]] || die_remote "managed Codex runtime is missing"
 /usr/local/bin/codex exec --help | grep -q -- '--ephemeral' \
@@ -681,6 +691,7 @@ validate_nginx_owner() {
 BACKUP_DIR="${REMOTE_RECOVERY_ROOT}/${RUN_ID}"
 STAGE_DIR="/opt/chickenbro-candidate-staging/${RUN_ID}"
 CODE_NEW_DIR="${CANDIDATE_ROOT}.new-${RUN_ID}"
+RUNTIME_NEW_DIR="${RUNTIME_ROOT}.new-${RUN_ID}"
 WWW_NGINX_OWNER="$(readlink -f -- "${WWW_NGINX_SITE}")"
 API_NGINX_OWNER="$(readlink -f -- "${API_NGINX_SITE}")"
 validate_nginx_owner WWW "${WWW_NGINX_SITE}" "${WWW_NGINX_OWNER}"
@@ -795,7 +806,7 @@ rollback_candidate() {
   rm -f "${MIGRATION_REPORT_TMP}" "${AUTOMATED_ACCEPTANCE_TMP}"
   rm -f "${CANDIDATE_CODEX_PROFILE}.new-${RUN_ID}"
   rm -f "${REMOTE_ARCHIVE}"
-  rm -rf "${STAGE_DIR}" "${CODE_NEW_DIR}"
+  rm -rf "${STAGE_DIR}" "${CODE_NEW_DIR}" "${RUNTIME_NEW_DIR}"
   exit "${exit_code}"
 }
 trap rollback_candidate EXIT
@@ -908,11 +919,30 @@ chmod 0600 "${CANDIDATE_ROOT}/deploy-manifest.sha256"
 DEPLOYED_MANIFEST_SHA256="$(sha256sum "${CANDIDATE_ROOT}/deploy-manifest.sha256" | awk '{print $1}')"
 [[ "${DEPLOYED_MANIFEST_SHA256}" == "${SOURCE_MANIFEST_SHA256}" ]] || die_remote "deployed manifest parity failed"
 
+validate_runtime_root() {
+  local runtime="$1"
+  [[ -d "${runtime}" && ! -L "${runtime}" && -x "${runtime}/bin/python" ]] \
+    || die_remote "Chickenbro runtime Python is unavailable"
+  sudo -n -u "${REMOTE_USER}" "${runtime}/bin/python" - "${runtime}" <<'PY' \
+    || die_remote "Chickenbro runtime dependencies are incomplete"
+import sys
+from pathlib import Path
+
+import fastapi, httpx, psycopg, uvicorn
+
+if Path(sys.prefix).resolve() != Path(sys.argv[1]).resolve():
+    raise SystemExit("Chickenbro runtime prefix mismatch")
+PY
+}
+
 if [[ ! -e "${RUNTIME_ROOT}" ]]; then
-  install -d -o root -g root -m 0755 "${RUNTIME_ROOT}/bin"
-  ln -s "${EXISTING_RUNTIME_PYTHON}" "${RUNTIME_ROOT}/bin/python"
+  [[ ! -e "${RUNTIME_NEW_DIR}" ]] || die_remote "Chickenbro runtime staging target already exists"
+  cp -a "${EXISTING_RUNTIME_ROOT}/." "${RUNTIME_NEW_DIR}"
+  chown -R root:root "${RUNTIME_NEW_DIR}"
+  validate_runtime_root "${RUNTIME_NEW_DIR}"
+  mv "${RUNTIME_NEW_DIR}" "${RUNTIME_ROOT}"
 fi
-[[ -x "${RUNTIME_ROOT}/bin/python" ]] || die_remote "Chickenbro runtime Python is unavailable"
+validate_runtime_root "${RUNTIME_ROOT}"
 install -d -o "${REMOTE_USER}" -g "${REMOTE_USER}" -m 0700 \
   /var/lib/chickenbro /var/lib/chickenbro/codex-jobs /var/lib/chickenbro/candidate-codex-jobs
 
