@@ -172,6 +172,38 @@ class LegacyProductMigrationTest(unittest.TestCase):
                 MigrationWatermark.through("2026-09-03T01:00:01Z"),
             )
 
+    def test_ambiguous_legacy_agent_run_is_rejected_without_dropping_messages(self):
+        records = fixture_records()
+        records.append({
+            "table": "app.agent_jobs",
+            "pk": {"id": "ambiguous-legacy-run"},
+            "updated_at": "2026-09-03T00:04:00Z",
+            "row": {
+                "id": "ambiguous-legacy-run",
+                "user_id": "legacy-user-a",
+                "session_id": "legacy-chat-a",
+                "user_message_id": "legacy-message-a1",
+                "assistant_message_id": "legacy-message-a2",
+                "status": "succeeded",
+                "runtime_revision": "codex:reviewed",
+                "public_error_code": "",
+                "started_at": "2026-09-03T00:02:01Z",
+                "finished_at": "2026-09-03T00:03:00Z",
+                "migration_rejection_reason": "AMBIGUOUS_AGENT_RUN",
+            },
+        })
+
+        target = InMemoryMigrationTarget()
+        report = migrate_full(
+            records,
+            target,
+            MigrationWatermark.through("2026-09-03T00:06:00Z"),
+        )
+
+        self.assertEqual(report.reason_counts.get("AMBIGUOUS_AGENT_RUN"), 1)
+        self.assertEqual(report.accepted_by_source_table.get("app.agent_jobs", 0), 0)
+        self.assertEqual(target.count("chat.messages"), 2)
+
     def test_rerun_cannot_rebind_an_existing_identity_mapping(self):
         records = fixture_records()
         target = InMemoryMigrationTarget()

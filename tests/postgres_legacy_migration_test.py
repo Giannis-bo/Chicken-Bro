@@ -182,12 +182,13 @@ class PostgresLegacyMigrationTest(unittest.TestCase):
         messages = [record["row"] for record in records if record["table"] == "app.chickenbro_messages"]
         run = next(record["row"] for record in records if record["table"] == "app.agent_jobs")
 
-        self.assertEqual(messages[0]["client_message_id"], "client-a")
+        self.assertIsNone(messages[0]["client_message_id"])
         self.assertNotIn("payload_json", messages[0])
         self.assertEqual(run["user_message_id"], "message-user")
         self.assertEqual(run["assistant_message_id"], "message-assistant")
         self.assertEqual(run["runtime_revision"], "codex:reviewed")
         self.assertEqual(run["public_error_code"], "")
+        self.assertNotIn("idempotency_key", run)
         self.assertNotIn("bounded_context_json", run)
         self.assertNotIn("result_json", run)
         self.assertNotIn("app.chickenbro_agent_traces", {record["table"] for record in records})
@@ -244,6 +245,41 @@ class PostgresLegacyMigrationTest(unittest.TestCase):
         self.assertEqual(run["status"], "not_migrated")
         self.assertNotIn("runtime_revision", run)
         self.assertNotIn("assistant_message_id", run)
+
+    def test_duplicate_legacy_runs_for_one_user_message_are_marked_ambiguous(self):
+        timestamp = "2026-09-03T00:00:00Z"
+        jobs = [
+            {
+                "id": job_id, "user_id": "user-a", "session_id": "session-a",
+                "job_type": "chickenbro", "status": "succeeded", "request_json": {},
+                "started_at": timestamp, "finished_at": timestamp,
+                "created_at": timestamp, "updated_at": timestamp,
+            }
+            for job_id in ("job-a", "job-b")
+        ]
+        traces = [
+            {
+                "id": f"trace-{job_id}", "agent_job_id": job_id,
+                "user_message_id": "message-user", "runtime_version": "codex:reviewed",
+                "created_at": timestamp,
+            }
+            for job_id in ("job-a", "job-b")
+        ]
+
+        records = normalize_legacy_rows(
+            {
+                "app.agent_jobs": jobs,
+                "app.chickenbro_agent_traces": traces,
+                "app.chickenbro_messages": [],
+            },
+            approved_app_context="wx-reviewed",
+        )
+        normalized_jobs = [record["row"] for record in records if record["table"] == "app.agent_jobs"]
+
+        self.assertEqual(
+            [job.get("migration_rejection_reason") for job in normalized_jobs],
+            ["AMBIGUOUS_AGENT_RUN", "AMBIGUOUS_AGENT_RUN"],
+        )
 
     def test_postgres_target_reads_psycopg_named_description_columns(self):
         class Column:

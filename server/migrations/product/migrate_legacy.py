@@ -874,6 +874,11 @@ def _convert_message(record: Mapping[str, Any], base: MigrationDecision, context
 
 def _convert_agent_run(record: Mapping[str, Any], base: MigrationDecision, context: _Context):
     row = _record_row(record)
+    if (
+        base.source_table == "app.agent_jobs"
+        and row.get("migration_rejection_reason") == "AMBIGUOUS_AGENT_RUN"
+    ):
+        return _reject(base, "AMBIGUOUS_AGENT_RUN")
     owner = context.owner_target_id(row.get("user_id"))
     status = row.get("status")
     if status not in TERMINAL_AGENT_STATUSES:

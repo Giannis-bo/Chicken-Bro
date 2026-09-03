@@ -169,10 +169,10 @@ def _normalize_message(row: Mapping[str, Any], *, direct: bool) -> dict[str, Any
         row,
         ("id", parent_key, "user_id", "role", "content", "client_message_id", "created_at"),
     )
-    if not direct and "client_message_id" not in normalized:
-        client_message_id = _mapping(row.get("payload_json")).get("clientMessageId")
-        if isinstance(client_message_id, str) and client_message_id:
-            normalized["client_message_id"] = client_message_id
+    if not direct:
+        # Legacy request identifiers were scoped inconsistently across sessions.
+        # The rule layer derives a stable, source-PK-bound key for user messages.
+        normalized["client_message_id"] = None
     return normalized
 
 
@@ -211,14 +211,24 @@ def _normalize_legacy_agent_jobs(
             normalized["runtime_revision"] = matching_traces[0].get("runtime_version")
         if len(matching_assistants) == 1:
             normalized["assistant_message_id"] = matching_assistants[0].get("id")
-        request = _mapping(row.get("request_json"))
-        idempotency_key = request.get("clientMessageId")
-        if isinstance(idempotency_key, str) and idempotency_key:
-            normalized["idempotency_key"] = idempotency_key
         normalized["public_error_code"] = (
             "LEGACY_CHAT_FAILED" if row.get("status") == "failed" else ""
         )
         output.append(normalized)
+
+    runs_by_user_message: MutableMapping[tuple[str, str], int] = defaultdict(int)
+    for normalized in output:
+        user_id = str(normalized.get("user_id") or "")
+        user_message_id = str(normalized.get("user_message_id") or "")
+        if user_id and user_message_id:
+            runs_by_user_message[(user_id, user_message_id)] += 1
+    for normalized in output:
+        key = (
+            str(normalized.get("user_id") or ""),
+            str(normalized.get("user_message_id") or ""),
+        )
+        if key[0] and key[1] and runs_by_user_message[key] > 1:
+            normalized["migration_rejection_reason"] = "AMBIGUOUS_AGENT_RUN"
     return output
 
 
