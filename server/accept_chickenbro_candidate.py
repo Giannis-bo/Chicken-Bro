@@ -165,9 +165,10 @@ def _assert_stream(payload: Mapping[str, Any]) -> None:
         raise AcceptanceError("CHAT_STREAM_SEQUENCE_INVALID")
     event_types = [str(item.get("type") or "") for item in events]
     if not event_types or event_types[0] != "started" or event_types[-1] != "completed":
-        raise AcceptanceError("CHAT_STREAM_FAILED")
+        detail = ",".join(event_types[:8]) or "empty"
+        raise AcceptanceError(f"CHAT_STREAM_FAILED:{detail}")
     if "failed" in event_types:
-        raise AcceptanceError("CHAT_STREAM_FAILED")
+        raise AcceptanceError(f"CHAT_STREAM_FAILED:{','.join(event_types[:8])}")
 
 
 def _scenario_hash(scenario: Mapping[str, object]) -> str:
