@@ -500,7 +500,7 @@ ROLE_COUNT="$(sudo -n -u postgres psql -At --dbname=postgres \
 unset WOW_DATABASE_URL WOW_WECHAT_SECRET
 
 SOURCE_BYTES="$(sudo -n -u postgres psql -At --dbname=postgres --command="SELECT pg_database_size('wow_test')")"
-ROOT_FREE_BYTES="$(df -PB1 --output=avail /var/lib/postgresql | tail -n 1 | tr -d '[:space:]')"
+ROOT_FREE_BYTES="$(df -B1 --output=avail /var/lib/postgresql | tail -n 1 | tr -d '[:space:]')"
 WHITELIST_ARCHIVE_BYTES="$(python3 - "${REMOTE_RECOVERY_MANIFEST}" <<'PY'
 import json
 import sys

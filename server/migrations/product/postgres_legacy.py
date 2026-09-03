@@ -9,6 +9,7 @@ summaries and never serialize credentials or provider subjects.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -38,6 +39,7 @@ from server.migrations.product.reconcile_legacy import ReconciliationReport, rec
 
 SAFE_CODE = re.compile(r"[A-Za-z0-9_.:-]{1,160}\Z")
 DATABASE_NAME = re.compile(r"[a-z_][a-z0-9_]{0,62}\Z")
+RESTORE_SCHEMAS = ("chat", "identity", "ops", "simc")
 
 SOURCE_TABLES = (
     "identity.users",
@@ -495,6 +497,186 @@ def validate_local_app_dsn(dsn: str, expected_database: str) -> str:
     return name
 
 
+def capture_restore_identity(connection: Any, expected_database: str) -> dict[str, Any]:
+    """Read a deterministic schema/table/content identity without changing the database."""
+
+    database_identity = connection.execute(
+        "SELECT current_database(), current_setting('transaction_read_only')",
+    ).fetchone()
+    if database_identity != (expected_database, "on"):
+        raise MigrationError("RESTORE_READ_ONLY_IDENTITY_MISMATCH")
+
+    schema_identity_rows = connection.execute(
+        """
+        SELECT namespace.nspname, pg_catalog.pg_get_userbyid(namespace.nspowner),
+               COALESCE((
+                   SELECT string_agg(acl_item::text, E'\n' ORDER BY acl_item::text)
+                   FROM unnest(namespace.nspacl) AS acl_item
+               ), '')
+        FROM pg_catalog.pg_namespace AS namespace
+        WHERE namespace.nspname = ANY(%s)
+        ORDER BY namespace.nspname
+        """,
+        (list(RESTORE_SCHEMAS),),
+    ).fetchall()
+    relation_identity_rows = connection.execute(
+        """
+        SELECT namespace.nspname, relation.relname, relation.relkind,
+               pg_catalog.pg_get_userbyid(relation.relowner),
+               relation.relrowsecurity, relation.relforcerowsecurity,
+               COALESCE((
+                   SELECT string_agg(acl_item::text, E'\n' ORDER BY acl_item::text)
+                   FROM unnest(relation.relacl) AS acl_item
+               ), '')
+        FROM pg_catalog.pg_class AS relation
+        JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = relation.relnamespace
+        WHERE namespace.nspname = ANY(%s)
+          AND relation.relkind IN ('r', 'p', 'v', 'm', 'S', 'f')
+        ORDER BY namespace.nspname, relation.relname
+        """,
+        (list(RESTORE_SCHEMAS),),
+    ).fetchall()
+    schema_rows = connection.execute(
+        """
+        SELECT table_schema, table_name, column_name, ordinal_position, data_type,
+               udt_schema, udt_name, is_nullable, column_default, is_identity
+        FROM information_schema.columns
+        WHERE table_schema = ANY(%s)
+        ORDER BY table_schema, table_name, ordinal_position
+        """,
+        (list(RESTORE_SCHEMAS),),
+    ).fetchall()
+    constraint_rows = connection.execute(
+        """
+        SELECT namespace.nspname, relation.relname, constraint_record.conname,
+               constraint_record.contype,
+               pg_catalog.pg_get_constraintdef(constraint_record.oid, true)
+        FROM pg_catalog.pg_constraint AS constraint_record
+        JOIN pg_catalog.pg_class AS relation ON relation.oid = constraint_record.conrelid
+        JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = relation.relnamespace
+        WHERE namespace.nspname = ANY(%s)
+        ORDER BY namespace.nspname, relation.relname, constraint_record.conname
+        """,
+        (list(RESTORE_SCHEMAS),),
+    ).fetchall()
+    index_rows = connection.execute(
+        """
+        SELECT schemaname, tablename, indexname, indexdef
+        FROM pg_catalog.pg_indexes
+        WHERE schemaname = ANY(%s)
+        ORDER BY schemaname, tablename, indexname
+        """,
+        (list(RESTORE_SCHEMAS),),
+    ).fetchall()
+    function_rows = connection.execute(
+        """
+        SELECT namespace.nspname, procedure.proname,
+               pg_catalog.pg_get_function_identity_arguments(procedure.oid),
+               pg_catalog.pg_get_function_result(procedure.oid), procedure.prokind,
+               procedure.provolatile, procedure.proparallel, procedure.prosecdef,
+               pg_catalog.pg_get_userbyid(procedure.proowner),
+               COALESCE((
+                   SELECT string_agg(acl_item::text, E'\n' ORDER BY acl_item::text)
+                   FROM unnest(procedure.proacl) AS acl_item
+               ), ''),
+               pg_catalog.pg_get_functiondef(procedure.oid)
+        FROM pg_catalog.pg_proc AS procedure
+        JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = procedure.pronamespace
+        WHERE namespace.nspname = ANY(%s) AND procedure.prokind IN ('f', 'p')
+        ORDER BY namespace.nspname, procedure.proname,
+                 pg_catalog.pg_get_function_identity_arguments(procedure.oid)
+        """,
+        (list(RESTORE_SCHEMAS),),
+    ).fetchall()
+    trigger_rows = connection.execute(
+        """
+        SELECT namespace.nspname, relation.relname, trigger_record.tgname,
+               pg_catalog.pg_get_triggerdef(trigger_record.oid, true)
+        FROM pg_catalog.pg_trigger AS trigger_record
+        JOIN pg_catalog.pg_class AS relation ON relation.oid = trigger_record.tgrelid
+        JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = relation.relnamespace
+        WHERE namespace.nspname = ANY(%s) AND NOT trigger_record.tgisinternal
+        ORDER BY namespace.nspname, relation.relname, trigger_record.tgname
+        """,
+        (list(RESTORE_SCHEMAS),),
+    ).fetchall()
+    policy_rows = connection.execute(
+        """
+        SELECT schemaname, tablename, policyname, permissive, roles, cmd,
+               qual, with_check
+        FROM pg_catalog.pg_policies
+        WHERE schemaname = ANY(%s)
+        ORDER BY schemaname, tablename, policyname
+        """,
+        (list(RESTORE_SCHEMAS),),
+    ).fetchall()
+    table_rows = connection.execute(
+        """
+        SELECT table_schema, table_name
+        FROM information_schema.tables
+        WHERE table_type = 'BASE TABLE' AND table_schema = ANY(%s)
+        ORDER BY table_schema, table_name
+        """,
+        (list(RESTORE_SCHEMAS),),
+    ).fetchall()
+
+    tables: dict[str, dict[str, Any]] = {}
+    for schema_name, table_name in table_rows:
+        if schema_name not in RESTORE_SCHEMAS or DATABASE_NAME.fullmatch(table_name) is None:
+            raise MigrationError("RESTORE_TABLE_IDENTITY_INVALID")
+        digest = hashlib.sha256()
+        row_count = 0
+        cursor = connection.execute(
+            f'SELECT to_jsonb(row_value) FROM "{schema_name}"."{table_name}" AS row_value '
+            "ORDER BY to_jsonb(row_value)::text",
+        )
+        for (raw_row,) in cursor:
+            row = json.loads(raw_row) if isinstance(raw_row, str) else raw_row
+            encoded = canonical_json(row).encode("utf-8")
+            digest.update(len(encoded).to_bytes(8, byteorder="big"))
+            digest.update(encoded)
+            row_count += 1
+        tables[f"{schema_name}.{table_name}"] = {
+            "rowCount": row_count,
+            "contentHash": digest.hexdigest(),
+        }
+
+    return {
+        "schemaHash": content_hash({
+            "schemas": schema_identity_rows,
+            "relations": relation_identity_rows,
+            "columns": schema_rows,
+            "constraints": constraint_rows,
+            "indexes": index_rows,
+            "functions": function_rows,
+            "triggers": trigger_rows,
+            "policies": policy_rows,
+        }),
+        "tables": tables,
+    }
+
+
+def compare_restore_identities(
+    candidate: Mapping[str, Any], restored: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Fail closed unless an independently restored database is semantically equal."""
+
+    candidate_hash = content_hash(candidate)
+    restored_hash = content_hash(restored)
+    if candidate_hash != restored_hash:
+        raise MigrationError("RESTORE_DATABASE_IDENTITY_MISMATCH")
+    return {
+        "status": "matched",
+        "identitySha256": candidate_hash,
+        "schemaSha256": str(candidate.get("schemaHash") or ""),
+        "tableCount": len(candidate.get("tables") or {}),
+        "rowCount": sum(
+            int(table.get("rowCount") or 0)
+            for table in (candidate.get("tables") or {}).values()
+        ),
+    }
+
+
 def _timestamp_text(value: Any) -> str:
     if isinstance(value, datetime):
         parsed = value
@@ -518,12 +700,14 @@ def _write_report(path: Path, payload: Mapping[str, Any]) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run the redacted PostgreSQL legacy product migration")
-    parser.add_argument("--mode", choices=("full", "delta"), required=True)
+    parser.add_argument("--mode", choices=("full", "delta", "verify-restore"), required=True)
     parser.add_argument("--source-dsn-env", default="CHICKENBRO_LEGACY_SOURCE_DATABASE_URL")
     parser.add_argument("--target-dsn-env", default="WOW_DATABASE_URL")
     parser.add_argument("--approved-app-context-env", default="WOW_MIGRATION_WECHAT_APP_CONTEXT")
     parser.add_argument("--expected-source-database", default="wow_test")
     parser.add_argument("--expected-target-database", required=True)
+    parser.add_argument("--restore-dsn-env", default="CHICKENBRO_RESTORE_DATABASE_URL")
+    parser.add_argument("--expected-restore-database")
     parser.add_argument("--from-watermark")
     parser.add_argument("--report-path", type=Path, required=True)
     return parser
@@ -553,6 +737,46 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit("expected source database name is invalid")
     if not DATABASE_NAME.fullmatch(args.expected_target_database):
         raise SystemExit("expected target database name is invalid")
+    if args.mode == "verify-restore":
+        if not args.expected_restore_database or not DATABASE_NAME.fullmatch(args.expected_restore_database):
+            raise SystemExit("expected restore database name is invalid")
+        target_dsn = os.environ.get(args.target_dsn_env, "")
+        restore_dsn = os.environ.get(args.restore_dsn_env, "")
+        if not target_dsn or not restore_dsn:
+            raise SystemExit("restore verification DSN environment is incomplete")
+        try:
+            validate_local_app_dsn(target_dsn, args.expected_target_database)
+            validate_local_app_dsn(restore_dsn, args.expected_restore_database)
+        except ValueError as error:
+            raise SystemExit(str(error)) from error
+        if target_dsn == restore_dsn:
+            raise SystemExit("candidate and restore DSNs must be distinct")
+        try:
+            import psycopg
+        except ImportError as error:  # pragma: no cover - exercised on the managed host
+            raise SystemExit("psycopg is required in the managed Chickenbro runtime") from error
+        with (
+            psycopg.connect(target_dsn, autocommit=True) as candidate_connection,
+            psycopg.connect(restore_dsn, autocommit=True) as restore_connection,
+            candidate_connection.transaction(),
+            restore_connection.transaction(),
+        ):
+            candidate_connection.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
+            restore_connection.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
+            candidate_identity = capture_restore_identity(
+                candidate_connection, args.expected_target_database,
+            )
+            restore_identity = capture_restore_identity(
+                restore_connection, args.expected_restore_database,
+            )
+            comparison = compare_restore_identities(candidate_identity, restore_identity)
+        _write_report(args.report_path, {
+            "sourceMode": "candidate_and_restore_repeatable_read_read_only",
+            "candidateDatabase": args.expected_target_database,
+            "restoreDatabase": args.expected_restore_database,
+            "comparison": comparison,
+        })
+        return 0
     source_dsn = os.environ.get(args.source_dsn_env, "")
     target_dsn = os.environ.get(args.target_dsn_env, "")
     approved_app_context = os.environ.get(args.approved_app_context_env, "")
@@ -626,6 +850,8 @@ if __name__ == "__main__":
 
 __all__ = [
     "PostgresMigrationTarget",
+    "capture_restore_identity",
+    "compare_restore_identities",
     "normalize_legacy_rows",
     "read_source_rows",
     "validate_local_app_dsn",

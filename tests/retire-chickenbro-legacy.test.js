@@ -122,6 +122,13 @@ test('cloud cleanup manifest covers every observed legacy unit and database exac
       'wow_gear_evidence_15f514d5_r23',
     ],
   )
+  assert.deepEqual(manifest.capacityPreCleanup.configurationScanRoots, [
+    '/etc',
+    '/opt/chickenbro',
+    '/opt/wow-mini-program',
+    '/opt/wow-v2-staging',
+    '/var/www',
+  ])
   assert.equal(manifest.productionAcceptance.status, 'not_run')
 
   const resources = manifest.resources
@@ -144,6 +151,10 @@ test('cloud cleanup manifest covers every observed legacy unit and database exac
     databaseTargets,
     new Set(inventory.databases.map((item) => item.name).filter((name) => name.startsWith('wow_'))),
   )
+  for (const resource of resources.filter((item) => item.capacityPreCleanup && item.kind === 'postgres_database')) {
+    assert.equal(resource.observed.tableCount, 71)
+    assert.ok(Number.isInteger(resource.observed.approximateRows))
+  }
 
   const protectedTargets = new Set(manifest.protectedResources.map((item) => item.target))
   for (const target of [
@@ -251,13 +262,107 @@ test('retirement implementation has live probes and no recursive or wildcard del
   assert.match(source, /lsof/)
   assert.match(source, /if \[\[ "\$\{RETIREMENT_SCOPE\}" != "capacity_pre_cleanup" \]\]; then\s+systemctl is-active/)
   assert.match(source, /if \[\[ "\$\{RETIREMENT_SCOPE\}" != "capacity_pre_cleanup" \]\]; then\s+systemctl daemon-reload/)
-  assert.match(source, /--exclude-dir='docs'/)
-  assert.match(source, /--exclude-dir='tests'/)
+  assert.doesNotMatch(source, /--exclude(?:-dir)?=/)
   assert.match(source, /acceptedProductionRecovery/)
   assert.match(source, /archiveSha256/)
   assert.match(source, /evidenceSha256/)
   assert.match(source, /migrationReport/)
   assert.match(source, /chickenbro_restore_verify_/)
+})
+
+test('capacity reference scan covers every reviewed root and excludes only exact evidence paths', () => {
+  const source = fs.readFileSync(scriptPath, 'utf8')
+  for (const root of [
+    '/etc',
+    '/opt/chickenbro',
+    '/opt/wow-mini-program',
+    '/opt/wow-v2-staging',
+    '/var/www',
+  ]) {
+    assert.ok(source.includes(root), `missing reference scan root: ${root}`)
+  }
+  assert.match(source, /REFERENCE_EVIDENCE_EXCLUSIONS/)
+  assert.match(source, /grep -Fxq -- "\$\{candidate\}"/)
+  assert.doesNotMatch(source, /excluded_basename|basename -- "\$\{target\}"/)
+})
+
+test('reference scanner finds the needle in every configured root without basename-wide hiding', () => {
+  const source = fs.readFileSync(scriptPath, 'utf8')
+  const helper = source.match(/runtime_configuration_references\(\) \{[\s\S]*?\n\}/)?.[0]
+  assert.ok(helper, 'missing runtime_configuration_references helper')
+  const directory = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'chickenbro-refs-'))
+  try {
+    const roots = ['etc', 'opt-chickenbro', 'opt-wow-mini-program', 'opt-wow-v2-staging', 'var-www']
+      .map((name) => path.join(directory, name))
+    const expected = []
+    for (const [index, root] of roots.entries()) {
+      fs.mkdirSync(root, { recursive: true })
+      const file = path.join(root, index === 0 || index === 1 ? 'same-name.env' : `config-${index}`)
+      fs.writeFileSync(file, 'DATABASE=reviewed-database\n')
+      expected.push(file)
+    }
+    const rootsFile = path.join(directory, 'roots.txt')
+    const exclusionsFile = path.join(directory, 'exclusions.txt')
+    fs.writeFileSync(rootsFile, `${roots.join('\n')}\n`)
+    fs.writeFileSync(exclusionsFile, `${expected[0]}\n`)
+    const result = spawnSync('bash', ['-c', [
+      'set -euo pipefail',
+      `CONFIGURATION_SCAN_ROOTS=${JSON.stringify(rootsFile)}`,
+      `REFERENCE_EVIDENCE_EXCLUSIONS=${JSON.stringify(exclusionsFile)}`,
+      helper,
+      'runtime_configuration_references reviewed-database',
+    ].join('\n')], { encoding: 'utf8' })
+    assert.equal(result.status, 0, result.stderr)
+    assert.deepEqual(result.stdout.trim().split('\n').sort(), expected.slice(1).sort())
+    assert.ok(result.stdout.includes(expected[1]), 'same basename at another exact path must remain visible')
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true })
+  }
+})
+
+test('capacity preflight rejects symlinked or realpath-drifted env companions', () => {
+  const source = fs.readFileSync(scriptPath, 'utf8')
+  assert.match(source, /validate_capacity_env_file\(\)/)
+  assert.match(source, /! -L "\$\{target\}"/)
+  assert.match(source, /realpath -e -- "\$\{target\}"/)
+  assert.match(source, /"\$\{target_real\}" == "\$\{target\}"/)
+  assert.match(source, /"\$\{target%\/\*\}" == "\/etc"/)
+})
+
+test('capacity apply preflights every pair before mutation and journals each irreversible boundary', () => {
+  const source = fs.readFileSync(scriptPath, 'utf8')
+  const preflightCall = source.indexOf('capacity_preflight_all_pairs\n')
+  const applyCall = source.indexOf('capacity_apply_pairs\n')
+  assert.ok(preflightCall > 0 && applyCall > preflightCall, 'all-pair preflight must precede apply')
+  assert.match(source, /fresh_database_counts/)
+  assert.match(source, /expected_table_count/)
+  assert.match(source, /expected_row_count/)
+  assert.match(source, /preflight_complete/)
+  assert.match(source, /env_quarantined/)
+  assert.match(source, /drop_started/)
+  assert.match(source, /completed/)
+  assert.match(source, /failed_recovered/)
+  assert.match(source, /ALTER DATABASE %I WITH ALLOW_CONNECTIONS/)
+  assert.match(source, /os\.fsync/)
+  assert.match(source, /os\.replace/)
+  assert.match(source, /"before"/)
+  assert.match(source, /"after"/)
+})
+
+test('capacity database preflight permits only its exact companion then requires zero references after quarantine', () => {
+  const source = fs.readFileSync(scriptPath, 'utf8')
+  assert.match(source, /configuration references differ from exact companion/)
+  assert.match(source, /database still has configuration references after companion quarantine/)
+  assert.match(source, /process_environment_reference_count/)
+})
+
+test('remote metadata refresh precedes temporary files and quarantine directories', () => {
+  const source = fs.readFileSync(scriptPath, 'utf8')
+  const remote = source.slice(source.indexOf("bash -s <<'REMOTE'"))
+  const metadata = remote.indexOf('LIVE_INSTANCE_ID=')
+  assert.ok(metadata > 0)
+  assert.ok(metadata < remote.indexOf('MANIFEST_TMP="$(mktemp)"'))
+  assert.ok(metadata < remote.indexOf('install -d -o root -g root -m 0700 -- "${RUN_ROOT}"'))
 })
 
 test('manifest and dry-run contain no secret-bearing fields or values', () => {

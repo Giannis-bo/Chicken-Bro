@@ -45,6 +45,7 @@
     ],
     "configurationScanRoots": [
       "/etc",
+      "/opt/chickenbro",
       "/opt/wow-mini-program",
       "/opt/wow-v2-staging",
       "/var/www"
@@ -219,6 +220,9 @@
     "hash-bound whitelist recovery manifest with isolated restore reconciliation",
     "fresh exact target identity from Tencent instance metadata",
     "fresh zero-connection, zero-reference and zero-open-handle probe per exact database",
+    "fresh table and row count comparison for every exact database",
+    "regular non-symlink companion env with exact /etc realpath and content hash",
+    "all-pair mutation-free preflight followed by durable per-pair boundary journals",
     "explicit wow_test read-only protection",
     "exact companion env removal and absence confirmation before each database drop",
     "reviewed apply authorization bound to this manifest SHA"

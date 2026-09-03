@@ -1,7 +1,8 @@
 const assert = require('node:assert/strict')
 const { createHash } = require('node:crypto')
-const { readFileSync } = require('node:fs')
+const { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } = require('node:fs')
 const { spawnSync } = require('node:child_process')
+const os = require('node:os')
 const path = require('node:path')
 const test = require('node:test')
 
@@ -44,9 +45,8 @@ test('apply path builds and restore-verifies only the migrated business whitelis
     'candidateDatabaseProvisioningAuthorized',
     '--inventory-sha',
     'WOW_CHICKENBRO_RECOVERY_ROOT',
-    'WOW_REBUILD_MANAGEMENT_ROLE',
     'MIGRATION_RUNTIME_PYTHON',
-    'df -PB1',
+    'df -B1 --output=avail',
     'pg_database_size',
     'pg_dump',
     'pg_restore --list',
@@ -78,7 +78,52 @@ test('apply path builds and restore-verifies only the migrated business whitelis
   assert.match(script, /TARGET_CONNECTIONS/)
   assert.match(script, /target database already exists; a fresh clean target is required/)
   assert.doesNotMatch(script, /already_provisioned_exact_identity/)
-  assert.match(script, /rolname\s*=\s*current_user[\s\S]{0,200}rolcreatedb/)
+  assert.match(script, /rolname = '\$\{DATABASE_OWNER_ROLE\}' AND rolcanlogin/)
+  assert.match(script, /--mode verify-restore/)
+  assert.doesNotMatch(
+    script.slice(script.indexOf('pg_restore \\\n'), script.indexOf('RECOVERY_MANIFEST_NEW=')),
+    /--mode full/,
+  )
+  assert.doesNotMatch(
+    script.slice(script.indexOf('sudo -n -u postgres pg_restore \\\n'), script.indexOf('VERIFY_DATABASE_URL=')),
+    /--no-owner/,
+    'restore must preserve the schema/object owners covered by the identity comparison',
+  )
+})
+
+test('apply uses peer-authenticated postgres management and exact staged app pgpass entries', () => {
+  const script = source()
+
+  assert.match(script, /sudo -n -u postgres psql/)
+  assert.doesNotMatch(script, /--username="\$\{MANAGEMENT_ROLE\}"/)
+  assert.match(script, /source\/target\/restore pgpass entries/i)
+  assert.match(script, /PGPASSFILE="\$\{STAGED_PGPASSFILE\}"/)
+  assert.match(script, /current_user[\s\S]{0,120}postgres/)
+  const firstHostMutation = script.indexOf('install -d -o root -g root -m 0700 "${RECOVERY_ROOT}"')
+  assert.ok(script.indexOf("pg_query 'SELECT current_user'") < firstHostMutation)
+  assert.ok(script.indexOf('explicit source wow_app authentication preflight failed') < firstHostMutation)
+})
+
+test('GNU df capacity probe does not combine POSIX mode with output selection', () => {
+  const script = source()
+  const match = script.match(/df_available_bytes\(\) \{[\s\S]*?\n\}/)
+  assert.ok(match, 'missing df_available_bytes helper')
+  assert.doesNotMatch(match[0], /\s-P(?:B1)?\s|\s-P\s/)
+
+  const directory = mkdtempSync(path.join(os.tmpdir(), 'chickenbro-df-'))
+  const stub = path.join(directory, 'df')
+  writeFileSync(stub, `#!/usr/bin/env bash\nif [[ " $* " == *" -P "* || " $* " == *" -PB1 "* ]]; then exit 64; fi\nprintf 'Avail\\n987654321\\n'\n`)
+  chmodSync(stub, 0o755)
+  try {
+    const result = spawnSync('bash', ['-c', `${match[0]}\ndf_available_bytes /var/lib/postgresql`], {
+      encoding: 'utf8',
+      env: { ...process.env, PATH: `${directory}:${process.env.PATH}` },
+    })
+    assert.equal(result.status, 0, result.stderr)
+    assert.equal(result.stdout.trim(), '987654321')
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
 })
 
 test('local dry-run emits redacted blocked JSON and performs no prerequisite command check', () => {
@@ -134,6 +179,10 @@ test('apply refreshes and matches the exact Tencent CVM identity before database
   }
   assert.match(script, /refresh_target_identity/)
   assert.match(script, /target identity mismatch/i)
+  assert.ok(
+    script.indexOf('refresh_target_identity\n') < script.indexOf('install -d -o root -g root -m 0700 "${RECOVERY_ROOT}"'),
+    'metadata refresh must be the first apply-side action',
+  )
 })
 
 test('script has valid bash syntax', () => {

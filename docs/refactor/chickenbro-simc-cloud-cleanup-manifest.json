@@ -53,6 +53,24 @@
       "wow_gear_evidence_0be65754_r24",
       "wow_gear_evidence_145dee16_r22",
       "wow_gear_evidence_15f514d5_r23"
+    ],
+    "configurationScanRoots": [
+      "/etc",
+      "/opt/chickenbro",
+      "/opt/wow-mini-program",
+      "/opt/wow-v2-staging",
+      "/var/www"
+    ],
+    "referenceEvidenceExclusions": [
+      "/opt/chickenbro/docs/refactor/chickenbro-simc-capacity-cleanup-manifest.json",
+      "/opt/chickenbro/docs/refactor/chickenbro-simc-cloud-cleanup-manifest.json",
+      "/opt/chickenbro/docs/refactor/chickenbro-simc-cloud-inventory.json",
+      "/opt/chickenbro/docs/refactor/chickenbro-simc-recovery-inventory.json",
+      "/opt/chickenbro/docs/chickenbro-simc-production-runbook.md",
+      "/opt/chickenbro/server/retire_chickenbro_legacy_lighthouse.sh",
+      "/opt/chickenbro/tests/chickenbro_simc_capacity_cleanup_manifest_test.py",
+      "/opt/chickenbro/tests/deploy-chickenbro-candidate.test.js",
+      "/opt/chickenbro/tests/retire-chickenbro-legacy.test.js"
     ]
   },
   "quarantine": {
@@ -1727,6 +1745,10 @@
       "observed": {
         "at": "2026-09-02T13:43:05Z",
         "sizeBytes": 5237750807,
+        "owner": "postgres",
+        "allowsConnections": true,
+        "tableCount": 71,
+        "approximateRows": 2115416,
         "connections": 0
       },
       "replacement": "removed with no target-product replacement",
@@ -1744,6 +1766,7 @@
         "whitelist_restore_verification_not_run",
         "fresh_target_identity_probe_required",
         "fresh_zero_connection_probe_required",
+        "fresh_table_and_row_count_probe_required",
         "fresh_configuration_reference_probe_required",
         "companion_env_absence_required",
         "reviewed_manifest_sha_required"
@@ -1758,6 +1781,10 @@
       "observed": {
         "at": "2026-09-02T13:43:05Z",
         "sizeBytes": 5517827095,
+        "owner": "postgres",
+        "allowsConnections": true,
+        "tableCount": 71,
+        "approximateRows": 2375154,
         "connections": 0
       },
       "replacement": "removed with no target-product replacement",
@@ -1775,6 +1802,7 @@
         "whitelist_restore_verification_not_run",
         "fresh_target_identity_probe_required",
         "fresh_zero_connection_probe_required",
+        "fresh_table_and_row_count_probe_required",
         "fresh_configuration_reference_probe_required",
         "companion_env_absence_required",
         "reviewed_manifest_sha_required"
@@ -1789,6 +1817,10 @@
       "observed": {
         "at": "2026-09-02T13:43:05Z",
         "sizeBytes": 5964094487,
+        "owner": "wow_app",
+        "allowsConnections": true,
+        "tableCount": 71,
+        "approximateRows": 2767097,
         "connections": 0
       },
       "replacement": "removed with no target-product replacement",
@@ -1806,6 +1838,7 @@
         "whitelist_restore_verification_not_run",
         "fresh_target_identity_probe_required",
         "fresh_zero_connection_probe_required",
+        "fresh_table_and_row_count_probe_required",
         "fresh_configuration_reference_probe_required",
         "companion_env_absence_required",
         "reviewed_manifest_sha_required"
@@ -1820,6 +1853,10 @@
       "observed": {
         "at": "2026-09-02T13:43:05Z",
         "sizeBytes": 5813812247,
+        "owner": "postgres",
+        "allowsConnections": true,
+        "tableCount": 71,
+        "approximateRows": 2632122,
         "connections": 0
       },
       "replacement": "removed with no target-product replacement",
@@ -1837,6 +1874,7 @@
         "whitelist_restore_verification_not_run",
         "fresh_target_identity_probe_required",
         "fresh_zero_connection_probe_required",
+        "fresh_table_and_row_count_probe_required",
         "fresh_configuration_reference_probe_required",
         "companion_env_absence_required",
         "reviewed_manifest_sha_required"

@@ -2,9 +2,12 @@ import contextlib
 import io
 import unittest
 
+from server.migrations.product.migrate_legacy import MigrationError
 from server.migrations.product.postgres_legacy import (
     PostgresMigrationTarget,
     build_parser,
+    capture_restore_identity,
+    compare_restore_identities,
     normalize_legacy_rows,
     validate_local_app_dsn,
 )
@@ -207,6 +210,69 @@ class PostgresLegacyMigrationTest(unittest.TestCase):
         ):
             with self.subTest(dsn=dsn), self.assertRaisesRegex(ValueError, "reviewed local wow_app"):
                 validate_local_app_dsn(dsn, "wow_test")
+
+    def test_restore_comparison_rejects_a_missing_row_without_repairing_it(self):
+        class Cursor:
+            def __init__(self, rows):
+                self.rows = rows
+
+            def fetchone(self):
+                return self.rows[0] if self.rows else None
+
+            def fetchall(self):
+                return self.rows
+
+            def __iter__(self):
+                return iter(self.rows)
+
+        class ReadOnlyConnection:
+            def __init__(self, database, rows, *, triggers=()):
+                self.database = database
+                self.rows = rows
+                self.triggers = list(triggers)
+                self.statements = []
+
+            def execute(self, query, _params=None):
+                normalized = " ".join(query.split())
+                self.statements.append(normalized)
+                if "current_setting('transaction_read_only')" in normalized:
+                    return Cursor([(self.database, "on")])
+                if "FROM information_schema.tables" in normalized:
+                    return Cursor([("chat", "messages")])
+                if "FROM pg_catalog.pg_trigger" in normalized:
+                    return Cursor(self.triggers)
+                if "SELECT to_jsonb(row_value)" in normalized:
+                    return Cursor([(row,) for row in self.rows])
+                return Cursor([])
+
+        candidate_connection = ReadOnlyConnection(
+            "chickenbro_prod", [{"id": "message-a"}, {"id": "message-b"}],
+        )
+        restored_connection = ReadOnlyConnection(
+            "chickenbro_restore_verify_a", [{"id": "message-a"}],
+        )
+        candidate = capture_restore_identity(candidate_connection, "chickenbro_prod")
+        restored = capture_restore_identity(restored_connection, "chickenbro_restore_verify_a")
+
+        with self.assertRaisesRegex(MigrationError, "RESTORE_DATABASE_IDENTITY_MISMATCH"):
+            compare_restore_identities(candidate, restored)
+
+        self.assertEqual(restored["tables"]["chat.messages"]["rowCount"], 1)
+        for statement in candidate_connection.statements + restored_connection.statements:
+            self.assertRegex(statement, r"^SELECT\b")
+
+        candidate_with_trigger = ReadOnlyConnection(
+            "chickenbro_prod",
+            [{"id": "message-a"}],
+            triggers=[("simc", "simulation_results", "immutable", "CREATE TRIGGER immutable ...")],
+        )
+        restored_without_trigger = ReadOnlyConnection(
+            "chickenbro_restore_verify_b", [{"id": "message-a"}],
+        )
+        candidate = capture_restore_identity(candidate_with_trigger, "chickenbro_prod")
+        restored = capture_restore_identity(restored_without_trigger, "chickenbro_restore_verify_b")
+        with self.assertRaisesRegex(MigrationError, "RESTORE_DATABASE_IDENTITY_MISMATCH"):
+            compare_restore_identities(candidate, restored)
 
 
 if __name__ == "__main__":

@@ -156,8 +156,28 @@ expected_capacity_databases = [
     "wow_gear_evidence_145dee16_r22",
     "wow_gear_evidence_15f514d5_r23",
 ]
+expected_scan_roots = [
+    "/etc",
+    "/opt/chickenbro",
+    "/opt/wow-mini-program",
+    "/opt/wow-v2-staging",
+    "/var/www",
+]
+expected_evidence_exclusions = [
+    "/opt/chickenbro/docs/refactor/chickenbro-simc-capacity-cleanup-manifest.json",
+    "/opt/chickenbro/docs/refactor/chickenbro-simc-cloud-cleanup-manifest.json",
+    "/opt/chickenbro/docs/refactor/chickenbro-simc-cloud-inventory.json",
+    "/opt/chickenbro/docs/refactor/chickenbro-simc-recovery-inventory.json",
+    "/opt/chickenbro/docs/chickenbro-simc-production-runbook.md",
+    "/opt/chickenbro/server/retire_chickenbro_legacy_lighthouse.sh",
+    "/opt/chickenbro/tests/chickenbro_simc_capacity_cleanup_manifest_test.py",
+    "/opt/chickenbro/tests/deploy-chickenbro-candidate.test.js",
+    "/opt/chickenbro/tests/retire-chickenbro-legacy.test.js",
+]
 if (
     capacity.get("exactDatabaseAllowlist") != expected_capacity_databases
+    or capacity.get("configurationScanRoots") != expected_scan_roots
+    or capacity.get("referenceEvidenceExclusions") != expected_evidence_exclusions
     or capacity.get("protectsWowTest") is not True
     or capacity.get("requiresPhase5Acceptance") is not False
     or accepted_production_recovery.get("manifestSchema") != "chickenbro-accepted-production-recovery-v1"
@@ -223,6 +243,20 @@ for index, item in enumerate(resources):
             raise SystemExit(f"ready capacity resource {resource_id} lacks recovery disposition")
         if kind == "postgres_database" and item.get("activeConnections") != 0:
             raise SystemExit(f"ready database {resource_id} lacks zero-connection proof")
+        if capacity_item and kind == "postgres_database":
+            observed = item.get("observed") or {}
+            if (
+                not isinstance(observed.get("tableCount"), int)
+                or isinstance(observed.get("tableCount"), bool)
+                or observed["tableCount"] <= 0
+                or not isinstance(observed.get("approximateRows"), int)
+                or isinstance(observed.get("approximateRows"), bool)
+                or observed["approximateRows"] < 0
+                or not isinstance(observed.get("owner"), str)
+                or re.fullmatch(r"[a-z_][a-z0-9_]{0,62}", observed["owner"]) is None
+                or not isinstance(observed.get("allowsConnections"), bool)
+            ):
+                raise SystemExit(f"ready capacity database {resource_id} lacks table/row counts")
         if kind != "postgres_database" and not re.fullmatch(r"[0-9a-f]{64}", str(item.get("contentSha256") or "")):
             raise SystemExit(f"ready filesystem resource {resource_id} lacks content identity")
         if not isinstance(item.get("deleteAfter"), str):
@@ -384,15 +418,17 @@ die_remote() {
   exit 1
 }
 
-MANIFEST_TMP="$(mktemp)"
-RESULTS_TMP="$(mktemp)"
-trap 'rm -f -- "${MANIFEST_TMP}" "${RESULTS_TMP}"' EXIT
-printf '%s' "${MANIFEST_BASE64}" | base64 --decode > "${MANIFEST_TMP}"
-[[ "$(sha256sum -- "${MANIFEST_TMP}" | awk '{print $1}')" == "${REVIEWED_REMOTE_MANIFEST_SHA}" ]] \
-  || die_remote "manifest SHA-256 changed in transit"
-for command_name in curl lsof; do
+MANIFEST_TMP=""
+RESULTS_TMP=""
+cleanup_remote_tmp() {
+  [[ -z "${MANIFEST_TMP}" ]] || rm -f -- "${MANIFEST_TMP}"
+  [[ -z "${RESULTS_TMP}" ]] || rm -f -- "${RESULTS_TMP}"
+}
+trap cleanup_remote_tmp EXIT
+for command_name in curl lsof realpath find sort sha256sum psql python3 install mv; do
   command -v "${command_name}" >/dev/null 2>&1 || die_remote "required apply command is unavailable: ${command_name}"
 done
+# Metadata is deliberately the first apply-side action on the reviewed host.
 LIVE_INSTANCE_ID="$(curl -fsS --max-time 3 http://metadata.tencentyun.com/latest/meta-data/instance-id)" \
   || die_remote "target identity refresh failed"
 LIVE_REGION="$(curl -fsS --max-time 3 http://metadata.tencentyun.com/latest/meta-data/placement/region)" \
@@ -402,6 +438,11 @@ LIVE_ZONE="$(curl -fsS --max-time 3 http://metadata.tencentyun.com/latest/meta-d
 [[ "${LIVE_INSTANCE_ID}" == "ins-93tgv1rb" && "${LIVE_REGION}" == "ap-shanghai" \
   && "${LIVE_ZONE}" == "ap-shanghai-2" ]] \
   || die_remote "target identity mismatch; refusing retirement apply"
+MANIFEST_TMP="$(mktemp)"
+RESULTS_TMP="$(mktemp)"
+printf '%s' "${MANIFEST_BASE64}" | base64 --decode > "${MANIFEST_TMP}"
+[[ "$(sha256sum -- "${MANIFEST_TMP}" | awk '{print $1}')" == "${REVIEWED_REMOTE_MANIFEST_SHA}" ]] \
+  || die_remote "manifest SHA-256 changed in transit"
 [[ -f "${REMOTE_RECOVERY_MANIFEST_PATH}" ]] || die_remote "restore-verified whitelist recovery manifest is missing"
 [[ "$(sha256sum -- "${REMOTE_RECOVERY_MANIFEST_PATH}" | awk '{print $1}')" == "${REVIEWED_REMOTE_RECOVERY_SHA}" ]] \
   || die_remote "recovery manifest SHA-256 mismatch"
@@ -534,20 +575,69 @@ PY
 awk -F '\t' '$2 == "systemd_unit" { print $3 }' "${RUN_ROOT}/retirement-plan.tsv" \
   > "${RUN_ROOT}/retiring-units.txt"
 
+CAPACITY_PAIRS="${RUN_ROOT}/capacity-pairs.tsv"
+CONFIGURATION_SCAN_ROOTS="${RUN_ROOT}/configuration-scan-roots.txt"
+REFERENCE_EVIDENCE_EXCLUSIONS="${RUN_ROOT}/reference-evidence-exclusions.txt"
+python3 - \
+    "${MANIFEST_TMP}" "${CAPACITY_PAIRS}" "${CONFIGURATION_SCAN_ROOTS}" \
+    "${REFERENCE_EVIDENCE_EXCLUSIONS}" <<'PY'
+import json
+import os
+import sys
+from pathlib import Path
+
+manifest_path, pairs_path, roots_path, exclusions_path = map(Path, sys.argv[1:])
+payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+capacity = payload["capacityPreCleanup"]
+resources = payload["resources"]
+by_target = {(item["kind"], item["target"]): item for item in resources}
+rows = []
+for database in capacity["exactDatabaseAllowlist"]:
+    db_item = by_target[("postgres_database", database)]
+    env_path = db_item["requiredAbsentCompanion"]
+    env_item = by_target[("file", env_path)]
+    observed = db_item["observed"]
+    rows.append("\t".join([
+        db_item["id"], database, env_item["id"], env_path,
+        env_item["contentSha256"], str(observed["sizeBytes"]),
+        str(observed["tableCount"]), str(observed["approximateRows"]),
+        observed["owner"], "true" if observed["allowsConnections"] else "false",
+    ]))
+
+def durable_write(path, content):
+    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(descriptor, "w", encoding="utf-8") as output:
+        output.write(content)
+        output.flush()
+        os.fsync(output.fileno())
+
+durable_write(pairs_path, "\n".join(rows) + "\n")
+durable_write(roots_path, "\n".join(capacity["configurationScanRoots"]) + "\n")
+durable_write(exclusions_path, "\n".join(capacity["referenceEvidenceExclusions"]) + "\n")
+PY
+
 record_result() {
   local resource_id="$1"
   local kind="$2"
   local target="$3"
   local status="$4"
+  local before="${5:-{}}"
+  local after="${6:-{}}"
   RESOURCE_ID="${resource_id}" RESOURCE_KIND="${kind}" RESOURCE_TARGET="${target}" RESOURCE_STATUS="${status}" \
+  RESOURCE_BEFORE="${before}" RESOURCE_AFTER="${after}" RESOURCE_RECOVERY_SHA="${REVIEWED_REMOTE_RECOVERY_SHA}" \
     python3 - <<'PY' >> "${RESULTS_TMP}"
 import json
 import os
+from datetime import datetime, timezone
 print(json.dumps({
     "id": os.environ["RESOURCE_ID"],
     "kind": os.environ["RESOURCE_KIND"],
     "target": os.environ["RESOURCE_TARGET"],
     "status": os.environ["RESOURCE_STATUS"],
+    "before": json.loads(os.environ["RESOURCE_BEFORE"]),
+    "after": json.loads(os.environ["RESOURCE_AFTER"]),
+    "recoveryManifestSha256": os.environ["RESOURCE_RECOVERY_SHA"],
+    "recordedAt": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
 }, separators=(",", ":")))
 PY
 }
@@ -587,22 +677,257 @@ process_environment_reference_count() {
 
 runtime_configuration_references() {
   local needle="$1"
-  local excluded_basename="${2:-}"
-  local exclusions=(
-    --exclude-dir='.git'
-    --exclude-dir='.superpowers'
-    --exclude-dir='docs'
-    --exclude-dir='tests'
-    --exclude='retire_chickenbro_legacy_lighthouse.sh'
-  )
-  if [[ -n "${excluded_basename}" ]]; then
-    exclusions+=(--exclude="${excluded_basename}")
-  fi
-  grep -RFl "${exclusions[@]}" -- "${needle}" /etc/systemd/system /etc/nginx /opt/chickenbro 2>/dev/null || true
-  find /etc -maxdepth 1 -type f \( -name '*.env' -o -name '*.pgpass' \) \
-    -exec grep -Fl -- "${needle}" {} + 2>/dev/null || true
+  local root candidate
+  while IFS= read -r root; do
+    [[ -d "${root}" ]] || continue
+    while IFS= read -r -d '' candidate; do
+      if grep -Fxq -- "${candidate}" "${REFERENCE_EVIDENCE_EXCLUSIONS}"; then
+        continue
+      fi
+      grep -Fl -- "${needle}" "${candidate}" 2>/dev/null || true
+    done < <(find "${root}" -type f -print0 2>/dev/null)
+  done < "${CONFIGURATION_SCAN_ROOTS}"
 }
 
+validate_capacity_env_file() {
+  local target="$1"
+  local expected_sha="$2"
+  local target_real
+  [[ "${target%/*}" == "/etc" ]] || die_remote "capacity env is outside exact /etc root: ${target}"
+  [[ -f "${target}" && ! -L "${target}" ]] \
+    || die_remote "capacity env must be a regular non-symlink file: ${target}"
+  target_real="$(realpath -e -- "${target}")"
+  [[ "${target_real}" == "${target}" ]] || die_remote "capacity env realpath changed: ${target}"
+  [[ "$(sha256sum -- "${target}" | awk '{print $1}')" == "${expected_sha}" ]] \
+    || die_remote "capacity env identity changed: ${target}"
+  [[ -z "$(lsof -t -- "${target}" 2>/dev/null || true)" ]] \
+    || die_remote "capacity env has an open handle: ${target}"
+  [[ -z "$(runtime_configuration_references "${target}")" ]] \
+    || die_remote "capacity env still has configuration references: ${target}"
+}
+
+fresh_database_counts() {
+  local target="$1"
+  sudo -n -u postgres psql --no-psqlrc --dbname="${target}" --tuples-only --no-align \
+    --field-separator=$'\t' --set=ON_ERROR_STOP=1 \
+    --command="SELECT count(*)::bigint, COALESCE(sum(n_live_tup), 0)::bigint FROM pg_stat_user_tables"
+}
+
+capacity_preflight_all_pairs() {
+  local db_id database env_id env_path env_sha expected_size expected_table_count expected_row_count expected_owner expected_allows
+  local exists connections current_size current_counts current_table_count current_row_count current_identity current_owner current_allows references
+  while IFS=$'\t' read -r db_id database env_id env_path env_sha expected_size expected_table_count expected_row_count expected_owner expected_allows; do
+    validate_capacity_env_file "${env_path}" "${env_sha}"
+    exists="$(sudo -n -u postgres psql --no-psqlrc --dbname=postgres --tuples-only --no-align \
+      --set=target="${database}" --command="SELECT count(*) FROM pg_database WHERE datname = :'target'")"
+    [[ "${exists}" == "1" ]] || die_remote "capacity database is missing: ${database}"
+    connections="$(sudo -n -u postgres psql --no-psqlrc --dbname=postgres --tuples-only --no-align \
+      --set=target="${database}" --command="SELECT count(*) FROM pg_stat_activity WHERE datname = :'target' AND pid <> pg_backend_pid()")"
+    [[ "${connections}" == "0" ]] || die_remote "capacity database gained active connections: ${database}"
+    current_size="$(sudo -n -u postgres psql --no-psqlrc --dbname=postgres --tuples-only --no-align \
+      --set=target="${database}" --command="SELECT pg_database_size(:'target')")"
+    [[ "${current_size}" == "${expected_size}" ]] || die_remote "capacity database size identity changed: ${database}"
+    current_counts="$(fresh_database_counts "${database}" | tr -d ' ')"
+    IFS=$'\t' read -r current_table_count current_row_count <<< "${current_counts}"
+    [[ "${current_table_count}" == "${expected_table_count}" && "${current_row_count}" == "${expected_row_count}" ]] \
+      || die_remote "capacity database table/row counts changed: ${database}"
+    current_identity="$(sudo -n -u postgres psql --no-psqlrc --dbname=postgres --tuples-only --no-align \
+      --field-separator=$'\t' --set=target="${database}" \
+      --command="SELECT pg_get_userbyid(datdba), CASE WHEN datallowconn THEN 'true' ELSE 'false' END FROM pg_database WHERE datname = :'target'")"
+    IFS=$'\t' read -r current_owner current_allows <<< "${current_identity}"
+    [[ "${current_owner}" == "${expected_owner}" && "${current_allows}" == "${expected_allows}" ]] \
+      || die_remote "capacity database owner/connection identity changed: ${database}"
+    references="$(runtime_configuration_references "${database}" | LC_ALL=C sort -u)"
+    [[ "${references}" == "${env_path}" ]] \
+      || die_remote "database configuration references differ from exact companion: ${database}"
+    [[ "$(process_environment_reference_count "${database}")" == "0" ]] \
+      || die_remote "capacity database still has a running process reference: ${database}"
+  done < "${CAPACITY_PAIRS}"
+}
+
+write_capacity_pair_journal() {
+  local journal_path="$1" status="$2" database="$3" env_path="$4" env_sha="$5"
+  local size="$6" table_count="$7" row_count="$8" owner="$9" allows="${10}"
+  local after_database_exists="${11:-}" after_env_exists="${12:-}"
+  JOURNAL_PATH="${journal_path}" JOURNAL_STATUS="${status}" JOURNAL_DATABASE="${database}" \
+  JOURNAL_ENV_PATH="${env_path}" JOURNAL_ENV_SHA="${env_sha}" JOURNAL_SIZE="${size}" \
+  JOURNAL_TABLE_COUNT="${table_count}" JOURNAL_ROW_COUNT="${row_count}" JOURNAL_OWNER="${owner}" \
+  JOURNAL_ALLOWS="${allows}" JOURNAL_AFTER_DATABASE_EXISTS="${after_database_exists}" \
+  JOURNAL_AFTER_ENV_EXISTS="${after_env_exists}" JOURNAL_RECOVERY_SHA="${REVIEWED_REMOTE_RECOVERY_SHA}" \
+    python3 - <<'PY'
+import json
+import os
+from datetime import datetime, timezone
+from pathlib import Path
+
+journal = Path(os.environ["JOURNAL_PATH"])
+now = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+if journal.exists():
+    payload = json.loads(journal.read_text(encoding="utf-8"))
+else:
+    payload = {
+        "schemaVersion": "chickenbro-capacity-pair-journal-v1",
+        "database": os.environ["JOURNAL_DATABASE"],
+        "envFile": os.environ["JOURNAL_ENV_PATH"],
+        "recoveryManifestSha256": os.environ["JOURNAL_RECOVERY_SHA"],
+        "before": {
+            "database": {
+                "exists": True,
+                "sizeBytes": int(os.environ["JOURNAL_SIZE"]),
+                "tableCount": int(os.environ["JOURNAL_TABLE_COUNT"]),
+                "approximateRows": int(os.environ["JOURNAL_ROW_COUNT"]),
+                "owner": os.environ["JOURNAL_OWNER"],
+                "allowsConnections": os.environ["JOURNAL_ALLOWS"] == "true",
+                "activeConnections": 0,
+            },
+            "envFile": {
+                "exists": True,
+                "realpath": os.environ["JOURNAL_ENV_PATH"],
+                "sha256": os.environ["JOURNAL_ENV_SHA"],
+                "openHandles": 0,
+            },
+        },
+        "events": [],
+    }
+payload["events"].append({"status": os.environ["JOURNAL_STATUS"], "at": now})
+if os.environ["JOURNAL_AFTER_DATABASE_EXISTS"]:
+    payload["after"] = {
+        "database": {"exists": os.environ["JOURNAL_AFTER_DATABASE_EXISTS"] == "true"},
+        "envFile": {"exists": os.environ["JOURNAL_AFTER_ENV_EXISTS"] == "true"},
+        "observedAt": now,
+    }
+temporary = journal.with_name(f"{journal.name}.new-{os.getpid()}")
+descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+with os.fdopen(descriptor, "w", encoding="utf-8") as output:
+    json.dump(payload, output, ensure_ascii=True, sort_keys=True, separators=(",", ":"))
+    output.write("\n")
+    output.flush()
+    os.fsync(output.fileno())
+os.replace(temporary, journal)
+directory = os.open(journal.parent, os.O_RDONLY)
+try:
+    os.fsync(directory)
+finally:
+    os.close(directory)
+PY
+}
+
+capacity_pair_failure() {
+  local exit_code="$1"
+  trap - ERR
+  set +e
+  local exists recovery_incomplete="false" restored_allows="" restored_env_sha="" restored_env_exists="false"
+  exists="$(sudo -n -u postgres psql --no-psqlrc --dbname=postgres --tuples-only --no-align \
+    --set=target="${PAIR_DATABASE}" --command="SELECT count(*) FROM pg_database WHERE datname = :'target'" 2>/dev/null)"
+  if [[ "${exists}" == "1" ]]; then
+    if [[ "${PAIR_DATABASE_FENCED}" == "true" ]]; then
+      restore_statement="$(sudo -n -u postgres psql --no-psqlrc --dbname=postgres --tuples-only --no-align \
+        --set=target="${PAIR_DATABASE}" --set=allows="${PAIR_EXPECTED_ALLOWS}" \
+        --command="SELECT format('ALTER DATABASE %I WITH ALLOW_CONNECTIONS %s', :'target', :'allows')")"
+      sudo -n -u postgres psql --no-psqlrc --dbname=postgres --set=ON_ERROR_STOP=1 \
+        --command="${restore_statement}" >/dev/null || recovery_incomplete="true"
+    fi
+    if [[ "${PAIR_ENV_MOVED}" == "true" && ! -e "${PAIR_ENV_PATH}" && -f "${PAIR_QUARANTINE_TARGET}" ]]; then
+      mv -- "${PAIR_QUARANTINE_TARGET}" "${PAIR_ENV_PATH}" || recovery_incomplete="true"
+    fi
+    restored_allows="$(sudo -n -u postgres psql --no-psqlrc --dbname=postgres --tuples-only --no-align \
+      --set=target="${PAIR_DATABASE}" \
+      --command="SELECT CASE WHEN datallowconn THEN 'true' ELSE 'false' END FROM pg_database WHERE datname = :'target'" 2>/dev/null)"
+    [[ "${restored_allows}" == "${PAIR_EXPECTED_ALLOWS}" ]] || recovery_incomplete="true"
+    if [[ -f "${PAIR_ENV_PATH}" && ! -L "${PAIR_ENV_PATH}" ]]; then
+      restored_env_sha="$(sha256sum -- "${PAIR_ENV_PATH}" 2>/dev/null | awk '{print $1}')"
+    fi
+    [[ "${restored_env_sha}" == "${PAIR_ENV_SHA}" ]] || recovery_incomplete="true"
+    [[ "${restored_env_sha}" != "${PAIR_ENV_SHA}" ]] || restored_env_exists="true"
+    recovery_status="failed_recovered"
+    [[ "${recovery_incomplete}" == "false" ]] || recovery_status="failed_recovery_incomplete"
+    write_capacity_pair_journal "${PAIR_JOURNAL}" "${recovery_status}" "${PAIR_DATABASE}" "${PAIR_ENV_PATH}" \
+      "${PAIR_ENV_SHA}" "${PAIR_SIZE}" "${PAIR_TABLE_COUNT}" "${PAIR_ROW_COUNT}" "${PAIR_OWNER}" "${PAIR_EXPECTED_ALLOWS}" \
+      true "${restored_env_exists}" || true
+  else
+    write_capacity_pair_journal "${PAIR_JOURNAL}" "failed_after_drop" "${PAIR_DATABASE}" "${PAIR_ENV_PATH}" \
+      "${PAIR_ENV_SHA}" "${PAIR_SIZE}" "${PAIR_TABLE_COUNT}" "${PAIR_ROW_COUNT}" "${PAIR_OWNER}" "${PAIR_EXPECTED_ALLOWS}" \
+      false false
+  fi
+  exit "${exit_code}"
+}
+
+capacity_pair_abort() {
+  printf 'retire_chickenbro_legacy_remote: %s\n' "$*" >&2
+  return 1
+}
+
+capacity_apply_pairs() {
+  local db_id database env_id env_path env_sha expected_size expected_table_count expected_row_count expected_owner expected_allows
+  install -d -o root -g root -m 0700 -- "${RUN_ROOT}/pair-journals"
+  while IFS=$'\t' read -r db_id database env_id env_path env_sha expected_size expected_table_count expected_row_count expected_owner expected_allows; do
+    write_capacity_pair_journal "${RUN_ROOT}/pair-journals/${db_id}.json" "preflight_complete" \
+      "${database}" "${env_path}" "${env_sha}" "${expected_size}" "${expected_table_count}" \
+      "${expected_row_count}" "${expected_owner}" "${expected_allows}"
+  done < "${CAPACITY_PAIRS}"
+
+  while IFS=$'\t' read -r db_id database env_id env_path env_sha expected_size expected_table_count expected_row_count expected_owner expected_allows; do
+    PAIR_DATABASE="${database}"
+    PAIR_ENV_PATH="${env_path}"
+    PAIR_ENV_SHA="${env_sha}"
+    PAIR_SIZE="${expected_size}"
+    PAIR_TABLE_COUNT="${expected_table_count}"
+    PAIR_ROW_COUNT="${expected_row_count}"
+    PAIR_OWNER="${expected_owner}"
+    PAIR_EXPECTED_ALLOWS="${expected_allows}"
+    PAIR_QUARANTINE_TARGET="${RUN_ROOT}/${env_id}"
+    PAIR_JOURNAL="${RUN_ROOT}/pair-journals/${db_id}.json"
+    PAIR_ENV_MOVED="false"
+    PAIR_DATABASE_FENCED="false"
+    trap 'capacity_pair_failure "$?"' ERR
+
+    mv -- "${env_path}" "${PAIR_QUARANTINE_TARGET}"
+    PAIR_ENV_MOVED="true"
+    write_capacity_pair_journal "${PAIR_JOURNAL}" "env_quarantined" "${database}" "${env_path}" \
+      "${env_sha}" "${expected_size}" "${expected_table_count}" "${expected_row_count}" "${expected_owner}" "${expected_allows}"
+    if [[ -e "${env_path}" || -L "${env_path}" ]]; then
+      capacity_pair_abort "database companion env still exists: ${database}"
+    fi
+    if [[ -n "$(runtime_configuration_references "${database}")" ]]; then
+      capacity_pair_abort "database still has configuration references after companion quarantine: ${database}"
+    fi
+
+    fence_statement="$(sudo -n -u postgres psql --no-psqlrc --dbname=postgres --tuples-only --no-align \
+      --set=target="${database}" --command="SELECT format('ALTER DATABASE %I WITH ALLOW_CONNECTIONS false', :'target')")"
+    sudo -n -u postgres psql --no-psqlrc --dbname=postgres --set=ON_ERROR_STOP=1 \
+      --command="${fence_statement}" >/dev/null
+    PAIR_DATABASE_FENCED="true"
+    sudo -n -u postgres psql --no-psqlrc --dbname=postgres --set=ON_ERROR_STOP=1 --set=target="${database}" \
+      --command="SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = :'target' AND pid <> pg_backend_pid()" >/dev/null
+    write_capacity_pair_journal "${PAIR_JOURNAL}" "connections_fenced" "${database}" "${env_path}" \
+      "${env_sha}" "${expected_size}" "${expected_table_count}" "${expected_row_count}" "${expected_owner}" "${expected_allows}"
+    connections="$(sudo -n -u postgres psql --no-psqlrc --dbname=postgres --tuples-only --no-align \
+      --set=target="${database}" --command="SELECT count(*) FROM pg_stat_activity WHERE datname = :'target' AND pid <> pg_backend_pid()")"
+    if [[ "${connections}" != "0" ]]; then
+      capacity_pair_abort "database gained a connection after fencing: ${database}"
+    fi
+
+    write_capacity_pair_journal "${PAIR_JOURNAL}" "drop_started" "${database}" "${env_path}" \
+      "${env_sha}" "${expected_size}" "${expected_table_count}" "${expected_row_count}" "${expected_owner}" "${expected_allows}"
+    drop_statement="$(sudo -n -u postgres psql --no-psqlrc --dbname=postgres --tuples-only --no-align \
+      --set=ON_ERROR_STOP=1 --set=target="${database}" --command="SELECT format('DROP DATABASE %I', :'target')")"
+    sudo -n -u postgres psql --no-psqlrc --dbname=postgres --set=ON_ERROR_STOP=1 \
+      --command="${drop_statement}" >/dev/null
+    write_capacity_pair_journal "${PAIR_JOURNAL}" "completed" "${database}" "${env_path}" \
+      "${env_sha}" "${expected_size}" "${expected_table_count}" "${expected_row_count}" "${expected_owner}" "${expected_allows}" \
+      false false
+    record_result "${env_id}" "file" "${env_path}" "deleted" \
+      "{\"exists\":true,\"realpath\":\"${env_path}\",\"sha256\":\"${env_sha}\"}" '{"exists":false}'
+    record_result "${db_id}" "postgres_database" "${database}" "deleted" \
+      "{\"exists\":true,\"sizeBytes\":${expected_size},\"tableCount\":${expected_table_count},\"approximateRows\":${expected_row_count},\"owner\":\"${expected_owner}\"}" '{"exists":false}'
+    trap - ERR
+  done < "${CAPACITY_PAIRS}"
+}
+
+if [[ "${RETIREMENT_SCOPE}" == "capacity_pre_cleanup" ]]; then
+  capacity_preflight_all_pairs
+  capacity_apply_pairs
+else
 while IFS=$'\t' read -r resource_id kind target content_sha observed_size required_absent_companion; do
   quarantine_target="${RUN_ROOT}/${resource_id}"
   case "${kind}" in
@@ -639,7 +964,7 @@ while IFS=$'\t' read -r resource_id kind target content_sha observed_size requir
       [[ -f "${target}" || -L "${target}" ]] || die_remote "file target changed type: ${target}"
       [[ -z "$(lsof -t -- "${target}" 2>/dev/null || true)" ]] \
         || die_remote "file has an open handle: ${target}"
-      file_references="$(runtime_configuration_references "${target}" "$(basename -- "${target}")")"
+      file_references="$(runtime_configuration_references "${target}")"
       [[ -z "${file_references}" ]] || die_remote "file still has configuration references: ${target}"
       if [[ -L "${target}" ]]; then
         actual_file_sha="$(readlink -- "${target}" | sha256sum | awk '{print $1}')"
@@ -666,7 +991,7 @@ while IFS=$'\t' read -r resource_id kind target content_sha observed_size requir
         [[ ! -e "${required_absent_companion}" && ! -L "${required_absent_companion}" ]] \
           || die_remote "database companion env still exists: ${target}"
       fi
-      references="$(runtime_configuration_references "${target}" 'whitelist-recovery.json')"
+      references="$(runtime_configuration_references "${target}")"
       [[ -z "${references}" ]] || die_remote "database still has configuration references: ${target}"
       [[ "$(process_environment_reference_count "${target}")" == "0" ]] \
         || die_remote "database still has a running process reference: ${target}"
@@ -687,7 +1012,7 @@ while IFS=$'\t' read -r resource_id kind target content_sha observed_size requir
       fi
       [[ -d "${target}" && ! -L "${target}" ]] || die_remote "directory target changed type: ${target}"
       [[ "$(readlink -f -- "${target}")" == "${target}" ]] || die_remote "directory realpath changed: ${target}"
-      references="$(grep -RFl -- "${target}" /etc/systemd/system /etc/nginx /opt/chickenbro 2>/dev/null || true)"
+      references="$(runtime_configuration_references "${target}")"
       [[ -z "${references}" ]] || die_remote "directory still has configuration references: ${target}"
       [[ "$(tree_sha256 "${target}")" == "${content_sha}" ]] || die_remote "directory identity changed: ${target}"
       mv -- "${target}" "${quarantine_target}"
@@ -698,6 +1023,7 @@ while IFS=$'\t' read -r resource_id kind target content_sha observed_size requir
       ;;
   esac
 done < "${RUN_ROOT}/retirement-plan.tsv"
+fi
 
 nginx -t
 if [[ "${RETIREMENT_SCOPE}" != "capacity_pre_cleanup" ]]; then

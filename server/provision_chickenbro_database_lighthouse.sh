@@ -37,7 +37,8 @@ Usage:
   server/provision_chickenbro_database_lighthouse.sh --apply --inventory-sha <sha256>
 
 Apply also requires candidateDatabaseProvisioningAuthorized=true in docs/project-state.json,
-WOW_REBUILD_MANAGEMENT_ROLE, WOW_REBUILD_PGPASSFILE, WOW_MIGRATION_WECHAT_APP_CONTEXT,
+WOW_REBUILD_MANAGEMENT_ROLE (the target owner), WOW_REBUILD_PGPASSFILE,
+WOW_MIGRATION_WECHAT_APP_CONTEXT,
 and a fresh exact Tencent CVM identity match.
 USAGE
 }
@@ -85,6 +86,10 @@ with path.open("rb") as source:
         digest.update(chunk)
 print(digest.hexdigest())
 PY
+}
+
+df_available_bytes() {
+  df -B1 --output=avail "$1" | tail -n 1 | tr -d '[:space:]'
 }
 
 ACTUAL_INVENTORY_SHA="$(sha256_file "${INVENTORY_FILE}")"
@@ -248,19 +253,18 @@ for command_name in python3 realpath stat df awk tr tail date install chmod find
 done
 [[ -x "${MIGRATION_RUNTIME_PYTHON}" ]] || die "managed migration Python runtime is missing"
 
-[[ -d "${POSTGRES_DATA_ROOT}" ]] || die "PostgreSQL data root is missing"
-POSTGRES_DATA_REAL="$(realpath -e "${POSTGRES_DATA_ROOT}")"
-install -d -o root -g root -m 0700 "${RECOVERY_ROOT}"
-RECOVERY_ROOT_REAL="$(realpath -e "${RECOVERY_ROOT}")"
-[[ "$(stat -c '%a' "${RECOVERY_ROOT_REAL}")" == "700" ]] || die "recovery root must have mode 0700"
+# Metadata is deliberately the first apply-side action on the reviewed host.
 refresh_target_identity
 
-MANAGEMENT_ROLE="${WOW_REBUILD_MANAGEMENT_ROLE}"
+[[ -d "${POSTGRES_DATA_ROOT}" ]] || die "PostgreSQL data root is missing"
+POSTGRES_DATA_REAL="$(realpath -e "${POSTGRES_DATA_ROOT}")"
+
+DATABASE_OWNER_ROLE="${WOW_REBUILD_MANAGEMENT_ROLE}"
 
 pg_query() {
   sudo -n -u postgres psql \
     --no-psqlrc \
-    --username="${MANAGEMENT_ROLE}" \
+    --username=postgres \
     --dbname=postgres \
     --set=ON_ERROR_STOP=1 \
     --tuples-only \
@@ -271,7 +275,7 @@ pg_query() {
 target_query() {
   sudo -n -u postgres psql \
     --no-psqlrc \
-    --username="${MANAGEMENT_ROLE}" \
+    --username=postgres \
     --dbname="${TARGET_DATABASE}" \
     --set=ON_ERROR_STOP=1 \
     --tuples-only \
@@ -279,14 +283,29 @@ target_query() {
     --command="$1" | tr -d '[:space:]'
 }
 
-[[ "$(pg_query 'SELECT current_user')" == "${MANAGEMENT_ROLE}" ]] || die "management-role connection identity does not match"
-[[ "$(pg_query "SELECT count(*) FROM pg_roles WHERE rolname = current_user AND rolcanlogin AND (rolcreatedb OR rolsuper)")" == "1" ]] || die "management role cannot create the isolated target"
+[[ "$(pg_query 'SELECT current_user')" == "postgres" ]] || die "peer-authenticated postgres identity does not match"
+[[ "$(pg_query "SELECT count(*) FROM pg_roles WHERE rolname = '${DATABASE_OWNER_ROLE}' AND rolcanlogin")" == "1" ]] || die "target owner role is missing"
 [[ "$(pg_query "SELECT count(*) FROM pg_roles WHERE rolname = '${RUNTIME_ROLE}' AND NOT rolsuper AND NOT rolcreatedb AND NOT rolcreaterole")" == "1" ]] || die "runtime role is missing or over-privileged"
 [[ "$(pg_query "SELECT count(*) FROM pg_database WHERE datname = '${SOURCE_DATABASE}'")" == "1" ]] || die "migration source database is missing"
+[[ -f "${WOW_REBUILD_PGPASSFILE}" && ! -L "${WOW_REBUILD_PGPASSFILE}" ]] \
+  || die "WOW_REBUILD_PGPASSFILE must be an exact regular file"
+[[ "$(stat -c '%a' "${WOW_REBUILD_PGPASSFILE}")" == "600" ]] \
+  || die "WOW_REBUILD_PGPASSFILE must have mode 0600"
+PGPASS_EXACT_SOURCE_ENTRIES="$(awk -F: \
+  -v database="${SOURCE_DATABASE}" -v role="${RUNTIME_ROLE}" \
+  '$1 == "127.0.0.1" && $2 == "5432" && $3 == database && $4 == role && length($5) > 0 {count += 1} END {print count + 0}' \
+  "${WOW_REBUILD_PGPASSFILE}")"
+[[ "${PGPASS_EXACT_SOURCE_ENTRIES}" == "1" ]] \
+  || die "source pgpass needs one exact local wow_app entry"
+[[ "$(PGPASSFILE="${WOW_REBUILD_PGPASSFILE}" psql --no-psqlrc --host=127.0.0.1 --port=5432 \
+  --username="${RUNTIME_ROLE}" --dbname="${SOURCE_DATABASE}" --set=ON_ERROR_STOP=1 \
+  --tuples-only --no-align --command='SELECT current_user || chr(9) || current_database()')" \
+  == "${RUNTIME_ROLE}"$'\t'"${SOURCE_DATABASE}" ]] \
+  || die "explicit source wow_app authentication preflight failed"
 
 SOURCE_DATABASE_BYTES="$(pg_query "SELECT pg_database_size('${SOURCE_DATABASE}')")"
 LIVE_DATABASE_BYTES="$(pg_query "SELECT COALESCE(sum(pg_database_size(datname)), 0) FROM pg_database WHERE NOT datistemplate")"
-ROOT_FREE_BYTES="$(df -PB1 --output=avail "${POSTGRES_DATA_REAL}" | tail -n 1 | tr -d '[:space:]')"
+ROOT_FREE_BYTES="$(df_available_bytes "${POSTGRES_DATA_REAL}")"
 for number in "${SOURCE_DATABASE_BYTES}" "${LIVE_DATABASE_BYTES}" "${ROOT_FREE_BYTES}"; do
   [[ "${number}" =~ ^[0-9]+$ ]] || die "live capacity probe returned an invalid value"
 done
@@ -335,7 +354,7 @@ verify_target_identity() {
   [[ "${forbidden}" == "0" ]] || die "target contains forbidden schemas"
   [[ "${UNEXPECTED_SCHEMA_COUNT}" == "0" ]] || die "target contains an unreviewed schema"
   [[ "${public_object_count}" == "0" ]] || die "target public schema contains unreviewed objects"
-  [[ "${owner}" == "${MANAGEMENT_ROLE}" ]] || die "target database owner is unexpected"
+  [[ "${owner}" == "${DATABASE_OWNER_ROLE}" ]] || die "target database owner is unexpected"
   [[ "${runtime_schema_create}" == "0" && "${runtime_database_create}" == "0" ]] || die "runtime role has schema or database creation power"
   [[ "${runtime_business_delete}" == "0" ]] || die "runtime role has destructive business-table privileges"
 }
@@ -346,7 +365,15 @@ if [[ "${TARGET_DATABASE_EXISTS}" == "1" ]]; then
   die "target database already exists; a fresh clean target is required"
 fi
 
+install -d -o root -g root -m 0700 "${RECOVERY_ROOT}"
+RECOVERY_ROOT_REAL="$(realpath -e "${RECOVERY_ROOT}")"
+[[ "$(stat -c '%a' "${RECOVERY_ROOT_REAL}")" == "700" ]] || die "recovery root must have mode 0700"
+
 RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)-${ACTUAL_INVENTORY_SHA:0:12}"
+VERIFY_DATABASE="chickenbro_restore_verify_${RUN_ID//[-TZ]/_}"
+VERIFY_DATABASE="${VERIFY_DATABASE:0:63}"
+[[ "${VERIFY_DATABASE}" =~ ^chickenbro_restore_verify_[a-zA-Z0-9_]+$ ]] \
+  || die "verification database identity is invalid"
 RECOVERY_RUN_DIR="${RECOVERY_ROOT_REAL}/chickenbro-prod-provision-${RUN_ID}"
 [[ ! -e "${RECOVERY_RUN_DIR}" ]] || die "recovery run identity already exists"
 install -d -o root -g root -m 0700 "${RECOVERY_RUN_DIR}"
@@ -367,9 +394,69 @@ printf '%s\n' "${SOURCE_DATABASE}" > "${RECOVERY_RUN_DIR}/source.database"
 printf '%s\n' "${TARGET_DATABASE}" > "${RECOVERY_RUN_DIR}/target.database"
 chmod 0600 "${RECOVERY_RUN_DIR}"/*
 
+STAGED_PGPASSFILE="${RECOVERY_RUN_DIR}/migration.pgpass"
+# Derive exact source/target/restore pgpass entries without printing the password.
+python3 - \
+  "${WOW_REBUILD_PGPASSFILE}" "${STAGED_PGPASSFILE}" \
+  "${SOURCE_DATABASE}" "${TARGET_DATABASE}" "${VERIFY_DATABASE}" <<'PY'
+import os
+import stat
+import sys
+
+source_path, output_path, source_database, target_database, restore_database = sys.argv[1:]
+source_stat = os.lstat(source_path)
+if stat.S_ISLNK(source_stat.st_mode) or not stat.S_ISREG(source_stat.st_mode):
+    raise SystemExit("source pgpass must be a regular non-symlink file")
+if stat.S_IMODE(source_stat.st_mode) != 0o600:
+    raise SystemExit("source pgpass must have mode 0600")
+
+def split_pgpass(line):
+    fields, current, escaped = [], [], False
+    for character in line.rstrip("\n"):
+        if escaped:
+            current.extend(("\\", character))
+            escaped = False
+        elif character == "\\":
+            escaped = True
+        elif character == ":" and len(fields) < 4:
+            fields.append("".join(current))
+            current = []
+        else:
+            current.append(character)
+    if escaped:
+        current.append("\\")
+    fields.append("".join(current))
+    return fields
+
+matches = []
+with open(source_path, encoding="utf-8") as source:
+    for line in source:
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        fields = split_pgpass(line)
+        if len(fields) == 5 and fields[:4] == ["127.0.0.1", "5432", source_database, "wow_app"]:
+            matches.append(fields[4])
+if len(matches) != 1 or not matches[0]:
+    raise SystemExit("source pgpass needs one exact local wow_app entry")
+
+descriptor = os.open(output_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+with os.fdopen(descriptor, "w", encoding="utf-8") as output:
+    for database in (source_database, target_database, restore_database):
+        output.write(f"127.0.0.1:5432:{database}:wow_app:{matches[0]}\n")
+    output.flush()
+    os.fsync(output.fileno())
+PY
+[[ "$(stat -c '%a' "${STAGED_PGPASSFILE}")" == "600" ]] \
+  || die "staged pgpass must have mode 0600"
+[[ "$(PGPASSFILE="${STAGED_PGPASSFILE}" psql --no-psqlrc --host=127.0.0.1 --port=5432 \
+  --username="${RUNTIME_ROLE}" --dbname="${SOURCE_DATABASE}" --set=ON_ERROR_STOP=1 \
+  --tuples-only --no-align --command='SELECT current_user || chr(9) || current_database()')" \
+  == "${RUNTIME_ROLE}"$'\t'"${SOURCE_DATABASE}" ]] \
+  || die "explicit source wow_app authentication preflight failed"
+
 sudo -n -u postgres createdb \
-  --username="${MANAGEMENT_ROLE}" \
-  --owner="${MANAGEMENT_ROLE}" \
+  --username=postgres \
+  --owner="${DATABASE_OWNER_ROLE}" \
   --template=template0 \
   --encoding=UTF8 \
   "${TARGET_DATABASE}"
@@ -380,25 +467,25 @@ while IFS= read -r migration; do
   [[ "${migration_id}" =~ ^[0-9]{4}_[a-z0-9_]+$ ]] || die "migration filename is invalid"
   sudo -n -u postgres psql \
     --no-psqlrc \
-    --username="${MANAGEMENT_ROLE}" \
+    --username=postgres \
     --dbname="${TARGET_DATABASE}" \
     --set=ON_ERROR_STOP=1 \
     --single-transaction \
+    --command="SET ROLE ${DATABASE_OWNER_ROLE}" \
     --file="${migration}" \
     --command="INSERT INTO ops.schema_migrations (id, description) VALUES ('${migration_id}', 'Apply clean product migration ${migration_id}') ON CONFLICT (id) DO NOTHING"
 done < <(find "${MIGRATION_DIR}" -maxdepth 1 -type f -name '[0-9][0-9][0-9][0-9]_*.sql' -print | LC_ALL=C sort)
 
 verify_target_identity
-
-[[ -f "${WOW_REBUILD_PGPASSFILE}" && ! -L "${WOW_REBUILD_PGPASSFILE}" ]] \
-  || die "WOW_REBUILD_PGPASSFILE must be an exact regular file"
-[[ "$(stat -c '%a' "${WOW_REBUILD_PGPASSFILE}")" == "600" ]] \
-  || die "WOW_REBUILD_PGPASSFILE must have mode 0600"
+[[ "$(PGPASSFILE="${STAGED_PGPASSFILE}" psql --no-psqlrc --host=127.0.0.1 --port=5432 \
+  --username="${RUNTIME_ROLE}" --dbname="${TARGET_DATABASE}" --set=ON_ERROR_STOP=1 \
+  --tuples-only --no-align --command='SELECT current_database()')" == "${TARGET_DATABASE}" ]] \
+  || die "explicit target wow_app authentication preflight failed"
 MIGRATION_REPORT="${RECOVERY_RUN_DIR}/migration-report.json"
 RESTORE_RECONCILIATION="${RECOVERY_RUN_DIR}/restore-reconciliation.json"
 SOURCE_DATABASE_URL="postgresql://${RUNTIME_ROLE}@127.0.0.1:5432/${SOURCE_DATABASE}"
 TARGET_DATABASE_URL="postgresql://${RUNTIME_ROLE}@127.0.0.1:5432/${TARGET_DATABASE}"
-PGPASSFILE="${WOW_REBUILD_PGPASSFILE}" \
+PGPASSFILE="${STAGED_PGPASSFILE}" \
 CHICKENBRO_LEGACY_SOURCE_DATABASE_URL="${SOURCE_DATABASE_URL}" \
 WOW_DATABASE_URL="${TARGET_DATABASE_URL}" \
 WOW_MIGRATION_WECHAT_APP_CONTEXT="${WOW_MIGRATION_WECHAT_APP_CONTEXT}" \
@@ -422,7 +509,7 @@ PY
 
 TARGET_DATABASE_BYTES="$(pg_query "SELECT pg_database_size('${TARGET_DATABASE}')")"
 [[ "${TARGET_DATABASE_BYTES}" =~ ^[0-9]+$ ]] || die "target database size is invalid"
-ROOT_FREE_BYTES="$(df -PB1 --output=avail "${POSTGRES_DATA_REAL}" | tail -n 1 | tr -d '[:space:]')"
+ROOT_FREE_BYTES="$(df_available_bytes "${POSTGRES_DATA_REAL}")"
 REQUIRED_RECOVERY_BYTES=$(( TARGET_DATABASE_BYTES * 2 + 1073741824 ))
 (( ROOT_FREE_BYTES >= REQUIRED_RECOVERY_BYTES )) \
   || die "insufficient space for whitelist archive and isolated restore verification"
@@ -430,7 +517,7 @@ REQUIRED_RECOVERY_BYTES=$(( TARGET_DATABASE_BYTES * 2 + 1073741824 ))
 WHITELIST_ARCHIVE="${RECOVERY_RUN_DIR}/business-whitelist.dump"
 WHITELIST_RESTORE_LIST="${RECOVERY_RUN_DIR}/business-whitelist.restore-list"
 sudo -n -u postgres pg_dump \
-  --username="${MANAGEMENT_ROLE}" \
+  --username=postgres \
   --format=custom \
   --dbname="${TARGET_DATABASE}" > "${WHITELIST_ARCHIVE}"
 chmod 0600 "${WHITELIST_ARCHIVE}"
@@ -441,32 +528,30 @@ chmod 0600 "${WHITELIST_RESTORE_LIST}"
 WHITELIST_ARCHIVE_SHA="$(sha256_file "${WHITELIST_ARCHIVE}")"
 WHITELIST_ARCHIVE_BYTES="$(stat -c '%s' "${WHITELIST_ARCHIVE}")"
 
-VERIFY_DATABASE="chickenbro_restore_verify_${RUN_ID//[-TZ]/_}"
-VERIFY_DATABASE="${VERIFY_DATABASE:0:63}"
-[[ "${VERIFY_DATABASE}" =~ ^chickenbro_restore_verify_[a-zA-Z0-9_]+$ ]] \
-  || die "verification database identity is invalid"
 sudo -n -u postgres createdb \
-  --username="${MANAGEMENT_ROLE}" \
-  --owner="${MANAGEMENT_ROLE}" \
+  --username=postgres \
+  --owner="${DATABASE_OWNER_ROLE}" \
   --template=template0 \
   --encoding=UTF8 \
   "${VERIFY_DATABASE}"
 sudo -n -u postgres pg_restore \
   --exit-on-error \
-  --no-owner \
-  --username="${MANAGEMENT_ROLE}" \
+  --username=postgres \
   --dbname="${VERIFY_DATABASE}" \
   "${WHITELIST_ARCHIVE}"
 VERIFY_DATABASE_URL="postgresql://${RUNTIME_ROLE}@127.0.0.1:5432/${VERIFY_DATABASE}"
-PGPASSFILE="${WOW_REBUILD_PGPASSFILE}" \
-CHICKENBRO_LEGACY_SOURCE_DATABASE_URL="${SOURCE_DATABASE_URL}" \
-WOW_DATABASE_URL="${VERIFY_DATABASE_URL}" \
-WOW_MIGRATION_WECHAT_APP_CONTEXT="${WOW_MIGRATION_WECHAT_APP_CONTEXT}" \
+[[ "$(PGPASSFILE="${STAGED_PGPASSFILE}" psql --no-psqlrc --host=127.0.0.1 --port=5432 \
+  --username="${RUNTIME_ROLE}" --dbname="${VERIFY_DATABASE}" --set=ON_ERROR_STOP=1 \
+  --tuples-only --no-align --command='SELECT current_database()')" == "${VERIFY_DATABASE}" ]] \
+  || die "explicit restore wow_app authentication preflight failed"
+PGPASSFILE="${STAGED_PGPASSFILE}" \
+WOW_DATABASE_URL="${TARGET_DATABASE_URL}" \
+CHICKENBRO_RESTORE_DATABASE_URL="${VERIFY_DATABASE_URL}" \
 PYTHONPATH="${REPO_ROOT}" \
   "${MIGRATION_RUNTIME_PYTHON}" -m server.migrations.product.postgres_legacy \
-    --mode full \
-    --expected-source-database "${SOURCE_DATABASE}" \
-    --expected-target-database "${VERIFY_DATABASE}" \
+    --mode verify-restore \
+    --expected-target-database "${TARGET_DATABASE}" \
+    --expected-restore-database "${VERIFY_DATABASE}" \
     --report-path "${RESTORE_RECONCILIATION}"
 python3 - "${RESTORE_RECONCILIATION}" <<'PY'
 import json
@@ -474,10 +559,10 @@ import sys
 from pathlib import Path
 
 payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-if payload.get("sourceMode") != "repeatable_read_read_only":
-    raise SystemExit("restore reconciliation source was not read-only")
-if payload.get("reconciliation", {}).get("status") != "matched":
-    raise SystemExit("MIGRATION_RECONCILIATION_DIVERGED")
+if payload.get("sourceMode") != "candidate_and_restore_repeatable_read_read_only":
+    raise SystemExit("restore comparison was not read-only")
+if payload.get("comparison", {}).get("status") != "matched":
+    raise SystemExit("RESTORE_DATABASE_IDENTITY_MISMATCH")
 PY
 
 MIGRATION_REPORT_SHA="$(sha256_file "${MIGRATION_REPORT}")"

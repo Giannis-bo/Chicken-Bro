@@ -48,6 +48,10 @@ class ChickenbroSimcCapacityCleanupManifestTest(unittest.TestCase):
         recovery_inventory = ROOT / payload["evidence"]["recoveryInventory"]
         self.assertTrue(recovery_inventory.is_file())
         self.assertEqual(payload["totalCandidateBytes"], sum(EXPECTED_DATABASES.values()))
+        self.assertEqual(
+            payload["evidence"]["configurationScanRoots"],
+            ["/etc", "/opt/chickenbro", "/opt/wow-mini-program", "/opt/wow-v2-staging", "/var/www"],
+        )
 
         candidates = {item["name"]: item for item in payload["candidates"]}
         self.assertEqual(set(candidates), set(EXPECTED_DATABASES))
@@ -71,6 +75,9 @@ class ChickenbroSimcCapacityCleanupManifestTest(unittest.TestCase):
         self.assertIn("fresh exact target identity from Tencent instance metadata", requirements)
         self.assertIn("fresh zero-connection, zero-reference and zero-open-handle probe per exact database", requirements)
         self.assertIn("explicit wow_test read-only protection", requirements)
+        self.assertIn("fresh table and row count comparison for every exact database", requirements)
+        self.assertIn("regular non-symlink companion env with exact /etc realpath and content hash", requirements)
+        self.assertIn("all-pair mutation-free preflight followed by durable per-pair boundary journals", requirements)
         self.assertFalse(any("archive for every exact database" in item for item in requirements))
         self.assertEqual(
             payload["capacityCleanupCompanions"],

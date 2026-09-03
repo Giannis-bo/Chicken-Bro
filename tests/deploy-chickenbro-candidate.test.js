@@ -245,6 +245,8 @@ test('candidate deploy is content-addressed, candidate-only, reversible and exac
   assert.match(script, /metadata\.tencentyun\.com\/latest\/meta-data\/placement\/region/)
   assert.match(script, /metadata\.tencentyun\.com\/latest\/meta-data\/placement\/zone/)
   assert.doesNotMatch(script, /independent backup mount|backup and PostgreSQL data share a device/)
+  assert.match(script, /df -B1 --output=avail \/var\/lib\/postgresql/)
+  assert.doesNotMatch(script, /df -P(?:B1)? --output=avail/)
 
   assert.match(script, /server\/migrations\/product\/0001_chickenbro_simc_core\.sql/)
   assert.match(script, /server\/migrations\/product\/0002_chat_idempotent_replay\.sql/)
