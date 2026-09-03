@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { WebLoginCreated, WebLoginStatusResponse } from '@wow-mini/domain'
 
 import {
+  WebAuthIntentFence,
   initialWebAuthState,
   reduceWebAuthState,
   selectWebLoginCreateAttempt,
@@ -40,7 +41,7 @@ describe('Web auth browser state model', () => {
   it('keeps the status machine honest across confirmation and terminal states', () => {
     const pending = reduceWebAuthState(initialWebAuthState, { type: 'created', payload: validCreated })
     const confirmed = reduceWebAuthState(pending, { type: 'status', payload: validStatus('confirmed') })
-    expect(confirmed).toMatchObject({ phase: 'qr_confirmed', polling: true })
+    expect(confirmed).toMatchObject({ phase: 'qr_confirmed', polling: false })
 
     const expired = reduceWebAuthState(confirmed, { type: 'status', payload: validStatus('expired') })
     expect(expired).toMatchObject({ phase: 'signed_out', polling: false, errorCode: 'WEB_LOGIN_EXPIRED' })
@@ -48,11 +49,28 @@ describe('Web auth browser state model', () => {
     const cancelled = reduceWebAuthState(confirmed, { type: 'status', payload: validStatus('cancelled') })
     expect(cancelled).toMatchObject({ phase: 'signed_out', polling: false, errorCode: 'WEB_LOGIN_CANCELLED' })
 
-    const consumed = reduceWebAuthState(confirmed, { type: 'status', payload: validStatus('consumed') })
+    const consumed = reduceWebAuthState(pending, { type: 'status', payload: validStatus('consumed') })
     expect(consumed).toMatchObject({ phase: 'checking', polling: false })
+
+    const consumedWhileExchanging = reduceWebAuthState(confirmed, {
+      type: 'status',
+      payload: validStatus('consumed'),
+    })
+    expect(consumedWhileExchanging).toEqual(confirmed)
 
     const authenticated = reduceWebAuthState(confirmed, { type: 'authenticated' })
     expect(authenticated).toMatchObject({ phase: 'authenticated', polling: false })
+  })
+
+  it('never lets a late poll resurrect a terminal QR session', () => {
+    const pending = reduceWebAuthState(initialWebAuthState, { type: 'created', payload: validCreated })
+    const cancelled = reduceWebAuthState(pending, { type: 'status', payload: validStatus('cancelled') })
+    const afterLatePending = reduceWebAuthState(cancelled, { type: 'status', payload: validStatus('pending') })
+    expect(afterLatePending).toEqual(cancelled)
+
+    const consumed = reduceWebAuthState(pending, { type: 'status', payload: validStatus('consumed') })
+    const afterLateConfirmed = reduceWebAuthState(consumed, { type: 'status', payload: validStatus('confirmed') })
+    expect(afterLateConfirmed).toEqual(consumed)
   })
 
   it('turns transport failures into a visible blocked state and logout into signed out', () => {
@@ -128,5 +146,19 @@ describe('Web auth browser state model', () => {
     expect(shouldDiscardWebLoginCreateAttempt('WEB_LOGIN_RESTART_REQUIRED')).toBe(true)
     expect(shouldDiscardWebLoginCreateAttempt('WECHAT_PROVIDER_UNAVAILABLE')).toBe(false)
     expect(shouldDiscardWebLoginCreateAttempt(undefined)).toBe(false)
+  })
+
+  it('lets only the latest asynchronous auth intent update browser state', () => {
+    const fence = new WebAuthIntentFence()
+    const initialCheck = fence.begin()
+    expect(fence.isCurrent(initialCheck)).toBe(true)
+
+    const qrLogin = fence.begin()
+    expect(fence.isCurrent(initialCheck)).toBe(false)
+    expect(fence.isCurrent(qrLogin)).toBe(true)
+    expect(fence.capture()).toBe(qrLogin)
+
+    fence.invalidate()
+    expect(fence.isCurrent(qrLogin)).toBe(false)
   })
 })

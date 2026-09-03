@@ -120,6 +120,8 @@ Phase 2 的 product schema、domain、repository 与 application 已把正式终
 
 二维码和 scene 明文只存在于生成它们的 API 进程内，数据库仍只保存 hash。进程内对同一 verifier 与 `Idempotency-Key` 的创建请求串行合并；二维码重放缓存同时受票据 TTL 和固定条目上限约束，进入 `cancelled`、`expired` 或 `consumed` 后立即释放。PostgreSQL 插入使用唯一约束兜住跨进程竞争；竞争失败或同一幂等创建请求跨越进程重启时，服务端返回 `WEB_LOGIN_RESTART_REQUIRED`。Web 端只在这个明确不可恢复的错误下丢弃旧请求身份并生成新二维码，普通网络结果不确定时仍复用原 verifier 与 `Idempotency-Key`。
 
+Web 登录检查、二维码创建、状态轮询、确认交换、取消和退出共用单调 intent generation；新用户操作和页面卸载会使旧响应失效。观察到 `confirmed` 后立即停止状态轮询，只由 exchange 响应落 Cookie 并恢复账户；晚到的 `pending`/`consumed` 状态不能复活终态二维码，也不能抢在 `Set-Cookie` 前把界面错误地退回未登录。
+
 Web Session Cookie 固定为 HttpOnly、Secure 的 `__Host-chickenbro-session`；双提交 CSRF Cookie 固定为 JavaScript 可读、Secure 的 `__Host-chickenbro-csrf`。两者均为 SameSite=Lax、Path=/、无 Domain。Cookie 写请求还必须通过精确 Origin/Host 与常量时间 CSRF 比对；Mini 写请求只使用 Bearer，不使用 Web Cookie/CSRF。混合 Cookie/Bearer 或跨 transport 使用 token 固定拒绝。
 
 Identity API 的请求体拒绝额外字段，并在调用微信 provider 前完成 verifier、code 与 scene 的长度和字符边界校验。双端 response guard 只接受每个端点约定的精确字段集合和可选 `requestId`；任何额外的 `userId`、OpenID、token 或其他身份字段都按非法响应失败关闭。

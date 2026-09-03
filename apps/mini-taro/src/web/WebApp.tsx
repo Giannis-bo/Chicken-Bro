@@ -17,6 +17,7 @@ import {
   reduceWebAuthState,
   selectWebLoginCreateAttempt,
   shouldDiscardWebLoginCreateAttempt,
+  WebAuthIntentFence,
   type WebLoginCreateAttempt,
   type WebAuthState,
   type WebAuthStateEvent,
@@ -94,14 +95,18 @@ export default function WebApp({ authClient = wowApi.webAuth }: WebAppProps) {
   const exchangeStartedRef = useRef(false)
   const createAttemptRef = useRef<WebLoginCreateAttempt | null>(null)
   const createInFlightRef = useRef(false)
+  const authIntentRef = useRef(new WebAuthIntentFence())
   stateRef.current = state
 
   const dispatch = useCallback((event: WebAuthStateEvent) => {
     setState((current) => reduceWebAuthState(current, event))
   }, [])
 
-  const loadAccount = useCallback(async (): Promise<boolean> => {
+  const loadAccount = useCallback(async (existingIntent?: number): Promise<boolean> => {
+    const intent = existingIntent ?? authIntentRef.current.begin()
+    if (!authIntentRef.current.isCurrent(intent)) return false
     const result = await webAuth.me()
+    if (!authIntentRef.current.isCurrent(intent)) return false
     if (!result.fromFallback && isMeResponse(result.payload)) {
       try {
         const csrfToken = readWebCsrfCookie()
@@ -133,6 +138,8 @@ export default function WebApp({ authClient = wowApi.webAuth }: WebAppProps) {
     return false
   }, [dispatch, webAuth])
 
+  useEffect(() => () => authIntentRef.current.invalidate(), [])
+
   useEffect(() => {
     if (state.phase !== 'checking') return
     void loadAccount()
@@ -146,14 +153,15 @@ export default function WebApp({ authClient = wowApi.webAuth }: WebAppProps) {
 
   useEffect(() => {
     if (
-      (state.phase !== 'qr_pending' && state.phase !== 'qr_confirmed')
+      state.phase !== 'qr_pending'
       || !state.sessionId
       || !verifierRef.current
     ) return undefined
     let active = true
+    const intent = authIntentRef.current.capture()
     const poll = async () => {
       const result = await webAuth.statusWebLoginSession(state.sessionId, verifierRef.current)
-      if (!active) return
+      if (!active || !authIntentRef.current.isCurrent(intent)) return
       if (result.fromFallback) {
         dispatch(statusFailureEvent(result))
         return
@@ -176,15 +184,19 @@ export default function WebApp({ authClient = wowApi.webAuth }: WebAppProps) {
       || exchangeStartedRef.current
     ) return
     exchangeStartedRef.current = true
+    const intent = authIntentRef.current.capture()
     const exchange = async () => {
       const result = await webAuth.exchangeWebLoginSession(state.sessionId, verifierRef.current)
+      if (!authIntentRef.current.isCurrent(intent)) return
       if (result.fromFallback) {
         exchangeStartedRef.current = false
         dispatch({ type: 'blocked', ...publicProblem(result, 'Web 会话建立失败，请重试') })
         return
       }
-      const connected = await loadAccount()
-      if (!connected) exchangeStartedRef.current = false
+      const connected = await loadAccount(intent)
+      if (!connected && authIntentRef.current.isCurrent(intent)) {
+        exchangeStartedRef.current = false
+      }
     }
     void exchange()
   }, [dispatch, loadAccount, state.phase, state.sessionId, webAuth])
@@ -200,6 +212,7 @@ export default function WebApp({ authClient = wowApi.webAuth }: WebAppProps) {
       !replaceActive
       && (stateRef.current.phase === 'qr_pending' || stateRef.current.phase === 'qr_confirmed')
     ) return
+    const intent = authIntentRef.current.begin()
     exchangeStartedRef.current = false
     setAccount(null)
     setAuthContext(null)
@@ -218,6 +231,10 @@ export default function WebApp({ authClient = wowApi.webAuth }: WebAppProps) {
         attempt.browserVerifier,
         attempt.idempotencyKey,
       )
+      if (!authIntentRef.current.isCurrent(intent)) {
+        if (createAttemptRef.current === attempt) createAttemptRef.current = null
+        return
+      }
       if (result.fromFallback) {
         if (
           shouldDiscardWebLoginCreateAttempt(result.problemCode)
@@ -229,6 +246,7 @@ export default function WebApp({ authClient = wowApi.webAuth }: WebAppProps) {
       if (createAttemptRef.current === attempt) createAttemptRef.current = null
       dispatch({ type: 'created', payload: result.payload })
     } catch (error) {
+      if (!authIntentRef.current.isCurrent(intent)) return
       const code = error instanceof Error ? error.message : 'AUTH_REQUEST_FAILED'
       dispatch({
         type: 'blocked',
@@ -246,7 +264,9 @@ export default function WebApp({ authClient = wowApi.webAuth }: WebAppProps) {
       || !verifierRef.current
       || (state.phase !== 'qr_pending' && state.phase !== 'qr_confirmed')
     ) return
+    const intent = authIntentRef.current.begin()
     const result = await webAuth.cancelWebLoginSession(state.sessionId, verifierRef.current)
+    if (!authIntentRef.current.isCurrent(intent)) return
     if (result.fromFallback) {
       dispatch({ type: 'blocked', ...publicProblem(result, '取消登录失败，请稍后重试') })
       return
@@ -255,11 +275,13 @@ export default function WebApp({ authClient = wowApi.webAuth }: WebAppProps) {
   }
 
   const logout = async () => {
+    const intent = authIntentRef.current.begin()
     if (!authContext) {
       dispatch({ type: 'logout' })
       return
     }
     const result = await webAuth.logout(authContext)
+    if (!authIntentRef.current.isCurrent(intent)) return
     if (result.fromFallback) {
       dispatch({ type: 'blocked', ...publicProblem(result, '退出登录失败，请稍后重试') })
       return

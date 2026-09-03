@@ -44,6 +44,27 @@ export const initialWebAuthState: WebAuthState = {
   errorMessage: '',
 }
 
+export class WebAuthIntentFence {
+  private generation = 0
+
+  begin(): number {
+    this.generation += 1
+    return this.generation
+  }
+
+  capture(): number {
+    return this.generation
+  }
+
+  isCurrent(generation: number): boolean {
+    return generation === this.generation
+  }
+
+  invalidate(): void {
+    this.generation += 1
+  }
+}
+
 function signedOutState(code = '', message = ''): WebAuthState {
   return {
     ...initialWebAuthState,
@@ -78,6 +99,10 @@ export function reduceWebAuthState(state: WebAuthState, event: WebAuthStateEvent
   }
 
   if (event.type === 'status') {
+    if (
+      !state.sessionId
+      || !['qr_pending', 'qr_confirmed', 'blocked'].includes(state.phase)
+    ) return state
     if (event.payload.status === 'expired') {
       return signedOutState('WEB_LOGIN_EXPIRED', '二维码已过期，请重新生成')
     }
@@ -85,6 +110,7 @@ export function reduceWebAuthState(state: WebAuthState, event: WebAuthStateEvent
       return signedOutState('WEB_LOGIN_CANCELLED', '登录已取消，请重新生成')
     }
     if (event.payload.status === 'consumed') {
+      if (state.phase === 'qr_confirmed') return state
       return {
         ...initialWebAuthState,
         phase: 'checking',
@@ -98,7 +124,7 @@ export function reduceWebAuthState(state: WebAuthState, event: WebAuthStateEvent
       ...state,
       phase,
       expiresAt: event.payload.expiresAt,
-      polling: true,
+      polling: phase === 'qr_pending',
       errorCode: '',
       errorMessage: '',
     }
