@@ -8,15 +8,38 @@ INVENTORY = ROOT / "docs" / "refactor" / "chickenbro-simc-recovery-inventory.jso
 
 
 class ChickenbroSimcRecoveryInventoryTest(unittest.TestCase):
-    def test_recovery_inventory_is_exact_and_fail_closed(self):
+    def test_recovery_inventory_invalidates_stale_provider_evidence_and_uses_business_whitelist(self):
         inventory = json.loads(INVENTORY.read_text(encoding="utf-8"))
 
-        self.assertEqual(inventory["schemaVersion"], 1)
+        self.assertEqual(inventory["schemaVersion"], 2)
         self.assertEqual(
             inventory["status"],
-            "read_only_insufficient_for_cleanup_or_candidate",
+            "corrected_recovery_contract_apply_not_run",
         )
         self.assertFalse(inventory["mutationPerformed"])
+
+        invalidated = inventory["invalidatedProviderInventory"]
+        self.assertEqual(invalidated["instanceId"], "lhins-dr6tkl63")
+        self.assertEqual(invalidated["region"], "ap-guangzhou")
+        self.assertFalse(invalidated["validForTarget"])
+
+        target = inventory["targetIdentity"]
+        self.assertEqual(target["provider"], "tencent_cvm")
+        self.assertEqual(target["instanceId"], "ins-93tgv1rb")
+        self.assertEqual(target["region"], "ap-shanghai")
+        self.assertEqual(target["zone"], "ap-shanghai-2")
+        self.assertEqual(target["publicAddress"], "124.223.51.33")
+        self.assertEqual(target["sshTarget"], "wow-lighthouse")
+        self.assertTrue(target["refreshRequiredBeforeApply"])
+
+        recovery = inventory["businessWhitelistRecovery"]
+        self.assertEqual(recovery["sourceDatabase"], "wow_test")
+        self.assertEqual(recovery["sourceMode"], "read_only")
+        self.assertEqual(recovery["status"], "not_run")
+        self.assertEqual(recovery["manifestSchema"], "chickenbro-whitelist-recovery-v1")
+        self.assertEqual(recovery["candidateDatabase"], "chickenbro_prod")
+        self.assertEqual(recovery["verificationDatabasePattern"], "chickenbro_restore_verify_*")
+        self.assertEqual(inventory["rejectedEvidenceDatabases"]["recoveryRequired"], False)
 
         snapshots = inventory["providerSnapshots"]
         self.assertEqual(snapshots["visibleCount"], 1)
@@ -28,50 +51,12 @@ class ChickenbroSimcRecoveryInventoryTest(unittest.TestCase):
         self.assertEqual(snapshot["containsCurrentDatabaseState"], "unproven")
         self.assertFalse(snapshot["usableForCurrentCleanup"])
 
-        cloud_disks = inventory["providerCloudDisks"]
-        self.assertEqual(cloud_disks["observedRegion"], "广州")
-        self.assertEqual(cloud_disks["visibleCount"], 135)
-        self.assertEqual(cloud_disks["unattachedCount"], 0)
-        self.assertFalse(cloud_disks["reusableIndependentDiskPresent"])
-
-        object_storage = inventory["providerObjectStorage"]
-        self.assertEqual(object_storage["visibleBucketCount"], 37)
-        self.assertEqual(object_storage["pageCount"], 4)
-        self.assertEqual(object_storage["firstPageSampleCount"], 10)
-        self.assertEqual(object_storage["firstPageMainlandPrivateBucketCount"], 7)
-        self.assertTrue(object_storage["existingMainlandPrivateTargetPresent"])
-        self.assertEqual(object_storage["candidateStatus"], "potential_only")
-        self.assertFalse(object_storage["usableForCurrentCleanup"])
-        self.assertTrue(
-            all(
-                package["remainingCapacity"] == "unproven"
-                for package in object_storage["capacityPackages"]
-            )
-        )
-
-        channels = inventory["serverBackupChannels"]
-        self.assertFalse(channels["independentMountPresent"])
-        self.assertFalse(channels["objectStorageClientConfigured"])
-        self.assertFalse(channels["instanceCamRoleBound"])
-        self.assertEqual(
-            channels["reviewedObjectStorageCredentialNameMatchCount"],
-            0,
-        )
-        self.assertEqual(channels["availableClientTools"], [])
-        pg_basebackup = channels["pgBasebackupTemplate"]
-        self.assertTrue(pg_basebackup["present"])
-        self.assertEqual(pg_basebackup["enabledInstanceCount"], 0)
-        self.assertEqual(
-            pg_basebackup["postgresDataDeviceId"],
-            pg_basebackup["backupParentDeviceId"],
-        )
-        self.assertFalse(pg_basebackup["independent"])
-
         conclusions = inventory["conclusions"]
         self.assertFalse(conclusions["currentIndependentBackup"])
-        self.assertFalse(conclusions["successfulRestoreIdentity"])
+        self.assertFalse(conclusions["whitelistRestoreVerified"])
         self.assertFalse(conclusions["candidateDatabaseProvisioningAuthorized"])
-        self.assertFalse(conclusions["legacyDatabaseDeletionAuthorized"])
+        self.assertFalse(conclusions["capacityPreCleanupAuthorized"])
+        self.assertFalse(conclusions["wowTestRetirementAuthorized"])
 
 
 if __name__ == "__main__":

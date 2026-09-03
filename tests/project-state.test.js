@@ -52,21 +52,29 @@ test('project state preserves the live safety boundary instead of claiming compl
     phase5Accepted: false,
   })
   assert.deepEqual(state.refactorEvidence.cloudCleanupDryRun, {
-    total: 80,
+    total: 84,
     ready: 0,
-    blocked: 80,
+    blocked: 84,
     unresolvedRequiredTargets: 2,
   })
   assert.equal(state.gates.productionCutoverReady, false)
   assert.equal(state.gates.destructiveCleanupReady, false)
   assert.equal(state.gates.finalUserAcceptance, 'not_run')
   assert.deepEqual(state.gates.cleanupPrerequisites, [
-    'independent_restore_verified_backup',
+    'whitelist_migration_restore_verified',
     'candidate_capacity_gate_passed',
     'real_mini_web_acceptance_passed',
     'first_new_write_reconciled',
     'stable_production_health',
+    'accepted_production_restore_verified',
   ])
+  assert.deepEqual(state.gates.capacityPreCleanup, {
+    authorized: false,
+    exactRejectedDatabaseCount: 4,
+    requiresPhase5Acceptance: false,
+    requiresWhitelistRestoreVerification: true,
+    protectsWowTest: true,
+  })
 })
 
 test('all execution authorities and refactor evidence are explicit existing files', () => {
@@ -77,7 +85,19 @@ test('all execution authorities and refactor evidence are explicit existing file
   for (const relativePath of [...authorities, ...evidence]) {
     assert.equal(exists(relativePath), true, relativePath)
   }
-  assert.equal(state.refactorEvidence.capacityGate, 'blocked_until_independent_recovery_or_storage_expansion')
+  assert.equal(
+    state.refactorEvidence.capacityGate,
+    'blocked_until_whitelist_recovery_and_exact_capacity_cleanup_or_storage_expansion',
+  )
+  assert.deepEqual(state.refactorEvidence.targetIdentity, {
+    provider: 'tencent_cvm',
+    instanceId: 'ins-93tgv1rb',
+    region: 'ap-shanghai',
+    zone: 'ap-shanghai-2',
+    publicAddress: '124.223.51.33',
+    sshTarget: 'wow-lighthouse',
+    refreshRequiredBeforeApply: true,
+  })
   assert.equal(state.refactorEvidence.localCleanupApplyAllowed, false)
   assert.equal(state.refactorEvidence.cloudCleanupApplyAllowed, false)
 })

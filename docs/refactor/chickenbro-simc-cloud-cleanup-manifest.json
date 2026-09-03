@@ -1,14 +1,23 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "mode": "dry-run",
-  "generatedAt": "2026-09-02T23:32:52Z",
+  "generatedAt": "2026-09-03T03:07:52Z",
   "deletionAuthorized": false,
-  "status": "blocked_pending_phase5_acceptance_independent_restore_and_fresh_remote_probes",
+  "status": "blocked_pending_whitelist_restore_and_fresh_remote_probes",
   "sourceInventory": {
     "path": "docs/refactor/chickenbro-simc-cloud-inventory.json",
-    "sha256": "1466a227e882125ddd342c9518025b583b7bbead80dabb193f29997ff41e80c6",
+    "sha256": "d0247ebdc497541315f1dc3d223ba290ea1ba9d43e14f40a42278693ec23a98c",
     "observedAt": "2026-09-02T13:43:05Z",
     "freshness": "stale_requires_refresh_before_apply"
+  },
+  "targetIdentity": {
+    "provider": "tencent_cvm",
+    "instanceId": "ins-93tgv1rb",
+    "region": "ap-shanghai",
+    "zone": "ap-shanghai-2",
+    "publicAddress": "124.223.51.33",
+    "sshTarget": "wow-lighthouse",
+    "refreshRequiredBeforeApply": true
   },
   "productionAcceptance": {
     "status": "not_run",
@@ -17,15 +26,38 @@
     "firstNewWriteReconciled": false,
     "stableHealthWindowCompleted": false
   },
-  "independentRecovery": {
-    "status": "missing",
-    "manifestPath": "/mnt/chickenbro-backups/restore-verified.json",
+  "businessRecovery": {
+    "status": "not_run",
+    "manifestSchema": "chickenbro-whitelist-recovery-v1",
+    "manifestPath": "/var/lib/chickenbro-recovery/whitelist-recovery.json",
     "manifestSha256": null,
+    "sourceDatabase": "wow_test",
+    "sourceMode": "read_only",
     "isolatedRestoreIdentity": null
   },
+  "acceptedProductionRecovery": {
+    "status": "not_run",
+    "manifestSchema": "chickenbro-accepted-production-recovery-v1",
+    "manifestPath": null,
+    "manifestSha256": null,
+    "sourceDatabase": "chickenbro_prod",
+    "isolatedRestoreIdentity": null
+  },
+  "capacityPreCleanup": {
+    "authorized": false,
+    "requiresPhase5Acceptance": false,
+    "protectsWowTest": true,
+    "rejectedEvidenceRecoveryRequired": false,
+    "exactDatabaseAllowlist": [
+      "wow_gear_evidence_01adf184_r14",
+      "wow_gear_evidence_0be65754_r24",
+      "wow_gear_evidence_145dee16_r22",
+      "wow_gear_evidence_15f514d5_r23"
+    ]
+  },
   "quarantine": {
-    "root": "/mnt/chickenbro-backups/quarantine",
-    "independentDeviceRequired": true,
+    "root": "/var/lib/chickenbro-retirement-quarantine",
+    "independentDeviceRequired": false,
     "permanentDeletionAuthorized": false
   },
   "protectedResources": [
@@ -190,7 +222,7 @@
         "stable_production_health_not_proven",
         "fresh_reference_probe_required",
         "unit_file_identity_missing",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -216,7 +248,7 @@
         "stable_production_health_not_proven",
         "fresh_reference_probe_required",
         "unit_file_identity_missing",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -242,7 +274,7 @@
         "stable_production_health_not_proven",
         "fresh_reference_probe_required",
         "unit_file_identity_missing",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -268,7 +300,7 @@
         "stable_production_health_not_proven",
         "fresh_reference_probe_required",
         "unit_file_identity_missing",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -294,7 +326,7 @@
         "stable_production_health_not_proven",
         "fresh_reference_probe_required",
         "unit_file_identity_missing",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -320,7 +352,7 @@
         "stable_production_health_not_proven",
         "fresh_reference_probe_required",
         "unit_file_identity_missing",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -346,7 +378,7 @@
         "stable_production_health_not_proven",
         "fresh_reference_probe_required",
         "unit_file_identity_missing",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -372,7 +404,7 @@
         "stable_production_health_not_proven",
         "fresh_reference_probe_required",
         "unit_file_identity_missing",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -398,7 +430,7 @@
         "stable_production_health_not_proven",
         "fresh_reference_probe_required",
         "unit_file_identity_missing",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -424,7 +456,7 @@
         "stable_production_health_not_proven",
         "fresh_reference_probe_required",
         "unit_file_identity_missing",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -450,7 +482,7 @@
         "stable_production_health_not_proven",
         "fresh_reference_probe_required",
         "unit_file_identity_missing",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -476,7 +508,7 @@
         "stable_production_health_not_proven",
         "fresh_reference_probe_required",
         "unit_file_identity_missing",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -502,7 +534,7 @@
         "stable_production_health_not_proven",
         "fresh_reference_probe_required",
         "unit_file_identity_missing",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -528,7 +560,7 @@
         "stable_production_health_not_proven",
         "fresh_reference_probe_required",
         "unit_file_identity_missing",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -554,7 +586,7 @@
         "stable_production_health_not_proven",
         "fresh_reference_probe_required",
         "unit_file_identity_missing",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -580,7 +612,7 @@
         "stable_production_health_not_proven",
         "fresh_reference_probe_required",
         "unit_file_identity_missing",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -606,7 +638,7 @@
         "stable_production_health_not_proven",
         "fresh_reference_probe_required",
         "unit_file_identity_missing",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -632,7 +664,7 @@
         "stable_production_health_not_proven",
         "fresh_reference_probe_required",
         "unit_file_identity_missing",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -658,7 +690,7 @@
         "stable_production_health_not_proven",
         "fresh_reference_probe_required",
         "unit_file_identity_missing",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -684,7 +716,7 @@
         "stable_production_health_not_proven",
         "fresh_reference_probe_required",
         "unit_file_identity_missing",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -710,7 +742,7 @@
         "stable_production_health_not_proven",
         "fresh_reference_probe_required",
         "unit_file_identity_missing",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -736,7 +768,7 @@
         "stable_production_health_not_proven",
         "fresh_reference_probe_required",
         "unit_file_identity_missing",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -762,7 +794,7 @@
         "stable_production_health_not_proven",
         "fresh_reference_probe_required",
         "unit_file_identity_missing",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -788,7 +820,7 @@
         "stable_production_health_not_proven",
         "fresh_reference_probe_required",
         "unit_file_identity_missing",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -814,7 +846,7 @@
         "stable_production_health_not_proven",
         "fresh_reference_probe_required",
         "unit_file_identity_missing",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -840,7 +872,7 @@
         "stable_production_health_not_proven",
         "fresh_reference_probe_required",
         "unit_file_identity_missing",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -866,7 +898,7 @@
         "stable_production_health_not_proven",
         "fresh_reference_probe_required",
         "unit_file_identity_missing",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -892,7 +924,7 @@
         "stable_production_health_not_proven",
         "fresh_reference_probe_required",
         "unit_file_identity_missing",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -918,7 +950,7 @@
         "stable_production_health_not_proven",
         "fresh_reference_probe_required",
         "unit_file_identity_missing",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -944,7 +976,7 @@
         "stable_production_health_not_proven",
         "fresh_reference_probe_required",
         "unit_file_identity_missing",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -970,7 +1002,7 @@
         "stable_production_health_not_proven",
         "fresh_reference_probe_required",
         "unit_file_identity_missing",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -996,7 +1028,7 @@
         "stable_production_health_not_proven",
         "fresh_reference_probe_required",
         "unit_file_identity_missing",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -1021,7 +1053,7 @@
         "stable_production_health_not_proven",
         "fresh_zero_connection_probe_required",
         "fresh_configuration_reference_probe_required",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -1046,7 +1078,7 @@
         "stable_production_health_not_proven",
         "fresh_zero_connection_probe_required",
         "fresh_configuration_reference_probe_required",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -1071,7 +1103,7 @@
         "stable_production_health_not_proven",
         "fresh_zero_connection_probe_required",
         "fresh_configuration_reference_probe_required",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -1096,7 +1128,7 @@
         "stable_production_health_not_proven",
         "fresh_zero_connection_probe_required",
         "fresh_configuration_reference_probe_required",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -1121,7 +1153,7 @@
         "stable_production_health_not_proven",
         "fresh_zero_connection_probe_required",
         "fresh_configuration_reference_probe_required",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -1146,7 +1178,7 @@
         "stable_production_health_not_proven",
         "fresh_zero_connection_probe_required",
         "fresh_configuration_reference_probe_required",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -1171,7 +1203,7 @@
         "stable_production_health_not_proven",
         "fresh_zero_connection_probe_required",
         "fresh_configuration_reference_probe_required",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -1196,7 +1228,7 @@
         "stable_production_health_not_proven",
         "fresh_zero_connection_probe_required",
         "fresh_configuration_reference_probe_required",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -1221,7 +1253,7 @@
         "stable_production_health_not_proven",
         "fresh_zero_connection_probe_required",
         "fresh_configuration_reference_probe_required",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -1246,7 +1278,7 @@
         "stable_production_health_not_proven",
         "fresh_zero_connection_probe_required",
         "fresh_configuration_reference_probe_required",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -1271,7 +1303,7 @@
         "stable_production_health_not_proven",
         "fresh_zero_connection_probe_required",
         "fresh_configuration_reference_probe_required",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -1296,7 +1328,7 @@
         "stable_production_health_not_proven",
         "fresh_zero_connection_probe_required",
         "fresh_configuration_reference_probe_required",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -1321,7 +1353,7 @@
         "stable_production_health_not_proven",
         "fresh_zero_connection_probe_required",
         "fresh_configuration_reference_probe_required",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -1346,7 +1378,7 @@
         "stable_production_health_not_proven",
         "fresh_zero_connection_probe_required",
         "fresh_configuration_reference_probe_required",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -1371,7 +1403,7 @@
         "stable_production_health_not_proven",
         "fresh_zero_connection_probe_required",
         "fresh_configuration_reference_probe_required",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -1396,7 +1428,7 @@
         "stable_production_health_not_proven",
         "fresh_zero_connection_probe_required",
         "fresh_configuration_reference_probe_required",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -1421,7 +1453,7 @@
         "stable_production_health_not_proven",
         "fresh_zero_connection_probe_required",
         "fresh_configuration_reference_probe_required",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -1446,7 +1478,7 @@
         "stable_production_health_not_proven",
         "fresh_zero_connection_probe_required",
         "fresh_configuration_reference_probe_required",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -1471,7 +1503,7 @@
         "stable_production_health_not_proven",
         "fresh_zero_connection_probe_required",
         "fresh_configuration_reference_probe_required",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -1496,7 +1528,7 @@
         "stable_production_health_not_proven",
         "fresh_zero_connection_probe_required",
         "fresh_configuration_reference_probe_required",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -1521,7 +1553,7 @@
         "stable_production_health_not_proven",
         "fresh_zero_connection_probe_required",
         "fresh_configuration_reference_probe_required",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -1546,7 +1578,7 @@
         "stable_production_health_not_proven",
         "fresh_zero_connection_probe_required",
         "fresh_configuration_reference_probe_required",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -1571,13 +1603,127 @@
         "stable_production_health_not_proven",
         "fresh_zero_connection_probe_required",
         "fresh_configuration_reference_probe_required",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
+      ]
+    },
+    {
+      "id": "capacity-env-gear-evidence-r14",
+      "kind": "file",
+      "target": "/etc/wow-backend-candidate-gear-evidence-r14.env",
+      "capacityPreCleanup": true,
+      "observed": {
+        "at": null,
+        "dateReceived": "2026-09-03",
+        "source": "user-approved read-only follow-up",
+        "openHandles": 0,
+        "runningProcessReferences": 0,
+        "systemdUnitReferences": []
+      },
+      "replacement": "none; rejected evidence database reference",
+      "activeConnections": null,
+      "contentSha256": null,
+      "currentReferences": [],
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "exact_content_sha_required",
+        "whitelist_restore_verification_not_run",
+        "fresh_target_identity_probe_required",
+        "reviewed_manifest_sha_required"
+      ]
+    },
+    {
+      "id": "capacity-env-gear-evidence-r24",
+      "kind": "file",
+      "target": "/etc/wow-backend-candidate-gear-evidence-r24.env",
+      "capacityPreCleanup": true,
+      "observed": {
+        "at": null,
+        "dateReceived": "2026-09-03",
+        "source": "user-approved read-only follow-up",
+        "openHandles": 0,
+        "runningProcessReferences": 0,
+        "systemdUnitReferences": []
+      },
+      "replacement": "none; rejected evidence database reference",
+      "activeConnections": null,
+      "contentSha256": null,
+      "currentReferences": [],
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "exact_content_sha_required",
+        "whitelist_restore_verification_not_run",
+        "fresh_target_identity_probe_required",
+        "reviewed_manifest_sha_required"
+      ]
+    },
+    {
+      "id": "capacity-env-gear-evidence-r22",
+      "kind": "file",
+      "target": "/etc/wow-backend-candidate-gear-evidence-r22.env",
+      "capacityPreCleanup": true,
+      "observed": {
+        "at": null,
+        "dateReceived": "2026-09-03",
+        "source": "user-approved read-only follow-up",
+        "openHandles": 0,
+        "runningProcessReferences": 0,
+        "systemdUnitReferences": []
+      },
+      "replacement": "none; rejected evidence database reference",
+      "activeConnections": null,
+      "contentSha256": null,
+      "currentReferences": [],
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "exact_content_sha_required",
+        "whitelist_restore_verification_not_run",
+        "fresh_target_identity_probe_required",
+        "reviewed_manifest_sha_required"
+      ]
+    },
+    {
+      "id": "capacity-env-gear-evidence-r23",
+      "kind": "file",
+      "target": "/etc/wow-backend-candidate-gear-evidence-r23.env",
+      "capacityPreCleanup": true,
+      "observed": {
+        "at": null,
+        "dateReceived": "2026-09-03",
+        "source": "user-approved read-only follow-up",
+        "openHandles": 0,
+        "runningProcessReferences": 0,
+        "systemdUnitReferences": []
+      },
+      "replacement": "none; rejected evidence database reference",
+      "activeConnections": null,
+      "contentSha256": null,
+      "currentReferences": [],
+      "backupIdentity": null,
+      "restoreCheck": "not_run",
+      "deleteAfter": null,
+      "gateStatus": "blocked",
+      "blockedReasons": [
+        "exact_content_sha_required",
+        "whitelist_restore_verification_not_run",
+        "fresh_target_identity_probe_required",
+        "reviewed_manifest_sha_required"
       ]
     },
     {
       "id": "database-wow-gear-evidence-01adf184-r14",
       "kind": "postgres_database",
       "target": "wow_gear_evidence_01adf184_r14",
+      "capacityPreCleanup": true,
+      "recoveryRequired": false,
       "observed": {
         "at": "2026-09-02T13:43:05Z",
         "sizeBytes": 5237750807,
@@ -1586,23 +1732,29 @@
       "replacement": "removed with no target-product replacement",
       "activeConnections": 0,
       "contentSha256": null,
-      "currentReferences": null,
+      "currentReferences": [
+        "/etc/wow-backend-candidate-gear-evidence-r14.env"
+      ],
+      "requiredAbsentCompanion": "/etc/wow-backend-candidate-gear-evidence-r14.env",
       "backupIdentity": null,
       "restoreCheck": "not_run",
       "deleteAfter": null,
       "gateStatus": "blocked",
       "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
+        "whitelist_restore_verification_not_run",
+        "fresh_target_identity_probe_required",
         "fresh_zero_connection_probe_required",
         "fresh_configuration_reference_probe_required",
-        "independent_restore_missing"
+        "companion_env_absence_required",
+        "reviewed_manifest_sha_required"
       ]
     },
     {
       "id": "database-wow-gear-evidence-0be65754-r24",
       "kind": "postgres_database",
       "target": "wow_gear_evidence_0be65754_r24",
+      "capacityPreCleanup": true,
+      "recoveryRequired": false,
       "observed": {
         "at": "2026-09-02T13:43:05Z",
         "sizeBytes": 5517827095,
@@ -1611,23 +1763,29 @@
       "replacement": "removed with no target-product replacement",
       "activeConnections": 0,
       "contentSha256": null,
-      "currentReferences": null,
+      "currentReferences": [
+        "/etc/wow-backend-candidate-gear-evidence-r24.env"
+      ],
+      "requiredAbsentCompanion": "/etc/wow-backend-candidate-gear-evidence-r24.env",
       "backupIdentity": null,
       "restoreCheck": "not_run",
       "deleteAfter": null,
       "gateStatus": "blocked",
       "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
+        "whitelist_restore_verification_not_run",
+        "fresh_target_identity_probe_required",
         "fresh_zero_connection_probe_required",
         "fresh_configuration_reference_probe_required",
-        "independent_restore_missing"
+        "companion_env_absence_required",
+        "reviewed_manifest_sha_required"
       ]
     },
     {
       "id": "database-wow-gear-evidence-145dee16-r22",
       "kind": "postgres_database",
       "target": "wow_gear_evidence_145dee16_r22",
+      "capacityPreCleanup": true,
+      "recoveryRequired": false,
       "observed": {
         "at": "2026-09-02T13:43:05Z",
         "sizeBytes": 5964094487,
@@ -1636,23 +1794,29 @@
       "replacement": "removed with no target-product replacement",
       "activeConnections": 0,
       "contentSha256": null,
-      "currentReferences": null,
+      "currentReferences": [
+        "/etc/wow-backend-candidate-gear-evidence-r22.env"
+      ],
+      "requiredAbsentCompanion": "/etc/wow-backend-candidate-gear-evidence-r22.env",
       "backupIdentity": null,
       "restoreCheck": "not_run",
       "deleteAfter": null,
       "gateStatus": "blocked",
       "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
+        "whitelist_restore_verification_not_run",
+        "fresh_target_identity_probe_required",
         "fresh_zero_connection_probe_required",
         "fresh_configuration_reference_probe_required",
-        "independent_restore_missing"
+        "companion_env_absence_required",
+        "reviewed_manifest_sha_required"
       ]
     },
     {
       "id": "database-wow-gear-evidence-15f514d5-r23",
       "kind": "postgres_database",
       "target": "wow_gear_evidence_15f514d5_r23",
+      "capacityPreCleanup": true,
+      "recoveryRequired": false,
       "observed": {
         "at": "2026-09-02T13:43:05Z",
         "sizeBytes": 5813812247,
@@ -1661,17 +1825,21 @@
       "replacement": "removed with no target-product replacement",
       "activeConnections": 0,
       "contentSha256": null,
-      "currentReferences": null,
+      "currentReferences": [
+        "/etc/wow-backend-candidate-gear-evidence-r23.env"
+      ],
+      "requiredAbsentCompanion": "/etc/wow-backend-candidate-gear-evidence-r23.env",
       "backupIdentity": null,
       "restoreCheck": "not_run",
       "deleteAfter": null,
       "gateStatus": "blocked",
       "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
+        "whitelist_restore_verification_not_run",
+        "fresh_target_identity_probe_required",
         "fresh_zero_connection_probe_required",
         "fresh_configuration_reference_probe_required",
-        "independent_restore_missing"
+        "companion_env_absence_required",
+        "reviewed_manifest_sha_required"
       ]
     },
     {
@@ -1696,7 +1864,7 @@
         "stable_production_health_not_proven",
         "fresh_zero_connection_probe_required",
         "fresh_configuration_reference_probe_required",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -1721,7 +1889,7 @@
         "stable_production_health_not_proven",
         "fresh_zero_connection_probe_required",
         "fresh_configuration_reference_probe_required",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -1746,7 +1914,7 @@
         "stable_production_health_not_proven",
         "fresh_zero_connection_probe_required",
         "fresh_configuration_reference_probe_required",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -1769,7 +1937,7 @@
         "phase5_not_accepted",
         "fresh_reference_probe_required",
         "exact_content_identity_missing",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -1792,7 +1960,7 @@
         "phase5_not_accepted",
         "fresh_reference_probe_required",
         "exact_content_identity_missing",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -1815,7 +1983,7 @@
         "phase5_not_accepted",
         "fresh_reference_probe_required",
         "exact_content_identity_missing",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -1838,7 +2006,7 @@
         "phase5_not_accepted",
         "fresh_reference_probe_required",
         "exact_content_identity_missing",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -1861,7 +2029,7 @@
         "phase5_not_accepted",
         "fresh_reference_probe_required",
         "exact_content_identity_missing",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -1884,7 +2052,7 @@
         "phase5_not_accepted",
         "fresh_reference_probe_required",
         "exact_content_identity_missing",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -1907,7 +2075,7 @@
         "phase5_not_accepted",
         "fresh_reference_probe_required",
         "exact_content_identity_missing",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -1930,7 +2098,7 @@
         "phase5_not_accepted",
         "fresh_reference_probe_required",
         "exact_content_identity_missing",
-        "independent_restore_missing"
+        "accepted_production_recovery_missing"
       ]
     },
     {
@@ -1955,7 +2123,7 @@
         "stable_production_health_not_proven",
         "fresh_reference_probe_required",
         "exact_tree_identity_missing",
-        "independent_restore_missing",
+        "accepted_production_recovery_missing",
         "quarantine_expiry_not_set"
       ]
     },
@@ -1980,7 +2148,7 @@
         "stable_production_health_not_proven",
         "fresh_reference_probe_required",
         "exact_tree_identity_missing",
-        "independent_restore_missing",
+        "accepted_production_recovery_missing",
         "quarantine_expiry_not_set"
       ]
     },
@@ -2005,7 +2173,7 @@
         "stable_production_health_not_proven",
         "fresh_reference_probe_required",
         "exact_tree_identity_missing",
-        "independent_restore_missing",
+        "accepted_production_recovery_missing",
         "quarantine_expiry_not_set"
       ]
     },
@@ -2031,7 +2199,7 @@
         "stable_production_health_not_proven",
         "fresh_reference_probe_required",
         "exact_tree_identity_missing",
-        "independent_restore_missing",
+        "accepted_production_recovery_missing",
         "quarantine_expiry_not_set"
       ]
     },
@@ -2057,7 +2225,7 @@
         "stable_production_health_not_proven",
         "fresh_reference_probe_required",
         "exact_tree_identity_missing",
-        "independent_restore_missing",
+        "accepted_production_recovery_missing",
         "quarantine_expiry_not_set"
       ]
     },
@@ -2083,7 +2251,7 @@
         "stable_production_health_not_proven",
         "fresh_reference_probe_required",
         "exact_tree_identity_missing",
-        "independent_restore_missing",
+        "accepted_production_recovery_missing",
         "quarantine_expiry_not_set"
       ]
     },
@@ -2108,7 +2276,7 @@
         "stable_production_health_not_proven",
         "fresh_reference_probe_required",
         "exact_tree_identity_missing",
-        "independent_restore_missing",
+        "accepted_production_recovery_missing",
         "quarantine_expiry_not_set"
       ]
     },
@@ -2134,7 +2302,7 @@
         "stable_production_health_not_proven",
         "fresh_reference_probe_required",
         "exact_tree_identity_missing",
-        "independent_restore_missing",
+        "accepted_production_recovery_missing",
         "quarantine_expiry_not_set"
       ]
     },
@@ -2160,7 +2328,7 @@
         "stable_production_health_not_proven",
         "fresh_reference_probe_required",
         "exact_tree_identity_missing",
-        "independent_restore_missing",
+        "accepted_production_recovery_missing",
         "quarantine_expiry_not_set"
       ]
     },
@@ -2185,7 +2353,7 @@
         "stable_production_health_not_proven",
         "fresh_reference_probe_required",
         "exact_tree_identity_missing",
-        "independent_restore_missing",
+        "accepted_production_recovery_missing",
         "quarantine_expiry_not_set"
       ]
     }
@@ -2194,7 +2362,7 @@
     "refresh the cloud inventory on the target host",
     "record real Mini and Web production acceptance plus first-new-write reconciliation",
     "complete a stable production-health window",
-    "bind an independent backup manifest and completed isolated restore identity",
+    "bind the accepted-production recovery artifact and completed isolated restore identity",
     "resolve every required exact target",
     "record fresh zero-reference probes for every resource",
     "record fresh zero-connection probes for every database",
@@ -2204,7 +2372,7 @@
   ],
   "nonClaims": {
     "phase5Accepted": false,
-    "independentBackupExists": false,
+    "acceptedProductionRecoveryExists": false,
     "restoreVerified": false,
     "cloudInventoryFresh": false,
     "safeToDelete": false,

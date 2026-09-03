@@ -1,6 +1,6 @@
 # 炸鸡队长与 SimC 生产迁移、切流与恢复 Runbook
 
-状态：当前生产操作权威；Phase 5 候选部署、PostgreSQL 白名单迁移适配器与自动化双端验收已完成本地实现和验证，真实 PostgreSQL candidate apply 仍由容量与独立恢复 gate 阻塞
+状态：当前生产操作权威；Phase 5 候选部署、PostgreSQL 白名单迁移适配器与自动化双端验收已完成本地实现和验证，真实 PostgreSQL candidate apply 仍由白名单恢复证明、容量与授权 gate 阻塞
 
 本 Runbook 规定如何从 legacy `wow_test` 和旧运行单元迁移到干净 `chickenbro_prod`，如何验证双端数据一致，何时可以切流，以及何时仍然禁止删除。执行者必须同时阅读 [当前架构](chickenbro-simc-architecture.md)、[project-state.json](project-state.json) 和对应阶段的 Harness requirement。
 
@@ -8,7 +8,7 @@
 
 最新脱敏快照：[chickenbro-simc-cloud-inventory.json](refactor/chickenbro-simc-cloud-inventory.json)；恢复通道只读清单：[chickenbro-simc-recovery-inventory.json](refactor/chickenbro-simc-recovery-inventory.json)
 
-| 项目 | 2026-09-02T13:43:05Z 只读结果 |
+| 项目 | 已记录的只读事实 |
 | --- | ---: |
 | 根分区总量 | 73,859,022,848 bytes |
 | 根分区已用 | 62,144,901,120 bytes |
@@ -17,20 +17,17 @@
 | PostgreSQL 目录 | 39,630,380,619 bytes |
 | 数据库数量 | 31 |
 | `wow-*` unit 数量 | 32 |
-| 容量门禁 | `blocked_until_independent_legacy_cleanup_or_storage_expansion` |
-| provider snapshot | 仅 1 个，创建于 2026-03-17；早于当前数据且 restore 未运行 |
-| 广州地域待挂载云硬盘 | 0 |
-| COS 账号资源 | 37 个桶；首页样本有 7 个中国大陆私有桶，未打开桶内容 |
-| COS 展示额度 | 全地域免费 50GB（昨日抵扣 4.29GB）；中国大陆 200GB 套餐至 2026-09-05；精确剩余容量未验证 |
-| 独立挂载/COS 服务器访问链 | 无独立挂载、客户端、CAM 角色或 59 个已审阅配置文件中的凭据变量 |
+| 容量门禁 | `blocked_until_whitelist_recovery_and_exact_capacity_cleanup_or_storage_expansion` |
+| 当前目标 identity | Tencent CVM `ins-93tgv1rb` / `ap-shanghai` / `ap-shanghai-2`，SSH alias `wow-lighthouse`，公网 `124.223.51.33` |
+| 失效 provider evidence | `lhins-dr6tkl63` / Guangzhou；不属于本目标，不能参与 gate |
 
-这些数字只说明盘点时刻的资源状态。已有桶和展示额度只构成潜在独立介质，不等于服务器已获得访问权、空间足够或可恢复。执行任何写入前必须刷新；旧 provider snapshot、HTTP 200、单个服务 active 或 COS 桶存在都不能解锁后续步骤。
+这些数字只说明盘点时刻的资源状态。2026-09-03 的补充只读证据显示根分区可用 8,773,099,520 bytes，四个精确 evidence 库仍以清单体积存在且连接数均为 0；它们各自仍被一个顶层 `/etc/wow-backend-candidate-gear-evidence-r*.env` 引用，但对应 env 没有 systemd、运行进程或 open handle 消费者。该补充证据没有执行任何写入，也不构成 apply 授权。执行任何写入前仍必须从实例 metadata 刷新 exact identity、容量、库大小、连接与所有引用；HTTP 200 或单个服务 active 不能解锁后续步骤。
 
 ## 绝对安全边界
 
 - 不读取、打印或提交 env 值、DSN、PGPASS、微信凭据、Codex 配置、Cookie、Bearer、OpenID 或第三方 token。
-- 不在没有独立恢复副本和恢复验证时删除数据库、正式部署、唯一 SimC runtime 或回滚包。
-- “独立恢复副本”必须位于与 PostgreSQL 数据目录不同的设备/故障域；同一根盘的 `/var/backups` 不算磁盘故障恢复点。
+- 不在有效业务白名单尚未完成迁移、核对、导出、隔离恢复与第二次核对时执行容量预清理；不在已接受生产数据缺少恢复验证时执行最终退役。
+- 四个明确拒绝的 evidence/test 数据库不建立恢复副本，也不上传 COS；其内容在精确容量预清理后不可恢复。它们的删除前恢复权威是 `chickenbro-whitelist-recovery-v1` 业务白名单清单，而不是 evidence 数据归档。
 - 不把 `wow_test` 当作普通测试库。它当前仍是 legacy/正式 v2 的运行数据面。
 - 不直接手写 `DROP DATABASE`、宽泛递归删除或批量停服务。只有仓库内通过测试的精确 manifest/apply 脚本可以执行变更。
 - Candidate、生产切流和 destructive cleanup 分别需要独立证据。前一步完成不自动授权后一步。
@@ -42,7 +39,7 @@
 | --- | --- | --- |
 | runtime role | 目标 API/Worker 的最小业务读写 | schema/role/database 管理 |
 | migrator role | 目标 schema、受控全量/delta、核对 | 读取无关 secret、写 legacy、删除库 |
-| operator | 运行已审阅脚本、systemd/Nginx 切换和 smoke | 跳过 manifest SHA、备份或恢复证明 |
+| operator | 运行已审阅脚本、systemd/Nginx 切换和 smoke | 跳过 manifest SHA、目标 identity 或适用的恢复证明 |
 | user acceptance | 真实 Mini/Web 登录、跨端 Chat/SimC 验收 | 代替技术恢复、owner 隔离或迁移核对 |
 
 每个阶段证据至少绑定：branch/commit、release packet、输入 inventory SHA、数据库 migration identity、部署文件 hash、候选入口、回滚 identity、验证命令和实际输出摘要。
@@ -72,45 +69,29 @@ ssh -o BatchMode=yes -o ConnectTimeout=15 wow-lighthouse \
 
 ## 2. 关闭容量门禁
 
-目标是同时容纳：新库、迁移临时空间、旧库回滚窗口、WAL/日志余量和至少一次恢复演练。`rootFreeBytes > currentDatabaseBytes` 也只进入 `capacity_preflight_required`，不是自动通过。
+目标是先证明有效业务白名单可恢复，再释放被明确拒绝的数据占用；不是为拒绝数据建立通用备份设施。允许路径只有：
 
-允许两种路径：
+1. 扩容；或
+2. 先完成第 3 节的业务白名单恢复证明，再按 reviewed manifest 精确清理四个 evidence 库和四个 env 伴随项。
 
-1. 扩容/挂载独立数据或备份设备；
-2. 对完全无运行引用、无回滚职责的 evidence/test 数据库或构建缓存做“独立备份 -> 恢复验证 -> 精确清理”。
+容量预清理的数据库 allowlist 固定为：`wow_gear_evidence_01adf184_r14`、`wow_gear_evidence_0be65754_r24`、`wow_gear_evidence_145dee16_r22`、`wow_gear_evidence_15f514d5_r23`。env 伴随项固定为 `/etc/wow-backend-candidate-gear-evidence-r14.env`、`r24.env`、`r22.env`、`r23.env`。`wow_test`、任何通配符、前缀匹配和其他 `wow_*` 库均拒绝。
 
-禁止通过删除 `wow_test`、正式部署、唯一 SimC runtime 或唯一回滚包释放空间。
+当前只读清理清单是 [chickenbro-simc-capacity-cleanup-manifest.json](refactor/chickenbro-simc-capacity-cleanup-manifest.json)：四库合计 22,533,484,636 bytes。每次 apply 必须重新确认 Tencent metadata identity、每库精确大小与零连接、每个 env 的 exact hash/realpath、零 systemd/Nginx/process/open-handle 消费者；先移除并确认对应 env 不存在，再检查项目配置引用为零，最后才可引用安全地删除配对数据库。默认 `--dry-run`，当前 `deletionAuthorized=false`。
 
-检查设备 ID（把第二个路径替换为已批准的独立备份根）：
+禁止通过删除或写入 `wow_test`、正式部署、唯一 SimC runtime 或唯一回滚包释放空间。拒绝 evidence/test 内容不建立 archive，也不引入 COS、依赖或下载。
 
-```bash
-ssh wow-lighthouse \
-  'stat -c "%d %n" /var/lib/postgresql /absolute/independent-backup-root'
-```
+## 3. 建立业务白名单恢复证明
 
-两个设备 ID 相同时，该路径不能作为独立介质证明。不同设备 ID 仍需记录容量、挂载来源、加密/权限和恢复验证结果。
+容量清理的唯一恢复权威是 `chickenbro-whitelist-recovery-v1`：
 
-容量前置清理必须有独立 cleanup manifest，逐个记录数据库/目录名称、bytes、最后连接、systemd/env/Nginx 引用、备份 identity、restore identity 和保留理由。默认 `--dry-run`；当前 Phase 2 不存在 cleanup apply 授权。
+1. 用只读、repeatable-read 的 `wow_test` 作为源，把显式业务白名单迁入干净 `chickenbro_prod`；
+2. 对迁移结果按 owner、外键、顺序、终态、计数与 hash 做第一次核对；
+3. 只导出已迁移的 `chickenbro_prod`，并执行 `pg_restore --list`；
+4. 恢复到名称不同的 `chickenbro_restore_verify_*`；
+5. 对恢复库运行同一迁移器/核对逻辑，确认第二次结果为 `matched`；
+6. 生成 0600、hash-bound 清单，只记录 exact target identity、archive/evidence path、bytes/SHA、时间与核对结果，不记录行内容或 secret。
 
-当前只读清理清单是 [chickenbro-simc-capacity-cleanup-manifest.json](refactor/chickenbro-simc-capacity-cleanup-manifest.json)：四个 `wow_gear_evidence_*` 数据库共 22,533,484,636 bytes，当前连接与已扫描配置引用均为 0，但服务器只有单一 `vda` 根盘，且没有独立 archive/restore identity。因此四项都只是 `candidate_only`，不得据此删除。
-
-当前账号已有私有中国大陆 COS 桶和额度套餐，可以作为优先评估的潜在独立故障域，但不得直接复用任意已有前缀。启用这条路径仍需明确授权：创建专用私有目标或专用前缀、配置最小权限临时凭据/客户端、确认实际可用容量与生命周期、上传后在隔离位置执行真实恢复，并记录对象 version/hash、权限和恢复 identity。当前实例没有 CAM 角色或已配置凭据；仓库也不会为了绕过授权自行安装客户端、读取控制台密钥或把备份放入公有读写桶。
-
-## 3. 建立可恢复备份
-
-Phase 2 的受控备份必须覆盖：
-
-- PostgreSQL globals/roles 的可恢复描述和所有迁移源数据库；
-- 当前生产业务库与精确 migration/version identity；
-- Nginx effective config、TLS 文件 identity、systemd unit 文件和启用状态；
-- 服务 env 文件的加密备份，只记录 path/hash/permission/configured 状态，不在证据中记录内容；
-- `/opt/wow-mini-program` deployable tracked set、runtime overrides 和 `.deploy-revision` 真实性；
-- `/opt/wow-simc/current` 指针、binary hash、`.commit` 和 runtime revision；
-- 静态 Web root、候选 root 和恢复所需的精确发布 identity。
-
-备份完成不等于可恢复。必须在隔离位置实际执行 restore/list/校验，记录：备份 SHA、字节数、创建时间、设备 ID、加密状态、恢复目标、恢复命令退出状态、schema/row/hash 抽样和操作者。未完成恢复验证时，所有 destructive gate 保持 false。
-
-候选部署只接受 `chickenbro-independent-backup-v1` 清单：清单本身必须是独立挂载下的 0600 普通文件，归档和恢复证据必须位于同一独立根、为非符号链接普通文件，实际 bytes/SHA/device identity 与清单一致。清单必须声明 `encrypted=true`、`sensitiveConfigurationEncrypted=true`，加密方案只能是 `age|gpg|kms-envelope` 且只记录 key reference hash；恢复目标必须是隔离的 `chickenbro_restore_verify_*`，command exit code 为 0，schema/row/hash 三项核对均为 true，并绑定恢复证据文件 SHA。缺少任一字段、使用 live 库作恢复目标或归档/证据发生漂移时，apply 直接拒绝。
+候选部署和容量清理都必须验证清单本体 SHA、archive SHA/bytes、两份核对证据 SHA，以及 distinct restore target。清单可与 PostgreSQL 位于同一主机，因为它证明的是迁移白名单可恢复性，不冒充整机灾备。四个被拒绝 evidence 库不属于该 archive。
 
 ## 4. 建立干净 `chickenbro_prod`
 
@@ -118,7 +99,7 @@ Phase 2 的受控备份必须覆盖：
 
 - 默认 `--dry-run`；
 - 精确目标固定为 `chickenbro_prod`；
-- 要求 inventory SHA、独立 backup device 和 management role；
+- 要求 inventory SHA、management role、0600 PGPASSFILE 与迁移所需的小程序 app context；
 - 重新检查 `df`、数据库大小、连接和目标是否存在；
 - 只应用 `server/migrations/product`；
 - 发现意外 migration identity 或 forbidden schema 立即停止；
@@ -133,7 +114,7 @@ Phase 2 的受控备份必须覆盖：
 runtime role: 无 CREATE SCHEMA / CREATE ROLE / DROP DATABASE 权限
 ```
 
-容量门禁或独立备份仍 blocked 时，只封存 `blocked` evidence，不尝试 `--apply`。
+白名单恢复或容量门禁仍 blocked 时，只封存 `blocked` evidence，不尝试后续 candidate deploy。
 
 ### Provisioning 脚本与当前 dry-run
 
@@ -150,20 +131,19 @@ bash server/provision_chickenbro_database_lighthouse.sh \
   --dry-run --inventory-sha "${INVENTORY_SHA}"
 ```
 
-当前审阅文件 SHA-256 是 `1466a227e882125ddd342c9518025b583b7bbead80dabb193f29997ff41e80c6`；实际 dry-run 返回 `mutationAuthorized=false` 和 `blocked_until_independent_legacy_cleanup_or_storage_expansion`。文件刷新后必须重新计算并评审 SHA，不能继续使用这里的历史值。
+当前审阅文件 SHA-256 是 `d0247ebdc497541315f1dc3d223ba290ea1ba9d43e14f40a42278693ec23a98c`；dry-run 仍返回 `mutationAuthorized=false` 和 `blocked_until_whitelist_recovery_and_exact_capacity_cleanup_or_storage_expansion`。文件刷新后必须重新计算并评审 SHA，不能继续使用这里的历史值。
 
-只有 `candidateDatabaseProvisioningAuthorized=true`、最新 inventory 为 `reachable` 且无 probe error、capacity gate 已进入 `capacity_preflight_required`、独立备份与恢复证据已通过时，才可准备以下命令；当前禁止执行：
+只有 `candidateDatabaseProvisioningAuthorized=true`、最新 inventory 为 `reachable` 且无 probe error、target metadata 精确匹配时，才可准备以下命令；当前禁止执行：
 
 ```bash
 sudo -E server/provision_chickenbro_database_lighthouse.sh \
   --apply \
-  --inventory-sha "${INVENTORY_SHA}" \
-  --backup-device /absolute/approved-independent-device
+  --inventory-sha "${INVENTORY_SHA}"
 ```
 
-apply 还要求：`WOW_REBUILD_BACKUP_ROOT` 位于上述独立设备且 mode=0700，`WOW_REBUILD_MANAGEMENT_ROLE` 是已审阅管理角色，PostgreSQL 数据与备份根的 device ID 不同，实时数据库总量与 inventory 漂移不超过 5%，PostgreSQL 与备份设备分别满足余量，runtime role 无 database/schema 创建权限，也无 Identity/Chat/SimC/job queue/usage counter 的 DELETE 权限。脚本先对 `wow_test` 生成 custom archive 并通过 `pg_restore --list`，再创建目标并逐个事务应用 product migrations。restore-list 不是恢复演练；候选授权仍必须引用独立的真实恢复证据。
+apply 还要求：`WOW_CHICKENBRO_RECOVERY_ROOT` 是 mode=0700 的专用根，`WOW_REBUILD_MANAGEMENT_ROLE` 是已审阅管理角色，`WOW_REBUILD_PGPASSFILE` 是精确 0600 普通文件，既有受管 migration Python（默认 `/opt/wow-mini-program/.venv-v2/bin/python`）可执行，实时根盘满足创建小型目标的最低余量，runtime role 无 database/schema 创建权限，也无 Identity/Chat/SimC/job queue/usage counter 的 DELETE 权限。脚本创建目标并应用 product migrations，运行白名单迁移和第一次核对，然后只对目标库生成 custom archive、执行 `pg_restore --list`、恢复到 distinct verify DB 并第二次核对；最后原子写入 root-only recovery manifest。
 
-如果目标已存在，脚本只接受精确 schema/table/migration/owner/权限 identity 且零连接，否则停止。新目标创建后的迁移失败不会自动移除数据库，而会在独立备份 run 中留下 `failed_requires_operator_review`，由操作者只读检查后另行处理。
+如果目标已存在，脚本停止并要求操作者确认一个新的干净目标起点；它不会把旧目标或仅存在的清单冒充本次恢复证明。新目标创建后的迁移失败也不会自动移除数据库，需由操作者只读检查后另行处理。
 
 ## 5. 候选全量迁移
 
@@ -271,17 +251,17 @@ Candidate 必须隔离数据库、API port、systemd unit、Nginx path 和 Web r
 bash server/deploy_chickenbro_candidate_lighthouse.sh --dry-run
 ```
 
-只有最新 inventory 为 `reachable`、无 probe error、`capacityGate=capacity_preflight_required`，且操作者已审阅独立设备上的 restore-verified manifest 后，才可准备 apply：
+只有最新 inventory 为 `reachable`、无 probe error、`capacityGate=capacity_preflight_required`，且操作者已审阅 `chickenbro-whitelist-recovery-v1` 清单后，才可准备 apply：
 
 ```bash
 bash server/deploy_chickenbro_candidate_lighthouse.sh \
   --apply \
   --expected-commit "${CANDIDATE_COMMIT}" \
   --inventory-sha "${INVENTORY_SHA}" \
-  --backup-manifest-sha "${RESTORE_VERIFIED_BACKUP_MANIFEST_SHA}"
+  --recovery-manifest-sha "${WHITELIST_RECOVERY_MANIFEST_SHA}"
 ```
 
-脚本拒绝 dirty worktree、宽松 commit、同设备“备份”、不匹配的 manifest SHA、legacy async sync、容量不足和非精确 Nginx owner。它只创建/替换以下隔离面：
+脚本拒绝 dirty worktree、宽松 commit、不匹配的 inventory/recovery manifest SHA、错误 Tencent metadata identity、legacy async sync、容量不足和非精确 Nginx owner。它只创建/替换以下隔离面：
 
 - `/opt/chickenbro-candidate`、`chickenbro_candidate`、loopback `8791`、`chickenbro-api-candidate.service`；
 - `chickenbro-worker-candidate.service` 与 `/etc/chickenbro-worker-candidate.env`，不停止、不改写正式 `chickenbro-worker.service` 或 `/etc/chickenbro-worker.env`；
@@ -384,7 +364,7 @@ unit 只接受固定 `simulationcraft/simc` 的精确 commit，不查询或跟�
 
 ## 10. Legacy 退役
 
-只有以下条件全部满足才可进入 Phase 6 apply：
+容量预清理是唯一可在 Phase 5 前执行的例外；它只包含四个精确 evidence 库及四个精确 env 伴随项，并要求白名单恢复清单、fresh target identity、fresh size/connection/reference/open-handle 证据和 reviewed SHA 全部成立。除此以外，只有以下条件全部满足才可进入完整 Phase 6 apply：
 
 - 正式切流稳定窗口结束；
 - 真实 Mini/Web Chat 与 SimC 验收有明确用户确认；
@@ -395,7 +375,7 @@ unit 只接受固定 `simulationcraft/simc` 的精确 commit，不查询或跟�
 - manifest SHA 与 apply 参数一致；
 - 回滚包保留窗口有书面状态。
 
-当前云端精确控制文件是 [chickenbro-simc-cloud-cleanup-manifest.json](refactor/chickenbro-simc-cloud-cleanup-manifest.json)。它覆盖只读清单里的全部 32 个 `wow-*` unit 和全部 `wow_*` 数据库，并显式列出已知旧 env、pgpass、Nginx、部署、备份、状态与候选目录。未能从脱敏清单确定的 legacy runtime PGPASSFILE 以及尚未创建的 Chickenbro candidate 资源被列入 `unresolvedRequiredTargets`，不能因未知而省略。
+当前云端精确控制文件是 [chickenbro-simc-cloud-cleanup-manifest.json](refactor/chickenbro-simc-cloud-cleanup-manifest.json)。它覆盖只读清单里的全部 32 个 `wow-*` unit 和全部 `wow_*` 数据库，并显式列出已知旧 env、pgpass、Nginx、部署、备份、状态与候选目录。容量 scope 仅选中四库及四个 env；未能从脱敏清单确定的 legacy runtime PGPASSFILE 以及尚未创建的 Chickenbro candidate 资源被列入 `unresolvedRequiredTargets`，不能因未知而省略。
 
 本地评审入口默认只解析清单，不连接云端、不停服务、不删数据：
 
@@ -406,9 +386,9 @@ bash server/retire_chickenbro_legacy_lighthouse.sh \
   --dry-run
 ```
 
-当前清单固定 `deletionAuthorized=false`，所有资源均为 `blocked`。apply 除了精确 manifest SHA 和 restore-verified backup manifest SHA，还要求：最新 inventory 标记为 fresh、真实生产验收/首条新写入核对/稳定窗口通过、所有未知目标已解析、每个资源 gate 为 ready、删除时间已到、数据库实时零连接/零配置引用、文件和目录 identity 未漂移。任一项不满足时，在 SSH 或 mutation 前停止。
+当前清单固定 `deletionAuthorized=false`，所有资源均为 `blocked`。容量 apply 使用 `--capacity-pre-cleanup --manifest-sha <sha> --recovery-manifest-sha <sha>`，并在任何 mutation 前拒绝未授权清单或不匹配恢复清单；远端再次校验 metadata、env hash/realpath/consumer、数据库大小/连接/配置引用。完整 Phase 6 还要求真实生产验收、首条新写入、稳定窗口、所有未知目标已解析、每个资源 gate 为 ready 且删除时间已到。任一项不满足时停止。
 
-apply 只接受精确名称。unit 会先检查反向依赖再停止、禁用并移动 unit 文件；旧文件/目录先核对 SHA/realpath，再移动到独立挂载的 `/mnt/chickenbro-backups/quarantine/<manifest-sha>`；数据库再次检查 `pg_stat_activity` 和当前配置引用后，以引用安全的精确 identifier 执行删除。目录隔离只是可恢复退役，不是永久清除；永久删除仍要等 Task 5 的回滚窗口到期。
+apply 只接受精确名称。容量 scope 先把四个 env 移到同主机 `/var/lib/chickenbro-retirement-quarantine/<manifest-sha>` 并确认原路径不存在，再逐库检查 `pg_stat_activity`、实时大小和当前配置/进程引用，以引用安全的精确 identifier 执行删除。完整 Phase 6 中，unit 会先检查反向依赖再停止、禁用并移动 unit 文件；其他旧文件/目录也先核对 SHA/realpath，再移动到该精确 quarantine。目录隔离只是可恢复退役，不是永久清除；永久删除仍要等 Task 5 的回滚窗口到期。
 
 退役顺序：停止并禁用 legacy unit/timer；移除 candidate/prototype；精确删除无引用数据库；隔离旧部署/静态/数据目录；执行绑定 SHA 的本地旧代码/文档/测试清理；刷新本地/云端清单和 parity。不得对 `/opt`、`/var/lib`、数据库前缀或仓库根做宽泛递归删除。
 
@@ -437,7 +417,7 @@ apply 只接受精确名称。unit 会先检查反向依赖再停止、禁用并
 | 两端历史不同 | 两端 Principal 的内部 owner、游标、水位、迁移 mapping | 不按昵称/OpenID 猜合并 |
 | SimC return code 0 但无结果 | metric parser、profile/runtime identity、fatal diagnostic | return code 0 不是业务成功 |
 | Worker active 但任务不动 | queue status、lease owner/expiry、handler、attempt/max attempts | systemd active 只证明进程活着 |
-| 空间仍不足 | 刷新 df/DB/目录清单、独立设备容量、回滚保留量 | 不删正式库/唯一恢复点绕过 |
+| 空间仍不足 | 刷新 df/DB/目录清单、白名单恢复证明、精确容量 scope、回滚保留量 | 不删正式库/唯一恢复点绕过 |
 | 切流后需要回退 | `firstNewProductionWriteAt` 是否存在 | 有新写入后 legacy 永不恢复为写主 |
 
 ## 相关文档

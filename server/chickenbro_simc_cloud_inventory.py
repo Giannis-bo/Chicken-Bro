@@ -39,6 +39,7 @@ SNAPSHOT_FIELDS = frozenset(
         "status",
         "observedAt",
         "host",
+        "targetIdentity",
         "rootFilesystem",
         "rootFreeBytes",
         "currentDatabaseBytes",
@@ -50,6 +51,15 @@ SNAPSHOT_FIELDS = frozenset(
         "probeErrors",
     }
 )
+EXPECTED_TARGET_IDENTITY = {
+    "provider": "tencent_cvm",
+    "instanceId": "ins-93tgv1rb",
+    "region": "ap-shanghai",
+    "zone": "ap-shanghai-2",
+    "publicAddress": "124.223.51.33",
+    "sshTarget": "wow-lighthouse",
+    "refreshRequiredBeforeApply": True,
+}
 DIRECTORY_PATHS = (
     "/opt/wow-mini-program",
     "/opt/wow-simc",
@@ -146,7 +156,7 @@ def capacity_gate(inventory: Mapping[str, object]) -> str:
         inventory.get("currentDatabaseBytes", 0), "currentDatabaseBytes"
     )
     if root_free_bytes and database_bytes and root_free_bytes <= database_bytes:
-        return "blocked_until_independent_legacy_cleanup_or_storage_expansion"
+        return "blocked_until_whitelist_recovery_and_exact_capacity_cleanup_or_storage_expansion"
     return "capacity_preflight_required"
 
 
@@ -165,6 +175,11 @@ def build_inventory(snapshot: Mapping[str, object]) -> dict[str, object]:
     if not isinstance(observed_at, str) or not RFC3339_UTC.fullmatch(observed_at):
         raise ValueError("observedAt must be an RFC3339 UTC timestamp")
     host = _safe_string(snapshot.get("host", "wow-lighthouse"), "host", SAFE_NAME)
+    target_identity = snapshot.get("targetIdentity")
+    if target_identity is not None:
+        if not isinstance(target_identity, Mapping) or dict(target_identity) != EXPECTED_TARGET_IDENTITY:
+            raise ValueError("target identity does not match the reviewed Tencent CVM")
+        target_identity = dict(target_identity)
 
     raw_filesystem = snapshot.get("rootFilesystem") or {
         "path": "/",
@@ -278,6 +293,15 @@ def build_inventory(snapshot: Mapping[str, object]) -> dict[str, object]:
         "identities": identities,
         "probeErrors": probe_errors,
     }
+    if target_identity is not None:
+        inventory = {
+            "schemaVersion": inventory["schemaVersion"],
+            "status": inventory["status"],
+            "observedAt": inventory["observedAt"],
+            "host": inventory["host"],
+            "targetIdentity": target_identity,
+            **{key: value for key, value in inventory.items() if key not in {"schemaVersion", "status", "observedAt", "host"}},
+        }
     inventory["capacityGate"] = capacity_gate(inventory)
     return inventory
 
@@ -460,10 +484,36 @@ def _collect_identities(errors: list[dict[str, str]]) -> list[dict[str, str]]:
     return identities
 
 
+def _collect_target_identity(errors: list[dict[str, str]]) -> dict[str, object] | None:
+    endpoints = {
+        "instanceId": "http://metadata.tencentyun.com/latest/meta-data/instance-id",
+        "region": "http://metadata.tencentyun.com/latest/meta-data/placement/region",
+        "zone": "http://metadata.tencentyun.com/latest/meta-data/placement/zone",
+    }
+    observed: dict[str, object] = {
+        "provider": "tencent_cvm",
+        "publicAddress": "124.223.51.33",
+        "sshTarget": "wow-lighthouse",
+        "refreshRequiredBeforeApply": True,
+    }
+    for field, endpoint in endpoints.items():
+        returncode, stdout = _run(("curl", "-fsS", "--max-time", "3", endpoint), timeout=5)
+        value = stdout.strip()
+        if returncode != 0 or not SAFE_IDENTITY.fullmatch(value):
+            _error(errors, "target_identity", f"{field}_probe_failed")
+            return None
+        observed[field] = value
+    if observed != EXPECTED_TARGET_IDENTITY:
+        _error(errors, "target_identity", "identity_mismatch")
+        return None
+    return observed
+
+
 def collect_snapshot() -> dict[str, object]:
     errors: list[dict[str, str]] = []
     root_filesystem = _collect_filesystem(errors)
     databases = _collect_databases(errors)
+    target_identity = _collect_target_identity(errors)
     snapshot: dict[str, object] = {
         "status": "reachable",
         "observedAt": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
@@ -478,6 +528,8 @@ def collect_snapshot() -> dict[str, object]:
         "identities": _collect_identities(errors),
         "probeErrors": errors,
     }
+    if target_identity is not None:
+        snapshot["targetIdentity"] = target_identity
     if errors:
         snapshot["status"] = "partial"
     return build_inventory(snapshot)

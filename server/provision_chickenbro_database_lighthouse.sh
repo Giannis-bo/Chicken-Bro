@@ -5,10 +5,15 @@ MODE="dry-run"
 TARGET_DATABASE="chickenbro_prod"
 SOURCE_DATABASE="wow_test"
 RUNTIME_ROLE="wow_app"
-BLOCKED_GATE="blocked_until_independent_legacy_cleanup_or_storage_expansion"
-READY_FOR_LIVE_PREFLIGHT_GATE="capacity_preflight_required"
+BLOCKED_GATE="blocked_until_whitelist_recovery_and_exact_capacity_cleanup_or_storage_expansion"
+READY_AFTER_CAPACITY_CLEANUP_GATE="capacity_preflight_required"
 POSTGRES_DATA_ROOT="/var/lib/postgresql"
 INVENTORY_MAX_AGE_SECONDS="21600"
+EXPECTED_INSTANCE_ID="ins-93tgv1rb"
+EXPECTED_REGION="ap-shanghai"
+EXPECTED_ZONE="ap-shanghai-2"
+EXPECTED_PUBLIC_ADDRESS="124.223.51.33"
+EXPECTED_SSH_TARGET="wow-lighthouse"
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
@@ -17,7 +22,8 @@ PROJECT_STATE_FILE="${REPO_ROOT}/docs/project-state.json"
 MIGRATION_DIR="${REPO_ROOT}/server/migrations/product"
 
 REVIEWED_INVENTORY_SHA=""
-BACKUP_DEVICE=""
+RECOVERY_ROOT="${WOW_CHICKENBRO_RECOVERY_ROOT:-/var/lib/chickenbro-recovery}"
+MIGRATION_RUNTIME_PYTHON="${WOW_CHICKENBRO_MIGRATION_PYTHON:-/opt/wow-mini-program/.venv-v2/bin/python}"
 
 die() {
   printf 'provision_chickenbro_database: %s\n' "$*" >&2
@@ -28,10 +34,11 @@ usage() {
   cat >&2 <<'USAGE'
 Usage:
   server/provision_chickenbro_database_lighthouse.sh [--dry-run] [--inventory-sha <sha256>]
-  server/provision_chickenbro_database_lighthouse.sh --apply --inventory-sha <sha256> --backup-device <absolute-path>
+  server/provision_chickenbro_database_lighthouse.sh --apply --inventory-sha <sha256>
 
 Apply also requires candidateDatabaseProvisioningAuthorized=true in docs/project-state.json,
-an independently mounted WOW_REBUILD_BACKUP_ROOT, and WOW_REBUILD_MANAGEMENT_ROLE.
+WOW_REBUILD_MANAGEMENT_ROLE, WOW_REBUILD_PGPASSFILE, WOW_MIGRATION_WECHAT_APP_CONTEXT,
+and a fresh exact Tencent CVM identity match.
 USAGE
 }
 
@@ -48,11 +55,6 @@ while [[ $# -gt 0 ]]; do
     --inventory-sha)
       [[ $# -ge 2 ]] || die "--inventory-sha requires a value"
       REVIEWED_INVENTORY_SHA="$2"
-      shift 2
-      ;;
-    --backup-device)
-      [[ $# -ge 2 ]] || die "--backup-device requires a value"
-      BACKUP_DEVICE="$2"
       shift 2
       ;;
     --help|-h)
@@ -98,6 +100,7 @@ from pathlib import Path
 import sys
 
 inventory = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+target = inventory.get("targetIdentity") or {}
 values = (
     inventory.get("status", ""),
     inventory.get("capacityGate", ""),
@@ -105,17 +108,42 @@ values = (
     inventory.get("currentDatabaseBytes", ""),
     len(inventory.get("probeErrors", [])),
     inventory.get("observedAt", ""),
+    target.get("instanceId", ""),
+    target.get("region", ""),
+    target.get("zone", ""),
+    target.get("publicAddress", ""),
+    target.get("sshTarget", ""),
 )
 print(*values, sep="\t")
 PY
 )"
-IFS=$'\t' read -r INVENTORY_STATUS CAPACITY_GATE INVENTORY_ROOT_FREE_BYTES INVENTORY_DATABASE_BYTES PROBE_ERROR_COUNT INVENTORY_OBSERVED_AT <<< "${INVENTORY_FACTS}"
+IFS=$'\t' read -r INVENTORY_STATUS CAPACITY_GATE INVENTORY_ROOT_FREE_BYTES INVENTORY_DATABASE_BYTES PROBE_ERROR_COUNT INVENTORY_OBSERVED_AT INVENTORY_INSTANCE_ID INVENTORY_REGION INVENTORY_ZONE INVENTORY_PUBLIC_ADDRESS INVENTORY_SSH_TARGET <<< "${INVENTORY_FACTS}"
 
 for number in "${INVENTORY_ROOT_FREE_BYTES}" "${INVENTORY_DATABASE_BYTES}" "${PROBE_ERROR_COUNT}"; do
   [[ "${number}" =~ ^[0-9]+$ ]] || die "reviewed inventory contains an invalid numeric fact"
 done
 [[ "${CAPACITY_GATE}" =~ ^[a-z0-9_]+$ ]] || die "reviewed inventory contains an invalid capacity gate"
 [[ "${INVENTORY_OBSERVED_AT}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$ ]] || die "reviewed inventory contains an invalid observation time"
+[[ "${INVENTORY_INSTANCE_ID}" == "${EXPECTED_INSTANCE_ID}" \
+  && "${INVENTORY_REGION}" == "${EXPECTED_REGION}" \
+  && "${INVENTORY_ZONE}" == "${EXPECTED_ZONE}" \
+  && "${INVENTORY_PUBLIC_ADDRESS}" == "${EXPECTED_PUBLIC_ADDRESS}" \
+  && "${INVENTORY_SSH_TARGET}" == "${EXPECTED_SSH_TARGET}" ]] \
+  || die "reviewed inventory target identity mismatch"
+
+refresh_target_identity() {
+  local live_instance live_region live_zone
+  live_instance="$(curl -fsS --max-time 3 http://metadata.tencentyun.com/latest/meta-data/instance-id)" \
+    || die "target identity refresh failed"
+  live_region="$(curl -fsS --max-time 3 http://metadata.tencentyun.com/latest/meta-data/placement/region)" \
+    || die "target identity refresh failed"
+  live_zone="$(curl -fsS --max-time 3 http://metadata.tencentyun.com/latest/meta-data/placement/zone)" \
+    || die "target identity refresh failed"
+  [[ "${live_instance}" == "${EXPECTED_INSTANCE_ID}" \
+    && "${live_region}" == "${EXPECTED_REGION}" \
+    && "${live_zone}" == "${EXPECTED_ZONE}" ]] \
+    || die "target identity mismatch; refusing apply"
+}
 
 CANDIDATE_DATABASE_AUTHORIZED="$(python3 - "${PROJECT_STATE_FILE}" <<'PY'
 import json
@@ -191,7 +219,8 @@ fi
 [[ "${CANDIDATE_DATABASE_AUTHORIZED}" == "true" ]] || die "candidateDatabaseProvisioningAuthorized=false; apply is forbidden"
 [[ "${INVENTORY_STATUS}" == "reachable" ]] || die "reviewed inventory is not reachable"
 [[ "${PROBE_ERROR_COUNT}" == "0" ]] || die "reviewed inventory contains probe errors"
-[[ "${CAPACITY_GATE}" == "${READY_FOR_LIVE_PREFLIGHT_GATE}" ]] || die "reviewed capacity gate does not permit live preflight"
+[[ "${CAPACITY_GATE}" == "${BLOCKED_GATE}" || "${CAPACITY_GATE}" == "${READY_AFTER_CAPACITY_CLEANUP_GATE}" ]] \
+  || die "reviewed capacity gate does not permit bounded whitelist recovery preflight"
 INVENTORY_AGE_SECONDS="$(python3 - "${INVENTORY_OBSERVED_AT}" <<'PY'
 from datetime import datetime, timezone
 import sys
@@ -204,36 +233,27 @@ PY
 (( INVENTORY_AGE_SECONDS >= -300 )) || die "reviewed inventory observation time is unexpectedly in the future"
 (( INVENTORY_AGE_SECONDS <= INVENTORY_MAX_AGE_SECONDS )) || die "reviewed inventory is stale; refresh it first"
 
-[[ -n "${BACKUP_DEVICE}" ]] || die "--apply requires --backup-device"
-[[ "${BACKUP_DEVICE}" == /* ]] || die "--backup-device must be an absolute path"
-[[ "${BACKUP_DEVICE}" != "/" ]] || die "filesystem root cannot be the backup device"
-[[ -n "${WOW_REBUILD_BACKUP_ROOT:-}" ]] || die "WOW_REBUILD_BACKUP_ROOT is required"
-[[ "${WOW_REBUILD_BACKUP_ROOT}" == /* ]] || die "WOW_REBUILD_BACKUP_ROOT must be absolute"
 [[ -n "${WOW_REBUILD_MANAGEMENT_ROLE:-}" ]] || die "WOW_REBUILD_MANAGEMENT_ROLE is required"
 [[ "${WOW_REBUILD_MANAGEMENT_ROLE}" =~ ^[a-z_][a-z0-9_]{0,62}$ ]] || die "WOW_REBUILD_MANAGEMENT_ROLE is invalid"
+[[ -n "${WOW_REBUILD_PGPASSFILE:-}" && "${WOW_REBUILD_PGPASSFILE}" == /* ]] \
+  || die "WOW_REBUILD_PGPASSFILE must be an absolute path"
+[[ -n "${WOW_MIGRATION_WECHAT_APP_CONTEXT:-}" ]] || die "WOW_MIGRATION_WECHAT_APP_CONTEXT is required"
+[[ "${RECOVERY_ROOT}" == /* && "${RECOVERY_ROOT}" != "/" ]] || die "WOW_CHICKENBRO_RECOVERY_ROOT must be an exact absolute path"
+[[ "${MIGRATION_RUNTIME_PYTHON}" == /* && "${MIGRATION_RUNTIME_PYTHON}" != *".."* ]] \
+  || die "WOW_CHICKENBRO_MIGRATION_PYTHON must be an exact absolute path"
 [[ "${EUID}" -eq 0 ]] || die "--apply must run as root on the reviewed Lighthouse host"
 
-for command_name in python3 realpath stat df awk tr tail date install chmod find sort basename sudo psql pg_dump pg_restore createdb; do
+for command_name in python3 realpath stat df awk tr tail date install chmod find sort basename sudo psql pg_dump pg_restore createdb curl; do
   command -v "${command_name}" >/dev/null 2>&1 || die "required apply command is unavailable"
 done
+[[ -x "${MIGRATION_RUNTIME_PYTHON}" ]] || die "managed migration Python runtime is missing"
 
 [[ -d "${POSTGRES_DATA_ROOT}" ]] || die "PostgreSQL data root is missing"
-[[ -d "${BACKUP_DEVICE}" ]] || die "backup device path is missing"
-[[ -d "${WOW_REBUILD_BACKUP_ROOT}" ]] || die "backup root is missing"
-
 POSTGRES_DATA_REAL="$(realpath -e "${POSTGRES_DATA_ROOT}")"
-BACKUP_DEVICE_REAL="$(realpath -e "${BACKUP_DEVICE}")"
-BACKUP_ROOT_REAL="$(realpath -e "${WOW_REBUILD_BACKUP_ROOT}")"
-case "${BACKUP_ROOT_REAL}/" in
-  "${BACKUP_DEVICE_REAL}/"*) ;;
-  *) die "backup root is not located on the reviewed backup device" ;;
-esac
-[[ "$(stat -c '%a' "${BACKUP_ROOT_REAL}")" == "700" ]] || die "backup root must have mode 0700"
-
-POSTGRES_DEVICE_ID="$(stat -c '%d' "${POSTGRES_DATA_REAL}")"
-BACKUP_DEVICE_ID="$(stat -c '%d' "${BACKUP_DEVICE_REAL}")"
-[[ "${POSTGRES_DEVICE_ID}" != "${BACKUP_DEVICE_ID}" ]] || die "backup and PostgreSQL data must use different device IDs"
-[[ "$(stat -c '%d' "${BACKUP_ROOT_REAL}")" == "${BACKUP_DEVICE_ID}" ]] || die "backup root moved to an unexpected device"
+install -d -o root -g root -m 0700 "${RECOVERY_ROOT}"
+RECOVERY_ROOT_REAL="$(realpath -e "${RECOVERY_ROOT}")"
+[[ "$(stat -c '%a' "${RECOVERY_ROOT_REAL}")" == "700" ]] || die "recovery root must have mode 0700"
+refresh_target_identity
 
 MANAGEMENT_ROLE="${WOW_REBUILD_MANAGEMENT_ROLE}"
 
@@ -267,8 +287,7 @@ target_query() {
 SOURCE_DATABASE_BYTES="$(pg_query "SELECT pg_database_size('${SOURCE_DATABASE}')")"
 LIVE_DATABASE_BYTES="$(pg_query "SELECT COALESCE(sum(pg_database_size(datname)), 0) FROM pg_database WHERE NOT datistemplate")"
 ROOT_FREE_BYTES="$(df -PB1 --output=avail "${POSTGRES_DATA_REAL}" | tail -n 1 | tr -d '[:space:]')"
-BACKUP_FREE_BYTES="$(df -PB1 --output=avail "${BACKUP_DEVICE_REAL}" | tail -n 1 | tr -d '[:space:]')"
-for number in "${SOURCE_DATABASE_BYTES}" "${LIVE_DATABASE_BYTES}" "${ROOT_FREE_BYTES}" "${BACKUP_FREE_BYTES}"; do
+for number in "${SOURCE_DATABASE_BYTES}" "${LIVE_DATABASE_BYTES}" "${ROOT_FREE_BYTES}"; do
   [[ "${number}" =~ ^[0-9]+$ ]] || die "live capacity probe returned an invalid value"
 done
 
@@ -280,10 +299,8 @@ MAX_DATABASE_DRIFT=$(( INVENTORY_DATABASE_BYTES / 20 ))
 (( MAX_DATABASE_DRIFT >= 104857600 )) || MAX_DATABASE_DRIFT=104857600
 (( INVENTORY_DRIFT <= MAX_DATABASE_DRIFT )) || die "live database bytes drifted from the reviewed inventory; refresh it first"
 
-REQUIRED_TARGET_FREE_BYTES=$(( SOURCE_DATABASE_BYTES + SOURCE_DATABASE_BYTES / 4 + 2147483648 ))
-REQUIRED_BACKUP_FREE_BYTES=$(( SOURCE_DATABASE_BYTES + 2147483648 ))
-(( ROOT_FREE_BYTES >= REQUIRED_TARGET_FREE_BYTES )) || die "live PostgreSQL device capacity is insufficient"
-(( BACKUP_FREE_BYTES >= REQUIRED_BACKUP_FREE_BYTES )) || die "independent backup device capacity is insufficient"
+MINIMUM_WORKING_FREE_BYTES=2147483648
+(( ROOT_FREE_BYTES >= MINIMUM_WORKING_FREE_BYTES )) || die "live PostgreSQL device lacks bounded whitelist-migration working capacity"
 
 EXPECTED_MIGRATIONS="$(
   find "${MIGRATION_DIR}" -maxdepth 1 -type f -name '[0-9][0-9][0-9][0-9]_*.sql' -print \
@@ -326,16 +343,14 @@ verify_target_identity() {
 if [[ "${TARGET_DATABASE_EXISTS}" == "1" ]]; then
   TARGET_CONNECTIONS="$(pg_query "SELECT count(*) FROM pg_stat_activity WHERE datname = '${TARGET_DATABASE}'")"
   [[ "${TARGET_CONNECTIONS}" == "0" ]] || die "target database already has active connections"
-  verify_target_identity
-  emit_result "already_provisioned_exact_identity" "false" "${ROOT_FREE_BYTES}" "${LIVE_DATABASE_BYTES}"
-  exit 0
+  die "target database already exists; a fresh clean target is required"
 fi
 
 RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)-${ACTUAL_INVENTORY_SHA:0:12}"
-BACKUP_RUN_DIR="${BACKUP_ROOT_REAL}/chickenbro-prod-provision-${RUN_ID}"
-[[ ! -e "${BACKUP_RUN_DIR}" ]] || die "backup run identity already exists"
-install -d -o root -g root -m 0700 "${BACKUP_RUN_DIR}"
-PROVISION_STATE_FILE="${BACKUP_RUN_DIR}/provision.state"
+RECOVERY_RUN_DIR="${RECOVERY_ROOT_REAL}/chickenbro-prod-provision-${RUN_ID}"
+[[ ! -e "${RECOVERY_RUN_DIR}" ]] || die "recovery run identity already exists"
+install -d -o root -g root -m 0700 "${RECOVERY_RUN_DIR}"
+PROVISION_STATE_FILE="${RECOVERY_RUN_DIR}/provision.state"
 
 record_failure() {
   local exit_code=$?
@@ -347,25 +362,10 @@ record_failure() {
 }
 trap record_failure EXIT
 
-printf '%s\n' "${ACTUAL_INVENTORY_SHA}" > "${BACKUP_RUN_DIR}/inventory.sha256"
-printf '%s\n' "${SOURCE_DATABASE}" > "${BACKUP_RUN_DIR}/source.database"
-printf '%s\n' "${TARGET_DATABASE}" > "${BACKUP_RUN_DIR}/target.database"
-printf '%s\n' "${SOURCE_DATABASE_BYTES}" > "${BACKUP_RUN_DIR}/source.bytes"
-chmod 0600 "${BACKUP_RUN_DIR}"/*
-
-SOURCE_ARCHIVE="${BACKUP_RUN_DIR}/source.custom"
-SOURCE_ARCHIVE_LIST="${BACKUP_RUN_DIR}/source.restore-list"
-sudo -n -u postgres pg_dump \
-  --username="${MANAGEMENT_ROLE}" \
-  --format=custom \
-  --dbname="${SOURCE_DATABASE}" > "${SOURCE_ARCHIVE}"
-chmod 0600 "${SOURCE_ARCHIVE}"
-pg_restore --list "${SOURCE_ARCHIVE}" > "${SOURCE_ARCHIVE_LIST}"
-chmod 0600 "${SOURCE_ARCHIVE_LIST}"
-[[ -s "${SOURCE_ARCHIVE}" && -s "${SOURCE_ARCHIVE_LIST}" ]] || die "source archive or restore-list validation is empty"
-SOURCE_ARCHIVE_SHA="$(sha256_file "${SOURCE_ARCHIVE}")"
-printf '%s\n' "${SOURCE_ARCHIVE_SHA}" > "${BACKUP_RUN_DIR}/source.custom.sha256"
-chmod 0600 "${BACKUP_RUN_DIR}/source.custom.sha256"
+printf '%s\n' "${ACTUAL_INVENTORY_SHA}" > "${RECOVERY_RUN_DIR}/inventory.sha256"
+printf '%s\n' "${SOURCE_DATABASE}" > "${RECOVERY_RUN_DIR}/source.database"
+printf '%s\n' "${TARGET_DATABASE}" > "${RECOVERY_RUN_DIR}/target.database"
+chmod 0600 "${RECOVERY_RUN_DIR}"/*
 
 sudo -n -u postgres createdb \
   --username="${MANAGEMENT_ROLE}" \
@@ -389,8 +389,158 @@ while IFS= read -r migration; do
 done < <(find "${MIGRATION_DIR}" -maxdepth 1 -type f -name '[0-9][0-9][0-9][0-9]_*.sql' -print | LC_ALL=C sort)
 
 verify_target_identity
+
+[[ -f "${WOW_REBUILD_PGPASSFILE}" && ! -L "${WOW_REBUILD_PGPASSFILE}" ]] \
+  || die "WOW_REBUILD_PGPASSFILE must be an exact regular file"
+[[ "$(stat -c '%a' "${WOW_REBUILD_PGPASSFILE}")" == "600" ]] \
+  || die "WOW_REBUILD_PGPASSFILE must have mode 0600"
+MIGRATION_REPORT="${RECOVERY_RUN_DIR}/migration-report.json"
+RESTORE_RECONCILIATION="${RECOVERY_RUN_DIR}/restore-reconciliation.json"
+SOURCE_DATABASE_URL="postgresql://${RUNTIME_ROLE}@127.0.0.1:5432/${SOURCE_DATABASE}"
+TARGET_DATABASE_URL="postgresql://${RUNTIME_ROLE}@127.0.0.1:5432/${TARGET_DATABASE}"
+PGPASSFILE="${WOW_REBUILD_PGPASSFILE}" \
+CHICKENBRO_LEGACY_SOURCE_DATABASE_URL="${SOURCE_DATABASE_URL}" \
+WOW_DATABASE_URL="${TARGET_DATABASE_URL}" \
+WOW_MIGRATION_WECHAT_APP_CONTEXT="${WOW_MIGRATION_WECHAT_APP_CONTEXT}" \
+PYTHONPATH="${REPO_ROOT}" \
+  "${MIGRATION_RUNTIME_PYTHON}" -m server.migrations.product.postgres_legacy \
+    --mode full \
+    --expected-source-database "${SOURCE_DATABASE}" \
+    --expected-target-database "${TARGET_DATABASE}" \
+    --report-path "${MIGRATION_REPORT}"
+python3 - "${MIGRATION_REPORT}" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+if payload.get("sourceMode") != "repeatable_read_read_only":
+    raise SystemExit("migration source was not read-only")
+if payload.get("reconciliation", {}).get("status") != "matched":
+    raise SystemExit("MIGRATION_RECONCILIATION_DIVERGED")
+PY
+
+TARGET_DATABASE_BYTES="$(pg_query "SELECT pg_database_size('${TARGET_DATABASE}')")"
+[[ "${TARGET_DATABASE_BYTES}" =~ ^[0-9]+$ ]] || die "target database size is invalid"
+ROOT_FREE_BYTES="$(df -PB1 --output=avail "${POSTGRES_DATA_REAL}" | tail -n 1 | tr -d '[:space:]')"
+REQUIRED_RECOVERY_BYTES=$(( TARGET_DATABASE_BYTES * 2 + 1073741824 ))
+(( ROOT_FREE_BYTES >= REQUIRED_RECOVERY_BYTES )) \
+  || die "insufficient space for whitelist archive and isolated restore verification"
+
+WHITELIST_ARCHIVE="${RECOVERY_RUN_DIR}/business-whitelist.dump"
+WHITELIST_RESTORE_LIST="${RECOVERY_RUN_DIR}/business-whitelist.restore-list"
+sudo -n -u postgres pg_dump \
+  --username="${MANAGEMENT_ROLE}" \
+  --format=custom \
+  --dbname="${TARGET_DATABASE}" > "${WHITELIST_ARCHIVE}"
+chmod 0600 "${WHITELIST_ARCHIVE}"
+pg_restore --list "${WHITELIST_ARCHIVE}" > "${WHITELIST_RESTORE_LIST}"
+chmod 0600 "${WHITELIST_RESTORE_LIST}"
+[[ -s "${WHITELIST_ARCHIVE}" && -s "${WHITELIST_RESTORE_LIST}" ]] \
+  || die "whitelist archive or pg_restore --list output is empty"
+WHITELIST_ARCHIVE_SHA="$(sha256_file "${WHITELIST_ARCHIVE}")"
+WHITELIST_ARCHIVE_BYTES="$(stat -c '%s' "${WHITELIST_ARCHIVE}")"
+
+VERIFY_DATABASE="chickenbro_restore_verify_${RUN_ID//[-TZ]/_}"
+VERIFY_DATABASE="${VERIFY_DATABASE:0:63}"
+[[ "${VERIFY_DATABASE}" =~ ^chickenbro_restore_verify_[a-zA-Z0-9_]+$ ]] \
+  || die "verification database identity is invalid"
+sudo -n -u postgres createdb \
+  --username="${MANAGEMENT_ROLE}" \
+  --owner="${MANAGEMENT_ROLE}" \
+  --template=template0 \
+  --encoding=UTF8 \
+  "${VERIFY_DATABASE}"
+sudo -n -u postgres pg_restore \
+  --exit-on-error \
+  --no-owner \
+  --username="${MANAGEMENT_ROLE}" \
+  --dbname="${VERIFY_DATABASE}" \
+  "${WHITELIST_ARCHIVE}"
+VERIFY_DATABASE_URL="postgresql://${RUNTIME_ROLE}@127.0.0.1:5432/${VERIFY_DATABASE}"
+PGPASSFILE="${WOW_REBUILD_PGPASSFILE}" \
+CHICKENBRO_LEGACY_SOURCE_DATABASE_URL="${SOURCE_DATABASE_URL}" \
+WOW_DATABASE_URL="${VERIFY_DATABASE_URL}" \
+WOW_MIGRATION_WECHAT_APP_CONTEXT="${WOW_MIGRATION_WECHAT_APP_CONTEXT}" \
+PYTHONPATH="${REPO_ROOT}" \
+  "${MIGRATION_RUNTIME_PYTHON}" -m server.migrations.product.postgres_legacy \
+    --mode full \
+    --expected-source-database "${SOURCE_DATABASE}" \
+    --expected-target-database "${VERIFY_DATABASE}" \
+    --report-path "${RESTORE_RECONCILIATION}"
+python3 - "${RESTORE_RECONCILIATION}" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+if payload.get("sourceMode") != "repeatable_read_read_only":
+    raise SystemExit("restore reconciliation source was not read-only")
+if payload.get("reconciliation", {}).get("status") != "matched":
+    raise SystemExit("MIGRATION_RECONCILIATION_DIVERGED")
+PY
+
+MIGRATION_REPORT_SHA="$(sha256_file "${MIGRATION_REPORT}")"
+RESTORE_RECONCILIATION_SHA="$(sha256_file "${RESTORE_RECONCILIATION}")"
+RECOVERY_MANIFEST_NEW="${RECOVERY_ROOT_REAL}/whitelist-recovery.json.new-${RUN_ID}"
+python3 - \
+  "${RECOVERY_MANIFEST_NEW}" "${WHITELIST_ARCHIVE}" "${WHITELIST_ARCHIVE_SHA}" \
+  "${WHITELIST_ARCHIVE_BYTES}" "${MIGRATION_REPORT}" "${MIGRATION_REPORT_SHA}" \
+  "${VERIFY_DATABASE}" "${RESTORE_RECONCILIATION}" "${RESTORE_RECONCILIATION_SHA}" <<'PY'
+import json
+import os
+import sys
+from datetime import datetime, timezone
+
+(
+    output_path,
+    archive_path,
+    archive_sha,
+    archive_bytes,
+    migration_path,
+    migration_sha,
+    verify_database,
+    restore_path,
+    restore_sha,
+) = sys.argv[1:]
+now = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+payload = {
+    "schemaVersion": "chickenbro-whitelist-recovery-v1",
+    "status": "restore_verified",
+    "targetIdentity": {
+        "provider": "tencent_cvm",
+        "instanceId": "ins-93tgv1rb",
+        "region": "ap-shanghai",
+        "zone": "ap-shanghai-2",
+        "publicAddress": "124.223.51.33",
+        "sshTarget": "wow-lighthouse",
+    },
+    "sourceDatabase": "wow_test",
+    "sourceMode": "repeatable_read_read_only",
+    "candidateDatabase": "chickenbro_prod",
+    "archivePath": archive_path,
+    "archiveSha256": archive_sha,
+    "archiveBytes": int(archive_bytes),
+    "createdAt": now,
+    "migrationReport": {"status": "matched", "path": migration_path, "sha256": migration_sha},
+    "restore": {
+        "targetDatabase": verify_database,
+        "commandExitCode": 0,
+        "reconciliationStatus": "matched",
+        "verifiedAt": now,
+        "evidencePath": restore_path,
+        "evidenceSha256": restore_sha,
+    },
+    "restoreReconciliationSha256": restore_sha,
+}
+descriptor = os.open(output_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+with os.fdopen(descriptor, "w", encoding="utf-8") as output:
+    json.dump(payload, output, ensure_ascii=True, sort_keys=True, separators=(",", ":"))
+    output.write("\n")
+PY
+mv -- "${RECOVERY_MANIFEST_NEW}" "${RECOVERY_ROOT_REAL}/whitelist-recovery.json"
 printf '%s\n' 'provisioned_exact_identity' > "${PROVISION_STATE_FILE}"
 chmod 0600 "${PROVISION_STATE_FILE}"
 trap - EXIT
 
-emit_result "provisioned_exact_identity" "true" "${ROOT_FREE_BYTES}" "${LIVE_DATABASE_BYTES}" "${SOURCE_ARCHIVE_SHA}"
+emit_result "provisioned_exact_identity" "true" "${ROOT_FREE_BYTES}" "${LIVE_DATABASE_BYTES}" "${WHITELIST_ARCHIVE_SHA}"

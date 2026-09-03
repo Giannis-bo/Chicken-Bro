@@ -31,26 +31,31 @@ test('provisioning is fixed-target dry-run by default and contains no destructiv
   assert.match(script, /MODE="dry-run"/)
   assert.match(script, /TARGET_DATABASE="chickenbro_prod"/)
   assert.match(script, /SOURCE_DATABASE="wow_test"/)
-  assert.match(script, /blocked_until_independent_legacy_cleanup_or_storage_expansion/)
+  assert.match(script, /blocked_until_whitelist_recovery_and_exact_capacity_cleanup_or_storage_expansion/)
   assert.doesNotMatch(script, /\bDROP\s+DATABASE\b/i)
   assert.doesNotMatch(script, /\bdropdb\b/i)
   assert.doesNotMatch(script, /rm\s+-[^\n]*r[^\n]*f|rm\s+-[^\n]*f[^\n]*r/i)
 })
 
-test('apply path is fail-closed on reviewed state, capacity, independent backup and restore-list gates', () => {
+test('apply path builds and restore-verifies only the migrated business whitelist', () => {
   const script = source()
 
   for (const contract of [
     'candidateDatabaseProvisioningAuthorized',
     '--inventory-sha',
-    '--backup-device',
-    'WOW_REBUILD_BACKUP_ROOT',
+    'WOW_CHICKENBRO_RECOVERY_ROOT',
     'WOW_REBUILD_MANAGEMENT_ROLE',
-    'stat -c',
+    'MIGRATION_RUNTIME_PYTHON',
     'df -PB1',
     'pg_database_size',
     'pg_dump',
     'pg_restore --list',
+    '--exit-on-error',
+    'server.migrations.product.postgres_legacy',
+    'MIGRATION_RECONCILIATION_DIVERGED',
+    'chickenbro-whitelist-recovery-v1',
+    'chickenbro_restore_verify_',
+    'restoreReconciliationSha256',
     'server/migrations/product',
     'ops.schema_migrations',
     'UNEXPECTED_SCHEMA_COUNT',
@@ -65,9 +70,14 @@ test('apply path is fail-closed on reviewed state, capacity, independent backup 
   ]) {
     assert.ok(script.includes(contract), `missing apply gate: ${contract}`)
   }
-  assert.match(script, /POSTGRES_DEVICE_ID[^\n]*BACKUP_DEVICE_ID|BACKUP_DEVICE_ID[^\n]*POSTGRES_DEVICE_ID/)
+  assert.doesNotMatch(script, /--backup-device|WOW_REBUILD_BACKUP_ROOT|BACKUP_DEVICE_ID/)
+  assert.doesNotMatch(script, /pg_dump[\s\S]{0,220}--dbname="\$\{SOURCE_DATABASE\}"/)
+  assert.match(script, /pg_dump[\s\S]{0,220}--dbname="\$\{TARGET_DATABASE\}"/)
+  assert.match(script, /"\$\{MIGRATION_RUNTIME_PYTHON\}" -m server\.migrations\.product\.postgres_legacy/)
   assert.match(script, /TARGET_DATABASE_EXISTS/)
   assert.match(script, /TARGET_CONNECTIONS/)
+  assert.match(script, /target database already exists; a fresh clean target is required/)
+  assert.doesNotMatch(script, /already_provisioned_exact_identity/)
   assert.match(script, /rolname\s*=\s*current_user[\s\S]{0,200}rolcreatedb/)
 })
 
@@ -82,7 +92,10 @@ test('local dry-run emits redacted blocked JSON and performs no prerequisite com
   assert.equal(payload.mode, 'dry-run')
   assert.equal(payload.targetDatabase, 'chickenbro_prod')
   assert.equal(payload.sourceDatabase, 'wow_test')
-  assert.equal(payload.capacityGate, 'blocked_until_independent_legacy_cleanup_or_storage_expansion')
+  assert.equal(
+    payload.capacityGate,
+    'blocked_until_whitelist_recovery_and_exact_capacity_cleanup_or_storage_expansion',
+  )
   assert.equal(payload.mutationAuthorized, false)
   assert.equal(payload.inventorySha, inventorySha())
   assert.doesNotMatch(result.stdout + result.stderr, /do-not-print|private-backup/i)
@@ -96,14 +109,31 @@ test('reviewed inventory hash is exact and apply stops before external state whi
   const blocked = run([
     '--apply',
     '--inventory-sha', inventorySha(),
-    '--backup-device', '/approved/independent-device',
   ], {
-    WOW_REBUILD_BACKUP_ROOT: '/approved/independent-device/rebuild',
+    WOW_CHICKENBRO_RECOVERY_ROOT: '/var/lib/chickenbro-recovery',
     WOW_REBUILD_MANAGEMENT_ROLE: 'postgres',
   })
   assert.notEqual(blocked.status, 0)
   assert.match(blocked.stderr, /candidateDatabaseProvisioningAuthorized=false/)
   assert.doesNotMatch(blocked.stdout + blocked.stderr, /postgresql:\/\/|password|secret/i)
+})
+
+test('apply refreshes and matches the exact Tencent CVM identity before database work', () => {
+  const script = source()
+
+  for (const expected of [
+    'ins-93tgv1rb',
+    'ap-shanghai',
+    'ap-shanghai-2',
+    '124.223.51.33',
+    'metadata.tencentyun.com/latest/meta-data/instance-id',
+    'metadata.tencentyun.com/latest/meta-data/placement/region',
+    'metadata.tencentyun.com/latest/meta-data/placement/zone',
+  ]) {
+    assert.ok(script.includes(expected), `missing target identity gate: ${expected}`)
+  }
+  assert.match(script, /refresh_target_identity/)
+  assert.match(script, /target identity mismatch/i)
 })
 
 test('script has valid bash syntax', () => {

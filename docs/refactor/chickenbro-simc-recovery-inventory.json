@@ -1,18 +1,49 @@
 {
-  "schemaVersion": 1,
-  "status": "read_only_insufficient_for_cleanup_or_candidate",
+  "schemaVersion": 2,
+  "status": "corrected_recovery_contract_apply_not_run",
   "observedAt": "2026-09-02T17:01:22Z",
-  "source": {
-    "kind": "tencent_cloud_console_and_server_read_only_probe",
+  "invalidatedProviderInventory": {
     "instanceId": "lhins-dr6tkl63",
-    "region": "广州三区",
-    "consoleSurfaces": [
-      "instance_snapshot",
-      "regional_cloud_disk_list",
-      "lighthouse_object_storage"
+    "region": "ap-guangzhou",
+    "validForTarget": false,
+    "reason": "The previous Lighthouse/Guangzhou console inventory does not identify the SSH target used by the Chickenbro deployment. Its snapshot, disk and COS observations cannot authorize this target."
+  },
+  "targetIdentity": {
+    "provider": "tencent_cvm",
+    "instanceId": "ins-93tgv1rb",
+    "region": "ap-shanghai",
+    "zone": "ap-shanghai-2",
+    "publicAddress": "124.223.51.33",
+    "sshTarget": "wow-lighthouse",
+    "refreshRequiredBeforeApply": true
+  },
+  "businessWhitelistRecovery": {
+    "sourceDatabase": "wow_test",
+    "sourceMode": "read_only",
+    "candidateDatabase": "chickenbro_prod",
+    "verificationDatabasePattern": "chickenbro_restore_verify_*",
+    "manifestSchema": "chickenbro-whitelist-recovery-v1",
+    "status": "not_run",
+    "requiredProof": [
+      "matched whitelist migration reconciliation",
+      "candidate custom-format archive SHA-256 and bytes",
+      "pg_restore --list success",
+      "distinct verification database restore",
+      "second matched reconciliation against read-only wow_test"
     ]
   },
+  "rejectedEvidenceDatabases": {
+    "recoveryRequired": false,
+    "exactProvisionalAllowlist": [
+      "wow_gear_evidence_01adf184_r14",
+      "wow_gear_evidence_0be65754_r24",
+      "wow_gear_evidence_145dee16_r22",
+      "wow_gear_evidence_15f514d5_r23"
+    ],
+    "freshLiveInventoryRequiredBeforeApply": true
+  },
   "mutationPerformed": false,
+  "providerEvidenceStatus": "invalidated_wrong_target",
   "providerSnapshots": {
     "visibleCount": 1,
     "pageStatement": "Snapshots back up the server system disk; the displayed free regional quota is twice the created instance count, capped at 20.",
@@ -102,9 +133,10 @@
   },
   "conclusions": {
     "currentIndependentBackup": false,
-    "successfulRestoreIdentity": false,
+    "whitelistRestoreVerified": false,
     "candidateDatabaseProvisioningAuthorized": false,
-    "legacyDatabaseDeletionAuthorized": false,
-    "nextDecision": "Authorize and configure a least-privilege upload/restore path to a dedicated private mainland COS target, or create and attach a separate data disk. Existing buckets are potential-only because authenticated server access, exact free headroom and restore evidence are absent; the stale snapshot, zero unattached cloud-disk inventory and same-device backup path also do not satisfy the Phase 2 apply contract."
+    "capacityPreCleanupAuthorized": false,
+    "wowTestRetirementAuthorized": false,
+    "nextDecision": "Refresh the exact Tencent CVM identity, migrate and reconcile only the valid business whitelist from read-only wow_test, restore-verify the hash-bound candidate archive, then re-run the four exact database connection/reference/open-handle gates."
   }
 }

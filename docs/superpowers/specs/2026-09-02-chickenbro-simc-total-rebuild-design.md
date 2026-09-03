@@ -220,7 +220,7 @@ ops: schema_migrations, job_queue, audit_events, usage_counters
 - news/content/cache/WebSim/gear/talent/stat-weight/observed-build/evidence 数据；
 - 运行日志、模型思维链、原始 secret 或无限期第三方 payload。
 
-拒绝记录只进入脱敏迁移报告和加密备份，不写入新生产库。迁移包含一次候选全量和切流窗口内的一次
+拒绝记录只进入不含行内容的脱敏迁移报告，不写入新生产库，也不因为被拒绝而建立数据备份。迁移包含一次候选全量和切流窗口内的一次
 只读 delta；没有长期双写。迁移器为每条接受记录保存不可变的 source table/source primary key 到 target
 UUID 映射，重复执行必须幂等。切流前按用户、会话、消息、快照、任务、尝试和结果分别核对接受/拒绝计数、
 owner、外键、顺序、终态和内容 hash，不能只比较数据库总行数。
@@ -241,8 +241,11 @@ owner、外键、顺序、终态和内容 hash，不能只比较数据库总行�
 - `www.chickenbro.cloud`、v2 readiness 和 legacy health 可达不代表真实扫码、跨端历史或正式切流完成。
 
 当前 8.1GB 可用空间小于现用数据库约 15GB，不能在同一根盘上安全并存完整新库、旧库回滚和迁移临时
-空间。这是新数据库阶段的前置容量阻塞：必须先对与运行完全无引用的 evidence/test 数据库完成独立介质
-备份、恢复验证和精确退役，或者扩容。不得通过提前删除 `wow_test`、正式部署或唯一恢复点来绕过容量门禁。
+空间。容量纠正路径固定为：从保持只读的 `wow_test` 把有效业务白名单迁入干净 `chickenbro_prod`，核对后
+导出该小型目标、执行 `pg_restore --list`，再恢复到独立验证库并第二次核对；只有这份 hash-bound 恢复清单
+成立，且 fresh live probe 确认四个精确 `wow_gear_evidence_*` 库及对应四个 `/etc/wow-backend-candidate-gear-evidence-r*.env`
+无连接、无 systemd/Nginx/process/open-handle 引用并先移除 env 伴随项时，才可按精确字面量做容量预清理。
+这些明确拒绝的 evidence/test 内容不备份；替代路径是扩容。`wow_test` 在真实双端验收前始终只读且受保护。
 
 ## 10. 文档清理
 
@@ -286,23 +289,26 @@ owner。不得用兼容 shim、空实现或永久 feature flag 假装完成清�
 
 ## 12. 云端退役与清理
 
-云端退役分为“容量前置清理”和“切流后 legacy 退役”。容量前置清理只能处理能独立证明无运行引用、
-无活动回滚职责且已有独立介质恢复点的 evidence/test 数据库或构建缓存；不能触碰 `wow_test`、正式部署、
-唯一 SimC runtime 或当前回滚包。随后按以下顺序执行：
+云端退役分为“容量前置清理”和“切流后 legacy 退役”。容量前置清理只允许四个精确 hash-suffixed
+`wow_gear_evidence_*` 数据库及其四个精确 env 伴随项；这些数据已被明确拒绝，因此不建立恢复副本。
+执行前必须先完成业务白名单的迁移、第一次核对、目标库 dump/list、distinct restore 和第二次核对，并刷新
+exact Tencent CVM identity、库大小、连接、配置、systemd/Nginx/process/open-handle 引用。不能触碰
+`wow_test`、正式部署、唯一 SimC runtime 或当前回滚包。随后按以下顺序执行：
 
-1. 计算新库、迁移工作空间和回滚保留量，证明容量满足后才创建新库；
-2. 把当前生产数据库、数据库 globals、环境文件、Nginx/TLS、SimC identity 和部署清单备份到独立介质并做恢复验证；同一根盘上的副本不算磁盘故障恢复点；
-3. 建立并验证 `chickenbro_prod`，执行白名单全量和 delta 迁移；
+1. 建立并验证 `chickenbro_prod`，从只读 `wow_test` 执行业务白名单迁移与双重核对，生成 hash-bound 恢复清单；
+2. 在 reviewed capacity scope 中先移除四个无消费者 env 并确认 absent，再按精确库名释放拒绝 evidence 数据占用，或选择扩容；
+3. 容量重新满足后部署 candidate，并在切流窗口执行只读 delta 迁移；
 4. 切换 API/Worker DSN，验证跨端历史、Codex、SimC、owner 隔离和回滚；
-5. 停止并禁用 legacy `wow-backend`、旧 Gear worker 和所有 news/WebSim/gear/community/stat-weight/talent timer；
-6. 移除 candidate API、candidate DB、prototype 数据和无引用 env；
-7. 删除仍未在容量前置阶段处理的无引用 gear evidence DB、exact-first 临时 DB、旧 `wow_prod`，以及最终不再承担回滚的 `wow_test`；
-8. 删除 `/opt` 中旧 candidate/staging/backup 目录、旧 `/var/lib/wow-backend` 数据、旧静态 assets/evidence；
-9. 保留一份经过恢复验证的短期回滚包，到书面回滚窗口结束后再按精确 manifest 删除；
-10. 重新检查磁盘、数据库列表、监听端口、systemd、Nginx、证书、API、Worker 和跨端业务验收。
+5. 为已接受生产数据保留经过恢复验证的短期回滚包；
+6. 停止并禁用 legacy `wow-backend`、旧 Gear worker 和所有 news/WebSim/gear/community/stat-weight/talent timer；
+7. 移除 candidate API、candidate DB、prototype 数据和无引用 env；
+8. 删除 exact-first 临时 DB、旧 `wow_prod`，以及最终不再承担回滚的 `wow_test`；
+9. 删除 `/opt` 中旧 candidate/staging/backup 目录、旧 `/var/lib/wow-backend` 数据、旧静态 assets/evidence；
+10. 回滚窗口结束后按精确 manifest 删除回滚包，再检查磁盘、数据库、监听、systemd、Nginx、证书、API、Worker 和跨端验收。
 
-数据库和目录删除只能使用审阅过的精确名称，禁止宽泛递归删除。未完成可恢复备份、当前连接/引用证明、
-新路径用户验收或回滚演练时，不得执行 DROP、停止正式入口或删除旧环境。
+数据库和目录删除只能使用审阅过的精确名称，禁止宽泛递归删除。容量 scope 未完成白名单恢复证明及 fresh
+连接/引用证明时不得执行 DROP；完整退役未完成已接受生产数据恢复、用户验收或回滚演练时，不得停止正式
+入口或删除旧环境。
 
 ## 13. 实施分解
 

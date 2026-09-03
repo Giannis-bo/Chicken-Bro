@@ -4,7 +4,7 @@
 
 **Goal:** Remove every superseded local and cloud owner after the new Chat/SimC production path is accepted, while retaining one restore-verified rollback package for a bounded window.
 
-**Architecture:** Cleanup is driven exclusively by the reviewed local and cloud manifests, exact resource names, and pre-delete content hashes. Local caller/link/build proofs precede file deletion; remote service/database/directory retirement uses a dry-run-first state machine with backup/restore/reference/connection gates and can never target a wildcard, unresolved variable, filesystem root, home directory, or active `chickenbro_prod` owner.
+**Architecture:** Cleanup is driven exclusively by the reviewed local and cloud manifests, exact resource names, and pre-delete content hashes. Local caller/link/build proofs precede file deletion; remote service/database/directory retirement uses a dry-run-first state machine with recovery/reference/connection gates and can never target a wildcard, unresolved variable, filesystem root, home directory, or active `chickenbro_prod` owner. A bounded pre-Phase-5 exception covers only the four rejected evidence databases and their four exact env companions after the accepted business whitelist has its own hash-bound restore proof.
 
 **Tech Stack:** Node.js 20, Python 3, Git, PostgreSQL, systemd, Nginx, Bash, Project Harness.
 
@@ -12,13 +12,13 @@
 
 ## Global Constraints
 
-- Phase 6 cannot start before Phase 5 records real Mini/Web acceptance, first-new-write state, migration reconciliation, and stable production health.
+- Full Phase 6 cannot start before Phase 5 records real Mini/Web acceptance, first-new-write state, migration reconciliation, and stable production health. The only earlier exception is the exact capacity pre-cleanup described below.
 - `chickenbro_prod`, `chickenbro-api`, `chickenbro-worker`, current Web assets, current Mini build identity, `/opt/wow-simc/current`, Nginx/TLS, and the bounded rollback package are protected keep targets.
 - Every deletion target is an exact file, database, service, timer, env file, or directory from a reviewed manifest; globs and recursive broad roots are forbidden.
-- A database requires zero active connections, zero current config references, an independent restore-verified backup, and an explicit target-name allowlist.
+- A database requires zero active connections, zero current config references, an explicit target-name allowlist, and the recovery proof appropriate to its data. The four rejected evidence databases require no archive; their pre-cleanup instead requires the restore-verified accepted business whitelist and removal of their exact env companions.
 - A service/timer requires zero current dependency/caller references and a replacement or explicit removal decision.
 - Cleanup evidence distinguishes deleted, retained, skipped, failed, recoverable, and permanently retired resources.
-- Git history is the archive for removed repository docs/code; the independent backup is the recovery authority for removed cloud data.
+- Git history is the archive for removed repository docs/code. The migrated business-whitelist archive/restore manifest is the capacity-cleanup recovery authority; intentionally rejected evidence/test contents are permanently discarded and never uploaded to COS.
 - Overall completion requires final real Mini/Web acceptance after cleanup, not merely disk reclamation.
 
 ---
@@ -198,7 +198,7 @@ git commit -m "docs: remove superseded project history"
 - Modify: `docs/chickenbro-simc-production-runbook.md`
 
 **Interfaces:**
-- Consumes: refreshed cloud inventory, production acceptance evidence, independent restore manifest, and exact cleanup manifest SHA.
+- Consumes: refreshed exact Tencent CVM identity/inventory, hash-bound business-whitelist restore manifest, production acceptance evidence for full retirement, and exact cleanup manifest SHA.
 - Produces: one result per exact resource with `deleted|retained|skipped|failed`, before/after identity, recovery reference, and timestamp.
 
 - [ ] **Step 1: Write failing protected-target and exact-name tests**
@@ -218,11 +218,11 @@ Run: `node --test tests/retire-chickenbro-legacy.test.js`
 
 - [ ] **Step 3: Build the exact cloud manifest from the refreshed inventory**
 
-The manifest lists every retired legacy `wow-*` service/timer, old v2 candidate/formal unit replaced by `chickenbro-*`, exact unused database name, exact env/pgpass/nginx file, and exact deployment/data/static/backup directory. Each entry includes current references, active connections, backup ID/hash, restore-check result, replacement, and delete-after timestamp. Entries failing any gate are `blocked`, not silently omitted.
+The manifest lists every retired legacy `wow-*` service/timer, old v2 candidate/formal unit replaced by `chickenbro-*`, exact unused database name, exact env/pgpass/nginx file, and exact deployment/data/static/backup directory. Each entry includes current references, active connections, applicable recovery identity/result, replacement, and delete-after timestamp. The capacity scope is exactly the four hash-suffixed evidence databases plus `/etc/wow-backend-candidate-gear-evidence-r14.env`, `r24.env`, `r22.env`, and `r23.env`; all other entries remain full-retirement only. Entries failing any gate are `blocked`, not silently omitted.
 
 - [ ] **Step 4: Implement dry-run-first retirement**
 
-For systemd: stop, verify no active request dependency, disable, remove exact unit, daemon-reload, and confirm absent. For databases: revoke connect, terminate only target DB sessions, verify no config reference, run final restore check, then `DROP DATABASE` using a quoted exact identifier. For files/directories: verify path, device, realpath, content hash/manifest, and allowed parent before moving to an exact quarantine; permanent deletion waits for Task 5.
+For systemd: stop, verify no active request dependency, disable, remove exact unit, daemon-reload, and confirm absent. For capacity cleanup: refresh and match `ins-93tgv1rb` / `ap-shanghai` / `ap-shanghai-2`, verify each exact env file has no unit/process/open-handle consumer, remove and confirm that companion absent, then re-check the paired database's exact size and zero connections/references before `DROP DATABASE` with a quoted exact identifier. `wow_test` is never a capacity target. For full-retirement files/directories: verify path, device, realpath, content hash/manifest, and allowed parent before moving to exact same-host quarantine; permanent deletion waits for Task 5.
 
 - [ ] **Step 5: Run dry run, review, and apply**
 
@@ -232,7 +232,7 @@ bash server/retire_chickenbro_legacy_lighthouse.sh \
   --manifest docs/refactor/chickenbro-simc-cloud-cleanup-manifest.json --dry-run
 ```
 
-After review, run with `--apply --manifest-sha <reviewed-sha> --backup-manifest-sha <restore-verified-sha>`. Stop immediately on any changed reference, connection, hash, active target, or missing recovery proof.
+After review, the capacity exception uses `--capacity-pre-cleanup --apply --manifest-sha <reviewed-sha> --recovery-manifest-sha <whitelist-restore-sha>`. Full retirement omits `--capacity-pre-cleanup` and remains Phase-5 gated. Stop immediately on changed target metadata, size, reference, connection, hash, active target, companion env, or recovery proof.
 
 - [ ] **Step 6: Verify cloud parity and commit**
 

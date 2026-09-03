@@ -3,6 +3,15 @@
   "status": "reachable",
   "observedAt": "2026-09-02T13:43:05Z",
   "host": "VM-4-8-ubuntu",
+  "targetIdentity": {
+    "provider": "tencent_cvm",
+    "instanceId": "ins-93tgv1rb",
+    "region": "ap-shanghai",
+    "zone": "ap-shanghai-2",
+    "publicAddress": "124.223.51.33",
+    "sshTarget": "wow-lighthouse",
+    "refreshRequiredBeforeApply": true
+  },
   "rootFilesystem": {
     "path": "/",
     "sizeBytes": 73859022848,
@@ -484,5 +493,5 @@
     }
   ],
   "probeErrors": [],
-  "capacityGate": "blocked_until_independent_legacy_cleanup_or_storage_expansion"
+  "capacityGate": "blocked_until_whitelist_recovery_and_exact_capacity_cleanup_or_storage_expansion"
 }

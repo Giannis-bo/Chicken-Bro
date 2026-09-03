@@ -1,17 +1,32 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "mode": "dry-run",
   "observedAt": "2026-09-02T16:04:02Z",
   "deletionAuthorized": false,
-  "purpose": "Exact capacity-remediation candidates for an isolated chickenbro_prod database",
+  "purpose": "Exact rejected-evidence capacity remediation after valid business-whitelist restore verification",
   "totalCandidateBytes": 22533484636,
-  "independentRecovery": {
-    "status": "missing",
-    "reason": "The Lighthouse host has one 75161927680-byte vda disk and only /dev/vda2 mounted at root. The only visible provider snapshot predates the current database inventory and has no restore verification; no independent archive plus completed restore identity exists."
+  "targetIdentity": {
+    "provider": "tencent_cvm",
+    "instanceId": "ins-93tgv1rb",
+    "region": "ap-shanghai",
+    "zone": "ap-shanghai-2",
+    "publicAddress": "124.223.51.33",
+    "sshTarget": "wow-lighthouse",
+    "refreshRequiredBeforeApply": true
+  },
+  "businessRecovery": {
+    "sourceDatabase": "wow_test",
+    "sourceMode": "read_only",
+    "candidateDatabase": "chickenbro_prod",
+    "manifestSchema": "chickenbro-whitelist-recovery-v1",
+    "status": "not_run"
+  },
+  "rejectedEvidenceRecovery": {
+    "required": false
   },
   "evidence": {
     "capacityInventory": "docs/refactor/chickenbro-simc-cloud-inventory.json",
-    "capacityInventorySha256": "1466a227e882125ddd342c9518025b583b7bbead80dabb193f29997ff41e80c6",
+    "capacityInventorySha256": "d0247ebdc497541315f1dc3d223ba290ea1ba9d43e14f40a42278693ec23a98c",
     "recoveryInventory": "docs/refactor/chickenbro-simc-recovery-inventory.json",
     "liveProbeTransport": "authorized read-only SSH",
     "blockDevices": [
@@ -29,8 +44,7 @@
       }
     ],
     "configurationScanRoots": [
-      "/etc/systemd/system",
-      "/etc/nginx",
+      "/etc",
       "/opt/wow-mini-program",
       "/opt/wow-v2-staging",
       "/var/www"
@@ -61,10 +75,14 @@
       ],
       "tableCount": 71,
       "approximateRows": 2115416,
-      "configurationReferences": [],
+      "configurationReferences": [
+        "/etc/wow-backend-candidate-gear-evidence-r14.env"
+      ],
+      "requiredAbsentCompanion": "/etc/wow-backend-candidate-gear-evidence-r14.env",
       "sameRootBackupMatches": [],
-      "decision": "candidate_only",
-      "applyStatus": "blocked_pending_independent_backup_restore"
+      "decision": "rejected_evidence_exact_precleanup",
+      "recoveryRequired": false,
+      "applyStatus": "blocked_pending_whitelist_restore_and_fresh_live_gates"
     },
     {
       "name": "wow_gear_evidence_0be65754_r24",
@@ -89,10 +107,14 @@
       ],
       "tableCount": 71,
       "approximateRows": 2375154,
-      "configurationReferences": [],
+      "configurationReferences": [
+        "/etc/wow-backend-candidate-gear-evidence-r24.env"
+      ],
+      "requiredAbsentCompanion": "/etc/wow-backend-candidate-gear-evidence-r24.env",
       "sameRootBackupMatches": [],
-      "decision": "candidate_only",
-      "applyStatus": "blocked_pending_independent_backup_restore"
+      "decision": "rejected_evidence_exact_precleanup",
+      "recoveryRequired": false,
+      "applyStatus": "blocked_pending_whitelist_restore_and_fresh_live_gates"
     },
     {
       "name": "wow_gear_evidence_145dee16_r22",
@@ -117,10 +139,14 @@
       ],
       "tableCount": 71,
       "approximateRows": 2767097,
-      "configurationReferences": [],
+      "configurationReferences": [
+        "/etc/wow-backend-candidate-gear-evidence-r22.env"
+      ],
+      "requiredAbsentCompanion": "/etc/wow-backend-candidate-gear-evidence-r22.env",
       "sameRootBackupMatches": [],
-      "decision": "candidate_only",
-      "applyStatus": "blocked_pending_independent_backup_restore"
+      "decision": "rejected_evidence_exact_precleanup",
+      "recoveryRequired": false,
+      "applyStatus": "blocked_pending_whitelist_restore_and_fresh_live_gates"
     },
     {
       "name": "wow_gear_evidence_15f514d5_r23",
@@ -145,24 +171,61 @@
       ],
       "tableCount": 71,
       "approximateRows": 2632122,
-      "configurationReferences": [],
+      "configurationReferences": [
+        "/etc/wow-backend-candidate-gear-evidence-r23.env"
+      ],
+      "requiredAbsentCompanion": "/etc/wow-backend-candidate-gear-evidence-r23.env",
       "sameRootBackupMatches": [],
-      "decision": "candidate_only",
-      "applyStatus": "blocked_pending_independent_backup_restore"
+      "decision": "rejected_evidence_exact_precleanup",
+      "recoveryRequired": false,
+      "applyStatus": "blocked_pending_whitelist_restore_and_fresh_live_gates"
+    }
+  ],
+  "capacityCleanupCompanions": [
+    {
+      "database": "wow_gear_evidence_01adf184_r14",
+      "envFile": "/etc/wow-backend-candidate-gear-evidence-r14.env",
+      "systemdUnitReferences": [],
+      "runningProcessReferences": 0,
+      "openHandles": 0,
+      "applyStatus": "blocked_pending_exact_hash_and_reviewed_removal"
+    },
+    {
+      "database": "wow_gear_evidence_0be65754_r24",
+      "envFile": "/etc/wow-backend-candidate-gear-evidence-r24.env",
+      "systemdUnitReferences": [],
+      "runningProcessReferences": 0,
+      "openHandles": 0,
+      "applyStatus": "blocked_pending_exact_hash_and_reviewed_removal"
+    },
+    {
+      "database": "wow_gear_evidence_145dee16_r22",
+      "envFile": "/etc/wow-backend-candidate-gear-evidence-r22.env",
+      "systemdUnitReferences": [],
+      "runningProcessReferences": 0,
+      "openHandles": 0,
+      "applyStatus": "blocked_pending_exact_hash_and_reviewed_removal"
+    },
+    {
+      "database": "wow_gear_evidence_15f514d5_r23",
+      "envFile": "/etc/wow-backend-candidate-gear-evidence-r23.env",
+      "systemdUnitReferences": [],
+      "runningProcessReferences": 0,
+      "openHandles": 0,
+      "applyStatus": "blocked_pending_exact_hash_and_reviewed_removal"
     }
   ],
   "requiredBeforeApply": [
-    "independent archive for every exact database name",
-    "archive SHA-256 and byte count",
-    "completed isolated restore with exit status zero",
-    "schema, table, row and sampled hash reconciliation",
-    "fresh zero-connection and zero-reference probe",
+    "hash-bound whitelist recovery manifest with isolated restore reconciliation",
+    "fresh exact target identity from Tencent instance metadata",
+    "fresh zero-connection, zero-reference and zero-open-handle probe per exact database",
+    "explicit wow_test read-only protection",
+    "exact companion env removal and absence confirmation before each database drop",
     "reviewed apply authorization bound to this manifest SHA"
   ],
   "nonClaims": {
     "unusedForever": false,
-    "independentArchiveExists": false,
-    "restoreVerified": false,
+    "whitelistRestoreVerified": false,
     "safeToDelete": false,
     "capacityGateCleared": false
   }

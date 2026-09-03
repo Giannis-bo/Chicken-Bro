@@ -3,7 +3,42 @@ import unittest
 from server.chickenbro_simc_cloud_inventory import build_inventory, capacity_gate
 
 
+TARGET_IDENTITY = {
+    "provider": "tencent_cvm",
+    "instanceId": "ins-93tgv1rb",
+    "region": "ap-shanghai",
+    "zone": "ap-shanghai-2",
+    "publicAddress": "124.223.51.33",
+    "sshTarget": "wow-lighthouse",
+    "refreshRequiredBeforeApply": True,
+}
+
+
 class ChickenbroSimcCloudInventoryTest(unittest.TestCase):
+    def test_inventory_binds_the_refreshed_tencent_cvm_target_identity(self):
+        inventory = build_inventory(
+            {
+                "status": "reachable",
+                "observedAt": "2026-09-03T08:00:00Z",
+                "targetIdentity": TARGET_IDENTITY,
+            }
+        )
+
+        self.assertEqual(inventory["targetIdentity"], TARGET_IDENTITY)
+
+        with self.assertRaisesRegex(ValueError, "target identity"):
+            build_inventory(
+                {
+                    "status": "reachable",
+                    "observedAt": "2026-09-03T08:00:00Z",
+                    "targetIdentity": {
+                        **TARGET_IDENTITY,
+                        "instanceId": "lhins-dr6tkl63",
+                        "region": "ap-guangzhou",
+                    },
+                }
+            )
+
     def test_capacity_is_blocked_when_free_space_is_smaller_than_current_database(self):
         inventory = build_inventory(
             {
@@ -16,7 +51,7 @@ class ChickenbroSimcCloudInventoryTest(unittest.TestCase):
 
         self.assertEqual(
             inventory["capacityGate"],
-            "blocked_until_independent_legacy_cleanup_or_storage_expansion",
+            "blocked_until_whitelist_recovery_and_exact_capacity_cleanup_or_storage_expansion",
         )
 
     def test_capacity_never_claims_ready_without_a_full_preflight(self):
@@ -58,6 +93,7 @@ class ChickenbroSimcCloudInventoryTest(unittest.TestCase):
                 "status": "partial",
                 "observedAt": "2026-09-02T08:00:00Z",
                 "host": "wow-lighthouse",
+                "targetIdentity": TARGET_IDENTITY,
                 "rootFilesystem": {
                     "path": "/",
                     "sizeBytes": 100,
@@ -104,6 +140,7 @@ class ChickenbroSimcCloudInventoryTest(unittest.TestCase):
                 "status",
                 "observedAt",
                 "host",
+                "targetIdentity",
                 "rootFilesystem",
                 "rootFreeBytes",
                 "currentDatabaseBytes",

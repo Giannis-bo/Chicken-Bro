@@ -19,12 +19,12 @@ function readinessValidatorSource() {
   return script.slice(start, end)
 }
 
-function backupManifestValidatorSource() {
+function recoveryManifestValidatorSource() {
   const script = read('server/deploy_chickenbro_candidate_lighthouse.sh')
-  const marker = 'import hashlib\nimport json\nimport os\nimport re\nimport sys\nfrom datetime import datetime\nfrom pathlib import Path\n\nmanifest_path = Path(sys.argv[1])'
+  const marker = 'import hashlib\nimport json\nimport re\nimport sys\nfrom datetime import datetime\nfrom pathlib import Path\n\nmanifest_path = Path(sys.argv[1])'
   const start = script.indexOf(marker)
-  const end = script.indexOf('\nPY\n\nBACKUP_DEVICE=', start)
-  assert.ok(start >= 0 && end > start, 'embedded backup manifest validator must be extractable')
+  const end = script.indexOf('\nPY\n[[ -f "${LEGACY_API_ENV}"', start)
+  assert.ok(start >= 0 && end > start, 'embedded recovery manifest validator must be extractable')
   return script.slice(start, end)
 }
 
@@ -32,45 +32,57 @@ function sha256(value) {
   return crypto.createHash('sha256').update(value).digest('hex')
 }
 
-function runBackupManifestValidator(mutate = (payload) => payload) {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'chickenbro-backup-manifest-'))
+function runRecoveryManifestValidator(mutate = (payload) => payload) {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'chickenbro-recovery-manifest-'))
   try {
-    const archive = path.join(directory, 'backup.age')
+    const archive = path.join(directory, 'business-whitelist.dump')
+    const migrationReport = path.join(directory, 'migration-report.json')
     const restoreEvidence = path.join(directory, 'restore-evidence.json')
-    const manifest = path.join(directory, 'restore-verified.json')
-    const archiveBytes = Buffer.from('encrypted-backup-fixture')
-    const restoreEvidenceBytes = Buffer.from('{"status":"passed"}\n')
+    const manifest = path.join(directory, 'whitelist-recovery.json')
+    const archiveBytes = Buffer.from('accepted-business-whitelist-fixture')
+    const migrationReportBytes = Buffer.from('{"reconciliation":{"status":"matched"}}\n')
+    const restoreEvidenceBytes = Buffer.from('{"reconciliation":{"status":"matched"}}\n')
     fs.writeFileSync(archive, archiveBytes, { mode: 0o600 })
+    fs.writeFileSync(migrationReport, migrationReportBytes, { mode: 0o600 })
     fs.writeFileSync(restoreEvidence, restoreEvidenceBytes, { mode: 0o600 })
+    const restoreReconciliationSha256 = sha256(restoreEvidenceBytes)
     const payload = mutate({
-      schemaVersion: 'chickenbro-independent-backup-v1',
-      backupId: 'backup-20260903',
+      schemaVersion: 'chickenbro-whitelist-recovery-v1',
+      status: 'restore_verified',
+      targetIdentity: {
+        provider: 'tencent_cvm',
+        instanceId: 'ins-93tgv1rb',
+        region: 'ap-shanghai',
+        zone: 'ap-shanghai-2',
+        publicAddress: '124.223.51.33',
+        sshTarget: 'wow-lighthouse',
+      },
       sourceDatabase: 'wow_test',
+      sourceMode: 'repeatable_read_read_only',
+      candidateDatabase: 'chickenbro_prod',
       archivePath: archive,
       archiveSha256: sha256(archiveBytes),
       archiveBytes: archiveBytes.length,
       createdAt: '2026-09-03T00:00:00Z',
-      deviceId: String(fs.statSync(directory).dev),
-      encrypted: true,
-      sensitiveConfigurationEncrypted: true,
-      encryption: { scheme: 'age', keyReferenceSha256: 'a'.repeat(64) },
-      restoreVerified: true,
+      migrationReport: {
+        status: 'matched',
+        path: migrationReport,
+        sha256: sha256(migrationReportBytes),
+      },
       restore: {
         targetDatabase: 'chickenbro_restore_verify_20260903',
         commandExitCode: 0,
-        schemaVerified: true,
-        rowSampleVerified: true,
-        hashSampleVerified: true,
+        reconciliationStatus: 'matched',
         verifiedAt: '2026-09-03T00:30:00Z',
-        operator: 'reviewed-operator',
         evidencePath: restoreEvidence,
-        evidenceSha256: sha256(restoreEvidenceBytes),
+        evidenceSha256: restoreReconciliationSha256,
       },
+      restoreReconciliationSha256,
     })
     fs.writeFileSync(manifest, `${JSON.stringify(payload)}\n`, { mode: 0o600 })
     return spawnSync('python3', ['-', manifest], {
       encoding: 'utf8',
-      input: backupManifestValidatorSource(),
+      input: recoveryManifestValidatorSource(),
     })
   } finally {
     fs.rmSync(directory, { recursive: true, force: true })
@@ -227,6 +239,12 @@ test('candidate deploy is content-addressed, candidate-only, reversible and exac
   assert.match(script, /DEPLOYED_MANIFEST_SHA256/)
   assert.match(script, /EXPECTED_COMMIT/)
   assert.match(script, /git[^\n]+rev-parse HEAD/)
+  assert.match(script, /REMOTE_RECOVERY_MANIFEST="\$\{WOW_CHICKENBRO_REMOTE_RECOVERY_MANIFEST:-\/var\/lib\/chickenbro-recovery\/whitelist-recovery\.json\}"/)
+  assert.match(script, /--recovery-manifest-sha/)
+  assert.match(script, /metadata\.tencentyun\.com\/latest\/meta-data\/instance-id/)
+  assert.match(script, /metadata\.tencentyun\.com\/latest\/meta-data\/placement\/region/)
+  assert.match(script, /metadata\.tencentyun\.com\/latest\/meta-data\/placement\/zone/)
+  assert.doesNotMatch(script, /independent backup mount|backup and PostgreSQL data share a device/)
 
   assert.match(script, /server\/migrations\/product\/0001_chickenbro_simc_core\.sql/)
   assert.match(script, /server\/migrations\/product\/0002_chat_idempotent_replay\.sql/)
@@ -315,21 +333,26 @@ test('candidate deploy records identities without serializing credentials', () =
   assert.doesNotMatch(script, /echo .*WOW_(?:DATABASE_URL|WECHAT_SECRET|LIGHTHOUSE_PASSWORD)/)
 })
 
-test('candidate backup gate requires encrypted archive and complete restore proof', () => {
-  const valid = runBackupManifestValidator()
+test('candidate gate accepts only the hash-bound migrated whitelist recovery proof', () => {
+  const valid = runRecoveryManifestValidator()
   assert.equal(valid.status, 0, valid.stderr)
 
   for (const mutate of [
-    (payload) => ({ ...payload, encrypted: false }),
-    (payload) => ({ ...payload, sensitiveConfigurationEncrypted: false }),
+    (payload) => ({ ...payload, status: 'not_run' }),
+    (payload) => ({ ...payload, sourceDatabase: 'wow_gear_evidence_01adf184_r14' }),
+    (payload) => ({ ...payload, sourceMode: 'read_write' }),
     (payload) => ({ ...payload, archiveSha256: '0'.repeat(64) }),
     (payload) => ({ ...payload, restore: { ...payload.restore, commandExitCode: 1 } }),
     (payload) => ({ ...payload, restore: { ...payload.restore, targetDatabase: 'wow_test' } }),
-    (payload) => ({ ...payload, restore: { ...payload.restore, schemaVerified: false } }),
+    (payload) => ({ ...payload, restore: { ...payload.restore, reconciliationStatus: 'diverged' } }),
+    (payload) => ({
+      ...payload,
+      targetIdentity: { ...payload.targetIdentity, instanceId: 'lhins-dr6tkl63' },
+    }),
   ]) {
-    const rejected = runBackupManifestValidator(mutate)
+    const rejected = runRecoveryManifestValidator(mutate)
     assert.notEqual(rejected.status, 0)
-    assert.match(rejected.stderr, /independent backup manifest is not restore-verified/)
+    assert.match(rejected.stderr, /whitelist recovery manifest is not restore-verified/)
   }
 })
 

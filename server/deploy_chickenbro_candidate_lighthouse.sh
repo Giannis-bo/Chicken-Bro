@@ -4,7 +4,7 @@ set -euo pipefail
 MODE="dry-run"
 EXPECTED_COMMIT=""
 REVIEWED_INVENTORY_SHA=""
-REVIEWED_BACKUP_MANIFEST_SHA=""
+REVIEWED_RECOVERY_MANIFEST_SHA=""
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
@@ -31,8 +31,8 @@ API_NGINX_SITE="/etc/nginx/sites-enabled/api.chickenbro.cloud"
 WEB_ROOT="/var/www/chickenbro-candidate"
 LEGACY_API_ENV="/etc/wow-v2-api.env"
 LEGACY_SOURCE_ENV="/etc/wow-v2-source.env"
-REMOTE_BACKUP_MANIFEST="${WOW_CHICKENBRO_REMOTE_BACKUP_MANIFEST:-/mnt/chickenbro-backups/restore-verified.json}"
-REMOTE_BACKUP_ROOT="$(dirname -- "${REMOTE_BACKUP_MANIFEST}")/candidate-runs"
+REMOTE_RECOVERY_MANIFEST="${WOW_CHICKENBRO_REMOTE_RECOVERY_MANIFEST:-/var/lib/chickenbro-recovery/whitelist-recovery.json}"
+REMOTE_RECOVERY_ROOT="$(dirname -- "${REMOTE_RECOVERY_MANIFEST}")/candidate-runs"
 REQUESTED_ASYNC_SYNCS="${WOW_DEPLOY_START_ASYNC_SYNCS:-0}"
 WOW_DEPLOY_START_ASYNC_SYNCS="0"
 
@@ -48,7 +48,7 @@ usage() {
   printf '%s\n' \
     'Usage:' \
     '  server/deploy_chickenbro_candidate_lighthouse.sh --dry-run [--expected-commit <40-char-sha>]' \
-    '  server/deploy_chickenbro_candidate_lighthouse.sh --apply --expected-commit <40-char-sha> --inventory-sha <sha256> --backup-manifest-sha <sha256>' >&2
+    '  server/deploy_chickenbro_candidate_lighthouse.sh --apply --expected-commit <40-char-sha> --inventory-sha <sha256> --recovery-manifest-sha <sha256>' >&2
 }
 
 validate_value() {
@@ -113,9 +113,9 @@ while [[ $# -gt 0 ]]; do
       REVIEWED_INVENTORY_SHA="$2"
       shift 2
       ;;
-    --backup-manifest-sha)
-      [[ $# -ge 2 ]] || die "--backup-manifest-sha requires a value"
-      REVIEWED_BACKUP_MANIFEST_SHA="$2"
+    --recovery-manifest-sha)
+      [[ $# -ge 2 ]] || die "--recovery-manifest-sha requires a value"
+      REVIEWED_RECOVERY_MANIFEST_SHA="$2"
       shift 2
       ;;
     --help|-h)
@@ -135,14 +135,12 @@ validate_value CANDIDATE_ROOT "${CANDIDATE_ROOT}" '^/[A-Za-z0-9_./-]+$'
 validate_value CANDIDATE_DATABASE "${CANDIDATE_DATABASE}" '^chickenbro_candidate$'
 validate_value CANDIDATE_PORT "${CANDIDATE_PORT}" '^[0-9]+$'
 validate_value CANDIDATE_CODEX_PROFILE "${CANDIDATE_CODEX_PROFILE}" '^/home/[A-Za-z_][A-Za-z0-9_.-]*/\.codex/chickenbro-candidate\.config\.toml$'
-validate_value REMOTE_BACKUP_MANIFEST "${REMOTE_BACKUP_MANIFEST}" '^/[A-Za-z0-9_./-]+$'
+validate_value REMOTE_RECOVERY_MANIFEST "${REMOTE_RECOVERY_MANIFEST}" '^/[A-Za-z0-9_./-]+$'
 reject_path_traversal CANDIDATE_ROOT "${CANDIDATE_ROOT}"
 reject_path_traversal CANDIDATE_CODEX_PROFILE "${CANDIDATE_CODEX_PROFILE}"
-reject_path_traversal REMOTE_BACKUP_MANIFEST "${REMOTE_BACKUP_MANIFEST}"
+reject_path_traversal REMOTE_RECOVERY_MANIFEST "${REMOTE_RECOVERY_MANIFEST}"
 [[ "${CANDIDATE_CODEX_PROFILE}" == "/home/${REMOTE_USER}/.codex/chickenbro-candidate.config.toml" ]] \
   || die "candidate Codex profile must belong to the remote service user"
-[[ "${REMOTE_BACKUP_MANIFEST}" != /var/* && "${REMOTE_BACKUP_MANIFEST}" != /opt/* ]] \
-  || die "backup manifest must be on the reviewed independent backup mount"
 
 if [[ "${REQUESTED_ASYNC_SYNCS}" != "0" ]]; then
   die "WOW_DEPLOY_START_ASYNC_SYNCS must remain 0 for the clean candidate"
@@ -200,9 +198,9 @@ fi
 
 [[ -n "${EXPECTED_COMMIT}" ]] || die "--apply requires --expected-commit"
 [[ -n "${REVIEWED_INVENTORY_SHA}" ]] || die "--apply requires --inventory-sha"
-[[ -n "${REVIEWED_BACKUP_MANIFEST_SHA}" ]] || die "--apply requires --backup-manifest-sha"
+[[ -n "${REVIEWED_RECOVERY_MANIFEST_SHA}" ]] || die "--apply requires --recovery-manifest-sha"
 validate_value REVIEWED_INVENTORY_SHA "${REVIEWED_INVENTORY_SHA}" '^[0-9a-f]{64}$'
-validate_value REVIEWED_BACKUP_MANIFEST_SHA "${REVIEWED_BACKUP_MANIFEST_SHA}" '^[0-9a-f]{64}$'
+validate_value REVIEWED_RECOVERY_MANIFEST_SHA "${REVIEWED_RECOVERY_MANIFEST_SHA}" '^[0-9a-f]{64}$'
 [[ "${REVIEWED_INVENTORY_SHA}" == "${ACTUAL_INVENTORY_SHA}" ]] || die "inventory SHA does not match reviewed input"
 [[ "${INVENTORY_STATUS}" == "reachable" && "${INVENTORY_ERROR_COUNT}" == "0" ]] \
   || die "reviewed inventory is not a clean reachable observation"
@@ -260,7 +258,7 @@ REMOTE_ENV=(
   "REMOTE_USER=${REMOTE_USER}"
   "RUN_ID=${RUN_ID}"
   "EXPECTED_COMMIT=${EXPECTED_COMMIT}"
-  "REVIEWED_BACKUP_MANIFEST_SHA=${REVIEWED_BACKUP_MANIFEST_SHA}"
+  "REVIEWED_RECOVERY_MANIFEST_SHA=${REVIEWED_RECOVERY_MANIFEST_SHA}"
   "CANDIDATE_ROOT=${CANDIDATE_ROOT}"
   "CANDIDATE_DATABASE=${CANDIDATE_DATABASE}"
   "CANDIDATE_PORT=${CANDIDATE_PORT}"
@@ -280,8 +278,8 @@ REMOTE_ENV=(
   "WEB_ROOT=${WEB_ROOT}"
   "LEGACY_API_ENV=${LEGACY_API_ENV}"
   "LEGACY_SOURCE_ENV=${LEGACY_SOURCE_ENV}"
-  "REMOTE_BACKUP_MANIFEST=${REMOTE_BACKUP_MANIFEST}"
-  "REMOTE_BACKUP_ROOT=${REMOTE_BACKUP_ROOT}"
+  "REMOTE_RECOVERY_MANIFEST=${REMOTE_RECOVERY_MANIFEST}"
+  "REMOTE_RECOVERY_ROOT=${REMOTE_RECOVERY_ROOT}"
   "REVIEWED_INVENTORY_SHA=${REVIEWED_INVENTORY_SHA}"
   "WOW_DEPLOY_START_ASYNC_SYNCS=${WOW_DEPLOY_START_ASYNC_SYNCS}"
 )
@@ -293,7 +291,7 @@ remote_env_args() {
   done
 }
 
-printf 'Running independent-backup and capacity preflight on %s\n' "${SSH_TARGET}"
+printf 'Running whitelist-recovery and capacity preflight on %s\n' "${SSH_TARGET}"
 ssh_remote "$(remote_env_args) sudo -E bash -s" <<'REMOTE_PREFLIGHT'
 set -euo pipefail
 
@@ -305,14 +303,22 @@ die_remote() {
 for command_name in python3 psql pg_dump pg_restore createdb dropdb nginx systemctl tar sha256sum curl stat df awk grep readlink; do
   command -v "${command_name}" >/dev/null 2>&1 || die_remote "missing command: ${command_name}"
 done
+LIVE_INSTANCE_ID="$(curl -fsS --max-time 3 http://metadata.tencentyun.com/latest/meta-data/instance-id)" \
+  || die_remote "target identity refresh failed"
+LIVE_REGION="$(curl -fsS --max-time 3 http://metadata.tencentyun.com/latest/meta-data/placement/region)" \
+  || die_remote "target identity refresh failed"
+LIVE_ZONE="$(curl -fsS --max-time 3 http://metadata.tencentyun.com/latest/meta-data/placement/zone)" \
+  || die_remote "target identity refresh failed"
+[[ "${LIVE_INSTANCE_ID}" == "ins-93tgv1rb" && "${LIVE_REGION}" == "ap-shanghai" \
+  && "${LIVE_ZONE}" == "ap-shanghai-2" ]] \
+  || die_remote "target identity mismatch; refusing candidate apply"
 [[ "${WOW_DEPLOY_START_ASYNC_SYNCS}" == "0" ]] || die_remote "WOW_DEPLOY_START_ASYNC_SYNCS must remain 0"
-[[ -f "${REMOTE_BACKUP_MANIFEST}" ]] || die_remote "independent restore manifest is missing"
-[[ "$(sha256sum "${REMOTE_BACKUP_MANIFEST}" | awk '{print $1}')" == "${REVIEWED_BACKUP_MANIFEST_SHA}" ]] \
-  || die_remote "independent restore manifest SHA mismatch"
-python3 - "${REMOTE_BACKUP_MANIFEST}" <<'PY'
+[[ -f "${REMOTE_RECOVERY_MANIFEST}" ]] || die_remote "whitelist recovery manifest is missing"
+[[ "$(sha256sum "${REMOTE_RECOVERY_MANIFEST}" | awk '{print $1}')" == "${REVIEWED_RECOVERY_MANIFEST_SHA}" ]] \
+  || die_remote "whitelist recovery manifest SHA mismatch"
+python3 - "${REMOTE_RECOVERY_MANIFEST}" <<'PY'
 import hashlib
 import json
-import os
 import re
 import sys
 from datetime import datetime
@@ -322,7 +328,7 @@ manifest_path = Path(sys.argv[1])
 
 
 def fail():
-    raise ValueError("independent backup manifest is not restore-verified")
+    raise ValueError("whitelist recovery manifest is not restore-verified")
 
 
 def verified_timestamp(value):
@@ -342,8 +348,6 @@ def verified_file(raw_path, root, expected_sha256, expected_bytes=None):
     if not resolved.is_file() or not resolved.is_relative_to(root):
         fail()
     metadata = resolved.stat()
-    if metadata.st_dev != root.stat().st_dev:
-        fail()
     if expected_bytes is not None and metadata.st_size != expected_bytes:
         fail()
     digest = hashlib.sha256()
@@ -360,23 +364,26 @@ try:
     root = manifest_path.parent.resolve(strict=True)
     payload = json.loads(manifest_path.read_text(encoding="utf-8"))
     expected_keys = {
-        "schemaVersion", "backupId", "sourceDatabase", "archivePath", "archiveSha256",
-        "archiveBytes", "createdAt", "deviceId", "encrypted",
-        "sensitiveConfigurationEncrypted", "encryption", "restoreVerified", "restore",
+        "schemaVersion", "status", "targetIdentity", "sourceDatabase", "sourceMode",
+        "candidateDatabase", "archivePath", "archiveSha256", "archiveBytes", "createdAt",
+        "migrationReport", "restore", "restoreReconciliationSha256",
     }
     if not isinstance(payload, dict) or set(payload) != expected_keys:
         fail()
-    if payload["schemaVersion"] != "chickenbro-independent-backup-v1":
+    if payload["schemaVersion"] != "chickenbro-whitelist-recovery-v1" or payload["status"] != "restore_verified":
         fail()
-    if re.fullmatch(r"[A-Za-z0-9_.:-]{1,128}", str(payload["backupId"])) is None:
+    if payload["targetIdentity"] != {
+        "provider": "tencent_cvm",
+        "instanceId": "ins-93tgv1rb",
+        "region": "ap-shanghai",
+        "zone": "ap-shanghai-2",
+        "publicAddress": "124.223.51.33",
+        "sshTarget": "wow-lighthouse",
+    }:
         fail()
-    if payload["sourceDatabase"] != "wow_test":
+    if payload["sourceDatabase"] != "wow_test" or payload["sourceMode"] != "repeatable_read_read_only":
         fail()
-    if payload["encrypted"] is not True or payload["sensitiveConfigurationEncrypted"] is not True:
-        fail()
-    if payload["restoreVerified"] is not True:
-        fail()
-    if str(payload["deviceId"]) != str(root.stat().st_dev):
+    if payload["candidateDatabase"] != "chickenbro_prod":
         fail()
     archive_sha = str(payload["archiveSha256"])
     archive_bytes = payload["archiveBytes"]
@@ -387,18 +394,18 @@ try:
         or archive_bytes <= 0
     ):
         fail()
-    encryption = payload["encryption"]
+    migration = payload["migrationReport"]
     if (
-        not isinstance(encryption, dict)
-        or set(encryption) != {"scheme", "keyReferenceSha256"}
-        or encryption["scheme"] not in {"age", "gpg", "kms-envelope"}
-        or re.fullmatch(r"[0-9a-f]{64}", str(encryption["keyReferenceSha256"])) is None
+        not isinstance(migration, dict)
+        or set(migration) != {"status", "path", "sha256"}
+        or migration["status"] != "matched"
+        or re.fullmatch(r"[0-9a-f]{64}", str(migration["sha256"])) is None
     ):
         fail()
     restore = payload["restore"]
     restore_keys = {
-        "targetDatabase", "commandExitCode", "schemaVerified", "rowSampleVerified",
-        "hashSampleVerified", "verifiedAt", "operator", "evidencePath", "evidenceSha256",
+        "targetDatabase", "commandExitCode", "reconciliationStatus", "verifiedAt",
+        "evidencePath", "evidenceSha256",
     }
     if not isinstance(restore, dict) or set(restore) != restore_keys:
         fail()
@@ -406,10 +413,7 @@ try:
         fail()
     if (
         restore["commandExitCode"] != 0
-        or restore["schemaVerified"] is not True
-        or restore["rowSampleVerified"] is not True
-        or restore["hashSampleVerified"] is not True
-        or re.fullmatch(r"[A-Za-z0-9_.@:-]{1,128}", str(restore["operator"])) is None
+        or restore["reconciliationStatus"] != "matched"
     ):
         fail()
     created_at = verified_timestamp(payload["createdAt"])
@@ -419,15 +423,14 @@ try:
     evidence_sha = str(restore["evidenceSha256"])
     if re.fullmatch(r"[0-9a-f]{64}", evidence_sha) is None:
         fail()
+    if payload["restoreReconciliationSha256"] != evidence_sha:
+        fail()
     verified_file(payload["archivePath"], root, archive_sha, archive_bytes)
+    verified_file(migration["path"], root, migration["sha256"])
     verified_file(restore["evidencePath"], root, evidence_sha)
 except (KeyError, OSError, TypeError, ValueError, json.JSONDecodeError) as error:
-    raise SystemExit("independent backup manifest is not restore-verified") from error
+    raise SystemExit("whitelist recovery manifest is not restore-verified") from error
 PY
-
-BACKUP_DEVICE="$(stat -c '%d' "$(dirname "${REMOTE_BACKUP_MANIFEST}")")"
-POSTGRES_DEVICE="$(stat -c '%d' /var/lib/postgresql)"
-[[ "${BACKUP_DEVICE}" != "${POSTGRES_DEVICE}" ]] || die_remote "backup and PostgreSQL data share a device"
 [[ -f "${LEGACY_API_ENV}" && "$(stat -c '%a' "${LEGACY_API_ENV}")" == "600" ]] \
   || die_remote "legacy API secret source is missing or not mode 0600"
 [[ -f "${LEGACY_SOURCE_ENV}" && "$(stat -c '%a' "${LEGACY_SOURCE_ENV}")" == "600" ]] \
@@ -498,16 +501,20 @@ unset WOW_DATABASE_URL WOW_WECHAT_SECRET
 
 SOURCE_BYTES="$(sudo -n -u postgres psql -At --dbname=postgres --command="SELECT pg_database_size('wow_test')")"
 ROOT_FREE_BYTES="$(df -PB1 --output=avail /var/lib/postgresql | tail -n 1 | tr -d '[:space:]')"
-BACKUP_FREE_BYTES="$(df -PB1 --output=avail "$(dirname "${REMOTE_BACKUP_MANIFEST}")" | tail -n 1 | tr -d '[:space:]')"
-for value in "${SOURCE_BYTES}" "${ROOT_FREE_BYTES}" "${BACKUP_FREE_BYTES}"; do
+WHITELIST_ARCHIVE_BYTES="$(python3 - "${REMOTE_RECOVERY_MANIFEST}" <<'PY'
+import json
+import sys
+from pathlib import Path
+print(json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))["archiveBytes"])
+PY
+)"
+for value in "${SOURCE_BYTES}" "${ROOT_FREE_BYTES}" "${WHITELIST_ARCHIVE_BYTES}"; do
   [[ "${value}" =~ ^[0-9]+$ ]] || die_remote "capacity probe returned an invalid value"
 done
-REQUIRED_ROOT=$(( SOURCE_BYTES + SOURCE_BYTES / 2 + 2147483648 ))
-REQUIRED_BACKUP=$(( SOURCE_BYTES + 2147483648 ))
+REQUIRED_ROOT=$(( WHITELIST_ARCHIVE_BYTES * 3 + 2147483648 ))
 (( ROOT_FREE_BYTES >= REQUIRED_ROOT )) || die_remote "PostgreSQL device capacity is insufficient"
-(( BACKUP_FREE_BYTES >= REQUIRED_BACKUP )) || die_remote "independent backup device capacity is insufficient"
-printf 'preflight=ready sourceBytes=%s rootFreeBytes=%s backupFreeBytes=%s\n' \
-  "${SOURCE_BYTES}" "${ROOT_FREE_BYTES}" "${BACKUP_FREE_BYTES}"
+printf 'preflight=ready sourceBytes=%s whitelistArchiveBytes=%s rootFreeBytes=%s\n' \
+  "${SOURCE_BYTES}" "${WHITELIST_ARCHIVE_BYTES}" "${ROOT_FREE_BYTES}"
 REMOTE_PREFLIGHT
 
 printf 'Building the exact candidate H5 and WeApp for %s\n' "${EXPECTED_COMMIT}"
@@ -632,7 +639,7 @@ die_remote() {
   exit 1
 }
 
-BACKUP_DIR="${REMOTE_BACKUP_ROOT}/${RUN_ID}"
+BACKUP_DIR="${REMOTE_RECOVERY_ROOT}/${RUN_ID}"
 STAGE_DIR="/opt/chickenbro-candidate-staging/${RUN_ID}"
 CODE_NEW_DIR="${CANDIDATE_ROOT}.new-${RUN_ID}"
 WWW_NGINX_OWNER="$(readlink -f -- "${WWW_NGINX_SITE}")"
@@ -1279,7 +1286,7 @@ find "${BACKUP_DIR}" -maxdepth 1 -type f ! -name 'rollback-manifest.sha256' ! -n
 ROLLBACK_MANIFEST_SHA256="$(sha256sum "${ROLLBACK_MANIFEST}" | awk '{print $1}')"
 
 export EXPECTED_COMMIT SOURCE_ARCHIVE_SHA256 SOURCE_MANIFEST_SHA256 DEPLOYED_MANIFEST_SHA256
-export REVIEWED_INVENTORY_SHA REVIEWED_BACKUP_MANIFEST_SHA
+export REVIEWED_INVENTORY_SHA REVIEWED_RECOVERY_MANIFEST_SHA
 export DATABASE_MIGRATION_IDS API_SERVICE_IDENTITY CANDIDATE_WORKER_SERVICE_IDENTITY CODEX_RUNTIME_IDENTITY CODEX_PROFILE_IDENTITY SIMC_RUNTIME_IDENTITY
 export WEB_BUILD_IDENTITY WEAPP_BUILD_IDENTITY WWW_NGINX_IDENTITY API_NGINX_IDENTITY
 export AUTOMATED_ACCEPTANCE_REPORT AUTOMATED_ACCEPTANCE_SHA256
@@ -1303,7 +1310,7 @@ payload = {
     "sourceManifestSha256": os.environ["SOURCE_MANIFEST_SHA256"],
     "deployedManifestSha256": os.environ["DEPLOYED_MANIFEST_SHA256"],
     "inventorySha256": os.environ["REVIEWED_INVENTORY_SHA"],
-    "independentBackupManifestSha256": os.environ["REVIEWED_BACKUP_MANIFEST_SHA"],
+    "whitelistRecoveryManifestSha256": os.environ["REVIEWED_RECOVERY_MANIFEST_SHA"],
     "databaseMigrationIds": os.environ["DATABASE_MIGRATION_IDS"].split(","),
     "migrationReportSha256": migration_sha,
     "apiServiceIdentity": os.environ["API_SERVICE_IDENTITY"],

@@ -2,15 +2,16 @@
 set -euo pipefail
 
 MODE="dry-run"
+SCOPE="full_retirement"
 MANIFEST_FILE=""
 REVIEWED_MANIFEST_SHA=""
-REVIEWED_BACKUP_MANIFEST_SHA=""
+REVIEWED_RECOVERY_MANIFEST_SHA=""
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
 REMOTE_HOST="${WOW_LIGHTHOUSE_HOST:-124.223.51.33}"
 REMOTE_USER="${WOW_LIGHTHOUSE_USER:-ubuntu}"
-REMOTE_BACKUP_MANIFEST="${WOW_CHICKENBRO_REMOTE_BACKUP_MANIFEST:-/mnt/chickenbro-backups/restore-verified.json}"
+REMOTE_RECOVERY_MANIFEST="${WOW_CHICKENBRO_REMOTE_RECOVERY_MANIFEST:-/var/lib/chickenbro-recovery/whitelist-recovery.json}"
 SSH_TARGET="${REMOTE_USER}@${REMOTE_HOST}"
 SSH_OPTS=(-o StrictHostKeyChecking=yes -o ConnectTimeout=15)
 
@@ -23,7 +24,8 @@ usage() {
   printf '%s\n' \
     'Usage:' \
     '  server/retire_chickenbro_legacy_lighthouse.sh --manifest <json> --dry-run' \
-    '  server/retire_chickenbro_legacy_lighthouse.sh --manifest <json> --apply --manifest-sha <sha256> --backup-manifest-sha <sha256>' >&2
+    '  server/retire_chickenbro_legacy_lighthouse.sh --manifest <json> --capacity-pre-cleanup --apply --manifest-sha <sha256> --recovery-manifest-sha <sha256>' \
+    '  server/retire_chickenbro_legacy_lighthouse.sh --manifest <json> --apply --manifest-sha <sha256> --recovery-manifest-sha <sha256>' >&2
 }
 
 sha256_file() {
@@ -38,6 +40,27 @@ sha256_file() {
 validate_deletion_target() {
   local kind="${1:-}"
   local target="${2:-}"
+  local scope="${3:-full_retirement}"
+
+  if [[ "${scope}" == "capacity_pre_cleanup" ]]; then
+    case "${kind}:${target}" in
+      postgres_database:wow_test)
+        die "protected target: ${kind}:${target}"
+        ;;
+      postgres_database:wow_gear_evidence_01adf184_r14|\
+      postgres_database:wow_gear_evidence_0be65754_r24|\
+      postgres_database:wow_gear_evidence_145dee16_r22|\
+      postgres_database:wow_gear_evidence_15f514d5_r23|\
+      file:/etc/wow-backend-candidate-gear-evidence-r14.env|\
+      file:/etc/wow-backend-candidate-gear-evidence-r24.env|\
+      file:/etc/wow-backend-candidate-gear-evidence-r22.env|\
+      file:/etc/wow-backend-candidate-gear-evidence-r23.env)
+        ;;
+      *)
+        die "exact capacity allowlist required: ${kind}:${target}"
+        ;;
+    esac
+  fi
 
   case "${kind}:${target}" in
     postgres_database:chickenbro_prod|postgres_database:postgres|postgres_database:template0|postgres_database:template1|\
@@ -112,8 +135,35 @@ from pathlib import Path
 manifest_path = Path(sys.argv[1]).resolve(strict=True)
 root = Path(sys.argv[2]).resolve(strict=True)
 payload = json.loads(manifest_path.read_text(encoding="utf-8"))
-if payload.get("schemaVersion") != 1 or payload.get("mode") != "dry-run":
+if payload.get("schemaVersion") != 2 or payload.get("mode") != "dry-run":
     raise SystemExit("invalid cloud cleanup manifest schema")
+expected_target = {
+    "provider": "tencent_cvm",
+    "instanceId": "ins-93tgv1rb",
+    "region": "ap-shanghai",
+    "zone": "ap-shanghai-2",
+    "publicAddress": "124.223.51.33",
+    "sshTarget": "wow-lighthouse",
+    "refreshRequiredBeforeApply": True,
+}
+if payload.get("targetIdentity") != expected_target:
+    raise SystemExit("cloud cleanup manifest target identity mismatch")
+capacity = payload.get("capacityPreCleanup") or {}
+accepted_production_recovery = payload.get("acceptedProductionRecovery") or {}
+expected_capacity_databases = [
+    "wow_gear_evidence_01adf184_r14",
+    "wow_gear_evidence_0be65754_r24",
+    "wow_gear_evidence_145dee16_r22",
+    "wow_gear_evidence_15f514d5_r23",
+]
+if (
+    capacity.get("exactDatabaseAllowlist") != expected_capacity_databases
+    or capacity.get("protectsWowTest") is not True
+    or capacity.get("requiresPhase5Acceptance") is not False
+    or accepted_production_recovery.get("manifestSchema") != "chickenbro-accepted-production-recovery-v1"
+    or accepted_production_recovery.get("sourceDatabase") != "chickenbro_prod"
+):
+    raise SystemExit("invalid capacity pre-cleanup contract")
 resources = payload.get("resources")
 protected = payload.get("protectedResources")
 unresolved = payload.get("unresolvedRequiredTargets")
@@ -154,7 +204,7 @@ for index, item in enumerate(resources):
     targets.add(identity)
     if item.get("gateStatus") not in {"blocked", "ready"}:
         raise SystemExit(f"resource {resource_id} has invalid gate status")
-    if item.get("restoreCheck") not in {"not_run", "passed"}:
+    if item.get("restoreCheck") not in {"not_run", "passed", "not_required"}:
         raise SystemExit(f"resource {resource_id} has invalid restore status")
     if "currentReferences" not in item or "activeConnections" not in item:
         raise SystemExit(f"resource {resource_id} lacks current reference or connection state")
@@ -163,8 +213,14 @@ for index, item in enumerate(resources):
     if item.get("gateStatus") == "blocked" and not item.get("blockedReasons"):
         raise SystemExit(f"blocked resource {resource_id} lacks reasons")
     if item.get("gateStatus") == "ready":
-        if item.get("currentReferences") != [] or item.get("restoreCheck") != "passed":
-            raise SystemExit(f"ready resource {resource_id} lacks zero-reference or restore proof")
+        capacity_item = item.get("capacityPreCleanup") is True
+        expected_reference = [item.get("requiredAbsentCompanion")] if item.get("requiredAbsentCompanion") else []
+        if item.get("currentReferences") not in ([], expected_reference):
+            raise SystemExit(f"ready resource {resource_id} lacks reviewed references")
+        if not capacity_item and item.get("restoreCheck") != "passed":
+            raise SystemExit(f"ready resource {resource_id} lacks restore proof")
+        if capacity_item and item.get("restoreCheck") not in {"passed", "not_required"}:
+            raise SystemExit(f"ready capacity resource {resource_id} lacks recovery disposition")
         if kind == "postgres_database" and item.get("activeConnections") != 0:
             raise SystemExit(f"ready database {resource_id} lacks zero-connection proof")
         if kind != "postgres_database" and not re.fullmatch(r"[0-9a-f]{64}", str(item.get("contentSha256") or "")):
@@ -180,21 +236,24 @@ PY
 
 validate_manifest_targets() {
   while IFS=$'\t' read -r kind target; do
-    validate_deletion_target "${kind}" "${target}"
-  done < <(python3 - "${MANIFEST_FILE}" <<'PY'
+    validate_deletion_target "${kind}" "${target}" "${SCOPE}"
+  done < <(python3 - "${MANIFEST_FILE}" "${SCOPE}" <<'PY'
 import json
 import sys
 from pathlib import Path
 
 payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+scope = sys.argv[2]
 for item in payload["resources"]:
+    if scope == "capacity_pre_cleanup" and item.get("capacityPreCleanup") is not True:
+        continue
     print(f"{item['kind']}\t{item['target']}")
 PY
   )
 }
 
 print_dry_run() {
-  python3 - "${MANIFEST_FILE}" <<'PY'
+  python3 - "${MANIFEST_FILE}" "${SCOPE}" <<'PY'
 import hashlib
 import json
 import sys
@@ -202,8 +261,11 @@ from pathlib import Path
 
 path = Path(sys.argv[1])
 payload = json.loads(path.read_text(encoding="utf-8"))
+scope = sys.argv[2]
 results = []
 for item in payload["resources"]:
+    if scope == "capacity_pre_cleanup" and item.get("capacityPreCleanup") is not True:
+        continue
     status = "ready" if item["gateStatus"] == "ready" else "blocked"
     results.append({
         "id": item["id"],
@@ -216,11 +278,12 @@ ready = sum(item["status"] == "ready" for item in results)
 blocked = len(results) - ready
 print(json.dumps({
     "mode": "dry-run",
+    "scope": scope,
     "mutationAuthorized": False,
     "manifestFileSha256": hashlib.sha256(path.read_bytes()).hexdigest(),
     "sourceInventory": payload["sourceInventory"],
     "productionAcceptance": payload["productionAcceptance"]["status"],
-    "independentRecovery": payload["independentRecovery"]["status"],
+    "businessRecovery": payload["businessRecovery"]["status"],
     "counts": {"total": len(results), "ready": ready, "blocked": blocked},
     "unresolvedBlockerCount": len(payload["unresolvedRequiredTargets"]),
     "results": results,
@@ -229,7 +292,7 @@ PY
 }
 
 assert_apply_ready() {
-  python3 - "${MANIFEST_FILE}" "${REVIEWED_BACKUP_MANIFEST_SHA}" <<'PY'
+  python3 - "${MANIFEST_FILE}" "${REVIEWED_RECOVERY_MANIFEST_SHA}" "${SCOPE}" <<'PY'
 import json
 import re
 import sys
@@ -237,21 +300,58 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-backup_sha = sys.argv[2]
-if payload.get("deletionAuthorized") is not True:
-    raise SystemExit("deletionAuthorized=true is required for a blocked cleanup manifest")
-if payload.get("unresolvedRequiredTargets"):
-    raise SystemExit("blocked cleanup manifest has unresolved required targets")
-acceptance = payload.get("productionAcceptance") or {}
-if acceptance.get("status") != "passed" or acceptance.get("firstNewWriteReconciled") is not True or acceptance.get("stableHealthWindowCompleted") is not True:
-    raise SystemExit("blocked cleanup manifest lacks accepted production evidence")
-recovery = payload.get("independentRecovery") or {}
-if recovery.get("status") != "restore_verified" or recovery.get("manifestSha256") != backup_sha:
-    raise SystemExit("blocked cleanup manifest lacks matching independent restore evidence")
+recovery_sha = sys.argv[2]
+scope = sys.argv[3]
+capacity = payload.get("capacityPreCleanup") or {}
+if scope == "capacity_pre_cleanup":
+    if capacity.get("authorized") is not True:
+        raise SystemExit("capacityPreCleanup.authorized=true is required for a blocked cleanup manifest")
+else:
+    if payload.get("deletionAuthorized") is not True:
+        raise SystemExit("deletionAuthorized=true is required for a blocked cleanup manifest")
+    if payload.get("unresolvedRequiredTargets"):
+        raise SystemExit("blocked cleanup manifest has unresolved required targets")
+    acceptance = payload.get("productionAcceptance") or {}
+    if acceptance.get("status") != "passed" or acceptance.get("firstNewWriteReconciled") is not True or acceptance.get("stableHealthWindowCompleted") is not True:
+        raise SystemExit("blocked cleanup manifest lacks accepted production evidence")
+if scope == "capacity_pre_cleanup":
+    recovery = payload.get("businessRecovery") or {}
+    if (
+        recovery.get("status") != "restore_verified"
+        or recovery.get("manifestSchema") != "chickenbro-whitelist-recovery-v1"
+        or recovery.get("manifestSha256") != recovery_sha
+        or recovery.get("sourceDatabase") != "wow_test"
+        or recovery.get("sourceMode") != "read_only"
+    ):
+        raise SystemExit("blocked cleanup manifest lacks matching whitelist restore evidence")
+else:
+    recovery = payload.get("acceptedProductionRecovery") or {}
+    if (
+        recovery.get("status") != "restore_verified"
+        or recovery.get("manifestSchema") != "chickenbro-accepted-production-recovery-v1"
+        or recovery.get("manifestSha256") != recovery_sha
+        or recovery.get("sourceDatabase") != "chickenbro_prod"
+    ):
+        raise SystemExit("blocked cleanup manifest lacks accepted production recovery evidence")
 if payload.get("sourceInventory", {}).get("freshness") != "fresh":
     raise SystemExit("blocked cleanup manifest uses a stale cloud inventory")
+resources = [
+    item for item in payload["resources"]
+    if scope != "capacity_pre_cleanup" or item.get("capacityPreCleanup") is True
+]
+if scope == "capacity_pre_cleanup":
+    expected = {
+        *(('postgres_database', name) for name in capacity["exactDatabaseAllowlist"]),
+        ('file', '/etc/wow-backend-candidate-gear-evidence-r14.env'),
+        ('file', '/etc/wow-backend-candidate-gear-evidence-r24.env'),
+        ('file', '/etc/wow-backend-candidate-gear-evidence-r22.env'),
+        ('file', '/etc/wow-backend-candidate-gear-evidence-r23.env'),
+    }
+    actual = {(item.get("kind"), item.get("target")) for item in resources}
+    if actual != expected or ('postgres_database', 'wow_test') in actual:
+        raise SystemExit("capacity cleanup resources differ from the exact allowlist")
 now = datetime.now(timezone.utc)
-for item in payload["resources"]:
+for item in resources:
     if item.get("gateStatus") != "ready":
         raise SystemExit(f"blocked cleanup manifest resource: {item.get('id')}")
     value = item.get("deleteAfter")
@@ -261,8 +361,8 @@ for item in payload["resources"]:
         raise SystemExit(f"invalid delete-after boundary: {item.get('id')}")
     if boundary > now:
         raise SystemExit(f"delete-after boundary has not elapsed: {item.get('id')}")
-if not re.fullmatch(r"[0-9a-f]{64}", backup_sha):
-    raise SystemExit("invalid backup manifest SHA-256")
+if not re.fullmatch(r"[0-9a-f]{64}", recovery_sha):
+    raise SystemExit("invalid recovery manifest SHA-256")
 PY
 }
 
@@ -273,8 +373,9 @@ run_remote_apply() {
   ssh "${SSH_OPTS[@]}" "${SSH_TARGET}" \
     "MANIFEST_BASE64=${manifest_base64}" \
     "REVIEWED_REMOTE_MANIFEST_SHA=${REVIEWED_MANIFEST_SHA}" \
-    "REVIEWED_REMOTE_BACKUP_SHA=${REVIEWED_BACKUP_MANIFEST_SHA}" \
-    "REMOTE_BACKUP_MANIFEST_PATH=${REMOTE_BACKUP_MANIFEST}" \
+    "REVIEWED_REMOTE_RECOVERY_SHA=${REVIEWED_RECOVERY_MANIFEST_SHA}" \
+    "REMOTE_RECOVERY_MANIFEST_PATH=${REMOTE_RECOVERY_MANIFEST}" \
+    "RETIREMENT_SCOPE=${SCOPE}" \
     bash -s <<'REMOTE'
 set -euo pipefail
 
@@ -289,18 +390,100 @@ trap 'rm -f -- "${MANIFEST_TMP}" "${RESULTS_TMP}"' EXIT
 printf '%s' "${MANIFEST_BASE64}" | base64 --decode > "${MANIFEST_TMP}"
 [[ "$(sha256sum -- "${MANIFEST_TMP}" | awk '{print $1}')" == "${REVIEWED_REMOTE_MANIFEST_SHA}" ]] \
   || die_remote "manifest SHA-256 changed in transit"
-[[ -f "${REMOTE_BACKUP_MANIFEST_PATH}" ]] || die_remote "restore-verified backup manifest is missing"
-[[ "$(sha256sum -- "${REMOTE_BACKUP_MANIFEST_PATH}" | awk '{print $1}')" == "${REVIEWED_REMOTE_BACKUP_SHA}" ]] \
-  || die_remote "backup manifest SHA-256 mismatch"
+for command_name in curl lsof; do
+  command -v "${command_name}" >/dev/null 2>&1 || die_remote "required apply command is unavailable: ${command_name}"
+done
+LIVE_INSTANCE_ID="$(curl -fsS --max-time 3 http://metadata.tencentyun.com/latest/meta-data/instance-id)" \
+  || die_remote "target identity refresh failed"
+LIVE_REGION="$(curl -fsS --max-time 3 http://metadata.tencentyun.com/latest/meta-data/placement/region)" \
+  || die_remote "target identity refresh failed"
+LIVE_ZONE="$(curl -fsS --max-time 3 http://metadata.tencentyun.com/latest/meta-data/placement/zone)" \
+  || die_remote "target identity refresh failed"
+[[ "${LIVE_INSTANCE_ID}" == "ins-93tgv1rb" && "${LIVE_REGION}" == "ap-shanghai" \
+  && "${LIVE_ZONE}" == "ap-shanghai-2" ]] \
+  || die_remote "target identity mismatch; refusing retirement apply"
+[[ -f "${REMOTE_RECOVERY_MANIFEST_PATH}" ]] || die_remote "restore-verified whitelist recovery manifest is missing"
+[[ "$(sha256sum -- "${REMOTE_RECOVERY_MANIFEST_PATH}" | awk '{print $1}')" == "${REVIEWED_REMOTE_RECOVERY_SHA}" ]] \
+  || die_remote "recovery manifest SHA-256 mismatch"
 
-python3 - "${REMOTE_BACKUP_MANIFEST_PATH}" <<'PY'
+python3 - "${REMOTE_RECOVERY_MANIFEST_PATH}" "${RETIREMENT_SCOPE}" <<'PY'
+import hashlib
 import json
+import re
 import sys
 from pathlib import Path
 
-payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-if payload.get("status") != "restore_verified" or payload.get("isolatedRestore", {}).get("status") != "passed":
-    raise SystemExit("backup manifest has no completed isolated restore")
+manifest_path = Path(sys.argv[1])
+scope = sys.argv[2]
+expected_schema = (
+    "chickenbro-whitelist-recovery-v1"
+    if scope == "capacity_pre_cleanup"
+    else "chickenbro-accepted-production-recovery-v1"
+)
+expected_source = "wow_test" if scope == "capacity_pre_cleanup" else "chickenbro_prod"
+expected_target_identity = {
+    "provider": "tencent_cvm",
+    "instanceId": "ins-93tgv1rb",
+    "region": "ap-shanghai",
+    "zone": "ap-shanghai-2",
+    "publicAddress": "124.223.51.33",
+    "sshTarget": "wow-lighthouse",
+}
+if manifest_path.is_symlink() or manifest_path.stat().st_mode & 0o077:
+    raise SystemExit("recovery manifest permissions are not root-only")
+root = manifest_path.parent.resolve(strict=True)
+payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+if (
+    payload.get("schemaVersion") != expected_schema
+    or payload.get("status") != "restore_verified"
+    or payload.get("sourceDatabase") != expected_source
+    or payload.get("targetIdentity") != expected_target_identity
+    or payload.get("restore", {}).get("reconciliationStatus") != "matched"
+):
+    raise SystemExit("recovery manifest has no completed isolated restore reconciliation")
+if scope == "capacity_pre_cleanup" and payload.get("sourceMode") != "repeatable_read_read_only":
+    raise SystemExit("whitelist recovery source was not read-only")
+
+archive_sha = str(payload.get("archiveSha256", ""))
+archive_bytes = payload.get("archiveBytes")
+migration = payload.get("migrationReport") or {}
+restore = payload.get("restore") or {}
+restore_sha = str(restore.get("evidenceSha256", ""))
+restore_target = str(restore.get("targetDatabase", ""))
+if (
+    re.fullmatch(r"[0-9a-f]{64}", archive_sha) is None
+    or not isinstance(archive_bytes, int)
+    or isinstance(archive_bytes, bool)
+    or archive_bytes <= 0
+    or migration.get("status") != "matched"
+    or re.fullmatch(r"[0-9a-f]{64}", str(migration.get("sha256", ""))) is None
+    or restore.get("commandExitCode") != 0
+    or re.fullmatch(r"chickenbro_restore_verify_[a-z0-9_]{1,40}", restore_target) is None
+    or restore_target in {expected_source, "chickenbro_prod"}
+    or re.fullmatch(r"[0-9a-f]{64}", restore_sha) is None
+    or payload.get("restoreReconciliationSha256") != restore_sha
+):
+    raise SystemExit("recovery manifest hash or restore identity is invalid")
+
+for raw_path, expected_sha, expected_bytes in (
+    (payload.get("archivePath"), archive_sha, archive_bytes),
+    (migration.get("path"), str(migration.get("sha256")), None),
+    (restore.get("evidencePath"), restore_sha, None),
+):
+    path = Path(str(raw_path))
+    if not path.is_absolute() or path.is_symlink():
+        raise SystemExit("recovery evidence path is invalid")
+    resolved = path.resolve(strict=True)
+    if not resolved.is_file() or not resolved.is_relative_to(root):
+        raise SystemExit("recovery evidence escapes its root")
+    if expected_bytes is not None and resolved.stat().st_size != expected_bytes:
+        raise SystemExit("recovery archive byte count changed")
+    digest = hashlib.sha256()
+    with resolved.open("rb") as source:
+        for block in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(block)
+    if digest.hexdigest() != expected_sha:
+        raise SystemExit("recovery evidence SHA-256 changed")
 PY
 
 QUARANTINE_ROOT="$(python3 - "${MANIFEST_TMP}" <<'PY'
@@ -310,38 +493,42 @@ from pathlib import Path
 print(json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))["quarantine"]["root"])
 PY
 )"
-[[ "${QUARANTINE_ROOT}" == /mnt/chickenbro-backups/quarantine ]] \
+[[ "${QUARANTINE_ROOT}" == /var/lib/chickenbro-retirement-quarantine ]] \
   || die_remote "unexpected quarantine root"
-[[ -d /mnt/chickenbro-backups ]] || die_remote "independent backup mount is missing"
-[[ "$(findmnt -n -o TARGET --target /mnt/chickenbro-backups)" == "/mnt/chickenbro-backups" ]] \
-  || die_remote "backup path is not an independent mount"
 RUN_ROOT="${QUARANTINE_ROOT}/${REVIEWED_REMOTE_MANIFEST_SHA}"
 install -d -o root -g root -m 0700 -- "${RUN_ROOT}"
 nginx -t
-systemctl is-active --quiet chickenbro-api.service || die_remote "protected production API is not active"
-systemctl is-active --quiet chickenbro-worker.service || die_remote "protected production worker is not active"
-[[ "$(systemctl show chickenbro-simc-runtime-update.service --property=LoadState --value)" == "loaded" ]] \
-  || die_remote "protected SimulationCraft updater is not loaded"
-[[ -x /opt/chickenbro/server/chickenbro_simc_runtime_update.sh ]] \
-  || die_remote "protected SimulationCraft updater script is missing"
-[[ -e /opt/wow-simc/current ]] || die_remote "protected SimC runtime is missing"
+if [[ "${RETIREMENT_SCOPE}" != "capacity_pre_cleanup" ]]; then
+  systemctl is-active --quiet chickenbro-api.service || die_remote "protected production API is not active"
+  systemctl is-active --quiet chickenbro-worker.service || die_remote "protected production worker is not active"
+  [[ "$(systemctl show chickenbro-simc-runtime-update.service --property=LoadState --value)" == "loaded" ]] \
+    || die_remote "protected SimulationCraft updater is not loaded"
+  [[ -x /opt/chickenbro/server/chickenbro_simc_runtime_update.sh ]] \
+    || die_remote "protected SimulationCraft updater script is missing"
+  [[ -e /opt/wow-simc/current ]] || die_remote "protected SimC runtime is missing"
+fi
 protected_database_exists="$(sudo -n -u postgres psql -d postgres -At --command="SELECT count(*) FROM pg_database WHERE datname = 'chickenbro_prod'")"
 [[ "${protected_database_exists}" == "1" ]] || die_remote "protected production database is missing"
 
-python3 - "${MANIFEST_TMP}" <<'PY' > "${RUN_ROOT}/retirement-plan.tsv"
+python3 - "${MANIFEST_TMP}" "${RETIREMENT_SCOPE}" <<'PY' > "${RUN_ROOT}/retirement-plan.tsv"
 import json
 import sys
 from pathlib import Path
 
 payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+scope = sys.argv[2]
 order = {"systemd_unit": 0, "file": 1, "postgres_database": 2, "directory": 3}
 def resource_order(row):
     enabled_link_first = 0 if row["kind"] == "file" and "/sites-enabled/" in row["target"] else 1
     return (order[row["kind"]], enabled_link_first, row["target"])
 
 for item in sorted(payload["resources"], key=resource_order):
+    if scope == "capacity_pre_cleanup" and item.get("capacityPreCleanup") is not True:
+        continue
     print("\t".join([
         item["id"], item["kind"], item["target"], item.get("contentSha256") or "-",
+        str((item.get("observed") or {}).get("sizeBytes") or "-"),
+        item.get("requiredAbsentCompanion") or "-",
     ]))
 PY
 awk -F '\t' '$2 == "systemd_unit" { print $3 }' "${RUN_ROOT}/retirement-plan.tsv" \
@@ -387,7 +574,36 @@ print(digest.hexdigest())
 PY
 }
 
-while IFS=$'\t' read -r resource_id kind target content_sha; do
+process_environment_reference_count() {
+  local needle="$1"
+  local count=0 process_env
+  for process_env in /proc/[0-9]*/environ; do
+    if grep -Fq -- "${needle}" "${process_env}" 2>/dev/null; then
+      count=$(( count + 1 ))
+    fi
+  done
+  printf '%s\n' "${count}"
+}
+
+runtime_configuration_references() {
+  local needle="$1"
+  local excluded_basename="${2:-}"
+  local exclusions=(
+    --exclude-dir='.git'
+    --exclude-dir='.superpowers'
+    --exclude-dir='docs'
+    --exclude-dir='tests'
+    --exclude='retire_chickenbro_legacy_lighthouse.sh'
+  )
+  if [[ -n "${excluded_basename}" ]]; then
+    exclusions+=(--exclude="${excluded_basename}")
+  fi
+  grep -RFl "${exclusions[@]}" -- "${needle}" /etc/systemd/system /etc/nginx /opt/chickenbro 2>/dev/null || true
+  find /etc -maxdepth 1 -type f \( -name '*.env' -o -name '*.pgpass' \) \
+    -exec grep -Fl -- "${needle}" {} + 2>/dev/null || true
+}
+
+while IFS=$'\t' read -r resource_id kind target content_sha observed_size required_absent_companion; do
   quarantine_target="${RUN_ROOT}/${resource_id}"
   case "${kind}" in
     systemd_unit)
@@ -421,7 +637,9 @@ while IFS=$'\t' read -r resource_id kind target content_sha; do
         continue
       fi
       [[ -f "${target}" || -L "${target}" ]] || die_remote "file target changed type: ${target}"
-      file_references="$(grep -RFl --exclude="$(basename -- "${target}")" -- "${target}" /etc/systemd/system /etc/nginx /opt/chickenbro 2>/dev/null || true)"
+      [[ -z "$(lsof -t -- "${target}" 2>/dev/null || true)" ]] \
+        || die_remote "file has an open handle: ${target}"
+      file_references="$(runtime_configuration_references "${target}" "$(basename -- "${target}")")"
       [[ -z "${file_references}" ]] || die_remote "file still has configuration references: ${target}"
       if [[ -L "${target}" ]]; then
         actual_file_sha="$(readlink -- "${target}" | sha256sum | awk '{print $1}')"
@@ -441,8 +659,17 @@ while IFS=$'\t' read -r resource_id kind target content_sha; do
       fi
       connections="$(sudo -n -u postgres psql -d postgres -At --set=target="${target}" --command="SELECT count(*) FROM pg_stat_activity WHERE datname = :'target' AND pid <> pg_backend_pid()")"
       [[ "${connections}" == "0" ]] || die_remote "database gained active connections: ${target}"
-      references="$(grep -RFl --exclude='restore-verified.json' -- "${target}" /etc/systemd/system /etc/nginx /opt/chickenbro 2>/dev/null || true)"
+      current_size="$(sudo -n -u postgres psql -d postgres -At --set=target="${target}" --command="SELECT pg_database_size(:'target')")"
+      [[ "${observed_size}" =~ ^[0-9]+$ && "${current_size}" == "${observed_size}" ]] \
+        || die_remote "database size identity changed: ${target}"
+      if [[ "${required_absent_companion}" != "-" ]]; then
+        [[ ! -e "${required_absent_companion}" && ! -L "${required_absent_companion}" ]] \
+          || die_remote "database companion env still exists: ${target}"
+      fi
+      references="$(runtime_configuration_references "${target}" 'whitelist-recovery.json')"
       [[ -z "${references}" ]] || die_remote "database still has configuration references: ${target}"
+      [[ "$(process_environment_reference_count "${target}")" == "0" ]] \
+        || die_remote "database still has a running process reference: ${target}"
       sudo -n -u postgres psql -d postgres --set=ON_ERROR_STOP=1 --set=target="${target}" \
         --command="REVOKE CONNECT ON DATABASE :\"target\" FROM PUBLIC" >/dev/null
       sudo -n -u postgres psql -d postgres --set=ON_ERROR_STOP=1 --set=target="${target}" \
@@ -472,18 +699,20 @@ while IFS=$'\t' read -r resource_id kind target content_sha; do
   esac
 done < "${RUN_ROOT}/retirement-plan.tsv"
 
-systemctl daemon-reload
 nginx -t
-systemctl is-active --quiet chickenbro-api.service || die_remote "protected production API stopped during retirement"
-systemctl is-active --quiet chickenbro-worker.service || die_remote "protected production worker stopped during retirement"
-[[ "$(systemctl show chickenbro-simc-runtime-update.service --property=LoadState --value)" == "loaded" ]] \
-  || die_remote "protected SimulationCraft updater changed during retirement"
-[[ -x /opt/chickenbro/server/chickenbro_simc_runtime_update.sh ]] \
-  || die_remote "protected SimulationCraft updater script changed during retirement"
-[[ -e /opt/wow-simc/current ]] || die_remote "protected SimC runtime changed during retirement"
+if [[ "${RETIREMENT_SCOPE}" != "capacity_pre_cleanup" ]]; then
+  systemctl daemon-reload
+  systemctl is-active --quiet chickenbro-api.service || die_remote "protected production API stopped during retirement"
+  systemctl is-active --quiet chickenbro-worker.service || die_remote "protected production worker stopped during retirement"
+  [[ "$(systemctl show chickenbro-simc-runtime-update.service --property=LoadState --value)" == "loaded" ]] \
+    || die_remote "protected SimulationCraft updater changed during retirement"
+  [[ -x /opt/chickenbro/server/chickenbro_simc_runtime_update.sh ]] \
+    || die_remote "protected SimulationCraft updater script changed during retirement"
+  [[ -e /opt/wow-simc/current ]] || die_remote "protected SimC runtime changed during retirement"
+fi
 protected_database_exists="$(sudo -n -u postgres psql -d postgres -At --command="SELECT count(*) FROM pg_database WHERE datname = 'chickenbro_prod'")"
 [[ "${protected_database_exists}" == "1" ]] || die_remote "protected production database changed during retirement"
-RESULTS_TMP="${RESULTS_TMP}" MANIFEST_SHA="${REVIEWED_REMOTE_MANIFEST_SHA}" BACKUP_SHA="${REVIEWED_REMOTE_BACKUP_SHA}" \
+RESULTS_TMP="${RESULTS_TMP}" MANIFEST_SHA="${REVIEWED_REMOTE_MANIFEST_SHA}" RECOVERY_SHA="${REVIEWED_REMOTE_RECOVERY_SHA}" \
   python3 - <<'PY' | tee "${RUN_ROOT}/result.json"
 import json
 import os
@@ -494,7 +723,7 @@ results = [json.loads(line) for line in Path(os.environ["RESULTS_TMP"]).read_tex
 print(json.dumps({
     "status": "applied",
     "manifestSha256": os.environ["MANIFEST_SHA"],
-    "backupManifestSha256": os.environ["BACKUP_SHA"],
+    "whitelistRecoveryManifestSha256": os.environ["RECOVERY_SHA"],
     "completedAt": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
     "results": results,
 }, separators=(",", ":")))
@@ -518,14 +747,18 @@ main() {
         MODE="apply"
         shift
         ;;
+      --capacity-pre-cleanup)
+        SCOPE="capacity_pre_cleanup"
+        shift
+        ;;
       --manifest-sha)
         [[ $# -ge 2 ]] || die "--manifest-sha requires a value"
         REVIEWED_MANIFEST_SHA="$2"
         shift 2
         ;;
-      --backup-manifest-sha)
-        [[ $# -ge 2 ]] || die "--backup-manifest-sha requires a value"
-        REVIEWED_BACKUP_MANIFEST_SHA="$2"
+      --recovery-manifest-sha)
+        [[ $# -ge 2 ]] || die "--recovery-manifest-sha requires a value"
+        REVIEWED_RECOVERY_MANIFEST_SHA="$2"
         shift 2
         ;;
       --help|-h)
@@ -548,17 +781,17 @@ main() {
     return 0
   fi
 
-  if [[ -z "${REVIEWED_MANIFEST_SHA}" || -z "${REVIEWED_BACKUP_MANIFEST_SHA}" ]]; then
-    die "--apply requires --manifest-sha and --backup-manifest-sha"
+  if [[ -z "${REVIEWED_MANIFEST_SHA}" || -z "${REVIEWED_RECOVERY_MANIFEST_SHA}" ]]; then
+    die "--apply requires --manifest-sha and --recovery-manifest-sha"
   fi
   [[ "${REVIEWED_MANIFEST_SHA}" =~ ^[0-9a-f]{64}$ \
-    && "${REVIEWED_BACKUP_MANIFEST_SHA}" =~ ^[0-9a-f]{64}$ ]] \
+    && "${REVIEWED_RECOVERY_MANIFEST_SHA}" =~ ^[0-9a-f]{64}$ ]] \
     || die "--apply requires valid SHA-256 identities"
   [[ "${REMOTE_HOST}" =~ ^[A-Za-z0-9.-]+$ && "${REMOTE_USER}" =~ ^[a-z_][a-z0-9_-]*$ ]] \
     || die "invalid remote host or user"
-  [[ "${REMOTE_BACKUP_MANIFEST}" =~ ^/[A-Za-z0-9_./-]+$ \
-    && "${REMOTE_BACKUP_MANIFEST}" != *".."* ]] \
-    || die "invalid remote backup manifest path"
+  [[ "${REMOTE_RECOVERY_MANIFEST}" =~ ^/[A-Za-z0-9_./-]+$ \
+    && "${REMOTE_RECOVERY_MANIFEST}" != *".."* ]] \
+    || die "invalid remote recovery manifest path"
   [[ "$(sha256_file "${MANIFEST_FILE}")" == "${REVIEWED_MANIFEST_SHA}" ]] \
     || die "reviewed manifest SHA-256 mismatch"
   assert_apply_ready

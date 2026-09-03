@@ -22,7 +22,8 @@
       "docs/superpowers/plans/2026-09-02-chickenbro-simc-rebuild-04-simc.md",
       "docs/superpowers/plans/2026-09-02-chickenbro-simc-rebuild-05-dual-client-migration-cutover.md",
       "docs/superpowers/plans/2026-09-02-chickenbro-simc-rebuild-06-legacy-retirement.md"
-    ]
+    ],
+    "candidateDatabaseProvisioningAuthorized": false
   },
   "delivery": {
     "phase1": "local_verified",
@@ -42,12 +43,20 @@
     "destructiveCleanupReady": false,
     "finalUserAcceptance": "not_run",
     "cleanupPrerequisites": [
-      "independent_restore_verified_backup",
+      "whitelist_migration_restore_verified",
       "candidate_capacity_gate_passed",
       "real_mini_web_acceptance_passed",
       "first_new_write_reconciled",
-      "stable_production_health"
-    ]
+      "stable_production_health",
+      "accepted_production_restore_verified"
+    ],
+    "capacityPreCleanup": {
+      "authorized": false,
+      "exactRejectedDatabaseCount": 4,
+      "requiresPhase5Acceptance": false,
+      "requiresWhitelistRestoreVerification": true,
+      "protectsWowTest": true
+    }
   },
   "refactorEvidence": {
     "localInventory": "docs/refactor/chickenbro-simc-refactor-inventory.json",
@@ -56,7 +65,16 @@
     "cloudCleanupManifest": "docs/refactor/chickenbro-simc-cloud-cleanup-manifest.json",
     "capacityCleanupManifest": "docs/refactor/chickenbro-simc-capacity-cleanup-manifest.json",
     "recoveryInventory": "docs/refactor/chickenbro-simc-recovery-inventory.json",
-    "capacityGate": "blocked_until_independent_recovery_or_storage_expansion",
+    "capacityGate": "blocked_until_whitelist_recovery_and_exact_capacity_cleanup_or_storage_expansion",
+    "targetIdentity": {
+      "provider": "tencent_cvm",
+      "instanceId": "ins-93tgv1rb",
+      "region": "ap-shanghai",
+      "zone": "ap-shanghai-2",
+      "publicAddress": "124.223.51.33",
+      "sshTarget": "wow-lighthouse",
+      "refreshRequiredBeforeApply": true
+    },
     "observedRootFreeBytes": 8580000000,
     "observedLegacyDatabaseBytes": 16380000000,
     "localCleanupDryRun": {
@@ -67,9 +85,9 @@
       "phase5Accepted": false
     },
     "cloudCleanupDryRun": {
-      "total": 80,
+      "total": 84,
       "ready": 0,
-      "blocked": 80,
+      "blocked": 84,
       "unresolvedRequiredTargets": 2
     },
     "localCleanupApplyAllowed": false,
