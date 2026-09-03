@@ -1032,6 +1032,27 @@ def _write_evidence(path: Path, payload: Mapping[str, Any]) -> None:
             temporary.unlink()
 
 
+def _diagnostic_error(error: BaseException, *, source_url: str = "") -> str:
+    """Return a bounded diagnostic without echoing credentials or source links."""
+
+    message = str(error or "").strip()
+    if source_url:
+        message = message.replace(source_url, "[source-url]")
+    message = re.sub(r"(?i)(postgres(?:ql)?://)[^\s]+", r"\1[redacted]", message)
+    message = re.sub(r"(?i)(bearer\s+)[A-Za-z0-9._~+/=-]+", r"\1[redacted]", message)
+    message = re.sub(r"(?i)(password\s*[=:]\s*)[^\s,;]+", r"\1[redacted]", message)
+    for name in (
+        "WOW_WECHAT_SECRET",
+        "WOW_BLIZZARD_CLIENT_SECRET",
+        "WOW_BNET_CLIENT_SECRET",
+        "WOW_WARCRAFTLOGS_CLIENT_SECRET",
+    ):
+        secret = os.environ.get(name, "").strip()
+        if secret:
+            message = message.replace(secret, "[redacted]")
+    return f"{type(error).__name__}: {message[:240]}"[:320]
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run isolated Chickenbro candidate acceptance")
     parser.add_argument("--expected-database", default="chickenbro_candidate")
@@ -1073,8 +1094,11 @@ def main(argv: list[str] | None = None) -> int:
     except AcceptanceError as error:
         print(f"accept_chickenbro_candidate: {error.code}", file=sys.stderr)
         return 1
-    except Exception:
-        print("accept_chickenbro_candidate: UNEXPECTED_FAILURE", file=sys.stderr)
+    except Exception as error:
+        print(
+            f"accept_chickenbro_candidate: UNEXPECTED_FAILURE [{_diagnostic_error(error, source_url=args.source_url)}]",
+            file=sys.stderr,
+        )
         return 1
     print(f"status={evidence['status']} evidence={args.evidence_path}")
     return 0
