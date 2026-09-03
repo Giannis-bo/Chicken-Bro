@@ -61,7 +61,7 @@
     "observedLegacyDatabaseBytes": 16380000000,
     "localCleanupDryRun": {
       "deletable": 2588,
-      "retained": 268,
+      "retained": 267,
       "blocked": 0,
       "review": 0,
       "phase5Accepted": false
