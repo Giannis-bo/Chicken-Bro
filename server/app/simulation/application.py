@@ -1,5 +1,6 @@
 import base64
 import json
+import re
 from collections.abc import Callable
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
@@ -17,6 +18,9 @@ from server.app.simulation.domain import (
 )
 from server.app.simulation.readiness import SimcReadinessValidator, SimcRuntimeCapabilities
 from server.app.simulation.sources import CharacterSourceRouter, InvalidSourceLink
+
+
+_IDEMPOTENCY_KEY = re.compile(r"[A-Za-z0-9._~-]{8,128}\Z")
 
 
 class SimulationApplicationError(ValueError):
@@ -231,14 +235,11 @@ class SimulationApplication:
 
     @staticmethod
     def _bounded_key(value: str) -> str:
-        if not isinstance(value, str):
+        if not isinstance(value, str) or not value:
             raise SimulationApplicationError("IDEMPOTENCY_KEY_REQUIRED", "idempotency key is required")
-        key = value.strip()
-        if not key:
-            raise SimulationApplicationError("IDEMPOTENCY_KEY_REQUIRED", "idempotency key is required")
-        if len(key) > 128 or any(character.isspace() for character in key):
+        if not _IDEMPOTENCY_KEY.fullmatch(value):
             raise SimulationApplicationError("IDEMPOTENCY_KEY_INVALID", "idempotency key is invalid")
-        return key
+        return value
 
 
 __all__ = (

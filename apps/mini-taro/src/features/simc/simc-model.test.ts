@@ -77,6 +77,7 @@ function success<T>(payload: T): ApiResult<T> {
 
 class FakeSimcClient implements SimcClient {
   readonly calls: Array<{ name: string; auth: ClientAuthContext }> = []
+  readonly submitKeys: string[] = []
   jobReads: SimulationJobDetail[] = [queued]
 
   async createSnapshot(
@@ -108,6 +109,7 @@ class FakeSimcClient implements SimcClient {
     options: Parameters<SimcClient['createJob']>[1],
   ): Promise<ApiResult<SimulationJobDetail>> {
     this.calls.push({ name: 'submit', auth: options.auth })
+    this.submitKeys.push(options.idempotencyKey)
     return success(queued)
   }
 
@@ -186,5 +188,60 @@ describe('SimcModel', () => {
       activeJob: null,
     })
     expect(client.calls.some((call) => call.name === 'submit')).toBe(false)
+  })
+
+  it('reuses one submission identity after an uncertain response', async () => {
+    const client = new FakeSimcClient()
+    const requestId = vi.fn()
+      .mockReturnValueOnce('simc-request-0001')
+      .mockReturnValueOnce('simc-request-0002')
+    let attempts = 0
+    client.createJob = vi.fn(async (_request, options) => {
+      client.calls.push({ name: 'submit', auth: options.auth })
+      client.submitKeys.push(options.idempotencyKey)
+      attempts += 1
+      if (attempts === 1) {
+        return {
+          payload: queued,
+          fromFallback: true,
+          error: '网络结果不确定',
+          problemCode: 'SIMC_REQUEST_FAILED',
+          httpStatus: 0,
+        }
+      }
+      return success(queued)
+    })
+    const model = new SimcModel(client, () => auth, { requestId })
+    await model.resolveSource(snapshot.sourceUrl)
+
+    const first = await model.submitJob({ fightStyle: 'Patchwerk', desiredTargets: 1 })
+    const retried = await model.submitJob({ fightStyle: 'Patchwerk', desiredTargets: 1 })
+
+    expect(first).toBeNull()
+    expect(retried?.id).toBe(queued.id)
+    expect(client.submitKeys).toEqual(['simc-request-0001', 'simc-request-0001'])
+    expect(requestId).toHaveBeenCalledTimes(1)
+  })
+
+  it('coalesces concurrent submit taps into one server mutation', async () => {
+    const client = new FakeSimcClient()
+    const requestId = vi.fn(() => 'simc-request-0001')
+    let finish!: (result: ApiResult<SimulationJobDetail>) => void
+    client.createJob = vi.fn((_request, options) => {
+      client.calls.push({ name: 'submit', auth: options.auth })
+      client.submitKeys.push(options.idempotencyKey)
+      return new Promise<ApiResult<SimulationJobDetail>>((resolve) => { finish = resolve })
+    })
+    const model = new SimcModel(client, () => auth, { requestId })
+    await model.resolveSource(snapshot.sourceUrl)
+
+    const first = model.submitJob({ fightStyle: 'Patchwerk', desiredTargets: 1 })
+    const second = model.submitJob({ fightStyle: 'Patchwerk', desiredTargets: 1 })
+    finish(success(queued))
+
+    await expect(first).resolves.toEqual(queued)
+    await expect(second).resolves.toEqual(queued)
+    expect(client.submitKeys).toEqual(['simc-request-0001'])
+    expect(requestId).toHaveBeenCalledTimes(1)
   })
 })

@@ -162,13 +162,13 @@ class SimulationApplicationTest(unittest.TestCase):
             self.owner,
             snapshot.id,
             {"fightStyle": "Patchwerk", "desiredTargets": 1},
-            "sim-1",
+            "sim-request-1",
         )
         second = self.application.submit(
             self.owner,
             snapshot.id,
             {"fightStyle": "Patchwerk", "desiredTargets": 1},
-            "sim-1",
+            "sim-request-1",
         )
 
         self.assertEqual(first.id, second.id)
@@ -185,7 +185,28 @@ class SimulationApplicationTest(unittest.TestCase):
         )
 
         with self.assertRaisesRegex(SimulationApplicationError, "SNAPSHOT_NOT_FOUND"):
-            self.application.submit(self.other, snapshot.id, {"fightStyle": "Patchwerk"}, "sim-2")
+            self.application.submit(self.other, snapshot.id, {"fightStyle": "Patchwerk"}, "sim-request-2")
+
+    def test_idempotency_key_contract_matches_the_typed_clients(self):
+        snapshot_id = UUID("00000000-0000-4000-8000-000000000099")
+
+        for invalid_key in ("short", " leading-space", "contains space", "bad/control\n", "k" * 129):
+            with self.subTest(invalid_key=invalid_key):
+                with self.assertRaisesRegex(SimulationApplicationError, "IDEMPOTENCY_KEY_INVALID"):
+                    self.application.submit(
+                        self.owner,
+                        snapshot_id,
+                        {"fightStyle": "Patchwerk"},
+                        invalid_key,
+                    )
+
+        with self.assertRaisesRegex(SimulationApplicationError, "IDEMPOTENCY_KEY_REQUIRED"):
+            self.application.submit(
+                self.owner,
+                snapshot_id,
+                {"fightStyle": "Patchwerk"},
+                "",
+            )
 
     def test_same_idempotency_key_rejects_changed_scenario(self):
         snapshot = self.application.resolve_source(
@@ -292,7 +313,12 @@ class SimulationApplicationTest(unittest.TestCase):
             FakeGateway.fetch_json = original
         self.assertEqual(snapshot.readiness, SourceReadiness.INCOMPLETE_FOR_SIMC)
         with self.assertRaisesRegex(SimulationApplicationError, "SNAPSHOT_NOT_READY"):
-            incomplete_application.submit(self.owner, snapshot.id, {"fightStyle": "Patchwerk"}, "sim-3")
+            incomplete_application.submit(
+                self.owner,
+                snapshot.id,
+                {"fightStyle": "Patchwerk"},
+                "sim-request-3",
+            )
         self.assertEqual(self.queue.calls, [])
 
     def test_same_owner_job_history_is_stable_across_pages(self):

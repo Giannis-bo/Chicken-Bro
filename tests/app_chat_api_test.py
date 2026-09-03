@@ -236,6 +236,11 @@ class FormalChatApiTest(unittest.TestCase):
             headers=mini_headers(),
             json={"content": "你好", "clientMessageId": "formal-client-2"},
         )
+        invalid_key = self.client.post(
+            path,
+            headers={**mini_headers(), "Idempotency-Key": "contains space"},
+            json={"content": "你好", "clientMessageId": "formal-client-2"},
+        )
         ambiguous = self.client.post(
             path,
             headers={**mini_headers(), "Idempotency-Key": "formal-stream-2"},
@@ -245,6 +250,8 @@ class FormalChatApiTest(unittest.TestCase):
 
         self.assertEqual(missing_key.status_code, 422)
         self.assertEqual(missing_key.json()["error"]["code"], "IDEMPOTENCY_KEY_REQUIRED")
+        self.assertEqual(invalid_key.status_code, 422)
+        self.assertEqual(invalid_key.json()["error"]["code"], "IDEMPOTENCY_KEY_INVALID")
         self.assertEqual(ambiguous.status_code, 400)
         self.assertEqual(ambiguous.json()["error"]["code"], "AMBIGUOUS_AUTH")
 

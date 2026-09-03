@@ -117,6 +117,29 @@ class FormalSimcApiTest(unittest.TestCase):
         self.assertEqual(missing_csrf.status_code, 403)
         self.assertEqual(missing_csrf.json()["error"]["code"], "CSRF_REJECTED")
 
+    def test_job_creation_uses_the_shared_bounded_idempotency_contract(self):
+        snapshot = self.create_snapshot().json()
+        body = {
+            "snapshotId": snapshot["id"],
+            "scenario": {"fightStyle": "Patchwerk", "desiredTargets": 1},
+        }
+
+        missing = self.client.post(
+            "/api/v2/simc/jobs",
+            headers=mini_headers(),
+            json=body,
+        )
+        invalid = self.client.post(
+            "/api/v2/simc/jobs",
+            headers={**mini_headers(), "Idempotency-Key": "contains space"},
+            json=body,
+        )
+
+        self.assertEqual(missing.status_code, 422)
+        self.assertEqual(missing.json()["error"]["code"], "IDEMPOTENCY_KEY_REQUIRED")
+        self.assertEqual(invalid.status_code, 422)
+        self.assertEqual(invalid.json()["error"]["code"], "IDEMPOTENCY_KEY_INVALID")
+
 
 if __name__ == "__main__":
     unittest.main()

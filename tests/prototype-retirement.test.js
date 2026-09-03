@@ -17,7 +17,7 @@ test('formal backend runtime has no prototype owner, route, dependency, or setti
     'server/app/identity/repository.py',
     'server/app/platform/config.py',
     'server/app/chickenbro/application.py',
-    'server/app/chickenbro/ports.py',
+    'server/app/chickenbro/repository.py',
   ]) {
     assert.doesNotMatch(source(relativePath), /prototype/i, relativePath)
   }

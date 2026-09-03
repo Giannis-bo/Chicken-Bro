@@ -60,6 +60,15 @@ function idempotencyKey(value: string): string {
   return normalized.length >= 8 ? normalized : `simc-${normalized || 'request'}`
 }
 
+function submissionIdentity(snapshotId: string, scenario: SimulationScenarioRequest): string {
+  return JSON.stringify({
+    snapshotId,
+    fightStyle: scenario.fightStyle ?? null,
+    desiredTargets: scenario.desiredTargets ?? null,
+    iterations: scenario.iterations ?? null,
+  })
+}
+
 function defaultSleep(delayMs: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, delayMs))
 }
@@ -137,6 +146,8 @@ export class SimcModel {
   private readonly requestId: () => string
   private readonly sleep: (delayMs: number) => Promise<void>
   private readonly maxPolls: number
+  private pendingSubmission: { identity: string; idempotencyKey: string } | null = null
+  private submitInFlight: Promise<SimulationJobDetail | null> | null = null
 
   constructor(
     private readonly client: SimcClient,
@@ -221,7 +232,15 @@ export class SimcModel {
     })
   }
 
-  async submitJob(scenario: SimulationScenarioRequest): Promise<SimulationJobDetail | null> {
+  submitJob(scenario: SimulationScenarioRequest): Promise<SimulationJobDetail | null> {
+    if (this.submitInFlight) return this.submitInFlight
+    const operation = this.submitJobOnce(scenario)
+    const tracked = operation.finally(() => { this.submitInFlight = null })
+    this.submitInFlight = tracked
+    return tracked
+  }
+
+  private async submitJobOnce(scenario: SimulationScenarioRequest): Promise<SimulationJobDetail | null> {
     const snapshot = this.state.snapshot
     if (!snapshot || snapshot.readiness !== 'READY_FOR_SIMC') {
       this.fail('SNAPSHOT_NOT_READY', '角色快照尚不满足 SimC 执行条件', false)
@@ -234,12 +253,17 @@ export class SimcModel {
       this.authFailure(error)
       return null
     }
+    const identity = submissionIdentity(snapshot.id, scenario)
+    const pending = this.pendingSubmission?.identity === identity
+      ? this.pendingSubmission
+      : { identity, idempotencyKey: idempotencyKey(this.requestId()) }
+    this.pendingSubmission = pending
     this.update({ phase: 'submitting', errorCode: '', errorMessage: '', retryable: false })
     let result: ApiResult<SimulationJobDetail>
     try {
       result = await this.client.createJob(
         { snapshotId: snapshot.id, scenario },
-        { auth, idempotencyKey: idempotencyKey(this.requestId()) },
+        { auth, idempotencyKey: pending.idempotencyKey },
       )
     } catch (error) {
       this.fail('SCENARIO_INVALID', error instanceof Error ? error.message : '模拟场景无效', false)
@@ -249,6 +273,7 @@ export class SimcModel {
       this.apiFailure(result, '模拟任务提交失败')
       return null
     }
+    if (this.pendingSubmission === pending) this.pendingSubmission = null
     this.update({
       phase: 'ready',
       activeJob: result.payload,

@@ -233,24 +233,12 @@ def create_job(
     principal: Principal = Depends(require_mutating_principal),
     application: SimulationApplication = Depends(simulation_application),
 ) -> dict[str, object]:
-    if not idempotency_key or any(character.isspace() for character in idempotency_key):
-        raise ApiProblem(
-            status_code=422,
-            code="IDEMPOTENCY_KEY_REQUIRED",
-            message="Idempotency-Key is required",
-        )
-    if len(idempotency_key) > 128:
-        raise ApiProblem(
-            status_code=422,
-            code="IDEMPOTENCY_KEY_INVALID",
-            message="Idempotency-Key is invalid",
-        )
     try:
         job = application.submit(
             principal,
             body.snapshot_id,
             body.scenario,
-            idempotency_key,
+            idempotency_key or "",
         )
         return _job_detail(application.read_job(principal, job.id))
     except SimulationApplicationError as error:

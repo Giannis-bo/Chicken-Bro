@@ -171,24 +171,12 @@ def stream_message(
     principal: Principal = Depends(require_mutating_principal),
     application: ChatApplication = Depends(chat_application),
 ) -> StreamingResponse:
-    if not idempotency_key or any(character.isspace() for character in idempotency_key):
-        raise ApiProblem(
-            status_code=422,
-            code="IDEMPOTENCY_KEY_REQUIRED",
-            message="Idempotency-Key is required",
-        )
-    if len(idempotency_key) > 128:
-        raise ApiProblem(
-            status_code=422,
-            code="IDEMPOTENCY_KEY_INVALID",
-            message="Idempotency-Key is invalid",
-        )
     events: Iterator[ChatEvent] = application.stream_message(
         principal,
         conversation_id,
         body.content,
         client_message_id=body.client_message_id,
-        idempotency_key=idempotency_key,
+        idempotency_key=idempotency_key or "",
     )
     try:
         first = next(events)
