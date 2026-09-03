@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "mode": "dry-run",
-  "generatedAt": "2026-09-03T05:53:28Z",
+  "generatedAt": "2026-09-03T06:07:03Z",
   "deletionAuthorized": false,
   "status": "capacity_precleanup_ready_full_retirement_blocked",
   "sourceInventory": {
@@ -45,6 +45,17 @@
   },
   "capacityPreCleanup": {
     "authorized": true,
+    "lastAttempt": {
+      "observedAt": "2026-09-03T06:07:03Z",
+      "manifestSha256": "b28e9b30e2cc03245e4264bd55ead9dfbea4269b93a52aa390de531e2803f92a",
+      "status": "failed_before_mutation",
+      "reasonCode": "psql_command_variable_not_interpolated",
+      "databasesPresent": 4,
+      "envFilesPresent": 4,
+      "activeConnections": 0,
+      "pairJournalCount": 0,
+      "mutationPerformed": false
+    },
     "requiresPhase5Acceptance": false,
     "protectsWowTest": true,
     "rejectedEvidenceRecoveryRequired": false,

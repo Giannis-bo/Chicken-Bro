@@ -116,6 +116,17 @@ test('cloud cleanup manifest covers every observed legacy unit and database exac
   assert.equal(manifest.businessRecovery.manifestSchema, 'chickenbro-whitelist-recovery-v1')
   assert.equal(manifest.acceptedProductionRecovery.status, 'not_run')
   assert.equal(manifest.capacityPreCleanup.authorized, true)
+  assert.deepEqual(manifest.capacityPreCleanup.lastAttempt, {
+    observedAt: '2026-09-03T06:07:03Z',
+    manifestSha256: 'b28e9b30e2cc03245e4264bd55ead9dfbea4269b93a52aa390de531e2803f92a',
+    status: 'failed_before_mutation',
+    reasonCode: 'psql_command_variable_not_interpolated',
+    databasesPresent: 4,
+    envFilesPresent: 4,
+    activeConnections: 0,
+    pairJournalCount: 0,
+    mutationPerformed: false,
+  })
   assert.equal(manifest.capacityPreCleanup.requiresPhase5Acceptance, false)
   assert.equal(manifest.capacityPreCleanup.protectsWowTest, true)
   assert.deepEqual(
@@ -534,6 +545,13 @@ test('database existence probe returns unknown on command failure instead of abs
   assert.match(result.stdout, /^[1-9][0-9]*:unknown$/m)
 })
 
+test('psql variables are sent through stdin instead of the non-interpolating command option', () => {
+  const source = fs.readFileSync(scriptPath, 'utf8')
+
+  assert.doesNotMatch(source, /--command="[^"\n]*:\\?'target'/)
+  assert.doesNotMatch(source, /--command="[^"\n]*:\\?"target"/)
+})
+
 test('one target session fences and revalidates identity without terminating sessions', (t) => {
   const source = fs.readFileSync(scriptPath, 'utf8')
   const helper = extractShellFunction(source, 'fence_and_verify_capacity_database')
@@ -590,8 +608,10 @@ test('capacity apply fences and verifies before env quarantine, then drops witho
     'mv() { printf "mutate:env_move\\n" >> "${TEST_LOG}"; command mv "$@"; }',
     'sudo() {',
     '  local arguments="$*"',
-    '  [[ "${arguments}" != *"pg_terminate_backend"* ]] || return 90',
-    '  if [[ "${arguments}" == *"SELECT format(\'DROP DATABASE"* ]]; then printf "DROP DATABASE reviewed_database\\n"; return 0; fi',
+    '  local input',
+    '  input="$(command cat)"',
+    '  [[ "${arguments}${input}" != *"pg_terminate_backend"* ]] || return 90',
+    '  if [[ "${input}" == *"SELECT format(\'DROP DATABASE"* ]]; then printf "DROP DATABASE reviewed_database\\n"; return 0; fi',
     '  if [[ "${arguments}" == *"--command=DROP DATABASE"* ]]; then printf "mutate:drop\\n" >> "${TEST_LOG}"; return 0; fi',
     '  return 91',
     '}',
@@ -717,7 +737,9 @@ test('post-action fence, env-move, and drop crashes enter actual-state reconcili
       '}',
       'sudo() {',
       '  local arguments="$*"',
-      '  if [[ "${arguments}" == *"SELECT format(\'DROP DATABASE"* ]]; then printf "DROP DATABASE reviewed_database\\n"; return 0; fi',
+      '  local input',
+      '  input="$(command cat)"',
+      '  if [[ "${input}" == *"SELECT format(\'DROP DATABASE"* ]]; then printf "DROP DATABASE reviewed_database\\n"; return 0; fi',
       '  if [[ "${arguments}" == *"--command=DROP DATABASE"* ]]; then',
       '    printf "absent" > "${DATABASE_STATE}"',
       '    [[ "${FAIL_BOUNDARY}" != "drop" ]] || return 73',

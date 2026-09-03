@@ -857,8 +857,10 @@ probe_capacity_database_existence() {
   local target="$1"
   local probe_output
   if ! probe_output="$(sudo -n -u postgres psql --no-psqlrc --dbname=postgres --tuples-only --no-align \
-    --set=ON_ERROR_STOP=1 --set=target="${target}" \
-    --command="SELECT count(*) FROM pg_database WHERE datname = :'target'" 2>/dev/null)"; then
+    --set=ON_ERROR_STOP=1 --set=target="${target}" 2>/dev/null <<'SQL'
+SELECT count(*) FROM pg_database WHERE datname = :'target';
+SQL
+)"; then
     printf '%s\n' 'unknown'
     return 1
   fi
@@ -887,10 +889,16 @@ capacity_preflight_pair() {
   fi
   [[ "${exists}" == "present" ]] || die_remote "capacity database is missing: ${database}"
   connections="$(sudo -n -u postgres psql --no-psqlrc --dbname=postgres --tuples-only --no-align \
-    --set=target="${database}" --command="SELECT count(*) FROM pg_stat_activity WHERE datname = :'target' AND pid <> pg_backend_pid()")"
+    --set=target="${database}" <<'SQL'
+SELECT count(*) FROM pg_stat_activity WHERE datname = :'target' AND pid <> pg_backend_pid();
+SQL
+)"
   [[ "${connections}" == "0" ]] || die_remote "capacity database gained active connections: ${database}"
   current_size="$(sudo -n -u postgres psql --no-psqlrc --dbname=postgres --tuples-only --no-align \
-    --set=target="${database}" --command="SELECT pg_database_size(:'target')")"
+    --set=target="${database}" <<'SQL'
+SELECT pg_database_size(:'target');
+SQL
+)"
   [[ "${current_size}" == "${expected_size}" ]] || die_remote "capacity database size identity changed: ${database}"
   current_counts="$(fresh_database_counts "${database}" | tr -d ' ')" \
     || die_remote "capacity database exact table/row count failed: ${database}"
@@ -898,8 +906,12 @@ capacity_preflight_pair() {
   [[ "${current_table_count}" == "${expected_table_count}" && "${current_row_count}" == "${expected_exact_row_count}" ]] \
     || die_remote "capacity database exact table/row counts changed: ${database}"
   current_identity="$(sudo -n -u postgres psql --no-psqlrc --dbname=postgres --tuples-only --no-align \
-    --field-separator=$'\t' --set=target="${database}" \
-    --command="SELECT pg_get_userbyid(datdba), CASE WHEN datallowconn THEN 'true' ELSE 'false' END FROM pg_database WHERE datname = :'target'")"
+    --field-separator=$'\t' --set=target="${database}" <<'SQL'
+SELECT pg_get_userbyid(datdba), CASE WHEN datallowconn THEN 'true' ELSE 'false' END
+FROM pg_database
+WHERE datname = :'target';
+SQL
+)"
   IFS=$'\t' read -r current_owner current_allows <<< "${current_identity}"
   [[ "${current_owner}" == "${expected_owner}" && "${current_allows}" == "${expected_allows}" ]] \
     || die_remote "capacity database owner/connection identity changed: ${database}"
@@ -1100,8 +1112,13 @@ capacity_exact_file_state() {
 probe_capacity_database_identity() {
   local target="$1" identity_output
   identity_output="$(sudo -n -u postgres psql --no-psqlrc --dbname=postgres --tuples-only --no-align \
-    --field-separator=$'\t' --set=ON_ERROR_STOP=1 --set=target="${target}" \
-    --command="SELECT pg_get_userbyid(datdba), CASE WHEN datallowconn THEN 'true' ELSE 'false' END, pg_database_size(datname) FROM pg_database WHERE datname = :'target'" 2>/dev/null)" \
+    --field-separator=$'\t' --set=ON_ERROR_STOP=1 --set=target="${target}" 2>/dev/null <<'SQL'
+SELECT pg_get_userbyid(datdba), CASE WHEN datallowconn THEN 'true' ELSE 'false' END,
+  pg_database_size(datname)
+FROM pg_database
+WHERE datname = :'target';
+SQL
+)" \
     || return 1
   [[ "${identity_output}" =~ ^[^$'\t']+$'\t'(true|false)$'\t'[0-9]+$ ]] || return 1
   printf '%s\n' "${identity_output}"
@@ -1111,8 +1128,10 @@ restore_capacity_database_allow_connections() {
   local target="$1" allows="$2" restore_statement
   [[ "${allows}" == "true" || "${allows}" == "false" ]] || return 1
   restore_statement="$(sudo -n -u postgres psql --no-psqlrc --dbname=postgres --tuples-only --no-align \
-    --set=ON_ERROR_STOP=1 --set=target="${target}" --set=allows="${allows}" \
-    --command="SELECT format('ALTER DATABASE %I WITH ALLOW_CONNECTIONS %s', :'target', :'allows')")" \
+    --set=ON_ERROR_STOP=1 --set=target="${target}" --set=allows="${allows}" <<'SQL'
+SELECT format('ALTER DATABASE %I WITH ALLOW_CONNECTIONS %s', :'target', :'allows');
+SQL
+)" \
     || return 1
   [[ "${restore_statement}" == ALTER\ DATABASE\ *\ WITH\ ALLOW_CONNECTIONS\ * ]] || return 1
   sudo -n -u postgres psql --no-psqlrc --dbname=postgres --set=ON_ERROR_STOP=1 \
@@ -1273,7 +1292,10 @@ capacity_apply_pair() {
       || capacity_pair_abort "database still has a running process reference after companion quarantine: ${database}"
 
     drop_statement="$(sudo -n -u postgres psql --no-psqlrc --dbname=postgres --tuples-only --no-align \
-      --set=ON_ERROR_STOP=1 --set=target="${database}" --command="SELECT format('DROP DATABASE %I', :'target')")"
+      --set=ON_ERROR_STOP=1 --set=target="${database}" <<'SQL'
+SELECT format('DROP DATABASE %I', :'target');
+SQL
+)"
     write_capacity_pair_journal "${PAIR_JOURNAL}" "drop_intent" "${database}" "${env_path}" \
       "${env_sha}" "${expected_size}" "${expected_table_count}" "${expected_exact_row_count}" "${expected_owner}" "${expected_allows}"
     sudo -n -u postgres psql --no-psqlrc --dbname=postgres --set=ON_ERROR_STOP=1 \
@@ -1429,14 +1451,23 @@ while IFS=$'\t' read -r resource_id kind target content_sha observed_size requir
       record_result "${resource_id}" "${kind}" "${target}" "deleted"
       ;;
     postgres_database)
-      exists="$(sudo -n -u postgres psql -d postgres -At --set=target="${target}" --command="SELECT count(*) FROM pg_database WHERE datname = :'target'")"
+      exists="$(sudo -n -u postgres psql -d postgres -At --set=target="${target}" <<'SQL'
+SELECT count(*) FROM pg_database WHERE datname = :'target';
+SQL
+)"
       if [[ "${exists}" == "0" ]]; then
         record_result "${resource_id}" "${kind}" "${target}" "skipped"
         continue
       fi
-      connections="$(sudo -n -u postgres psql -d postgres -At --set=target="${target}" --command="SELECT count(*) FROM pg_stat_activity WHERE datname = :'target' AND pid <> pg_backend_pid()")"
+      connections="$(sudo -n -u postgres psql -d postgres -At --set=target="${target}" <<'SQL'
+SELECT count(*) FROM pg_stat_activity WHERE datname = :'target' AND pid <> pg_backend_pid();
+SQL
+)"
       [[ "${connections}" == "0" ]] || die_remote "database gained active connections: ${target}"
-      current_size="$(sudo -n -u postgres psql -d postgres -At --set=target="${target}" --command="SELECT pg_database_size(:'target')")"
+      current_size="$(sudo -n -u postgres psql -d postgres -At --set=target="${target}" <<'SQL'
+SELECT pg_database_size(:'target');
+SQL
+)"
       [[ "${observed_size}" =~ ^[0-9]+$ && "${current_size}" == "${observed_size}" ]] \
         || die_remote "database size identity changed: ${target}"
       if [[ "${required_absent_companion}" != "-" ]]; then
@@ -1451,17 +1482,25 @@ while IFS=$'\t' read -r resource_id kind target content_sha observed_size requir
       [[ "${process_references}" == $'clear\t0' ]] \
         || die_remote "database still has a running process reference: ${target}"
       sudo -n -u postgres psql -d postgres --set=ON_ERROR_STOP=1 --set=target="${target}" \
-        --command="REVOKE CONNECT ON DATABASE :\"target\" FROM PUBLIC" >/dev/null
+        >/dev/null <<'SQL'
+REVOKE CONNECT ON DATABASE :"target" FROM PUBLIC;
+SQL
       fence_statement="$(sudo -n -u postgres psql --no-psqlrc --dbname=postgres --tuples-only --no-align \
-        --set=ON_ERROR_STOP=1 --set=target="${target}" \
-        --command="SELECT format('ALTER DATABASE %I WITH ALLOW_CONNECTIONS false', :'target')")"
+        --set=ON_ERROR_STOP=1 --set=target="${target}" <<'SQL'
+SELECT format('ALTER DATABASE %I WITH ALLOW_CONNECTIONS false', :'target');
+SQL
+)"
       sudo -n -u postgres psql --no-psqlrc --dbname=postgres --set=ON_ERROR_STOP=1 \
         --command="${fence_statement}" >/dev/null
-      connections="$(sudo -n -u postgres psql -d postgres -At --set=target="${target}" \
-        --command="SELECT count(*) FROM pg_stat_activity WHERE datname = :'target' AND pid <> pg_backend_pid()")"
+      connections="$(sudo -n -u postgres psql -d postgres -At --set=target="${target}" <<'SQL'
+SELECT count(*) FROM pg_stat_activity WHERE datname = :'target' AND pid <> pg_backend_pid();
+SQL
+)"
       [[ "${connections}" == "0" ]] || die_remote "database has active connections after fencing: ${target}"
-      drop_statement="$(sudo -n -u postgres psql -d postgres -At --set=ON_ERROR_STOP=1 --set=target="${target}" \
-        --command="SELECT format('DROP DATABASE %I', :'target')")"
+      drop_statement="$(sudo -n -u postgres psql -d postgres -At --set=ON_ERROR_STOP=1 --set=target="${target}" <<'SQL'
+SELECT format('DROP DATABASE %I', :'target');
+SQL
+)"
       [[ "${drop_statement}" == DROP\ DATABASE\ * ]] || die_remote "database drop statement was not generated safely"
       sudo -n -u postgres psql -d postgres --set=ON_ERROR_STOP=1 --command="${drop_statement}" >/dev/null
       record_result "${resource_id}" "${kind}" "${target}" "deleted"
