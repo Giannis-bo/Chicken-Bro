@@ -174,6 +174,7 @@ SimC 的服务端事实流是：
 4. Application 按 owner + idempotency 创建 job，并向 `ops.job_queue` 写入同 ID 命令。
 5. Worker 持有有效 lease 后才把 job 置为 running，记录独立 attempt，调用已安装的云端 SimC。
 6. return code、stdout 和最终指标经过语义解析；只有正数有效 DPS/HPS、匹配 identity 和无致命诊断才可写不可变 result 并置成功。
+7. Application 在列表和详情读取时再次核对成功状态、result owner/job、JSON 与列指标、profile/compiler/runtime 以及完整 provenance；缺失或不一致统一返回 `SIMC_RESULT_INVALID`，不能以 200 成功或不完整结果交给任一客户端。
 
 正式主链不重新接入旧 Gear Catalog、Talent Catalog、Resolver、Manifest 或 WebSim profile。来源数据不完整、权限受限、角色不存在和 provider 不可用必须保持不同 blocker。
 

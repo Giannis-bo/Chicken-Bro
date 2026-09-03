@@ -1,4 +1,3 @@
-import math
 import re
 from collections.abc import Mapping
 from uuid import UUID
@@ -17,13 +16,13 @@ from server.app.simulation.application import (
     SimulationApplication,
     SimulationApplicationError,
     SimulationJobView,
+    validated_simulation_result_provenance,
 )
-from server.app.simulation.domain import SimulationAttempt, SimulationResult, SourceSnapshot
+from server.app.simulation.domain import SimulationAttempt, SourceSnapshot
 
 
 router = APIRouter(prefix="/api/v2/simc")
 _SAFE_CODE = re.compile(r"[A-Za-z0-9_.-]{1,128}\Z")
-_SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 
 
 class SourceSnapshotCreateBody(BaseModel):
@@ -76,6 +75,7 @@ def _snapshot_payload(snapshot: SourceSnapshot) -> dict[str, object]:
 
 
 def _job_summary(view: SimulationJobView) -> dict[str, object]:
+    validated_simulation_result_provenance(view)
     job = view.job
     public_error = str(job.public_error_code or "")
     if public_error and _SAFE_CODE.fullmatch(public_error) is None:
@@ -109,36 +109,12 @@ def _attempt_payload(attempt: SimulationAttempt) -> dict[str, object]:
 
 
 def _result_payload(view: SimulationJobView) -> dict[str, object] | None:
+    provenance = validated_simulation_result_provenance(view)
     result = view.result
     if result is None:
         return None
-    job = view.job
-    if (
-        not isinstance(result, SimulationResult)
-        or result.job_id != job.id
-        or result.user_id != job.user_id
-        or not math.isfinite(result.primary_metric_value)
-        or result.primary_metric_value <= 0
-        or result.compiler_revision != job.compiler_revision
-        or result.runtime_revision != job.runtime_revision
-        or _SHA256.fullmatch(result.profile_sha256) is None
-    ):
+    if provenance is None:
         raise SimulationApplicationError("SIMC_RESULT_INVALID", "simulation result is invalid")
-    raw_provenance = result.result.get("provenance", {})
-    raw_provenance = raw_provenance if isinstance(raw_provenance, Mapping) else {}
-    provenance = {
-        key: str(raw_provenance[key])
-        for key in (
-            "snapshotId",
-            "sourceRevision",
-            "sourceRawSha256",
-            "profileSha256",
-            "compilerRevision",
-            "runtimeRevision",
-            "scenarioHash",
-        )
-        if key in raw_provenance and len(str(raw_provenance[key])) <= 160
-    }
     return {
         "id": str(result.id),
         "profileSha256": result.profile_sha256,
@@ -212,6 +188,10 @@ def list_jobs(
 ) -> dict[str, object]:
     try:
         page = application.list_jobs(principal, cursor, limit)
+        return {
+            "items": [_job_summary(view) for view in page.items],
+            "nextCursor": page.next_cursor,
+        }
     except (SimulationApplicationError, TypeError, ValueError) as error:
         if isinstance(error, SimulationApplicationError):
             _raise_simulation_error(error)
@@ -220,10 +200,6 @@ def list_jobs(
             code="INVALID_LIMIT",
             message="simulation limit is invalid",
         ) from error
-    return {
-        "items": [_job_summary(view) for view in page.items],
-        "nextCursor": page.next_cursor,
-    }
 
 
 @router.post("/jobs", status_code=202)

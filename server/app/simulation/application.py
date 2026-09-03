@@ -1,5 +1,6 @@
 import base64
 import json
+import math
 import re
 from collections.abc import Callable
 from dataclasses import dataclass, replace
@@ -21,6 +22,16 @@ from server.app.simulation.sources import CharacterSourceRouter, InvalidSourceLi
 
 
 _IDEMPOTENCY_KEY = re.compile(r"[A-Za-z0-9._~-]{8,128}\Z")
+_SHA256 = re.compile(r"[0-9a-f]{64}\Z")
+_PUBLIC_RESULT_PROVENANCE_KEYS = (
+    "snapshotId",
+    "sourceRevision",
+    "sourceRawSha256",
+    "profileSha256",
+    "compilerRevision",
+    "runtimeRevision",
+    "scenarioHash",
+)
 
 
 class SimulationApplicationError(ValueError):
@@ -42,6 +53,78 @@ class SimulationJobView:
 class SimulationJobPage:
     items: tuple[SimulationJobView, ...]
     next_cursor: str | None
+
+
+def _invalid_result() -> SimulationApplicationError:
+    return SimulationApplicationError("SIMC_RESULT_INVALID", "simulation result is invalid")
+
+
+def validated_simulation_result_provenance(
+    view: SimulationJobView,
+) -> dict[str, str] | None:
+    """Return the exact public provenance only when the persisted result is coherent."""
+
+    job = view.job
+    result = view.result
+    if result is None:
+        if job.status is SimulationJobStatus.SUCCEEDED:
+            raise _invalid_result()
+        return None
+    if (
+        job.status is not SimulationJobStatus.SUCCEEDED
+        or not isinstance(result, SimulationResult)
+        or result.job_id != job.id
+        or result.user_id != job.user_id
+        or not isinstance(result.profile_sha256, str)
+        or _SHA256.fullmatch(result.profile_sha256) is None
+        or result.primary_metric_name not in {"dps", "hps"}
+        or isinstance(result.primary_metric_value, bool)
+        or not isinstance(result.primary_metric_value, (int, float))
+        or not math.isfinite(result.primary_metric_value)
+        or result.primary_metric_value <= 0
+        or not isinstance(result.compiler_revision, str)
+        or not 0 < len(result.compiler_revision) <= 160
+        or result.compiler_revision != job.compiler_revision
+        or not isinstance(result.runtime_revision, str)
+        or not 0 < len(result.runtime_revision) <= 160
+        or result.runtime_revision != job.runtime_revision
+        or not isinstance(job.scenario_hash, str)
+        or _SHA256.fullmatch(job.scenario_hash) is None
+        or not isinstance(result.result, Mapping)
+    ):
+        raise _invalid_result()
+
+    raw_metric_name = result.result.get("metricName")
+    raw_metric_value = result.result.get("metricValue")
+    if (
+        raw_metric_name != result.primary_metric_name
+        or isinstance(raw_metric_value, bool)
+        or not isinstance(raw_metric_value, (int, float))
+        or not math.isfinite(raw_metric_value)
+        or raw_metric_value != result.primary_metric_value
+    ):
+        raise _invalid_result()
+
+    raw_provenance = result.result.get("provenance")
+    if not isinstance(raw_provenance, Mapping):
+        raise _invalid_result()
+    provenance: dict[str, str] = {}
+    for key in _PUBLIC_RESULT_PROVENANCE_KEYS:
+        value = raw_provenance.get(key)
+        if not isinstance(value, str) or not 0 < len(value) <= 160:
+            raise _invalid_result()
+        provenance[key] = value
+
+    if (
+        provenance["snapshotId"] != str(job.snapshot_id)
+        or _SHA256.fullmatch(provenance["sourceRawSha256"]) is None
+        or provenance["profileSha256"] != result.profile_sha256
+        or provenance["compilerRevision"] != job.compiler_revision
+        or provenance["runtimeRevision"] != job.runtime_revision
+        or provenance["scenarioHash"] != job.scenario_hash
+    ):
+        raise _invalid_result()
+    return provenance
 
 
 def _value(row: Any, key: str, default: Any = None) -> Any:
@@ -218,6 +301,8 @@ class SimulationApplication:
             )
             for job in page_rows
         )
+        for item in items:
+            validated_simulation_result_provenance(item)
         next_cursor = (
             _encode_job_cursor(page_rows[-1])
             if len(rows) > bounded_limit and page_rows
@@ -231,7 +316,9 @@ class SimulationApplication:
             raise SimulationApplicationError("SIMULATION_NOT_FOUND", "simulation not found")
         result = self._repository.get_result(principal.user_id, job.id)
         attempts = tuple(self._repository.list_attempts(job.id, 20))
-        return SimulationJobView(job=job, result=result, attempts=attempts)
+        view = SimulationJobView(job=job, result=result, attempts=attempts)
+        validated_simulation_result_provenance(view)
+        return view
 
     @staticmethod
     def _bounded_key(value: str) -> str:
@@ -247,4 +334,5 @@ __all__ = (
     "SimulationApplicationError",
     "SimulationJobPage",
     "SimulationJobView",
+    "validated_simulation_result_provenance",
 )

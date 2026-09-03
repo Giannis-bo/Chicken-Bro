@@ -1,15 +1,23 @@
 import json
+import math
 import unittest
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from uuid import UUID
 
 from server.app.identity.domain import Principal
-from server.app.simulation.application import SimulationApplication, SimulationApplicationError
+from server.app.simulation.application import (
+    SimulationApplication,
+    SimulationApplicationError,
+    SimulationJobView,
+    validated_simulation_result_provenance,
+)
 from server.app.simulation.compiler import SimcProfileCompiler
 from server.app.simulation.domain import (
     SimulationJob,
     SimulationJobStatus,
+    SimulationResult,
     SourceProvider,
     SourceReadiness,
     SourceSnapshot,
@@ -365,6 +373,116 @@ class SimulationApplicationTest(unittest.TestCase):
             self.application.list_jobs(self.owner, cursor="not-a-cursor", limit=20)
 
         self.assertEqual(self.repository.list_job_calls, [])
+
+
+class PublicSimulationResultValidationTest(unittest.TestCase):
+    def setUp(self):
+        self.now = datetime(2026, 9, 3, 12, 0, tzinfo=timezone.utc)
+        self.job = SimulationJob(
+            id=UUID("00000000-0000-4000-8000-000000000101"),
+            user_id=UUID("00000000-0000-4000-8000-000000000102"),
+            snapshot_id=UUID("00000000-0000-4000-8000-000000000103"),
+            scenario_hash="a" * 64,
+            compiler_revision="compiler:test",
+            runtime_revision="simc:test",
+            idempotency_key="public-result-test",
+            status=SimulationJobStatus.SUCCEEDED,
+            public_error_code="",
+            created_at=self.now,
+            updated_at=self.now,
+        )
+        self.provenance = {
+            "snapshotId": str(self.job.snapshot_id),
+            "sourceRevision": "source:test",
+            "sourceRawSha256": "b" * 64,
+            "profileSha256": "c" * 64,
+            "compilerRevision": self.job.compiler_revision,
+            "runtimeRevision": self.job.runtime_revision,
+            "scenarioHash": self.job.scenario_hash,
+        }
+        self.result = SimulationResult(
+            id=UUID("00000000-0000-4000-8000-000000000104"),
+            job_id=self.job.id,
+            user_id=self.job.user_id,
+            profile_sha256=self.provenance["profileSha256"],
+            result={
+                "metricName": "dps",
+                "metricValue": 12345.0,
+                "provenance": {**self.provenance, "sourceUrl": "https://example.invalid/source"},
+            },
+            primary_metric_name="dps",
+            primary_metric_value=12345.0,
+            compiler_revision=self.job.compiler_revision,
+            runtime_revision=self.job.runtime_revision,
+            created_at=self.now,
+        )
+
+    def view(self, *, job=None, result=None):
+        return SimulationJobView(
+            job=job or self.job,
+            result=self.result if result is None else result,
+        )
+
+    def assert_invalid(self, view):
+        with self.assertRaisesRegex(SimulationApplicationError, "SIMC_RESULT_INVALID"):
+            validated_simulation_result_provenance(view)
+
+    def test_valid_result_returns_only_the_bound_public_provenance(self):
+        self.assertEqual(
+            validated_simulation_result_provenance(self.view()),
+            self.provenance,
+        )
+
+    def test_terminal_status_and_result_presence_must_agree(self):
+        self.assert_invalid(SimulationJobView(job=self.job, result=None))
+        self.assert_invalid(
+            self.view(job=replace(self.job, status=SimulationJobStatus.RUNNING))
+        )
+
+    def test_result_identity_metric_and_revisions_must_match_the_job(self):
+        mutations = (
+            replace(self.result, job_id=UUID("00000000-0000-4000-8000-000000000105")),
+            replace(self.result, user_id=UUID("00000000-0000-4000-8000-000000000106")),
+            replace(self.result, profile_sha256="not-a-hash"),
+            replace(self.result, primary_metric_name="score"),
+            replace(self.result, primary_metric_value=0),
+            replace(self.result, primary_metric_value=math.inf),
+            replace(self.result, compiler_revision="compiler:other"),
+            replace(self.result, runtime_revision="simc:other"),
+            replace(self.result, result={**self.result.result, "metricValue": 999.0}),
+        )
+        for result in mutations:
+            with self.subTest(result=result):
+                self.assert_invalid(self.view(result=result))
+
+    def test_all_public_provenance_fields_are_required_and_bound(self):
+        mismatches = {
+            "snapshotId": "00000000-0000-4000-8000-000000000107",
+            "sourceRevision": "",
+            "sourceRawSha256": "not-a-hash",
+            "profileSha256": "d" * 64,
+            "compilerRevision": "compiler:other",
+            "runtimeRevision": "simc:other",
+            "scenarioHash": "e" * 64,
+        }
+        for key, value in mismatches.items():
+            with self.subTest(key=key):
+                provenance = {**self.provenance, key: value}
+                result = replace(
+                    self.result,
+                    result={**self.result.result, "provenance": provenance},
+                )
+                self.assert_invalid(self.view(result=result))
+
+        for key in self.provenance:
+            with self.subTest(missing=key):
+                provenance = {**self.provenance}
+                provenance.pop(key)
+                result = replace(
+                    self.result,
+                    result={**self.result.result, "provenance": provenance},
+                )
+                self.assert_invalid(self.view(result=result))
 
 
 class RecordingCursor:
