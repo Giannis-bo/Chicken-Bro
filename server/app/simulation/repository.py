@@ -35,29 +35,36 @@ class PostgresSimulationRepository:
     def __init__(self, connection_factory: Callable[[], Any]):
         self._connection_factory = connection_factory
 
-    def next_snapshot_revision(
-        self,
-        user_id: UUID,
-        provider: SourceProvider,
-        source_key: str,
-    ) -> int:
-        provider_value = provider.value if isinstance(provider, SourceProvider) else str(provider)
+    def save_snapshot_with_next_revision(self, snapshot: SourceSnapshot) -> SourceSnapshot:
+        """Serialize per-owner revision allocation and immutable snapshot insertion."""
         with self._connection_factory() as connection:
             with connection.cursor() as cursor:
                 cursor.execute(
                     """
-                    SELECT COALESCE(MAX(revision), 0) + 1
+                    SELECT id
+                    FROM identity.users
+                    WHERE id = %s
+                    FOR UPDATE
+                    """,
+                    (snapshot.user_id,),
+                )
+                if cursor.fetchone() is None:
+                    raise RuntimeError("snapshot owner disappeared")
+                cursor.execute(
+                    """
+                    SELECT COALESCE(MAX(revision), 0) + 1 AS next_revision
                     FROM simc.source_snapshots
                     WHERE user_id = %s AND provider = %s AND source_key = %s
                     """,
-                    (user_id, provider_value, source_key),
+                    (snapshot.user_id, snapshot.provider.value, snapshot.source_key),
                 )
-                row = cursor.fetchone()
-        return int(row[0] if isinstance(row, (tuple, list)) else row)
-
-    def save_snapshot(self, snapshot: SourceSnapshot) -> None:
-        with self._connection_factory() as connection:
-            with connection.cursor() as cursor:
+                revision_row = cursor.fetchone()
+                if revision_row is None:
+                    raise RuntimeError("snapshot revision could not be allocated")
+                persisted = replace(
+                    snapshot,
+                    revision=int(_row_value(revision_row, "next_revision", 0)),
+                )
                 cursor.execute(
                     """
                     INSERT INTO simc.source_snapshots (
@@ -66,19 +73,20 @@ class PostgresSimulationRepository:
                     ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s::jsonb, %s, %s)
                     """,
                     (
-                        snapshot.id,
-                        snapshot.user_id,
-                        snapshot.provider.value,
-                        snapshot.source_url,
-                        snapshot.source_key,
-                        snapshot.revision,
-                        snapshot.readiness.value,
-                        _json_value(snapshot.snapshot),
-                        _json_value(snapshot.provenance),
-                        snapshot.raw_sha256,
-                        snapshot.fetched_at,
+                        persisted.id,
+                        persisted.user_id,
+                        persisted.provider.value,
+                        persisted.source_url,
+                        persisted.source_key,
+                        persisted.revision,
+                        persisted.readiness.value,
+                        _json_value(persisted.snapshot),
+                        _json_value(persisted.provenance),
+                        persisted.raw_sha256,
+                        persisted.fetched_at,
                     ),
                 )
+        return persisted
 
     def get_snapshot(self, user_id: UUID, snapshot_id: UUID) -> SourceSnapshot | None:
         with self._connection_factory() as connection:

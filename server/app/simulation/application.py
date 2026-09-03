@@ -111,19 +111,13 @@ class SimulationApplication:
         except InvalidSourceLink as error:
             raise SimulationApplicationError("INVALID_LINK", "source link is not allowed") from error
         report = self._readiness_validator.validate(candidate, self._runtime_capabilities)
-        revision = self._repository.next_snapshot_revision(
-            principal.user_id,
-            candidate.provider,
-            candidate.source_key,
-        )
         snapshot = candidate.to_source_snapshot(
             user_id=principal.user_id,
             snapshot_id=uuid4(),
             readiness_report=report,
-            revision=revision,
+            revision=1,
         )
-        self._repository.save_snapshot(snapshot)
-        return snapshot
+        return self._repository.save_snapshot_with_next_revision(snapshot)
 
     def submit(
         self,

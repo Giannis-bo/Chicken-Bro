@@ -7,7 +7,13 @@ from uuid import UUID
 from server.app.identity.domain import Principal
 from server.app.simulation.application import SimulationApplication, SimulationApplicationError
 from server.app.simulation.compiler import SimcProfileCompiler
-from server.app.simulation.domain import SimulationJob, SimulationJobStatus, SourceReadiness
+from server.app.simulation.domain import (
+    SimulationJob,
+    SimulationJobStatus,
+    SourceProvider,
+    SourceReadiness,
+    SourceSnapshot,
+)
 from server.app.simulation.readiness import SimcReadinessValidator, SimcRuntimeCapabilities
 from server.app.simulation.repository import PostgresSimulationRepository
 from server.app.simulation.sources import CharacterSourceRouter
@@ -29,6 +35,7 @@ class MemorySimulationRepository:
         self.attempts = {}
         self.list_job_calls = []
         self.queue = None
+        self.atomic_snapshot_writes = []
         self.atomic_submission_calls = []
         self.atomic_submission_result = None
 
@@ -42,6 +49,17 @@ class MemorySimulationRepository:
 
     def save_snapshot(self, snapshot):
         self.snapshots[(snapshot.user_id, snapshot.id)] = snapshot
+
+    def save_snapshot_with_next_revision(self, snapshot):
+        self.atomic_snapshot_writes.append(snapshot)
+        revision = self.next_snapshot_revision(
+            snapshot.user_id,
+            snapshot.provider,
+            snapshot.source_key,
+        )
+        persisted = SourceSnapshot(**{**snapshot.__dict__, "revision": revision})
+        self.snapshots[(persisted.user_id, persisted.id)] = persisted
+        return persisted
 
     def get_snapshot(self, user_id, snapshot_id):
         return self.snapshots.get((user_id, snapshot_id))
@@ -137,6 +155,8 @@ class SimulationApplicationTest(unittest.TestCase):
             "https://raider.io/characters/us/area-52/Stormsample",
         )
         self.assertEqual(snapshot.readiness, SourceReadiness.READY_FOR_SIMC)
+        self.assertEqual(snapshot.revision, 1)
+        self.assertEqual(len(self.repository.atomic_snapshot_writes), 1)
 
         first = self.application.submit(
             self.owner,
@@ -198,6 +218,7 @@ class SimulationApplicationTest(unittest.TestCase):
             self.owner,
             "https://raider.io/characters/us/area-52/Stormsample",
         )
+        self.assertEqual((first_snapshot.revision, second_snapshot.revision), (1, 2))
         self.application.submit(
             self.owner,
             first_snapshot.id,
@@ -375,6 +396,43 @@ class AtomicSubmissionConnection(RecordingConnection):
 
 
 class SimulationRepositoryOwnerTest(unittest.TestCase):
+    def test_snapshot_revision_and_insert_share_one_user_locked_transaction(self):
+        owner_id = UUID("00000000-0000-4000-8000-0000000000d1")
+        now = datetime(2026, 9, 3, tzinfo=timezone.utc)
+        snapshot = SourceSnapshot(
+            id=UUID("00000000-0000-4000-8000-0000000000d2"),
+            user_id=owner_id,
+            provider=SourceProvider.RAIDERIO,
+            source_url="https://raider.io/characters/us/area-52/test",
+            source_key="raiderio:us:area-52:test",
+            revision=1,
+            readiness=SourceReadiness.READY_FOR_SIMC,
+            snapshot={"character": {"name": "Test"}},
+            provenance={"sourceRevision": "fixture"},
+            raw_sha256="d" * 64,
+            fetched_at=now,
+        )
+        cursor = AtomicSubmissionCursor([(owner_id,), (5,)])
+        connection = AtomicSubmissionConnection(cursor)
+        connection_count = 0
+
+        def connection_factory():
+            nonlocal connection_count
+            connection_count += 1
+            return connection
+
+        repository = PostgresSimulationRepository(connection_factory)
+
+        persisted = repository.save_snapshot_with_next_revision(snapshot)
+
+        statements = [statement for statement, _ in cursor.executed]
+        self.assertEqual(connection_count, 1)
+        self.assertEqual(persisted.revision, 5)
+        self.assertIn("FROM identity.users", statements[0])
+        self.assertIn("FOR UPDATE", statements[0])
+        self.assertIn("MAX(revision)", statements[1])
+        self.assertIn("INSERT INTO simc.source_snapshots", statements[2])
+
     def test_postgres_job_history_uses_owner_scoped_keyset_query(self):
         owner_id = UUID("00000000-0000-4000-8000-0000000000a1")
         job_id = UUID("00000000-0000-4000-8000-0000000000a2")
