@@ -94,7 +94,10 @@ class WebAuthApplication:
         if existing is not None:
             qr_data_url = self._qr_cache.get(existing.id)
             if qr_data_url is None:
-                raise AuthApplicationError("WECHAT_PROVIDER_UNAVAILABLE", "login QR is temporarily unavailable")
+                raise AuthApplicationError(
+                    "WEB_LOGIN_RESTART_REQUIRED",
+                    "login QR must be regenerated",
+                )
             return WebLoginCreated(session=existing, qr_data_url=qr_data_url)
 
         scene_ticket = new_opaque_token(16)

@@ -167,6 +167,10 @@ export interface WebLoginCreateAttempt {
   idempotencyKey: string
 }
 
+export function shouldDiscardWebLoginCreateAttempt(problemCode: string | undefined): boolean {
+  return problemCode === 'WEB_LOGIN_RESTART_REQUIRED'
+}
+
 export function selectWebLoginCreateAttempt(
   current: WebLoginCreateAttempt | null,
   browserVerifier: string,

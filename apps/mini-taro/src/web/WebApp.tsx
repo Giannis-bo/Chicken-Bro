@@ -16,6 +16,7 @@ import {
   initialWebAuthState,
   reduceWebAuthState,
   selectWebLoginCreateAttempt,
+  shouldDiscardWebLoginCreateAttempt,
   type WebLoginCreateAttempt,
   type WebAuthState,
   type WebAuthStateEvent,
@@ -37,6 +38,7 @@ const problemCopy: Record<string, string> = {
   WEB_LOGIN_VERIFIER_MISMATCH: '当前浏览器标签页已变化，请重新生成二维码',
   WEB_LOGIN_ALREADY_CONSUMED: '这次二维码已经使用过，请重新生成',
   WEB_LOGIN_NOT_CONFIRMED: '请先在小程序中确认登录',
+  WEB_LOGIN_RESTART_REQUIRED: '上一次二维码已失效，请重新生成',
   WECHAT_NOT_CONFIGURED: '登录服务尚未配置完成，请联系管理员',
   WECHAT_PROVIDER_UNAVAILABLE: '微信服务暂不可用，请稍后重试',
   WEB_CSRF_COOKIE_MISSING: 'Web 安全会话不完整，请重新扫码登录',
@@ -217,6 +219,10 @@ export default function WebApp({ authClient = wowApi.webAuth }: WebAppProps) {
         attempt.idempotencyKey,
       )
       if (result.fromFallback) {
+        if (
+          shouldDiscardWebLoginCreateAttempt(result.problemCode)
+          && createAttemptRef.current === attempt
+        ) createAttemptRef.current = null
         dispatch({ type: 'blocked', ...publicProblem(result, '二维码生成失败，请稍后重试') })
         return
       }

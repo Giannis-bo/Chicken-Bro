@@ -6,6 +6,7 @@ import {
   initialWebAuthState,
   reduceWebAuthState,
   selectWebLoginCreateAttempt,
+  shouldDiscardWebLoginCreateAttempt,
   type WebAuthStateEvent,
 } from './web-auth-model'
 
@@ -121,5 +122,11 @@ describe('Web auth browser state model', () => {
       idempotencyKey: 'login-request-two',
     })
     expect(createKey).toHaveBeenCalledTimes(2)
+  })
+
+  it('discards only an explicitly unrecoverable QR creation identity', () => {
+    expect(shouldDiscardWebLoginCreateAttempt('WEB_LOGIN_RESTART_REQUIRED')).toBe(true)
+    expect(shouldDiscardWebLoginCreateAttempt('WECHAT_PROVIDER_UNAVAILABLE')).toBe(false)
+    expect(shouldDiscardWebLoginCreateAttempt(undefined)).toBe(false)
   })
 })

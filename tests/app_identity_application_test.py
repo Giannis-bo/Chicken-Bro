@@ -257,6 +257,21 @@ class AppIdentityApplicationTest(unittest.TestCase):
         self.assertEqual(len(repository.web_login_sessions), 1)
         self.assertEqual(len(gateway.scenes), 1)
 
+    def test_process_restart_requires_a_new_qr_request_identity_without_persisting_scene_data(self):
+        repository = InMemoryIdentityRepository()
+        gateway = FixedWechatGateway()
+        first_process = self._application(repository, gateway)
+        created = first_process.create_web_login("R" * 43, idempotency_key="restart-create")
+        restarted_process = self._application(repository, gateway)
+
+        with self.assertRaises(AuthApplicationError) as caught:
+            restarted_process.create_web_login("R" * 43, idempotency_key="restart-create")
+
+        self.assertEqual(caught.exception.code, "WEB_LOGIN_RESTART_REQUIRED")
+        self.assertEqual(len(repository.web_login_sessions), 1)
+        self.assertEqual(len(repository.web_login_sessions[created.session.id].scene_ticket_sha256), 64)
+        self.assertFalse(hasattr(created, "scene_ticket"))
+
     def test_web_exchange_uses_atomic_consume_and_session_issue_port(self):
         """Catches consuming a ticket and issuing its Web credential in separate commits."""
         repository = InMemoryIdentityRepository()
