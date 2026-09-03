@@ -1,25 +1,25 @@
 {
   "schemaVersion": 1,
   "status": "reachable",
-  "observedAt": "2026-09-02T13:43:05Z",
+  "observedAt": "2026-09-03T05:18:54Z",
   "host": "VM-4-8-ubuntu",
   "targetIdentity": {
     "provider": "tencent_cvm",
-    "instanceId": "ins-93tgv1rb",
-    "region": "ap-shanghai",
-    "zone": "ap-shanghai-2",
     "publicAddress": "124.223.51.33",
     "sshTarget": "wow-lighthouse",
-    "refreshRequiredBeforeApply": true
+    "refreshRequiredBeforeApply": true,
+    "instanceId": "ins-93tgv1rb",
+    "region": "ap-shanghai",
+    "zone": "ap-shanghai-2"
   },
   "rootFilesystem": {
     "path": "/",
     "sizeBytes": 73859022848,
-    "usedBytes": 62145011712,
-    "freeBytes": 8583778304
+    "usedBytes": 61959131136,
+    "freeBytes": 8769658880
   },
-  "rootFreeBytes": 8583778304,
-  "currentDatabaseBytes": 39277479625,
+  "rootFreeBytes": 8769658880,
+  "currentDatabaseBytes": 39277561545,
   "databases": [
     {
       "name": "postgres",
@@ -168,7 +168,7 @@
     },
     {
       "name": "wow_test",
-      "sizeBytes": 16384261143,
+      "sizeBytes": 16384343063,
       "connections": 0
     },
     {
@@ -451,7 +451,7 @@
   "directories": [
     {
       "path": "/opt/wow-mini-program",
-      "sizeBytes": 2436709811
+      "sizeBytes": 2436711770
     },
     {
       "path": "/opt/wow-simc",
@@ -471,7 +471,7 @@
     },
     {
       "path": "/var/lib/postgresql",
-      "sizeBytes": 39630380619
+      "sizeBytes": 39446134347
     },
     {
       "path": "/var/lib/wow-backend",

@@ -14,7 +14,7 @@ class ChickenbroSimcRecoveryInventoryTest(unittest.TestCase):
         self.assertEqual(inventory["schemaVersion"], 2)
         self.assertEqual(
             inventory["status"],
-            "corrected_recovery_contract_apply_not_run",
+            "corrected_recovery_contract_provisioning_authorized_not_run",
         )
         self.assertFalse(inventory["mutationPerformed"])
 
@@ -35,7 +35,7 @@ class ChickenbroSimcRecoveryInventoryTest(unittest.TestCase):
         recovery = inventory["businessWhitelistRecovery"]
         self.assertEqual(recovery["sourceDatabase"], "wow_test")
         self.assertEqual(recovery["sourceMode"], "read_only")
-        self.assertEqual(recovery["status"], "not_run")
+        self.assertEqual(recovery["status"], "authorized_not_run")
         self.assertEqual(recovery["manifestSchema"], "chickenbro-whitelist-recovery-v1")
         self.assertEqual(recovery["candidateDatabase"], "chickenbro_prod")
         self.assertEqual(recovery["verificationDatabasePattern"], "chickenbro_restore_verify_*")
@@ -54,7 +54,7 @@ class ChickenbroSimcRecoveryInventoryTest(unittest.TestCase):
         conclusions = inventory["conclusions"]
         self.assertFalse(conclusions["currentIndependentBackup"])
         self.assertFalse(conclusions["whitelistRestoreVerified"])
-        self.assertFalse(conclusions["candidateDatabaseProvisioningAuthorized"])
+        self.assertTrue(conclusions["candidateDatabaseProvisioningAuthorized"])
         self.assertFalse(conclusions["capacityPreCleanupAuthorized"])
         self.assertFalse(conclusions["wowTestRetirementAuthorized"])
 

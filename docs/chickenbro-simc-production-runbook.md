@@ -1,6 +1,6 @@
 # 炸鸡队长与 SimC 生产迁移、切流与恢复 Runbook
 
-状态：当前生产操作权威；Phase 5 候选部署、PostgreSQL 白名单迁移适配器与自动化双端验收已完成本地实现和验证，真实 PostgreSQL candidate apply 仍由白名单恢复证明、容量与授权 gate 阻塞
+状态：当前生产操作权威；Phase 5 候选部署、PostgreSQL 白名单迁移适配器与自动化双端验收已完成本地实现和验证；2026-09-03 已获干净库 provisioning 授权，白名单恢复证明、容量预清理、candidate apply 与真实双端验收仍须按独立 gate 顺序完成
 
 本 Runbook 规定如何从 legacy `wow_test` 和旧运行单元迁移到干净 `chickenbro_prod`，如何验证双端数据一致，何时可以切流，以及何时仍然禁止删除。执行者必须同时阅读 [当前架构](chickenbro-simc-architecture.md)、[project-state.json](project-state.json) 和对应阶段的 Harness requirement。
 
@@ -131,9 +131,9 @@ bash server/provision_chickenbro_database_lighthouse.sh \
   --dry-run --inventory-sha "${INVENTORY_SHA}"
 ```
 
-当前审阅文件 SHA-256 是 `d0247ebdc497541315f1dc3d223ba290ea1ba9d43e14f40a42278693ec23a98c`；dry-run 仍返回 `mutationAuthorized=false` 和 `blocked_until_whitelist_recovery_and_exact_capacity_cleanup_or_storage_expansion`。文件刷新后必须重新计算并评审 SHA，不能继续使用这里的历史值。
+当前审阅文件已经在 2026-09-03 从目标主机刷新；执行前必须重新计算并评审其 SHA。dry-run 即使已获 provisioning 授权也仍返回 `mutationAuthorized=false`，且容量状态保持 `blocked_until_whitelist_recovery_and_exact_capacity_cleanup_or_storage_expansion`，直到白名单恢复证明和精确容量预清理完成。
 
-只有 `candidateDatabaseProvisioningAuthorized=true`、最新 inventory 为 `reachable` 且无 probe error、target metadata 精确匹配时，才可准备以下命令；当前禁止执行：
+只有 `candidateDatabaseProvisioningAuthorized=true`、最新 inventory 为 `reachable` 且无 probe error、target metadata 精确匹配时，才可准备以下命令。当前用户授权已记录为 true，但脚本仍会在任何数据库写入前执行全部 live preflight：
 
 ```bash
 sudo -E server/provision_chickenbro_database_lighthouse.sh \

@@ -1,14 +1,14 @@
 {
   "schemaVersion": 2,
   "mode": "dry-run",
-  "generatedAt": "2026-09-03T03:07:52Z",
+  "generatedAt": "2026-09-03T05:18:54Z",
   "deletionAuthorized": false,
   "status": "blocked_pending_whitelist_restore_and_fresh_remote_probes",
   "sourceInventory": {
     "path": "docs/refactor/chickenbro-simc-cloud-inventory.json",
-    "sha256": "d0247ebdc497541315f1dc3d223ba290ea1ba9d43e14f40a42278693ec23a98c",
-    "observedAt": "2026-09-02T13:43:05Z",
-    "freshness": "stale_requires_refresh_before_apply"
+    "sha256": "c74b7e3af2377683a1de1279c2b3d52fe95590b94fbfd7348b6b6bc2f368a864",
+    "observedAt": "2026-09-03T05:18:54Z",
+    "freshness": "fresh_reviewed_snapshot_apply_still_requires_live_refresh"
   },
   "targetIdentity": {
     "provider": "tencent_cvm",

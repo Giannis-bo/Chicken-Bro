@@ -5,7 +5,7 @@
 | 阶段 | 状态 | 计划 |
 | --- | --- | --- |
 | 1. 控制面与精确清单 | `已完成` | [实施计划](../superpowers/plans/2026-09-02-chickenbro-simc-rebuild-01-control-plane.md) |
-| 2. 干净数据面与 Identity | `本地已验证 / Candidate apply 阻塞` | [实施计划](../superpowers/plans/2026-09-02-chickenbro-simc-rebuild-02-identity-data.md) |
+| 2. 干净数据面与 Identity | `正在推进 / Provisioning 已授权` | [实施计划](../superpowers/plans/2026-09-02-chickenbro-simc-rebuild-02-identity-data.md) |
 | 3. 正式 Chat | `本地已验证` | [实施计划](../superpowers/plans/2026-09-02-chickenbro-simc-rebuild-03-chat.md) |
 | 4. 正式 SimC | `本地已验证` | [实施计划](../superpowers/plans/2026-09-02-chickenbro-simc-rebuild-04-simc.md) |
 | 5. 双端、迁移与切流 | `本地已验证 / Live 验收阻塞` | [实施计划](../superpowers/plans/2026-09-02-chickenbro-simc-rebuild-05-dual-client-migration-cutover.md) |

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
-  "status": "corrected_recovery_contract_apply_not_run",
-  "observedAt": "2026-09-02T17:01:22Z",
+  "status": "corrected_recovery_contract_provisioning_authorized_not_run",
+  "observedAt": "2026-09-03T05:18:54Z",
   "invalidatedProviderInventory": {
     "instanceId": "lhins-dr6tkl63",
     "region": "ap-guangzhou",
@@ -23,7 +23,7 @@
     "candidateDatabase": "chickenbro_prod",
     "verificationDatabasePattern": "chickenbro_restore_verify_*",
     "manifestSchema": "chickenbro-whitelist-recovery-v1",
-    "status": "not_run",
+    "status": "authorized_not_run",
     "requiredProof": [
       "matched whitelist migration reconciliation",
       "candidate custom-format archive SHA-256 and bytes",
@@ -134,9 +134,9 @@
   "conclusions": {
     "currentIndependentBackup": false,
     "whitelistRestoreVerified": false,
-    "candidateDatabaseProvisioningAuthorized": false,
+    "candidateDatabaseProvisioningAuthorized": true,
     "capacityPreCleanupAuthorized": false,
     "wowTestRetirementAuthorized": false,
-    "nextDecision": "Refresh the exact Tencent CVM identity, migrate and reconcile only the valid business whitelist from read-only wow_test, restore-verify the hash-bound candidate archive, then re-run the four exact database connection/reference/open-handle gates."
+    "nextDecision": "Use the reviewed provisioning script against the refreshed exact Tencent CVM identity, migrate and reconcile only the valid business whitelist from read-only wow_test, restore-verify the hash-bound candidate archive, then separately authorize and re-run the four exact database connection/reference/open-handle gates."
   }
 }

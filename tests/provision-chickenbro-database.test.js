@@ -146,7 +146,7 @@ test('local dry-run emits redacted blocked JSON and performs no prerequisite com
   assert.doesNotMatch(result.stdout + result.stderr, /do-not-print|private-backup/i)
 })
 
-test('reviewed inventory hash is exact and apply stops before external state while authorization is false', () => {
+test('reviewed inventory hash is exact and authorized apply still stops before external state without an exact pgpass path', () => {
   const wrong = run(['--dry-run', '--inventory-sha', '0'.repeat(64)])
   assert.notEqual(wrong.status, 0)
   assert.match(wrong.stderr, /inventory SHA does not match/i)
@@ -159,7 +159,7 @@ test('reviewed inventory hash is exact and apply stops before external state whi
     WOW_REBUILD_MANAGEMENT_ROLE: 'postgres',
   })
   assert.notEqual(blocked.status, 0)
-  assert.match(blocked.stderr, /candidateDatabaseProvisioningAuthorized=false/)
+  assert.match(blocked.stderr, /WOW_REBUILD_PGPASSFILE must be an absolute path/)
   assert.doesNotMatch(blocked.stdout + blocked.stderr, /postgresql:\/\/|password|secret/i)
 })
 

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "mode": "dry-run",
-  "observedAt": "2026-09-02T16:04:02Z",
+  "observedAt": "2026-09-03T05:18:54Z",
   "deletionAuthorized": false,
   "purpose": "Exact rejected-evidence capacity remediation after valid business-whitelist restore verification",
   "totalCandidateBytes": 22533484636,
@@ -26,7 +26,7 @@
   },
   "evidence": {
     "capacityInventory": "docs/refactor/chickenbro-simc-cloud-inventory.json",
-    "capacityInventorySha256": "d0247ebdc497541315f1dc3d223ba290ea1ba9d43e14f40a42278693ec23a98c",
+    "capacityInventorySha256": "c74b7e3af2377683a1de1279c2b3d52fe95590b94fbfd7348b6b6bc2f368a864",
     "recoveryInventory": "docs/refactor/chickenbro-simc-recovery-inventory.json",
     "liveProbeTransport": "authorized read-only SSH",
     "blockDevices": [

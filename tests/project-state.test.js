@@ -28,6 +28,7 @@ test('project state names only the approved dual-client Chat and SimC product', 
   assert.equal(state.targetProduct.identityOwner, 'identity.users.id')
   assert.match(state.targetProduct.crossClientContract, /same internal user_id/)
   assert.deepEqual(state.targetProduct.implementationPlans, activePlans)
+  assert.equal(state.targetProduct.candidateDatabaseProvisioningAuthorized, true)
   assert.ok(activePlans.every(exists))
 
   const serialized = JSON.stringify(state)

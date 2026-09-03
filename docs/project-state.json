@@ -23,7 +23,7 @@
       "docs/superpowers/plans/2026-09-02-chickenbro-simc-rebuild-05-dual-client-migration-cutover.md",
       "docs/superpowers/plans/2026-09-02-chickenbro-simc-rebuild-06-legacy-retirement.md"
     ],
-    "candidateDatabaseProvisioningAuthorized": false
+    "candidateDatabaseProvisioningAuthorized": true
   },
   "delivery": {
     "phase1": "local_verified",
@@ -75,7 +75,7 @@
       "sshTarget": "wow-lighthouse",
       "refreshRequiredBeforeApply": true
     },
-    "observedRootFreeBytes": 8580000000,
+    "observedRootFreeBytes": 8769658880,
     "observedLegacyDatabaseBytes": 16380000000,
     "localCleanupDryRun": {
       "deletable": 2588,
