@@ -494,7 +494,7 @@ class PostgresSimulationRepository:
                     """
                     SELECT id, job_id, user_id, profile_sha256, result_json,
                            primary_metric_name, primary_metric_value, compiler_revision,
-                           runtime_revision, created_at
+                           runtime_revision, provenance_json, created_at
                     FROM simc.simulation_results
                     WHERE user_id = %s AND job_id = %s
                     """,
@@ -539,7 +539,7 @@ class PostgresSimulationRepository:
                 result.primary_metric_value,
                 result.compiler_revision,
                 result.runtime_revision,
-                _json_value({"source": "simc-worker", **dict(result.result.get("provenance", {}))}),
+                _json_value(result.provenance),
                 result.created_at,
             ),
         )
@@ -603,8 +603,11 @@ class PostgresSimulationRepository:
     @staticmethod
     def _result_from_row(row: Any) -> SimulationResult:
         result_json = _row_value(row, "result_json", 4)
+        provenance_json = _row_value(row, "provenance_json", 9)
         if isinstance(result_json, str):
             result_json = json.loads(result_json)
+        if isinstance(provenance_json, str):
+            provenance_json = json.loads(provenance_json)
         return SimulationResult(
             id=UUID(str(_row_value(row, "id", 0))),
             job_id=UUID(str(_row_value(row, "job_id", 1))),
@@ -615,7 +618,8 @@ class PostgresSimulationRepository:
             primary_metric_value=float(_row_value(row, "primary_metric_value", 6)),
             compiler_revision=str(_row_value(row, "compiler_revision", 7)),
             runtime_revision=str(_row_value(row, "runtime_revision", 8)),
-            created_at=_row_value(row, "created_at", 9),
+            provenance=provenance_json if isinstance(provenance_json, Mapping) else {},
+            created_at=_row_value(row, "created_at", 10),
         )
 
 

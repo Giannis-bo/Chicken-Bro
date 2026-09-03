@@ -218,6 +218,21 @@ class SimulationWorkerTest(unittest.TestCase):
         self.assertEqual(len(repository.results), 1)
         self.assertEqual(repository.results[0].primary_metric_name, "dps")
         self.assertEqual(repository.results[0].primary_metric_value, 12345)
+        self.assertEqual(
+            repository.results[0].provenance,
+            {
+                key: repository.results[0].result["provenance"][key]
+                for key in (
+                    "snapshotId",
+                    "sourceRevision",
+                    "sourceRawSha256",
+                    "profileSha256",
+                    "compilerRevision",
+                    "runtimeRevision",
+                    "scenarioHash",
+                )
+            },
+        )
         self.assertNotIn("stdout", repository.results[0].result)
         self.assertEqual(repository.job.status, SimulationJobStatus.SUCCEEDED)
 
@@ -439,6 +454,7 @@ class SimulationRepositoryAtomicityTest(unittest.TestCase):
             primary_metric_value=12345.0,
             compiler_revision=self.job.compiler_revision,
             runtime_revision=self.job.runtime_revision,
+            provenance={},
             created_at=self.now,
         )
 

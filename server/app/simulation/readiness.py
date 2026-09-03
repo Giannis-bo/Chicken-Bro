@@ -141,14 +141,20 @@ class SimcReadinessValidator:
                     )
 
         require("talents", "talents.loadout" not in missing_fields, "TALENTS_MISSING")
-        require(
-            "provenance",
+        provenance_present = (
             isinstance(raw_provenance, Mapping)
             and bool(str(raw_provenance.get("sourceUrl") or "").strip())
             and bool(str(raw_provenance.get("sourceRevision") or "").strip())
-            and bool(str(raw_provenance.get("fetchedAt") or "").strip()),
-            "SOURCE_PROVENANCE_MISSING",
+            and bool(str(raw_provenance.get("fetchedAt") or "").strip())
         )
+        require("provenance", provenance_present, "SOURCE_PROVENANCE_MISSING")
+        if provenance_present:
+            source_revision = raw_provenance.get("sourceRevision")
+            require(
+                "sourceRevision",
+                isinstance(source_revision, str) and 1 <= len(source_revision) <= 160,
+                "SOURCE_PROVENANCE_INVALID",
+            )
         raw_sha256 = str(getattr(snapshot, "raw_sha256", ""))
         require("rawHash", _SHA256.fullmatch(raw_sha256) is not None, "SOURCE_HASH_MISSING")
 

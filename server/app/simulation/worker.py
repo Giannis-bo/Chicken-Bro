@@ -234,6 +234,15 @@ class SimulationWorker:
                 return_code=execution.return_code if execution is not None else None,
             )
 
+        provenance = {
+            "snapshotId": str(job.snapshot_id),
+            "sourceRevision": str(compiled.provenance.get("sourceRevision", "")),
+            "sourceRawSha256": str(compiled.provenance.get("sourceRawSha256", "")),
+            "profileSha256": compiled.profile_sha256,
+            "compilerRevision": compiled.compiler_revision,
+            "runtimeRevision": compiled.runtime_revision,
+            "scenarioHash": compiled.scenario_hash,
+        }
         result = SimulationResult(
             id=uuid4(),
             job_id=job.id,
@@ -243,20 +252,15 @@ class SimulationWorker:
                 "metricName": metric.name,
                 "metricValue": metric.value,
                 "provenance": {
-                    "snapshotId": str(job.snapshot_id),
+                    **provenance,
                     "sourceUrl": str(compiled.provenance.get("sourceUrl", "")),
-                    "sourceRevision": str(compiled.provenance.get("sourceRevision", "")),
-                    "sourceRawSha256": str(compiled.provenance.get("sourceRawSha256", "")),
-                    "profileSha256": compiled.profile_sha256,
-                    "compilerRevision": compiled.compiler_revision,
-                    "runtimeRevision": compiled.runtime_revision,
-                    "scenarioHash": compiled.scenario_hash,
                 },
             },
             primary_metric_name=metric.name,
             primary_metric_value=metric.value,
             compiler_revision=compiled.compiler_revision,
             runtime_revision=compiled.runtime_revision,
+            provenance=provenance,
             created_at=self._utc_now(),
         )
         try:

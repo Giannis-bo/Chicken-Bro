@@ -400,6 +400,19 @@ class PublicSimulationResultValidationTest(unittest.TestCase):
             "runtimeRevision": self.job.runtime_revision,
             "scenarioHash": self.job.scenario_hash,
         }
+        self.snapshot = SourceSnapshot(
+            id=self.job.snapshot_id,
+            user_id=self.job.user_id,
+            provider=SourceProvider.RAIDERIO,
+            source_url="https://raider.io/characters/us/area-52/test",
+            source_key="raiderio:us:area-52:test",
+            revision=1,
+            readiness=SourceReadiness.READY_FOR_SIMC,
+            snapshot={},
+            provenance={"sourceRevision": self.provenance["sourceRevision"]},
+            raw_sha256=self.provenance["sourceRawSha256"],
+            fetched_at=self.now,
+        )
         self.result = SimulationResult(
             id=UUID("00000000-0000-4000-8000-000000000104"),
             job_id=self.job.id,
@@ -415,12 +428,14 @@ class PublicSimulationResultValidationTest(unittest.TestCase):
             compiler_revision=self.job.compiler_revision,
             runtime_revision=self.job.runtime_revision,
             created_at=self.now,
+            provenance=self.provenance,
         )
 
-    def view(self, *, job=None, result=None):
+    def view(self, *, job=None, result=None, snapshot=None):
         return SimulationJobView(
             job=job or self.job,
             result=self.result if result is None else result,
+            snapshot=self.snapshot if snapshot is None else snapshot,
         )
 
     def assert_invalid(self, view):
@@ -474,6 +489,25 @@ class PublicSimulationResultValidationTest(unittest.TestCase):
                 )
                 self.assert_invalid(self.view(result=result))
 
+    def test_result_provenance_column_and_source_snapshot_must_match(self):
+        mismatched_column = replace(
+            self.result,
+            provenance={**self.provenance, "sourceRawSha256": "d" * 64},
+        )
+        self.assert_invalid(self.view(result=mismatched_column))
+        self.assert_invalid(
+            self.view(snapshot=replace(self.snapshot, raw_sha256="e" * 64))
+        )
+        self.assert_invalid(
+            self.view(
+                snapshot=replace(
+                    self.snapshot,
+                    provenance={"sourceRevision": "source:other"},
+                ),
+            )
+        )
+        self.assert_invalid(SimulationJobView(job=self.job, result=self.result))
+
         for key in self.provenance:
             with self.subTest(missing=key):
                 provenance = {**self.provenance}
@@ -501,6 +535,9 @@ class RecordingCursor:
 
     def fetchall(self):
         return list(self.rows)
+
+    def fetchone(self):
+        return self.rows[0] if self.rows else None
 
 
 class RecordingConnection:
@@ -605,6 +642,43 @@ class SimulationRepositoryOwnerTest(unittest.TestCase):
         self.assertIn("(updated_at, id) < (%s, %s)", statement)
         self.assertIn("ORDER BY updated_at DESC, id DESC LIMIT %s", statement)
         self.assertEqual(parameters, (owner_id, now, job_id, 21))
+
+    def test_postgres_result_read_materializes_the_independent_provenance_column(self):
+        owner_id = UUID("00000000-0000-0000-0000-0000000000a4")
+        job_id = UUID("00000000-0000-4000-8000-0000000000a5")
+        result_id = UUID("00000000-0000-4000-8000-0000000000a6")
+        now = datetime(2026, 9, 3, 10, 5, tzinfo=timezone.utc)
+        provenance = {
+            "snapshotId": "00000000-0000-4000-8000-0000000000a7",
+            "sourceRevision": "source:test",
+            "sourceRawSha256": "b" * 64,
+            "profileSha256": "c" * 64,
+            "compilerRevision": "compiler:test",
+            "runtimeRevision": "simc:test",
+            "scenarioHash": "d" * 64,
+        }
+        cursor = RecordingCursor([(
+            result_id,
+            job_id,
+            owner_id,
+            "c" * 64,
+            {"metricName": "dps", "metricValue": 12345.0, "provenance": provenance},
+            "dps",
+            12345.0,
+            "compiler:test",
+            "simc:test",
+            provenance,
+            now,
+        )])
+        repository = PostgresSimulationRepository(lambda: RecordingConnection(cursor))
+
+        result = repository.get_result(owner_id, job_id)
+
+        self.assertEqual(result.provenance, provenance)
+        self.assertEqual(result.created_at, now)
+        statement, parameters = cursor.executed[0]
+        self.assertIn("provenance_json", statement)
+        self.assertEqual(parameters, (owner_id, job_id))
 
     def test_job_and_queue_are_inserted_on_one_connection_transaction(self):
         owner_id = UUID("00000000-0000-4000-8000-0000000000b1")

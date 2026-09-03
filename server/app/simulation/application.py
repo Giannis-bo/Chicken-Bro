@@ -47,6 +47,7 @@ class SimulationJobView:
     job: SimulationJob
     result: SimulationResult | None = None
     attempts: tuple[SimulationAttempt, ...] = ()
+    snapshot: SourceSnapshot | None = None
 
 
 @dataclass(frozen=True)
@@ -105,18 +106,38 @@ def validated_simulation_result_provenance(
     ):
         raise _invalid_result()
 
-    raw_provenance = result.result.get("provenance")
-    if not isinstance(raw_provenance, Mapping):
-        raise _invalid_result()
-    provenance: dict[str, str] = {}
-    for key in _PUBLIC_RESULT_PROVENANCE_KEYS:
-        value = raw_provenance.get(key)
-        if not isinstance(value, str) or not 0 < len(value) <= 160:
+    def public_provenance(raw: object) -> dict[str, str]:
+        if not isinstance(raw, Mapping):
             raise _invalid_result()
-        provenance[key] = value
+        output: dict[str, str] = {}
+        for key in _PUBLIC_RESULT_PROVENANCE_KEYS:
+            value = raw.get(key)
+            if not isinstance(value, str) or not 0 < len(value) <= 160:
+                raise _invalid_result()
+            output[key] = value
+        return output
+
+    provenance = public_provenance(result.result.get("provenance"))
+    persisted_provenance = public_provenance(result.provenance)
+    snapshot = view.snapshot
+    if (
+        provenance != persisted_provenance
+        or not isinstance(snapshot, SourceSnapshot)
+        or snapshot.id != job.snapshot_id
+        or snapshot.user_id != job.user_id
+        or not isinstance(snapshot.provenance, Mapping)
+        or not isinstance(snapshot.raw_sha256, str)
+        or _SHA256.fullmatch(snapshot.raw_sha256) is None
+    ):
+        raise _invalid_result()
+    source_revision = snapshot.provenance.get("sourceRevision")
+    if not isinstance(source_revision, str) or not 0 < len(source_revision) <= 160:
+        raise _invalid_result()
 
     if (
         provenance["snapshotId"] != str(job.snapshot_id)
+        or provenance["sourceRevision"] != source_revision
+        or provenance["sourceRawSha256"] != snapshot.raw_sha256
         or _SHA256.fullmatch(provenance["sourceRawSha256"]) is None
         or provenance["profileSha256"] != result.profile_sha256
         or provenance["compilerRevision"] != job.compiler_revision
@@ -280,6 +301,26 @@ class SimulationApplication:
             raise SimulationApplicationError("SNAPSHOT_NOT_FOUND", "snapshot not found")
         return snapshot
 
+    def _job_view(
+        self,
+        principal: Principal,
+        job: SimulationJob,
+        *,
+        attempts: tuple[SimulationAttempt, ...] = (),
+    ) -> SimulationJobView:
+        result = self._repository.get_result(principal.user_id, job.id)
+        snapshot = (
+            self._repository.get_snapshot(principal.user_id, job.snapshot_id)
+            if result is not None
+            else None
+        )
+        return SimulationJobView(
+            job=job,
+            result=result,
+            attempts=attempts,
+            snapshot=snapshot,
+        )
+
     def list_jobs(
         self,
         principal: Principal,
@@ -294,13 +335,7 @@ class SimulationApplication:
             bounded_limit + 1,
         )
         page_rows = rows[:bounded_limit]
-        items = tuple(
-            SimulationJobView(
-                job=job,
-                result=self._repository.get_result(principal.user_id, job.id),
-            )
-            for job in page_rows
-        )
+        items = tuple(self._job_view(principal, job) for job in page_rows)
         for item in items:
             validated_simulation_result_provenance(item)
         next_cursor = (
@@ -314,9 +349,8 @@ class SimulationApplication:
         job = self._repository.get_job(principal.user_id, job_id)
         if job is None:
             raise SimulationApplicationError("SIMULATION_NOT_FOUND", "simulation not found")
-        result = self._repository.get_result(principal.user_id, job.id)
         attempts = tuple(self._repository.list_attempts(job.id, 20))
-        view = SimulationJobView(job=job, result=result, attempts=attempts)
+        view = self._job_view(principal, job, attempts=attempts)
         validated_simulation_result_provenance(view)
         return view
 

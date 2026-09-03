@@ -114,6 +114,20 @@ class SimulationReadinessTest(unittest.TestCase):
         self.assertEqual(report.readiness, SourceReadiness.INCOMPLETE_FOR_SIMC)
         self.assertIn("PROFILE_NOT_REAL_SOURCE", report.blockers)
 
+    def test_unpublishable_source_revision_can_never_be_ready(self):
+        candidate = candidate_from_fixture()
+        changed = candidate.__class__(
+            **{
+                **candidate.__dict__,
+                "provenance": {**candidate.provenance, "sourceRevision": "x" * 161},
+            }
+        )
+
+        report = SimcReadinessValidator().validate(changed, self.capabilities)
+
+        self.assertEqual(report.readiness, SourceReadiness.INCOMPLETE_FOR_SIMC)
+        self.assertIn("SOURCE_PROVENANCE_INVALID", report.blockers)
+
     def test_talent_loadout_without_explicit_rank_is_incomplete(self):
         candidate = candidate_from_fixture()
         snapshot = dict(candidate.snapshot)

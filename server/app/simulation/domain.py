@@ -81,6 +81,7 @@ class SimulationResult:
     primary_metric_value: float
     compiler_revision: str
     runtime_revision: str
+    provenance: Mapping[str, object]
     created_at: datetime
 
 
