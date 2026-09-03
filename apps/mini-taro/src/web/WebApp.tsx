@@ -12,10 +12,11 @@ import { isMeResponse, type MeResponse } from '@wow-mini/domain'
 
 import WebShell from './WebShell'
 import {
-  createWebLoginIdempotencyKey,
   getOrCreateBrowserVerifier,
   initialWebAuthState,
   reduceWebAuthState,
+  selectWebLoginCreateAttempt,
+  type WebLoginCreateAttempt,
   type WebAuthState,
   type WebAuthStateEvent,
 } from './web-auth-model'
@@ -89,6 +90,8 @@ export default function WebApp({ authClient = wowApi.webAuth }: WebAppProps) {
   const stateRef = useRef(state)
   const verifierRef = useRef('')
   const exchangeStartedRef = useRef(false)
+  const createAttemptRef = useRef<WebLoginCreateAttempt | null>(null)
+  const createInFlightRef = useRef(false)
   stateRef.current = state
 
   const dispatch = useCallback((event: WebAuthStateEvent) => {
@@ -190,6 +193,7 @@ export default function WebApp({ authClient = wowApi.webAuth }: WebAppProps) {
   )
 
   const createSession = async (replaceActive = false) => {
+    if (createInFlightRef.current) return
     if (
       !replaceActive
       && (stateRef.current.phase === 'qr_pending' || stateRef.current.phase === 'qr_confirmed')
@@ -198,16 +202,25 @@ export default function WebApp({ authClient = wowApi.webAuth }: WebAppProps) {
     setAccount(null)
     setAuthContext(null)
     dispatch({ type: 'signed_out' })
+    createInFlightRef.current = true
     try {
-      verifierRef.current = getOrCreateBrowserVerifier()
+      const browserVerifier = getOrCreateBrowserVerifier()
+      verifierRef.current = browserVerifier
+      const attempt = selectWebLoginCreateAttempt(
+        createAttemptRef.current,
+        browserVerifier,
+        replaceActive,
+      )
+      createAttemptRef.current = attempt
       const result = await webAuth.createWebLoginSession(
-        verifierRef.current,
-        createWebLoginIdempotencyKey(),
+        attempt.browserVerifier,
+        attempt.idempotencyKey,
       )
       if (result.fromFallback) {
         dispatch({ type: 'blocked', ...publicProblem(result, '二维码生成失败，请稍后重试') })
         return
       }
+      if (createAttemptRef.current === attempt) createAttemptRef.current = null
       dispatch({ type: 'created', payload: result.payload })
     } catch (error) {
       const code = error instanceof Error ? error.message : 'AUTH_REQUEST_FAILED'
@@ -216,6 +229,8 @@ export default function WebApp({ authClient = wowApi.webAuth }: WebAppProps) {
         code,
         message: problemCopy[code] ?? '当前浏览器无法安全保存登录状态',
       })
+    } finally {
+      createInFlightRef.current = false
     }
   }
 

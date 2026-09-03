@@ -3,7 +3,7 @@ export type WebLoginSessionStatus =
   | 'confirmed'
   | 'expired'
   | 'cancelled'
-  | 'exchanged'
+  | 'consumed'
 
 export interface WebLoginCreated {
   sessionId: string
@@ -82,7 +82,7 @@ export function isWebLoginCreated(value: unknown): value is WebLoginCreated {
 
 export function isWebLoginStatusResponse(value: unknown): value is WebLoginStatusResponse {
   if (!isRecord(value)) return false
-  return ['pending', 'confirmed', 'expired', 'cancelled', 'exchanged'].includes(String(value['status']))
+  return ['pending', 'confirmed', 'expired', 'cancelled', 'consumed'].includes(String(value['status']))
     && isIsoDate(value['expiresAt'])
     && isRequestId(value['requestId'])
 }

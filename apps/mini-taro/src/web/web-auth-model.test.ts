@@ -1,10 +1,11 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import type { WebLoginCreated, WebLoginStatusResponse } from '@wow-mini/domain'
 
 import {
   initialWebAuthState,
   reduceWebAuthState,
+  selectWebLoginCreateAttempt,
   type WebAuthStateEvent,
 } from './web-auth-model'
 
@@ -46,8 +47,8 @@ describe('Web auth browser state model', () => {
     const cancelled = reduceWebAuthState(confirmed, { type: 'status', payload: validStatus('cancelled') })
     expect(cancelled).toMatchObject({ phase: 'signed_out', polling: false, errorCode: 'WEB_LOGIN_CANCELLED' })
 
-    const exchanged = reduceWebAuthState(confirmed, { type: 'status', payload: validStatus('exchanged') })
-    expect(exchanged).toMatchObject({ phase: 'checking', polling: false })
+    const consumed = reduceWebAuthState(confirmed, { type: 'status', payload: validStatus('consumed') })
+    expect(consumed).toMatchObject({ phase: 'checking', polling: false })
 
     const authenticated = reduceWebAuthState(confirmed, { type: 'authenticated' })
     expect(authenticated).toMatchObject({ phase: 'authenticated', polling: false })
@@ -102,5 +103,23 @@ describe('Web auth browser state model', () => {
       'signed_out',
     ]
     expect(eventTypes).toEqual(['created', 'status', 'authenticated', 'blocked', 'logout', 'signed_out'])
+  })
+
+  it('reuses an uncertain QR creation identity until an explicit replacement', () => {
+    const createKey = vi.fn()
+      .mockReturnValueOnce('login-request-one')
+      .mockReturnValueOnce('login-request-two')
+    const verifier = 'A'.repeat(43)
+
+    const first = selectWebLoginCreateAttempt(null, verifier, false, createKey)
+    const retry = selectWebLoginCreateAttempt(first, verifier, false, createKey)
+    const replacement = selectWebLoginCreateAttempt(first, verifier, true, createKey)
+
+    expect(retry).toBe(first)
+    expect(replacement).toEqual({
+      browserVerifier: verifier,
+      idempotencyKey: 'login-request-two',
+    })
+    expect(createKey).toHaveBeenCalledTimes(2)
   })
 })

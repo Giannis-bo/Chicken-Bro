@@ -1,5 +1,6 @@
 import {
   isValidBrowserVerifier,
+  isValidIdempotencyKey,
   isWebLoginCreated,
   type WebLoginCreated,
   type WebLoginStatusResponse,
@@ -83,7 +84,7 @@ export function reduceWebAuthState(state: WebAuthState, event: WebAuthStateEvent
     if (event.payload.status === 'cancelled') {
       return signedOutState('WEB_LOGIN_CANCELLED', '登录已取消，请重新生成')
     }
-    if (event.payload.status === 'exchanged') {
+    if (event.payload.status === 'consumed') {
       return {
         ...initialWebAuthState,
         phase: 'checking',
@@ -159,4 +160,22 @@ export function getOrCreateBrowserVerifier(storage: Storage | undefined = (
 
 export function createWebLoginIdempotencyKey(): string {
   return randomBase64Url(16)
+}
+
+export interface WebLoginCreateAttempt {
+  browserVerifier: string
+  idempotencyKey: string
+}
+
+export function selectWebLoginCreateAttempt(
+  current: WebLoginCreateAttempt | null,
+  browserVerifier: string,
+  replaceActive: boolean,
+  createKey: () => string = createWebLoginIdempotencyKey,
+): WebLoginCreateAttempt {
+  if (!isValidBrowserVerifier(browserVerifier)) throw new Error('WEB_LOGIN_VERIFIER_INVALID')
+  if (!replaceActive && current?.browserVerifier === browserVerifier) return current
+  const idempotencyKey = createKey()
+  if (!isValidIdempotencyKey(idempotencyKey)) throw new Error('WEB_LOGIN_REQUEST_KEY_INVALID')
+  return { browserVerifier, idempotencyKey }
 }

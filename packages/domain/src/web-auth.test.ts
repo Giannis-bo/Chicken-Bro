@@ -41,6 +41,14 @@ describe('web auth domain contracts', () => {
       requestId: 'request-1',
     })).toBe(true)
     expect(isWebLoginStatusResponse({
+      status: 'consumed',
+      expiresAt: '2026-09-01T10:00:00.000Z',
+    })).toBe(true)
+    expect(isWebLoginStatusResponse({
+      status: 'exchanged',
+      expiresAt: '2026-09-01T10:00:00.000Z',
+    })).toBe(false)
+    expect(isWebLoginStatusResponse({
       status: 'bound',
       expiresAt: '2026-09-01T10:00:00.000Z',
     })).toBe(false)
