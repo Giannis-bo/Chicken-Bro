@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedFromCommit": "07bad1cfa1813e445796700e7cfcb521df0f669a",
+  "generatedFromCommit": "3925d10243a7ee6d4f43a921392f49312f947aca",
   "excludedSelfPath": "docs/refactor/chickenbro-simc-refactor-inventory.json",
   "sourceRulesSha256": "25049f3a03f8b5503b4f2306ef97c4d4d2259d4467eefb92cc43a5fbd784a8a8",
   "entryCount": 2855,
@@ -1533,8 +1533,8 @@
       "owner": "Chickenbro and SimC Mini Program",
       "reason": "Conversation, SimC submission, task list, and task detail are the approved product capabilities.",
       "matchedRule": "mini-client-core-capabilities",
-      "bytes": 14532,
-      "sha256": "0014686ba503314b8285bd476e8a1d9cfbbf39e09b4b79bab89914da293694c0"
+      "bytes": 15607,
+      "sha256": "c193745eaa0f73f00cf82063ba9c7aa0748c0e319464e895d143df1081fd93e2"
     },
     {
       "path": "apps/mini-taro/src/web/WebChatView.tsx",
@@ -1583,8 +1583,8 @@
       "owner": "Chickenbro and SimC Mini Program",
       "reason": "Conversation, SimC submission, task list, and task detail are the approved product capabilities.",
       "matchedRule": "mini-client-core-capabilities",
-      "bytes": 5179,
-      "sha256": "64739c43a5c381af6fcdbfe4c232906be8d779a258d86f98099e2fc0b61a56d7"
+      "bytes": 6583,
+      "sha256": "6cb937df9dbea651dc691da183df7af9b0606aca8076f3b24b15048d92cce6d3"
     },
     {
       "path": "apps/mini-taro/src/web/web-auth-model.ts",
@@ -1593,8 +1593,8 @@
       "owner": "Chickenbro and SimC Mini Program",
       "reason": "Conversation, SimC submission, task list, and task detail are the approved product capabilities.",
       "matchedRule": "mini-client-core-capabilities",
-      "bytes": 5523,
-      "sha256": "9d4c371e5af5a365160b1ff590200bc530b686a33fe4716d425f2fae54dfde9d"
+      "bytes": 6057,
+      "sha256": "8fdec67ba88bbdc15becaeb45bc06dfe233504c91bb986d6c1b799179874762d"
     },
     {
       "path": "apps/mini-taro/tsconfig.json",
@@ -13533,8 +13533,8 @@
       "owner": "Chickenbro Chat and SimC product",
       "reason": "These are the bounded architecture, operations, ownership, verification, and cleanup authorities for the rebuilt product.",
       "matchedRule": "retained-product-documentation",
-      "bytes": 19886,
-      "sha256": "0cf5cf60a308cb8cb73642dbf5403cfb255e9707834324216f079dc18769a43a"
+      "bytes": 20295,
+      "sha256": "4b78ec1cb8c0f470f5981ec0482763167dd78c5eb1d0d91ea1059a6b50dab951"
     },
     {
       "path": "docs/chickenbro-simc-production-runbook.md",
@@ -28587,5 +28587,5 @@
       "sha256": "4736cc276f788e5427d17e51499c110336106bb64db4c827e2d576629d8f281f"
     }
   ],
-  "inventorySha256": "94a3445598de740cd61da58a3c816c3a3c3ae7ac5f01e9778780d3c733869864"
+  "inventorySha256": "cddb28a265ca9de94cf823b54a84797437008dff6f3b9ee2febaba61f91699c0"
 }
