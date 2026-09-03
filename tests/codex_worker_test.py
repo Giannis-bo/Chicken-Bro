@@ -23,12 +23,13 @@ class CodexWorkerTest(unittest.TestCase):
                 sandbox="workspace-write",
             )
 
-        self.assertEqual(command[:4], ["codex", "--ask-for-approval", "never", "exec"])
+        self.assertEqual(command[:4], ["codex", "-c", 'approval_policy="never"', "exec"])
         self.assertIn("--json", command)
         self.assertIn("--ephemeral", command)
         self.assertIn("--skip-git-repo-check", command)
-        self.assertIn("--ask-for-approval", command)
-        self.assertIn("never", command)
+        self.assertIn("-c", command)
+        self.assertIn('approval_policy="never"', command)
+        self.assertNotIn("--ask-for-approval", command)
         self.assertIn("--sandbox", command)
         self.assertIn("workspace-write", command)
         self.assertIn("--cd", command)

@@ -32,8 +32,8 @@ def build_codex_command(
 ):
     command = [
         codex_bin or DEFAULT_CODEX_BIN,
-        "--ask-for-approval",
-        "never",
+        "-c",
+        'approval_policy="never"',
     ]
     if profile:
         command.extend(["--profile", str(profile)])
