@@ -538,7 +538,7 @@ sudo -n -u postgres pg_restore \
   --exit-on-error \
   --username=postgres \
   --dbname="${VERIFY_DATABASE}" \
-  "${WHITELIST_ARCHIVE}"
+  < "${WHITELIST_ARCHIVE}"
 VERIFY_DATABASE_URL="postgresql://${RUNTIME_ROLE}@127.0.0.1:5432/${VERIFY_DATABASE}"
 [[ "$(PGPASSFILE="${STAGED_PGPASSFILE}" psql --no-psqlrc --host=127.0.0.1 --port=5432 \
   --username="${RUNTIME_ROLE}" --dbname="${VERIFY_DATABASE}" --set=ON_ERROR_STOP=1 \

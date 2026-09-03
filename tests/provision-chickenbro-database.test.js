@@ -91,6 +91,25 @@ test('apply path builds and restore-verifies only the migrated business whitelis
   )
 })
 
+test('restore streams the root-only whitelist archive into the postgres process', () => {
+  const script = source()
+  const restoreStart = script.indexOf('sudo -n -u postgres pg_restore \\\n')
+  const restoreEnd = script.indexOf('VERIFY_DATABASE_URL=', restoreStart)
+
+  assert.ok(restoreStart >= 0 && restoreEnd > restoreStart, 'missing isolated restore command')
+  const restoreCommand = script.slice(restoreStart, restoreEnd)
+  assert.match(
+    restoreCommand,
+    /--dbname="\$\{VERIFY_DATABASE\}" \\\n\s*< "\$\{WHITELIST_ARCHIVE\}"/,
+    'the root shell must open the archive before sudo changes identity to postgres',
+  )
+  assert.doesNotMatch(
+    restoreCommand,
+    /\n\s*"\$\{WHITELIST_ARCHIVE\}"/,
+    'postgres cannot open a path below the mode-0700 recovery directory',
+  )
+})
+
 test('apply uses peer-authenticated postgres management and exact staged app pgpass entries', () => {
   const script = source()
 
