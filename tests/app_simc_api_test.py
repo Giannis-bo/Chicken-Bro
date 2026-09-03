@@ -33,13 +33,13 @@ def build_simc_test_client():
     )
     repository = MemorySimulationRepository()
     queue = MemoryQueue()
+    repository.queue = queue
     simulation = SimulationApplication(
         repository=repository,
         source_router=CharacterSourceRouter(FakeGateway()),
         readiness_validator=SimcReadinessValidator(),
         compiler=SimcProfileCompiler(capabilities=capabilities),
         runtime_capabilities=capabilities,
-        queue=queue,
         clock=lambda: now,
     )
     settings = AppSettings(
@@ -53,9 +53,6 @@ def build_simc_test_client():
         web_auth_application=FakeFormalAuthApplication(),
         chat_application=object(),
         simulation_application=simulation,
-        prototype_identity_application=object(),
-        prototype_chat_application=object(),
-        prototype_simulation_application=simulation,
     )
     return TestClient(app, base_url="https://www.chickenbro.cloud"), repository, queue
 

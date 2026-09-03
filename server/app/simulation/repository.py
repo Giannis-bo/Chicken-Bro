@@ -14,7 +14,7 @@ from server.app.simulation.domain import (
     SourceReadiness,
     SourceSnapshot,
 )
-from server.app.worker.leases import LostLeaseError, require_current_lease
+from server.app.worker.leases import LostLeaseError, enqueue_job, require_current_lease
 
 
 def _row_value(row: Any, key: str, index: int) -> Any:
@@ -98,7 +98,16 @@ class PostgresSimulationRepository:
     def get_snapshot_for_job(self, user_id: UUID, snapshot_id: UUID) -> SourceSnapshot | None:
         return self.get_snapshot(user_id, snapshot_id)
 
-    def save_job(self, job: SimulationJob) -> None:
+    def create_job_and_enqueue(
+        self,
+        job: SimulationJob,
+        *,
+        payload: Mapping[str, object],
+        max_attempts: int = 3,
+    ) -> SimulationJob:
+        """Create the immutable job identity and its queue command in one transaction."""
+        if job.status is not SimulationJobStatus.QUEUED:
+            raise ValueError("new simulation job must be queued")
         with self._connection_factory() as connection:
             with connection.cursor() as cursor:
                 cursor.execute(
@@ -108,6 +117,8 @@ class PostgresSimulationRepository:
                         runtime_revision, idempotency_key, status, public_error_code,
                         created_at, updated_at
                     ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (user_id, idempotency_key) DO NOTHING
+                    RETURNING id
                     """,
                     (
                         job.id,
@@ -123,6 +134,33 @@ class PostgresSimulationRepository:
                         job.updated_at,
                     ),
                 )
+                inserted = cursor.fetchone()
+                if inserted is None:
+                    cursor.execute(
+                        """
+                        SELECT id, user_id, snapshot_id, scenario_hash, compiler_revision,
+                               runtime_revision, idempotency_key, status, public_error_code,
+                               created_at, updated_at
+                        FROM simc.simulation_jobs
+                        WHERE user_id = %s AND idempotency_key = %s
+                        FOR SHARE
+                        """,
+                        (job.user_id, job.idempotency_key),
+                    )
+                    existing = cursor.fetchone()
+                    if existing is None:
+                        raise RuntimeError("idempotent simulation job disappeared")
+                    return self._job_from_row(existing)
+                enqueue_job(
+                    cursor,
+                    job_id=job.id,
+                    domain="simc",
+                    command_type="run_simulation",
+                    aggregate_id=job.id,
+                    payload=payload,
+                    max_attempts=max_attempts,
+                )
+        return job
 
     def get_job_by_idempotency(self, user_id: UUID, idempotency_key: str) -> SimulationJob | None:
         with self._connection_factory() as connection:

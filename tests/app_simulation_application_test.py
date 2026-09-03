@@ -28,6 +28,9 @@ class MemorySimulationRepository:
         self.results = {}
         self.attempts = {}
         self.list_job_calls = []
+        self.queue = None
+        self.atomic_submission_calls = []
+        self.atomic_submission_result = None
 
     def next_snapshot_revision(self, user_id, provider, source_key):
         revisions = [
@@ -51,6 +54,23 @@ class MemorySimulationRepository:
 
     def save_job(self, job):
         self.jobs[(job.user_id, job.id)] = job
+
+    def create_job_and_enqueue(self, job, *, payload, max_attempts=3):
+        self.atomic_submission_calls.append((job, payload, max_attempts))
+        if self.atomic_submission_result is not None:
+            return self.atomic_submission_result
+        if self.queue is None:
+            raise RuntimeError("test queue is not configured")
+        self.jobs[(job.user_id, job.id)] = job
+        self.queue.enqueue(
+            job_id=job.id,
+            domain="simc",
+            command_type="run_simulation",
+            aggregate_id=job.id,
+            payload=payload,
+            max_attempts=max_attempts,
+        )
+        return job
 
     def get_job(self, user_id, job_id):
         return self.jobs.get((user_id, job_id))
@@ -101,13 +121,13 @@ class SimulationApplicationTest(unittest.TestCase):
         router = CharacterSourceRouter(gateway)
         self.repository = MemorySimulationRepository()
         self.queue = MemoryQueue()
+        self.repository.queue = self.queue
         self.application = SimulationApplication(
             repository=self.repository,
             source_router=router,
             readiness_validator=SimcReadinessValidator(),
             compiler=SimcProfileCompiler(capabilities=capabilities),
             runtime_capabilities=capabilities,
-            queue=self.queue,
             clock=lambda: self.now,
         )
 
@@ -133,6 +153,7 @@ class SimulationApplicationTest(unittest.TestCase):
 
         self.assertEqual(first.id, second.id)
         self.assertEqual(first.status, SimulationJobStatus.QUEUED)
+        self.assertEqual(len(self.repository.atomic_submission_calls), 1)
         self.assertEqual(len(self.queue.calls), 1)
         self.assertNotIn("profile", self.queue.calls[0]["payload"])
         self.assertEqual(self.queue.calls[0]["payload"]["snapshotId"], str(snapshot.id))
@@ -194,6 +215,37 @@ class SimulationApplicationTest(unittest.TestCase):
 
         self.assertEqual(len(self.queue.calls), 1)
 
+    def test_concurrent_idempotency_conflict_is_rechecked_after_atomic_insert(self):
+        snapshot = self.application.resolve_source(
+            self.owner,
+            "https://raider.io/characters/us/area-52/Stormsample",
+        )
+        raced = SimulationJob(
+            id=UUID("00000000-0000-4000-8000-000000000077"),
+            user_id=self.owner.user_id,
+            snapshot_id=snapshot.id,
+            scenario_hash="f" * 64,
+            compiler_revision="compiler:other",
+            runtime_revision="simc:other",
+            idempotency_key="sim-race-conflict",
+            status=SimulationJobStatus.QUEUED,
+            public_error_code="",
+            created_at=self.now,
+            updated_at=self.now,
+        )
+        self.repository.atomic_submission_result = raced
+
+        with self.assertRaisesRegex(SimulationApplicationError, "IDEMPOTENCY_CONFLICT"):
+            self.application.submit(
+                self.owner,
+                snapshot.id,
+                {"fightStyle": "Patchwerk", "desiredTargets": 1},
+                "sim-race-conflict",
+            )
+
+        self.assertEqual(len(self.repository.atomic_submission_calls), 1)
+        self.assertEqual(self.queue.calls, [])
+
     def test_incomplete_snapshot_is_saved_for_explanation_but_cannot_enter_queue(self):
         router = CharacterSourceRouter(FakeGateway())
         incomplete_application = SimulationApplication(
@@ -202,7 +254,6 @@ class SimulationApplicationTest(unittest.TestCase):
             readiness_validator=SimcReadinessValidator(),
             compiler=self.application._compiler,
             runtime_capabilities=self.application._runtime_capabilities,
-            queue=self.queue,
             clock=lambda: self.now,
         )
         # A valid source candidate is made incomplete by removing one required semantic field.
@@ -301,6 +352,28 @@ class RecordingConnection:
         return self.cursor_value
 
 
+class AtomicSubmissionCursor:
+    def __init__(self, rows):
+        self.rows = list(rows)
+        self.executed = []
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_):
+        return False
+
+    def execute(self, statement, parameters):
+        self.executed.append((" ".join(statement.split()), parameters))
+
+    def fetchone(self):
+        return self.rows.pop(0) if self.rows else None
+
+
+class AtomicSubmissionConnection(RecordingConnection):
+    pass
+
+
 class SimulationRepositoryOwnerTest(unittest.TestCase):
     def test_postgres_job_history_uses_owner_scoped_keyset_query(self):
         owner_id = UUID("00000000-0000-4000-8000-0000000000a1")
@@ -330,6 +403,88 @@ class SimulationRepositoryOwnerTest(unittest.TestCase):
         self.assertIn("(updated_at, id) < (%s, %s)", statement)
         self.assertIn("ORDER BY updated_at DESC, id DESC LIMIT %s", statement)
         self.assertEqual(parameters, (owner_id, now, job_id, 21))
+
+    def test_job_and_queue_are_inserted_on_one_connection_transaction(self):
+        owner_id = UUID("00000000-0000-4000-8000-0000000000b1")
+        now = datetime(2026, 9, 3, tzinfo=timezone.utc)
+        job = SimulationJob(
+            id=UUID("00000000-0000-4000-8000-0000000000b2"),
+            user_id=owner_id,
+            snapshot_id=UUID("00000000-0000-4000-8000-0000000000b3"),
+            scenario_hash="a" * 64,
+            compiler_revision="compiler:test",
+            runtime_revision="simc:test",
+            idempotency_key="atomic-submit",
+            status=SimulationJobStatus.QUEUED,
+            public_error_code="",
+            created_at=now,
+            updated_at=now,
+        )
+        cursor = AtomicSubmissionCursor([(job.id,)])
+        connection = AtomicSubmissionConnection(cursor)
+        connection_count = 0
+
+        def connection_factory():
+            nonlocal connection_count
+            connection_count += 1
+            return connection
+
+        repository = PostgresSimulationRepository(connection_factory)
+        payload = {
+            "snapshotId": str(job.snapshot_id),
+            "scenario": {"fightStyle": "Patchwerk"},
+            "scenarioHash": job.scenario_hash,
+            "compilerRevision": job.compiler_revision,
+            "runtimeRevision": job.runtime_revision,
+        }
+
+        persisted = repository.create_job_and_enqueue(job, payload=payload, max_attempts=3)
+
+        sql = "\n".join(statement for statement, _ in cursor.executed)
+        self.assertIs(persisted, job)
+        self.assertEqual(connection_count, 1)
+        self.assertIn("INSERT INTO simc.simulation_jobs", sql)
+        self.assertIn("ON CONFLICT (user_id, idempotency_key) DO NOTHING", sql)
+        self.assertIn("INSERT INTO ops.job_queue", sql)
+
+    def test_atomic_idempotency_race_returns_existing_without_second_queue_row(self):
+        owner_id = UUID("00000000-0000-4000-8000-0000000000c1")
+        now = datetime(2026, 9, 3, tzinfo=timezone.utc)
+        requested = SimulationJob(
+            id=UUID("00000000-0000-4000-8000-0000000000c2"),
+            user_id=owner_id,
+            snapshot_id=UUID("00000000-0000-4000-8000-0000000000c3"),
+            scenario_hash="b" * 64,
+            compiler_revision="compiler:test",
+            runtime_revision="simc:test",
+            idempotency_key="atomic-race",
+            status=SimulationJobStatus.QUEUED,
+            public_error_code="",
+            created_at=now,
+            updated_at=now,
+        )
+        existing_id = UUID("00000000-0000-4000-8000-0000000000c4")
+        existing_row = (
+            existing_id,
+            owner_id,
+            requested.snapshot_id,
+            requested.scenario_hash,
+            requested.compiler_revision,
+            requested.runtime_revision,
+            requested.idempotency_key,
+            "queued",
+            "",
+            now,
+            now,
+        )
+        cursor = AtomicSubmissionCursor([None, existing_row])
+        repository = PostgresSimulationRepository(lambda: AtomicSubmissionConnection(cursor))
+
+        persisted = repository.create_job_and_enqueue(requested, payload={}, max_attempts=3)
+
+        sql = "\n".join(statement for statement, _ in cursor.executed)
+        self.assertEqual(persisted.id, existing_id)
+        self.assertNotIn("INSERT INTO ops.job_queue", sql)
 
 
 if __name__ == "__main__":

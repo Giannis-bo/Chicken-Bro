@@ -71,9 +71,8 @@ def build_chat_test_client():
         settings=settings,
         readiness_registry=ReadinessRegistry({}),
         web_auth_application=FakeFormalAuthApplication(),
-        prototype_identity_application=object(),
-        prototype_chat_application=chat,
-        prototype_simulation_application=object(),
+        chat_application=chat,
+        simulation_application=object(),
     )
     return (
         TestClient(app, base_url="https://www.chickenbro.cloud"),

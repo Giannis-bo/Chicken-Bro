@@ -96,7 +96,6 @@ class SimulationApplication:
         readiness_validator: SimcReadinessValidator,
         compiler: SimcProfileCompiler,
         runtime_capabilities: SimcRuntimeCapabilities,
-        queue: object,
         clock: Callable[[], datetime] | None = None,
     ):
         self._repository = repository
@@ -104,7 +103,6 @@ class SimulationApplication:
         self._readiness_validator = readiness_validator
         self._compiler = compiler
         self._runtime_capabilities = runtime_capabilities
-        self._queue = queue
         self._clock = clock or (lambda: datetime.now(timezone.utc))
 
     def resolve_source(self, principal: Principal, source_url: str) -> SourceSnapshot:
@@ -177,12 +175,8 @@ class SimulationApplication:
             created_at=now,
             updated_at=now,
         )
-        self._repository.save_job(job)
-        self._queue.enqueue(
-            job_id=job.id,
-            domain="simc",
-            command_type="run_simulation",
-            aggregate_id=job.id,
+        persisted = self._repository.create_job_and_enqueue(
+            job,
             payload={
                 "snapshotId": str(snapshot.id),
                 "scenario": dict(compiled.scenario),
@@ -192,7 +186,12 @@ class SimulationApplication:
             },
             max_attempts=3,
         )
-        return job
+        if persisted.snapshot_id != snapshot_id or persisted.scenario_hash != requested_scenario_hash:
+            raise SimulationApplicationError(
+                "IDEMPOTENCY_CONFLICT",
+                "idempotency key belongs to a different simulation request",
+            )
+        return persisted
 
     def read_snapshot(self, principal: Principal, snapshot_id: UUID) -> SourceSnapshot:
         snapshot = self._repository.get_snapshot(principal.user_id, snapshot_id)

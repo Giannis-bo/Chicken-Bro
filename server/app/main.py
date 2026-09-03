@@ -32,7 +32,6 @@ from server.app.simulation.compiler import SimcProfileCompiler
 from server.app.simulation.readiness import SimcReadinessValidator, SimcRuntimeCapabilities
 from server.app.simulation.repository import PostgresSimulationRepository
 from server.app.simulation.sources import CharacterSourceRouter, HttpxSourceGateway
-from server.app.worker.leases import PostgresJobQueue
 
 
 def create_app(
@@ -85,7 +84,6 @@ def create_app(
             readiness_validator=SimcReadinessValidator(),
             compiler=SimcProfileCompiler(capabilities=runtime_capabilities),
             runtime_capabilities=runtime_capabilities,
-            queue=PostgresJobQueue(postgres_factory.connection),
         )
     app.state.web_auth_application = web_auth_application
     app.state.auth_audit_sink = (

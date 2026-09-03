@@ -24,6 +24,30 @@ class JobLease:
 _ERROR_CODE = re.compile(r"[A-Z][A-Z0-9_]{2,63}\Z")
 
 
+def enqueue_job(
+    cursor: Any,
+    *,
+    job_id: UUID,
+    domain: str,
+    command_type: str,
+    aggregate_id: UUID | None,
+    payload: Mapping[str, object],
+    max_attempts: int = 3,
+) -> None:
+    if not 1 <= max_attempts <= 10:
+        raise ValueError("max_attempts must be between 1 and 10")
+    payload_json = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    cursor.execute(
+        """
+        INSERT INTO ops.job_queue (
+            id, domain, command_type, aggregate_id, payload_json,
+            status, max_attempts
+        ) VALUES (%s, %s, %s, %s, %s::jsonb, 'queued', %s)
+        """,
+        (job_id, domain, command_type, aggregate_id, payload_json, max_attempts),
+    )
+
+
 def require_current_lease(cursor: Any, job_id: UUID, worker_id: str) -> None:
     cursor.execute(
         """
@@ -83,18 +107,17 @@ class PostgresJobQueue:
         payload: Mapping[str, object],
         max_attempts: int = 3,
     ) -> None:
-        if not 1 <= max_attempts <= 10:
-            raise ValueError("max_attempts must be between 1 and 10")
-        payload_json = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
-        sql = """
-            INSERT INTO ops.job_queue (
-                id, domain, command_type, aggregate_id, payload_json,
-                status, max_attempts
-            ) VALUES (%s, %s, %s, %s, %s::jsonb, 'queued', %s)
-        """
         with self._connection_factory() as connection:
             with connection.cursor() as cursor:
-                cursor.execute(sql, (job_id, domain, command_type, aggregate_id, payload_json, max_attempts))
+                enqueue_job(
+                    cursor,
+                    job_id=job_id,
+                    domain=domain,
+                    command_type=command_type,
+                    aggregate_id=aggregate_id,
+                    payload=payload,
+                    max_attempts=max_attempts,
+                )
 
     def claim(self, *, worker_id: str, lease_seconds: int) -> JobLease | None:
         if not 1 <= lease_seconds <= 3600:
