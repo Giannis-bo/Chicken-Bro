@@ -24,7 +24,30 @@ class MemorySimulationWorkerRepository:
         self.attempts = []
         self.results = []
         self.updates = []
+        self.exhausted = []
         self.lose_lease_on_success = False
+
+    def exhaust_job_after_attempt_limit(self, job_id, *, worker_id, finished_at):
+        if job_id != self.job.id:
+            return None
+        self.exhausted.append((job_id, worker_id, finished_at))
+        if self.job.status in {
+            SimulationJobStatus.SUCCEEDED,
+            SimulationJobStatus.FAILED,
+            SimulationJobStatus.CANCELLED,
+        }:
+            return self.job.status
+        if self.attempts:
+            self.attempts[-1].update(
+                {"returnCode": None, "diagnostic": "ATTEMPT_EXHAUSTED"}
+            )
+        self.job = replace(
+            self.job,
+            status=SimulationJobStatus.FAILED,
+            public_error_code="ATTEMPT_EXHAUSTED",
+            updated_at=finished_at,
+        )
+        return self.job.status
 
     def begin_job_attempt(self, job_id, *, worker_id, attempt_number, now):
         if job_id != self.job.id:
@@ -294,6 +317,27 @@ class SimulationWorkerTest(unittest.TestCase):
                 self.assertEqual(worker._simc.inputs, [])
                 self.assertEqual(repository.results, [])
 
+    def test_expired_final_attempt_is_terminalized_without_a_fourth_simc_run(self):
+        worker, repository = self.build_worker(
+            RawSimulationExecution(
+                return_code=0,
+                stdout="Player: Stormsample\nDPS=12345\n",
+                stderr="",
+                runtime_revision="simc:current:abc",
+            )
+        )
+        repository.job = replace(repository.job, status=SimulationJobStatus.RUNNING)
+        repository.attempts.append({"id": uuid4(), "number": 3})
+
+        status = worker.handle(replace(self.lease, attempt=4, max_attempts=3))
+
+        self.assertEqual(status, SimulationJobStatus.FAILED)
+        self.assertEqual(repository.job.public_error_code, "ATTEMPT_EXHAUSTED")
+        self.assertEqual(repository.attempts[-1]["diagnostic"], "ATTEMPT_EXHAUSTED")
+        self.assertEqual(len(repository.exhausted), 1)
+        self.assertEqual(worker._simc.inputs, [])
+        self.assertEqual(repository.results, [])
+
 
 class ScriptedCursor:
     def __init__(self, rows):
@@ -434,6 +478,28 @@ class SimulationRepositoryAtomicityTest(unittest.TestCase):
         sql = "\n".join(statement for statement, _ in connection.cursor_value.statements)
         self.assertIn("FROM ops.job_queue", sql)
         self.assertNotIn("INSERT INTO simc.simulation_attempts", sql)
+
+    def test_exhaustion_closes_unfinished_attempt_and_job_in_one_guarded_transaction(self):
+        running_job = replace(self.job, status=SimulationJobStatus.RUNNING)
+        connection = ScriptedConnection([
+            (self.job.id,),
+            job_row(running_job),
+        ])
+        repository = PostgresSimulationRepository(lambda: connection)
+
+        status = repository.exhaust_job_after_attempt_limit(
+            self.job.id,
+            worker_id="worker-atomic",
+            finished_at=self.now,
+        )
+
+        self.assertEqual(status, SimulationJobStatus.FAILED)
+        sql = "\n".join(statement for statement, _ in connection.cursor_value.statements)
+        self.assertIn("FROM ops.job_queue", sql)
+        self.assertIn("NOT cancel_requested", sql)
+        self.assertIn("UPDATE simc.simulation_attempts", sql)
+        self.assertIn("ATTEMPT_EXHAUSTED", sql)
+        self.assertIn("UPDATE simc.simulation_jobs", sql)
 
 
 if __name__ == "__main__":

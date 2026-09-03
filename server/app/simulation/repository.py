@@ -344,6 +344,47 @@ class PostgresSimulationRepository:
                     updated_at=now,
                 ), attempt_id
 
+    def exhaust_job_after_attempt_limit(
+        self,
+        job_id: UUID,
+        *,
+        worker_id: str,
+        finished_at: datetime,
+    ) -> SimulationJobStatus | None:
+        """Fence an expired final attempt without executing SimC again."""
+        with self._connection_factory() as connection:
+            with connection.cursor() as cursor:
+                require_current_lease(cursor, job_id, worker_id)
+                current = self._lock_job(cursor, job_id)
+                if current is None:
+                    return None
+                if current.status in {
+                    SimulationJobStatus.SUCCEEDED,
+                    SimulationJobStatus.FAILED,
+                    SimulationJobStatus.CANCELLED,
+                }:
+                    return current.status
+                cursor.execute(
+                    """
+                    UPDATE simc.simulation_attempts
+                    SET diagnostic = 'ATTEMPT_EXHAUSTED', finished_at = %s
+                    WHERE job_id = %s AND finished_at IS NULL
+                    """,
+                    (finished_at, current.id),
+                )
+                cursor.execute(
+                    """
+                    UPDATE simc.simulation_jobs
+                    SET status = 'failed', public_error_code = 'ATTEMPT_EXHAUSTED',
+                        updated_at = %s
+                    WHERE id = %s AND user_id = %s AND status IN ('queued', 'running')
+                    """,
+                    (finished_at, current.id, current.user_id),
+                )
+                if cursor.rowcount != 1:
+                    raise LostLeaseError("simulation job is no longer claimable")
+        return SimulationJobStatus.FAILED
+
     def complete_job_success(
         self,
         job: SimulationJob,

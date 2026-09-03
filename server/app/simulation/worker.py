@@ -166,6 +166,20 @@ class SimulationWorker:
     def handle(self, lease: JobLease) -> SimulationJobStatus:
         if lease.domain != "simc" or lease.command_type != "run_simulation" or lease.aggregate_id not in {None, lease.id}:
             raise SimulationWorkerError("JOB_PAYLOAD_INVALID")
+        if lease.attempt > lease.max_attempts:
+            try:
+                exhausted_status = self._repository.exhaust_job_after_attempt_limit(
+                    lease.id,
+                    worker_id=self._worker_id,
+                    finished_at=self._utc_now(),
+                )
+            except LostLeaseError as error:
+                raise RetryableJobError("LEASE_LOST") from error
+            except Exception as error:
+                raise RetryableJobError("SIMC_PERSISTENCE_FAILED") from error
+            if exhausted_status is None:
+                raise SimulationWorkerError("SIMULATION_NOT_FOUND")
+            return exhausted_status
         try:
             started = self._repository.begin_job_attempt(
                 lease.id,

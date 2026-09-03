@@ -189,6 +189,7 @@ SimC 的服务端事实流是：
 - 认领原子增加 attempt，并写 `lease_owner`、`lease_expires_at`、heartbeat。
 - heartbeat/succeed/fail 只有当前 lease owner 能更新；影响行数不是 1 时抛 `LostLeaseError`。
 - retryable 错误只在 `attempt < max_attempts` 且未取消时回到 queued。
+- 最后一次 attempt 因 Worker 中断而 lease 过期时，恢复领取只原子收口未完成 attempt 与业务 job 为 `ATTEMPT_EXHAUSTED`，不再执行 SimC。
 - 未注册 handler 固定失败为 `UNKNOWN_JOB_HANDLER`，不能无限重试。
 - 取消 queued job 立即终态；running job 只记录 cancel request，由 handler/lease 路径收口。
 
