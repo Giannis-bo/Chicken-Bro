@@ -294,8 +294,8 @@ test('capacity reference scan covers every reviewed root and excludes only exact
 
 test('reference scanner finds the needle in every configured root without basename-wide hiding', () => {
   const source = fs.readFileSync(scriptPath, 'utf8')
-  const helper = source.match(/runtime_configuration_references\(\) \{[\s\S]*?\n\}/)?.[0]
-  assert.ok(helper, 'missing runtime_configuration_references helper')
+  const helper = extractShellFunction(source, 'runtime_configuration_reference_probe')
+  assert.ok(helper, 'missing runtime_configuration_reference_probe helper')
   const directory = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'chickenbro-refs-'))
   try {
     const roots = ['etc', 'opt-chickenbro', 'opt-wow-mini-program', 'opt-wow-v2-staging', 'var-www']
@@ -316,14 +316,127 @@ test('reference scanner finds the needle in every configured root without basena
       `CONFIGURATION_SCAN_ROOTS=${JSON.stringify(rootsFile)}`,
       `REFERENCE_EVIDENCE_EXCLUSIONS=${JSON.stringify(exclusionsFile)}`,
       helper,
-      'runtime_configuration_references reviewed-database',
+      'runtime_configuration_reference_probe reviewed-database',
     ].join('\n')], { encoding: 'utf8' })
     assert.equal(result.status, 0, result.stderr)
-    assert.deepEqual(result.stdout.trim().split('\n').sort(), expected.slice(1).sort())
+    const lines = result.stdout.trim().split('\n')
+    assert.equal(lines.shift(), 'matched')
+    assert.deepEqual(lines.sort(), expected.slice(1).sort())
     assert.ok(result.stdout.includes(expected[1]), 'same basename at another exact path must remain visible')
   } finally {
     fs.rmSync(directory, { recursive: true, force: true })
   }
+})
+
+test('an exact absent scan root is a clear contribution, not a probe error', (t) => {
+  const source = fs.readFileSync(scriptPath, 'utf8')
+  const helper = extractShellFunction(source, 'runtime_configuration_reference_probe')
+  assert.ok(helper)
+  const directory = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'chickenbro-absent-root-'))
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }))
+  const rootsFile = path.join(directory, 'roots.txt')
+  const exclusionsFile = path.join(directory, 'exclusions.txt')
+  fs.writeFileSync(rootsFile, `${path.join(directory, 'absent')}\n`)
+  fs.writeFileSync(exclusionsFile, '')
+  const result = spawnSync('bash', ['-c', [
+    'set -euo pipefail',
+    `CONFIGURATION_SCAN_ROOTS=${JSON.stringify(rootsFile)}`,
+    `REFERENCE_EVIDENCE_EXCLUSIONS=${JSON.stringify(exclusionsFile)}`,
+    helper,
+    'runtime_configuration_reference_probe reviewed-database',
+  ].join('\n')], { encoding: 'utf8' })
+  assert.equal(result.status, 0, result.stderr)
+  assert.equal(result.stdout.trim(), 'clear')
+})
+
+test('configuration, process, and open-handle probe errors never report clear', (t) => {
+  const source = fs.readFileSync(scriptPath, 'utf8')
+  const configurationProbe = extractShellFunction(source, 'runtime_configuration_reference_probe')
+  const processProbe = extractShellFunction(source, 'process_environment_reference_probe')
+  const openHandleProbe = extractShellFunction(source, 'open_handle_probe')
+  assert.ok(configurationProbe && processProbe && openHandleProbe, 'missing three-state probe helper')
+  const directory = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'chickenbro-probe-error-'))
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }))
+  const root = path.join(directory, 'root')
+  const processRoot = path.join(directory, 'proc')
+  fs.mkdirSync(root)
+  fs.mkdirSync(path.join(processRoot, '123'), { recursive: true })
+  fs.writeFileSync(path.join(processRoot, '123', 'environ'), 'DATABASE=reviewed')
+  const rootsFile = path.join(directory, 'roots.txt')
+  const exclusionsFile = path.join(directory, 'exclusions.txt')
+  fs.writeFileSync(rootsFile, `${root}\n`)
+  fs.writeFileSync(exclusionsFile, '')
+
+  const cases = [
+    {
+      helper: configurationProbe,
+      setup: [
+        `CONFIGURATION_SCAN_ROOTS=${JSON.stringify(rootsFile)}`,
+        `REFERENCE_EVIDENCE_EXCLUSIONS=${JSON.stringify(exclusionsFile)}`,
+        'find() { printf "permission denied\\n" >&2; return 2; }',
+      ],
+      call: 'runtime_configuration_reference_probe reviewed',
+    },
+    {
+      helper: processProbe,
+      setup: [
+        `PROCESS_ENVIRON_ROOT=${JSON.stringify(processRoot)}`,
+        'grep() { printf "read error\\n" >&2; return 2; }',
+      ],
+      call: 'process_environment_reference_probe reviewed',
+    },
+    {
+      helper: openHandleProbe,
+      setup: ['lsof() { printf "tool error\\n" >&2; return 2; }'],
+      call: `open_handle_probe ${JSON.stringify(path.join(directory, 'reviewed.env'))}`,
+    },
+  ]
+  for (const item of cases) {
+    const result = spawnSync('bash', ['-c', [
+      'set -u',
+      ...item.setup,
+      item.helper,
+      'set +e',
+      `output="$(${item.call})"`,
+      'status=$?',
+      'printf "%s:%s\\n" "${status}" "${output}"',
+      '[[ "${status}" -ne 0 && "${output}" == "error" ]]',
+    ].join('\n')], { encoding: 'utf8' })
+    assert.equal(result.status, 0, result.stderr)
+    assert.match(result.stdout, /^[1-9][0-9]*:error$/m)
+  }
+})
+
+test('expected process exit and empty lsof rc=1 are explicit clear states', (t) => {
+  const source = fs.readFileSync(scriptPath, 'utf8')
+  const processProbe = extractShellFunction(source, 'process_environment_reference_probe')
+  const openHandleProbe = extractShellFunction(source, 'open_handle_probe')
+  assert.ok(processProbe && openHandleProbe)
+  const directory = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'chickenbro-probe-clear-'))
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }))
+  const processRoot = path.join(directory, 'proc')
+  const environment = path.join(processRoot, '123', 'environ')
+  fs.mkdirSync(path.dirname(environment), { recursive: true })
+  fs.writeFileSync(environment, 'DATABASE=reviewed')
+  const processResult = spawnSync('bash', ['-c', [
+    'set -u',
+    `PROCESS_ENVIRON_ROOT=${JSON.stringify(processRoot)}`,
+    `VANISHING_ENV=${JSON.stringify(environment)}`,
+    'grep() { rm -f -- "${VANISHING_ENV}"; return 2; }',
+    processProbe,
+    'process_environment_reference_probe reviewed',
+  ].join('\n')], { encoding: 'utf8' })
+  assert.equal(processResult.status, 0, processResult.stderr)
+  assert.equal(processResult.stdout.trim(), 'clear\t0')
+
+  const lsofResult = spawnSync('bash', ['-c', [
+    'set -u',
+    'lsof() { return 1; }',
+    openHandleProbe,
+    'open_handle_probe /etc/reviewed.env',
+  ].join('\n')], { encoding: 'utf8' })
+  assert.equal(lsofResult.status, 0, lsofResult.stderr)
+  assert.equal(lsofResult.stdout.trim(), 'clear')
 })
 
 test('capacity preflight rejects symlinked or realpath-drifted env companions', () => {
@@ -416,57 +529,262 @@ test('database existence probe returns unknown on command failure instead of abs
   assert.match(result.stdout, /^[1-9][0-9]*:unknown$/m)
 })
 
-test('each pair rechecks immediately and journals intent before every crash boundary', (t) => {
+test('one target session fences and revalidates identity without terminating sessions', (t) => {
+  const source = fs.readFileSync(scriptPath, 'utf8')
+  const helper = extractShellFunction(source, 'fence_and_verify_capacity_database')
+  assert.ok(helper, 'missing fence_and_verify_capacity_database helper')
+  const directory = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'chickenbro-fence-session-'))
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }))
+  const sqlPath = path.join(directory, 'fence.sql')
+  const argsPath = path.join(directory, 'args.txt')
+  const result = spawnSync('bash', ['-c', [
+    'set -euo pipefail',
+    `TEST_SQL=${JSON.stringify(sqlPath)}`,
+    `TEST_ARGS=${JSON.stringify(argsPath)}`,
+    'sudo() {',
+    '  printf "%s\\n" "$*" > "${TEST_ARGS}"',
+    '  command cat > "${TEST_SQL}"',
+    '  printf "capacity_fenced_verified\\n"',
+    '}',
+    helper,
+    'fence_and_verify_capacity_database reviewed_database 100 2 37 postgres',
+  ].join('\n')], { encoding: 'utf8' })
+  assert.equal(result.status, 0, result.stderr)
+  assert.match(fs.readFileSync(argsPath, 'utf8'), /--dbname=reviewed_database/)
+  const sql = fs.readFileSync(sqlPath, 'utf8')
+  assert.ok(sql.indexOf('ALLOW_CONNECTIONS false') < sql.indexOf('pg_database_size'))
+  assert.match(sql, /pid <> pg_backend_pid\(\)/)
+  assert.match(sql, /SELECT count\(\*\)::bigint FROM/)
+  assert.doesNotMatch(sql, /pg_terminate_backend/)
+})
+
+test('capacity apply fences and verifies before env quarantine, then drops without killing sessions', (t) => {
   const source = fs.readFileSync(scriptPath, 'utf8')
   const helper = extractShellFunction(source, 'capacity_apply_pair')
   assert.ok(helper, 'missing capacity_apply_pair helper')
+  const directory = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'chickenbro-apply-order-'))
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }))
+  const envPath = path.join(directory, 'reviewed.env')
+  const logPath = path.join(directory, 'events.log')
+  fs.writeFileSync(envPath, 'DATABASE=reviewed_database\n')
+  const result = spawnSync('bash', ['-c', [
+    'set -eEuo pipefail',
+    `RUN_ROOT=${JSON.stringify(directory)}`,
+    `TEST_LOG=${JSON.stringify(logPath)}`,
+    `ENV_PATH=${JSON.stringify(envPath)}`,
+    'capacity_preflight_pair() { printf "preflight\\n" >> "${TEST_LOG}"; }',
+    'write_capacity_pair_journal() { printf "journal:%s\\n" "$2" >> "${TEST_LOG}"; }',
+    'capacity_pair_failure() { printf "failure:%s\\n" "$1" >> "${TEST_LOG}"; exit "$1"; }',
+    'capacity_pair_abort() { return 1; }',
+    'fence_and_verify_capacity_database() { printf "mutate:fence\\n" >> "${TEST_LOG}"; }',
+    'open_handle_probe() { printf "clear\\n"; }',
+    'runtime_configuration_reference_probe() { printf "clear\\n"; }',
+    'process_environment_reference_probe() { printf "clear\\t0\\n"; }',
+    'probe_capacity_database_existence() { printf "absent\\n"; }',
+    'record_result() { return 0; }',
+    'mv() { printf "mutate:env_move\\n" >> "${TEST_LOG}"; command mv "$@"; }',
+    'sudo() {',
+    '  local arguments="$*"',
+    '  [[ "${arguments}" != *"pg_terminate_backend"* ]] || return 90',
+    '  if [[ "${arguments}" == *"SELECT format(\'DROP DATABASE"* ]]; then printf "DROP DATABASE reviewed_database\\n"; return 0; fi',
+    '  if [[ "${arguments}" == *"--command=DROP DATABASE"* ]]; then printf "mutate:drop\\n" >> "${TEST_LOG}"; return 0; fi',
+    '  return 91',
+    '}',
+    helper,
+    `capacity_apply_pair db-id reviewed_database env-id ${JSON.stringify(envPath)} ${'a'.repeat(64)} 100 2 37 postgres true`,
+  ].join('\n')], { encoding: 'utf8' })
+  assert.equal(result.status, 0, result.stderr)
+  const events = fs.readFileSync(logPath, 'utf8').trim().split('\n')
+  const expectedOrder = [
+    'preflight',
+    'journal:fence_intent',
+    'mutate:fence',
+    'journal:env_move_intent',
+    'mutate:env_move',
+    'journal:drop_intent',
+    'mutate:drop',
+    'journal:completed',
+  ]
+  let prior = -1
+  for (const event of expectedOrder) {
+    const index = events.indexOf(event)
+    assert.ok(index > prior, `${event} is out of order: ${events.join(',')}`)
+    prior = index
+  }
+  assert.doesNotMatch(helper, /pg_terminate_backend/)
+})
 
-  for (const boundary of ['env_move', 'fence', 'drop']) {
-    const directory = fs.mkdtempSync(path.join(require('node:os').tmpdir(), `chickenbro-${boundary}-`))
+test('actual-state reconcile safely resolves fence, env-move, and drop crash windows', (t) => {
+  const source = fs.readFileSync(scriptPath, 'utf8')
+  const helper = extractShellFunction(source, 'reconcile_capacity_pair_actual')
+  assert.ok(helper, 'missing reconcile_capacity_pair_actual helper')
+  for (const boundary of ['fence', 'env_move', 'drop']) {
+    const directory = fs.mkdtempSync(path.join(require('node:os').tmpdir(), `chickenbro-reconcile-${boundary}-`))
     t.after(() => fs.rmSync(directory, { recursive: true, force: true }))
+    fs.mkdirSync(path.join(directory, 'pair-journals'))
     const envPath = path.join(directory, 'reviewed.env')
-    fs.writeFileSync(envPath, 'DATABASE=reviewed_database\n')
+    const quarantinePath = path.join(directory, 'env-id')
+    const databaseState = path.join(directory, 'database.state')
+    const allowsState = path.join(directory, 'allows.state')
     const logPath = path.join(directory, 'events.log')
+    const envBody = 'DATABASE=reviewed_database\n'
+    const envSha = sha256(Buffer.from(envBody))
+    fs.writeFileSync(databaseState, boundary === 'drop' ? 'absent' : 'present')
+    fs.writeFileSync(allowsState, 'false')
+    if (boundary === 'fence') fs.writeFileSync(envPath, envBody)
+    else fs.writeFileSync(quarantinePath, envBody)
+
     const result = spawnSync('bash', ['-c', [
       'set -euo pipefail',
       `RUN_ROOT=${JSON.stringify(directory)}`,
+      `TEST_STAGE=${JSON.stringify(boundary)}`,
+      `DATABASE_STATE=${JSON.stringify(databaseState)}`,
+      `ALLOWS_STATE=${JSON.stringify(allowsState)}`,
+      `TEST_LOG=${JSON.stringify(logPath)}`,
+      'capacity_journal_intent_stage() { printf "%s\\n" "${TEST_STAGE}"; }',
+      'probe_capacity_database_existence() { command cat "${DATABASE_STATE}"; }',
+      'probe_capacity_database_identity() { printf "postgres\\t%s\\t100\\n" "$(command cat "${ALLOWS_STATE}")"; }',
+      'fresh_database_counts() { [[ "$(command cat "${ALLOWS_STATE}")" == "true" ]] || return 88; printf "2\\t37\\n"; }',
+      'restore_capacity_database_allow_connections() { printf "%s" "$2" > "${ALLOWS_STATE}"; printf "restore_allow:%s\\n" "$2" >> "${TEST_LOG}"; }',
+      'capacity_exact_file_state() {',
+      '  if [[ -f "$1" && ! -L "$1" ]]; then printf "exact\\n";',
+      '  elif [[ ! -e "$1" && ! -L "$1" ]]; then printf "absent\\n";',
+      '  else printf "error\\n"; return 1; fi',
+      '}',
+      'write_capacity_pair_journal() { printf "journal:%s\\n" "$2" >> "${TEST_LOG}"; }',
+      helper,
+      `reconcile_capacity_pair_actual db-id reviewed_database env-id ${JSON.stringify(envPath)} ${envSha} 100 2 37 postgres true`,
+    ].join('\n')], { encoding: 'utf8' })
+    assert.equal(result.status, 0, `${boundary}: ${result.stderr}`)
+    const events = fs.readFileSync(logPath, 'utf8').trim().split('\n')
+    if (boundary === 'drop') {
+      assert.ok(events.includes('journal:reconciled_completed'))
+      assert.ok(!fs.existsSync(envPath))
+      assert.ok(fs.existsSync(quarantinePath))
+    } else {
+      assert.ok(events.includes('journal:reconciled_recovered'))
+      assert.equal(fs.readFileSync(allowsState, 'utf8'), 'true')
+      assert.equal(fs.readFileSync(envPath, 'utf8'), envBody)
+      assert.ok(!fs.existsSync(quarantinePath))
+    }
+  }
+})
+
+test('post-action fence, env-move, and drop crashes enter actual-state reconciliation', (t) => {
+  const source = fs.readFileSync(scriptPath, 'utf8')
+  const applyHelper = extractShellFunction(source, 'capacity_apply_pair')
+  const failureHelper = extractShellFunction(source, 'capacity_pair_failure')
+  assert.ok(applyHelper && failureHelper)
+  for (const [boundary, expectedStatus] of [['fence', 71], ['env_move', 72], ['drop', 73]]) {
+    const directory = fs.mkdtempSync(path.join(require('node:os').tmpdir(), `chickenbro-executed-${boundary}-`))
+    t.after(() => fs.rmSync(directory, { recursive: true, force: true }))
+    const envPath = path.join(directory, 'reviewed.env')
+    const databaseState = path.join(directory, 'database.state')
+    const allowsState = path.join(directory, 'allows.state')
+    const logPath = path.join(directory, 'events.log')
+    fs.writeFileSync(envPath, 'DATABASE=reviewed_database\n')
+    fs.writeFileSync(databaseState, 'present')
+    fs.writeFileSync(allowsState, 'true')
+    fs.mkdirSync(path.join(directory, 'pair-journals'))
+    const result = spawnSync('bash', ['-c', [
+      'set -eEuo pipefail',
+      `RUN_ROOT=${JSON.stringify(directory)}`,
+      `ENV_PATH=${JSON.stringify(envPath)}`,
+      `DATABASE_STATE=${JSON.stringify(databaseState)}`,
+      `ALLOWS_STATE=${JSON.stringify(allowsState)}`,
       `TEST_LOG=${JSON.stringify(logPath)}`,
       `FAIL_BOUNDARY=${JSON.stringify(boundary)}`,
-      'capacity_preflight_pair() { printf "preflight\\n" >> "${TEST_LOG}"; }',
-      'write_capacity_pair_journal() { printf "journal:%s\\n" "$2" >> "${TEST_LOG}"; }',
-      'capacity_pair_failure() { printf "failure:%s\\n" "$1" >> "${TEST_LOG}"; exit "$1"; }',
-      'runtime_configuration_references() { return 0; }',
+      'capacity_preflight_pair() { return 0; }',
+      'write_capacity_pair_journal() { return 0; }',
+      'capacity_pair_abort() { return 1; }',
       'record_result() { return 0; }',
+      'open_handle_probe() { printf "clear\\n"; }',
+      'runtime_configuration_reference_probe() { printf "clear\\n"; }',
+      'process_environment_reference_probe() { printf "clear\\t0\\n"; }',
+      'probe_capacity_database_existence() { command cat "${DATABASE_STATE}"; }',
+      'fence_and_verify_capacity_database() {',
+      '  printf "false" > "${ALLOWS_STATE}"',
+      '  [[ "${FAIL_BOUNDARY}" != "fence" ]] || return 71',
+      '}',
       'mv() {',
-      '  printf "mutate:env_move\\n" >> "${TEST_LOG}"',
-      '  [[ "${FAIL_BOUNDARY}" != "env_move" ]] || return 71',
       '  command mv "$@"',
+      '  [[ "${FAIL_BOUNDARY}" != "env_move" ]] || return 72',
       '}',
       'sudo() {',
       '  local arguments="$*"',
-      '  if [[ "${arguments}" == *"SELECT format(\'ALTER DATABASE"* ]]; then printf "ALTER DATABASE reviewed_database WITH ALLOW_CONNECTIONS false\\n"; return 0; fi',
-      '  if [[ "${arguments}" == *"--command=ALTER DATABASE"* ]]; then printf "mutate:fence\\n" >> "${TEST_LOG}"; [[ "${FAIL_BOUNDARY}" != "fence" ]] || return 72; return 0; fi',
-      '  if [[ "${arguments}" == *"SELECT CASE WHEN datallowconn"* ]]; then printf "false\\n"; return 0; fi',
-      '  if [[ "${arguments}" == *"pg_terminate_backend"* ]]; then return 0; fi',
-      '  if [[ "${arguments}" == *"SELECT count(*) FROM pg_stat_activity"* ]]; then printf "0\\n"; return 0; fi',
       '  if [[ "${arguments}" == *"SELECT format(\'DROP DATABASE"* ]]; then printf "DROP DATABASE reviewed_database\\n"; return 0; fi',
-      '  if [[ "${arguments}" == *"--command=DROP DATABASE"* ]]; then printf "mutate:drop\\n" >> "${TEST_LOG}"; [[ "${FAIL_BOUNDARY}" != "drop" ]] || return 73; return 0; fi',
-      '  return 74',
+      '  if [[ "${arguments}" == *"--command=DROP DATABASE"* ]]; then',
+      '    printf "absent" > "${DATABASE_STATE}"',
+      '    [[ "${FAIL_BOUNDARY}" != "drop" ]] || return 73',
+      '    return 0',
+      '  fi',
+      '  return 90',
       '}',
-      helper,
+      'reconcile_capacity_pair_actual() {',
+      '  local quarantine="${RUN_ROOT}/env-id"',
+      '  local observed_database observed_allows',
+      '  observed_database="$(command cat "${DATABASE_STATE}")"',
+      '  observed_allows="$(command cat "${ALLOWS_STATE}")"',
+      '  case "${FAIL_BOUNDARY}" in',
+      '    fence) [[ "${observed_database}:${observed_allows}" == "present:false" && -f "${ENV_PATH}" && ! -e "${quarantine}" ]] ;;',
+      '    env_move) [[ "${observed_database}:${observed_allows}" == "present:false" && ! -e "${ENV_PATH}" && -f "${quarantine}" ]] ;;',
+      '    drop) [[ "${observed_database}:${observed_allows}" == "absent:false" && ! -e "${ENV_PATH}" && -f "${quarantine}" ]] ;;',
+      '  esac',
+      '  printf "reconcile:%s\\n" "${FAIL_BOUNDARY}" >> "${TEST_LOG}"',
+      '}',
+      failureHelper,
+      applyHelper,
       `capacity_apply_pair db-id reviewed_database env-id ${JSON.stringify(envPath)} ${'a'.repeat(64)} 100 2 37 postgres true`,
     ].join('\n')], { encoding: 'utf8' })
-    assert.notEqual(result.status, 0, `${boundary} unexpectedly succeeded`)
-    const events = fs.readFileSync(logPath, 'utf8').trim().split('\n')
-    assert.equal(events[0], 'preflight', `${boundary} mutated before its immediate recheck`)
-    const intent = {
-      env_move: 'journal:env_move_intent',
-      fence: 'journal:fence_intent',
-      drop: 'journal:drop_intent',
-    }[boundary]
-    assert.ok(events.indexOf(intent) >= 0, `${boundary} intent was not persisted`)
-    assert.ok(events.indexOf(intent) < events.indexOf(`mutate:${boundary}`), `${boundary} intent followed mutation`)
+    assert.equal(result.status, expectedStatus, `${boundary}: ${result.stderr}`)
+    assert.equal(fs.readFileSync(logPath, 'utf8').trim(), `reconcile:${boundary}`)
   }
+})
+
+test('an existing capacity run only reconciles actual state and requires a fresh manifest', (t) => {
+  const source = fs.readFileSync(scriptPath, 'utf8')
+  const helper = extractShellFunction(source, 'capacity_resume_existing_run')
+  assert.ok(helper, 'missing capacity_resume_existing_run helper')
+  const directory = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'chickenbro-resume-'))
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }))
+  const pairsPath = path.join(directory, 'capacity-pairs.tsv')
+  const logPath = path.join(directory, 'events.log')
+  const sha = 'a'.repeat(64)
+  fs.writeFileSync(pairsPath, [
+    `db-one\treviewed_one\tenv-one\t/etc/one.env\t${sha}\t100\t2\t37\tpostgres\ttrue`,
+    `db-two\treviewed_two\tenv-two\t/etc/two.env\t${sha}\t200\t3\t41\tpostgres\ttrue`,
+  ].join('\n') + '\n')
+
+  const result = spawnSync('bash', ['-c', [
+    'set -u',
+    `CAPACITY_PAIRS=${JSON.stringify(pairsPath)}`,
+    `TEST_LOG=${JSON.stringify(logPath)}`,
+    'reconcile_capacity_pair_actual() { printf "reconcile:%s\\n" "$2" >> "${TEST_LOG}"; }',
+    'capacity_apply_pair() { printf "MUTATED\\n" >> "${TEST_LOG}"; }',
+    helper,
+    'set +e',
+    'capacity_resume_existing_run',
+    'status=$?',
+    'printf "status:%s\\n" "${status}" >> "${TEST_LOG}"',
+    'exit 0',
+  ].join('\n')], { encoding: 'utf8' })
+  assert.equal(result.status, 0, result.stderr)
+  const events = fs.readFileSync(logPath, 'utf8').trim().split('\n')
+  assert.deepEqual(events, ['reconcile:reviewed_one', 'reconcile:reviewed_two', 'status:75'])
+  assert.match(result.stderr, /fresh.*inventory.*manifest/i)
+})
+
+test('the same manifest run root is detected before O_EXCL artifacts and never blindly replayed', () => {
+  const source = fs.readFileSync(scriptPath, 'utf8')
+  const runRoot = source.indexOf('RUN_ROOT="${QUARANTINE_ROOT}/${REVIEWED_REMOTE_MANIFEST_SHA}"')
+  const existingCheck = source.indexOf('if [[ -e "${RUN_ROOT}" ]]', runRoot)
+  const runRootInstall = source.indexOf('install -d -o root -g root -m 0700 -- "${RUN_ROOT}"', runRoot)
+  assert.ok(runRoot > 0 && existingCheck > runRoot && existingCheck < runRootInstall)
+  const resumeCall = source.indexOf('    capacity_resume_existing_run', runRootInstall)
+  const applyCall = source.indexOf('  capacity_apply_pairs', resumeCall)
+  assert.ok(resumeCall > runRootInstall && applyCall > resumeCall)
+  assert.match(source.slice(resumeCall - 500, resumeCall), /RUN_ROOT_EXISTED.*true/)
+  assert.doesNotMatch(source.slice(existingCheck, resumeCall), /\n  capacity_apply_pairs\n/)
 })
 
 test('between-pair drift aborts before the later pair mutates', (t) => {
@@ -517,16 +835,34 @@ test('capacity database preflight permits only its exact companion then requires
   const source = fs.readFileSync(scriptPath, 'utf8')
   assert.match(source, /configuration references differ from exact companion/)
   assert.match(source, /database still has configuration references after companion quarantine/)
-  assert.match(source, /process_environment_reference_count/)
+  assert.match(source, /runtime_configuration_reference_probe/)
+  assert.match(source, /process_environment_reference_probe/)
+  assert.match(source, /open_handle_probe/)
+  assert.doesNotMatch(source, /pg_terminate_backend/)
 })
 
 test('remote metadata refresh precedes temporary files and quarantine directories', () => {
   const source = fs.readFileSync(scriptPath, 'utf8')
   const remote = source.slice(source.indexOf("bash -s <<'REMOTE'"))
+  const rootCheck = remote.indexOf('require_remote_root')
   const metadata = remote.indexOf('LIVE_INSTANCE_ID=')
-  assert.ok(metadata > 0)
+  assert.ok(rootCheck > 0 && rootCheck < metadata)
   assert.ok(metadata < remote.indexOf('MANIFEST_TMP="$(mktemp)"'))
   assert.ok(metadata < remote.indexOf('install -d -o root -g root -m 0700 -- "${RUN_ROOT}"'))
+})
+
+test('the complete remote heredoc enters one non-interactive root context and rejects non-root execution', () => {
+  const source = fs.readFileSync(scriptPath, 'utf8')
+  assert.match(source, /"\$\{SSH_TARGET\}"\s+sudo -n env[\s\S]*?bash -s <<'REMOTE'/)
+  const helper = extractShellFunction(source, 'require_remote_root')
+  assert.ok(helper, 'missing require_remote_root helper')
+  const result = spawnSync('bash', ['-c', [
+    'set -u',
+    'die_remote() { return 77; }',
+    helper,
+    'require_remote_root',
+  ].join('\n')], { encoding: 'utf8' })
+  assert.equal(result.status, 77, result.stderr)
 })
 
 test('remote recovery traps inherit through apply helpers', () => {
