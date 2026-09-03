@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedFromCommit": "8c0dcbd132a91bd898a994790df4eafa041cd534",
+  "generatedFromCommit": "b1097be7fb205c44b8ea5e12b5677e9917c18df2",
   "excludedSelfPath": "docs/refactor/chickenbro-simc-refactor-inventory.json",
   "sourceRulesSha256": "84cfdeeaf7652ccff23c8817063b02d94b0ff7e966a4c06f72522e35290cdcb3",
   "entryCount": 2858,
@@ -13543,8 +13543,8 @@
       "owner": "Chickenbro Chat and SimC product",
       "reason": "These are the bounded architecture, operations, ownership, verification, and cleanup authorities for the rebuilt product.",
       "matchedRule": "retained-product-documentation",
-      "bytes": 33736,
-      "sha256": "0256eb7d9724352081bd9e29cbcef50bc2e76bcf30cf445d8dad55bce9ced99f"
+      "bytes": 33931,
+      "sha256": "cc409d132c7b86d4fcc8182af2a97f6a6f73d5138191fd4ac973fec20fbdb35d"
     },
     {
       "path": "docs/community-template-import-full-chain-runbook.md",
@@ -14773,8 +14773,8 @@
       "owner": "Harness and rebuild roadmap",
       "reason": "Current approved product direction, executable phase plans, and machine-readable state.",
       "matchedRule": "rebuild-control-plane",
-      "bytes": 1581,
-      "sha256": "a33bd4355cf4b3548a84251bca864e052098e49e632e63c7efe639647d2505f3"
+      "bytes": 1578,
+      "sha256": "fb54a74bbfb9cbddcec21898b90da87250bf6e53d9a8cbc7e94a1626369155ed"
     },
     {
       "path": "docs/plans/builds-home-command-deck.md",
@@ -14823,8 +14823,8 @@
       "owner": "Harness and rebuild roadmap",
       "reason": "Current approved product direction, executable phase plans, and machine-readable state.",
       "matchedRule": "rebuild-control-plane",
-      "bytes": 4609,
-      "sha256": "3a936b93af87bed82d1e5aaf536c1ce5d593110cf78d4a91d27cabb2bb8d6eb6"
+      "bytes": 4608,
+      "sha256": "d9afd5c4bcf3580c0949729153bf2d63cd29b24574d0e0388402cf4959f7813b"
     },
     {
       "path": "docs/refactor/chickenbro-simc-capacity-cleanup-manifest.json",
@@ -14834,7 +14834,7 @@
       "reason": "These are the bounded architecture, operations, ownership, verification, and cleanup authorities for the rebuilt product.",
       "matchedRule": "retained-product-documentation",
       "bytes": 7952,
-      "sha256": "e622abe641000b4bdf9a80ca06df2ad0762ca563cab37a619af3fddfb4b03645"
+      "sha256": "f54d27e634e45f10423a4d6f5a2cd7942d7e0bfd25c384fcabf9d7b49d667161"
     },
     {
       "path": "docs/refactor/chickenbro-simc-cloud-cleanup-manifest.json",
@@ -14843,8 +14843,8 @@
       "owner": "Chickenbro Chat and SimC product",
       "reason": "These are the bounded architecture, operations, ownership, verification, and cleanup authorities for the rebuilt product.",
       "matchedRule": "retained-product-documentation",
-      "bytes": 78702,
-      "sha256": "ab5f5810a29040325a864b3a042a861267f997dd92e5d5495b651692d9fd390a"
+      "bytes": 78724,
+      "sha256": "f153cd6331f1fffbdf3a8ac9ff3562e4f535f5d07660d5fda889cb103221889d"
     },
     {
       "path": "docs/refactor/chickenbro-simc-cloud-inventory.json",
@@ -14854,7 +14854,7 @@
       "reason": "These are the bounded architecture, operations, ownership, verification, and cleanup authorities for the rebuilt product.",
       "matchedRule": "retained-product-documentation",
       "bytes": 11686,
-      "sha256": "d0247ebdc497541315f1dc3d223ba290ea1ba9d43e14f40a42278693ec23a98c"
+      "sha256": "c74b7e3af2377683a1de1279c2b3d52fe95590b94fbfd7348b6b6bc2f368a864"
     },
     {
       "path": "docs/refactor/chickenbro-simc-disposition-rules.json",
@@ -14873,8 +14873,8 @@
       "owner": "Chickenbro Chat and SimC product",
       "reason": "These are the bounded architecture, operations, ownership, verification, and cleanup authorities for the rebuilt product.",
       "matchedRule": "retained-product-documentation",
-      "bytes": 5229,
-      "sha256": "b9a83054f4d103753df3c895f89cb7bebd680f0cf6087202cdbde6bd2e7d27da"
+      "bytes": 5329,
+      "sha256": "0cd37c4b4d3173adf3bfde4de272d5e8a37d241b507354b147dda39557ab6af8"
     },
     {
       "path": "docs/release-evidence-publishing.md",
@@ -14903,8 +14903,8 @@
       "owner": "Harness and rebuild roadmap",
       "reason": "Current approved product direction, executable phase plans, and machine-readable state.",
       "matchedRule": "rebuild-control-plane",
-      "bytes": 2637,
-      "sha256": "a9b6f2c4840dbe978da17cd902171b84442bc91eb58b720f8c9877898bec812f"
+      "bytes": 2672,
+      "sha256": "7688cd3905402b21afba3aca7043b8959a9da1c92d407572961df95ea907a8b5"
     },
     {
       "path": "docs/roadmap/ideas.md",
@@ -26253,8 +26253,8 @@
       "owner": "Chat and SimC verification suite",
       "reason": "These tests cover the retained backend, clients, clean migration, build, candidate, cutover, cleanup, and control-plane contracts.",
       "matchedRule": "retained-target-tests",
-      "bytes": 2968,
-      "sha256": "f56f8f71516cba1e1ffd44c6351996b0559a454c21eac1e2cf0b0a1fff146657"
+      "bytes": 2996,
+      "sha256": "fdd278859304a74c6ae81f29aac6c0ec569bf30fa9356bf264cfdc99bc329b08"
     },
     {
       "path": "tests/chickenbro_source_refresh_test.py",
@@ -27763,8 +27763,8 @@
       "owner": "Chat and SimC verification suite",
       "reason": "These tests cover the retained backend, clients, clean migration, build, candidate, cutover, cleanup, and control-plane contracts.",
       "matchedRule": "retained-target-tests",
-      "bytes": 5831,
-      "sha256": "b364dbf7bf7e4a858f39eb542545fdeed9a9a96646d9cafa9a0741c203cbab5f"
+      "bytes": 5913,
+      "sha256": "2838ba6a76ef7773597d8471bd451f42482f4a4bc560ccc91677b13c8117be35"
     },
     {
       "path": "tests/promote-ui-asset-slot-review.test.js",
@@ -27813,8 +27813,8 @@
       "owner": "Chat and SimC verification suite",
       "reason": "These tests cover the retained backend, clients, clean migration, build, candidate, cutover, cleanup, and control-plane contracts.",
       "matchedRule": "retained-target-tests",
-      "bytes": 7776,
-      "sha256": "285b83a8278458debc5f19bc516f982721c6e88b06c98962f1bd90f4b9225405"
+      "bytes": 7795,
+      "sha256": "42b079a6465660602666561438303d674afb329aee60e44893a394366721ccf8"
     },
     {
       "path": "tests/publish-runtime-media.test.js",
@@ -28617,5 +28617,5 @@
       "sha256": "4736cc276f788e5427d17e51499c110336106bb64db4c827e2d576629d8f281f"
     }
   ],
-  "inventorySha256": "d512beafd99a3df8cd523bb1b53e2709dfe31528bbfcf0fa2678f5f516af565e"
+  "inventorySha256": "04b61635a6333f4d980fe972ea741dc3d655ea5767d1f2021c2aafd0f85dbab5"
 }
