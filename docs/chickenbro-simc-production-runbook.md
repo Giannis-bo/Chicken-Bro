@@ -11,17 +11,17 @@
 | 项目 | 已记录的只读事实 |
 | --- | ---: |
 | 根分区总量 | 73,859,022,848 bytes |
-| 根分区已用 | 40,024,940,544 bytes |
-| 根分区可用 | 30,703,849,472 bytes |
+| 根分区已用 | 40,032,776,192 bytes |
+| 根分区可用 | 30,696,013,824 bytes |
 | PostgreSQL 所有非模板数据库合计 | 16,773,148,315 bytes |
-| PostgreSQL 目录 | 16,874,423,837 bytes |
+| PostgreSQL 目录 | 16,874,432,029 bytes |
 | 数据库数量 | 29 |
 | `wow-*` unit 数量 | 32 |
 | 容量门禁 | `capacity_preflight_required` |
 | 当前目标 identity | Tencent CVM `ins-93tgv1rb` / `ap-shanghai` / `ap-shanghai-2`，SSH alias `wow-lighthouse`，公网 `124.223.51.33` |
 | 失效 provider evidence | `lhins-dr6tkl63` / Guangzhou；不属于本目标，不能参与 gate |
 
-这些数字来自 `2026-09-03T09:36:26Z` fresh 只读快照。四个精确 evidence 库与四个原 env 路径均已不存在；env 内容按两次 reviewed manifest SHA 隔离，文件均为 `0600 root:root`、哈希逐项匹配，四条配对日志均为 `reconciled_completed`。`wow_test`、`chickenbro_prod` 与独立恢复库仍受保护；旧生产会按请求短暂连接 `wow_test`，这不等同于清理目标仍被引用。当前 Active SimC 二进制未切版本，原发布 `f50a2121bf894570146507496f3e113bff68e445` 已按二进制 SHA `69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da` 原子补齐受管身份元数据。该快照只打开 candidate 容量预检，HTTP 200 或单个服务 active 仍不能解锁生产切流或完整退役。
+这些数字来自 `2026-09-03T09:44:15Z` fresh 只读快照。四个精确 evidence 库与四个原 env 路径均已不存在；env 内容按两次 reviewed manifest SHA 隔离，文件均为 `0600 root:root`、哈希逐项匹配，四条配对日志均为 `reconciled_completed`。`wow_test`、`chickenbro_prod` 与独立恢复库仍受保护；旧生产会按请求短暂连接 `wow_test`，这不等同于清理目标仍被引用。当前 Active SimC 二进制未切版本，原发布 `f50a2121bf894570146507496f3e113bff68e445` 已按二进制 SHA `69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da` 原子补齐受管身份元数据。该快照只打开 candidate 容量预检，HTTP 200 或单个服务 active 仍不能解锁生产切流或完整退役。
 
 ## 绝对安全边界
 

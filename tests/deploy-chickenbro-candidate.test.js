@@ -257,6 +257,10 @@ test('candidate deploy is content-addressed, candidate-only, reversible and exac
 
   assert.match(script, /server\/migrations\/product\/0001_chickenbro_simc_core\.sql/)
   assert.match(script, /server\/migrations\/product\/0002_chat_idempotent_replay\.sql/)
+  assert.match(script, /migration_id="\$\(basename -- "\$\{migration\}" \.sql\)"/)
+  assert.match(script, /--command="SET ROLE wow_migrator"/)
+  assert.match(script, /--command="INSERT INTO ops\.schema_migrations/)
+  assert.match(script, /--single-transaction[\s\S]*--file="\$\{migration\}"[\s\S]*ops\.schema_migrations/)
   assert.match(script, /import fastapi, httpx, psycopg, uvicorn/)
   assert.match(script, /server\/accept_chickenbro_candidate\.py/)
   assert.match(script, /run build:weapp/)

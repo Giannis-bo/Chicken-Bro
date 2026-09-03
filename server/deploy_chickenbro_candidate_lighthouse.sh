@@ -1056,8 +1056,15 @@ sudo -n -u postgres createdb --owner=wow_migrator --template=template0 --encodin
 for migration in \
   "${CANDIDATE_ROOT}/server/migrations/product/0001_chickenbro_simc_core.sql" \
   "${CANDIDATE_ROOT}/server/migrations/product/0002_chat_idempotent_replay.sql"; do
+  migration_id="$(basename -- "${migration}" .sql)"
+  [[ "${migration_id}" =~ ^[0-9]{4}_[a-z0-9_]+$ ]] \
+    || die_remote "candidate migration id is invalid"
   sudo -n -u postgres psql --no-psqlrc --dbname="${CANDIDATE_DATABASE}" --set=ON_ERROR_STOP=1 \
-    --single-transaction --file="${migration}" >/dev/null
+    --single-transaction \
+    --command="SET ROLE wow_migrator" \
+    --file="${migration}" \
+    --command="INSERT INTO ops.schema_migrations (id, description) VALUES ('${migration_id}', 'Apply clean product migration ${migration_id}') ON CONFLICT (id) DO NOTHING" \
+    >/dev/null
 done
 
 set -a

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "reachable",
-  "observedAt": "2026-09-03T09:36:26Z",
+  "observedAt": "2026-09-03T09:44:15Z",
   "host": "VM-4-8-ubuntu",
   "targetIdentity": {
     "provider": "tencent_cvm",
@@ -15,10 +15,10 @@
   "rootFilesystem": {
     "path": "/",
     "sizeBytes": 73859022848,
-    "usedBytes": 40029458432,
-    "freeBytes": 30699331584
+    "usedBytes": 40032776192,
+    "freeBytes": 30696013824
   },
-  "rootFreeBytes": 30699331584,
+  "rootFreeBytes": 30696013824,
   "currentDatabaseBytes": 16773148315,
   "databases": [
     {

@@ -1,13 +1,13 @@
 {
   "schemaVersion": 2,
   "mode": "dry-run",
-  "generatedAt": "2026-09-03T09:36:26Z",
+  "generatedAt": "2026-09-03T09:44:15Z",
   "deletionAuthorized": false,
   "status": "capacity_precleanup_complete_candidate_deployment_ready_full_retirement_blocked",
   "sourceInventory": {
     "path": "docs/refactor/chickenbro-simc-cloud-inventory.json",
-    "sha256": "15848319db5f653cc7133bd71d78d5800948d28678c587bd52d09f6995b66f1c",
-    "observedAt": "2026-09-03T09:36:26Z",
+    "sha256": "02f6c034011e9a0e0162527e560981cc338e7b3a30f73ca180be064368e7f09c",
+    "observedAt": "2026-09-03T09:44:15Z",
     "freshness": "fresh"
   },
   "targetIdentity": {
