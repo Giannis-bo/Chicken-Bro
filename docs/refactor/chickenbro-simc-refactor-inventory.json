@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedFromCommit": "b1097be7fb205c44b8ea5e12b5677e9917c18df2",
+  "generatedFromCommit": "c2202efb32dfbd3e9f888dd23092b9bcf22c2f3d",
   "excludedSelfPath": "docs/refactor/chickenbro-simc-refactor-inventory.json",
   "sourceRulesSha256": "84cfdeeaf7652ccff23c8817063b02d94b0ff7e966a4c06f72522e35290cdcb3",
   "entryCount": 2858,
@@ -24213,8 +24213,8 @@
       "owner": "Canonical Chickenbro PostgreSQL schema",
       "reason": "The clean schema, allowlisted legacy copier, and reconciliation owners are the current migration authority.",
       "matchedRule": "target-product-schema-and-migration",
-      "bytes": 44587,
-      "sha256": "1325b202003056a6286b67d85e6f08c58aa502f9fe6554a5595db7451ef40653"
+      "bytes": 44839,
+      "sha256": "e2ee1aa503b1d1b04936650b33db18e9550706866c79ddb08859343f537e32e0"
     },
     {
       "path": "server/migrations/product/reconcile_legacy.py",
@@ -27653,8 +27653,8 @@
       "owner": "Chat and SimC verification suite",
       "reason": "These tests cover the retained backend, clients, clean migration, build, candidate, cutover, cleanup, and control-plane contracts.",
       "matchedRule": "retained-target-tests",
-      "bytes": 21900,
-      "sha256": "d9210eaa0144c66e6ba7f1dfd7a7e300bc882f39c3d499dabc9ab944e976d427"
+      "bytes": 23088,
+      "sha256": "fb6fd454043980850f9d60e61907ff1bfd0d7855f3d62a1f1688bde4de571093"
     },
     {
       "path": "tests/postgres_only_scripts_test.py",
@@ -28617,5 +28617,5 @@
       "sha256": "4736cc276f788e5427d17e51499c110336106bb64db4c827e2d576629d8f281f"
     }
   ],
-  "inventorySha256": "04b61635a6333f4d980fe972ea741dc3d655ea5767d1f2021c2aafd0f85dbab5"
+  "inventorySha256": "62495881cd4b6bffd3c114a5efa69d33cff52bd723e5702e19ebcd9ae3a7aa50"
 }
