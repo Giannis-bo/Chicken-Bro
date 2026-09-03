@@ -1,9 +1,12 @@
 import base64
+from collections import OrderedDict
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 import hmac
 import re
+from _thread import LockType
+from threading import Lock
 from uuid import UUID, uuid4
 
 from server.app.identity.domain import (
@@ -59,10 +62,23 @@ class MeView:
     display_name: str
 
 
+@dataclass(frozen=True)
+class _QrCacheEntry:
+    expires_at: datetime
+    data_url: str
+
+
+@dataclass
+class _CreateLockEntry:
+    lock: LockType
+    users: int = 0
+
+
 _BROWSER_VERIFIER = re.compile(r"[A-Za-z0-9_-]{43,128}\Z")
 _IDEMPOTENCY_KEY = re.compile(r"[A-Za-z0-9._~-]{8,128}\Z")
 _PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 _JPEG_SIGNATURE = b"\xff\xd8\xff"
+_MAX_QR_CACHE_ENTRIES = 256
 
 
 class WebAuthApplication:
@@ -78,21 +94,41 @@ class WebAuthApplication:
         self._wechat_gateway = wechat_gateway
         self._settings = settings
         self._clock = clock or (lambda: datetime.now(timezone.utc))
-        self._qr_cache: dict[UUID, str] = {}
+        self._qr_cache: OrderedDict[UUID, _QrCacheEntry] = OrderedDict()
+        self._qr_cache_lock = Lock()
+        self._create_locks: dict[tuple[str, str], _CreateLockEntry] = {}
+        self._create_locks_guard = Lock()
 
     def create_web_login(self, browser_verifier: str, *, idempotency_key: str) -> WebLoginCreated:
         self._validate_browser_verifier(browser_verifier)
         if not isinstance(idempotency_key, str) or _IDEMPOTENCY_KEY.fullmatch(idempotency_key) is None:
             raise AuthApplicationError("VALIDATION_ERROR", "login request key is invalid")
-        now = self._now()
         verifier_hash = digest(browser_verifier)
         idempotency_hash = digest(idempotency_key)
+        lock_key = (verifier_hash, idempotency_hash)
+        create_lock = self._retain_create_lock(lock_key)
+        try:
+            with create_lock:
+                return self._create_web_login_locked(
+                    verifier_hash=verifier_hash,
+                    idempotency_hash=idempotency_hash,
+                )
+        finally:
+            self._release_create_lock(lock_key)
+
+    def _create_web_login_locked(
+        self,
+        *,
+        verifier_hash: str,
+        idempotency_hash: str,
+    ) -> WebLoginCreated:
+        now = self._now()
         existing = self._repository.get_web_login_session_by_idempotency(
             browser_verifier_sha256=verifier_hash,
             idempotency_key_sha256=idempotency_hash,
         )
         if existing is not None:
-            qr_data_url = self._qr_cache.get(existing.id)
+            qr_data_url = self._get_cached_qr(existing.id, now=now)
             if qr_data_url is None:
                 raise AuthApplicationError(
                     "WEB_LOGIN_RESTART_REQUIRED",
@@ -132,9 +168,19 @@ class WebAuthApplication:
             consumed_at=None,
             idempotency_key_sha256=idempotency_hash,
         )
-        self._repository.insert_web_login_session(session, now=now)
+        if not self._repository.insert_web_login_session(session, now=now):
+            concurrent = self._repository.get_web_login_session_by_idempotency(
+                browser_verifier_sha256=verifier_hash,
+                idempotency_key_sha256=idempotency_hash,
+            )
+            if concurrent is None:
+                raise AuthApplicationError("INTERNAL_ERROR", "login session insert conflict is unresolved")
+            raise AuthApplicationError(
+                "WEB_LOGIN_RESTART_REQUIRED",
+                "login QR must be regenerated",
+            )
         qr_data_url = f"data:{qr_mime};base64," + base64.b64encode(png).decode("ascii")
-        self._qr_cache[session.id] = qr_data_url
+        self._cache_qr(session.id, expires_at=session.expires_at, data_url=qr_data_url, now=now)
         return WebLoginCreated(session=session, qr_data_url=qr_data_url)
 
     def get_web_login_status(self, session_id: UUID, browser_verifier: str) -> WebLoginStatusView:
@@ -220,6 +266,7 @@ class WebAuthApplication:
             if latest.status is not WebLoginSessionStatus.CONFIRMED:
                 raise AuthApplicationError("WEB_LOGIN_NOT_CONFIRMED", "login confirmation is required")
             raise AuthApplicationError("INTERNAL_ERROR", "login session transition failed")
+        self._discard_cached_qr(session_id)
         return IssuedSession(
             token=token,
             expires_at=expires_at,
@@ -256,6 +303,7 @@ class WebAuthApplication:
             if latest.status is WebLoginSessionStatus.EXPIRED:
                 raise AuthApplicationError("WEB_LOGIN_EXPIRED", "login session expired")
             raise AuthApplicationError("INTERNAL_ERROR", "login session transition failed")
+        self._discard_cached_qr(session.id)
         return WebLoginStatusView(status=cancelled.status, expires_at=cancelled.expires_at)
 
     def exchange_mini_code(self, code: str) -> IssuedSession:
@@ -339,9 +387,75 @@ class WebAuthApplication:
                 session_id=session.id,
                 now=effective_now,
             ):
+                self._discard_cached_qr(session.id)
                 return expired
-            return self._load_session(session.id)
+            latest = self._load_session(session.id)
+            if latest.status in {
+                WebLoginSessionStatus.CANCELLED,
+                WebLoginSessionStatus.CONSUMED,
+                WebLoginSessionStatus.EXPIRED,
+            }:
+                self._discard_cached_qr(session.id)
+            return latest
+        if session.status in {
+            WebLoginSessionStatus.CANCELLED,
+            WebLoginSessionStatus.CONSUMED,
+            WebLoginSessionStatus.EXPIRED,
+        }:
+            self._discard_cached_qr(session.id)
         return session
+
+    def _retain_create_lock(self, key: tuple[str, str]) -> LockType:
+        with self._create_locks_guard:
+            entry = self._create_locks.get(key)
+            if entry is None:
+                entry = _CreateLockEntry(lock=Lock())
+                self._create_locks[key] = entry
+            entry.users += 1
+            return entry.lock
+
+    def _release_create_lock(self, key: tuple[str, str]) -> None:
+        with self._create_locks_guard:
+            entry = self._create_locks[key]
+            entry.users -= 1
+            if entry.users == 0:
+                del self._create_locks[key]
+
+    def _get_cached_qr(self, session_id: UUID, *, now: datetime) -> str | None:
+        with self._qr_cache_lock:
+            entry = self._qr_cache.get(session_id)
+            if entry is None:
+                return None
+            if now >= entry.expires_at:
+                del self._qr_cache[session_id]
+                return None
+            self._qr_cache.move_to_end(session_id)
+            return entry.data_url
+
+    def _cache_qr(
+        self,
+        session_id: UUID,
+        *,
+        expires_at: datetime,
+        data_url: str,
+        now: datetime,
+    ) -> None:
+        with self._qr_cache_lock:
+            expired_ids = [
+                cached_session_id
+                for cached_session_id, entry in self._qr_cache.items()
+                if now >= entry.expires_at
+            ]
+            for expired_id in expired_ids:
+                del self._qr_cache[expired_id]
+            self._qr_cache[session_id] = _QrCacheEntry(expires_at=expires_at, data_url=data_url)
+            self._qr_cache.move_to_end(session_id)
+            while len(self._qr_cache) > _MAX_QR_CACHE_ENTRIES:
+                self._qr_cache.popitem(last=False)
+
+    def _discard_cached_qr(self, session_id: UUID) -> None:
+        with self._qr_cache_lock:
+            self._qr_cache.pop(session_id, None)
 
     @staticmethod
     def _validate_browser_verifier(browser_verifier: str) -> None:

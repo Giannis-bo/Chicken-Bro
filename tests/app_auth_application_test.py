@@ -56,6 +56,7 @@ class FakeIdentityRepository:
 
     def insert_web_login_session(self, session, *, now):
         self.sessions[session.id] = session
+        return True
 
     def confirm_web_login_session(self, *, scene_ticket_sha256, user_id, now):
         session = next(

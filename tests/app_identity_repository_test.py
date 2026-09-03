@@ -3,7 +3,7 @@ from uuid import UUID
 import json
 import unittest
 
-from server.app.identity.domain import Principal, WebLoginSessionStatus
+from server.app.identity.domain import Principal, WebLoginSession, WebLoginSessionStatus
 from server.app.identity.audit import AuthAuditEvent
 from server.app.identity.repository import PostgresIdentityRepository
 
@@ -41,6 +41,28 @@ class FakeConnection:
 
 
 class AppIdentityRepositoryTest(unittest.TestCase):
+    def test_web_login_insert_reports_an_idempotency_conflict_without_raising(self):
+        now = datetime(2026, 9, 2, 15, 27, tzinfo=timezone.utc)
+        session = WebLoginSession(
+            id=UUID("00000000-0000-4000-8000-000000000047"),
+            scene_ticket_sha256="a" * 64,
+            browser_verifier_sha256="b" * 64,
+            idempotency_key_sha256="c" * 64,
+            user_id=None,
+            status=WebLoginSessionStatus.PENDING,
+            expires_at=now + timedelta(minutes=5),
+            consumed_at=None,
+        )
+        connection = FakeConnection(rows=[None])
+        repository = PostgresIdentityRepository(lambda: connection)
+
+        inserted = repository.insert_web_login_session(session, now=now)
+
+        self.assertIs(inserted, False)
+        sql, _ = connection.cursor_value.statements[0]
+        self.assertIn("ON CONFLICT DO NOTHING", sql)
+        self.assertIn("RETURNING id", sql)
+
     def test_web_expiry_only_advances_live_states_after_the_deadline(self):
         """Catches a stale expiry write overwriting a consumed or cancelled ticket."""
         now = datetime(2026, 9, 2, 15, 26, tzinfo=timezone.utc)

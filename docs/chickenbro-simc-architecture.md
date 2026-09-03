@@ -118,7 +118,7 @@ confirmed -> cancelled | expired
 
 Phase 2 的 product schema、domain、repository 与 application 已把正式终态统一为 `consumed`；legacy `0039` 中的 `exchanged` 只作为迁移输入保留，不能进入新库或正式 API 状态。
 
-二维码和 scene 明文只存在于生成它们的 API 进程内，数据库仍只保存 hash。若同一幂等创建请求跨越进程重启，服务端返回 `WEB_LOGIN_RESTART_REQUIRED`；Web 端只在这个明确不可恢复的错误下丢弃旧请求身份并生成新二维码，普通网络结果不确定时仍复用原 verifier 与 `Idempotency-Key`。
+二维码和 scene 明文只存在于生成它们的 API 进程内，数据库仍只保存 hash。进程内对同一 verifier 与 `Idempotency-Key` 的创建请求串行合并；二维码重放缓存同时受票据 TTL 和固定条目上限约束，进入 `cancelled`、`expired` 或 `consumed` 后立即释放。PostgreSQL 插入使用唯一约束兜住跨进程竞争；竞争失败或同一幂等创建请求跨越进程重启时，服务端返回 `WEB_LOGIN_RESTART_REQUIRED`。Web 端只在这个明确不可恢复的错误下丢弃旧请求身份并生成新二维码，普通网络结果不确定时仍复用原 verifier 与 `Idempotency-Key`。
 
 Web Session Cookie 固定为 HttpOnly、Secure 的 `__Host-chickenbro-session`；双提交 CSRF Cookie 固定为 JavaScript 可读、Secure 的 `__Host-chickenbro-csrf`。两者均为 SameSite=Lax、Path=/、无 Domain。Cookie 写请求还必须通过精确 Origin/Host 与常量时间 CSRF 比对；Mini 写请求只使用 Bearer，不使用 Web Cookie/CSRF。混合 Cookie/Bearer 或跨 transport 使用 token 固定拒绝。
 

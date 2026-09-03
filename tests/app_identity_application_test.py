@@ -1,5 +1,7 @@
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 from dataclasses import replace
 from datetime import datetime, timezone
+from threading import Event, Lock
 from uuid import uuid4
 import unittest
 
@@ -97,6 +99,7 @@ class InMemoryIdentityRepository:
 
     def insert_web_login_session(self, session, *, now):
         self.web_login_sessions[session.id] = session
+        return True
 
     def confirm_web_login_session(self, *, scene_ticket_sha256, user_id, now):
         session = next(
@@ -184,6 +187,17 @@ class InMemoryIdentityRepository:
         return self.users.get(user_id)
 
 
+class CompetingInsertIdentityRepository(InMemoryIdentityRepository):
+    def insert_web_login_session(self, session, *, now):
+        competing = replace(
+            session,
+            id=uuid4(),
+            scene_ticket_sha256=digest("competing-process-scene"),
+        )
+        self.web_login_sessions[competing.id] = competing
+        return False
+
+
 class FixedWechatGateway:
     def __init__(self, *, openid="same-openid", unionid="optional-union"):
         self.identity = WechatIdentity(openid=openid, unionid=unionid)
@@ -195,6 +209,25 @@ class FixedWechatGateway:
     def create_mini_code(self, *, scene, page, env_version):
         self.scenes.append(scene)
         return PNG
+
+
+class BlockingWechatGateway(FixedWechatGateway):
+    def __init__(self):
+        super().__init__()
+        self.first_started = Event()
+        self.release_first = Event()
+        self._calls_lock = Lock()
+        self.create_calls = 0
+
+    def create_mini_code(self, *, scene, page, env_version):
+        with self._calls_lock:
+            self.create_calls += 1
+            call_number = self.create_calls
+        if call_number == 1:
+            self.first_started.set()
+            if not self.release_first.wait(timeout=2):
+                raise RuntimeError("test did not release the first QR creation")
+        return super().create_mini_code(scene=scene, page=page, env_version=env_version)
 
 
 def settings(app_context):
@@ -272,6 +305,78 @@ class AppIdentityApplicationTest(unittest.TestCase):
         self.assertEqual(len(repository.web_login_sessions[created.session.id].scene_ticket_sha256), 64)
         self.assertFalse(hasattr(created, "scene_ticket"))
 
+    def test_cross_process_insert_race_fails_as_a_restart_instead_of_returning_an_unstored_qr(self):
+        repository = CompetingInsertIdentityRepository()
+        gateway = FixedWechatGateway()
+        application = self._application(repository, gateway)
+
+        with self.assertRaises(AuthApplicationError) as caught:
+            application.create_web_login("P" * 43, idempotency_key="process-race")
+
+        self.assertEqual(caught.exception.code, "WEB_LOGIN_RESTART_REQUIRED")
+        self.assertEqual(len(repository.web_login_sessions), 1)
+        stored = next(iter(repository.web_login_sessions.values()))
+        self.assertNotEqual(stored.scene_ticket_sha256, digest(gateway.scenes[0]))
+
+    def test_concurrent_idempotent_creates_share_one_process_local_qr(self):
+        repository = InMemoryIdentityRepository()
+        gateway = BlockingWechatGateway()
+        application = self._application(repository, gateway)
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            first = executor.submit(
+                application.create_web_login,
+                "C" * 43,
+                idempotency_key="concurrent-create",
+            )
+            self.assertTrue(gateway.first_started.wait(timeout=1))
+            second = executor.submit(
+                application.create_web_login,
+                "C" * 43,
+                idempotency_key="concurrent-create",
+            )
+            try:
+                with self.assertRaises(FutureTimeoutError):
+                    second.result(timeout=0.1)
+            finally:
+                gateway.release_first.set()
+            first_result = first.result(timeout=1)
+            second_result = second.result(timeout=1)
+
+        self.assertEqual(first_result.session.id, second_result.session.id)
+        self.assertEqual(first_result.qr_data_url, second_result.qr_data_url)
+        self.assertEqual(gateway.create_calls, 1)
+        self.assertEqual(len(repository.web_login_sessions), 1)
+
+    def test_terminal_login_releases_process_local_qr_replay(self):
+        repository = InMemoryIdentityRepository()
+        gateway = FixedWechatGateway()
+        application = self._application(repository, gateway)
+        verifier = "T" * 43
+        created = application.create_web_login(verifier, idempotency_key="terminal-create")
+
+        application.cancel_web_login(created.session.id, verifier)
+
+        with self.assertRaises(AuthApplicationError) as caught:
+            application.create_web_login(verifier, idempotency_key="terminal-create")
+        self.assertEqual(caught.exception.code, "WEB_LOGIN_RESTART_REQUIRED")
+
+    def test_qr_replay_cache_has_a_fixed_process_memory_bound(self):
+        repository = InMemoryIdentityRepository()
+        gateway = FixedWechatGateway()
+        application = self._application(repository, gateway)
+        verifier = "M" * 43
+        first = application.create_web_login(verifier, idempotency_key="bounded-000")
+        for index in range(1, 257):
+            application.create_web_login(verifier, idempotency_key=f"bounded-{index:03d}")
+
+        with self.assertRaises(AuthApplicationError) as caught:
+            application.create_web_login(verifier, idempotency_key="bounded-000")
+
+        self.assertEqual(caught.exception.code, "WEB_LOGIN_RESTART_REQUIRED")
+        self.assertIn(first.session.id, repository.web_login_sessions)
+        self.assertEqual(len(repository.web_login_sessions), 257)
+
     def test_web_exchange_uses_atomic_consume_and_session_issue_port(self):
         """Catches consuming a ticket and issuing its Web credential in separate commits."""
         repository = InMemoryIdentityRepository()
@@ -284,6 +389,9 @@ class AppIdentityApplicationTest(unittest.TestCase):
         application.exchange_web_login(created.session.id, "Z" * 43)
 
         self.assertEqual(repository.atomic_web_exchanges, 1)
+        with self.assertRaises(AuthApplicationError) as caught:
+            application.create_web_login("Z" * 43, idempotency_key="atomic-login")
+        self.assertEqual(caught.exception.code, "WEB_LOGIN_RESTART_REQUIRED")
 
     def test_mini_confirmation_claims_the_web_ticket_atomically(self):
         """Catches two Mini users overwriting one QR login owner after a stale read."""
@@ -323,6 +431,9 @@ class AppIdentityApplicationTest(unittest.TestCase):
 
         self.assertEqual(status.status, WebLoginSessionStatus.EXPIRED)
         self.assertEqual(repository.atomic_web_expirations, 1)
+        with self.assertRaises(AuthApplicationError) as caught:
+            application.create_web_login("W" * 43, idempotency_key="atomic-expiry")
+        self.assertEqual(caught.exception.code, "WEB_LOGIN_RESTART_REQUIRED")
 
     def test_same_provider_subject_in_different_app_contexts_is_not_guessed_as_one_user(self):
         """Catches merging identical OpenID strings issued under different Mini Program AppIDs."""

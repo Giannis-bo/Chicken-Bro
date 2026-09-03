@@ -78,7 +78,8 @@ class IdentityRepository(Protocol):
     def revoke_auth_session(self, *, token_hash: str, kind: SessionKind, now: datetime) -> None:
         raise NotImplementedError
 
-    def insert_web_login_session(self, session: WebLoginSession, *, now: datetime) -> None:
+    def insert_web_login_session(self, session: WebLoginSession, *, now: datetime) -> bool:
+        """Insert once, returning false when a concurrent unique insert won."""
         raise NotImplementedError
 
     def confirm_web_login_session(

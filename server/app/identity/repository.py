@@ -259,7 +259,7 @@ class PostgresIdentityRepository:
                     (now, token_hash, kind),
                 )
 
-    def insert_web_login_session(self, session: WebLoginSession, *, now: datetime) -> None:
+    def insert_web_login_session(self, session: WebLoginSession, *, now: datetime) -> bool:
         with self._connection_factory() as connection:
             with connection.cursor() as cursor:
                 cursor.execute(
@@ -270,6 +270,8 @@ class PostgresIdentityRepository:
                         consumed_at, created_at, updated_at
                     )
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT DO NOTHING
+                    RETURNING id
                     """,
                     (
                         session.id,
@@ -284,6 +286,8 @@ class PostgresIdentityRepository:
                         now,
                     ),
                 )
+                row = cursor.fetchone()
+        return row is not None
 
     def confirm_web_login_session(
         self,
