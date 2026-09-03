@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedFromCommit": "9e4669c988d6a2d26afec6e2f66474a78cf28ee6",
+  "generatedFromCommit": "72e84d5ef6dfe046cb8b5f8d521e65fb935e006a",
   "excludedSelfPath": "docs/refactor/chickenbro-simc-refactor-inventory.json",
   "sourceRulesSha256": "84cfdeeaf7652ccff23c8817063b02d94b0ff7e966a4c06f72522e35290cdcb3",
   "entryCount": 2858,
@@ -14833,8 +14833,8 @@
       "owner": "Chickenbro Chat and SimC product",
       "reason": "These are the bounded architecture, operations, ownership, verification, and cleanup authorities for the rebuilt product.",
       "matchedRule": "retained-product-documentation",
-      "bytes": 7855,
-      "sha256": "f4209848ac8f02eee04efcc1a566166c516ef9bf79acc3a8512465b4df9d7966"
+      "bytes": 7952,
+      "sha256": "e622abe641000b4bdf9a80ca06df2ad0762ca563cab37a619af3fddfb4b03645"
     },
     {
       "path": "docs/refactor/chickenbro-simc-cloud-cleanup-manifest.json",
@@ -14843,8 +14843,8 @@
       "owner": "Chickenbro Chat and SimC product",
       "reason": "These are the bounded architecture, operations, ownership, verification, and cleanup authorities for the rebuilt product.",
       "matchedRule": "retained-product-documentation",
-      "bytes": 78570,
-      "sha256": "72b21b7fdfc49ad8f7c88ca5e28e7d5150129b6df8844782d4da2449dc9d845a"
+      "bytes": 78702,
+      "sha256": "ab5f5810a29040325a864b3a042a861267f997dd92e5d5495b651692d9fd390a"
     },
     {
       "path": "docs/refactor/chickenbro-simc-cloud-inventory.json",
@@ -24213,8 +24213,8 @@
       "owner": "Canonical Chickenbro PostgreSQL schema",
       "reason": "The clean schema, allowlisted legacy copier, and reconciliation owners are the current migration authority.",
       "matchedRule": "target-product-schema-and-migration",
-      "bytes": 36443,
-      "sha256": "20c932de628585deb5aabc6501524e2167965839b1019f08dbb043b12b7f5232"
+      "bytes": 44587,
+      "sha256": "1325b202003056a6286b67d85e6f08c58aa502f9fe6554a5595db7451ef40653"
     },
     {
       "path": "server/migrations/product/reconcile_legacy.py",
@@ -24613,8 +24613,8 @@
       "owner": "Chickenbro and SimC runtime",
       "reason": "The isolated Chickenbro services, Nginx owner, candidate acceptance, deploy, provision, and cutover tooling are the current runtime authority.",
       "matchedRule": "target-chickenbro-deployment",
-      "bytes": 54180,
-      "sha256": "e2411e9b1b265841da687c1218614ec3bb1e400c04916fa2e87e1857a470d9f6"
+      "bytes": 58682,
+      "sha256": "03c913f4b4ef66639ac2b3750ed003c54ebdba5c404159d4733b737462302080"
     },
     {
       "path": "server/s2_community_exact.py",
@@ -26233,8 +26233,8 @@
       "owner": "Chat and SimC verification suite",
       "reason": "These tests cover the retained backend, clients, clean migration, build, candidate, cutover, cleanup, and control-plane contracts.",
       "matchedRule": "retained-target-tests",
-      "bytes": 5248,
-      "sha256": "8540a256e01e05d2a1db2294548b465659f48f54180923c5440cfab9ad3d5c82"
+      "bytes": 5368,
+      "sha256": "7df4999bdd0709911da4636d98c48808977366f192dab486bfe4cd836b3315d0"
     },
     {
       "path": "tests/chickenbro_simc_cloud_inventory_test.py",
@@ -27653,8 +27653,8 @@
       "owner": "Chat and SimC verification suite",
       "reason": "These tests cover the retained backend, clients, clean migration, build, candidate, cutover, cleanup, and control-plane contracts.",
       "matchedRule": "retained-target-tests",
-      "bytes": 12763,
-      "sha256": "ae82bb7cfee5a9f0d9f8d6ee0929d9dca1d8ac6889e46a0c3e15778b7801f3ee"
+      "bytes": 21900,
+      "sha256": "d9210eaa0144c66e6ba7f1dfd7a7e300bc882f39c3d499dabc9ab944e976d427"
     },
     {
       "path": "tests/postgres_only_scripts_test.py",
@@ -27893,8 +27893,8 @@
       "owner": "Chat and SimC verification suite",
       "reason": "These tests cover the retained backend, clients, clean migration, build, candidate, cutover, cleanup, and control-plane contracts.",
       "matchedRule": "retained-target-tests",
-      "bytes": 16167,
-      "sha256": "e6700294ff9423b60c8b2efd8b3beefabd5a15a3bb7e7896581ec5f7a1e863f0"
+      "bytes": 25040,
+      "sha256": "feb95599cb89dab26015e715edb42525aba27052c72eeaf340e592c19f0636a4"
     },
     {
       "path": "tests/runtime-asset-slot-mapping.test.js",
@@ -28617,5 +28617,5 @@
       "sha256": "4736cc276f788e5427d17e51499c110336106bb64db4c827e2d576629d8f281f"
     }
   ],
-  "inventorySha256": "2bc55ce0817f395b5200cf2593919df755190811335a5c803bb2ad69b1bf8c96"
+  "inventorySha256": "8d6fda2f3178d4a53808a83e28b090dd9002d0fad700e7413630843888a24953"
 }
