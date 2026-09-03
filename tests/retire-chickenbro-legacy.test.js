@@ -117,14 +117,15 @@ test('cloud cleanup manifest covers every observed legacy unit and database exac
   assert.equal(manifest.acceptedProductionRecovery.status, 'not_run')
   assert.equal(manifest.capacityPreCleanup.authorized, true)
   assert.deepEqual(manifest.capacityPreCleanup.lastAttempt, {
-    observedAt: '2026-09-03T06:07:03Z',
-    manifestSha256: 'b28e9b30e2cc03245e4264bd55ead9dfbea4269b93a52aa390de531e2803f92a',
+    observedAt: '2026-09-03T06:18:34Z',
+    manifestSha256: '5dc762674e66942e61992449dc5f214add441eb688c6b7165b7dcbdd3e338a78',
     status: 'failed_before_mutation',
-    reasonCode: 'psql_command_variable_not_interpolated',
+    reasonCode: 'kernel_thread_environ_esrch_misclassified',
     databasesPresent: 4,
     envFilesPresent: 4,
     activeConnections: 0,
     pairJournalCount: 0,
+    kernelThreadEnvironErrors: 93,
     mutationPerformed: false,
   })
   assert.equal(manifest.capacityPreCleanup.requiresPhase5Acceptance, false)
@@ -453,6 +454,33 @@ test('expected process exit and empty lsof rc=1 are explicit clear states', (t) 
   ].join('\n')], { encoding: 'utf8' })
   assert.equal(lsofResult.status, 0, lsofResult.stderr)
   assert.equal(lsofResult.stdout.trim(), 'clear')
+})
+
+test('kernel threads with no readable environ are excluded without hiding user-process probe errors', (t) => {
+  const source = fs.readFileSync(scriptPath, 'utf8')
+  const processProbe = extractShellFunction(source, 'process_environment_reference_probe')
+  assert.ok(processProbe)
+  const directory = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'chickenbro-kthread-'))
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }))
+  const processRoot = path.join(directory, 'proc')
+  const processDirectory = path.join(processRoot, '2')
+  const environment = path.join(processDirectory, 'environ')
+  fs.mkdirSync(processDirectory, { recursive: true })
+  fs.writeFileSync(environment, '')
+  fs.writeFileSync(path.join(processDirectory, 'status'), 'Name:\tkthreadd\nKthread:\t1\n')
+  const result = spawnSync('bash', ['-c', [
+    'set -u',
+    `PROCESS_ENVIRON_ROOT=${JSON.stringify(processRoot)}`,
+    `KTHREAD_ENV=${JSON.stringify(environment)}`,
+    'grep() {',
+    '  if [[ "$*" == *"${KTHREAD_ENV}"* ]]; then printf "No such process\\n" >&2; return 2; fi',
+    '  command grep "$@"',
+    '}',
+    processProbe,
+    'process_environment_reference_probe reviewed',
+  ].join('\n')], { encoding: 'utf8' })
+  assert.equal(result.status, 0, result.stderr)
+  assert.equal(result.stdout.trim(), 'clear\t0')
 })
 
 test('capacity preflight rejects symlinked or realpath-drifted env companions', () => {

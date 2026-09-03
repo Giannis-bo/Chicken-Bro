@@ -714,7 +714,8 @@ open_handle_probe() {
 process_environment_reference_probe() {
   local needle="$1"
   local process_root="${PROCESS_ENVIRON_ROOT:-/proc}"
-  local count=0 process_env error_file grep_status nullglob_was_set=false
+  local count=0 process_env process_dir status_file error_file status_error_file
+  local grep_status status_grep_status nullglob_was_set=false
   local -a process_environments=()
   [[ -d "${process_root}" && -r "${process_root}" ]] \
     || { printf '%s\n' 'error'; return 1; }
@@ -726,13 +727,15 @@ process_environment_reference_probe() {
   process_environments=("${process_root}"/[0-9]*/environ)
   [[ "${nullglob_was_set}" == "true" ]] || shopt -u nullglob
   error_file="$(mktemp)" || { printf '%s\n' 'error'; return 1; }
+  status_error_file="$(mktemp)" \
+    || { rm -f -- "${error_file}"; printf '%s\n' 'error'; return 1; }
   for process_env in "${process_environments[@]}"; do
     : > "${error_file}"
     grep_status=0
     grep -Fq -- "${needle}" "${process_env}" 2>"${error_file}" || grep_status=$?
     if [[ "${grep_status}" -eq 0 ]]; then
       [[ ! -s "${error_file}" ]] \
-        || { rm -f -- "${error_file}"; printf '%s\n' 'error'; return 1; }
+        || { rm -f -- "${error_file}" "${status_error_file}"; printf '%s\n' 'error'; return 1; }
       count=$(( count + 1 ))
     elif [[ "${grep_status}" -eq 1 && ! -s "${error_file}" ]]; then
       :
@@ -740,12 +743,27 @@ process_environment_reference_probe() {
       # A process may exit between the /proc snapshot and the read.
       :
     else
-      rm -f -- "${error_file}"
-      printf '%s\n' 'error'
-      return 1
+      process_dir="${process_env%/environ}"
+      status_file="${process_dir}/status"
+      : > "${status_error_file}"
+      status_grep_status=0
+      grep -Eq '^Kthread:[[:space:]]+1$' "${status_file}" 2>"${status_error_file}" \
+        || status_grep_status=$?
+      if [[ "${status_grep_status}" -eq 0 && ! -s "${status_error_file}" ]]; then
+        # Kernel threads have no userspace environment; Linux reports ESRCH
+        # when their synthetic /proc/<pid>/environ file is opened.
+        :
+      elif [[ ! -e "${process_dir}" && ! -L "${process_dir}" ]]; then
+        # The process may also exit between the failed read and status check.
+        :
+      else
+        rm -f -- "${error_file}" "${status_error_file}"
+        printf '%s\n' 'error'
+        return 1
+      fi
     fi
   done
-  rm -f -- "${error_file}"
+  rm -f -- "${error_file}" "${status_error_file}"
   if [[ "${count}" -eq 0 ]]; then
     printf 'clear\t0\n'
   else
