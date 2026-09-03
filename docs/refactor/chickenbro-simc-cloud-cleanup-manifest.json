@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "mode": "dry-run",
-  "generatedAt": "2026-09-03T06:38:07Z",
+  "generatedAt": "2026-09-03T07:16:36Z",
   "deletionAuthorized": false,
   "status": "capacity_precleanup_ready_full_retirement_blocked",
   "sourceInventory": {
@@ -46,15 +46,15 @@
   "capacityPreCleanup": {
     "authorized": true,
     "lastAttempt": {
-      "observedAt": "2026-09-03T06:38:07Z",
-      "manifestSha256": "22e1dc9f182bf09574b659eb55e3a6c2fed7344bcf112de36498b9cfb475f1bd",
+      "observedAt": "2026-09-03T07:16:36Z",
+      "manifestSha256": "c0e6da78c7d83bcef3c991861a914648d7f6ed8b203365966cd35147a4942451",
       "status": "failed_before_mutation",
-      "reasonCode": "ssh_idle_transport_closed",
+      "reasonCode": "postgres_cannot_disallow_current_database",
       "databasesPresent": 4,
       "envFilesPresent": 4,
       "activeConnections": 0,
-      "pairJournalCount": 0,
-      "transportExitCode": 255,
+      "pairJournalCount": 4,
+      "reconciledPairCount": 1,
       "mutationPerformed": false
     },
     "requiresPhase5Acceptance": false,

@@ -431,7 +431,7 @@ cleanup_remote_tmp() {
   [[ -z "${RESULTS_TMP}" ]] || rm -f -- "${RESULTS_TMP}"
 }
 trap cleanup_remote_tmp EXIT
-for command_name in awk base64 cat curl find grep install lsof mktemp mv nginx psql python3 readlink realpath rm sed sha256sum sort sudo systemctl tee; do
+for command_name in awk base64 cat curl env find grep install lsof mktemp mv nginx psql python3 readlink realpath rm sed sha256sum sort sudo systemctl tee; do
   command -v "${command_name}" >/dev/null 2>&1 || die_remote "required apply command is unavailable: ${command_name}"
 done
 # Metadata is deliberately the first apply-side action on the reviewed host.
@@ -1233,12 +1233,14 @@ capacity_pair_abort() {
 fence_and_verify_capacity_database() {
   local database="$1" expected_size="$2" expected_table_count="$3" expected_exact_row_count="$4" expected_owner="$5"
   local verification_output
-  verification_output="$(sudo -n -u postgres psql --no-psqlrc --dbname="${database}" --quiet --tuples-only --no-align \
+  [[ "${database}" =~ ^[a-z][a-z0-9_]{0,62}$ ]] || return 1
+  verification_output="$(sudo -n -u postgres env "CAPACITY_DATABASE=${database}" \
+    psql --no-psqlrc --dbname="${database}" --quiet --tuples-only --no-align \
     --set=ON_ERROR_STOP=1 --set=target="${database}" --set=expected_size="${expected_size}" \
     --set=expected_table_count="${expected_table_count}" --set=expected_exact_row_count="${expected_exact_row_count}" \
     --set=expected_owner="${expected_owner}" <<'SQL'
-SELECT format('ALTER DATABASE %I WITH ALLOW_CONNECTIONS false', current_database()) \gexec
 SELECT 1 / CASE WHEN current_database() = :'target' THEN 1 ELSE 0 END;
+\! psql --no-psqlrc --dbname=postgres --set=ON_ERROR_STOP=1 --command="ALTER DATABASE ${CAPACITY_DATABASE} WITH ALLOW_CONNECTIONS false"
 SELECT 1 / CASE WHEN (
   SELECT pg_get_userbyid(datdba) = :'expected_owner' AND datallowconn = false
   FROM pg_database

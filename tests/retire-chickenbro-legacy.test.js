@@ -117,15 +117,15 @@ test('cloud cleanup manifest covers every observed legacy unit and database exac
   assert.equal(manifest.acceptedProductionRecovery.status, 'not_run')
   assert.equal(manifest.capacityPreCleanup.authorized, true)
   assert.deepEqual(manifest.capacityPreCleanup.lastAttempt, {
-    observedAt: '2026-09-03T06:38:07Z',
-    manifestSha256: '22e1dc9f182bf09574b659eb55e3a6c2fed7344bcf112de36498b9cfb475f1bd',
+    observedAt: '2026-09-03T07:16:36Z',
+    manifestSha256: 'c0e6da78c7d83bcef3c991861a914648d7f6ed8b203365966cd35147a4942451',
     status: 'failed_before_mutation',
-    reasonCode: 'ssh_idle_transport_closed',
+    reasonCode: 'postgres_cannot_disallow_current_database',
     databasesPresent: 4,
     envFilesPresent: 4,
     activeConnections: 0,
-    pairJournalCount: 0,
-    transportExitCode: 255,
+    pairJournalCount: 4,
+    reconciledPairCount: 1,
     mutationPerformed: false,
   })
   assert.equal(manifest.capacityPreCleanup.requiresPhase5Acceptance, false)
@@ -601,9 +601,13 @@ test('one target session fences and revalidates identity without terminating ses
     'fence_and_verify_capacity_database reviewed_database 100 2 37 postgres',
   ].join('\n')], { encoding: 'utf8' })
   assert.equal(result.status, 0, result.stderr)
-  assert.match(fs.readFileSync(argsPath, 'utf8'), /--dbname=reviewed_database/)
+  const args = fs.readFileSync(argsPath, 'utf8')
+  assert.match(args, /env CAPACITY_DATABASE=reviewed_database psql/)
+  assert.match(args, /--dbname=reviewed_database/)
   const sql = fs.readFileSync(sqlPath, 'utf8')
   assert.ok(sql.indexOf('ALLOW_CONNECTIONS false') < sql.indexOf('pg_database_size'))
+  assert.match(sql, /\\! psql .*--dbname=postgres .*ALTER DATABASE \$\{CAPACITY_DATABASE\} WITH ALLOW_CONNECTIONS false/)
+  assert.doesNotMatch(sql, /ALTER DATABASE %I WITH ALLOW_CONNECTIONS false.*current_database/)
   assert.match(sql, /pid <> pg_backend_pid\(\)/)
   assert.match(sql, /SELECT count\(\*\)::bigint FROM/)
   assert.doesNotMatch(sql, /pg_terminate_backend/)
