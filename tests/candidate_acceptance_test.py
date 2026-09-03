@@ -40,6 +40,7 @@ class FakeCandidateApi:
         self.jobs = []
         self.job_inputs = {}
         self.stream_calls = []
+        self.created_snapshot = False
 
     def exchange_web(self, session_id, browser_verifier):
         self.assert_secret_inputs(session_id, browser_verifier)
@@ -70,6 +71,19 @@ class FakeCandidateApi:
         if path.endswith("/auth/logout"):
             self.web_logged_out = True
             return ApiResponse(200, {"loggedOut": True})
+        if path.endswith("/simc/snapshots") and method == "POST":
+            self.created_snapshot = True
+            return ApiResponse(201, {
+                "id": str(SNAPSHOT),
+                "provider": "raiderio",
+                "readiness": "READY_FOR_SIMC",
+                "missingFields": [],
+                "blockers": [],
+                "provenance": {
+                    "sourceRevision": "blizzard-profile:test",
+                    "sourceRawSha256": "f" * 64,
+                },
+            })
         if path.endswith("/chat/conversations") and method == "POST":
             identifier = MINI_CONVERSATION if transport == "mini" else WEB_CONVERSATION
             self.conversations.append(identifier)
@@ -189,6 +203,17 @@ class CandidateAcceptanceTest(unittest.TestCase):
             browser_verifier="V" * 43,
         )
 
+    def seed_without_snapshot(self):
+        return AcceptanceSeed(
+            primary_user_id=PRIMARY_USER,
+            other_user_id=OTHER_USER,
+            ready_snapshot_id=None,
+            mini_token="mini-secret-token",
+            other_mini_token="other-secret-token",
+            web_login_session_id=WEB_LOGIN,
+            browser_verifier="V" * 43,
+        )
+
     def test_cross_transport_acceptance_is_owner_scoped_and_redacted(self):
         api = FakeCandidateApi()
         evidence = run_candidate_acceptance(
@@ -229,6 +254,33 @@ class CandidateAcceptanceTest(unittest.TestCase):
             "candidate-acceptance",
         ):
             self.assertNotIn(secret, serialized)
+
+    def test_acceptance_creates_and_validates_a_live_source_snapshot_when_not_preseeded(self):
+        api = FakeCandidateApi()
+        evidence = run_candidate_acceptance(
+            self.seed_without_snapshot(),
+            api,
+            expected_commit="a" * 40,
+            web_build_identity="b" * 64,
+            weapp_build_identity="c" * 64,
+            source_url="https://raider.io/characters/eu/taerar/PublicSample",
+            sleep=lambda _seconds: None,
+        )
+
+        self.assertTrue(api.created_snapshot)
+        self.assertFalse(evidence["transportScope"]["migratedReadySnapshot"])
+        self.assertTrue(evidence["transportScope"]["liveSourceSnapshot"])
+
+    def test_acceptance_requires_a_source_url_when_the_seed_has_no_snapshot(self):
+        with self.assertRaisesRegex(AcceptanceError, "SIMC_SOURCE_URL_REQUIRED"):
+            run_candidate_acceptance(
+                self.seed_without_snapshot(),
+                FakeCandidateApi(),
+                expected_commit="a" * 40,
+                web_build_identity="b" * 64,
+                weapp_build_identity="c" * 64,
+                sleep=lambda _seconds: None,
+            )
 
     def test_owner_visibility_leak_fails_closed(self):
         with self.assertRaisesRegex(AcceptanceError, "OWNER_ISOLATION_FAILED"):
@@ -285,7 +337,7 @@ class CandidateAcceptanceTest(unittest.TestCase):
             ["started", "completed"],
         )
 
-    def test_postgres_seed_uses_a_migrated_supported_elemental_snapshot(self):
+    def test_postgres_seed_uses_an_active_wechat_owner_without_requiring_a_simc_snapshot(self):
         calls = []
 
         class Cursor:
@@ -302,8 +354,8 @@ class CandidateAcceptanceTest(unittest.TestCase):
                 query = calls[-1][0]
                 if "current_database()" in query:
                     return ("chickenbro_candidate",)
-                if "FROM simc.source_snapshots" in query:
-                    return (str(PRIMARY_USER), str(SNAPSHOT))
+                if "FROM identity.users" in query and "user_identities" in query:
+                    return (str(PRIMARY_USER),)
                 raise AssertionError(query)
 
         class Connection:
@@ -324,10 +376,12 @@ class CandidateAcceptanceTest(unittest.TestCase):
         )
 
         self.assertEqual(seed.primary_user_id, PRIMARY_USER)
-        snapshot_query = next(call for call in calls if "FROM simc.source_snapshots" in call[0])
-        self.assertIn("snapshot_json #>> '{character,classKey}'", snapshot_query[0])
-        self.assertIn("snapshot_json #>> '{character,specKey}'", snapshot_query[0])
-        self.assertEqual(snapshot_query[1], ("shaman", "elemental", "wx-reviewed"))
+        self.assertIsNone(seed.ready_snapshot_id)
+        owner_query = next(call for call in calls if "FROM identity.users" in call[0])
+        self.assertIn("JOIN identity.user_identities", owner_query[0])
+        self.assertIn("provider = 'wechat_mini'", owner_query[0])
+        self.assertEqual(owner_query[1], ("wx-reviewed",))
+        self.assertFalse(any("FROM simc.source_snapshots" in query for query, _ in calls))
 
 
 if __name__ == "__main__":

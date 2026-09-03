@@ -27,6 +27,8 @@ from pathlib import Path
 from typing import Any, Callable, Mapping, Protocol
 from uuid import UUID
 
+from server.app.simulation.sources import InvalidSourceLink, parse_character_source_url
+
 
 SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 COMMIT = re.compile(r"[0-9a-f]{40}\Z")
@@ -53,11 +55,11 @@ class ApiResponse:
 class AcceptanceSeed:
     primary_user_id: UUID
     other_user_id: UUID
-    ready_snapshot_id: UUID
     mini_token: str = field(repr=False)
     other_mini_token: str = field(repr=False)
     web_login_session_id: UUID
     browser_verifier: str = field(repr=False)
+    ready_snapshot_id: UUID | None = None
 
 
 class CandidateApi(Protocol):
@@ -302,6 +304,47 @@ def _poll_job(
     raise AcceptanceError("SIMC_ACCEPTANCE_TIMEOUT")
 
 
+def _create_ready_snapshot(
+    api: CandidateApi,
+    *,
+    prefix: str,
+    source_url: str,
+) -> UUID:
+    normalized_source_url = str(source_url or "").strip()
+    if not normalized_source_url:
+        raise AcceptanceError("SIMC_SOURCE_URL_REQUIRED")
+    try:
+        parsed = parse_character_source_url(normalized_source_url)
+    except InvalidSourceLink:
+        raise AcceptanceError("SIMC_SOURCE_URL_INVALID") from None
+    response = _require(
+        api.request(
+            "mini",
+            "POST",
+            f"{prefix}/simc/snapshots",
+            body={"sourceUrl": parsed.url},
+            headers={"Idempotency-Key": f"acceptance-source-{_hash('source-url', parsed.url)[:24]}"},
+        ),
+        201,
+        "SIMC_SOURCE_SNAPSHOT_CREATE_FAILED",
+    )
+    snapshot_id = _identifier(response, "SIMC_SOURCE_SNAPSHOT_CREATE_FAILED")
+    if response.get("provider") not in {"raiderio", "warcraftlogs"}:
+        raise AcceptanceError("SIMC_SOURCE_SNAPSHOT_INVALID")
+    if response.get("readiness") != "READY_FOR_SIMC":
+        raise AcceptanceError("SIMC_SOURCE_SNAPSHOT_NOT_READY")
+    if response.get("missingFields") not in ([], None) or response.get("blockers") not in ([], None):
+        raise AcceptanceError("SIMC_SOURCE_SNAPSHOT_NOT_READY")
+    provenance = response.get("provenance")
+    if (
+        not isinstance(provenance, Mapping)
+        or not str(provenance.get("sourceRevision") or "").strip()
+        or SHA256.fullmatch(str(provenance.get("sourceRawSha256") or "")) is None
+    ):
+        raise AcceptanceError("SIMC_SOURCE_SNAPSHOT_INVALID")
+    return UUID(snapshot_id)
+
+
 def run_candidate_acceptance(
     seed: AcceptanceSeed,
     api: CandidateApi,
@@ -309,6 +352,7 @@ def run_candidate_acceptance(
     expected_commit: str,
     web_build_identity: str,
     weapp_build_identity: str,
+    source_url: str | None = None,
     clock: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
     sleep: Callable[[float], None] = time.sleep,
 ) -> dict[str, Any]:
@@ -343,6 +387,16 @@ def run_candidate_acceptance(
         raise AcceptanceError("SHARED_OWNER_FAILED")
     if str(mini_me.get("displayName") or "") != str(web_me.get("displayName") or ""):
         raise AcceptanceError("SHARED_OWNER_FAILED")
+
+    snapshot_id = seed.ready_snapshot_id
+    source_snapshot_created = False
+    if snapshot_id is None:
+        snapshot_id = _create_ready_snapshot(
+            api,
+            prefix=prefix,
+            source_url=source_url or "",
+        )
+        source_snapshot_created = True
 
     nonce = _hash("acceptance-run", seed.web_login_session_id)[:12]
     mini_conversation_body = {"title": f"acceptance-mini-{nonce}"}
@@ -530,7 +584,7 @@ def run_candidate_acceptance(
             "mini",
             "POST",
             jobs_path,
-            body={"snapshotId": str(seed.ready_snapshot_id), "scenario": mini_scenario},
+            body={"snapshotId": str(snapshot_id), "scenario": mini_scenario},
             headers={"Idempotency-Key": f"acceptance-mini-simc-{nonce}"},
         ),
         202,
@@ -540,7 +594,7 @@ def run_candidate_acceptance(
     _assert_job_identity(
         mini_job_created,
         job_id=mini_job,
-        snapshot_id=seed.ready_snapshot_id,
+        snapshot_id=snapshot_id,
         scenario=mini_scenario,
     )
     if not _listed(
@@ -553,7 +607,7 @@ def run_candidate_acceptance(
         transport="web",
         path=jobs_path,
         job_id=mini_job,
-        snapshot_id=seed.ready_snapshot_id,
+        snapshot_id=snapshot_id,
         scenario=mini_scenario,
         sleep=sleep,
     )
@@ -564,7 +618,7 @@ def run_candidate_acceptance(
             "web",
             "POST",
             jobs_path,
-            body={"snapshotId": str(seed.ready_snapshot_id), "scenario": web_scenario},
+            body={"snapshotId": str(snapshot_id), "scenario": web_scenario},
             headers={**web_write, "Idempotency-Key": f"acceptance-web-simc-{nonce}"},
         ),
         202,
@@ -574,7 +628,7 @@ def run_candidate_acceptance(
     _assert_job_identity(
         web_job_created,
         job_id=web_job,
-        snapshot_id=seed.ready_snapshot_id,
+        snapshot_id=snapshot_id,
         scenario=web_scenario,
     )
     if not _listed(
@@ -587,7 +641,7 @@ def run_candidate_acceptance(
         transport="mini",
         path=jobs_path,
         job_id=web_job,
-        snapshot_id=seed.ready_snapshot_id,
+        snapshot_id=snapshot_id,
         scenario=web_scenario,
         sleep=sleep,
     )
@@ -624,7 +678,8 @@ def run_candidate_acceptance(
             "miniBearer": "public_candidate_api",
             "webCookieCsrf": "public_candidate_api",
             "seededShortLivedAuth": True,
-            "migratedReadySnapshot": True,
+            "migratedReadySnapshot": False,
+            "liveSourceSnapshot": source_snapshot_created,
         },
         "checks": {
             "sharedInternalOwner": True,
@@ -641,7 +696,7 @@ def run_candidate_acceptance(
         "redactedObjectHashes": {
             "primaryUser": _hash("primary-user", seed.primary_user_id),
             "otherUser": _hash("other-user", seed.other_user_id),
-            "sourceSnapshot": _hash("snapshot", seed.ready_snapshot_id),
+            "sourceSnapshot": _hash("snapshot", snapshot_id),
             "miniCreatedConversation": _hash("conversation", mini_conversation),
             "webCreatedConversation": _hash("conversation", web_conversation),
             "miniCreatedJob": _hash("job", mini_job),
@@ -655,7 +710,7 @@ def run_candidate_acceptance(
     for secret in (
         str(seed.primary_user_id),
         str(seed.other_user_id),
-        str(seed.ready_snapshot_id),
+        str(snapshot_id),
         str(seed.web_login_session_id),
         seed.mini_token,
         seed.other_mini_token,
@@ -667,6 +722,7 @@ def run_candidate_acceptance(
         web_job,
         web_prompt,
         mini_prompt,
+        str(source_url or "").strip(),
     ):
         if secret and secret in serialized:
             raise AcceptanceError("EVIDENCE_REDACTION_FAILED")
@@ -697,30 +753,23 @@ class PostgresAcceptanceSeeder:
                     raise AcceptanceError("CANDIDATE_DATABASE_INVALID")
                 cursor.execute(
                     """
-                    SELECT snapshots.user_id, snapshots.id
-                    FROM simc.source_snapshots AS snapshots
-                    JOIN identity.users AS users ON users.id = snapshots.user_id
-                    WHERE snapshots.readiness = 'READY_FOR_SIMC'
-                      AND users.status = 'active'
-                      AND lower(snapshots.snapshot_json #>> '{character,classKey}') = %s
-                      AND lower(snapshots.snapshot_json #>> '{character,specKey}') = %s
-                      AND EXISTS (
-                          SELECT 1
-                          FROM identity.user_identities AS identities
-                          WHERE identities.user_id = snapshots.user_id
-                            AND identities.provider = 'wechat_mini'
-                            AND identities.app_context = %s
-                      )
-                    ORDER BY snapshots.fetched_at DESC, snapshots.id DESC
+                    SELECT users.id
+                    FROM identity.users AS users
+                    JOIN identity.user_identities AS identities
+                      ON identities.user_id = users.id
+                    WHERE users.status = 'active'
+                      AND identities.provider = 'wechat_mini'
+                      AND identities.app_context = %s
+                      AND identities.provider_subject NOT LIKE 'candidate-isolation-%'
+                    ORDER BY users.created_at, users.id
                     LIMIT 1
                     """,
-                    ("shaman", "elemental", app_context),
+                    (app_context,),
                 )
-                source = cursor.fetchone()
-                if source is None:
-                    raise AcceptanceError("MIGRATED_READY_SNAPSHOT_REQUIRED")
-                primary_user_id = UUID(str(source[0]))
-                snapshot_id = UUID(str(source[1]))
+                owner = cursor.fetchone()
+                if owner is None:
+                    raise AcceptanceError("MIGRATED_WECHAT_OWNER_REQUIRED")
+                primary_user_id = UUID(str(owner[0]))
                 cursor.execute(
                     """
                     INSERT INTO identity.users (id, display_name, status, created_at, updated_at)
@@ -782,11 +831,11 @@ class PostgresAcceptanceSeeder:
         return AcceptanceSeed(
             primary_user_id=primary_user_id,
             other_user_id=other_user_id,
-            ready_snapshot_id=snapshot_id,
             mini_token=primary_token,
             other_mini_token=other_token,
             web_login_session_id=web_login_id,
             browser_verifier=browser_verifier,
+            ready_snapshot_id=None,
         )
 
 
@@ -989,6 +1038,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--expected-commit", required=True)
     parser.add_argument("--web-build-identity", required=True)
     parser.add_argument("--weapp-build-identity", required=True)
+    parser.add_argument("--source-url", required=True)
     parser.add_argument("--evidence-path", required=True)
     return parser
 
@@ -1017,6 +1067,7 @@ def main(argv: list[str] | None = None) -> int:
             expected_commit=args.expected_commit,
             web_build_identity=args.web_build_identity,
             weapp_build_identity=args.weapp_build_identity,
+            source_url=args.source_url,
         )
         _write_evidence(Path(args.evidence_path), evidence)
     except AcceptanceError as error:

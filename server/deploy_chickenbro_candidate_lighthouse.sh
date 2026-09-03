@@ -5,6 +5,7 @@ MODE="dry-run"
 EXPECTED_COMMIT=""
 REVIEWED_INVENTORY_SHA=""
 REVIEWED_RECOVERY_MANIFEST_SHA=""
+ACCEPTANCE_SOURCE_URL="${WOW_CHICKENBRO_ACCEPTANCE_SOURCE_URL:-}"
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
@@ -200,6 +201,10 @@ fi
 [[ -n "${EXPECTED_COMMIT}" ]] || die "--apply requires --expected-commit"
 [[ -n "${REVIEWED_INVENTORY_SHA}" ]] || die "--apply requires --inventory-sha"
 [[ -n "${REVIEWED_RECOVERY_MANIFEST_SHA}" ]] || die "--apply requires --recovery-manifest-sha"
+[[ -n "${ACCEPTANCE_SOURCE_URL}" ]] || die "acceptance source URL is required; set WOW_CHICKENBRO_ACCEPTANCE_SOURCE_URL"
+[[ "${#ACCEPTANCE_SOURCE_URL}" -le 2048 ]] || die "acceptance source URL is too long"
+[[ "${ACCEPTANCE_SOURCE_URL}" != *$'\n'* && "${ACCEPTANCE_SOURCE_URL}" != *$'\r'* ]] \
+  || die "acceptance source URL contains a line break"
 validate_value REVIEWED_INVENTORY_SHA "${REVIEWED_INVENTORY_SHA}" '^[0-9a-f]{64}$'
 validate_value REVIEWED_RECOVERY_MANIFEST_SHA "${REVIEWED_RECOVERY_MANIFEST_SHA}" '^[0-9a-f]{64}$'
 [[ "${REVIEWED_INVENTORY_SHA}" == "${ACTUAL_INVENTORY_SHA}" ]] || die "inventory SHA does not match reviewed input"
@@ -284,6 +289,7 @@ REMOTE_ENV=(
   "REMOTE_RECOVERY_ROOT=${REMOTE_RECOVERY_ROOT}"
   "REVIEWED_INVENTORY_SHA=${REVIEWED_INVENTORY_SHA}"
   "WOW_DEPLOY_START_ASYNC_SYNCS=${WOW_DEPLOY_START_ASYNC_SYNCS}"
+  "ACCEPTANCE_SOURCE_URL=${ACCEPTANCE_SOURCE_URL}"
 )
 
 remote_env_args() {
@@ -1043,11 +1049,34 @@ Path(os.environ["CANDIDATE_WORKER_ENV"]).write_text("\n".join([
 PY
 chown root:root "${CANDIDATE_API_ENV}" "${CANDIDATE_WORKER_ENV}"
 chmod 0600 "${CANDIDATE_API_ENV}" "${CANDIDATE_WORKER_ENV}"
-if [[ -f "${LEGACY_SOURCE_ENV}" ]]; then
-  install -o root -g root -m 0600 "${LEGACY_SOURCE_ENV}" "${CANDIDATE_SOURCE_ENV}"
+# Copy only the WCL/Raider.IO and official-profile keys into the candidate
+# source environment.  Merge on every apply so a previous candidate attempt
+# cannot leave Blizzard enrichment unconfigured; unrelated legacy secrets are
+# never loaded into the new API or forwarded to Codex.
+SOURCE_ENV_TMP="$(mktemp)"
+if [[ -f "${CANDIDATE_SOURCE_ENV}" ]]; then
+  awk '/^(WOW_RAIDERIO_API_KEY|WOW_RAIDERIO_USER_AGENT|WOW_RAIDERIO_TIMEOUT_SECONDS|WOW_WARCRAFTLOGS_API_KEY|WOW_WARCRAFTLOGS_CLIENT_ID|WOW_WARCRAFTLOGS_CLIENT_SECRET|WOW_WARCRAFTLOGS_GRAPHQL_URL|WOW_WARCRAFTLOGS_TOKEN_URL|WOW_WARCRAFTLOGS_TIMEOUT_SECONDS|WOW_BLIZZARD_CLIENT_ID|WOW_BLIZZARD_CLIENT_SECRET|WOW_BLIZZARD_TIMEOUT_SECONDS|WOW_BNET_CLIENT_ID|WOW_BNET_CLIENT_SECRET)=/{print}' \
+    "${CANDIDATE_SOURCE_ENV}" > "${SOURCE_ENV_TMP}"
+elif [[ -f "${LEGACY_SOURCE_ENV}" ]]; then
+  awk '/^(WOW_RAIDERIO_API_KEY|WOW_RAIDERIO_USER_AGENT|WOW_RAIDERIO_TIMEOUT_SECONDS|WOW_WARCRAFTLOGS_API_KEY|WOW_WARCRAFTLOGS_CLIENT_ID|WOW_WARCRAFTLOGS_CLIENT_SECRET|WOW_WARCRAFTLOGS_GRAPHQL_URL|WOW_WARCRAFTLOGS_TOKEN_URL|WOW_WARCRAFTLOGS_TIMEOUT_SECONDS|WOW_BLIZZARD_CLIENT_ID|WOW_BLIZZARD_CLIENT_SECRET|WOW_BLIZZARD_TIMEOUT_SECONDS|WOW_BNET_CLIENT_ID|WOW_BNET_CLIENT_SECRET)=/{print}' \
+    "${LEGACY_SOURCE_ENV}" > "${SOURCE_ENV_TMP}"
 else
-  install -o root -g root -m 0600 /dev/null "${CANDIDATE_SOURCE_ENV}"
+  : > "${SOURCE_ENV_TMP}"
 fi
+if [[ -r "/etc/wow-backend.env" ]]; then
+  while IFS= read -r source_line; do
+    source_key="${source_line%%=*}"
+    if ! grep -q "^${source_key}=" "${SOURCE_ENV_TMP}"; then
+      printf '%s\n' "${source_line}" >> "${SOURCE_ENV_TMP}"
+    fi
+  done < <(
+    awk '/^(WOW_RAIDERIO_API_KEY|WOW_RAIDERIO_USER_AGENT|WOW_RAIDERIO_TIMEOUT_SECONDS|WOW_WARCRAFTLOGS_API_KEY|WOW_WARCRAFTLOGS_CLIENT_ID|WOW_WARCRAFTLOGS_CLIENT_SECRET|WOW_WARCRAFTLOGS_GRAPHQL_URL|WOW_WARCRAFTLOGS_TOKEN_URL|WOW_WARCRAFTLOGS_TIMEOUT_SECONDS|WOW_BLIZZARD_CLIENT_ID|WOW_BLIZZARD_CLIENT_SECRET|WOW_BLIZZARD_TIMEOUT_SECONDS|WOW_BNET_CLIENT_ID|WOW_BNET_CLIENT_SECRET)=/{print}' \
+      "/etc/wow-backend.env"
+  )
+fi
+install -o root -g root -m 0600 "${SOURCE_ENV_TMP}" "${CANDIDATE_SOURCE_ENV}"
+rm -f "${SOURCE_ENV_TMP}"
+[[ "$(stat -c '%a' "${CANDIDATE_SOURCE_ENV}")" == "600" ]] || die_remote "${CANDIDATE_SOURCE_ENV} must have mode 0600"
 
 sudo -n -u postgres psql --dbname=postgres --set=ON_ERROR_STOP=1 \
   --command="SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '${CANDIDATE_DATABASE}' AND pid <> pg_backend_pid()" >/dev/null
@@ -1374,6 +1403,7 @@ sudo -n -u "${REMOTE_USER}" \
   --expected-commit "${EXPECTED_COMMIT}" \
   --web-build-identity "${WEB_BUILD_IDENTITY}" \
   --weapp-build-identity "${WEAPP_BUILD_IDENTITY}" \
+  --source-url "${ACCEPTANCE_SOURCE_URL}" \
   --evidence-path "${AUTOMATED_ACCEPTANCE_TMP}"
 install -o root -g root -m 0600 "${AUTOMATED_ACCEPTANCE_TMP}" "${AUTOMATED_ACCEPTANCE_REPORT}"
 rm -f "${AUTOMATED_ACCEPTANCE_TMP}"

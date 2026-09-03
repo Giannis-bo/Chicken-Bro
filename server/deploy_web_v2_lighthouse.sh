@@ -433,18 +433,30 @@ for migration in \
 done
 install -m 0644 "${STAGE_DIR}/server/requirements-v2.txt" "${REMOTE_DIR}/server/requirements-v2.txt"
 
-# The legacy service already owns the configured source credentials. Copy only
-# the WCL/Raider.IO keys into a dedicated root-only v2 env file; never load the
-# complete legacy environment into the new API or forward these values to Codex.
-if [[ ! -f "${V2_SOURCE_ENV_FILE}" ]]; then
-  SOURCE_ENV_TMP="$(mktemp)"
-  if [[ -r "/etc/wow-backend.env" ]]; then
-    awk '/^(WOW_RAIDERIO_API_KEY|WOW_RAIDERIO_USER_AGENT|WOW_RAIDERIO_TIMEOUT_SECONDS|WOW_WARCRAFTLOGS_API_KEY|WOW_WARCRAFTLOGS_CLIENT_ID|WOW_WARCRAFTLOGS_CLIENT_SECRET|WOW_WARCRAFTLOGS_GRAPHQL_URL|WOW_WARCRAFTLOGS_TOKEN_URL|WOW_WARCRAFTLOGS_TIMEOUT_SECONDS)=/{print}' \
-      "/etc/wow-backend.env" > "${SOURCE_ENV_TMP}"
-  fi
-  install -o root -g root -m 0600 "${SOURCE_ENV_TMP}" "${V2_SOURCE_ENV_FILE}"
-  rm -f "${SOURCE_ENV_TMP}"
+# The legacy service already owns the configured source credentials. Merge only
+# the approved source keys into a dedicated root-only v2 env file on every run;
+# never load the complete legacy environment into the new API or forward these
+# values to Codex. Existing dedicated values remain authoritative.
+SOURCE_ENV_TMP="$(mktemp)"
+if [[ -f "${V2_SOURCE_ENV_FILE}" ]]; then
+  awk '/^(WOW_RAIDERIO_API_KEY|WOW_RAIDERIO_USER_AGENT|WOW_RAIDERIO_TIMEOUT_SECONDS|WOW_WARCRAFTLOGS_API_KEY|WOW_WARCRAFTLOGS_CLIENT_ID|WOW_WARCRAFTLOGS_CLIENT_SECRET|WOW_WARCRAFTLOGS_GRAPHQL_URL|WOW_WARCRAFTLOGS_TOKEN_URL|WOW_WARCRAFTLOGS_TIMEOUT_SECONDS|WOW_BLIZZARD_CLIENT_ID|WOW_BLIZZARD_CLIENT_SECRET|WOW_BLIZZARD_TIMEOUT_SECONDS|WOW_BNET_CLIENT_ID|WOW_BNET_CLIENT_SECRET)=/{print}' \
+    "${V2_SOURCE_ENV_FILE}" > "${SOURCE_ENV_TMP}"
+else
+  : > "${SOURCE_ENV_TMP}"
 fi
+if [[ -r "/etc/wow-backend.env" ]]; then
+  while IFS= read -r source_line; do
+    source_key="${source_line%%=*}"
+    if ! grep -q "^${source_key}=" "${SOURCE_ENV_TMP}"; then
+      printf '%s\n' "${source_line}" >> "${SOURCE_ENV_TMP}"
+    fi
+  done < <(
+    awk '/^(WOW_RAIDERIO_API_KEY|WOW_RAIDERIO_USER_AGENT|WOW_RAIDERIO_TIMEOUT_SECONDS|WOW_WARCRAFTLOGS_API_KEY|WOW_WARCRAFTLOGS_CLIENT_ID|WOW_WARCRAFTLOGS_CLIENT_SECRET|WOW_WARCRAFTLOGS_GRAPHQL_URL|WOW_WARCRAFTLOGS_TOKEN_URL|WOW_WARCRAFTLOGS_TIMEOUT_SECONDS|WOW_BLIZZARD_CLIENT_ID|WOW_BLIZZARD_CLIENT_SECRET|WOW_BLIZZARD_TIMEOUT_SECONDS|WOW_BNET_CLIENT_ID|WOW_BNET_CLIENT_SECRET)=/{print}' \
+      "/etc/wow-backend.env"
+  )
+fi
+install -o root -g root -m 0600 "${SOURCE_ENV_TMP}" "${V2_SOURCE_ENV_FILE}"
+rm -f "${SOURCE_ENV_TMP}"
 [[ "$(stat -c '%a' "${V2_SOURCE_ENV_FILE}")" == "600" ]] || die_remote "${V2_SOURCE_ENV_FILE} must have mode 0600"
 
 if [[ ! -x "${VENV_DIR}/bin/python" ]]; then

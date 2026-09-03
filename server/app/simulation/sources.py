@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from typing import Any, Callable, Mapping, Protocol
 from urllib.parse import parse_qs, quote, unquote, urlencode, urlparse
 
+from server.app.integrations.blizzard import BlizzardProfileEnricher
 from server.app.integrations.warcraftlogs import (
     WarcraftLogsAccessError,
     warcraftlogs_oauth_token,
@@ -80,7 +81,10 @@ class HttpxSourceGateway:
                     "www.raider.io",
                     "warcraftlogs.com",
                     "www.warcraftlogs.com",
-                }:
+                } and not (
+                    response_host.endswith(".api.blizzard.com")
+                    or response_host == "gateway.battlenet.com.cn"
+                ):
                     raise SourceHttpError(502)
                 return response.json()
         except SourceHttpError:
@@ -358,9 +362,76 @@ def _normalize_talents(raw: object) -> dict[str, object]:
     return {}
 
 
+def _source_revision(raw: Mapping[str, object]) -> str:
+    return _text(
+        raw.get("profileRevision")
+        or raw.get("profile_revision")
+        or raw.get("lastUpdated")
+        or raw.get("last_updated")
+        or raw.get("lastCrawledAt")
+        or raw.get("last_crawled_at")
+    )
+
+
+def _enrich_character(
+    parsed_url: ParsedSourceUrl,
+    character: Mapping[str, object],
+    provenance: dict[str, object],
+    raw: Mapping[str, object],
+    official_enricher: object | None,
+) -> tuple[dict[str, object], str, str]:
+    """Fill only missing identity fields from an exact official profile."""
+
+    source_revision = _source_revision(raw)
+    merged = dict(character)
+    raw_sha256 = sha256_json(raw)
+    if official_enricher is None or all(
+        _positive_int(merged.get("level")) if field == "level" else _text(merged.get(field))
+        for field in ("level", "classKey", "specKey", "raceKey")
+    ):
+        return merged, raw_sha256, source_revision
+    try:
+        enrichment = official_enricher.enrich(parsed_url, merged)
+    except Exception:
+        return merged, raw_sha256, source_revision
+    if enrichment is None:
+        return merged, raw_sha256, source_revision
+    official_character = getattr(enrichment, "character", {})
+    if not isinstance(official_character, Mapping):
+        return merged, raw_sha256, source_revision
+    for field, value in official_character.items():
+        existing = merged.get(field)
+        if field == "level":
+            if not _positive_int(existing):
+                level = _positive_int(value)
+                if level is not None:
+                    merged[field] = level
+        elif not _text(existing) and _text(value):
+            merged[field] = _text(value)
+    official_raw_sha = _text(getattr(enrichment, "raw_sha256", ""))
+    official_endpoint = _text(getattr(enrichment, "endpoint", ""))
+    official_raw = getattr(enrichment, "raw", {})
+    if official_raw_sha and official_endpoint and isinstance(official_raw, Mapping):
+        provenance["officialProfile"] = {
+            "provider": "blizzard",
+            "endpoint": official_endpoint,
+            "rawSha256": official_raw_sha,
+        }
+        if not source_revision:
+            source_revision = _text(getattr(enrichment, "source_revision", ""))
+        return merged, sha256_json({"primary": raw, "officialProfile": official_raw}), source_revision
+    return merged, raw_sha256, source_revision
+
+
 class RaiderIOCharacterAdapter:
-    def __init__(self, http_client: object):
+    def __init__(
+        self,
+        http_client: object,
+        *,
+        official_enricher: object | None = None,
+    ):
         self._http_client = http_client
+        self._official_enricher = official_enricher or BlizzardProfileEnricher(http_client)
 
     def resolve(self, parsed_url: ParsedSourceUrl) -> CharacterSnapshotCandidate:
         fetched_at = _now()
@@ -411,18 +482,20 @@ class RaiderIOCharacterAdapter:
             "talents": _normalize_talents(raw.get("talents") or raw.get("talentLoadout")),
             "profileSource": "raiderio",
         }
-        source_revision = _text(
-            raw.get("profileRevision")
-            or raw.get("profile_revision")
-            or raw.get("lastUpdated")
-            or raw.get("last_updated")
-        )
         provenance = {
             "provider": SourceProvider.RAIDERIO.value,
             "sourceUrl": parsed_url.url,
             "fetchedAt": fetched_at.isoformat(),
             "endpoint": "raiderio-character-profile",
         }
+        character, raw_sha256, source_revision = _enrich_character(
+            parsed_url,
+            character,
+            provenance,
+            raw,
+            self._official_enricher,
+        )
+        snapshot["character"] = character
         if source_revision:
             provenance["sourceRevision"] = source_revision
         return CharacterSnapshotCandidate(
@@ -431,7 +504,7 @@ class RaiderIOCharacterAdapter:
             source_key=parsed_url.source_key,
             snapshot=snapshot,
             provenance=provenance,
-            raw_sha256=sha256_json(raw),
+            raw_sha256=raw_sha256,
             fetched_at=fetched_at,
             missing_fields=missing_snapshot_fields(snapshot),
         )
@@ -459,11 +532,13 @@ class WclCharacterAdapter:
         access_token: str | None = None,
         endpoint: str | None = None,
         token_provider: Callable[[], str] | None = None,
+        official_enricher: object | None = None,
     ):
         self._http_client = http_client
         self._access_token = _text(access_token or os.environ.get("WOW_WARCRAFTLOGS_API_TOKEN"))
         self._endpoint = _text(endpoint or os.environ.get("WOW_WARCRAFTLOGS_GRAPHQL_URL")) or "https://www.warcraftlogs.com/api/v2/client"
         self._token_provider = token_provider
+        self._official_enricher = official_enricher or BlizzardProfileEnricher(http_client)
 
     def resolve(self, parsed_url: ParsedSourceUrl) -> CharacterSnapshotCandidate:
         fetched_at = _now()
@@ -551,6 +626,16 @@ class WclCharacterAdapter:
             "fetchedAt": fetched_at.isoformat(),
             "endpoint": "warcraftlogs-report-player-details",
         }
+        character, raw_sha256, enriched_source_revision = _enrich_character(
+            parsed_url,
+            character,
+            provenance,
+            raw,
+            self._official_enricher,
+        )
+        snapshot["character"] = character
+        if not source_revision:
+            source_revision = enriched_source_revision
         if source_revision:
             provenance["sourceRevision"] = source_revision
         return CharacterSnapshotCandidate(
@@ -559,7 +644,7 @@ class WclCharacterAdapter:
             source_key=parsed_url.source_key,
             snapshot=snapshot,
             provenance=provenance,
-            raw_sha256=sha256_json(raw),
+            raw_sha256=raw_sha256,
             fetched_at=fetched_at,
             missing_fields=missing_snapshot_fields(snapshot),
         )
@@ -582,6 +667,13 @@ class WclCharacterAdapter:
             details = details["data"]
         if isinstance(details, Mapping):
             details = details.get("playerDetails") or details.get("players") or details.get("data")
+        if isinstance(details, Mapping):
+            grouped: list[object] = []
+            for group in ("dps", "healers", "tanks"):
+                value = details.get(group)
+                if isinstance(value, list):
+                    grouped.extend(value)
+            details = grouped if grouped else details
         players = details if isinstance(details, list) else report.get("players")
         if not isinstance(players, list):
             return None
@@ -602,12 +694,18 @@ class CharacterSourceRouter:
         *,
         raiderio_adapter: RaiderIOCharacterAdapter | None = None,
         wcl_adapter: WclCharacterAdapter | None = None,
+        official_enricher: object | None = None,
     ):
         self._http_client = http_client
-        self._raiderio = raiderio_adapter or RaiderIOCharacterAdapter(http_client)
+        self._official_enricher = official_enricher or BlizzardProfileEnricher(http_client)
+        self._raiderio = raiderio_adapter or RaiderIOCharacterAdapter(
+            http_client,
+            official_enricher=self._official_enricher,
+        )
         self._wcl = wcl_adapter or WclCharacterAdapter(
             http_client,
             token_provider=warcraftlogs_oauth_token,
+            official_enricher=self._official_enricher,
         )
 
     def resolve(self, source_url: str, http_client: object | None = None) -> CharacterSnapshotCandidate:

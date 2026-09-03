@@ -9,6 +9,8 @@
 
 项目只保留炸鸡队长会话与 SimC 模拟任务。微信小程序与 Web 使用独立认证会话，但映射到同一个内部用户并共享服务端 Chat/SimC 数据。正式体验不依赖网站 OAuth、UnionID、prototype bypass 或客户端数据拼接。
 
+当前范围确认（2026-09-03）：Raider.IO/WCL 不能在国服完整生成快照不构成首期阻塞；国服缺字段继续如实显示 `INCOMPLETE_FOR_SIMC`，不猜测、不伪造。首期不支持 SimC Addon `/simc` 导入，SimC 来源仍使用 HTTPS Raider.IO/WCL 链接，并在可验证时用官方资料补齐缺失身份字段。
+
 ## 用户可见完成标准
 
 - 小程序与 Web 登录同一微信用户后，看到相同会话、完整消息和 SimC 历史。

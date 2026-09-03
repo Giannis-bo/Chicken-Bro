@@ -22,6 +22,7 @@ test('v2 deployment is isolated from the legacy service and backs up the exact t
   assert.doesNotMatch(script, /news_backend\.py/)
   assert.match(script, /\/etc\/wow-backend\.env/)
   assert.match(script, /WOW_RAIDERIO_API_KEY\|WOW_RAIDERIO_USER_AGENT\|WOW_RAIDERIO_TIMEOUT_SECONDS\|WOW_WARCRAFTLOGS_API_KEY\|WOW_WARCRAFTLOGS_CLIENT_ID\|WOW_WARCRAFTLOGS_CLIENT_SECRET/)
+  assert.match(script, /WOW_BLIZZARD_CLIENT_ID\|WOW_BLIZZARD_CLIENT_SECRET\|WOW_BLIZZARD_TIMEOUT_SECONDS\|WOW_BNET_CLIENT_ID\|WOW_BNET_CLIENT_SECRET/)
   assert.match(script, /wow-v2-source\.env/)
 })
 
