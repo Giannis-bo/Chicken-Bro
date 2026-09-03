@@ -26,6 +26,22 @@ class AppConfigTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "POLL"):
             AppSettings.from_env({**base, "WOW_WORKER_V2_POLL_SECONDS": "0.01"})
 
+    def test_worker_heartbeat_configuration_is_environment_scoped_and_bounded(self):
+        base = {
+            "WOW_APP_ENV": "candidate",
+            "WOW_DATABASE_URL": "postgresql://user@db.example/wow",
+        }
+        settings = AppSettings.from_env(base)
+        self.assertEqual(
+            settings.worker_heartbeat_path,
+            "/var/lib/chickenbro/candidate-worker-heartbeat.json",
+        )
+        self.assertEqual(settings.worker_heartbeat_ttl_seconds, 45)
+        with self.assertRaisesRegex(ValueError, "HEARTBEAT_TTL"):
+            AppSettings.from_env({**base, "WOW_WORKER_V2_HEARTBEAT_TTL_SECONDS": "5"})
+        with self.assertRaisesRegex(ValueError, "HEARTBEAT_PATH"):
+            AppSettings.from_env({**base, "WOW_WORKER_V2_HEARTBEAT_PATH": "relative.json"})
+
     def test_web_and_wechat_settings_are_bounded_and_secret_redacted(self):
         settings = AppSettings.from_env({
             "WOW_APP_ENV": "candidate",

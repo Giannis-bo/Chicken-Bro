@@ -41,6 +41,7 @@ def create_app(
     chat_application: ChatApplication | None = None,
     simulation_application: SimulationApplication | None = None,
     auth_audit_sink: AuthAuditSink | None = None,
+    readiness_environment: Mapping[str, str] | None = None,
 ) -> FastAPI:
     formal_auth_application_injected = web_auth_application is not None
     production = settings.environment == "production"
@@ -98,7 +99,7 @@ def create_app(
         ":8790", f":{settings.port}", 1
     )
     app.state.readiness_registry = (
-        default_readiness_registry(settings)
+        default_readiness_registry(settings, readiness_environment)
         if readiness_registry is None
         else readiness_registry
     )
@@ -120,7 +121,11 @@ def create_app(
 
 
 def build_app_from_env(env: Mapping[str, str] | None = None) -> FastAPI:
-    return create_app(settings=AppSettings.from_env(os.environ if env is None else env))
+    source_env = os.environ if env is None else env
+    return create_app(
+        settings=AppSettings.from_env(source_env),
+        readiness_environment=source_env,
+    )
 
 
 app: FastAPI | None = None

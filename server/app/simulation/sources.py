@@ -5,6 +5,10 @@ from datetime import datetime, timezone
 from typing import Any, Callable, Mapping, Protocol
 from urllib.parse import parse_qs, quote, unquote, urlencode, urlparse
 
+from server.app.integrations.warcraftlogs import (
+    WarcraftLogsAccessError,
+    warcraftlogs_oauth_token,
+)
 from server.app.simulation.domain import SourceProvider, SourceReadiness
 from server.app.simulation.snapshots import (
     CharacterSnapshotCandidate,
@@ -467,8 +471,18 @@ class WclCharacterAdapter:
         if not token and self._token_provider is not None:
             try:
                 token = _text(self._token_provider())
+            except WarcraftLogsAccessError:
+                return _failure_candidate(
+                    parsed_url,
+                    SourceReadiness.ACCESS_RESTRICTED,
+                    fetched_at=fetched_at,
+                )
             except Exception:
-                token = ""
+                return _failure_candidate(
+                    parsed_url,
+                    SourceReadiness.SNAPSHOT_UNAVAILABLE,
+                    fetched_at=fetched_at,
+                )
         if not token:
             return _failure_candidate(parsed_url, SourceReadiness.ACCESS_RESTRICTED, fetched_at=fetched_at)
         try:
@@ -591,14 +605,20 @@ class CharacterSourceRouter:
     ):
         self._http_client = http_client
         self._raiderio = raiderio_adapter or RaiderIOCharacterAdapter(http_client)
-        self._wcl = wcl_adapter or WclCharacterAdapter(http_client)
+        self._wcl = wcl_adapter or WclCharacterAdapter(
+            http_client,
+            token_provider=warcraftlogs_oauth_token,
+        )
 
     def resolve(self, source_url: str, http_client: object | None = None) -> CharacterSnapshotCandidate:
         parsed = parse_character_source_url(source_url)
         if parsed.provider is SourceProvider.RAIDERIO:
             adapter = self._raiderio if http_client is None else RaiderIOCharacterAdapter(http_client)
         else:
-            adapter = self._wcl if http_client is None else WclCharacterAdapter(http_client)
+            adapter = self._wcl if http_client is None else WclCharacterAdapter(
+                http_client,
+                token_provider=warcraftlogs_oauth_token,
+            )
         return adapter.resolve(parsed)
 
 

@@ -250,6 +250,10 @@ Worker active 只证明进程活着。业务成功还需要 job/result/attempt �
 | GET | `/health` | API 进程 liveness，不证明业务可用 |
 | GET | `/api/v2/health/readiness` | 分组件状态；必须逐项检查 code/status |
 
+正式 readiness 只从可重复验证的本地运行条件生成：数据库执行只读 `SELECT 1`；Worker 在成功访问队列后写入当前环境和固定 Worker ID 专用、0600、原子替换的心跳文件，并在长任务 lease 续约时刷新；Codex 的已启用状态、实际可执行文件 SHA-256 与配置 revision 必须一致；Raider.IO 所需 HTTP dependency 必须可加载；WCL 必须具备完整 v2 OAuth client credentials，Chat 与 SimC 共用服务端短期 token provider；SimC 的 `current` 必须解析到 content-addressed release，`.commit`、`binary.sha256`、source archive identity、实际 binary hash、compiler revision 与支持 spec 必须相符；微信组件只核对小程序凭据配置。Worker unit 每次启动先删除本环境旧心跳，避免上一进程的短期残留冒充新进程。
+
+这些 probe 不在每个 readiness 请求中访问 Raider.IO、WCL、微信或 Codex 上游，也不执行真实模拟。`ready` 只说明候选具备发起正式链路的本地配置、身份和 Worker liveness；真实 provider 响应、Codex SSE、SimC 语义结果、扫码和跨端同步仍必须由候选自动化与真实用户验收分别证明。
+
 任何正式客户端调用 `/api/v2/prototype/**` 都是阻断性缺陷。
 
 ## 双端路由

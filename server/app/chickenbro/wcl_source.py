@@ -6,7 +6,6 @@ returned packet contains bounded report/fight/event facts, never credentials
 or the OAuth token.
 """
 
-import base64
 import json
 import os
 import re
@@ -14,8 +13,13 @@ from collections.abc import Mapping
 from math import ceil
 from time import monotonic
 from typing import Any
-from urllib.parse import urlencode
 from urllib.request import Request, urlopen
+
+from server.app.integrations.warcraftlogs import (
+    warcraftlogs_credentials_state as configured_warcraftlogs_credentials_state,
+    warcraftlogs_oauth_token,
+    warcraftlogs_timeout_seconds,
+)
 
 
 WCL_REPORT_EVIDENCE_QUERY = """
@@ -47,27 +51,7 @@ def _text(value: Any) -> str:
 
 
 def warcraftlogs_credentials_state() -> dict[str, Any]:
-    has_v2_credentials = bool(
-        os.environ.get("WOW_WARCRAFTLOGS_CLIENT_ID", "").strip()
-        and os.environ.get("WOW_WARCRAFTLOGS_CLIENT_SECRET", "").strip()
-    )
-    if has_v2_credentials:
-        return {
-            "configured": True,
-            "mode": "v2_oauth",
-            "api": "warcraftlogs-v2-graphql",
-        }
-    if os.environ.get("WOW_WARCRAFTLOGS_API_KEY", "").strip():
-        return {
-            "configured": True,
-            "mode": "v1_api_key",
-            "api": "warcraftlogs-v1-rest",
-        }
-    return {
-        "configured": False,
-        "mode": "none",
-        "api": "warcraftlogs-v2-graphql",
-    }
+    return configured_warcraftlogs_credentials_state(os.environ)
 
 
 def _redact_secret(text: Any) -> str:
@@ -86,46 +70,15 @@ def _redact_secret(text: Any) -> str:
 
 
 def _timeout_seconds(timeout_seconds: Any = None) -> int:
-    try:
-        configured = int(os.environ.get("WOW_WARCRAFTLOGS_TIMEOUT_SECONDS", "15"))
-    except (TypeError, ValueError):
-        configured = 15
-    configured = max(1, configured)
-    if timeout_seconds is None:
-        return configured
-    try:
-        return min(configured, max(1, int(timeout_seconds)))
-    except (TypeError, ValueError):
-        return configured
+    return warcraftlogs_timeout_seconds(timeout_seconds, env=os.environ)
 
 
 def _oauth_token(timeout_seconds: Any = None) -> str:
-    client_id = os.environ.get("WOW_WARCRAFTLOGS_CLIENT_ID", "").strip()
-    client_secret = os.environ.get("WOW_WARCRAFTLOGS_CLIENT_SECRET", "").strip()
-    if not client_id or not client_secret:
-        raise RuntimeError("Warcraft Logs v2 credentials are not configured")
-    token_url = os.environ.get(
-        "WOW_WARCRAFTLOGS_TOKEN_URL",
-        "https://www.warcraftlogs.com/oauth/token",
-    ).strip()
-    request = Request(
-        token_url,
-        data=urlencode({"grant_type": "client_credentials"}).encode("utf-8"),
-        headers={
-            "Authorization": "Basic " + base64.b64encode(
-                f"{client_id}:{client_secret}".encode("utf-8")
-            ).decode("ascii"),
-            "Content-Type": "application/x-www-form-urlencoded",
-            "User-Agent": "wow-mini-program-wcl-sync",
-        },
-        method="POST",
+    return warcraftlogs_oauth_token(
+        timeout_seconds,
+        env=os.environ,
+        opener=urlopen,
     )
-    with urlopen(request, timeout=_timeout_seconds(timeout_seconds)) as response:
-        payload = json.loads(response.read().decode("utf-8"))
-    token = _text(payload.get("access_token")) if isinstance(payload, Mapping) else ""
-    if not token:
-        raise RuntimeError("Warcraft Logs OAuth response did not include an access token")
-    return token
 
 
 def _graphql(

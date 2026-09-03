@@ -8,6 +8,7 @@
       "path": "server/app/main.py",
       "characterization": [
         "tests/app_api_test.py",
+        "tests/app_runtime_readiness_test.py",
         "tests/app_architecture_test.py"
       ]
     },
@@ -36,6 +37,7 @@
       "path": "server/app/worker/main.py",
       "characterization": [
         "tests/app_worker_runtime_test.py",
+        "tests/app_runtime_readiness_test.py",
         "tests/app_worker_lease_test.py"
       ]
     },

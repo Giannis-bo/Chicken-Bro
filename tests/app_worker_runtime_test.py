@@ -40,8 +40,32 @@ class FakeQueue:
 
 class AppWorkerRuntimeTest(unittest.TestCase):
     def test_idle_once_returns_false_without_sleeping(self):
-        worker = Worker(queue=FakeQueue(claimed=None), handlers=HandlerRegistry(), worker_id="worker-a")
+        service_heartbeats = []
+        worker = Worker(
+            queue=FakeQueue(claimed=None),
+            handlers=HandlerRegistry(),
+            worker_id="worker-a",
+            service_heartbeat=lambda: service_heartbeats.append("alive"),
+        )
         self.assertFalse(worker.run_once())
+        self.assertEqual(service_heartbeats, ["alive"])
+
+    def test_queue_access_failure_does_not_publish_a_fresh_service_heartbeat(self):
+        class FailingQueue(FakeQueue):
+            def claim(self, *, worker_id, lease_seconds):
+                raise RuntimeError("queue unavailable")
+
+        service_heartbeats = []
+        worker = Worker(
+            queue=FailingQueue(claimed=None),
+            handlers=HandlerRegistry(),
+            worker_id="worker-a",
+            service_heartbeat=lambda: service_heartbeats.append("alive"),
+        )
+
+        with self.assertRaisesRegex(RuntimeError, "queue unavailable"):
+            worker.run_once()
+        self.assertEqual(service_heartbeats, [])
 
     def test_registered_handler_marks_the_lease_succeeded(self):
         calls = []
@@ -77,17 +101,20 @@ class AppWorkerRuntimeTest(unittest.TestCase):
             release.set()
 
         queue.heartbeat = heartbeat
+        service_heartbeats = []
         worker = Worker(
             queue=queue,
             handlers=registry,
             worker_id="worker-a",
             heartbeat_interval_seconds=0.01,
+            service_heartbeat=lambda: service_heartbeats.append("alive"),
         )
 
         self.assertTrue(worker.run_once())
 
         self.assertEqual(queue.heartbeats, [(LEASE.id, "worker-a", 30)])
         self.assertEqual(queue.succeeded, [(LEASE.id, "worker-a")])
+        self.assertEqual(service_heartbeats, ["alive", "alive"])
 
     def test_lost_heartbeat_never_acknowledges_the_stale_lease(self):
         release = Event()

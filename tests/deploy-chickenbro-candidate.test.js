@@ -154,11 +154,19 @@ test('formal production and candidate services have separate roots, ports and se
   assert.match(worker, /NoNewPrivileges=true/)
   assert.match(worker, /ProtectSystem=strict/)
   assert.match(worker, /ReadWritePaths=\/var\/lib\/chickenbro/)
+  assert.match(
+    worker,
+    /ExecStartPre=\/usr\/bin\/rm -f -- \/var\/lib\/chickenbro\/production-worker-heartbeat\.json/,
+  )
 
   assert.match(candidateWorker, /WorkingDirectory=\/opt\/chickenbro-candidate/)
   assert.match(candidateWorker, /EnvironmentFile=-?\/etc\/chickenbro-worker-candidate\.env/)
   assert.match(candidateWorker, /PYTHONPATH=\/opt\/chickenbro-candidate/)
   assert.match(candidateWorker, /worker-id chickenbro-simc-candidate-worker/)
+  assert.match(
+    candidateWorker,
+    /ExecStartPre=\/usr\/bin\/rm -f -- \/var\/lib\/chickenbro\/candidate-worker-heartbeat\.json/,
+  )
 
   for (const service of [productionApi, candidateApi, worker, candidateWorker]) {
     assert.doesNotMatch(service, /WOW_WEB_PROTOTYPE/)

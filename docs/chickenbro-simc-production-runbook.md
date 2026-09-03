@@ -304,6 +304,8 @@ Chat SSE 的每个事件都必须有从 1 开始连续递增的整数 `sequence`
 
 部署脚本必须解析 loopback、`www` 和 `api` 三份 readiness JSON，要求语义一致、`database` 与 `wechat_mini` 为 `ready`，且任何组件都不能是 `blocked`。如果总状态仍是 `partial`，证据必须记为 `partial_not_promotable`：可以保留候选环境供诊断，但不得称为 ready、验收成功或允许切流。顶层候选状态始终是 `candidate_deployed_user_acceptance_pending`，直到真实双端用户验收和后续切流门禁全部单独通过。
 
+完整 `ready` 还要求候选 Worker 已成功访问候选队列并持续刷新 `candidate-worker-heartbeat.json`，Codex revision 与本机 binary SHA-256 一致，WCL v2 OAuth client credentials 完整，Raider.IO dependency 可加载，以及 `/opt/wow-simc/current` 的 content-addressed release metadata 与实际 binary hash、compiler/spec 配置一致。Worker unit 启动前会移除旧环境心跳；心跳缺失、跨环境、格式非法、未来时间或超过 45 秒均失败关闭。以上是无外部请求的配置与本地 liveness 证据，不替代随后真实 Codex、WCL/Raider.IO、SimC 和微信链路 smoke。
+
 ### 真实用户验收
 
 必须使用 apply 证据中相同的 commit、H5 identity 和 WeApp identity，并确认测试版确实包含 `pages/auth/web-login-confirm`。真实流程固定为：

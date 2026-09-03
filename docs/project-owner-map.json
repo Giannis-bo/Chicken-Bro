@@ -76,6 +76,7 @@
       "runtimeSurfaces": [
         "server/app/simulation/application.py",
         "server/app/simulation/worker.py",
+        "server/app/integrations/warcraftlogs.py",
         "server/app/api/routes/simc.py",
         "server/chickenbro_simc_runtime_update.sh",
         "server/chickenbro-simc-runtime-update.service"
@@ -91,6 +92,7 @@
       ],
       "changedPathPatterns": [
         "server/app/simulation/**",
+        "server/app/integrations/warcraftlogs.py",
         "server/app/api/routes/simc.py",
         "server/chickenbro_simc_runtime_update.sh",
         "server/chickenbro-simc-runtime-update.service",

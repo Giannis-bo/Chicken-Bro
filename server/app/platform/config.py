@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Literal, Mapping
 from urllib.parse import urlparse
 
@@ -13,6 +14,8 @@ class AppSettings:
     host: str = "127.0.0.1"
     port: int = 8790
     worker_poll_seconds: float = 1.0
+    worker_heartbeat_path: str = ""
+    worker_heartbeat_ttl_seconds: int = 45
     web_origin: str = "https://www.chickenbro.cloud"
     web_cookie_name: str = "__Host-chickenbro-session"
     web_csrf_cookie_name: str = "__Host-chickenbro-csrf"
@@ -51,6 +54,16 @@ class AppSettings:
         if not 0.1 <= poll_seconds <= 30:
             raise ValueError("WOW_WORKER_V2_POLL_SECONDS is outside 0.1..30")
 
+        default_heartbeat_path = f"/var/lib/chickenbro/{environment}-worker-heartbeat.json"
+        worker_heartbeat_path = env.get(
+            "WOW_WORKER_V2_HEARTBEAT_PATH",
+            default_heartbeat_path,
+        ).strip()
+        if not worker_heartbeat_path or not Path(worker_heartbeat_path).is_absolute():
+            raise ValueError("WOW_WORKER_V2_HEARTBEAT_PATH must be an absolute path")
+        if environment in {"candidate", "production"} and worker_heartbeat_path != default_heartbeat_path:
+            raise ValueError("WOW_WORKER_V2_HEARTBEAT_PATH must use the environment-scoped managed path")
+
         web_origin = env.get("WOW_WEB_ORIGIN", "https://www.chickenbro.cloud").strip()
         parsed_origin = urlparse(web_origin)
         if environment in {"candidate", "production"} and (
@@ -87,6 +100,12 @@ class AppSettings:
 
         web_login_ttl_seconds = bounded_int("WOW_WEB_LOGIN_TTL_SECONDS", "300", 60, 900)
         web_session_ttl_seconds = bounded_int("WOW_WEB_SESSION_TTL_SECONDS", "604800", 300, 2592000)
+        worker_heartbeat_ttl_seconds = bounded_int(
+            "WOW_WORKER_V2_HEARTBEAT_TTL_SECONDS",
+            "45",
+            15,
+            300,
+        )
         wechat_page = env.get("WOW_WECHAT_PAGE", "pages/auth/web-login-confirm").strip()
         if not wechat_page or wechat_page.startswith("/") or any(character.isspace() for character in wechat_page):
             raise ValueError("WOW_WECHAT_PAGE must be a non-empty page path without a leading slash")
@@ -103,6 +122,8 @@ class AppSettings:
             host=host,
             port=port,
             worker_poll_seconds=poll_seconds,
+            worker_heartbeat_path=worker_heartbeat_path,
+            worker_heartbeat_ttl_seconds=worker_heartbeat_ttl_seconds,
             web_origin=web_origin,
             web_cookie_name=web_cookie_name,
             web_csrf_cookie_name=web_csrf_cookie_name,

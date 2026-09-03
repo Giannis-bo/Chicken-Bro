@@ -8,6 +8,7 @@ from threading import Event, Thread
 
 from server.app.platform.config import AppSettings
 from server.app.platform.postgres import PostgresConnectionFactory
+from server.app.platform.worker_heartbeat import WorkerHeartbeatWriter
 from server.app.simulation.compiler import SimcProfileCompiler
 from server.app.simulation.readiness import SimcReadinessValidator, SimcRuntimeCapabilities
 from server.app.simulation.repository import PostgresSimulationRepository
@@ -30,6 +31,7 @@ class Worker:
         lease_seconds: int = 30,
         poll_seconds: float = 1.0,
         heartbeat_interval_seconds: float | None = None,
+        service_heartbeat: Callable[[], None] | None = None,
         sleep: Callable[[float], None] = time.sleep,
     ):
         if _WORKER_ID.fullmatch(worker_id) is None:
@@ -51,10 +53,12 @@ class Worker:
         self.lease_seconds = lease_seconds
         self.poll_seconds = poll_seconds
         self.heartbeat_interval_seconds = heartbeat_interval
+        self.service_heartbeat = service_heartbeat or (lambda: None)
         self.sleep = sleep
 
     def run_once(self) -> bool:
         lease = self.queue.claim(worker_id=self.worker_id, lease_seconds=self.lease_seconds)
+        self.service_heartbeat()
         if lease is None:
             return False
         try:
@@ -126,6 +130,7 @@ class Worker:
                     worker_id=self.worker_id,
                     lease_seconds=self.lease_seconds,
                 )
+                self.service_heartbeat()
             except BaseException as error:
                 heartbeat_error = error
                 break
@@ -166,12 +171,18 @@ def build_worker(*, worker_id: str, lease_seconds: int) -> Worker:
     )
     handlers = HandlerRegistry()
     handlers.register("simc", "run_simulation", simulation_worker.handle)
+    heartbeat_writer = WorkerHeartbeatWriter(
+        path=settings.worker_heartbeat_path,
+        environment=settings.environment,
+        worker_id=worker_id,
+    )
     return Worker(
         queue=queue,
         handlers=handlers,
         worker_id=worker_id,
         lease_seconds=lease_seconds,
         poll_seconds=settings.worker_poll_seconds,
+        service_heartbeat=heartbeat_writer.write,
     )
 
 

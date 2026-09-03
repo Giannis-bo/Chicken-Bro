@@ -1,7 +1,12 @@
 import json
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
+from server.app.integrations.warcraftlogs import (
+    WarcraftLogsAccessError,
+    WarcraftLogsProviderError,
+)
 from server.app.simulation.domain import SourceProvider, SourceReadiness
 from server.app.simulation.sources import (
     CharacterSourceRouter,
@@ -146,6 +151,48 @@ class SimulationSourcesTest(unittest.TestCase):
         self.assertNotIn("levelSource", candidate.snapshot["character"])
         self.assertIn("character.level", candidate.missing_fields)
         self.assertIn("character.raceKey", candidate.missing_fields)
+
+    def test_default_wcl_router_uses_server_oauth_without_static_access_token(self):
+        payload = json.loads((FIXTURE_DIR / "wcl_incomplete.json").read_text())
+        gateway = FakeGateway(payload)
+        source_url = "https://www.warcraftlogs.com/reports/AbCdEf123#fight=16&source=82"
+
+        with patch(
+            "server.app.simulation.sources.warcraftlogs_oauth_token",
+            return_value="short-lived-oauth-token",
+        ) as token_provider:
+            candidate = CharacterSourceRouter(gateway).resolve(source_url)
+
+        token_provider.assert_called_once_with()
+        self.assertEqual(candidate.provider, SourceProvider.WARCRAFTLOGS)
+        self.assertEqual(
+            gateway.urls[0][1],
+            {"Authorization": "Bearer short-lived-oauth-token"},
+        )
+        self.assertNotIn("short-lived-oauth-token", str(candidate.provenance))
+
+    def test_wcl_token_access_and_provider_failures_remain_distinct(self):
+        parsed = parse_character_source_url(
+            "https://www.warcraftlogs.com/reports/AbCdEf123#fight=16&source=82"
+        )
+
+        for error, expected in (
+            (WarcraftLogsAccessError(), SourceReadiness.ACCESS_RESTRICTED),
+            (WarcraftLogsProviderError(), SourceReadiness.SNAPSHOT_UNAVAILABLE),
+        ):
+            with self.subTest(error=error.__class__.__name__):
+                gateway = FakeGateway({})
+
+                def fail_token(error=error):
+                    raise error
+
+                candidate = WclCharacterAdapter(
+                    gateway,
+                    token_provider=fail_token,
+                ).resolve(parsed)
+
+                self.assertEqual(candidate.readiness, expected)
+                self.assertEqual(gateway.urls, [])
 
     def test_source_failures_keep_public_readiness_distinctions(self):
         parsed = parse_character_source_url(
