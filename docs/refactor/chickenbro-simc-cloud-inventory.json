@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "reachable",
-  "observedAt": "2026-09-03T09:05:42Z",
+  "observedAt": "2026-09-03T09:36:26Z",
   "host": "VM-4-8-ubuntu",
   "targetIdentity": {
     "provider": "tencent_cvm",
@@ -15,10 +15,10 @@
   "rootFilesystem": {
     "path": "/",
     "sizeBytes": 73859022848,
-    "usedBytes": 40024940544,
-    "freeBytes": 30703849472
+    "usedBytes": 40029458432,
+    "freeBytes": 30699331584
   },
-  "rootFreeBytes": 30703849472,
+  "rootFreeBytes": 30699331584,
   "currentDatabaseBytes": 16773148315,
   "databases": [
     {
@@ -445,7 +445,7 @@
     },
     {
       "path": "/opt/wow-simc",
-      "sizeBytes": 569453746
+      "sizeBytes": 569453917
     },
     {
       "path": "/opt/wow-v2-staging",
@@ -461,7 +461,7 @@
     },
     {
       "path": "/var/lib/postgresql",
-      "sizeBytes": 16874423837
+      "sizeBytes": 16874432029
     },
     {
       "path": "/var/lib/wow-backend",
