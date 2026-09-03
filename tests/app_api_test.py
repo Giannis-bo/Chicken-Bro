@@ -67,6 +67,21 @@ class AppApiTest(unittest.TestCase):
             }
         })
 
+    def test_internal_source_gateway_is_registered_but_requires_capability(self):
+        response = self.client.post(
+            "/api/v2/internal/chickenbro/source-query",
+            json={
+                "provider": "raiderio",
+                "target": "https://raider.io/characters/us/area-52/Test",
+            },
+        )
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(
+            response.json()["error"]["code"],
+            "SOURCE_GATEWAY_UNAUTHORIZED",
+        )
+
     def test_production_disables_interactive_api_docs(self):
         settings = AppSettings(
             environment="production",

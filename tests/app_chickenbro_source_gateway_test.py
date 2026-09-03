@@ -1,5 +1,6 @@
 import unittest
 from datetime import datetime, timezone
+from pathlib import Path
 from unittest.mock import patch
 
 from server.app.chickenbro.source_gateway import (
@@ -10,6 +11,20 @@ from server.app.chickenbro.source_gateway import (
 
 
 class ChickenbroSourceGatewayTest(unittest.TestCase):
+    def test_formal_router_registers_the_internal_source_gateway(self):
+        root = Path(__file__).resolve().parents[1]
+        route_path = root / "server/app/api/routes/source_gateway.py"
+        self.assertTrue(route_path.is_file())
+        route_source = route_path.read_text(encoding="utf-8")
+        router_source = (root / "server/app/api/routes/__init__.py").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("SOURCE_GATEWAY_PATH", route_source)
+        self.assertIn("include_in_schema=False", route_source)
+        self.assertIn("source_gateway_router", router_source)
+        self.assertIn("include_router(source_gateway_router)", router_source)
+
     def test_issued_capability_allows_one_source_query_and_revoke_blocks_it(self):
         calls = []
         gateway = ChickenbroSourceGateway(
