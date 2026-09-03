@@ -156,6 +156,28 @@ expected_capacity_databases = [
     "wow_gear_evidence_145dee16_r22",
     "wow_gear_evidence_15f514d5_r23",
 ]
+expected_capacity_pairs = {
+    "wow_gear_evidence_01adf184_r14": (
+        "/etc/wow-backend-candidate-gear-evidence-r14.env",
+        "e4f0e3cdf8d3574dc9daaa020cc6777ac591c0e068ba9e1dc5cc034ba9d4f8e1",
+        "database-wow-gear-evidence-01adf184-r14.json",
+    ),
+    "wow_gear_evidence_0be65754_r24": (
+        "/etc/wow-backend-candidate-gear-evidence-r24.env",
+        "00f0e3856318a4ca20ac8d824545330d5dfb876c7978a58f4664dce8e7297ff2",
+        "database-wow-gear-evidence-0be65754-r24.json",
+    ),
+    "wow_gear_evidence_145dee16_r22": (
+        "/etc/wow-backend-candidate-gear-evidence-r22.env",
+        "af56e04898b7739e2520940feb9d967bb55afc1d1a83ccd1b55055ee258a340a",
+        "database-wow-gear-evidence-145dee16-r22.json",
+    ),
+    "wow_gear_evidence_15f514d5_r23": (
+        "/etc/wow-backend-candidate-gear-evidence-r23.env",
+        "37ebf357edf4670ef52c3cee6525ba8e95df2ce8b8e37adb6e5acedeeeae2f68",
+        "database-wow-gear-evidence-15f514d5-r23.json",
+    ),
+}
 expected_scan_roots = [
     "/etc",
     "/opt/chickenbro",
@@ -184,6 +206,45 @@ if (
     or accepted_production_recovery.get("sourceDatabase") != "chickenbro_prod"
 ):
     raise SystemExit("invalid capacity pre-cleanup contract")
+pending_capacity_databases = capacity.get("pendingDatabaseAllowlist")
+completed_capacity_pairs = capacity.get("completedPairs")
+if (
+    not isinstance(pending_capacity_databases, list)
+    or not pending_capacity_databases
+    or not isinstance(completed_capacity_pairs, list)
+):
+    raise SystemExit("capacity pre-cleanup pending/completed partition is required")
+completed_capacity_databases = []
+for item in completed_capacity_pairs:
+    if not isinstance(item, dict):
+        raise SystemExit("completed capacity pair must be an object")
+    database = item.get("database")
+    if database not in expected_capacity_pairs:
+        raise SystemExit("completed capacity pair is outside the exact allowlist")
+    env_file, env_sha, journal_name = expected_capacity_pairs[database]
+    run_sha = str(item.get("runManifestSha256") or "")
+    run_root = f"/var/lib/chickenbro-retirement-quarantine/{run_sha}"
+    expected_keys = {
+        "database", "envFile", "runManifestSha256", "runRoot", "journalPath",
+        "journalStatus", "observedAt", "databaseAbsent", "originalEnvAbsent",
+        "quarantinedEnvSha256",
+    }
+    if (
+        set(item) != expected_keys
+        or re.fullmatch(r"[0-9a-f]{64}", run_sha) is None
+        or item.get("envFile") != env_file
+        or item.get("runRoot") != run_root
+        or item.get("journalPath") != f"{run_root}/pair-journals/{journal_name}"
+        or item.get("journalStatus") != "reconciled_completed"
+        or not isinstance(item.get("observedAt"), str)
+        or item.get("databaseAbsent") is not True
+        or item.get("originalEnvAbsent") is not True
+        or item.get("quarantinedEnvSha256") != env_sha
+    ):
+        raise SystemExit("completed capacity pair lacks exact reconciliation evidence")
+    completed_capacity_databases.append(database)
+if completed_capacity_databases + pending_capacity_databases != expected_capacity_databases:
+    raise SystemExit("capacity pre-cleanup completed/pending partition changed order or scope")
 resources = payload.get("resources")
 protected = payload.get("protectedResources")
 unresolved = payload.get("unresolvedRequiredTargets")
@@ -201,6 +262,18 @@ if root not in inventory_path.parents:
 actual_inventory_sha = hashlib.sha256(inventory_path.read_bytes()).hexdigest()
 if actual_inventory_sha != inventory.get("sha256"):
     raise SystemExit("source inventory SHA-256 mismatch")
+inventory_payload = json.loads(inventory_path.read_text(encoding="utf-8"))
+inventory_database_names = {
+    item.get("name")
+    for item in inventory_payload.get("databases", [])
+    if isinstance(item, dict)
+}
+if inventory.get("observedAt") != inventory_payload.get("observedAt"):
+    raise SystemExit("source inventory observation identity mismatch")
+if any(name in inventory_database_names for name in completed_capacity_databases):
+    raise SystemExit("completed capacity database is still present in the fresh inventory")
+if not set(pending_capacity_databases).issubset(inventory_database_names):
+    raise SystemExit("pending capacity database is absent from the fresh inventory")
 
 ids = set()
 targets = set()
@@ -261,6 +334,17 @@ for index, item in enumerate(resources):
             raise SystemExit(f"ready filesystem resource {resource_id} lacks content identity")
         if not isinstance(item.get("deleteAfter"), str):
             raise SystemExit(f"ready resource {resource_id} lacks delete-after boundary")
+expected_pending_targets = {
+    *(("postgres_database", name) for name in pending_capacity_databases),
+    *(("file", expected_capacity_pairs[name][0]) for name in pending_capacity_databases),
+}
+actual_capacity_targets = {
+    (item.get("kind"), item.get("target"))
+    for item in resources
+    if item.get("capacityPreCleanup") is True
+}
+if actual_capacity_targets != expected_pending_targets:
+    raise SystemExit("capacity cleanup resources differ from the pending exact allowlist")
 protected_targets = {(item.get("kind"), item.get("target")) for item in protected if isinstance(item, dict)}
 collision = targets & protected_targets
 if collision:
@@ -374,12 +458,16 @@ resources = [
     if scope != "capacity_pre_cleanup" or item.get("capacityPreCleanup") is True
 ]
 if scope == "capacity_pre_cleanup":
+    companion_by_database = {
+        "wow_gear_evidence_01adf184_r14": "/etc/wow-backend-candidate-gear-evidence-r14.env",
+        "wow_gear_evidence_0be65754_r24": "/etc/wow-backend-candidate-gear-evidence-r24.env",
+        "wow_gear_evidence_145dee16_r22": "/etc/wow-backend-candidate-gear-evidence-r22.env",
+        "wow_gear_evidence_15f514d5_r23": "/etc/wow-backend-candidate-gear-evidence-r23.env",
+    }
+    pending = capacity["pendingDatabaseAllowlist"]
     expected = {
-        *(('postgres_database', name) for name in capacity["exactDatabaseAllowlist"]),
-        ('file', '/etc/wow-backend-candidate-gear-evidence-r14.env'),
-        ('file', '/etc/wow-backend-candidate-gear-evidence-r24.env'),
-        ('file', '/etc/wow-backend-candidate-gear-evidence-r22.env'),
-        ('file', '/etc/wow-backend-candidate-gear-evidence-r23.env'),
+        *(("postgres_database", name) for name in pending),
+        *(("file", companion_by_database[name]) for name in pending),
     }
     actual = {(item.get("kind"), item.get("target")) for item in resources}
     if actual != expected or ('postgres_database', 'wow_test') in actual:
@@ -615,7 +703,7 @@ capacity = payload["capacityPreCleanup"]
 resources = payload["resources"]
 by_target = {(item["kind"], item["target"]): item for item in resources}
 rows = []
-for database in capacity["exactDatabaseAllowlist"]:
+for database in capacity["pendingDatabaseAllowlist"]:
     db_item = by_target[("postgres_database", database)]
     env_path = db_item["requiredAbsentCompanion"]
     env_item = by_target[("file", env_path)]
@@ -645,8 +733,10 @@ record_result() {
   local kind="$2"
   local target="$3"
   local status="$4"
-  local before="${5:-{}}"
-  local after="${6:-{}}"
+  local before="${5:-}"
+  local after="${6:-}"
+  [[ -n "${before}" ]] || before='{}'
+  [[ -n "${after}" ]] || after='{}'
   RESOURCE_ID="${resource_id}" RESOURCE_KIND="${kind}" RESOURCE_TARGET="${target}" RESOURCE_STATUS="${status}" \
   RESOURCE_BEFORE="${before}" RESOURCE_AFTER="${after}" RESOURCE_RECOVERY_SHA="${REVIEWED_REMOTE_RECOVERY_SHA}" \
     python3 - <<'PY' >> "${RESULTS_TMP}"
@@ -1364,7 +1454,7 @@ capacity = manifest["capacityPreCleanup"]
 resources = manifest["resources"]
 by_target = {(item["kind"], item["target"]): item for item in resources}
 rows = []
-for database in capacity["exactDatabaseAllowlist"]:
+for database in capacity["pendingDatabaseAllowlist"]:
     db_item = by_target[("postgres_database", database)]
     env_path = db_item["requiredAbsentCompanion"]
     env_item = by_target[("file", env_path)]

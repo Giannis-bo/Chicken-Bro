@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "updatedAt": "2026-09-03",
   "activeMilestone": "chickenbro_simc_total_rebuild_phase_6",
-  "status": "whitelist_recovery_verified_capacity_precleanup_ready",
+  "status": "whitelist_recovery_verified_capacity_precleanup_partial",
   "targetProduct": {
     "businessDomains": [
       "chickenbro_chat",
@@ -27,11 +27,11 @@
   },
   "delivery": {
     "phase1": "local_verified",
-    "phase2": "whitelist_recovery_verified_capacity_precleanup_ready",
+    "phase2": "whitelist_recovery_verified_capacity_precleanup_partial",
     "phase3": "local_verified",
     "phase4": "local_verified",
     "phase5": "local_verified_live_acceptance_blocked",
-    "phase6": "capacity_precleanup_ready_full_retirement_blocked"
+    "phase6": "capacity_precleanup_partial_1_completed_3_remaining_full_retirement_blocked"
   },
   "gates": {
     "implementationAuthorized": true,
@@ -53,6 +53,8 @@
     "capacityPreCleanup": {
       "authorized": true,
       "exactRejectedDatabaseCount": 4,
+      "completedDatabaseCount": 1,
+      "remainingDatabaseCount": 3,
       "requiresPhase5Acceptance": false,
       "requiresWhitelistRestoreVerification": true,
       "protectsWowTest": true
@@ -65,7 +67,7 @@
     "cloudCleanupManifest": "docs/refactor/chickenbro-simc-cloud-cleanup-manifest.json",
     "capacityCleanupManifest": "docs/refactor/chickenbro-simc-capacity-cleanup-manifest.json",
     "recoveryInventory": "docs/refactor/chickenbro-simc-recovery-inventory.json",
-    "capacityGate": "blocked_until_whitelist_recovery_and_exact_capacity_cleanup_or_storage_expansion",
+    "capacityGate": "blocked_until_remaining_exact_capacity_cleanup",
     "targetIdentity": {
       "provider": "tencent_cvm",
       "instanceId": "ins-93tgv1rb",
@@ -75,8 +77,8 @@
       "sshTarget": "wow-lighthouse",
       "refreshRequiredBeforeApply": true
     },
-    "observedRootFreeBytes": 8178581504,
-    "observedLegacyDatabaseBytes": 16384343063,
+    "observedRootFreeBytes": 13425606656,
+    "observedLegacyDatabaseBytes": 16391437335,
     "whitelistRecovery": {
       "status": "restore_verified",
       "manifestSha256": "a383d4c32f4edf08360055316c73f451d5b19fe1e81630dbb79b935126f8c818",
@@ -94,8 +96,8 @@
       "phase5Accepted": false
     },
     "cloudCleanupDryRun": {
-      "total": 84,
-      "ready": 8,
+      "total": 82,
+      "ready": 6,
       "blocked": 76,
       "unresolvedRequiredTargets": 2
     },

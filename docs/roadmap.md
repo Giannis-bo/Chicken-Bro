@@ -23,11 +23,11 @@
 | 阶段 | 状态 | 还差什么 |
 | --- | --- | --- |
 | 1. 控制面 | `已完成` | 无 |
-| 2. 干净数据面与 Identity | `正在推进 / 恢复已验证` | `chickenbro_prod` 白名单迁移、第一次核对、归档、独立恢复与第二次核对已通过；先执行已审阅的四库容量预清理并刷新容量，再执行真实 candidate apply |
+| 2. 干净数据面与 Identity | `正在推进 / 恢复已验证` | `chickenbro_prod` 白名单迁移、第一次核对、归档、独立恢复与第二次核对已通过；容量预清理已完成 1 组、剩余 3 组，全部完成并刷新容量后执行真实 candidate apply |
 | 3. 正式 Chat | `本地已验证` | 真实双端 candidate 验收 |
 | 4. 正式 SimC | `本地已验证` | 云端语义任务与真实双端 candidate 验收 |
 | 5. 双端、迁移与切流 | `本地已验证 / Live 阻塞` | 容量门禁、candidate 自动化与真实扫码验收、切流、唯一 delta 和首条新写入 |
-| 6. Legacy 退役 | `容量预清理已解锁 / 完整 Apply 阻塞` | 白名单恢复与 fresh identity/connection/reference/open-handle/精确行数证据已通过；只允许 4 个拒绝 evidence 库及其 4 个 env 伴随项进入容量预清理，其余 76 个云端资源继续被 Phase 5 门禁锁定 |
+| 6. Legacy 退役 | `容量预清理部分完成 / 完整 Apply 阻塞` | 首组 `wow_gear_evidence_01adf184_r14` 已删除、对应 env 已按运行哈希隔离且日志对账完成；剩余 3 库与 3 个 env 继续受 fresh identity/connection/reference/open-handle/精确行数门禁约束，其余 76 个云端资源继续被 Phase 5 门禁锁定 |
 
 ## 整体完成门槛
 

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
-  "status": "business_whitelist_restore_verified_capacity_precleanup_authorized",
-  "observedAt": "2026-09-03T05:53:28Z",
+  "status": "business_whitelist_restore_verified_capacity_precleanup_partial",
+  "observedAt": "2026-09-03T07:58:56Z",
   "invalidatedProviderInventory": {
     "instanceId": "lhins-dr6tkl63",
     "region": "ap-guangzhou",
@@ -48,6 +48,14 @@
     "recoveryRequired": false,
     "exactProvisionalAllowlist": [
       "wow_gear_evidence_01adf184_r14",
+      "wow_gear_evidence_0be65754_r24",
+      "wow_gear_evidence_145dee16_r22",
+      "wow_gear_evidence_15f514d5_r23"
+    ],
+    "completed": [
+      "wow_gear_evidence_01adf184_r14"
+    ],
+    "pending": [
       "wow_gear_evidence_0be65754_r24",
       "wow_gear_evidence_145dee16_r22",
       "wow_gear_evidence_15f514d5_r23"
@@ -149,6 +157,6 @@
     "candidateDatabaseProvisioningAuthorized": true,
     "capacityPreCleanupAuthorized": true,
     "wowTestRetirementAuthorized": false,
-    "nextDecision": "Apply only the reviewed four-database capacity pre-cleanup with the exact recovery and cleanup manifest hashes, refresh the cloud inventory, then deploy and validate the isolated candidate. Full legacy retirement and wow_test deletion remain unauthorized."
+    "nextDecision": "Continue only the three remaining reviewed capacity pairs with fresh exact recovery, inventory and cleanup manifest hashes, then refresh capacity and deploy the isolated candidate. The first pair is already reconciled complete; full legacy retirement and wow_test deletion remain unauthorized."
   }
 }

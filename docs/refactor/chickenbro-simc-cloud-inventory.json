@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "reachable",
-  "observedAt": "2026-09-03T05:48:48Z",
+  "observedAt": "2026-09-03T07:58:56Z",
   "host": "VM-4-8-ubuntu",
   "targetIdentity": {
     "provider": "tencent_cvm",
@@ -15,11 +15,11 @@
   "rootFilesystem": {
     "path": "/",
     "sizeBytes": 73859022848,
-    "usedBytes": 62550208512,
-    "freeBytes": 8178581504
+    "usedBytes": 57303183360,
+    "freeBytes": 13425606656
   },
-  "rootFreeBytes": 8178581504,
-  "currentDatabaseBytes": 39299530487,
+  "rootFreeBytes": 13425606656,
+  "currentDatabaseBytes": 34068882144,
   "databases": [
     {
       "name": "chickenbro_prod",
@@ -28,7 +28,7 @@
     },
     {
       "name": "chickenbro_restore_verify_20260903_054604__c74b7e3af237",
-      "sizeBytes": 11140119,
+      "sizeBytes": 11148311,
       "connections": 0
     },
     {
@@ -152,11 +152,6 @@
       "connections": 0
     },
     {
-      "name": "wow_gear_evidence_01adf184_r14",
-      "sizeBytes": 5237750807,
-      "connections": 0
-    },
-    {
       "name": "wow_gear_evidence_0be65754_r24",
       "sizeBytes": 5517827095,
       "connections": 0
@@ -178,7 +173,7 @@
     },
     {
       "name": "wow_test",
-      "sizeBytes": 16384343063,
+      "sizeBytes": 16391437335,
       "connections": 0
     },
     {
@@ -191,7 +186,7 @@
     {
       "name": "wow-attribute-rule-audit.service",
       "loadState": "loaded",
-      "activeState": "inactive",
+      "activeState": "failed",
       "unitFileState": "static"
     },
     {
@@ -481,7 +476,7 @@
     },
     {
       "path": "/var/lib/postgresql",
-      "sizeBytes": 39451342457
+      "sizeBytes": 34170141282
     },
     {
       "path": "/var/lib/wow-backend",

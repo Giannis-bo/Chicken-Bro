@@ -1,6 +1,6 @@
 # 炸鸡队长与 SimC 生产迁移、切流与恢复 Runbook
 
-状态：当前生产操作权威；Phase 5 候选部署、PostgreSQL 白名单迁移适配器与自动化双端验收已完成本地实现和验证；2026-09-03 已获干净库 provisioning 授权，白名单恢复证明、容量预清理、candidate apply 与真实双端验收仍须按独立 gate 顺序完成
+状态：当前生产操作权威；Phase 5 候选部署、PostgreSQL 白名单迁移适配器与自动化双端验收已完成本地实现和验证；2026-09-03 白名单恢复证明已通过，容量预清理已完成 1 组、剩余 3 组，candidate apply 与真实双端验收仍须按独立 gate 顺序完成
 
 本 Runbook 规定如何从 legacy `wow_test` 和旧运行单元迁移到干净 `chickenbro_prod`，如何验证双端数据一致，何时可以切流，以及何时仍然禁止删除。执行者必须同时阅读 [当前架构](chickenbro-simc-architecture.md)、[project-state.json](project-state.json) 和对应阶段的 Harness requirement。
 
@@ -11,17 +11,17 @@
 | 项目 | 已记录的只读事实 |
 | --- | ---: |
 | 根分区总量 | 73,859,022,848 bytes |
-| 根分区已用 | 62,144,901,120 bytes |
-| 根分区可用 | 8,583,778,304 bytes |
-| PostgreSQL 所有非模板数据库合计 | 39,277,479,625 bytes |
-| PostgreSQL 目录 | 39,630,380,619 bytes |
-| 数据库数量 | 31 |
+| 根分区已用 | 57,303,183,360 bytes |
+| 根分区可用 | 13,425,606,656 bytes |
+| PostgreSQL 所有非模板数据库合计 | 34,068,882,144 bytes |
+| PostgreSQL 目录 | 34,170,141,282 bytes |
+| 数据库数量 | 32 |
 | `wow-*` unit 数量 | 32 |
-| 容量门禁 | `blocked_until_whitelist_recovery_and_exact_capacity_cleanup_or_storage_expansion` |
+| 容量门禁 | `blocked_until_remaining_exact_capacity_cleanup` |
 | 当前目标 identity | Tencent CVM `ins-93tgv1rb` / `ap-shanghai` / `ap-shanghai-2`，SSH alias `wow-lighthouse`，公网 `124.223.51.33` |
 | 失效 provider evidence | `lhins-dr6tkl63` / Guangzhou；不属于本目标，不能参与 gate |
 
-这些数字只说明盘点时刻的资源状态。2026-09-03 的补充只读证据显示根分区可用 8,773,099,520 bytes，四个精确 evidence 库仍以清单体积存在且连接数均为 0；它们各自仍被一个顶层 `/etc/wow-backend-candidate-gear-evidence-r*.env` 引用，但对应 env 没有 systemd、运行进程或 open handle 消费者。该补充证据没有执行任何写入，也不构成 apply 授权。执行任何写入前仍必须从实例 metadata 刷新 exact identity、容量、库大小、连接与所有引用；HTTP 200 或单个服务 active 不能解锁后续步骤。
+这些数字来自 `2026-09-03T07:58:56Z` fresh 只读快照。首组 evidence 库已不存在，其原 env 已按运行哈希隔离；剩余三个精确 evidence 库仍存在且连接数均为 0。这个快照只证明当前存在性、容量和连接状态，下一次 apply 仍必须从实例 metadata 刷新 exact identity、库大小、精确行数、env 哈希/realpath、配置引用、进程引用和 open handle；HTTP 200 或单个服务 active 不能解锁后续步骤。
 
 ## 绝对安全边界
 
@@ -76,7 +76,7 @@ ssh -o BatchMode=yes -o ConnectTimeout=15 wow-lighthouse \
 
 容量预清理的数据库 allowlist 固定为：`wow_gear_evidence_01adf184_r14`、`wow_gear_evidence_0be65754_r24`、`wow_gear_evidence_145dee16_r22`、`wow_gear_evidence_15f514d5_r23`。env 伴随项固定为 `/etc/wow-backend-candidate-gear-evidence-r14.env`、`r24.env`、`r22.env`、`r23.env`。`wow_test`、任何通配符、前缀匹配和其他 `wow_*` 库均拒绝。
 
-当前只读清理清单是 [chickenbro-simc-capacity-cleanup-manifest.json](refactor/chickenbro-simc-capacity-cleanup-manifest.json)：四库合计 22,533,484,636 bytes。每次 apply 必须重新确认 Tencent metadata identity、每库精确大小与零连接、每个 env 的 exact hash/realpath、零 systemd/Nginx/process/open-handle 消费者；先移除并确认对应 env 不存在，再检查项目配置引用为零，最后才可引用安全地删除配对数据库。完整退役仍固定 `deletionAuthorized=false`；只有 `capacityPreCleanup.authorized=true` 的八个精确目标已获本轮授权。
+当前只读清理清单是 [chickenbro-simc-capacity-cleanup-manifest.json](refactor/chickenbro-simc-capacity-cleanup-manifest.json)。原四库合计 22,533,484,636 bytes；其中 `wow_gear_evidence_01adf184_r14` 与其 env 已由清单哈希 `7e99a780…76d9` 完成并对账，释放数据库体积 5,237,750,807 bytes，fresh inventory 显示根分区可用 13,425,606,656 bytes。剩余三库合计 17,295,733,829 bytes。每次 apply 必须重新确认 Tencent metadata identity、每库精确大小与零连接、每个 env 的 exact hash/realpath、零 systemd/Nginx/process/open-handle 消费者；先移除并确认对应 env 不存在，再检查项目配置引用为零，最后才可引用安全地删除配对数据库。完整退役仍固定 `deletionAuthorized=false`；固定授权全集不变，但当前 `pendingDatabaseAllowlist` 只允许剩余三库及三份 env。
 
 禁止通过删除或写入 `wow_test`、正式部署、唯一 SimC runtime 或唯一回滚包释放空间。拒绝 evidence/test 内容不建立 archive，也不引入 COS、依赖或下载。
 
@@ -375,7 +375,7 @@ unit 只接受固定 `simulationcraft/simc` 的精确 commit，不查询或跟�
 - manifest SHA 与 apply 参数一致；
 - 回滚包保留窗口有书面状态。
 
-当前云端精确控制文件是 [chickenbro-simc-cloud-cleanup-manifest.json](refactor/chickenbro-simc-cloud-cleanup-manifest.json)。它覆盖只读清单里的全部 32 个 `wow-*` unit 和全部 `wow_*` 数据库，并显式列出已知旧 env、pgpass、Nginx、部署、备份、状态与候选目录。容量 scope 仅选中四库及四个 env；未能从脱敏清单确定的 legacy runtime PGPASSFILE 以及尚未创建的 Chickenbro candidate 资源被列入 `unresolvedRequiredTargets`，不能因未知而省略。
+当前云端精确控制文件是 [chickenbro-simc-cloud-cleanup-manifest.json](refactor/chickenbro-simc-cloud-cleanup-manifest.json)。它覆盖 fresh 只读清单里的全部 `wow-*` unit 和仍存在的全部 `wow_*` 数据库，并显式列出已知旧 env、pgpass、Nginx、部署、备份、状态与候选目录。容量 scope 以 `exactDatabaseAllowlist` 保留原四组授权边界，以 `completedPairs` 固定首组的日志/隔离哈希，以 `pendingDatabaseAllowlist` 只选中剩余三库及三份 env；未能从脱敏清单确定的 legacy runtime PGPASSFILE 以及尚未创建的 Chickenbro candidate 资源被列入 `unresolvedRequiredTargets`，不能因未知而省略。
 
 本地评审入口默认只解析清单，不连接云端、不停服务、不删数据：
 
@@ -388,7 +388,7 @@ bash server/retire_chickenbro_legacy_lighthouse.sh \
 
 当前清单固定 `deletionAuthorized=false`，所有资源均为 `blocked`。容量 apply 使用 `--capacity-pre-cleanup --manifest-sha <sha> --recovery-manifest-sha <sha>`，并在任何 mutation 前拒绝未授权清单或不匹配恢复清单；远端再次校验 metadata、env hash/realpath/consumer、数据库大小/连接/配置引用。完整 Phase 6 还要求真实生产验收、首条新写入、稳定窗口、所有未知目标已解析、每个资源 gate 为 ready 且删除时间已到。任一项不满足时停止。
 
-apply 只接受精确名称。容量 scope 先把四个 env 移到同主机 `/var/lib/chickenbro-retirement-quarantine/<manifest-sha>` 并确认原路径不存在，再逐库检查 `pg_stat_activity`、实时大小和当前配置/进程引用，以引用安全的精确 identifier 执行删除。完整 Phase 6 中，unit 会先检查反向依赖再停止、禁用并移动 unit 文件；其他旧文件/目录也先核对 SHA/realpath，再移动到该精确 quarantine。目录隔离只是可恢复退役，不是永久清除；永久删除仍要等 Task 5 的回滚窗口到期。
+apply 只接受精确名称。容量 scope 对当前 pending env 逐个移到同主机 `/var/lib/chickenbro-retirement-quarantine/<manifest-sha>` 并确认原路径不存在，再逐库检查 `pg_stat_activity`、实时大小和当前配置/进程引用，以引用安全的精确 identifier 执行删除；已在 `completedPairs` 中对账的配对不会进入新的执行计划。完整 Phase 6 中，unit 会先检查反向依赖再停止、禁用并移动 unit 文件；其他旧文件/目录也先核对 SHA/realpath，再移动到该精确 quarantine。目录隔离只是可恢复退役，不是永久清除；永久删除仍要等 Task 5 的回滚窗口到期。
 
 退役顺序：停止并禁用 legacy unit/timer；移除 candidate/prototype；精确删除无引用数据库；隔离旧部署/静态/数据目录；执行绑定 SHA 的本地旧代码/文档/测试清理；刷新本地/云端清单和 parity。不得对 `/opt`、`/var/lib`、数据库前缀或仓库根做宽泛递归删除。
 

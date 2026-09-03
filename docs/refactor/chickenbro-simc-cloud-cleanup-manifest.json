@@ -1,13 +1,13 @@
 {
   "schemaVersion": 2,
   "mode": "dry-run",
-  "generatedAt": "2026-09-03T07:16:36Z",
+  "generatedAt": "2026-09-03T07:58:56Z",
   "deletionAuthorized": false,
-  "status": "capacity_precleanup_ready_full_retirement_blocked",
+  "status": "capacity_precleanup_partial_3_remaining_full_retirement_blocked",
   "sourceInventory": {
     "path": "docs/refactor/chickenbro-simc-cloud-inventory.json",
-    "sha256": "1b4cb73b6ac309ee95d3b630e0568a25be7a4cc88c5700ceb074da66e33fe4b0",
-    "observedAt": "2026-09-03T05:48:48Z",
+    "sha256": "b404fc891feed5537c16a51c109f9bf4177ab18e77a0851144cd2e48b50d08f4",
+    "observedAt": "2026-09-03T07:58:56Z",
     "freshness": "fresh"
   },
   "targetIdentity": {
@@ -46,16 +46,16 @@
   "capacityPreCleanup": {
     "authorized": true,
     "lastAttempt": {
-      "observedAt": "2026-09-03T07:16:36Z",
-      "manifestSha256": "c0e6da78c7d83bcef3c991861a914648d7f6ed8b203365966cd35147a4942451",
-      "status": "failed_before_mutation",
-      "reasonCode": "postgres_cannot_disallow_current_database",
-      "databasesPresent": 4,
-      "envFilesPresent": 4,
+      "observedAt": "2026-09-03T07:56:29Z",
+      "manifestSha256": "7e99a78009eb9a04e86a21230da93cae143a6ffb705b548fc696b8e54b3476d9",
+      "status": "partial_completed",
+      "reasonCode": "result_journal_shell_default_brace",
+      "databasesPresent": 3,
+      "envFilesPresent": 3,
       "activeConnections": 0,
       "pairJournalCount": 4,
-      "reconciledPairCount": 1,
-      "mutationPerformed": false
+      "completedPairCount": 1,
+      "mutationPerformed": true
     },
     "requiresPhase5Acceptance": false,
     "protectsWowTest": true,
@@ -65,6 +65,25 @@
       "wow_gear_evidence_0be65754_r24",
       "wow_gear_evidence_145dee16_r22",
       "wow_gear_evidence_15f514d5_r23"
+    ],
+    "pendingDatabaseAllowlist": [
+      "wow_gear_evidence_0be65754_r24",
+      "wow_gear_evidence_145dee16_r22",
+      "wow_gear_evidence_15f514d5_r23"
+    ],
+    "completedPairs": [
+      {
+        "database": "wow_gear_evidence_01adf184_r14",
+        "envFile": "/etc/wow-backend-candidate-gear-evidence-r14.env",
+        "runManifestSha256": "7e99a78009eb9a04e86a21230da93cae143a6ffb705b548fc696b8e54b3476d9",
+        "runRoot": "/var/lib/chickenbro-retirement-quarantine/7e99a78009eb9a04e86a21230da93cae143a6ffb705b548fc696b8e54b3476d9",
+        "journalPath": "/var/lib/chickenbro-retirement-quarantine/7e99a78009eb9a04e86a21230da93cae143a6ffb705b548fc696b8e54b3476d9/pair-journals/database-wow-gear-evidence-01adf184-r14.json",
+        "journalStatus": "reconciled_completed",
+        "observedAt": "2026-09-03T07:56:29Z",
+        "databaseAbsent": true,
+        "originalEnvAbsent": true,
+        "quarantinedEnvSha256": "e4f0e3cdf8d3574dc9daaa020cc6777ac591c0e068ba9e1dc5cc034ba9d4f8e1"
+      }
     ],
     "configurationScanRoots": [
       "/etc",
@@ -1637,29 +1656,6 @@
       ]
     },
     {
-      "id": "capacity-env-gear-evidence-r14",
-      "kind": "file",
-      "target": "/etc/wow-backend-candidate-gear-evidence-r14.env",
-      "capacityPreCleanup": true,
-      "observed": {
-        "at": "2026-09-03T05:52:47Z",
-        "dateReceived": "2026-09-03",
-        "source": "fresh authorized capacity preflight",
-        "openHandles": 0,
-        "runningProcessReferences": 0,
-        "systemdUnitReferences": []
-      },
-      "replacement": "none; rejected evidence database reference",
-      "activeConnections": null,
-      "contentSha256": "e4f0e3cdf8d3574dc9daaa020cc6777ac591c0e068ba9e1dc5cc034ba9d4f8e1",
-      "currentReferences": [],
-      "backupIdentity": null,
-      "restoreCheck": "not_required",
-      "deleteAfter": "2026-09-03T05:53:28Z",
-      "gateStatus": "ready",
-      "blockedReasons": []
-    },
-    {
       "id": "capacity-env-gear-evidence-r24",
       "kind": "file",
       "target": "/etc/wow-backend-candidate-gear-evidence-r24.env",
@@ -1722,35 +1718,6 @@
       "activeConnections": null,
       "contentSha256": "37ebf357edf4670ef52c3cee6525ba8e95df2ce8b8e37adb6e5acedeeeae2f68",
       "currentReferences": [],
-      "backupIdentity": null,
-      "restoreCheck": "not_required",
-      "deleteAfter": "2026-09-03T05:53:28Z",
-      "gateStatus": "ready",
-      "blockedReasons": []
-    },
-    {
-      "id": "database-wow-gear-evidence-01adf184-r14",
-      "kind": "postgres_database",
-      "target": "wow_gear_evidence_01adf184_r14",
-      "capacityPreCleanup": true,
-      "recoveryRequired": false,
-      "observed": {
-        "at": "2026-09-03T05:52:47Z",
-        "sizeBytes": 5237750807,
-        "owner": "postgres",
-        "allowsConnections": true,
-        "tableCount": 71,
-        "approximateRows": 2115416,
-        "exactRows": 2116322,
-        "connections": 0
-      },
-      "replacement": "removed with no target-product replacement",
-      "activeConnections": 0,
-      "contentSha256": null,
-      "currentReferences": [
-        "/etc/wow-backend-candidate-gear-evidence-r14.env"
-      ],
-      "requiredAbsentCompanion": "/etc/wow-backend-candidate-gear-evidence-r14.env",
       "backupIdentity": null,
       "restoreCheck": "not_required",
       "deleteAfter": "2026-09-03T05:53:28Z",

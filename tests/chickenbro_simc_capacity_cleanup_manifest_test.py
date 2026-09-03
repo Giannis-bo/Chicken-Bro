@@ -24,6 +24,10 @@ EXPECTED_COMPANION_HASHES = {
     "wow_gear_evidence_145dee16_r22": "af56e04898b7739e2520940feb9d967bb55afc1d1a83ccd1b55055ee258a340a",
     "wow_gear_evidence_15f514d5_r23": "37ebf357edf4670ef52c3cee6525ba8e95df2ce8b8e37adb6e5acedeeeae2f68",
 }
+COMPLETED_DATABASE = "wow_gear_evidence_01adf184_r14"
+PENDING_DATABASES = {
+    name: facts for name, facts in EXPECTED_DATABASES.items() if name != COMPLETED_DATABASE
+}
 
 
 class ChickenbroSimcCapacityCleanupManifestTest(unittest.TestCase):
@@ -55,17 +59,33 @@ class ChickenbroSimcCapacityCleanupManifestTest(unittest.TestCase):
         self.assertEqual(payload["businessRecovery"]["migrationReconciliationStatus"], "matched")
         self.assertEqual(payload["businessRecovery"]["restoreReconciliationStatus"], "matched")
         self.assertEqual(payload["rejectedEvidenceRecovery"], {"required": False})
+        self.assertEqual(payload["authorizedDatabaseAllowlist"], list(EXPECTED_DATABASES))
+        self.assertEqual(payload["pendingDatabaseAllowlist"], list(PENDING_DATABASES))
+        self.assertEqual(
+            payload["completedPairs"],
+            [{
+                "database": COMPLETED_DATABASE,
+                "envFile": EXPECTED_COMPANIONS[COMPLETED_DATABASE],
+                "sizeBytesReleased": EXPECTED_DATABASES[COMPLETED_DATABASE][0],
+                "runManifestSha256": "7e99a78009eb9a04e86a21230da93cae143a6ffb705b548fc696b8e54b3476d9",
+                "journalStatus": "reconciled_completed",
+                "observedAt": "2026-09-03T07:56:29Z",
+                "databaseAbsent": True,
+                "originalEnvAbsent": True,
+                "quarantinedEnvSha256": EXPECTED_COMPANION_HASHES[COMPLETED_DATABASE],
+            }],
+        )
         recovery_inventory = ROOT / payload["evidence"]["recoveryInventory"]
         self.assertTrue(recovery_inventory.is_file())
-        self.assertEqual(payload["totalCandidateBytes"], sum(item[0] for item in EXPECTED_DATABASES.values()))
+        self.assertEqual(payload["totalCandidateBytes"], sum(item[0] for item in PENDING_DATABASES.values()))
         self.assertEqual(
             payload["evidence"]["configurationScanRoots"],
             ["/etc", "/opt/chickenbro", "/opt/wow-mini-program", "/opt/wow-v2-staging", "/var/www"],
         )
 
         candidates = {item["name"]: item for item in payload["candidates"]}
-        self.assertEqual(set(candidates), set(EXPECTED_DATABASES))
-        for name, (size_bytes, exact_rows) in EXPECTED_DATABASES.items():
+        self.assertEqual(set(candidates), set(PENDING_DATABASES))
+        for name, (size_bytes, exact_rows) in PENDING_DATABASES.items():
             candidate = candidates[name]
             self.assertEqual(candidate["kind"], "postgres_database")
             self.assertEqual(candidate["sizeBytes"], size_bytes)
@@ -108,7 +128,7 @@ class ChickenbroSimcCapacityCleanupManifestTest(unittest.TestCase):
                     "openHandles": 0,
                     "applyStatus": "ready_for_reviewed_capacity_precleanup",
                 }
-                for name in EXPECTED_DATABASES
+                for name in PENDING_DATABASES
             ],
         )
 

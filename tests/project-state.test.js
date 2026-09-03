@@ -40,11 +40,11 @@ test('project state preserves the live safety boundary instead of claiming compl
   const state = readJson('docs/project-state.json')
 
   assert.equal(state.delivery.phase1, 'local_verified')
-  assert.equal(state.delivery.phase2, 'whitelist_recovery_verified_capacity_precleanup_ready')
+  assert.equal(state.delivery.phase2, 'whitelist_recovery_verified_capacity_precleanup_partial')
   assert.equal(state.delivery.phase3, 'local_verified')
   assert.equal(state.delivery.phase4, 'local_verified')
   assert.equal(state.delivery.phase5, 'local_verified_live_acceptance_blocked')
-  assert.equal(state.delivery.phase6, 'capacity_precleanup_ready_full_retirement_blocked')
+  assert.equal(state.delivery.phase6, 'capacity_precleanup_partial_1_completed_3_remaining_full_retirement_blocked')
   assert.deepEqual(state.refactorEvidence.localCleanupDryRun, {
     deletable: 2588,
     retained: 267,
@@ -53,8 +53,8 @@ test('project state preserves the live safety boundary instead of claiming compl
     phase5Accepted: false,
   })
   assert.deepEqual(state.refactorEvidence.cloudCleanupDryRun, {
-    total: 84,
-    ready: 8,
+    total: 82,
+    ready: 6,
     blocked: 76,
     unresolvedRequiredTargets: 2,
   })
@@ -72,6 +72,8 @@ test('project state preserves the live safety boundary instead of claiming compl
   assert.deepEqual(state.gates.capacityPreCleanup, {
     authorized: true,
     exactRejectedDatabaseCount: 4,
+    completedDatabaseCount: 1,
+    remainingDatabaseCount: 3,
     requiresPhase5Acceptance: false,
     requiresWhitelistRestoreVerification: true,
     protectsWowTest: true,
@@ -88,7 +90,7 @@ test('all execution authorities and refactor evidence are explicit existing file
   }
   assert.equal(
     state.refactorEvidence.capacityGate,
-    'blocked_until_whitelist_recovery_and_exact_capacity_cleanup_or_storage_expansion',
+    'blocked_until_remaining_exact_capacity_cleanup',
   )
   assert.deepEqual(state.refactorEvidence.targetIdentity, {
     provider: 'tencent_cvm',
