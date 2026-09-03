@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "reachable",
-  "observedAt": "2026-09-03T09:44:15Z",
+  "observedAt": "2026-09-03T10:35:51Z",
   "host": "VM-4-8-ubuntu",
   "targetIdentity": {
     "provider": "tencent_cvm",
@@ -15,11 +15,11 @@
   "rootFilesystem": {
     "path": "/",
     "sizeBytes": 73859022848,
-    "usedBytes": 40032776192,
-    "freeBytes": 30696013824
+    "usedBytes": 39974240256,
+    "freeBytes": 30754549760
   },
-  "rootFreeBytes": 30696013824,
-  "currentDatabaseBytes": 16773148315,
+  "rootFreeBytes": 30754549760,
+  "currentDatabaseBytes": 16772992667,
   "databases": [
     {
       "name": "chickenbro_prod",
@@ -158,7 +158,7 @@
     },
     {
       "name": "wow_test",
-      "sizeBytes": 16391437335,
+      "sizeBytes": 16391281687,
       "connections": 0
     },
     {
@@ -351,7 +351,7 @@
     {
       "name": "wow-websim-sync.service",
       "loadState": "loaded",
-      "activeState": "inactive",
+      "activeState": "activating",
       "unitFileState": "static"
     },
     {
@@ -461,7 +461,7 @@
     },
     {
       "path": "/var/lib/postgresql",
-      "sizeBytes": 16874432029
+      "sizeBytes": 16874284573
     },
     {
       "path": "/var/lib/wow-backend",
