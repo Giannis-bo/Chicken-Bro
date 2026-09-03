@@ -21,7 +21,7 @@
 | Chat | 正式 `/api/v2/chat/**`、owner-scoped 历史、稳定游标、幂等发送与持久化回放已实现 | 候选/生产双端真实数据验收 | Phase 3 已实现；Phase 5 验收待执行 |
 | SimC | 正式 `/api/v2/simc/**`、快照/readiness/compiler、PostgreSQL queue、Worker 与语义结果已实现 | 云端真实 runtime、任务终态和跨端结果验收 | Phase 4 已实现；Phase 5 验收待执行 |
 | 客户端 | 活跃 Taro shell 已收敛为 5 条路由、2 Tab 与正式 Web Shell；旧文件仅作为待清理目标留存 | 候选构建、真实设备与登录验收 | Phase 5 本地实现完成；外部验收待执行 |
-| 数据面 | 干净 schema、白名单迁移和核对代码已实现；生产仍依赖 legacy `wow_test` | 创建、迁移并切换只含 Identity、Chat、SimC、Ops 的 `chickenbro_prod` | Phase 2 本地实现完成；Phase 5 云端执行待门禁 |
+| 数据面 | 干净 `chickenbro_prod` 已完成白名单迁移、归档、独立恢复和双重核对；生产仍依赖 legacy `wow_test` | 容量预清理后部署 candidate，再切换只含 Identity、Chat、SimC、Ops 的生产数据面 | Phase 2 恢复证明已通过；Phase 5 candidate/切流待执行 |
 | 旧系统 | 精确本地/云端清单和 fail-closed apply 已实现；旧系统仍承担生产与回滚职责 | 门禁通过后精确退役，Git 历史承担归档 | Phase 6 实现完成；apply 待 Phase 5 与恢复验证 |
 
 旧 prototype 文件仍在本地精确删除清单中，但已经从正式 application composition 和客户端调用图断开；`/api/v2/prototype/**` 不属于正式 API。HTTP 200、systemd active、候选首页可达或本地测试通过都不能把表中“目标”提升为生产完成。

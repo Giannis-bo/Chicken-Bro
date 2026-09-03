@@ -14,9 +14,9 @@ class ChickenbroSimcRecoveryInventoryTest(unittest.TestCase):
         self.assertEqual(inventory["schemaVersion"], 2)
         self.assertEqual(
             inventory["status"],
-            "corrected_recovery_contract_provisioning_authorized_not_run",
+            "business_whitelist_restore_verified_capacity_precleanup_authorized",
         )
-        self.assertFalse(inventory["mutationPerformed"])
+        self.assertTrue(inventory["mutationPerformed"])
 
         invalidated = inventory["invalidatedProviderInventory"]
         self.assertEqual(invalidated["instanceId"], "lhins-dr6tkl63")
@@ -35,10 +35,21 @@ class ChickenbroSimcRecoveryInventoryTest(unittest.TestCase):
         recovery = inventory["businessWhitelistRecovery"]
         self.assertEqual(recovery["sourceDatabase"], "wow_test")
         self.assertEqual(recovery["sourceMode"], "read_only")
-        self.assertEqual(recovery["status"], "authorized_not_run")
+        self.assertEqual(recovery["status"], "restore_verified")
         self.assertEqual(recovery["manifestSchema"], "chickenbro-whitelist-recovery-v1")
         self.assertEqual(recovery["candidateDatabase"], "chickenbro_prod")
-        self.assertEqual(recovery["verificationDatabasePattern"], "chickenbro_restore_verify_*")
+        self.assertEqual(
+            recovery["verificationDatabase"],
+            "chickenbro_restore_verify_20260903_054604__c74b7e3af237",
+        )
+        self.assertRegex(recovery["manifestSha256"], r"^[0-9a-f]{64}$")
+        self.assertRegex(recovery["archiveSha256"], r"^[0-9a-f]{64}$")
+        self.assertRegex(recovery["migrationReportSha256"], r"^[0-9a-f]{64}$")
+        self.assertRegex(recovery["restoreReconciliationSha256"], r"^[0-9a-f]{64}$")
+        self.assertEqual(recovery["migrationReconciliationStatus"], "matched")
+        self.assertEqual(recovery["restoreReconciliationStatus"], "matched")
+        self.assertEqual(recovery["acceptedCount"], 1197)
+        self.assertEqual(recovery["rejectedCount"], 392)
         self.assertEqual(inventory["rejectedEvidenceDatabases"]["recoveryRequired"], False)
 
         snapshots = inventory["providerSnapshots"]
@@ -53,9 +64,9 @@ class ChickenbroSimcRecoveryInventoryTest(unittest.TestCase):
 
         conclusions = inventory["conclusions"]
         self.assertFalse(conclusions["currentIndependentBackup"])
-        self.assertFalse(conclusions["whitelistRestoreVerified"])
+        self.assertTrue(conclusions["whitelistRestoreVerified"])
         self.assertTrue(conclusions["candidateDatabaseProvisioningAuthorized"])
-        self.assertFalse(conclusions["capacityPreCleanupAuthorized"])
+        self.assertTrue(conclusions["capacityPreCleanupAuthorized"])
         self.assertFalse(conclusions["wowTestRetirementAuthorized"])
 
 

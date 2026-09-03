@@ -1,14 +1,14 @@
 {
   "schemaVersion": 2,
   "mode": "dry-run",
-  "generatedAt": "2026-09-03T05:18:54Z",
+  "generatedAt": "2026-09-03T05:53:28Z",
   "deletionAuthorized": false,
-  "status": "blocked_pending_whitelist_restore_and_fresh_remote_probes",
+  "status": "capacity_precleanup_ready_full_retirement_blocked",
   "sourceInventory": {
     "path": "docs/refactor/chickenbro-simc-cloud-inventory.json",
-    "sha256": "c74b7e3af2377683a1de1279c2b3d52fe95590b94fbfd7348b6b6bc2f368a864",
-    "observedAt": "2026-09-03T05:18:54Z",
-    "freshness": "fresh_reviewed_snapshot_apply_still_requires_live_refresh"
+    "sha256": "1b4cb73b6ac309ee95d3b630e0568a25be7a4cc88c5700ceb074da66e33fe4b0",
+    "observedAt": "2026-09-03T05:48:48Z",
+    "freshness": "fresh"
   },
   "targetIdentity": {
     "provider": "tencent_cvm",
@@ -27,13 +27,13 @@
     "stableHealthWindowCompleted": false
   },
   "businessRecovery": {
-    "status": "not_run",
+    "status": "restore_verified",
     "manifestSchema": "chickenbro-whitelist-recovery-v1",
     "manifestPath": "/var/lib/chickenbro-recovery/whitelist-recovery.json",
-    "manifestSha256": null,
+    "manifestSha256": "a383d4c32f4edf08360055316c73f451d5b19fe1e81630dbb79b935126f8c818",
     "sourceDatabase": "wow_test",
     "sourceMode": "read_only",
-    "isolatedRestoreIdentity": null
+    "isolatedRestoreIdentity": "chickenbro_restore_verify_20260903_054604__c74b7e3af237"
   },
   "acceptedProductionRecovery": {
     "status": "not_run",
@@ -44,7 +44,7 @@
     "isolatedRestoreIdentity": null
   },
   "capacityPreCleanup": {
-    "authorized": false,
+    "authorized": true,
     "requiresPhase5Acceptance": false,
     "protectsWowTest": true,
     "rejectedEvidenceRecoveryRequired": false,
@@ -1630,27 +1630,22 @@
       "target": "/etc/wow-backend-candidate-gear-evidence-r14.env",
       "capacityPreCleanup": true,
       "observed": {
-        "at": null,
+        "at": "2026-09-03T05:52:47Z",
         "dateReceived": "2026-09-03",
-        "source": "user-approved read-only follow-up",
+        "source": "fresh authorized capacity preflight",
         "openHandles": 0,
         "runningProcessReferences": 0,
         "systemdUnitReferences": []
       },
       "replacement": "none; rejected evidence database reference",
       "activeConnections": null,
-      "contentSha256": null,
+      "contentSha256": "e4f0e3cdf8d3574dc9daaa020cc6777ac591c0e068ba9e1dc5cc034ba9d4f8e1",
       "currentReferences": [],
       "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "exact_content_sha_required",
-        "whitelist_restore_verification_not_run",
-        "fresh_target_identity_probe_required",
-        "reviewed_manifest_sha_required"
-      ]
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-03T05:53:28Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
     },
     {
       "id": "capacity-env-gear-evidence-r24",
@@ -1658,27 +1653,22 @@
       "target": "/etc/wow-backend-candidate-gear-evidence-r24.env",
       "capacityPreCleanup": true,
       "observed": {
-        "at": null,
+        "at": "2026-09-03T05:52:56Z",
         "dateReceived": "2026-09-03",
-        "source": "user-approved read-only follow-up",
+        "source": "fresh authorized capacity preflight",
         "openHandles": 0,
         "runningProcessReferences": 0,
         "systemdUnitReferences": []
       },
       "replacement": "none; rejected evidence database reference",
       "activeConnections": null,
-      "contentSha256": null,
+      "contentSha256": "00f0e3856318a4ca20ac8d824545330d5dfb876c7978a58f4664dce8e7297ff2",
       "currentReferences": [],
       "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "exact_content_sha_required",
-        "whitelist_restore_verification_not_run",
-        "fresh_target_identity_probe_required",
-        "reviewed_manifest_sha_required"
-      ]
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-03T05:53:28Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
     },
     {
       "id": "capacity-env-gear-evidence-r22",
@@ -1686,27 +1676,22 @@
       "target": "/etc/wow-backend-candidate-gear-evidence-r22.env",
       "capacityPreCleanup": true,
       "observed": {
-        "at": null,
+        "at": "2026-09-03T05:53:13Z",
         "dateReceived": "2026-09-03",
-        "source": "user-approved read-only follow-up",
+        "source": "fresh authorized capacity preflight",
         "openHandles": 0,
         "runningProcessReferences": 0,
         "systemdUnitReferences": []
       },
       "replacement": "none; rejected evidence database reference",
       "activeConnections": null,
-      "contentSha256": null,
+      "contentSha256": "af56e04898b7739e2520940feb9d967bb55afc1d1a83ccd1b55055ee258a340a",
       "currentReferences": [],
       "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "exact_content_sha_required",
-        "whitelist_restore_verification_not_run",
-        "fresh_target_identity_probe_required",
-        "reviewed_manifest_sha_required"
-      ]
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-03T05:53:28Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
     },
     {
       "id": "capacity-env-gear-evidence-r23",
@@ -1714,27 +1699,22 @@
       "target": "/etc/wow-backend-candidate-gear-evidence-r23.env",
       "capacityPreCleanup": true,
       "observed": {
-        "at": null,
+        "at": "2026-09-03T05:53:28Z",
         "dateReceived": "2026-09-03",
-        "source": "user-approved read-only follow-up",
+        "source": "fresh authorized capacity preflight",
         "openHandles": 0,
         "runningProcessReferences": 0,
         "systemdUnitReferences": []
       },
       "replacement": "none; rejected evidence database reference",
       "activeConnections": null,
-      "contentSha256": null,
+      "contentSha256": "37ebf357edf4670ef52c3cee6525ba8e95df2ce8b8e37adb6e5acedeeeae2f68",
       "currentReferences": [],
       "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "exact_content_sha_required",
-        "whitelist_restore_verification_not_run",
-        "fresh_target_identity_probe_required",
-        "reviewed_manifest_sha_required"
-      ]
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-03T05:53:28Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
     },
     {
       "id": "database-wow-gear-evidence-01adf184-r14",
@@ -1743,13 +1723,13 @@
       "capacityPreCleanup": true,
       "recoveryRequired": false,
       "observed": {
-        "at": "2026-09-02T13:43:05Z",
+        "at": "2026-09-03T05:52:47Z",
         "sizeBytes": 5237750807,
         "owner": "postgres",
         "allowsConnections": true,
         "tableCount": 71,
         "approximateRows": 2115416,
-        "exactRows": null,
+        "exactRows": 2116322,
         "connections": 0
       },
       "replacement": "removed with no target-product replacement",
@@ -1760,18 +1740,10 @@
       ],
       "requiredAbsentCompanion": "/etc/wow-backend-candidate-gear-evidence-r14.env",
       "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "whitelist_restore_verification_not_run",
-        "fresh_target_identity_probe_required",
-        "fresh_zero_connection_probe_required",
-        "fresh_exact_table_and_row_count_probe_required",
-        "fresh_configuration_reference_probe_required",
-        "companion_env_absence_required",
-        "reviewed_manifest_sha_required"
-      ]
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-03T05:53:28Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
     },
     {
       "id": "database-wow-gear-evidence-0be65754-r24",
@@ -1780,13 +1752,13 @@
       "capacityPreCleanup": true,
       "recoveryRequired": false,
       "observed": {
-        "at": "2026-09-02T13:43:05Z",
+        "at": "2026-09-03T05:52:56Z",
         "sizeBytes": 5517827095,
         "owner": "postgres",
         "allowsConnections": true,
         "tableCount": 71,
         "approximateRows": 2375154,
-        "exactRows": null,
+        "exactRows": 2375007,
         "connections": 0
       },
       "replacement": "removed with no target-product replacement",
@@ -1797,18 +1769,10 @@
       ],
       "requiredAbsentCompanion": "/etc/wow-backend-candidate-gear-evidence-r24.env",
       "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "whitelist_restore_verification_not_run",
-        "fresh_target_identity_probe_required",
-        "fresh_zero_connection_probe_required",
-        "fresh_exact_table_and_row_count_probe_required",
-        "fresh_configuration_reference_probe_required",
-        "companion_env_absence_required",
-        "reviewed_manifest_sha_required"
-      ]
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-03T05:53:28Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
     },
     {
       "id": "database-wow-gear-evidence-145dee16-r22",
@@ -1817,13 +1781,13 @@
       "capacityPreCleanup": true,
       "recoveryRequired": false,
       "observed": {
-        "at": "2026-09-02T13:43:05Z",
+        "at": "2026-09-03T05:53:13Z",
         "sizeBytes": 5964094487,
         "owner": "wow_app",
         "allowsConnections": true,
         "tableCount": 71,
         "approximateRows": 2767097,
-        "exactRows": null,
+        "exactRows": 2802680,
         "connections": 0
       },
       "replacement": "removed with no target-product replacement",
@@ -1834,18 +1798,10 @@
       ],
       "requiredAbsentCompanion": "/etc/wow-backend-candidate-gear-evidence-r22.env",
       "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "whitelist_restore_verification_not_run",
-        "fresh_target_identity_probe_required",
-        "fresh_zero_connection_probe_required",
-        "fresh_exact_table_and_row_count_probe_required",
-        "fresh_configuration_reference_probe_required",
-        "companion_env_absence_required",
-        "reviewed_manifest_sha_required"
-      ]
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-03T05:53:28Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
     },
     {
       "id": "database-wow-gear-evidence-15f514d5-r23",
@@ -1854,13 +1810,13 @@
       "capacityPreCleanup": true,
       "recoveryRequired": false,
       "observed": {
-        "at": "2026-09-02T13:43:05Z",
+        "at": "2026-09-03T05:53:28Z",
         "sizeBytes": 5813812247,
         "owner": "postgres",
         "allowsConnections": true,
         "tableCount": 71,
         "approximateRows": 2632122,
-        "exactRows": null,
+        "exactRows": 2658418,
         "connections": 0
       },
       "replacement": "removed with no target-product replacement",
@@ -1871,18 +1827,10 @@
       ],
       "requiredAbsentCompanion": "/etc/wow-backend-candidate-gear-evidence-r23.env",
       "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "whitelist_restore_verification_not_run",
-        "fresh_target_identity_probe_required",
-        "fresh_zero_connection_probe_required",
-        "fresh_exact_table_and_row_count_probe_required",
-        "fresh_configuration_reference_probe_required",
-        "companion_env_absence_required",
-        "reviewed_manifest_sha_required"
-      ]
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-03T05:53:28Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
     },
     {
       "id": "database-wow-prod",

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
-  "status": "corrected_recovery_contract_provisioning_authorized_not_run",
-  "observedAt": "2026-09-03T05:18:54Z",
+  "status": "business_whitelist_restore_verified_capacity_precleanup_authorized",
+  "observedAt": "2026-09-03T05:53:28Z",
   "invalidatedProviderInventory": {
     "instanceId": "lhins-dr6tkl63",
     "region": "ap-guangzhou",
@@ -23,7 +23,19 @@
     "candidateDatabase": "chickenbro_prod",
     "verificationDatabasePattern": "chickenbro_restore_verify_*",
     "manifestSchema": "chickenbro-whitelist-recovery-v1",
-    "status": "authorized_not_run",
+    "status": "restore_verified",
+    "manifestPath": "/var/lib/chickenbro-recovery/whitelist-recovery.json",
+    "manifestSha256": "a383d4c32f4edf08360055316c73f451d5b19fe1e81630dbb79b935126f8c818",
+    "createdAt": "2026-09-03T05:46:13Z",
+    "archiveSha256": "d22acc8a78e0ed5a96e15b9918251a819caf825de91585da2e84c2e69ababb80",
+    "archiveBytes": 362737,
+    "migrationReportSha256": "b55d2df7b4e252667aecb1ead1e69adebbe0cc5a265e8e245f1fe92774ebfa32",
+    "migrationReconciliationStatus": "matched",
+    "verificationDatabase": "chickenbro_restore_verify_20260903_054604__c74b7e3af237",
+    "restoreReconciliationSha256": "446c4b072e3872173001fdbccf6ad58152bf2d7ac7d110d27ccd6d3adb31638c",
+    "restoreReconciliationStatus": "matched",
+    "acceptedCount": 1197,
+    "rejectedCount": 392,
     "requiredProof": [
       "matched whitelist migration reconciliation",
       "candidate custom-format archive SHA-256 and bytes",
@@ -42,7 +54,7 @@
     ],
     "freshLiveInventoryRequiredBeforeApply": true
   },
-  "mutationPerformed": false,
+  "mutationPerformed": true,
   "providerEvidenceStatus": "invalidated_wrong_target",
   "providerSnapshots": {
     "visibleCount": 1,
@@ -133,10 +145,10 @@
   },
   "conclusions": {
     "currentIndependentBackup": false,
-    "whitelistRestoreVerified": false,
+    "whitelistRestoreVerified": true,
     "candidateDatabaseProvisioningAuthorized": true,
-    "capacityPreCleanupAuthorized": false,
+    "capacityPreCleanupAuthorized": true,
     "wowTestRetirementAuthorized": false,
-    "nextDecision": "Use the reviewed provisioning script against the refreshed exact Tencent CVM identity, migrate and reconcile only the valid business whitelist from read-only wow_test, restore-verify the hash-bound candidate archive, then separately authorize and re-run the four exact database connection/reference/open-handle gates."
+    "nextDecision": "Apply only the reviewed four-database capacity pre-cleanup with the exact recovery and cleanup manifest hashes, refresh the cloud inventory, then deploy and validate the isolated candidate. Full legacy retirement and wow_test deletion remain unauthorized."
   }
 }

@@ -7,16 +7,22 @@ ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "docs/refactor/chickenbro-simc-capacity-cleanup-manifest.json"
 
 EXPECTED_DATABASES = {
-    "wow_gear_evidence_01adf184_r14": 5_237_750_807,
-    "wow_gear_evidence_0be65754_r24": 5_517_827_095,
-    "wow_gear_evidence_145dee16_r22": 5_964_094_487,
-    "wow_gear_evidence_15f514d5_r23": 5_813_812_247,
+    "wow_gear_evidence_01adf184_r14": (5_237_750_807, 2_116_322),
+    "wow_gear_evidence_0be65754_r24": (5_517_827_095, 2_375_007),
+    "wow_gear_evidence_145dee16_r22": (5_964_094_487, 2_802_680),
+    "wow_gear_evidence_15f514d5_r23": (5_813_812_247, 2_658_418),
 }
 EXPECTED_COMPANIONS = {
     "wow_gear_evidence_01adf184_r14": "/etc/wow-backend-candidate-gear-evidence-r14.env",
     "wow_gear_evidence_0be65754_r24": "/etc/wow-backend-candidate-gear-evidence-r24.env",
     "wow_gear_evidence_145dee16_r22": "/etc/wow-backend-candidate-gear-evidence-r22.env",
     "wow_gear_evidence_15f514d5_r23": "/etc/wow-backend-candidate-gear-evidence-r23.env",
+}
+EXPECTED_COMPANION_HASHES = {
+    "wow_gear_evidence_01adf184_r14": "e4f0e3cdf8d3574dc9daaa020cc6777ac591c0e068ba9e1dc5cc034ba9d4f8e1",
+    "wow_gear_evidence_0be65754_r24": "00f0e3856318a4ca20ac8d824545330d5dfb876c7978a58f4664dce8e7297ff2",
+    "wow_gear_evidence_145dee16_r22": "af56e04898b7739e2520940feb9d967bb55afc1d1a83ccd1b55055ee258a340a",
+    "wow_gear_evidence_15f514d5_r23": "37ebf357edf4670ef52c3cee6525ba8e95df2ce8b8e37adb6e5acedeeeae2f68",
 }
 
 
@@ -28,6 +34,7 @@ class ChickenbroSimcCapacityCleanupManifestTest(unittest.TestCase):
         self.assertEqual(payload["schemaVersion"], 2)
         self.assertEqual(payload["mode"], "dry-run")
         self.assertFalse(payload["deletionAuthorized"])
+        self.assertTrue(payload["capacityPreCleanupAuthorized"])
         self.assertEqual(
             payload["targetIdentity"],
             {
@@ -43,11 +50,14 @@ class ChickenbroSimcCapacityCleanupManifestTest(unittest.TestCase):
         self.assertEqual(payload["businessRecovery"]["sourceDatabase"], "wow_test")
         self.assertEqual(payload["businessRecovery"]["sourceMode"], "read_only")
         self.assertEqual(payload["businessRecovery"]["manifestSchema"], "chickenbro-whitelist-recovery-v1")
-        self.assertEqual(payload["businessRecovery"]["status"], "not_run")
+        self.assertEqual(payload["businessRecovery"]["status"], "restore_verified")
+        self.assertRegex(payload["businessRecovery"]["manifestSha256"], r"^[0-9a-f]{64}$")
+        self.assertEqual(payload["businessRecovery"]["migrationReconciliationStatus"], "matched")
+        self.assertEqual(payload["businessRecovery"]["restoreReconciliationStatus"], "matched")
         self.assertEqual(payload["rejectedEvidenceRecovery"], {"required": False})
         recovery_inventory = ROOT / payload["evidence"]["recoveryInventory"]
         self.assertTrue(recovery_inventory.is_file())
-        self.assertEqual(payload["totalCandidateBytes"], sum(EXPECTED_DATABASES.values()))
+        self.assertEqual(payload["totalCandidateBytes"], sum(item[0] for item in EXPECTED_DATABASES.values()))
         self.assertEqual(
             payload["evidence"]["configurationScanRoots"],
             ["/etc", "/opt/chickenbro", "/opt/wow-mini-program", "/opt/wow-v2-staging", "/var/www"],
@@ -55,13 +65,13 @@ class ChickenbroSimcCapacityCleanupManifestTest(unittest.TestCase):
 
         candidates = {item["name"]: item for item in payload["candidates"]}
         self.assertEqual(set(candidates), set(EXPECTED_DATABASES))
-        for name, size_bytes in EXPECTED_DATABASES.items():
+        for name, (size_bytes, exact_rows) in EXPECTED_DATABASES.items():
             candidate = candidates[name]
             self.assertEqual(candidate["kind"], "postgres_database")
             self.assertEqual(candidate["sizeBytes"], size_bytes)
             self.assertEqual(candidate["currentConnections"], 0)
             self.assertIsInstance(candidate["approximateRows"], int)
-            self.assertIsNone(candidate["exactRows"])
+            self.assertEqual(candidate["exactRows"], exact_rows)
             self.assertEqual(candidate["configurationReferences"], [EXPECTED_COMPANIONS[name]])
             self.assertEqual(candidate["requiredAbsentCompanion"], EXPECTED_COMPANIONS[name])
             self.assertEqual(candidate["sameRootBackupMatches"], [])
@@ -69,7 +79,7 @@ class ChickenbroSimcCapacityCleanupManifestTest(unittest.TestCase):
             self.assertFalse(candidate["recoveryRequired"])
             self.assertEqual(
                 candidate["applyStatus"],
-                "blocked_pending_whitelist_restore_and_fresh_live_gates",
+                "ready_for_reviewed_capacity_precleanup",
             )
 
         requirements = set(payload["requiredBeforeApply"])
@@ -87,10 +97,16 @@ class ChickenbroSimcCapacityCleanupManifestTest(unittest.TestCase):
                 {
                     "database": name,
                     "envFile": EXPECTED_COMPANIONS[name],
+                    "observedAt": next(
+                        item["observedAt"]
+                        for item in payload["capacityCleanupCompanions"]
+                        if item["database"] == name
+                    ),
+                    "contentSha256": EXPECTED_COMPANION_HASHES[name],
                     "systemdUnitReferences": [],
                     "runningProcessReferences": 0,
                     "openHandles": 0,
-                    "applyStatus": "blocked_pending_exact_hash_and_reviewed_removal",
+                    "applyStatus": "ready_for_reviewed_capacity_precleanup",
                 }
                 for name in EXPECTED_DATABASES
             ],

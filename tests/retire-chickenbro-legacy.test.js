@@ -112,9 +112,10 @@ test('cloud cleanup manifest covers every observed legacy unit and database exac
     sshTarget: 'wow-lighthouse',
     refreshRequiredBeforeApply: true,
   })
-  assert.equal(manifest.businessRecovery.status, 'not_run')
+  assert.equal(manifest.businessRecovery.status, 'restore_verified')
   assert.equal(manifest.businessRecovery.manifestSchema, 'chickenbro-whitelist-recovery-v1')
   assert.equal(manifest.acceptedProductionRecovery.status, 'not_run')
+  assert.equal(manifest.capacityPreCleanup.authorized, true)
   assert.equal(manifest.capacityPreCleanup.requiresPhase5Acceptance, false)
   assert.equal(manifest.capacityPreCleanup.protectsWowTest, true)
   assert.deepEqual(
@@ -139,7 +140,8 @@ test('cloud cleanup manifest covers every observed legacy unit and database exac
   assert.ok(Array.isArray(resources) && resources.length > 0)
   assert.equal(new Set(resources.map((item) => item.id)).size, resources.length)
   assert.equal(new Set(resources.map((item) => `${item.kind}:${item.target}`)).size, resources.length)
-  assert.ok(resources.every((item) => item.gateStatus === 'blocked'))
+  assert.ok(resources.filter((item) => item.capacityPreCleanup).every((item) => item.gateStatus === 'ready'))
+  assert.ok(resources.filter((item) => !item.capacityPreCleanup).every((item) => item.gateStatus === 'blocked'))
 
   const unitTargets = new Set(
     resources.filter((item) => item.kind === 'systemd_unit').map((item) => item.target),
@@ -158,8 +160,9 @@ test('cloud cleanup manifest covers every observed legacy unit and database exac
   for (const resource of resources.filter((item) => item.capacityPreCleanup && item.kind === 'postgres_database')) {
     assert.equal(resource.observed.tableCount, 71)
     assert.ok(Number.isInteger(resource.observed.approximateRows))
-    assert.equal(resource.observed.exactRows, null)
-    assert.ok(resource.blockedReasons.includes('fresh_exact_table_and_row_count_probe_required'))
+    assert.ok(Number.isInteger(resource.observed.exactRows))
+    assert.ok(resource.observed.exactRows >= 0)
+    assert.deepEqual(resource.blockedReasons, [])
   }
 
   const protectedTargets = new Set(manifest.protectedResources.map((item) => item.target))
@@ -194,10 +197,10 @@ test('dry-run reports every resource and never authorizes mutation', () => {
   assert.equal(payload.mode, 'dry-run')
   assert.equal(payload.mutationAuthorized, false)
   assert.equal(payload.counts.total, manifest.resources.length)
-  assert.equal(payload.counts.blocked, manifest.resources.length)
-  assert.equal(payload.counts.ready, 0)
+  assert.equal(payload.counts.blocked, manifest.resources.length - 8)
+  assert.equal(payload.counts.ready, 8)
   assert.equal(payload.unresolvedBlockerCount, manifest.unresolvedRequiredTargets.length)
-  assert.ok(payload.results.every((item) => item.status === 'blocked'))
+  assert.equal(payload.results.filter((item) => item.status === 'ready').length, 8)
 })
 
 test('capacity pre-cleanup dry-run reports only the exact four databases and env companions', () => {
@@ -212,6 +215,8 @@ test('capacity pre-cleanup dry-run reports only the exact four databases and env
   assert.equal(payload.scope, 'capacity_pre_cleanup')
   assert.equal(payload.mutationAuthorized, false)
   assert.equal(payload.counts.total, 8)
+  assert.equal(payload.counts.ready, 8)
+  assert.equal(payload.counts.blocked, 0)
   assert.deepEqual(
     payload.results.filter((item) => item.kind === 'postgres_database').map((item) => item.target),
     [

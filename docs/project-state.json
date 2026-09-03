@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "updatedAt": "2026-09-03",
   "activeMilestone": "chickenbro_simc_total_rebuild_phase_6",
-  "status": "local_rebuild_verified_live_migration_and_acceptance_blocked",
+  "status": "whitelist_recovery_verified_capacity_precleanup_ready",
   "targetProduct": {
     "businessDomains": [
       "chickenbro_chat",
@@ -27,11 +27,11 @@
   },
   "delivery": {
     "phase1": "local_verified",
-    "phase2": "local_verified_candidate_apply_blocked",
+    "phase2": "whitelist_recovery_verified_capacity_precleanup_ready",
     "phase3": "local_verified",
     "phase4": "local_verified",
     "phase5": "local_verified_live_acceptance_blocked",
-    "phase6": "local_and_cloud_cleanup_controls_verified_apply_blocked"
+    "phase6": "capacity_precleanup_ready_full_retirement_blocked"
   },
   "gates": {
     "implementationAuthorized": true,
@@ -51,7 +51,7 @@
       "accepted_production_restore_verified"
     ],
     "capacityPreCleanup": {
-      "authorized": false,
+      "authorized": true,
       "exactRejectedDatabaseCount": 4,
       "requiresPhase5Acceptance": false,
       "requiresWhitelistRestoreVerification": true,
@@ -75,8 +75,17 @@
       "sshTarget": "wow-lighthouse",
       "refreshRequiredBeforeApply": true
     },
-    "observedRootFreeBytes": 8769658880,
-    "observedLegacyDatabaseBytes": 16380000000,
+    "observedRootFreeBytes": 8178581504,
+    "observedLegacyDatabaseBytes": 16384343063,
+    "whitelistRecovery": {
+      "status": "restore_verified",
+      "manifestSha256": "a383d4c32f4edf08360055316c73f451d5b19fe1e81630dbb79b935126f8c818",
+      "archiveSha256": "d22acc8a78e0ed5a96e15b9918251a819caf825de91585da2e84c2e69ababb80",
+      "candidateDatabase": "chickenbro_prod",
+      "isolatedRestoreDatabase": "chickenbro_restore_verify_20260903_054604__c74b7e3af237",
+      "migrationReconciliation": "matched",
+      "restoreReconciliation": "matched"
+    },
     "localCleanupDryRun": {
       "deletable": 2588,
       "retained": 267,
@@ -86,11 +95,12 @@
     },
     "cloudCleanupDryRun": {
       "total": 84,
-      "ready": 0,
-      "blocked": 84,
+      "ready": 8,
+      "blocked": 76,
       "unresolvedRequiredTargets": 2
     },
     "localCleanupApplyAllowed": false,
+    "capacityPreCleanupApplyAllowed": true,
     "cloudCleanupApplyAllowed": false
   },
   "executionAuthority": {

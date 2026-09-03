@@ -76,7 +76,7 @@ ssh -o BatchMode=yes -o ConnectTimeout=15 wow-lighthouse \
 
 容量预清理的数据库 allowlist 固定为：`wow_gear_evidence_01adf184_r14`、`wow_gear_evidence_0be65754_r24`、`wow_gear_evidence_145dee16_r22`、`wow_gear_evidence_15f514d5_r23`。env 伴随项固定为 `/etc/wow-backend-candidate-gear-evidence-r14.env`、`r24.env`、`r22.env`、`r23.env`。`wow_test`、任何通配符、前缀匹配和其他 `wow_*` 库均拒绝。
 
-当前只读清理清单是 [chickenbro-simc-capacity-cleanup-manifest.json](refactor/chickenbro-simc-capacity-cleanup-manifest.json)：四库合计 22,533,484,636 bytes。每次 apply 必须重新确认 Tencent metadata identity、每库精确大小与零连接、每个 env 的 exact hash/realpath、零 systemd/Nginx/process/open-handle 消费者；先移除并确认对应 env 不存在，再检查项目配置引用为零，最后才可引用安全地删除配对数据库。默认 `--dry-run`，当前 `deletionAuthorized=false`。
+当前只读清理清单是 [chickenbro-simc-capacity-cleanup-manifest.json](refactor/chickenbro-simc-capacity-cleanup-manifest.json)：四库合计 22,533,484,636 bytes。每次 apply 必须重新确认 Tencent metadata identity、每库精确大小与零连接、每个 env 的 exact hash/realpath、零 systemd/Nginx/process/open-handle 消费者；先移除并确认对应 env 不存在，再检查项目配置引用为零，最后才可引用安全地删除配对数据库。完整退役仍固定 `deletionAuthorized=false`；只有 `capacityPreCleanup.authorized=true` 的八个精确目标已获本轮授权。
 
 禁止通过删除或写入 `wow_test`、正式部署、唯一 SimC runtime 或唯一回滚包释放空间。拒绝 evidence/test 内容不建立 archive，也不引入 COS、依赖或下载。
 
@@ -131,7 +131,7 @@ bash server/provision_chickenbro_database_lighthouse.sh \
   --dry-run --inventory-sha "${INVENTORY_SHA}"
 ```
 
-当前审阅文件已经在 2026-09-03 从目标主机刷新；执行前必须重新计算并评审其 SHA。dry-run 即使已获 provisioning 授权也仍返回 `mutationAuthorized=false`，且容量状态保持 `blocked_until_whitelist_recovery_and_exact_capacity_cleanup_or_storage_expansion`，直到白名单恢复证明和精确容量预清理完成。
+审阅文件已经在 2026-09-03 从目标主机刷新；执行前必须重新计算并评审其 SHA。dry-run 即使已获 provisioning 授权也仍返回 `mutationAuthorized=false`。本轮 provisioning 已在 commit `01abb342fd7eafa7197cea0e78b2b8fafa4f4eef` 上完成：白名单迁移核对与独立恢复核对均为 `matched`，root-only 恢复清单 SHA-256 为 `a383d4c32f4edf08360055316c73f451d5b19fe1e81630dbb79b935126f8c818`。容量状态仍保持 `blocked_until_whitelist_recovery_and_exact_capacity_cleanup_or_storage_expansion`，直到精确容量预清理完成。
 
 只有 `candidateDatabaseProvisioningAuthorized=true`、最新 inventory 为 `reachable` 且无 probe error、target metadata 精确匹配时，才可准备以下命令。当前用户授权已记录为 true，但脚本仍会在任何数据库写入前执行全部 live preflight：
 
