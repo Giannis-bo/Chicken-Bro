@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedFromCommit": "b67979c79f74a17e083768ba08fb79227b286e3e",
+  "generatedFromCommit": "9fa48a6eda378e690035785d9c3492d75a75eaf9",
   "excludedSelfPath": "docs/refactor/chickenbro-simc-refactor-inventory.json",
   "sourceRulesSha256": "84cfdeeaf7652ccff23c8817063b02d94b0ff7e966a4c06f72522e35290cdcb3",
   "entryCount": 2858,
@@ -13543,8 +13543,8 @@
       "owner": "Chickenbro Chat and SimC product",
       "reason": "These are the bounded architecture, operations, ownership, verification, and cleanup authorities for the rebuilt product.",
       "matchedRule": "retained-product-documentation",
-      "bytes": 34235,
-      "sha256": "6b35b509808b1122c1716ba040e855c23db0aeec69486fe8467a70b714a5fa6b"
+      "bytes": 34601,
+      "sha256": "55ac52d1d1401d701616338b7465b29e242d914a1d9b6f4a51fbdb898594f79a"
     },
     {
       "path": "docs/community-template-import-full-chain-runbook.md",
@@ -14823,8 +14823,8 @@
       "owner": "Harness and rebuild roadmap",
       "reason": "Current approved product direction, executable phase plans, and machine-readable state.",
       "matchedRule": "rebuild-control-plane",
-      "bytes": 5129,
-      "sha256": "e5796721f034aa583dc5f28bc9b09c0d0d28e1fba7b1bc3036385d89ea604783"
+      "bytes": 5196,
+      "sha256": "4e485ba2bb476a4d65667e8e63daa78d0a4655b4e40741969d12df67a3b07ebb"
     },
     {
       "path": "docs/refactor/chickenbro-simc-capacity-cleanup-manifest.json",
@@ -14833,8 +14833,8 @@
       "owner": "Chickenbro Chat and SimC product",
       "reason": "These are the bounded architecture, operations, ownership, verification, and cleanup authorities for the rebuilt product.",
       "matchedRule": "retained-product-documentation",
-      "bytes": 8722,
-      "sha256": "2892fad6ca33c7be306fff275eaa1d7d86497c678c1c453c333597c35ec00cf3"
+      "bytes": 8143,
+      "sha256": "d6d47229a533d23eceab1fe47df94134a2da470234158c3890807e61632baef6"
     },
     {
       "path": "docs/refactor/chickenbro-simc-cloud-cleanup-manifest.json",
@@ -14843,8 +14843,8 @@
       "owner": "Chickenbro Chat and SimC product",
       "reason": "These are the bounded architecture, operations, ownership, verification, and cleanup authorities for the rebuilt product.",
       "matchedRule": "retained-product-documentation",
-      "bytes": 77611,
-      "sha256": "7e99a78009eb9a04e86a21230da93cae143a6ffb705b548fc696b8e54b3476d9"
+      "bytes": 76807,
+      "sha256": "3992a95aee948c9691229fde90d727ba3a356c920960e49fc8bbc89f295de0ec"
     },
     {
       "path": "docs/refactor/chickenbro-simc-cloud-inventory.json",
@@ -14853,8 +14853,8 @@
       "owner": "Chickenbro Chat and SimC product",
       "reason": "These are the bounded architecture, operations, ownership, verification, and cleanup authorities for the rebuilt product.",
       "matchedRule": "retained-product-documentation",
-      "bytes": 11922,
-      "sha256": "1b4cb73b6ac309ee95d3b630e0568a25be7a4cc88c5700ceb074da66e33fe4b0"
+      "bytes": 11807,
+      "sha256": "b404fc891feed5537c16a51c109f9bf4177ab18e77a0851144cd2e48b50d08f4"
     },
     {
       "path": "docs/refactor/chickenbro-simc-disposition-rules.json",
@@ -14873,8 +14873,8 @@
       "owner": "Chickenbro Chat and SimC product",
       "reason": "These are the bounded architecture, operations, ownership, verification, and cleanup authorities for the rebuilt product.",
       "matchedRule": "retained-product-documentation",
-      "bytes": 6027,
-      "sha256": "1bd82f5d96f3423b819abe47a97f5e6ccb1969704296d4c5084c55265a925c1d"
+      "bytes": 6270,
+      "sha256": "4283376319f827b7b709254ff11263fbc41391244ae59ed493275a2cca702931"
     },
     {
       "path": "docs/release-evidence-publishing.md",
@@ -14903,8 +14903,8 @@
       "owner": "Harness and rebuild roadmap",
       "reason": "Current approved product direction, executable phase plans, and machine-readable state.",
       "matchedRule": "rebuild-control-plane",
-      "bytes": 2702,
-      "sha256": "e5a73db55c312a76941dc32befc4e402e0b8a024b5a2bed1acdb2104e8c68134"
+      "bytes": 2761,
+      "sha256": "227efa4b9c8d0b73e78e7ec7d9f8190f7ba7f607f30463e2fdcfa5d96b90c2b4"
     },
     {
       "path": "docs/roadmap/ideas.md",
@@ -24613,8 +24613,8 @@
       "owner": "Chickenbro and SimC runtime",
       "reason": "The isolated Chickenbro services, Nginx owner, candidate acceptance, deploy, provision, and cutover tooling are the current runtime authority.",
       "matchedRule": "target-chickenbro-deployment",
-      "bytes": 77985,
-      "sha256": "1add75ca81597803007ede6a130650dc9b80b6cff8979f194274947d7d6bae92"
+      "bytes": 82450,
+      "sha256": "f0318cf27f69ddcccfb9674ca69d6f9496dd3501469468cd7c980017e24546ca"
     },
     {
       "path": "server/s2_community_exact.py",
@@ -26233,8 +26233,8 @@
       "owner": "Chat and SimC verification suite",
       "reason": "These tests cover the retained backend, clients, clean migration, build, candidate, cutover, cleanup, and control-plane contracts.",
       "matchedRule": "retained-target-tests",
-      "bytes": 6556,
-      "sha256": "0d90d499156d1f773b07bd242c1cd7feeb4413b3ea12c5b3d8ceb06708f532d4"
+      "bytes": 7588,
+      "sha256": "f2cd74a5664c36488408ed97e18b5a7021e062c115d812454768ec3f61fe5620"
     },
     {
       "path": "tests/chickenbro_simc_cloud_inventory_test.py",
@@ -26253,8 +26253,8 @@
       "owner": "Chat and SimC verification suite",
       "reason": "These tests cover the retained backend, clients, clean migration, build, candidate, cutover, cleanup, and control-plane contracts.",
       "matchedRule": "retained-target-tests",
-      "bytes": 3632,
-      "sha256": "9a85101bb24be6b8ce49735a223047cd0b3dfc982b8339eb23d1b251cf2e4203"
+      "bytes": 4056,
+      "sha256": "eb8514ef1149eb93f22181f202dc88da118b067b6ef4ce1b3b36e8302a1fd6a7"
     },
     {
       "path": "tests/chickenbro_source_refresh_test.py",
@@ -27763,8 +27763,8 @@
       "owner": "Chat and SimC verification suite",
       "reason": "These tests cover the retained backend, clients, clean migration, build, candidate, cutover, cleanup, and control-plane contracts.",
       "matchedRule": "retained-target-tests",
-      "bytes": 5997,
-      "sha256": "5b4758bad8055dfc0aaf45435c8bcd1d6002f09db99488e114e0375dd8c254a3"
+      "bytes": 6053,
+      "sha256": "6974157a00adb016d73fe9fa63e05666c0b73791527a5340f2ce032094f4e880"
     },
     {
       "path": "tests/promote-ui-asset-slot-review.test.js",
@@ -27893,8 +27893,8 @@
       "owner": "Chat and SimC verification suite",
       "reason": "These tests cover the retained backend, clients, clean migration, build, candidate, cutover, cleanup, and control-plane contracts.",
       "matchedRule": "retained-target-tests",
-      "bytes": 44569,
-      "sha256": "3274d4b928f44775b22a48250149ce71fa5b00df64274bc56fa0fb69d437c007"
+      "bytes": 49219,
+      "sha256": "070ff85c69d9fa18bf758398a5345d97ef49b42a8c8b4f52cbc1507d398c62f5"
     },
     {
       "path": "tests/runtime-asset-slot-mapping.test.js",
@@ -28617,5 +28617,5 @@
       "sha256": "4736cc276f788e5427d17e51499c110336106bb64db4c827e2d576629d8f281f"
     }
   ],
-  "inventorySha256": "49c51a9d15d8a3ca4358a6899bbf2b2ca7861bae8bfe78408f959b7d0f0857ff"
+  "inventorySha256": "424b8370f64e79b954ebd9bbff4138482941df635aa7b0aea81954ae4540a860"
 }
