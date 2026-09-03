@@ -469,7 +469,30 @@ import fastapi, httpx, psycopg, uvicorn
 if Path(sys.prefix).resolve() != Path(sys.argv[1]).resolve():
     raise SystemExit("managed Python runtime prefix mismatch")
 PY
-[[ -x /opt/wow-simc/current/simc ]] || die_remote "managed SimulationCraft runtime is missing"
+SIMC_CURRENT_LINK=/opt/wow-simc/current
+[[ -L "${SIMC_CURRENT_LINK}" && -x "${SIMC_CURRENT_LINK}/simc" ]] \
+  || die_remote "managed SimulationCraft runtime is missing"
+SIMC_RELEASE="$(readlink -f -- "${SIMC_CURRENT_LINK}")"
+[[ "${SIMC_RELEASE}" =~ ^/opt/wow-simc/releases/[0-9a-f]{40}$ \
+  && -d "${SIMC_RELEASE}" && ! -L "${SIMC_RELEASE}" ]] \
+  || die_remote "managed SimulationCraft release identity is invalid"
+for metadata_name in .commit binary.sha256 source-archive.sha256; do
+  metadata_path="${SIMC_RELEASE}/${metadata_name}"
+  [[ -f "${metadata_path}" && ! -L "${metadata_path}" \
+    && "$(stat -c '%s' "${metadata_path}")" -le 256 ]] \
+    || die_remote "managed SimulationCraft release metadata is incomplete"
+done
+IFS= read -r SIMC_RELEASE_COMMIT < "${SIMC_RELEASE}/.commit"
+IFS= read -r SIMC_RECORDED_BINARY_SHA < "${SIMC_RELEASE}/binary.sha256"
+IFS= read -r SIMC_SOURCE_ARCHIVE_SHA < "${SIMC_RELEASE}/source-archive.sha256"
+[[ "${SIMC_RELEASE_COMMIT}" =~ ^[0-9a-f]{40}$ \
+  && "${SIMC_RELEASE_COMMIT}" == "${SIMC_RELEASE##*/}" \
+  && "${SIMC_RECORDED_BINARY_SHA}" =~ ^[0-9a-f]{64}$ \
+  && ( "${SIMC_SOURCE_ARCHIVE_SHA}" =~ ^[0-9a-f]{64}$ \
+    || "${SIMC_SOURCE_ARCHIVE_SHA}" == "legacy-unavailable" ) ]] \
+  || die_remote "managed SimulationCraft release metadata is invalid"
+[[ "$(sha256sum "${SIMC_RELEASE}/simc" | awk '{print $1}')" == "${SIMC_RECORDED_BINARY_SHA}" ]] \
+  || die_remote "managed SimulationCraft binary SHA mismatch"
 [[ -x /usr/local/bin/codex ]] || die_remote "managed Codex runtime is missing"
 /usr/local/bin/codex exec --help | grep -q -- '--ephemeral' \
   || die_remote "managed Codex runtime does not support ephemeral execution"

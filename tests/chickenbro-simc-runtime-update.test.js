@@ -52,6 +52,38 @@ test('apply fails closed before network without both exact commit identities', (
   assert.doesNotMatch(`${missing.stdout}${missing.stderr}${targetOnly.stdout}${targetOnly.stderr}`, /codeload\.github\.com/)
 })
 
+test('adopt-current seals the exact existing binary without downloading or switching releases', () => {
+  const missing = spawnSync('bash', [scriptPath, '--adopt-current'], {
+    cwd: repositoryRoot,
+    encoding: 'utf8',
+  })
+  assert.notEqual(missing.status, 0)
+  assert.match(missing.stderr, /--adopt-current requires --expected-current-commit/i)
+
+  const commitOnly = spawnSync('bash', [
+    scriptPath,
+    '--adopt-current',
+    '--expected-current-commit', 'a'.repeat(40),
+  ], {
+    cwd: repositoryRoot,
+    encoding: 'utf8',
+  })
+  assert.notEqual(commitOnly.status, 0)
+  assert.match(commitOnly.stderr, /--adopt-current requires --expected-current-binary-sha/i)
+  assert.doesNotMatch(`${missing.stdout}${missing.stderr}${commitOnly.stdout}${commitOnly.stderr}`, /codeload\.github\.com/)
+
+  const source = fs.readFileSync(scriptPath, 'utf8')
+  assert.match(source, /EXPECTED_CURRENT_BINARY_SHA/)
+  assert.match(source, /actual current binary SHA does not match --expected-current-binary-sha/)
+  assert.match(source, /"status": "adopted_current"/)
+  assert.match(source, /"servicesRestarted": False/)
+  const identityGate = source.indexOf('actual current binary SHA does not match --expected-current-binary-sha')
+  const adoption = source.indexOf('adopt_current_release "${EXPECTED_CURRENT_COMMIT}"', identityGate)
+  const download = source.indexOf("curl --proto '=https'")
+  assert.ok(identityGate >= 0 && adoption > identityGate, 'binary identity must be exact before adoption')
+  assert.ok(download > adoption, 'adoption must finish without entering the source download path')
+})
+
 test('runtime updater preserves old releases and atomically switches the fixed current pointer', () => {
   const source = fs.readFileSync(scriptPath, 'utf8')
 

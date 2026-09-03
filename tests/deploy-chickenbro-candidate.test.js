@@ -235,6 +235,9 @@ test('candidate deploy is content-addressed, candidate-only, reversible and exac
   assert.match(script, /__CHICKENBRO_RUNTIME_ROOT__/)
   assert.match(script, /WOW_DEPLOY_START_ASYNC_SYNCS="0"/)
   assert.match(script, /WOW_DEPLOY_START_ASYNC_SYNCS.*must remain 0/)
+  assert.match(script, /managed SimulationCraft release metadata is incomplete/)
+  assert.match(script, /managed SimulationCraft binary SHA mismatch/)
+  assert.match(script, /source-archive\.sha256/)
 
   assert.match(script, /SOURCE_ARCHIVE_SHA256/)
   assert.match(script, /chickenbro-candidate-\$\{SOURCE_ARCHIVE_SHA256\}\.tar\.gz/)

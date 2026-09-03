@@ -4,6 +4,7 @@ set -euo pipefail
 MODE="dry-run"
 TARGET_COMMIT=""
 EXPECTED_CURRENT_COMMIT=""
+EXPECTED_CURRENT_BINARY_SHA=""
 
 SOURCE_REPOSITORY="simulationcraft/simc"
 SOURCE_ARCHIVE_BASE="https://codeload.github.com/simulationcraft/simc/tar.gz"
@@ -29,13 +30,20 @@ usage() {
   printf '%s\n' \
     'Usage:' \
     '  server/chickenbro_simc_runtime_update.sh [--dry-run] [--target-commit <40-char-sha>]' \
-    '  server/chickenbro_simc_runtime_update.sh --apply --target-commit <40-char-sha> --expected-current-commit <40-char-sha>' >&2
+    '  server/chickenbro_simc_runtime_update.sh --apply --target-commit <40-char-sha> --expected-current-commit <40-char-sha>' \
+    '  server/chickenbro_simc_runtime_update.sh --adopt-current --expected-current-commit <40-char-sha> --expected-current-binary-sha <sha256>' >&2
 }
 
 validate_commit() {
   local name="$1"
   local value="$2"
   [[ "${value}" =~ ^[0-9a-f]{40}$ ]] || die "invalid ${name}: exact lowercase 40-character commit required"
+}
+
+validate_sha256() {
+  local name="$1"
+  local value="$2"
+  [[ "${value}" =~ ^[0-9a-f]{64}$ ]] || die "invalid ${name}: exact lowercase SHA-256 required"
 }
 
 sha256_file() {
@@ -227,6 +235,10 @@ while [[ $# -gt 0 ]]; do
       MODE="apply"
       shift
       ;;
+    --adopt-current)
+      MODE="adopt-current"
+      shift
+      ;;
     --target-commit)
       [[ $# -ge 2 ]] || die "--target-commit requires a value"
       TARGET_COMMIT="$2"
@@ -235,6 +247,11 @@ while [[ $# -gt 0 ]]; do
     --expected-current-commit)
       [[ $# -ge 2 ]] || die "--expected-current-commit requires a value"
       EXPECTED_CURRENT_COMMIT="$2"
+      shift 2
+      ;;
+    --expected-current-binary-sha)
+      [[ $# -ge 2 ]] || die "--expected-current-binary-sha requires a value"
+      EXPECTED_CURRENT_BINARY_SHA="$2"
       shift 2
       ;;
     --help|-h)
@@ -254,6 +271,16 @@ fi
 if [[ -n "${EXPECTED_CURRENT_COMMIT}" ]]; then
   validate_commit EXPECTED_CURRENT_COMMIT "${EXPECTED_CURRENT_COMMIT}"
 fi
+if [[ -n "${EXPECTED_CURRENT_BINARY_SHA}" ]]; then
+  validate_sha256 EXPECTED_CURRENT_BINARY_SHA "${EXPECTED_CURRENT_BINARY_SHA}"
+fi
+
+if [[ "${MODE}" == "adopt-current" ]]; then
+  [[ -n "${EXPECTED_CURRENT_COMMIT}" ]] \
+    || die "--adopt-current requires --expected-current-commit"
+  [[ -n "${EXPECTED_CURRENT_BINARY_SHA}" ]] \
+    || die "--adopt-current requires --expected-current-binary-sha"
+fi
 
 CURRENT_COMMIT="$(read_current_commit)"
 if [[ "${MODE}" == "dry-run" ]]; then
@@ -261,15 +288,17 @@ if [[ "${MODE}" == "dry-run" ]]; then
   exit 0
 fi
 
-[[ -n "${TARGET_COMMIT}" ]] || die "--apply requires --target-commit"
-[[ -n "${EXPECTED_CURRENT_COMMIT}" ]] || die "--apply requires --expected-current-commit"
+if [[ "${MODE}" == "apply" ]]; then
+  [[ -n "${TARGET_COMMIT}" ]] || die "--apply requires --target-commit"
+  [[ -n "${EXPECTED_CURRENT_COMMIT}" ]] || die "--apply requires --expected-current-commit"
+fi
 [[ "${CURRENT_COMMIT}" =~ ^[0-9a-f]{40}$ ]] || die "current runtime commit identity is missing or invalid"
 [[ "${CURRENT_COMMIT}" == "${EXPECTED_CURRENT_COMMIT}" ]] \
   || die "current runtime commit does not match --expected-current-commit"
 [[ -L "${CURRENT_LINK}" && -x "${CURRENT_LINK}/simc" ]] \
   || die "managed current SimulationCraft runtime is missing or not a symbolic link"
 
-for command in flock sha256sum timeout python3 readlink awk; do
+for command in flock sha256sum timeout python3 readlink awk tar; do
   command -v "${command}" >/dev/null 2>&1 || die "required command is missing: ${command}"
 done
 
@@ -280,6 +309,41 @@ CURRENT_COMMIT="$(read_current_commit)"
   || die "current runtime changed before the update lock was acquired"
 [[ -L "${CURRENT_LINK}" && -x "${CURRENT_LINK}/simc" ]] \
   || die "managed current SimulationCraft runtime is missing or not a symbolic link"
+
+if [[ "${MODE}" == "adopt-current" ]]; then
+  current_release="$(readlink -f -- "${CURRENT_LINK}")"
+  actual_current_binary_sha="$(sha256_file "${current_release}/simc")"
+  [[ "${actual_current_binary_sha}" == "${EXPECTED_CURRENT_BINARY_SHA}" ]] \
+    || die "actual current binary SHA does not match --expected-current-binary-sha"
+  if verify_release "${current_release}" "${EXPECTED_CURRENT_COMMIT}"; then
+    adoption_required="false"
+  else
+    adoption_required="true"
+  fi
+  adopt_current_release "${EXPECTED_CURRENT_COMMIT}"
+  source_archive_sha="$(<"${current_release}/source-archive.sha256")"
+  python3 - "${CURRENT_COMMIT}" "${actual_current_binary_sha}" \
+    "${source_archive_sha}" "${adoption_required}" <<'PY'
+import json
+import re
+import sys
+
+commit, binary_sha, archive_sha, raw_adoption_required = sys.argv[1:]
+adoption_required = raw_adoption_required == "true"
+print(json.dumps({
+    "mode": "adopt-current",
+    "mutationAuthorized": adoption_required,
+    "status": "adopted_current" if adoption_required else "already_managed",
+    "currentCommit": commit,
+    "binarySha256": binary_sha,
+    "sourceArchiveSha256": archive_sha if re.fullmatch(r"[0-9a-f]{64}", archive_sha) else None,
+    "sourceArchiveStatus": "recorded" if re.fullmatch(r"[0-9a-f]{64}", archive_sha) else archive_sha,
+    "currentLink": "/opt/wow-simc/current",
+    "servicesRestarted": False,
+}, sort_keys=True, separators=(",", ":")))
+PY
+  exit 0
+fi
 
 if [[ "${TARGET_COMMIT}" == "${CURRENT_COMMIT}" ]]; then
   current_release="$(readlink -f -- "${CURRENT_LINK}")"
