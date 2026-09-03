@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedFromCommit": "e576e64e1c9eaeac496bc575a8614eaf442b2a56",
+  "generatedFromCommit": "82fb3b45bfb1306af9371113b7a7681c68e2522a",
   "excludedSelfPath": "docs/refactor/chickenbro-simc-refactor-inventory.json",
   "sourceRulesSha256": "25049f3a03f8b5503b4f2306ef97c4d4d2259d4467eefb92cc43a5fbd784a8a8",
   "entryCount": 2856,
@@ -22323,8 +22323,8 @@
       "owner": "Modular v2 API",
       "reason": "The API shell is restricted to identity, conversation, SimC, health, and stable error handling.",
       "matchedRule": "server-target-api-shell",
-      "bytes": 5788,
-      "sha256": "406aee32eec8cffc6c2fb0b2ab5dc7024d4efb9b8859f2c70b817dc6c237abb5"
+      "bytes": 5669,
+      "sha256": "e4e6648ac61e68542950dd85d8d7a96794ec6c9cedfbbabc53eb08f87d37eaa6"
     },
     {
       "path": "server/app/platform/__init__.py",
@@ -22413,8 +22413,8 @@
       "owner": "Modular v2 application",
       "reason": "Identity, Chickenbro, SimC, worker, platform, and integration owners form the new server core.",
       "matchedRule": "server-target-domain-owners",
-      "bytes": 10013,
-      "sha256": "f3df2d585d73ab12313114956204f6220283c0d410305861b6a51bad1e51f176"
+      "bytes": 10128,
+      "sha256": "39cb0628c3c5c2466cbea24dc5484970e2dbfcb14854b316193568c8777a11ec"
     },
     {
       "path": "server/app/simulation/compiler.py",
@@ -22463,8 +22463,8 @@
       "owner": "Modular v2 application",
       "reason": "Identity, Chickenbro, SimC, worker, platform, and integration owners form the new server core.",
       "matchedRule": "server-target-domain-owners",
-      "bytes": 22780,
-      "sha256": "d9c2094ebfbd99fd485d3c79bbf7ccc913deb4e82db116bb524ed62505b00e3a"
+      "bytes": 24453,
+      "sha256": "ad383f0196a2fd69fca2db610306d034c1af32e51c4e33562d6e38de3e78e513"
     },
     {
       "path": "server/app/simulation/snapshots.py",
@@ -22523,8 +22523,8 @@
       "owner": "Modular v2 application",
       "reason": "Identity, Chickenbro, SimC, worker, platform, and integration owners form the new server core.",
       "matchedRule": "server-target-domain-owners",
-      "bytes": 7577,
-      "sha256": "1c0372b389022b51b8cb50e27f6827afa96e016a72de1d472c4b58866c7cceff"
+      "bytes": 8070,
+      "sha256": "4833f215939f9c5a5055a985521493fdcc5bd916f131f70ec5d600ee0c9d10a5"
     },
     {
       "path": "server/app/worker/main.py",
@@ -25513,8 +25513,8 @@
       "owner": "Chat and SimC verification suite",
       "reason": "These tests cover the retained backend, clients, clean migration, build, candidate, cutover, cleanup, and control-plane contracts.",
       "matchedRule": "retained-target-tests",
-      "bytes": 7954,
-      "sha256": "29fc4eb3e1964a723ffa9e4277d6d5577b69ff8bc72377c0e9daaf5427c4dd4e"
+      "bytes": 7885,
+      "sha256": "57713468b22a7a1fb0de41696db64e9877c113818eed6f6cb128911118d4adbd"
     },
     {
       "path": "tests/app_chat_cross_client_test.py",
@@ -25753,8 +25753,8 @@
       "owner": "Chat and SimC verification suite",
       "reason": "These tests cover the retained backend, clients, clean migration, build, candidate, cutover, cleanup, and control-plane contracts.",
       "matchedRule": "retained-target-tests",
-      "bytes": 4520,
-      "sha256": "c32d0d7338b63edac6a7d3b87b9c1610849b6729da61a5e307428404f0b0192c"
+      "bytes": 4381,
+      "sha256": "b65e1ba059ad8ca7e51125ce60e077fe8c37b142664911718c30194b8ff02ba9"
     },
     {
       "path": "tests/app_simc_cross_client_test.py",
@@ -25783,8 +25783,8 @@
       "owner": "Chat and SimC verification suite",
       "reason": "These tests cover the retained backend, clients, clean migration, build, candidate, cutover, cleanup, and control-plane contracts.",
       "matchedRule": "retained-target-tests",
-      "bytes": 12527,
-      "sha256": "3082a6dc95af61f35306c62899b713071c2a8c77f1f39dde044bcb2edf2481f8"
+      "bytes": 18393,
+      "sha256": "fdfaf8631db376c844ec828271a4c39f88df0219ce893b3aca318370309c6eb7"
     },
     {
       "path": "tests/app_simulation_compiler_test.py",
@@ -28597,5 +28597,5 @@
       "sha256": "4736cc276f788e5427d17e51499c110336106bb64db4c827e2d576629d8f281f"
     }
   ],
-  "inventorySha256": "24b425ab01d3b5bf8bc9c695f8427010a28d1f363e643d31038a2af972581746"
+  "inventorySha256": "28ce32a437713d8a62d0e040012b9b72200c38dda4336576c7341c0404d5de91"
 }
