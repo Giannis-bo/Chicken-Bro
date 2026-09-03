@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "reachable",
-  "observedAt": "2026-09-03T10:35:51Z",
+  "observedAt": "2026-09-03T11:35:20Z",
   "host": "VM-4-8-ubuntu",
   "targetIdentity": {
     "provider": "tencent_cvm",
@@ -15,11 +15,11 @@
   "rootFilesystem": {
     "path": "/",
     "sizeBytes": 73859022848,
-    "usedBytes": 39974240256,
-    "freeBytes": 30754549760
+    "usedBytes": 40276025344,
+    "freeBytes": 30452764672
   },
-  "rootFreeBytes": 30754549760,
-  "currentDatabaseBytes": 16772992667,
+  "rootFreeBytes": 30452764672,
+  "currentDatabaseBytes": 16779259547,
   "databases": [
     {
       "name": "chickenbro_prod",
@@ -158,7 +158,7 @@
     },
     {
       "name": "wow_test",
-      "sizeBytes": 16391281687,
+      "sizeBytes": 16397548567,
       "connections": 0
     },
     {
@@ -219,7 +219,7 @@
     {
       "name": "wow-data-health-followup.service",
       "loadState": "loaded",
-      "activeState": "failed",
+      "activeState": "inactive",
       "unitFileState": "static"
     },
     {
@@ -315,7 +315,7 @@
     {
       "name": "wow-stat-weights-sync.service",
       "loadState": "loaded",
-      "activeState": "inactive",
+      "activeState": "activating",
       "unitFileState": "static"
     },
     {
@@ -351,7 +351,7 @@
     {
       "name": "wow-websim-sync.service",
       "loadState": "loaded",
-      "activeState": "activating",
+      "activeState": "inactive",
       "unitFileState": "static"
     },
     {
@@ -461,7 +461,7 @@
     },
     {
       "path": "/var/lib/postgresql",
-      "sizeBytes": 16874284573
+      "sizeBytes": 17165780509
     },
     {
       "path": "/var/lib/wow-backend",
