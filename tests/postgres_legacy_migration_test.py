@@ -1,6 +1,7 @@
 import contextlib
 import io
 import unittest
+from uuid import UUID
 
 from server.migrations.product.migrate_legacy import MigrationError
 from server.migrations.product.postgres_legacy import (
@@ -270,6 +271,39 @@ class PostgresLegacyMigrationTest(unittest.TestCase):
             "created_at": "created",
             "updated_at": "updated",
         })
+
+    def test_postgres_target_normalizes_uuid_columns_for_owner_comparisons(self):
+        conversation_id = UUID("00000000-0000-4000-8000-000000000101")
+        user_id = UUID("00000000-0000-4000-8000-000000000102")
+
+        class Column:
+            def __init__(self, name):
+                self.name = name
+
+        class Cursor:
+            description = [
+                Column("id"), Column("user_id"), Column("title"), Column("status"),
+                Column("created_at"), Column("updated_at"),
+            ]
+            row = (conversation_id, user_id, "A", "active", "created", "updated")
+
+            @classmethod
+            def fetchone(cls):
+                return cls.row
+
+            @classmethod
+            def fetchall(cls):
+                return [cls.row]
+
+        class Connection:
+            @staticmethod
+            def execute(_query, _params=None):
+                return Cursor()
+
+        target = PostgresMigrationTarget(Connection())
+
+        self.assertEqual(target.get("chat.conversations", str(conversation_id))["user_id"], str(user_id))
+        self.assertEqual(target.rows("chat.conversations")[0]["id"], str(conversation_id))
 
     def test_cli_cannot_override_the_snapshot_captured_watermark(self):
         with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):

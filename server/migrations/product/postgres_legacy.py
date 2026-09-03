@@ -362,7 +362,10 @@ def _cursor_row(cursor: Any) -> dict[str, Any] | None:
     if row is None:
         return None
     names = [column.name if hasattr(column, "name") else column[0] for column in cursor.description]
-    return dict(zip(names, row, strict=True))
+    return {
+        name: str(value) if isinstance(value, uuid.UUID) else value
+        for name, value in zip(names, row, strict=True)
+    }
 
 
 class PostgresMigrationTarget(MigrationTarget):
@@ -390,7 +393,13 @@ class PostgresMigrationTarget(MigrationTarget):
             columns = ("id", "user_id", "event_type", "subject_key", "payload_json", "created_at")
         cursor = self.connection.execute(f"SELECT {', '.join(columns)} FROM {table} ORDER BY id")
         names = [column.name if hasattr(column, "name") else column[0] for column in cursor.description]
-        return [dict(zip(names, row, strict=True)) for row in cursor.fetchall()]
+        return [
+            {
+                name: str(value) if isinstance(value, uuid.UUID) else value
+                for name, value in zip(names, row, strict=True)
+            }
+            for row in cursor.fetchall()
+        ]
 
     def upsert(self, table: str, row: Mapping[str, Any], *, mutable: bool) -> None:
         columns = TARGET_COLUMNS.get(table)
