@@ -326,6 +326,22 @@ class ChatApplicationTest(unittest.TestCase):
                         idempotency_key=invalid_key,
                     )
 
+    def test_create_conversation_preserves_the_product_schema_title_limit(self):
+        application = ChatApplication(
+            repository=self.repository,
+            codex=FakeCodex(),
+            clock=lambda: self.now,
+        )
+        title = "长" * 256
+
+        conversation = application.create_conversation(
+            self.principal,
+            title,
+            idempotency_key="conversation-long-title",
+        )
+
+        self.assertEqual(conversation["title"], title)
+
     def test_completed_codex_stream_persists_assistant_only_after_completion(self):
         application = ChatApplication(
             repository=self.repository,

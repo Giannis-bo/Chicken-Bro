@@ -126,6 +126,8 @@ Web Session Cookie 固定为 HttpOnly、Secure 的 `__Host-chickenbro-session`�
 
 Identity API 的请求体拒绝额外字段，并在调用微信 provider 前完成 verifier、code 与 scene 的长度和字符边界校验。双端 response guard 只接受每个端点约定的精确字段集合和可选 `requestId`；任何额外的 `userId`、OpenID、token 或其他身份字段都按非法响应失败关闭。
 
+公开展示名与 `identity.users.display_name` 共用 256 字符上限；正式迁移、API 和双端 response guard 必须接受完整的合法持久化范围，不能因客户端采用更窄的历史边界而阻断已迁移用户登录。客户端只展示该字段，不把它当作账号合并或授权依据。
+
 二维码确认、取消和过期必须使用带当前状态、verifier 与 deadline 条件的原子 UPDATE；`confirmed -> consumed` 与 Web Session 签发必须在同一个 PostgreSQL 语句/事务中完成。读取后关闭连接的 `FOR UPDATE` 不构成状态锁，禁止作为防重放依据。会话解析还必须联查 `identity.users.status='active'`，禁用账号不能继续使用旧 token。
 
 认证决策只写脱敏、定长的 `ops.audit_events`：request ID、已认证时的内部 user ID、session kind、状态码、时间和粗粒度 reason code。运行角色只有 SELECT/INSERT 权限，不得更新或删除审计证据；token、Cookie、OpenID、session key、verifier、ticket 和 secret 不得进入审计 payload。
@@ -167,6 +169,8 @@ Chat 的服务端事实流是：
 5. Codex 不可用、超时、输出非法或持久化失败时，用户消息保留，AgentRun 进入明确失败；不切换普通 LLM，不写模板答案。
 
 列表按 `(updated_at, id)` 使用稳定游标。重连从持久化消息/AgentRun 恢复，不能再次调用模型伪造相同 run。第二个用户访问第一个用户的 ID 时对外返回 404，避免枚举。
+
+会话标题与 `chat.conversations.title` 共用 256 字符上限；正式迁移、创建 API、application 和双端 response guard 必须接受同一完整范围。白名单迁移允许保留空标题，双端对空标题统一显示“炸鸡队长对话”，但不改写持久化事实。
 
 ## SimC 语义
 

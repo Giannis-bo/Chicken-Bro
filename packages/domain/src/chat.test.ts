@@ -40,6 +40,27 @@ describe('formal Chat domain guards', () => {
     })).toBe(true)
   })
 
+  it('accepts the complete persisted conversation title range', () => {
+    const summary = {
+      id: conversationId,
+      status: 'active',
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    }
+    expect(isConversationPage({
+      items: [{ ...summary, title: '' }],
+      nextCursor: null,
+    })).toBe(true)
+    expect(isConversationPage({
+      items: [{ ...summary, title: '长'.repeat(256) }],
+      nextCursor: null,
+    })).toBe(true)
+    expect(isConversationPage({
+      items: [{ ...summary, title: '长'.repeat(257) }],
+      nextCursor: null,
+    })).toBe(false)
+  })
+
   it('rejects owner fields, missing required fields, and unknown payload expansion', () => {
     const summary = {
       id: conversationId,

@@ -22,7 +22,7 @@ router = APIRouter(prefix="/api/v2/chat")
 class ConversationCreateBody(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    title: str = Field(default="炸鸡队长对话", max_length=80)
+    title: str = Field(default="炸鸡队长对话", max_length=256)
 
 
 class ChatMessageBody(BaseModel):

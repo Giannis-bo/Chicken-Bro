@@ -52,6 +52,10 @@ function nonEmptyString(value: unknown, maximum = 4096): value is string {
   return typeof value === 'string' && value.length > 0 && value.length <= maximum
 }
 
+function boundedString(value: unknown, maximum: number): value is string {
+  return typeof value === 'string' && value.length <= maximum
+}
+
 function isoDate(value: unknown): value is string {
   return nonEmptyString(value, 128) && Number.isFinite(Date.parse(value))
 }
@@ -63,7 +67,7 @@ function positiveInteger(value: unknown): value is number {
 function isConversationSummaryRecord(value: unknown): value is ConversationSummary {
   if (!record(value) || !exactKeys(value, ['id', 'title', 'status', 'createdAt', 'updatedAt'])) return false
   return nonEmptyString(value['id'], 128)
-    && nonEmptyString(value['title'], 80)
+    && boundedString(value['title'], 256)
     && (value['status'] === 'active' || value['status'] === 'archived')
     && isoDate(value['createdAt'])
     && isoDate(value['updatedAt'])

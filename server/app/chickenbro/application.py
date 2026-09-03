@@ -119,7 +119,7 @@ class ChatApplication:
         *,
         idempotency_key: str,
     ) -> Any:
-        bounded_title = str(title or "炸鸡队长对话").strip()[:80] or "炸鸡队长对话"
+        bounded_title = str(title or "炸鸡队长对话").strip()[:256] or "炸鸡队长对话"
         key = _bounded_idempotency_key(idempotency_key)
         conversation_id = uuid5(
             CHAT_CONVERSATION_NAMESPACE,

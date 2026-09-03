@@ -131,7 +131,7 @@ export function isMeResponse(value: unknown): value is MeResponse {
   return hasExactResponseKeys(value, ['connected', 'displayName'])
     && value['connected'] === true
     && typeof displayName === 'string'
-    && displayName.length <= 128
+    && displayName.length <= 256
     && isRequestId(value['requestId'])
 }
 

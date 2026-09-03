@@ -58,7 +58,7 @@ export default function WebChatView({ auth }: WebChatViewProps) {
               data-active={state.activeConversation?.id === conversation.id ? 'true' : 'false'}
               onClick={() => void model.open(conversation.id)}
             >
-              <Text>{conversation.title}</Text>
+              <Text>{conversation.title || '炸鸡队长对话'}</Text>
               <Text className={styles['listMeta'] ?? ''}>{conversation.updatedAt}</Text>
             </Button>
           ))}

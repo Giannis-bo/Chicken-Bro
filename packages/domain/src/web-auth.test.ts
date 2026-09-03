@@ -93,4 +93,9 @@ describe('web auth domain contracts', () => {
     expect(isMiniExchangeResponse({ ...base, accessToken: 'contains space token' })).toBe(false)
     expect(isMiniExchangeResponse({ ...base, accessToken: 'x'.repeat(513) })).toBe(false)
   })
+
+  it('accepts the complete persisted public display-name range', () => {
+    expect(isMeResponse({ connected: true, displayName: '名'.repeat(256) })).toBe(true)
+    expect(isMeResponse({ connected: true, displayName: '名'.repeat(257) })).toBe(false)
+  })
 })

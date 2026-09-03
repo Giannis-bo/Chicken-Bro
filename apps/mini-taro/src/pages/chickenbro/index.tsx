@@ -77,7 +77,7 @@ export default function ChickenbroPage() {
               data-active={state.activeConversation?.id === conversation.id ? 'true' : 'false'}
               onClick={() => void model.open(conversation.id)}
             >
-              {conversation.title}
+              {conversation.title || '炸鸡队长对话'}
             </Button>
           ))}
           {state.nextCursor ? (
