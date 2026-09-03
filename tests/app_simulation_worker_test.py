@@ -479,6 +479,31 @@ class SimulationRepositoryAtomicityTest(unittest.TestCase):
         self.assertIn("FROM ops.job_queue", sql)
         self.assertNotIn("INSERT INTO simc.simulation_attempts", sql)
 
+    def test_reclaimed_job_closes_abandoned_attempt_before_starting_the_next_one(self):
+        attempt_id = UUID("00000000-0000-4000-8000-000000000306")
+        connection = ScriptedConnection([
+            (self.job.id,),
+            job_row(replace(self.job, status=SimulationJobStatus.RUNNING)),
+            (attempt_id,),
+        ])
+        repository = PostgresSimulationRepository(lambda: connection)
+
+        started = repository.begin_job_attempt(
+            self.job.id,
+            worker_id="worker-reclaim",
+            attempt_number=2,
+            now=self.now,
+        )
+
+        self.assertIsNotNone(started)
+        sql = "\n".join(statement for statement, _ in connection.cursor_value.statements)
+        self.assertIn("diagnostic = 'LEASE_EXPIRED'", sql)
+        self.assertIn("attempt_number < %s", sql)
+        self.assertLess(
+            sql.index("diagnostic = 'LEASE_EXPIRED'"),
+            sql.index("INSERT INTO simc.simulation_attempts"),
+        )
+
     def test_exhaustion_closes_unfinished_attempt_and_job_in_one_guarded_transaction(self):
         running_job = replace(self.job, status=SimulationJobStatus.RUNNING)
         connection = ScriptedConnection([

@@ -307,6 +307,16 @@ class PostgresSimulationRepository:
                 }
                 cursor.execute(
                     """
+                    UPDATE simc.simulation_attempts
+                    SET diagnostic = 'LEASE_EXPIRED', finished_at = %s
+                    WHERE job_id = %s
+                      AND finished_at IS NULL
+                      AND attempt_number < %s
+                    """,
+                    (now, job.id, attempt_number),
+                )
+                cursor.execute(
+                    """
                     INSERT INTO simc.simulation_attempts (
                         id, job_id, user_id, attempt_number, worker_id, started_at
                     ) VALUES (%s, %s, %s, %s, %s, %s)

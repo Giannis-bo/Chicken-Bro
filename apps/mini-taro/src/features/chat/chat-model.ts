@@ -71,6 +71,7 @@ export class ChatModel {
   private streamSequence = 0
   private streamRequestId = ''
   private streamRunId = ''
+  private streamGeneration = 0
   private pendingCreate: { title: string; idempotencyKey: string } | null = null
 
   constructor(
@@ -153,6 +154,7 @@ export class ChatModel {
   async open(conversationId: string): Promise<void> {
     this.activeStream?.abort()
     this.activeStream = null
+    this.streamGeneration += 1
     this.update({ phase: 'loading', pendingUserContent: '', streamText: '' })
     let auth: ClientAuthContext
     try {
@@ -211,6 +213,7 @@ export class ChatModel {
   }
 
   send(content: string): ApiStreamTask | null {
+    if (this.state.phase === 'sending') return this.activeStream
     const conversation = this.state.activeConversation
     const normalized = content.trim()
     if (!conversation || !normalized) {
@@ -224,7 +227,8 @@ export class ChatModel {
       this.authFailure(error)
       return null
     }
-    this.activeStream?.abort()
+    const generation = this.streamGeneration + 1
+    this.streamGeneration = generation
     this.streamSequence = 0
     this.streamRequestId = ''
     this.streamRunId = ''
@@ -238,16 +242,25 @@ export class ChatModel {
     })
     const clientMessageId = boundedRequestId(this.requestId(), 'client-message')
     const idempotencyKey = boundedRequestId(this.requestId(), 'idempotency')
+    let endedDuringStart = false
     const task = this.client.streamMessage(
       conversation.id,
       { content: normalized, clientMessageId },
       {
         auth,
         idempotencyKey,
-        onEvent: (event) => this.onStreamEvent(event, conversation.id),
-        onFailure: (error) => this.onStreamFailure(error, conversation.id),
+        onEvent: (event) => {
+          if (event.type === 'completed' || event.type === 'failed') endedDuringStart = true
+          this.onStreamEvent(event, conversation.id, generation)
+          if (this.state.phase !== 'sending') endedDuringStart = true
+        },
+        onFailure: (error) => {
+          endedDuringStart = true
+          this.onStreamFailure(error, conversation.id, generation)
+        },
       },
     )
+    if (endedDuringStart) return null
     this.activeStream = task
     return task
   }
@@ -264,10 +277,12 @@ export class ChatModel {
   dispose(): void {
     this.activeStream?.abort()
     this.activeStream = null
+    this.streamGeneration += 1
     this.listeners.clear()
   }
 
-  private onStreamEvent(event: ChatEventEnvelope, conversationId: string): void {
+  private onStreamEvent(event: ChatEventEnvelope, conversationId: string, generation: number): void {
+    if (generation !== this.streamGeneration) return
     const expectedSequence = this.streamSequence + 1
     const firstEventInvalid = this.streamSequence === 0 && event.type !== 'started'
     const identityInvalid = event.conversationId !== conversationId
@@ -277,7 +292,7 @@ export class ChatModel {
       this.activeStream?.abort()
       this.activeStream = null
       this.fail('CHAT_SEQUENCE_GAP', '回答流顺序异常，已重新读取服务端历史', true)
-      void this.refreshAfterStream(conversationId, true)
+      void this.refreshAfterStream(conversationId, true, generation)
       return
     }
     this.streamSequence = event.sequence
@@ -290,23 +305,29 @@ export class ChatModel {
     if (event.type === 'completed') {
       this.activeStream = null
       this.update({ streamText: event.text })
-      void this.refreshAfterStream(conversationId, false)
+      void this.refreshAfterStream(conversationId, false, generation)
       return
     }
     if (event.type === 'failed') {
       this.activeStream = null
       this.fail(event.errorCode, '本次回答未完成，用户消息已保留', event.retryable)
-      void this.refreshAfterStream(conversationId, true)
+      void this.refreshAfterStream(conversationId, true, generation)
     }
   }
 
-  private onStreamFailure(error: string, conversationId: string): void {
+  private onStreamFailure(error: string, conversationId: string, generation: number): void {
+    if (generation !== this.streamGeneration) return
     this.activeStream = null
     this.fail(error || 'CHAT_STREAM_FAILED', '回答连接中断，正在恢复服务端历史', true)
-    void this.refreshAfterStream(conversationId, true)
+    void this.refreshAfterStream(conversationId, true, generation)
   }
 
-  private async refreshAfterStream(conversationId: string, preserveFailure: boolean): Promise<void> {
+  private async refreshAfterStream(
+    conversationId: string,
+    preserveFailure: boolean,
+    generation: number,
+  ): Promise<void> {
+    if (generation !== this.streamGeneration) return
     const failure = {
       errorCode: this.state.errorCode,
       errorMessage: this.state.errorMessage,
@@ -320,6 +341,7 @@ export class ChatModel {
       return
     }
     const result = await this.client.get(conversationId, { auth })
+    if (generation !== this.streamGeneration) return
     if (result.fromFallback) {
       this.apiFailure(result, '服务端会话恢复失败')
       return

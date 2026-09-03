@@ -353,6 +353,31 @@ class OwnerIsolationTest(unittest.TestCase):
         self.assertIn("runtime_revision", statement)
         self.assertIn("codex:native:test-revision", parameters)
 
+    def test_postgres_message_start_advances_conversation_order_in_the_same_transaction(self):
+        owner_id = UUID("00000000-0000-0000-0000-0000000000d1")
+        conversation_id = UUID("00000000-0000-4000-8000-0000000000d2")
+        now = datetime(2026, 9, 3, 11, 32, tzinfo=timezone.utc)
+        cursor = RecordingCursor([])
+        connection = RecordingConnection(cursor)
+        repository = PostgresChatRepository(lambda: connection)
+
+        repository.start_message_run(
+            owner_id,
+            conversation_id,
+            "刷新会话顺序",
+            "client-order-repository",
+            "request-order-repository",
+            now,
+            runtime_revision="codex:native:test-revision",
+        )
+
+        self.assertEqual(connection.enter_count, 1)
+        self.assertEqual(len(cursor.executed), 3)
+        statement, parameters = cursor.executed[2]
+        self.assertIn("UPDATE chat.conversations", statement)
+        self.assertIn("status = 'active'", statement)
+        self.assertEqual(parameters, (now, conversation_id, owner_id))
+
     def test_postgres_assistant_and_success_terminal_share_one_rollback_boundary(self):
         owner_id = UUID("00000000-0000-0000-0000-0000000000c1")
         conversation_id = UUID("00000000-0000-4000-8000-0000000000c2")
@@ -380,6 +405,30 @@ class OwnerIsolationTest(unittest.TestCase):
         self.assertEqual(len(cursor.executed), 2)
         self.assertIn("INSERT INTO chat.messages", cursor.executed[0][0])
         self.assertIn("UPDATE chat.agent_runs", cursor.executed[1][0])
+
+    def test_postgres_assistant_completion_advances_conversation_order_in_the_same_transaction(self):
+        owner_id = UUID("00000000-0000-0000-0000-0000000000e1")
+        conversation_id = UUID("00000000-0000-4000-8000-0000000000e2")
+        run_id = UUID("00000000-0000-4000-8000-0000000000e3")
+        now = datetime(2026, 9, 3, 11, 40, tzinfo=timezone.utc)
+        cursor = RecordingCursor([])
+        connection = RecordingConnection(cursor)
+        repository = PostgresChatRepository(lambda: connection)
+
+        repository.complete_run_with_assistant(
+            owner_id,
+            conversation_id,
+            run_id,
+            "完成后刷新顺序",
+            now,
+        )
+
+        self.assertEqual(connection.enter_count, 1)
+        self.assertEqual(len(cursor.executed), 3)
+        statement, parameters = cursor.executed[2]
+        self.assertIn("UPDATE chat.conversations", statement)
+        self.assertIn("status = 'active'", statement)
+        self.assertEqual(parameters, (now, conversation_id, owner_id))
 
 
 if __name__ == "__main__":

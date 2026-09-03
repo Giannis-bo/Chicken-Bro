@@ -1,7 +1,7 @@
 from collections.abc import Callable, Sequence
 from datetime import datetime
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from server.app.chickenbro.domain import (
     AgentRun,
@@ -297,6 +297,16 @@ class PostgresChatRepository:
                         idempotency_key,
                     ),
                 )
+                cursor.execute(
+                    """
+                    UPDATE chat.conversations
+                    SET updated_at = GREATEST(updated_at, %s)
+                    WHERE id = %s AND user_id = %s AND status = 'active'
+                    """,
+                    (now, conversation_id, user_id),
+                )
+                if cursor.rowcount != 1:
+                    raise RuntimeError("conversation was not active for message start")
         return (
             Message(
                 id=message_id,
@@ -358,6 +368,16 @@ class PostgresChatRepository:
                 )
                 if cursor.rowcount != 1:
                     raise RuntimeError("agent run was not streaming for completion")
+                cursor.execute(
+                    """
+                    UPDATE chat.conversations
+                    SET updated_at = GREATEST(updated_at, %s)
+                    WHERE id = %s AND user_id = %s AND status = 'active'
+                    """,
+                    (now, conversation_id, user_id),
+                )
+                if cursor.rowcount != 1:
+                    raise RuntimeError("conversation was not active for assistant completion")
         return Message(
             id=assistant_id,
             conversation_id=conversation_id,

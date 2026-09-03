@@ -33,6 +33,7 @@ class FakeChatClient implements ChatClient {
   detail: ConversationDetail = { ...conversation, messages: [] }
   readonly calls: Array<{ name: string; auth: ClientAuthContext; idempotencyKey?: string }> = []
   createFailures = 0
+  streamFailure = ''
   streamOptions: ChatStreamOptions | null = null
   readonly abort = vi.fn()
 
@@ -80,6 +81,7 @@ class FakeChatClient implements ChatClient {
   ): ReturnType<ChatClient['streamMessage']> {
     this.calls.push({ name: 'stream', auth: options.auth })
     this.streamOptions = options
+    if (this.streamFailure) options.onFailure(this.streamFailure)
     return { abort: this.abort }
   }
 
@@ -190,5 +192,62 @@ describe('ChatModel', () => {
       streamText: '',
     })
     expect(model.get().activeConversation?.messages).toEqual([])
+  })
+
+  it('coalesces rapid duplicate send taps into one stream mutation', async () => {
+    const client = new FakeChatClient()
+    const model = new ChatModel(client, () => auth, {
+      requestId: vi.fn()
+        .mockReturnValueOnce('client-message-0001')
+        .mockReturnValueOnce('idempotency-0001'),
+    })
+    await model.load()
+
+    const first = model.send('只发送一次')
+    const second = model.send('只发送一次')
+
+    expect(first).not.toBeNull()
+    expect(second).toBe(first)
+    expect(client.calls.filter((call) => call.name === 'stream')).toHaveLength(1)
+    expect(client.abort).not.toHaveBeenCalled()
+  })
+
+  it('does not retain a stale stream handle after a synchronous transport failure', async () => {
+    const client = new FakeChatClient()
+    client.streamFailure = 'missing api base url'
+    const model = new ChatModel(client, () => auth, { requestId: () => 'request-0001' })
+    await model.load()
+
+    model.send('第一次')
+    client.streamFailure = ''
+    const retried = model.send('第二次')
+
+    expect(retried).not.toBeNull()
+    expect(client.calls.filter((call) => call.name === 'stream')).toHaveLength(2)
+    expect(client.abort).not.toHaveBeenCalled()
+  })
+
+  it('does not let an older recovery response overwrite a newer stream', async () => {
+    const client = new FakeChatClient()
+    const model = new ChatModel(client, () => auth, { requestId: () => 'request-0001' })
+    await model.load()
+    let finishRecovery!: (result: ApiResult<ConversationDetail>) => void
+    client.get = vi.fn((_conversationId, options) => {
+      client.calls.push({ name: 'get', auth: options.auth })
+      return new Promise<ApiResult<ConversationDetail>>((resolve) => { finishRecovery = resolve })
+    })
+
+    client.streamFailure = 'connection interrupted'
+    model.send('旧请求')
+    client.streamFailure = ''
+    model.send('新请求')
+    finishRecovery(success(client.detail))
+    await Promise.resolve()
+
+    expect(model.get()).toMatchObject({
+      phase: 'sending',
+      pendingUserContent: '新请求',
+      errorCode: '',
+    })
   })
 })
