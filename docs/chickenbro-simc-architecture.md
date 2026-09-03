@@ -63,7 +63,7 @@ UI -> typed API client -> API route -> application -> domain -> port <- adapter
 | `identity` | 内部用户、微信身份映射、独立客户端会话、Web 登录票据 | `server/app/identity` |
 | `chat` | 会话、消息、AgentRun、Codex 流终态 | `server/app/chickenbro` |
 | `simc` | 来源快照、任务、尝试、结果、runtime identity 与受管 runtime 更新 | `server/app/simulation`、`server/chickenbro_simc_runtime_update.sh` |
-| `worker` | `ops.job_queue` lease、重试、取消和 handler dispatch | `server/app/worker` |
+| `worker` | `ops.job_queue` lease、重试和 handler dispatch | `server/app/worker` |
 | `dual_client` | Mini/Web 路由、认证 transport、共享 view model | `apps/mini-taro/src`、`packages/api-client/src`、`packages/domain/src` |
 | `migration` | 白名单、source-to-target 映射、全量/delta 和核对报告 | [生产 Runbook](chickenbro-simc-production-runbook.md) |
 | `deployment` | Candidate、切流、Nginx/systemd/DSN identity 和回滚 | [生产 Runbook](chickenbro-simc-production-runbook.md) |
@@ -142,7 +142,7 @@ Web Session Cookie 固定为 HttpOnly、Secure 的 `__Host-chickenbro-session`�
 | `simc` | `simulation_attempts` | 每次 Worker 尝试独立记录，不用 return code 代替业务成功 |
 | `simc` | `simulation_results` | 不可变；有效指标、profile hash 和 runtime provenance |
 | `ops` | `schema_migrations` | 干净 schema identity |
-| `ops` | `job_queue` | lease/retry/cancel；只承载目标异步命令 |
+| `ops` | `job_queue` | lease/retry；只承载目标异步命令 |
 | `ops` | `audit_events` | 脱敏安全、迁移和切流事件 |
 | `ops` | `usage_counters` | 有界用量计数，不承载产品事实 |
 
@@ -188,10 +188,11 @@ SimC 的服务端事实流是：
 - queued 且到达 `available_at` 的 job 可以认领；过期 running lease 可以重新认领。
 - 认领原子增加 attempt，并写 `lease_owner`、`lease_expires_at`、heartbeat。
 - heartbeat/succeed/fail 只有当前 lease owner 能更新；影响行数不是 1 时抛 `LostLeaseError`。
-- retryable 错误只在 `attempt < max_attempts` 且未取消时回到 queued。
+- retryable 错误只在 `attempt < max_attempts` 时回到 queued。
 - 最后一次 attempt 因 Worker 中断而 lease 过期时，恢复领取只原子收口未完成 attempt 与业务 job 为 `ATTEMPT_EXHAUSTED`，不再执行 SimC。
 - 未注册 handler 固定失败为 `UNKNOWN_JOB_HANDLER`，不能无限重试。
-- 取消 queued job 立即终态；running job 只记录 cancel request，由 handler/lease 路径收口。
+
+当前正式 SimC API 不提供任务取消。`simulation_jobs.cancelled` 只用于保存通过白名单验收的历史终态；新任务队列不暴露只更新 queue、不同时更新业务 job 的半成品取消操作。后续若增加取消，必须先定义公开 API，并在同一事务中收口 queue、attempt 与 `simulation_jobs`。
 
 Worker active 只证明进程活着。业务成功还需要 job/result/attempt 与 compiler/runtime identity 的一致证据。
 

@@ -156,6 +156,14 @@ class ProductSchemaStaticTest(unittest.TestCase):
         self.assertNotIn("prototype_sessions", sql)
         self.assertNotIn("auth_tokens", sql)
 
+    def test_runtime_queue_has_no_partial_cancellation_state(self):
+        """Cancellation is not a formal command until one transaction owns queue and domain state."""
+        sql = _normalized_sql()
+        queue_section = sql.split("CREATE TABLE ops.job_queue", 1)[1].split(";", 1)[0]
+
+        self.assertNotIn("cancel_requested", queue_section)
+        self.assertNotIn("'cancelled'", queue_section)
+
     def test_runtime_can_append_but_not_rewrite_auth_audit_events(self):
         """Catches granting the request role permission to alter authentication evidence."""
         sql = _normalized_sql()

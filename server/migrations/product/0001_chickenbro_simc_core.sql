@@ -273,7 +273,7 @@ CREATE TABLE ops.job_queue (
         AND octet_length(payload_json::text) <= 65536
     ),
     status text NOT NULL CHECK (
-        status IN ('queued', 'running', 'succeeded', 'failed', 'cancelled')
+        status IN ('queued', 'running', 'succeeded', 'failed')
     ),
     attempt integer NOT NULL DEFAULT 0 CHECK (attempt >= 0),
     max_attempts integer NOT NULL DEFAULT 3 CHECK (max_attempts BETWEEN 1 AND 10),
@@ -281,7 +281,6 @@ CREATE TABLE ops.job_queue (
     lease_owner text NOT NULL DEFAULT '' CHECK (length(lease_owner) <= 160),
     lease_expires_at timestamptz,
     heartbeat_at timestamptz,
-    cancel_requested boolean NOT NULL DEFAULT false,
     public_error_code text NOT NULL DEFAULT '' CHECK (length(public_error_code) <= 128),
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now(),

@@ -56,7 +56,6 @@ def require_current_lease(cursor: Any, job_id: UUID, worker_id: str) -> None:
         WHERE id = %s
           AND status = 'running'
           AND lease_owner = %s
-          AND NOT cancel_requested
           AND lease_expires_at > now()
         FOR UPDATE
         """,
@@ -157,11 +156,11 @@ class PostgresJobQueue:
         sql = """
             UPDATE ops.job_queue
             SET status = CASE
-                    WHEN %s AND attempt < max_attempts AND NOT cancel_requested THEN 'queued'
+                    WHEN %s AND attempt < max_attempts THEN 'queued'
                     ELSE 'failed'
                 END,
                 available_at = CASE
-                    WHEN %s AND attempt < max_attempts AND NOT cancel_requested THEN now()
+                    WHEN %s AND attempt < max_attempts THEN now()
                     ELSE available_at
                 END,
                 lease_owner = '', lease_expires_at = NULL, heartbeat_at = NULL,
@@ -169,22 +168,6 @@ class PostgresJobQueue:
             WHERE id = %s AND status = 'running' AND lease_owner = %s
         """
         self._lease_update(sql, (retryable, retryable, error_code, job_id, worker_id))
-
-    def request_cancel(self, job_id: UUID) -> bool:
-        sql = """
-            UPDATE ops.job_queue
-            SET cancel_requested = TRUE,
-                status = CASE WHEN status = 'queued' THEN 'cancelled' ELSE status END,
-                lease_owner = CASE WHEN status = 'queued' THEN '' ELSE lease_owner END,
-                lease_expires_at = CASE WHEN status = 'queued' THEN NULL ELSE lease_expires_at END,
-                heartbeat_at = CASE WHEN status = 'queued' THEN NULL ELSE heartbeat_at END,
-                updated_at = now()
-            WHERE id = %s AND status IN ('queued', 'running') AND NOT cancel_requested
-        """
-        with self._connection_factory() as connection:
-            with connection.cursor() as cursor:
-                cursor.execute(sql, (job_id,))
-                return cursor.rowcount == 1
 
     def _lease_update(self, sql: str, params: tuple[object, ...]) -> None:
         with self._connection_factory() as connection:

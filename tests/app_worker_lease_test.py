@@ -78,8 +78,7 @@ class AppWorkerLeaseTest(unittest.TestCase):
         sql = connection.normalized_sql
         self.assertIn("attempt < max_attempts", sql)
         self.assertIn("status = 'running'", sql)
+        self.assertNotIn("cancel_requested", sql)
 
-    def test_cancel_returns_false_when_job_is_not_claimable(self):
-        connection = RecordingConnection(rowcount=0)
-        queue = PostgresJobQueue(lambda: connection)
-        self.assertFalse(queue.request_cancel(JOB_ID))
+    def test_queue_exposes_no_queue_only_cancellation_mutation(self):
+        self.assertFalse(hasattr(PostgresJobQueue, "request_cancel"))
