@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedFromCommit": "084bb790c11814aa1aac3af4574f06b57386e4ee",
+  "generatedFromCommit": "5f54d58bb7a9597204fd2f80e549446eeb42704e",
   "excludedSelfPath": "docs/refactor/chickenbro-simc-refactor-inventory.json",
   "sourceRulesSha256": "25049f3a03f8b5503b4f2306ef97c4d4d2259d4467eefb92cc43a5fbd784a8a8",
   "entryCount": 2855,
@@ -323,8 +323,8 @@
       "owner": "Chickenbro and SimC Mini Program",
       "reason": "Conversation, SimC submission, task list, and task detail are the approved product capabilities.",
       "matchedRule": "mini-client-core-capabilities",
-      "bytes": 8797,
-      "sha256": "ff3181059caad7658e4574765c48cbd98362c37d4ce84f7f596bb73b27e892ab"
+      "bytes": 14503,
+      "sha256": "8b83ad3b97aaecbf6c50f1161e3044fdec90eb65dba87028ac46bd263b8b400e"
     },
     {
       "path": "apps/mini-taro/src/features/chat/chat-model.ts",
@@ -333,8 +333,8 @@
       "owner": "Chickenbro and SimC Mini Program",
       "reason": "Conversation, SimC submission, task list, and task detail are the approved product capabilities.",
       "matchedRule": "mini-client-core-capabilities",
-      "bytes": 12202,
-      "sha256": "9a81a35ee4fe5f1b29e917c0d33928080f8ddf9b3d2d900034684a4dd5100d00"
+      "bytes": 13721,
+      "sha256": "f86badf09ba4af51e697718326baf0b74e6e7a6f14720ab2dfcdd979f2ec3e7e"
     },
     {
       "path": "apps/mini-taro/src/features/simc/simc-model.test.ts",
@@ -343,8 +343,8 @@
       "owner": "Chickenbro and SimC Mini Program",
       "reason": "Conversation, SimC submission, task list, and task detail are the approved product capabilities.",
       "matchedRule": "mini-client-core-capabilities",
-      "bytes": 8738,
-      "sha256": "a9af684671fcab40b06e9d3be136b1485896f8915c277f013835ff3ce421317d"
+      "bytes": 14277,
+      "sha256": "2e8b83590f362f65e22877195b69fc826eb8b8896fdd5636fa3a6b81cac09908"
     },
     {
       "path": "apps/mini-taro/src/features/simc/simc-model.ts",
@@ -353,8 +353,8 @@
       "owner": "Chickenbro and SimC Mini Program",
       "reason": "Conversation, SimC submission, task list, and task detail are the approved product capabilities.",
       "matchedRule": "mini-client-core-capabilities",
-      "bytes": 11524,
-      "sha256": "bb68813336ac5718c2325520ed19eb50c8860a740fb2095ca17cb8cde408468c"
+      "bytes": 15030,
+      "sha256": "3be9966a8597f226cbda779b7092deb6023a0606e34a1b4939dab8f015d06a6e"
     },
     {
       "path": "apps/mini-taro/src/index.html",
@@ -1153,8 +1153,8 @@
       "owner": "Chickenbro and SimC Mini Program",
       "reason": "Conversation, SimC submission, task list, and task detail are the approved product capabilities.",
       "matchedRule": "mini-client-core-capabilities",
-      "bytes": 5449,
-      "sha256": "970f8219aa11feb728ce1838b2091153b2bda70ae53e31a58e61260c98fe449a"
+      "bytes": 5546,
+      "sha256": "df2c82e27b69f67e3b3bc77c2eec228203739411ac934c0000275eba4dfac23b"
     },
     {
       "path": "apps/mini-taro/src/pages/simc/task-detail.config.ts",
@@ -1193,8 +1193,8 @@
       "owner": "Chickenbro and SimC Mini Program",
       "reason": "Conversation, SimC submission, task list, and task detail are the approved product capabilities.",
       "matchedRule": "mini-client-core-capabilities",
-      "bytes": 4703,
-      "sha256": "a7d9ed7109b44daaa67de8eaa8e3e1d434486d08f9b4d5d19068b13e84657cd9"
+      "bytes": 4725,
+      "sha256": "ff05d7d2aecbca9ed470b0711c29820e1e974673a43e25eef02a656b6d63a07a"
     },
     {
       "path": "apps/mini-taro/src/pages/simc/tasks.config.ts",
@@ -1233,8 +1233,8 @@
       "owner": "Chickenbro and SimC Mini Program",
       "reason": "Conversation, SimC submission, task list, and task detail are the approved product capabilities.",
       "matchedRule": "mini-client-core-capabilities",
-      "bytes": 3228,
-      "sha256": "ceea34f927af736a8629777f468eb456ad2bf48a460867e6eab0b7a45267488d"
+      "bytes": 3325,
+      "sha256": "d4143a191b2792ed4d0f6ffbc0319a66545b1936159981d5c467666230040bf6"
     },
     {
       "path": "apps/mini-taro/src/pages/simulator/chickenbro-model.test.ts",
@@ -1563,8 +1563,8 @@
       "owner": "Chickenbro and SimC Mini Program",
       "reason": "Conversation, SimC submission, task list, and task detail are the approved product capabilities.",
       "matchedRule": "mini-client-core-capabilities",
-      "bytes": 8687,
-      "sha256": "8b464db1d0170f83c2debd3933a0158a06b61ea46e0377b06db6c903409837d3"
+      "bytes": 8709,
+      "sha256": "4794db30774dbc561b2162b8626307555af85dd70964e81d33cf3b9a9a255ad2"
     },
     {
       "path": "apps/mini-taro/src/web/web-app-contract.test.ts",
@@ -13533,8 +13533,8 @@
       "owner": "Chickenbro Chat and SimC product",
       "reason": "These are the bounded architecture, operations, ownership, verification, and cleanup authorities for the rebuilt product.",
       "matchedRule": "retained-product-documentation",
-      "bytes": 18854,
-      "sha256": "67c47ecaf4a9afd43aaa458e99b4c4ad41742800b22131455f973e5ec8efc55e"
+      "bytes": 19274,
+      "sha256": "b0b1a4a1c59fc508ad6fdc519d38d45fa7cb3919f82a1713d2249846799f018a"
     },
     {
       "path": "docs/chickenbro-simc-production-runbook.md",
@@ -28587,5 +28587,5 @@
       "sha256": "4736cc276f788e5427d17e51499c110336106bb64db4c827e2d576629d8f281f"
     }
   ],
-  "inventorySha256": "d1907a8b6056f38f09a609332b36e8d8570b8af502c17f6fe0890c06f4c60348"
+  "inventorySha256": "c193c5e7e280378ac73e0f8ec69aa651539f0120a16627af804e5d63509ce9ce"
 }
