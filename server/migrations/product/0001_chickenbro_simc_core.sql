@@ -330,11 +330,19 @@ ON identity.users, identity.user_identities, identity.auth_sessions, identity.we
 TO wow_app;
 
 GRANT SELECT, INSERT, UPDATE
-ON chat.conversations, chat.messages, chat.agent_runs
+ON chat.conversations, chat.agent_runs
+TO wow_app;
+
+GRANT SELECT, INSERT
+ON chat.messages
 TO wow_app;
 
 GRANT SELECT, INSERT, UPDATE
-ON simc.source_snapshots, simc.simulation_jobs, simc.simulation_attempts
+ON simc.simulation_jobs, simc.simulation_attempts
+TO wow_app;
+
+GRANT SELECT, INSERT
+ON simc.source_snapshots
 TO wow_app;
 
 GRANT SELECT, INSERT

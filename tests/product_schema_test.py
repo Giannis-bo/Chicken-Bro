@@ -67,6 +67,16 @@ class ProductSchemaStaticTest(unittest.TestCase):
             sql,
         )
 
+    def test_runtime_role_cannot_rewrite_immutable_chat_or_source_facts(self):
+        """Catches broad UPDATE grants on append-only messages and source snapshots."""
+        sql = _normalized_sql()
+
+        self.assertIn("GRANT SELECT, INSERT ON chat.messages TO wow_app", sql)
+        self.assertIn("GRANT SELECT, INSERT ON simc.source_snapshots TO wow_app", sql)
+        for grant in re.findall(r"GRANT .*? TO wow_app", sql, re.I):
+            if "chat.messages" in grant or "simc.source_snapshots" in grant:
+                self.assertNotRegex(grant, r"\bUPDATE\b")
+
     def test_clean_migration_creates_exactly_the_product_schema_and_table_owners(self):
         """Catches adding a legacy owner or omitting a formal product table."""
         sql = _normalized_sql()
